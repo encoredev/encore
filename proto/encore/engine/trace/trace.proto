@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+option go_package = "encr.dev/proto/encore/engine/trace";
+
+package encore.engine.trace;
+
+message TraceID {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+message Request {
+  TraceID trace_id = 1;
+  uint64 span_id = 2;
+  uint64 parent_span_id = 3;
+  uint32 goid = 4;
+  uint64 start_time = 5;
+  uint64 end_time = 6;
+  int32 call_loc = 7;
+  int32 def_loc = 8;
+  repeated bytes inputs = 9;
+  repeated bytes outputs = 10;
+  bytes err = 11;
+  repeated Event events = 12;
+  string uid = 13;
+  Type type = 14;
+
+  enum Type {
+    RPC = 0;
+    AUTH = 1;
+  }
+}
+
+message Event {
+  oneof data {
+    RPCCall rpc = 1;
+    DBTransaction tx = 2;
+    DBQuery query = 3;
+    Goroutine goroutine = 4;
+  }
+}
+
+message RPCCall {
+  uint64 span_id = 1;
+  uint32 goid = 2;
+  int32 call_loc = 3;
+  int32 def_loc = 4;
+  uint64 start_time = 5;
+  uint64 end_time = 6;
+  bytes err = 7;
+}
+
+message Goroutine {
+  uint32 goid = 1;
+  int32 call_loc = 2; // not yet set
+  uint64 start_time = 3;
+  uint64 end_time = 4;
+}
+
+message DBTransaction {
+  enum CompletionType {
+    ROLLBACK = 0;
+    COMMIT = 1; 
+  }
+
+  uint32 goid = 1;
+  int32 start_loc = 2;
+  int32 end_loc = 3;
+  uint64 start_time = 4;
+  uint64 end_time = 5;
+  bytes err = 6;
+  CompletionType completion = 7;
+  repeated DBQuery queries = 8;
+}
+
+message DBQuery {
+  uint32 goid = 1;
+  int32 call_loc = 2;
+  uint64 start_time = 3;
+  uint64 end_time = 4;
+  bytes query = 5;
+  bytes err = 6;
+}

@@ -1,0 +1,16 @@
+! parse
+stderr 'cannot declare multiple auth handlers'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+//encore:authhandler
+func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+
+//encore:authhandler
+func MyAuth2(ctx context.Context, token string) (auth.UID, error) { return "", nil }

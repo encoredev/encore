@@ -1,0 +1,10 @@
+parse
+stdout 'svc.API access=private raw=false'
+
+-- svc/svc.go --
+package svc
+
+import "context"
+
+// encore:api
+func API(ctx context.Context) error { return nil }

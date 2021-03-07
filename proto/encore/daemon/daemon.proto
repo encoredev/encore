@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+option go_package = "encr.dev/proto/encore/daemon";
+
+import "google/protobuf/empty.proto";
+
+package encore.daemon;
+
+service Daemon {
+  // Run runs the application.
+  rpc Run (RunRequest) returns (stream RunMessage);
+  // Test runs tests.
+  rpc Test (TestRequest) returns (stream CommandMessage);
+  // Check checks the app for compilation errors.
+  rpc Check (CheckRequest) returns (stream CommandMessage);
+  // Logs streams logs from the encore.dev platform.
+  rpc Logs (LogsRequest) returns (stream LogsMessage);
+
+  // DBConnect starts the database and returns the DSN for connecting to it.
+  rpc DBConnect (DBConnectRequest) returns (DBConnectResponse);
+  // DBProxy starts a local database proxy for connecting to remote databases
+  // on the encore.dev platform.
+  rpc DBProxy (DBProxyRequest) returns (stream CommandMessage);
+  // DBReset resets the given databases, recreating them from scratch.
+  rpc DBReset (DBResetRequest) returns (stream CommandMessage);
+
+  // GenClient generates a client based on the app's API.
+  rpc GenClient (GenClientRequest) returns (GenClientResponse);
+  // SetSecret sets a secret key on the encore.dev platform.
+  rpc SetSecret (SetSecretRequest) returns (SetSecretResponse);
+  // Version reports the daemon version.
+  rpc Version (google.protobuf.Empty) returns (VersionResponse);
+}
+
+message CommandMessage {
+  oneof msg {
+    CommandOutput output = 1;
+    CommandExit exit = 2;
+  }
+}
+
+message CommandOutput {
+  bytes stdout = 1;
+  bytes stderr = 2;
+}
+
+message CommandExit {
+  int32 code = 1; // exit code
+}
+
+message RunRequest {
+  // app_root is the absolute filesystem path to the Encore app root.
+  string app_root = 1;
+  // working_dir is the working directory relative to the app_root,
+  // for formatting relative paths in error messages.
+  string working_dir = 2;
+  // tunnel, if true, creates a tunnel environment on the encore.dev platform
+  // that forwards requests to the running app.
+  bool tunnel = 3;
+  // debug, if true, compiles the app with flags that improve the debugging experience.
+  bool debug = 4;
+  // watch, if true, enables live reloading of the app whenever the source changes.
+ bool watch = 5;
+}
+
+message RunMessage {
+  oneof msg {
+    RunStarted started = 1;
+    CommandOutput output = 2;
+    CommandExit exit = 3;
+  }
+}
+
+message RunStarted {
+  string run_id = 1;
+  int32 port = 2;
+  string tunnel_url = 3;
+  int32 pid = 4;
+}
+
+message TestRequest {
+  string app_root = 1;
+  string working_dir = 2;
+  repeated string args = 3;
+}
+
+message CheckRequest {
+  string app_root = 1;
+  string working_dir = 2;
+}
+
+message LogsRequest {
+  string app_root = 1;
+  string env_name = 2;
+}
+
+message LogsMessage {
+  repeated bytes lines = 1;
+  bool drop_notice = 2;
+}
+
+message ResetDBRequest {
+  string app_root = 1;
+  repeated string services = 2; // services to reset
+}
+
+message DBConnectRequest {
+  string app_root = 1;
+  string svc_name = 2;
+  string env_name = 3; // optional
+}
+
+message DBConnectResponse {
+  string dsn = 1;
+}
+
+message DBProxyRequest {
+  string app_root = 1;
+  string env_name = 2; // optional
+  int32 port = 3; // optional
+}
+
+message DBResetRequest {
+  string app_root = 1;
+  repeated string services = 2; // services to reset
+}
+
+message GenClientRequest {
+  string app_id = 1;
+  string env_name = 2;
+  string lang = 3;
+  string filepath = 4;
+}
+
+message GenClientResponse {
+  bytes code = 1;
+}
+
+message SetSecretRequest {
+  enum Type {
+    DEVELOPMENT = 0;
+    PRODUCTION = 1;
+  }
+  string app_root = 1;
+  string key = 2;
+  string value = 3;
+  Type type = 4;
+}
+
+message SetSecretResponse {
+  bool created = 1; // whether or not the secret was created (as opposed to updated)
+}
+
+message VersionResponse {
+  string version = 1;
+}

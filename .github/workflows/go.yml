@@ -1,0 +1,38 @@
+name: Go
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: encr.dev
+
+    - name: Set up Node
+      uses: actions/setup-node@v2.1.5
+        
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+    
+    - name: Install encore-go
+      run: curl -o encore-go.tar.gz https://d2f391esomvqpi.cloudfront.net/encore-go-0.9.4-linux_amd64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
+        
+    - name: Build dashapp
+      run: cd encr.dev/cli/daemon/dash/dashapp && npm install && npm run build
+
+    - name: Build
+      run: cd encr.dev && go build ./...
+
+    - name: Test
+      run: cd encr.dev && go test -short ./...
+      env:
+        ENCORE_GOROOT: ${{ github.workspace }}/encore-go

@@ -1,0 +1,1 @@
+module encore.app

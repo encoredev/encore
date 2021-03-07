@@ -1,0 +1,194 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"runtime/debug"
+	"strconv"
+	"strings"
+
+	{{if .AuthHandler}}"encore.dev/beta/auth"{{end}}
+	"encore.dev/runtime"
+	"encore.dev/runtime/config"
+	"encore.dev/storage/sqldb"
+
+	{{range .Imports -}}
+		{{if .Named}}{{.Name}} {{end}}"{{.Path}}"
+	{{end}}
+)
+
+// Prevent unused imports
+var (
+	_ = context.Background
+	_ = debug.Stack
+	_ = fmt.Errorf
+	_ = http.Error
+	_ = io.EOF
+	_ = ioutil.ReadAll
+	_ = json.Marshal
+	_ = strconv.Quote
+	_ = strings.HasPrefix
+)
+
+{{range .Svcs}}
+{{- range .RPCs}}
+func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+	var err error
+{{- if $.AuthHandler}}
+
+	var (
+		uid      auth.UID
+		authData interface{}
+	)
+	if auth := req.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		token := auth[len("Bearer "):]
+		uid, authData, err = validateAuth(req.Context(), token)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	}
+{{- if requiresAuth .}}
+	if uid == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+{{- end}}
+{{- end}}
+
+{{- if .Raw}}
+	err = runtime.BeginRequest(runtime.RequestData{
+		Type:            runtime.RPCCall,
+		Service:         "{{.Svc.Name}}",
+		Endpoint:        "{{.Name}}",
+		CallExprIdx:     0,
+		EndpointExprIdx: {{traceExpr .}},
+		Inputs:          nil,
+{{- if $.AuthHandler}}
+		UID:             uid,
+		AuthData:        authData,
+{{- end}}
+	})
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Call the endpoint
+	{{.Svc.Name}}.{{.Name}}(w, req)
+	runtime.FinishRequest(200, nil, nil)
+{{- else }}
+{{- if .Request}}
+
+	payload, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	inputs := [][]byte{payload}
+{{- end}}
+	
+	err = runtime.BeginRequest(runtime.RequestData{
+		Type:            runtime.RPCCall,
+		Service:         "{{.Svc.Name}}",
+		Endpoint:        "{{.Name}}",
+		CallExprIdx:     0,
+		EndpointExprIdx: {{traceExpr .}},
+		Inputs:          {{if .Request}}inputs{{else}}nil{{end}},
+{{- if $.AuthHandler}}
+		UID:             uid,
+		AuthData:        authData,
+{{- end}}
+	})
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+{{- if .Request}}
+
+	// Parse the request payload
+	var params {{typeName .Request}}
+	err = json.Unmarshal(payload, &params)
+	if err != nil {
+		runtime.FinishRequest(400, nil, fmt.Errorf("could not decode request: %v", err))
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+{{- end}}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if err := recover(); err != nil {
+			runtime.FinishRequest(500, nil, fmt.Errorf("panic handling request: %v\n%s", err, debug.Stack()))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	}()
+	{{if .Response}}resp, {{end}}respErr := {{pkgName .Svc.Root.ImportPath}}.{{.Name}}(req.Context(){{if .Request}}, params{{end}})
+	if respErr != nil {
+		runtime.FinishRequest(500, nil, respErr)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+{{- if .Response}}
+
+	// Serialize the response
+	var respData []byte
+	respData, marshalErr := json.MarshalIndent(resp, "", "  ")
+	if marshalErr != nil {
+		runtime.FinishRequest(500, nil, marshalErr)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	respData = append(respData, '\n')
+	output := [][]byte{respData}
+	runtime.FinishRequest(200, output, nil)
+	w.WriteHeader(200)
+	w.Write(respData)
+{{- else}}
+	runtime.FinishRequest(200, nil, nil)
+	w.WriteHeader(200)
+{{- end}}
+{{- end}}
+}
+{{end}}
+{{end}}
+
+var srv *runtime.Server
+
+func main() {
+	// Register the Encore services
+	services := []*config.Service{
+{{- range .Svcs}}
+		{
+			Name: "{{.Name}}",
+			RelPath: "{{.Root.RelPath}}",
+			SQLDB: {{usesSQLDB .}},
+			Endpoints: []*config.Endpoint{
+{{- range .RPCs}}
+				{
+					Name: "{{.Name}}",
+					Raw: {{.Raw}},
+					Handler: encore_{{.Svc.Name}}_{{.Name}},
+				},
+{{- end}}
+			},
+		},
+{{- end}}
+	}
+
+	cfg := &config.ServerConfig{
+		Services: services,
+		Testing: false,
+	}
+	srv = runtime.Setup(cfg)
+	sqldb.Setup(cfg)
+	srv.ListenAndServe()
+}

@@ -1,0 +1,19 @@
+parse
+stdout 'rpc svc.API access=auth raw=false'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    
+    "encore.dev/beta/auth"
+)
+
+//encore:authhandler
+func MyAuthHandler(ctx context.Context, token string) (auth.UID, error) {
+    return "", nil
+}
+
+//encore:api auth
+func API(ctx context.Context) error { return nil }

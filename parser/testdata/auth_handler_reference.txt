@@ -1,0 +1,25 @@
+! parse
+stderr 'cannot reference auth handler svc.MyAuth from another package'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+//encore:authhandler
+func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+
+-- svc2/svc2.go --
+package svc2
+
+import (
+    "context"
+    "test/svc"
+)
+
+func Foo() {
+    _ = svc.MyAuth
+}

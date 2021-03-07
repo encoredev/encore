@@ -1,0 +1,98 @@
+package {{.Pkg.Name}}
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"runtime/debug"
+
+	"encore.dev/runtime"
+	{{range .Imports -}}
+		{{if .Named}}{{.Name}} {{end}}"{{.Path}}"
+	{{end}}
+)
+
+{{range $rpcIdx, $rpc := .RPCs}}
+func encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx context.Context
+	{{- if $rpc.Req}}, req {{$rpc.Req}}{{end}}) (
+	{{- if $rpc.Resp}}resp {{$rpc.Resp}}, {{end}}err error) {
+{{- if $rpc.Req}}
+	inputs, err := runtime.SerializeInputs(req)
+	if err != nil {
+		return 
+	}
+{{- else}}
+	var inputs [][]byte
+{{- end}}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		Service:  "{{$rpc.Svc}}",
+		Endpoint: "{{$rpc.Name}}",
+		CallExprIdx: callExprIdx,
+		EndpointExprIdx: endpointExprIdx,
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err error
+		panicked bool
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(runtime.RequestData{
+			Type:            runtime.RPCCall,
+			Service:         "{{$rpc.Svc}}",
+			Endpoint:        "{{$rpc.Name}}",
+			CallExprIdx:     callExprIdx,
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				call.FinishReq(500, nil, fmt.Errorf("{{$rpc.Svc}}.{{$rpc.Name}} panicked: %v\n%s", err2, debug.Stack()))
+				response.err = fmt.Errorf("panic handling request: %v", err2)
+				response.panicked = true
+			}
+		}()
+		
+{{- if $rpc.Req}}
+		var reqData {{$rpc.Req}}
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&reqData}); response.err != nil {
+			call.FinishReq(500, nil, response.err)
+			return
+		}
+{{- end}}
+
+		{{if $rpc.Resp}}rpcResp, {{end}}rpcErr := {{$rpc.Func}}(ctx{{if $rpc.Req}}, req{{end}})
+{{- if $rpc.Resp}}
+		response.data, _ = runtime.SerializeInputs(rpcResp)
+{{- end}}
+		if rpcErr != nil {
+			call.FinishReq(500, nil, rpcErr)
+			response.err = errors.New(rpcErr.Error())
+		} else {
+			call.FinishReq(200, response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+{{- if $rpc.Resp}}
+	// If the handler panicked we won't have any response data.
+	if !response.panicked {
+		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
+	}
+	return resp, response.err
+{{- else}}
+	return response.err
+{{- end}}
+}
+{{end}}

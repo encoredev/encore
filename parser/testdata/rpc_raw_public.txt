@@ -1,0 +1,12 @@
+# Verify that one can use public and raw RPCs
+
+parse
+stdout 'rpc svc.API access=public raw=true'
+
+-- svc/svc.go --
+package svc
+
+import "net/http"
+
+//encore:api public raw
+func API(w http.ResponseWriter, req *http.Request) { }

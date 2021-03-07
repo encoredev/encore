@@ -1,0 +1,12 @@
+# Verify that one cannot use internal and raw RPCs
+
+! parse
+stderr 'private APIs cannot be declared raw'
+
+-- svc/svc.go --
+package svc
+
+import "net/http"
+
+//encore:api raw
+func API(w http.ResponseWriter, req *http.Request) { }

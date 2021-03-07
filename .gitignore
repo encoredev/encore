@@ -1,0 +1,8 @@
+# Prevent built binaries from being checked in accidentally.
+/dist
+/encore
+/git-remote-encore
+
+# Don't commit dotfiles
+/.encore
+/.vscode

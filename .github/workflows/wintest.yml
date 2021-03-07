@@ -1,0 +1,40 @@
+name: Windows Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build ("1.2.3")'
+        required: true
+      encorego_version:
+        description: 'Encore-Go version to use ("1.2.3")'
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v2
+      with:
+        path: encr.dev
+      
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: Install encore-go
+      run: curl -o encore-go.tar.gz https://d2f391esomvqpi.cloudfront.net/encore-go-${{ github.event.inputs.encorego_version }}-windows_amd64.tar.gz && tar -C ${{ github.workspace }} -xzf ./encore-go.tar.gz
+
+    - name: Build
+      run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=windows -goarch=amd64 -encore-go="../encore-go"
+      env: 
+        GO111MODULE: "on"
+    - name: 'Tar artifacts'
+      run: tar -czvf encore-${{ github.event.inputs.version }}-windows_amd64.tar.gz -C encr.dev/dist/windows_amd64 .
+    - name: Publish artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: encore-${{ github.event.inputs.version }}-windows_amd64
+        path: encore-${{ github.event.inputs.version }}-windows_amd64.tar.gz
