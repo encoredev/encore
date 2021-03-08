@@ -42,6 +42,12 @@ func EncoreGoRoot() string {
 func determineRoot() (root string, ok bool) {
 	exe, err := os.Executable()
 	if err == nil {
+		// Homebrew uses a lot of symlinks, so we need to get back to the actual location
+		// to be able to use the heuristic below.
+		if sym, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = sym
+		}
+
 		root := filepath.Dir(filepath.Dir(exe))
 		// Heuristic: check if "encore-go" and "runtime" dirs exist in this location.
 		_, err1 := os.Stat(filepath.Join(root, "encore-go"))
