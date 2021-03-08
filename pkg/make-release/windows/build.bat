@@ -20,9 +20,8 @@ if "%ENCORE_GOROOT%" == "" (
 )
 
 :: Get absolute paths
-pushd %ENCORE_GOROOT%
+cd %ENCORE_GOROOT% || exit /b 1
 set ENCORE_GOROOT=%CD%
-popd
 
 cd /d %BUILDDIR% || exit /b 1
 
