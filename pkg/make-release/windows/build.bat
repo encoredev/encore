@@ -26,6 +26,8 @@ popd
 
 cd /d %BUILDDIR% || exit /b 1
 
+echo Set goroot to %ENCORE_GOROOT%
+
 if exist .deps\prepared goto :build
 :installdeps
 	rmdir /s /q .deps 2> NUL
