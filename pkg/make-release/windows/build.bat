@@ -79,9 +79,10 @@ if exist .deps\prepared goto :build
 	goto :eof
 
 :copy_artifacts
-	echo [+] Copying files
-	xcopy /S /I /E /H "%ENCORE_GOROOT%" "%DST%\encore-go" || exit /b 1
-	xcopy /S /I /E /H "%ROOT%\compiler\runtime" "%DST%\runtime" || exit /b 1
+	echo [+] Copying files %ENCORE_GOROOT% to %DST%\encore-go
+	xcopy /S /I /E /H /Q "%ENCORE_GOROOT%" "%DST%\encore-go" || exit /b 1
+	echo [+] Copying files %ROOT\compiler\runtime% to %DST%\runtime
+	xcopy /S /I /E /H /Q "%ROOT%\compiler\runtime" "%DST%\runtime" || exit /b 1
 	goto :eof
 
 :error
