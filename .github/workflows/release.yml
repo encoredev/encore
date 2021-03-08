@@ -54,7 +54,7 @@ jobs:
       env: 
         GO111MODULE: "on"
         ENCORE_VERSION: "${{ github.event.inputs.version }}"
-        ENCORE_GO: "..\encore-go"
+        ENCORE_GOROOT: "..\encore-go"
       if: runner.os == 'windows'
 
     - name: 'Tar artifacts'

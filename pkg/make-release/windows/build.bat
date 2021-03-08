@@ -39,7 +39,7 @@ if exist .deps\prepared goto :build
 
 :build
 	set GOOS=windows
-	:: call :build_dashapp || goto :error
+	call :build_dashapp || goto :error
 	call :build_plat amd64 x86_64 amd64 || goto :error
 	call :copy_artifacts || goto :error
 
