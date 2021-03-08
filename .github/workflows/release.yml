@@ -47,7 +47,7 @@ jobs:
       run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=${{ matrix.goos }} -goarch=${{ matrix.goarch }} -encore-go="../encore-go"
       env: 
         GO111MODULE: "on"
-      if: runner.os != "windows"
+      if: runner.os != 'windows'
 
     - name: Build
       run: cd encr.dev && .\pkg\make-release\windows\build.bat
@@ -55,7 +55,7 @@ jobs:
         GO111MODULE: "on"
         ENCORE_VERSION: "${{ github.event.inputs.version }}"
         ENCORE_GO: "..\encore-go"
-      if: runner.os == "windows"
+      if: runner.os == 'windows'
 
     - name: 'Tar artifacts'
       run: tar -czvf encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz -C encr.dev/dist/${{ matrix.goos }}_${{ matrix.goarch }} .
