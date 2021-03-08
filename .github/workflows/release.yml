@@ -40,8 +40,18 @@ jobs:
       with:
         go-version: 1.16
 
+    - id: go-cache-paths
+      run: |
+        echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
     - name: Install encore-go
       run: curl -o encore-go.tar.gz https://d2f391esomvqpi.cloudfront.net/encore-go-${{ github.event.inputs.encorego_version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz && tar -C ${{ github.workspace }} -xzf ./encore-go.tar.gz
+
+    - name: Go Mod Cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-mod }}
+        key: ${{ matrix.goos }}-${{ matrix.goarch }}-go-mod-${{ hashFiles('**/go.sum') }}
 
     - name: Build
       run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=${{ matrix.goos }} -goarch=${{ matrix.goarch }} -encore-go="../encore-go"

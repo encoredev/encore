@@ -19,13 +19,11 @@ if "%ENCORE_GOROOT%" == "" (
 	exit /b 1
 )
 
-:: Get absolute paths
+:: Get absolute path
 cd %ENCORE_GOROOT% || exit /b 1
 set ENCORE_GOROOT=%CD%
 
 cd /d %BUILDDIR% || exit /b 1
-
-echo Set goroot to %ENCORE_GOROOT%
 
 if exist .deps\prepared goto :build
 :installdeps
@@ -79,9 +77,8 @@ if exist .deps\prepared goto :build
 	goto :eof
 
 :copy_artifacts
-	echo [+] Copying files %ENCORE_GOROOT% to %DST%\encore-go
+	echo [+] Copying files
 	xcopy /S /I /E /H /Q "%ENCORE_GOROOT%" "%DST%\encore-go" || exit /b 1
-	echo [+] Copying files %ROOT\compiler\runtime% to %DST%\runtime
 	xcopy /S /I /E /H /Q "%ROOT%\compiler\runtime" "%DST%\runtime" || exit /b 1
 	goto :eof
 

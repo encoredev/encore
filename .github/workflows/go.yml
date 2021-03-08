@@ -22,9 +22,26 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.16
+
+    - id: go-cache-paths
+      run: |
+        echo "::set-output name=go-build::$(go env GOCACHE)"
+        echo "::set-output name=go-mod::$(go env GOMODCACHE)"
     
     - name: Install encore-go
       run: curl -o encore-go.tar.gz https://d2f391esomvqpi.cloudfront.net/encore-go-0.9.4-linux_amd64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
+
+    - name: Go Build Cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-build }}
+        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+    - name: Go Mod Cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-mod }}
+        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
         
     - name: Build dashapp
       run: cd encr.dev/cli/daemon/dash/dashapp && npm install && npm run build
