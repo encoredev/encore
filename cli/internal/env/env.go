@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
-
-	"github.com/rs/zerolog/log"
 )
 
 // EncoreRuntimePath reports the path to the Encore runtime.
@@ -16,14 +13,13 @@ func EncoreRuntimePath() string {
 	if p := os.Getenv("ENCORE_RUNTIME_PATH"); p != "" {
 		return p
 	}
-	r := encoreRoot
-	if r == "" {
-		fmt.Fprintln(os.Stderr, "fatal: encore was compiled without "+
-			"specifying the location to the Encore install root.\n"+
+	root, ok := determineRoot()
+	if !ok {
+		fmt.Fprintln(os.Stderr, "fatal: could not determine Encore install root.\n"+
 			"You can specify the path to the Encore runtime manually by setting the ENCORE_RUNTIME_PATH environment variable.")
 		os.Exit(1)
 	}
-	return filepath.Join(encoreRoot, "runtime")
+	return filepath.Join(root, "runtime")
 }
 
 // EncoreGoRoot reports the path to the Encore Go root.
@@ -32,38 +28,27 @@ func EncoreGoRoot() string {
 	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
 		return p
 	}
-	r := encoreRoot
-	if r == "" {
-		fmt.Fprintln(os.Stderr, "fatal: encore was compiled without "+
-			"specifying the location to the Encore install root.\n"+
+	root, ok := determineRoot()
+	if !ok {
+		fmt.Fprintln(os.Stderr, "fatal: could not determine Encore install root.\n"+
 			"You can specify the path to the Encore GOROOT manually by setting the ENCORE_GOROOT environment variable.")
 		os.Exit(1)
 	}
-	return filepath.Join(encoreRoot, "encore-go")
+	return filepath.Join(root, "encore-go")
 }
 
-// encoreRoot is the compiled-in path to the encore root.
-// It is set using go build -ldflags "-X 'encr.dev/cli/internal/env.encoreRoot=/path/to/encore'".
-var encoreRoot string
-
-// Exe reports the location of the Encore-provided exe.
-func Exe(elem ...string) string {
-	elem = append([]string{resourceDir}, elem...)
-	path := filepath.Join(elem...)
-	if runtime.GOOS == "windows" {
-		path += ".exe"
+// determineRoot determines encore root by checking the location relative
+// to the executable, to enable relocatable installs.
+func determineRoot() (root string, ok bool) {
+	exe, err := os.Executable()
+	if err == nil {
+		root := filepath.Dir(filepath.Dir(exe))
+		// Heuristic: check if "encore-go" and "runtime" dirs exist in this location.
+		_, err1 := os.Stat(filepath.Join(root, "encore-go"))
+		_, err2 := os.Stat(filepath.Join(root, "runtime"))
+		if err1 == nil && err2 == nil {
+			return root, true
+		}
 	}
-	return path
+	return "", false
 }
-
-var resourceDir = (func() string {
-	switch runtime.GOOS {
-	case "windows":
-		return "C:\\Program Files\\Encore"
-	case "darwin", "linux":
-		return "/usr/local/encore"
-	default:
-		log.Fatal().Str("goos", runtime.GOOS).Msg("unsupported GOOS")
-		panic("unreachable")
-	}
-})()
