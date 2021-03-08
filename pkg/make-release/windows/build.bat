@@ -72,10 +72,9 @@ if exist .deps\prepared goto :build
 	echo [+] Assembling resources
 	x86_64-w64-mingw32-windres -I ".deps\wintun\bin\amd64" -i resources.rc -o "%ROOT%\cli\cmd\encore\resources_amd64.syso" -O coff -c 65001 || exit /b %errorlevel%
 	set GOARCH=amd64
-	echo [+] Building to "%DST%\bin\encore.exe"
-	go build -tags load_wintun_from_rsrc -ldflags "-X 'main.Version=%ENCORE_VERSION%'" -v -o "%DST%\bin\encore.exe" "%ROOT%\cli\cmd\encore" || exit /b 1
-	echo [+] Building 2
-	go build -trimpath -v -o "%DST%\bin\git-remote-encore.exe" "%ROOT%\cli\cmd\git-remote-encore" || exit /b 1
+	echo [+] Building
+	go build -tags load_wintun_from_rsrc -ldflags "-X 'main.Version=%ENCORE_VERSION%'" -o "%DST%\bin\encore.exe" "%ROOT%\cli\cmd\encore" || exit /b 1
+	go build -trimpath -o "%DST%\bin\git-remote-encore.exe" "%ROOT%\cli\cmd\git-remote-encore" || exit /b 1
 	goto :eof
 
 :copy_artifacts
