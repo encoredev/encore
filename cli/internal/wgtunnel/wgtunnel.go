@@ -179,7 +179,6 @@ func mustParseKey(s string) wgtypes.Key {
 }
 
 // Run synchronously runs the tunnel.
-// It is only implemented on macOS.
 func Run() error {
 	return run()
 }

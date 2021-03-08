@@ -8,10 +8,16 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
+	"path/filepath"
 	"regexp"
 	"strconv"
+	"syscall"
+	"time"
 
-	"encr.dev/cli/internal/env"
+	"golang.zx2c4.com/wireguard/device"
+	"golang.zx2c4.com/wireguard/ipc"
+	"golang.zx2c4.com/wireguard/tun"
 )
 
 const (
@@ -36,10 +42,12 @@ func start(cc *ClientConfig, sc *ServerConfig) error {
 		}
 	}
 
-	if err := createIface(); err != nil {
+	iface, err := createIface()
+	if err != nil {
 		return err
 	}
-	if err := configure(cc, sc); err != nil {
+
+	if err := configure(iface, cc, sc); err != nil {
 		delIface()
 		return err
 	}
@@ -69,36 +77,72 @@ func delIface() error {
 	return fmt.Errorf("could not delete device: %s", out)
 }
 
-func createIface() error {
+func createIface() (device string, err error) {
 	if err := os.MkdirAll(basePath, 0755); err != nil {
-		return err
+		return "", err
 	}
 
 	// Use the kernel module if possible
 	out, err := exec.Command("ip", "link", "add", iface, "type", "wireguard").CombinedOutput()
 	if err == nil {
-		return nil
+		return iface, nil
 	}
 	// Do we have the kernel module installed?
 	if _, err := os.Stat("/sys/module/wireguard"); err == nil {
-		return fmt.Errorf("could not setup WireGuard device: %s", out)
+		return "", fmt.Errorf("could not setup WireGuard device: %s", out)
 	}
 	fmt.Println("encore: missing WireGuard kernel module. Falling back to slow userspace implementation.")
 	fmt.Println("encore: Install WireGuard kernel module to hide this message.")
 
-	out, err = exec.Command(env.Exe("tools", "wireguard-go"), iface).CombinedOutput()
+	namePath := filepath.Join(basePath, iface+".name")
+	exe, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("could not setup WireGuard device: %v: %s", err, out)
+		return "", err
 	}
-	return nil
+
+	cmd := exec.Command(exe, "vpn", "__run")
+	cmd.Env = append(os.Environ(), "WG_TUN_NAME_FILE="+namePath)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+
+	tunnelErr := make(chan error, 1)
+	go func() {
+		err := cmd.Wait()
+		tunnelErr <- fmt.Errorf("%s: %s", err, output.String())
+	}()
+
+	// Wait for the file to get populated
+	ticker := time.NewTicker(100 * time.Millisecond)
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			if iface, err := os.ReadFile(namePath); err == nil {
+				device = string(bytes.TrimSpace(iface))
+				return device, nil
+			}
+		case <-timeout:
+			cmd.Process.Kill()
+			return "", fmt.Errorf("could not determine device name after 5s")
+		case err := <-tunnelErr:
+			return "", fmt.Errorf("wireguard exited: %v", err)
+		}
+	}
 }
 
-func configure(cc *ClientConfig, sc *ServerConfig) error {
+func configure(device string, cc *ClientConfig, sc *ServerConfig) error {
 	ops := []func(string, *ClientConfig, *ServerConfig) error{
 		setConf, addAddr, setMtus, addPeers,
 	}
 	for _, op := range ops {
-		if err := op(iface, cc, sc); err != nil {
+		if err := op(device, cc, sc); err != nil {
 			return err
 		}
 	}
@@ -193,5 +237,54 @@ func setMtu(device string, cc *ClientConfig, r ServerPeer) error {
 }
 
 func run() error {
-	return fmt.Errorf("Run() is not implemented on linux")
+	tun, err := tun.CreateTUN("utun", device.DefaultMTU)
+	if err != nil {
+		return err
+	}
+	name, err := tun.Name()
+	if err != nil {
+		return err
+	}
+	fileUAPI, err := ipc.UAPIOpen(name)
+	if err != nil {
+		return fmt.Errorf("uapi open: %v", err)
+	}
+	uapi, err := ipc.UAPIListen(name, fileUAPI)
+	if err != nil {
+		return fmt.Errorf("failed to listen on uapi socket: %v", err)
+	}
+
+	logger := device.NewLogger(
+		device.LogLevelError,
+		"vpn: ",
+	)
+
+	device := device.NewDevice(tun, logger)
+
+	term := make(chan os.Signal, 1)
+	errs := make(chan error)
+
+	signal.Notify(term, syscall.SIGTERM)
+	signal.Notify(term, os.Interrupt)
+
+	go func() {
+		for {
+			conn, err := uapi.Accept()
+			if err != nil {
+				errs <- err
+				return
+			}
+			go device.IpcHandle(conn)
+		}
+	}()
+
+	select {
+	case <-term:
+	case <-device.Wait():
+	case err = <-errs:
+	}
+
+	uapi.Close()
+	device.Close()
+	return err
 }
