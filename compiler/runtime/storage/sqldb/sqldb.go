@@ -142,7 +142,7 @@ func Begin(traceExpr int32, svc string, ctx context.Context) (*Tx, error) {
 	return &Tx{txid: txid, std: tx}, nil
 }
 
-func Commit(traceExpr int32, tx *Tx) error {
+func Commit(traceExpr int32, svc string, tx *Tx) error {
 	err := tx.std.Commit(context.Background())
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -162,7 +162,7 @@ func Commit(traceExpr int32, tx *Tx) error {
 	return err
 }
 
-func Rollback(traceExpr int32, tx *Tx) error {
+func Rollback(traceExpr int32, svc string, tx *Tx) error {
 	err := tx.std.Rollback(context.Background())
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -182,7 +182,7 @@ func Rollback(traceExpr int32, tx *Tx) error {
 	return err
 }
 
-func ExecTx(traceExpr int32, tx *Tx, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
+func ExecTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -212,7 +212,7 @@ func ExecTx(traceExpr int32, tx *Tx, ctx context.Context, query string, args ...
 	return res, err
 }
 
-func QueryTx(traceExpr int32, tx *Tx, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
+func QueryTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -245,7 +245,7 @@ func QueryTx(traceExpr int32, tx *Tx, ctx context.Context, query string, args ..
 	return &Rows{std: rows}, nil
 }
 
-func QueryRowTx(traceExpr int32, tx *Tx, ctx context.Context, query string, args ...interface{}) *Row {
+func QueryRowTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) *Row {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
