@@ -257,6 +257,7 @@ func (b *builder) buildMain() error {
 		if len(out) == 0 {
 			out = []byte(err.Error())
 		}
+		out = makeErrsRelative(out, b.workdir, b.appRoot, b.cfg.WorkingDir)
 		return &Error{Output: out}
 	}
 	return nil
@@ -320,4 +321,33 @@ func init() {
 	if runtime.GOOS == "windows" {
 		exe = ".exe"
 	}
+}
+
+// makeErrsRelative goes through the errors and tweaks the filename to be relative
+// to the relwd.
+func makeErrsRelative(out []byte, workdir, appRoot, relwd string) []byte {
+	wdroot := filepath.Join(appRoot, relwd)
+	lines := bytes.Split(out, []byte{'\n'})
+	prefix := append([]byte(workdir), '/')
+	modified := false
+	for i, line := range lines {
+		if !bytes.HasPrefix(line, prefix) {
+			continue
+		}
+		idx := bytes.IndexByte(line, ':')
+		if idx == -1 || idx < len(prefix) {
+			continue
+		}
+		filename := line[:idx]
+		appPath := filepath.Join(appRoot, string(filename[len(prefix):]))
+		if rel, err := filepath.Rel(wdroot, appPath); err == nil {
+			lines[i] = append([]byte(rel), line[idx:]...)
+			modified = true
+		}
+	}
+
+	if !modified {
+		return out
+	}
+	return bytes.Join(lines, []byte{'\n'})
 }

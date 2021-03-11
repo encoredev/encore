@@ -49,9 +49,13 @@ func (c *Cluster) Ready() <-chan struct{} {
 // If the cluster is already running it does nothing.
 func (c *Cluster) Start() error {
 	return c.startOnce.Do(func() (err error) {
+		c.log.Debug().Msg("starting cluster")
 		defer func() {
 			if err == nil {
 				close(c.started)
+				c.log.Debug().Msg("successfully started cluster")
+			} else {
+				c.log.Error().Err(err).Msg("failed to start cluster")
 			}
 		}()
 
@@ -61,21 +65,32 @@ func (c *Cluster) Start() error {
 		cname := containerName(c.ID)
 		status, err := c.Status(ctx)
 		if err != nil {
+			c.log.Error().Err(err).Msg("failed to get container status")
 			return err
 		}
-		c.HostPort = status.HostPort
 
 		switch status.Status {
 		case Running:
+			c.HostPort = status.HostPort
+			c.log.Debug().Str("hostport", c.HostPort).Msg("cluster already running")
 			return nil
 
 		case Stopped:
+			c.log.Debug().Msg("cluster stopped, restarting")
 			if out, err := exec.CommandContext(ctx, "docker", "start", cname).CombinedOutput(); err != nil {
 				return fmt.Errorf("could not start sqldb container: %s (%v)", string(out), err)
 			}
+			// Grab the port
+			status, err = c.Status(ctx)
+			if err != nil {
+				return err
+			}
+			c.HostPort = status.HostPort
+			c.log.Debug().Str("hostport", c.HostPort).Msg("cluster started")
 			return nil
 
 		case NotFound:
+			c.log.Debug().Msg("cluster not found, creating")
 			args := []string{
 				"run",
 				"-d",
@@ -106,6 +121,7 @@ func (c *Cluster) Start() error {
 				return err
 			}
 			c.HostPort = status.HostPort
+			c.log.Debug().Str("hostport", c.HostPort).Msg("cluster created")
 			return nil
 
 		default:
@@ -157,6 +173,7 @@ func (c *Cluster) initDB(name string) *DB {
 
 // Create creates the given databases.
 func (c *Cluster) Create(ctx context.Context, appRoot string, md *meta.Data) error {
+	c.log.Debug().Msg("creating cluster")
 	g, ctx := errgroup.WithContext(ctx)
 	c.mu.Lock()
 	for _, svc := range md.Svcs {
@@ -178,6 +195,7 @@ func (c *Cluster) Create(ctx context.Context, appRoot string, md *meta.Data) err
 
 // CreateAndMigrate creates and migrates the given databases.
 func (c *Cluster) CreateAndMigrate(ctx context.Context, appRoot string, md *meta.Data) error {
+	c.log.Debug().Msg("creating and migrating cluster")
 	g, ctx := errgroup.WithContext(ctx)
 	c.mu.Lock()
 	for _, svc := range md.Svcs {
@@ -208,6 +226,7 @@ func (c *Cluster) GetDB(name string) (*DB, bool) {
 // Recreate recreates the databases for the given services.
 // If services is the nil slice it recreates all databases.
 func (c *Cluster) Recreate(ctx context.Context, appRoot string, services []string, md *meta.Data) error {
+	c.log.Debug().Msg("recreating cluster")
 	var filter map[string]bool
 	if services != nil {
 		filter = make(map[string]bool)
@@ -229,7 +248,9 @@ func (c *Cluster) Recreate(ctx context.Context, appRoot string, services []strin
 		}
 	}
 	c.mu.Unlock()
-	return g.Wait()
+	err := g.Wait()
+	c.log.Debug().Err(err).Msg("recreated cluster")
+	return err
 }
 
 // Status reports the status of the cluster.

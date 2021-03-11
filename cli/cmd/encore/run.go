@@ -23,13 +23,13 @@ var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Runs your application",
 	Run: func(cmd *cobra.Command, args []string) {
-		appRoot, _ := determineAppRoot()
-		runApp(appRoot, tunnel, watch)
+		appRoot, wd := determineAppRoot()
+		runApp(appRoot, wd, tunnel, watch)
 	},
 }
 
 // runApp runs the app.
-func runApp(appRoot string, tunnel, watch bool) {
+func runApp(appRoot, wd string, tunnel, watch bool) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -41,10 +41,11 @@ func runApp(appRoot string, tunnel, watch bool) {
 
 	daemon := setupDaemon(ctx)
 	stream, err := daemon.Run(ctx, &daemonpb.RunRequest{
-		AppRoot: appRoot,
-		Tunnel:  tunnel,
-		Debug:   debug,
-		Watch:   watch,
+		AppRoot:    appRoot,
+		Tunnel:     tunnel,
+		Debug:      debug,
+		Watch:      watch,
+		WorkingDir: wd,
 	})
 	if err != nil {
 		fatal(err)

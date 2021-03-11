@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"time"
 
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/internal/manifest"
@@ -143,11 +144,9 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	}
 	s.cacheAppRoot(man.AppID, req.AppRoot)
 
-	ctx, cancel := context.WithCancel(stream.Context())
-	defer cancel()
-
+	setupCtx, setupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	clusterID := man.AppID + "-test"
-	cluster := s.cm.Init(stream.Context(), &sqldb.InitParams{
+	cluster := s.cm.Init(setupCtx, &sqldb.InitParams{
 		ClusterID: clusterID,
 		Memfs:     true,
 		Meta:      parse.Meta,
@@ -156,16 +155,20 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	// Set up the database asynchronously since it can take a while.
 	dbSetupErr := make(chan error, 1)
 	go func() {
+		defer setupCancel()
 		if err := cluster.Start(); err != nil {
 			dbSetupErr <- err
-		} else if err := cluster.Recreate(stream.Context(), req.AppRoot, nil, parse.Meta); err != nil {
+		} else if err := cluster.Recreate(setupCtx, req.AppRoot, nil, parse.Meta); err != nil {
 			dbSetupErr <- err
 		}
 	}()
 
+	testCtx, cancel := context.WithCancel(stream.Context())
+	defer cancel()
+
 	testResults := make(chan error, 1)
 	go func() {
-		testResults <- s.mgr.Test(ctx, run.TestParams{
+		testResults <- s.mgr.Test(testCtx, run.TestParams{
 			AppRoot:     req.AppRoot,
 			WorkingDir:  req.WorkingDir,
 			DBClusterID: clusterID,

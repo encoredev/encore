@@ -91,7 +91,7 @@ func (cm *ClusterManager) ProxyConn(frontend net.Conn, waitForSetup bool) error 
 		ready = s
 	}
 
-	// Wait for up to 15s for the cluster and database to come online.
+	// Wait for up to 60s for the cluster and database to come online.
 	select {
 	case <-db.Ctx.Done():
 		writeMsg(frontend, &pgproto3.ErrorResponse{
@@ -100,7 +100,7 @@ func (cm *ClusterManager) ProxyConn(frontend net.Conn, waitForSetup bool) error 
 			Message:  "db is shutting down",
 		})
 		return nil
-	case <-time.After(15 * time.Second):
+	case <-time.After(60 * time.Second):
 		cm.log.Error().Str("db", data.Database).Msg("dbproxy: timed out waiting for database to come online")
 		writeMsg(frontend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
@@ -187,7 +187,7 @@ func (cm *ClusterManager) PreauthProxyConn(frontend net.Conn, clusterID string) 
 		return nil
 	}
 
-	// Wait for up to 15s for the cluster to come online.
+	// Wait for up to 60s for the cluster to come online.
 	select {
 	case <-db.Ctx.Done():
 		writeMsg(frontend, &pgproto3.ErrorResponse{
@@ -196,7 +196,7 @@ func (cm *ClusterManager) PreauthProxyConn(frontend net.Conn, clusterID string) 
 			Message:  "db is shutting down",
 		})
 		return nil
-	case <-time.After(15 * time.Second):
+	case <-time.After(60 * time.Second):
 		cm.log.Error().Str("db", data.Database).Msg("dbproxy: timed out waiting for database to come online")
 		writeMsg(frontend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",

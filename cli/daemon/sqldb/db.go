@@ -41,6 +41,7 @@ func (db *DB) Ready() <-chan struct{} {
 
 // Setup sets up the database, (re)creating it if necessary and running schema migrations.
 func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migrate, recreate bool) (err error) {
+	db.log.Debug().Msg("setting up database")
 	db.setupMu.Lock()
 	defer db.setupMu.Unlock()
 	defer func() {
@@ -49,18 +50,18 @@ func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migr
 				db.readied = true
 				close(db.ready)
 			}
+			db.log.Debug().Msg("successfully set up database")
+		} else {
+			db.log.Error().Err(err).Msg("failed to set up database")
 		}
 	}()
 
-	recreateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
 	if recreate {
-		if err := db.Drop(recreateCtx); err != nil {
+		if err := db.Drop(ctx); err != nil {
 			return fmt.Errorf("drop db %s: %v", db.Name, err)
 		}
 	}
-	if err := db.Create(recreateCtx); err != nil {
+	if err := db.Create(ctx); err != nil {
 		return fmt.Errorf("create db %s: %v", db.Name, err)
 	}
 	if migrate || recreate || !db.migrated {
@@ -85,20 +86,25 @@ func (db *DB) Create(ctx context.Context) error {
 	var dummy int
 	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.Name).Scan(&dummy)
 	if err == pgx.ErrNoRows {
+		db.log.Debug().Msg("creating database")
 		name := (pgx.Identifier{db.Name}).Sanitize() // sanitize database name, to be safe
 		_, err = adm.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s OWNER encore;", name))
+	}
+	if err != nil {
+		db.log.Error().Err(err).Msg("failed to create database")
 	}
 	return err
 }
 
 // Migrate migrates the database.
 func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (err error) {
-	db.log.Info().Msgf("running database migrations")
+	db.log.Debug().Msg("running database migrations")
 	defer func() {
 		if err != nil {
 			db.log.Error().Err(err).Msg("migrations failed")
 		} else {
 			db.migrated = true
+			db.log.Debug().Msg("migrations completed successfully")
 		}
 	}()
 
@@ -125,12 +131,11 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (e
 	}
 
 	if err := m.Up(); err == migrate.ErrNoChange {
-		db.log.Info().Msg("database already up to date")
+		db.log.Debug().Msg("database already up to date")
 		return nil
 	} else if err != nil {
 		return err
 	}
-	db.log.Info().Msg("migrations completed successfully")
 	return nil
 }
 
@@ -150,8 +155,13 @@ func (db *DB) Drop(ctx context.Context) error {
 
 		name := (pgx.Identifier{db.Name}).Sanitize() // sanitize database name, to be safe
 		_, err = adm.Exec(ctx, fmt.Sprintf("DROP DATABASE %s;", name))
+		db.log.Debug().Err(err).Msgf("dropped database")
 	} else if err == pgx.ErrNoRows {
 		return nil
+	}
+
+	if err != nil {
+		db.log.Debug().Err(err).Msgf("failed to drop database")
 	}
 	return err
 }
@@ -176,6 +186,7 @@ func (db *DB) connectAdminDB(ctx context.Context) (*pgx.Conn, error) {
 	if hostPort == "" {
 		return nil, fmt.Errorf("internal error: missing HostPort for cluster %s", db.Cluster.ID)
 	}
+
 	// Wait for the connection to be established; this might take a little bit
 	// when we're racing with spinning up a Docker container.
 	var err error
@@ -187,9 +198,11 @@ func (db *DB) connectAdminDB(ctx context.Context) (*pgx.Conn, error) {
 		} else if ctx.Err() != nil {
 			// We'll never succeed once the context has been canceled.
 			// Give up straight away.
+			db.log.Debug().Err(err).Msgf("failed to connect to admin db")
 			return nil, err
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
+	db.log.Debug().Err(err).Msgf("failed to connect to admin db")
 	return nil, fmt.Errorf("failed to connect to admin database: %v", err)
 }

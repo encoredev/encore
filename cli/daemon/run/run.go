@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"sync/atomic"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/internal/env"
@@ -147,7 +149,29 @@ func (r *Run) Done() <-chan struct{} {
 // Reload rebuilds the app and, if successful,
 // starts a new proc and switches over.
 func (r *Run) Reload() (*Proc, error) {
-	p, err := r.buildAndStart(r.ctx)
+	modPath := filepath.Join(r.Root, "go.mod")
+	modData, err := ioutil.ReadFile(modPath)
+	if err != nil {
+		return nil, err
+	}
+	mod, err := modfile.Parse(modPath, modData, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &parser.Config{
+		AppRoot:    r.Root,
+		Version:    "",
+		ModulePath: mod.Module.Mod.Path,
+		WorkingDir: r.params.WorkingDir,
+		ParseTests: false,
+	}
+	parse, err := parser.Parse(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := r.buildAndStart(r.ctx, parse)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +194,7 @@ func (r *Run) start(ln net.Listener) (err error) {
 		}
 	}()
 
-	p, err := r.buildAndStart(r.ctx)
+	p, err := r.buildAndStart(r.ctx, r.params.Parse)
 	if err != nil {
 		return err
 	}
@@ -223,7 +247,7 @@ func (r *Run) start(ln net.Listener) (err error) {
 // buildAndStart builds the app, starts the proc, and cleans up
 // the build dir when it exits.
 // The proc exits when ctx is canceled.
-func (r *Run) buildAndStart(ctx context.Context) (p *Proc, err error) {
+func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc, err error) {
 	// Return early if the ctx is already canceled.
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -235,7 +259,7 @@ func (r *Run) buildAndStart(ctx context.Context) (p *Proc, err error) {
 		CgoEnabled:        true,
 		EncoreRuntimePath: env.EncoreRuntimePath(),
 		EncoreGoRoot:      env.EncoreGoRoot(),
-		Parse:             r.params.Parse,
+		Parse:             parse,
 	})
 	if err != nil {
 		return nil, err
