@@ -71,8 +71,7 @@ func (b *builder) Test(ctx context.Context) (err error) {
 
 func (b *builder) writeTestMains() error {
 	for _, pkg := range b.res.App.Packages {
-		p := filepath.Join(b.workdir, pkg.RelPath, "encore_testmain_test.go")
-		if err := b.generateTestMain(pkg, p); err != nil {
+		if err := b.generateTestMain(pkg); err != nil {
 			return err
 		}
 	}
@@ -92,6 +91,8 @@ func (b *builder) runTests(ctx context.Context) error {
 		"-tags=encore",
 		"-overlay=" + overlayPath,
 		"-modfile=" + filepath.Join(b.workdir, "go.mod"),
+		"-mod=mod",
+		"-vet=off",
 	}
 	args = append(args, b.cfg.Test.Args...)
 	cmd := exec.CommandContext(ctx, filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+exe), args...)
@@ -104,7 +105,7 @@ func (b *builder) runTests(ctx context.Context) error {
 	}
 	env = append(env, b.cfg.Test.Env...)
 	cmd.Env = append(os.Environ(), env...)
-	cmd.Dir = filepath.Join(b.workdir, b.cfg.WorkingDir)
+	cmd.Dir = filepath.Join(b.appRoot, b.cfg.WorkingDir)
 	cmd.Stdout = b.cfg.Test.Stdout
 	cmd.Stderr = b.cfg.Test.Stderr
 	return cmd.Run()

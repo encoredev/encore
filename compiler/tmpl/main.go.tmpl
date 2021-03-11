@@ -161,6 +161,55 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 {{end}}
 {{end}}
 
+{{- with .AuthHandler}}
+func validateAuth(ctx context.Context, token string) (uid auth.UID, authData interface{}, authErr error) {
+	if token == "" {
+		return "", nil, nil
+	}
+	done := make(chan struct{})
+	call, err := runtime.BeginAuth({{traceExpr .}}, token)
+	if err != nil {
+		return "", nil, err
+	}
+
+	go func() {
+		defer close(done)
+		authErr = call.BeginReq(runtime.RequestData{
+			Type:            runtime.AuthHandler,
+			Service:         "{{.Svc.Name}}",
+			Endpoint:        "{{.Name}}",
+			CallExprIdx:     0,
+			EndpointExprIdx: {{traceExpr .}},
+			Inputs:          [][]byte{[]byte(strconv.Quote(token))},
+		})
+		if authErr != nil {
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				call.FinishReq(500, nil, fmt.Errorf("auth handler panicked: %v\n%s", err2, debug.Stack()))
+				authErr = fmt.Errorf("auth handler panicked: %v\n%s", err2, debug.Stack())
+			}
+		}()
+{{- if $.AuthHandler.AuthData}}
+		uid, authData, authErr = {{pkgName .Svc.Root.ImportPath}}.{{.Name}}(ctx, token)
+		serialized, _ := runtime.SerializeInputs(uid, authData)
+{{- else}}
+		uid, authErr = {{pkgName .Svc.Root.ImportPath}}.{{.Name}}(ctx, token)
+		serialized, _ := runtime.SerializeInputs(uid)
+{{- end}}
+		if authErr != nil {
+			call.FinishReq(500, nil, authErr)
+		} else {
+			call.FinishReq(200, serialized, nil)
+		}
+	}()
+	<-done
+	call.Finish(uid, authErr)
+	return uid, authData, authErr
+}
+{{- end}}
+
 var srv *runtime.Server
 
 func main() {

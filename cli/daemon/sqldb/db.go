@@ -52,12 +52,15 @@ func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migr
 		}
 	}()
 
+	recreateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	if recreate {
-		if err := db.Drop(ctx); err != nil {
+		if err := db.Drop(recreateCtx); err != nil {
 			return fmt.Errorf("drop db %s: %v", db.Name, err)
 		}
 	}
-	if err := db.Create(ctx); err != nil {
+	if err := db.Create(recreateCtx); err != nil {
 		return fmt.Errorf("create db %s: %v", db.Name, err)
 	}
 	if migrate || recreate || !db.migrated {

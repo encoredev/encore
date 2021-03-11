@@ -323,7 +323,7 @@ func setDBs(dbs map[string]*pgxpool.Pool) {
 func getDB(svc string) *pgxpool.Pool {
 	dbs, ok := dbMap.Load().(map[string]*pgxpool.Pool)
 	if !ok {
-		panic("sqldb: not initialized")
+		panic("sqldb: service not initialized: " + svc)
 	}
 	db, ok := dbs[svc]
 	if !ok {

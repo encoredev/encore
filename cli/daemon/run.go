@@ -156,8 +156,9 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	// Set up the database asynchronously since it can take a while.
 	dbSetupErr := make(chan error, 1)
 	go func() {
-		err := cluster.Recreate(stream.Context(), req.AppRoot, nil, parse.Meta)
-		if err != nil {
+		if err := cluster.Start(); err != nil {
+			dbSetupErr <- err
+		} else if err := cluster.Recreate(stream.Context(), req.AppRoot, nil, parse.Meta); err != nil {
 			dbSetupErr <- err
 		}
 	}()

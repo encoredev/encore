@@ -116,7 +116,7 @@ func (c *Cluster) Start() error {
 
 // initDBs adds the databases from md to the cluster's database map.
 // It does not create or migrate them.
-func (c *Cluster) initDBs(md *meta.Data) {
+func (c *Cluster) initDBs(md *meta.Data, reinit bool) {
 	if md == nil {
 		return
 	}
@@ -125,7 +125,11 @@ func (c *Cluster) initDBs(md *meta.Data) {
 	c.mu.Lock()
 	for _, svc := range md.Svcs {
 		if len(svc.Migrations) > 0 {
-			if _, ok := c.dbs[svc.Name]; !ok {
+			db, ok := c.dbs[svc.Name]
+			if ok && reinit {
+				db.CloseConns()
+			}
+			if !ok || reinit {
 				c.initDB(svc.Name)
 			}
 		}
@@ -156,6 +160,10 @@ func (c *Cluster) Create(ctx context.Context, appRoot string, md *meta.Data) err
 	g, ctx := errgroup.WithContext(ctx)
 	c.mu.Lock()
 	for _, svc := range md.Svcs {
+		if len(svc.Migrations) == 0 {
+			continue
+		}
+
 		svc := svc
 		db, ok := c.dbs[svc.Name]
 		if !ok {
@@ -173,6 +181,10 @@ func (c *Cluster) CreateAndMigrate(ctx context.Context, appRoot string, md *meta
 	g, ctx := errgroup.WithContext(ctx)
 	c.mu.Lock()
 	for _, svc := range md.Svcs {
+		if len(svc.Migrations) == 0 {
+			continue
+		}
+
 		svc := svc
 		db, ok := c.dbs[svc.Name]
 		if !ok {
@@ -209,11 +221,10 @@ func (c *Cluster) Recreate(ctx context.Context, appRoot string, services []strin
 	for _, svc := range md.Svcs {
 		svc := svc
 		if len(svc.Migrations) > 0 && (filter == nil || filter[svc.Name]) {
-			c.log.Info().Str("db", svc.Name).Msg("recreating database")
-			if db, ok := c.dbs[svc.Name]; ok {
-				db.CloseConns()
+			db, ok := c.dbs[svc.Name]
+			if !ok {
+				db = c.initDB(svc.Name)
 			}
-			db := c.initDB(svc.Name)
 			g.Go(func() error { return db.Setup(ctx, appRoot, svc, true, true) })
 		}
 	}

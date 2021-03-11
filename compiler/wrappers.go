@@ -158,7 +158,7 @@ func (b *builder) generateWrappers(pkg *est.Package, rpcs []*est.RPC, wrapperPat
 	return tmpl.Execute(file, tmplParams)
 }
 
-func (b *builder) generateTestMain(pkg *est.Package, testMainPath string) (err error) {
+func (b *builder) generateTestMain(pkg *est.Package) (err error) {
 	funcs := template.FuncMap{
 		"usesSQLDB": func(svc *est.Service) bool {
 			for _, s := range b.res.Meta.Svcs {
@@ -173,6 +173,7 @@ func (b *builder) generateTestMain(pkg *est.Package, testMainPath string) (err e
 	tmpl := template.Must(template.New("testmain").Funcs(funcs).Parse(testMainTmpl))
 
 	// Write the file to disk
+	testMainPath := filepath.Join(b.workdir, filepath.FromSlash(pkg.RelPath), "encore_testmain_test.go")
 	file, err := os.Create(testMainPath)
 	if err != nil {
 		return err
@@ -190,7 +191,7 @@ func (b *builder) generateTestMain(pkg *est.Package, testMainPath string) (err e
 		Pkg:  pkg,
 		Svcs: b.res.App.Services,
 	}
-	b.addOverlay(filepath.Join(pkg.Dir, "__encore_testmain.go"), testMainPath)
+	b.addOverlay(filepath.Join(pkg.Dir, "encore_testmain_test.go"), testMainPath)
 	return tmpl.Execute(file, tmplParams)
 }
 

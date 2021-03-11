@@ -49,6 +49,9 @@ type InitParams struct {
 	// Memfs, if true, configures the database container to use an
 	// in-memory filesystem as opposed to persisting the database to disk.
 	Memfs bool
+
+	// Reinit forces all databases to be reinitialized, even if they already exist.
+	Reinit bool
 }
 
 // Init initializes a database cluster but does not start it.
@@ -72,7 +75,7 @@ func (cm *ClusterManager) Init(ctx context.Context, params *InitParams) *Cluster
 		}
 		cm.clusters[cid] = c
 	}
-	c.initDBs(params.Meta)
+	c.initDBs(params.Meta, params.Reinit)
 	return c
 }
 
