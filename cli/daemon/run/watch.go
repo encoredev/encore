@@ -2,6 +2,8 @@ package run
 
 import (
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/rjeczalik/notify"
 )
@@ -28,6 +30,11 @@ func (mgr *Manager) watch(run *Run) error {
 				if ignoreEvent(run.Root, ev) {
 					continue
 				}
+				// We've seen that some editors like vim rename the .go files to another extension,
+				// which breaks our parser since it doesn't recognize the file as a .go file.
+				// This race is annoying, but in practice a 100ms delay is imperceptible since
+				// the user is busy working in their editor.
+				time.Sleep(100 * time.Millisecond)
 				mgr.runStdout(run, []byte("Changes detected, recompiling...\n"))
 				if _, err := run.Reload(); err != nil {
 					mgr.runStderr(run, []byte(err.Error()))
@@ -41,8 +48,14 @@ func (mgr *Manager) watch(run *Run) error {
 }
 
 func ignoreEvent(appRoot string, ev notify.EventInfo) bool {
-	// Ignore events inside .git directories
 	path := ev.Path()
+
+	// Ignore files with no extension or temporary files from vim.
+	if ext := filepath.Ext(path); ext == "" || strings.HasSuffix(ext, "~") {
+		return true
+	}
+
+	// Ignore events inside .git directories
 	for {
 		if filepath.Base(path) == ".git" {
 			return true

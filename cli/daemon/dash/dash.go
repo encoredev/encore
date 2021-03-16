@@ -204,6 +204,25 @@ func (s *Server) OnStart(r *run.Run) {
 	})
 }
 
+// OnReload notifies active websocket clients about the reloaded run.
+func (s *Server) OnReload(r *run.Run) {
+	m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
+	proc := r.Proc()
+	str, err := m.MarshalToString(proc.Meta)
+	if err != nil {
+		log.Error().Err(err).Msg("dash: could not marshal app meta")
+		return
+	}
+	s.notify(&notification{
+		Method: "process/reload",
+		Params: map[string]interface{}{
+			"appID": r.AppID,
+			"pid":   r.ID,
+			"meta":  json.RawMessage(str),
+		},
+	})
+}
+
 // OnStop notifies active websocket clients about the stopped run.
 func (s *Server) OnStop(r *run.Run) {
 	s.notify(&notification{

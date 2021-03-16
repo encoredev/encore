@@ -1,11 +1,9 @@
-import { FunctionComponent, useState} from 'react'
-import * as icons from '~c/icons'
-import React from 'react'
-import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
-import { APIMeta, Service, RPC } from '~c/api/api'
-import { ProcessStart } from '~lib/client/client'
-import SchemaView, { Dialect } from '~c/api/SchemaView'
+import React, { FunctionComponent, useState } from 'react'
+import { APIMeta, RPC, Service } from '~c/api/api'
 import RPCCaller from "~c/api/RPCCaller"
+import SchemaView, { Dialect } from '~c/api/SchemaView'
+import { ProcessReload } from '~lib/client/client'
+import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
 
 interface Props {
   appID: string;
@@ -36,8 +34,8 @@ export default class AppAPI extends React.Component<Props, State> {
   }
 
   onNotification(msg: NotificationMsg) {
-    if (msg.method === "process/start") {
-      const data = msg.params as ProcessStart
+    if (msg.method === "process/reload") {
+      const data = msg.params as ProcessReload
       if (data.appID === this.props.appID) {
         this.setState({meta: data.meta})
       }

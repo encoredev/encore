@@ -208,6 +208,9 @@ func (s *Server) Check(req *daemonpb.CheckRequest, stream daemonpb.Daemon_CheckS
 // OnStart implements run.EventListener.
 func (s *Server) OnStart(r *run.Run) {}
 
+// OnReload implements run.EventListener.
+func (s *Server) OnReload(r *run.Run) {}
+
 // OnStop implements run.EventListener.
 func (s *Server) OnStop(r *run.Run) {}
 

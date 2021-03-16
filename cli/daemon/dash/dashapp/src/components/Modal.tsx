@@ -59,7 +59,7 @@ export class Modal extends React.Component<Props> {
 
     return ReactDOM.createPortal(
       (
-        <div className="fixed inset-0 pointer-events-none">
+        <div className="fixed inset-0 pointer-events-none z-40">
           <Transition
               show={this.props.show}
               appear={true}

@@ -180,6 +180,10 @@ func (r *Run) Reload() (*Proc, error) {
 	r.proc.Store(p)
 	prev.close()
 
+	for _, ln := range r.mgr.listeners {
+		ln.OnReload(r)
+	}
+
 	return p, nil
 }
 
@@ -253,16 +257,18 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 		return nil, err
 	}
 
-	build, err := compiler.Build(r.Root, &compiler.Config{
+	cfg := &compiler.Config{
 		Version:           "",
 		WorkingDir:        r.params.WorkingDir,
 		CgoEnabled:        true,
 		EncoreRuntimePath: env.EncoreRuntimePath(),
 		EncoreGoRoot:      env.EncoreGoRoot(),
 		Parse:             parse,
-	})
+	}
+
+	build, err := compiler.Build(r.Root, cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("compile error: %v", err)
 	}
 	defer func() {
 		if err != nil {

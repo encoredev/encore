@@ -14,10 +14,10 @@ const AppHome: FunctionComponent = (props) => {
     <>
       <Nav />
 
-      <section className="bg-gray-200 flex-grow flex flex-col items-center">
-        <div className="w-full mt-6 px-10">
-          <div className="md:flex md:items-stretch md:gap-8">
-            <div className="flex-1 min-w-0">
+      <section className="bg-gray-200 flex-grow flex flex-col items-center py-6">
+        <div className="w-full px-10">
+          <div className="md:flex md:items-stretch">
+            <div className="flex-1 min-w-0 md:mr-8">
               <h2 className="px-2 text-lg font-medium">API Explorer</h2>
               <div className="mt-2 rounded-lg overflow-hidden">
                 <AppCaller appID={appID} conn={conn} />

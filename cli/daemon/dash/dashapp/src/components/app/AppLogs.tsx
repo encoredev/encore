@@ -1,6 +1,6 @@
 import React from 'react'
 import { decodeBase64 } from '~lib/base64'
-import { ProcessOutput, ProcessStart, ProcessStop } from '~lib/client/client'
+import { ProcessOutput, ProcessReload, ProcessStart, ProcessStop } from '~lib/client/client'
 import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
 import parseAnsi, { Chunk } from "~lib/parse-ansi"
 
@@ -37,6 +37,17 @@ export default class AppLogs extends React.Component<Props, State> {
             lines: [...state.lines, [
               {type: "text", style: {}, value: "Running on "},
               {type: "text", style: {bold: true}, value: `http://localhost:${data.port}`},
+            ], []]
+          }
+        })
+      }
+    } else if (msg.method === "process/reload") {
+      const data = msg.params as ProcessReload
+      if (data.appID === this.props.appID) {
+        this.setState(state => {
+          return {
+            lines: [...state.lines, [
+              {type: "text", style: {}, value: "App reloaded!"},
             ], []]
           }
         })

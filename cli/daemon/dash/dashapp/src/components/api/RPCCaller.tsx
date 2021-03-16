@@ -1,14 +1,14 @@
-import { Type, StructType, MapType, ListType, BuiltinType, NamedType, Decl } from "./schema";
-import React from "react";
-import CM from "./cm/CM";
-import { EditorConfiguration } from "codemirror";
-import CodeMirror from "codemirror";
-import Button from "~c/Button";
+import { Menu, Transition } from "@headlessui/react";
+import CodeMirror, { EditorConfiguration } from "codemirror";
+import React, { FC } from "react";
 import * as icons from "~c/icons";
-import { APIMeta, RPC, Service } from "./api";
-import JSONRPCConn from "~lib/client/jsonrpc";
-import { decodeBase64, encodeBase64 } from "~lib/base64";
 import Input from "~c/Input";
+import { decodeBase64, encodeBase64 } from "~lib/base64";
+import JSONRPCConn from "~lib/client/jsonrpc";
+import { copyToClipboard } from "~lib/clipboard";
+import { APIMeta, RPC, Service } from "./api";
+import CM from "./cm/CM";
+import { BuiltinType, Decl, ListType, MapType, NamedType, StructType, Type } from "./schema";
 
 interface Props {
   conn: JSONRPCConn;
@@ -16,6 +16,7 @@ interface Props {
   md: APIMeta;
   svc: Service;
   rpc: RPC;
+  port?: number;
 }
 
 interface State {
@@ -116,6 +117,30 @@ export default class RPCCaller extends React.Component<Props, State> {
     }
   }
 
+  copyCurl() {
+    let reqBody = ""
+    const rpc = this.props.rpc
+    if (rpc.request_schema) {
+      const doc = this.docs.get(rpc)
+      if (doc === undefined) {
+        return
+      }
+      reqBody = doc.getValue()
+      // Convert to JSON and back, if possible, to simplify indentation
+      try {
+        reqBody = JSON.stringify(JSON.parse(reqBody), undefined, " ")
+      } catch(err) { /* do nothing */ }
+
+      reqBody = reqBody.replaceAll("'", "'\''")
+    }
+
+    let cmd = `curl http://localhost:${this.props.port ?? 4060}/${this.props.svc.name}.${this.props.rpc.name}`
+    if (reqBody !== "") {
+      cmd += ` -d '${reqBody}'`
+    }
+    copyToClipboard(cmd)
+  }
+
   render() {
     const rpc = this.props.rpc
     return (
@@ -136,10 +161,8 @@ export default class RPCCaller extends React.Component<Props, State> {
                 value={this.state.authToken} onChange={(authToken) => this.setState({authToken})} />
             </div>
           }
+          <APICallButton send={() => this.send()} copyCurl={() => this.copyCurl()} />
           
-          <Button cls="ml-auto flex-none" size="md" theme="purple"
-              onClick={() => this.send()}
-            >Send {icons.chevronRight("h-4 w-auto ml-0.5 -mr-1.5")}</Button>
         </div>
 
         <h4 className="mt-4 mb-1 text-base text-bold flex items-center">
@@ -271,4 +294,59 @@ class JSONRenderer {
     this.write(...strs)
     this.write("\n")
   }
+}
+
+const APICallButton: FC<{send: () => void; copyCurl: () => void;}> = (props) => {
+  return (
+    <span className="ml-auto flex-none relative z-0 inline-flex shadow-sm rounded-md">
+      <button type="button" className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-purple-700 bg-purple-600 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:outline-none focus:ring-0 focus:border-purple-500"
+        onClick={() => props.send()}>
+        Call API
+      </button>
+      <span className="-ml-px relative block z-10">
+        <Menu>
+          {({ open }) => (
+            <>
+              <Menu.Button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-purple-700 bg-purple-600 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:outline-none focus:ring-0">
+                <span className="sr-only">Open options</span>
+                {icons.chevronDown("h-5 w-5")}
+              </Menu.Button>
+
+              <Transition
+                show={open}
+                enter="transition ease-out duration-100"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-75"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <Menu.Items
+                  static
+                  className="absolute right-0 w-56 mt-2 origin-top-right bg-white border border-gray-200 divide-y divide-gray-100 rounded-md shadow-lg outline-none"
+                >
+                  <div className="py-1">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active
+                              ? "bg-gray-100 text-gray-900"
+                              : "text-gray-700"
+                          } flex justify-between w-full px-4 py-2 text-sm leading-5 text-left`}
+                          onClick={() => props.copyCurl()}
+                        >
+                          Copy as curl
+                        </button>
+                      )}
+                    </Menu.Item>
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </>
+          )}
+        </Menu>
+      </span>
+    </span>
+  )
 }
