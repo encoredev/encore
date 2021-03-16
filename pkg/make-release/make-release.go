@@ -45,26 +45,6 @@ func (b *Builder) BuildDashFrontend() error {
 }
 
 func (b *Builder) BuildBinaries() error {
-	var encoreRootFinal string
-	switch b.GOOS {
-	case "windows":
-		encoreRootFinal = "C:\\Program Files\\Encore"
-	case "darwin":
-		// Homebrew prefix differs on Apple Silicon.
-		switch b.GOARCH {
-		case "arm64":
-			encoreRootFinal = "/opt/homebrew/Cellar/encore/" + b.version + "/libexec"
-		case "amd64":
-			encoreRootFinal = "/usr/local/Cellar/encore/" + b.version + "/libexec"
-		default:
-			return fmt.Errorf("unsupported GOARCH %q", b.GOARCH)
-		}
-	case "linux":
-		encoreRootFinal = "/usr/local/encore"
-	default:
-		return fmt.Errorf("unsupported GOOS %q", b.GOOS)
-	}
-
 	env := append(os.Environ(),
 		"CGO_ENABLED=1",
 		"GOOS="+b.GOOS,
@@ -89,8 +69,7 @@ func (b *Builder) BuildBinaries() error {
 	}
 
 	cmd := exec.Command("go", "build",
-		fmt.Sprintf("-ldflags=-X 'encr.dev/cli/internal/env.encoreRoot=%s' -X 'main.Version=%s'",
-			encoreRootFinal, b.version),
+		fmt.Sprintf("-ldflags=-X 'main.Version=v%s'", b.version),
 		"-o", join(b.dst, "bin", "encore"+exe),
 		"./cli/cmd/encore")
 	cmd.Env = env

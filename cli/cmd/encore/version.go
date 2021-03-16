@@ -8,7 +8,7 @@ import (
 )
 
 // Version is the version of the encore binary.
-// It is set using `go build -ldflags "-X main.Version=foo"`.
+// It is set using `go build -ldflags "-X main.Version=v1.2.3"`.
 var Version string
 
 var versionCmd = &cobra.Command{

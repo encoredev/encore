@@ -1,5 +1,5 @@
 import React, { FunctionComponent, useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom"
+import { Link, useParams, useRouteMatch } from "react-router-dom"
 import { useConn } from "~lib/ctx"
 import logo from "../logo.svg"
 
@@ -12,6 +12,7 @@ const Nav: FunctionComponent = (props) => {
   const { appID } = useParams<{appID: string}>()
   const [menuOpen, setMenuOpen] = useState(false)
   const [appsOpen, setAppsOpen] = useState(false)
+  const route = useRouteMatch()
 
   return (
     <nav className="bg-gray-800">
@@ -28,10 +29,10 @@ const Nav: FunctionComponent = (props) => {
               <div className="ml-10 flex items-baseline space-x-4">
                 {menuItems.map(it => {
                   const as = `/${appID}${it.href}`
-                  const selected = false // TODO
+                  const selected = route.path === ("/:appID"+it.href)
                   return (
                     <Link key={it.name} to={as}
-                        className={`px-3 py-2 rounded-md text-sm font-medium ${selected ? "text-white bg-gray-900" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
+                        className={`px-3 py-2 rounded-md text-sm font-medium ${selected ? "text-white bg-gray-600" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
                       {it.name}
                     </Link>
                   )

@@ -2,6 +2,7 @@ import React, { FunctionComponent } from 'react'
 import { useParams } from 'react-router-dom'
 import AppLogs from '~c/app/AppLogs'
 import AppTraces from '~c/app/AppTraces'
+import AppCaller from '~c/app/AppCaller'
 import Nav from '~c/Nav'
 import { useConn } from '~lib/ctx'
 
@@ -15,12 +16,18 @@ const AppHome: FunctionComponent = (props) => {
 
       <section className="bg-gray-200 flex-grow flex flex-col items-center">
         <div className="w-full mt-6 px-10">
-          <div className="flex items-stretch">
-            <div className="flex-1 min-w-0 rounded-lg overflow-hidden mr-8">
-              <AppTraces appID={appID} conn={conn} />
+          <div className="md:flex md:items-stretch md:gap-8">
+            <div className="flex-1 min-w-0">
+              <h2 className="px-2 text-lg font-medium">API Explorer</h2>
+              <div className="mt-2 rounded-lg overflow-hidden">
+                <AppCaller appID={appID} conn={conn} />
+              </div>
             </div>
-            <div className="flex-1 min-w-0 rounded-lg overflow-hidden h-96">
-              <AppLogs appID={appID} conn={conn} />
+            <div className="mt-4 md:mt-0 flex-1 min-w-0">
+              <h2 className="px-2 text-lg font-medium">Traces</h2>
+              <div className="mt-2 rounded-lg overflow-hidden">
+                <AppTraces appID={appID} conn={conn} />
+              </div>
             </div>
           </div>
         </div>

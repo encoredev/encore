@@ -16,6 +16,7 @@ export class Modal extends React.Component<Props> {
   constructor(props: Props) {
     super(props)
     this.handleClick = this.handleClick.bind(this)
+    this.handleKeyPress = this.handleKeyPress.bind(this)
     this.bgRef = React.createRef()
   }
 
@@ -27,9 +28,11 @@ export class Modal extends React.Component<Props> {
     }
     this.root = root
     this.root.appendChild(this.el);
+    window.addEventListener("keyup", this.handleKeyPress)
   }
 
   componentWillUnmount() {
+    window.removeEventListener("keypress", this.handleKeyPress)
     if (this.root && this.el) {
       this.root.removeChild(this.el)
     }
@@ -38,6 +41,12 @@ export class Modal extends React.Component<Props> {
   handleClick(ev: React.MouseEvent) {
     ev.stopPropagation()
     if (ev.target === this.bgRef.current && this.props.close) {
+      this.props.close()
+    }
+  }
+
+  handleKeyPress(e: KeyboardEvent) {
+    if(e.key === "Escape" && this.props.close) {
       this.props.close()
     }
   }

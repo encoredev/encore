@@ -24,9 +24,7 @@ export function latencyStr(n: number): string {
   }
   n /= 1000
 
-  if (n < 100) {
-    return (Math.round(n*10)/10) + "ms"
-  } else if (n < 1000) {
+  if (n < 1000) {
     return Math.round(n) + "ms"
   }
   n /= 1000

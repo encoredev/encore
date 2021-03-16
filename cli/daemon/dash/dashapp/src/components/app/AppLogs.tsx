@@ -93,7 +93,7 @@ export default class AppLogs extends React.Component<Props, State> {
             tab-size: 4;
           }
         `}</style>
-        <div className="h-full font-mono whitespace-pre text-white overflow-x-scroll overflow-y-scroll">
+        <div className="h-full font-mono whitespace-pre text-white overflow-auto">
           {this.state.lines.map((line, i) =>
             <div key={i}>
               {line.map((ch, j) =>

@@ -30,10 +30,10 @@ const TraceMap: FunctionComponent<Props> = (props) => {
 
     return <React.Fragment key={req.id}>
       <style>{`
-        .span       { background-color: ${sel ? highlightColor : color}; }
-        .span:hover { background-color: ${highlightColor}; }
+        .mapspan-${req.id}       { background-color: ${sel ? highlightColor : color}; }
+        .mapspan-${req.id}:hover { background-color: ${highlightColor}; }
       `}</style>
-      <div key={req.id} className={`absolute span`} onClick={select}
+      <div key={req.id} className={`absolute mapspan-${req.id}`} onClick={select}
           style={{
             borderRadius: "3px",
             top: (line * (lineHeight + lineGap)) + "px",

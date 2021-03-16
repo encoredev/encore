@@ -206,15 +206,16 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
         {g.events.map((ev, i) => {
           const start = Math.round((ev.start_time - g.start) / gdur * 100)
           const end = Math.round((ev.end_time - g.start) / gdur * 100)
+          const clsid = `ev-${req.id}-${g.goid}-${i}`
 
           if (ev.type === "DBQuery") {
             const [color, highlightColor] = svcColor(ev.txid !== null ? ("tx:"+ev.txid) : ("query:"+ev.start_time))
             return <React.Fragment key={i}>
               <style>{`
-                .span       { background-color: ${highlightColor}; }
-                .span:hover { background-color: ${color}; }
+                .${clsid}       { background-color: ${highlightColor}; }
+                .${clsid}:hover { background-color: ${color}; }
               `}</style>
-              <div className={`absolute span`}
+              <div className={`absolute ${clsid}`}
                 onMouseEnter={(e) => setHover(e, ev)}
                 onMouseLeave={(e) => setHover(e, null)}
                 style={{
@@ -233,10 +234,10 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
             const [color, highlightColor] = svcColor(svcName)
             return <React.Fragment key={i}>
               <style>{`
-                .span       { background-color: ${highlightColor}; }
-                .span:hover { background-color: ${color}; }
+                .${clsid}       { background-color: ${highlightColor}; }
+                .${clsid}:hover { background-color: ${color}; }
               `}</style>
-              <div className={`absolute span`}
+              <div className={`absolute ${clsid}`}
                 onMouseEnter={(e) => setHover(e, ev)}
                 onMouseLeave={(e) => setHover(e, null)}
                 style={{

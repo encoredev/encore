@@ -8,7 +8,6 @@ import { latencyStr } from '~c/trace/util'
 import { decodeBase64 } from '~lib/base64'
 import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
 import { timeToDate } from '~lib/time'
-import parseAnsi, { Chunk } from "~lib/parse-ansi"
 
 interface Props {
   appID: string;
@@ -48,67 +47,65 @@ export default class AppTraces extends React.Component<Props, State> {
 
   render() {
     return (
-      <div className="flex flex-col mt-2">
+      <div className="flex flex-col">
         <Modal show={this.state.selected !== undefined} close={() => this.setState({selected: undefined})} width="w-full h-full mt-4">
           {this.state.selected && <TraceView trace={this.state.selected} close={() => this.setState({selected: undefined})} /> }
         </Modal>
 
-        <div className="align-middle min-w-full overflow-x-auto shadow overflow-hidden sm:rounded-lg">
-          <table className="min-w-full divide-y divide-cool-gray-200">
-            <thead>
-              <tr>
-                <th className="px-6 py-3 bg-cool-gray-50 text-left text-xs leading-4 font-medium text-cool-gray-500 uppercase tracking-wider">
-                  Request
-                </th>
-                <th className="px-6 py-3 bg-cool-gray-50 text-left text-xs leading-4 font-medium text-cool-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 bg-cool-gray-50 text-right text-xs leading-4 font-medium text-cool-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-cool-gray-200">
-              {this.state.traces.map(tr => {
-                const loc = tr.locations[tr.root.def_loc]
-                let endpoint = "<unknown endpoint>"
-                if ("rpc_def" in loc) {
-                  endpoint = loc.rpc_def.service_name + "." + loc.rpc_def.rpc_name
-                }
-
-                return (
-                  <tr key={tr.id} className="bg-white">
-                    <td className="max-w-0 w-full px-6 py-4 whitespace-no-wrap text-sm leading-5 text-cool-gray-900">
-                      <div className="flex">
-                        <div className="group inline-flex space-x-2 truncate text-sm leading-5 cursor-pointer" onClick={() => this.setState({selected: tr})}>
-                          <p className="text-cool-gray-500 truncate group-hover:text-cool-gray-900 transition ease-in-out duration-150">
-                            {endpoint}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-cool-gray-500">
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          {this.state.traces.length === 0 && (
+            <div className="p-4">
+              No traces yet. Make an API call to see it here!
+            </div>
+          )}
+          <ul className="divide-y divide-gray-200">
+            {this.state.traces.map(tr => {
+              const loc = tr.locations[tr.root.def_loc]
+              let endpoint = "<unknown endpoint>"
+              if ("rpc_def" in loc) {
+                endpoint = loc.rpc_def.service_name + "." + loc.rpc_def.rpc_name
+              }
+              return <li key={tr.id}>
+                <div className="px-4 py-4 sm:px-6 hover:bg-gray-50" onClick={() => this.setState({selected: tr})}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-base font-medium text-gray-800 truncate">
+                      {endpoint}
+                    </p>
+                    <div className="ml-2 flex-shrink-0 flex">
                       {tr.root.err === null ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-green-100 text-green-800 capitalize">
-                          success
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Success
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-red-100 text-red-800 capitalize">
-                          error
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                          Error
                         </span>
                       )}
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-no-wrap text-sm leading-5 text-cool-gray-500">
+                    </div>
+                  </div>
+                  <div className="mt-2 sm:flex sm:justify-between">
+                    <div className="sm:flex">
+                      <p className="text-sm font-medium text-indigo-600 truncate flex items-center hover:underline cursor-pointer">
+                        <svg className="h-4 w-4 mr-1" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                          <polyline points="2 14.308 5.076 14.308 8.154 2 11.231 20.462 14.308 9.692 15.846 14.308 18.924 14.308" />
+                          <circle cx="20.462" cy="14.308" r="1.538" />
+                        </svg>
+                        View Trace
+                      </p>
+                    </div>
+                    <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                      <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                       {latencyStr(tr.end_time - tr.start_time)}
-                    </td>
-                  </tr>
-                )
-              })}
-
-            </tbody>
-          </table>
-          
+                    </div>
+                  </div>
+                </div>
+              </li>
+            })}
+          </ul>
         </div>
+
       </div>
     )
   }
@@ -136,7 +133,15 @@ class TraceView extends React.Component<TraceViewProps, TraceViewState> {
     const dt = timeToDate(tr.date)!
 
     return (
-      <section className="bg-white flex-grow flex items-stretch h-full">
+      <section className="bg-white flex-grow flex items-stretch h-full relative">
+        <div className="absolute -top-2 -right-2">
+          <div className="hover:bg-gray-100 rounded-full p-1 cursor-pointer"
+              onClick={() => this.props.close()}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+        </div>
 
         <div className="flex-grow flex flex-col overflow-scroll">
           <div className="flex p-4 border-b border-gray-100">

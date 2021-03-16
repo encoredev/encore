@@ -96,9 +96,9 @@ func createApp(ctx context.Context, name, template string) (err error) {
 
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
 		var loginNow bool
-		yellow.Fprintln(os.Stderr, "You are not logged in to encore.dev.")
+		cyan.Fprintln(os.Stderr, "You are not logged in to encore.dev.")
 		survey.AskOne(&survey.Confirm{
-			Message: yellow.Sprint("Log in now to automatically link your app with encore.dev?"),
+			Message: cyan.Sprint("Log in now to automatically link your app with encore.dev?"),
 			Default: true,
 		}, &loginNow)
 		if loginNow {

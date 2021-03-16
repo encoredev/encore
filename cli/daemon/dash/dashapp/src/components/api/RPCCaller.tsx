@@ -53,6 +53,12 @@ export default class RPCCaller extends React.Component<Props, State> {
     this.open(this.props.rpc)
   }
 
+  componentDidUpdate(prevProps: Props) {
+    if (prevProps.svc.name !== this.props.svc.name || prevProps.rpc.name !== this.props.rpc.name) {
+      this.open(this.props.rpc)
+    }
+  }
+
   private open(rpc: RPC) {
     if (rpc.request_schema) {
       let doc = this.docs.get(rpc)

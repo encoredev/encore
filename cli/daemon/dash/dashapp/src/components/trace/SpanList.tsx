@@ -14,6 +14,7 @@ const SpanList: FunctionComponent<Props> = (props) => {
   const traceDur = props.trace.end_time - props.trace.start_time
   const [contracted, setContracted] = useState(new Map<string, boolean>())
 
+  let spanCounter = 0
   const renderSpan: (req: Request, level: number, siblings: number[]) => JSX.Element = (req, level, siblings) => {
     const start = Math.round((req.start_time - props.trace.start_time) / traceDur * 100)
     const end = Math.round((req.end_time - props.trace.start_time) / traceDur * 100)
@@ -39,6 +40,7 @@ const SpanList: FunctionComponent<Props> = (props) => {
 
     const isContracted = contracted.get(req.id) ?? false
     const showChildren = !isContracted && req.children.length > 0
+    spanCounter++
     return <React.Fragment key={req.id}>
       <div className={`flex items-stretch p-4 cursor-pointer ${sel ? "bg-blue-50" : "hover:bg-gray-50"}`} onClick={select}>
         <TreeHint up={level > 0} down={showChildren} siblings={siblings} level={level} />
@@ -56,12 +58,12 @@ const SpanList: FunctionComponent<Props> = (props) => {
           </div>
           <div className="flex-grow flex-shrink min-w-0">
             <style>{`
-              .span       { background-color: ${sel ? highlightColor : color}; }
-              .span:hover { background-color: ${highlightColor}; }
+              .spanlist-${spanCounter}       { background-color: ${sel ? highlightColor : color}; }
+              .spanlist-${spanCounter}:hover { background-color: ${highlightColor}; }
             `}</style>
             <div className="relative" style={{height: "8px"}}>
               <div className="absolute inset-x-0 bg-gray-200" style={{height: "1px", top: "3px"}} />
-              <div key={req.id} className={`absolute inset-y-0 span`}
+              <div key={req.id} className={`absolute inset-y-0 spanlist-${spanCounter}`}
                   style={{
                     left: start+"%", right: (100-end)+"%",
                     minWidth: "2px", // so it at least renders if start === stop

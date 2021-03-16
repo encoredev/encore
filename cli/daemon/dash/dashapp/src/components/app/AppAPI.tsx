@@ -213,35 +213,22 @@ interface SvcMenuProps {
 }
 
 const SvcMenu: FunctionComponent<SvcMenuProps> = (props) => {
-  const [contracted, setContracted] = useState<{[key: string]: boolean}>({})
-  const toggle = (svc: string) => setContracted({
-    ...contracted, 
-    [svc]: (contracted[svc] !== undefined ? !contracted[svc] : true)
-  })
-
   return <>
     {props.svcs.map((svc, i) =>
       <div key={svc.name} className={(i > 0) ? "border-t border-gray-300" : ""}>
-        <button type="button" onClick={() => toggle(svc.name)}
-            className="flex w-full text-left px-4 py-2 text-gray-900 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
+        <div className="flex w-full text-left px-4 py-2 text-gray-900">
           <div className="flex-grow flex">
             <div className="flex-grow text-sm text-gray-800 font-medium leading-5">{svc.name}</div>
             <div className="text-xs text-gray-400 flex-shrink-0 font-light">Service</div>
           </div>
-          {contracted[svc.name] ?
-            icons.chevronRight("flex-shrink-0 -mr-1 ml-2 h-5 w-5") :
-            icons.chevronDown("flex-shrink-0 -mr-1 ml-2 h-5 w-5")
-          }
-        </button>
-        {!contracted[svc.name] &&
-          <div className="py-1">
-            {svc.rpcs.map((rpc, j) =>
-              <a key={j} href={`#${svc.name}.${rpc.name}`} className="block pl-6 pr-4 py-2 text-sm leading-5 rounded-sm text-gray-700 hover:bg-gray-300 hover:text-gray-900 focus:outline-none focus:bg-gray-100 focus:text-gray-900">
-                {rpc.name}
-              </a>
-            )}
-          </div>
-        }
+        </div>
+        <div className="py-1">
+          {svc.rpcs.map((rpc, j) =>
+            <a key={j} href={`#${svc.name}.${rpc.name}`} className="block pl-6 pr-4 py-2 text-sm leading-5 rounded-sm text-gray-700 hover:bg-gray-300 hover:text-gray-900 focus:outline-none focus:bg-gray-100 focus:text-gray-900">
+              {rpc.name}
+            </a>
+          )}
+        </div>
       </div>
     )}
   </>
