@@ -3,7 +3,6 @@ package daemon
 
 import (
 	"context"
-	"path/filepath"
 	"sync"
 
 	"encr.dev/cli/daemon/internal/appfile"
@@ -94,7 +93,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 // SetSecret sets a secret key on the encore.dev platform.
 func (s *Server) SetSecret(ctx context.Context, req *daemonpb.SetSecretRequest) (*daemonpb.SetSecretResponse, error) {
 	// Get the app id from the app file
-	appSlug, err := appfile.Slug(filepath.Join(req.AppRoot, appfile.Name))
+	appSlug, err := appfile.Slug(req.AppRoot)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	} else if appSlug == "" {

@@ -126,7 +126,7 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 				TokenURL: "https://api.encore.dev/login/oauth:refresh-token",
 			},
 		}
-		ts.ts = oauth2.ReuseTokenSource(&cfg.Token, oauth2Cfg.TokenSource(context.Background(), &cfg.Token))
+		ts.ts = oauth2Cfg.TokenSource(context.Background(), &cfg.Token)
 		return nil
 	})
 	if err != nil {
