@@ -70,7 +70,7 @@ func (b *Builder) BuildBinaries() error {
 
 	cmd := exec.Command("go", "build",
 		fmt.Sprintf("-ldflags=-X 'main.Version=v%s'", b.version),
-		"-o", join(b.dst, "bin", "encore"+exe),
+		"-o", join(b.dst, "bin", "encore"),
 		"./cli/cmd/encore")
 	cmd.Env = env
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -78,7 +78,7 @@ func (b *Builder) BuildBinaries() error {
 	}
 
 	cmd = exec.Command("go", "build",
-		"-o", join(b.dst, "bin", "git-remote-encore"+exe),
+		"-o", join(b.dst, "bin", "git-remote-encore"),
 		"./cli/cmd/git-remote-encore")
 	cmd.Env = env
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -89,35 +89,17 @@ func (b *Builder) BuildBinaries() error {
 }
 
 func (b *Builder) CopyEncoreGo() error {
-	switch b.GOOS {
-	case "windows":
-		cmd := exec.Command("xcopy",
-			"/S", "/I", "/E", "/H", b.encoreGo, join(b.dst, "encore-go"))
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("xcopy %v failed: %s (%v)", cmd.Args, out, err)
-		}
-	default:
-		cmd := exec.Command("cp", "-r", b.encoreGo, join(b.dst, "encore-go"))
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("cp %v failed: %s (%v)", cmd.Args, out, err)
-		}
+	cmd := exec.Command("cp", "-r", b.encoreGo, join(b.dst, "encore-go"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("cp %v failed: %s (%v)", cmd.Args, out, err)
 	}
 	return nil
 }
 
 func (b *Builder) CopyRuntime() error {
-	switch b.GOOS {
-	case "windows":
-		cmd := exec.Command("xcopy",
-			"/S", "/I", "/E", "/H", join("compiler", "runtime"), join(b.dst, "runtime"))
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("xcopy %v failed: %s (%v)", cmd.Args, out, err)
-		}
-	default:
-		cmd := exec.Command("cp", "-r", join("compiler", "runtime"), join(b.dst, "runtime"))
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("cp %v failed: %s (%v)", cmd.Args, out, err)
-		}
+	cmd := exec.Command("cp", "-r", join("compiler", "runtime"), join(b.dst, "runtime"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("cp %v failed: %s (%v)", cmd.Args, out, err)
 	}
 	return nil
 }
@@ -145,6 +127,10 @@ func main() {
 		log.Fatalf("missing -dst %q, -goos %q, -goarch %q, -v %q, or -encore-go %q", *dst, *goos, *goarch, *version, *encoreGo)
 	}
 
+	if *goos == "windows" {
+		log.Fatalf("cannot use make-release.go for Windows builds. use ./windows/build.bat instead.")
+	}
+
 	root, err := os.Getwd()
 	if err != nil {
 		log.Fatalln(err)
@@ -155,10 +141,6 @@ func main() {
 	*dst, err = filepath.Abs(*dst)
 	if err != nil {
 		log.Fatalln(err)
-	}
-
-	if *goos == "windows" {
-		exe = ".exe"
 	}
 
 	b := &Builder{
@@ -181,6 +163,3 @@ func main() {
 		}
 	}
 }
-
-// exe suffix
-var exe string

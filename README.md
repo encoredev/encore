@@ -1,44 +1,55 @@
-# Encore
-https://encore.dev
+# Encore - The Go backend framework with superpowers
 
-The Go backend framework that understands what you're creating.
+https://encore.dev
 
 ## Overview
 
-Encore is a framework for building Go backends.
-Unlike traditional frameworks Encore uses static analysis to understand what you're creating and helps you along the way.
+Encore is a Go backend framework for rapidly creating
+APIs and distributed systems.
 
-**Read the documentation at [encore.dev/docs](https://encore.dev/docs).**
+Encore works by using source code analysis to understand how your application fits together, and then uses that to provide many [superpowers](#superpowers) that radically improve the developer experience.
 
-Features include:
+**Read the complete documentation at [encore.dev/docs](https://encore.dev/docs).**
+
+## Quick Start
+
+### Install
+```bash
+# macOS
+brew install encoredev/tap/encore
+# Linux
+curl -L https://encore.dev/install.sh | bash
+# Windows
+iwr https://encore.dev/install.ps1 | iex
+```
+
+### Create your app
+```bash
+encore app create my-app
+cd my-app
+encore run
+```
+
+### Deploy
+```bash
+git push encore
+```
+
+## Superpowers
+
+Encore comes with tons of superpowers that radically simplify backend development compared to traditional frameworks:
 
 - A state of the art developer experience with unmatched productivity
-- Makes it super-easy to define services and APIs
-- Adds compile time type-checking and auto-completion of your APIs
-- Generates API docs and API clients for your app
-- Instruments your app with distributed tracing, logs, and metrics – automatically
+- Define services, APIs, and make API calls with a single line of Go code
+- Autocomplete and get compile-time checks for API calls 
+- Generates beautiful API docs and API clients automatically
+- Instruments your app with Distributed Tracing, logs, and metrics – automatically
 - Runs serverlessly on Encore's cloud, or deploys to your own favorite cloud
-- Sets up a dedicated Preview Environments for your pull requests
+- Sets up dedicated Preview Environments for your pull requests
 - Supports flexible authentication 
 - Manages your databases and migrates them automatically
-- Provides an extremely simple yet secure secrets management.
-
-### Installing
-
-The easiest way to run Encore is to install the pre-built binaries.
-
-#### macOS
-`brew install encoredev/tap/encore`
-
-#### Windows
-Coming soon
-
-#### Linux
-Coming soon
-
-### Building from source
-
-See [HACKING.md](HACKING.md).
+- Provides an extremely simple yet secure secrets management
+- And lots more...
 
 ## Architecture
 
@@ -65,3 +76,7 @@ The Encore Compiler rewrites the source code based on the parsed
 Encore Syntax Tree to create a fully functioning application.
 It rewrites API calls & API handlers, injects instrumentation
 and secret values, and more.
+
+## Contributing to Encore and building from source
+
+See [HACKING.md](HACKING.md).
