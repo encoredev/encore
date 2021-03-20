@@ -1,12 +1,12 @@
 package runtime
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
 
 	"encore.dev/runtime/config"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
 
@@ -19,6 +19,12 @@ var (
 	RootLogger *zerolog.Logger
 	Config     *config.ServerConfig
 )
+
+var json = jsoniter.Config{
+	EscapeHTML:             false,
+	SortMapKeys:            false,
+	ValidateJsonRawMessage: true,
+}.Froze()
 
 type UID string
 

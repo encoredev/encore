@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +14,7 @@ import (
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"encore.dev/storage/sqldb"
+	jsoniter "github.com/json-iterator/go"
 
 	{{range .Imports -}}
 		{{if .Named}}{{.Name}} {{end}}"{{.Path}}"
@@ -29,10 +29,15 @@ var (
 	_ = http.Error
 	_ = io.EOF
 	_ = ioutil.ReadAll
-	_ = json.Marshal
 	_ = strconv.Quote
 	_ = strings.HasPrefix
 )
+
+var json = jsoniter.Config{
+	EscapeHTML: false,
+	SortMapKeys: true,
+	ValidateJsonRawMessage: true,
+}.Froze()
 
 {{range .Svcs}}
 {{- range .RPCs}}

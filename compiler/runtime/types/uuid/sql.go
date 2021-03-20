@@ -24,9 +24,16 @@ package uuid
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
+
+	jsoniter "github.com/json-iterator/go"
 )
+
+var json = jsoniter.Config{
+	EscapeHTML:             false,
+	SortMapKeys:            true,
+	ValidateJsonRawMessage: true,
+}.Froze()
 
 // Value implements the driver.Valuer interface.
 func (u UUID) Value() (driver.Value, error) {
