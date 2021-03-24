@@ -522,7 +522,7 @@ func initGitRepo(path string, app *appConf) (err error) {
 
 	// Initialize git repo
 	git("init")
-	if app.DefaultBranch != nil {
+	if app != nil && app.DefaultBranch != nil {
 		git("checkout", "-b", *app.DefaultBranch)
 	}
 	git("config", "--local", "push.default", "current")
