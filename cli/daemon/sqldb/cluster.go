@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"encr.dev/cli/daemon/internal/runlog"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/rs/zerolog"
 	"go4.org/syncutil"
@@ -47,7 +48,7 @@ func (c *Cluster) Ready() <-chan struct{} {
 
 // Start creates the container if necessary and starts it.
 // If the cluster is already running it does nothing.
-func (c *Cluster) Start() error {
+func (c *Cluster) Start(log runlog.Log) error {
 	return c.startOnce.Do(func() (err error) {
 		c.log.Debug().Msg("starting cluster")
 		defer func() {
@@ -58,6 +59,11 @@ func (c *Cluster) Start() error {
 				c.log.Error().Err(err).Msg("failed to start cluster")
 			}
 		}()
+
+		// Ensure the docker image exists first.
+		if err := pullImage(log, dockerImage); err != nil {
+			return fmt.Errorf("pull docker image %s: %v", dockerImage, err)
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
@@ -323,4 +329,15 @@ type ClusterStatus struct {
 // containerName computes the container name for a given clusterID.
 func containerName(clusterID string) string {
 	return "sqldb-" + clusterID
+}
+
+func pullImage(log runlog.Log, image string) error {
+	if err := exec.Command("docker", "image", "inspect", image).Run(); err == nil {
+		return nil
+	}
+	fmt.Fprintf(log.Stderr(), "Docker image %q does not exist locally, pulling...\n", image)
+	cmd := exec.Command("docker", "pull", image)
+	cmd.Stdout = log.Stdout()
+	cmd.Stderr = log.Stderr()
+	return cmd.Run()
 }

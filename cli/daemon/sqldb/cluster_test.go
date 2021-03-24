@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"encr.dev/cli/daemon/internal/runlog"
 	qt "github.com/frankban/quicktest"
 )
 
@@ -20,7 +21,7 @@ func TestClusterManager_StartDelete(t *testing.T) {
 	ctx := context.Background()
 	clusterID := genClusterID(c)
 	cl := cm.Init(ctx, &InitParams{ClusterID: clusterID})
-	err := cl.Start()
+	err := cl.Start(runlog.OS())
 	c.Assert(err, qt.IsNil)
 	c.Assert(cl, qt.Not(qt.IsNil))
 
@@ -55,7 +56,7 @@ func testCluster(c *qt.C, cm *ClusterManager) *Cluster {
 	ctx := context.Background()
 	clusterID := genClusterID(c)
 	cl := cm.Init(ctx, &InitParams{ClusterID: clusterID})
-	err := cl.Start()
+	err := cl.Start(runlog.OS())
 	c.Assert(err, qt.IsNil)
 	c.Assert(cl, qt.Not(qt.IsNil))
 	c.Cleanup(func() {

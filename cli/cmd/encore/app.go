@@ -124,10 +124,15 @@ func createApp(ctx context.Context, name, template string) (err error) {
 
 	if template == "" {
 		var idx int
+
+		dockerMsg := ""
+		if _, err := exec.LookPath("docker"); err != nil {
+			dockerMsg = " [requires Docker]"
+		}
 		prompt := &survey.Select{
 			Message: "Select app template:",
 			Options: []string{
-				"Trello clone",
+				"Trello clone" + dockerMsg,
 				"Hello World",
 				"Empty app",
 			},
@@ -169,6 +174,8 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		s.Start()
 		err := downloadAndExtractTemplate(ctx, name, *ex)
 		s.Stop()
+		fmt.Println()
+
 		if err != nil {
 			return fmt.Errorf("failed to download template %s: %v", ex.Name, err)
 		}

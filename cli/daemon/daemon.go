@@ -3,6 +3,8 @@ package daemon
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"sync"
 
 	"encr.dev/cli/daemon/internal/appfile"
@@ -212,4 +214,35 @@ func streamExit(stream commandStream, code int) {
 			Code: int32(code),
 		},
 	}})
+}
+
+type streamLog struct {
+	stream commandStream
+}
+
+func (log streamLog) Stdout() io.Writer {
+	return streamWriter{stream: log.stream, stderr: false}
+}
+
+func (log streamLog) Stderr() io.Writer {
+	return streamWriter{stream: log.stream, stderr: true}
+}
+
+type runStreamAdapter struct {
+	stream daemonpb.Daemon_RunServer
+}
+
+func (a runStreamAdapter) Send(msg *daemonpb.CommandMessage) error {
+	switch msg := msg.Msg.(type) {
+	case *daemonpb.CommandMessage_Output:
+		return a.stream.Send(&daemonpb.RunMessage{
+			Msg: &daemonpb.RunMessage_Output{Output: msg.Output},
+		})
+	case *daemonpb.CommandMessage_Exit:
+		return a.stream.Send(&daemonpb.RunMessage{
+			Msg: &daemonpb.RunMessage_Exit{Exit: msg.Exit},
+		})
+	default:
+		panic(fmt.Sprintf("unknown CommandMessage type %T", msg))
+	}
 }

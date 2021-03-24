@@ -66,7 +66,12 @@ func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migr
 	}
 	if migrate || recreate || !db.migrated {
 		if err := db.Migrate(ctx, appRoot, svc); err != nil {
-			return fmt.Errorf("migrate db %s: %v", db.Name, err)
+			// Only report an error if we asked to migrate or recreate.
+			// Otherwise we might fail to open a database shell when there
+			// is a migration issue.
+			if migrate || recreate {
+				return fmt.Errorf("migrate db %s: %v", db.Name, err)
+			}
 		}
 	}
 	return nil

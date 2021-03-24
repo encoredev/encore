@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -62,11 +63,19 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 			Meta:      parse.Meta,
 			Memfs:     false,
 		})
+		if _, err := exec.LookPath("docker"); err != nil {
+			sendErr(fmt.Errorf("This application requires docker to run since it uses an SQL database. Install docker first."))
+			return nil
+		}
+
+		if err := cluster.Start(streamLog{stream: runStreamAdapter{stream}}); err != nil {
+			sendErr(fmt.Errorf("Database setup failed: %v", err))
+			return nil
+		}
+
 		// Set up the database asynchronously since it can take a while.
 		go func() {
-			if err := cluster.Start(); err != nil {
-				dbSetupErr <- err
-			} else if err := cluster.CreateAndMigrate(stream.Context(), req.AppRoot, parse.Meta); err != nil {
+			if err := cluster.CreateAndMigrate(stream.Context(), req.AppRoot, parse.Meta); err != nil {
 				dbSetupErr <- err
 			}
 		}()
@@ -156,7 +165,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	dbSetupErr := make(chan error, 1)
 	go func() {
 		defer setupCancel()
-		if err := cluster.Start(); err != nil {
+		if err := cluster.Start(streamLog{stream: stream}); err != nil {
 			dbSetupErr <- err
 		} else if err := cluster.Recreate(setupCtx, req.AppRoot, nil, parse.Meta); err != nil {
 			dbSetupErr <- err

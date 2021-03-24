@@ -121,8 +121,11 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	var params {{typeName .Request}}
 	err = json.Unmarshal(payload, &params)
 	if err != nil {
-		runtime.FinishRequest(400, nil, fmt.Errorf("could not decode request: %v", err))
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		if len(payload) == 0 {
+			err = fmt.Errorf("no request data given") // improve error message
+		}
+		runtime.FinishRequest(400, nil, fmt.Errorf("could not parse request: %v", err))
+		http.Error(w, "could not parse request: " + err.Error(), http.StatusBadRequest)
 		return
 	}
 {{- end}}

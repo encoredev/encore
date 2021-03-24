@@ -1,8 +1,7 @@
 import React, { FunctionComponent } from 'react'
 import { useParams } from 'react-router-dom'
-import AppLogs from '~c/app/AppLogs'
-import AppTraces from '~c/app/AppTraces'
 import AppCaller from '~c/app/AppCaller'
+import AppTraces from '~c/app/AppTraces'
 import Nav from '~c/Nav'
 import { useConn } from '~lib/ctx'
 

@@ -4,8 +4,8 @@ import { useConn } from "~lib/ctx"
 import logo from "../logo.svg"
 
 const menuItems: {href: string; name: string}[] = [
-  {href: "", name: "Logs"},
-  {href: "/api", name: "API"},
+  {href: "", name: "Requests"},
+  {href: "/api", name: "API Docs"},
 ]
 
 const Nav: FunctionComponent = (props) => {

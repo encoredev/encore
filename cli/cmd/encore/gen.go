@@ -69,7 +69,7 @@ func init() {
 	genCmd.AddCommand(genClientCmd)
 	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
 	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (only \"ts\" is supported for now)")
-	genClientCmd.Flags().StringVarP(&envName, "env", "e", "production", "The environment to fetch the API for")
+	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
 }
 
 func detectLang(path string) (string, bool) {
