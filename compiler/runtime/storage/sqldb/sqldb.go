@@ -17,6 +17,9 @@ var (
 	queryCounter uint64
 )
 
+// ErrNoRows occurs when rows are expected but none are returned.
+var ErrNoRows = pgx.ErrNoRows
+
 // ExecResult is the result of an Exec query.
 type ExecResult interface {
 	// RowsAffected returns the number of rows affected. If the result was not
