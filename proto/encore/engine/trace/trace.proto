@@ -37,6 +37,7 @@ message Event {
     DBTransaction tx = 2;
     DBQuery query = 3;
     Goroutine goroutine = 4;
+    HTTPCall http = 5;
   }
 }
 
@@ -80,4 +81,18 @@ message DBQuery {
   uint64 end_time = 4;
   bytes query = 5;
   bytes err = 6;
+}
+
+message HTTPCall {
+  uint64 span_id = 1;
+  uint32 goid = 2;
+  uint64 start_time = 3;
+  uint64 end_time = 4;
+  string method = 5;
+  string host = 6;
+  string path = 7;
+  string url = 8;
+  uint32 status_code = 9;
+  bytes err = 10;
+  uint64 body_closed_time = 11;
 }

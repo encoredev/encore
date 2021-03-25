@@ -13,19 +13,22 @@ import (
 type TraceEvent byte
 
 const (
-	RequestStart TraceEvent = 0x01
-	RequestEnd   TraceEvent = 0x02
-	GoStart      TraceEvent = 0x03
-	GoEnd        TraceEvent = 0x04
-	GoClear      TraceEvent = 0x05
-	TxStart      TraceEvent = 0x06
-	TxEnd        TraceEvent = 0x07
-	QueryStart   TraceEvent = 0x08
-	QueryEnd     TraceEvent = 0x09
-	CallStart    TraceEvent = 0x10
-	CallEnd      TraceEvent = 0x11
-	AuthStart    TraceEvent = 0x12
-	AuthEnd      TraceEvent = 0x13
+	RequestStart       TraceEvent = 0x01
+	RequestEnd         TraceEvent = 0x02
+	GoStart            TraceEvent = 0x03
+	GoEnd              TraceEvent = 0x04
+	GoClear            TraceEvent = 0x05
+	TxStart            TraceEvent = 0x06
+	TxEnd              TraceEvent = 0x07
+	QueryStart         TraceEvent = 0x08
+	QueryEnd           TraceEvent = 0x09
+	CallStart          TraceEvent = 0x10
+	CallEnd            TraceEvent = 0x11
+	AuthStart          TraceEvent = 0x12
+	AuthEnd            TraceEvent = 0x13
+	HTTPCallStart      TraceEvent = 0x14
+	HTTPCallEnd        TraceEvent = 0x15
+	HTTPCallBodyClosed TraceEvent = 0x16
 )
 
 // genTraceID generates a new trace id and root span id.

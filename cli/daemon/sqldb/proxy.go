@@ -156,7 +156,7 @@ func (cm *ClusterManager) PreauthProxyConn(frontend net.Conn, clusterID string) 
 	defer frontend.Close()
 	var proxy pgproxy.Proxy
 
-	data, err := proxy.FrontendAuth(frontend, nil, true)
+	data, err := proxy.FrontendAuth(frontend, nil, false)
 	if err != nil {
 		return err
 	}

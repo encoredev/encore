@@ -36,7 +36,7 @@ type Server struct {
 	streams  map[string]daemonpb.Daemon_RunServer // run id -> stream
 	appRoots map[string]string                    // cache of app id -> app root
 
-	daemonpb.UnsafeDaemonServer
+	daemonpb.UnimplementedDaemonServer
 }
 
 // New creates a new Server.

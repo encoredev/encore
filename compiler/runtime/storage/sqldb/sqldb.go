@@ -2,6 +2,7 @@ package sqldb
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"sync/atomic"
@@ -16,9 +17,6 @@ var (
 	txidCounter  uint64
 	queryCounter uint64
 )
-
-// ErrNoRows occurs when rows are expected but none are returned.
-var ErrNoRows = pgx.ErrNoRows
 
 // ExecResult is the result of an Exec query.
 type ExecResult interface {
@@ -42,6 +40,7 @@ func Exec(traceExpr int32, svc string, ctx context.Context, query string, args .
 	}
 
 	res, err := getDB(svc).Exec(ctx, query, args...)
+	err = convertErr(err)
 
 	if req != nil && req.Traced {
 		var tb runtime.TraceBuf
@@ -72,6 +71,7 @@ func Query(traceExpr int32, svc string, ctx context.Context, query string, args 
 	}
 
 	rows, err := getDB(svc).Query(ctx, query, args...)
+	err = convertErr(err)
 
 	if req != nil && req.Traced {
 		var tb runtime.TraceBuf
@@ -105,6 +105,7 @@ func QueryRow(traceExpr int32, svc string, ctx context.Context, query string, ar
 	}
 
 	rows, err := getDB(svc).Query(ctx, query, args...)
+	err = convertErr(err)
 	r := &Row{rows: rows, err: err}
 
 	if req != nil && req.Traced {
@@ -128,6 +129,7 @@ type Tx struct {
 
 func Begin(traceExpr int32, svc string, ctx context.Context) (*Tx, error) {
 	tx, err := getDB(svc).Begin(ctx)
+	err = convertErr(err)
 	if err != nil {
 		return nil, err
 	}
@@ -147,6 +149,7 @@ func Begin(traceExpr int32, svc string, ctx context.Context) (*Tx, error) {
 
 func Commit(traceExpr int32, svc string, tx *Tx) error {
 	err := tx.std.Commit(context.Background())
+	err = convertErr(err)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
 		var tb runtime.TraceBuf
@@ -167,6 +170,7 @@ func Commit(traceExpr int32, svc string, tx *Tx) error {
 
 func Rollback(traceExpr int32, svc string, tx *Tx) error {
 	err := tx.std.Rollback(context.Background())
+	err = convertErr(err)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
 		var tb runtime.TraceBuf
@@ -200,6 +204,7 @@ func ExecTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query stri
 	}
 
 	res, err := tx.std.Exec(ctx, query, args...)
+	err = convertErr(err)
 
 	if req != nil && req.Traced {
 		var tb runtime.TraceBuf
@@ -230,6 +235,7 @@ func QueryTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query str
 	}
 
 	rows, err := tx.std.Query(ctx, query, args...)
+	err = convertErr(err)
 
 	if req != nil && req.Traced {
 		var tb runtime.TraceBuf
@@ -265,6 +271,7 @@ func QueryRowTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query 
 	// pgx currently does not support .Err() on Row.
 	// Work around this by using Query.
 	rows, err := tx.std.Query(ctx, query, args...)
+	err = convertErr(err)
 	r := &Row{rows: rows, err: err}
 
 	if req != nil && req.Traced {
@@ -301,20 +308,20 @@ func (r *Row) Scan(dest ...interface{}) error {
 	}
 	if !r.rows.Next() {
 		if err := r.rows.Err(); err != nil {
-			return err
+			return convertErr(err)
 		}
-		return pgx.ErrNoRows
+		return sql.ErrNoRows
 	}
 	r.rows.Scan(dest...)
 	r.rows.Close()
-	return r.rows.Err()
+	return convertErr(r.rows.Err())
 }
 
 func (r *Row) Err() error {
 	if r.err != nil {
 		return r.err
 	}
-	return r.rows.Err()
+	return convertErr(r.rows.Err())
 }
 
 var dbMap atomic.Value
@@ -343,8 +350,6 @@ func Setup(cfg *config.ServerConfig) {
 		if svc.SQLDB {
 			if addr == "" {
 				panic("sqldb: ENCORE_SQLDB_ADDRESS not set")
-			} else if passwd == "" {
-				panic("sqldb: ENCORE_SQLDB_PASSWORD not set")
 			}
 
 			uri := fmt.Sprintf("postgresql://encore:%s@%s/%s?sslmode=disable",
@@ -362,4 +367,13 @@ func Setup(cfg *config.ServerConfig) {
 		}
 	}
 	setDBs(dbs)
+}
+
+func convertErr(err error) error {
+	switch err {
+	case pgx.ErrNoRows:
+		return sql.ErrNoRows
+	default:
+		return err
+	}
 }

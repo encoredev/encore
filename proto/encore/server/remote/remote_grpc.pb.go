@@ -12,8 +12,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-// Requires gRPC-Go v1.32.0 or later.
-const _ = grpc.SupportPackageIsVersion7
+const _ = grpc.SupportPackageIsVersion6
 
 // RemoteClient is the client API for Remote service.
 //
@@ -37,7 +36,7 @@ func NewRemoteClient(cc grpc.ClientConnInterface) RemoteClient {
 }
 
 func (c *remoteClient) Tunnel(ctx context.Context, opts ...grpc.CallOption) (Remote_TunnelClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Remote_ServiceDesc.Streams[0], "/encore.server.remote.Remote/Tunnel", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Remote_serviceDesc.Streams[0], "/encore.server.remote.Remote/Tunnel", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +76,7 @@ func (c *remoteClient) Meta(ctx context.Context, in *MetaRequest, opts ...grpc.C
 }
 
 func (c *remoteClient) DBConnect(ctx context.Context, opts ...grpc.CallOption) (Remote_DBConnectClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Remote_ServiceDesc.Streams[1], "/encore.server.remote.Remote/DBConnect", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Remote_serviceDesc.Streams[1], "/encore.server.remote.Remote/DBConnect", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +134,7 @@ func (c *remoteClient) SetSecret(ctx context.Context, in *SetSecretRequest, opts
 }
 
 func (c *remoteClient) Logs(ctx context.Context, in *LogsRequest, opts ...grpc.CallOption) (Remote_LogsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Remote_ServiceDesc.Streams[2], "/encore.server.remote.Remote/Logs", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Remote_serviceDesc.Streams[2], "/encore.server.remote.Remote/Logs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,38 +183,31 @@ type RemoteServer interface {
 type UnimplementedRemoteServer struct {
 }
 
-func (UnimplementedRemoteServer) Tunnel(Remote_TunnelServer) error {
+func (*UnimplementedRemoteServer) Tunnel(Remote_TunnelServer) error {
 	return status.Errorf(codes.Unimplemented, "method Tunnel not implemented")
 }
-func (UnimplementedRemoteServer) Meta(context.Context, *MetaRequest) (*v1.Data, error) {
+func (*UnimplementedRemoteServer) Meta(context.Context, *MetaRequest) (*v1.Data, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Meta not implemented")
 }
-func (UnimplementedRemoteServer) DBConnect(Remote_DBConnectServer) error {
+func (*UnimplementedRemoteServer) DBConnect(Remote_DBConnectServer) error {
 	return status.Errorf(codes.Unimplemented, "method DBConnect not implemented")
 }
-func (UnimplementedRemoteServer) RecordTrace(context.Context, *RecordTraceRequest) (*RecordTraceResponse, error) {
+func (*UnimplementedRemoteServer) RecordTrace(context.Context, *RecordTraceRequest) (*RecordTraceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RecordTrace not implemented")
 }
-func (UnimplementedRemoteServer) GetSecrets(context.Context, *GetSecretsRequest) (*GetSecretsResponse, error) {
+func (*UnimplementedRemoteServer) GetSecrets(context.Context, *GetSecretsRequest) (*GetSecretsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSecrets not implemented")
 }
-func (UnimplementedRemoteServer) SetSecret(context.Context, *SetSecretRequest) (*SetSecretResponse, error) {
+func (*UnimplementedRemoteServer) SetSecret(context.Context, *SetSecretRequest) (*SetSecretResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetSecret not implemented")
 }
-func (UnimplementedRemoteServer) Logs(*LogsRequest, Remote_LogsServer) error {
+func (*UnimplementedRemoteServer) Logs(*LogsRequest, Remote_LogsServer) error {
 	return status.Errorf(codes.Unimplemented, "method Logs not implemented")
 }
-func (UnimplementedRemoteServer) mustEmbedUnimplementedRemoteServer() {}
+func (*UnimplementedRemoteServer) mustEmbedUnimplementedRemoteServer() {}
 
-// UnsafeRemoteServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to RemoteServer will
-// result in compilation errors.
-type UnsafeRemoteServer interface {
-	mustEmbedUnimplementedRemoteServer()
-}
-
-func RegisterRemoteServer(s grpc.ServiceRegistrar, srv RemoteServer) {
-	s.RegisterService(&Remote_ServiceDesc, srv)
+func RegisterRemoteServer(s *grpc.Server, srv RemoteServer) {
+	s.RegisterService(&_Remote_serviceDesc, srv)
 }
 
 func _Remote_Tunnel_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -363,10 +355,7 @@ func (x *remoteLogsServer) Send(m *LogsResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-// Remote_ServiceDesc is the grpc.ServiceDesc for Remote service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Remote_ServiceDesc = grpc.ServiceDesc{
+var _Remote_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "encore.server.remote.Remote",
 	HandlerType: (*RemoteServer)(nil),
 	Methods: []grpc.MethodDesc{

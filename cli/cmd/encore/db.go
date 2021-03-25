@@ -208,13 +208,13 @@ func init() {
 	dbResetCmd.Flags().BoolVar(&resetAll, "all", false, "Reset all services in the application")
 	dbCmd.AddCommand(dbResetCmd)
 
-	dbShellCmd.Flags().StringVarP(&dbEnv, "env", "e", "", "Environment name to connect to (such as \"production\")")
+	dbShellCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbCmd.AddCommand(dbShellCmd)
 
-	dbProxyCmd.Flags().StringVarP(&dbEnv, "env", "e", "", "Environment name to connect to (such as \"production\")")
+	dbProxyCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbProxyCmd.Flags().Int32VarP(&dbProxyPort, "port", "p", 0, "Port to listen on (defaults to a random port)")
 	dbCmd.AddCommand(dbProxyCmd)
 
-	dbConnURICmd.Flags().StringVarP(&dbEnv, "env", "e", "", "Environment name to connect to (such as \"production\")")
+	dbConnURICmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbCmd.AddCommand(dbConnURICmd)
 }

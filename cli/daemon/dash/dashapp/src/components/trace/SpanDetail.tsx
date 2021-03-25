@@ -1,5 +1,5 @@
 import { FunctionComponent, useState, useRef, useEffect } from "react"
-import { Request, Trace, Event, DBTransaction, DBQuery, TraceExpr, RPCCall, AuthCall } from "./model"
+import { Request, Trace, Event, DBTransaction, DBQuery, TraceExpr, RPCCall, AuthCall, HTTPCall } from "./model"
 import { latencyStr, svcColor } from "./util"
 import * as icons from "~c/icons"
 import { decodeBase64, Base64EncodedBytes } from "~lib/base64"
@@ -248,6 +248,24 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
                 }}
               />
             </React.Fragment>
+          } else if (ev.type === "HTTPCall") {
+            const [color, highlightColor] = svcColor(ev.url)
+            return <React.Fragment key={i}>
+              <style>{`
+                .${clsid}       { background-color: ${highlightColor}; }
+                .${clsid}:hover { background-color: ${color}; }
+              `}</style>
+              <div className={`absolute ${clsid}`}
+                onMouseEnter={(e) => setHover(e, ev)}
+                onMouseLeave={(e) => setHover(e, null)}
+                style={{
+                  borderRadius: "3px",
+                  top: "3px", bottom: "3px",
+                  left: start+"%", right: (100-end)+"%",
+                  minWidth: "1px" // so it at least renders if start === stop
+                }}
+              />
+            </React.Fragment>
           }
         })}
       </div>
@@ -261,6 +279,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
           {hoverObj && "type" in hoverObj && (
             hoverObj.type === "DBQuery" ? <DBQueryTooltip q={hoverObj} trace={props.trace} /> :
             hoverObj.type === "RPCCall" ? <RPCCallTooltip call={hoverObj as RPCCall} req={req} trace={props.trace} /> :
+            hoverObj.type === "HTTPCall" ? <HTTPCallTooltip call={hoverObj as HTTPCall} req={req} trace={props.trace} /> :
             null)}
         </div>
       }
@@ -345,6 +364,42 @@ const RPCCallTooltip: FunctionComponent<{call: RPCCall, req: Request, trace: Tra
       {c.err !== null ? (
         <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">
           {decodeBase64(c.err)}
+        </pre>
+      ) : (
+        <div className="text-gray-700 text-sm">Completed successfully.</div>
+      )}
+    </div>
+
+  </div>
+}
+
+const HTTPCallTooltip: FunctionComponent<{call: HTTPCall, req: Request, trace: Trace}> = ({call, req, trace}) => {
+  return <div>
+    <h3 className="flex items-center text-gray-800 font-bold text-lg">
+      {icons.logout("h-8 w-auto text-gray-400 mr-2")}
+      HTTP {call.method} {call.host}{call.path !== "" ? "/" + call.path : ""}
+      <div className="ml-auto text-sm font-normal text-gray-500">{latencyStr(call.end_time - call.start_time)}</div>
+    </h3>
+
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">URL</h4>
+      <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">{call.url}</pre>
+    </div>
+
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Response</h4>
+      {call.end_time !== -1 ? (
+        <div className="text-gray-700 text-sm">HTTP {call.status_code}</div>
+      ) : (
+        <div className="text-gray-700 text-sm">No response recorded.</div>
+      )}
+    </div>
+
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Error</h4>
+      {call.err !== null ? (
+        <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">
+          {decodeBase64(call.err)}
         </pre>
       ) : (
         <div className="text-gray-700 text-sm">Completed successfully.</div>

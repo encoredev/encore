@@ -1,6 +1,10 @@
 package runtime
 
-import "unsafe"
+import (
+	"context"
+	"net/http"
+	"unsafe"
+)
 
 // encoreG tracks per-goroutine Encore-specific data.
 // This must match the definition in the encore-go runtime.
@@ -76,7 +80,7 @@ func encoreBeginReq(spanID SpanID, req *Request, trace bool)
 //go:linkname encoreCompleteReq runtime.encoreCompleteReq
 func encoreCompleteReq()
 
-// encoreCleareq clears request data from the running g
+// encoreClearReq clears request data from the running g
 // without decrementing the ref count.
 // The g must be processing a request.
 //go:linkname encoreClearReq runtime.encoreClearReq
@@ -89,4 +93,14 @@ type encoreTraceID [16]byte
 //go:linkname encoreSendTrace runtime.encoreSendTrace
 func encoreSendTrace(data []byte) {
 	go asyncSendTrace(data)
+}
+
+//go:linkname encoreBeginRoundTrip net/http.encoreBeginRoundTrip
+func encoreBeginRoundTrip(req *http.Request) (context.Context, error) {
+	return httpBeginRoundTrip(req)
+}
+
+//go:linkname encoreFinishRoundTrip net/http.encoreFinishRoundTrip
+func encoreFinishRoundTrip(req *http.Request, resp *http.Response, err error) {
+	httpCompleteRoundTrip(req, resp, err)
 }

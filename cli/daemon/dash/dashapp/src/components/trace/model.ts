@@ -83,7 +83,23 @@ export interface AuthCall {
   err: Base64EncodedBytes | null;
 }
 
-export type Event = DBTransaction | DBQuery | RPCCall | Goroutine;
+export interface HTTPCall {
+  type: "HTTPCall";
+  goid: number;
+  req_id: string;
+  start_time: number;
+  end_time: number;
+  body_closed_time: number;
+  method: string;
+  host: string;
+  path: string;
+  url: string;
+  status_code: number;
+  err: Base64EncodedBytes | null;
+}
+
+
+export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine;
 
 export type TraceExpr = RpcDefExpr | RpcCallExpr | StaticCallExpr | AuthHandlerDefExpr
 

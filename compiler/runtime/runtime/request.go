@@ -1,7 +1,12 @@
 package runtime
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptrace"
 	"sync/atomic"
 	"time"
 
@@ -15,8 +20,9 @@ import (
 )
 
 var (
-	reqIDCtr  uint32
-	callIDCtr uint64
+	reqIDCtr     uint32
+	callIDCtr    uint64
+	httpReqIDCtr uint64
 )
 
 var (
@@ -347,3 +353,188 @@ func finishReq(status int, outputs [][]byte, err error) {
 	}
 	encoreCompleteReq()
 }
+
+type httpRoundTrip struct {
+	ReqID  uint64
+	SpanID SpanID
+}
+
+func (rt *httpRoundTrip) getConn(hostPort string) {
+
+}
+
+func (rt *httpRoundTrip) gotConn(info httptrace.GotConnInfo) {
+
+}
+
+func (rt *httpRoundTrip) gotFirstResponseByte() {
+
+}
+
+func (rt *httpRoundTrip) got100Continue() {
+
+}
+
+func (rt *httpRoundTrip) dnsStart(info httptrace.DNSStartInfo) {
+
+}
+
+func (rt *httpRoundTrip) dnsDone(info httptrace.DNSDoneInfo) {
+
+}
+
+func (rt *httpRoundTrip) connectStart(network, addr string) {
+
+}
+
+func (rt *httpRoundTrip) connectDone(network, addr string, err error) {
+
+}
+
+func (rt *httpRoundTrip) tlsHandshakeStart() {
+
+}
+
+func (rt *httpRoundTrip) tlsHandshakeDone(state tls.ConnectionState, err error) {
+
+}
+
+func (rt *httpRoundTrip) wroteHeaders() {
+
+}
+
+func (rt *httpRoundTrip) wroteRequest(info httptrace.WroteRequestInfo) {
+
+}
+
+func (rt *httpRoundTrip) wait100Continue() {
+
+}
+
+func httpBeginRoundTrip(req *http.Request) (context.Context, error) {
+	g := encoreGetG()
+	if g == nil || g.req == nil || !g.req.data.Traced {
+		return req.Context(), nil
+	}
+
+	spanID, err := genSpanID()
+	if err != nil {
+		return nil, err
+	}
+
+	reqID := atomic.AddUint64(&httpReqIDCtr, 1)
+
+	tb := NewTraceBuf(8 + 4 + 4 + 4 + len(req.Method) + 128)
+	tb.UVarint(reqID)
+	tb.Bytes(g.req.data.SpanID[:])
+	tb.Bytes(spanID[:])
+	tb.UVarint(uint64(g.goid))
+	tb.String(req.Method)
+
+	tb.String(req.URL.Host)
+	tb.String(req.URL.Path)
+	tb.String(req.URL.String())
+
+	encoreTraceEvent(HTTPCallStart, tb.Buf())
+
+	rt := &httpRoundTrip{
+		ReqID:  reqID,
+		SpanID: spanID,
+	}
+	ctx := context.WithValue(req.Context(), rtKey, rt)
+	tr := &httptrace.ClientTrace{
+		GetConn:              rt.getConn,
+		GotConn:              rt.gotConn,
+		GotFirstResponseByte: rt.gotFirstResponseByte,
+		Got100Continue:       rt.got100Continue,
+		DNSStart:             rt.dnsStart,
+		DNSDone:              rt.dnsDone,
+		ConnectStart:         rt.connectStart,
+		ConnectDone:          rt.connectDone,
+		TLSHandshakeStart:    rt.tlsHandshakeStart,
+		TLSHandshakeDone:     rt.tlsHandshakeDone,
+		WroteHeaders:         rt.wroteHeaders,
+		Wait100Continue:      rt.wait100Continue,
+		WroteRequest:         rt.wroteRequest,
+	}
+	return httptrace.WithClientTrace(ctx, tr), nil
+}
+
+func httpCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
+	rt, ok := req.Context().Value(rtKey).(*httpRoundTrip)
+	if !ok {
+		return
+	}
+
+	tb := NewTraceBuf(8 + 4 + 4 + 4)
+	tb.UVarint(rt.ReqID)
+	if err != nil {
+		msg := err.Error()
+		if msg == "" {
+			msg = "unknown error"
+		}
+		tb.String(msg)
+		tb.UVarint(0)
+	} else {
+		tb.String("")
+		tb.UVarint(uint64(resp.StatusCode))
+	}
+	encoreTraceEvent(HTTPCallEnd, tb.Buf())
+
+	if req.Method != "HEAD" {
+		resp.Body = wrapRespBody(resp.Body, rt)
+	}
+}
+
+func (rt *httpRoundTrip) ClosedBody(err error) {
+	tb := NewTraceBuf(8 + 4)
+	tb.UVarint(rt.ReqID)
+	if err != nil {
+		msg := err.Error()
+		if msg == "" {
+			msg = "unknown error"
+		}
+		tb.String(msg)
+	} else {
+		tb.String("")
+	}
+	encoreTraceEvent(HTTPCallBodyClosed, tb.Buf())
+}
+
+func wrapRespBody(body io.ReadCloser, rt *httpRoundTrip) io.ReadCloser {
+	readWriteCloser, ok := body.(io.ReadWriteCloser)
+	if ok {
+		return writerCloseTracker{readWriteCloser, rt}
+	} else {
+		return closeTracker{body, rt}
+	}
+
+}
+
+type closeTracker struct {
+	io.ReadCloser
+	rt *httpRoundTrip
+}
+
+func (c closeTracker) Close() error {
+	err := c.ReadCloser.Close()
+	c.rt.ClosedBody(err)
+	return err
+}
+
+type writerCloseTracker struct {
+	io.ReadWriteCloser
+	rt *httpRoundTrip
+}
+
+func (c writerCloseTracker) Close() error {
+	err := c.ReadWriteCloser.Close()
+	c.rt.ClosedBody(err)
+	return err
+}
+
+type contextKey int
+
+const (
+	rtKey contextKey = iota
+)

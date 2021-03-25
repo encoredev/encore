@@ -82,6 +82,7 @@ func Parse(traceID ID, data []byte) ([]*tracepb.Request, error) {
 		queryMap:    make(map[uint64]*tracepb.DBQuery),
 		callMap:     make(map[uint64]interface{}),
 		goMap:       make(map[goKey]*tracepb.Goroutine),
+		httpMap:     make(map[uint64]*tracepb.HTTPCall),
 	}
 	if err := tp.Parse(); err != nil {
 		return nil, err
@@ -102,6 +103,7 @@ type traceParser struct {
 	txMap    map[uint64]*tracepb.DBTransaction
 	queryMap map[uint64]*tracepb.DBQuery
 	callMap  map[uint64]interface{} // *RPCCall or *AuthCall
+	httpMap  map[uint64]*tracepb.HTTPCall
 	goMap    map[goKey]*tracepb.Goroutine
 }
 
@@ -139,6 +141,13 @@ func (tp *traceParser) Parse() error {
 		case 0x12, 0x13:
 			// Skip these events for now
 			tp.Skip(size)
+
+		case 0x14:
+			err = tp.httpStart(ts)
+		case 0x15:
+			err = tp.httpEnd(ts)
+		case 0x16:
+			err = tp.httpBodyClosed(ts)
 
 		default:
 			log.Error().Int("idx", i).Hex("event", []byte{ev}).Msg("trace: unknown event type, skipping")
@@ -402,6 +411,56 @@ func (tp *traceParser) callEnd(ts uint64) error {
 	c.EndTime = ts
 	c.Err = errMsg
 	delete(tp.callMap, callID)
+	return nil
+}
+
+func (tp *traceParser) httpStart(ts uint64) error {
+	callID := tp.UVarint()
+	spanID := tp.Uint64()
+	childSpanID := tp.Uint64()
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return fmt.Errorf("unknown request span: %v", spanID)
+	}
+	c := &tracepb.HTTPCall{
+		SpanId:    childSpanID,
+		Goid:      uint32(tp.UVarint()),
+		Method:    tp.String(),
+		Host:      tp.String(),
+		Path:      tp.String(),
+		Url:       tp.String(),
+		StartTime: ts,
+	}
+	tp.httpMap[callID] = c
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_Http{Http: c},
+	})
+	return nil
+}
+
+func (tp *traceParser) httpEnd(ts uint64) error {
+	callID := tp.UVarint()
+	errMsg := tp.ByteString()
+	status := tp.UVarint()
+	c, ok := tp.httpMap[callID]
+	if !ok {
+		return fmt.Errorf("unknown call: %v ", callID)
+	}
+	c.EndTime = ts
+	c.Err = errMsg
+	c.StatusCode = uint32(status)
+	return nil
+}
+
+func (tp *traceParser) httpBodyClosed(ts uint64) error {
+	callID := tp.UVarint()
+	_ = tp.ByteString() // close error
+	c, ok := tp.httpMap[callID]
+	if !ok {
+		return fmt.Errorf("unknown call: %v ", callID)
+	}
+	c.BodyClosedTime = ts
+	delete(tp.httpMap, callID)
 	return nil
 }
 

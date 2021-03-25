@@ -12,8 +12,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-// Requires gRPC-Go v1.32.0 or later.
-const _ = grpc.SupportPackageIsVersion7
+const _ = grpc.SupportPackageIsVersion6
 
 // DaemonClient is the client API for Daemon service.
 //
@@ -51,7 +50,7 @@ func NewDaemonClient(cc grpc.ClientConnInterface) DaemonClient {
 }
 
 func (c *daemonClient) Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (Daemon_RunClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[0], "/encore.daemon.Daemon/Run", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Daemon_serviceDesc.Streams[0], "/encore.daemon.Daemon/Run", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +82,7 @@ func (x *daemonRunClient) Recv() (*RunMessage, error) {
 }
 
 func (c *daemonClient) Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (Daemon_TestClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[1], "/encore.daemon.Daemon/Test", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Daemon_serviceDesc.Streams[1], "/encore.daemon.Daemon/Test", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +114,7 @@ func (x *daemonTestClient) Recv() (*CommandMessage, error) {
 }
 
 func (c *daemonClient) Check(ctx context.Context, in *CheckRequest, opts ...grpc.CallOption) (Daemon_CheckClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[2], "/encore.daemon.Daemon/Check", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Daemon_serviceDesc.Streams[2], "/encore.daemon.Daemon/Check", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +146,7 @@ func (x *daemonCheckClient) Recv() (*CommandMessage, error) {
 }
 
 func (c *daemonClient) Logs(ctx context.Context, in *LogsRequest, opts ...grpc.CallOption) (Daemon_LogsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[3], "/encore.daemon.Daemon/Logs", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Daemon_serviceDesc.Streams[3], "/encore.daemon.Daemon/Logs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +187,7 @@ func (c *daemonClient) DBConnect(ctx context.Context, in *DBConnectRequest, opts
 }
 
 func (c *daemonClient) DBProxy(ctx context.Context, in *DBProxyRequest, opts ...grpc.CallOption) (Daemon_DBProxyClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[4], "/encore.daemon.Daemon/DBProxy", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Daemon_serviceDesc.Streams[4], "/encore.daemon.Daemon/DBProxy", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +219,7 @@ func (x *daemonDBProxyClient) Recv() (*CommandMessage, error) {
 }
 
 func (c *daemonClient) DBReset(ctx context.Context, in *DBResetRequest, opts ...grpc.CallOption) (Daemon_DBResetClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[5], "/encore.daemon.Daemon/DBReset", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Daemon_serviceDesc.Streams[5], "/encore.daemon.Daemon/DBReset", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -310,47 +309,40 @@ type DaemonServer interface {
 type UnimplementedDaemonServer struct {
 }
 
-func (UnimplementedDaemonServer) Run(*RunRequest, Daemon_RunServer) error {
+func (*UnimplementedDaemonServer) Run(*RunRequest, Daemon_RunServer) error {
 	return status.Errorf(codes.Unimplemented, "method Run not implemented")
 }
-func (UnimplementedDaemonServer) Test(*TestRequest, Daemon_TestServer) error {
+func (*UnimplementedDaemonServer) Test(*TestRequest, Daemon_TestServer) error {
 	return status.Errorf(codes.Unimplemented, "method Test not implemented")
 }
-func (UnimplementedDaemonServer) Check(*CheckRequest, Daemon_CheckServer) error {
+func (*UnimplementedDaemonServer) Check(*CheckRequest, Daemon_CheckServer) error {
 	return status.Errorf(codes.Unimplemented, "method Check not implemented")
 }
-func (UnimplementedDaemonServer) Logs(*LogsRequest, Daemon_LogsServer) error {
+func (*UnimplementedDaemonServer) Logs(*LogsRequest, Daemon_LogsServer) error {
 	return status.Errorf(codes.Unimplemented, "method Logs not implemented")
 }
-func (UnimplementedDaemonServer) DBConnect(context.Context, *DBConnectRequest) (*DBConnectResponse, error) {
+func (*UnimplementedDaemonServer) DBConnect(context.Context, *DBConnectRequest) (*DBConnectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DBConnect not implemented")
 }
-func (UnimplementedDaemonServer) DBProxy(*DBProxyRequest, Daemon_DBProxyServer) error {
+func (*UnimplementedDaemonServer) DBProxy(*DBProxyRequest, Daemon_DBProxyServer) error {
 	return status.Errorf(codes.Unimplemented, "method DBProxy not implemented")
 }
-func (UnimplementedDaemonServer) DBReset(*DBResetRequest, Daemon_DBResetServer) error {
+func (*UnimplementedDaemonServer) DBReset(*DBResetRequest, Daemon_DBResetServer) error {
 	return status.Errorf(codes.Unimplemented, "method DBReset not implemented")
 }
-func (UnimplementedDaemonServer) GenClient(context.Context, *GenClientRequest) (*GenClientResponse, error) {
+func (*UnimplementedDaemonServer) GenClient(context.Context, *GenClientRequest) (*GenClientResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenClient not implemented")
 }
-func (UnimplementedDaemonServer) SetSecret(context.Context, *SetSecretRequest) (*SetSecretResponse, error) {
+func (*UnimplementedDaemonServer) SetSecret(context.Context, *SetSecretRequest) (*SetSecretResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetSecret not implemented")
 }
-func (UnimplementedDaemonServer) Version(context.Context, *emptypb.Empty) (*VersionResponse, error) {
+func (*UnimplementedDaemonServer) Version(context.Context, *emptypb.Empty) (*VersionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Version not implemented")
 }
-func (UnimplementedDaemonServer) mustEmbedUnimplementedDaemonServer() {}
+func (*UnimplementedDaemonServer) mustEmbedUnimplementedDaemonServer() {}
 
-// UnsafeDaemonServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to DaemonServer will
-// result in compilation errors.
-type UnsafeDaemonServer interface {
-	mustEmbedUnimplementedDaemonServer()
-}
-
-func RegisterDaemonServer(s grpc.ServiceRegistrar, srv DaemonServer) {
-	s.RegisterService(&Daemon_ServiceDesc, srv)
+func RegisterDaemonServer(s *grpc.Server, srv DaemonServer) {
+	s.RegisterService(&_Daemon_serviceDesc, srv)
 }
 
 func _Daemon_Run_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -551,10 +543,7 @@ func _Daemon_Version_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
-// Daemon_ServiceDesc is the grpc.ServiceDesc for Daemon service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Daemon_ServiceDesc = grpc.ServiceDesc{
+var _Daemon_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "encore.daemon.Daemon",
 	HandlerType: (*DaemonServer)(nil),
 	Methods: []grpc.MethodDesc{

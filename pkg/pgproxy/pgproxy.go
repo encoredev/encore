@@ -140,7 +140,7 @@ func (p *Proxy) BackendAuth(backend io.ReadWriter, tlsCfg *tls.Config, auth *Aut
 			return nil, fmt.Errorf("pgproxy: could not send startup msg: %v", err)
 		}
 
-		if err := authenticateBackend(p.backend, auth); err != nil {
+		if err := p.authenticateBackend(auth); err != nil {
 			var e *pgErr
 			if errors.As(err, &e) {
 				_ = p.frontend.WriteMsg(&e.msg)
@@ -365,9 +365,9 @@ func readPassword(frontend *conn) (string, error) {
 	return pwdMsg.Password, nil
 }
 
-func authenticateBackend(backend *conn, data *AuthData) error {
+func (p *Proxy) authenticateBackend(data *AuthData) error {
 	for {
-		msg, err := backend.ReadMsg()
+		msg, err := p.backend.ReadMsg()
 		if err != nil {
 			return err
 		}
@@ -384,7 +384,7 @@ func authenticateBackend(backend *conn, data *AuthData) error {
 				pwdMsg := &pgproto3.PasswordMessage{
 					Password: data.Password,
 				}
-				if err := backend.WriteMsg(pwdMsg); err != nil {
+				if err := p.backend.WriteMsg(pwdMsg); err != nil {
 					return err
 				}
 			case pgproto3.AuthTypeMD5Password:
@@ -398,7 +398,7 @@ func authenticateBackend(backend *conn, data *AuthData) error {
 				pwdMsg := &pgproto3.PasswordMessage{
 					Password: "md5" + hex.EncodeToString(s2[:]),
 				}
-				if err := backend.WriteMsg(pwdMsg); err != nil {
+				if err := p.backend.WriteMsg(pwdMsg); err != nil {
 					return err
 				}
 			default:

@@ -90,6 +90,23 @@ type RPCCall struct {
 	Err       []byte `json:"err"`
 }
 
+type HTTPCall struct {
+	Type       string `json:"type"`
+	Goid       uint32 `json:"goid"`
+	ReqID      string `json:"req_id"`
+	StartTime  int64  `json:"start_time"`
+	EndTime    int64  `json:"end_time"`
+	Method     string `json:"method"`
+	Host       string `json:"host"`
+	Path       string `json:"path"`
+	URL        string `json:"url"`
+	StatusCode int    `json:"status_code"`
+	Err        []byte `json:"err"`
+
+	// May be -1
+	BodyClosedTime int64 `json:"body_closed_time"`
+}
+
 type Event interface {
 	traceEvent()
 }
@@ -98,6 +115,7 @@ func (Goroutine) traceEvent()     {}
 func (DBTransaction) traceEvent() {}
 func (DBQuery) traceEvent()       {}
 func (RPCCall) traceEvent()       {}
+func (HTTPCall) traceEvent()      {}
 
 func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 	traceID := traceUUID(ct.ID)
@@ -212,6 +230,9 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		case *tracepb.Event_Rpc:
 			r.Events = append(r.Events, tp.parseCall(e.Rpc))
 
+		case *tracepb.Event_Http:
+			r.Events = append(r.Events, tp.parseHTTP(e.Http))
+
 		case *tracepb.Event_Goroutine:
 			r.Events = append(r.Events, tp.parseGoroutine(e.Goroutine))
 		}
@@ -298,7 +319,27 @@ func (tp *traceParser) parseCall(c *tracepb.RPCCall) *RPCCall {
 	}
 }
 
+func (tp *traceParser) parseHTTP(c *tracepb.HTTPCall) *HTTPCall {
+	return &HTTPCall{
+		Type:           "HTTPCall",
+		Goid:           c.Goid,
+		ReqID:          strconv.FormatUint(c.SpanId, 10),
+		Method:         c.Method,
+		Host:           c.Host,
+		Path:           c.Path,
+		URL:            c.Url,
+		StatusCode:     int(c.StatusCode),
+		StartTime:      tp.time(c.StartTime),
+		EndTime:        tp.time(c.EndTime),
+		BodyClosedTime: tp.time(c.BodyClosedTime),
+		Err:            nullBytes(c.Err),
+	}
+}
+
 func (tp *traceParser) time(ns uint64) int64 {
+	if ns == 0 {
+		return -1
+	}
 	return int64(ns/1000) - tp.startTime
 }
 
