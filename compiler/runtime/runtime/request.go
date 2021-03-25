@@ -8,6 +8,10 @@ import (
 	"encore.dev/runtime/config"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
+
+	// These imports are used only by the generated wrappers in the compiler,
+	// but add them here so the 'go' command doesn't remove them from go.mod.
+	_ "github.com/felixge/httpsnoop"
 )
 
 var (

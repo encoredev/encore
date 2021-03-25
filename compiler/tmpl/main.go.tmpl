@@ -15,6 +15,7 @@ import (
 	"encore.dev/runtime/config"
 	"encore.dev/storage/sqldb"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/felixge/httpsnoop"
 
 	{{range .Imports -}}
 		{{if .Named}}{{.Name}} {{end}}"{{.Path}}"
@@ -31,6 +32,7 @@ var (
 	_ = ioutil.ReadAll
 	_ = strconv.Quote
 	_ = strings.HasPrefix
+	_ = httpsnoop.CaptureMetrics
 )
 
 var json = jsoniter.Config{
@@ -86,8 +88,11 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Call the endpoint
-	{{.Svc.Name}}.{{.Name}}(w, req)
-	runtime.FinishRequest(200, nil, nil)
+	m := httpsnoop.CaptureMetrics(http.HandlerFunc({{.Svc.Name}}.{{.Name}}), w, req)
+	if m.Code >= 400 {
+		err = fmt.Errorf("response status code %d", m.Code)
+	}
+	runtime.FinishRequest(m.Code, nil, err)
 {{- else }}
 {{- if .Request}}
 
