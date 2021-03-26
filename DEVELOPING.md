@@ -1,7 +1,7 @@
 # Developing Encore
 
 Building an Encore application requires access to both the Encore runtime (the `encore.dev` package) as well as a custom-built
-Go runtime ([encore-go](https://github.com/encoredev/encore-go)) to implement Encore's request semantics and automated instrumentation.
+([Go runtime](https://github.com/encoredev/go)) to implement Encore's request semantics and automated instrumentation.
 
 As a result the Encore Daemon must know where these two things exist on the filesystem in order to properly compile the Encore application.
 
