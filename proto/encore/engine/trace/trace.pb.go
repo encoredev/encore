@@ -25,6 +25,88 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
+type HTTPTraceEventCode int32
+
+const (
+	HTTPTraceEventCode_UNKNOWN                 HTTPTraceEventCode = 0
+	HTTPTraceEventCode_GET_CONN                HTTPTraceEventCode = 1
+	HTTPTraceEventCode_GOT_CONN                HTTPTraceEventCode = 2
+	HTTPTraceEventCode_GOT_FIRST_RESPONSE_BYTE HTTPTraceEventCode = 3
+	HTTPTraceEventCode_GOT_1XX_RESPONSE        HTTPTraceEventCode = 4
+	HTTPTraceEventCode_DNS_START               HTTPTraceEventCode = 5
+	HTTPTraceEventCode_DNS_DONE                HTTPTraceEventCode = 6
+	HTTPTraceEventCode_CONNECT_START           HTTPTraceEventCode = 7
+	HTTPTraceEventCode_CONNECT_DONE            HTTPTraceEventCode = 8
+	HTTPTraceEventCode_TLS_HANDSHAKE_START     HTTPTraceEventCode = 9
+	HTTPTraceEventCode_TLS_HANDSHAKE_DONE      HTTPTraceEventCode = 10
+	HTTPTraceEventCode_WROTE_HEADERS           HTTPTraceEventCode = 11
+	HTTPTraceEventCode_WROTE_REQUEST           HTTPTraceEventCode = 12
+	HTTPTraceEventCode_WAIT_100_CONTINUE       HTTPTraceEventCode = 13
+)
+
+// Enum value maps for HTTPTraceEventCode.
+var (
+	HTTPTraceEventCode_name = map[int32]string{
+		0:  "UNKNOWN",
+		1:  "GET_CONN",
+		2:  "GOT_CONN",
+		3:  "GOT_FIRST_RESPONSE_BYTE",
+		4:  "GOT_1XX_RESPONSE",
+		5:  "DNS_START",
+		6:  "DNS_DONE",
+		7:  "CONNECT_START",
+		8:  "CONNECT_DONE",
+		9:  "TLS_HANDSHAKE_START",
+		10: "TLS_HANDSHAKE_DONE",
+		11: "WROTE_HEADERS",
+		12: "WROTE_REQUEST",
+		13: "WAIT_100_CONTINUE",
+	}
+	HTTPTraceEventCode_value = map[string]int32{
+		"UNKNOWN":                 0,
+		"GET_CONN":                1,
+		"GOT_CONN":                2,
+		"GOT_FIRST_RESPONSE_BYTE": 3,
+		"GOT_1XX_RESPONSE":        4,
+		"DNS_START":               5,
+		"DNS_DONE":                6,
+		"CONNECT_START":           7,
+		"CONNECT_DONE":            8,
+		"TLS_HANDSHAKE_START":     9,
+		"TLS_HANDSHAKE_DONE":      10,
+		"WROTE_HEADERS":           11,
+		"WROTE_REQUEST":           12,
+		"WAIT_100_CONTINUE":       13,
+	}
+)
+
+func (x HTTPTraceEventCode) Enum() *HTTPTraceEventCode {
+	p := new(HTTPTraceEventCode)
+	*p = x
+	return p
+}
+
+func (x HTTPTraceEventCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (HTTPTraceEventCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_encore_engine_trace_trace_proto_enumTypes[0].Descriptor()
+}
+
+func (HTTPTraceEventCode) Type() protoreflect.EnumType {
+	return &file_encore_engine_trace_trace_proto_enumTypes[0]
+}
+
+func (x HTTPTraceEventCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use HTTPTraceEventCode.Descriptor instead.
+func (HTTPTraceEventCode) EnumDescriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{0}
+}
+
 type Request_Type int32
 
 const (
@@ -55,11 +137,11 @@ func (x Request_Type) String() string {
 }
 
 func (Request_Type) Descriptor() protoreflect.EnumDescriptor {
-	return file_encore_engine_trace_trace_proto_enumTypes[0].Descriptor()
+	return file_encore_engine_trace_trace_proto_enumTypes[1].Descriptor()
 }
 
 func (Request_Type) Type() protoreflect.EnumType {
-	return &file_encore_engine_trace_trace_proto_enumTypes[0]
+	return &file_encore_engine_trace_trace_proto_enumTypes[1]
 }
 
 func (x Request_Type) Number() protoreflect.EnumNumber {
@@ -101,11 +183,11 @@ func (x DBTransaction_CompletionType) String() string {
 }
 
 func (DBTransaction_CompletionType) Descriptor() protoreflect.EnumDescriptor {
-	return file_encore_engine_trace_trace_proto_enumTypes[1].Descriptor()
+	return file_encore_engine_trace_trace_proto_enumTypes[2].Descriptor()
 }
 
 func (DBTransaction_CompletionType) Type() protoreflect.EnumType {
-	return &file_encore_engine_trace_trace_proto_enumTypes[1]
+	return &file_encore_engine_trace_trace_proto_enumTypes[2]
 }
 
 func (x DBTransaction_CompletionType) Number() protoreflect.EnumNumber {
@@ -806,17 +888,16 @@ type HTTPCall struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	SpanId         uint64 `protobuf:"varint,1,opt,name=span_id,json=spanId,proto3" json:"span_id,omitempty"`
-	Goid           uint32 `protobuf:"varint,2,opt,name=goid,proto3" json:"goid,omitempty"`
-	StartTime      uint64 `protobuf:"varint,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	EndTime        uint64 `protobuf:"varint,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	Method         string `protobuf:"bytes,5,opt,name=method,proto3" json:"method,omitempty"`
-	Host           string `protobuf:"bytes,6,opt,name=host,proto3" json:"host,omitempty"`
-	Path           string `protobuf:"bytes,7,opt,name=path,proto3" json:"path,omitempty"`
-	Url            string `protobuf:"bytes,8,opt,name=url,proto3" json:"url,omitempty"`
-	StatusCode     uint32 `protobuf:"varint,9,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
-	Err            []byte `protobuf:"bytes,10,opt,name=err,proto3" json:"err,omitempty"`
-	BodyClosedTime uint64 `protobuf:"varint,11,opt,name=body_closed_time,json=bodyClosedTime,proto3" json:"body_closed_time,omitempty"`
+	SpanId         uint64            `protobuf:"varint,1,opt,name=span_id,json=spanId,proto3" json:"span_id,omitempty"`
+	Goid           uint32            `protobuf:"varint,2,opt,name=goid,proto3" json:"goid,omitempty"`
+	StartTime      uint64            `protobuf:"varint,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime        uint64            `protobuf:"varint,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	Method         string            `protobuf:"bytes,5,opt,name=method,proto3" json:"method,omitempty"`
+	Url            string            `protobuf:"bytes,6,opt,name=url,proto3" json:"url,omitempty"`
+	StatusCode     uint32            `protobuf:"varint,7,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
+	Err            []byte            `protobuf:"bytes,8,opt,name=err,proto3" json:"err,omitempty"`
+	BodyClosedTime uint64            `protobuf:"varint,9,opt,name=body_closed_time,json=bodyClosedTime,proto3" json:"body_closed_time,omitempty"`
+	Events         []*HTTPTraceEvent `protobuf:"bytes,10,rep,name=events,proto3" json:"events,omitempty"`
 }
 
 func (x *HTTPCall) Reset() {
@@ -886,20 +967,6 @@ func (x *HTTPCall) GetMethod() string {
 	return ""
 }
 
-func (x *HTTPCall) GetHost() string {
-	if x != nil {
-		return x.Host
-	}
-	return ""
-}
-
-func (x *HTTPCall) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
 func (x *HTTPCall) GetUrl() string {
 	if x != nil {
 		return x.Url
@@ -926,6 +993,757 @@ func (x *HTTPCall) GetBodyClosedTime() uint64 {
 		return x.BodyClosedTime
 	}
 	return 0
+}
+
+func (x *HTTPCall) GetEvents() []*HTTPTraceEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+type HTTPTraceEvent struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Code HTTPTraceEventCode `protobuf:"varint,1,opt,name=code,proto3,enum=encore.engine.trace.HTTPTraceEventCode" json:"code,omitempty"`
+	Time uint64             `protobuf:"varint,2,opt,name=time,proto3" json:"time,omitempty"`
+	// Types that are assignable to Data:
+	//	*HTTPTraceEvent_GetConn
+	//	*HTTPTraceEvent_GotConn
+	//	*HTTPTraceEvent_Got_1XxResponse
+	//	*HTTPTraceEvent_DnsStart
+	//	*HTTPTraceEvent_DnsDone
+	//	*HTTPTraceEvent_ConnectStart
+	//	*HTTPTraceEvent_ConnectDone
+	//	*HTTPTraceEvent_TlsHandshakeDone
+	//	*HTTPTraceEvent_WroteRequest
+	Data isHTTPTraceEvent_Data `protobuf_oneof:"data"`
+}
+
+func (x *HTTPTraceEvent) Reset() {
+	*x = HTTPTraceEvent{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPTraceEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPTraceEvent) ProtoMessage() {}
+
+func (x *HTTPTraceEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPTraceEvent.ProtoReflect.Descriptor instead.
+func (*HTTPTraceEvent) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *HTTPTraceEvent) GetCode() HTTPTraceEventCode {
+	if x != nil {
+		return x.Code
+	}
+	return HTTPTraceEventCode_UNKNOWN
+}
+
+func (x *HTTPTraceEvent) GetTime() uint64 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
+func (m *HTTPTraceEvent) GetData() isHTTPTraceEvent_Data {
+	if m != nil {
+		return m.Data
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetGetConn() *HTTPGetConnData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_GetConn); ok {
+		return x.GetConn
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetGotConn() *HTTPGotConnData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_GotConn); ok {
+		return x.GotConn
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetGot_1XxResponse() *HTTPGot1XxResponseData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_Got_1XxResponse); ok {
+		return x.Got_1XxResponse
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetDnsStart() *HTTPDNSStartData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_DnsStart); ok {
+		return x.DnsStart
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetDnsDone() *HTTPDNSDoneData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_DnsDone); ok {
+		return x.DnsDone
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetConnectStart() *HTTPConnectStartData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_ConnectStart); ok {
+		return x.ConnectStart
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetConnectDone() *HTTPConnectDoneData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_ConnectDone); ok {
+		return x.ConnectDone
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetTlsHandshakeDone() *HTTPTLSHandshakeDoneData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_TlsHandshakeDone); ok {
+		return x.TlsHandshakeDone
+	}
+	return nil
+}
+
+func (x *HTTPTraceEvent) GetWroteRequest() *HTTPWroteRequestData {
+	if x, ok := x.GetData().(*HTTPTraceEvent_WroteRequest); ok {
+		return x.WroteRequest
+	}
+	return nil
+}
+
+type isHTTPTraceEvent_Data interface {
+	isHTTPTraceEvent_Data()
+}
+
+type HTTPTraceEvent_GetConn struct {
+	GetConn *HTTPGetConnData `protobuf:"bytes,3,opt,name=get_conn,json=getConn,proto3,oneof"`
+}
+
+type HTTPTraceEvent_GotConn struct {
+	GotConn *HTTPGotConnData `protobuf:"bytes,4,opt,name=got_conn,json=gotConn,proto3,oneof"`
+}
+
+type HTTPTraceEvent_Got_1XxResponse struct {
+	Got_1XxResponse *HTTPGot1XxResponseData `protobuf:"bytes,5,opt,name=got_1xx_response,json=got1xxResponse,proto3,oneof"`
+}
+
+type HTTPTraceEvent_DnsStart struct {
+	DnsStart *HTTPDNSStartData `protobuf:"bytes,6,opt,name=dns_start,json=dnsStart,proto3,oneof"`
+}
+
+type HTTPTraceEvent_DnsDone struct {
+	DnsDone *HTTPDNSDoneData `protobuf:"bytes,7,opt,name=dns_done,json=dnsDone,proto3,oneof"`
+}
+
+type HTTPTraceEvent_ConnectStart struct {
+	ConnectStart *HTTPConnectStartData `protobuf:"bytes,8,opt,name=connect_start,json=connectStart,proto3,oneof"`
+}
+
+type HTTPTraceEvent_ConnectDone struct {
+	ConnectDone *HTTPConnectDoneData `protobuf:"bytes,9,opt,name=connect_done,json=connectDone,proto3,oneof"`
+}
+
+type HTTPTraceEvent_TlsHandshakeDone struct {
+	TlsHandshakeDone *HTTPTLSHandshakeDoneData `protobuf:"bytes,10,opt,name=tls_handshake_done,json=tlsHandshakeDone,proto3,oneof"`
+}
+
+type HTTPTraceEvent_WroteRequest struct {
+	WroteRequest *HTTPWroteRequestData `protobuf:"bytes,11,opt,name=wrote_request,json=wroteRequest,proto3,oneof"`
+}
+
+func (*HTTPTraceEvent_GetConn) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_GotConn) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_Got_1XxResponse) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_DnsStart) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_DnsDone) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_ConnectStart) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_ConnectDone) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_TlsHandshakeDone) isHTTPTraceEvent_Data() {}
+
+func (*HTTPTraceEvent_WroteRequest) isHTTPTraceEvent_Data() {}
+
+type HTTPGetConnData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	HostPort string `protobuf:"bytes,1,opt,name=host_port,json=hostPort,proto3" json:"host_port,omitempty"`
+}
+
+func (x *HTTPGetConnData) Reset() {
+	*x = HTTPGetConnData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPGetConnData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPGetConnData) ProtoMessage() {}
+
+func (x *HTTPGetConnData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPGetConnData.ProtoReflect.Descriptor instead.
+func (*HTTPGetConnData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *HTTPGetConnData) GetHostPort() string {
+	if x != nil {
+		return x.HostPort
+	}
+	return ""
+}
+
+type HTTPGotConnData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Reused         bool  `protobuf:"varint,1,opt,name=reused,proto3" json:"reused,omitempty"`
+	WasIdle        bool  `protobuf:"varint,2,opt,name=was_idle,json=wasIdle,proto3" json:"was_idle,omitempty"`
+	IdleDurationNs int64 `protobuf:"varint,3,opt,name=idle_duration_ns,json=idleDurationNs,proto3" json:"idle_duration_ns,omitempty"`
+}
+
+func (x *HTTPGotConnData) Reset() {
+	*x = HTTPGotConnData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[10]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPGotConnData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPGotConnData) ProtoMessage() {}
+
+func (x *HTTPGotConnData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[10]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPGotConnData.ProtoReflect.Descriptor instead.
+func (*HTTPGotConnData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *HTTPGotConnData) GetReused() bool {
+	if x != nil {
+		return x.Reused
+	}
+	return false
+}
+
+func (x *HTTPGotConnData) GetWasIdle() bool {
+	if x != nil {
+		return x.WasIdle
+	}
+	return false
+}
+
+func (x *HTTPGotConnData) GetIdleDurationNs() int64 {
+	if x != nil {
+		return x.IdleDurationNs
+	}
+	return 0
+}
+
+type HTTPGot1XxResponseData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Code int32 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+}
+
+func (x *HTTPGot1XxResponseData) Reset() {
+	*x = HTTPGot1XxResponseData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPGot1XxResponseData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPGot1XxResponseData) ProtoMessage() {}
+
+func (x *HTTPGot1XxResponseData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPGot1XxResponseData.ProtoReflect.Descriptor instead.
+func (*HTTPGot1XxResponseData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *HTTPGot1XxResponseData) GetCode() int32 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+type HTTPDNSStartData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Host string `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+}
+
+func (x *HTTPDNSStartData) Reset() {
+	*x = HTTPDNSStartData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPDNSStartData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPDNSStartData) ProtoMessage() {}
+
+func (x *HTTPDNSStartData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPDNSStartData.ProtoReflect.Descriptor instead.
+func (*HTTPDNSStartData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *HTTPDNSStartData) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+type HTTPDNSDoneData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Err   []byte     `protobuf:"bytes,1,opt,name=err,proto3" json:"err,omitempty"`
+	Addrs []*DNSAddr `protobuf:"bytes,2,rep,name=addrs,proto3" json:"addrs,omitempty"`
+}
+
+func (x *HTTPDNSDoneData) Reset() {
+	*x = HTTPDNSDoneData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPDNSDoneData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPDNSDoneData) ProtoMessage() {}
+
+func (x *HTTPDNSDoneData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPDNSDoneData.ProtoReflect.Descriptor instead.
+func (*HTTPDNSDoneData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *HTTPDNSDoneData) GetErr() []byte {
+	if x != nil {
+		return x.Err
+	}
+	return nil
+}
+
+func (x *HTTPDNSDoneData) GetAddrs() []*DNSAddr {
+	if x != nil {
+		return x.Addrs
+	}
+	return nil
+}
+
+type DNSAddr struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Ip []byte `protobuf:"bytes,1,opt,name=ip,proto3" json:"ip,omitempty"`
+}
+
+func (x *DNSAddr) Reset() {
+	*x = DNSAddr{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DNSAddr) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DNSAddr) ProtoMessage() {}
+
+func (x *DNSAddr) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DNSAddr.ProtoReflect.Descriptor instead.
+func (*DNSAddr) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DNSAddr) GetIp() []byte {
+	if x != nil {
+		return x.Ip
+	}
+	return nil
+}
+
+type HTTPConnectStartData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Network string `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
+	Addr    string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+}
+
+func (x *HTTPConnectStartData) Reset() {
+	*x = HTTPConnectStartData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPConnectStartData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPConnectStartData) ProtoMessage() {}
+
+func (x *HTTPConnectStartData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPConnectStartData.ProtoReflect.Descriptor instead.
+func (*HTTPConnectStartData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *HTTPConnectStartData) GetNetwork() string {
+	if x != nil {
+		return x.Network
+	}
+	return ""
+}
+
+func (x *HTTPConnectStartData) GetAddr() string {
+	if x != nil {
+		return x.Addr
+	}
+	return ""
+}
+
+type HTTPConnectDoneData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Network string `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
+	Addr    string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+	Err     []byte `protobuf:"bytes,3,opt,name=err,proto3" json:"err,omitempty"`
+}
+
+func (x *HTTPConnectDoneData) Reset() {
+	*x = HTTPConnectDoneData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPConnectDoneData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPConnectDoneData) ProtoMessage() {}
+
+func (x *HTTPConnectDoneData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPConnectDoneData.ProtoReflect.Descriptor instead.
+func (*HTTPConnectDoneData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *HTTPConnectDoneData) GetNetwork() string {
+	if x != nil {
+		return x.Network
+	}
+	return ""
+}
+
+func (x *HTTPConnectDoneData) GetAddr() string {
+	if x != nil {
+		return x.Addr
+	}
+	return ""
+}
+
+func (x *HTTPConnectDoneData) GetErr() []byte {
+	if x != nil {
+		return x.Err
+	}
+	return nil
+}
+
+type HTTPTLSHandshakeDoneData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Err                []byte `protobuf:"bytes,1,opt,name=err,proto3" json:"err,omitempty"`
+	TlsVersion         uint32 `protobuf:"varint,2,opt,name=tls_version,json=tlsVersion,proto3" json:"tls_version,omitempty"`
+	CipherSuite        uint32 `protobuf:"varint,3,opt,name=cipher_suite,json=cipherSuite,proto3" json:"cipher_suite,omitempty"`
+	ServerName         string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	NegotiatedProtocol string `protobuf:"bytes,5,opt,name=negotiated_protocol,json=negotiatedProtocol,proto3" json:"negotiated_protocol,omitempty"`
+}
+
+func (x *HTTPTLSHandshakeDoneData) Reset() {
+	*x = HTTPTLSHandshakeDoneData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPTLSHandshakeDoneData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPTLSHandshakeDoneData) ProtoMessage() {}
+
+func (x *HTTPTLSHandshakeDoneData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPTLSHandshakeDoneData.ProtoReflect.Descriptor instead.
+func (*HTTPTLSHandshakeDoneData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *HTTPTLSHandshakeDoneData) GetErr() []byte {
+	if x != nil {
+		return x.Err
+	}
+	return nil
+}
+
+func (x *HTTPTLSHandshakeDoneData) GetTlsVersion() uint32 {
+	if x != nil {
+		return x.TlsVersion
+	}
+	return 0
+}
+
+func (x *HTTPTLSHandshakeDoneData) GetCipherSuite() uint32 {
+	if x != nil {
+		return x.CipherSuite
+	}
+	return 0
+}
+
+func (x *HTTPTLSHandshakeDoneData) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *HTTPTLSHandshakeDoneData) GetNegotiatedProtocol() string {
+	if x != nil {
+		return x.NegotiatedProtocol
+	}
+	return ""
+}
+
+type HTTPWroteRequestData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Err []byte `protobuf:"bytes,1,opt,name=err,proto3" json:"err,omitempty"`
+}
+
+func (x *HTTPWroteRequestData) Reset() {
+	*x = HTTPWroteRequestData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_engine_trace_trace_proto_msgTypes[18]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HTTPWroteRequestData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPWroteRequestData) ProtoMessage() {}
+
+func (x *HTTPWroteRequestData) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace_trace_proto_msgTypes[18]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPWroteRequestData.ProtoReflect.Descriptor instead.
+func (*HTTPWroteRequestData) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace_trace_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *HTTPWroteRequestData) GetErr() []byte {
+	if x != nil {
+		return x.Err
+	}
+	return nil
 }
 
 var File_encore_engine_trace_trace_proto protoreflect.FileDescriptor
@@ -1036,7 +1854,7 @@ var file_encore_engine_trace_trace_proto_rawDesc = []byte{
 	0x6d, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x65, 0x6e, 0x64, 0x54, 0x69, 0x6d,
 	0x65, 0x12, 0x14, 0x0a, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0c,
 	0x52, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x65, 0x72, 0x72, 0x18, 0x06,
-	0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65, 0x72, 0x72, 0x22, 0xa0, 0x02, 0x0a, 0x08, 0x48, 0x54,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65, 0x72, 0x72, 0x22, 0xb5, 0x02, 0x0a, 0x08, 0x48, 0x54,
 	0x54, 0x50, 0x43, 0x61, 0x6c, 0x6c, 0x12, 0x17, 0x0a, 0x07, 0x73, 0x70, 0x61, 0x6e, 0x5f, 0x69,
 	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x73, 0x70, 0x61, 0x6e, 0x49, 0x64, 0x12,
 	0x12, 0x0a, 0x04, 0x67, 0x6f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x04, 0x67,
@@ -1045,19 +1863,136 @@ var file_encore_engine_trace_trace_proto_rawDesc = []byte{
 	0x6d, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x65, 0x6e, 0x64, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x04,
 	0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x65, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x16, 0x0a,
 	0x06, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6d,
-	0x65, 0x74, 0x68, 0x6f, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x18, 0x06, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74,
-	0x68, 0x18, 0x07, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x12, 0x10, 0x0a,
-	0x03, 0x75, 0x72, 0x6c, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x75, 0x72, 0x6c, 0x12,
-	0x1f, 0x0a, 0x0b, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x5f, 0x63, 0x6f, 0x64, 0x65, 0x18, 0x09,
-	0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65,
-	0x12, 0x10, 0x0a, 0x03, 0x65, 0x72, 0x72, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65,
-	0x72, 0x72, 0x12, 0x28, 0x0a, 0x10, 0x62, 0x6f, 0x64, 0x79, 0x5f, 0x63, 0x6c, 0x6f, 0x73, 0x65,
-	0x64, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x0b, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0e, 0x62, 0x6f,
-	0x64, 0x79, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x64, 0x54, 0x69, 0x6d, 0x65, 0x42, 0x24, 0x5a, 0x22,
-	0x65, 0x6e, 0x63, 0x72, 0x2e, 0x64, 0x65, 0x76, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x65,
-	0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2f, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2f, 0x74, 0x72, 0x61,
-	0x63, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x74, 0x68, 0x6f, 0x64, 0x12, 0x10, 0x0a, 0x03, 0x75, 0x72, 0x6c, 0x18, 0x06, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x03, 0x75, 0x72, 0x6c, 0x12, 0x1f, 0x0a, 0x0b, 0x73, 0x74, 0x61, 0x74, 0x75,
+	0x73, 0x5f, 0x63, 0x6f, 0x64, 0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a, 0x73, 0x74,
+	0x61, 0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x65, 0x72, 0x72, 0x18,
+	0x08, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65, 0x72, 0x72, 0x12, 0x28, 0x0a, 0x10, 0x62, 0x6f,
+	0x64, 0x79, 0x5f, 0x63, 0x6c, 0x6f, 0x73, 0x65, 0x64, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x09,
+	0x20, 0x01, 0x28, 0x04, 0x52, 0x0e, 0x62, 0x6f, 0x64, 0x79, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x64,
+	0x54, 0x69, 0x6d, 0x65, 0x12, 0x3b, 0x0a, 0x06, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x73, 0x18, 0x0a,
+	0x20, 0x03, 0x28, 0x0b, 0x32, 0x23, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e,
+	0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54, 0x54, 0x50, 0x54,
+	0x72, 0x61, 0x63, 0x65, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x52, 0x06, 0x65, 0x76, 0x65, 0x6e, 0x74,
+	0x73, 0x22, 0xa3, 0x06, 0x0a, 0x0e, 0x48, 0x54, 0x54, 0x50, 0x54, 0x72, 0x61, 0x63, 0x65, 0x45,
+	0x76, 0x65, 0x6e, 0x74, 0x12, 0x3b, 0x0a, 0x04, 0x63, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0e, 0x32, 0x27, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e, 0x67, 0x69,
+	0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54, 0x54, 0x50, 0x54, 0x72, 0x61,
+	0x63, 0x65, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x43, 0x6f, 0x64, 0x65, 0x52, 0x04, 0x63, 0x6f, 0x64,
+	0x65, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52,
+	0x04, 0x74, 0x69, 0x6d, 0x65, 0x12, 0x41, 0x0a, 0x08, 0x67, 0x65, 0x74, 0x5f, 0x63, 0x6f, 0x6e,
+	0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65,
+	0x2e, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54,
+	0x54, 0x50, 0x47, 0x65, 0x74, 0x43, 0x6f, 0x6e, 0x6e, 0x44, 0x61, 0x74, 0x61, 0x48, 0x00, 0x52,
+	0x07, 0x67, 0x65, 0x74, 0x43, 0x6f, 0x6e, 0x6e, 0x12, 0x41, 0x0a, 0x08, 0x67, 0x6f, 0x74, 0x5f,
+	0x63, 0x6f, 0x6e, 0x6e, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x65, 0x6e, 0x63,
+	0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65,
+	0x2e, 0x48, 0x54, 0x54, 0x50, 0x47, 0x6f, 0x74, 0x43, 0x6f, 0x6e, 0x6e, 0x44, 0x61, 0x74, 0x61,
+	0x48, 0x00, 0x52, 0x07, 0x67, 0x6f, 0x74, 0x43, 0x6f, 0x6e, 0x6e, 0x12, 0x57, 0x0a, 0x10, 0x67,
+	0x6f, 0x74, 0x5f, 0x31, 0x78, 0x78, 0x5f, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18,
+	0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2b, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65,
+	0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54, 0x54, 0x50,
+	0x47, 0x6f, 0x74, 0x31, 0x78, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x44, 0x61,
+	0x74, 0x61, 0x48, 0x00, 0x52, 0x0e, 0x67, 0x6f, 0x74, 0x31, 0x78, 0x78, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x44, 0x0a, 0x09, 0x64, 0x6e, 0x73, 0x5f, 0x73, 0x74, 0x61, 0x72,
+	0x74, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x25, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65,
+	0x2e, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54,
+	0x54, 0x50, 0x44, 0x4e, 0x53, 0x53, 0x74, 0x61, 0x72, 0x74, 0x44, 0x61, 0x74, 0x61, 0x48, 0x00,
+	0x52, 0x08, 0x64, 0x6e, 0x73, 0x53, 0x74, 0x61, 0x72, 0x74, 0x12, 0x41, 0x0a, 0x08, 0x64, 0x6e,
+	0x73, 0x5f, 0x64, 0x6f, 0x6e, 0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x65,
+	0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61,
+	0x63, 0x65, 0x2e, 0x48, 0x54, 0x54, 0x50, 0x44, 0x4e, 0x53, 0x44, 0x6f, 0x6e, 0x65, 0x44, 0x61,
+	0x74, 0x61, 0x48, 0x00, 0x52, 0x07, 0x64, 0x6e, 0x73, 0x44, 0x6f, 0x6e, 0x65, 0x12, 0x50, 0x0a,
+	0x0d, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x08,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x29, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e,
+	0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54, 0x54, 0x50, 0x43,
+	0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x53, 0x74, 0x61, 0x72, 0x74, 0x44, 0x61, 0x74, 0x61, 0x48,
+	0x00, 0x52, 0x0c, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x53, 0x74, 0x61, 0x72, 0x74, 0x12,
+	0x4d, 0x0a, 0x0c, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x5f, 0x64, 0x6f, 0x6e, 0x65, 0x18,
+	0x09, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x28, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65,
+	0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54, 0x54, 0x50,
+	0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x44, 0x6f, 0x6e, 0x65, 0x44, 0x61, 0x74, 0x61, 0x48,
+	0x00, 0x52, 0x0b, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x44, 0x6f, 0x6e, 0x65, 0x12, 0x5d,
+	0x0a, 0x12, 0x74, 0x6c, 0x73, 0x5f, 0x68, 0x61, 0x6e, 0x64, 0x73, 0x68, 0x61, 0x6b, 0x65, 0x5f,
+	0x64, 0x6f, 0x6e, 0x65, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2d, 0x2e, 0x65, 0x6e, 0x63,
+	0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65,
+	0x2e, 0x48, 0x54, 0x54, 0x50, 0x54, 0x4c, 0x53, 0x48, 0x61, 0x6e, 0x64, 0x73, 0x68, 0x61, 0x6b,
+	0x65, 0x44, 0x6f, 0x6e, 0x65, 0x44, 0x61, 0x74, 0x61, 0x48, 0x00, 0x52, 0x10, 0x74, 0x6c, 0x73,
+	0x48, 0x61, 0x6e, 0x64, 0x73, 0x68, 0x61, 0x6b, 0x65, 0x44, 0x6f, 0x6e, 0x65, 0x12, 0x50, 0x0a,
+	0x0d, 0x77, 0x72, 0x6f, 0x74, 0x65, 0x5f, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x18, 0x0b,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x29, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e,
+	0x67, 0x69, 0x6e, 0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x48, 0x54, 0x54, 0x50, 0x57,
+	0x72, 0x6f, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x44, 0x61, 0x74, 0x61, 0x48,
+	0x00, 0x52, 0x0c, 0x77, 0x72, 0x6f, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x42,
+	0x06, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0x2e, 0x0a, 0x0f, 0x48, 0x54, 0x54, 0x50, 0x47,
+	0x65, 0x74, 0x43, 0x6f, 0x6e, 0x6e, 0x44, 0x61, 0x74, 0x61, 0x12, 0x1b, 0x0a, 0x09, 0x68, 0x6f,
+	0x73, 0x74, 0x5f, 0x70, 0x6f, 0x72, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68,
+	0x6f, 0x73, 0x74, 0x50, 0x6f, 0x72, 0x74, 0x22, 0x6e, 0x0a, 0x0f, 0x48, 0x54, 0x54, 0x50, 0x47,
+	0x6f, 0x74, 0x43, 0x6f, 0x6e, 0x6e, 0x44, 0x61, 0x74, 0x61, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65,
+	0x75, 0x73, 0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x72, 0x65, 0x75, 0x73,
+	0x65, 0x64, 0x12, 0x19, 0x0a, 0x08, 0x77, 0x61, 0x73, 0x5f, 0x69, 0x64, 0x6c, 0x65, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x77, 0x61, 0x73, 0x49, 0x64, 0x6c, 0x65, 0x12, 0x28, 0x0a,
+	0x10, 0x69, 0x64, 0x6c, 0x65, 0x5f, 0x64, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x6e,
+	0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0e, 0x69, 0x64, 0x6c, 0x65, 0x44, 0x75, 0x72,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4e, 0x73, 0x22, 0x2c, 0x0a, 0x16, 0x48, 0x54, 0x54, 0x50, 0x47,
+	0x6f, 0x74, 0x31, 0x78, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x44, 0x61, 0x74,
+	0x61, 0x12, 0x12, 0x0a, 0x04, 0x63, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52,
+	0x04, 0x63, 0x6f, 0x64, 0x65, 0x22, 0x26, 0x0a, 0x10, 0x48, 0x54, 0x54, 0x50, 0x44, 0x4e, 0x53,
+	0x53, 0x74, 0x61, 0x72, 0x74, 0x44, 0x61, 0x74, 0x61, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x6f, 0x73,
+	0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x22, 0x57, 0x0a,
+	0x0f, 0x48, 0x54, 0x54, 0x50, 0x44, 0x4e, 0x53, 0x44, 0x6f, 0x6e, 0x65, 0x44, 0x61, 0x74, 0x61,
+	0x12, 0x10, 0x0a, 0x03, 0x65, 0x72, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65,
+	0x72, 0x72, 0x12, 0x32, 0x0a, 0x05, 0x61, 0x64, 0x64, 0x72, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28,
+	0x0b, 0x32, 0x1c, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x65, 0x6e, 0x67, 0x69, 0x6e,
+	0x65, 0x2e, 0x74, 0x72, 0x61, 0x63, 0x65, 0x2e, 0x44, 0x4e, 0x53, 0x41, 0x64, 0x64, 0x72, 0x52,
+	0x05, 0x61, 0x64, 0x64, 0x72, 0x73, 0x22, 0x19, 0x0a, 0x07, 0x44, 0x4e, 0x53, 0x41, 0x64, 0x64,
+	0x72, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x70, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x02, 0x69,
+	0x70, 0x22, 0x44, 0x0a, 0x14, 0x48, 0x54, 0x54, 0x50, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74,
+	0x53, 0x74, 0x61, 0x72, 0x74, 0x44, 0x61, 0x74, 0x61, 0x12, 0x18, 0x0a, 0x07, 0x6e, 0x65, 0x74,
+	0x77, 0x6f, 0x72, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6e, 0x65, 0x74, 0x77,
+	0x6f, 0x72, 0x6b, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x64, 0x64, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x04, 0x61, 0x64, 0x64, 0x72, 0x22, 0x55, 0x0a, 0x13, 0x48, 0x54, 0x54, 0x50, 0x43,
+	0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x44, 0x6f, 0x6e, 0x65, 0x44, 0x61, 0x74, 0x61, 0x12, 0x18,
+	0x0a, 0x07, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x07, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x64, 0x64, 0x72,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x61, 0x64, 0x64, 0x72, 0x12, 0x10, 0x0a, 0x03,
+	0x65, 0x72, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65, 0x72, 0x72, 0x22, 0xc2,
+	0x01, 0x0a, 0x18, 0x48, 0x54, 0x54, 0x50, 0x54, 0x4c, 0x53, 0x48, 0x61, 0x6e, 0x64, 0x73, 0x68,
+	0x61, 0x6b, 0x65, 0x44, 0x6f, 0x6e, 0x65, 0x44, 0x61, 0x74, 0x61, 0x12, 0x10, 0x0a, 0x03, 0x65,
+	0x72, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65, 0x72, 0x72, 0x12, 0x1f, 0x0a,
+	0x0b, 0x74, 0x6c, 0x73, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x0d, 0x52, 0x0a, 0x74, 0x6c, 0x73, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x21,
+	0x0a, 0x0c, 0x63, 0x69, 0x70, 0x68, 0x65, 0x72, 0x5f, 0x73, 0x75, 0x69, 0x74, 0x65, 0x18, 0x03,
+	0x20, 0x01, 0x28, 0x0d, 0x52, 0x0b, 0x63, 0x69, 0x70, 0x68, 0x65, 0x72, 0x53, 0x75, 0x69, 0x74,
+	0x65, 0x12, 0x1f, 0x0a, 0x0b, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x6e, 0x61, 0x6d, 0x65,
+	0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x4e, 0x61,
+	0x6d, 0x65, 0x12, 0x2f, 0x0a, 0x13, 0x6e, 0x65, 0x67, 0x6f, 0x74, 0x69, 0x61, 0x74, 0x65, 0x64,
+	0x5f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x12, 0x6e, 0x65, 0x67, 0x6f, 0x74, 0x69, 0x61, 0x74, 0x65, 0x64, 0x50, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x22, 0x28, 0x0a, 0x14, 0x48, 0x54, 0x54, 0x50, 0x57, 0x72, 0x6f, 0x74, 0x65,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x44, 0x61, 0x74, 0x61, 0x12, 0x10, 0x0a, 0x03, 0x65,
+	0x72, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x65, 0x72, 0x72, 0x2a, 0xa0, 0x02,
+	0x0a, 0x12, 0x48, 0x54, 0x54, 0x50, 0x54, 0x72, 0x61, 0x63, 0x65, 0x45, 0x76, 0x65, 0x6e, 0x74,
+	0x43, 0x6f, 0x64, 0x65, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10,
+	0x00, 0x12, 0x0c, 0x0a, 0x08, 0x47, 0x45, 0x54, 0x5f, 0x43, 0x4f, 0x4e, 0x4e, 0x10, 0x01, 0x12,
+	0x0c, 0x0a, 0x08, 0x47, 0x4f, 0x54, 0x5f, 0x43, 0x4f, 0x4e, 0x4e, 0x10, 0x02, 0x12, 0x1b, 0x0a,
+	0x17, 0x47, 0x4f, 0x54, 0x5f, 0x46, 0x49, 0x52, 0x53, 0x54, 0x5f, 0x52, 0x45, 0x53, 0x50, 0x4f,
+	0x4e, 0x53, 0x45, 0x5f, 0x42, 0x59, 0x54, 0x45, 0x10, 0x03, 0x12, 0x14, 0x0a, 0x10, 0x47, 0x4f,
+	0x54, 0x5f, 0x31, 0x58, 0x58, 0x5f, 0x52, 0x45, 0x53, 0x50, 0x4f, 0x4e, 0x53, 0x45, 0x10, 0x04,
+	0x12, 0x0d, 0x0a, 0x09, 0x44, 0x4e, 0x53, 0x5f, 0x53, 0x54, 0x41, 0x52, 0x54, 0x10, 0x05, 0x12,
+	0x0c, 0x0a, 0x08, 0x44, 0x4e, 0x53, 0x5f, 0x44, 0x4f, 0x4e, 0x45, 0x10, 0x06, 0x12, 0x11, 0x0a,
+	0x0d, 0x43, 0x4f, 0x4e, 0x4e, 0x45, 0x43, 0x54, 0x5f, 0x53, 0x54, 0x41, 0x52, 0x54, 0x10, 0x07,
+	0x12, 0x10, 0x0a, 0x0c, 0x43, 0x4f, 0x4e, 0x4e, 0x45, 0x43, 0x54, 0x5f, 0x44, 0x4f, 0x4e, 0x45,
+	0x10, 0x08, 0x12, 0x17, 0x0a, 0x13, 0x54, 0x4c, 0x53, 0x5f, 0x48, 0x41, 0x4e, 0x44, 0x53, 0x48,
+	0x41, 0x4b, 0x45, 0x5f, 0x53, 0x54, 0x41, 0x52, 0x54, 0x10, 0x09, 0x12, 0x16, 0x0a, 0x12, 0x54,
+	0x4c, 0x53, 0x5f, 0x48, 0x41, 0x4e, 0x44, 0x53, 0x48, 0x41, 0x4b, 0x45, 0x5f, 0x44, 0x4f, 0x4e,
+	0x45, 0x10, 0x0a, 0x12, 0x11, 0x0a, 0x0d, 0x57, 0x52, 0x4f, 0x54, 0x45, 0x5f, 0x48, 0x45, 0x41,
+	0x44, 0x45, 0x52, 0x53, 0x10, 0x0b, 0x12, 0x11, 0x0a, 0x0d, 0x57, 0x52, 0x4f, 0x54, 0x45, 0x5f,
+	0x52, 0x45, 0x51, 0x55, 0x45, 0x53, 0x54, 0x10, 0x0c, 0x12, 0x15, 0x0a, 0x11, 0x57, 0x41, 0x49,
+	0x54, 0x5f, 0x31, 0x30, 0x30, 0x5f, 0x43, 0x4f, 0x4e, 0x54, 0x49, 0x4e, 0x55, 0x45, 0x10, 0x0d,
+	0x42, 0x24, 0x5a, 0x22, 0x65, 0x6e, 0x63, 0x72, 0x2e, 0x64, 0x65, 0x76, 0x2f, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2f, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2f, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65,
+	0x2f, 0x74, 0x72, 0x61, 0x63, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1072,36 +2007,60 @@ func file_encore_engine_trace_trace_proto_rawDescGZIP() []byte {
 	return file_encore_engine_trace_trace_proto_rawDescData
 }
 
-var file_encore_engine_trace_trace_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_encore_engine_trace_trace_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_encore_engine_trace_trace_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_encore_engine_trace_trace_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_encore_engine_trace_trace_proto_goTypes = []interface{}{
-	(Request_Type)(0),                 // 0: encore.engine.trace.Request.Type
-	(DBTransaction_CompletionType)(0), // 1: encore.engine.trace.DBTransaction.CompletionType
-	(*TraceID)(nil),                   // 2: encore.engine.trace.TraceID
-	(*Request)(nil),                   // 3: encore.engine.trace.Request
-	(*Event)(nil),                     // 4: encore.engine.trace.Event
-	(*RPCCall)(nil),                   // 5: encore.engine.trace.RPCCall
-	(*Goroutine)(nil),                 // 6: encore.engine.trace.Goroutine
-	(*DBTransaction)(nil),             // 7: encore.engine.trace.DBTransaction
-	(*DBQuery)(nil),                   // 8: encore.engine.trace.DBQuery
-	(*HTTPCall)(nil),                  // 9: encore.engine.trace.HTTPCall
+	(HTTPTraceEventCode)(0),           // 0: encore.engine.trace.HTTPTraceEventCode
+	(Request_Type)(0),                 // 1: encore.engine.trace.Request.Type
+	(DBTransaction_CompletionType)(0), // 2: encore.engine.trace.DBTransaction.CompletionType
+	(*TraceID)(nil),                   // 3: encore.engine.trace.TraceID
+	(*Request)(nil),                   // 4: encore.engine.trace.Request
+	(*Event)(nil),                     // 5: encore.engine.trace.Event
+	(*RPCCall)(nil),                   // 6: encore.engine.trace.RPCCall
+	(*Goroutine)(nil),                 // 7: encore.engine.trace.Goroutine
+	(*DBTransaction)(nil),             // 8: encore.engine.trace.DBTransaction
+	(*DBQuery)(nil),                   // 9: encore.engine.trace.DBQuery
+	(*HTTPCall)(nil),                  // 10: encore.engine.trace.HTTPCall
+	(*HTTPTraceEvent)(nil),            // 11: encore.engine.trace.HTTPTraceEvent
+	(*HTTPGetConnData)(nil),           // 12: encore.engine.trace.HTTPGetConnData
+	(*HTTPGotConnData)(nil),           // 13: encore.engine.trace.HTTPGotConnData
+	(*HTTPGot1XxResponseData)(nil),    // 14: encore.engine.trace.HTTPGot1xxResponseData
+	(*HTTPDNSStartData)(nil),          // 15: encore.engine.trace.HTTPDNSStartData
+	(*HTTPDNSDoneData)(nil),           // 16: encore.engine.trace.HTTPDNSDoneData
+	(*DNSAddr)(nil),                   // 17: encore.engine.trace.DNSAddr
+	(*HTTPConnectStartData)(nil),      // 18: encore.engine.trace.HTTPConnectStartData
+	(*HTTPConnectDoneData)(nil),       // 19: encore.engine.trace.HTTPConnectDoneData
+	(*HTTPTLSHandshakeDoneData)(nil),  // 20: encore.engine.trace.HTTPTLSHandshakeDoneData
+	(*HTTPWroteRequestData)(nil),      // 21: encore.engine.trace.HTTPWroteRequestData
 }
 var file_encore_engine_trace_trace_proto_depIdxs = []int32{
-	2,  // 0: encore.engine.trace.Request.trace_id:type_name -> encore.engine.trace.TraceID
-	4,  // 1: encore.engine.trace.Request.events:type_name -> encore.engine.trace.Event
-	0,  // 2: encore.engine.trace.Request.type:type_name -> encore.engine.trace.Request.Type
-	5,  // 3: encore.engine.trace.Event.rpc:type_name -> encore.engine.trace.RPCCall
-	7,  // 4: encore.engine.trace.Event.tx:type_name -> encore.engine.trace.DBTransaction
-	8,  // 5: encore.engine.trace.Event.query:type_name -> encore.engine.trace.DBQuery
-	6,  // 6: encore.engine.trace.Event.goroutine:type_name -> encore.engine.trace.Goroutine
-	9,  // 7: encore.engine.trace.Event.http:type_name -> encore.engine.trace.HTTPCall
-	1,  // 8: encore.engine.trace.DBTransaction.completion:type_name -> encore.engine.trace.DBTransaction.CompletionType
-	8,  // 9: encore.engine.trace.DBTransaction.queries:type_name -> encore.engine.trace.DBQuery
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	3,  // 0: encore.engine.trace.Request.trace_id:type_name -> encore.engine.trace.TraceID
+	5,  // 1: encore.engine.trace.Request.events:type_name -> encore.engine.trace.Event
+	1,  // 2: encore.engine.trace.Request.type:type_name -> encore.engine.trace.Request.Type
+	6,  // 3: encore.engine.trace.Event.rpc:type_name -> encore.engine.trace.RPCCall
+	8,  // 4: encore.engine.trace.Event.tx:type_name -> encore.engine.trace.DBTransaction
+	9,  // 5: encore.engine.trace.Event.query:type_name -> encore.engine.trace.DBQuery
+	7,  // 6: encore.engine.trace.Event.goroutine:type_name -> encore.engine.trace.Goroutine
+	10, // 7: encore.engine.trace.Event.http:type_name -> encore.engine.trace.HTTPCall
+	2,  // 8: encore.engine.trace.DBTransaction.completion:type_name -> encore.engine.trace.DBTransaction.CompletionType
+	9,  // 9: encore.engine.trace.DBTransaction.queries:type_name -> encore.engine.trace.DBQuery
+	11, // 10: encore.engine.trace.HTTPCall.events:type_name -> encore.engine.trace.HTTPTraceEvent
+	0,  // 11: encore.engine.trace.HTTPTraceEvent.code:type_name -> encore.engine.trace.HTTPTraceEventCode
+	12, // 12: encore.engine.trace.HTTPTraceEvent.get_conn:type_name -> encore.engine.trace.HTTPGetConnData
+	13, // 13: encore.engine.trace.HTTPTraceEvent.got_conn:type_name -> encore.engine.trace.HTTPGotConnData
+	14, // 14: encore.engine.trace.HTTPTraceEvent.got_1xx_response:type_name -> encore.engine.trace.HTTPGot1xxResponseData
+	15, // 15: encore.engine.trace.HTTPTraceEvent.dns_start:type_name -> encore.engine.trace.HTTPDNSStartData
+	16, // 16: encore.engine.trace.HTTPTraceEvent.dns_done:type_name -> encore.engine.trace.HTTPDNSDoneData
+	18, // 17: encore.engine.trace.HTTPTraceEvent.connect_start:type_name -> encore.engine.trace.HTTPConnectStartData
+	19, // 18: encore.engine.trace.HTTPTraceEvent.connect_done:type_name -> encore.engine.trace.HTTPConnectDoneData
+	20, // 19: encore.engine.trace.HTTPTraceEvent.tls_handshake_done:type_name -> encore.engine.trace.HTTPTLSHandshakeDoneData
+	21, // 20: encore.engine.trace.HTTPTraceEvent.wrote_request:type_name -> encore.engine.trace.HTTPWroteRequestData
+	17, // 21: encore.engine.trace.HTTPDNSDoneData.addrs:type_name -> encore.engine.trace.DNSAddr
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_encore_engine_trace_trace_proto_init() }
@@ -1206,6 +2165,138 @@ func file_encore_engine_trace_trace_proto_init() {
 				return nil
 			}
 		}
+		file_encore_engine_trace_trace_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPTraceEvent); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPGetConnData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPGotConnData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPGot1XxResponseData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPDNSStartData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPDNSDoneData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DNSAddr); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPConnectStartData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPConnectDoneData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPTLSHandshakeDoneData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_encore_engine_trace_trace_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HTTPWroteRequestData); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	file_encore_engine_trace_trace_proto_msgTypes[2].OneofWrappers = []interface{}{
 		(*Event_Rpc)(nil),
@@ -1214,13 +2305,24 @@ func file_encore_engine_trace_trace_proto_init() {
 		(*Event_Goroutine)(nil),
 		(*Event_Http)(nil),
 	}
+	file_encore_engine_trace_trace_proto_msgTypes[8].OneofWrappers = []interface{}{
+		(*HTTPTraceEvent_GetConn)(nil),
+		(*HTTPTraceEvent_GotConn)(nil),
+		(*HTTPTraceEvent_Got_1XxResponse)(nil),
+		(*HTTPTraceEvent_DnsStart)(nil),
+		(*HTTPTraceEvent_DnsDone)(nil),
+		(*HTTPTraceEvent_ConnectStart)(nil),
+		(*HTTPTraceEvent_ConnectDone)(nil),
+		(*HTTPTraceEvent_TlsHandshakeDone)(nil),
+		(*HTTPTraceEvent_WroteRequest)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_encore_engine_trace_trace_proto_rawDesc,
-			NumEnums:      2,
-			NumMessages:   8,
+			NumEnums:      3,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

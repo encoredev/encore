@@ -23,7 +23,7 @@ func RecordTrace(ctx context.Context, traceID [16]byte, data []byte) error {
 	}
 	id := base64.RawURLEncoding.EncodeToString(traceID[:])
 	req.Header.Set("Content-Type", "application/vnd.google.protobuf")
-	req.Header.Set("X-Encore-Trace-Version", "v2")
+	req.Header.Set("X-Encore-Trace-Version", "v3")
 	req.Header.Set("X-Encore-Trace-ID", id)
 	req.Header.Set("X-Encore-Proc-ID", procID)
 	resp, err := http.DefaultClient.Do(req)

@@ -77,6 +77,6 @@ Encore Syntax Tree to create a fully functioning application.
 It rewrites API calls & API handlers, injects instrumentation
 and secret values, and more.
 
-## Contributing to Encore and building from source
+## Developing Encore and building from source
 
-See [HACKING.md](HACKING.md).
+See [DEVELOPING.md](DEVELOPING.md).

@@ -11,13 +11,13 @@ interface Props {
 }
 
 const SpanList: FunctionComponent<Props> = (props) => {
-  const traceDur = props.trace.end_time - props.trace.start_time
+  const traceDur = props.trace.end_time! - props.trace.start_time
   const [contracted, setContracted] = useState(new Map<string, boolean>())
 
   let spanCounter = 0
   const renderSpan: (req: Request, level: number, siblings: number[]) => JSX.Element = (req, level, siblings) => {
     const start = Math.round((req.start_time - props.trace.start_time) / traceDur * 100)
-    const end = Math.round((req.end_time - props.trace.start_time) / traceDur * 100)
+    const end = Math.round((req.end_time! - props.trace.start_time) / traceDur * 100)
     const defLoc = props.trace.locations[req.def_loc]
 
     let svcName = "unknown", rpcName = "Unknown"

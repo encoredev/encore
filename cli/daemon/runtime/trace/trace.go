@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"encr.dev/proto/encore/engine/trace"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/rs/zerolog/log"
@@ -134,19 +135,19 @@ func (tp *traceParser) Parse() error {
 			err = tp.queryStart(ts)
 		case 0x09:
 			err = tp.queryEnd(ts)
-		case 0x10:
+		case 0x0A:
 			err = tp.callStart(ts)
-		case 0x11:
+		case 0x0B:
 			err = tp.callEnd(ts)
-		case 0x12, 0x13:
+		case 0x0C, 0x0D:
 			// Skip these events for now
 			tp.Skip(size)
 
-		case 0x14:
+		case 0x0E:
 			err = tp.httpStart(ts)
-		case 0x15:
+		case 0x0F:
 			err = tp.httpEnd(ts)
-		case 0x16:
+		case 0x10:
 			err = tp.httpBodyClosed(ts)
 
 		default:
@@ -426,8 +427,6 @@ func (tp *traceParser) httpStart(ts uint64) error {
 		SpanId:    childSpanID,
 		Goid:      uint32(tp.UVarint()),
 		Method:    tp.String(),
-		Host:      tp.String(),
-		Path:      tp.String(),
 		Url:       tp.String(),
 		StartTime: ts,
 	}
@@ -449,6 +448,17 @@ func (tp *traceParser) httpEnd(ts uint64) error {
 	c.EndTime = ts
 	c.Err = errMsg
 	c.StatusCode = uint32(status)
+
+	numEvents := tp.UVarint()
+	c.Events = make([]*tracepb.HTTPTraceEvent, 0, numEvents)
+	for i := 0; i < int(numEvents); i++ {
+		ev, err := tp.httpEvent()
+		if err != nil {
+			return err
+		}
+		c.Events = append(c.Events, ev)
+	}
+
 	return nil
 }
 
@@ -462,6 +472,110 @@ func (tp *traceParser) httpBodyClosed(ts uint64) error {
 	c.BodyClosedTime = ts
 	delete(tp.httpMap, callID)
 	return nil
+}
+
+func (tp *traceParser) httpEvent() (*trace.HTTPTraceEvent, error) {
+	code := tracepb.HTTPTraceEventCode(tp.Byte())
+	ts := tp.Int64()
+	ev := &trace.HTTPTraceEvent{
+		Code: code,
+		Time: uint64(ts),
+	}
+
+	switch code {
+	case tracepb.HTTPTraceEventCode_GET_CONN:
+		ev.Data = &trace.HTTPTraceEvent_GetConn{
+			GetConn: &trace.HTTPGetConnData{
+				HostPort: tp.String(),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_GOT_CONN:
+		ev.Data = &trace.HTTPTraceEvent_GotConn{
+			GotConn: &trace.HTTPGotConnData{
+				Reused:         tp.Bool(),
+				WasIdle:        tp.Bool(),
+				IdleDurationNs: tp.Int64(),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_GOT_FIRST_RESPONSE_BYTE:
+		// no data
+
+	case tracepb.HTTPTraceEventCode_GOT_1XX_RESPONSE:
+		ev.Data = &trace.HTTPTraceEvent_Got_1XxResponse{
+			Got_1XxResponse: &trace.HTTPGot1XxResponseData{
+				Code: int32(tp.Varint()),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_DNS_START:
+		ev.Data = &trace.HTTPTraceEvent_DnsStart{
+			DnsStart: &trace.HTTPDNSStartData{
+				Host: tp.String(),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_DNS_DONE:
+		data := &trace.HTTPDNSDoneData{
+			Err: tp.ByteString(),
+		}
+		addrs := int(tp.UVarint())
+		for j := 0; j < addrs; j++ {
+			data.Addrs = append(data.Addrs, &tracepb.DNSAddr{
+				Ip: tp.ByteString(),
+			})
+		}
+		ev.Data = &trace.HTTPTraceEvent_DnsDone{DnsDone: data}
+
+	case tracepb.HTTPTraceEventCode_CONNECT_START:
+		ev.Data = &trace.HTTPTraceEvent_ConnectStart{
+			ConnectStart: &trace.HTTPConnectStartData{
+				Network: tp.String(),
+				Addr:    tp.String(),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_CONNECT_DONE:
+		ev.Data = &trace.HTTPTraceEvent_ConnectDone{
+			ConnectDone: &trace.HTTPConnectDoneData{
+				Network: tp.String(),
+				Addr:    tp.String(),
+				Err:     tp.ByteString(),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_TLS_HANDSHAKE_START:
+		// no data
+
+	case tracepb.HTTPTraceEventCode_TLS_HANDSHAKE_DONE:
+		ev.Data = &trace.HTTPTraceEvent_TlsHandshakeDone{
+			TlsHandshakeDone: &trace.HTTPTLSHandshakeDoneData{
+				Err:                tp.ByteString(),
+				TlsVersion:         tp.Uint32(),
+				CipherSuite:        tp.Uint32(),
+				ServerName:         tp.String(),
+				NegotiatedProtocol: tp.String(),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_WROTE_HEADERS:
+		// no data
+
+	case tracepb.HTTPTraceEventCode_WROTE_REQUEST:
+		ev.Data = &trace.HTTPTraceEvent_WroteRequest{
+			WroteRequest: &trace.HTTPWroteRequestData{
+				Err: tp.ByteString(),
+			},
+		}
+
+	case tracepb.HTTPTraceEventCode_WAIT_100_CONTINUE:
+		// no data
+
+	default:
+		return nil, fmt.Errorf("unknown http event %v", code)
+	}
+	return ev, nil
 }
 
 var bin = binary.LittleEndian
@@ -504,6 +618,10 @@ func (tr *traceReader) Byte() byte {
 	var buf [1]byte
 	tr.Bytes(buf[:])
 	return buf[0]
+}
+
+func (tr *traceReader) Bool() bool {
+	return tr.Byte() != 0
 }
 
 func (tr *traceReader) String() string {

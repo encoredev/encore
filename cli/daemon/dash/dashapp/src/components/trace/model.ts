@@ -5,7 +5,7 @@ export interface Trace {
   app_version: string;
   date: string;
   start_time: number;
-  end_time: number;
+  end_time?: number;
   root: Request;
   auth: Request | null;
   locations: {[key: number]: TraceExpr};
@@ -20,7 +20,7 @@ export interface Request {
   def_loc: number;
   call_loc: number | null;
   start_time: number;
-  end_time: number;
+  end_time?: number;
   inputs: Base64EncodedBytes[];
   outputs: Base64EncodedBytes[];
   err: Base64EncodedBytes | null;
@@ -35,7 +35,7 @@ export interface DBTransaction {
   start_loc: number;
   end_loc: number;
   start_time: number;
-  end_time: number;
+  end_time?: number;
   completion_type: "COMMIT" | "ROLLBACK";
   err: Base64EncodedBytes | null;
   queries: DBQuery[];
@@ -47,7 +47,7 @@ export interface DBQuery {
   txid: number | null;
   call_loc: number;
   start_time: number;
-  end_time: number;
+  end_time?: number;
   query: Base64EncodedBytes;
   html_query: Base64EncodedBytes | null;
   err: Base64EncodedBytes | null;
@@ -58,7 +58,7 @@ export interface Goroutine {
   goid: number;
   call_loc: number;
   start_time: number;
-  end_time: number;
+  end_time?: number;
 }
 
 export interface RPCCall {
@@ -68,7 +68,7 @@ export interface RPCCall {
   call_loc: number;
   def_loc: number;
   start_time: number;
-  end_time: number;
+  end_time?: number;
   err: Base64EncodedBytes | null;
 }
 
@@ -77,7 +77,7 @@ export interface AuthCall {
   goid: number;
   def_loc: number;
   start_time: number;
-  end_time: number;
+  end_time?: number;
   uid: string;
   auth_data: Base64EncodedBytes | null;
   err: Base64EncodedBytes | null;
@@ -88,16 +88,26 @@ export interface HTTPCall {
   goid: number;
   req_id: string;
   start_time: number;
-  end_time: number;
-  body_closed_time: number;
+  end_time?: number;
   method: string;
   host: string;
   path: string;
   url: string;
   status_code: number;
   err: Base64EncodedBytes | null;
+  metrics: HTTPCallMetrics;
 }
 
+export interface HTTPCallMetrics {
+  got_conn?: number;
+  conn_reused: boolean;
+  dns_done?: number;
+  tls_handshake_done?: number;
+  wrote_headers?: number;
+  wrote_request?: number;
+  first_response?: number;
+  body_closed?: number;
+}
 
 export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine;
 

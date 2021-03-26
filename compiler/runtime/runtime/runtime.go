@@ -104,3 +104,6 @@ func encoreBeginRoundTrip(req *http.Request) (context.Context, error) {
 func encoreFinishRoundTrip(req *http.Request, resp *http.Response, err error) {
 	httpCompleteRoundTrip(req, resp, err)
 }
+
+//go:linkname nanotime runtime.nanotime
+func nanotime() int64

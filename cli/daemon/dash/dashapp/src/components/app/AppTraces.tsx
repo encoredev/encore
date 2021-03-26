@@ -97,7 +97,7 @@ export default class AppTraces extends React.Component<Props, State> {
                       <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      {latencyStr(tr.end_time - tr.start_time)}
+                      {tr.end_time ? latencyStr(tr.end_time - tr.start_time) : "Unknown"}
                     </div>
                   </div>
                 </div>

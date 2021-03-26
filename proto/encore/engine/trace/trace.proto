@@ -89,10 +89,92 @@ message HTTPCall {
   uint64 start_time = 3;
   uint64 end_time = 4;
   string method = 5;
-  string host = 6;
-  string path = 7;
-  string url = 8;
-  uint32 status_code = 9;
-  bytes err = 10;
-  uint64 body_closed_time = 11;
+  string url = 6;
+  uint32 status_code = 7;
+  bytes err = 8;
+  uint64 body_closed_time = 9;
+  repeated HTTPTraceEvent events = 10;
+}
+
+enum HTTPTraceEventCode {
+  UNKNOWN = 0;
+  GET_CONN = 1;
+  GOT_CONN = 2;
+  GOT_FIRST_RESPONSE_BYTE = 3;
+  GOT_1XX_RESPONSE = 4;
+  DNS_START = 5;
+  DNS_DONE = 6;
+  CONNECT_START = 7;
+  CONNECT_DONE = 8;
+  TLS_HANDSHAKE_START = 9;
+  TLS_HANDSHAKE_DONE = 10;
+  WROTE_HEADERS = 11;
+  WROTE_REQUEST = 12;
+  WAIT_100_CONTINUE = 13;
+}
+
+message HTTPTraceEvent {
+  HTTPTraceEventCode code = 1;
+  uint64 time = 2;
+  oneof data {
+    HTTPGetConnData get_conn = 3;
+    HTTPGotConnData got_conn = 4;
+    HTTPGot1xxResponseData got_1xx_response = 5;
+    HTTPDNSStartData dns_start = 6;
+    HTTPDNSDoneData dns_done = 7;
+    HTTPConnectStartData connect_start = 8;
+    HTTPConnectDoneData connect_done = 9;
+    HTTPTLSHandshakeDoneData tls_handshake_done = 10;
+    HTTPWroteRequestData wrote_request = 11;
+  }
+}
+
+message HTTPGetConnData {
+  string host_port = 1;
+}
+
+message HTTPGotConnData {
+  bool reused = 1;
+  bool was_idle = 2;
+  int64 idle_duration_ns = 3;
+}
+
+message HTTPGot1xxResponseData {
+  int32 code = 1;
+}
+
+message HTTPDNSStartData {
+  string host = 1;
+}
+
+message HTTPDNSDoneData {
+  bytes err = 1;
+  repeated DNSAddr addrs = 2;
+}
+
+message DNSAddr {
+  bytes ip = 1;
+}
+
+message HTTPConnectStartData {
+  string network = 1;
+  string addr = 2;
+}
+
+message HTTPConnectDoneData {
+  string network = 1;
+  string addr = 2;
+  bytes err = 3;
+}
+
+message HTTPTLSHandshakeDoneData {
+  bytes err = 1;
+  uint32 tls_version = 2;
+  uint32 cipher_suite = 3;
+  string server_name = 4;
+  string negotiated_protocol = 5;
+}
+
+message HTTPWroteRequestData {
+  bytes err = 1;
 }

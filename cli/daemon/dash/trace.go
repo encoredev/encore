@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -36,7 +37,7 @@ type Request struct {
 	ParentID  *string    `json:"parent_id"`
 	Goid      uint32     `json:"goid"`
 	StartTime int64      `json:"start_time"`
-	EndTime   int64      `json:"end_time"`
+	EndTime   *int64     `json:"end_time,omitempty"`
 	CallLoc   *int32     `json:"call_loc"`
 	DefLoc    int32      `json:"def_loc"`
 	Inputs    [][]byte   `json:"inputs"`
@@ -51,7 +52,7 @@ type Goroutine struct {
 	Goid      uint32 `json:"goid"`
 	CallLoc   int32  `json:"call_loc"`
 	StartTime int64  `json:"start_time"`
-	EndTime   int64  `json:"end_time"`
+	EndTime   *int64 `json:"end_time,omitempty"`
 }
 
 type DBTransaction struct {
@@ -61,7 +62,7 @@ type DBTransaction struct {
 	StartLoc       int32      `json:"start_loc"`
 	EndLoc         int32      `json:"end_loc"`
 	StartTime      int64      `json:"start_time"`
-	EndTime        int64      `json:"end_time"`
+	EndTime        *int64     `json:"end_time,omitempty"`
 	Err            []byte     `json:"err"`
 	CompletionType string     `json:"completion_type"`
 	Queries        []*DBQuery `json:"queries"`
@@ -73,7 +74,7 @@ type DBQuery struct {
 	Txid      *uint32 `json:"txid"`
 	CallLoc   int32   `json:"call_loc"`
 	StartTime int64   `json:"start_time"`
-	EndTime   int64   `json:"end_time"`
+	EndTime   *int64  `json:"end_time,omitempty"`
 	Query     []byte  `json:"query"`
 	HTMLQuery []byte  `json:"html_query"`
 	Err       []byte  `json:"err"`
@@ -86,25 +87,35 @@ type RPCCall struct {
 	CallLoc   int32  `json:"call_loc"`
 	DefLoc    int32  `json:"def_loc"`
 	StartTime int64  `json:"start_time"`
-	EndTime   int64  `json:"end_time"`
+	EndTime   *int64 `json:"end_time,omitempty"`
 	Err       []byte `json:"err"`
 }
 
 type HTTPCall struct {
-	Type       string `json:"type"`
-	Goid       uint32 `json:"goid"`
-	ReqID      string `json:"req_id"`
-	StartTime  int64  `json:"start_time"`
-	EndTime    int64  `json:"end_time"`
-	Method     string `json:"method"`
-	Host       string `json:"host"`
-	Path       string `json:"path"`
-	URL        string `json:"url"`
-	StatusCode int    `json:"status_code"`
-	Err        []byte `json:"err"`
+	Type       string          `json:"type"`
+	Goid       uint32          `json:"goid"`
+	ReqID      string          `json:"req_id"`
+	StartTime  int64           `json:"start_time"`
+	EndTime    *int64          `json:"end_time,omitempty"`
+	Method     string          `json:"method"`
+	Host       string          `json:"host"`
+	Path       string          `json:"path"`
+	URL        string          `json:"url"`
+	StatusCode int             `json:"status_code"`
+	Err        []byte          `json:"err"`
+	Metrics    HTTPCallMetrics `json:"metrics"`
+}
 
-	// May be -1
-	BodyClosedTime int64 `json:"body_closed_time"`
+type HTTPCallMetrics struct {
+	// Times are all 0 if not set
+	GotConn           *int64 `json:"got_conn,omitempty"`
+	ConnReused        bool   `json:"conn_reused,omitempty"`
+	DNSDone           *int64 `json:"dns_done,omitempty"`
+	TLSHandshakeDone  *int64 `json:"tls_handshake_done,omitempty"`
+	WroteHeaders      *int64 `json:"wrote_headers,omitempty"`
+	WroteRequest      *int64 `json:"wrote_request,omitempty"`
+	FirstResponseByte *int64 `json:"first_response,omitempty"`
+	BodyClosed        *int64 `json:"body_closed,omitempty"`
 }
 
 type Event interface {
@@ -206,7 +217,7 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		ParentID:  nullIntStr(req.ParentSpanId),
 		Goid:      req.Goid,
 		StartTime: tp.time(req.StartTime),
-		EndTime:   tp.time(req.EndTime),
+		EndTime:   tp.maybeTime(req.EndTime),
 		CallLoc:   nullInt32(req.CallLoc),
 		DefLoc:    req.DefLoc,
 		Inputs:    inputs,
@@ -247,7 +258,7 @@ func (tp *traceParser) parseGoroutine(g *tracepb.Goroutine) *Goroutine {
 		Goid:      g.Goid,
 		CallLoc:   g.CallLoc,
 		StartTime: tp.time(g.StartTime),
-		EndTime:   tp.time(g.EndTime),
+		EndTime:   tp.maybeTime(g.EndTime),
 	}
 }
 
@@ -261,7 +272,7 @@ func (tp *traceParser) parseTx(tx *tracepb.DBTransaction) (*DBTransaction, error
 		StartLoc:  tx.StartLoc,
 		EndLoc:    tx.EndLoc,
 		StartTime: tp.time(tx.StartTime),
-		EndTime:   tp.time(tx.EndTime),
+		EndTime:   tp.maybeTime(tx.EndTime),
 		Err:       nullBytes(tx.Err),
 		Queries:   []*DBQuery{}, // prevent marshalling as null
 	}
@@ -299,7 +310,7 @@ func (tp *traceParser) parseQuery(q *tracepb.DBQuery, txid uint32) *DBQuery {
 		Txid:      nullUint32(txid),
 		CallLoc:   q.CallLoc,
 		StartTime: tp.time(q.StartTime),
-		EndTime:   tp.time(q.EndTime),
+		EndTime:   tp.maybeTime(q.EndTime),
 		Query:     dedent.Bytes(q.Query),
 		HTMLQuery: htmlQuery,
 		Err:       nullBytes(q.Err),
@@ -314,33 +325,70 @@ func (tp *traceParser) parseCall(c *tracepb.RPCCall) *RPCCall {
 		CallLoc:   c.CallLoc,
 		DefLoc:    c.DefLoc,
 		StartTime: tp.time(c.StartTime),
-		EndTime:   tp.time(c.EndTime),
+		EndTime:   tp.maybeTime(c.EndTime),
 		Err:       nullBytes(c.Err),
 	}
 }
 
 func (tp *traceParser) parseHTTP(c *tracepb.HTTPCall) *HTTPCall {
-	return &HTTPCall{
-		Type:           "HTTPCall",
-		Goid:           c.Goid,
-		ReqID:          strconv.FormatUint(c.SpanId, 10),
-		Method:         c.Method,
-		Host:           c.Host,
-		Path:           c.Path,
-		URL:            c.Url,
-		StatusCode:     int(c.StatusCode),
-		StartTime:      tp.time(c.StartTime),
-		EndTime:        tp.time(c.EndTime),
-		BodyClosedTime: tp.time(c.BodyClosedTime),
-		Err:            nullBytes(c.Err),
+	host := ""
+	path := ""
+	if u, err := url.Parse(c.Url); err == nil {
+		host = u.Host
+		path = u.Path
 	}
+
+	call := &HTTPCall{
+		Type:       "HTTPCall",
+		Goid:       c.Goid,
+		ReqID:      strconv.FormatUint(c.SpanId, 10),
+		Method:     c.Method,
+		Host:       host,
+		Path:       path,
+		URL:        c.Url,
+		StatusCode: int(c.StatusCode),
+		StartTime:  tp.time(c.StartTime),
+		EndTime:    tp.maybeTime(c.EndTime),
+		Err:        nullBytes(c.Err),
+		Metrics: HTTPCallMetrics{
+			BodyClosed: tp.maybeTime(c.BodyClosedTime),
+		},
+	}
+	m := &call.Metrics
+	for _, ev := range c.Events {
+		switch ev.Code {
+		case tracepb.HTTPTraceEventCode_GOT_CONN:
+			m.GotConn = tp.maybeTime(ev.Time)
+			m.ConnReused = ev.GetGotConn().Reused
+		case tracepb.HTTPTraceEventCode_DNS_DONE:
+			m.DNSDone = tp.maybeTime(ev.Time)
+		case tracepb.HTTPTraceEventCode_TLS_HANDSHAKE_DONE:
+			m.TLSHandshakeDone = tp.maybeTime(ev.Time)
+		case tracepb.HTTPTraceEventCode_WROTE_HEADERS:
+			m.WroteHeaders = tp.maybeTime(ev.Time)
+		case tracepb.HTTPTraceEventCode_WROTE_REQUEST:
+			m.WroteRequest = tp.maybeTime(ev.Time)
+		case tracepb.HTTPTraceEventCode_GOT_FIRST_RESPONSE_BYTE:
+			m.FirstResponseByte = tp.maybeTime(ev.Time)
+		}
+	}
+	return call
 }
 
 func (tp *traceParser) time(ns uint64) int64 {
 	if ns == 0 {
 		return -1
 	}
-	return int64(ns/1000) - tp.startTime
+	t := int64(ns/1000) - tp.startTime
+	return t
+}
+
+func (tp *traceParser) maybeTime(ns uint64) *int64 {
+	if ns == 0 {
+		return nil
+	}
+	t := int64(ns/1000) - tp.startTime
+	return &t
 }
 
 func nullIntStr(n uint64) *string {

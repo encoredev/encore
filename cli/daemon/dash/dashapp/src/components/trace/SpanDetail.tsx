@@ -48,7 +48,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
       <div className="py-3 grid grid-cols-3 gap-4 border-b border-gray-100">
         <div className="flex items-center text-sm font-light text-gray-400">
           {icons.clock("h-5 w-auto")}
-          <span className="font-bold mx-1 text-gray-800">{latencyStr(req.end_time - req.start_time)}</span>
+          <span className="font-bold mx-1 text-gray-800">{req.end_time ? latencyStr(req.end_time - req.start_time) : "Unknown"}</span>
           Duration
         </div>
 
@@ -115,7 +115,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
 
 export default SpanDetail
 
-type gdata = {goid: number, start: number, end: number, events: Event[]}
+type gdata = {goid: number, start: number, end: number | undefined, events: Event[]}
 
 const EventMap: FunctionComponent<{req: Request, trace: Trace}> = (props) => {
   const req = props.req
@@ -162,11 +162,11 @@ const EventMap: FunctionComponent<{req: Request, trace: Trace}> = (props) => {
 
 const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}> = (props) => {
   const req = props.req
-  const reqDur = req.end_time - req.start_time
+  const reqDur = req.end_time! - req.start_time
   const start = Math.round((props.g.start - req.start_time) / reqDur * 100)
-  const end = Math.round((props.g.end - req.start_time) / reqDur * 100)
+  const end = Math.round((props.g.end! - req.start_time) / reqDur * 100)
   const g = props.g
-  const gdur = g.end - g.start
+  const gdur = g.end! - g.start
   const lineHeight = 18
 
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -205,7 +205,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
 
         {g.events.map((ev, i) => {
           const start = Math.round((ev.start_time - g.start) / gdur * 100)
-          const end = Math.round((ev.end_time - g.start) / gdur * 100)
+          const end = Math.round((ev.end_time! - g.start) / gdur * 100)
           const clsid = `ev-${req.id}-${g.goid}-${i}`
 
           if (ev.type === "DBQuery") {
@@ -293,7 +293,7 @@ const DBQueryTooltip: FunctionComponent<{q: DBQuery, trace: Trace}> = (props) =>
     <h3 className="flex items-center text-gray-800 font-bold text-lg">
       {icons.database("h-8 w-auto text-gray-400 mr-2")}
       DB Query
-      <div className="ml-auto text-sm font-normal text-gray-500">{latencyStr(q.end_time - q.start_time)}</div>
+      <div className="ml-auto text-sm font-normal text-gray-500">{q.end_time ? latencyStr(q.end_time - q.start_time) : "Unknown"}</div>
     </h3>
 
     <div className="mt-4">
@@ -340,7 +340,7 @@ const RPCCallTooltip: FunctionComponent<{call: RPCCall, req: Request, trace: Tra
       ) : (
         <span className="italic text-sm text-gray-500">Unknown Endpoint</span>
       )}
-      <div className="ml-auto text-sm font-normal text-gray-500">{latencyStr(c.end_time - c.start_time)}</div>
+      <div className="ml-auto text-sm font-normal text-gray-500">{c.end_time ? latencyStr(c.end_time - c.start_time) : "Unknown"}</div>
     </h3>
 
     <div className="mt-4">
@@ -374,11 +374,12 @@ const RPCCallTooltip: FunctionComponent<{call: RPCCall, req: Request, trace: Tra
 }
 
 const HTTPCallTooltip: FunctionComponent<{call: HTTPCall, req: Request, trace: Trace}> = ({call, req, trace}) => {
+  const m = call.metrics
   return <div>
     <h3 className="flex items-center text-gray-800 font-bold text-lg">
       {icons.logout("h-8 w-auto text-gray-400 mr-2")}
       HTTP {call.method} {call.host}{call.path !== "" ? "/" + call.path : ""}
-      <div className="ml-auto text-sm font-normal text-gray-500">{latencyStr(call.end_time - call.start_time)}</div>
+      <div className="ml-auto text-sm font-normal text-gray-500">{call.end_time ? latencyStr(call.end_time - call.start_time) : "Unknown"}</div>
     </h3>
 
     <div className="mt-4">
@@ -404,6 +405,20 @@ const HTTPCallTooltip: FunctionComponent<{call: HTTPCall, req: Request, trace: T
       ) : (
         <div className="text-gray-700 text-sm">Completed successfully.</div>
       )}
+    </div>
+
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Timeline</h4>
+      <div className="text-gray-600 text-xs inline-grid grid-cols-2">
+        {m.conn_reused ? <>
+          <span>Reused Connection:</span> <span className="text-right">Yes</span>
+        </> : <>
+          {m.dns_done && <><span>DNS Lookup:</span> <span className="text-right">{latencyStr(m.dns_done - call.start_time)}</span></>}
+          {m.tls_handshake_done && <><span>TLS Handshake:</span> <span className="text-right">{latencyStr(m.tls_handshake_done - (m.dns_done ?? call.start_time))}</span></>}
+        </>}
+        {m.wrote_request && <><span>Wrote Request:</span> <span className="text-right">{latencyStr(m.wrote_request - (m.tls_handshake_done ?? m.got_conn ?? call.start_time))}</span></>}
+        {m.first_response && <><span>Response Start:</span> <span className="text-right">{latencyStr(m.first_response - (m.wrote_headers ?? m.got_conn ?? call.start_time))}</span></>}
+      </div>
     </div>
 
   </div>

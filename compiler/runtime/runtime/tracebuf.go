@@ -22,13 +22,13 @@ const (
 	TxEnd              TraceEvent = 0x07
 	QueryStart         TraceEvent = 0x08
 	QueryEnd           TraceEvent = 0x09
-	CallStart          TraceEvent = 0x10
-	CallEnd            TraceEvent = 0x11
-	AuthStart          TraceEvent = 0x12
-	AuthEnd            TraceEvent = 0x13
-	HTTPCallStart      TraceEvent = 0x14
-	HTTPCallEnd        TraceEvent = 0x15
-	HTTPCallBodyClosed TraceEvent = 0x16
+	CallStart          TraceEvent = 0x0A
+	CallEnd            TraceEvent = 0x0B
+	AuthStart          TraceEvent = 0x0C
+	AuthEnd            TraceEvent = 0x0D
+	HTTPCallStart      TraceEvent = 0x0E
+	HTTPCallEnd        TraceEvent = 0x0F
+	HTTPCallBodyClosed TraceEvent = 0x10
 )
 
 // genTraceID generates a new trace id and root span id.
@@ -93,6 +93,25 @@ func (tb *TraceBuf) ByteString(b []byte) {
 func (tb *TraceBuf) Now() {
 	now := time.Now().UnixNano()
 	tb.Int64(now)
+}
+
+func (tb *TraceBuf) Bool(b bool) {
+	if b {
+		tb.Bytes([]byte{1})
+	} else {
+		tb.Bytes([]byte{0})
+	}
+}
+
+func (tb *TraceBuf) Err(err error) {
+	msg := ""
+	if err != nil {
+		msg = err.Error()
+		if msg == "" {
+			msg = "unknown error"
+		}
+	}
+	tb.String(msg)
 }
 
 func (tb *TraceBuf) Int32(x int32) {
