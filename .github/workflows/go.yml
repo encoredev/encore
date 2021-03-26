@@ -29,7 +29,7 @@ jobs:
         echo "::set-output name=go-mod::$(go env GOMODCACHE)"
     
     - name: Install encore-go
-      run: curl -o encore-go.tar.gz https://d2f391esomvqpi.cloudfront.net/encore-go-0.9.5-linux_amd64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
+      run: curl -o encore-go.tar.gz https://d2f391esomvqpi.cloudfront.net/encore-go-0.9.6-linux_amd64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
 
     - name: Go Build Cache
       uses: actions/cache@v2
