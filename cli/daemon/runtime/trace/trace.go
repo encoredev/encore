@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"encr.dev/proto/encore/engine/trace"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/rs/zerolog/log"
@@ -310,6 +309,7 @@ func (tp *traceParser) transactionStart(ts uint64) error {
 
 func (tp *traceParser) transactionEnd(ts uint64) error {
 	txid := tp.UVarint()
+	_ = tp.Uint64() // spanID
 	tx, ok := tp.txMap[txid]
 	if !ok {
 		return fmt.Errorf("unknown transaction id: %v", txid)
@@ -474,25 +474,25 @@ func (tp *traceParser) httpBodyClosed(ts uint64) error {
 	return nil
 }
 
-func (tp *traceParser) httpEvent() (*trace.HTTPTraceEvent, error) {
+func (tp *traceParser) httpEvent() (*tracepb.HTTPTraceEvent, error) {
 	code := tracepb.HTTPTraceEventCode(tp.Byte())
 	ts := tp.Int64()
-	ev := &trace.HTTPTraceEvent{
+	ev := &tracepb.HTTPTraceEvent{
 		Code: code,
 		Time: uint64(ts),
 	}
 
 	switch code {
 	case tracepb.HTTPTraceEventCode_GET_CONN:
-		ev.Data = &trace.HTTPTraceEvent_GetConn{
-			GetConn: &trace.HTTPGetConnData{
+		ev.Data = &tracepb.HTTPTraceEvent_GetConn{
+			GetConn: &tracepb.HTTPGetConnData{
 				HostPort: tp.String(),
 			},
 		}
 
 	case tracepb.HTTPTraceEventCode_GOT_CONN:
-		ev.Data = &trace.HTTPTraceEvent_GotConn{
-			GotConn: &trace.HTTPGotConnData{
+		ev.Data = &tracepb.HTTPTraceEvent_GotConn{
+			GotConn: &tracepb.HTTPGotConnData{
 				Reused:         tp.Bool(),
 				WasIdle:        tp.Bool(),
 				IdleDurationNs: tp.Int64(),
@@ -503,21 +503,21 @@ func (tp *traceParser) httpEvent() (*trace.HTTPTraceEvent, error) {
 		// no data
 
 	case tracepb.HTTPTraceEventCode_GOT_1XX_RESPONSE:
-		ev.Data = &trace.HTTPTraceEvent_Got_1XxResponse{
-			Got_1XxResponse: &trace.HTTPGot1XxResponseData{
+		ev.Data = &tracepb.HTTPTraceEvent_Got_1XxResponse{
+			Got_1XxResponse: &tracepb.HTTPGot1XxResponseData{
 				Code: int32(tp.Varint()),
 			},
 		}
 
 	case tracepb.HTTPTraceEventCode_DNS_START:
-		ev.Data = &trace.HTTPTraceEvent_DnsStart{
-			DnsStart: &trace.HTTPDNSStartData{
+		ev.Data = &tracepb.HTTPTraceEvent_DnsStart{
+			DnsStart: &tracepb.HTTPDNSStartData{
 				Host: tp.String(),
 			},
 		}
 
 	case tracepb.HTTPTraceEventCode_DNS_DONE:
-		data := &trace.HTTPDNSDoneData{
+		data := &tracepb.HTTPDNSDoneData{
 			Err: tp.ByteString(),
 		}
 		addrs := int(tp.UVarint())
@@ -526,19 +526,19 @@ func (tp *traceParser) httpEvent() (*trace.HTTPTraceEvent, error) {
 				Ip: tp.ByteString(),
 			})
 		}
-		ev.Data = &trace.HTTPTraceEvent_DnsDone{DnsDone: data}
+		ev.Data = &tracepb.HTTPTraceEvent_DnsDone{DnsDone: data}
 
 	case tracepb.HTTPTraceEventCode_CONNECT_START:
-		ev.Data = &trace.HTTPTraceEvent_ConnectStart{
-			ConnectStart: &trace.HTTPConnectStartData{
+		ev.Data = &tracepb.HTTPTraceEvent_ConnectStart{
+			ConnectStart: &tracepb.HTTPConnectStartData{
 				Network: tp.String(),
 				Addr:    tp.String(),
 			},
 		}
 
 	case tracepb.HTTPTraceEventCode_CONNECT_DONE:
-		ev.Data = &trace.HTTPTraceEvent_ConnectDone{
-			ConnectDone: &trace.HTTPConnectDoneData{
+		ev.Data = &tracepb.HTTPTraceEvent_ConnectDone{
+			ConnectDone: &tracepb.HTTPConnectDoneData{
 				Network: tp.String(),
 				Addr:    tp.String(),
 				Err:     tp.ByteString(),
@@ -549,8 +549,8 @@ func (tp *traceParser) httpEvent() (*trace.HTTPTraceEvent, error) {
 		// no data
 
 	case tracepb.HTTPTraceEventCode_TLS_HANDSHAKE_DONE:
-		ev.Data = &trace.HTTPTraceEvent_TlsHandshakeDone{
-			TlsHandshakeDone: &trace.HTTPTLSHandshakeDoneData{
+		ev.Data = &tracepb.HTTPTraceEvent_TlsHandshakeDone{
+			TlsHandshakeDone: &tracepb.HTTPTLSHandshakeDoneData{
 				Err:                tp.ByteString(),
 				TlsVersion:         tp.Uint32(),
 				CipherSuite:        tp.Uint32(),
@@ -563,8 +563,8 @@ func (tp *traceParser) httpEvent() (*trace.HTTPTraceEvent, error) {
 		// no data
 
 	case tracepb.HTTPTraceEventCode_WROTE_REQUEST:
-		ev.Data = &trace.HTTPTraceEvent_WroteRequest{
-			WroteRequest: &trace.HTTPWroteRequestData{
+		ev.Data = &tracepb.HTTPTraceEvent_WroteRequest{
+			WroteRequest: &tracepb.HTTPWroteRequestData{
 				Err: tp.ByteString(),
 			},
 		}

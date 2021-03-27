@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 )
 
+var httpReqIDCtr uint64
+
 type httpRoundTrip struct {
 	ReqID  uint64
 	SpanID SpanID

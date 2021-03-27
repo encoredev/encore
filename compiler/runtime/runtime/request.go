@@ -15,9 +15,8 @@ import (
 )
 
 var (
-	reqIDCtr     uint32
-	callIDCtr    uint64
-	httpReqIDCtr uint64
+	reqIDCtr  uint32
+	callIDCtr uint64
 )
 
 var (
