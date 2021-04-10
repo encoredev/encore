@@ -51,10 +51,11 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 
 	var (
 		uid      auth.UID
+		token    string
 		authData interface{}
 	)
 	if auth := req.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-		token := auth[len("Bearer "):]
+		token = auth[len("Bearer "):]
 		uid, authData, err = validateAuth(req.Context(), token)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -63,6 +64,12 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	}
 {{- if requiresAuth .}}
 	if uid == "" {
+		if token == "" {
+			runtime.Logger().Info().
+				Str("service", "{{.Svc.Name}}").
+				Str("endpoint", "{{.Name}}").
+				Msg("rejecting request due to missing auth token")
+		}
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
