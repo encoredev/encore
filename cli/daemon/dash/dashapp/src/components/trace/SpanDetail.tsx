@@ -378,7 +378,7 @@ const HTTPCallTooltip: FunctionComponent<{call: HTTPCall, req: Request, trace: T
   return <div>
     <h3 className="flex items-center text-gray-800 font-bold text-lg">
       {icons.logout("h-8 w-auto text-gray-400 mr-2")}
-      HTTP {call.method} {call.host}{call.path !== "" ? "/" + call.path : ""}
+      HTTP {call.method} {call.host}{call.path}
       <div className="ml-auto text-sm font-normal text-gray-500">{call.end_time ? latencyStr(call.end_time - call.start_time) : "Unknown"}</div>
     </h3>
 
