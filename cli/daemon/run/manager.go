@@ -47,7 +47,7 @@ func (mgr *Manager) FindProc(procID string) *Proc {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 	for _, run := range mgr.runs {
-		if p := run.Proc(); p.ID == procID {
+		if p := run.Proc(); p != nil && p.ID == procID {
 			return p
 		}
 	}
