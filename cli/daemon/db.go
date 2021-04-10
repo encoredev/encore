@@ -20,7 +20,7 @@ import (
 
 // DBConnect starts the database and returns the DSN for connecting to it.
 func (s *Server) DBConnect(ctx context.Context, req *daemonpb.DBConnectRequest) (*daemonpb.DBConnectResponse, error) {
-	if req.EnvName == "" {
+	if req.EnvName == "local" {
 		return s.dbConnectLocal(ctx, req)
 	}
 

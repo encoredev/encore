@@ -90,7 +90,7 @@ class BaseClient {
         if (token !== undefined) {
             this.headers["Authorization"] = "Bearer " + token
         }
-        if (environment === "dev") {
+        if (environment === "local") {
             this.baseURL = "http://localhost:4060/"
         } else {
             this.baseURL = ` + "`" + `https://app.encoreapi.com/${environment}/` + "`" + `
