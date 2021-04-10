@@ -2,7 +2,6 @@ package run
 
 import (
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/rjeczalik/notify"
@@ -50,20 +49,12 @@ func (mgr *Manager) watch(run *Run) error {
 func ignoreEvent(appRoot string, ev notify.EventInfo) bool {
 	path := ev.Path()
 
-	// Ignore files with no extension or temporary files from vim.
-	if ext := filepath.Ext(path); ext == "" || strings.HasSuffix(ext, "~") {
+	// Ignore non-Go files
+	ext := filepath.Ext(path)
+	switch ext {
+	case ".go", ".sql", ".mod", ".sum", ".app":
+		return false
+	default:
 		return true
-	}
-
-	// Ignore events inside .git directories
-	for {
-		if filepath.Base(path) == ".git" {
-			return true
-		}
-		dir := filepath.Dir(path)
-		if path == dir {
-			return false
-		}
-		path = dir
 	}
 }
