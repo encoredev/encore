@@ -359,6 +359,7 @@ func Setup(cfg *config.ServerConfig) {
 				panic("sqldb: invalid database uri: " + err.Error())
 			}
 			cfg.LazyConnect = true
+			cfg.MaxConns = 30
 			pool, err := pgxpool.ConnectConfig(context.Background(), cfg)
 			if err != nil {
 				panic("sqldb: setup db: " + err.Error())
