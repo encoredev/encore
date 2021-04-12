@@ -217,4 +217,4 @@ See [DEVELOPING.md](DEVELOPING.md).
 
 ## Questions & Feedback
 
-If you have questions, need help, or have any feedback: email [hello@encore.dev](mailto:hello@encore.dev) or join our [Slack channel](https://join.slack.com/t/encoredev/shared_invite/zt-c75mzbnb-kWCiGueYVJ4pUCIW45sb8A).
+If you have questions, need help, or have any feedback: email us [hello@encore.dev](mailto:hello@encore.dev), join our [Slack channel](https://join.slack.com/t/encoredev/shared_invite/zt-c75mzbnb-kWCiGueYVJ4pUCIW45sb8A) or Twitter [@encoredotdev](https://twitter.com/encoredotdev).
