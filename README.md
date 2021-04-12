@@ -1,5 +1,7 @@
 # Encore - The Go backend framework with superpowers
 
+<img align="right" width="190px" src="https://encore.dev/assets/img/encore-gopher.svg">
+
 https://encore.dev
 
 Encore is a Go backend framework for rapidly creating APIs and distributed systems.
@@ -207,7 +209,7 @@ in your browser when your app is running (normally [localhost:4060](http://local
 
 Any API calls to your app automatically produces traces.
 
-[![Automatic Tracing](https://encore.dev/assets/img/tracing.jpg)]()
+![Automatic Tracing](https://encore.dev/assets/img/tracing.jpg)
 
 ## Developing Encore and building from source
 
