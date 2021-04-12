@@ -2,12 +2,34 @@
 
 https://encore.dev
 
-## Overview
+Encore is a Go backend framework for rapidly creating APIs and distributed systems.
 
-Encore is a Go backend framework for rapidly creating
-APIs and distributed systems.
+It uses static analysis and code generation to reduce the boilerplate you have to write,
+resulting in an extremely productive developer experience.
 
-Encore works by using source code analysis to understand how your application fits together, and then uses that to provide many [superpowers](#superpowers) that radically improve the developer experience.
+The key features of Encore are:
+
+* **No boilerplate**: Encore drastically reduces the boilerplate needed to set up
+  a production ready backend application. Define backend services, API endpoints,
+  and call APIs with a single line of Go code. 
+
+* **Distributed Tracing**: Encore uses a combination of static analysis and code
+  generation to automatically instrument your application for excellent observability.
+  Automatically captures information about API calls, goroutines, HTTP requests,
+  database queries, and more. Automatically works for local development as well
+  as in production.
+
+* **Infrastructure Provisioning**: Encore understands how your application works,
+  and uses that understanding to provision and manage your cloud infrastructure.
+  Automatically works with all the major cloud providers, as well as for local development.
+
+* **Simple Secrets**: Encore makes it easy to store and securely use secrets and API keys. 
+  Never worry about how to store and get access to secret values again.
+
+* **API Documentation**: Encore parses your source code to understand the request/response
+  schemas for all your APIs. Encore can automatically generate high-quality, interactive
+  API Documentation for you. It can also automatically generate type-safe, documented
+  clients for your frontends.
 
 **Read the complete documentation at [encore.dev/docs](https://encore.dev/docs).**
 
@@ -35,6 +57,9 @@ encore run
 git push encore
 ```
 
+#### Setup Demo
+[![Setup demo](https://asciinema.org/a/406681.svg)](https://asciinema.org/a/406681)
+
 ## Superpowers
 
 Encore comes with tons of superpowers that radically simplify backend development compared to traditional frameworks:
@@ -51,31 +76,112 @@ Encore comes with tons of superpowers that radically simplify backend developmen
 - Provides an extremely simple yet secure secrets management
 - And lots more...
 
-## Architecture
+## Using Encore
 
-The code base is divided into several parts:
+Encore makes it super easy to create backend services and APIs.
 
-### cli
-The `encore` command line interface. The encore background daemon
-is located at `cli/daemon` and is responsible for managing processes,
-setting up databases and talking with the Encore servers for operations like
-fetching production logs.
+### Creating a service with an API
 
-### parser
-The Encore Parser statically analyzes Encore apps to build up a model
-of the application dubbed the Encore Syntax Tree (EST) that lives in
-`parser/est`.
+In Encore, a backend service is just a regular Go package with one or more APIs defined.
+The Go package name becomes the service name (which must be unique within your app).
 
-For speed the parser does not perform traditional type-checking; it does
-limited type-checking for enforcing Encore-specific rules but otherwise
-relies on the underlying Go compiler to perform type-checking as part of
-building the application.
+```go
+package greet
 
-### compiler
-The Encore Compiler rewrites the source code based on the parsed
-Encore Syntax Tree to create a fully functioning application.
-It rewrites API calls & API handlers, injects instrumentation
-and secret values, and more.
+import (
+    "context"
+    "fmt"
+)
+
+type Params struct {
+    Name string
+}
+
+type Response struct {
+    Message string
+}
+
+//encore:api public
+func Person(ctx context.Context, params *Params) (*Response, error) {
+    msg := fmt.Sprintf("Hello, %s!", params.Name)
+    return &Response{Message: msg}, nil
+}
+```
+
+This creates a backend service named `greet`, with a single API endpoint named `Person`.
+
+Calling it is easy:
+```bash
+$ encore run  # run the app in a separate terminal
+$ curl http://localhost:4060/greet.Person -d '{"Name": "Jane"}'
+# Outputs: {"Message": "Hello, Jane!"}
+```
+
+### Calling an API endpoint
+Calling an API endpoint from another endpoint is easy.
+
+Just import the service (with a regular Go import), and then call the function
+as if it were a regular Go function:
+
+```go
+import "my.app/greet"
+
+func MyAPI(ctx context.Context) error {
+    resp, err := greet.Person(ctx, &greet.Params{Name: "John"})
+    if err != nil {
+        fmt.Println("The greeting message is:", resp.Message)
+    }
+    return err
+}
+```
+
+Encore uses its static analysis and code generation to turn this into a proper API call.
+
+### SQL Databases
+
+Encore automatically provisions, connects to, and performs schema migrations of SQL databases for you.
+
+All you have to do is define the SQL migrations:
+
+```sql
+-- greet/migrations/1_create_table.up.sql
+CREATE TABLE person (
+    name TEXT PRIMARY KEY,
+    count INT NOT NULL
+);
+```
+
+Then import `encore.dev/storage/sqldb` and just start querying:
+
+```go
+// genGreeting generates a personalized greeting for the given name.
+func genGreeting(ctx context.Context, name string) (string, error) {
+    var count int
+    // Insert the row, and increment count if the row is already in the db.
+    err := sqldb.QueryRow(ctx, `
+        INSERT INTO "person" (name, count)
+        VALUES ($1, 1)
+        ON CONFLICT (name) DO UPDATE
+        SET count = person.count + 1
+        RETURNING count
+    `, name).Scan(&count)
+    if err != nil {
+        return "", err
+    }
+
+    switch count {
+    case 1:
+        return fmt.Sprintf("Nice to meet you, %s!", name), nil
+    case 2:
+        return fmt.Sprintf("Hi again, %s!", name), nil
+    default:
+        return fmt.Sprintf("Good to see you, %s! We've met %d times before.", name, count-1), nil
+    }
+}
+```
+
+#### Database Demo
+[![Setting up a database](https://asciinema.org/a/406695.svg)](https://asciinema.org/a/406695)
 
 ## Developing Encore and building from source
 

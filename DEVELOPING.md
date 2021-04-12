@@ -16,3 +16,29 @@ The environment variables are:
 while `ENCORE_GOROOT` must be pointed to where `encore-go` was built.
 
 For more information on this see [cli/internal/env/env.go](cli/internal/env/env.go).
+
+## Architecture
+
+The code base is divided into several parts:
+
+### cli
+The `encore` command line interface. The encore background daemon
+is located at `cli/daemon` and is responsible for managing processes,
+setting up databases and talking with the Encore servers for operations like
+fetching production logs.
+
+### parser
+The Encore Parser statically analyzes Encore apps to build up a model
+of the application dubbed the Encore Syntax Tree (EST) that lives in
+`parser/est`.
+
+For speed the parser does not perform traditional type-checking; it does
+limited type-checking for enforcing Encore-specific rules but otherwise
+relies on the underlying Go compiler to perform type-checking as part of
+building the application.
+
+### compiler
+The Encore Compiler rewrites the source code based on the parsed
+Encore Syntax Tree to create a fully functioning application.
+It rewrites API calls & API handlers, injects instrumentation
+and secret values, and more.
