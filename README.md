@@ -1,6 +1,6 @@
 # Encore - The Go backend framework with superpowers
 
-<img align="right" width="190px" src="https://encore.dev/assets/img/encore-gopher.svg">
+<img align="right" width="189px" src="https://encore.dev/assets/img/encore-gopher.svg">
 
 https://encore.dev
 
