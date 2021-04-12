@@ -214,3 +214,7 @@ Any API calls to your app automatically produces traces.
 ## Developing Encore and building from source
 
 See [DEVELOPING.md](DEVELOPING.md).
+
+## Questions & Feedback
+
+If you have questions, need help, or have any feedback: email [hello@encore.dev](mailto:hello@encore.dev) or join our [Slack channel](https://join.slack.com/t/encoredev/shared_invite/zt-c75mzbnb-kWCiGueYVJ4pUCIW45sb8A).
