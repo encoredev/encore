@@ -117,6 +117,8 @@ $ curl http://localhost:4060/greet.Person -d '{"Name": "Jane"}'
 # Outputs: {"Message": "Hello, Jane!"}
 ```
 
+[Learn more in the Encore docs](https://encore.dev/docs/concepts/services-and-apis).
+
 ### Calling an API endpoint
 Calling an API endpoint from another endpoint is easy.
 
@@ -136,6 +138,8 @@ func MyAPI(ctx context.Context) error {
 ```
 
 Encore uses its static analysis and code generation to turn this into a proper API call.
+
+[Learn more in the Encore docs](https://encore.dev/docs/concepts/services-and-apis).
 
 ### SQL Databases
 
@@ -182,6 +186,28 @@ func genGreeting(ctx context.Context, name string) (string, error) {
 
 #### Database Demo
 [![Setting up a database](https://asciinema.org/a/406695.svg)](https://asciinema.org/a/406695)
+
+[Learn more in the Encore docs](https://encore.dev/docs/concepts/databases).
+
+### API Documentation
+
+Encore automatically generates API documentation for your app.
+
+You can access it by viewing the local development dashboard by opening the API URL
+in your browser when your app is running (normally [localhost:4060](http://localhost:4060)).
+
+[![API Documentation](https://encore.dev/assets/img/api-docs-screenshot.png)](https://encore.dev/docs/concepts/api-docs)
+
+### Distributed Tracing
+
+Encore automatically instruments your app with Distributed Tracing.
+
+For local development you can access it by viewing the local development dashboard by opening the API URL
+in your browser when your app is running (normally [localhost:4060](http://localhost:4060)).
+
+Any API calls to your app automatically produces traces.
+
+[![Automatic Tracing](https://encore.dev/assets/img/tracing.jpg)]()
 
 ## Developing Encore and building from source
 
