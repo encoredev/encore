@@ -89,12 +89,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 
 		m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
-		for _, svc := range proc.Meta.Svcs {
-			for _, rpc := range svc.Rpcs {
-				log.Info().Str("rpc", svc.Name+"."+rpc.Name).Msg("rpc")
-			}
-		}
-
 		str, err := m.MarshalToString(proc.Meta)
 		if err != nil {
 			log.Error().Err(err).Msg("dash: could not marshal app metadata")
