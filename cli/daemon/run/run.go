@@ -137,8 +137,10 @@ type runLogger interface {
 
 // Proc returns the current running process.
 // It may have already exited.
+// If the proc has not yet started it may return nil.
 func (r *Run) Proc() *Proc {
-	return r.proc.Load().(*Proc)
+	p, _ := r.proc.Load().(*Proc)
+	return p
 }
 
 // Done returns a channel that is closed when the run is closed.
