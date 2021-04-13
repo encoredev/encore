@@ -132,7 +132,7 @@ import "my.app/greet"
 
 func MyAPI(ctx context.Context) error {
     resp, err := greet.Person(ctx, &greet.Params{Name: "John"})
-    if err != nil {
+    if err == nil {
         fmt.Println("The greeting message is:", resp.Message)
     }
     return err
