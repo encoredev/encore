@@ -12,7 +12,6 @@ import (
 	"encr.dev/parser/est"
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/testscript"
-	ts "github.com/rogpeppe/go-internal/testscript"
 	"github.com/rogpeppe/go-internal/txtar"
 	"golang.org/x/mod/modfile"
 )
@@ -96,9 +95,9 @@ package b;
 }
 
 func TestCompile(t *testing.T) {
-	ts.Run(t, ts.Params{
+	testscript.Run(t, testscript.Params{
 		Dir: "testdata",
-		Setup: func(e *ts.Env) error {
+		Setup: func(e *testscript.Env) error {
 			gomod := []byte("module test\n\nrequire encore.dev v0.0.6")
 			return ioutil.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755)
 		},
