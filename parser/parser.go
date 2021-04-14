@@ -376,6 +376,9 @@ func (p *parser) parseReferences() {
 					// Have we rewritten this already?
 					if file.References[c.Parent()] != nil {
 						return true
+					} else if _, isSel := c.Parent().(*ast.SelectorExpr); isSel {
+						// We've already processed this above
+						return true
 					}
 
 					ri := info.Idents[id]
