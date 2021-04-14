@@ -1,4 +1,4 @@
-# Encore - The Go backend framework with superpowers
+# Encore - Go framework for building distributed systems
 
 <img align="right" width="189px" src="https://encore.dev/assets/img/encore-gopher.svg">
 
@@ -132,10 +132,11 @@ import "my.app/greet"
 
 func MyAPI(ctx context.Context) error {
     resp, err := greet.Person(ctx, &greet.Params{Name: "John"})
-    if err == nil {
-        fmt.Println("The greeting message is:", resp.Message)
+    if err != nil {
+        return err
     }
-    return err
+    fmt.Println("The greeting message is:", resp.Message)
+    return nil
 }
 ```
 
