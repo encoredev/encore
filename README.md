@@ -227,10 +227,6 @@ We're long-time, Staff Engineers from Spotify who grew frustrated with all the b
 
 We're not actually trying to couple it for the sake of coupling it, and in fact you don't have to use our cloud platform at all! Encore happily deploys your service to any major cloud provider of your choice. We created Encore to radically improve our own lives as experienced backend developers. The reason Encore combines a framework with a cloud platform (which you can use for free!) is because it turns out that to successfully radically improve developer productivity you have to operate across the full stack. Unless you understand how an application is deployed, there are lots of things in the development process that you can't simplify. 
 
-#### Can I move my app away from Encore?
-
-We really don't like lock-in (and in fact apps you build with Encore are really easy to migrate between clouds). We're actively trying to make it easy to use Encore without feeling like you're locking yourself in.
-
 #### Can I use an existing Kubernetes cluster with Encore?
 
 Not right now. We definitely want to support deploying to an existing k8s cluster, and enable more flexible deployment topologies in general. It's a bit tricky since we set up the cluster in a certain way, and it's hard to know how the existing cluster is configured and we don't want to break any existing application that might be running there.
