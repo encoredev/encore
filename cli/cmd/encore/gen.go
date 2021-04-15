@@ -28,7 +28,15 @@ func init() {
 	genClientCmd := &cobra.Command{
 		Use:   "client <app-id>",
 		Short: "Generates an API client for your app",
-		Args:  cobra.ExactArgs(1),
+		Long: `Generates an API client for your app.
+
+By default generates the API based on your primary production environment.
+Use '--env=local' to generate it based on your local development version of the app.
+
+Supported language codes are:
+  typescript: A TypeScript-client using the in-browser Fetch API
+`,
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if output == "" && lang == "" {
 				fatal("specify at least one of --output or --lang.")
@@ -68,7 +76,7 @@ func init() {
 
 	genCmd.AddCommand(genClientCmd)
 	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
-	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (only \"ts\" is supported for now)")
+	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (only \"typescript\" is supported for now)")
 	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
 }
 
