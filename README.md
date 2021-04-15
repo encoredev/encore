@@ -221,7 +221,7 @@ See [DEVELOPING.md](DEVELOPING.md).
 
 #### Who's behind Encore?
 
-We're long-time, Staff Engineers from Spotify who grew frustrated with all the boilerplate and boring stuff you have to do to build modern cloud applications.
+We're long-time Staff Engineers from Spotify, who grew frustrated with all the boilerplate and boring stuff you have to do to build modern cloud applications.
 
 #### Why is the framework integrated with cloud hosting?
 
