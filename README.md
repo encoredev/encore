@@ -23,7 +23,8 @@ The key features of Encore are:
 
 * **Infrastructure Provisioning**: Encore understands how your application works,
   and uses that understanding to provision and manage your cloud infrastructure.
-  Automatically works with all the major cloud providers, as well as for local development.
+  Automatically works with all the major cloud providers (use your own account with AWS/Azure/GCP),
+  as well as for local development.
 
 * **Simple Secrets**: Encore makes it easy to store and securely use secrets and API keys. 
   Never worry about how to store and get access to secret values again.
