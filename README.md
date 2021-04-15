@@ -223,9 +223,9 @@ See [DEVELOPING.md](DEVELOPING.md).
 
 We're long-time, Staff Engineers from Spotify who grew frustrated with all the boilerplate and boring stuff you have to do to build modern cloud applications.
 
-#### Why is the framework coupled with a hosting platform?
+#### Why is the framework integrated with cloud hosting?
 
-We're not actually trying to couple it for the sake of coupling it, and in fact you don't have to use our cloud platform at all! Encore happily deploys your service to any major cloud provider of your choice. We created Encore to radically improve our own lives as experienced backend developers. The reason Encore combines a framework with a cloud platform (which you can use for free!) is because it turns out that to successfully radically improve developer productivity you have to operate across the full stack. Unless you understand how an application is deployed, there are lots of things in the development process that you can't simplify. 
+We've found that to meaningfully improve developer productivity you have to operate across the full stack. Unless you understand how an application is deployed, there are lots of things in the development process that you can't simplify. You can still use your own account with any of the major cloud providers (AWS/Azure/GCP), or you can use Encore's cloud for free, for Hobby projects, with pretty generous "fair use" limits. 
 
 #### Can I use an existing Kubernetes cluster with Encore?
 
