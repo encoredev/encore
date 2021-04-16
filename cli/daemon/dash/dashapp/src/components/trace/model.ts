@@ -109,7 +109,21 @@ export interface HTTPCallMetrics {
   body_closed?: number;
 }
 
-export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine;
+export interface LogMessage {
+  type: "LogMessage";
+  goid: number;
+  time: number;
+  level: "DEBUG" | "INFO" | "ERROR";
+  msg: string;
+  fields: LogField[];
+}
+
+export interface LogField {
+  key: string;
+  value: any;
+}
+
+export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine | LogMessage;
 
 export type TraceExpr = RpcDefExpr | RpcCallExpr | StaticCallExpr | AuthHandlerDefExpr
 
