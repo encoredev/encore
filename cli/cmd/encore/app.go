@@ -90,30 +90,27 @@ func init() {
 
 // createApp is the implementation of the "encore app create" command.
 func createApp(ctx context.Context, name, template string) (err error) {
-	yellow := color.New(color.FgYellow)
 	cyan := color.New(color.FgCyan)
 	green := color.New(color.FgGreen)
 
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
-		var loginNow bool
-		cyan.Fprintln(os.Stderr, "You are not logged in to encore.dev.")
-		survey.AskOne(&survey.Confirm{
-			Message: cyan.Sprint("Log in now to automatically link your app with encore.dev?"),
-			Default: true,
-		}, &loginNow)
-		if loginNow {
-			if err := doLogin(); err != nil {
-				fatal(err)
-			}
-		} else {
-			yellow.Fprintln(os.Stderr, "Continuing without logging in. You can manually link your app later using `encore app link`.")
+		cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
+		fmt.Scanln()
+		if err := doLogin(); err != nil {
+			fatal(err)
 		}
 	}
 
 	if name == "" {
-		survey.AskOne(&survey.Input{
+		err := survey.AskOne(&survey.Input{
 			Message: "App Name (lowercase letters, digits, and dashes)",
 		}, &name, survey.WithValidator(func(in interface{}) error { return validateName(in.(string)) }))
+		if err != nil {
+			if err.Error() == "interrupt" {
+				os.Exit(2)
+			}
+			return err
+		}
 	}
 
 	if err := validateName(name); err != nil {
@@ -127,7 +124,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 
 		dockerMsg := ""
 		if _, err := exec.LookPath("docker"); err != nil {
-			dockerMsg = " [requires Docker]"
+			dockerMsg = " [uses Docker]"
 		}
 		prompt := &survey.Select{
 			Message: "Select app template:",
