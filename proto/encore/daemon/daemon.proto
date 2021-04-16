@@ -8,7 +8,7 @@ package encore.daemon;
 
 service Daemon {
   // Run runs the application.
-  rpc Run (RunRequest) returns (stream RunMessage);
+  rpc Run (RunRequest) returns (stream CommandMessage);
   // Test runs tests.
   rpc Test (TestRequest) returns (stream CommandMessage);
   // Check checks the app for compilation errors.
@@ -61,21 +61,6 @@ message RunRequest {
   bool debug = 4;
   // watch, if true, enables live reloading of the app whenever the source changes.
  bool watch = 5;
-}
-
-message RunMessage {
-  oneof msg {
-    RunStarted started = 1;
-    CommandOutput output = 2;
-    CommandExit exit = 3;
-  }
-}
-
-message RunStarted {
-  string run_id = 1;
-  int32 port = 2;
-  string tunnel_url = 3;
-  int32 pid = 4;
 }
 
 message TestRequest {

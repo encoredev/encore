@@ -2,15 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"os"
 	"os/signal"
 
 	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var (
@@ -51,35 +47,7 @@ func runApp(appRoot, wd string, tunnel, watch bool) {
 		fatal(err)
 	}
 
-	for {
-		msg, err := stream.Recv()
-		if err == io.EOF || status.Code(err) == codes.Canceled {
-			return
-		} else if err != nil {
-			fatal(err)
-		}
-		switch resp := msg.Msg.(type) {
-		case *daemonpb.RunMessage_Started:
-			fmt.Fprintf(os.Stderr, "Running on http://localhost:%d\n", resp.Started.Port)
-			if debug && resp.Started.Pid > 0 {
-				fmt.Fprintf(os.Stderr, "Process ID (for debugging): %d\n", resp.Started.Pid)
-			}
-			if url := resp.Started.TunnelUrl; url != "" {
-				fmt.Fprintf(os.Stderr, "Tunnel active on %s\n", url)
-			}
-
-		case *daemonpb.RunMessage_Output:
-			if out := resp.Output.Stdout; len(out) > 0 {
-				os.Stdout.Write(out)
-			}
-			if out := resp.Output.Stderr; len(out) > 0 {
-				os.Stderr.Write(out)
-			}
-
-		case *daemonpb.RunMessage_Exit:
-			os.Exit(int(resp.Exit.Code))
-		}
-	}
+	streamCommandOutput(stream)
 }
 
 func init() {
