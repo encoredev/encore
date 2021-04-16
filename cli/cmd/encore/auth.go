@@ -61,28 +61,33 @@ func init() {
 	rootCmd.AddCommand(authCmd)
 }
 
-func doLogin() error {
+func doLogin() (err error) {
 	flow, err := login.Begin()
 	if err != nil {
 		return err
 	}
 
-	browser.Open(flow.URL)
-
-	// On Windows we need a proper \r\n newline to ensure the URL detection doesn't extend to the next line.
-	// fmt.Fprintln and family prints just a simple \n, so don't use that.
-	fmt.Fprint(os.Stdout, "Log in to Encore using your browser here: ", flow.URL, newline)
+	if !browser.Open(flow.URL) {
+		// On Windows we need a proper \r\n newline to ensure the URL detection doesn't extend to the next line.
+		// fmt.Fprintln and family prints just a simple \n, so don't use that.
+		fmt.Fprint(os.Stdout, "Log in to Encore using your browser here: ", flow.URL, newline)
+	}
 
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Prefix = "Waiting for login to complete "
 	s.Start()
-	defer s.Stop()
+	defer func() {
+		if err != nil {
+			s.Stop()
+		}
+	}()
 
 	select {
 	case cfg := <-flow.LoginCh:
 		if err := conf.Write(cfg); err != nil {
 			return fmt.Errorf("write credentials: %v", err)
 		}
+		s.Stop()
 		fmt.Fprintln(os.Stdout, "Successfully logged in!")
 		return nil
 	case <-time.After(10 * time.Minute):
