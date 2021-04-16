@@ -21,14 +21,14 @@ import (
 
 // Run runs the application.
 func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer) error {
+	slog := &streamLog{stream: stream}
+	stdout := slog.Stdout()
+	stderr := slog.Stderr()
+
 	sendErr := func(err error) {
-		stream.Send(&daemonpb.RunMessage{
-			Msg: &daemonpb.RunMessage_Output{Output: &daemonpb.CommandOutput{
-				Stderr: []byte(err.Error() + "\n"),
-			}},
-		})
-		stream.Send(&daemonpb.RunMessage{
-			Msg: &daemonpb.RunMessage_Exit{Exit: &daemonpb.CommandExit{
+		stderr.Write([]byte(err.Error() + "\n"))
+		stream.Send(&daemonpb.CommandMessage{
+			Msg: &daemonpb.CommandMessage_Exit{Exit: &daemonpb.CommandExit{
 				Code: 1,
 			}},
 		})
@@ -68,7 +68,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 			return nil
 		}
 
-		if err := cluster.Start(streamLog{stream: runStreamAdapter{stream}}); err != nil {
+		if err := cluster.Start(slog); err != nil {
 			sendErr(fmt.Errorf("Database setup failed: %v", err))
 			return nil
 		}
@@ -97,17 +97,15 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		sendErr(err)
 		return nil
 	}
-	s.streams[run.ID] = stream
+	s.streams[run.ID] = slog
 	s.mu.Unlock()
 
 	pid := run.Proc().Pid
-	_ = stream.Send(&daemonpb.RunMessage{
-		Msg: &daemonpb.RunMessage_Started{Started: &daemonpb.RunStarted{
-			RunId: run.ID,
-			Pid:   int32(pid),
-			Port:  int32(run.Port),
-		}},
-	})
+	stdout.Write([]byte(fmt.Sprintf("API Base URL:      http://localhost:%d\n", run.Port)))
+	stdout.Write([]byte(fmt.Sprintf("Dev Dashboard URL: http://localhost:%d/%s\n", s.mgr.DashPort, man.AppID)))
+	if req.Debug {
+		stdout.Write([]byte(fmt.Sprintf("Process ID:        %d\n", pid)))
+	}
 
 	// Wait for the run to close, or the database setup to fail.
 	select {
@@ -125,12 +123,9 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 // Test runs tests.
 func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServer) error {
+	slog := &streamLog{stream: stream}
 	sendErr := func(err error) {
-		stream.Send(&daemonpb.CommandMessage{
-			Msg: &daemonpb.CommandMessage_Output{Output: &daemonpb.CommandOutput{
-				Stderr: []byte(err.Error() + "\n"),
-			}},
-		})
+		slog.Stderr().Write([]byte(err.Error() + "\n"))
 		streamExit(stream, 1)
 	}
 
@@ -165,7 +160,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	dbSetupErr := make(chan error, 1)
 	go func() {
 		defer setupCancel()
-		if err := cluster.Start(streamLog{stream: stream}); err != nil {
+		if err := cluster.Start(&streamLog{stream: stream}); err != nil {
 			dbSetupErr <- err
 		} else if err := cluster.Recreate(setupCtx, req.AppRoot, nil, parse.Meta); err != nil {
 			dbSetupErr <- err
@@ -182,8 +177,8 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 			WorkingDir:  req.WorkingDir,
 			DBClusterID: clusterID,
 			Args:        req.Args,
-			Stdout:      &streamWriter{stream: stream, stderr: false},
-			Stderr:      &streamWriter{stream: stream, stderr: true},
+			Stdout:      slog.Stdout(),
+			Stderr:      slog.Stderr(),
 		})
 	}()
 
@@ -203,7 +198,8 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 
 // Check checks the app for compilation errors.
 func (s *Server) Check(req *daemonpb.CheckRequest, stream daemonpb.Daemon_CheckServer) error {
-	log := newStreamLogger(stream)
+	slog := &streamLog{stream: stream}
+	log := newStreamLogger(slog)
 	err := s.mgr.Check(stream.Context(), req.AppRoot, req.WorkingDir)
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -226,26 +222,22 @@ func (s *Server) OnStop(r *run.Run) {}
 // OnStdout implements run.EventListener.
 func (s *Server) OnStdout(r *run.Run, line []byte) {
 	s.mu.Lock()
-	stream, ok := s.streams[r.ID]
+	slog, ok := s.streams[r.ID]
 	s.mu.Unlock()
 
 	if ok {
-		stream.Send(&daemonpb.RunMessage{Msg: &daemonpb.RunMessage_Output{
-			Output: &daemonpb.CommandOutput{Stdout: line},
-		}})
+		slog.Stdout().Write(line)
 	}
 }
 
 // OnStderr implements run.EventListener.
 func (s *Server) OnStderr(r *run.Run, line []byte) {
 	s.mu.Lock()
-	stream, ok := s.streams[r.ID]
+	slog, ok := s.streams[r.ID]
 	s.mu.Unlock()
 
 	if ok {
-		stream.Send(&daemonpb.RunMessage{Msg: &daemonpb.RunMessage_Output{
-			Output: &daemonpb.CommandOutput{Stderr: line},
-		}})
+		slog.Stderr().Write(line)
 	}
 }
 

@@ -65,7 +65,7 @@ func (c *daemonClient) Run(ctx context.Context, in *RunRequest, opts ...grpc.Cal
 }
 
 type Daemon_RunClient interface {
-	Recv() (*RunMessage, error)
+	Recv() (*CommandMessage, error)
 	grpc.ClientStream
 }
 
@@ -73,8 +73,8 @@ type daemonRunClient struct {
 	grpc.ClientStream
 }
 
-func (x *daemonRunClient) Recv() (*RunMessage, error) {
-	m := new(RunMessage)
+func (x *daemonRunClient) Recv() (*CommandMessage, error) {
+	m := new(CommandMessage)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -354,7 +354,7 @@ func _Daemon_Run_Handler(srv interface{}, stream grpc.ServerStream) error {
 }
 
 type Daemon_RunServer interface {
-	Send(*RunMessage) error
+	Send(*CommandMessage) error
 	grpc.ServerStream
 }
 
@@ -362,7 +362,7 @@ type daemonRunServer struct {
 	grpc.ServerStream
 }
 
-func (x *daemonRunServer) Send(m *RunMessage) error {
+func (x *daemonRunServer) Send(m *CommandMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 

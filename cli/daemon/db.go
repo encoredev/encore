@@ -124,7 +124,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 			Meta:      parse.Meta,
 			Memfs:     false,
 		})
-		if err := cluster.Start(streamLog{stream: stream}); err != nil {
+		if err := cluster.Start(&streamLog{stream: stream}); err != nil {
 			return err
 		} else if err := cluster.Create(ctx, params.AppRoot, parse.Meta); err != nil {
 			return err
@@ -205,7 +205,7 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		})
 	}
 
-	if err := cluster.Start(streamLog{stream: stream}); err != nil {
+	if err := cluster.Start(&streamLog{stream: stream}); err != nil {
 		sendErr(err)
 		return nil
 	}

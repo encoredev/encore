@@ -3,7 +3,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
 
@@ -33,8 +32,8 @@ type Server struct {
 	rc      remote.RemoteClient
 
 	mu       sync.Mutex
-	streams  map[string]daemonpb.Daemon_RunServer // run id -> stream
-	appRoots map[string]string                    // cache of app id -> app root
+	streams  map[string]*streamLog // run id -> stream
+	appRoots map[string]string     // cache of app id -> app root
 
 	daemonpb.UnimplementedDaemonServer
 }
@@ -47,7 +46,7 @@ func New(version string, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.
 		cm:       cm,
 		sm:       sm,
 		rc:       rc,
-		streams:  make(map[string]daemonpb.Daemon_RunServer),
+		streams:  make(map[string]*streamLog),
 		appRoots: make(map[string]string),
 	}
 	mgr.AddListener(srv)
@@ -181,16 +180,20 @@ type commandStream interface {
 	Send(msg *daemonpb.CommandMessage) error
 }
 
-func newStreamLogger(stream commandStream) zerolog.Logger {
-	return zerolog.New(zerolog.ConsoleWriter{Out: zerolog.SyncWriter(streamWriter{stream: stream})})
+func newStreamLogger(slog *streamLog) zerolog.Logger {
+	return zerolog.New(zerolog.ConsoleWriter{Out: zerolog.SyncWriter(slog.Stdout())})
 }
 
 type streamWriter struct {
+	mu     *sync.Mutex
 	stream commandStream
 	stderr bool // if true write to stderr, otherwise stdout
 }
 
 func (w streamWriter) Write(b []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	out := &daemonpb.CommandOutput{}
 	if w.stderr {
 		out.Stderr = b
@@ -218,31 +221,13 @@ func streamExit(stream commandStream, code int) {
 
 type streamLog struct {
 	stream commandStream
+	mu     sync.Mutex
 }
 
-func (log streamLog) Stdout() io.Writer {
-	return streamWriter{stream: log.stream, stderr: false}
+func (log *streamLog) Stdout() io.Writer {
+	return streamWriter{mu: &log.mu, stream: log.stream, stderr: false}
 }
 
-func (log streamLog) Stderr() io.Writer {
-	return streamWriter{stream: log.stream, stderr: true}
-}
-
-type runStreamAdapter struct {
-	stream daemonpb.Daemon_RunServer
-}
-
-func (a runStreamAdapter) Send(msg *daemonpb.CommandMessage) error {
-	switch msg := msg.Msg.(type) {
-	case *daemonpb.CommandMessage_Output:
-		return a.stream.Send(&daemonpb.RunMessage{
-			Msg: &daemonpb.RunMessage_Output{Output: msg.Output},
-		})
-	case *daemonpb.CommandMessage_Exit:
-		return a.stream.Send(&daemonpb.RunMessage{
-			Msg: &daemonpb.RunMessage_Exit{Exit: msg.Exit},
-		})
-	default:
-		panic(fmt.Sprintf("unknown CommandMessage type %T", msg))
-	}
+func (log *streamLog) Stderr() io.Writer {
+	return streamWriter{mu: &log.mu, stream: log.stream, stderr: true}
 }
