@@ -6,30 +6,30 @@ import (
 
 type Ctx = rlog.Ctx
 
-func Debug(traceExpr int32, msg string, keysAndValues ...interface{}) {
-	rlog.Debug(traceExpr, msg, keysAndValues...)
+func Debug(msg string, keysAndValues ...interface{}) {
+	rlog.Debug(msg, keysAndValues...)
 }
 
-func Info(traceExpr int32, msg string, keysAndValues ...interface{}) {
-	rlog.Info(traceExpr, msg, keysAndValues...)
+func Info(msg string, keysAndValues ...interface{}) {
+	rlog.Info(msg, keysAndValues...)
 }
 
-func Error(traceExpr int32, msg string, keysAndValues ...interface{}) {
-	rlog.Error(traceExpr, msg, keysAndValues...)
+func Error(msg string, keysAndValues ...interface{}) {
+	rlog.Error(msg, keysAndValues...)
 }
 
 func With(keysAndValues ...interface{}) Ctx {
 	return rlog.With(keysAndValues...)
 }
 
-func Debugc(traceExpr int32, ctx Ctx, msg string, keysAndValues ...interface{}) {
-	rlog.Debugc(traceExpr, ctx, msg, keysAndValues...)
+func Debugc(ctx Ctx, msg string, keysAndValues ...interface{}) {
+	rlog.Debugc(ctx, msg, keysAndValues...)
 }
 
-func Infoc(traceExpr int32, ctx Ctx, msg string, keysAndValues ...interface{}) {
-	rlog.Infoc(traceExpr, ctx, msg, keysAndValues...)
+func Infoc(ctx Ctx, msg string, keysAndValues ...interface{}) {
+	rlog.Infoc(ctx, msg, keysAndValues...)
 }
 
-func Errorc(traceExpr int32, ctx Ctx, msg string, keysAndValues ...interface{}) {
-	rlog.Errorc(traceExpr, ctx, msg, keysAndValues...)
+func Errorc(ctx Ctx, msg string, keysAndValues ...interface{}) {
+	rlog.Errorc(ctx, msg, keysAndValues...)
 }

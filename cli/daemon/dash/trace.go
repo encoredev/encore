@@ -118,6 +118,20 @@ type HTTPCallMetrics struct {
 	BodyClosed        *int64 `json:"body_closed,omitempty"`
 }
 
+type LogMessage struct {
+	Type    string     `json:"type"` // "LogMessage"
+	Goid    uint32     `json:"goid"`
+	Time    int64      `json:"time"`
+	Level   string     `json:"level"` // "DEBUG", "INFO", or "ERROR"
+	Message string     `json:"msg"`
+	Fields  []LogField `json:"fields"`
+}
+
+type LogField struct {
+	Key   string      `json:"key"`
+	Value interface{} `json:"value"`
+}
+
 type Event interface {
 	traceEvent()
 }
@@ -127,6 +141,7 @@ func (DBTransaction) traceEvent() {}
 func (DBQuery) traceEvent()       {}
 func (RPCCall) traceEvent()       {}
 func (HTTPCall) traceEvent()      {}
+func (LogMessage) traceEvent()    {}
 
 func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 	traceID := traceUUID(ct.ID)
@@ -246,6 +261,9 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 
 		case *tracepb.Event_Goroutine:
 			r.Events = append(r.Events, tp.parseGoroutine(e.Goroutine))
+
+		case *tracepb.Event_Log:
+			r.Events = append(r.Events, tp.parseLog(e.Log))
 		}
 	}
 
@@ -260,6 +278,46 @@ func (tp *traceParser) parseGoroutine(g *tracepb.Goroutine) *Goroutine {
 		StartTime: tp.time(g.StartTime),
 		EndTime:   tp.maybeTime(g.EndTime),
 	}
+}
+
+func (tp *traceParser) parseLog(l *tracepb.LogMessage) *LogMessage {
+	msg := &LogMessage{
+		Type:    "LogMessage",
+		Goid:    l.Goid,
+		Time:    tp.time(l.Time),
+		Level:   l.Level.String(),
+		Message: l.Msg,
+		Fields:  []LogField{},
+	}
+	for _, f := range l.Fields {
+		field := LogField{Key: f.Key}
+		switch v := f.Value.(type) {
+		case *tracepb.LogField_Error:
+			field.Value = v.Error
+		case *tracepb.LogField_Str:
+			field.Value = v.Str
+		case *tracepb.LogField_Bool:
+			field.Value = v.Bool
+		case *tracepb.LogField_Time:
+			field.Value = v.Time.AsTime()
+		case *tracepb.LogField_Dur:
+			field.Value = time.Duration(v.Dur).String()
+		case *tracepb.LogField_Uuid:
+			field.Value = uuid.FromBytesOrNil(v.Uuid).String()
+		case *tracepb.LogField_Json:
+			field.Value = json.RawMessage(v.Json)
+		case *tracepb.LogField_Int:
+			field.Value = v.Int
+		case *tracepb.LogField_Uint:
+			field.Value = v.Uint
+		case *tracepb.LogField_Float32:
+			field.Value = v.Float32
+		case *tracepb.LogField_Float64:
+			field.Value = v.Float64
+		}
+		msg.Fields = append(msg.Fields, field)
+	}
+	return msg
 }
 
 func (tp *traceParser) parseTx(tx *tracepb.DBTransaction) (*DBTransaction, error) {

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 option go_package = "encr.dev/proto/encore/engine/trace";
 
+import "google/protobuf/timestamp.proto";
+
 package encore.engine.trace;
 
 message TraceID {
@@ -38,6 +40,7 @@ message Event {
     DBQuery query = 3;
     Goroutine goroutine = 4;
     HTTPCall http = 5;
+    LogMessage log = 6;
   }
 }
 
@@ -177,4 +180,37 @@ message HTTPTLSHandshakeDoneData {
 
 message HTTPWroteRequestData {
   bytes err = 1;
+}
+
+message LogMessage {
+  enum Level {
+    DEBUG = 0;
+    INFO = 1;
+    ERROR = 2;
+  }
+
+  uint64 span_id = 1;
+  uint32 goid = 2;
+  uint64 time = 3;
+  Level level = 4;
+  string msg = 5;
+  repeated LogField fields = 6;
+}
+
+message LogField {
+  string key = 1;
+
+  oneof value {
+    string error = 2;
+    string str = 3;
+    bool bool = 4;
+    google.protobuf.Timestamp time = 5;
+    int64 dur = 6;
+    bytes uuid = 7;
+    bytes json = 8;
+    int64 int = 9;
+    uint64 uint = 10;
+    float float32 = 11;
+    double float64 = 12;
+  }
 }

@@ -283,7 +283,6 @@ func beginReq(spanID SpanID, data RequestData) error {
 		tb.Bytes([]byte{byte(req.Type)})
 		tb.Bytes(req.SpanID[:])
 		tb.Bytes(req.ParentID[:])
-		tb.Now()
 		tb.UVarint(uint64(g.goid))
 		tb.UVarint(uint64(data.CallExprIdx))
 		tb.UVarint(uint64(data.EndpointExprIdx))

@@ -1,7 +1,7 @@
 package rlog
 
 import (
-	"encoding/binary"
+	"encoding/json"
 	"time"
 
 	"encore.dev/runtime"
@@ -13,19 +13,19 @@ type Ctx struct {
 	ctx zerolog.Context
 }
 
-func Debug(traceExpr int32, msg string, keysAndValues ...interface{}) {
+func Debug(msg string, keysAndValues ...interface{}) {
 	log := runtime.Logger()
-	doLog(log.Debug(), msg, keysAndValues...)
+	doLog(0, log.Debug(), msg, keysAndValues...)
 }
 
-func Info(traceExpr int32, msg string, keysAndValues ...interface{}) {
+func Info(msg string, keysAndValues ...interface{}) {
 	log := runtime.Logger()
-	doLog(log.Info(), msg, keysAndValues...)
+	doLog(1, log.Info(), msg, keysAndValues...)
 }
 
-func Error(traceExpr int32, msg string, keysAndValues ...interface{}) {
+func Error(msg string, keysAndValues ...interface{}) {
 	log := runtime.Logger()
-	doLog(log.Error(), msg, keysAndValues...)
+	doLog(2, log.Error(), msg, keysAndValues...)
 }
 
 func With(keysAndValues ...interface{}) Ctx {
@@ -38,28 +38,49 @@ func With(keysAndValues ...interface{}) Ctx {
 	return Ctx{ctx: ctx}
 }
 
-func Debugc(traceExpr int32, ctx Ctx, msg string, keysAndValues ...interface{}) {
+func Debugc(ctx Ctx, msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
-	doLog(l.Debug(), msg, keysAndValues...)
+	doLog(0, l.Debug(), msg, keysAndValues...)
 }
 
-func Infoc(traceExpr int32, ctx Ctx, msg string, keysAndValues ...interface{}) {
+func Infoc(ctx Ctx, msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
-	doLog(l.Info(), msg, keysAndValues...)
+	doLog(1, l.Info(), msg, keysAndValues...)
 }
 
-func Errorc(traceExpr int32, ctx Ctx, msg string, keysAndValues ...interface{}) {
+func Errorc(ctx Ctx, msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
-	doLog(l.Error(), msg, keysAndValues...)
+	doLog(2, l.Error(), msg, keysAndValues...)
 }
 
-func doLog(ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
-	for i := 0; i < len(keysAndValues); i += 2 {
-		key := keysAndValues[i].(string)
-		val := keysAndValues[i+1]
+func doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
+	var tb *runtime.TraceBuf
+	req, goid, _ := runtime.CurrentRequest()
+	fields := len(keysAndValues) / 2
+
+	if req != nil && req.Traced {
+		t := runtime.NewTraceBuf(16 + 8 + len(msg) + 4 + fields*50)
+		tb = &t
+		tb.Bytes(req.SpanID[:])
+		tb.UVarint(uint64(goid))
+		tb.Byte(level)
+		tb.String(msg)
+		tb.UVarint(uint64(fields))
+	}
+
+	for i := 0; i < fields; i++ {
+		key := keysAndValues[2*i].(string)
+		val := keysAndValues[2*i+1]
 		addEventEntry(ev, key, val)
+		if tb != nil {
+			addTraceBufEntry(tb, key, val)
+		}
 	}
 	ev.Msg(msg)
+
+	if tb != nil {
+		runtime.TraceLog(runtime.LogMessage, tb.Buf())
+	}
 }
 
 func addEventEntry(ev *zerolog.Event, key string, val interface{}) {
@@ -158,4 +179,108 @@ func addContext(ctx zerolog.Context, key string, val interface{}) zerolog.Contex
 	}
 }
 
-var bin = binary.BigEndian
+const (
+	errType     byte = 1
+	strType     byte = 2
+	boolType    byte = 3
+	timeType    byte = 4
+	durType     byte = 5
+	uuidType    byte = 6
+	jsonType    byte = 7
+	intType     byte = 8
+	uintType    byte = 9
+	float32Type byte = 10
+	float64Type byte = 11
+)
+
+func addTraceBufEntry(tb *runtime.TraceBuf, key string, val interface{}) {
+	switch val := val.(type) {
+	case error:
+		tb.Byte(errType)
+		tb.String(key)
+		tb.Err(val)
+	case string:
+		tb.Byte(strType)
+		tb.String(key)
+		tb.String(val)
+	case bool:
+		tb.Byte(boolType)
+		tb.String(key)
+		tb.Bool(val)
+	case time.Time:
+		tb.Byte(timeType)
+		tb.String(key)
+		tb.Time(val)
+	case time.Duration:
+		tb.Byte(durType)
+		tb.String(key)
+		tb.Int64(int64(val))
+	case uuid.UUID:
+		tb.Byte(uuidType)
+		tb.String(key)
+		tb.Bytes(val[:])
+
+	default:
+		tb.Byte(jsonType)
+		tb.String(key)
+		data, err := json.Marshal(val)
+		if err != nil {
+			tb.ByteString(nil)
+			tb.Err(err)
+		} else {
+			tb.ByteString(data)
+			tb.Err(nil)
+		}
+
+	case int8:
+		tb.Byte(intType)
+		tb.String(key)
+		tb.Varint(int64(val))
+	case int16:
+		tb.Byte(intType)
+		tb.String(key)
+		tb.Varint(int64(val))
+	case int32:
+		tb.Byte(intType)
+		tb.String(key)
+		tb.Varint(int64(val))
+	case int64:
+		tb.Byte(intType)
+		tb.String(key)
+		tb.Varint(int64(val))
+	case int:
+		tb.Byte(intType)
+		tb.String(key)
+		tb.Varint(int64(val))
+
+	case uint8:
+		tb.Byte(uintType)
+		tb.String(key)
+		tb.UVarint(uint64(val))
+	case uint16:
+		tb.Byte(uintType)
+		tb.String(key)
+		tb.UVarint(uint64(val))
+	case uint32:
+		tb.Byte(uintType)
+		tb.String(key)
+		tb.UVarint(uint64(val))
+	case uint64:
+		tb.Byte(uintType)
+		tb.String(key)
+		tb.UVarint(uint64(val))
+	case uint:
+		tb.Byte(uintType)
+		tb.String(key)
+		tb.UVarint(uint64(val))
+
+	case float32:
+		tb.Byte(float32Type)
+		tb.String(key)
+		tb.Float32(val)
+	case float64:
+		tb.Byte(float64Type)
+		tb.String(key)
+		tb.Float64(val)
+	}
+}
