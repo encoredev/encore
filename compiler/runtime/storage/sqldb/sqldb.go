@@ -25,7 +25,7 @@ type ExecResult interface {
 	RowsAffected() int64
 }
 
-func Exec(traceExpr int32, svc string, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
+func Exec(svc string, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -34,7 +34,6 @@ func Exec(traceExpr int32, svc string, ctx context.Context, query string, args .
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(0) // no tx
 		tb.UVarint(uint64(goid))
-		tb.UVarint(uint64(traceExpr))
 		tb.String(query)
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
@@ -56,7 +55,7 @@ func Exec(traceExpr int32, svc string, ctx context.Context, query string, args .
 	return res, err
 }
 
-func Query(traceExpr int32, svc string, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
+func Query(svc string, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -65,7 +64,6 @@ func Query(traceExpr int32, svc string, ctx context.Context, query string, args 
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(0) // no tx
 		tb.UVarint(uint64(goid))
-		tb.UVarint(uint64(traceExpr))
 		tb.String(query)
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
@@ -90,7 +88,7 @@ func Query(traceExpr int32, svc string, ctx context.Context, query string, args 
 	return &Rows{std: rows}, nil
 }
 
-func QueryRow(traceExpr int32, svc string, ctx context.Context, query string, args ...interface{}) *Row {
+func QueryRow(svc string, ctx context.Context, query string, args ...interface{}) *Row {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -99,7 +97,6 @@ func QueryRow(traceExpr int32, svc string, ctx context.Context, query string, ar
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(0) // no tx
 		tb.UVarint(uint64(goid))
-		tb.UVarint(uint64(traceExpr))
 		tb.String(query)
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
@@ -127,7 +124,7 @@ type Tx struct {
 	std  pgx.Tx
 }
 
-func Begin(traceExpr int32, svc string, ctx context.Context) (*Tx, error) {
+func Begin(svc string, ctx context.Context) (*Tx, error) {
 	tx, err := getDB(svc).Begin(ctx)
 	err = convertErr(err)
 	if err != nil {
@@ -140,14 +137,13 @@ func Begin(traceExpr int32, svc string, ctx context.Context) (*Tx, error) {
 		tb.UVarint(txid)
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(uint64(goid))
-		tb.UVarint(uint64(traceExpr))
 		runtime.TraceLog(runtime.TxStart, tb.Buf())
 	}
 
 	return &Tx{txid: txid, std: tx}, nil
 }
 
-func Commit(traceExpr int32, svc string, tx *Tx) error {
+func Commit(svc string, tx *Tx) error {
 	err := tx.std.Commit(context.Background())
 	err = convertErr(err)
 	req, goid, _ := runtime.CurrentRequest()
@@ -157,7 +153,6 @@ func Commit(traceExpr int32, svc string, tx *Tx) error {
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(uint64(goid))
 		tb.Bytes([]byte{1})
-		tb.UVarint(uint64(traceExpr))
 		if err != nil {
 			tb.String(err.Error())
 		} else {
@@ -168,7 +163,7 @@ func Commit(traceExpr int32, svc string, tx *Tx) error {
 	return err
 }
 
-func Rollback(traceExpr int32, svc string, tx *Tx) error {
+func Rollback(svc string, tx *Tx) error {
 	err := tx.std.Rollback(context.Background())
 	err = convertErr(err)
 	req, goid, _ := runtime.CurrentRequest()
@@ -178,7 +173,6 @@ func Rollback(traceExpr int32, svc string, tx *Tx) error {
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(uint64(goid))
 		tb.Bytes([]byte{0})
-		tb.UVarint(uint64(traceExpr))
 		if err != nil {
 			tb.String(err.Error())
 		} else {
@@ -189,7 +183,7 @@ func Rollback(traceExpr int32, svc string, tx *Tx) error {
 	return err
 }
 
-func ExecTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
+func ExecTx(svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -198,7 +192,6 @@ func ExecTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query stri
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(tx.txid)
 		tb.UVarint(uint64(goid))
-		tb.UVarint(uint64(traceExpr))
 		tb.String(query)
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
@@ -220,7 +213,7 @@ func ExecTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query stri
 	return res, err
 }
 
-func QueryTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
+func QueryTx(svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -229,7 +222,6 @@ func QueryTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query str
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(tx.txid)
 		tb.UVarint(uint64(goid))
-		tb.UVarint(uint64(traceExpr))
 		tb.String(query)
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
@@ -254,7 +246,7 @@ func QueryTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query str
 	return &Rows{std: rows}, nil
 }
 
-func QueryRowTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) *Row {
+func QueryRowTx(svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) *Row {
 	qid := atomic.AddUint64(&queryCounter, 1)
 	req, goid, _ := runtime.CurrentRequest()
 	if req != nil && req.Traced {
@@ -263,7 +255,6 @@ func QueryRowTx(traceExpr int32, svc string, tx *Tx, ctx context.Context, query 
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(tx.txid)
 		tb.UVarint(uint64(goid))
-		tb.UVarint(uint64(traceExpr))
 		tb.String(query)
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
