@@ -39,19 +39,14 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 			switch rewrite.Type {
 			case est.SQLDBNode:
 				call := c.Node().(*ast.CallExpr)
-				tx := nodes[call]
 				lp := fset.Position(call.Lparen)
-				rw.Insert(call.Lparen+1, []byte(fmt.Sprintf("%d, %s,/*line :%d:%d*/",
-					tx.Id, strconv.Quote(pkg.Service.Name), lp.Line, lp.Column+1)))
+				rw.Insert(call.Lparen+1, []byte(fmt.Sprintf("%s,/*line :%d:%d*/",
+					strconv.Quote(pkg.Service.Name), lp.Line, lp.Column+1)))
 				return true
 
 			case est.RLogNode:
-				call := c.Node().(*ast.CallExpr)
-				tx := nodes[call]
-				lp := fset.Position(call.Lparen)
-				rw.Insert(call.Lparen+1, []byte(fmt.Sprintf("%d,/*line :%d:%d*/",
-					tx.Id, lp.Line, lp.Column+1)))
-				return true
+				// do nothing
+				return false
 
 			case est.RPCCallNode:
 				rpc := rewrite.RPC

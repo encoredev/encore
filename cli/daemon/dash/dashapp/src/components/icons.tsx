@@ -256,6 +256,12 @@ export const database: Icon = (cls, title) =>
     <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z" />
   </svg>
 
+export const menuAlt2: Icon = (cls, title) =>
+  <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    {renderTitle(title)}
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" />
+  </svg>
+
 export const errCircle: Icon = (cls, title) =>
   <svg className={cls} viewBox="0 0 20 20" fill="currentColor">
     {renderTitle(title)}

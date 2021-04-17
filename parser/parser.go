@@ -398,7 +398,7 @@ func (p *parser) parseReferences() {
 					switch node.Type {
 					case est.RPCCallNode:
 						rpc := node.RPC
-						p.errf(astNode.Pos(), "cannot reference API %s%s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
+						p.errf(astNode.Pos(), "cannot reference API %s.%s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
 					case est.SQLDBNode:
 						p.errf(astNode.Pos(), "cannot use package %s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", sqldbImportPath, pkg.Name)
 					case est.RLogNode:

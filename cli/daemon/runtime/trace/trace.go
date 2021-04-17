@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ID [16]byte
@@ -148,6 +150,8 @@ func (tp *traceParser) Parse() error {
 			err = tp.httpEnd(ts)
 		case 0x10:
 			err = tp.httpBodyClosed(ts)
+		case 0x11:
+			err = tp.logMessage(ts)
 
 		default:
 			log.Error().Int("idx", i).Hex("event", []byte{ev}).Msg("trace: unknown event type, skipping")
@@ -159,7 +163,7 @@ func (tp *traceParser) Parse() error {
 		}
 
 		if tp.Overflow() {
-			return fmt.Errorf("event #%d: invalid trace format (reader overflow parsing event %x)", i, ev)
+			return fmt.Errorf("event #%d: invalid trace format (reader overflow parsing event code %d)", i, ev)
 		} else if off, want := tp.Offset(), startOff+size; off < want {
 			log.Error().Int("idx", i).Hex("event", []byte{ev}).Int("remainingBytes", want-off).Msg("trace: parser did not consume whole frame, skipping ahead")
 			tp.Skip(want - off)
@@ -186,7 +190,7 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		TraceId:      tp.traceID,
 		SpanId:       tp.Uint64(),
 		ParentSpanId: tp.Uint64(),
-		StartTime:    tp.Uint64(),
+		StartTime:    ts,
 		// EndTime not set yet
 		Goid:    uint32(tp.UVarint()),
 		CallLoc: int32(tp.UVarint()),
@@ -194,8 +198,6 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		Uid:     tp.String(),
 		Type:    typ,
 	}
-	// We use event timestamps instead
-	req.StartTime = ts
 
 	for n, i := tp.UVarint(), uint64(0); i < n; i++ {
 		size := tp.UVarint()
@@ -297,7 +299,7 @@ func (tp *traceParser) transactionStart(ts uint64) error {
 	goid := uint32(tp.UVarint())
 	tx := &tracepb.DBTransaction{
 		Goid:      goid,
-		StartLoc:  int32(tp.UVarint()),
+		StartLoc:  0, // TODO(eandre) reintroduce
 		StartTime: ts,
 	}
 	tp.txMap[txid] = tx
@@ -316,14 +318,13 @@ func (tp *traceParser) transactionEnd(ts uint64) error {
 	}
 	_ = uint32(tp.UVarint()) // goid
 	compl := tp.Byte()
-	endLoc := int32(tp.UVarint())
 	errMsg := tp.ByteString()
 
 	// It's possible to get multiple transaction end events.
 	// Ignore them for now; we will expose this information later.
 	if tx.EndTime == 0 {
 		tx.EndTime = ts
-		tx.EndLoc = endLoc
+		tx.EndLoc = 0 // TODO(eandre) reintroduce
 		tx.Err = errMsg
 		switch compl {
 		case 0:
@@ -348,7 +349,7 @@ func (tp *traceParser) queryStart(ts uint64) error {
 	goid := uint32(tp.UVarint())
 	q := &tracepb.DBQuery{
 		Goid:      goid,
-		CallLoc:   int32(tp.UVarint()),
+		CallLoc:   0, // TODO(eandre) reintroduce
 		StartTime: ts,
 		Query:     tp.ByteString(),
 	}
@@ -578,6 +579,93 @@ func (tp *traceParser) httpEvent() (*tracepb.HTTPTraceEvent, error) {
 	return ev, nil
 }
 
+func (tp *traceParser) logMessage(ts uint64) error {
+	spanID := tp.Uint64()
+	goid := uint32(tp.UVarint())
+	level := tp.Byte()
+	msg := tp.String()
+	fields := int(tp.UVarint())
+
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return fmt.Errorf("unknown request %v", spanID)
+	} else if fields > 64 {
+		return fmt.Errorf("too many fields: %d", fields)
+	}
+
+	log := &tracepb.LogMessage{
+		SpanId: spanID,
+		Goid:   goid,
+		Time:   ts,
+		Msg:    msg,
+	}
+	switch level {
+	case 0:
+		log.Level = tracepb.LogMessage_DEBUG
+	case 1:
+		log.Level = tracepb.LogMessage_INFO
+	case 2:
+		log.Level = tracepb.LogMessage_ERROR
+	default:
+		return fmt.Errorf("unknown log message level: %d", int(level))
+	}
+	for i := 0; i < fields; i++ {
+		f, err := tp.logField()
+		if err != nil {
+			return fmt.Errorf("error parsing field #%d: %v", i, err)
+		}
+		log.Fields = append(log.Fields, f)
+	}
+
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_Log{Log: log},
+	})
+	return nil
+}
+
+func (tp *traceParser) logField() (*tracepb.LogField, error) {
+	typ := tp.Byte()
+	key := tp.String()
+	f := &tracepb.LogField{
+		Key: key,
+	}
+	switch typ {
+	case 1:
+		f.Value = &tracepb.LogField_Error{Error: tp.String()}
+	case 2:
+		f.Value = &tracepb.LogField_Str{Str: tp.String()}
+	case 3:
+		f.Value = &tracepb.LogField_Bool{Bool: tp.Bool()}
+	case 4:
+		f.Value = &tracepb.LogField_Time{Time: timestamppb.New(tp.Time())}
+	case 5:
+		f.Value = &tracepb.LogField_Dur{Dur: tp.Int64()}
+	case 6:
+		b := make([]byte, 16)
+		tp.Bytes(b)
+		f.Value = &tracepb.LogField_Uuid{Uuid: b}
+	case 7:
+		val := tp.ByteString()
+		err := tp.String()
+		if err != "" {
+			f.Value = &tracepb.LogField_Error{Error: err}
+		} else {
+			f.Value = &tracepb.LogField_Json{Json: val}
+		}
+	case 8:
+		f.Value = &tracepb.LogField_Int{Int: tp.Varint()}
+	case 9:
+		f.Value = &tracepb.LogField_Uint{Uint: tp.UVarint()}
+	case 10:
+		f.Value = &tracepb.LogField_Float32{Float32: tp.Float32()}
+	case 11:
+		f.Value = &tracepb.LogField_Float64{Float64: tp.Float64()}
+	default:
+		return nil, fmt.Errorf("unknown field type %v", int(typ))
+	}
+	return f, nil
+}
+
 var bin = binary.LittleEndian
 
 type traceReader struct {
@@ -636,8 +724,9 @@ func (tr *traceReader) ByteString() []byte {
 }
 
 func (tr *traceReader) Time() time.Time {
-	ns := tr.Int64()
-	return time.Unix(0, ns)
+	sec := tr.Int64()
+	nsec := tr.Int32()
+	return time.Unix(sec, int64(nsec)).UTC()
 }
 
 func (tr *traceReader) Int32() int32 {
@@ -696,4 +785,14 @@ func (tr *traceReader) UVarint() uint64 {
 		}
 	}
 	return u
+}
+
+func (tr *traceReader) Float32() float32 {
+	b := tr.Uint32()
+	return math.Float32frombits(b)
+}
+
+func (tr *traceReader) Float64() float64 {
+	b := tr.Uint64()
+	return math.Float64frombits(b)
 }

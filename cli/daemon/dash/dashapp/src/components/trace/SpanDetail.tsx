@@ -1,9 +1,10 @@
-import { FunctionComponent, useState, useRef, useEffect } from "react"
-import { Request, Trace, Event, DBTransaction, DBQuery, TraceExpr, RPCCall, AuthCall, HTTPCall } from "./model"
-import { latencyStr, svcColor } from "./util"
+import { Duration } from "luxon"
+import React, { FunctionComponent, useRef, useState } from "react"
 import * as icons from "~c/icons"
-import { decodeBase64, Base64EncodedBytes } from "~lib/base64"
-import React from "react"
+import { Base64EncodedBytes, decodeBase64 } from "~lib/base64"
+import { timeToDate } from "~lib/time"
+import { DBQuery, Event, HTTPCall, LogMessage, Request, RPCCall, Trace } from "./model"
+import { latencyStr, svcColor } from "./util"
 
 interface Props {
   trace: Trace;
@@ -12,14 +13,17 @@ interface Props {
 
 const SpanDetail: FunctionComponent<Props> = (props) => {
   const req = props.req
+  const tr = props.trace
   const defLoc = props.trace.locations[req.def_loc]
   const callLoc = req.call_loc !== null ? props.trace.locations[req.call_loc] : null
 
   const numCalls = req.children.length
   let numQueries = 0
+  let logs: LogMessage[] = []
   for (const e of req.events) {
     if (e.type === "DBQuery" ) { numQueries++ }
     else if (e.type === "DBTransaction" ) { numQueries += e.queries.length }
+    else if (e.type === "LogMessage") { logs.push(e) }
   }
 
   let svcName = "unknown", rpcName = "Unknown"
@@ -45,7 +49,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
         }
       </div>
 
-      <div className="py-3 grid grid-cols-3 gap-4 border-b border-gray-100">
+      <div className="py-3 grid grid-cols-4 gap-4 border-b border-gray-100">
         <div className="flex items-center text-sm font-light text-gray-400">
           {icons.clock("h-5 w-auto")}
           <span className="font-bold mx-1 text-gray-800">{req.end_time ? latencyStr(req.end_time - req.start_time) : "Unknown"}</span>
@@ -62,6 +66,12 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           {icons.database("h-5 w-auto")}
           <span className="font-bold mx-1 text-gray-800">{numQueries}</span>
           DB Quer{numQueries !== 1 ? "ies" : "y"}
+        </div>
+
+        <div className="flex items-center text-sm font-light text-gray-400">
+          {icons.menuAlt2("h-5 w-auto")}
+          <span className="font-bold mx-1 text-gray-800">{logs.length}</span>
+          Log Line{numQueries !== 1 ? "s" : ""}
         </div>
       </div>
 
@@ -107,6 +117,15 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
             </div>
           )}
         </>}
+
+        {logs.length > 0 &&
+          <div className="mt-6">
+            <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Logs</h4>
+            <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">
+              {logs.map((log, i) => renderLog(tr, log, i))}
+            </pre>
+          </div>
+        }
       </div>
 
     </div>
@@ -193,6 +212,8 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
     el.style.marginLeft = `calc(${spanEl.offsetLeft}px)`;
   }
 
+  const barEvents: (DBQuery | RPCCall | HTTPCall)[] = g.events.filter(e => e.type === "DBQuery" || e.type === "RPCCall" || e.type === "HTTPCall") as any
+
   return <>
     <div className="relative" style={{height: lineHeight+"px"}}>
       <div ref={goroutineEl} className={`absolute bg-gray-600`}
@@ -203,7 +224,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
           minWidth: "1px", // so it at least renders
         }}>
 
-        {g.events.map((ev, i) => {
+        {barEvents.map((ev, i) => {
           const start = Math.round((ev.start_time - g.start) / gdur * 100)
           const end = Math.round((ev.end_time! - g.start) / gdur * 100)
           const clsid = `ev-${req.id}-${g.goid}-${i}`
@@ -427,4 +448,25 @@ const HTTPCallTooltip: FunctionComponent<{call: HTTPCall, req: Request, trace: T
 const renderData = (data: Base64EncodedBytes[]) => {
   const json = JSON.parse(decodeBase64(data[0]))
   return <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">{JSON.stringify(json, undefined, "  ")}</pre>
+}
+
+const renderLog = (tr: Trace, log: LogMessage, key: any) => {
+  let dt = timeToDate(tr.date)!
+  const ms = (log.time - tr.start_time)/1000
+  dt = dt.plus(Duration.fromMillis(ms))
+  return <div key={key}>
+    <span className="text-gray-400">{dt.toFormat("HH:mm:ss.SSS")}{" "}</span>
+    {
+      log.level === "DEBUG" ? <span className="text-yellow-500">DBG</span> :
+      log.level === "INFO" ? <span className="text-green-500">INF</span> :
+      <span className="text-red-500">ERR</span>
+    }
+    {" "}{log.msg}
+    {log.fields.map((f, i) =>
+      <>
+        {" "}<span className="text-blue-600">{f.key}</span><span className="text-gray-400">=</span>
+        {f.value}
+      </>
+    )}
+  </div>
 }

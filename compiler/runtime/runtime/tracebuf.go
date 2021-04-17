@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -29,6 +30,7 @@ const (
 	HTTPCallStart      TraceEvent = 0x0E
 	HTTPCallEnd        TraceEvent = 0x0F
 	HTTPCallBodyClosed TraceEvent = 0x10
+	LogMessage         TraceEvent = 0x11
 )
 
 // genTraceID generates a new trace id and root span id.
@@ -76,6 +78,10 @@ func (tb *TraceBuf) Buf() []byte {
 	return tb.buf
 }
 
+func (tb *TraceBuf) Byte(b byte) {
+	tb.buf = append(tb.buf, b)
+}
+
 func (tb *TraceBuf) Bytes(b []byte) {
 	tb.buf = append(tb.buf, b...)
 }
@@ -91,8 +97,8 @@ func (tb *TraceBuf) ByteString(b []byte) {
 }
 
 func (tb *TraceBuf) Now() {
-	now := time.Now().UnixNano()
-	tb.Int64(now)
+	now := time.Now()
+	tb.Time(now)
 }
 
 func (tb *TraceBuf) Bool(b bool) {
@@ -112,6 +118,11 @@ func (tb *TraceBuf) Err(err error) {
 		}
 	}
 	tb.String(msg)
+}
+
+func (tb *TraceBuf) Time(t time.Time) {
+	tb.Int64(t.Unix())
+	tb.Int32(int32(t.Nanosecond()))
 }
 
 func (tb *TraceBuf) Int32(x int32) {
@@ -176,4 +187,12 @@ func (tb *TraceBuf) UVarint(u uint64) {
 	tb.scratch[i] = byte(u)
 	i++
 	tb.Bytes(tb.scratch[:i])
+}
+
+func (tb *TraceBuf) Float32(f float32) {
+	tb.Uint32(math.Float32bits(f))
+}
+
+func (tb *TraceBuf) Float64(f float64) {
+	tb.Uint64(math.Float64bits(f))
 }
