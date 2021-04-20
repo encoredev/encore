@@ -6,11 +6,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"runtime/debug"
 	"strconv"
 	"strings"
 
 	{{if .AuthHandler}}"encore.dev/beta/auth"{{end}}
+	"encore.dev/beta/errs"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"encore.dev/storage/sqldb"
@@ -25,10 +25,10 @@ import (
 // Prevent unused imports
 var (
 	_ = context.Background
-	_ = debug.Stack
 	_ = fmt.Errorf
 	_ = http.Error
 	_ = io.EOF
+	_ = errs.New
 	_ = ioutil.ReadAll
 	_ = strconv.Quote
 	_ = strings.HasPrefix
@@ -58,7 +58,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 		token = auth[len("Bearer "):]
 		uid, authData, err = validateAuth(req.Context(), token)
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			errs.HTTPError(w, err)
 			return
 		}
 	}
@@ -70,7 +70,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 				Str("endpoint", "{{.Name}}").
 				Msg("rejecting request due to missing auth token")
 		}
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		errs.HTTPError(w, errs.New(errs.Unauthenticated, "missing auth token", nil))
 		return
 	}
 {{- end}}
@@ -90,7 +90,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 {{- end}}
 	})
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		errs.HTTPError(w, errs.New(errs.Internal, "internal error", nil))
 		return
 	}
 
@@ -99,13 +99,13 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	if m.Code >= 400 {
 		err = fmt.Errorf("response status code %d", m.Code)
 	}
-	runtime.FinishRequest(m.Code, nil, err)
+	runtime.FinishHTTPRequest(nil, err, m.Code)
 {{- else }}
 {{- if .Request}}
 
 	payload, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		errs.HTTPError(w, errs.Wrap(err, errs.InvalidArgument, "could not read request"))
 		return
 	}
 	inputs := [][]byte{payload}
@@ -124,7 +124,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 {{- end}}
 	})
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		errs.HTTPError(w, errs.New(errs.Internal, "internal error", nil))
 		return
 	}
 {{- if .Request}}
@@ -134,10 +134,12 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(payload, &params)
 	if err != nil {
 		if len(payload) == 0 {
-			err = fmt.Errorf("no request data given") // improve error message
+			err = errs.New(errs.InvalidArgument, "missing request payload", nil)
+		} else {
+			err = errs.Wrap(err, errs.InvalidArgument, "could not parse request")
 		}
-		runtime.FinishRequest(400, nil, fmt.Errorf("could not parse request: %v", err))
-		http.Error(w, "could not parse request: " + err.Error(), http.StatusBadRequest)
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
 		return
 	}
 {{- end}}
@@ -145,15 +147,17 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	// Call the endpoint
 	defer func() {
 		// Catch handler panic
-		if err := recover(); err != nil {
-			runtime.FinishRequest(500, nil, fmt.Errorf("panic handling request: %v\n%s", err, debug.Stack()))
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if e := recover(); e != nil {
+			err := errs.New(errs.Internal, fmt.Sprintf("panic handling request: %v", e), nil)
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
 		}
 	}()
 	{{if .Response}}resp, {{end}}respErr := {{pkgName .Svc.Root.ImportPath}}.{{.Name}}(req.Context(){{if .Request}}, params{{end}})
 	if respErr != nil {
-		runtime.FinishRequest(500, nil, respErr)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		respErr = errs.Wrap(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
 		return
 	}
 
@@ -163,17 +167,18 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	var respData []byte
 	respData, marshalErr := json.MarshalIndent(resp, "", "  ")
 	if marshalErr != nil {
-		runtime.FinishRequest(500, nil, marshalErr)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		marshalErr = errs.Wrap(marshalErr, errs.Internal, "failed to marshal response")
+		runtime.FinishRequest(nil, marshalErr)
+		errs.HTTPError(w, marshalErr)
 		return
 	}
 	respData = append(respData, '\n')
 	output := [][]byte{respData}
-	runtime.FinishRequest(200, output, nil)
+	runtime.FinishRequest(output, nil)
 	w.WriteHeader(200)
 	w.Write(respData)
 {{- else}}
-	runtime.FinishRequest(200, nil, nil)
+	runtime.FinishRequest(nil, nil)
 	w.WriteHeader(200)
 {{- end}}
 {{- end}}
@@ -207,8 +212,8 @@ func validateAuth(ctx context.Context, token string) (uid auth.UID, authData int
 		}
 		defer func() {
 			if err2 := recover(); err2 != nil {
-				call.FinishReq(500, nil, fmt.Errorf("auth handler panicked: %v\n%s", err2, debug.Stack()))
-				authErr = fmt.Errorf("auth handler panicked: %v\n%s", err2, debug.Stack())
+				authErr = errs.New(errs.Internal, fmt.Sprintf("auth handler panicked: %v", err2), nil)
+				call.FinishReq(nil, authErr)
 			}
 		}()
 {{- if $.AuthHandler.AuthData}}
@@ -219,9 +224,9 @@ func validateAuth(ctx context.Context, token string) (uid auth.UID, authData int
 		serialized, _ := runtime.SerializeInputs(uid)
 {{- end}}
 		if authErr != nil {
-			call.FinishReq(500, nil, authErr)
+			call.FinishReq(nil, authErr)
 		} else {
-			call.FinishReq(200, serialized, nil)
+			call.FinishReq(serialized, nil)
 		}
 	}()
 	<-done
