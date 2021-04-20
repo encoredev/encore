@@ -39,6 +39,9 @@ var dbResetCmd = &cobra.Command{
 			}
 			svcNames = []string{filepath.Base(pkgs[0])}
 		}
+		if len(svcNames) == 0 {
+			log.Fatal().Msg("no service names given")
+		}
 
 		ctx := context.Background()
 		daemon := setupDaemon(ctx)
