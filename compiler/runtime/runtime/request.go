@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"encore.dev/beta/errs"
 	"encore.dev/runtime/config"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
@@ -82,8 +83,12 @@ func BeginRequest(data RequestData) error {
 	return beginReq(spanID, data)
 }
 
-func FinishRequest(status int, outputs [][]byte, err error) {
-	finishReq(status, outputs, err)
+func FinishRequest(outputs [][]byte, err error) {
+	finishReq(outputs, err, 0)
+}
+
+func FinishHTTPRequest(outputs [][]byte, err error, httpStatus int) {
+	finishReq(outputs, err, httpStatus)
 }
 
 type Call struct {
@@ -144,8 +149,8 @@ func (c *Call) BeginReq(data RequestData) error {
 	return beginReq(c.SpanID, data)
 }
 
-func (c *Call) FinishReq(status int, outputs [][]byte, err error) {
-	finishReq(status, outputs, err)
+func (c *Call) FinishReq(outputs [][]byte, err error) {
+	finishReq(outputs, err, 0)
 }
 
 type AuthCall struct {
@@ -197,8 +202,8 @@ func (ac *AuthCall) BeginReq(data RequestData) error {
 	return beginReq(ac.SpanID, data)
 }
 
-func (ac *AuthCall) FinishReq(status int, outputs [][]byte, err error) {
-	finishReq(status, outputs, err)
+func (ac *AuthCall) FinishReq(outputs [][]byte, err error) {
+	finishReq(outputs, err, 0)
 }
 
 func Logger() *zerolog.Logger {
@@ -304,7 +309,7 @@ func beginReq(spanID SpanID, data RequestData) error {
 	return nil
 }
 
-func finishReq(status int, outputs [][]byte, err error) {
+func finishReq(outputs [][]byte, err error, httpStatus int) {
 	g := encoreGetG()
 	if g == nil || g.req == nil {
 		panic("encore: no current request running")
@@ -316,7 +321,8 @@ func finishReq(status int, outputs [][]byte, err error) {
 		case AuthHandler:
 			req.Logger.Error().Err(err).Msg("auth handler failed")
 		default:
-			req.Logger.Error().Err(err).Msg("request failed")
+			e := errs.Wrap(err).(*errs.Error)
+			req.Logger.Error().Str("error", e.ErrorMessage()).Str("code", e.Code.String()).Msg("request failed")
 		}
 	}
 
@@ -342,7 +348,12 @@ func finishReq(status int, outputs [][]byte, err error) {
 	case AuthHandler:
 		req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
 	default:
-		req.Logger.Info().Dur("duration", dur).Int("status", status).Msg("request completed")
+		if httpStatus != 0 {
+			req.Logger.Info().Dur("duration", dur).Int("status", httpStatus).Msg("request completed")
+		} else {
+			code := errs.Code(err)
+			req.Logger.Info().Dur("duration", dur).Str("code", code.String()).Msg("request completed")
+		}
 	}
 	encoreCompleteReq()
 }
