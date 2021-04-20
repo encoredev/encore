@@ -2,11 +2,10 @@ package {{.Pkg.Name}}
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"runtime/debug"
 
 	"encore.dev/runtime"
+	"encore.dev/beta/errs"
 	{{range .Imports -}}
 		{{if .Named}}{{.Name}} {{end}}"{{.Path}}"
 	{{end}}
@@ -57,16 +56,16 @@ func encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx c
 		}
 		defer func() {
 			if err2 := recover(); err2 != nil {
-				call.FinishReq(500, nil, fmt.Errorf("{{$rpc.Svc}}.{{$rpc.Name}} panicked: %v\n%s", err2, debug.Stack()))
-				response.err = fmt.Errorf("panic handling request: %v", err2)
+				response.err = errs.New(errs.Internal, fmt.Sprintf("panic handling request: %v", err2), nil)
 				response.panicked = true
+				call.FinishReq(nil, response.err)
 			}
 		}()
 		
 {{- if $rpc.Req}}
 		var reqData {{$rpc.Req}}
 		if response.err = runtime.CopyInputs(inputs, []interface{}{&reqData}); response.err != nil {
-			call.FinishReq(500, nil, response.err)
+			call.FinishReq(nil, response.err)
 			return
 		}
 {{- end}}
@@ -76,10 +75,10 @@ func encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx c
 		response.data, _ = runtime.SerializeInputs(rpcResp)
 {{- end}}
 		if rpcErr != nil {
-			call.FinishReq(500, nil, rpcErr)
-			response.err = errors.New(rpcErr.Error())
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
 		} else {
-			call.FinishReq(200, response.data, nil)
+			call.FinishReq(response.data, nil)
 		}
 	}()
 	<-done
