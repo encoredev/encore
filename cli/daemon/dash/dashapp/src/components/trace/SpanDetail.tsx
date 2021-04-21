@@ -446,8 +446,13 @@ const HTTPCallTooltip: FunctionComponent<{call: HTTPCall, req: Request, trace: T
 }
 
 const renderData = (data: Base64EncodedBytes[]) => {
-  const json = JSON.parse(decodeBase64(data[0]))
-  return <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">{JSON.stringify(json, undefined, "  ")}</pre>
+  const raw = decodeBase64(data[0])
+  let pretty = raw
+  try {
+    const json = JSON.parse(decodeBase64(data[0]))
+    pretty = JSON.stringify(json, undefined, "  ")
+  } catch(err) { /* do nothing */ }
+  return <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">{pretty}</pre>
 }
 
 const renderLog = (tr: Trace, log: LogMessage, key: any) => {
