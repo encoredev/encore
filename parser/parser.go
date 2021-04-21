@@ -402,7 +402,7 @@ func (p *parser) parseReferences() {
 					case est.SQLDBNode:
 						p.errf(astNode.Pos(), "cannot use package %s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", sqldbImportPath, pkg.Name)
 					case est.RLogNode:
-						p.errf(astNode.Pos(), "cannot use package %s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rlogImportPath, pkg.Name)
+						// rlog calls are allowed outside of services
 					default:
 						p.errf(astNode.Pos(), "invalid reference outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", pkg.Name)
 					}
