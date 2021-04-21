@@ -21,15 +21,3 @@ func Error(msg string, keysAndValues ...interface{}) {
 func With(keysAndValues ...interface{}) Ctx {
 	return rlog.With(keysAndValues...)
 }
-
-func Debugc(ctx Ctx, msg string, keysAndValues ...interface{}) {
-	rlog.Debugc(ctx, msg, keysAndValues...)
-}
-
-func Infoc(ctx Ctx, msg string, keysAndValues ...interface{}) {
-	rlog.Infoc(ctx, msg, keysAndValues...)
-}
-
-func Errorc(ctx Ctx, msg string, keysAndValues ...interface{}) {
-	rlog.Errorc(ctx, msg, keysAndValues...)
-}
