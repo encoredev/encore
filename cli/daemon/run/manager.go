@@ -61,7 +61,12 @@ func (mgr *Manager) FindRunByAppID(appID string) *Run {
 	defer mgr.mu.Unlock()
 	for _, run := range mgr.runs {
 		if run.AppID == appID {
-			return run
+			select {
+			case <-run.Done():
+				// exited
+			default:
+				return run
+			}
 		}
 	}
 	return nil
