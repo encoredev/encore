@@ -38,19 +38,29 @@ func With(keysAndValues ...interface{}) Ctx {
 	return Ctx{ctx: ctx}
 }
 
-func Debugc(ctx Ctx, msg string, keysAndValues ...interface{}) {
+func (ctx Ctx) Debug(msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
 	doLog(0, l.Debug(), msg, keysAndValues...)
 }
 
-func Infoc(ctx Ctx, msg string, keysAndValues ...interface{}) {
+func (ctx Ctx) Info(msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
 	doLog(1, l.Info(), msg, keysAndValues...)
 }
 
-func Errorc(ctx Ctx, msg string, keysAndValues ...interface{}) {
+func (ctx Ctx) Error(msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
 	doLog(2, l.Error(), msg, keysAndValues...)
+}
+
+func (ctx Ctx) With(keysAndValues ...interface{}) Ctx {
+	c := ctx.ctx
+	for i := 0; i < len(keysAndValues); i += 2 {
+		key := keysAndValues[i].(string)
+		val := keysAndValues[i+1]
+		c = addContext(c, key, val)
+	}
+	return Ctx{ctx: c}
 }
 
 func doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
