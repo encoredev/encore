@@ -79,13 +79,22 @@ func connect(args []string, svc string) error {
 		return err
 	}
 
+	// Create a dummy config file so that we can work around any host overrides
+	// present on the system.
+	cfg, err := os.CreateTemp("", "encore-dummy-ssh-config")
+	if err != nil {
+		return err
+	}
+	cfgPath := cfg.Name()
+	defer os.Remove(cfgPath)
+
 	// Communicate to Git that the connection is established.
 	os.Stdout.Write([]byte("\n"))
 
 	// Set up an SSH tunnel with a sentinel key as a way to signal
 	// Encore to use token-based authentication, and pass the token
 	// as part of the command.
-	cmd := exec.Command("ssh", "-x", "-T", "-o", "IdentitiesOnly=yes", "-i", keyPath,
+	cmd := exec.Command("ssh", "-x", "-T", "-F", cfgPath, "-o", "IdentitiesOnly=yes", "-i", keyPath,
 		"git.encore.dev", fmt.Sprintf("token=%s %s '%s'", tok.AccessToken, svc, appID))
 	cmd.Env = []string{}
 	cmd.Stdin = os.Stdin
