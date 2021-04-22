@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	"encore.dev/beta/errs"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"github.com/jackc/pgx/v4"
@@ -17,6 +18,11 @@ var (
 	txidCounter  uint64
 	queryCounter uint64
 )
+
+// An error satisfying ErrNoRows is reported by Scan
+// when QueryRow doesn't return a row.
+// It must be tested against with errors.Is.
+var ErrNoRows = sql.ErrNoRows
 
 // ExecResult is the result of an Exec query.
 type ExecResult interface {
@@ -301,7 +307,7 @@ func (r *Row) Scan(dest ...interface{}) error {
 		if err := r.rows.Err(); err != nil {
 			return convertErr(err)
 		}
-		return sql.ErrNoRows
+		return errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
 	}
 	r.rows.Scan(dest...)
 	r.rows.Close()
@@ -364,8 +370,10 @@ func Setup(cfg *config.ServerConfig) {
 func convertErr(err error) error {
 	switch err {
 	case pgx.ErrNoRows:
-		return sql.ErrNoRows
+		return errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
+	case pgx.ErrTxClosed, pgx.ErrInvalidLogLevel, pgx.ErrTxCommitRollback:
+		return errs.WrapCode(err, errs.Internal, "")
 	default:
-		return err
+		return errs.WrapCode(err, errs.Unavailable, "")
 	}
 }

@@ -28,7 +28,7 @@ var (
 	_ = fmt.Errorf
 	_ = http.Error
 	_ = io.EOF
-	_ = errs.New
+	_ = errs.B
 	_ = ioutil.ReadAll
 	_ = strconv.Quote
 	_ = strings.HasPrefix
@@ -70,7 +70,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 				Str("endpoint", "{{.Name}}").
 				Msg("rejecting request due to missing auth token")
 		}
-		errs.HTTPError(w, errs.New(errs.Unauthenticated, "missing auth token", nil))
+		errs.HTTPError(w, errs.B().Code(errs.Unauthenticated).Msg("missing auth token").Err())
 		return
 	}
 {{- end}}
@@ -90,7 +90,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 {{- end}}
 	})
 	if err != nil {
-		errs.HTTPError(w, errs.New(errs.Internal, "internal error", nil))
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
 	}
 
@@ -105,7 +105,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 
 	payload, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		errs.HTTPError(w, errs.Wrap(err, errs.InvalidArgument, "could not read request"))
+		errs.HTTPError(w, errs.WrapCode(err, errs.InvalidArgument, "could not read request"))
 		return
 	}
 	inputs := [][]byte{payload}
@@ -124,7 +124,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 {{- end}}
 	})
 	if err != nil {
-		errs.HTTPError(w, errs.New(errs.Internal, "internal error", nil))
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
 	}
 {{- if .Request}}
@@ -134,9 +134,9 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(payload, &params)
 	if err != nil {
 		if len(payload) == 0 {
-			err = errs.New(errs.InvalidArgument, "missing request payload", nil)
+			err = errs.B().Code(errs.InvalidArgument).Msg("missing request payload").Err()
 		} else {
-			err = errs.Wrap(err, errs.InvalidArgument, "could not parse request")
+			err = errs.WrapCode(err, errs.InvalidArgument, "could not parse request")
 		}
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
@@ -148,14 +148,14 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		// Catch handler panic
 		if e := recover(); e != nil {
-			err := errs.New(errs.Internal, fmt.Sprintf("panic handling request: %v", e), nil)
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
 			runtime.FinishRequest(nil, err)
 			errs.HTTPError(w, err)
 		}
 	}()
 	{{if .Response}}resp, {{end}}respErr := {{pkgName .Svc.Root.ImportPath}}.{{.Name}}(req.Context(){{if .Request}}, params{{end}})
 	if respErr != nil {
-		respErr = errs.Wrap(respErr)
+		respErr = errs.Convert(respErr)
 		runtime.FinishRequest(nil, respErr)
 		errs.HTTPError(w, respErr)
 		return
@@ -167,7 +167,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	var respData []byte
 	respData, marshalErr := json.MarshalIndent(resp, "", "  ")
 	if marshalErr != nil {
-		marshalErr = errs.Wrap(marshalErr, errs.Internal, "failed to marshal response")
+		marshalErr = errs.WrapCode(marshalErr, errs.Internal, "failed to marshal response")
 		runtime.FinishRequest(nil, marshalErr)
 		errs.HTTPError(w, marshalErr)
 		return
@@ -212,7 +212,7 @@ func validateAuth(ctx context.Context, token string) (uid auth.UID, authData int
 		}
 		defer func() {
 			if err2 := recover(); err2 != nil {
-				authErr = errs.New(errs.Internal, fmt.Sprintf("auth handler panicked: %v", err2), nil)
+				authErr = errs.B().Code(errs.Internal).Msgf("auth handler panicked: %v", err2).Err()
 				call.FinishReq(nil, authErr)
 			}
 		}()

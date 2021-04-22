@@ -19,6 +19,7 @@ type Error struct {
 	Code    ErrCode    `json:"code"`
 	Message string     `json:"message"`
 	Details ErrDetails `json:"details"`
+	Meta    Metadata   `json:"-"` // not exposed to external clients
 
 	// underlying is the underlying error,
 	// for use with errors.Is and errors.As.
@@ -28,57 +29,50 @@ type Error struct {
 	// TODO stack, params, retryable, ...
 }
 
-// New creates a new Error without wrapping another underlying error.
-// If code == OK it reports nil.
-func New(code ErrCode, msg string, details ErrDetails) error {
-	if code == OK {
-		return nil
-	}
-	return &Error{Code: code, Message: msg, Details: details}
-}
+type Metadata map[string]interface{}
 
-// Wrap wraps the err, adding additional error information.
-// If err is nil it returns nil.
-//
-// If err is already an *Error its code, message, and details
-// are copied over to the new error.
-//
-// The fields are used to update the corresponding field of the error:
-// Passing in an ErrCode updates the Code field.
-// Passing in a string adds context to the error message.
-// Passing in a type that implements ErrDetails updates the Details field,
-// and passing in untyped nil sets Details to nil.
-//
-// Passing in another type causes Wrap to panic.
-func Wrap(err error, fields ...interface{}) error {
+func Wrap(err error, msg string, metaPairs ...interface{}) error {
 	if err == nil {
 		return nil
 	}
 
-	e := &Error{Code: Unknown, underlying: err}
+	e := &Error{Code: Unknown, Message: msg, underlying: err}
 	if ee, ok := err.(*Error); ok {
 		e.Details = ee.Details
 		e.Code = ee.Code
-		// Note: not setting message from ee because it's already
-		// returned by ErrorMessage() from the underlying err.
+		e.Meta = mergeMeta(ee.Meta, metaPairs)
+	} else {
+		e.Meta = mergeMeta(nil, metaPairs)
 	}
-
-	for _, f := range fields {
-		switch f := f.(type) {
-		case ErrDetails:
-			e.Details = f
-		case ErrCode:
-			e.Code = f
-		case string:
-			e.Message = f
-		case nil:
-			e.Details = nil
-		default:
-			panic(fmt.Sprintf("errs.Wrap: unsupported field type %T", f))
-		}
-	}
-
 	return e
+}
+
+func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) error {
+	if err == nil || code == OK {
+		return nil
+	}
+
+	e := &Error{Code: code, Message: msg, underlying: err}
+	if ee, ok := err.(*Error); ok {
+		e.Details = ee.Details
+		e.Code = ee.Code
+		e.Meta = mergeMeta(ee.Meta, metaPairs)
+	} else {
+		e.Meta = mergeMeta(nil, metaPairs)
+	}
+	return e
+}
+
+func Convert(err error) error {
+	if err == nil {
+		return nil
+	} else if e, ok := err.(*Error); ok {
+		return e
+	}
+	return &Error{
+		Code:       Unknown,
+		underlying: err,
+	}
 }
 
 func Code(err error) ErrCode {
@@ -90,14 +84,18 @@ func Code(err error) ErrCode {
 	return Unknown
 }
 
-// Details reports the error details included in the error.
-// If err is nil or the error lacks details it reports nil.
 func Details(err error) ErrDetails {
-	if e, ok := err.(*Error); !ok {
-		return nil
-	} else {
+	if e, ok := err.(*Error); ok {
 		return e.Details
 	}
+	return nil
+}
+
+func Meta(err error) Metadata {
+	if e, ok := err.(*Error); ok {
+		return e.Meta
+	}
+	return nil
 }
 
 func (e *Error) Error() string {
@@ -147,7 +145,7 @@ func HTTPError(w http.ResponseWriter, err error) {
 		return
 	}
 
-	e := Wrap(err).(*Error)
+	e := Convert(err).(*Error)
 	data, err2 := json.MarshalIndent(e, "", "  ")
 	if err2 != nil {
 		// Must be the details; drop them
@@ -158,7 +156,6 @@ func HTTPError(w http.ResponseWriter, err error) {
 	w.Write(data)
 }
 
-// HTTPStatus reports a suitable HTTP status code for a code.
 func HTTPStatus(err error) int {
 	code := Code(err)
 	switch code {
@@ -199,6 +196,24 @@ func HTTPStatus(err error) int {
 	default:
 		return 500
 	}
+}
+
+func mergeMeta(md Metadata, pairs []interface{}) Metadata {
+	n := len(pairs)
+	if n%2 != 0 {
+		panic(fmt.Sprintf("got uneven number (%d) of metadata key-values", n))
+	}
+	if md == nil && n > 0 {
+		md = make(Metadata, n/2)
+	}
+	for i := 0; i < n; i += 2 {
+		key, ok := pairs[i].(string)
+		if !ok {
+			panic(fmt.Sprintf("metadata key-value pair #%d key is not a string (is %T)", i/2, pairs[i]))
+		}
+		md[key] = pairs[i+1]
+	}
+	return md
 }
 
 func init() {
