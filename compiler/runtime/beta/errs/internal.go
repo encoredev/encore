@@ -16,6 +16,7 @@ func RoundTrip(err error) error {
 			Code:    e.Code,
 			Message: e.Message,
 		}
+
 		// Copy details
 		if e.Details != nil {
 			var buf bytes.Buffer
@@ -30,6 +31,20 @@ func RoundTrip(err error) error {
 					log.Printf("failed to decode error details: %v", err)
 				} else {
 					e2.Details = dst.Details
+				}
+			}
+		}
+
+		// Copy meta
+		if e.Meta != nil {
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(e.Meta); err != nil {
+				log.Printf("failed to encode error metadata: %v", err)
+			} else {
+				dec := gob.NewDecoder(&buf)
+				if err := dec.Decode(&e2.Meta); err != nil {
+					log.Printf("failed to decode error metadata: %v", err)
 				}
 			}
 		}

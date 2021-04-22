@@ -321,8 +321,12 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 		case AuthHandler:
 			req.Logger.Error().Err(err).Msg("auth handler failed")
 		default:
-			e := errs.Wrap(err).(*errs.Error)
-			req.Logger.Error().Str("error", e.ErrorMessage()).Str("code", e.Code.String()).Msg("request failed")
+			e := errs.Convert(err).(*errs.Error)
+			ev := req.Logger.Error()
+			for k, v := range e.Meta {
+				ev = ev.Interface(k, v)
+			}
+			ev.Str("error", e.ErrorMessage()).Str("code", e.Code.String()).Msg("request failed")
 		}
 	}
 
