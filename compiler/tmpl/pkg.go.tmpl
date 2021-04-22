@@ -2,7 +2,6 @@ package {{.Pkg.Name}}
 
 import (
 	"context"
-	"fmt"
 
 	"encore.dev/runtime"
 	"encore.dev/beta/errs"
@@ -56,7 +55,7 @@ func encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx c
 		}
 		defer func() {
 			if err2 := recover(); err2 != nil {
-				response.err = errs.New(errs.Internal, fmt.Sprintf("panic handling request: %v", err2), nil)
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
 				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
