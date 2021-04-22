@@ -242,4 +242,4 @@ Encore supports dropping down to plain HTTP requests which lets you use Websocke
 
 ## Questions & Feedback
 
-If you have questions, need help, or have any feedback: email us [hello@encore.dev](mailto:hello@encore.dev) or join our [Slack channel](https://join.slack.com/t/encoredev/shared_invite/zt-c75mzbnb-kWCiGueYVJ4pUCIW45sb8A).
+If you have questions, need help, or have any feedback: [email us](mailto:hello@encore.dev) or join our [Slack channel](https://join.slack.com/t/encoredev/shared_invite/zt-c75mzbnb-kWCiGueYVJ4pUCIW45sb8A).
