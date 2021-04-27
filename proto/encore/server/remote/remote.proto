@@ -45,6 +45,7 @@ message MetaRequest {
 
 message GetSecretsRequest {
   string app_slug = 1;
+  bool poll = 2;
 }
 
 message GetSecretsResponse {
