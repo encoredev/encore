@@ -1,4 +1,4 @@
-name: Release
+name: Release {{ github.event.inputs.version }}
 
 on:
   workflow_dispatch:
