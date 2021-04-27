@@ -16,6 +16,7 @@ require (
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce
 	github.com/jackc/pgproto3/v2 v2.0.7
 	github.com/jackc/pgx/v4 v4.10.1
+	github.com/logrusorgru/aurora/v3 v3.0.0
 	github.com/rjeczalik/notify v0.9.2
 	github.com/rogpeppe/go-internal v1.6.2
 	github.com/rs/zerolog v1.20.0
