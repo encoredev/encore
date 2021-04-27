@@ -58,7 +58,7 @@ func (f *Manager) Get(ctx context.Context, appSlug string) (*Data, error) {
 		return data, nil
 	}
 
-	return f.fetch(appSlug)
+	return f.fetch(appSlug, false)
 }
 
 // UpdateKey updates the cached secret key to the given value.
@@ -85,18 +85,19 @@ func (f *Manager) UpdateKey(appSlug, key, value string) {
 func (f *Manager) Prefetch(appSlug string) {
 	// Ignore cases when the app isn't linked.
 	if appSlug != "" {
-		go f.fetch(appSlug)
+		go f.fetch(appSlug, false)
 	}
 }
 
 // fetch fetches secrets from the server.
 // mu must not be held when running.
-func (f *Manager) fetch(appSlug string) (*Data, error) {
+func (f *Manager) fetch(appSlug string, poll bool) (*Data, error) {
 	data, err, _ := f.group.Do(appSlug, func() (interface{}, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		resp, err := f.rc.GetSecrets(ctx, &remote.GetSecretsRequest{
 			AppSlug: appSlug,
+			Poll:    poll,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("fetch secrets for %s: %v", appSlug, err)
@@ -138,7 +139,7 @@ func (f *Manager) startPolling() {
 			f.mu.Unlock()
 
 			for _, s := range slugs {
-				if _, err := f.fetch(s); err != nil {
+				if _, err := f.fetch(s, true); err != nil {
 					log.Error().Err(err).Str("appID", s).Msg("failed to sync secrets")
 				} else {
 					log.Info().Str("appID", s).Msg("successfully synced app secrets")
