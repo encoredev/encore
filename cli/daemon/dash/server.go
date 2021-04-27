@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -63,6 +64,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case path == "/__encore":
 		s.WebSocket(w, req)
 	case strings.HasPrefix(path, "/assets/") || path == "/favicon.ico":
+		// We've seen cases where net/http's content type detection gets it wrong
+		// for the bundled javascript files. Work around it by specifying it manually.
+		if filepath.Ext(path) == ".js" {
+			w.Header().Set("Content-Type", "application/javascript")
+		}
 		fs.ServeHTTP(w, req)
 	default:
 		// Serve the index page for all other paths since we use client-side routing.
