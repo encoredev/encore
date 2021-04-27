@@ -24,23 +24,20 @@ var resetAll bool
 
 var dbResetCmd = &cobra.Command{
 	Use:   "reset [servicenames...]",
-	Short: "Resets the databases for the given services, or the current directory if unspecified",
+	Short: "Resets the databases for the given services. Use --all to reset all databases.",
 
 	Run: func(command *cobra.Command, args []string) {
-		appRoot, relPath := determineAppRoot()
+		appRoot, _ := determineAppRoot()
 		svcNames := args
-		if resetAll && len(svcNames) > 0 {
-			fatal("cannot specify both --all and service names")
-		}
-		if !resetAll && len(svcNames) == 0 {
-			pkgs, err := resolvePackages(filepath.Join(appRoot, relPath), ".")
-			if err != nil {
-				log.Fatal().Err(err).Msg("could not resolve packages")
+		if resetAll {
+			if len(svcNames) > 0 {
+				fatal("cannot specify both --all and service names")
 			}
-			svcNames = []string{filepath.Base(pkgs[0])}
-		}
-		if len(svcNames) == 0 {
-			log.Fatal().Msg("no service names given")
+			svcNames = nil
+		} else {
+			if len(svcNames) == 0 {
+				fatal("no service names given")
+			}
 		}
 
 		ctx := context.Background()
