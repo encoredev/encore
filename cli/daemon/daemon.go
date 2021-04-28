@@ -5,17 +5,22 @@ import (
 	"context"
 	"io"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/codegen"
+	"encr.dev/cli/internal/update"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/proto/encore/server/remote"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/semver"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +40,9 @@ type Server struct {
 	streams  map[string]*streamLog // run id -> stream
 	appRoots map[string]string     // cache of app id -> app root
 
+	availableVerInit sync.Once
+	availableVer     atomic.Value // string
+
 	daemonpb.UnimplementedDaemonServer
 }
 
@@ -50,6 +58,8 @@ func New(version string, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.
 		appRoots: make(map[string]string),
 	}
 	mgr.AddListener(srv)
+	// Check immediately for the latest version to avoid blocking 'encore run'
+	go srv.availableUpdate()
 	return srv
 }
 
@@ -150,6 +160,40 @@ func (s *Server) Logs(params *daemonpb.LogsRequest, stream daemonpb.Daemon_LogsS
 			return err
 		}
 	}
+}
+
+// availableUpdate checks for updates to Encore.
+// If there is a new version it returns it as a semver string.
+func (s *Server) availableUpdate() string {
+	check := func() string {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		ver, err := update.Check(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("could not check for new encore release")
+		}
+		return ver
+	}
+
+	s.availableVerInit.Do(func() {
+		ver := check()
+		s.availableVer.Store(ver)
+		go func() {
+			for {
+				time.Sleep(1 * time.Hour)
+				if ver := check(); ver != "" {
+					s.availableVer.Store(ver)
+				}
+			}
+		}()
+	})
+
+	curr := s.version
+	latest := s.availableVer.Load().(string)
+	if semver.Compare(latest, curr) > 0 {
+		return latest
+	}
+	return ""
 }
 
 // cacheAppRoot adds the appID -> appRoot mapping to the app root cache.
