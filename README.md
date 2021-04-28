@@ -243,3 +243,8 @@ Encore supports dropping down to plain HTTP requests which lets you use Websocke
 ## Questions & Feedback
 
 If you have questions, need help, or have any feedback: [email us](mailto:hello@encore.dev) or join our [Slack channel](https://join.slack.com/t/encoredev/shared_invite/zt-c75mzbnb-kWCiGueYVJ4pUCIW45sb8A).
+
+## Office Hours
+
+If you want to chat to us about anything Encore-related, [book a session with us here](https://calendly.com/encoreandre/encore-office-hours)!
+We love hearing about your experiences with Encore, and what we can do to make it even better.
