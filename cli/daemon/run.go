@@ -15,6 +15,7 @@ import (
 	"encr.dev/parser"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 )
@@ -81,6 +82,11 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		}()
 	}
 
+	// Check for available update before we start the proc
+	// so the output from the proc doesn't race with our
+	// prints below.
+	newVer := s.availableUpdate()
+
 	// Hold the stream mutex so we can set up the stream map
 	// before output starts.
 	s.mu.Lock()
@@ -99,6 +105,12 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	}
 	s.streams[run.ID] = slog
 	s.mu.Unlock()
+
+	if newVer != "" {
+		stdout.Write([]byte(aurora.Sprintf(
+			aurora.Yellow("New Encore release available: %s (you have %s)\nUpdate with: encore version update\n\n"),
+			newVer, s.version)))
+	}
 
 	pid := run.Proc().Pid
 	stdout.Write([]byte(fmt.Sprintf("API Base URL:      http://localhost:%d\n", run.Port)))
