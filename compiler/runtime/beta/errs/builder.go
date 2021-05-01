@@ -1,6 +1,10 @@
 package errs
 
-import "fmt"
+import (
+	"fmt"
+
+	"encore.dev/internal/stack"
+)
 
 type Builder struct {
 	code    ErrCode
@@ -67,8 +71,12 @@ func (b *Builder) Err() error {
 	}
 
 	var errMeta Metadata
+	var s stack.Stack
 	if e, ok := b.err.(*Error); ok {
 		errMeta = e.Meta
+		s = e.stack
+	} else {
+		s = stack.Build(2)
 	}
 
 	return &Error{
@@ -77,6 +85,7 @@ func (b *Builder) Err() error {
 		Meta:       mergeMeta(errMeta, b.meta),
 		Details:    b.det,
 		underlying: b.err,
+		stack:      s,
 	}
 	return nil
 }

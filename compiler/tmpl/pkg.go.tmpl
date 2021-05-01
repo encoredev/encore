@@ -11,7 +11,7 @@ import (
 )
 
 {{range $rpcIdx, $rpc := .RPCs}}
-func encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx context.Context
+func __encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx context.Context
 	{{- if $rpc.Req}}, req {{$rpc.Req}}{{end}}) (
 	{{- if $rpc.Resp}}resp {{$rpc.Resp}}, {{end}}err error) {
 {{- if $rpc.Req}}

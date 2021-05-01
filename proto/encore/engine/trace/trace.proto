@@ -26,6 +26,7 @@ message Request {
   repeated Event events = 12;
   string uid = 13;
   Type type = 14;
+  StackTrace err_stack = 15;
 
   enum Type {
     RPC = 0;
@@ -52,6 +53,7 @@ message RPCCall {
   uint64 start_time = 5;
   uint64 end_time = 6;
   bytes err = 7;
+  StackTrace stack = 8; // where it was called
 }
 
 message Goroutine {
@@ -75,6 +77,8 @@ message DBTransaction {
   bytes err = 6;
   CompletionType completion = 7;
   repeated DBQuery queries = 8;
+  StackTrace begin_stack = 9;
+  StackTrace end_stack = 10;
 }
 
 message DBQuery {
@@ -84,6 +88,7 @@ message DBQuery {
   uint64 end_time = 4;
   bytes query = 5;
   bytes err = 6;
+  StackTrace stack = 7;
 }
 
 message HTTPCall {
@@ -195,13 +200,14 @@ message LogMessage {
   Level level = 4;
   string msg = 5;
   repeated LogField fields = 6;
+  StackTrace stack = 7;
 }
 
 message LogField {
   string key = 1;
 
   oneof value {
-    string error = 2;
+    ErrWithStack error = 2;
     string str = 3;
     bool bool = 4;
     google.protobuf.Timestamp time = 5;
@@ -213,4 +219,19 @@ message LogField {
     float float32 = 11;
     double float64 = 12;
   }
+}
+
+message ErrWithStack {
+  string error = 1;
+  StackTrace stack = 2;
+}
+
+message StackTrace {
+  repeated StackFrame frames = 1;
+}
+
+message StackFrame {
+  string filename = 1;
+  string func = 2;
+  int32 line = 3;
 }

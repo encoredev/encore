@@ -4,7 +4,23 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+
+	"encore.dev/internal/stack"
 )
+
+func Stack(err error) stack.Stack {
+	if e, ok := err.(*Error); ok {
+		return e.stack
+	}
+	return stack.Stack{}
+}
+
+func DropStackFrame(err error) error {
+	if e, ok := err.(*Error); ok && len(e.stack.Frames) > 0 {
+		e.stack.Frames = e.stack.Frames[1:]
+	}
+	return err
+}
 
 // RoundTrip copies an error, returning an equivalent error
 // for replicating across RPC boundaries.
@@ -15,6 +31,7 @@ func RoundTrip(err error) error {
 		e2 := &Error{
 			Code:    e.Code,
 			Message: e.Message,
+			stack:   stack.Build(3), // skip caller of RoundTrip as well
 		}
 
 		// Copy details
@@ -54,6 +71,7 @@ func RoundTrip(err error) error {
 		return &Error{
 			Code:    Unknown,
 			Message: err.Error(),
+			stack:   stack.Build(3), // skip caller of RoundTrip as well
 		}
 	}
 }

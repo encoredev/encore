@@ -24,6 +24,7 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/internal/appfile"
+	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
@@ -326,6 +327,10 @@ type Proc struct {
 	respRd   *os.File
 	buildDir string
 	client   *yamux.Session
+
+	sym       *sym.Table
+	symErr    error
+	symParsed chan struct{} // closed when sym and symErr are set
 }
 
 type startProcParams struct {
@@ -344,13 +349,15 @@ type startProcParams struct {
 func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 	pid := genID()
 	p = &Proc{
-		ID:       pid,
-		Run:      r,
-		Meta:     params.Meta,
-		exit:     make(chan struct{}),
-		buildDir: params.BuildDir,
-		log:      r.log.With().Str("procID", pid).Logger(),
+		ID:        pid,
+		Run:       r,
+		Meta:      params.Meta,
+		exit:      make(chan struct{}),
+		buildDir:  params.BuildDir,
+		log:       r.log.With().Str("procID", pid).Logger(),
+		symParsed: make(chan struct{}),
 	}
+	go p.parseSymTable(params.BinPath)
 
 	cmd := exec.Command(params.BinPath)
 	cmd.Env = []string{
@@ -467,6 +474,33 @@ func (p *Proc) waitForExit() {
 		if w != nil {
 			w.(*logWriter).Flush()
 		}
+	}
+}
+
+// parseSymTable parses the symbol table of the binary at binPath
+// and stores the result in p.sym and p.symErr.
+func (p *Proc) parseSymTable(binPath string) {
+	parse := func() (*sym.Table, error) {
+		f, err := os.Open(binPath)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		return sym.Load(f)
+	}
+
+	defer close(p.symParsed)
+	p.sym, p.symErr = parse()
+}
+
+// SymTable waits for the proc's symbol table to be parsed and then returns it.
+// ctx is used to cancel the wait.
+func (p *Proc) SymTable(ctx context.Context) (*sym.Table, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-p.symParsed:
+		return p.sym, p.symErr
 	}
 }
 

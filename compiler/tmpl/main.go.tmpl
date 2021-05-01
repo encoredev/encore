@@ -43,7 +43,7 @@ var json = jsoniter.Config{
 
 {{range .Svcs}}
 {{- range .RPCs}}
-func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
+func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 	var err error
@@ -56,7 +56,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 	)
 	if auth := req.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 		token = auth[len("Bearer "):]
-		uid, authData, err = validateAuth(req.Context(), token)
+		uid, authData, err = __encore_validateAuth(req.Context(), token)
 		if err != nil {
 			errs.HTTPError(w, err)
 			return
@@ -187,7 +187,7 @@ func encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
 {{end}}
 
 {{- with .AuthHandler}}
-func validateAuth(ctx context.Context, token string) (uid auth.UID, authData interface{}, authErr error) {
+func __encore_validateAuth(ctx context.Context, token string) (uid auth.UID, authData interface{}, authErr error) {
 	if token == "" {
 		return "", nil, nil
 	}
@@ -250,7 +250,7 @@ func main() {
 				{
 					Name: "{{.Name}}",
 					Raw: {{.Raw}},
-					Handler: encore_{{.Svc.Name}}_{{.Name}},
+					Handler: __encore_{{.Svc.Name}}_{{.Name}},
 				},
 {{- end}}
 			},

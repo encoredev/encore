@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"encr.dev/cli/daemon/run"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/rs/zerolog/log"
@@ -17,12 +18,13 @@ import (
 type ID [16]byte
 
 type TraceMeta struct {
-	ID    ID
-	Reqs  []*tracepb.Request
-	AppID string
-	EnvID string
-	Date  time.Time
-	Meta  *metapb.Data
+	ID      ID
+	Reqs    []*tracepb.Request
+	AppID   string
+	AppRoot string
+	EnvID   string
+	Date    time.Time
+	Meta    *metapb.Data
 }
 
 // A Store stores traces received from running applications.
@@ -71,13 +73,14 @@ func (st *Store) List(appID string) []*TraceMeta {
 	return tr
 }
 
-func Parse(traceID ID, data []byte) ([]*tracepb.Request, error) {
+func Parse(traceID ID, data []byte, proc *run.Proc) ([]*tracepb.Request, error) {
 	id := &tracepb.TraceID{
 		Low:  bin.Uint64(traceID[:8]),
 		High: bin.Uint64(traceID[8:]),
 	}
 	tp := &traceParser{
 		traceReader: traceReader{buf: data},
+		proc:        proc,
 		traceID:     id,
 		reqMap:      make(map[uint64]*tracepb.Request),
 		txMap:       make(map[uint64]*tracepb.DBTransaction),
@@ -99,6 +102,7 @@ type goKey struct {
 
 type traceParser struct {
 	traceReader
+	proc     *run.Proc
 	traceID  *tracepb.TraceID
 	reqs     []*tracepb.Request
 	reqMap   map[uint64]*tracepb.Request
@@ -239,6 +243,7 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 			msg = []byte("unknown error")
 		}
 		req.Err = msg
+		req.ErrStack = tp.stack()
 	}
 	return nil
 }
@@ -298,9 +303,10 @@ func (tp *traceParser) transactionStart(ts uint64) error {
 	}
 	goid := uint32(tp.UVarint())
 	tx := &tracepb.DBTransaction{
-		Goid:      goid,
-		StartLoc:  0, // TODO(eandre) reintroduce
-		StartTime: ts,
+		Goid:       goid,
+		StartLoc:   0, // TODO(eandre) reintroduce
+		StartTime:  ts,
+		BeginStack: tp.stack(),
 	}
 	tp.txMap[txid] = tx
 	req.Events = append(req.Events, &tracepb.Event{
@@ -319,6 +325,7 @@ func (tp *traceParser) transactionEnd(ts uint64) error {
 	_ = uint32(tp.UVarint()) // goid
 	compl := tp.Byte()
 	errMsg := tp.ByteString()
+	stack := tp.stack()
 
 	// It's possible to get multiple transaction end events.
 	// Ignore them for now; we will expose this information later.
@@ -326,6 +333,7 @@ func (tp *traceParser) transactionEnd(ts uint64) error {
 		tx.EndTime = ts
 		tx.EndLoc = 0 // TODO(eandre) reintroduce
 		tx.Err = errMsg
+		tx.EndStack = stack
 		switch compl {
 		case 0:
 			tx.Completion = tracepb.DBTransaction_ROLLBACK
@@ -352,6 +360,7 @@ func (tp *traceParser) queryStart(ts uint64) error {
 		CallLoc:   0, // TODO(eandre) reintroduce
 		StartTime: ts,
 		Query:     tp.ByteString(),
+		Stack:     tp.stack(),
 	}
 	tp.queryMap[qid] = q
 
@@ -394,6 +403,7 @@ func (tp *traceParser) callStart(ts uint64) error {
 		Goid:      uint32(tp.UVarint()),
 		CallLoc:   int32(tp.UVarint()),
 		DefLoc:    int32(tp.UVarint()),
+		Stack:     tp.stack(),
 		StartTime: ts,
 	}
 	tp.callMap[callID] = c
@@ -616,6 +626,7 @@ func (tp *traceParser) logMessage(ts uint64) error {
 		}
 		log.Fields = append(log.Fields, f)
 	}
+	log.Stack = tp.stack()
 
 	req.Events = append(req.Events, &tracepb.Event{
 		Data: &tracepb.Event_Log{Log: log},
@@ -631,7 +642,10 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 	}
 	switch typ {
 	case 1:
-		f.Value = &tracepb.LogField_Error{Error: tp.String()}
+		f.Value = &tracepb.LogField_Error{Error: &tracepb.ErrWithStack{
+			Error: tp.String(),
+			Stack: tp.stack(),
+		}}
 	case 2:
 		f.Value = &tracepb.LogField_Str{Str: tp.String()}
 	case 3:
@@ -648,7 +662,9 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 		val := tp.ByteString()
 		err := tp.String()
 		if err != "" {
-			f.Value = &tracepb.LogField_Error{Error: err}
+			f.Value = &tracepb.LogField_Error{Error: &tracepb.ErrWithStack{
+				Error: err,
+			}}
 		} else {
 			f.Value = &tracepb.LogField_Json{Json: val}
 		}
@@ -664,6 +680,42 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 		return nil, fmt.Errorf("unknown field type %v", int(typ))
 	}
 	return f, nil
+}
+
+func (tp *traceParser) stack() *tracepb.StackTrace {
+	n := int(tp.Byte())
+	tr := &tracepb.StackTrace{}
+	if n == 0 {
+		return tr
+	}
+
+	sym, err := tp.proc.SymTable(context.Background())
+	if err != nil {
+		log.Error().Err(err).Msg("could not parse sym table")
+		return tr
+	}
+
+	pcs := make([]uint64, n)
+	prev := int64(0)
+	for i := 0; i < n; i++ {
+		diff := tp.Varint()
+		x := prev + diff
+		prev = x
+		pcs[i] = uint64(x) + sym.BaseOffset
+	}
+
+	tr.Frames = make([]*tracepb.StackFrame, 0, n)
+	for _, pc := range pcs {
+		file, line, fn := sym.PCToLine(pc)
+		if fn != nil {
+			tr.Frames = append(tr.Frames, &tracepb.StackFrame{
+				Func:     fn.Name,
+				Filename: file,
+				Line:     int32(line),
+			})
+		}
+	}
+	return tr
 }
 
 var bin = binary.LittleEndian

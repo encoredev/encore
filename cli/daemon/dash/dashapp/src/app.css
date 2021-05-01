@@ -25,3 +25,20 @@ code {
   display: flex;
   flex-direction: column;
 }
+
+pre.code {
+  white-space: no-wrap;
+  counter-reset: listing var(--line-start);
+}
+pre.code code {
+  counter-increment: listing;
+  display: block;
+}
+pre.code code::before {
+  content: counter(listing) " ";
+  display: inline-block;
+  width: 4em;
+  padding-left: auto;
+  margin-left: auto;
+  text-align: right;
+}

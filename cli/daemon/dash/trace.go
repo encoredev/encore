@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"encr.dev/cli/daemon/runtime/trace"
 	"encr.dev/cli/internal/dedent"
+	"encr.dev/cli/internal/env"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	"github.com/alecthomas/chroma/formatters/html"
 	"github.com/alecthomas/chroma/lexers"
@@ -43,6 +46,7 @@ type Request struct {
 	Inputs    [][]byte   `json:"inputs"`
 	Outputs   [][]byte   `json:"outputs"`
 	Err       []byte     `json:"err"`
+	ErrStack  *Stack     `json:"err_stack"`
 	Events    []Event    `json:"events"`
 	Children  []*Request `json:"children"`
 }
@@ -66,6 +70,8 @@ type DBTransaction struct {
 	Err            []byte     `json:"err"`
 	CompletionType string     `json:"completion_type"`
 	Queries        []*DBQuery `json:"queries"`
+	BeginStack     Stack      `json:"begin_stack"`
+	EndStack       *Stack     `json:"end_stack"`
 }
 
 type DBQuery struct {
@@ -78,6 +84,7 @@ type DBQuery struct {
 	Query     []byte  `json:"query"`
 	HTMLQuery []byte  `json:"html_query"`
 	Err       []byte  `json:"err"`
+	Stack     Stack   `json:"stack"`
 }
 
 type RPCCall struct {
@@ -89,6 +96,7 @@ type RPCCall struct {
 	StartTime int64  `json:"start_time"`
 	EndTime   *int64 `json:"end_time,omitempty"`
 	Err       []byte `json:"err"`
+	Stack     Stack  `json:"stack"`
 }
 
 type HTTPCall struct {
@@ -125,11 +133,24 @@ type LogMessage struct {
 	Level   string     `json:"level"` // "DEBUG", "INFO", or "ERROR"
 	Message string     `json:"msg"`
 	Fields  []LogField `json:"fields"`
+	Stack   Stack      `json:"stack"`
+}
+
+type Stack struct {
+	Frames []StackFrame `json:"frames"`
+}
+
+type StackFrame struct {
+	FullFile  string `json:"full_file"`
+	ShortFile string `json:"short_file"`
+	Func      string `json:"func"`
+	Line      int    `json:"line"`
 }
 
 type LogField struct {
 	Key   string      `json:"key"`
 	Value interface{} `json:"value"`
+	Stack *Stack      `json:"stack"`
 }
 
 type Event interface {
@@ -150,7 +171,7 @@ func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 		Date: ct.Date,
 	}
 
-	tp := &traceParser{}
+	tp := &traceParser{meta: ct}
 	reqMap := make(map[string]*Request)
 	for _, req := range ct.Reqs {
 		if tp.startTime == 0 {
@@ -214,6 +235,7 @@ func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 type traceParser struct {
 	startTime int64
 	txCounter uint32
+	meta      *trace.TraceMeta
 }
 
 func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
@@ -240,7 +262,9 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		Err:       nullBytes(req.Err),
 		Events:    []Event{},    // prevent marshalling as null
 		Children:  []*Request{}, // prevent marshalling as null
+		ErrStack:  tp.maybeStack(req.ErrStack),
 	}
+
 	for _, ev := range req.Events {
 		switch e := ev.Data.(type) {
 		case *tracepb.Event_Tx:
@@ -288,12 +312,17 @@ func (tp *traceParser) parseLog(l *tracepb.LogMessage) *LogMessage {
 		Level:   l.Level.String(),
 		Message: l.Msg,
 		Fields:  []LogField{},
+		Stack:   tp.stack(l.Stack),
 	}
 	for _, f := range l.Fields {
 		field := LogField{Key: f.Key}
 		switch v := f.Value.(type) {
 		case *tracepb.LogField_Error:
-			field.Value = v.Error
+			field.Value = v.Error.Error
+			if s := v.Error.Stack; s != nil {
+				st := tp.stack(s)
+				field.Stack = &st
+			}
 		case *tracepb.LogField_Str:
 			field.Value = v.Str
 		case *tracepb.LogField_Bool:
@@ -324,15 +353,17 @@ func (tp *traceParser) parseTx(tx *tracepb.DBTransaction) (*DBTransaction, error
 	tp.txCounter++
 	txid := tp.txCounter
 	t := &DBTransaction{
-		Type:      "DBTransaction",
-		Goid:      tx.Goid,
-		Txid:      txid,
-		StartLoc:  tx.StartLoc,
-		EndLoc:    tx.EndLoc,
-		StartTime: tp.time(tx.StartTime),
-		EndTime:   tp.maybeTime(tx.EndTime),
-		Err:       nullBytes(tx.Err),
-		Queries:   []*DBQuery{}, // prevent marshalling as null
+		Type:       "DBTransaction",
+		Goid:       tx.Goid,
+		Txid:       txid,
+		StartLoc:   tx.StartLoc,
+		EndLoc:     tx.EndLoc,
+		StartTime:  tp.time(tx.StartTime),
+		EndTime:    tp.maybeTime(tx.EndTime),
+		Err:        nullBytes(tx.Err),
+		Queries:    []*DBQuery{}, // prevent marshalling as null
+		BeginStack: tp.stack(tx.BeginStack),
+		EndStack:   tp.maybeStack(tx.EndStack),
 	}
 	switch tx.Completion {
 	case tracepb.DBTransaction_COMMIT:
@@ -372,6 +403,7 @@ func (tp *traceParser) parseQuery(q *tracepb.DBQuery, txid uint32) *DBQuery {
 		Query:     dedent.Bytes(q.Query),
 		HTMLQuery: htmlQuery,
 		Err:       nullBytes(q.Err),
+		Stack:     tp.stack(q.Stack),
 	}
 }
 
@@ -385,6 +417,7 @@ func (tp *traceParser) parseCall(c *tracepb.RPCCall) *RPCCall {
 		StartTime: tp.time(c.StartTime),
 		EndTime:   tp.maybeTime(c.EndTime),
 		Err:       nullBytes(c.Err),
+		Stack:     tp.stack(c.Stack),
 	}
 }
 
@@ -478,10 +511,87 @@ func nullBytes(b []byte) []byte {
 	return b
 }
 
-func parseTime(ns uint64) time.Time {
-	return time.Unix(0, int64(ns))
-}
-
 func traceUUID(traceID trace.ID) uuid.UUID {
 	return uuid.UUID(traceID)
+}
+
+func (tp *traceParser) stack(s *tracepb.StackTrace) Stack {
+	if s == nil {
+		return Stack{Frames: []StackFrame{}}
+	}
+	st := Stack{
+		Frames: make([]StackFrame, 0, len(s.Frames)),
+	}
+	for _, f := range s.Frames {
+		if f.Func == "runtime.goexit" {
+			continue
+		}
+		st.Frames = append(st.Frames, StackFrame{
+			FullFile:  f.Filename,
+			ShortFile: shortenFilename(tp.meta.AppRoot, f.Filename, f.Func),
+			Func:      shortenFunc(f.Func),
+			Line:      int(f.Line),
+		})
+	}
+	return st
+}
+
+func (tp *traceParser) maybeStack(s *tracepb.StackTrace) *Stack {
+	if st := tp.stack(s); len(st.Frames) > 0 {
+		return &st
+	}
+	return nil
+}
+
+func shortenFilename(appRoot, file, fn string) string {
+	if rel, err := filepath.Rel(appRoot, file); err == nil && !strings.HasPrefix(rel, "..") {
+		return "./" + filepath.ToSlash(rel)
+	} else if fn != "" {
+		// Use the package import path
+		pkgPath, remainder := "", fn
+		if idx := strings.LastIndexByte(fn, '/'); idx >= 0 {
+			pkgPath = fn[:idx+1]   // "import.path/foo/"
+			remainder = fn[idx+1:] // "bar.(*Foo).Baz"
+		}
+		if idx := strings.IndexByte(remainder, '.'); idx >= 0 {
+			pkgName := remainder[:idx] // "bar"
+			pkgPath += pkgName
+		}
+		return pkgPath // "import.path/foo/bar"
+	}
+
+	// Standard library?
+	if idx := strings.Index(file, "/src/pkg/"); idx >= 0 {
+		return file[idx+len("/src/pkg/"):]
+	}
+	// Encore runtime?
+	rtPath := env.EncoreRuntimePath()
+	if idx := strings.Index(file, rtPath); idx >= 0 {
+		return file[idx+len(rtPath):]
+	}
+
+	prefixes := [...]string{
+		"github.com/",
+		"encore.dev/",
+		"bitbucket.org/",
+		"gopkg.in/",
+	}
+	for _, p := range prefixes {
+		if idx := strings.Index(file, p); idx >= 0 {
+			return file[idx:]
+		}
+	}
+	return file
+}
+
+func shortenFunc(fn string) string {
+	// Cut import path
+	if idx := strings.LastIndexByte(fn, '/'); idx >= 0 {
+		fn = fn[idx+1:]
+	}
+	// Cut package name
+	if idx := strings.IndexByte(fn, '.'); idx >= 0 {
+		fn = fn[idx+1:]
+	}
+	return fn
 }
