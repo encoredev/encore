@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"encore.dev/internal/stack"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -26,7 +27,7 @@ type Error struct {
 	// It is not propagated across RPC boundaries.
 	underlying error
 
-	// TODO stack, params, retryable, ...
+	stack stack.Stack
 }
 
 type Metadata map[string]interface{}
@@ -41,8 +42,10 @@ func Wrap(err error, msg string, metaPairs ...interface{}) error {
 		e.Details = ee.Details
 		e.Code = ee.Code
 		e.Meta = mergeMeta(ee.Meta, metaPairs)
+		e.stack = ee.stack
 	} else {
 		e.Meta = mergeMeta(nil, metaPairs)
+		e.stack = stack.Build(2)
 	}
 	return e
 }
@@ -57,8 +60,10 @@ func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) err
 		e.Details = ee.Details
 		e.Code = ee.Code
 		e.Meta = mergeMeta(ee.Meta, metaPairs)
+		e.stack = ee.stack
 	} else {
 		e.Meta = mergeMeta(nil, metaPairs)
+		e.stack = stack.Build(2)
 	}
 	return e
 }
@@ -72,6 +77,7 @@ func Convert(err error) error {
 	return &Error{
 		Code:       Unknown,
 		underlying: err,
+		stack:      stack.Build(2),
 	}
 }
 

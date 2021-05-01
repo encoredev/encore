@@ -24,6 +24,7 @@ export interface Request {
   inputs: Base64EncodedBytes[];
   outputs: Base64EncodedBytes[];
   err: Base64EncodedBytes | null;
+  err_stack: Stack | null;
   events: Event[];
   children: Request[];
 }
@@ -39,6 +40,8 @@ export interface DBTransaction {
   completion_type: "COMMIT" | "ROLLBACK";
   err: Base64EncodedBytes | null;
   queries: DBQuery[];
+  begin_stack: Stack;
+  end_stack: Stack | null;
 }
 
 export interface DBQuery {
@@ -51,6 +54,7 @@ export interface DBQuery {
   query: Base64EncodedBytes;
   html_query: Base64EncodedBytes | null;
   err: Base64EncodedBytes | null;
+  stack: Stack;
 }
 
 export interface Goroutine {
@@ -70,6 +74,7 @@ export interface RPCCall {
   start_time: number;
   end_time?: number;
   err: Base64EncodedBytes | null;
+  stack: Stack;
 }
 
 export interface AuthCall {
@@ -81,6 +86,7 @@ export interface AuthCall {
   uid: string;
   auth_data: Base64EncodedBytes | null;
   err: Base64EncodedBytes | null;
+  stack: Stack;
 }
 
 export interface HTTPCall {
@@ -116,11 +122,24 @@ export interface LogMessage {
   level: "DEBUG" | "INFO" | "ERROR";
   msg: string;
   fields: LogField[];
+  stack: Stack;
 }
 
 export interface LogField {
   key: string;
   value: any;
+  stack: Stack | null;
+}
+
+export interface Stack {
+  frames: StackFrame[];
+}
+
+export interface StackFrame {
+  short_file: string;
+  full_file: string
+  func: string;
+  line: number;
 }
 
 export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine | LogMessage;

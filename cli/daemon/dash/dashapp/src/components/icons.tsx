@@ -151,6 +151,18 @@ export const dotsCircle: Icon = (cls, title) =>
     <path d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 
+export const plus: Icon = (cls, title) =>
+  <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    {renderTitle(title)}
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+  </svg>
+
+export const minus: Icon = (cls, title) =>
+  <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    {renderTitle(title)}
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+  </svg>
+
 export const plusCircle: Icon = (cls, title) =>
   <svg className={cls} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
     {renderTitle(title)}
@@ -161,6 +173,12 @@ export const minusCircle: Icon = (cls, title) =>
   <svg className={cls} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
     {renderTitle(title)}
     <path d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+
+export const stackTrace: Icon = (cls, title) =>
+  <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    {renderTitle(title)}
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h12" />
   </svg>
 
 export const refresh: Icon = (cls, title) =>
@@ -174,6 +192,12 @@ export const chip: Icon = (cls, title) =>
     {renderTitle(title)}
     <path d="M13 7H7v6h6V7z" />
     <path fillRule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 010-2h1V5a2 2 0 012-2h2V2zM5 5h10v10H5V5z" clipRule="evenodd" />
+  </svg>
+
+export const chevronLeft: Icon = (cls, title) =>
+  <svg className={cls} fill="currentColor" viewBox="0 0 20 20">
+    {renderTitle(title)}
+    <path transform="rotate(90 10 10)" fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/>
   </svg>
 
 export const clock: Icon = (cls, title) =>

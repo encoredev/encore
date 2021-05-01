@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"encr.dev/cli/daemon/run"
@@ -144,9 +145,34 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			"status_code": resp.StatusCode,
 			"body":        body,
 		}, nil)
+
+	case "source-context":
+		var params struct {
+			AppID string
+			File  string
+			Line  int
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		f, err := os.Open(params.File)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		defer f.Close()
+		lines, start, err := sourceContext(f, params.Line, 5)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		return reply(ctx, sourceContextResponse{Lines: lines, Start: start}, nil)
 	}
 
 	return jsonrpc2.MethodNotFound(ctx, reply, r)
+}
+
+type sourceContextResponse struct {
+	Lines []string `json:"lines"`
+	Start int      `json:"start"`
 }
 
 func (h *handler) listenNotify(ctx context.Context, ch <-chan *notification) {

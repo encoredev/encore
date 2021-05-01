@@ -9,6 +9,8 @@ import (
 	"time"
 
 	_ "unsafe" // for go:linkname
+
+	"encore.dev/internal/stack"
 )
 
 type TraceEvent byte
@@ -195,4 +197,23 @@ func (tb *TraceBuf) Float32(f float32) {
 
 func (tb *TraceBuf) Float64(f float64) {
 	tb.Uint64(math.Float64bits(f))
+}
+
+func (tb *TraceBuf) Stack(s stack.Stack) {
+	n := len(s.Frames)
+	if n > 0xFF {
+		panic("stack too large") // should never happen; it's capped at 100
+	}
+	tb.Byte(byte(n))
+	if n == 0 {
+		return
+	}
+
+	var prev int64 = 0
+	for _, pc := range s.Frames {
+		p := int64(pc - s.Off)
+		diff := p - prev
+		tb.Varint(diff)
+		prev = p
+	}
 }

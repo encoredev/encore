@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"encore.dev/beta/errs"
+	"encore.dev/internal/stack"
 	"encore.dev/runtime/config"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
@@ -119,6 +120,7 @@ func BeginCall(params CallParams) (*Call, error) {
 		tb.UVarint(uint64(g.goid))
 		tb.UVarint(uint64(params.CallExprIdx))
 		tb.UVarint(uint64(params.EndpointExprIdx))
+		tb.Stack(stack.Build(3))
 		encoreTraceEvent(CallStart, tb.Buf())
 	}
 
@@ -191,8 +193,10 @@ func (ac *AuthCall) Finish(uid UID, err error) {
 				msg = "unknown error"
 			}
 			tb.String(msg)
+			tb.Stack(errs.Stack(err))
 		} else {
 			tb.String("")
+			tb.Stack(stack.Stack{}) // no stack
 		}
 		encoreTraceEvent(AuthEnd, tb.Buf())
 	}
@@ -334,7 +338,7 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 		tb := NewTraceBuf(64)
 		tb.Bytes(req.SpanID[:])
 		if err == nil {
-			tb.Bytes([]byte{0}) // no error
+			tb.Byte(0) // no error
 			tb.UVarint(uint64(len(outputs)))
 			for _, output := range outputs {
 				tb.UVarint(uint64(len(output)))
@@ -343,6 +347,7 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 		} else {
 			tb.Bytes([]byte{1})
 			tb.String(err.Error())
+			tb.Stack(errs.Stack(err))
 		}
 		encoreTraceEvent(RequestEnd, tb.Buf())
 	}

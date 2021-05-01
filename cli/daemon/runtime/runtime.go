@@ -58,7 +58,7 @@ func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	reqs, err := trace.Parse(traceID, data)
+	reqs, err := trace.Parse(traceID, data, proc)
 	if err != nil {
 		log.Error().Err(err).Msg("runtime: could not parse trace")
 		http.Error(w, "could not parse trace: "+err.Error(), http.StatusBadRequest)
@@ -72,11 +72,12 @@ func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
 	}
 
 	tm := &trace.TraceMeta{
-		ID:    traceID,
-		Reqs:  reqs,
-		AppID: proc.Run.AppID,
-		Date:  time.Now(),
-		Meta:  proc.Meta,
+		ID:      traceID,
+		Reqs:    reqs,
+		AppID:   proc.Run.AppID,
+		AppRoot: proc.Run.Root,
+		Date:    time.Now(),
+		Meta:    proc.Meta,
 	}
 
 	err = s.ts.Store(req.Context(), tm)
