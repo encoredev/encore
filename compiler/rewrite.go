@@ -50,7 +50,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 			case est.RPCCallNode:
 				rpc := rewrite.RPC
-				wrapperName := "encore_" + rpc.Svc.Name + "_" + rpc.Name
+				wrapperName := "__encore_" + rpc.Svc.Name + "_" + rpc.Name
 				call := c.Node().(*ast.CallExpr)
 
 				// Capture rewrites that should be ignored when computing if an import

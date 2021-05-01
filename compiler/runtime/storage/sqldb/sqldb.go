@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"encore.dev/beta/errs"
+	"encore.dev/internal/stack"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"github.com/jackc/pgx/v4"
@@ -41,6 +42,7 @@ func Exec(svc string, ctx context.Context, query string, args ...interface{}) (E
 		tb.UVarint(0) // no tx
 		tb.UVarint(uint64(goid))
 		tb.String(query)
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
 
@@ -71,6 +73,7 @@ func Query(svc string, ctx context.Context, query string, args ...interface{}) (
 		tb.UVarint(0) // no tx
 		tb.UVarint(uint64(goid))
 		tb.String(query)
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
 
@@ -104,6 +107,7 @@ func QueryRow(svc string, ctx context.Context, query string, args ...interface{}
 		tb.UVarint(0) // no tx
 		tb.UVarint(uint64(goid))
 		tb.String(query)
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
 
@@ -143,6 +147,7 @@ func Begin(svc string, ctx context.Context) (*Tx, error) {
 		tb.UVarint(txid)
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(uint64(goid))
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.TxStart, tb.Buf())
 	}
 
@@ -164,6 +169,7 @@ func Commit(svc string, tx *Tx) error {
 		} else {
 			tb.String("")
 		}
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.TxEnd, tb.Buf())
 	}
 	return err
@@ -184,6 +190,7 @@ func Rollback(svc string, tx *Tx) error {
 		} else {
 			tb.String("")
 		}
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.TxEnd, tb.Buf())
 	}
 	return err
@@ -199,6 +206,7 @@ func ExecTx(svc string, tx *Tx, ctx context.Context, query string, args ...inter
 		tb.UVarint(tx.txid)
 		tb.UVarint(uint64(goid))
 		tb.String(query)
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
 
@@ -229,6 +237,7 @@ func QueryTx(svc string, tx *Tx, ctx context.Context, query string, args ...inte
 		tb.UVarint(tx.txid)
 		tb.UVarint(uint64(goid))
 		tb.String(query)
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
 
@@ -262,6 +271,7 @@ func QueryRowTx(svc string, tx *Tx, ctx context.Context, query string, args ...i
 		tb.UVarint(tx.txid)
 		tb.UVarint(uint64(goid))
 		tb.String(query)
+		tb.Stack(stack.Build(2))
 		runtime.TraceLog(runtime.QueryStart, tb.Buf())
 	}
 
@@ -307,7 +317,7 @@ func (r *Row) Scan(dest ...interface{}) error {
 		if err := r.rows.Err(); err != nil {
 			return convertErr(err)
 		}
-		return errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
+		return errs.DropStackFrame(errs.WrapCode(sql.ErrNoRows, errs.NotFound, ""))
 	}
 	r.rows.Scan(dest...)
 	r.rows.Close()
@@ -370,10 +380,11 @@ func Setup(cfg *config.ServerConfig) {
 func convertErr(err error) error {
 	switch err {
 	case pgx.ErrNoRows:
-		return errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
+		err = errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
 	case pgx.ErrTxClosed, pgx.ErrInvalidLogLevel, pgx.ErrTxCommitRollback:
-		return errs.WrapCode(err, errs.Internal, "")
+		err = errs.WrapCode(err, errs.Internal, "")
 	default:
-		return errs.WrapCode(err, errs.Unavailable, "")
+		err = errs.WrapCode(err, errs.Unavailable, "")
 	}
+	return errs.DropStackFrame(err)
 }

@@ -1,13 +1,15 @@
-import React from 'react'
+import React, { FC, useState } from 'react'
 import { Modal } from '~c/Modal'
-import { Request, Trace } from '~c/trace/model'
+import { Request, Stack, Trace } from '~c/trace/model'
 import SpanDetail from '~c/trace/SpanDetail'
 import SpanList from '~c/trace/SpanList'
 import TraceMap from '~c/trace/TraceMap'
+import StackTrace from '~c/trace/StackTrace'
 import { latencyStr } from '~c/trace/util'
 import { decodeBase64 } from '~lib/base64'
 import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
 import { timeToDate } from '~lib/time'
+import * as icons from "~c/icons"
 
 interface Props {
   appID: string;
@@ -120,66 +122,68 @@ interface TraceViewState {
   selected: Request;
 }
 
-class TraceView extends React.Component<TraceViewProps, TraceViewState> {
-  constructor(props: TraceViewProps) {
-    super(props)
-    this.state = {
-      selected: props.trace.root
-    }
-  }
+const TraceView: FC<TraceViewProps> = (props) => {
+  const tr = props.trace
+  const dt = timeToDate(tr.date)!
+  const [selected, setSelected] = useState(tr.root)
+  const [stack, setStack] = useState<Stack | undefined>(undefined)
 
-  render() {
-    const tr = this.props.trace
-    const dt = timeToDate(tr.date)!
-
-    return (
-      <section className="bg-white flex-grow flex items-stretch h-full relative">
-        <div className="absolute -top-2 -right-2">
-          <div className="hover:bg-gray-100 rounded-full p-1 cursor-pointer"
-              onClick={() => this.props.close()}>
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
+  return (
+    <section className="bg-white flex-grow flex items-stretch h-full relative">
+      <div className="absolute -top-2 -right-2">
+        <div className="hover:bg-gray-100 rounded-full p-1 cursor-pointer"
+            onClick={() => props.close()}>
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </div>
+      </div>
 
-        <div className="flex-grow flex flex-col overflow-scroll">
-          <div className="flex p-4 border-b border-gray-100">
-            <div className="flex-shrink-0 mr-4">
-              <h1 className="text-2xl font-bold leading-none text-gray-900 mb-1">
-                Trace Details
-              </h1>
-              <table className="text-sm">
-                <tbody>
-                  <tr>
-                    <th className="text-left text-sm font-light text-gray-400 pr-2">Recorded</th>
-                    <td>{dt.toFormat("ff")}</td>
+      <div className="flex-grow flex flex-col overflow-scroll">
+        <div className="flex p-4 border-b border-gray-100">
+          <div className="flex-shrink-0 mr-4">
+            <h1 className="text-2xl font-bold leading-none text-gray-900 mb-1">
+              Trace Details
+            </h1>
+            <table className="text-sm">
+              <tbody>
+                <tr>
+                  <th className="text-left text-sm font-light text-gray-400 pr-2">Recorded</th>
+                  <td>{dt.toFormat("ff")}</td>
+                </tr>
+                {tr.auth !== null && <>
+                  <tr className="text-left font-normal">
+                    <th className="text-left text-sm font-light text-gray-400 pr-2">User ID</th>
+                    <td className="font-mono">{JSON.parse(decodeBase64(tr.auth.outputs[0]))}</td>
                   </tr>
-                  {tr.auth !== null && <>
-                    <tr className="text-left font-normal">
-                      <th className="text-left text-sm font-light text-gray-400 pr-2">User ID</th>
-                      <td className="font-mono">{JSON.parse(decodeBase64(tr.auth.outputs[0]))}</td>
-                    </tr>
-                  </>}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex-grow">
-              <TraceMap trace={this.props.trace!} selected={this.state.selected}
-                  onSelect={(req: Request) => this.setState({selected: req})} />
-            </div>
+                </>}
+              </tbody>
+            </table>
           </div>
-
-          <div className="flex flex-col mt-4">
-            <SpanList trace={tr} selected={this.state.selected}
-                onSelect={(req: Request) => this.setState({selected: req})} />
+          <div className="flex-grow">
+            <TraceMap trace={tr} selected={selected} onSelect={setSelected} />
           </div>
         </div>
 
-        <div className="flex-shrink-0 w-96 md:w-1/2 p-4 border-l border-gray-100 overflow-scroll">
-          <SpanDetail req={this.state.selected!} trace={tr} />
+        <div className="flex flex-col mt-4 relative">
+          {stack ? <div className="mr-4">
+            <h3 className="text-xl font-semibold mb-2 flex items-center justify-between">
+              Stack Trace
+              <button className="focus:outline-none hover:text-gray-600" onClick={() => setStack(undefined)}>
+                {icons.x("h-5 w-5")}
+              </button>
+            </h3>
+            <StackTrace stack={stack} />
+          </div> : <>
+            <h3 className="text-xl font-semibold mb-2">Request Tree</h3>
+            <SpanList trace={tr} selected={selected} onSelect={setSelected} />
+          </>}
         </div>
-      </section>
-    )
-  }
+      </div>
+
+      <div className="flex-shrink-0 w-96 md:w-1/2 p-4 border-l border-gray-100 overflow-scroll">
+        <SpanDetail req={selected} trace={tr} onStackTrace={setStack} />
+      </div>
+    </section>
+  )
 }

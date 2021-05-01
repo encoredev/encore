@@ -3,19 +3,20 @@ import React, { FunctionComponent, useRef, useState } from "react"
 import * as icons from "~c/icons"
 import { Base64EncodedBytes, decodeBase64 } from "~lib/base64"
 import { timeToDate } from "~lib/time"
-import { DBQuery, Event, HTTPCall, LogMessage, Request, RPCCall, Trace } from "./model"
+import { DBQuery, Event, HTTPCall, LogMessage, Request, RPCCall, Stack, Trace } from "./model"
 import { latencyStr, svcColor } from "./util"
 
 interface Props {
   trace: Trace;
   req: Request;
+  onStackTrace: (s: Stack) => void;
 }
 
 const SpanDetail: FunctionComponent<Props> = (props) => {
   const req = props.req
   const tr = props.trace
   const defLoc = props.trace.locations[req.def_loc]
-  const callLoc = req.call_loc !== null ? props.trace.locations[req.call_loc] : null
+  const call = findCall(props.trace, req.id)
 
   const numCalls = req.children.length
   let numQueries = 0
@@ -37,16 +38,17 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
 
   return <>
     <div>
-      <h2 className="text-2xl font-bold">{svcName}.{rpcName}</h2>
+      <h2 className="text-2xl font-bold flex items-center">
+        {svcName}.{rpcName}
+        {call && 
+          <button className="text-gray-600 hover:text-indigo-600 focus:outline-none"
+            onClick={() => props.onStackTrace(call.stack)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
+        }
+      </h2>
       <div className="text-xs">
         <span className="text-blue-700">
           {defLoc.filepath}:{defLoc.src_line_start}
         </span>
-        {callLoc !== null &&
-          <span className="text-gray-400">{" "}
-            (Called from <span className="text-blue-700">{callLoc.filepath}:{callLoc.src_line_start}</span>)
-          </span>
-        }
       </div>
 
       <div className="py-3 grid grid-cols-4 gap-4 border-b border-gray-100">
@@ -77,7 +79,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
 
       <div>
         <div className="mt-6">
-          <EventMap trace={props.trace} req={req} />
+          <EventMap trace={props.trace} req={req} onStackTrace={props.onStackTrace} />
         </div>
 
         {req.type === "AUTH" ? (
@@ -107,7 +109,10 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           </div>
           {req.err !== null ? (
             <div className="mt-4">
-              <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Error</h4>
+              <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2 flex items-center">
+                Error <button className="text-gray-600 hover:text-indigo-600 focus:outline-none ml-1"
+                  onClick={() => props.onStackTrace(req.err_stack!)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
+              </h4>
               <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-red-800 text-sm">{decodeBase64(req.err)}</pre>
             </div>
           ) : (
@@ -121,8 +126,8 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
         {logs.length > 0 &&
           <div className="mt-6">
             <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Logs</h4>
-            <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">
-              {logs.map((log, i) => renderLog(tr, log, i))}
+            <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-xs">
+              {logs.map((log, i) => renderLog(tr, log, i, props.onStackTrace))}
             </pre>
           </div>
         }
@@ -136,7 +141,7 @@ export default SpanDetail
 
 type gdata = {goid: number, start: number, end: number | undefined, events: Event[]}
 
-const EventMap: FunctionComponent<{req: Request, trace: Trace}> = (props) => {
+const EventMap: FunctionComponent<{req: Request, trace: Trace, onStackTrace: (s: Stack) => void}> = (props) => {
   const req = props.req
 
   // Compute the list of interesting goroutines
@@ -172,14 +177,14 @@ const EventMap: FunctionComponent<{req: Request, trace: Trace}> = (props) => {
       </div>
       {lines.map((g, i) => 
         <div key={g.goid} className={i > 0 ? "mt-1" : ""}>
-          <GoroutineDetail key={g.goid} g={g} req={req} trace={props.trace} />
+          <GoroutineDetail key={g.goid} g={g} req={req} trace={props.trace} onStackTrace={props.onStackTrace} />
         </div>
       )}
     </div>
   )
 }
 
-const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}> = (props) => {
+const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, onStackTrace: (s: Stack) => void}> = (props) => {
   const req = props.req
   const reqDur = req.end_time! - req.start_time
   const start = Math.round((props.g.start - req.start_time) / reqDur * 100)
@@ -201,7 +206,8 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
     }
 
     const el = tooltipRef.current
-    if (!el) {
+    const gel = goroutineEl.current
+    if (!el || !gel) {
       return
     }
 
@@ -209,7 +215,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
     setHoverObj(obj)
     const spanEl = (ev.target as HTMLElement)
     el.style.marginTop = `calc(${spanEl.offsetTop}px - 40px)`;
-    el.style.marginLeft = `calc(${spanEl.offsetLeft}px)`;
+    el.style.transform = `translateX(calc(-100% + ${gel.offsetLeft}px + ${spanEl.offsetLeft}px))`
   }
 
   const barEvents: (DBQuery | RPCCall | HTTPCall)[] = g.events.filter(e => e.type === "DBQuery" || e.type === "RPCCall" || e.type === "HTTPCall") as any
@@ -292,14 +298,14 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
       </div>
 
     </div>
-    <div ref={tooltipRef} className="absolute w-full max-w-md pr-2 z-30 transform -translate-x-full"
+    <div ref={tooltipRef} className="absolute w-full max-w-md pr-2 z-40"
         style={{paddingRight: "10px" /* extra padding to make it easier to hover into the tooltip */}}
         onMouseEnter={() => setTooltipOver(true)} onMouseLeave={() => setTooltipOver(false)}>
       {(barOver || tooltipOver) && 
-        <div className="bg-white w-full p-3 border border-gray-100 rounded-md shadow-lg">
+        <div className="bg-white w-full p-3 border border-gray-100 rounded-md shadow-lg overflow-auto">
           {hoverObj && "type" in hoverObj && (
-            hoverObj.type === "DBQuery" ? <DBQueryTooltip q={hoverObj} trace={props.trace} /> :
-            hoverObj.type === "RPCCall" ? <RPCCallTooltip call={hoverObj as RPCCall} req={req} trace={props.trace} /> :
+            hoverObj.type === "DBQuery" ? <DBQueryTooltip q={hoverObj} trace={props.trace} onStackTrace={props.onStackTrace} /> :
+            hoverObj.type === "RPCCall" ? <RPCCallTooltip call={hoverObj as RPCCall} req={req} trace={props.trace} onStackTrace={props.onStackTrace} /> :
             hoverObj.type === "HTTPCall" ? <HTTPCallTooltip call={hoverObj as HTTPCall} req={req} trace={props.trace} /> :
             null)}
         </div>
@@ -308,13 +314,17 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace}>
   </>
 }
 
-const DBQueryTooltip: FunctionComponent<{q: DBQuery, trace: Trace}> = (props) => {
+const DBQueryTooltip: FunctionComponent<{q: DBQuery, trace: Trace, onStackTrace: (s: Stack) => void}> = (props) => {
   const q = props.q
   return <div>
     <h3 className="flex items-center text-gray-800 font-bold text-lg">
       {icons.database("h-8 w-auto text-gray-400 mr-2")}
       DB Query
-      <div className="ml-auto text-sm font-normal text-gray-500">{q.end_time ? latencyStr(q.end_time - q.start_time) : "Unknown"}</div>
+      <div className="ml-auto text-sm font-normal text-gray-500 flex items-center">
+        {q.end_time ? latencyStr(q.end_time - q.start_time) : "Unknown"}
+        <button className="text-gray-600 hover:text-indigo-600 focus:outline-none -mr-1"
+          onClick={() => props.onStackTrace(q.stack)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
+      </div>
     </h3>
 
     <div className="mt-4">
@@ -343,7 +353,7 @@ const DBQueryTooltip: FunctionComponent<{q: DBQuery, trace: Trace}> = (props) =>
   </div>
 }
 
-const RPCCallTooltip: FunctionComponent<{call: RPCCall, req: Request, trace: Trace}> = (props) => {
+const RPCCallTooltip: FunctionComponent<{call: RPCCall, req: Request, trace: Trace; onStackTrace: (s: Stack) => void}> = (props) => {
   const c = props.call
   const target = props.req.children.find(r => r.id === c.req_id)
   const defLoc = props.trace.locations[c.def_loc]
@@ -361,7 +371,11 @@ const RPCCallTooltip: FunctionComponent<{call: RPCCall, req: Request, trace: Tra
       ) : (
         <span className="italic text-sm text-gray-500">Unknown Endpoint</span>
       )}
-      <div className="ml-auto text-sm font-normal text-gray-500">{c.end_time ? latencyStr(c.end_time - c.start_time) : "Unknown"}</div>
+      <div className="ml-auto text-sm font-normal text-gray-500 flex items-center">
+        {c.end_time ? latencyStr(c.end_time - c.start_time) : "Unknown"}
+        <button className="text-gray-600 hover:text-indigo-600 focus:outline-none -mr-1"
+          onClick={() => props.onStackTrace(c.stack)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
+      </div>
     </h3>
 
     <div className="mt-4">
@@ -455,23 +469,48 @@ const renderData = (data: Base64EncodedBytes[]) => {
   return <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">{pretty}</pre>
 }
 
-const renderLog = (tr: Trace, log: LogMessage, key: any) => {
+const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack) => void) => {
   let dt = timeToDate(tr.date)!
   const ms = (log.time - tr.start_time)/1000
   dt = dt.plus(Duration.fromMillis(ms))
-  return <div key={key}>
-    <span className="text-gray-400">{dt.toFormat("HH:mm:ss.SSS")}{" "}</span>
+  return <div key={key} className="flex items-center gap-x-1.5">
+    <button className="-ml-2 -mr-1 text-gray-600 hover:text-indigo-600 focus:outline-none"
+      onClick={() => onStackTrace(log.stack)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
+    <span className="text-gray-400">{dt.toFormat("HH:mm:ss.SSS")}</span>
     {
       log.level === "DEBUG" ? <span className="text-yellow-500">DBG</span> :
       log.level === "INFO" ? <span className="text-green-500">INF</span> :
       <span className="text-red-500">ERR</span>
     }
-    {" "}{log.msg}
+    {log.msg}
     {log.fields.map((f, i) =>
-      <>
-        {" "}<span className="text-blue-600">{f.key}</span><span className="text-gray-400">=</span>
-        {f.value}
-      </>
+      <span className="inline-flex items-center">
+        {f.stack ? <> 
+          <button className="text-red-800 hover:text-red-600 focus:outline-none"
+            onClick={() => onStackTrace(f.stack!)}>{icons.stackTrace("h-4 w-auto")}</button>
+          <span className="text-red-600">{f.key}</span>
+          <span className="text-gray-400">=</span>
+          <span className="text-red-600">{f.value}</span>
+        </> : <>
+          <span className="text-blue-600">{f.key}</span>
+          <span className="text-gray-400">=</span>
+          {f.value}
+        </>}
+      </span>
     )}
   </div>
+}
+
+function findCall(tr: Trace, id: string): RPCCall | undefined {
+  const queue = [tr.root]
+  while (queue.length > 0) {
+    const req = queue.shift()!
+    for (const e of req.events) {
+      if (e.type === "RPCCall" && e.req_id === id) {
+        return e
+      }
+    }
+    queue.push(...req.children)
+  }
+  return undefined
 }
