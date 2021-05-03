@@ -85,8 +85,8 @@ type commandOutputStream interface {
 }
 
 // streamCommandOutput streams the output from the given command stream,
-// and exits with the same exit code as the command.
-func streamCommandOutput(stream commandOutputStream) {
+// and reports the command's exit code.
+func streamCommandOutput(stream commandOutputStream) int {
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
@@ -94,9 +94,9 @@ func streamCommandOutput(stream commandOutputStream) {
 			switch {
 			case st.Code() == codes.FailedPrecondition:
 				fmt.Fprintln(os.Stderr, st.Message())
-				os.Exit(1)
+				return 1
 			case err == io.EOF || st.Code() == codes.Canceled:
-				return
+				return 0
 			default:
 				log.Fatal().Err(err).Msg("connection failure")
 			}
@@ -111,7 +111,7 @@ func streamCommandOutput(stream commandOutputStream) {
 				os.Stderr.Write(m.Output.Stderr)
 			}
 		case *daemonpb.CommandMessage_Exit:
-			os.Exit(int(m.Exit.Code))
+			return int(m.Exit.Code)
 		}
 	}
 }

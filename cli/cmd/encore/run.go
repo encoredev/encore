@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 
+	"encr.dev/cli/internal/onboarding"
 	daemonpb "encr.dev/proto/encore/daemon"
+	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -47,7 +50,17 @@ func runApp(appRoot, wd string, tunnel, watch bool) {
 		fatal(err)
 	}
 
-	streamCommandOutput(stream)
+	code := streamCommandOutput(stream)
+	if code == 0 {
+		if state, err := onboarding.Load(); err == nil {
+			if state.DeployHint.Set() {
+				if err := state.Write(); err == nil {
+					fmt.Println(aurora.Sprintf("\nHint: deploy your app to the cloud by running: %s", aurora.Cyan("git push encore")))
+				}
+			}
+		}
+	}
+	os.Exit(code)
 }
 
 func init() {

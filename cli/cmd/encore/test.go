@@ -45,7 +45,7 @@ func runTests(appRoot, testDir string, args []string) {
 	if err != nil {
 		fatal(err)
 	}
-	streamCommandOutput(stream)
+	os.Exit(streamCommandOutput(stream))
 }
 
 func init() {

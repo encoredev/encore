@@ -14,6 +14,7 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/update"
+	"encr.dev/cli/internal/version"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/proto/encore/server/remote"
@@ -30,11 +31,10 @@ var _ daemonpb.DaemonServer = (*Server)(nil)
 
 // Server implements daemonpb.DaemonServer.
 type Server struct {
-	version string
-	mgr     *run.Manager
-	cm      *sqldb.ClusterManager
-	sm      *secret.Manager
-	rc      remote.RemoteClient
+	mgr *run.Manager
+	cm  *sqldb.ClusterManager
+	sm  *secret.Manager
+	rc  remote.RemoteClient
 
 	mu       sync.Mutex
 	streams  map[string]*streamLog // run id -> stream
@@ -125,7 +125,7 @@ func (s *Server) SetSecret(ctx context.Context, req *daemonpb.SetSecretRequest) 
 
 // Version reports the daemon version.
 func (s *Server) Version(context.Context, *empty.Empty) (*daemonpb.VersionResponse, error) {
-	return &daemonpb.VersionResponse{Version: s.version}, nil
+	return &daemonpb.VersionResponse{Version: version.Version}, nil
 }
 
 // Logs streams logs from the encore.dev platform.
@@ -187,7 +187,7 @@ func (s *Server) availableUpdate() string {
 		}()
 	})
 
-	curr := s.version
+	curr := version.Version
 	latest := s.availableVer.Load().(string)
 	if semver.Compare(latest, curr) > 0 {
 		return latest

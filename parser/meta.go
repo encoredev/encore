@@ -118,6 +118,7 @@ func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 		}
 		r := &meta.RPC{
 			Name:           rpc.Name,
+			ServiceName:    rpc.Svc.Name,
 			Doc:            rpc.Doc,
 			AccessType:     accessType,
 			RequestSchema:  req,
