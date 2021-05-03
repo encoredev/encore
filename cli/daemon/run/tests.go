@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"encr.dev/cli/daemon/internal/appfile"
-	"encr.dev/cli/internal/env"
+	"encr.dev/cli/daemon/internal/env"
 	"encr.dev/compiler"
 	"encr.dev/parser"
 )

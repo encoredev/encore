@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/cli/daemon/internal/env"
 	"encr.dev/cli/daemon/runtime/trace"
 	"encr.dev/cli/internal/dedent"
-	"encr.dev/cli/internal/env"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	"github.com/alecthomas/chroma/formatters/html"
 	"github.com/alecthomas/chroma/lexers"
