@@ -310,7 +310,7 @@ class JSONDialect extends DialectIface {
     case BuiltinType.Uint32: return "1"
     case BuiltinType.Uint64: return "1"
     case BuiltinType.Float32: return "2.3"
-    case BuiltinType.Float64: return "fl2.3"
+    case BuiltinType.Float64: return "2.3"
     case BuiltinType.String: return "\"some-string\""
     case BuiltinType.Bytes: return "\"base64-encoded-bytes\""
     case BuiltinType.Time: return "\"2009-11-10T23:00:00Z\""

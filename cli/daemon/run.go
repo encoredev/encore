@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/internal/onboarding"
+	"encr.dev/cli/internal/version"
 	"encr.dev/parser"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -109,7 +112,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	if newVer != "" {
 		stdout.Write([]byte(aurora.Sprintf(
 			aurora.Yellow("New Encore release available: %s (you have %s)\nUpdate with: encore version update\n\n"),
-			newVer, s.version)))
+			newVer, version.Version)))
 	}
 
 	pid := run.Proc().Pid
@@ -118,6 +121,16 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	if req.Debug {
 		stdout.Write([]byte(fmt.Sprintf("Process ID:        %d\n", pid)))
 	}
+
+	go func() {
+		// Wait a little bit for the app to start
+		select {
+		case <-run.Done():
+			return
+		case <-time.After(5 * time.Second):
+			showFirstRunExperience(run, parse.Meta, stdout)
+		}
+	}()
 
 	// Wait for the run to close, or the database setup to fail.
 	select {
@@ -282,4 +295,33 @@ func requiresSQLDB(md *meta.Data) bool {
 		}
 	}
 	return false
+}
+
+func showFirstRunExperience(run *run.Run, md *meta.Data, stdout io.Writer) {
+	if state, err := onboarding.Load(); err == nil {
+		if !state.FirstRun.IsSet() {
+			// Is there a suitable endpoint to call?
+			var rpc *meta.RPC
+			var payload []byte
+			for _, svc := range md.Svcs {
+				for _, r := range svc.Rpcs {
+					if s := genSchema(md, r.RequestSchema); rpc == nil || len(s) < len(payload) {
+						rpc = r
+						payload = s
+					}
+				}
+			}
+			if rpc != nil {
+				state.FirstRun.Set()
+				if err := state.Write(); err == nil {
+					payloadArg := ""
+					if len(payload) > 0 {
+						payloadArg = fmt.Sprintf(" -d '%s'", payload)
+					}
+					stdout.Write([]byte(aurora.Sprintf("\nHint: make an API call by running: %s\n",
+						aurora.Cyan(fmt.Sprintf("curl http://localhost:%d/%s.%s%s", run.Port, rpc.ServiceName, rpc.Name, payloadArg)))))
+				}
+			}
+		}
+	}
 }
