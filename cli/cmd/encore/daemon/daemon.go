@@ -35,6 +35,9 @@ import (
 
 // Main runs the daemon.
 func Main() {
+	if err := redirectLogOutput(); err != nil {
+		log.Error().Err(err).Msg("could not setup daemon log file, skipping")
+	}
 	if err := runMain(); err != nil {
 		log.Fatal().Err(err).Msg("daemon failed")
 	}
@@ -298,4 +301,23 @@ func wrap(ctx context.Context) context.Context {
 		"goos", stdruntime.GOOS,
 		"goarch", stdruntime.GOARCH,
 	)
+}
+
+// redirectLogOutput redirects the global logger to also write to a file.
+func redirectLogOutput() error {
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return err
+	}
+	logPath := filepath.Join(cache, "encore", "daemon.log")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return err
+	}
+	log.Info().Msgf("writing output to %s", logPath)
+	log.Logger = log.Output(io.MultiWriter(zerolog.ConsoleWriter{Out: os.Stderr}, f))
+	return nil
 }

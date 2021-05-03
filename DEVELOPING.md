@@ -15,7 +15,7 @@ The environment variables are:
 `ENCORE_RUNTIME_PATH` can be set to location of the `compiler/runtime` package in this repository,
 while `ENCORE_GOROOT` must be pointed to where `encore-go` was built.
 
-For more information on this see [cli/internal/env/env.go](cli/internal/env/env.go).
+For more information on this see [cli/daemon/internal/env/env.go](cli/daemon/internal/env/env.go).
 
 ## Architecture
 

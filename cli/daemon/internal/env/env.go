@@ -2,9 +2,10 @@
 package env
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/rs/zerolog/log"
 )
 
 // EncoreRuntimePath reports the path to the Encore runtime.
@@ -15,9 +16,8 @@ func EncoreRuntimePath() string {
 	}
 	root, ok := determineRoot()
 	if !ok {
-		fmt.Fprintln(os.Stderr, "fatal: could not determine Encore install root.\n"+
+		log.Fatal().Msg("could not determine Encore install root. " +
 			"You can specify the path to the Encore runtime manually by setting the ENCORE_RUNTIME_PATH environment variable.")
-		os.Exit(1)
 	}
 	return filepath.Join(root, "runtime")
 }
@@ -30,9 +30,8 @@ func EncoreGoRoot() string {
 	}
 	root, ok := determineRoot()
 	if !ok {
-		fmt.Fprintln(os.Stderr, "fatal: could not determine Encore install root.\n"+
+		log.Fatal().Msg("could not determine Encore install root. " +
 			"You can specify the path to the Encore GOROOT manually by setting the ENCORE_GOROOT environment variable.")
-		os.Exit(1)
 	}
 	return filepath.Join(root, "encore-go")
 }
