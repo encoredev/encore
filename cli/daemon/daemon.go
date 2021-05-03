@@ -47,9 +47,8 @@ type Server struct {
 }
 
 // New creates a new Server.
-func New(version string, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager, rc remote.RemoteClient) *Server {
+func New(mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager, rc remote.RemoteClient) *Server {
 	srv := &Server{
-		version:  version,
 		mgr:      mgr,
 		cm:       cm,
 		sm:       sm,

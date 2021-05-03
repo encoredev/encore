@@ -9,14 +9,11 @@ import (
 	"time"
 
 	"encr.dev/cli/internal/update"
+	"encr.dev/cli/internal/version"
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 )
-
-// Version is the version of the encore binary.
-// It is set using `go build -ldflags "-X main.Version=v1.2.3"`.
-var Version string
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -26,17 +23,17 @@ var versionCmd = &cobra.Command{
 			ver string
 			err error
 		)
-		if Version != "" {
+		if version.Version != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			ver, err = update.Check(ctx)
 		}
 
-		fmt.Fprintln(os.Stdout, "encore version", Version)
+		fmt.Fprintln(os.Stdout, "encore version", version.Version)
 		if err != nil {
 			fatalf("could not check for update: %v", err)
-		} else if semver.Compare(ver, Version) > 0 {
-			fmt.Println(aurora.Sprintf(aurora.Yellow("Update available: %s -> %s\nUpdate with: encore version update"), Version, ver))
+		} else if semver.Compare(ver, version.Version) > 0 {
+			fmt.Println(aurora.Sprintf(aurora.Yellow("Update available: %s -> %s\nUpdate with: encore version update"), version.Version, ver))
 		}
 	},
 }
@@ -45,7 +42,7 @@ var versionUpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Checks for an update of encore and, if one is available, runs the appropriate command to update it.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if Version == "" {
+		if version.Version == "" {
 			fatal("cannot update development build, first install Encore from https://encore.dev/docs/intro/install")
 		}
 
@@ -55,7 +52,7 @@ var versionUpdateCmd = &cobra.Command{
 		if err != nil {
 			fatalf("could not check for update: %v", err)
 		}
-		if semver.Compare(ver, Version) > 0 {
+		if semver.Compare(ver, version.Version) > 0 {
 			doUpgrade(ver)
 		} else {
 			fmt.Println("Encore already up to date.")

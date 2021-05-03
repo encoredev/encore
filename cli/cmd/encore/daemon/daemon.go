@@ -1,12 +1,14 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	stdruntime "runtime"
 	"time"
 
 	"encr.dev/cli/daemon"
@@ -17,8 +19,10 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/conf"
+	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/proto/encore/server/remote"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -26,22 +30,23 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
 )
 
 // Main runs the daemon.
-func Main(version string) {
-	if err := runMain(version); err != nil {
+func Main() {
+	if err := runMain(); err != nil {
 		log.Fatal().Err(err).Msg("daemon failed")
 	}
 }
 
-func runMain(version string) (err error) {
+func runMain() (err error) {
 	// xit receives signals from the different subsystems
 	// that something went wrong and it's time to exit.
 	// Sending nil indicates it's time to gracefully exit.
 	exit := make(chan error)
 
-	d := &Daemon{exit: exit, Version: version}
+	d := &Daemon{exit: exit}
 	defer handleBailout(&err)
 	defer d.closeAll()
 
@@ -58,7 +63,6 @@ type Daemon struct {
 	Runtime *net.TCPListener
 	DBProxy *net.TCPListener
 	Dash    *net.TCPListener
-	Version string
 
 	Remote     remote.RemoteClient
 	Secret     *secret.Manager
@@ -93,7 +97,7 @@ func (d *Daemon) init() {
 		Secret:      d.Secret,
 	}
 	d.DashSrv = dash.NewServer(d.RunMgr, d.Trace)
-	d.Server = daemon.New(d.Version, d.RunMgr, d.ClusterMgr, d.Secret, d.Remote)
+	d.Server = daemon.New(d.RunMgr, d.ClusterMgr, d.Secret, d.Remote)
 }
 
 func (d *Daemon) serve() {
@@ -147,7 +151,7 @@ func (d *Daemon) setupRemoteClient() remote.RemoteClient {
 		fatalf("failed to dial encore server: %v", err)
 	}
 	d.closeOnExit(conn)
-	return remote.NewRemoteClient(conn)
+	return remoteWrapper{c: remote.NewRemoteClient(conn)}
 }
 
 func (d *Daemon) serveDaemon() {
@@ -252,4 +256,46 @@ func handleBailout(err *error) {
 			panic(e)
 		}
 	}
+}
+
+type remoteWrapper struct {
+	c remote.RemoteClient
+}
+
+var _ remote.RemoteClient = (*remoteWrapper)(nil)
+
+func (w remoteWrapper) Tunnel(ctx context.Context, opts ...grpc.CallOption) (remote.Remote_TunnelClient, error) {
+	return w.c.Tunnel(wrap(ctx), opts...)
+}
+
+func (w remoteWrapper) Meta(ctx context.Context, in *remote.MetaRequest, opts ...grpc.CallOption) (*meta.Data, error) {
+	return w.c.Meta(wrap(ctx), in, opts...)
+}
+
+func (w remoteWrapper) DBConnect(ctx context.Context, opts ...grpc.CallOption) (remote.Remote_DBConnectClient, error) {
+	return w.c.DBConnect(wrap(ctx), opts...)
+}
+
+func (w remoteWrapper) RecordTrace(ctx context.Context, in *remote.RecordTraceRequest, opts ...grpc.CallOption) (*remote.RecordTraceResponse, error) {
+	return w.c.RecordTrace(wrap(ctx), in, opts...)
+}
+
+func (w remoteWrapper) GetSecrets(ctx context.Context, in *remote.GetSecretsRequest, opts ...grpc.CallOption) (*remote.GetSecretsResponse, error) {
+	return w.c.GetSecrets(wrap(ctx), in, opts...)
+}
+
+func (w remoteWrapper) SetSecret(ctx context.Context, in *remote.SetSecretRequest, opts ...grpc.CallOption) (*remote.SetSecretResponse, error) {
+	return w.c.SetSecret(wrap(ctx), in, opts...)
+}
+
+func (w remoteWrapper) Logs(ctx context.Context, in *remote.LogsRequest, opts ...grpc.CallOption) (remote.Remote_LogsClient, error) {
+	return w.c.Logs(wrap(ctx), in, opts...)
+}
+
+func wrap(ctx context.Context) context.Context {
+	return metadata.AppendToOutgoingContext(ctx,
+		"version", version.Version,
+		"goos", stdruntime.GOOS,
+		"goarch", stdruntime.GOARCH,
+	)
 }

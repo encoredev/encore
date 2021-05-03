@@ -10,6 +10,7 @@ import (
 	"time"
 
 	daemonpkg "encr.dev/cli/cmd/encore/daemon"
+	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -25,7 +26,7 @@ var daemonCmd = &cobra.Command{
 	Short: "Starts the encore daemon",
 	Run: func(cc *cobra.Command, args []string) {
 		if daemonizeForeground {
-			daemonpkg.Main(Version)
+			daemonpkg.Main()
 		} else {
 			if err := daemonize(context.Background()); err != nil {
 				fatal(err)
@@ -98,7 +99,7 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 			// restart it otherwise.
 			cl := daemonpb.NewDaemonClient(cc)
 			if resp, err := cl.Version(ctx, &empty.Empty{}); err == nil {
-				if semver.Compare(Version, resp.Version) >= 0 {
+				if semver.Compare(version.Version, resp.Version) >= 0 {
 					return cl
 				}
 				fmt.Fprintf(os.Stderr, "encore: daemon is running an outdated version (%s), restarting.\n", resp.Version)

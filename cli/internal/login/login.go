@@ -11,8 +11,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 
 	"encr.dev/cli/internal/conf"
+	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/wgtunnel"
 	"golang.org/x/oauth2"
 )
@@ -163,7 +165,18 @@ func apiReq(endpoint string, reqParams, respParams interface{}) error {
 		body = bytes.NewReader(reqData)
 	}
 
-	resp, err := http.Post("https://api.encore.dev"+endpoint, "application/json", body)
+	req, err := http.NewRequest("POST", "https://api.encore.dev"+endpoint, body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Add a very limited amount of information for diagnostics
+	req.Header.Set("X-Encore-Version", version.Version)
+	req.Header.Set("X-Encore-GOOS", runtime.GOOS)
+	req.Header.Set("X-Encore-GOARCH", runtime.GOARCH)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
