@@ -191,7 +191,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
   const end = Math.round((props.g.end! - req.start_time) / reqDur * 100)
   const g = props.g
   const gdur = g.end! - g.start
-  const lineHeight = 18
+  const lineHeight = 22
 
   const tooltipRef = useRef<HTMLDivElement>(null)
   const goroutineEl = useRef<HTMLDivElement>(null)
@@ -247,7 +247,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
                 onMouseLeave={(e) => setHover(e, null)}
                 style={{
                   borderRadius: "3px",
-                  top: "3px", bottom: "3px",
+                  top: "2px", bottom: "2px",
                   left: start+"%", right: (100-end)+"%",
                   minWidth: "1px" // so it at least renders if start === stop
                 }} />
@@ -269,7 +269,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
                 onMouseLeave={(e) => setHover(e, null)}
                 style={{
                   borderRadius: "3px",
-                  top: "3px", bottom: "3px",
+                  top: "2px", bottom: "2px",
                   left: start+"%", right: (100-end)+"%",
                   minWidth: "1px" // so it at least renders if start === stop
                 }}
@@ -287,7 +287,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
                 onMouseLeave={(e) => setHover(e, null)}
                 style={{
                   borderRadius: "3px",
-                  top: "3px", bottom: "3px",
+                  top: "2px", bottom: "2px",
                   left: start+"%", right: (100-end)+"%",
                   minWidth: "1px" // so it at least renders if start === stop
                 }}
