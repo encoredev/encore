@@ -2,7 +2,7 @@
 
 <img align="right" width="189px" src="https://encore.dev/assets/img/encore-gopher.svg">
 
-[encore.dev](https://encore.dev) / [Slack](https://join.slack.com/t/encoredev/shared_invite/zt-c75mzbnb-kWCiGueYVJ4pUCIW45sb8A) / [Email](mailto:hello@encore.dev) / [Twitter](https://twitter.com/encoredotdev)
+[encore.dev](https://encore.dev) / [Slack](https://encore.dev/slack) / [Email](mailto:hello@encore.dev) / [Twitter](https://twitter.com/encoredotdev)
 
 Encore is a Go backend framework for rapidly creating APIs and distributed systems.
 
