@@ -40,6 +40,7 @@ type Package struct {
 	Files      []*File
 	Service    *Service // the service this package belongs to, if any
 	Secrets    []string
+	Resources  []Resource
 }
 
 // A Service is a Go package that defines one or more RPCs.
@@ -95,6 +96,7 @@ type Node struct {
 	// If Type == RPCDefNode or RPCCallNode,
 	// RPC is the RPC being defined or called.
 	RPC *RPC
+
 	// If Type == SQLDBNode or RLogNode,
 	// Func is the func name being called.
 	Func string
@@ -108,3 +110,27 @@ type AuthHandler struct {
 	File     *File
 	AuthData *Param // or nil
 }
+
+type Resource interface {
+	Type() ResourceType
+	File() *File
+	Ident() *ast.Ident
+}
+
+//go:generate stringer -type=ResourceType
+
+type ResourceType int
+
+const (
+	SQLDBResource ResourceType = iota + 1
+)
+
+type SQLDB struct {
+	DeclFile *File
+	DeclName *ast.Ident // where the resource is declared
+	DBName   string
+}
+
+func (r *SQLDB) Type() ResourceType { return SQLDBResource }
+func (r *SQLDB) File() *File        { return r.DeclFile }
+func (r *SQLDB) Ident() *ast.Ident  { return r.DeclName }

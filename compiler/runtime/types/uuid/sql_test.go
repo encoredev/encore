@@ -22,7 +22,6 @@
 package uuid
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 )

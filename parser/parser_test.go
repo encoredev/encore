@@ -140,6 +140,16 @@ func TestMain(m *testing.M) {
 					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v\n", svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path)
 				}
 			}
+			for _, pkg := range res.App.Packages {
+				for _, res := range pkg.Resources {
+					switch res := res.(type) {
+					case *est.SQLDB:
+						fmt.Fprintf(os.Stdout, "resource %s %s.%s db=%s", res.Type(), pkg.Name, res.Ident().Name, res.DBName)
+					default:
+						fmt.Fprintf(os.Stdout, "resource %s %s.%s\n", res.Type(), pkg.Name, res.Ident().Name)
+					}
+				}
+			}
 			return 0
 		},
 	}))
