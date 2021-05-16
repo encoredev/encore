@@ -173,7 +173,7 @@ func httpCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
 	rt.encodeEvents(&tb)
 	encoreTraceEvent(HTTPCallEnd, tb.Buf())
 
-	if req.Method != "HEAD" {
+	if req.Method != "HEAD" && resp != nil {
 		resp.Body = wrapRespBody(resp.Body, rt)
 	}
 }
@@ -194,13 +194,10 @@ func (rt *httpRoundTrip) ClosedBody(err error) {
 }
 
 func wrapRespBody(body io.ReadCloser, rt *httpRoundTrip) io.ReadCloser {
-	readWriteCloser, ok := body.(io.ReadWriteCloser)
-	if ok {
+	if readWriteCloser, ok := body.(io.ReadWriteCloser); ok {
 		return writerCloseTracker{readWriteCloser, rt}
-	} else {
-		return closeTracker{body, rt}
 	}
-
+	return closeTracker{body, rt}
 }
 
 type closeTracker struct {
