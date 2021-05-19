@@ -239,7 +239,7 @@ func (ts *ts) writeClient() {
 	ts.WriteByte('\n')
 
 	indent()
-	ts.WriteString("constructor(environment: string = \"production\", token?: string) {\n")
+	ts.WriteString("constructor(environment: string = \"prod\", token?: string) {\n")
 	numIndent++
 
 	indent()
