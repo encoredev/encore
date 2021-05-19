@@ -55,7 +55,7 @@ func DummyAPI(ctx context.Context, req *Request) error {
 	expect := `export default class Client {
     svc: svc.ServiceClient
 
-    constructor(environment: string = "production", token?: string) {
+    constructor(environment: string = "prod", token?: string) {
         const base = new BaseClient(environment, token)
         this.svc = new svc.ServiceClient(base)
     }
