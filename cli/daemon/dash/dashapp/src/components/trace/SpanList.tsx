@@ -83,7 +83,7 @@ const SpanList: FunctionComponent<Props> = (props) => {
   return (
     <div>
       {props.trace.auth && renderSpan(props.trace.auth, 0, [])}
-      {renderSpan(props.trace.root, 0, [])}
+      {props.trace.root !== null && renderSpan(props.trace.root, 0, [])}
     </div>
   )
 }

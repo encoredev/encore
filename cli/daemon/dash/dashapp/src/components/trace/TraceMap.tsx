@@ -45,10 +45,9 @@ const TraceMap: FunctionComponent<Props> = (props) => {
   }
 
   let [lines, setLines] = useState<Request[][]>([])
-  let roots = [root]
-  if (props.trace.auth !== null) {
-    roots.push(props.trace.auth)
-  }
+  let roots: Request[] = []
+  if (props.trace.root !== null) { roots.push(props.trace.root) }
+  if (props.trace.auth !== null) { roots.push(props.trace.auth) }
   useEffect(() => setLines(buildTraceMap(roots)), [props.trace])
 
   return (

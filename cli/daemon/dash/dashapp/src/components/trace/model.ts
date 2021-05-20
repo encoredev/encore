@@ -6,7 +6,7 @@ export interface Trace {
   date: string;
   start_time: number;
   end_time?: number;
-  root: Request;
+  root: Request | null;
   auth: Request | null;
   locations: {[key: number]: TraceExpr};
 }
