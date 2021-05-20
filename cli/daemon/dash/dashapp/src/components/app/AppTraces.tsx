@@ -1,15 +1,15 @@
 import React, { FC, useState } from 'react'
+import * as icons from "~c/icons"
 import { Modal } from '~c/Modal'
 import { Request, Stack, Trace } from '~c/trace/model'
 import SpanDetail from '~c/trace/SpanDetail'
 import SpanList from '~c/trace/SpanList'
-import TraceMap from '~c/trace/TraceMap'
 import StackTrace from '~c/trace/StackTrace'
+import TraceMap from '~c/trace/TraceMap'
 import { latencyStr } from '~c/trace/util'
 import { decodeBase64 } from '~lib/base64'
 import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
 import { timeToDate } from '~lib/time'
-import * as icons from "~c/icons"
 
 interface Props {
   appID: string;
@@ -62,11 +62,14 @@ export default class AppTraces extends React.Component<Props, State> {
           )}
           <ul className="divide-y divide-gray-200">
             {this.state.traces.map(tr => {
-              const loc = tr.locations[tr.root.def_loc]
+              const loc = tr.locations[(tr.root ?? tr.auth)!.def_loc]
               let endpoint = "<unknown endpoint>"
               if ("rpc_def" in loc) {
                 endpoint = loc.rpc_def.service_name + "." + loc.rpc_def.rpc_name
+              } else if ("auth_handler_def" in loc) {
+                endpoint = loc.auth_handler_def.service_name + "." + loc.auth_handler_def.name
               }
+
               return <li key={tr.id}>
                 <div className="px-4 py-4 sm:px-6 hover:bg-gray-50" onClick={() => this.setState({selected: tr})}>
                   <div className="flex items-center justify-between">
@@ -74,7 +77,7 @@ export default class AppTraces extends React.Component<Props, State> {
                       {endpoint}
                     </p>
                     <div className="ml-2 flex-shrink-0 flex">
-                      {tr.root.err === null ? (
+                      {tr.root?.err === null ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                           Success
                         </span>
@@ -118,14 +121,10 @@ interface TraceViewProps {
   close: () => void;
 }
 
-interface TraceViewState {
-  selected: Request;
-}
-
 const TraceView: FC<TraceViewProps> = (props) => {
   const tr = props.trace
   const dt = timeToDate(tr.date)!
-  const [selected, setSelected] = useState(tr.root)
+  const [selected, setSelected] = useState<Request>((tr.root ?? tr.auth)!)
   const [stack, setStack] = useState<Stack | undefined>(undefined)
 
   return (
@@ -151,7 +150,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
                   <th className="text-left text-sm font-light text-gray-400 pr-2">Recorded</th>
                   <td>{dt.toFormat("ff")}</td>
                 </tr>
-                {tr.auth !== null && <>
+                {tr.auth !== null && tr.auth.err === null && <>
                   <tr className="text-left font-normal">
                     <th className="text-left text-sm font-light text-gray-400 pr-2">User ID</th>
                     <td className="font-mono">{JSON.parse(decodeBase64(tr.auth.outputs[0]))}</td>

@@ -502,7 +502,9 @@ const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack
 }
 
 function findCall(tr: Trace, id: string): RPCCall | undefined {
-  const queue = [tr.root]
+  const queue: Request[] = []
+  if (tr.root !== null) { queue.push(tr.root) }
+
   while (queue.length > 0) {
     const req = queue.shift()!
     for (const e of req.events) {
