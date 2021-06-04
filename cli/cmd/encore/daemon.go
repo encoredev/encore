@@ -99,7 +99,7 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 			// restart it otherwise.
 			cl := daemonpb.NewDaemonClient(cc)
 			if resp, err := cl.Version(ctx, &empty.Empty{}); err == nil {
-				if semver.Compare(version.Version, resp.Version) >= 0 {
+				if semver.Compare(version.Version, resp.Version) <= 0 {
 					return cl
 				}
 				fmt.Fprintf(os.Stderr, "encore: daemon is running an outdated version (%s), restarting.\n", resp.Version)
