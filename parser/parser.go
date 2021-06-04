@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"go/ast"
 	goparser "go/parser"
 	"go/scanner"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -71,7 +73,10 @@ func (p *parser) Parse() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if _, ok := e.(bailout); !ok {
-				panic(e)
+				const size = 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+				err = fmt.Errorf("parser panicked:\n%s", buf)
 			}
 		}
 		if err == nil {
@@ -358,7 +363,7 @@ func (p *parser) parseReferences() {
 						}
 
 						// Is it a type in a different service?
-						if pkg2.Service != nil && pkg2.Service.Name != pkg.Service.Name {
+						if pkg2.Service != nil && !(pkg.Service != nil && pkg.Service.Name == pkg2.Service.Name) {
 							if decl, ok := p.names[pkg2].Decls[sel.Sel.Name]; ok {
 								switch decl.Type {
 								case token.CONST:
