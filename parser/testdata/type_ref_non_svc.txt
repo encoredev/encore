@@ -1,0 +1,28 @@
+parse
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type FooParams struct {
+    Name string
+}
+
+//encore:api public
+func Foo(ctx context.Context, p *FooParams) error { return nil }
+
+-- pkg/pkg.go --
+package pkg
+
+import (
+    "context"
+    "test/svc"
+)
+
+func Test() {
+    _ = &svc.FooParams{}
+}
