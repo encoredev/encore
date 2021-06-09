@@ -42,3 +42,22 @@ The Encore Compiler rewrites the source code based on the parsed
 Encore Syntax Tree to create a fully functioning application.
 It rewrites API calls & API handlers, injects instrumentation
 and secret values, and more.
+
+## Contributing
+
+### Building and Testing
+
+To build and test encore locally, npm is required. You can install node.js by following these architecture-specific [installation instructions](https://nodejs.org/en/download/package-manager/).
+
+Then build the Dash app:
+```
+$ cd $GOPATH/src/github.com/encoredev/encore/cli/daemon/dash/dashapp && npm install && npm run build
+```
+
+> ⚠️ If you are using npm v7, there is a known bug running esbuild post-install scripts (see https://github.com/evanw/esbuild/issues/462 and https://github.com/npm/cli/issues/2606). A workaround is to run `node node_modules/esbuild/install.js` manually after the `npm install` step above.
+
+Once the Dash app is built, you can build and test the encore packages using `go build` and `go test`:
+```
+$ go build ./...
+$ go test [-short] ./...
+```
