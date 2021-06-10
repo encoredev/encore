@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"net/url"
 	"strings"
 
 	"encr.dev/parser/est"
@@ -154,18 +155,53 @@ func validateDirective(d directive) error {
 	}
 }
 
+// validateRPCDirective ensures that the parsed RPC directive is valid.
+
 func validateRPCDirective(d *rpcDirective) error {
 	// We don't support private raw APIs for now
 	if d.Raw && d.Access == est.Private {
 		return errors.New("private APIs cannot be declared raw")
 	}
 
-	_, exists := d.Params[directiveParamPath]
+	path, exists := d.Params[directiveParamPath]
 	if exists && !d.Raw {
 		if !d.Raw {
 			return errors.New("path param can only currently be used with raw endpoints")
 		}
-		// TODO: Validate path
+		pathErr := validateRPCPath(path)
+		if pathErr != nil {
+			return pathErr
+		}
+	}
+	return nil
+}
+
+// Note that this does not include a comprehensive check for path validity but should cover
+// most common cases.
+func validateRPCPath(path string) error {
+	if path == "" {
+		return errors.New("path must be non-empty if specified")
+	}
+	// Use Go's parser to validate that the path is valid.
+	_, err := url.Parse(path)
+	if err != nil {
+		return err
+	}
+
+	// Additionally check that there is at most one wildcard
+	if strings.Count(path, "*") > 1 {
+		return errors.New("path must only contain a single wildcard operator")
+	}
+	parts := strings.Split(path, "/")
+	for _, p := range parts {
+		colonCount := strings.Count(p, ":")
+		if colonCount > 1 {
+			return errors.New("path segments can only contain a single ':' identifier")
+		}
+		// Ensure the colon is at the start of the string
+		if colonCount == 1 && !strings.HasPrefix(p, ":") {
+			return errors.New("identifiers ':' must be at the start of a path segment")
+		}
 	}
 	return nil
 }
