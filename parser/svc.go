@@ -87,6 +87,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 					Raw:    dir.Raw,
 					Func:   fd,
 					File:   f,
+					Path:   dir.Params[directiveParamPath],
 				}
 				p.validateRPC(rpc)
 				svc.RPCs = append(svc.RPCs, rpc)
@@ -133,6 +134,7 @@ func (p *parser) validateTypedRPC(rpc *est.RPC) {
 	- func(context.Context) (*ResponseData, error)
 	- func(context.Context, *RequestData) error
 	- func(context.Context, *RequestType) (*ResponseData, error)`
+
 	params := rpc.Func.Type.Params
 	numParams := params.NumFields()
 	if numParams == 0 {

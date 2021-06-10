@@ -1,0 +1,12 @@
+# Verify that one cannot use internal and raw RPCs
+
+! parse
+stderr 'path param can only currently be used with raw endpoints'
+
+-- svc/svc.go --
+package svc
+
+import "net/http"
+
+//encore:api public path=foo/bar
+func API(w http.ResponseWriter, req *http.Request) { }

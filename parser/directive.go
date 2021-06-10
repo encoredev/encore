@@ -10,6 +10,8 @@ import (
 	"encr.dev/parser/est"
 )
 
+const directiveParamPath = "path"
+
 // parseDirectives parses the encore:foo directives in cg.
 // It returns the parsed directive, if any, and the
 // remaining doc text after stripping the directive lines.
@@ -42,6 +44,10 @@ func (p *parser) parseDirectives(cg *ast.CommentGroup) (d directive, doc string)
 			if err != nil {
 				p.err(c.Pos(), err.Error())
 			}
+			err = validateDirective(dir)
+			if err != nil {
+				p.err(cg.Pos(), err.Error())
+			}
 		}
 	}
 	if dir != nil {
@@ -66,6 +72,11 @@ LineLoop:
 			if err != nil {
 				p.err(cg.Pos(), err.Error())
 			}
+			err = validateDirective(dir)
+			if err != nil {
+				p.err(cg.Pos(), err.Error())
+			}
+
 			continue LineLoop
 		}
 		docLines = append(docLines, line)
@@ -117,10 +128,7 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 				return nil, fmt.Errorf("unrecognized encore:api directive field: %q", field)
 			}
 		}
-		// We don't support private raw APIs for now
-		if rpc.Raw && rpc.Access == est.Private {
-			return nil, errors.New("private APIs cannot be declared raw")
-		}
+
 		return rpc, nil
 
 	case "authhandler":
@@ -133,6 +141,33 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 
 func isFieldParam(field string) bool {
 	return strings.Contains(field, "=")
+}
+
+func validateDirective(d directive) error {
+	switch td := d.(type) {
+	case *rpcDirective:
+		return validateRPCDirective(td)
+	case *authHandlerDirective:
+		return nil
+	default:
+		return errors.New("unexpected directive type")
+	}
+}
+
+func validateRPCDirective(d *rpcDirective) error {
+	// We don't support private raw APIs for now
+	if d.Raw && d.Access == est.Private {
+		return errors.New("private APIs cannot be declared raw")
+	}
+
+	_, exists := d.Params[directiveParamPath]
+	if exists && !d.Raw {
+		if !d.Raw {
+			return errors.New("path param can only currently be used with raw endpoints")
+		}
+		// TODO: Validate path
+	}
+	return nil
 }
 
 // The directive interface is a marker interface for the directive types we support.

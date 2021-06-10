@@ -73,6 +73,7 @@ type RPC struct {
 	File     *File
 	Access   AccessType
 	Raw      bool
+	Path     string
 	Request  *Param // request data; nil for Raw RPCs
 	Response *Param // response data; nil for Raw RPCs
 }
