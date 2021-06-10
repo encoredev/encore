@@ -164,7 +164,7 @@ func validateRPCDirective(d *rpcDirective) error {
 	}
 
 	path, exists := d.Params[directiveParamPath]
-	if exists && !d.Raw {
+	if exists {
 		if !d.Raw {
 			return errors.New("path param can only currently be used with raw endpoints")
 		}
