@@ -80,12 +80,12 @@ func TestParseDirectiveRPC(t *testing.T) {
 		},
 		{
 			desc:        "api with params, trailing =",
-			line:        "api public raw foo=bar==",
+			line:        "api public raw path=bar==",
 			expectedErr: "",
 			expected: &rpcDirective{
 				Access: est.Public,
 				Params: map[string]string{
-					"foo": "bar==",
+					"path": "bar==",
 				},
 				Raw:      true,
 				TokenPos: staticPos,
