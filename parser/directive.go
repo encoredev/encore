@@ -91,8 +91,19 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 		rpc := &rpcDirective{
 			TokenPos: pos,
 			Access:   est.Private,
+			Params:   map[string]string{},
 		}
 		for _, field := range fields[1:] {
+			if isFieldParam(field) {
+				parts := strings.SplitN(field, "=", 2)
+				_, exists := rpc.Params[parts[0]]
+				if exists {
+					return nil, errors.New("cannot declare duplicate parameter fields")
+				}
+				rpc.Params[parts[0]] = parts[1]
+				continue
+			}
+
 			switch field {
 			case "public":
 				rpc.Access = est.Public
@@ -120,6 +131,10 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 	}
 }
 
+func isFieldParam(field string) bool {
+	return strings.Contains(field, "=")
+}
+
 // The directive interface is a marker interface for the directive types we support.
 type directive interface {
 	Pos() token.Pos
@@ -131,6 +146,7 @@ type rpcDirective struct {
 	TokenPos token.Pos
 	Access   est.AccessType
 	Raw      bool
+	Params   map[string]string
 }
 
 // An authHandlerDirective is the parsed representation of the encore:authhandler directive.
