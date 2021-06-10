@@ -19,5 +19,6 @@ type Service struct {
 type Endpoint struct {
 	Name    string
 	Raw     bool
+	Path    string
 	Handler func(w http.ResponseWriter, req *http.Request)
 }
