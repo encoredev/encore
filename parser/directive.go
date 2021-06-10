@@ -156,7 +156,6 @@ func validateDirective(d directive) error {
 }
 
 // validateRPCDirective ensures that the parsed RPC directive is valid.
-
 func validateRPCDirective(d *rpcDirective) error {
 	// We don't support private raw APIs for now
 	if d.Raw && d.Access == est.Private {
