@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"encr.dev/parser/est"
+	"encr.dev/parser/paths"
 
 	qt "github.com/frankban/quicktest"
 )
@@ -49,40 +50,17 @@ func TestParseDirectiveRPC(t *testing.T) {
 			},
 		},
 		{
-			desc:        "api with params",
-			line:        "api public foo=bar",
-			expectedErr: "",
-			expected: &rpcDirective{
-				Access:   est.Public,
-				Raw:      false,
-				TokenPos: staticPos,
-			},
-		},
-		{
-			desc:        "api with multiple params",
-			line:        "api public foo=bar baz=qux",
-			expectedErr: "",
-			expected: &rpcDirective{
-				Access:   est.Public,
-				Raw:      false,
-				TokenPos: staticPos,
-			},
-		},
-		{
 			desc:        "api with params, trailing =",
-			line:        "api public raw path=bar==",
+			line:        "api public raw path=/bar",
 			expectedErr: "",
 			expected: &rpcDirective{
 				Access:   est.Public,
 				Raw:      true,
 				TokenPos: staticPos,
+				Path: &paths.Path{Pos: staticPos, Segments: []paths.Segment{
+					{Type: paths.Literal, Value: "bar"},
+				}},
 			},
-		},
-		{
-			desc:        "api with params (duplicate)",
-			line:        "api public foo=bar foo=baz",
-			expectedErr: "cannot declare duplicate parameter fields",
-			expected:    nil,
 		},
 	}
 	for _, tc := range testcases {
