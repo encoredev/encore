@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/parser/paths"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -73,7 +74,7 @@ type RPC struct {
 	File     *File
 	Access   AccessType
 	Raw      bool
-	Path     string
+	Path     *paths.Path
 	Request  *Param // request data; nil for Raw RPCs
 	Response *Param // response data; nil for Raw RPCs
 }

@@ -137,7 +137,7 @@ func TestMain(m *testing.M) {
 			}
 			for _, svc := range res.App.Services {
 				for _, rpc := range svc.RPCs {
-					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v\n", svc.Name, rpc.Name, rpc.Access, rpc.Raw)
+					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v\n", svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path)
 				}
 			}
 			return 0

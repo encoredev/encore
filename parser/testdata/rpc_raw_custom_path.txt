@@ -1,0 +1,12 @@
+# Verify that one can use custom paths for raw endpoints
+
+parse
+stdout 'rpc svc.API access=public raw=true path=/foo'
+
+-- svc/svc.go --
+package svc
+
+import "net/http"
+
+//encore:api public raw path=/foo
+func API(w http.ResponseWriter, req *http.Request) { }

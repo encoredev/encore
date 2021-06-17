@@ -16,6 +16,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
+	"encr.dev/parser/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 	"golang.org/x/tools/go/ast/astutil"
@@ -43,6 +44,7 @@ type parser struct {
 	authHandler *est.AuthHandler
 	declMap     map[string]*schema.Decl // pkg/path.Name -> decl
 	decls       []*schema.Decl
+	paths       paths.Set // RPC paths
 }
 
 // Config represents the configuration options for parsing.

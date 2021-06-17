@@ -9,6 +9,7 @@ import (
 	"encore.dev/internal/stack"
 	"encore.dev/runtime/config"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
 
 	// These imports are used only by the generated wrappers in the compiler,
@@ -72,6 +73,7 @@ type RequestData struct {
 	CallExprIdx     int32
 	EndpointExprIdx int32
 	Inputs          [][]byte
+	Params          httprouter.Params
 	UID             UID
 	AuthData        interface{}
 }
