@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"encr.dev/parser/est"
+	"encr.dev/parser/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -125,6 +126,7 @@ func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 			ResponseSchema: resp,
 			Proto:          proto,
 			Loc:            parseLoc(rpc.File, rpc.Func),
+			Path:           parsePath(rpc.Path),
 		}
 		s.Rpcs = append(s.Rpcs, r)
 	}
@@ -345,6 +347,25 @@ func parseLoc(f *est.File, node ast.Node) *schema.Loc {
 		SrcColStart:  int32(sPos.Column),
 		SrcColEnd:    int32(ePos.Column),
 	}
+}
+
+func parsePath(p *paths.Path) *meta.Path {
+	mp := &meta.Path{}
+	for _, seg := range p.Segments {
+		s := &meta.PathSegment{Value: seg.Value}
+		switch seg.Type {
+		case paths.Literal:
+			s.Type = meta.PathSegment_LITERAL
+		case paths.Param:
+			s.Type = meta.PathSegment_PARAM
+		case paths.Wildcard:
+			s.Type = meta.PathSegment_WILDCARD
+		default:
+			panic(fmt.Sprintf("unhandled path segment type %v", seg.Type))
+		}
+		mp.Segments = append(mp.Segments, s)
+	}
+	return mp
 }
 
 type refPair struct {
