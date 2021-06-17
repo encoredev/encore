@@ -1,0 +1,15 @@
+# Verify that one can use custom paths for raw endpoints
+
+! parse
+stderr 'invalid API path: cannot combine path segment ''svc.Bar'' with path ''/:foo'''
+
+-- svc/svc.go --
+package svc
+
+import "net/http"
+
+//encore:api public raw path=/:foo
+func Foo(w http.ResponseWriter, req *http.Request) { }
+
+//encore:api public
+func Bar(w http.ResponseWriter, req *http.Request) { }

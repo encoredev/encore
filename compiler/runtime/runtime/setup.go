@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,16 +21,9 @@ type Server struct {
 }
 
 func (srv *Server) handleRPC(service string, endpoint *config.Endpoint) {
-	logMsg := srv.logger.Info().Str("service", service).Str("endpoint", endpoint.Name)
-	if endpoint.Path != "" {
-		logMsg.Str("path", endpoint.Path)
-	}
+	logMsg := srv.logger.Info().Str("service", service).Str("endpoint", endpoint.Name).Str("path", endpoint.Path)
 	logMsg.Msg("registered endpoint")
-
-	key := fmt.Sprintf("/%s.%s", service, endpoint.Name)
-	srv.router.Handle("*", filepath.Join(key, endpoint.Path), func(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-		endpoint.Handler(w, req)
-	})
+	srv.router.Handle("POST", endpoint.Path, endpoint.Handler)
 }
 
 func (srv *Server) ListenAndServe() error {
@@ -80,12 +72,12 @@ func (srv *Server) setupConn() (io.ReadWriteCloser, error) {
 }
 
 func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
-	handler, _, ok := srv.router.Lookup("*", req.URL.Path)
-	if !ok {
+	h, p, _ := srv.router.Lookup("POST", req.URL.Path)
+	if h == nil {
 		http.Error(w, "Endpoint Not Found", http.StatusNotFound)
 		return
 	}
-	handler(w, req, nil)
+	h(w, req, p)
 }
 
 func Setup(cfg *config.ServerConfig) *Server {

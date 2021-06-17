@@ -54,6 +54,9 @@ func (b *builder) writeMainPkg() error {
 		"requiresAuth": func(rpc *est.RPC) bool {
 			return rpc.Access == est.Auth
 		},
+		"quote": func(s string) string {
+			return strconv.Quote(s)
+		},
 	}
 	tmpl := template.Must(template.New("mainPkg").Funcs(funcs).Parse(mainTmpl))
 	// Write the file to disk

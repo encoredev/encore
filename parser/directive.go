@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"net/url"
 	"strings"
 
 	"encr.dev/parser/est"
+	"encr.dev/parser/paths"
 )
 
 const directiveParamPath = "path"
@@ -103,19 +103,9 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 		rpc := &rpcDirective{
 			TokenPos: pos,
 			Access:   est.Private,
-			Params:   map[string]string{},
 		}
+	FieldLoop:
 		for _, field := range fields[1:] {
-			if isFieldParam(field) {
-				parts := strings.SplitN(field, "=", 2)
-				_, exists := rpc.Params[parts[0]]
-				if exists {
-					return nil, errors.New("cannot declare duplicate parameter fields")
-				}
-				rpc.Params[parts[0]] = parts[1]
-				continue
-			}
-
 			switch field {
 			case "public":
 				rpc.Access = est.Public
@@ -126,6 +116,18 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 			case "raw":
 				rpc.Raw = true
 			default:
+				if strings.Contains(field, "=") {
+					parts := strings.SplitN(field, "=", 2)
+					switch parts[0] {
+					case "path":
+						var err error
+						rpc.Path, err = paths.Parse(pos, parts[1])
+						if err != nil {
+							return nil, fmt.Errorf("invalid API path: %v", err)
+						}
+						continue FieldLoop
+					}
+				}
 				return nil, fmt.Errorf("unrecognized encore:api directive field: %q", field)
 			}
 		}
@@ -138,10 +140,6 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 		}
 		return &authHandlerDirective{TokenPos: pos}, nil
 	}
-}
-
-func isFieldParam(field string) bool {
-	return strings.Contains(field, "=")
 }
 
 func validateDirective(d directive) error {
@@ -157,52 +155,16 @@ func validateDirective(d directive) error {
 
 // validateRPCDirective ensures that the parsed RPC directive is valid.
 func validateRPCDirective(d *rpcDirective) error {
-	// We don't support private raw APIs for now
-	if d.Raw && d.Access == est.Private {
+	switch {
+	case d.Access == est.Private && d.Raw:
+		// We don't support private raw APIs for now
 		return errors.New("private APIs cannot be declared raw")
+	case d.Path != nil && !d.Raw:
+		// We only support custom paths for raw APIs for now.
+		return errors.New("API path can only be specified for raw APIs")
+	default:
+		return nil
 	}
-
-	path, exists := d.Params[directiveParamPath]
-	if exists {
-		if !d.Raw {
-			return errors.New("path param can only currently be used with raw endpoints")
-		}
-		pathErr := validateRPCPath(path)
-		if pathErr != nil {
-			return pathErr
-		}
-	}
-	return nil
-}
-
-// Note that this does not include a comprehensive check for path validity but should cover
-// most common cases.
-func validateRPCPath(path string) error {
-	if path == "" {
-		return errors.New("path must be non-empty if specified")
-	}
-	// Use Go's parser to validate that the path is valid.
-	_, err := url.Parse(path)
-	if err != nil {
-		return err
-	}
-
-	// Additionally check that there is at most one wildcard
-	if strings.Count(path, "*") > 1 {
-		return errors.New("path must only contain a single wildcard operator")
-	}
-	parts := strings.Split(path, "/")
-	for _, p := range parts {
-		colonCount := strings.Count(p, ":")
-		if colonCount > 1 {
-			return errors.New("path segments can only contain a single ':' identifier")
-		}
-		// Ensure the colon is at the start of the string
-		if colonCount == 1 && !strings.HasPrefix(p, ":") {
-			return errors.New("identifiers ':' must be at the start of a path segment")
-		}
-	}
-	return nil
 }
 
 // The directive interface is a marker interface for the directive types we support.
@@ -216,7 +178,7 @@ type rpcDirective struct {
 	TokenPos token.Pos
 	Access   est.AccessType
 	Raw      bool
-	Params   map[string]string
+	Path     *paths.Path // nil if not specified
 }
 
 // An authHandlerDirective is the parsed representation of the encore:authhandler directive.

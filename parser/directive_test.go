@@ -24,7 +24,6 @@ func TestParseDirectiveRPC(t *testing.T) {
 			expectedErr: "",
 			expected: &rpcDirective{
 				Access:   est.Public,
-				Params:   map[string]string{},
 				Raw:      false,
 				TokenPos: staticPos,
 			},
@@ -35,7 +34,6 @@ func TestParseDirectiveRPC(t *testing.T) {
 			expectedErr: "",
 			expected: &rpcDirective{
 				Access:   est.Private,
-				Params:   map[string]string{},
 				Raw:      false,
 				TokenPos: staticPos,
 			},
@@ -46,7 +44,6 @@ func TestParseDirectiveRPC(t *testing.T) {
 			expectedErr: "",
 			expected: &rpcDirective{
 				Access:   est.Public,
-				Params:   map[string]string{},
 				Raw:      true,
 				TokenPos: staticPos,
 			},
@@ -56,10 +53,7 @@ func TestParseDirectiveRPC(t *testing.T) {
 			line:        "api public foo=bar",
 			expectedErr: "",
 			expected: &rpcDirective{
-				Access: est.Public,
-				Params: map[string]string{
-					"foo": "bar",
-				},
+				Access:   est.Public,
 				Raw:      false,
 				TokenPos: staticPos,
 			},
@@ -69,11 +63,7 @@ func TestParseDirectiveRPC(t *testing.T) {
 			line:        "api public foo=bar baz=qux",
 			expectedErr: "",
 			expected: &rpcDirective{
-				Access: est.Public,
-				Params: map[string]string{
-					"foo": "bar",
-					"baz": "qux",
-				},
+				Access:   est.Public,
 				Raw:      false,
 				TokenPos: staticPos,
 			},
@@ -83,10 +73,7 @@ func TestParseDirectiveRPC(t *testing.T) {
 			line:        "api public raw path=bar==",
 			expectedErr: "",
 			expected: &rpcDirective{
-				Access: est.Public,
-				Params: map[string]string{
-					"path": "bar==",
-				},
+				Access:   est.Public,
 				Raw:      true,
 				TokenPos: staticPos,
 			},
@@ -109,71 +96,6 @@ func TestParseDirectiveRPC(t *testing.T) {
 			rpcDir, ok := dir.(*rpcDirective)
 			c.Assert(ok, qt.IsTrue)
 			c.Assert(rpcDir, qt.DeepEquals, tc.expected)
-		})
-	}
-}
-
-func TestValidateRPCPath(t *testing.T) {
-	testcases := []struct {
-		desc        string
-		path        string
-		expectedErr string
-	}{
-		{
-			desc:        "",
-			path:        "",
-			expectedErr: "path must be non-empty if specified",
-		},
-		{
-			desc:        "simple",
-			path:        "/test",
-			expectedErr: "",
-		},
-		{
-			desc:        "multi-segment",
-			path:        "/test/foo",
-			expectedErr: "",
-		},
-		{
-			desc:        "multi-segment with param",
-			path:        "/test/:foo",
-			expectedErr: "",
-		},
-		{
-			desc:        "multi-segment with multi params",
-			path:        "/test/:foo/:bar",
-			expectedErr: "",
-		},
-		{
-			desc:        "invalid param placement",
-			path:        "/test/fo:oo/:bar",
-			expectedErr: "identifiers ':' must be at the start of a path segment",
-		},
-		{
-			desc:        "invalid param placement",
-			path:        "/test/:fooo:",
-			expectedErr: "path segments can only contain a single ':' identifier",
-		},
-		{
-			desc:        "single wildcard",
-			path:        "/test/:foo/*name",
-			expectedErr: "",
-		},
-		{
-			desc:        "multi wildcard",
-			path:        "/test/*foo/*name",
-			expectedErr: "path must only contain a single wildcard operator",
-		},
-	}
-	for _, tc := range testcases {
-		t.Run(tc.desc, func(t *testing.T) {
-			c := qt.New(t)
-			err := validateRPCPath(tc.path)
-			if tc.expectedErr != "" {
-				c.Assert(err, qt.ErrorMatches, tc.expectedErr)
-				return
-			}
-			c.Assert(err, qt.IsNil)
 		})
 	}
 }

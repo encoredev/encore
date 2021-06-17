@@ -16,6 +16,7 @@ import (
 	"encore.dev/storage/sqldb"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/felixge/httpsnoop"
+	"github.com/julienschmidt/httprouter"
 
 	{{range .Imports -}}
 		{{if .Named}}{{.Name}} {{end}}"{{.Path}}"
@@ -33,6 +34,7 @@ var (
 	_ = strconv.Quote
 	_ = strings.HasPrefix
 	_ = httpsnoop.CaptureMetrics
+	_ = httprouter.CleanPath
 )
 
 var json = jsoniter.Config{
@@ -43,7 +45,7 @@ var json = jsoniter.Config{
 
 {{range .Svcs}}
 {{- range .RPCs}}
-func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) {
+func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 	var err error
@@ -84,6 +86,7 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) 
 		CallExprIdx:     0,
 		EndpointExprIdx: {{traceExpr .}},
 		Inputs:          nil,
+		Params:          ps,
 {{- if $.AuthHandler}}
 		UID:             uid,
 		AuthData:        authData,
@@ -118,6 +121,7 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request) 
 		CallExprIdx:     0,
 		EndpointExprIdx: {{traceExpr .}},
 		Inputs:          {{if .Request}}inputs{{else}}nil{{end}},
+		Params:          ps,
 {{- if $.AuthHandler}}
 		UID:             uid,
 		AuthData:        authData,
@@ -250,7 +254,7 @@ func main() {
 				{
 					Name: "{{.Name}}",
 					Raw: {{.Raw}},
-					Path: {{.Path}},
+					Path: {{quote .Path.String}},
 					Handler: __encore_{{.Svc.Name}}_{{.Name}},
 				},
 {{- end}}

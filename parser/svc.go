@@ -8,6 +8,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
+	"encr.dev/parser/paths"
 )
 
 // parseFeatures parses the application packages looking for Encore features
@@ -79,6 +80,23 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 
 			switch dir := dir.(type) {
 			case *rpcDirective:
+				path := dir.Path
+				if dir.Path == nil {
+					path = &paths.Path{Pos: dir.TokenPos, Segments: []paths.Segment{{
+						Type:  paths.Literal,
+						Value: svc.Name + "." + fd.Name.Name,
+					}}}
+				}
+				if err := p.paths.Add(path); err != nil {
+					if e, ok := err.(*paths.ConflictError); ok {
+						p.errf(e.Path.Pos, "invalid API path: "+e.Context+" (other declaration at %s)",
+							p.fset.Position(e.Other.Pos))
+					} else {
+						p.errf(e.Path.Pos, "invalid API path: %v", e)
+					}
+					continue
+				}
+
 				rpc := &est.RPC{
 					Svc:    svc,
 					Name:   fd.Name.Name,
@@ -87,7 +105,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 					Raw:    dir.Raw,
 					Func:   fd,
 					File:   f,
-					Path:   dir.Params[directiveParamPath],
+					Path:   path,
 				}
 				p.validateRPC(rpc)
 				svc.RPCs = append(svc.RPCs, rpc)
