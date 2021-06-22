@@ -17,6 +17,22 @@ while `ENCORE_GOROOT` must be pointed to where `encore-go` was built.
 
 For more information on this see [cli/daemon/internal/env/env.go](cli/daemon/internal/env/env.go).
 
+## Building from source
+
+To build from source, simply run `go build ./cli/cmd/encore`.
+
+To start the Encore daemon with the built binary, you must set the env variables as described above.
+*(The below is just an example; your disk locations will differ.)*
+
+```bash
+export ENCORE_RUNTIME_PATH=$HOME/src/encore.build/encr.dev/compiler/runtime # or whatever
+export ENCORE_GOROOT=$HOME/src/encore.build/encore-go/dist/$(go env GOOS)_$(go env GOARCH)/encore-go
+```
+
+Finally start the daemon with the built binary: `./encore daemon -f`.
+
+Note that running commands like `encore run` must use the same `encore` binary the daemon is running.
+
 ## Architecture
 
 The code base is divided into several parts:
