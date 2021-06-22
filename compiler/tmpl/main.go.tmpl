@@ -179,10 +179,12 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 	respData = append(respData, '\n')
 	output := [][]byte{respData}
 	runtime.FinishRequest(output, nil)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	w.Write(respData)
 {{- else}}
 	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 {{- end}}
 {{- end}}
