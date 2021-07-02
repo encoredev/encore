@@ -34,6 +34,8 @@ export interface RPC {
   response_schema?: Decl;
   proto: "REGULAR" | "RAW";
   loc: Loc;
+  path: Path;
+  http_methods: string[];
 }
 
 export interface QualifiedName {
@@ -53,4 +55,13 @@ export interface AuthHandler {
   doc: string;
   user_data?: Decl;
   loc: Loc;
+}
+
+export interface Path {
+  segments: PathSegment[];
+}
+
+export interface PathSegment {
+  type: "LITERAL" | "PARAM" | "WILDCARD";
+  value: string;
 }

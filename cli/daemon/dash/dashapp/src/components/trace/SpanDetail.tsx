@@ -105,7 +105,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
         ) : <>
           <div className="mt-6">
             <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Request</h4>
-            {req.inputs.length > 0 ? renderData(req.inputs) : <div className="text-gray-700 text-sm">No request data.</div>}
+            {req.inputs.length > 0 ? renderRequestPayload(tr, req, req.inputs) : <div className="text-gray-700 text-sm">No request data.</div>}
           </div>
           {req.err !== null ? (
             <div className="mt-4">
@@ -381,7 +381,7 @@ const RPCCallTooltip: FunctionComponent<{call: RPCCall, req: Request, trace: Tra
     <div className="mt-4">
       <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Request</h4>
       {target !== undefined ? (
-        target.inputs.length > 0 ? renderData(target.inputs) : <div className="text-gray-700 text-sm">No request data.</div>
+        target.inputs.length > 0 ? renderRequestPayload(props.trace, target, target.inputs) : <div className="text-gray-700 text-sm">No request data.</div>
       ) : <div className="text-gray-700 text-sm">Not captured.</div>
       }
     </div>
@@ -463,16 +463,51 @@ const renderData = (data: Base64EncodedBytes[]) => {
   const raw = decodeBase64(data[0])
   let pretty = raw
   try {
-    const json = JSON.parse(decodeBase64(data[0]))
+    const json = JSON.parse(raw)
     pretty = JSON.stringify(json, undefined, "  ")
   } catch(err) { /* do nothing */ }
   return <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">{pretty}</pre>
+}
+
+const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[]) => {
+  const raw = data.map(e => decodeBase64(e))
+  const svc = tr.meta.svcs.find(s => s.name === req.svc_name)
+  const rpc = svc?.rpcs.find(r => r.name === req.rpc_name)
+  const pathParams = rpc?.path.segments.filter(s => s.type !== "LITERAL")
+
+  if (pathParams === undefined) {
+    renderData([data[data.length-1]])
+    return
+  }
+
+  let payload: string | undefined = raw.length > pathParams.length ? raw[raw.length-1] : undefined
+  if (payload !== undefined) {
+    try {
+      const json = JSON.parse(payload)
+      payload = JSON.stringify(json, undefined, "  ")
+    } catch(err) { /* do nothing */ }
+  }
+
+  return (
+    <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">
+      {pathParams.map((s, i) => <div key={i}><span className="text-gray-400">{s.value}:</span> {raw[i]}</div>)}
+      {payload !== undefined && <div>{pathParams.length > 0 && <span className="text-gray-400">payload:{" "}</span>}{payload}</div>}
+    </pre>
+  )
 }
 
 const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack) => void) => {
   let dt = timeToDate(tr.date)!
   const ms = (log.time - tr.start_time)/1000
   dt = dt.plus(Duration.fromMillis(ms))
+
+  const render = (v: any) => {
+    if (typeof v === "object" && v !== null) {
+      return JSON.stringify(v)
+    }
+    return v
+  }
+
   return <div key={key} className="flex items-center gap-x-1.5">
     <button className="-ml-2 -mr-1 text-gray-600 hover:text-indigo-600 focus:outline-none"
       onClick={() => onStackTrace(log.stack)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
@@ -484,17 +519,17 @@ const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack
     }
     {log.msg}
     {log.fields.map((f, i) =>
-      <span className="inline-flex items-center">
+      <span key={i} className="inline-flex items-center">
         {f.stack ? <> 
           <button className="text-red-800 hover:text-red-600 focus:outline-none"
             onClick={() => onStackTrace(f.stack!)}>{icons.stackTrace("h-4 w-auto")}</button>
           <span className="text-red-600">{f.key}</span>
           <span className="text-gray-400">=</span>
-          <span className="text-red-600">{f.value}</span>
+          <span className="text-red-600">{render(f.value)}</span>
         </> : <>
           <span className="text-blue-600">{f.key}</span>
           <span className="text-gray-400">=</span>
-          {f.value}
+          {render(f.value)}
         </>}
       </span>
     )}

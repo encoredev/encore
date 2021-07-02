@@ -6,6 +6,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 
 	qt "github.com/frankban/quicktest"
 )
@@ -40,13 +41,25 @@ func TestParseDirectiveRPC(t *testing.T) {
 			},
 		},
 		{
-			desc:        "api raw endpoint",
-			line:        "api public raw",
+			desc:        "custom method",
+			line:        "api public method=FOO",
+			expectedErr: "",
+			expected: &rpcDirective{
+				Access:   est.Public,
+				Raw:      false,
+				TokenPos: staticPos,
+				Method:   []string{"FOO"},
+			},
+		},
+		{
+			desc:        "multiple methods",
+			line:        "api public raw method=GET,POST",
 			expectedErr: "",
 			expected: &rpcDirective{
 				Access:   est.Public,
 				Raw:      true,
 				TokenPos: staticPos,
+				Method:   []string{"GET", "POST"},
 			},
 		},
 		{
@@ -58,7 +71,7 @@ func TestParseDirectiveRPC(t *testing.T) {
 				Raw:      true,
 				TokenPos: staticPos,
 				Path: &paths.Path{Pos: staticPos, Segments: []paths.Segment{
-					{Type: paths.Literal, Value: "bar"},
+					{Type: paths.Literal, Value: "bar", ValueType: schema.Builtin_STRING},
 				}},
 			},
 		},

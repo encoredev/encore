@@ -48,15 +48,16 @@ message DBMigration {
 }
 
 message RPC {
-  string name = 1;                   // name of the RPC endpoint
-  string doc = 2;                    // associated documentation
-  string service_name = 3;           // the service the RPC belongs to.
-  AccessType access_type = 4;        // how can the RPC be accessed?
-  schema.v1.Decl request_schema = 5;    // request schema, or nil
-  schema.v1.Decl response_schema = 6;   // request schema, or nil
+  string name = 1;                    // name of the RPC endpoint
+  string doc = 2;                     // associated documentation
+  string service_name = 3;            // the service the RPC belongs to.
+  AccessType access_type = 4;         // how can the RPC be accessed?
+  schema.v1.Decl request_schema = 5;  // request schema, or nil
+  schema.v1.Decl response_schema = 6; // response schema, or nil
   Protocol proto = 7;
   schema.v1.Loc loc = 8;
   Path path = 9;
+  repeated string http_methods = 10;
 
   enum AccessType {
     PRIVATE = 0;
@@ -138,6 +139,21 @@ message PathSegment {
     WILDCARD = 2;
   }
 
+  enum ParamType {
+    STRING = 0;
+    BOOL = 1;
+    INT8 = 2;
+    INT16 = 3;
+    INT32 = 4;
+    INT64 = 5;
+    UINT8 = 6;
+    UINT16 = 7;
+    UINT32 = 8;
+    UINT64 = 9;
+    UUID = 10;
+  }
+
   SegmentType type = 1;
   string value = 2;
+  ParamType value_type = 3;
 }

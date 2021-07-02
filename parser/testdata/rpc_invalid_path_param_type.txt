@@ -1,0 +1,15 @@
+! parse
+stderr 'path parameter ''p'' must be a string, .+'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+type Struct struct{}
+
+//encore:api public path=/str/:p
+func Str(ctx context.Context, p *Struct) error { return nil }

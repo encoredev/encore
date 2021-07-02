@@ -143,8 +143,36 @@ func (ts *ts) writeService(svc *meta.Service) {
 		// Signature
 		indent()
 		fmt.Fprintf(ts, "public %s(", rpc.Name)
+
+		nParams := 0
+		var rpcPath strings.Builder
+		paramNames := make(map[string]bool)
+		for _, s := range rpc.Path.Segments {
+			rpcPath.WriteByte('/')
+			if s.Type != meta.PathSegment_LITERAL {
+				if nParams > 0 {
+					ts.WriteString(", ")
+				}
+				fmt.Fprintf(ts, "%s: string", s.Value)
+				paramNames[s.Value] = true
+				rpcPath.WriteString("${" + s.Value + "}")
+				nParams++
+			} else {
+				rpcPath.WriteString(s.Value)
+			}
+		}
+
+		// Avoid a name collision.
+		payloadName := "params"
+		for paramNames[payloadName] {
+			payloadName = "_" + payloadName
+		}
+
 		if rpc.RequestSchema != nil {
-			ts.WriteString("params: ")
+			if nParams > 0 {
+				ts.WriteString(", ")
+			}
+			ts.WriteString(payloadName + ": ")
 			ts.writeDecl(ns, rpc.RequestSchema)
 		}
 
@@ -159,15 +187,20 @@ func (ts *ts) writeService(svc *meta.Service) {
 		// Body
 		numIndent++
 		indent()
+		method := rpc.HttpMethods[0]
+		if method == "*" {
+			method = "POST"
+		}
 		if rpc.ResponseSchema == nil {
-			fmt.Fprintf(ts, `return this.baseClient.doVoid("%s.%s"`, svc.Name, rpc.Name)
+			ts.WriteString("return this.baseClient.doVoid")
 		} else {
 			ts.WriteString("return this.baseClient.do<")
 			ts.writeDecl(svc.Name, rpc.ResponseSchema)
-			fmt.Fprintf(ts, `>("%s.%s"`, svc.Name, rpc.Name)
+			ts.WriteByte('>')
 		}
+		fmt.Fprintf(ts, `("%s", `+"`%s`", method, rpcPath.String())
 		if rpc.RequestSchema != nil {
-			ts.WriteString(", params")
+			ts.WriteString(", " + payloadName)
 		}
 		ts.WriteString(")\n")
 		numIndent--
@@ -267,15 +300,15 @@ func (ts *ts) writeBaseClient() {
             this.headers["Authorization"] = "Bearer " + token
         }
         if (environment === "local") {
-            this.baseURL = "http://localhost:4060/"
+            this.baseURL = "http://localhost:4060"
         } else {
-            this.baseURL = ` + "`https://" + ts.appSlug + ".encoreapi.com/${environment}/`" + `
+            this.baseURL = ` + "`https://" + ts.appSlug + ".encoreapi.com/${environment}`" + `
         }
     }
 
-    public async do<T>(endpoint: string, req?: any): Promise<T> {
-        let response = await fetch(this.baseURL + endpoint, {
-            method: "POST",
+    public async do<T>(method: string, path: string, req?: any): Promise<T> {
+        let response = await fetch(this.baseURL + path, {
+            method: method,
             headers: this.headers,
             body: JSON.stringify(req || {})
         })
@@ -286,9 +319,9 @@ func (ts *ts) writeBaseClient() {
         return <T>(await response.json())
     }
 
-    public async doVoid(endpoint: string, req?: any): Promise<void> {
-        let response = await fetch(this.baseURL + endpoint, {
-            method: "POST",
+    public async doVoid(method: string, path: string, req?: any): Promise<void> {
+        let response = await fetch(this.baseURL + path, {
+            method: method,
             headers: this.headers,
             body: JSON.stringify(req || {})
         })
@@ -333,25 +366,9 @@ func (ts *ts) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			t = "any"
 		case schema.Builtin_BOOL:
 			t = "boolean"
-		case schema.Builtin_INT8:
-			t = "number"
-		case schema.Builtin_INT16:
-			t = "number"
-		case schema.Builtin_INT32:
-			t = "number"
-		case schema.Builtin_INT64:
-			t = "number"
-		case schema.Builtin_UINT8:
-			t = "number"
-		case schema.Builtin_UINT16:
-			t = "number"
-		case schema.Builtin_UINT32:
-			t = "number"
-		case schema.Builtin_UINT64:
-			t = "number"
-		case schema.Builtin_FLOAT32:
-			t = "number"
-		case schema.Builtin_FLOAT64:
+		case schema.Builtin_INT, schema.Builtin_INT8, schema.Builtin_INT16, schema.Builtin_INT32, schema.Builtin_INT64,
+			schema.Builtin_UINT, schema.Builtin_UINT8, schema.Builtin_UINT16, schema.Builtin_UINT32, schema.Builtin_UINT64,
+			schema.Builtin_FLOAT32, schema.Builtin_FLOAT64:
 			t = "number"
 		case schema.Builtin_STRING:
 			t = "string"

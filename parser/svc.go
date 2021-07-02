@@ -9,6 +9,7 @@ import (
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 // parseFeatures parses the application packages looking for Encore features
@@ -81,33 +82,28 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 			switch dir := dir.(type) {
 			case *rpcDirective:
 				path := dir.Path
-				if dir.Path == nil {
-					path = &paths.Path{Pos: dir.TokenPos, Segments: []paths.Segment{{
-						Type:  paths.Literal,
-						Value: svc.Name + "." + fd.Name.Name,
-					}}}
-				}
-				if err := p.paths.Add(path); err != nil {
-					if e, ok := err.(*paths.ConflictError); ok {
-						p.errf(e.Path.Pos, "invalid API path: "+e.Context+" (other declaration at %s)",
-							p.fset.Position(e.Other.Pos))
-					} else {
-						p.errf(e.Path.Pos, "invalid API path: %v", e)
+				if path == nil {
+					path = &paths.Path{
+						Pos: dir.TokenPos,
+						Segments: []paths.Segment{{
+							Type:  paths.Literal,
+							Value: svc.Name + "." + fd.Name.Name,
+						}},
 					}
-					continue
 				}
-
 				rpc := &est.RPC{
-					Svc:    svc,
-					Name:   fd.Name.Name,
-					Doc:    doc,
-					Access: dir.Access,
-					Raw:    dir.Raw,
-					Func:   fd,
-					File:   f,
-					Path:   path,
+					Svc:         svc,
+					Name:        fd.Name.Name,
+					Doc:         doc,
+					Access:      dir.Access,
+					Raw:         dir.Raw,
+					Func:        fd,
+					File:        f,
+					Path:        path,
+					HTTPMethods: dir.Method,
 				}
-				p.validateRPC(rpc)
+				p.initRPC(rpc, dir)
+
 				svc.RPCs = append(svc.RPCs, rpc)
 				isService = true
 
@@ -137,15 +133,26 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 	return isService
 }
 
-func (p *parser) validateRPC(rpc *est.RPC) {
+func (p *parser) initRPC(rpc *est.RPC, dir *rpcDirective) {
 	if rpc.Raw {
-		p.validateRawRPC(rpc)
+		p.initRawRPC(rpc)
 	} else {
-		p.validateTypedRPC(rpc)
+		p.initTypedRPC(rpc, dir)
+	}
+
+	for _, m := range rpc.HTTPMethods {
+		if err := p.paths.Add(m, rpc.Path); err != nil {
+			if e, ok := err.(*paths.ConflictError); ok {
+				p.errf(e.Path.Pos, "invalid API path: "+e.Context+" (other declaration at %s)",
+					p.fset.Position(e.Other.Pos))
+			} else {
+				p.errf(e.Path.Pos, "invalid API path: %v", e)
+			}
+		}
 	}
 }
 
-func (p *parser) validateTypedRPC(rpc *est.RPC) {
+func (p *parser) initTypedRPC(rpc *est.RPC, dir *rpcDirective) {
 	const sigHint = `
 	hint: valid signatures are:
 	- func(context.Context) error
@@ -181,19 +188,57 @@ func (p *parser) validateTypedRPC(rpc *est.RPC) {
 		return
 	}
 
-	// Second type must be *T or *pkg.T
-	if numParams >= 2 {
-		param, _ := getField(params, 1)
-		decl := p.resolveDecl(rpc.Svc.Root, rpc.File, param.Type)
-		if decl.Type.GetStruct() == nil {
-			p.err(param.Pos(), "request type must be a struct type")
+	// For each path parameter, expect a parameter to match it
+	var pathParams []*paths.Segment
+	for i := 0; i < len(rpc.Path.Segments); i++ {
+		if s := &rpc.Path.Segments[i]; s.Type != paths.Literal {
+			pathParams = append(pathParams, s)
 		}
+	}
 
-		_, isPtr := param.Type.(*ast.StarExpr)
-		rpc.Request = &est.Param{
-			IsPtr: isPtr,
-			Decl:  decl,
+	seenParams := 0
+	for i := 0; i < numParams-1; i++ {
+		param, name := getField(params, i+1)
+
+		// Is it a path parameter?
+		if i < len(pathParams) {
+			pp := pathParams[i]
+			if name != pp.Value {
+				p.errf(param.Pos(), "unexpected parameter name '%s', expected '%s' (to match path parameter '%s')",
+					name, pp.Value, pp.String())
+				continue
+			}
+			typ := p.resolveType(rpc.Svc.Root, rpc.File, param.Type)
+			if !p.validatePathParamType(param, name, typ, pp.Type) {
+				continue
+			}
+			pathParams[seenParams].ValueType = typ.GetBuiltin()
+			seenParams++
+		} else {
+			// Otherwise it must be a payload parameter
+			payloadIdx := i - len(pathParams)
+			if payloadIdx > 0 {
+				p.err(param.Pos(), "APIs cannot have multiple payload parameters")
+				continue
+			}
+			decl := p.resolveDecl(rpc.Svc.Root, rpc.File, param.Type)
+			if decl.Type.GetStruct() == nil {
+				p.err(param.Pos(), "payload parameter must be a struct type")
+				continue
+			}
+			_, isPtr := param.Type.(*ast.StarExpr)
+			rpc.Request = &est.Param{
+				IsPtr: isPtr,
+				Decl:  decl,
+			}
 		}
+	}
+	if seenParams < len(pathParams) {
+		var missing []string
+		for i := seenParams; i < len(pathParams); i++ {
+			missing = append(missing, pathParams[i].Value)
+		}
+		p.errf(req.Pos(), "invalid API signature: expected function parameters named '%s' to match API path params", strings.Join(missing, "', '"))
 	}
 
 	// First return value must be *T or *pkg.T
@@ -210,11 +255,7 @@ func (p *parser) validateTypedRPC(rpc *est.RPC) {
 		}
 	}
 
-	if numParams > 2 {
-		param, _ := getField(params, 2)
-		p.err(param.Pos(), "API signature cannot contain more than two parameters"+sigHint)
-		return
-	} else if numResults > 2 {
+	if numResults > 2 {
 		result, _ := getField(results, 2)
 		p.err(result.Pos(), "API signature cannot contain more than two results"+sigHint)
 		return
@@ -228,9 +269,46 @@ func (p *parser) validateTypedRPC(rpc *est.RPC) {
 		p.err(err.Pos(), "last result is not of type error (local name shadows builtin)"+sigHint)
 		return
 	}
+
+	if len(rpc.HTTPMethods) == 0 {
+		if rpc.Request != nil {
+			rpc.HTTPMethods = []string{"POST"}
+		} else {
+			rpc.HTTPMethods = []string{"GET", "POST"}
+		}
+	}
 }
 
-func (p *parser) validateRawRPC(rpc *est.RPC) {
+func (p *parser) validatePathParamType(param *ast.Field, name string, typ *schema.Type, segType paths.SegmentType) bool {
+	b := typ.GetBuiltin()
+
+	if segType == paths.Wildcard && b != schema.Builtin_STRING {
+		p.errf(param.Pos(), "wildcard path parameter '%s' must be a string", name)
+		return false
+	}
+
+	switch b {
+	case schema.Builtin_STRING,
+		schema.Builtin_INT,
+		schema.Builtin_INT8,
+		schema.Builtin_INT16,
+		schema.Builtin_INT32,
+		schema.Builtin_INT64,
+		schema.Builtin_UINT,
+		schema.Builtin_UINT8,
+		schema.Builtin_UINT16,
+		schema.Builtin_UINT32,
+		schema.Builtin_UINT64,
+		schema.Builtin_BOOL,
+		schema.Builtin_UUID:
+		return true
+	default:
+		p.errf(param.Pos(), "path parameter '%s' must be a string, bool, integer, or encore.dev/types/uuid.UUID", name)
+		return false
+	}
+}
+
+func (p *parser) initRawRPC(rpc *est.RPC) {
 	const sigHint = `
 	hint: signature must be func(http.ResponseWriter, *http.Request)`
 
@@ -276,6 +354,10 @@ func (p *parser) validateRawRPC(rpc *est.RPC) {
 			}
 			return
 		}
+	}
+
+	if len(rpc.HTTPMethods) == 0 {
+		rpc.HTTPMethods = []string{"*"}
 	}
 }
 

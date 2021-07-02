@@ -14,6 +14,7 @@ import (
 	"encr.dev/cli/daemon/runtime/trace"
 	"encr.dev/cli/internal/dedent"
 	tracepb "encr.dev/proto/encore/engine/trace"
+	v1 "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/alecthomas/chroma/formatters/html"
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
@@ -32,23 +33,29 @@ type Trace struct {
 	UserData  []byte    `json:"user_data"`
 
 	Locations map[int32]json.RawMessage `json:"locations"`
+	Meta      json.RawMessage           `json:"meta"`
 }
 
 type Request struct {
-	ID        string     `json:"id"`
-	Type      string     `json:"type"`
-	ParentID  *string    `json:"parent_id"`
-	Goid      uint32     `json:"goid"`
-	StartTime int64      `json:"start_time"`
-	EndTime   *int64     `json:"end_time,omitempty"`
-	CallLoc   *int32     `json:"call_loc"`
-	DefLoc    int32      `json:"def_loc"`
-	Inputs    [][]byte   `json:"inputs"`
-	Outputs   [][]byte   `json:"outputs"`
-	Err       []byte     `json:"err"`
-	ErrStack  *Stack     `json:"err_stack"`
-	Events    []Event    `json:"events"`
-	Children  []*Request `json:"children"`
+	ID        string  `json:"id"`
+	Type      string  `json:"type"`
+	ParentID  *string `json:"parent_id"`
+	Goid      uint32  `json:"goid"`
+	StartTime int64   `json:"start_time"`
+	EndTime   *int64  `json:"end_time,omitempty"`
+
+	SvcName string `json:"svc_name"`
+	RPCName string `json:"rpc_name"`
+
+	CallLoc *int32 `json:"call_loc"`
+	DefLoc  int32  `json:"def_loc"`
+
+	Inputs   [][]byte   `json:"inputs"`
+	Outputs  [][]byte   `json:"outputs"`
+	Err      []byte     `json:"err"`
+	ErrStack *Stack     `json:"err_stack"`
+	Events   []Event    `json:"events"`
+	Children []*Request `json:"children"`
 }
 
 type Goroutine struct {
@@ -171,7 +178,13 @@ func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 		Date: ct.Date,
 	}
 
-	tp := &traceParser{meta: ct}
+	tp := &traceParser{meta: ct, locs: make(map[int32]*v1.TraceNode)}
+	for _, pkg := range ct.Meta.Pkgs {
+		for _, e := range pkg.TraceNodes {
+			tp.locs[e.Id] = e
+		}
+	}
+
 	reqMap := make(map[string]*Request)
 	for _, req := range ct.Reqs {
 		if tp.startTime == 0 {
@@ -229,6 +242,13 @@ func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 		}
 	}
 	tr.Locations = locs
+
+	md, err := m.MarshalToString(ct.Meta)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal metadata")
+	}
+	tr.Meta = json.RawMessage(md)
+
 	return tr, nil
 }
 
@@ -236,6 +256,7 @@ type traceParser struct {
 	startTime int64
 	txCounter uint32
 	meta      *trace.TraceMeta
+	locs      map[int32]*v1.TraceNode
 }
 
 func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
@@ -248,6 +269,22 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		outputs = [][]byte{}
 	}
 
+	node, ok := tp.locs[req.DefLoc]
+	if !ok {
+		return nil, fmt.Errorf("unknown def_loc %v", req.DefLoc)
+	}
+	svcName, rpcName := "", ""
+	switch ctx := node.Context.(type) {
+	case *v1.TraceNode_RpcDef:
+		svcName = ctx.RpcDef.ServiceName
+		rpcName = ctx.RpcDef.RpcName
+	case *v1.TraceNode_AuthHandlerDef:
+		svcName = ctx.AuthHandlerDef.ServiceName
+		rpcName = ctx.AuthHandlerDef.Name
+	default:
+		return nil, fmt.Errorf("unexpected node context type %T", node.Context)
+	}
+
 	r := &Request{
 		Type:      req.Type.String(),
 		ID:        strconv.FormatUint(req.SpanId, 10),
@@ -255,14 +292,18 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		Goid:      req.Goid,
 		StartTime: tp.time(req.StartTime),
 		EndTime:   tp.maybeTime(req.EndTime),
-		CallLoc:   nullInt32(req.CallLoc),
-		DefLoc:    req.DefLoc,
-		Inputs:    inputs,
-		Outputs:   outputs,
-		Err:       nullBytes(req.Err),
-		Events:    []Event{},    // prevent marshalling as null
-		Children:  []*Request{}, // prevent marshalling as null
-		ErrStack:  tp.maybeStack(req.ErrStack),
+
+		SvcName: svcName,
+		RPCName: rpcName,
+		CallLoc: nullInt32(req.CallLoc),
+		DefLoc:  req.DefLoc,
+
+		Inputs:   inputs,
+		Outputs:  outputs,
+		Err:      nullBytes(req.Err),
+		Events:   []Event{},    // prevent marshalling as null
+		Children: []*Request{}, // prevent marshalling as null
+		ErrStack: tp.maybeStack(req.ErrStack),
 	}
 
 	for _, ev := range req.Events {
