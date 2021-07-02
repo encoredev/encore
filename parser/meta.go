@@ -127,6 +127,7 @@ func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 			Proto:          proto,
 			Loc:            parseLoc(rpc.File, rpc.Func),
 			Path:           parsePath(rpc.Path),
+			HttpMethods:    rpc.HTTPMethods,
 		}
 		s.Rpcs = append(s.Rpcs, r)
 	}

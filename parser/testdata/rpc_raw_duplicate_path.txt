@@ -11,5 +11,5 @@ import "net/http"
 //encore:api public raw path=/:foo
 func Foo(w http.ResponseWriter, req *http.Request) { }
 
-//encore:api public
+//encore:api public raw
 func Bar(w http.ResponseWriter, req *http.Request) { }

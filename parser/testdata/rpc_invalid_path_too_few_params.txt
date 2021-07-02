@@ -1,0 +1,13 @@
+! parse
+stderr 'invalid API signature: expected function parameters named ''foo'', ''bar'' to match API path params'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+//encore:api public path=/str/:foo/:bar
+func Str(ctx context.Context) error { return nil }

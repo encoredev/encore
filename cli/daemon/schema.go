@@ -86,8 +86,8 @@ func (r *schemaRenderer) renderBuiltin(b schema.Builtin) {
 		r.WriteString("<any data>")
 	case schema.Builtin_BOOL:
 		r.WriteBool(true)
-	case schema.Builtin_INT8, schema.Builtin_INT16, schema.Builtin_INT32, schema.Builtin_INT64,
-		schema.Builtin_UINT8, schema.Builtin_UINT16, schema.Builtin_UINT32, schema.Builtin_UINT64:
+	case schema.Builtin_INT, schema.Builtin_INT8, schema.Builtin_INT16, schema.Builtin_INT32, schema.Builtin_INT64,
+		schema.Builtin_UINT, schema.Builtin_UINT8, schema.Builtin_UINT16, schema.Builtin_UINT32, schema.Builtin_UINT64:
 		r.WriteInt(1)
 	case schema.Builtin_FLOAT32, schema.Builtin_FLOAT64:
 		r.WriteRaw("2.3")

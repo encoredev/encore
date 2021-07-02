@@ -1,3 +1,4 @@
+import { APIMeta } from "~c/api/api";
 import { Base64EncodedBytes } from "~lib/base64"
 
 export interface Trace {
@@ -9,6 +10,7 @@ export interface Trace {
   root: Request | null;
   auth: Request | null;
   locations: {[key: number]: TraceExpr};
+  meta: APIMeta;
 }
 
 export interface Request {
@@ -17,8 +19,12 @@ export interface Request {
   parent_id: string | null;
   goid: number;
   caller_goid: number | null;
+
+  svc_name: string;
+  rpc_name: string;
   def_loc: number;
   call_loc: number | null;
+
   start_time: number;
   end_time?: number;
   inputs: Base64EncodedBytes[];

@@ -79,53 +79,76 @@ export default class AppAPI extends React.Component<Props, State> {
                   }
                 </div>
 
-                {svc.rpcs.map(rpc =>
-                  <div key={rpc.name} className="border-t border-gray-300 py-10">
-                    <h3 id={svc.name+"."+rpc.name} className="text-2xl leading-10 font-sans font-medium text-gray-700 flex items-center">
-                      <span className="flex-grow truncate min-w-0">func {rpc.name}</span>
-                    </h3>
-                    <div className="md:flex md:items-stretch">
-                      <div className="flex-initial min-w-0 md:mr-12 w-full" style={{maxWidth: "600px"}}>
-                        {rpc.doc &&
-                          <p className="mb-6 leading-6">{rpc.doc}</p>
-                        }
+                {svc.rpcs.map(rpc => {
+                  const pathParams = rpc.path.segments.filter(p => p.type !== "LITERAL")
+                  return (
+                    <div key={rpc.name} className="border-t border-gray-300 py-10">
+                      <h3 id={svc.name+"."+rpc.name} className="text-2xl leading-10 font-sans font-medium text-gray-700 flex items-center">
+                        <span className="flex-grow truncate min-w-0">func {rpc.name}</span>
+                      </h3>
+                      <div className="md:flex md:items-stretch">
+                        <div className="flex-initial min-w-0 md:mr-12 w-full" style={{maxWidth: "600px"}}>
+                          {rpc.doc &&
+                            <p className="mb-6 leading-6">{rpc.doc}</p>
+                          }
 
-                        {rpc.proto === "RAW" ? (
-                          <div className="mt-4">
-                            <div className="flex leading-6 text-gray-900 text-sm">
-                              This API processes unstructured HTTP requests and therefore has no explicit schema.
-                            </div>
-                          </div>
-                        ) : (
-                          <>
+                          {rpc.proto === "RAW" ? (
                             <div className="mt-4">
-                              <h4 className="font-medium font-sans text-gray-700">Parameters</h4>
-                              <hr className="my-4 border-gray-200" />
-                              {rpc.request_schema ? <SchemaView meta={meta} decl={rpc.request_schema} dialect="table" /> :
-                                <div className="text-gray-400 text-sm">No parameters.</div>
-                              }
+                              <div className="flex leading-6 text-gray-900 text-sm">
+                                This API processes unstructured HTTP requests and therefore has no explicit schema.
+                              </div>
                             </div>
+                          ) : (
+                            <>
+                              {pathParams.length > 0 &&
+                                <div className="mt-4">
+                                  <h4 className="font-medium font-sans text-gray-700">Path Parameters</h4>
+                                  <hr className="my-4 border-gray-200" />
+                                  <div>
+                                    {pathParams.map((p, i) =>
+                                      <div className={i > 0 ? "border-t border-gray-200" : ""}>
+                                        <div className="flex leading-6 font-mono">
+                                          <div className="font-bold text-gray-900 text-sm">{p.value}</div>
+                                          <div className="ml-2 text-xs text-gray-500">string</div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {rpc.request_schema ? <SchemaView meta={meta} decl={rpc.request_schema} dialect="table" /> :
+                                    <div className="text-gray-400 text-sm">No parameters.</div>
+                                  }
+                                </div>
+                              }
 
-                            <div className="mt-12">
-                              <h4 className="font-medium font-sans text-gray-700">Response</h4>
-                              <hr className="my-4 border-gray-200" />
-                              {rpc.response_schema ? <SchemaView meta={meta} decl={rpc.response_schema} dialect="table" /> :
-                                <div className="text-gray-400 text-sm">No response.</div>
-                              }
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {rpc.proto !== "RAW" &&
-                        <div className="flex-initial min-w-0 mt-10 md:mt-0 w-full" style={{maxWidth: "600px"}}>
-                          <div className="sticky top-4">
-                            <RPCDemo conn={this.props.conn} appID={this.props.appID} meta={meta} svc={svc} rpc={rpc} />
-                          </div>
+                              <div className="mt-4">
+                                <h4 className="font-medium font-sans text-gray-700">Request</h4>
+                                <hr className="my-4 border-gray-200" />
+                                {rpc.request_schema ? <SchemaView meta={meta} decl={rpc.request_schema} dialect="table" /> :
+                                  <div className="text-gray-400 text-sm">No parameters.</div>
+                                }
+                              </div>
+
+                              <div className="mt-12">
+                                <h4 className="font-medium font-sans text-gray-700">Response</h4>
+                                <hr className="my-4 border-gray-200" />
+                                {rpc.response_schema ? <SchemaView meta={meta} decl={rpc.response_schema} dialect="table" /> :
+                                  <div className="text-gray-400 text-sm">No response.</div>
+                                }
+                              </div>
+                            </>
+                          )}
                         </div>
-                      }
+                        {rpc.proto !== "RAW" &&
+                          <div className="flex-initial min-w-0 mt-10 md:mt-0 w-full" style={{maxWidth: "600px"}}>
+                            <div className="sticky top-4">
+                              <RPCDemo conn={this.props.conn} appID={this.props.appID} meta={meta} svc={svc} rpc={rpc} />
+                            </div>
+                          </div>
+                        }
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })}
               </div>
             )
           })}

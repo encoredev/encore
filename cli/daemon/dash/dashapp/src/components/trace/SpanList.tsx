@@ -1,24 +1,36 @@
-import { FunctionComponent, useState } from "react"
+import React, { FC, FunctionComponent, useState } from "react"
+import * as icons from "~c/icons"
 import { Request, Trace } from "./model"
 import { svcColor } from "./util"
-import * as icons from "~c/icons"
-import React from "react"
 
 interface Props {
   trace: Trace;
-  selected?: Request;
-  onSelect?: (req: Request) => void;
+  selected: Request | undefined;
+  onSelect: (req: Request) => void;
 }
 
 const SpanList: FunctionComponent<Props> = (props) => {
-  const traceDur = props.trace.end_time! - props.trace.start_time
-  const [contracted, setContracted] = useState(new Map<string, boolean>())
+  return (
+    <div>
+      {props.trace.auth !== null && <SpanRow trace={props.trace} req={props.trace.auth} level={0} siblings={[]} selected={props.selected} onSelect={props.onSelect} />}
+      {props.trace.root !== null && <SpanRow trace={props.trace} req={props.trace.root} level={0} siblings={[]} selected={props.selected} onSelect={props.onSelect} />}
+    </div>
+  )
+}
 
-  let spanCounter = 0
-  const renderSpan: (req: Request, level: number, siblings: number[]) => JSX.Element = (req, level, siblings) => {
-    const start = Math.round((req.start_time - props.trace.start_time) / traceDur * 100)
-    const end = Math.round((req.end_time! - props.trace.start_time) / traceDur * 100)
-    const defLoc = props.trace.locations[req.def_loc]
+const SpanRow: FC<{
+  trace: Trace,
+  req: Request,
+  level: number,
+  siblings: number[],
+  selected: Request | undefined,
+  onSelect: (r: Request) => void,
+}> = ({trace, req, level, siblings, selected, onSelect}) => {
+    const [expanded, setExpanded] = useState(true)
+    const traceDur = trace.end_time! - trace.start_time
+    const start = Math.round((req.start_time - trace.start_time) / traceDur * 100)
+    const end = Math.round((req.end_time! - trace.start_time) / traceDur * 100)
+    const defLoc = trace.locations[req.def_loc]
 
     let svcName = "unknown", rpcName = "Unknown"
     if ("rpc_def" in defLoc) {
@@ -30,22 +42,18 @@ const SpanList: FunctionComponent<Props> = (props) => {
     }
 
     const [color, highlightColor] = svcColor(svcName)
-    const sel = props.selected?.id === req.id 
-
+    const sel = selected?.id === req.id
     const select = () => {
-      if (props.onSelect) props.onSelect(req)
-      contracted.set(req.id, !(contracted.get(req.id) ?? false))
-      setContracted(contracted)
+      onSelect(req)
+      setExpanded(!expanded)
     }
 
-    const isContracted = contracted.get(req.id) ?? false
-    const showChildren = !isContracted && req.children.length > 0
-    spanCounter++
-    return <React.Fragment key={req.id}>
+    const showChildren = expanded && req.children.length > 0
+    return <>
       <div className={`flex items-stretch p-4 cursor-pointer ${sel ? "bg-blue-50" : "hover:bg-gray-50"}`} onClick={select}>
         <TreeHint up={level > 0} down={showChildren} siblings={siblings} level={level} />
 
-        {(isContracted && req.children.length > 0) ?
+        {(expanded && req.children.length > 0) ?
           icons.chevronRight("h-4 w-auto ml-1 mr-0.5") :
           icons.chevronDown("h-4 w-auto ml-1 mr-0.5")
         }
@@ -58,12 +66,12 @@ const SpanList: FunctionComponent<Props> = (props) => {
           </div>
           <div className="flex-grow flex-shrink min-w-0">
             <style>{`
-              .spanlist-${spanCounter}       { background-color: ${sel ? highlightColor : color}; }
-              .spanlist-${spanCounter}:hover { background-color: ${highlightColor}; }
+              .spanlist-${req.id}       { background-color: ${sel ? highlightColor : color}; }
+              .spanlist-${req.id}:hover { background-color: ${highlightColor}; }
             `}</style>
             <div className="relative" style={{height: "8px"}}>
               <div className="absolute inset-x-0 bg-gray-200" style={{height: "1px", top: "3px"}} />
-              <div key={req.id} className={`absolute inset-y-0 spanlist-${spanCounter}`}
+              <div key={req.id} className={`absolute inset-y-0 spanlist-${req.id}`}
                   style={{
                     left: start+"%", right: (100-end)+"%",
                     minWidth: "2px", // so it at least renders if start === stop
@@ -75,17 +83,10 @@ const SpanList: FunctionComponent<Props> = (props) => {
       </div>
 
       {showChildren && req.children.map((ch, i) =>
-        renderSpan(ch, level+1, siblings.concat(i < (req.children.length-1) ? [level+1] : []))
+        <SpanRow trace={trace} req={ch} level={level+1} selected={selected} onSelect={onSelect}
+            siblings={siblings.concat(i < (req.children.length-1) ? [level+1] : [])} />
       )}
-    </React.Fragment>
-  }
-
-  return (
-    <div>
-      {props.trace.auth && renderSpan(props.trace.auth, 0, [])}
-      {props.trace.root !== null && renderSpan(props.trace.root, 0, [])}
-    </div>
-  )
+    </>
 }
 
 const TreeHint: FunctionComponent<{up: boolean, down: boolean, siblings: number[], level: number}> = (props) => {

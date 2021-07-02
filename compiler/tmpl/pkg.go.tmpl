@@ -12,10 +12,10 @@ import (
 
 {{range $rpcIdx, $rpc := .RPCs}}
 func __encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx context.Context
-	{{- if $rpc.Req}}, req {{$rpc.Req}}{{end}}) (
+	{{- range $idx, $typ := $rpc.Params}}, p{{$idx}} {{$typ}}{{end}}) (
 	{{- if $rpc.Resp}}resp {{$rpc.Resp}}, {{end}}err error) {
-{{- if $rpc.Req}}
-	inputs, err := runtime.SerializeInputs(req)
+{{- if $rpc.Params}}
+	inputs, err := runtime.SerializeInputs({{range $idx, $typ := $rpc.Params}}p{{$idx}},{{end}})
 	if err != nil {
 		return 
 	}
@@ -61,15 +61,19 @@ func __encore_{{$rpc.Svc}}_{{$rpc.Name}}(callExprIdx, endpointExprIdx int32, ctx
 			}
 		}()
 		
-{{- if $rpc.Req}}
-		var reqData {{$rpc.Req}}
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&reqData}); response.err != nil {
+{{- if $rpc.Params}}
+		var (
+{{- range $idx, $typ := $rpc.Params}}
+			r{{$idx}} {{$typ}}
+{{- end}}
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{ {{range $idx, $typ := $rpc.Params}}&r{{$idx}},{{end}} }); response.err != nil {
 			call.FinishReq(nil, response.err)
 			return
 		}
 {{- end}}
 
-		{{if $rpc.Resp}}rpcResp, {{end}}rpcErr := {{$rpc.Func}}(ctx{{if $rpc.Req}}, req{{end}})
+		{{if $rpc.Resp}}rpcResp, {{end}}rpcErr := {{$rpc.Func}}(ctx{{range $idx, $typ := $rpc.Params}}, p{{$idx}}{{end}})
 {{- if $rpc.Resp}}
 		response.data, _ = runtime.SerializeInputs(rpcResp)
 {{- end}}

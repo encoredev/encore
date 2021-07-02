@@ -1,0 +1,13 @@
+! parse
+stderr 'unexpected parameter name ''bar'', expected ''foo'' \(to match path parameter '':foo''\)'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+//encore:api public path=/str/:foo
+func Str(ctx context.Context, bar string) error { return nil }
