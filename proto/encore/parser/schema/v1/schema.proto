@@ -81,4 +81,7 @@ enum Builtin {
   UUID = 15;
   JSON = 16;
   USER_ID = 17;
+
+  INT = 18;
+  UINT = 19;
 }

@@ -3,22 +3,24 @@ package paths
 import (
 	"testing"
 
+	schema "encr.dev/proto/encore/parser/schema/v1"
 	qt "github.com/frankban/quicktest"
 )
 
 func TestParse(t *testing.T) {
 	c := qt.New(t)
 
+	str := schema.Builtin_STRING
 	tests := []struct {
 		Path string
 		Want []Segment
 		Err  string
 	}{
-		{"/foo", []Segment{{Literal, "foo"}}, ""},
+		{"/foo", []Segment{{Literal, "foo", str}}, ""},
 		{"/foo/", nil, "path cannot contain trailing slash"},
-		{"/foo/bar", []Segment{{Literal, "foo"}, {Literal, "bar"}}, ""},
+		{"/foo/bar", []Segment{{Literal, "foo", str}, {Literal, "bar", str}}, ""},
 		{"/foo//bar", nil, "path cannot contain double slash"},
-		{"/:foo/*bar", []Segment{{Param, "foo"}, {Wildcard, "bar"}}, ""},
+		{"/:foo/*bar", []Segment{{Param, "foo", str}, {Wildcard, "bar", str}}, ""},
 		{"/:foo/*", nil, "wildcard parameter must have a name"},
 		{"/:foo/*/bar", nil, "wildcard parameter must have a name"},
 		{"/:foo/*bar/baz", nil, "wildcard parameter must be the last path segment"},
@@ -46,19 +48,25 @@ func TestAdd(t *testing.T) {
 	c := qt.New(t)
 
 	paths := []struct {
-		Path string
-		Err  string
+		Method string
+		Path   string
+		Err    string
 	}{
-		{"/foo", ``},
-		{"/foo", `.+ /foo and /foo: duplicate path`},
-		{"/foo/bar", ``},
-		{"/foo/:bar", `.+ /foo/:bar and /foo/bar: cannot combine parameter ':bar' with path '/foo/bar'`},
-		{"/moo/:bar", ``},
-		{"/moo/:baz", `.+ /moo/:baz and /moo/:bar: duplicate path`},
-		{"/moo/:baz/test", ``},
-		{"/moo/:baa/*wild", `.+ /moo/:baa/\*wild and /moo/:baz/test: cannot combine wildcard '\*wild' with path '/moo/:baz/test'`},
-		{"/test/*wild", ``},
-		{"/test/*card", `.+ /test/\*card and /test/\*wild: cannot combine wildcard '\*card' with path '/test/\*wild'`},
+		{"POST", "/foo", ``},
+		{"POST", "/foo", `.+ /foo and /foo: duplicate path`},
+		{"GET", "/foo", ``},
+		{"*", "/foo", `.+ /foo and /foo: duplicate path`},
+		{"*", "/bar", ``},
+		{"PATCH", "/bar", `.+ /bar and /bar: duplicate path`},
+		{"POST", "/foo/bar", ``},
+		{"POST", "/foo/:bar", `.+ /foo/:bar and /foo/bar: cannot combine parameter ':bar' with path '/foo/bar'`},
+		{"POST", "/moo/:bar", ``},
+		{"POST", "/moo/:baz", `.+ /moo/:baz and /moo/:bar: duplicate path`},
+		{"POST", "/moo/:baz/test", ``},
+		{"POST", "/moo/:baa/*wild", `.+ /moo/:baa/\*wild and /moo/:baz/test: cannot combine wildcard '\*wild' with path '/moo/:baz/test'`},
+		{"GET", "/moo/:baa/*wild", ``},
+		{"POST", "/test/*wild", ``},
+		{"POST", "/test/*card", `.+ /test/\*card and /test/\*wild: cannot combine wildcard '\*card' with path '/test/\*wild'`},
 	}
 
 	set := &Set{}
@@ -66,11 +74,11 @@ func TestAdd(t *testing.T) {
 	for _, test := range paths {
 		p, err := Parse(0, test.Path)
 		c.Assert(err, qt.IsNil)
-		err = set.Add(p)
+		err = set.Add(test.Method, p)
 		if test.Err != "" {
-			c.Assert(err, qt.ErrorMatches, test.Err)
+			c.Assert(err, qt.ErrorMatches, test.Err, qt.Commentf("%s %s", test.Method, test.Path))
 		} else {
-			c.Assert(err, qt.IsNil)
+			c.Assert(err, qt.IsNil, qt.Commentf("%s %s", test.Method, test.Path))
 		}
 	}
 }

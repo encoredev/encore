@@ -107,7 +107,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	case "api-call":
 		var params struct {
 			AppID     string
-			Endpoint  string
+			Path      string
+			Method    string
 			Payload   []byte
 			AuthToken string
 		}
@@ -121,10 +122,10 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, fmt.Errorf("app not running"))
 		}
 
-		url := fmt.Sprintf("http://localhost:%d/%s", run.Port, params.Endpoint)
-		log := log.With().Str("appID", params.AppID).Str("endpoint", params.Endpoint).Logger()
+		url := fmt.Sprintf("http://localhost:%d%s", run.Port, params.Path)
+		log := log.With().Str("appID", params.AppID).Str("path", params.Path).Logger()
 
-		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(params.Payload))
+		req, err := http.NewRequestWithContext(ctx, params.Method, url, bytes.NewReader(params.Payload))
 		if err != nil {
 			log.Err(err).Msg("dash: api call failed")
 			return reply(ctx, nil, err)

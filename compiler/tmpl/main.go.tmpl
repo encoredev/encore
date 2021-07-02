@@ -14,6 +14,7 @@ import (
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"encore.dev/storage/sqldb"
+	"encore.dev/types/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/felixge/httpsnoop"
 	"github.com/julienschmidt/httprouter"
@@ -29,12 +30,14 @@ var (
 	_ = fmt.Errorf
 	_ = http.Error
 	_ = io.EOF
-	_ = errs.B
 	_ = ioutil.ReadAll
 	_ = strconv.Quote
 	_ = strings.HasPrefix
-	_ = httpsnoop.CaptureMetrics
+
+	_ = errs.B
+	_ = uuid.FromString
 	_ = httprouter.CleanPath
+	_ = httpsnoop.CaptureMetrics
 )
 
 var json = jsoniter.Config{
@@ -49,6 +52,31 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 	var err error
+
+{{- range $idx, $pp := pathParams .}}
+{{- with $fn := parseFunc $pp}}
+{{- if $fn.Name}}
+	{{if $fn.Cast}}pp{{else}}p{{end}}{{$idx}}, err := {{$fn.Name}}(ps[{{$idx}}].Value{{if $fn.Arg}}, {{$fn.Arg}}{{end}})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.InvalidArgument).Msg("invalid path parameter").Details(validationDetails{
+			Field: {{quote $pp.Value}},
+			Err: err.Error(),
+		}).Err())
+		return
+	}
+{{- with $fn.Cast}}
+	p{{$idx}} := {{.}}(pp{{$idx}})
+{{- end}}
+{{- else}}
+	p{{$idx}} := ps[{{$idx}}].Value
+{{- end}}
+{{- end}}
+{{- end}}
+{{- if ge ($idx := wildcardSegmentIdx .) 0}}
+	// Trim the leading slash from wildcard parameter as Encore semantics exclude it,
+	// while the httprouter implementation includes it.
+	ps[{{ $idx }}].Value = strings.TrimPrefix(ps[{{ $idx }}].Value, "/")
+{{- end}}
 {{- if $.AuthHandler}}
 
 	var (
@@ -86,7 +114,6 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 		CallExprIdx:     0,
 		EndpointExprIdx: {{traceExpr .}},
 		Inputs:          nil,
-		Params:          ps,
 {{- if $.AuthHandler}}
 		UID:             uid,
 		AuthData:        authData,
@@ -104,6 +131,11 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 	}
 	runtime.FinishHTTPRequest(nil, err, m.Code)
 {{- else }}
+	inputs, err := runtime.SerializeInputs({{range $idx, $typ := pathParams .}}p{{$idx}}, {{end}})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
 {{- if .Request}}
 
 	payload, err := ioutil.ReadAll(req.Body)
@@ -111,7 +143,7 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 		errs.HTTPError(w, errs.WrapCode(err, errs.InvalidArgument, "could not read request"))
 		return
 	}
-	inputs := [][]byte{payload}
+	inputs = append(inputs, payload)
 {{- end}}
 	
 	err = runtime.BeginRequest(runtime.RequestData{
@@ -120,8 +152,7 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 		Endpoint:        "{{.Name}}",
 		CallExprIdx:     0,
 		EndpointExprIdx: {{traceExpr .}},
-		Inputs:          {{if .Request}}inputs{{else}}nil{{end}},
-		Params:          ps,
+		Inputs:          inputs,
 {{- if $.AuthHandler}}
 		UID:             uid,
 		AuthData:        authData,
@@ -157,7 +188,7 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 			errs.HTTPError(w, err)
 		}
 	}()
-	{{if .Response}}resp, {{end}}respErr := {{pkgName .Svc.Root.ImportPath}}.{{.Name}}(req.Context(){{if .Request}}, params{{end}})
+	{{if .Response}}resp, {{end}}respErr := {{pkgName .Svc.Root.ImportPath}}.{{.Name}}(req.Context(){{range $idx, $pp := pathParams .}}, p{{$idx}}{{end}}{{if .Request}}, params{{end}})
 	if respErr != nil {
 		respErr = errs.Convert(respErr)
 		runtime.FinishRequest(nil, respErr)
@@ -255,6 +286,7 @@ func main() {
 					Name: "{{.Name}}",
 					Raw: {{.Raw}},
 					Path: {{quote .Path.String}},
+					Methods: []string{ {{range .HTTPMethods}}{{quote .}}, {{end}} },
 					Handler: __encore_{{.Svc.Name}}_{{.Name}},
 				},
 {{- end}}
@@ -271,3 +303,14 @@ func main() {
 	sqldb.Setup(cfg)
 	srv.ListenAndServe()
 }
+
+func parseWildcard(s string) (string, error) {
+	return strings.TrimPrefix(s, "/"), nil
+}
+
+type validationDetails struct {
+	Field string `json:"field"`
+	Err string `json:"err"`
+}
+
+func (validationDetails) ErrDetails() {}

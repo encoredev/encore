@@ -23,7 +23,9 @@ type Server struct {
 func (srv *Server) handleRPC(service string, endpoint *config.Endpoint) {
 	logMsg := srv.logger.Info().Str("service", service).Str("endpoint", endpoint.Name).Str("path", endpoint.Path)
 	logMsg.Msg("registered endpoint")
-	srv.router.Handle("POST", endpoint.Path, endpoint.Handler)
+	for _, m := range endpoint.Methods {
+		srv.router.Handle(m, endpoint.Path, endpoint.Handler)
+	}
 }
 
 func (srv *Server) ListenAndServe() error {
@@ -72,9 +74,16 @@ func (srv *Server) setupConn() (io.ReadWriteCloser, error) {
 }
 
 func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
-	h, p, _ := srv.router.Lookup("POST", req.URL.Path)
+	h, p, _ := srv.router.Lookup(req.Method, req.URL.Path)
 	if h == nil {
-		http.Error(w, "Endpoint Not Found", http.StatusNotFound)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		w.Write([]byte(`{
+  "code": "unknown_endpoint",
+  "message": "endpoint not found",
+  "details": null
+}
+`))
 		return
 	}
 	h(w, req, p)

@@ -67,16 +67,17 @@ const (
 )
 
 type RPC struct {
-	Svc      *Service
-	Name     string
-	Doc      string
-	Func     *ast.FuncDecl
-	File     *File
-	Access   AccessType
-	Raw      bool
-	Path     *paths.Path
-	Request  *Param // request data; nil for Raw RPCs
-	Response *Param // response data; nil for Raw RPCs
+	Svc         *Service
+	Name        string
+	Doc         string
+	Func        *ast.FuncDecl
+	File        *File
+	Access      AccessType
+	Raw         bool
+	Path        *paths.Path
+	HTTPMethods []string
+	Request     *Param // request data; nil for Raw RPCs
+	Response    *Param // response data; nil for Raw RPCs
 }
 
 type NodeType int

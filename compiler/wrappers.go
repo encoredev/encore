@@ -10,6 +10,8 @@ import (
 	"text/template"
 
 	"encr.dev/parser/est"
+	"encr.dev/parser/paths"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 var (
@@ -25,6 +27,12 @@ const mainPkgName = "__encore_main"
 
 func (b *builder) writeMainPkg() error {
 	imp := new(importMap)
+
+	type parseFn struct {
+		Name string
+		Arg  string
+		Cast string
+	}
 
 	funcs := template.FuncMap{
 		"pkgName": func(path string) string {
@@ -56,6 +64,62 @@ func (b *builder) writeMainPkg() error {
 		},
 		"quote": func(s string) string {
 			return strconv.Quote(s)
+		},
+		"pathParams": func(rpc *est.RPC) []paths.Segment {
+			segs := make([]paths.Segment, 0, len(rpc.Path.Segments))
+			for _, s := range rpc.Path.Segments {
+				if s.Type != paths.Literal {
+					segs = append(segs, s)
+				}
+			}
+			return segs
+		},
+		"parseFunc": func(s paths.Segment) parseFn {
+			if s.Type == paths.Wildcard {
+				return parseFn{"parseWildcard", "", ""}
+			}
+			switch s.ValueType {
+			case schema.Builtin_STRING:
+				return parseFn{"", "", ""}
+			case schema.Builtin_INT8:
+				return parseFn{"strconv.ParseInt", "10, 8", "int8"}
+			case schema.Builtin_INT16:
+				return parseFn{"strconv.ParseInt", "10, 16", "int16"}
+			case schema.Builtin_INT32:
+				return parseFn{"strconv.ParseInt", "10, 32", "int32"}
+			case schema.Builtin_INT64:
+				return parseFn{"strconv.ParseInt", "10, 64", ""}
+			case schema.Builtin_INT:
+				return parseFn{"strconv.ParseInt", "10, 64", "int"}
+			case schema.Builtin_UINT8:
+				return parseFn{"strconv.ParseUint", "10, 8", "uint8"}
+			case schema.Builtin_UINT16:
+				return parseFn{"strconv.ParseUint", "10, 16", "uint16"}
+			case schema.Builtin_UINT32:
+				return parseFn{"strconv.ParseUint", "10, 32", "uint32"}
+			case schema.Builtin_UINT64:
+				return parseFn{"strconv.ParseUint", "10, 64", ""}
+			case schema.Builtin_UINT:
+				return parseFn{"strconv.ParseUint", "10, 64", "uint"}
+			case schema.Builtin_BOOL:
+				return parseFn{"strconv.ParseBool", "", ""}
+			case schema.Builtin_UUID:
+				return parseFn{"uuid.FromString", "", ""}
+			default:
+				panic(fmt.Sprintf("unknown paths type %v", s.ValueType))
+			}
+		},
+		// wildcardSegmentIdx reports the path param index of the wildcard segment, or -1 if it doesn't exist.
+		"wildcardSegmentIdx": func(rpc *est.RPC) int {
+			idx := 0
+			for _, s := range rpc.Path.Segments {
+				if s.Type == paths.Wildcard {
+					return idx
+				} else if s.Type == paths.Param {
+					idx++
+				}
+			}
+			return -1
 		},
 	}
 	tmpl := template.Must(template.New("mainPkg").Funcs(funcs).Parse(mainTmpl))
@@ -110,11 +174,11 @@ func (b *builder) writeMainPkg() error {
 
 func (b *builder) generateWrappers(pkg *est.Package, rpcs []*est.RPC, wrapperPath string) (err error) {
 	type rpcDesc struct {
-		Name string
-		Svc  string
-		Req  string
-		Resp string
-		Func string
+		Name   string
+		Svc    string
+		Params []string
+		Resp   string
+		Func   string
 	}
 
 	tmpl := template.Must(template.New("pkg").Parse(pkgTmpl))
@@ -139,13 +203,22 @@ func (b *builder) generateWrappers(pkg *est.Package, rpcs []*est.RPC, wrapperPat
 		if n := imp.Add(rpcPkg.Name, rpcPkg.ImportPath); n.Name != "" {
 			fn = n.Name + "." + fn
 		}
-		rpcDescs = append(rpcDescs, &rpcDesc{
+
+		desc := &rpcDesc{
 			Name: rpc.Name,
 			Svc:  rpc.Svc.Name,
-			Req:  req,
 			Resp: resp,
 			Func: fn,
-		})
+		}
+		for _, p := range rpc.Path.Segments {
+			if p.Type != paths.Literal {
+				desc.Params = append(desc.Params, b.pathParamName(p.ValueType, imp))
+			}
+		}
+		if req != "" {
+			desc.Params = append(desc.Params, req)
+		}
+		rpcDescs = append(rpcDescs, desc)
 	}
 
 	tmplParams := struct {
@@ -288,4 +361,41 @@ func (b *builder) typeName(param *est.Param, imp *importMap) string {
 		return "*" + typName
 	}
 	return typName
+}
+
+func (b *builder) pathParamName(t schema.Builtin, imp *importMap) string {
+	switch t {
+	case schema.Builtin_STRING:
+		return "string"
+	case schema.Builtin_BOOL:
+		return "bool"
+	case schema.Builtin_INT8:
+		return "int8"
+	case schema.Builtin_INT16:
+		return "int16"
+	case schema.Builtin_INT32:
+		return "int32"
+	case schema.Builtin_INT64:
+		return "int64"
+	case schema.Builtin_INT:
+		return "int"
+	case schema.Builtin_UINT8:
+		return "uint8"
+	case schema.Builtin_UINT16:
+		return "uint16"
+	case schema.Builtin_UINT32:
+		return "uint32"
+	case schema.Builtin_UINT64:
+		return "uint64"
+	case schema.Builtin_UINT:
+		return "uint"
+	case schema.Builtin_UUID:
+		n := imp.Add("uuid", "encore.dev/types/uuid")
+		if n.Name != "" {
+			return n.Name + ".UUID"
+		}
+		return "UUID"
+	default:
+		panic(fmt.Sprintf("unexpected path param type %v", t))
+	}
 }

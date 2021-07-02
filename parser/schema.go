@@ -222,11 +222,12 @@ func getField(list *ast.FieldList, n int) (field *ast.Field, name string) {
 		if num == 0 {
 			num = 1
 		}
-		if n < (i + num) {
+		idx := n - i
+		if idx < num {
 			if len(f.Names) == 0 {
 				return f, ""
 			}
-			return f, f.Names[(i+num)-n-1].Name
+			return f, f.Names[idx].Name
 		}
 		i += num
 	}
@@ -246,12 +247,12 @@ func deref(expr ast.Expr) ast.Expr {
 
 var builtinTypes = map[string]schema.Builtin{
 	"bool":       schema.Builtin_BOOL,
-	"int":        schema.Builtin_INT64,
+	"int":        schema.Builtin_INT,
 	"int8":       schema.Builtin_INT8,
 	"int16":      schema.Builtin_INT16,
 	"int32":      schema.Builtin_INT32,
 	"int64":      schema.Builtin_INT64,
-	"uint":       schema.Builtin_UINT64,
+	"uint":       schema.Builtin_UINT,
 	"uint8":      schema.Builtin_UINT8,
 	"uint16":     schema.Builtin_UINT16,
 	"uint32":     schema.Builtin_UINT32,

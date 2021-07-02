@@ -60,7 +60,6 @@ func (p *parser) parseDirectives(cg *ast.CommentGroup) (d directive, doc string)
 	lines := strings.Split(cg.Text(), "\n")
 	var docLines []string
 
-LineLoop:
 	for _, line := range lines {
 		const prefix = "encore:"
 		if strings.HasPrefix(line, prefix) {
@@ -72,13 +71,15 @@ LineLoop:
 			dir, err = parseDirective(cg.Pos(), line[len(prefix):])
 			if err != nil {
 				p.err(cg.Pos(), err.Error())
+				continue
 			}
 			err = validateDirective(dir)
 			if err != nil {
 				p.err(cg.Pos(), err.Error())
+				continue
 			}
 
-			continue LineLoop
+			continue
 		}
 		docLines = append(docLines, line)
 	}
@@ -104,7 +105,6 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 			TokenPos: pos,
 			Access:   est.Private,
 		}
-	FieldLoop:
 		for _, field := range fields[1:] {
 			switch field {
 			case "public":
@@ -125,10 +125,14 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 						if err != nil {
 							return nil, fmt.Errorf("invalid API path: %v", err)
 						}
-						continue FieldLoop
+					case "method":
+						rpc.Method = strings.Split(parts[1], ",")
+					default:
+						return nil, fmt.Errorf("unrecognized encore:api directive field: %q", parts[0])
 					}
+				} else {
+					return nil, fmt.Errorf("unrecognized encore:api directive field: %q", field)
 				}
-				return nil, fmt.Errorf("unrecognized encore:api directive field: %q", field)
 			}
 		}
 
@@ -155,16 +159,22 @@ func validateDirective(d directive) error {
 
 // validateRPCDirective ensures that the parsed RPC directive is valid.
 func validateRPCDirective(d *rpcDirective) error {
-	switch {
-	case d.Access == est.Private && d.Raw:
+	if d.Access == est.Private && d.Raw {
 		// We don't support private raw APIs for now
 		return errors.New("private APIs cannot be declared raw")
-	case d.Path != nil && !d.Raw:
-		// We only support custom paths for raw APIs for now.
-		return errors.New("API path can only be specified for raw APIs")
-	default:
-		return nil
 	}
+
+	for _, m := range d.Method {
+		for _, c := range m {
+			if !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') {
+				return fmt.Errorf("invalid API method: %q", m)
+			} else if !(c >= 'A' && c <= 'Z') {
+				return errors.New("methods must be ALLCAPS")
+			}
+		}
+	}
+
+	return nil
 }
 
 // The directive interface is a marker interface for the directive types we support.
@@ -178,6 +188,7 @@ type rpcDirective struct {
 	TokenPos token.Pos
 	Access   est.AccessType
 	Raw      bool
+	Method   []string
 	Path     *paths.Path // nil if not specified
 }
 

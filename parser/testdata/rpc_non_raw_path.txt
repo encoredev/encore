@@ -1,12 +1,9 @@
-# Verify that one cannot use internal and raw RPCs
-
-! parse
-stderr 'API path can only be specified for raw APIs'
+parse
 
 -- svc/svc.go --
 package svc
 
-import "net/http"
+import "context"
 
 //encore:api public path=/foo/bar
-func API(w http.ResponseWriter, req *http.Request) { }
+func API(ctx context.Context) error { return nil }

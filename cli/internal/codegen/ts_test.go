@@ -76,7 +76,7 @@ export namespace svc {
         }
 
         public DummyAPI(params: Request): Promise<void> {
-            return this.baseClient.doVoid("svc.DummyAPI", params)
+            return this.baseClient.doVoid("POST", ` + "`/svc.DummyAPI`" + `, params)
         }
     }
 }
@@ -91,15 +91,15 @@ class BaseClient {
             this.headers["Authorization"] = "Bearer " + token
         }
         if (environment === "local") {
-            this.baseURL = "http://localhost:4060/"
+            this.baseURL = "http://localhost:4060"
         } else {
-            this.baseURL = ` + "`" + `https://app.encoreapi.com/${environment}/` + "`" + `
+            this.baseURL = ` + "`" + `https://app.encoreapi.com/${environment}` + "`" + `
         }
     }
 
-    public async do<T>(endpoint: string, req?: any): Promise<T> {
-        let response = await fetch(this.baseURL + endpoint, {
-            method: "POST",
+    public async do<T>(method: string, path: string, req?: any): Promise<T> {
+        let response = await fetch(this.baseURL + path, {
+            method: method,
             headers: this.headers,
             body: JSON.stringify(req || {})
         })
@@ -110,9 +110,9 @@ class BaseClient {
         return <T>(await response.json())
     }
 
-    public async doVoid(endpoint: string, req?: any): Promise<void> {
-        let response = await fetch(this.baseURL + endpoint, {
-            method: "POST",
+    public async doVoid(method: string, path: string, req?: any): Promise<void> {
+        let response = await fetch(this.baseURL + path, {
+            method: method,
             headers: this.headers,
             body: JSON.stringify(req || {})
         })
