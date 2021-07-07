@@ -20,10 +20,16 @@ type Server struct {
 	router *httprouter.Router
 }
 
+// wildcardMethod is an internal method name we register wildcard methods under.
+const wildcardMethod = "__ENCORE_WILDCARD__"
+
 func (srv *Server) handleRPC(service string, endpoint *config.Endpoint) {
 	logMsg := srv.logger.Info().Str("service", service).Str("endpoint", endpoint.Name).Str("path", endpoint.Path)
 	logMsg.Msg("registered endpoint")
 	for _, m := range endpoint.Methods {
+		if m == "*" {
+			m = wildcardMethod
+		}
 		srv.router.Handle(m, endpoint.Path, endpoint.Handler)
 	}
 }
@@ -75,6 +81,9 @@ func (srv *Server) setupConn() (io.ReadWriteCloser, error) {
 
 func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 	h, p, _ := srv.router.Lookup(req.Method, req.URL.Path)
+	if h == nil {
+		h, p, _ = srv.router.Lookup(wildcardMethod, req.URL.Path)
+	}
 	if h == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
