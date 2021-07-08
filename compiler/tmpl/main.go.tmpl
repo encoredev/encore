@@ -124,13 +124,18 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 		return
 	}
 
+{{- with $params := pathParams .}}
+	// Raw endpoints don't use the path parameters in the function call to the handler
+	{{range $idx, $pp := $params}}{{if gt $idx 0}}, {{end}}_{{end}} = {{range $idx, $pp := $params}}{{if gt $idx 0}}, {{end}}p{{$idx}}{{end}}
+{{- end}}
+
 	// Call the endpoint
 	m := httpsnoop.CaptureMetrics(http.HandlerFunc({{.Svc.Name}}.{{.Name}}), w, req)
 	if m.Code >= 400 {
 		err = fmt.Errorf("response status code %d", m.Code)
 	}
 	runtime.FinishHTTPRequest(nil, err, m.Code)
-{{- else }}
+{{- else}}
 	inputs, err := runtime.SerializeInputs({{range $idx, $typ := pathParams .}}p{{$idx}}, {{end}})
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
