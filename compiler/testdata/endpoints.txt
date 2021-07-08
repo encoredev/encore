@@ -1,0 +1,63 @@
+build
+
+-- go.mod --
+module test
+
+require "encore.dev" v0.0.0
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"net/http"
+
+	"encore.dev/rlog"
+	"encore.dev/types/uuid"
+)
+
+type FooParams struct {
+	Name string
+}
+
+//encore:api public
+func One(ctx context.Context) error {
+	rlog.Info("one")
+	return nil
+}
+
+//encore:api public
+func Two(ctx context.Context, p *FooParams) error {
+	rlog.Info("two", "p", p)
+	return nil
+}
+
+//encore:api public path=/three/:id
+func Three(ctx context.Context, id string) error {
+	rlog.Info("three", "id", id)
+	return nil
+}
+
+//encore:api public path=/four/*baz
+func Four(ctx context.Context, baz string) error {
+	rlog.Info("four", "baz", baz)
+	return Three(ctx, baz)
+}
+
+//encore:api public path=/five/:id/:key method=GET,POST
+func Five(ctx context.Context, id uuid.UUID, key uint, p *FooParams) error {
+	rlog.Info("five", "id", id, "key", key, "p", p)
+	Six(ctx, id, id.String(), p)
+	return nil
+}
+
+//encore:api public path=/six/:id/*key method=GET,POST
+func Six(ctx context.Context, id uuid.UUID, key string, p *FooParams) error {
+	rlog.Info("six", "id", id, "key", key, "p", p)
+	return nil
+}
+
+//encore:api public raw path=/foo/:bar/:baz
+func Seven(w http.ResponseWriter, req *http.Request) {
+	rlog.Info("seven", "method", req.Method, "path", req.URL.Path)
+}
