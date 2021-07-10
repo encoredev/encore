@@ -84,12 +84,31 @@ func __encore_{{.Svc.Name}}_{{.Name}}(w http.ResponseWriter, req *http.Request, 
 		token    string
 		authData interface{}
 	)
-	if auth := req.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-		token = auth[len("Bearer "):]
-		uid, authData, err = __encore_validateAuth(req.Context(), token)
-		if err != nil {
-			errs.HTTPError(w, err)
-			return
+	if auth := req.Header.Get("Authorization"); auth != "" {
+	TokenLoop:
+		for _, prefix := range [...]string{"Bearer ", "Token "} {
+			if strings.HasPrefix(auth, prefix) {
+				if t := auth[len(prefix):]; t != "" {
+					token = t
+					break TokenLoop
+				}
+			}
+		}
+		if token != "" {
+			uid, authData, err = __encore_validateAuth(req.Context(), token)
+{{- if requiresAuth .}}
+			if err != nil {
+				errs.HTTPError(w, err)
+				return
+			}
+{{- else}}
+			if errs.Code(err) == errs.Unauthenticated {
+				uid, authData = "", nil
+			} else {
+				errs.HTTPError(w, err)
+				return
+			}
+{{- end}}
 		}
 	}
 {{- if requiresAuth .}}
