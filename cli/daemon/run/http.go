@@ -35,7 +35,7 @@ func (r *Run) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Request) {
 	if req.Method == "OPTIONS" {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.WriteHeader(200)
 		return
@@ -54,7 +54,7 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 	// modifyResponse sets the appropriate CORS headers for local development.
 	modifyResponse := func(r *http.Response) error {
 		r.Header.Set("Access-Control-Allow-Origin", "*")
-		r.Header.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		r.Header.Set("Access-Control-Allow-Methods", "*")
 		r.Header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		return nil
 	}
