@@ -118,10 +118,12 @@ class JSONRenderer {
     switch (t) {
     case BuiltinType.Any: return "<any>"
     case BuiltinType.Bool: return "true"
+    case BuiltinType.Int: return "1"
     case BuiltinType.Int8: return "1"
     case BuiltinType.Int16: return "1"
     case BuiltinType.Int32: return "1"
     case BuiltinType.Int64: return "1"
+    case BuiltinType.Uint: return "1"
     case BuiltinType.Uint8: return "1"
     case BuiltinType.Uint16: return "1"
     case BuiltinType.Uint32: return "1"
