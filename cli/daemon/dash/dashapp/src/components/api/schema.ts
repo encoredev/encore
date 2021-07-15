@@ -65,10 +65,12 @@ export interface Loc {
 export enum BuiltinType {
   Any = "ANY",
   Bool = "BOOL",
+  Int = "INT",
   Int8 = "INT8",
   Int16 = "INT16",
   Int32 = "INT32",
   Int64 = "INT64",
+  Uint  = "UINT",
   Uint8  = "UINT8",
   Uint16 = "UINT16",
   Uint32 = "UINT32",
