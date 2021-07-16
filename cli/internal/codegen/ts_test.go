@@ -101,7 +101,7 @@ class BaseClient {
         let response = await fetch(this.baseURL + path, {
             method: method,
             headers: this.headers,
-            body: JSON.stringify(req || {})
+            body: JSON.stringify(req)
         })
         if (!response.ok) {
             let body = await response.text()
@@ -114,7 +114,7 @@ class BaseClient {
         let response = await fetch(this.baseURL + path, {
             method: method,
             headers: this.headers,
-            body: JSON.stringify(req || {})
+            body: JSON.stringify(req)
         })
         if (!response.ok) {
             let body = await response.text()
