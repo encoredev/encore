@@ -392,7 +392,17 @@ func (ts *ts) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			ts.WriteString(strings.Repeat("    ", numIndents+1))
 		}
 		ts.WriteString("{\n")
-		for i, field := range typ.Struct.Fields {
+
+		// Filter the fields to print based on struct tags.
+		fields := make([]*schema.Field, 0, len(typ.Struct.Fields))
+		for _, f := range typ.Struct.Fields {
+			if f.JsonName == "-" {
+				continue
+			}
+			fields = append(fields, f)
+		}
+
+		for i, field := range fields {
 			if field.Doc != "" {
 				scanner := bufio.NewScanner(strings.NewReader(field.Doc))
 				indent()
@@ -428,7 +438,7 @@ func (ts *ts) writeTyp(ns string, typ *schema.Type, numIndents int) {
 
 			// Add another empty line if we have a doc comment
 			// and this was not the last field.
-			if field.Doc != "" && i < len(typ.Struct.Fields)-1 {
+			if field.Doc != "" && i < len(fields)-1 {
 				ts.WriteByte('\n')
 			}
 		}

@@ -540,6 +540,7 @@ type Field struct {
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Doc  string `protobuf:"bytes,3,opt,name=doc,proto3" json:"doc,omitempty"`
 	// The optional json name if it's different from the field name.
+	// The value "-" indicates to omit the field.
 	JsonName string `protobuf:"bytes,4,opt,name=json_name,json=jsonName,proto3" json:"json_name,omitempty"`
 	// Whether the field is optional.
 	Optional bool `protobuf:"varint,5,opt,name=optional,proto3" json:"optional,omitempty"`

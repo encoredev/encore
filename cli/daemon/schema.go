@@ -52,16 +52,21 @@ func (r *schemaRenderer) renderType(typ *schema.Type) {
 
 func (r *schemaRenderer) renderStruct(s *schema.Struct) {
 	r.WriteObjectStart()
-	for i, f := range s.Fields {
-		if i > 0 {
-			r.WriteMore()
-		}
+	written := false
+	for _, f := range s.Fields {
 		n := f.JsonName
-		if n == "" {
+		if n == "-" {
+			continue
+		} else if n == "" {
 			n = f.Name
+		}
+
+		if written {
+			r.WriteMore()
 		}
 		r.WriteObjectField(n)
 		r.renderType(f.Typ)
+		written = true
 	}
 	r.WriteObjectEnd()
 }
