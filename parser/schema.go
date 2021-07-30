@@ -176,7 +176,8 @@ func (p *parser) parseEncoreBuiltin(pos token.Pos, pkgPath, name string) *schema
 // structFieldOptions represents the parsed struct tag information
 // that Encore recognizes.
 type structFieldOptions struct {
-	// JSONName is set if there is a distinct json name (`json:"foo"`)
+	// JSONName is set if there is a distinct json name (`json:"foo"`).
+	// If JSONName == "-" it indicates to omit the field entirely.
 	JSONName string
 	// Optional is true if there is an `encore:"optional"` tag
 	Optional bool

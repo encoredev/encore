@@ -47,6 +47,7 @@ message Field {
   string name = 2;
   string doc = 3;
   // The optional json name if it's different from the field name.
+  // The value "-" indicates to omit the field.
   string json_name = 4;
   // Whether the field is optional.
   bool optional = 5;

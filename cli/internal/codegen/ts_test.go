@@ -24,6 +24,8 @@ package svc
 
 type Request struct {
     Foo Foo
+    Bar string ` + "`json:\"-\"`" + `
+    Baz string ` + "`json:\"boo\"`" + `
 }
 
 type Foo int
@@ -66,6 +68,7 @@ export namespace svc {
 
     export interface Request {
         Foo: Foo
+        boo: string
     }
 
     export class ServiceClient {
