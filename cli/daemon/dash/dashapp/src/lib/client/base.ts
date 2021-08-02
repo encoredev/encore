@@ -5,7 +5,7 @@ export default class BaseClient {
   base: string;
 
   constructor() {
-    this.base = window.location.host
+    this.base = import.meta.env.VITE_DAEMON_ADDRESS ?? window.location.host
   }
 
   async do<T>(path: string, data?: any): Promise<T> {

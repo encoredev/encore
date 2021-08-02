@@ -58,3 +58,19 @@ The Encore Compiler rewrites the source code based on the parsed
 Encore Syntax Tree to create a fully functioning application.
 It rewrites API calls & API handlers, injects instrumentation
 and secret values, and more.
+
+## Dashapp
+
+To run the dashapp in development mode (using `npm run dev`), the dashapp needs
+to know the url to the daemon. To achieve this, you must set an environmental 
+variable with the correct address. Add a file in the [dashapp directory](cli/daemon/dash/dashapp)
+called `.env.development.local` with the following content:
+```
+VITE_DAEMON_ADDRESS=localhost:12345
+```
+The actual dash port can be found when running `./encore daemon -f` or when
+running `encore run` where it's the same as the Dev Dashboard Url. 
+
+> **Note:** If you restart the daemon, the port will likely change. This means that
+> you have to set the new port in `.env.development.local` and restart the
+> dashapp.
