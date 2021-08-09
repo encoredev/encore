@@ -213,9 +213,9 @@ Any API calls to your app automatically produces traces.
 
 ![Automatic Tracing](https://encore.dev/assets/img/tracing.jpg)
 
-## Developing Encore and building from source
+## Contributing to Encore and building from source
 
-See [DEVELOPING.md](DEVELOPING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Frequently Asked Questions (FAQ)
 

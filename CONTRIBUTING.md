@@ -22,6 +22,7 @@ The environment variables are:
 - `ENCORE_GOROOT` – the path to encore-go on disk
 
 **ENCORE_RUNTIME_PATH**
+
 This must be set to the location of the `encore.dev` runtime package.
 It's located in this Git repository in the `compiler/runtime` directory:
 
@@ -30,6 +31,7 @@ export ENCORE_RUNTIME_PATH=/path/to/encore/compiler/runtime
 ```
 
 **ENCORE_GOROOT**
+
 The `ENCORE_GOROOT` must be set to the path to the [Encore Go runtime](https://github.com/encoredev/go).
 Unless you want to make changes to the Go runtime it's easiest to point this to an existing Encore installation.
 
