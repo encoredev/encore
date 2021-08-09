@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	stdruntime "runtime"
+	"strconv"
 	"time"
 
 	"encr.dev/cli/daemon"
@@ -38,18 +39,19 @@ func Main() {
 	if err := redirectLogOutput(); err != nil {
 		log.Error().Err(err).Msg("could not setup daemon log file, skipping")
 	}
-	if err := runMain(); err != nil {
+	dev := os.Getenv("ENCORE_DAEMON_DEV") != ""
+	if err := runMain(dev); err != nil {
 		log.Fatal().Err(err).Msg("daemon failed")
 	}
 }
 
-func runMain() (err error) {
-	// xit receives signals from the different subsystems
+func runMain(dev bool) (err error) {
+	// exit receives signals from the different subsystems
 	// that something went wrong and it's time to exit.
 	// Sending nil indicates it's time to gracefully exit.
 	exit := make(chan error)
 
-	d := &Daemon{exit: exit}
+	d := &Daemon{dev: dev, exit: exit}
 	defer handleBailout(&err)
 	defer d.closeAll()
 
@@ -75,6 +77,8 @@ type Daemon struct {
 	DashSrv    *dash.Server
 	Server     *daemon.Server
 
+	dev bool // whether we're in development mode
+
 	// exit is a channel that shuts down the daemon when sent on.
 	// A nil error indicates graceful exit.
 	exit chan<- error
@@ -85,9 +89,9 @@ type Daemon struct {
 
 func (d *Daemon) init() {
 	d.Daemon = d.listenDaemonSocket()
-	d.Runtime = d.listenTCP()
-	d.DBProxy = d.listenTCP()
-	d.Dash = d.listenTCP()
+	d.Dash = d.listenTCP(9400)
+	d.Runtime = d.listenTCP(9401)
+	d.DBProxy = d.listenTCP(9402)
 
 	d.Trace = trace.NewStore()
 	d.ClusterMgr = sqldb.NewClusterManager()
@@ -182,8 +186,14 @@ func (d *Daemon) serveDash() {
 }
 
 // listenTCP listens for TCP connections on a random port on localhost.
-func (d *Daemon) listenTCP() *net.TCPListener {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+// If the daemon is in development mode it always listens on devPort instead.
+func (d *Daemon) listenTCP(devPort int) *net.TCPListener {
+	port := 0
+	if d.dev {
+		port = devPort
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		fatal(err)
 	}

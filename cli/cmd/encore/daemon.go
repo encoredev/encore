@@ -10,6 +10,7 @@ import (
 	"time"
 
 	daemonpkg "encr.dev/cli/cmd/encore/daemon"
+	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -39,6 +40,7 @@ var daemonCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(daemonCmd)
 	daemonCmd.Flags().BoolVarP(&daemonizeForeground, "foreground", "f", false, "Start the daemon in the foreground")
+	daemonCmd.AddCommand(daemonEnvCmd)
 }
 
 // daemonize starts the Encore daemon in the background.
@@ -131,4 +133,15 @@ func dialDaemon(ctx context.Context, socketPath string) (*grpc.ClientConn, error
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
 		grpc.WithContextDialer(dialer))
+}
+
+var daemonEnvCmd = &cobra.Command{
+	Use:   "env",
+	Short: "Prints Encore environment information",
+	Run: func(cc *cobra.Command, args []string) {
+		envs := env.List()
+		for _, e := range envs {
+			fmt.Println(e)
+		}
+	},
 }
