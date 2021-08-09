@@ -10,6 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	codegenDebug bool
+)
+
 var checkCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Checks your application for compile-time errors using Encore's compiler.",
@@ -23,6 +27,7 @@ var checkCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
+	checkCmd.Flags().BoolVar(&codegenDebug, "codegen-debug", false, "Dump generated code (for debugging Encore's code generation)")
 }
 
 func runChecks(appRoot, relPath string) {
@@ -36,7 +41,11 @@ func runChecks(appRoot, relPath string) {
 	}()
 
 	daemon := setupDaemon(ctx)
-	stream, err := daemon.Check(ctx, &daemonpb.CheckRequest{AppRoot: appRoot, WorkingDir: relPath})
+	stream, err := daemon.Check(ctx, &daemonpb.CheckRequest{
+		AppRoot:      appRoot,
+		WorkingDir:   relPath,
+		CodegenDebug: codegenDebug,
+	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)

@@ -16,16 +16,16 @@ func TestParseStructTag(t *testing.T) {
 		Want structFieldOptions
 	}{
 		{
-			Tag:  `json:"foo"`,
-			Want: structFieldOptions{JSONName: "foo"},
+			Tag:  `json:"foo" qs:"bar"`,
+			Want: structFieldOptions{JSONName: "foo", QueryStringName: "bar"},
 		},
 		{
 			Tag:  `json:"foo,omitempty"`,
 			Want: structFieldOptions{JSONName: "foo"},
 		},
 		{
-			Tag:  `json:"foo,omitempty" encore:"optional"`,
-			Want: structFieldOptions{JSONName: "foo", Optional: true},
+			Tag:  `json:"foo,omitempty" qs:"-" encore:"optional"`,
+			Want: structFieldOptions{JSONName: "foo", QueryStringName: "-", Optional: true},
 		},
 	}
 

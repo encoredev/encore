@@ -13,7 +13,8 @@ import (
 )
 
 // Check checks the app for errors.
-func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string) error {
+// It reports a buildDir (if available) when codegenDebug is true.
+func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDebug bool) (buildDir string, err error) {
 	// TODO: We should check that all secret keys are defined as well.
 	cfg := &compiler.Config{
 		Version:           "", // not needed until we start storing trace metadata
@@ -21,12 +22,17 @@ func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string) error {
 		CgoEnabled:        true,
 		EncoreRuntimePath: env.EncoreRuntimePath(),
 		EncoreGoRoot:      env.EncoreGoRoot(),
+		KeepOutput:        codegenDebug,
 	}
 	result, err := compiler.Build(appRoot, cfg)
-	if err == nil {
-		os.RemoveAll(result.Dir)
+	if result != nil && result.Dir != "" {
+		if codegenDebug {
+			buildDir = result.Dir
+		} else {
+			os.RemoveAll(result.Dir)
+		}
 	}
-	return err
+	return buildDir, err
 }
 
 // TestParams groups the parameters for the Test method.

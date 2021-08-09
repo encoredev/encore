@@ -225,7 +225,7 @@ type commandStream interface {
 }
 
 func newStreamLogger(slog *streamLog) zerolog.Logger {
-	return zerolog.New(zerolog.ConsoleWriter{Out: zerolog.SyncWriter(slog.Stdout(false))})
+	return zerolog.New(zerolog.ConsoleWriter{Out: zerolog.SyncWriter(slog.Stderr(false))})
 }
 
 type streamWriter struct {

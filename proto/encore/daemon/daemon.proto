@@ -60,7 +60,7 @@ message RunRequest {
   // debug, if true, compiles the app with flags that improve the debugging experience.
   bool debug = 4;
   // watch, if true, enables live reloading of the app whenever the source changes.
- bool watch = 5;
+  bool watch = 5;
 }
 
 message TestRequest {
@@ -72,6 +72,8 @@ message TestRequest {
 message CheckRequest {
   string app_root = 1;
   string working_dir = 2;
+  // codegen_debug, if true, dumps the generated code and prints where it is located.
+  bool codegen_debug = 3;
 }
 
 message LogsRequest {
