@@ -24,8 +24,8 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/internal/appfile"
-	"encr.dev/cli/daemon/internal/env"
 	"encr.dev/cli/daemon/internal/sym"
+	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
 	"encr.dev/parser"

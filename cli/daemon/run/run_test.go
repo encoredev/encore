@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"encr.dev/cli/daemon/internal/env"
+	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
 	qt "github.com/frankban/quicktest"
 	"go.uber.org/goleak"

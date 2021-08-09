@@ -11,29 +11,49 @@ import (
 // EncoreRuntimePath reports the path to the Encore runtime.
 // It can be overridden by setting ENCORE_RUNTIME_PATH.
 func EncoreRuntimePath() string {
-	if p := os.Getenv("ENCORE_RUNTIME_PATH"); p != "" {
-		return p
-	}
-	root, ok := determineRoot()
-	if !ok {
+	p := encoreRuntimePath()
+	if p == "" {
 		log.Fatal().Msg("could not determine Encore install root. " +
 			"You can specify the path to the Encore runtime manually by setting the ENCORE_RUNTIME_PATH environment variable.")
 	}
-	return filepath.Join(root, "runtime")
+	return p
 }
 
 // EncoreGoRoot reports the path to the Encore Go root.
 // It can be overridden by setting ENCORE_GOROOT.
 func EncoreGoRoot() string {
-	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
-		return p
-	}
-	root, ok := determineRoot()
-	if !ok {
+	p := encoreGoRoot()
+	if p == "" {
 		log.Fatal().Msg("could not determine Encore install root. " +
 			"You can specify the path to the Encore GOROOT manually by setting the ENCORE_GOROOT environment variable.")
 	}
-	return filepath.Join(root, "encore-go")
+	return p
+}
+
+func encoreRuntimePath() string {
+	if p := os.Getenv("ENCORE_RUNTIME_PATH"); p != "" {
+		return p
+	} else if root, ok := determineRoot(); ok {
+		return filepath.Join(root, "runtime")
+	}
+	return ""
+}
+
+func encoreGoRoot() string {
+	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
+		return p
+	} else if root, ok := determineRoot(); ok {
+		return filepath.Join(root, "encore-go")
+	}
+	return ""
+}
+
+// List reports Encore environment variables, in the same format as os.Environ().
+func List() []string {
+	return []string{
+		"ENCORE_GOROOT=" + encoreGoRoot(),
+		"ENCORE_RUNTIME_PATH=" + encoreRuntimePath(),
+	}
 }
 
 // determineRoot determines encore root by checking the location relative

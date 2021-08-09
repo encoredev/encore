@@ -1,11 +1,13 @@
 import JSONRPCConn from "./jsonrpc";
 import { ResponseError } from "./errs";
 
+const DEV = import.meta.env.DEV
+
 export default class BaseClient {
   base: string;
 
   constructor() {
-    this.base = window.location.host
+    this.base = DEV ? "localhost:9400" : window.location.host
   }
 
   async do<T>(path: string, data?: any): Promise<T> {
@@ -29,6 +31,9 @@ export default class BaseClient {
         resolve(ws)
       };
       ws.onerror = function(err: any) {
+        if (DEV) {
+          reject(new Error("could not connect to Encore daemon in development mode. to start it, run: ENCORE_DAEMON_DEV=1 encore daemon -f"))
+        }
         reject(new ResponseError(path, "network", null, err))
       }
     })
