@@ -310,7 +310,7 @@ func (ts *ts) writeBaseClient() {
         let response = await fetch(this.baseURL + path, {
             method: method,
             headers: this.headers,
-            body: req && JSON.stringify(req)
+            body: req !== undefined ? JSON.stringify(req) : undefined
         })
         if (!response.ok) {
             let body = await response.text()
@@ -323,7 +323,7 @@ func (ts *ts) writeBaseClient() {
         let response = await fetch(this.baseURL + path, {
             method: method,
             headers: this.headers,
-            body: req && JSON.stringify(req)
+            body: req !== undefined ? JSON.stringify(req) : undefined
         })
         if (!response.ok) {
             let body = await response.text()
