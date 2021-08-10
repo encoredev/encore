@@ -2,6 +2,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"sync"
@@ -224,34 +225,23 @@ type commandStream interface {
 }
 
 func newStreamLogger(slog *streamLog) zerolog.Logger {
-	return zerolog.New(zerolog.ConsoleWriter{Out: zerolog.SyncWriter(slog.Stdout())})
+	return zerolog.New(zerolog.ConsoleWriter{Out: zerolog.SyncWriter(slog.Stdout(false))})
 }
 
 type streamWriter struct {
 	mu     *sync.Mutex
-	stream commandStream
+	sl     *streamLog
 	stderr bool // if true write to stderr, otherwise stdout
+	buffer bool
 }
 
 func (w streamWriter) Write(b []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-
-	out := &daemonpb.CommandOutput{}
-	if w.stderr {
-		out.Stderr = b
-	} else {
-		out.Stdout = b
+	if w.buffer && w.sl.buffered {
+		return w.sl.writeBuffered(&w.sl.stdout, b)
 	}
-	err := w.stream.Send(&daemonpb.CommandMessage{
-		Msg: &daemonpb.CommandMessage_Output{
-			Output: out,
-		},
-	})
-	if err != nil {
-		return 0, err
-	}
-	return len(b), nil
+	return w.sl.writeStream(w.stderr, b)
 }
 
 func streamExit(stream commandStream, code int) {
@@ -265,12 +255,59 @@ func streamExit(stream commandStream, code int) {
 type streamLog struct {
 	stream commandStream
 	mu     sync.Mutex
+
+	buffered bool
+	stdout   *bytes.Buffer // lazily allocated
+	stderr   *bytes.Buffer // lazily allocated
 }
 
-func (log *streamLog) Stdout() io.Writer {
-	return streamWriter{mu: &log.mu, stream: log.stream, stderr: false}
+func (log *streamLog) Stdout(buffer bool) io.Writer {
+	return streamWriter{mu: &log.mu, sl: log, stderr: false, buffer: buffer}
 }
 
-func (log *streamLog) Stderr() io.Writer {
-	return streamWriter{mu: &log.mu, stream: log.stream, stderr: true}
+func (log *streamLog) Stderr(buffer bool) io.Writer {
+	return streamWriter{mu: &log.mu, sl: log, stderr: true, buffer: buffer}
+}
+
+func (log *streamLog) FlushBuffers() {
+	var stdout, stderr []byte
+	log.mu.Lock()
+	defer log.mu.Unlock()
+	if b := log.stdout; b != nil {
+		stdout = b.Bytes()
+		log.stdout = nil
+	}
+	if b := log.stderr; b != nil {
+		stderr = b.Bytes()
+		log.stderr = nil
+	}
+
+	log.writeStream(false, stderr)
+	log.writeStream(true, stdout)
+	log.buffered = false
+}
+
+func (log *streamLog) writeBuffered(b **bytes.Buffer, p []byte) (int, error) {
+	if *b == nil {
+		*b = &bytes.Buffer{}
+	}
+	return (*b).Write(p)
+}
+
+func (log *streamLog) writeStream(stderr bool, b []byte) (int, error) {
+	out := &daemonpb.CommandOutput{}
+	if stderr {
+		out.Stderr = b
+	} else {
+		out.Stdout = b
+	}
+	err := log.stream.Send(&daemonpb.CommandMessage{
+		Msg: &daemonpb.CommandMessage_Output{
+			Output: out,
+		},
+	})
+	if err != nil {
+		return 0, err
+	}
+	return len(b), nil
 }
