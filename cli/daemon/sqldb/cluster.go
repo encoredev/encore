@@ -61,8 +61,8 @@ func (c *Cluster) Start(log runlog.Log) error {
 		}()
 
 		// Ensure the docker image exists first.
-		if err := pullImage(log, dockerImage); err != nil {
-			return fmt.Errorf("pull docker image %s: %v", dockerImage, err)
+		if err := PullImage(context.Background()); err != nil {
+			return fmt.Errorf("pull docker image: %v", err)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -331,13 +331,24 @@ func containerName(clusterID string) string {
 	return "sqldb-" + clusterID
 }
 
-func pullImage(log runlog.Log, image string) error {
-	if err := exec.Command("docker", "image", "inspect", image).Run(); err == nil {
+// ImageExists reports whether the docker image exists.
+func ImageExists(ctx context.Context) (ok bool, err error) {
+	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", dockerImage).CombinedOutput()
+	switch {
+	case err == nil:
+		return true, nil
+	case bytes.Contains(out, []byte("No such image")):
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+// PullImage pulls the image.
+func PullImage(ctx context.Context) error {
+	if ok, _ := ImageExists(ctx); ok {
 		return nil
 	}
-	fmt.Fprintf(log.Stderr(), "Docker image %q does not exist locally, pulling...\n", image)
-	cmd := exec.Command("docker", "pull", image)
-	cmd.Stdout = log.Stdout()
-	cmd.Stderr = log.Stderr()
+	cmd := exec.CommandContext(ctx, "docker", "pull", dockerImage)
 	return cmd.Run()
 }
