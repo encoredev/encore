@@ -6,14 +6,14 @@ import (
 )
 
 type Log interface {
-	Stdout() io.Writer
-	Stderr() io.Writer
+	Stdout(buffered bool) io.Writer
+	Stderr(buffered bool) io.Writer
 }
 
 type oslog struct{}
 
-func (oslog) Stdout() io.Writer { return os.Stdout }
-func (oslog) Stderr() io.Writer { return os.Stderr }
+func (oslog) Stdout(buffered bool) io.Writer { return os.Stdout }
+func (oslog) Stderr(buffered bool) io.Writer { return os.Stderr }
 
 func OS() Log {
 	return oslog{}
