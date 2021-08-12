@@ -6,6 +6,14 @@ All contributions are welcome, and there are several valuable ways to contribute
 Below is a technical walkthrough of developing the `encore` command for contributing code
 to the Encore project. Head over to the community section for [more ways to contribute](https://encore.dev/docs/community/contribute)!
 
+## GitHub Codespaces / VS Code Remote Containers
+The easiest way to get started with developing Encore is using
+GitHub Codespaces. Simply open this repository in a new Codespace
+and your development environment will be set up with everything preconfigured for building the `encore` CLI and running applications with it.
+
+This also works just as well with [VS Code's Remote Development](https://code.visualstudio.com/docs/remote/remote-overview).
+
+
 ## Building the encore command from source
 To build from source, simply run `go build ./cli/cmd/encore`.
 
