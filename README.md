@@ -239,12 +239,12 @@ Right now we only support deploying Encore apps to Kubernetes. Either where we h
 
 Encore supports dropping down to plain HTTP requests which lets you use Websockets.
 
+## Get Involved
+We rely on your contributions and feedback to improve Encore.
+We love hearing about your experiences using Encore, and about what may be unclear and we can do a better job explaining.
 
-## Questions & Feedback
-
-If you have questions, need help, or have any feedback: [email us](mailto:hello@encore.dev) or join our [Slack channel](https://encore.dev/slack).
-
-## Office Hours
-
-If you want to chat to us about anything Encore-related, [book a session with us here](https://calendly.com/encoreandre/encore-office-hours)!
-We love hearing about your experiences with Encore, and what we can do to make it even better.
+* Send us feedback or ask questions via [email](mailto:hello@encore.dev).
+* Connect with other Encore users on [Slack](https://encore.dev/slack).
+* Follow us on [Twitter](https://twitter.com/encoredotdev).
+* Leave feedback on our [Product Roadmap](https://encore.dev/roadmap).
+* [Book a session](https://calendly.com/encoreandre/encore-office-hours) to speak with us directly.
