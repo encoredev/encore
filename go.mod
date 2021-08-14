@@ -25,16 +25,15 @@ require (
 	github.com/tailscale/hujson v0.0.0-20200924210142-dde312d0d6a2
 	go.uber.org/goleak v1.1.10
 	go4.org v0.0.0-20201209231011-d4a079459e60
-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
 	golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20210303074136-134d130e1a04
+	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/tools v0.0.0-20200825202427-b303f430e36d
-	golang.zx2c4.com/wireguard v0.0.20201118
-	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
-	golang.zx2c4.com/wireguard/windows v0.3.1
+	golang.zx2c4.com/wireguard v0.0.0-20210728232740-bad6caeb82ed
+	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20210803171230-4253848d036c
+	golang.zx2c4.com/wireguard/windows v0.4.1
 	google.golang.org/genproto v0.0.0-20201030142918-24207fddd1c3
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
