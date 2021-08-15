@@ -16,6 +16,7 @@ func init() {
 // setConsoleMode enables VT processing on stout and stderr.
 func setConsoleMode(handle windows.Handle, flag uint32) {
 	var mode uint32
-	windows.GetConsoleMode(handle, &mode)
-	windows.SetConsoleMode(handle, mode|flag)
+	if err := windows.GetConsoleMode(handle, &mode); err == nil {
+		windows.SetConsoleMode(handle, mode|flag)
+	}
 }
