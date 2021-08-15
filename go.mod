@@ -31,7 +31,7 @@ require (
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/tools v0.0.0-20200825202427-b303f430e36d
-	golang.zx2c4.com/wireguard v0.0.20201118
+	golang.zx2c4.com/wireguard v0.0.0-20210728232740-bad6caeb82ed
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20210803171230-4253848d036c
 	golang.zx2c4.com/wireguard/windows v0.4.1
 	google.golang.org/genproto v0.0.0-20201030142918-24207fddd1c3
