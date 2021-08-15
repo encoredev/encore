@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
@@ -279,7 +280,7 @@ func run() error {
 		"vpn: ",
 	)
 
-	device := device.NewDevice(tun, logger)
+	device := device.NewDevice(tun, conn.NewDefaultBind(), logger)
 
 	term := make(chan os.Signal, 1)
 	errs := make(chan error)
