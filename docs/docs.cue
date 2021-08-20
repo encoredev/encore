@@ -91,7 +91,7 @@ sections: [
 		title: "Community"
 		segment: "community"
 		docs: [
-			{title: "Participate", segment: "participate"},
+			{title: "Get involved", segment: "index"},
 			{title: "Contribute", segment: "contribute"},
 			{title: "Principles", segment: "principles"},
 		]
