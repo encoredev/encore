@@ -26,8 +26,8 @@ sections: [
 		segment: "index"
 		docs: [
 			{title: "Overview", segment: "index"},
-			{title: "Quick Start", segment: "quick-start"},
 			{title: "Why Encore?", segment: "benefits"},
+			{title: "Quick Start", segment: "quick-start"},
 		]
 	},
 	{
