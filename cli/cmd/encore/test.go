@@ -10,8 +10,11 @@ import (
 )
 
 var testCmd = &cobra.Command{
-	Use:   "test",
+	Use:   "test [go test flags]",
 	Short: "Tests your application",
+	Long:  "Takes all the same flags as `go test`.",
+
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Support --help but otherwise let all args be passed on to "go test"
 		for _, arg := range args {

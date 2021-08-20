@@ -26,7 +26,7 @@ func init() {
 	)
 
 	genClientCmd := &cobra.Command{
-		Use:   "client <app-id>",
+		Use:   "client <app-id> [--env=prod]",
 		Short: "Generates an API client for your app",
 		Long: `Generates an API client for your app.
 

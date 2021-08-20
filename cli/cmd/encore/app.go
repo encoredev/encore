@@ -41,6 +41,8 @@ func init() {
 		Use:   "create [name]",
 		Short: "Create a new Encore app",
 		Args:  cobra.MaximumNArgs(1),
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			name := ""
 			if len(args) > 0 {
@@ -59,6 +61,8 @@ func init() {
 		Use:   "link [app-id]",
 		Short: "Link an Encore app with the server",
 		Args:  cobra.MaximumNArgs(1),
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			var appID string
 			if len(args) > 0 {
@@ -74,6 +78,8 @@ func init() {
 		Use:   "clone [app-id] [directory]",
 		Short: "Clone an Encore app to your computer",
 		Args:  cobra.MinimumNArgs(1),
+
+		DisableFlagsInUseLine: true,
 		Run: func(c *cobra.Command, args []string) {
 			cmdArgs := append([]string{"clone", "encore://" + args[0]}, args[1:]...)
 			cmd := exec.Command("git", cmdArgs...)
@@ -85,6 +91,7 @@ func init() {
 			}
 		},
 	}
+
 	appCmd.AddCommand(cloneAppCmd)
 }
 

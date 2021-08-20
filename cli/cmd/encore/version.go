@@ -18,6 +18,8 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Reports the current version of the encore application",
+
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
 			ver string
@@ -41,6 +43,8 @@ var versionCmd = &cobra.Command{
 var versionUpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Checks for an update of encore and, if one is available, runs the appropriate command to update it.",
+
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		if version.Version == "" {
 			fatal("cannot update development build, first install Encore from https://encore.dev/docs/intro/install")

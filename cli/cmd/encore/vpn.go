@@ -26,6 +26,8 @@ func init() {
 	startCmd := &cobra.Command{
 		Use:   "start",
 		Short: "Sets up a secure connection to private environments",
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if admin, err := xos.IsAdminUser(); err == nil && !admin {
 				log.Fatalf("fatal: must start VPN as root user (use 'sudo'?)")
@@ -81,6 +83,8 @@ func init() {
 	stopCmd := &cobra.Command{
 		Use:   "stop",
 		Short: "Stops the VPN connection",
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := wgtunnel.Stop(); os.IsPermission(err) {
 				log.Fatal("fatal: permission denied to stop tunnel (use 'sudo'?)")
@@ -95,6 +99,8 @@ func init() {
 	statusCmd := &cobra.Command{
 		Use:   "status",
 		Short: "Determines the status of the VPN connection",
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if running, err := wgtunnel.Status(); os.IsPermission(err) {
 				log.Fatal("fatal: permission denied to check tunnel status (use 'sudo'?)")

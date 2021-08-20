@@ -23,6 +23,8 @@ func init() {
 	signupCmd := &cobra.Command{
 		Use:   "signup",
 		Short: "Create a new Encore account",
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			doLogin()
 		},
@@ -31,6 +33,8 @@ func init() {
 	loginCmd := &cobra.Command{
 		Use:   "login",
 		Short: "Log in to Encore",
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := doLogin(); err != nil {
 				fatal(err)
@@ -41,6 +45,8 @@ func init() {
 	logoutCmd := &cobra.Command{
 		Use:   "logout",
 		Short: "Logs out the currently logged in user",
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			doLogout()
 		},
@@ -49,6 +55,8 @@ func init() {
 	whoamiCmd := &cobra.Command{
 		Use:   "whoami",
 		Short: "Show the current logged in user",
+
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			whoami()
 		},
