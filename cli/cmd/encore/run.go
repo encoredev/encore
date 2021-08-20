@@ -19,7 +19,7 @@ var (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run",
+	Use:   "run [--debug] [--watch=true]",
 	Short: "Runs your application",
 	Run: func(cmd *cobra.Command, args []string) {
 		appRoot, wd := determineAppRoot()

@@ -21,8 +21,10 @@ var (
 )
 
 var logsCmd = &cobra.Command{
-	Use:   "logs",
+	Use:   "logs [--env=prod] [--json]",
 	Short: "Streams logs from your application",
+
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		appRoot, _ := determineAppRoot()
 		streamLogs(appRoot, logsEnv)

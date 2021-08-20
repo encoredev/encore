@@ -12,7 +12,9 @@ import (
 
 var checkCmd = &cobra.Command{
 	Use:   "check",
-	Short: "Checks your application for errors",
+	Short: "Checks your application for compile-time errors using Encore's compiler.",
+
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		appRoot, relPath := determineAppRoot()
 		runChecks(appRoot, relPath)

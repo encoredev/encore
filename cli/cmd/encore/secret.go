@@ -39,9 +39,9 @@ Piping a secret from a file:
 	$ encore secret set --dev MySecret < my-secret.txt
 	Successfully created development secret MySecret.
 
-Note that this strips trailing newlines from the secret value.
-	`,
-	Args: cobra.ExactArgs(1),
+Note that this strips trailing newlines from the secret value.`,
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		if !secretDevFlag && !secretProdFlag {
 			fatal("must specify either --dev or --prod.")

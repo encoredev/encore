@@ -23,7 +23,7 @@ var dbCmd = &cobra.Command{
 var resetAll bool
 
 var dbResetCmd = &cobra.Command{
-	Use:   "reset [servicenames...]",
+	Use:   "reset [service-names...]",
 	Short: "Resets the databases for the given services. Use --all to reset all databases.",
 
 	Run: func(command *cobra.Command, args []string) {
@@ -56,10 +56,12 @@ var dbResetCmd = &cobra.Command{
 var dbEnv string
 
 var dbShellCmd = &cobra.Command{
-	Use:   "shell [service-name]",
+	Use:   "shell [service-name] [--env=local]",
 	Short: "Connects to the database via psql shell",
+	Long:  "Defaults to connecting to your local environment. Specify --env to connect to another environment.",
 	Args:  cobra.MaximumNArgs(1),
 
+	DisableFlagsInUseLine: true,
 	Run: func(command *cobra.Command, args []string) {
 		appRoot, relPath := determineAppRoot()
 		ctx := context.Background()
