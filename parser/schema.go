@@ -209,7 +209,7 @@ func (p *parser) parseStructTag(tag *ast.BasicLit) structFieldOptions {
 		}
 	}
 	if js, _ := tags.Get("json"); js != nil {
-		if v := js.Value(); v != "" {
+		if v := js.Name; v != "" {
 			opts.JSONName = v
 		}
 	}
