@@ -65,8 +65,8 @@ and create a file `slack/slack.go` with the following contents:
 package slack
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -89,7 +89,7 @@ func Cowsay(w http.ResponseWriter, req *http.Request) {
 Let's try it out locally. Run it with `encore run` and then call it in another terminal:
 
 ```bash
-$ curl http://localhost:4060/cowsay --data-urlencode "text=Eat your greens!"
+$ curl http://localhost:4060/cowsay -d 'text=Eat your greens!'
 {"response_type":"in_channel","text":"Moo! Eat your greens!"}
 ```
 
@@ -172,10 +172,8 @@ func verifyRequest(req *http.Request) (body []byte, err error) {
 		return nil, eb.Cause(err).Err()
 	}
 
-	ts := req.Header.Get("X-Slack-Request-Timestamp")
-	eb.Meta("ts", ts)
-
 	// Compare timestamps to prevent replay attack
+	ts := req.Header.Get("X-Slack-Request-Timestamp")
 	threshold := int64(5 * 60)
 	n, _ := strconv.ParseInt(ts, 10, 64)
 	if diff := time.Now().Unix() - n; diff > threshold || diff < -threshold {
@@ -184,7 +182,6 @@ func verifyRequest(req *http.Request) (body []byte, err error) {
 
 	// Compare HMAC signature
 	sig := req.Header.Get("X-Slack-Signature")
-	eb.Meta("sig", sig)
 	prefix := "v0="
 	if !strings.HasPrefix(sig, prefix) {
 		return body, eb.Msg("invalid signature").Err()
