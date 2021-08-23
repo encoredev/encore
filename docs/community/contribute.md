@@ -15,7 +15,10 @@ If you have run into an issue or think you’ve found a bug, please report it vi
 
 ### Add or update docs
 
-If there’s something you think would be helpful to add to the docs, or if there’s something that seems out of date, we appreciate your input. The docs will soon be made Open Source, but until then please email your input to us at [hello@encore.dev](mailto:hello@encore.dev).
+If there’s something you think would be helpful to add to the docs or if there’s something that seems out of date, we appreciate your input.
+You can [view the docs and contribute fixes or improvements directly in GitHub](https://github.com/encoredev/encore/tree/main/docs).
+
+You can also email your feedback to us at [hello@encore.dev](mailto:hello@encore.dev).
 
 ### Blogs posts
 
