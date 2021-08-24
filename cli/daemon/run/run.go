@@ -271,7 +271,7 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 
 	build, err := compiler.Build(r.Root, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("compile error: %v", err)
+		return nil, fmt.Errorf("compile error:\n%v", err)
 	}
 	defer func() {
 		if err != nil {
