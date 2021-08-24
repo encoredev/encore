@@ -423,6 +423,11 @@ const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined; getMe
   const timeoutHandle = useRef<{id: number | null}>({id: null})
   const [method, setMethod] = useState(rpc.http_methods[0])
 
+  // Reset the method when the RPC changes
+  useEffect(() => {
+    setMethod(rpc.http_methods[0])
+  }, [rpc])
+
   useEffect(() => {
     let ds = docs.current.get(rpc)
     if (ds === undefined) {
