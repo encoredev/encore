@@ -22,10 +22,13 @@ module app
 -- svc/svc.go --
 package svc
 
+import "encoding/json"
+
 type Request struct {
     Foo Foo
     Bar string ` + "`json:\"-\"`" + `
     Baz string ` + "`json:\"boo\"`" + `
+    Raw json.RawMessage
 }
 
 type Foo int
@@ -69,6 +72,7 @@ export namespace svc {
     export interface Request {
         Foo: Foo
         boo: string
+        Raw: JSONValue
     }
 
     export class ServiceClient {
@@ -83,6 +87,9 @@ export namespace svc {
         }
     }
 }
+
+// JSONValue represents an arbitrary JSON value.
+export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue}
 
 class BaseClient {
     baseURL: string
