@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -504,13 +505,13 @@ func (t *opTracker) refresh() {
 
 	for _, o := range ops {
 		started := o.start.Before(now)
-		if !started {
+		done := o.done.Before(now)
+		if !started && !done {
 			continue
 		}
 
 		var msg aurora.Value
 		format := "  %s %s... "
-		done := o.done.Before(now)
 		switch {
 		case done && o.err != nil:
 			msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, o.err))
@@ -528,8 +529,14 @@ func (t *opTracker) refresh() {
 }
 
 func (t *opTracker) spin() {
+	refresh := 100 * time.Millisecond
+	if runtime.GOOS == "windows" {
+		// Window's terminal is quite slow at rendering.
+		// Reduce the refresh rate to avoid excessive flickering.
+		refresh = 250 * time.Millisecond
+	}
 	for {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(refresh)
 		(func() {
 			t.mu.Lock()
 			defer t.mu.Unlock()
