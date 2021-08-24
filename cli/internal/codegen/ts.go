@@ -32,6 +32,8 @@ type ts struct {
 	appSlug  string
 	typs     *typeRegistry
 	currDecl *schema.Decl
+
+	seenJSON bool // true if a JSON type was seen
 }
 
 func (ts *ts) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
@@ -54,6 +56,7 @@ func (ts *ts) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err er
 			ts.writeNamespace(ns)
 		}
 	}
+	ts.writeExtraTypes()
 	ts.writeBaseClient()
 
 	return nil
@@ -335,6 +338,15 @@ func (ts *ts) writeBaseClient() {
 `)
 }
 
+func (ts *ts) writeExtraTypes() {
+	if ts.seenJSON {
+		ts.WriteString(`// JSONValue represents an arbitrary JSON value.
+export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue}
+
+`)
+	}
+}
+
 func (ts *ts) writeDecl(ns string, decl *schema.Decl) {
 	if decl.Loc.PkgName != ns {
 		ts.WriteString(decl.Loc.PkgName + ".")
@@ -377,7 +389,8 @@ func (ts *ts) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		case schema.Builtin_TIME:
 			t = "string" // TODO
 		case schema.Builtin_JSON:
-			t = "object"
+			t = "JSONValue"
+			ts.seenJSON = true
 		case schema.Builtin_UUID:
 			t = "string"
 		case schema.Builtin_USER_ID:
