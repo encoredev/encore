@@ -60,7 +60,7 @@ with one of the major cloud providers.
 
 When deploying to an external cloud, Encore will add a preliminary deployment phase
 to provision the necessary infrastructure based on what your app needs.
-This is computed with static analysis using the [Encore Application Model](/docs/concepts/application-model).
+This is computed with static analysis using the [Encore Application Model](/docs/application-model).
 
 For certain infrastructure resources, you may be asked to tell Encore a bit more about the performance requirements
 you have. This lets Encore provision appropriately sized infrastructure for your needs.

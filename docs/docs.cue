@@ -27,6 +27,7 @@ sections: [
 		docs: [
 			{title: "Overview", segment: "index"},
 			{title: "Why Encore?", segment: "benefits"},
+			{title: "Encore Application Model", segment: "application-model"},
 			{title: "Quick Start", segment: "quick-start"},
 		]
 	},
