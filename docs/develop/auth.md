@@ -2,7 +2,6 @@
 title: Authenticating users
 subtitle: Knowing what's what and who's who
 ---
-
 Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
 Encore supports both use cases in a simple yet powerful way.
@@ -77,6 +76,27 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
 }
 ```
 
+
+## Returning custom error messages on auth handlers
+
+When you want to return a custom error message in the auth handler e.g To return an `unauthenticated` error message:
+
+```go
+import (
+    "encore.dev/beta/auth"
+    "encore.dev/beta/errs"
+)
+
+// AuthHandler can be named whatever you prefer (but must be exported).
+//encore:authhandler
+func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
+    // if the token is invalid/expired you can return a custom error message
+    // using the code below.
+    return "", errs.B().Code(errs.Unauthenticated).Msg("auth token is invalid").Err()
+}
+```
+
+
 ## Using auth data
 
 Once the user has been identified by the auth handler, the API handler is called
@@ -91,7 +111,7 @@ these are guaranteed to be set since the API won't be called if the auth handler
 
 <Callout type="important">
 
-If an endpoint calls another endpoint during its processing, and the original 
+If an endpoint calls another endpoint during its processing, and the original
 does not have an authenticated user, the request will fail. This behavior
 preserves the guarantees that `auth` endpoints always have an authenticated user.
 
