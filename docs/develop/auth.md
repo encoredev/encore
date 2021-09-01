@@ -76,10 +76,11 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
 }
 ```
 
+## Handling auth errors
 
-## Returning custom error messages on auth handlers
+When a token doesn't match your auth rules (for example if it's expired, the token has been revoked, or the token is invalid), you should return a non-nil error from the auth handler.
 
-When you want to return a custom error message in the auth handler e.g To return an `unauthenticated` error message:
+Encore passes the error message on to the user when you use [Encore's built-in error package](errors), so we recommend using that with the error code `Unauthenticated` to communicate what happened. For example:
 
 ```go
 import (
@@ -90,11 +91,19 @@ import (
 // AuthHandler can be named whatever you prefer (but must be exported).
 //encore:authhandler
 func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
-    // if the token is invalid/expired you can return a custom error message
-    // using the code below.
-    return "", errs.B().Code(errs.Unauthenticated).Msg("auth token is invalid").Err()
+    return "", &errs.Error{
+        Code: errs.Unauthenticated,
+        Message: "invalid token",
+    }
 }
+
+
 ```
+
+
+<Callout type="important">
+Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here. Whenever possible we recommend using a third-party auth provider; see [Using Firebase Authentication](../how-to/firebase-auth) for an example of how to do that.
+</Callout>
 
 
 ## Using auth data
