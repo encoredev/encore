@@ -111,6 +111,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	}
 	p.resolveNames(track)
 	p.parseServices()
+	p.parseResources()
 	p.parseReferences()
 	p.parseSecrets()
 	p.validateApp()
@@ -260,6 +261,17 @@ func (p *parser) parseReferences() {
 		}
 	}
 
+	// For all resources defined, store them in a map per package for faster lookup
+	resourceMap := make(map[string]map[string]est.Resource, len(p.pkgs)) // path -> name -> resource
+	for _, pkg := range p.pkgs {
+		resources := make(map[string]est.Resource, len(pkg.Resources))
+		resourceMap[pkg.ImportPath] = resources
+		for _, res := range pkg.Resources {
+			id := res.Ident()
+			resources[id.Name] = res
+		}
+	}
+
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			info := p.names[pkg].Files[file]
@@ -269,11 +281,40 @@ func (p *parser) parseReferences() {
 			for _, call := range info.Calls {
 				switch x := call.Fun.(type) {
 				case *ast.SelectorExpr:
+
+					// Is this a resource reference?
+					if remaining, ids := unwrapSel(x); remaining == nil && len(ids) >= 2 {
+						// Two cases: it's a package-local resource (resource.Foo) or not (pkg.Resource.Foo).
+						ri := info.Idents[ids[0]]
+
+						if ri != nil && ri.ImportPath != "" {
+							// Different package
+							if res := resourceMap[ri.ImportPath][ids[1].Name]; res != nil {
+								if len(ids) >= 3 { // guard against invalid usage resource.Foo(), will be caught at typechecking
+									file.References[x] = &est.Node{
+										Type: est.SQLDBNode,
+										Func: ids[2].Name,
+									}
+								}
+								continue CallLoop
+							}
+						} else if ri != nil && ri.Package {
+							if res := resourceMap[pkg.ImportPath][ids[0].Name]; res != nil {
+								file.References[call] = &est.Node{
+									Type: est.SQLDBNode,
+									Func: ids[1].Name,
+								}
+								continue CallLoop
+							}
+						}
+					}
+
 					if id, ok := x.X.(*ast.Ident); ok {
 						ri := info.Idents[id]
 						if ri == nil || ri.ImportPath == "" {
 							continue
 						}
+
 						path := ri.ImportPath
 
 						// Is it an RPC?
@@ -319,10 +360,7 @@ func (p *parser) parseReferences() {
 					if id, ok := sel.X.(*ast.Ident); ok {
 						// Have we rewritten this already?
 						if file.References[c.Parent()] != nil {
-							// We can't recurse into children because that will lead to
-							// spurious errors since we'll look up the child Ident in the case below
-							// and fail because it looks like we're referencing an RPC without calling it.
-							return false
+							return true
 						}
 						ri := info.Idents[id]
 						if ri == nil || ri.ImportPath == "" {
@@ -337,6 +375,9 @@ func (p *parser) parseReferences() {
 						// Is it an RPC?
 						if rpc := rpcMap[path][sel.Sel.Name]; rpc != nil {
 							p.errf(sel.Pos(), "cannot reference API %s.%s without calling it", rpc.Svc.Name, sel.Sel.Name)
+							return false
+						} else if res := resourceMap[path][sel.Sel.Name]; res != nil {
+							p.errf(id.Pos(), "cannot reference resource %s.%s other than by calling methods on it", id.Name, res.Ident().Name)
 							return false
 						} else if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && sel.Sel.Name == h.Name {
 							p.errf(sel.Pos(), "cannot reference auth handler %s.%s from another package", h.Svc.Root.RelPath, sel.Sel.Name)
@@ -373,7 +414,7 @@ func (p *parser) parseReferences() {
 								case token.TYPE:
 									// TODO check if there are methods on the type
 								case token.VAR:
-									p.errf(sel.Pos(), "cannot reference variable %s.%s in another Encore service", pkg2.RelPath, sel.Sel.Name)
+									p.errf(sel.Pos(), "cannot reference variable %s.%s from another Encore service", pkg2.RelPath, sel.Sel.Name)
 									return false
 								}
 							}
@@ -394,6 +435,11 @@ func (p *parser) parseReferences() {
 						if rpc := rpcMap[pkg.ImportPath][id.Name]; rpc != nil {
 							p.errf(id.Pos(), "cannot reference API %s without calling it", rpc.Name)
 							return false
+						} else if res := resourceMap[pkg.ImportPath][id.Name]; res != nil {
+							if res.Ident().Pos() != id.Pos() { // the definition itself is fine
+								p.errf(id.Pos(), "cannot reference resource %s other than by calling methods on it", res.Ident().Name)
+								return false
+							}
 						}
 					}
 				}
@@ -407,7 +453,7 @@ func (p *parser) parseReferences() {
 						rpc := node.RPC
 						p.errf(astNode.Pos(), "cannot reference API %s.%s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
 					case est.SQLDBNode:
-						p.errf(astNode.Pos(), "cannot use package %s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", sqldbImportPath, pkg.Name)
+						// sqldb calls are allowed outside of services
 					case est.RLogNode:
 						// rlog calls are allowed outside of services
 					default:

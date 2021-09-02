@@ -1,0 +1,31 @@
+parse
+
+-- svca/svca.go --
+package svca
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("moo")
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    return nil
+}
+-- svcb/svcb.go --
+package svcb
+
+import (
+    "context"
+
+    "test/svca"
+)
+
+//encore:api public
+func Bar(ctx context.Context) error {
+    _ = svca.Moo.Query()
+    return nil
+}
