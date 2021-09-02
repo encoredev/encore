@@ -314,6 +314,13 @@ func newTraceNode(id *int32, pkg *est.Package, f *est.File, node ast.Node) *meta
 			StartPos: int32(file.Offset(node.Type.Pos())),
 			EndPos:   int32(file.Offset(node.Type.End())),
 		}
+	case *ast.SelectorExpr:
+		expr = &meta.TraceNode{
+			Id:       *id,
+			Filepath: filepath,
+			StartPos: int32(file.Offset(node.Pos())),
+			EndPos:   int32(file.Offset(node.End())),
+		}
 	default:
 		panic(fmt.Sprintf("unhandled trace expression node %T", node))
 	}
@@ -326,13 +333,6 @@ func newTraceNode(id *int32, pkg *est.Package, f *est.File, node ast.Node) *meta
 	expr.SrcColStart = int32(sPos.Column)
 	expr.SrcColEnd = int32(ePos.Column)
 	return expr
-}
-
-func qualified(pkg *est.Package, name string) *meta.QualifiedName {
-	return &meta.QualifiedName{
-		Pkg:  pkg.RelPath,
-		Name: name,
-	}
 }
 
 func parseLoc(f *est.File, node ast.Node) *schema.Loc {

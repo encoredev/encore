@@ -8,7 +8,7 @@ require (
 	github.com/briandowns/spinner v1.12.0
 	github.com/fatih/color v1.10.0
 	github.com/fatih/structtag v1.2.0
-	github.com/frankban/quicktest v1.11.2
+	github.com/frankban/quicktest v1.13.0
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/golang/protobuf v1.4.3

@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -243,7 +245,7 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 			msg = []byte("unknown error")
 		}
 		req.Err = msg
-		req.ErrStack = tp.stack()
+		req.ErrStack = tp.stack(filterNone)
 	}
 	return nil
 }
@@ -306,7 +308,7 @@ func (tp *traceParser) transactionStart(ts uint64) error {
 		Goid:       goid,
 		StartLoc:   0, // TODO(eandre) reintroduce
 		StartTime:  ts,
-		BeginStack: tp.stack(),
+		BeginStack: tp.stack(filterDB),
 	}
 	tp.txMap[txid] = tx
 	req.Events = append(req.Events, &tracepb.Event{
@@ -325,7 +327,7 @@ func (tp *traceParser) transactionEnd(ts uint64) error {
 	_ = uint32(tp.UVarint()) // goid
 	compl := tp.Byte()
 	errMsg := tp.ByteString()
-	stack := tp.stack()
+	stack := tp.stack(filterDB)
 
 	// It's possible to get multiple transaction end events.
 	// Ignore them for now; we will expose this information later.
@@ -360,7 +362,7 @@ func (tp *traceParser) queryStart(ts uint64) error {
 		CallLoc:   0, // TODO(eandre) reintroduce
 		StartTime: ts,
 		Query:     tp.ByteString(),
-		Stack:     tp.stack(),
+		Stack:     tp.stack(filterDB),
 	}
 	tp.queryMap[qid] = q
 
@@ -403,7 +405,7 @@ func (tp *traceParser) callStart(ts uint64) error {
 		Goid:      uint32(tp.UVarint()),
 		CallLoc:   int32(tp.UVarint()),
 		DefLoc:    int32(tp.UVarint()),
-		Stack:     tp.stack(),
+		Stack:     tp.stack(filterNone),
 		StartTime: ts,
 	}
 	tp.callMap[callID] = c
@@ -626,7 +628,7 @@ func (tp *traceParser) logMessage(ts uint64) error {
 		}
 		log.Fields = append(log.Fields, f)
 	}
-	log.Stack = tp.stack()
+	log.Stack = tp.stack(filterNone)
 
 	req.Events = append(req.Events, &tracepb.Event{
 		Data: &tracepb.Event_Log{Log: log},
@@ -644,7 +646,7 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 	case 1:
 		f.Value = &tracepb.LogField_Error{Error: &tracepb.ErrWithStack{
 			Error: tp.String(),
-			Stack: tp.stack(),
+			Stack: tp.stack(filterNone),
 		}}
 	case 2:
 		f.Value = &tracepb.LogField_Str{Str: tp.String()}
@@ -682,7 +684,14 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 	return f, nil
 }
 
-func (tp *traceParser) stack() *tracepb.StackTrace {
+type stackFilter int
+
+const (
+	filterNone stackFilter = iota
+	filterDB
+)
+
+func (tp *traceParser) stack(filterMode stackFilter) *tracepb.StackTrace {
 	n := int(tp.Byte())
 	tr := &tracepb.StackTrace{}
 	if n == 0 {
@@ -705,9 +714,13 @@ func (tp *traceParser) stack() *tracepb.StackTrace {
 	}
 
 	tr.Frames = make([]*tracepb.StackFrame, 0, n)
+PCLoop:
 	for _, pc := range pcs {
 		file, line, fn := sym.PCToLine(pc)
 		if fn != nil {
+			if filterMode == filterDB && strings.Contains(filepath.ToSlash(file), "/src/database/sql/") {
+				continue PCLoop
+			}
 			tr.Frames = append(tr.Frames, &tracepb.StackFrame{
 				Func:     fn.Name,
 				Filename: file,

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
+	"strconv"
 	"strings"
 
 	"encr.dev/parser/est"
@@ -60,6 +62,56 @@ PkgLoop:
 				}
 				pkg.Service = svc
 				svc.Pkgs = append(svc.Pkgs, pkg)
+			}
+		}
+	}
+}
+
+// parseResources parses infrastructure resources declared in the packages.
+func (p *parser) parseResources() {
+	for _, pkg := range p.pkgs {
+		for _, file := range pkg.Files {
+			info := p.names[pkg].Files[file]
+			for _, decl := range file.AST.Decls {
+				gd, ok := decl.(*ast.GenDecl)
+				if !ok || gd.Tok != token.VAR {
+					continue
+				}
+				for _, s := range gd.Specs {
+					vs := s.(*ast.ValueSpec)
+					for i, x := range vs.Values {
+						if call, ok := x.(*ast.CallExpr); ok {
+							if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+								if id, ok := sel.X.(*ast.Ident); ok {
+									ri := info.Idents[id]
+									if ri == nil {
+										continue
+									}
+
+									// We have "var x = pkg.Foo()" which is the shape we're looking for.
+									// Check what package it is.
+									switch ri.ImportPath {
+									case sqldbImportPath:
+										if sel.Sel.Name == "Named" && len(call.Args) > 0 {
+											decl := vs.Names[i]
+											if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+												if name, err := strconv.Unquote(lit.Value); err == nil {
+													pkg.Resources = append(pkg.Resources, &est.SQLDB{
+														DeclFile: file,
+														DeclName: decl,
+														DBName:   name,
+													})
+												}
+											} else {
+												p.errf(call.Args[0].Pos(), "sqldb.Named must be called with a string literal, not %v", call.Args[0])
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -466,4 +518,28 @@ func validateSel(info *names.File, x ast.Node, pkgPath, name string) error {
 		}
 	}
 	return errNotFound
+}
+
+func unwrapSel(sel *ast.SelectorExpr) (x ast.Expr, ids []*ast.Ident) {
+	ids = []*ast.Ident{sel.Sel}
+	for {
+		if sel2, ok := sel.X.(*ast.SelectorExpr); ok {
+			ids = append(ids, sel2.Sel)
+			sel = sel2
+		} else {
+			break
+		}
+	}
+	if id, ok := sel.X.(*ast.Ident); ok {
+		ids = append(ids, id)
+	} else {
+		x = sel.X
+	}
+
+	// Reverse the ids
+	for i, n := 0, len(ids); i < n/2; i++ {
+		ids[i], ids[n-i-1] = ids[n-i-1], ids[i]
+	}
+
+	return x, ids
 }
