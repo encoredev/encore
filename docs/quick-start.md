@@ -36,12 +36,12 @@ Then select the `Hello World` app template.
 
 ## Run your app locally
 
-Open the folder created for your app.
+Open the folder created for your app, using the app name you picked.
 ```bash
-cd hello-world
+cd your-app-name
 ```
 
-Then while in the app root directory, run your app by running the command:
+Then while in the app root directory, run your app.
 ```bash
 encore run
 ```
@@ -63,7 +63,7 @@ $ curl http://localhost:4060/hello.World
 
 _You've successfully created and run your first Encore application. Well done! 🎉_
 
-You can now monitor logs, view traces, and access API documentation by opening [http://localhost:4060](http://localhost:4060) in your browser.
+You can now access your local development dashboard by opening [http://localhost:4060](http://localhost:4060) in your browser. Here you can monitor logs, view traces, and explore the automatically generated API documentation.
 
 
 ## Deploy your app
@@ -76,9 +76,9 @@ Deploy your application by running:
 git push encore
 ```
 
-_Wow, you now have an app running in the cloud. Congratulations! 🚀_
+_You now have an app running in the cloud. Congratulations! 🚀_
   
-Now head to [the Encore web application](https://app.encore.dev) where you can see production logs and traces, manage environments and configure the cloud hosting of your choice.
+Now open the [the Encore web application](https://app.encore.dev) where you can see production logs and traces, manage environments and configure the cloud hosting of your choice.
 
 ## What's next?
 
