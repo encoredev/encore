@@ -88,7 +88,7 @@ func (tx *Tx) rollback() error {
 	return err
 }
 
-func ExecTx(svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
+func ExecTx(tx *Tx, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
 	return tx.exec(ctx, query, args...)
 }
 
@@ -113,7 +113,7 @@ func (tx *Tx) exec(ctx context.Context, query string, args ...interface{}) (Exec
 	return res, err
 }
 
-func QueryTx(svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
+func QueryTx(tx *Tx, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	return tx.query(ctx, query, args...)
 }
 
@@ -141,7 +141,7 @@ func (tx *Tx) query(ctx context.Context, query string, args ...interface{}) (*Ro
 	return &Rows{std: rows}, nil
 }
 
-func QueryRowTx(svc string, tx *Tx, ctx context.Context, query string, args ...interface{}) *Row {
+func QueryRowTx(tx *Tx, ctx context.Context, query string, args ...interface{}) *Row {
 	return tx.queryRow(ctx, query, args...)
 }
 
