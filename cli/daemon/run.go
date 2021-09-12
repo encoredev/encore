@@ -273,13 +273,18 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 func (s *Server) Check(req *daemonpb.CheckRequest, stream daemonpb.Daemon_CheckServer) error {
 	slog := &streamLog{stream: stream, buffered: false}
 	log := newStreamLogger(slog)
-	err := s.mgr.Check(stream.Context(), req.AppRoot, req.WorkingDir)
+	buildDir, err := s.mgr.Check(stream.Context(), req.AppRoot, req.WorkingDir, req.CodegenDebug)
+
+	exitCode := 0
 	if err != nil {
+		exitCode = 1
 		log.Error().Msg(err.Error())
-		streamExit(stream, 1)
-	} else {
-		streamExit(stream, 0)
 	}
+
+	if req.CodegenDebug && buildDir != "" {
+		log.Info().Msgf("wrote generated code to: %s", buildDir)
+	}
+	streamExit(stream, exitCode)
 	return nil
 }
 
@@ -370,7 +375,15 @@ func showFirstRunExperience(run *run.Run, md *meta.Data, stdout io.Writer) {
 }
 
 func genCurlCommand(run *run.Run, md *meta.Data, rpc *meta.RPC) string {
-	payload := genSchema(md, rpc.RequestSchema)
+	var payload []byte
+	method := rpc.HttpMethods[0]
+	switch method {
+	case "GET", "HEAD", "DELETE":
+		// doesn't use HTTP body payloads
+	default:
+		payload = genSchema(md, rpc.RequestSchema)
+	}
+
 	var segments []string
 	for _, seg := range rpc.Path.Segments {
 		var v string
@@ -398,7 +411,7 @@ func genCurlCommand(run *run.Run, md *meta.Data, rpc *meta.RPC) string {
 		}
 		segments = append(segments, v)
 	}
-	method := rpc.HttpMethods[0]
+
 	parts := []string{"curl"}
 	if (payload != nil && method != "POST") || (payload == nil && method != "GET") {
 		parts = append(parts, " -X ", method)

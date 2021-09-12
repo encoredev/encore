@@ -19,13 +19,6 @@ interface Props {
   port?: number;
 }
 
-interface State {
-  loading: boolean;
-  response?: string;
-  respErr?: string;
-  authToken: string;
-}
-
 export const cfg: EditorConfiguration = {
   theme: "encore",
   mode: "json",
@@ -220,24 +213,44 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, port}) => {
   const [loading, setLoading] = useState(false)
   const [respErr, setRespErr] = useState<string | undefined>(undefined)
   const [response, setResponse] = useState<string | undefined>(undefined)
+  const [method, setMethod] = useState<string>(rpc.http_methods[0])
 
-  const makeRequest = async () => {
+  const serializeRequest = () => {
+    let path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`
     let reqBody = ""
     if (rpc.request_schema) {
       const doc = docs.current.get(rpc)
       if (doc === undefined) {
-        return
+        return ["", ""]
       }
-      reqBody = doc.getValue()
+      const payload = doc.getValue()
+      if (method === "GET" || method === "HEAD" || method === "DELETE") {
+        if (payload !== "") {
+          try {
+            path += "?" + encodeQuery(rpc.request_schema, payload)
+          } catch(err) {
+            setResponse(undefined)
+            setRespErr(`could not parse payload as JSON: ${err}`)
+            return ["", ""]
+          }
+        }
+      } else {
+        reqBody = encodeBase64(payload)
+      }
     }
+    return [path, reqBody]
+  }
 
-    const payload = encodeBase64(reqBody)
-    const method = pathRef.current?.getMethod() ?? "POST"
-    const path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`
+  const makeRequest = async () => {
+    const [path, reqBody] = serializeRequest()
+    if (path === "") {
+      return
+    }
     try {
       setLoading(true)
+      setResponse(undefined)
       setRespErr(undefined)
-      const resp = await conn.request("api-call", {appID, method, path, payload, authToken}) as any
+      const resp = await conn.request("api-call", {appID, method, path, authToken, payload: reqBody}) as any
       let respBody = ""
       if (resp.body.length > 0) {
         respBody = decodeBase64(resp.body)
@@ -275,32 +288,25 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, port}) => {
     setRespErr(undefined)
   }, [rpc])
 
-
   const copyCurl = () => {
-    let reqBody = ""
-    if (rpc.request_schema) {
-      const doc = docs.current.get(rpc)
-      if (doc === undefined) {
-        return
-      }
-      reqBody = doc.getValue()
+    let [path, reqBody] = serializeRequest()
+    if (path === "") {
+      return
+    }
+    if (reqBody !== "") {
       // Convert to JSON and back, if possible, to simplify indentation
       try {
         reqBody = JSON.stringify(JSON.parse(reqBody), undefined, " ")
       } catch(err) { /* do nothing */ }
-
       reqBody = reqBody.replaceAll("'", "'\''") // escape single quotes
     }
-    const path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`
 
-    const method = pathRef.current?.getMethod() ?? "POST"
     const defaultMethod = (reqBody !== "" ? "POST" : "GET")
-
     let cmd = "curl "
     if (method !== defaultMethod) {
       cmd += `-X ${method} `
     }
-    cmd += `http://localhost:${port ?? 4060}${path}`
+    cmd += `'http://localhost:${port ?? 4060}${path}'`
     if (reqBody !== "") {
       cmd += ` -d '${reqBody}'`
     }
@@ -313,8 +319,8 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, port}) => {
         Request
       </h4>
       <div className={`text-xs mt-1 rounded border border-gray-200 ${rpc.request_schema || hasPathParams ? "block" : "hidden"} p-1 divide-y divide-gray-500`} style={{backgroundColor: "#2d3748"}}>
-        <div className={`${hasPathParams ? "block" : " hidden"}`}>
-          <RPCPathEditor ref={pathRef} svc={svc} rpc={rpc} />
+        <div>
+          <RPCPathEditor ref={pathRef} rpc={rpc} method={method} setMethod={setMethod} />
          </div>
         <div className={`${rpc.request_schema ? "block" : " hidden"}`}>
           <CM ref={payloadCM} cfg={cfg} />
@@ -411,7 +417,9 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
 }
 
-const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined; getMethod: () => string}, {svc: Service; rpc: RPC}>(({svc, rpc}, ref) => {
+const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined}, {
+  rpc: RPC; method: string; setMethod: (m: string) => void;
+}>(({rpc, method, setMethod}, ref) => {
   interface DocState {
     rpc: RPC;
     doc: CodeMirror.Doc;
@@ -421,7 +429,6 @@ const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined; getMe
   const docs = useRef(new Map<RPC, DocState>())
   const docMap = useRef(new Map<CodeMirror.Doc, DocState>())
   const timeoutHandle = useRef<{id: number | null}>({id: null})
-  const [method, setMethod] = useState(rpc.http_methods[0])
 
   // Reset the method when the RPC changes
   useEffect(() => {
@@ -429,99 +436,98 @@ const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined; getMe
   }, [rpc])
 
   useEffect(() => {
-    let ds = docs.current.get(rpc)
-    if (ds === undefined) {
-      const segments: string[] = []
-      const readWrites: {from: number, to: number; placeholder: string; seg: PathSegment}[] = []
-      let pos = 0
-      for (const s of rpc.path.segments) {
-        segments.push("/")
-        pos += 1
+    const segments: string[] = []
 
-        const placeholder = (s.type === "PARAM" ? ":" : s.type === "WILDCARD" ? "*" : "") + s.value
-        const ln = placeholder.length
-        segments.push(placeholder)
-        if (s.type !== "LITERAL") {
-          readWrites.push({placeholder, seg: s, from: pos, to: pos+ln})
-        }
-        pos += ln
+    type rwSegment = {from: number; to: number; placeholder: string; seg: PathSegment};
+    const readWrites: rwSegment[] = []
+    let pos = 0
+    for (const s of rpc.path.segments) {
+      segments.push("/")
+      pos += 1
+
+      const placeholder = (s.type === "PARAM" ? ":" : s.type === "WILDCARD" ? "*" : "") + s.value
+      const ln = placeholder.length
+      segments.push(placeholder)
+      if (s.type !== "LITERAL") {
+        readWrites.push({placeholder, seg: s, from: pos, to: pos+ln})
       }
+      pos += ln
+    }
 
-      const val = segments.join("")
-      const doc = new CodeMirror.Doc(val)
+    const val = segments.join("")
+    const doc = new CodeMirror.Doc(val, )
 
-      let prevEnd = 0
-      let i = 0
-      const markers: CodeMirror.TextMarker<CodeMirror.MarkerRange>[] = []
-      for (const rw of readWrites) {
-        doc.markText({ch: prevEnd, line: 0}, {ch: rw.from, line: 0}, {
-          atomic: true,
-          readOnly: true,
-          clearWhenEmpty: false,
-          clearOnEnter: false,
-          className: "text-gray-400",
-          selectLeft: i>0,
-          selectRight: true,
-        })
-        const m = doc.markText({ch: rw.from, line: 0}, {ch: rw.to, line: 0}, {
-          className: "text-green-400",
-          clearWhenEmpty: false,
-          clearOnEnter: false,
-          inclusiveLeft: true,
-          inclusiveRight: true,
-          attributes: {placeholder: rw.placeholder, segmentType: rw.seg.type},
-        })
-        markers.push(m)
-        m.on("beforeCursorEnter", () => {
-          const r = m.find()
-          const sel = doc.getSelection()
-          if (r) {
-            const text = doc.getRange(r.from, r.to)
-            if (text === m.attributes?.placeholder && sel !== text) {
-              if (timeoutHandle.current.id) {
-                clearTimeout(timeoutHandle.current.id)
-              }
-              timeoutHandle.current.id = setTimeout(() => { doc.setSelection(r.from, r.to) }, 50)
-            }
-          }
-        })
-        prevEnd = rw.to
-        i++
-      }
-
-      doc.markText({ch: prevEnd, line: 0}, {ch: val.length, line: 0}, {
+    let prevEnd = 0
+    let i = 0
+    const markers: CodeMirror.TextMarker<CodeMirror.MarkerRange>[] = []
+    for (const rw of readWrites) {
+      doc.markText({ch: prevEnd, line: 0}, {ch: rw.from, line: 0}, {
         atomic: true,
         readOnly: true,
         clearWhenEmpty: false,
         clearOnEnter: false,
         className: "text-gray-400",
-        selectLeft: true,
-        selectRight: false,
+        selectLeft: i>0,
+        selectRight: true,
       })
-      
-      CodeMirror.on(doc, "beforeChange", (doc: CodeMirror.Doc, change: CodeMirror.EditorChangeCancellable) => {
-        if (change.text[0].indexOf("/") === -1) {
-          return
-        }
-
-        for (const m of markers) {
-          const r = m.find()
-          if (r && change.from.ch >= r.from.ch && change.from.ch <= r.to.ch) {
-            if (m.attributes?.segmentType === "PARAM") {
-              change.cancel()
+      const m = doc.markText({ch: rw.from, line: 0}, {ch: rw.to, line: 0}, {
+        className: "text-green-400",
+        clearWhenEmpty: false,
+        clearOnEnter: false,
+        inclusiveLeft: true,
+        inclusiveRight: true,
+        attributes: {placeholder: rw.placeholder, segmentType: rw.seg.type},
+      })
+      markers.push(m)
+      m.on("beforeCursorEnter", () => {
+        const r = m.find()
+        const sel = doc.getSelection()
+        if (r) {
+          const text = doc.getRange(r.from, r.to)
+          if (text === m.attributes?.placeholder && sel !== text) {
+            if (timeoutHandle.current.id) {
+              clearTimeout(timeoutHandle.current.id)
             }
-            return
+            timeoutHandle.current.id = setTimeout(() => { doc.setSelection(r.from, r.to) }, 50)
           }
         }
       })
-
-      ds = {rpc, doc, markers: markers}
-      docs.current.set(rpc, ds)
-      docMap.current.set(doc, ds)
+      prevEnd = rw.to
+      i++
     }
 
+    doc.markText({ch: prevEnd, line: 0}, {ch: val.length, line: 0}, {
+      atomic: true,
+      readOnly: true,
+      clearWhenEmpty: false,
+      clearOnEnter: false,
+      className: "text-gray-400",
+      selectLeft: prevEnd > 0,
+      selectRight: false,
+    })
+    
+    CodeMirror.on(doc, "beforeChange", (doc: CodeMirror.Doc, change: CodeMirror.EditorChangeCancellable) => {
+      if (change.text[0].indexOf("/") === -1) {
+        return
+      }
+
+      for (const m of markers) {
+        const r = m.find()
+        if (r && change.from.ch >= r.from.ch && change.from.ch <= r.to.ch) {
+          const typ = m.attributes?.segmentType
+          if (typ === "PARAM") {
+            change.cancel()
+          }
+          return
+        }
+      }
+    })
+
+    const ds = {rpc, doc, markers: markers}
+    docs.current.set(rpc, ds)
+    docMap.current.set(doc, ds)
     pathCM.current?.open(ds!.doc)
-  }, [rpc])
+  }, [rpc, method])
 
   useImperativeHandle(ref, () => {
     return {
@@ -593,3 +599,31 @@ const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined; getMe
      </div>
   </div>
 })
+
+// encodeQuery encodes a payload matching the given schema as a query string.
+// If the payload can't be parsed as JSON it throws an exception.
+function encodeQuery(schema: Decl, payload: string): string {
+  const json = JSON.parse(payload)
+  let pairs: string[] = []
+
+  for (const f of schema.type.struct?.fields ?? []) {
+    let key = f.json_name
+    let qsName = f.query_string_name
+    if (key === "-" || qsName === "-") {
+      continue
+    } else if (key === "") {
+      key = f.name
+    }
+
+    let val = json[key]
+    if (typeof val === "undefined") {
+      continue
+    } else if (!Array.isArray(val)) {
+      val = [val]
+    }
+    for (const v of val) {
+      pairs.push(`${qsName}=${encodeURIComponent(v)}`)
+    }
+  }
+  return pairs.join("&")
+}

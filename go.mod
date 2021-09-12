@@ -6,12 +6,14 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.2.8
 	github.com/alecthomas/chroma v0.8.2
 	github.com/briandowns/spinner v1.12.0
+	github.com/dave/jennifer v1.4.1
 	github.com/fatih/color v1.10.0
 	github.com/fatih/structtag v1.2.0
 	github.com/frankban/quicktest v1.13.0
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/golang/protobuf v1.4.3
+	github.com/google/go-cmp v0.5.5
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce
 	github.com/jackc/pgproto3/v2 v2.0.7

@@ -1,33 +1,30 @@
-package {{.Pkg.Name}}
+// pkg svc
+package svc
 
 import (
-	"os"
-	"testing"
-
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"encore.dev/storage/sqldb"
+	"os"
+	"testing"
 )
 
 func TestMain(m *testing.M) {
 	// Register the Encore services
-	services := []*config.Service{
-{{- range .Svcs}}
-		{
-			Name: "{{.Name}}",
-			RelPath: "{{.Root.RelPath}}",
-			SQLDB: {{usesSQLDB .}},
-			Endpoints: nil,
-		},
-{{- end}}
-	}
+	services := []*config.Service{{
+		Endpoints: nil,
+		Name:      "svc",
+		RelPath:   "svc",
+		SQLDB:     false,
+	}}
 
 	// Set up the Encore runtime
 	cfg := &config.ServerConfig{
 		Services: services,
-		Testing: true,
+		Testing:  true,
 	}
 	runtime.Setup(cfg)
 	sqldb.Setup(cfg)
 	os.Exit(m.Run())
 }
+
