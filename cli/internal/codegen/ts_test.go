@@ -52,6 +52,11 @@ func DummyAPI(ctx context.Context, req *Request) error {
 func Get(ctx context.Context, req *GetRequest) error {
     return nil
 }
+
+//encore:api public path=/path/:a/:b
+func RESTPath(ctx context.Context, a string, b int) error {
+    return nil
+}
 `
 
 	ar := txtar.Parse([]byte(code))
@@ -106,6 +111,10 @@ export namespace svc {
                 "boo", params.Baz,
             ]
             return this.baseClient.doVoid("GET", ` + "`/svc.Get?${encodeQuery(query)}`" + `)
+        }
+
+        public RESTPath(a: string, b: number): Promise<void> {
+            return this.baseClient.doVoid("GET", ` + "`/path/${a}/${b}`" + `)
         }
     }
 }

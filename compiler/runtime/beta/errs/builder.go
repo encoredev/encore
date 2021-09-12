@@ -87,5 +87,4 @@ func (b *Builder) Err() error {
 		underlying: b.err,
 		stack:      s,
 	}
-	return nil
 }
