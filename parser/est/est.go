@@ -100,6 +100,9 @@ type Node struct {
 	// If Type == SQLDBNode or RLogNode,
 	// Func is the func name being called.
 	Func string
+
+	// Resource this refers to, if any
+	Res Resource
 }
 
 type AuthHandler struct {
