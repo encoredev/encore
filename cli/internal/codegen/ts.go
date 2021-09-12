@@ -194,6 +194,43 @@ func (ts *ts) writeService(svc *meta.Service) {
 		if method == "*" {
 			method = "POST"
 		}
+
+		var (
+			methodHasBody bool
+			hasQuery      bool
+		)
+		switch method {
+		case "GET", "HEAD", "DELETE":
+			methodHasBody = false
+			if rpc.RequestSchema != nil {
+				for _, f := range rpc.RequestSchema.Type.GetStruct().Fields {
+					if f.QueryStringName == "-" || f.JsonName == "-" {
+						continue
+					}
+					fieldName := f.JsonName
+					if fieldName == "" {
+						fieldName = f.Name
+					}
+					if !hasQuery {
+						hasQuery = true
+						ts.WriteString("const query: any[] = [\n")
+						numIndent++
+					}
+					indent()
+					ts.WriteString("\"" + f.QueryStringName + "\", params." + fieldName + ",\n")
+				}
+				if hasQuery {
+					rpcPath.WriteString("?${encodeQuery(query)}")
+					numIndent--
+					indent()
+					ts.WriteString("]\n")
+					indent()
+				}
+			}
+		default:
+			methodHasBody = true
+		}
+
 		if rpc.ResponseSchema == nil {
 			ts.WriteString("return this.baseClient.doVoid")
 		} else {
@@ -202,7 +239,7 @@ func (ts *ts) writeService(svc *meta.Service) {
 			ts.WriteByte('>')
 		}
 		fmt.Fprintf(ts, `("%s", `+"`%s`", method, rpcPath.String())
-		if rpc.RequestSchema != nil {
+		if rpc.RequestSchema != nil && methodHasBody {
 			ts.WriteString(", " + payloadName)
 		}
 		ts.WriteString(")\n")
@@ -334,6 +371,21 @@ func (ts *ts) writeBaseClient() {
         }
         await response.text()
     }
+}
+
+function encodeQuery(parts: any[]): string {
+    const pairs = []
+    for (let i = 0; i < parts.length; i += 2) {
+        const key = parts[i]
+        let val = parts[i+1]
+        if (!Array.isArray(val)) {
+            val = [val]
+        }
+        for (const v of val) {
+            pairs.push(` + "`${key}=${encodeURIComponent(v)}`" + `)
+        }
+    }
+    return pairs.join("&")
 }
 `)
 }

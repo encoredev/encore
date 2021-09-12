@@ -49,6 +49,9 @@ type Config struct {
 	// If Parse is set, the build will skip parsing the app again
 	// and use the information provided.
 	Parse *parser.Result
+
+	// KeepOutput keeps the temporary build directory from being deleted in the case of failure.
+	KeepOutput bool
 }
 
 // Validate validates the config.
@@ -63,9 +66,9 @@ func (cfg *Config) Validate() error {
 
 // Result is the combined results of a build.
 type Result struct {
-	Dir   string // absolute path to build temp dir
-	Exe   string // absolute path to the build executable
-	Parse *parser.Result
+	Dir   string         // absolute path to build temp dir
+	Exe   string         // absolute path to the build executable
+	Parse *parser.Result // set only if build succeeded
 }
 
 // Build builds the application.
@@ -114,8 +117,12 @@ func (b *builder) Build() (res *Result, err error) {
 	if err != nil {
 		return nil, err
 	}
+	res = &Result{
+		Dir: b.workdir,
+		Exe: filepath.Join(b.workdir, binaryName+exe),
+	}
 	defer func() {
-		if err != nil {
+		if err != nil && !b.cfg.KeepOutput {
 			os.RemoveAll(b.workdir)
 		}
 	}()
@@ -129,15 +136,12 @@ func (b *builder) Build() (res *Result, err error) {
 		b.buildMain,
 	} {
 		if err := fn(); err != nil {
-			return nil, err
+			return res, err
 		}
 	}
 
-	return &Result{
-		Dir:   b.workdir,
-		Exe:   filepath.Join(b.workdir, binaryName+exe),
-		Parse: b.res,
-	}, nil
+	res.Parse = b.res
+	return res, nil
 }
 
 // parseApp parses the app situated at appRoot.

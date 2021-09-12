@@ -26,6 +26,7 @@ export interface Field {
   name: string;
   doc: string;
   json_name: string;
+  query_string_name: string;
   optional: boolean;
 }
 

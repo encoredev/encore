@@ -51,6 +51,9 @@ message Field {
   string json_name = 4;
   // Whether the field is optional.
   bool optional = 5;
+  // The query string name to use in GET/HEAD/DELETE requests.
+  // The value "-" indicates to omit the field.
+  string query_string_name = 6;
 }
 
 message Map {

@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+	"unicode"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
@@ -91,12 +92,17 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr) *s
 
 			for _, name := range field.Names {
 				f := &schema.Field{
-					Typ:      typ,
-					Name:     name.Name,
-					Doc:      field.Doc.Text(),
-					Optional: opts.Optional,
-					JsonName: opts.JSONName,
+					Typ:             typ,
+					Name:            name.Name,
+					Doc:             field.Doc.Text(),
+					Optional:        opts.Optional,
+					JsonName:        opts.JSONName,
+					QueryStringName: opts.QueryStringName,
 				}
+				if f.QueryStringName == "" {
+					f.QueryStringName = snakeCase(f.Name)
+				}
+
 				st.Fields = append(st.Fields, f)
 			}
 		}
@@ -179,6 +185,9 @@ type structFieldOptions struct {
 	// JSONName is set if there is a distinct json name (`json:"foo"`).
 	// If JSONName == "-" it indicates to omit the field entirely.
 	JSONName string
+	// QueryStringName is set if there is a distinct query string name (`qs:"foo"`).
+	// If QueryStringName == "-" it indicates to omit the field entirely.
+	QueryStringName string
 	// Optional is true if there is an `encore:"optional"` tag
 	Optional bool
 }
@@ -211,6 +220,11 @@ func (p *parser) parseStructTag(tag *ast.BasicLit) structFieldOptions {
 	if js, _ := tags.Get("json"); js != nil {
 		if v := js.Name; v != "" {
 			opts.JSONName = v
+		}
+	}
+	if qs, _ := tags.Get("qs"); qs != nil {
+		if v := qs.Name; v != "" {
+			opts.QueryStringName = v
 		}
 	}
 	return opts
@@ -266,4 +280,27 @@ var builtinTypes = map[string]schema.Builtin{
 	"string":     schema.Builtin_STRING,
 	"byte":       schema.Builtin_UINT8,
 	"rune":       schema.Builtin_UINT32,
+}
+
+// snakeCase converts CamelCase names to snake_case with lowercase letters and
+// underscores. Names already in snake_case are left untouched.
+// Adapted from github.com/pasztorpisti/qs.
+func snakeCase(s string) string {
+	in := []rune(s)
+	isLower := func(idx int) bool {
+		return idx >= 0 && idx < len(in) && unicode.IsLower(in[idx])
+	}
+
+	out := make([]rune, 0, len(in)+len(in)/2)
+	for i, r := range in {
+		if unicode.IsUpper(r) {
+			r = unicode.ToLower(r)
+			if i > 0 && in[i-1] != '_' && (isLower(i-1) || isLower(i+1)) {
+				out = append(out, '_')
+			}
+		}
+		out = append(out, r)
+	}
+
+	return string(out)
 }
