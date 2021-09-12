@@ -44,6 +44,7 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 		g.Id("cfg").Op(":=").Op("&").Qual("encore.dev/runtime/config", "ServerConfig").Values(Dict{
 			Id("Services"): Id("services"),
 			Id("Testing"):  True(),
+			Id("AuthData"): b.authDataType(),
 		})
 		g.Qual("encore.dev/runtime", "Setup").Call(Id("cfg"))
 		g.Qual("encore.dev/storage/sqldb", "Setup").Call(Id("cfg"))

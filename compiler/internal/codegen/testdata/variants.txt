@@ -66,8 +66,9 @@ func Eight(ctx context.Context, bar, baz string) (*Response, error) {
 	return &Response{Message: bar}, nil
 }
 
+type AuthData struct{}
 
 //encore:authhandler
-func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
-	return "", nil
+func AuthHandler(ctx context.Context, token string) (auth.UID, *AuthData, error) {
+	return "", nil, nil
 }
