@@ -294,6 +294,7 @@ func (p *parser) parseReferences() {
 									file.References[x] = &est.Node{
 										Type: est.SQLDBNode,
 										Func: ids[2].Name,
+										Res:  res,
 									}
 								}
 								continue CallLoop
@@ -303,6 +304,7 @@ func (p *parser) parseReferences() {
 								file.References[call] = &est.Node{
 									Type: est.SQLDBNode,
 									Func: ids[1].Name,
+									Res:  res,
 								}
 								continue CallLoop
 							}
@@ -376,9 +378,6 @@ func (p *parser) parseReferences() {
 						if rpc := rpcMap[path][sel.Sel.Name]; rpc != nil {
 							p.errf(sel.Pos(), "cannot reference API %s.%s without calling it", rpc.Svc.Name, sel.Sel.Name)
 							return false
-						} else if res := resourceMap[path][sel.Sel.Name]; res != nil {
-							p.errf(id.Pos(), "cannot reference resource %s.%s other than by calling methods on it", id.Name, res.Ident().Name)
-							return false
 						} else if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && sel.Sel.Name == h.Name {
 							p.errf(sel.Pos(), "cannot reference auth handler %s.%s from another package", h.Svc.Root.RelPath, sel.Sel.Name)
 							return false
@@ -414,7 +413,7 @@ func (p *parser) parseReferences() {
 								case token.TYPE:
 									// TODO check if there are methods on the type
 								case token.VAR:
-									p.errf(sel.Pos(), "cannot reference variable %s.%s from another Encore service", pkg2.RelPath, sel.Sel.Name)
+									p.errf(sel.Pos(), "cannot reference variable %s.%s from outside the service", pkg2.RelPath, sel.Sel.Name)
 									return false
 								}
 							}
@@ -435,11 +434,6 @@ func (p *parser) parseReferences() {
 						if rpc := rpcMap[pkg.ImportPath][id.Name]; rpc != nil {
 							p.errf(id.Pos(), "cannot reference API %s without calling it", rpc.Name)
 							return false
-						} else if res := resourceMap[pkg.ImportPath][id.Name]; res != nil {
-							if res.Ident().Pos() != id.Pos() { // the definition itself is fine
-								p.errf(id.Pos(), "cannot reference resource %s other than by calling methods on it", res.Ident().Name)
-								return false
-							}
 						}
 					}
 				}
@@ -540,6 +534,29 @@ func (p *parser) validateApp() {
 				if rpc.Access == est.Auth {
 					p.errf(rpc.Func.Pos(), "cannot use \"auth\" access type, no auth handler is defined in the app")
 					break AuthLoop
+				}
+			}
+		}
+	}
+
+	// Error if resources are defined in non-services
+	for _, pkg := range p.pkgs {
+		if pkg.Service == nil {
+			for _, res := range pkg.Resources {
+				resType := ""
+				switch res.Type() {
+				case est.SQLDBResource:
+					resType = "SQL Database"
+				}
+				p.errf(res.Ident().Pos(), "cannot define %s resource in non-service package", resType)
+			}
+		}
+		for _, f := range pkg.Files {
+			for node, ref := range f.References {
+				if res := ref.Res; ref.Res != nil {
+					if ff := res.File(); ff.Pkg.Service != nil && (pkg.Service == nil || pkg.Service.Name != ff.Pkg.Service.Name) {
+						p.errf(node.Pos(), "cannot reference resource %s.%s outside the service", ff.Pkg.Name, res.Ident().Name)
+					}
 				}
 			}
 		}

@@ -1,4 +1,5 @@
-parse
+! parse
+stderr 'cannot reference resource svca.Moo outside the service'
 
 -- svca/svca.go --
 package svca

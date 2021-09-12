@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot reference resource svc.Moo other than by calling methods on it'
+stderr 'cannot reference variable svc.Moo from outside the service'
 
 -- svc/svc.go --
 package svc
@@ -16,12 +16,14 @@ var Moo = sqldb.Named("moo")
 func Foo(ctx context.Context) error {
     return nil
 }
--- svc/pkg/pkg.go --
+-- pkg/pkg.go --
 package pkg
 
 import (
     "context"
     "test/svc"
+    
+    "encore.dev/storage/sqldb"
 )
 
 func Foo() {
