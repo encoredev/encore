@@ -75,18 +75,22 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 		g.Var().Id("response").Struct(
 			Id("data").Index().Index().Byte(),
 			Err().Error(),
-			Id("panicked").Bool(),
 		)
 		g.Id("done").Op(":=").Make(Chan().Struct())
 		g.Go().Func().Params().BlockFunc(func(g *Group) {
 			g.Defer().Close(Id("done"))
-			g.Err().Op(":=").Id("call").Dot("BeginReq").Call(Qual("encore.dev/runtime", "RequestData").Values(Dict{
+			requireAuth := False()
+			if rpc.Access == est.Auth {
+				requireAuth = True()
+			}
+			g.Err().Op(":=").Id("call").Dot("BeginReq").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(Dict{
 				Id("Type"):            Qual("encore.dev/runtime", "RPCCall"),
 				Id("Service"):         Lit(rpc.Svc.Name),
 				Id("Endpoint"):        Lit(rpc.Name),
 				Id("CallExprIdx"):     Id("callExprIdx"),
 				Id("EndpointExprIdx"): Id("endpointExprIdx"),
 				Id("Inputs"):          Id("inputs"),
+				Id("RequireAuth"):     requireAuth,
 			}))
 			g.If().Err().Op("!=").Nil().Block(
 				Id("response").Dot("err").Op("=").Err(),
@@ -95,7 +99,6 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 			g.Defer().Func().Params().Block(
 				If(Id("err2").Op(":=").Recover(), Id("err2").Op("!=").Nil()).Block(
 					Id("response").Dot("err").Op("=").Add(buildErrf("Internal", "panic handling request: %v", Id("err2"))),
-					Id("response").Dot("panicked").Op("=").True(),
 					Id("call").Dot("FinishReq").Call(Nil(), Id("response").Dot("err")),
 				),
 			).Call()
@@ -150,8 +153,7 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 
 		g.Id("call").Dot("Finish").Call(Id("response").Dot("err"))
 		if rpc.Response != nil {
-			g.Comment("If the handler panicked we won't have any response data")
-			g.If(Op("!").Id("response").Dot("panicked")).Block(
+			g.If(Id("response").Dot("data").Op("!=").Nil()).Block(
 				Id("_").Op("=").Qual("encore.dev/runtime", "CopyInputs").Call(Id("response").Dot("data"), Index().Interface().Values(Op("&").Id("resp"))),
 			)
 			g.Return(Id("resp"), Id("response").Dot("err"))

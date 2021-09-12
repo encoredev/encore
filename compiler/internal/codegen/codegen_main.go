@@ -108,6 +108,7 @@ func (b *Builder) Main() *File {
 		Id("cfg").Op(":=").Op("&").Qual("encore.dev/runtime/config", "ServerConfig").Values(Dict{
 			Id("Services"): Id("services"),
 			Id("Testing"):  False(),
+			Id("AuthData"): b.authDataType(),
 		}),
 		Id("srv").Op("=").Qual("encore.dev/runtime", "Setup").Call(Id("cfg")),
 		Qual("encore.dev/storage/sqldb", "Setup").Call(Id("cfg")),
@@ -132,6 +133,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 		Id("req").Op("*").Qual("net/http", "Request"),
 		Id("ps").Qual("github.com/julienschmidt/httprouter", "Params"),
 	).BlockFunc(func(g *Group) {
+		g.Id("ctx").Op(":=").Id("req").Dot("Context").Call()
 		g.Qual("encore.dev/runtime", "BeginOperation").Call()
 		g.Defer().Qual("encore.dev/runtime", "FinishOperation").Call()
 		g.Line()
@@ -150,7 +152,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 
 		traceID := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
 		if rpc.Raw {
-			g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
+			g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
 				d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
 				d[Id("Service")] = Lit(svc.Name)
 				d[Id("Endpoint")] = Lit(rpc.Name)
@@ -178,7 +180,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 			return
 		}
 
-		g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
+		g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
 			d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
 			d[Id("Service")] = Lit(svc.Name)
 			d[Id("Endpoint")] = Lit(rpc.Name)
@@ -505,7 +507,7 @@ func (b *Builder) writeAuthFuncs(f *File) {
 
 		Go().Func().Params().BlockFunc(func(g *Group) {
 			g.Defer().Id("close").Call(Id("done"))
-			g.Id("authErr").Op("=").Id("call").Dot("BeginReq").Call(Qual("encore.dev/runtime", "RequestData").Values(Dict{
+			g.Id("authErr").Op("=").Id("call").Dot("BeginReq").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(Dict{
 				Id("Type"):            Qual("encore.dev/runtime", "AuthHandler"),
 				Id("Service"):         Lit(authHandler.Svc.Name),
 				Id("Endpoint"):        Lit(authHandler.Name),
@@ -702,6 +704,18 @@ func (b *Builder) typeName(param *est.Param, skipPtr bool) Code {
 		typName = Op("*").Add(typName)
 	}
 	return typName
+}
+
+func (b *Builder) authDataType() Code {
+	if ah := b.res.App.AuthHandler; ah != nil && ah.AuthData != nil {
+		t := ah.AuthData
+		if t.IsPtr {
+			return Qual("reflect", "TypeOf").Call(Parens(b.typeName(t, false)).Call(Nil()))
+		} else {
+			return Qual("reflect", "TypeOf").Call(Parens(Op("*").Add(b.typeName(t, false))).Call(Nil())).Dot("Elem").Call()
+		}
+	}
+	return Nil()
 }
 
 func buildErr(code, msg string) *Statement {

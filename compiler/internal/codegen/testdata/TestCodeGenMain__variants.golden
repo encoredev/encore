@@ -17,6 +17,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -28,6 +29,7 @@ var json = jsoniter.Config{
 }.Froze()
 
 func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -42,7 +44,7 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Eight",
@@ -96,6 +98,7 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 }
 
 func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -121,7 +124,7 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Five",
@@ -163,6 +166,7 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 }
 
 func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -180,7 +184,7 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Four",
@@ -222,6 +226,7 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 }
 
 func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -230,7 +235,7 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "One",
@@ -268,6 +273,7 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 }
 
 func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -281,7 +287,7 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Seven",
@@ -304,6 +310,7 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 }
 
 func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -333,7 +340,7 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Six",
@@ -375,6 +382,7 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 }
 
 func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -388,7 +396,7 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Three",
@@ -430,6 +438,7 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 }
 
 func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
@@ -446,7 +455,7 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 		return
 	}
 
-	err := runtime.BeginRequest(runtime.RequestData{
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Two",
@@ -547,6 +556,7 @@ func main() {
 	}}
 
 	cfg := &config.ServerConfig{
+		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
 		Services: services,
 		Testing:  false,
 	}
@@ -614,7 +624,7 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 
 	go func() {
 		defer close(done)
-		authErr = call.BeginReq(runtime.RequestData{
+		authErr = call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     0,
 			Endpoint:        "AuthHandler",
 			EndpointExprIdx: 27,
@@ -631,8 +641,8 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 				call.FinishReq(nil, authErr)
 			}
 		}()
-		uid, authErr = svc.AuthHandler(ctx, token)
-		serialized, _ := runtime.SerializeInputs(uid)
+		uid, authData, authErr = svc.AuthHandler(ctx, token)
+		serialized, _ := runtime.SerializeInputs(uid, authData)
 		if authErr != nil {
 			call.FinishReq(nil, authErr)
 		} else {
@@ -727,18 +737,18 @@ func __encore_svc_Eight(callExprIdx, endpointExprIdx int32, ctx context.Context,
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "Eight",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -749,7 +759,6 @@ func __encore_svc_Eight(callExprIdx, endpointExprIdx int32, ctx context.Context,
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
@@ -775,8 +784,7 @@ func __encore_svc_Eight(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	<-done
 
 	call.Finish(response.err)
-	// If the handler panicked we won't have any response data
-	if !response.panicked {
+	if response.data != nil {
 		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
 	}
 	return resp, response.err
@@ -799,18 +807,18 @@ func __encore_svc_Five(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "Five",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -821,7 +829,6 @@ func __encore_svc_Five(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
@@ -867,18 +874,18 @@ func __encore_svc_Four(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "Four",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -889,7 +896,6 @@ func __encore_svc_Four(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
@@ -930,18 +936,18 @@ func __encore_svc_One(callExprIdx, endpointExprIdx int32, ctx context.Context) (
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "One",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -952,7 +958,6 @@ func __encore_svc_One(callExprIdx, endpointExprIdx int32, ctx context.Context) (
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
@@ -988,18 +993,18 @@ func __encore_svc_Seven(callExprIdx, endpointExprIdx int32, ctx context.Context,
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "Seven",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -1010,7 +1015,6 @@ func __encore_svc_Seven(callExprIdx, endpointExprIdx int32, ctx context.Context,
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
@@ -1055,18 +1059,18 @@ func __encore_svc_Six(callExprIdx, endpointExprIdx int32, ctx context.Context, p
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "Six",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -1077,7 +1081,6 @@ func __encore_svc_Six(callExprIdx, endpointExprIdx int32, ctx context.Context, p
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
@@ -1123,18 +1126,18 @@ func __encore_svc_Three(callExprIdx, endpointExprIdx int32, ctx context.Context,
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "Three",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -1145,7 +1148,6 @@ func __encore_svc_Three(callExprIdx, endpointExprIdx int32, ctx context.Context,
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
@@ -1189,18 +1191,18 @@ func __encore_svc_Two(callExprIdx, endpointExprIdx int32, ctx context.Context, p
 
 	// Run the request in a different goroutine
 	var response struct {
-		data     [][]byte
-		err      error
-		panicked bool
+		data [][]byte
+		err  error
 	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(runtime.RequestData{
+		err := call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     callExprIdx,
 			Endpoint:        "Two",
 			EndpointExprIdx: endpointExprIdx,
 			Inputs:          inputs,
+			RequireAuth:     false,
 			Service:         "svc",
 			Type:            runtime.RPCCall,
 		})
@@ -1211,7 +1213,6 @@ func __encore_svc_Two(callExprIdx, endpointExprIdx int32, ctx context.Context, p
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				response.panicked = true
 				call.FinishReq(nil, response.err)
 			}
 		}()
