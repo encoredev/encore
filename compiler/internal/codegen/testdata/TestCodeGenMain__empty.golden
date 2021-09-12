@@ -25,6 +25,7 @@ func main() {
 	services := []*config.Service{}
 
 	cfg := &config.ServerConfig{
+		AuthData: nil,
 		Services: services,
 		Testing:  false,
 	}
