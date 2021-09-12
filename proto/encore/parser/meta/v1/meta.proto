@@ -146,11 +146,13 @@ message PathSegment {
     INT16 = 3;
     INT32 = 4;
     INT64 = 5;
-    UINT8 = 6;
-    UINT16 = 7;
-    UINT32 = 8;
-    UINT64 = 9;
-    UUID = 10;
+    INT = 6;
+    UINT8 = 7;
+    UINT16 = 8;
+    UINT32 = 9;
+    UINT64 = 10;
+    UINT = 11;
+    UUID = 12;
   }
 
   SegmentType type = 1;
