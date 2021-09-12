@@ -156,7 +156,19 @@ func (ts *ts) writeService(svc *meta.Service) {
 				if nParams > 0 {
 					ts.WriteString(", ")
 				}
-				fmt.Fprintf(ts, "%s: string", s.Value)
+				ts.WriteString(s.Value)
+				ts.WriteString(": ")
+				switch s.ValueType {
+				case meta.PathSegment_STRING, meta.PathSegment_UUID:
+					ts.WriteString("string")
+				case meta.PathSegment_BOOL:
+					ts.WriteString("boolean")
+				case meta.PathSegment_INT8, meta.PathSegment_INT16, meta.PathSegment_INT32, meta.PathSegment_INT64, meta.PathSegment_INT,
+					meta.PathSegment_UINT8, meta.PathSegment_UINT16, meta.PathSegment_UINT32, meta.PathSegment_UINT64, meta.PathSegment_UINT:
+					ts.WriteString("number")
+				default:
+					panic(fmt.Sprintf("unhandled PathSegment type %s", s.ValueType))
+				}
 				paramNames[s.Value] = true
 				rpcPath.WriteString("${" + s.Value + "}")
 				nParams++
