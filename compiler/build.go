@@ -12,6 +12,7 @@ import (
 	"runtime"
 
 	"encr.dev/parser"
+	"encr.dev/parser/est"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 )
@@ -129,6 +130,7 @@ func (b *builder) Build() (res *Result, err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
+		b.checkApp,
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
@@ -170,6 +172,30 @@ func (b *builder) parseApp() error {
 	}
 	b.res, err = parser.Parse(cfg)
 	return err
+}
+
+// checkApp checks the parsed app against the metadata.
+func (b *builder) checkApp() error {
+	dbs := make(map[string]bool)
+	for _, svc := range b.res.Meta.Svcs {
+		if len(svc.Migrations) > 0 {
+			dbs[svc.Name] = true
+		}
+	}
+
+	for _, pkg := range b.res.App.Packages {
+		for _, res := range pkg.Resources {
+			switch res := res.(type) {
+			case *est.SQLDB:
+				if !dbs[res.DBName] {
+					pp := b.res.FileSet.Position(res.Ident().Pos())
+					b.errf("%s: database not found: %s", pp, res.DBName)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (b *builder) writeModFile() error {

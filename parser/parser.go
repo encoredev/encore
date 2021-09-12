@@ -547,6 +547,8 @@ func (p *parser) validateApp() {
 				switch res.Type() {
 				case est.SQLDBResource:
 					resType = "SQL Database"
+				default:
+					panic(fmt.Sprintf("unsupported resource type %v", res.Type()))
 				}
 				p.errf(res.Ident().Pos(), "cannot define %s resource in non-service package", resType)
 			}
