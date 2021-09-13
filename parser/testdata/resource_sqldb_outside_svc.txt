@@ -1,0 +1,13 @@
+! parse
+stderr 'cannot define SQL Database resource in non-service package'
+
+-- pkg/pkg.go --
+package pkg
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("moo")

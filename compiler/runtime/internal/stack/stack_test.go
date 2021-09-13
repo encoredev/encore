@@ -19,5 +19,5 @@ func __encore_foo() int {
 
 func userCode() int {
 	s := Build(2)
-	return len(s)
+	return len(s.Frames)
 }

@@ -129,25 +129,18 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if template == "" {
 		var idx int
 
-		dockerMsg := ""
-		if _, err := exec.LookPath("docker"); err != nil {
-			dockerMsg = " [uses Docker]"
-		}
 		prompt := &survey.Select{
 			Message: "Select app template:",
 			Options: []string{
-				"Trello clone" + dockerMsg,
-				"Hello World",
+				"Hello World (Encore introduction)",
 				"Empty app",
 			},
 		}
 		survey.AskOne(prompt, &idx)
 		switch idx {
 		case 0:
-			template = "trello-clone"
-		case 1:
 			template = "hello-world"
-		case 2:
+		case 1:
 			template = ""
 		}
 	}

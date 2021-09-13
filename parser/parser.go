@@ -111,6 +111,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	}
 	p.resolveNames(track)
 	p.parseServices()
+	p.parseResources()
 	p.parseReferences()
 	p.parseSecrets()
 	p.validateApp()
@@ -260,6 +261,17 @@ func (p *parser) parseReferences() {
 		}
 	}
 
+	// For all resources defined, store them in a map per package for faster lookup
+	resourceMap := make(map[string]map[string]est.Resource, len(p.pkgs)) // path -> name -> resource
+	for _, pkg := range p.pkgs {
+		resources := make(map[string]est.Resource, len(pkg.Resources))
+		resourceMap[pkg.ImportPath] = resources
+		for _, res := range pkg.Resources {
+			id := res.Ident()
+			resources[id.Name] = res
+		}
+	}
+
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			info := p.names[pkg].Files[file]
@@ -269,11 +281,42 @@ func (p *parser) parseReferences() {
 			for _, call := range info.Calls {
 				switch x := call.Fun.(type) {
 				case *ast.SelectorExpr:
+
+					// Is this a resource reference?
+					if remaining, ids := unwrapSel(x); remaining == nil && len(ids) >= 2 {
+						// Two cases: it's a package-local resource (resource.Foo) or not (pkg.Resource.Foo).
+						ri := info.Idents[ids[0]]
+
+						if ri != nil && ri.ImportPath != "" {
+							// Different package
+							if res := resourceMap[ri.ImportPath][ids[1].Name]; res != nil {
+								if len(ids) >= 3 { // guard against invalid usage resource.Foo(), will be caught at typechecking
+									file.References[x] = &est.Node{
+										Type: est.SQLDBNode,
+										Func: ids[2].Name,
+										Res:  res,
+									}
+								}
+								continue CallLoop
+							}
+						} else if ri != nil && ri.Package {
+							if res := resourceMap[pkg.ImportPath][ids[0].Name]; res != nil {
+								file.References[call] = &est.Node{
+									Type: est.SQLDBNode,
+									Func: ids[1].Name,
+									Res:  res,
+								}
+								continue CallLoop
+							}
+						}
+					}
+
 					if id, ok := x.X.(*ast.Ident); ok {
 						ri := info.Idents[id]
 						if ri == nil || ri.ImportPath == "" {
 							continue
 						}
+
 						path := ri.ImportPath
 
 						// Is it an RPC?
@@ -319,10 +362,7 @@ func (p *parser) parseReferences() {
 					if id, ok := sel.X.(*ast.Ident); ok {
 						// Have we rewritten this already?
 						if file.References[c.Parent()] != nil {
-							// We can't recurse into children because that will lead to
-							// spurious errors since we'll look up the child Ident in the case below
-							// and fail because it looks like we're referencing an RPC without calling it.
-							return false
+							return true
 						}
 						ri := info.Idents[id]
 						if ri == nil || ri.ImportPath == "" {
@@ -373,7 +413,7 @@ func (p *parser) parseReferences() {
 								case token.TYPE:
 									// TODO check if there are methods on the type
 								case token.VAR:
-									p.errf(sel.Pos(), "cannot reference variable %s.%s in another Encore service", pkg2.RelPath, sel.Sel.Name)
+									p.errf(sel.Pos(), "cannot reference variable %s.%s from outside the service", pkg2.RelPath, sel.Sel.Name)
 									return false
 								}
 							}
@@ -407,7 +447,7 @@ func (p *parser) parseReferences() {
 						rpc := node.RPC
 						p.errf(astNode.Pos(), "cannot reference API %s.%s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
 					case est.SQLDBNode:
-						p.errf(astNode.Pos(), "cannot use package %s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", sqldbImportPath, pkg.Name)
+						// sqldb calls are allowed outside of services
 					case est.RLogNode:
 						// rlog calls are allowed outside of services
 					default:
@@ -494,6 +534,31 @@ func (p *parser) validateApp() {
 				if rpc.Access == est.Auth {
 					p.errf(rpc.Func.Pos(), "cannot use \"auth\" access type, no auth handler is defined in the app")
 					break AuthLoop
+				}
+			}
+		}
+	}
+
+	// Error if resources are defined in non-services
+	for _, pkg := range p.pkgs {
+		if pkg.Service == nil {
+			for _, res := range pkg.Resources {
+				resType := ""
+				switch res.Type() {
+				case est.SQLDBResource:
+					resType = "SQL Database"
+				default:
+					panic(fmt.Sprintf("unsupported resource type %v", res.Type()))
+				}
+				p.errf(res.Ident().Pos(), "cannot define %s resource in non-service package", resType)
+			}
+		}
+		for _, f := range pkg.Files {
+			for node, ref := range f.References {
+				if res := ref.Res; ref.Res != nil {
+					if ff := res.File(); ff.Pkg.Service != nil && (pkg.Service == nil || pkg.Service.Name != ff.Pkg.Service.Name) {
+						p.errf(node.Pos(), "cannot reference resource %s.%s outside the service", ff.Pkg.Name, res.Ident().Name)
+					}
 				}
 			}
 		}

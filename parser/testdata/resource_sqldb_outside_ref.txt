@@ -1,0 +1,31 @@
+! parse
+stderr 'cannot reference variable svc.Moo from outside the service'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("moo")
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    return nil
+}
+-- pkg/pkg.go --
+package pkg
+
+import (
+    "context"
+    "test/svc"
+    
+    "encore.dev/storage/sqldb"
+)
+
+func Foo() {
+    _ = svc.Moo.Query
+}

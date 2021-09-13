@@ -2,6 +2,7 @@ package config
 
 import (
 	"net/http"
+	"reflect"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -9,6 +10,8 @@ import (
 type ServerConfig struct {
 	Testing  bool
 	Services []*Service
+	// AuthData is the custom auth data type, or nil
+	AuthData reflect.Type
 }
 
 type Service struct {

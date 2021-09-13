@@ -31,6 +31,11 @@ type Request struct {
     Raw json.RawMessage
 }
 
+type GetRequest struct {
+    Bar string ` + "`qs:\"-\"`" + `
+    Baz string ` + "`qs:\"boo\"`" + `
+}
+
 type Foo int
 
 -- svc/api.go --
@@ -40,6 +45,16 @@ import "context"
 
 //encore:api public
 func DummyAPI(ctx context.Context, req *Request) error {
+    return nil
+}
+
+//encore:api public method=GET
+func Get(ctx context.Context, req *GetRequest) error {
+    return nil
+}
+
+//encore:api public path=/path/:a/:b
+func RESTPath(ctx context.Context, a string, b int) error {
     return nil
 }
 `
@@ -69,6 +84,11 @@ func DummyAPI(ctx context.Context, req *Request) error {
 export namespace svc {
     export type Foo = number
 
+    export interface GetRequest {
+        Bar: string
+        Baz: string
+    }
+
     export interface Request {
         Foo: Foo
         boo: string
@@ -84,6 +104,17 @@ export namespace svc {
 
         public DummyAPI(params: Request): Promise<void> {
             return this.baseClient.doVoid("POST", ` + "`/svc.DummyAPI`" + `, params)
+        }
+
+        public Get(params: GetRequest): Promise<void> {
+            const query: any[] = [
+                "boo", params.Baz,
+            ]
+            return this.baseClient.doVoid("GET", ` + "`/svc.Get?${encodeQuery(query)}`" + `)
+        }
+
+        public RESTPath(a: string, b: number): Promise<void> {
+            return this.baseClient.doVoid("GET", ` + "`/path/${a}/${b}`" + `)
         }
     }
 }
@@ -132,6 +163,21 @@ class BaseClient {
         }
         await response.text()
     }
+}
+
+function encodeQuery(parts: any[]): string {
+    const pairs = []
+    for (let i = 0; i < parts.length; i += 2) {
+        const key = parts[i]
+        let val = parts[i+1]
+        if (!Array.isArray(val)) {
+            val = [val]
+        }
+        for (const v of val) {
+            pairs.push(` + "`${key}=${encodeURIComponent(v)}`" + `)
+        }
+    }
+    return pairs.join("&")
 }
 `
 

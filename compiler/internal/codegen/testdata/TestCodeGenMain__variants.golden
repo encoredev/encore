@@ -1,0 +1,1240 @@
+// main code
+package main
+
+import (
+	"context"
+	"encore.app/svc"
+	auth "encore.dev/beta/auth"
+	"encore.dev/beta/errs"
+	"encore.dev/runtime"
+	"encore.dev/runtime/config"
+	"encore.dev/storage/sqldb"
+	"encore.dev/types/uuid"
+	"fmt"
+	"github.com/felixge/httpsnoop"
+	"github.com/json-iterator/go"
+	"github.com/julienschmidt/httprouter"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"reflect"
+	"strconv"
+	"strings"
+)
+
+var json = jsoniter.Config{
+	EscapeHTML:             false,
+	SortMapKeys:            true,
+	ValidateJsonRawMessage: true,
+}.Froze()
+
+func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Decode request
+	var dec typeDecoder
+	p0 := dec.String("bar", ps[0].Value, true)
+	p1 := dec.String("baz", ps[1].Value, true)
+	inputs, _ := runtime.SerializeInputs(p0, p1)
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Eight")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Eight",
+		EndpointExprIdx: 19,
+		Inputs:          inputs,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	} else if err := dec.Err(); err != nil {
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	resp, respErr := svc.Eight(req.Context(), p0, p1)
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	// Serialize the response
+	var respData []byte
+	respData, marshalErr := json.MarshalIndent(resp, "", "  ")
+	if marshalErr != nil {
+		marshalErr = errs.WrapCode(marshalErr, errs.Internal, "failed to marshal response")
+		runtime.FinishRequest(nil, marshalErr)
+		errs.HTTPError(w, marshalErr)
+		return
+	}
+	respData = append(respData, '\n')
+	output := [][]byte{respData}
+	runtime.FinishRequest(output, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write(respData)
+}
+
+func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Decode request
+	var dec typeDecoder
+	p0 := dec.UUID("id", ps[0].Value, true)
+	p1 := dec.Uint("key", ps[1].Value, true)
+	inputs, _ := runtime.SerializeInputs(p0, p1)
+
+	params := &svc.FooParams{}
+	switch req.Method {
+	case "GET":
+		qs := req.URL.Query()
+		params.Name = dec.String("name", qs.Get("name"), false)
+		inputs = append(inputs, []byte("?"+req.URL.RawQuery))
+	default:
+		payload := dec.Body(req.Body, &params)
+		inputs = append(inputs, payload)
+	}
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Five")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Five",
+		EndpointExprIdx: 20,
+		Inputs:          inputs,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	} else if err := dec.Err(); err != nil {
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	respErr := svc.Five(req.Context(), p0, p1, params)
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
+func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
+	// while the httprouter implementation includes it.
+	ps[0].Value = strings.TrimPrefix(ps[0].Value, "/")
+
+	// Decode request
+	var dec typeDecoder
+	p0 := dec.String("baz", ps[0].Value, true)
+	inputs, _ := runtime.SerializeInputs(p0)
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Four")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Four",
+		EndpointExprIdx: 21,
+		Inputs:          inputs,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	} else if err := dec.Err(); err != nil {
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	respErr := svc.Four(req.Context(), p0)
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
+func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "One")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "One",
+		EndpointExprIdx: 22,
+		Inputs:          nil,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	respErr := svc.One(req.Context())
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
+func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Decode request
+	var dec typeDecoder
+	_ = dec.String("bar", ps[0].Value, true)
+	_ = dec.String("baz", ps[1].Value, true)
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Seven")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Seven",
+		EndpointExprIdx: 23,
+		Inputs:          nil,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
+
+	m := httpsnoop.CaptureMetrics(http.HandlerFunc(svc.Seven), w, req)
+	if m.Code >= 400 {
+		err = fmt.Errorf("response status code %d", m.Code)
+	}
+	runtime.FinishHTTPRequest(nil, err, m.Code)
+}
+
+func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
+	// while the httprouter implementation includes it.
+	ps[1].Value = strings.TrimPrefix(ps[1].Value, "/")
+
+	// Decode request
+	var dec typeDecoder
+	p0 := dec.UUID("id", ps[0].Value, true)
+	p1 := dec.String("key", ps[1].Value, true)
+	inputs, _ := runtime.SerializeInputs(p0, p1)
+
+	params := &svc.FooParams{}
+	switch req.Method {
+	case "GET":
+		qs := req.URL.Query()
+		params.Name = dec.String("name", qs.Get("name"), false)
+		inputs = append(inputs, []byte("?"+req.URL.RawQuery))
+	default:
+		payload := dec.Body(req.Body, &params)
+		inputs = append(inputs, payload)
+	}
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Six")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Six",
+		EndpointExprIdx: 24,
+		Inputs:          inputs,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	} else if err := dec.Err(); err != nil {
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	respErr := svc.Six(req.Context(), p0, p1, params)
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
+func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Decode request
+	var dec typeDecoder
+	p0 := dec.String("id", ps[0].Value, true)
+	inputs, _ := runtime.SerializeInputs(p0)
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Three")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Three",
+		EndpointExprIdx: 25,
+		Inputs:          inputs,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	} else if err := dec.Err(); err != nil {
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	respErr := svc.Three(req.Context(), p0)
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
+func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Decode request
+	var dec typeDecoder
+	var inputs [][]byte
+
+	params := &svc.FooParams{}
+	payload := dec.Body(req.Body, &params)
+	inputs = append(inputs, payload)
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Two")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Two",
+		EndpointExprIdx: 26,
+		Inputs:          inputs,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	} else if err := dec.Err(); err != nil {
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	respErr := svc.Two(req.Context(), params)
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
+var srv *runtime.Server
+
+func main() {
+	// Register the Encore services
+	services := []*config.Service{{
+		Endpoints: []*config.Endpoint{{
+			Handler: __encore_svc_Eight,
+			Methods: []string{"GET", "POST"},
+			Name:    "Eight",
+			Path:    "/eight/:bar/:baz",
+			Raw:     false,
+		}, {
+			Handler: __encore_svc_Five,
+			Methods: []string{"GET", "POST"},
+			Name:    "Five",
+			Path:    "/five/:id/:key",
+			Raw:     false,
+		}, {
+			Handler: __encore_svc_Four,
+			Methods: []string{"GET", "POST"},
+			Name:    "Four",
+			Path:    "/four/*baz",
+			Raw:     false,
+		}, {
+			Handler: __encore_svc_One,
+			Methods: []string{"GET", "POST"},
+			Name:    "One",
+			Path:    "/svc.One",
+			Raw:     false,
+		}, {
+			Handler: __encore_svc_Seven,
+			Methods: []string{"*"},
+			Name:    "Seven",
+			Path:    "/foo/:bar/:baz",
+			Raw:     true,
+		}, {
+			Handler: __encore_svc_Six,
+			Methods: []string{"GET", "POST"},
+			Name:    "Six",
+			Path:    "/six/:id/*key",
+			Raw:     false,
+		}, {
+			Handler: __encore_svc_Three,
+			Methods: []string{"GET", "POST"},
+			Name:    "Three",
+			Path:    "/three/:id",
+			Raw:     false,
+		}, {
+			Handler: __encore_svc_Two,
+			Methods: []string{"POST"},
+			Name:    "Two",
+			Path:    "/svc.Two",
+			Raw:     false,
+		}},
+		Name:    "svc",
+		RelPath: "svc",
+		SQLDB:   false,
+	}}
+
+	cfg := &config.ServerConfig{
+		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
+		Services: services,
+		Testing:  false,
+	}
+	srv = runtime.Setup(cfg)
+	sqldb.Setup(cfg)
+	srv.ListenAndServe()
+}
+
+type validationDetails struct {
+	Field string `json:"field"`
+	Err   string `json:"err"`
+}
+
+func (validationDetails) ErrDetails() {}
+
+// __encore_authenticate authenticates a request.
+// It reports the user id, user data, and whether or not to proceed with the request.
+// If requireAuth is false, it reports ("", nil, true) on authentication failure.
+func __encore_authenticate(w http.ResponseWriter, req *http.Request, requireAuth bool, svcName, rpcName string) (uid auth.UID, authData interface{}, proceed bool) {
+	var token string
+	if auth := req.Header.Get("Authorization"); auth != "" {
+	TokenLoop:
+		for _, prefix := range [...]string{"Bearer ", "Token "} {
+			if strings.HasPrefix(auth, prefix) {
+				if t := auth[len(prefix):]; t != "" {
+					token = t
+					break TokenLoop
+				}
+			}
+		}
+	}
+
+	if token != "" {
+		var err error
+		uid, authData, err = __encore_validateToken(req.Context(), token)
+		if errs.Code(err) == errs.Unauthenticated && !requireAuth {
+			return "", nil, true
+		} else if err != nil {
+			errs.HTTPError(w, err)
+			return "", nil, false
+		} else {
+			return uid, authData, true
+		}
+	}
+
+	if requireAuth {
+		runtime.Logger().Info().Str("service", svcName).Str("endpoint", rpcName).Msg("rejecting request due to missing auth token")
+		errs.HTTPError(w, errs.B().Code(errs.Unauthenticated).Msg("missing auth token").Err())
+		return "", nil, false
+	} else {
+		return "", nil, true
+	}
+}
+
+// __encore_validateToken validates an auth token.
+func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, authData interface{}, authErr error) {
+	if token == "" {
+		return "", nil, nil
+	}
+	done := make(chan struct{})
+	call, err := runtime.BeginAuth(27, token)
+	if err != nil {
+		return "", nil, err
+	}
+
+	go func() {
+		defer close(done)
+		authErr = call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     0,
+			Endpoint:        "AuthHandler",
+			EndpointExprIdx: 27,
+			Inputs:          [][]byte{[]byte(strconv.Quote(token))},
+			Service:         "svc",
+			Type:            runtime.AuthHandler,
+		})
+		if authErr != nil {
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				authErr = errs.B().Code(errs.Internal).Msgf("auth handler panicked: %v", err2).Err()
+				call.FinishReq(nil, authErr)
+			}
+		}()
+		uid, authData, authErr = svc.AuthHandler(ctx, token)
+		serialized, _ := runtime.SerializeInputs(uid, authData)
+		if authErr != nil {
+			call.FinishReq(nil, authErr)
+		} else {
+			call.FinishReq(serialized, nil)
+		}
+	}()
+	<-done
+	call.Finish(uid, authErr)
+	return uid, authData, authErr
+}
+
+// typeDecoder decodes types from incoming requests
+type typeDecoder struct {
+	err error
+}
+
+func (d *typeDecoder) String(field, s string, required bool) (v string) {
+	if !required && s == "" {
+		return
+	}
+	return s
+}
+
+func (d *typeDecoder) UUID(field, s string, required bool) (v uuid.UUID) {
+	if !required && s == "" {
+		return
+	}
+	v, err := uuid.FromString(s)
+	d.setErr("invalid parameter", field, err)
+	return v
+}
+
+func (d *typeDecoder) Uint(field, s string, required bool) (v uint) {
+	if !required && s == "" {
+		return
+	}
+	x, err := strconv.ParseUint(s, 10, 64)
+	d.setErr("invalid parameter", field, err)
+	return uint(x)
+}
+
+func (d *typeDecoder) Body(body io.Reader, dst interface{}) (payload []byte) {
+	payload, err := ioutil.ReadAll(body)
+	if err == nil && len(payload) == 0 {
+		d.setErr("missing request body", "request_body", fmt.Errorf("missing request body"))
+	} else if err != nil {
+		d.setErr("could not parse request body", "request_body", err)
+	} else if err := json.Unmarshal(payload, dst); err != nil {
+		d.setErr("could not parse request body", "request_body", err)
+	}
+	return payload
+}
+
+func (d *typeDecoder) Err() error {
+	return d.err
+}
+
+func (d *typeDecoder) setErr(msg, field string, err error) {
+	if err != nil && d.err == nil {
+		d.err = errs.B().Code(errs.InvalidArgument).Msg(msg).Details(validationDetails{
+			Err:   err.Error(),
+			Field: field,
+		}).Err()
+	}
+}
+
+
+// wrappers for service svc
+package svc
+
+import (
+	"context"
+	"encore.dev/beta/errs"
+	"encore.dev/runtime"
+	"encore.dev/types/uuid"
+)
+
+func __encore_svc_Eight(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string, p1 string) (resp *Response, err error) {
+	inputs, err := runtime.SerializeInputs(p0, p1)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Eight",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Eight",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 string
+			r1 string
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcResp, rpcErr := Eight(ctx, r0, r1)
+		response.data, _ = runtime.SerializeInputs(rpcResp)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	if response.data != nil {
+		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
+	}
+	return resp, response.err
+}
+
+func __encore_svc_Five(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 uuid.UUID, p1 uint, p2 *FooParams) (err error) {
+	inputs, err := runtime.SerializeInputs(p0, p1, p2)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Five",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Five",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 uuid.UUID
+			r1 uint
+			r2 *FooParams
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1, &r2}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcErr := Five(ctx, r0, r1, r2)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
+
+func __encore_svc_Four(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string) (err error) {
+	inputs, err := runtime.SerializeInputs(p0)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Four",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Four",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 string
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcErr := Four(ctx, r0)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
+
+func __encore_svc_One(callExprIdx, endpointExprIdx int32, ctx context.Context) (err error) {
+	var inputs [][]byte
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "One",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "One",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		rpcErr := One(ctx)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
+
+func __encore_svc_Seven(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string, p1 string) (err error) {
+	inputs, err := runtime.SerializeInputs(p0, p1)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Seven",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Seven",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 string
+			r1 string
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcErr := Seven(ctx, r0, r1)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
+
+func __encore_svc_Six(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParams) (err error) {
+	inputs, err := runtime.SerializeInputs(p0, p1, p2)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Six",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Six",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 uuid.UUID
+			r1 string
+			r2 *FooParams
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1, &r2}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcErr := Six(ctx, r0, r1, r2)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
+
+func __encore_svc_Three(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string) (err error) {
+	inputs, err := runtime.SerializeInputs(p0)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Three",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Three",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 string
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcErr := Three(ctx, r0)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
+
+func __encore_svc_Two(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 *FooParams) (err error) {
+	inputs, err := runtime.SerializeInputs(p0)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Two",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Two",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 *FooParams
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcErr := Two(ctx, r0)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
