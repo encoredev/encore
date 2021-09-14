@@ -29,7 +29,7 @@ func TestCompile(t *testing.T) {
 			e.Setenv("ENCORE_GOROOT", goroot)
 			e.Setenv("HOME", home)
 			e.Setenv("GOFLAGS", "-modcacherw")
-			gomod := []byte("module test\n\nrequire encore.dev v0.7.0")
+			gomod := []byte("module test\n\nrequire encore.dev v0.17.0")
 			return ioutil.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755)
 		},
 	})

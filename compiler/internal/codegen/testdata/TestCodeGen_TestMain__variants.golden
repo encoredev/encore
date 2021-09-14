@@ -20,9 +20,10 @@ func TestMain(m *testing.M) {
 
 	// Set up the Encore runtime
 	cfg := &config.ServerConfig{
-		AuthData: "*encore.app/svc.AuthData",
-		Services: services,
-		Testing:  true,
+		AuthData:    "*encore.app/svc.AuthData",
+		Services:    services,
+		TestService: "svc",
+		Testing:     true,
 	}
 	runtime.Setup(cfg)
 	sqldb.Setup(cfg)

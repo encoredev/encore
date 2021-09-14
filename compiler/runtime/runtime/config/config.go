@@ -7,7 +7,9 @@ import (
 )
 
 type ServerConfig struct {
-	Testing  bool
+	Testing     bool
+	TestService string // service being tested, if any
+
 	Services []*Service
 	// AuthData is the custom auth data type, or "" if none
 	AuthData string

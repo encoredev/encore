@@ -211,14 +211,17 @@ var (
 )
 
 func getDB() *Database {
-	req, _, _ := runtime.CurrentRequest()
-	if req == nil {
+	var dbName string
+	if req, _, _ := runtime.CurrentRequest(); req != nil {
+		dbName = req.Service
+	} else if cfg := runtime.Config; cfg != nil && cfg.TestService != "" {
+		dbName = cfg.TestService
+	} else {
 		panic("sqldb: no current request")
 	}
-	name := req.Service
 
 	dbMu.RLock()
-	db, ok := dbMap[name]
+	db, ok := dbMap[dbName]
 	dbMu.RUnlock()
 	if ok {
 		return db
@@ -226,8 +229,8 @@ func getDB() *Database {
 
 	dbMu.Lock()
 	defer dbMu.Unlock()
-	db = &Database{name: name, pool: getPool(name)}
-	dbMap[name] = db
+	db = &Database{name: dbName, pool: getPool(dbName)}
+	dbMap[dbName] = db
 	return db
 }
 
