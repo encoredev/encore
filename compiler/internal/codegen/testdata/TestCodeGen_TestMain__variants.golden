@@ -6,7 +6,6 @@ import (
 	"encore.dev/runtime/config"
 	"encore.dev/storage/sqldb"
 	"os"
-	"reflect"
 	"testing"
 )
 
@@ -21,7 +20,7 @@ func TestMain(m *testing.M) {
 
 	// Set up the Encore runtime
 	cfg := &config.ServerConfig{
-		AuthData: reflect.TypeOf((*AuthData)(nil)),
+		AuthData: "*encore.app/svc.AuthData",
 		Services: services,
 		Testing:  true,
 	}
