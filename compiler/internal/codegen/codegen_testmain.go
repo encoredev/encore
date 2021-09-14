@@ -41,10 +41,15 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 		g.Line()
 
 		g.Comment("Set up the Encore runtime")
+		testSvc := ""
+		if pkg.Service != nil {
+			testSvc = pkg.Service.Name
+		}
 		g.Id("cfg").Op(":=").Op("&").Qual("encore.dev/runtime/config", "ServerConfig").Values(Dict{
-			Id("Services"): Id("services"),
-			Id("Testing"):  True(),
-			Id("AuthData"): b.authDataType(),
+			Id("Services"):    Id("services"),
+			Id("Testing"):     True(),
+			Id("TestService"): Lit(testSvc),
+			Id("AuthData"):    b.authDataType(),
 		})
 		g.Qual("encore.dev/runtime", "Setup").Call(Id("cfg"))
 		g.Qual("encore.dev/storage/sqldb", "Setup").Call(Id("cfg"))
