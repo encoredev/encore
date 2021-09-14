@@ -707,15 +707,15 @@ func (b *Builder) typeName(param *est.Param, skipPtr bool) Code {
 }
 
 func (b *Builder) authDataType() Code {
+	s := ""
 	if ah := b.res.App.AuthHandler; ah != nil && ah.AuthData != nil {
 		t := ah.AuthData
+		s = t.Decl.Loc.PkgPath + "." + t.Decl.Name
 		if t.IsPtr {
-			return Qual("reflect", "TypeOf").Call(Parens(b.typeName(t, false)).Call(Nil()))
-		} else {
-			return Qual("reflect", "TypeOf").Call(Parens(Op("*").Add(b.typeName(t, false))).Call(Nil())).Dot("Elem").Call()
+			s = "*" + s
 		}
 	}
-	return Nil()
+	return Lit(s)
 }
 
 func buildErr(code, msg string) *Statement {

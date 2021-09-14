@@ -17,7 +17,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -556,7 +555,7 @@ func main() {
 	}}
 
 	cfg := &config.ServerConfig{
-		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
+		AuthData: "*encore.app/svc.AuthData",
 		Services: services,
 		Testing:  false,
 	}
