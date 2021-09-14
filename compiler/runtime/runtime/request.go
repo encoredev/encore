@@ -423,12 +423,19 @@ func checkAuthData(uid UID, userData interface{}) error {
 		return fmt.Errorf("invalid API call options: empty uid and non-empty auth data")
 	}
 
-	if Config.AuthData != nil {
+	if Config.AuthData != "" {
 		if uid != "" && userData == nil {
 			return fmt.Errorf("invalid API call options: missing auth data")
 		} else if userData != nil {
-			if tt := reflect.TypeOf(userData); tt != Config.AuthData {
-				return fmt.Errorf("invalid API call options: wrong type for auth data (got %s, expected %s)", tt, Config.AuthData)
+			tt := reflect.TypeOf(userData)
+			var name string
+			for tt.Kind() == reflect.Ptr {
+				name += "*"
+				tt = tt.Elem()
+			}
+			name += tt.PkgPath() + "." + tt.Name()
+			if name != Config.AuthData {
+				return fmt.Errorf("invalid API call options: wrong type for auth data (got %s, expected %s)", name, Config.AuthData)
 			}
 		}
 	} else {
