@@ -39,17 +39,13 @@ encore app create
 
 Then pick a name for your app using lowercase letters, digits, or dashes.
 
-Then choose one of the example applications: `Hello World` or `Trello Clone`
-
-_Next time when you're starting a new project, you also have the choice of creating an_ `Empty app`.
-
-Once created, take a note of its **App ID**. This will be something like `hello-world-4x3b` (yours will be different).
+Finally, select the `Hello World` template.
 
 ## Running your app
 
-To run your app, open the folder created for your application. (Note: Your App ID will be different)
+To run your app, open the folder created for your application using the name of your app.
 ```bash
-cd hello-world-4x3b
+cd your-app-name
 ```
 
 Then while in the app root directory, run your app by simply running:
@@ -70,7 +66,7 @@ That means your application is up and running!
 While you keep the app running, open a separate terminal and call your API endpoint:
 
 ```bash
-$ curl http://localhost:4060/hello.World
+$ curl http://localhost:4060/hello/world
 {"Message": "Hello, world!"}
 ```
 
@@ -88,13 +84,15 @@ This will trigger a build and deploy. You'll see the deploy logs being streamed 
 
 Once the deploy completes, your app is up and running in production!
 
+Take note of your API Base URL that will be something like: `https://$APP_ID.encoreapi.com/prod`
+
 ## Call your API
 To verify that it's running, let's call our API.
 
 Now, open your terminal and run (replace `$APP_ID` with your own App ID):
 
 ```bash
-$ curl https://$APP_ID.encoreapi.com/prod/hello.World
+$ curl https://$APP_ID.encoreapi.com/prod/hello/world
 {"Message": "Hello, world!"}
 ```
 
