@@ -57,7 +57,7 @@ Running on http://localhost:4060
 While you keep the app running, open a separate terminal and call your API endpoint:
 
 ```bash
-$ curl http://localhost:4060/hello.World
+$ curl http://localhost:4060/hello/world
 {"Message": "Hello, world!"}
 ```
 
