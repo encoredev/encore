@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -19,8 +20,13 @@ import (
 // for sending requests.
 func TestStartProc(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	run := &Run{ID: genID()}
 	c := qt.New(t)
+
+	ln, err := net.Listen("tcp", "localhost:0")
+	c.Assert(err, qt.IsNil)
+	defer ln.Close()
+
+	run := &Run{ID: genID(), ListenAddr: ln.Addr().String()}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

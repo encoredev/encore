@@ -57,7 +57,7 @@ You should see this:
 
 ```bash
 $ encore run
-Running on http://localhost:4060
+Running on http://localhost:4000
 9:00AM INF registered endpoint endpoint=World service=hello
 ```
 
@@ -66,7 +66,7 @@ That means your application is up and running!
 While you keep the app running, open a separate terminal and call your API endpoint:
 
 ```bash
-$ curl http://localhost:4060/hello/world
+$ curl http://localhost:4000/hello/world
 {"Message": "Hello, world!"}
 ```
 

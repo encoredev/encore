@@ -11,7 +11,7 @@ interface API {
 }
 
 const AppCaller: FC<{appID: string; conn: JSONRPCConn}> = ({appID, conn}) => {
-  const [port, setPort] = useState(4060)
+  const [addr, setAddr] = useState("localhost:4000")
   interface State {
     md?: APIMeta;
     list?: API[];
@@ -45,7 +45,7 @@ const AppCaller: FC<{appID: string; conn: JSONRPCConn}> = ({appID, conn}) => {
     if (msg.method === "process/start") {
       const data = msg.params as ProcessStart
       if (data.appID === appID) {
-        setPort(data.port)
+        setAddr(data.addr)
       }
     } else if (msg.method === "process/reload") {
       const data = msg.params as ProcessReload
@@ -57,7 +57,7 @@ const AppCaller: FC<{appID: string; conn: JSONRPCConn}> = ({appID, conn}) => {
 
   useEffect(() => {
     conn.request("status", {appID}).then((resp: any) => {
-      if (resp.port) { setPort(resp.port) }
+      if (resp.addr) { setAddr(resp.addr) }
       if (resp.meta) { dispatch({type: "meta", meta: resp.meta}) }
     })
 
@@ -79,7 +79,7 @@ const AppCaller: FC<{appID: string; conn: JSONRPCConn}> = ({appID, conn}) => {
         </select>
       </div>
       <div className="mt-3">
-        <RPCCaller conn={conn} appID={appID} md={state.md} svc={state.selected.svc} rpc={state.selected.rpc} port={port} />
+        <RPCCaller conn={conn} appID={appID} md={state.md} svc={state.selected.svc} rpc={state.selected.rpc} addr={addr} />
       </div>
     </div>
   )

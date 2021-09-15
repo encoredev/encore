@@ -101,7 +101,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			"appID":   run.AppID,
 			"pid":     run.ID,
 			"meta":    json.RawMessage(str),
-			"port":    run.Port,
+			"addr":    run.ListenAddr,
 		}, nil)
 
 	case "api-call":
@@ -122,7 +122,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, fmt.Errorf("app not running"))
 		}
 
-		url := fmt.Sprintf("http://localhost:%d%s", run.Port, params.Path)
+		url := "http://" + run.ListenAddr + params.Path
 		log := log.With().Str("appID", params.AppID).Str("path", params.Path).Logger()
 
 		req, err := http.NewRequestWithContext(ctx, params.Method, url, bytes.NewReader(params.Payload))
@@ -229,7 +229,7 @@ func (s *Server) OnStart(r *run.Run) {
 		Params: map[string]interface{}{
 			"appID": r.AppID,
 			"pid":   r.ID,
-			"port":  r.Port,
+			"addr":  r.ListenAddr,
 			"meta":  json.RawMessage(str),
 		},
 	})

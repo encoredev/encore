@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 
@@ -16,19 +17,21 @@ var (
 	tunnel bool
 	debug  bool
 	watch  bool
+	listen string
+	port   uint
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run [--debug] [--watch=true]",
+	Use:   "run [--debug] [--watch=true] [--port=4000] [--listen=<listen-addr>]",
 	Short: "Runs your application",
 	Run: func(cmd *cobra.Command, args []string) {
 		appRoot, wd := determineAppRoot()
-		runApp(appRoot, wd, tunnel, watch)
+		runApp(appRoot, wd)
 	},
 }
 
 // runApp runs the app.
-func runApp(appRoot, wd string, tunnel, watch bool) {
+func runApp(appRoot, wd string) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -38,6 +41,15 @@ func runApp(appRoot, wd string, tunnel, watch bool) {
 		cancel()
 	}()
 
+	// Determine listen addr.
+	// If --listen is given with a port, use that directly and ignore --port.
+	var listenAddr string
+	if _, _, err := net.SplitHostPort(listen); err == nil {
+		listenAddr = listen
+	} else {
+		listenAddr = fmt.Sprintf("%s:%d", listen, port)
+	}
+
 	daemon := setupDaemon(ctx)
 	stream, err := daemon.Run(ctx, &daemonpb.RunRequest{
 		AppRoot:    appRoot,
@@ -45,6 +57,7 @@ func runApp(appRoot, wd string, tunnel, watch bool) {
 		Debug:      debug,
 		Watch:      watch,
 		WorkingDir: wd,
+		ListenAddr: listenAddr,
 	})
 	if err != nil {
 		fatal(err)
@@ -68,4 +81,6 @@ func init() {
 	runCmd.Flags().BoolVar(&tunnel, "tunnel", false, "Create a tunnel to your machine for others to test against")
 	runCmd.Flags().BoolVar(&debug, "debug", false, "Compile for debugging (disables some optimizations)")
 	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
+	runCmd.Flags().StringVar(&listen, "listen", "localhost", "Address to listen on (for example \"0.0.0.0:4000\")")
+	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
 }

@@ -50,20 +50,20 @@ You should see this:
 
 ```bash
 $ encore run
-Running on http://localhost:4060
+Running on http://localhost:4000
 9:00AM INF registered endpoint endpoint=World service=hello
 ```
 
 While you keep the app running, open a separate terminal and call your API endpoint:
 
 ```bash
-$ curl http://localhost:4060/hello/world
+$ curl http://localhost:4000/hello/world
 {"Message": "Hello, world!"}
 ```
 
 _You've successfully created and run your first Encore application. Well done! 🎉_
 
-You can now access your local development dashboard by opening [http://localhost:4060](http://localhost:4060) in your browser. Here you can monitor logs, view traces, and explore the automatically generated API documentation.
+You can now access your local development dashboard by opening [http://localhost:4000](http://localhost:4000) in your browser. Here you can monitor logs, view traces, and explore the automatically generated API documentation.
 
 
 ## Deploy your app

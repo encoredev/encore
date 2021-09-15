@@ -132,7 +132,7 @@ class BaseClient {
             this.headers["Authorization"] = "Bearer " + token
         }
         if (environment === "local") {
-            this.baseURL = "http://localhost:4060"
+            this.baseURL = "http://localhost:4000"
         } else {
             this.baseURL = ` + "`" + `https://app.encoreapi.com/${environment}` + "`" + `
         }

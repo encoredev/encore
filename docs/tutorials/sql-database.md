@@ -46,7 +46,7 @@ func generateGreeting(ctx context.Context, name string) (string, error) {
 }
 ```
 
-Run your app with `encore run` and then open the local development dashboard by visiting [http://localhost:4060](http://localhost:4060) in your browser.
+Run your app with `encore run` and then open the local development dashboard by visiting [http://localhost:4000](http://localhost:4000) in your browser.
 
 Navigate to the API Documentation by clicking **API** in the top left.
 There you'll see your new `hello.There` endpoint.
@@ -131,11 +131,11 @@ Try it out by running `encore run`. Either open the API Documentation and try ag
 or run in a separate terminal:
 
 ```bash
-$ curl http://localhost:4060/hello.There -d '{"Name": "John"}'
+$ curl http://localhost:4000/hello.There -d '{"Name": "John"}'
 {"Message": "Nice to meet you, John!"}
-$ curl http://localhost:4060/hello.There -d '{"Name": "John"}'
+$ curl http://localhost:4000/hello.There -d '{"Name": "John"}'
 {"Message": "Hey again John! We've met 1 time(s) before."}
-$ curl http://localhost:4060/hello.There -d '{"Name": "John"}'
+$ curl http://localhost:4000/hello.There -d '{"Name": "John"}'
 {"Message": "Hey again John! We've met 2 time(s) before."}
 ```
 

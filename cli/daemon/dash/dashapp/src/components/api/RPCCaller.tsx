@@ -16,7 +16,7 @@ interface Props {
   md: APIMeta;
   svc: Service;
   rpc: RPC;
-  port?: number;
+  addr?: string;
 }
 
 export const cfg: EditorConfiguration = {
@@ -203,7 +203,7 @@ const APICallButton: FC<{send: () => void; copyCurl: () => void;}> = (props) => 
   )
 }
 
-const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, port}) => {
+const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
   const payloadCM = useRef<CM>(null)
   const pathRef = useRef<{getPath: () => string | undefined; getMethod: () => string}>(null)
   const docs = useRef(new Map<RPC, CodeMirror.Doc>())
@@ -306,7 +306,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, port}) => {
     if (method !== defaultMethod) {
       cmd += `-X ${method} `
     }
-    cmd += `'http://localhost:${port ?? 4060}${path}'`
+    cmd += `'http://${addr ?? "localhost:4000"}${path}'`
     if (reqBody !== "") {
       cmd += ` -d '${reqBody}'`
     }

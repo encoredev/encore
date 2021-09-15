@@ -14,6 +14,6 @@ by leveraging the [Encore Application Model](../application-model) to determine 
 ## Local development
 
 You can also view API docs when developing locally.
-When running your app with `encore run`, simply open up the API URL in your browser (by default `http://localhost:4060`).
+When running your app with `encore run`, simply open up the API URL in your browser (by default `http://localhost:4000`).
 You'll see the *local development dashboard* which gives you access to
 request traces, logs and API docs for local development, right at your fingertips.

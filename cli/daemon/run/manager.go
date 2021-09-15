@@ -1,17 +1,11 @@
 package run
 
 import (
-	"fmt"
-	"net"
 	"sort"
-	"strconv"
 	"sync"
 
 	"encr.dev/cli/daemon/secret"
 )
-
-// BasePort is the default port Encore apps start listening on.
-const BasePort = 4060
 
 // Manager manages the set of running applications.
 type Manager struct {
@@ -83,23 +77,6 @@ func (mgr *Manager) ListRuns() []*Run {
 
 	sort.Slice(runs, func(i, j int) bool { return runs[i].AppID < runs[j].AppID })
 	return runs
-}
-
-// newListener attempts to find an unused port at BasePort or above
-// and opens a TCP listener on localhost for that port.
-func (mgr *Manager) newListener() (ln net.Listener, port int, err error) {
-	// Try up to 10 ports, plus however many processes we have
-	mgr.mu.Lock()
-	n := len(mgr.runs)
-	mgr.mu.Unlock()
-	for i := 0; i < (10 + n); i++ {
-		port := BasePort + i
-		ln, err := net.Listen("tcp", "localhost:"+strconv.Itoa(port))
-		if err == nil {
-			return ln, port, nil
-		}
-	}
-	return nil, 0, fmt.Errorf("could not find available port in %d-%d", BasePort, BasePort+(n+9))
 }
 
 // AddListener adds an event listener to mgr.

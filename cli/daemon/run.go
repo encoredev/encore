@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -49,6 +49,19 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	// Clear screen.
 	stderr.Write([]byte("\033[2J\033[H\n"))
+
+	// ListenAddr should always be passed but guard against old clients.
+	listenAddr := req.ListenAddr
+	if listenAddr == "" {
+		listenAddr = "localhost:4000"
+	}
+	ln, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		fmt.Fprintln(stderr, aurora.Red("Fatal: "+err.Error()))
+		sendExit(1)
+		return nil
+	}
+	defer ln.Close()
 
 	ops := newOpTracker(stderr)
 
@@ -137,6 +150,8 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		AppRoot:     req.AppRoot,
 		AppID:       man.AppID,
 		WorkingDir:  req.WorkingDir,
+		Listener:    ln,
+		ListenAddr:  req.ListenAddr,
 		DBClusterID: clusterID,
 		Parse:       parse,
 		Watch:       req.Watch,
@@ -162,7 +177,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	pid := run.Proc().Pid
 	fmt.Fprintf(stderr, "  Encore development server running!\n\n")
 
-	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan(fmt.Sprintf("http://localhost:%d", run.Port)))
+	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+run.ListenAddr))
 	fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf("http://localhost:%d/%s", s.mgr.DashPort, man.AppID)))
 	if req.Debug {
 		fmt.Fprintf(stderr, "  Process ID:             %d\n", aurora.Cyan(pid))
@@ -417,7 +432,7 @@ func genCurlCommand(run *run.Run, md *meta.Data, rpc *meta.RPC) string {
 		parts = append(parts, " -X ", method)
 	}
 	path := "/" + strings.Join(segments, "/")
-	parts = append(parts, " http://localhost:", strconv.Itoa(run.Port), path)
+	parts = append(parts, " http://", run.ListenAddr, path)
 	if payload != nil {
 		parts = append(parts, " -d '", string(payload), "'")
 	}

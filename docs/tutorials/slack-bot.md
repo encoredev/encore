@@ -89,7 +89,7 @@ func Cowsay(w http.ResponseWriter, req *http.Request) {
 Let's try it out locally. Run it with `encore run` and then call it in another terminal:
 
 ```bash
-$ curl http://localhost:4060/cowsay -d 'text=Eat your greens!'
+$ curl http://localhost:4000/cowsay -d 'text=Eat your greens!'
 {"response_type":"in_channel","text":"Moo! Eat your greens!"}
 ```
 

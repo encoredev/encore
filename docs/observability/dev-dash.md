@@ -15,10 +15,10 @@ To access the dashboard, start your Encore application with `encore run` and the
 
 ```bash
 $ encore run
-API Base URL:      http://localhost:4060
+API Base URL:      http://localhost:4000
 Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
 ```
 
-You can also open up the API Base URL in your browser (defaults to [http://localhost:4060](http://localhost:4060)) and it will redirect to the Development Dashboard.
+You can also open up the API Base URL in your browser (defaults to [http://localhost:4000](http://localhost:4000)) and it will redirect to the Development Dashboard.
 
 ![Dev Dashboard Screenshot](https://encore.dev/assets/img/dev-dash-screenshot.png "Dev Dashboard Screenshot")
