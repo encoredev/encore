@@ -76,14 +76,66 @@ The `ctx` parameter is used for *cancellation*. It lets you detect when the call
 and therefore lets you abort the request processing and save resources that nobody needs.
 [Learn more about contexts on the Go blog](https://blog.golang.org/context).
 
-The `error` return value is always important because from the caller's perspective, API calls **always** can fail.
-Therefore even though our simple `Ping` API endpoint above never fails in its implementation, from the perspective
-of the caller perhaps the service is crashing or the network is down and the service cannot be reached.
+The `error` return type is always required, because APIs can always fail from the caller's perspective.
+Therefore even though our simple `Ping` API endpoint above never fails in its implementation, from the perspective of the caller perhaps the service is crashing or the network is down and the service cannot be reached.
 
-Why does this matter to the implementation, you ask? Because in Encore, *API calls look like function calls*.
+### REST APIs
+Encore comes with great, built-in support for RESTful APIs. It lets you easily define resource-oriented API URLs, parse parameters out of them, and more.
+
+Start by defining an endpoint and specify the `method` and `path` fields in the `//encore:api` comment.
+
+To specify a placeholder variable, use `:name` and add a function parameter with the same name to the function signature. Encore parses the incoming request URL and makes sure it matches the type of the parameter.
+
+For example, if you want to have a `GetBlogPost` endpoint that takes a numeric id as a parameter:
+
+```go
+// GetBlogPost retrieves a blog post by id.
+//encore:api public method=GET path=/blog/:id
+func GetBlogPost(ctx context.Context, id int) (*BlogPost, error) {
+    // Use id to query database...
+}
+```
+
+You can also combine path parameters with body payloads. For example, if you want to have an `UpdateBlogPost` endpoint:
+
+```go
+// UpdateBlogPost updates an existing blog post by id.
+//encore:api public method=PUT path=/blog/:id
+func UpdateBlogPost(ctx context.Context, id int, post *BlogPost) error {
+    // Use `post` to update the blog post with the given id.
+}
+```
+
+#### Query parameters
+When fetching data with `GET` endpoints, it's common to receive additional parameters for optional behavior, like filtering a list or changing the sort order.
+
+When you use a struct type as the last argument in the function signature,
+Encore automatically parses these fields from the HTTP query string (for the `GET`, `HEAD`, and `DELETE` methods).
+
+For example, if you want to have a `ListBlogPosts` endpoint:
+
+```go
+type ListParams struct {
+    Limit uint // number of blog posts to return
+    Offset uint // number of blog posts to skip, for pagination
+}
+
+type ListResponse struct {
+    Posts []*BlogPost
+}
+
+//encore:api public method=GET path=/blog
+func ListBlogPosts(ctx context.Context, opts *ListParams) (*ListResponse, error) {
+    // Use limit and offset to query database...
+}
+```
+
+This could then be queried as `/blog?limit=10&offset=20`.
+
+Since query parameters are much more limited than structured JSON data, they can consist of basic types (`string`, `bool`, integer and floating point numbers, and `encore.dev/types/uuid.UUID`), as well as slices of those types.
 
 ## Calling an API
-Calling  an API endpoint with Encore looks like a regular function call. Import the service package as if it's a regular
+Calling an API endpoint with Encore looks like a regular function call. Import the service package as if it's a regular
 Go package, and then call the API endpoint as if it's a regular function.
 
 For example:
