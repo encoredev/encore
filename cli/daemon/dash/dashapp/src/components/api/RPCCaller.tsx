@@ -235,7 +235,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
           }
         }
       } else {
-        reqBody = encodeBase64(payload)
+        reqBody = payload
       }
     }
     return [path, reqBody]
@@ -250,7 +250,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
       setLoading(true)
       setResponse(undefined)
       setRespErr(undefined)
-      const resp = await conn.request("api-call", {appID, method, path, authToken, payload: reqBody}) as any
+      const resp = await conn.request("api-call", {appID, method, path, authToken, payload: encodeBase64(reqBody)}) as any
       let respBody = ""
       if (resp.body.length > 0) {
         respBody = decodeBase64(resp.body)
