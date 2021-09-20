@@ -2,7 +2,6 @@
 title: Using SQL databases
 subtitle: Provisioning, migrating, querying
 ---
-
 Encore treats SQL databases as logical resources.
 This means using a database only requires you to [define the schema](#defining-a-database-schema)
 and then start using it. Encore takes care of provisioning the database, running
@@ -64,7 +63,6 @@ The Encore CLI comes with built in support for this:
 * Use `encore db shell [--env=<name>] <service-name>` to open a [psql](https://www.postgresql.org/docs/current/app-psql.html)
   shell to the database for `<service-name>` in the given environment.
   Leaving out `--env` defaults to the local development environment.
-
 * Use `encore db proxy [--env=<name>]` to create a local proxy that forwards any incoming connection
   to the database in the given environment.
   Leaving out `--env` defaults to the local development environment.
@@ -85,3 +83,8 @@ In the cloud, how the database is provisioned depends on the type of [Encore Env
 Encore automatically provisions databases to match what your application requires.
 Simply define a database schema ([see above](#defining-a-database-schema)) and Encore
 will provision the database at the start of the next deploy.
+
+
+## Handling dirty database migrations
+
+When a database migration doesn't apply cleanly, `golang-migrate` (the library we use under the hood to manage database migrations) marks the migration state as "dirty" and refuses to continue. This can be fixed by editing the database table (fixing the schema problem and then running `UPDATE schema_migrations SET dirty = false`).
