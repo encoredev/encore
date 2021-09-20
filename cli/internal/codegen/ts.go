@@ -352,7 +352,7 @@ func (ts *ts) writeBaseClient() {
             this.headers["Authorization"] = "Bearer " + token
         }
         if (environment === "local") {
-            this.baseURL = "http://localhost:4060"
+            this.baseURL = "http://localhost:4000"
         } else {
             this.baseURL = ` + "`https://" + ts.appSlug + ".encoreapi.com/${environment}`" + `
         }

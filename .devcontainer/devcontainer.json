@@ -6,5 +6,5 @@
   },
   "extensions": ["golang.go"],
   "postCreateCommand": "bash /scripts/prepare.sh",
-  "forwardPorts": [4060, 9400]
+  "forwardPorts": [4000, 9400]
 }

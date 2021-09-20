@@ -60,7 +60,7 @@ This sets up the `POST /url` endpoint (see the `//encore:api` annotation on the 
 
 ```bash
 $ encore run
-API Base URL:      http://localhost:4060
+API Base URL:      http://localhost:4000
 Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
 4:19PM INF registered endpoint path=/url service=url endpoint=Shorten
 ```
@@ -68,7 +68,7 @@ Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
 Let’s try calling it:
 
 ```bash
-$ curl http://localhost:4060/url -d '{"URL": "https://encore.dev"}'
+$ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 {
   "ID": "5cJpBVRp",
   "URL": "https://encore.dev"
@@ -133,7 +133,7 @@ func Shorten(ctx context.Context, p *ShortenParams) (*URL, error) {
 Start your application again with `encore run` and Encore automatically sets up your database. Let’s try it out!
 
 ```bash
-$ curl http://localhost:4060/url -d '{"URL": "https://encore.dev"}'
+$ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 {
   "ID": "zr6RmZc4",
   "URL": "https://encore.dev"
@@ -179,7 +179,7 @@ Encore uses the `path=/url/:id` syntax to represent a path with a parameter. The
 Let’s make sure it works:
 
 ```bash
-$ curl http://localhost:4060/url/zr6RmZc4
+$ curl http://localhost:4000/url/zr6RmZc4
 {
   "ID": "zr6RmZc4",
   "URL": "https://encore.dev"

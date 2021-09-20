@@ -36,7 +36,7 @@ export default class AppLogs extends React.Component<Props, State> {
           return {
             lines: [...state.lines, [
               {type: "text", style: {}, value: "Running on "},
-              {type: "text", style: {bold: true}, value: `http://localhost:${data.port}`},
+              {type: "text", style: {bold: true}, value: "http://"+data.addr},
             ], []]
           }
         })
