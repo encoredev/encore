@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"strconv"
 	"strings"
 )
 
@@ -43,7 +42,7 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 	// director is a simplified version from httputil.NewSingleHostReverseProxy.
 	director := func(r *http.Request) {
 		r.URL.Scheme = "http"
-		r.URL.Host = "localhost:" + strconv.Itoa(p.Run.Port)
+		r.URL.Host = p.Run.ListenAddr
 		r.URL.Path = "/" + endpoint
 		r.URL.RawQuery = req.URL.RawQuery
 		if _, ok := r.Header["User-Agent"]; !ok {

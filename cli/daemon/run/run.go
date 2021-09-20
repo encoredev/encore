@@ -35,11 +35,11 @@ import (
 
 // Run represents a running Encore application.
 type Run struct {
-	ID      string // unique ID for this instance of the running app
-	AppID   string // unique identifier for the app
-	AppSlug string // the optional app slug, if linked to encore.dev
-	Root    string // the filesystem path to the app root
-	Port    int    // the port the app is listening on
+	ID         string // unique ID for this instance of the running app
+	AppID      string // unique identifier for the app
+	AppSlug    string // the optional app slug, if linked to encore.dev
+	Root       string // the filesystem path to the app root
+	ListenAddr string // the address the app is listening on
 
 	log     zerolog.Logger
 	mgr     *Manager
@@ -72,32 +72,25 @@ type StartParams struct {
 
 	// Watch enables watching for code changes for live reloading.
 	Watch bool
+
+	Listener   net.Listener // listener to use
+	ListenAddr string       // address we're listening on
 }
 
 // Start starts the application.
 // Its lifetime is bounded by ctx.
 func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, err error) {
-	ln, port, err := mgr.newListener()
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			ln.Close()
-		}
-	}()
-
 	appSlug, err := appfile.Slug(params.AppRoot)
 	if err != nil {
 		return nil, err
 	}
 
 	run = &Run{
-		ID:      genID(),
-		AppID:   params.AppID,
-		Root:    params.AppRoot,
-		AppSlug: appSlug,
-		Port:    port,
+		ID:         genID(),
+		AppID:      params.AppID,
+		Root:       params.AppRoot,
+		AppSlug:    appSlug,
+		ListenAddr: params.ListenAddr,
 
 		log:     log.With().Str("appID", params.AppID).Logger(),
 		mgr:     mgr,
@@ -116,7 +109,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	mgr.runs[run.ID] = run
 	mgr.mu.Unlock()
 
-	if err := run.start(ln); err != nil {
+	if err := run.start(params.Listener); err != nil {
 		return nil, err
 	}
 
@@ -227,7 +220,6 @@ func (r *Run) start(ln net.Listener) (err error) {
 	go func() {
 		<-r.ctx.Done()
 		srv.Close()
-		ln.Close()
 	}()
 
 	// Monitor the running proc and close the app when it exits.

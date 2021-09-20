@@ -61,6 +61,8 @@ message RunRequest {
   bool debug = 4;
   // watch, if true, enables live reloading of the app whenever the source changes.
   bool watch = 5;
+  // listen_addr is the address to listen on.
+  string listen_addr = 6;
 }
 
 message TestRequest {

@@ -13,7 +13,7 @@ export interface ProcessStart {
   appID: string;
   pid: string
   meta: APIMeta;
-  port: number;
+  addr: string;
 }
 
 export interface ProcessReload {
