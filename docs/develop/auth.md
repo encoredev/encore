@@ -2,7 +2,6 @@
 title: Authenticating users
 subtitle: Knowing what's what and who's who
 ---
-
 Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
 Encore supports both use cases in a simple yet powerful way.
@@ -77,6 +76,30 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
 }
 ```
 
+## Handling auth errors
+
+When a token doesn't match your auth rules (for example if it's expired, the token has been revoked, or the token is invalid), you should return a non-nil error from the auth handler.
+
+Encore passes the error message on to the user when you use [Encore's built-in error package](errors), so we recommend using that with the error code `Unauthenticated` to communicate what happened. For example:
+
+```go
+import "encore.dev/beta/errs"
+
+//encore:authhandler
+func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
+    return "", &errs.Error{
+        Code: errs.Unauthenticated,
+        Message: "invalid token",
+    }
+}
+```
+
+<Callout type="important">
+
+Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here. Whenever possible we recommend using a third-party auth provider; see [Using Firebase Authentication](../how-to/firebase-auth) for an example of how to do that.
+
+</Callout>
+
 ## Using auth data
 
 Once the user has been identified by the auth handler, the API handler is called
@@ -91,7 +114,7 @@ these are guaranteed to be set since the API won't be called if the auth handler
 
 <Callout type="important">
 
-If an endpoint calls another endpoint during its processing, and the original 
+If an endpoint calls another endpoint during its processing, and the original
 does not have an authenticated user, the request will fail. This behavior
 preserves the guarantees that `auth` endpoints always have an authenticated user.
 
