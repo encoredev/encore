@@ -92,8 +92,6 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
         Message: "invalid token",
     }
 }
-
-
 ```
 
 <Callout type="important">
