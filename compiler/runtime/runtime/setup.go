@@ -24,8 +24,8 @@ type Server struct {
 const wildcardMethod = "__ENCORE_WILDCARD__"
 
 func (srv *Server) handleRPC(service string, endpoint *config.Endpoint) {
-	logMsg := srv.logger.Info().Str("service", service).Str("endpoint", endpoint.Name).Str("path", endpoint.Path)
-	logMsg.Msg("registered endpoint")
+	logMsg := srv.logger.Info().Str("func", service+"."+endpoint.Name).Str("path", endpoint.Path)
+	logMsg.Msgf("registered endpoint")
 	for _, m := range endpoint.Methods {
 		if m == "*" {
 			m = wildcardMethod
