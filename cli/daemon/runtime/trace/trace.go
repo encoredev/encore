@@ -698,17 +698,22 @@ func (tp *traceParser) stack(filterMode stackFilter) *tracepb.StackTrace {
 		return tr
 	}
 
+	diffs := make([]int64, n)
+	for i := 0; i < n; i++ {
+		diff := tp.Varint()
+		diffs[i] = diff
+	}
+
 	sym, err := tp.proc.SymTable(context.Background())
 	if err != nil {
 		log.Error().Err(err).Msg("could not parse sym table")
 		return tr
 	}
 
-	pcs := make([]uint64, n)
 	prev := int64(0)
+	pcs := make([]uint64, n)
 	for i := 0; i < n; i++ {
-		diff := tp.Varint()
-		x := prev + diff
+		x := prev + diffs[i]
 		prev = x
 		pcs[i] = uint64(x) + sym.BaseOffset
 	}
