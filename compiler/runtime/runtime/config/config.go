@@ -6,6 +6,14 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+type Access string
+
+const (
+	Public  Access = "public"
+	Auth    Access = "auth"
+	Private Access = "private"
+)
+
 type ServerConfig struct {
 	Testing     bool
 	TestService string // service being tested, if any
@@ -27,5 +35,6 @@ type Endpoint struct {
 	Raw     bool
 	Path    string
 	Methods []string
+	Access  Access
 	Handler func(w http.ResponseWriter, req *http.Request, ps httprouter.Params)
 }
