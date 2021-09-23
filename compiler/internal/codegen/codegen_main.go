@@ -87,11 +87,23 @@ func (b *Builder) Main() *File {
 					Id("SQLDB"):   Lit(usesSQLDB),
 					Id("Endpoints"): Index().Op("*").Qual("encore.dev/runtime/config", "Endpoint").ValuesFunc(func(g *Group) {
 						for _, rpc := range svc.RPCs {
+							var access *Statement
+							switch rpc.Access {
+							case est.Public:
+								access = Qual("encore.dev/runtime/config", "Public")
+							case est.Auth:
+								access = Qual("encore.dev/runtime/config", "Auth")
+							case est.Private:
+								access = Qual("encore.dev/runtime/config", "Private")
+							default:
+								panic(fmt.Errorf("unhandled access type %v", rpc.Access))
+							}
 							g.Values(Dict{
 								Id("Name"):    Lit(rpc.Name),
 								Id("Raw"):     Lit(rpc.Raw),
 								Id("Path"):    Lit(rpc.Path.String()),
 								Id("Handler"): Id("__encore_" + svc.Name + "_" + rpc.Name),
+								Id("Access"):  access,
 								Id("Methods"): Index().String().ValuesFunc(func(g *Group) {
 									for _, m := range rpc.HTTPMethods {
 										g.Lit(m)
