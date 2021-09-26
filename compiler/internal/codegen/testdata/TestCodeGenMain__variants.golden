@@ -501,48 +501,56 @@ func main() {
 	// Register the Encore services
 	services := []*config.Service{{
 		Endpoints: []*config.Endpoint{{
+			Access:  config.Public,
 			Handler: __encore_svc_Eight,
 			Methods: []string{"GET", "POST"},
 			Name:    "Eight",
 			Path:    "/eight/:bar/:baz",
 			Raw:     false,
 		}, {
+			Access:  config.Public,
 			Handler: __encore_svc_Five,
 			Methods: []string{"GET", "POST"},
 			Name:    "Five",
 			Path:    "/five/:id/:key",
 			Raw:     false,
 		}, {
+			Access:  config.Public,
 			Handler: __encore_svc_Four,
 			Methods: []string{"GET", "POST"},
 			Name:    "Four",
 			Path:    "/four/*baz",
 			Raw:     false,
 		}, {
+			Access:  config.Public,
 			Handler: __encore_svc_One,
 			Methods: []string{"GET", "POST"},
 			Name:    "One",
 			Path:    "/svc.One",
 			Raw:     false,
 		}, {
+			Access:  config.Public,
 			Handler: __encore_svc_Seven,
 			Methods: []string{"*"},
 			Name:    "Seven",
 			Path:    "/foo/:bar/:baz",
 			Raw:     true,
 		}, {
+			Access:  config.Public,
 			Handler: __encore_svc_Six,
 			Methods: []string{"GET", "POST"},
 			Name:    "Six",
 			Path:    "/six/:id/*key",
 			Raw:     false,
 		}, {
+			Access:  config.Public,
 			Handler: __encore_svc_Three,
 			Methods: []string{"GET", "POST"},
 			Name:    "Three",
 			Path:    "/three/:id",
 			Raw:     false,
 		}, {
+			Access:  config.Public,
 			Handler: __encore_svc_Two,
 			Methods: []string{"POST"},
 			Name:    "Two",
