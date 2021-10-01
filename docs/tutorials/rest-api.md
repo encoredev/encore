@@ -187,3 +187,64 @@ $ curl http://localhost:4000/url/zr6RmZc4
 ```
 
 And there you have it! That's how you build REST APIs in Encore.
+
+## Add a test and deploy
+
+Before deployment, it is good practice to have tests to assure that
+the service works properly. Such tests including database access
+are easy to write.
+
+For this tutorial a test to check that the whole cycle of shortening
+the URL, storing and then retrieving the original URL could look like:
+
+```go
+package url
+
+import (
+	"context"
+	"testing"
+)
+
+// TestShortenAndRetrieve - test that the shortened URL is stored and retrieved from database.
+func TestShortenAndRetrieve(t *testing.T) {
+	testURL := "https://github.com/encoredev/encore"
+	sp := ShortenParams{URL: testURL}
+	resp, err := Shorten(context.Background(), &sp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantURL := testURL
+	if resp.URL != wantURL {
+		t.Errorf("got %q, want %q", resp.URL, wantURL)
+	}
+
+	firstURL := resp
+	gotURL, err := Get(context.Background(), firstURL.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *gotURL != *firstURL {
+		t.Errorf("got %v, want %v", *gotURL, *firstURL)
+	}
+}
+```
+
+Store this in a separate file `url/url_test.go` and run
+`encore test ./...`.
+
+A final step before you deploy is to commit all changes
+to the project repo. Do this by committing the new files to the
+project's git repo.
+
+```bash
+$ git add url
+$ git commit -m 'working service including test'
+```
+
+Then you can finally deploy as
+
+```bash
+$ encore push encore
+```
+
+Now your service is running in the cloud. Hooray!
