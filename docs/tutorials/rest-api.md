@@ -244,7 +244,7 @@ $ git commit -m 'working service including test'
 Then you can finally deploy as
 
 ```bash
-$ encore push encore
+$ git push encore
 ```
 
 Now your service is running in the cloud. Hooray!
