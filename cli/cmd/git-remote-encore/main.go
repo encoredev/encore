@@ -94,8 +94,14 @@ func connect(args []string, svc string) error {
 	// Set up an SSH tunnel with a sentinel key as a way to signal
 	// Encore to use token-based authentication, and pass the token
 	// as part of the command.
-	cmd := exec.Command("ssh", "-x", "-T", "-F", cfgPath, "-o", "IdentitiesOnly=yes", "-i", keyPath,
-		"git.encore.dev", fmt.Sprintf("token=%s %s '%s'", tok.AccessToken, svc, appID))
+	cmd := exec.Command("ssh",
+		"-x", "-T",
+		"-F", cfgPath,
+		"-o", "IdentitiesOnly=yes",
+		"-o", "HostKeyAlgorithms=ssh-rsa",
+		"-i", keyPath,
+		"git.encore.dev",
+		fmt.Sprintf("token=%s %s '%s'", tok.AccessToken, svc, appID))
 	cmd.Env = []string{}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -110,19 +116,10 @@ func connect(args []string, svc string) error {
 // NOTE: This is not a security problem. The key is meant to be public
 // and does not serve as a means of authentication.
 const SentinelPrivateKey = `-----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAlwAAAAdzc2gtcn
-NhAAAAAwEAAQAAAIEA1ZrV6bnLgKI7cZHGn3Z93jTATaGjw6ytPdSorrnwYRP3K833BC19
-ANPSWAoXcYXNDIR90j/V+sd5ILv5NUoctdV1+2J8jzW/hedj0HuDou1YruNHVowfE3JFYr
-6eMK15kvc/K9EsIl/TfH9/RiWVnWq1wHwOdZtH2UZE9QdT+r0AAAIIrcJlP63CZT8AAAAH
-c3NoLXJzYQAAAIEA1ZrV6bnLgKI7cZHGn3Z93jTATaGjw6ytPdSorrnwYRP3K833BC19AN
-PSWAoXcYXNDIR90j/V+sd5ILv5NUoctdV1+2J8jzW/hedj0HuDou1YruNHVowfE3JFYr6e
-MK15kvc/K9EsIl/TfH9/RiWVnWq1wHwOdZtH2UZE9QdT+r0AAAADAQABAAAAgBndpgmndf
-0dqBUYkfS9ZICD4sWDzVDkmBXkqoh9+53FzSiAyGi5GWoAPHhswGn+ydW6NYJAOKklfoV4
-PbU2REOHwXYblAZmDmPksSN1IbjDdFZ+0vXFUmS2k30eqIgIEGOrN1tnLXoK+B4kwFQ1IN
-UMMpB39vRyhyrEGv+S4gQBAAAAQFiOrnRAtY50ZiqXND3SdCnQxnjmUxcE7pcQaaQK6KMP
-A7bQpMNzJop/UpNRIjLb5bPG9FPgTzQ5+5l4fGL5OwYAAABBAP4V8q7KQLqoPsHaWG7pga
-iE9cUzE9hle2zXiRCcXt2qXxB7P1U9DQVdzVwarfAggIGRsqjJmEDe69F/I4QAkj8AAABB
-ANc20AXzRmnneRyZuOEUhTsdNWcQf9qv+tQh3DDr7SW7NhuSKW9CqC18nbDckEp0yOCjIR
-k5HAPXd2pDop0UvAMAAAAPZWFuZHJlQG0xLmxvY2FsAQIDBA==
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACCyj3F5Tp1eBIp7rMohszumYzlys/BFfmX/LVkXJS8magAAAJjsp3yz7Kd8
+swAAAAtzc2gtZWQyNTUxOQAAACCyj3F5Tp1eBIp7rMohszumYzlys/BFfmX/LVkXJS8mag
+AAAEDMiwRrf5WET2mTKjKjX7z6vox3n6hKGKbP7V4MDtVre7KPcXlOnV4EinusyiGzO6Zj
+OXKz8EV+Zf8tWRclLyZqAAAAE2VuY29yZS1zZW50aW5lbC1rZXkBAg==
 -----END OPENSSH PRIVATE KEY-----
 `
