@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://encore.dev" alt="encore"><img width="189px" src="https://encore.dev/assets/img/logo.svg"></a>
-  <h3><a href="https://encore.dev">Encore – Cloud Native Development Platform</a></h3>
+  <h3><a href="https://encore.dev">Encore – The Backend Development Engine</a></h3>
 </div>
 Encore makes it super easy to create backend services and APIs. Built ground up for Go, Encore uses static analysis and code generation to provide a revolutionary developer experience that is extremely productive.
 <br/><br/>
