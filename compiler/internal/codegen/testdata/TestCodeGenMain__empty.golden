@@ -21,7 +21,7 @@ var json = jsoniter.Config{
 
 // loadConfig registers the Encore services.
 //go:linkname loadConfig encore.dev/runtime/config.loadConfig
-func loadConfig() (*config.ServerConfig, error) {
+func loadConfig() (*config.Config, error) {
 	services := []*config.Service{}
 	return &config.Config{
 		AuthData: "",
