@@ -35,7 +35,7 @@ func loadConfig() (*config.Config, error) {
 		Secrets:  config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
 		Services: services,
 		Testing:  false,
-	}
+	}, nil
 }
 
 func main() {

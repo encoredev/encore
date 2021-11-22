@@ -133,7 +133,7 @@ func (b *Builder) Main() (f *File, err error) {
 			Id("Testing"):  False(),
 			Id("Secrets"):  Qual("encore.dev/runtime/config", "ParseSecrets").Call(Qual("os", "Getenv").Call(Lit("ENCORE_APP_SECRETS"))),
 			Id("AuthData"): b.authDataType(),
-		})),
+		}), Nil()),
 	)
 	f.Line()
 
