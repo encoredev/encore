@@ -78,10 +78,14 @@ func (b *Builder) Main() (f *File, err error) {
 		}
 	}
 
-	f.Var().Id("srv").Op("*").Qual("encore.dev/runtime", "Server")
+	mustGetenv := func(name string) Code {
+		return Qual("encore.dev/runtime/config", "MustGetenv").Call(Lit(name))
+	}
 
-	f.Func().Id("main").Params().Block(
-		Comment("Register the Encore services"),
+	f.Anon("unsafe") // for go:linkname
+	f.Comment("loadConfig registers the Encore services.")
+	f.Comment("//go:linkname loadConfig encore.dev/runtime/config.loadConfig")
+	f.Func().Id("loadConfig").Params().Params(Op("*").Qual("encore.dev/runtime/config", "ServerConfig"), Error()).Block(
 		Id("services").Op(":=").Index().Op("*").Qual("encore.dev/runtime/config", "Service").ValuesFunc(func(g *Group) {
 			for _, svc := range b.res.App.Services {
 				var usesSQLDB bool
@@ -126,17 +130,30 @@ func (b *Builder) Main() (f *File, err error) {
 				})
 			}
 		}),
-		Line(),
-
-		Id("cfg").Op(":=").Op("&").Qual("encore.dev/runtime/config", "ServerConfig").Values(Dict{
+		Return(Op("&").Qual("encore.dev/runtime/config", "Config").Values(Dict{
+			Id("Encore"): Op("&").Qual("encore.dev/runtime/config", "Encore").Values(Dict{
+				Id("AppID"):         mustGetenv("ENCORE_APP_ID"),
+				Id("EnvID"):         mustGetenv("ENCORE_ENV_ID"),
+				Id("EnvName"):       mustGetenv("ENCORE_ENV_NAME"),
+				Id("TraceEndpoint"): mustGetenv("ENCORE_TRACE_ENDPOINT"),
+				Id("MACKeys"):       Qual("encore.dev/runtime/config", "ParseMACKeys").Call(mustGetenv("ENCORE_MAC_KEYS")),
+			}),
 			Id("Services"): Id("services"),
 			Id("Testing"):  False(),
+			Id("Secrets"):  Qual("encore.dev/runtime/config", "ParseSecrets").Call(Qual("os", "Getenv").Call(Lit("ENCORE_APP_SECRETS"))),
 			Id("AuthData"): b.authDataType(),
-		}),
-		Id("srv").Op("=").Qual("encore.dev/runtime", "Setup").Call(Id("cfg")),
-		Qual("encore.dev/storage/sqldb", "Setup").Call(Id("cfg")),
-		Id("srv").Dot("ListenAndServe").Call(),
+		})),
 	)
+	f.Line()
+
+	f.Func().Id("main").Params().Block(
+		If(Id("err").Op(":=").Qual("encore.dev/runtime", "ListenAndServe").Call(), Err().Op("!=").Nil()).Block(
+			Qual("encore.dev/runtime", "Logger").Call().Dot("Fatal").Call().
+				Dot("Err").Call(Id("err")).
+				Dot("Msg").Call(Lit("could not listen and serve")),
+		),
+	)
+	f.Line()
 
 	f.Type().Id("validationDetails").Struct(
 		Id("Field").String().Tag(map[string]string{"json": "field"}),
