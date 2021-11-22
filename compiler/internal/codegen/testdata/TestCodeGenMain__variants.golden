@@ -564,7 +564,7 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 // loadConfig registers the Encore services.
 //go:linkname loadConfig encore.dev/runtime/config.loadConfig
-func loadConfig() (*config.ServerConfig, error) {
+func loadConfig() (*config.Config, error) {
 	services := []*config.Service{{
 		Endpoints: []*config.Endpoint{{
 			Access:  config.Public,
@@ -632,7 +632,6 @@ func loadConfig() (*config.ServerConfig, error) {
 		}},
 		Name:    "svc",
 		RelPath: "svc",
-		SQLDB:   false,
 	}}
 	return &config.Config{
 		AuthData: "*encore.app/svc.AuthData",

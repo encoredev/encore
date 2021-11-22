@@ -85,21 +85,12 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadConfig registers the Encore services.")
 	f.Comment("//go:linkname loadConfig encore.dev/runtime/config.loadConfig")
-	f.Func().Id("loadConfig").Params().Params(Op("*").Qual("encore.dev/runtime/config", "ServerConfig"), Error()).Block(
+	f.Func().Id("loadConfig").Params().Params(Op("*").Qual("encore.dev/runtime/config", "Config"), Error()).Block(
 		Id("services").Op(":=").Index().Op("*").Qual("encore.dev/runtime/config", "Service").ValuesFunc(func(g *Group) {
 			for _, svc := range b.res.App.Services {
-				var usesSQLDB bool
-				for _, s := range b.res.Meta.Svcs {
-					if s.Name == svc.Name {
-						usesSQLDB = len(s.Migrations) > 0
-						break
-					}
-				}
-
 				g.Values(Dict{
 					Id("Name"):    Lit(svc.Name),
 					Id("RelPath"): Lit(svc.Root.RelPath),
-					Id("SQLDB"):   Lit(usesSQLDB),
 					Id("Endpoints"): Index().Op("*").Qual("encore.dev/runtime/config", "Endpoint").ValuesFunc(func(g *Group) {
 						for _, rpc := range svc.RPCs {
 							var access *Statement
