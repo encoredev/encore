@@ -129,10 +129,11 @@ func (b *Builder) Main() (f *File, err error) {
 				Id("TraceEndpoint"): mustGetenv("ENCORE_TRACE_ENDPOINT"),
 				Id("MACKeys"):       Qual("encore.dev/runtime/config", "ParseMACKeys").Call(mustGetenv("ENCORE_MAC_KEYS")),
 			}),
-			Id("Services"): Id("services"),
-			Id("Testing"):  False(),
-			Id("Secrets"):  Qual("encore.dev/runtime/config", "ParseSecrets").Call(Qual("os", "Getenv").Call(Lit("ENCORE_APP_SECRETS"))),
-			Id("AuthData"): b.authDataType(),
+			Id("Services"):     Id("services"),
+			Id("Testing"):      False(),
+			Id("AuthData"):     b.authDataType(),
+			Id("Secrets"):      Qual("encore.dev/runtime/config", "ParseSecrets").Call(Qual("os", "Getenv").Call(Lit("ENCORE_APP_SECRETS"))),
+			Id("SQLDatabases"): Qual("encore.dev/runtime/config", "ParseSQLDatabases").Call(Qual("os", "Getenv").Call(Lit("ENCORE_SQL_DATABASES"))),
 		}), Nil()),
 	)
 	f.Line()
