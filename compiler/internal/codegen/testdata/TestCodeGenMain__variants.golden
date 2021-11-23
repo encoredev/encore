@@ -642,9 +642,10 @@ func loadConfig() (*config.Config, error) {
 			MACKeys:       config.ParseMACKeys(config.MustGetenv("ENCORE_MAC_KEYS")),
 			TraceEndpoint: config.MustGetenv("ENCORE_TRACE_ENDPOINT"),
 		},
-		Secrets:  config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
-		Services: services,
-		Testing:  false,
+		SQLDatabases: config.ParseSQLDatabases(os.Getenv("ENCORE_SQL_DATABASES")),
+		Secrets:      config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
+		Services:     services,
+		Testing:      false,
 	}, nil
 }
 
