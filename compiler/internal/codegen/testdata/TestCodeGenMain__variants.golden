@@ -633,19 +633,16 @@ func loadConfig() (*config.Config, error) {
 		Name:    "svc",
 		RelPath: "svc",
 	}}
+	static := &config.Static{
+		AuthData:    "*encore.app/svc.AuthData",
+		Services:    services,
+		TestService: "",
+		Testing:     false,
+	}
 	return &config.Config{
-		AuthData: "*encore.app/svc.AuthData",
-		Encore: &config.Encore{
-			AppID:         config.MustGetenv("ENCORE_APP_ID"),
-			EnvID:         config.MustGetenv("ENCORE_ENV_ID"),
-			EnvName:       config.MustGetenv("ENCORE_ENV_NAME"),
-			MACKeys:       config.ParseMACKeys(config.MustGetenv("ENCORE_MAC_KEYS")),
-			TraceEndpoint: config.MustGetenv("ENCORE_TRACE_ENDPOINT"),
-		},
-		SQLDatabases: config.ParseSQLDatabases(os.Getenv("ENCORE_SQL_DATABASES")),
-		Secrets:      config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
-		Services:     services,
-		Testing:      false,
+		Runtime: config.ParseRuntime(os.Getenv("ENCORE_RUNTIME_CONFIG")),
+		Secrets: config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
+		Static:  static,
 	}, nil
 }
 

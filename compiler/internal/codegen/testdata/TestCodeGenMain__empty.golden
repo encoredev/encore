@@ -23,19 +23,16 @@ var json = jsoniter.Config{
 //go:linkname loadConfig encore.dev/runtime/config.loadConfig
 func loadConfig() (*config.Config, error) {
 	services := []*config.Service{}
+	static := &config.Static{
+		AuthData:    "",
+		Services:    services,
+		TestService: "",
+		Testing:     false,
+	}
 	return &config.Config{
-		AuthData: "",
-		Encore: &config.Encore{
-			AppID:         config.MustGetenv("ENCORE_APP_ID"),
-			EnvID:         config.MustGetenv("ENCORE_ENV_ID"),
-			EnvName:       config.MustGetenv("ENCORE_ENV_NAME"),
-			MACKeys:       config.ParseMACKeys(config.MustGetenv("ENCORE_MAC_KEYS")),
-			TraceEndpoint: config.MustGetenv("ENCORE_TRACE_ENDPOINT"),
-		},
-		SQLDatabases: config.ParseSQLDatabases(os.Getenv("ENCORE_SQL_DATABASES")),
-		Secrets:      config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
-		Services:     services,
-		Testing:      false,
+		Runtime: config.ParseRuntime(os.Getenv("ENCORE_RUNTIME_CONFIG")),
+		Secrets: config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
+		Static:  static,
 	}, nil
 }
 
