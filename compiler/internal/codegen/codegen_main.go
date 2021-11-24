@@ -78,8 +78,8 @@ func (b *Builder) Main() (f *File, err error) {
 		}
 	}
 
-	mustGetenv := func(name string) Code {
-		return Qual("encore.dev/runtime/config", "MustGetenv").Call(Lit(name))
+	getEnv := func(name string) Code {
+		return Qual("os", "Getenv").Call(Lit(name))
 	}
 
 	f.Anon("unsafe") // for go:linkname
@@ -121,19 +121,16 @@ func (b *Builder) Main() (f *File, err error) {
 				})
 			}
 		}),
+		Id("static").Op(":=").Op("&").Qual("encore.dev/runtime/config", "Static").Values(Dict{
+			Id("Services"):    Id("services"),
+			Id("AuthData"):    b.authDataType(),
+			Id("Testing"):     False(),
+			Id("TestService"): Lit(""),
+		}),
 		Return(Op("&").Qual("encore.dev/runtime/config", "Config").Values(Dict{
-			Id("Encore"): Op("&").Qual("encore.dev/runtime/config", "Encore").Values(Dict{
-				Id("AppID"):         mustGetenv("ENCORE_APP_ID"),
-				Id("EnvID"):         mustGetenv("ENCORE_ENV_ID"),
-				Id("EnvName"):       mustGetenv("ENCORE_ENV_NAME"),
-				Id("TraceEndpoint"): mustGetenv("ENCORE_TRACE_ENDPOINT"),
-				Id("MACKeys"):       Qual("encore.dev/runtime/config", "ParseMACKeys").Call(mustGetenv("ENCORE_MAC_KEYS")),
-			}),
-			Id("Services"):     Id("services"),
-			Id("Testing"):      False(),
-			Id("AuthData"):     b.authDataType(),
-			Id("Secrets"):      Qual("encore.dev/runtime/config", "ParseSecrets").Call(Qual("os", "Getenv").Call(Lit("ENCORE_APP_SECRETS"))),
-			Id("SQLDatabases"): Qual("encore.dev/runtime/config", "ParseSQLDatabases").Call(Qual("os", "Getenv").Call(Lit("ENCORE_SQL_DATABASES"))),
+			Id("Static"):  Id("static"),
+			Id("Runtime"): Qual("encore.dev/runtime/config", "ParseRuntime").Call(getEnv("ENCORE_RUNTIME_CONFIG")),
+			Id("Secrets"): Qual("encore.dev/runtime/config", "ParseSecrets").Call(getEnv("ENCORE_APP_SECRETS")),
 		}), Nil()),
 	)
 	f.Line()
