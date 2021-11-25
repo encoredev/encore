@@ -101,6 +101,7 @@ func (c *Cluster) Start(log runlog.Log) error {
 				"run",
 				"-d",
 				"-p", "5432",
+				"--shm-size=1gb",
 				"-e", "POSTGRES_USER=encore",
 				"-e", "POSTGRES_PASSWORD=" + c.ID,
 				"-e", "POSTGRES_DB=postgres",
