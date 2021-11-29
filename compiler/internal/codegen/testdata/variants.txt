@@ -3,7 +3,9 @@ package svc
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"encore.dev/beta/auth"
 	"encore.dev/rlog"
@@ -64,6 +66,19 @@ type Response struct {
 func Eight(ctx context.Context, bar, baz string) (*Response, error) {
 	rlog.Info("eight", "bar", bar, "baz", baz)
 	return &Response{Message: bar}, nil
+}
+
+type QueryParams struct {
+	Time time.Time
+	UID auth.UID
+	JSON json.RawMessage
+	Float32 float32
+	Float64 float64
+}
+
+//encore:api public path=/query method=GET
+func Query(ctx context.Context, p *QueryParams) error {
+	return nil
 }
 
 type AuthData struct{}

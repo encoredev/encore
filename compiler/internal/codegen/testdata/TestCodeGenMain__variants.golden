@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	stdjson "encoding/json"
 	"encore.app/svc"
 	auth "encore.dev/beta/auth"
 	"encore.dev/beta/errs"
@@ -19,6 +20,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var json = jsoniter.Config{
@@ -47,7 +49,7 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Eight",
-		EndpointExprIdx: 19,
+		EndpointExprIdx: 20,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -127,7 +129,7 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Five",
-		EndpointExprIdx: 20,
+		EndpointExprIdx: 21,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -187,7 +189,7 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Four",
-		EndpointExprIdx: 21,
+		EndpointExprIdx: 22,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -238,7 +240,7 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "One",
-		EndpointExprIdx: 22,
+		EndpointExprIdx: 23,
 		Inputs:          nil,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -271,6 +273,70 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	w.WriteHeader(200)
 }
 
+func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	ctx := req.Context()
+	runtime.BeginOperation()
+	defer runtime.FinishOperation()
+
+	// Decode request
+	var dec typeDecoder
+	var inputs [][]byte
+
+	params := &svc.QueryParams{}
+	qs := req.URL.Query()
+	params.Time = dec.Time("time", qs.Get("time"), false)
+	params.UID = dec.UserID("uid", qs.Get("uid"), false)
+	params.JSON = dec.JSON("json", qs.Get("json"), false)
+	params.Float32 = dec.Float32("float32", qs.Get("float32"), false)
+	params.Float64 = dec.Float64("float64", qs.Get("float64"), false)
+	inputs = append(inputs, []byte("?"+req.URL.RawQuery))
+
+	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Query")
+	if !proceed {
+		return
+	}
+
+	err := runtime.BeginRequest(ctx, runtime.RequestData{
+		AuthData:        authData,
+		CallExprIdx:     0,
+		Endpoint:        "Query",
+		EndpointExprIdx: 24,
+		Inputs:          inputs,
+		Service:         "svc",
+		Type:            runtime.RPCCall,
+		UID:             uid,
+	})
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	} else if err := dec.Err(); err != nil {
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
+		return
+	}
+
+	// Call the endpoint
+	defer func() {
+		// Catch handler panic
+		if e := recover(); e != nil {
+			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			runtime.FinishRequest(nil, err)
+			errs.HTTPError(w, err)
+		}
+	}()
+	respErr := svc.Query(req.Context(), params)
+	if respErr != nil {
+		respErr = errs.Convert(respErr)
+		runtime.FinishRequest(nil, respErr)
+		errs.HTTPError(w, respErr)
+		return
+	}
+
+	runtime.FinishRequest(nil, nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+}
+
 func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	ctx := req.Context()
 	runtime.BeginOperation()
@@ -290,7 +356,7 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Seven",
-		EndpointExprIdx: 23,
+		EndpointExprIdx: 25,
 		Inputs:          nil,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -343,7 +409,7 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Six",
-		EndpointExprIdx: 24,
+		EndpointExprIdx: 26,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -399,7 +465,7 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Three",
-		EndpointExprIdx: 25,
+		EndpointExprIdx: 27,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -458,7 +524,7 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 		AuthData:        authData,
 		CallExprIdx:     0,
 		Endpoint:        "Two",
-		EndpointExprIdx: 26,
+		EndpointExprIdx: 28,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -527,6 +593,13 @@ func main() {
 			Methods: []string{"GET", "POST"},
 			Name:    "One",
 			Path:    "/svc.One",
+			Raw:     false,
+		}, {
+			Access:  config.Public,
+			Handler: __encore_svc_Query,
+			Methods: []string{"GET"},
+			Name:    "Query",
+			Path:    "/query",
 			Raw:     false,
 		}, {
 			Access:  config.Public,
@@ -624,7 +697,7 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 		return "", nil, nil
 	}
 	done := make(chan struct{})
-	call, err := runtime.BeginAuth(27, token)
+	call, err := runtime.BeginAuth(29, token)
 	if err != nil {
 		return "", nil, err
 	}
@@ -634,7 +707,7 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 		authErr = call.BeginReq(ctx, runtime.RequestData{
 			CallExprIdx:     0,
 			Endpoint:        "AuthHandler",
-			EndpointExprIdx: 27,
+			EndpointExprIdx: 29,
 			Inputs:          [][]byte{[]byte(strconv.Quote(token))},
 			Service:         "svc",
 			Type:            runtime.AuthHandler,
@@ -689,6 +762,47 @@ func (d *typeDecoder) Uint(field, s string, required bool) (v uint) {
 	x, err := strconv.ParseUint(s, 10, 64)
 	d.setErr("invalid parameter", field, err)
 	return uint(x)
+}
+
+func (d *typeDecoder) Time(field, s string, required bool) (v time.Time) {
+	if !required && s == "" {
+		return
+	}
+	v, err := time.Parse(time.RFC3339, s)
+	d.setErr("invalid parameter", field, err)
+	return v
+}
+
+func (d *typeDecoder) UserID(field, s string, required bool) (v auth.UID) {
+	if !required && s == "" {
+		return
+	}
+	return auth.UID(s)
+}
+
+func (d *typeDecoder) JSON(field, s string, required bool) (v stdjson.RawMessage) {
+	if !required && s == "" {
+		return
+	}
+	return stdjson.RawMessage(s)
+}
+
+func (d *typeDecoder) Float32(field, s string, required bool) (v float32) {
+	if !required && s == "" {
+		return
+	}
+	x, err := strconv.ParseFloat(s, 32)
+	d.setErr("invalid parameter", field, err)
+	return float32(x)
+}
+
+func (d *typeDecoder) Float64(field, s string, required bool) (v float64) {
+	if !required && s == "" {
+		return
+	}
+	x, err := strconv.ParseFloat(s, 64)
+	d.setErr("invalid parameter", field, err)
+	return x
 }
 
 func (d *typeDecoder) Body(body io.Reader, dst interface{}) (payload []byte) {
@@ -970,6 +1084,71 @@ func __encore_svc_One(callExprIdx, endpointExprIdx int32, ctx context.Context) (
 		}()
 
 		rpcErr := One(ctx)
+		if rpcErr != nil {
+			call.FinishReq(nil, rpcErr)
+			response.err = errs.RoundTrip(rpcErr)
+		} else {
+			call.FinishReq(response.data, nil)
+		}
+	}()
+	<-done
+
+	call.Finish(response.err)
+	return response.err
+}
+
+func __encore_svc_Query(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 *QueryParams) (err error) {
+	inputs, err := runtime.SerializeInputs(p0)
+	if err != nil {
+		return
+	}
+	call, err := runtime.BeginCall(runtime.CallParams{
+		CallExprIdx:     callExprIdx,
+		Endpoint:        "Query",
+		EndpointExprIdx: endpointExprIdx,
+		Service:         "svc",
+	})
+	if err != nil {
+		return
+	}
+
+	// Run the request in a different goroutine
+	var response struct {
+		data [][]byte
+		err  error
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := call.BeginReq(ctx, runtime.RequestData{
+			CallExprIdx:     callExprIdx,
+			Endpoint:        "Query",
+			EndpointExprIdx: endpointExprIdx,
+			Inputs:          inputs,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
+		})
+		if err != nil {
+			response.err = err
+			return
+		}
+		defer func() {
+			if err2 := recover(); err2 != nil {
+				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
+				call.FinishReq(nil, response.err)
+			}
+		}()
+
+		var (
+			r0 *QueryParams
+		)
+		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
+			call.FinishReq(nil, response.err)
+			return
+		}
+
+		rpcErr := Query(ctx, r0)
 		if rpcErr != nil {
 			call.FinishReq(nil, rpcErr)
 			response.err = errs.RoundTrip(rpcErr)

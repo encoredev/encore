@@ -44,9 +44,20 @@ func NewBuilder(res *parser.Result) *Builder {
 	}
 }
 
-func (b *Builder) Main() *File {
-	f := NewFile("main")
+func (b *Builder) Main() (f *File, err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			if b, ok := err.(bailout); ok {
+				err = b.err
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	f = NewFile("main")
 	f.ImportNames(importNames)
+	f.ImportAlias("encoding/json", "stdjson")
 
 	for _, pkg := range b.res.App.Packages {
 		f.ImportName(pkg.ImportPath, pkg.Name)
@@ -136,7 +147,7 @@ func (b *Builder) Main() *File {
 	b.writeAuthFuncs(f)
 	b.writeDecoder(f)
 
-	return f
+	return f, nil
 }
 
 func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
@@ -315,7 +326,7 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 
 	// Decode path params
 	for i, seg := range segs {
-		name := b.builtinDecoder(seg.ValueType, false)
+		name := b.builtinDecoder(seg.ValueType, false, fmt.Sprintf("rpc %s.%s: path parameter #%d", svc.Name, rpc.Name, i+1))
 		g.Do(func(s *Statement) {
 			// If it's a raw endpoint the params are not used, but validate them regardless.
 			if rpc.Raw {
@@ -377,7 +388,7 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 					continue
 				}
 
-				name := b.queryStringDecoder(f.Typ)
+				name := b.queryStringDecoder(f.Typ, fmt.Sprintf("api %s.%s: field %s", svc.Name, rpc.Name, f.Name))
 				qsStmts = append(qsStmts, Id("params").Dot(f.Name).Op("=").Id("dec").Dot(name).Call(
 					Lit(qsName),
 					Id("qs").Do(func(s *Statement) {
@@ -566,27 +577,27 @@ type decoderDescriptor struct {
 	Block  []Code
 }
 
-func (b *Builder) queryStringDecoder(t *schema.Type) string {
+func (b *Builder) queryStringDecoder(t *schema.Type, src string) string {
 	switch t := t.Typ.(type) {
 	case *schema.Type_List:
 		if bt, ok := t.List.Elem.Typ.(*schema.Type_Builtin); ok {
-			return b.builtinDecoder(bt.Builtin, true)
+			return b.builtinDecoder(bt.Builtin, true, src)
 		}
 		panic(fmt.Sprintf("unsupported query string type: list of %T", t.List.Elem))
 	case *schema.Type_Builtin:
-		return b.builtinDecoder(t.Builtin, false)
+		return b.builtinDecoder(t.Builtin, false, src)
 	default:
 		panic(fmt.Sprintf("unsupported query string type: %T", t))
 	}
 }
 
-func (b *Builder) builtinDecoder(t schema.Builtin, slice bool) string {
+func (b *Builder) builtinDecoder(t schema.Builtin, slice bool, src string) string {
 	key := decodeKey{builtin: t, slice: slice}
 	if n, ok := b.seenBuiltins[key]; ok {
 		return n.Method
 	} else if slice {
 		k2 := decodeKey{builtin: t}
-		b.builtinDecoder(t, false)
+		b.builtinDecoder(t, false, src)
 		desc := b.seenBuiltins[k2]
 		name := desc.Method + "List"
 		fn := decoderDescriptor{name, Index().String(), Index().Add(desc.Result), []Code{
@@ -621,35 +632,63 @@ func (b *Builder) builtinDecoder(t schema.Builtin, slice bool) string {
 			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
+	case schema.Builtin_TIME:
+		fn = decoderDescriptor{"Time", String(), Qual("time", "Time"), []Code{
+			List(Id("v"), Err()).Op(":=").Qual("time", "Parse").Call(Qual("time", "RFC3339"), Id("s")),
+			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
+			Return(Id("v")),
+		}}
+	case schema.Builtin_USER_ID:
+		fn = decoderDescriptor{"UserID", String(), Qual("encore.dev/beta/auth", "UID"), []Code{
+			Return(Qual("encore.dev/beta/auth", "UID").Call(Id("s"))),
+		}}
+	case schema.Builtin_JSON:
+		fn = decoderDescriptor{"JSON", String(), Qual("encoding/json", "RawMessage"), []Code{
+			Return(Qual("encoding/json", "RawMessage").Call(Id("s"))),
+		}}
 	default:
-		intNames := map[schema.Builtin]struct {
+		type kind int
+		const (
+			unsigned kind = iota + 1
+			signed
+			float
+		)
+		numTypes := map[schema.Builtin]struct {
 			typ  string
+			kind kind
 			bits int
 		}{
-			schema.Builtin_INT8:   {"int8", 8},
-			schema.Builtin_INT16:  {"int16", 16},
-			schema.Builtin_INT32:  {"int32", 32},
-			schema.Builtin_INT64:  {"int64", 64},
-			schema.Builtin_INT:    {"int", 64},
-			schema.Builtin_UINT8:  {"uint8", 8},
-			schema.Builtin_UINT16: {"uint16", 16},
-			schema.Builtin_UINT32: {"uint32", 32},
-			schema.Builtin_UINT64: {"uint64", 64},
-			schema.Builtin_UINT:   {"uint", 64},
+			schema.Builtin_INT8:    {"int8", signed, 8},
+			schema.Builtin_INT16:   {"int16", signed, 16},
+			schema.Builtin_INT32:   {"int32", signed, 32},
+			schema.Builtin_INT64:   {"int64", signed, 64},
+			schema.Builtin_INT:     {"int", signed, 64},
+			schema.Builtin_UINT8:   {"uint8", unsigned, 8},
+			schema.Builtin_UINT16:  {"uint16", unsigned, 16},
+			schema.Builtin_UINT32:  {"uint32", unsigned, 32},
+			schema.Builtin_UINT64:  {"uint64", unsigned, 64},
+			schema.Builtin_UINT:    {"uint", unsigned, 64},
+			schema.Builtin_FLOAT64: {"float64", float, 64},
+			schema.Builtin_FLOAT32: {"float32", float, 32},
 		}
 
-		def, ok := intNames[t]
+		def, ok := numTypes[t]
 		if !ok {
-			panic(fmt.Sprintf("unknown type %v", t))
+			b.errorf("generating code for %s: unsupported type: %s", src, t)
 		}
-		unsigned := def.typ[0] == 'u'
-		cast := def.typ != "int64" && def.typ != "uint64"
+
+		cast := def.typ != "int64" && def.typ != "uint64" && def.typ != "float64"
 		fn = decoderDescriptor{strings.Title(def.typ), String(), Id(def.typ), []Code{
 			List(Id("x"), Err()).Op(":=").Do(func(s *Statement) {
-				if unsigned {
+				switch def.kind {
+				case unsigned:
 					s.Qual("strconv", "ParseUint").Call(Id("s"), Lit(10), Lit(def.bits))
-				} else {
+				case signed:
 					s.Qual("strconv", "ParseInt").Call(Id("s"), Lit(10), Lit(def.bits))
+				case float:
+					s.Qual("strconv", "ParseFloat").Call(Id("s"), Lit(def.bits))
+				default:
+					b.errorf("generating code for %s: unknown kind %v", src, def.kind)
 				}
 			}),
 			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
@@ -730,6 +769,14 @@ func (b *Builder) authDataType() Code {
 	return Lit(s)
 }
 
+func (b *Builder) error(err error) {
+	panic(bailout{err})
+}
+
+func (b *Builder) errorf(format string, args ...interface{}) {
+	panic(bailout{fmt.Errorf(format, args...)})
+}
+
 func buildErr(code, msg string) *Statement {
 	p := "encore.dev/beta/errs"
 	return Qual(p, "B").Call().Dot("Code").Call(Qual(p, code)).Dot("Msg").Call(Lit(msg)).Dot("Err").Call()
@@ -756,4 +803,8 @@ func buildErrf(code, format string, args ...Code) *Statement {
 func wrapErrCode(err Code, code, msg string) *Statement {
 	p := "encore.dev/beta/errs"
 	return Qual(p, "WrapCode").Call(err, Qual(p, code), Lit(msg))
+}
+
+type bailout struct {
+	err error
 }
