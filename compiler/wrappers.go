@@ -30,7 +30,10 @@ func (b *builder) writeMainPkg() error {
 	b.addOverlay(filepath.Join(b.appRoot, mainPkgName, "main.go"), mainPath)
 
 	mb := codegen.NewBuilder(b.res)
-	f := mb.Main()
+	f, err := mb.Main()
+	if err != nil {
+		return err
+	}
 	return f.Render(file)
 }
 
