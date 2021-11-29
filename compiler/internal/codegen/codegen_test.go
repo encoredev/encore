@@ -50,7 +50,9 @@ func TestCodeGenMain(t *testing.T) {
 			bld := NewBuilder(res)
 			var buf bytes.Buffer
 			buf.WriteString("// main code\n")
-			err = bld.Main().Render(&buf)
+			f, err := bld.Main()
+			c.Assert(err, qt.IsNil)
+			err = f.Render(&buf)
 			if err != nil {
 				c.Fatalf("render failed: %v", err)
 			}
