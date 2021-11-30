@@ -2,13 +2,13 @@
 title: Share SQL databases between services
 ---
 
-By default, each service in an Encore app has it's own database, running in its own isolated environment. This approach has huge benefits: load balancing between services and making failure of the whole app almost absolutely impossible to name a few.
+By default, each service in an Encore app has its own database, running in its own isolated environment. This approach has huge benefits: load balancing between services and making failure of the whole app almost absolutely impossible to name a few.
 
 But in some cases you might want to get access to a database, that belongs to another service. Since the release of v0.17 we can now reference databases by name with `sqldb.Named("name")`, enabling multiple services to reference a single database.
 
 ## Example
 
-Let's say you have a simple `todo` service, with the only one table:
+Let's say you have a simple `todo` service, with only one table:
 
 **`todo/migrations/1_create_table.up.sql`**
 
@@ -39,13 +39,17 @@ type ReportResponse struct {
     Total int
 }
 
-//Count completed todo items
+var todoDB = sqldb.Named("todo")
+
+//CountCompletedTodo generates a report with the number of completed todo items.
 //encore:api method=GET path=/report/todo
 func CountCompletedTodo(ctx context.Context) (*ReportResponse, error){
     var report ReportResponse
-    err := sqldb.Named("todo").
-			QueryRow(ctx,`SELECT COUNT(*) FROM todo_item WHERE completed = TRUE`).
-			Scan(&report.Total)
+    err := todoDB.QueryRow(ctx,`
+           SELECT COUNT(*)
+           FROM todo_item
+           WHERE completed = TRUE
+           `).Scan(&report.Total)
     return &report, err
 }
 ```
