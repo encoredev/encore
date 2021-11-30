@@ -82,6 +82,7 @@ sections: [
 		docs: [
 			{title: "Debug with Delve", segment: "debug"},
 			{title: "Change SQL database schema", segment: "change-db-schema"},
+			{title: "Share SQL databases between services", segment: "share-db-between-services"},
 			{title: "Receive webhooks", segment: "webhooks"},
 			{title: "Integrate with a web frontend", segment: "integrate-frontend"},
 			{title: "Use Firebase Authentication", segment: "firebase-auth"},
