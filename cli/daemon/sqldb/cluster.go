@@ -75,6 +75,23 @@ func (c *Cluster) Start(log runlog.Log) error {
 			return err
 		}
 
+		// waitForPort waits for the port to become available before assigning it to c.HostPort.
+		waitForPort := func() error {
+			for i := 0; i < 20; i++ {
+				status, err = c.Status(ctx)
+				if err != nil {
+					return err
+				}
+				if status.HostPort != "" {
+					c.HostPort = status.HostPort
+					c.log.Debug().Str("hostport", c.HostPort).Msg("cluster started")
+					return nil
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for cluster to start")
+		}
+
 		switch status.Status {
 		case Running:
 			c.HostPort = status.HostPort
@@ -86,14 +103,7 @@ func (c *Cluster) Start(log runlog.Log) error {
 			if out, err := exec.CommandContext(ctx, "docker", "start", cname).CombinedOutput(); err != nil {
 				return fmt.Errorf("could not start sqldb container: %s (%v)", string(out), err)
 			}
-			// Grab the port
-			status, err = c.Status(ctx)
-			if err != nil {
-				return err
-			}
-			c.HostPort = status.HostPort
-			c.log.Debug().Str("hostport", c.HostPort).Msg("cluster started")
-			return nil
+			return waitForPort()
 
 		case NotFound:
 			c.log.Debug().Msg("cluster not found, creating")
@@ -122,14 +132,8 @@ func (c *Cluster) Start(log runlog.Log) error {
 				return fmt.Errorf("could not start sql database as docker container: %s: %v", out, err)
 			}
 
-			// Now that the container is running, grab the host port.
-			status, err := c.Status(ctx)
-			if err != nil {
-				return err
-			}
-			c.HostPort = status.HostPort
 			c.log.Debug().Str("hostport", c.HostPort).Msg("cluster created")
-			return nil
+			return waitForPort()
 
 		default:
 			return fmt.Errorf("unknown cluster status %q", status.Status)
