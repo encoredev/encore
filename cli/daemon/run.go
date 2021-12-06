@@ -236,38 +236,48 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	}
 	s.cacheAppRoot(man.AppID, req.AppRoot)
 
-	setupCtx, setupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	usesSQLDB := requiresSQLDB(parse.Meta)
 	clusterID := man.AppID + "-test"
-	cluster := s.cm.Init(setupCtx, &sqldb.InitParams{
-		ClusterID: clusterID,
-		Memfs:     true,
-		Meta:      parse.Meta,
-	})
 
 	// Set up the database asynchronously since it can take a while.
 	dbSetupErr := make(chan error, 1)
-	go func() {
-		defer setupCancel()
-		if err := cluster.Start(&streamLog{stream: stream, buffered: false}); err != nil {
-			dbSetupErr <- err
-		} else if err := cluster.Recreate(setupCtx, req.AppRoot, nil, parse.Meta); err != nil {
-			dbSetupErr <- err
-		}
-	}()
+
+	if usesSQLDB {
+		setupCtx, setupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		cluster := s.cm.Init(setupCtx, &sqldb.InitParams{
+			ClusterID: clusterID,
+			Memfs:     true,
+			Meta:      parse.Meta,
+		})
+
+		go func() {
+			defer setupCancel()
+			if err := cluster.Start(&streamLog{stream: stream, buffered: false}); err != nil {
+				dbSetupErr <- err
+			} else if err := cluster.Recreate(setupCtx, req.AppRoot, nil, parse.Meta); err != nil {
+				dbSetupErr <- err
+			}
+		}()
+	}
 
 	testCtx, cancel := context.WithCancel(stream.Context())
 	defer cancel()
 
 	testResults := make(chan error, 1)
 	go func() {
-		testResults <- s.mgr.Test(testCtx, run.TestParams{
-			AppRoot:     req.AppRoot,
-			WorkingDir:  req.WorkingDir,
-			DBClusterID: clusterID,
-			Args:        req.Args,
-			Stdout:      slog.Stdout(false),
-			Stderr:      slog.Stderr(false),
-		})
+		tp := run.TestParams{
+			AppRoot:    req.AppRoot,
+			WorkingDir: req.WorkingDir,
+			Args:       req.Args,
+			Stdout:     slog.Stdout(false),
+			Stderr:     slog.Stderr(false),
+		}
+
+		if usesSQLDB {
+			tp.DBClusterID = clusterID
+		}
+
+		testResults <- s.mgr.Test(testCtx, tp)
 	}()
 
 	select {

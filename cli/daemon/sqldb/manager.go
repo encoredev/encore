@@ -62,6 +62,13 @@ func (cm *ClusterManager) Init(ctx context.Context, params *InitParams) *Cluster
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	c, ok := cm.clusters[cid]
+	if ok {
+		if status, err := c.Status(ctx); err != nil || status.Status != Running {
+			// The cluster is no longer running; recreate it to clear our cached state.
+			c.cancel()
+			ok = false
+		}
+	}
 	if !ok {
 		ctx, cancel := context.WithCancel(context.Background())
 		c = &Cluster{
