@@ -87,12 +87,11 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 	if err != nil {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	}
-	defer func() {
-		if err != nil {
-			ln.Close()
-		}
-	}()
 	port := ln.Addr().(*net.TCPAddr).Port
+	go func() {
+		<-ctx.Done()
+		ln.Close()
+	}()
 
 	log.Info().Msgf("dbproxy: listening on localhost:%d", port)
 	defer log.Info().Msg("dbproxy: proxy closed")
