@@ -236,13 +236,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	}
 	s.cacheAppRoot(man.AppID, req.AppRoot)
 
-	var usesSQLDB bool
-	for _, svc := range parse.Meta.Svcs {
-		if len(svc.Migrations) > 0 {
-			usesSQLDB = true
-			break
-		}
-	}
+	usesSQLDB := requiresSQLDB(parse.Meta)
 	clusterID := man.AppID + "-test"
 
 	// Set up the database asynchronously since it can take a while.
