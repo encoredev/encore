@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"encr.dev/pkg/pgproxy"
-	"encr.dev/proto/encore/server/remote"
 	"github.com/jackc/pgproto3/v2"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/metadata"
@@ -18,7 +17,7 @@ import (
 // OneshotProxy listens on a random port for a single connection, and proxies that connection to a remote db.
 // It reports the one-time password and port to use.
 // Once a connection has been established, it stops listening.
-func OneshotProxy(rc remote.RemoteClient, appSlug, envSlug string) (port int, passwd string, err error) {
+func OneshotProxy(appSlug, envSlug string) (port int, passwd string, err error) {
 	ln, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return 0, "", err
@@ -29,11 +28,11 @@ func OneshotProxy(rc remote.RemoteClient, appSlug, envSlug string) (port int, pa
 	}
 	passwd = base64.RawURLEncoding.EncodeToString(passwdBytes[:])
 
-	go oneshotServer(context.Background(), rc, ln, passwd, appSlug, envSlug)
+	go oneshotServer(context.Background(), ln, passwd, appSlug, envSlug)
 	return ln.Addr().(*net.TCPAddr).Port, passwd, nil
 }
 
-func oneshotServer(ctx context.Context, rc remote.RemoteClient, ln net.Listener, passwd, appSlug, envSlug string) error {
+func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlug string) error {
 	defer ln.Close()
 
 	gotMainConn := make(chan struct{}) // closed when accepted
@@ -76,16 +75,16 @@ func oneshotServer(ctx context.Context, rc remote.RemoteClient, ln net.Listener,
 			// and close the listener when it exits.
 			first = false
 			close(gotMainConn)
-			go ProxyRemoteConn(ctx, rc, frontend, passwd, appSlug, envSlug)
+			go ProxyRemoteConn(ctx, frontend, passwd, appSlug, envSlug)
 		} else {
-			go ProxyRemoteConn(ctx, rc, frontend, passwd, appSlug, envSlug)
+			go ProxyRemoteConn(ctx, frontend, passwd, appSlug, envSlug)
 		}
 	}
 }
 
 // ProxyRemoteConn proxies a frontend to the remote database pointed at by appSlug and envSlug.
 // The passwd is what we expect the frontend to provide to authenticate the connection.
-func ProxyRemoteConn(ctx context.Context, rc remote.RemoteClient, frontend net.Conn, passwd, appSlug, envSlug string) {
+func ProxyRemoteConn(ctx context.Context, frontend net.Conn, passwd, appSlug, envSlug string) {
 	defer frontend.Close()
 	var proxy pgproxy.Proxy
 	data, err := proxy.FrontendAuth(frontend, nil, passwd != "")
@@ -108,34 +107,42 @@ func ProxyRemoteConn(ctx context.Context, rc remote.RemoteClient, frontend net.C
 	ctx = metadata.AppendToOutgoingContext(ctx, "appSlug", appSlug, "envSlug", envSlug)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	stream, err := rc.DBConnect(ctx)
-	if err != nil {
-		log.Printf("sqldb: proxy: could not connect to remote db: %v", err)
-		return
-	}
 
-	sw := dbConnectWriter{stream: stream}
-	sr := dbConnectReader{stream: stream}
-	backend := &struct {
-		dbConnectWriter
-		dbConnectReader
-	}{sw, sr}
+	log.Printf("sqldb: remote proxy not yet implemented")
+	return
 
-	data.Username = "encore"
-	data.Password = ""
-	if _, err := proxy.BackendAuth(backend, nil, data); err != nil {
-		log.Printf("sqldb: proxy: could not connect to remote db: %v", err)
-		writeMsg(frontend, &pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "could not connect to remote db: " + err.Error(),
-		})
-		return
-	}
+	// TODO(eandre) reimplement
+	/*
+		stream, err := rc.DBConnect(ctx)
+		if err != nil {
+			log.Printf("sqldb: proxy: could not connect to remote db: %v", err)
+			return
+		}
 
-	proxy.Data(ctx)
+		sw := dbConnectWriter{stream: stream}
+		sr := dbConnectReader{stream: stream}
+		backend := &struct {
+			dbConnectWriter
+			dbConnectReader
+		}{sw, sr}
+
+		data.Username = "encore"
+		data.Password = ""
+		if _, err := proxy.BackendAuth(backend, nil, data); err != nil {
+			log.Printf("sqldb: proxy: could not connect to remote db: %v", err)
+			writeMsg(frontend, &pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "08006",
+				Message:  "could not connect to remote db: " + err.Error(),
+			})
+			return
+		}
+
+		proxy.Data(ctx)
+	*/
 }
 
+/*
 type dbConnectWriter struct {
 	stream remote.Remote_DBConnectClient
 }
@@ -173,3 +180,5 @@ func (r *dbConnectReader) Read(p []byte) (int, error) {
 	r.buf = msg.Data[n:]
 	return n, nil
 }
+
+*/

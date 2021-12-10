@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"encr.dev/cli/internal/conf"
+	"encr.dev/cli/internal/platform"
 	"golang.org/x/oauth2"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -37,7 +38,7 @@ func RegisterDevice(ctx context.Context, pubKey wgtypes.Key) (ip string, err err
 	}()
 
 	reqData, _ := json.Marshal(map[string]string{"public_key": pubKey.String()})
-	url := "https://api.encore.dev/user/devices:register"
+	url := platform.APIBaseURL + "/user/devices:register"
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqData))
 	if err != nil {
 		return "", err

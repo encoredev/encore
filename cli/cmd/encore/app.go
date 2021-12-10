@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"encr.dev/cli/internal/conf"
+	"encr.dev/cli/internal/platform"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
@@ -193,7 +194,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	_, err = conf.CurrentUser()
 	loggedIn := err == nil
 
-	var app *appConf
+	var app *platform.App
 	if loggedIn {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Creating app on encore.dev "
@@ -284,58 +285,35 @@ type appConf struct {
 	DefaultBranch *string `json:"main_branch"`
 }
 
-func createAppOnServer(name string) (*appConf, error) {
+func createAppOnServer(name string) (*platform.App, error) {
 	if _, err := conf.CurrentUser(); err != nil {
 		return nil, err
 	}
-
-	url := "https://api.encore.dev/apps"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	reqData, _ := json.Marshal(map[string]string{"Name": name})
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqData))
-	if err != nil {
-		return nil, err
+	params := &platform.CreateAppParams{
+		Name: name,
 	}
-	req.Header.Set("Content-Type", "application/json")
-	var respData struct {
-		Data appConf
-	}
-	err = slurpJSON(req, &respData)
-	return &respData.Data, err
+	return platform.CreateApp(ctx, params)
 }
 
-func validateAppID(id string) (ok bool, err error) {
+func validateAppSlug(slug string) (ok bool, err error) {
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
 		fatal("not logged in. Run 'encore auth login' first.")
 	} else if err != nil {
 		return false, err
 	}
 
-	url := "https://api.encore.dev/apps/" + url.PathEscape(id)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
-	if err != nil {
+	if _, err := platform.GetApp(ctx, slug); err != nil {
+		var e platform.Error
+		if errors.As(err, &e) && e.HTTPCode == 404 {
+			return false, nil
+		}
 		return false, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := conf.AuthClient()
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, err
-	}
-	defer resp.Body.Close()
-	switch resp.StatusCode {
-	case 200:
-		return true, nil
-	case 404:
-		return false, nil
-	default:
-		body, _ := ioutil.ReadAll(resp.Body)
-		return false, fmt.Errorf("server responded with HTTP %s: %s", resp.Status, body)
-	}
+	return true, nil
 }
 
 type repoInfo struct {
@@ -496,7 +474,7 @@ func slurpJSON(req *http.Request, respData interface{}) error {
 // initGitRepo initializes the git repo.
 // If app is not nil, it configures the repo to push to the given app.
 // If git does not exist, it reports an error matching exec.ErrNotFound.
-func initGitRepo(path string, app *appConf) (err error) {
+func initGitRepo(path string, app *platform.App) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if ee, ok := e.(error); ok {
@@ -519,8 +497,8 @@ func initGitRepo(path string, app *appConf) (err error) {
 
 	// Initialize git repo
 	git("init")
-	if app != nil && app.DefaultBranch != nil {
-		git("checkout", "-b", *app.DefaultBranch)
+	if app != nil && app.MainBranch != nil {
+		git("checkout", "-b", *app.MainBranch)
 	}
 	git("config", "--local", "push.default", "current")
 	git("add", "-A")
@@ -592,7 +570,7 @@ func linkApp(appID string, force bool) {
 		}
 	}
 
-	if linked, err := validateAppID(appID); err != nil {
+	if linked, err := validateAppSlug(appID); err != nil {
 		fatal(err)
 	} else if !linked {
 		fmt.Fprintln(os.Stderr, "Error: that app does not exist, or you don't have access to it.")

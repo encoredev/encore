@@ -14,11 +14,11 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/codegen"
+	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
 	"encr.dev/cli/internal/version"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"encr.dev/proto/encore/server/remote"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -35,7 +35,6 @@ type Server struct {
 	mgr *run.Manager
 	cm  *sqldb.ClusterManager
 	sm  *secret.Manager
-	rc  remote.RemoteClient
 
 	mu       sync.Mutex
 	streams  map[string]*streamLog // run id -> stream
@@ -48,12 +47,11 @@ type Server struct {
 }
 
 // New creates a new Server.
-func New(mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager, rc remote.RemoteClient) *Server {
+func New(mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
 	srv := &Server{
 		mgr:      mgr,
 		cm:       cm,
 		sm:       sm,
-		rc:       rc,
 		streams:  make(map[string]*streamLog),
 		appRoots: make(map[string]string),
 	}
@@ -83,12 +81,13 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		}
 		md = result.Meta
 	} else {
-		meta, err := s.rc.Meta(ctx, &remote.MetaRequest{
-			AppSlug: params.AppId,
-			EnvName: params.EnvName,
-		})
+		envName := params.EnvName
+		if envName == "" {
+			envName = "@primary"
+		}
+		meta, err := platform.GetEnvMeta(ctx, params.AppId, params.EnvName)
 		if err != nil {
-			return nil, status.Errorf(status.Code(err), "could not fetch API metadata: %v", err)
+			return nil, status.Errorf(codes.Unavailable, "could not fetch API metadata: %v", err)
 		}
 		md = meta
 	}
@@ -111,17 +110,22 @@ func (s *Server) SetSecret(ctx context.Context, req *daemonpb.SetSecretRequest) 
 		return nil, errNotLinked
 	}
 
-	resp, err := s.rc.SetSecret(ctx, &remote.SetSecretRequest{
-		AppSlug: appSlug,
-		Key:     req.Key,
-		Value:   req.Value,
-		Type:    remote.SetSecretRequest_Type(req.Type),
-	})
+	var kind platform.SecretKind
+	switch req.Type {
+	case daemonpb.SetSecretRequest_DEVELOPMENT:
+		kind = platform.DevelopmentSecrets
+	case daemonpb.SetSecretRequest_PRODUCTION:
+		kind = platform.ProductionSecrets
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown secret type %v", req.Type)
+	}
+
+	ver, err := platform.SetAppSecret(ctx, appSlug, kind, req.Key, req.Value)
 	if err != nil {
 		return nil, err
 	}
 	go s.sm.UpdateKey(appSlug, req.Key, req.Value)
-	return &daemonpb.SetSecretResponse{Created: resp.Created}, nil
+	return &daemonpb.SetSecretResponse{Created: ver.Number == 1}, nil
 }
 
 // Version reports the daemon version.
@@ -137,6 +141,13 @@ func (s *Server) Logs(params *daemonpb.LogsRequest, stream daemonpb.Daemon_LogsS
 	} else if appSlug == "" {
 		return errNotLinked
 	}
+
+	return status.Error(codes.Unimplemented, "logs are not yet implemented")
+
+	/* TODO(eandre) Reimplement
+	stream.Send(&daemonpb.LogsMessage{
+		Lines: []string{""}
+	})
 
 	logs, err := s.rc.Logs(stream.Context(), &remote.LogsRequest{
 		AppSlug: appSlug,
@@ -160,6 +171,7 @@ func (s *Server) Logs(params *daemonpb.LogsRequest, stream daemonpb.Daemon_LogsS
 			return err
 		}
 	}
+	*/
 }
 
 // availableUpdate checks for updates to Encore.

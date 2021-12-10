@@ -1,14 +1,12 @@
 package daemon
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	stdruntime "runtime"
 	"strconv"
 	"time"
 
@@ -19,19 +17,11 @@ import (
 	"encr.dev/cli/daemon/runtime/trace"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/cli/internal/conf"
-	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
-	meta "encr.dev/proto/encore/parser/meta/v1"
-	"encr.dev/proto/encore/server/remote"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/oauth"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/metadata"
 )
 
 // Main runs the daemon.
@@ -69,7 +59,6 @@ type Daemon struct {
 	DBProxy *net.TCPListener
 	Dash    *net.TCPListener
 
-	Remote     remote.RemoteClient
 	Secret     *secret.Manager
 	RunMgr     *run.Manager
 	ClusterMgr *sqldb.ClusterManager
@@ -95,8 +84,7 @@ func (d *Daemon) init() {
 
 	d.Trace = trace.NewStore()
 	d.ClusterMgr = sqldb.NewClusterManager()
-	d.Remote = d.setupRemoteClient()
-	d.Secret = secret.New(d.Remote)
+	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
 		RuntimePort: tcpPort(d.Runtime),
 		DBProxyPort: tcpPort(d.DBProxy),
@@ -104,7 +92,7 @@ func (d *Daemon) init() {
 		Secret:      d.Secret,
 	}
 	d.DashSrv = dash.NewServer(d.RunMgr, d.Trace)
-	d.Server = daemon.New(d.RunMgr, d.ClusterMgr, d.Secret, d.Remote)
+	d.Server = daemon.New(d.RunMgr, d.ClusterMgr, d.Secret)
 }
 
 func (d *Daemon) serve() {
@@ -143,24 +131,6 @@ func (d *Daemon) listenDaemonSocket() *net.UnixListener {
 	return ln
 }
 
-// setupRemoteClient sets up a grpc client to Encore's backend service.
-func (d *Daemon) setupRemoteClient() remote.RemoteClient {
-	ts := &conf.TokenSource{}
-	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewTLS(nil)),
-		grpc.WithPerRPCCredentials(oauth.TokenSource{TokenSource: ts}),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time: 20 * time.Second,
-		}),
-	}
-	conn, err := grpc.Dial("remote.encoreapis.com:443", dialOpts...)
-	if err != nil {
-		fatalf("failed to dial encore server: %v", err)
-	}
-	d.closeOnExit(conn)
-	return remoteWrapper{c: remote.NewRemoteClient(conn)}
-}
-
 func (d *Daemon) serveDaemon() {
 	log.Info().Stringer("addr", d.Daemon.Addr()).Msg("serving daemon")
 	srv := grpc.NewServer()
@@ -170,7 +140,7 @@ func (d *Daemon) serveDaemon() {
 
 func (d *Daemon) serveRuntime() {
 	log.Info().Stringer("addr", d.Runtime.Addr()).Msg("serving runtime")
-	srv := runtime.NewServer(d.RunMgr, d.Trace, d.Remote)
+	srv := runtime.NewServer(d.RunMgr, d.Trace)
 	d.exit <- http.Serve(d.Runtime, srv)
 }
 
@@ -269,48 +239,6 @@ func handleBailout(err *error) {
 			panic(e)
 		}
 	}
-}
-
-type remoteWrapper struct {
-	c remote.RemoteClient
-}
-
-var _ remote.RemoteClient = (*remoteWrapper)(nil)
-
-func (w remoteWrapper) Tunnel(ctx context.Context, opts ...grpc.CallOption) (remote.Remote_TunnelClient, error) {
-	return w.c.Tunnel(wrap(ctx), opts...)
-}
-
-func (w remoteWrapper) Meta(ctx context.Context, in *remote.MetaRequest, opts ...grpc.CallOption) (*meta.Data, error) {
-	return w.c.Meta(wrap(ctx), in, opts...)
-}
-
-func (w remoteWrapper) DBConnect(ctx context.Context, opts ...grpc.CallOption) (remote.Remote_DBConnectClient, error) {
-	return w.c.DBConnect(wrap(ctx), opts...)
-}
-
-func (w remoteWrapper) RecordTrace(ctx context.Context, in *remote.RecordTraceRequest, opts ...grpc.CallOption) (*remote.RecordTraceResponse, error) {
-	return w.c.RecordTrace(wrap(ctx), in, opts...)
-}
-
-func (w remoteWrapper) GetSecrets(ctx context.Context, in *remote.GetSecretsRequest, opts ...grpc.CallOption) (*remote.GetSecretsResponse, error) {
-	return w.c.GetSecrets(wrap(ctx), in, opts...)
-}
-
-func (w remoteWrapper) SetSecret(ctx context.Context, in *remote.SetSecretRequest, opts ...grpc.CallOption) (*remote.SetSecretResponse, error) {
-	return w.c.SetSecret(wrap(ctx), in, opts...)
-}
-
-func (w remoteWrapper) Logs(ctx context.Context, in *remote.LogsRequest, opts ...grpc.CallOption) (remote.Remote_LogsClient, error) {
-	return w.c.Logs(wrap(ctx), in, opts...)
-}
-
-func wrap(ctx context.Context) context.Context {
-	return metadata.AppendToOutgoingContext(ctx,
-		"version", version.Version,
-		"goos", stdruntime.GOOS,
-		"goarch", stdruntime.GOARCH,
-	)
 }
 
 // redirectLogOutput redirects the global logger to also write to a file.
