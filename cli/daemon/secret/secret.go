@@ -10,19 +10,18 @@ import (
 	"sync"
 	"time"
 
-	"encr.dev/proto/encore/server/remote"
+	"encr.dev/cli/internal/platform"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/singleflight"
 )
 
 // New returns a new manager.
-func New(rc remote.RemoteClient) *Manager {
-	return &Manager{rc: rc, cache: make(map[string]*Data)}
+func New() *Manager {
+	return &Manager{cache: make(map[string]*Data)}
 }
 
 // Manager manages the secrets cache for running Encore apps.
 type Manager struct {
-	rc       remote.RemoteClient
 	group    singleflight.Group
 	pollOnce sync.Once
 
@@ -95,19 +94,13 @@ func (f *Manager) fetch(appSlug string, poll bool) (*Data, error) {
 	data, err, _ := f.group.Do(appSlug, func() (interface{}, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		resp, err := f.rc.GetSecrets(ctx, &remote.GetSecretsRequest{
-			AppSlug: appSlug,
-			Poll:    poll,
-		})
+		secrets, err := platform.GetAppSecrets(ctx, appSlug, poll, platform.DevelopmentSecrets)
 		if err != nil {
 			return nil, fmt.Errorf("fetch secrets for %s: %v", appSlug, err)
 		}
 		data := &Data{
 			Synced: time.Now(),
-			Values: make(map[string]string),
-		}
-		for _, s := range resp.Secrets {
-			data.Values[s.Key] = s.Value
+			Values: secrets,
 		}
 
 		// Update our caches

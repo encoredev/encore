@@ -2,21 +2,17 @@
 package login
 
 import (
-	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
-	"runtime"
 
 	"encr.dev/cli/internal/conf"
-	"encr.dev/cli/internal/version"
+	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/wgtunnel"
-	"golang.org/x/oauth2"
 )
 
 // Flow keeps the state of an ongoing login flow.
@@ -55,29 +51,18 @@ func Begin() (f *Flow, err error) {
 	addr := ln.Addr().(*net.TCPAddr)
 	url := fmt.Sprintf("http://localhost:%d/oauth", addr.Port)
 
-	req := map[string]string{
-		"challenge":    encodedChallenge,
-		"state":        state,
-		"redirect_url": url,
+	req := &platform.CreateOAuthSessionParams{
+		Challenge:   encodedChallenge,
+		State:       state,
+		RedirectURL: url,
 	}
-	var resp struct {
-		OK    bool
-		Error struct {
-			Code   string
-			Detail interface{}
-		}
-		Data struct {
-			AuthURL string `json:"auth_url"`
-		}
-	}
-	if err := apiReq("/login/oauth:create-session", req, &resp); err != nil {
-		return nil, fmt.Errorf("could not contact auth server: %v", err)
-	} else if !resp.OK {
-		return nil, fmt.Errorf("auth failure: code: %s", resp.Error.Code)
+	authURL, err := platform.CreateOAuthSession(context.Background(), req)
+	if err != nil {
+		return nil, err
 	}
 
 	flow := &Flow{
-		URL:     resp.Data.AuthURL,
+		URL:     authURL,
 		LoginCh: make(chan *conf.Config),
 
 		state:     state,
@@ -105,34 +90,20 @@ func (f *Flow) oauthHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	reqData := map[string]string{
-		"challenge": f.challenge,
-		"code":      code,
+	params := &platform.ExchangeOAuthTokenParams{
+		Challenge: f.challenge,
+		Code:      code,
 	}
-	var resp struct {
-		OK    bool
-		Error struct {
-			Code   string
-			Detail interface{}
-		}
-		Data struct {
-			Email string
-			Token *oauth2.Token
-		}
-	}
-	if err := apiReq("/login/oauth:exchange-token", reqData, &resp); err != nil {
+	resp, err := platform.ExchangeOAuthToken(req.Context(), params)
+	if err != nil {
 		http.Error(w, "Could not exchange token: "+err.Error(), http.StatusBadGateway)
 		return
-	} else if !resp.OK {
-		http.Error(w, "Could not exchange token: "+resp.Error.Code, http.StatusBadGateway)
-		return
-	} else if resp.Data.Token == nil {
+	} else if resp.Token == nil {
 		http.Error(w, "Invalid response: missing token", http.StatusBadGateway)
 		return
 	}
 
-	tok := resp.Data.Token
-	conf := &conf.Config{Token: *tok, Email: resp.Data.Email}
+	conf := &conf.Config{Token: *resp.Token, Email: resp.Email, AppSlug: resp.AppSlug}
 	pub, priv, err := wgtunnel.GenKey()
 	if err == nil {
 		conf.WireGuard.PublicKey = pub.String()
@@ -153,38 +124,4 @@ func genRandData() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(data), nil
-}
-
-func apiReq(endpoint string, reqParams, respParams interface{}) error {
-	var body io.Reader
-	if reqParams != nil {
-		reqData, err := json.Marshal(reqParams)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewReader(reqData)
-	}
-
-	req, err := http.NewRequest("POST", "https://api.encore.dev"+endpoint, body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	// Add a very limited amount of information for diagnostics
-	req.Header.Set("X-Encore-Version", version.Version)
-	req.Header.Set("X-Encore-GOOS", runtime.GOOS)
-	req.Header.Set("X-Encore-GOARCH", runtime.GOARCH)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if respParams != nil {
-		err := json.NewDecoder(resp.Body).Decode(respParams)
-		return err
-	}
-	return nil
 }

@@ -30,7 +30,7 @@ func (s *Server) DBConnect(ctx context.Context, req *daemonpb.DBConnectRequest) 
 	} else if appID == "" {
 		return nil, errNotLinked
 	}
-	port, passwd, err := sqldb.OneshotProxy(s.rc, appID, req.EnvName)
+	port, passwd, err := sqldb.OneshotProxy(appID, req.EnvName)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		}
 	} else {
 		handler = func(ctx context.Context, frontend net.Conn) {
-			sqldb.ProxyRemoteConn(ctx, s.rc, frontend, "", appID, params.EnvName)
+			sqldb.ProxyRemoteConn(ctx, frontend, "", appID, params.EnvName)
 		}
 	}
 

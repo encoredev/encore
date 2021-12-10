@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"encr.dev/cli/internal/platform"
 	"go4.org/syncutil"
 	"golang.org/x/oauth2"
 )
@@ -19,7 +20,8 @@ import (
 // Config represents the stored Encore configuration.
 type Config struct {
 	oauth2.Token
-	Email     string `json:"email"`
+	Email     string `json:"email,omitempty"`    // non-zero if logged in as a user
+	AppSlug   string `json:"app_slug,omitempty"` // non-zero if logged in as an app
 	WireGuard struct {
 		PublicKey  string `json:"pub,omitempty"`
 		PrivateKey string `json:"priv,omitempty"`
@@ -123,7 +125,7 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 
 		oauth2Cfg := &oauth2.Config{
 			Endpoint: oauth2.Endpoint{
-				TokenURL: "https://api.encore.dev/login/oauth:refresh-token",
+				TokenURL: platform.APIBaseURL + "/login/oauth:refresh-token",
 			},
 		}
 		ts.ts = oauth2Cfg.TokenSource(context.Background(), &cfg.Token)

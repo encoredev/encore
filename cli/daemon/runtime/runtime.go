@@ -9,18 +9,16 @@ import (
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/runtime/trace"
-	"encr.dev/proto/encore/server/remote"
 	"github.com/rs/zerolog/log"
 )
 
 type server struct {
 	runMgr *run.Manager
 	ts     *trace.Store
-	rc     remote.RemoteClient
 }
 
-func NewServer(runMgr *run.Manager, ts *trace.Store, rc remote.RemoteClient) http.Handler {
-	s := &server{runMgr: runMgr, ts: ts, rc: rc}
+func NewServer(runMgr *run.Manager, ts *trace.Store) http.Handler {
+	s := &server{runMgr: runMgr, ts: ts}
 	return s
 }
 
