@@ -106,6 +106,21 @@ func UpdateBlogPost(ctx context.Context, id int, post *BlogPost) error {
 }
 ```
 
+<Callout type="important">
+You will not be able to define paths that conflict with each other, including paths
+where the static part can be mistaken for a parameter, e.g both `/blog` and `/blog/:id` would conflict with `/:username`.
+</Callout>
+
+As a rule of thumb, try to place path parameters at the end of the path and
+prefix them with the service name, e.g:
+
+```
+GET /blog/posts
+GET /blog/posts/:id
+GET /user/profile/:username
+GET /user/me
+```
+
 #### Query parameters
 When fetching data with `GET` endpoints, it's common to receive additional parameters for optional behavior, like filtering a list or changing the sort order.
 
