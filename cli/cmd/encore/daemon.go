@@ -101,10 +101,17 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 			// restart it otherwise.
 			cl := daemonpb.NewDaemonClient(cc)
 			if resp, err := cl.Version(ctx, &empty.Empty{}); err == nil {
-				if semver.Compare(version.Version, resp.Version) <= 0 {
+				diff := semver.Compare(version.Version, resp.Version)
+				switch {
+				case diff < 0:
+					// Daemon is running a newer version
 					return cl
+				case diff == 0 && resp.ConfigHash != version.ConfigHash():
+					// Daemon is running the same version but different config
+					fmt.Fprintf(os.Stderr, "encore: restarting daemon due to configuration change.\n")
+				case diff > 0:
+					fmt.Fprintf(os.Stderr, "encore: daemon is running an outdated version (%s), restarting.\n", resp.Version)
 				}
-				fmt.Fprintf(os.Stderr, "encore: daemon is running an outdated version (%s), restarting.\n", resp.Version)
 			}
 		}
 		// Remove the socket file which triggers the daemon to exit.

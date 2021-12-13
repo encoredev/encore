@@ -142,4 +142,5 @@ message SetSecretResponse {
 
 message VersionResponse {
   string version = 1;
+  string config_hash = 2;
 }

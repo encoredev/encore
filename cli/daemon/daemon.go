@@ -130,7 +130,10 @@ func (s *Server) SetSecret(ctx context.Context, req *daemonpb.SetSecretRequest) 
 
 // Version reports the daemon version.
 func (s *Server) Version(context.Context, *empty.Empty) (*daemonpb.VersionResponse, error) {
-	return &daemonpb.VersionResponse{Version: version.Version}, nil
+	return &daemonpb.VersionResponse{
+		Version:    version.Version,
+		ConfigHash: version.ConfigHash(),
+	}, nil
 }
 
 // Logs streams logs from the encore.dev platform.

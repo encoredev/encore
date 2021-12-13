@@ -456,7 +456,7 @@ func createFile(src io.Reader, dst string) error {
 }
 
 func slurpJSON(req *http.Request, respData interface{}) error {
-	resp, err := conf.AuthClient().Do(req)
+	resp, err := conf.AuthClient.Do(req)
 	if err != nil {
 		return err
 	}

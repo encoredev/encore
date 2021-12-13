@@ -7,19 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"runtime"
 
+	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/version"
 )
-
-// APIBaseURL is the base URL for communicating with the Encore Platform.
-var APIBaseURL = (func() string {
-	if u := os.Getenv("ENCORE_PLATFORM_API_URL"); u != "" {
-		return u
-	}
-	return "https://api.encore.dev"
-})()
 
 type Error struct {
 	HTTPStatus string `json:"-"`
@@ -53,7 +45,7 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 		body = bytes.NewReader(reqData)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", APIBaseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, "POST", conf.APIBaseURL+path, body)
 	if err != nil {
 		return err
 	}
@@ -66,7 +58,7 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 	req.Header.Set("X-Encore-GOOS", runtime.GOOS)
 	req.Header.Set("X-Encore-GOARCH", runtime.GOARCH)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := conf.AuthClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -80,7 +72,10 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 	if err := json.NewDecoder(resp.Body).Decode(&respStruct); err != nil {
 		return fmt.Errorf("decode response: %v", err)
 	} else if !respStruct.OK {
-		return respStruct.Error
+		e := respStruct.Error
+		e.HTTPCode = resp.StatusCode
+		e.HTTPStatus = resp.Status
+		return e
 	}
 
 	if respParams != nil {
@@ -109,7 +104,7 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}) (r
 		body = bytes.NewReader(reqData)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", APIBaseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, "POST", conf.APIBaseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +136,10 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}) (r
 		if err := json.NewDecoder(resp.Body).Decode(&respStruct); err != nil {
 			return nil, fmt.Errorf("decode response: %v", err)
 		}
-		return nil, respStruct.Error
+		e := respStruct.Error
+		e.HTTPCode = resp.StatusCode
+		e.HTTPStatus = resp.Status
+		return nil, e
 	}
 
 	return resp.Body, nil

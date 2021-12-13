@@ -7,15 +7,34 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 
-	"encr.dev/cli/internal/platform"
 	"go4.org/syncutil"
 	"golang.org/x/oauth2"
 )
+
+// APIBaseURL is the base URL for communicating with the Encore Platform.
+var APIBaseURL = (func() string {
+	if u := os.Getenv("ENCORE_PLATFORM_API_URL"); u != "" {
+		return u
+	}
+	return "https://api.encore.dev"
+})()
+
+// Dir reports the directory where Encore's configuration is stored.
+func Dir() (string, error) {
+	dir := os.Getenv("ENCORE_CONFIG_DIR")
+	if dir == "" {
+		d, err := os.UserConfigDir()
+		if err != nil {
+			return "", err
+		}
+		dir = filepath.Join(d, "encore")
+	}
+	return dir, nil
+}
 
 // Config represents the stored Encore configuration.
 type Config struct {
@@ -36,11 +55,11 @@ func Write(cfg *Config) (err error) {
 		}
 	}()
 
-	dir, err := os.UserConfigDir()
+	dir, err := Dir()
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(dir, "encore", ".auth_token")
+	path := filepath.Join(dir, ".auth_token")
 	if data, err := json.Marshal(cfg); err != nil {
 		return err
 	} else if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -52,11 +71,11 @@ func Write(cfg *Config) (err error) {
 }
 
 func Logout() error {
-	dir, err := os.UserConfigDir()
+	dir, err := Dir()
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(dir, "encore", ".auth_token")
+	path := filepath.Join(dir, ".auth_token")
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -64,7 +83,7 @@ func Logout() error {
 }
 
 func CurrentUser() (*Config, error) {
-	dir, err := os.UserConfigDir()
+	dir, err := Dir()
 	if err != nil {
 		return nil, fmt.Errorf("conf.CurrentUser: %w", err)
 	}
@@ -83,7 +102,7 @@ func OriginalUser(configDir string) (cfg *Config, err error) {
 
 	if configDir == "" {
 		var err error
-		configDir, err = os.UserConfigDir()
+		configDir, err = Dir()
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +112,7 @@ func OriginalUser(configDir string) (cfg *Config, err error) {
 }
 
 func readConf(configDir string) (*Config, error) {
-	path := filepath.Join(configDir, "encore", ".auth_token")
+	path := filepath.Join(configDir, ".auth_token")
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -125,7 +144,7 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 
 		oauth2Cfg := &oauth2.Config{
 			Endpoint: oauth2.Endpoint{
-				TokenURL: platform.APIBaseURL + "/login/oauth:refresh-token",
+				TokenURL: APIBaseURL + "/login/oauth:refresh-token",
 			},
 		}
 		ts.ts = oauth2Cfg.TokenSource(context.Background(), &cfg.Token)
@@ -137,8 +156,6 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 	return ts.ts.Token()
 }
 
-// AuthClient creates an *http.Client that authenticates requests
+// AuthClient is an *http.Client that authenticates requests
 // using the logged-in user.
-func AuthClient() *http.Client {
-	return oauth2.NewClient(nil, &TokenSource{})
-}
+var AuthClient = oauth2.NewClient(nil, &TokenSource{})
