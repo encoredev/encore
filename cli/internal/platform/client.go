@@ -29,7 +29,7 @@ func (e Error) Error() string {
 
 // call makes a call to the API endpoint given by method and path.
 // If reqParams and respParams are non-nil they are JSON-marshalled/unmarshalled.
-func call(ctx context.Context, method, path string, reqParams, respParams interface{}) (err error) {
+func call(ctx context.Context, method, path string, reqParams, respParams interface{}, auth bool) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("%s %s: %w", method, path, err)
@@ -58,7 +58,11 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 	req.Header.Set("X-Encore-GOOS", runtime.GOOS)
 	req.Header.Set("X-Encore-GOARCH", runtime.GOARCH)
 
-	resp, err := conf.AuthClient.Do(req)
+	client := http.DefaultClient
+	if auth {
+		client = conf.AuthClient
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -88,7 +92,7 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 
 // rawCall makes a call to the API endpoint given by method and path.
 // It returns the raw HTTP response body on success; it must be closed by the caller.
-func rawCall(ctx context.Context, method, path string, reqParams interface{}) (respBody io.ReadCloser, err error) {
+func rawCall(ctx context.Context, method, path string, reqParams interface{}, auth bool) (respBody io.ReadCloser, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("%s %s: %w", method, path, err)
@@ -117,7 +121,11 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}) (r
 	req.Header.Set("X-Encore-GOOS", runtime.GOOS)
 	req.Header.Set("X-Encore-GOARCH", runtime.GOARCH)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := http.DefaultClient
+	if auth {
+		client = conf.AuthClient
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
