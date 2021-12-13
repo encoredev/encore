@@ -23,13 +23,13 @@ type App struct {
 
 func CreateApp(ctx context.Context, p *CreateAppParams) (*App, error) {
 	var resp App
-	err := call(ctx, "POST", "/apps", p, &resp)
+	err := call(ctx, "POST", "/apps", p, &resp, true)
 	return &resp, err
 }
 
 func GetApp(ctx context.Context, appSlug string) (*App, error) {
 	var resp App
-	err := call(ctx, "GET", "/apps/"+url.PathEscape(appSlug), nil, &resp)
+	err := call(ctx, "GET", "/apps/"+url.PathEscape(appSlug), nil, &resp, true)
 	return &resp, err
 }
 
@@ -43,7 +43,7 @@ func CreateOAuthSession(ctx context.Context, p *CreateOAuthSessionParams) (authU
 	var resp struct {
 		AuthURL string `json:"auth_url"`
 	}
-	err = call(ctx, "POST", "/login/oauth:create-session", p, &resp)
+	err = call(ctx, "POST", "/login/oauth:create-session", p, &resp, false)
 	return resp.AuthURL, err
 }
 
@@ -60,7 +60,7 @@ type OAuthData struct {
 
 func ExchangeOAuthToken(ctx context.Context, p *ExchangeOAuthTokenParams) (*OAuthData, error) {
 	var resp OAuthData
-	err := call(ctx, "POST", "/login/oauth:exchange-token", p, &resp)
+	err := call(ctx, "POST", "/login/oauth:exchange-token", p, &resp, false)
 	return &resp, err
 }
 
@@ -76,7 +76,7 @@ func GetAppSecrets(ctx context.Context, appSlug string, poll bool, kind SecretKi
 	if poll {
 		url += "&poll=true"
 	}
-	err = call(ctx, "GET", url, nil, &secrets)
+	err = call(ctx, "GET", url, nil, &secrets, true)
 	return secrets, err
 }
 
@@ -95,13 +95,13 @@ func SetAppSecret(ctx context.Context, appSlug string, kind SecretKind, secretKe
 		url.PathEscape(secretKey),
 	)
 	var resp SecretVersion
-	err := call(ctx, "POST", url, &params, &resp)
+	err := call(ctx, "POST", url, &params, &resp, true)
 	return &resp, err
 }
 
 func GetEnvMeta(ctx context.Context, appSlug, envName string) (*metav1.Data, error) {
 	url := "/apps/" + url.PathEscape(appSlug) + "/envs/" + url.PathEscape(envName) + "/meta"
-	body, err := rawCall(ctx, "GET", url, nil)
+	body, err := rawCall(ctx, "GET", url, nil, true)
 	if err != nil {
 		return nil, err
 	}
