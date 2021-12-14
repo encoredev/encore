@@ -45,7 +45,7 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 		body = bytes.NewReader(reqData)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", conf.APIBaseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, method, conf.APIBaseURL+path, body)
 	if err != nil {
 		return err
 	}

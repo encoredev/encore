@@ -269,6 +269,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 			AppRoot:    req.AppRoot,
 			WorkingDir: req.WorkingDir,
 			Args:       req.Args,
+			Parse:      parse,
 			Stdout:     slog.Stdout(false),
 			Stderr:     slog.Stderr(false),
 		}

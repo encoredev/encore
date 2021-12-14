@@ -12,49 +12,38 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 		f.ImportName(p.ImportPath, p.Name)
 	}
 
-	f.Func().Id("TestMain").Params(Id("m").Op("*").Qual("testing", "M")).BlockFunc(func(g *Group) {
-		g.Comment("Register the Encore services")
-		g.Id("services").Op(":=").Index().Op("*").Qual("encore.dev/runtime/config", "Service").ValuesFunc(func(g *Group) {
-			for _, svc := range svcs {
-				usesSQLDB := false
-			RefLoop:
-				for _, pkg := range svc.Pkgs {
-					for _, f := range pkg.Files {
-						for _, ref := range f.References {
-							if ref.Type == est.SQLDBNode {
-								usesSQLDB = true
-								break RefLoop
-							}
-						}
-					}
-				}
+	getEnv := func(name string) Code {
+		return Qual("os", "Getenv").Call(Lit(name))
+	}
 
+	f.Anon("unsafe") // for go:linkname
+	testSvc := ""
+	if pkg.Service != nil {
+		testSvc = pkg.Service.Name
+	}
+	f.Comment("//go:linkname loadConfig encore.dev/runtime/config.loadConfig")
+	f.Func().Id("loadConfig").Params().Params(Op("*").Qual("encore.dev/runtime/config", "Config"), Error()).Block(
+		Id("services").Op(":=").Index().Op("*").Qual("encore.dev/runtime/config", "Service").ValuesFunc(func(g *Group) {
+			for _, svc := range b.res.App.Services {
 				g.Values(Dict{
 					Id("Name"):      Lit(svc.Name),
 					Id("RelPath"):   Lit(svc.Root.RelPath),
-					Id("SQLDB"):     Lit(usesSQLDB),
 					Id("Endpoints"): Nil(),
 				})
 			}
-		})
-
-		g.Line()
-
-		g.Comment("Set up the Encore runtime")
-		testSvc := ""
-		if pkg.Service != nil {
-			testSvc = pkg.Service.Name
-		}
-		g.Id("cfg").Op(":=").Op("&").Qual("encore.dev/runtime/config", "ServerConfig").Values(Dict{
+		}),
+		Id("static").Op(":=").Op("&").Qual("encore.dev/runtime/config", "Static").Values(Dict{
 			Id("Services"):    Id("services"),
+			Id("AuthData"):    b.authDataType(),
 			Id("Testing"):     True(),
 			Id("TestService"): Lit(testSvc),
-			Id("AuthData"):    b.authDataType(),
-		})
-		g.Qual("encore.dev/runtime", "Setup").Call(Id("cfg"))
-		g.Qual("encore.dev/storage/sqldb", "Setup").Call(Id("cfg"))
-		g.Qual("os", "Exit").Call(Id("m").Dot("Run").Call())
-	})
+		}),
+		Return(Op("&").Qual("encore.dev/runtime/config", "Config").Values(Dict{
+			Id("Static"):  Id("static"),
+			Id("Runtime"): Qual("encore.dev/runtime/config", "ParseRuntime").Call(getEnv("ENCORE_RUNTIME_CONFIG")),
+			Id("Secrets"): Qual("encore.dev/runtime/config", "ParseSecrets").Call(getEnv("ENCORE_APP_SECRETS")),
+		}), Nil()),
+	)
 
 	return f
 }
