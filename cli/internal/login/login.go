@@ -117,6 +117,23 @@ func (f *Flow) oauthHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func WithAuthKey(authKey string) (*conf.Config, error) {
+	params := &platform.ExchangeAuthKeyParams{
+		AuthKey: authKey,
+	}
+	resp, err := platform.ExchangeAuthKey(context.Background(), params)
+	if err != nil {
+		return nil, err
+	} else if resp.Token == nil {
+		return nil, fmt.Errorf("invalid response: missing token")
+	}
+
+	tok := resp.Token
+	conf := &conf.Config{Token: *tok, AppSlug: resp.AppSlug}
+
+	return conf, nil
+}
+
 func genRandData() (string, error) {
 	data := make([]byte, 32)
 	_, err := rand.Read(data[:])
