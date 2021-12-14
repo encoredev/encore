@@ -2,31 +2,28 @@
 package svc
 
 import (
-	"encore.dev/runtime"
 	"encore.dev/runtime/config"
-	"encore.dev/storage/sqldb"
 	"os"
-	"testing"
+	_ "unsafe"
 )
 
-func TestMain(m *testing.M) {
-	// Register the Encore services
+//go:linkname loadConfig encore.dev/runtime/config.loadConfig
+func loadConfig() (*config.Config, error) {
 	services := []*config.Service{{
 		Endpoints: nil,
 		Name:      "svc",
 		RelPath:   "svc",
-		SQLDB:     false,
 	}}
-
-	// Set up the Encore runtime
-	cfg := &config.ServerConfig{
+	static := &config.Static{
 		AuthData:    "*encore.app/svc.AuthData",
 		Services:    services,
 		TestService: "svc",
 		Testing:     true,
 	}
-	runtime.Setup(cfg)
-	sqldb.Setup(cfg)
-	os.Exit(m.Run())
+	return &config.Config{
+		Runtime: config.ParseRuntime(os.Getenv("ENCORE_RUNTIME_CONFIG")),
+		Secrets: config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
+		Static:  static,
+	}, nil
 }
 

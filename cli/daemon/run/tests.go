@@ -54,7 +54,7 @@ type TestParams struct {
 	DBClusterID string
 
 	// Parse is the parse result for the initial run of the app.
-	// If nil the app is parsed before starting.
+	// It must be set.
 	Parse *parser.Result
 
 	// Args are the arguments to pass to "go test".
