@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var authKey string
+
 func init() {
 	authCmd := &cobra.Command{
 		Use:   "auth",
@@ -31,13 +33,18 @@ func init() {
 	}
 
 	loginCmd := &cobra.Command{
-		Use:   "login",
+		Use:   "login [--auth-key]",
 		Short: "Log in to Encore",
 
-		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := doLogin(); err != nil {
-				fatal(err)
+			if authKey != "" {
+				if err := doLoginWithAuthKey(); err != nil {
+					fatal(err)
+				}
+			} else {
+				if err := doLogin(); err != nil {
+					fatal(err)
+				}
 			}
 		},
 	}
@@ -63,7 +70,10 @@ func init() {
 	}
 
 	authCmd.AddCommand(signupCmd)
+
 	authCmd.AddCommand(loginCmd)
+	loginCmd.Flags().StringVarP(&authKey, "auth-key", "k", "", "Auth Key to use for login")
+
 	authCmd.AddCommand(logoutCmd)
 	authCmd.AddCommand(whoamiCmd)
 	rootCmd.AddCommand(authCmd)
@@ -112,12 +122,30 @@ func doLogout() {
 	fmt.Fprintln(os.Stdout, "encore: logged out.")
 }
 
+func doLoginWithAuthKey() error {
+	cfg, err := login.WithAuthKey(authKey)
+	if err != nil {
+		return err
+	}
+	if err := conf.Write(cfg); err != nil {
+		return fmt.Errorf("write credentials: %v", err)
+	}
+	fmt.Fprintln(os.Stdout, "Successfully logged in!")
+	return nil
+}
+
 func whoami() {
 	cfg, err := conf.CurrentUser()
-	if errors.Is(err, os.ErrNotExist) {
-		fmt.Fprint(os.Stdout, "not logged in.", newline)
-	} else if err != nil {
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Fprint(os.Stdout, "not logged in.", newline)
+			return
+		}
 		fatal(err)
+	}
+
+	if cfg.AppSlug != "" {
+		fmt.Fprintf(os.Stdout, "logged in as app %s%s", cfg.AppSlug, newline)
 	} else {
 		fmt.Fprintf(os.Stdout, "logged in as %s%s", cfg.Email, newline)
 	}

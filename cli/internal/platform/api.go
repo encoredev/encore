@@ -64,6 +64,16 @@ func ExchangeOAuthToken(ctx context.Context, p *ExchangeOAuthTokenParams) (*OAut
 	return &resp, err
 }
 
+type ExchangeAuthKeyParams struct {
+	AuthKey string `json:"auth_key"`
+}
+
+func ExchangeAuthKey(ctx context.Context, p *ExchangeAuthKeyParams) (*OAuthData, error) {
+	var resp OAuthData
+	err := call(ctx, "POST", "/login/auth-key", p, &resp, false)
+	return &resp, err
+}
+
 type SecretKind string
 
 const (
