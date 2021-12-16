@@ -13,8 +13,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/kr/pretty"
 	"golang.org/x/tools/go/ast/astutil"
 
 	"encr.dev/parser/est"
@@ -42,6 +44,7 @@ type parser struct {
 	pkgs        []*est.Package
 	pkgMap      map[string]*est.Package // import path -> pkg
 	svcs        []*est.Service
+	jobs        []*est.CronJob
 	svcMap      map[string]*est.Service // name -> svc
 	names       map[*est.Package]*names.Resolution
 	authHandler *est.AuthHandler
@@ -72,6 +75,7 @@ const (
 	rlogImportPath  = "encore.dev/rlog"
 	uuidImportPath  = "encore.dev/types/uuid"
 	authImportPath  = "encore.dev/beta/auth"
+	cronImportPath  = "encore.dev/cron"
 )
 
 func (p *parser) Parse() (res *Result, err error) {
@@ -107,6 +111,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		rlogImportPath:  "rlog",
 		uuidImportPath:  "uuid",
 		authImportPath:  "auth",
+		cronImportPath:  "cron",
 
 		"net/http":      "http",
 		"context":       "context",
@@ -118,6 +123,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.parseResources()
 	p.parseReferences()
 	p.parseSecrets()
+	p.parseCronJobs()
 	p.validateApp()
 
 	sort.Slice(p.pkgs, func(i, j int) bool {
@@ -135,6 +141,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		ModulePath:  p.cfg.ModulePath,
 		Packages:    p.pkgs,
 		Services:    p.svcs,
+		CronJobs:    p.jobs,
 		Decls:       p.decls,
 		AuthHandler: p.authHandler,
 	}
@@ -142,6 +149,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	if err != nil {
 		return nil, err
 	}
+	pretty.Println(app)
 	return &Result{
 		FileSet: p.fset,
 		App:     app,
@@ -293,95 +301,11 @@ func (p *parser) parseReferences() {
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			info := p.names[pkg].Files[file]
-
-			// For every call, determine if it should be rewritten
-		CallLoop:
-			for _, call := range info.Calls {
-				switch x := call.Fun.(type) {
-				case *ast.SelectorExpr:
-
-					// Is this a resource reference?
-					if remaining, ids := unwrapSel(x); remaining == nil && len(ids) >= 2 {
-						// Two cases: it's a package-local resource (resource.Foo) or not (pkg.Resource.Foo).
-						ri := info.Idents[ids[0]]
-
-						if ri != nil && ri.ImportPath != "" {
-							// Different package
-							if res := resourceMap[ri.ImportPath][ids[1].Name]; res != nil {
-								if len(ids) >= 3 { // guard against invalid usage resource.Foo(), will be caught at typechecking
-									file.References[x] = &est.Node{
-										Type: est.SQLDBNode,
-										Func: ids[2].Name,
-										Res:  res,
-									}
-								}
-								continue CallLoop
-							}
-						} else if ri != nil && ri.Package {
-							if res := resourceMap[pkg.ImportPath][ids[0].Name]; res != nil {
-								file.References[call] = &est.Node{
-									Type: est.SQLDBNode,
-									Func: ids[1].Name,
-									Res:  res,
-								}
-								continue CallLoop
-							}
-						}
-					}
-
-					if id, ok := x.X.(*ast.Ident); ok {
-						ri := info.Idents[id]
-						if ri == nil || ri.ImportPath == "" {
-							continue
-						}
-
-						path := ri.ImportPath
-
-						// Is it an RPC?
-						if rpc := rpcMap[path][x.Sel.Name]; rpc != nil {
-							file.References[call] = &est.Node{
-								Type: est.RPCCallNode,
-								RPC:  rpc,
-							}
-							continue CallLoop
-						}
-						switch path {
-						case sqldbImportPath:
-							file.References[call] = &est.Node{
-								Type: est.SQLDBNode,
-								Func: x.Sel.Name,
-							}
-						case rlogImportPath:
-							file.References[call] = &est.Node{
-								Type: est.RLogNode,
-								Func: x.Sel.Name,
-							}
-						}
-					}
-
-				case *ast.Ident:
-					ri := info.Idents[x]
-					// Is it a package-local rpc?
-					if ri != nil && ri.Package {
-						if rpc := rpcMap[pkg.ImportPath][x.Name]; rpc != nil {
-							file.References[call] = &est.Node{
-								Type: est.RPCCallNode,
-								RPC:  rpc,
-							}
-						}
-					}
-				}
-			}
-
 			// Find all references to RPCs and objects to rewrite that are not
 			// part of rewritten calls.
 			astutil.Apply(file.AST, func(c *astutil.Cursor) bool {
 				if sel, ok := c.Node().(*ast.SelectorExpr); ok {
 					if id, ok := sel.X.(*ast.Ident); ok {
-						// Have we rewritten this already?
-						if file.References[c.Parent()] != nil {
-							return true
-						}
 						ri := info.Idents[id]
 						if ri == nil || ri.ImportPath == "" {
 							return true
@@ -393,10 +317,14 @@ func (p *parser) parseReferences() {
 						}
 
 						// Is it an RPC?
-						if rpc := rpcMap[path][sel.Sel.Name]; rpc != nil {
-							p.errf(sel.Pos(), "cannot reference API %s.%s without calling it", rpc.Svc.Name, sel.Sel.Name)
-							return false
-						} else if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && sel.Sel.Name == h.Name {
+						if rpc := rpcMap[path][id.Name]; rpc != nil {
+							file.References[sel] = &est.Node{
+								Type: est.RPCRefNode,
+								RPC:  rpc,
+							}
+							return true
+						}
+						if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && sel.Sel.Name == h.Name {
 							p.errf(sel.Pos(), "cannot reference auth handler %s.%s from another package", h.Svc.Root.RelPath, sel.Sel.Name)
 							return false
 						}
@@ -441,19 +369,18 @@ func (p *parser) parseReferences() {
 					// Have we rewritten this already?
 					if file.References[c.Parent()] != nil {
 						return true
-					} else if _, isSel := c.Parent().(*ast.SelectorExpr); isSel {
-						// We've already processed this above
-						return true
 					}
-
 					ri := info.Idents[id]
 					// Is it a package-local rpc?
 					if ri != nil && ri.Package {
 						if rpc := rpcMap[pkg.ImportPath][id.Name]; rpc != nil {
-							p.errf(id.Pos(), "cannot reference API %s without calling it", rpc.Name)
-							return false
+							file.References[id] = &est.Node{
+								Type: est.RPCRefNode,
+								RPC:  rpc,
+							}
 						}
 					}
+
 				}
 				return true
 			}, nil)
@@ -461,7 +388,7 @@ func (p *parser) parseReferences() {
 			if pkg.Service == nil && len(file.References) > 0 {
 				for astNode, node := range file.References {
 					switch node.Type {
-					case est.RPCCallNode:
+					case est.RPCRefNode:
 						rpc := node.RPC
 						p.errf(astNode.Pos(), "cannot reference API %s.%s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
 					case est.SQLDBNode:
@@ -540,6 +467,91 @@ SpecLoop:
 	}
 	sort.Strings(secretNames)
 	pkg.Secrets = secretNames
+}
+
+func (p *parser) parseCronJobs() {
+	/*
+		var _ = cron.Job{}
+		var (
+			x = cron.Job{}
+			foo = cron.Job{}
+			bar, baz = cron.Job{}, cron.Job{}
+		)
+		var _ = []cron.Job{
+			{
+				Name: "foo",
+			},
+			{
+				Name: "bar",
+			},
+		}
+	*/
+	for _, pkg := range p.pkgs {
+		for _, file := range pkg.Files {
+			info := p.names[pkg].Files[file]
+			for _, decl := range file.AST.Decls {
+				gd, ok := decl.(*ast.GenDecl)
+				if !ok || gd.Tok != token.VAR {
+					continue
+				}
+				for _, s := range gd.Specs {
+					vs := s.(*ast.ValueSpec)
+					for _, x := range vs.Values {
+						if cl, ok := x.(*ast.CompositeLit); ok {
+							if cronJob := p.parseCronJobStruct(cl, file, info); cronJob != nil {
+								p.jobs = append(p.jobs, cronJob)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (p *parser) parseCronJobStruct(cl *ast.CompositeLit, file *est.File, info *names.File) *est.CronJob {
+	if t, ok := cl.Type.(*ast.SelectorExpr); ok {
+		if id, ok := t.X.(*ast.Ident); ok && id.Name == "cron" && t.Sel.Name == "Job" {
+			ri := info.Idents[id]
+			if ri.ImportPath != cronImportPath {
+				p.errf(id.Pos(), "cron.Job must be declared in %s", cronImportPath)
+				return nil
+			}
+			cj := &est.CronJob{}
+			for _, e := range cl.Elts {
+				kv := e.(*ast.KeyValueExpr)
+				key, ok := kv.Key.(*ast.Ident)
+				if !ok {
+					p.errf(kv.Pos(), "cron.Job key must be an identifier")
+					return nil
+				}
+				switch key.Name {
+				case "Name":
+					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+						parsed, _ := strconv.Unquote(v.Value)
+						cj.Name = parsed
+					} else {
+						p.errf(v.Pos(), "cron.Job.Name must be a string literal")
+						return nil
+					}
+				case "Endpoint":
+					if id, ok := kv.Value.(*ast.Ident); ok {
+						if ref, ok := file.References[id]; ok && ref.Type == est.RPCRefNode {
+							cj.RPC = ref.RPC
+						} else {
+							p.errf(id.NamePos, "cron.Job.Endpoint: %s is not an RPC", id.Name)
+							return nil
+						}
+					}
+				default:
+					p.errf(key.Pos(), "cron.Job has unknown key %s", key.Name)
+					return nil
+				}
+			}
+			return cj
+		}
+	}
+	return nil
 }
 
 // validateApp performs full-app validation after everything has been parsed.

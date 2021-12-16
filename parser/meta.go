@@ -64,7 +64,7 @@ func ParseMeta(version, appRoot string, app *est.Application) (*meta.Data, map[*
 		seen := make(map[key]bool)
 		for _, f := range pkg.Files {
 			for _, r := range sortedRefs(f.References) {
-				if r.Node.Type == est.RPCCallNode {
+				if r.Node.Type == est.RPCRefNode {
 					k := key{pkg: r.Node.RPC.Svc.Root.RelPath, rpc: r.Node.RPC.Name}
 					if !seen[k] {
 						p := pkgMap[pkg.RelPath]
@@ -77,6 +77,14 @@ func ParseMeta(version, appRoot string, app *est.Application) (*meta.Data, map[*
 				}
 			}
 		}
+	}
+
+	for _, job := range app.CronJobs {
+		cj, err := parseCronJob(job)
+		if err != nil {
+			return nil, nil, err
+		}
+		data.CronJobs = append(data.CronJobs, cj)
 	}
 
 	if app.AuthHandler != nil {
@@ -94,40 +102,9 @@ func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 		RelPath: svc.Root.RelPath,
 	}
 	for _, rpc := range svc.RPCs {
-		proto := meta.RPC_REGULAR
-		if rpc.Raw {
-			proto = meta.RPC_RAW
-		}
-		var accessType meta.RPC_AccessType
-		switch rpc.Access {
-		case est.Public:
-			accessType = meta.RPC_PUBLIC
-		case est.Private:
-			accessType = meta.RPC_PRIVATE
-		case est.Auth:
-			accessType = meta.RPC_AUTH
-		default:
-			return nil, fmt.Errorf("unhandled access type %v", rpc.Access)
-		}
-
-		var req, resp *schema.Type
-		if rpc.Request != nil {
-			req = rpc.Request.Type
-		}
-		if rpc.Response != nil {
-			resp = rpc.Response.Type
-		}
-		r := &meta.RPC{
-			Name:           rpc.Name,
-			ServiceName:    rpc.Svc.Name,
-			Doc:            rpc.Doc,
-			AccessType:     accessType,
-			RequestSchema:  req,
-			ResponseSchema: resp,
-			Proto:          proto,
-			Loc:            parseLoc(rpc.File, rpc.Func),
-			Path:           parsePath(rpc.Path),
-			HttpMethods:    rpc.HTTPMethods,
+		r, err := parseRPC(rpc)
+		if err != nil {
+			return nil, err
 		}
 		s.Rpcs = append(s.Rpcs, r)
 	}
@@ -139,6 +116,56 @@ func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 	}
 	s.Migrations = migs
 	return s, nil
+}
+
+func parseRPC(rpc *est.RPC) (*meta.RPC, error) {
+	proto := meta.RPC_REGULAR
+	if rpc.Raw {
+		proto = meta.RPC_RAW
+	}
+	var accessType meta.RPC_AccessType
+	switch rpc.Access {
+	case est.Public:
+		accessType = meta.RPC_PUBLIC
+	case est.Private:
+		accessType = meta.RPC_PRIVATE
+	case est.Auth:
+		accessType = meta.RPC_AUTH
+	default:
+		return nil, fmt.Errorf("unhandled access type %v", rpc.Access)
+	}
+
+	var req, resp *schema.Type
+	if rpc.Request != nil {
+		req = rpc.Request.Type
+	}
+	if rpc.Response != nil {
+		resp = rpc.Response.Type
+	}
+	r := &meta.RPC{
+		Name:           rpc.Name,
+		ServiceName:    rpc.Svc.Name,
+		Doc:            rpc.Doc,
+		AccessType:     accessType,
+		RequestSchema:  req,
+		ResponseSchema: resp,
+		Proto:          proto,
+		Loc:            parseLoc(rpc.File, rpc.Func),
+		Path:           parsePath(rpc.Path),
+		HttpMethods:    rpc.HTTPMethods,
+	}
+	return r, nil
+}
+
+func parseCronJob(job *est.CronJob) (*meta.CronJob, error) {
+	j := &meta.CronJob{
+		Name: job.Name,
+		Endpoint: &meta.QualifiedName{
+			Name: job.RPC.Name,
+			Pkg:  job.RPC.Svc.Root.RelPath,
+		},
+	}
+	return j, nil
 }
 
 func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {
@@ -224,7 +251,7 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				end := file.Token.Offset(r.AST.End())
 
 				switch r.Node.Type {
-				case est.RPCCallNode:
+				case est.RPCRefNode:
 					tx.Context = &meta.TraceNode_RpcCall{
 						RpcCall: &meta.RPCCallNode{
 							ServiceName: r.Node.RPC.Svc.Name,
@@ -315,6 +342,13 @@ func newTraceNode(id *int32, pkg *est.Package, f *est.File, node ast.Node) *meta
 			EndPos:   int32(file.Offset(node.Type.End())),
 		}
 	case *ast.SelectorExpr:
+		expr = &meta.TraceNode{
+			Id:       *id,
+			Filepath: nodeFilePath,
+			StartPos: int32(file.Offset(node.Pos())),
+			EndPos:   int32(file.Offset(node.End())),
+		}
+	case *ast.Ident:
 		expr = &meta.TraceNode{
 			Id:       *id,
 			Filepath: nodeFilePath,

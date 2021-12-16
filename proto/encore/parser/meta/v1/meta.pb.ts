@@ -13,6 +13,7 @@ export interface Data {
   svcs: Service[];
   /** the auth handler or nil */
   auth_handler?: AuthHandler | undefined;
+  cron_jobs: CronJob[];
 }
 
 /**
@@ -183,4 +184,9 @@ export enum PathSegment_ParamType {
   UINT = "UINT",
   UUID = "UUID",
   UNRECOGNIZED = "UNRECOGNIZED",
+}
+
+export interface CronJob {
+  name: string;
+  endpoint: QualifiedName;
 }

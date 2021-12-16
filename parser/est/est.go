@@ -16,6 +16,7 @@ type Application struct {
 	ModulePath  string
 	Packages    []*Package
 	Services    []*Service
+	CronJobs    []*CronJob
 	Decls       []*schema.Decl
 	AuthHandler *AuthHandler
 }
@@ -53,6 +54,11 @@ type Service struct {
 	RPCs []*RPC
 }
 
+type CronJob struct {
+	Name string
+	RPC  *RPC
+}
+
 type Param struct {
 	IsPtr bool
 	Type  *schema.Type
@@ -85,7 +91,7 @@ type NodeType int
 
 const (
 	RPCDefNode NodeType = iota + 1
-	RPCCallNode
+	RPCRefNode
 	SQLDBNode
 	RLogNode
 	SecretsNode

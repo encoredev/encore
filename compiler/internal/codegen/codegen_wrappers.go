@@ -37,7 +37,6 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 
 	numParams := 0
 	return Func().Id("__encore_" + rpc.Svc.Name + "_" + rpc.Name).ParamsFunc(func(g *Group) {
-		g.List(Id("callExprIdx"), Id("endpointExprIdx")).Int32()
 		g.Id("ctx").Qual("context", "Context")
 		for _, p := range segs {
 			g.Id("p" + strconv.Itoa(numParams)).Add(b.builtinType(p.ValueType))
@@ -63,11 +62,11 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 		} else {
 			g.Var().Id("inputs").Index().Index().Byte()
 		}
+		traceID := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
 		g.List(Id("call"), Err()).Op(":=").Qual("encore.dev/runtime", "BeginCall").Call(Qual("encore.dev/runtime", "CallParams").Values(Dict{
 			Id("Service"):         Lit(rpc.Svc.Name),
 			Id("Endpoint"):        Lit(rpc.Name),
-			Id("CallExprIdx"):     Id("callExprIdx"),
-			Id("EndpointExprIdx"): Id("endpointExprIdx"),
+			Id("EndpointExprIdx"): Lit(traceID),
 		}))
 		g.If(Err().Op("!=").Nil()).Block(Return())
 		g.Line()
@@ -87,8 +86,7 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 				Id("Type"):            Qual("encore.dev/runtime", "RPCCall"),
 				Id("Service"):         Lit(rpc.Svc.Name),
 				Id("Endpoint"):        Lit(rpc.Name),
-				Id("CallExprIdx"):     Id("callExprIdx"),
-				Id("EndpointExprIdx"): Id("endpointExprIdx"),
+				Id("EndpointExprIdx"): Lit(traceID),
 				Id("Inputs"):          Id("inputs"),
 				Id("RequireAuth"):     requireAuth,
 			}))
