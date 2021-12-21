@@ -2,11 +2,14 @@ package run
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"os"
 	"strconv"
 
 	"encr.dev/cli/daemon/internal/appfile"
+	"encr.dev/cli/daemon/runtime/config"
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
 	"encr.dev/parser"
@@ -77,6 +80,29 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		secrets = data.Values
 	}
 
+	var dbs []*config.SQLDatabase
+	for _, svc := range params.Parse.Meta.Svcs {
+		if len(svc.Migrations) > 0 {
+			dbs = append(dbs, &config.SQLDatabase{
+				EncoreName:   svc.Name,
+				DatabaseName: svc.Name,
+				Host:         "localhost" + strconv.Itoa(mgr.DBProxyPort),
+				User:         "encore",
+				Password:     params.DBClusterID,
+			})
+		}
+	}
+	runtimeJSON, err := json.Marshal(&config.Runtime{
+		AppID:         "test",
+		EnvID:         "test",
+		EnvName:       "local",
+		TraceEndpoint: "http://localhost:" + strconv.Itoa(mgr.RuntimePort) + "/trace",
+		SQLDatabases:  dbs,
+	})
+	if err != nil {
+		return err
+	}
+
 	cfg := &compiler.Config{
 		Version:           "", // not needed until we start storing trace metadata
 		WorkingDir:        params.WorkingDir,
@@ -85,12 +111,8 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EncoreGoRoot:      env.EncoreGoRoot(),
 		Test: &compiler.TestConfig{
 			Env: []string{
-				"ENCORE_ENV_ID=test",
-				"ENCORE_PROC_ID=test",
-				"ENCORE_RUNTIME_ADDRESS=localhost:" + strconv.Itoa(mgr.RuntimePort),
-				"ENCORE_SQLDB_ADDRESS=localhost:" + strconv.Itoa(mgr.DBProxyPort),
-				"ENCORE_SQLDB_PASSWORD=" + params.DBClusterID,
-				"ENCORE_SECRETS=" + encodeSecretsEnv(secrets),
+				"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
+				"ENCORE_APP_SECRETS=" + encodeSecretsEnv(secrets),
 			},
 			Args:   params.Args,
 			Stdout: params.Stdout,

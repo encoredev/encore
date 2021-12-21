@@ -11,6 +11,7 @@ import (
 	_ "unsafe" // for go:linkname
 
 	"encore.dev/internal/stack"
+	"encore.dev/runtime/config"
 )
 
 type TraceEvent byte
@@ -49,7 +50,7 @@ func genSpanID() (span SpanID, err error) {
 }
 
 func asyncSendTrace(data []byte) {
-	if Config.Testing {
+	if config.Cfg.Static.Testing {
 		// Don't send traces when running tests
 		return
 	}

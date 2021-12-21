@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
 
@@ -214,8 +213,8 @@ func getDB() *Database {
 	var dbName string
 	if req, _, _ := runtime.CurrentRequest(); req != nil {
 		dbName = req.Service
-	} else if cfg := runtime.Config; cfg != nil && cfg.TestService != "" {
-		dbName = cfg.TestService
+	} else if testSvc := config.Cfg.Static.TestService; testSvc != "" {
+		dbName = testSvc
 	} else {
 		panic("sqldb: no current request")
 	}
@@ -235,13 +234,17 @@ func getDB() *Database {
 }
 
 func getPool(name string) *pgxpool.Pool {
-	addr := os.Getenv("ENCORE_SQLDB_ADDRESS")
-	passwd := os.Getenv("ENCORE_SQLDB_PASSWORD")
-	if addr == "" {
-		panic("sqldb: ENCORE_SQLDB_ADDRESS not set")
+	var db *config.SQLDatabase
+	for _, d := range config.Cfg.Runtime.SQLDatabases {
+		if d.EncoreName == name {
+			db = d
+			break
+		}
 	}
-
-	uri := fmt.Sprintf("postgresql://encore:%s@%s/%s?sslmode=disable", passwd, addr, name)
+	if db == nil {
+		panic("sqldb: unknown database: " + name)
+	}
+	uri := fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable", db.User, db.Password, db.Host, db.DatabaseName)
 	cfg, err := pgxpool.ParseConfig(uri)
 	if err != nil {
 		panic("sqldb: invalid database uri: " + err.Error())
@@ -254,8 +257,6 @@ func getPool(name string) *pgxpool.Pool {
 	}
 	return pool
 }
-
-func Setup(cfg *config.ServerConfig) {}
 
 func convertErr(err error) error {
 	switch err {

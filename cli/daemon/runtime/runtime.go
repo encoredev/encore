@@ -33,9 +33,9 @@ func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
-	pid := req.Header.Get("X-Encore-Proc-ID")
+	pid := req.Header.Get("X-Encore-Env-ID")
 	if pid == "" {
-		http.Error(w, "missing X-Encore-Proc-ID header", http.StatusBadRequest)
+		http.Error(w, "missing X-Encore-Env-ID header", http.StatusBadRequest)
 		return
 	}
 	traceID, err := parseTraceID(req.Header.Get("X-Encore-Trace-ID"))

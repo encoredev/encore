@@ -15,6 +15,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var defaultServer = setup()
+
+func ListenAndServe() error {
+	return defaultServer.ListenAndServe()
+}
+
 type Server struct {
 	logger zerolog.Logger
 	router *httprouter.Router
@@ -98,29 +104,23 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 	h(w, req, p)
 }
 
-func Setup(cfg *config.ServerConfig) *Server {
+func setup() *Server {
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Timestamp().Logger()
 	RootLogger = &logger
-	Config = cfg
+
+	router := httprouter.New()
+	router.HandleOPTIONS = false
+	router.RedirectFixedPath = false
+	router.RedirectTrailingSlash = false
 
 	srv := &Server{
 		logger: logger,
-		router: httprouter.New(),
+		router: router,
 	}
-	for _, svc := range cfg.Services {
+	for _, svc := range config.Cfg.Static.Services {
 		for _, endpoint := range svc.Endpoints {
 			srv.handleRPC(svc.Name, endpoint)
 		}
 	}
 	return srv
-}
-
-type dummyAddr struct{}
-
-func (dummyAddr) Network() string {
-	return "encore"
-}
-
-func (dummyAddr) String() string {
-	return "encore://localhost"
 }
