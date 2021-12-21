@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,6 +26,7 @@ import (
 
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/internal/sym"
+	"encr.dev/cli/daemon/runtime/config"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
@@ -351,14 +353,13 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 	}
 	go p.parseSymTable(params.BinPath)
 
+	runtimeCfg := r.generateConfig(p, params)
+	runtimeJSON, _ := json.Marshal(runtimeCfg)
+
 	cmd := exec.Command(params.BinPath)
 	cmd.Env = []string{
-		"ENCORE_APP_ID=" + r.ID,
-		"ENCORE_PROC_ID=" + p.ID,
-		"ENCORE_RUNTIME_ADDRESS=localhost:" + strconv.Itoa(params.RuntimePort),
-		"ENCORE_SQLDB_ADDRESS=localhost:" + strconv.Itoa(params.DBProxyPort),
-		"ENCORE_SQLDB_PASSWORD=" + params.DBClusterID,
-		"ENCORE_SECRETS=" + encodeSecretsEnv(params.Secrets),
+		"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
+		"ENCORE_APP_SECRETS=" + encodeSecretsEnv(params.Secrets),
 	}
 	p.cmd = cmd
 
@@ -428,6 +429,28 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 
 	go p.waitForExit()
 	return p, nil
+}
+
+func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
+	var dbs []*config.SQLDatabase
+	for _, svc := range params.Meta.Svcs {
+		if len(svc.Migrations) > 0 {
+			dbs = append(dbs, &config.SQLDatabase{
+				EncoreName:   svc.Name,
+				DatabaseName: svc.Name,
+				Host:         "localhost" + strconv.Itoa(params.DBProxyPort),
+				User:         "encore",
+				Password:     params.DBClusterID,
+			})
+		}
+	}
+	return &config.Runtime{
+		AppID:         r.ID,
+		EnvID:         p.ID,
+		EnvName:       "local",
+		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
+		SQLDatabases:  dbs,
+	}
 }
 
 // Done returns a channel that is closed when the process has exited.
