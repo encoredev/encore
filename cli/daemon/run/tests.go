@@ -86,7 +86,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 			dbs = append(dbs, &config.SQLDatabase{
 				EncoreName:   svc.Name,
 				DatabaseName: svc.Name,
-				Host:         "localhost" + strconv.Itoa(mgr.DBProxyPort),
+				Host:         "localhost:" + strconv.Itoa(mgr.DBProxyPort),
 				User:         "encore",
 				Password:     params.DBClusterID,
 			})

@@ -438,7 +438,7 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 			dbs = append(dbs, &config.SQLDatabase{
 				EncoreName:   svc.Name,
 				DatabaseName: svc.Name,
-				Host:         "localhost" + strconv.Itoa(params.DBProxyPort),
+				Host:         "localhost:" + strconv.Itoa(params.DBProxyPort),
 				User:         "encore",
 				Password:     params.DBClusterID,
 			})

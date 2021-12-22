@@ -86,7 +86,7 @@ func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
 }
 
 func parseTraceID(s string) (id trace.ID, err error) {
-	parsedID, err := base64.RawURLEncoding.DecodeString(s)
+	parsedID, err := base64.RawStdEncoding.DecodeString(s)
 	if err != nil {
 		return id, err
 	}
