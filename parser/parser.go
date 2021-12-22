@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kr/pretty"
 	"golang.org/x/tools/go/ast/astutil"
 
 	"encr.dev/parser/est"
@@ -149,7 +148,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	if err != nil {
 		return nil, err
 	}
-	pretty.Println(app)
+
 	return &Result{
 		FileSet: p.fset,
 		App:     app,

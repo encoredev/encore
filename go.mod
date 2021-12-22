@@ -21,7 +21,6 @@ require (
 	github.com/jackc/pgproto3/v2 v2.2.0
 	github.com/jackc/pgx/v4 v4.10.1
 	github.com/json-iterator/go v1.1.12
-	github.com/kr/pretty v0.3.0
 	github.com/logrusorgru/aurora/v3 v3.0.0
 	github.com/rjeczalik/notify v0.9.2
 	github.com/rogpeppe/go-internal v1.8.1
