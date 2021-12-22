@@ -106,7 +106,10 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 				case diff < 0:
 					// Daemon is running a newer version
 					return cl
-				case diff == 0 && resp.ConfigHash != version.ConfigHash():
+				case diff == 0:
+					if resp.ConfigHash == version.ConfigHash() {
+						return cl
+					}
 					// Daemon is running the same version but different config
 					fmt.Fprintf(os.Stderr, "encore: restarting daemon due to configuration change.\n")
 				case diff > 0:
