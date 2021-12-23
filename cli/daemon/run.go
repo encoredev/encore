@@ -7,12 +7,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"encr.dev/cli/daemon/internal/appfile"
@@ -47,9 +50,6 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		s.sm.Prefetch(appSlug)
 	}
 
-	// Clear screen.
-	stderr.Write([]byte("\033[2J\033[H\n"))
-
 	// ListenAddr should always be passed but guard against old clients.
 	listenAddr := req.ListenAddr
 	if listenAddr == "" {
@@ -57,11 +57,32 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	}
 	ln, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		fmt.Fprintln(stderr, aurora.Red("Fatal: "+err.Error()))
+		if errIsAddrInUse(err) {
+			fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("Failed to run on %s - port is already in use"), listenAddr))
+		} else {
+			fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("Failed to run on %s - %v"), listenAddr, err))
+		}
+
+		if host, port, ok := findAvailableAddr(listenAddr); ok {
+			if host == "localhost" || host == "127.0.0.1" {
+				fmt.Fprintf(stderr, "Note: port %d is available; specify %s to use it\n",
+					port, aurora.Sprintf(aurora.Cyan("--port=%d"), port))
+			} else {
+				fmt.Fprintf(stderr, "Note: address %s:%d is available; specify %s to use it\n",
+					host, port, aurora.Sprintf(aurora.Cyan("--listen=%s:%d"), host, port))
+			}
+		} else {
+			fmt.Fprintf(stderr, "Note: specify %s to run on another port\n",
+				aurora.Cyan("--port=NUMBER"))
+		}
+
 		sendExit(1)
 		return nil
 	}
 	defer ln.Close()
+
+	// Clear screen.
+	stderr.Write([]byte("\033[2J\033[H\n"))
 
 	ops := newOpTracker(stderr)
 
@@ -400,6 +421,30 @@ func showFirstRunExperience(run *run.Run, md *meta.Data, stdout io.Writer) {
 	}
 }
 
+// findAvailableAddr attempts to find an available host:port that's near
+// the given startAddr.
+func findAvailableAddr(startAddr string) (host string, port int, ok bool) {
+	host, portStr, err := net.SplitHostPort(startAddr)
+	if err != nil {
+		host = "localhost"
+		portStr = "4000"
+	}
+	startPort, err := strconv.Atoi(portStr)
+	if err != nil {
+		startPort = 4000
+	}
+
+	for p := startPort + 1; p <= startPort+10 && p <= 65535; p++ {
+		addr := host + ":" + strconv.Itoa(p)
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			ln.Close()
+			return host, p, true
+		}
+	}
+	return "", 0, false
+}
+
 func genCurlCommand(run *run.Run, md *meta.Data, rpc *meta.RPC) string {
 	var payload []byte
 	method := rpc.HttpMethods[0]
@@ -600,3 +645,21 @@ var (
 	fail    = "❌"
 	spinner = []string{"⠋", "⠙", "⠚", "⠒", "⠂", "⠂", "⠒", "⠲", "⠴", "⠦", "⠖", "⠒", "⠐", "⠐", "⠒", "⠓", "⠋"}
 )
+
+// errIsAddrInUse reports whether the error is due to the address already being in use.
+func errIsAddrInUse(err error) bool {
+	if opErr, ok := err.(*net.OpError); ok {
+		if syscallErr, ok := opErr.Err.(*os.SyscallError); ok {
+			if errno, ok := syscallErr.Err.(syscall.Errno); ok {
+				const WSAEADDRINUSE = 10048
+				switch {
+				case errno == syscall.EADDRINUSE:
+					return true
+				case runtime.GOOS == "windows" && errno == WSAEADDRINUSE:
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
