@@ -253,7 +253,7 @@ func (ts *ts) writeService(svc *meta.Service) {
 		fmt.Fprintf(ts, `("%s", `+"`%s`", method, rpcPath.String())
 		if rpc.RequestSchema != nil && methodHasBody {
 			ts.WriteString(", " + payloadName)
-		} else if methodHasBody {
+		} else if rpc.Proto == meta.RPC_RAW {
 			ts.WriteString(", req")
 		}
 		ts.WriteString(")\n")
