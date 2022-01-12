@@ -55,8 +55,11 @@ type Service struct {
 }
 
 type CronJob struct {
-	Name string
-	RPC  *RPC
+	ID          string
+	Name        string
+	Description string
+	Schedule    string
+	RPC         *RPC
 }
 
 type Param struct {

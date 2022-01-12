@@ -187,6 +187,9 @@ export enum PathSegment_ParamType {
 }
 
 export interface CronJob {
+  id: string;
   name: string;
+  description: string;
+  schedule: string;
   endpoint: QualifiedName;
 }

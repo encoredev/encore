@@ -162,6 +162,9 @@ message PathSegment {
 }
 
 message CronJob {
-  string name            = 1;
-  QualifiedName endpoint = 2;
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string schedule = 4;
+  QualifiedName endpoint = 5;
 }

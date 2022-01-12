@@ -478,10 +478,16 @@ func (p *parser) parseCronJobs() {
 		)
 		var _ = []cron.Job{
 			{
-				Name: "foo",
+				Id: "foo"
+				Name: "Foo",
+				Description: "Foo foo foo",
+				Schedule: "* * * * *",
 			},
 			{
-				Name: "bar",
+				Id: "bar",
+				Name: "Bar",
+				Description: "Bar bar bar",
+				Schedule: "* * * * *",
 			},
 		}
 	*/
@@ -525,12 +531,36 @@ func (p *parser) parseCronJobStruct(cl *ast.CompositeLit, file *est.File, info *
 					return nil
 				}
 				switch key.Name {
+				case "Id":
+					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+						parsed, _ := strconv.Unquote(v.Value)
+						cj.ID = parsed
+					} else {
+						p.errf(v.Pos(), "cron.Job.Id must be a string literal")
+						return nil
+					}
 				case "Name":
 					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
 						parsed, _ := strconv.Unquote(v.Value)
 						cj.Name = parsed
 					} else {
 						p.errf(v.Pos(), "cron.Job.Name must be a string literal")
+						return nil
+					}
+				case "Description":
+					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+						parsed, _ := strconv.Unquote(v.Value)
+						cj.Description = parsed
+					} else {
+						p.errf(v.Pos(), "cron.Job.Description must be a string literal")
+						return nil
+					}
+				case "Schedule":
+					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+						parsed, _ := strconv.Unquote(v.Value)
+						cj.Schedule = parsed
+					} else {
+						p.errf(v.Pos(), "cron.Job.Schedule must be a string literal")
 						return nil
 					}
 				case "Endpoint":
