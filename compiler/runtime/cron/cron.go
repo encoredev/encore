@@ -7,3 +7,7 @@ type Job struct {
 	Schedule    string
 	Endpoint    interface{}
 }
+
+func New(j *Job) *Job {
+	return j
+}
