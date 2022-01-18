@@ -1,0 +1,31 @@
+# Verify the cron job definition
+parse
+stdout 'rpc svc.Cron access=public raw=false path=/cron'
+stdout 'cronJob foo name=Foo desc=Foo'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/cron"
+)
+
+var myCronJob = cron.Job{
+    ID:          "foo",
+	Name:        "Foo",
+    Description: "Foo",
+    Schedule:    "45 23 * * 6",
+	Endpoint:    Cron,
+}
+
+//encore:api public path=/cron
+func Cron(ctx context.Context) (*Response, error) {
+	msg := "Hello, Cron!"
+	return &Response{Message: msg}, nil
+}
+
+type Response struct {
+	Message string
+}

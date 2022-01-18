@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/robfig/cron/v3"
 	"golang.org/x/tools/go/ast/astutil"
 
 	"encr.dev/parser/est"
@@ -491,6 +492,7 @@ func (p *parser) parseCronJobs() {
 			},
 		}
 	*/
+	cp := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			info := p.names[pkg].Files[file]
@@ -503,7 +505,7 @@ func (p *parser) parseCronJobs() {
 					vs := s.(*ast.ValueSpec)
 					for _, x := range vs.Values {
 						if cl, ok := x.(*ast.CompositeLit); ok {
-							if cronJob := p.parseCronJobStruct(cl, file, info); cronJob != nil {
+							if cronJob := p.parseCronJobStruct(cp, cl, file, info); cronJob != nil {
 								p.jobs = append(p.jobs, cronJob)
 							}
 						}
@@ -514,7 +516,7 @@ func (p *parser) parseCronJobs() {
 	}
 }
 
-func (p *parser) parseCronJobStruct(cl *ast.CompositeLit, file *est.File, info *names.File) *est.CronJob {
+func (p *parser) parseCronJobStruct(cp cron.Parser, cl *ast.CompositeLit, file *est.File, info *names.File) *est.CronJob {
 	if t, ok := cl.Type.(*ast.SelectorExpr); ok {
 		if id, ok := t.X.(*ast.Ident); ok && id.Name == "cron" && t.Sel.Name == "Job" {
 			ri := info.Idents[id]
@@ -531,12 +533,12 @@ func (p *parser) parseCronJobStruct(cl *ast.CompositeLit, file *est.File, info *
 					return nil
 				}
 				switch key.Name {
-				case "Id":
+				case "ID":
 					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
 						parsed, _ := strconv.Unquote(v.Value)
 						cj.ID = parsed
 					} else {
-						p.errf(v.Pos(), "cron.Job.Id must be a string literal")
+						p.errf(v.Pos(), "cron.Job.ID must be a string literal")
 						return nil
 					}
 				case "Name":
@@ -559,6 +561,11 @@ func (p *parser) parseCronJobStruct(cl *ast.CompositeLit, file *est.File, info *
 					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
 						parsed, _ := strconv.Unquote(v.Value)
 						cj.Schedule = parsed
+						_, err := cp.Parse(cj.Schedule)
+						if err != nil {
+							p.errf(v.Pos(), "cron.Job.Schedule must be a valid cron expression: %s", err)
+							return nil
+						}
 					} else {
 						p.errf(v.Pos(), "cron.Job.Schedule must be a string literal")
 						return nil
