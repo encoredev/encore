@@ -8,11 +8,12 @@ import (
 	"runtime"
 	"time"
 
-	"encr.dev/cli/internal/update"
-	"encr.dev/cli/internal/version"
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
+
+	"encr.dev/cli/internal/update"
+	"encr.dev/cli/internal/version"
 )
 
 var versionCmd = &cobra.Command{

@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"encore.dev/runtime/config"
 	"github.com/hashicorp/yamux"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
+
+	"encore.dev/runtime/config"
 )
 
 var defaultServer = setup()

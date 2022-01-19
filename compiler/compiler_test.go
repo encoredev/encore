@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"encr.dev/compiler"
 	"github.com/rogpeppe/go-internal/testscript"
 	ts "github.com/rogpeppe/go-internal/testscript"
+
+	"encr.dev/compiler"
 )
 
 func TestCompile(t *testing.T) {

@@ -1,15 +1,15 @@
-import React, { FC, useState } from 'react'
+import React, {FC, useState} from 'react'
 import * as icons from "~c/icons"
-import { Modal } from '~c/Modal'
-import { Request, Stack, Trace } from '~c/trace/model'
+import {Modal} from '~c/Modal'
+import {Request, Stack, Trace} from '~c/trace/model'
 import SpanDetail from '~c/trace/SpanDetail'
 import SpanList from '~c/trace/SpanList'
 import StackTrace from '~c/trace/StackTrace'
 import TraceMap from '~c/trace/TraceMap'
-import { latencyStr } from '~c/trace/util'
-import { decodeBase64 } from '~lib/base64'
-import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
-import { timeToDate } from '~lib/time'
+import {latencyStr} from '~c/trace/util'
+import {decodeBase64} from '~lib/base64'
+import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
+import {timeToDate} from '~lib/time'
 
 interface Props {
   appID: string;

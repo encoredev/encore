@@ -11,11 +11,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
+
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/runtime/trace"
 	"encr.dev/cli/internal/jsonrpc2"
-	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog/log"
 )
 
 var upgrader = websocket.Upgrader{

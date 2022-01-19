@@ -1,6 +1,6 @@
-import { Type, StructType, MapType, ListType, BuiltinType, Decl, NamedType, Field } from "./schema";
+import {BuiltinType, Decl, Field, ListType, MapType, NamedType, StructType, Type} from "./schema";
 import React from "react";
-import { APIMeta } from "./api";
+import {APIMeta} from "./api";
 
 export type Dialect = "go" | "typescript" | "json" | "table";
 

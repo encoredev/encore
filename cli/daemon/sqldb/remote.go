@@ -8,10 +8,11 @@ import (
 	"net"
 	"time"
 
-	"encr.dev/pkg/pgproxy"
 	"github.com/jackc/pgproto3/v2"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/metadata"
+
+	"encr.dev/pkg/pgproxy"
 )
 
 // OneshotProxy listens on a random port for a single connection, and proxies that connection to a remote db.

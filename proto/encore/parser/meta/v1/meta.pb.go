@@ -7,11 +7,13 @@
 package v1
 
 import (
-	v1 "encr.dev/proto/encore/parser/schema/v1"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+
+	v1 "encr.dev/proto/encore/parser/schema/v1"
 )
 
 const (

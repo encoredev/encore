@@ -9,6 +9,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/semver"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
@@ -19,13 +27,6 @@ import (
 	"encr.dev/cli/internal/version"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"golang.org/x/mod/semver"
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var _ daemonpb.DaemonServer = (*Server)(nil)

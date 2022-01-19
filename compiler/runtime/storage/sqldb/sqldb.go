@@ -8,13 +8,14 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v4/stdlib"
+
 	"encore.dev/beta/errs"
 	"encore.dev/internal/stack"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/jackc/pgx/v4/stdlib"
 )
 
 var (

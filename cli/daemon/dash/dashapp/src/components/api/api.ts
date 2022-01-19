@@ -1,4 +1,4 @@
-import { Decl, Loc } from "./schema";
+import {Decl, Loc} from "./schema";
 
 export interface APIMeta {
   module_path: string;

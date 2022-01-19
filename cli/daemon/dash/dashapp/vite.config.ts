@@ -1,6 +1,6 @@
 import reactRefresh from '@vitejs/plugin-react-refresh'
 import path from 'path';
-import { defineConfig } from 'vite'
+import {defineConfig} from 'vite'
 
 const projectRootDir = path.resolve(__dirname)
 

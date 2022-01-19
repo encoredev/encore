@@ -18,6 +18,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/logrusorgru/aurora/v3"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/modfile"
+
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/run"
@@ -27,9 +31,6 @@ import (
 	"encr.dev/parser"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"github.com/logrusorgru/aurora/v3"
-	"github.com/rs/zerolog/log"
-	"golang.org/x/mod/modfile"
 )
 
 // Run runs the application.

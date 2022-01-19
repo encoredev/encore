@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"encr.dev/parser/est"
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/rogpeppe/go-internal/txtar"
 	"golang.org/x/mod/modfile"
+
+	"encr.dev/parser/est"
 )
 
 func TestCollectPackages(t *testing.T) {

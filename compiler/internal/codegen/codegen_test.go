@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	qt "github.com/frankban/quicktest"
+	"github.com/rogpeppe/go-internal/txtar"
+
 	"encr.dev/parser"
 	"encr.dev/parser/est"
 	"encr.dev/pkg/golden"
-	qt "github.com/frankban/quicktest"
-	"github.com/rogpeppe/go-internal/txtar"
 )
 
 func TestMain(m *testing.M) {

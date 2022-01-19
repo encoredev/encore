@@ -1,6 +1,6 @@
-import React, { FunctionComponent, useState, useEffect } from "react";
-import { Link, useParams, useRouteMatch } from "react-router-dom"
-import { useConn } from "~lib/ctx"
+import React, {FunctionComponent, useEffect, useState} from "react";
+import {Link, useParams, useRouteMatch} from "react-router-dom"
+import {useConn} from "~lib/ctx"
 import logo from "../logo.svg"
 
 const menuItems: {href: string; name: string}[] = [
@@ -74,7 +74,7 @@ const Nav: FunctionComponent = (props) => {
             )
           })}
         </div>
-        
+
       </div>
     </nav>
   )
@@ -100,7 +100,7 @@ const AppDropdown: FunctionComponent<AppDropdownProps> = (props): JSX.Element =>
   useEffect(() => {
     conn.request("list-apps").then(apps => setApps(apps as app[]))
   }, [props.open])
-  
+
   return (
     <>
       <div className="relative inline-block text-left">

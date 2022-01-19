@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/fatih/color"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -14,6 +13,8 @@ import (
 	"golang.org/x/tools/go/packages"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 var rootCmd = &cobra.Command{

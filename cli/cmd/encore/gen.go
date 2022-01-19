@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/spf13/cobra"
+
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 func init() {

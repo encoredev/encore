@@ -11,11 +11,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/rs/zerolog/log"
+
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/runtime/trace"
 	"encr.dev/cli/internal/jsonrpc2"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/rs/zerolog/log"
 )
 
 type handler struct {

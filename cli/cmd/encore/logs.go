@@ -8,11 +8,12 @@ import (
 	"os"
 	"os/signal"
 
-	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 var (

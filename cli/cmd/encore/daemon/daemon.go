@@ -10,6 +10,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
+
 	"encr.dev/cli/daemon"
 	"encr.dev/cli/daemon/dash"
 	"encr.dev/cli/daemon/run"
@@ -19,9 +23,6 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc"
 )
 
 // Main runs the daemon.

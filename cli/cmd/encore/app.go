@@ -20,13 +20,14 @@ import (
 	"strings"
 	"time"
 
-	"encr.dev/cli/internal/conf"
-	"encr.dev/cli/internal/platform"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
+
+	"encr.dev/cli/internal/conf"
+	"encr.dev/cli/internal/platform"
 )
 
 func init() {

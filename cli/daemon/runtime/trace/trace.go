@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"encr.dev/cli/daemon/run"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
-	"github.com/rs/zerolog/log"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ID [16]byte

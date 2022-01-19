@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
+
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
-	jsoniter "github.com/json-iterator/go"
 )
 
 // genSchema generates a JSON payload to match the schema.

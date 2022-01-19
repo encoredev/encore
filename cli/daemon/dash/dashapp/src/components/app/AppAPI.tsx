@@ -1,9 +1,9 @@
-import React, { FunctionComponent, useState } from 'react'
-import { APIMeta, RPC, Service } from '~c/api/api'
+import React, {FunctionComponent, useState} from 'react'
+import {APIMeta, RPC, Service} from '~c/api/api'
 import RPCCaller from "~c/api/RPCCaller"
-import SchemaView, { Dialect } from '~c/api/SchemaView'
-import { ProcessReload } from '~lib/client/client'
-import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
+import SchemaView, {Dialect} from '~c/api/SchemaView'
+import {ProcessReload} from '~lib/client/client'
+import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
 
 interface Props {
   appID: string;

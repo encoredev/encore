@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
-	meta "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
+
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // DB represents a single database instance within a cluster.

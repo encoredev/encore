@@ -1,5 +1,5 @@
 import BaseClient from "./base";
-import { APIMeta } from "~c/api/api";
+import {APIMeta} from "~c/api/api";
 
 export default class Client {
   base: BaseClient;

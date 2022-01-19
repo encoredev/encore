@@ -3,8 +3,9 @@ package paths
 import (
 	"testing"
 
-	schema "encr.dev/proto/encore/parser/schema/v1"
 	qt "github.com/frankban/quicktest"
+
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 func TestParse(t *testing.T) {

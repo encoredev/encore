@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"golang.org/x/tools/go/ast/astutil"
+
 	"encr.dev/compiler/internal/rewrite"
 	"encr.dev/parser/est"
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 // rewritePkg writes out modified files to targetDir.

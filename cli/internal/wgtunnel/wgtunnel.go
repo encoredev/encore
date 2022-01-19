@@ -12,10 +12,11 @@ import (
 	"net/http"
 	"time"
 
-	"encr.dev/cli/internal/conf"
 	"golang.org/x/oauth2"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
+	"encr.dev/cli/internal/conf"
 )
 
 // GenKey generates a public/private key pair for the WireGuard tunnel.

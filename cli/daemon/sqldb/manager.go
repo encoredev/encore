@@ -8,10 +8,11 @@ import (
 	"os/exec"
 	"sync"
 
-	meta "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/singleflight"
+
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // NewClusterManager creates a new ClusterManager.

@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import {EventEmitter} from 'events';
 import * as protocol from "json-rpc-protocol"
 
 function makeAsync<T>(fn: (msg: Message) => T): (msg: Message) => Promise<T> {

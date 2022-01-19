@@ -1,6 +1,6 @@
-import React, { FunctionComponent, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useConn } from '~lib/ctx'
+import React, {FunctionComponent, useEffect, useState} from 'react'
+import {Link} from 'react-router-dom'
+import {useConn} from '~lib/ctx'
 
 const AppList: FunctionComponent = (props) => {
   const conn = useConn()
@@ -18,7 +18,7 @@ const AppList: FunctionComponent = (props) => {
           </div>
           <div className="px-4 py-5 sm:p-6">
             {apps !== undefined ? (
-              apps.map((app) => 
+              apps.map((app) =>
                 <div key={app.id}>
                   <Link to={"/"+app.id} className="text-purple-600 hover:text-purple-700">{app.name}</Link>
                 </div>

@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { Transition } from "@headlessui/react"
+import {Transition} from "@headlessui/react"
 
 interface Props {
   show: boolean;

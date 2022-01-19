@@ -7,8 +7,9 @@ import (
 	"os/exec"
 	"testing"
 
-	"encr.dev/cli/daemon/internal/runlog"
 	qt "github.com/frankban/quicktest"
+
+	"encr.dev/cli/daemon/internal/runlog"
 )
 
 func TestClusterManager_StartDelete(t *testing.T) {
