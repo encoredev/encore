@@ -85,3 +85,26 @@ In the cloud, how the database is provisioned depends on the type of [Encore Env
 Encore automatically provisions databases to match what your application requires.
 Simply define a database schema ([see above](#defining-a-database-schema)) and Encore
 will provision the database at the start of the next deploy.
+
+## Handling Postgres errors
+
+To get more data about what went wrong with your database query, you can utilize the fact that Encore uses [jackc/pgx](https://github.com/jackc/pgx) as the underlying PostgreSQL Driver.
+The errors returned from the database query methods can therefore be unwrapped as the type `*pgconn.PgError`, which represents an PostgreSQL error and contains more information.
+
+For example, to handle the specific `not_null_violation` error, we can write the following:
+```go
+err := sqldb.QueryRow(ctx, `
+    INSERT INTO todo_item (title, done)
+    VALUES (NULL, true);
+`)
+
+var pgErr *pgconn.PgError
+if errors.As(err, &pgErr) {
+  if pgErr.Code == pgerrcode.NotNullViolation /* Or: == "23502" directly */ {
+    // Handle error
+  }
+}
+```
+
+The necessary packages can be installed using `go get github.com/jackc/pgconn github.com/jackc/pgerrcode`.
+Note that you can directly compare the error code with a [PostgreSQL Error Code](https://www.postgresql.org/docs/13/errcodes-appendix.html), in which case you don't need the `pgerrcode` package. 
