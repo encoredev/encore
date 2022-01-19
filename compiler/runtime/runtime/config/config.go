@@ -51,6 +51,7 @@ type Endpoint struct {
 type Runtime struct {
 	AppID         string         `json:"app_id"`
 	AppSlug       string         `json:"app_slug"`
+	AppCommit     string         `json:"app_commit"`
 	EnvID         string         `json:"env_id"`
 	EnvName       string         `json:"env_name"`
 	TraceEndpoint string         `json:"trace_endpoint"`
