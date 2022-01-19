@@ -8,14 +8,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/internal/runlog"
 	"encr.dev/cli/daemon/sqldb"
 	daemonpb "encr.dev/proto/encore/daemon"
-	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // DBConnect starts the database and returns the DSN for connecting to it.

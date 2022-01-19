@@ -10,9 +10,10 @@ import (
 	"runtime"
 	"strings"
 
-	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 var dbCmd = &cobra.Command{

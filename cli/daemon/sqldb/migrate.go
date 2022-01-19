@@ -8,8 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	meta "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/golang-migrate/migrate/v4/source"
+
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type src struct {

@@ -1,4 +1,4 @@
-import React, { FunctionComponent, MouseEventHandler } from "react";
+import React, {FunctionComponent, MouseEventHandler} from "react";
 
 export interface Props {
   theme: "purple" | "purple:secondary" | "purple:border" | "white" | "red" | "red:secondary" | "gray" | "gray:border";

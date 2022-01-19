@@ -1,4 +1,4 @@
-import React, { FunctionComponent, useRef, useState, useEffect } from 'react'
+import React, {FunctionComponent, useEffect, useRef, useState} from 'react'
 
 type Type = "text" | "number" | "email" | "password";
 

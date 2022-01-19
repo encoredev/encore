@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
 	_ "unsafe" // for go:linkname
 )
 

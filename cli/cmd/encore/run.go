@@ -7,10 +7,11 @@ import (
 	"os"
 	"os/signal"
 
-	"encr.dev/cli/internal/onboarding"
-	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
+
+	"encr.dev/cli/internal/onboarding"
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 var (

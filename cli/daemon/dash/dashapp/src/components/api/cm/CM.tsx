@@ -1,6 +1,6 @@
 import React from 'react'
 
-import CodeMirror, { EditorConfiguration } from 'codemirror';
+import CodeMirror, {EditorConfiguration} from 'codemirror';
 import './codemirror.css';
 import './codemirror-show-hint.css';
 import './codemirror-encore.css';
@@ -57,7 +57,7 @@ export default class CM extends React.Component<Props> {
     this.cm = CodeMirror(this.target.current!, this.props.cfg ?? DefaultCfg)
     this.cm.on("focus", () => this.props.onFocus?.())
   }
-  
+
   shouldComponentUpdate(): boolean {
     return false
   }

@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 	"time"
-
 	_ "unsafe" // for go:linkname
 
 	"encore.dev/internal/stack"

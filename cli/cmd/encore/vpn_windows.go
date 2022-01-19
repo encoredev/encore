@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"encr.dev/cli/internal/winsvc"
 	"github.com/spf13/cobra"
+
+	"encr.dev/cli/internal/winsvc"
 )
 
 func init() {

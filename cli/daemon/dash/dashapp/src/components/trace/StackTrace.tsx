@@ -1,8 +1,8 @@
 import React, {FC, useEffect, useState} from "react"
-import { Stack, StackFrame } from '~c/trace/model'
+import {Stack, StackFrame} from '~c/trace/model'
 import * as icons from "~c/icons"
-import { useConn } from "~lib/ctx"
-import { useParams } from "react-router-dom"
+import {useConn} from "~lib/ctx"
+import {useParams} from "react-router-dom"
 
 const StackTrace: FC<{stack: Stack}> = (props) => {
   const frames = props.stack.frames
@@ -25,7 +25,7 @@ const StackFrame: FC<{frame: StackFrame, expanded: boolean; last: boolean}> = (p
   const conn = useConn()
   const [expanded, setExpanded] = useState(props.expanded)
   const [ctx, setCtx] = useState<SourceContextResponse | undefined>(undefined)
-  
+
   useEffect(() =>  {
     if (expanded) {
       (async () => {
@@ -53,7 +53,7 @@ const StackFrame: FC<{frame: StackFrame, expanded: boolean; last: boolean}> = (p
         </span>
       </button>
       {expanded && ctx && <pre className={`${props.last ? "rounded-b" : ""} bg-white code overflow-auto`} style={cssProps}>
-        {ctx.lines.map((l, i) => 
+        {ctx.lines.map((l, i) =>
           <code key={i} className={(ctx.start + i) === frame.line ? "text-white bg-indigo-600" : undefined}>{l}</code>
         )}
       </pre>}

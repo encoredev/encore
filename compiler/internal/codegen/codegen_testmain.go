@@ -1,8 +1,9 @@
 package codegen
 
 import (
-	"encr.dev/parser/est"
 	. "github.com/dave/jennifer/jen"
+
+	"encr.dev/parser/est"
 )
 
 func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {

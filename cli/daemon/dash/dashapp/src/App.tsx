@@ -1,13 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react'
-import {
-  BrowserRouter as Router,
-  Route, Switch
-} from "react-router-dom";
+import React, {useEffect, useRef, useState} from 'react'
+import {BrowserRouter as Router, Route, Switch} from "react-router-dom";
 import Client from '~lib/client/client';
 import JSONRPCConn from '~lib/client/jsonrpc';
 import AppList from '~p/AppList';
 import AppHome from '~p/AppHome';
-import { ConnContext } from '~lib/ctx';
+import {ConnContext} from '~lib/ctx';
 import AppAPI from '~p/AppAPI';
 
 function App() {

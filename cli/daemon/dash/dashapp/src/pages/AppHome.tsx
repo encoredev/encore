@@ -1,9 +1,9 @@
-import React, { FunctionComponent } from 'react'
-import { useParams } from 'react-router-dom'
+import React, {FunctionComponent} from 'react'
+import {useParams} from 'react-router-dom'
 import AppCaller from '~c/app/AppCaller'
 import AppTraces from '~c/app/AppTraces'
 import Nav from '~c/Nav'
-import { useConn } from '~lib/ctx'
+import {useConn} from '~lib/ctx'
 
 const AppHome: FunctionComponent = (props) => {
   const { appID } = useParams<{appID: string}>()

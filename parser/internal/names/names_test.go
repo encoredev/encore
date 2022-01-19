@@ -6,9 +6,10 @@ import (
 	"go/token"
 	"testing"
 
-	"encr.dev/parser/est"
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
+
+	"encr.dev/parser/est"
 )
 
 func TestResolve(t *testing.T) {

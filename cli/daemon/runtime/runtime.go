@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/runtime/trace"
-	"github.com/rs/zerolog/log"
 )
 
 type server struct {

@@ -7,11 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
+	"github.com/rs/zerolog"
+
 	"encore.dev/beta/errs"
 	"encore.dev/internal/stack"
 	"encore.dev/runtime/config"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/rs/zerolog"
 
 	// These imports are used only by the generated wrappers in the compiler,
 	// but add them here so the 'go' command doesn't remove them from go.mod.

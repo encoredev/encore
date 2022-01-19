@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"encr.dev/cli/internal/platform"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/singleflight"
+
+	"encr.dev/cli/internal/platform"
 )
 
 // New returns a new manager.

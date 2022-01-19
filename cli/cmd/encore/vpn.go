@@ -8,11 +8,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/cobra"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
 	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/wgtunnel"
 	"encr.dev/cli/internal/xos"
-	"github.com/spf13/cobra"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 var vpnCmd = &cobra.Command{

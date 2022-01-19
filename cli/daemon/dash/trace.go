@@ -10,16 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"encr.dev/cli/daemon/runtime/trace"
-	"encr.dev/cli/internal/dedent"
-	"encr.dev/cli/internal/env"
-	tracepb "encr.dev/proto/encore/engine/trace"
-	v1 "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/alecthomas/chroma/formatters/html"
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/jsonpb"
+
+	"encr.dev/cli/daemon/runtime/trace"
+	"encr.dev/cli/internal/dedent"
+	"encr.dev/cli/internal/env"
+	tracepb "encr.dev/proto/encore/engine/trace"
+	v1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type Trace struct {

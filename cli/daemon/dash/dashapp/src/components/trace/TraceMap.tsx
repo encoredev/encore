@@ -1,7 +1,6 @@
-import { FunctionComponent, useEffect, useState } from "react"
-import { Request, Trace } from "./model"
-import { svcColor } from "./util"
-import React from "react"
+import React, {FunctionComponent, useEffect, useState} from "react"
+import {Request, Trace} from "./model"
+import {svcColor} from "./util"
 
 interface Props {
   trace: Trace;
@@ -25,7 +24,7 @@ const TraceMap: FunctionComponent<Props> = (props) => {
       svcName = defLoc.rpc_def.service_name
     }
     const [color, highlightColor] = svcColor(svcName)
-    const sel = props.selected?.id === req.id 
+    const sel = props.selected?.id === req.id
     const select = () => props.onSelect && props.onSelect(req)
 
     return <React.Fragment key={req.id}>
@@ -79,7 +78,7 @@ function buildTraceMap(roots: Request[]): Request[][] {
       const line = lines[i]
       const nl = line.length
 
-      // Find an available gap in the line. 
+      // Find an available gap in the line.
       for (let j = 0; j < nl; j++) {
         const start = line[j].start_time
         const end = line[j].end_time!

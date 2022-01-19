@@ -1,8 +1,8 @@
 import React from 'react'
-import { decodeBase64 } from '~lib/base64'
-import { ProcessOutput, ProcessReload, ProcessStart, ProcessStop } from '~lib/client/client'
-import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
-import parseAnsi, { Chunk } from "~lib/parse-ansi"
+import {decodeBase64} from '~lib/base64'
+import {ProcessOutput, ProcessReload, ProcessStart, ProcessStop} from '~lib/client/client'
+import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
+import parseAnsi, {Chunk} from "~lib/parse-ansi"
 
 interface Props {
   appID: string;

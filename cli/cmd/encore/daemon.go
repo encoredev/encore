@@ -9,15 +9,16 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/spf13/cobra"
+	"golang.org/x/mod/semver"
+	"google.golang.org/grpc"
+
 	daemonpkg "encr.dev/cli/cmd/encore/daemon"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/spf13/cobra"
-	"golang.org/x/mod/semver"
-	"google.golang.org/grpc"
 )
 
 var daemonizeForeground bool

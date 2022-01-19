@@ -1,14 +1,14 @@
-import { Listbox, Menu, Transition } from "@headlessui/react";
-import CodeMirror, { EditorConfiguration } from "codemirror";
-import React, { FC, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {Listbox, Menu, Transition} from "@headlessui/react";
+import CodeMirror, {EditorConfiguration} from "codemirror";
+import React, {FC, useEffect, useImperativeHandle, useRef, useState} from "react";
 import * as icons from "~c/icons";
 import Input from "~c/Input";
-import { decodeBase64, encodeBase64 } from "~lib/base64";
+import {decodeBase64, encodeBase64} from "~lib/base64";
 import JSONRPCConn from "~lib/client/jsonrpc";
-import { copyToClipboard } from "~lib/clipboard";
-import { APIMeta, PathSegment, RPC, Service } from "./api";
+import {copyToClipboard} from "~lib/clipboard";
+import {APIMeta, PathSegment, RPC, Service} from "./api";
 import CM from "./cm/CM";
-import { BuiltinType, Decl, ListType, MapType, NamedType, StructType, Type } from "./schema";
+import {BuiltinType, Decl, ListType, MapType, NamedType, StructType, Type} from "./schema";
 
 interface Props {
   conn: JSONRPCConn;
@@ -64,7 +64,7 @@ class JSONRenderer {
       this.write("null")
       return
     }
-    
+
     // Add the decl to our map while recursing to avoid infinite recursion.
     this.seenDecls.add(t.id)
     const decl = this.md.decls[t.id]
@@ -330,14 +330,14 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         This API takes no request data.
       </div>
       <div className="flex items-center mt-1">
-        {md.auth_handler && 
+        {md.auth_handler &&
           <div className="flex-1 min-w-0 mr-1 relative rounded-md shadow-sm">
-            <Input id="" cls="w-full" placeholder="Auth Token" required={rpc.access_type === "AUTH"} 
+            <Input id="" cls="w-full" placeholder="Auth Token" required={rpc.access_type === "AUTH"}
               value={authToken} onChange={setAuthToken} />
           </div>
         }
         <APICallButton send={makeRequest} copyCurl={copyCurl} />
-        
+
       </div>
 
       <h4 className="mt-4 mb-1 text-base text-bold flex items-center">
@@ -505,7 +505,7 @@ const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined}, {
       selectLeft: prevEnd > 0,
       selectRight: false,
     })
-    
+
     CodeMirror.on(doc, "beforeChange", (doc: CodeMirror.Doc, change: CodeMirror.EditorChangeCancellable) => {
       if (change.text[0].indexOf("/") === -1) {
         return

@@ -10,10 +10,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"encr.dev/cli/internal/env"
-	"encr.dev/compiler"
 	qt "github.com/frankban/quicktest"
 	"go.uber.org/goleak"
+
+	"encr.dev/cli/internal/env"
+	"encr.dev/compiler"
 )
 
 // TestStartProc tests that (*app).startProc correctly starts Encore processes

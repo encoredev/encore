@@ -1,8 +1,8 @@
-import React, { FC, useEffect, useReducer, useState } from 'react'
-import { APIMeta, RPC, Service } from '~c/api/api'
+import React, {FC, useEffect, useReducer, useState} from 'react'
+import {APIMeta, RPC, Service} from '~c/api/api'
 import RPCCaller from '~c/api/RPCCaller'
-import { ProcessReload, ProcessStart } from '~lib/client/client'
-import JSONRPCConn, { NotificationMsg } from '~lib/client/jsonrpc'
+import {ProcessReload, ProcessStart} from '~lib/client/client'
+import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
 
 interface API {
   svc: Service;

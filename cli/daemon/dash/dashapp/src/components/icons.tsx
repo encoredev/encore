@@ -1,13 +1,14 @@
 import React from "react"
+
 export type Icon = (cls?: string, title?: string) => JSX.Element
 
-export const commit: Icon = (cls, title): JSX.Element => 
+export const commit: Icon = (cls, title): JSX.Element =>
   <svg className={cls} fill="currentColor" viewBox="0 0 896 1024">
     {renderTitle(title)}
     <path d="M694.875 448C666.375 337.781 567.125 256 448 256c-119.094 0-218.375 81.781-246.906 192H0v128h201.094C229.625 686.25 328.906 768 448 768c119.125 0 218.375-81.75 246.875-192H896V448H694.875zM448 640c-70.656 0-128-57.375-128-128 0-70.656 57.344-128 128-128 70.625 0 128 57.344 128 128C576 582.625 518.625 640 448 640z" />
   </svg>
 
-export const lightningBolt: Icon = (cls, title) => 
+export const lightningBolt: Icon = (cls, title) =>
   <svg className={cls} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" stroke="currentColor" viewBox="0 0 24 24">
     {renderTitle(title)}
     <path d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -43,7 +44,7 @@ export const document: Icon = (cls, title) =>
     <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
   </svg>
 
-export const documentReport: Icon = (cls, title) => 
+export const documentReport: Icon = (cls, title) =>
   <svg className={cls} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" stroke="currentColor" viewBox="0 0 24 24">
     {renderTitle(title)}
     <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -61,7 +62,7 @@ export const solidDocument: Icon = (cls, title) =>
     <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
   </svg>
 
-export const pencil: Icon = (cls, title) => 
+export const pencil: Icon = (cls, title) =>
   <svg className={cls} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" stroke="currentColor" viewBox="0 0 24 24">
     {renderTitle(title)}
     <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />

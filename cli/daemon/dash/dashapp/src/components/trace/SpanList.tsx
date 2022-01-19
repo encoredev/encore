@@ -1,7 +1,7 @@
-import React, { FC, FunctionComponent, useState } from "react"
+import React, {FC, FunctionComponent, useState} from "react"
 import * as icons from "~c/icons"
-import { Request, Trace } from "./model"
-import { svcColor } from "./util"
+import {Request, Trace} from "./model"
+import {svcColor} from "./util"
 
 interface Props {
   trace: Trace;

@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"encr.dev/parser"
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
+
+	"encr.dev/parser"
 )
 
 func TestTypeScript(t *testing.T) {

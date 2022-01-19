@@ -1,10 +1,10 @@
-import { Duration } from "luxon"
-import React, { FunctionComponent, useRef, useState } from "react"
+import {Duration} from "luxon"
+import React, {FunctionComponent, useRef, useState} from "react"
 import * as icons from "~c/icons"
-import { Base64EncodedBytes, decodeBase64 } from "~lib/base64"
-import { timeToDate } from "~lib/time"
-import { DBQuery, Event, HTTPCall, LogMessage, Request, RPCCall, Stack, Trace } from "./model"
-import { latencyStr, svcColor } from "./util"
+import {Base64EncodedBytes, decodeBase64} from "~lib/base64"
+import {timeToDate} from "~lib/time"
+import {DBQuery, Event, HTTPCall, LogMessage, Request, RPCCall, Stack, Trace} from "./model"
+import {latencyStr, svcColor} from "./util"
 
 interface Props {
   trace: Trace;
@@ -40,7 +40,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
     <div>
       <h2 className="text-2xl font-bold flex items-center">
         {svcName}.{rpcName}
-        {call && 
+        {call &&
           <button className="text-gray-600 hover:text-indigo-600 focus:outline-none"
             onClick={() => props.onStackTrace(call.stack)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
         }
@@ -175,7 +175,7 @@ const EventMap: FunctionComponent<{req: Request, trace: Trace, onStackTrace: (s:
         <span className="font-bold mx-1 text-gray-800">{lines.length}</span>
         Goroutine{lines.length !== 1 ? "s" : ""}
       </div>
-      {lines.map((g, i) => 
+      {lines.map((g, i) =>
         <div key={g.goid} className={i > 0 ? "mt-1" : ""}>
           <GoroutineDetail key={g.goid} g={g} req={req} trace={props.trace} onStackTrace={props.onStackTrace} />
         </div>
@@ -301,7 +301,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
     <div ref={tooltipRef} className="absolute w-full max-w-md pr-2 z-40"
         style={{paddingRight: "10px" /* extra padding to make it easier to hover into the tooltip */}}
         onMouseEnter={() => setTooltipOver(true)} onMouseLeave={() => setTooltipOver(false)}>
-      {(barOver || tooltipOver) && 
+      {(barOver || tooltipOver) &&
         <div className="bg-white w-full p-3 border border-gray-100 rounded-md shadow-lg overflow-auto">
           {hoverObj && "type" in hoverObj && (
             hoverObj.type === "DBQuery" ? <DBQueryTooltip q={hoverObj} trace={props.trace} onStackTrace={props.onStackTrace} /> :
@@ -520,7 +520,7 @@ const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack
     {log.msg}
     {log.fields.map((f, i) =>
       <span key={i} className="inline-flex items-center">
-        {f.stack ? <> 
+        {f.stack ? <>
           <button className="text-red-800 hover:text-red-600 focus:outline-none"
             onClick={() => onStackTrace(f.stack!)}>{icons.stackTrace("h-4 w-auto")}</button>
           <span className="text-red-600">{f.key}</span>

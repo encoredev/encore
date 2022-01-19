@@ -1,5 +1,5 @@
 import JSONRPCConn from "./jsonrpc";
-import { ResponseError } from "./errs";
+import {ResponseError} from "./errs";
 
 const DEV = import.meta.env.DEV
 

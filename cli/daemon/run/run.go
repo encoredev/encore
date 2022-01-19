@@ -24,6 +24,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 
+	"github.com/hashicorp/yamux"
+
 	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/runtime/config"
@@ -32,7 +34,6 @@ import (
 	"encr.dev/compiler"
 	"encr.dev/parser"
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"github.com/hashicorp/yamux"
 )
 
 // Run represents a running Encore application.

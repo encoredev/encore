@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"unicode"
 
+	"github.com/fatih/structtag"
+
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	schema "encr.dev/proto/encore/parser/schema/v1"
-	"github.com/fatih/structtag"
 )
 
 // resolveType parses the schema from a type expression.

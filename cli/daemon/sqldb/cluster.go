@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"encr.dev/cli/daemon/internal/runlog"
-	meta "encr.dev/proto/encore/parser/meta/v1"
 	"github.com/rs/zerolog"
 	"go4.org/syncutil"
 	"golang.org/x/sync/errgroup"
+
+	"encr.dev/cli/daemon/internal/runlog"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 
 	// stdlib registers the "pgx" driver to database/sql.
 	_ "github.com/jackc/pgx/v4/stdlib"

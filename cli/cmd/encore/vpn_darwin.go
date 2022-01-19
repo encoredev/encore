@@ -3,9 +3,10 @@ package main
 import (
 	"log"
 
+	"github.com/spf13/cobra"
+
 	"encr.dev/cli/internal/wgtunnel"
 	"encr.dev/cli/internal/xos"
-	"github.com/spf13/cobra"
 )
 
 func init() {

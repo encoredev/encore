@@ -7,9 +7,10 @@ import (
 	"net"
 	"time"
 
-	"encr.dev/pkg/pgproxy"
 	"github.com/jackc/pgproto3/v2"
 	"github.com/rs/zerolog/log"
+
+	"encr.dev/pkg/pgproxy"
 )
 
 // ServeProxy serves the database proxy using the given listener.

@@ -9,9 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	daemonpb "encr.dev/proto/encore/daemon"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
+
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 var secretCmd = &cobra.Command{

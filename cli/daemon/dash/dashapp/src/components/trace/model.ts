@@ -1,5 +1,5 @@
-import { APIMeta } from "~c/api/api";
-import { Base64EncodedBytes } from "~lib/base64"
+import {APIMeta} from "~c/api/api";
+import {Base64EncodedBytes} from "~lib/base64"
 
 export interface Trace {
   id: string;

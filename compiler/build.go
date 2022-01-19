@@ -11,10 +11,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"encr.dev/parser"
-	"encr.dev/parser/est"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
+
+	"encr.dev/parser"
+	"encr.dev/parser/est"
 )
 
 type Config struct {
