@@ -19,7 +19,7 @@ import (
 // `go build -ldflags "-X encr.dev/cli/internal/conf.defaultPlatformURL=https://api.encore.dev"`.
 var (
 	defaultPlatformURL     = "https://api.encore.dev"
-	DefaultConfigDirectory = "encore"
+	defaultConfigDirectory = "encore"
 )
 
 // APIBaseURL is the base URL for communicating with the Encore Platform.
@@ -38,7 +38,7 @@ func Dir() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		dir = filepath.Join(d, DefaultConfigDirectory)
+		dir = filepath.Join(d, defaultConfigDirectory)
 	}
 	return dir, nil
 }
