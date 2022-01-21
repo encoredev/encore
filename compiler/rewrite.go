@@ -125,13 +125,12 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 	}
 
 	if len(wrappers) > 0 {
-		name := "encore_rpc_wrappers.go"
+		name := "encore_internal__rpc_wrappers.go"
 		wrapperPath := filepath.Join(targetDir, name)
 		if err := b.generateWrappers(pkg, wrappers, wrapperPath); err != nil {
 			return err
 		}
 		b.addOverlay(filepath.Join(pkg.Dir, name), wrapperPath)
 	}
-
 	return nil
 }

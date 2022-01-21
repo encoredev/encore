@@ -67,9 +67,9 @@ var dbShellCmd = &cobra.Command{
 		appRoot, relPath := determineAppRoot()
 		ctx := context.Background()
 		daemon := setupDaemon(ctx)
-		svcName := ""
+		dbName := ""
 		if len(args) > 0 {
-			svcName = args[0]
+			dbName = args[0]
 		} else {
 			// Find the enclosing service by looking for the "migrations" folder
 		SvcNameLoop:
@@ -78,12 +78,12 @@ var dbShellCmd = &cobra.Command{
 				if _, err := os.Stat(filepath.Join(absPath, "migrations")); err == nil {
 					pkgs, err := resolvePackages(absPath, ".")
 					if err == nil && len(pkgs) > 0 {
-						svcName = filepath.Base(pkgs[0])
+						dbName = filepath.Base(pkgs[0])
 						break SvcNameLoop
 					}
 				}
 			}
-			if svcName == "" {
+			if dbName == "" {
 				fatal("could not find an Encore service with a database in this directory (or any of the parent directories).\n\n" +
 					"Note: You can specify a service name to connect to it directly using the command 'encore db shell <service-name>'.")
 			}
@@ -91,11 +91,11 @@ var dbShellCmd = &cobra.Command{
 
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
 			AppRoot: appRoot,
-			SvcName: svcName,
+			DbName:  dbName,
 			EnvName: dbEnv,
 		})
 		if err != nil {
-			fatalf("could not connect to the database for service %s: %v", svcName, err)
+			fatalf("could not connect to the database for service %s: %v", dbName, err)
 		}
 
 		// If we have the psql binary, use that.
@@ -170,23 +170,23 @@ var dbConnURICmd = &cobra.Command{
 		appRoot, relPath := determineAppRoot()
 		ctx := context.Background()
 		daemon := setupDaemon(ctx)
-		svcName := ""
+		dbName := ""
 		if len(args) > 0 {
-			svcName = args[0]
+			dbName = args[0]
 		} else {
 			// Find the enclosing service by looking for the "migrations" folder
-		SvcNameLoop:
+		DBNameLoop:
 			for p := relPath; p != "."; p = filepath.Dir(p) {
 				absPath := filepath.Join(appRoot, p)
 				if _, err := os.Stat(filepath.Join(absPath, "migrations")); err == nil {
 					pkgs, err := resolvePackages(absPath, ".")
 					if err == nil && len(pkgs) > 0 {
-						svcName = filepath.Base(pkgs[0])
-						break SvcNameLoop
+						dbName = filepath.Base(pkgs[0])
+						break DBNameLoop
 					}
 				}
 			}
-			if svcName == "" {
+			if dbName == "" {
 				fatal("could not find Encore service with a database in this directory (or any parent directory).\n\n" +
 					"Note: You can specify a service name to connect to it directly using the command 'encore db conn-uri <service-name>'.")
 			}
@@ -194,11 +194,11 @@ var dbConnURICmd = &cobra.Command{
 
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
 			AppRoot: appRoot,
-			SvcName: svcName,
+			DbName:  dbName,
 			EnvName: dbEnv,
 		})
 		if err != nil {
-			fatalf("could not connect to the database for service %s: %v", svcName, err)
+			fatalf("could not connect to the database for service %s: %v", dbName, err)
 		}
 
 		fmt.Fprintln(os.Stdout, resp.Dsn)
