@@ -124,12 +124,16 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 			return nil
 		}
 
+		log.Debug().Msg("checking if sqldb image exists")
 		if ok, err := sqldb.ImageExists(stream.Context()); err == nil && !ok {
+			log.Debug().Msg("pulling sqldb image")
 			pullOp := ops.Add("Pulling PostgreSQL docker image", start.Add(400*time.Millisecond))
 			if err := sqldb.PullImage(stream.Context()); err != nil {
+				log.Error().Err(err).Msg("unable to pull sqldb image")
 				ops.Fail(pullOp, err)
 			} else {
 				ops.Done(pullOp, 0)
+				log.Info().Msg("successfully pulled sqldb image")
 			}
 		}
 
@@ -590,7 +594,7 @@ func (t *opTracker) refresh() {
 
 	for _, o := range ops {
 		started := o.start.Before(now)
-		done := o.done.Before(now)
+		done := !o.done.IsZero() && o.done.Before(now)
 		if !started && !done {
 			continue
 		}

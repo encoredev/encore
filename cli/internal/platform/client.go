@@ -11,6 +11,8 @@ import (
 
 	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/version"
+	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
 )
 
 type Error struct {
@@ -151,4 +153,37 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}, au
 	}
 
 	return resp.Body, nil
+}
+
+// wsDial sets up a WebSocket conncetion to the API endpoint given by method and path.
+func wsDial(ctx context.Context, path string, auth bool, extraHeaders map[string]string) (ws *websocket.Conn, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("WS %s: %w", path, err)
+		}
+	}()
+
+	// Add a very limited amount of information for diagnostics
+	header := make(http.Header)
+	header.Set("User-Agent", "EncoreCLI/"+version.Version)
+	header.Set("X-Encore-Version", version.Version)
+	header.Set("X-Encore-GOOS", runtime.GOOS)
+	header.Set("X-Encore-GOARCH", runtime.GOARCH)
+	header.Set("Origin", "http://encore-cli.local")
+	for k, v := range extraHeaders {
+		header.Set(k, v)
+	}
+	log.Info().Msgf("sending startup data %#v", extraHeaders)
+
+	if auth {
+		tok, err := conf.DefaultTokenSource.Token()
+		if err != nil {
+			return nil, err
+		}
+		header.Set("Authorization", "Bearer "+tok.AccessToken)
+	}
+
+	url := conf.WSBaseURL + path
+	ws, _, err = websocket.DefaultDialer.DialContext(ctx, url, header)
+	return ws, err
 }

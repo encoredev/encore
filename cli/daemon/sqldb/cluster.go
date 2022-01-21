@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"sync"
 	"time"
@@ -62,8 +63,18 @@ func (c *Cluster) Start(log runlog.Log) error {
 		}()
 
 		// Ensure the docker image exists first.
-		if err := PullImage(context.Background()); err != nil {
-			return fmt.Errorf("pull docker image: %v", err)
+		{
+			checkExistsCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if ok, err := ImageExists(checkExistsCtx); err != nil {
+				return fmt.Errorf("check docker image: %v", err)
+			} else if !ok {
+				c.log.Debug().Msg("PostgreSQL image does not exist, pulling")
+				if err := PullImage(context.Background()); err != nil {
+					c.log.Error().Err(err).Msg("failed to pull PostgreSQL image")
+					return fmt.Errorf("pull docker image: %v", err)
+				}
+			}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -352,9 +363,8 @@ func ImageExists(ctx context.Context) (ok bool, err error) {
 
 // PullImage pulls the image.
 func PullImage(ctx context.Context) error {
-	if ok, _ := ImageExists(ctx); ok {
-		return nil
-	}
 	cmd := exec.CommandContext(ctx, "docker", "pull", dockerImage)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }

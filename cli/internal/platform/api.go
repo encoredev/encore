@@ -2,12 +2,14 @@ package platform
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/url"
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/gorilla/websocket"
 	"golang.org/x/oauth2"
 
 	metav1 "encr.dev/proto/encore/parser/meta/v1"
@@ -126,4 +128,19 @@ func GetEnvMeta(ctx context.Context, appSlug, envName string) (*metav1.Data, err
 		return nil, fmt.Errorf("platform.GetEnvMeta: %v", err)
 	}
 	return &md, nil
+}
+
+func DBConnect(ctx context.Context, appSlug, envSlug, dbName string, startupData []byte) (*websocket.Conn, error) {
+	path := escapef("/apps/%s/envs/%s/sqldb-connect/%s", appSlug, envSlug, dbName)
+	return wsDial(ctx, path, true, map[string]string{
+		"X-Startup-Message": base64.StdEncoding.EncodeToString(startupData),
+	})
+}
+
+func escapef(format string, args ...string) string {
+	ifaces := make([]interface{}, len(args))
+	for i, arg := range args {
+		ifaces[i] = url.PathEscape(arg)
+	}
+	return fmt.Sprintf(format, ifaces...)
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"go4.org/syncutil"
 	"golang.org/x/oauth2"
@@ -28,6 +29,11 @@ var APIBaseURL = (func() string {
 		return u
 	}
 	return defaultPlatformURL
+})()
+
+// WSBaseURL is the base URL for communicating with the Encore Platform over WebSocket.
+var WSBaseURL = (func() string {
+	return strings.Replace(APIBaseURL, "http", "ws", -1) // "https" becomes "wss"
 })()
 
 // Dir reports the directory where Encore's configuration is stored.
@@ -163,6 +169,8 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 	return ts.ts.Token()
 }
 
+var DefaultTokenSource = &TokenSource{}
+
 // AuthClient is an *http.Client that authenticates requests
 // using the logged-in user.
-var AuthClient = oauth2.NewClient(nil, &TokenSource{})
+var AuthClient = oauth2.NewClient(nil, DefaultTokenSource)

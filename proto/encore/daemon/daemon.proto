@@ -95,7 +95,7 @@ message ResetDBRequest {
 
 message DBConnectRequest {
   string app_root = 1;
-  string svc_name = 2;
+  string db_name = 2;
   string env_name = 3; // optional
 }
 
