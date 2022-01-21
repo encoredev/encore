@@ -108,7 +108,9 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 					// Daemon is running a newer version
 					return cl
 				case diff == 0:
-					if resp.ConfigHash == version.ConfigHash() {
+					if configHash, err := version.ConfigHash(); err != nil {
+						fatal("unable to get config path: ", err)
+					} else if configHash == resp.ConfigHash {
 						return cl
 					}
 					// Daemon is running the same version but different config

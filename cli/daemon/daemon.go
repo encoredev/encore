@@ -131,9 +131,14 @@ func (s *Server) SetSecret(ctx context.Context, req *daemonpb.SetSecretRequest) 
 
 // Version reports the daemon version.
 func (s *Server) Version(context.Context, *empty.Empty) (*daemonpb.VersionResponse, error) {
+	configHash, err := version.ConfigHash()
+	if err != nil {
+		return nil, err
+	}
+
 	return &daemonpb.VersionResponse{
 		Version:    version.Version,
-		ConfigHash: version.ConfigHash(),
+		ConfigHash: configHash,
 	}, nil
 }
 
