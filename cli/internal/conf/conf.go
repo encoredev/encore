@@ -15,12 +15,19 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// These can be overwritten using
+// `go build -ldflags "-X encr.dev/cli/internal/conf.defaultPlatformURL=https://api.encore.dev"`.
+var (
+	defaultPlatformURL     = "https://api.encore.dev"
+	DefaultConfigDirectory = "encore"
+)
+
 // APIBaseURL is the base URL for communicating with the Encore Platform.
 var APIBaseURL = (func() string {
 	if u := os.Getenv("ENCORE_PLATFORM_API_URL"); u != "" {
 		return u
 	}
-	return "https://api.encore.dev"
+	return defaultPlatformURL
 })()
 
 // Dir reports the directory where Encore's configuration is stored.
@@ -31,7 +38,7 @@ func Dir() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		dir = filepath.Join(d, "encore")
+		dir = filepath.Join(d, DefaultConfigDirectory)
 	}
 	return dir, nil
 }

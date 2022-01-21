@@ -30,6 +30,13 @@ import (
 	"encr.dev/cli/internal/platform"
 )
 
+// These can be overwritten using
+// `go build -ldflags "-X main.defaultGitRemoteName=encore"`.
+var (
+	defaultGitRemoteName = "encore"
+	defaultGitRemoteURL  = "encore://"
+)
+
 func init() {
 	appCmd := &cobra.Command{
 		Use:   "app",
@@ -83,7 +90,7 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(c *cobra.Command, args []string) {
-			cmdArgs := append([]string{"clone", "encore://" + args[0]}, args[1:]...)
+			cmdArgs := append([]string{"clone", defaultGitRemoteURL + args[0]}, args[1:]...)
 			cmd := exec.Command("git", cmdArgs...)
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
@@ -520,7 +527,7 @@ func initGitRepo(path string, app *platform.App) (err error) {
 	}
 
 	if app != nil {
-		git("remote", "add", "encore", "encore://"+app.Slug)
+		git("remote", "add", defaultGitRemoteName, defaultGitRemoteURL+app.Slug)
 	}
 
 	return nil
@@ -536,7 +543,7 @@ func addEncoreRemote(root, appID string) {
 	}
 	out = bytes.TrimSpace(out)
 	if len(out) == 0 {
-		cmd = exec.Command("git", "remote", "add", "encore", "encore://"+appID)
+		cmd = exec.Command("git", "remote", "add", defaultGitRemoteName, defaultGitRemoteURL+appID)
 		cmd.Dir = root
 		if err := cmd.Run(); err == nil {
 			fmt.Println("Configured git remote 'encore' to push/pull with Encore.")
