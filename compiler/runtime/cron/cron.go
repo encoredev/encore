@@ -15,5 +15,11 @@ type Job struct {
 }
 
 func NewJob(id string, jobConfig JobConfig) *Job {
-	panic("encore apps must be run using the encore command")
+	return &Job{
+		ID:       id,
+		Name:     jobConfig.Name,
+		Doc:      jobConfig.Name,
+		Schedule: jobConfig.Schedule,
+		Endpoint: jobConfig.Endpoint,
+	}
 }
