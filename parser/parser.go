@@ -471,12 +471,11 @@ SpecLoop:
 
 func (p *parser) parseCronJobs() {
 	/*
-		var cj = cron.New(&cron.Job{
-			ID: "foo"
+		// A cron job that sends emails to new subscribers.
+		var _ = cron.NewJob("id", cron.JobConfig{
 			Name: "Foo",
-			Description: "Foo foo foo",
 			Schedule: "* * * * *",
-			Endpoint: CronEndpoint,
+			Endpoint: Cron,
 		})
 	*/
 	cp := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -488,13 +487,13 @@ func (p *parser) parseCronJobs() {
 				if !ok || gd.Tok != token.VAR {
 					continue
 				}
-				fset := token.NewFileSet()
-				ast.Print(fset, gd)
+
 				for _, s := range gd.Specs {
 					vs := s.(*ast.ValueSpec)
 					for _, x := range vs.Values {
 						if ce, ok := x.(*ast.CallExpr); ok {
 							if cronJob := p.parseCronJobStruct(cp, ce, file, info); cronJob != nil {
+								cronJob.Doc = strings.TrimSpace(gd.Doc.Text())
 								p.jobs = append(p.jobs, cronJob)
 							}
 						}
@@ -506,84 +505,79 @@ func (p *parser) parseCronJobs() {
 }
 
 func (p *parser) parseCronJobStruct(cp cron.Parser, ce *ast.CallExpr, file *est.File, info *names.File) *est.CronJob {
-	if t, ok := ce.Fun.(*ast.SelectorExpr); ok {
-		if id, ok := t.X.(*ast.Ident); ok && id.Name == "cron" && t.Sel.Name == "New" {
+	if se, ok := ce.Fun.(*ast.SelectorExpr); ok {
+		if id, ok := se.X.(*ast.Ident); ok && id.Name == "cron" && se.Sel.Name == "NewJob" {
 			ri := info.Idents[id]
 			if ri.ImportPath != cronImportPath {
-				p.errf(id.Pos(), "cron.New must be declared in %s", cronImportPath)
+				p.errf(id.Pos(), "cron.NewJob must be declared in %s", cronImportPath)
 				return nil
 			}
-			if len(ce.Args) != 1 {
-				p.errf(ce.Pos(), "cron.New must be called with exactly one argument")
+			if len(ce.Args) != 2 {
+				p.errf(ce.Pos(), "cron.NewJob must be called with exactly one argument")
 				return nil
 			}
 
-			if j, ok := ce.Args[0].(*ast.UnaryExpr); ok && j.Op == token.AND {
-				if cl, ok := j.X.(*ast.CompositeLit); ok {
-					if sl, ok := cl.Type.(*ast.SelectorExpr); ok {
-						if slid, ok := sl.X.(*ast.Ident); ok && slid.Name == "cron" && sl.Sel.Name == "Job" {
-							cj := &est.CronJob{}
-							for _, e := range cl.Elts {
-								kv := e.(*ast.KeyValueExpr)
-								key, ok := kv.Key.(*ast.Ident)
-								if !ok {
-									p.errf(kv.Pos(), "cron.Job key must be an identifier")
-									return nil
-								}
-								switch key.Name {
-								case "ID":
-									if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
-										parsed, _ := strconv.Unquote(v.Value)
-										cj.ID = parsed
-									} else {
-										p.errf(v.Pos(), "cron.Job.ID must be a string literal")
-										return nil
-									}
-								case "Name":
-									if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
-										parsed, _ := strconv.Unquote(v.Value)
-										cj.Name = parsed
-									} else {
-										p.errf(v.Pos(), "cron.Job.Name must be a string literal")
-										return nil
-									}
-								case "Description":
-									if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
-										parsed, _ := strconv.Unquote(v.Value)
-										cj.Description = parsed
-									} else {
-										p.errf(v.Pos(), "cron.Job.Description must be a string literal")
-										return nil
-									}
-								case "Schedule":
-									if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
-										parsed, _ := strconv.Unquote(v.Value)
-										cj.Schedule = parsed
-										_, err := cp.Parse(cj.Schedule)
-										if err != nil {
-											p.errf(v.Pos(), "cron.Job.Schedule must be a valid cron expression: %s", err)
-											return nil
-										}
-									} else {
-										p.errf(v.Pos(), "cron.Job.Schedule must be a string literal")
-										return nil
-									}
-								case "Endpoint":
-									if id, ok := kv.Value.(*ast.Ident); ok {
-										if ref, ok := file.References[id]; ok && ref.Type == est.RPCRefNode {
-											cj.RPC = ref.RPC
-										} else {
-											p.errf(id.NamePos, "cron.Job.Endpoint: %s is not an RPC", id.Name)
-											return nil
-										}
-									}
-								default:
-									p.errf(key.Pos(), "cron.Job has unknown key %s", key.Name)
-									return nil
-								}
+			cj := &est.CronJob{}
+			if bl, ok := ce.Args[0].(*ast.BasicLit); ok && bl.Kind == token.STRING {
+				cronJobID, _ := strconv.Unquote(bl.Value)
+				cj.ID = cronJobID
+				cj.Name = cronJobID // Set ID as the default name
+			} else {
+				p.errf(ce.Pos(), "cron.NewJob must be called with a string literal as its first argument")
+				return nil
+			}
+
+			if cl, ok := ce.Args[1].(*ast.CompositeLit); ok {
+				if se, ok := cl.Type.(*ast.SelectorExpr); ok {
+					if id, ok := se.X.(*ast.Ident); ok && id.Name == "cron" && se.Sel.Name == "JobConfig" {
+						for _, e := range cl.Elts {
+							kv := e.(*ast.KeyValueExpr)
+							key, ok := kv.Key.(*ast.Ident)
+							if !ok {
+								p.errf(kv.Pos(), "cron.JobConfig key must be an identifier")
+								return nil
 							}
-							return cj
+							switch key.Name {
+							case "Name":
+								if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+									parsed, _ := strconv.Unquote(v.Value)
+									cj.Name = parsed
+								} else {
+									p.errf(v.Pos(), "cron.JobConfig.Name must be a string literal")
+									return nil
+								}
+							case "Schedule":
+								if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+									parsed, _ := strconv.Unquote(v.Value)
+									cj.Schedule = parsed
+									_, err := cp.Parse(cj.Schedule)
+									if err != nil {
+										p.errf(v.Pos(), "cron.JobConfig.Schedule must be a valid cron expression: %s", err)
+										return nil
+									}
+								} else {
+									p.errf(v.Pos(), "cron.JobConfig.Schedule must be a string literal")
+									return nil
+								}
+							case "Endpoint":
+								if id, ok := kv.Value.(*ast.Ident); ok {
+									if ref, ok := file.References[id]; ok && ref.Type == est.RPCRefNode {
+										cj.RPC = ref.RPC
+									} else {
+										p.errf(id.NamePos, "cron.JobConfig.Endpoint: %s is not an RPC", id.Name)
+										return nil
+									}
+								}
+							default:
+								p.errf(key.Pos(), "cron.JobConfig has unknown key %s", key.Name)
+								return nil
+							}
 						}
+						_, err := cj.IsValid()
+						if err != nil {
+							p.errf(cl.Pos(), "cron.Job: %s", err)
+						}
+						return cj
 					}
 				}
 			}

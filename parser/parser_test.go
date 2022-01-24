@@ -141,7 +141,7 @@ func TestMain(m *testing.M) {
 				}
 			}
 			for _, job := range res.App.CronJobs {
-				fmt.Fprintf(os.Stdout, "cronJob %s name=%v desc=%v\n", job.ID, job.Name, job.Description)
+				fmt.Fprintf(os.Stdout, "cronJob %s name=%s\n", job.ID, job.Name)
 			}
 			for _, pkg := range res.App.Packages {
 				for _, res := range pkg.Resources {

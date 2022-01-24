@@ -1,13 +1,19 @@
 package cron
 
-type Job struct {
-	ID          string
-	Name        string
-	Description string
-	Schedule    string
-	Endpoint    interface{}
+type JobConfig struct {
+	Name     string
+	Schedule string
+	Endpoint interface{}
 }
 
-func New(j *Job) *Job {
-	return j
+type Job struct {
+	ID       string
+	Name     string
+	Doc      string
+	Schedule string
+	Endpoint interface{}
+}
+
+func NewJob(id string, jobConfig JobConfig) *Job {
+	panic("encore apps must be run using the encore command")
 }

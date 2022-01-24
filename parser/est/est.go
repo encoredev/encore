@@ -5,6 +5,7 @@
 package est
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 
@@ -55,11 +56,27 @@ type Service struct {
 }
 
 type CronJob struct {
-	ID          string
-	Name        string
-	Description string
-	Schedule    string
-	RPC         *RPC
+	ID       string
+	Name     string
+	Doc      string
+	Schedule string
+	RPC      *RPC
+	AST      *ast.ValueSpec
+}
+
+func (cj *CronJob) IsValid() (bool, error) {
+	switch {
+	case cj.ID == "":
+		return false, errors.New("field ID is required")
+	case cj.Name == "":
+		return false, errors.New("field Name is required")
+	case cj.Schedule == "":
+		return false, errors.New("field Schedule is required")
+	case cj.RPC == nil:
+		return false, errors.New("field RPC is required")
+	}
+
+	return true, nil
 }
 
 type Param struct {

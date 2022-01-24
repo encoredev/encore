@@ -1,7 +1,10 @@
 # Verify the cron job definition
 parse
 stdout 'rpc svc.Cron access=public raw=false path=/cron'
-stdout 'cronJob foo name=Foo desc=Foo'
+stdout 'cronJob cronfooboo name=Cron Foo Boo'
+stdout 'cronJob cronfoo name=Cron Foo Bar'
+stdout 'cronJob cronfood name=Cron Food Bar'
+stdout 'cronJob cronfoocious name=Cron Foo Bar Bazz'
 
 -- svc/svc.go --
 package svc
@@ -12,16 +15,64 @@ import (
 	"encore.dev/cron"
 )
 
-var cj = cron.New(&cron.Job{
-	ID:          "foo",
-	Name:        "Foo",
-    Description: "Foo",
-    Schedule:    "45 23 * * 6",
-	Endpoint:    Cron,
+var _ = cron.NewJob("cronfooboo", cron.JobConfig{
+	Name:     "Cron Foo Boo",
+	Schedule: "* * * * 5",
+	Endpoint: Cron,
 })
+
+// A cron job to send out emails to newsletter subscribers.
+// On two lines.
+var _ = cron.NewJob("cronfoo", cron.JobConfig{
+	Name:     "Cron Foo Bar",
+	Schedule: "* * * * 5",
+	Endpoint: Cron,
+})
+
+/*
+	In this example, we are defining a cron job, together with
+	a random string.
+
+	var _, bd = cron.NewJob("cronfood", cron.JobConfig{
+		Name:     "Cron Food Bar",
+		Schedule: "* * * * 5",
+		Endpoint: Cron,
+	}), "barfoo"
+
+	We are being very explicit, and we are also giving a description
+	that includes a code snippet.
+*/
+var _, bd = cron.NewJob("cronfood", cron.JobConfig{
+	Name:     "Cron Food Bar",
+	Schedule: "* * * * 5",
+	Endpoint: Cron,
+}), "barfoo"
+
+// A cron job to send out push notiifications to new subscribers.
+var _ = cron.NewJob("cronfoocious", cron.JobConfig{
+	Name:     "Cron Foo Bar Bazz",
+	Schedule: "* * * * 4",
+	Endpoint: Cron,
+})
+
+func init() {
+	// A cron job to export the database to a file.
+	var _ = cron.NewJob("cronfoobar", cron.JobConfig{
+		Name:     "Cron Foo Bar",
+		Schedule: "* * * * 5",
+		Endpoint: Cron,
+	})
+}
 
 //encore:api public path=/cron
 func Cron(ctx context.Context) (*Response, error) {
+	// A cron job to send out emails to newsletter subscribers.
+	_ = cron.NewJob("cronfoobuzz", cron.JobConfig{
+		Name:     "Cron Foo Bar Bazz",
+		Schedule: "* * * * 4",
+		Endpoint: World,
+	})
+
 	msg := "Hello, Cron!"
 	return &Response{Message: msg}, nil
 }
