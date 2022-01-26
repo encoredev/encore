@@ -490,7 +490,6 @@ func (p *parser) parseCronJobs() {
 				if !ok || gd.Tok != token.VAR {
 					continue
 				}
-
 				for _, s := range gd.Specs {
 					vs := s.(*ast.ValueSpec)
 					for _, x := range vs.Values {
@@ -618,7 +617,6 @@ func (p *parser) validateCronJob(pkg *est.Package, expr ast.Expr, info *names.Fi
 							p.errf(pkg.AST.Pos(), "cron job %s needs to be defined at package level", cronJobID)
 						}
 					}
-
 				}
 			}
 		}
@@ -646,7 +644,6 @@ func (p *parser) validateCronJobs() {
 									p.validateCronJob(pkg, x, info)
 								}
 							}
-
 						case *ast.AssignStmt:
 							for _, x := range stmt.Rhs {
 								p.validateCronJob(pkg, x, info)
