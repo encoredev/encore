@@ -8,6 +8,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// These can be overwritten using
+// `go build -ldflags "-X encr.dev/cli/internal/env.alternativeEncoreRuntimePath=$HOME/src/github.com/encoredev/current-runtime"`.
+var (
+	alternativeEncoreRuntimePath = ""
+	alternativeEncoreGoPath      = ""
+)
+
 // EncoreRuntimePath reports the path to the Encore runtime.
 // It can be overridden by setting ENCORE_RUNTIME_PATH.
 func EncoreRuntimePath() string {
@@ -33,6 +40,9 @@ func EncoreGoRoot() string {
 func encoreRuntimePath() string {
 	if p := os.Getenv("ENCORE_RUNTIME_PATH"); p != "" {
 		return p
+	} else if //goland:noinspection GoBoolExpressions
+	alternativeEncoreRuntimePath != "" {
+		return alternativeEncoreRuntimePath
 	} else if root, ok := determineRoot(); ok {
 		return filepath.Join(root, "runtime")
 	}
@@ -42,6 +52,9 @@ func encoreRuntimePath() string {
 func encoreGoRoot() string {
 	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
 		return p
+	} else if //goland:noinspection GoBoolExpressions
+	alternativeEncoreGoPath != "" {
+		return alternativeEncoreGoPath
 	} else if root, ok := determineRoot(); ok {
 		return filepath.Join(root, "encore-go")
 	}
