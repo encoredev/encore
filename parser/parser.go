@@ -46,6 +46,7 @@ type parser struct {
 	svcs        []*est.Service
 	jobs        []*est.CronJob
 	svcMap      map[string]*est.Service // name -> svc
+	jobsMap     map[string]*est.CronJob // ID -> job
 	names       map[*est.Package]*names.Resolution
 	authHandler *est.AuthHandler
 	declMap     map[string]*schema.Decl // pkg/path.Name -> decl
@@ -122,8 +123,9 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.parseServices()
 	p.parseResources()
 	p.parseReferences()
-	p.parseSecrets()
 	p.parseCronJobs()
+	p.parseSecrets()
+	p.validateCronJobs()
 	p.validateApp()
 
 	sort.Slice(p.pkgs, func(i, j int) bool {
@@ -478,6 +480,7 @@ func (p *parser) parseCronJobs() {
 			Endpoint: Cron,
 		})
 	*/
+	p.jobsMap = make(map[string]*est.CronJob)
 	cp := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
@@ -493,8 +496,13 @@ func (p *parser) parseCronJobs() {
 					for _, x := range vs.Values {
 						if ce, ok := x.(*ast.CallExpr); ok {
 							if cronJob := p.parseCronJobStruct(cp, ce, file, info); cronJob != nil {
-								cronJob.Doc = strings.TrimSpace(gd.Doc.Text())
+								cronJob.Doc = gd.Doc.Text()
+								if cronJob2 := p.jobsMap[cronJob.ID]; cronJob2 != nil {
+									p.errf(pkg.AST.Pos(), "cron job %s defined twice", cronJob.ID)
+									continue
+								}
 								p.jobs = append(p.jobs, cronJob)
+								p.jobsMap[cronJob.ID] = cronJob
 							}
 						}
 					}
@@ -584,6 +592,71 @@ func (p *parser) parseCronJobStruct(cp cron.Parser, ce *ast.CallExpr, file *est.
 		}
 	}
 	return nil
+}
+
+func (p *parser) validateCronJob(pkg *est.Package, expr ast.Expr, info *names.File) {
+	if call, ok := expr.(*ast.CallExpr); ok {
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+			if id, ok := sel.X.(*ast.Ident); ok {
+				ri := info.Idents[id]
+				if ri == nil {
+					return
+				}
+
+				// We have "var x = pkg.Foo()" which is the shape we're looking for.
+				// Check what package it is.
+				switch ri.ImportPath {
+				case cronImportPath:
+					if id.Name == "cron" && sel.Sel.Name == "NewJob" {
+						var cronJobID string
+						if bl, ok := call.Args[0].(*ast.BasicLit); ok && bl.Kind == token.STRING {
+							cronJobID, _ = strconv.Unquote(bl.Value)
+						} else {
+							p.errf(call.Pos(), "cron.NewJob must be called with a string literal as its first argument")
+						}
+						if cronJob := p.jobsMap[cronJobID]; cronJob == nil {
+							p.errf(pkg.AST.Pos(), "cron job %s needs to be defined at package level", cronJobID)
+						}
+					}
+
+				}
+			}
+		}
+	}
+}
+
+// validateCronJobs validates all cron jobs in the packages.
+func (p *parser) validateCronJobs() {
+	for _, pkg := range p.pkgs {
+		for _, file := range pkg.Files {
+			info := p.names[pkg].Files[file]
+			for _, decl := range file.AST.Decls {
+				switch decl := decl.(type) {
+				case *ast.FuncDecl:
+					for _, stmt := range decl.Body.List {
+						switch stmt := stmt.(type) {
+						case *ast.DeclStmt:
+							gd, ok := stmt.Decl.(*ast.GenDecl)
+							if !ok || gd.Tok != token.VAR {
+								continue
+							}
+							for _, s := range gd.Specs {
+								vs := s.(*ast.ValueSpec)
+								for _, x := range vs.Values {
+									p.validateCronJob(pkg, x, info)
+								}
+							}
+
+						case *ast.AssignStmt:
+							for _, x := range stmt.Rhs {
+								p.validateCronJob(pkg, x, info)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 // validateApp performs full-app validation after everything has been parsed.
