@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"reflect"
 	"strconv"
 	"unicode"
 
@@ -132,7 +133,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr) *s
 		p.err(expr.Pos(), "cannot use function types in Encore schema definitions")
 
 	default:
-		p.errf(expr.Pos(), "%s is not a type", types.ExprString(expr))
+		p.errf(expr.Pos(), "%s is not a supported type; got %+v", types.ExprString(expr), reflect.TypeOf(expr))
 	}
 
 	panic(bailout{})

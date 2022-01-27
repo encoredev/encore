@@ -7,50 +7,11 @@ import (
 	"go/scanner"
 	"go/token"
 	pathpkg "path"
+	"reflect"
 	"strconv"
 
 	"encr.dev/parser/est"
 )
-
-// TrackedPackages defines the set of packages to track,
-// defined as a map from import path to package name.
-//
-// It is used to allow Resolve to efficiently determine
-// the name of a package given its import path, as one
-// otherwise needs to parse the package source to find it.
-type TrackedPackages map[string]string
-
-// Resolution represents the name resolution results.
-type Resolution struct {
-	Decls map[string]*PkgDecl // package-level declarations, keyed by name
-	Files map[*est.File]*File
-}
-
-// PkgDecl provides metadata for a package-level declaration.
-type PkgDecl struct {
-	Name string
-	File *est.File
-	Pos  token.Pos
-	Type token.Token   // CONST, TYPE, VAR, FUNC
-	Func *ast.FuncDecl // for Type == FUNC
-	Spec ast.Spec      // for other types
-	Doc  string
-}
-
-// File provides file-level name resolution results.
-type File struct {
-	PathToName map[string]string    // path -> local name
-	NameToPath map[string]string    // local name -> path
-	Idents     map[*ast.Ident]*Name // ident -> resolved
-	Calls      []*ast.CallExpr
-}
-
-// Name provides metadata for a single identifier.
-type Name struct {
-	Package    bool   // package symbol
-	Local      bool   // locally defined symbol
-	ImportPath string // non-zero indicates it resolves to the package with the given import path
-}
 
 // Resolve resolves information about the names (idents) in the given package.
 // The reported error is of type scanner.ErrorList if non-nil.
@@ -396,138 +357,13 @@ func (r *resolver) expr(expr ast.Expr) {
 		return
 	}
 
-	switch expr := expr.(type) {
-	case *ast.Ident:
-		r.ident(expr)
-
-	case *ast.Ellipsis:
-		r.expr(expr.Elt)
-
-	case *ast.FuncLit:
-		r.openScope()
-		defer r.closeScope()
-
-		// First resolve types before introducing names
-		for _, param := range expr.Type.Params.List {
-			r.expr(param.Type)
+	for _, resolver := range languageLevelResolvers {
+		if resolver.expr(r, expr) {
+			return
 		}
-		if expr.Type.Results != nil {
-			for _, result := range expr.Type.Results.List {
-				r.expr(result.Type)
-			}
-		}
-
-		for _, field := range expr.Type.Params.List {
-			for _, name := range field.Names {
-				r.define(name, &Name{Local: true})
-			}
-		}
-		if expr.Type.Results != nil {
-			for _, field := range expr.Type.Results.List {
-				for _, name := range field.Names {
-					r.define(name, &Name{Local: true})
-				}
-			}
-		}
-		if expr.Body != nil {
-			r.stmt(expr.Body)
-		}
-
-	case *ast.CompositeLit:
-		r.expr(expr.Type)
-		r.exprList(expr.Elts)
-
-	case *ast.ParenExpr:
-		r.expr(expr.X)
-
-	case *ast.SelectorExpr:
-		r.expr(expr.X)
-		r.expr(expr.Sel)
-
-	case *ast.IndexExpr:
-		r.expr(expr.X)
-		r.expr(expr.Index)
-
-	case *ast.SliceExpr:
-		r.expr(expr.X)
-		r.expr(expr.Low)
-		r.expr(expr.High)
-		r.expr(expr.Max)
-
-	case *ast.TypeAssertExpr:
-		r.expr(expr.X)
-		r.expr(expr.Type)
-
-	case *ast.CallExpr:
-		r.Calls = append(r.Calls, expr)
-		r.expr(expr.Fun)
-		r.exprList(expr.Args)
-
-	case *ast.StarExpr:
-		r.expr(expr.X)
-
-	case *ast.UnaryExpr:
-		r.expr(expr.X)
-
-	case *ast.BinaryExpr:
-		r.expr(expr.X)
-		r.expr(expr.Y)
-
-	case *ast.KeyValueExpr:
-		// HACK: We want to track uses of functions. This is tricky because
-		// struct types use keys that are idents that refer to the struct field,
-		// while map types can use keys to refer to idents in scope.
-		//
-		// Unfortunately We cannot easily know the type of the composite literal
-		// without typechecking. However, funcs are incomparable and therefore
-		// are not valid as map keys. So let's simply avoid tracking idents
-		// in the keys, and rely on the compiler to eventually catch this for us.
-		if _, ok := expr.Key.(*ast.Ident); !ok {
-			r.expr(expr.Key)
-		}
-		r.expr(expr.Value)
-
-	case *ast.ArrayType:
-		r.expr(expr.Len)
-		r.expr(expr.Elt)
-
-	case *ast.StructType:
-		for _, field := range expr.Fields.List {
-			r.expr(field.Type)
-			// Don't look at names; they don't resolve to outside scope
-		}
-
-	case *ast.FuncType:
-		for _, field := range expr.Params.List {
-			r.expr(field.Type)
-			// Don't look at names; they don't resolve to outside scope
-		}
-		if expr.Results != nil {
-			for _, field := range expr.Results.List {
-				r.expr(field.Type)
-				// Don't look at names; they don't resolve to outside scope
-			}
-		}
-
-	case *ast.InterfaceType:
-		for _, field := range expr.Methods.List {
-			r.expr(field.Type)
-			// Don't look at names; they don't resolve to outside scope
-		}
-
-	case *ast.MapType:
-		r.expr(expr.Key)
-		r.expr(expr.Value)
-
-	case *ast.ChanType:
-		r.expr(expr.Value)
-
-	case *ast.BadExpr, *ast.BasicLit:
-		// do nothing
-
-	default:
-		panic(fmt.Sprintf("unhandled ast.Expr type: %T", expr))
 	}
+
+	panic(fmt.Sprintf("unhandled ast.Expr type: %+v", reflect.TypeOf(expr)))
 }
 
 func (r *resolver) stmtList(stmts []ast.Stmt) {
@@ -565,40 +401,4 @@ func (r *resolver) openScope() {
 
 func (r *resolver) closeScope() {
 	r.scope = r.scope.Pop()
-}
-
-// scope maps names to information about them.
-type scope struct {
-	names  map[string]*Name
-	parent *scope
-}
-
-func newScope(parent *scope) *scope {
-	return &scope{
-		names:  make(map[string]*Name),
-		parent: parent,
-	}
-}
-
-func (s *scope) Pop() *scope {
-	return s.parent
-}
-
-func (s *scope) Insert(name string, r *Name) {
-	if name != "_" {
-		s.names[name] = r
-	}
-}
-
-func (s *scope) Lookup(name string) *Name {
-	return s.names[name]
-}
-
-func (s *scope) LookupParent(name string) *Name {
-	if r := s.names[name]; r != nil {
-		return r
-	} else if s.parent != nil {
-		return s.parent.LookupParent(name)
-	}
-	return nil
 }

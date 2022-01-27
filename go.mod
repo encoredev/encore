@@ -15,6 +15,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
 	github.com/gorilla/websocket v1.4.2
+	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce
 	github.com/jackc/pgproto3/v2 v2.0.7
 	github.com/jackc/pgx/v4 v4.10.1
