@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"path/filepath"
 	"strings"
+
+	"encr.dev/parser/internal"
 )
 
 type bailout struct{}
@@ -18,7 +20,7 @@ func (p *parser) err(pos token.Pos, msg string) {
 	} else if n > 10 {
 		panic(bailout{})
 	}
-	p.errors.Add(pp, msg)
+	internal.AddErrToList(&p.errors, pp, msg)
 }
 
 func (p *parser) errf(pos token.Pos, format string, args ...interface{}) {

@@ -18,8 +18,12 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "encore",
-	Short: "encore is the fastest way of developing backend applications",
+	Use:           "encore",
+	Short:         "encore is the fastest way of developing backend applications",
+	SilenceErrors: true, // We'll handle displaying an error in our main func
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true, // Hide the "completion" command from help (used for generating auto-completions for the shell)
+	},
 }
 
 func main() {

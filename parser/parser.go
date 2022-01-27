@@ -79,7 +79,7 @@ func (p *parser) Parse() (res *Result, err error) {
 				const size = 64 << 10
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
-				err = fmt.Errorf("parser panicked:\n%s", buf)
+				err = fmt.Errorf("parser panicked: %+v\n%s", e, buf)
 			}
 		}
 		if err == nil {
