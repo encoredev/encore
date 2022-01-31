@@ -4,88 +4,141 @@ option go_package = "encr.dev/proto/encore/parser/schema/v1";
 
 package encore.parser.schema.v1;
 
+// Type represents the base of our schema on which everything else is built on-top of. It has to be one, and only one,
+// thing from our list of meta types.
+//
+// A type may be concrete or abstract, however to determine if a type is abstract you need to recursive through the
+// structures looking for any uses of the TypeParameterPtr type
 message Type {
   oneof typ {
-    Named named = 1;
-    Struct struct = 2;
-    Map map = 3;
-    List list = 4;
-    Builtin builtin = 5;
+    /* Concrete / non-parameterized Types */
+    Named            named          = 1; // A "named" type (https://tip.golang.org/ref/spec#Types)
+    Struct           struct         = 2; // The type is a struct definition
+    Map              map            = 3; // The type is a map
+    List             list           = 4; // The type is a slice
+    Builtin          builtin        = 5; // The type is one of the base built in types within Go
+
+    /* Abstract Types */
+    TypeParameterRef type_parameter = 6; // This is placeholder for a unknown type within the declaration block
   }
 }
 
+// TypeParameterRef is a reference to a `TypeParameter` within a declaration block
+message TypeParameterRef {
+  uint32 decl_id   = 1; // The ID of the declaration block
+  uint32 param_idx = 2; // The index of the type parameter within the declaration block
+}
+
+// Decl represents the declaration of a type within the Go code which is either concrete or _parameterized_. The type is
+// concrete when there are zero type parameters assigned.
+//
+// For example the Go Code:
+// ```
+// // Set[A] represents our set type
+// type Set[A any] = map[A]struct{}
+// ```
+//
+// Would become:
+// ```
+// _ = &Decl{
+//     id: 1,
+//     name: "Set",
+//     type: &Type{
+//         typ_map: &Map{
+//             key: &Type { typ_type_parameter: ... reference to "A" type parameter below ... },
+//             value: &Type { typ_struct: ... empty struct type ... },
+//         },
+//     },
+//     typeParameters: []*TypeParameter{ { name: "A" } },
+//     doc: "Set[A] represents our set type",
+//     loc: &Loc { ... },
+// }
+// ```
 message Decl {
-  uint32 id = 1;
-  string name = 2;     // type name
-  Type type = 3;
-  string doc = 4;
-  Loc loc = 5;
+  uint32                 id          = 1; // A internal ID which we can refer to this declaration by
+  string                 name        = 2; // The name of the type as assigned in the code
+  Type                   type        = 3; // The underlying type of this declaration
+  repeated TypeParameter type_params = 6; // Any type parameters on this declaration (note; instantiated types used within this declaration would not be captured here)
+  string                 doc         = 4; // The comment block on the type
+  Loc                    loc         = 5; // The location of the declaration within the project
 }
 
+// TypeParameter acts as a place holder for an (as of yet) unknown type in the declaration; the type parameter is
+// replaced with a type argument upon instantiation of the parameterized function or type.
+message TypeParameter {
+  string name = 1; // The identifier given to the type parameter
+}
+
+// Loc is the location of a declaration within the code base
 message Loc {
-  string pkg_path = 1;
-  string pkg_name = 2;
-  string filename = 3;
-  int32 start_pos = 4;
-  int32 end_pos = 5;
-  int32 src_line_start = 6;
-  int32 src_line_end = 7;
-  int32 src_col_start = 8;
-  int32 src_col_end = 9;
+  string pkg_path       = 1; // The package path within the repo (i.e. `users/signup`)
+  string pkg_name       = 2; // The package name (i.e. `signup`)
+  string filename       = 3; // The file name (i.e. `signup.go`)
+  int32  start_pos      = 4; // The starting index within the file for this node
+  int32  end_pos        = 5; // The ending index within the file for this node
+  int32  src_line_start = 6; // The starting line within the file for this node
+  int32  src_line_end   = 7; // The ending line within the file for this node
+  int32  src_col_start  = 8; // The starting column on the starting line for this node
+  int32  src_col_end    = 9; // The ending column on the ending line for this node
 }
 
+// Named references declaration block by name
 message Named {
-  uint32 id = 1;
+  uint32   id                  = 1; // The `Decl.id` this name refers to
+  repeated Type type_arguments = 2; // The type arguments used to instantiate this parameterised declaration
 }
 
+// Struct contains a list of fields which make up the struct
 message Struct {
   repeated Field fields = 1;
 }
 
+// Field represents a field within a struct
 message Field {
-  Type typ = 1;
-  string name = 2;
-  string doc = 3;
-  // The optional json name if it's different from the field name.
-  // The value "-" indicates to omit the field.
-  string json_name = 4;
-  // Whether the field is optional.
-  bool optional = 5;
-  // The query string name to use in GET/HEAD/DELETE requests.
-  // The value "-" indicates to omit the field.
-  string query_string_name = 6;
+  Type   typ               = 1; // The type of the field
+  string name              = 2; // The name of the field
+  string doc               = 3; // The comment for the field
+  string json_name         = 4; // The optional json name if it's different from the field name. (The value "-" indicates to omit the field.)
+  bool   optional          = 5; // Whether the field is optional.
+  string query_string_name = 6; // The query string name to use in GET/HEAD/DELETE requests. (The value "-" indicates to omit the field.)
 }
 
+// Map represents a map Type
 message Map {
-  Type key = 1;
-  Type value = 2;
+  Type key   = 1; // The type of the key for this map
+  Type value = 2; // The type of the value of this map
 }
 
+// List represents a list type (array or slice)
 message List {
-  Type elem = 1;
+  Type elem = 1; // The type of the elements in the list
 }
 
+// Builtin represents a type which Encore (and Go) have inbuilt support for and so can be represented by Encore's tooling
+// directly, rather than needing to understand the full implementation details of how the type is structured.
 enum Builtin {
-  ANY = 0;
-  BOOL = 1;
-  INT8 = 2;
-  INT16 = 3;
-  INT32 = 4;
-  INT64 = 5;
-  UINT8  = 6;
-  UINT16 = 7;
-  UINT32 = 8;
-  UINT64 = 9;
+  /* Inbuilt Go Types */
+  ANY     = 0;
+  BOOL    = 1;
+  INT8    = 2;
+  INT16   = 3;
+  INT32   = 4;
+  INT64   = 5;
+  UINT8   = 6;
+  UINT16  = 7;
+  UINT32  = 8;
+  UINT64  = 9;
   FLOAT32 = 10;
   FLOAT64 = 11;
-  STRING = 12;
-  BYTES = 13;
+  STRING  = 12;
+  BYTES   = 13;
 
-  TIME = 14;
-  UUID = 15;
-  JSON = 16;
+  /* Additional Encore Types */
+  TIME    = 14;
+  UUID    = 15;
+  JSON    = 16;
   USER_ID = 17;
 
-  INT = 18;
-  UINT = 19;
+  INT     = 18;
+  UINT    = 19;
 }

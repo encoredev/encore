@@ -4,6 +4,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
@@ -147,6 +148,17 @@ func (p *parser) Parse() (res *Result, err error) {
 	}, nil
 }
 
+// encoreBuildContext creates a build context that mirrors what we pass onto the go compiler once the we trigger a build
+// of the application. This allows us to ignore `go` files which would be exlcuded during the build.
+//
+// For instance if a file has the directive `//go:build !encore` in it
+func encoreBuildContext() build.Context {
+	buildContext := build.Default
+	buildContext.ToolTags = append(buildContext.ToolTags, "encore")
+
+	return buildContext
+}
+
 // collectPackages collects and parses the regular Go AST
 // for all subdirectories in the root.
 func collectPackages(fs *token.FileSet, rootDir, rootImportPath string, mode goparser.Mode, parseTests bool) ([]*est.Package, error) {
@@ -155,8 +167,11 @@ func collectPackages(fs *token.FileSet, rootDir, rootImportPath string, mode gop
 	filter := func(f os.FileInfo) bool {
 		return parseTests || !strings.HasSuffix(f.Name(), "_test.go")
 	}
+
+	buildContext := encoreBuildContext()
+
 	err := walkDirs(rootDir, func(dir, relPath string, files []os.FileInfo) error {
-		ps, pkgFiles, err := parseDir(fs, dir, relPath, filter, mode)
+		ps, pkgFiles, err := parseDir(buildContext, fs, dir, relPath, filter, mode)
 		if err != nil {
 			// If the error is an error list, it means we have a parsing error.
 			// Keep going with other directories in that case.

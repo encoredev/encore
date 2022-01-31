@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
@@ -62,7 +63,7 @@ func walkDir(dir, rel string, walkFn walkFunc) error {
 }
 
 // parseDir is like go/parser.ParseDir but it constructs *est.File objects instead.
-func parseDir(fset *token.FileSet, dir, relPath string, filter func(os.FileInfo) bool, mode goparser.Mode) (pkgs map[string]*ast.Package, files []*est.File, err error) {
+func parseDir(buildContext build.Context, fset *token.FileSet, dir, relPath string, filter func(os.FileInfo) bool, mode goparser.Mode) (pkgs map[string]*ast.Package, files []*est.File, err error) {
 	fd, err := os.Open(dir)
 	if err != nil {
 		return nil, nil, err
@@ -86,6 +87,16 @@ func parseDir(fset *token.FileSet, dir, relPath string, filter func(os.FileInfo)
 			contents, err := ioutil.ReadFile(filename)
 			if err != nil {
 				return nil, nil, err
+			}
+
+			// Check if this file should be part of the build
+			matched, err := buildContext.MatchFile(dir, d.Name())
+			if err != nil {
+				errors.Add(token.Position{Filename: filename}, err.Error())
+				continue
+			}
+			if !matched {
+				continue
 			}
 
 			src, err := goparser.ParseFile(fset, filename, contents, mode)

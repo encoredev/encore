@@ -15,7 +15,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
 	github.com/gorilla/websocket v1.4.2
-	github.com/hashicorp/go-version v1.4.0 // indirect
+	github.com/hashicorp/go-version v1.4.0
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce
 	github.com/jackc/pgproto3/v2 v2.0.7
 	github.com/jackc/pgx/v4 v4.10.1
@@ -29,11 +29,11 @@ require (
 	go.uber.org/goleak v1.1.10
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/mod v0.5.0
+	golang.org/x/mod v0.5.1
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
-	golang.org/x/tools v0.1.5
+	golang.org/x/tools v0.1.9
 	golang.zx2c4.com/wireguard v0.0.0-20210728232740-bad6caeb82ed
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20210803171230-4253848d036c
 	golang.zx2c4.com/wireguard/windows v0.4.1

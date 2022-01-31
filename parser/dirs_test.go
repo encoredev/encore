@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"go/build"
 	goparser "go/parser"
 	"go/token"
 	"os"
@@ -127,7 +128,8 @@ package fo/;
 		c.Assert(err, qt.IsNil, qt.Commentf("test #%d", i))
 
 		fs := token.NewFileSet()
-		pkgs, files, err := parseDir(fs, base, ".", nil, goparser.ParseComments)
+		context := build.Default
+		pkgs, files, err := parseDir(context, fs, base, ".", nil, goparser.ParseComments)
 		if test.Err != "" {
 			c.Assert(err, qt.ErrorMatches, test.Err)
 			continue
