@@ -260,7 +260,7 @@ func (p *parser) initTypedRPC(rpc *est.RPC, dir *rpcDirective) {
 					name, pp.Value, pp.String())
 				continue
 			}
-			typ := p.resolveType(rpc.Svc.Root, rpc.File, param.Type)
+			typ := p.resolveType(rpc.Svc.Root, rpc.File, param.Type, nil)
 			if !p.validatePathParamType(param, name, typ, pp.Type) {
 				continue
 			}

@@ -11,13 +11,14 @@ import (
 	"github.com/fatih/structtag"
 
 	"encr.dev/parser/est"
-	"encr.dev/parser/internal/names"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
+var additionalTypeResolver = func(p *parser, pkg *est.Package, file *est.File, expr ast.Expr) *schema.Type { return nil }
+
 // resolveType parses the schema from a type expression.
 func (p *parser) resolveDecl(pkg *est.Package, file *est.File, expr ast.Expr) *schema.Decl {
-	typ := p.resolveType(pkg, file, expr)
+	typ := p.resolveType(pkg, file, expr, nil)
 	n := typ.GetNamed()
 	if n == nil {
 		p.errf(expr.Pos(), "%s is not a named type", types.ExprString(expr))
@@ -27,29 +28,38 @@ func (p *parser) resolveDecl(pkg *est.Package, file *est.File, expr ast.Expr) *s
 }
 
 // resolveType parses the schema from a type expression.
-func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr) *schema.Type {
+func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) *schema.Type {
 	expr = deref(expr)
-	names := p.names[pkg]
+	pkgNames := p.names[pkg]
 
 	switch expr := expr.(type) {
 	case *ast.Ident:
+		// Check if we have a type parameter defined for this
+		if ref, ok := typeParameters[expr.Name]; ok {
+			return &schema.Type{Typ: &schema.Type_TypeParameter{TypeParameter: ref}}
+		}
+
 		// Local type name or universe scope
-		if d, ok := names.Decls[expr.Name]; ok && d.Type == token.TYPE {
-			return p.parseDecl(pkg, d)
-		} else if b, ok := builtinTypes[expr.Name]; ok {
+		if d, ok := pkgNames.Decls[expr.Name]; ok && d.Type == token.TYPE {
+			return p.parseDecl(pkg, d, typeParameters)
+		}
+
+		// Finally check if it's a built-in type
+		if b, ok := builtinTypes[expr.Name]; ok {
 			return &schema.Type{
 				Typ: &schema.Type_Builtin{Builtin: b},
 			}
 		}
+
 		p.errf(expr.Pos(), "undefined type: %s", expr.Name)
 
 	case *ast.SelectorExpr:
 		// pkg.T
 		if pkgName, ok := expr.X.(*ast.Ident); ok {
-			pkgPath := names.Files[file].NameToPath[pkgName.Name]
+			pkgPath := pkgNames.Files[file].NameToPath[pkgName.Name]
 			if otherPkg, ok := p.pkgMap[pkgPath]; ok {
 				if d, ok := p.names[otherPkg].Decls[expr.Sel.Name]; ok && d.Type == token.TYPE {
-					return p.parseDecl(otherPkg, d)
+					return p.parseDecl(otherPkg, d, typeParameters)
 				}
 			} else {
 				return p.parseEncoreBuiltin(expr.Pos(), pkgPath, expr.Sel.Name)
@@ -73,7 +83,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr) *s
 		}
 
 		for _, field := range expr.Fields.List {
-			typ := p.resolveType(pkg, file, field.Type)
+			typ := p.resolveType(pkg, file, field.Type, typeParameters)
 			if len(field.Names) == 0 {
 				p.err(field.Pos(), "cannot use anonymous fields in Encore struct types")
 			}
@@ -111,12 +121,12 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr) *s
 		return &schema.Type{Typ: &schema.Type_Struct{Struct: st}}
 
 	case *ast.MapType:
-		key := p.resolveType(pkg, file, expr.Key)
-		value := p.resolveType(pkg, file, expr.Value)
+		key := p.resolveType(pkg, file, expr.Key, typeParameters)
+		value := p.resolveType(pkg, file, expr.Value, typeParameters)
 		return &schema.Type{Typ: &schema.Type_Map{Map: &schema.Map{Key: key, Value: value}}}
 
 	case *ast.ArrayType:
-		elem := p.resolveType(pkg, file, expr.Elt)
+		elem := p.resolveType(pkg, file, expr.Elt, typeParameters)
 		// Translate []byte to BYTES
 		if b, ok := elem.Typ.(*schema.Type_Builtin); ok && b.Builtin == schema.Builtin_UINT8 {
 			return &schema.Type{Typ: &schema.Type_Builtin{Builtin: schema.Builtin_BYTES}}
@@ -133,37 +143,14 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr) *s
 		p.err(expr.Pos(), "cannot use function types in Encore schema definitions")
 
 	default:
+		if resolvedType := additionalTypeResolver(p, pkg, file, expr); resolvedType != nil {
+			return resolvedType
+		}
+
 		p.errf(expr.Pos(), "%s is not a supported type; got %+v", types.ExprString(expr), reflect.TypeOf(expr))
 	}
 
 	panic(bailout{})
-}
-
-// parseDecl parses the type from a package declaration.
-func (p *parser) parseDecl(pkg *est.Package, d *names.PkgDecl) *schema.Type {
-	key := pkg.ImportPath + "." + d.Name
-	decl, ok := p.declMap[key]
-	if !ok {
-		// We haven't parsed this yet; do so now.
-		// Allocate a decl immediately so that we can properly handle
-		// recursive types by short-circuiting above the second time we get here.
-		id := uint32(len(p.decls))
-		typ := d.Spec.(*ast.TypeSpec).Type
-		decl = &schema.Decl{
-			Id:   id,
-			Name: d.Name,
-			Doc:  d.Doc,
-			Loc:  parseLoc(d.File, typ),
-			// Type is set below
-		}
-		p.declMap[key] = decl
-		p.decls = append(p.decls, decl)
-		decl.Type = p.resolveType(pkg, d.File, d.Spec.(*ast.TypeSpec).Type)
-	}
-
-	return &schema.Type{Typ: &schema.Type_Named{
-		Named: &schema.Named{Id: decl.Id},
-	}}
 }
 
 func (p *parser) parseEncoreBuiltin(pos token.Pos, pkgPath, name string) *schema.Type {
