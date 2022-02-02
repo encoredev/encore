@@ -754,9 +754,14 @@ func (b *Builder) writeDecoder(f *File) {
 	f.Line()
 }
 
-func (b *Builder) typeName(param *est.Param, skipPtr bool) Code {
-	decl := param.Decl
-	typName := Qual(decl.Loc.PkgPath, decl.Name)
+func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
+	// Reconstruct a named type to make the schemaTypeToGoType function slightly easier to recursive over
+	// TODO(domblack): in the future we should change `est.Param` to contain the schema.Type directly
+	typName := b.schemaTypeToGoType(&schema.Type{Typ: &schema.Type_Named{Named: &schema.Named{
+		Id:            param.Decl.Id,
+		TypeArguments: param.TypeArguments,
+	}}})
+
 	if param.IsPtr && !skipPtr {
 		typName = Op("*").Add(typName)
 	}

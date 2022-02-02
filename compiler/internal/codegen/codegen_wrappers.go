@@ -199,9 +199,6 @@ func (b *Builder) builtinType(t schema.Builtin) *Statement {
 func (b *Builder) namedType(f *File, param *est.Param) *Statement {
 	decl := param.Decl
 	f.ImportName(decl.Loc.PkgPath, decl.Loc.PkgName)
-	q := Qual(decl.Loc.PkgPath, decl.Name)
-	if param.IsPtr {
-		return Op("*").Add(q)
-	}
-	return q
+
+	return b.typeName(param, false)
 }
