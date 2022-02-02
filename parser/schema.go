@@ -16,15 +16,16 @@ import (
 
 var additionalTypeResolver = func(p *parser, pkg *est.Package, file *est.File, expr ast.Expr) *schema.Type { return nil }
 
-// resolveType parses the schema from a type expression.
-func (p *parser) resolveDecl(pkg *est.Package, file *est.File, expr ast.Expr) *schema.Decl {
+// resolveType parses the schema from a type expression and returns any type arguments
+func (p *parser) resolveDecl(pkg *est.Package, file *est.File, expr ast.Expr) (*schema.Decl, []*schema.Type) {
 	typ := p.resolveType(pkg, file, expr, nil)
 	n := typ.GetNamed()
 	if n == nil {
 		p.errf(expr.Pos(), "%s is not a named type", types.ExprString(expr))
 		panic(bailout{})
 	}
-	return p.decls[n.Id]
+
+	return p.decls[n.Id], n.TypeArguments
 }
 
 // resolveType parses the schema from a type expression.

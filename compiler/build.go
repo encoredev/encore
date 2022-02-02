@@ -1,16 +1,21 @@
 package compiler
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 
+	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
@@ -373,6 +378,18 @@ func makeErrsRelative(out []byte, workdir, appRoot, relwd string) []byte {
 		appPath := filepath.Join(appRoot, string(filename[len(prefix):]))
 		if rel, err := filepath.Rel(wdroot, appPath); err == nil {
 			lines[i] = append([]byte(rel), line[idx:]...)
+
+			// If this is an encore generated code file, let's grab the surrounding source code
+			if strings.Contains(rel, "__encore_") {
+				parts := strings.SplitN(string(line), ":", 4)
+				if len(parts) >= 3 {
+					sourceCode := readSourceOfError(parts[0], parts[1], parts[2])
+					if sourceCode != "" {
+						lines[i] = append(lines[i], []byte(sourceCode)...)
+					}
+				}
+			}
+
 			modified = true
 		}
 	}
@@ -381,4 +398,81 @@ func makeErrsRelative(out []byte, workdir, appRoot, relwd string) []byte {
 		return out
 	}
 	return bytes.Join(lines, []byte{'\n'})
+}
+
+// readSourceOfError returns the 15 lines of code surrounding the error with a pointer to the error on the error line
+//
+// This code outputs something line this;
+//
+// ```
+//  9 | func myFunc() {
+// 10 |   x := 5
+// 11 |   y := "hello"
+// 12 |   z := x + y
+//    |~~~~~~~~~~^
+// 13 |   fmt.Println(z)
+// 14 | }
+// ```
+func readSourceOfError(filename string, lineNumberStr string, columnNumberStr string) string {
+	const linesBeforeError = 10
+	const linesAfterError = 5
+
+	lineNumber, err := strconv.ParseInt(lineNumberStr, 10, 64)
+	if err != nil {
+		log.Error().AnErr("error", err).Msgf("Unable to parse line number: %s", lineNumberStr)
+		return ""
+	}
+
+	columnNumber, err := strconv.ParseInt(columnNumberStr, 10, 64)
+	if err != nil {
+		log.Error().AnErr("error", err).Msgf("Unable to parse column number: %s", columnNumberStr)
+		return ""
+	}
+
+	numDigitsInLineNumbers := int(math.Log10(float64(lineNumber+linesAfterError) + 1))
+	lineNumberFmt := fmt.Sprintf(" %%%dd | ", numDigitsInLineNumbers)
+
+	f, err := os.Open(filename)
+	if err != nil {
+		log.Error().AnErr("error", err).Str("filename", filename).Msg("Unable to open file")
+		return ""
+	}
+	defer func() { _ = f.Close() }()
+
+	var (
+		builder     strings.Builder
+		currentLine int64
+	)
+
+	builder.WriteRune('\n')
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		currentLine++
+
+		if currentLine >= lineNumber-linesBeforeError {
+			// Write the line number
+			builder.WriteString(fmt.Sprintf(lineNumberFmt, currentLine))
+
+			// Then the line of code itself
+			builder.WriteString(sc.Text())
+			builder.WriteRune('\n')
+		}
+
+		if currentLine == lineNumber {
+			// Write empty line number column
+			builder.WriteString(strings.Repeat(" ", numDigitsInLineNumbers+2))
+			builder.WriteString(" |")
+
+			// Write a pointer to the error
+			builder.WriteString(strings.Repeat("~", int(columnNumber)+1))
+			builder.WriteString("^\n")
+		}
+
+		if currentLine > lineNumber+linesAfterError {
+			break
+		}
+	}
+
+	return builder.String()
 }

@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.2.8
 	github.com/alecthomas/chroma v0.8.2
 	github.com/briandowns/spinner v1.12.0
-	github.com/dave/jennifer v1.4.1
+	github.com/dave/jennifer v1.5.0
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structtag v1.2.0
 	github.com/frankban/quicktest v1.13.0

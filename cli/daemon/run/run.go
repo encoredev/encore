@@ -349,7 +349,7 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 		Meta:      params.Meta,
 		exit:      make(chan struct{}),
 		buildDir:  params.BuildDir,
-		log:       r.log.With().Str("procID", pid).Logger(),
+		log:       r.log.With().Str("procID", pid).Str("buildDir", params.BuildDir).Logger(),
 		symParsed: make(chan struct{}),
 	}
 	go p.parseSymTable(params.BinPath)

@@ -154,7 +154,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 					Path:        path,
 					HTTPMethods: dir.Method,
 				}
-				p.initRPC(rpc, dir)
+				p.initRPC(rpc)
 
 				svc.RPCs = append(svc.RPCs, rpc)
 				isService = true
@@ -185,11 +185,11 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 	return isService
 }
 
-func (p *parser) initRPC(rpc *est.RPC, dir *rpcDirective) {
+func (p *parser) initRPC(rpc *est.RPC) {
 	if rpc.Raw {
 		p.initRawRPC(rpc)
 	} else {
-		p.initTypedRPC(rpc, dir)
+		p.initTypedRPC(rpc)
 	}
 
 	for _, m := range rpc.HTTPMethods {
@@ -204,7 +204,7 @@ func (p *parser) initRPC(rpc *est.RPC, dir *rpcDirective) {
 	}
 }
 
-func (p *parser) initTypedRPC(rpc *est.RPC, dir *rpcDirective) {
+func (p *parser) initTypedRPC(rpc *est.RPC) {
 	const sigHint = `
 	hint: valid signatures are:
 	- func(context.Context) error
@@ -226,8 +226,8 @@ func (p *parser) initTypedRPC(rpc *est.RPC, dir *rpcDirective) {
 		return
 	}
 
-	names := p.names[rpc.Svc.Root]
-	info := names.Files[rpc.File]
+	pkgNames := p.names[rpc.Svc.Root]
+	info := pkgNames.Files[rpc.File]
 
 	// First type should always be context.Context
 	req := params.List[0].Type
@@ -273,16 +273,8 @@ func (p *parser) initTypedRPC(rpc *est.RPC, dir *rpcDirective) {
 				p.err(param.Pos(), "APIs cannot have multiple payload parameters")
 				continue
 			}
-			decl := p.resolveDecl(rpc.Svc.Root, rpc.File, param.Type)
-			if decl.Type.GetStruct() == nil {
-				p.err(param.Pos(), "payload parameter must be a struct type")
-				continue
-			}
-			_, isPtr := param.Type.(*ast.StarExpr)
-			rpc.Request = &est.Param{
-				IsPtr: isPtr,
-				Decl:  decl,
-			}
+
+			rpc.Request = p.resolveParameter("payload parameter", rpc.Svc.Root, rpc.File, param.Type)
 		}
 	}
 	if seenParams < len(pathParams) {
@@ -296,15 +288,7 @@ func (p *parser) initTypedRPC(rpc *est.RPC, dir *rpcDirective) {
 	// First return value must be *T or *pkg.T
 	if numResults >= 2 {
 		result := results.List[0]
-		decl := p.resolveDecl(rpc.Svc.Root, rpc.File, result.Type)
-		if decl.Type.GetStruct() == nil {
-			p.err(result.Pos(), "response type must be a struct type")
-		}
-		_, isPtr := result.Type.(*ast.StarExpr)
-		rpc.Response = &est.Param{
-			IsPtr: isPtr,
-			Decl:  decl,
-		}
+		rpc.Response = p.resolveParameter("response", rpc.Svc.Root, rpc.File, result.Type)
 	}
 
 	if numResults > 2 {
@@ -317,7 +301,7 @@ func (p *parser) initTypedRPC(rpc *est.RPC, dir *rpcDirective) {
 	if id, ok := err.Type.(*ast.Ident); !ok || id.Name != "error" {
 		p.err(err.Pos(), "last result is not of type error"+sigHint)
 		return
-	} else if names.Decls["error"] != nil {
+	} else if pkgNames.Decls["error"] != nil {
 		p.err(err.Pos(), "last result is not of type error (local name shadows builtin)"+sigHint)
 		return
 	}
@@ -443,8 +427,8 @@ func (p *parser) validateAuthHandler(h *est.AuthHandler) {
 		return
 	}
 
-	names := p.names[h.Svc.Root]
-	info := names.Files[h.File]
+	pkgNames := p.names[h.Svc.Root]
+	info := pkgNames.Files[h.File]
 
 	// First param must be context.Context
 	req, _ := getField(params, 0)
@@ -462,7 +446,7 @@ func (p *parser) validateAuthHandler(h *est.AuthHandler) {
 	if id, ok := tok.Type.(*ast.Ident); !ok || id.Name != "string" {
 		p.err(tok.Type.Pos(), "second parameter must be of type string"+sigHint)
 		return
-	} else if names.Decls["string"] != nil {
+	} else if pkgNames.Decls["string"] != nil {
 		p.err(tok.Type.Pos(), "second parameter must be of type string (local name shadows builtin)"+sigHint)
 		return
 	}
@@ -481,15 +465,8 @@ func (p *parser) validateAuthHandler(h *est.AuthHandler) {
 	if numResults == 3 {
 		// Second result must be *T or *pkg.T
 		authData, _ := getField(results, 1)
-		decl := p.resolveDecl(h.Svc.Root, h.File, authData.Type)
-		if decl.Type.GetStruct() == nil {
-			p.err(authData.Pos(), "auth data must be a struct type")
-		}
-		_, isPtr := authData.Type.(*ast.StarExpr)
-		h.AuthData = &est.Param{
-			IsPtr: isPtr,
-			Decl:  decl,
-		}
+
+		h.AuthData = p.resolveParameter("auth data", h.Svc.Root, h.File, authData.Type)
 	}
 
 	// Last result must be error
@@ -497,9 +474,24 @@ func (p *parser) validateAuthHandler(h *est.AuthHandler) {
 	if id, ok := err.Type.(*ast.Ident); !ok || id.Name != "error" {
 		p.err(err.Pos(), "last result is not of type error"+sigHint)
 		return
-	} else if names.Decls["error"] != nil {
+	} else if pkgNames.Decls["error"] != nil {
 		p.err(err.Pos(), "last result is not of type error (local name shadows builtin)"+sigHint)
 		return
+	}
+}
+
+func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *est.File, expr ast.Expr) *est.Param {
+	decl, typeArguments := p.resolveDecl(pkg, file, expr)
+
+	if decl.Type.GetStruct() == nil {
+		p.err(expr.Pos(), fmt.Sprintf("%s must be a struct type", parameterType))
+	}
+	_, isPtr := expr.(*ast.StarExpr)
+
+	return &est.Param{
+		IsPtr:         isPtr,
+		Decl:          decl,
+		TypeArguments: typeArguments,
 	}
 }
 
