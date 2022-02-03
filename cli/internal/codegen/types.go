@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -18,8 +19,8 @@ func getNamedTypes(md *meta.Data) *typeRegistry {
 	for _, svc := range md.Svcs {
 		for _, rpc := range svc.Rpcs {
 			if rpc.AccessType != meta.RPC_PRIVATE {
-				r.VisitDecl(rpc.RequestSchema)
-				r.VisitDecl(rpc.ResponseSchema)
+				r.Visit(rpc.RequestSchema)
+				r.Visit(rpc.ResponseSchema)
 			}
 		}
 	}
@@ -34,11 +35,6 @@ type typeRegistry struct {
 	seenDecls  map[uint32]bool
 	declRefs   map[uint32]map[uint32]bool // tracks which decls reference which other decls
 	currDecl   *schema.Decl               // may be nil
-}
-
-type namedType struct {
-	pkg  string
-	name string
 }
 
 func (v *typeRegistry) Decls(name string) []*schema.Decl {
@@ -70,14 +66,14 @@ func (v *typeRegistry) Visit(typ *schema.Type) {
 		for _, f := range t.Struct.Fields {
 			v.Visit(f.Typ)
 		}
-	case *schema.Type_Builtin:
+	case *schema.Type_Builtin, *schema.Type_TypeParameter:
 		// do nothing
 	default:
-		panic(fmt.Sprintf("unhandled type: %T", typ))
+		panic(fmt.Sprintf("unhandled type: %+v", reflect.TypeOf(typ.Typ)))
 	}
 }
 
-func (v *typeRegistry) VisitDecl(decl *schema.Decl) {
+func (v *typeRegistry) visitDecl(decl *schema.Decl) {
 	if decl == nil {
 		return
 	}
@@ -107,7 +103,7 @@ func (v *typeRegistry) visitNamed(n *schema.Named) {
 	}
 
 	decl := v.md.Decls[to]
-	v.VisitDecl(decl)
+	v.visitDecl(decl)
 
 	// Add transitive refs
 	if curr != nil {
@@ -115,6 +111,10 @@ func (v *typeRegistry) visitNamed(n *schema.Named) {
 		for to2 := range v.declRefs[to] {
 			v.declRefs[from][to2] = true
 		}
+	}
+
+	for _, typeArg := range n.TypeArguments {
+		v.Visit(typeArg)
 	}
 }
 

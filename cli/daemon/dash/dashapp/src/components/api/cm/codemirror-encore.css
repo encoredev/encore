@@ -12,6 +12,21 @@
   border-radius: 0.25rem;
 }
 
+.request-docs .cm-s-encore, .response-docs .cm-s-encore {
+  --color-bg: transparent;
+}
+
+.response-docs .cm-s-encore {
+  --color-green: #008000;
+  --color-yellow: #0000FF;
+  --color-purple: #000080;
+  --color-red: #FF0000;
+  --color-blue: #000080;
+  --color-white: #000;
+  --color-selection: #bdcee5;
+  color: var(--color-white);
+}
+
 .cm-s-encore.CodeMirror {
   background-color: var(--color-bg);
 }

@@ -5,6 +5,7 @@ import {Base64EncodedBytes, decodeBase64} from "~lib/base64"
 import {timeToDate} from "~lib/time"
 import {DBQuery, Event, HTTPCall, LogMessage, Request, RPCCall, Stack, Trace} from "./model"
 import {latencyStr, svcColor} from "./util"
+import CM from "~c/api/cm/CM"
 
 interface Props {
   trace: Trace;
@@ -466,7 +467,18 @@ const renderData = (data: Base64EncodedBytes[]) => {
     const json = JSON.parse(raw)
     pretty = JSON.stringify(json, undefined, "  ")
   } catch(err) { /* do nothing */ }
-  return <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">{pretty}</pre>
+  return <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm response-docs">
+    <CM
+      key={pretty}
+      cfg={{
+        value: pretty,
+        readOnly: true,
+        theme: "encore",
+        mode: { name: "javascript", json: true },
+      }}
+      noShadow={true}
+    />
+  </pre>
 }
 
 const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[]) => {
@@ -489,9 +501,18 @@ const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[
   }
 
   return (
-    <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">
+    <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm response-docs">
       {pathParams.map((s, i) => <div key={i}><span className="text-gray-400">{s.value}:</span> {raw[i]}</div>)}
-      {payload !== undefined && <div>{pathParams.length > 0 && <span className="text-gray-400">payload:{" "}</span>}{payload}</div>}
+      {payload !== undefined && <div>{pathParams.length > 0 && <span className="text-gray-400">payload:{" "}</span>}<CM
+          key={payload}
+          cfg={{
+            value: payload,
+            readOnly: true,
+            theme: "encore",
+            mode: { name: "javascript", json: true },
+          }}
+          noShadow={true}
+      /></div>}
     </pre>
   )
 }

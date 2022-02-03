@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strconv"
 	"strings"
 
@@ -481,17 +482,23 @@ func (p *parser) validateAuthHandler(h *est.AuthHandler) {
 }
 
 func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *est.File, expr ast.Expr) *est.Param {
-	decl, typeArguments := p.resolveDecl(pkg, file, expr)
+	typ := p.resolveType(pkg, file, expr, nil)
 
-	if decl.Type.GetStruct() == nil {
-		p.err(expr.Pos(), fmt.Sprintf("%s must be a struct type", parameterType))
+	// Check it's a supported parameter type (i.e. a named type which is a structure)
+	n := typ.GetNamed()
+	if n == nil {
+		p.errf(expr.Pos(), "%s is not a named type", types.ExprString(expr))
+		panic(bailout{})
+	}
+
+	if p.decls[n.Id].Type.GetStruct() == nil {
+		p.errf(expr.Pos(), "%s must be a struct type", parameterType)
 	}
 	_, isPtr := expr.(*ast.StarExpr)
 
 	return &est.Param{
-		IsPtr:         isPtr,
-		Decl:          decl,
-		TypeArguments: typeArguments,
+		IsPtr: isPtr,
+		Type:  typ,
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -188,12 +189,12 @@ func (ts *ts) writeService(svc *meta.Service) {
 				ts.WriteString(", ")
 			}
 			ts.WriteString(payloadName + ": ")
-			ts.writeDecl(ns, rpc.RequestSchema)
+			ts.writeTyp(ns, rpc.RequestSchema, 0)
 		}
 
 		ts.WriteString("): Promise<")
 		if rpc.ResponseSchema != nil {
-			ts.writeDecl(ns, rpc.ResponseSchema)
+			ts.writeTyp(ns, rpc.ResponseSchema, 0)
 		} else {
 			ts.WriteString("void")
 		}
@@ -214,8 +215,9 @@ func (ts *ts) writeService(svc *meta.Service) {
 		switch method {
 		case "GET", "HEAD", "DELETE":
 			methodHasBody = false
-			if rpc.RequestSchema != nil {
-				for _, f := range rpc.RequestSchema.Type.GetStruct().Fields {
+			if rpc.RequestSchema != nil && rpc.RequestSchema.GetNamed() != nil {
+				decl := ts.md.Decls[rpc.RequestSchema.GetNamed().Id]
+				for _, f := range decl.Type.GetStruct().Fields {
 					if f.QueryStringName == "-" || f.JsonName == "-" {
 						continue
 					}
@@ -247,7 +249,7 @@ func (ts *ts) writeService(svc *meta.Service) {
 			ts.WriteString("return this.baseClient.doVoid")
 		} else {
 			ts.WriteString("return this.baseClient.do<")
-			ts.writeDecl(svc.Name, rpc.ResponseSchema)
+			ts.writeTyp(svc.Name, rpc.ResponseSchema, 0)
 			ts.WriteByte('>')
 		}
 		fmt.Fprintf(ts, `("%s", `+"`%s`", method, rpcPath.String())
@@ -295,12 +297,27 @@ func (ts *ts) writeDeclDef(ns string, decl *schema.Decl) {
 		ts.WriteString("     */\n")
 	}
 
+	var typeParams strings.Builder
+	if len(decl.TypeParams) > 0 {
+		typeParams.WriteRune('<')
+
+		for i, typeParam := range decl.TypeParams {
+			if i > 0 {
+				typeParams.WriteString(", ")
+			}
+
+			typeParams.WriteString(typeParam.Name)
+		}
+
+		typeParams.WriteRune('>')
+	}
+
 	// If it's a struct type, expose it as an interface;
 	// other types should be type aliases.
 	if st := decl.Type.GetStruct(); st != nil {
-		fmt.Fprintf(ts, "    export interface %s ", decl.Name)
+		fmt.Fprintf(ts, "    export interface %s%s ", decl.Name, typeParams.String())
 	} else {
-		fmt.Fprintf(ts, "    export type %s = ", decl.Name)
+		fmt.Fprintf(ts, "    export type %s%s = ", decl.Name, typeParams.String())
 	}
 	ts.currDecl = decl
 	ts.writeTyp(ns, decl.Type, 1)
@@ -423,6 +440,21 @@ func (ts *ts) writeTyp(ns string, typ *schema.Type, numIndents int) {
 	case *schema.Type_Named:
 		decl := ts.md.Decls[typ.Named.Id]
 		ts.writeDecl(ns, decl)
+
+		// Write the type arguments
+		if len(typ.Named.TypeArguments) > 0 {
+			ts.WriteRune('<')
+
+			for i, typeArg := range typ.Named.TypeArguments {
+				if i > 0 {
+					ts.WriteString(", ")
+				}
+
+				ts.writeTyp(ns, typeArg, 0)
+			}
+
+			ts.WriteRune('>')
+		}
 	case *schema.Type_List:
 		elem := typ.List.Elem
 		ts.writeTyp(ns, elem, numIndents)
@@ -521,6 +553,15 @@ func (ts *ts) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		}
 		ts.WriteString(strings.Repeat("    ", numIndents))
 		ts.WriteByte('}')
+
+	case *schema.Type_TypeParameter:
+		decl := ts.md.Decls[typ.TypeParameter.DeclId]
+		typeParam := decl.TypeParams[typ.TypeParameter.ParamIdx]
+
+		ts.WriteString(typeParam.Name)
+
+	default:
+		ts.errorf("unknown type %+v", reflect.TypeOf(typ))
 	}
 }
 

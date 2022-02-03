@@ -1,79 +1,4 @@
-package codegen
-
-import (
-	"strings"
-	"testing"
-
-	qt "github.com/frankban/quicktest"
-	"github.com/rogpeppe/go-internal/txtar"
-
-	"encr.dev/parser"
-)
-
-func TestTypeScript(t *testing.T) {
-	c := qt.New(t)
-
-	const code = `
--- go.mod --
-module app
-
--- encore.app --
-{"id": ""}
-
--- svc/svc.go --
-package svc
-
-import "encoding/json"
-
-type Request struct {
-    Foo Foo
-    Bar string ` + "`json:\"-\"`" + `
-    Baz string ` + "`json:\"boo\"`" + `
-    Raw json.RawMessage
-}
-
-type GetRequest struct {
-    Bar string ` + "`qs:\"-\"`" + `
-    Baz string ` + "`qs:\"boo\"`" + `
-}
-
-type Foo int
-
--- svc/api.go --
-package svc
-
-import "context"
-
-//encore:api public
-func DummyAPI(ctx context.Context, req *Request) error {
-    return nil
-}
-
-//encore:api public method=GET
-func Get(ctx context.Context, req *GetRequest) error {
-    return nil
-}
-
-//encore:api public path=/path/:a/:b
-func RESTPath(ctx context.Context, a string, b int) error {
-    return nil
-}
-`
-
-	ar := txtar.Parse([]byte(code))
-	base := t.TempDir()
-	err := txtar.Write(ar, base)
-	c.Assert(err, qt.IsNil)
-
-	res, err := parser.Parse(&parser.Config{
-		AppRoot:    base,
-		ModulePath: "app",
-	})
-	c.Assert(err, qt.IsNil)
-
-	ts, err := Client(TypeScript, "app", res.Meta)
-	c.Assert(err, qt.IsNil)
-	expect := `export default class Client {
+export default class Client {
     svc: svc.ServiceClient
 
     constructor(environment: string = "prod", token?: string) {
@@ -91,10 +16,19 @@ export namespace svc {
     }
 
     export interface Request {
-        Foo: Foo
+        Foo?: Foo
         boo: string
         Raw: JSONValue
     }
+
+    export interface Tuple<A, B> {
+        A: A
+        B: B
+    }
+
+    export type WrappedRequest = Wrapper<Request>
+
+    export type Wrapper<T> = T
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -104,18 +38,22 @@ export namespace svc {
         }
 
         public DummyAPI(params: Request): Promise<void> {
-            return this.baseClient.doVoid("POST", ` + "`/svc.DummyAPI`" + `, params)
+            return this.baseClient.doVoid("POST", `/svc.DummyAPI`, params)
         }
 
         public Get(params: GetRequest): Promise<void> {
             const query: any[] = [
                 "boo", params.Baz,
             ]
-            return this.baseClient.doVoid("GET", ` + "`/svc.Get?${encodeQuery(query)}`" + `)
+            return this.baseClient.doVoid("GET", `/svc.Get?${encodeQuery(query)}`)
         }
 
         public RESTPath(a: string, b: number): Promise<void> {
-            return this.baseClient.doVoid("GET", ` + "`/path/${a}/${b}`" + `)
+            return this.baseClient.doVoid("GET", `/path/${a}/${b}`)
+        }
+
+        public TupleInputOutput(params: Tuple<string, WrappedRequest>): Promise<Tuple<boolean, Foo>> {
+            return this.baseClient.do<Tuple<boolean, Foo>>("POST", `/svc.TupleInputOutput`, params)
         }
     }
 }
@@ -135,7 +73,7 @@ class BaseClient {
         if (environment === "local") {
             this.baseURL = "http://localhost:4000"
         } else {
-            this.baseURL = ` + "`" + `https://app.encoreapi.com/${environment}` + "`" + `
+            this.baseURL = `https://app.encoreapi.com/${environment}`
         }
     }
 
@@ -175,12 +113,8 @@ function encodeQuery(parts: any[]): string {
             val = [val]
         }
         for (const v of val) {
-            pairs.push(` + "`${key}=${encodeURIComponent(v)}`" + `)
+            pairs.push(`${key}=${encodeURIComponent(v)}`)
         }
     }
     return pairs.join("&")
-}
-`
-
-	c.Assert(strings.Split(string(ts), "\n"), qt.DeepEquals, strings.Split(expect, "\n"))
 }

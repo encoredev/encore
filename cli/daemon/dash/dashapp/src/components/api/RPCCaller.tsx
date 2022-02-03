@@ -8,7 +8,8 @@ import JSONRPCConn from "~lib/client/jsonrpc";
 import {copyToClipboard} from "~lib/clipboard";
 import {APIMeta, PathSegment, RPC, Service} from "./api";
 import CM from "./cm/CM";
-import {BuiltinType, Decl, ListType, MapType, NamedType, StructType, Type} from "./schema";
+import {Type} from "./schema";
+import {JSONDialect} from "~c/api/SchemaView";
 
 interface Props {
   conn: JSONRPCConn;
@@ -30,122 +31,6 @@ export const cfg: EditorConfiguration = {
   autoCloseBrackets: true,
   matchBrackets: true,
   styleActiveLine: false,
-}
-
-class JSONRenderer {
-  buf: string[];
-  level: number;
-  md: APIMeta;
-  seenDecls: Set<number>;
-
-  constructor(md: APIMeta) {
-    this.buf = []
-    this.level = 0
-    this.md = md
-    this.seenDecls = new Set()
-  }
-
-  render(d: Decl): string {
-    this.writeType(d.type)
-    return this.buf.join("")
-  }
-
-  private writeType(t: Type) {
-    t.struct ? this.renderStruct(t.struct) :
-    t.map ? this.renderMap(t.map) :
-    t.list ? this.renderList(t.list) :
-    t.builtin ? this.write(this.renderBuiltin(t.builtin)) :
-    t.named ? this.renderNamed(t.named)
-    : this.write("<unknown type>")
-  }
-
-  private renderNamed(t: NamedType) {
-    if (this.seenDecls.has(t.id)) {
-      this.write("null")
-      return
-    }
-
-    // Add the decl to our map while recursing to avoid infinite recursion.
-    this.seenDecls.add(t.id)
-    const decl = this.md.decls[t.id]
-    this.writeType(decl.type)
-    this.seenDecls.delete(t.id)
-  }
-
-  private renderStruct(t: StructType) {
-    this.writeln("{")
-    this.level++
-    for (let i = 0; i < t.fields.length; i++) {
-      const f = t.fields[i]
-      this.indent()
-      this.write(`"${f.json_name !== "" ? f.json_name : f.name}": `)
-      this.writeType(f.typ)
-      if (i < (t.fields.length-1)) {
-        this.write(",")
-      }
-      this.writeln()
-    }
-    this.level--
-    this.indent()
-    this.write("}")
-  }
-
-  private renderMap(t: MapType) {
-    this.writeln("{")
-    this.level++
-    this.indent()
-    this.writeType(t.key)
-    this.write(": ")
-    this.writeType(t.value)
-    this.writeln()
-    this.write("}")
-  }
-
-  private renderList(t: ListType) {
-    this.write("[")
-    this.writeType(t.elem)
-    this.write("]")
-  }
-
-  private renderBuiltin(t: BuiltinType) {
-    switch (t) {
-    case BuiltinType.Any: return "<any>"
-    case BuiltinType.Bool: return "true"
-    case BuiltinType.Int: return "1"
-    case BuiltinType.Int8: return "1"
-    case BuiltinType.Int16: return "1"
-    case BuiltinType.Int32: return "1"
-    case BuiltinType.Int64: return "1"
-    case BuiltinType.Uint: return "1"
-    case BuiltinType.Uint8: return "1"
-    case BuiltinType.Uint16: return "1"
-    case BuiltinType.Uint32: return "1"
-    case BuiltinType.Uint64: return "1"
-    case BuiltinType.Float32: return "2.3"
-    case BuiltinType.Float64: return "2.3"
-    case BuiltinType.String: return "\"some string\""
-    case BuiltinType.Bytes: return "\"base64-encoded-bytes\""
-    case BuiltinType.Time: return "\"2009-11-10T23:00:00Z\""
-    case BuiltinType.UUID: return "\"7d42f515-3517-4e76-be13-30880443546f\""
-    case BuiltinType.JSON: return "{\"some json data\": true}"
-    default: return "<unknown>"
-    }
-  }
-
-  private indent() {
-    this.write(" ".repeat(this.level*4))
-  }
-
-  private write(...strs: string[]) {
-    for (const s of strs) {
-      this.buf.push(s)
-    }
-  }
-
-  private writeln(...strs: string[]) {
-    this.write(...strs)
-    this.write("\n")
-  }
 }
 
 const APICallButton: FC<{send: () => void; copyCurl: () => void;}> = (props) => {
@@ -227,7 +112,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
       if (method === "GET" || method === "HEAD" || method === "DELETE") {
         if (payload !== "") {
           try {
-            path += "?" + encodeQuery(rpc.request_schema, payload)
+            path += "?" + encodeQuery(md, rpc.request_schema, payload)
           } catch(err) {
             setResponse(undefined)
             setRespErr(`could not parse payload as JSON: ${err}`)
@@ -274,7 +159,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
     if (rpc.request_schema) {
       let doc = docs.current.get(rpc)
       if (doc === undefined) {
-        const js = new JSONRenderer(md).render(rpc.request_schema!)
+        const js = new JSONDialect(md).renderAsText(rpc.request_schema!)
         doc = new CodeMirror.Doc(js, {
           name: "javascript",
           json: true
@@ -344,7 +229,18 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         Response {loading && icons.loading("ml-1 h-5 w-5", "#A081D9", "transparent", 4)}
       </h4>
       {response ? (
-        <pre className="text-xs shadow-inner rounded border border-gray-300 bg-gray-200 p-2 overflow-x-auto">{response}</pre>
+        <pre className="text-xs shadow-inner rounded border border-gray-300 bg-gray-200 p-2 overflow-x-auto response-docs">
+          <CM
+              key={response}
+              cfg={{
+                value: response,
+                readOnly: true,
+                theme: "encore",
+                mode: { name: "javascript", json: true },
+              }}
+              noShadow={true}
+          />
+        </pre>
       ) : respErr ? (
         <div className="text-xs text-red-600 font-mono">{respErr}</div>
       ) : (
@@ -530,6 +426,7 @@ const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined}, {
   }, [rpc, method])
 
   useImperativeHandle(ref, () => {
+    // noinspection JSUnusedGlobalSymbols
     return {
       getPath: () => pathCM.current?.cm?.getValue(),
       getMethod: () => method,
@@ -602,28 +499,36 @@ const RPCPathEditor = React.forwardRef<{getPath: () => string | undefined}, {
 
 // encodeQuery encodes a payload matching the given schema as a query string.
 // If the payload can't be parsed as JSON it throws an exception.
-function encodeQuery(schema: Decl, payload: string): string {
+function encodeQuery(md: APIMeta, schema: Type, payload: string): string {
   const json = JSON.parse(payload)
   let pairs: string[] = []
 
-  for (const f of schema.type.struct?.fields ?? []) {
-    let key = f.json_name
-    let qsName = f.query_string_name
-    if (key === "-" || qsName === "-") {
-      continue
-    } else if (key === "") {
-      key = f.name
-    }
+  if (schema.named) {
+    const declID = schema.named.id
+    const decl = md.decls[declID]
 
-    let val = json[key]
-    if (typeof val === "undefined") {
-      continue
-    } else if (!Array.isArray(val)) {
-      val = [val]
+    for (const f of decl.type.struct?.fields ?? []) {
+      let key = f.json_name
+      let qsName = f.query_string_name
+      if (key === "-" || qsName === "-") {
+        continue
+      } else if (key === "") {
+        key = f.name
+      }
+
+      let val = json[key]
+      if (typeof val === "undefined") {
+        continue
+      } else if (!Array.isArray(val)) {
+        val = [val]
+      }
+      for (const v of val) {
+        pairs.push(`${qsName}=${encodeURIComponent(v)}`)
+      }
     }
-    for (const v of val) {
-      pairs.push(`${qsName}=${encodeURIComponent(v)}`)
-    }
+  } else {
+    throw new Error('expected a named type to encode the query');
   }
+
   return pairs.join("&")
 }

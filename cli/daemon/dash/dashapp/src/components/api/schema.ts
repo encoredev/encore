@@ -1,87 +1,13 @@
-export type TypeName = "struct" | "map" | "list" | "builtin" | "named";
+import * as pb from '../../../../../../../proto/encore/parser/schema/v1/schema.pb'
+export * from '../../../../../../../proto/encore/parser/schema/v1/schema.pb'
 
-export const typeName: (typ: Type) => TypeName = (typ: Type) => (
-  typ.struct ? "struct" :
-  typ.map ? "map" :
-  typ.list ? "list" :
-  typ.named ? "named" :
-  "builtin"
-)
+// Aliases to match old type names
+export type ListType = pb.List
+export type MapType = pb.Map
+export type NamedType = pb.Named
+export type StructType = pb.Struct
 
-export interface Type {
-  // oneof these
-  struct?: StructType;
-  map?: MapType;
-  list?: ListType;
-  builtin?: BuiltinType;
-  named?: NamedType;
-}
-
-export interface StructType {
-  fields: Field[];
-}
-
-export interface Field {
-  typ: Type;
-  name: string;
-  doc: string;
-  json_name: string;
-  query_string_name: string;
-  optional: boolean;
-}
-
-export interface MapType {
-  key: Type;
-  value: Type;
-}
-
-export interface ListType {
-  elem: Type;
-}
-
-export interface NamedType {
-  id: number;
-}
-
-export interface Decl {
-  id: number;
-  name: string;
-  type: Type;
-  doc: string;
-  loc: Loc;
-}
-
-export interface Loc {
-  pkg_path: string;
-  pkg_name: string;
-  filename: string;
-  start_pos: number;
-  end_pos: number;
-  src_line_start: number;
-  src_line_end: number;
-  src_col_start: number;
-  src_col_end: number;
-}
-
-export enum BuiltinType {
-  Any = "ANY",
-  Bool = "BOOL",
-  Int = "INT",
-  Int8 = "INT8",
-  Int16 = "INT16",
-  Int32 = "INT32",
-  Int64 = "INT64",
-  Uint  = "UINT",
-  Uint8  = "UINT8",
-  Uint16 = "UINT16",
-  Uint32 = "UINT32",
-  Uint64 = "UINT64",
-  Float32 = "FLOAT32",
-  Float64 = "FLOAT64",
-  String = "STRING",
-  Bytes = "BYTES",
-  Time = "TIME",
-  UUID = "UUID",
-  JSON = "JSON",
-  USER_ID = "USER_ID",
-}
+// export enums
+export {
+    Builtin as BuiltinType,
+}  from '../../../../../../../proto/encore/parser/schema/v1/schema.pb'

@@ -83,7 +83,7 @@ const SpanRow: FC<{
       </div>
 
       {showChildren && req.children.map((ch, i) =>
-        <SpanRow trace={trace} req={ch} level={level+1} selected={selected} onSelect={onSelect}
+        <SpanRow key={i} trace={trace} req={ch} level={level+1} selected={selected} onSelect={onSelect}
             siblings={siblings.concat(i < (req.children.length-1) ? [level+1] : [])} />
       )}
     </>

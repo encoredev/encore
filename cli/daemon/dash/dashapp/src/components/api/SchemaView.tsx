@@ -1,128 +1,204 @@
-import {BuiltinType, Decl, Field, ListType, MapType, NamedType, StructType, Type} from "./schema";
+import {Builtin, Decl, Field, ListType, MapType, NamedType, StructType, Type, TypeParameterRef } from "./schema";
 import React from "react";
 import {APIMeta} from "./api";
+import CM from "~c/api/cm/CM";
+import {ModeSpec, ModeSpecOptions} from "codemirror"
 
 export type Dialect = "go" | "typescript" | "json" | "table";
 
 interface Props {
   meta: APIMeta;
-  decl: Decl;
+  type: Type;
   dialect: Dialect;
 }
 
 export default class extends React.Component<Props> {
   render() {
     const d = dialects[this.props.dialect](this.props.meta)
-    return d.render(this.props.decl)
+    return d.render(this.props.type)
   }
 }
 
 abstract class DialectIface {
-  meta: APIMeta;
+  readonly meta: APIMeta;
+
   constructor(meta: APIMeta) {
     this.meta = meta
   }
 
-  abstract render(d: Decl): JSX.Element;
+  abstract render(d: Type): JSX.Element
 }
 
-class GoDialect extends DialectIface {
+/** This Text based class allows us simply to build a dialect from raw text and use CodeMirror to render it */
+abstract class TextBasedDialect extends DialectIface {
+  private readonly codeMirrorMode: string | ModeSpec<ModeSpecOptions>
   seenDecls: Set<number>;
-  constructor(meta: APIMeta) {
+  typeArgumentStack: Type[][];
+  buf: string[];
+  level: number;
+
+  protected constructor(meta: APIMeta, codeMirrorMode: string | ModeSpec<ModeSpecOptions>) {
     super(meta)
+    this.codeMirrorMode = codeMirrorMode
+    this.seenDecls = new Set<number>()
+    this.typeArgumentStack = []
+    this.buf = []
+    this.level = 0
+  }
+
+  render(d: Type): JSX.Element {
+    const srcCode = this.renderAsText(d)
+
+    return <CM cfg={{
+      value: srcCode,
+      readOnly: true,
+      theme: "encore",
+      mode: this.codeMirrorMode,
+    }}
+               key={srcCode}
+               noShadow={true}
+    />
+  }
+
+  renderAsText(d: Type): string {
+    this.writeType(d)
+    return this.buf.join("")
+  }
+
+  protected writeType(t: Type) {
+    t.struct ? this.renderStruct(t.struct) :
+    t.map ? this.renderMap(t.map) :
+    t.list ? this.renderList(t.list) :
+    t.builtin ? this.renderBuiltin(t.builtin) :
+    t.named ? this.renderNamed(t.named) :
+    t.type_parameter ? this.renderTypeParameter(t.type_parameter) :
+    this.write("<unknown type>")
+  }
+
+  protected renderNamed(t: NamedType) {
+    if (this.seenDecls.has(t.id)) {
+      this.writeSeenDecl(this.meta.decls[t.id])
+      return
+    }
+
+    // Add the decl to our map while recursing to avoid infinite recursion.
+    this.seenDecls.add(t.id)
+    const decl = this.meta.decls[t.id]
+    this.typeArgumentStack.push(t.type_arguments)
+
+    this.writeType(decl.type)
+
+    this.typeArgumentStack.pop()
+    this.seenDecls.delete(t.id)
+  }
+
+  protected renderTypeParameter(t: TypeParameterRef) {
+    const typeArguments = this.typeArgumentStack[this.typeArgumentStack.length - 1]
+    this.writeType(typeArguments[t.param_idx])
+  }
+
+  protected abstract writeSeenDecl(decl: Decl): void
+  protected abstract renderStruct(t: StructType): void
+  protected abstract renderMap(t: MapType): void
+  protected abstract renderList(t: ListType): void
+  protected abstract renderBuiltin(t: Builtin): void
+
+  protected indent() {
+    this.write(" ".repeat(this.level*4))
+  }
+
+  protected write(...strs: string[]) {
+    for (const s of strs) {
+      this.buf.push(s)
+    }
+  }
+
+  protected writeln(...strs: string[]) {
+    this.write(...strs)
+    this.write("\n")
+  }
+}
+
+class GoDialect extends TextBasedDialect {
+  constructor(meta: APIMeta) {
+    super(meta, "go")
     this.seenDecls = new Set()
   }
 
-  render(d: Decl) {
-    this.seenDecls.add(d.id)
-    const res = <>type {d.name} {this.renderType(d.type, 0)}</>
-    this.seenDecls.delete(d.id)
-    return res
+  writeSeenDecl(decl: Decl) {
+    this.write(`*${decl.loc.pkg_name}.${decl.name}`)
   }
 
-  renderType(t: Type, level: number) {
-    return <span className="whitespace-no-wrap">{(
-      t.struct ? this.renderStruct(t.struct, level) :
-      t.map ? this.renderMap(t.map, level) :
-      t.list ? this.renderList(t.list, level) :
-      t.builtin ? this.renderBuiltin(t.builtin, level) :
-      t.named ? this.renderNamed(t.named, level)
-      : "<unknown>"
-    )}</span>
+  renderStruct(t: StructType) {
+    this.writeln("struct {")
+    this.level++
+
+    // Calculate the longest field name so we can align the types
+    const longestFieldName = t.fields.reduce<number>((previous: number, current: Field) => {
+      if (current.name.length > previous) {
+        return current.name.length
+      }
+
+      return previous
+    }, 0)
+
+    t.fields.map(f => {
+      this.indent()
+      this.write(f.name)
+      this.write(" ".repeat(longestFieldName - f.name.length + 1))
+      this.writeType(f.typ)
+      this.renderTag(f)
+
+      this.writeln()
+    })
+
+    this.level--
+
+    this.indent()
+    this.write("}")
   }
 
-  renderNamed(t: NamedType, level: number) {
-    const decl = this.meta.decls[t.id]
-    if (this.seenDecls.has(t.id)) {
-      return <>{`*${decl.loc.pkg_name}.${decl.name}`}</>
-    }
-
-    // Mark this decl as seen for the duration of this call
-    // to avoid infinite recursion.
-    this.seenDecls.add(t.id)
-    const res = this.renderType(decl.type, level)
-    this.seenDecls.delete(t.id)
-    return res
+  renderMap(t: MapType,) {
+    this.write("map[")
+    this.writeType(t.key)
+    this.write("]")
+    this.writeType(t.value)
   }
 
-  renderStruct(t: StructType, level: number) {
-    return <>
-      {"struct {"}
-      <div style={{paddingLeft: "4ch"}}>
-        {t.fields.map(f =>
-          <div key={f.name}>
-            {f.name} {this.renderType(f.typ, level+1)}
-            {this.renderTag(f)}
-          </div>
-        )}
-      </div>
-      <div>{"}"}</div>
-    </>
+  renderList(t: ListType) {
+    this.write("[]")
+    this.writeType(t.elem)
   }
 
-  renderMap(t: MapType, level: number) {
-    return <>
-      {"map["}
-      {this.renderType(t.key, level)}
-      {"]"}
-      {this.renderType(t.value, level)}
-    </>
-  }
-
-  renderList(t: ListType, level: number) {
-    return <>
-      {"[]"}
-      {this.renderType(t.elem, level)}
-    </>
-  }
-
-  renderBuiltin(t: BuiltinType, level: number) {
+  renderBuiltin(t: Builtin) {
     switch (t) {
-    case BuiltinType.Any: return "interface{}"
-    case BuiltinType.Bool: return "bool"
-    case BuiltinType.Int: return "int"
-    case BuiltinType.Int8: return "int8"
-    case BuiltinType.Int16: return "int16"
-    case BuiltinType.Int32: return "int32"
-    case BuiltinType.Int64: return "int64"
-    case BuiltinType.Uint: return "uint"
-    case BuiltinType.Uint8: return "uint8"
-    case BuiltinType.Uint16: return "uint16"
-    case BuiltinType.Uint32: return "uint32"
-    case BuiltinType.Uint64: return "uint64"
-    case BuiltinType.Float32: return "float32"
-    case BuiltinType.Float64: return "float64"
-    case BuiltinType.String: return "string"
-    case BuiltinType.Bytes: return "[]byte"
-    case BuiltinType.Time: return "time.Time"
-    case BuiltinType.UUID: return "uuid.UUID"
-    case BuiltinType.USER_ID: return "auth.UID"
-    case BuiltinType.JSON: return "json.RawMessage"
-    default: return "unknown"
+    case Builtin.ANY: return this.write("interface{}")
+    case Builtin.BOOL: return this.write("bool")
+    case Builtin.INT: return this.write("int")
+    case Builtin.INT8: return this.write("int8")
+    case Builtin.INT16: return this.write("int16")
+    case Builtin.INT32: return this.write("int32")
+    case Builtin.INT64: return this.write("int64")
+    case Builtin.UINT: return this.write("uint")
+    case Builtin.UINT8: return this.write("uint8")
+    case Builtin.UINT16: return this.write("uint16")
+    case Builtin.UINT32: return this.write("uint32")
+    case Builtin.UINT64: return this.write("uint64")
+    case Builtin.FLOAT32: return this.write("float32")
+    case Builtin.FLOAT64: return this.write("float64")
+    case Builtin.STRING: return this.write("string")
+    case Builtin.BYTES: return this.write("[]byte")
+    case Builtin.TIME: return this.write("time.Time")
+    case Builtin.UUID: return this.write("uuid.UUID")
+    case Builtin.JSON: return this.write("json.RawMessage")
+    case Builtin.USER_ID:return  this.write("auth.UID")
+    case Builtin.UNRECOGNIZED: return this.write("<unknown>")
     }
+
+    return unreachableUnknownType(t)
   }
 
-  renderTag(f: Field): string | null {
+  renderTag(f: Field){
     let parts = []
     if (f.optional) {
       parts.push(`encore:"optional"`)
@@ -131,207 +207,173 @@ class GoDialect extends DialectIface {
       parts.push(`json:"${f.json_name}"`)
     }
     if (parts.length === 0) {
-      return null
+      return
     }
-    return " `" + parts.join(" ") + "`"
+
+    this.write(" `" + parts.join(" ") + "`")
   }
 }
 
-class TypescriptDialect extends DialectIface {
-  seenDecls: Set<number>;
+class TypescriptDialect extends TextBasedDialect {
   constructor(meta: APIMeta) {
-    super(meta)
-    this.seenDecls = new Set()
+    super(meta, { name: "javascript", typescript: true})
   }
 
-  render(d: Decl) {
-    return this.renderType(d.type, 0)
+  renderStruct(t: StructType) {
+    this.writeln("{")
+    this.level++
+
+    t.fields.map(f => {
+      this.indent()
+      this.write(f.json_name !== "" ? f.json_name : f.name)
+      this.write(": ")
+      this.writeType(f.typ)
+
+      if (f.optional) {
+        this.write(" | undefined")
+      }
+
+      this.writeln(";")
+    })
+
+    this.level--
+    this.indent()
+    this.write("}")
   }
 
-  renderType(t: Type, level: number) {
-    return <span className="whitespace-no-wrap">{(
-      t.struct ? this.renderStruct(t.struct, level) :
-      t.map ? this.renderMap(t.map, level) :
-      t.list ? this.renderList(t.list, level) :
-      t.builtin ? this.renderBuiltin(t.builtin, level) :
-      t.named ? this.renderNamed(t.named, level)
-      : "<unknown>"
-    )}</span>
+  renderMap(t: MapType) {
+    this.write("{ [key: ")
+    this.writeType(t.key)
+    this.write("]: ")
+    this.writeType(t.value)
+    this.write("}")
   }
 
-  renderNamed(t: NamedType, level: number) {
-    if (this.seenDecls.has(t.id)) {
-      return <>null</>
-    }
-    const decl = this.meta.decls[t.id]
-
-    // Mark this decl as seen for the duration of this call
-    // to avoid infinite recursion.
-    this.seenDecls.add(t.id)
-    const res = this.renderType(decl.type, level)
-    this.seenDecls.delete(t.id)
-    return res
+  renderList(t: ListType) {
+    this.writeType(t.elem)
+    this.write("[]")
   }
 
-  renderStruct(t: StructType, level: number) {
-    return <>
-      {"{"}
-      <div style={{paddingLeft: "2ch"}}>
-        {t.fields.map(f =>
-          <div key={f.name}>{f.json_name !== "" ? f.json_name : f.name}: {this.renderType(f.typ, level+1)};</div>
-        )}
-      </div>
-      {"}"}
-    </>
-  }
-
-  renderMap(t: MapType, level: number) {
-    return <>
-      {"{ [key: "}
-      {this.renderType(t.key, level)}
-      {"]: "}
-      {this.renderType(t.value, level)}
-      {"}"}
-    </>
-  }
-
-  renderList(t: ListType, level: number) {
-    return <>
-      {this.renderType(t.elem, level)}
-      {"[]"}
-    </>
-  }
-
-  renderBuiltin(t: BuiltinType, level: number) {
+  renderBuiltin(t: Builtin) {
     switch (t) {
-    case BuiltinType.Any: return "any"
-    case BuiltinType.Bool: return "boolean"
-    case BuiltinType.Int8: return "int8"
-    case BuiltinType.Int16: return "int16"
-    case BuiltinType.Int32: return "int32"
-    case BuiltinType.Int64: return "int64"
-    case BuiltinType.Uint8: return "uint8"
-    case BuiltinType.Uint16: return "uint16"
-    case BuiltinType.Uint32: return "uint32"
-    case BuiltinType.Uint64: return "uint64"
-    case BuiltinType.Float32: return "float32"
-    case BuiltinType.Float64: return "float64"
-    case BuiltinType.String: return "string"
-    case BuiltinType.Bytes: return "[]byte"
-    case BuiltinType.Time: return "Time"
-    case BuiltinType.UUID: return "UUID"
-    case BuiltinType.JSON: return "any"
-    case BuiltinType.USER_ID: return "UserID"
-    default: return "unknown"
+      case Builtin.ANY: return this.write("any")
+      case Builtin.BOOL: return this.write("boolean")
+      case Builtin.INT: return this.write("int")
+      case Builtin.INT8: return this.write("int8")
+      case Builtin.INT16: return this.write("int16")
+      case Builtin.INT32: return this.write("int32")
+      case Builtin.INT64: return this.write("int64")
+      case Builtin.UINT: return this.write("uint")
+      case Builtin.UINT8: return this.write("uint8")
+      case Builtin.UINT16: return this.write("uint16")
+      case Builtin.UINT32: return this.write("uint32")
+      case Builtin.UINT64: return this.write("uint64")
+      case Builtin.FLOAT32: return this.write("float32")
+      case Builtin.FLOAT64: return this.write("float64")
+      case Builtin.STRING: return this.write("string")
+      case Builtin.BYTES: return this.write("[]byte")
+      case Builtin.TIME: return this.write("Time")
+      case Builtin.UUID: return this.write("UUID")
+      case Builtin.JSON: return this.write("any")
+      case Builtin.USER_ID: return this.write("UserID")
+      case Builtin.UNRECOGNIZED: return this.write("<unknown>")
     }
+
+    return unreachableUnknownType(t)
+  }
+
+  protected writeSeenDecl(decl: Decl): void {
+    this.write("null")
   }
 }
 
-class JSONDialect extends DialectIface {
-  seenDecls: Set<number>;
-  constructor(meta: APIMeta) {
-    super(meta)
-    this.seenDecls = new Set()
+export class JSONDialect extends TextBasedDialect {
+  constructor(md: APIMeta) {
+    super(md, { name: "javascript", json: true })
   }
 
-  render(d: Decl) {
-    return this.renderType(d.type, 0)
+  writeSeenDecl(decl: Decl) {
+    this.write("null")
   }
 
-  renderType(t: Type, level: number) {
-    return <span className="whitespace-no-wrap">{(
-      t.struct ? this.renderStruct(t.struct, level) :
-      t.map ? this.renderMap(t.map, level) :
-      t.list ? this.renderList(t.list, level) :
-      t.builtin ? this.renderBuiltin(t.builtin, level) :
-      t.named ? this.renderNamed(t.named, level)
-      : "<unknown>"
-    )}</span>
-  }
-
-  renderNamed(t: NamedType, level: number) {
-    if (this.seenDecls.has(t.id)) {
-      return <>null</>
+  protected renderStruct(t: StructType) {
+    this.writeln("{")
+    this.level++
+    for (let i = 0; i < t.fields.length; i++) {
+      const f = t.fields[i]
+      this.indent()
+      this.write(`"${f.json_name !== "" ? f.json_name : f.name}": `)
+      this.writeType(f.typ)
+      if (i < (t.fields.length-1)) {
+        this.write(",")
+      }
+      this.writeln()
     }
-    const decl = this.meta.decls[t.id]
-
-    // Mark this decl as seen for the duration of this call
-    // to avoid infinite recursion.
-    this.seenDecls.add(t.id)
-    const res = this.renderType(decl.type, level)
-    this.seenDecls.delete(t.id)
-    return res
+    this.level--
+    this.indent()
+    this.write("}")
   }
 
-  renderStruct(t: StructType, level: number) {
-    return <>
-      {"{"}
-      <div style={{paddingLeft: "2ch"}}>
-        {t.fields.map((f, i) =>
-          <div key={f.name}>
-            "{f.json_name !== "" ? f.json_name : f.name}": {this.renderType(f.typ, level+1)}
-            {
-              /* Render trailing comma if it's not the last key */
-              (i < (t.fields.length-1)) ? "," : ""
-            }
-          </div>
-        )}
-      </div>
-      {"}"}
-    </>
+  protected renderMap(t: MapType) {
+    this.writeln("{")
+    this.level++
+    this.indent()
+    this.writeType(t.key)
+    this.write(": ")
+    this.writeType(t.value)
+    this.writeln()
+    this.write("}")
   }
 
-  renderMap(t: MapType, level: number) {
-    return <>
-      {"{"}
-      {this.renderType(t.key, level)}
-      {": "}
-      {this.renderType(t.value, level)}
-      {"}"}
-    </>
+  protected renderList(t: ListType) {
+    this.write("[")
+    this.writeType(t.elem)
+    this.write("]")
   }
 
-  renderList(t: ListType, level: number) {
-    return <>
-      {"["}
-      {this.renderType(t.elem, level)}
-      {"]"}
-    </>
-  }
-
-  renderBuiltin(t: BuiltinType, level: number) {
+  protected renderBuiltin(t: Builtin) {
     switch (t) {
-    case BuiltinType.Any: return "<any>"
-    case BuiltinType.Bool: return "true"
-    case BuiltinType.Int: return "1"
-    case BuiltinType.Int8: return "1"
-    case BuiltinType.Int16: return "1"
-    case BuiltinType.Int32: return "1"
-    case BuiltinType.Int64: return "1"
-    case BuiltinType.Uint: return "1"
-    case BuiltinType.Uint8: return "1"
-    case BuiltinType.Uint16: return "1"
-    case BuiltinType.Uint32: return "1"
-    case BuiltinType.Uint64: return "1"
-    case BuiltinType.Float32: return "2.3"
-    case BuiltinType.Float64: return "2.3"
-    case BuiltinType.String: return "\"some-string\""
-    case BuiltinType.Bytes: return "\"base64-encoded-bytes\""
-    case BuiltinType.Time: return "\"2009-11-10T23:00:00Z\""
-    case BuiltinType.UUID: return "\"7d42f515-3517-4e76-be13-30880443546f\""
-    case BuiltinType.JSON: return "{\"some-json-data\": true}"
-    case BuiltinType.USER_ID: return "\"some-user-id\""
-    default: return "<unknown>"
+      case Builtin.ANY: return this.write("<any data>")
+      case Builtin.BOOL: return this.write("true")
+      case Builtin.INT: return this.write("1")
+      case Builtin.INT8: return this.write("1")
+      case Builtin.INT16: return this.write("1")
+      case Builtin.INT32: return this.write("1")
+      case Builtin.INT64: return this.write("1")
+      case Builtin.UINT: return this.write("1")
+      case Builtin.UINT8: return this.write("1")
+      case Builtin.UINT16: return this.write("1")
+      case Builtin.UINT32: return this.write("1")
+      case Builtin.UINT64: return this.write("1")
+      case Builtin.FLOAT32: return this.write("2.3")
+      case Builtin.FLOAT64: return this.write("2.3")
+      case Builtin.STRING: return this.write("\"some string\"")
+      case Builtin.BYTES: return this.write("\"YmFzZTY0Cg==\"") // base64
+      case Builtin.TIME: return this.write("\"2009-11-10T23:00:00Z\"")
+      case Builtin.UUID: return this.write("\"7d42f515-3517-4e76-be13-30880443546f\"")
+      case Builtin.JSON: return this.write("{\"some json data\": true}")
+      case Builtin.USER_ID: return this.write("\"userID\"")
+      case Builtin.UNRECOGNIZED: return this.write("<unknown>")
     }
+
+    return unreachableUnknownType(t)
   }
 }
 
 class TableDialect extends DialectIface {
-  render(d: Decl) {
-    const st = d.type.struct
+  typeArgumentStack: Type[][] = [];
+
+  render(d: Type) {
+    if (!d?.named) {
+      throw new Error("TableDialect can only rendered named structs")
+    }
+
+    const st = this.meta.decls[d.named.id].type.struct
     if (!st) {
       throw new Error("TableDialect can only render named structs")
     }
+
+    this.typeArgumentStack.push(d.named.type_arguments)
     return this.renderStruct(st, 0)
   }
 
@@ -363,41 +405,65 @@ class TableDialect extends DialectIface {
       t.map ? "map" :
       t.list ? "list of " + this.describeType(t.list.elem) :
       t.builtin ? this.describeBuiltin(t.builtin) :
-      t.named ? this.describeNamed(t.named)
-      : "<unknown>"
+      t.named ? this.describeNamed(t.named) :
+      t.type_parameter ? this.describeTypeParameter(t.type_parameter) :
+      "<unknown>"
     )
   }
 
+  describeTypeParameter(t: TypeParameterRef): string {
+    const typeArgument = this.typeArgumentStack[this.typeArgumentStack.length - 1][t.param_idx]
+    return this.describeType(typeArgument)
+  }
 
-  describeBuiltin(t: BuiltinType): string {
+
+  describeBuiltin(t: Builtin): string {
     switch (t) {
-    case BuiltinType.Any: return "<any>"
-    case BuiltinType.Bool: return "boolean"
-    case BuiltinType.Int: return "int"
-    case BuiltinType.Int8: return "int"
-    case BuiltinType.Int16: return "int"
-    case BuiltinType.Int32: return "int"
-    case BuiltinType.Int64: return "int"
-    case BuiltinType.Uint: return "uint"
-    case BuiltinType.Uint8: return "uint"
-    case BuiltinType.Uint16: return "uint"
-    case BuiltinType.Uint32: return "uint"
-    case BuiltinType.Uint64: return "uint"
-    case BuiltinType.Float32: return "float"
-    case BuiltinType.Float64: return "float"
-    case BuiltinType.String: return "string"
-    case BuiltinType.Bytes: return "bytes"
-    case BuiltinType.Time: return "RFC 3339-formatted timestamp"
-    case BuiltinType.UUID: return "UUID"
-    case BuiltinType.JSON: return "unspecified JSON"
-    case BuiltinType.USER_ID: return "User ID"
-    default: return "<unknown>"
+    case Builtin.ANY: return "<any>"
+    case Builtin.BOOL: return "boolean"
+    case Builtin.INT: return "int"
+    case Builtin.INT8: return "int"
+    case Builtin.INT16: return "int"
+    case Builtin.INT32: return "int"
+    case Builtin.INT64: return "int"
+    case Builtin.UINT: return "uint"
+    case Builtin.UINT8: return "uint"
+    case Builtin.UINT16: return "uint"
+    case Builtin.UINT32: return "uint"
+    case Builtin.UINT64: return "uint"
+    case Builtin.FLOAT32: return "float"
+    case Builtin.FLOAT64: return "float"
+    case Builtin.STRING: return "string"
+    case Builtin.BYTES: return "bytes"
+    case Builtin.TIME: return "RFC 3339-formatted timestamp"
+    case Builtin.UUID: return "UUID"
+    case Builtin.JSON: return "arbitrary JSON"
+    case Builtin.USER_ID: return "User ID"
+    case Builtin.UNRECOGNIZED: return "<unknown>"
     }
+
+    return unreachableUnknownType(t)
   }
 
   describeNamed(named: NamedType): string {
     const decl = this.meta.decls[named.id]
-    return decl.loc.pkg_name + "." + decl.name
+
+    let types = ""
+    if (named.type_arguments.length > 0) {
+      types = "["
+
+      for (let i = 0; i < named.type_arguments.length; i++) {
+        if (i > 0) {
+          types += ", "
+        }
+
+        types += this.describeType(named.type_arguments[i])
+      }
+
+      types += "]"
+    }
+
+    return decl.loc.pkg_name + "." + decl.name + types
   }
 }
 
@@ -406,4 +472,13 @@ const dialects: { [key in Dialect]: (meta: APIMeta) => DialectIface} = {
   "typescript": (meta) => new TypescriptDialect(meta),
   "json": (meta) => new JSONDialect(meta),
   "table": (meta) => new TableDialect(meta),
+}
+
+// This function serves two purposes
+//
+// 1. If we ever hit it at runtime; we'll return "<unknown>" to be rendered
+// 2. If we have a switch statement on an enum without a default, and return from each case then if we miss one of the
+//    enum options, we'll get a compile error if we try and pass that case as the parameter x to this function
+export function unreachableUnknownType(_: never): string {
+  return "<unknown>";
 }

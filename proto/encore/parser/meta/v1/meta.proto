@@ -8,56 +8,56 @@ import "encore/parser/schema/v1/schema.proto";
 
 // Data is the metadata associated with an app version.
 message Data {
-  string module_path = 1; // app module path
-	string app_version = 2;
-  repeated schema.v1.Decl decls = 3;
-  repeated Package pkgs = 4;
-  repeated Service svcs = 5;
-  AuthHandler auth_handler = 6;
+  string                  module_path  = 1; // app module path
+  string                  app_version  = 2;
+  repeated schema.v1.Decl decls        = 3;
+  repeated Package        pkgs         = 4;
+  repeated Service        svcs         = 5;
+  AuthHandler             auth_handler = 6;
 }
 
 // QualifiedName is a name of an object in a specific package.
 // It is never an unqualified name, even in circumstances
 // where a package may refer to its own objects.
 message QualifiedName {
-  string pkg = 1; // "rel/path/to/pkg"
+  string pkg  = 1; // "rel/path/to/pkg"
   string name = 2; // ObjectName
 }
 
 message Package {
-  string rel_path = 1;                  // import path relative to app root ("." for the app root itself)
-  string name = 2;                      // package name as declared in Go files
-  string doc = 3;                       // associated documentation
-  string service_name = 4;              // service name this package is a part of, if any
-  repeated string secrets = 5;          // secrets required by this package
-  repeated QualifiedName rpc_calls = 6; // RPCs called by the package
-  repeated TraceNode trace_nodes = 7;
+  string                 rel_path     = 1; // import path relative to app root ("." for the app root itself)
+  string                 name         = 2; // package name as declared in Go files
+  string                 doc          = 3; // associated documentation
+  string                 service_name = 4; // service name this package is a part of, if any
+  repeated string        secrets      = 5; // secrets required by this package
+  repeated QualifiedName rpc_calls    = 6; // RPCs called by the package
+  repeated TraceNode     trace_nodes  = 7;
 }
 
 message Service {
-  string name = 1;
-  string rel_path = 2; // import path relative to app root for the root package in the service
-  repeated RPC rpcs = 3;
+  string               name       = 1;
+  string               rel_path   = 2; // import path relative to app root for the root package in the service
+  repeated RPC         rpcs       = 3;
   repeated DBMigration migrations = 4;
 }
 
 message DBMigration {
-  string filename = 1;    // filename
-  int32 number = 2;       // migration number
+  string filename    = 1; // filename
+  int32  number      = 2; // migration number
   string description = 3; // descriptive name
 }
 
 message RPC {
-  string name = 1;                    // name of the RPC endpoint
-  string doc = 2;                     // associated documentation
-  string service_name = 3;            // the service the RPC belongs to.
-  AccessType access_type = 4;         // how can the RPC be accessed?
-  schema.v1.Decl request_schema = 5;  // request schema, or nil
-  schema.v1.Decl response_schema = 6; // response schema, or nil
-  Protocol proto = 7;
-  schema.v1.Loc loc = 8;
-  Path path = 9;
-  repeated string http_methods = 10;
+  string                    name            = 1; // name of the RPC endpoint
+  string                    doc             = 2; // associated documentation
+  string                    service_name    = 3; // the service the RPC belongs to.
+  AccessType                access_type     = 4; // how can the RPC be accessed?
+  optional schema.v1.Type  request_schema  = 5; // request schema, or nil
+  optional schema.v1.Type  response_schema = 6; // response schema, or nil
+  Protocol                 proto           = 7;
+  schema.v1.Loc            loc             = 8;
+  Path                     path            = 9;
+  repeated string          http_methods    = 10;
 
   enum AccessType {
     PRIVATE = 0;
@@ -72,12 +72,12 @@ message RPC {
 }
 
 message AuthHandler {
-  string name = 1;
-  string doc = 2;
-  string pkg_path = 3; // package (service) import path
-  string pkg_name = 4; // package (service) name
-  schema.v1.Loc loc = 5;
-  schema.v1.Decl auth_data = 6; // custom auth data, or nil
+  string                  name      = 1;
+  string                  doc       = 2;
+  string                  pkg_path  = 3; // package (service) import path
+  string                  pkg_name  = 4; // package (service) name
+  schema.v1.Loc           loc       = 5;
+  optional schema.v1.Type auth_data = 6; // custom auth data, or nil
 }
 
 message TraceNode {
@@ -100,13 +100,13 @@ message TraceNode {
 }
 
 message RPCDefNode {
-  string service_name = 1; 
+  string service_name = 1;
   string rpc_name = 2;
   string context = 3;
 }
 
 message RPCCallNode {
-  string service_name = 1; 
+  string service_name = 1;
   string rpc_name = 2;
   string context = 3;
 }
@@ -123,7 +123,7 @@ message StaticCallNode {
 }
 
 message AuthHandlerDefNode {
-  string service_name = 1; 
+  string service_name = 1;
   string name = 2;
   string context = 3;
 }
