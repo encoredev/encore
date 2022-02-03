@@ -86,7 +86,7 @@ func ParseMeta(version, appRoot string, app *est.Application) (*meta.Data, map[*
 	return data, nodes, nil
 }
 
-var migrationRe = regexp.MustCompile(`^([0-9]+)_([^.]+)\.up.sql$`)
+var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.up.sql$`)
 
 func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 	s := &meta.Service{
@@ -110,12 +110,12 @@ func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 			return nil, fmt.Errorf("unhandled access type %v", rpc.Access)
 		}
 
-		var req, resp *schema.Decl
+		var req, resp *schema.Type
 		if rpc.Request != nil {
-			req = rpc.Request.Decl
+			req = rpc.Request.Type
 		}
 		if rpc.Response != nil {
-			resp = rpc.Response.Decl
+			resp = rpc.Response.Type
 		}
 		r := &meta.RPC{
 			Name:           rpc.Name,
@@ -199,7 +199,7 @@ func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 		Loc:     parseLoc(h.File, h.Func),
 	}
 	if h.AuthData != nil {
-		pb.AuthData = h.AuthData.Decl
+		pb.AuthData = h.AuthData.Type
 	}
 	return pb
 }
@@ -297,27 +297,27 @@ func newTraceNode(id *int32, pkg *est.Package, f *est.File, node ast.Node) *meta
 	var expr *meta.TraceNode
 	file := f.Token
 	filename := filepath.Base(f.Path)
-	filepath := path.Join(pkg.RelPath, filename)
+	nodeFilePath := path.Join(pkg.RelPath, filename)
 
 	switch node := node.(type) {
 	case *ast.CallExpr:
 		expr = &meta.TraceNode{
 			Id:       *id,
-			Filepath: filepath,
+			Filepath: nodeFilePath,
 			StartPos: int32(file.Offset(node.Lparen)),
 			EndPos:   int32(file.Offset(node.Rparen)),
 		}
 	case *ast.FuncDecl:
 		expr = &meta.TraceNode{
 			Id:       *id,
-			Filepath: filepath,
+			Filepath: nodeFilePath,
 			StartPos: int32(file.Offset(node.Type.Pos())),
 			EndPos:   int32(file.Offset(node.Type.End())),
 		}
 	case *ast.SelectorExpr:
 		expr = &meta.TraceNode{
 			Id:       *id,
-			Filepath: filepath,
+			Filepath: nodeFilePath,
 			StartPos: int32(file.Offset(node.Pos())),
 			EndPos:   int32(file.Offset(node.End())),
 		}
@@ -410,8 +410,8 @@ type refPair struct {
 
 func sortedRefs(refs map[ast.Node]*est.Node) []refPair {
 	p := make([]refPair, 0, len(refs))
-	for ast, node := range refs {
-		p = append(p, refPair{ast, node})
+	for astNode, estNode := range refs {
+		p = append(p, refPair{astNode, estNode})
 	}
 	sort.Slice(p, func(i, j int) bool {
 		return p[i].AST.Pos() < p[j].AST.Pos()

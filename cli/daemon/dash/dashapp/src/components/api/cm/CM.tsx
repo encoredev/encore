@@ -1,10 +1,9 @@
 import React from 'react'
 
 import CodeMirror, {EditorConfiguration} from 'codemirror';
-import './codemirror.css';
+import 'codemirror/lib/codemirror.css'
 import './codemirror-show-hint.css';
 import './codemirror-encore.css';
-import './codemirror-idea.css';
 import 'codemirror/mode/go/go.js';
 import 'codemirror/mode/sql/sql.js';
 import 'codemirror/mode/javascript/javascript.js';
@@ -39,6 +38,7 @@ export const DefaultCfg: EditorConfiguration = {
 interface Props {
   cfg?: EditorConfiguration
   className?: string;
+  noShadow?: boolean;
   onFocus?: () => void;
 }
 
@@ -67,14 +67,15 @@ export default class CM extends React.Component<Props> {
   }
 
   render() {
+    const shadow = this.props.noShadow ? "" : "shadow-inner"
+
     return (
       <div ref={this.container}
-          className={`relative h-full font-mono subpixel-antialiased shadow-inner ${this.props.className}`}>
+          className={`relative h-full font-mono subpixel-antialiased ${shadow} ${this.props.className}`}>
         <style>{`
           .CodeMirror {
             height: 100%;
             font-family: inherit;
-            overflow: scroll;
           }
         `}</style>
         <div className="h-full" ref={this.target} />

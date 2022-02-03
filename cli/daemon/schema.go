@@ -11,7 +11,7 @@ import (
 )
 
 // genSchema generates a JSON payload to match the schema.
-func genSchema(meta *meta.Data, decl *schema.Decl) []byte {
+func genSchema(meta *meta.Data, decl *schema.Type) []byte {
 	if decl == nil {
 		return nil
 	}
@@ -29,8 +29,8 @@ type schemaRenderer struct {
 	seenDecls map[uint32]*schema.Decl
 }
 
-func (r *schemaRenderer) Render(d *schema.Decl) []byte {
-	r.renderType(d.Type)
+func (r *schemaRenderer) Render(d *schema.Type) []byte {
+	r.renderType(d)
 	return r.Buffer()
 }
 
@@ -100,7 +100,7 @@ func (r *schemaRenderer) renderBuiltin(b schema.Builtin) {
 	case schema.Builtin_STRING:
 		r.WriteString("hello")
 	case schema.Builtin_BYTES:
-		r.WriteString("aGV5Cg==") // "hey"
+		r.WriteString("YmFzZTY0Cg==") // "base64"
 	case schema.Builtin_TIME:
 		s, _ := time.Now().MarshalText()
 		r.WriteString(string(s))
@@ -108,7 +108,7 @@ func (r *schemaRenderer) renderBuiltin(b schema.Builtin) {
 		r.WriteString("7d42f515-3517-4e76-be13-30880443546f")
 	case schema.Builtin_JSON:
 		r.WriteObjectStart()
-		r.WriteObjectField("jsonData")
+		r.WriteObjectField("some json data")
 		r.WriteBool(true)
 		r.WriteObjectEnd()
 	case schema.Builtin_USER_ID:

@@ -197,8 +197,10 @@ func (b *Builder) builtinType(t schema.Builtin) *Statement {
 }
 
 func (b *Builder) namedType(f *File, param *est.Param) *Statement {
-	decl := param.Decl
-	f.ImportName(decl.Loc.PkgPath, decl.Loc.PkgName)
+	if named := param.Type.GetNamed(); named != nil {
+		decl := b.res.App.Decls[named.Id]
+		f.ImportName(decl.Loc.PkgPath, decl.Loc.PkgName)
+	}
 
 	return b.typeName(param, false)
 }

@@ -106,7 +106,7 @@ export default class AppAPI extends React.Component<Props, State> {
                                   <hr className="my-4 border-gray-200" />
                                   <div>
                                     {pathParams.map((p, i) =>
-                                      <div className={i > 0 ? "border-t border-gray-200" : ""}>
+                                      <div key={p.value} className={i > 0 ? "border-t border-gray-200" : ""}>
                                         <div className="flex leading-6 font-mono">
                                           <div className="font-bold text-gray-900 text-sm">{p.value}</div>
                                           <div className="ml-2 text-xs text-gray-500">string</div>
@@ -114,7 +114,7 @@ export default class AppAPI extends React.Component<Props, State> {
                                       </div>
                                     )}
                                   </div>
-                                  {rpc.request_schema ? <SchemaView meta={meta} decl={rpc.request_schema} dialect="table" /> :
+                                  {rpc.request_schema ? <SchemaView meta={meta} type={rpc.request_schema} dialect="table" /> :
                                     <div className="text-gray-400 text-sm">No parameters.</div>
                                   }
                                 </div>
@@ -123,7 +123,7 @@ export default class AppAPI extends React.Component<Props, State> {
                               <div className="mt-4">
                                 <h4 className="font-medium font-sans text-gray-700">Request</h4>
                                 <hr className="my-4 border-gray-200" />
-                                {rpc.request_schema ? <SchemaView meta={meta} decl={rpc.request_schema} dialect="table" /> :
+                                {rpc.request_schema ? <SchemaView meta={meta} type={rpc.request_schema} dialect="table" /> :
                                   <div className="text-gray-400 text-sm">No parameters.</div>
                                 }
                               </div>
@@ -131,7 +131,7 @@ export default class AppAPI extends React.Component<Props, State> {
                               <div className="mt-12">
                                 <h4 className="font-medium font-sans text-gray-700">Response</h4>
                                 <hr className="my-4 border-gray-200" />
-                                {rpc.response_schema ? <SchemaView meta={meta} decl={rpc.response_schema} dialect="table" /> :
+                                {rpc.response_schema ? <SchemaView meta={meta} type={rpc.response_schema} dialect="table" /> :
                                   <div className="text-gray-400 text-sm">No response.</div>
                                 }
                               </div>
@@ -188,7 +188,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
 
       {selectedTab === "schema" ? <>
       {props.rpc.request_schema &&
-        <div className="rounded-md border-gray-200 shadow">
+        <div className="rounded-md border-gray-200 shadow request-docs">
           <div className="rounded-t-md bg-gray-600 p-2 uppercase text-gray-200 font-header text-xs tracking-wider flex">
             <div className="flex-grow">Request</div>
             <div className="flex-shrink-0">
@@ -201,12 +201,12 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
             </div>
           </div>
           <div className="rounded-b-md bg-gray-800 text-gray-100 p-2 font-mono overflow-auto">
-            <SchemaView meta={props.meta} decl={props.rpc.request_schema} dialect={respDialect} />
+            <SchemaView meta={props.meta} type={props.rpc.request_schema} dialect={respDialect} />
           </div>
         </div>
       }
       {props.rpc.response_schema &&
-        <div className="rounded-md border-gray-200 shadow mt-6">
+        <div className="rounded-md border-gray-200 shadow mt-6 response-docs">
           <div className="rounded-t-md bg-gray-200 p-2 uppercase text-gray-600 font-header text-xs tracking-wider flex">
             <div className="flex-grow">Response</div>
             <div className="flex-shrink-0">
@@ -219,7 +219,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
             </div>
           </div>
           <div className="rounded-b-md bg-gray-100 p-2 font-mono overflow-auto">
-            <SchemaView meta={props.meta} decl={props.rpc.response_schema} dialect={respDialect} />
+            <SchemaView meta={props.meta} type={props.rpc.response_schema} dialect={respDialect} />
           </div>
         </div>
       }

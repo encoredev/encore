@@ -54,9 +54,8 @@ type Service struct {
 }
 
 type Param struct {
-	IsPtr         bool
-	Decl          *schema.Decl
-	TypeArguments []*schema.Type // Any type arguments on the declaration (nil if none)
+	IsPtr bool
+	Type  *schema.Type
 }
 
 type AccessType string

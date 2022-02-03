@@ -9,11 +9,11 @@ require (
 	github.com/dave/jennifer v1.5.0
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structtag v1.2.0
-	github.com/frankban/quicktest v1.13.0
+	github.com/frankban/quicktest v1.14.2
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/golang/protobuf v1.5.2
-	github.com/google/go-cmp v0.5.6
+	github.com/google/go-cmp v0.5.7
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/go-version v1.4.0
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce
@@ -22,7 +22,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/logrusorgru/aurora/v3 v3.0.0
 	github.com/rjeczalik/notify v0.9.2
-	github.com/rogpeppe/go-internal v1.8.0
+	github.com/rogpeppe/go-internal v1.8.1
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/cobra v1.3.0
 	github.com/tailscale/hujson v0.0.0-20200924210142-dde312d0d6a2

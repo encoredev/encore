@@ -387,25 +387,30 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 			qsStmts = append(qsStmts,
 				Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call(),
 			)
-			st := rpc.Request.Decl.Type.GetStruct()
-			for _, f := range st.Fields {
-				qsName := f.QueryStringName
-				if qsName == "-" {
-					continue
-				}
 
-				name := b.queryStringDecoder(f.Typ, fmt.Sprintf("api %s.%s: field %s", svc.Name, rpc.Name, f.Name))
-				qsStmts = append(qsStmts, Id("params").Dot(f.Name).Op("=").Id("dec").Dot(name).Call(
-					Lit(qsName),
-					Id("qs").Do(func(s *Statement) {
-						if f.Typ.GetList() != nil {
-							s.Index(Lit(qsName))
-						} else {
-							s.Dot("Get").Call(Lit(qsName))
+			if named := rpc.Request.Type.GetNamed(); named != nil {
+				decl := b.res.App.Decls[named.Id]
+				if st := decl.Type.GetStruct(); st != nil {
+					for _, f := range st.Fields {
+						qsName := f.QueryStringName
+						if qsName == "-" {
+							continue
 						}
-					}),
-					False(),
-				))
+
+						name := b.queryStringDecoder(f.Typ, fmt.Sprintf("api %s.%s: field %s", svc.Name, rpc.Name, f.Name))
+						qsStmts = append(qsStmts, Id("params").Dot(f.Name).Op("=").Id("dec").Dot(name).Call(
+							Lit(qsName),
+							Id("qs").Do(func(s *Statement) {
+								if f.Typ.GetList() != nil {
+									s.Index(Lit(qsName))
+								} else {
+									s.Dot("Get").Call(Lit(qsName))
+								}
+							}),
+							False(),
+						))
+					}
+				}
 			}
 			qsStmts = append(qsStmts,
 				Id("inputs").Op("=").Append(Id("inputs"), Index().Byte().Call(Lit("?").Op("+").Id("req").Dot("URL").Dot("RawQuery"))),
@@ -755,29 +760,25 @@ func (b *Builder) writeDecoder(f *File) {
 }
 
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
-	// Reconstruct a named type to make the schemaTypeToGoType function slightly easier to recursive over
-	// TODO(domblack): in the future we should change `est.Param` to contain the schema.Type directly
-	typName := b.schemaTypeToGoType(&schema.Type{Typ: &schema.Type_Named{Named: &schema.Named{
-		Id:            param.Decl.Id,
-		TypeArguments: param.TypeArguments,
-	}}})
+	typName := b.schemaTypeToGoType(param.Type)
 
 	if param.IsPtr && !skipPtr {
 		typName = Op("*").Add(typName)
 	}
+
 	return typName
 }
 
 func (b *Builder) authDataType() Code {
 	s := ""
+
 	if ah := b.res.App.AuthHandler; ah != nil && ah.AuthData != nil {
-		t := ah.AuthData
-		s = t.Decl.Loc.PkgPath + "." + t.Decl.Name
-		if t.IsPtr {
-			s = "*" + s
-		}
+		typ := b.typeName(ah.AuthData, false)                           // Get the type
+		statement := Var().Id("a").Add(typ)                             // place within a var statement to force `typ` to render as a type, rather than a statement
+		s = strings.TrimPrefix(fmt.Sprintf("%#v", statement), "var a ") // render the statement, trimming the prefix
 	}
-	return Lit(s)
+
+	return Lit(s) // return a string literal
 }
 
 func (b *Builder) error(err error) {
