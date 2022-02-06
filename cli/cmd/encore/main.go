@@ -17,6 +17,8 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
+var verbosity int
+
 var rootCmd = &cobra.Command{
 	Use:           "encore",
 	Short:         "encore is the fastest way of developing backend applications",
@@ -24,9 +26,19 @@ var rootCmd = &cobra.Command{
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true, // Hide the "completion" command from help (used for generating auto-completions for the shell)
 	},
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		level := zerolog.InfoLevel
+		if verbosity == 1 {
+			level = zerolog.DebugLevel
+		} else if verbosity >= 2 {
+			level = zerolog.TraceLevel
+		}
+		log.Logger = log.Logger.Level(level)
+	},
 }
 
 func main() {
+	rootCmd.PersistentFlags().CountVarP(&verbosity, "verbose", "v", "verbose output")
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
