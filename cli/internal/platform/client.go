@@ -9,10 +9,11 @@ import (
 	"net/http"
 	"runtime"
 
-	"encr.dev/cli/internal/conf"
-	"encr.dev/cli/internal/version"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+
+	"encr.dev/cli/internal/conf"
+	"encr.dev/cli/internal/version"
 )
 
 type Error struct {
@@ -64,6 +65,16 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 	if auth {
 		client = conf.AuthClient
 	}
+
+	log.Debug().Msgf("->     %s %s: %+v", method, path, reqParams)
+	defer func() {
+		if err != nil {
+			log.Debug().Msgf("<- ERR %s %s: %v", method, path, err)
+		} else {
+			log.Debug().Msgf("<- OK  %s %s: %+v", method, path, respParams)
+		}
+	}()
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
