@@ -9,12 +9,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/jackc/pgproto3/v2"
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/internal/platform"
 	"encr.dev/pkg/pgproxy"
-	"encr.dev/pkg/pgproxy2"
 )
 
 // OneshotProxy listens on a random port for a single connection, and proxies that connection to a remote db.
@@ -36,10 +34,10 @@ func OneshotProxy(appSlug, envSlug string) (port int, passwd string, err error) 
 }
 
 func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlug string) error {
-	proxy := &pgproxy2.SingleBackendProxy{
+	proxy := &pgproxy.SingleBackendProxy{
 		RequirePassword: passwd != "",
 		FrontendTLS:     nil,
-		DialBackend: func(ctx context.Context, startup *pgproxy2.StartupMessage) (pgproxy2.LogicalConn, error) {
+		DialBackend: func(ctx context.Context, startup *pgproxy.StartupData) (pgproxy.LogicalConn, error) {
 			if startup.Password != passwd {
 				return nil, fmt.Errorf("bad password")
 			}
@@ -48,21 +46,22 @@ func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlu
 			if err != nil {
 				return nil, err
 			}
-			return &wsLogicalConn{Conn: ws}, nil
+			conn := &WebsocketLogicalConn{Conn: ws}
+			return conn, nil
 		},
 	}
 
 	return proxy.Serve(ctx, ln)
 }
 
-type wsLogicalConn struct {
+type WebsocketLogicalConn struct {
 	*websocket.Conn
 	buf []byte
 }
 
-var _ pgproxy2.LogicalConn = (*wsLogicalConn)(nil)
+var _ pgproxy.LogicalConn = (*WebsocketLogicalConn)(nil)
 
-func (c *wsLogicalConn) Write(p []byte) (int, error) {
+func (c *WebsocketLogicalConn) Write(p []byte) (int, error) {
 	err := c.Conn.WriteMessage(websocket.BinaryMessage, p)
 	if err != nil {
 		return 0, err
@@ -70,7 +69,7 @@ func (c *wsLogicalConn) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (c *wsLogicalConn) Read(p []byte) (int, error) {
+func (c *WebsocketLogicalConn) Read(p []byte) (int, error) {
 	// If we have remaining data from the previous message we received
 	// from the stream, simply return that.
 	if len(c.buf) > 0 {
@@ -96,7 +95,7 @@ func (c *wsLogicalConn) Read(p []byte) (int, error) {
 	}
 }
 
-func (c *wsLogicalConn) Cancel(req *pgproxy2.CancelMessage) error {
+func (c *WebsocketLogicalConn) Cancel(req *pgproxy.CancelData) error {
 	enc := base64.StdEncoding
 	data := req.Raw.Encode(nil)
 	encoded := make([]byte, enc.EncodedLen(len(data)))
@@ -105,69 +104,10 @@ func (c *wsLogicalConn) Cancel(req *pgproxy2.CancelMessage) error {
 	return c.Conn.WriteMessage(websocket.TextMessage, encoded)
 }
 
-func (c *wsLogicalConn) SetDeadline(t time.Time) error {
+func (c *WebsocketLogicalConn) SetDeadline(t time.Time) error {
 	_ = c.Conn.SetReadDeadline(t)
 	err := c.Conn.SetWriteDeadline(t)
 	return err
-}
-
-// ProxyRemoteConn proxies a frontend to the remote database pointed at by appSlug and envSlug.
-// The passwd is what we expect the frontend to provide to authenticate the connection.
-func ProxyRemoteConn(ctx context.Context, frontend net.Conn, passwd, appSlug, envSlug string) {
-	defer frontend.Close()
-
-	var proxy pgproxy.Proxy
-	data, err := proxy.FrontendAuth(frontend, nil, passwd != "")
-	if err != nil {
-		log.Printf("sqldb: proxy handshake error: %v", err)
-		return
-	}
-
-	// If we are setting up a real connection (as opposed to issuing a cancel request, which
-	// does not use password based auth), make sure the password matches.
-	if _, ok := data.Startup.(*pgproxy.StartupMessage); ok && data.Password != passwd {
-		writeMsg(frontend, &pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "invalid password",
-		})
-		return
-	}
-
-	// TODO
-	ws, err := platform.DBConnect(ctx, appSlug, envSlug, data.Database, nil)
-	if err != nil {
-		writeMsg(frontend, &pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "could not connect to database: " + err.Error(),
-		})
-		return
-	}
-
-	defer ws.Close()
-
-	sw := wsWriter{stream: ws}
-	sr := wsReader{stream: ws}
-
-	backend := &struct {
-		wsWriter
-		wsReader
-	}{sw, sr}
-
-	data.Username = "encore"
-	data.Password = ""
-	if _, err := proxy.BackendAuth(backend, nil, data); err != nil {
-		log.Printf("sqldb: proxy: could not connect to remote db: %v", err)
-		writeMsg(frontend, &pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "could not connect to remote db: " + err.Error(),
-		})
-		return
-	}
-
-	proxy.Data(ctx)
 }
 
 // TODO(eandre) reimplement

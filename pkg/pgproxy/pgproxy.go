@@ -9,461 +9,509 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
+	"sync"
 	"time"
 
-	"encr.dev/pkg/pgproxy/internal/pgio"
-	"encr.dev/pkg/pgproxy/internal/pgproto3"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgproto3/v2"
 )
 
-// ErrCancelled is reported when the proxy is closed
-// due to requesting cancellation.
-var ErrCancelled = errors.New("request cancelled")
-
-// FrontendMessage represents messages received from the frontend.
-type FrontendMessage interface {
-	pgproto3.FrontendMessage
+type LogicalConn interface {
+	net.Conn
+	Cancel(*CancelData) error
 }
 
-type (
-	StartupMessage = pgproto3.StartupMessage
-	CancelRequest  = pgproto3.CancelRequest
-)
+type HelloData interface {
+	hello()
+}
 
-// AuthData is the authentication data received from the frontend.
-type AuthData struct {
-	Startup  FrontendMessage // *StartupMessage or *CancelRequest
+type StartupData struct {
+	Raw      *pgproto3.StartupMessage
 	Database string
 	Username string
-	Password string // may be empty if ProxyConfig.RequirePassword is false
+	Password string // may be empty if RequirePassword is false
 }
 
-// Proxy proxies the Postgres wire protocol between a client and a server,
-// injecting custom behavior into the authentication and server selection
-// at startup.
-type Proxy struct {
-	Debug    bool
-	frontend *conn
-	backend  *conn
+type CancelData struct {
+	Raw *pgproto3.CancelRequest
 }
 
-// SimpleConfig provides a convenient approach to setting up most common proxy scenarios.
-type SimpleConfig struct {
+func (*StartupData) hello() {}
+func (*CancelData) hello()  {}
+
+type SingleBackendProxy struct {
+	Log             zerolog.Logger
 	RequirePassword bool
 	FrontendTLS     *tls.Config
-	BackendTLS      *tls.Config
-	Debug           bool
+	DialBackend     func(context.Context, *StartupData) (LogicalConn, error)
+
+	gotBackend chan struct{} // closed when be is set
+
+	mu sync.Mutex
+	be LogicalConn
 }
 
-// Proxy begins proxying from frontend to backend.
-func (cfg *SimpleConfig) Proxy(ctx context.Context, frontend, backend io.ReadWriter) error {
-	p := &Proxy{Debug: cfg.Debug}
-	if auth, err := p.FrontendAuth(frontend, cfg.FrontendTLS, cfg.RequirePassword); err != nil {
-		return err
-	} else if _, err := p.BackendAuth(backend, cfg.BackendTLS, auth); err != nil {
-		if errors.Is(err, ErrCancelled) {
-			return nil
+func (p *SingleBackendProxy) Serve(ctx context.Context, ln net.Listener) error {
+	defer ln.Close()
+	if p.gotBackend != nil {
+		panic("SingleBackendProxy: Serve called twice")
+	}
+	p.gotBackend = make(chan struct{})
+
+	go func() {
+		select {
+		case <-p.gotBackend:
+		case <-time.After(10 * time.Minute):
+			ln.Close()
+		case <-ctx.Done():
+			ln.Close()
 		}
-		return err
-	}
-	return p.Data(ctx)
-}
+	}()
 
-// FrontendAuth performs the client-side authentication step, and reports the auth data received.
-func (p *Proxy) FrontendAuth(frontend io.ReadWriter, tlsCfg *tls.Config, requirePassword bool) (*AuthData, error) {
-	if _, ok := frontend.(net.Conn); !ok && tlsCfg != nil {
-		panic("pgproxy: frontend connection with TLS must provide a net.Conn")
-	}
-	p.frontend = &conn{rw: frontend}
-	conn, err := p.negotiateSSL(p.frontend, tlsCfg, false)
-	if err != nil {
-		return nil, err
-	}
-	p.frontend = conn
-
-	startup, err := p.readStartupMsg(p.frontend)
-	if err != nil {
-		return nil, err
-	}
-
-	data := &AuthData{Startup: startup}
-	if startup, ok := startup.(*StartupMessage); ok {
-		data.Username = startup.Parameters["user"]
-		data.Database = startup.Parameters["database"]
-		if data.Database == "" {
-			return nil, fmt.Errorf("missing database name in connection string")
-		}
-		if requirePassword {
-			var err error
-			data.Password, err = readPassword(p.frontend)
-			if err != nil {
-				return nil, err
+	var tempDelay time.Duration // how long to sleep on accept failure
+	for {
+		frontend, err := ln.Accept()
+		if err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+				if tempDelay == 0 {
+					tempDelay = 5 * time.Millisecond
+				} else {
+					tempDelay *= 2
+				}
+				if max := 1 * time.Second; tempDelay > max {
+					tempDelay = max
+				}
+				log.Printf("pgproxy: accept error: %v; retrying in %v", err, tempDelay)
+				time.Sleep(tempDelay)
+				continue
 			}
+			return fmt.Errorf("pgproxy: could not accept: %v", err)
 		}
-	}
 
-	return data, nil
+		go p.ProxyConn(ctx, frontend)
+		tempDelay = 0
+	}
 }
 
-// BackendData is the data reported from the backend after authentication is completed.
-type BackendData struct {
-	KeyData *pgproto3.BackendKeyData // may be nil
+func (p *SingleBackendProxy) ProxyConn(ctx context.Context, client net.Conn) {
+	defer client.Close()
+
+	cl, err := SetupClient(client, &ClientConfig{
+		TLS:          p.FrontendTLS,
+		WantPassword: p.RequirePassword,
+	})
+	if err != nil {
+		p.Log.Error().Err(err).Msg("unable to setup frontend")
+		return
+	}
+
+	p.mu.Lock()
+	if p.be == nil {
+		// setupBackend unlocks the mutex when ready.
+		if err := p.setupBackend(ctx, cl); err != nil {
+			p.Log.Error().Err(err).Msg("unable to setup backend")
+		}
+	} else {
+		p.mu.Unlock()
+		p.cancelRequest(ctx, cl.Hello)
+	}
 }
 
-// BackendAuth performs the server-side authentication step, and reports any key data received from the server
-// for use with cancellation requests.
-func (p *Proxy) BackendAuth(backend io.ReadWriter, tlsCfg *tls.Config, auth *AuthData) (*BackendData, error) {
-	if _, ok := backend.(net.Conn); !ok && tlsCfg != nil {
-		panic("pgproxy: backend connection with TLS must provide a net.Conn")
+func (p *SingleBackendProxy) setupBackend(ctx context.Context, cl *Client) error {
+	startup, ok := cl.Hello.(*StartupData)
+	if !ok {
+		return fmt.Errorf("unsupported startup message: %T", cl.Hello)
 	}
-	p.backend = &conn{rw: backend}
-	conn, err := p.negotiateSSL(p.backend, tlsCfg, true)
+
+	server, err := p.DialBackend(ctx, startup)
+	if err != nil {
+		return err
+	}
+	defer server.Close()
+
+	fe := pgproto3.NewFrontend(pgproto3.NewChunkReader(server), server)
+	log.Trace().Msg("successfully setup server connection")
+
+	err = AuthenticateClient(cl.Backend)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to authenticate client")
+		return err
+	}
+	log.Trace().Msg("successfully authenticated client")
+
+	_, err = FinalizeInitialHandshake(cl.Backend, fe)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to finalize handshake")
+		return err
+	}
+
+	err = CopySteadyState(cl.Backend, fe)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to copy steady state")
+		return err
+	}
+
+	return nil
+}
+
+type ServerConfig struct {
+	TLS     *tls.Config // nil indicates no TLS
+	Startup *StartupData
+}
+
+// SetupServer sets up a frontend connected to the given server.
+func SetupServer(server net.Conn, cfg *ServerConfig) (*pgproto3.Frontend, error) {
+	fe, err := serverTLSNegotiate(server, cfg.TLS)
 	if err != nil {
 		return nil, err
 	}
-	p.backend = conn
 
-	switch startup := auth.Startup.(type) {
-	case *CancelRequest:
-		p.debug("sending cancellation request: %+v", *startup)
-		if err := p.backend.WriteMsg(startup); err != nil {
-			return nil, fmt.Errorf("pgproxy: could not send cancel request: %v", err)
+	raw := cfg.Startup.Raw
+	raw.Parameters["database"] = cfg.Startup.Database
+	raw.Parameters["user"] = cfg.Startup.Username
+
+	log.Trace().Msg("sending startup message to server")
+	if err := fe.Send(raw); err != nil {
+		return nil, fmt.Errorf("unable to send startup message: %v", err)
+	}
+
+	// Handle authentication
+	for {
+		msg, err := fe.Receive()
+		if err != nil {
+			return nil, fmt.Errorf("unexpected message from server: %v", err)
 		}
-		return nil, ErrCancelled
 
-	case *StartupMessage:
-		// Update the startup parameters in case they were changed
-		startup.Parameters["user"] = auth.Username
-		startup.Parameters["database"] = auth.Database
-		if err := pgio.WriteMsg(p.backend, startup); err != nil {
-			return nil, fmt.Errorf("pgproxy: could not send startup msg: %v", err)
-		}
+		switch msg := msg.(type) {
+		case *pgproto3.ErrorResponse:
+			return nil, pgconn.ErrorResponseToPgError(msg)
 
-		if err := p.authenticateBackend(auth); err != nil {
-			var e *pgErr
-			if errors.As(err, &e) {
-				_ = p.frontend.WriteMsg(&e.msg)
+		case pgproto3.AuthenticationResponseMessage:
+			if len(cfg.Startup.Password) == 0 {
+				if _, ok := msg.(*pgproto3.AuthenticationOk); !ok {
+					return nil, fmt.Errorf("backend requested authentication but no password given")
+				}
 			}
-			return nil, fmt.Errorf("pgproxy: could not authenticate: %v", err)
-		}
 
-		// Notify the frontend of successful auth
-		if err := pgio.WriteMsg(p.frontend, &pgproto3.Authentication{Type: pgproto3.AuthTypeOk}); err != nil {
+			switch msg := msg.(type) {
+			case *pgproto3.AuthenticationOk:
+				// We're done!
+				return fe, nil
+
+			case *pgproto3.AuthenticationCleartextPassword:
+				err := fe.Send(&pgproto3.PasswordMessage{Password: cfg.Startup.Password})
+				if err != nil {
+					return nil, err
+				}
+
+			case *pgproto3.AuthenticationMD5Password:
+				password := computeMD5(cfg.Startup.Username, cfg.Startup.Password, msg.Salt)
+				err := fe.Send(&pgproto3.PasswordMessage{Password: password})
+				if err != nil {
+					return nil, err
+				}
+
+			case *pgproto3.AuthenticationSASL:
+				if err := scramAuth(fe, cfg.Startup.Password, msg.AuthMechanisms); err != nil {
+					return nil, err
+				}
+
+			default:
+				return nil, fmt.Errorf("unsupported auth message: %T", msg)
+			}
+
+		default:
+			return nil, fmt.Errorf("unexpected message type from backend: %T", msg)
+		}
+	}
+}
+
+func serverTLSNegotiate(server net.Conn, tlsConfig *tls.Config) (*pgproto3.Frontend, error) {
+	cr := pgproto3.NewChunkReader(server)
+	frontend := pgproto3.NewFrontend(cr, server)
+	if tlsConfig == nil {
+		return frontend, nil
+	}
+
+	log.Trace().Msg("negotiating tls with server")
+	if err := frontend.Send(&pgproto3.SSLRequest{}); err != nil {
+		return nil, err
+	}
+	// Read the TLS response.
+	resp, err := cr.Next(1)
+	if err != nil {
+		return nil, err
+	}
+	switch resp[0] {
+	case 'S':
+		log.Trace().Msg("server accepted tls request")
+		tlsConn := tls.Client(server, tlsConfig)
+		if err := tlsConn.Handshake(); err != nil {
+			log.Error().Err(err).Msg("server tls handshake failed")
+			tlsConn.Close()
+			return nil, fmt.Errorf("server tls handshake failed: %v", err)
+		}
+		log.Trace().Msg("completed server tls handshake")
+
+		// Return a new backend that wraps the tls conn.
+		return pgproto3.NewFrontend(pgproto3.NewChunkReader(tlsConn), tlsConn), nil
+	case 'N':
+		log.Trace().Msg("server rejected tls request")
+		return nil, fmt.Errorf("server rejected tls")
+	case 'E':
+		// ErrorMessage: we've already parsed the first byte so read it manually.
+		hdr, err := cr.Next(4)
+		if err != nil {
+			return nil, err
+		}
+		bodyLen := int(binary.BigEndian.Uint32(hdr)) - 4
+		msgBody, err := cr.Next(bodyLen)
+		if err != nil {
+			return nil, err
+		}
+		var errMsg pgproto3.ErrorResponse
+		if err := errMsg.Decode(msgBody); err != nil {
+			return nil, err
+		}
+		log.Error().Msgf("server tls negotiation error: %+v", errMsg)
+		return nil, fmt.Errorf("could not negotiate tls with server: error %s: %s", errMsg.Code, errMsg.Message)
+	default:
+		return nil, fmt.Errorf("got unexpected response to tls request: %v", resp[0])
+	}
+}
+
+type ClientConfig struct {
+	// TLS, if non-nil, indicates we support TLS connections.
+	TLS *tls.Config
+
+	// WantPassword, if true, indicates we want to capture
+	// the password sent by the frontend.
+	WantPassword bool
+}
+
+type Client struct {
+	Backend *pgproto3.Backend
+	Hello   HelloData
+}
+
+// SetupClient sets up a backend connected to the given client.
+// If tlsConfig is non-nil it negotiates TLS if requested by the client.
+//
+// On successful startup the returned message is either *pgproto3.StartupMessage or *pgproto3.CancelRequest.
+//
+// It is up to the caller to authenticate the client using AuthenticateClient.
+func SetupClient(client net.Conn, cfg *ClientConfig) (*Client, error) {
+	log.Trace().Msg("setting up client backend")
+	be, msg, err := clientTLSNegotiate(client, cfg.TLS)
+	if err != nil {
+		return nil, err
+	}
+
+	if cancel, ok := msg.(*pgproto3.CancelRequest); ok {
+		return &Client{
+			Backend: be,
+			Hello:   &CancelData{Raw: cancel},
+		}, nil
+	}
+
+	startup := msg.(*pgproto3.StartupMessage)
+	hello := &StartupData{
+		Raw:      startup,
+		Database: startup.Parameters["database"],
+		Username: startup.Parameters["user"],
+	}
+	if cfg.WantPassword {
+		err := be.Send(&pgproto3.AuthenticationCleartextPassword{})
+		if err != nil {
+			return nil, err
+		}
+		msg, err := be.Receive()
+		if err != nil {
+			return nil, err
+		}
+		passwd, ok := msg.(*pgproto3.PasswordMessage)
+		if !ok {
+			return nil, fmt.Errorf("expected PasswordMessage, got %T", msg)
+		}
+		hello.Password = passwd.Password
+	}
+
+	return &Client{
+		Backend: be,
+		Hello:   hello,
+	}, nil
+}
+
+func clientTLSNegotiate(client net.Conn, tlsConfig *tls.Config) (*pgproto3.Backend, pgproto3.FrontendMessage, error) {
+	log.Trace().Msg("negotiating TLS with client")
+	backend := pgproto3.NewBackend(pgproto3.NewChunkReader(client), client)
+	hasTLS := false
+	for {
+		startup, err := backend.ReceiveStartupMessage()
+		if err != nil {
+			return nil, nil, err
+		}
+		switch startup := startup.(type) {
+		case *pgproto3.SSLRequest:
+			if hasTLS {
+				return nil, nil, fmt.Errorf("received duplicate SSL request")
+			} else if tlsConfig == nil {
+				// We got an SSL request but we don't want to use TLS
+				if _, err := client.Write([]byte{'N'}); err != nil {
+					return nil, nil, err
+				}
+			}
+
+			if _, err := client.Write([]byte{'S'}); err != nil {
+				return nil, nil, err
+			}
+			tlsConn := tls.Server(client, tlsConfig)
+			if err := tlsConn.Handshake(); err != nil {
+				tlsConn.Close()
+				return nil, nil, fmt.Errorf("client tls handshake failed: %v", err)
+			}
+			log.Trace().Msg("client tls handshake successful")
+
+			// The TLS handshake was successful.
+			// Create a new backend that reads from the now-encrypted TLS connection.
+			hasTLS = true
+			backend = pgproto3.NewBackend(pgproto3.NewChunkReader(tlsConn), tlsConn)
+		case *pgproto3.CancelRequest, *pgproto3.StartupMessage:
+			// Startup complete.
+			log.Debug().Msg("startup completed")
+			return backend, startup, nil
+		case *pgproto3.GSSEncRequest:
+			return nil, nil, fmt.Errorf("pgproxy: GSSAPI encryption not supported")
+		}
+	}
+}
+
+type AuthData struct {
+	Username string
+	Password string
+}
+
+// AuthenticateClient tells the client they've successfully authenticated.
+func AuthenticateClient(be *pgproto3.Backend) error {
+	be.SetAuthType(pgproto3.AuthTypeOk)
+	return be.Send(&pgproto3.AuthenticationOk{})
+}
+
+func computeMD5(username, password string, salt [4]byte) string {
+	// concat('md5', md5(concat(md5(concat(password, username)), random-salt)))
+
+	// s1 := md5(concat(password, username))
+	s1 := md5.Sum([]byte(password + username))
+	// s2 := md5(concat(s1, random-salt))
+	s2 := md5.Sum([]byte(hex.EncodeToString(s1[:]) + string(salt[:])))
+	return "md5" + hex.EncodeToString(s2[:])
+}
+
+func SendCancelRequest(conn io.ReadWriter, req *pgproto3.CancelRequest) error {
+	buf := make([]byte, 16)
+	binary.BigEndian.PutUint32(buf[0:4], 16)
+	binary.BigEndian.PutUint32(buf[4:8], 80877102)
+	binary.BigEndian.PutUint32(buf[8:12], uint32(req.ProcessID))
+	binary.BigEndian.PutUint32(buf[12:16], uint32(req.SecretKey))
+	_, err := conn.Write(buf)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Read(buf)
+	if err != io.EOF {
+		return err
+	}
+	return nil
+}
+
+// FinalizeInitialHandshake completes the handshake between client and server,
+// snooping the BackendKeyData from the server if sent.
+// It is nil if the server did not send any backend key data.
+func FinalizeInitialHandshake(client *pgproto3.Backend, server *pgproto3.Frontend) (*pgproto3.BackendKeyData, error) {
+	var keyData *pgproto3.BackendKeyData
+
+	// Read messages from backend until we get ReadyForQuery
+	for {
+		msg, err := server.Receive()
+		if err != nil {
+			return nil, fmt.Errorf("pgproxy: cannot read from backend: %v", err)
+		} else if err := client.Send(msg); err != nil {
 			return nil, fmt.Errorf("pgproxy: could not write to frontend: %v", err)
 		}
 
-		// Read messages from backend until we get ReadyForQuery
-		var data BackendData
+		switch msg := msg.(type) {
+		case *pgproto3.BackendKeyData:
+			// Make a copy; this object is only valid until the next call to Receive()
+			copy := *msg
+			keyData = &copy
+
+		case *pgproto3.ReadyForQuery:
+			// Handshake completed
+			return keyData, nil
+		}
+	}
+}
+
+// CopySteadyState copies messages back and forth after the initial handshake.
+func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error {
+	done := make(chan struct{})
+	defer close(done)
+
+	go func() {
+		// Copy from server to client.
 		for {
-			msg, err := p.backend.ReadMsg()
+			msg, err := server.Receive()
 			if err != nil {
-				return nil, fmt.Errorf("pgproxy: cannot read from backend: %v", err)
-			} else if err := p.frontend.WriteMsg(msg); err != nil {
-				return nil, fmt.Errorf("pgproxy: could not write to frontend: %v", err)
-			}
-
-			switch msg.Typ {
-			case 'K': // BackendKeyData
-				var keyData pgproto3.BackendKeyData
-				if err := keyData.Decode(msg.Buf); err != nil {
-					return nil, fmt.Errorf("pgproxy: could not decode backend key data: %v", err)
+				if errors.Is(err, net.ErrClosed) {
+					select {
+					case <-done:
+						// The client terminated the connection so our connection
+						// to the server is also being being torn down; ignore the error.
+						return
+					default:
+					}
 				}
-				data.KeyData = &keyData
-			case 'Z': // ReadyForQuery
-				return &data, nil
+
+				log.Error().Err(err).Msg("pgproxy.CopySteadyState: failed to receive message from server")
+				return
+			}
+			if err := client.Send(msg); err != nil {
+				return
 			}
 		}
-
-	default:
-		return nil, fmt.Errorf("pgproxy: cannot perform backend handshake: unexpected startup message type %T", startup)
-	}
-}
-
-// Data proxies the steady-state data between the frontend and backend once both sides are authenticated.
-func (p *Proxy) Data(ctx context.Context) error {
-	p.debug("proxying data between frontend and backend (steady-state)")
-	defer p.debug("proxy closed")
-
-	quit := make(chan struct{}, 2)
-	go func() {
-		io.Copy(p.frontend, p.backend)
-		quit <- struct{}{}
-	}()
-	go func() {
-		io.Copy(p.backend, p.frontend)
-		quit <- struct{}{}
 	}()
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-quit:
-		// Wait up to 1s for graceful exit
-		select {
-		case <-quit:
-		case <-ctx.Done():
-		case <-time.After(1 * time.Second):
-		}
-		return nil
-	}
-}
-
-func (p *Proxy) debug(format string, args ...interface{}) {
-	if p.Debug {
-		format = "pgproxy: " + format
-		log.Printf(format, args...)
-	}
-}
-
-func (p *Proxy) negotiateSSL(c *conn, cfg *tls.Config, server bool) (*conn, error) {
-	if server {
-		if cfg == nil {
-			// We don't want SSL so just don't request it.
-			p.debug("skipping TLS negotiation with server since no TLS config was given")
-			return c, nil
-		}
-		p.debug("negotiating TLS with server...")
-		msg := &pgproto3.SSLMessage{}
-		if err := c.WriteMsg(msg); err != nil {
-			return nil, err
-		}
-		var resp [1]byte
-		if _, err := io.ReadFull(c, resp[:]); err != nil {
-			return nil, err
-		}
-		switch resp[0] {
-		case 'S':
-			p.debug("server accepted TLS request")
-			c2 := tls.Client(c.rw.(net.Conn), cfg)
-			if err := c2.Handshake(); err != nil {
-				p.debug("TLS handshake failed: %v", err)
-				c2.Close()
-				return nil, fmt.Errorf("TLS handshake failed: %v", err)
-			}
-			p.debug("TLS handshake completed")
-			return &conn{rw: c2}, nil
-		case 'N':
-			p.debug("server rejected TLS request")
-			return nil, fmt.Errorf("server rejected TLS")
-		case 'E':
-			// ErrorMessage
-			p.debug("server responded with ErrorResponse to TLS request")
-			c.UnreadByte(resp[0])
-			var msg pgproto3.ErrorResponse
-			if err := c.ReadInto(&msg); err != nil {
-				p.debug("could not parse ErrorResponse: %v", err)
-			}
-			p.debug("TLS negotiation error: %+v", msg)
-			return nil, fmt.Errorf("could not negotiate TLS: error %s: %s", msg.Code, msg.Message)
-		default:
-			return nil, fmt.Errorf("got unexpected response to TLS Request: %v", resp[0])
-		}
-	}
-
-	p.debug("checking if client wants TLS")
-	msg, err := p.readStartupMsg(c)
-	if err == nil {
-		// readStartupMsg returns err == errSSL if the client requests TLS,
-		// so if we get here it means the client did not request TLS.
-		p.debug("client did not request TLS")
-		if cfg == nil {
-			// We don't require TLS, so proceed.
-			// Unread the startup message so we pick it up again when we do the startup.
-			c.UnreadMsg(msg)
-			return c, nil
-		}
-		return nil, fmt.Errorf("client did not request TLS")
-	} else if err != errSSL {
-		return nil, err
-	}
-
-	p.debug("client requested TLS")
-	if cfg == nil {
-		// We got an SSL request but we don't want to use TLS
-		if _, err := c.Write([]byte{'N'}); err != nil {
-			return nil, err
-		}
-		return c, nil
-	}
-
-	if _, err := c.Write([]byte{'S'}); err != nil {
-		return nil, err
-	}
-	c2 := tls.Server(c.rw.(net.Conn), cfg)
-	if err := c2.Handshake(); err != nil {
-		c2.Close()
-		return nil, fmt.Errorf("TLS handshake failed: %v", err)
-	}
-	return &conn{rw: c2}, nil
-}
-
-const sslProtocolVersionNumber = 80877103
-
-var errSSL = errors.New("client requested SSL")
-
-func (p *Proxy) readStartupMsg(c *conn) (FrontendMessage, error) {
-	var hdr [8]byte
-	if _, err := io.ReadFull(c, hdr[:]); err != nil {
-		return nil, err
-	}
-
-	// Read the rest of the message. Splice the first 4 bytes from
-	// the header which we've already read, and only read the rest from the conn.
-	// This is so that we can use pgproto3.StartupMessage.Decode() to parse
-	// the message, which expects the protocol version to be part of the buffer.
-	msgSize := int(binary.BigEndian.Uint32(hdr[0:4]) - 4)
-	if msgSize > (1 << 20) {
-		return nil, fmt.Errorf("startup message too big (> 1GiB)")
-	}
-	buf := make([]byte, msgSize)
-	copy(buf[0:4], hdr[4:8])
-	if _, err := io.ReadFull(c, buf[4:]); err != nil {
-		return nil, err
-	}
-
-	code := binary.BigEndian.Uint32(hdr[4:8])
-	p.debug("got startup message code: %v", code)
-	switch code {
-	case sslProtocolVersionNumber:
-		return nil, errSSL
-	case pgproto3.ProtocolVersionNumber:
-		var msg pgproto3.StartupMessage
-		if err := msg.Decode(buf); err != nil {
-			return nil, fmt.Errorf("could not parse startup message: %v", err)
-		}
-		return &msg, nil
-	case pgproto3.CancelRequestCode:
-		var msg pgproto3.CancelRequest
-		if err := msg.Decode(buf); err != nil {
-			return nil, fmt.Errorf("could not parse cancel request message: %v", err)
-		}
-		return &msg, nil
-	default:
-		return nil, fmt.Errorf("unknown startup message code: %d", code)
-	}
-}
-
-func readPassword(frontend *conn) (string, error) {
-	err := frontend.WriteMsg(&pgproto3.Authentication{
-		Type: pgproto3.AuthTypeCleartextPassword,
-	})
-	if err != nil {
-		return "", err
-	}
-	msg, err := frontend.ReadMsg()
-	if err != nil {
-		return "", err
-	}
-	if msg.Typ != 'p' {
-		return "", fmt.Errorf("expected password msg, got %v", msg.Typ)
-	}
-	var pwdMsg pgproto3.PasswordMessage
-	if err := pwdMsg.Decode(msg.Buf); err != nil {
-		return "", fmt.Errorf("could not decode password message: %v", err)
-	}
-	return pwdMsg.Password, nil
-}
-
-func (p *Proxy) authenticateBackend(data *AuthData) error {
+	// Copy from client to server.
 	for {
-		msg, err := p.backend.ReadMsg()
+		msg, err := client.Receive()
+		if err != nil {
+			log.Error().Err(err).Msg("pgproxy.CopySteadyState: failed to receive message from client")
+			return err
+		}
+		err = server.Send(msg)
 		if err != nil {
 			return err
 		}
-		switch msg.Typ {
-		case 'R': // Authentication Required
-			var auth pgproto3.Authentication
-			if err := auth.Decode(msg.Buf); err != nil {
-				return err
-			}
-			switch auth.Type {
-			case pgproto3.AuthTypeOk:
-				return nil
-			case pgproto3.AuthTypeCleartextPassword:
-				pwdMsg := &pgproto3.PasswordMessage{
-					Password: data.Password,
-				}
-				if err := p.backend.WriteMsg(pwdMsg); err != nil {
-					return err
-				}
-			case pgproto3.AuthTypeMD5Password:
-				// Send the password hashed as:
-				// concat('md5', md5(concat(md5(concat(password, username)), random-salt)))
-
-				// s1 := md5(concat(password, username))
-				s1 := md5.Sum([]byte(data.Password + data.Username))
-				// s2 := md5(concat(s1, random-salt))
-				s2 := md5.Sum([]byte(hex.EncodeToString(s1[:]) + string(auth.Salt[:])))
-				pwdMsg := &pgproto3.PasswordMessage{
-					Password: "md5" + hex.EncodeToString(s2[:]),
-				}
-				if err := p.backend.WriteMsg(pwdMsg); err != nil {
-					return err
-				}
-			default:
-				return fmt.Errorf("unknown authentication type %v", auth.Type)
-			}
-
-		case 'E':
-			var resp pgproto3.ErrorResponse
-			if err := resp.Decode(msg.Buf); err != nil {
-				return err
-			}
-			return &pgErr{msg: resp}
-		default:
-			return fmt.Errorf("unexpected message type from backend: %x", msg.Typ)
+		if _, ok := msg.(*pgproto3.Terminate); ok {
+			log.Trace().Msg("received terminate from client, closing connection")
+			return nil
 		}
 	}
 }
 
-type conn struct {
-	rw     io.ReadWriter
-	unread []byte
-}
-
-func (c *conn) ReadInto(msg pgio.PgMsg) error {
-	raw, err := c.ReadMsg()
-	if err != nil {
-		return err
+func (p *SingleBackendProxy) cancelRequest(ctx context.Context, hello HelloData) {
+	cancel, ok := hello.(*CancelData)
+	if !ok {
+		p.Log.Error().Msgf("follow-up conn sent %T, expected cancel request", hello)
+		return
 	}
-	return msg.Decode(raw.Buf)
-}
-
-func (c *conn) ReadMsg() (*pgio.RawMsg, error) {
-	return pgio.ReadMsg(c)
-}
-
-func (c *conn) UnreadMsg(msg pgio.PgMsg) {
-	c.unread = msg.Encode(nil)
-}
-
-func (c *conn) UnreadByte(b byte) {
-	c.unread = []byte{b}
-}
-
-func (c *conn) Read(p []byte) (n int, err error) {
-	if len(c.unread) > 0 {
-		n = copy(p, c.unread)
-		c.unread = c.unread[n:]
-		return n, nil
+	p.Log.Trace().Msg("received cancel request")
+	if err := p.be.Cancel(cancel); err != nil {
+		p.Log.Error().Err(err).Msg("unable to send cancel request")
 	}
-	n, err = c.rw.Read(p)
-	return
-}
-
-func (c *conn) Write(p []byte) (n int, err error) {
-	return c.rw.Write(p)
-}
-
-func (c *conn) WriteMsg(msg pgio.PgMsg) error {
-	return pgio.WriteMsg(c, msg)
-}
-
-type pgErr struct {
-	msg pgproto3.ErrorResponse
-}
-
-func (e *pgErr) Error() string {
-	return fmt.Sprintf("%s - code: %s", e.msg.Message, e.msg.Code)
 }
