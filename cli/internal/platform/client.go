@@ -66,12 +66,12 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 		client = conf.AuthClient
 	}
 
-	log.Debug().Msgf("->     %s %s: %+v", method, path, reqParams)
+	log.Trace().Msgf("->     %s %s: %+v", method, path, reqParams)
 	defer func() {
 		if err != nil {
-			log.Debug().Msgf("<- ERR %s %s: %v", method, path, err)
+			log.Trace().Msgf("<- ERR %s %s: %v", method, path, err)
 		} else {
-			log.Debug().Msgf("<- OK  %s %s: %+v", method, path, respParams)
+			log.Trace().Msgf("<- OK  %s %s: %+v", method, path, respParams)
 		}
 	}()
 
