@@ -13,7 +13,7 @@ message Data {
   repeated schema.v1.Decl decls        = 3;
   repeated Package        pkgs         = 4;
   repeated Service        svcs         = 5;
-  AuthHandler             auth_handler = 6;
+  optional AuthHandler    auth_handler = 6; // the auth handler or nil
 }
 
 // QualifiedName is a name of an object in a specific package.
