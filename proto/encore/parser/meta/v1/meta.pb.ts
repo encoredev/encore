@@ -11,7 +11,8 @@ export interface Data {
   decls: Decl[];
   pkgs: Package[];
   svcs: Service[];
-  auth_handler: AuthHandler;
+  /** the auth handler or nil */
+  auth_handler?: AuthHandler | undefined;
 }
 
 /**
