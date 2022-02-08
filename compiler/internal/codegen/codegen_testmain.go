@@ -7,7 +7,13 @@ import (
 )
 
 func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
-	f := NewFilePathName(pkg.ImportPath, pkg.Name)
+	// Define this package as an external foo_test package so that we can
+	// work around potential import cycles between the foo package and
+	// imports of the auth data type (necessary for calling reflect.TypeOf).
+	//
+	// Use a synthetic (and invalid) import path of "!test" to tell jennifer to
+	// add import statements for the non-"_test" package.
+	f := NewFilePathName(pkg.ImportPath+"!test", pkg.Name+"_test")
 	f.ImportNames(importNames)
 	for _, p := range b.res.App.Packages {
 		f.ImportName(p.ImportPath, p.Name)

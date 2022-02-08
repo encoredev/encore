@@ -1,7 +1,8 @@
 // pkg svc
-package svc
+package svc_test
 
 import (
+	"encore.app/svc"
 	"encore.dev/runtime/config"
 	"os"
 	"reflect"
@@ -16,7 +17,7 @@ func loadConfig() (*config.Config, error) {
 		RelPath:   "svc",
 	}}
 	static := &config.Static{
-		AuthData:    reflect.TypeOf((*AuthData)(nil)),
+		AuthData:    reflect.TypeOf((*svc.AuthData)(nil)),
 		Services:    services,
 		TestService: "svc",
 		Testing:     true,
