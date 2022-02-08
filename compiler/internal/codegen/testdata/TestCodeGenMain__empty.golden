@@ -24,7 +24,7 @@ var json = jsoniter.Config{
 func loadConfig() (*config.Config, error) {
 	services := []*config.Service{}
 	static := &config.Static{
-		AuthData:    "",
+		AuthData:    nil,
 		Services:    services,
 		TestService: "",
 		Testing:     false,

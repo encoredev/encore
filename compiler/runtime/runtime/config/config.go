@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
@@ -26,8 +27,8 @@ type Config struct {
 
 type Static struct {
 	Services []*Service
-	// AuthData is the custom auth data type, or ""
-	AuthData string
+	// AuthData is the custom auth data type, or nil
+	AuthData reflect.Type
 
 	Testing     bool
 	TestService string // service being tested, if any
