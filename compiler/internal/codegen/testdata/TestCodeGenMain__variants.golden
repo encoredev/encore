@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -634,7 +635,7 @@ func loadConfig() (*config.Config, error) {
 		RelPath: "svc",
 	}}
 	static := &config.Static{
-		AuthData:    "*encore.app/svc.AuthData",
+		AuthData:    reflect.TypeOf((*svc.AuthData)(nil)),
 		Services:    services,
 		TestService: "",
 		Testing:     false,

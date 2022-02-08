@@ -4,6 +4,7 @@ package svc
 import (
 	"encore.dev/runtime/config"
 	"os"
+	"reflect"
 	_ "unsafe"
 )
 
@@ -15,7 +16,7 @@ func loadConfig() (*config.Config, error) {
 		RelPath:   "svc",
 	}}
 	static := &config.Static{
-		AuthData:    "*encore.app/svc.AuthData",
+		AuthData:    reflect.TypeOf((*AuthData)(nil)),
 		Services:    services,
 		TestService: "svc",
 		Testing:     true,

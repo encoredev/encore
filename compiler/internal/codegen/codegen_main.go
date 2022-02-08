@@ -770,15 +770,17 @@ func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
 }
 
 func (b *Builder) authDataType() Code {
-	s := ""
-
 	if ah := b.res.App.AuthHandler; ah != nil && ah.AuthData != nil {
-		typ := b.typeName(ah.AuthData, false)                           // Get the type
-		statement := Var().Id("a").Add(typ)                             // place within a var statement to force `typ` to render as a type, rather than a statement
-		s = strings.TrimPrefix(fmt.Sprintf("%#v", statement), "var a ") // render the statement, trimming the prefix
+		typName := b.schemaTypeToGoType(ah.AuthData.Type)
+		if ah.AuthData.IsPtr {
+			// reflect.TypeOf((*T)(nil))
+			return Qual("reflect", "TypeOf").Call(Parens(Op("*").Add(typName)).Call(Nil()))
+		} else {
+			// reflect.TypeOf(T{})
+			return Qual("reflect", "TypeOf").Call(typName.Values())
+		}
 	}
-
-	return Lit(s) // return a string literal
+	return Nil()
 }
 
 func (b *Builder) error(err error) {
