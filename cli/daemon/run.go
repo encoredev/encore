@@ -22,10 +22,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 
-	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/onboarding"
 	"encr.dev/cli/internal/version"
 	"encr.dev/parser"

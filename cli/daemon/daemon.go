@@ -17,10 +17,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
