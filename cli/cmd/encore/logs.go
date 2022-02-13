@@ -3,17 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"io"
+	"errors"
 	"os"
 	"os/signal"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
-	daemonpb "encr.dev/proto/encore/daemon"
+	"encr.dev/cli/internal/appfile"
+	"encr.dev/cli/internal/platform"
 )
 
 var (
@@ -33,45 +33,88 @@ var logsCmd = &cobra.Command{
 }
 
 func streamLogs(appRoot, envName string) {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	appSlug, err := appfile.Slug(appRoot)
+	if err != nil {
+		fatal(err)
+	} else if appSlug == "" {
+		fatal("app is not linked with Encore Cloud")
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	logs, err := platform.EnvLogs(ctx, appSlug, envName)
+	if err != nil {
+		var e platform.Error
+		if errors.As(err, &e) {
+			switch e.Code {
+			case "env_not_found":
+				fatalf("environment %q not found", envName)
+			}
+		}
+		fatal(err)
+	}
+
 	go func() {
-		<-interrupt
-		cancel()
+		<-ctx.Done()
+		logs.Close()
 	}()
 
-	daemon := setupDaemon(ctx)
-	stream, err := daemon.Logs(ctx, &daemonpb.LogsRequest{
-		AppRoot: appRoot,
-		EnvName: envName,
-	})
-	if err != nil {
-		fatal("could not stream logs: ", err)
-	}
+	const (
+		// Time allowed to write a message to the peer.
+		writeWait = 10 * time.Second
+
+		// Time allowed to read the next pong message from the peer.
+		pongWait = 60 * time.Second
+
+		// Send pings to peer with this period. Must be less than pongWait.
+		pingPeriod = (pongWait * 9) / 10
+	)
+
+	pingTicker := time.NewTicker(pingPeriod)
+	defer func() {
+		pingTicker.Stop()
+		logs.Close()
+	}()
+
+	go func() {
+		defer logs.Close() // close the stream if we fail to ping the server.
+		for range pingTicker.C {
+			logs.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := logs.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}()
+
+	logs.SetReadDeadline(time.Now().Add(pongWait))
+	logs.SetPongHandler(func(string) error { logs.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
+	// Use the same configuration as the runtime
+	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	cw := zerolog.NewConsoleWriter()
 	for {
-		msg, err := stream.Recv()
-		if err == io.EOF || status.Code(err) == codes.Canceled {
+		_, message, err := logs.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				fatal("the server closed the connection unexpectedly.")
+			}
 			return
-		} else if err != nil {
-			fatal(err)
 		}
-		for _, line := range msg.Lines {
+
+		lines := bytes.Split(message, []byte("\n"))
+		for _, line := range lines {
 			// Pretty-print logs if requested and it looks like a JSON log line
 			if !logsJSON && bytes.HasPrefix(line, []byte{'{'}) {
 				if _, err := cw.Write(line); err != nil {
 					// Fall back to regular stdout in case of error
 					os.Stdout.Write(line)
+					os.Stdout.Write([]byte("\n"))
 				}
 			} else {
 				os.Stdout.Write(line)
+				os.Stdout.Write([]byte("\n"))
 			}
-		}
-		if msg.DropNotice {
-			fmt.Fprintln(os.Stderr, "--- NOTICE: log lines were not sent due to high volume or slow reader ---")
 		}
 	}
 }

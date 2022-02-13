@@ -184,7 +184,15 @@ func wsDial(ctx context.Context, path string, auth bool, extraHeaders map[string
 	for k, v := range extraHeaders {
 		header.Set(k, v)
 	}
-	log.Info().Msgf("sending startup data %#v", extraHeaders)
+
+	log.Trace().Msgf("->     %s %s: %+v", "WS", path, extraHeaders)
+	defer func() {
+		if err != nil {
+			log.Trace().Msgf("<- ERR %s %s: %v", "WS", path, err)
+		} else {
+			log.Trace().Msgf("<- OK  %s %s", "WS", path)
+		}
+	}()
 
 	if auth {
 		tok, err := conf.DefaultTokenSource.Token()
@@ -195,6 +203,23 @@ func wsDial(ctx context.Context, path string, auth bool, extraHeaders map[string
 	}
 
 	url := conf.WSBaseURL + path
-	ws, _, err = websocket.DefaultDialer.DialContext(ctx, url, header)
+	log.Trace().Msgf("->     %s %s: connecting to %s", "WS", path, url)
+	ws, httpResp, err := websocket.DefaultDialer.DialContext(ctx, url, header)
+	if httpResp != nil && httpResp.StatusCode >= 400 {
+		var respStruct struct {
+			OK    bool
+			Error Error
+			Data  json.RawMessage
+		}
+		if err := json.NewDecoder(httpResp.Body).Decode(&respStruct); err != nil {
+			return nil, fmt.Errorf("decode response: %v", err)
+		} else if !respStruct.OK {
+			e := respStruct.Error
+			e.HTTPCode = httpResp.StatusCode
+			e.HTTPStatus = httpResp.Status
+			return nil, e
+		}
+	}
+
 	return ws, err
 }
