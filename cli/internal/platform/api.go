@@ -137,6 +137,11 @@ func DBConnect(ctx context.Context, appSlug, envSlug, dbName string, startupData
 	})
 }
 
+func EnvLogs(ctx context.Context, appSlug, envSlug string) (*websocket.Conn, error) {
+	path := escapef("/apps/%s/envs/%s/log", appSlug, envSlug)
+	return wsDial(ctx, path, true, nil)
+}
+
 func escapef(format string, args ...string) string {
 	ifaces := make([]interface{}, len(args))
 	for i, arg := range args {

@@ -13,8 +13,6 @@ service Daemon {
   rpc Test (TestRequest) returns (stream CommandMessage);
   // Check checks the app for compilation errors.
   rpc Check (CheckRequest) returns (stream CommandMessage);
-  // Logs streams logs from the encore.dev platform.
-  rpc Logs (LogsRequest) returns (stream LogsMessage);
 
   // DBConnect starts the database and returns the DSN for connecting to it.
   rpc DBConnect (DBConnectRequest) returns (DBConnectResponse);
@@ -76,16 +74,6 @@ message CheckRequest {
   string working_dir = 2;
   // codegen_debug, if true, dumps the generated code and prints where it is located.
   bool codegen_debug = 3;
-}
-
-message LogsRequest {
-  string app_root = 1;
-  string env_name = 2;
-}
-
-message LogsMessage {
-  repeated bytes lines = 1;
-  bool drop_notice = 2;
 }
 
 message ResetDBRequest {

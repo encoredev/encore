@@ -8,8 +8,8 @@ import (
 	"os"
 	"strconv"
 
-	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/runtime/config"
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
 	"encr.dev/parser"

@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"encr.dev/cli/daemon/internal/appfile"
+	"encr.dev/cli/internal/appfile"
 )
 
 // Manifest represents the persisted manifest for
