@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -16,6 +15,8 @@ import (
 	"encr.dev/cli/daemon/internal/runlog"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
+	"encr.dev/cli/internal/platform"
+	"encr.dev/pkg/pgproxy"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -105,7 +106,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		return err
 	}
 
-	var handler func(context.Context, net.Conn)
+	var runProxy func() error
 	if params.EnvName == "local" {
 		// Parse the app to figure out what infrastructure is needed.
 		parse, err := s.parseApp(params.AppRoot, ".", false)
@@ -129,16 +130,33 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		} else if err := cluster.Create(ctx, params.AppRoot, parse.Meta); err != nil {
 			return err
 		}
-		handler = func(ctx context.Context, frontend net.Conn) {
-			s.cm.PreauthProxyConn(frontend, clusterID)
+		runProxy = func() error {
+			return serveProxy(ctx, ln, func(ctx context.Context, client net.Conn) {
+				s.cm.PreauthProxyConn(client, clusterID)
+			})
 		}
 	} else {
-		handler = func(ctx context.Context, frontend net.Conn) {
-			sqldb.ProxyRemoteConn(ctx, frontend, "", appID, params.EnvName)
+		proxy := &pgproxy.SingleBackendProxy{
+			Log:             log.Logger,
+			RequirePassword: false,
+			FrontendTLS:     nil,
+			DialBackend: func(ctx context.Context, startup *pgproxy.StartupData) (pgproxy.LogicalConn, error) {
+				startupData := startup.Raw.Encode(nil)
+				ws, err := platform.DBConnect(ctx, appID, params.EnvName, startup.Database, startupData)
+				if err != nil {
+					return nil, err
+				}
+				return &sqldb.WebsocketLogicalConn{Conn: ws}, nil
+			},
+		}
+
+		runProxy = func() error {
+			return proxy.Serve(ctx, ln)
 		}
 	}
 
 	msgs := make(chan string, 10)
+	defer close(msgs)
 	go func() {
 		for msg := range msgs {
 			stream.Send(&daemonpb.CommandMessage{Msg: &daemonpb.CommandMessage_Output{
@@ -149,22 +167,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		}
 	}()
 
-	var wg sync.WaitGroup
-	err = serveProxy(ctx, ln, func(ctx context.Context, frontend net.Conn) {
-		wg.Add(1)
-		defer wg.Done()
-		msgs <- "dbproxy: connection opened\n"
-		handler(ctx, frontend)
-		msgs <- "dbproxy: connection closed\n"
-	})
-
-	go func() {
-		// Close the msgs chan when all connections are closed
-		wg.Wait()
-		close(msgs)
-	}()
-
-	return err
+	return runProxy()
 }
 
 // DBReset resets the given databases, recreating them from scratch.

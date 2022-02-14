@@ -64,10 +64,10 @@ func streamLogs(appRoot, envName string) {
 		writeWait = 10 * time.Second
 
 		// Time allowed to read the next pong message from the peer.
-		pongWait = 60 * time.Second
+		pongTimeout = 60 * time.Second
 
 		// Send pings to peer with this period. Must be less than pongWait.
-		pingPeriod = (pongWait * 9) / 10
+		pingPeriod = (pongTimeout * 9) / 10
 	)
 
 	pingTicker := time.NewTicker(pingPeriod)
@@ -86,8 +86,8 @@ func streamLogs(appRoot, envName string) {
 		}
 	}()
 
-	logs.SetReadDeadline(time.Now().Add(pongWait))
-	logs.SetPongHandler(func(string) error { logs.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	logs.SetReadDeadline(time.Now().Add(pongTimeout))
+	logs.SetPongHandler(func(string) error { logs.SetReadDeadline(time.Now().Add(pongTimeout)); return nil })
 
 	// Use the same configuration as the runtime
 	zerolog.TimeFieldFormat = time.RFC3339Nano
