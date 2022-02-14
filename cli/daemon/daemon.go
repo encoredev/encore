@@ -17,10 +17,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
@@ -140,47 +140,6 @@ func (s *Server) Version(context.Context, *empty.Empty) (*daemonpb.VersionRespon
 		Version:    version.Version,
 		ConfigHash: configHash,
 	}, nil
-}
-
-// Logs streams logs from the encore.dev platform.
-func (s *Server) Logs(params *daemonpb.LogsRequest, stream daemonpb.Daemon_LogsServer) error {
-	appSlug, err := appfile.Slug(params.AppRoot)
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, err.Error())
-	} else if appSlug == "" {
-		return errNotLinked
-	}
-
-	return status.Error(codes.Unimplemented, "logs are not yet implemented")
-
-	/* TODO(eandre) Reimplement
-	stream.Send(&daemonpb.LogsMessage{
-		Lines: []string{""}
-	})
-
-	logs, err := s.rc.Logs(stream.Context(), &remote.LogsRequest{
-		AppSlug: appSlug,
-		EnvName: params.EnvName,
-	})
-	if err != nil {
-		return err
-	}
-	for {
-		msg, err := logs.Recv()
-		if status.Code(err) == codes.Canceled {
-			return nil
-		} else if err != nil {
-			return err
-		}
-		err = stream.Send(&daemonpb.LogsMessage{
-			Lines:      msg.Lines,
-			DropNotice: msg.DropNotice,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	*/
 }
 
 // availableUpdate checks for updates to Encore.

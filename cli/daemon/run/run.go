@@ -26,9 +26,9 @@ import (
 
 	"github.com/hashicorp/yamux"
 
-	"encr.dev/cli/daemon/internal/appfile"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/runtime/config"
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
