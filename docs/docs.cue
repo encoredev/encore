@@ -48,6 +48,7 @@ sections: [
 			{title: "API Errors", segment: "errors"},
 			{title: "Authentication", segment: "auth"},
 			{title: "SQL Databases", segment: "databases"},
+			{title: "Cron Jobs", segment: "cron-jobs"},
 			{title: "Secrets", segment: "secrets"},
 			{title: "Testing", segment: "testing"},
 			{title: "API Documentation", segment: "api-docs"},
