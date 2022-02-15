@@ -77,6 +77,13 @@ sections: [
 		]
 	},
 	{
+		title: "Configuration"
+		segment: "configuration"
+		docs: [
+			{title: "Auth Keys", segment: "auth-keys"},
+		]
+	},
+	{
 		title: "How-to Guides"
 		segment: "how-to"
 		docs: [
