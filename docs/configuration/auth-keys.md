@@ -45,7 +45,7 @@ This page also gives you the ability to revoke existing keys.
 Using the Encore CLI, you can authenticate with your newly generated key:
 
 ```bash
-encoredev auth login --auth-key=ena_hKrHk8pPfrhGgcPZ4rZxf9a4Ar3dDCE6eqfD
+encore auth login --auth-key=ena_nEQIkfeM43t7oxpleMsIULbhbtLAbYnnLf1D
 ```
 
 ## Revoking a key
