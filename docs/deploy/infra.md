@@ -12,7 +12,8 @@ Encore works seamlessly with all the major cloud providers (AWS, GCP, Azure). De
 ## Infrastructure Setup
 The precise infrastructure that Encore provisions depends on the cloud provider and the type of environment you select.
 
-To run your application, Encore provisions a managed Kubernetes cluster for each environment (when deploying to your own cloud).
+For Google Cloud Platform we deploy your application using Cloud Run services, for a managed and serverless experience.
+We're working on adding support for additional deployment options, such as AWS Lambda and Kubernetes deployments.
 
 **Production Environments**
 
@@ -24,6 +25,5 @@ The precise services used depends on the cloud provider: RDS for AWS, CloudSQL f
 
 **Development Environments**
 
-For these environments, Encore optimizes for cost reduction instead and sets it up in as lightweight a way as possible. Databases are provisioned in Kubernetes, backed by a Persistent Disk, for a minimal footprint.
-
-
+For these environments, Encore optimizes for cost reduction instead and sets it up in as lightweight a way as possible.
+Databases are provisioned in Kubernetes, backed by a Persistent Disk, for a minimal footprint.

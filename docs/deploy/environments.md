@@ -39,22 +39,11 @@ reasonable durability and scalability, suitable for the most development needs.
 ## Cloud Providers
 
 Encore supports deploying your application to any of the major cloud providers,
-as well as using Encore's own cloud (internally deployed using AWS), using your own cloud account.
+as well as using Encore's own cloud (internally deployed using GCP), using your own cloud account.
 
 This gives you enormous flexibility, letting you use Encore for improving your productivity
 while maintaining the existing trust relationship you have with your cloud provider of choice.
 This functionality also lets you easily deploy a hybrid or multi-cloud application, if desired.
-
-<Callout type="important">
-
-Note that Encore currently provisions a managed Kubernetes cluster when deploying to an external
-cloud provider, which means the baseline costs are higher than when using Encore Cloud.
-
-If you are evaluating Encore or aren't ready to scale to real production traffic yet,
-we recommend starting with an Encore Cloud environment and later deploying an environment
-with one of the major cloud providers.
-
-</Callout>
 
 ### Provisioning infrastructure
 
