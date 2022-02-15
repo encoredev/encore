@@ -58,7 +58,7 @@ func (b *Builder) BuildBinaries() error {
 			target = "x86_64-apple-macos10.12"
 		case "arm64":
 			target = "arm64-apple-macos11"
-			env = append(env, "SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX11.1.sdk")
+			env = append(env, "SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX11.sdk")
 		default:
 			return fmt.Errorf("unsupported GOARCH %q", b.GOARCH)
 		}
