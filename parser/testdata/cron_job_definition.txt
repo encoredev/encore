@@ -5,12 +5,14 @@ stdout 'cronJob cronfooboo name=Cron Foo Boo'
 stdout 'cronJob cronfoo name=Cron Foo Bar'
 stdout 'cronJob cronfood name=Cron Food Bar'
 stdout 'cronJob cronfoocious name=Cron Foo Bar Bazz'
+stdout 'cronJob cron-every name=Cron Foo Bar Bazz'
 
 -- svc/svc.go --
 package svc
 
 import (
 	"context"
+	"time"
 
 	"encore.dev/cron"
 )
@@ -48,10 +50,17 @@ var _, bd = cron.NewJob("cronfood", cron.JobConfig{
 	Endpoint: Cron,
 }), "barfoo"
 
-// A cron job to send out push notiifications to new subscribers.
+// A cron job to send out push notifications to new subscribers.
 var _ = cron.NewJob("cronfoocious", cron.JobConfig{
 	Name:     "Cron Foo Bar Bazz",
 	Schedule: "* * * * 4",
+	Endpoint: Cron,
+})
+
+// A cron job using Every instead of Schedule
+var _ = cron.NewJob("cron-every", cron.JobConfig{
+	Name:     "Cron Foo Bar Bazz",
+	Every:    3 * time.Minute,
 	Endpoint: Cron,
 })
 

@@ -262,24 +262,6 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 							Context:     string(file.Contents[start:end]),
 						},
 					}
-
-				case est.SQLDBNode:
-					tx.Context = &meta.TraceNode_StaticCall{
-						StaticCall: &meta.StaticCallNode{
-							Package: meta.StaticCallNode_SQLDB,
-							Func:    r.Node.Func,
-							Context: string(file.Contents[start:end]),
-						},
-					}
-
-				case est.RLogNode:
-					tx.Context = &meta.TraceNode_StaticCall{
-						StaticCall: &meta.StaticCallNode{
-							Package: meta.StaticCallNode_RLOG,
-							Func:    r.Node.Func,
-							Context: string(file.Contents[start:end]),
-						},
-					}
 				}
 			}
 		}

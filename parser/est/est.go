@@ -8,6 +8,7 @@ import (
 	"errors"
 	"go/ast"
 	"go/token"
+	"time"
 
 	"encr.dev/parser/paths"
 	schema "encr.dev/proto/encore/parser/schema/v1"
@@ -60,6 +61,7 @@ type CronJob struct {
 	Name     string
 	Doc      string
 	Schedule string
+	Every    time.Duration
 	RPC      *RPC
 	AST      *ast.ValueSpec
 }
@@ -70,10 +72,12 @@ func (cj *CronJob) IsValid() (bool, error) {
 		return false, errors.New("field ID is required")
 	case cj.Name == "":
 		return false, errors.New("field Name is required")
-	case cj.Schedule == "":
-		return false, errors.New("field Schedule is required")
 	case cj.RPC == nil:
 		return false, errors.New("field RPC is required")
+	case cj.Schedule == "" && cj.Every == 0:
+		return false, errors.New("either Every or Schedule must be set")
+	case cj.Schedule != "" && cj.Every != 0:
+		return false, errors.New("cannot set both Every and Schedule")
 	}
 
 	return true, nil
