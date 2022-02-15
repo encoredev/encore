@@ -71,7 +71,9 @@ Not right now. We definitely want to support deploying to an existing k8s cluste
 
 #### Can you have it provision in Kubernetes rather than a cloud infrastructure?
 
-Right now we only support deploying Encore apps to Kubernetes. Either where we host it for you (using AWS under the hood), or you can tell Encore to deploy to your own cloud account. In that case we currently set up a new Kubernetes cluster.
+Right now we only support deploying Encore apps to managed services such as AWS Lambda/Google Cloud Run.
+Either where we host it for you (using GCP under the hood), or you can tell Encore to deploy to your own cloud account.
+In that case we set it up in a serverless fashion like Lambda/Cloud Run.
 
 #### Does Encore support using websockets?
 
