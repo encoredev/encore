@@ -7,7 +7,7 @@ on:
         description: 'Version to build ("1.2.3")'
         required: true
       encorego_version:
-        description: 'Encore-Go version to use ("encorego-1.17.7")'
+        description: 'Encore-Go version to use ("encore-go1.17.7")'
         required: true
 
 jobs:
