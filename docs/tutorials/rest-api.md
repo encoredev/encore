@@ -132,6 +132,8 @@ func Shorten(ctx context.Context, p *ShortenParams) (*URL, error) {
 
 Start your application again with `encore run` and Encore automatically sets up your database. Let’s try it out!
 
+**Note: You need to have [Docker](https://www.docker.com) installed and running in order to locally run Encore applications with databases.**
+
 ```bash
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 {
