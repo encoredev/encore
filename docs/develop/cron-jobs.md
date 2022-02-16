@@ -2,7 +2,7 @@
 title: Cron Jobs
 ---
 
-You can use a CronJob to run jobs on a time-based schedule. These automated jobs run similarly to [Cron](https://en.wikipedia.org/wiki/Cron) tasks.
+You can use a `CronJob` to run jobs on a time-based schedule. These automated jobs run similarly to [Cron](https://en.wikipedia.org/wiki/Cron) tasks.
 
 Cron jobs are useful for creating periodic and recurring tasks, like running a database query or sending emails. Cron jobs can also schedule individual tasks for a specific time, such as if you want to schedule a job for a low activity period.
 
@@ -66,7 +66,7 @@ We only support using infrastructure creation at the package level, any other ca
 
 - `cron.NewJob(ID, ...)` - This ID allows you to rename the variable _or_ move the infrastructure resource without having it being destroyed/recreated. It would cause a compilation error to have two resources of the same type with the same ID within the app.
 - `Name` - The Cron job user friendly name, will auto complete based on the **ID** if not set.
-- `Every` - `time.Duration` that determines how often the Cron job is executed; <sup>*</sup>*if you want more control over the execution schedule we support traditional [cron expressions](https://en.wikipedia.org/wiki/Cron#CRON_expression) by setting the `Schedule` field in the `JobConfig` struct; we support either **Every** or **Schedule** but not both*.
+- `Every` - `time.Duration` that determines how often the Cron job is executed; <sup>\*</sup>*if you want more control over the execution schedule we support traditional [cron expressions](https://en.wikipedia.org/wiki/Cron#CRON_expression) by setting the `Schedule` field in the `JobConfig` struct; we support either **Every** or **Schedule** but not both*.
 - `Endpoint` - The Encore API endpoint containing the actual code you want to run periodically.
 
 <Callout type="important">
