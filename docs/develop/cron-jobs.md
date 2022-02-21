@@ -58,7 +58,7 @@ type Response struct {
 
 <Callout type="important">
 
-We only support using infrastructure creation at the package level, any other call location will result in a compilation error.
+We only support creating cron jobs at the package level, any other call location will result in a compilation error.
 
 </Callout>
 
