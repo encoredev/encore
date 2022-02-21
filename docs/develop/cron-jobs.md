@@ -8,13 +8,16 @@ Cron jobs are useful for creating periodic and recurring tasks, like running a d
 
 <Callout type="important">
 
-**Cron jobs** have limitations and idiosyncrasies. For example, in certain circumstances, a single cron job can create multiple jobs. Therefore, jobs should be **idempotent**.
+**Cron jobs** have limitations and idiosyncrasies:
+- In certain circumstances, a single cron job can create multiple jobs. Therefore, jobs should be **idempotent**.
+- The actual job needs to be expressed as a **public** API endpoint, that doesn't have any request data.
+- You can uniquely identify a Cron job resource using its ID; this makes it easier to rename or move infrastructure around without recreating or destroying it.
 
 </Callout>
 
 ## Defining a Cron job
 
-With Encore you define cron jobs directly in your code, using our infrastructure declaration syntax. We believe it’s forward-compatible and has the easiest path to discoverability.
+With Encore you define cron jobs directly in your code, using our infrastructure declaration syntax.
 
 ```go
 package hello // service name
@@ -65,13 +68,28 @@ We only support creating cron jobs at the package level, any other call location
 ## Cron job configuration
 
 - `cron.NewJob(ID, ...)` - This ID allows you to rename the variable _or_ move the infrastructure resource without having it being destroyed/recreated. It would cause a compilation error to have two resources of the same type with the same ID within the app.
-- `Name` - The Cron job user friendly name, will auto complete based on the **ID** if not set.
+- `Name` - The Cron job user-friendly name, will auto complete based on the **ID** if not set.
 - `Every` - `time.Duration` that determines how often the Cron job is executed; <sup>\*</sup>*if you want more control over the execution schedule we support traditional [cron expressions](https://en.wikipedia.org/wiki/Cron#CRON_expression) by setting the `Schedule` field in the `JobConfig` struct; we support either **Every** or **Schedule** but not both*.
+```go
+// Define the cron job execution schedule using the Every field
+var _ = cron.NewJob("cronjobexample", cron.JobConfig{
+	Name:     "Cron Job Example",
+	Every:    5 * time.Minute,
+	Endpoint: Cron,
+})
+
+// Define the cron job execution schedule using the Schedule field
+var _ = cron.NewJob("cronjobexample", cron.JobConfig{
+	Name:     "Cron Job Example",
+	Schedule: "*/5 * * * *",
+	Endpoint: Cron,
+})
+```
 - `Endpoint` - The Encore API endpoint containing the actual code you want to run periodically.
 
 <Callout type="important">
 
-We only support endpoints that dont't have any request data. As previously stated, these should be idempotent. 
+We only support endpoints that don't have any request data. As previously stated, these should be idempotent. 
 
 </Callout>
 
