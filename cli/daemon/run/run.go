@@ -626,7 +626,7 @@ func encodeSecretsEnv(secrets map[string]string) string {
 
 		buf.WriteString(k)
 		buf.WriteByte('=')
-		buf.WriteString(base64.RawStdEncoding.EncodeToString([]byte(secrets[k])))
+		buf.WriteString(base64.RawURLEncoding.EncodeToString([]byte(secrets[k])))
 	}
 	return buf.String()
 }
