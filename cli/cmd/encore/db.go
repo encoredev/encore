@@ -57,7 +57,7 @@ var dbResetCmd = &cobra.Command{
 var dbEnv string
 
 var dbShellCmd = &cobra.Command{
-	Use:   "shell [service-name] [--env=local]",
+	Use:   "shell SERVICE_NAME [--env=local]",
 	Short: "Connects to the database via psql shell",
 	Long:  "Defaults to connecting to your local environment. Specify --env to connect to another environment.",
 	Args:  cobra.MaximumNArgs(1),
@@ -70,6 +70,8 @@ var dbShellCmd = &cobra.Command{
 		dbName := ""
 		if len(args) > 0 {
 			dbName = args[0]
+			// Ignore the trailing slash to support auto-completion of directory names
+			dbName = strings.TrimSuffix(dbName, "/")
 		} else {
 			// Find the enclosing service by looking for the "migrations" folder
 		SvcNameLoop:
@@ -128,6 +130,12 @@ var dbShellCmd = &cobra.Command{
 		if err := cmd.Wait(); err != nil {
 			log.Fatal().Err(err).Msg("psql failed")
 		}
+	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveFilterDirs
 	},
 }
 
