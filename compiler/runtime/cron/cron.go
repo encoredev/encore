@@ -23,6 +23,7 @@ func NewJob(id string, jobConfig JobConfig) *Job {
 		ID:       id,
 		Name:     jobConfig.Name,
 		Doc:      jobConfig.Name,
+		Every:    jobConfig.Every,
 		Schedule: jobConfig.Schedule,
 		Endpoint: jobConfig.Endpoint,
 	}
