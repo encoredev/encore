@@ -85,3 +85,48 @@ In the cloud, how the database is provisioned depends on the type of [Encore Env
 Encore automatically provisions databases to match what your application requires.
 Simply define a database schema ([see above](#defining-a-database-schema)) and Encore
 will provision the database at the start of the next deploy.
+
+## Handling migration errors
+
+When Encore applies database migrations — both locally when developing as well as when deploying to the cloud — there's always the possibility the migrations don't apply cleanly.
+
+This can happen for many reasons:
+- There's a problem with the SQL syntax in the migration
+- You tried to add a `UNIQUE` constraint but the values in the table aren't actually unique
+- The existing database schema didn't look like you thought it did, so the database object you tried to change doesn't actually exist
+- ... and so on
+
+When that happens, Encore records that it tried to apply the migration but failed.
+In that case it's possible that one part of the migration was successfully applied but another part was not.
+
+In order to ensure safety, Encore marks the migration as "dirty" and expects you to manually resolve the problem.
+This information is tracked in the `schema_migrations` table:
+
+```sql
+database=# \d schema_migrations
+          Table "public.schema_migrations"
+ Column  |  Type   | Collation | Nullable | Default
+---------+---------+-----------+----------+---------
+ version | bigint  |           | not null |
+ dirty   | boolean |           | not null |
+Indexes:
+    "schema_migrations_pkey" PRIMARY KEY, btree (version)
+```
+
+To resolve the problem, you have two options: either revert back to the database schema from the previous migration (roll back), or fix the schema to match the new migration (roll forward).
+
+#### Roll back
+
+To roll back to the previous migration:
+
+1. Use `encore db shell <service-name>` to log in to the database
+2. Apply the necessary changes to the schema to revert it back to the previous migration version
+3. Execute the query `UPDATE schema_migrations SET dirty = false, version = version - 1;`
+
+#### Roll forward
+
+To roll forward to the new migration:
+
+1. Use `encore db shell <service-name>` to log in to the database
+2. Apply the necessary changes to the schema to fix the migration failure and bring the schema up to date with the new migration
+3. Execute the query `UPDATE schema_migrations SET dirty = false;`
