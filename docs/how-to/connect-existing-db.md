@@ -23,10 +23,11 @@ The connection string is something like `postgresql://user:password@externaldb-d
 package externaldb
 
 import (
+    "context"
     "fmt"
 
-    "go4.org/syncutil"
     "github.com/jackc/pgx/v4/pgxpool"
+    "go4.org/syncutil"
 )
 
 // Get returns a database connection pool to the external database.
