@@ -11,6 +11,7 @@ import (
 	"github.com/fatih/structtag"
 
 	"encr.dev/parser/est"
+	"encr.dev/pkg/errlist"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -139,7 +140,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 		p.errf(expr.Pos(), "%s is not a supported type; got %+v", types.ExprString(expr), reflect.TypeOf(expr))
 	}
 
-	panic(bailout{})
+	panic(errlist.Bailout{})
 }
 
 func (p *parser) parseEncoreBuiltin(pos token.Pos, pkgPath, name string) *schema.Type {
@@ -154,7 +155,7 @@ func (p *parser) parseEncoreBuiltin(pos token.Pos, pkgPath, name string) *schema
 		return &schema.Type{Typ: &schema.Type_Builtin{Builtin: schema.Builtin_JSON}}
 	}
 	p.errf(pos, "%s.%s is not a supported type in Encore\n\tnote: you can only use types defined within your Encore app and builtins\n\tbuiltins also include time.Time, json.RawMessage, and encore.dev/types/uuid.UUID", pkgPath, name)
-	panic(bailout{})
+	panic(errlist.Bailout{})
 }
 
 // structFieldOptions represents the parsed struct tag information

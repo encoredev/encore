@@ -179,7 +179,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 
 			default:
 				p.errf(dir.Pos(), "unexpected directive type %T", dir)
-				panic(bailout{})
+				p.abort()
 			}
 		}
 	}
@@ -488,7 +488,7 @@ func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *
 	n := typ.GetNamed()
 	if n == nil {
 		p.errf(expr.Pos(), "%s is not a named type", types.ExprString(expr))
-		panic(bailout{})
+		p.abort()
 	}
 
 	if p.decls[n.Id].Type.GetStruct() == nil {

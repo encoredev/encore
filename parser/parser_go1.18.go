@@ -43,12 +43,12 @@ func resolveWithTypeArguments(p *parser, pkg *est.Package, file *est.File, ident
 	decl := p.decls[named.Id]
 	if decl == nil {
 		p.errf(ident.Pos(), "unable to find decl referenced")
-		panic(bailout{})
+		p.abort()
 	}
 
 	if len(decl.TypeParams) != len(typeArguments) {
 		p.errf(ident.Pos(), "expected %d type parameters, got %d for reference to %s", len(decl.TypeParams), len(typeArguments), decl.Name)
-		panic(bailout{})
+		p.abort()
 	}
 
 	named.TypeArguments = make([]*schema.Type, len(decl.TypeParams))

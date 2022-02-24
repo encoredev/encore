@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"encr.dev/parser/est"
+	"encr.dev/pkg/errlist"
 )
 
 // Resolve resolves information about the names (idents) in the given package.
@@ -24,7 +25,7 @@ func Resolve(fset *token.FileSet, track TrackedPackages, pkg *est.Package) (*Res
 	pkgNames, pkgScope := collectPackageObjects(pkg)
 	res.Decls = pkgNames
 
-	var errors scanner.ErrorList
+	errors := errlist.New(fset)
 	for _, file := range pkg.Files {
 		f := &File{
 			PathToName: make(map[string]string),
@@ -40,9 +41,9 @@ func Resolve(fset *token.FileSet, track TrackedPackages, pkg *est.Package) (*Res
 		}
 		if err := r.Process(file); err != nil {
 			if e, ok := err.(*scanner.Error); ok {
-				errors = append(errors, e)
+				errors.AddRaw(e)
 			} else {
-				errors.Add(fset.Position(file.AST.Pos()), err.Error())
+				errors.Add(file.AST.Pos(), err.Error())
 			}
 		}
 	}

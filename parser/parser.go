@@ -20,6 +20,7 @@ import (
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
+	"encr.dev/pkg/errlist"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -37,7 +38,7 @@ type parser struct {
 
 	// accumulated results
 	fset        *token.FileSet
-	errors      scanner.ErrorList
+	errors      *errlist.List
 	pkgs        []*est.Package
 	pkgMap      map[string]*est.Package // import path -> pkg
 	svcs        []*est.Service
@@ -76,7 +77,7 @@ const (
 func (p *parser) Parse() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			if _, ok := e.(bailout); !ok {
+			if _, ok := e.(errlist.Bailout); !ok {
 				const size = 64 << 10
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
@@ -85,11 +86,12 @@ func (p *parser) Parse() (res *Result, err error) {
 		}
 		if err == nil {
 			p.errors.Sort()
-			makeErrsRelative(p.errors, p.cfg.AppRoot, p.cfg.WorkingDir)
+			p.errors.MakeRelative(p.cfg.AppRoot, p.cfg.WorkingDir)
 			err = p.errors.Err()
 		}
 	}()
 	p.fset = token.NewFileSet()
+	p.errors = errlist.New(p.fset)
 
 	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, goparser.ParseComments, p.cfg.ParseTests)
 	if err != nil {
@@ -248,8 +250,8 @@ func (p *parser) resolveNames(track names.TrackedPackages) {
 	for _, pkg := range p.pkgs {
 		res, err := names.Resolve(p.fset, track, pkg)
 		if err != nil {
-			if el, ok := err.(scanner.ErrorList); ok {
-				p.errors = append(p.errors, el...)
+			if el, ok := err.(*errlist.List); ok {
+				p.errors.Merge(el)
 			} else {
 				p.err(pkg.Files[0].AST.Pos(), err.Error())
 			}
@@ -257,8 +259,8 @@ func (p *parser) resolveNames(track names.TrackedPackages) {
 		}
 		p.names[pkg] = res
 	}
-	if len(p.errors) > 0 {
-		panic(bailout{})
+	if p.errors.Len() > 0 {
+		p.errors.Abort()
 	}
 }
 

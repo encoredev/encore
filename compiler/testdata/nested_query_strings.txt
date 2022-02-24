@@ -1,0 +1,27 @@
+! build
+stderr 'cannot use nested types in request types used for query strings'
+
+-- go.mod --
+module test
+
+require "encore.dev" v0.0.0
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+)
+
+type SortingParams struct {
+	Cursor, Limit int
+}
+
+type NestedQueryParams struct {
+	Sort SortingParams
+}
+
+//encore:api public path=/query/nested method=GET
+func NestedQuery(ctx context.Context, p *NestedQueryParams) error {
+	return nil
+}
