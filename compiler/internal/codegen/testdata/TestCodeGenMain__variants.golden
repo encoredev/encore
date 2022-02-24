@@ -291,6 +291,7 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 	params.JSON = dec.JSON("json", qs.Get("json"), false)
 	params.Float32 = dec.Float32("float32", qs.Get("float32"), false)
 	params.Float64 = dec.Float64("float64", qs.Get("float64"), false)
+	params.Strings = dec.StringList("strings", qs["strings"], false)
 	inputs = append(inputs, []byte("?"+req.URL.RawQuery))
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Query")
@@ -747,14 +748,14 @@ type typeDecoder struct {
 	err error
 }
 
-func (d *typeDecoder) String(field, s string, required bool) (v string) {
+func (d *typeDecoder) String(field string, s string, required bool) (v string) {
 	if !required && s == "" {
 		return
 	}
 	return s
 }
 
-func (d *typeDecoder) UUID(field, s string, required bool) (v uuid.UUID) {
+func (d *typeDecoder) UUID(field string, s string, required bool) (v uuid.UUID) {
 	if !required && s == "" {
 		return
 	}
@@ -763,7 +764,7 @@ func (d *typeDecoder) UUID(field, s string, required bool) (v uuid.UUID) {
 	return v
 }
 
-func (d *typeDecoder) Uint(field, s string, required bool) (v uint) {
+func (d *typeDecoder) Uint(field string, s string, required bool) (v uint) {
 	if !required && s == "" {
 		return
 	}
@@ -772,7 +773,7 @@ func (d *typeDecoder) Uint(field, s string, required bool) (v uint) {
 	return uint(x)
 }
 
-func (d *typeDecoder) Time(field, s string, required bool) (v time.Time) {
+func (d *typeDecoder) Time(field string, s string, required bool) (v time.Time) {
 	if !required && s == "" {
 		return
 	}
@@ -781,21 +782,21 @@ func (d *typeDecoder) Time(field, s string, required bool) (v time.Time) {
 	return v
 }
 
-func (d *typeDecoder) UserID(field, s string, required bool) (v auth.UID) {
+func (d *typeDecoder) UserID(field string, s string, required bool) (v auth.UID) {
 	if !required && s == "" {
 		return
 	}
 	return auth.UID(s)
 }
 
-func (d *typeDecoder) JSON(field, s string, required bool) (v stdjson.RawMessage) {
+func (d *typeDecoder) JSON(field string, s string, required bool) (v stdjson.RawMessage) {
 	if !required && s == "" {
 		return
 	}
 	return stdjson.RawMessage(s)
 }
 
-func (d *typeDecoder) Float32(field, s string, required bool) (v float32) {
+func (d *typeDecoder) Float32(field string, s string, required bool) (v float32) {
 	if !required && s == "" {
 		return
 	}
@@ -804,13 +805,23 @@ func (d *typeDecoder) Float32(field, s string, required bool) (v float32) {
 	return float32(x)
 }
 
-func (d *typeDecoder) Float64(field, s string, required bool) (v float64) {
+func (d *typeDecoder) Float64(field string, s string, required bool) (v float64) {
 	if !required && s == "" {
 		return
 	}
 	x, err := strconv.ParseFloat(s, 64)
 	d.setErr("invalid parameter", field, err)
 	return x
+}
+
+func (d *typeDecoder) StringList(field string, s []string, required bool) (v []string) {
+	if !required && len(s) == 0 {
+		return
+	}
+	for _, x := range s {
+		v = append(v, d.String(field, x, required))
+	}
+	return v
 }
 
 func (d *typeDecoder) Body(body io.Reader, dst interface{}) (payload []byte) {
