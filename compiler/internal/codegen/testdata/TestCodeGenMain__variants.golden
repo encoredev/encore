@@ -292,6 +292,7 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 	params.Float32 = dec.Float32("float32", qs.Get("float32"), false)
 	params.Float64 = dec.Float64("float64", qs.Get("float64"), false)
 	params.Strings = dec.StringList("strings", qs["strings"], false)
+	params.Times = dec.TimeList("times", qs["times"], false)
 	inputs = append(inputs, []byte("?"+req.URL.RawQuery))
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Query")
@@ -820,6 +821,16 @@ func (d *typeDecoder) StringList(field string, s []string, required bool) (v []s
 	}
 	for _, x := range s {
 		v = append(v, d.String(field, x, required))
+	}
+	return v
+}
+
+func (d *typeDecoder) TimeList(field string, s []string, required bool) (v []time.Time) {
+	if !required && len(s) == 0 {
+		return
+	}
+	for _, x := range s {
+		v = append(v, d.Time(field, x, required))
 	}
 	return v
 }

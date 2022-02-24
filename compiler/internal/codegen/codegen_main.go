@@ -2,12 +2,14 @@ package codegen
 
 import (
 	"fmt"
+	"go/token"
 	"strconv"
 	"strings"
 
 	"encr.dev/parser"
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
+	"encr.dev/pkg/errlist"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
 	. "github.com/dave/jennifer/jen"
@@ -31,7 +33,8 @@ type decodeKey struct {
 }
 
 type Builder struct {
-	res *parser.Result
+	res    *parser.Result
+	errors *errlist.List
 
 	builtins     []decoderDescriptor
 	seenBuiltins map[decodeKey]decoderDescriptor
@@ -40,20 +43,13 @@ type Builder struct {
 func NewBuilder(res *parser.Result) *Builder {
 	return &Builder{
 		res:          res,
+		errors:       errlist.New(res.FileSet),
 		seenBuiltins: make(map[decodeKey]decoderDescriptor),
 	}
 }
 
 func (b *Builder) Main() (f *File, err error) {
-	defer func() {
-		if err := recover(); err != nil {
-			if b, ok := err.(bailout); ok {
-				err = b.err
-			} else {
-				panic(err)
-			}
-		}
-	}()
+	defer b.errors.HandleBailout(&err)
 
 	f = NewFile("main")
 	f.ImportNames(importNames)
@@ -153,7 +149,7 @@ func (b *Builder) Main() (f *File, err error) {
 	b.writeAuthFuncs(f)
 	b.writeDecoder(f)
 
-	return f, nil
+	return f, b.errors.Err()
 }
 
 func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
@@ -596,6 +592,9 @@ func (b *Builder) queryStringDecoder(t *schema.Type, src string) string {
 			return b.builtinDecoder(bt.Builtin, true, src)
 		}
 		panic(fmt.Sprintf("unsupported query string type: list of %T", t.List.Elem))
+	case *schema.Type_Named:
+		b.errors.Addf(token.NoPos, "cannot use nested types in request types used for query strings: %s", src)
+		return ""
 	case *schema.Type_Builtin:
 		return b.builtinDecoder(t.Builtin, false, src)
 	default:
