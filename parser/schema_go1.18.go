@@ -23,7 +23,7 @@ func (p *parser) parseDecl(pkg *est.Package, d *names.PkgDecl, typeParameters ty
 		spec, ok := d.Spec.(*ast.TypeSpec)
 		if !ok {
 			p.errf(d.Spec.Pos(), "unable to get TypeSpec from PkgDecl spec")
-			panic(bailout{})
+			p.errors.Abort()
 		}
 
 		decl = &schema.Decl{
@@ -46,7 +46,7 @@ func (p *parser) parseDecl(pkg *est.Package, d *names.PkgDecl, typeParameters ty
 			for idx, typeParameter := range spec.TypeParams.List {
 				if len(typeParameter.Names) != 1 {
 					p.errf(typeParameter.Pos(), "type parameter had more than 1 name")
-					panic(bailout{})
+					p.errors.Abort()
 				}
 
 				name := typeParameter.Names[0].Name

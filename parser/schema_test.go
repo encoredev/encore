@@ -3,11 +3,12 @@ package parser
 import (
 	"go/ast"
 	goparser "go/parser"
-	"go/scanner"
 	"go/token"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
+
+	"encr.dev/pkg/errlist"
 )
 
 func TestParseStructTag(t *testing.T) {
@@ -29,14 +30,18 @@ func TestParseStructTag(t *testing.T) {
 		},
 	}
 
-	p := &parser{fset: token.NewFileSet()}
+	fset := token.NewFileSet()
+	p := &parser{
+		fset:   fset,
+		errors: errlist.New(fset),
+	}
 	c := qt.New(t)
 	for _, test := range tests {
 		x, err := goparser.ParseExpr("`" + test.Tag + "`")
 		c.Assert(err, qt.IsNil)
 		lit := x.(*ast.BasicLit)
 		got := p.parseStructTag(lit)
-		c.Assert(p.errors, qt.DeepEquals, scanner.ErrorList(nil))
+		c.Assert(p.errors.Err(), qt.IsNil)
 		c.Assert(got, qt.DeepEquals, test.Want)
 	}
 }
