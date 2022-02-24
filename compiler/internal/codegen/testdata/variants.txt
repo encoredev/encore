@@ -74,6 +74,7 @@ type QueryParams struct {
 	JSON json.RawMessage
 	Float32 float32
 	Float64 float64
+	Strings []string
 }
 
 //encore:api public path=/query method=GET
