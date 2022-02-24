@@ -10,9 +10,12 @@ package svc
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"encore.dev/rlog"
+	"encore.dev/beta/auth"
 	"encore.dev/types/uuid"
 )
 
@@ -60,4 +63,18 @@ func Six(ctx context.Context, id uuid.UUID, key string, p *FooParams) error {
 //encore:api public raw path=/foo/:bar/:baz
 func Seven(w http.ResponseWriter, req *http.Request) {
 	rlog.Info("seven", "method", req.Method, "path", req.URL.Path)
+}
+
+type QueryParams struct {
+	Time time.Time
+	UID auth.UID
+	JSON json.RawMessage
+	Float32 float32
+	Float64 float64
+	Strings []string
+}
+
+//encore:api public path=/query method=GET
+func Query(ctx context.Context, p *QueryParams) error {
+	return nil
 }

@@ -407,7 +407,7 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 									s.Dot("Get").Call(Lit(qsName))
 								}
 							}),
-							False(),
+							False(), // query strings are never required
 						))
 					}
 				}
@@ -585,6 +585,7 @@ type decoderDescriptor struct {
 	Method string
 	Input  Code
 	Result Code
+	IsList bool
 	Block  []Code
 }
 
@@ -611,50 +612,57 @@ func (b *Builder) builtinDecoder(t schema.Builtin, slice bool, src string) strin
 		b.builtinDecoder(t, false, src)
 		desc := b.seenBuiltins[k2]
 		name := desc.Method + "List"
-		fn := decoderDescriptor{name, Index().String(), Index().Add(desc.Result), []Code{
-			For(List(Id("_"), Id("x")).Op(":=").Range().Id("s")).Block(
-				Id("v").Op("=").Append(Id("v"), Id("d").Dot(desc.Method).Call(Id("x"))),
-			),
-			Return(Id("v")),
-		}}
+		fn := decoderDescriptor{
+			Method: name,
+			Input:  Index().String(),
+			Result: Index().Add(desc.Result),
+			IsList: true,
+			Block: []Code{
+				For(List(Id("_"), Id("x")).Op(":=").Range().Id("s")).Block(
+					Id("v").Op("=").Append(Id("v"), Id("d").Dot(desc.Method).Call(Id("field"), Id("x"), Id("required"))),
+				),
+				Return(Id("v")),
+			},
+		}
 		b.seenBuiltins[key] = fn
 		b.builtins = append(b.builtins, fn)
+		return fn.Method
 	}
 
 	var fn decoderDescriptor
 	switch t {
 	case schema.Builtin_STRING:
-		fn = decoderDescriptor{"String", String(), String(), []Code{Return(Id("s"))}}
+		fn = decoderDescriptor{"String", String(), String(), false, []Code{Return(Id("s"))}}
 	case schema.Builtin_BYTES:
-		fn = decoderDescriptor{"Bytes", String(), Index().Byte(), []Code{
+		fn = decoderDescriptor{"Bytes", String(), Index().Byte(), false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("encoding/base64", "URLEncoding").Dot("DecodeString").Call(Id("s")),
 			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_BOOL:
-		fn = decoderDescriptor{"Bool", String(), Bool(), []Code{
+		fn = decoderDescriptor{"Bool", String(), Bool(), false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("strconv", "ParseBool").Call(Id("s")),
 			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_UUID:
-		fn = decoderDescriptor{"UUID", String(), Qual("encore.dev/types/uuid", "UUID"), []Code{
+		fn = decoderDescriptor{"UUID", String(), Qual("encore.dev/types/uuid", "UUID"), false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("encore.dev/types/uuid", "FromString").Call(Id("s")),
 			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_TIME:
-		fn = decoderDescriptor{"Time", String(), Qual("time", "Time"), []Code{
+		fn = decoderDescriptor{"Time", String(), Qual("time", "Time"), false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("time", "Parse").Call(Qual("time", "RFC3339"), Id("s")),
 			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_USER_ID:
-		fn = decoderDescriptor{"UserID", String(), Qual("encore.dev/beta/auth", "UID"), []Code{
+		fn = decoderDescriptor{"UserID", String(), Qual("encore.dev/beta/auth", "UID"), false, []Code{
 			Return(Qual("encore.dev/beta/auth", "UID").Call(Id("s"))),
 		}}
 	case schema.Builtin_JSON:
-		fn = decoderDescriptor{"JSON", String(), Qual("encoding/json", "RawMessage"), []Code{
+		fn = decoderDescriptor{"JSON", String(), Qual("encoding/json", "RawMessage"), false, []Code{
 			Return(Qual("encoding/json", "RawMessage").Call(Id("s"))),
 		}}
 	default:
@@ -689,7 +697,7 @@ func (b *Builder) builtinDecoder(t schema.Builtin, slice bool, src string) strin
 		}
 
 		cast := def.typ != "int64" && def.typ != "uint64" && def.typ != "float64"
-		fn = decoderDescriptor{strings.Title(def.typ), String(), Id(def.typ), []Code{
+		fn = decoderDescriptor{strings.Title(def.typ), String(), Id(def.typ), false, []Code{
 			List(Id("x"), Err()).Op(":=").Do(func(s *Statement) {
 				switch def.kind {
 				case unsigned:
@@ -724,8 +732,13 @@ func (b *Builder) writeDecoder(f *File) {
 	for _, desc := range b.builtins {
 		f.Func().Params(
 			Id("d").Op("*").Id("typeDecoder"),
-		).Id(desc.Method).Params(Id("field"), Id("s").Add(desc.Input), Id("required").Bool()).Params(Id("v").Add(desc.Result)).BlockFunc(func(g *Group) {
-			g.If(Op("!").Id("required").Op("&&").Id("s").Op("==").Lit("")).Block(Return())
+		).Id(desc.Method).Params(Id("field").String(), Id("s").Add(desc.Input), Id("required").Bool()).Params(Id("v").Add(desc.Result)).BlockFunc(func(g *Group) {
+			// If we're dealing with a list of strings, we need to compare with len(s) == 0 instead of s == ""
+			if desc.IsList {
+				g.If(Op("!").Id("required").Op("&&").Len(Id("s")).Op("==").Lit(0)).Block(Return())
+			} else {
+				g.If(Op("!").Id("required").Op("&&").Id("s").Op("==").Lit("")).Block(Return())
+			}
 			for _, s := range desc.Block {
 				g.Add(s)
 			}
