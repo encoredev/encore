@@ -1,10 +1,15 @@
 package cron
 
-import "time"
+type Duration int64
+
+const (
+	Minute Duration = 60
+	Hour   Duration = 60 * Minute
+)
 
 type JobConfig struct {
 	Name     string
-	Every    time.Duration
+	Every    Duration
 	Schedule string
 	Endpoint interface{}
 }
@@ -13,7 +18,7 @@ type Job struct {
 	ID       string
 	Name     string
 	Doc      string
-	Every    time.Duration
+	Every    Duration
 	Schedule string
 	Endpoint interface{}
 }

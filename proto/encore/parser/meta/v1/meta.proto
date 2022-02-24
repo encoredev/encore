@@ -166,6 +166,5 @@ message CronJob {
   string name = 2;
   string doc = 3;
   string schedule = 4;
-  string every = 5;
-  QualifiedName endpoint = 6;
+  QualifiedName endpoint = 5;
 }

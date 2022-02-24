@@ -2,13 +2,20 @@
 package parser
 
 import (
+	"encr.dev/parser/est"
+	"encr.dev/parser/internal/names"
+	"encr.dev/parser/paths"
+	meta "encr.dev/proto/encore/parser/meta/v1"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 	"fmt"
+	cronparser "github.com/robfig/cron/v3"
 	"go/ast"
 	"go/build"
 	"go/constant"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
+	"golang.org/x/tools/go/ast/astutil"
 	"math/big"
 	"os"
 	"path"
@@ -17,17 +24,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/robfig/cron/v3"
-	"golang.org/x/tools/go/ast/astutil"
-
-	"encr.dev/parser/est"
-	"encr.dev/parser/internal/names"
-	"encr.dev/parser/paths"
 	"encr.dev/pkg/errlist"
-	meta "encr.dev/proto/encore/parser/meta/v1"
-	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 type Result struct {
@@ -80,6 +78,11 @@ const (
 	uuidImportPath  = "encore.dev/types/uuid"
 	authImportPath  = "encore.dev/beta/auth"
 	cronImportPath  = "encore.dev/cron"
+)
+
+const (
+	Minute int64 = 60
+	Hour   int64 = 60 * Minute
 )
 
 func (p *parser) Parse() (res *Result, err error) {
@@ -484,7 +487,7 @@ func (p *parser) parseCronJobs() {
 		})
 	*/
 	p.jobsMap = make(map[string]*est.CronJob)
-	cp := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	cp := cronparser.NewParser(cronparser.Minute | cronparser.Hour | cronparser.Dom | cronparser.Month | cronparser.Dow)
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			info := p.names[pkg].Files[file]
@@ -514,7 +517,7 @@ func (p *parser) parseCronJobs() {
 	}
 }
 
-func (p *parser) parseCronJobStruct(cp cron.Parser, ce *ast.CallExpr, file *est.File, info *names.File) *est.CronJob {
+func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file *est.File, info *names.File) *est.CronJob {
 	if imp, obj := pkgObj(info, ce.Fun); imp == cronImportPath && obj == "NewJob" {
 		if len(ce.Args) != 2 {
 			p.errf(ce.Pos(), "cron.NewJob must be called as (id string, cfg cron.JobConfig)")
@@ -556,26 +559,31 @@ func (p *parser) parseCronJobStruct(cp cron.Parser, ce *ast.CallExpr, file *est.
 					case "Every":
 						if dur, ok := p.parseDurationLiteral(info, kv.Value); ok {
 							// We only support intervals that are a positive integer number of minutes.
-							if rem := dur % time.Minute; rem != 0 {
+							if rem := dur % Minute; rem != 0 {
 								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: must be an integer number of minutes, got %s", dur)
 								return nil
-							} else if mins := int64(dur / time.Minute); mins < 1 {
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must be one minute or greater, got %s", dur)
-								return nil
 							}
-							cj.Every = dur
+
+							minutes := dur / Minute
+							if minutes < 1 {
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must be one minute or greater, got %d", minutes)
+								return nil
+							} else if minutes > 24*60 {
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must not be greater than 1440 minutes (1 day), got %s", minutes)
+							}
+							cj.Schedule = fmt.Sprintf("every:%d", minutes)
 						} else {
 							return nil
 						}
 					case "Schedule":
 						if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
 							parsed, _ := strconv.Unquote(v.Value)
-							cj.Schedule = parsed
-							_, err := cp.Parse(cj.Schedule)
+							_, err := cp.Parse(parsed)
 							if err != nil {
 								p.errf(v.Pos(), "cron.JobConfig.Schedule must be a valid cron expression: %s", err)
 								return nil
 							}
+							cj.Schedule = fmt.Sprintf("schedule:%s", parsed)
 						} else {
 							p.errf(v.Pos(), "cron.JobConfig.Schedule must be a string literal")
 							return nil
@@ -698,7 +706,7 @@ func (p *parser) validateApp() {
 // parseDurationLiteral parses an expression representing a duration constant.
 // It uses go/constant to perform arbitrary-precision arithmetic according
 // to the rules of the Go compiler.
-func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (dur time.Duration, ok bool) {
+func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (dur int64, ok bool) {
 	zero := constant.MakeInt64(0)
 	var parse func(expr ast.Expr) constant.Value
 	parse = func(expr ast.Expr) constant.Value {
@@ -742,11 +750,11 @@ func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (
 			}
 
 		case *ast.CallExpr:
-			// We allow "time.Duration(x)" as a no-op
+			// We allow "cron.Duration(x)" as a no-op
 			if sel, ok := x.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Duration" {
 				if id, ok := sel.X.(*ast.Ident); ok {
 					ri := info.Idents[id]
-					if ri != nil && ri.ImportPath == "time" {
+					if ri != nil && ri.ImportPath == cronImportPath {
 						if len(x.Args) == 1 {
 							return parse(x.Args[0])
 						}
@@ -757,26 +765,18 @@ func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (
 			return constant.MakeUnknown()
 
 		case *ast.SelectorExpr:
-			if pkg, obj := pkgObj(info, x); pkg == "time" {
-				var d time.Duration
+			if pkg, obj := pkgObj(info, x); pkg == cronImportPath {
+				var d int64
 				switch obj {
-				case "Nanosecond":
-					d = time.Nanosecond
-				case "Microsecond":
-					d = time.Microsecond
-				case "Millisecond":
-					d = time.Millisecond
-				case "Second":
-					d = time.Second
 				case "Minute":
-					d = time.Minute
+					d = Minute
 				case "Hour":
-					d = time.Hour
+					d = Hour
 				default:
-					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected time.Minute, time.Hour, etc)", pkg, obj)
+					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected cron.Minute or cron.Hour)", pkg, obj)
 					return constant.MakeUnknown()
 				}
-				return constant.MakeInt64(int64(d))
+				return constant.MakeInt64(d)
 			}
 			p.errf(x.Pos(), "unexpected value in duration literal")
 			return constant.MakeUnknown()
@@ -793,17 +793,17 @@ func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (
 	val := constant.Val(parse(durationExpr))
 	switch val := val.(type) {
 	case int64:
-		return time.Duration(val), true
+		return val, true
 	case *big.Int:
 		if !val.IsInt64() {
 			p.errf(durationExpr.Pos(), "duration expression out of bounds")
 			return 0, false
 		}
-		return time.Duration(val.Int64()), true
+		return val.Int64(), true
 	case *big.Rat:
 		num := val.Num()
 		if val.IsInt() && num.IsInt64() {
-			return time.Duration(num.Int64()), true
+			return num.Int64(), true
 		}
 		p.errf(durationExpr.Pos(), "floating point numbers are not supported in duration literals")
 		return 0, false
