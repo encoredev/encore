@@ -540,6 +540,7 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 
 		if cl, ok := ce.Args[1].(*ast.CompositeLit); ok {
 			if imp, obj := pkgObj(info, cl.Type); imp == cronImportPath && obj == "JobConfig" {
+				hasSchedule := false
 				for _, e := range cl.Elts {
 					kv := e.(*ast.KeyValueExpr)
 					key, ok := kv.Key.(*ast.Ident)
@@ -557,10 +558,14 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 							return nil
 						}
 					case "Every":
+						if hasSchedule {
+							p.errf(kv.Pos(), "cron.JobConfig.Every: cron execution schedule was already defined using the Schedule field, at least one must be set but not both")
+							return nil
+						}
 						if dur, ok := p.parseDurationLiteral(info, kv.Value); ok {
 							// We only support intervals that are a positive integer number of minutes.
 							if rem := dur % Minute; rem != 0 {
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: must be an integer number of minutes, got %s", dur)
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: must be an integer number of minutes, got %d", dur)
 								return nil
 							}
 
@@ -569,13 +574,22 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must be one minute or greater, got %d", minutes)
 								return nil
 							} else if minutes > 24*60 {
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must not be greater than 1440 minutes (1 day), got %s", minutes)
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must not be greater than 1440 minutes (1 day), got %d", minutes)
+							} else if suggestion, ok := p.isCronIntervalAllowed(int(minutes)); !ok {
+								suggestionStr := p.formatMinutes(suggestion)
+								minutesStr := p.formatMinutes(int(minutes))
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: 24 hour time range (from 00:00 to 23:59) needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
 							}
 							cj.Schedule = fmt.Sprintf("every:%d", minutes)
+							hasSchedule = true
 						} else {
 							return nil
 						}
 					case "Schedule":
+						if hasSchedule {
+							p.errf(kv.Pos(), "cron.JobConfig.Schedule: cron execution schedule was already defined using the Every field, at least one must be set but not both")
+							return nil
+						}
 						if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
 							parsed, _ := strconv.Unquote(v.Value)
 							_, err := cp.Parse(parsed)
@@ -584,6 +598,7 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 								return nil
 							}
 							cj.Schedule = fmt.Sprintf("schedule:%s", parsed)
+							hasSchedule = true
 						} else {
 							p.errf(v.Pos(), "cron.JobConfig.Schedule must be a string literal")
 							return nil
@@ -701,6 +716,41 @@ func (p *parser) validateApp() {
 			}
 		}
 	}
+}
+
+// abs returns the absolute value of x.
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func (p *parser) formatMinutes(minutes int) string {
+	if minutes < 60 {
+		return fmt.Sprintf("%d minutes", minutes)
+	} else if minutes%60 == 0 {
+		return fmt.Sprintf("%d hours", minutes/60)
+	}
+	return fmt.Sprintf("%d hours and %d minutes", minutes/60, minutes%60)
+}
+
+func (p *parser) isCronIntervalAllowed(val int) (suggestion int, ok bool) {
+	allowed := []int{
+		1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20, 24, 30, 32, 36, 40, 45,
+		48, 60, 72, 80, 90, 96, 120, 144, 160, 180, 240, 288, 360, 480, 720, 1440,
+	}
+	idx := sort.SearchInts(allowed, val)
+
+	if allowed[idx] == val {
+		return val, true
+	} else if idx == len(allowed) {
+		return allowed[len(allowed)-1], false
+	} else if abs(val-allowed[idx-1]) < abs(val-allowed[idx]) {
+		return allowed[idx-1], false
+	}
+
+	return allowed[idx], false
 }
 
 // parseDurationLiteral parses an expression representing a duration constant.
