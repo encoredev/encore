@@ -175,15 +175,15 @@ func TestParseDurationLiteral(t *testing.T) {
 		Err  string
 	}{
 		{
-			Expr: "1*cron.minute",
+			Expr: "1*cron.Minute",
 			Want: 1 * minute,
 		},
 		{
-			Expr: "(4/2)*cron.minute",
+			Expr: "(4/2)*cron.Minute",
 			Want: 2 * minute,
 		},
 		{
-			Expr: "(4-2)*cron.minute + cron.hour",
+			Expr: "(4-2)*cron.Minute + cron.Hour",
 			Want: 2*minute + hour,
 		},
 		{

@@ -825,12 +825,12 @@ func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (
 			if pkg, obj := pkgObj(info, x); pkg == cronImportPath {
 				var d int64
 				switch obj {
-				case "minute":
+				case "Minute":
 					d = minute
-				case "hour":
+				case "Hour":
 					d = hour
 				default:
-					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected cron.minute or cron.hour)", pkg, obj)
+					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected cron.Minute or cron.Hour)", pkg, obj)
 					return constant.MakeUnknown()
 				}
 				return constant.MakeInt64(d)
