@@ -80,11 +80,6 @@ const (
 	cronImportPath  = "encore.dev/cron"
 )
 
-const (
-	Minute int64 = 60
-	Hour   int64 = 60 * Minute
-)
-
 func (p *parser) Parse() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -517,6 +512,11 @@ func (p *parser) parseCronJobs() {
 	}
 }
 
+const (
+	minute int64 = 60
+	hour   int64 = 60 * minute
+)
+
 func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file *est.File, info *names.File) *est.CronJob {
 	if imp, obj := pkgObj(info, ce.Fun); imp == cronImportPath && obj == "NewJob" {
 		if len(ce.Args) != 2 {
@@ -564,12 +564,12 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 						}
 						if dur, ok := p.parseDurationLiteral(info, kv.Value); ok {
 							// We only support intervals that are a positive integer number of minutes.
-							if rem := dur % Minute; rem != 0 {
+							if rem := dur % minute; rem != 0 {
 								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: must be an integer number of minutes, got %d", dur)
 								return nil
 							}
 
-							minutes := dur / Minute
+							minutes := dur / minute
 							if minutes < 1 {
 								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must be one minute or greater, got %d", minutes)
 								return nil
@@ -818,12 +818,12 @@ func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (
 			if pkg, obj := pkgObj(info, x); pkg == cronImportPath {
 				var d int64
 				switch obj {
-				case "Minute":
-					d = Minute
-				case "Hour":
-					d = Hour
+				case "minute":
+					d = minute
+				case "hour":
+					d = hour
 				default:
-					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected cron.Minute or cron.Hour)", pkg, obj)
+					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected cron.minute or cron.hour)", pkg, obj)
 					return constant.MakeUnknown()
 				}
 				return constant.MakeInt64(d)

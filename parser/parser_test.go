@@ -1,21 +1,20 @@
 package parser
 
 import (
+	"encr.dev/pkg/errlist"
 	"fmt"
+	qt "github.com/frankban/quicktest"
+	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/rogpeppe/go-internal/txtar"
 	"go/ast"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
+	"golang.org/x/mod/modfile"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
-
-	qt "github.com/frankban/quicktest"
-	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/rogpeppe/go-internal/txtar"
-	"golang.org/x/mod/modfile"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
@@ -172,28 +171,20 @@ func TestParseDurationLiteral(t *testing.T) {
 	c := qt.New(t)
 	var tests = []struct {
 		Expr string
-		Want time.Duration
+		Want int64
 		Err  string
 	}{
 		{
-			Expr: "1*time.Second",
-			Want: 1 * time.Second,
+			Expr: "1*cron.minute",
+			Want: 1 * minute,
 		},
 		{
-			Expr: "(4/2)*time.Second",
-			Want: 2 * time.Second,
+			Expr: "(4/2)*cron.minute",
+			Want: 2 * minute,
 		},
 		{
-			Expr: "(4-2)*time.Second + time.Hour",
-			Want: 3602 * time.Second,
-		},
-		{
-			Expr: "time.Duration(123) * time.Minute",
-			Want: 123 * time.Minute,
-		},
-		{
-			Expr: "2.5 * 2 / time.Nanosecond",
-			Want: 5 * time.Nanosecond,
+			Expr: "(4-2)*cron.minute + cron.hour",
+			Want: 2*minute + hour,
 		},
 		{
 			Expr: "2.3 * 2",
@@ -203,10 +194,6 @@ func TestParseDurationLiteral(t *testing.T) {
 			Expr: "2.3 / (1 - 1)",
 			Err:  `.+ cannot divide by zero.*`,
 		},
-		{
-			Expr: "2.3 * time.Now",
-			Err:  `.+ unsupported duration value: time\.Now .+`,
-		},
 	}
 
 	for i, test := range tests {
@@ -215,17 +202,17 @@ func TestParseDurationLiteral(t *testing.T) {
 			x, err := goparser.ParseExprFrom(fset, c.Name()+".go", test.Expr, goparser.AllErrors)
 			c.Assert(err, qt.IsNil)
 
-			// Find the "time" import ident and add it to the file info object.
+			// Find the "cron" import ident and add it to the file info object.
 			info := &names.File{
 				Idents: make(map[*ast.Ident]*names.Name),
 			}
 			ast.Inspect(x, func(n ast.Node) bool {
 				if sel, ok := n.(*ast.SelectorExpr); ok {
 					if id, ok := sel.X.(*ast.Ident); ok {
-						if id.Name == "time" {
+						if id.Name == "cron" {
 							info.Idents[id] = &names.Name{
 								Package:    true,
-								ImportPath: "time",
+								ImportPath: "encore.dev/cron",
 							}
 						}
 					}
@@ -233,7 +220,7 @@ func TestParseDurationLiteral(t *testing.T) {
 				return true
 			})
 
-			p := &parser{fset: fset}
+			p := &parser{fset: fset, errors: errlist.New(fset)}
 			dur, ok := p.parseDurationLiteral(info, x)
 			if test.Err != "" {
 				c.Check(ok, qt.IsFalse)

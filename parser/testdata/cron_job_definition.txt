@@ -60,7 +60,7 @@ var _ = cron.NewJob("cronfoocious", cron.JobConfig{
 // A cron job using Every instead of Schedule
 var _ = cron.NewJob("cron-every", cron.JobConfig{
 	Name:     "Cron Foo Bar Bazz",
-	Every:    3 * time.Minute,
+	Every:    3 * cron.Minute,
 	Endpoint: Cron,
 })
 
