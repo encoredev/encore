@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"encr.dev/parser/dnsname"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
@@ -529,6 +530,12 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 			cronJobID, _ := strconv.Unquote(bl.Value)
 			if cronJobID == "" {
 				p.errf(ce.Pos(), "cron.NewJob: id argument must be a non-empty string literal")
+				return nil
+			}
+			err := dnsname.DNS1035Label(cronJobID)
+			if err != nil {
+				p.errf(ce.Pos(), "cron.NewJob: id must consist of lower case alphanumeric characters"+
+					" or '-',\n// start with an alphabetic character, and end with an alphanumeric character ")
 				return nil
 			}
 			cj.ID = cronJobID
