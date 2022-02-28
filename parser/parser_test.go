@@ -1,20 +1,23 @@
 package parser
 
 import (
+	"encr.dev/pkg/errlist"
 	"fmt"
+	qt "github.com/frankban/quicktest"
+	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/rogpeppe/go-internal/txtar"
+	"go/ast"
 	goparser "go/parser"
+	"go/scanner"
 	"go/token"
+	"golang.org/x/mod/modfile"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
-	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/rogpeppe/go-internal/txtar"
-	"golang.org/x/mod/modfile"
-
 	"encr.dev/parser/est"
+	"encr.dev/parser/internal/names"
 )
 
 func TestCollectPackages(t *testing.T) {
@@ -132,6 +135,12 @@ func TestMain(m *testing.M) {
 			}
 			res, err := Parse(cfg)
 			if err != nil {
+				if list, ok := err.(scanner.ErrorList); ok {
+					for _, e := range list {
+						os.Stderr.WriteString(e.Error())
+					}
+					return 1
+				}
 				os.Stderr.WriteString(err.Error())
 				return 1
 			}
@@ -139,6 +148,9 @@ func TestMain(m *testing.M) {
 				for _, rpc := range svc.RPCs {
 					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v\n", svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path)
 				}
+			}
+			for _, job := range res.App.CronJobs {
+				fmt.Fprintf(os.Stdout, "cronJob %s name=%s\n", job.ID, job.Name)
 			}
 			for _, pkg := range res.App.Packages {
 				for _, res := range pkg.Resources {
@@ -153,4 +165,72 @@ func TestMain(m *testing.M) {
 			return 0
 		},
 	}))
+}
+
+func TestParseDurationLiteral(t *testing.T) {
+	c := qt.New(t)
+	var tests = []struct {
+		Expr string
+		Want int64
+		Err  string
+	}{
+		{
+			Expr: "1*cron.Minute",
+			Want: 1 * minute,
+		},
+		{
+			Expr: "(4/2)*cron.Minute",
+			Want: 2 * minute,
+		},
+		{
+			Expr: "(4-2)*cron.Minute + cron.Hour",
+			Want: 2*minute + hour,
+		},
+		{
+			Expr: "2.3 * 2",
+			Err:  `.+ floating point numbers are not supported .+`,
+		},
+		{
+			Expr: "2.3 / (1 - 1)",
+			Err:  `.+ cannot divide by zero.*`,
+		},
+	}
+
+	for i, test := range tests {
+		c.Run(fmt.Sprintf("test[%d]", i), func(c *qt.C) {
+			fset := token.NewFileSet()
+			x, err := goparser.ParseExprFrom(fset, c.Name()+".go", test.Expr, goparser.AllErrors)
+			c.Assert(err, qt.IsNil)
+
+			// Find the "cron" import ident and add it to the file info object.
+			info := &names.File{
+				Idents: make(map[*ast.Ident]*names.Name),
+			}
+			ast.Inspect(x, func(n ast.Node) bool {
+				if sel, ok := n.(*ast.SelectorExpr); ok {
+					if id, ok := sel.X.(*ast.Ident); ok {
+						if id.Name == "cron" {
+							info.Idents[id] = &names.Name{
+								Package:    true,
+								ImportPath: "encore.dev/cron",
+							}
+						}
+					}
+				}
+				return true
+			})
+
+			p := &parser{fset: fset, errors: errlist.New(fset)}
+			dur, ok := p.parseDurationLiteral(info, x)
+			if test.Err != "" {
+				c.Check(ok, qt.IsFalse)
+				c.Check(p.errors.Err(), qt.IsNotNil)
+				c.Check(p.errors.Err(), qt.ErrorMatches, test.Err)
+			} else {
+				c.Check(ok, qt.IsTrue)
+				c.Check(dur, qt.Equals, test.Want)
+				c.Check(p.errors.Err(), qt.IsNil)
+			}
+		})
+	}
 }

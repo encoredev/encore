@@ -181,7 +181,6 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 				d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
 				d[Id("Service")] = Lit(svc.Name)
 				d[Id("Endpoint")] = Lit(rpc.Name)
-				d[Id("CallExprIdx")] = Lit(0)
 				d[Id("EndpointExprIdx")] = Lit(traceID)
 				d[Id("Inputs")] = Nil()
 				if b.res.App.AuthHandler != nil {
@@ -209,7 +208,6 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 			d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
 			d[Id("Service")] = Lit(svc.Name)
 			d[Id("Endpoint")] = Lit(rpc.Name)
-			d[Id("CallExprIdx")] = Lit(0)
 			d[Id("EndpointExprIdx")] = Lit(traceID)
 			if rpc.Request != nil || len(pathSegs) > 0 {
 				d[Id("Inputs")] = Id("inputs")
@@ -541,7 +539,6 @@ func (b *Builder) writeAuthFuncs(f *File) {
 				Id("Type"):            Qual("encore.dev/runtime", "AuthHandler"),
 				Id("Service"):         Lit(authHandler.Svc.Name),
 				Id("Endpoint"):        Lit(authHandler.Name),
-				Id("CallExprIdx"):     Lit(0),
 				Id("EndpointExprIdx"): Lit(traceID),
 				Id("Inputs"):          Index().Index().Byte().Values(Index().Byte().Parens(Qual("strconv", "Quote").Call(Id("token")))),
 			}))

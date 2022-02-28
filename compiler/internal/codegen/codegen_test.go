@@ -71,7 +71,7 @@ func TestCodeGenMain(t *testing.T) {
 				for _, pkg := range svc.Pkgs {
 					for _, f := range pkg.Files {
 						for _, ref := range f.References {
-							if ref.Type == est.RPCCallNode {
+							if ref.Type == est.RPCRefNode {
 								key := ref.RPC.Svc.Name + "." + ref.RPC.Name
 								if !refs[key] {
 									refs[key] = true

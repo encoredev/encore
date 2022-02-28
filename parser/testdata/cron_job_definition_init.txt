@@ -1,0 +1,32 @@
+# Verify the cron job definition
+! parse
+stderr 'cron job cronfoo needs to be defined at package level'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/cron"
+)
+
+func init() {
+    // A cron job to send out emails to newsletter subscribers.
+    // On two lines.
+    var _ = cron.NewJob("cronfoo", cron.JobConfig{
+        Name:     "Cron Foo Bar",
+        Schedule: "* * * * 5",
+        Endpoint: Cron,
+    })
+}
+
+//encore:api public path=/cron
+func Cron(ctx context.Context) (*Response, error) {
+	msg := "Hello, Cron!"
+	return &Response{Message: msg}, nil
+}
+
+type Response struct {
+	Message string
+}

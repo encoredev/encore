@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot reference variable svc.Moo from outside the service'
+stderr 'cannot reference resource svc.Moo outside the service'
 
 -- svc/svc.go --
 package svc
