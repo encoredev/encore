@@ -5,17 +5,18 @@
 package est
 
 import (
-	"go/ast"
-	"go/token"
-
 	"encr.dev/parser/paths"
 	schema "encr.dev/proto/encore/parser/schema/v1"
+	"errors"
+	"go/ast"
+	"go/token"
 )
 
 type Application struct {
 	ModulePath  string
 	Packages    []*Package
 	Services    []*Service
+	CronJobs    []*CronJob
 	Decls       []*schema.Decl
 	AuthHandler *AuthHandler
 }
@@ -53,6 +54,30 @@ type Service struct {
 	RPCs []*RPC
 }
 
+type CronJob struct {
+	ID       string
+	Name     string
+	Doc      string
+	Schedule string
+	RPC      *RPC
+	AST      *ast.ValueSpec
+}
+
+func (cj *CronJob) IsValid() (bool, error) {
+	switch {
+	case cj.ID == "":
+		return false, errors.New("field ID is required")
+	case cj.Name == "":
+		return false, errors.New("field Name is required")
+	case cj.RPC == nil:
+		return false, errors.New("field RPC is required")
+	case cj.Schedule == "":
+		return false, errors.New("field Schedule is required")
+	}
+
+	return true, nil
+}
+
 type Param struct {
 	IsPtr bool
 	Type  *schema.Type
@@ -85,7 +110,7 @@ type NodeType int
 
 const (
 	RPCDefNode NodeType = iota + 1
-	RPCCallNode
+	RPCRefNode
 	SQLDBNode
 	RLogNode
 	SecretsNode

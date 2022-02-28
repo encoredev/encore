@@ -2,27 +2,31 @@
 package parser
 
 import (
+	"encr.dev/parser/dnsname"
+	"encr.dev/parser/est"
+	"encr.dev/parser/internal/names"
+	"encr.dev/parser/paths"
+	meta "encr.dev/proto/encore/parser/meta/v1"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 	"fmt"
+	cronparser "github.com/robfig/cron/v3"
 	"go/ast"
 	"go/build"
+	"go/constant"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
+	"golang.org/x/tools/go/ast/astutil"
+	"math/big"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
-	"golang.org/x/tools/go/ast/astutil"
-
-	"encr.dev/parser/est"
-	"encr.dev/parser/internal/names"
-	"encr.dev/parser/paths"
 	"encr.dev/pkg/errlist"
-	meta "encr.dev/proto/encore/parser/meta/v1"
-	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 type Result struct {
@@ -42,7 +46,9 @@ type parser struct {
 	pkgs        []*est.Package
 	pkgMap      map[string]*est.Package // import path -> pkg
 	svcs        []*est.Service
+	jobs        []*est.CronJob
 	svcMap      map[string]*est.Service // name -> svc
+	jobsMap     map[string]*est.CronJob // ID -> job
 	names       map[*est.Package]*names.Resolution
 	authHandler *est.AuthHandler
 	declMap     map[string]*schema.Decl // pkg/path.Name -> decl
@@ -72,6 +78,7 @@ const (
 	rlogImportPath  = "encore.dev/rlog"
 	uuidImportPath  = "encore.dev/types/uuid"
 	authImportPath  = "encore.dev/beta/auth"
+	cronImportPath  = "encore.dev/cron"
 )
 
 func (p *parser) Parse() (res *Result, err error) {
@@ -107,6 +114,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		rlogImportPath:  "rlog",
 		uuidImportPath:  "uuid",
 		authImportPath:  "auth",
+		cronImportPath:  "cron",
 
 		"net/http":      "http",
 		"context":       "context",
@@ -117,7 +125,9 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.parseServices()
 	p.parseResources()
 	p.parseReferences()
+	p.parseCronJobs()
 	p.parseSecrets()
+	p.validateCronJobs()
 	p.validateApp()
 
 	sort.Slice(p.pkgs, func(i, j int) bool {
@@ -135,6 +145,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		ModulePath:  p.cfg.ModulePath,
 		Packages:    p.pkgs,
 		Services:    p.svcs,
+		CronJobs:    p.jobs,
 		Decls:       p.decls,
 		AuthHandler: p.authHandler,
 	}
@@ -142,6 +153,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &Result{
 		FileSet: p.fset,
 		App:     app,
@@ -293,167 +305,86 @@ func (p *parser) parseReferences() {
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			info := p.names[pkg].Files[file]
-
-			// For every call, determine if it should be rewritten
-		CallLoop:
-			for _, call := range info.Calls {
-				switch x := call.Fun.(type) {
-				case *ast.SelectorExpr:
-
-					// Is this a resource reference?
-					if remaining, ids := unwrapSel(x); remaining == nil && len(ids) >= 2 {
-						// Two cases: it's a package-local resource (resource.Foo) or not (pkg.Resource.Foo).
-						ri := info.Idents[ids[0]]
-
-						if ri != nil && ri.ImportPath != "" {
-							// Different package
-							if res := resourceMap[ri.ImportPath][ids[1].Name]; res != nil {
-								if len(ids) >= 3 { // guard against invalid usage resource.Foo(), will be caught at typechecking
-									file.References[x] = &est.Node{
-										Type: est.SQLDBNode,
-										Func: ids[2].Name,
-										Res:  res,
-									}
-								}
-								continue CallLoop
-							}
-						} else if ri != nil && ri.Package {
-							if res := resourceMap[pkg.ImportPath][ids[0].Name]; res != nil {
-								file.References[call] = &est.Node{
-									Type: est.SQLDBNode,
-									Func: ids[1].Name,
-									Res:  res,
-								}
-								continue CallLoop
-							}
-						}
-					}
-
-					if id, ok := x.X.(*ast.Ident); ok {
-						ri := info.Idents[id]
-						if ri == nil || ri.ImportPath == "" {
-							continue
-						}
-
-						path := ri.ImportPath
-
-						// Is it an RPC?
-						if rpc := rpcMap[path][x.Sel.Name]; rpc != nil {
-							file.References[call] = &est.Node{
-								Type: est.RPCCallNode,
-								RPC:  rpc,
-							}
-							continue CallLoop
-						}
-						switch path {
-						case sqldbImportPath:
-							file.References[call] = &est.Node{
-								Type: est.SQLDBNode,
-								Func: x.Sel.Name,
-							}
-						case rlogImportPath:
-							file.References[call] = &est.Node{
-								Type: est.RLogNode,
-								Func: x.Sel.Name,
-							}
-						}
-					}
-
-				case *ast.Ident:
-					ri := info.Idents[x]
-					// Is it a package-local rpc?
-					if ri != nil && ri.Package {
-						if rpc := rpcMap[pkg.ImportPath][x.Name]; rpc != nil {
-							file.References[call] = &est.Node{
-								Type: est.RPCCallNode,
-								RPC:  rpc,
-							}
-						}
-					}
-				}
-			}
-
 			// Find all references to RPCs and objects to rewrite that are not
 			// part of rewritten calls.
 			astutil.Apply(file.AST, func(c *astutil.Cursor) bool {
-				if sel, ok := c.Node().(*ast.SelectorExpr); ok {
-					if id, ok := sel.X.(*ast.Ident); ok {
-						// Have we rewritten this already?
-						if file.References[c.Parent()] != nil {
-							return true
-						}
-						ri := info.Idents[id]
-						if ri == nil || ri.ImportPath == "" {
-							return true
-						}
-						path := ri.ImportPath
-						pkg2, ok := p.pkgMap[path]
-						if !ok {
-							return true
-						}
+				node := c.Node()
+				if path, obj := pkgObj(info, node); path != "" {
+					pkg2, ok := p.pkgMap[path]
+					if !ok {
+						return true
+					}
 
-						// Is it an RPC?
-						if rpc := rpcMap[path][sel.Sel.Name]; rpc != nil {
-							p.errf(sel.Pos(), "cannot reference API %s.%s without calling it", rpc.Svc.Name, sel.Sel.Name)
+					// Is it an RPC?
+					if rpc := rpcMap[path][obj]; rpc != nil {
+						file.References[node] = &est.Node{
+							Type: est.RPCRefNode,
+							RPC:  rpc,
+						}
+						return true
+					} else if res := resourceMap[path][obj]; res != nil {
+						file.References[node] = &est.Node{
+							Type: est.SQLDBNode,
+							Res:  res,
+						}
+					}
+
+					if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && obj == h.Name {
+						p.errf(node.Pos(), "cannot reference auth handler %s.%s from another package", h.Svc.Root.RelPath, obj)
+						return false
+					}
+
+					switch path {
+					case sqldbImportPath:
+						// Allow types to be references
+						switch obj {
+						case "Tx", "Row", "Rows":
+							return true
+						default:
+							p.errf(node.Pos(), "cannot reference func %s.%s without calling it", path, obj)
 							return false
-						} else if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && sel.Sel.Name == h.Name {
-							p.errf(sel.Pos(), "cannot reference auth handler %s.%s from another package", h.Svc.Root.RelPath, sel.Sel.Name)
+						}
+					case rlogImportPath:
+						// Allow types to be whitelisted
+						switch obj {
+						case "Ctx":
+							return true
+						default:
+							p.errf(node.Pos(), "cannot reference func %s.%s without calling it", path, obj)
 							return false
 						}
+					}
 
-						switch path {
-						case sqldbImportPath:
-							// Allow types to be references
-							switch sel.Sel.Name {
-							case "Tx", "Row", "Rows":
-								return true
-							default:
-								p.errf(sel.Pos(), "cannot reference func %s.%s without calling it", path, sel.Sel.Name)
-								return false
-							}
-						case rlogImportPath:
-							// Allow types to be whitelisted
-							switch sel.Sel.Name {
-							case "Ctx":
-								return true
-							default:
-								p.errf(sel.Pos(), "cannot reference func %s.%s without calling it", path, sel.Sel.Name)
-								return false
-							}
-						}
-
-						// Is it a type in a different service?
-						if pkg2.Service != nil && !(pkg.Service != nil && pkg.Service.Name == pkg2.Service.Name) {
-							if decl, ok := p.names[pkg2].Decls[sel.Sel.Name]; ok {
-								switch decl.Type {
-								case token.CONST:
-									// all good
-								case token.TYPE:
-									// TODO check if there are methods on the type
-								case token.VAR:
-									p.errf(sel.Pos(), "cannot reference variable %s.%s from outside the service", pkg2.RelPath, sel.Sel.Name)
-									return false
-								}
+					// Is it a type in a different service?
+					if pkg2.Service != nil && !(pkg.Service != nil && pkg.Service.Name == pkg2.Service.Name) {
+						if decl, ok := p.names[pkg2].Decls[obj]; ok {
+							switch decl.Type {
+							case token.CONST:
+								// all good
+							case token.TYPE:
+								// TODO check if there are methods on the type
+							case token.VAR:
+								//p.errf(node.Pos(), "cannot reference variable %s.%s from outside the service", pkg2.RelPath, obj)
+								//return false
 							}
 						}
 					}
-				} else if id, ok := c.Node().(*ast.Ident); ok {
+				} else if id, ok := node.(*ast.Ident); ok {
 					// Have we rewritten this already?
 					if file.References[c.Parent()] != nil {
 						return true
-					} else if _, isSel := c.Parent().(*ast.SelectorExpr); isSel {
-						// We've already processed this above
-						return true
 					}
-
 					ri := info.Idents[id]
 					// Is it a package-local rpc?
 					if ri != nil && ri.Package {
 						if rpc := rpcMap[pkg.ImportPath][id.Name]; rpc != nil {
-							p.errf(id.Pos(), "cannot reference API %s without calling it", rpc.Name)
-							return false
+							file.References[id] = &est.Node{
+								Type: est.RPCRefNode,
+								RPC:  rpc,
+							}
 						}
 					}
+
 				}
 				return true
 			}, nil)
@@ -461,7 +392,7 @@ func (p *parser) parseReferences() {
 			if pkg.Service == nil && len(file.References) > 0 {
 				for astNode, node := range file.References {
 					switch node.Type {
-					case est.RPCCallNode:
+					case est.RPCRefNode:
 						rpc := node.RPC
 						p.errf(astNode.Pos(), "cannot reference API %s.%s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
 					case est.SQLDBNode:
@@ -542,6 +473,220 @@ SpecLoop:
 	pkg.Secrets = secretNames
 }
 
+func (p *parser) parseCronJobs() {
+	/*
+		// A cron job that sends emails to new subscribers.
+		var _ = cron.NewJob("id", cron.JobConfig{
+			Name: "Foo",
+			Schedule: "* * * * *",
+			Endpoint: Cron,
+		})
+	*/
+	p.jobsMap = make(map[string]*est.CronJob)
+	cp := cronparser.NewParser(cronparser.Minute | cronparser.Hour | cronparser.Dom | cronparser.Month | cronparser.Dow)
+	for _, pkg := range p.pkgs {
+		for _, file := range pkg.Files {
+			info := p.names[pkg].Files[file]
+			for _, decl := range file.AST.Decls {
+				gd, ok := decl.(*ast.GenDecl)
+				if !ok || gd.Tok != token.VAR {
+					continue
+				}
+				for _, s := range gd.Specs {
+					vs := s.(*ast.ValueSpec)
+					for _, x := range vs.Values {
+						if ce, ok := x.(*ast.CallExpr); ok {
+							if cronJob := p.parseCronJobStruct(cp, ce, file, info); cronJob != nil {
+								cronJob.Doc = gd.Doc.Text()
+								if cronJob2 := p.jobsMap[cronJob.ID]; cronJob2 != nil {
+									p.errf(pkg.AST.Pos(), "cron job %s defined twice", cronJob.ID)
+									continue
+								}
+								p.jobs = append(p.jobs, cronJob)
+								p.jobsMap[cronJob.ID] = cronJob
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+const (
+	minute int64 = 60
+	hour   int64 = 60 * minute
+)
+
+func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file *est.File, info *names.File) *est.CronJob {
+	if imp, obj := pkgObj(info, ce.Fun); imp == cronImportPath && obj == "NewJob" {
+		if len(ce.Args) != 2 {
+			p.errf(ce.Pos(), "cron.NewJob must be called as (id string, cfg cron.JobConfig)")
+			return nil
+		}
+
+		cj := &est.CronJob{}
+		if bl, ok := ce.Args[0].(*ast.BasicLit); ok && bl.Kind == token.STRING {
+			cronJobID, _ := strconv.Unquote(bl.Value)
+			if cronJobID == "" {
+				p.errf(ce.Pos(), "cron.NewJob: id argument must be a non-empty string literal")
+				return nil
+			}
+			err := dnsname.DNS1035Label(cronJobID)
+			if err != nil {
+				p.errf(ce.Pos(), "cron.NewJob: id must consist of lower case alphanumeric characters"+
+					" or '-',\n// start with an alphabetic character, and end with an alphanumeric character ")
+				return nil
+			}
+			cj.ID = cronJobID
+			cj.Name = cronJobID // Set ID as the default name
+		} else {
+			p.errf(ce.Pos(), "cron.NewJob must be called with a string literal as its first argument")
+			return nil
+		}
+
+		if cl, ok := ce.Args[1].(*ast.CompositeLit); ok {
+			if imp, obj := pkgObj(info, cl.Type); imp == cronImportPath && obj == "JobConfig" {
+				hasSchedule := false
+				for _, e := range cl.Elts {
+					kv := e.(*ast.KeyValueExpr)
+					key, ok := kv.Key.(*ast.Ident)
+					if !ok {
+						p.errf(kv.Pos(), "cron.JobConfig key must be an identifier")
+						return nil
+					}
+					switch key.Name {
+					case "Name":
+						if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+							parsed, _ := strconv.Unquote(v.Value)
+							cj.Name = parsed
+						} else {
+							p.errf(v.Pos(), "cron.JobConfig.Name must be a string literal")
+							return nil
+						}
+					case "Every":
+						if hasSchedule {
+							p.errf(kv.Pos(), "cron.JobConfig.Every: cron execution schedule was already defined using the Schedule field, at least one must be set but not both")
+							return nil
+						}
+						if dur, ok := p.parseDurationLiteral(info, kv.Value); ok {
+							// We only support intervals that are a positive integer number of minutes.
+							if rem := dur % minute; rem != 0 {
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: must be an integer number of minutes, got %d", dur)
+								return nil
+							}
+
+							minutes := dur / minute
+							if minutes < 1 {
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must be one minute or greater, got %d", minutes)
+								return nil
+							} else if minutes > 24*60 {
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must not be greater than 24 hours (1440 minutes), got %d", minutes)
+								return nil
+							} else if suggestion, ok := p.isCronIntervalAllowed(int(minutes)); !ok {
+								suggestionStr := p.formatMinutes(suggestion)
+								minutesStr := p.formatMinutes(int(minutes))
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: 24 hour time range (from 00:00 to 23:59) "+
+									"needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
+								return nil
+							}
+							cj.Schedule = fmt.Sprintf("every:%d", minutes)
+							hasSchedule = true
+						} else {
+							return nil
+						}
+					case "Schedule":
+						if hasSchedule {
+							p.errf(kv.Pos(), "cron.JobConfig.Schedule: cron execution schedule was already defined using the Every field, at least one must be set but not both")
+							return nil
+						}
+						if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
+							parsed, _ := strconv.Unquote(v.Value)
+							_, err := cp.Parse(parsed)
+							if err != nil {
+								p.errf(v.Pos(), "cron.JobConfig.Schedule must be a valid cron expression: %s", err)
+								return nil
+							}
+							cj.Schedule = fmt.Sprintf("schedule:%s", parsed)
+							hasSchedule = true
+						} else {
+							p.errf(v.Pos(), "cron.JobConfig.Schedule must be a string literal")
+							return nil
+						}
+					case "Endpoint":
+						if id, ok := kv.Value.(*ast.Ident); ok {
+							if ref, ok := file.References[id]; ok && ref.Type == est.RPCRefNode {
+								cj.RPC = ref.RPC
+							} else {
+								p.errf(id.NamePos, "cron.JobConfig.Endpoint: %s is not an RPC", id.Name)
+								return nil
+							}
+						}
+					default:
+						p.errf(key.Pos(), "cron.JobConfig has unknown key %s", key.Name)
+						return nil
+					}
+				}
+
+				if _, err := cj.IsValid(); err != nil {
+					p.errf(cl.Pos(), "cron.NewJob: %s", err)
+				}
+				return cj
+			}
+		}
+	}
+	return nil
+}
+
+func (p *parser) validateCronJob(pkg *est.Package, expr ast.Expr, info *names.File) {
+	if call, ok := expr.(*ast.CallExpr); ok {
+		if imp, obj := pkgObj(info, call.Fun); imp == cronImportPath && obj == "NewJob" {
+			var cronJobID string
+			if bl, ok := call.Args[0].(*ast.BasicLit); ok && bl.Kind == token.STRING {
+				cronJobID, _ = strconv.Unquote(bl.Value)
+			} else {
+				p.errf(call.Pos(), "cron.NewJob must be called with a string literal as its first argument")
+			}
+			if cronJob := p.jobsMap[cronJobID]; cronJob == nil {
+				p.errf(pkg.AST.Pos(), "cron job %s needs to be defined at package level", cronJobID)
+			}
+		}
+	}
+}
+
+// validateCronJobs validates all cron jobs in the packages.
+func (p *parser) validateCronJobs() {
+	for _, pkg := range p.pkgs {
+		for _, file := range pkg.Files {
+			info := p.names[pkg].Files[file]
+			for _, decl := range file.AST.Decls {
+				switch decl := decl.(type) {
+				case *ast.FuncDecl:
+					for _, stmt := range decl.Body.List {
+						switch stmt := stmt.(type) {
+						case *ast.DeclStmt:
+							gd, ok := stmt.Decl.(*ast.GenDecl)
+							if !ok || gd.Tok != token.VAR {
+								continue
+							}
+							for _, s := range gd.Specs {
+								vs := s.(*ast.ValueSpec)
+								for _, x := range vs.Values {
+									p.validateCronJob(pkg, x, info)
+								}
+							}
+						case *ast.AssignStmt:
+							for _, x := range stmt.Rhs {
+								p.validateCronJob(pkg, x, info)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // validateApp performs full-app validation after everything has been parsed.
 func (p *parser) validateApp() {
 	// Error if we have auth endpoints without an auth handlers
@@ -581,4 +726,170 @@ func (p *parser) validateApp() {
 			}
 		}
 	}
+}
+
+// abs returns the absolute value of x.
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func (p *parser) formatMinutes(minutes int) string {
+	if minutes < 60 {
+		return fmt.Sprintf("%d * cron.Minute", minutes)
+	} else if minutes%60 == 0 {
+		return fmt.Sprintf("%d * cron.Hour", minutes/60)
+	}
+	return fmt.Sprintf("%d * cron.Hour + %d * cron.Minute", minutes/60, minutes%60)
+}
+
+func (p *parser) isCronIntervalAllowed(val int) (suggestion int, ok bool) {
+	allowed := []int{
+		1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20, 24, 30, 32, 36, 40, 45,
+		48, 60, 72, 80, 90, 96, 120, 144, 160, 180, 240, 288, 360, 480, 720, 1440,
+	}
+	idx := sort.SearchInts(allowed, val)
+
+	if idx == len(allowed) {
+		return allowed[len(allowed)-1], false
+	} else if allowed[idx] == val {
+		return val, true
+	} else if idx == 0 {
+		return allowed[0], false
+	} else if abs(val-allowed[idx-1]) < abs(val-allowed[idx]) {
+		return allowed[idx-1], false
+	}
+
+	return allowed[idx], false
+}
+
+// parseDurationLiteral parses an expression representing a duration constant.
+// It uses go/constant to perform arbitrary-precision arithmetic according
+// to the rules of the Go compiler.
+func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (dur int64, ok bool) {
+	zero := constant.MakeInt64(0)
+	var parse func(expr ast.Expr) constant.Value
+	parse = func(expr ast.Expr) constant.Value {
+		switch x := expr.(type) {
+		case *ast.BinaryExpr:
+			lhs := parse(x.X)
+			rhs := parse(x.Y)
+			switch x.Op {
+			case token.MUL, token.ADD, token.SUB, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
+				return constant.BinaryOp(lhs, x.Op, rhs)
+			case token.QUO:
+				// constant.BinaryOp panics when dividing by zero
+				if constant.Compare(rhs, token.EQL, zero) {
+					p.errf(x.Pos(), "cannot divide by zero")
+					return constant.MakeUnknown()
+				}
+
+				return constant.BinaryOp(lhs, x.Op, rhs)
+			default:
+				p.errf(x.Pos(), "unsupported operation: %s", x.Op)
+				return constant.MakeUnknown()
+			}
+
+		case *ast.UnaryExpr:
+			val := parse(x.X)
+			switch x.Op {
+			case token.ADD, token.SUB, token.XOR:
+				return constant.UnaryOp(x.Op, val, 0)
+			default:
+				p.errf(x.Pos(), "unsupported operation: %s", x.Op)
+				return constant.MakeUnknown()
+			}
+
+		case *ast.BasicLit:
+			switch x.Kind {
+			case token.INT, token.FLOAT:
+				return constant.MakeFromLiteral(x.Value, x.Kind, 0)
+			default:
+				p.errf(x.Pos(), "unsupported literal in duration expression: %s", x.Kind)
+				return constant.MakeUnknown()
+			}
+
+		case *ast.CallExpr:
+			// We allow "cron.Duration(x)" as a no-op
+			if sel, ok := x.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Duration" {
+				if id, ok := sel.X.(*ast.Ident); ok {
+					ri := info.Idents[id]
+					if ri != nil && ri.ImportPath == cronImportPath {
+						if len(x.Args) == 1 {
+							return parse(x.Args[0])
+						}
+					}
+				}
+			}
+			p.errf(x.Pos(), "unsupported call expression in duration expression")
+			return constant.MakeUnknown()
+
+		case *ast.SelectorExpr:
+			if pkg, obj := pkgObj(info, x); pkg == cronImportPath {
+				var d int64
+				switch obj {
+				case "Minute":
+					d = minute
+				case "Hour":
+					d = hour
+				default:
+					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected cron.Minute or cron.Hour)", pkg, obj)
+					return constant.MakeUnknown()
+				}
+				return constant.MakeInt64(d)
+			}
+			p.errf(x.Pos(), "unexpected value in duration literal")
+			return constant.MakeUnknown()
+
+		case *ast.ParenExpr:
+			return parse(x.X)
+
+		default:
+			p.errf(x.Pos(), "unsupported expression in duration literal: %T", x)
+			return constant.MakeUnknown()
+		}
+	}
+
+	val := constant.Val(parse(durationExpr))
+	switch val := val.(type) {
+	case int64:
+		return val, true
+	case *big.Int:
+		if !val.IsInt64() {
+			p.errf(durationExpr.Pos(), "duration expression out of bounds")
+			return 0, false
+		}
+		return val.Int64(), true
+	case *big.Rat:
+		num := val.Num()
+		if val.IsInt() && num.IsInt64() {
+			return num.Int64(), true
+		}
+		p.errf(durationExpr.Pos(), "floating point numbers are not supported in duration literals")
+		return 0, false
+	case *big.Float:
+		p.errf(durationExpr.Pos(), "floating point numbers are not supported in duration literals")
+		return 0, false
+	default:
+		p.errf(durationExpr.Pos(), "unsupported duration literal")
+		return 0, false
+	}
+}
+
+// pkgObj attempts to unpack a node as a reference to a package obj, returning the
+// package path and object name if resolvable.
+// If the node is not an *ast.SelectorExpr or it doesn't reference a tracked package,
+// it reports "", "".
+func pkgObj(info *names.File, node ast.Node) (pkgPath, objName string) {
+	if sel, ok := node.(*ast.SelectorExpr); ok {
+		if id, ok := sel.X.(*ast.Ident); ok {
+			ri := info.Idents[id]
+			if ri != nil && ri.ImportPath != "" {
+				return ri.ImportPath, sel.Sel.Name
+			}
+		}
+	}
+	return "", ""
 }

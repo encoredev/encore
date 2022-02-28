@@ -14,6 +14,7 @@ message Data {
   repeated Package        pkgs         = 4;
   repeated Service        svcs         = 5;
   optional AuthHandler    auth_handler = 6; // the auth handler or nil
+  repeated CronJob        cron_jobs = 7;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -158,4 +159,12 @@ message PathSegment {
   SegmentType type = 1;
   string value = 2;
   ParamType value_type = 3;
+}
+
+message CronJob {
+  string id = 1;
+  string name = 2;
+  string doc = 3;
+  string schedule = 4;
+  QualifiedName endpoint = 5;
 }

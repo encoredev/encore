@@ -19,7 +19,6 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 	fset := b.res.FileSet
 	seenWrappers := make(map[string]bool)
 	var wrappers []*est.RPC
-	nodes := b.res.Nodes[pkg]
 	for _, file := range pkg.Files {
 		if len(file.References) == 0 {
 			// No references to other RPCs, we can skip it immediately
@@ -46,24 +45,19 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 				// do nothing
 				return true
 
-			case est.RPCCallNode:
+			case est.RPCRefNode:
 				rpc := rewrite.RPC
 				wrapperName := "__encore_" + rpc.Svc.Name + "_" + rpc.Name
-				call := c.Node().(*ast.CallExpr)
+				node := c.Node()
 
 				// Capture rewrites that should be ignored when computing if an import
 				// is still in use. The func is generally a SelectorExpr but if we call
 				// an API within the same package it's an ident, and can be safely ignored.
-				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				if sel, ok := node.(*ast.SelectorExpr); ok {
 					useExceptions[sel] = true
 				}
 
-				rw.Replace(call.Fun.Pos(), call.Fun.End(), []byte(wrapperName))
-				lp := fset.Position(call.Lparen)
-				callTx := nodes[call]
-				rpcTx := b.res.Nodes[rpc.Svc.Root][rpc.Func]
-				rw.Insert(call.Lparen+1, []byte(fmt.Sprintf("%d, %d,/*line :%d:%d*/",
-					callTx.Id, rpcTx.Id, lp.Line, lp.Column+1)))
+				rw.Replace(node.Pos(), node.End(), []byte(wrapperName))
 				rewrittenPkgs[rpc.Svc.Root] = true
 
 				if !seenWrappers[wrapperName] {

@@ -49,9 +49,8 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Eight",
-		EndpointExprIdx: 20,
+		EndpointExprIdx: 12,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -129,9 +128,8 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Five",
-		EndpointExprIdx: 21,
+		EndpointExprIdx: 13,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -189,9 +187,8 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Four",
-		EndpointExprIdx: 22,
+		EndpointExprIdx: 14,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -240,9 +237,8 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "One",
-		EndpointExprIdx: 23,
+		EndpointExprIdx: 15,
 		Inputs:          nil,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -302,9 +298,8 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Query",
-		EndpointExprIdx: 24,
+		EndpointExprIdx: 16,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -358,9 +353,8 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Seven",
-		EndpointExprIdx: 25,
+		EndpointExprIdx: 17,
 		Inputs:          nil,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -411,9 +405,8 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Six",
-		EndpointExprIdx: 26,
+		EndpointExprIdx: 18,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -467,9 +460,8 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Three",
-		EndpointExprIdx: 27,
+		EndpointExprIdx: 19,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -526,9 +518,8 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CallExprIdx:     0,
 		Endpoint:        "Two",
-		EndpointExprIdx: 28,
+		EndpointExprIdx: 20,
 		Inputs:          inputs,
 		Service:         "svc",
 		Type:            runtime.RPCCall,
@@ -707,7 +698,7 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 		return "", nil, nil
 	}
 	done := make(chan struct{})
-	call, err := runtime.BeginAuth(29, token)
+	call, err := runtime.BeginAuth(21, token)
 	if err != nil {
 		return "", nil, err
 	}
@@ -715,9 +706,8 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 	go func() {
 		defer close(done)
 		authErr = call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     0,
 			Endpoint:        "AuthHandler",
-			EndpointExprIdx: 29,
+			EndpointExprIdx: 21,
 			Inputs:          [][]byte{[]byte(strconv.Quote(token))},
 			Service:         "svc",
 			Type:            runtime.AuthHandler,
@@ -871,15 +861,14 @@ import (
 	"encore.dev/types/uuid"
 )
 
-func __encore_svc_Eight(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string, p1 string) (resp *Response, err error) {
+func __encore_svc_Eight(ctx context.Context, p0 string, p1 string) (resp *Response, err error) {
 	inputs, err := runtime.SerializeInputs(p0, p1)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Eight",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 12,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -895,9 +884,8 @@ func __encore_svc_Eight(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Eight",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 12,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -941,15 +929,14 @@ func __encore_svc_Eight(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	return resp, response.err
 }
 
-func __encore_svc_Five(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 uuid.UUID, p1 uint, p2 *FooParams) (err error) {
+func __encore_svc_Five(ctx context.Context, p0 uuid.UUID, p1 uint, p2 *FooParams) (err error) {
 	inputs, err := runtime.SerializeInputs(p0, p1, p2)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Five",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 13,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -965,9 +952,8 @@ func __encore_svc_Five(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Five",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 13,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -1008,15 +994,14 @@ func __encore_svc_Five(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 	return response.err
 }
 
-func __encore_svc_Four(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string) (err error) {
+func __encore_svc_Four(ctx context.Context, p0 string) (err error) {
 	inputs, err := runtime.SerializeInputs(p0)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Four",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 14,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1032,9 +1017,8 @@ func __encore_svc_Four(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Four",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 14,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -1073,12 +1057,11 @@ func __encore_svc_Four(callExprIdx, endpointExprIdx int32, ctx context.Context, 
 	return response.err
 }
 
-func __encore_svc_One(callExprIdx, endpointExprIdx int32, ctx context.Context) (err error) {
+func __encore_svc_One(ctx context.Context) (err error) {
 	var inputs [][]byte
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "One",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 15,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1094,9 +1077,8 @@ func __encore_svc_One(callExprIdx, endpointExprIdx int32, ctx context.Context) (
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "One",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 15,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -1127,15 +1109,14 @@ func __encore_svc_One(callExprIdx, endpointExprIdx int32, ctx context.Context) (
 	return response.err
 }
 
-func __encore_svc_Query(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 *QueryParams) (err error) {
+func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (err error) {
 	inputs, err := runtime.SerializeInputs(p0)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Query",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 16,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1151,9 +1132,8 @@ func __encore_svc_Query(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Query",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 16,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -1192,15 +1172,14 @@ func __encore_svc_Query(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	return response.err
 }
 
-func __encore_svc_Seven(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string, p1 string) (err error) {
+func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
 	inputs, err := runtime.SerializeInputs(p0, p1)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Seven",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 17,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1216,9 +1195,8 @@ func __encore_svc_Seven(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Seven",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 17,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -1258,15 +1236,14 @@ func __encore_svc_Seven(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	return response.err
 }
 
-func __encore_svc_Six(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParams) (err error) {
+func __encore_svc_Six(ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParams) (err error) {
 	inputs, err := runtime.SerializeInputs(p0, p1, p2)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Six",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 18,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1282,9 +1259,8 @@ func __encore_svc_Six(callExprIdx, endpointExprIdx int32, ctx context.Context, p
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Six",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 18,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -1325,15 +1301,14 @@ func __encore_svc_Six(callExprIdx, endpointExprIdx int32, ctx context.Context, p
 	return response.err
 }
 
-func __encore_svc_Three(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 string) (err error) {
+func __encore_svc_Three(ctx context.Context, p0 string) (err error) {
 	inputs, err := runtime.SerializeInputs(p0)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Three",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 19,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1349,9 +1324,8 @@ func __encore_svc_Three(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Three",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 19,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
@@ -1390,15 +1364,14 @@ func __encore_svc_Three(callExprIdx, endpointExprIdx int32, ctx context.Context,
 	return response.err
 }
 
-func __encore_svc_Two(callExprIdx, endpointExprIdx int32, ctx context.Context, p0 *FooParams) (err error) {
+func __encore_svc_Two(ctx context.Context, p0 *FooParams) (err error) {
 	inputs, err := runtime.SerializeInputs(p0)
 	if err != nil {
 		return
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
-		CallExprIdx:     callExprIdx,
 		Endpoint:        "Two",
-		EndpointExprIdx: endpointExprIdx,
+		EndpointExprIdx: 20,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1414,9 +1387,8 @@ func __encore_svc_Two(callExprIdx, endpointExprIdx int32, ctx context.Context, p
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			CallExprIdx:     callExprIdx,
 			Endpoint:        "Two",
-			EndpointExprIdx: endpointExprIdx,
+			EndpointExprIdx: 20,
 			Inputs:          inputs,
 			RequireAuth:     false,
 			Service:         "svc",
