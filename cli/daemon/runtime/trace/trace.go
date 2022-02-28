@@ -193,10 +193,15 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		return fmt.Errorf("unknown request type %x", b)
 	}
 
+	absStart := tp.Time()
+
 	req := &tracepb.Request{
 		TraceId:      tp.traceID,
 		SpanId:       tp.Uint64(),
 		ParentSpanId: tp.Uint64(),
+		ServiceName:  tp.String(),
+		EndpointName: tp.String(),
+		AbsStartTime: uint64(absStart.UnixNano()),
 		StartTime:    ts,
 		// EndTime not set yet
 		Goid:    uint32(tp.UVarint()),

@@ -28,6 +28,13 @@ message Request {
   Type type = 14;
   StackTrace err_stack = 15;
 
+  // abs_start_time is the absolute unix timestamp
+  // (in nanosecond resolution) of when the request started.
+  uint64 abs_start_time = 16;
+
+  string service_name = 17;
+  string endpoint_name = 18;
+
   enum Type {
     RPC = 0;
     AUTH = 1;

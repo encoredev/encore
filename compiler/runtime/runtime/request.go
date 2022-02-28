@@ -315,8 +315,11 @@ func beginReq(ctx context.Context, spanID SpanID, data RequestData) error {
 	if req.Traced {
 		tb := NewTraceBuf(1 + 8 + 8 + 8 + 8 + 8 + 8 + 64)
 		tb.Bytes([]byte{byte(req.Type)})
+		tb.Now()
 		tb.Bytes(req.SpanID[:])
 		tb.Bytes(req.ParentID[:])
+		tb.String(req.Service)
+		tb.String(req.Endpoint)
 		tb.UVarint(uint64(g.goid))
 		tb.UVarint(uint64(data.CallExprIdx))
 		tb.UVarint(uint64(data.EndpointExprIdx))
