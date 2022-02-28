@@ -11,7 +11,7 @@ import (
 	"encore.dev/runtime/config"
 )
 
-const traceVersion = "5"
+const traceVersion = "6"
 
 func RecordTrace(ctx context.Context, traceID [16]byte, data []byte) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", config.Cfg.Runtime.TraceEndpoint, bytes.NewReader(data))
