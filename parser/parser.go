@@ -581,11 +581,14 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must be one minute or greater, got %d", minutes)
 								return nil
 							} else if minutes > 24*60 {
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must not be greater than 1440 minutes (1 day), got %d", minutes)
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must not be greater than 24 hours (1440 minutes), got %d", minutes)
+								return nil
 							} else if suggestion, ok := p.isCronIntervalAllowed(int(minutes)); !ok {
 								suggestionStr := p.formatMinutes(suggestion)
 								minutesStr := p.formatMinutes(int(minutes))
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: 24 hour time range (from 00:00 to 23:59) needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
+								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: 24 hour time range (from 00:00 to 23:59) "+
+									"needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
+								return nil
 							}
 							cj.Schedule = fmt.Sprintf("every:%d", minutes)
 							hasSchedule = true
@@ -735,11 +738,11 @@ func abs(x int) int {
 
 func (p *parser) formatMinutes(minutes int) string {
 	if minutes < 60 {
-		return fmt.Sprintf("%d minutes", minutes)
+		return fmt.Sprintf("%d * cron.Minute", minutes)
 	} else if minutes%60 == 0 {
-		return fmt.Sprintf("%d hours", minutes/60)
+		return fmt.Sprintf("%d * cron.Hour", minutes/60)
 	}
-	return fmt.Sprintf("%d hours and %d minutes", minutes/60, minutes%60)
+	return fmt.Sprintf("%d * cron.Hour + %d * cron.Minute", minutes/60, minutes%60)
 }
 
 func (p *parser) isCronIntervalAllowed(val int) (suggestion int, ok bool) {
@@ -749,10 +752,12 @@ func (p *parser) isCronIntervalAllowed(val int) (suggestion int, ok bool) {
 	}
 	idx := sort.SearchInts(allowed, val)
 
-	if allowed[idx] == val {
-		return val, true
-	} else if idx == len(allowed) {
+	if idx == len(allowed) {
 		return allowed[len(allowed)-1], false
+	} else if idx == 0 {
+		return allowed[0], false
+	} else if allowed[idx] == val {
+		return val, true
 	} else if abs(val-allowed[idx-1]) < abs(val-allowed[idx]) {
 		return allowed[idx-1], false
 	}
