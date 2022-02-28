@@ -754,10 +754,10 @@ func (p *parser) isCronIntervalAllowed(val int) (suggestion int, ok bool) {
 
 	if idx == len(allowed) {
 		return allowed[len(allowed)-1], false
-	} else if idx == 0 {
-		return allowed[0], false
 	} else if allowed[idx] == val {
 		return val, true
+	} else if idx == 0 {
+		return allowed[0], false
 	} else if abs(val-allowed[idx-1]) < abs(val-allowed[idx]) {
 		return allowed[idx-1], false
 	}
