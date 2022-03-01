@@ -1,6 +1,6 @@
 # Verify the cron job definition
 ! parse
-stderr 'cron job cronfoo needs to be defined at package level'
+stderr 'cron job must be defined as a package global variable'
 
 -- svc/svc.go --
 package svc
