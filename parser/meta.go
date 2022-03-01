@@ -160,7 +160,7 @@ func parseRPC(rpc *est.RPC) (*meta.RPC, error) {
 func parseCronJob(job *est.CronJob) (*meta.CronJob, error) {
 	j := &meta.CronJob{
 		Id:       job.ID,
-		Name:     job.Name,
+		Title:    job.Title,
 		Doc:      job.Doc,
 		Schedule: job.Schedule,
 		Endpoint: &meta.QualifiedName{

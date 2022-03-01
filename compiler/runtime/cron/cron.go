@@ -8,7 +8,7 @@ const (
 )
 
 type JobConfig struct {
-	Name     string
+	Title    string
 	Every    Duration
 	Schedule string
 	Endpoint interface{}
@@ -16,7 +16,7 @@ type JobConfig struct {
 
 type Job struct {
 	ID       string
-	Name     string
+	Title    string
 	Every    Duration
 	Schedule string
 	Endpoint interface{}
@@ -25,7 +25,7 @@ type Job struct {
 func NewJob(id string, jobConfig JobConfig) *Job {
 	return &Job{
 		ID:       id,
-		Name:     jobConfig.Name,
+		Title:    jobConfig.Title,
 		Every:    jobConfig.Every,
 		Schedule: jobConfig.Schedule,
 		Endpoint: jobConfig.Endpoint,

@@ -16,7 +16,7 @@ import (
 	a random string.
 
 	var _, bd = cron.NewJob("cronfood", cron.JobConfig{
-		Name:     "Cron Food Bar",
+		Title:    "Cron Food Bar",
 		Schedule: "* * * * 5",
 		Endpoint: Cron,
 	}), "barfoo"
@@ -25,14 +25,14 @@ import (
 	that includes a code snippet.
 */
 var _, bd = cron.NewJob("cronfood", cron.JobConfig{
-	Name:     "Cron Food Bar",
+	Title:    "Cron Food Bar",
 	Schedule: "* * * * 5",
 	Endpoint: Cron,
 }), "barfoo"
 
 // A cron job to send out push notiifications to new subscribers.
 var _ = cron.NewJob("cronfood", cron.JobConfig{
-	Name:     "Cron Foo Bar Bazz",
+	Title:    "Cron Foo Bar Bazz",
 	Schedule: "* * * * 4",
 	Endpoint: Cron,
 })
