@@ -5,11 +5,12 @@
 package est
 
 import (
-	"encr.dev/parser/paths"
-	schema "encr.dev/proto/encore/parser/schema/v1"
 	"errors"
 	"go/ast"
 	"go/token"
+
+	"encr.dev/parser/paths"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 type Application struct {
@@ -56,7 +57,7 @@ type Service struct {
 
 type CronJob struct {
 	ID       string
-	Name     string
+	Title    string
 	Doc      string
 	Schedule string
 	RPC      *RPC
@@ -67,8 +68,8 @@ func (cj *CronJob) IsValid() (bool, error) {
 	switch {
 	case cj.ID == "":
 		return false, errors.New("field ID is required")
-	case cj.Name == "":
-		return false, errors.New("field Name is required")
+	case cj.Title == "":
+		return false, errors.New("field Title is required")
 	case cj.RPC == nil:
 		return false, errors.New("field RPC is required")
 	case cj.Schedule == "":

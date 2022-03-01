@@ -15,7 +15,7 @@ func init() {
     // A cron job to send out emails to newsletter subscribers.
     // On two lines.
     var _ = cron.NewJob("cronfoo", cron.JobConfig{
-        Name:     "Cron Foo Bar",
+        Title:    "Cron Foo Bar",
         Schedule: "* * * * 5",
         Endpoint: Cron,
     })

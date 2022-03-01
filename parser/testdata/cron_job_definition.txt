@@ -1,11 +1,12 @@
 # Verify the cron job definition
 parse
 stdout 'rpc svc.Cron access=public raw=false path=/cron'
-stdout 'cronJob cronfooboo name=Cron Foo Boo'
-stdout 'cronJob cronfoo name=Cron Foo Bar'
-stdout 'cronJob cronfood name=Cron Food Bar'
-stdout 'cronJob cronfoocious name=Cron Foo Bar Bazz'
-stdout 'cronJob cron-every name=Cron Foo Bar Bazz'
+stdout 'cronJob cronfooboo title="Cron Foo Boo"'
+stdout 'cronJob cronfoo title="Cron Foo Bar"'
+stdout 'cronJob cronfood title="Cron Food Bar"'
+stdout 'cronJob cronfoocious title="Cron Foo Bar Bazz"'
+stdout 'cronJob cron-every title="Cron Foo Bar Bazz"'
+stdout 'cronJob cron-external'
 
 -- svc/svc.go --
 package svc
@@ -14,11 +15,12 @@ import (
 	"context"
 	"time"
 
+	"test/external"
 	"encore.dev/cron"
 )
 
 var _ = cron.NewJob("cronfooboo", cron.JobConfig{
-	Name:     "Cron Foo Boo",
+	Title:     "Cron Foo Boo",
 	Schedule: "* * * * 5",
 	Endpoint: Cron,
 })
@@ -26,7 +28,7 @@ var _ = cron.NewJob("cronfooboo", cron.JobConfig{
 // A cron job to send out emails to newsletter subscribers.
 // On two lines.
 var _ = cron.NewJob("cronfoo", cron.JobConfig{
-	Name:     "Cron Foo Bar",
+	Title:     "Cron Foo Bar",
 	Schedule: "* * * * 5",
 	Endpoint: Cron,
 })
@@ -36,7 +38,7 @@ var _ = cron.NewJob("cronfoo", cron.JobConfig{
 	a random string.
 
 	var _, bd = cron.NewJob("cronfood", cron.JobConfig{
-		Name:     "Cron Food Bar",
+		Title:     "Cron Food Bar",
 		Schedule: "* * * * 5",
 		Endpoint: Cron,
 	}), "barfoo"
@@ -45,23 +47,29 @@ var _ = cron.NewJob("cronfoo", cron.JobConfig{
 	that includes a code snippet.
 */
 var _, bd = cron.NewJob("cronfood", cron.JobConfig{
-	Name:     "Cron Food Bar",
+	Title:     "Cron Food Bar",
 	Schedule: "* * * * 5",
 	Endpoint: Cron,
 }), "barfoo"
 
 // A cron job to send out push notifications to new subscribers.
 var _ = cron.NewJob("cronfoocious", cron.JobConfig{
-	Name:     "Cron Foo Bar Bazz",
+	Title:     "Cron Foo Bar Bazz",
 	Schedule: "* * * * 4",
 	Endpoint: Cron,
 })
 
 // A cron job using Every instead of Schedule
 var _ = cron.NewJob("cron-every", cron.JobConfig{
-	Name:     "Cron Foo Bar Bazz",
+	Title:     "Cron Foo Bar Bazz",
 	Every:    3 * cron.Minute,
 	Endpoint: Cron,
+})
+
+// A cron job using an external endpoint
+var _ = cron.NewJob("cron-external", cron.JobConfig{
+	Every:    cron.Minute,
+	Endpoint: external.Endpoint,
 })
 
 //encore:api public path=/cron
@@ -72,4 +80,16 @@ func Cron(ctx context.Context) (*Response, error) {
 
 type Response struct {
 	Message string
+}
+
+-- external/external.go --
+package external
+
+import (
+	"context"
+)
+
+//encore:api private
+func Endpoint(ctx context.Context) error {
+	return nil
 }
