@@ -223,7 +223,7 @@ func TestParseDurationLiteral(t *testing.T) {
 			})
 
 			p := &parser{fset: fset, errors: errlist.New(fset)}
-			dur, ok := p.parseDurationLiteral(info, x)
+			dur, ok := p.parseCronLiteral(info, x)
 			if test.Err != "" {
 				c.Check(ok, qt.IsFalse)
 				c.Check(p.errors.Err(), qt.IsNotNil)
