@@ -2,21 +2,13 @@
 package parser
 
 import (
-	"encr.dev/parser/dnsname"
-	"encr.dev/parser/est"
-	"encr.dev/parser/internal/names"
-	"encr.dev/parser/paths"
-	meta "encr.dev/proto/encore/parser/meta/v1"
-	schema "encr.dev/proto/encore/parser/schema/v1"
 	"fmt"
-	cronparser "github.com/robfig/cron/v3"
 	"go/ast"
 	"go/build"
 	"go/constant"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
-	"golang.org/x/tools/go/ast/astutil"
 	"math/big"
 	"os"
 	"path"
@@ -25,6 +17,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	cronparser "github.com/robfig/cron/v3"
+	"golang.org/x/tools/go/ast/astutil"
+
+	"encr.dev/parser/dnsname"
+	"encr.dev/parser/est"
+	"encr.dev/parser/internal/names"
+	"encr.dev/parser/paths"
+	meta "encr.dev/proto/encore/parser/meta/v1"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 
 	"encr.dev/pkg/errlist"
 )
@@ -539,7 +541,7 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 				return nil
 			}
 			cj.ID = cronJobID
-			cj.Name = cronJobID // Set ID as the default name
+			cj.Title = cronJobID // Set ID as the default title
 		} else {
 			p.errf(ce.Pos(), "cron.NewJob must be called with a string literal as its first argument")
 			return nil
@@ -552,41 +554,41 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 					kv := e.(*ast.KeyValueExpr)
 					key, ok := kv.Key.(*ast.Ident)
 					if !ok {
-						p.errf(kv.Pos(), "cron.JobConfig key must be an identifier")
+						p.errf(kv.Pos(), "field must be an identifier")
 						return nil
 					}
 					switch key.Name {
-					case "Name":
+					case "Title":
 						if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
 							parsed, _ := strconv.Unquote(v.Value)
-							cj.Name = parsed
+							cj.Title = parsed
 						} else {
-							p.errf(v.Pos(), "cron.JobConfig.Name must be a string literal")
+							p.errf(v.Pos(), "Title must be a string literal")
 							return nil
 						}
 					case "Every":
 						if hasSchedule {
-							p.errf(kv.Pos(), "cron.JobConfig.Every: cron execution schedule was already defined using the Schedule field, at least one must be set but not both")
+							p.errf(kv.Pos(), "Every: cron execution schedule was already defined using the Schedule field, at least one must be set but not both")
 							return nil
 						}
 						if dur, ok := p.parseDurationLiteral(info, kv.Value); ok {
 							// We only support intervals that are a positive integer number of minutes.
 							if rem := dur % minute; rem != 0 {
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: must be an integer number of minutes, got %d", dur)
+								p.errf(kv.Value.Pos(), "Every: must be an integer number of minutes, got %d", dur)
 								return nil
 							}
 
 							minutes := dur / minute
 							if minutes < 1 {
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must be one minute or greater, got %d", minutes)
+								p.errf(kv.Value.Pos(), "Every: duration must be one minute or greater, got %d", minutes)
 								return nil
 							} else if minutes > 24*60 {
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: duration must not be greater than 24 hours (1440 minutes), got %d", minutes)
+								p.errf(kv.Value.Pos(), "Every: duration must not be greater than 24 hours (1440 minutes), got %d", minutes)
 								return nil
 							} else if suggestion, ok := p.isCronIntervalAllowed(int(minutes)); !ok {
 								suggestionStr := p.formatMinutes(suggestion)
 								minutesStr := p.formatMinutes(int(minutes))
-								p.errf(kv.Value.Pos(), "cron.JobConfig.Every: 24 hour time range (from 00:00 to 23:59) "+
+								p.errf(kv.Value.Pos(), "Every: 24 hour time range (from 00:00 to 23:59) "+
 									"needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
 								return nil
 							}
@@ -597,30 +599,28 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 						}
 					case "Schedule":
 						if hasSchedule {
-							p.errf(kv.Pos(), "cron.JobConfig.Schedule: cron execution schedule was already defined using the Every field, at least one must be set but not both")
+							p.errf(kv.Pos(), "cron execution schedule was already defined using the Every field, at least one must be set but not both")
 							return nil
 						}
 						if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
 							parsed, _ := strconv.Unquote(v.Value)
 							_, err := cp.Parse(parsed)
 							if err != nil {
-								p.errf(v.Pos(), "cron.JobConfig.Schedule must be a valid cron expression: %s", err)
+								p.errf(v.Pos(), "Schedule must be a valid cron expression: %s", err)
 								return nil
 							}
 							cj.Schedule = fmt.Sprintf("schedule:%s", parsed)
 							hasSchedule = true
 						} else {
-							p.errf(v.Pos(), "cron.JobConfig.Schedule must be a string literal")
+							p.errf(v.Pos(), "Schedule must be a string literal")
 							return nil
 						}
 					case "Endpoint":
-						if id, ok := kv.Value.(*ast.Ident); ok {
-							if ref, ok := file.References[id]; ok && ref.Type == est.RPCRefNode {
-								cj.RPC = ref.RPC
-							} else {
-								p.errf(id.NamePos, "cron.JobConfig.Endpoint: %s is not an RPC", id.Name)
-								return nil
-							}
+						if ref, ok := file.References[kv.Value]; ok && ref.Type == est.RPCRefNode {
+							cj.RPC = ref.RPC
+						} else {
+							p.errf(kv.Value.Pos(), "Endpoint does not reference an Encore API")
+							return nil
 						}
 					default:
 						p.errf(key.Pos(), "cron.JobConfig has unknown key %s", key.Name)

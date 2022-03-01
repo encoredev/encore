@@ -1,20 +1,22 @@
 package parser
 
 import (
-	"encr.dev/pkg/errlist"
 	"fmt"
-	qt "github.com/frankban/quicktest"
-	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/rogpeppe/go-internal/txtar"
 	"go/ast"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
-	"golang.org/x/mod/modfile"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	qt "github.com/frankban/quicktest"
+	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/rogpeppe/go-internal/txtar"
+	"golang.org/x/mod/modfile"
+
+	"encr.dev/pkg/errlist"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
@@ -150,7 +152,7 @@ func TestMain(m *testing.M) {
 				}
 			}
 			for _, job := range res.App.CronJobs {
-				fmt.Fprintf(os.Stdout, "cronJob %s name=%s\n", job.ID, job.Name)
+				fmt.Fprintf(os.Stdout, "cronJob %s title=%q\n", job.ID, job.Title)
 			}
 			for _, pkg := range res.App.Packages {
 				for _, res := range pkg.Resources {
