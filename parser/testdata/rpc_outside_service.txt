@@ -1,0 +1,27 @@
+! parse
+stderr 'cannot reference API one.One outside of a service'
+
+-- one/one.go --
+package one
+
+import (
+    "context"
+)
+
+//encore:api public
+func One(ctx context.Context) error {
+    return nil
+}
+
+-- two/two.go --
+package two
+
+import (
+    "context"
+
+    "test/one"
+)
+
+func Foo(ctx context.Context) error {
+    return one.One(ctx)
+}

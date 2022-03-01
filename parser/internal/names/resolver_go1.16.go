@@ -64,7 +64,8 @@ func (g *go116Resolver) expr(r *resolver, expr ast.Expr) (ok bool) {
 
 	case *ast.SelectorExpr:
 		r.expr(expr.X)
-		r.expr(expr.Sel)
+		// Note: we don't treat 'Foo' in 'x.Foo' as an identifier,
+		// as it does not introduce a new name to any scope.
 
 	case *ast.IndexExpr:
 		r.expr(expr.X)

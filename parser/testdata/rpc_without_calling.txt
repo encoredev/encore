@@ -1,0 +1,31 @@
+# Verify that not calling an endpoint is caught by the parser
+! parse
+stderr 'cannot reference API endpoint one.One without calling it'
+
+-- one/one.go --
+package one
+
+import (
+    "context"
+)
+
+//encore:api public
+func One(ctx context.Context) error {
+    return nil
+}
+
+-- two/two.go --
+package two
+
+import (
+    "context"
+
+    "test/one"
+)
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    f := one.One
+    f()
+    return nil
+}
