@@ -56,6 +56,10 @@ type parser struct {
 	declMap     map[string]*schema.Decl // pkg/path.Name -> decl
 	decls       []*schema.Decl
 	paths       paths.Set // RPC paths
+
+	// validRPCReferences is a set of ast nodes that are allowed to
+	// reference RPCs without calling them.
+	validRPCReferences map[ast.Node]bool
 }
 
 // Config represents the configuration options for parsing.
@@ -69,8 +73,9 @@ type Config struct {
 
 func Parse(cfg *Config) (*Result, error) {
 	p := &parser{
-		cfg:     cfg,
-		declMap: make(map[string]*schema.Decl),
+		cfg:                cfg,
+		declMap:            make(map[string]*schema.Decl),
+		validRPCReferences: make(map[ast.Node]bool),
 	}
 	return p.Parse()
 }
@@ -129,7 +134,6 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.parseReferences()
 	p.parseCronJobs()
 	p.parseSecrets()
-	p.validateCronJobs()
 	p.validateApp()
 
 	sort.Slice(p.pkgs, func(i, j int) bool {
@@ -476,18 +480,15 @@ SpecLoop:
 }
 
 func (p *parser) parseCronJobs() {
-	/*
-		// A cron job that sends emails to new subscribers.
-		var _ = cron.NewJob("id", cron.JobConfig{
-			Name: "Foo",
-			Schedule: "* * * * *",
-			Endpoint: Cron,
-		})
-	*/
 	p.jobsMap = make(map[string]*est.CronJob)
 	cp := cronparser.NewParser(cronparser.Minute | cronparser.Hour | cronparser.Dom | cronparser.Month | cronparser.Dow)
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
+
+			// seenCalls tracks the calls we've seen and processed.
+			// Any calls to cron.NewJob not in this map is done at
+			// an invalid call site.
+			seenCalls := make(map[*ast.CallExpr]bool)
 			info := p.names[pkg].Files[file]
 			for _, decl := range file.AST.Decls {
 				gd, ok := decl.(*ast.GenDecl)
@@ -498,6 +499,7 @@ func (p *parser) parseCronJobs() {
 					vs := s.(*ast.ValueSpec)
 					for _, x := range vs.Values {
 						if ce, ok := x.(*ast.CallExpr); ok {
+							seenCalls[ce] = true
 							if cronJob := p.parseCronJobStruct(cp, ce, file, info); cronJob != nil {
 								cronJob.Doc = gd.Doc.Text()
 								if cronJob2 := p.jobsMap[cronJob.ID]; cronJob2 != nil {
@@ -511,6 +513,16 @@ func (p *parser) parseCronJobs() {
 					}
 				}
 			}
+
+			// Now walk the whole file and catch any calls not already processed; they must be invalid.
+			ast.Inspect(file.AST, func(node ast.Node) bool {
+				if call, ok := node.(*ast.CallExpr); ok && !seenCalls[call] {
+					if imp, obj := pkgObj(info, call.Fun); imp == cronImportPath && obj == "NewJob" {
+						p.errf(call.Pos(), "cron job must be defined as a package global variable")
+					}
+				}
+				return true
+			})
 		}
 	}
 }
@@ -571,7 +583,7 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 							p.errf(kv.Pos(), "Every: cron execution schedule was already defined using the Schedule field, at least one must be set but not both")
 							return nil
 						}
-						if dur, ok := p.parseDurationLiteral(info, kv.Value); ok {
+						if dur, ok := p.parseCronLiteral(info, kv.Value); ok {
 							// We only support intervals that are a positive integer number of minutes.
 							if rem := dur % minute; rem != 0 {
 								p.errf(kv.Value.Pos(), "Every: must be an integer number of minutes, got %d", dur)
@@ -616,6 +628,9 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 							return nil
 						}
 					case "Endpoint":
+						// This is one of the places where it's fine to reference an RPC endpoint.
+						p.validRPCReferences[kv.Value] = true
+
 						if ref, ok := file.References[kv.Value]; ok && ref.Type == est.RPCRefNode {
 							cj.RPC = ref.RPC
 						} else {
@@ -636,55 +651,6 @@ func (p *parser) parseCronJobStruct(cp cronparser.Parser, ce *ast.CallExpr, file
 		}
 	}
 	return nil
-}
-
-func (p *parser) validateCronJob(pkg *est.Package, expr ast.Expr, info *names.File) {
-	if call, ok := expr.(*ast.CallExpr); ok {
-		if imp, obj := pkgObj(info, call.Fun); imp == cronImportPath && obj == "NewJob" {
-			var cronJobID string
-			if bl, ok := call.Args[0].(*ast.BasicLit); ok && bl.Kind == token.STRING {
-				cronJobID, _ = strconv.Unquote(bl.Value)
-			} else {
-				p.errf(call.Pos(), "cron.NewJob must be called with a string literal as its first argument")
-			}
-			if cronJob := p.jobsMap[cronJobID]; cronJob == nil {
-				p.errf(pkg.AST.Pos(), "cron job %s needs to be defined at package level", cronJobID)
-			}
-		}
-	}
-}
-
-// validateCronJobs validates all cron jobs in the packages.
-func (p *parser) validateCronJobs() {
-	for _, pkg := range p.pkgs {
-		for _, file := range pkg.Files {
-			info := p.names[pkg].Files[file]
-			for _, decl := range file.AST.Decls {
-				switch decl := decl.(type) {
-				case *ast.FuncDecl:
-					for _, stmt := range decl.Body.List {
-						switch stmt := stmt.(type) {
-						case *ast.DeclStmt:
-							gd, ok := stmt.Decl.(*ast.GenDecl)
-							if !ok || gd.Tok != token.VAR {
-								continue
-							}
-							for _, s := range gd.Specs {
-								vs := s.(*ast.ValueSpec)
-								for _, x := range vs.Values {
-									p.validateCronJob(pkg, x, info)
-								}
-							}
-						case *ast.AssignStmt:
-							for _, x := range stmt.Rhs {
-								p.validateCronJob(pkg, x, info)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 // validateApp performs full-app validation after everything has been parsed.
@@ -726,6 +692,22 @@ func (p *parser) validateApp() {
 			}
 		}
 	}
+
+	// Error if APIs are referenced but not called in non-permissible locations.
+	for _, pkg := range p.pkgs {
+		for _, f := range pkg.Files {
+			astutil.Apply(f.AST, func(c *astutil.Cursor) bool {
+				node := c.Node()
+				if ref, ok := f.References[node]; ok && ref.Type == est.RPCRefNode && !p.validRPCReferences[node] {
+					if _, isCall := c.Parent().(*ast.CallExpr); !isCall {
+						rpc := ref.RPC
+						p.errf(node.Pos(), "cannot reference API endpoint %s.%s without calling it", rpc.Svc.Name, rpc.Name)
+					}
+				}
+				return true
+			}, nil)
+		}
+	}
 }
 
 // abs returns the absolute value of x.
@@ -765,10 +747,10 @@ func (p *parser) isCronIntervalAllowed(val int) (suggestion int, ok bool) {
 	return allowed[idx], false
 }
 
-// parseDurationLiteral parses an expression representing a duration constant.
+// parseCronLiteral parses an expression representing a cron duration constant.
 // It uses go/constant to perform arbitrary-precision arithmetic according
 // to the rules of the Go compiler.
-func (p *parser) parseDurationLiteral(info *names.File, durationExpr ast.Expr) (dur int64, ok bool) {
+func (p *parser) parseCronLiteral(info *names.File, durationExpr ast.Expr) (dur int64, ok bool) {
 	zero := constant.MakeInt64(0)
 	var parse func(expr ast.Expr) constant.Value
 	parse = func(expr ast.Expr) constant.Value {
