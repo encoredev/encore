@@ -19,7 +19,7 @@ import "encore.dev/cron"
 
 // Send a welcome email to everyone who signed up in the last two hours.
 var _ = cron.NewJob("welcome-email", cron.JobConfig{
-	Name:     "Send welcome emails",
+	Title:    "Send welcome emails",
 	Every:    2 * cron.Hour,
 	Endpoint: SendWelcomeEmail,
 })
@@ -79,7 +79,7 @@ For example:
 ```go
 // Run the monthly accounting sync job at 4am (UTC) on the 15th day of each month.
 var _ = cron.NewJob("accounting-sync", cron.JobConfig{
-	Name:     "Cron Job Example",
+	Title:    "Cron Job Example",
 	Schedule: "0 4 15 * *",
 	Endpoint: AccountingSync,
 })

@@ -163,7 +163,7 @@ message PathSegment {
 
 message CronJob {
   string id = 1;
-  string name = 2;
+  string title = 2;
   string doc = 3;
   string schedule = 4;
   QualifiedName endpoint = 5;
