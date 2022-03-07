@@ -5,7 +5,9 @@
 Encore makes it super easy to create backend services and APIs. Built ground up for Go, Encore uses static analysis and code generation to provide a revolutionary developer experience that is extremely productive.
 <br/><br/>
 
-**Get started in minutes and read the complete documentation: [encore.dev/docs](https://encore.dev/docs/quick-start)**
+**🏁 Get started in minutes and check out the documentation: [encore.dev/docs](https://encore.dev/docs/quick-start)**
+
+**⭐ If you find Encore interesting, please consider starring this repository to help spread the word.**
 
 ## Key features
 
@@ -83,6 +85,7 @@ Encore supports dropping down to plain HTTP requests which lets you use Websocke
 We rely on your contributions and feedback to improve Encore.
 We love hearing about your experiences using Encore, and about what may be unclear and we can do a better job explaining.
 
+* ⭐ Star this repository to help spread the word.
 * Send us feedback or ask questions via [email](mailto:hello@encore.dev).
 * Connect with other Encore users on [Slack](https://encore.dev/slack).
 * Follow us on [Twitter](https://twitter.com/encoredotdev).
