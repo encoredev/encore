@@ -63,6 +63,7 @@ sections: [
 			{title: "Scaling", segment: "scaling"},
 			{title: "Environments", segment: "environments"},
 			{title: "Bring your own cloud", segment: "own-cloud"},
+			{title: "Custom Domains", segment: "custom-domains"},
 			{title: "Infrastructure", segment: "infra"},
 			{title: "Security", segment: "security"},
 		]
