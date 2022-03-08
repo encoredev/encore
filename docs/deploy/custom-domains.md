@@ -28,14 +28,14 @@ on the top right of the page.
 Enter the domain name you configured the CNAME on and select which [environment](/docs/deploy/environments) you wish to
 serve on that domain, then click `Add`.
 
-At this point Encores platform will start the process of setting up your domain & issuing SSL certificates to serve the
+At this point Encore's platform will start the process of setting up your domain & issuing SSL certificates to serve the
 traffic through.
 
 <Callout type="important">
 
 Encore allows you to have multiple domains configured against a single environment and will serve traffic through all
 configured domains. The `encr.app` subdomain which was created when you originally created an environment will always be
-configured to serve traffic to that environment, this allows you to migrate to a custom domain safety without risking
+configured to serve traffic to that environment, this allows you to migrate to a custom domain safely without risking
 cutting traffic off to older clients which may be hard coded to access your applications via the default subdomain.
 
 </Callout>
@@ -49,4 +49,4 @@ On the Custom Domains settings page Encore will list various statuses throughout
 - `Configuring Edge Routers`; The SSL certificate has been issued and the Encore edge routers need to be configured to route traffic on this domain.
 - `Active`; This custom domain serving traffic to your Encore application
 - `Not Working`; A non-recoverable problem has occurred on your custom domain. This could be a result of the CNAME record
-   being removed or pointed else where. If you see this error, please contact support.
+   being removed or pointed else where. If you see this error, please [contact support](/contact).
