@@ -6,7 +6,7 @@ title: Welcome to Encore
     type="button"
     className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
         Quick Start
-</button></a>
+</button></a><br />
 Encore is a Backend Development Engine, designed for rapidly building cloud-based backend applications using Go.
 Encore understands your code and helps you build your app. It comes with built-in support for tracing, secrets, live reload, and more.
 
