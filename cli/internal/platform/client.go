@@ -121,7 +121,7 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}, au
 		body = bytes.NewReader(reqData)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", conf.APIBaseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, method, conf.APIBaseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +138,16 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}, au
 	if auth {
 		client = conf.AuthClient
 	}
+
+	log.Trace().Msgf("->     %s %s: %+v", method, path, reqParams)
+	defer func() {
+		if err != nil {
+			log.Trace().Msgf("<- ERR %s %s: %v", method, path, err)
+		} else {
+			log.Trace().Msgf("<- OK  %s %s", method, path)
+		}
+	}()
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
