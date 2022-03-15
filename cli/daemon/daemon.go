@@ -86,7 +86,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		if envName == "" {
 			envName = "@primary"
 		}
-		meta, err := platform.GetEnvMeta(ctx, params.AppId, params.EnvName)
+		meta, err := platform.GetEnvMeta(ctx, params.AppId, envName)
 		if err != nil {
 			return nil, status.Errorf(codes.Unavailable, "could not fetch API metadata: %v", err)
 		}
