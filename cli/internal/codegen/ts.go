@@ -47,6 +47,7 @@ func (ts *ts) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err er
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
+	ts.writeGenericTypes()
 	ts.writeClient()
 	for _, svc := range md.Svcs {
 		ts.writeService(svc)
@@ -58,7 +59,7 @@ func (ts *ts) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err er
 		}
 	}
 	ts.writeExtraTypes()
-	ts.writeBaseClient()
+	ts.writeHelperMethods()
 
 	return nil
 }
@@ -111,12 +112,12 @@ func (ts *ts) writeService(svc *meta.Service) {
 
 	// Constructor
 	indent()
-	ts.WriteString("private baseClient: BaseClient\n\n")
+	ts.WriteString("private client: Client\n\n")
 	indent()
-	ts.WriteString("constructor(baseClient: BaseClient) {\n")
+	ts.WriteString("constructor(client: Client) {\n")
 	numIndent++
 	indent()
-	ts.WriteString("this.baseClient = baseClient\n")
+	ts.WriteString("this.client = client\n")
 	numIndent--
 	indent()
 	ts.WriteString("}\n")
@@ -190,15 +191,11 @@ func (ts *ts) writeService(svc *meta.Service) {
 			}
 			ts.WriteString(payloadName + ": ")
 			ts.writeTyp(ns, rpc.RequestSchema, 0)
+		} else if rpc.Proto == meta.RPC_RAW {
+			ts.WriteString("req: any")
 		}
 
-		ts.WriteString("): Promise<")
-		if rpc.ResponseSchema != nil {
-			ts.writeTyp(ns, rpc.ResponseSchema, 0)
-		} else {
-			ts.WriteString("void")
-		}
-		ts.WriteString("> {\n")
+		ts.WriteString(") {\n")
 
 		// Body
 		numIndent++
@@ -244,17 +241,20 @@ func (ts *ts) writeService(svc *meta.Service) {
 		default:
 			methodHasBody = true
 		}
-
-		if rpc.ResponseSchema == nil {
-			ts.WriteString("return this.baseClient.doVoid")
+		if rpc.Proto == meta.RPC_RAW {
+			ts.WriteString("return this.client.doRaw")
+		} else if rpc.ResponseSchema == nil {
+			ts.WriteString("return this.client.doVoid")
 		} else {
-			ts.WriteString("return this.baseClient.do<")
+			ts.WriteString("return this.client.do<")
 			ts.writeTyp(svc.Name, rpc.ResponseSchema, 0)
 			ts.WriteByte('>')
 		}
 		fmt.Fprintf(ts, `("%s", `+"`%s`", method, rpcPath.String())
 		if rpc.RequestSchema != nil && methodHasBody {
 			ts.WriteString(", " + payloadName)
+		} else if methodHasBody {
+			ts.WriteString(", req")
 		}
 		ts.WriteString(")\n")
 		numIndent--
@@ -324,6 +324,15 @@ func (ts *ts) writeDeclDef(ns string, decl *schema.Decl) {
 	ts.WriteString("\n")
 }
 
+func (ts *ts) writeGenericTypes() {
+	ts.WriteString("export interface ErrorResponse {\n")
+	ts.WriteString("    code: number,\n")
+	ts.WriteString("    message: string,\n")
+	ts.WriteString("    details: any\n")
+	ts.WriteString("}\n\n")
+	ts.WriteString("export type Result<T> = { data: T } | { error: ErrorResponse }\n\n")
+}
+
 func (ts *ts) writeClient() {
 	ts.WriteString("export default class Client {\n")
 
@@ -338,18 +347,37 @@ func (ts *ts) writeClient() {
 			fmt.Fprintf(ts, "%s: %s.ServiceClient\n", svc.Name, svc.Name)
 		}
 	}
+	ts.writeClientMethods()
 	ts.WriteByte('\n')
-
 	indent()
-	ts.WriteString("constructor(environment: string = \"prod\", token?: string) {\n")
+	ts.WriteString("protected baseURL: string\n")
+	ts.WriteByte('\n')
+	indent()
+	ts.WriteString("constructor(environment: string = \"prod\", public token?: string) {\n")
 	numIndent++
-
 	indent()
-	ts.WriteString("const base = new BaseClient(environment, token)\n")
+	ts.WriteString(`if (environment.startsWith('http://') || environment.startsWith('https://')) {`)
+	ts.WriteByte('\n')
+	numIndent++
+	indent()
+	ts.WriteString(`this.baseURL = environment`)
+	ts.WriteByte('\n')
+	numIndent--
+	indent()
+	ts.WriteString(`} else {`)
+	ts.WriteByte('\n')
+	numIndent++
+	indent()
+	ts.WriteString(`this.baseURL = environment === "local" ? "http://localhost:4000" : ` + "`https://" + ts.appSlug + ".encoreapi.com/${environment}`")
+	ts.WriteByte('\n')
+	numIndent--
+	indent()
+	ts.WriteString(`}`)
+	ts.WriteByte('\n')
 	for _, svc := range ts.md.Svcs {
 		if ts.hasPublicRPC(svc) {
 			indent()
-			fmt.Fprintf(ts, "this.%s = new %s.ServiceClient(base)\n", svc.Name, svc.Name)
+			fmt.Fprintf(ts, "this.%s = new %s.ServiceClient(this)\n", svc.Name, svc.Name)
 		}
 	}
 
@@ -358,55 +386,64 @@ func (ts *ts) writeClient() {
 	fmt.Fprint(ts, "}\n}\n\n")
 }
 
-func (ts *ts) writeBaseClient() {
-	ts.WriteString(`class BaseClient {
-    baseURL: string
-    headers: {[key: string]: string}
-
-    constructor(environment: string, token?: string) {
-        this.headers = {"Content-Type": "application/json"}
-        if (token !== undefined) {
-            this.headers["Authorization"] = "Bearer " + token
+func (ts *ts) writeClientMethods() {
+	ts.WriteString(`
+    public async doRaw(method: string, path: string, body?: any): Promise<Response> {
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (this.token) {
+            headers["Authorization"] = "Bearer " + this.token
         }
-        if (environment === "local") {
-            this.baseURL = "http://localhost:4000"
-        } else {
-            this.baseURL = ` + "`https://" + ts.appSlug + ".encoreapi.com/${environment}`" + `
-        }
-    }
-
-    public async do<T>(method: string, path: string, req?: any): Promise<T> {
-        let response = await fetch(this.baseURL + path, {
-            method: method,
-            headers: this.headers,
-            body: req !== undefined ? JSON.stringify(req) : undefined
+        return fetch(this.baseURL + path, {
+            method,
+            headers,
+            body
         })
-        if (!response.ok) {
-            let body = await response.text()
-            throw new Error("request failed: " + body)
-        }
-        return <T>(await response.json())
     }
 
-    public async doVoid(method: string, path: string, req?: any): Promise<void> {
-        let response = await fetch(this.baseURL + path, {
-            method: method,
-            headers: this.headers,
-            body: req !== undefined ? JSON.stringify(req) : undefined
-        })
-        if (!response.ok) {
-            let body = await response.text()
-            throw new Error("request failed: " + body)
+    public async do<T>(method: string, path: string, req?: any): Promise<Result<T>> {
+        try {
+            const response = await this.doRaw(method, path, req !== undefined ? JSON.stringify(req) : undefined)
+            if (!response.ok) {
+                const error = <ErrorResponse>(await response.json())
+                return { error }
+            }
+            return { data: <T>(await response.json().catch(_ => null)) }
+        } catch (error) {
+            return {
+                error: <ErrorResponse>{
+                    code: -1,
+                    message: error.message
+                }
+            }
         }
-        await response.text()
     }
+
+    public async doVoid(method: string, path: string, req?: any): Promise<ErrorResponse | null> {
+        try {
+            const response = await this.doRaw(method, path, req !== undefined ? JSON.stringify(req) : undefined)
+            if (!response.ok) {
+                const error = <ErrorResponse>(await response.json())
+                return error
+            }
+            return null
+
+        } catch (error) {
+            return <ErrorResponse>{
+                code: -1,
+                message: error.message
+
+            }
+        }
+    }`)
+	ts.WriteByte('\n')
 }
-
-function encodeQuery(parts: any[]): string {
+func (ts *ts) writeHelperMethods() {
+	ts.WriteString(
+		`function encodeQuery(parts: any[]): string {
     const pairs = []
     for (let i = 0; i < parts.length; i += 2) {
         const key = parts[i]
-        let val = parts[i+1]
+        let val = parts[i + 1]
         if (!Array.isArray(val)) {
             val = [val]
         }
@@ -422,7 +459,7 @@ function encodeQuery(parts: any[]): string {
 func (ts *ts) writeExtraTypes() {
 	if ts.seenJSON {
 		ts.WriteString(`// JSONValue represents an arbitrary JSON value.
-export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue}
+export type JSONValue = string | number | boolean | null | JSONValue[] | { [key: string]: JSONValue }
 
 `)
 	}

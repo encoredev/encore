@@ -1,9 +1,71 @@
+export interface ErrorResponse {
+    code: number,
+    message: string,
+    details: any
+}
+
+export type Result<T> = { data: T } | { error: ErrorResponse }
+
 export default class Client {
     svc: svc.ServiceClient
 
-    constructor(environment: string = "prod", token?: string) {
-        const base = new BaseClient(environment, token)
-        this.svc = new svc.ServiceClient(base)
+    public async doRaw(method: string, path: string, body?: any): Promise<Response> {
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (this.token) {
+            headers["Authorization"] = "Bearer " + this.token
+        }
+        return fetch(this.baseURL + path, {
+            method,
+            headers,
+            body
+        })
+    }
+
+    public async do<T>(method: string, path: string, req?: any): Promise<Result<T>> {
+        try {
+            const response = await this.doRaw(method, path, req !== undefined ? JSON.stringify(req) : undefined)
+            if (!response.ok) {
+                const error = <ErrorResponse>(await response.json())
+                return { error }
+            }
+            return { data: <T>(await response.json().catch(_ => null)) }
+        } catch (error) {
+            return {
+                error: <ErrorResponse>{
+                    code: -1,
+                    message: error.message
+                }
+            }
+        }
+    }
+
+    public async doVoid(method: string, path: string, req?: any): Promise<ErrorResponse | null> {
+        try {
+            const response = await this.doRaw(method, path, req !== undefined ? JSON.stringify(req) : undefined)
+            if (!response.ok) {
+                const error = <ErrorResponse>(await response.json())
+                return error
+            }
+            return null
+
+        } catch (error) {
+            return <ErrorResponse>{
+                code: -1,
+                message: error.message
+
+            }
+        }
+    }
+
+    protected baseURL: string
+
+    constructor(environment: string = "prod", public token?: string) {
+        if (environment.startsWith('http://') || environment.startsWith('https://')) {
+            this.baseURL = environment
+        } else {
+            this.baseURL = environment === "local" ? "http://localhost:4000" : `https://app.encoreapi.com/${environment}`
+        }
+        this.svc = new svc.ServiceClient(this)
     }
 }
 
@@ -31,84 +93,41 @@ export namespace svc {
     export type Wrapper<T> = T
 
     export class ServiceClient {
-        private baseClient: BaseClient
+        private client: Client
 
-        constructor(baseClient: BaseClient) {
-            this.baseClient = baseClient
+        constructor(client: Client) {
+            this.client = client
         }
 
-        public DummyAPI(params: Request): Promise<void> {
-            return this.baseClient.doVoid("POST", `/svc.DummyAPI`, params)
+        public DummyAPI(params: Request) {
+            return this.client.doVoid("POST", `/svc.DummyAPI`, params)
         }
 
-        public Get(params: GetRequest): Promise<void> {
+        public Get(params: GetRequest) {
             const query: any[] = [
                 "boo", params.Baz,
             ]
-            return this.baseClient.doVoid("GET", `/svc.Get?${encodeQuery(query)}`)
+            return this.client.doVoid("GET", `/svc.Get?${encodeQuery(query)}`)
         }
 
-        public RESTPath(a: string, b: number): Promise<void> {
-            return this.baseClient.doVoid("GET", `/path/${a}/${b}`)
+        public RESTPath(a: string, b: number) {
+            return this.client.doVoid("GET", `/path/${a}/${b}`)
         }
 
-        public TupleInputOutput(params: Tuple<string, WrappedRequest>): Promise<Tuple<boolean, Foo>> {
-            return this.baseClient.do<Tuple<boolean, Foo>>("POST", `/svc.TupleInputOutput`, params)
+        public TupleInputOutput(params: Tuple<string, WrappedRequest>) {
+            return this.client.do<Tuple<boolean, Foo>>("POST", `/svc.TupleInputOutput`, params)
         }
     }
 }
 
 // JSONValue represents an arbitrary JSON value.
-export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue}
-
-class BaseClient {
-    baseURL: string
-    headers: {[key: string]: string}
-
-    constructor(environment: string, token?: string) {
-        this.headers = {"Content-Type": "application/json"}
-        if (token !== undefined) {
-            this.headers["Authorization"] = "Bearer " + token
-        }
-        if (environment === "local") {
-            this.baseURL = "http://localhost:4000"
-        } else {
-            this.baseURL = `https://app.encoreapi.com/${environment}`
-        }
-    }
-
-    public async do<T>(method: string, path: string, req?: any): Promise<T> {
-        let response = await fetch(this.baseURL + path, {
-            method: method,
-            headers: this.headers,
-            body: req !== undefined ? JSON.stringify(req) : undefined
-        })
-        if (!response.ok) {
-            let body = await response.text()
-            throw new Error("request failed: " + body)
-        }
-        return <T>(await response.json())
-    }
-
-    public async doVoid(method: string, path: string, req?: any): Promise<void> {
-        let response = await fetch(this.baseURL + path, {
-            method: method,
-            headers: this.headers,
-            body: req !== undefined ? JSON.stringify(req) : undefined
-        })
-        if (!response.ok) {
-            let body = await response.text()
-            throw new Error("request failed: " + body)
-        }
-        await response.text()
-    }
-}
+export type JSONValue = string | number | boolean | null | JSONValue[] | { [key: string]: JSONValue }
 
 function encodeQuery(parts: any[]): string {
     const pairs = []
     for (let i = 0; i < parts.length; i += 2) {
         const key = parts[i]
-        let val = parts[i+1]
+        let val = parts[i + 1]
         if (!Array.isArray(val)) {
             val = [val]
         }
