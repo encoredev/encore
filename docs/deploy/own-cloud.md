@@ -10,7 +10,7 @@ This gives you enormous flexibility, letting you use Encore for improving your p
 while maintaining the existing trust relationship you have with your cloud provider of choice.
 This functionality also lets you easily deploy a hybrid or multi-cloud application, if desired.
 
-Each [environment](/docs/deploy/environments] your application has can be configured to use a different cloud provider.
+Each [environment](/docs/deploy/environments) your application has can be configured to use a different cloud provider.
 
 <Callout type="important">
 Please note, that while Encore will provision infrastructure within your cloud account, for safety reasons Encore does not destroy infrastructure
