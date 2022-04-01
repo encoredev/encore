@@ -93,10 +93,17 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 			}
 
 			for _, name := range field.Names {
+				// Use the documentation block above the field by default,
+				// however if that is blank, then use the line comment instead
+				docBlock := field.Doc
+				if docBlock == nil || docBlock.Text() == "" {
+					docBlock = field.Comment
+				}
+
 				f := &schema.Field{
 					Typ:             typ,
 					Name:            name.Name,
-					Doc:             field.Doc.Text(),
+					Doc:             docBlock.Text(),
 					Optional:        opts.Optional,
 					JsonName:        opts.JSONName,
 					QueryStringName: opts.QueryStringName,
