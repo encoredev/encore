@@ -15,7 +15,7 @@ This also works just as well with [VS Code's Remote Development](https://code.vi
 
 
 ## Building the encore command from source
-To build from source, simply run `go build ./cli/cmd/encore`.
+To build from source, [build the dashboard](#Building-the-Development-Dashboard) and simply run `go build ./cli/cmd/encore`.
 
 Running an Encore application requires both the Encore runtime (the `encore.dev` package) as well as a custom-built
 ([Go runtime](https://github.com/encoredev/go)) to implement Encore's request semantics and automated instrumentation.
@@ -72,6 +72,17 @@ npm run dev
 The dashboard application talks to the Encore daemon, and therefore needs to know its network address.
 Set `ENCORE_DAEMON_DEV=1` before running `encore daemon -f` in order to force Encore to use a fixed port
 for development purposes. The dashboard application assumes this is done when you run Vite in development mode.
+
+### Building the Development Dashboard
+The dashboard is embedded in the encore command and the build artifact needs to be available for the command to compile.
+
+To create the artifact run:
+
+```bash
+cd cli/daemon/dash/dashapp
+npm install
+npm run build
+```
 
 ## Architecture
 
