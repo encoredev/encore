@@ -106,6 +106,7 @@ sections: [
 			{title: "Get involved", segment: "index"},
 			{title: "Contribute", segment: "contribute"},
 			{title: "Principles", segment: "principles"},
+			{title: "Open Source", segment: "open-source"},
 		]
 	},
 ]
