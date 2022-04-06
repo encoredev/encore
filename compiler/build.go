@@ -42,6 +42,12 @@ type Config struct {
 	// Debug specifies whether to compile in debug mode.
 	Debug bool
 
+	// BuildTags are additional build tags to specify when building.
+	BuildTags []string
+
+	// StaticLink enables static linking of C libraries.
+	StaticLink bool
+
 	// EncoreRuntimePath if set, causes builds to introduce a temporary replace directive
 	// that replaces the module path to the "encore.dev" module.
 	// This lets us replace the implementation for building.
@@ -267,14 +273,19 @@ func (b *builder) buildMain() error {
 		return err
 	}
 
+	tags := append([]string{"encore"}, b.cfg.BuildTags...)
 	args := []string{
 		"build",
-		"-tags=encore",
+		"-tags=" + strings.Join(tags, ","),
 		"-overlay=" + overlayPath,
 		"-modfile=" + filepath.Join(b.workdir, "go.mod"),
 		"-mod=mod",
 		"-o=" + filepath.Join(b.workdir, "out"+exe),
 	}
+	if b.cfg.StaticLink {
+		args = append(args, `-ldflags '-extldflags "-static"'`)
+	}
+
 	args = append(args, "./"+mainPkgName)
 	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+exe), args...)
 	env := []string{
