@@ -283,7 +283,7 @@ func (b *builder) buildMain() error {
 		"-o=" + filepath.Join(b.workdir, "out"+exe),
 	}
 	if b.cfg.StaticLink {
-		args = append(args, `-ldflags '-extldflags "-static"'`)
+		args = append(args, "-ldflags", `-extldflags "-static"`)
 	}
 
 	args = append(args, "./"+mainPkgName)
