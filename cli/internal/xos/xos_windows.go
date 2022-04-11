@@ -42,6 +42,12 @@ func SameSocket(a, b interface{}) bool {
 }
 
 func ArrangeExtraFiles(cmd *exec.Cmd, files ...*os.File) error {
+	attr := cmd.SysProcAttr
+	if attr == nil {
+		attr = &syscall.SysProcAttr{}
+		cmd.SysProcAttr = attr
+	}
+
 	// Flag the files to bbe inherited by the child process
 	var fds []string
 	for _, f := range files {
@@ -51,6 +57,7 @@ func ArrangeExtraFiles(cmd *exec.Cmd, files ...*os.File) error {
 		if err != nil {
 			return fmt.Errorf("xos.ArrangeExtraFiles: SetHandleInformation: %v", err)
 		}
+		atr.AdditionalInheritedHandles = append(attr.AdditionalInheritedHandles, syscall.Handle(fd))
 	}
 	// If the env hasn't been set, copy over this process' env so we preserve the cmd.Env semantics.
 	if cmd.Env == nil {
