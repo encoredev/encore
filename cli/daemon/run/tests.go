@@ -60,6 +60,10 @@ type TestParams struct {
 	// Args are the arguments to pass to "go test".
 	Args []string
 
+	// Environ are the environment variables to set when running the tests,
+	// in the same format as os.Environ().
+	Environ []string
+
 	// Stdout and Stderr are where "go test" output should be written.
 	Stdout, Stderr io.Writer
 }
@@ -110,10 +114,10 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EncoreRuntimePath: env.EncoreRuntimePath(),
 		EncoreGoRoot:      env.EncoreGoRoot(),
 		Test: &compiler.TestConfig{
-			Env: []string{
-				"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
-				"ENCORE_APP_SECRETS=" + encodeSecretsEnv(secrets),
-			},
+			Env: append(params.Environ,
+				"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
+				"ENCORE_APP_SECRETS="+encodeSecretsEnv(secrets),
+			),
 			Args:   params.Args,
 			Stdout: params.Stdout,
 			Stderr: params.Stderr,

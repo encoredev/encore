@@ -181,6 +181,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		DBClusterID: clusterID,
 		Parse:       parse,
 		Watch:       req.Watch,
+		Environ:     req.Environ,
 	})
 	if err != nil {
 		s.mu.Unlock()
@@ -294,6 +295,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		tp := run.TestParams{
 			AppRoot:    req.AppRoot,
 			WorkingDir: req.WorkingDir,
+			Environ:    req.Environ,
 			Args:       req.Args,
 			Parse:      parse,
 			Stdout:     slog.Stdout(false),

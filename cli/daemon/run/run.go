@@ -78,6 +78,10 @@ type StartParams struct {
 
 	Listener   net.Listener // listener to use
 	ListenAddr string       // address we're listening on
+
+	// Environ are the environment variables to set for the running app,
+	// in the same format as os.Environ().
+	Environ []string
 }
 
 // Start starts the application.
@@ -296,6 +300,7 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 		DBProxyPort: r.mgr.DBProxyPort,
 		DBClusterID: r.params.DBClusterID,
 		Secrets:     secrets,
+		Environ:     r.params.Environ,
 	})
 	if err != nil {
 		return nil, err
@@ -338,6 +343,7 @@ type startProcParams struct {
 	DBProxyPort int
 	DBClusterID string
 	Logger      runLogger
+	Environ     []string
 }
 
 // startProc starts a single actual OS process for app.
@@ -358,10 +364,10 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
 	cmd := exec.Command(params.BinPath)
-	cmd.Env = []string{
-		"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
-		"ENCORE_APP_SECRETS=" + encodeSecretsEnv(params.Secrets),
-	}
+	cmd.Env = append(params.Environ,
+		"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
+		"ENCORE_APP_SECRETS="+encodeSecretsEnv(params.Secrets),
+	)
 	p.cmd = cmd
 
 	// Proxy stdout and stderr to the given app logger, if any.

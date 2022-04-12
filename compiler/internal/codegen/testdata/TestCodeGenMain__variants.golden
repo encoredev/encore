@@ -634,8 +634,8 @@ func loadConfig() (*config.Config, error) {
 		Testing:     false,
 	}
 	return &config.Config{
-		Runtime: config.ParseRuntime(os.Getenv("ENCORE_RUNTIME_CONFIG")),
-		Secrets: config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
+		Runtime: config.ParseRuntime(getAndClearEnv("ENCORE_RUNTIME_CONFIG")),
+		Secrets: config.ParseSecrets(getAndClearEnv("ENCORE_APP_SECRETS")),
 		Static:  static,
 	}, nil
 }
@@ -644,6 +644,13 @@ func main() {
 	if err := runtime.ListenAndServe(); err != nil {
 		runtime.Logger().Fatal().Err(err).Msg("could not listen and serve")
 	}
+}
+
+// getAndClearEnv gets an env variable and unsets it.
+func getAndClearEnv(env string) string {
+	val := os.Getenv(env)
+	os.Unsetenv(env)
+	return val
 }
 
 type validationDetails struct {
