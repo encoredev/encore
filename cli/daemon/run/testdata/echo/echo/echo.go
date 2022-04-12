@@ -1,6 +1,9 @@
 package echo
 
-import "context"
+import (
+	"context"
+	"os"
+)
 
 type Data struct {
 	Message string
@@ -10,4 +13,14 @@ type Data struct {
 //encore:api public
 func Echo(ctx context.Context, params *Data) (*Data, error) {
 	return params, nil
+}
+
+type EnvResponse struct {
+	Env []string
+}
+
+// Env returns the environment.
+//encore:api public
+func Env(ctx context.Context) (*EnvResponse, error) {
+	return &EnvResponse{Env: os.Environ()}, nil
 }

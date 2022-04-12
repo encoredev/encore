@@ -61,12 +61,18 @@ message RunRequest {
   bool watch = 5;
   // listen_addr is the address to listen on.
   string listen_addr = 6;
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 7;
 }
 
 message TestRequest {
   string app_root = 1;
   string working_dir = 2;
   repeated string args = 3;
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 4;
 }
 
 message CheckRequest {

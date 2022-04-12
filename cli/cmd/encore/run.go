@@ -59,6 +59,7 @@ func runApp(appRoot, wd string) {
 		Watch:      watch,
 		WorkingDir: wd,
 		ListenAddr: listenAddr,
+		Environ:    os.Environ(),
 	})
 	if err != nil {
 		fatal(err)

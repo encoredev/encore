@@ -32,6 +32,7 @@ func TestStartProc(t *testing.T) {
 	defer cancel()
 
 	build := testBuild(c, "./testdata/echo")
+	wantEnv := []string{"FOO=bar", "BAR=baz"}
 	p, err := run.startProc(&startProcParams{
 		Ctx:         ctx,
 		BuildDir:    build.Dir,
@@ -40,20 +41,31 @@ func TestStartProc(t *testing.T) {
 		RuntimePort: 0,
 		DBProxyPort: 0,
 		Logger:      testRunLogger{t},
+		Environ:     wantEnv,
 	})
 	c.Assert(err, qt.IsNil)
 	defer p.close()
 	run.proc.Store(p)
 
 	// Send a simple message and make sure it is echoed back.
-	input := struct{ Message string }{Message: "hello"}
-	body, _ := json.Marshal(&input)
+	{
+		input := struct{ Message string }{Message: "hello"}
+		body, _ := json.Marshal(&input)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/echo.Echo", bytes.NewReader(body))
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+		c.Assert(w.Body.Bytes(), qt.JSONEquals, input)
+	}
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/echo.Echo", bytes.NewReader(body))
-	run.ServeHTTP(w, req)
-	c.Assert(w.Code, qt.Equals, 200)
-	c.Assert(w.Body.Bytes(), qt.JSONEquals, input)
+	// Call the env endpoint and make sure we get our env variables back
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.Env", nil)
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+		c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string][]string{"Env": wantEnv})
+	}
 }
 
 // TestProcClosedOnCtxCancel tests that the proc is closed when
