@@ -74,8 +74,8 @@ func (b *Builder) Main() (f *File, err error) {
 		}
 	}
 
-	getEnv := func(name string) Code {
-		return Qual("os", "Getenv").Call(Lit(name))
+	getAndClearEnv := func(name string) Code {
+		return Id("getAndClearEnv").Call(Lit(name))
 	}
 
 	f.Anon("unsafe") // for go:linkname
@@ -125,8 +125,8 @@ func (b *Builder) Main() (f *File, err error) {
 		}),
 		Return(Op("&").Qual("encore.dev/runtime/config", "Config").Values(Dict{
 			Id("Static"):  Id("static"),
-			Id("Runtime"): Qual("encore.dev/runtime/config", "ParseRuntime").Call(getEnv("ENCORE_RUNTIME_CONFIG")),
-			Id("Secrets"): Qual("encore.dev/runtime/config", "ParseSecrets").Call(getEnv("ENCORE_APP_SECRETS")),
+			Id("Runtime"): Qual("encore.dev/runtime/config", "ParseRuntime").Call(getAndClearEnv("ENCORE_RUNTIME_CONFIG")),
+			Id("Secrets"): Qual("encore.dev/runtime/config", "ParseSecrets").Call(getAndClearEnv("ENCORE_APP_SECRETS")),
 		}), Nil()),
 	)
 	f.Line()
@@ -137,6 +137,14 @@ func (b *Builder) Main() (f *File, err error) {
 				Dot("Err").Call(Id("err")).
 				Dot("Msg").Call(Lit("could not listen and serve")),
 		),
+	)
+	f.Line()
+
+	f.Comment("getAndClearEnv gets an env variable and unsets it.")
+	f.Func().Id("getAndClearEnv").Params(Id("env").String()).Params(String()).Block(
+		Id("val").Op(":=").Qual("os", "Getenv").Call(Id("env")),
+		Qual("os", "Unsetenv").Call(Id("env")),
+		Return(Id("val")),
 	)
 	f.Line()
 

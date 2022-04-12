@@ -45,6 +45,7 @@ func runTests(appRoot, testDir string, args []string) {
 		AppRoot:    appRoot,
 		WorkingDir: testDir,
 		Args:       args,
+		Environ:    os.Environ(),
 	})
 	if err != nil {
 		fatal(err)
