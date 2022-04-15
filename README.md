@@ -1,7 +1,5 @@
-<div align="center">
-  <a href="https://encore.dev" alt="encore"><img width="189px" src="https://encore.dev/assets/img/logo.svg"></a>
-  <h3><a href="https://encore.dev">Encore – The Backend Development Engine</a></h3>
-</div>
+  <img width="1500px" src="https://encore.dev/assets//branding/github_header.png" alt="Encore - Backend development engine">
+  <h3><a href="https://encore.dev">Encore – Backend Development Engine</a></h3>
 Encore makes it incredibly simple to create distributed systems, backend services and APIs. While still deploying to your own cloud account, Encore helps you escape the maze of cloud complexity:</br>
 
 * No endless repetition of boilerplate
