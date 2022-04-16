@@ -3,6 +3,8 @@ package echo
 import (
 	"context"
 	"os"
+
+	"encore.dev"
 )
 
 type Data struct {
@@ -23,4 +25,23 @@ type EnvResponse struct {
 //encore:api public
 func Env(ctx context.Context) (*EnvResponse, error) {
 	return &EnvResponse{Env: os.Environ()}, nil
+}
+
+type AppMetadata struct {
+	AppID      string
+	APIBaseURL string
+	EnvName    string
+	EnvType    string
+}
+
+// AppMeta returns app metadata.
+//encore:api public
+func AppMeta(ctx context.Context) (*AppMetadata, error) {
+	md := encore.AppMeta()
+	return &AppMetadata{
+		AppID:      md.AppID,
+		APIBaseURL: md.APIBaseURL,
+		EnvName:    md.EnvName,
+		EnvType:    string(md.EnvType),
+	}, nil
 }

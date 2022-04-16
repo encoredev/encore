@@ -459,8 +459,10 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	return &config.Runtime{
 		AppID:         r.ID,
 		AppSlug:       r.AppSlug,
+		APIBaseURL:    "http://" + r.ListenAddr,
 		EnvID:         p.ID,
 		EnvName:       "local",
+		EnvType:       "local",
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
 		SQLDatabases:  dbs,
 		AuthKeys:      []config.EncoreAuthKey{p.authKey},
