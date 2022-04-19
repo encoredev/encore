@@ -198,7 +198,7 @@ func (db *DB) connectAdminDB(ctx context.Context) (*pgx.Conn, error) {
 	var err error
 	for i := 0; i < 40; i++ {
 		var conn *pgx.Conn
-		conn, err = pgx.Connect(ctx, "postgresql://encore:"+db.Cluster.ID+"@"+hostPort+"/postgres?sslmode=disable")
+		conn, err = pgx.Connect(ctx, "postgresql://postgres:"+db.Cluster.ID+"@"+hostPort+"/postgres?sslmode=disable")
 		if err == nil {
 			return conn, nil
 		} else if ctx.Err() != nil {

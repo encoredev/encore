@@ -108,4 +108,4 @@ func (cm *ClusterManager) Delete(ctx context.Context, clusterID string) error {
 	return nil
 }
 
-const dockerImage = "postgres:11-alpine"
+const dockerImage = "klemmster/encore-postgres:14-alpine"
