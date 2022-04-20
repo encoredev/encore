@@ -3,6 +3,7 @@ package svc_test
 
 import (
 	"encore.app/svc"
+	_ "encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"os"
 	"reflect"

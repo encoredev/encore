@@ -55,6 +55,10 @@ func (b *Builder) Main() (f *File, err error) {
 	f.ImportNames(importNames)
 	f.ImportAlias("encoding/json", "stdjson")
 
+	// Import the runtime package with '_' as its name to start with to ensure it's imported.
+	// If other code uses it it will be imported under its proper name.
+	f.Anon("encore.dev/runtime")
+
 	for _, pkg := range b.res.App.Packages {
 		f.ImportName(pkg.ImportPath, pkg.Name)
 	}
