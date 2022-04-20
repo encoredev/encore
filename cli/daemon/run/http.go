@@ -2,11 +2,18 @@ package run
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"time"
+
+	"encr.dev/cli/daemon/runtime/config"
 )
 
 // ServeHTTP implements http.Handler by forwarding the request to the currently running process.
@@ -49,6 +56,7 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 			// explicitly disable User-Agent so it's not set to default value
 			r.Header.Set("User-Agent", "")
 		}
+		addAuthKeyToRequest(r, p.authKey)
 	}
 	// modifyResponse sets the appropriate CORS headers for local development.
 	modifyResponse := func(r *http.Response) error {
@@ -73,4 +81,18 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 		ModifyResponse: modifyResponse,
 		Transport:      transport,
 	}).ServeHTTP(w, req)
+}
+
+func addAuthKeyToRequest(req *http.Request, authKey config.EncoreAuthKey) {
+	date := time.Now().UTC().Format(http.TimeFormat)
+	req.Header.Set("Date", date)
+
+	mac := hmac.New(sha256.New, authKey.Data)
+	fmt.Fprintf(mac, "%s\x00%s", date, req.URL.Path)
+
+	bytes := make([]byte, 4, 4+sha256.Size)
+	binary.BigEndian.PutUint32(bytes[0:4], authKey.KeyID)
+	bytes = mac.Sum(bytes)
+	auth := base64.RawStdEncoding.EncodeToString(bytes)
+	req.Header.Set("X-Encore-Auth", auth)
 }

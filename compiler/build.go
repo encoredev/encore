@@ -273,7 +273,7 @@ func (b *builder) buildMain() error {
 		return err
 	}
 
-	tags := append([]string{"encore"}, b.cfg.BuildTags...)
+	tags := append([]string{"encore", "encore_internal"}, b.cfg.BuildTags...)
 	args := []string{
 		"build",
 		"-tags=" + strings.Join(tags, ","),

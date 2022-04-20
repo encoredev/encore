@@ -50,7 +50,7 @@ func runTests(appRoot, testDir string, args []string) {
 	if err != nil {
 		fatal(err)
 	}
-	os.Exit(streamCommandOutput(stream))
+	os.Exit(streamCommandOutput(stream, false))
 }
 
 func init() {
