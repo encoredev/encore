@@ -19,6 +19,10 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 		f.ImportName(p.ImportPath, p.Name)
 	}
 
+	// Import the runtime package with '_' as its name to start with to ensure it's imported.
+	// If other code uses it it will be imported under its proper name.
+	f.Anon("encore.dev/runtime")
+
 	getEnv := func(name string) Code {
 		return Qual("os", "Getenv").Call(Lit(name))
 	}
