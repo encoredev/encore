@@ -32,10 +32,10 @@ The environment variables are:
 **ENCORE_RUNTIME_PATH**
 
 This must be set to the location of the `encore.dev` runtime package.
-It's located in this Git repository in the `compiler/runtime` directory:
+It's located in this Git repository in the `runtime` directory:
 
 ```bash
-export ENCORE_RUNTIME_PATH=/path/to/encore/compiler/runtime
+export ENCORE_RUNTIME_PATH=/path/to/encore/runtime
 ```
 
 **ENCORE_GOROOT**

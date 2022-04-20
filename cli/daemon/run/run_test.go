@@ -97,7 +97,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 func testBuild(c *qt.C, appRoot string) *compiler.Result {
 	wd, err := os.Getwd()
 	c.Assert(err, qt.IsNil)
-	runtimePath := filepath.Join(wd, "../../../compiler/runtime")
+	runtimePath := filepath.Join(wd, "../../../runtime")
 	build, err := compiler.Build("./testdata/echo", &compiler.Config{
 		EncoreRuntimePath: runtimePath,
 		EncoreGoRoot:      env.EncoreGoRoot(),

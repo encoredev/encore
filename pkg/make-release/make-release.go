@@ -97,7 +97,7 @@ func (b *Builder) CopyEncoreGo() error {
 }
 
 func (b *Builder) CopyRuntime() error {
-	cmd := exec.Command("cp", "-r", join("compiler", "runtime"), join(b.dst, "runtime"))
+	cmd := exec.Command("cp", "-r", "runtime", join(b.dst, "runtime"))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("cp %v failed: %s (%v)", cmd.Args, out, err)
 	}

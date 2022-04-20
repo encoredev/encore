@@ -2,7 +2,7 @@
   "build": {"dockerfile": "Dockerfile"},
   "containerEnv": {
     "ENCORE_DAEMON_DEV": "1",
-    "ENCORE_RUNTIME_PATH": "${containerWorkspaceFolder}/compiler/runtime"
+    "ENCORE_RUNTIME_PATH": "${containerWorkspaceFolder}/runtime"
   },
   "extensions": ["golang.go"],
   "postCreateCommand": "bash /scripts/prepare.sh",
