@@ -35,6 +35,47 @@ const (
 	LogMessage         TraceEvent = 0x11
 )
 
+func (te TraceEvent) String() string {
+	switch te {
+	case RequestStart:
+		return "RequestStart"
+	case RequestEnd:
+		return "RequestEnd"
+	case GoStart:
+		return "GoStart"
+	case GoEnd:
+		return "GoEnd"
+	case GoClear:
+		return "GoClear"
+	case TxStart:
+		return "TxStart"
+	case TxEnd:
+		return "TxEnd"
+	case QueryStart:
+		return "QueryStart"
+	case QueryEnd:
+		return "QueryEnd"
+	case CallStart:
+		return "CallStart"
+	case CallEnd:
+		return "CallEnd"
+	case AuthStart:
+		return "AuthStart"
+	case AuthEnd:
+		return "AuthEnd"
+	case HTTPCallStart:
+		return "HTTPCallStart"
+	case HTTPCallEnd:
+		return "HTTPCallEnd"
+	case HTTPCallBodyClosed:
+		return "HTTPCallBodyClosed"
+	case LogMessage:
+		return "LogMessage"
+	default:
+		return fmt.Sprintf("Unknown(%x)", byte(te))
+	}
+}
+
 // genTraceID generates a new trace id and root span id.
 func genTraceID() ([16]byte, error) {
 	var traceID [16]byte

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -103,7 +104,35 @@ type commandOutputStream interface {
 
 // streamCommandOutput streams the output from the given command stream,
 // and reports the command's exit code.
-func streamCommandOutput(stream commandOutputStream) int {
+// If convertJSON is true, lines that look like JSON are fed through
+// zerolog's console writer.
+func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
+	writePlain := func(line []byte, stdout bool) {
+		if stdout {
+			os.Stdout.Write(line)
+		} else {
+			os.Stderr.Write(line)
+		}
+	}
+	write := writePlain
+
+	if convertJSON {
+		cout, cerr := zerolog.NewConsoleWriter(), zerolog.NewConsoleWriter()
+		cout.Out, cerr.Out = os.Stdout, os.Stderr
+
+		write = func(line []byte, stdout bool) {
+			if bytes.HasPrefix(line, []byte{'{'}) {
+				if stdout {
+					cout.Write(line)
+				} else {
+					cerr.Write(line)
+				}
+			} else {
+				writePlain(line, stdout)
+			}
+		}
+	}
+
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
@@ -122,10 +151,10 @@ func streamCommandOutput(stream commandOutputStream) int {
 		switch m := msg.Msg.(type) {
 		case *daemonpb.CommandMessage_Output:
 			if m.Output.Stdout != nil {
-				os.Stdout.Write(m.Output.Stdout)
+				write(m.Output.Stdout, true)
 			}
 			if m.Output.Stderr != nil {
-				os.Stderr.Write(m.Output.Stderr)
+				write(m.Output.Stderr, false)
 			}
 		case *daemonpb.CommandMessage_Exit:
 			return int(m.Exit.Code)

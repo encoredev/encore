@@ -1,3 +1,5 @@
+//go:build encore_internal
+
 package errs
 
 import (
@@ -7,6 +9,28 @@ import (
 
 	"encore.dev/internal/stack"
 )
+
+var statusToCode = map[int]ErrCode{
+	200: OK,
+	499: Canceled,
+	500: Internal,
+	400: InvalidArgument,
+	401: Unauthenticated,
+	403: PermissionDenied,
+	404: NotFound,
+	409: AlreadyExists,
+	429: ResourceExhausted,
+	501: Unimplemented,
+	503: Unavailable,
+	504: DeadlineExceeded,
+}
+
+func HTTPStatusToCode(status int) ErrCode {
+	if c, ok := statusToCode[status]; ok {
+		return c
+	}
+	return Unknown
+}
 
 func Stack(err error) stack.Stack {
 	if e, ok := err.(*Error); ok {
