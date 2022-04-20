@@ -210,9 +210,13 @@ func collectPackages(fs *token.FileSet, rootDir, rootImportPath string, mode gop
 			// We only support a single package for now
 			sort.Strings(pkgNames)
 			first := ps[pkgNames[0]]
-			namestr := strings.Join(pkgNames[:n-1], ", ") + " and " + pkgNames[n-1]
-			errors.Add(fs.Position(first.Pos()), "got multiple package names in directory: "+namestr)
-			return nil
+			if n == 2 && pkgNames[1] == (pkgNames[0]+"_test") {
+				// It's just a "_test" package; we're good.
+			} else {
+				namestr := strings.Join(pkgNames[:n-1], ", ") + " and " + pkgNames[n-1]
+				errors.Add(fs.Position(first.Pos()), "got multiple package names in directory: "+namestr)
+				return nil
+			}
 		} else if n == 0 {
 			// No Go files; ignore directory
 			return nil
