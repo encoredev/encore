@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/beta/errs"
+	"encore.dev/internal/metrics"
 	"encore.dev/internal/stack"
 	"encore.dev/runtime/config"
 
@@ -386,10 +387,13 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 		req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
 	default:
 		if httpStatus != 0 {
-			req.Logger.Info().Dur("duration", dur).Int("status", httpStatus).Msg("request completed")
+			code := errs.HTTPStatusToCode(httpStatus).String()
+			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", httpStatus).Msg("request completed")
+			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
 		} else {
-			code := errs.Code(err)
-			req.Logger.Info().Dur("duration", dur).Str("code", code.String()).Msg("request completed")
+			code := errs.Code(err).String()
+			req.Logger.Info().Dur("duration", dur).Str("code", code).Msg("request completed")
+			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
 		}
 	}
 	encoreCompleteReq()

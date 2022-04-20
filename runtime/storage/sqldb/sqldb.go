@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -245,18 +247,36 @@ func getPool(name string) *pgxpool.Pool {
 	if db == nil {
 		panic("sqldb: unknown database: " + name)
 	}
-	uri := fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable", db.User, db.Password, db.Host, db.DatabaseName)
-	cfg, err := pgxpool.ParseConfig(uri)
+	cfg, err := dbConf(db)
 	if err != nil {
-		panic("sqldb: invalid database uri: " + err.Error())
+		panic("sqldb: " + err.Error())
 	}
-	cfg.LazyConnect = true
-	cfg.MaxConns = 30
 	pool, err := pgxpool.ConnectConfig(context.Background(), cfg)
 	if err != nil {
 		panic("sqldb: setup db: " + err.Error())
 	}
 	return pool
+}
+
+func dbConf(db *config.SQLDatabase) (*pgxpool.Config, error) {
+	uri := fmt.Sprintf("user=%s password=%s dbname=%s", db.User, db.Password, db.DatabaseName)
+
+	// Handle different ways of expressing the host
+	if strings.HasPrefix(db.Host, "/") {
+		uri += " host=" + db.Host // unix socket
+	} else if host, port, err := net.SplitHostPort(db.Host); err == nil {
+		uri += fmt.Sprintf(" host=%s port=%s", host, port) // host:port
+	} else {
+		uri += " host=" + db.Host // hostname
+	}
+
+	cfg, err := pgxpool.ParseConfig(uri)
+	if err != nil {
+		return nil, fmt.Errorf("invalid database uri: %v", err)
+	}
+	cfg.LazyConnect = true
+	cfg.MaxConns = 30
+	return cfg, nil
 }
 
 func convertErr(err error) error {

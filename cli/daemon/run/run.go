@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	mathrand "math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -266,6 +267,7 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 		EncoreRuntimePath: env.EncoreRuntimePath(),
 		EncoreGoRoot:      env.EncoreGoRoot(),
 		Parse:             parse,
+		BuildTags:         []string{"encore_local"},
 	}
 
 	build, err := compiler.Build(r.Root, cfg)
@@ -327,6 +329,7 @@ type Proc struct {
 	respRd   *os.File
 	buildDir string
 	client   *yamux.Session
+	authKey  config.EncoreAuthKey
 
 	sym       *sym.Table
 	symErr    error
@@ -349,6 +352,7 @@ type startProcParams struct {
 // startProc starts a single actual OS process for app.
 func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 	pid := genID()
+	authKey := genAuthKey()
 	p = &Proc{
 		ID:        pid,
 		Run:       r,
@@ -357,6 +361,7 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 		buildDir:  params.BuildDir,
 		log:       r.log.With().Str("procID", pid).Str("buildDir", params.BuildDir).Logger(),
 		symParsed: make(chan struct{}),
+		authKey:   authKey,
 	}
 	go p.parseSymTable(params.BinPath)
 
@@ -453,10 +458,12 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	}
 	return &config.Runtime{
 		AppID:         r.ID,
+		AppSlug:       r.AppSlug,
 		EnvID:         p.ID,
 		EnvName:       "local",
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
 		SQLDatabases:  dbs,
+		AuthKeys:      []config.EncoreAuthKey{p.authKey},
 	}
 }
 
@@ -644,4 +651,13 @@ func usesSecrets(md *meta.Data) bool {
 		}
 	}
 	return false
+}
+
+func genAuthKey() config.EncoreAuthKey {
+	kid := mathrand.Uint32()
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic("cannot generate random data: " + err.Error())
+	}
+	return config.EncoreAuthKey{KeyID: kid, Data: b[:]}
 }
