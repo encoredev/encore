@@ -27,12 +27,8 @@ To configure GCP deployments, head over to the Cloud Deploy page by going to
 **[Your apps](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Cloud Deploy**.
 
 ## Amazon Web Services (AWS)
-
-Deploying to AWS is actively in development and is available for preview. Let us know if you wish to use it
-during the preview and we'll enable it for your application.
-
-<!--
-Follow the instructions to create an IAM Role, and then connect the role with Encore.
+To configure for Azure deployments, head over to the Cloud Deploy page by going to
+**[Your apps](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Cloud Deploy**. Follow the instructions to create an IAM Role, and then connect the role with Encore.
 [Learn more in the AWS docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html).
 
 <Callout type="warning">
@@ -41,7 +37,8 @@ For your security, make sure to check `Require external ID` and specify the
 external ID provided in the instructions.
 
 </Callout>
--->
+
+After connecting your app to AWS, you will be asked to choose which region you want Encore to provision resources in. [Learn more about AWS regions here](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/).
 
 ## Microsoft Azure
 
