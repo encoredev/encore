@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type TestConfig struct {
@@ -27,6 +28,8 @@ type TestConfig struct {
 // returned in Result.Dir.
 func Test(ctx context.Context, appRoot string, cfg *Config) error {
 	if err := cfg.Validate(); err != nil {
+		return err
+	} else if appRoot, err = filepath.Abs(appRoot); err != nil {
 		return err
 	}
 
@@ -86,24 +89,27 @@ func (b *builder) runTests(ctx context.Context) error {
 		return err
 	}
 
+	tags := append([]string{"encore"}, b.cfg.BuildTags...)
 	args := []string{
 		"test",
-		"-tags=encore",
+		"-tags=" + strings.Join(tags, ","),
 		"-overlay=" + overlayPath,
 		"-modfile=" + filepath.Join(b.workdir, "go.mod"),
 		"-mod=mod",
 		"-vet=off",
 	}
+	if b.cfg.StaticLink {
+		args = append(args, "-ldflags", `-extldflags "-static"`)
+	}
 	args = append(args, b.cfg.Test.Args...)
 	cmd := exec.CommandContext(ctx, filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+exe), args...)
-	env := []string{
+	env := append(b.cfg.Test.Env,
 		"GO111MODULE=on",
-		"GOROOT=" + b.cfg.EncoreGoRoot,
-	}
+		"GOROOT="+b.cfg.EncoreGoRoot,
+	)
 	if !b.cfg.CgoEnabled {
 		env = append(env, "CGO_ENABLED=0")
 	}
-	env = append(env, b.cfg.Test.Env...)
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Dir = filepath.Join(b.appRoot, b.cfg.WorkingDir)
 	cmd.Stdout = b.cfg.Test.Stdout
