@@ -607,7 +607,11 @@ func (g *golang) createApiPath(rpc *meta.RPC, hasBody bool) (queryStringConstruc
 				fieldName = field.JsonName
 			}
 
-			values[Lit(fieldName)] = Index().String().Values(Id("params").Dot(field.Name))
+			values[Lit(fieldName)] = Index().String().Values(
+				Qual("fmt", "Sprint").Call(
+					Id("params").Dot(field.Name),
+				),
+			)
 		}
 
 		// If we found some construct it
