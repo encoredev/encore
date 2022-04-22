@@ -8,7 +8,7 @@ faster than ever before. With Encore you can focus on what makes your applicatio
 unique, instead of spending time on "boilerplate" &mdash; the boring, repetitive work
 you traditionally spend a lot of time on.
 
-![The Encore Platform](/assets/img/encore-platform.png)
+<img src="https://encore.dev/assets/img/encore-platform.png" title="The Encore Platform" className="noshadow"/>
 
 ## 1. Develop backends with the Encore Framework
 

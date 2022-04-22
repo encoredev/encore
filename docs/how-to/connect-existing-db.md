@@ -15,7 +15,11 @@ Let's say you have an external database hosted by DigitalOcean that you would li
 The simplest approach is to create a dedicated package that lazily instantiates a database connection pool.
 We can store the password using Encore's [secrets support](/docs/develop/secrets) to make it even easier.
 
-The connection string is something like `postgresql://user:password@externaldb-do-user-1234567-0.db.ondigitalocean.com:25010/externaldb?sslmode=require`, so we write something like:
+The connection string is something that looks like:
+
+```postgresql://user:password@externaldb-do-user-1234567-0.db.ondigitalocean.com:25010/externaldb?sslmode=require```
+
+So we write something like:
 
 **`pkg/externaldb/externaldb.go`**
 

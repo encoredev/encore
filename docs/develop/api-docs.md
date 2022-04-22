@@ -1,6 +1,6 @@
 ---
 title: Generated API Docs
-subtitle: We did it so you don't have to
+subtitle: Encore does it automatically, so you don't have to
 ---
 
 All developers agree API documentation is great to have.
