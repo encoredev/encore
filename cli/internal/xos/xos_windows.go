@@ -57,7 +57,7 @@ func ArrangeExtraFiles(cmd *exec.Cmd, files ...*os.File) error {
 		if err != nil {
 			return fmt.Errorf("xos.ArrangeExtraFiles: SetHandleInformation: %v", err)
 		}
-		atr.AdditionalInheritedHandles = append(attr.AdditionalInheritedHandles, syscall.Handle(fd))
+		attr.AdditionalInheritedHandles = append(attr.AdditionalInheritedHandles, syscall.Handle(fd))
 	}
 	// If the env hasn't been set, copy over this process' env so we preserve the cmd.Env semantics.
 	if cmd.Env == nil {

@@ -17,7 +17,7 @@ jobs:
 
     - name: Set up Node
       uses: actions/setup-node@v2.1.5
-        
+
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
@@ -27,7 +27,7 @@ jobs:
       run: |
         echo "::set-output name=go-build::$(go env GOCACHE)"
         echo "::set-output name=go-mod::$(go env GOMODCACHE)"
-    
+
     - name: Install encore-go
       run: curl -o encore-go.tar.gz https://d2f391esomvqpi.cloudfront.net/encore-go-0.9.7-linux_amd64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
 
@@ -42,7 +42,7 @@ jobs:
       with:
         path: ${{ steps.go-cache-paths.outputs.go-mod }}
         key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
-        
+
     - name: Build dashapp
       run: cd encr.dev/cli/daemon/dash/dashapp && npm install && node node_modules/esbuild/install.js && npm run build
 
@@ -53,3 +53,8 @@ jobs:
       run: cd encr.dev && go test -short ./...
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
+
+    - name: Build for Windows
+      run: cd encr.dev && go build ./...
+      env:
+        GOOS: windows
