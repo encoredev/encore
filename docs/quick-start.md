@@ -1,9 +1,7 @@
 ---
 title: Quick Start Guide
-subtitle: Get started with Encore in minutes
+subtitle: Start building with ease by following this short guide.
 ---
-Float into the flow and start building with ease by following this short guide.
-
 ## Install the Encore CLI
 To work with Encore you need our command-line utility, you can install it by running the appropriate command for your system.
 
