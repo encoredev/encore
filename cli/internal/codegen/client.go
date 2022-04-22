@@ -19,6 +19,7 @@ type Lang string
 const (
 	Unknown    Lang = ""
 	TypeScript Lang = "typescript"
+	GoLang     Lang = "go"
 )
 
 type generator interface {
@@ -34,6 +35,8 @@ func Detect(path string) (lang Lang, ok bool) {
 	switch suffix {
 	case ".ts":
 		return TypeScript, true
+	case ".go":
+		return GoLang, true
 	default:
 		return Unknown, false
 	}
@@ -51,6 +54,8 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	switch lang {
 	case TypeScript:
 		gen = &ts{}
+	case GoLang:
+		gen = &golang{}
 	default:
 		return nil, ErrUnknownLang
 	}
