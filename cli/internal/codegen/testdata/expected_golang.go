@@ -85,7 +85,7 @@ func WithAuthFunc(tokenGenerator func(ctx context.Context) (string, error)) Opti
 type SvcFoo = int
 
 type SvcGetRequest struct {
-	Baz string `qs:"boo"`
+	Baz int `qs:"boo"`
 }
 
 type SvcRequest struct {
@@ -136,7 +136,7 @@ func (c *svcClient) DummyAPI(ctx context.Context, params SvcRequest) error {
 
 // Get returns some stuff
 func (c *svcClient) Get(ctx context.Context, params SvcGetRequest) error {
-	queryString := url.Values{"boo": []string{params.Baz}}
+	queryString := url.Values{"boo": []string{fmt.Sprint(params.Baz)}}
 	_, err := callAPI[struct{}](ctx, c.base, "GET", fmt.Sprintf("/svc.Get?%s", queryString.Encode()), nil)
 	return err
 }
