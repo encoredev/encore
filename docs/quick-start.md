@@ -87,4 +87,4 @@ Now open the [the Encore web application](https://app.encore.dev) to follow your
 
 If you're looking for ideas on what to do next, check out the [REST API tutorial](https://encore.dev/docs/tutorials/rest-api).
 
-If you want to chat to pioneering develops already building with Encore or need help, [join the friendly community on Slack](https://encore.dev/slack).
+If you want to chat to other pioneering developers already building with Encore or need help, [join the friendly community on Slack](https://encore.dev/slack).
