@@ -12,7 +12,7 @@ export namespace svc {
 
     export interface GetRequest {
         Bar: string
-        Baz: string
+        Baz: number
     }
 
     export interface Request {

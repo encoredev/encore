@@ -142,7 +142,8 @@ By default generates the API based on your primary production environment.
 Use '--env=local' to generate it based on your local development version of the app.
 
 Supported language codes are:
-  typescript: A TypeScript-client using the in-browser Fetch API
+- go: A Go client using the net/http package
+- typescript: A TypeScript-client using the in-browser Fetch API
 
 
 ```bash
@@ -228,4 +229,3 @@ Stops the VPN connection
 ```bash
 encore vpn stop
 ```
-

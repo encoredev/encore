@@ -36,7 +36,7 @@ type WrappedRequest = Wrapper[Request]
 
 type GetRequest struct {
     Bar string `qs:"-"`
-    Baz string `qs:"boo"`
+    Baz int    `qs:"boo"`
 }
 
 type Foo int
