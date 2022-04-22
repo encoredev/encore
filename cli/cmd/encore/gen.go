@@ -36,7 +36,7 @@ Use '--env=local' to generate it based on your local development version of the 
 
 Supported language codes are:
   typescript: A TypeScript-client using the in-browser Fetch API
-  go: A Go-Lang client"
+  go: A Go client using net/http"
 `,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -78,7 +78,7 @@ Supported language codes are:
 
 	genCmd.AddCommand(genClientCmd)
 	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
-	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\" or \"go\" are supported)")
+	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\" and \"go\" are supported)")
 	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
 }
 

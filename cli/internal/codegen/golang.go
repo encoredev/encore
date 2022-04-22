@@ -73,24 +73,21 @@ func (g *golang) generateClient(file *File, appSlug string, services []*meta.Ser
 	}
 
 	// The client struct
-	file.Commentf("Client is a generated client for the Encore application %s.", appSlug)
+	file.Commentf("Client is an API client for the %s Encore application.", appSlug)
 	file.Add(
 		Type().Id("Client").Struct(fieldDef...),
 		Line(),
 		Line(),
 	)
 
-	file.Comment("BaseURL is what URL your encore application is being hosted at")
+	file.Comment("BaseURL is the base URL for calling the Encore application's API.")
 	file.Type().Id("BaseURL").String()
 	file.Line()
 
-	file.Const().Id("LocalDevelopment").Id("BaseURL").Op("=").Lit("http://localhost:4000")
+	file.Const().Id("Local").Id("BaseURL").Op("=").Lit("http://localhost:4000")
 	file.Line()
 
-	file.Comment("Environment can be used to specify an environment by name, rather than using LocalDevelopment.")
-	file.Comment("")
-	file.Comment("This function doesn't check if the environment exists first, so it can cause runtime errors if")
-	file.Comment("you pass in an invalid environment name")
+	file.Comment("Environment returns a BaseURL for calling the cloud environment with the given name.")
 	file.Func().Id("Environment").
 		Params(Id("name").String()).
 		Id("BaseURL").
@@ -114,7 +111,7 @@ func (g *golang) generateClient(file *File, appSlug string, services []*meta.Ser
 
 	// New Function
 	file.Comment("New returns a Client for calling the public and authenticated APIs of your Encore application.")
-	file.Comment("You can customize the behaviour of the client using the given Option functions, such as WithHttpClient or WithAuthToken.")
+	file.Comment("You can customize the behaviour of the client using the given Option functions, such as WithHTTPClient or WithAuthToken.")
 	file.Add(
 		Func().Id("New").
 			Params(

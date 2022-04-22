@@ -10,20 +10,17 @@ import (
 	"net/url"
 )
 
-// Client is a generated client for the Encore application app.
+// Client is an API client for the app Encore application.
 type Client struct {
 	Svc SvcClient
 }
 
-// BaseURL is what URL your encore application is being hosted at
+// BaseURL is the base URL for calling the Encore application's API.
 type BaseURL string
 
-const LocalDevelopment BaseURL = "http://localhost:4000"
+const Local BaseURL = "http://localhost:4000"
 
-// Environment can be used to specify an environment by name, rather than using LocalDevelopment.
-//
-// This function doesn't check if the environment exists first, so it can cause runtime errors if
-// you pass in an invalid environment name
+// Environment returns a BaseURL for calling the cloud environment with the given name.
 func Environment(name string) BaseURL {
 	return BaseURL(fmt.Sprintf("https://%s-app.encr.app", name))
 }
@@ -32,7 +29,7 @@ func Environment(name string) BaseURL {
 type Option = func(client *baseClient) error
 
 // New returns a Client for calling the public and authenticated APIs of your Encore application.
-// You can customize the behaviour of the client using the given Option functions, such as WithHttpClient or WithAuthToken.
+// You can customize the behaviour of the client using the given Option functions, such as WithHTTPClient or WithAuthToken.
 func New(target BaseURL, options ...Option) (*Client, error) {
 	// Parse the base URL where the Encore application is being hosted
 	baseURL, err := url.Parse(string(target))
