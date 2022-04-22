@@ -45,7 +45,3 @@ Connect with fellow Encore developers, ask questions or just hang out!
 </p>
 
 Keep up with the latest news and updates.
-
-<br />
-<br />
-<br />
