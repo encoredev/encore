@@ -17,7 +17,9 @@ We can store the password using Encore's [secrets support](/docs/develop/secrets
 
 The connection string is something that looks like:
 
-```postgresql://user:password@externaldb-do-user-1234567-0.db.ondigitalocean.com:25010/externaldb?sslmode=require```
+```
+postgresql://user:password@externaldb-do-user-1234567-0.db.ondigitalocean.com:25010/externaldb?sslmode=require
+```
 
 So we write something like:
 
