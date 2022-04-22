@@ -51,7 +51,7 @@ sections: [
 			{title: "Cron Jobs", segment: "cron-jobs"},
 			{title: "Secrets", segment: "secrets"},
 			{title: "Testing", segment: "testing"},
-			{title: "API Documentation", segment: "api-docs"},
+			{title: "Generated API Docs", segment: "api-docs"},
 			{title: "CLI Reference", segment: "cli-reference"},
 		]
 	},
