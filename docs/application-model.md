@@ -6,7 +6,7 @@ You might have gotten the impression that Encore is another backend framework. S
 
 When you build an Encore backend, Encore makes heavy use of static analysis — a fancy term for parsing and analyzing the code you write — to build up a really detailed understanding of how your backend works. This understanding is in the shape of a graph, and very closely represents your own mental model about your system: boxes and arrows, representing systems and services that communicate with other systems, pass data and connect to infrastructure.
 
-<img src="https://encore.dev/assets/blog/app-graph.png" title="Encore Application Model" className="mx-auto" width="300" />
+<img src="https://encore.dev/assets/blog/app-graph.png" title="Encore Application Model" className="noshadow"/>
 
 This graph — the Encore Application Model — is the key to Encore’s revolutionary productivity. It’s what enables us to:
 
