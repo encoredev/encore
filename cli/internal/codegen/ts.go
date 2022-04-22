@@ -63,19 +63,10 @@ func (ts *ts) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err er
 	return nil
 }
 
-func (ts *ts) hasPublicRPC(svc *meta.Service) bool {
-	for _, rpc := range svc.Rpcs {
-		if rpc.AccessType != meta.RPC_PRIVATE {
-			return true
-		}
-	}
-	return false
-}
-
 func (ts *ts) writeService(svc *meta.Service) {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
-	publicRPC := ts.hasPublicRPC(svc)
+	publicRPC := hasPublicRPC(svc)
 	decls := ts.typs.Decls(svc.Name)
 	if !publicRPC && len(decls) == 0 {
 		return
@@ -333,7 +324,7 @@ func (ts *ts) writeClient() {
 	}
 
 	for _, svc := range ts.md.Svcs {
-		if ts.hasPublicRPC(svc) {
+		if hasPublicRPC(svc) {
 			indent()
 			fmt.Fprintf(ts, "%s: %s.ServiceClient\n", svc.Name, svc.Name)
 		}
@@ -347,7 +338,7 @@ func (ts *ts) writeClient() {
 	indent()
 	ts.WriteString("const base = new BaseClient(environment, token)\n")
 	for _, svc := range ts.md.Svcs {
-		if ts.hasPublicRPC(svc) {
+		if hasPublicRPC(svc) {
 			indent()
 			fmt.Fprintf(ts, "this.%s = new %s.ServiceClient(base)\n", svc.Name, svc.Name)
 		}

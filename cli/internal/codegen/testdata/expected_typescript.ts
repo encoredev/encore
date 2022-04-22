@@ -16,11 +16,27 @@ export namespace svc {
     }
 
     export interface Request {
+        /**
+         * Foo is good
+         */
         Foo?: Foo
+
+        /**
+         * Baz is better
+         */
         boo: string
+
+        /**
+         * This is a multiline
+         * comment on the raw message!
+         */
         Raw: JSONValue
     }
 
+    /**
+     * Tuple is a generic type which allows us to
+     * return two values of two different types
+     */
     export interface Tuple<A, B> {
         A: A
         B: B
@@ -41,6 +57,9 @@ export namespace svc {
             return this.baseClient.doVoid("POST", `/svc.DummyAPI`, params)
         }
 
+        /**
+         * Get returns some stuff
+         */
         public Get(params: GetRequest): Promise<void> {
             const query: any[] = [
                 "boo", params.Baz,
@@ -52,8 +71,16 @@ export namespace svc {
             return this.baseClient.doVoid("GET", `/path/${a}/${b}`)
         }
 
+        /**
+         * TupleInputOutput tests the usage of generics in the client generator
+         * and this comment is also multiline, so multiline comments get tested as well.
+         */
         public TupleInputOutput(params: Tuple<string, WrappedRequest>): Promise<Tuple<boolean, Foo>> {
             return this.baseClient.do<Tuple<boolean, Foo>>("POST", `/svc.TupleInputOutput`, params)
+        }
+
+        public Webhook(a: string, b: string): Promise<void> {
+            return this.baseClient.doVoid("POST", `/webhook/${a}/${b}`)
         }
     }
 }
