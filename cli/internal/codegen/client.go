@@ -17,8 +17,9 @@ type Lang string
 
 // These constants represent supported languages.
 const (
-	Unknown    Lang = ""
-	TypeScript Lang = "typescript"
+	LangUnknown    Lang = ""
+	LangTypeScript Lang = "typescript"
+	LangGo         Lang = "go"
 )
 
 type generator interface {
@@ -33,9 +34,11 @@ func Detect(path string) (lang Lang, ok bool) {
 	suffix := strings.ToLower(filepath.Ext(path))
 	switch suffix {
 	case ".ts":
-		return TypeScript, true
+		return LangTypeScript, true
+	case ".go":
+		return LangGo, true
 	default:
-		return Unknown, false
+		return LangUnknown, false
 	}
 }
 
@@ -49,8 +52,10 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 
 	var gen generator
 	switch lang {
-	case TypeScript:
+	case LangTypeScript:
 		gen = &ts{}
+	case LangGo:
+		gen = &golang{}
 	default:
 		return nil, ErrUnknownLang
 	}

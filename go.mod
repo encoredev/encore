@@ -1,11 +1,12 @@
 module encr.dev
 
-go 1.17
+go 1.18
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.2.8
 	github.com/alecthomas/chroma v0.8.2
 	github.com/briandowns/spinner v1.12.0
+	github.com/cockroachdb/errors v1.9.0
 	github.com/dave/jennifer v1.5.0
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structtag v1.2.0
@@ -30,11 +31,11 @@ require (
 	github.com/tailscale/hujson v0.0.0-20200924210142-dde312d0d6a2
 	go.uber.org/goleak v1.1.10
 	go4.org v0.0.0-20201209231011-d4a079459e60
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/mod v0.5.1
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
+	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
 	golang.org/x/text v0.3.7
 	golang.org/x/tools v0.1.9
 	golang.zx2c4.com/wireguard v0.0.0-20210728232740-bad6caeb82ed
@@ -46,8 +47,12 @@ require (
 )
 
 require (
+	github.com/cockroachdb/logtags v0.0.0-20211118104740-dabe8e521a4f // indirect
+	github.com/cockroachdb/redact v1.1.3 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/dlclark/regexp2 v1.2.0 // indirect
+	github.com/getsentry/sentry-go v0.12.0 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -69,6 +74,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
