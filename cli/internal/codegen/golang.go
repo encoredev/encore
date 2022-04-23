@@ -243,14 +243,18 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) {
 
 		// Add the documentation for the API to the interface method
 		if rpc.Doc != "" {
-			interfaceMethods = append(interfaceMethods, Line())
+			// Add a newline if this is not the first method
+			if len(interfaceMethods) > 0 {
+				interfaceMethods = append(interfaceMethods, Line())
+			}
+
 			for _, line := range strings.Split(strings.TrimSpace(rpc.Doc), "\n") {
 				interfaceMethods = append(interfaceMethods, Comment(line))
 			}
 		}
 
 		interfaceMethods = append(interfaceMethods,
-			Id(rpc.Name).Add(g.rpcParams(rpc)).Add(g.rpcReturnType(rpc)),
+			Id(rpc.Name).Add(g.rpcParams(rpc)).Add(g.rpcReturnType(rpc, false)),
 		)
 	}
 	file.Type().Id(interfaceName).Interface(interfaceMethods...)
@@ -279,7 +283,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) {
 			Id(rpc.Name).
 			Add(
 				g.rpcParams(rpc),
-				g.rpcReturnType(rpc),
+				g.rpcReturnType(rpc, true),
 			).Block(g.rpcCallSite(rpc)...)
 		file.Line()
 	}
@@ -351,7 +355,7 @@ func (g *golang) rpcParams(rpc *meta.RPC) Code {
 	return Params(params...)
 }
 
-func (g *golang) rpcReturnType(rpc *meta.RPC) Code {
+func (g *golang) rpcReturnType(rpc *meta.RPC, concreteImpl bool) Code {
 	if rpc.Proto == meta.RPC_RAW {
 		return Params(Op("*").Qual("net/http", "Response"), Error())
 	}
@@ -360,15 +364,16 @@ func (g *golang) rpcReturnType(rpc *meta.RPC) Code {
 		return Error()
 	}
 
-	return Params(g.getType(rpc.ResponseSchema), Error())
+	if concreteImpl {
+		// For the concrete implementation we want the response type to be named so we can
+		// refer to it without having to define a variable.
+		return Params(Id("resp").Add(g.getType(rpc.ResponseSchema)), Err().Error())
+	} else {
+		return Params(g.getType(rpc.ResponseSchema), Error())
+	}
 }
 
 func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code) {
-	rtnType := Struct()
-	if rpc.ResponseSchema != nil {
-		rtnType = &Statement{g.getType(rpc.ResponseSchema)}
-	}
-
 	// Set the method (defaulting to POST)
 	method := "POST"
 	if rpc.HttpMethods[0] != "*" {
@@ -392,21 +397,28 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code) {
 		code = append(code, queryValuesConstructor)
 	}
 
+	// Check if we have a response
+	hasResp := rpc.ResponseSchema != nil
+	resp := Nil()
+	if hasResp {
+		resp = Op("&").Id("resp")
+	}
+
 	if rpc.Proto != meta.RPC_RAW {
 		// The API Call itself
 		call := Id("callAPI").
-			Types(rtnType).
 			Call(
 				Id("ctx"),
 				Id("c").Dot("base"),
 				Lit(method),
 				path,
 				params,
+				resp,
 			)
 
-		if rpc.ResponseSchema == nil {
-			code = append(code, List(Id("_"), Err()).Op(":=").Add(call))
-			code = append(code, Return(Err()))
+		if hasResp {
+			code = append(code, Err().Op("=").Add(call))
+			code = append(code, Return(Id("resp"), Err()))
 		} else {
 			code = append(code, Return(call))
 		}
@@ -758,19 +770,15 @@ func (g *golang) generateBaseClient(file *File) {
 	file.Comment("callAPI is used by each generated API method to actually make request and decode the responses")
 	file.Func().
 		Id("callAPI").
-		Types(Id("Response").Any()).
 		Params(
 			Id("ctx").Qual("context", "Context"),
 			Id("client").Op("*").Id("baseClient"),
 			Id("method"),
 			Id("path").String(),
-			Id("body").Any(),
+			List(Id("body"), Id("resp")).Any(),
 		).
-		Params(Id("Response"), Error()).
+		Error().
 		Block(
-			Var().Id("response").Id("Response"),
-			Line(),
-
 			Comment("Encode the API body"),
 			Var().Id("bodyReader").Qual("io", "Reader"),
 			If(Id("body").Op("!=").Nil()).Block(
@@ -778,7 +786,7 @@ func (g *golang) generateBaseClient(file *File) {
 					Qual("encoding/json", "Marshal").
 					Call(Id("body")),
 				If(Err().Op("!=").Nil()).Block(
-					Return(Id("response"), Qual("fmt", "Errorf").Call(Lit("unable to marshal api request body: %w"), Err())),
+					Return(Qual("fmt", "Errorf").Call(Lit("marshal request: %w"), Err())),
 				),
 
 				Id("bodyReader").Op("=").Qual("bytes", "NewReader").Call(Id("bodyBytes")),
@@ -792,7 +800,7 @@ func (g *golang) generateBaseClient(file *File) {
 					Id("ctx"), Id("method"), Id("path"), Id("bodyReader"),
 				),
 			If(Err().Op("!=").Nil()).Block(
-				Return(Id("response"), Qual("fmt", "Errorf").Call(Lit("unable to create api request: %w"), Err())),
+				Return(Qual("fmt", "Errorf").Call(Lit("create request: %w"), Err())),
 			),
 			Line(),
 
@@ -800,23 +808,30 @@ func (g *golang) generateBaseClient(file *File) {
 			List(Id("rawResponse"), Err()).Op(":=").
 				Id("client").Dot("Do").Call(Id("req")),
 			If(Err().Op("!=").Nil()).Block(
-				Return(Id("response"), Qual("fmt", "Errorf").Call(Lit("api request failed: %w"), Err())),
+				Return(Qual("fmt", "Errorf").Call(Lit("request failed: %w"), Err())),
 			),
 			Defer().Func().Params().Block(
 				Id("_").Op("=").Id("rawResponse").Dot("Body").Dot("Close").Call(),
 			).Call(),
+			If(Id("rawResponse").Dot("StatusCode").Op(">=").Lit(400)).Block(
+				Return(Qual("fmt", "Errorf").Call(Lit("got error response: %s"), Id("rawResponse").Dot("Status"))),
+			),
 			Line(),
 
 			Comment("Decode the response"),
 			If(
-				Err().Op(":=").Qual("encoding/json", "NewDecoder").
-					Call(Id("rawResponse").Dot("Body")).
-					Dot("Decode").
-					Call(Op("&").Id("response")),
-				Err().Op("!=").Nil(),
+				Id("resp").Op("!=").Nil(),
 			).Block(
-				Return(Id("response"), Qual("fmt", "Errorf").Call(Lit("api request failed: %w"), Err())),
+				If(
+					Err().Op(":=").Qual("encoding/json", "NewDecoder").
+						Call(Id("rawResponse").Dot("Body")).
+						Dot("Decode").
+						Call(Id("resp")),
+					Err().Op("!=").Nil(),
+				).Block(
+					Return(Qual("fmt", "Errorf").Call(Lit("decode response: %w"), Err())),
+				),
 			),
-			Return(Id("response"), Nil()),
+			Return(Nil()),
 		)
 }
