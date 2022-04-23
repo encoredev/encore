@@ -53,13 +53,13 @@ export namespace svc {
             this.baseClient = baseClient
         }
 
+        /**
+         * DummyAPI is a dummy endpoint.
+         */
         public DummyAPI(params: Request): Promise<void> {
             return this.baseClient.doVoid("POST", `/svc.DummyAPI`, params)
         }
 
-        /**
-         * Get returns some stuff
-         */
         public Get(params: GetRequest): Promise<void> {
             const query: any[] = [
                 "boo", params.Baz,

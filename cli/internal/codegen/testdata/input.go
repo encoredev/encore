@@ -41,6 +41,10 @@ type GetRequest struct {
 
 type Foo int
 
+type Nested struct {
+    Value string
+}
+
 -- svc/api.go --
 package svc
 
@@ -49,12 +53,12 @@ import (
     "net/http"
 )
 
+// DummyAPI is a dummy endpoint.
 //encore:api public
 func DummyAPI(ctx context.Context, req *Request) error {
     return nil
 }
 
-// Get returns some stuff
 //encore:api public method=GET
 func Get(ctx context.Context, req *GetRequest) error {
     return nil
