@@ -111,9 +111,8 @@ type SvcWrapper[T any] T
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {
+	// DummyAPI is a dummy endpoint.
 	DummyAPI(ctx context.Context, params SvcRequest) error
-
-	// Get returns some stuff
 	Get(ctx context.Context, params SvcGetRequest) error
 	RESTPath(ctx context.Context, a string, b int) error
 
@@ -129,27 +128,25 @@ type svcClient struct {
 
 var _ SvcClient = (*svcClient)(nil)
 
+// DummyAPI is a dummy endpoint.
 func (c *svcClient) DummyAPI(ctx context.Context, params SvcRequest) error {
-	_, err := callAPI[struct{}](ctx, c.base, "POST", "/svc.DummyAPI", params)
-	return err
+	return callAPI(ctx, c.base, "POST", "/svc.DummyAPI", params, nil)
 }
 
-// Get returns some stuff
 func (c *svcClient) Get(ctx context.Context, params SvcGetRequest) error {
 	queryString := url.Values{"boo": []string{fmt.Sprint(params.Baz)}}
-	_, err := callAPI[struct{}](ctx, c.base, "GET", fmt.Sprintf("/svc.Get?%s", queryString.Encode()), nil)
-	return err
+	return callAPI(ctx, c.base, "GET", fmt.Sprintf("/svc.Get?%s", queryString.Encode()), nil, nil)
 }
 
 func (c *svcClient) RESTPath(ctx context.Context, a string, b int) error {
-	_, err := callAPI[struct{}](ctx, c.base, "GET", fmt.Sprintf("/path/%s/%d", a, b), nil)
-	return err
+	return callAPI(ctx, c.base, "GET", fmt.Sprintf("/path/%s/%d", a, b), nil, nil)
 }
 
 // TupleInputOutput tests the usage of generics in the client generator
 // and this comment is also multiline, so multiline comments get tested as well.
-func (c *svcClient) TupleInputOutput(ctx context.Context, params SvcTuple[string, SvcWrappedRequest]) (SvcTuple[bool, SvcFoo], error) {
-	return callAPI[SvcTuple[bool, SvcFoo]](ctx, c.base, "POST", "/svc.TupleInputOutput", params)
+func (c *svcClient) TupleInputOutput(ctx context.Context, params SvcTuple[string, SvcWrappedRequest]) (resp SvcTuple[bool, SvcFoo], err error) {
+	err = callAPI(ctx, c.base, "POST", "/svc.TupleInputOutput", params, &resp)
+	return resp, err
 }
 
 func (c *svcClient) Webhook(ctx context.Context, a string, b string, request *http.Request) (*http.Response, error) {
@@ -201,15 +198,13 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 // callAPI is used by each generated API method to actually make request and decode the responses
-func callAPI[Response any](ctx context.Context, client *baseClient, method, path string, body any) (Response, error) {
-	var response Response
-
+func callAPI(ctx context.Context, client *baseClient, method, path string, body, resp any) error {
 	// Encode the API body
 	var bodyReader io.Reader
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
 		if err != nil {
-			return response, fmt.Errorf("unable to marshal api request body: %w", err)
+			return fmt.Errorf("marshal request: %w", err)
 		}
 		bodyReader = bytes.NewReader(bodyBytes)
 	}
@@ -217,21 +212,26 @@ func callAPI[Response any](ctx context.Context, client *baseClient, method, path
 	// Create the request
 	req, err := http.NewRequestWithContext(ctx, method, path, bodyReader)
 	if err != nil {
-		return response, fmt.Errorf("unable to create api request: %w", err)
+		return fmt.Errorf("create request: %w", err)
 	}
 
 	// Make the request via the base client
 	rawResponse, err := client.Do(req)
 	if err != nil {
-		return response, fmt.Errorf("api request failed: %w", err)
+		return fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
 		_ = rawResponse.Body.Close()
 	}()
+	if rawResponse.StatusCode >= 400 {
+		return fmt.Errorf("got error response: %s", rawResponse.Status)
+	}
 
 	// Decode the response
-	if err := json.NewDecoder(rawResponse.Body).Decode(&response); err != nil {
-		return response, fmt.Errorf("api request failed: %w", err)
+	if resp != nil {
+		if err := json.NewDecoder(rawResponse.Body).Decode(resp); err != nil {
+			return fmt.Errorf("decode response: %w", err)
+		}
 	}
-	return response, nil
+	return nil
 }
