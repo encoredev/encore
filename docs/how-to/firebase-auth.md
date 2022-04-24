@@ -113,6 +113,7 @@ func ValidateToken(ctx context.Context, token string) (auth.UID, *Data, error) {
 		Picture: picture,
 	}
 	return uid, usr, nil
+}
 ```
 
 Great! We're done with the code. Now we just need to set up the secret.
