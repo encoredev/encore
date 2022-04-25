@@ -26,6 +26,7 @@ func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDeb
 		EncoreRuntimePath: env.EncoreRuntimePath(),
 		EncoreGoRoot:      env.EncoreGoRoot(),
 		KeepOutput:        codegenDebug,
+		BuildTags:         []string{"encore_local"},
 	}
 	result, err := compiler.Build(appRoot, cfg)
 	if result != nil && result.Dir != "" {
