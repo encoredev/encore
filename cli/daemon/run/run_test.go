@@ -101,6 +101,7 @@ func testBuild(c *qt.C, appRoot string) *compiler.Result {
 	build, err := compiler.Build("./testdata/echo", &compiler.Config{
 		EncoreRuntimePath: runtimePath,
 		EncoreGoRoot:      env.EncoreGoRoot(),
+		BuildTags:         []string{"encore_local"},
 	})
 	c.Assert(err, qt.IsNil)
 	c.Cleanup(func() {

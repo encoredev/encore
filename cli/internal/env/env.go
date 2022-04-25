@@ -9,7 +9,7 @@ import (
 )
 
 // These can be overwritten using
-// `go build -ldflags "-X encr.dev/cli/internal/env.alternativeEncoreRuntimePath=$HOME/src/github.com/encoredev/current-runtime"`.
+// `go build -ldflags "-X encr.dev/cli/internal/env.alternativeEncoreRuntimePath=$HOME/src/github.com/encoredev/encore/runtime"`.
 var (
 	alternativeEncoreRuntimePath = ""
 	alternativeEncoreGoPath      = ""
