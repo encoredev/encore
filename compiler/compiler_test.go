@@ -48,6 +48,7 @@ func TestMain(m *testing.M) {
 				WorkingDir:        ".",
 				EncoreGoRoot:      os.Getenv("ENCORE_GOROOT"),
 				EncoreRuntimePath: os.Getenv("ENCORE_RUNTIME_PATH"),
+				BuildTags:         []string{"encore_local"},
 			}
 			if _, err := compiler.Build(wd, cfg); err != nil {
 				os.Stderr.WriteString(err.Error())
