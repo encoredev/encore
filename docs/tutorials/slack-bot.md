@@ -16,7 +16,7 @@ Select `Empty app` as the template. **Take a note of your app id, we'll need it 
 The first step is to create a new Slack app:
 
 1. Head over to [Slack's API site](https://api.slack.com/apps) and create a new app.
-2. When prompted, chooes to create the app **from an app manifest**.
+2. When prompted, choose to create the app **from an app manifest**.
 3. Choose a workspace to install the app in.
 
 Enter the following manifest (replace `$APP_ID` in the URL below with your app id from above):
