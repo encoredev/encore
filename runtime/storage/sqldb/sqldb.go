@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -419,6 +420,8 @@ func (db *Database) Stdlib() *sql.DB {
 		c, err := stdlibDriver.(driver.DriverContext).OpenConnector(db.connStr)
 		if err == nil {
 			db.stdlib = sql.OpenDB(c)
+			db.stdlib.SetMaxOpenConns(30)
+			db.stdlib.SetConnMaxIdleTime(2 * time.Second)
 		}
 		openErr = err
 	})
