@@ -457,15 +457,19 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		}
 	}
 	return &config.Runtime{
-		AppID:         r.ID,
-		AppSlug:       r.AppSlug,
+		AppID:   r.ID,
+		AppSlug: r.AppSlug,
+		AppCommit: config.CommitInfo{
+			Revision:    "",    // TODO
+			Uncommitted: false, // TODO
+		},
 		APIBaseURL:    "http://" + r.ListenAddr,
 		EnvID:         p.ID,
 		EnvName:       "local",
 		EnvType:       "local",
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
-		SQLDatabases:  dbs,
 		AuthKeys:      []config.EncoreAuthKey{p.authKey},
+		SQLDatabases:  dbs,
 	}
 }
 
@@ -662,4 +666,33 @@ func genAuthKey() config.EncoreAuthKey {
 		panic("cannot generate random data: " + err.Error())
 	}
 	return config.EncoreAuthKey{KeyID: kid, Data: b[:]}
+}
+
+func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
+	out, err := vcsGit.runOutputVerboseOnly(rootDir, "status --porcelain")
+	if err != nil {
+		return Status{}, err
+	}
+	uncommitted := len(out) > 0
+
+	// "git status" works for empty repositories, but "git show" does not.
+	// Assume there are no commits in the repo when "git show" fails with
+	// uncommitted files and skip tagging revision / committime.
+	var rev string
+	var commitTime time.Time
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false show -s --format=%H:%ct")
+	if err != nil && !uncommitted {
+		return Status{}, err
+	} else if err == nil {
+		rev, commitTime, err = parseRevTime(out)
+		if err != nil {
+			return Status{}, err
+		}
+	}
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
 }
