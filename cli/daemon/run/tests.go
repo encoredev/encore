@@ -114,6 +114,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		CgoEnabled:        true,
 		EncoreRuntimePath: env.EncoreRuntimePath(),
 		EncoreGoRoot:      env.EncoreGoRoot(),
+		BuildTags:         []string{"encore_local"},
 		Test: &compiler.TestConfig{
 			Env: append(params.Environ,
 				"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
