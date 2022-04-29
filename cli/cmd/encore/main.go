@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -107,29 +108,43 @@ type commandOutputStream interface {
 // If convertJSON is true, lines that look like JSON are fed through
 // zerolog's console writer.
 func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
-	writePlain := func(line []byte, stdout bool) {
-		if stdout {
-			os.Stdout.Write(line)
-		} else {
-			os.Stderr.Write(line)
-		}
-	}
-	write := writePlain
+	var outWrite io.Writer = os.Stdout
+	var errWrite io.Writer = os.Stderr
 
 	if convertJSON {
 		cout, cerr := zerolog.NewConsoleWriter(), zerolog.NewConsoleWriter()
 		cout.Out, cerr.Out = os.Stdout, os.Stderr
 
-		write = func(line []byte, stdout bool) {
-			if bytes.HasPrefix(line, []byte{'{'}) {
-				if stdout {
-					cout.Write(line)
-				} else {
-					cerr.Write(line)
+		// Create a pipe that we read from line-by-line so we can detect JSON lines.
+		outRead, outw := io.Pipe()
+		errRead, errw := io.Pipe()
+		outWrite = outw
+		errWrite = errw
+		defer func() { _ = outw.Close() }()
+		defer func() { _ = errw.Close() }()
+
+		for i, read := range []io.Reader{outRead, errRead} {
+			read := read
+			stdout := i == 0
+			go func() {
+				scanner := bufio.NewScanner(read)
+				for scanner.Scan() {
+					line := append(scanner.Bytes(), '\n')
+					if bytes.HasPrefix(line, []byte{'{'}) {
+						if stdout {
+							cout.Write(line)
+						} else {
+							cerr.Write(line)
+						}
+					} else {
+						if stdout {
+							os.Stdout.Write(line)
+						} else {
+							os.Stderr.Write(line)
+						}
+					}
 				}
-			} else {
-				writePlain(line, stdout)
-			}
+			}()
 		}
 	}
 
@@ -151,10 +166,10 @@ func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
 		switch m := msg.Msg.(type) {
 		case *daemonpb.CommandMessage_Output:
 			if m.Output.Stdout != nil {
-				write(m.Output.Stdout, true)
+				outWrite.Write(m.Output.Stdout)
 			}
 			if m.Output.Stderr != nil {
-				write(m.Output.Stderr, false)
+				errWrite.Write(m.Output.Stderr)
 			}
 		case *daemonpb.CommandMessage_Exit:
 			return int(m.Exit.Code)
