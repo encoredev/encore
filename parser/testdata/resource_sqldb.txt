@@ -1,4 +1,5 @@
 parse
+stdout 'svc svc dbs=moo'
 stdout 'resource SQLDBResource svc.Moo db=moo'
 
 -- svc/svc.go --

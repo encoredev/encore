@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -145,6 +146,10 @@ func TestMain(m *testing.M) {
 				}
 				os.Stderr.WriteString(err.Error())
 				return 1
+			}
+
+			for _, svc := range res.Meta.Svcs {
+				fmt.Fprintf(os.Stdout, "svc %s dbs=%s\n", svc.Name, strings.Join(svc.Databases, ","))
 			}
 			for _, svc := range res.App.Services {
 				for _, rpc := range svc.RPCs {

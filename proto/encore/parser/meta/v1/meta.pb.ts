@@ -50,6 +50,8 @@ export interface Service {
   rel_path: string;
   rpcs: RPC[];
   migrations: DBMigration[];
+  /** databases this service connects to */
+  databases: string[];
 }
 
 export interface DBMigration {
