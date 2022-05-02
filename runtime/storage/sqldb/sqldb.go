@@ -2,6 +2,8 @@ package sqldb
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -271,12 +273,43 @@ func dbConf(db *config.SQLDatabase) (*pgxpool.Config, error) {
 		uri += " host=" + db.Host // hostname
 	}
 
+	if db.ServerCACert != "" {
+		uri += " sslmode=verify-ca"
+	} else {
+		uri += " sslmode=prefer"
+	}
+
 	cfg, err := pgxpool.ParseConfig(uri)
 	if err != nil {
 		return nil, fmt.Errorf("invalid database uri: %v", err)
 	}
 	cfg.LazyConnect = true
+
+	// Set the pool size based on the config.
 	cfg.MaxConns = 30
+	if n := db.MaxConnections; n > 0 {
+		cfg.MaxConns = int32(n)
+	}
+
+	// If we have a server CA, set it in the TLS config.
+	if db.ServerCACert != "" {
+		caCertPool := x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM([]byte(db.ServerCACert)) {
+			return nil, fmt.Errorf("invalid server ca cert")
+		}
+		cfg.ConnConfig.TLSConfig.RootCAs = caCertPool
+		cfg.ConnConfig.TLSConfig.ClientCAs = caCertPool
+	}
+
+	// If we have a client cert, set it in the TLS config.
+	if db.ClientCert != "" {
+		cert, err := tls.X509KeyPair([]byte(db.ClientCert), []byte(db.ClientKey))
+		if err != nil {
+			return nil, fmt.Errorf("parse client cert: %v", err)
+		}
+		cfg.ConnConfig.TLSConfig.Certificates = []tls.Certificate{cert}
+	}
+
 	return cfg, nil
 }
 

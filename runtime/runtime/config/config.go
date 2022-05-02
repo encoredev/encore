@@ -88,6 +88,17 @@ type SQLDatabase struct {
 	Host         string `json:"host"`
 	User         string `json:"user"`
 	Password     string `json:"password"`
+
+	// MaxConnections is the maximum number of open connections to use
+	// for this database. If zero it defaults to 30.
+	MaxConnections int `json:"max_connections"`
+
+	// ServerCACert is the PEM-encoded server CA cert, or "" if not required.
+	ServerCACert string `json:"server_ca_cert"`
+	// ClientCert is the PEM-encoded client cert, or "" if not required.
+	ClientCert string `json:"client_cert"`
+	// ClientKey is the PEM-encoded client key, or "" if not required.
+	ClientKey string `json:"client_key"`
 }
 
 // ParseRuntime parses the Encore runtime config.
