@@ -40,6 +40,7 @@ message Service {
   string               rel_path   = 2; // import path relative to app root for the root package in the service
   repeated RPC         rpcs       = 3;
   repeated DBMigration migrations = 4;
+  repeated string      databases  = 5; // databases this service connects to
 }
 
 message DBMigration {

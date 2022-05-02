@@ -115,6 +115,27 @@ func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 		return nil, fmt.Errorf("%s: could not parse sqldb migrations: %v", svc.Root.RelPath, err)
 	}
 	s.Migrations = migs
+
+	// Compute which databases this connects to
+	seenDBs := make(map[string]bool)
+	if len(migs) > 0 {
+		seenDBs[svc.Name] = true
+	}
+	for _, pkg := range svc.Pkgs {
+		for _, res := range pkg.Resources {
+			if res.Type() == est.SQLDBResource {
+				name := res.(*est.SQLDB).DBName
+				seenDBs[name] = true
+			}
+		}
+	}
+	var dbNames []string
+	for name := range seenDBs {
+		dbNames = append(dbNames, name)
+	}
+	sort.Strings(dbNames)
+	s.Databases = dbNames
+
 	return s, nil
 }
 

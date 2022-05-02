@@ -1,0 +1,20 @@
+parse
+stdout 'svc foo dbs=bar,foo,moo'
+
+-- foo/foo.go --
+package foo
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("moo")
+var Bar = sqldb.Named("bar")
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    return nil
+}
+-- foo/migrations/1_tables.up.sql --
