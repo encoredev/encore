@@ -9,42 +9,49 @@ import (
 
 func TestDBConf(t *testing.T) {
 	tests := []struct {
-		DB   *config.SQLDatabase
-		Host string
-		Port uint16
+		DB       *config.SQLDatabase
+		Host     string
+		Port     uint16
+		MaxConns uint32
 	}{
 		{
 			DB: &config.SQLDatabase{
-				EncoreName:   "ignore",
-				DatabaseName: "dbname",
-				Host:         "/cloudsql/foo",
-				User:         "user",
-				Password:     "password",
+				EncoreName:     "ignore",
+				DatabaseName:   "dbname",
+				Host:           "/cloudsql/foo",
+				User:           "user",
+				Password:       "password",
+				MaxConnections: 10,
 			},
-			Host: "/cloudsql/foo",
-			Port: 5432,
+			Host:     "/cloudsql/foo",
+			Port:     5432,
+			MaxConns: 10,
 		},
 		{
 			DB: &config.SQLDatabase{
-				EncoreName:   "ignore",
-				DatabaseName: "dbname",
-				Host:         "test:123",
-				User:         "user",
-				Password:     "password",
+				EncoreName:     "ignore",
+				DatabaseName:   "dbname",
+				Host:           "test:123",
+				User:           "user",
+				Password:       "password",
+				MaxConnections: 0,
 			},
-			Host: "test",
-			Port: 123,
+			Host:     "test",
+			Port:     123,
+			MaxConns: 30,
 		},
 		{
 			DB: &config.SQLDatabase{
-				EncoreName:   "ignore",
-				DatabaseName: "dbname",
-				Host:         "hostname",
-				User:         "user",
-				Password:     "password",
+				EncoreName:     "ignore",
+				DatabaseName:   "dbname",
+				Host:           "hostname",
+				User:           "user",
+				Password:       "password",
+				MaxConnections: 100,
 			},
-			Host: "hostname",
-			Port: 5432,
+			Host:     "hostname",
+			Port:     5432,
+			MaxConns: 100,
 		},
 	}
 
