@@ -89,6 +89,10 @@ type SQLDatabase struct {
 	User         string `json:"user"`
 	Password     string `json:"password"`
 
+	// MinConnections is the minimum number of open connections to use
+	// for this database. If zero it defaults to 2.
+	MinConnections int `json:"min_connections"`
+
 	// MaxConnections is the maximum number of open connections to use
 	// for this database. If zero it defaults to 30.
 	MaxConnections int `json:"max_connections"`
