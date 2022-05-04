@@ -1,4 +1,4 @@
-//go:build encore_local
+//go:build encore_local && encore_internal
 
 package runtime
 

@@ -1,3 +1,5 @@
+//go:build encore_internal
+
 package runtime
 
 import (
@@ -24,7 +26,8 @@ func RecordTrace(ctx context.Context, traceID [16]byte, data []byte) error {
 	}
 	req.Header.Set("X-Encore-App-ID", config.Cfg.Runtime.AppID)
 	req.Header.Set("X-Encore-Env-ID", config.Cfg.Runtime.EnvID)
-	req.Header.Set("X-Encore-App-Commit", config.Cfg.Runtime.AppCommit)
+	req.Header.Set("X-Encore-Deploy-ID", config.Cfg.Runtime.DeployID)
+	req.Header.Set("X-Encore-App-Commit", config.Cfg.Static.AppCommit.AsRevisionString())
 	req.Header.Set("X-Encore-Trace-ID", base64.RawStdEncoding.EncodeToString(traceID[:]))
 	req.Header.Set("X-Encore-Trace-Version", traceVersion)
 	addAuthKey(req)

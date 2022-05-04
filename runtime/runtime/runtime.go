@@ -1,3 +1,5 @@
+//go:build encore_internal
+
 package runtime
 
 import (

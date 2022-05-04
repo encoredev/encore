@@ -20,11 +20,12 @@ import (
 type TraceNodes map[ast.Node]*meta.TraceNode
 
 // ParseMeta parses app metadata.
-func ParseMeta(version, appRoot string, app *est.Application) (*meta.Data, map[*est.Package]TraceNodes, error) {
+func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string, app *est.Application) (*meta.Data, map[*est.Package]TraceNodes, error) {
 	data := &meta.Data{
-		ModulePath: app.ModulePath,
-		AppVersion: version,
-		Decls:      app.Decls,
+		ModulePath:         app.ModulePath,
+		AppRevision:        appRevision,
+		UncommittedChanges: appHasUncommittedChanges,
+		Decls:              app.Decls,
 	}
 	pkgMap := make(map[string]*meta.Package)
 	nodes := parceTraceNodes(app)

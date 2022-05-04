@@ -1,3 +1,5 @@
+//go:build encore_internal
+
 package runtime
 
 import (
@@ -8,6 +10,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
 
 	"encore.dev/beta/errs"
@@ -30,6 +33,7 @@ var (
 )
 
 var json = jsoniter.Config{
+	IndentionStep:          2,
 	EscapeHTML:             false,
 	SortMapKeys:            false,
 	ValidateJsonRawMessage: true,
@@ -51,32 +55,56 @@ type Type byte
 
 const (
 	RPCCall     Type = 0x01
-	AuthHandler Type = 0x02
+	AuthHandler      = 0x02
 )
+
+type opTypeContextKeyType string
+
+const opTypeContextKey opTypeContextKeyType = "operation-type"
+
+func contextWithOpType(ctx context.Context, typ Type) context.Context {
+	return context.WithValue(ctx, opTypeContextKey, typ)
+}
+
+func OpTypeFromContext(ctx context.Context) Type {
+	v, ok := ctx.Value(opTypeContextKey).(Type)
+	if !ok {
+		return 0x00
+	}
+	return v
+}
 
 type Request struct {
 	Type     Type
 	SpanID   SpanID
 	ParentID SpanID
 	UID      UID
-	AuthData interface{}
+	AuthData any
 
-	Service  string
-	Endpoint string
-	Start    time.Time
-	Logger   zerolog.Logger
-	Traced   bool
+	Service      string
+	Endpoint     string
+	CronJobID    string
+	Payload      any
+	Path         string
+	PathSegments httprouter.Params
+	Start        time.Time
+	Logger       zerolog.Logger
+	Traced       bool
 }
 
 type RequestData struct {
 	Type            Type
 	Service         string
 	Endpoint        string
+	CronJobID       string
 	CallExprIdx     int32
 	EndpointExprIdx int32
 	Inputs          [][]byte
+	Path            string
+	PathSegments    httprouter.Params
+	DecodedPayload  any
 	UID             UID
-	AuthData        interface{}
+	AuthData        any
 	RequireAuth     bool
 }
 
@@ -263,13 +291,17 @@ func CopyInputs(inputs [][]byte, outputs []interface{}) error {
 
 func beginReq(ctx context.Context, spanID SpanID, data RequestData) error {
 	req := &Request{
-		Type:     data.Type,
-		SpanID:   spanID,
-		Service:  data.Service,
-		Endpoint: data.Endpoint,
-		Start:    time.Now(),
-		UID:      data.UID,
-		AuthData: data.AuthData,
+		Type:         data.Type,
+		SpanID:       spanID,
+		Service:      data.Service,
+		Endpoint:     data.Endpoint,
+		CronJobID:    data.CronJobID,
+		Payload:      data.DecodedPayload,
+		Path:         data.Path,
+		PathSegments: data.PathSegments,
+		Start:        time.Now(),
+		UID:          data.UID,
+		AuthData:     data.AuthData,
 	}
 
 	if prev, _, ok := currentReq(); ok {

@@ -1,3 +1,5 @@
+//go:build encore_internal
+
 package runtime
 
 import (
@@ -95,9 +97,14 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 
 	// Select a router based on access
 	r := srv.public
+	op := RPCCall
+
+	// The Encore platform is authorised to call private APIs directly, thus if we have this header set,
+	// and authenticate it, then we can switch over to the private router which contains all API's not just
+	// the publicly accessible ones.
 	if h := req.Header.Get("X-Encore-Auth"); h != "" {
 		if ok, err := srv.checkAuth(req, h); err == nil && ok {
-			// Sucessfully authenticated
+			// Successfully authenticated
 			r = srv.private
 		} else if err != nil {
 			http.Error(w, "could not authenticate request", http.StatusBadGateway)
@@ -105,6 +112,12 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 		} else {
 			http.Error(w, "invalid request signature", http.StatusUnauthorized)
 			return
+		}
+
+		// If the Encore platform triggered a cronjob, this header will be set
+		// allowing us to know the operation being performed is a Cronjob rather than an RPC call
+		if h := req.Header.Get("X-Encore-Cronjob"); h != "" {
+			req = req.WithContext(contextWithCronJobID(req.Context(), h))
 		}
 	}
 
@@ -128,7 +141,11 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 `))
 		return
 	}
-	h(w, req, p)
+
+	// We set the operation type into the context, which allows the generated handlers to correctly record
+	// the source of the operation for traces and calls to `encore.CurrentOp`
+	ctx := contextWithOpType(req.Context(), op)
+	h(w, req.WithContext(ctx), p)
 }
 
 func (srv *Server) scrapeMetrics(w http.ResponseWriter, req *http.Request) {
@@ -146,12 +163,27 @@ func (srv *Server) scrapeMetrics(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (srv *Server) healthz(w http.ResponseWriter, req *http.Request) {
+func (srv *Server) healthz(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{
-  "message": "Your Encore app is up and running!"
-}
-`))
+
+	bytes, _ := json.Marshal(struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		Details any    `json:"details"`
+	}{
+		Code:    "ok",
+		Message: "Your Encore app is up and running!",
+		Details: struct {
+			AppRevision    string `json:"app-revision"`
+			EncoreCompiler string `json:"encore-compiler"`
+			DeployId       string `json:"deploy-id"`
+		}{
+			AppRevision:    config.Cfg.Static.AppCommit.AsRevisionString(),
+			EncoreCompiler: config.Cfg.Static.EncoreCompiler,
+			DeployId:       config.Cfg.Runtime.DeployID,
+		},
+	})
+	_, _ = w.Write(bytes)
 }
 
 func (srv *Server) checkAuth(req *http.Request, macSig string) (bool, error) {

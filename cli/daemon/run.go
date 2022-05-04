@@ -29,6 +29,7 @@ import (
 	"encr.dev/cli/internal/onboarding"
 	"encr.dev/cli/internal/version"
 	"encr.dev/parser"
+	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -385,12 +386,15 @@ func (s *Server) parseApp(appRoot, workingDir string, parseTests bool) (*parser.
 		return nil, err
 	}
 
+	vcsRevision := vcs.GetRevision(appRoot)
+
 	cfg := &parser.Config{
-		AppRoot:    appRoot,
-		Version:    "",
-		ModulePath: mod.Module.Mod.Path,
-		WorkingDir: workingDir,
-		ParseTests: parseTests,
+		AppRoot:                  appRoot,
+		AppRevision:              vcsRevision.Revision,
+		AppHasUncommittedChanges: vcsRevision.Uncommitted,
+		ModulePath:               mod.Module.Mod.Path,
+		WorkingDir:               workingDir,
+		ParseTests:               parseTests,
 	}
 	return parser.Parse(cfg)
 }

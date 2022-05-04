@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
@@ -28,10 +29,16 @@ func (b *Builder) Wrappers(pkg *est.Package, wrappers []*est.RPC) *File {
 }
 
 func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
+	var pathTemplate strings.Builder
 	segs := make([]paths.Segment, 0, len(rpc.Path.Segments))
 	for _, s := range rpc.Path.Segments {
+		pathTemplate.WriteRune('/')
+
 		if s.Type != paths.Literal {
 			segs = append(segs, s)
+			pathTemplate.WriteString("%s")
+		} else {
+			pathTemplate.WriteString(s.Value)
 		}
 	}
 
@@ -82,12 +89,53 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 			if rpc.Access == est.Auth {
 				requireAuth = True()
 			}
+
+			path := Lit(pathTemplate.String())
+			pathSegments := Nil()
+			if len(segs) > 0 {
+				paramsForFormat := make([]Code, len(segs)+1)
+				paramsForFormat[0] = path // The literail formatting string
+
+				httpParams := make([]Code, len(segs))
+
+				for i, seg := range segs {
+					id := Id(fmt.Sprintf("p%d", i))
+
+					// If it's not a string type, convert it
+					if seg.ValueType != schema.Builtin_STRING {
+						origID := id
+						id = Id(fmt.Sprintf("p%dStr", i))
+						g.Add(id).Op(":=").Qual("fmt", "Sprint").Call(origID)
+					}
+
+					// Now escape it for the Sprintf
+					paramsForFormat[i+1] = Qual("net/url", "PathEscape").Call(id)
+
+					// And create our struct
+					httpParams[i] = Qual("github.com/julienschmidt/httprouter", "Param").Values(Dict{
+						Id("Key"):   Lit(seg.Value),
+						Id("Value"): id,
+					})
+				}
+
+				path = Qual("fmt", "Sprintf").Call(paramsForFormat...)
+				pathSegments = Qual("github.com/julienschmidt/httprouter", "Params").Values(httpParams...)
+			}
+
+			payload := Nil()
+			if rpc.Request != nil {
+				payload = Id("p" + strconv.Itoa(numParams-1))
+			}
+
 			g.Err().Op(":=").Id("call").Dot("BeginReq").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(Dict{
 				Id("Type"):            Qual("encore.dev/runtime", "RPCCall"),
 				Id("Service"):         Lit(rpc.Svc.Name),
 				Id("Endpoint"):        Lit(rpc.Name),
 				Id("EndpointExprIdx"): Lit(traceID),
 				Id("Inputs"):          Id("inputs"),
+				Id("Path"):            path,
+				Id("PathSegments"):    pathSegments,
+				Id("DecodedPayload"):  payload,
 				Id("RequireAuth"):     requireAuth,
 			}))
 			g.If().Err().Op("!=").Nil().Block(

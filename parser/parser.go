@@ -64,11 +64,12 @@ type parser struct {
 
 // Config represents the configuration options for parsing.
 type Config struct {
-	AppRoot    string
-	Version    string
-	ModulePath string
-	WorkingDir string
-	ParseTests bool
+	AppRoot                  string
+	AppRevision              string
+	AppHasUncommittedChanges bool
+	ModulePath               string
+	WorkingDir               string
+	ParseTests               bool
 }
 
 func Parse(cfg *Config) (*Result, error) {
@@ -155,7 +156,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		Decls:       p.decls,
 		AuthHandler: p.authHandler,
 	}
-	md, nodes, err := ParseMeta(p.cfg.Version, p.cfg.AppRoot, app)
+	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app)
 	if err != nil {
 		return nil, err
 	}
@@ -374,8 +375,8 @@ func (p *parser) parseReferences() {
 							case token.TYPE:
 								// TODO check if there are methods on the type
 							case token.VAR:
-								//p.errf(node.Pos(), "cannot reference variable %s.%s from outside the service", pkg2.RelPath, obj)
-								//return false
+								// p.errf(node.Pos(), "cannot reference variable %s.%s from outside the service", pkg2.RelPath, obj)
+								// return false
 							}
 						}
 					}
