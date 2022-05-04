@@ -234,6 +234,10 @@ func getDB() *Database {
 
 	dbMu.Lock()
 	defer dbMu.Unlock()
+	// Check again now that we've re-acquired the mutex
+	if db, ok := dbMap[dbName]; ok {
+		return db
+	}
 	db = &Database{name: dbName, pool: getPool(dbName)}
 	dbMap[dbName] = db
 	return db
@@ -333,6 +337,7 @@ func Named(name constStr) *Database {
 
 type Database struct {
 	name string
+	cfg  *config.SQLDatabase
 
 	initOnce sync.Once
 	pool     *pgxpool.Pool
@@ -453,7 +458,9 @@ func (db *Database) Stdlib() *sql.DB {
 		c, err := stdlibDriver.(driver.DriverContext).OpenConnector(db.connStr)
 		if err == nil {
 			db.stdlib = sql.OpenDB(c)
-			db.stdlib.SetMaxOpenConns(30)
+
+			// Set the pool size based on the config.
+			db.stdlib.SetMaxOpenConns(int(db.pool.Config().MaxConns))
 			db.stdlib.SetConnMaxIdleTime(2 * time.Second)
 		}
 		openErr = err
