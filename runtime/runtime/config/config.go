@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -58,6 +59,11 @@ type Runtime struct {
 	TraceEndpoint string          `json:"trace_endpoint"`
 	AuthKeys      []EncoreAuthKey `json:"auth_keys"`
 	SQLDatabases  []*SQLDatabase  `json:"sql_databases"`
+
+	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
+	// meaning connections are closed even if outstanding requests are still in flight.
+	// If zero, it shuts down immediately.
+	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
 }
 
 func (r *Runtime) Copy() *Runtime {

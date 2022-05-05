@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/yamux"
 )
 
+var devMode = true
+
 func listen() (net.Listener, error) {
 	var in, out *os.File
 	if runtime.GOOS == "windows" {
