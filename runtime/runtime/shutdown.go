@@ -22,6 +22,16 @@ var shutdown = struct {
 	completed: make(chan struct{}),
 }
 
+// RegisterShutdown registers a shutdown handler that will be called when the server
+// is gracefully shutting down.
+//
+// The given context is closed when the graceful shutdown window is closed and it's
+// time to forcefully shut down. force.Deadline() can be inspected to learn when this
+// will happen in advance.
+//
+// The shutdown is cooperative: the process will not exit until all shutdown handlers
+// have returned, unless the process is forcefully killed by a signal (which may happen
+// in certain cloud environments if the graceful shutdown takes longer than its timeout).
 func RegisterShutdown(fn func(force context.Context)) {
 	shutdown.mu.Lock()
 	shutdown.handlers = append(shutdown.handlers, fn)
