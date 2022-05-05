@@ -1,5 +1,3 @@
-//go:build encore_internal
-
 package errs
 
 import (
