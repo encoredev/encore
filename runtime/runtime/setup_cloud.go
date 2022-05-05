@@ -11,6 +11,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var devMode = false
+
 func listen() (net.Listener, error) {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	if port == 0 {

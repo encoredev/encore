@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -56,7 +57,26 @@ func (srv *Server) ListenAndServe() error {
 		Handler: http.HandlerFunc(srv.handler),
 	}
 	srv.logger.Info().Msg("listening for incoming HTTP requests")
-	return httpsrv.Serve(ln)
+
+	RegisterShutdown(func(force context.Context) {
+		httpsrv.Shutdown(force)
+	})
+	serveErr := httpsrv.Serve(ln)
+
+	var shutdownResult error
+	select {
+	case <-shutdown.initiated:
+		// This is a graceful shutdown; wait for the shutdown to complete before returning.
+		shutdownResult = nil
+	default:
+		// This is not due to a shutdown signal; return the error from Serve
+		doShutdown()
+		shutdownResult = serveErr
+	}
+
+	// Wait for shutdown to complete before returning, since returning causes the process to exit.
+	<-shutdown.completed
+	return shutdownResult
 }
 
 func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
