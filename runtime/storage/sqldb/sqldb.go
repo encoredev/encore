@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -262,6 +261,17 @@ func getPool(name string) *pgxpool.Pool {
 	if err != nil {
 		panic("sqldb: setup db: " + err.Error())
 	}
+	runtime.RegisterShutdown(func(force context.Context) {
+		done := make(chan struct{}, 1)
+		go func() {
+			pool.Close()
+			close(done)
+		}()
+		select {
+		case <-force.Done():
+		case <-done:
+		}
+	})
 	return pool
 }
 
@@ -460,8 +470,22 @@ func (db *Database) Stdlib() *sql.DB {
 			db.stdlib = sql.OpenDB(c)
 
 			// Set the pool size based on the config.
-			db.stdlib.SetMaxOpenConns(int(db.pool.Config().MaxConns))
-			db.stdlib.SetConnMaxIdleTime(2 * time.Second)
+			cfg := db.pool.Config()
+			maxConns := int(cfg.MaxConns)
+			db.stdlib.SetMaxOpenConns(maxConns)
+			db.stdlib.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
+			db.stdlib.SetMaxIdleConns(maxConns)
+
+			runtime.RegisterShutdown(func(force context.Context) {
+				closeErr := make(chan error, 1)
+				go func() {
+					closeErr <- db.stdlib.Close()
+				}()
+				select {
+				case <-force.Done():
+				case <-closeErr:
+				}
+			})
 		}
 		openErr = err
 	})
