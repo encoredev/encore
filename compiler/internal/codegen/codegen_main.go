@@ -196,7 +196,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 
 		traceID := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
 		g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
-			d[Id("Type")] = Qual("encore.dev/runtime", "OpTypeFromContext").Call(Id("ctx"))
+			d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
 			d[Id("Service")] = Lit(svc.Name)
 			d[Id("Endpoint")] = Lit(rpc.Name)
 			d[Id("Path")] = Id("req").Dot("URL").Dot("Path")
@@ -206,15 +206,9 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 			} else {
 				d[Id("Inputs")] = Nil()
 			}
-
-			if rpc.Request != nil {
-				d[Id("DecodedPayload")] = Id("params")
-			}
 			if hasPathParams {
 				d[Id("PathSegments")] = Id("ps")
 			}
-
-			d[Id("CronJobID")] = Qual("encore.dev/runtime", "CronJobIdFromContext").Call(Id("ctx"))
 
 			if b.res.App.AuthHandler != nil {
 				d[Id("UID")] = Id("uid")

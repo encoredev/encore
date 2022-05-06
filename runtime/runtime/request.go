@@ -58,22 +58,6 @@ const (
 	AuthHandler      = 0x02
 )
 
-type opTypeContextKeyType string
-
-const opTypeContextKey opTypeContextKeyType = "operation-type"
-
-func contextWithOpType(ctx context.Context, typ Type) context.Context {
-	return context.WithValue(ctx, opTypeContextKey, typ)
-}
-
-func OpTypeFromContext(ctx context.Context) Type {
-	v, ok := ctx.Value(opTypeContextKey).(Type)
-	if !ok {
-		return 0x00
-	}
-	return v
-}
-
 type Request struct {
 	Type     Type
 	SpanID   SpanID
@@ -83,8 +67,6 @@ type Request struct {
 
 	Service      string
 	Endpoint     string
-	CronJobID    string
-	Payload      any
 	Path         string
 	PathSegments httprouter.Params
 	Start        time.Time
@@ -96,13 +78,11 @@ type RequestData struct {
 	Type            Type
 	Service         string
 	Endpoint        string
-	CronJobID       string
 	CallExprIdx     int32
 	EndpointExprIdx int32
 	Inputs          [][]byte
 	Path            string
 	PathSegments    httprouter.Params
-	DecodedPayload  any
 	UID             UID
 	AuthData        any
 	RequireAuth     bool
@@ -295,8 +275,6 @@ func beginReq(ctx context.Context, spanID SpanID, data RequestData) error {
 		SpanID:       spanID,
 		Service:      data.Service,
 		Endpoint:     data.Endpoint,
-		CronJobID:    data.CronJobID,
-		Payload:      data.DecodedPayload,
 		Path:         data.Path,
 		PathSegments: data.PathSegments,
 		Start:        time.Now(),

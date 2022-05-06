@@ -43,13 +43,12 @@ func __encore_svc_CronOne(w http.ResponseWriter, req *http.Request, ps httproute
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
 		Endpoint:        "CronOne",
 		EndpointExprIdx: 14,
 		Inputs:          nil,
 		Path:            req.URL.Path,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -97,14 +96,13 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
 		Endpoint:        "Eight",
 		EndpointExprIdx: 15,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -179,15 +177,13 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
-		DecodedPayload:  params,
 		Endpoint:        "Five",
 		EndpointExprIdx: 16,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -242,14 +238,13 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
 		Endpoint:        "Four",
 		EndpointExprIdx: 17,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -295,13 +290,12 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
 		Endpoint:        "One",
 		EndpointExprIdx: 18,
 		Inputs:          nil,
 		Path:            req.URL.Path,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -358,15 +352,13 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
-		DecodedPayload:  params,
 		Endpoint:        "Query",
 		EndpointExprIdx: 19,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -417,14 +409,13 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
 		Endpoint:        "Seven",
 		EndpointExprIdx: 20,
 		Inputs:          nil,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -472,15 +463,13 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
-		DecodedPayload:  params,
 		Endpoint:        "Six",
 		EndpointExprIdx: 21,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -531,14 +520,13 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
 		Endpoint:        "Three",
 		EndpointExprIdx: 22,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -592,15 +580,13 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 	err := runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
-		CronJobID:       runtime.CronJobIdFromContext(ctx),
-		DecodedPayload:  params,
 		Endpoint:        "Two",
 		EndpointExprIdx: 23,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
 		Service:         "svc",
-		Type:            runtime.OpTypeFromContext(ctx),
+		Type:            runtime.RPCCall,
 		UID:             uid,
 	})
 	if err != nil {
@@ -981,7 +967,6 @@ func __encore_svc_CronOne(ctx context.Context) (err error) {
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  nil,
 			Endpoint:        "CronOne",
 			EndpointExprIdx: 14,
 			Inputs:          inputs,
@@ -1039,7 +1024,6 @@ func __encore_svc_Eight(ctx context.Context, p0 string, p1 string) (resp *Respon
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  nil,
 			Endpoint:        "Eight",
 			EndpointExprIdx: 15,
 			Inputs:          inputs,
@@ -1118,7 +1102,6 @@ func __encore_svc_Five(ctx context.Context, p0 uuid.UUID, p1 uint, p2 *FooParams
 		p0Str := fmt.Sprint(p0)
 		p1Str := fmt.Sprint(p1)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  p2,
 			Endpoint:        "Five",
 			EndpointExprIdx: 16,
 			Inputs:          inputs,
@@ -1192,7 +1175,6 @@ func __encore_svc_Four(ctx context.Context, p0 string) (err error) {
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  nil,
 			Endpoint:        "Four",
 			EndpointExprIdx: 17,
 			Inputs:          inputs,
@@ -1258,7 +1240,6 @@ func __encore_svc_One(ctx context.Context) (err error) {
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  nil,
 			Endpoint:        "One",
 			EndpointExprIdx: 18,
 			Inputs:          inputs,
@@ -1316,7 +1297,6 @@ func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (err error) {
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  p0,
 			Endpoint:        "Query",
 			EndpointExprIdx: 19,
 			Inputs:          inputs,
@@ -1382,7 +1362,6 @@ func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  nil,
 			Endpoint:        "Seven",
 			EndpointExprIdx: 20,
 			Inputs:          inputs,
@@ -1456,7 +1435,6 @@ func __encore_svc_Six(ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParam
 		defer close(done)
 		p0Str := fmt.Sprint(p0)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  p2,
 			Endpoint:        "Six",
 			EndpointExprIdx: 21,
 			Inputs:          inputs,
@@ -1530,7 +1508,6 @@ func __encore_svc_Three(ctx context.Context, p0 string) (err error) {
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  nil,
 			Endpoint:        "Three",
 			EndpointExprIdx: 22,
 			Inputs:          inputs,
@@ -1599,7 +1576,6 @@ func __encore_svc_Two(ctx context.Context, p0 *FooParams) (err error) {
 	go func() {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
-			DecodedPayload:  p0,
 			Endpoint:        "Two",
 			EndpointExprIdx: 23,
 			Inputs:          inputs,

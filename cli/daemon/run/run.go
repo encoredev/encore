@@ -13,7 +13,6 @@ import (
 	mathrand "math/rand"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -470,14 +469,11 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		}
 	}
 	return &config.Runtime{
-		AppID:   r.ID,
-		AppSlug: r.AppSlug,
-		APIBaseURL: url.URL{
-			Scheme: "http",
-			Host:   fmt.Sprintf("localhost:%d", params.RuntimePort),
-		},
+		AppID:         r.ID,
+		AppSlug:       r.AppSlug,
+		APIBaseURL:    fmt.Sprintf("http://localhost:%d", params.RuntimePort),
 		DeployID:      fmt.Sprintf("clidpl_%s", xid.New()),
-		Deployed:      time.Now().UTC(), // Force UTC to not cause confusion
+		DeployedAt:    time.Now().UTC(), // Force UTC to not cause confusion
 		EnvID:         p.ID,
 		EnvName:       "local",
 		EnvCloud:      string(encore.CloudLocal),

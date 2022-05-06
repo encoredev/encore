@@ -21,9 +21,9 @@ import (
 	"time"
 )
 
-// A Cmd describes how to use a version control system
+// A cmd describes how to use a version control system
 // like Mercurial, Git, or Subversion.
-type Cmd struct {
+type cmd struct {
 	Name      string
 	Cmd       string   // name of binary to invoke command
 	RootNames []string // filename indicating the root of a checkout directory
@@ -39,9 +39,9 @@ type Cmd struct {
 	Scheme  []string
 	PingCmd string
 
-	RemoteRepo  func(v *Cmd, rootDir string) (remoteRepo string, err error)
-	ResolveRepo func(v *Cmd, rootDir, remoteRepo string) (realRepo string, err error)
-	Status      func(v *Cmd, rootDir string) (Status, error)
+	RemoteRepo  func(v *cmd, rootDir string) (remoteRepo string, err error)
+	ResolveRepo func(v *cmd, rootDir, remoteRepo string) (realRepo string, err error)
+	Status      func(v *cmd, rootDir string) (Status, error)
 }
 
 // Status is the current state of a local repository.
@@ -59,7 +59,7 @@ var defaultSecureScheme = map[string]bool{
 	"ssh":     true,
 }
 
-func (v *Cmd) IsSecure(repo string) bool {
+func (v *cmd) IsSecure(repo string) bool {
 	u, err := urlpkg.Parse(repo)
 	if err != nil {
 		// If repo is not a URL, it's not secure.
@@ -68,7 +68,7 @@ func (v *Cmd) IsSecure(repo string) bool {
 	return v.isSecureScheme(u.Scheme)
 }
 
-func (v *Cmd) isSecureScheme(scheme string) bool {
+func (v *cmd) isSecureScheme(scheme string) bool {
 	switch v.Cmd {
 	case "git":
 		// GIT_ALLOW_PROTOCOL is an environment variable defined by Git. It is a
@@ -94,7 +94,7 @@ type tagCmd struct {
 }
 
 // vcsList lists the known version control systems
-var vcsList = []*Cmd{
+var vcsList = []*cmd{
 	vcsHg,
 	vcsGit,
 	vcsSvn,
@@ -103,7 +103,7 @@ var vcsList = []*Cmd{
 }
 
 // vcsHg describes how to use Mercurial.
-var vcsHg = &Cmd{
+var vcsHg = &cmd{
 	Name:      "Mercurial",
 	Cmd:       "hg",
 	RootNames: []string{".hg"},
@@ -129,7 +129,7 @@ var vcsHg = &Cmd{
 	Status:     hgStatus,
 }
 
-func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
+func hgRemoteRepo(vcsHg *cmd, rootDir string) (remoteRepo string, err error) {
 	out, err := vcsHg.runOutput(rootDir, "paths default")
 	if err != nil {
 		return "", err
@@ -137,7 +137,7 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
+func hgStatus(vcsHg *cmd, rootDir string) (Status, error) {
 	// Output changeset ID and seconds since epoch.
 	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date|hgdate}`)
 	if err != nil {
@@ -191,7 +191,7 @@ func parseRevTime(out []byte) (string, time.Time, error) {
 }
 
 // vcsGit describes how to use Git.
-var vcsGit = &Cmd{
+var vcsGit = &cmd{
 	Name:      "Git",
 	Cmd:       "git",
 	RootNames: []string{".git"},
@@ -231,7 +231,7 @@ var vcsGit = &Cmd{
 // repositories by SSH.
 var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
 
-func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
+func gitRemoteRepo(vcsGit *cmd, rootDir string) (remoteRepo string, err error) {
 	cmd := "config remote.origin.url"
 	errParse := errors.New("unable to parse output of git " + cmd)
 	errRemoteOriginNotFound := errors.New("remote origin not found")
@@ -275,7 +275,7 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
 	return "", errParse
 }
 
-func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
+func gitStatus(vcsGit *cmd, rootDir string) (Status, error) {
 	out, err := vcsGit.runOutputVerboseOnly(rootDir, "status --porcelain")
 	if err != nil {
 		return Status{}, err
@@ -305,7 +305,7 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 }
 
 // vcsBzr describes how to use Bazaar.
-var vcsBzr = &Cmd{
+var vcsBzr = &cmd{
 	Name:      "Bazaar",
 	Cmd:       "bzr",
 	RootNames: []string{".bzr"},
@@ -327,7 +327,7 @@ var vcsBzr = &Cmd{
 	Status:      bzrStatus,
 }
 
-func bzrRemoteRepo(vcsBzr *Cmd, rootDir string) (remoteRepo string, err error) {
+func bzrRemoteRepo(vcsBzr *cmd, rootDir string) (remoteRepo string, err error) {
 	outb, err := vcsBzr.runOutput(rootDir, "config parent_location")
 	if err != nil {
 		return "", err
@@ -335,7 +335,7 @@ func bzrRemoteRepo(vcsBzr *Cmd, rootDir string) (remoteRepo string, err error) {
 	return strings.TrimSpace(string(outb)), nil
 }
 
-func bzrResolveRepo(vcsBzr *Cmd, rootDir, remoteRepo string) (realRepo string, err error) {
+func bzrResolveRepo(vcsBzr *cmd, rootDir, remoteRepo string) (realRepo string, err error) {
 	outb, err := vcsBzr.runOutput(rootDir, "info "+remoteRepo)
 	if err != nil {
 		return "", err
@@ -368,7 +368,7 @@ func bzrResolveRepo(vcsBzr *Cmd, rootDir, remoteRepo string) (realRepo string, e
 	return strings.TrimSpace(out), nil
 }
 
-func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
+func bzrStatus(vcsBzr *cmd, rootDir string) (Status, error) {
 	outb, err := vcsBzr.runOutputVerboseOnly(rootDir, "version-info")
 	if err != nil {
 		return Status{}, err
@@ -426,7 +426,7 @@ func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
 }
 
 // vcsSvn describes how to use Subversion.
-var vcsSvn = &Cmd{
+var vcsSvn = &cmd{
 	Name:      "Subversion",
 	Cmd:       "svn",
 	RootNames: []string{".svn"},
@@ -442,7 +442,7 @@ var vcsSvn = &Cmd{
 	RemoteRepo: svnRemoteRepo,
 }
 
-func svnRemoteRepo(vcsSvn *Cmd, rootDir string) (remoteRepo string, err error) {
+func svnRemoteRepo(vcsSvn *cmd, rootDir string) (remoteRepo string, err error) {
 	outb, err := vcsSvn.runOutput(rootDir, "info")
 	if err != nil {
 		return "", err
@@ -477,7 +477,7 @@ func svnRemoteRepo(vcsSvn *Cmd, rootDir string) (remoteRepo string, err error) {
 const fossilRepoName = ".fossil"
 
 // vcsFossil describes how to use Fossil (fossil-scm.org)
-var vcsFossil = &Cmd{
+var vcsFossil = &cmd{
 	Name:      "Fossil",
 	Cmd:       "fossil",
 	RootNames: []string{".fslckout", "_FOSSIL_"},
@@ -494,7 +494,7 @@ var vcsFossil = &Cmd{
 	Status:     fossilStatus,
 }
 
-func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err error) {
+func fossilRemoteRepo(vcsFossil *cmd, rootDir string) (remoteRepo string, err error) {
 	out, err := vcsFossil.runOutput(rootDir, "remote-url")
 	if err != nil {
 		return "", err
@@ -504,7 +504,7 @@ func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err er
 
 var errFossilInfo = errors.New("unable to parse output of fossil info")
 
-func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
+func fossilStatus(vcsFossil *cmd, rootDir string) (Status, error) {
 	outb, err := vcsFossil.runOutputVerboseOnly(rootDir, "info")
 	if err != nil {
 		return Status{}, err
@@ -556,7 +556,7 @@ func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
 	}, nil
 }
 
-func (v *Cmd) String() string {
+func (v *cmd) String() string {
 	return v.Name
 }
 
@@ -567,30 +567,30 @@ func (v *Cmd) String() string {
 // If an error occurs, run prints the command line and the
 // command's combined stdout+stderr to standard error.
 // Otherwise run discards the command's output.
-func (v *Cmd) run(dir string, cmd string, keyval ...string) error {
+func (v *cmd) run(dir string, cmd string, keyval ...string) error {
 	_, err := v.run1(dir, cmd, keyval, true)
 	return err
 }
 
 // runVerboseOnly is like run but only generates error output to standard error in verbose mode.
-func (v *Cmd) runVerboseOnly(dir string, cmd string, keyval ...string) error {
+func (v *cmd) runVerboseOnly(dir string, cmd string, keyval ...string) error {
 	_, err := v.run1(dir, cmd, keyval, false)
 	return err
 }
 
 // runOutput is like run but returns the output of the command.
-func (v *Cmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error) {
+func (v *cmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error) {
 	return v.run1(dir, cmd, keyval, true)
 }
 
 // runOutputVerboseOnly is like runOutput but only generates error output to
 // standard error in verbose mode.
-func (v *Cmd) runOutputVerboseOnly(dir string, cmd string, keyval ...string) ([]byte, error) {
+func (v *cmd) runOutputVerboseOnly(dir string, cmd string, keyval ...string) ([]byte, error) {
 	return v.run1(dir, cmd, keyval, false)
 }
 
 // run1 is the generalized implementation of run and runOutput.
-func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([]byte, error) {
+func (v *cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([]byte, error) {
 	m := make(map[string]string)
 	for i := 0; i < len(keyval); i += 2 {
 		m[keyval[i]] = keyval[i+1]
@@ -648,7 +648,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 
 // Create creates a new copy of repo in dir.
 // The parent of dir must exist; dir must not.
-func (v *Cmd) Create(dir, repo string) error {
+func (v *cmd) Create(dir, repo string) error {
 	for _, cmd := range v.CreateCmd {
 		if err := v.run(filepath.Dir(dir), cmd, "dir", dir, "repo", repo); err != nil {
 			return err
@@ -658,7 +658,7 @@ func (v *Cmd) Create(dir, repo string) error {
 }
 
 // Download downloads any new changes for the repo in dir.
-func (v *Cmd) Download(dir string) error {
+func (v *cmd) Download(dir string) error {
 	for _, cmd := range v.DownloadCmd {
 		if err := v.run(dir, cmd); err != nil {
 			return err
@@ -668,7 +668,7 @@ func (v *Cmd) Download(dir string) error {
 }
 
 // Tags returns the list of available tags for the repo in dir.
-func (v *Cmd) Tags(dir string) ([]string, error) {
+func (v *cmd) Tags(dir string) ([]string, error) {
 	var tags []string
 	for _, tc := range v.TagCmd {
 		out, err := v.runOutput(dir, tc.cmd)
@@ -685,7 +685,7 @@ func (v *Cmd) Tags(dir string) ([]string, error) {
 
 // tagSync syncs the repo in dir to the named tag,
 // which either is a tag returned by tags or is v.tagDefault.
-func (v *Cmd) TagSync(dir, tag string) error {
+func (v *cmd) TagSync(dir, tag string) error {
 	if v.TagSyncCmd == nil {
 		return nil
 	}
@@ -721,11 +721,11 @@ func (v *Cmd) TagSync(dir, tag string) error {
 	return nil
 }
 
-// FromDir inspects dir and its parents to determine the
+// fromDir inspects dir and its parents to determine the
 // version control system and code repository to use.
-// If no repository is found, FromDir returns an error
+// If no repository is found, fromDir returns an error
 // equivalent to os.ErrNotExist.
-func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cmd, err error) {
+func fromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *cmd, err error) {
 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
 	dir = filepath.Clean(dir)
 	if srcRoot != "" {
@@ -803,32 +803,6 @@ func (e *vcsNotFoundError) Error() string {
 
 func (e *vcsNotFoundError) Is(err error) bool {
 	return err == os.ErrNotExist
-}
-
-// RepoRoot describes the repository root for a tree of source code.
-type RepoRoot struct {
-	Repo     string // repository URL, including scheme
-	Root     string // import path corresponding to root of repo
-	IsCustom bool   // defined by served <meta> tags (as opposed to hard-coded pattern)
-	VCS      *Cmd
-}
-
-// ModuleMode specifies whether to prefer modules when looking up code sources.
-type ModuleMode int
-
-// A ImportMismatchError is returned where metaImport/s are present
-// but none match our import path.
-type ImportMismatchError struct {
-	importPath string
-	mismatches []string // the meta imports that were discarded for not matching our importPath
-}
-
-func (m ImportMismatchError) Error() string {
-	formattedStrings := make([]string, len(m.mismatches))
-	for i, pre := range m.mismatches {
-		formattedStrings[i] = fmt.Sprintf("meta tag %s did not match import path %s", pre, m.importPath)
-	}
-	return strings.Join(formattedStrings, ", ")
 }
 
 // expand rewrites s to replace {k} with match[k] for each key k in match.

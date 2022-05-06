@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"log"
+	"net/url"
 	"strings"
 )
 
@@ -35,6 +36,11 @@ func ParseRuntime(s string) *Runtime {
 	if err := json.Unmarshal(bytes, &cfg); err != nil {
 		log.Fatalln("encore runtime: fatal error: could not parse encore runtime config:", err)
 	}
+
+	if _, err := url.Parse(cfg.APIBaseURL); err != nil {
+		log.Fatalln("encore runtime: fatal error: could not parse api base url from encore runtime config:", err)
+	}
+
 	return &cfg
 }
 

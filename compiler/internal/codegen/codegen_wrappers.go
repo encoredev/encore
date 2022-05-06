@@ -122,11 +122,6 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 				pathSegments = Qual("github.com/julienschmidt/httprouter", "Params").Values(httpParams...)
 			}
 
-			payload := Nil()
-			if rpc.Request != nil {
-				payload = Id("p" + strconv.Itoa(numParams-1))
-			}
-
 			g.Err().Op(":=").Id("call").Dot("BeginReq").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(Dict{
 				Id("Type"):            Qual("encore.dev/runtime", "RPCCall"),
 				Id("Service"):         Lit(rpc.Svc.Name),
@@ -135,7 +130,6 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 				Id("Inputs"):          Id("inputs"),
 				Id("Path"):            path,
 				Id("PathSegments"):    pathSegments,
-				Id("DecodedPayload"):  payload,
 				Id("RequireAuth"):     requireAuth,
 			}))
 			g.If().Err().Op("!=").Nil().Block(

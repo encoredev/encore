@@ -9,8 +9,8 @@ import "encore/parser/schema/v1/schema.proto";
 // Data is the metadata associated with an app version.
 message Data {
   string                  module_path         = 1; // app module path
-  string                  app_revision        = 8; // app revision (always the VCS revision reference)
-  bool                    uncommitted_changes = 9; // true if there where changes made on-top of the VCS revision
+  string                  app_revision        = 2; // app revision (always the VCS revision reference)
+  bool                    uncommitted_changes = 8; // true if there where changes made on-top of the VCS revision
   repeated schema.v1.Decl decls               = 3;
   repeated Package        pkgs                = 4;
   repeated Service        svcs                = 5;

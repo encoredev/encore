@@ -40,7 +40,7 @@ func AppMeta(ctx context.Context) (*AppMetadata, error) {
 	md := encore.Meta()
 	return &AppMetadata{
 		AppID:      md.AppID,
-		APIBaseURL: md.ApiBaseUrl.String(),
+		APIBaseURL: md.APIBaseURL.String(),
 		EnvName:    md.Environment.Name,
 		EnvType:    string(md.Environment.Type),
 	}, nil

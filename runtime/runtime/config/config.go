@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"reflect"
 	"time"
 
@@ -56,13 +55,13 @@ type Endpoint struct {
 type Runtime struct {
 	AppID         string          `json:"app_id"`
 	AppSlug       string          `json:"app_slug"`
-	APIBaseURL    url.URL         `json:"api_base_url"`
+	APIBaseURL    string          `json:"api_base_url"`
 	EnvID         string          `json:"env_id"`
 	EnvName       string          `json:"env_name"`
 	EnvType       string          `json:"env_type"`
 	EnvCloud      string          `json:"env_cloud"`
 	DeployID      string          `json:"deploy_id"`
-	Deployed      time.Time       `json:"deploy_time"`
+	DeployedAt    time.Time       `json:"deploy_time"`
 	TraceEndpoint string          `json:"trace_endpoint"`
 	AuthKeys      []EncoreAuthKey `json:"auth_keys"`
 	SQLDatabases  []*SQLDatabase  `json:"sql_databases"`

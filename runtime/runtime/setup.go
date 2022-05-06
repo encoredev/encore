@@ -97,7 +97,6 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 
 	// Select a router based on access
 	r := srv.public
-	op := RPCCall
 
 	// The Encore platform is authorised to call private APIs directly, thus if we have this header set,
 	// and authenticate it, then we can switch over to the private router which contains all API's not just
@@ -112,12 +111,6 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 		} else {
 			http.Error(w, "invalid request signature", http.StatusUnauthorized)
 			return
-		}
-
-		// If the Encore platform triggered a cronjob, this header will be set
-		// allowing us to know the operation being performed is a Cronjob rather than an RPC call
-		if h := req.Header.Get("X-Encore-Cronjob"); h != "" {
-			req = req.WithContext(contextWithCronJobID(req.Context(), h))
 		}
 	}
 
@@ -142,10 +135,7 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// We set the operation type into the context, which allows the generated handlers to correctly record
-	// the source of the operation for traces and calls to `encore.CurrentOp`
-	ctx := contextWithOpType(req.Context(), op)
-	h(w, req.WithContext(ctx), p)
+	h(w, req, p)
 }
 
 func (srv *Server) scrapeMetrics(w http.ResponseWriter, req *http.Request) {

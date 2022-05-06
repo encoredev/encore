@@ -16,7 +16,7 @@ import (
 //  - Bzr
 //  - Fossil
 func GetRevision(appRoot string) Status {
-	appRoot, cmd, err := FromDir(appRoot, "", false)
+	appRoot, cmd, err := fromDir(appRoot, "", false)
 	if err != nil {
 		log.Err(err).Str("app", appRoot).Msg("unable to determine VCS system")
 		return Status{Uncommitted: true}

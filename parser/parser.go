@@ -63,6 +63,7 @@ type parser struct {
 }
 
 // Config represents the configuration options for parsing.
+// TODO(domblack): Remove AppRevision and AppHasUncommittedChanges from here as it's compiler concern not a parser concern
 type Config struct {
 	AppRoot                  string
 	AppRevision              string

@@ -10,25 +10,25 @@ import (
 
 var applicationStartTime = time.Now()
 
-// CurrentOp returns the Operation which was the root cause of why the current code is running.
+// CurrentRequest returns the Request that is currently being handled by the calling Go routine
 //
-// It is thread safe and will return a new Operation on each evocation, so can be mutated by the
+// It is safe for concurrent use and will return a new Request on each evocation, so can be mutated by the
 // calling code without impacting future calls.
 //
-// CurrentOp will never return nil.
-func CurrentOp() *Operation {
+// CurrentRequest never returns nil.
+func CurrentRequest() *Request {
 	req, _, inRequest := runtime.CurrentRequest()
 	if !inRequest {
-		return &Operation{
-			Type:    OpNone,
+		return &Request{
+			Type:    None,
 			Started: applicationStartTime,
 		}
 	}
 
-	opType := OpNone
+	opType := None
 	switch req.Type {
 	case runtime.RPCCall, runtime.AuthHandler:
-		opType = OpApiCall
+		opType = APICall
 	}
 
 	pathParams := make(PathParams, len(req.PathSegments))
@@ -37,7 +37,7 @@ func CurrentOp() *Operation {
 		pathParams[i].Value = param.Value
 	}
 
-	return &Operation{
+	return &Request{
 		Type:       opType,
 		Service:    req.Service,
 		Endpoint:   req.Endpoint,

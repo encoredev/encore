@@ -7,24 +7,36 @@ import (
 	"encore.dev/runtime/config"
 )
 
+var apiBaseURL *url.URL
+
 // Meta returns metadata about the running application.
 //
 // Meta will never return nil.
 func Meta() *AppMetadata {
+
 	return &AppMetadata{
 		AppID:      config.Cfg.Runtime.AppSlug,
-		ApiBaseUrl: config.Cfg.Runtime.APIBaseURL,
+		APIBaseURL: *apiBaseURL,
 		Environment: EnvironmentMeta{
 			Name:  config.Cfg.Runtime.EnvName,
 			Type:  EnvironmentType(config.Cfg.Runtime.EnvType),
 			Cloud: CloudProvider(config.Cfg.Runtime.EnvCloud),
 		},
-		Deployment: DeploymentMeta{
+		Build: BuildMeta{
 			Revision:           config.Cfg.Static.AppCommit.Revision,
 			UncommittedChanges: config.Cfg.Static.AppCommit.Uncommitted,
-			DeploymentID:       config.Cfg.Runtime.DeployID,
-			Deployed:           config.Cfg.Runtime.Deployed,
 		},
+		Deploy: DeployMeta{
+			ID:   config.Cfg.Runtime.DeployID,
+			Time: config.Cfg.Runtime.DeployedAt,
+		},
+	}
+}
+
+func init() {
+	if config.Cfg != nil {
+		// We don't need to check for errors, as we already check it's parsable during the config.ParseConfig initialization
+		apiBaseURL, _ = url.Parse(config.Cfg.Runtime.APIBaseURL)
 	}
 }
 
@@ -35,19 +47,22 @@ type AppMetadata struct {
 	// To link to the Encore platform run `encore app link` from your terminal in the root directory of the Encore app.
 	AppID string
 
-	// The base URL which can be used to call the API of this running application
+	// The base URL which can be used to call the API of this running application.
 	//
 	// For local development it is "http://localhost:<port>", typically "http://localhost:4000".
 	//
 	// If a custom domain is used for this environment it is returned here, but note that
 	// changes only take effect at the time of deployment while custom domains can be updated at any time.
-	ApiBaseUrl url.URL
+	APIBaseURL url.URL
 
-	// Information about the environment the app is running in
+	// Information about the environment the app is running in.
 	Environment EnvironmentMeta
 
-	// Information about the running build
-	Deployment DeploymentMeta
+	// Information about the running binary itself.
+	Build BuildMeta
+
+	// Information about this deployment of the binary
+	Deploy DeployMeta
 }
 
 type EnvironmentMeta struct {
@@ -64,18 +79,20 @@ type EnvironmentMeta struct {
 	Cloud CloudProvider
 }
 
-type DeploymentMeta struct {
+type BuildMeta struct {
 	// The git commit that formed the base of this build.
 	Revision string
 
 	// true if there were uncommitted changes on top of the Commit.
 	UncommittedChanges bool
+}
 
-	// The deployment ID created by the Encore Platform
-	DeploymentID string
+type DeployMeta struct {
+	// The deployment ID created by the Encore Platform.
+	ID string
 
-	// The time the Encore Platform deployed this build to the environment
-	Deployed time.Time
+	// The time the Encore Platform deployed this build to the environment.
+	Time time.Time
 }
 
 // EnvironmentType represents the type of environment.
@@ -96,12 +113,8 @@ const (
 	// that only exist while a particular pull request is open.
 	EnvEphemeral EnvironmentType = "ephemeral"
 
-	// EnvLocal represents the local development environment when using 'encore run'.
+	// EnvLocal represents the local development environment when using 'encore run' or `encore test`.
 	EnvLocal EnvironmentType = "local"
-
-	// EnvUnitTest represents when code is being run from 'encore test'.
-	// It will never be used for long-running processes which can serve API requests.
-	EnvUnitTest EnvironmentType = "unit-test"
 )
 
 // CloudProvider represents the cloud provider this application is running in.
@@ -117,8 +130,7 @@ const (
 	CloudAzure CloudProvider = "azure"
 
 	// EncoreCloud is Encore's own cloud offering, and the default provider for new Environments.
-	// It is not recommended to use this cloud for production systems.
-	EncoreCloud CloudProvider = "encore-cloud"
+	EncoreCloud CloudProvider = "encore"
 
 	// CloudLocal is used when an application is running from the Encore CLI by using either
 	// 'encore run' or 'encore test'

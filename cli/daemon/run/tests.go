@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -113,18 +112,15 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		}
 	}
 	runtimeJSON, err := json.Marshal(&config.Runtime{
-		AppID:   "test",
-		AppSlug: appSlug,
-		APIBaseURL: url.URL{
-			Scheme: "http",
-			Host:   fmt.Sprintf("localhost:%d", mgr.RuntimePort),
-		},
+		AppID:         "test",
+		AppSlug:       appSlug,
+		APIBaseURL:    fmt.Sprintf("http://localhost:%d", mgr.RuntimePort),
 		DeployID:      fmt.Sprintf("clitest_%s", xid.New()),
-		Deployed:      time.Now(),
+		DeployedAt:    time.Now(),
 		EnvID:         "test",
 		EnvName:       "local",
 		EnvCloud:      string(encore.CloudLocal),
-		EnvType:       string(encore.EnvUnitTest),
+		EnvType:       string(encore.EnvLocal),
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(mgr.RuntimePort) + "/trace",
 		SQLDatabases:  dbs,
 		AuthKeys:      []config.EncoreAuthKey{genAuthKey()},
