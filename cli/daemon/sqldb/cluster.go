@@ -356,6 +356,8 @@ func ImageExists(ctx context.Context) (ok bool, err error) {
 		return true, nil
 	case bytes.Contains(out, []byte("No such image")):
 		return false, nil
+	case errors.Is(err, exec.ErrNotFound):
+		return false, nil
 	default:
 		return false, err
 	}
