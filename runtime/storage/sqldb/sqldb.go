@@ -253,7 +253,8 @@ func getPool(name string) *pgxpool.Pool {
 	if db == nil {
 		panic("sqldb: unknown database: " + name)
 	}
-	cfg, err := dbConf(db)
+	srv := config.Cfg.Runtime.SQLServers[db.ServerID]
+	cfg, err := dbConf(srv, db)
 	if err != nil {
 		panic("sqldb: " + err.Error())
 	}
@@ -275,19 +276,19 @@ func getPool(name string) *pgxpool.Pool {
 	return pool
 }
 
-func dbConf(db *config.SQLDatabase) (*pgxpool.Config, error) {
+func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, error) {
 	uri := fmt.Sprintf("user=%s password=%s dbname=%s", db.User, db.Password, db.DatabaseName)
 
 	// Handle different ways of expressing the host
-	if strings.HasPrefix(db.Host, "/") {
-		uri += " host=" + db.Host // unix socket
-	} else if host, port, err := net.SplitHostPort(db.Host); err == nil {
+	if strings.HasPrefix(srv.Host, "/") {
+		uri += " host=" + srv.Host // unix socket
+	} else if host, port, err := net.SplitHostPort(srv.Host); err == nil {
 		uri += fmt.Sprintf(" host=%s port=%s", host, port) // host:port
 	} else {
-		uri += " host=" + db.Host // hostname
+		uri += " host=" + srv.Host // hostname
 	}
 
-	if db.ServerCACert != "" {
+	if srv.ServerCACert != "" {
 		uri += " sslmode=verify-ca"
 	} else {
 		uri += " sslmode=prefer"
@@ -306,9 +307,9 @@ func dbConf(db *config.SQLDatabase) (*pgxpool.Config, error) {
 	}
 
 	// If we have a server CA, set it in the TLS config.
-	if db.ServerCACert != "" {
+	if srv.ServerCACert != "" {
 		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM([]byte(db.ServerCACert)) {
+		if !caCertPool.AppendCertsFromPEM([]byte(srv.ServerCACert)) {
 			return nil, fmt.Errorf("invalid server ca cert")
 		}
 		cfg.ConnConfig.TLSConfig.RootCAs = caCertPool
@@ -316,8 +317,8 @@ func dbConf(db *config.SQLDatabase) (*pgxpool.Config, error) {
 	}
 
 	// If we have a client cert, set it in the TLS config.
-	if db.ClientCert != "" {
-		cert, err := tls.X509KeyPair([]byte(db.ClientCert), []byte(db.ClientKey))
+	if srv.ClientCert != "" {
+		cert, err := tls.X509KeyPair([]byte(srv.ClientCert), []byte(srv.ClientKey))
 		if err != nil {
 			return nil, fmt.Errorf("parse client cert: %v", err)
 		}
