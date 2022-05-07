@@ -28,6 +28,10 @@ func TestParseStructTag(t *testing.T) {
 			Tag:  `json:"foo,omitempty" qs:"-" encore:"optional"`,
 			Want: structFieldOptions{JSONName: "foo", QueryStringName: "-", Optional: true},
 		},
+		{
+			Tag:  `header:"X-Forwarded-For"`,
+			Want: structFieldOptions{HTTPHeaderName: "X-Forwarded-For"},
+		},
 	}
 
 	fset := token.NewFileSet()

@@ -101,6 +101,7 @@ message Field {
   string json_name         = 4; // The optional json name if it's different from the field name. (The value "-" indicates to omit the field.)
   bool   optional          = 5; // Whether the field is optional.
   string query_string_name = 6; // The query string name to use in GET/HEAD/DELETE requests. (The value "-" indicates to omit the field.)
+  string http_header_name  = 7; // The HTTP header name this value is read from/written as.
 }
 
 // Map represents a map Type

@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"net/http"
 	"reflect"
 	"strconv"
 	"unicode"
@@ -34,7 +35,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 			return p.parseDecl(pkg, d, typeParameters)
 		}
 
-		// Finally check if it's a built-in type
+		// Finally, check if it's a built-in type
 		if b, ok := builtinTypes[expr.Name]; ok {
 			return &schema.Type{
 				Typ: &schema.Type_Builtin{Builtin: b},
@@ -107,6 +108,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 					Optional:        opts.Optional,
 					JsonName:        opts.JSONName,
 					QueryStringName: opts.QueryStringName,
+					HttpHeaderName:  http.CanonicalHeaderKey(opts.HTTPHeaderName),
 				}
 				if f.QueryStringName == "" {
 					f.QueryStringName = snakeCase(f.Name)
@@ -174,6 +176,9 @@ type structFieldOptions struct {
 	// QueryStringName is set if there is a distinct query string name (`qs:"foo"`).
 	// If QueryStringName == "-" it indicates to omit the field entirely.
 	QueryStringName string
+	// HTTPHeaderName is non-empty if there's an HTTP header this value should be
+	// read from/written as.
+	HTTPHeaderName string
 	// Optional is true if there is an `encore:"optional"` tag
 	Optional bool
 }
@@ -211,6 +216,11 @@ func (p *parser) parseStructTag(tag *ast.BasicLit) structFieldOptions {
 	if qs, _ := tags.Get("qs"); qs != nil {
 		if v := qs.Name; v != "" {
 			opts.QueryStringName = v
+		}
+	}
+	if qs, _ := tags.Get("header"); qs != nil {
+		if v := qs.Name; v != "" {
+			opts.HTTPHeaderName = v
 		}
 	}
 	return opts

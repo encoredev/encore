@@ -161,6 +161,8 @@ export interface Field {
   optional: boolean;
   /** The query string name to use in GET/HEAD/DELETE requests. (The value "-" indicates to omit the field.) */
   query_string_name: string;
+  /** The HTTP header name this value is read from/written as. */
+  http_header_name: string;
 }
 
 /** Map represents a map Type */
