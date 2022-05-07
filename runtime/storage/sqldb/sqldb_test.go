@@ -9,16 +9,19 @@ import (
 
 func TestDBConf(t *testing.T) {
 	tests := []struct {
+		Srv      *config.SQLServer
 		DB       *config.SQLDatabase
 		Host     string
 		Port     uint16
 		MaxConns uint32
 	}{
 		{
+			Srv: &config.SQLServer{
+				Host: "/cloudsql/foo",
+			},
 			DB: &config.SQLDatabase{
 				EncoreName:     "ignore",
 				DatabaseName:   "dbname",
-				Host:           "/cloudsql/foo",
 				User:           "user",
 				Password:       "password",
 				MaxConnections: 10,
@@ -28,10 +31,12 @@ func TestDBConf(t *testing.T) {
 			MaxConns: 10,
 		},
 		{
+			Srv: &config.SQLServer{
+				Host: "test:123",
+			},
 			DB: &config.SQLDatabase{
 				EncoreName:     "ignore",
 				DatabaseName:   "dbname",
-				Host:           "test:123",
 				User:           "user",
 				Password:       "password",
 				MaxConnections: 0,
@@ -41,10 +46,12 @@ func TestDBConf(t *testing.T) {
 			MaxConns: 30,
 		},
 		{
+			Srv: &config.SQLServer{
+				Host: "hostname",
+			},
 			DB: &config.SQLDatabase{
 				EncoreName:     "ignore",
 				DatabaseName:   "dbname",
-				Host:           "hostname",
 				User:           "user",
 				Password:       "password",
 				MaxConnections: 100,
@@ -56,7 +63,7 @@ func TestDBConf(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		cfg, err := dbConf(test.DB)
+		cfg, err := dbConf(test.Srv, test.DB)
 		if err != nil {
 			t.Fatalf("test %d: unexpected error: %v", i, err)
 		}

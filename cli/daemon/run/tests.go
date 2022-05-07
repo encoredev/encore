@@ -85,13 +85,16 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		secrets = data.Values
 	}
 
+	sqlServer := &config.SQLServer{
+		Host: "localhost:" + strconv.Itoa(mgr.DBProxyPort),
+	}
 	var dbs []*config.SQLDatabase
 	for _, svc := range params.Parse.Meta.Svcs {
 		if len(svc.Migrations) > 0 {
 			dbs = append(dbs, &config.SQLDatabase{
+				ServerID:     0,
 				EncoreName:   svc.Name,
 				DatabaseName: svc.Name,
-				Host:         "localhost:" + strconv.Itoa(mgr.DBProxyPort),
 				User:         "encore",
 				Password:     params.DBClusterID,
 			})
@@ -103,6 +106,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EnvName:       "local",
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(mgr.RuntimePort) + "/trace",
 		SQLDatabases:  dbs,
+		SQLServers:    []*config.SQLServer{sqlServer},
 	})
 	if err != nil {
 		return err

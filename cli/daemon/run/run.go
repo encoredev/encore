@@ -444,13 +444,16 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 }
 
 func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
+	sqlServer := &config.SQLServer{
+		Host: "localhost:" + strconv.Itoa(params.DBProxyPort),
+	}
+
 	var dbs []*config.SQLDatabase
 	for _, svc := range params.Meta.Svcs {
 		if len(svc.Migrations) > 0 {
 			dbs = append(dbs, &config.SQLDatabase{
 				EncoreName:   svc.Name,
 				DatabaseName: svc.Name,
-				Host:         "localhost:" + strconv.Itoa(params.DBProxyPort),
 				User:         "encore",
 				Password:     params.DBClusterID,
 			})
@@ -463,6 +466,7 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		EnvName:       "local",
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
 		SQLDatabases:  dbs,
+		SQLServers:    []*config.SQLServer{sqlServer},
 		AuthKeys:      []config.EncoreAuthKey{p.authKey},
 	}
 }
