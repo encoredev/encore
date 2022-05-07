@@ -85,6 +85,14 @@ func (b *Builder) BuildBinaries() error {
 		return fmt.Errorf("go build git-remote-encore failed: %s (%v)", out, err)
 	}
 
+	cmd = exec.Command("go", "build",
+		"-o", join(b.dst, "bin", "go-encore-wrapper"),
+		"./cli/cmd/go-encore-wrapper")
+	cmd.Env = env
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("go build go-encore-wrapper failed: %s (%v)", out, err)
+	}
+
 	return nil
 }
 

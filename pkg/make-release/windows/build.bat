@@ -74,6 +74,7 @@ if exist .deps\prepared goto :build
 	echo [+] Building
 	go build -tags load_wintun_from_rsrc -ldflags "-X 'encr.dev/cli/internal/version.Version=v%ENCORE_VERSION%'" -o "%DST%\bin\encore.exe" "%ROOT%\cli\cmd\encore" || exit /b 1
 	go build -trimpath -o "%DST%\bin\git-remote-encore.exe" "%ROOT%\cli\cmd\git-remote-encore" || exit /b 1
+	go build -trimpath -o "%DST%\bin\go-encore-wrapper.exe" "%ROOT%\cli\cmd\go-encore-wrapper" || exit /b 1
 	goto :eof
 
 :copy_artifacts
