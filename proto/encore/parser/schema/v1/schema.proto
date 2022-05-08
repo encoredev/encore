@@ -21,6 +21,8 @@ message Type {
     /* Abstract Types */
     TypeParameterRef type_parameter = 6; // This is placeholder for a unknown type within the declaration block
   }
+
+  bool pointer = 7;  // Whether the type is a pointer to typ.
 }
 
 // TypeParameterRef is a reference to a `TypeParameter` within a declaration block

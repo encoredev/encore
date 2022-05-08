@@ -19,8 +19,14 @@ import (
 var additionalTypeResolver = func(p *parser, pkg *est.Package, file *est.File, expr ast.Expr) *schema.Type { return nil }
 
 // resolveType parses the schema from a type expression.
-func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) *schema.Type {
-	expr = deref(expr)
+func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) (typ *schema.Type) {
+	expr, hasPointer := deref(expr)
+	defer func() {
+		if typ != nil {
+			typ.Pointer = hasPointer
+		}
+	}()
+
 	pkgNames := p.names[pkg]
 
 	switch expr := expr.(type) {
@@ -245,15 +251,16 @@ func getField(list *ast.FieldList, n int) (field *ast.Field, name string) {
 	return nil, ""
 }
 
-func deref(expr ast.Expr) ast.Expr {
+func deref(expr ast.Expr) (dereferenced ast.Expr, hadPointer bool) {
 	for {
 		star, ok := expr.(*ast.StarExpr)
 		if !ok {
 			break
 		}
+		hadPointer = true
 		expr = star.X
 	}
-	return expr
+	return expr, hadPointer
 }
 
 var builtinTypes = map[string]schema.Builtin{

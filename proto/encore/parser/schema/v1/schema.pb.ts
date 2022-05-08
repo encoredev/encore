@@ -51,6 +51,8 @@ export interface Type {
   builtin: Builtin | undefined;
   /** Abstract Types */
   type_parameter: TypeParameterRef | undefined;
+  /** Whether the type is a pointer to typ. */
+  pointer: boolean;
 }
 
 /** TypeParameterRef is a reference to a `TypeParameter` within a declaration block */
