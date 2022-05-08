@@ -19,23 +19,28 @@ jobs:
             goos: linux
             goarch: amd64
             release_key: linux_x86-64
+            cgo: true
           - builder: ubuntu-latest
             goos: linux
             goarch: arm64
             release_key: linux_arm64
+            cgo: false
           - builder: macos-latest
             goos: darwin
             goarch: amd64
             release_key: macos_x86-64
+            cgo: true
           - builder: macos-latest
             goos: darwin
             goarch: arm64
             release_key: macos_arm64
+            cgo: true
           - builder: windows-latest
             goos: windows
             goarch: amd64
             release_key: windows_x86-64
-    
+            cgo: "1" # different format for windows
+
     runs-on: ${{ matrix.builder }}
     steps:
     - name: Check out repo
@@ -62,7 +67,7 @@ jobs:
         key: ${{ matrix.goos }}-${{ matrix.goarch }}-go-mod-${{ hashFiles('**/go.sum') }}
 
     - name: Build
-      run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=${{ matrix.goos }} -goarch=${{ matrix.goarch }} -encore-go="../encore-go"
+      run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=${{ matrix.goos }} -goarch=${{ matrix.goarch }} -encore-go="../encore-go" -cgo=${{ matrix.cgo }}
       env: 
         GO111MODULE: "on"
       if: runner.os != 'windows'
@@ -73,6 +78,7 @@ jobs:
         GO111MODULE: "on"
         ENCORE_VERSION: "${{ github.event.inputs.version }}"
         ENCORE_GOROOT: "../encore-go"
+        CGO_ENABLED: "${{ matrix.cgo }}"
       if: runner.os == 'windows'
 
     - name: 'Tar artifacts'
