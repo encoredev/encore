@@ -15,6 +15,7 @@ type Builder struct {
 	encoreGo string
 	dst      string
 	version  string
+	cgo      bool
 }
 
 func (b *Builder) PrepareWorkdir() error {
@@ -46,10 +47,14 @@ func (b *Builder) BuildDashFrontend() error {
 
 func (b *Builder) BuildBinaries() error {
 	env := append(os.Environ(),
-		"CGO_ENABLED=1",
 		"GOOS="+b.GOOS,
 		"GOARCH="+b.GOARCH,
 	)
+	if b.cgo {
+		env = append(env, "CGO_ENABLED=1")
+	} else {
+		env = append(env, "CGO_ENABLED=0")
+	}
 
 	if b.GOOS == "darwin" {
 		var target string
@@ -122,6 +127,7 @@ func main() {
 	dst := flag.String("dst", "", "build destination")
 	version := flag.String("v", "", "version number (without 'v')")
 	encoreGo := flag.String("encore-go", "", "path to encore-go root")
+	cgo := flag.Bool("cgo", true, "whether to build with cgo")
 	flag.Parse()
 	if *goos == "" || *goarch == "" || *dst == "" || *version == "" || *encoreGo == "" {
 		log.Fatalf("missing -dst %q, -goos %q, -goarch %q, -v %q, or -encore-go %q", *dst, *goos, *goarch, *version, *encoreGo)
@@ -149,6 +155,7 @@ func main() {
 		encoreGo: filepath.FromSlash(*encoreGo),
 		dst:      join(*dst, *goos+"_"+*goarch),
 		version:  *version,
+		cgo:      *cgo,
 	}
 
 	for _, f := range []func() error{
