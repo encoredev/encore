@@ -19,6 +19,10 @@ jobs:
             goos: linux
             goarch: amd64
             release_key: linux_x86-64
+          - builder: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            release_key: linux_arm64
           - builder: macos-latest
             goos: darwin
             goarch: amd64
