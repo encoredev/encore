@@ -34,8 +34,12 @@ func Meta() *AppMetadata {
 }
 
 func init() {
-	// We don't need to check for errors, as we already check it's parsable during the config.ParseConfig initialization
-	apiBaseURL, _ = url.Parse(config.Cfg.Runtime.APIBaseURL)
+	// If this package is imported outside an Encore application, these will be nil, as we will not have initialised
+	// or a dummy `config.LoadConfig` would have been linked in which will not return a config
+	if config.Cfg != nil && config.Cfg.Runtime != nil {
+		// We don't need to check for errors, as we already check it's parsable during the config.ParseConfig initialization
+		apiBaseURL, _ = url.Parse(config.Cfg.Runtime.APIBaseURL)
+	}
 }
 
 // AppMetadata contains metadata about the running Encore application.
