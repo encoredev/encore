@@ -1,5 +1,3 @@
-//go:build encore_internal
-
 package runtime
 
 import (
@@ -55,7 +53,7 @@ type Type byte
 
 const (
 	RPCCall     Type = 0x01
-	AuthHandler      = 0x02
+	AuthHandler Type = 0x02
 )
 
 type Request struct {

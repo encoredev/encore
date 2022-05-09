@@ -112,14 +112,6 @@ type SQLServer struct {
 	// Valid formats are "hostname", "hostname:port", and "/path/to/unix.socket".
 	Host string `json:"host"`
 
-	// MinConnections is the minimum number of open connections to use
-	// for this database. If zero it defaults to 2.
-	MinConnections int `json:"min_connections"`
-
-	// MaxConnections is the maximum number of open connections to use
-	// for this database. If zero it defaults to 30.
-	MaxConnections int `json:"max_connections"`
-
 	// ServerCACert is the PEM-encoded server CA cert, or "" if not required.
 	ServerCACert string `json:"server_ca_cert"`
 	// ClientCert is the PEM-encoded client cert, or "" if not required.
@@ -134,6 +126,14 @@ type SQLDatabase struct {
 	DatabaseName string `json:"database_name"` // the actual database name as known by the SQL server.
 	User         string `json:"user"`
 	Password     string `json:"password"`
+
+	// MinConnections is the minimum number of open connections to use
+	// for this database. If zero it defaults to 2.
+	MinConnections int `json:"min_connections"`
+
+	// MaxConnections is the maximum number of open connections to use
+	// for this database. If zero it defaults to 30.
+	MaxConnections int `json:"max_connections"`
 }
 
 var Cfg *Config

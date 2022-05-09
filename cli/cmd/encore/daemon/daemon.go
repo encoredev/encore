@@ -16,9 +16,9 @@ import (
 
 	"encr.dev/cli/daemon"
 	"encr.dev/cli/daemon/dash"
+	"encr.dev/cli/daemon/engine"
+	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/daemon/run"
-	"encr.dev/cli/daemon/runtime"
-	"encr.dev/cli/daemon/runtime/trace"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/xos"

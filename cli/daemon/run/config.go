@@ -1,12 +1,12 @@
-package runtime
+package run
 
 import (
-	"encore.dev/runtime/config"
-
 	_ "unsafe"
+
+	"encore.dev/runtime/config"
 )
 
-// loadBlankConfigInstance is linked into the runtime/config package
+// loadBlankConfigInstance is linked into the encore.devruntime/config package
 // such that the package init will work outside a compiled encore app.
 // This allows us to reuse the config structures between the daemon and
 // the compiled app.
