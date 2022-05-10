@@ -8,7 +8,7 @@ Encore makes it incredibly simple to create distributed systems, backend service
 
 * No reinventing the wheel.
 
-Start building with a fantastic flow-state experience that unlocks your creative potential. <br/>All of this is freely available, based on the Open Source Encore Go Framework.
+Start building with a fantastic flow state experience that unlocks your creative potential. <br/>All of this is freely available, based on the Open Source Encore Go Framework.
 <br/>
 
 **🏁 Get started in minutes and check out the documentation: [encore.dev/docs](https://encore.dev/docs/quick-start)**
@@ -53,28 +53,6 @@ Start building with a fantastic flow-state experience that unlocks your creative
 
 Deploy your first app in minutes by following the [Quick Start Guide](https://encore.dev/docs/quick-start).
 
-## Screenshots
-
-### Simple Cloud Environments
-
-<img src="https://encore.dev/assets/github/environments.png" alt="Simple Cloud Environments" width=50% height=50%>
-
-### Automatic Infrastructure Provisioning
-
-<img src="https://encore.dev/assets/github/infrastructure.png" alt="Automatic Infrastructure Provisioning" width=50% height=50%>
-
-### Distributed Tracing
-
-<img src="https://encore.dev/assets/github/tracing.png" alt="Distributed Tracing" width=50% height=50%>
-
-### Automated API Documentation
-
-<img src="https://encore.dev/assets/github/documentation.png" alt="Automated API Documentation" width=50% height=50%>
-
-### Native Cron Jobs
-
-<img src="https://encore.dev/assets/github/cronjobs.png" alt="Native Cron Jobs" width=50% height=50%>
-
 ## Join the most pioneering developer community
 Engineers building with Encore are forward thinkers who wish to unlock their creativity and focus on building great software to solve meaningful problems. It's a friendly place to be, great for exchanging ideas and learnings! **Join the conversation on [Slack](https://encore.dev/slack).**
 
@@ -91,6 +69,32 @@ Here's how you can contribute:
 ## Contributing to Encore and building from source
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Visuals
+
+### Local Development Dashboard
+
+https://user-images.githubusercontent.com/78424526/167644884-322a5cf5-8838-45ab-8c25-a59517bd3784.mp4
+
+### Built-in CI/CD & Infrastructure Provisioning
+
+https://user-images.githubusercontent.com/78424526/167646228-451fbf7a-0649-4b25-b969-47501d73cb60.mp4
+
+### Simple Cloud Environments
+
+<img src="https://encore.dev/assets/github/environments.png" alt="Simple Cloud Environments" width=75% height=75%>
+
+### Distributed Tracing
+
+<img src="https://encore.dev/assets/github/tracing.png" alt="Distributed Tracing" width=75% height=75%>
+
+### Automated API Documentation
+
+<img src="https://encore.dev/assets/github/documentation.png" alt="Automated API Documentation" width=75% height=75%>
+
+### Native Cron Jobs
+
+<img src="https://encore.dev/assets/github/cronjobs.png" alt="Native Cron Jobs" width=75% height=75%>
 
 ## Frequently Asked Questions (FAQ)
 
@@ -122,7 +126,7 @@ We've found that to meaningfully improve the developer experience, you have to o
 
 Encore has been designed to let you go outside of the framework when you want to, and easily drop down in abstraction level when you need to. This means you're not likely to run into any "dead ends".
 
-If you really do want to migrate away, it's relatively easy to do. Because when you build an Encore application, the vast majority of code is just plain Go. So in practise, the amount of code specific to Encore is very small.
+If you really do want to migrate away, it's relatively easy to do. Because when you build an Encore application, the vast majority of code is just plain Go. So in practice, the amount of code specific to Encore is very small.
 
 And with Encore, most of the value comes from letting you avoid doing a bunch of foundational work. Which means what you need to do when migrating away, is exactly what you would have had to do without Encore anyway.
 
