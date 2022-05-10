@@ -29,6 +29,10 @@ func (b *Builder) Wrappers(pkg *est.Package, wrappers []*est.RPC) *File {
 }
 
 func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
+	if rpc.Raw {
+		return b.buildRawRPCWrapper(f, rpc)
+	}
+
 	var pathTemplate strings.Builder
 	segs := make([]paths.Segment, 0, len(rpc.Path.Segments))
 	for _, s := range rpc.Path.Segments {
@@ -94,7 +98,7 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 			pathSegments := Nil()
 			if len(segs) > 0 {
 				paramsForFormat := make([]Code, len(segs)+1)
-				paramsForFormat[0] = path // The literail formatting string
+				paramsForFormat[0] = path // The literal formatting string
 
 				httpParams := make([]Code, len(segs))
 
@@ -200,6 +204,85 @@ func (b *Builder) buildRPCWrapper(f *File, rpc *est.RPC) *Statement {
 		} else {
 			g.Return(Id("response").Dot("err"))
 		}
+	})
+}
+
+func (b *Builder) buildRawRPCWrapper(f *File, rpc *est.RPC) *Statement {
+	var pathTemplate strings.Builder
+	segs := make([]paths.Segment, 0, len(rpc.Path.Segments))
+	for _, s := range rpc.Path.Segments {
+		if s.Type != paths.Literal {
+			segs = append(segs, s)
+			pathTemplate.WriteString("%s")
+		} else {
+			pathTemplate.WriteString(s.Value)
+		}
+	}
+
+	return Func().Id("__encore_" + rpc.Svc.Name + "_" + rpc.Name).ParamsFunc(func(g *Group) {
+		g.Id("w").Qual("net/http", "ResponseWriter")
+		g.Id("req").Op("*").Qual("net/http", "Request")
+	}).BlockFunc(func(g *Group) {
+		traceID := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
+		g.List(Id("call"), Err()).Op(":=").Qual("encore.dev/runtime", "BeginCall").Call(Qual("encore.dev/runtime", "CallParams").Values(Dict{
+			Id("Service"):         Lit(rpc.Svc.Name),
+			Id("Endpoint"):        Lit(rpc.Name),
+			Id("EndpointExprIdx"): Lit(traceID),
+		}))
+		g.If(Err().Op("!=").Nil()).Block(Return())
+		g.Line()
+		g.Comment("Run the request in a different goroutine")
+		g.Var().Id("response").Struct(
+			Id("data").Index().Index().Byte(),
+			Err().Error(),
+		)
+		g.Id("done").Op(":=").Make(Chan().Struct())
+		g.Go().Func().Params().BlockFunc(func(g *Group) {
+			g.Defer().Close(Id("done"))
+			requireAuth := False()
+			if rpc.Access == est.Auth {
+				requireAuth = True()
+			}
+			g.Err().Op(":=").Id("call").Dot("BeginReq").Call(
+				Id("req").Dot("Context").Call(),
+				Qual("encore.dev/runtime", "RequestData").Values(Dict{
+					Id("Type"):            Qual("encore.dev/runtime", "RPCCall"),
+					Id("Service"):         Lit(rpc.Svc.Name),
+					Id("Endpoint"):        Lit(rpc.Name),
+					Id("EndpointExprIdx"): Lit(traceID),
+					Id("Inputs"):          Nil(),
+					Id("Path"):            Id("req").Dot("URL").Dot("Path"),
+					Id("PathSegments"):    Nil(),
+					Id("RequireAuth"):     requireAuth,
+				}))
+			g.If().Err().Op("!=").Nil().Block(
+				Id("response").Dot("err").Op("=").Err(),
+				Return(),
+			)
+			g.Defer().Func().Params().Block(
+				If(Id("err2").Op(":=").Recover(), Id("err2").Op("!=").Nil()).Block(
+					Id("response").Dot("err").Op("=").Add(buildErrf("Internal", "panic handling request: %v", Id("err2"))),
+					Id("call").Dot("FinishReq").Call(Nil(), Id("response").Dot("err")),
+				),
+			).Call()
+			g.Line()
+
+			g.Id("m").Op(":=").Qual("github.com/felixge/httpsnoop", "CaptureMetrics").Call(
+				Qual("net/http", "HandlerFunc").Call(Qual(rpc.Svc.Root.ImportPath, rpc.Name)), Id("w"), Id("req"),
+			)
+			g.If(Id("m").Dot("Code").Op(">=").Lit(400)).Block(
+				Id("rpcErr").Op(":=").Qual("fmt", "Errorf").Call(Lit("response status code %d"), Id("m").Dot("Code")),
+				Id("call").Dot("FinishReq").Call(Nil(), Id("rpcErr")),
+				Id("response").Dot("err").Op("=").Qual("encore.dev/beta/errs", "RoundTrip").Call(Id("rpcErr")),
+			).Else().Block(
+				Id("call").Dot("FinishReq").Call(Id("response").Dot("data"), Nil()),
+			)
+			return
+		}).Call()
+		g.Op("<-").Id("done")
+		g.Line()
+
+		g.Id("call").Dot("Finish").Call(Id("response").Dot("err"))
 	})
 }
 

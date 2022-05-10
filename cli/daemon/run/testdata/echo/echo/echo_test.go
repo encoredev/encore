@@ -1,10 +1,25 @@
 package echo
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 )
+
+func TestRaw(t *testing.T) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/raw", strings.NewReader("body here"))
+	Raw(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("got non-200 response: %v: %s", w.Code, w.Body)
+	}
+	want := "POST /raw 205 body here\n"
+	if got := w.Body.String(); got != want {
+		t.Fatalf("got body %q, want %q", got, want)
+	}
+}
 
 // TestEnvsProvided tests that 'go test' was invoked with the envs we expect.
 func TestEnvsProvided(t *testing.T) {

@@ -943,7 +943,9 @@ import (
 	"encore.dev/runtime"
 	"encore.dev/types/uuid"
 	"fmt"
+	"github.com/felixge/httpsnoop"
 	"github.com/julienschmidt/httprouter"
+	"net/http"
 	"net/url"
 )
 
@@ -1339,11 +1341,7 @@ func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (err error) {
 	return response.err
 }
 
-func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
-	inputs, err := runtime.SerializeInputs(p0, p1)
-	if err != nil {
-		return
-	}
+func __encore_svc_Seven(w http.ResponseWriter, req *http.Request) {
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Seven",
 		EndpointExprIdx: 20,
@@ -1361,21 +1359,15 @@ func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
+		err := call.BeginReq(req.Context(), runtime.RequestData{
 			Endpoint:        "Seven",
 			EndpointExprIdx: 20,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/foo/%s/%s", url.PathEscape(p0), url.PathEscape(p1)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "bar",
-				Value: p0,
-			}, httprouter.Param{
-				Key:   "baz",
-				Value: p1,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
+			Inputs:          nil,
+			Path:            req.URL.Path,
+			PathSegments:    nil,
+			RequireAuth:     false,
+			Service:         "svc",
+			Type:            runtime.RPCCall,
 		})
 		if err != nil {
 			response.err = err
@@ -1388,17 +1380,9 @@ func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
 			}
 		}()
 
-		var (
-			r0 string
-			r1 string
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcErr := Seven(ctx, r0, r1)
-		if rpcErr != nil {
+		m := httpsnoop.CaptureMetrics(http.HandlerFunc(Seven), w, req)
+		if m.Code >= 400 {
+			rpcErr := fmt.Errorf("response status code %d", m.Code)
 			call.FinishReq(nil, rpcErr)
 			response.err = errs.RoundTrip(rpcErr)
 		} else {
@@ -1408,7 +1392,6 @@ func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
 	<-done
 
 	call.Finish(response.err)
-	return response.err
 }
 
 func __encore_svc_Six(ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParams) (err error) {
