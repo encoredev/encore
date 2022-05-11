@@ -20,6 +20,7 @@ import (
 	"encore.dev/internal/stack"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
+	"encore.dev/runtime/trace"
 )
 
 var (
@@ -610,39 +611,39 @@ var (
 
 const driverName = "__encore_stdlib"
 
-func traceQueryStart(query string, spanID runtime.SpanID, goid, qid, txid uint64, skipFrames int) {
-	var tb runtime.TraceBuf
+func traceQueryStart(query string, spanID trace.SpanID, goid, qid, txid uint64, skipFrames int) {
+	var tb trace.TraceBuf
 	tb.UVarint(qid)
 	tb.Bytes(spanID[:])
 	tb.UVarint(txid)
 	tb.UVarint(goid)
 	tb.String(query)
 	tb.Stack(stack.Build(skipFrames))
-	runtime.TraceLog(runtime.QueryStart, tb.Buf())
+	runtime.TraceLog(trace.QueryStart, tb.Buf())
 }
 
 func traceQueryEnd(qid uint64, err error) {
-	var tb runtime.TraceBuf
+	var tb trace.TraceBuf
 	tb.UVarint(qid)
 	if err != nil {
 		tb.String(err.Error())
 	} else {
 		tb.String("")
 	}
-	runtime.TraceLog(runtime.QueryEnd, tb.Buf())
+	runtime.TraceLog(trace.QueryEnd, tb.Buf())
 }
 
-func traceBeginTxEnd(spanID runtime.SpanID, goid, txid uint64, skipFrames int) {
-	var tb runtime.TraceBuf
+func traceBeginTxEnd(spanID trace.SpanID, goid, txid uint64, skipFrames int) {
+	var tb trace.TraceBuf
 	tb.UVarint(txid)
 	tb.Bytes(spanID[:])
 	tb.UVarint(goid)
 	tb.Stack(stack.Build(skipFrames))
-	runtime.TraceLog(runtime.TxStart, tb.Buf())
+	runtime.TraceLog(trace.TxStart, tb.Buf())
 }
 
-func traceCompleteTxEnd(spanID runtime.SpanID, goid, txid uint64, commit bool, err error, skipFrames int) {
-	var tb runtime.TraceBuf
+func traceCompleteTxEnd(spanID trace.SpanID, goid, txid uint64, commit bool, err error, skipFrames int) {
+	var tb trace.TraceBuf
 	tb.UVarint(txid)
 	tb.Bytes(spanID[:])
 	tb.UVarint(uint64(goid))
@@ -657,5 +658,5 @@ func traceCompleteTxEnd(spanID runtime.SpanID, goid, txid uint64, commit bool, e
 		tb.String("")
 	}
 	tb.Stack(stack.Build(skipFrames))
-	runtime.TraceLog(runtime.TxEnd, tb.Buf())
+	runtime.TraceLog(trace.TxEnd, tb.Buf())
 }
