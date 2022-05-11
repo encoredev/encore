@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"unsafe"
+
+	"encore.dev/runtime/trace"
 )
 
 // encoreG tracks per-goroutine Encore-specific data.
@@ -45,7 +47,7 @@ type encoreOp struct {
 // encoreReq represents an Encore API request.
 type encoreReq struct {
 	// spanID is the request span id.
-	spanID SpanID
+	spanID trace.SpanID
 	// data is request-specific data defined in the Encore runtime.
 	data *Request
 }
@@ -66,13 +68,13 @@ func encoreFinishOp()
 // encoreTraceEvent adds the event to the trace.
 // The g must already be part of an operation.
 //go:linkname encoreTraceEvent runtime.encoreTraceEvent
-func encoreTraceEvent(event TraceEvent, data []byte)
+func encoreTraceEvent(event trace.TraceEvent, data []byte)
 
 // encoreBeginReq sets the request data for the current g,
 // and increases the ref count on the operation.
 // It must already be part of an operation.
 //go:linkname encoreBeginReq runtime.encoreBeginReq
-func encoreBeginReq(spanID SpanID, req *Request, trace bool)
+func encoreBeginReq(spanID trace.SpanID, req *Request, trace bool)
 
 // encoreCompleteReq completes the request and decreases the
 // ref count on the operation.
@@ -92,7 +94,7 @@ type encoreTraceID [16]byte
 // encoreSendTrace is called by Encore's go runtime to send a trace.
 //go:linkname encoreSendTrace runtime.encoreSendTrace
 func encoreSendTrace(data []byte) {
-	go asyncSendTrace(data)
+	go trace.AsyncSendTrace(data)
 }
 
 //go:linkname encoreBeginRoundTrip net/http.encoreBeginRoundTrip

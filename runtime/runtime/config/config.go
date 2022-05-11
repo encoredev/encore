@@ -1,12 +1,9 @@
 package config
 
 import (
-	"encoding/base64"
-	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -31,6 +28,11 @@ type Static struct {
 	// AuthData is the custom auth data type, or nil
 	AuthData reflect.Type
 
+	// The version of Encore which the app was compiled with.
+	// This is string is for informational use only, and it's format should not be relied on.
+	EncoreCompiler string
+	AppCommit      CommitInfo // The commit which this service was built from
+
 	Testing     bool
 	TestService string // service being tested, if any
 }
@@ -53,9 +55,13 @@ type Endpoint struct {
 type Runtime struct {
 	AppID         string          `json:"app_id"`
 	AppSlug       string          `json:"app_slug"`
-	AppCommit     string          `json:"app_commit"`
+	APIBaseURL    string          `json:"api_base_url"`
 	EnvID         string          `json:"env_id"`
 	EnvName       string          `json:"env_name"`
+	EnvType       string          `json:"env_type"`
+	EnvCloud      string          `json:"env_cloud"`
+	DeployID      string          `json:"deploy_id"`
+	DeployedAt    time.Time       `json:"deploy_time"`
 	TraceEndpoint string          `json:"trace_endpoint"`
 	AuthKeys      []EncoreAuthKey `json:"auth_keys"`
 	SQLDatabases  []*SQLDatabase  `json:"sql_databases"`
@@ -65,6 +71,18 @@ type Runtime struct {
 	// meaning connections are closed even if outstanding requests are still in flight.
 	// If zero, it shuts down immediately.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
+}
+
+type CommitInfo struct {
+	Revision    string `json:"revision"`
+	Uncommitted bool   `json:"uncommitted"`
+}
+
+func (ci CommitInfo) AsRevisionString() string {
+	if ci.Uncommitted {
+		return fmt.Sprintf("%s-modified", ci.Revision)
+	}
+	return ci.Revision
 }
 
 func (r *Runtime) Copy() *Runtime {
@@ -118,53 +136,4 @@ type SQLDatabase struct {
 	MaxConnections int `json:"max_connections"`
 }
 
-// ParseRuntime parses the Encore runtime config.
-func ParseRuntime(s string) *Runtime {
-	if s == "" {
-		log.Fatalln("encore runtime: fatal error: no encore runtime config provided")
-	}
-	bytes, err := base64.RawURLEncoding.DecodeString(s)
-	if err != nil {
-		log.Fatalln("encore runtime: fatal error: could not decode encore runtime config:", err)
-	}
-
-	var cfg Runtime
-	if err := json.Unmarshal(bytes, &cfg); err != nil {
-		log.Fatalln("encore runtime: fatal error: could not parse encore runtime config:", err)
-	}
-	return &cfg
-}
-
-// ParseSecrets parses secrets in "key1=base64(val1),key2=base64(val2)" format into a map.
-func ParseSecrets(s string) map[string]string {
-	m := make(map[string]string)
-	if s == "" {
-		return m
-	}
-	for _, part := range strings.Split(s, ",") {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) != 2 {
-			log.Fatalln("encore runtime: fatal error: invalid secret value")
-		}
-		val, err := base64.RawURLEncoding.DecodeString(kv[1])
-		if err != nil {
-			log.Fatalln("encore runtime: fatal error: invalid secret value")
-		}
-		m[kv[0]] = string(val)
-	}
-	return m
-}
-
 var Cfg *Config
-
-func init() {
-	cfg, err := loadConfig()
-	if err != nil {
-		log.Fatalf("encore runtime: fatal error: could not load config: %v", err)
-	}
-	Cfg = cfg
-}
-
-// loadConfig loads the Encore app configuration.
-// It is provided by the main package using go:linkname.
-func loadConfig() (*Config, error)

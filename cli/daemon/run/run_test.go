@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -27,7 +28,7 @@ func TestStartProc(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 	defer ln.Close()
 
-	run := &Run{ID: genID(), ListenAddr: ln.Addr().String()}
+	run := &Run{ID: genID(), ListenAddr: ln.Addr().String(), AppSlug: "slug"}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -66,6 +67,27 @@ func TestStartProc(t *testing.T) {
 		c.Assert(w.Code, qt.Equals, 200)
 		c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string][]string{"Env": wantEnv})
 	}
+
+	// Call the app metadata endpoint and make sure we get correct data back
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.AppMeta", nil)
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+
+		// we need to extract the API Base URL as it will change due to the `RuntimePort: 0` above
+		bytes := w.Body.Bytes()
+		got := make(map[string]string)
+		_ = json.Unmarshal(bytes, &got)
+
+		c.Assert(strings.HasPrefix(got["APIBaseURL"], "http://"), qt.IsTrue)
+		c.Assert(bytes, qt.JSONEquals, map[string]interface{}{
+			"AppID":      "slug",
+			"APIBaseURL": got["APIBaseURL"],
+			"EnvName":    "local",
+			"EnvType":    "local",
+		})
+	}
 }
 
 // TestProcClosedOnCtxCancel tests that the proc is closed when
@@ -86,6 +108,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 		RuntimePort: 0,
 		DBProxyPort: 0,
 		Logger:      testRunLogger{t},
+		Environ:     os.Environ(),
 	})
 	c.Assert(err, qt.IsNil)
 	cancel()

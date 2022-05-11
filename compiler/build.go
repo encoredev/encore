@@ -24,9 +24,12 @@ import (
 )
 
 type Config struct {
-	// Version specifies the app version to encode
+	// Revision specifies the app version to encode
 	// into the app metadata.
-	Version string
+	Revision string
+
+	// This boolean returns if there are uncommitted changes
+	UncommittedChanges bool
 
 	// WorkingDir is the path relative to the app root from which the user
 	// is running the build. It is used to resolve relative filenames.
@@ -47,6 +50,10 @@ type Config struct {
 
 	// StaticLink enables static linking of C libraries.
 	StaticLink bool
+
+	// EncoreCompilerVersion is the version of the compiler used to build the app
+	// it is used purely for information purposes within the healthz response.
+	EncoreCompilerVersion string
 
 	// EncoreRuntimePath if set, causes builds to introduce a temporary replace directive
 	// that replaces the module path to the "encore.dev" module.
@@ -176,11 +183,12 @@ func (b *builder) parseApp() error {
 	}
 
 	cfg := &parser.Config{
-		AppRoot:    b.appRoot,
-		Version:    b.cfg.Version,
-		ModulePath: b.modfile.Module.Mod.Path,
-		WorkingDir: b.cfg.WorkingDir,
-		ParseTests: b.parseTests,
+		AppRoot:                  b.appRoot,
+		AppRevision:              b.cfg.Revision,
+		AppHasUncommittedChanges: b.cfg.UncommittedChanges,
+		ModulePath:               b.modfile.Module.Mod.Path,
+		WorkingDir:               b.cfg.WorkingDir,
+		ParseTests:               b.parseTests,
 	}
 	b.res, err = parser.Parse(cfg)
 	return err

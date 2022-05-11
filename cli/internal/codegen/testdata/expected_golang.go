@@ -41,7 +41,7 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	base := &baseClient{
 		baseURL:    baseURL,
 		httpClient: http.DefaultClient,
-		userAgent:  "app-Generated-Client (Encore/)",
+		userAgent:  "app-Generated-Client (Encore/devel)",
 	}
 
 	// Apply any given options

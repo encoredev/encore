@@ -16,7 +16,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/jsonpb"
 
-	"encr.dev/cli/daemon/runtime/trace"
+	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/internal/dedent"
 	"encr.dev/cli/internal/env"
 	tracepb "encr.dev/proto/encore/engine/trace"

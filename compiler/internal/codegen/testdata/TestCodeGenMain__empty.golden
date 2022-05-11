@@ -24,10 +24,15 @@ var json = jsoniter.Config{
 func loadConfig() (*config.Config, error) {
 	services := []*config.Service{}
 	static := &config.Static{
-		AuthData:    nil,
-		Services:    services,
-		TestService: "",
-		Testing:     false,
+		AppCommit: config.CommitInfo{
+			Revision:    "",
+			Uncommitted: false,
+		},
+		AuthData:       nil,
+		EncoreCompiler: "test",
+		Services:       services,
+		TestService:    "",
+		Testing:        false,
 	}
 	return &config.Config{
 		Runtime: config.ParseRuntime(getAndClearEnv("ENCORE_RUNTIME_CONFIG")),
