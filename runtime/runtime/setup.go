@@ -162,9 +162,9 @@ func (srv *Server) healthz(w http.ResponseWriter, _ *http.Request) {
 		Code:    "ok",
 		Message: "Your Encore app is up and running!",
 		Details: struct {
-			AppRevision    string `json:"app-revision"`
-			EncoreCompiler string `json:"encore-compiler"`
-			DeployId       string `json:"deploy-id"`
+			AppRevision    string `json:"app_revision"`
+			EncoreCompiler string `json:"encore_compiler"`
+			DeployId       string `json:"deploy_id"`
 		}{
 			AppRevision:    config.Cfg.Static.AppCommit.AsRevisionString(),
 			EncoreCompiler: config.Cfg.Static.EncoreCompiler,
