@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"testing"
 
+	"github.com/fatih/structtag"
 	qt "github.com/frankban/quicktest"
 
 	"encr.dev/pkg/errlist"
@@ -17,16 +18,40 @@ func TestParseStructTag(t *testing.T) {
 		Want structFieldOptions
 	}{
 		{
-			Tag:  `json:"foo" qs:"bar"`,
-			Want: structFieldOptions{JSONName: "foo", QueryStringName: "bar"},
+			Tag: `json:"foo" qs:"bar"`,
+			Want: structFieldOptions{
+				JSONName:        "foo",
+				QueryStringName: "bar",
+				RawTag:          `json:"foo" qs:"bar"`,
+				Tags: []*structtag.Tag{
+					{Key: "json", Name: "foo"},
+					{Key: "qs", Name: "bar"},
+				},
+			},
 		},
 		{
-			Tag:  `json:"foo,omitempty"`,
-			Want: structFieldOptions{JSONName: "foo"},
+			Tag: `json:"foo,omitempty"`,
+			Want: structFieldOptions{
+				JSONName: "foo",
+				RawTag:   `json:"foo,omitempty"`,
+				Tags: []*structtag.Tag{
+					{Key: "json", Name: "foo", Options: []string{"omitempty"}},
+				},
+			},
 		},
 		{
-			Tag:  `json:"foo,omitempty" qs:"-" encore:"optional"`,
-			Want: structFieldOptions{JSONName: "foo", QueryStringName: "-", Optional: true},
+			Tag: `json:"foo,omitempty" qs:"-" encore:"optional"`,
+			Want: structFieldOptions{
+				JSONName:        "foo",
+				QueryStringName: "-",
+				Optional:        true,
+				RawTag:          `json:"foo,omitempty" qs:"-" encore:"optional"`,
+				Tags: []*structtag.Tag{
+					{Key: "json", Name: "foo", Options: []string{"omitempty"}},
+					{Key: "qs", Name: "-"},
+					{Key: "encore", Name: "optional"},
+				},
+			},
 		},
 	}
 
