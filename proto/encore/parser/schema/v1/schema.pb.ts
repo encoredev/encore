@@ -161,6 +161,19 @@ export interface Field {
   optional: boolean;
   /** The query string name to use in GET/HEAD/DELETE requests. (The value "-" indicates to omit the field.) */
   query_string_name: string;
+  /** The original Go struct tag; should not be parsed individually */
+  raw_tag: string;
+  /** Parsed go struct tags. Used for marshalling hints */
+  tags: Tag[];
+}
+
+export interface Tag {
+  /** The tag key (e.g. json, query, header ...) */
+  key: string;
+  /** The tag name (e.g. first_name, firstName, ...) */
+  name: string;
+  /** Key Options (e.g. omitempty, optional ...) */
+  options: string[];
 }
 
 /** Map represents a map Type */
