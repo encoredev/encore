@@ -21,19 +21,23 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 
 	"github.com/hashicorp/yamux"
 
+	encore "encore.dev"
+	"encore.dev/runtime/config"
 	"encr.dev/cli/daemon/internal/sym"
-	"encr.dev/cli/daemon/runtime/config"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/env"
+	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
 	"encr.dev/parser"
+	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -163,12 +167,15 @@ func (r *Run) Reload() (*Proc, error) {
 		return nil, err
 	}
 
+	vcsRevision := vcs.GetRevision(r.Root)
+
 	cfg := &parser.Config{
-		AppRoot:    r.Root,
-		Version:    "",
-		ModulePath: mod.Module.Mod.Path,
-		WorkingDir: r.params.WorkingDir,
-		ParseTests: false,
+		AppRoot:                  r.Root,
+		AppRevision:              vcsRevision.Revision,
+		AppHasUncommittedChanges: vcsRevision.Uncommitted,
+		ModulePath:               mod.Module.Mod.Path,
+		WorkingDir:               r.params.WorkingDir,
+		ParseTests:               false,
 	}
 	parse, err := parser.Parse(cfg)
 	if err != nil {
@@ -261,13 +268,15 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 	}
 
 	cfg := &compiler.Config{
-		Version:           "",
-		WorkingDir:        r.params.WorkingDir,
-		CgoEnabled:        true,
-		EncoreRuntimePath: env.EncoreRuntimePath(),
-		EncoreGoRoot:      env.EncoreGoRoot(),
-		Parse:             parse,
-		BuildTags:         []string{"encore_local"},
+		Revision:              parse.Meta.AppRevision,
+		UncommittedChanges:    parse.Meta.UncommittedChanges,
+		WorkingDir:            r.params.WorkingDir,
+		CgoEnabled:            true,
+		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
+		EncoreRuntimePath:     env.EncoreRuntimePath(),
+		EncoreGoRoot:          env.EncoreGoRoot(),
+		Parse:                 parse,
+		BuildTags:             []string{"encore_local"},
 	}
 
 	build, err := compiler.Build(r.Root, cfg)
@@ -462,8 +471,13 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	return &config.Runtime{
 		AppID:         r.ID,
 		AppSlug:       r.AppSlug,
+		APIBaseURL:    fmt.Sprintf("http://localhost:%d", params.RuntimePort),
+		DeployID:      fmt.Sprintf("run_%s", xid.New()),
+		DeployedAt:    time.Now().UTC(), // Force UTC to not cause confusion
 		EnvID:         p.ID,
 		EnvName:       "local",
+		EnvCloud:      string(encore.CloudLocal),
+		EnvType:       string(encore.EnvLocal),
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
 		SQLDatabases:  dbs,
 		SQLServers:    []*config.SQLServer{sqlServer},

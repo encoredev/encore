@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"encr.dev/cli/internal/conf"
 )
@@ -36,4 +37,36 @@ func ConfigHash() (string, error) {
 
 	digest := h.Sum(nil)
 	return base64.RawURLEncoding.EncodeToString(digest), nil
+}
+
+func init() {
+	// If version is already set via a compiler link flag, then we don't need to do anything
+	if Version != "" {
+		return
+	}
+
+	// Otherwise, we want to read the information from this built binary
+	Version = "devel"
+
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+
+	// Add the commit info
+	vcsVersion := ""
+	vcsModified := ""
+	for _, p := range info.Settings {
+		switch p.Key {
+		case "vcs.revision":
+			vcsVersion = p.Value
+		case "vcs.modified":
+			if p.Value == "true" {
+				vcsModified = "-modified"
+			}
+		}
+	}
+	if vcsVersion != "" {
+		Version += "-" + vcsVersion + vcsModified
+	}
 }

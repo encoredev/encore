@@ -1,4 +1,4 @@
-package runtime
+package trace
 
 import (
 	"context"
@@ -14,6 +14,8 @@ import (
 )
 
 type TraceEvent byte
+
+type SpanID [8]byte
 
 const (
 	RequestStart       TraceEvent = 0x01
@@ -83,13 +85,13 @@ func genTraceID() ([16]byte, error) {
 	return traceID, err
 }
 
-// genSpanID generates a span id.
-func genSpanID() (span SpanID, err error) {
+// GenSpanID generates a span id.
+func GenSpanID() (span SpanID, err error) {
 	_, err = rand.Read(span[:])
 	return
 }
 
-func asyncSendTrace(data []byte) {
+func AsyncSendTrace(data []byte) {
 	if config.Cfg.Static.Testing {
 		// Don't send traces when running tests
 		return

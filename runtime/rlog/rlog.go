@@ -9,6 +9,7 @@ import (
 	"encore.dev/beta/errs"
 	"encore.dev/internal/stack"
 	"encore.dev/runtime"
+	"encore.dev/runtime/trace"
 	"encore.dev/types/uuid"
 )
 
@@ -67,12 +68,12 @@ func (ctx Ctx) With(keysAndValues ...interface{}) Ctx {
 }
 
 func doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
-	var tb *runtime.TraceBuf
+	var tb *trace.TraceBuf
 	req, goid, _ := runtime.CurrentRequest()
 	fields := len(keysAndValues) / 2
 
 	if req != nil && req.Traced {
-		t := runtime.NewTraceBuf(16 + 8 + len(msg) + 4 + fields*50)
+		t := trace.NewTraceBuf(16 + 8 + len(msg) + 4 + fields*50)
 		tb = &t
 		tb.Bytes(req.SpanID[:])
 		tb.UVarint(uint64(goid))
@@ -93,7 +94,7 @@ func doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface
 
 	if tb != nil {
 		tb.Stack(stack.Build(3))
-		runtime.TraceLog(runtime.LogMessage, tb.Buf())
+		runtime.TraceLog(trace.LogMessage, tb.Buf())
 	}
 }
 
@@ -207,7 +208,7 @@ const (
 	float64Type byte = 11
 )
 
-func addTraceBufEntry(tb *runtime.TraceBuf, key string, val interface{}) {
+func addTraceBufEntry(tb *trace.TraceBuf, key string, val interface{}) {
 	switch val := val.(type) {
 	case error:
 		tb.Byte(errType)

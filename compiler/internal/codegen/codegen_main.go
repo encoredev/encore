@@ -33,18 +33,20 @@ type decodeKey struct {
 }
 
 type Builder struct {
-	res    *parser.Result
-	errors *errlist.List
+	res             *parser.Result
+	compilerVersion string
 
+	errors       *errlist.List
 	builtins     []decoderDescriptor
 	seenBuiltins map[decodeKey]decoderDescriptor
 }
 
-func NewBuilder(res *parser.Result) *Builder {
+func NewBuilder(res *parser.Result, compilerVersion string) *Builder {
 	return &Builder{
-		res:          res,
-		errors:       errlist.New(res.FileSet),
-		seenBuiltins: make(map[decodeKey]decoderDescriptor),
+		res:             res,
+		compilerVersion: compilerVersion,
+		errors:          errlist.New(res.FileSet),
+		seenBuiltins:    make(map[decodeKey]decoderDescriptor),
 	}
 }
 
@@ -122,8 +124,13 @@ func (b *Builder) Main() (f *File, err error) {
 			}
 		}),
 		Id("static").Op(":=").Op("&").Qual("encore.dev/runtime/config", "Static").Values(Dict{
-			Id("Services"):    Id("services"),
-			Id("AuthData"):    b.authDataType(),
+			Id("Services"):       Id("services"),
+			Id("AuthData"):       b.authDataType(),
+			Id("EncoreCompiler"): Lit(b.compilerVersion),
+			Id("AppCommit"): Qual("encore.dev/runtime/config", "CommitInfo").Values(Dict{
+				Id("Revision"):    Lit(b.res.Meta.AppRevision),
+				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
+			}),
 			Id("Testing"):     False(),
 			Id("TestService"): Lit(""),
 		}),
@@ -175,7 +182,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 		g.Defer().Qual("encore.dev/runtime", "FinishOperation").Call()
 		g.Line()
 
-		hasParams, pathSegs := b.decodeRequest(g, svc, rpc)
+		hasPathParams, pathSegs := b.decodeRequest(g, svc, rpc)
 
 		if b.res.App.AuthHandler != nil {
 			g.List(Id("uid"), Id("authData"), Id("proceed")).Op(":=").Id("__encore_authenticate").Call(
@@ -188,44 +195,21 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 		}
 
 		traceID := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
-		if rpc.Raw {
-			g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
-				d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
-				d[Id("Service")] = Lit(svc.Name)
-				d[Id("Endpoint")] = Lit(rpc.Name)
-				d[Id("EndpointExprIdx")] = Lit(traceID)
-				d[Id("Inputs")] = Nil()
-				if b.res.App.AuthHandler != nil {
-					d[Id("UID")] = Id("uid")
-					d[Id("AuthData")] = Id("authData")
-				}
-			})))
-			g.If(Err().Op("!=").Nil()).Block(
-				Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), buildErr("Internal", "internal error")),
-				Return(),
-			)
-			g.Line()
-
-			g.Id("m").Op(":=").Qual("github.com/felixge/httpsnoop", "CaptureMetrics").Call(
-				Qual("net/http", "HandlerFunc").Call(Qual(svc.Root.ImportPath, rpc.Name)), Id("w"), Id("req"),
-			)
-			g.If(Id("m").Dot("Code").Op(">=").Lit(400)).Block(
-				Err().Op("=").Qual("fmt", "Errorf").Call(Lit("response status code %d"), Id("m").Dot("Code")),
-			)
-			g.Qual("encore.dev/runtime", "FinishHTTPRequest").Call(Nil(), Err(), Id("m").Dot("Code"))
-			return
-		}
-
 		g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
 			d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
 			d[Id("Service")] = Lit(svc.Name)
 			d[Id("Endpoint")] = Lit(rpc.Name)
+			d[Id("Path")] = Id("req").Dot("URL").Dot("Path")
 			d[Id("EndpointExprIdx")] = Lit(traceID)
-			if rpc.Request != nil || len(pathSegs) > 0 {
+			if !rpc.Raw && (rpc.Request != nil || len(pathSegs) > 0) {
 				d[Id("Inputs")] = Id("inputs")
 			} else {
 				d[Id("Inputs")] = Nil()
 			}
+			if hasPathParams {
+				d[Id("PathSegments")] = Id("ps")
+			}
+
 			if b.res.App.AuthHandler != nil {
 				d[Id("UID")] = Id("uid")
 				d[Id("AuthData")] = Id("authData")
@@ -235,7 +219,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), buildErr("Internal", "internal error")),
 			Return(),
 		).Do(func(s *Statement) {
-			if hasParams {
+			if !rpc.Raw && hasPathParams {
 				s.Else().If(Err().Op(":=").Id("dec").Dot("Err").Call(), Err().Op("!=").Nil()).Block(
 					Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Err()),
 					Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Err()),
@@ -244,6 +228,17 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 			}
 		})
 		g.Line()
+
+		if rpc.Raw {
+			g.Id("m").Op(":=").Qual("github.com/felixge/httpsnoop", "CaptureMetrics").Call(
+				Qual("net/http", "HandlerFunc").Call(Qual(svc.Root.ImportPath, rpc.Name)), Id("w"), Id("req"),
+			)
+			g.If(Id("m").Dot("Code").Op(">=").Lit(400)).Block(
+				Err().Op("=").Qual("fmt", "Errorf").Call(Lit("response status code %d"), Id("m").Dot("Code")),
+			)
+			g.Qual("encore.dev/runtime", "FinishHTTPRequest").Call(Nil(), Err(), Id("m").Dot("Code"))
+			return
+		}
 
 		g.Comment("Call the endpoint")
 		g.Defer().Func().Params().Block(
@@ -304,7 +299,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 	})
 }
 
-func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasParams bool, pathSegs []paths.Segment) {
+func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPathParams bool, pathSegs []paths.Segment) {
 	segs := make([]paths.Segment, 0, len(rpc.Path.Segments))
 	seenWildcard := false
 	wildcardIdx := 0

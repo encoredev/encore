@@ -29,7 +29,7 @@ func (b *builder) writeMainPkg() error {
 
 	b.addOverlay(filepath.Join(b.appRoot, mainPkgName, "main.go"), mainPath)
 
-	mb := codegen.NewBuilder(b.res)
+	mb := codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
 	f, err := mb.Main()
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func (b *builder) generateWrappers(pkg *est.Package, rpcs []*est.RPC, wrapperPat
 		}
 	}()
 
-	mb := codegen.NewBuilder(b.res)
+	mb := codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
 	f := mb.Wrappers(pkg, rpcs)
 	return f.Render(file)
 }
@@ -65,7 +65,7 @@ func (b *builder) generateTestMain(pkg *est.Package) (err error) {
 		}
 	}()
 
-	mb := codegen.NewBuilder(b.res)
+	mb := codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
 	f := mb.TestMain(pkg, b.res.App.Services)
 	b.addOverlay(filepath.Join(pkg.Dir, "encore_testmain_test.go"), testMainPath)
 	return f.Render(file)

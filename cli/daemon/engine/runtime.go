@@ -9,8 +9,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/daemon/run"
-	"encr.dev/cli/daemon/runtime/trace"
 )
 
 type server struct {

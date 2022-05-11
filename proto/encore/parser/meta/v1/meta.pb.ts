@@ -7,7 +7,10 @@ export const protobufPackage = "encore.parser.meta.v1";
 export interface Data {
   /** app module path */
   module_path: string;
-  app_version: string;
+  /** app revision (always the VCS revision reference) */
+  app_revision: string;
+  /** true if there where changes made on-top of the VCS revision */
+  uncommitted_changes: boolean;
   decls: Decl[];
   pkgs: Package[];
   svcs: Service[];
