@@ -101,6 +101,14 @@ message Field {
   string json_name         = 4; // The optional json name if it's different from the field name. (The value "-" indicates to omit the field.)
   bool   optional          = 5; // Whether the field is optional.
   string query_string_name = 6; // The query string name to use in GET/HEAD/DELETE requests. (The value "-" indicates to omit the field.)
+  string raw_tag           = 7; // The original Go struct tag; should not be parsed individually
+  repeated Tag tags        = 8; // Parsed go struct tags. Used for marshalling hints
+}
+
+message Tag {
+  string key               = 1; // The tag key (e.g. json, query, header ...)
+  string name              = 2; // The tag name (e.g. first_name, firstName, ...)
+  repeated string options  = 3; // Key Options (e.g. omitempty, optional ...)
 }
 
 // Map represents a map Type
