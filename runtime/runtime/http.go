@@ -10,13 +10,15 @@ import (
 	"net/textproto"
 	"sync"
 	"sync/atomic"
+
+	"encore.dev/runtime/trace"
 )
 
 var httpReqIDCtr uint64
 
 type httpRoundTrip struct {
 	ReqID  uint64
-	SpanID SpanID
+	SpanID trace.SpanID
 
 	mu     sync.Mutex
 	events []httpEvent
@@ -87,7 +89,7 @@ func (rt *httpRoundTrip) addEvent(code httpEventCode, data httpEventData) {
 	})
 }
 
-func (rt *httpRoundTrip) encodeEvents(tb *TraceBuf) {
+func (rt *httpRoundTrip) encodeEvents(tb *trace.TraceBuf) {
 	rt.mu.Lock()
 	n := len(rt.events)
 	evs := rt.events[:]
@@ -111,14 +113,14 @@ func httpBeginRoundTrip(req *http.Request) (context.Context, error) {
 		return nil, fmt.Errorf("http: nil Request.URL")
 	}
 
-	spanID, err := genSpanID()
+	spanID, err := trace.GenSpanID()
 	if err != nil {
 		return nil, err
 	}
 
 	reqID := atomic.AddUint64(&httpReqIDCtr, 1)
 
-	tb := NewTraceBuf(8 + 4 + 4 + 4 + len(req.Method) + 128)
+	tb := trace.NewTraceBuf(8 + 4 + 4 + 4 + len(req.Method) + 128)
 	tb.UVarint(reqID)
 	tb.Bytes(g.req.data.SpanID[:])
 	tb.Bytes(spanID[:])
@@ -126,7 +128,7 @@ func httpBeginRoundTrip(req *http.Request) (context.Context, error) {
 	tb.String(req.Method)
 	tb.String(req.URL.String())
 
-	encoreTraceEvent(HTTPCallStart, tb.Buf())
+	encoreTraceEvent(trace.HTTPCallStart, tb.Buf())
 
 	rt := &httpRoundTrip{
 		ReqID:  reqID,
@@ -157,7 +159,7 @@ func httpCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
 		return
 	}
 
-	tb := NewTraceBuf(8 + 4 + 4 + 4)
+	tb := trace.NewTraceBuf(8 + 4 + 4 + 4)
 	tb.UVarint(rt.ReqID)
 	if err != nil {
 		msg := err.Error()
@@ -171,7 +173,7 @@ func httpCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
 		tb.UVarint(uint64(resp.StatusCode))
 	}
 	rt.encodeEvents(&tb)
-	encoreTraceEvent(HTTPCallEnd, tb.Buf())
+	encoreTraceEvent(trace.HTTPCallEnd, tb.Buf())
 
 	if req.Method != "HEAD" && resp != nil {
 		resp.Body = wrapRespBody(resp.Body, rt)
@@ -179,7 +181,7 @@ func httpCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
 }
 
 func (rt *httpRoundTrip) ClosedBody(err error) {
-	tb := NewTraceBuf(8 + 4)
+	tb := trace.NewTraceBuf(8 + 4)
 	tb.UVarint(rt.ReqID)
 	if err != nil {
 		msg := err.Error()
@@ -190,7 +192,7 @@ func (rt *httpRoundTrip) ClosedBody(err error) {
 	} else {
 		tb.String("")
 	}
-	encoreTraceEvent(HTTPCallBodyClosed, tb.Buf())
+	encoreTraceEvent(trace.HTTPCallBodyClosed, tb.Buf())
 }
 
 func wrapRespBody(body io.ReadCloser, rt *httpRoundTrip) io.ReadCloser {
@@ -229,7 +231,7 @@ type httpEvent struct {
 }
 
 type httpEventData interface {
-	Encode(tb *TraceBuf)
+	Encode(tb *trace.TraceBuf)
 }
 
 type httpEventCode byte
@@ -254,7 +256,7 @@ type getConnEvent struct {
 	hostPort string
 }
 
-func (e *getConnEvent) Encode(tb *TraceBuf) {
+func (e *getConnEvent) Encode(tb *trace.TraceBuf) {
 	tb.String(e.hostPort)
 }
 
@@ -262,7 +264,7 @@ type gotConnEvent struct {
 	info httptrace.GotConnInfo
 }
 
-func (e *gotConnEvent) Encode(tb *TraceBuf) {
+func (e *gotConnEvent) Encode(tb *trace.TraceBuf) {
 	tb.Bool(e.info.Reused)
 	tb.Bool(e.info.WasIdle)
 	tb.Int64(int64(e.info.IdleTime))
@@ -273,7 +275,7 @@ type got1xxResponseEvent struct {
 	header textproto.MIMEHeader
 }
 
-func (e *got1xxResponseEvent) Encode(tb *TraceBuf) {
+func (e *got1xxResponseEvent) Encode(tb *trace.TraceBuf) {
 	tb.Varint(int64(e.code))
 	// TODO: write header as well?
 }
@@ -282,7 +284,7 @@ type dnsStartEvent struct {
 	info httptrace.DNSStartInfo
 }
 
-func (e *dnsStartEvent) Encode(tb *TraceBuf) {
+func (e *dnsStartEvent) Encode(tb *trace.TraceBuf) {
 	tb.String(e.info.Host)
 }
 
@@ -290,7 +292,7 @@ type dnsDoneEvent struct {
 	info httptrace.DNSDoneInfo
 }
 
-func (e *dnsDoneEvent) Encode(tb *TraceBuf) {
+func (e *dnsDoneEvent) Encode(tb *trace.TraceBuf) {
 	if err := e.info.Err; err != nil {
 		msg := err.Error()
 		if msg == "" {
@@ -311,7 +313,7 @@ type connectStartEvent struct {
 	addr    string
 }
 
-func (e *connectStartEvent) Encode(tb *TraceBuf) {
+func (e *connectStartEvent) Encode(tb *trace.TraceBuf) {
 	tb.String(e.network)
 	tb.String(e.addr)
 }
@@ -322,7 +324,7 @@ type connectDoneEvent struct {
 	err     error
 }
 
-func (e *connectDoneEvent) Encode(tb *TraceBuf) {
+func (e *connectDoneEvent) Encode(tb *trace.TraceBuf) {
 	tb.String(e.network)
 	tb.String(e.addr)
 	tb.Err(e.err)
@@ -333,7 +335,7 @@ type tlsHandshakeDoneEvent struct {
 	err  error
 }
 
-func (e *tlsHandshakeDoneEvent) Encode(tb *TraceBuf) {
+func (e *tlsHandshakeDoneEvent) Encode(tb *trace.TraceBuf) {
 	tb.Err(e.err)
 	tb.Uint32(uint32(e.info.Version))
 	tb.Uint32(uint32(e.info.CipherSuite))
@@ -345,7 +347,7 @@ type wroteRequestEvent struct {
 	info httptrace.WroteRequestInfo
 }
 
-func (e *wroteRequestEvent) Encode(tb *TraceBuf) {
+func (e *wroteRequestEvent) Encode(tb *trace.TraceBuf) {
 	tb.Err(e.info.Err)
 }
 

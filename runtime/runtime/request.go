@@ -8,12 +8,14 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
 
 	"encore.dev/beta/errs"
 	"encore.dev/internal/metrics"
 	"encore.dev/internal/stack"
 	"encore.dev/runtime/config"
+	"encore.dev/runtime/trace"
 
 	// These imports are used only by the generated wrappers in the compiler,
 	// but add them here so the 'go' command doesn't remove them from go.mod.
@@ -30,6 +32,7 @@ var (
 )
 
 var json = jsoniter.Config{
+	IndentionStep:          2,
 	EscapeHTML:             false,
 	SortMapKeys:            false,
 	ValidateJsonRawMessage: true,
@@ -45,8 +48,6 @@ func FinishOperation() {
 	encoreFinishOp()
 }
 
-type SpanID [8]byte
-
 type Type byte
 
 const (
@@ -56,16 +57,18 @@ const (
 
 type Request struct {
 	Type     Type
-	SpanID   SpanID
-	ParentID SpanID
+	SpanID   trace.SpanID
+	ParentID trace.SpanID
 	UID      UID
-	AuthData interface{}
+	AuthData any
 
-	Service  string
-	Endpoint string
-	Start    time.Time
-	Logger   zerolog.Logger
-	Traced   bool
+	Service      string
+	Endpoint     string
+	Path         string
+	PathSegments httprouter.Params
+	Start        time.Time
+	Logger       zerolog.Logger
+	Traced       bool
 }
 
 type RequestData struct {
@@ -75,13 +78,15 @@ type RequestData struct {
 	CallExprIdx     int32
 	EndpointExprIdx int32
 	Inputs          [][]byte
+	Path            string
+	PathSegments    httprouter.Params
 	UID             UID
-	AuthData        interface{}
+	AuthData        any
 	RequireAuth     bool
 }
 
 func BeginRequest(ctx context.Context, data RequestData) error {
-	spanID, err := genSpanID()
+	spanID, err := trace.GenSpanID()
 	if err != nil {
 		return err
 	}
@@ -98,7 +103,7 @@ func FinishHTTPRequest(outputs [][]byte, err error, httpStatus int) {
 
 type Call struct {
 	CallID uint64
-	SpanID SpanID
+	SpanID trace.SpanID
 }
 
 type CallParams struct {
@@ -109,7 +114,7 @@ type CallParams struct {
 }
 
 func BeginCall(params CallParams) (*Call, error) {
-	spanID, err := genSpanID()
+	spanID, err := trace.GenSpanID()
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +122,7 @@ func BeginCall(params CallParams) (*Call, error) {
 	callID := atomic.AddUint64(&callIDCtr, 1)
 
 	if g := encoreGetG(); g != nil && g.req != nil && g.req.data.Traced {
-		tb := NewTraceBuf(8 + 4 + 4 + 4)
+		tb := trace.NewTraceBuf(8 + 4 + 4 + 4)
 		tb.UVarint(callID)
 		tb.Bytes(g.req.data.SpanID[:])
 		tb.Bytes(spanID[:])
@@ -125,7 +130,7 @@ func BeginCall(params CallParams) (*Call, error) {
 		tb.UVarint(uint64(params.CallExprIdx))
 		tb.UVarint(uint64(params.EndpointExprIdx))
 		tb.Stack(stack.Build(3))
-		encoreTraceEvent(CallStart, tb.Buf())
+		encoreTraceEvent(trace.CallStart, tb.Buf())
 	}
 
 	return &Call{
@@ -136,7 +141,7 @@ func BeginCall(params CallParams) (*Call, error) {
 
 func (c *Call) Finish(err error) {
 	if g := encoreGetG(); g != nil && g.req != nil && g.req.data.Traced {
-		tb := NewTraceBuf(8 + 4 + 4 + 4)
+		tb := trace.NewTraceBuf(8 + 4 + 4 + 4)
 		tb.UVarint(c.CallID)
 		if err != nil {
 			msg := err.Error()
@@ -147,7 +152,7 @@ func (c *Call) Finish(err error) {
 		} else {
 			tb.String("")
 		}
-		encoreTraceEvent(CallEnd, tb.Buf())
+		encoreTraceEvent(trace.CallEnd, tb.Buf())
 	}
 }
 
@@ -160,24 +165,24 @@ func (c *Call) FinishReq(outputs [][]byte, err error) {
 }
 
 type AuthCall struct {
-	SpanID SpanID
+	SpanID trace.SpanID
 	CallID uint64
 }
 
 func BeginAuth(authHandlerExprIdx int32, token string) (*AuthCall, error) {
-	spanID, err := genSpanID()
+	spanID, err := trace.GenSpanID()
 	if err != nil {
 		return nil, fmt.Errorf("could not generate request id: %v", err)
 	}
 	callID := atomic.AddUint64(&callIDCtr, 1)
 
 	if g := encoreGetG(); g != nil && g.op.trace != nil {
-		tb := NewTraceBuf(8 + 4 + 4 + 4)
+		tb := trace.NewTraceBuf(8 + 4 + 4 + 4)
 		tb.UVarint(callID)
 		tb.Bytes(spanID[:])
 		tb.UVarint(uint64(g.goid))
 		tb.UVarint(uint64(authHandlerExprIdx))
-		encoreTraceEvent(AuthStart, tb.Buf())
+		encoreTraceEvent(trace.AuthStart, tb.Buf())
 	}
 
 	return &AuthCall{
@@ -188,7 +193,7 @@ func BeginAuth(authHandlerExprIdx int32, token string) (*AuthCall, error) {
 
 func (ac *AuthCall) Finish(uid UID, err error) {
 	if g := encoreGetG(); g != nil && g.op.trace != nil {
-		tb := NewTraceBuf(64)
+		tb := trace.NewTraceBuf(64)
 		tb.UVarint(ac.CallID)
 		tb.String(string(uid))
 		if err != nil {
@@ -202,7 +207,7 @@ func (ac *AuthCall) Finish(uid UID, err error) {
 			tb.String("")
 			tb.Stack(stack.Stack{}) // no stack
 		}
-		encoreTraceEvent(AuthEnd, tb.Buf())
+		encoreTraceEvent(trace.AuthEnd, tb.Buf())
 	}
 }
 
@@ -232,7 +237,7 @@ func currentReq() (*Request, uint32, bool) {
 	return nil, 0, false
 }
 
-func TraceLog(event TraceEvent, data []byte) {
+func TraceLog(event trace.TraceEvent, data []byte) {
 	encoreTraceEvent(event, data)
 }
 
@@ -261,15 +266,17 @@ func CopyInputs(inputs [][]byte, outputs []interface{}) error {
 	return nil
 }
 
-func beginReq(ctx context.Context, spanID SpanID, data RequestData) error {
+func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error {
 	req := &Request{
-		Type:     data.Type,
-		SpanID:   spanID,
-		Service:  data.Service,
-		Endpoint: data.Endpoint,
-		Start:    time.Now(),
-		UID:      data.UID,
-		AuthData: data.AuthData,
+		Type:         data.Type,
+		SpanID:       spanID,
+		Service:      data.Service,
+		Endpoint:     data.Endpoint,
+		Path:         data.Path,
+		PathSegments: data.PathSegments,
+		Start:        time.Now(),
+		UID:          data.UID,
+		AuthData:     data.AuthData,
 	}
 
 	if prev, _, ok := currentReq(); ok {
@@ -314,7 +321,7 @@ func beginReq(ctx context.Context, spanID SpanID, data RequestData) error {
 	g := encoreGetG()
 	req.Traced = g.op.trace != nil
 	if req.Traced {
-		tb := NewTraceBuf(1 + 8 + 8 + 8 + 8 + 8 + 8 + 64)
+		tb := trace.NewTraceBuf(1 + 8 + 8 + 8 + 8 + 8 + 8 + 64)
 		tb.Bytes([]byte{byte(req.Type)})
 		tb.Now()
 		tb.Bytes(req.SpanID[:])
@@ -330,7 +337,7 @@ func beginReq(ctx context.Context, spanID SpanID, data RequestData) error {
 			tb.UVarint(uint64(len(input)))
 			tb.Bytes(input)
 		}
-		encoreTraceEvent(RequestStart, tb.Buf())
+		encoreTraceEvent(trace.RequestStart, tb.Buf())
 	}
 
 	switch data.Type {
@@ -364,7 +371,7 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 	}
 
 	if req.Traced {
-		tb := NewTraceBuf(64)
+		tb := trace.NewTraceBuf(64)
 		tb.Bytes(req.SpanID[:])
 		if err == nil {
 			tb.Byte(0) // no error
@@ -378,7 +385,7 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 			tb.String(err.Error())
 			tb.Stack(errs.Stack(err))
 		}
-		encoreTraceEvent(RequestEnd, tb.Buf())
+		encoreTraceEvent(trace.RequestEnd, tb.Buf())
 	}
 
 	dur := time.Since(req.Start)

@@ -4,29 +4,40 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"time"
 
-	"encr.dev/cli/daemon/runtime/config"
+	"github.com/rs/xid"
+
+	encore "encore.dev"
+	"encore.dev/runtime/config"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/env"
+	"encr.dev/cli/internal/version"
 	"encr.dev/compiler"
 	"encr.dev/parser"
+	"encr.dev/pkg/vcs"
 )
 
 // Check checks the app for errors.
 // It reports a buildDir (if available) when codegenDebug is true.
 func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDebug bool) (buildDir string, err error) {
+	vcsRevision := vcs.GetRevision(appRoot)
+
 	// TODO: We should check that all secret keys are defined as well.
 	cfg := &compiler.Config{
-		Version:           "", // not needed until we start storing trace metadata
-		WorkingDir:        relwd,
-		CgoEnabled:        true,
-		EncoreRuntimePath: env.EncoreRuntimePath(),
-		EncoreGoRoot:      env.EncoreGoRoot(),
-		KeepOutput:        codegenDebug,
-		BuildTags:         []string{"encore_local"},
+		Revision:              vcsRevision.Revision,
+		UncommittedChanges:    vcsRevision.Uncommitted,
+		WorkingDir:            relwd,
+		CgoEnabled:            true,
+		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
+		EncoreRuntimePath:     env.EncoreRuntimePath(),
+		EncoreGoRoot:          env.EncoreGoRoot(),
+		KeepOutput:            codegenDebug,
+		BuildTags:             []string{"encore_local"},
 	}
 	result, err := compiler.Build(appRoot, cfg)
 	if result != nil && result.Dir != "" {
@@ -102,10 +113,17 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 	runtimeJSON, err := json.Marshal(&config.Runtime{
 		AppID:         "test",
+		AppSlug:       appSlug,
+		APIBaseURL:    fmt.Sprintf("http://localhost:%d", mgr.RuntimePort),
+		DeployID:      fmt.Sprintf("clitest_%s", xid.New()),
+		DeployedAt:    time.Now(),
 		EnvID:         "test",
 		EnvName:       "local",
+		EnvCloud:      string(encore.CloudLocal),
+		EnvType:       string(encore.EnvLocal),
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(mgr.RuntimePort) + "/trace",
 		SQLDatabases:  dbs,
+		AuthKeys:      []config.EncoreAuthKey{genAuthKey()},
 		SQLServers:    []*config.SQLServer{sqlServer},
 	})
 	if err != nil {
@@ -113,12 +131,14 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 
 	cfg := &compiler.Config{
-		Version:           "", // not needed until we start storing trace metadata
-		WorkingDir:        params.WorkingDir,
-		CgoEnabled:        true,
-		EncoreRuntimePath: env.EncoreRuntimePath(),
-		EncoreGoRoot:      env.EncoreGoRoot(),
-		BuildTags:         []string{"encore_local"},
+		Revision:              params.Parse.Meta.AppRevision,
+		UncommittedChanges:    params.Parse.Meta.UncommittedChanges,
+		WorkingDir:            params.WorkingDir,
+		CgoEnabled:            true,
+		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
+		EncoreRuntimePath:     env.EncoreRuntimePath(),
+		EncoreGoRoot:          env.EncoreGoRoot(),
+		BuildTags:             []string{"encore_local"},
 		Test: &compiler.TestConfig{
 			Env: append(params.Environ,
 				"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),

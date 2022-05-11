@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/logrusorgru/aurora/v3"
@@ -47,7 +48,7 @@ var versionUpdateCmd = &cobra.Command{
 
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		if version.Version == "" {
+		if version.Version == "" || strings.HasPrefix(version.Version, "devel") {
 			fatal("cannot update development build, first install Encore from https://encore.dev/docs/intro/install")
 		}
 

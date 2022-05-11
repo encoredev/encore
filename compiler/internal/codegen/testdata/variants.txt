@@ -9,8 +9,15 @@ import (
 
 	"encore.dev/beta/auth"
 	"encore.dev/rlog"
+	"encore.dev/cron"
 	"encore.dev/types/uuid"
 )
+
+var _ = cron.NewJob("cron-one", cron.JobConfig{
+	Title:    "A cron job",
+	Schedule: "* * * * 5",
+	Endpoint: CronOne,
+})
 
 type FooParams struct {
 	Name string
@@ -66,6 +73,11 @@ type Response struct {
 func Eight(ctx context.Context, bar, baz string) (*Response, error) {
 	rlog.Info("eight", "bar", bar, "baz", baz)
 	return &Response{Message: bar}, nil
+}
+
+//encore:api private path=/cron
+func CronOne(ctx context.Context) error {
+	return nil
 }
 
 type QueryParams struct {
