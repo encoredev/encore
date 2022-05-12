@@ -132,11 +132,11 @@ func (c *Cluster) Start(log runlog.Log) error {
 			if c.Memfs {
 				args = append(args,
 					"--mount", "type=tmpfs,destination=/var/lib/postgresql/data",
-					dockerImage,
+					DockerImage,
 					"-c", "fsync=off",
 				)
 			} else {
-				args = append(args, dockerImage)
+				args = append(args, DockerImage)
 			}
 
 			cmd := exec.CommandContext(ctx, "docker", args...)
@@ -350,7 +350,7 @@ func containerName(clusterID string) string {
 
 // ImageExists reports whether the docker image exists.
 func ImageExists(ctx context.Context) (ok bool, err error) {
-	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", dockerImage).CombinedOutput()
+	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", DockerImage).CombinedOutput()
 	switch {
 	case err == nil:
 		return true, nil
@@ -363,7 +363,7 @@ func ImageExists(ctx context.Context) (ok bool, err error) {
 
 // PullImage pulls the image.
 func PullImage(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "docker", "pull", dockerImage)
+	cmd := exec.CommandContext(ctx, "docker", "pull", DockerImage)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
