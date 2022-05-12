@@ -9,6 +9,8 @@ But the effort of maintaining inevitably leads to them becoming stale and out of
 Encore provides the best of both worlds &mdash; great API docs that never become out of date &mdash;
 by leveraging the [Encore Application Model](../application-model) to determine the structure of every API.
 
+The API docs are available to your whole team via [the Encore platform](https://app.encore.dev).
+
 ![API Docs screenshot](/assets/img/api-docs-screenshot.png)
 
 ## Local development

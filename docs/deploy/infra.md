@@ -1,5 +1,6 @@
 ---
 title: Infrastructure
+subtitle: Everyone's least favorite pastime
 ---
 
 We developers are used to spending a large amount of our time managing infrastructure when we’d rather be working on the core logic. That’s where Encore is different.

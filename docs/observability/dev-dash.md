@@ -21,4 +21,6 @@ Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
 
 You can also open up the API Base URL in your browser (defaults to [http://localhost:4000](http://localhost:4000)) and it will redirect to the Development Dashboard.
 
-![Dev Dashboard Screenshot](https://encore.dev/assets/img/dev-dash-screenshot.png "Dev Dashboard Screenshot")
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+	<source src="/assets/docs/localdevdash.mp4" className="w-full h-full" type="video/mp4" />
+</video>

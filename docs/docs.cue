@@ -8,6 +8,7 @@ import "strings"
 	section: string
 	category: string
 	path: string | *strings.Replace("/\(section)/\(segment)", "/index", "", -1)
+	old_paths: [string] | *null
 }
 
 #Section: {
@@ -19,6 +20,12 @@ import "strings"
 	}]
 }
 
+#Redirect: {
+	source: string
+	destination: string
+	permanent: bool | *true
+}
+
 sections: [...#Section]
 sections: [
 	{
@@ -28,14 +35,19 @@ sections: [
 			{title: "Overview", segment: "index"},
 			{title: "Why Encore?", segment: "benefits"},
 			{title: "Encore Application Model", segment: "application-model"},
-			{title: "Quick Start", segment: "quick-start"},
+			{title: "The Encore Way", segment: "encore-way", old_paths: ["/deploy/platform"]},
+			{title: "Installation", segment: "install"},
+			{
+				title: "Quick Start",
+				segment: "quick-start",
+				old_paths: [ "/tutorials/create-app"]
+			},
 		]
 	},
 	{
 		title: "Tutorials"
 		segment: "tutorials"
 		docs: [
-			{title: "Creating your first app", segment: "create-app"},
 			{title: "Building a REST API", segment: "rest-api"},
 			{title: "Building a Slack bot", segment: "slack-bot"},
 		]
@@ -45,12 +57,20 @@ sections: [
 		segment: "develop"
 		docs: [
 			{title: "Services and APIs", segment: "services-and-apis"},
-			{title: "API Errors", segment: "errors"},
+			{title: "API Errors", segment: "errors", old_paths:["/concepts/errors"]},
 			{title: "Authentication", segment: "auth"},
 			{title: "SQL Databases", segment: "databases"},
-			{title: "Cron Jobs", segment: "cron-jobs"},
+			{
+				title: "Cron Jobs",
+				segment: "cron-jobs"
+				old_paths: [
+					"/cron-jobs" // linked to from our go package
+				]
+			},
+			{title: "Configuration", segment: "config"},
 			{title: "Secrets", segment: "secrets"},
 			{title: "Testing", segment: "testing"},
+			{title: "Metadata", segment: "metadata"},
 			{title: "Generated API Docs", segment: "api-docs"},
 			{title: "CLI Reference", segment: "cli-reference"},
 		]
@@ -59,7 +79,6 @@ sections: [
 		title: "Deploy"
 		segment: "deploy"
 		docs: [
-			{title: "The Encore Platform", segment: "platform"},
 			{title: "Scaling", segment: "scaling"},
 			{title: "Environments", segment: "environments"},
 			{title: "Bring your own cloud", segment: "own-cloud"},
@@ -97,6 +116,7 @@ sections: [
 			{title: "Integrate with a web frontend", segment: "integrate-frontend"},
 			{title: "Use Firebase Authentication", segment: "firebase-auth"},
 			{title: "Integrate with GitHub", segment: "github"},
+			{title: "Migrate away from Encore", segment: "migrate-away"},
 		]
 	},
 	{
@@ -115,4 +135,18 @@ flattened: [...#Document]
 flattened: [
 	for sec in sections
 	for doc in sec.docs { doc }
+]
+
+redirects: [...#Redirect]
+redirects: [
+	for sec in sections
+	for doc in sec.docs
+	if doc.old_paths != null
+	for old_path in doc.old_paths {
+		{
+			source: old_path,
+			destination: doc.path,
+			permanent: true
+		}
+	}
 ]

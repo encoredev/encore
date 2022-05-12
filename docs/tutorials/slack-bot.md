@@ -31,7 +31,7 @@ features:
   slash_commands:
     - command: /cowsay
       # Replace $APP_ID below
-      url: https://$APP_ID.encoreapi.com/prod/cowsay
+      url: https://$APP_ID.encr.app/prod/cowsay
       description: Say things with a flair!
       usage_hint: your message here
       should_escape: false
