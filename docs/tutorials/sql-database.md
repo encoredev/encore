@@ -5,6 +5,12 @@ title: Add a SQL database
 In the previous step you deployed your app to production using the Encore Platform.
 Now you'll learn how to add a SQL database to store some data.
 
+<Callout type="important">
+
+To locally run Encore apps with databases, you need to have [Docker](https://www.docker.com) installed and running.
+
+</Callout>
+
 ## Add a new API endpoint
 
 We'll add a new API endpoint, `hello.There` that takes a name as input

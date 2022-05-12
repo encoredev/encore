@@ -45,16 +45,12 @@ cron job executions across all your environments via the `Cron Jobs` menu item:
 
 ![Cron Jobs UI](/assets/docs/cron.png)
 
-<Callout type="important">
-
 A few important things to know:
 
 - Cron jobs work across all the cloud providers Encore supports, and support both public and private APIs.
 - Cron jobs do not run when developing locally; you can always call the API manually to test it.
 - The API endpoints used in cron jobs should always be idempotent. It's possible they're called multiple times in some network conditions.
 - The API endpoints used in cron jobs must not take any request parameters. That is, their signatures must be `func(context.Context) error` or `func(context.Context) (*T, error)`.
-
-</Callout>
 
 ## Cron schedules
 

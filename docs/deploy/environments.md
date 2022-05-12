@@ -11,14 +11,14 @@ all with the click of a button.
 
 ## Creating environments
 
-To create an environment for your app, go to the **Environments** page,
-and click `Create env` in the top right.
+To create an environment for your app, open [Your app](https://app.encore.dev) and go to the **Environments** page,
+then click on `Create env` in the top right.
 
-There you can decide on a name, whether it's a production environment
-or a development environment (see [Environment Types](#environment-types) below).
+There you can pick a name, and decide if you want a production
+or development environment (see [Environment Types](#environment-types) below).
 
-Decide how you would like to deploy to the environment (either on pushing
-to a Git branch or manually triggered).
+Choose how you would like to deploy to the environment (either on pushing
+to a Git branch or manually triggered), and whether or not you want to manually approve infrastructure provisioning or simply let Encore handle it.
 
 Finally, select which cloud provider to deploy to (see [Cloud Providers](#cloud-providers) below),
 and click `Create`. That's it!
