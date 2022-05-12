@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/daemon/internal/manifest"
-	"encr.dev/cli/daemon/internal/runlog"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/platform"
@@ -55,16 +54,15 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	clusterID := man.AppID
 	log := log.With().Str("appID", man.AppID).Logger()
 	log.Info().Msg("setting up database cluster")
-	cluster := s.cm.Init(ctx, &sqldb.InitParams{
+	cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 		ClusterID: clusterID,
-		Meta:      parse.Meta,
 		Memfs:     false,
 	})
 	// TODO would be nice to stream this to the CLI
-	if err := cluster.Start(runlog.OS()); err != nil {
+	if _, err := cluster.Start(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to start db cluster")
 		return nil, err
-	} else if err := cluster.Create(ctx, req.AppRoot, parse.Meta); err != nil {
+	} else if err := cluster.Setup(ctx, req.AppRoot, parse.Meta); err != nil {
 		log.Error().Err(err).Msg("failed to create databases")
 		return nil, err
 	}
@@ -120,14 +118,13 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		}
 
 		clusterID := man.AppID
-		cluster := s.cm.Init(ctx, &sqldb.InitParams{
+		cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 			ClusterID: clusterID,
-			Meta:      parse.Meta,
 			Memfs:     false,
 		})
-		if err := cluster.Start(&streamLog{stream: stream, buffered: false}); err != nil {
+		if _, err := cluster.Start(ctx); err != nil {
 			return err
-		} else if err := cluster.Create(ctx, params.AppRoot, parse.Meta); err != nil {
+		} else if err := cluster.Setup(ctx, params.AppRoot, parse.Meta); err != nil {
 			return err
 		}
 		runProxy = func() error {
@@ -201,14 +198,13 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 	clusterID := man.AppID
 	cluster, ok := s.cm.Get(clusterID)
 	if !ok {
-		cluster = s.cm.Init(stream.Context(), &sqldb.InitParams{
+		cluster = s.cm.Create(stream.Context(), &sqldb.CreateParams{
 			ClusterID: clusterID,
 			Memfs:     false,
-			Meta:      parse.Meta,
 		})
 	}
 
-	if err := cluster.Start(&streamLog{stream: stream, buffered: false}); err != nil {
+	if _, err := cluster.Start(stream.Context()); err != nil {
 		sendErr(err)
 		return nil
 	}

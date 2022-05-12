@@ -25,6 +25,7 @@ import (
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/onboarding"
 	"encr.dev/cli/internal/version"
@@ -36,6 +37,7 @@ import (
 
 // Run runs the application.
 func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer) error {
+	ctx := stream.Context()
 	slog := &streamLog{stream: stream, buffered: true}
 	stderr := slog.Stderr(false)
 
@@ -114,9 +116,8 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// Set up the database only if the app requires it.
 	if requiresSQLDB(parse.Meta) {
 		dbOp := ops.Add("Creating PostgreSQL database cluster", start.Add(300*time.Millisecond))
-		cluster := s.cm.Init(stream.Context(), &sqldb.InitParams{
+		cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 			ClusterID: clusterID,
-			Meta:      parse.Meta,
 			Memfs:     false,
 		})
 		if _, err := exec.LookPath("docker"); err != nil {
@@ -126,10 +127,10 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		}
 
 		log.Debug().Msg("checking if sqldb image exists")
-		if ok, err := sqldb.ImageExists(stream.Context()); err == nil && !ok {
+		if ok, err := docker.ImageExists(ctx); err == nil && !ok {
 			log.Debug().Msg("pulling sqldb image")
 			pullOp := ops.Add("Pulling PostgreSQL docker image", start.Add(400*time.Millisecond))
-			if err := sqldb.PullImage(stream.Context()); err != nil {
+			if err := docker.PullImage(ctx); err != nil {
 				log.Error().Err(err).Msg("unable to pull sqldb image")
 				ops.Fail(pullOp, err)
 			} else {
@@ -138,7 +139,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 			}
 		}
 
-		if err := cluster.Start(slog); err != nil {
+		if _, err := cluster.Start(ctx); err != nil {
 			ops.Fail(dbOp, err)
 			sendExit(1)
 			return nil
@@ -148,7 +149,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		// Set up the database asynchronously since it can take a while.
 		migrateOp := ops.Add("Running database migrations", start.Add(700*time.Millisecond))
 		go func() {
-			err := cluster.CreateAndMigrate(stream.Context(), req.AppRoot, parse.Meta)
+			err := cluster.SetupAndMigrate(ctx, req.AppRoot, parse.Meta)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to setup db")
 				ops.Fail(migrateOp, err)
@@ -173,7 +174,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// Hold the stream mutex so we can set up the stream map
 	// before output starts.
 	s.mu.Lock()
-	run, err := s.mgr.Start(stream.Context(), run.StartParams{
+	run, err := s.mgr.Start(ctx, run.StartParams{
 		AppRoot:     req.AppRoot,
 		AppID:       man.AppID,
 		WorkingDir:  req.WorkingDir,
@@ -272,15 +273,14 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 
 	if usesSQLDB {
 		setupCtx, setupCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		cluster := s.cm.Init(setupCtx, &sqldb.InitParams{
+		cluster := s.cm.Create(setupCtx, &sqldb.CreateParams{
 			ClusterID: clusterID,
 			Memfs:     true,
-			Meta:      parse.Meta,
 		})
 
 		go func() {
 			defer setupCancel()
-			if err := cluster.Start(&streamLog{stream: stream, buffered: false}); err != nil {
+			if _, err := cluster.Start(setupCtx); err != nil {
 				dbSetupErr <- err
 			} else if err := cluster.Recreate(setupCtx, req.AppRoot, nil, parse.Meta); err != nil {
 				dbSetupErr <- err
