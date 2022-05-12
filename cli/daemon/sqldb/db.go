@@ -207,12 +207,30 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (e
 		return err
 	}
 
-	if err := m.Up(); err == migrate.ErrNoChange {
-		db.log.Debug().Msg("database already up to date")
+	err = m.Up()
+	if errors.Is(err, migrate.ErrNoChange) {
+		db.log.Info().Msg("database already up to date")
+		return nil
+	}
+
+	// If we have a dirty migration, reset the dirty flag and try again.
+	// This is safe since all migrations run inside transactions.
+	var dirty migrate.ErrDirty
+	if errors.As(err, &dirty) {
+		if err = m.Force(dirty.Version - 1); err == nil {
+			err = m.Up()
+		}
+	}
+
+	// If we have removed a migration that failed to apply we can get an ErrNoChange error
+	// after forcing the migration down to the previous version.
+	if errors.Is(err, migrate.ErrNoChange) {
+		db.log.Info().Msg("database already up to date")
 		return nil
 	} else if err != nil {
-		return err
+		return fmt.Errorf("could not migrate database %s: %v", db.Name, err)
 	}
+	db.log.Info().Msg("migration completed")
 	return nil
 }
 
