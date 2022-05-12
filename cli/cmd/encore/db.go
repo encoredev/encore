@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/daemon/sqldb/docker"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -118,7 +118,7 @@ var dbShellCmd = &cobra.Command{
 				}
 			}
 
-			cmd = exec.Command("docker", "run", "-it", "--rm", "--network=host", sqldb.DockerImage, "psql", dsn)
+			cmd = exec.Command("docker", "run", "-it", "--rm", "--network=host", docker.Image, "psql", dsn)
 		}
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

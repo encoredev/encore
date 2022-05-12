@@ -118,7 +118,17 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		// Continue connecting to backend, below
 	}
 
-	server, err := net.Dial("tcp", cluster.HostPort)
+	info, err := cluster.Info(context.Background())
+	if err != nil {
+		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			Severity: "FATAL",
+			Code:     "08006",
+			Message:  "cluster not running: " + err.Error(),
+		})
+		return nil
+	}
+
+	server, err := net.Dial("tcp", info.Config.Host)
 	if err != nil {
 		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
 			Severity: "FATAL",
@@ -130,8 +140,9 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	defer server.Close()
 
 	// Send a modified startup message to the backend
-	startup.Username = "encore"
-	startup.Password = clusterID
+	admin, _ := info.Encore.First(RoleAdmin, RoleSuperuser)
+	startup.Username = admin.Username
+	startup.Password = admin.Password
 	fe, err := pgproxy.SetupServer(server, &pgproxy.ServerConfig{
 		TLS:     nil,
 		Startup: startup,
@@ -236,7 +247,17 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, clusterID string) er
 		// Continue connecting to backend, below
 	}
 
-	server, err := net.Dial("tcp", cluster.HostPort)
+	info, err := cluster.Info(context.Background())
+	if err != nil {
+		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			Severity: "FATAL",
+			Code:     "08006",
+			Message:  "cluster not running: " + err.Error(),
+		})
+		return nil
+	}
+
+	server, err := net.Dial("tcp", info.Config.Host)
 	if err != nil {
 		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
 			Severity: "FATAL",
@@ -247,8 +268,9 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, clusterID string) er
 	}
 	defer server.Close()
 
-	startup.Username = "encore"
-	startup.Password = clusterID
+	admin, _ := info.Encore.First(RoleAdmin, RoleSuperuser)
+	startup.Username = admin.Username
+	startup.Password = admin.Password
 	fe, err := pgproxy.SetupServer(server, &pgproxy.ServerConfig{
 		TLS:     nil,
 		Startup: startup,
@@ -301,7 +323,18 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 		return
 	}
 
-	backend, err := net.Dial("tcp", cluster.HostPort)
+	info, err := cluster.Info(context.Background())
+	if err != nil {
+		msg := &pgproto3.ErrorResponse{
+			Severity: "FATAL",
+			Code:     "08006",
+			Message:  "database cluster not running",
+		}
+		client.Write(msg.Encode(nil))
+		return
+	}
+
+	backend, err := net.Dial("tcp", info.Config.Host)
 	if err != nil {
 		msg := &pgproto3.ErrorResponse{
 			Severity: "FATAL",

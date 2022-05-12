@@ -21,6 +21,8 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/daemon/sqldb/docker"
+	"encr.dev/cli/daemon/sqldb/external"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -83,8 +85,21 @@ func (d *Daemon) init() {
 	d.Runtime = d.listenTCP(9401)
 	d.DBProxy = d.listenTCP(9402)
 
+	// If ENCORE_SQLDB_HOST is set, use the external cluster instead of
+	// creating our own docker container cluster.
+	var sqldbDriver sqldb.Driver = &docker.Driver{}
+	if host := os.Getenv("ENCORE_SQLDB_HOST"); host != "" {
+		sqldbDriver = &external.Driver{
+			Host:              host,
+			Database:          os.Getenv("ENCORE_SQLDB_DATABASE"),
+			SuperuserUsername: os.Getenv("ENCORE_SQLDB_USER"),
+			SuperuserPassword: os.Getenv("ENCORE_SQLDB_PASSWORD"),
+		}
+		log.Info().Msgf("using external postgres cluster: %s", host)
+	}
+	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver)
+
 	d.Trace = trace.NewStore()
-	d.ClusterMgr = sqldb.NewClusterManager()
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
 		RuntimePort: tcpPort(d.Runtime),
