@@ -2,9 +2,9 @@
 title: Welcome to Encore
 subtitle: A synthesis of clarity and flow.
 ---
-Encore is a Backend Development Engine, designed for a flowstate experience when building cloud-based backend applications and distributed systems using Go. 
+Encore is a Backend Development Engine, purpose-built for a flow state developer experience when creating cloud-based backend applications and distributed systems using Go.
 
-Build with the Encore Go framework, then let the platform analyze your code to automatically handle observability, provisioning infrastructure, deploying your app to the cloud of your choice, and more. Just float into the flow.
+Write your business logic with the Encore Go framework, then let the platform analyze your code to automatically deal with everything else: provisioning environments and infrastructure, deploying your app to the cloud of your choice, adding observability and documentation, and much more. Just float into the flow.
 
 <a href="/docs/quick-start"><Button kind="primary">Quick Start</Button></a>
 

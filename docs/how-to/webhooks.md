@@ -9,7 +9,7 @@ When you want to accept webhooks – other services that make an API call when s
 they define the API schema that you must fulfill. They also often require you to parse custom HTTP headers and do
 other low-level things that Encore usually lets you skip.
 
-For these circumstances Encore lets you define **Raw Endpoints**. Raw endpoints operate at a lower abstraction level,
+For these circumstances Encore lets you define **raw endpoints**. Raw endpoints operate at a lower abstraction level,
 giving you access to the underlying HTTP request.
 
 To define a raw endpoint, change the `//encore:api` annotation and function signature like so:
@@ -27,14 +27,14 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 ```
 
 Like any other Encore API endpoint, this will be exposed at the URL <br/>
-`https://<app-id>.encoreapi.com/<env>/service.Webhook`.
+`https://<app-id>.encr.app/<env>/service.Webhook`.
 
 If you're an experienced Go developer, this is just a regular Go HTTP handler.
 
 See the <a href="https://pkg.go.dev/net/http#Handler" target="_blank" rel="nofollow">net/http documentation</a>
 for more information on how Go HTTP handlers work.
 
-Some times webhooks have information in the path that you may be interested in retrieving or validating. One example is a webhook which looks like this:
+Sometimes webhooks have information in the path that you may be interested in retrieving or validating. One example is a webhook which looks like this:
 ```
 https://staging-testapp-1234.encr.app/id/12345
 ```

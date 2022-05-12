@@ -3,7 +3,7 @@ title: Integrate with GitHub
 ---
 
 Encore applications are easy to integrate with GitHub for source code hosting.
-To link your application to GitHub, head over to your app and open **App Settings &rarr; Git integration**
+To link your application to GitHub, open [Your app](https://app.encore.dev), then head to **App Settings &rarr; Git integration**
 and follow the instructions.
 
 For a more detailed guide on linking with GitHub, see the [Setup Walkthrough](#setup-walkthrough) below.
@@ -39,12 +39,12 @@ you want to link with Encore.
 
 When you come back to Encore, click the **Link app to GitHub repository** button:
 
-<img class="max-w-lg w-full mx-auto rounded-lg shadow-lg border border-gray-100" src="/assets/img/git-begin.png" />
+<img class="max-w-lg w-full mx-auto" src="/assets/img/git-begin.png" />
 
 In the popup, select the repository you would like to link:
 
-<img class="max-w-lg w-full mx-auto rounded-lg shadow-lg border border-gray-100" src="/assets/img/git-modal.png" />
+<img class="max-w-lg w-full mx-auto" src="/assets/img/git-modal.png" />
 
 Click **Link** and you're done:
 
-<img class="max-w-lg w-full mx-auto rounded-lg shadow-lg border border-gray-100" src="/assets/img/git-linked.png" />
+<img class="max-w-lg w-full mx-auto" src="/assets/img/git-linked.png" />

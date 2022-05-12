@@ -1,16 +1,17 @@
 ---
 title: Bring your own cloud
-subtitle: Better than your favorite beverage
+subtitle: Whatever cloud you prefer is fine by us
 ---
 
-Encore supports deploying your application to any of the major cloud providers,
-as well as using Encore's own cloud (internally deployed using GCP), using your own cloud account.
+With Encore you can deploy your application to any of the major cloud providers using your own cloud account,
+and to Encore's built-in free development cloud (internally deployed using GCP).
+
+Each [environment](/docs/deploy/environments) can be configured to use a different cloud provider, and you can have as many environments as you wish.
 
 This gives you enormous flexibility, letting you use Encore for improving your productivity
 while maintaining the existing trust relationship you have with your cloud provider of choice.
-This functionality also lets you easily deploy a hybrid or multi-cloud application, if desired.
+This functionality also lets you easily deploy a hybrid or multi-cloud application, as you see fit.
 
-Each [environment](/docs/deploy/environments) your application has can be configured to use a different cloud provider.
 
 <Callout type="important">
 Please note, that while Encore will provision infrastructure within your cloud account, for safety reasons Encore does not destroy infrastructure

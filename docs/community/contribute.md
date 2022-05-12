@@ -7,16 +7,16 @@ We’re so excited that you are interested in contributing to Encore! All contri
 
 ### Open Source Framework
 
-If you want to contribute to the Encore framework Open Source project, you can [submit a pull request via GitHub](https://github.com/encoredev/encore/pulls).
+If you want to contribute to the Encore framework Open Source project, you can submit a pull request on [GitHub](https://github.com/encoredev/encore/pulls).
 
 ### Report issues
 
-If you have run into an issue or think you’ve found a bug, please report it via the [GitHub issue tracker](https://github.com/encoredev/encore/issues).
+If you have run into an issue or think you’ve found a bug, please report it via the [issue tracker](https://github.com/encoredev/encore/issues).
 
 ### Add or update docs
 
 If there’s something you think would be helpful to add to the docs or if there’s something that seems out of date, we appreciate your input.
-You can [view the docs and contribute fixes or improvements directly in GitHub](https://github.com/encoredev/encore/tree/main/docs).
+You can view the docs and contribute fixes or improvements directly in [GitHub](https://github.com/encoredev/encore/tree/main/docs).
 
 You can also email your feedback to us at [hello@encore.dev](mailto:hello@encore.dev).
 
@@ -24,7 +24,7 @@ You can also email your feedback to us at [hello@encore.dev](mailto:hello@encore
 
 If you’ve built something cool using Encore, we’d really like you to talk about it! We love it when developers share their projects on blogs and on Twitter.
 
-Use the hashtag **#builtwithencore** and we’ll have easier time finding your work. – We might also showcase it in our channels!
+Use the hashtag **#builtwithencore** and we’ll have easier time finding your work. – We might also showcase it on the [Encore Twitter account](https://twitter.com/encoredotdev)!
 
 ### Meetups & Workshops
 

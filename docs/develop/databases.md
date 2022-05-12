@@ -10,6 +10,12 @@ new schema migrations during deploys, and connecting to it.
 
 Encore's SQL databases are **PostgreSQL** databases.
 
+<Callout type="important">
+
+To locally run Encore apps with databases, you need to have [Docker](https://www.docker.com) installed and running.
+
+</Callout>
+
 ## Defining a database schema
 
 Database schemas are defined by creating *migration files* in a directory named `migrations`

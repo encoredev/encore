@@ -4,6 +4,12 @@ title: Building a REST API
 
 In this tutorial you will create a REST API for a URL Shortener service.
 
+In a few short minutes, you'll learn how to:
+
+* Create REST APIs with Encore
+* Use PostgreSQL databases
+* Create and run tests
+
 REST APIs are resource-oriented, meaning that we start by identifying the resources our app needs and designing an URL hierarchy based on them. For our URL Shortener we’ll have just a single resource: the URL.
 
 Our API structure will be:
@@ -130,9 +136,13 @@ func Shorten(ctx context.Context, p *ShortenParams) (*URL, error) {
 }
 ```
 
-Start your application again with `encore run` and Encore automatically sets up your database. Let’s try it out!
+<Callout type="important">
 
-**Note: You need to have [Docker](https://www.docker.com) installed and running in order to locally run Encore applications with databases.**
+Before running your application, make sure you have [Docker](https://www.docker.com) installed and running. It's required to locally run Encore applications with databases.
+
+</Callout>
+
+Start your application again with `encore run` and Encore automatically sets up your database. Let’s try it out!
 
 ```bash
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
@@ -142,7 +152,7 @@ $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 }
 ```
 
-Let’s verify that it was saved in the database with `encore db shell url`:
+Let’s verify that it was saved in the database by running  `encore db shell url` from the app root directory:
 
 ```bash
 $ encore db shell url
@@ -243,10 +253,20 @@ $ git add url
 $ git commit -m 'working service including test'
 ```
 
-Then you can finally deploy as
+Then you can finally deploy your application to the cloud by running:
 
 ```bash
 $ git push encore
 ```
+This will trigger a deployment and Encore will build and test your app, provision the necessary infrastructure (including databases), and deploy your app to the cloud. Head to the [web platform](https://app.encore.dev) to follow the progress of your deployment.
 
-Now your service is running in the cloud. Hooray!
+*Now you have a fully fledged backend running in the cloud, well done!*
+
+## What's next
+
+Now that you know how to build a backend with a database, you're ready to let your creativity flow and begin building your next great idea!
+
+A great next step is to [integrate with GitHub](/docs/how-to/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
+
+We're excited to hear what you're going to build with Encore, join the pioneering developer community on [Slack](/slack) and share your story.
+
