@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/daemon/sqldb"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -109,15 +110,15 @@ var dbShellCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, "encore: no 'psql' executable found in $PATH; using docker to run 'psql' instead.\n\nNote: install psql to hide this message.")
 			dsn := resp.Dsn
 
-			if runtime.GOOS == "darwin" {
-				// Docker for Mac's networking setup requires
+			if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+				// Docker for {Mac, Windows}'s networking setup requires
 				// using "host.docker.internal" instead of "localhost"
 				for _, rep := range []string{"localhost", "127.0.0.1"} {
 					dsn = strings.Replace(dsn, rep, "host.docker.internal", -1)
 				}
 			}
 
-			cmd = exec.Command("docker", "run", "-it", "--rm", "--network=host", "postgres", "psql", dsn)
+			cmd = exec.Command("docker", "run", "-it", "--rm", "--network=host", sqldb.DockerImage, "psql", dsn)
 		}
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
