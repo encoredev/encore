@@ -1,21 +1,18 @@
 package sqldb
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"os/exec"
+	"net"
+	"strconv"
+	"strings"
 	"sync"
-	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
 	"go4.org/syncutil"
 	"golang.org/x/sync/errgroup"
 
-	"encr.dev/cli/daemon/internal/runlog"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 
 	// stdlib registers the "pgx" driver to database/sql.
@@ -25,15 +22,16 @@ import (
 // Cluster represents a running database Cluster.
 type Cluster struct {
 	ID    string // cluster ID
-	Memfs bool   // use an an in-memory filesystem?
+	Memfs bool   // use an in-memory filesystem?
 
-	HostPort string // available after Ready() is done
-
-	log zerolog.Logger
+	driver Driver
+	log    zerolog.Logger
 
 	startOnce syncutil.Once
 	// started is closed when the cluster has been successfully started.
 	started chan struct{}
+
+	Roles EncoreRoles // set by Start
 
 	// Ctx is canceled when the cluster is being torn down.
 	Ctx    context.Context
@@ -48,10 +46,11 @@ func (c *Cluster) Ready() <-chan struct{} {
 	return c.started
 }
 
-// Start creates the container if necessary and starts it.
+// Start creates the cluster if necessary and starts it.
 // If the cluster is already running it does nothing.
-func (c *Cluster) Start(log runlog.Log) error {
-	return c.startOnce.Do(func() (err error) {
+func (c *Cluster) Start(ctx context.Context) (*ClusterStatus, error) {
+	var status *ClusterStatus
+	err := c.startOnce.Do(func() (err error) {
 		c.log.Debug().Msg("starting cluster")
 		defer func() {
 			if err == nil {
@@ -62,95 +61,106 @@ func (c *Cluster) Start(log runlog.Log) error {
 			}
 		}()
 
-		// Ensure the docker image exists first.
-		{
-			checkExistsCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			if ok, err := ImageExists(checkExistsCtx); err != nil {
-				return fmt.Errorf("check docker image: %v", err)
-			} else if !ok {
-				c.log.Debug().Msg("PostgreSQL image does not exist, pulling")
-				if err := PullImage(context.Background()); err != nil {
-					c.log.Error().Err(err).Msg("failed to pull PostgreSQL image")
-					return fmt.Errorf("pull docker image: %v", err)
-				}
-			}
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-
-		cname := containerName(c.ID)
-		status, err := c.Status(ctx)
+		st, err := c.driver.CreateCluster(ctx, &CreateParams{
+			ClusterID: c.ID,
+			Memfs:     c.Memfs,
+		}, c.log)
 		if err != nil {
-			c.log.Error().Err(err).Msg("failed to get container status")
 			return err
 		}
+		status = st
 
-		// waitForPort waits for the port to become available before assigning it to c.HostPort.
-		waitForPort := func() error {
-			for i := 0; i < 20; i++ {
-				status, err = c.Status(ctx)
-				if err != nil {
-					return err
-				}
-				if status.HostPort != "" {
-					c.HostPort = status.HostPort
-					c.log.Debug().Str("hostport", c.HostPort).Msg("cluster started")
-					return nil
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
-			return fmt.Errorf("timed out waiting for cluster to start")
-		}
+		// Setup the roles
+		c.Roles, err = c.setupRoles(ctx, st)
 
-		switch status.Status {
-		case Running:
-			c.HostPort = status.HostPort
-			c.log.Debug().Str("hostport", c.HostPort).Msg("cluster already running")
-			return nil
-
-		case Stopped:
-			c.log.Debug().Msg("cluster stopped, restarting")
-			if out, err := exec.CommandContext(ctx, "docker", "start", cname).CombinedOutput(); err != nil {
-				return fmt.Errorf("could not start sqldb container: %s (%v)", string(out), err)
-			}
-			return waitForPort()
-
-		case NotFound:
-			c.log.Debug().Msg("cluster not found, creating")
-			args := []string{
-				"run",
-				"-d",
-				"-p", "5432",
-				"--shm-size=1gb",
-				"-e", "POSTGRES_USER=encore",
-				"-e", "POSTGRES_PASSWORD=" + c.ID,
-				"-e", "POSTGRES_DB=postgres",
-				"--name", cname,
-			}
-			if c.Memfs {
-				args = append(args,
-					"--mount", "type=tmpfs,destination=/var/lib/postgresql/data",
-					DockerImage,
-					"-c", "fsync=off",
-				)
-			} else {
-				args = append(args, DockerImage)
-			}
-
-			cmd := exec.CommandContext(ctx, "docker", args...)
-			if out, err := cmd.CombinedOutput(); err != nil {
-				return fmt.Errorf("could not start sql database as docker container: %s: %v", out, err)
-			}
-
-			c.log.Debug().Str("hostport", c.HostPort).Msg("cluster created")
-			return waitForPort()
-
-		default:
-			return fmt.Errorf("unknown cluster status %q", status.Status)
-		}
+		return err
 	})
+
+	if err != nil {
+		return nil, err
+	} else if status == nil {
+		// We've already set it up; query the current status
+		return c.Status(ctx)
+	}
+	return status, nil
+}
+
+// setupRoles ensures the necessary database roles exist
+// for admin/write/read access.
+func (c *Cluster) setupRoles(ctx context.Context, st *ClusterStatus) (EncoreRoles, error) {
+	uri := st.ConnURI(st.Config.RootDatabase, st.Config.Superuser)
+	conn, err := pgx.Connect(ctx, uri)
+	if err != nil {
+		return nil, fmt.Errorf("connect: %v", err)
+	}
+	defer conn.Close(context.Background())
+
+	roles, err := c.determineRoles(ctx, st, conn)
+	if err != nil {
+		return nil, fmt.Errorf("determine roles: %v", err)
+	}
+
+	for _, role := range roles {
+		sanitizedUsername := (pgx.Identifier{role.Username}).Sanitize()
+		c.log.Debug().Str("role", role.Username).Msg("creating role")
+		_, err := conn.Exec(ctx, `
+			CREATE USER `+sanitizedUsername+`
+			WITH LOGIN ENCRYPTED PASSWORD `+quoteString(role.Password)+`
+		`)
+		if err != nil {
+			var exists bool
+			err2 := conn.QueryRow(context.Background(), `
+				SELECT COALESCE(MAX(oid), 0) > 0 AS exists
+				FROM pg_roles
+				WHERE rolname = $1
+			`, role.Username).Scan(&exists)
+			if err2 != nil {
+				c.log.Error().Err(err2).Str("role", role.Username).Msg("unable to lookup role")
+				return nil, fmt.Errorf("get role %q: %v", role.Username, err2)
+			} else if !exists {
+				c.log.Error().Err(err).Str("role", role.Username).Msg("unable to create role")
+				return nil, fmt.Errorf("create role %q: %v", role.Username, err)
+			}
+			c.log.Debug().Str("role", role.Username).Msg("role already exists")
+		}
+	}
+
+	return roles, nil
+}
+
+// determineRoles determines the roles to create based on the server version.
+func (c *Cluster) determineRoles(ctx context.Context, st *ClusterStatus, conn *pgx.Conn) (EncoreRoles, error) {
+	// We always support an admin role (PostgreSQL 11+)
+
+	// We support read/write roles on PostgreSQL 14+ only,
+	// as support for predefined roles was added then.
+	var supportsPredefinedRoles bool
+	{
+		var version string
+		if err := conn.QueryRow(ctx, "SHOW server_version").Scan(&version); err != nil {
+			return nil, fmt.Errorf("determine server version: %v", err)
+		}
+		c.log.Debug().Str("version", version).Msg("got postgres server version")
+
+		major, _, _ := strings.Cut(version, ".")
+		if n, err := strconv.Atoi(major); err != nil {
+			return nil, fmt.Errorf("determine server version: %v", err)
+		} else if n >= 14 {
+			supportsPredefinedRoles = true
+		}
+	}
+
+	// For legacy databases, just use the predefined admin role that we set up before.
+	roles := EncoreRoles{st.Config.Superuser}
+	if supportsPredefinedRoles {
+		// Otherwise if we support predefined roles, add more roles to use.
+		roles = append(roles,
+			Role{RoleAdmin, "encore-admin", "admin"},
+			Role{RoleWrite, "encore-write", "write"},
+			Role{RoleRead, "encore-read", "read"},
+		)
+	}
+	return roles, nil
 }
 
 // initDBs adds the databases from md to the cluster's database map.
@@ -194,11 +204,13 @@ func (c *Cluster) initDB(name string) *DB {
 	return db
 }
 
-// Create creates the given databases.
-func (c *Cluster) Create(ctx context.Context, appRoot string, md *meta.Data) error {
+// Setup sets up the given databases.
+func (c *Cluster) Setup(ctx context.Context, appRoot string, md *meta.Data) error {
 	c.log.Debug().Msg("creating cluster")
 	g, ctx := errgroup.WithContext(ctx)
+
 	c.mu.Lock()
+
 	for _, svc := range md.Svcs {
 		if len(svc.Migrations) == 0 {
 			continue
@@ -207,8 +219,7 @@ func (c *Cluster) Create(ctx context.Context, appRoot string, md *meta.Data) err
 		svc := svc
 		db, ok := c.dbs[svc.Name]
 		if !ok {
-			c.mu.Unlock()
-			return fmt.Errorf("database %s not initialized", svc.Name)
+			db = c.initDB(svc.Name)
 		}
 		g.Go(func() error { return db.Setup(ctx, appRoot, svc, false, false) })
 	}
@@ -216,11 +227,12 @@ func (c *Cluster) Create(ctx context.Context, appRoot string, md *meta.Data) err
 	return g.Wait()
 }
 
-// CreateAndMigrate creates and migrates the given databases.
-func (c *Cluster) CreateAndMigrate(ctx context.Context, appRoot string, md *meta.Data) error {
+// SetupAndMigrate creates and migrates the given databases.
+func (c *Cluster) SetupAndMigrate(ctx context.Context, appRoot string, md *meta.Data) error {
 	c.log.Debug().Msg("creating and migrating cluster")
 	g, ctx := errgroup.WithContext(ctx)
 	c.mu.Lock()
+
 	for _, svc := range md.Svcs {
 		if len(svc.Migrations) == 0 {
 			continue
@@ -229,8 +241,7 @@ func (c *Cluster) CreateAndMigrate(ctx context.Context, appRoot string, md *meta
 		svc := svc
 		db, ok := c.dbs[svc.Name]
 		if !ok {
-			c.mu.Unlock()
-			return fmt.Errorf("database %s not initialized", svc.Name)
+			db = c.initDB(svc.Name)
 		}
 		g.Go(func() error { return db.Setup(ctx, appRoot, svc, true, false) })
 	}
@@ -276,95 +287,93 @@ func (c *Cluster) Recreate(ctx context.Context, appRoot string, services []strin
 	return err
 }
 
-// Status reports the status of the cluster.
+// Status reports the cluster's status.
 func (c *Cluster) Status(ctx context.Context) (*ClusterStatus, error) {
-	cname := containerName(c.ID)
-	out, err := exec.CommandContext(ctx, "docker", "container", "inspect", cname).CombinedOutput()
-	if err == exec.ErrNotFound {
-		return nil, errors.New("docker not found: is it installed and in your PATH?")
-	} else if err != nil {
-		// Docker returns a non-zero exit code if the container does not exist.
-		// Try to tell this apart from an error by parsing the output.
-		if bytes.Contains(out, []byte("No such container")) {
-			return &ClusterStatus{Status: NotFound}, nil
-		}
-		return nil, fmt.Errorf("docker container inspect failed: %s (%v)", out, err)
-	}
-
-	var resp []struct {
-		Name  string
-		State struct {
-			Running bool
-		}
-		NetworkSettings struct {
-			Ports map[string][]struct {
-				HostIP   string
-				HostPort string
-			}
-		}
-	}
-	if err := json.Unmarshal(out, &resp); err != nil {
-		return nil, fmt.Errorf("parse `docker container inspect` response: %v", err)
-	}
-	for _, c := range resp {
-		if c.Name == "/"+cname {
-			status := &ClusterStatus{Status: Stopped}
-			if c.State.Running {
-				status.Status = Running
-			}
-			ports := c.NetworkSettings.Ports["5432/tcp"]
-			if len(ports) > 0 {
-				status.HostPort = ports[0].HostIP + ":" + ports[0].HostPort
-			}
-			return status, nil
-		}
-	}
-	return &ClusterStatus{Status: NotFound}, nil
+	return c.driver.ClusterStatus(ctx, c.ID)
 }
 
-// ContainerStatus represents the status of a container.
-type ContainerStatus string
+// Info reports information about a cluster.
+func (c *Cluster) Info(ctx context.Context) (*ClusterInfo, error) {
+	st, err := c.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	info := &ClusterInfo{ClusterStatus: st}
+	info.Encore = c.Roles
+	return info, nil
+}
+
+// ClusterInfo returns information about a cluster.
+type ClusterInfo struct {
+	*ClusterStatus
+
+	// Encore contains the roles to use to connect for an Encore app.
+	// It is set if and only if the cluster is running.
+	Encore EncoreRoles
+}
+
+// ConnURI reports the connection URI to connect to the given database
+// in the cluster, authenticating with the given role.
+func (s *ClusterStatus) ConnURI(database string, r Role) string {
+	uri := fmt.Sprintf("user=%s password=%s dbname=%s", r.Username, r.Password, database)
+
+	// Handle different ways of expressing the host
+	cfg := s.Config
+	if strings.HasPrefix(cfg.Host, "/") {
+		uri += " host=" + cfg.Host // unix socket
+	} else if host, port, err := net.SplitHostPort(cfg.Host); err == nil {
+		uri += fmt.Sprintf(" host=%s port=%s", host, port) // host:port
+	} else {
+		uri += " host=" + cfg.Host // hostname
+	}
+
+	return uri
+}
+
+// EncoreRoles describes the credentials to use when connecting
+// to the cluster as an Encore user.
+type EncoreRoles []Role
+
+func (roles EncoreRoles) Superuser() (Role, bool) { return roles.find(RoleSuperuser) }
+func (roles EncoreRoles) Admin() (Role, bool)     { return roles.find(RoleAdmin) }
+func (roles EncoreRoles) Write() (Role, bool)     { return roles.find(RoleWrite) }
+func (roles EncoreRoles) Read() (Role, bool)      { return roles.find(RoleRead) }
+
+func (roles EncoreRoles) First(typs ...RoleType) (Role, bool) {
+	for _, typ := range typs {
+		if r, ok := roles.find(typ); ok {
+			return r, true
+		}
+	}
+	return Role{}, false
+}
+
+func (roles EncoreRoles) find(typ RoleType) (Role, bool) {
+	for _, r := range roles {
+		if r.Type == typ {
+			return r, true
+		}
+	}
+	return Role{}, false
+}
+
+type RoleType string
 
 const (
-	// Running indicates the cluster container is running.
-	Running ContainerStatus = "running"
-	// Stopped indicates the container cluster exists but is not running.
-	Stopped ContainerStatus = "stopped"
-	// NotFound indicates the container cluster does not exist.
-	NotFound ContainerStatus = "notfound"
+	RoleSuperuser RoleType = "superuser"
+	RoleAdmin     RoleType = "admin"
+	RoleWrite     RoleType = "write"
+	RoleRead      RoleType = "read"
 )
 
-// ClusterStatus rerepsents the status of a database cluster.
-type ClusterStatus struct {
-	// Status is the status of the underlying container.
-	Status ContainerStatus
-	// HostPort is the host and port for connecting to the database.
-	// It is only set when Status == Running.
-	HostPort string
+type Role struct {
+	Type     RoleType
+	Username string
+	Password string
 }
 
-// containerName computes the container name for a given clusterID.
-func containerName(clusterID string) string {
-	return "sqldb-" + clusterID
-}
-
-// ImageExists reports whether the docker image exists.
-func ImageExists(ctx context.Context) (ok bool, err error) {
-	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", DockerImage).CombinedOutput()
-	switch {
-	case err == nil:
-		return true, nil
-	case bytes.Contains(out, []byte("No such image")):
-		return false, nil
-	default:
-		return false, err
-	}
-}
-
-// PullImage pulls the image.
-func PullImage(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "docker", "pull", DockerImage)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+// quoteString quotes a string for use in SQL.
+func quoteString(str string) string {
+	return "'" + strings.ReplaceAll(str, "'", "''") + "'"
 }

@@ -1,25 +1,20 @@
-// Package sqldb runs and manages connections for Encore applications.
 package sqldb
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"os/exec"
 	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/singleflight"
-
-	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // NewClusterManager creates a new ClusterManager.
-func NewClusterManager() *ClusterManager {
+func NewClusterManager(driver Driver) *ClusterManager {
 	log := log.Logger
 	return &ClusterManager{
 		log:            log,
+		driver:         driver,
 		clusters:       make(map[string]*Cluster),
 		backendKeyData: make(map[uint32]*Cluster),
 	}
@@ -28,6 +23,7 @@ func NewClusterManager() *ClusterManager {
 // A ClusterManager manages running local sqldb clusters.
 type ClusterManager struct {
 	log        zerolog.Logger
+	driver     Driver
 	startGroup singleflight.Group
 
 	mu       sync.Mutex
@@ -38,27 +34,10 @@ type ClusterManager struct {
 	backendKeyData map[uint32]*Cluster
 }
 
-// InitParams are the params to (*ClusterManager).Init.
-type InitParams struct {
-	// ClusterID is the unique id of the cluster.
-	ClusterID string
-
-	// Meta is the metadata used to initialize databases.
-	// If nil no databases are initialized.
-	Meta *meta.Data
-
-	// Memfs, if true, configures the database container to use an
-	// in-memory filesystem as opposed to persisting the database to disk.
-	Memfs bool
-
-	// Reinit forces all databases to be reinitialized, even if they already exist.
-	Reinit bool
-}
-
-// Init initializes a database cluster but does not start it.
+// Create creates a database cluster but does not start it.
 // If the cluster already exists it is returned.
 // It does not perform any database migrations.
-func (cm *ClusterManager) Init(ctx context.Context, params *InitParams) *Cluster {
+func (cm *ClusterManager) Create(ctx context.Context, params *CreateParams) *Cluster {
 	cid := params.ClusterID
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -76,6 +55,7 @@ func (cm *ClusterManager) Init(ctx context.Context, params *InitParams) *Cluster
 			ID:      params.ClusterID,
 			Memfs:   params.Memfs,
 			Ctx:     ctx,
+			driver:  cm.driver,
 			cancel:  cancel,
 			started: make(chan struct{}),
 			log:     cm.log.With().Str("cluster", params.ClusterID).Logger(),
@@ -83,7 +63,6 @@ func (cm *ClusterManager) Init(ctx context.Context, params *InitParams) *Cluster
 		}
 		cm.clusters[cid] = c
 	}
-	c.initDBs(params.Meta, params.Reinit)
 	return c
 }
 
@@ -94,18 +73,3 @@ func (cm *ClusterManager) Get(clusterID string) (*Cluster, bool) {
 	cm.mu.Unlock()
 	return c, ok
 }
-
-// Delete forcibly deletes the cluster.
-func (cm *ClusterManager) Delete(ctx context.Context, clusterID string) error {
-	cname := containerName(clusterID)
-	out, err := exec.CommandContext(ctx, "docker", "rm", "-f", cname).CombinedOutput()
-	if err != nil {
-		if bytes.Contains(out, []byte("No such container")) {
-			return nil
-		}
-		return fmt.Errorf("could not delete cluster: %s (%v)", out, err)
-	}
-	return nil
-}
-
-const DockerImage = "postgres:14-alpine"

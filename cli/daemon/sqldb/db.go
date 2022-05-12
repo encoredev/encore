@@ -3,6 +3,7 @@ package sqldb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -65,6 +66,9 @@ func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migr
 	if err := db.Create(ctx); err != nil {
 		return fmt.Errorf("create db %s: %v", db.Name, err)
 	}
+	if err := db.EnsureRoles(ctx, db.Cluster.Roles...); err != nil {
+		return fmt.Errorf("ensure db roles %s: %v", db.Name, err)
+	}
 	if migrate || recreate || !db.migrated {
 		if err := db.Migrate(ctx, appRoot, svc); err != nil {
 			// Only report an error if we asked to migrate or recreate.
@@ -82,7 +86,7 @@ func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migr
 // It reports whether the database was initialized for the first time
 // in this process.
 func (db *DB) Create(ctx context.Context) error {
-	adm, err := db.connectAdminDB(ctx)
+	adm, err := db.connectSuperuser(ctx)
 	if err != nil {
 		return err
 	}
@@ -91,15 +95,70 @@ func (db *DB) Create(ctx context.Context) error {
 	// Does it already exist?
 	var dummy int
 	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.Name).Scan(&dummy)
+	owner, ok := db.Cluster.Roles.First(RoleAdmin, RoleSuperuser)
+	if !ok {
+		return errors.New("unable to find admin or superuser roles")
+	}
+
 	if err == pgx.ErrNoRows {
 		db.log.Debug().Msg("creating database")
-		name := (pgx.Identifier{db.Name}).Sanitize() // sanitize database name, to be safe
-		_, err = adm.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s OWNER encore;", name))
+		// Sanitize names since this query does not support query params
+		dbName := (pgx.Identifier{db.Name}).Sanitize()
+		ownerName := (pgx.Identifier{owner.Username}).Sanitize()
+		_, err = adm.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s OWNER %s;", dbName, ownerName))
 	}
 	if err != nil {
 		db.log.Error().Err(err).Msg("failed to create database")
 	}
 	return err
+}
+
+// EnsureRoles ensures the roles have been granted access to this database.
+func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
+	adm, err := db.connectSuperuser(ctx)
+	if err != nil {
+		return err
+	}
+	defer adm.Close(context.Background())
+
+	db.log.Debug().Msg("revoking public access")
+	safeDBName := (pgx.Identifier{db.Name}).Sanitize()
+	_, err = adm.Exec(ctx, "REVOKE ALL ON DATABASE "+safeDBName+" FROM public")
+	if err != nil {
+		return fmt.Errorf("revoke public: %v", err)
+	}
+
+	for _, role := range roles {
+		var stmt string
+		safeRoleName := (pgx.Identifier{role.Username}).Sanitize()
+		switch role.Type {
+		case RoleSuperuser:
+			// Already granted; nothing to do
+			continue
+		case RoleAdmin:
+			stmt = fmt.Sprintf("GRANT ALL ON DATABASE %s TO %s;", safeDBName, safeRoleName)
+		case RoleWrite:
+			stmt = fmt.Sprintf(`
+				GRANT TEMP, CONNECT ON DATABASE %s TO %s;
+				GRANT pg_read_all_data TO %s;
+				GRANT pg_write_all_data TO %s;
+			`, safeDBName, safeRoleName, safeRoleName, safeRoleName)
+		case RoleRead:
+			stmt = fmt.Sprintf(`
+				GRANT TEMP, CONNECT ON DATABASE %s TO %s;
+				GRANT pg_read_all_data TO %s;
+			`, safeDBName, safeRoleName, safeRoleName)
+		default:
+			return fmt.Errorf("unknown role type %q", role.Type)
+		}
+
+		db.log.Debug().Str("role", role.Username).Str("db", db.Name).Msg("granting access to role")
+		if _, err := adm.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("grant %s role %s: %v", role.Type, role.Username, err)
+		}
+		db.log.Debug().Str("role", role.Username).Str("db", db.Name).Msg("successfully granted access")
+	}
+	return nil
 }
 
 // Migrate migrates the database.
@@ -114,7 +173,19 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (e
 		}
 	}()
 
-	uri := fmt.Sprintf("postgresql://encore:%s@%s/%s?sslmode=disable", db.Cluster.ID, db.Cluster.HostPort, db.Name)
+	info, err := db.Cluster.Info(ctx)
+	if err != nil {
+		return err
+	} else if info.Status != Running {
+		return errors.New("cluster not running")
+	}
+
+	admin, ok := info.Encore.First(RoleAdmin, RoleSuperuser)
+	if !ok {
+		return errors.New("unable to find superuser or admin roles")
+	}
+	uri := info.ConnURI(db.Name, admin)
+	db.log.Debug().Str("uri", uri).Msg("running migrations")
 	conn, err := sql.Open("pgx", uri)
 	if err != nil {
 		return err
@@ -147,7 +218,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (e
 
 // Drop drops the database in the cluster if it exists.
 func (db *DB) Drop(ctx context.Context) error {
-	adm, err := db.connectAdminDB(ctx)
+	adm, err := db.connectSuperuser(ctx)
 	if err != nil {
 		return err
 	}
@@ -178,9 +249,9 @@ func (db *DB) CloseConns() {
 	db.cancel()
 }
 
-// connectAdminDB creates a connection to the admin database for the cluster.
+// connectSuperuser creates a superuser connection to the root database for the cluster.
 // On success the returned conn must be closed by the caller.
-func (db *DB) connectAdminDB(ctx context.Context) (*pgx.Conn, error) {
+func (db *DB) connectSuperuser(ctx context.Context) (*pgx.Conn, error) {
 	// Wait for the cluster to be setup
 	select {
 	case <-ctx.Done():
@@ -188,27 +259,30 @@ func (db *DB) connectAdminDB(ctx context.Context) (*pgx.Conn, error) {
 	case <-db.Cluster.started:
 	}
 
-	hostPort := db.Cluster.HostPort
-	if hostPort == "" {
-		return nil, fmt.Errorf("internal error: missing HostPort for cluster %s", db.Cluster.ID)
+	info, err := db.Cluster.Info(ctx)
+	if err != nil {
+		return nil, err
+	} else if info.Status != Running {
+		return nil, fmt.Errorf("cluster not running")
 	}
+
+	uri := info.ConnURI(info.Config.RootDatabase, info.Config.Superuser)
 
 	// Wait for the connection to be established; this might take a little bit
 	// when we're racing with spinning up a Docker container.
-	var err error
 	for i := 0; i < 40; i++ {
 		var conn *pgx.Conn
-		conn, err = pgx.Connect(ctx, "postgresql://encore:"+db.Cluster.ID+"@"+hostPort+"/postgres?sslmode=disable")
+		conn, err = pgx.Connect(ctx, uri)
 		if err == nil {
 			return conn, nil
 		} else if ctx.Err() != nil {
 			// We'll never succeed once the context has been canceled.
 			// Give up straight away.
-			db.log.Debug().Err(err).Msgf("failed to connect to admin db")
+			db.log.Debug().Err(err).Msgf("failed to connect to superuser db")
 			return nil, err
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
 	db.log.Debug().Err(err).Msgf("failed to connect to admin db")
-	return nil, fmt.Errorf("failed to connect to admin database: %v", err)
+	return nil, fmt.Errorf("failed to connect to superuser database: %v", err)
 }
