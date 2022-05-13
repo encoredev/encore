@@ -107,6 +107,8 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 					Optional:        opts.Optional,
 					JsonName:        opts.JSONName,
 					QueryStringName: opts.QueryStringName,
+					Tags:            schemaTags(opts.Tags),
+					RawTag:          opts.RawTag,
 				}
 				if f.QueryStringName == "" {
 					f.QueryStringName = snakeCase(f.Name)
@@ -176,6 +178,23 @@ type structFieldOptions struct {
 	QueryStringName string
 	// Optional is true if there is an `encore:"optional"` tag
 	Optional bool
+	// Tags contains parsed struct field tags
+	Tags []*structtag.Tag
+	// RawTag contains the raw unparsed struct field tag (if any)
+	RawTag string
+}
+
+// schemaTags converts structtag.Tags to an array of proto schema.Tag
+func schemaTags(tags []*structtag.Tag) []*schema.Tag {
+	rtn := make([]*schema.Tag, len(tags))
+	for i, t := range tags {
+		rtn[i] = &schema.Tag{
+			Key:     t.Key,
+			Name:    t.Name,
+			Options: t.Options,
+		}
+	}
+	return rtn
 }
 
 // parseStructTag parses the struct tag to determine any encore-specific options
@@ -187,11 +206,14 @@ func (p *parser) parseStructTag(tag *ast.BasicLit) structFieldOptions {
 	}
 
 	val, _ := strconv.Unquote(tag.Value)
+	opts.RawTag = val
 	tags, err := structtag.Parse(val)
 	if err != nil {
 		p.errf(tag.Pos(), "invalid struct tag: %v", err)
 		return opts
 	}
+	opts.Tags = tags.Tags()
+
 	if enc, _ := tags.Get("encore"); enc != nil {
 		ops := append([]string{enc.Name}, enc.Options...)
 		for _, o := range ops {
