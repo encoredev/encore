@@ -18,7 +18,7 @@ export default class BaseClient {
       }
       return Promise.resolve(resp.data);
     } catch (err) {
-      return Promise.reject(new ResponseError(path, "network_error", null, err))
+      return Promise.reject(new ResponseError(path, "network_error", null, err as any))
     }
   }
 
