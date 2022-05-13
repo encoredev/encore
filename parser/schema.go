@@ -6,7 +6,6 @@ import (
 	"go/types"
 	"reflect"
 	"strconv"
-	"unicode"
 
 	"github.com/fatih/structtag"
 
@@ -111,7 +110,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 					RawTag:          opts.RawTag,
 				}
 				if f.QueryStringName == "" {
-					f.QueryStringName = snakeCase(f.Name)
+					f.QueryStringName = SnakeCase(f.Name)
 				}
 
 				st.Fields = append(st.Fields, f)
@@ -288,27 +287,4 @@ var builtinTypes = map[string]schema.Builtin{
 	"string":     schema.Builtin_STRING,
 	"byte":       schema.Builtin_UINT8,
 	"rune":       schema.Builtin_UINT32,
-}
-
-// snakeCase converts CamelCase names to snake_case with lowercase letters and
-// underscores. Names already in snake_case are left untouched.
-// Adapted from github.com/pasztorpisti/qs.
-func snakeCase(s string) string {
-	in := []rune(s)
-	isLower := func(idx int) bool {
-		return idx >= 0 && idx < len(in) && unicode.IsLower(in[idx])
-	}
-
-	out := make([]rune, 0, len(in)+len(in)/2)
-	for i, r := range in {
-		if unicode.IsUpper(r) {
-			r = unicode.ToLower(r)
-			if i > 0 && in[i-1] != '_' && (isLower(i-1) || isLower(i+1)) {
-				out = append(out, '_')
-			}
-		}
-		out = append(out, r)
-	}
-
-	return string(out)
 }
