@@ -1,7 +1,8 @@
 import React, {FunctionComponent, useEffect, useState} from "react";
 import {Link, useParams, useRouteMatch} from "react-router-dom"
 import {useConn} from "~lib/ctx"
-import logo from "../wordmark.svg"
+import logo from "../logo.svg"
+import wordmark from "../wordmark.svg"
 
 const menuItems: {href: string; name: string, external?: boolean}[] = [
   {href: "", name: "Requests"},
@@ -24,7 +25,8 @@ const Nav: FunctionComponent = (props) => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <img className="h-8" src={logo} alt="Encore Logo" />
+              <img className="h-8 hidden md:inline-block" src={logo} alt="Encore Logo" />
+              <img className="h-8 inline-block md:hidden" src={wordmark} alt="Encore Logo" />
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
