@@ -2,10 +2,12 @@ import React, {FunctionComponent, useEffect, useState} from "react";
 import {Link, useParams, useRouteMatch} from "react-router-dom"
 import {useConn} from "~lib/ctx"
 import logo from "../logo.svg"
+import wordmark from "../wordmark.svg"
 
-const menuItems: {href: string; name: string}[] = [
+const menuItems: {href: string; name: string, external?: boolean}[] = [
   {href: "", name: "Requests"},
   {href: "/api", name: "API Docs"},
+  {href: "https://encore.dev/docs", name: "Encore Docs", external: true},
 ]
 
 const Nav: FunctionComponent = (props) => {
@@ -19,15 +21,16 @@ const Nav: FunctionComponent = (props) => {
       {appsOpen &&
         <div className="absolute inset-0 z-10" onClick={() => setAppsOpen(false)} />
       }
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="px-4 md:px-10 mx-auto">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <img className="h-8 w-8" src={logo} alt="Encore Logo" />
+              <img className="h-8 hidden md:inline-block" src={logo} alt="Encore Logo" />
+              <img className="h-8 inline-block md:hidden" src={wordmark} alt="Encore Logo" />
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
-                {menuItems.map(it => {
+                {menuItems.filter((it) => !it.external).map(it => {
                   const as = `/${appID}${it.href}`
                   const selected = route.path === ("/:appID"+it.href)
                   return (
@@ -42,6 +45,15 @@ const Nav: FunctionComponent = (props) => {
           </div>
 
           <div className="absolute inset-y-0 right-0 hidden md:flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+            <div className="ml-10 flex items-baseline space-x-4">
+              {menuItems.filter((it) => it.external).map(it => {
+                  return <a key={it.href} href={it.href} target="_blank" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white focus:outline-none focus:text-white focus:bg-gray-700 inline-block">
+                    {it.name}&nbsp;<svg className="w-4 h-4 pb-0.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                  </svg>
+                  </a>
+              })}
+            </div>
             {/* <-- App dropdown --> */}
             <div className="ml-3">
               <AppDropdown appID={appID} open={appsOpen} setOpen={setAppsOpen} />
@@ -62,16 +74,24 @@ const Nav: FunctionComponent = (props) => {
       </div>
 
       <div className={`${menuOpen ? "block" : "hidden"} md:hidden`}>
-        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+        <div className="px-1 pt-2 pb-3 space-y-1 sm:px-3">
           {menuItems.map(it => {
-            const as = `/${appID}${it.href}`
-            const selected = false // TODO
-            return (
-              <Link key={it.name} to={as}
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${selected ? "text-white bg-gray-900" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
-                {it.name}
-              </Link>
-            )
+            if (it.external) {
+              return <a key={it.href} href={it.href} target="_blank" className="block px-2 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white focus:outline-none focus:text-white focus:bg-gray-700">
+                {it.name}&nbsp;<svg className="w-4 h-4 pb-0.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+              </a>
+            } else {
+              const as = `/${appID}${it.href}`
+              const selected = route.path === ("/:appID" + it.href)
+              return (
+                <Link key={it.name} to={as}
+                      className={`block px-2 py-2 rounded-md text-base font-medium ${selected ? "text-white bg-gray-900" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
+                  {it.name}
+                </Link>
+              )
+            }
           })}
         </div>
 
