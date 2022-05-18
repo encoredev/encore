@@ -7,13 +7,16 @@ module app
 -- svc/svc.go --
 package svc
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 type UnusedType struct {
 Foo Foo
 }
 
-type Wrapper[T any] = T
+type Wrapper[T any] struct { Value T }
 
 // Tuple is a generic type which allows us to
 // return two values of two different types
@@ -43,6 +46,18 @@ type Foo int
 
 type Nested struct {
     Value string
+}
+
+type AllInputTypes[A any] struct {
+    A []time.Time         `header:"X-Alice"`       // Specify this comes from a header field
+    B int                 `query:"Bob"`              // Specify this comes from a query string
+    C bool                `json:"Charile,omitempty"` // This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
+    Dave A                                           // This generic type complicates the whole thing 🙈
+}
+
+type HeaderOnlyStruct struct {
+    Foo []int `header:"X-Foo"`
+    Bar bool `header:"X-Bar"`
 }
 
 -- svc/api.go --
@@ -78,3 +93,13 @@ func RESTPath(ctx context.Context, a string, b int) error {
 
 //encore:api public raw path=/webhook/:a/*b
 func Webhook(w http.ResponseWriter, req *http.Request) {}
+
+//encore:api public method=POST
+func RequestWithAllInputTypes(ctx context.Context, req *AllInputTypes[string]) (*AllInputTypes[float64], error) {
+    return nil
+}
+
+//encore:api public method=GET
+func GetRequestWithAllInputTypes(ctx context.Context, req *AllInputTypes[int]) (HeaderOnlyStruct, error) {
+    return nil
+}
