@@ -15,9 +15,17 @@ var (
 	testMainRan bool // did TestMain get called?
 )
 
-// Test checks the test output against the golden file.
+// Test checks the test output against the golden file where the path to the golden file is
+// based on the test name; i.e. `testName.golden` within the `testdata` folder.
 // If -golden-update was passed to "go test", it writes new golden files instead.
 func Test(t testing.TB, output string) {
+	fn := strings.Replace(t.Name(), "/", "__", -1)
+	TestAgainst(t, fn+".golden", output)
+}
+
+// TestAgainst checks the test output against the golden file.
+// If -golden-update was passed to "go test", it writes new golden files instead.
+func TestAgainst(t testing.TB, goldenFileName string, output string) {
 	if !testMainRan {
 		t.Fatal("golden.TestMain was not called")
 	}
@@ -25,8 +33,7 @@ func Test(t testing.TB, output string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fn := strings.Replace(t.Name(), "/", "__", -1)
-	path := filepath.Join(wd, "testdata", fn+".golden")
+	path := filepath.Join(wd, "testdata", goldenFileName)
 
 	if update {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
