@@ -5,7 +5,6 @@ package codegen
 
 import (
 	"io/ioutil"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,7 +12,12 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/parser"
+	"encr.dev/pkg/golden"
 )
+
+func TestMain(m *testing.M) {
+	golden.TestMain(m)
+}
 
 func TestClientCodeGeneration(t *testing.T) {
 	t.Helper()
@@ -41,13 +45,10 @@ func TestClientCodeGeneration(t *testing.T) {
 				language, ok := Detect(file.Name())
 				c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
-				ts, err := Client(language, "app", res.Meta)
+				generatedClient, err := Client(language, "app", res.Meta)
 				c.Assert(err, qt.IsNil)
 
-				expect, err := ioutil.ReadFile(filepath.Join("testdata", file.Name()))
-				c.Assert(err, qt.IsNil)
-
-				c.Assert(strings.Split(string(ts), "\n"), qt.DeepEquals, strings.Split(string(expect), "\n"))
+				golden.TestAgainst(c, file.Name(), string(generatedClient))
 			})
 		}
 	}

@@ -8,11 +8,38 @@ export default class Client {
 }
 
 export namespace svc {
+    export interface AllInputTypes<A> {
+        /**
+         * Specify this comes from a header field
+         */
+        A: string[]
+
+        /**
+         * Specify this comes from a query string
+         */
+        B: number
+
+        /**
+         * This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
+         */
+        Charile: boolean
+
+        /**
+         * This generic type complicates the whole thing 🙈
+         */
+        Dave: A
+    }
+
     export type Foo = number
 
     export interface GetRequest {
         Bar: string
         Baz: number
+    }
+
+    export interface HeaderOnlyStruct {
+        Foo: number[]
+        Bar: boolean
     }
 
     export interface Request {
@@ -44,7 +71,9 @@ export namespace svc {
 
     export type WrappedRequest = Wrapper<Request>
 
-    export type Wrapper<T> = T
+    export interface Wrapper<T> {
+        Value: T
+    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -67,8 +96,22 @@ export namespace svc {
             return this.baseClient.doVoid("GET", `/svc.Get?${encodeQuery(query)}`)
         }
 
+        public GetRequestWithAllInputTypes(params: AllInputTypes<number>): Promise<HeaderOnlyStruct> {
+            const query: any[] = [
+                "a", params.A,
+                "b", params.B,
+                "c", params.Charile,
+                "dave", params.Dave,
+            ]
+            return this.baseClient.do<HeaderOnlyStruct>("GET", `/svc.GetRequestWithAllInputTypes?${encodeQuery(query)}`)
+        }
+
         public RESTPath(a: string, b: number): Promise<void> {
             return this.baseClient.doVoid("GET", `/path/${a}/${b}`)
+        }
+
+        public RequestWithAllInputTypes(params: AllInputTypes<string>): Promise<AllInputTypes<number>> {
+            return this.baseClient.do<AllInputTypes<number>>("POST", `/svc.RequestWithAllInputTypes`, params)
         }
 
         /**

@@ -8,18 +8,25 @@ import (
 
 	"github.com/cockroachdb/errors"
 	. "github.com/dave/jennifer/jen"
+	"github.com/fatih/structtag"
 
 	"encr.dev/cli/internal/version"
+	"encr.dev/internal/gocodegen"
+	"encr.dev/parser/encoding"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 type golang struct {
-	md *meta.Data
+	md  *meta.Data
+	enc *gocodegen.MarshallingCodeGenerator
 }
 
 func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
 	g.md = md
+	// note we use unicode characters to write "encore" to ensure we don't conflict with any existing names in the
+	// package the generated client is placed.
+	g.enc = gocodegen.NewMarshallingCodeGenerator("ℯ𝓃𝑐ℴ𝑟ℯMarshaller")
 
 	namedTypes := getNamedTypes(md)
 
@@ -34,12 +41,17 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 		g.generateTypeDefinitions(file, namedTypes.Decls(service.Name))
 
 		if hasPublicRPC(service) {
-			g.generateServiceClient(file, service)
+			if err := g.generateServiceClient(file, service); err != nil {
+				return errors.Wrapf(err, "unable to generate service client for service: %s", service)
+			}
 		}
 	}
 
 	// Generate the base client
 	g.generateBaseClient(file)
+
+	// Generate the serializer
+	g.enc.WriteToFile(file)
 
 	// Finally, render the client
 	if err := file.Render(buf); err != nil {
@@ -227,7 +239,7 @@ func (g *golang) generateOptionFunc(file *File, optionName string, doc string, p
 		)
 }
 
-func (g *golang) generateServiceClient(file *File, service *meta.Service) {
+func (g *golang) generateServiceClient(file *File, service *meta.Service) error {
 	name := g.cleanServiceName(service)
 	interfaceName := fmt.Sprintf("%sClient", name)
 	structName := fmt.Sprintf("%sClient", strings.ToLower(name))
@@ -278,15 +290,22 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) {
 				file.Comment(line)
 			}
 		}
+
+		callSite, err := g.rpcCallSite(rpc)
+		if err != nil {
+			return errors.Wrapf(err, "rpc: %s", rpc.Name)
+		}
+
 		file.Func().
 			Params(Id("c").Op("*").Id(structName)).
 			Id(rpc.Name).
 			Add(
 				g.rpcParams(rpc),
 				g.rpcReturnType(rpc, true),
-			).Block(g.rpcCallSite(rpc)...)
+			).Block(callSite...)
 		file.Line()
 	}
+	return nil
 }
 
 func (g *golang) rpcParams(rpc *meta.RPC) Code {
@@ -373,60 +392,19 @@ func (g *golang) rpcReturnType(rpc *meta.RPC, concreteImpl bool) Code {
 	}
 }
 
-func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code) {
-	// Set the method (defaulting to POST)
-	method := "POST"
-	if rpc.HttpMethods[0] != "*" {
-		method = rpc.HttpMethods[0]
+func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
+	// Work out how we're going to encode and call this RPC
+	rpcEncoding, err := encoding.DescribeRPC(g.md, rpc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "rpc %s", rpc.Name)
 	}
 
-	// Check if we have a body or not to send
-	hasBody := rpc.RequestSchema != nil
-	switch method {
-	case "GET", "HEAD", "DELETE":
-		hasBody = false
-	}
-	params := Nil()
-	if hasBody {
-		params = Id("params")
-	}
-
-	// Get the path
-	queryValuesConstructor, path := g.createApiPath(rpc, hasBody)
-	if queryValuesConstructor != nil {
-		code = append(code, queryValuesConstructor)
-	}
-
-	// Check if we have a response
-	hasResp := rpc.ResponseSchema != nil
-	resp := Nil()
-	if hasResp {
-		resp = Op("&").Id("resp")
-	}
-
-	if rpc.Proto != meta.RPC_RAW {
-		// The API Call itself
-		call := Id("callAPI").
-			Call(
-				Id("ctx"),
-				Id("c").Dot("base"),
-				Lit(method),
-				path,
-				params,
-				resp,
-			)
-
-		if hasResp {
-			code = append(code, Err().Op("=").Add(call))
-			code = append(code, Return(Id("resp"), Err()))
-		} else {
-			code = append(code, Return(call))
-		}
-	} else {
-		// Raw end points just pass through the request
+	// Raw end points just pass through the request
+	// and need no further code generation
+	if rpc.Proto == meta.RPC_RAW {
 		code = append(
 			code,
-			List(Id("path"), Err()).Op(":=").Qual("net/url", "Parse").Call(path),
+			List(Id("path"), Err()).Op(":=").Qual("net/url", "Parse").Call(g.createApiPath(rpc, false)),
 			If(Err().Op("!=").Nil()).Block(
 				Return(
 					Nil(),
@@ -438,8 +416,222 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code) {
 			Line(),
 			Return(Id("c").Dot("base").Dot("Do").Call(Id("request"))),
 		)
+
+		return
 	}
-	return code
+
+	headers := Nil()
+	body := Nil()
+	withQueryString := false
+
+	// Work out how we encode the Request Schema
+	if rpc.RequestSchema != nil {
+		headerFields, queryFields, bodyFields, err := toFieldLists(rpcEncoding.DefaultRequestEncoding.Fields)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(headerFields) > 0 || len(queryFields) > 0 {
+			code = append(code, Comment("Convert our params into the objects we need for the request"))
+		}
+
+		enc := g.enc.NewPossibleInstance("reqEncoder")
+
+		// Generate the headers
+		if len(headerFields) > 0 {
+			values := Dict{}
+
+			// Check the request schema for fields we can put in the query string
+			for _, field := range headerFields {
+				slice, err := enc.ToStringSlice(
+					field.Field.Typ,
+					Id("params").Dot(field.Field.Name),
+				)
+				if err != nil {
+					return nil, errors.Wrapf(err, "unable to encode header %s", field.Field.Name)
+				}
+				values[Lit(field.Name)] = slice
+			}
+
+			headers = Id("headers")
+			enc.Add(Id("headers").Op(":=").Map(String()).Index().String().Values(values), Line())
+		}
+
+		// Generate the query string
+		if len(queryFields) > 0 {
+			withQueryString = true
+			values := Dict{}
+
+			// Check the request schema for fields we can put in the query string
+			for _, field := range queryFields {
+				slice, err := enc.ToStringSlice(
+					field.Field.Typ,
+					Id("params").Dot(field.Field.Name),
+				)
+				if err != nil {
+					return nil, errors.Wrapf(err, "unable to encode query fields %s", field.Field.Name)
+				}
+
+				values[Lit(field.Name)] = slice
+			}
+
+			enc.Add(Id("queryString").Op(":=").Qual("net/url", "Values").Values(values), Line())
+		}
+
+		if rpc.ResponseSchema != nil {
+			code = append(code, enc.Finalize(
+				Id("err").Op("=").Qual("fmt", "Errorf").Call(
+					Lit("unable to marshal parameters: %w"),
+					enc.LastError(),
+				),
+				Return(),
+			)...)
+		} else {
+			code = append(code, enc.Finalize(
+				Return(Qual("fmt", "Errorf").Call(
+					Lit("unable to marshal parameters: %w"),
+					enc.LastError(),
+				)),
+			)...)
+		}
+
+		// Generate the body
+		if len(bodyFields) > 0 {
+			if len(headerFields) == 0 && len(queryFields) == 0 {
+				// In the simple case we can just encode the params as the body directly
+				body = Id("params")
+			} else {
+				// Else we need a new struct called "body"
+				body = Id("body")
+
+				types, err := g.generateAnonStructTypes(bodyFields, "json")
+				if err != nil {
+					return nil, err
+				}
+
+				values := Dict{}
+				for _, field := range bodyFields {
+					values[Id(field.Field.Name)] = Id("params").Dot(field.Field.Name)
+				}
+
+				code = append(code,
+					Comment("Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)"),
+					Id("body").Op(":=").Struct(types...).Values(values),
+					Line(),
+				)
+			}
+		}
+	}
+
+	// Make the request
+	resp := Nil()
+	apiCallCode := func() Code {
+		return Id("callAPI").Call(
+			Id("ctx"),
+			Id("c").Dot("base"),
+			Lit(rpcEncoding.DefaultRequestEncoding.HTTPMethods[0]),
+			g.createApiPath(rpc, withQueryString),
+			headers,
+			body,
+			resp,
+		)
+	}
+
+	// If there's no response schema, we can just return the call to the API directly
+	if rpc.ResponseSchema == nil {
+		code = append(code,
+			List(Id("_"), Err()).Op(":=").Add(apiCallCode()),
+			Return(Err()),
+		)
+		return
+	}
+
+	hasAnonResponseStruct := false
+	headerFields, queryFields, bodyFields, err := toFieldLists(rpcEncoding.ResponseEncoding.Fields)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we have a response object, we need
+	if len(bodyFields) > 0 {
+		if len(headerFields) == 0 && len(queryFields) == 0 {
+			// If there are no other fields, we can just take the return type and pass it straight through
+			resp = Op("&").Id("resp")
+		} else {
+			hasAnonResponseStruct = true
+
+			// we need to construct an anonymous struct
+			types, err := g.generateAnonStructTypes(bodyFields, "json")
+			if err != nil {
+				return nil, errors.Wrap(err, "response unmarshal")
+			}
+
+			code = append(code,
+				Comment("We only want the response body to marshal into these fields and none of the header fields,"),
+				Comment("so we'll construct a new struct with only those fields."),
+				Id("respBody").Op(":=").Struct(types...).Values(),
+				Line(),
+			)
+		}
+	}
+
+	// The API Call itself
+	code = append(code, Comment("Now make the actual call to the API"))
+
+	headersId := "_"
+	if len(headerFields) > 0 {
+		headersId = "respHeaders"
+		code = append(code, Var().Id(headersId).Qual("net/http", "Header"))
+	}
+
+	code = append(code,
+		List(Id(headersId), Err()).Op("=").Add(apiCallCode()),
+		If(Err().Op("!=").Nil()).Block(
+			Return(),
+		),
+		Line(),
+	)
+
+	// In we have an anonymous response struct, we need to copy the results into the full response struct
+	if hasAnonResponseStruct || len(headerFields) > 0 {
+		code = append(code, Comment("Copy the unmarshalled response body into our response struct"))
+
+		enc := g.enc.NewPossibleInstance("respDecoder")
+		for _, field := range rpcEncoding.ResponseEncoding.Fields {
+			switch field.Location {
+			case encoding.Header:
+				str, err := enc.FromString(
+					field.Field.Typ,
+					field.Field.Name,
+					Id(headersId).Dot("Get").Call(Lit(field.Name)),
+					Id(headersId).Dot("Values").Call(Lit(field.Name)),
+					false,
+				)
+				if err != nil {
+					return nil, errors.Wrapf(err, "unable to convert %s to string in response header", field.Name)
+				}
+
+				enc.Add(Id("resp").Dot(field.Field.Name).Op("=").Add(str))
+			case encoding.Body:
+				enc.Add(Id("resp").Dot(field.Field.Name).Op("=").Id("respBody").Dot(field.Field.Name))
+			default:
+				return nil, errors.Newf("unsupported response location: %+v", field.Location)
+			}
+		}
+
+		code = append(code, enc.Finalize(
+			Id("err").Op("=").Qual("fmt", "Errorf").Call(
+				Lit("unable to unmarshal headers: %w"),
+				enc.LastError(),
+			),
+			Return(),
+		)...)
+		code = append(code, Line())
+	}
+
+	code = append(code, Return())
+
+	return code, err
 }
 
 func (g *golang) declToID(decl *schema.Decl) *Statement {
@@ -529,19 +721,18 @@ func (g *golang) getType(typ *schema.Type) Code {
 			fieldTyp := Id(field.Name).Add(g.getType(field.Typ))
 
 			// Add the field tags
-			tags := map[string]string{}
-			if field.JsonName != "" {
-				tags["json"] = field.JsonName
-			}
-			if field.QueryStringName != "" && strings.ToLower(field.Name) != field.QueryStringName {
-				tags["qs"] = field.QueryStringName
-			}
-			if field.Optional {
-				tags["encore"] = "optional"
-				tags["json"] += ",omitempty"
-			}
-			if len(tags) > 0 {
-				fieldTyp = fieldTyp.Tag(tags)
+			if field.RawTag != "" {
+				tags, err := structtag.Parse(field.RawTag)
+				if err != nil {
+					panic("raw tags failed to parse") // This shouldn't happen at runtime, because the parser should have caught this
+				}
+
+				tagsForJen := make(map[string]string)
+				for _, tag := range tags.Tags() {
+					tagsForJen[tag.Key] = tag.Value()
+				}
+
+				fieldTyp = fieldTyp.Tag(tagsForJen)
 			}
 
 			// Add the docs for the field
@@ -575,7 +766,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 	}
 }
 
-func (g *golang) createApiPath(rpc *meta.RPC, hasBody bool) (queryStringConstruct *Statement, urlPath *Statement) {
+func (g *golang) createApiPath(rpc *meta.RPC, withQueryString bool) (urlPath *Statement) {
 	var url strings.Builder
 	params := make([]Code, 0)
 
@@ -602,38 +793,9 @@ func (g *golang) createApiPath(rpc *meta.RPC, hasBody bool) (queryStringConstruc
 	}
 
 	// Construct the query string
-	if !hasBody && rpc.RequestSchema != nil {
-		values := Dict{}
-
-		// Check the request schema for fields we can put in the query string
-		decl := g.md.Decls[rpc.RequestSchema.GetNamed().Id]
-		for _, field := range decl.Type.GetStruct().Fields {
-			if field.QueryStringName == "-" || field.JsonName == "-" {
-				continue
-			}
-
-			fieldName := field.Name
-			if field.QueryStringName != "" {
-				fieldName = field.QueryStringName
-			} else if field.JsonName != "" {
-				fieldName = field.JsonName
-			}
-
-			values[Lit(fieldName)] = Index().String().Values(
-				Qual("fmt", "Sprint").Call(
-					Id("params").Dot(field.Name),
-				),
-			)
-		}
-
-		// If we found some construct it
-		if len(values) > 0 {
-			queryStringConstruct = Id("queryString").Op(":=").Qual("net/url", "Values").Values(values)
-
-			// Add it to the URL
-			url.WriteString("?%s")
-			params = append(params, Id("queryString").Dot("Encode").Call())
-		}
+	if withQueryString {
+		url.WriteString("?%s")
+		params = append(params, Id("queryString").Dot("Encode").Call())
 	}
 
 	if len(params) == 0 {
@@ -644,7 +806,7 @@ func (g *golang) createApiPath(rpc *meta.RPC, hasBody bool) (queryStringConstruc
 		urlPath = Qual("fmt", "Sprintf").Call(params...)
 	}
 
-	return queryStringConstruct, urlPath
+	return urlPath
 }
 
 func (g *golang) generateTypeDefinitions(file *File, decls []*schema.Decl) {
@@ -682,6 +844,33 @@ func (g *golang) generateTypeDefinitions(file *File, decls []*schema.Decl) {
 		// Add the type
 		typ.Add(g.getType(decl.Type))
 	}
+}
+
+func (g *golang) generateAnonStructTypes(fields []*encoding.ParameterEncoding, encodingTag string) (types []Code, err error) {
+	for _, field := range fields {
+		var tagValue strings.Builder
+		tagValue.WriteString(field.Name)
+
+		// Parse the tags and extract the encoding tag
+		tags, err := structtag.Parse(field.Field.RawTag)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse tags: %s", field.Field.Name)
+		}
+		if tag, err := tags.Get(encodingTag); err == nil {
+			options := strings.Join(tag.Options, ",")
+			if options != "" {
+				tagValue.WriteRune(',')
+				tagValue.WriteString(options)
+			}
+		}
+
+		types = append(
+			types,
+			Id(field.Field.Name).Add(g.getType(field.Field.Typ)).Tag(map[string]string{encodingTag: tagValue.String()}),
+		)
+	}
+
+	return
 }
 
 func (g *golang) generateBaseClient(file *File) {
@@ -775,9 +964,10 @@ func (g *golang) generateBaseClient(file *File) {
 			Id("client").Op("*").Id("baseClient"),
 			Id("method"),
 			Id("path").String(),
+			Id("headers").Map(String()).Index().String(),
 			List(Id("body"), Id("resp")).Any(),
 		).
-		Error().
+		Params(Qual("net/http", "Header"), Error()).
 		Block(
 			Comment("Encode the API body"),
 			Var().Id("bodyReader").Qual("io", "Reader"),
@@ -786,7 +976,7 @@ func (g *golang) generateBaseClient(file *File) {
 					Qual("encoding/json", "Marshal").
 					Call(Id("body")),
 				If(Err().Op("!=").Nil()).Block(
-					Return(Qual("fmt", "Errorf").Call(Lit("marshal request: %w"), Err())),
+					Return(Nil(), Qual("fmt", "Errorf").Call(Lit("marshal request: %w"), Err())),
 				),
 
 				Id("bodyReader").Op("=").Qual("bytes", "NewReader").Call(Id("bodyBytes")),
@@ -800,7 +990,15 @@ func (g *golang) generateBaseClient(file *File) {
 					Id("ctx"), Id("method"), Id("path"), Id("bodyReader"),
 				),
 			If(Err().Op("!=").Nil()).Block(
-				Return(Qual("fmt", "Errorf").Call(Lit("create request: %w"), Err())),
+				Return(Nil(), Qual("fmt", "Errorf").Call(Lit("create request: %w"), Err())),
+			),
+			Line(),
+
+			Comment("Add any headers to the request"),
+			For(List(Id("header"), Id("values")).Op(":=").Range().Id("headers")).Block(
+				For(List(Id("_"), Id("value")).Op(":=").Range().Id("values")).Block(
+					Id("req").Dot("Header").Dot("Add").Call(Id("header"), Id("value")),
+				),
 			),
 			Line(),
 
@@ -808,13 +1006,13 @@ func (g *golang) generateBaseClient(file *File) {
 			List(Id("rawResponse"), Err()).Op(":=").
 				Id("client").Dot("Do").Call(Id("req")),
 			If(Err().Op("!=").Nil()).Block(
-				Return(Qual("fmt", "Errorf").Call(Lit("request failed: %w"), Err())),
+				Return(Nil(), Qual("fmt", "Errorf").Call(Lit("request failed: %w"), Err())),
 			),
 			Defer().Func().Params().Block(
 				Id("_").Op("=").Id("rawResponse").Dot("Body").Dot("Close").Call(),
 			).Call(),
 			If(Id("rawResponse").Dot("StatusCode").Op(">=").Lit(400)).Block(
-				Return(Qual("fmt", "Errorf").Call(Lit("got error response: %s"), Id("rawResponse").Dot("Status"))),
+				Return(Nil(), Qual("fmt", "Errorf").Call(Lit("got error response: %s"), Id("rawResponse").Dot("Status"))),
 			),
 			Line(),
 
@@ -829,9 +1027,12 @@ func (g *golang) generateBaseClient(file *File) {
 						Call(Id("resp")),
 					Err().Op("!=").Nil(),
 				).Block(
-					Return(Qual("fmt", "Errorf").Call(Lit("decode response: %w"), Err())),
+					Return(Nil(), Qual("fmt", "Errorf").Call(Lit("decode response: %w"), Err())),
 				),
 			),
-			Return(Nil()),
+			Return(
+				Id("rawResponse").Dot("Header"),
+				Nil(),
+			),
 		)
 }
