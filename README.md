@@ -72,29 +72,26 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Visuals
 
-### Local Development Dashboard
-
-https://user-images.githubusercontent.com/78424526/167644884-322a5cf5-8838-45ab-8c25-a59517bd3784.mp4
-
 ### Built-in CI/CD & Infrastructure Provisioning
 
-https://user-images.githubusercontent.com/78424526/167646228-451fbf7a-0649-4b25-b969-47501d73cb60.mp4
+https://user-images.githubusercontent.com/78424526/169317801-7711b7a2-080d-4da5-bba4-7b8d4104dd68.mp4
 
 ### Simple Cloud Environments
 
-<img src="https://encore.dev/assets/github/environments.png" alt="Simple Cloud Environments" width=75% height=75%>
+<img src="https://user-images.githubusercontent.com/78424526/169320417-f2d51755-cab5-40d8-a97f-ad1106746a3c.png" alt="Simple Cloud Environments" width="90%">
+
 
 ### Distributed Tracing
 
-<img src="https://encore.dev/assets/github/tracing.png" alt="Distributed Tracing" width=75% height=75%>
+<img src="https://user-images.githubusercontent.com/78424526/169325536-92ed7482-68a3-4d79-9be1-825cc176dffa.png" alt="Distributed Tracing" width="90%">
 
 ### Automated API Documentation
 
-<img src="https://encore.dev/assets/github/documentation.png" alt="Automated API Documentation" width=75% height=75%>
+<img src="https://user-images.githubusercontent.com/78424526/169325592-105b7540-5ad7-4433-a624-7437c0d4c8d7.png" alt="Automated API Documentation" width="90%">
 
 ### Native Cron Jobs
 
-<img src="https://encore.dev/assets/github/cronjobs.png" alt="Native Cron Jobs" width=75% height=75%>
+<img src="https://user-images.githubusercontent.com/78424526/169318004-e2a0cfdc-6610-44b3-8c83-e6751344c575.png" alt="Native Cron Jobs" width="90%">
 
 ## Frequently Asked Questions (FAQ)
 
