@@ -613,7 +613,7 @@ class BaseClient {
             init.headers["Authorization"] = "Bearer " + bearerToken
         } else if (requiresAuth) {
             // The API called requires authorization, but we don't have a token generator, or it provided a blank token value
-            throw new EncoreError(400, { code: ErrCode.Unauthenticated, message: 'Authorization token required for this API, but none provided.' })
+            throw new APIError(400, { code: ErrCode.Unauthenticated, message: 'Authorization token required for this API, but none provided.' })
         }
 
         // Make the actual request
@@ -622,12 +622,12 @@ class BaseClient {
         // handle any error responses
         if (!response.ok) {
             // try and get the error message from the response body
-            let body: EncoreErrorResponse = { code: ErrCode.Unknown, message: ` + "`request failed: status ${response.status}`" + ` }
+            let body: APIErrorResponse = { code: ErrCode.Unknown, message: ` + "`request failed: status ${response.status}`" + ` }
 
             // if we can get the structured error we should, otherwise give a best effort
             try {
                 let jsonBody = await response.json()
-                if (isEncoreErrorResponse(jsonBody)) {
+                if (isAPIErrorResponse(jsonBody)) {
                     body = jsonBody
                 } else {
                     body.message += ": " + JSON.stringify(jsonBody)
@@ -637,7 +637,7 @@ class BaseClient {
                 body.message += ": " + await response.text()
             }
 
-            throw new EncoreError(response.status, body)
+            throw new APIError(response.status, body)
         }
 
         return response
@@ -949,15 +949,15 @@ func (ts *typescript) writeCustomErrorType() {
 	w.WriteString(`
 
 /**
- * EncoreErrorDetails represents the response from an Encore API in the case of an error
+ * APIErrorDetails represents the response from an Encore API in the case of an error
  */
-interface EncoreErrorResponse {
+interface APIErrorResponse {
     code: ErrCode
     message: string
     details?: any
 }
 
-function isEncoreErrorResponse(err: any): err is EncoreErrorResponse {
+function isAPIErrorResponse(err: any): err is APIErrorResponse {
     return (
         err !== undefined && err !== null && 
         typeof(err.code) === "number" &&
@@ -967,13 +967,13 @@ function isEncoreErrorResponse(err: any): err is EncoreErrorResponse {
 }
 
 /**
- * EncoreError represents a structured error as returned from an Encore application.
+ * APIError represents a structured error as returned from an Encore application.
  */
-export class EncoreError extends Error {
+export class APIError extends Error {
     /**
      * The name of this error class
      */
-    public readonly name: 'EncoreError'
+    public readonly name: 'APIError'
 
     /**
      * The HTTP status code associated with the error.
@@ -995,23 +995,23 @@ export class EncoreError extends Error {
      */
     public readonly details?: any
 
-    constructor(status: number, response: EncoreErrorResponse) {
+    constructor(status: number, response: APIErrorResponse) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
         
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
-            value:        'EncoreError',
+            value:        'APIError',
             enumerable:   false,
             configurable: true,
         })
         
         // fix the prototype chain
         if ((Object as any).setPrototypeOf == undefined) { 
-            (this as any).__proto__ = EncoreError.prototype 
+            (this as any).__proto__ = APIError.prototype 
         } else {
-            Object.setPrototypeOf(this, EncoreError.prototype);
+            Object.setPrototypeOf(this, APIError.prototype);
         }
         
         // capture a stack trace
@@ -1026,10 +1026,10 @@ export class EncoreError extends Error {
 }
 
 /**
- * Typeguard allowing use of an EncoreError's fields'
+ * Typeguard allowing use of an APIError's fields'
  */
-export function isEncoreError(err: any): err is EncoreError {
-    return err instanceof EncoreError;
+export function isAPIError(err: any): err is APIError {
+    return err instanceof APIError;
 }
 
 export enum ErrCode {
