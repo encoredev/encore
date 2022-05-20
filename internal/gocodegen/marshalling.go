@@ -16,8 +16,9 @@ const (
 // MarshallingCodeGenerator is used to generate a structure has methods for decoding various types, collecting the errors.
 // It will only generate methods required for the given types.
 type MarshallingCodeGenerator struct {
-	structName string
-	used       bool
+	structName          string
+	used                bool
+	encoreTypesAsString bool // true if  auth.UID and uuid.UUID should be treated as strings?
 
 	builtins     []methodDescription
 	seenBuiltins map[methodKey]methodDescription
@@ -47,11 +48,12 @@ type MarshallingCodeWrapper struct {
 	code []Code
 }
 
-func NewMarshallingCodeGenerator(structName string) *MarshallingCodeGenerator {
+func NewMarshallingCodeGenerator(structName string, forClientGen bool) *MarshallingCodeGenerator {
 	return &MarshallingCodeGenerator{
-		structName:   structName,
-		builtins:     nil,
-		seenBuiltins: make(map[methodKey]methodDescription),
+		structName:          structName,
+		builtins:            nil,
+		seenBuiltins:        make(map[methodKey]methodDescription),
+		encoreTypesAsString: forClientGen,
 	}
 }
 
@@ -75,7 +77,7 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 		return
 	}
 
-	f.Commentf("%s is used to marshal requests to strings and unmarshal responses from strings", g.structName)
+	f.Commentf("%s is used to serialize request data into strings and deserialize response data from strings", g.structName)
 	f.Type().Id(g.structName).Struct(
 		Id(lastErrorField).Error().Comment("The last error that occurred"),
 	)
@@ -287,7 +289,7 @@ func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice bool)
 		fn = methodDescription{false, "FromString", String(), String(), false, []Code{Return(Id("s"))}}
 	case schema.Builtin_BYTES:
 		fn = methodDescription{false, "FromBytes", Index().Byte(), String(), false, []Code{
-			Return(Qual("encoding/base64", "URLEncoding").Dot("EncodeString").Call(Id("s"))),
+			Return(Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(Id("s"))),
 		}}
 	case schema.Builtin_BOOL:
 		fn = methodDescription{false, "FromBool", Bool(), String(), false, []Code{
@@ -332,8 +334,8 @@ func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice bool)
 			schema.Builtin_UINT32:  {"uint32", "uint64", unsigned, 32},
 			schema.Builtin_UINT64:  {"uint64", "uint64", unsigned, 64},
 			schema.Builtin_UINT:    {"uint", "uint64", unsigned, 64},
-			schema.Builtin_FLOAT64: {"float64", "flaot64", float, 64},
-			schema.Builtin_FLOAT32: {"float32", "flaot64", float, 32},
+			schema.Builtin_FLOAT64: {"float64", "float64", float, 64},
+			schema.Builtin_FLOAT32: {"float32", "float64", float, 32},
 		}
 
 		def, ok := numTypes[t]
@@ -355,7 +357,7 @@ func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice bool)
 				case signed:
 					s.Qual("strconv", "FormatInt").Call(id, Lit(10))
 				case float:
-					s.Qual("strconv", "FormatFloat").Call(id, Lit('f'), Lit(-1), Lit(def.bits))
+					s.Qual("strconv", "FormatFloat").Call(id, Lit(byte('f')), Lit(-1), Lit(def.bits))
 				default:
 					err = errors.Newf("unknown kind %v", def.kind)
 				}
@@ -392,6 +394,12 @@ func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 	return code
 }
 
+func (g *MarshallingCodeGenerator) shouldBeTreatedAsString(builtin schema.Builtin) bool {
+	return builtin == schema.Builtin_STRING ||
+		(g.encoreTypesAsString && builtin == schema.Builtin_UUID) ||
+		(g.encoreTypesAsString && builtin == schema.Builtin_USER_ID)
+}
+
 // FromString will return either the original string or a call to the encoder
 func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName string, getAsString Code, getAsStringSlice Code, required bool) (code Code, err error) {
 	// get the method name for the target type
@@ -401,7 +409,7 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 	case *schema.Type_List:
 		if bt, ok := t.List.Elem.Typ.(*schema.Type_Builtin); ok {
 			// If the list is strings, we can just return the slice
-			if bt.Builtin == schema.Builtin_STRING {
+			if w.g.shouldBeTreatedAsString(bt.Builtin) {
 				return getAsStringSlice, nil
 			}
 
@@ -415,7 +423,7 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 		}
 	case *schema.Type_Builtin:
 		// If the list is strings, we can just return the slice
-		if t.Builtin == schema.Builtin_STRING {
+		if w.g.shouldBeTreatedAsString(t.Builtin) {
 			return getAsString, nil
 		}
 
@@ -440,7 +448,7 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 	case *schema.Type_List:
 		if bt, ok := t.List.Elem.Typ.(*schema.Type_Builtin); ok {
 			// If the list is strings, we can just return the slice
-			if bt.Builtin == schema.Builtin_STRING {
+			if w.g.shouldBeTreatedAsString(bt.Builtin) {
 				return sourceValue, nil
 			}
 
@@ -456,8 +464,8 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 		}
 	case *schema.Type_Builtin:
 		// If the list is strings, we can just return the slice
-		if t.Builtin == schema.Builtin_STRING {
-			return Index().String().Values(sourceValue), nil
+		if w.g.shouldBeTreatedAsString(t.Builtin) {
+			return Values(sourceValue), nil
 		}
 
 		funcName, err = w.g.builtinToString(t.Builtin, false)
@@ -466,7 +474,7 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 		}
 
 		w.used = true
-		return Index().String().Values(Id(w.instanceName).Dot(funcName).Call(sourceValue)), nil
+		return Values(Id(w.instanceName).Dot(funcName).Call(sourceValue)), nil
 	default:
 		return nil, errors.Newf("unsupported type for deserialization: %T", t)
 	}

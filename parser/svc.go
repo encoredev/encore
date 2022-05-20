@@ -487,7 +487,7 @@ func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *
 	// Check it's a supported parameter type (i.e. a named type which is a structure)
 	n := typ.GetNamed()
 	if n == nil {
-		p.errf(expr.Pos(), "%s is not a named type", types.ExprString(expr))
+		p.errf(expr.Pos(), "%s is not a named type. API Parameters must be a struct type.", types.ExprString(expr))
 		p.abort()
 	}
 
