@@ -9,6 +9,7 @@ import (
 	"encore.dev/beta/errs"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
+	serde "encore.dev/runtime/serde"
 	"encore.dev/types/uuid"
 	"fmt"
 	"github.com/felixge/httpsnoop"
@@ -36,12 +37,13 @@ func __encore_svc_CronOne(w http.ResponseWriter, req *http.Request, ps httproute
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "CronOne")
 	if !proceed {
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "CronOne",
 		EndpointExprIdx: 14,
@@ -83,10 +85,11 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
 	// Decode request
-	var dec typeDecoder
-	p0 := dec.String("bar", ps[0].Value, true)
-	p1 := dec.String("baz", ps[1].Value, true)
+	p0 := dec.ToString("bar", ps[0].Value, true)
+	p1 := dec.ToString("baz", ps[1].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0, p1)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Eight")
@@ -94,7 +97,7 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Eight",
 		EndpointExprIdx: 15,
@@ -108,7 +111,9 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
-	} else if err := dec.Err(); err != nil {
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
 		return
@@ -133,16 +138,24 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	// Serialize the response
 	var respData []byte
-	respData, marshalErr := json.MarshalIndent(resp, "", "  ")
-	if marshalErr != nil {
-		marshalErr = errs.WrapCode(marshalErr, errs.Internal, "failed to marshal response")
+
+	// Encode JSON body
+	respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+		ser.WriteField("Message", resp.Message, false)
+	})
+	if err != nil {
+		marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
 		runtime.FinishRequest(nil, marshalErr)
 		errs.HTTPError(w, marshalErr)
 		return
 	}
+
+	// Record tracing data
 	respData = append(respData, '\n')
 	output := [][]byte{respData}
 	runtime.FinishRequest(output, nil)
+
+	// Write response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	w.Write(respData)
@@ -153,29 +166,54 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
 	// Decode request
-	var dec typeDecoder
-	p0 := dec.UUID("id", ps[0].Value, true)
-	p1 := dec.Uint("key", ps[1].Value, true)
+	p0 := dec.ToUUID("id", ps[0].Value, true)
+	p1 := dec.ToUint("key", ps[1].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0, p1)
 
 	params := &svc.FooParams{}
-	switch req.Method {
+	switch m := req.Method; m {
 	case "GET":
+
+		// Decode Query String
 		qs := req.URL.Query()
-		params.Name = dec.String("name", qs.Get("name"), false)
-		inputs = append(inputs, []byte("?"+req.URL.RawQuery))
+		params.Name = qs.Get("name")
+
+	case "POST":
+
+		// Decode JSON Body
+		payload := dec.Body(req.Body)
+		iter := jsoniter.ParseBytes(json, payload)
+		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+			switch strings.ToLower(key) {
+			case "name":
+				dec.ParseJSON("Name", iter, &params.Name)
+			default:
+				_ = iter.SkipAndReturnBytes()
+			}
+			return true
+		}) {
+		}
+
 	default:
-		payload := dec.Body(req.Body, &params)
-		inputs = append(inputs, payload)
+		panic("HTTP method is not supported")
 	}
+	// Add trace info
+	jsonParams, err := json.Marshal(params)
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
+	inputs = append(inputs, jsonParams)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Five")
 	if !proceed {
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Five",
 		EndpointExprIdx: 16,
@@ -189,7 +227,9 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
-	} else if err := dec.Err(); err != nil {
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
 		return
@@ -222,13 +262,15 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
+
 	// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
 	// while the httprouter implementation includes it.
 	ps[0].Value = strings.TrimPrefix(ps[0].Value, "/")
 
 	// Decode request
-	var dec typeDecoder
-	p0 := dec.String("baz", ps[0].Value, true)
+	p0 := dec.ToString("baz", ps[0].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Four")
@@ -236,7 +278,7 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Four",
 		EndpointExprIdx: 17,
@@ -250,7 +292,9 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
-	} else if err := dec.Err(); err != nil {
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
 		return
@@ -283,12 +327,13 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "One")
 	if !proceed {
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "One",
 		EndpointExprIdx: 18,
@@ -330,27 +375,42 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
 	// Decode request
-	var dec typeDecoder
 	var inputs [][]byte
 
 	params := &svc.QueryParams{}
-	qs := req.URL.Query()
-	params.Time = dec.Time("time", qs.Get("time"), false)
-	params.UID = dec.UserID("uid", qs.Get("uid"), false)
-	params.JSON = dec.JSON("json", qs.Get("json"), false)
-	params.Float32 = dec.Float32("float32", qs.Get("float32"), false)
-	params.Float64 = dec.Float64("float64", qs.Get("float64"), false)
-	params.Strings = dec.StringList("strings", qs["strings"], false)
-	params.Times = dec.TimeList("times", qs["times"], false)
-	inputs = append(inputs, []byte("?"+req.URL.RawQuery))
+	switch m := req.Method; m {
+	case "GET":
+
+		// Decode Query String
+		qs := req.URL.Query()
+		params.Time = dec.ToTime("time", qs.Get("time"), false)
+		params.UID = dec.ToUserID("uid", qs.Get("uid"), false)
+		params.JSON = dec.ToJSON("json", qs.Get("json"), false)
+		params.Float32 = dec.ToFloat32("float32", qs.Get("float32"), false)
+		params.Float64 = dec.ToFloat64("float64", qs.Get("float64"), false)
+		params.Strings = qs["strings"]
+		params.Times = dec.ToTimeList("times", qs["times"], false)
+
+	default:
+		panic("HTTP method is not supported")
+	}
+	// Add trace info
+	jsonParams, err := json.Marshal(params)
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
+	inputs = append(inputs, jsonParams)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Query")
 	if !proceed {
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Query",
 		EndpointExprIdx: 19,
@@ -364,7 +424,9 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
-	} else if err := dec.Err(); err != nil {
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
 		return
@@ -397,17 +459,18 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
 	// Decode request
-	var dec typeDecoder
-	_ = dec.String("bar", ps[0].Value, true)
-	_ = dec.String("baz", ps[1].Value, true)
+	_ = dec.ToString("bar", ps[0].Value, true)
+	_ = dec.ToString("baz", ps[1].Value, true)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Seven")
 	if !proceed {
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Seven",
 		EndpointExprIdx: 20,
@@ -420,6 +483,12 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 	})
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
+		runtime.FinishRequest(nil, err)
+		errs.HTTPError(w, err)
 		return
 	}
 
@@ -435,33 +504,59 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
+
 	// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
 	// while the httprouter implementation includes it.
 	ps[1].Value = strings.TrimPrefix(ps[1].Value, "/")
 
 	// Decode request
-	var dec typeDecoder
-	p0 := dec.UUID("id", ps[0].Value, true)
-	p1 := dec.String("key", ps[1].Value, true)
+	p0 := dec.ToUUID("id", ps[0].Value, true)
+	p1 := dec.ToString("key", ps[1].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0, p1)
 
 	params := &svc.FooParams{}
-	switch req.Method {
+	switch m := req.Method; m {
 	case "GET":
+
+		// Decode Query String
 		qs := req.URL.Query()
-		params.Name = dec.String("name", qs.Get("name"), false)
-		inputs = append(inputs, []byte("?"+req.URL.RawQuery))
+		params.Name = qs.Get("name")
+
+	case "POST":
+
+		// Decode JSON Body
+		payload := dec.Body(req.Body)
+		iter := jsoniter.ParseBytes(json, payload)
+		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+			switch strings.ToLower(key) {
+			case "name":
+				dec.ParseJSON("Name", iter, &params.Name)
+			default:
+				_ = iter.SkipAndReturnBytes()
+			}
+			return true
+		}) {
+		}
+
 	default:
-		payload := dec.Body(req.Body, &params)
-		inputs = append(inputs, payload)
+		panic("HTTP method is not supported")
 	}
+	// Add trace info
+	jsonParams, err := json.Marshal(params)
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
+	inputs = append(inputs, jsonParams)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Six")
 	if !proceed {
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Six",
 		EndpointExprIdx: 21,
@@ -475,7 +570,9 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
-	} else if err := dec.Err(); err != nil {
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
 		return
@@ -508,9 +605,10 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
 	// Decode request
-	var dec typeDecoder
-	p0 := dec.String("id", ps[0].Value, true)
+	p0 := dec.ToString("id", ps[0].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Three")
@@ -518,7 +616,7 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Three",
 		EndpointExprIdx: 22,
@@ -532,7 +630,9 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
-	} else if err := dec.Err(); err != nil {
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
 		return
@@ -565,20 +665,46 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	runtime.BeginOperation()
 	defer runtime.FinishOperation()
 
+	var err error
+	dec := &marshaller{}
 	// Decode request
-	var dec typeDecoder
 	var inputs [][]byte
 
 	params := &svc.FooParams{}
-	payload := dec.Body(req.Body, &params)
-	inputs = append(inputs, payload)
+	switch m := req.Method; m {
+	case "POST":
+
+		// Decode JSON Body
+		payload := dec.Body(req.Body)
+		iter := jsoniter.ParseBytes(json, payload)
+		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+			switch strings.ToLower(key) {
+			case "name":
+				dec.ParseJSON("Name", iter, &params.Name)
+			default:
+				_ = iter.SkipAndReturnBytes()
+			}
+			return true
+		}) {
+		}
+
+	default:
+		panic("HTTP method is not supported")
+	}
+	// Add trace info
+	jsonParams, err := json.Marshal(params)
+	if err != nil {
+		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
+		return
+	}
+	inputs = append(inputs, jsonParams)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Two")
 	if !proceed {
 		return
 	}
 
-	err := runtime.BeginRequest(ctx, runtime.RequestData{
+	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Two",
 		EndpointExprIdx: 23,
@@ -592,7 +718,9 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	if err != nil {
 		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
 		return
-	} else if err := dec.Err(); err != nil {
+	}
+	if dec.LastError != nil {
+		err := dec.LastError
 		runtime.FinishRequest(nil, err)
 		errs.HTTPError(w, err)
 		return
@@ -817,120 +945,106 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 	return uid, authData, authErr
 }
 
-// typeDecoder decodes types from incoming requests
-type typeDecoder struct {
-	err error
+// marshaller is used to serialize request data into strings and deserialize response data from strings
+type marshaller struct {
+	LastError error // The last error that occurred
 }
 
-func (d *typeDecoder) String(field string, s string, required bool) (v string) {
+func (e *marshaller) ToString(field string, s string, required bool) (v string) {
 	if !required && s == "" {
 		return
 	}
 	return s
 }
 
-func (d *typeDecoder) UUID(field string, s string, required bool) (v uuid.UUID) {
+func (e *marshaller) ToUUID(field string, s string, required bool) (v uuid.UUID) {
 	if !required && s == "" {
 		return
 	}
 	v, err := uuid.FromString(s)
-	d.setErr("invalid parameter", field, err)
+	e.setErr("invalid parameter", field, err)
 	return v
 }
 
-func (d *typeDecoder) Uint(field string, s string, required bool) (v uint) {
+func (e *marshaller) ToUint(field string, s string, required bool) (v uint) {
 	if !required && s == "" {
 		return
 	}
 	x, err := strconv.ParseUint(s, 10, 64)
-	d.setErr("invalid parameter", field, err)
+	e.setErr("invalid parameter", field, err)
 	return uint(x)
 }
 
-func (d *typeDecoder) Time(field string, s string, required bool) (v time.Time) {
+func (e *marshaller) ToTime(field string, s string, required bool) (v time.Time) {
 	if !required && s == "" {
 		return
 	}
 	v, err := time.Parse(time.RFC3339, s)
-	d.setErr("invalid parameter", field, err)
+	e.setErr("invalid parameter", field, err)
 	return v
 }
 
-func (d *typeDecoder) UserID(field string, s string, required bool) (v auth.UID) {
+func (e *marshaller) ToUserID(field string, s string, required bool) (v auth.UID) {
 	if !required && s == "" {
 		return
 	}
 	return auth.UID(s)
 }
 
-func (d *typeDecoder) JSON(field string, s string, required bool) (v stdjson.RawMessage) {
+func (e *marshaller) ToJSON(field string, s string, required bool) (v stdjson.RawMessage) {
 	if !required && s == "" {
 		return
 	}
 	return stdjson.RawMessage(s)
 }
 
-func (d *typeDecoder) Float32(field string, s string, required bool) (v float32) {
+func (e *marshaller) ToFloat32(field string, s string, required bool) (v float32) {
 	if !required && s == "" {
 		return
 	}
 	x, err := strconv.ParseFloat(s, 32)
-	d.setErr("invalid parameter", field, err)
+	e.setErr("invalid parameter", field, err)
 	return float32(x)
 }
 
-func (d *typeDecoder) Float64(field string, s string, required bool) (v float64) {
+func (e *marshaller) ToFloat64(field string, s string, required bool) (v float64) {
 	if !required && s == "" {
 		return
 	}
 	x, err := strconv.ParseFloat(s, 64)
-	d.setErr("invalid parameter", field, err)
+	e.setErr("invalid parameter", field, err)
 	return x
 }
 
-func (d *typeDecoder) StringList(field string, s []string, required bool) (v []string) {
+func (e *marshaller) ToTimeList(field string, s []string, required bool) (v []time.Time) {
 	if !required && len(s) == 0 {
 		return
 	}
 	for _, x := range s {
-		v = append(v, d.String(field, x, required))
+		v = append(v, e.ToTime(field, x, required))
 	}
 	return v
 }
 
-func (d *typeDecoder) TimeList(field string, s []string, required bool) (v []time.Time) {
-	if !required && len(s) == 0 {
-		return
+// setErr sets the last error within the object if one is not already set
+func (e *marshaller) setErr(msg, field string, err error) {
+	if err != nil && e.LastError == nil {
+		e.LastError = fmt.Errorf("%s: %s: %w", field, msg, err)
 	}
-	for _, x := range s {
-		v = append(v, d.Time(field, x, required))
-	}
-	return v
 }
 
-func (d *typeDecoder) Body(body io.Reader, dst interface{}) (payload []byte) {
+func (d *marshaller) Body(body io.Reader) (payload []byte) {
 	payload, err := ioutil.ReadAll(body)
 	if err == nil && len(payload) == 0 {
 		d.setErr("missing request body", "request_body", fmt.Errorf("missing request body"))
 	} else if err != nil {
 		d.setErr("could not parse request body", "request_body", err)
-	} else if err := json.Unmarshal(payload, dst); err != nil {
-		d.setErr("could not parse request body", "request_body", err)
 	}
 	return payload
 }
-
-func (d *typeDecoder) Err() error {
-	return d.err
-}
-
-func (d *typeDecoder) setErr(msg, field string, err error) {
-	if err != nil && d.err == nil {
-		d.err = errs.B().Code(errs.InvalidArgument).Msg(msg).Details(validationDetails{
-			Err:   err.Error(),
-			Field: field,
-		}).Err()
-	}
+func (d *marshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst any) {
+	iter.ReadVal(dst)
+	d.setErr("invalid json parameter", field, iter.Error)
 }
 
 

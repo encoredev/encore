@@ -2,6 +2,8 @@ package encoding
 
 import (
 	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
@@ -33,6 +35,7 @@ var requestTags = map[string]tagDescription{
 	"header": {
 		location:        Header,
 		overrideDefault: true,
+		nameFormatter:   strings.ToLower,
 	},
 	"json": {
 		location:        Body,
@@ -45,10 +48,12 @@ var responseTags = map[string]tagDescription{
 	"header": {
 		location:        Header,
 		overrideDefault: true,
+		nameFormatter:   strings.ToLower,
 	},
 	"json": {
 		location:        Body,
 		overrideDefault: false,
+		omitEmptyOption: "omitempty",
 	},
 }
 
@@ -59,6 +64,8 @@ var responseTags = map[string]tagDescription{
 type tagDescription struct {
 	location        ParameterLocation
 	overrideDefault bool
+	omitEmptyOption string
+	nameFormatter   func(string) string
 }
 
 // encodingHints is used to determine the default location and applicable tag overrides for http
@@ -111,6 +118,8 @@ type ParameterEncoding struct {
 	Location ParameterLocation
 	// The location specific name of the parameter (e.g. cheeseEater, cheese-eater, X-Cheese-Eater
 	Name string
+	// Whether the parameter should be omitted if it's empty
+	OmitEmpty bool
 	// The underlying field definition
 	Field *schema.Field
 }
@@ -246,6 +255,11 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, httpMet
 			Fields:      fields,
 		})
 	}
+
+	// Sort by first method to get a deterministic order (list is randomized by map above)
+	sort.Slice(reqs, func(i, j int) bool {
+		return reqs[i].HTTPMethods[0] < reqs[j].HTTPMethods[0]
+	})
 	return reqs, nil
 }
 
@@ -278,7 +292,8 @@ func formatName(location ParameterLocation, name string) string {
 // describeParam returns an RPCField which falls back on defaultLocation if no parameter
 // (e.g. qs, query, header) tag is set
 func describeParam(encodingHints *encodingHints, field *schema.Field) (*ParameterEncoding, error) {
-	rpcField := &ParameterEncoding{encodingHints.defaultLocation, formatName(encodingHints.defaultLocation, field.Name), field}
+	rpcField := &ParameterEncoding{encodingHints.defaultLocation, formatName(encodingHints.defaultLocation, field.Name), false, field}
+
 	var usedOverrideTag string
 	for _, tag := range field.Tags {
 		tagHint, ok := encodingHints.tags[tag.Key]
@@ -293,7 +308,18 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (*Paramete
 			usedOverrideTag = tag.Key
 		}
 		if tagHint.location == rpcField.Location {
-			rpcField.Name = tag.Name
+			if tagHint.nameFormatter != nil {
+				rpcField.Name = tagHint.nameFormatter(tag.Name)
+			} else {
+				rpcField.Name = tag.Name
+			}
+		}
+		if tagHint.omitEmptyOption != "" {
+			for _, o := range tag.Options {
+				if o == tagHint.omitEmptyOption {
+					rpcField.OmitEmpty = true
+				}
+			}
 		}
 	}
 	return rpcField, nil
