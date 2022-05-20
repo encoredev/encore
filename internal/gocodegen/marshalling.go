@@ -77,7 +77,7 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 		return
 	}
 
-	f.Commentf("%s is used to marshal requests to strings and unmarshal responses from strings", g.structName)
+	f.Commentf("%s is used to serialize request data into strings and deserialize response data from strings", g.structName)
 	f.Type().Id(g.structName).Struct(
 		Id(lastErrorField).Error().Comment("The last error that occurred"),
 	)

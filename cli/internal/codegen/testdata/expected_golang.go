@@ -135,7 +135,7 @@ var _ ProductsClient = (*productsClient)(nil)
 
 func (c *productsClient) Create(ctx context.Context, params ProductsCreateProductRequest) (resp ProductsProduct, err error) {
 	// Convert our params into the objects we need for the request
-	headers := map[string][]string{"Idempotency-Key": {params.IdempotencyKey}}
+	headers := http.Header{"Idempotency-Key": {params.IdempotencyKey}}
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
@@ -244,7 +244,7 @@ func (c *svcClient) DummyAPI(ctx context.Context, params SvcRequest) error {
 
 func (c *svcClient) Get(ctx context.Context, params SvcGetRequest) error {
 	// Convert our params into the objects we need for the request
-	reqEncoder := &ℯ𝓃𝑐ℴ𝑟ℯMarshaller{}
+	reqEncoder := &serde{}
 
 	queryString := url.Values{"boo": {reqEncoder.FromInt(params.Baz)}}
 
@@ -258,9 +258,9 @@ func (c *svcClient) Get(ctx context.Context, params SvcGetRequest) error {
 
 func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[int]) (resp SvcHeaderOnlyStruct, err error) {
 	// Convert our params into the objects we need for the request
-	reqEncoder := &ℯ𝓃𝑐ℴ𝑟ℯMarshaller{}
+	reqEncoder := &serde{}
 
-	headers := map[string][]string{"X-Alice": {reqEncoder.FromTime(params.A)}}
+	headers := http.Header{"X-Alice": {reqEncoder.FromTime(params.A)}}
 
 	queryString := url.Values{
 		"Bob":  reqEncoder.FromIntList(params.B),
@@ -281,7 +281,7 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	}
 
 	// Copy the unmarshalled response body into our response struct
-	respDecoder := &ℯ𝓃𝑐ℴ𝑟ℯMarshaller{}
+	respDecoder := &serde{}
 
 	resp.Boolean = respDecoder.ToBool("Boolean", respHeaders.Get("x-boolean"), false)
 	resp.Int = respDecoder.ToInt("Int", respHeaders.Get("x-int"), false)
@@ -302,9 +302,9 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 
 func (c *svcClient) HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyStruct) error {
 	// Convert our params into the objects we need for the request
-	reqEncoder := &ℯ𝓃𝑐ℴ𝑟ℯMarshaller{}
+	reqEncoder := &serde{}
 
-	headers := map[string][]string{
+	headers := http.Header{
 		"x-boolean": {reqEncoder.FromBool(params.Boolean)},
 		"x-bytes":   {reqEncoder.FromBytes(params.Bytes)},
 		"x-float":   {reqEncoder.FromFloat64(params.Float)},
@@ -331,9 +331,9 @@ func (c *svcClient) RESTPath(ctx context.Context, a string, b int) error {
 
 func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[string]) (resp SvcAllInputTypes[float64], err error) {
 	// Convert our params into the objects we need for the request
-	reqEncoder := &ℯ𝓃𝑐ℴ𝑟ℯMarshaller{}
+	reqEncoder := &serde{}
 
-	headers := map[string][]string{"X-Alice": {reqEncoder.FromTime(params.A)}}
+	headers := http.Header{"X-Alice": {reqEncoder.FromTime(params.A)}}
 
 	queryString := url.Values{"Bob": reqEncoder.FromIntList(params.B)}
 
@@ -367,7 +367,7 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 	}
 
 	// Copy the unmarshalled response body into our response struct
-	respDecoder := &ℯ𝓃𝑐ℴ𝑟ℯMarshaller{}
+	respDecoder := &serde{}
 
 	resp.A = respDecoder.ToTime("A", respHeaders.Get("X-Alice"), false)
 	resp.B = respBody.B
@@ -442,7 +442,7 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 // callAPI is used by each generated API method to actually make request and decode the responses
-func callAPI(ctx context.Context, client *baseClient, method, path string, headers map[string][]string, body, resp any) (http.Header, error) {
+func callAPI(ctx context.Context, client *baseClient, method, path string, headers http.Header, body, resp any) (http.Header, error) {
 	// Encode the API body
 	var bodyReader io.Reader
 	if body != nil {
@@ -487,31 +487,31 @@ func callAPI(ctx context.Context, client *baseClient, method, path string, heade
 	return rawResponse.Header, nil
 }
 
-// ℯ𝓃𝑐ℴ𝑟ℯMarshaller is used to marshal requests to strings and unmarshal responses from strings
-type ℯ𝓃𝑐ℴ𝑟ℯMarshaller struct {
+// serde is used to serialize request data into strings and deserialize response data from strings
+type serde struct {
 	LastError error // The last error that occurred
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) FromInt(s int) (v string) {
+func (e *serde) FromInt(s int) (v string) {
 	return strconv.FormatInt(int64(s), 10)
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) FromTime(s time.Time) (v string) {
+func (e *serde) FromTime(s time.Time) (v string) {
 	return s.Format(time.RFC3339)
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) FromIntList(s []int) (v []string) {
+func (e *serde) FromIntList(s []int) (v []string) {
 	for _, x := range s {
 		v = append(v, e.FromInt(x))
 	}
 	return v
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) FromBool(s bool) (v string) {
+func (e *serde) FromBool(s bool) (v string) {
 	return strconv.FormatBool(s)
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToBool(field string, s string, required bool) (v bool) {
+func (e *serde) ToBool(field string, s string, required bool) (v bool) {
 	if !required && s == "" {
 		return
 	}
@@ -520,7 +520,7 @@ func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToBool(field string, s string, require
 	return v
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToInt(field string, s string, required bool) (v int) {
+func (e *serde) ToInt(field string, s string, required bool) (v int) {
 	if !required && s == "" {
 		return
 	}
@@ -529,7 +529,7 @@ func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToInt(field string, s string, required
 	return int(x)
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToFloat64(field string, s string, required bool) (v float64) {
+func (e *serde) ToFloat64(field string, s string, required bool) (v float64) {
 	if !required && s == "" {
 		return
 	}
@@ -538,7 +538,7 @@ func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToFloat64(field string, s string, requ
 	return x
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToBytes(field string, s string, required bool) (v []byte) {
+func (e *serde) ToBytes(field string, s string, required bool) (v []byte) {
 	if !required && s == "" {
 		return
 	}
@@ -547,7 +547,7 @@ func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToBytes(field string, s string, requir
 	return v
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToTime(field string, s string, required bool) (v time.Time) {
+func (e *serde) ToTime(field string, s string, required bool) (v time.Time) {
 	if !required && s == "" {
 		return
 	}
@@ -556,27 +556,27 @@ func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToTime(field string, s string, require
 	return v
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) ToJSON(field string, s string, required bool) (v json.RawMessage) {
+func (e *serde) ToJSON(field string, s string, required bool) (v json.RawMessage) {
 	if !required && s == "" {
 		return
 	}
 	return json.RawMessage(s)
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) FromFloat64(s float64) (v string) {
+func (e *serde) FromFloat64(s float64) (v string) {
 	return strconv.FormatFloat(s, uint8(0x66), -1, 64)
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) FromBytes(s []byte) (v string) {
+func (e *serde) FromBytes(s []byte) (v string) {
 	return base64.URLEncoding.EncodeToString(s)
 }
 
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) FromJSON(s json.RawMessage) (v string) {
+func (e *serde) FromJSON(s json.RawMessage) (v string) {
 	return string(s)
 }
 
 // setErr sets the last error within the object if one is not already set
-func (e *ℯ𝓃𝑐ℴ𝑟ℯMarshaller) setErr(msg, field string, err error) {
+func (e *serde) setErr(msg, field string, err error) {
 	if err != nil && e.LastError == nil {
 		e.LastError = fmt.Errorf("%s: %s: %w", field, msg, err)
 	}

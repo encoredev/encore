@@ -122,8 +122,8 @@ export namespace products {
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
-                name:        params.name,
                 description: params.description,
+                name:        params.name,
             }
 
             // Now make the actual call to the API
@@ -272,14 +272,14 @@ export namespace svc {
         public async HeaderOnlyRequest(params: HeaderOnlyStruct): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers: Record<string, string> = {
-                "x-string":  params.String,
-                "x-bytes":   String(params.Bytes),
-                "x-json":    String(params.Json),
-                "x-user-id": String(params.UserID),
                 "x-boolean": String(params.Boolean),
-                "x-int":     String(params.Int),
+                "x-bytes":   String(params.Bytes),
                 "x-float":   String(params.Float),
+                "x-int":     String(params.Int),
+                "x-json":    String(params.Json),
+                "x-string":  params.String,
                 "x-time":    String(params.Time),
+                "x-user-id": String(params.UserID),
                 "x-uuid":    String(params.UUID),
             }
 

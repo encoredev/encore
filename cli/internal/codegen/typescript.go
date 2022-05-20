@@ -871,19 +871,23 @@ func (ts *typescript) Dot(structIdent string, fieldIdent string) string {
 func (ts *typescript) Values(w *indentWriter, dict map[string]string) {
 	// Work out the largest key length.
 	largestKey := 0
+	keys := make([]string, 0, len(dict))
 	for key := range dict {
+		keys = append(keys, key)
 		key = ts.QuoteIfRequired(key)
 		if len(key) > largestKey {
 			largestKey = len(key)
 		}
 	}
 
+	sort.Strings(keys)
+
 	w.WriteString("{\n")
 	{
 		w := w.Indent()
-		for key, value := range dict {
-			key = ts.QuoteIfRequired(key)
-			w.WriteStringf("%s: %s%s,\n", key, strings.Repeat(" ", largestKey-len(key)), value)
+		for _, key := range keys {
+			ident := ts.QuoteIfRequired(key)
+			w.WriteStringf("%s: %s%s,\n", ident, strings.Repeat(" ", largestKey-len(ident)), dict[key])
 		}
 	}
 	w.WriteString("}\n")

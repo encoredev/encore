@@ -17,13 +17,13 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
-// tsGenVersion allows us to introduce breaking changes in the generated code but behind a switch
+// goGenVersion allows us to introduce breaking changes in the generated code but behind a switch
 // meaning that people with client code reliant on the old behaviour can continue to generate the
 // old code.
 type goGenVersion int
 
 const (
-	// GoInitial is the originally released typescript generator
+	// GoInitial is the originally released Go client generator
 	GoInitial goGenVersion = iota
 
 	// GoExperimental can be used to lock experimental or uncompleted features in the generated code
@@ -41,9 +41,7 @@ type golang struct {
 
 func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
 	g.md = md
-	// note we use unicode characters to write "encore" to ensure we don't conflict with any existing names in the
-	// package the generated client is placed.
-	g.enc = gocodegen.NewMarshallingCodeGenerator("ℯ𝓃𝑐ℴ𝑟ℯMarshaller", true)
+	g.enc = gocodegen.NewMarshallingCodeGenerator("serde", true)
 
 	namedTypes := getNamedTypes(md)
 
@@ -474,7 +472,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 			}
 
 			headers = Id("headers")
-			enc.Add(Id("headers").Op(":=").Map(String()).Index().String().Values(values), Line())
+			enc.Add(Id("headers").Op(":=").Qual("net/http", "Header").Values(values), Line())
 		}
 
 		// Generate the query string
@@ -984,7 +982,7 @@ func (g *golang) generateBaseClient(file *File) {
 			Id("client").Op("*").Id("baseClient"),
 			Id("method"),
 			Id("path").String(),
-			Id("headers").Map(String()).Index().String(),
+			Id("headers").Qual("net/http", "Header"),
 			List(Id("body"), Id("resp")).Any(),
 		).
 		Params(Qual("net/http", "Header"), Error()).
