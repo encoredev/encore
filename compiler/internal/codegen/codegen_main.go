@@ -2,11 +2,12 @@ package codegen
 
 import (
 	"fmt"
-	"go/token"
 	"strconv"
 	"strings"
 
+	"encr.dev/internal/gocodegen"
 	"encr.dev/parser"
+	"encr.dev/parser/encoding"
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
 	"encr.dev/pkg/errlist"
@@ -27,6 +28,8 @@ var importNames = map[string]string{
 	"encore.dev/types/uuid":     "uuid",
 }
 
+const JsonPkg = "github.com/json-iterator/go"
+
 type decodeKey struct {
 	builtin schema.Builtin
 	slice   bool
@@ -36,9 +39,8 @@ type Builder struct {
 	res             *parser.Result
 	compilerVersion string
 
-	errors       *errlist.List
-	builtins     []decoderDescriptor
-	seenBuiltins map[decodeKey]decoderDescriptor
+	marshaller *gocodegen.MarshallingCodeGenerator
+	errors     *errlist.List
 }
 
 func NewBuilder(res *parser.Result, compilerVersion string) *Builder {
@@ -46,7 +48,7 @@ func NewBuilder(res *parser.Result, compilerVersion string) *Builder {
 		res:             res,
 		compilerVersion: compilerVersion,
 		errors:          errlist.New(res.FileSet),
-		seenBuiltins:    make(map[decodeKey]decoderDescriptor),
+		marshaller:      gocodegen.NewMarshallingCodeGenerator("marshaller", false),
 	}
 }
 
@@ -65,7 +67,7 @@ func (b *Builder) Main() (f *File, err error) {
 		f.ImportName(pkg.ImportPath, pkg.Name)
 	}
 
-	f.Var().Id("json").Op("=").Qual("github.com/json-iterator/go", "Config").Values(Dict{
+	f.Var().Id("json").Op("=").Qual(JsonPkg, "Config").Values(Dict{
 		Id("EscapeHTML"):             False(),
 		Id("SortMapKeys"):            True(),
 		Id("ValidateJsonRawMessage"): True(),
@@ -75,7 +77,7 @@ func (b *Builder) Main() (f *File, err error) {
 
 	for _, svc := range b.res.App.Services {
 		for _, rpc := range svc.RPCs {
-			f.Add(b.buildRPC(f, svc, rpc))
+			f.Add(b.buildRPC(svc, rpc))
 			f.Line()
 		}
 	}
@@ -104,7 +106,7 @@ func (b *Builder) Main() (f *File, err error) {
 							case est.Private:
 								access = Qual("encore.dev/runtime/config", "Private")
 							default:
-								panic(fmt.Errorf("unhandled access type %v", rpc.Access))
+								b.errors.Addf(rpc.Func.Pos(), "unhandled access type %v", rpc.Access)
 							}
 							g.Values(Dict{
 								Id("Name"):    Lit(rpc.Name),
@@ -143,9 +145,9 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Line()
 
 	f.Func().Id("main").Params().Block(
-		If(Id("err").Op(":=").Qual("encore.dev/runtime", "ListenAndServe").Call(), Err().Op("!=").Nil()).Block(
+		If(Err().Op(":=").Qual("encore.dev/runtime", "ListenAndServe").Call(), Err().Op("!=").Nil()).Block(
 			Qual("encore.dev/runtime", "Logger").Call().Dot("Fatal").Call().
-				Dot("Err").Call(Id("err")).
+				Dot("Err").Call(Err()).
 				Dot("Msg").Call(Lit("could not listen and serve")),
 		),
 	)
@@ -166,12 +168,12 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Func().Params(Id("validationDetails")).Id("ErrDetails").Params().Block()
 
 	b.writeAuthFuncs(f)
-	b.writeDecoder(f)
+	b.marshaller.WriteToFile(f)
 
 	return f, b.errors.Err()
 }
 
-func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
+func (b *Builder) buildRPC(svc *est.Service, rpc *est.RPC) *Statement {
 	return Func().Id("__encore_"+svc.Name+"_"+rpc.Name).Params(
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("req").Op("*").Qual("net/http", "Request"),
@@ -181,52 +183,55 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 		g.Qual("encore.dev/runtime", "BeginOperation").Call()
 		g.Defer().Qual("encore.dev/runtime", "FinishOperation").Call()
 		g.Line()
-
-		hasPathParams, pathSegs := b.decodeRequest(g, svc, rpc)
-
-		if b.res.App.AuthHandler != nil {
-			g.List(Id("uid"), Id("authData"), Id("proceed")).Op(":=").Id("__encore_authenticate").Call(
-				Id("w"), Id("req"), Lit(rpc.Access == est.Auth), Lit(svc.Name), Lit(rpc.Name),
-			)
-			g.If(Op("!").Id("proceed")).Block(
-				Return(),
-			)
-			g.Line()
-		}
-
-		traceID := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
-		g.Err().Op(":=").Qual("encore.dev/runtime", "BeginRequest").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
-			d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
-			d[Id("Service")] = Lit(svc.Name)
-			d[Id("Endpoint")] = Lit(rpc.Name)
-			d[Id("Path")] = Id("req").Dot("URL").Dot("Path")
-			d[Id("EndpointExprIdx")] = Lit(traceID)
-			if !rpc.Raw && (rpc.Request != nil || len(pathSegs) > 0) {
-				d[Id("Inputs")] = Id("inputs")
-			} else {
-				d[Id("Inputs")] = Nil()
-			}
-			if hasPathParams {
-				d[Id("PathSegments")] = Id("ps")
-			}
+		g.Var().Err().Error()
+		requestDecoder := b.marshaller.NewPossibleInstance("dec")
+		var hasPathParams bool
+		var pathSegs []paths.Segment
+		requestDecoder.Add(CustomFunc(Options{Separator: "\n"}, func(g *Group) {
+			hasPathParams, pathSegs = b.decodeRequest(requestDecoder, g, rpc)
 
 			if b.res.App.AuthHandler != nil {
-				d[Id("UID")] = Id("uid")
-				d[Id("AuthData")] = Id("authData")
-			}
-		})))
-		g.If(Err().Op("!=").Nil()).Block(
-			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), buildErr("Internal", "internal error")),
-			Return(),
-		).Do(func(s *Statement) {
-			if !rpc.Raw && hasPathParams {
-				s.Else().If(Err().Op(":=").Id("dec").Dot("Err").Call(), Err().Op("!=").Nil()).Block(
-					Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Err()),
-					Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Err()),
+				g.List(Id("uid"), Id("authData"), Id("proceed")).Op(":=").Id("__encore_authenticate").Call(
+					Id("w"), Id("req"), Lit(rpc.Access == est.Auth), Lit(svc.Name), Lit(rpc.Name),
+				)
+				g.If(Op("!").Id("proceed")).Block(
 					Return(),
 				)
+				g.Line()
 			}
-		})
+
+			traceID := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
+			g.Err().Op("=").Qual("encore.dev/runtime", "BeginRequest").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(DictFunc(func(d Dict) {
+				d[Id("Type")] = Qual("encore.dev/runtime", "RPCCall")
+				d[Id("Service")] = Lit(svc.Name)
+				d[Id("Endpoint")] = Lit(rpc.Name)
+				d[Id("Path")] = Id("req").Dot("URL").Dot("Path")
+				d[Id("EndpointExprIdx")] = Lit(traceID)
+				if !rpc.Raw && (rpc.Request != nil || len(pathSegs) > 0) {
+					d[Id("Inputs")] = Id("inputs")
+				} else {
+					d[Id("Inputs")] = Nil()
+				}
+				if hasPathParams {
+					d[Id("PathSegments")] = Id("ps")
+				}
+
+				if b.res.App.AuthHandler != nil {
+					d[Id("UID")] = Id("uid")
+					d[Id("AuthData")] = Id("authData")
+				}
+			})))
+			g.If(Err().Op("!=").Nil()).Block(
+				Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), buildErr("Internal", "internal error")),
+				Return(),
+			)
+		}))
+		g.Add(requestDecoder.Finalize(
+			Err().Op(":=").Id("dec").Dot("LastError"),
+			Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Err()),
+			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Err()),
+			Return(),
+		)...)
 		g.Line()
 
 		if rpc.Raw {
@@ -276,21 +281,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 		g.Line()
 
 		if rpc.Response != nil {
-			g.Comment("Serialize the response")
-			g.Var().Id("respData").Index().Byte()
-			g.List(Id("respData"), Id("marshalErr")).Op(":=").Id("json").Dot("MarshalIndent").Call(Id("resp"), Lit(""), Lit("  "))
-			g.If(Id("marshalErr").Op("!=").Nil()).Block(
-				Id("marshalErr").Op("=").Add(wrapErrCode(Id("marshalErr"), "Internal", "failed to marshal response")),
-				Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("marshalErr")),
-				Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Id("marshalErr")),
-				Return(),
-			)
-			g.Id("respData").Op("=").Append(Id("respData"), LitRune('\n'))
-			g.Id("output").Op(":=").Index().Index().Byte().Values(Id("respData"))
-			g.Qual("encore.dev/runtime", "FinishRequest").Call(Id("output"), Nil())
-			g.Id("w").Dot("Header").Call().Dot("Set").Call(Lit("Content-Type"), Lit("application/json"))
-			g.Id("w").Dot("WriteHeader").Call(Lit(200))
-			g.Id("w").Dot("Write").Call(Id("respData"))
+			b.encodeResponse(g, rpc)
 		} else {
 			g.Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Nil())
 			g.Id("w").Dot("Header").Call().Dot("Set").Call(Lit("Content-Type"), Lit("application/json"))
@@ -299,7 +290,72 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) *Statement {
 	})
 }
 
-func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPathParams bool, pathSegs []paths.Segment) {
+func (b *Builder) encodeResponse(g *Group, rpc *est.RPC) {
+	g.Comment("Serialize the response")
+	g.Var().Id("respData").Index().Byte()
+	resp, err := encoding.DescribeResponse(b.res.Meta, rpc.Response.Type)
+	if err != nil {
+		b.errors.Addf(rpc.Func.Pos(), "failed to describe response: %v", err.Error())
+	}
+	var bodyStmts []Code
+	headerValues := Dict{}
+	headerEncoder := b.marshaller.NewPossibleInstance("headerEncoder")
+	for _, f := range resp.Fields {
+		switch f.Location {
+		case encoding.Header:
+			headerSlice, err := headerEncoder.ToStringSlice(f.Field.Typ, Id("resp").Dot(f.Field.Name))
+			if err != nil {
+				b.errors.Addf(rpc.Func.Pos(), "failed to generate haader serializers: %v", err.Error())
+			}
+			headerValues[Lit(f.Name)] = headerSlice
+		case encoding.Body:
+			bodyStmts = append(bodyStmts, Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("resp").Dot(f.Field.Name), Lit(f.OmitEmpty)))
+		default:
+			b.errors.Addf(rpc.Func.Pos(), "unsupported response location: %d", f.Location)
+		}
+	}
+	if len(bodyStmts) > 0 {
+		g.Line().Comment("Encode JSON body")
+		g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/runtime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/runtime/serde", "JSONSerializer")).Block(
+			bodyStmts...))
+		g.If(Err().Op("!=").Nil()).Block(
+			Id("marshalErr").Op(":=").Add(wrapErrCode(Err(), "Internal", "failed to marshal response")),
+			Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("marshalErr")),
+			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Id("marshalErr")),
+			Return(),
+		)
+	}
+
+	if len(headerValues) > 0 {
+		g.Line().Comment("Encode headers")
+		headerEncoder.Add(Id("headers").Op(":=").Map(String()).Index().String().Values(headerValues))
+		g.Add(headerEncoder.Finalize(
+			Id("headerErr").Op(":=").Add(wrapErrCode(Id("headerEncoder").Dot("LastError"), "Internal", "failed to marshal headers")),
+			Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("headerErr")),
+			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Id("headerErr")),
+			Return(),
+		)...)
+	}
+
+	g.Line().Comment("Record tracing data")
+	g.Id("respData").Op("=").Append(Id("respData"), LitRune('\n'))
+	g.Id("output").Op(":=").Index().Index().Byte().Values(Id("respData"))
+	g.Qual("encore.dev/runtime", "FinishRequest").Call(Id("output"), Nil())
+
+	g.Line().Comment("Write response")
+	if len(headerValues) > 0 {
+		g.For(List(Id("k"), Id("vs")).Op(":=").Range().Id("headers")).Block(
+			For(List(Id("_"), Id("v")).Op(":=").Range().Id("vs")).Block(
+				Id("w").Dot("Header").Call().Dot("Add").Call(Id("k"), Id("v")),
+			),
+		)
+	}
+	g.Id("w").Dot("Header").Call().Dot("Set").Call(Lit("Content-Type"), Lit("application/json"))
+	g.Id("w").Dot("WriteHeader").Call(Lit(200))
+	g.Id("w").Dot("Write").Call(Id("respData"))
+}
+
+func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper, g *Group, rpc *est.RPC) (hasPathParams bool, pathSegs []paths.Segment) {
 	segs := make([]paths.Segment, 0, len(rpc.Path.Segments))
 	seenWildcard := false
 	wildcardIdx := 0
@@ -329,11 +385,12 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 	}
 
 	g.Comment("Decode request")
-	g.Var().Id("dec").Id("typeDecoder")
-
 	// Decode path params
 	for i, seg := range segs {
-		name := b.builtinDecoder(seg.ValueType, false, fmt.Sprintf("rpc %s.%s: path parameter #%d", svc.Name, rpc.Name, i+1))
+		decodeCall, err := requestDecoder.FromStringToBuiltin(seg.ValueType, seg.Value, Id("ps").Index(Lit(i)).Dot("Value"), true)
+		if err != nil {
+			b.errors.Addf(rpc.Func.Pos(), "could not create decoder for path param, %v", err)
+		}
 		g.Do(func(s *Statement) {
 			// If it's a raw endpoint the params are not used, but validate them regardless.
 			if rpc.Raw {
@@ -341,7 +398,7 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 			} else {
 				s.Id("p" + strconv.Itoa(i)).Op(":=")
 			}
-		}).Id("dec").Dot(name).Call(Lit(seg.Value), Id("ps").Index(Lit(i)).Dot("Value"), True())
+		}).Add(decodeCall)
 	}
 
 	if !rpc.Raw {
@@ -360,22 +417,10 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 		// Parsing requests for HTTP methods without a body (GET, HEAD, DELETE) are handled by parsing the query string,
 		// while other methods are parsed by reading the body and unmarshalling it as JSON.
 		// If the same endpoint supports both, handle it with a switch.
-		var qsMethods []string
-		bodyMethods := false
-	MethodLoop:
-		for _, m := range rpc.HTTPMethods {
-			switch m {
-			case "GET", "HEAD", "DELETE":
-				qsMethods = append(qsMethods, m)
-			case "*":
-				bodyMethods = true
-				qsMethods = []string{"GET", "HEAD", "DELETE"}
-				break MethodLoop
-			default:
-				bodyMethods = true
-			}
+		reqs, err := encoding.DescribeRequest(b.res.Meta, rpc.Request.Type, rpc.HTTPMethods...)
+		if err != nil {
+			b.errors.Addf(rpc.Func.Pos(), "failed to describe request: %v", err.Error())
 		}
-
 		g.Line()
 		if rpc.Request.IsPtr {
 			g.Id("params").Op(":=").Op("&").Add(b.typeName(rpc.Request, true)).Values()
@@ -383,71 +428,86 @@ func (b *Builder) decodeRequest(g *Group, svc *est.Service, rpc *est.RPC) (hasPa
 			g.Var().Id("params").Add(b.typeName(rpc.Request, true))
 		}
 
-		var qsStmts, bodyStmts []Code
-		if len(qsMethods) > 0 {
-			qsStmts = append(qsStmts,
-				Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call(),
-			)
-
-			if named := rpc.Request.Type.GetNamed(); named != nil {
-				decl := b.res.App.Decls[named.Id]
-				if st := decl.Type.GetStruct(); st != nil {
-					for _, f := range st.Fields {
-						qsName := f.QueryStringName
-						if qsName == "-" {
-							continue
+		g.Add(Switch(Id("m").Op(":=").Id("req").Dot("Method"), Id("m")).BlockFunc(
+			func(g *Group) {
+				for _, r := range reqs {
+					g.CaseFunc(func(g *Group) {
+						for _, m := range r.HTTPMethods {
+							g.Lit(m)
 						}
-
-						name := b.queryStringDecoder(f.Typ, fmt.Sprintf("api %s.%s: field %s", svc.Name, rpc.Name, f.Name))
-						qsStmts = append(qsStmts, Id("params").Dot(f.Name).Op("=").Id("dec").Dot(name).Call(
-							Lit(qsName),
-							Id("qs").Do(func(s *Statement) {
-								if f.Typ.GetList() != nil {
-									s.Index(Lit(qsName))
-								} else {
-									s.Dot("Get").Call(Lit(qsName))
-								}
-							}),
-							False(), // query strings are never required
-						))
-					}
+					}).Line().Add(b.decodeRequestParameters(rpc, requestDecoder, r.Fields)...)
 				}
-			}
-			qsStmts = append(qsStmts,
-				Id("inputs").Op("=").Append(Id("inputs"), Index().Byte().Call(Lit("?").Op("+").Id("req").Dot("URL").Dot("RawQuery"))),
-			)
-		}
+				g.Default().Add(Id("panic").Call(Lit("HTTP method is not supported")))
+			},
+		))
+		g.Comment("Add trace info")
+		g.List(Id("jsonParams"), Err()).Op(":=").Id("json").Dot(
+			"Marshal").Call(Id("params"))
+		g.If(Err().Op("!=").Nil()).Block(
+			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), buildErr("Internal", "internal error")),
+			Return(),
+		)
+		g.Id("inputs").Op("=").Append(Id("inputs"), Id("jsonParams"))
+	}
+	g.Line()
+	return true, segs
+}
 
-		if bodyMethods {
-			bodyStmts = append(bodyStmts,
-				Id("payload").Op(":=").Id("dec").Dot("Body").Call(Id("req").Dot("Body"), Op("&").Id("params")),
-				Id("inputs").Op("=").Append(Id("inputs"), Id("payload")),
-			)
-		}
-
-		// Use switch if we have both body and query string cases
-		if len(qsMethods) > 0 && bodyMethods {
-			g.Switch(Id("req").Dot("Method")).Block(
-				CaseFunc(func(g *Group) {
-					for _, m := range qsMethods {
-						g.Lit(m)
-					}
-				}).Block(qsStmts...),
-				Default().Block(bodyStmts...),
-			)
-		} else if len(qsMethods) > 0 {
-			for _, s := range qsStmts {
-				g.Add(s)
+func (b *Builder) decodeRequestParameters(rpc *est.RPC, requestDecoder *gocodegen.MarshallingCodeWrapper, fields []*encoding.ParameterEncoding) []Code {
+	var qsStmts, bodyStmts, headerStmts, bodyCases []Code
+	for _, f := range fields {
+		switch f.Location {
+		case encoding.Body:
+			valDecoder, err := requestDecoder.FromJSON(f.Field.Typ, f.Name, "iter", Id("params").Dot(f.Field.Name))
+			if err != nil {
+				b.errorf("could not create parser for json type: %T", f.Field.Typ.Typ)
 			}
-		} else if bodyMethods {
-			for _, s := range bodyStmts {
-				g.Add(s)
+			bodyCases = append(bodyCases,
+				Case(Lit(strings.ToLower(f.Name))).Line().Add(valDecoder),
+			)
+		case encoding.Header:
+			if len(headerStmts) == 0 {
+				headerStmts = append(headerStmts,
+					Comment("Decode Headers").Line(),
+					Id("h").Op(":=").Id("req").Dot("Header").Line())
 			}
+			decoder, err := requestDecoder.FromString(f.Field.Typ, f.Name, Id("h").Dot("Get").Call(Lit(f.Name)), Id("h").Dot("Values").Call(Lit(f.Name)), false)
+			if err != nil {
+				b.errors.Addf(rpc.Func.Pos(), "could not create decoder for header: %v", err.Error())
+			}
+			headerStmts = append(headerStmts, Id("params").Dot(f.Field.Name).Op("=").Add(decoder).Line())
+		case encoding.Query:
+			if len(qsStmts) == 0 {
+				qsStmts = append(qsStmts,
+					Line().Comment("Decode Query String").Line(),
+					Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call().Line())
+			}
+			decoder, err := requestDecoder.FromString(f.Field.Typ, f.Name, Id("qs").Dot("Get").Call(Lit(f.Name)), Id("qs").Index(Lit(f.Name)), false)
+			if err != nil {
+				b.errors.Addf(rpc.Func.Pos(), "could not create decoder for query: %v", err.Error())
+			}
+			qsStmts = append(qsStmts, Id("params").Dot(f.Field.Name).Op("=").Add(decoder).Line())
 		}
 	}
 
-	g.Line()
-	return true, segs
+	if len(bodyCases) > 0 {
+		bodyCases = append(bodyCases, Default().Line().Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
+		bodyStmts = append(bodyStmts,
+			Line().Comment("Decode JSON Body").Line(),
+			Id("payload").Op(":=").Add(requestDecoder.Body(Id("req").Dot("Body"))).Line(),
+			Id("iter").Op(":=").Qual(JsonPkg, "ParseBytes").Call(Id("json"), Id("payload")),
+			Line(),
+			For(Id("iter").Dot("ReadObjectCB").Call(
+				Func().Params(Id("_").Op("*").Qual(JsonPkg, "Iterator"), Id("key").String()).Bool().Block(
+					Switch(Qual("strings", "ToLower").Call(Id("key"))).Block(bodyCases...),
+					Return(True()),
+				)).Block(),
+			).Line(),
+		)
+	}
+	rtnStmts := append(headerStmts, qsStmts...)
+	rtnStmts = append(rtnStmts, bodyStmts...)
+	return rtnStmts
 }
 
 func (b *Builder) writeAuthFuncs(f *File) {
@@ -587,192 +647,6 @@ type decoderDescriptor struct {
 	Result Code
 	IsList bool
 	Block  []Code
-}
-
-func (b *Builder) queryStringDecoder(t *schema.Type, src string) string {
-	switch t := t.Typ.(type) {
-	case *schema.Type_List:
-		if bt, ok := t.List.Elem.Typ.(*schema.Type_Builtin); ok {
-			return b.builtinDecoder(bt.Builtin, true, src)
-		}
-		panic(fmt.Sprintf("unsupported query string type: list of %T", t.List.Elem))
-	case *schema.Type_Named:
-		b.errors.Addf(token.NoPos, "cannot use nested types in request types used for query strings: %s", src)
-		return ""
-	case *schema.Type_Builtin:
-		return b.builtinDecoder(t.Builtin, false, src)
-	default:
-		panic(fmt.Sprintf("unsupported query string type: %T", t))
-	}
-}
-
-func (b *Builder) builtinDecoder(t schema.Builtin, slice bool, src string) string {
-	key := decodeKey{builtin: t, slice: slice}
-	if n, ok := b.seenBuiltins[key]; ok {
-		return n.Method
-	} else if slice {
-		k2 := decodeKey{builtin: t}
-		b.builtinDecoder(t, false, src)
-		desc := b.seenBuiltins[k2]
-		name := desc.Method + "List"
-		fn := decoderDescriptor{
-			Method: name,
-			Input:  Index().String(),
-			Result: Index().Add(desc.Result),
-			IsList: true,
-			Block: []Code{
-				For(List(Id("_"), Id("x")).Op(":=").Range().Id("s")).Block(
-					Id("v").Op("=").Append(Id("v"), Id("d").Dot(desc.Method).Call(Id("field"), Id("x"), Id("required"))),
-				),
-				Return(Id("v")),
-			},
-		}
-		b.seenBuiltins[key] = fn
-		b.builtins = append(b.builtins, fn)
-		return fn.Method
-	}
-
-	var fn decoderDescriptor
-	switch t {
-	case schema.Builtin_STRING:
-		fn = decoderDescriptor{"String", String(), String(), false, []Code{Return(Id("s"))}}
-	case schema.Builtin_BYTES:
-		fn = decoderDescriptor{"Bytes", String(), Index().Byte(), false, []Code{
-			List(Id("v"), Err()).Op(":=").Qual("encoding/base64", "URLEncoding").Dot("DecodeString").Call(Id("s")),
-			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
-			Return(Id("v")),
-		}}
-	case schema.Builtin_BOOL:
-		fn = decoderDescriptor{"Bool", String(), Bool(), false, []Code{
-			List(Id("v"), Err()).Op(":=").Qual("strconv", "ParseBool").Call(Id("s")),
-			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
-			Return(Id("v")),
-		}}
-	case schema.Builtin_UUID:
-		fn = decoderDescriptor{"UUID", String(), Qual("encore.dev/types/uuid", "UUID"), false, []Code{
-			List(Id("v"), Err()).Op(":=").Qual("encore.dev/types/uuid", "FromString").Call(Id("s")),
-			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
-			Return(Id("v")),
-		}}
-	case schema.Builtin_TIME:
-		fn = decoderDescriptor{"Time", String(), Qual("time", "Time"), false, []Code{
-			List(Id("v"), Err()).Op(":=").Qual("time", "Parse").Call(Qual("time", "RFC3339"), Id("s")),
-			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
-			Return(Id("v")),
-		}}
-	case schema.Builtin_USER_ID:
-		fn = decoderDescriptor{"UserID", String(), Qual("encore.dev/beta/auth", "UID"), false, []Code{
-			Return(Qual("encore.dev/beta/auth", "UID").Call(Id("s"))),
-		}}
-	case schema.Builtin_JSON:
-		fn = decoderDescriptor{"JSON", String(), Qual("encoding/json", "RawMessage"), false, []Code{
-			Return(Qual("encoding/json", "RawMessage").Call(Id("s"))),
-		}}
-	default:
-		type kind int
-		const (
-			unsigned kind = iota + 1
-			signed
-			float
-		)
-		numTypes := map[schema.Builtin]struct {
-			typ  string
-			kind kind
-			bits int
-		}{
-			schema.Builtin_INT8:    {"int8", signed, 8},
-			schema.Builtin_INT16:   {"int16", signed, 16},
-			schema.Builtin_INT32:   {"int32", signed, 32},
-			schema.Builtin_INT64:   {"int64", signed, 64},
-			schema.Builtin_INT:     {"int", signed, 64},
-			schema.Builtin_UINT8:   {"uint8", unsigned, 8},
-			schema.Builtin_UINT16:  {"uint16", unsigned, 16},
-			schema.Builtin_UINT32:  {"uint32", unsigned, 32},
-			schema.Builtin_UINT64:  {"uint64", unsigned, 64},
-			schema.Builtin_UINT:    {"uint", unsigned, 64},
-			schema.Builtin_FLOAT64: {"float64", float, 64},
-			schema.Builtin_FLOAT32: {"float32", float, 32},
-		}
-
-		def, ok := numTypes[t]
-		if !ok {
-			b.errorf("generating code for %s: unsupported type: %s", src, t)
-		}
-
-		cast := def.typ != "int64" && def.typ != "uint64" && def.typ != "float64"
-		fn = decoderDescriptor{strings.Title(def.typ), String(), Id(def.typ), false, []Code{
-			List(Id("x"), Err()).Op(":=").Do(func(s *Statement) {
-				switch def.kind {
-				case unsigned:
-					s.Qual("strconv", "ParseUint").Call(Id("s"), Lit(10), Lit(def.bits))
-				case signed:
-					s.Qual("strconv", "ParseInt").Call(Id("s"), Lit(10), Lit(def.bits))
-				case float:
-					s.Qual("strconv", "ParseFloat").Call(Id("s"), Lit(def.bits))
-				default:
-					b.errorf("generating code for %s: unknown kind %v", src, def.kind)
-				}
-			}),
-			Id("d").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
-			ReturnFunc(func(g *Group) {
-				if cast {
-					g.Id(def.typ).Call(Id("x"))
-				} else {
-					g.Id("x")
-				}
-			}),
-		}}
-	}
-
-	b.seenBuiltins[key] = fn
-	b.builtins = append(b.builtins, fn)
-	return fn.Method
-}
-
-func (b *Builder) writeDecoder(f *File) {
-	f.Comment("typeDecoder decodes types from incoming requests")
-	f.Type().Id("typeDecoder").Struct(Err().Error())
-	for _, desc := range b.builtins {
-		f.Func().Params(
-			Id("d").Op("*").Id("typeDecoder"),
-		).Id(desc.Method).Params(Id("field").String(), Id("s").Add(desc.Input), Id("required").Bool()).Params(Id("v").Add(desc.Result)).BlockFunc(func(g *Group) {
-			// If we're dealing with a list of strings, we need to compare with len(s) == 0 instead of s == ""
-			if desc.IsList {
-				g.If(Op("!").Id("required").Op("&&").Len(Id("s")).Op("==").Lit(0)).Block(Return())
-			} else {
-				g.If(Op("!").Id("required").Op("&&").Id("s").Op("==").Lit("")).Block(Return())
-			}
-			for _, s := range desc.Block {
-				g.Add(s)
-			}
-		})
-		f.Line()
-	}
-
-	f.Func().Params(Id("d").Op("*").Id("typeDecoder")).Id("Body").Params(Id("body").Qual("io", "Reader"), Id("dst").Interface()).Params(Id("payload").Index().Byte()).Block(
-		List(Id("payload"), Err()).Op(":=").Qual("io/ioutil", "ReadAll").Call(Id("body")),
-		If(Err().Op("==").Nil().Op("&&").Len(Id("payload")).Op("==").Lit(0)).Block(
-			Id("d").Dot("setErr").Call(Lit("missing request body"), Lit("request_body"), Qual("fmt", "Errorf").Call(Lit("missing request body"))),
-		).Else().If(Err().Op("!=").Nil()).Block(
-			Id("d").Dot("setErr").Call(Lit("could not parse request body"), Lit("request_body"), Err()),
-		).Else().If(Err().Op(":=").Id("json").Dot("Unmarshal").Call(Id("payload"), Id("dst")), Err().Op("!=").Nil()).Block(
-			Id("d").Dot("setErr").Call(Lit("could not parse request body"), Lit("request_body"), Err()),
-		),
-		Return(Id("payload")),
-	)
-	f.Line()
-
-	f.Func().Params(Id("d").Op("*").Id("typeDecoder")).Id("Err").Params().Params(Error()).Block(
-		Return(Id("d").Dot("err")),
-	)
-	f.Line()
-
-	f.Func().Params(Id("d").Op("*").Id("typeDecoder")).Id("setErr").Params(List(Id("msg"), Id("field")).String(), Err().Error()).Block(
-		If(Err().Op("!=").Nil().Op("&&").Id("d").Dot("err").Op("==").Nil()).Block(
-			Id("d").Dot("err").Op("=").Add(buildErrDetails("InvalidArgument", Id("msg"), Id("field"), Err().Dot("Error").Call())),
-		),
-	)
-	f.Line()
 }
 
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
