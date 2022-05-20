@@ -17,16 +17,33 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
+// tsGenVersion allows us to introduce breaking changes in the generated code but behind a switch
+// meaning that people with client code reliant on the old behaviour can continue to generate the
+// old code.
+type goGenVersion int
+
+const (
+	// GoInitial is the originally released typescript generator
+	GoInitial goGenVersion = iota
+
+	// GoExperimental can be used to lock experimental or uncompleted features in the generated code
+	// It should always be the last item in the enum
+	GoExperimental
+)
+
+const goGenLatestVersion = GoExperimental - 1
+
 type golang struct {
-	md  *meta.Data
-	enc *gocodegen.MarshallingCodeGenerator
+	md               *meta.Data
+	enc              *gocodegen.MarshallingCodeGenerator
+	generatorVersion goGenVersion
 }
 
 func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
 	g.md = md
 	// note we use unicode characters to write "encore" to ensure we don't conflict with any existing names in the
 	// package the generated client is placed.
-	g.enc = gocodegen.NewMarshallingCodeGenerator("ℯ𝓃𝑐ℴ𝑟ℯMarshaller")
+	g.enc = gocodegen.NewMarshallingCodeGenerator("ℯ𝓃𝑐ℴ𝑟ℯMarshaller", true)
 
 	namedTypes := getNamedTypes(md)
 
@@ -59,6 +76,10 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 	}
 
 	return nil
+}
+
+func (g *golang) Version() int {
+	return int(g.generatorVersion)
 }
 
 func (g *golang) cleanServiceName(service *meta.Service) string {
@@ -148,7 +169,7 @@ func (g *golang) generateClient(file *File, appSlug string, services []*meta.Ser
 				Id("base").Op(":=").Op("&").Id("baseClient").Values(Dict{
 					Id("baseURL"):    Id("baseURL"),
 					Id("httpClient"): Qual("net/http", "DefaultClient"),
-					Id("userAgent"):  Lit(fmt.Sprintf("%s-Generated-Client (Encore/%s)", appSlug, version.Version)),
+					Id("userAgent"):  Lit(fmt.Sprintf("%s-Generated-Go-Client (Encore/%s)", appSlug, version.Version)),
 				}),
 				Line(),
 
@@ -441,7 +462,6 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 		if len(headerFields) > 0 {
 			values := Dict{}
 
-			// Check the request schema for fields we can put in the query string
 			for _, field := range headerFields {
 				slice, err := enc.ToStringSlice(
 					field.Field.Typ,

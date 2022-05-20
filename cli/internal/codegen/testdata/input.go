@@ -10,6 +10,9 @@ package svc
 import (
     "encoding/json"
     "time"
+
+    "encore.dev/beta/auth"
+    "encore.dev/types/uuid"
 )
 
 type UnusedType struct {
@@ -49,15 +52,23 @@ type Nested struct {
 }
 
 type AllInputTypes[A any] struct {
-    A []time.Time         `header:"X-Alice"`       // Specify this comes from a header field
-    B int                 `query:"Bob"`              // Specify this comes from a query string
-    C bool                `json:"Charile,omitempty"` // This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
-    Dave A                                           // This generic type complicates the whole thing 🙈
+    A time.Time `header:"X-Alice"`               // Specify this comes from a header field
+    B []int     `query:"Bob"`                    // Specify this comes from a query string
+    C bool      `json:"Charlies-Bool,omitempty"` // This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
+    Dave A                                       // This generic type complicates the whole thing 🙈
 }
 
+// HeaderOnlyStruct contains all types we support in headers
 type HeaderOnlyStruct struct {
-    Foo []int `header:"X-Foo"`
-    Bar bool `header:"X-Bar"`
+    Boolean bool            `header:"x-boolean"`
+    Int     int             `header:"x-int"`
+    Float   float64         `header:"x-float"`
+    String  string          `header:"x-string"`
+    Bytes   []byte          `header:"x-bytes"`
+    Time    time.Time       `header:"x-time"`
+    Json    json.RawMessage `header:"x-json"`
+    UUID    uuid.UUID       `header:"x-uuid"`
+    UserID  auth.UID        `header:"x-user-id"`
 }
 
 -- svc/api.go --
@@ -102,4 +113,78 @@ func RequestWithAllInputTypes(ctx context.Context, req *AllInputTypes[string]) (
 //encore:api public method=GET
 func GetRequestWithAllInputTypes(ctx context.Context, req *AllInputTypes[int]) (HeaderOnlyStruct, error) {
     return nil
+}
+
+//encore:api public method=GET
+func HeaderOnlyRequest(ctx context.Context, req *HeaderOnlyStruct) error {
+    return nil
+}
+
+-- products/product.go --
+package products
+
+import (
+    "context"
+    "time"
+
+    "encore.dev/types/uuid"
+
+    "app/authentication"
+)
+
+type Product struct {
+    ID          uuid.UUID            `json:"id"`
+    Name        string               `json:"name"`
+    Description string               `json:"description,omitempty"`
+    CreatedAt   time.Time            `json:"created_at"`
+    CreatedBy   *authentication.User `json:"created_by"`
+}
+
+type ProductListing struct {
+    Products []*Product `json:"products"`
+
+    PreviousPage struct {
+        Cursor string `json:"cursor,omitempty"`
+        Exists bool   `json:"exists"`
+    } `json:"previous"`
+
+    NextPage struct {
+        Cursor string `json:"cursor,omitempty"`
+        Exists bool   `json:"exists"`
+    } `json:"next"`
+}
+
+type CreateProductRequest struct {
+    IdempotencyKey string `header:"Idempotency-Key"`
+    Name           string `json:"name"`
+    Description    string `json:"description,omitempty"`
+}
+
+//encore:api public method=GET
+func List(ctx context.Context) (*ProductListing, error) {
+    return nil, nil
+}
+
+//encore:api auth
+func Create(ctx context.Context, req *CreateProductRequest) (*Product, error) {
+    return nil, nil
+}
+
+-- authentication/auth.go --
+package authentication
+
+import (
+    "context"
+
+    "encore.dev/beta/auth"
+)
+
+type User struct {
+    ID   int     `json:"id"`
+    Name string  `json:"name"`
+}
+
+//encore:authhandler
+func AuthenticateRequest(ctx context.Context, token string) (auth.UID, *User, error) {
+    return "", nil, nil
 }

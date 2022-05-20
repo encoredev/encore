@@ -76,7 +76,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 			if len(field.Names) == 0 {
 				p.err(field.Pos(), "cannot use anonymous fields in Encore struct types")
 			}
-			opts := p.parseStructTag(field.Tag)
+			opts := p.parseStructTag(field.Tag, typ)
 
 			// Validate the names to make sure we don't have any name collisions
 			if js := opts.JSONName; js != "" {
@@ -198,7 +198,7 @@ func schemaTags(tags []*structtag.Tag) []*schema.Tag {
 
 // parseStructTag parses the struct tag to determine any encore-specific options
 // and the JSON name, if any.
-func (p *parser) parseStructTag(tag *ast.BasicLit) structFieldOptions {
+func (p *parser) parseStructTag(tag *ast.BasicLit, resolvedType *schema.Type) structFieldOptions {
 	var opts structFieldOptions
 	if tag == nil {
 		return opts
@@ -234,6 +234,41 @@ func (p *parser) parseStructTag(tag *ast.BasicLit) structFieldOptions {
 			opts.QueryStringName = v
 		}
 	}
+
+	if header, _ := tags.Get("header"); header != nil {
+		// Due to way headers are encoded, the RFC specifies that multiple values for the same
+		// header should be encoded as a comma-separated list.
+		//
+		// This would lead to undefined behaviour if we allowed string slices, while Go would
+		// encode each value as a separate Header line, some clients (Javascript) would combine
+		// these into one comma seperated header - which would then need to split on commas to get
+		// the original slices.
+		//
+		// This results in the slice from the server of { "foo, bar", "zar" } either being received
+		// as the list { "foo", "bar", "zar" } or { "foo, bar", "zar" } depending on the client
+		// implementation.
+		//
+		// We've decided against doing any encoding of strings, as that would be unexpected and hidden
+		// behaviour from handwritten clients using the APIs.
+		if resolvedType.GetList() != nil {
+			p.errf(tag.Pos(), "header tags are not allowed on slices")
+		}
+
+		// We're not allowing generic fields in headers, as at parse time we cannot know if the generic
+		// is being used as a slice.
+		if resolvedType.GetTypeParameter() != nil {
+			p.errf(tag.Pos(), "header tags are not allowed on generic fields")
+		}
+
+		// Because we need to do type casting in the clients, we're limiting the types to built in Encore types
+		switch resolvedType.Typ.(type) {
+		case *schema.Type_Builtin:
+			// no-op
+		default:
+			p.errf(tag.Pos(), "header tags can only be used on built in types or types provided by Encore")
+		}
+	}
+
 	return opts
 }
 
