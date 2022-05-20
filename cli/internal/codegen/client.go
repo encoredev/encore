@@ -24,6 +24,7 @@ const (
 
 type generator interface {
 	Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) error
+	Version() int // The version of the generator.
 }
 
 // ErrUnknownLang is reported by Generate when the language is not known.
@@ -53,9 +54,9 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	var gen generator
 	switch lang {
 	case LangTypeScript:
-		gen = &ts{}
+		gen = &typescript{generatorVersion: typescriptGenLatestVersion}
 	case LangGo:
-		gen = &golang{}
+		gen = &golang{generatorVersion: goGenLatestVersion}
 	default:
 		return nil, ErrUnknownLang
 	}
