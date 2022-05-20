@@ -135,7 +135,7 @@ var _ ProductsClient = (*productsClient)(nil)
 
 func (c *productsClient) Create(ctx context.Context, params ProductsCreateProductRequest) (resp ProductsProduct, err error) {
 	// Convert our params into the objects we need for the request
-	headers := http.Header{"Idempotency-Key": {params.IdempotencyKey}}
+	headers := http.Header{"idempotency-key": {params.IdempotencyKey}}
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
@@ -260,7 +260,7 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
 
-	headers := http.Header{"X-Alice": {reqEncoder.FromTime(params.A)}}
+	headers := http.Header{"x-alice": {reqEncoder.FromTime(params.A)}}
 
 	queryString := url.Values{
 		"Bob":  reqEncoder.FromIntList(params.B),
@@ -292,6 +292,7 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	resp.Json = respDecoder.ToJSON("Json", respHeaders.Get("x-json"), false)
 	resp.UUID = respHeaders.Get("x-uuid")
 	resp.UserID = respHeaders.Get("x-user-id")
+
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
 		return
@@ -333,7 +334,7 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
 
-	headers := http.Header{"X-Alice": {reqEncoder.FromTime(params.A)}}
+	headers := http.Header{"x-alice": {reqEncoder.FromTime(params.A)}}
 
 	queryString := url.Values{"Bob": reqEncoder.FromIntList(params.B)}
 
@@ -369,10 +370,11 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 	// Copy the unmarshalled response body into our response struct
 	respDecoder := &serde{}
 
-	resp.A = respDecoder.ToTime("A", respHeaders.Get("X-Alice"), false)
+	resp.A = respDecoder.ToTime("A", respHeaders.Get("x-alice"), false)
 	resp.B = respBody.B
 	resp.C = respBody.C
 	resp.Dave = respBody.Dave
+
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
 		return

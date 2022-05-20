@@ -2,13 +2,9 @@
 package main
 
 import (
-	"encore.dev/beta/errs"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
-	"fmt"
 	"github.com/json-iterator/go"
-	"io"
-	"io/ioutil"
 	"os"
 	_ "unsafe"
 )
@@ -60,33 +56,3 @@ type validationDetails struct {
 }
 
 func (validationDetails) ErrDetails() {}
-
-// typeDecoder decodes types from incoming requests
-type typeDecoder struct {
-	err error
-}
-
-func (d *typeDecoder) Body(body io.Reader, dst interface{}) (payload []byte) {
-	payload, err := ioutil.ReadAll(body)
-	if err == nil && len(payload) == 0 {
-		d.setErr("missing request body", "request_body", fmt.Errorf("missing request body"))
-	} else if err != nil {
-		d.setErr("could not parse request body", "request_body", err)
-	} else if err := json.Unmarshal(payload, dst); err != nil {
-		d.setErr("could not parse request body", "request_body", err)
-	}
-	return payload
-}
-
-func (d *typeDecoder) Err() error {
-	return d.err
-}
-
-func (d *typeDecoder) setErr(msg, field string, err error) {
-	if err != nil && d.err == nil {
-		d.err = errs.B().Code(errs.InvalidArgument).Msg(msg).Details(validationDetails{
-			Err:   err.Error(),
-			Field: field,
-		}).Err()
-	}
-}

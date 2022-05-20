@@ -22,6 +22,8 @@ type MarshallingCodeGenerator struct {
 
 	builtins     []methodDescription
 	seenBuiltins map[methodKey]methodDescription
+	usedBody     bool
+	usedJson     bool
 }
 
 type methodKey struct {
@@ -120,6 +122,26 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 		),
 	)
 	f.Line()
+
+	if g.usedBody {
+		f.Func().Params(Id("d").Op("*").Id(g.structName)).Id("Body").Params(Id("body").Qual("io", "Reader")).Params(Id("payload").Index().Byte()).Block(
+			List(Id("payload"), Err()).Op(":=").Qual("io/ioutil", "ReadAll").Call(Id("body")),
+			If(Err().Op("==").Nil().Op("&&").Len(Id("payload")).Op("==").Lit(0)).Block(
+				Id("d").Dot("setErr").Call(Lit("missing request body"), Lit("request_body"), Qual("fmt", "Errorf").Call(Lit("missing request body"))),
+			).Else().If(Err().Op("!=").Nil()).Block(
+				Id("d").Dot("setErr").Call(Lit("could not parse request body"), Lit("request_body"), Err()),
+			),
+			Return(Id("payload")),
+		)
+	}
+
+	if g.usedJson {
+		f.Func().Params(Id("d").Op("*").Id(g.structName)).Id("ParseJSON").Params(Id("field").String(), Id("iter").Op("*").Qual("github.com/json-iterator/go", "Iterator"), Id("dst").Any()).Block(
+			Id("iter").Dot("ReadVal").Call(Id("dst")),
+			Id("d").Dot("setErr").Call(Lit("invalid json parameter"), Id("field"), Id("iter").Dot("Error")),
+		)
+	}
+	f.Line()
 }
 
 func (b *MarshallingCodeGenerator) builtinFromString(t schema.Builtin, slice bool) (string, error) {
@@ -154,7 +176,7 @@ func (b *MarshallingCodeGenerator) builtinFromString(t schema.Builtin, slice boo
 	var fn methodDescription
 	switch t {
 	case schema.Builtin_STRING:
-		fn = methodDescription{true, "ToStringSlice", String(), String(), false, []Code{Return(Id("s"))}}
+		fn = methodDescription{true, "ToString", String(), String(), false, []Code{Return(Id("s"))}}
 	case schema.Builtin_BYTES:
 		fn = methodDescription{true, "ToBytes", String(), Index().Byte(), false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("encoding/base64", "URLEncoding").Dot("DecodeString").Call(Id("s")),
@@ -390,7 +412,7 @@ func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 
 	code := []Code{Id(w.instanceName).Op(":=").Op("&").Id(w.g.structName).Values(), Line()}
 	code = append(code, w.code...)
-	code = append(code, If(Id(w.instanceName).Dot(lastErrorField).Op("!=").Nil()).Block(ifErrorBlock...), Line())
+	code = append(code, Line().If(Id(w.instanceName).Dot(lastErrorField).Op("!=").Nil()).Block(ifErrorBlock...), Line())
 	return code
 }
 
@@ -398,6 +420,40 @@ func (g *MarshallingCodeGenerator) shouldBeTreatedAsString(builtin schema.Builti
 	return builtin == schema.Builtin_STRING ||
 		(g.encoreTypesAsString && builtin == schema.Builtin_UUID) ||
 		(g.encoreTypesAsString && builtin == schema.Builtin_USER_ID)
+}
+
+func (w *MarshallingCodeWrapper) Body(getBody Code) Code {
+	w.used = true
+	w.g.usedBody = true
+	return Id(w.instanceName).Dot("Body").Call(getBody)
+}
+
+// FromStringToBuiltin will return either the original string or a call to the encoder
+func (w *MarshallingCodeWrapper) FromStringToBuiltin(builtin schema.Builtin, fieldName string, getAsString Code, required bool) (code Code, err error) {
+	// get the method name for the target type
+	funcName := ""
+	srcCode := getAsString
+
+	// If the list is strings, we can just return the value
+	if builtin == schema.Builtin_STRING && !required {
+		return getAsString, nil
+	}
+
+	funcName, err = w.g.builtinFromString(builtin, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// mark this code wrapper as actually using the deserializer type
+	w.used = true
+	return Id(w.instanceName).Dot(funcName).Call(Lit(fieldName), srcCode, Lit(required)), nil
+}
+
+func (w *MarshallingCodeWrapper) FromJSON(targetType *schema.Type, fieldName string, iterName string, dst Code) (code Code, err error) {
+	// TODO: Call readers for specific types once we've added Pointer Type support
+	w.used = true
+	w.g.usedJson = true
+	return Id(w.instanceName).Dot("ParseJSON").Call(Lit(fieldName), Id(iterName), Op("&").Add(dst)), nil
 }
 
 // FromString will return either the original string or a call to the encoder

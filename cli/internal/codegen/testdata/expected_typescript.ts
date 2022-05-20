@@ -117,7 +117,7 @@ export namespace products {
         public async Create(params: CreateProductRequest): Promise<Product> {
             // Convert our params into the objects we need for the request
             const headers: Record<string, string> = {
-                "Idempotency-Key": params.IdempotencyKey,
+                "idempotency-key": params.IdempotencyKey,
             }
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -243,7 +243,7 @@ export namespace svc {
         public async GetRequestWithAllInputTypes(params: AllInputTypes<number>): Promise<HeaderOnlyStruct> {
             // Convert our params into the objects we need for the request
             const headers: Record<string, string> = {
-                "X-Alice": String(params.A),
+                "x-alice": String(params.A),
             }
 
             const query: Record<string, any> = {
@@ -293,7 +293,7 @@ export namespace svc {
         public async RequestWithAllInputTypes(params: AllInputTypes<string>): Promise<AllInputTypes<number>> {
             // Convert our params into the objects we need for the request
             const headers: Record<string, string> = {
-                "X-Alice": String(params.A),
+                "x-alice": String(params.A),
             }
 
             const query: Record<string, any> = {
@@ -311,7 +311,7 @@ export namespace svc {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as AllInputTypes<number>
-            rtn.A = resp.headers.get("X-Alice")
+            rtn.A = resp.headers.get("x-alice")
             return rtn
         }
 

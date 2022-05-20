@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +19,44 @@ import (
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
 )
+
+type Data[K any, V any] struct {
+	Key   K
+	Value V
+}
+
+type NonBasicRequest struct {
+	Struct        Data[*Data[string, string], int]
+	StructPtr     *Data[int, uint16]
+	StructSlice   []*Data[string, string]
+	StructMap     map[string]*Data[string, float32]
+	StructMapPtr  *map[string]*Data[string, string]
+	AnonStruct    struct{ AnonBird string }
+	NamedStruct   *Data[string, float64] `json:"formatted_nest"`
+	RawStruct     Data[[]string, []byte]
+	UnusedRequest *NonBasicRequest
+}
+
+type NonBasicResponse struct {
+	// Body
+	Struct       Data[*Data[string, string], int]
+	StructPtr    *Data[int, uint16]
+	StructSlice  []*Data[string, string]
+	StructMap    map[string]*Data[string, float32]
+	StructMapPtr *map[string]*Data[string, string]
+	AnonStruct   struct{ AnonBird string }
+	NamedStruct  *Data[string, float64] `json:"formatted_nest"`
+	RawStruct    json.RawMessage
+
+	// Query
+	QueryString string
+	QueryNumber int
+
+	// Path
+	PathString string
+	PathInt    int
+	PathWild   string
+}
 
 // TestStartProc tests that (*app).startProc correctly starts Encore processes
 // for sending requests.
@@ -48,15 +88,180 @@ func TestStartProc(t *testing.T) {
 	defer p.close()
 	run.proc.Store(p)
 
-	// Send a simple message and make sure it is echoed back.
+	// Send a simple request
 	{
-		input := struct{ Message string }{Message: "hello"}
-		body, _ := json.Marshal(&input)
+		input := Data[string, int]{"hello", 1}
+		body, err := json.Marshal(&input)
+		c.Assert(err, qt.IsNil)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/echo.Echo", bytes.NewReader(body))
 		run.ServeHTTP(w, req)
 		c.Assert(w.Code, qt.Equals, 200)
 		c.Assert(w.Body.Bytes(), qt.JSONEquals, input)
+	}
+
+	// Call an endpoint using an unsupported HTTP Method
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.Echo", nil)
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 404)
+	}
+
+	// Send an empty request
+	{
+		c.Assert(err, qt.IsNil)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/echo.EmptyEcho", bytes.NewReader([]byte("{}")))
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+		c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
+			"NullPtr": nil,
+			"Zero":    Data[string, string]{},
+		})
+	}
+
+	// Send a non-basic type request with path params, headers, query string and body
+	{
+		input := NonBasicRequest{
+			Struct:      Data[*Data[string, string], int]{&Data[string, string]{"peacock", "duck"}, 1},
+			StructPtr:   &Data[int, uint16]{2, 3},
+			StructSlice: []*Data[string, string]{{"seagull", "penguin"}, {"penguin", "seagull"}},
+			StructMap: map[string]*Data[string, float32]{
+				"hawk":      {"hummingbird", 18.5},
+				"albatross": {"magpie", 13.2},
+			},
+			StructMapPtr: &map[string]*Data[string, string]{
+				"hornbill": {"bird-of-paradise", "cuckoo"},
+				"turkey":   {"owl", "waxbill"},
+			},
+			AnonStruct:    struct{ AnonBird string }{AnonBird: "dove"},
+			NamedStruct:   &Data[string, float64]{"pigeon", 34.2},
+			UnusedRequest: &NonBasicRequest{StructPtr: &Data[int, uint16]{43, 9}},
+			RawStruct:     Data[[]string, []byte]{[]string{"emu", "ostrich"}, []byte{4, 4, 5}},
+		}
+
+		output := NonBasicResponse{
+			Struct:       input.Struct,
+			StructPtr:    input.StructPtr,
+			StructSlice:  input.StructSlice,
+			StructMap:    input.StructMap,
+			StructMapPtr: input.StructMapPtr,
+			AnonStruct:   input.AnonStruct,
+			NamedStruct:  input.NamedStruct,
+			QueryString:  "robin",
+			QueryNumber:  33,
+			RawStruct:    json.RawMessage(`{"Key": ["emu", "ostrich"], "Value": "BAQF"}`),
+			PathString:   "shoebill",
+			PathInt:      55,
+			PathWild:     "toucan/crane/vulture/78/",
+		}
+		body, err := json.Marshal(&input)
+		c.Assert(err, qt.IsNil)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/NonBasicEcho/shoebill/55/toucan/crane/vulture/78/?string=robin&no=33", bytes.NewReader(body))
+		req.Header.Add("X-Header-String", "starling")
+		req.Header.Add("X-Header-Number", "10")
+		req.Header.Add("Authorization", "Bearer tokendata")
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+		c.Assert(w.Header().Get("X-Header-String"), qt.Equals, "starling")
+		c.Assert(w.Header().Get("X-Header-Number"), qt.Equals, "10")
+		c.Assert(w.Body.Bytes(), qt.JSONEquals, output)
+	}
+
+	// Send a request with only header parameters
+	{
+		c.Assert(err, qt.IsNil)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.HeadersEcho", nil)
+		req.Header.Add("x-int", "1")
+		req.Header.Add("x-string", "nightingale")
+		req.Header.Add("X-StringSlice", "mynah, quail, weaver")
+		req.Header.Add("X-StringSlice", "pewit")
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+		c.Assert(w.Header().Get("X-Int"), qt.Equals, "1")
+		c.Assert(w.Header().Get("X-String"), qt.Equals, "nightingale")
+	}
+
+	// Send POST and GET requests to the same endpoint with an assortment of basic types
+	{
+		input := map[string]any{
+			"string":       "string",
+			"uint":         1,
+			"int":          2,
+			"int8":         -3,
+			"int64":        4,
+			"float32":      5,
+			"float64":      6,
+			"string_slice": []any{"slice1", "slice2"},
+			"int_slice":    []any{1, 2, 3},
+			"time":         "2016-01-02T15:04:05+07:00",
+		}
+		output := map[string]any{
+			"String":      "string",
+			"Uint":        1,
+			"Int":         2,
+			"Int8":        -3,
+			"Int64":       4,
+			"Float32":     5,
+			"Float64":     6,
+			"StringSlice": []any{"slice1", "slice2"},
+			"IntSlice":    []any{1, 2, 3},
+			"Time":        "2016-01-02T15:04:05+07:00",
+		}
+		qs := ""
+		for k, av := range input {
+			vs := []any{av}
+			switch av.(type) {
+			case []any:
+				vs = av.([]any)
+			}
+			for _, v := range vs {
+				if len(qs) > 0 {
+					qs += "&"
+				}
+				value := url.QueryEscape(fmt.Sprintf("%v", v))
+				qs += fmt.Sprintf("%s=%v", strings.ToLower(k), value)
+			}
+		}
+		body, err := json.Marshal(&output)
+		c.Assert(err, qt.IsNil)
+		w := httptest.NewRecorder()
+		w2 := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.BasicEcho?"+qs, nil)
+		req2 := httptest.NewRequest("POST", "/echo.BasicEcho", bytes.NewReader(body))
+		run.ServeHTTP(w, req)
+		run.ServeHTTP(w2, req2)
+		c.Assert(w.Code, qt.Equals, 200)
+		c.Assert(w.Body.Bytes(), qt.JSONEquals, output)
+		c.Assert(w2.Body.Bytes(), qt.DeepEquals, w2.Body.Bytes())
+	}
+
+	// Call an endpoint without request parameters and response value
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.Noop", nil)
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+	}
+
+	// Call an endpoint with request parameters but no response value
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.MuteEcho?key=pelican&value=cocabura", nil)
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+	}
+
+	// Call an endpoint with a response value but no request parameters
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/echo.Pong", nil)
+		run.ServeHTTP(w, req)
+		c.Assert(w.Code, qt.Equals, 200)
+		c.Assert(w.Body.Bytes(), qt.JSONEquals, Data[string, string]{"woodpecker", "kingfisher"})
 	}
 
 	// Call the env endpoint and make sure we get our env variables back
