@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go/scanner"
 	"io"
 	"io/ioutil"
 	"net"
@@ -22,6 +23,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 
+	"encr.dev/cli/daemon/export"
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
@@ -339,6 +341,28 @@ func (s *Server) Check(req *daemonpb.CheckRequest, stream daemonpb.Daemon_CheckS
 	if req.CodegenDebug && buildDir != "" {
 		log.Info().Msgf("wrote generated code to: %s", buildDir)
 	}
+	streamExit(stream, exitCode)
+	return nil
+}
+
+// Export exports the app.
+func (s *Server) Export(req *daemonpb.ExportRequest, stream daemonpb.Daemon_ExportServer) error {
+	slog := &streamLog{stream: stream, buffered: false}
+	log := newStreamLogger(slog)
+
+	exitCode := 0
+	err := export.Docker(stream.Context(), req, log)
+	if err != nil {
+		exitCode = 1
+		if list, ok := err.(scanner.ErrorList); ok {
+			for _, e := range list {
+				log.Error().Msg(e.Error())
+			}
+		} else {
+			log.Error().Msg(err.Error())
+		}
+	}
+
 	streamExit(stream, exitCode)
 	return nil
 }

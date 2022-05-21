@@ -29,6 +29,8 @@ type DaemonClient interface {
 	Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (Daemon_TestClient, error)
 	// Check checks the app for compilation errors.
 	Check(ctx context.Context, in *CheckRequest, opts ...grpc.CallOption) (Daemon_CheckClient, error)
+	// Export exports the app in various formats.
+	Export(ctx context.Context, in *ExportRequest, opts ...grpc.CallOption) (Daemon_ExportClient, error)
 	// DBConnect starts the database and returns the DSN for connecting to it.
 	DBConnect(ctx context.Context, in *DBConnectRequest, opts ...grpc.CallOption) (*DBConnectResponse, error)
 	// DBProxy starts a local database proxy for connecting to remote databases
@@ -148,6 +150,38 @@ func (x *daemonCheckClient) Recv() (*CommandMessage, error) {
 	return m, nil
 }
 
+func (c *daemonClient) Export(ctx context.Context, in *ExportRequest, opts ...grpc.CallOption) (Daemon_ExportClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[3], "/encore.daemon.Daemon/Export", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &daemonExportClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Daemon_ExportClient interface {
+	Recv() (*CommandMessage, error)
+	grpc.ClientStream
+}
+
+type daemonExportClient struct {
+	grpc.ClientStream
+}
+
+func (x *daemonExportClient) Recv() (*CommandMessage, error) {
+	m := new(CommandMessage)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *daemonClient) DBConnect(ctx context.Context, in *DBConnectRequest, opts ...grpc.CallOption) (*DBConnectResponse, error) {
 	out := new(DBConnectResponse)
 	err := c.cc.Invoke(ctx, "/encore.daemon.Daemon/DBConnect", in, out, opts...)
@@ -158,7 +192,7 @@ func (c *daemonClient) DBConnect(ctx context.Context, in *DBConnectRequest, opts
 }
 
 func (c *daemonClient) DBProxy(ctx context.Context, in *DBProxyRequest, opts ...grpc.CallOption) (Daemon_DBProxyClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[3], "/encore.daemon.Daemon/DBProxy", opts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[4], "/encore.daemon.Daemon/DBProxy", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +224,7 @@ func (x *daemonDBProxyClient) Recv() (*CommandMessage, error) {
 }
 
 func (c *daemonClient) DBReset(ctx context.Context, in *DBResetRequest, opts ...grpc.CallOption) (Daemon_DBResetClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[4], "/encore.daemon.Daemon/DBReset", opts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[5], "/encore.daemon.Daemon/DBReset", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -258,6 +292,8 @@ type DaemonServer interface {
 	Test(*TestRequest, Daemon_TestServer) error
 	// Check checks the app for compilation errors.
 	Check(*CheckRequest, Daemon_CheckServer) error
+	// Export exports the app in various formats.
+	Export(*ExportRequest, Daemon_ExportServer) error
 	// DBConnect starts the database and returns the DSN for connecting to it.
 	DBConnect(context.Context, *DBConnectRequest) (*DBConnectResponse, error)
 	// DBProxy starts a local database proxy for connecting to remote databases
@@ -286,6 +322,9 @@ func (UnimplementedDaemonServer) Test(*TestRequest, Daemon_TestServer) error {
 }
 func (UnimplementedDaemonServer) Check(*CheckRequest, Daemon_CheckServer) error {
 	return status.Errorf(codes.Unimplemented, "method Check not implemented")
+}
+func (UnimplementedDaemonServer) Export(*ExportRequest, Daemon_ExportServer) error {
+	return status.Errorf(codes.Unimplemented, "method Export not implemented")
 }
 func (UnimplementedDaemonServer) DBConnect(context.Context, *DBConnectRequest) (*DBConnectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DBConnect not implemented")
@@ -378,6 +417,27 @@ type daemonCheckServer struct {
 }
 
 func (x *daemonCheckServer) Send(m *CommandMessage) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Daemon_Export_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExportRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DaemonServer).Export(m, &daemonExportServer{stream})
+}
+
+type Daemon_ExportServer interface {
+	Send(*CommandMessage) error
+	grpc.ServerStream
+}
+
+type daemonExportServer struct {
+	grpc.ServerStream
+}
+
+func (x *daemonExportServer) Send(m *CommandMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -533,6 +593,11 @@ var Daemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Check",
 			Handler:       _Daemon_Check_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "Export",
+			Handler:       _Daemon_Export_Handler,
 			ServerStreams: true,
 		},
 		{
