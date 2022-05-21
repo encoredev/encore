@@ -13,6 +13,8 @@ service Daemon {
   rpc Test (TestRequest) returns (stream CommandMessage);
   // Check checks the app for compilation errors.
   rpc Check (CheckRequest) returns (stream CommandMessage);
+  // Export exports the app in various formats.
+  rpc Export (ExportRequest) returns (stream CommandMessage);
 
   // DBConnect starts the database and returns the DSN for connecting to it.
   rpc DBConnect (DBConnectRequest) returns (DBConnectResponse);
@@ -80,6 +82,40 @@ message CheckRequest {
   string working_dir = 2;
   // codegen_debug, if true, dumps the generated code and prints where it is located.
   bool codegen_debug = 3;
+}
+
+message ExportRequest {
+  string app_root = 1;
+
+  // goos and goarch specify the platform configuration to compile
+  // the application for. The values must be valid GOOS/GOARCH values.
+  //
+  // Currently "encore export" cannot build for other architectures than the
+  // host architecture. If
+  string goos = 2;
+  string goarch = 3;
+
+  // cgo_enabled specifies whether to build with cgo enabled.
+  // The host must have a valid C compiler for the target platform
+  // if true.
+  bool cgo_enabled = 4;
+
+  oneof format {
+    // docker specifies to export the app as a docker image.
+    DockerExportParams docker = 5;
+  }
+}
+
+message DockerExportParams {
+  // local_daemon_tag specifies what to tag the image as
+  // in the local Docker daemon. If empty the export does not
+  // interact with (or require) the local docker daemon at all.
+  string local_daemon_tag = 1;
+
+  // push_destination_tag specifies the remote registry tag
+  // to push the exported image to. If empty the built image
+  // is not pushed anywhere.
+  string push_destination_tag = 2;
 }
 
 message ResetDBRequest {
