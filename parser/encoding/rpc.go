@@ -15,6 +15,14 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
+type Lang int
+
+const (
+	_ Lang = iota
+	GO
+	TypeScript
+)
+
 // ParameterLocation is the request/response home of the parameter
 type ParameterLocation int
 
@@ -65,6 +73,7 @@ type tagDescription struct {
 	overrideDefault bool
 	omitEmptyOption string
 	nameFormatter   func(string) string
+	srcNameFor      Lang
 }
 
 // encodingHints is used to determine the default location and applicable tag overrides for http
