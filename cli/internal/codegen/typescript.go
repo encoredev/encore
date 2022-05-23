@@ -265,7 +265,7 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 
 func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpcPath string) error {
 	// Work out how we're going to encode and call this RPC
-	rpcEncoding, err := encoding.DescribeRPC(ts.md, rpc)
+	rpcEncoding, err := encoding.DescribeRPC(ts.md, rpc, encoding.TypeScript)
 	if err != nil {
 		return errors.Wrapf(err, "rpc %s", rpc.Name)
 	}
@@ -286,23 +286,20 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	body := ""
 
 	if rpc.RequestSchema != nil {
-		headerFields, queryFields, bodyFields, err := toFieldLists(rpcEncoding.DefaultRequestEncoding.Fields)
-		if err != nil {
-			return err
-		}
+		reqEnc := rpcEncoding.DefaultRequestEncoding
 
-		if len(headerFields) > 0 || len(queryFields) > 0 {
+		if len(reqEnc.HeaderParameters) > 0 || len(reqEnc.QueryParameters) > 0 {
 			w.WriteString("// Convert our params into the objects we need for the request\n")
 		}
 
 		// Generate the headers
-		if len(headerFields) > 0 {
+		if len(reqEnc.HeaderParameters) > 0 {
 			headers = "headers"
 
 			dict := make(map[string]string)
-			for _, field := range headerFields {
-				ref := ts.Dot("params", ts.fieldNameInStruct(field.Field))
-				dict[field.Name] = ts.convertBuiltinToString(field.Field.Typ.GetBuiltin(), ref)
+			for _, field := range reqEnc.HeaderParameters {
+				ref := ts.Dot("params", field.SrcName)
+				dict[field.Name] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref)
 			}
 
 			w.WriteString("const headers: Record<string, string> = ")
@@ -311,19 +308,19 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		}
 
 		// Generate the query string
-		if len(queryFields) > 0 {
+		if len(reqEnc.QueryParameters) > 0 {
 			ts.seenQueryString = true
 			rpcPath += "?${encodeQuery(query)}"
 
 			dict := make(map[string]string)
-			for _, field := range queryFields {
-				if list := field.Field.Typ.GetList(); list != nil {
-					dict[field.Name] = ts.Dot("params", ts.fieldNameInStruct(field.Field)) +
+			for _, field := range reqEnc.QueryParameters {
+				if list := field.Type.GetList(); list != nil {
+					dict[field.Name] = ts.Dot("params", field.SrcName) +
 						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")"
 				} else {
 					dict[field.Name] = ts.convertBuiltinToString(
-						field.Field.Typ.GetBuiltin(),
-						ts.Dot("params", ts.fieldNameInStruct(field.Field)),
+						field.Type.GetBuiltin(),
+						ts.Dot("params", field.SrcName),
 					)
 				}
 			}
@@ -334,8 +331,8 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		}
 
 		// Generate the body
-		if len(bodyFields) > 0 {
-			if len(headerFields) == 0 && len(queryFields) == 0 {
+		if len(reqEnc.BodyParameters) > 0 {
+			if len(reqEnc.HeaderParameters) == 0 && len(reqEnc.QueryParameters) == 0 {
 				// In the simple case we can just encode the params as the body directly
 				body = "JSON.stringify(params)"
 			} else {
@@ -343,8 +340,8 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 				body = "JSON.stringify(body)"
 
 				dict := make(map[string]string)
-				for _, field := range bodyFields {
-					fieldName := ts.fieldNameInStruct(field.Field)
+				for _, field := range reqEnc.BodyParameters {
+					fieldName := field.SrcName
 					dict[fieldName] = ts.Dot("params", fieldName)
 				}
 
@@ -383,16 +380,10 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	w.WriteStringf("// Now make the actual call to the API\nconst resp = await %s\n", callAPI)
 
-	headerFields, queryFields, _, err := toFieldLists(rpcEncoding.ResponseEncoding.Fields)
-	if err != nil {
-		return err
-	}
-	if len(queryFields) > 0 {
-		return errors.New("expected no query fields in response encoding")
-	}
+	respEnc := rpcEncoding.ResponseEncoding
 
 	// If we don't need to do anything with the body, we can just return the response
-	if len(headerFields) == 0 {
+	if len(respEnc.HeaderParameters) == 0 {
 		w.WriteString("return await resp.json() as ")
 		ts.writeTyp(ns, rpc.ResponseSchema, 0)
 		w.WriteString("\n")
@@ -404,10 +395,10 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	ts.writeTyp(ns, rpc.ResponseSchema, 0)
 	w.WriteString("\n")
 
-	for _, headerField := range headerFields {
+	for _, headerField := range respEnc.HeaderParameters {
 		fieldValue := fmt.Sprintf("(resp.headers.get(\"%s\") ?? \"\")", headerField.Name)
 
-		w.WriteStringf("%s = %s\n", ts.Dot("rtn", ts.fieldNameInStruct(headerField.Field)), ts.convertStringToBuiltin(headerField.Field.Typ.GetBuiltin(), fieldValue))
+		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 	}
 
 	w.WriteString("return rtn\n")

@@ -176,16 +176,15 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	params := &svc.FooParams{}
 	switch m := req.Method; m {
 	case "GET":
-
 		// Decode Query String
 		qs := req.URL.Query()
 		params.Name = qs.Get("name")
 
 	case "POST":
-
 		// Decode JSON Body
 		payload := dec.Body(req.Body)
 		iter := jsoniter.ParseBytes(json, payload)
+
 		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
 			switch strings.ToLower(key) {
 			case "name":
@@ -383,7 +382,6 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 	params := &svc.QueryParams{}
 	switch m := req.Method; m {
 	case "GET":
-
 		// Decode Query String
 		qs := req.URL.Query()
 		params.Time = dec.ToTime("time", qs.Get("time"), false)
@@ -519,16 +517,15 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	params := &svc.FooParams{}
 	switch m := req.Method; m {
 	case "GET":
-
 		// Decode Query String
 		qs := req.URL.Query()
 		params.Name = qs.Get("name")
 
 	case "POST":
-
 		// Decode JSON Body
 		payload := dec.Body(req.Body)
 		iter := jsoniter.ParseBytes(json, payload)
+
 		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
 			switch strings.ToLower(key) {
 			case "name":
@@ -673,10 +670,10 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	params := &svc.FooParams{}
 	switch m := req.Method; m {
 	case "POST":
-
 		// Decode JSON Body
 		payload := dec.Body(req.Body)
 		iter := jsoniter.ParseBytes(json, payload)
+
 		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
 			switch strings.ToLower(key) {
 			case "name":

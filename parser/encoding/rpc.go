@@ -13,6 +13,14 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
+type Lang int
+
+const (
+	_ Lang = iota
+	GO
+	TypeScript
+)
+
 // ParameterLocation is the request/response home of the parameter
 type ParameterLocation int
 
@@ -22,39 +30,37 @@ const (
 	Body                            // Parameter is placed in the body
 )
 
-// requestTags is a description of tags used for requests
-var requestTags = map[string]tagDescription{
-	"query": {
+var (
+	QueryTag = tagDescription{
 		location:        Query,
 		overrideDefault: true,
-	},
-	"qs": {
-		location:        Query,
-		overrideDefault: true,
-	},
-	"header": {
+	}
+	QsTag     = QueryTag
+	HeaderTag = tagDescription{
 		location:        Header,
 		overrideDefault: true,
 		nameFormatter:   strings.ToLower,
-	},
-	"json": {
+	}
+	JSONTag = tagDescription{
+		srcNameFor:      TypeScript,
 		location:        Body,
+		omitEmptyOption: "omitempty",
 		overrideDefault: false,
-	},
+	}
+)
+
+// requestTags is a description of tags used for requests
+var requestTags = map[string]tagDescription{
+	"query":  QueryTag,
+	"qs":     QsTag,
+	"header": HeaderTag,
+	"json":   JSONTag,
 }
 
 // responseTags is a description of tags used for responses
 var responseTags = map[string]tagDescription{
-	"header": {
-		location:        Header,
-		overrideDefault: true,
-		nameFormatter:   strings.ToLower,
-	},
-	"json": {
-		location:        Body,
-		overrideDefault: false,
-		omitEmptyOption: "omitempty",
-	},
+	"header": HeaderTag,
+	"json":   JSONTag,
 }
 
 // tagDescription is used to map struct field tags to param locations
@@ -66,6 +72,7 @@ type tagDescription struct {
 	overrideDefault bool
 	omitEmptyOption string
 	nameFormatter   func(string) string
+	srcNameFor      Lang
 }
 
 // encodingHints is used to determine the default location and applicable tag overrides for http
@@ -73,17 +80,18 @@ type tagDescription struct {
 type encodingHints struct {
 	defaultLocation ParameterLocation
 	tags            map[string]tagDescription
+	lang            Lang
 }
 
 // RPCEncoding expresses how an RPC should be encoded on the wire for both the request and responses.
 type RPCEncoding struct {
 	// Expresses how the default request encoding and method should be
 	// Note: DefaultRequestEncoding.HTTPMethods will always be a slice with length 1
-	DefaultRequestEncoding *RequestEncoding
+	DefaultRequestEncoding *RequestEncoding `json:"default_request_encoding"`
 	// Expresses all the different ways the request can be encoded for this RPC
-	RequestEncoding []*RequestEncoding
+	RequestEncoding []*RequestEncoding `json:"request_encoding"`
 	// Expresses how the response to this RPC will be encoded
-	ResponseEncoding *ResponseEncoding
+	ResponseEncoding *ResponseEncoding `json:"response_encoding"`
 }
 
 // RequestEncodingForMethod returns the request encoding required for the given HTTP method
@@ -100,42 +108,49 @@ func (e *RPCEncoding) RequestEncodingForMethod(method string) *RequestEncoding {
 
 // ResponseEncoding expresses how a response should be encoded on the wire
 type ResponseEncoding struct {
-	// Contains metadata about how to marshal a HTTP parameter
-	Fields []*ParameterEncoding
+	// Contains metadata about how to marshal an HTTP parameter
+	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
+	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 }
 
 // RequestEncoding expresses how a request should be encoded for an explicit set of HTTPMethods
 type RequestEncoding struct {
 	// The HTTP methods these field configurations can be used for
-	HTTPMethods []string
-	// Contains metadata about how to marshal a HTTP parameter
-	Fields []*ParameterEncoding
+	HTTPMethods []string `json:"http_methods"`
+	// Contains metadata about how to marshal an HTTP parameter
+	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
+	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
+	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
 }
 
 // ParameterEncoding expresses how a parameter should be encoded on the wire
 type ParameterEncoding struct {
-	// Location (e.g. header, query, body) where the parameter should be marshalled from/to
-	Location ParameterLocation
 	// The location specific name of the parameter (e.g. cheeseEater, cheese-eater, X-Cheese-Eater
-	Name string
+	Name string `json:"name"`
 	// Whether the parameter should be omitted if it's empty
-	OmitEmpty bool
-	// The underlying field definition
-	Field *schema.Field
+	OmitEmpty bool `json:"omit_empty"`
+	// The name of the struct field
+	SrcName string `json:"src_name"`
+	// Doc of the struct field
+	Doc string `json:"doc"`
+	// The field type
+	Type *schema.Type `json:"type"`
+	// The raw tag of the field
+	RawTag string `json:"-"`
 }
 
 // DescribeRPC expresses how to encode an RPCs request and response objects for the wire.
-func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC) (*RPCEncoding, error) {
+func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, lang Lang) (*RPCEncoding, error) {
 	encoding := &RPCEncoding{}
 	var err error
 	// Work out the request encoding
-	encoding.RequestEncoding, err = DescribeRequest(appMetaData, rpc.RequestSchema, rpc.HttpMethods...)
+	encoding.RequestEncoding, err = DescribeRequest(appMetaData, rpc.RequestSchema, lang, rpc.HttpMethods...)
 	if err != nil {
 		return nil, errors.Wrap(err, "request encoding")
 	}
 
 	// Work out the response encoding
-	encoding.ResponseEncoding, err = DescribeResponse(appMetaData, rpc.ResponseSchema)
+	encoding.ResponseEncoding, err = DescribeResponse(appMetaData, rpc.ResponseSchema, lang)
 	if err != nil {
 		return nil, errors.Wrap(err, "request encoding")
 	}
@@ -144,8 +159,10 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC) (*RPCEncoding, error) {
 	defaultMethod := DefaultClientHttpMethod(rpc)
 	defaultEncoding := encoding.RequestEncodingForMethod(defaultMethod)
 	encoding.DefaultRequestEncoding = &RequestEncoding{
-		HTTPMethods: []string{defaultMethod},
-		Fields:      defaultEncoding.Fields,
+		HTTPMethods:      []string{defaultMethod},
+		HeaderParameters: defaultEncoding.HeaderParameters,
+		BodyParameters:   defaultEncoding.BodyParameters,
+		QueryParameters:  defaultEncoding.QueryParameters,
 	}
 
 	return encoding, nil
@@ -233,21 +250,24 @@ func DefaultClientHttpMethod(rpc *meta.RPC) string {
 
 // DescribeResponse generates a ParameterEncoding per field of the response struct and returns it as
 // the ResponseEncoding
-func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type) (*ResponseEncoding, error) {
+func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, lang Lang) (*ResponseEncoding, error) {
 	responseStruct, err := getConcreteStructType(appMetaData, responseSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "response struct")
 	}
-	fields, err := describeParams(&encodingHints{Body, responseTags}, responseStruct)
+	fields, err := describeParams(&encodingHints{Body, responseTags, lang}, responseStruct)
 	if err != nil {
 		return nil, err
 	}
-	return &ResponseEncoding{fields}, nil
+	return &ResponseEncoding{
+		BodyParameters:   fields[Body],
+		HeaderParameters: fields[Header],
+	}, nil
 }
 
 // DescribeRequest groups the provided httpMethods by default ParameterLocation and returns a RequestEncoding
 // per ParameterLocation
-func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, httpMethods ...string) ([]*RequestEncoding, error) {
+func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, lang Lang, httpMethods ...string) ([]*RequestEncoding, error) {
 	requestStruct, err := getConcreteStructType(appMetaData, requestSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "request struct")
@@ -267,13 +287,15 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, httpMet
 
 	var reqs []*RequestEncoding
 	for location, methods := range methodsByDefaultLocation {
-		fields, err := describeParams(&encodingHints{location, requestTags}, requestStruct)
+		fields, err := describeParams(&encodingHints{location, requestTags, lang}, requestStruct)
 		if err != nil {
 			return nil, err
 		}
 		reqs = append(reqs, &RequestEncoding{
-			HTTPMethods: methods,
-			Fields:      fields,
+			HTTPMethods:      methods,
+			QueryParameters:  fields[Query],
+			HeaderParameters: fields[Header],
+			BodyParameters:   fields[Body],
 		})
 	}
 
@@ -285,19 +307,20 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, httpMet
 }
 
 // describeParams calls describeParam() for each field in the payload struct
-func describeParams(encodingHints *encodingHints, payload *schema.Struct) (fields []*ParameterEncoding, err error) {
+func describeParams(encodingHints *encodingHints, payload *schema.Struct) (fields map[ParameterLocation][]*ParameterEncoding, err error) {
+	paramByLocation := make(map[ParameterLocation][]*ParameterEncoding)
 	for _, f := range payload.GetFields() {
-		f, err := describeParam(encodingHints, f)
+		location, f, err := describeParam(encodingHints, f)
 		if err != nil {
 			return nil, err
 		}
 
 		// fields explicitly named "-" are excluded from the generated client
 		if f.Name != "-" {
-			fields = append(fields, f)
+			paramByLocation[location] = append(paramByLocation[location], f)
 		}
 	}
-	return fields, nil
+	return paramByLocation, nil
 }
 
 // formatName formats a parameter name with the default formatting for the location (e.g. snakecase for query)
@@ -310,10 +333,18 @@ func formatName(location ParameterLocation, name string) string {
 	}
 }
 
-// describeParam returns an RPCField which falls back on defaultLocation if no parameter
-// (e.g. qs, query, header) tag is set
-func describeParam(encodingHints *encodingHints, field *schema.Field) (*ParameterEncoding, error) {
-	rpcField := &ParameterEncoding{encodingHints.defaultLocation, formatName(encodingHints.defaultLocation, field.Name), false, field}
+// describeParam returns a ParameterLocation, ParameterEncoding  which uses field tags to describe how the parameter
+//(e.g. qs, query, header) should be encoded in HTTP (name and location)
+func describeParam(encodingHints *encodingHints, field *schema.Field) (ParameterLocation, *ParameterEncoding, error) {
+	location := encodingHints.defaultLocation
+	param := ParameterEncoding{
+		Name:      formatName(encodingHints.defaultLocation, field.Name),
+		OmitEmpty: false,
+		SrcName:   field.Name,
+		Doc:       field.Doc,
+		Type:      field.Typ,
+		RawTag:    field.RawTag,
+	}
 
 	var usedOverrideTag string
 	for _, tag := range field.Tags {
@@ -323,25 +354,28 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (*Paramete
 		}
 		if tagHint.overrideDefault {
 			if usedOverrideTag != "" {
-				return nil, errors.Newf("tag conflict: %s cannot be combined with %s", usedOverrideTag, tag.Key)
+				return 0, nil, errors.Newf("tag conflict: %s cannot be combined with %s", usedOverrideTag, tag.Key)
 			}
-			rpcField.Location = tagHint.location
+			location = tagHint.location
 			usedOverrideTag = tag.Key
 		}
-		if tagHint.location == rpcField.Location {
+		if tagHint.location == location {
 			if tagHint.nameFormatter != nil {
-				rpcField.Name = tagHint.nameFormatter(tag.Name)
+				param.Name = tagHint.nameFormatter(tag.Name)
 			} else {
-				rpcField.Name = tag.Name
+				param.Name = tag.Name
 			}
 		}
 		if tagHint.omitEmptyOption != "" {
 			for _, o := range tag.Options {
 				if o == tagHint.omitEmptyOption {
-					rpcField.OmitEmpty = true
+					param.OmitEmpty = true
 				}
 			}
 		}
+		if tagHint.srcNameFor == encodingHints.lang {
+			param.SrcName = tag.Name
+		}
 	}
-	return rpcField, nil
+	return location, &param, nil
 }
