@@ -47,6 +47,7 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 
 	// Create a new client file
 	file := NewFile("client")
+	file.HeaderComment(doNotEditHeader())
 
 	// Generate the parent Client struct
 	g.generateClient(file, appSlug, md.Svcs)

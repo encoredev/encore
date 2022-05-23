@@ -73,6 +73,8 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	ts.appSlug = appSlug
 	ts.typs = getNamedTypes(md)
 
+	ts.WriteString("// " + doNotEditHeader() + "\n")
+
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
 	ts.writeClient()
