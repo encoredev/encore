@@ -136,7 +136,7 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 	}
 
 	if g.usedJson {
-		f.Func().Params(Id("d").Op("*").Id(g.structName)).Id("ParseJSON").Params(Id("field").String(), Id("iter").Op("*").Qual("github.com/json-iterator/go", "Iterator"), Id("dst").Any()).Block(
+		f.Func().Params(Id("d").Op("*").Id(g.structName)).Id("ParseJSON").Params(Id("field").String(), Id("iter").Op("*").Qual("github.com/json-iterator/go", "Iterator"), Id("dst").Interface()).Block(
 			Id("iter").Dot("ReadVal").Call(Id("dst")),
 			Id("d").Dot("setErr").Call(Lit("invalid json parameter"), Id("field"), Id("iter").Dot("Error")),
 		)
