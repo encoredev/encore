@@ -65,6 +65,9 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 	// Generate the base client
 	g.generateBaseClient(file)
 
+	// Write the APIError type
+	g.writeErrorType(file)
+
 	// Generate the serializer
 	g.enc.WriteToFile(file)
 
@@ -1030,7 +1033,24 @@ func (g *golang) generateBaseClient(file *File) {
 				Id("_").Op("=").Id("rawResponse").Dot("Body").Dot("Close").Call(),
 			).Call(),
 			If(Id("rawResponse").Dot("StatusCode").Op(">=").Lit(400)).Block(
-				Return(Nil(), Qual("fmt", "Errorf").Call(Lit("got error response: %s"), Id("rawResponse").Dot("Status"))),
+				Comment("Read the full body sent back"),
+				List(Id("body"), Err()).Op(":=").Qual("io/ioutil", "ReadAll").Call(Id("rawResponse").Dot("Body")),
+				If(Err().Op("!=").Nil()).Block(
+					Return(Nil(), Qual("fmt", "Errorf").Call(Lit("got error response with readable body: %s"), Id("rawResponse").Dot("Status"))),
+				),
+				Line(),
+
+				Comment("Attempt to decode the error response as a structured APIError"),
+				Id("apiError").Op(":=").Op("&").Id("APIError").Block(),
+				If(
+					Err().Op(":=").Qual("encoding/json", "Unmarshal").
+						Call(Id("body"), Id("apiError")),
+					Err().Op("!=").Nil(),
+				).Block(
+					Comment("If the error is not a parsable as an APIError, then return an error with the raw body"),
+					Return(Nil(), Qual("fmt", "Errorf").Call(Lit("got error response: %s"), String().Call(Id("body")))),
+				),
+				Return(Nil(), Id("apiError")),
 			),
 			Line(),
 
@@ -1053,4 +1073,76 @@ func (g *golang) generateBaseClient(file *File) {
 				Nil(),
 			),
 		)
+}
+
+func (g *golang) writeErrorType(file *File) {
+	// Create the error type
+	file.Line()
+	file.Comment("APIError is the error type returned by the API")
+	file.Type().Id("APIError").Struct(
+		Id("Code").Id("ErrCode").Tag(map[string]string{"json": "code"}),
+		Id("Message").String().Tag(map[string]string{"json": "message"}),
+		Id("Details").Any().Tag(map[string]string{"json": "details"}),
+	)
+	file.Func().Params(Id("e").Op("*").Id("APIError")).Id("Error").Params().String().Block(
+		Return(Qual("fmt", "Sprintf").Call(Lit("%s: %s"), Id("e").Dot("Code"), Id("e").Dot("Message"))),
+	)
+	file.Line()
+	file.Line()
+
+	// Create the ErrCode type and list
+	file.Type().Id("ErrCode").Int()
+	errTypes := make([]Code, 0)
+	for i, err := range errorCodes {
+		for _, line := range strings.Split(strings.TrimSpace(err.Comment), "\n") {
+			errTypes = append(errTypes, Comment(line))
+		}
+
+		errTypes = append(
+			errTypes,
+			Id(err.Name).Id("ErrCode").Op("=").Lit(i),
+			Line(),
+		)
+	}
+	file.Const().Defs(errTypes...)
+
+	// Create the functions to convert an error to string
+	file.Comment("// String returns the string representation of the error code")
+	file.Func().Params(Id("c").Id("ErrCode")).Id("String").Params().String().Block(
+		Switch(Id("c")).BlockFunc(func(g *Group) {
+			for _, err := range errorCodes {
+				g.Case(Id(err.Name)).Block(
+					Return(Lit(convertIdentifierTo(err.Name, SnakeCase))),
+				)
+			}
+
+			g.Default().Block(
+				Return(Lit("unknown")),
+			)
+		}),
+	)
+	file.Line()
+
+	file.Comment("MarshalJSON converts the error code to a human-readable string")
+	file.Func().Params(Id("c").Id("ErrCode")).Id("MarshalJSON").Params().Params(Index().Byte(), Error()).Block(
+		Return(Index().Byte().Call(Qual("fmt", "Sprintf").Call(Lit("\"%s\""), Id("c"))), Nil()),
+	)
+	file.Line()
+
+	file.Comment("UnmarshalJSON converts the human-readable string to an error code")
+	file.Func().Params(Id("c").Op("*").Id("ErrCode")).Id("UnmarshalJSON").Params(Id("b").Index().Byte()).Error().Block(
+		Switch(String().Call(Id("b"))).BlockFunc(func(g *Group) {
+			for _, err := range errorCodes {
+				g.Case(Lit(fmt.Sprintf("\"%s\"", convertIdentifierTo(err.Name, SnakeCase)))).Block(
+					Op("*").Id("c").Op("=").Id(err.Name),
+				)
+			}
+
+			g.Default().Block(
+				Op("*").Id("c").Op("=").Id("Unknown"),
+			)
+		}),
+
+		Return(Nil()),
+	)
 }
