@@ -126,7 +126,13 @@ func main() {
 	}
 	mResp, err := api.Test.MarshallerTestHandler(ctx, params)
 	assert(err, nil, "Expected no error from the marshaller test")
-	assert(mResp, params, "Expected the same response from the marshaller test")
+
+	// We're marshalling as JSON, so we can just compare the JSON strings
+	respAsJSON, err := json.Marshal(mResp)
+	assert(err, nil, "unable to marshal response to JSON")
+	reqAsJSON, err := json.Marshal(params)
+	assert(err, nil, "unable to marshal response to JSON")
+	assert(respAsJSON, reqAsJSON, "Expected the same response from the marshaller test")
 
 	// Test auth handlers
 	_, err = api.Test.TestAuthHandler(ctx)
