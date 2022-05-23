@@ -1036,7 +1036,13 @@ func (g *golang) generateBaseClient(file *File) {
 				Comment("Read the full body sent back"),
 				List(Id("body"), Err()).Op(":=").Qual("io/ioutil", "ReadAll").Call(Id("rawResponse").Dot("Body")),
 				If(Err().Op("!=").Nil()).Block(
-					Return(Nil(), Qual("fmt", "Errorf").Call(Lit("got error response with readable body: %s"), Id("rawResponse").Dot("Status"))),
+					Return(
+						Nil(),
+						Op("&").Id("APIError").Values(Dict{
+							Id("Code"):    Id("ErrUnknown"),
+							Id("Message"): Qual("fmt", "Sprintf").Call(Lit("got error response without readable body: %s"), Id("rawResponse").Dot("Status")),
+						}),
+					),
 				),
 				Line(),
 
@@ -1048,7 +1054,13 @@ func (g *golang) generateBaseClient(file *File) {
 					Err().Op("!=").Nil(),
 				).Block(
 					Comment("If the error is not a parsable as an APIError, then return an error with the raw body"),
-					Return(Nil(), Qual("fmt", "Errorf").Call(Lit("got error response: %s"), String().Call(Id("body")))),
+					Return(
+						Nil(),
+						Op("&").Id("APIError").Values(Dict{
+							Id("Code"):    Id("ErrUnknown"),
+							Id("Message"): Qual("fmt", "Sprintf").Call(Lit("got error response: %s"), String().Call(Id("body"))),
+						}),
+					),
 				),
 				Return(Nil(), Id("apiError")),
 			),
@@ -1076,6 +1088,8 @@ func (g *golang) generateBaseClient(file *File) {
 }
 
 func (g *golang) writeErrorType(file *File) {
+	const ErrPrefix = "Err"
+
 	// Create the error type
 	file.Line()
 	file.Comment("APIError is the error type returned by the API")
@@ -1095,12 +1109,16 @@ func (g *golang) writeErrorType(file *File) {
 	errTypes := make([]Code, 0)
 	for i, err := range errorCodes {
 		for _, line := range strings.Split(strings.TrimSpace(err.Comment), "\n") {
+			// Fix the comment with the prefix
+			if strings.HasPrefix(line, err.Name) {
+				line = ErrPrefix + line
+			}
 			errTypes = append(errTypes, Comment(line))
 		}
 
 		errTypes = append(
 			errTypes,
-			Id(err.Name).Id("ErrCode").Op("=").Lit(i),
+			Id(ErrPrefix+err.Name).Id("ErrCode").Op("=").Lit(i),
 			Line(),
 		)
 	}
@@ -1111,7 +1129,7 @@ func (g *golang) writeErrorType(file *File) {
 	file.Func().Params(Id("c").Id("ErrCode")).Id("String").Params().String().Block(
 		Switch(Id("c")).BlockFunc(func(g *Group) {
 			for _, err := range errorCodes {
-				g.Case(Id(err.Name)).Block(
+				g.Case(Id(ErrPrefix + err.Name)).Block(
 					Return(Lit(convertIdentifierTo(err.Name, SnakeCase))),
 				)
 			}
@@ -1134,12 +1152,12 @@ func (g *golang) writeErrorType(file *File) {
 		Switch(String().Call(Id("b"))).BlockFunc(func(g *Group) {
 			for _, err := range errorCodes {
 				g.Case(Lit(fmt.Sprintf("\"%s\"", convertIdentifierTo(err.Name, SnakeCase)))).Block(
-					Op("*").Id("c").Op("=").Id(err.Name),
+					Op("*").Id("c").Op("=").Id(ErrPrefix + err.Name),
 				)
 			}
 
 			g.Default().Block(
-				Op("*").Id("c").Op("=").Id("Unknown"),
+				Op("*").Id("c").Op("=").Id(ErrPrefix + "Unknown"),
 			)
 		}),
 
