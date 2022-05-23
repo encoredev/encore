@@ -177,9 +177,7 @@ func getConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []
 
 		// replace any type parameters with the type argument
 		for _, field := range struc.Fields {
-			if typeParam := field.Typ.GetTypeParameter(); typeParam != nil {
-				field.Typ = typeArgs[typeParam.ParamIdx]
-			}
+			field.Typ = resolveTypeParams(field.Typ, typeArgs)
 		}
 
 		return struc, nil
@@ -189,6 +187,29 @@ func getConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []
 	default:
 		return nil, errors.Newf("unsupported type %+v", reflect.TypeOf(typ))
 	}
+}
+
+// resolveTypeParams resolves any type parameters in the given type to the given type arguments.
+// only at the top level object - so nested type arguments are not resolved
+func resolveTypeParams(typ *schema.Type, typeArgs []*schema.Type) *schema.Type {
+	switch t := typ.Typ.(type) {
+	case *schema.Type_TypeParameter:
+		return typeArgs[t.TypeParameter.ParamIdx]
+
+	case *schema.Type_List:
+		t.List.Elem = resolveTypeParams(t.List.Elem, typeArgs)
+
+	case *schema.Type_Map:
+		t.Map.Key = resolveTypeParams(t.Map.Key, typeArgs)
+		t.Map.Value = resolveTypeParams(t.Map.Value, typeArgs)
+
+	case *schema.Type_Named:
+		for i, param := range t.Named.TypeArguments {
+			t.Named.TypeArguments[i] = resolveTypeParams(param, typeArgs)
+		}
+	}
+
+	return typ
 }
 
 // DefaultClientHttpMethod works out the default HTTP method a client should use for a given RPC.

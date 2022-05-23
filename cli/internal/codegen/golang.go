@@ -434,6 +434,9 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 				),
 			),
 			Id("request").Op("=").Id("request").Dot("WithContext").Call(Id("ctx")),
+			If(Id("request").Dot("Method").Op("==").Lit("")).Block(
+				Id("request").Dot("Method").Op("=").Lit(rpcEncoding.DefaultRequestEncoding.HTTPMethods[0]),
+			),
 			Id("request").Dot("URL").Op("=").Id("path"),
 			Line(),
 			Return(Id("c").Dot("base").Dot("Do").Call(Id("request"))),
@@ -580,6 +583,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 			resp = Op("&").Id("resp")
 		} else {
 			hasAnonResponseStruct = true
+			resp = Op("&").Id("respBody")
 
 			// we need to construct an anonymous struct
 			types, err := g.generateAnonStructTypes(bodyFields, "json")

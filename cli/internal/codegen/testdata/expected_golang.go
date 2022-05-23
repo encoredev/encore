@@ -363,7 +363,7 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 
 	// Now make the actual call to the API
 	var respHeaders http.Header
-	respHeaders, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/svc.RequestWithAllInputTypes?%s", queryString.Encode()), headers, body, nil)
+	respHeaders, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/svc.RequestWithAllInputTypes?%s", queryString.Encode()), headers, body, &respBody)
 	if err != nil {
 		return
 	}
@@ -402,6 +402,9 @@ func (c *svcClient) Webhook(ctx context.Context, a string, b string, request *ht
 		return nil, fmt.Errorf("unable to parse api url: %w", err)
 	}
 	request = request.WithContext(ctx)
+	if request.Method == "" {
+		request.Method = "POST"
+	}
 	request.URL = path
 
 	return c.base.Do(request)
