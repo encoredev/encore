@@ -151,6 +151,8 @@ type EchoNonBasicData struct {
 	PathString  string `query:"-"` // Path Parameters
 	PathInt     int    `query:"-"`
 	PathWild    string `query:"-"`
+	AuthHeader  string `query:"-"` // Auth Parameters
+	AuthQuery   []int  `query:"-"`
 }
 
 // EchoClient Provides you access to call public and authenticated APIs on echo. The concrete implementation is echoClient.
@@ -357,6 +359,8 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 		PathString  string                    `json:"PathString"`
 		PathInt     int                       `json:"PathInt"`
 		PathWild    string                    `json:"PathWild"`
+		AuthHeader  string                    `json:"AuthHeader"`
+		AuthQuery   []int                     `json:"AuthQuery"`
 	}{}
 
 	// Now make the actual call to the API
@@ -384,6 +388,8 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 	resp.PathString = respBody.PathString
 	resp.PathInt = respBody.PathInt
 	resp.PathWild = respBody.PathWild
+	resp.AuthHeader = respBody.AuthHeader
+	resp.AuthQuery = respBody.AuthQuery
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)

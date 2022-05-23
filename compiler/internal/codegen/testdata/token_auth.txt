@@ -1,0 +1,35 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"encore.dev/beta/auth"
+	"encore.dev/rlog"
+	"encore.dev/cron"
+	"encore.dev/types/uuid"
+)
+
+type FooParams struct {
+	Name string
+}
+
+type Response struct {
+	Message string
+}
+
+//encore:api auth path=/eight/:bar/:baz
+func Eight(ctx context.Context, bar, baz string, p *FooParams) (*Response, error) {
+	rlog.Info("eight", "bar", bar, "baz", baz)
+	return &Response{Message: bar}, nil
+}
+
+type AuthData struct{}
+
+//encore:authhandler
+func AuthHandler(ctx context.Context, token string) (auth.UID, *AuthData, error) {
+	return "", nil, nil
+}

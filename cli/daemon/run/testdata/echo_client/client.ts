@@ -152,6 +152,12 @@ export namespace echo {
 
         PathInt: number
         PathWild: string
+        /**
+         * Auth Parameters
+         */
+        AuthHeader: string
+
+        AuthQuery: number[]
     }
 
     export class ServiceClient {

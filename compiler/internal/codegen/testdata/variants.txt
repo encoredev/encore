@@ -97,7 +97,16 @@ func Query(ctx context.Context, p *QueryParams) error {
 
 type AuthData struct{}
 
+type AuthParams struct {
+    Header1 string `header:"one"`
+    Header2 int `header:"two"`
+    Header3 uint `header:"three"`
+    Query1 string `query:"one"`
+    Query2 []string `query:"two"`
+    Query3 time.Time `query:"three"`
+
+}
 //encore:authhandler
-func AuthHandler(ctx context.Context, token string) (auth.UID, *AuthData, error) {
+func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthData, error) {
 	return "", nil, nil
 }

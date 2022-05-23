@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	gotoken "go/token"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
 	"encr.dev/pkg/errlist"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 var importNames = map[string]string{
@@ -447,35 +449,43 @@ func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper
 	return true, segs
 }
 
+func (b *Builder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
+	g.Comment("Decode Headers")
+	g.Id("h").Op(":=").Id("req").Dot("Header")
+	for _, f := range params {
+		decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("h").Dot("Get").Call(Lit(f.Name)), Id("h").Dot("Values").Call(Lit(f.Name)), false)
+		if err != nil {
+			b.errors.Addf(pos, "could not create decoder for header: %v", err.Error())
+		}
+		g.Id("params").Dot(f.SrcName).Op("=").Add(decoder)
+	}
+	g.Line()
+}
+
+func (b *Builder) decodeQueryString(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
+	g.Comment("Decode Query String")
+	g.Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call()
+
+	for _, f := range params {
+		decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("qs").Dot("Get").Call(Lit(f.Name)), Id("qs").Index(Lit(f.Name)), false)
+		if err != nil {
+			b.errors.Addf(pos, "could not create decoder for query: %v", err.Error())
+		}
+		g.Id("params").Dot(f.SrcName).Op("=").Add(decoder)
+	}
+	g.Line()
+}
+
 func (b *Builder) decodeRequestParameters(g *Group, rpc *est.RPC, requestDecoder *gocodegen.MarshallingCodeWrapper, req *encoding.RequestEncoding) {
 
 	// Decode headers
 	if len(req.HeaderParameters) > 0 {
-		g.Comment("Decode Headers")
-		g.Id("h").Op(":=").Id("req").Dot("Header")
-		for _, f := range req.HeaderParameters {
-			decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("h").Dot("Get").Call(Lit(f.Name)), Id("h").Dot("Values").Call(Lit(f.Name)), false)
-			if err != nil {
-				b.errors.Addf(rpc.Func.Pos(), "could not create decoder for header: %v", err.Error())
-			}
-			g.Id("params").Dot(f.SrcName).Op("=").Add(decoder)
-		}
-		g.Line()
+		b.decodeHeaders(g, rpc.Func.Pos(), requestDecoder, req.HeaderParameters)
 	}
 
 	// Decode QueryString
 	if len(req.QueryParameters) > 0 {
-		g.Comment("Decode Query String")
-		g.Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call()
-
-		for _, f := range req.QueryParameters {
-			decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("qs").Dot("Get").Call(Lit(f.Name)), Id("qs").Index(Lit(f.Name)), false)
-			if err != nil {
-				b.errors.Addf(rpc.Func.Pos(), "could not create decoder for query: %v", err.Error())
-			}
-			g.Id("params").Dot(f.SrcName).Op("=").Add(decoder)
-		}
-		g.Line()
+		b.decodeQueryString(g, rpc.Func.Pos(), requestDecoder, req.QueryParameters)
 	}
 
 	// Decode Body
@@ -508,6 +518,18 @@ func (b *Builder) writeAuthFuncs(f *File) {
 	if b.res.App.AuthHandler == nil {
 		return
 	}
+	isTokenParam := false
+	switch t := b.res.App.AuthHandler.Params.Typ.(type) {
+	case *schema.Type_Builtin:
+		if t.Builtin != schema.Builtin_STRING {
+			panic(fmt.Sprintf("Unsupported auth parameter, %s", t.Builtin))
+		}
+		isTokenParam = true
+	case *schema.Type_Named:
+	default:
+		panic(fmt.Sprintf("Unsupported auth parameter, %T", t))
+	}
+
 	f.Comment("__encore_authenticate authenticates a request.")
 	f.Comment("It reports the user id, user data, and whether or not to proceed with the request.")
 	f.Comment(`If requireAuth is false, it reports ("", nil, true) on authentication failure.`)
@@ -521,87 +543,129 @@ func (b *Builder) writeAuthFuncs(f *File) {
 		Id("authData").Interface(),
 		Id("proceed").Bool(),
 	).Block(
-		Var().Id("token").String(),
-		If(
-			Id("auth").Op(":=").Id("req").Dot("Header").Dot("Get").Call(Lit("Authorization")),
-			Id("auth").Op("!=").Lit(""),
-		).Block(
-			Id("TokenLoop").Op(":"),
-			For(
-				List(Id("_"), Id("prefix")).Op(":=").Range().Index(Op("...")).String().Values(Lit("Bearer "), Lit("Token ")),
-			).Block(
-				If(Qual("strings", "HasPrefix").Call(Id("auth"), Id("prefix"))).Block(
-					If(
-						Id("t").Op(":=").Id("auth").Index(Id("len").Call(Id("prefix")).Op(":")),
-						Id("t").Op("!=").Lit(""),
-					).Block(
-						Id("token").Op("=").Id("t"),
-						Break().Id("TokenLoop"),
-					),
+		List(Id("param"), Err()).Op(":=").Id("__encore_resolveAuthParam").Call(Id("req")),
+		If(Err().Op("!=").Nil()).Block(
+			If(Id("requireAuth")).Block(
+				Qual("encore.dev/runtime", "Logger").Call().Dot("Info").Call().
+					Dot("Str").Call(Lit("service"), Id("svcName")).
+					Dot("Str").Call(Lit("endpoint"), Id("rpcName")).
+					Dot("Msg").Call(Lit("rejecting request due to missing auth")),
+				Qual("encore.dev/beta/errs", "HTTPError").Call(
+					Id("w"), buildErr("Unauthenticated", "invalid auth param"),
 				),
-			),
-		),
-		Line(),
-
-		If(Id("token").Op("!=").Lit("")).Block(
-			Var().Err().Error(),
-			List(Id("uid"), Id("authData"), Err()).Op("=").Id("__encore_validateToken").Call(Id("req").Dot("Context").Call(), Id("token")),
-			If(
-				Qual("encore.dev/beta/errs", "Code").Call(Err()).Op("==").Qual("encore.dev/beta/errs", "Unauthenticated").Op("&&").Op("!").Id("requireAuth"),
-			).Block(
-				Return(Lit(""), Nil(), True()),
-			).Else().If(Err().Op("!=").Nil()).Block(
-				Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Err()),
 				Return(Lit(""), Nil(), False()),
-			).Else().Block(
-				Return(Id("uid"), Id("authData"), True()),
 			),
-		),
-		Line(),
-
-		If(Id("requireAuth")).Block(
-			Qual("encore.dev/runtime", "Logger").Call().Dot("Info").Call().
-				Dot("Str").Call(Lit("service"), Id("svcName")).
-				Dot("Str").Call(Lit("endpoint"), Id("rpcName")).
-				Dot("Msg").Call(Lit("rejecting request due to missing auth token")),
-			Qual("encore.dev/beta/errs", "HTTPError").Call(
-				Id("w"), buildErr("Unauthenticated", "missing auth token"),
-			),
-			Return(Lit(""), Nil(), False()),
-		).Else().Block(
 			Return(Lit(""), Nil(), True()),
 		),
+
+		Line(),
+
+		List(Id("uid"), Id("authData"), Err()).Op("=").Id("__encore_validateToken").Call(Id("req").Dot("Context").Call(), Id("param")),
+		If(
+			Qual("encore.dev/beta/errs", "Code").Call(Err()).Op("==").Qual("encore.dev/beta/errs", "Unauthenticated").Op("&&").Op("!").Id("requireAuth"),
+		).Block(
+			Return(Lit(""), Nil(), True()),
+		).Else().If(Err().Op("!=").Nil()).Block(
+			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Err()),
+			Return(Lit(""), Nil(), False()),
+		),
+		Return(Id("uid"), Id("authData"), True()),
 	)
 
 	authHandler := b.res.App.AuthHandler
+	authType := b.schemaTypeToGoType(b.res.App.AuthHandler.Params)
+	authParamType := authType
+	if !isTokenParam {
+		authParamType = Op("*").Add(authType)
+	}
+
+	f.Line()
+	f.Comment("__encore_resolveAuthParam resolves the auth parameters from the http request")
+	f.Comment(" or returns an error if auth params cannot be found")
+	f.Func().Id("__encore_resolveAuthParam").Params(
+		Id("req").Op("*").Qual("net/http", "Request"),
+	).Params(
+		Id("param").Add(authParamType),
+		Err().Error(),
+	).BlockFunc(func(g *Group) {
+		// Parse auth Token
+		if isTokenParam {
+			g.If(
+				Id("auth").Op(":=").Id("req").Dot("Header").Dot("Get").Call(Lit("Authorization")),
+				Id("auth").Op("!=").Lit(""),
+			).Block(
+				For(
+					List(Id("_"), Id("prefix")).Op(":=").Range().Index(Op("...")).String().Values(Lit("Bearer "), Lit("Token ")),
+				).Block(
+					If(Qual("strings", "HasPrefix").Call(Id("auth"), Id("prefix"))).Block(
+						If(
+							Id("t").Op(":=").Id("auth").Index(Id("len").Call(Id("prefix")).Op(":")),
+							Id("t").Op("!=").Lit(""),
+						).Block(
+							Return(Id("t"), Nil()),
+						),
+					),
+				),
+			)
+			g.Return(Lit(""), Qual("errors", "New").Call(Lit("missing auth token")))
+			return
+		}
+
+		// Parse auth struct
+		g.Id("params").Op(":=").Op("&").Add(authType).Values()
+		authEncoding, err := encoding.DescribeAuth(b.res.Meta, authHandler.Params, nil)
+		if err != nil {
+			panic(fmt.Sprintf("failed to describe auth: %v", err))
+		}
+		decoder := b.marshaller.NewPossibleInstance("dec")
+		decoder.Add(CustomFunc(Options{Separator: "\n"}, func(g *Group) {
+			b.decodeHeaders(g, authHandler.Func.Pos(), decoder, authEncoding.HeaderParameters)
+			b.decodeQueryString(g, authHandler.Func.Pos(), decoder, authEncoding.QueryParameters)
+		}))
+		g.Add(decoder.Finalize(
+			Return(Nil(), Id("dec").Dot("LastError")),
+		)...)
+		g.Return(Id("params"), Nil())
+	})
+
 	traceID := int(b.res.Nodes[authHandler.Svc.Root][authHandler.Func].Id)
 	f.Comment("__encore_validateToken validates an auth token.")
 	f.Func().Id("__encore_validateToken").Params(
 		Id("ctx").Qual("context", "Context"),
-		Id("token").String(),
+		Id("param").Add(authParamType),
 	).Params(
 		Id("uid").Qual("encore.dev/beta/auth", "UID"),
 		Id("authData").Interface(),
 		Id("authErr").Error(),
-	).Block(
-		If(Id("token").Op("==").Lit("")).Block(
-			Return(Lit(""), Nil(), Nil()),
-		),
-		Id("done").Op(":=").Make(Chan().Struct()),
-		List(Id("call"), Err()).Op(":=").Qual("encore.dev/runtime", "BeginAuth").Call(Lit(traceID), Id("token")),
-		If(Err().Op("!=").Nil()).Block(
+	).BlockFunc(func(g *Group) {
+		g.Id("done").Op(":=").Make(Chan().Struct())
+		paramStrId := Id("param")
+		inputs := Qual("strconv", "Quote").Call(Id("param"))
+		if !isTokenParam {
+			g.List(Id("paramStr"), Err()).Op(":=").Id("json").Dot("MarshalToString").Call(Id("param"))
+			g.If(Err().Op("!=").Nil()).Block(
+				Return(Lit(""), Nil(), Err()),
+			)
+			paramStrId = Id("paramStr")
+			inputs = Id("paramStr")
+		}
+		g.List(Id("call"), Err()).Op(":=").Qual("encore.dev/runtime", "BeginAuth").Call(
+			Lit(traceID),
+			paramStrId,
+		)
+		g.If(Err().Op("!=").Nil()).Block(
 			Return(Lit(""), Nil(), Err()),
-		),
-		Line(),
+		)
+		g.Line()
 
-		Go().Func().Params().BlockFunc(func(g *Group) {
+		g.Go().Func().Params().BlockFunc(func(g *Group) {
 			g.Defer().Id("close").Call(Id("done"))
 			g.Id("authErr").Op("=").Id("call").Dot("BeginReq").Call(Id("ctx"), Qual("encore.dev/runtime", "RequestData").Values(Dict{
 				Id("Type"):            Qual("encore.dev/runtime", "AuthHandler"),
 				Id("Service"):         Lit(authHandler.Svc.Name),
 				Id("Endpoint"):        Lit(authHandler.Name),
 				Id("EndpointExprIdx"): Lit(traceID),
-				Id("Inputs"):          Index().Index().Byte().Values(Index().Byte().Parens(Qual("strconv", "Quote").Call(Id("token")))),
+				Id("Inputs"):          Index().Index().Byte().Values(Index().Byte().Parens(inputs)),
 			}))
 			g.If(Id("authErr").Op("!=").Nil()).Block(
 				Return(),
@@ -617,10 +681,10 @@ func (b *Builder) writeAuthFuncs(f *File) {
 			).Call()
 
 			if authHandler.AuthData != nil {
-				g.List(Id("uid"), Id("authData"), Id("authErr")).Op("=").Qual(authHandler.Svc.Root.ImportPath, authHandler.Name).Call(Id("ctx"), Id("token"))
+				g.List(Id("uid"), Id("authData"), Id("authErr")).Op("=").Qual(authHandler.Svc.Root.ImportPath, authHandler.Name).Call(Id("ctx"), Id("param"))
 				g.List(Id("serialized"), Id("_")).Op(":=").Qual("encore.dev/runtime", "SerializeInputs").Call(Id("uid"), Id("authData"))
 			} else {
-				g.List(Id("uid"), Id("authErr")).Op("=").Qual(authHandler.Svc.Root.ImportPath, authHandler.Name).Call(Id("ctx"), Id("token"))
+				g.List(Id("uid"), Id("authErr")).Op("=").Qual(authHandler.Svc.Root.ImportPath, authHandler.Name).Call(Id("ctx"), Id("param"))
 				g.List(Id("serialized"), Id("_")).Op(":=").Qual("encore.dev/runtime", "SerializeInputs").Call(Id("uid"))
 			}
 			g.If(Id("authErr").Op("!=").Nil()).Block(
@@ -628,11 +692,11 @@ func (b *Builder) writeAuthFuncs(f *File) {
 			).Else().Block(
 				Id("call").Dot("FinishReq").Call(Id("serialized"), Nil()),
 			)
-		}).Call(),
-		Op("<-").Id("done"),
-		Id("call").Dot("Finish").Call(Id("uid"), Id("authErr")),
-		Return(Id("uid"), Id("authData"), Id("authErr")),
-	)
+		}).Call()
+		g.Op("<-").Id("done")
+		g.Id("call").Dot("Finish").Call(Id("uid"), Id("authErr"))
+		g.Return(Id("uid"), Id("authData"), Id("authErr"))
+	})
 }
 
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
