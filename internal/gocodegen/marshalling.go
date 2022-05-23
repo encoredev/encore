@@ -75,7 +75,7 @@ func (g *MarshallingCodeGenerator) NewPossibleInstance(instanceName string) *Mar
 
 // WriteToFile writes the full encoder type into the given file.
 func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
-	if !g.used || len(g.builtins) == 0 {
+	if !g.used || (len(g.builtins) == 0 && !g.usedBody && !g.usedJson) {
 		return
 	}
 
