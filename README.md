@@ -76,14 +76,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 https://user-images.githubusercontent.com/78424526/169317801-7711b7a2-080d-4da5-bba4-7b8d4104dd68.mp4
 
+### Distributed Tracing
+
+https://user-images.githubusercontent.com/78424526/169817256-f3e63f6f-9dd3-4b5a-b72d-be71eef977ed.mp4
+
 ### Simple Cloud Environments
 
 <img src="https://user-images.githubusercontent.com/78424526/169320417-f2d51755-cab5-40d8-a97f-ad1106746a3c.png" alt="Simple Cloud Environments" width="90%">
-
-
-### Distributed Tracing
-
-<img src="https://user-images.githubusercontent.com/78424526/169325536-92ed7482-68a3-4d79-9be1-825cc176dffa.png" alt="Distributed Tracing" width="90%">
 
 ### Automated API Documentation
 
