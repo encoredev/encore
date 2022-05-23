@@ -1042,7 +1042,7 @@ func (d *marshaller) Body(body io.Reader) (payload []byte) {
 	}
 	return payload
 }
-func (d *marshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst any) {
+func (d *marshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst interface{}) {
 	iter.ReadVal(dst)
 	d.setErr("invalid json parameter", field, iter.Error)
 }
