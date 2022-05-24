@@ -265,7 +265,7 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 
 func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpcPath string) error {
 	// Work out how we're going to encode and call this RPC
-	rpcEncoding, err := encoding.DescribeRPC(ts.md, rpc, encoding.TypeScript)
+	rpcEncoding, err := encoding.DescribeRPC(ts.md, rpc, &encoding.Options{SrcNameTag: "json"})
 	if err != nil {
 		return errors.Wrapf(err, "rpc %s", rpc.Name)
 	}

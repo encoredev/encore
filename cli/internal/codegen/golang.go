@@ -417,7 +417,7 @@ func (g *golang) rpcReturnType(rpc *meta.RPC, concreteImpl bool) Code {
 
 func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 	// Work out how we're going to encode and call this RPC
-	rpcEncoding, err := encoding.DescribeRPC(g.md, rpc, encoding.GO)
+	rpcEncoding, err := encoding.DescribeRPC(g.md, rpc, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "rpc %s", rpc.Name)
 	}

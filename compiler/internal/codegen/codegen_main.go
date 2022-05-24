@@ -287,7 +287,7 @@ func (b *Builder) buildRPC(svc *est.Service, rpc *est.RPC) *Statement {
 func (b *Builder) encodeResponse(g *Group, rpc *est.RPC) {
 	g.Comment("Serialize the response")
 	g.Var().Id("respData").Index().Byte()
-	resp, err := encoding.DescribeResponse(b.res.Meta, rpc.Response.Type, encoding.GO)
+	resp, err := encoding.DescribeResponse(b.res.Meta, rpc.Response.Type, nil)
 	if err != nil {
 		b.errors.Addf(rpc.Func.Pos(), "failed to describe response: %v", err.Error())
 	}
@@ -409,7 +409,7 @@ func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper
 		// Parsing requests for HTTP methods without a body (GET, HEAD, DELETE) are handled by parsing the query string,
 		// while other methods are parsed by reading the body and unmarshalling it as JSON.
 		// If the same endpoint supports both, handle it with a switch.
-		reqs, err := encoding.DescribeRequest(b.res.Meta, rpc.Request.Type, encoding.GO, rpc.HTTPMethods...)
+		reqs, err := encoding.DescribeRequest(b.res.Meta, rpc.Request.Type, nil, rpc.HTTPMethods...)
 		if err != nil {
 			b.errors.Addf(rpc.Func.Pos(), "failed to describe request: %v", err.Error())
 		}

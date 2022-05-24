@@ -8,17 +8,11 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/parser"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
-)
-
-type Lang int
-
-const (
-	_ Lang = iota
-	GO
-	TypeScript
 )
 
 // ParameterLocation is the request/response home of the parameter
@@ -42,7 +36,6 @@ var (
 		nameFormatter:   strings.ToLower,
 	}
 	JSONTag = tagDescription{
-		srcNameFor:      TypeScript,
 		location:        Body,
 		omitEmptyOption: "omitempty",
 		overrideDefault: false,
@@ -72,7 +65,6 @@ type tagDescription struct {
 	overrideDefault bool
 	omitEmptyOption string
 	nameFormatter   func(string) string
-	srcNameFor      Lang
 }
 
 // encodingHints is used to determine the default location and applicable tag overrides for http
@@ -80,7 +72,7 @@ type tagDescription struct {
 type encodingHints struct {
 	defaultLocation ParameterLocation
 	tags            map[string]tagDescription
-	lang            Lang
+	options         *Options
 }
 
 // RPCEncoding expresses how an RPC should be encoded on the wire for both the request and responses.
@@ -139,18 +131,22 @@ type ParameterEncoding struct {
 	RawTag string `json:"-"`
 }
 
+type Options struct {
+	SrcNameTag string
+}
+
 // DescribeRPC expresses how to encode an RPCs request and response objects for the wire.
-func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, lang Lang) (*RPCEncoding, error) {
+func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCEncoding, error) {
 	encoding := &RPCEncoding{}
 	var err error
 	// Work out the request encoding
-	encoding.RequestEncoding, err = DescribeRequest(appMetaData, rpc.RequestSchema, lang, rpc.HttpMethods...)
+	encoding.RequestEncoding, err = DescribeRequest(appMetaData, rpc.RequestSchema, options, rpc.HttpMethods...)
 	if err != nil {
 		return nil, errors.Wrap(err, "request encoding")
 	}
 
 	// Work out the response encoding
-	encoding.ResponseEncoding, err = DescribeResponse(appMetaData, rpc.ResponseSchema, lang)
+	encoding.ResponseEncoding, err = DescribeResponse(appMetaData, rpc.ResponseSchema, options)
 	if err != nil {
 		return nil, errors.Wrap(err, "request encoding")
 	}
@@ -250,14 +246,17 @@ func DefaultClientHttpMethod(rpc *meta.RPC) string {
 
 // DescribeResponse generates a ParameterEncoding per field of the response struct and returns it as
 // the ResponseEncoding
-func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, lang Lang) (*ResponseEncoding, error) {
+func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, options *Options) (*ResponseEncoding, error) {
 	responseStruct, err := getConcreteStructType(appMetaData, responseSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "response struct")
 	}
-	fields, err := describeParams(&encodingHints{Body, responseTags, lang}, responseStruct)
+	fields, err := describeParams(&encodingHints{Body, responseTags, options}, responseStruct)
 	if err != nil {
 		return nil, err
+	}
+	if keys := keyDiff(fields, Header, Body); len(keys) > 0 {
+		return nil, errors.Newf("response must only contain body and header parameters. Found: %v", keys)
 	}
 	return &ResponseEncoding{
 		BodyParameters:   fields[Body],
@@ -265,9 +264,19 @@ func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, lang 
 	}, nil
 }
 
+// keyDiff returns the diff between src.keys and keys
+func keyDiff[T comparable, V any](src map[T]V, keys ...T) (diff []T) {
+	for k, _ := range src {
+		if !slices.Contains(keys, k) {
+			diff = append(diff, k)
+		}
+	}
+	return diff
+}
+
 // DescribeRequest groups the provided httpMethods by default ParameterLocation and returns a RequestEncoding
 // per ParameterLocation
-func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, lang Lang, httpMethods ...string) ([]*RequestEncoding, error) {
+func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options *Options, httpMethods ...string) ([]*RequestEncoding, error) {
 	requestStruct, err := getConcreteStructType(appMetaData, requestSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "request struct")
@@ -287,9 +296,12 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, lang La
 
 	var reqs []*RequestEncoding
 	for location, methods := range methodsByDefaultLocation {
-		fields, err := describeParams(&encodingHints{location, requestTags, lang}, requestStruct)
+		fields, err := describeParams(&encodingHints{location, requestTags, options}, requestStruct)
 		if err != nil {
 			return nil, err
+		}
+		if keys := keyDiff(fields, Query, Header, Body); len(keys) > 0 {
+			return nil, errors.Newf("request must only contain Query, Body and Header parameters. Found: %v", keys)
 		}
 		reqs = append(reqs, &RequestEncoding{
 			HTTPMethods:      methods,
@@ -373,7 +385,7 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (Parameter
 				}
 			}
 		}
-		if tagHint.srcNameFor == encodingHints.lang {
+		if encodingHints.options != nil && tag.Key == encodingHints.options.SrcNameTag {
 			param.SrcName = tag.Name
 		}
 	}
