@@ -25,7 +25,16 @@ func ParseRuntime(s string) *Runtime {
 	if s == "" {
 		log.Fatalln("encore runtime: fatal error: no encore runtime config provided")
 	}
-	bytes, err := base64.RawURLEncoding.DecodeString(s)
+
+	// We used to support RawURLEncoding, but now we use StdEncoding.
+	// Try both if StdEncoding fails.
+	var (
+		bytes []byte
+		err   error
+	)
+	if bytes, err = base64.StdEncoding.DecodeString(s); err != nil {
+		bytes, err = base64.RawURLEncoding.DecodeString(s)
+	}
 	if err != nil {
 		log.Fatalln("encore runtime: fatal error: could not decode encore runtime config:", err)
 	}
