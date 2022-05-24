@@ -1,0 +1,21 @@
+! parse
+stderr 'all struct fields used in auth handler parameter Params must'
+stderr 'for the field\(s\): Foo, Bar'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type Params struct {
+    Authorization string `header:"Authorization"`
+    Foo string
+    ClientID string `query:"client_id"`
+    Bar int
+}
+
+//encore:authhandler
+func MyAuth(ctx context.Context, p *Params) (auth.UID, error) { return "", nil }
