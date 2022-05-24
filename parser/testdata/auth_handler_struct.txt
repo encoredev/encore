@@ -1,0 +1,21 @@
+parse
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type FooParams struct{}
+
+//encore:api public
+func Foo(ctx context.Context, p *FooParams) error { return nil }
+
+type Params struct {
+    Authorization string `header:"Authorization"`
+}
+
+//encore:authhandler
+func MyAuth(ctx context.Context, p *Params) (auth.UID, error) { return "", nil }
