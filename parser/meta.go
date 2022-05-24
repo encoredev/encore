@@ -249,6 +249,7 @@ func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 		PkgPath: h.Svc.Root.ImportPath,
 		PkgName: h.Svc.Root.Name,
 		Loc:     parseLoc(h.File, h.Func),
+		Params:  h.Params,
 	}
 	if h.AuthData != nil {
 		pb.AuthData = h.AuthData.Type

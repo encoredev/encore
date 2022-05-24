@@ -173,7 +173,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 					Func: fd,
 					File: f,
 				}
-				p.validateAuthHandler(authHandler)
+				p.parseAuthHandler(authHandler)
 				p.authHandler = authHandler
 				isService = true
 
@@ -398,14 +398,16 @@ func (p *parser) initRawRPC(rpc *est.RPC) {
 	}
 }
 
-// validateAuthHandler parses and valiidates the function declaration for an auth handler.
-func (p *parser) validateAuthHandler(h *est.AuthHandler) {
+// parseAuthHandler parses and validates the function declaration for an auth handler.
+func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 	const sigHint = `
 	hint: valid signatures are:
+	- func(ctx context.Context, p *Params) (auth.UID, error)
+	- func(ctx context.Context, p *Params) (auth.UID, *UserData, error)
 	- func(ctx context.Context, token string) (auth.UID, error)
 	- func(ctx context.Context, token string) (auth.UID, *UserData, error)
 
-	note: *UserData is a custom data type you define`
+	note: *Params and *UserData are custom data types you define`
 
 	typ := h.Func.Type
 	params := typ.Params
@@ -442,15 +444,20 @@ func (p *parser) validateAuthHandler(h *est.AuthHandler) {
 		return
 	}
 
-	// Second param must be string
-	tok, _ := getField(params, 1)
-	if id, ok := tok.Type.(*ast.Ident); !ok || id.Name != "string" {
-		p.err(tok.Type.Pos(), "second parameter must be of type string"+sigHint)
-		return
-	} else if pkgNames.Decls["string"] != nil {
-		p.err(tok.Type.Pos(), "second parameter must be of type string (local name shadows builtin)"+sigHint)
-		return
+	// Second param must be string or named type pointing to a struct
+	authInfo, _ := getField(params, 1)
+	paramType := p.resolveType(h.Svc.Root, h.File, authInfo.Type, nil)
+	switch typ := paramType.Typ.(type) {
+	case *schema.Type_Named:
+		if decl := p.decls[typ.Named.Id]; decl.Type.GetStruct() == nil {
+			p.errf(authInfo.Type.Pos(), "%s must be a struct type", decl.Name)
+		}
+	case *schema.Type_Builtin:
+		if typ.Builtin != schema.Builtin_STRING {
+			p.errf(authInfo.Type.Pos(), "second parameter must be of type string or a named type")
+		}
 	}
+	h.Params = paramType
 
 	// First result must be auth.UID
 	uid, _ := getField(results, 0)

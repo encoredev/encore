@@ -1,0 +1,15 @@
+! parse
+stderr 'Params must be a struct type'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type Params int
+
+//encore:authhandler
+func MyAuth(ctx context.Context, p Params) (auth.UID, error) { return "", nil }
