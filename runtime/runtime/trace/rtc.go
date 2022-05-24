@@ -17,6 +17,13 @@ import (
 
 const traceVersion = "7"
 
+// Enabled reports whether tracing is enabled.
+// It is always enabled except for running tests and for ejected applications.
+func Enabled() bool {
+	cfg := config.Cfg
+	return cfg.Runtime.TraceEndpoint != "" && len(cfg.Runtime.AuthKeys) > 0 && !cfg.Static.Testing
+}
+
 func RecordTrace(ctx context.Context, traceID [16]byte, data []byte) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", config.Cfg.Runtime.TraceEndpoint, bytes.NewReader(data))
 	if err != nil {
