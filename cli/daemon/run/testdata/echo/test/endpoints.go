@@ -40,23 +40,23 @@ func SimpleBodyEcho(ctx context.Context, body *BodyEcho) (*BodyEcho, error) {
 	return body, nil
 }
 
-var lastMessage string
+var lastMessage = make(map[string]string)
 
 
 // UpdateMessage allows us to test an API which takes parameters,
 // but doesn't return anything
-//encore:api public method=PUT path=/last_message
-func UpdateMessage(ctx context.Context, message *BodyEcho) error {
-	lastMessage = message.Message
+//encore:api public method=PUT path=/last_message/:clientID
+func UpdateMessage(ctx context.Context, clientID string, message *BodyEcho) error {
+	lastMessage[clientID] = message.Message
 	return nil
 }
 
 // GetMessage allows us to test an API which takes no parameters,
 // but returns data. It also tests two API's on the same path with different HTTP methods
-//encore:api public method=GET path=/last_message
-func GetMessage(ctx context.Context) (*BodyEcho, error) {
+//encore:api public method=GET path=/last_message/:clientID
+func GetMessage(ctx context.Context, clientID string,) (*BodyEcho, error) {
 	return &BodyEcho{
-		Message: lastMessage,
+		Message: lastMessage[clientID],
 	}, nil
 }
 

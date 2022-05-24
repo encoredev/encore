@@ -462,7 +462,7 @@ type TestRestParams struct {
 type TestClient interface {
 	// GetMessage allows us to test an API which takes no parameters,
 	// but returns data. It also tests two API's on the same path with different HTTP methods
-	GetMessage(ctx context.Context) (TestBodyEcho, error)
+	GetMessage(ctx context.Context, clientID string) (TestBodyEcho, error)
 
 	// MarshallerTestHandler allows us to test marshalling of all the inbuilt types in all
 	// the field types. It simply echos all the responses back to the client
@@ -491,7 +491,7 @@ type TestClient interface {
 
 	// UpdateMessage allows us to test an API which takes parameters,
 	// but doesn't return anything
-	UpdateMessage(ctx context.Context, params TestBodyEcho) error
+	UpdateMessage(ctx context.Context, clientID string, params TestBodyEcho) error
 }
 
 type testClient struct {
@@ -502,9 +502,9 @@ var _ TestClient = (*testClient)(nil)
 
 // GetMessage allows us to test an API which takes no parameters,
 // but returns data. It also tests two API's on the same path with different HTTP methods
-func (c *testClient) GetMessage(ctx context.Context) (resp TestBodyEcho, err error) {
+func (c *testClient) GetMessage(ctx context.Context, clientID string) (resp TestBodyEcho, err error) {
 	// Now make the actual call to the API
-	_, err = callAPI(ctx, c.base, "GET", "/last_message", nil, nil, &resp)
+	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/last_message/%s", clientID), nil, nil, &resp)
 	if err != nil {
 		return
 	}
@@ -748,8 +748,8 @@ func (c *testClient) TestAuthHandler(ctx context.Context) (resp TestBodyEcho, er
 
 // UpdateMessage allows us to test an API which takes parameters,
 // but doesn't return anything
-func (c *testClient) UpdateMessage(ctx context.Context, params TestBodyEcho) error {
-	_, err := callAPI(ctx, c.base, "PUT", "/last_message", nil, params, nil)
+func (c *testClient) UpdateMessage(ctx context.Context, clientID string, params TestBodyEcho) error {
+	_, err := callAPI(ctx, c.base, "PUT", fmt.Sprintf("/last_message/%s", clientID), nil, params, nil)
 	return err
 }
 
