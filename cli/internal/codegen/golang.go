@@ -47,6 +47,7 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 
 	// Create a new client file
 	file := NewFile("client")
+	file.HeaderComment(doNotEditHeader())
 
 	// Generate the parent Client struct
 	g.generateClient(file, appSlug, md.Svcs)
@@ -434,6 +435,12 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 				),
 			),
 			Id("request").Op("=").Id("request").Dot("WithContext").Call(Id("ctx")),
+			If(Id("request").Dot("Method").Op("==").Lit("")).Block(
+				Return(
+					Nil(),
+					Qual("errors", "New").Call(Lit("request.Method must be set")),
+				),
+			),
 			Id("request").Dot("URL").Op("=").Id("path"),
 			Line(),
 			Return(Id("c").Dot("base").Dot("Do").Call(Id("request"))),
@@ -580,6 +587,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 			resp = Op("&").Id("resp")
 		} else {
 			hasAnonResponseStruct = true
+			resp = Op("&").Id("respBody")
 
 			// we need to construct an anonymous struct
 			types, err := g.generateAnonStructTypes(bodyFields, "json")

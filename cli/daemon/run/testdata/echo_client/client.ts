@@ -11,15 +11,15 @@ export const Local: BaseURL = "http://localhost:4000"
  * Environment returns a BaseURL for calling the cloud environment with the given name.
  */
 export function Environment(name: string): BaseURL {
-    return `https://${name}-app.encr.app`
+    return `https://${name}-slug.encr.app`
 }
 
 /**
- * Client is an API client for the app Encore application. 
+ * Client is an API client for the slug Encore application. 
  */
 export default class Client {
-    public readonly products: products.ServiceClient
-    public readonly svc: svc.ServiceClient
+    public readonly echo: echo.ServiceClient
+    public readonly test: test.ServiceClient
 
 
     /**
@@ -48,8 +48,8 @@ export default class Client {
         }
 
         const base = new BaseClient(target, opts)
-        this.products = new products.ServiceClient(base)
-        this.svc = new svc.ServiceClient(base)
+        this.echo = new echo.ServiceClient(base)
+        this.test = new test.ServiceClient(base)
     }
 }
 
@@ -74,148 +74,81 @@ export interface ClientOptions {
     bearerToken?: string | TokenGenerator
 }
 
-export namespace authentication {
-    export interface User {
-        id: number
-        name: string
-    }
-}
-
-export namespace products {
-    export interface CreateProductRequest {
-        IdempotencyKey: string
-        name: string
-        description: string
+export namespace echo {
+    export interface AppMetadata {
+        AppID: string
+        APIBaseURL: string
+        EnvName: string
+        EnvType: string
     }
 
-    export interface Product {
-        id: string
-        name: string
-        description: string
-        "created_at": string
-        "created_by": authentication.User
-    }
-
-    export interface ProductListing {
-        products: Product[]
-        previous: {
-            cursor: string
-            exists: boolean
-        }
-        next: {
-            cursor: string
-            exists: boolean
-        }
-    }
-
-    export class ServiceClient {
-        private baseClient: BaseClient
-
-        constructor(baseClient: BaseClient) {
-            this.baseClient = baseClient
-        }
-
-        public async Create(params: CreateProductRequest): Promise<Product> {
-            // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
-                "idempotency-key": params.IdempotencyKey,
-            }
-
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                description: params.description,
-                name:        params.name,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/products.Create`, true, JSON.stringify(body), {headers})
-            return await resp.json() as Product
-        }
-
-        public async List(): Promise<ProductListing> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/products.List`, false)
-            return await resp.json() as ProductListing
-        }
-    }
-}
-
-export namespace svc {
-    export interface AllInputTypes<A> {
-        /**
-         * Specify this comes from a header field
-         */
-        A: string
-
-        /**
-         * Specify this comes from a query string
-         */
-        B: number[]
-
-        /**
-         * This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
-         */
-        "Charlies-Bool": boolean
-
-        /**
-         * This generic type complicates the whole thing 🙈
-         */
-        Dave: A
-    }
-
-    export type Foo = number
-
-    export interface GetRequest {
-        Bar: string
-        Baz: number
-    }
-
-    /**
-     * HeaderOnlyStruct contains all types we support in headers
-     */
-    export interface HeaderOnlyStruct {
-        Boolean: boolean
-        Int: number
-        Float: number
+    export interface BasicData {
         String: string
-        Bytes: string
+        Uint: number
+        Int: number
+        Int8: number
+        Int64: number
+        Float32: number
+        Float64: number
+        StringSlice: string[]
+        IntSlice: number[]
         Time: string
-        Json: JSONValue
-        UUID: string
-        UserID: string
     }
 
-    export interface Request {
-        /**
-         * Foo is good
-         */
-        Foo?: Foo
-
-        /**
-         * Baz is better
-         */
-        boo: string
-
-        /**
-         * This is a multiline
-         * comment on the raw message!
-         */
-        Raw: JSONValue
+    export interface Data<K, V> {
+        Key: K
+        Value: V
     }
 
-    /**
-     * Tuple is a generic type which allows us to
-     * return two values of two different types
-     */
-    export interface Tuple<A, B> {
-        A: A
-        B: B
+    export interface EmptyData {
+        OmitEmpty: Data<string, string>
+        NullPtr: string
+        Zero: Data<string, string>
     }
 
-    export type WrappedRequest = Wrapper<Request>
+    export interface EnvResponse {
+        Env: string[]
+    }
 
-    export interface Wrapper<T> {
-        Value: T
+    export interface HeadersData {
+        Int: number
+        String: string
+    }
+
+    export interface NonBasicData {
+        /**
+         * Header
+         */
+        HeaderString: string
+
+        HeaderNumber: number
+        /**
+         * Body
+         */
+        Struct: Data<Data<string, string>, number>
+
+        StructPtr: Data<number, number>
+        StructSlice: Data<string, string>[]
+        StructMap: { [key: string]: Data<string, number> }
+        StructMapPtr: { [key: string]: Data<string, string> }
+        AnonStruct: {
+            AnonBird: string
+        }
+        "formatted_nest": Data<string, number>
+        RawStruct: JSONValue
+        /**
+         * Query
+         */
+        QueryString: string
+
+        QueryNumber: number
+        /**
+         * Path Parameters
+         */
+        PathString: string
+
+        PathInt: number
+        PathWild: string
     }
 
     export class ServiceClient {
@@ -226,108 +159,341 @@ export namespace svc {
         }
 
         /**
-         * DummyAPI is a dummy endpoint.
+         * AppMeta returns app metadata.
          */
-        public async DummyAPI(params: Request): Promise<void> {
-            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, false, JSON.stringify(params))
+        public async AppMeta(): Promise<AppMetadata> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/echo.AppMeta`, false)
+            return await resp.json() as AppMetadata
         }
 
-        public async Get(params: GetRequest): Promise<void> {
-            // Convert our params into the objects we need for the request
-            const query: Record<string, any> = {
-                boo: params.Baz,
-            }
-
-            await this.baseClient.callAPI("GET", `/svc.Get?${encodeQuery(query)}`, false)
+        /**
+         * BasicEcho echoes back the request data.
+         */
+        public async BasicEcho(params: BasicData): Promise<BasicData> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/echo.BasicEcho`, false, JSON.stringify(params))
+            return await resp.json() as BasicData
         }
 
-        public async GetRequestWithAllInputTypes(params: AllInputTypes<number>): Promise<HeaderOnlyStruct> {
+        /**
+         * Echo echoes back the request data.
+         */
+        public async Echo(params: Data<string, number>): Promise<Data<string, number>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/echo.Echo`, false, JSON.stringify(params))
+            return await resp.json() as Data<string, number>
+        }
+
+        /**
+         * EmptyEcho echoes back the request data.
+         */
+        public async EmptyEcho(params: EmptyData): Promise<EmptyData> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/echo.EmptyEcho`, false, JSON.stringify(params))
+            return await resp.json() as EmptyData
+        }
+
+        /**
+         * Env returns the environment.
+         */
+        public async Env(): Promise<EnvResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/echo.Env`, false)
+            return await resp.json() as EnvResponse
+        }
+
+        /**
+         * HeadersEcho echoes back the request headers
+         */
+        public async HeadersEcho(params: HeadersData): Promise<HeadersData> {
             // Convert our params into the objects we need for the request
             const headers: Record<string, string> = {
-                "x-alice": String(params.A),
-            }
-
-            const query: Record<string, any> = {
-                Bob:  params.B,
-                c:    params["Charlies-Bool"],
-                dave: params.Dave,
+                "x-int":    String(params.Int),
+                "x-string": params.String,
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes?${encodeQuery(query)}`, false, undefined, {headers})
+            const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, false, undefined, {headers})
 
             //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as HeaderOnlyStruct
-            rtn.Boolean = resp.headers.get("x-boolean").toLowerCase() === "true"
+            const rtn = await resp.json() as HeadersData
             rtn.Int = parseInt(resp.headers.get("x-int"), 10)
-            rtn.Float = Number(resp.headers.get("x-float"))
             rtn.String = resp.headers.get("x-string")
-            rtn.Bytes = resp.headers.get("x-bytes")
-            rtn.Time = resp.headers.get("x-time")
-            rtn.Json = JSON.parse(resp.headers.get("x-json"))
-            rtn.UUID = resp.headers.get("x-uuid")
-            rtn.UserID = resp.headers.get("x-user-id")
-            return rtn
-        }
-
-        public async HeaderOnlyRequest(params: HeaderOnlyStruct): Promise<void> {
-            // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
-                "x-boolean": String(params.Boolean),
-                "x-bytes":   String(params.Bytes),
-                "x-float":   String(params.Float),
-                "x-int":     String(params.Int),
-                "x-json":    String(params.Json),
-                "x-string":  params.String,
-                "x-time":    String(params.Time),
-                "x-user-id": String(params.UserID),
-                "x-uuid":    String(params.UUID),
-            }
-
-            await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, false, undefined, {headers})
-        }
-
-        public async RESTPath(a: string, b: number): Promise<void> {
-            await this.baseClient.callAPI("POST", `/path/${a}/${b}`, false)
-        }
-
-        public async RequestWithAllInputTypes(params: AllInputTypes<string>): Promise<AllInputTypes<number>> {
-            // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
-                "x-alice": String(params.A),
-            }
-
-            const query: Record<string, any> = {
-                Bob: params.B,
-            }
-
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                "Charlies-Bool": params["Charlies-Bool"],
-                Dave:            params.Dave,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes?${encodeQuery(query)}`, false, JSON.stringify(body), {headers})
-
-            //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as AllInputTypes<number>
-            rtn.A = resp.headers.get("x-alice")
             return rtn
         }
 
         /**
-         * TupleInputOutput tests the usage of generics in the client generator
-         * and this comment is also multiline, so multiline comments get tested as well.
+         * MuteEcho absorbs a request
          */
-        public async TupleInputOutput(params: Tuple<string, WrappedRequest>): Promise<Tuple<boolean, Foo>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.TupleInputOutput`, false, JSON.stringify(params))
-            return await resp.json() as Tuple<boolean, Foo>
+        public async MuteEcho(params: Data<string, string>): Promise<void> {
+            // Convert our params into the objects we need for the request
+            const query: Record<string, any> = {
+                key:   params.Key,
+                value: params.Value,
+            }
+
+            await this.baseClient.callAPI("GET", `/echo.MuteEcho?${encodeQuery(query)}`, false)
         }
 
-        public async Webhook(method: string, a: string, b: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
-            return this.baseClient.callAPI(method, `/webhook/${a}/${b}`, false, body, options)
+        /**
+         * NonBasicEcho echoes back the request data.
+         */
+        public async NonBasicEcho(pathString: string, pathInt: number, pathWild: string, params: NonBasicData): Promise<NonBasicData> {
+            // Convert our params into the objects we need for the request
+            const headers: Record<string, string> = {
+                "x-header-number": String(params.HeaderNumber),
+                "x-header-string": params.HeaderString,
+            }
+
+            const query: Record<string, any> = {
+                no:     params.QueryNumber,
+                string: params.QueryString,
+            }
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                AnonStruct:       params.AnonStruct,
+                RawStruct:        params.RawStruct,
+                Struct:           params.Struct,
+                StructMap:        params.StructMap,
+                StructMapPtr:     params.StructMapPtr,
+                StructPtr:        params.StructPtr,
+                StructSlice:      params.StructSlice,
+                "formatted_nest": params["formatted_nest"],
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${pathString}/${pathInt}/${pathWild}?${encodeQuery(query)}`, true, JSON.stringify(body), {headers})
+
+            //Populate the return object from the JSON body and received headers
+            const rtn = await resp.json() as NonBasicData
+            rtn.HeaderString = resp.headers.get("x-header-string")
+            rtn.HeaderNumber = parseInt(resp.headers.get("x-header-number"), 10)
+            return rtn
+        }
+
+        /**
+         * Noop does nothing
+         */
+        public async Noop(): Promise<void> {
+            await this.baseClient.callAPI("GET", `/echo.Noop`, false)
+        }
+
+        /**
+         * Pong returns a bird tuple
+         */
+        public async Pong(): Promise<Data<string, string>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("GET", `/echo.Pong`, false)
+            return await resp.json() as Data<string, string>
+        }
+    }
+}
+
+export namespace test {
+    export interface BodyEcho {
+        Message: string
+    }
+
+    export interface MarshallerTest<A> {
+        HeaderBoolean: boolean
+        HeaderInt: number
+        HeaderFloat: number
+        HeaderString: string
+        HeaderBytes: string
+        HeaderTime: string
+        HeaderJson: JSONValue
+        HeaderUUID: string
+        HeaderUserID: string
+        QueryBoolean: boolean
+        QueryInt: number
+        QueryFloat: number
+        QueryString: string
+        QueryBytes: string
+        QueryTime: string
+        QueryJson: JSONValue
+        QueryUUID: string
+        QueryUserID: string
+        QuerySlice: A[]
+        boolean: boolean
+        int: number
+        float: number
+        string: string
+        bytes: string
+        time: string
+        json: JSONValue
+        uuid: string
+        "user-id": string
+        slice: A[]
+    }
+
+    export interface RestParams {
+        HeaderValue: string
+        QueryValue: string
+        "Some-Key": string
+        Nested: {
+            Alice: string
+            bOb: number
+            charile: boolean
+        }
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        /**
+         * GetMessage allows us to test an API which takes no parameters,
+         * but returns data. It also tests two API's on the same path with different HTTP methods
+         */
+        public async GetMessage(): Promise<BodyEcho> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("GET", `/last_message`, false)
+            return await resp.json() as BodyEcho
+        }
+
+        /**
+         * MarshallerTestHandler allows us to test marshalling of all the inbuilt types in all
+         * the field types. It simply echos all the responses back to the client
+         */
+        public async MarshallerTestHandler(params: MarshallerTest<number>): Promise<MarshallerTest<number>> {
+            // Convert our params into the objects we need for the request
+            const headers: Record<string, string> = {
+                "x-boolean": String(params.HeaderBoolean),
+                "x-bytes":   String(params.HeaderBytes),
+                "x-float":   String(params.HeaderFloat),
+                "x-int":     String(params.HeaderInt),
+                "x-json":    String(params.HeaderJson),
+                "x-string":  params.HeaderString,
+                "x-time":    String(params.HeaderTime),
+                "x-user-id": String(params.HeaderUserID),
+                "x-uuid":    String(params.HeaderUUID),
+            }
+
+            const query: Record<string, any> = {
+                boolean:   params.QueryBoolean,
+                bytes:     params.QueryBytes,
+                float:     params.QueryFloat,
+                int:       params.QueryInt,
+                json:      params.QueryJson,
+                slice:     params.QuerySlice,
+                string:    params.QueryString,
+                time:      params.QueryTime,
+                "user-id": params.QueryUserID,
+                uuid:      params.QueryUUID,
+            }
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                boolean:   params.boolean,
+                bytes:     params.bytes,
+                float:     params.float,
+                int:       params.int,
+                json:      params.json,
+                slice:     params.slice,
+                string:    params.string,
+                time:      params.time,
+                "user-id": params["user-id"],
+                uuid:      params.uuid,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler?${encodeQuery(query)}`, false, JSON.stringify(body), {headers})
+
+            //Populate the return object from the JSON body and received headers
+            const rtn = await resp.json() as MarshallerTest<number>
+            rtn.HeaderBoolean = resp.headers.get("x-boolean").toLowerCase() === "true"
+            rtn.HeaderInt = parseInt(resp.headers.get("x-int"), 10)
+            rtn.HeaderFloat = Number(resp.headers.get("x-float"))
+            rtn.HeaderString = resp.headers.get("x-string")
+            rtn.HeaderBytes = resp.headers.get("x-bytes")
+            rtn.HeaderTime = resp.headers.get("x-time")
+            rtn.HeaderJson = JSON.parse(resp.headers.get("x-json"))
+            rtn.HeaderUUID = resp.headers.get("x-uuid")
+            rtn.HeaderUserID = resp.headers.get("x-user-id")
+            return rtn
+        }
+
+        /**
+         * Noop allows us to test if a simple HTTP request can be made
+         */
+        public async Noop(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/test.Noop`, false)
+        }
+
+        /**
+         * NoopWithError allows us to test if the structured errors are returned
+         */
+        public async NoopWithError(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/test.NoopWithError`, false)
+        }
+
+        /**
+         * RawEndpoint allows us to test the clients' ability to send raw requests
+         * under auth
+         */
+        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
+            return this.baseClient.callAPI(method, `/raw/${id}`, false, body, options)
+        }
+
+        /**
+         * RestStyleAPI tests all the ways we can get data into and out of the application
+         * using Encore request handlers
+         */
+        public async RestStyleAPI(objType: number, name: string, params: RestParams): Promise<RestParams> {
+            // Convert our params into the objects we need for the request
+            const headers: Record<string, string> = {
+                "some-key": params.HeaderValue,
+            }
+
+            const query: Record<string, any> = {
+                "Some-Key": params.QueryValue,
+            }
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                Nested:     params.Nested,
+                "Some-Key": params["Some-Key"],
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${objType}/${name}?${encodeQuery(query)}`, false, JSON.stringify(body), {headers})
+
+            //Populate the return object from the JSON body and received headers
+            const rtn = await resp.json() as RestParams
+            rtn.HeaderValue = resp.headers.get("some-key")
+            return rtn
+        }
+
+        /**
+         * SimpleBodyEcho allows us to exercise the body marshalling from JSON
+         * and being returned purely as a body
+         */
+        public async SimpleBodyEcho(params: BodyEcho): Promise<BodyEcho> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/test.SimpleBodyEcho`, false, JSON.stringify(params))
+            return await resp.json() as BodyEcho
+        }
+
+        /**
+         * TestAuthHandler allows us to test the clients ability to add tokens to requests
+         */
+        public async TestAuthHandler(): Promise<BodyEcho> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/test.TestAuthHandler`, true)
+            return await resp.json() as BodyEcho
+        }
+
+        /**
+         * UpdateMessage allows us to test an API which takes parameters,
+         * but doesn't return anything
+         */
+        public async UpdateMessage(params: BodyEcho): Promise<void> {
+            await this.baseClient.callAPI("PUT", `/last_message`, false, JSON.stringify(params))
         }
     }
 }
@@ -368,7 +534,7 @@ class BaseClient {
         this.baseURL = baseURL
         this.headers = {
             "Content-Type": "application/json",
-            "User-Agent":   "app-Generated-TS-Client (Encore/devel)",
+            "User-Agent":   "slug-Generated-TS-Client (Encore/devel)",
         }
 
         // Setup what fetch function we'll be using in the base client
