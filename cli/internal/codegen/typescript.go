@@ -73,6 +73,8 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	ts.appSlug = appSlug
 	ts.typs = getNamedTypes(md)
 
+	ts.WriteString("// " + doNotEditHeader() + "\n")
+
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
 	ts.writeClient()
@@ -170,6 +172,22 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 		indent()
 		fmt.Fprintf(ts, "public async %s(", ts.memberName(rpc.Name))
 
+		if rpc.Proto == meta.RPC_RAW {
+			ts.WriteString("method: ")
+			for i, method := range rpc.HttpMethods {
+				if i > 0 {
+					ts.WriteString(" | ")
+				}
+
+				if method == "*" {
+					ts.WriteString("string")
+				} else {
+					ts.WriteString("\"" + method + "\"")
+				}
+			}
+			ts.WriteString(", ")
+		}
+
 		nParams := 0
 		var rpcPath strings.Builder
 		paramNames := make(map[string]bool)
@@ -254,8 +272,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	// and need no further code generation
 	if rpc.Proto == meta.RPC_RAW {
 		w.WriteStringf(
-			"return this.baseClient.callAPI(\"%s\", `%s`, %s, body, options)\n",
-			rpcEncoding.DefaultRequestEncoding.HTTPMethods[0],
+			"return this.baseClient.callAPI(method, `%s`, %s, body, options)\n",
 			rpcPath,
 			strconv.FormatBool(rpc.AccessType == meta.RPC_AUTH),
 		)
