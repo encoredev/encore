@@ -449,9 +449,35 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 	paramType := p.resolveType(h.Svc.Root, h.File, authInfo.Type, nil)
 	switch typ := paramType.Typ.(type) {
 	case *schema.Type_Named:
-		if decl := p.decls[typ.Named.Id]; decl.Type.GetStruct() == nil {
+		decl := p.decls[typ.Named.Id]
+		st := decl.Type.GetStruct()
+		if st == nil {
 			p.errf(authInfo.Type.Pos(), "%s must be a struct type", decl.Name)
+		} else {
+			// Ensure all fields in the struct are headers or query strings
+			var invalidFields []string
+			for _, f := range st.Fields {
+				found := false
+				for _, tag := range f.Tags {
+					key := tag.Key
+					if tag.Name != "-" && (key == "header" || key == "query" || key == "qs") {
+						found = true
+						break
+					}
+				}
+				if !found {
+					invalidFields = append(invalidFields, f.Name)
+				}
+			}
+
+			if len(invalidFields) > 0 {
+				p.errf(authInfo.Type.Pos(), "all struct fields used in auth handler parameter %s "+
+					"must originate from HTTP headers or query strings.\n"+
+					"\thint: specify `header:\"X-My-Header\"` or `query:\"my-query\"` struct tags\n"+
+					"\tfor the field(s): %s", decl.Name, strings.Join(invalidFields, ", "))
+			}
 		}
+
 	case *schema.Type_Builtin:
 		if typ.Builtin != schema.Builtin_STRING {
 			p.errf(authInfo.Type.Pos(), "second parameter must be of type string or a named type")
