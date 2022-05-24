@@ -436,8 +436,8 @@ export namespace test {
          * RawEndpoint allows us to test the clients' ability to send raw requests
          * under auth
          */
-        public async RawEndpoint(id: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
-            return this.baseClient.callAPI("PUT", `/raw/${id}`, false, body, options)
+        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
+            return this.baseClient.callAPI(method, `/raw/${id}`, false, body, options)
         }
 
         /**

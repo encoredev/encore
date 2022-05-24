@@ -326,8 +326,8 @@ export namespace svc {
             return await resp.json() as Tuple<boolean, Foo>
         }
 
-        public async Webhook(a: string, b: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
-            return this.baseClient.callAPI("POST", `/webhook/${a}/${b}`, false, body, options)
+        public async Webhook(method: string, a: string, b: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
+            return this.baseClient.callAPI(method, `/webhook/${a}/${b}`, false, body, options)
         }
     }
 }

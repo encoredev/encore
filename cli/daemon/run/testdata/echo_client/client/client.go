@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -666,7 +667,7 @@ func (c *testClient) RawEndpoint(ctx context.Context, id string, request *http.R
 	}
 	request = request.WithContext(ctx)
 	if request.Method == "" {
-		request.Method = "PUT"
+		return nil, errors.New("request.Method must be set")
 	}
 	request.URL = path
 

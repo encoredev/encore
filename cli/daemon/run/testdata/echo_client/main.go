@@ -182,6 +182,7 @@ func main() {
 		assert(err, nil, "Wanted no error from client creation")
 
 		req := &http.Request{
+			Method: "PUT",
 			Header: http.Header{
 				"X-Test-Header": []string{"test"},
 			},

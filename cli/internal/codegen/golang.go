@@ -436,7 +436,10 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 			),
 			Id("request").Op("=").Id("request").Dot("WithContext").Call(Id("ctx")),
 			If(Id("request").Dot("Method").Op("==").Lit("")).Block(
-				Id("request").Dot("Method").Op("=").Lit(rpcEncoding.DefaultRequestEncoding.HTTPMethods[0]),
+				Return(
+					Nil(),
+					Qual("errors", "New").Call(Lit("request.Method must be set")),
+				),
 			),
 			Id("request").Dot("URL").Op("=").Id("path"),
 			Line(),

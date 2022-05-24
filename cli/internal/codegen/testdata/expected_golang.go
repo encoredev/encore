@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -405,7 +406,7 @@ func (c *svcClient) Webhook(ctx context.Context, a string, b string, request *ht
 	}
 	request = request.WithContext(ctx)
 	if request.Method == "" {
-		request.Method = "POST"
+		return nil, errors.New("request.Method must be set")
 	}
 	request.URL = path
 

@@ -150,7 +150,7 @@ type response struct {
 
 // RawEndpoint allows us to test the clients' ability to send raw requests
 // under auth
-//encore:api public raw method=PUT path=/raw/*id
+//encore:api public raw method=PUT,POST,DELETE,GET path=/raw/*id
 func RawEndpoint(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
