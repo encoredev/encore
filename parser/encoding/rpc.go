@@ -15,21 +15,14 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
-type Lang int
-
-const (
-	_ Lang = iota
-	GO
-	TypeScript
-)
-
 // ParameterLocation is the request/response home of the parameter
 type ParameterLocation int
 
 const (
-	Header ParameterLocation = iota // Parameter is placed in the HTTP header
-	Query                           // Parameter is placed in the query string
-	Body                            // Parameter is placed in the body
+	Undefined ParameterLocation = iota // Parameter location is Undefined
+	Header                             // Parameter is placed in the HTTP header
+	Query                              // Parameter is placed in the query string
+	Body                               // Parameter is placed in the body
 )
 
 var (
@@ -49,6 +42,12 @@ var (
 		overrideDefault: false,
 	}
 )
+
+// authTags is a description of tags used for auth
+var authTags = map[string]tagDescription{
+	"query":  QueryTag,
+	"header": HeaderTag,
+}
 
 // requestTags is a description of tags used for requests
 var requestTags = map[string]tagDescription{
@@ -73,7 +72,6 @@ type tagDescription struct {
 	overrideDefault bool
 	omitEmptyOption string
 	nameFormatter   func(string) string
-	srcNameFor      Lang
 }
 
 // encodingHints is used to determine the default location and applicable tag overrides for http
@@ -105,6 +103,13 @@ func (e *RPCEncoding) RequestEncodingForMethod(method string) *RequestEncoding {
 		}
 	}
 	return nil
+}
+
+// AuthEncoding expresses how a response should be encoded on the wire
+type AuthEncoding struct {
+	// Contains metadata about how to marshal an HTTP parameter
+	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
+	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 }
 
 // ResponseEncoding expresses how a response should be encoded on the wire
@@ -251,6 +256,26 @@ func DefaultClientHttpMethod(rpc *meta.RPC) string {
 
 	return rpc.HttpMethods[0]
 
+}
+
+// DescribeAuth generates a ParameterEncoding per field of the auth struct and returns it as
+// the AuthEncoding
+func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Options) (*AuthEncoding, error) {
+	authStruct, err := getConcreteStructType(appMetaData, authSchema, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "auth struct")
+	}
+	fields, err := describeParams(&encodingHints{Undefined, authTags, options}, authStruct)
+	if err != nil {
+		return nil, err
+	}
+	if locationDiff := keyDiff(fields, Header, Query); len(locationDiff) > 0 {
+		return nil, errors.Newf("auth must only contain query and header parameters. Found: %v", locationDiff)
+	}
+	return &AuthEncoding{
+		QueryParameters:  fields[Query],
+		HeaderParameters: fields[Header],
+	}, nil
 }
 
 // DescribeResponse generates a ParameterEncoding per field of the response struct and returns it as
