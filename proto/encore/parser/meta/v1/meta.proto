@@ -81,6 +81,7 @@ message AuthHandler {
   string                  pkg_name  = 4; // package (service) name
   schema.v1.Loc           loc       = 5;
   optional schema.v1.Type auth_data = 6; // custom auth data, or nil
+  optional schema.v1.Type params    = 7; // builtin string or named type
 }
 
 message TraceNode {
