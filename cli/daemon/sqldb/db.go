@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
@@ -217,7 +218,12 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (e
 	// This is safe since all migrations run inside transactions.
 	var dirty migrate.ErrDirty
 	if errors.As(err, &dirty) {
-		if err = m.Force(dirty.Version - 1); err == nil {
+		ver := dirty.Version - 1
+		// golang-migrate uses -1 to mean "no version", not 0.
+		if ver == 0 {
+			ver = database.NilVersion
+		}
+		if err = m.Force(ver); err == nil {
 			err = m.Up()
 		}
 	}
