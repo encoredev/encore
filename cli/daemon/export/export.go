@@ -158,8 +158,6 @@ func buildDockerImage(ctx context.Context, log zerolog.Logger, req *daemonpb.Exp
 	cfg.Architecture = req.Goarch
 	cfg.OS = req.Goos
 
-	log.Info().Msgf("setting cfg %#v", *cfg)
-
 	img, err = mutate.ConfigFile(img, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "add config")
