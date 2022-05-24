@@ -351,7 +351,7 @@ func (s *Server) Export(req *daemonpb.ExportRequest, stream daemonpb.Daemon_Expo
 	log := newStreamLogger(slog)
 
 	exitCode := 0
-	err := export.Docker(stream.Context(), req, log)
+	success, err := export.Docker(stream.Context(), req, log)
 	if err != nil {
 		exitCode = 1
 		if list, ok := err.(scanner.ErrorList); ok {
@@ -361,6 +361,8 @@ func (s *Server) Export(req *daemonpb.ExportRequest, stream daemonpb.Daemon_Expo
 		} else {
 			log.Error().Msg(err.Error())
 		}
+	} else if !success {
+		exitCode = 1
 	}
 
 	streamExit(stream, exitCode)

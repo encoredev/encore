@@ -11,8 +11,6 @@ import (
 	"runtime"
 	"time"
 
-	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
-	"github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
 	"github.com/cockroachdb/errors"
 	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -20,7 +18,6 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -38,15 +35,15 @@ const (
 )
 
 // Docker exports the app as a docker image.
-func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger) error {
+func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger) (success bool, err error) {
 	params := req.GetDocker()
 	if params == nil {
-		return errors.Newf("unsupported format: %T", req.Format)
+		return false, errors.Newf("unsupported format: %T", req.Format)
 	}
 
 	if req.Goarch != "" && req.Goarch != runtime.GOARCH {
 		log.Error().Msgf("encore export currently only supports building for the host architecture (%s)", runtime.GOARCH)
-		return errors.Newf("unsupported goarch: %q", errors.Safe(req.Goarch))
+		return false, errors.Newf("unsupported goarch: %q", errors.Safe(req.Goarch))
 	}
 
 	vcsRevision := vcs.GetRevision(req.AppRoot)
@@ -71,26 +68,26 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 	}
 	if err != nil {
 		log.Info().Err(err).Msg("compilation failed")
-		return errors.Wrap(err, "compilation failed")
+		return false, errors.Wrap(err, "compilation failed")
 	}
 
 	img, err := buildDockerImage(ctx, log, req, result)
 	if err != nil {
-		return errors.Wrap(err, "build docker image")
+		return false, errors.Wrap(err, "build docker image")
 	}
 
 	if params.LocalDaemonTag != "" {
 		tag, err := name.NewTag(params.LocalDaemonTag, name.WeakValidation)
 		if err != nil {
 			log.Error().Err(err).Msg("invalid image tag")
-			return errors.Wrap(err, "parse local image tag")
+			return false, nil
 		}
 		log.Info().Msg("saving image to local docker daemon")
 
 		_, err = daemon.Write(tag, img, daemon.WithUnbufferedOpener())
 		if err != nil {
 			log.Error().Err(err).Msg("unable to save docker image")
-			return errors.Wrap(err, "save local docker image")
+			return false, nil
 		}
 		log.Info().Msg("successfully saved local docker image")
 	}
@@ -99,17 +96,16 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 		tag, err := name.NewTag(params.PushDestinationTag, name.WeakValidation)
 		if err != nil {
 			log.Error().Err(err).Msg("invalid image tag")
-			return errors.Wrap(err, "parse remote image tag")
+			return false, nil
 		}
 		log.Info().Msg("pushing image to docker registry")
 		if err := pushDockerImage(ctx, log, img, tag); err != nil {
 			log.Error().Err(err).Msg("unable to push docker image")
-			return errors.Wrap(err, "push docker image")
+			return false, nil
 		}
-		log.Info().Msg("successfully pushed docker image")
 	}
 
-	return nil
+	return true, nil
 }
 
 // buildDockerImage builds a docker image.
@@ -266,17 +262,10 @@ func addCACerts(ctx context.Context, tw *tar.Writer, dest string) error {
 }
 
 func pushDockerImage(ctx context.Context, log zerolog.Logger, img v1.Image, destination name.Tag) error {
-	keychain := authn.NewMultiKeychain(
-		authn.DefaultKeychain,
-		google.Keychain,
-		authn.NewKeychainFromHelper(ecr.NewECRHelper()),
-		authn.NewKeychainFromHelper(credhelper.NewACRCredentialsHelper()),
-	)
-
 	log.Info().Msg("pushing docker image to container registry")
+	keychain := authn.DefaultKeychain
 	if err := remote.Write(destination, img, remote.WithAuthFromKeychain(keychain), remote.WithContext(ctx)); err != nil {
-		log.Error().Err(err).Msg("unable to push image")
-		return errors.Wrap(err, "push")
+		return errors.WithStack(err)
 	}
 	log.Info().Msg("successfully pushed docker image")
 	return nil
