@@ -1,0 +1,13 @@
+! parse
+stderr 'second parameter must be of type string or a named type'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+//encore:authhandler
+func MyAuth(ctx context.Context, p int) (auth.UID, error) { return "", nil }
