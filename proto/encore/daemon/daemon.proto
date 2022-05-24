@@ -90,7 +90,7 @@ message ExportRequest {
   // goos and goarch specify the platform configuration to compile
   // the application for. The values must be valid GOOS/GOARCH values.
   //
-  // Currently "encore export" cannot build for other architectures than the
+  // Currently "encore eject" cannot build for other architectures than the
   // host architecture. If
   string goos = 2;
   string goarch = 3;

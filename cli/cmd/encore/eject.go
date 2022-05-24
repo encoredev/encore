@@ -13,31 +13,30 @@ import (
 )
 
 func init() {
-	exportCmd := &cobra.Command{
-		Use:   "export",
-		Short: "export provides ways to export your Encore application in various formats",
+	ejectCmd := &cobra.Command{
+		Use:   "eject",
+		Short: "eject provides ways to eject your application to migrate away from using Encore",
 	}
 
 	var push bool
-
-	dockerExportCmd := &cobra.Command{
+	dockerEjectCmd := &cobra.Command{
 		Use:   "docker IMAGE_TAG",
 		Short: "docker builds a portable docker image of your Encore application",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, _ := determineAppRoot()
 			imgTag := args[0]
-			dockerExport(appRoot, imgTag, push)
+			dockerEject(appRoot, imgTag, push)
 		},
 	}
 
-	dockerExportCmd.Flags().BoolVarP(&push, "push", "p", false, "push image to remote repository")
+	dockerEjectCmd.Flags().BoolVarP(&push, "push", "p", false, "push image to remote repository")
 
-	rootCmd.AddCommand(exportCmd)
-	exportCmd.AddCommand(dockerExportCmd)
+	rootCmd.AddCommand(ejectCmd)
+	ejectCmd.AddCommand(dockerEjectCmd)
 }
 
-func dockerExport(appRoot string, imageTag string, push bool) {
+func dockerEject(appRoot string, imageTag string, push bool) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -74,5 +73,14 @@ func dockerExport(appRoot string, imageTag string, push bool) {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)
 	}
-	os.Exit(streamCommandOutput(stream, false))
+	if code := streamCommandOutput(stream, true); code != 0 {
+		os.Exit(code)
+	}
+	fmt.Print(`
+Successfully ejected Encore application.
+To run the container, specify the environment variables ENCORE_RUNTIME_CONFIG and ENCORE_APP_SECRETS
+as documented here: https://encore.dev/docs/how-to/migrate-away.
+
+`)
+
 }

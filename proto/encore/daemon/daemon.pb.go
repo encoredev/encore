@@ -500,7 +500,7 @@ type ExportRequest struct {
 	// goos and goarch specify the platform configuration to compile
 	// the application for. The values must be valid GOOS/GOARCH values.
 	//
-	// Currently "encore export" cannot build for other architectures than the
+	// Currently "encore eject" cannot build for other architectures than the
 	// host architecture. If
 	Goos   string `protobuf:"bytes,2,opt,name=goos,proto3" json:"goos,omitempty"`
 	Goarch string `protobuf:"bytes,3,opt,name=goarch,proto3" json:"goarch,omitempty"`
