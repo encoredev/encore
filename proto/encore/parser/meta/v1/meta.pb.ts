@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { Loc, Decl, Type } from "../../../../encore/parser/schema/v1/schema.pb";
+import type {Decl, Loc, Type,} from "../../../../encore/parser/schema/v1/schema.pb";
 
 export const protobufPackage = "encore.parser.meta.v1";
 
@@ -108,6 +108,8 @@ export interface AuthHandler {
   loc: Loc;
   /** custom auth data, or nil */
   auth_data?: Type | undefined;
+  /** builtin string or named type */
+  params?: Type | undefined;
 }
 
 export interface TraceNode {
