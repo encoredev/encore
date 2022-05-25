@@ -92,6 +92,10 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 			}
 
 			for _, name := range field.Names {
+				// Skip unexported fields
+				if !ast.IsExported(name.Name) {
+					continue
+				}
 				// Use the documentation block above the field by default,
 				// however if that is blank, then use the line comment instead
 				docBlock := field.Doc
