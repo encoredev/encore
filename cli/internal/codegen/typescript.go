@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -279,9 +278,8 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		ts.seenRawEndpoint = true
 
 		w.WriteStringf(
-			"return this.baseClient.callAPI(method, `%s`, %s, body, options)\n",
+			"return this.baseClient.callAPI(method, `%s`, body, options)\n",
 			rpcPath,
-			strconv.FormatBool(rpc.AccessType == meta.RPC_AUTH),
 		)
 		return nil
 	}
@@ -360,10 +358,9 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	// Build the call to callAPI
 	callAPI := fmt.Sprintf(
-		"this.baseClient.callAPI(\"%s\", `%s`, %s",
+		"this.baseClient.callAPI(\"%s\", `%s`",
 		rpcEncoding.DefaultRequestEncoding.HTTPMethods[0],
 		rpcPath,
-		strconv.FormatBool(rpc.AccessType == meta.RPC_AUTH),
 	)
 	if body != "" || headers != "" || query != "" {
 		if body == "" {
@@ -655,7 +652,7 @@ class BaseClient {
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, requiresAuth: boolean, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         const init = {
             ...(params ?? {}),
             method,
@@ -675,9 +672,6 @@ class BaseClient {
         // If we now have a bearer token, add it to the request
         if (bearerToken) {
             init.headers["Authorization"] = "Bearer " + bearerToken
-        } else if (requiresAuth) {
-            // The API called requires authorization, but we don't have a token generator, or it provided a blank token value
-            throw new APIError(400, { code: ErrCode.Unauthenticated, message: 'Authorization token required for this API, but none provided.' })
         }
 
         // Make the actual request
