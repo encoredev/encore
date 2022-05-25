@@ -400,15 +400,27 @@ func (c *svcClient) TupleInputOutput(ctx context.Context, params SvcTuple[string
 }
 
 func (c *svcClient) Webhook(ctx context.Context, a string, b string, request *http.Request) (*http.Response, error) {
+	request = request.WithContext(ctx)
+
+	// Check the request has the method set, as we can't guess what method is required
+	if request.Method == "" {
+		return nil, errors.New("request.Method must be set")
+	}
+
+	// Set the relative URL for the API call
 	path, err := url.Parse(fmt.Sprintf("/webhook/%s/%s", a, b))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse api url: %w", err)
 	}
-	request = request.WithContext(ctx)
-	if request.Method == "" {
-		return nil, errors.New("request.Method must be set")
+	if request.URL != nil {
+		// If the request already has a URL associated, we'll keep any fields set inside it, and just override the schema,
+		// host and path to ensure the final URL which hit the right BaseURL
+		request.URL.Scheme = path.Scheme
+		request.URL.Host = path.Host
+		request.URL.Path = path.Path
+	} else {
+		request.URL = path
 	}
-	request.URL = path
 
 	return c.base.Do(request)
 }

@@ -231,12 +231,12 @@ export namespace echo {
          */
         public async MuteEcho(params: Data<string, string>): Promise<void> {
             // Convert our params into the objects we need for the request
-            const query: Record<string, string | string[]> = {
+            const queryFields: Record<string, string | string[]> = {
                 key:   params.Key,
                 value: params.Value,
             }
 
-            await this.baseClient.callAPI("GET", `/echo.MuteEcho?${encodeQuery(query)}`, false)
+            await this.baseClient.callAPI("GET", `/echo.MuteEcho`, false, undefined, {queryFields})
         }
 
         /**
@@ -249,7 +249,7 @@ export namespace echo {
                 "x-header-string": params.HeaderString,
             }
 
-            const query: Record<string, string | string[]> = {
+            const queryFields: Record<string, string | string[]> = {
                 no:     String(params.QueryNumber),
                 string: params.QueryString,
             }
@@ -267,7 +267,7 @@ export namespace echo {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${pathString}/${pathInt}/${pathWild}?${encodeQuery(query)}`, true, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${pathString}/${pathInt}/${pathWild}`, true, JSON.stringify(body), {headers, queryFields})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as NonBasicData
@@ -377,7 +377,7 @@ export namespace test {
                 "x-uuid":    String(params.HeaderUUID),
             }
 
-            const query: Record<string, string | string[]> = {
+            const queryFields: Record<string, string | string[]> = {
                 boolean:   String(params.QueryBoolean),
                 bytes:     String(params.QueryBytes),
                 float:     String(params.QueryFloat),
@@ -405,7 +405,7 @@ export namespace test {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler?${encodeQuery(query)}`, false, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler`, false, JSON.stringify(body), {headers, queryFields})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as MarshallerTest<number>
@@ -453,7 +453,7 @@ export namespace test {
                 "some-key": params.HeaderValue,
             }
 
-            const query: Record<string, string | string[]> = {
+            const queryFields: Record<string, string | string[]> = {
                 "Some-Key": params.QueryValue,
             }
 
@@ -464,7 +464,7 @@ export namespace test {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${objType}/${name}?${encodeQuery(query)}`, false, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${objType}/${name}`, false, JSON.stringify(body), {headers, queryFields})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as RestParams
@@ -516,7 +516,13 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     return pairs.join("&")
 }
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & { headers?: Record<string, string> }
+type CallParameters = Omit<RequestInit, "method" | "body"> & {
+    /** Any headers to be sent with the request */
+    headers?: Record<string, string>;
+
+    /** Any query parameters to be sent with the request */
+    queryFields?: Record<string, string | string[]>
+}
 
 // TokenGenerator is a function that returns a token
 export type TokenGenerator = () => string
@@ -582,7 +588,8 @@ class BaseClient {
         }
 
         // Make the actual request
-        const response = await this.fetcher(this.baseURL + path, init)
+        const query = params?.queryFields ? '?' + encodeQuery(params.queryFields) : ''
+        const response = await this.fetcher(this.baseURL+path+query, init)
 
         // handle any error responses
         if (!response.ok) {
