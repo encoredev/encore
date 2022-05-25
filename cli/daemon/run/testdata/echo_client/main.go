@@ -132,7 +132,7 @@ func main() {
 	assert(err, nil, "unable to marshal response to JSON")
 	reqAsJSON, err := json.Marshal(params)
 	assert(err, nil, "unable to marshal response to JSON")
-	assert(respAsJSON, reqAsJSON, "Expected the same response from the marshaller test")
+	assert(string(respAsJSON), string(reqAsJSON), "Expected the same response from the marshaller test")
 
 	// Test auth handlers
 	_, err = api.Test.TestAuthHandler(ctx)
@@ -185,7 +185,7 @@ func main() {
 		assert(err, nil, "unable to create request for raw endpoint")
 		req.Header.Add("X-Test-Header", "test")
 
-		rsp, err := api.Test.RawEndpoint(ctx, "hello", req)
+		rsp, err := api.Test.RawEndpoint(ctx, []string{"hello"}, req)
 		assert(err, nil, "expected no error from the raw socket")
 		defer rsp.Body.Close()
 
@@ -208,6 +208,15 @@ func main() {
 		assert(response, &responseType{"this is a test body", "test", "hello", "bar"}, "expected the response to match")
 
 	}
+
+	// Test path encoding
+	resp, err := api.Test.PathMultiSegments(ctx, true, 342, "foo/blah/should/get/escaped", "503f4487-1e15-4c37-9a80-7b70f86387bb", []string{"foo/bar", "blah", "seperate/segments = great success"})
+	assert(err, nil, "expected no error from the path multi segments endpoint")
+	assert(resp.Boolean, true, "expected the boolean to be true")
+	assert(resp.Int, 342, "expected the int to be 342")
+	assert(resp.String, "foo/blah/should/get/escaped", "invalid string field returned")
+	assert(resp.UUID, "503f4487-1e15-4c37-9a80-7b70f86387bb", "invalid UUID returned")
+	assert(resp.Wildcard, "foo/bar/blah/seperate/segments = great success", "invalid wildcard field returned")
 
 	// Client test completed
 	os.Exit(0)

@@ -112,9 +112,15 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	h, p, _ := r.Lookup(req.Method, req.URL.Path)
+	// We use EscapedPath rather than `req.URL.Path` because if the path contains an encoded
+	// forward slash as %2F we don't want the router to treat that as a segment split.
+	//
+	// i.e. `/foo%2Fbar/baz` should be routed to `/:a/*b` as a = "foo/bar", b = "baz"
+	// where as if we use req.URL.Path we would get a = "foo", b = "bar/baz` which is incorrect.
+	path := req.URL.EscapedPath()
+	h, p, _ := r.Lookup(req.Method, path)
 	if h == nil {
-		h, p, _ = r.Lookup(wildcardMethod, req.URL.Path)
+		h, p, _ = r.Lookup(wildcardMethod, path)
 	}
 	if h == nil {
 		svc, api := "unknown", "Unknown"

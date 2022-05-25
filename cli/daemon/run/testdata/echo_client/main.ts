@@ -132,7 +132,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
 
   const resp = await api.test.RawEndpoint(
     "PUT",
-    "hello",
+    ["hello"],
     "this is a test body",
     {
       headers:     {"X-Test-Header": "test"},
@@ -151,6 +151,14 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
     QueryString: "bar",
   }, "expected the response to match")
 }
+
+// Test path encoding
+const resp = await api.test.PathMultiSegments( true, 342, "foo/blah/should/get/escaped", "503f4487-1e15-4c37-9a80-7b70f86387bb", ["foo/bar", "blah", "seperate/segments = great success"])
+deepEqual(resp.Boolean, true, "expected the boolean to be true")
+deepEqual(resp.Int, 342, "expected the int to be 342")
+deepEqual(resp.String, "foo/blah/should/get/escaped", "invalid string field returned")
+deepEqual(resp.UUID, "503f4487-1e15-4c37-9a80-7b70f86387bb", "invalid UUID returned")
+deepEqual(resp.Wildcard, "foo/bar/blah/seperate/segments = great success", "invalid wildcard field returned")
 
 // Client test completed
 process.exit(0)
