@@ -412,7 +412,7 @@ func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 
 	code := []Code{Id(w.instanceName).Op(":=").Op("&").Id(w.g.structName).Values(), Line()}
 	code = append(code, w.code...)
-	code = append(code, Line().If(Id(w.instanceName).Dot(lastErrorField).Op("!=").Nil()).Block(ifErrorBlock...), Line())
+	code = append(code, Line().If(Id(w.instanceName).Dot(lastErrorField).Op("!=").Nil()).Block(ifErrorBlock...))
 	return code
 }
 
@@ -531,6 +531,29 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 
 		w.used = true
 		return Values(Id(w.instanceName).Dot(funcName).Call(sourceValue)), nil
+	default:
+		return nil, errors.Newf("unsupported type for deserialization: %T", t)
+	}
+}
+
+// ToString will return either the original string or a call to the encoder
+func (w *MarshallingCodeWrapper) ToString(sourceType *schema.Type, sourceValue Code) (code Code, err error) {
+	// get the method name for the target type
+	funcName := ""
+	switch t := sourceType.Typ.(type) {
+	case *schema.Type_Builtin:
+		// If the list is strings, we can just return the slice
+		if w.g.shouldBeTreatedAsString(t.Builtin) {
+			return sourceValue, nil
+		}
+
+		funcName, err = w.g.builtinToString(t.Builtin, false)
+		if err != nil {
+			return nil, err
+		}
+
+		w.used = true
+		return Id(w.instanceName).Dot(funcName).Call(sourceValue), nil
 	default:
 		return nil, errors.Newf("unsupported type for deserialization: %T", t)
 	}

@@ -24,6 +24,11 @@ func getNamedTypes(md *meta.Data) *typeRegistry {
 			}
 		}
 	}
+
+	if md.AuthHandler != nil && md.AuthHandler.Params != nil {
+		r.Visit(md.AuthHandler.Params)
+	}
+
 	return r
 }
 
