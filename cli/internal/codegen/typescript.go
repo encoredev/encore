@@ -193,14 +193,14 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 
 		nParams := 0
 		var rpcPath strings.Builder
-		paramNames := make(map[string]bool)
 		for _, s := range rpc.Path.Segments {
 			rpcPath.WriteByte('/')
 			if s.Type != meta.PathSegment_LITERAL {
 				if nParams > 0 {
 					ts.WriteString(", ")
 				}
-				ts.WriteString(s.Value)
+
+				ts.WriteString(ts.nonReservedId(s.Value))
 				ts.WriteString(": ")
 				switch s.ValueType {
 				case meta.PathSegment_STRING, meta.PathSegment_UUID:
@@ -213,8 +213,12 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 				default:
 					panic(fmt.Sprintf("unhandled PathSegment type %s", s.ValueType))
 				}
-				paramNames[s.Value] = true
-				rpcPath.WriteString("${" + s.Value + "}")
+				if s.Type == meta.PathSegment_WILDCARD {
+					ts.WriteString("[]")
+					rpcPath.WriteString("${" + ts.nonReservedId(s.Value) + ".map(encodeURIComponent).join(\"/\")}")
+				} else {
+					rpcPath.WriteString("${encodeURIComponent(" + ts.nonReservedId(s.Value) + ")}")
+				}
 				nParams++
 			} else {
 				rpcPath.WriteString(s.Value)
@@ -223,9 +227,6 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 
 		// Avoid a name collision.
 		payloadName := "params"
-		for paramNames[payloadName] {
-			payloadName = "_" + payloadName
-		}
 
 		if rpc.RequestSchema != nil {
 			if nParams > 0 {
@@ -418,6 +419,28 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	w.WriteString("return rtn\n")
 	return nil
+}
+
+// nonReservedId returns the given ID, unless we have it a reserved within the client function _or_ it's a reserved Typescript keyword
+func (ts *typescript) nonReservedId(id string) string {
+	switch id {
+	// our reserved keywords (or ID's we use within the generated client functions)
+	case "params", "headers", "query", "body", "resp", "rtn":
+		return "_" + id
+
+	// Typescript & Javascript keywords
+	case "abstract", "any", "arguments", "as", "async", "await", "boolean", "break", "byte", "case", "catch", "char",
+		"class", "const", "constructor", "continue", "debugger", "declare", "default", "delete", "do", "double", "else",
+		"enum", "eval", "export", "extends", "false", "final", "finally", "float", "for", "from", "function", "get",
+		"goto", "if", "implements", "import", "in", "instanceof", "interface", "let", "long", "module", "namespace",
+		"native", "new", "null", "number", "of", "package", "private", "protected", "public", "require", "return",
+		"set", "short", "static", "string", "super", "switch", "symbol", "synchronized", "this", "throw", "throws",
+		"transient", "true", "try", "type", "typeof", "var", "void", "volatile", "while", "with", "yield":
+		return "_" + id
+
+	default:
+		return id
+	}
 }
 
 func (ts *typescript) writeNamespace(ns string) {

@@ -18,6 +18,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -88,7 +89,13 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 	var err error
 	dec := &marshaller{}
 	// Decode request
+	if value, err := url.PathUnescape(ps[0].Value); err == nil {
+		ps[0].Value = value
+	}
 	p0 := dec.ToString("bar", ps[0].Value, true)
+	if value, err := url.PathUnescape(ps[1].Value); err == nil {
+		ps[1].Value = value
+	}
 	p1 := dec.ToString("baz", ps[1].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0, p1)
 
@@ -169,6 +176,9 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	var err error
 	dec := &marshaller{}
 	// Decode request
+	if value, err := url.PathUnescape(ps[0].Value); err == nil {
+		ps[0].Value = value
+	}
 	p0 := dec.ToUUID("id", ps[0].Value, true)
 	p1 := dec.ToUint("key", ps[1].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0, p1)
@@ -269,6 +279,9 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	ps[0].Value = strings.TrimPrefix(ps[0].Value, "/")
 
 	// Decode request
+	if value, err := url.PathUnescape(ps[0].Value); err == nil {
+		ps[0].Value = value
+	}
 	p0 := dec.ToString("baz", ps[0].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0)
 
@@ -460,7 +473,13 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 	var err error
 	dec := &marshaller{}
 	// Decode request
+	if value, err := url.PathUnescape(ps[0].Value); err == nil {
+		ps[0].Value = value
+	}
 	_ = dec.ToString("bar", ps[0].Value, true)
+	if value, err := url.PathUnescape(ps[1].Value); err == nil {
+		ps[1].Value = value
+	}
 	_ = dec.ToString("baz", ps[1].Value, true)
 
 	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Seven")
@@ -510,7 +529,13 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	ps[1].Value = strings.TrimPrefix(ps[1].Value, "/")
 
 	// Decode request
+	if value, err := url.PathUnescape(ps[0].Value); err == nil {
+		ps[0].Value = value
+	}
 	p0 := dec.ToUUID("id", ps[0].Value, true)
+	if value, err := url.PathUnescape(ps[1].Value); err == nil {
+		ps[1].Value = value
+	}
 	p1 := dec.ToString("key", ps[1].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0, p1)
 
@@ -605,6 +630,9 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 	var err error
 	dec := &marshaller{}
 	// Decode request
+	if value, err := url.PathUnescape(ps[0].Value); err == nil {
+		ps[0].Value = value
+	}
 	p0 := dec.ToString("id", ps[0].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0)
 

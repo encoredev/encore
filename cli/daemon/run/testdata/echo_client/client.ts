@@ -248,7 +248,7 @@ export namespace echo {
         /**
          * NonBasicEcho echoes back the request data.
          */
-        public async NonBasicEcho(pathString: string, pathInt: number, pathWild: string, params: NonBasicData): Promise<NonBasicData> {
+        public async NonBasicEcho(pathString: string, pathInt: number, pathWild: string[], params: NonBasicData): Promise<NonBasicData> {
             // Convert our params into the objects we need for the request
             const headers: Record<string, string> = {
                 "x-header-number": String(params.HeaderNumber),
@@ -273,7 +273,7 @@ export namespace echo {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${pathString}/${pathInt}/${pathWild}`, true, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${encodeURIComponent(pathString)}/${encodeURIComponent(pathInt)}/${pathWild.map(encodeURIComponent).join("/")}`, true, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as NonBasicData
@@ -337,6 +337,14 @@ export namespace test {
         slice: A[]
     }
 
+    export interface MultiPathSegment {
+        Boolean: boolean
+        Int: number
+        String: string
+        UUID: string
+        Wildcard: string
+    }
+
     export interface RestParams {
         HeaderValue: string
         QueryValue: string
@@ -361,7 +369,7 @@ export namespace test {
          */
         public async GetMessage(clientID: string): Promise<BodyEcho> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/last_message/${clientID}`, false)
+            const resp = await this.baseClient.callAPI("GET", `/last_message/${encodeURIComponent(clientID)}`, false)
             return await resp.json() as BodyEcho
         }
 
@@ -442,11 +450,20 @@ export namespace test {
         }
 
         /**
+         * PathMultiSegments allows us to wildcard segments and segment URI encoding
+         */
+        public async PathMultiSegments(bool: boolean, int: number, _string: string, uuid: string, wildcard: string[]): Promise<MultiPathSegment> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(int)}/${encodeURIComponent(_string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`, false)
+            return await resp.json() as MultiPathSegment
+        }
+
+        /**
          * RawEndpoint allows us to test the clients' ability to send raw requests
          * under auth
          */
-        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
-            return this.baseClient.callAPI(method, `/raw/${id}`, false, body, options)
+        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
+            return this.baseClient.callAPI(method, `/raw/blah/${id.map(encodeURIComponent).join("/")}`, false, body, options)
         }
 
         /**
@@ -470,7 +487,7 @@ export namespace test {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${objType}/${name}`, false, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${encodeURIComponent(objType)}/${encodeURIComponent(name)}`, false, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as RestParams
@@ -502,7 +519,7 @@ export namespace test {
          * but doesn't return anything
          */
         public async UpdateMessage(clientID: string, params: BodyEcho): Promise<void> {
-            await this.baseClient.callAPI("PUT", `/last_message/${clientID}`, false, JSON.stringify(params))
+            await this.baseClient.callAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, false, JSON.stringify(params))
         }
     }
 }

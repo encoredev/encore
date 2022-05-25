@@ -149,7 +149,7 @@ type response struct {
 
 // RawEndpoint allows us to test the clients' ability to send raw requests
 // under auth
-//encore:api public raw method=PUT,POST,DELETE,GET path=/raw/*id
+//encore:api public raw method=PUT,POST,DELETE,GET path=/raw/blah/*id
 func RawEndpoint(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
@@ -169,4 +169,24 @@ func RawEndpoint(w http.ResponseWriter, req *http.Request) {
 		panic(err)
 	}
 	w.Write(b)
+}
+
+type MultiPathSegment struct {
+	Boolean  bool
+	Int      int
+	String   string
+	UUID     uuid.UUID
+	Wildcard string
+}
+
+// PathMultiSegments allows us to wildcard segments and segment URI encoding
+//encore:api public path=/multi/:bool/:int/:string/:uuid/*wildcard
+func PathMultiSegments(ctx context.Context, bool bool, int int, string string, uuid uuid.UUID, wildcard string) (*MultiPathSegment, error) {
+	return &MultiPathSegment{
+		Boolean:  bool,
+		Int:      int,
+		String:   string,
+		UUID:     uuid,
+		Wildcard: wildcard,
+	}, nil
 }

@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -37,7 +38,13 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 	var err error
 	dec := &marshaller{}
 	// Decode request
+	if value, err := url.PathUnescape(ps[0].Value); err == nil {
+		ps[0].Value = value
+	}
 	p0 := dec.ToString("bar", ps[0].Value, true)
+	if value, err := url.PathUnescape(ps[1].Value); err == nil {
+		ps[1].Value = value
+	}
 	p1 := dec.ToString("baz", ps[1].Value, true)
 	inputs, _ := runtime.SerializeInputs(p0, p1)
 

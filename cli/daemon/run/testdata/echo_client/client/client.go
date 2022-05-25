@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -180,7 +181,7 @@ type EchoClient interface {
 	MuteEcho(ctx context.Context, params EchoData[string, string]) error
 
 	// NonBasicEcho echoes back the request data.
-	NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild string, params EchoNonBasicData) (EchoNonBasicData, error)
+	NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild []string, params EchoNonBasicData) (EchoNonBasicData, error)
 
 	// Noop does nothing
 	Noop(ctx context.Context) error
@@ -299,7 +300,7 @@ func (c *echoClient) MuteEcho(ctx context.Context, params EchoData[string, strin
 }
 
 // NonBasicEcho echoes back the request data.
-func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild string, params EchoNonBasicData) (resp EchoNonBasicData, err error) {
+func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild []string, params EchoNonBasicData) (resp EchoNonBasicData, err error) {
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
 
@@ -365,7 +366,7 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 
 	// Now make the actual call to the API
 	var respHeaders http.Header
-	respHeaders, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/NonBasicEcho/%s/%d/%s?%s", pathString, pathInt, pathWild, queryString.Encode()), headers, body, &respBody)
+	respHeaders, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/NonBasicEcho/%s/%d/%s?%s", url.PathEscape(pathString), pathInt, pathEscapeSlice(pathWild), queryString.Encode()), headers, body, &respBody)
 	if err != nil {
 		return
 	}
@@ -452,6 +453,14 @@ type TestMarshallerTest[A any] struct {
 	BodySlice     []A             `json:"slice"`
 }
 
+type TestMultiPathSegment struct {
+	Boolean  bool
+	Int      int
+	String   string
+	UUID     string
+	Wildcard string
+}
+
 type TestRestParams struct {
 	HeaderValue string `header:"Some-Key"`
 	QueryValue  string `query:"Some-Key"`
@@ -480,9 +489,12 @@ type TestClient interface {
 	// NoopWithError allows us to test if the structured errors are returned
 	NoopWithError(ctx context.Context) error
 
+	// PathMultiSegments allows us to wildcard segments and segment URI encoding
+	PathMultiSegments(ctx context.Context, _bool bool, _int int, _string string, uuid string, wildcard []string) (TestMultiPathSegment, error)
+
 	// RawEndpoint allows us to test the clients' ability to send raw requests
 	// under auth
-	RawEndpoint(ctx context.Context, id string, request *http.Request) (*http.Response, error)
+	RawEndpoint(ctx context.Context, id []string, request *http.Request) (*http.Response, error)
 
 	// RestStyleAPI tests all the ways we can get data into and out of the application
 	// using Encore request handlers
@@ -510,7 +522,7 @@ var _ TestClient = (*testClient)(nil)
 // but returns data. It also tests two API's on the same path with different HTTP methods
 func (c *testClient) GetMessage(ctx context.Context, clientID string) (resp TestBodyEcho, err error) {
 	// Now make the actual call to the API
-	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/last_message/%s", clientID), nil, nil, &resp)
+	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/last_message/%s", url.PathEscape(clientID)), nil, nil, &resp)
 	if err != nil {
 		return
 	}
@@ -664,9 +676,20 @@ func (c *testClient) NoopWithError(ctx context.Context) error {
 	return err
 }
 
+// PathMultiSegments allows us to wildcard segments and segment URI encoding
+func (c *testClient) PathMultiSegments(ctx context.Context, _bool bool, _int int, _string string, uuid string, wildcard []string) (resp TestMultiPathSegment, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/multi/%t/%d/%s/%s/%s", _bool, _int, url.PathEscape(_string), url.PathEscape(uuid), pathEscapeSlice(wildcard)), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 // RawEndpoint allows us to test the clients' ability to send raw requests
 // under auth
-func (c *testClient) RawEndpoint(ctx context.Context, id string, request *http.Request) (*http.Response, error) {
+func (c *testClient) RawEndpoint(ctx context.Context, id []string, request *http.Request) (*http.Response, error) {
 	request = request.WithContext(ctx)
 
 	// Check the request has the method set, as we can't guess what method is required
@@ -675,7 +698,7 @@ func (c *testClient) RawEndpoint(ctx context.Context, id string, request *http.R
 	}
 
 	// Set the relative URL for the API call
-	path, err := url.Parse(fmt.Sprintf("/raw/%s", id))
+	path, err := url.Parse(fmt.Sprintf("/raw/blah/%s", pathEscapeSlice(id)))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse api url: %w", err)
 	}
@@ -727,7 +750,7 @@ func (c *testClient) RestStyleAPI(ctx context.Context, objType int, name string,
 
 	// Now make the actual call to the API
 	var respHeaders http.Header
-	respHeaders, err = callAPI(ctx, c.base, "PUT", fmt.Sprintf("/rest/object/%d/%s?%s", objType, name, queryString.Encode()), headers, body, &respBody)
+	respHeaders, err = callAPI(ctx, c.base, "PUT", fmt.Sprintf("/rest/object/%d/%s?%s", objType, url.PathEscape(name), queryString.Encode()), headers, body, &respBody)
 	if err != nil {
 		return
 	}
@@ -767,7 +790,7 @@ func (c *testClient) TestAuthHandler(ctx context.Context) (resp TestBodyEcho, er
 // UpdateMessage allows us to test an API which takes parameters,
 // but doesn't return anything
 func (c *testClient) UpdateMessage(ctx context.Context, clientID string, params TestBodyEcho) error {
-	_, err := callAPI(ctx, c.base, "PUT", fmt.Sprintf("/last_message/%s", clientID), nil, params, nil)
+	_, err := callAPI(ctx, c.base, "PUT", fmt.Sprintf("/last_message/%s", url.PathEscape(clientID)), nil, params, nil)
 	return err
 }
 
@@ -870,6 +893,18 @@ func callAPI(ctx context.Context, client *baseClient, method, path string, heade
 		}
 	}
 	return rawResponse.Header, nil
+}
+
+// pathEscapeSlice escapes a slice of strings and then joins them into a single string
+func pathEscapeSlice(paths []string) string {
+	var escapedPaths strings.Builder
+	for i, path := range paths {
+		if i > 0 {
+			escapedPaths.WriteString("/")
+		}
+		escapedPaths.WriteString(url.PathEscape(path))
+	}
+	return escapedPaths.String()
 }
 
 // APIError is the error type returned by the API
