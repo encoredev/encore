@@ -381,7 +381,10 @@ func testBuild(c *qt.C, appRoot string) *compiler.Result {
 		EncoreGoRoot:      env.EncoreGoRoot(),
 		BuildTags:         []string{"encore_local"},
 	})
-	c.Assert(err, qt.IsNil)
+	if err != nil {
+		fmt.Println(err.Error())
+		c.FailNow()
+	}
 	c.Cleanup(func() {
 		os.RemoveAll(build.Dir)
 	})
