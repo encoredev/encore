@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -231,7 +232,7 @@ type SvcClient interface {
 	// TupleInputOutput tests the usage of generics in the client generator
 	// and this comment is also multiline, so multiline comments get tested as well.
 	TupleInputOutput(ctx context.Context, params SvcTuple[string, SvcWrappedRequest]) (SvcTuple[bool, SvcFoo], error)
-	Webhook(ctx context.Context, a string, b string, request *http.Request) (*http.Response, error)
+	Webhook(ctx context.Context, a string, b []string, request *http.Request) (*http.Response, error)
 }
 
 type svcClient struct {
@@ -330,7 +331,7 @@ func (c *svcClient) HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyS
 }
 
 func (c *svcClient) RESTPath(ctx context.Context, a string, b int) error {
-	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/path/%s/%d", a, b), nil, nil, nil)
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/path/%s/%d", url.PathEscape(a), b), nil, nil, nil)
 	return err
 }
 
@@ -399,7 +400,7 @@ func (c *svcClient) TupleInputOutput(ctx context.Context, params SvcTuple[string
 	return
 }
 
-func (c *svcClient) Webhook(ctx context.Context, a string, b string, request *http.Request) (*http.Response, error) {
+func (c *svcClient) Webhook(ctx context.Context, a string, b []string, request *http.Request) (*http.Response, error) {
 	request = request.WithContext(ctx)
 
 	// Check the request has the method set, as we can't guess what method is required
@@ -408,7 +409,7 @@ func (c *svcClient) Webhook(ctx context.Context, a string, b string, request *ht
 	}
 
 	// Set the relative URL for the API call
-	path, err := url.Parse(fmt.Sprintf("/webhook/%s/%s", a, b))
+	path, err := url.Parse(fmt.Sprintf("/webhook/%s/%s", url.PathEscape(a), pathEscapeSlice(b)))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse api url: %w", err)
 	}
@@ -524,6 +525,18 @@ func callAPI(ctx context.Context, client *baseClient, method, path string, heade
 		}
 	}
 	return rawResponse.Header, nil
+}
+
+// pathEscapeSlice escapes a slice of strings and then joins them into a single string
+func pathEscapeSlice(paths []string) string {
+	var escapedPaths strings.Builder
+	for i, path := range paths {
+		if i > 0 {
+			escapedPaths.WriteString("/")
+		}
+		escapedPaths.WriteString(url.PathEscape(path))
+	}
+	return escapedPaths.String()
 }
 
 // APIError is the error type returned by the API

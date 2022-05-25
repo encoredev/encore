@@ -381,10 +381,24 @@ func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper
 	g.Comment("Decode request")
 	// Decode path params
 	for i, seg := range segs {
-		decodeCall, err := requestDecoder.FromStringToBuiltin(seg.ValueType, seg.Value, Id("ps").Index(Lit(i)).Dot("Value"), true)
+		pathSegmentValue := Id("ps").Index(Lit(i)).Dot("Value")
+
+		// If the segment type is a string, then we want to unescape it
+		switch seg.ValueType {
+		case schema.Builtin_STRING, schema.Builtin_UUID:
+			g.If(
+				List(Id("value"), Err()).Op(":=").Qual("net/url", "PathUnescape").Call(pathSegmentValue),
+				Err().Op("==").Nil().
+					Block(
+						Id("ps").Index(Lit(i)).Dot("Value").Op("=").Id("value"),
+					))
+		}
+
+		decodeCall, err := requestDecoder.FromStringToBuiltin(seg.ValueType, seg.Value, pathSegmentValue, true)
 		if err != nil {
 			b.errors.Addf(rpc.Func.Pos(), "could not create decoder for path param, %v", err)
 		}
+
 		g.Do(func(s *Statement) {
 			// If it's a raw endpoint the params are not used, but validate them regardless.
 			if rpc.Raw {

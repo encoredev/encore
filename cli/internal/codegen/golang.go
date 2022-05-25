@@ -37,6 +37,8 @@ type golang struct {
 	md               *meta.Data
 	enc              *gocodegen.MarshallingCodeGenerator
 	generatorVersion goGenVersion
+
+	seenSlicePath bool
 }
 
 func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
@@ -65,6 +67,8 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 
 	// Generate the base client
 	g.generateBaseClient(file)
+
+	g.writeExtraHelpers(file)
 
 	// Write the APIError type
 	g.writeErrorType(file)
@@ -380,8 +384,12 @@ func (g *golang) rpcParams(rpc *meta.RPC) Code {
 				typ = Uint()
 			}
 
+			if segment.Type == meta.PathSegment_WILDCARD {
+				typ = Index().Add(typ)
+			}
+
 			params = append(params,
-				Id(segment.Value).Add(typ),
+				Id(g.nonReservedId(segment.Value)).Add(typ),
 			)
 		}
 	}
@@ -395,6 +403,31 @@ func (g *golang) rpcParams(rpc *meta.RPC) Code {
 	}
 
 	return Params(params...)
+}
+
+// nonReservedId returns the given ID, unless we have it a reserved within the client function _or_ it's a reserved Go keyword
+func (g *golang) nonReservedId(id string) string {
+	switch id {
+	// our reserved keywords (or ID's we use within the generated client functions)
+	case "c", "ctx", "request", "resp", "err",
+		"reqEncoder", "headers", "queryString", "body", "respBody", "respHeaders", "respDecoder":
+		return "_" + id
+
+	// Go keywords
+	case "break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct", "chan", "else",
+		"goto", "package", "switch", "const", "fallthrough", "if", "range", "type", "continue", "for", "import",
+		"return", "var":
+		return "_" + id
+
+	// Go predeclared identifiers
+	case "append", "bool", "byte", "cap", "close", "complex", "complex64", "complex128", "uint16", "copy", "false",
+		"float32", "float64", "imag", "int", "int8", "int16", "uint32", "int32", "int64", "iota", "len", "make", "new",
+		"nil", "panic", "uint64", "print", "println", "real", "recover", "string", "true", "uint", "uint8", "uintptr":
+		return "_" + id
+
+	default:
+		return id
+	}
 }
 
 func (g *golang) rpcReturnType(rpc *meta.RPC, concreteImpl bool) Code {
@@ -810,9 +843,19 @@ func (g *golang) createApiPath(rpc *meta.RPC, withQueryString bool) (urlPath *St
 		if segment.Type == meta.PathSegment_LITERAL {
 			url.WriteString(segment.Value)
 		} else {
+			paramID := Id(g.nonReservedId(segment.Value))
+
 			switch segment.ValueType {
 			case meta.PathSegment_STRING, meta.PathSegment_UUID:
 				url.WriteString("%s")
+
+				if segment.Type == meta.PathSegment_WILDCARD {
+					g.seenSlicePath = true
+					paramID = Id("pathEscapeSlice").Call(paramID)
+				} else {
+					paramID = Qual("net/url", "PathEscape").Call(paramID)
+				}
+
 			case meta.PathSegment_BOOL:
 				url.WriteString("%t")
 			case meta.PathSegment_INT8, meta.PathSegment_INT16, meta.PathSegment_INT32, meta.PathSegment_INT64, meta.PathSegment_INT,
@@ -822,7 +865,7 @@ func (g *golang) createApiPath(rpc *meta.RPC, withQueryString bool) (urlPath *St
 				url.WriteString("%v")
 			}
 
-			params = append(params, Id(segment.Value))
+			params = append(params, paramID)
 		}
 	}
 
@@ -1176,4 +1219,21 @@ func (g *golang) writeErrorType(file *File) {
 
 		Return(Nil()),
 	)
+}
+
+func (g *golang) writeExtraHelpers(file *File) {
+	if g.seenSlicePath {
+		file.Line()
+		file.Comment("// pathEscapeSlice escapes a slice of strings and then joins them into a single string")
+		file.Func().Id("pathEscapeSlice").Params(Id("paths").Index().String()).String().Block(
+			Var().Id("escapedPaths").Qual("strings", "Builder"),
+			For(List(Id("i"), Id("path")).Op(":=").Range().Id("paths")).Block(
+				If(Id("i").Op(">").Lit(0)).Block(
+					Id("escapedPaths").Dot("WriteString").Call(Lit("/")),
+				),
+				Id("escapedPaths").Dot("WriteString").Call(Qual("net/url", "PathEscape").Call(Id("path"))),
+			),
+			Return(Id("escapedPaths").Dot("String").Call()),
+		)
+	}
 }

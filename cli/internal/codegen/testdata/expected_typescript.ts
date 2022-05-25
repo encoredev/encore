@@ -291,7 +291,7 @@ export namespace svc {
         }
 
         public async RESTPath(a: string, b: number): Promise<void> {
-            await this.baseClient.callAPI("POST", `/path/${a}/${b}`, false)
+            await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`, false)
         }
 
         public async RequestWithAllInputTypes(params: AllInputTypes<string>): Promise<AllInputTypes<number>> {
@@ -329,8 +329,8 @@ export namespace svc {
             return await resp.json() as Tuple<boolean, Foo>
         }
 
-        public async Webhook(method: string, a: string, b: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
-            return this.baseClient.callAPI(method, `/webhook/${a}/${b}`, false, body, options)
+        public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
+            return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, false, body, options)
         }
     }
 }
