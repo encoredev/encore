@@ -44,6 +44,9 @@ type NonBasicData struct {
 	// Auth Parameters
 	AuthHeader string `query:"-"`
 	AuthQuery  []int  `query:"-"`
+
+	// Unexported fields
+	unexported string
 }
 
 type EmptyData struct {
