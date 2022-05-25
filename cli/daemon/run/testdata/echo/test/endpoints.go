@@ -42,7 +42,6 @@ func SimpleBodyEcho(ctx context.Context, body *BodyEcho) (*BodyEcho, error) {
 
 var lastMessage = make(map[string]string)
 
-
 // UpdateMessage allows us to test an API which takes parameters,
 // but doesn't return anything
 //encore:api public method=PUT path=/last_message/:clientID
@@ -54,7 +53,7 @@ func UpdateMessage(ctx context.Context, clientID string, message *BodyEcho) erro
 // GetMessage allows us to test an API which takes no parameters,
 // but returns data. It also tests two API's on the same path with different HTTP methods
 //encore:api public method=GET path=/last_message/:clientID
-func GetMessage(ctx context.Context, clientID string,) (*BodyEcho, error) {
+func GetMessage(ctx context.Context, clientID string) (*BodyEcho, error) {
 	return &BodyEcho{
 		Message: lastMessage[clientID],
 	}, nil
@@ -68,7 +67,7 @@ type RestParams struct {
 	Nested struct {
 		Key   string `json:"Alice"`
 		Value int    `json:"bOb"`
-		Ok    bool	 `json:"charile"`
+		Ok    bool   `json:"charile"`
 	}
 }
 
@@ -85,9 +84,9 @@ func RestStyleAPI(ctx context.Context, objType int, name string, params *RestPar
 			Value int    `json:"bOb"`
 			Ok    bool   `json:"charile"`
 		}{
-			Key: name + " + " + params.Nested.Key,
+			Key:   name + " + " + params.Nested.Key,
 			Value: objType + params.Nested.Value,
-			Ok: params.Nested.Ok,
+			Ok:    params.Nested.Ok,
 		},
 	}, nil
 }
@@ -131,7 +130,6 @@ func MarshallerTestHandler(ctx context.Context, params *MarshallerTest[int]) (*M
 	return params, nil
 }
 
-
 // TestAuthHandler allows us to test the clients ability to add tokens to requests
 //encore:api auth
 func TestAuthHandler(ctx context.Context) (*BodyEcho, error) {
@@ -143,9 +141,10 @@ func TestAuthHandler(ctx context.Context) (*BodyEcho, error) {
 }
 
 type response struct {
-	Body      string
-	Header    string
-	PathParam string
+	Body        string
+	Header      string
+	PathParam   string
+	QueryString string
 }
 
 // RawEndpoint allows us to test the clients' ability to send raw requests
@@ -161,9 +160,10 @@ func RawEndpoint(w http.ResponseWriter, req *http.Request) {
 	req.Body.Close()
 
 	b, err := json.Marshal(&response{
-		Body: string(bytes),
-		Header: req.Header.Get("X-Test-Header"),
-		PathParam: encore.CurrentRequest().PathParams.Get("id"),
+		Body:        string(bytes),
+		Header:      req.Header.Get("X-Test-Header"),
+		PathParam:   encore.CurrentRequest().PathParams.Get("id"),
+		QueryString: req.URL.Query().Get("foo"),
 	})
 	if err != nil {
 		panic(err)

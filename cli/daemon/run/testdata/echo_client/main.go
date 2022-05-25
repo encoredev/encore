@@ -181,13 +181,9 @@ func main() {
 		)
 		assert(err, nil, "Wanted no error from client creation")
 
-		req := &http.Request{
-			Method: "PUT",
-			Header: http.Header{
-				"X-Test-Header": []string{"test"},
-			},
-			Body: io.NopCloser(strings.NewReader("this is a test body")),
-		}
+		req, err := http.NewRequest("PUT", "?foo=bar", strings.NewReader("this is a test body"))
+		assert(err, nil, "unable to create request for raw endpoint")
+		req.Header.Add("X-Test-Header", "test")
 
 		rsp, err := api.Test.RawEndpoint(ctx, "hello", req)
 		assert(err, nil, "expected no error from the raw socket")
@@ -196,9 +192,10 @@ func main() {
 		assert(rsp.StatusCode, http.StatusCreated, "expected the status code to be 201")
 
 		type responseType struct {
-			Body      string
-			Header    string
-			PathParam string
+			Body        string
+			Header      string
+			PathParam   string
+			QueryString string
 		}
 		response := &responseType{}
 
@@ -208,7 +205,7 @@ func main() {
 		err = json.Unmarshal(bytes, response)
 		assert(err, nil, "expected no error when unmarshalling the response body")
 
-		assert(response, &responseType{"this is a test body", "test", "hello"}, "expected the response to match")
+		assert(response, &responseType{"this is a test body", "test", "hello", "bar"}, "expected the response to match")
 
 	}
 
