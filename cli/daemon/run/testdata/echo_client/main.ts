@@ -93,7 +93,7 @@ const mResp = await api.test.MarshallerTestHandler(params)
 deepEqual(mResp, params, "Expected the same response from the marshaller test")
 
 // Test auth handlers
-await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated, "Authorization token required for this API, but none provided.")
+await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated, "invalid token")
 
 // Test with basic auth token
 {

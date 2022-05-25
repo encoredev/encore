@@ -131,13 +131,13 @@ export namespace products {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/products.Create`, true, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callAPI("POST", `/products.Create`, JSON.stringify(body), {headers})
             return await resp.json() as Product
         }
 
         public async List(): Promise<ProductListing> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/products.List`, false)
+            const resp = await this.baseClient.callAPI("GET", `/products.List`)
             return await resp.json() as ProductListing
         }
     }
@@ -232,7 +232,7 @@ export namespace svc {
          * DummyAPI is a dummy endpoint.
          */
         public async DummyAPI(params: Request): Promise<void> {
-            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, false, JSON.stringify(params))
+            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
         }
 
         public async Get(params: GetRequest): Promise<void> {
@@ -241,7 +241,7 @@ export namespace svc {
                 boo: String(params.Baz),
             }
 
-            await this.baseClient.callAPI("GET", `/svc.Get`, false, undefined, {query})
+            await this.baseClient.callAPI("GET", `/svc.Get`, undefined, {query})
         }
 
         public async GetRequestWithAllInputTypes(params: AllInputTypes<number>): Promise<HeaderOnlyStruct> {
@@ -257,7 +257,7 @@ export namespace svc {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, false, undefined, {headers, query})
+            const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as HeaderOnlyStruct
@@ -287,11 +287,11 @@ export namespace svc {
                 "x-uuid":    String(params.UUID),
             }
 
-            await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, false, undefined, {headers})
+            await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
         }
 
         public async RESTPath(a: string, b: number): Promise<void> {
-            await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`, false)
+            await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
         }
 
         public async RequestWithAllInputTypes(params: AllInputTypes<string>): Promise<AllInputTypes<number>> {
@@ -311,7 +311,7 @@ export namespace svc {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes`, false, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes`, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as AllInputTypes<number>
@@ -325,12 +325,12 @@ export namespace svc {
          */
         public async TupleInputOutput(params: Tuple<string, WrappedRequest>): Promise<Tuple<boolean, Foo>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.TupleInputOutput`, false, JSON.stringify(params))
+            const resp = await this.baseClient.callAPI("POST", `/svc.TupleInputOutput`, JSON.stringify(params))
             return await resp.json() as Tuple<boolean, Foo>
         }
 
         public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
-            return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, false, body, options)
+            return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
         }
     }
 }
@@ -411,7 +411,7 @@ class BaseClient {
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, requiresAuth: boolean, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         const init = {
             ...(params ?? {}),
             method,
@@ -431,9 +431,6 @@ class BaseClient {
         // If we now have a bearer token, add it to the request
         if (bearerToken) {
             init.headers["Authorization"] = "Bearer " + bearerToken
-        } else if (requiresAuth) {
-            // The API called requires authorization, but we don't have a token generator, or it provided a blank token value
-            throw new APIError(400, { code: ErrCode.Unauthenticated, message: 'Authorization token required for this API, but none provided.' })
         }
 
         // Make the actual request

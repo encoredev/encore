@@ -174,7 +174,7 @@ export namespace echo {
          */
         public async AppMeta(): Promise<AppMetadata> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/echo.AppMeta`, false)
+            const resp = await this.baseClient.callAPI("POST", `/echo.AppMeta`)
             return await resp.json() as AppMetadata
         }
 
@@ -183,7 +183,7 @@ export namespace echo {
          */
         public async BasicEcho(params: BasicData): Promise<BasicData> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/echo.BasicEcho`, false, JSON.stringify(params))
+            const resp = await this.baseClient.callAPI("POST", `/echo.BasicEcho`, JSON.stringify(params))
             return await resp.json() as BasicData
         }
 
@@ -192,7 +192,7 @@ export namespace echo {
          */
         public async Echo(params: Data<string, number>): Promise<Data<string, number>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/echo.Echo`, false, JSON.stringify(params))
+            const resp = await this.baseClient.callAPI("POST", `/echo.Echo`, JSON.stringify(params))
             return await resp.json() as Data<string, number>
         }
 
@@ -201,7 +201,7 @@ export namespace echo {
          */
         public async EmptyEcho(params: EmptyData): Promise<EmptyData> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/echo.EmptyEcho`, false, JSON.stringify(params))
+            const resp = await this.baseClient.callAPI("POST", `/echo.EmptyEcho`, JSON.stringify(params))
             return await resp.json() as EmptyData
         }
 
@@ -210,7 +210,7 @@ export namespace echo {
          */
         public async Env(): Promise<EnvResponse> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/echo.Env`, false)
+            const resp = await this.baseClient.callAPI("POST", `/echo.Env`)
             return await resp.json() as EnvResponse
         }
 
@@ -225,7 +225,7 @@ export namespace echo {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, false, undefined, {headers})
+            const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, undefined, {headers})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as HeadersData
@@ -244,7 +244,7 @@ export namespace echo {
                 value: params.Value,
             }
 
-            await this.baseClient.callAPI("GET", `/echo.MuteEcho`, false, undefined, {query})
+            await this.baseClient.callAPI("GET", `/echo.MuteEcho`, undefined, {query})
         }
 
         /**
@@ -275,7 +275,7 @@ export namespace echo {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${encodeURIComponent(pathString)}/${encodeURIComponent(pathInt)}/${pathWild.map(encodeURIComponent).join("/")}`, true, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${encodeURIComponent(pathString)}/${encodeURIComponent(pathInt)}/${pathWild.map(encodeURIComponent).join("/")}`, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as NonBasicData
@@ -288,7 +288,7 @@ export namespace echo {
          * Noop does nothing
          */
         public async Noop(): Promise<void> {
-            await this.baseClient.callAPI("GET", `/echo.Noop`, false)
+            await this.baseClient.callAPI("GET", `/echo.Noop`)
         }
 
         /**
@@ -296,7 +296,7 @@ export namespace echo {
          */
         public async Pong(): Promise<Data<string, string>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/echo.Pong`, false)
+            const resp = await this.baseClient.callAPI("GET", `/echo.Pong`)
             return await resp.json() as Data<string, string>
         }
     }
@@ -312,7 +312,7 @@ export namespace endtoend {
         }
 
         public async GeneratedWrappersEndToEndTest(): Promise<void> {
-            await this.baseClient.callAPI("GET", `/generated-wrappers-end-to-end-test`, false)
+            await this.baseClient.callAPI("GET", `/generated-wrappers-end-to-end-test`)
         }
     }
 }
@@ -386,7 +386,7 @@ export namespace test {
          */
         public async GetMessage(clientID: string): Promise<BodyEcho> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/last_message/${encodeURIComponent(clientID)}`, false)
+            const resp = await this.baseClient.callAPI("GET", `/last_message/${encodeURIComponent(clientID)}`)
             return await resp.json() as BodyEcho
         }
 
@@ -436,7 +436,7 @@ export namespace test {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler`, false, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler`, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as MarshallerTest<number>
@@ -456,14 +456,14 @@ export namespace test {
          * Noop allows us to test if a simple HTTP request can be made
          */
         public async Noop(): Promise<void> {
-            await this.baseClient.callAPI("POST", `/test.Noop`, false)
+            await this.baseClient.callAPI("POST", `/test.Noop`)
         }
 
         /**
          * NoopWithError allows us to test if the structured errors are returned
          */
         public async NoopWithError(): Promise<void> {
-            await this.baseClient.callAPI("POST", `/test.NoopWithError`, false)
+            await this.baseClient.callAPI("POST", `/test.NoopWithError`)
         }
 
         /**
@@ -471,7 +471,7 @@ export namespace test {
          */
         public async PathMultiSegments(bool: boolean, int: number, _string: string, uuid: string, wildcard: string[]): Promise<MultiPathSegment> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(int)}/${encodeURIComponent(_string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`, false)
+            const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(int)}/${encodeURIComponent(_string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`)
             return await resp.json() as MultiPathSegment
         }
 
@@ -480,7 +480,7 @@ export namespace test {
          * under auth
          */
         public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
-            return this.baseClient.callAPI(method, `/raw/blah/${id.map(encodeURIComponent).join("/")}`, false, body, options)
+            return this.baseClient.callAPI(method, `/raw/blah/${id.map(encodeURIComponent).join("/")}`, body, options)
         }
 
         /**
@@ -504,7 +504,7 @@ export namespace test {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${encodeURIComponent(objType)}/${encodeURIComponent(name)}`, false, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${encodeURIComponent(objType)}/${encodeURIComponent(name)}`, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as RestParams
@@ -518,7 +518,7 @@ export namespace test {
          */
         public async SimpleBodyEcho(params: BodyEcho): Promise<BodyEcho> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/test.SimpleBodyEcho`, false, JSON.stringify(params))
+            const resp = await this.baseClient.callAPI("POST", `/test.SimpleBodyEcho`, JSON.stringify(params))
             return await resp.json() as BodyEcho
         }
 
@@ -527,7 +527,7 @@ export namespace test {
          */
         public async TestAuthHandler(): Promise<BodyEcho> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/test.TestAuthHandler`, true)
+            const resp = await this.baseClient.callAPI("POST", `/test.TestAuthHandler`)
             return await resp.json() as BodyEcho
         }
 
@@ -536,7 +536,7 @@ export namespace test {
          * but doesn't return anything
          */
         public async UpdateMessage(clientID: string, params: BodyEcho): Promise<void> {
-            await this.baseClient.callAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, false, JSON.stringify(params))
+            await this.baseClient.callAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, JSON.stringify(params))
         }
     }
 }
@@ -617,7 +617,7 @@ class BaseClient {
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, requiresAuth: boolean, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         const init = {
             ...(params ?? {}),
             method,
@@ -637,9 +637,6 @@ class BaseClient {
         // If we now have a bearer token, add it to the request
         if (bearerToken) {
             init.headers["Authorization"] = "Bearer " + bearerToken
-        } else if (requiresAuth) {
-            // The API called requires authorization, but we don't have a token generator, or it provided a blank token value
-            throw new APIError(400, { code: ErrCode.Unauthenticated, message: 'Authorization token required for this API, but none provided.' })
         }
 
         // Make the actual request
