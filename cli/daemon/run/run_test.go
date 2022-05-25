@@ -316,15 +316,32 @@ func TestEndToEndWithApp(t *testing.T) {
 		}
 	})
 
-	c.Run("go generated client", func(c *qt.C) {
+	c.Run("go_generated_client", func(c *qt.C) {
 		cmd := exec.Command("go", "run", ".", ln.Addr().String())
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
 		cmd.Dir = filepath.Join("testdata", "echo_client")
 
-		c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated client"))
-		fmt.Printf("done")
+		c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated Go client"))
+	})
+
+	c.Run("typescript_generated_client", func(c *qt.C) {
+		npmCommandsToRun := [][]string{
+			{"install", "--prefer-offline", "--no-audit"},
+			{"run", "lint"},
+			{"run", "test", "--", ln.Addr().String()},
+		}
+
+		for _, args := range npmCommandsToRun {
+			cmd := exec.Command("npm", args...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			cmd.Dir = filepath.Join("testdata", "echo_client")
+
+			c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated Typescript client"))
+		}
 	})
 }
 
