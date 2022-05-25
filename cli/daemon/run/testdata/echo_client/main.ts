@@ -99,7 +99,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
 {
   const api = new Client(
     "http://" + process.argv[2] as BaseURL,
-    { bearerToken: "tokendata"}
+    {bearerToken: "tokendata"},
   )
 
   const resp = await api.test.TestAuthHandler()
@@ -111,7 +111,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
   let tokenToReturn = "tokendata"
   const api = new Client(
     "http://" + process.argv[2] as BaseURL,
-    { bearerToken: () => tokenToReturn }
+    {bearerToken: () => tokenToReturn},
   )
 
   // With a valid token
@@ -127,7 +127,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
 {
   const api = new Client(
     "http://" + process.argv[2] as BaseURL,
-    { bearerToken: "tokendata"}
+    {bearerToken: "tokendata"},
   )
 
   const resp = await api.test.RawEndpoint(
@@ -135,8 +135,9 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
     "hello",
     "this is a test body",
     {
-      headers: { "X-Test-Header": "test" }
-    }
+      headers:     {"X-Test-Header": "test"},
+      query: {"foo": "bar"},
+    },
   )
 
   deepEqual(resp.status, 201, "expected the status code to be 201")
@@ -144,9 +145,10 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
   const response = await resp.json()
 
   deepEqual(response, {
-    Body: "this is a test body",
-    Header: "test",
-    PathParam: "hello"
+    Body:        "this is a test body",
+    Header:      "test",
+    PathParam:   "hello",
+    QueryString: "bar",
   }, "expected the response to match")
 }
 

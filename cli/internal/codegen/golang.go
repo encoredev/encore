@@ -427,6 +427,19 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 	if rpc.Proto == meta.RPC_RAW {
 		code = append(
 			code,
+			Id("request").Op("=").Id("request").Dot("WithContext").Call(Id("ctx")),
+			Line(),
+
+			Comment("Check the request has the method set, as we can't guess what method is required"),
+			If(Id("request").Dot("Method").Op("==").Lit("")).Block(
+				Return(
+					Nil(),
+					Qual("errors", "New").Call(Lit("request.Method must be set")),
+				),
+			),
+			Line(),
+
+			Comment("Set the relative URL for the API call"),
 			List(Id("path"), Err()).Op(":=").Qual("net/url", "Parse").Call(g.createApiPath(rpc, false)),
 			If(Err().Op("!=").Nil()).Block(
 				Return(
@@ -434,14 +447,17 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 					Qual("fmt", "Errorf").Call(Lit("unable to parse api url: %w"), Err()),
 				),
 			),
-			Id("request").Op("=").Id("request").Dot("WithContext").Call(Id("ctx")),
-			If(Id("request").Dot("Method").Op("==").Lit("")).Block(
-				Return(
-					Nil(),
-					Qual("errors", "New").Call(Lit("request.Method must be set")),
-				),
+			If(Id("request").Dot("URL").Op("!=").Nil()).Block(
+				Comment("If the request already has a URL associated, we'll keep any fields set inside it, and just override the schema, "),
+				Comment("host and path to ensure the final URL which hit the right BaseURL"),
+				Id("request").Dot("URL").Dot("Scheme").Op("=").Id("path").Dot("Scheme"),
+				Id("request").Dot("URL").Dot("Host").Op("=").Id("path").Dot("Host"),
+				Id("request").Dot("URL").Dot("Path").Op("=").Id("path").Dot("Path"),
+			).Else().Block(
+				Id("request").Dot("URL").Op("=").Id("path"),
 			),
-			Id("request").Dot("URL").Op("=").Id("path"),
+			Line(),
+
 			Line(),
 			Return(Id("c").Dot("base").Dot("Do").Call(Id("request"))),
 		)

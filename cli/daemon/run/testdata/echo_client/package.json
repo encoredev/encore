@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-specifier-resolution=node --loader ts-node/esm ./main.ts",
+    "test": "node --trace-warnings --experimental-specifier-resolution=node --loader ts-node/esm ./main.ts",
     "lint": "tsc --noEmit && eslint \"**/*.ts\""
   },
   "devDependencies": {

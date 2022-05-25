@@ -59,6 +59,7 @@ type typescript struct {
 
 	seenJSON        bool // true if a JSON type was seen
 	seenQueryString bool // true if a query string was seen
+	seenRawEndpoint bool // true if we've seen a raw endpoint
 }
 
 func (ts *typescript) Version() int {
@@ -273,6 +274,8 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	// Raw end points just pass through the request
 	// and need no further code generation
 	if rpc.Proto == meta.RPC_RAW {
+		ts.seenRawEndpoint = true
+
 		w.WriteStringf(
 			"return this.baseClient.callAPI(method, `%s`, %s, body, options)\n",
 			rpcPath,
@@ -283,6 +286,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	// Work out how we encode the Request Schema
 	headers := ""
+	query := ""
 	body := ""
 
 	if rpc.RequestSchema != nil {
@@ -309,8 +313,8 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 		// Generate the query string
 		if len(reqEnc.QueryParameters) > 0 {
+			query = "query"
 			ts.seenQueryString = true
-			rpcPath += "?${encodeQuery(query)}"
 
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
@@ -359,15 +363,26 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		rpcPath,
 		strconv.FormatBool(rpc.AccessType == meta.RPC_AUTH),
 	)
-	if body != "" || headers != "" {
+	if body != "" || headers != "" || query != "" {
 		if body == "" {
 			callAPI += ", undefined"
 		} else {
 			callAPI += ", " + body
 		}
 
-		if headers != "" {
-			callAPI += ", {" + headers + "}"
+		if headers != "" || query != "" {
+			callAPI += ", {" + headers
+
+			if headers != "" && query != "" {
+				callAPI += ", "
+			}
+
+			if query != "" {
+				callAPI += query
+			}
+
+			callAPI += "}"
+
 		}
 	}
 	callAPI += ")"
@@ -569,7 +584,13 @@ func (ts *typescript) writeBaseClient(appSlug string) {
 
 	ts.WriteString(`
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & { headers?: Record<string, string> }
+type CallParameters = Omit<RequestInit, "method" | "body"> & {
+    /** Any headers to be sent with the request */
+    headers?: Record<string, string>;
+
+    /** Any query parameters to be sent with the request */
+    query?: Record<string, string | string[]>
+}
 
 // TokenGenerator is a function that returns a token
 export type TokenGenerator = () => string
@@ -635,7 +656,16 @@ class BaseClient {
         }
 
         // Make the actual request
-        const response = await this.fetcher(this.baseURL + path, init)
+        `)
+
+	if ts.seenRawEndpoint || ts.seenQueryString {
+		ts.WriteString(`const query = params?.query ? '?' + encodeQuery(params.query) : ''
+        const response = await this.fetcher(this.baseURL+path+query, init)`)
+	} else {
+		ts.WriteString("const response = await this.fetcher(this.baseURL+path, init)")
+	}
+
+	ts.WriteString(`
 
         // handle any error responses
         if (!response.ok) {
@@ -676,7 +706,7 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 `)
 	}
 
-	if ts.seenQueryString {
+	if ts.seenQueryString || ts.seenRawEndpoint {
 		ts.WriteString(`
 
 function encodeQuery(parts: Record<string, string | string[]>): string {

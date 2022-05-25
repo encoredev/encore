@@ -236,7 +236,7 @@ export namespace echo {
                 value: params.Value,
             }
 
-            await this.baseClient.callAPI("GET", `/echo.MuteEcho?${encodeQuery(query)}`, false)
+            await this.baseClient.callAPI("GET", `/echo.MuteEcho`, false, undefined, {query})
         }
 
         /**
@@ -267,7 +267,7 @@ export namespace echo {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${pathString}/${pathInt}/${pathWild}?${encodeQuery(query)}`, true, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${pathString}/${pathInt}/${pathWild}`, true, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as NonBasicData
@@ -405,7 +405,7 @@ export namespace test {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler?${encodeQuery(query)}`, false, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler`, false, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as MarshallerTest<number>
@@ -464,7 +464,7 @@ export namespace test {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${objType}/${name}?${encodeQuery(query)}`, false, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callAPI("PUT", `/rest/object/${objType}/${name}`, false, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as RestParams
@@ -516,7 +516,13 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     return pairs.join("&")
 }
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & { headers?: Record<string, string> }
+type CallParameters = Omit<RequestInit, "method" | "body"> & {
+    /** Any headers to be sent with the request */
+    headers?: Record<string, string>;
+
+    /** Any query parameters to be sent with the request */
+    query?: Record<string, string | string[]>
+}
 
 // TokenGenerator is a function that returns a token
 export type TokenGenerator = () => string
@@ -582,7 +588,8 @@ class BaseClient {
         }
 
         // Make the actual request
-        const response = await this.fetcher(this.baseURL + path, init)
+        const query = params?.query ? '?' + encodeQuery(params.query) : ''
+        const response = await this.fetcher(this.baseURL+path+query, init)
 
         // handle any error responses
         if (!response.ok) {
