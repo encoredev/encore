@@ -261,15 +261,15 @@ export namespace svc {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as HeaderOnlyStruct
-            rtn.Boolean = (resp.headers.get("x-boolean") ?? "").toLowerCase() === "true"
-            rtn.Int = parseInt((resp.headers.get("x-int") ?? ""), 10)
-            rtn.Float = Number((resp.headers.get("x-float") ?? ""))
-            rtn.String = (resp.headers.get("x-string") ?? "")
-            rtn.Bytes = (resp.headers.get("x-bytes") ?? "")
-            rtn.Time = (resp.headers.get("x-time") ?? "")
-            rtn.Json = JSON.parse((resp.headers.get("x-json") ?? ""))
-            rtn.UUID = (resp.headers.get("x-uuid") ?? "")
-            rtn.UserID = (resp.headers.get("x-user-id") ?? "")
+            rtn.Boolean = mustBeSet("Header `x-boolean`", resp.headers.get("x-boolean")).toLowerCase() === "true"
+            rtn.Int = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
+            rtn.Float = Number(mustBeSet("Header `x-float`", resp.headers.get("x-float")))
+            rtn.String = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
+            rtn.Bytes = mustBeSet("Header `x-bytes`", resp.headers.get("x-bytes"))
+            rtn.Time = mustBeSet("Header `x-time`", resp.headers.get("x-time"))
+            rtn.Json = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
+            rtn.UUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
+            rtn.UserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
             return rtn
         }
 
@@ -315,7 +315,7 @@ export namespace svc {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as AllInputTypes<number>
-            rtn.A = (resp.headers.get("x-alice") ?? "")
+            rtn.A = mustBeSet("Header `x-alice`", resp.headers.get("x-alice"))
             return rtn
         }
 
@@ -349,6 +349,21 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     }
     return pairs.join("&")
 }
+
+// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
+function mustBeSet<A>(field: string, value: A | null | undefined): A {
+    if (value === null || value === undefined) {
+        throw new APIError(
+            500,
+            {
+                code: ErrCode.DataLoss,
+                message: `${field} was unexpectedly ${value}`, // ${value} will create the string "null" or "undefined"
+            },
+        )
+    }
+    return value
+}
+
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, "method" | "body"> & {
     /** Any headers to be sent with the request */

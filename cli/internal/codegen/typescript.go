@@ -57,9 +57,10 @@ type typescript struct {
 	currDecl         *schema.Decl
 	generatorVersion tsGenVersion
 
-	seenJSON        bool // true if a JSON type was seen
-	seenQueryString bool // true if a query string was seen
-	seenRawEndpoint bool // true if we've seen a raw endpoint
+	seenJSON           bool // true if a JSON type was seen
+	seenQueryString    bool // true if a query string was seen
+	seenRawEndpoint    bool // true if we've seen a raw endpoint
+	seenHeaderResponse bool // true if we've seen a header used in a response object
 }
 
 func (ts *typescript) Version() int {
@@ -412,7 +413,8 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n")
 
 	for _, headerField := range respEnc.HeaderParameters {
-		fieldValue := fmt.Sprintf("(resp.headers.get(\"%s\") ?? \"\")", headerField.Name)
+		ts.seenHeaderResponse = true
+		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.Name, headerField.Name)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 	}
@@ -742,6 +744,25 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     }
     return pairs.join("&")
 }`)
+	}
+
+	if ts.seenHeaderResponse {
+		ts.WriteString(`
+
+// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
+function mustBeSet<A>(field: string, value: A | null | undefined): A {
+    if (value === null || value === undefined) {
+        throw new APIError(
+            500,
+            {
+                code: ErrCode.DataLoss,
+                message: ` + "`${field} was unexpectedly ${value}`" + `, // ${value} will create the string "null" or "undefined"
+            },
+        )
+    }
+    return value
+}
+`)
 	}
 }
 
