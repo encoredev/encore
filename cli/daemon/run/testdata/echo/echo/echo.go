@@ -40,6 +40,10 @@ type NonBasicData struct {
 	PathString string `query:"-"`
 	PathInt    int    `query:"-"`
 	PathWild   string `query:"-"`
+
+	// Auth Parameters
+	AuthHeader string `query:"-"`
+	AuthQuery  []int  `query:"-"`
 }
 
 type EmptyData struct {
@@ -81,9 +85,12 @@ func EmptyEcho(ctx context.Context, params EmptyData) (EmptyData, error) {
 // NonBasicEcho echoes back the request data.
 //encore:api auth path=/NonBasicEcho/:pathString/:pathInt/*pathWild
 func NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild string, params *NonBasicData) (*NonBasicData, error) {
+	data := auth.Data().(*AuthParams)
 	params.PathString = pathString
 	params.PathInt = pathInt
 	params.PathWild = pathWild
+	params.AuthQuery = data.Query
+	params.AuthHeader = data.Header
 	return params, nil
 }
 
@@ -147,12 +154,18 @@ func AppMeta(ctx context.Context) (*AppMetadata, error) {
 	}, nil
 }
 
+type AuthParams struct {
+	Header        string `header:"X-Header"`
+	Authorization string `header:"Authorization"`
+	Query         []int  `query:"query"`
+}
+
 //encore:authhandler
-func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
-	if token == "tokendata" {
-		return "user", nil
+func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthParams, error) {
+	if params.Authorization == "Bearer tokendata" {
+		return "user", params, nil
 	}
-	return "", &errs.Error{
+	return "", nil, &errs.Error{
 		Code:    errs.Unauthenticated,
 		Message: "invalid token",
 	}

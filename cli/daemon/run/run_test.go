@@ -61,6 +61,10 @@ type NonBasicResponse struct {
 	PathString string
 	PathInt    int
 	PathWild   string
+
+	//Auth
+	AuthHeader string
+	AuthQuery  []int
 }
 
 func TestMain(m *testing.M) {
@@ -176,11 +180,14 @@ func TestEndToEndWithApp(t *testing.T) {
 				PathString:   "shoebill",
 				PathInt:      55,
 				PathWild:     "toucan/crane/vulture/78/",
+				AuthHeader:   "header",
+				AuthQuery:    []int{5, 6},
 			}
 			body, err := json.Marshal(&input)
 			c.Assert(err, qt.IsNil)
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest("POST", "/NonBasicEcho/shoebill/55/toucan/crane/vulture/78/?string=robin&no=33", bytes.NewReader(body))
+			req := httptest.NewRequest("POST", "/NonBasicEcho/shoebill/55/toucan/crane/vulture/78/?string=robin&no=33&query=5&query=6", bytes.NewReader(body))
+			req.Header.Add("X-Header", "header")
 			req.Header.Add("X-Header-String", "starling")
 			req.Header.Add("X-Header-Number", "10")
 			req.Header.Add("Authorization", "Bearer tokendata")
