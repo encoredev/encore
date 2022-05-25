@@ -865,48 +865,58 @@ func (validationDetails) ErrDetails() {}
 // It reports the user id, user data, and whether or not to proceed with the request.
 // If requireAuth is false, it reports ("", nil, true) on authentication failure.
 func __encore_authenticate(w http.ResponseWriter, req *http.Request, requireAuth bool, svcName, rpcName string) (uid auth.UID, authData interface{}, proceed bool) {
-	var token string
-	if auth := req.Header.Get("Authorization"); auth != "" {
-	TokenLoop:
-		for _, prefix := range [...]string{"Bearer ", "Token "} {
-			if strings.HasPrefix(auth, prefix) {
-				if t := auth[len(prefix):]; t != "" {
-					token = t
-					break TokenLoop
-				}
-			}
-		}
-	}
-
-	if token != "" {
-		var err error
-		uid, authData, err = __encore_validateToken(req.Context(), token)
-		if errs.Code(err) == errs.Unauthenticated && !requireAuth {
-			return "", nil, true
-		} else if err != nil {
-			errs.HTTPError(w, err)
+	param, err := __encore_resolveAuthParam(req)
+	if err != nil {
+		if requireAuth {
+			runtime.Logger().Info().Str("service", svcName).Str("endpoint", rpcName).Msg("rejecting request due to missing auth")
+			errs.HTTPError(w, errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err())
 			return "", nil, false
-		} else {
-			return uid, authData, true
 		}
-	}
-
-	if requireAuth {
-		runtime.Logger().Info().Str("service", svcName).Str("endpoint", rpcName).Msg("rejecting request due to missing auth token")
-		errs.HTTPError(w, errs.B().Code(errs.Unauthenticated).Msg("missing auth token").Err())
-		return "", nil, false
-	} else {
 		return "", nil, true
 	}
+
+	uid, authData, err = __encore_validateToken(req.Context(), param)
+	if errs.Code(err) == errs.Unauthenticated && !requireAuth {
+		return "", nil, true
+	} else if err != nil {
+		errs.HTTPError(w, err)
+		return "", nil, false
+	}
+	return uid, authData, true
+}
+
+// __encore_resolveAuthParam resolves the auth parameters from the http request
+//  or returns an error if auth params cannot be found
+func __encore_resolveAuthParam(req *http.Request) (param *svc.AuthParams, err error) {
+	params := &svc.AuthParams{}
+	dec := &marshaller{}
+	// Decode Headers
+	h := req.Header
+	params.Header1 = h.Get("one")
+	params.Header2 = dec.ToInt("two", h.Get("two"), false)
+	params.Header3 = dec.ToUint("three", h.Get("three"), false)
+
+	// Decode Query String
+	qs := req.URL.Query()
+	params.Query1 = qs.Get("one")
+	params.Query2 = qs["two"]
+	params.Query3 = dec.ToTime("three", qs.Get("three"), false)
+
+	if dec.LastError != nil {
+		return nil, dec.LastError
+	}
+
+	return params, nil
 }
 
 // __encore_validateToken validates an auth token.
-func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, authData interface{}, authErr error) {
-	if token == "" {
-		return "", nil, nil
-	}
+func __encore_validateToken(ctx context.Context, param *svc.AuthParams) (uid auth.UID, authData interface{}, authErr error) {
 	done := make(chan struct{})
-	call, err := runtime.BeginAuth(24, token)
+	paramStr, err := json.MarshalToString(param)
+	if err != nil {
+		return "", nil, err
+	}
+	call, err := runtime.BeginAuth(24, paramStr)
 	if err != nil {
 		return "", nil, err
 	}
@@ -916,7 +926,7 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 		authErr = call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "AuthHandler",
 			EndpointExprIdx: 24,
-			Inputs:          [][]byte{[]byte(strconv.Quote(token))},
+			Inputs:          [][]byte{[]byte(paramStr)},
 			Service:         "svc",
 			Type:            runtime.AuthHandler,
 		})
@@ -929,7 +939,7 @@ func __encore_validateToken(ctx context.Context, token string) (uid auth.UID, au
 				call.FinishReq(nil, authErr)
 			}
 		}()
-		uid, authData, authErr = svc.AuthHandler(ctx, token)
+		uid, authData, authErr = svc.AuthHandler(ctx, param)
 		serialized, _ := runtime.SerializeInputs(uid, authData)
 		if authErr != nil {
 			call.FinishReq(nil, authErr)
@@ -1021,6 +1031,15 @@ func (e *marshaller) ToTimeList(field string, s []string, required bool) (v []ti
 		v = append(v, e.ToTime(field, x, required))
 	}
 	return v
+}
+
+func (e *marshaller) ToInt(field string, s string, required bool) (v int) {
+	if !required && s == "" {
+		return
+	}
+	x, err := strconv.ParseInt(s, 10, 64)
+	e.setErr("invalid parameter", field, err)
+	return int(x)
 }
 
 // setErr sets the last error within the object if one is not already set
