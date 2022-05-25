@@ -73,7 +73,9 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	ts.appSlug = appSlug
 	ts.typs = getNamedTypes(md)
 
-	ts.WriteString("// " + doNotEditHeader() + "\n")
+	ts.WriteString("// " + doNotEditHeader() + "\n\n")
+	ts.WriteString("/* eslint-disable @typescript-eslint/no-namespace */\n")
+	ts.WriteString("/* eslint-disable @typescript-eslint/no-explicit-any */\n")
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
@@ -315,10 +317,18 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 			dict := make(map[string]string)
 			for _, field := range queryFields {
-				dict[field.Name] = ts.Dot("params", ts.fieldNameInStruct(field.Field))
+				if list := field.Field.Typ.GetList(); list != nil {
+					dict[field.Name] = ts.Dot("params", ts.fieldNameInStruct(field.Field)) +
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")"
+				} else {
+					dict[field.Name] = ts.convertBuiltinToString(
+						field.Field.Typ.GetBuiltin(),
+						ts.Dot("params", ts.fieldNameInStruct(field.Field)),
+					)
+				}
 			}
 
-			w.WriteString("const query: Record<string, any> = ")
+			w.WriteString("const query: Record<string, string | string[]> = ")
 			ts.Values(w, dict)
 			w.WriteString("\n")
 		}
@@ -395,7 +405,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n")
 
 	for _, headerField := range headerFields {
-		fieldValue := fmt.Sprintf("resp.headers.get(\"%s\")", headerField.Name)
+		fieldValue := fmt.Sprintf("(resp.headers.get(\"%s\") ?? \"\")", headerField.Name)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", ts.fieldNameInStruct(headerField.Field)), ts.convertStringToBuiltin(headerField.Field.Typ.GetBuiltin(), fieldValue))
 	}
@@ -520,9 +530,9 @@ if (!target.startsWith("http://") && !target.startsWith("https://")) {
 }
 
 if (typeof opts === "string") {
-	opts = { bearerToken: opts }
+    opts = { bearerToken: opts }
 } else {
-	opts ??= {}
+    opts ??= {}
 }
 
 `)
@@ -609,10 +619,10 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, requiresAuth: boolean, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        const init: RequestInit = {
-            method,
-            body,
+        const init = {
             ...(params ?? {}),
+            method,
+            body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
@@ -657,7 +667,7 @@ class BaseClient {
                 }
             } catch (e) {
                 // otherwise we just append the text to the error message
-                body.message += ": " + e.toString()
+                body.message += ": " + String(e)
             }
 
             throw new APIError(response.status, body)
@@ -678,13 +688,10 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 	if ts.seenQueryString {
 		ts.WriteString(`
 
-function encodeQuery(parts: Record<string, any>): string {
+function encodeQuery(parts: Record<string, string | string[]>): string {
     const pairs = []
-    for (let key in parts) {
-        let val = parts[key]
-        if (!Array.isArray(val)) {
-            val = [val]
-        }
+    for (const key in parts) {
+        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
         for (const v of val) {
             pairs.push(` + "`" + `${key}=${encodeURIComponent(v)}` + "`" + `)
         }
@@ -734,6 +741,8 @@ func (ts *typescript) convertBuiltinToString(typ schema.Builtin, val string) str
 	switch typ {
 	case schema.Builtin_STRING:
 		return val
+	case schema.Builtin_JSON:
+		return fmt.Sprintf("JSON.stringify(%s)", val)
 	default:
 		return fmt.Sprintf("String(%s)", val)
 	}
@@ -983,21 +992,20 @@ interface APIErrorResponse {
 function isAPIErrorResponse(err: any): err is APIErrorResponse {
     return (
         err !== undefined && err !== null && 
-        typeof(err.code) === "number" &&
+        isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
     )
+}
+
+function isErrCode(code: any): code is ErrCode {
+    return code !== undefined && Object.values(ErrCode).includes(code)
 }
 
 /**
  * APIError represents a structured error as returned from an Encore application.
  */
 export class APIError extends Error {
-    /**
-     * The name of this error class
-     */
-    public readonly name: 'APIError'
-
     /**
      * The HTTP status code associated with the error.
      */
@@ -1007,11 +1015,6 @@ export class APIError extends Error {
      * The Encore error code
      */
     public readonly code: ErrCode
-
-    /**
-     * The error message
-     */
-    public readonly message: string
 
     /**
      * The error details

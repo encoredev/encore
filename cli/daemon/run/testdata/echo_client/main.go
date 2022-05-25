@@ -50,14 +50,14 @@ func main() {
 	assert(echoRsp.Message, "hello world", "Wanted body to be 'hello world'")
 
 	// Check our UpdateMessage and GetMessage API's
-	getRsp, err := api.Test.GetMessage(ctx)
+	getRsp, err := api.Test.GetMessage(ctx, "go")
 	assert(err, nil, "Wanted no error from get message")
 	assert(getRsp.Message, "", "Expected no message on first request")
 
-	err = api.Test.UpdateMessage(ctx, client.TestBodyEcho{"updating now"})
+	err = api.Test.UpdateMessage(ctx, "go", client.TestBodyEcho{"updating now"})
 	assert(err, nil, "Wanted no error from update message")
 
-	getRsp, err = api.Test.GetMessage(ctx)
+	getRsp, err = api.Test.GetMessage(ctx, "go")
 	assert(err, nil, "Wanted no error from get message")
 	assert(getRsp.Message, "updating now", "Expected data from Update request")
 
@@ -212,6 +212,7 @@ func main() {
 
 	}
 
+	// Client test completed
 	os.Exit(0)
 }
 
