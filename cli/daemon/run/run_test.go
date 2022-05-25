@@ -62,7 +62,7 @@ type NonBasicResponse struct {
 	PathInt    int
 	PathWild   string
 
-	//Auth
+	// Auth
 	AuthHeader string
 	AuthQuery  []int
 }
@@ -320,6 +320,16 @@ func TestEndToEndWithApp(t *testing.T) {
 				"EnvName":    "local",
 				"EnvType":    "local",
 			})
+		}
+	})
+
+	c.Run("generated_wrappers_for_intra_service_calls", func(c *qt.C) {
+		// Send a simple request
+		{
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/generated-wrappers-end-to-end-test", nil)
+			run.ServeHTTP(w, req)
+			c.Assert(w.Code, qt.Equals, 200)
 		}
 	})
 
