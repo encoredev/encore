@@ -227,8 +227,8 @@ export namespace echo {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as HeadersData
-            rtn.Int = parseInt((resp.headers.get("x-int") ?? ""), 10)
-            rtn.String = (resp.headers.get("x-string") ?? "")
+            rtn.Int = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
+            rtn.String = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
             return rtn
         }
 
@@ -277,8 +277,8 @@ export namespace echo {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as NonBasicData
-            rtn.HeaderString = (resp.headers.get("x-header-string") ?? "")
-            rtn.HeaderNumber = parseInt((resp.headers.get("x-header-number") ?? ""), 10)
+            rtn.HeaderString = mustBeSet("Header `x-header-string`", resp.headers.get("x-header-string"))
+            rtn.HeaderNumber = parseInt(mustBeSet("Header `x-header-number`", resp.headers.get("x-header-number")), 10)
             return rtn
         }
 
@@ -415,15 +415,15 @@ export namespace test {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as MarshallerTest<number>
-            rtn.HeaderBoolean = (resp.headers.get("x-boolean") ?? "").toLowerCase() === "true"
-            rtn.HeaderInt = parseInt((resp.headers.get("x-int") ?? ""), 10)
-            rtn.HeaderFloat = Number((resp.headers.get("x-float") ?? ""))
-            rtn.HeaderString = (resp.headers.get("x-string") ?? "")
-            rtn.HeaderBytes = (resp.headers.get("x-bytes") ?? "")
-            rtn.HeaderTime = (resp.headers.get("x-time") ?? "")
-            rtn.HeaderJson = JSON.parse((resp.headers.get("x-json") ?? ""))
-            rtn.HeaderUUID = (resp.headers.get("x-uuid") ?? "")
-            rtn.HeaderUserID = (resp.headers.get("x-user-id") ?? "")
+            rtn.HeaderBoolean = mustBeSet("Header `x-boolean`", resp.headers.get("x-boolean")).toLowerCase() === "true"
+            rtn.HeaderInt = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
+            rtn.HeaderFloat = Number(mustBeSet("Header `x-float`", resp.headers.get("x-float")))
+            rtn.HeaderString = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
+            rtn.HeaderBytes = mustBeSet("Header `x-bytes`", resp.headers.get("x-bytes"))
+            rtn.HeaderTime = mustBeSet("Header `x-time`", resp.headers.get("x-time"))
+            rtn.HeaderJson = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
+            rtn.HeaderUUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
+            rtn.HeaderUserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
             return rtn
         }
 
@@ -474,7 +474,7 @@ export namespace test {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as RestParams
-            rtn.HeaderValue = (resp.headers.get("some-key") ?? "")
+            rtn.HeaderValue = mustBeSet("Header `some-key`", resp.headers.get("some-key"))
             return rtn
         }
 
@@ -521,6 +521,21 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     }
     return pairs.join("&")
 }
+
+// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
+function mustBeSet<A>(field: string, value: A | null | undefined): A {
+    if (value === null || value === undefined) {
+        throw new APIError(
+            500,
+            {
+                code: ErrCode.DataLoss,
+                message: `${field} was unexpectedly ${value}`, // ${value} will create the string "null" or "undefined"
+            },
+        )
+    }
+    return value
+}
+
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, "method" | "body"> & {
     /** Any headers to be sent with the request */

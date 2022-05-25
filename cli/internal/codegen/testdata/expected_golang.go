@@ -287,13 +287,13 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	// Copy the unmarshalled response body into our response struct
 	respDecoder := &serde{}
 
-	resp.Boolean = respDecoder.ToBool("Boolean", respHeaders.Get("x-boolean"), false)
-	resp.Int = respDecoder.ToInt("Int", respHeaders.Get("x-int"), false)
-	resp.Float = respDecoder.ToFloat64("Float", respHeaders.Get("x-float"), false)
+	resp.Boolean = respDecoder.ToBool("Boolean", respHeaders.Get("x-boolean"), true)
+	resp.Int = respDecoder.ToInt("Int", respHeaders.Get("x-int"), true)
+	resp.Float = respDecoder.ToFloat64("Float", respHeaders.Get("x-float"), true)
 	resp.String = respHeaders.Get("x-string")
-	resp.Bytes = respDecoder.ToBytes("Bytes", respHeaders.Get("x-bytes"), false)
-	resp.Time = respDecoder.ToTime("Time", respHeaders.Get("x-time"), false)
-	resp.Json = respDecoder.ToJSON("Json", respHeaders.Get("x-json"), false)
+	resp.Bytes = respDecoder.ToBytes("Bytes", respHeaders.Get("x-bytes"), true)
+	resp.Time = respDecoder.ToTime("Time", respHeaders.Get("x-time"), true)
+	resp.Json = respDecoder.ToJSON("Json", respHeaders.Get("x-json"), true)
 	resp.UUID = respHeaders.Get("x-uuid")
 	resp.UserID = respHeaders.Get("x-user-id")
 
@@ -374,7 +374,7 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 	// Copy the unmarshalled response body into our response struct
 	respDecoder := &serde{}
 
-	resp.A = respDecoder.ToTime("A", respHeaders.Get("x-alice"), false)
+	resp.A = respDecoder.ToTime("A", respHeaders.Get("x-alice"), true)
 	resp.B = respBody.B
 	resp.C = respBody.C
 	resp.Dave = respBody.Dave
