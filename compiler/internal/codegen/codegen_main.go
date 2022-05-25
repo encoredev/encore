@@ -5,15 +5,14 @@ import (
 	"strconv"
 	"strings"
 
+	. "github.com/dave/jennifer/jen"
+
 	"encr.dev/internal/gocodegen"
 	"encr.dev/parser"
 	"encr.dev/parser/encoding"
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
 	"encr.dev/pkg/errlist"
-	schema "encr.dev/proto/encore/parser/schema/v1"
-
-	. "github.com/dave/jennifer/jen"
 )
 
 var importNames = map[string]string{
@@ -29,11 +28,6 @@ var importNames = map[string]string{
 }
 
 const JsonPkg = "github.com/json-iterator/go"
-
-type decodeKey struct {
-	builtin schema.Builtin
-	slice   bool
-}
 
 type Builder struct {
 	res             *parser.Result
@@ -293,31 +287,19 @@ func (b *Builder) buildRPC(svc *est.Service, rpc *est.RPC) *Statement {
 func (b *Builder) encodeResponse(g *Group, rpc *est.RPC) {
 	g.Comment("Serialize the response")
 	g.Var().Id("respData").Index().Byte()
-	resp, err := encoding.DescribeResponse(b.res.Meta, rpc.Response.Type)
+	resp, err := encoding.DescribeResponse(b.res.Meta, rpc.Response.Type, nil)
 	if err != nil {
 		b.errors.Addf(rpc.Func.Pos(), "failed to describe response: %v", err.Error())
 	}
-	var bodyStmts []Code
-	headerValues := Dict{}
-	headerEncoder := b.marshaller.NewPossibleInstance("headerEncoder")
-	for _, f := range resp.Fields {
-		switch f.Location {
-		case encoding.Header:
-			headerSlice, err := headerEncoder.ToStringSlice(f.Field.Typ, Id("resp").Dot(f.Field.Name))
-			if err != nil {
-				b.errors.Addf(rpc.Func.Pos(), "failed to generate haader serializers: %v", err.Error())
-			}
-			headerValues[Lit(f.Name)] = headerSlice
-		case encoding.Body:
-			bodyStmts = append(bodyStmts, Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("resp").Dot(f.Field.Name), Lit(f.OmitEmpty)))
-		default:
-			b.errors.Addf(rpc.Func.Pos(), "unsupported response location: %d", f.Location)
-		}
-	}
-	if len(bodyStmts) > 0 {
+
+	if len(resp.BodyParameters) > 0 {
 		g.Line().Comment("Encode JSON body")
-		g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/runtime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/runtime/serde", "JSONSerializer")).Block(
-			bodyStmts...))
+		g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/runtime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/runtime/serde", "JSONSerializer")).BlockFunc(
+			func(g *Group) {
+				for _, f := range resp.BodyParameters {
+					g.Add(Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
+				}
+			}))
 		g.If(Err().Op("!=").Nil()).Block(
 			Id("marshalErr").Op(":=").Add(wrapErrCode(Err(), "Internal", "failed to marshal response")),
 			Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("marshalErr")),
@@ -326,9 +308,19 @@ func (b *Builder) encodeResponse(g *Group, rpc *est.RPC) {
 		)
 	}
 
-	if len(headerValues) > 0 {
+	if len(resp.HeaderParameters) > 0 {
+		headerEncoder := b.marshaller.NewPossibleInstance("headerEncoder")
 		g.Line().Comment("Encode headers")
-		headerEncoder.Add(Id("headers").Op(":=").Map(String()).Index().String().Values(headerValues))
+		headerEncoder.Add(Id("headers").Op(":=").Map(String()).Index().String().ValuesFunc(
+			func(g *Group) {
+				for _, f := range resp.HeaderParameters {
+					headerSlice, err := headerEncoder.ToStringSlice(f.Type, Id("resp").Dot(f.SrcName))
+					if err != nil {
+						b.errors.Addf(rpc.Func.Pos(), "failed to generate haader serializers: %v", err.Error())
+					}
+					g.Add(Lit(f.Name).Op(":").Add(headerSlice))
+				}
+			}))
 		g.Add(headerEncoder.Finalize(
 			Id("headerErr").Op(":=").Add(wrapErrCode(Id("headerEncoder").Dot("LastError"), "Internal", "failed to marshal headers")),
 			Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("headerErr")),
@@ -343,7 +335,7 @@ func (b *Builder) encodeResponse(g *Group, rpc *est.RPC) {
 	g.Qual("encore.dev/runtime", "FinishRequest").Call(Id("output"), Nil())
 
 	g.Line().Comment("Write response")
-	if len(headerValues) > 0 {
+	if len(resp.HeaderParameters) > 0 {
 		g.For(List(Id("k"), Id("vs")).Op(":=").Range().Id("headers")).Block(
 			For(List(Id("_"), Id("v")).Op(":=").Range().Id("vs")).Block(
 				Id("w").Dot("Header").Call().Dot("Add").Call(Id("k"), Id("v")),
@@ -417,7 +409,7 @@ func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper
 		// Parsing requests for HTTP methods without a body (GET, HEAD, DELETE) are handled by parsing the query string,
 		// while other methods are parsed by reading the body and unmarshalling it as JSON.
 		// If the same endpoint supports both, handle it with a switch.
-		reqs, err := encoding.DescribeRequest(b.res.Meta, rpc.Request.Type, rpc.HTTPMethods...)
+		reqs, err := encoding.DescribeRequest(b.res.Meta, rpc.Request.Type, nil, rpc.HTTPMethods...)
 		if err != nil {
 			b.errors.Addf(rpc.Func.Pos(), "failed to describe request: %v", err.Error())
 		}
@@ -435,7 +427,9 @@ func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper
 						for _, m := range r.HTTPMethods {
 							g.Lit(m)
 						}
-					}).Line().Add(b.decodeRequestParameters(rpc, requestDecoder, r.Fields)...)
+					}).BlockFunc(func(g *Group) {
+						b.decodeRequestParameters(g, rpc, requestDecoder, r)
+					})
 				}
 				g.Default().Add(Id("panic").Call(Lit("HTTP method is not supported")))
 			},
@@ -453,61 +447,61 @@ func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper
 	return true, segs
 }
 
-func (b *Builder) decodeRequestParameters(rpc *est.RPC, requestDecoder *gocodegen.MarshallingCodeWrapper, fields []*encoding.ParameterEncoding) []Code {
-	var qsStmts, bodyStmts, headerStmts, bodyCases []Code
-	for _, f := range fields {
-		switch f.Location {
-		case encoding.Body:
-			valDecoder, err := requestDecoder.FromJSON(f.Field.Typ, f.Name, "iter", Id("params").Dot(f.Field.Name))
-			if err != nil {
-				b.errorf("could not create parser for json type: %T", f.Field.Typ.Typ)
-			}
-			bodyCases = append(bodyCases,
-				Case(Lit(strings.ToLower(f.Name))).Line().Add(valDecoder),
-			)
-		case encoding.Header:
-			if len(headerStmts) == 0 {
-				headerStmts = append(headerStmts,
-					Comment("Decode Headers").Line(),
-					Id("h").Op(":=").Id("req").Dot("Header").Line())
-			}
-			decoder, err := requestDecoder.FromString(f.Field.Typ, f.Name, Id("h").Dot("Get").Call(Lit(f.Name)), Id("h").Dot("Values").Call(Lit(f.Name)), false)
+func (b *Builder) decodeRequestParameters(g *Group, rpc *est.RPC, requestDecoder *gocodegen.MarshallingCodeWrapper, req *encoding.RequestEncoding) {
+
+	// Decode headers
+	if len(req.HeaderParameters) > 0 {
+		g.Comment("Decode Headers")
+		g.Id("h").Op(":=").Id("req").Dot("Header")
+		for _, f := range req.HeaderParameters {
+			decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("h").Dot("Get").Call(Lit(f.Name)), Id("h").Dot("Values").Call(Lit(f.Name)), false)
 			if err != nil {
 				b.errors.Addf(rpc.Func.Pos(), "could not create decoder for header: %v", err.Error())
 			}
-			headerStmts = append(headerStmts, Id("params").Dot(f.Field.Name).Op("=").Add(decoder).Line())
-		case encoding.Query:
-			if len(qsStmts) == 0 {
-				qsStmts = append(qsStmts,
-					Line().Comment("Decode Query String").Line(),
-					Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call().Line())
-			}
-			decoder, err := requestDecoder.FromString(f.Field.Typ, f.Name, Id("qs").Dot("Get").Call(Lit(f.Name)), Id("qs").Index(Lit(f.Name)), false)
+			g.Id("params").Dot(f.SrcName).Op("=").Add(decoder)
+		}
+		g.Line()
+	}
+
+	// Decode QueryString
+	if len(req.QueryParameters) > 0 {
+		g.Comment("Decode Query String")
+		g.Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call()
+
+		for _, f := range req.QueryParameters {
+			decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("qs").Dot("Get").Call(Lit(f.Name)), Id("qs").Index(Lit(f.Name)), false)
 			if err != nil {
 				b.errors.Addf(rpc.Func.Pos(), "could not create decoder for query: %v", err.Error())
 			}
-			qsStmts = append(qsStmts, Id("params").Dot(f.Field.Name).Op("=").Add(decoder).Line())
+			g.Id("params").Dot(f.SrcName).Op("=").Add(decoder)
 		}
+		g.Line()
 	}
 
-	if len(bodyCases) > 0 {
-		bodyCases = append(bodyCases, Default().Line().Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
-		bodyStmts = append(bodyStmts,
-			Line().Comment("Decode JSON Body").Line(),
-			Id("payload").Op(":=").Add(requestDecoder.Body(Id("req").Dot("Body"))).Line(),
-			Id("iter").Op(":=").Qual(JsonPkg, "ParseBytes").Call(Id("json"), Id("payload")),
-			Line(),
-			For(Id("iter").Dot("ReadObjectCB").Call(
-				Func().Params(Id("_").Op("*").Qual(JsonPkg, "Iterator"), Id("key").String()).Bool().Block(
-					Switch(Qual("strings", "ToLower").Call(Id("key"))).Block(bodyCases...),
-					Return(True()),
-				)).Block(),
-			).Line(),
+	// Decode Body
+	if len(req.BodyParameters) > 0 {
+		g.Comment("Decode JSON Body")
+		g.Id("payload").Op(":=").Add(requestDecoder.Body(Id("req").Dot("Body")))
+		g.Id("iter").Op(":=").Qual(JsonPkg, "ParseBytes").Call(Id("json"), Id("payload"))
+		g.Line()
+
+		g.For(Id("iter").Dot("ReadObjectCB").Call(
+			Func().Params(Id("_").Op("*").Qual(JsonPkg, "Iterator"), Id("key").String()).Bool().Block(
+				Switch(Qual("strings", "ToLower").Call(Id("key"))).BlockFunc(func(g *Group) {
+					for _, f := range req.BodyParameters {
+						valDecoder, err := requestDecoder.FromJSON(f.Type, f.Name, "iter", Id("params").Dot(f.SrcName))
+						if err != nil {
+							b.errorf("could not create parser for json type: %T", f.Type.Typ)
+						}
+						g.Case(Lit(strings.ToLower(f.Name))).Block(valDecoder)
+					}
+					g.Default().Block(Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
+				}),
+				Return(True()),
+			)).Block(),
 		)
+		g.Line()
 	}
-	rtnStmts := append(headerStmts, qsStmts...)
-	rtnStmts = append(rtnStmts, bodyStmts...)
-	return rtnStmts
 }
 
 func (b *Builder) writeAuthFuncs(f *File) {
@@ -641,14 +635,6 @@ func (b *Builder) writeAuthFuncs(f *File) {
 	)
 }
 
-type decoderDescriptor struct {
-	Method string
-	Input  Code
-	Result Code
-	IsList bool
-	Block  []Code
-}
-
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
 	typName := b.schemaTypeToGoType(param.Type)
 
@@ -684,18 +670,6 @@ func (b *Builder) errorf(format string, args ...interface{}) {
 func buildErr(code, msg string) *Statement {
 	p := "encore.dev/beta/errs"
 	return Qual(p, "B").Call().Dot("Code").Call(Qual(p, code)).Dot("Msg").Call(Lit(msg)).Dot("Err").Call()
-}
-
-func buildErrDetails(code string, msg, field, err Code) *Statement {
-	p := "encore.dev/beta/errs"
-	return Qual(p, "B").Call().
-		Dot("Code").Call(Qual(p, code)).
-		Dot("Msg").Call(msg).
-		Dot("Details").Call(
-		Id("validationDetails").Values(Dict{
-			Id("Field"): field,
-			Id("Err"):   err,
-		})).Dot("Err").Call()
 }
 
 func buildErrf(code, format string, args ...Code) *Statement {

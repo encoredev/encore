@@ -417,7 +417,7 @@ func (g *golang) rpcReturnType(rpc *meta.RPC, concreteImpl bool) Code {
 
 func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 	// Work out how we're going to encode and call this RPC
-	rpcEncoding, err := encoding.DescribeRPC(g.md, rpc)
+	rpcEncoding, err := encoding.DescribeRPC(g.md, rpc, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "rpc %s", rpc.Name)
 	}
@@ -455,28 +455,25 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 
 	// Work out how we encode the Request Schema
 	if rpc.RequestSchema != nil {
-		headerFields, queryFields, bodyFields, err := toFieldLists(rpcEncoding.DefaultRequestEncoding.Fields)
-		if err != nil {
-			return nil, err
-		}
+		reqEnc := rpcEncoding.DefaultRequestEncoding
 
-		if len(headerFields) > 0 || len(queryFields) > 0 {
+		if len(reqEnc.HeaderParameters) > 0 || len(reqEnc.QueryParameters) > 0 {
 			code = append(code, Comment("Convert our params into the objects we need for the request"))
 		}
 
 		enc := g.enc.NewPossibleInstance("reqEncoder")
 
 		// Generate the headers
-		if len(headerFields) > 0 {
+		if len(reqEnc.HeaderParameters) > 0 {
 			values := Dict{}
 
-			for _, field := range headerFields {
+			for _, field := range reqEnc.HeaderParameters {
 				slice, err := enc.ToStringSlice(
-					field.Field.Typ,
-					Id("params").Dot(field.Field.Name),
+					field.Type,
+					Id("params").Dot(field.SrcName),
 				)
 				if err != nil {
-					return nil, errors.Wrapf(err, "unable to encode header %s", field.Field.Name)
+					return nil, errors.Wrapf(err, "unable to encode header %s", field.SrcName)
 				}
 				values[Lit(field.Name)] = slice
 			}
@@ -486,18 +483,18 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 		}
 
 		// Generate the query string
-		if len(queryFields) > 0 {
+		if len(reqEnc.QueryParameters) > 0 {
 			withQueryString = true
 			values := Dict{}
 
 			// Check the request schema for fields we can put in the query string
-			for _, field := range queryFields {
+			for _, field := range reqEnc.QueryParameters {
 				slice, err := enc.ToStringSlice(
-					field.Field.Typ,
-					Id("params").Dot(field.Field.Name),
+					field.Type,
+					Id("params").Dot(field.SrcName),
 				)
 				if err != nil {
-					return nil, errors.Wrapf(err, "unable to encode query fields %s", field.Field.Name)
+					return nil, errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
 				}
 
 				values[Lit(field.Name)] = slice
@@ -524,22 +521,22 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 		}
 
 		// Generate the body
-		if len(bodyFields) > 0 {
-			if len(headerFields) == 0 && len(queryFields) == 0 {
+		if len(reqEnc.BodyParameters) > 0 {
+			if len(reqEnc.HeaderParameters) == 0 && len(reqEnc.QueryParameters) == 0 {
 				// In the simple case we can just encode the params as the body directly
 				body = Id("params")
 			} else {
 				// Else we need a new struct called "body"
 				body = Id("body")
 
-				types, err := g.generateAnonStructTypes(bodyFields, "json")
+				types, err := g.generateAnonStructTypes(reqEnc.BodyParameters, "json")
 				if err != nil {
 					return nil, err
 				}
 
 				values := Dict{}
-				for _, field := range bodyFields {
-					values[Id(field.Field.Name)] = Id("params").Dot(field.Field.Name)
+				for _, field := range reqEnc.BodyParameters {
+					values[Id(field.SrcName)] = Id("params").Dot(field.SrcName)
 				}
 
 				code = append(code,
@@ -575,14 +572,11 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 	}
 
 	hasAnonResponseStruct := false
-	headerFields, queryFields, bodyFields, err := toFieldLists(rpcEncoding.ResponseEncoding.Fields)
-	if err != nil {
-		return nil, err
-	}
+	respEnc := rpcEncoding.ResponseEncoding
 
 	// If we have a response object, we need
-	if len(bodyFields) > 0 {
-		if len(headerFields) == 0 && len(queryFields) == 0 {
+	if len(respEnc.BodyParameters) > 0 {
+		if len(respEnc.HeaderParameters) == 0 {
 			// If there are no other fields, we can just take the return type and pass it straight through
 			resp = Op("&").Id("resp")
 		} else {
@@ -590,7 +584,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 			resp = Op("&").Id("respBody")
 
 			// we need to construct an anonymous struct
-			types, err := g.generateAnonStructTypes(bodyFields, "json")
+			types, err := g.generateAnonStructTypes(respEnc.BodyParameters, "json")
 			if err != nil {
 				return nil, errors.Wrap(err, "response unmarshal")
 			}
@@ -608,7 +602,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 	code = append(code, Comment("Now make the actual call to the API"))
 
 	headersId := "_"
-	if len(headerFields) > 0 {
+	if len(respEnc.HeaderParameters) > 0 {
 		headersId = "respHeaders"
 		code = append(code, Var().Id(headersId).Qual("net/http", "Header"))
 	}
@@ -622,32 +616,27 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 	)
 
 	// In we have an anonymous response struct, we need to copy the results into the full response struct
-	if hasAnonResponseStruct || len(headerFields) > 0 {
+	if hasAnonResponseStruct || len(respEnc.HeaderParameters) > 0 {
 		code = append(code, Comment("Copy the unmarshalled response body into our response struct"))
 
 		enc := g.enc.NewPossibleInstance("respDecoder")
-		for _, field := range rpcEncoding.ResponseEncoding.Fields {
-			switch field.Location {
-			case encoding.Header:
-				str, err := enc.FromString(
-					field.Field.Typ,
-					field.Field.Name,
-					Id(headersId).Dot("Get").Call(Lit(field.Name)),
-					Id(headersId).Dot("Values").Call(Lit(field.Name)),
-					false,
-				)
-				if err != nil {
-					return nil, errors.Wrapf(err, "unable to convert %s to string in response header", field.Name)
-				}
-
-				enc.Add(Id("resp").Dot(field.Field.Name).Op("=").Add(str))
-			case encoding.Body:
-				enc.Add(Id("resp").Dot(field.Field.Name).Op("=").Id("respBody").Dot(field.Field.Name))
-			default:
-				return nil, errors.Newf("unsupported response location: %+v", field.Location)
+		for _, field := range respEnc.HeaderParameters {
+			str, err := enc.FromString(
+				field.Type,
+				field.SrcName,
+				Id(headersId).Dot("Get").Call(Lit(field.Name)),
+				Id(headersId).Dot("Values").Call(Lit(field.Name)),
+				false,
+			)
+			if err != nil {
+				return nil, errors.Wrapf(err, "unable to convert %s to string in response header", field.Name)
 			}
-		}
 
+			enc.Add(Id("resp").Dot(field.SrcName).Op("=").Add(str))
+		}
+		for _, field := range respEnc.BodyParameters {
+			enc.Add(Id("resp").Dot(field.SrcName).Op("=").Id("respBody").Dot(field.SrcName))
+		}
 		code = append(code, enc.Finalize(
 			Id("err").Op("=").Qual("fmt", "Errorf").Call(
 				Lit("unable to unmarshal headers: %w"),
@@ -881,9 +870,9 @@ func (g *golang) generateAnonStructTypes(fields []*encoding.ParameterEncoding, e
 		tagValue.WriteString(field.Name)
 
 		// Parse the tags and extract the encoding tag
-		tags, err := structtag.Parse(field.Field.RawTag)
+		tags, err := structtag.Parse(field.RawTag)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parse tags: %s", field.Field.Name)
+			return nil, errors.Wrapf(err, "parse tags: %s", field.SrcName)
 		}
 		if tag, err := tags.Get(encodingTag); err == nil {
 			options := strings.Join(tag.Options, ",")
@@ -895,7 +884,7 @@ func (g *golang) generateAnonStructTypes(fields []*encoding.ParameterEncoding, e
 
 		types = append(
 			types,
-			Id(field.Field.Name).Add(g.getType(field.Field.Typ)).Tag(map[string]string{encodingTag: tagValue.String()}),
+			Id(field.SrcName).Add(g.getType(field.Type)).Tag(map[string]string{encodingTag: tagValue.String()}),
 		)
 	}
 
