@@ -19,8 +19,9 @@ import (
 
 // Client is an API client for the slug Encore application.
 type Client struct {
-	Echo EchoClient
-	Test TestClient
+	Echo     EchoClient
+	Endtoend EndtoendClient
+	Test     TestClient
 }
 
 // BaseURL is the base URL for calling the Encore application's API.
@@ -60,8 +61,9 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	}
 
 	return &Client{
-		Echo: &echoClient{base},
-		Test: &testClient{base},
+		Echo:     &echoClient{base},
+		Endtoend: &endtoendClient{base},
+		Test:     &testClient{base},
 	}, nil
 }
 
@@ -414,6 +416,23 @@ func (c *echoClient) Pong(ctx context.Context) (resp EchoData[string, string], e
 	}
 
 	return
+}
+
+// EndtoendClient Provides you access to call public and authenticated APIs on endtoend. The concrete implementation is endtoendClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type EndtoendClient interface {
+	GeneratedWrappersEndToEndTest(ctx context.Context) error
+}
+
+type endtoendClient struct {
+	base *baseClient
+}
+
+var _ EndtoendClient = (*endtoendClient)(nil)
+
+func (c *endtoendClient) GeneratedWrappersEndToEndTest(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "GET", "/generated-wrappers-end-to-end-test", nil, nil, nil)
+	return err
 }
 
 type TestBodyEcho struct {

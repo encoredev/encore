@@ -22,6 +22,7 @@ export function Environment(name: string): BaseURL {
  */
 export default class Client {
     public readonly echo: echo.ServiceClient
+    public readonly endtoend: endtoend.ServiceClient
     public readonly test: test.ServiceClient
 
 
@@ -52,6 +53,7 @@ export default class Client {
 
         const base = new BaseClient(target, opts)
         this.echo = new echo.ServiceClient(base)
+        this.endtoend = new endtoend.ServiceClient(base)
         this.test = new test.ServiceClient(base)
     }
 }
@@ -296,6 +298,21 @@ export namespace echo {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("GET", `/echo.Pong`, false)
             return await resp.json() as Data<string, string>
+        }
+    }
+}
+
+export namespace endtoend {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async GeneratedWrappersEndToEndTest(): Promise<void> {
+            await this.baseClient.callAPI("GET", `/generated-wrappers-end-to-end-test`, false)
         }
     }
 }
