@@ -675,7 +675,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 				field.SrcName,
 				Id(headersId).Dot("Get").Call(Lit(field.Name)),
 				Id(headersId).Dot("Values").Call(Lit(field.Name)),
-				false,
+				true,
 			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "unable to convert %s to string in response header", field.Name)

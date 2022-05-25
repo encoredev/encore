@@ -278,7 +278,7 @@ func (c *echoClient) HeadersEcho(ctx context.Context, params EchoHeadersData) (r
 	// Copy the unmarshalled response body into our response struct
 	respDecoder := &serde{}
 
-	resp.Int = respDecoder.ToInt("Int", respHeaders.Get("x-int"), false)
+	resp.Int = respDecoder.ToInt("Int", respHeaders.Get("x-int"), true)
 	resp.String = respHeaders.Get("x-string")
 
 	if respDecoder.LastError != nil {
@@ -377,7 +377,7 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 	respDecoder := &serde{}
 
 	resp.HeaderString = respHeaders.Get("x-header-string")
-	resp.HeaderNumber = respDecoder.ToInt("HeaderNumber", respHeaders.Get("x-header-number"), false)
+	resp.HeaderNumber = respDecoder.ToInt("HeaderNumber", respHeaders.Get("x-header-number"), true)
 	resp.Struct = respBody.Struct
 	resp.StructPtr = respBody.StructPtr
 	resp.StructSlice = respBody.StructSlice
@@ -645,13 +645,13 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 	// Copy the unmarshalled response body into our response struct
 	respDecoder := &serde{}
 
-	resp.HeaderBoolean = respDecoder.ToBool("HeaderBoolean", respHeaders.Get("x-boolean"), false)
-	resp.HeaderInt = respDecoder.ToInt("HeaderInt", respHeaders.Get("x-int"), false)
-	resp.HeaderFloat = respDecoder.ToFloat64("HeaderFloat", respHeaders.Get("x-float"), false)
+	resp.HeaderBoolean = respDecoder.ToBool("HeaderBoolean", respHeaders.Get("x-boolean"), true)
+	resp.HeaderInt = respDecoder.ToInt("HeaderInt", respHeaders.Get("x-int"), true)
+	resp.HeaderFloat = respDecoder.ToFloat64("HeaderFloat", respHeaders.Get("x-float"), true)
 	resp.HeaderString = respHeaders.Get("x-string")
-	resp.HeaderBytes = respDecoder.ToBytes("HeaderBytes", respHeaders.Get("x-bytes"), false)
-	resp.HeaderTime = respDecoder.ToTime("HeaderTime", respHeaders.Get("x-time"), false)
-	resp.HeaderJson = respDecoder.ToJSON("HeaderJson", respHeaders.Get("x-json"), false)
+	resp.HeaderBytes = respDecoder.ToBytes("HeaderBytes", respHeaders.Get("x-bytes"), true)
+	resp.HeaderTime = respDecoder.ToTime("HeaderTime", respHeaders.Get("x-time"), true)
+	resp.HeaderJson = respDecoder.ToJSON("HeaderJson", respHeaders.Get("x-json"), true)
 	resp.HeaderUUID = respHeaders.Get("x-uuid")
 	resp.HeaderUserID = respHeaders.Get("x-user-id")
 	resp.QueryBoolean = respBody.QueryBoolean
