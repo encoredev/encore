@@ -313,7 +313,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 		// Generate the query string
 		if len(reqEnc.QueryParameters) > 0 {
-			query = "queryFields"
+			query = "query"
 			ts.seenQueryString = true
 
 			dict := make(map[string]string)
@@ -329,7 +329,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 				}
 			}
 
-			w.WriteString("const queryFields: Record<string, string | string[]> = ")
+			w.WriteString("const query: Record<string, string | string[]> = ")
 			ts.Values(w, dict)
 			w.WriteString("\n")
 		}
@@ -589,7 +589,7 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
     headers?: Record<string, string>;
 
     /** Any query parameters to be sent with the request */
-    queryFields?: Record<string, string | string[]>
+    query?: Record<string, string | string[]>
 }
 
 // TokenGenerator is a function that returns a token
@@ -659,7 +659,7 @@ class BaseClient {
         `)
 
 	if ts.seenRawEndpoint || ts.seenQueryString {
-		ts.WriteString(`const query = params?.queryFields ? '?' + encodeQuery(params.queryFields) : ''
+		ts.WriteString(`const query = params?.query ? '?' + encodeQuery(params.query) : ''
         const response = await this.fetcher(this.baseURL+path+query, init)`)
 	} else {
 		ts.WriteString("const response = await this.fetcher(this.baseURL+path, init)")

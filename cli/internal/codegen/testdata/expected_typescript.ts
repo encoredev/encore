@@ -237,11 +237,11 @@ export namespace svc {
 
         public async Get(params: GetRequest): Promise<void> {
             // Convert our params into the objects we need for the request
-            const queryFields: Record<string, string | string[]> = {
+            const query: Record<string, string | string[]> = {
                 boo: String(params.Baz),
             }
 
-            await this.baseClient.callAPI("GET", `/svc.Get`, false, undefined, {queryFields})
+            await this.baseClient.callAPI("GET", `/svc.Get`, false, undefined, {query})
         }
 
         public async GetRequestWithAllInputTypes(params: AllInputTypes<number>): Promise<HeaderOnlyStruct> {
@@ -250,14 +250,14 @@ export namespace svc {
                 "x-alice": String(params.A),
             }
 
-            const queryFields: Record<string, string | string[]> = {
+            const query: Record<string, string | string[]> = {
                 Bob:  params.B.map((v) => String(v)),
                 c:    String(params["Charlies-Bool"]),
                 dave: String(params.Dave),
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, false, undefined, {headers, queryFields})
+            const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, false, undefined, {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as HeaderOnlyStruct
@@ -300,7 +300,7 @@ export namespace svc {
                 "x-alice": String(params.A),
             }
 
-            const queryFields: Record<string, string | string[]> = {
+            const query: Record<string, string | string[]> = {
                 Bob: params.B.map((v) => String(v)),
             }
 
@@ -311,7 +311,7 @@ export namespace svc {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes`, false, JSON.stringify(body), {headers, queryFields})
+            const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes`, false, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as AllInputTypes<number>
@@ -355,7 +355,7 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
     headers?: Record<string, string>;
 
     /** Any query parameters to be sent with the request */
-    queryFields?: Record<string, string | string[]>
+    query?: Record<string, string | string[]>
 }
 
 // TokenGenerator is a function that returns a token
@@ -422,7 +422,7 @@ class BaseClient {
         }
 
         // Make the actual request
-        const query = params?.queryFields ? '?' + encodeQuery(params.queryFields) : ''
+        const query = params?.query ? '?' + encodeQuery(params.query) : ''
         const response = await this.fetcher(this.baseURL+path+query, init)
 
         // handle any error responses

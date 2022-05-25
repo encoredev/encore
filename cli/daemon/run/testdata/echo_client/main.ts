@@ -136,7 +136,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
     "this is a test body",
     {
       headers:     {"X-Test-Header": "test"},
-      queryFields: {"foo": "bar"},
+      query: {"foo": "bar"},
     },
   )
 
