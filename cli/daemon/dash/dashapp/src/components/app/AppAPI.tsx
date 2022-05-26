@@ -81,6 +81,19 @@ export default class AppAPI extends React.Component<Props, State> {
 
                 {svc.rpcs.map(rpc => {
                   const pathParams = rpc.path.segments.filter(p => p.type !== "LITERAL")
+
+                  let defaultMethod = rpc.http_methods[0]
+                  if (defaultMethod === "*") {
+                    defaultMethod = "POST"
+                  } else if (defaultMethod !== "POST") {
+                    for (const method of rpc.http_methods) {
+                      if (method === "POST") {
+                        defaultMethod = method
+                        break
+                      }
+                    }
+                  }
+
                   return (
                     <div key={rpc.name} className="border-t border-gray-300 py-10">
                       <h3 id={svc.name+"."+rpc.name} className="text-2xl leading-10 font-sans font-medium text-gray-700 flex items-center">
@@ -114,16 +127,13 @@ export default class AppAPI extends React.Component<Props, State> {
                                       </div>
                                     )}
                                   </div>
-                                  {rpc.request_schema ? <SchemaView meta={meta} type={rpc.request_schema} dialect="table" /> :
-                                    <div className="text-gray-400 text-sm">No parameters.</div>
-                                  }
                                 </div>
                               }
 
                               <div className="mt-4">
                                 <h4 className="font-medium font-sans text-gray-700">Request</h4>
                                 <hr className="my-4 border-gray-200" />
-                                {rpc.request_schema ? <SchemaView meta={meta} type={rpc.request_schema} dialect="table" /> :
+                                {rpc.request_schema ? <SchemaView meta={meta} method={defaultMethod} type={rpc.request_schema} dialect="table" /> :
                                   <div className="text-gray-400 text-sm">No parameters.</div>
                                 }
                               </div>
@@ -131,7 +141,7 @@ export default class AppAPI extends React.Component<Props, State> {
                               <div className="mt-12">
                                 <h4 className="font-medium font-sans text-gray-700">Response</h4>
                                 <hr className="my-4 border-gray-200" />
-                                {rpc.response_schema ? <SchemaView meta={meta} type={rpc.response_schema} dialect="table" /> :
+                                {rpc.response_schema ? <SchemaView meta={meta} method={defaultMethod} type={rpc.response_schema} dialect="table" asResponse /> :
                                   <div className="text-gray-400 text-sm">No response.</div>
                                 }
                               </div>
@@ -176,6 +186,18 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
     {title: "Call", type: "call"},
   ]
 
+  let defaultMethod = props.rpc.http_methods[0]
+  if (defaultMethod === "*") {
+    defaultMethod = "POST"
+  } else if (defaultMethod !== "POST") {
+    for (const method of props.rpc.http_methods) {
+      if (method === "POST") {
+        defaultMethod = method
+        break
+      }
+    }
+  }
+
     return <div>
       <nav className="flex justify-end space-x-4 mb-3">
         {tabs.map(t =>
@@ -196,12 +218,12 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   className="form-select h-full py-0 border-transparent bg-transparent text-gray-300 text-xs leading-none">
                 <option value="json">JSON</option>
                 <option value="go">Go</option>
-                <option value="typescript">TypeScript</option>
+                {/*<option value="typescript">TypeScript</option>*/}
               </select>
             </div>
           </div>
           <div className="rounded-b-md bg-gray-800 text-gray-100 p-2 font-mono overflow-auto">
-            <SchemaView meta={props.meta} type={props.rpc.request_schema} dialect={respDialect} />
+            <SchemaView meta={props.meta} type={props.rpc.request_schema} method={defaultMethod} dialect={respDialect} />
           </div>
         </div>
       }
@@ -214,12 +236,12 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   className="form-select h-full py-0 border-transparent bg-transparent text-gray-500 text-xs leading-none">
                 <option value="json">JSON</option>
                 <option value="go">Go</option>
-                <option value="typescript">TypeScript</option>
+                {/*<option value="typescript">TypeScript</option>*/}
               </select>
             </div>
           </div>
           <div className="rounded-b-md bg-gray-100 p-2 font-mono overflow-auto">
-            <SchemaView meta={props.meta} type={props.rpc.response_schema} dialect={respDialect} />
+            <SchemaView meta={props.meta} type={props.rpc.response_schema} method={defaultMethod} dialect={respDialect} asResponse />
           </div>
         </div>
       }
