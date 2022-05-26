@@ -780,7 +780,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 
 		for _, field := range typ.Struct.Fields {
 			// Skip over hidden fields
-			if field.JsonName == "-" || field.QueryStringName == "-" {
+			if encoding.IgnoreField(field) {
 				continue
 			}
 

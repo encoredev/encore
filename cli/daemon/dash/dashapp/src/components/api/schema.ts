@@ -17,6 +17,11 @@ export enum FieldLocation {
     Body = "JSON Payload",
     Header = "HTTP Header",
     Query = "Query String",
+    UnusedField = "hidden",
+}
+
+export function methodSupportsPayloads(method: string): boolean {
+    return method !== "GET" && method !== "HEAD" && method !== "DELETE"
 }
 
 export function fieldNameAndLocation(f: Field, method: string, asResponse: boolean): [string, FieldLocation] {
@@ -24,18 +29,38 @@ export function fieldNameAndLocation(f: Field, method: string, asResponse: boole
         switch (tag.key) {
             case "qs":
             case "query":
+                if (tag.name === "-") {
+                    return ["-", FieldLocation.UnusedField]
+                }
+
                 if (!asResponse) {
                     return [tag.name, FieldLocation.Query]
                 }
                 break
+            
             case "header":
+                if (tag.name === "-") {
+                    return ["-", FieldLocation.UnusedField]
+                }
+
                 return [tag.name, FieldLocation.Header]
+
             case "json":
-                return [tag.name, FieldLocation.Body]
+                if (tag.name === "-") {
+                    return ["-", FieldLocation.UnusedField]
+                }
+
+                if (methodSupportsPayloads(method)) {
+                    return [tag.name, FieldLocation.Body]
+                }
         }
     }
 
-    return [f.name, FieldLocation.Body]
+    if (methodSupportsPayloads(method)) {
+        return [f.name, FieldLocation.Body]
+    } else {
+        return [f.name, FieldLocation.Query]
+    }
 }
 
 export function locationDescription(name: string, location: FieldLocation): string {
@@ -53,7 +78,8 @@ export function splitFieldsByLocation(t: StructType, method: string, asResponse:
     let rtn: Record<FieldLocation, Field[]> = {
         [FieldLocation.Body]: [],
         [FieldLocation.Query]: [],
-        [FieldLocation.Header]: []
+        [FieldLocation.Header]: [],
+        [FieldLocation.UnusedField]: [],
     }
 
     for (const field of t.fields) {

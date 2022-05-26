@@ -8,7 +8,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
-
 	"golang.org/x/exp/slices"
 
 	"encr.dev/parser"
@@ -436,8 +435,7 @@ func describeParams(encodingHints *encodingHints, payload *schema.Struct) (field
 			return nil, err
 		}
 
-		// fields explicitly named "-" are excluded from the generated client
-		if f.Name != "-" {
+		if f != nil {
 			paramByLocation[location] = append(paramByLocation[location], f)
 		}
 	}
@@ -454,8 +452,20 @@ func formatName(location ParameterLocation, name string) string {
 	}
 }
 
+// IgnoreField returns true if the field name is "-" is any of the valid request or response tags
+func IgnoreField(field *schema.Field) bool {
+	for _, tag := range field.Tags {
+		if _, found := requestTags[tag.Key]; found && tag.Name == "-" {
+			return true
+		}
+	}
+	return false
+}
+
 // describeParam returns a ParameterLocation, ParameterEncoding  which uses field tags to describe how the parameter
-//(e.g. qs, query, header) should be encoded in HTTP (name and location)
+// (e.g. qs, query, header) should be encoded in HTTP (name and location)
+//
+// will return nil as the ParameterEncoding if the field is not to be encoded
 func describeParam(encodingHints *encodingHints, field *schema.Field) (ParameterLocation, *ParameterEncoding, error) {
 	location := encodingHints.defaultLocation
 	param := ParameterEncoding{
@@ -469,10 +479,15 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (Parameter
 
 	var usedOverrideTag string
 	for _, tag := range field.Tags {
+		if IgnoreField(field) {
+			return location, nil, nil
+		}
+
 		tagHint, ok := encodingHints.tags[tag.Key]
 		if !ok {
 			continue
 		}
+
 		if tagHint.overrideDefault {
 			if usedOverrideTag != "" {
 				return 0, nil, errors.Newf("tag conflict: %s cannot be combined with %s", usedOverrideTag, tag.Key)
@@ -498,5 +513,10 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (Parameter
 			param.SrcName = tag.Name
 		}
 	}
+
+	if param.Name == "-" {
+		return location, nil, nil
+	}
+
 	return location, &param, nil
 }

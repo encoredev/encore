@@ -881,7 +881,7 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		// Filter the fields to print based on struct tags.
 		fields := make([]*schema.Field, 0, len(typ.Struct.Fields))
 		for _, f := range typ.Struct.Fields {
-			if f.JsonName == "-" {
+			if encoding.IgnoreField(f) {
 				continue
 			}
 			fields = append(fields, f)

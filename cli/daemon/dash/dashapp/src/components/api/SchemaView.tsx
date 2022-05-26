@@ -1,5 +1,5 @@
 import {ModeSpec, ModeSpecOptions} from "codemirror"
-import React from "react"
+import React, {Fragment} from "react"
 import CM from "~c/api/cm/CM"
 import {APIMeta} from "./api"
 import {
@@ -11,7 +11,8 @@ import {
     ListType,
     locationDescription,
     MapType,
-    NamedType, splitFieldsByLocation,
+    NamedType,
+    splitFieldsByLocation,
     StructType,
     Type,
     TypeParameterRef
@@ -352,8 +353,11 @@ export class JSONDialect extends TextBasedDialect {
         this.write("null")
     }
 
-    protected renderStruct(t: StructType, topLevel?: boolean) {
-        const writeObj = (fields: Field[]) => {
+    public structBits(t: StructType): [string, string, string] {
+        const writeObj = (fields: Field[]): string => {
+            const oldBuf = this.buf
+            this.buf = []
+
             this.writeln("{")
             this.level++
             for (let i = 0; i < fields.length; i++) {
@@ -369,57 +373,108 @@ export class JSONDialect extends TextBasedDialect {
             this.level--
             this.indent()
             this.write("}")
+
+            const toReturn = this.buf.join("")
+            this.buf = oldBuf
+            return toReturn
         }
 
+        const fields = splitFieldsByLocation(t, this.method, this.asResponse)
+
+        let query = ''
+        let headers = ''
+        let json = ''
+
+        if (fields[FieldLocation.Query].length > 0) {
+            const oldBuf = this.buf
+            this.buf = []
+
+            this.write("?")
+
+            let firstField = true
+            for (const field of fields[FieldLocation.Query]) {
+                if (firstField) {
+                    firstField = false
+                } else {
+                    this.write("&")
+                }
+
+                this.write(field.name, "=")
+
+                if (field.typ.builtin) {
+                    this.renderBuiltin(field.typ.builtin, false, true)
+                } else if (field.typ.list) {
+                    this.renderBuiltin(field.typ.list.elem.builtin!, false, true)
+
+                    // show it's a list by duplicating :-)
+                    this.write("&", field.name, "=")
+                    this.renderBuiltin(field.typ.list.elem.builtin!, true, true)
+                }
+            }
+
+            query = this.buf.join("")
+            this.buf = oldBuf
+
+        }
+
+        if (fields[FieldLocation.Header].length > 0) {
+            headers = writeObj(fields[FieldLocation.Header])
+        }
+
+        if (fields[FieldLocation.Body].length > 0) {
+            json = writeObj(fields[FieldLocation.Body])
+        }
+
+        return [query, headers, json]
+    }
+
+    protected renderStruct(t: StructType, topLevel?: boolean) {
         if (topLevel) {
-            const fields = splitFieldsByLocation(t, this.method, this.asResponse)
+            const [query, headers, json] = this.structBits(t)
+
             let previousSection = false
-
-            if (fields[FieldLocation.Query].length > 0) {
-                this.writeln("// Query String")
-                this.write("?")
-
-                let firstField = true
-                for (const field of fields[FieldLocation.Query]) {
-                    if (firstField) {
-                        firstField = false
-                    } else {
-                        this.write("&")
-                    }
-                    
-                    this.write(field.name, "=")
-                    
-                    if (field.typ.builtin) {
-                        this.renderBuiltin(field.typ.builtin)
-                    } else if (field.typ.list) {
-                        this.renderBuiltin(field.typ.list.elem.builtin!)
-
-                        // show it's a list by duplicating :-)
-                        this.write("&", field.name, "=")
-                        this.renderBuiltin(field.typ.list.elem.builtin!, true)
-                    }
-                }
+            if (query) {
+                this.write("// Query String\n", query)
                 previousSection = true
             }
 
-            if (fields[FieldLocation.Header].length > 0) {
+            if (headers) {
                 if (previousSection) {
-                    this.writeln("\n\n")
+                    this.write("\n\n")
                 }
-                this.writeln("// HTTP Headers")
-                writeObj(fields[FieldLocation.Header])
+
+                this.write("// HTTP Headers\n", headers)
                 previousSection = true
             }
 
-            if (fields[FieldLocation.Body].length > 0) {
+            if (json) {
                 if (previousSection) {
-                    this.writeln("\n\n// JSON Payload")
+                    this.write("\n\n// JSON Payload\n")
                 }
-                writeObj(fields[FieldLocation.Body])
+
+                this.write(headers)
             }
-        } else {
-            writeObj(t.fields)
+
+            return
         }
+
+        this.writeln("{")
+        this.level++
+        for (let i = 0; i < t.fields.length; i++) {
+            const f = t.fields[i]
+            this.indent()
+            this.write(`"${f.json_name !== "" ? f.json_name : f.name}": `)
+            this.writeType(f.typ)
+            if (i < (t.fields.length - 1)) {
+                this.write(",")
+            }
+            this.writeln()
+        }
+        this.level--
+        this.indent()
+        this.write("}")
+
+        const toReturn = this.buf.join("")
     }
 
     protected renderMap(t: MapType) {
@@ -441,12 +496,24 @@ export class JSONDialect extends TextBasedDialect {
         this.write("]")
     }
 
-    protected renderBuiltin(t: Builtin, alt? :boolean) {
+    protected renderBuiltin(t: Builtin, alt? :boolean, urlEncode?: boolean) {
+        let write = (s: string) => {
+            if (!urlEncode) {
+                return this.write(s)
+            }
+
+            if (s[0] === '"' && s[s.length - 1] === '"') {
+                s = s.substring(1, s.length - 1)
+            }
+
+            return this.write(encodeURIComponent(s))
+        }
+
         switch (t) {
             case Builtin.ANY:
-                return this.write("<any data>")
+                return write("<any data>")
             case Builtin.BOOL:
-                return this.write(alt ? "false" : "true")
+                return write(alt ? "false" : "true")
             case Builtin.INT:
             case Builtin.INT8:
             case Builtin.INT16:
@@ -457,24 +524,24 @@ export class JSONDialect extends TextBasedDialect {
             case Builtin.UINT16:
             case Builtin.UINT32:
             case Builtin.UINT64:
-                return this.write(alt ? "2" : "1")
+                return write(alt ? "2" : "1")
             case Builtin.FLOAT32:
             case Builtin.FLOAT64:
-                return this.write(alt ? "42.9" : "2.3")
+                return write(alt ? "42.9" : "2.3")
             case Builtin.STRING:
-                return this.write(alt ? "\"another string\"" : "\"some string\"")
+                return write(alt ? "\"another string\"" : "\"some string\"")
             case Builtin.BYTES:
-                return this.write("\"YmFzZTY0Cg==\"") // base64
+                return write("\"YmFzZTY0Cg==\"") // base64
             case Builtin.TIME:
-                return this.write("\"2009-11-10T23:00:00Z\"")
+                return write("\"2009-11-10T23:00:00Z\"")
             case Builtin.UUID:
-                return this.write("\"7d42f515-3517-4e76-be13-30880443546f\"")
+                return write("\"7d42f515-3517-4e76-be13-30880443546f\"")
             case Builtin.JSON:
-                return this.write("{\"some json data\": true}")
+                return write("{\"some json data\": true}")
             case Builtin.USER_ID:
-                return this.write("\"userID\"")
+                return write("\"userID\"")
             case Builtin.UNRECOGNIZED:
-                return this.write("<unknown>")
+                return write("<unknown>")
         }
 
         return unreachableUnknownType(t)
@@ -503,6 +570,10 @@ class TableDialect extends DialectIface {
             <div className={level !== 0 ? "rounded-sm border-gray-200" : ""}>
                 {t.fields.map((f, i) => {
                     const [name, location] = fieldNameAndLocation(f, method, asResponse)
+
+                    if (location === FieldLocation.UnusedField) {
+                        return <Fragment key={f.name} />
+                    }
 
                     return <div key={f.name} className={i > 0 ? "border-t border-gray-200 mt-1 pt-1" : ""}>
                         <div className="flex leading-6 font-mono">

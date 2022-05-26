@@ -169,7 +169,6 @@ export namespace svc {
     export type Foo = number
 
     export interface GetRequest {
-        Bar: string
         Baz: number
     }
 
