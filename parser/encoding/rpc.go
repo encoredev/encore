@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -84,11 +85,19 @@ type encodingHints struct {
 
 // RPCEncoding expresses how an RPC should be encoded on the wire for both the request and responses.
 type RPCEncoding struct {
+	Name        string     `json:"name"`
+	Doc         string     `json:"doc"`
+	AccessType  string     `json:"access_type"`
+	Proto       string     `json:"proto"`
+	Path        *meta.Path `json:"path"`
+	HttpMethods []string   `json:"http_methods"`
+
+	DefaultMethod string `json:"default_method"`
 	// Expresses how the default request encoding and method should be
 	// Note: DefaultRequestEncoding.HTTPMethods will always be a slice with length 1
-	DefaultRequestEncoding *RequestEncoding `json:"default_request_encoding"`
+	DefaultRequestEncoding *RequestEncoding `json:"request_encoding"`
 	// Expresses all the different ways the request can be encoded for this RPC
-	RequestEncoding []*RequestEncoding `json:"request_encoding"`
+	RequestEncoding []*RequestEncoding `json:"-"`
 	// Expresses how the response to this RPC will be encoded
 	ResponseEncoding *ResponseEncoding `json:"response_encoding"`
 }
@@ -142,16 +151,72 @@ type ParameterEncoding struct {
 	// The field type
 	Type *schema.Type `json:"type"`
 	// The raw tag of the field
-	RawTag string `json:"-"`
+	RawTag string `json:"raw_tag"`
 }
 
 type Options struct {
 	SrcNameTag string
 }
 
+type APIEncoding struct {
+	Services      []*ServiceEncoding `json:"services"`
+	Authorization *AuthEncoding      `json:"authorization"`
+}
+
+type ServiceEncoding struct {
+	Name string         `json:"name"`
+	Doc  string         `json:"doc"`
+	RPCs []*RPCEncoding `json:"rpcs"`
+}
+
+func DescribeAPI(meta *meta.Data) *APIEncoding {
+	api := &APIEncoding{Services: make([]*ServiceEncoding, len(meta.Svcs))}
+	for i, s := range meta.Svcs {
+		api.Services[i] = DescribeService(meta, s)
+	}
+	if meta.AuthHandler == nil {
+		return api
+	}
+
+	var err error
+	api.Authorization, err = DescribeAuth(meta, meta.AuthHandler.Params, nil)
+	if err != nil {
+		panic(fmt.Sprintf("Invalid auth definition: %s", meta.AuthHandler.Name))
+	}
+	return api
+}
+
+func findDoc(relPath string, meta *meta.Data) string {
+	for _, p := range meta.Pkgs {
+		if p.RelPath == relPath {
+			return p.Doc
+		}
+	}
+	return ""
+}
+
+func DescribeService(meta *meta.Data, svc *meta.Service) *ServiceEncoding {
+	service := &ServiceEncoding{Name: svc.Name, Doc: findDoc(svc.RelPath, meta), RPCs: make([]*RPCEncoding, len(svc.Rpcs))}
+	for i, r := range svc.Rpcs {
+		rpc, err := DescribeRPC(meta, r, nil)
+		if err != nil {
+			panic("invalid rpc")
+		}
+		service.RPCs[i] = rpc
+	}
+	return service
+}
+
 // DescribeRPC expresses how to encode an RPCs request and response objects for the wire.
 func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCEncoding, error) {
-	encoding := &RPCEncoding{}
+	encoding := &RPCEncoding{
+		DefaultMethod: DefaultClientHttpMethod(rpc),
+		Name:          rpc.Name,
+		AccessType:    rpc.AccessType.String(),
+		Proto:         rpc.Proto.String(),
+		Path:          rpc.Path,
+		Doc:           findDoc(rpc.Doc, appMetaData),
+	}
 	var err error
 	// Work out the request encoding
 	encoding.RequestEncoding, err = DescribeRequest(appMetaData, rpc.RequestSchema, options, rpc.HttpMethods...)
@@ -165,14 +230,15 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCE
 		return nil, errors.Wrap(err, "request encoding")
 	}
 
-	// Setup the default request encoding
-	defaultMethod := DefaultClientHttpMethod(rpc)
-	defaultEncoding := encoding.RequestEncodingForMethod(defaultMethod)
-	encoding.DefaultRequestEncoding = &RequestEncoding{
-		HTTPMethods:      []string{defaultMethod},
-		HeaderParameters: defaultEncoding.HeaderParameters,
-		BodyParameters:   defaultEncoding.BodyParameters,
-		QueryParameters:  defaultEncoding.QueryParameters,
+	if encoding.RequestEncoding != nil {
+		// Setup the default request encoding
+		defaultEncoding := encoding.RequestEncodingForMethod(encoding.DefaultMethod)
+		encoding.DefaultRequestEncoding = &RequestEncoding{
+			HTTPMethods:      []string{encoding.DefaultMethod},
+			HeaderParameters: defaultEncoding.HeaderParameters,
+			BodyParameters:   defaultEncoding.BodyParameters,
+			QueryParameters:  defaultEncoding.QueryParameters,
+		}
 	}
 
 	return encoding, nil
@@ -261,6 +327,9 @@ func DefaultClientHttpMethod(rpc *meta.RPC) string {
 // DescribeAuth generates a ParameterEncoding per field of the auth struct and returns it as
 // the AuthEncoding
 func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Options) (*AuthEncoding, error) {
+	if authSchema == nil {
+		return nil, nil
+	}
 	authStruct, err := getConcreteStructType(appMetaData, authSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "auth struct")
@@ -281,6 +350,9 @@ func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Opti
 // DescribeResponse generates a ParameterEncoding per field of the response struct and returns it as
 // the ResponseEncoding
 func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, options *Options) (*ResponseEncoding, error) {
+	if responseSchema == nil {
+		return nil, nil
+	}
 	responseStruct, err := getConcreteStructType(appMetaData, responseSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "response struct")
@@ -311,6 +383,9 @@ func keyDiff[T comparable, V any](src map[T]V, keys ...T) (diff []T) {
 // DescribeRequest groups the provided httpMethods by default ParameterLocation and returns a RequestEncoding
 // per ParameterLocation
 func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options *Options, httpMethods ...string) ([]*RequestEncoding, error) {
+	if requestSchema == nil {
+		return nil, nil
+	}
 	requestStruct, err := getConcreteStructType(appMetaData, requestSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "request struct")

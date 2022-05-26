@@ -359,7 +359,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	// Build the call to callAPI
 	callAPI := fmt.Sprintf(
 		"this.baseClient.callAPI(\"%s\", `%s`",
-		rpcEncoding.DefaultRequestEncoding.HTTPMethods[0],
+		rpcEncoding.DefaultMethod,
 		rpcPath,
 	)
 	if body != "" || headers != "" || query != "" {
