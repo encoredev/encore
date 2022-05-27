@@ -26,6 +26,7 @@ import (
 
 var json = jsoniter.Config{
 	EscapeHTML:             false,
+	IndentionStep:          config.JsonIndentStepForResponses(),
 	SortMapKeys:            true,
 	ValidateJsonRawMessage: true,
 }.Froze()

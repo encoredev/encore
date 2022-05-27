@@ -11,6 +11,7 @@
     "@tailwindcss/forms": "^0.2.1",
     "codemirror": "^5.65.1",
     "events": "^3.2.0",
+    "hjson": "^3.2.2",
     "json-rpc-protocol": "^0.13.1",
     "luxon": "^1.25.0",
     "react": "^17.0.0",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/codemirror": "^5.60.5",
     "@types/events": "^3.0.0",
+    "@types/hjson": "^2.4.3",
     "@types/luxon": "^1.25.1",
     "@types/node": "^14.14.25",
     "@types/react": "^17.0.0",

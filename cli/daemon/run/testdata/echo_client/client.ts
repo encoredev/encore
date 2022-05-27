@@ -252,6 +252,11 @@ export namespace echo {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
                 AnonStruct:       params.AnonStruct,
+                AuthHeader:       params.AuthHeader,
+                AuthQuery:        params.AuthQuery,
+                PathInt:          params.PathInt,
+                PathString:       params.PathString,
+                PathWild:         params.PathWild,
                 RawStruct:        params.RawStruct,
                 Struct:           params.Struct,
                 StructMap:        params.StructMap,
