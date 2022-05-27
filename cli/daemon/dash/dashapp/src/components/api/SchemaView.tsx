@@ -1,7 +1,7 @@
-import {ModeSpec, ModeSpecOptions} from "codemirror"
-import React, {Fragment} from "react"
+import { ModeSpec, ModeSpecOptions } from "codemirror"
+import React, { Fragment } from "react"
 import CM from "~c/api/cm/CM"
-import {APIMeta} from "./api"
+import { APIMeta, PathSegment_SegmentType, RPC, Service } from "./api"
 import {
     Builtin,
     Decl,
@@ -18,10 +18,9 @@ import {
     Type,
     TypeParameterRef
 } from "./schema"
-import {Service, RPC, PathSegment_SegmentType} from "./api"
 import HJSON from "hjson";
 
-export type Dialect = "go" | "typescript" | "json" | "curl" |  "table";
+export type Dialect = "go" | "typescript" | "json" | "curl" | "table";
 
 interface Props {
     meta: APIMeta;
@@ -81,13 +80,13 @@ abstract class TextBasedDialect extends DialectIface {
         const srcCode = this.renderAsText(d)
 
         return <CM cfg={{
-            value:    srcCode,
+            value: srcCode,
             readOnly: true,
-            theme:    "encore",
-            mode:     this.codeMirrorMode,
+            theme: "encore",
+            mode: this.codeMirrorMode,
         }}
-                   key={srcCode}
-                   noShadow={true}
+            key={srcCode}
+            noShadow={true}
         />
     }
 
@@ -98,13 +97,19 @@ abstract class TextBasedDialect extends DialectIface {
     }
 
     protected writeType(t: Type, topLevel?: boolean, altValue?: boolean) {
-        t.struct ? this.renderStruct(t.struct, topLevel) :
-            t.map ? this.renderMap(t.map) :
-                t.list ? this.renderList(t.list) :
-                    t.builtin ? this.renderBuiltin(t.builtin, altValue) :
-                        t.named ? this.renderNamed(t.named, topLevel) :
-                            t.type_parameter ? this.renderTypeParameter(t.type_parameter) :
-                                this.write("<unknown type>")
+        t.struct
+            ? this.renderStruct(t.struct, topLevel)
+            : t.map
+                ? this.renderMap(t.map)
+                : t.list
+                    ? this.renderList(t.list)
+                    : t.builtin
+                        ? this.renderBuiltin(t.builtin, altValue)
+                        : t.named
+                            ? this.renderNamed(t.named, topLevel)
+                            : t.type_parameter
+                                ? this.renderTypeParameter(t.type_parameter)
+                                : this.write("<unknown type>")
     }
 
     protected renderNamed(t: NamedType, topLevel?: boolean) {
@@ -234,7 +239,7 @@ class GoDialect extends TextBasedDialect {
         this.write("}")
     }
 
-    renderMap(t: MapType,) {
+    renderMap(t: MapType) {
         this.write("map[")
         this.writeType(t.key)
         this.write("]")
@@ -298,7 +303,7 @@ class GoDialect extends TextBasedDialect {
 
 class TypescriptDialect extends TextBasedDialect {
     constructor(meta: APIMeta) {
-        super(meta, {name: "javascript", typescript: true})
+        super(meta, { name: "javascript", typescript: true })
     }
 
     renderStruct(t: StructType) {
@@ -392,7 +397,7 @@ class TypescriptDialect extends TextBasedDialect {
 
 export class JSONDialect extends TextBasedDialect {
     constructor(md: APIMeta) {
-        super(md, {name: "javascript", json: true})
+        super(md, { name: "javascript", json: true })
     }
 
     writeSeenDecl(decl: Decl) {
@@ -538,6 +543,9 @@ export class JSONDialect extends TextBasedDialect {
         this.write(": ")
         this.writeType(t.value)
         this.writeln()
+
+        this.level--
+        this.indent()
         this.write("}")
     }
 
@@ -603,7 +611,7 @@ export class JSONDialect extends TextBasedDialect {
 
 class CurlDialect extends TextBasedDialect {
     constructor(meta: APIMeta) {
-        super(meta, {name:"javascript", json: true})
+        super(meta, { name: "javascript", json: true })
     }
 
     protected renderBuiltin(t: Builtin, altValue?: boolean): void {
@@ -625,14 +633,14 @@ class CurlDialect extends TextBasedDialect {
 
         const addr = undefined
         const path = this.rpc?.path.segments.map((s) => {
-         switch (s.type) {
-             case PathSegment_SegmentType.PARAM:
-                 return ':' + s.value
-             case PathSegment_SegmentType.WILDCARD:
-                 return '*' + s.value
-             default:
-                 return s.value
-         }
+            switch (s.type) {
+                case PathSegment_SegmentType.PARAM:
+                    return ':' + s.value
+                case PathSegment_SegmentType.WILDCARD:
+                    return '*' + s.value
+                default:
+                    return s.value
+            }
         }).join("/") ?? ''
 
         if (this.asResponse) {
@@ -679,6 +687,7 @@ class CurlDialect extends TextBasedDialect {
 
         let headers: Record<string, any> = {}
         let queryString = ''
+
         function addQuery(name: string, value: any) {
             if (Array.isArray(value)) {
                 return value.map((v) => {
@@ -797,7 +806,7 @@ class TableDialect extends DialectIface {
                     const [name, location] = fieldNameAndLocation(f, method, asResponse)
 
                     if (location === FieldLocation.UnusedField) {
-                        return <Fragment key={f.name}/>
+                        return <Fragment key={f.name} />
                     }
 
                     return <div key={f.name} className={i > 0 ? "border-t border-gray-200 mt-1 pt-1" : ""}>
@@ -807,7 +816,7 @@ class TableDialect extends DialectIface {
                             </div>
                             <div className="ml-2 text-xs text-gray-500 flex-grow p-0.5">{this.describeType(f.typ)}</div>
                             <div className="text-xs text-gray-700 bg-gray-100 rounded text-center p-1 cursor-help"
-                                 title={locationDescription(name, location)}>{location}</div>
+                                title={locationDescription(name, location)}>{location}</div>
                         </div>
                         <div className="flex">
                             {f.doc !== "" ? (
@@ -816,7 +825,7 @@ class TableDialect extends DialectIface {
                                 <div className="text-xs text-gray-400 flex-grow">No description.</div>
                             )}
                             <div className="text-xs font-mono text-gray-500"
-                                 title={"The encoded field name on the wire"}>
+                                title={"The encoded field name on the wire"}>
                                 {name}
                             </div>
                         </div>
@@ -916,11 +925,11 @@ class TableDialect extends DialectIface {
 }
 
 const dialects: { [key in Dialect]: (meta: APIMeta) => DialectIface } = {
-    "go":         (meta) => new GoDialect(meta),
+    "go": (meta) => new GoDialect(meta),
     "typescript": (meta) => new TypescriptDialect(meta),
-    "json":       (meta) => new JSONDialect(meta),
-    "curl":       (meta) => new CurlDialect(meta),
-    "table":      (meta) => new TableDialect(meta),
+    "json": (meta) => new JSONDialect(meta),
+    "curl": (meta) => new CurlDialect(meta),
+    "table": (meta) => new TableDialect(meta),
 }
 
 // This function serves two purposes

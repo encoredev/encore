@@ -1,16 +1,16 @@
-import {Listbox, Menu, Transition} from "@headlessui/react";
-import CodeMirror, {EditorConfiguration} from "codemirror";
-import React, {FC, useEffect, useImperativeHandle, useRef, useState} from "react";
+import { Listbox, Menu, Transition } from "@headlessui/react";
+import CodeMirror, { EditorConfiguration } from "codemirror";
+import React, { FC, useEffect, useImperativeHandle, useRef, useState } from "react";
 import HJSON from "hjson"
 import * as icons from "~c/icons";
 import Input from "~c/Input";
-import {decodeBase64, encodeBase64} from "~lib/base64";
+import { decodeBase64, encodeBase64 } from "~lib/base64";
 import JSONRPCConn from "~lib/client/jsonrpc";
-import {copyToClipboard} from "~lib/clipboard";
-import {APIMeta, PathSegment, RPC, Service} from "./api";
+import { copyToClipboard } from "~lib/clipboard";
+import { APIMeta, PathSegment, RPC, Service } from "./api";
 import CM from "./cm/CM";
-import {FieldLocation, fieldNameAndLocation, Type, Builtin, NamedType} from "./schema";
-import {JSONDialect} from "~c/api/SchemaView";
+import { Builtin, FieldLocation, fieldNameAndLocation, NamedType } from "./schema";
+import { JSONDialect } from "~c/api/SchemaView";
 
 interface Props {
     conn: JSONRPCConn;
@@ -22,76 +22,19 @@ interface Props {
 }
 
 export const cfg: EditorConfiguration = {
-    theme:             "encore",
-    mode:              "json",
-    lineNumbers:       false,
-    lineWrapping:      false,
-    indentWithTabs:    true,
-    indentUnit:        4,
-    tabSize:           4,
+    theme: "encore",
+    mode: "json",
+    lineNumbers: false,
+    lineWrapping: false,
+    indentWithTabs: true,
+    indentUnit: 4,
+    tabSize: 4,
     autoCloseBrackets: true,
-    matchBrackets:     true,
-    styleActiveLine:   false,
+    matchBrackets: true,
+    styleActiveLine: false,
 }
 
-const APICallButton: FC<{ send: () => void; copyCurl: () => void; }> = (props) => {
-    return (
-        <span className="ml-auto flex-none relative z-0 inline-flex shadow-sm rounded-md self-start">
-      <button type="button"
-              className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-purple-700 bg-purple-600 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:outline-none focus:ring-0 focus:border-purple-500"
-              onClick={() => props.send()}>
-        Call API
-      </button>
-      <span className="-ml-px relative block z-10">
-        <Menu>
-          {({open}) => (
-              <>
-                  <Menu.Button
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-purple-700 bg-purple-600 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:outline-none focus:ring-0">
-                      <span className="sr-only">Open options</span>
-                      {icons.chevronDown("h-5 w-5")}
-                  </Menu.Button>
-
-                  <Transition
-                      show={open}
-                      enter="transition ease-out duration-100"
-                      enterFrom="transform opacity-0 scale-95"
-                      enterTo="transform opacity-100 scale-100"
-                      leave="transition ease-in duration-75"
-                      leaveFrom="transform opacity-100 scale-100"
-                      leaveTo="transform opacity-0 scale-95"
-                  >
-                      <Menu.Items
-                          static
-                          className="absolute right-0 w-56 mt-2 origin-top-right bg-white border border-gray-200 divide-y divide-gray-100 rounded-md shadow-lg outline-none"
-                      >
-                          <div className="py-1">
-                              <Menu.Item>
-                                  {({active}) => (
-                                      <button
-                                          className={`${
-                                              active
-                                                  ? "bg-gray-100 text-gray-900"
-                                                  : "text-gray-700"
-                                          } flex justify-between w-full px-4 py-2 text-sm leading-5 text-left`}
-                                          onClick={() => props.copyCurl()}
-                                      >
-                                          Copy as curl
-                                      </button>
-                                  )}
-                              </Menu.Item>
-                          </div>
-                      </Menu.Items>
-                  </Transition>
-              </>
-          )}
-        </Menu>
-      </span>
-    </span>
-    )
-}
-
-const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
+const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
     const payloadCM = useRef<CM>(null)
     const authCM = useRef<CM>(null)
     const pathRef = useRef<{ getPath: () => string | undefined; getMethod: () => string }>(null)
@@ -135,13 +78,13 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             setRespErr(undefined)
             const resp = await conn.request("api-call", {
                 appID,
-                service:      svc.name,
-                endpoint:     rpc.name,
+                service: svc.name,
+                endpoint: rpc.name,
                 method,
                 path,
                 auth_payload: encodeBase64(authBody),
-                auth_token:   authToken,
-                payload:      encodeBase64(reqBody)
+                auth_token: authToken,
+                payload: encodeBase64(reqBody)
             }) as any
             let respBody = ""
             if (resp.body.length > 0) {
@@ -163,9 +106,21 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
     }
 
     useEffect(() => {
-        if (method !== rpc.http_methods[0]) {
-            setMethod(rpc.http_methods[0])
+        if (rpc.request_schema) {
+            let doc = docs.current.get(rpc)
+            if (doc === undefined) {
+                const js = new JSONDialect(md).renderAsText(rpc.request_schema)
+                doc = new CodeMirror.Doc(js, {
+                    name: "javascript",
+                    json: true,
+                })
+                docs.current.set(rpc, doc)
+            }
+            payloadCM.current?.open(doc)
         }
+
+        setResponse(undefined)
+        setRespErr(undefined)
     }, [rpc])
 
     function namedTypeToHJSON(named: NamedType): string {
@@ -326,17 +281,17 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
                 Request
             </h4>
             <div
-                className={`text-xs mt-1 rounded border border-gray-200 ${rpc.request_schema || hasPathParams ? "block" : "hidden"} p-1 divide-y divide-gray-500`}
-                style={{backgroundColor: "#2d3748"}}>
+                className={`text-xs mt-1 rounded border border-gray-200 ${rpc.request_schema || hasPathParams || md.auth_handler ? "block" : "hidden"} p-1 divide-y divide-gray-500`}
+                style={{ backgroundColor: "#2d3748" }}>
                 <div>
-                    <RPCPathEditor ref={pathRef} rpc={rpc} method={method} setMethod={setMethod}/>
+                    <RPCPathEditor ref={pathRef} rpc={rpc} method={method} setMethod={setMethod} />
                 </div>
                 <div className={`${rpc.request_schema ? "block" : " hidden"}`}>
-                    <CM ref={payloadCM} cfg={cfg}/>
+                    <CM ref={payloadCM} cfg={cfg} />
                 </div>
                 {md.auth_handler && md.auth_handler.params?.named !== undefined &&
                     <div className="">
-                        <CM ref={authCM} cfg={cfg}/>
+                        <CM ref={authCM} cfg={cfg} />
                     </div>
                 }
             </div>
@@ -347,10 +302,10 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
                 {md.auth_handler && md.auth_handler.params?.builtin === Builtin.STRING &&
                     <div className="flex-1 min-w-0 mr-1 relative rounded-md shadow-sm">
                         <Input id="" cls="w-full" placeholder="Auth Token" required={rpc.access_type === "AUTH"}
-                               value={authToken} onChange={setAuthToken}/>
+                            value={authToken} onChange={setAuthToken} />
                     </div>
                 }
-                <APICallButton send={makeRequest} copyCurl={copyCurl}/>
+                <APICallButton send={makeRequest} copyCurl={copyCurl} />
 
             </div>
 
@@ -360,17 +315,17 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             {response ? (
                 <pre
                     className="text-xs shadow-inner rounded border border-gray-300 bg-gray-200 p-2 overflow-x-auto response-docs">
-          <CM
-              key={response}
-              cfg={{
-                  value:    response,
-                  readOnly: true,
-                  theme:    "encore",
-                  mode:     {name: "javascript", json: true},
-              }}
-              noShadow={true}
-          />
-        </pre>
+                    <CM
+                        key={response}
+                        cfg={{
+                            value: response,
+                            readOnly: true,
+                            theme: "encore",
+                            mode: { name: "javascript", json: true },
+                        }}
+                        noShadow={true}
+                    />
+                </pre>
             ) : respErr ? (
                 <div className="text-sm text-red-600 font-mono">
                     <div className="font-bold">{respErr[0]}</div>
@@ -397,19 +352,76 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
 
 export default RPCCaller
 
+const APICallButton: FC<{ send: () => void; copyCurl: () => void; }> = (props) => {
+    return (
+        <span className="ml-auto flex-none relative z-0 inline-flex shadow-sm rounded-md self-start">
+            <button type="button"
+                className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-purple-700 bg-purple-600 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:outline-none focus:ring-0 focus:border-purple-500"
+                onClick={() => props.send()}>
+                Call API
+            </button>
+            <span className="-ml-px relative block z-10">
+                <Menu>
+                    {({ open }) => (
+                        <>
+                            <Menu.Button
+                                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-purple-700 bg-purple-600 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:outline-none focus:ring-0">
+                                <span className="sr-only">Open options</span>
+                                {icons.chevronDown("h-5 w-5")}
+                            </Menu.Button>
+
+                            <Transition
+                                show={open}
+                                enter="transition ease-out duration-100"
+                                enterFrom="transform opacity-0 scale-95"
+                                enterTo="transform opacity-100 scale-100"
+                                leave="transition ease-in duration-75"
+                                leaveFrom="transform opacity-100 scale-100"
+                                leaveTo="transform opacity-0 scale-95"
+                            >
+                                <Menu.Items
+                                    static
+                                    className="absolute right-0 w-56 mt-2 origin-top-right bg-white border border-gray-200 divide-y divide-gray-100 rounded-md shadow-lg outline-none"
+                                >
+                                    <div className="py-1">
+                                        <Menu.Item>
+                                            {({ active }) => (
+                                                <button
+                                                    className={`${active
+                                                        ? "bg-gray-100 text-gray-900"
+                                                        : "text-gray-700"
+                                                        } flex justify-between w-full px-4 py-2 text-sm leading-5 text-left`}
+                                                    onClick={() => props.copyCurl()}
+                                                >
+                                                    Copy as curl
+                                                </button>
+                                            )}
+                                        </Menu.Item>
+                                    </div>
+                                </Menu.Items>
+                            </Transition>
+                        </>
+                    )}
+                </Menu>
+            </span>
+        </span>
+    )
+}
+
+
 export const pathEditorCfg: EditorConfiguration = {
-    theme:             "encore",
-    mode:              "json",
-    lineNumbers:       false,
-    lineWrapping:      false,
-    indentWithTabs:    true,
-    indentUnit:        4,
-    tabSize:           4,
+    theme: "encore",
+    mode: "json",
+    lineNumbers: false,
+    lineWrapping: false,
+    indentWithTabs: true,
+    indentUnit: 4,
+    tabSize: 4,
     autoCloseBrackets: true,
-    matchBrackets:     true,
-    styleActiveLine:   false,
-    extraKeys:         {
-        Tab:         (cm: CodeMirror.Editor) => {
+    matchBrackets: true,
+    styleActiveLine: false,
+    extraKeys: {
+        Tab: (cm: CodeMirror.Editor) => {
             const doc = cm.getDoc()
             const cur = doc.getCursor()
             if (!cur) {
@@ -466,7 +478,7 @@ function classNames(...classes: string[]) {
 
 const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
     rpc: RPC; method: string; setMethod: (m: string) => void;
-}>(({rpc, method, setMethod}, ref) => {
+}>(({ rpc, method, setMethod }, ref) => {
     interface DocState {
         rpc: RPC;
         doc: CodeMirror.Doc;
@@ -476,7 +488,7 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
     const pathCM = useRef<CM>(null)
     const docs = useRef(new Map<RPC, DocState>())
     const docMap = useRef(new Map<CodeMirror.Doc, DocState>())
-    const timeoutHandle = useRef<{ id: number | null }>({id: null})
+    const timeoutHandle = useRef<{ id: number | null }>({ id: null })
 
     // Reset the method when the RPC changes
     useEffect(() => {
@@ -497,34 +509,34 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
             const ln = placeholder.length
             segments.push(placeholder)
             if (s.type !== "LITERAL") {
-                readWrites.push({placeholder, seg: s, from: pos, to: pos + ln})
+                readWrites.push({ placeholder, seg: s, from: pos, to: pos + ln })
             }
             pos += ln
         }
 
         const val = segments.join("")
-        const doc = new CodeMirror.Doc(val,)
+        const doc = new CodeMirror.Doc(val)
 
         let prevEnd = 0
         let i = 0
         const markers: CodeMirror.TextMarker<CodeMirror.MarkerRange>[] = []
         for (const rw of readWrites) {
-            doc.markText({ch: prevEnd, line: 0}, {ch: rw.from, line: 0}, {
-                atomic:         true,
-                readOnly:       true,
+            doc.markText({ ch: prevEnd, line: 0 }, { ch: rw.from, line: 0 }, {
+                atomic: true,
+                readOnly: true,
                 clearWhenEmpty: false,
-                clearOnEnter:   false,
-                className:      "text-gray-400",
-                selectLeft:     i > 0,
-                selectRight:    true,
+                clearOnEnter: false,
+                className: "text-gray-400",
+                selectLeft: i > 0,
+                selectRight: true,
             })
-            const m = doc.markText({ch: rw.from, line: 0}, {ch: rw.to, line: 0}, {
-                className:      "text-green-400",
+            const m = doc.markText({ ch: rw.from, line: 0 }, { ch: rw.to, line: 0 }, {
+                className: "text-green-400",
                 clearWhenEmpty: false,
-                clearOnEnter:   false,
-                inclusiveLeft:  true,
+                clearOnEnter: false,
+                inclusiveLeft: true,
                 inclusiveRight: true,
-                attributes:     {placeholder: rw.placeholder, segmentType: rw.seg.type},
+                attributes: { placeholder: rw.placeholder, segmentType: rw.seg.type },
             })
             markers.push(m)
             m.on("beforeCursorEnter", () => {
@@ -546,14 +558,14 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
             i++
         }
 
-        doc.markText({ch: prevEnd, line: 0}, {ch: val.length, line: 0}, {
-            atomic:         true,
-            readOnly:       true,
+        doc.markText({ ch: prevEnd, line: 0 }, { ch: val.length, line: 0 }, {
+            atomic: true,
+            readOnly: true,
             clearWhenEmpty: false,
-            clearOnEnter:   false,
-            className:      "text-gray-400",
-            selectLeft:     prevEnd > 0,
-            selectRight:    false,
+            clearOnEnter: false,
+            className: "text-gray-400",
+            selectLeft: prevEnd > 0,
+            selectRight: false,
         })
 
         CodeMirror.on(doc, "beforeChange", (doc: CodeMirror.Doc, change: CodeMirror.EditorChangeCancellable) => {
@@ -564,8 +576,7 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
             for (const m of markers) {
                 const r = m.find()
                 if (r && change.from.ch >= r.from.ch && change.from.ch <= r.to.ch) {
-                    const typ = m.attributes?.segmentType
-                    if (typ === "PARAM") {
+                    if (m.attributes?.segmentType === "PARAM") {
                         change.cancel()
                     }
                     return
@@ -573,16 +584,18 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
             }
         })
 
-        const ds = {rpc, doc, markers: markers}
+        const ds = { rpc, doc, markers: markers }
         docs.current.set(rpc, ds)
         docMap.current.set(doc, ds)
         pathCM.current?.open(ds!.doc)
-    }, [rpc, method])
+    },
+        [rpc, method]
+    )
 
     useImperativeHandle(ref, () => {
         // noinspection JSUnusedGlobalSymbols
         return {
-            getPath:   () => pathCM.current?.cm?.getValue(),
+            getPath: () => pathCM.current?.cm?.getValue(),
             getMethod: () => method,
         }
     })
@@ -590,14 +603,14 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
     return <div className="flex items-center">
         {rpc.http_methods.length > 1 ? (
             <Listbox value={method} onChange={setMethod}>
-                {({open}) => (
+                {({ open }) => (
                     <div className="relative">
                         <Listbox.Button
                             className="relative block text-left cursor-default focus:outline-none pl-1 pr-5 py-0.5 text-green-800 bg-green-100 hover:bg-green-200 rounded-sm font-mono font-semibold text-xs">
                             <span className="block truncate">{method}</span>
                             <span className="absolute inset-y-0 right-0 flex items-center pointer-events-none">
-                {icons.chevronDown("h-5 w-5 text-green-600")}
-              </span>
+                                {icons.chevronDown("h-5 w-5 text-green-600")}
+                            </span>
                         </Listbox.Button>
                         <Transition
                             show={open}
@@ -612,7 +625,7 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
                                 {rpc.http_methods.map((m) => (
                                     <Listbox.Option
                                         key={m}
-                                        className={({active}) =>
+                                        className={({ active }) =>
                                             classNames(
                                                 active ? 'text-white bg-green-600' : 'text-gray-900',
                                                 'cursor-default select-none relative py-1 pl-3 pr-9'
@@ -620,11 +633,11 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
                                         }
                                         value={m}
                                     >
-                                        {({selected, active}) => (
+                                        {({ selected, active }) => (
                                             <>
-                        <span className={classNames(selected ? 'font-semibold' : 'font-normal', 'block truncate')}>
-                          {m}
-                        </span>
+                                                <span className={classNames(selected ? 'font-semibold' : 'font-normal', 'block truncate')}>
+                                                    {m}
+                                                </span>
 
                                                 {selected ? (
                                                     <span
@@ -633,8 +646,8 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
                                                             'absolute inset-y-0 right-0 flex items-center pr-4'
                                                         )}
                                                     >
-                            {icons.check("h-5 w-5")}
-                          </span>
+                                                        {icons.check("h-5 w-5")}
+                                                    </span>
                                                 ) : null}
                                             </>
                                         )}
@@ -647,43 +660,7 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
             </Listbox>
         ) : <div className="text-white font-mono text-xs px-1">{method}</div>}
         <div className="flex-1">
-            <CM ref={pathCM} cfg={pathEditorCfg} className="overflow-visible"/>
+            <CM ref={pathCM} cfg={pathEditorCfg} className="overflow-visible" />
         </div>
     </div>
 })
-
-// encodeQuery encodes a payload matching the given schema as a query string.
-// If the payload can't be parsed as JSON it throws an exception.
-function encodeQuery(md: APIMeta, schema: Type, payload: string): string {
-    const json = JSON.parse(payload)
-    let pairs: string[] = []
-
-    if (schema.named) {
-        const declID = schema.named.id
-        const decl = md.decls[declID]
-
-        for (const f of decl.type.struct?.fields ?? []) {
-            let key = f.json_name
-            let qsName = f.query_string_name
-            if (key === "-" || qsName === "-") {
-                continue
-            } else if (key === "") {
-                key = f.name
-            }
-
-            let val = json[key]
-            if (typeof val === "undefined") {
-                continue
-            } else if (!Array.isArray(val)) {
-                val = [val]
-            }
-            for (const v of val) {
-                pairs.push(`${qsName}=${encodeURIComponent(v)}`)
-            }
-        }
-    } else {
-        throw new Error('expected a named type to encode the query');
-    }
-
-    return pairs.join("&")
-}
