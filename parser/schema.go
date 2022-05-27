@@ -6,6 +6,7 @@ import (
 	"go/types"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/fatih/structtag"
 
@@ -15,6 +16,13 @@ import (
 )
 
 var additionalTypeResolver = func(p *parser, pkg *est.Package, file *est.File, expr ast.Expr) *schema.Type { return nil }
+
+// disallowedHeaders is a list of headers that we will not let an
+// application either read from requests or write in responses.
+var disallowedHeaders = []string{
+	"Cookie", "Cookie2", "Set-Cookie", "Set-Cookie2",
+	"Upgrade",
+}
 
 // resolveType parses the schema from a type expression.
 func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) *schema.Type {
@@ -262,6 +270,13 @@ func (p *parser) parseStructTag(tag *ast.BasicLit, resolvedType *schema.Type) st
 		// is being used as a slice.
 		if resolvedType.GetTypeParameter() != nil {
 			p.errf(tag.Pos(), "header tags are not allowed on generic fields")
+		}
+
+		// We don't allow certain header name to be set for security reasons
+		for _, headerName := range disallowedHeaders {
+			if strings.EqualFold(headerName, strings.TrimSpace(header.Name)) {
+				p.errf(tag.Pos(), "a header name of %s is not allowed", headerName)
+			}
 		}
 
 		// Because we need to do type casting in the clients, we're limiting the types to built in Encore types

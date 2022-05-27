@@ -91,7 +91,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		if err != nil {
 			if strings.Contains(err.Error(), "env_not_found") {
 				if envName == "@primary" {
-					return nil, status.Errorf(codes.NotFound, "You have no deployments of this application.\n\nYou can generate the client for your local code by setting `--env=local`.", envName)
+					return nil, status.Error(codes.NotFound, "You have no deployments of this application.\n\nYou can generate the client for your local code by setting `--env=local`.")
 				}
 				return nil, status.Errorf(codes.NotFound, "A deployed environment called `%s` not found.\n\nYou can generate the client for your local code by setting `--env=local`.", envName)
 			}
