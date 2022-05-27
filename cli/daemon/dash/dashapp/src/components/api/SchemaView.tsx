@@ -4,7 +4,8 @@ import CM from "~c/api/cm/CM"
 import {APIMeta} from "./api"
 import {
     Builtin,
-    Decl, DescribedField,
+    Decl,
+    DescribedField,
     Field,
     FieldLocation,
     fieldNameAndLocation,
@@ -18,6 +19,7 @@ import {
     TypeParameterRef
 } from "./schema"
 import HJSON from "hjson";
+import {type} from "@headlessui/react/dist/test-utils/interactions";
 
 export type Dialect = "go" | "typescript" | "json" | "curl" |  "table";
 
@@ -165,6 +167,16 @@ class GoDialect extends TextBasedDialect {
         this.writeln("struct {")
         this.level++
 
+        const typeAsString = (typ: Type): string => {
+            const oldBuf = this.buf
+            this.buf = []
+            this.writeType(typ)
+            const type = this.buf.join("")
+            this.buf = oldBuf
+
+            return type
+        }
+
         // Calculate the longest field name so we can align the types
         const longestFieldName = t.fields.reduce<number>((previous: number, current: Field) => {
             if (current.name.length > previous) {
@@ -173,12 +185,31 @@ class GoDialect extends TextBasedDialect {
 
             return previous
         }, 0)
+        
+        const longestSingleLineType = t.fields.reduce<number>((previous: number, current: Field) => {
+            const type = typeAsString(current.typ)
+            if (type.indexOf("\n") < 0 && type.length > previous) {
+                return type.length
+            }
+
+            return previous
+        }, 0)
 
         t.fields.map(f => {
+            const [_, location] = fieldNameAndLocation(f, this.method, this.asResponse)
+            if (location === FieldLocation.UnusedField) {
+                return
+            }
+
             this.indent()
             this.write(f.name)
             this.write(" ".repeat(longestFieldName - f.name.length + 1))
-            this.writeType(f.typ)
+
+            const type = typeAsString(f.typ)
+            this.write(type)
+            if (type.indexOf("\n") < 0) {
+                this.write(" ".repeat(Math.max(longestSingleLineType - type.length, 0)))
+            }
 
             if (f.raw_tag) {
                 this.write(" `", f.raw_tag, "`")
