@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -322,12 +323,7 @@ func findRPC(md *v1.Data, service, endpoint string) *v1.RPC {
 
 // prepareRequest prepares a request for sending based on the given apiCallParams.
 func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCallParams) (*http.Request, error) {
-	url := baseURL + p.Path
-	req, err := http.NewRequestWithContext(ctx, p.Method, url, nil)
-	if err != nil {
-		return nil, err
-	}
-
+	reqSpec := newHTTPRequestSpec()
 	rpc := findRPC(md, p.Service, p.Endpoint)
 	if rpc == nil {
 		return nil, fmt.Errorf("unknown service/endpoint: %s/%s", p.Service, p.Endpoint)
@@ -339,15 +335,13 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 		return nil, fmt.Errorf("describe rpc: %v", err)
 	}
 
-	bodyParams := make(map[string]json.RawMessage)
-
 	// Add request encoding
 	{
 		reqEnc := rpcEncoding.RequestEncodingForMethod(p.Method)
 		if reqEnc == nil {
 			return nil, fmt.Errorf("unsupported method: %s", p.Method)
 		}
-		if err := addToRequest(req, p.Payload, bodyParams, reqEnc.ParameterEncodingMap()); err != nil {
+		if err := addToRequest(reqSpec, p.Payload, reqEnc.ParameterEncodingMap()); err != nil {
 			return nil, fmt.Errorf("encode request params: %v", err)
 		}
 	}
@@ -359,32 +353,63 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 			return nil, fmt.Errorf("describe auth: %v", err)
 		}
 		if auth.LegacyTokenFormat {
-			req.Header.Set("Authorization", "Bearer "+p.AuthToken)
+			reqSpec.Header.Set("Authorization", "Bearer "+p.AuthToken)
 		} else {
-			if err := addToRequest(req, p.AuthPayload, bodyParams, auth.ParameterEncodingMap()); err != nil {
+			if err := addToRequest(reqSpec, p.AuthPayload, auth.ParameterEncodingMap()); err != nil {
 				return nil, fmt.Errorf("encode auth params: %v", err)
 			}
 		}
 	}
 
-	// Replicate behavior of http.NewRequestWithContext by setting Body, GetBody, and ContentLength.
-	body, _ := json.Marshal(bodyParams)
-	req.ContentLength = int64(len(body))
-	if req.ContentLength > 0 {
-		getBody := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(body)) }
-		req.GetBody = func() (io.ReadCloser, error) { return getBody(), nil }
-		req.Body = getBody()
-	} else {
-		req.Body = http.NoBody
+	var body io.Reader = nil
+	if reqSpec.Body != nil {
+		data, _ := json.Marshal(reqSpec.Body)
+		body = bytes.NewReader(data)
+		if reqSpec.Header["Content-Type"] == nil {
+			reqSpec.Header.Set("Content-Type", "application/json")
+		}
 	}
 
+	reqURL := baseURL + p.Path
+	if len(reqSpec.Query) > 0 {
+		reqURL += "?" + reqSpec.Query.Encode()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, p.Method, reqURL, body)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range reqSpec.Header {
+		req.Header[k] = v
+	}
 	return req, nil
+}
+
+// httpRequestSpec specifies how the HTTP request should be generated.
+type httpRequestSpec struct {
+	// Body are the fields to encode as the JSON body.
+	// If nil, no body is added.
+	Body map[string]json.RawMessage
+
+	// Header are the HTTP headers to set in the request.
+	Header http.Header
+
+	// Query are the query string fields to set.
+	Query url.Values
+}
+
+func newHTTPRequestSpec() *httpRequestSpec {
+	return &httpRequestSpec{
+		Body:   nil, // to distinguish between no body and "{}".
+		Header: make(http.Header),
+		Query:  make(url.Values),
+	}
 }
 
 // addToRequest decodes rawPayload and adds it to the request according to the given parameter encodings.
 // The body argument is where body parameters are added; other parameter locations are added
 // directly to the request object itself.
-func addToRequest(req *http.Request, rawPayload []byte, body map[string]json.RawMessage, params map[string]*encoding.ParameterEncoding) error {
+func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string]*encoding.ParameterEncoding) error {
 	payload, err := hujson.Parse(rawPayload)
 	if err != nil {
 		return fmt.Errorf("invalid payload: %v", err)
@@ -403,16 +428,19 @@ func addToRequest(req *http.Request, rawPayload []byte, body map[string]json.Raw
 		if param, ok := params[key]; ok {
 			switch param.Location {
 			case encoding.Body:
-				body[param.Name] = val.Pack()
+				if req.Body == nil {
+					req.Body = make(map[string]json.RawMessage)
+				}
+				req.Body[param.Name] = val.Pack()
 
 			case encoding.Query:
 				switch v := val.Value.(type) {
 				case hujson.Literal:
-					req.URL.Query().Add(param.Name, v.String())
+					req.Query.Add(param.Name, v.String())
 				case *hujson.Array:
 					for _, elem := range v.Elements {
 						if lit, ok := elem.Value.(hujson.Literal); ok {
-							req.URL.Query().Add(param.Name, lit.String())
+							req.Query.Add(param.Name, lit.String())
 						} else {
 							return fmt.Errorf("unsupported value type for query string array element: %T", elem.Value)
 						}
