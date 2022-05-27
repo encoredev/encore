@@ -16,13 +16,13 @@ import (
 )
 
 // ParameterLocation is the request/response home of the parameter
-type ParameterLocation int
+type ParameterLocation string
 
 const (
-	Undefined ParameterLocation = iota // Parameter location is Undefined
-	Header                             // Parameter is placed in the HTTP header
-	Query                              // Parameter is placed in the query string
-	Body                               // Parameter is placed in the body
+	Undefined ParameterLocation = "undefined" // Parameter location is Undefined
+	Header    ParameterLocation = "header"    // Parameter is placed in the HTTP header
+	Query     ParameterLocation = "query"     // Parameter is placed in the query string
+	Body      ParameterLocation = "body"      // Parameter is placed in the body
 )
 
 var (
@@ -101,7 +101,8 @@ type RPCEncoding struct {
 	ResponseEncoding *ResponseEncoding `json:"response_encoding"`
 }
 
-// RequestEncodingForMethod returns the request encoding required for the given HTTP method
+// RequestEncodingForMethod returns the request encoding required for the given HTTP method.
+// If the method is not supported by the RPC it reports nil.
 func (e *RPCEncoding) RequestEncodingForMethod(method string) *RequestEncoding {
 	for _, reqEnc := range e.RequestEncoding {
 		for _, m := range reqEnc.HTTPMethods {
@@ -113,11 +114,20 @@ func (e *RPCEncoding) RequestEncodingForMethod(method string) *RequestEncoding {
 	return nil
 }
 
-// AuthEncoding expresses how a response should be encoded on the wire
+// AuthEncoding expresses how a response should be encoded on the wire.
 type AuthEncoding struct {
+	// LegacyTokenFormat specifies whether the auth encoding uses the legacy format of
+	// "just give us a token as a string". If true, the other parameters are all empty.
+	LegacyTokenFormat bool
+
 	// Contains metadata about how to marshal an HTTP parameter
 	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
+}
+
+// ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
+func (e *AuthEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
+	return toEncodingMap(e.QueryParameters, e.HeaderParameters)
 }
 
 // ResponseEncoding expresses how a response should be encoded on the wire
@@ -125,6 +135,11 @@ type ResponseEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
+}
+
+// ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
+func (e *ResponseEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
+	return toEncodingMap(e.BodyParameters, e.HeaderParameters)
 }
 
 // RequestEncoding expresses how a request should be encoded for an explicit set of HTTPMethods
@@ -137,23 +152,37 @@ type RequestEncoding struct {
 	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
 }
 
+// ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
+func (e *RequestEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
+	return toEncodingMap(e.BodyParameters, e.HeaderParameters, e.QueryParameters)
+}
+
 // ParameterEncoding expresses how a parameter should be encoded on the wire
 type ParameterEncoding struct {
-	// The location specific name of the parameter (e.g. cheeseEater, cheese-eater, X-Cheese-Eater
+	// The location specific name of the parameter (e.g. cheeseEater, cheese-eater, X-Cheese-Eater)
 	Name string `json:"name"`
-	// Whether the parameter should be omitted if it's empty
+	// Location is the location this encoding is for.
+	Location ParameterLocation `json:"location"`
+	// OmitEmpty specifies whether the parameter should be omitted if it's empty.
 	OmitEmpty bool `json:"omit_empty"`
-	// The name of the struct field
+	// SrcName is the name of the struct field
 	SrcName string `json:"src_name"`
-	// Doc of the struct field
+	// Doc is the documentation of the struct field
 	Doc string `json:"doc"`
-	// The field type
+	// Type is the field's type description.
 	Type *schema.Type `json:"type"`
-	// The raw tag of the field
+	// RawTag specifies the raw, unparsed struct tag for the field.
 	RawTag string `json:"raw_tag"`
 }
 
 type Options struct {
+	// SrcNameTag, if set, specifies which source tag should be used to determine
+	// the value of the SrcName field in the returned parameter descriptions.
+	//
+	// If the given SrcNameTag is not present on the field, SrcName will be set
+	// to the Go field name instead.
+	//
+	// If SrcNameTag is empty, SrcName is set to the Go field name.
 	SrcNameTag string
 }
 
@@ -324,11 +353,23 @@ func DefaultClientHttpMethod(rpc *meta.RPC) string {
 }
 
 // DescribeAuth generates a ParameterEncoding per field of the auth struct and returns it as
-// the AuthEncoding
+// the AuthEncoding. If authSchema is nil it returns nil, nil.
 func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Options) (*AuthEncoding, error) {
 	if authSchema == nil {
 		return nil, nil
 	}
+
+	switch t := authSchema.Typ.(type) {
+	case *schema.Type_Builtin:
+		if t.Builtin != schema.Builtin_STRING {
+			return nil, errors.Newf("unsupported auth parameter %v", errors.Safe(t.Builtin))
+		}
+		return &AuthEncoding{LegacyTokenFormat: true}, nil
+	case *schema.Type_Named:
+	default:
+		return nil, errors.Newf("unsupported auth parameter type %T", errors.Safe(t))
+	}
+
 	authStruct, err := getConcreteStructType(appMetaData, authSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "auth struct")
@@ -430,13 +471,13 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options
 func describeParams(encodingHints *encodingHints, payload *schema.Struct) (fields map[ParameterLocation][]*ParameterEncoding, err error) {
 	paramByLocation := make(map[ParameterLocation][]*ParameterEncoding)
 	for _, f := range payload.GetFields() {
-		location, f, err := describeParam(encodingHints, f)
+		f, err := describeParam(encodingHints, f)
 		if err != nil {
 			return nil, err
 		}
 
 		if f != nil {
-			paramByLocation[location] = append(paramByLocation[location], f)
+			paramByLocation[f.Location] = append(paramByLocation[f.Location], f)
 		}
 	}
 	return paramByLocation, nil
@@ -462,11 +503,11 @@ func IgnoreField(field *schema.Field) bool {
 	return false
 }
 
-// describeParam returns a ParameterLocation, ParameterEncoding  which uses field tags to describe how the parameter
-// (e.g. qs, query, header) should be encoded in HTTP (name and location)
+// describeParam returns the ParameterEncoding which uses field tags to describe how the parameter
+// (e.g. qs, query, header) should be encoded in HTTP (name and location).
 //
-// will return nil as the ParameterEncoding if the field is not to be encoded
-func describeParam(encodingHints *encodingHints, field *schema.Field) (ParameterLocation, *ParameterEncoding, error) {
+// It returns nil, nil if the field is not to be encoded.
+func describeParam(encodingHints *encodingHints, field *schema.Field) (*ParameterEncoding, error) {
 	location := encodingHints.defaultLocation
 	param := ParameterEncoding{
 		Name:      formatName(encodingHints.defaultLocation, field.Name),
@@ -480,7 +521,7 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (Parameter
 	var usedOverrideTag string
 	for _, tag := range field.Tags {
 		if IgnoreField(field) {
-			return location, nil, nil
+			return nil, nil
 		}
 
 		tagHint, ok := encodingHints.tags[tag.Key]
@@ -490,7 +531,7 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (Parameter
 
 		if tagHint.overrideDefault {
 			if usedOverrideTag != "" {
-				return 0, nil, errors.Newf("tag conflict: %s cannot be combined with %s", usedOverrideTag, tag.Key)
+				return nil, errors.Newf("tag conflict: %s cannot be combined with %s", usedOverrideTag, tag.Key)
 			}
 			location = tagHint.location
 			usedOverrideTag = tag.Key
@@ -515,8 +556,20 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (Parameter
 	}
 
 	if param.Name == "-" {
-		return location, nil, nil
+		return nil, nil
 	}
 
-	return location, &param, nil
+	param.Location = location
+	return &param, nil
+}
+
+// toEncodingMap returns a map from SrcName to parameter encodings.
+func toEncodingMap(encodings ...[]*ParameterEncoding) map[string]*ParameterEncoding {
+	res := make(map[string]*ParameterEncoding)
+	for _, e := range encodings {
+		for _, param := range e {
+			res[param.SrcName] = param
+		}
+	}
+	return res
 }

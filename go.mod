@@ -15,7 +15,7 @@ require (
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/golang/protobuf v1.5.2
-	github.com/google/go-cmp v0.5.7
+	github.com/google/go-cmp v0.5.8
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/go-version v1.4.0
 	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87
@@ -30,7 +30,7 @@ require (
 	github.com/rs/xid v1.3.0
 	github.com/rs/zerolog v1.26.1
 	github.com/spf13/cobra v1.4.0
-	github.com/tailscale/hujson v0.0.0-20220421170326-6583d0610064
+	github.com/tailscale/hujson v0.0.0-20220506213045-af5ed07155e5
 	go.uber.org/goleak v1.1.10
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4

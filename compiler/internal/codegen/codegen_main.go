@@ -532,17 +532,13 @@ func (b *Builder) writeAuthFuncs(f *File) {
 	if b.res.App.AuthHandler == nil {
 		return
 	}
-	isTokenParam := false
-	switch t := b.res.App.AuthHandler.Params.Typ.(type) {
-	case *schema.Type_Builtin:
-		if t.Builtin != schema.Builtin_STRING {
-			panic(fmt.Sprintf("Unsupported auth parameter, %s", t.Builtin))
-		}
-		isTokenParam = true
-	case *schema.Type_Named:
-	default:
-		panic(fmt.Sprintf("Unsupported auth parameter, %T", t))
+	authHandler := b.res.App.AuthHandler
+	authEncoding, err := encoding.DescribeAuth(b.res.Meta, authHandler.Params, nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to describe auth: %v", err))
 	}
+
+	isTokenParam := authEncoding.LegacyTokenFormat
 
 	f.Comment("__encore_authenticate authenticates a request.")
 	f.Comment("It reports the user id, user data, and whether or not to proceed with the request.")
@@ -586,8 +582,7 @@ func (b *Builder) writeAuthFuncs(f *File) {
 		Return(Id("uid"), Id("authData"), True()),
 	)
 
-	authHandler := b.res.App.AuthHandler
-	authType := b.schemaTypeToGoType(b.res.App.AuthHandler.Params)
+	authType := b.schemaTypeToGoType(authHandler.Params)
 	authParamType := authType
 	if !isTokenParam {
 		authParamType = Op("*").Add(authType)
@@ -627,10 +622,7 @@ func (b *Builder) writeAuthFuncs(f *File) {
 
 		// Parse auth struct
 		g.Id("params").Op(":=").Op("&").Add(authType).Values()
-		authEncoding, err := encoding.DescribeAuth(b.res.Meta, authHandler.Params, nil)
-		if err != nil {
-			panic(fmt.Sprintf("failed to describe auth: %v", err))
-		}
+
 		decoder := b.marshaller.NewPossibleInstance("dec")
 		decoder.Add(CustomFunc(Options{Separator: "\n"}, func(g *Group) {
 			b.decodeHeaders(g, authHandler.Func.Pos(), decoder, authEncoding.HeaderParameters)

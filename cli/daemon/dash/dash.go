@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -13,10 +14,13 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/rs/zerolog/log"
+	"github.com/tailscale/hujson"
 
 	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
+	"encr.dev/parser/encoding"
+	v1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type handler struct {
@@ -106,50 +110,11 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}, nil)
 
 	case "api-call":
-		var params struct {
-			AppID       string
-			Service     string
-			Endpoint    string
-			Path        string
-			Method      string
-			Payload     []byte
-			AuthPayload []byte `json:"auth_payload,omitempty"`
-			AuthToken   string `json:"auth_token,omitempty"`
-		}
-
+		var params apiCallParams
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
 		}
-		run := h.run.FindRunByAppID(params.AppID)
-		if run == nil {
-			log.Error().Str("appID", params.AppID).Msg("dash: cannot make api call: app not running")
-			return reply(ctx, nil, fmt.Errorf("app not running"))
-		}
-
-		url := "http://" + run.ListenAddr + params.Path
-		log := log.With().Str("appID", params.AppID).Str("path", params.Path).Logger()
-
-		req, err := http.NewRequestWithContext(ctx, params.Method, url, bytes.NewReader(params.Payload))
-		if err != nil {
-			log.Err(err).Msg("dash: api call failed")
-			return reply(ctx, nil, err)
-		}
-		if tok := params.AuthToken; tok != "" {
-			req.Header.Set("Authorization", "Bearer "+tok)
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Error().Err(err).Msg("dash: api call failed")
-			return reply(ctx, nil, err)
-		}
-		body, _ := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		log.Info().Int("status", resp.StatusCode).Msg("dash: api call completed")
-		return reply(ctx, map[string]interface{}{
-			"status":      resp.Status,
-			"status_code": resp.StatusCode,
-			"body":        body,
-		}, nil)
+		return h.apiCall(ctx, reply, &params)
 
 	case "source-context":
 		var params struct {
@@ -173,6 +138,52 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	}
 
 	return jsonrpc2.MethodNotFound(ctx, reply, r)
+}
+
+type apiCallParams struct {
+	AppID       string
+	Service     string
+	Endpoint    string
+	Path        string
+	Method      string
+	Payload     []byte
+	AuthPayload []byte `json:"auth_payload,omitempty"`
+	AuthToken   string `json:"auth_token,omitempty"`
+}
+
+func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCallParams) error {
+	log := log.With().Str("appID", p.AppID).Str("path", p.Path).Str("service", p.Service).Str("endpoint", p.Endpoint).Logger()
+	run := h.run.FindRunByAppID(p.AppID)
+	if run == nil {
+		log.Error().Str("appID", p.AppID).Msg("dash: cannot make api call: app not running")
+		return reply(ctx, nil, fmt.Errorf("app not running"))
+	}
+	proc := run.Proc()
+	if proc == nil {
+		log.Error().Str("appID", p.AppID).Msg("dash: cannot make api call: app not running")
+		return reply(ctx, nil, fmt.Errorf("app not running"))
+	}
+
+	baseURL := "http://" + run.ListenAddr
+	req, err := prepareRequest(ctx, baseURL, proc.Meta, p)
+	if err != nil {
+		log.Error().Err(err).Msg("dash: unable to prepare request")
+		return reply(ctx, nil, err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Error().Err(err).Msg("dash: api call failed")
+		return reply(ctx, nil, err)
+	}
+	body, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	log.Info().Int("status", resp.StatusCode).Msg("dash: api call completed")
+	return reply(ctx, map[string]interface{}{
+		"status":      resp.Status,
+		"status_code": resp.StatusCode,
+		"body":        body,
+	}, nil)
 }
 
 type sourceContextResponse struct {
@@ -291,4 +302,138 @@ func (s *Server) onOutput(r *run.Run, out []byte) {
 			"output": out2,
 		},
 	})
+}
+
+// findRPC finds the RPC with the given service and endpoint name.
+// If it cannot be found it reports nil.
+func findRPC(md *v1.Data, service, endpoint string) *v1.RPC {
+	for _, svc := range md.Svcs {
+		if svc.Name == service {
+			for _, rpc := range svc.Rpcs {
+				if rpc.Name == endpoint {
+					return rpc
+				}
+			}
+			break
+		}
+	}
+	return nil
+}
+
+// prepareRequest prepares a request for sending based on the given apiCallParams.
+func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCallParams) (*http.Request, error) {
+	url := baseURL + p.Path
+	req, err := http.NewRequestWithContext(ctx, p.Method, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	rpc := findRPC(md, p.Service, p.Endpoint)
+	if rpc == nil {
+		return nil, fmt.Errorf("unknown service/endpoint: %s/%s", p.Service, p.Endpoint)
+	}
+
+	encodingOptions := &encoding.Options{}
+	rpcEncoding, err := encoding.DescribeRPC(md, rpc, encodingOptions)
+	if err != nil {
+		return nil, fmt.Errorf("describe rpc: %v", err)
+	}
+
+	bodyParams := make(map[string]json.RawMessage)
+
+	// Add request encoding
+	{
+		reqEnc := rpcEncoding.RequestEncodingForMethod(p.Method)
+		if reqEnc == nil {
+			return nil, fmt.Errorf("unsupported method: %s", p.Method)
+		}
+		if err := addToRequest(req, p.Payload, bodyParams, reqEnc.ParameterEncodingMap()); err != nil {
+			return nil, fmt.Errorf("encode request params: %v", err)
+		}
+	}
+
+	// Add auth encoding, if any
+	if h := md.AuthHandler; h != nil {
+		auth, err := encoding.DescribeAuth(md, h.Params, encodingOptions)
+		if err != nil {
+			return nil, fmt.Errorf("describe auth: %v", err)
+		}
+		if auth.LegacyTokenFormat {
+			req.Header.Set("Authorization", "Bearer "+p.AuthToken)
+		} else {
+			if err := addToRequest(req, p.AuthPayload, bodyParams, auth.ParameterEncodingMap()); err != nil {
+				return nil, fmt.Errorf("encode auth params: %v", err)
+			}
+		}
+	}
+
+	// Replicate behavior of http.NewRequestWithContext by setting Body, GetBody, and ContentLength.
+	body, _ := json.Marshal(bodyParams)
+	req.ContentLength = int64(len(body))
+	if req.ContentLength > 0 {
+		getBody := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(body)) }
+		req.GetBody = func() (io.ReadCloser, error) { return getBody(), nil }
+		req.Body = getBody()
+	} else {
+		req.Body = http.NoBody
+	}
+
+	return req, nil
+}
+
+// addToRequest decodes rawPayload and adds it to the request according to the given parameter encodings.
+// The body argument is where body parameters are added; other parameter locations are added
+// directly to the request object itself.
+func addToRequest(req *http.Request, rawPayload []byte, body map[string]json.RawMessage, params map[string]*encoding.ParameterEncoding) error {
+	payload, err := hujson.Parse(rawPayload)
+	if err != nil {
+		return fmt.Errorf("invalid payload: %v", err)
+	}
+	vals, ok := payload.Value.(*hujson.Object)
+	if !ok {
+		return fmt.Errorf("invalid payload: expected JSON object, got %s", payload.Pack())
+	}
+
+	for _, kv := range vals.Members {
+		lit, _ := kv.Name.Value.(hujson.Literal)
+		key := lit.String()
+		val := kv.Value
+		val.Standardize()
+
+		if param, ok := params[key]; ok {
+			switch param.Location {
+			case encoding.Body:
+				body[param.Name] = val.Pack()
+
+			case encoding.Query:
+				switch v := val.Value.(type) {
+				case hujson.Literal:
+					req.URL.Query().Add(param.Name, v.String())
+				case *hujson.Array:
+					for _, elem := range v.Elements {
+						if lit, ok := elem.Value.(hujson.Literal); ok {
+							req.URL.Query().Add(param.Name, lit.String())
+						} else {
+							return fmt.Errorf("unsupported value type for query string array element: %T", elem.Value)
+						}
+					}
+				default:
+					return fmt.Errorf("unsupported value type for query string: %T", v)
+				}
+
+			case encoding.Header:
+				switch v := val.Value.(type) {
+				case hujson.Literal:
+					req.Header.Add(param.Name, v.String())
+				default:
+					return fmt.Errorf("unsupported value type for query string: %T", v)
+				}
+
+			default:
+				return fmt.Errorf("unsupported parameter location %v", param.Location)
+			}
+		}
+	}
+
+	return nil
 }
