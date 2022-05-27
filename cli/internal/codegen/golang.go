@@ -66,7 +66,9 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 	}
 
 	// Generate the base client
-	g.generateBaseClient(file)
+	if err := g.generateBaseClient(file); err != nil {
+		return errors.Wrap(err, "unable to generate base client")
+	}
 
 	g.writeExtraHelpers(file)
 
@@ -150,7 +152,7 @@ func (g *golang) generateClient(file *File, appSlug string, services []*meta.Ser
 
 	// New Function
 	file.Comment("New returns a Client for calling the public and authenticated APIs of your Encore application.")
-	file.Comment("You can customize the behaviour of the client using the given Option functions, such as WithHTTPClient or WithAuthToken.")
+	file.Comment("You can customize the behaviour of the client using the given Option functions, such as WithHTTPClient or WithAuthFunc.")
 	file.Add(
 		Func().Id("New").
 			Params(
@@ -214,35 +216,53 @@ Defaults to http.DefaultClient`,
 		},
 	)
 
-	// Generate the WithAuthToken function
-	g.generateOptionFunc(
-		file,
-		"AuthToken",
-		"allows you to set the auth token to be used for each request",
-		&Statement{Id("token").String()},
-		&Statement{
-			Id("base").Dot("tokenGenerator").Op("=").Func().
-				Params(Id("_").Qual("context", "Context")).
-				Params(String(), Error()).
-				Block(Return(Id("token"), Nil())),
-			Return(Nil()),
-		},
-	)
+	if g.md.AuthHandler != nil {
+		typ := g.getType(g.md.AuthHandler.Params)
+		rawType := typ
+		funcName := "AuthToken"
+		paramName := "bearerToken"
+		pointer := Id(paramName)
+		comment := "an authentication token to be used for each request.\n\nThis token will be sent as a Bearer token in the Authorization header."
+		if g.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING {
+			funcName = "Auth"
+			paramName = "auth"
+			pointer = Op("&").Id("auth")
+			typ = Op("*").Add(rawType)
+			comment = "the authentication data to be used with each request"
+		}
 
-	g.generateOptionFunc(
-		file,
-		"AuthFunc",
-		`allows you to pass a function which is called for each request to return an access token.`,
-		&Statement{
-			Id("tokenGenerator").Func().
-				Params(Id("ctx").Qual("context", "Context")).
-				Params(String(), Error()),
-		},
-		&Statement{
-			&Statement{Id("base").Dot("tokenGenerator").Op("=").Id("tokenGenerator")},
-			Return(Nil()),
-		},
-	)
+		// Generate the WithAuth function
+		g.generateOptionFunc(
+			file,
+			funcName,
+			"allows you to set "+comment,
+			// Note we take the auth data by value rather than a pointer to ensure it's safe
+			// to use inside multiple goroutines
+			&Statement{Id(paramName).Add(rawType)},
+			&Statement{
+				Id("base").Dot("authGenerator").Op("=").Func().
+					Params(Id("_").Qual("context", "Context")).
+					Params(typ, Error()).
+					Block(Return(pointer, Nil())),
+				Return(Nil()),
+			},
+		)
+
+		g.generateOptionFunc(
+			file,
+			"AuthFunc",
+			"allows you to pass a function which is called for each request to return "+comment,
+			&Statement{
+				Id("authGenerator").Func().
+					Params(Id("ctx").Qual("context", "Context")).
+					Params(typ, Error()),
+			},
+			&Statement{
+				&Statement{Id("base").Dot("authGenerator").Op("=").Id("authGenerator")},
+				Return(Nil()),
+			},
+		)
+	}
 }
 
 // generateOptionFunc is a helper for reducing the boilerplate we have when creating the option functions
@@ -950,7 +970,7 @@ func (g *golang) generateAnonStructTypes(fields []*encoding.ParameterEncoding, e
 	return
 }
 
-func (g *golang) generateBaseClient(file *File) {
+func (g *golang) generateBaseClient(file *File) (err error) {
 	// Add the interface
 	file.Comment("HTTPDoer is an interface which can be used to swap out the default")
 	file.Comment("HTTP client (http.DefaultClient) with your own custom implementation.")
@@ -964,21 +984,28 @@ func (g *golang) generateBaseClient(file *File) {
 	// Add the base client struct
 	file.Line()
 	file.Comment("baseClient holds all the information we need to make requests to an Encore application")
-	file.Type().Id("baseClient").Struct(
-		Id("tokenGenerator").Func().
-			Params(Id("ctx").Qual("context", "Context")).
-			Params(String(), Error()).
-			Comment("The function which will add the bearer token to the requests"),
+	file.Type().Id("baseClient").StructFunc(func(grp *Group) {
+		if g.md.AuthHandler != nil {
+			typ := g.getType(g.md.AuthHandler.Params)
+			if g.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING {
+				typ = Op("*").Add(typ)
+			}
 
-		Id("httpClient").Id("HTTPDoer").
-			Comment("The HTTP client which will be used for all API requests"),
+			grp.Id("authGenerator").Func().
+				Params(Id("ctx").Qual("context", "Context")).
+				Params(typ, Error()).
+				Comment("The function which will add the authentication data to the requests")
+		}
 
-		Id("baseURL").Op("*").Qual("net/url", "URL").
-			Comment("The base URL which API requests will be made against"),
+		grp.Id("httpClient").Id("HTTPDoer").
+			Comment("The HTTP client which will be used for all API requests")
 
-		Id("userAgent").String().
-			Commentf("What user agent we will use in the API requests"),
-	)
+		grp.Id("baseURL").Op("*").Qual("net/url", "URL").
+			Comment("The base URL which API requests will be made against")
+
+		grp.Id("userAgent").String().
+			Commentf("What user agent we will use in the API requests")
+	})
 
 	// Add the Do method for th base client
 	file.Line()
@@ -988,48 +1015,38 @@ func (g *golang) generateBaseClient(file *File) {
 		Id("Do").
 		Params(Id("req").Op("*").Qual("net/http", "Request")).
 		Params(Op("*").Qual("net/http", "Response"), Error()).
-		Block(
-			Id("req").Dot("Header").Dot("Set").Call(
+		BlockFunc(func(grp *Group) {
+			grp.Id("req").Dot("Header").Dot("Set").Call(
 				Lit("Content-Type"),
 				Lit("application/json"),
-			),
-			Id("req").Dot("Header").Dot("Set").Call(
+			)
+			grp.Id("req").Dot("Header").Dot("Set").Call(
 				Lit("User-Agent"),
 				Id("b").Dot("userAgent"),
-			),
-			Line(),
+			)
+			grp.Line()
 
-			Comment("If a authorization token generator is present, call it and add the returned token to the request"),
-			If(Id("b").Dot("tokenGenerator").Op("!=").Nil()).Block(
-				If(
-					List(Id("token"), Err()).Op(":=").
-						Id("b").Dot("tokenGenerator").Call(
-						Id("req").Dot("Context").Call(),
-					),
-					Err().Op("!=").Nil(),
-				).Block(
-					Return(Nil(), Qual("fmt", "Errorf").Call(Lit("unable to create authorization token for api request: %w"), Err())),
-				).Else().If(Id("token").Op("!=").Lit("")).Block(
-					Id("req").Dot("Header").Dot("Set").Call(
-						Lit("Authorization"),
-						Qual("fmt", "Sprintf").
-							Call(Lit("Bearer %s"), Id("token")),
-					),
-				),
-			),
-			Line(),
+			if g.md.AuthHandler != nil {
+				err = g.addAuthData(grp)
+				if err != nil {
+					return
+				}
+			}
 
-			Comment("Merge the base URL and the API URL"),
-			Id("req").Dot("URL").Op("=").
-				Id("b").Dot("baseURL").Dot("ResolveReference").Call(Id("req").Dot("URL")),
-			Id("req").Dot("Host").Op("=").Id("req").Dot("URL").Dot("Host"),
-			Line(),
+			grp.Comment("Merge the base URL and the API URL")
+			grp.Id("req").Dot("URL").Op("=").
+				Id("b").Dot("baseURL").Dot("ResolveReference").Call(Id("req").Dot("URL"))
+			grp.Id("req").Dot("Host").Op("=").Id("req").Dot("URL").Dot("Host")
+			grp.Line()
 
-			Comment("Finally, make the request via the configured HTTP Client"),
-			Return(
+			grp.Comment("Finally, make the request via the configured HTTP Client")
+			grp.Return(
 				Id("b").Dot("httpClient").Dot("Do").Call(Id("req")),
-			),
-		)
+			)
+		})
+	if err != nil {
+		return
+	}
 
 	// Add the call API function
 	file.Line()
@@ -1141,6 +1158,8 @@ func (g *golang) generateBaseClient(file *File) {
 				Nil(),
 			),
 		)
+
+	return nil
 }
 
 func (g *golang) writeErrorType(file *File) {
@@ -1236,4 +1255,129 @@ func (g *golang) writeExtraHelpers(file *File) {
 			Return(Id("escapedPaths").Dot("String").Call()),
 		)
 	}
+}
+
+func (g *golang) addAuthData(grp *Group) (err error) {
+	grp.Comment("If a authorization data generator is present, call it and add the returned token to the request")
+
+	// If the auth data is a string, then we want to add it as a bearer token
+	if g.md.AuthHandler.Params.GetBuiltin() == schema.Builtin_STRING {
+		grp.If(Id("b").Dot("authGenerator").Op("!=").Nil()).Block(
+			If(
+				List(Id("token"), Err()).Op(":=").
+					Id("b").Dot("authGenerator").Call(
+					Id("req").Dot("Context").Call(),
+				),
+				Err().Op("!=").Nil(),
+			).Block(
+				Return(Nil(), Qual("fmt", "Errorf").Call(Lit("unable to create authorization token for api request: %w"), Err())),
+			).Else().If(Id("token").Op("!=").Lit("")).Block(
+				Id("req").Dot("Header").Dot("Set").Call(
+					Lit("Authorization"),
+					Qual("fmt", "Sprintf").
+						Call(Lit("Bearer %s"), Id("token")),
+				),
+			),
+		)
+		grp.Line()
+
+		return nil
+	}
+
+	// Otherwise, we need to add the complex data type
+	auth, err := encoding.DescribeAuth(g.md, g.md.AuthHandler.Params, nil)
+	if err != nil {
+		return errors.Wrap(err, "unable to describe auth data")
+	}
+
+	grp.If(Id("b").Dot("authGenerator").Op("!=").Nil()).Block(
+		If(
+			List(Id("authData"), Err()).Op(":=").
+				Id("b").Dot("authGenerator").Call(
+				Id("req").Dot("Context").Call(),
+			),
+			Err().Op("!=").Nil(),
+		).Block(
+			Return(Nil(), Qual("fmt", "Errorf").Call(Lit("unable to create authorization token for api request: %w"), Err())),
+		).Else().If(Id("authData").Op("!=").Nil()).BlockFunc(func(grp *Group) {
+
+			enc := g.enc.NewPossibleInstance("authEncoder")
+			enc.Add(Line())
+
+			if len(auth.QueryParameters) > 0 {
+				enc.Add(Comment("Add the auth fields to the query string"), Line())
+				enc.Add(Id("query").Op(":=").Id("req").Dot("URL").Dot("Query").Call(), Line())
+
+				// Check the request schema for fields we can put in the query string
+				for _, field := range auth.QueryParameters {
+					if field.Type.GetList() != nil {
+						// If we have a slice, we need to encode each bit
+						slice, err := enc.ToStringSlice(
+							field.Type,
+							Id("authData").Dot(field.SrcName),
+						)
+						if err != nil {
+							err = errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
+							return
+						}
+
+						enc.Add(For(List(Id("_"), Id("v")).Op(":=").Range().Add(slice)).Block(
+							Id("query").Dot("Add").Call(
+								Lit(field.Name),
+								Id("v"),
+							),
+						), Line())
+					} else {
+						// Otherwise, we can just append the field
+						val, err := enc.ToString(
+							field.Type,
+							Id("authData").Dot(field.SrcName),
+						)
+						if err != nil {
+							err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
+							return
+						}
+
+						enc.Add(Id("query").Dot("Set").Call(
+							Lit(field.Name),
+							val,
+						), Line())
+					}
+
+				}
+
+				enc.Add(Id("req").Dot("URL").Dot("RawQuery").Op("=").Id("query").Dot("Encode").Call(), Line(), Line())
+			}
+
+			if len(auth.HeaderParameters) > 0 {
+				enc.Add(Comment("Add the auth fields to the headers"), Line())
+
+				// Check the request schema for fields we can put in the query string
+				for _, field := range auth.HeaderParameters {
+					// Otherwise, we can just append the field
+					val, err := enc.ToString(
+						field.Type,
+						Id("authData").Dot(field.SrcName),
+					)
+					if err != nil {
+						err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
+						return
+					}
+
+					enc.Add(Id("req").Dot("Header").Dot("Set").Call(
+						Lit(field.Name),
+						val,
+					), Line())
+				}
+			}
+
+			grp.Add(enc.Finalize(Return(Nil(), Qual("fmt", "Errorf").Call(
+				Lit("unable to marshal authentication data: %w"),
+				enc.LastError(),
+			)))...)
+		}),
+	)
+	grp.Line()
+
+	return
 }

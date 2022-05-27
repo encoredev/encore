@@ -3,7 +3,7 @@
 import "isomorphic-fetch"
 import {deepEqual} from "assert"
 
-import Client, {BaseURL, ErrCode, isAPIError, test} from "./client"
+import Client, {BaseURL, echo, ErrCode, isAPIError, test} from "./client"
 import MarshallerTest = test.MarshallerTest
 
 if (process.argv.length < 3) {
@@ -95,23 +95,39 @@ deepEqual(mResp, params, "Expected the same response from the marshaller test")
 // Test auth handlers
 await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated, "invalid token")
 
-// Test with basic auth token
+// Test with static auth data
 {
   const api = new Client(
     "http://" + process.argv[2] as BaseURL,
-    {bearerToken: "tokendata"},
+    {
+      auth: {
+        Authorization: "Bearer tokendata",
+        NewAuth:        false,
+        Header:        "",
+        Query:         [],
+      },
+    },
   )
 
   const resp = await api.test.TestAuthHandler()
   deepEqual(resp.Message, "user::true", "expected the user ID back")
 }
 
-// Test with token generator function
+// Test with auth data generator function
 {
   let tokenToReturn = "tokendata"
   const api = new Client(
     "http://" + process.argv[2] as BaseURL,
-    {bearerToken: () => tokenToReturn},
+    {
+      auth: (): echo.AuthParams => {
+        return {
+          Authorization: "Bearer " + tokenToReturn,
+          NewAuth:        false,
+          Header:        "",
+          Query:         [],
+        }
+      },
+    },
   )
 
   // With a valid token
@@ -123,11 +139,36 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
   await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated, "invalid token")
 }
 
+// Test with headers and query string auth data
+{
+  const api = new Client(
+    "http://" + process.argv[2] as BaseURL,
+    {
+      auth: {
+        Authorization: "",
+        NewAuth:        true,
+        Header:        "102",
+        Query:         [42, 100, -50, 10],
+      },
+    },
+  )
+
+  const resp = await api.test.TestAuthHandler()
+  deepEqual(resp.Message, "second_user::true", "expected the user ID back")
+}
+
 // Test the raw endpoint
 {
   const api = new Client(
     "http://" + process.argv[2] as BaseURL,
-    {bearerToken: "tokendata"},
+    {
+      auth: {
+        Authorization: "Bearer tokendata",
+        NewAuth:        false,
+        Header:        "",
+        Query:         [],
+      },
+    },
   )
 
   const resp = await api.test.RawEndpoint(
@@ -135,8 +176,8 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
     ["hello"],
     "this is a test body",
     {
-      headers:     {"X-Test-Header": "test"},
-      query: {"foo": "bar"},
+      headers: {"X-Test-Header": "test"},
+      query:   {"foo": "bar"},
     },
   )
 
@@ -153,7 +194,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
 }
 
 // Test path encoding
-const resp = await api.test.PathMultiSegments( true, 342, "foo/blah/should/get/escaped", "503f4487-1e15-4c37-9a80-7b70f86387bb", ["foo/bar", "blah", "seperate/segments = great success"])
+const resp = await api.test.PathMultiSegments(true, 342, "foo/blah/should/get/escaped", "503f4487-1e15-4c37-9a80-7b70f86387bb", ["foo/bar", "blah", "seperate/segments = great success"])
 deepEqual(resp.Boolean, true, "expected the boolean to be true")
 deepEqual(resp.Int, 342, "expected the int to be 342")
 deepEqual(resp.String, "foo/blah/should/get/escaped", "invalid string field returned")

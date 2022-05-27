@@ -39,7 +39,7 @@ func Environment(name string) BaseURL {
 type Option = func(client *baseClient) error
 
 // New returns a Client for calling the public and authenticated APIs of your Encore application.
-// You can customize the behaviour of the client using the given Option functions, such as WithHTTPClient or WithAuthToken.
+// You can customize the behaviour of the client using the given Option functions, such as WithHTTPClient or WithAuthFunc.
 func New(target BaseURL, options ...Option) (*Client, error) {
 	// Parse the base URL where the Encore application is being hosted
 	baseURL, err := url.Parse(string(target))
@@ -78,20 +78,20 @@ func WithHTTPClient(client HTTPDoer) Option {
 	}
 }
 
-// WithAuthToken allows you to set the auth token to be used for each request
-func WithAuthToken(token string) Option {
+// WithAuth allows you to set the authentication data to be used with each request
+func WithAuth(auth EchoAuthParams) Option {
 	return func(base *baseClient) error {
-		base.tokenGenerator = func(_ context.Context) (string, error) {
-			return token, nil
+		base.authGenerator = func(_ context.Context) (*EchoAuthParams, error) {
+			return &auth, nil
 		}
 		return nil
 	}
 }
 
-// WithAuthFunc allows you to pass a function which is called for each request to return an access token.
-func WithAuthFunc(tokenGenerator func(ctx context.Context) (string, error)) Option {
+// WithAuthFunc allows you to pass a function which is called for each request to return the authentication data to be used with each request
+func WithAuthFunc(authGenerator func(ctx context.Context) (*EchoAuthParams, error)) Option {
 	return func(base *baseClient) error {
-		base.tokenGenerator = tokenGenerator
+		base.authGenerator = authGenerator
 		return nil
 	}
 }
@@ -101,6 +101,13 @@ type EchoAppMetadata struct {
 	APIBaseURL string
 	EnvName    string
 	EnvType    string
+}
+
+type EchoAuthParams struct {
+	Header        string `header:"X-Header"`
+	Authorization string `header:"Authorization"`
+	Query         []int  `query:"query"`
+	NewAuth       bool   `query:"new-auth"`
 }
 
 type EchoBasicData struct {
@@ -267,7 +274,6 @@ func (c *echoClient) HeadersEcho(ctx context.Context, params EchoHeadersData) (r
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
-
 	// Now make the actual call to the API
 	var respHeaders http.Header
 	respHeaders, err = callAPI(ctx, c.base, "POST", "/echo.HeadersEcho", headers, nil, nil)
@@ -320,7 +326,6 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
-
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
 		Struct       EchoData[EchoData[string, string], int] `json:"Struct"`
@@ -584,7 +589,6 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
-
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
 		BodyBoolean bool            `json:"boolean"`
@@ -822,10 +826,10 @@ type HTTPDoer interface {
 
 // baseClient holds all the information we need to make requests to an Encore application
 type baseClient struct {
-	tokenGenerator func(ctx context.Context) (string, error) // The function which will add the bearer token to the requests
-	httpClient     HTTPDoer                                  // The HTTP client which will be used for all API requests
-	baseURL        *url.URL                                  // The base URL which API requests will be made against
-	userAgent      string                                    // What user agent we will use in the API requests
+	authGenerator func(ctx context.Context) (*EchoAuthParams, error) // The function which will add the authentication data to the requests
+	httpClient    HTTPDoer                                           // The HTTP client which will be used for all API requests
+	baseURL       *url.URL                                           // The base URL which API requests will be made against
+	userAgent     string                                             // What user agent we will use in the API requests
 }
 
 // Do sends the req to the Encore application adding the authorization token as required.
@@ -833,12 +837,28 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", b.userAgent)
 
-	// If a authorization token generator is present, call it and add the returned token to the request
-	if b.tokenGenerator != nil {
-		if token, err := b.tokenGenerator(req.Context()); err != nil {
+	// If a authorization data generator is present, call it and add the returned token to the request
+	if b.authGenerator != nil {
+		if authData, err := b.authGenerator(req.Context()); err != nil {
 			return nil, fmt.Errorf("unable to create authorization token for api request: %w", err)
-		} else if token != "" {
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		} else if authData != nil {
+			authEncoder := &serde{}
+
+			// Add the auth fields to the query string
+			query := req.URL.Query()
+			for _, v := range authEncoder.FromIntList(authData.Query) {
+				query.Add("query", v)
+			}
+			query.Set("new-auth", authEncoder.FromBool(authData.NewAuth))
+			req.URL.RawQuery = query.Encode()
+
+			// Add the auth fields to the headers
+			req.Header.Set("x-header", authData.Header)
+			req.Header.Set("authorization", authData.Authorization)
+
+			if authEncoder.LastError != nil {
+				return nil, fmt.Errorf("unable to marshal authentication data: %w", authEncoder.LastError)
+			}
 		}
 	}
 

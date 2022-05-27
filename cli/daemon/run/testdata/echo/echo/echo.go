@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	encore "encore.dev"
@@ -161,13 +162,27 @@ type AuthParams struct {
 	Header        string `header:"X-Header"`
 	Authorization string `header:"Authorization"`
 	Query         []int  `query:"query"`
+	NewAuth       bool   `query:"new-auth"`
 }
 
 //encore:authhandler
 func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthParams, error) {
-	if params.Authorization == "Bearer tokendata" {
+	if params.Authorization == "Bearer tokendata" && params.NewAuth == false {
 		return "user", params, nil
 	}
+
+	// Check headers and query strings work by adding them together to calculate the answer in the header field
+	if params.Header != "" && params.NewAuth {
+		ans := 0
+		for _, v := range params.Query {
+			ans += v
+		}
+
+		if strconv.FormatInt(int64(ans), 10) == params.Header {
+			return "second_user", params, nil
+		}
+	}
+
 	return "", nil, &errs.Error{
 		Code:    errs.Unauthenticated,
 		Message: "invalid token",
