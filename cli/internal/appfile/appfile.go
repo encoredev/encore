@@ -2,6 +2,7 @@
 package appfile
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -26,7 +27,11 @@ type File struct {
 // Parse parses the app file data into a File.
 func Parse(data []byte) (*File, error) {
 	var f File
-	if err := hujson.Unmarshal(data, &f); err != nil {
+	data, err := hujson.Standardize(data)
+	if err == nil {
+		err = json.Unmarshal(data, &f)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("appfile.Parse: %v", err)
 	}
 	return &f, nil

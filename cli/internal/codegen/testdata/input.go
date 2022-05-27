@@ -56,6 +56,14 @@ type AllInputTypes[A any] struct {
     B []int     `query:"Bob"`                    // Specify this comes from a query string
     C bool      `json:"Charlies-Bool,omitempty"` // This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
     Dave A                                       // This generic type complicates the whole thing 🙈
+
+    // Tags named "-" are ignored in schemas
+    Ignore1 string `header:"-"`
+    Ignore2 string `query:"-"`
+    Ignore3 string `json:"-"`
+
+    // Unexported tags are ignored
+    ignore4 string
 }
 
 // HeaderOnlyStruct contains all types we support in headers

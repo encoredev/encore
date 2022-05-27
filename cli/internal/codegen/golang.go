@@ -623,7 +623,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 		return Id("callAPI").Call(
 			Id("ctx"),
 			Id("c").Dot("base"),
-			Lit(rpcEncoding.DefaultRequestEncoding.HTTPMethods[0]),
+			Lit(rpcEncoding.DefaultMethod),
 			g.createApiPath(rpc, withQueryString),
 			headers,
 			body,
@@ -800,7 +800,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 
 		for _, field := range typ.Struct.Fields {
 			// Skip over hidden fields
-			if field.JsonName == "-" || field.QueryStringName == "-" {
+			if encoding.IgnoreField(field) {
 				continue
 			}
 

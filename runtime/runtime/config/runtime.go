@@ -61,3 +61,17 @@ func ParseSecrets(s string) map[string]string {
 	}
 	return m
 }
+
+// JsonIndentStepForResponses is the number of spaces to indent JSON responses sent from the application.
+//
+// - 0 means no pretty printing will occur for JSON responses.
+// - any other value means pretty printing with that number of spaces for each level of indentation.
+//
+// In production environments this function will return 0, for all others it will return 2.
+func JsonIndentStepForResponses() int {
+	if Cfg.Runtime.EnvType == "production" {
+		return 0
+	}
+
+	return 2
+}

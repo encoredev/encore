@@ -158,11 +158,11 @@ type EchoNonBasicData struct {
 	RawStruct   json.RawMessage
 	QueryString string `query:"string"` // Query
 	QueryNumber int    `query:"no"`
-	PathString  string `query:"-"` // Path Parameters
-	PathInt     int    `query:"-"`
-	PathWild    string `query:"-"`
-	AuthHeader  string `query:"-"` // Auth Parameters
-	AuthQuery   []int  `query:"-"`
+	PathString  string // Path Parameters
+	PathInt     int
+	PathWild    string
+	AuthHeader  string // Auth Parameters
+	AuthQuery   []int
 }
 
 // EchoClient Provides you access to call public and authenticated APIs on echo. The concrete implementation is echoClient.
@@ -338,9 +338,19 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 		} `json:"AnonStruct"`
 		NamedStruct EchoData[string, float64] `json:"formatted_nest"`
 		RawStruct   json.RawMessage           `json:"RawStruct"`
+		PathString  string                    `json:"PathString"`
+		PathInt     int                       `json:"PathInt"`
+		PathWild    string                    `json:"PathWild"`
+		AuthHeader  string                    `json:"AuthHeader"`
+		AuthQuery   []int                     `json:"AuthQuery"`
 	}{
 		AnonStruct:   params.AnonStruct,
+		AuthHeader:   params.AuthHeader,
+		AuthQuery:    params.AuthQuery,
 		NamedStruct:  params.NamedStruct,
+		PathInt:      params.PathInt,
+		PathString:   params.PathString,
+		PathWild:     params.PathWild,
 		RawStruct:    params.RawStruct,
 		Struct:       params.Struct,
 		StructMap:    params.StructMap,

@@ -10,7 +10,7 @@ const menuItems: {href: string; name: string, external?: boolean}[] = [
   {href: "https://encore.dev/docs", name: "Encore Docs", external: true},
 ]
 
-const Nav: FunctionComponent = (props) => {
+const Nav: FunctionComponent = () => {
   const { appID } = useParams<{appID: string}>()
   const [menuOpen, setMenuOpen] = useState(false)
   const [appsOpen, setAppsOpen] = useState(false)
@@ -49,7 +49,7 @@ const Nav: FunctionComponent = (props) => {
               {menuItems.filter((it) => it.external).map(it => {
                   return <a key={it.href} href={it.href} target="_blank" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white focus:outline-none focus:text-white focus:bg-gray-700 inline-block">
                     {it.name}&nbsp;<svg className="w-4 h-4 pb-0.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                   </svg>
                   </a>
               })}
@@ -79,7 +79,7 @@ const Nav: FunctionComponent = (props) => {
             if (it.external) {
               return <a key={it.href} href={it.href} target="_blank" className="block px-2 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white focus:outline-none focus:text-white focus:bg-gray-700">
                 {it.name}&nbsp;<svg className="w-4 h-4 pb-0.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
               </svg>
               </a>
             } else {
@@ -144,7 +144,7 @@ const AppDropdown: FunctionComponent<AppDropdownProps> = (props): JSX.Element =>
                     {apps.map(app =>
                       <Link key={app.id} to={"/"+app.id}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:bg-gray-100 focus:text-gray-900" role="menuitem"
-                            onClick={(e) => props.setOpen(false)}>
+                            onClick={() => props.setOpen(false)}>
                           <div className="truncate leading-4">{app.name}</div>
                       </Link>
                     )}
