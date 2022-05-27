@@ -1,5 +1,6 @@
 import {Field} from "../../../../../../../proto/encore/parser/schema/v1/schema.pb"
 import * as pb from '../../../../../../../proto/encore/parser/schema/v1/schema.pb'
+import { APIMeta, RPC } from "./api"
 export * from '../../../../../../../proto/encore/parser/schema/v1/schema.pb'
 
 // Aliases to match old type names
@@ -26,6 +27,21 @@ export interface DescribedField extends Field {
 
 export function methodSupportsPayloads(method: string): boolean {
     return method !== "GET" && method !== "HEAD" && method !== "DELETE"
+}
+
+export function rpcHasBody(md: APIMeta, rpc: RPC, method: string) {
+    const named = rpc.request_schema?.named
+    if (!named) {
+        return false
+    }
+    const astFields = md.decls[named.id].type.struct!.fields
+    for (const f of astFields) {
+        let [_, location] = fieldNameAndLocation(f, method, false)
+        if (location === FieldLocation.Body) {
+            return true
+        }
+    }
+    return false
 }
 
 export function fieldNameAndLocation(f: Field, method: string, asResponse: boolean): [string, FieldLocation] {

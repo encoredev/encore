@@ -9,7 +9,7 @@ import JSONRPCConn from "~lib/client/jsonrpc";
 import { copyToClipboard } from "~lib/clipboard";
 import { APIMeta, PathSegment, RPC, Service } from "./api";
 import CM from "./cm/CM";
-import { Builtin, FieldLocation, fieldNameAndLocation, NamedType } from "./schema";
+import { Builtin, FieldLocation, fieldNameAndLocation, NamedType, rpcHasBody } from "./schema";
 import { JSONDialect } from "~c/api/SchemaView";
 
 interface Props {
@@ -258,7 +258,8 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
 
         reqBody = JSON.stringify(newBody)
 
-        const defaultMethod = (reqBody !== "" ? "POST" : "GET")
+        const hasBody = rpcHasBody(md, rpc, method)
+        const defaultMethod = (hasBody? "POST" : "GET")
         let cmd = "curl "
         if (method !== defaultMethod) {
             cmd += `-X ${method} `
@@ -266,10 +267,10 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
         cmd += `'http://${addr ?? "localhost:4000"}${path}${queryString}'`
 
         for (const header in headers) {
-            cmd += ` -H "${header}: ${headers[header]}"`
+            cmd += ` -H '${header}: ${headers[header]}'`
         }
 
-        if (reqBody !== "") {
+        if (hasBody) {
             cmd += ` -d '${reqBody}'`
         }
         copyToClipboard(cmd)

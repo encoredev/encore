@@ -13,6 +13,7 @@ import {
     locationDescription,
     MapType,
     NamedType,
+    rpcHasBody,
     splitFieldsByLocation,
     StructType,
     Type,
@@ -757,7 +758,8 @@ class CurlDialect extends TextBasedDialect {
             space: "  ",
         })
 
-        const defaultMethod = (reqBody !== "" ? "POST" : "GET")
+        const hasBody = this.rpc ? rpcHasBody(this.meta, this.rpc, this.method) : false
+        const defaultMethod = (hasBody ? "POST" : "GET")
         let cmd = "curl "
         if (this.method !== defaultMethod) {
             cmd += `-X ${this.method} `
@@ -765,10 +767,10 @@ class CurlDialect extends TextBasedDialect {
         cmd += `'http://${addr ?? "localhost:4000"}/${path}${queryString}'`
 
         for (const header in headers) {
-            cmd += ` \\\n  -H "${header}: ${headers[header]}"`
+            cmd += ` \\\n  -H '${header}: ${headers[header]}'`
         }
 
-        if (reqBody !== "") {
+        if (hasBody) {
             reqBody = reqBody.split("\n").join("\n  ")
             cmd += ` \\\n  -d '${reqBody}'`
         }
