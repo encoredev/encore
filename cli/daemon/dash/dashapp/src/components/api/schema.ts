@@ -70,13 +70,13 @@ export function fieldNameAndLocation(f: Field, method: string, asResponse: boole
                     return ["-", FieldLocation.UnusedField]
                 }
 
-                if (methodSupportsPayloads(method)) {
+                if (methodSupportsPayloads(method) || asResponse) {
                     return [tag.name, FieldLocation.Body]
                 }
         }
     }
 
-    if (methodSupportsPayloads(method)) {
+    if (methodSupportsPayloads(method) || asResponse) {
         return [f.name, FieldLocation.Body]
     } else {
         return [f.name, FieldLocation.Query]
