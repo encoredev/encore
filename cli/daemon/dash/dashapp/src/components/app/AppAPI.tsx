@@ -133,7 +133,7 @@ export default class AppAPI extends React.Component<Props, State> {
                               <div className="mt-4">
                                 <h4 className="font-medium font-sans text-gray-700">Request</h4>
                                 <hr className="my-4 border-gray-200" />
-                                {rpc.request_schema ? <SchemaView meta={meta} method={defaultMethod} type={rpc.request_schema} dialect="table" /> :
+                                {rpc.request_schema ? <SchemaView meta={meta} service={svc} rpc={rpc} method={defaultMethod} type={rpc.request_schema} dialect="table" /> :
                                   <div className="text-gray-400 text-sm">No parameters.</div>
                                 }
                               </div>
@@ -141,7 +141,7 @@ export default class AppAPI extends React.Component<Props, State> {
                               <div className="mt-12">
                                 <h4 className="font-medium font-sans text-gray-700">Response</h4>
                                 <hr className="my-4 border-gray-200" />
-                                {rpc.response_schema ? <SchemaView meta={meta} method={defaultMethod} type={rpc.response_schema} dialect="table" asResponse /> :
+                                {rpc.response_schema ? <SchemaView meta={meta} service={svc} rpc={rpc} method={defaultMethod} type={rpc.response_schema} dialect="table" asResponse /> :
                                   <div className="text-gray-400 text-sm">No response.</div>
                                 }
                               </div>
@@ -224,7 +224,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
             </div>
           </div>
           <div className="rounded-b-md bg-gray-800 text-gray-100 p-2 font-mono overflow-auto">
-            <SchemaView meta={props.meta} type={props.rpc.request_schema} method={defaultMethod} dialect={respDialect} />
+            <SchemaView meta={props.meta} service={props.svc} rpc={props.rpc} type={props.rpc.request_schema} method={defaultMethod} dialect={respDialect} />
           </div>
         </div>
       }
@@ -243,7 +243,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
             </div>
           </div>
           <div className="rounded-b-md bg-gray-100 p-2 font-mono overflow-auto">
-            <SchemaView meta={props.meta} type={props.rpc.response_schema} method={defaultMethod} dialect={respDialect} asResponse />
+            <SchemaView meta={props.meta} service={props.svc} rpc={props.rpc} type={props.rpc.response_schema} method={defaultMethod} dialect={respDialect} asResponse />
           </div>
         </div>
       }

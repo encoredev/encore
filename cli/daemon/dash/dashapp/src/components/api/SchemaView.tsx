@@ -18,8 +18,8 @@ import {
     Type,
     TypeParameterRef
 } from "./schema"
+import {Service, RPC, PathSegment_SegmentType} from "./api"
 import HJSON from "hjson";
-import {type} from "@headlessui/react/dist/test-utils/interactions";
 
 export type Dialect = "go" | "typescript" | "json" | "curl" |  "table";
 
@@ -27,6 +27,8 @@ interface Props {
     meta: APIMeta;
     type: Type;
     dialect: Dialect;
+    service: Service;
+    rpc: RPC;
     method: string;
     asResponse?: boolean;
 }
@@ -34,7 +36,7 @@ interface Props {
 export default class extends React.Component<Props> {
     render() {
         const d = dialects[this.props.dialect](this.props.meta)
-        return d.render(this.props.type, this.props.method, this.props.asResponse ?? false)
+        return d.render(this.props.type, this.props.service, this.props.rpc, this.props.method, this.props.asResponse ?? false)
     }
 }
 
@@ -45,7 +47,7 @@ abstract class DialectIface {
         this.meta = meta
     }
 
-    abstract render(d: Type, method: string, asResponse: boolean): JSX.Element
+    abstract render(d: Type, service: Service, rpc: RPC, method: string, asResponse: boolean): JSX.Element
 }
 
 /** This Text based class allows us simply to build a dialect from raw text and use CodeMirror to render it */
@@ -57,6 +59,8 @@ abstract class TextBasedDialect extends DialectIface {
     level: number;
     method: string;
     asResponse: boolean;
+    service?: Service;
+    rpc?: RPC;
 
     protected constructor(meta: APIMeta, codeMirrorMode: string | ModeSpec<ModeSpecOptions>) {
         super(meta)
@@ -69,7 +73,9 @@ abstract class TextBasedDialect extends DialectIface {
         this.asResponse = false
     }
 
-    render(d: Type, method: string, asResponse: boolean): JSX.Element {
+    render(d: Type, service: Service, rpc: RPC, method: string, asResponse: boolean): JSX.Element {
+        this.service = service
+        this.rpc = rpc
         this.method = method
         this.asResponse = asResponse
         const srcCode = this.renderAsText(d)
@@ -608,9 +614,17 @@ class CurlDialect extends TextBasedDialect {
             throw new Error("expected top level call only")
         }
 
-        const method = "POST"
         const addr = undefined
-        const path = "/todo"
+        const path = this.rpc?.path.segments.map((s) => {
+         switch (s.type) {
+             case PathSegment_SegmentType.PARAM:
+                 return ':' + s.value
+             case PathSegment_SegmentType.WILDCARD:
+                 return '*' + s.value
+             default:
+                 return s.value
+         }
+        }).join("/") ?? ''
 
         if (this.asResponse) {
             const render = new JSONDialect(this.meta)
@@ -690,7 +704,7 @@ class CurlDialect extends TextBasedDialect {
 
                     for (const f of astFields) {
                         if (f.name === fieldName) {
-                            let [encodedName, location] = fieldNameAndLocation(f, method, false)
+                            let [encodedName, location] = fieldNameAndLocation(f, this.method, false)
 
                             switch (location) {
                                 case FieldLocation.Header:
@@ -727,10 +741,10 @@ class CurlDialect extends TextBasedDialect {
 
         const defaultMethod = (reqBody !== "" ? "POST" : "GET")
         let cmd = "curl "
-        if (method !== defaultMethod) {
-            cmd += `-X ${method} `
+        if (this.method !== defaultMethod) {
+            cmd += `-X ${this.method} `
         }
-        cmd += `'http://${addr ?? "localhost:4000"}${path}${queryString}'`
+        cmd += `'http://${addr ?? "localhost:4000"}/${path}${queryString}'`
 
         for (const header in headers) {
             cmd += ` \\\n  -H "${header}: ${headers[header]}"`
@@ -753,7 +767,7 @@ class CurlDialect extends TextBasedDialect {
 class TableDialect extends DialectIface {
     typeArgumentStack: Type[][] = [];
 
-    render(d: Type, method: string, asResponse: boolean) {
+    render(d: Type, service: Service, rpc: RPC, method: string, asResponse: boolean) {
         if (!d?.named) {
             throw new Error("TableDialect can only rendered named structs")
         }
