@@ -9,7 +9,7 @@ import JSONRPCConn from "~lib/client/jsonrpc";
 import {copyToClipboard} from "~lib/clipboard";
 import {APIMeta, PathSegment, RPC, Service} from "./api";
 import CM from "./cm/CM";
-import {FieldLocation, fieldNameAndLocation, Type} from "./schema";
+import {FieldLocation, fieldNameAndLocation, Type, Builtin, NamedType} from "./schema";
 import {JSONDialect} from "~c/api/SchemaView";
 
 interface Props {
@@ -36,7 +36,7 @@ export const cfg: EditorConfiguration = {
 
 const APICallButton: FC<{ send: () => void; copyCurl: () => void; }> = (props) => {
     return (
-        <span className="ml-auto flex-none relative z-0 inline-flex shadow-sm rounded-md">
+        <span className="ml-auto flex-none relative z-0 inline-flex shadow-sm rounded-md self-start">
       <button type="button"
               className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-purple-700 bg-purple-600 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:outline-none focus:ring-0 focus:border-purple-500"
               onClick={() => props.send()}>
@@ -93,8 +93,14 @@ const APICallButton: FC<{ send: () => void; copyCurl: () => void; }> = (props) =
 
 const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
     const payloadCM = useRef<CM>(null)
+    const authCM = useRef<CM>(null)
     const pathRef = useRef<{ getPath: () => string | undefined; getMethod: () => string }>(null)
     const docs = useRef(new Map<RPC, CodeMirror.Doc>())
+    const authDoc = useRef<CodeMirror.Doc>(new CodeMirror.Doc("", {
+        name: "javascript",
+        json: true
+    }))
+    const authGeneratedJS = useRef("")
     const [authToken, setAuthToken] = useState("")
     const hasPathParams = rpc.path.segments.findIndex(s => s.type !== "LITERAL") !== -1
 
@@ -103,23 +109,23 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
     const [response, setResponse] = useState<string | undefined>(undefined)
     const [method, setMethod] = useState<string>(rpc.http_methods[0])
 
-    const serializeRequest = (): [string, string] => {
+    const serializeRequest = (): [string, string, string] => {
         let path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`
         let body = ''
 
         if (rpc.request_schema) {
             const doc = docs.current.get(rpc)
             if (doc === undefined) {
-                return ["", ""]
+                return ["", "", ""]
             }
             body = doc.getValue()
         }
 
-        return [path, body]
+        return [path, body, authDoc.current.getValue()]
     }
 
     const makeRequest = async () => {
-        const [path, reqBody] = serializeRequest()
+        const [path, reqBody, authBody] = serializeRequest()
         if (path === "") {
             return
         }
@@ -129,12 +135,13 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             setRespErr(undefined)
             const resp = await conn.request("api-call", {
                 appID,
-                service:  svc.name,
-                endpoint: rpc.name,
+                service:      svc.name,
+                endpoint:     rpc.name,
                 method,
                 path,
-                authToken,
-                payload:  encodeBase64(reqBody)
+                auth_payload: encodeBase64(authBody),
+                auth_token:   authToken,
+                payload:      encodeBase64(reqBody)
             }) as any
             let respBody = ""
             if (resp.body.length > 0) {
@@ -161,38 +168,42 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         }
     }, [rpc])
 
+    function namedTypeToHJSON(named: NamedType): string {
+        const render = new JSONDialect(md)
+        render.method = method
+        render.asResponse = false
+        render.typeArgumentStack.push(named.type_arguments)
+        const [queryString, headers, js] = render.structBits(md.decls[named.id].type.struct!, true)
+
+        let bits: string[] = ["{\n"]
+        let previousSection = false
+        if (headers) {
+            bits.push("    // HTTP headers", headers)
+            previousSection = true
+        }
+        if (queryString) {
+            if (previousSection) {
+                bits.push(",\n\n")
+            }
+
+            bits.push("    // Query string", queryString)
+            previousSection = true
+        }
+        if (js) {
+            if (previousSection) {
+                bits.push(",\n\n")
+            }
+
+            bits.push("    // HTTP body", js)
+        }
+        bits.push("\n}")
+
+        return bits.join("")
+    }
+
     useEffect(() => {
         if (rpc.request_schema) {
-            const render = new JSONDialect(md)
-            render.method = method
-            render.asResponse = false
-            render.typeArgumentStack.push(rpc.request_schema!.named!.type_arguments)
-            const [queryString, headers, js] = render.structBits(md.decls[rpc.request_schema!.named!.id].type.struct!, true)
-
-            let bits: string[] = ["{\n"]
-            let previousSection = false
-            if (headers) {
-                bits.push("    // HTTP headers", headers)
-                previousSection = true
-            }
-            if (queryString) {
-                if (previousSection) {
-                    bits.push(",\n\n")
-                }
-
-                bits.push("    // Query string", queryString)
-                previousSection = true
-            }
-            if (js) {
-                if (previousSection) {
-                    bits.push(",\n\n")
-                }
-
-                bits.push("    // HTTP body", js)
-            }
-            bits.push("\n}")
-
-            let doc = new CodeMirror.Doc(bits.join(""), {
+            let doc = new CodeMirror.Doc(namedTypeToHJSON(rpc.request_schema.named!), {
                 name: "javascript",
                 json: true
             })
@@ -204,8 +215,20 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         setRespErr(undefined)
     }, [rpc, method])
 
+    useEffect(() => {
+        if (md.auth_handler?.params?.named) {
+            const generated = namedTypeToHJSON(md.auth_handler.params.named)
+
+            if (authGeneratedJS.current !== generated) {
+                authDoc.current.setValue("// Authentication Data\n" + generated)
+                authCM.current?.open(authDoc.current)
+                authGeneratedJS.current = generated
+            }
+        }
+    })
+
     const copyCurl = () => {
-        let [path, reqBody] = serializeRequest()
+        let [path, reqBody, authBody] = serializeRequest()
         if (path === "") {
             return
         }
@@ -214,7 +237,9 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         let queryString = ''
         function addQuery(name: string, value: any) {
             if (Array.isArray(value)) {
-                return value.map((v) => { addQuery(name, v) })
+                return value.map((v) => {
+                    addQuery(name, v)
+                })
             }
 
             if (queryString) {
@@ -225,17 +250,15 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             queryString += name + '=' + encodeURIComponent(value)
         }
 
-        if (rpc.request_schema) {
+        const newBody: Record<string, any> = {}
+        function processStruct(named: NamedType, payload: string) {
             try {
-                const astFields = md.decls[rpc.request_schema.named!.id].type.struct!.fields
+                const astFields = md.decls[named.id].type.struct!.fields
 
-                const bodyFields: Record<string, any> = HJSON.parse(reqBody)
+                const bodyFields: Record<string, any> = HJSON.parse(payload)
                 if (typeof (bodyFields) !== "object") {
                     throw new Error("Request Body isn't a JSON object")
                 }
-
-                const newBody: Record<string, any> = {}
-
 
                 for (const fieldName in bodyFields) {
                     if (!bodyFields.hasOwnProperty(fieldName)) {
@@ -263,13 +286,20 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
                     }
                 }
 
-                reqBody = JSON.stringify(newBody)
-
             } catch (e) {
                 console.error("Unable to parse body: ", e)
                 // but continue anyway
             }
         }
+
+        if (rpc.request_schema?.named) {
+            processStruct(rpc.request_schema.named, reqBody)
+        }
+        if (md.auth_handler?.params?.named) {
+            processStruct(md.auth_handler.params.named, authBody)
+        }
+
+        reqBody = JSON.stringify(newBody)
 
         const defaultMethod = (reqBody !== "" ? "POST" : "GET")
         let cmd = "curl "
@@ -306,11 +336,16 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             <div className={`text-xs mt-1 ${rpc.request_schema ? "hidden" : "block"}`}>
                 This API takes no request data.
             </div>
-            <div className="flex items-center mt-1">
-                {md.auth_handler &&
+            <div className="flex items-center mt-1 items-start">
+                {md.auth_handler && md.auth_handler.params?.builtin === Builtin.STRING &&
                     <div className="flex-1 min-w-0 mr-1 relative rounded-md shadow-sm">
                         <Input id="" cls="w-full" placeholder="Auth Token" required={rpc.access_type === "AUTH"}
                                value={authToken} onChange={setAuthToken}/>
+                    </div>
+                }
+                {md.auth_handler && md.auth_handler.params?.named !== undefined &&
+                    <div className="text-xs flex-1 min-w-0 mr-1 relative rounded-md shadow-sm">
+                        <CM ref={authCM} cfg={cfg}/>
                     </div>
                 }
                 <APICallButton send={makeRequest} copyCurl={copyCurl}/>
