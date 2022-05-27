@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -88,6 +89,12 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		}
 		meta, err := platform.GetEnvMeta(ctx, params.AppId, envName)
 		if err != nil {
+			if strings.Contains(err.Error(), "env_not_found") {
+				if envName == "@primary" {
+					return nil, status.Error(codes.NotFound, "You have no deployments of this application.\n\nYou can generate the client for your local code by setting `--env=local`.")
+				}
+				return nil, status.Errorf(codes.NotFound, "A deployed environment called `%s` not found.\n\nYou can generate the client for your local code by setting `--env=local`.", envName)
+			}
 			return nil, status.Errorf(codes.Unavailable, "could not fetch API metadata: %v", err)
 		}
 		md = meta
