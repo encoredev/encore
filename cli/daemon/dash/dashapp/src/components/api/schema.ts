@@ -20,6 +20,10 @@ export enum FieldLocation {
     UnusedField = "hidden",
 }
 
+export interface DescribedField extends Field {
+    SrcName: string
+}
+
 export function methodSupportsPayloads(method: string): boolean {
     return method !== "GET" && method !== "HEAD" && method !== "DELETE"
 }
@@ -74,8 +78,8 @@ export function locationDescription(name: string, location: FieldLocation): stri
     }
 }
 
-export function splitFieldsByLocation(t: StructType, method: string, asResponse: boolean): Record<FieldLocation, Field[]> {
-    let rtn: Record<FieldLocation, Field[]> = {
+export function splitFieldsByLocation(t: StructType, method: string, asResponse: boolean): Record<FieldLocation, DescribedField[]> {
+    let rtn: Record<FieldLocation, DescribedField[]> = {
         [FieldLocation.Body]: [],
         [FieldLocation.Query]: [],
         [FieldLocation.Header]: [],
@@ -85,7 +89,7 @@ export function splitFieldsByLocation(t: StructType, method: string, asResponse:
     for (const field of t.fields) {
         const [name, location] = fieldNameAndLocation(field, method, asResponse)
 
-        const newField = {...field, name}
+        const newField = {...field, SrcName: field.name, name: name}
 
         rtn[location].push(newField)
     }

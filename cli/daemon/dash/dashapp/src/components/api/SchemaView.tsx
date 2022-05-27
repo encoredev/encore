@@ -4,7 +4,7 @@ import CM from "~c/api/cm/CM"
 import {APIMeta} from "./api"
 import {
     Builtin,
-    Decl,
+    Decl, DescribedField,
     Field,
     FieldLocation,
     fieldNameAndLocation,
@@ -357,26 +357,24 @@ export class JSONDialect extends TextBasedDialect {
         this.write("null")
     }
 
-    public structBits(t: StructType): [string, string, string] {
-        const writeObj = (fields: Field[]): string => {
+    public structBits(t: StructType, asGoStruct: boolean): [string, string, string] {
+        const writeObj = (fields: DescribedField[]): string => {
             const oldBuf = this.buf
             this.buf = []
 
-            this.writeln("{")
             this.level++
             for (let i = 0; i < fields.length; i++) {
                 const f = fields[i]
+                this.writeln()
                 this.indent()
-                this.write(`"${f.json_name !== "" ? f.json_name : f.name}": `)
+                this.write(`"${asGoStruct ? f.SrcName : f.name}": `)
                 this.writeType(f.typ)
                 if (i < (fields.length - 1)) {
                     this.write(",")
                 }
-                this.writeln()
             }
             this.level--
             this.indent()
-            this.write("}")
 
             const toReturn = this.buf.join("")
             this.buf = oldBuf
@@ -390,34 +388,38 @@ export class JSONDialect extends TextBasedDialect {
         let json = ''
 
         if (fields[FieldLocation.Query].length > 0) {
-            const oldBuf = this.buf
-            this.buf = []
+            if (asGoStruct) {
+                query = writeObj(fields[FieldLocation.Query])
+            } else {
+                const oldBuf = this.buf
+                this.buf = []
 
-            this.write("?")
+                this.write("?")
 
-            let firstField = true
-            for (const field of fields[FieldLocation.Query]) {
-                if (firstField) {
-                    firstField = false
-                } else {
-                    this.write("&")
+                let firstField = true
+                for (const field of fields[FieldLocation.Query]) {
+                    if (firstField) {
+                        firstField = false
+                    } else {
+                        this.write("&")
+                    }
+
+                    this.write(field.name, "=")
+
+                    if (field.typ.builtin) {
+                        this.renderBuiltin(field.typ.builtin, false, true)
+                    } else if (field.typ.list) {
+                        this.renderBuiltin(field.typ.list.elem.builtin!, false, true)
+
+                        // show it's a list by duplicating :-)
+                        this.write("&", field.name, "=")
+                        this.renderBuiltin(field.typ.list.elem.builtin!, true, true)
+                    }
                 }
 
-                this.write(field.name, "=")
-
-                if (field.typ.builtin) {
-                    this.renderBuiltin(field.typ.builtin, false, true)
-                } else if (field.typ.list) {
-                    this.renderBuiltin(field.typ.list.elem.builtin!, false, true)
-
-                    // show it's a list by duplicating :-)
-                    this.write("&", field.name, "=")
-                    this.renderBuiltin(field.typ.list.elem.builtin!, true, true)
-                }
+                query = this.buf.join("")
+                this.buf = oldBuf
             }
-
-            query = this.buf.join("")
-            this.buf = oldBuf
 
         }
 
@@ -434,7 +436,7 @@ export class JSONDialect extends TextBasedDialect {
 
     protected renderStruct(t: StructType, topLevel?: boolean) {
         if (topLevel) {
-            const [query, headers, json] = this.structBits(t)
+            const [query, headers, json] = this.structBits(t, false)
 
             let previousSection = false
             if (query) {
@@ -447,7 +449,7 @@ export class JSONDialect extends TextBasedDialect {
                     this.write("\n\n")
                 }
 
-                this.write("// HTTP Headers\n", headers)
+                this.write("// HTTP Headers\n{", headers, "\n}")
                 previousSection = true
             }
 
@@ -456,7 +458,7 @@ export class JSONDialect extends TextBasedDialect {
                     this.write("\n\n// JSON Payload\n")
                 }
 
-                this.write(headers)
+                this.write("{", json, "\n}")
             }
 
             return
@@ -500,7 +502,7 @@ export class JSONDialect extends TextBasedDialect {
         this.write("]")
     }
 
-    protected renderBuiltin(t: Builtin, alt? :boolean, urlEncode?: boolean) {
+    protected renderBuiltin(t: Builtin, alt?: boolean, urlEncode?: boolean) {
         let write = (s: string) => {
             if (!urlEncode) {
                 return this.write(s)
@@ -576,24 +578,28 @@ class TableDialect extends DialectIface {
                     const [name, location] = fieldNameAndLocation(f, method, asResponse)
 
                     if (location === FieldLocation.UnusedField) {
-                        return <Fragment key={f.name} />
+                        return <Fragment key={f.name}/>
                     }
 
                     return <div key={f.name} className={i > 0 ? "border-t border-gray-200 mt-1 pt-1" : ""}>
                         <div className="flex leading-6 font-mono">
                             <div className="font-bold text-gray-900 text-sm">
-                                {name}
+                                {f.name}
                             </div>
                             <div className="ml-2 text-xs text-gray-500 flex-grow p-0.5">{this.describeType(f.typ)}</div>
-                            {location !== FieldLocation.Body &&
-                                <div className="text-xs text-blue-700 bg-blue-100 rounded text-center p-1 cursor-help"
-                                     title={locationDescription(name, location)}>{location}</div>}
+                            <div className="text-xs text-gray-700 bg-gray-100 rounded text-center p-1 cursor-help"
+                                 title={locationDescription(name, location)}>{location}</div>
                         </div>
-                        {f.doc !== "" ? (
-                            <div className="text-sm text-gray-700">{f.doc}</div>
-                        ) : (
-                            <div className="text-xs text-gray-400">No description.</div>
-                        )}
+                        <div className="flex">
+                            {f.doc !== "" ? (
+                                <div className="text-sm text-gray-700 flex-grow">{f.doc}</div>
+                            ) : (
+                                <div className="text-xs text-gray-400 flex-grow">No description.</div>
+                            )}
+                            <div className="text-xs font-mono text-gray-500" title={"The encoded field name on the wire"}>
+                                {name}
+                            </div>
+                        </div>
                     </div>
                 })}
             </div>

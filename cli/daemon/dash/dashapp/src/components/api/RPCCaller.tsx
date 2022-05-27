@@ -1,6 +1,7 @@
 import {Listbox, Menu, Transition} from "@headlessui/react";
 import CodeMirror, {EditorConfiguration} from "codemirror";
 import React, {FC, useEffect, useImperativeHandle, useRef, useState} from "react";
+import HJSON from "hjson"
 import * as icons from "~c/icons";
 import Input from "~c/Input";
 import {decodeBase64, encodeBase64} from "~lib/base64";
@@ -8,7 +9,7 @@ import JSONRPCConn from "~lib/client/jsonrpc";
 import {copyToClipboard} from "~lib/clipboard";
 import {APIMeta, PathSegment, RPC, Service} from "./api";
 import CM from "./cm/CM";
-import {Type} from "./schema";
+import {FieldLocation, fieldNameAndLocation, Type} from "./schema";
 import {JSONDialect} from "~c/api/SchemaView";
 
 interface Props {
@@ -91,14 +92,9 @@ const APICallButton: FC<{ send: () => void; copyCurl: () => void; }> = (props) =
 }
 
 const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
-    const headersCM = useRef<CM>(null)
-    const [hasHeaders, setHasHeaders] = useState(false)
     const payloadCM = useRef<CM>(null)
-    const [hasPayload, setHasPayload] = useState(false)
-    const [queryString, setQueryString] = useState("")
     const pathRef = useRef<{ getPath: () => string | undefined; getMethod: () => string }>(null)
     const docs = useRef(new Map<RPC, CodeMirror.Doc>())
-    const headerDocs = useRef(new Map<RPC, CodeMirror.Doc>())
     const [authToken, setAuthToken] = useState("")
     const hasPathParams = rpc.path.segments.findIndex(s => s.type !== "LITERAL") !== -1
 
@@ -107,38 +103,23 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
     const [response, setResponse] = useState<string | undefined>(undefined)
     const [method, setMethod] = useState<string>(rpc.http_methods[0])
 
-    const serializeRequest = (): [string, string, Record<string, string>] => {
+    const serializeRequest = (): [string, string] => {
         let path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`
-        let reqBody = ""
-        let headers: Record<string, string> = {}
+        let body = ''
 
         if (rpc.request_schema) {
             const doc = docs.current.get(rpc)
-            const headerDoc = headerDocs.current.get(rpc)
-            if (doc === undefined || headerDoc == undefined) {
-                return ["", "", {}]
+            if (doc === undefined) {
+                return ["", ""]
             }
-
-            const payload = doc.getValue()
-            const headersTxt = headerDoc.getValue()
-
-            if (headersTxt != "") {
-                try {
-                    headers = JSON.parse(headersTxt)
-                } catch (err) {
-                    setResponse(undefined)
-                    setRespErr(`could not parse headers as JSON: ${err}`)
-                    return ["", "", {}]
-                }
-            }
-
-            reqBody = payload
+            body = doc.getValue()
         }
-        return [path, reqBody, headers]
+
+        return [path, body]
     }
 
     const makeRequest = async () => {
-        const [path, reqBody, headers] = serializeRequest()
+        const [path, reqBody] = serializeRequest()
         if (path === "") {
             return
         }
@@ -148,11 +129,12 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             setRespErr(undefined)
             const resp = await conn.request("api-call", {
                 appID,
+                service:  svc.name,
+                endpoint: rpc.name,
                 method,
                 path,
                 authToken,
-                headers,
-                payload: encodeBase64(reqBody)
+                payload:  encodeBase64(reqBody)
             }) as any
             let respBody = ""
             if (resp.body.length > 0) {
@@ -185,26 +167,37 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             render.method = method
             render.asResponse = false
             render.typeArgumentStack.push(rpc.request_schema!.named!.type_arguments)
-            const [queryString, headers, js] = render.structBits(md.decls[rpc.request_schema!.named!.id].type.struct!)
+            const [queryString, headers, js] = render.structBits(md.decls[rpc.request_schema!.named!.id].type.struct!, true)
 
-            setQueryString(queryString)
+            let bits: string[] = ["{\n"]
+            let previousSection = false
+            if (headers) {
+                bits.push("    // HTTP headers", headers)
+                previousSection = true
+            }
+            if (queryString) {
+                if (previousSection) {
+                    bits.push(",\n\n")
+                }
 
-            setHasPayload(!!js)
-            let doc = new CodeMirror.Doc(js, {
+                bits.push("    // Query string", queryString)
+                previousSection = true
+            }
+            if (js) {
+                if (previousSection) {
+                    bits.push(",\n\n")
+                }
+
+                bits.push("    // HTTP body", js)
+            }
+            bits.push("\n}")
+
+            let doc = new CodeMirror.Doc(bits.join(""), {
                 name: "javascript",
                 json: true
             })
             docs.current.set(rpc, doc)
             payloadCM.current?.open(doc)
-
-            setHasHeaders(!!headers)
-            let headerDoc = new CodeMirror.Doc(headers, {
-                name: "javascript",
-                json: true
-            })
-            headerDocs.current.set(rpc, headerDoc)
-            headersCM.current?.open(headerDoc)
-            headersCM.current.forceUpdate()
         }
 
         setResponse(undefined)
@@ -212,17 +205,70 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
     }, [rpc, method])
 
     const copyCurl = () => {
-        let [path, reqBody, headers] = serializeRequest()
+        let [path, reqBody] = serializeRequest()
         if (path === "") {
             return
         }
-        if (reqBody !== "") {
-            // Convert to JSON and back, if possible, to simplify indentation
-            try {
-                reqBody = JSON.stringify(JSON.parse(reqBody), undefined, " ")
-            } catch (err) { /* do nothing */
+
+        let headers: Record<string, any> = {}
+        let queryString = ''
+        function addQuery(name: string, value: any) {
+            if (Array.isArray(value)) {
+                return value.map((v) => { addQuery(name, v) })
             }
-            reqBody = reqBody.replaceAll("'", "'\''") // escape single quotes
+
+            if (queryString) {
+                queryString += '&'
+            } else {
+                queryString = '?'
+            }
+            queryString += name + '=' + encodeURIComponent(value)
+        }
+
+        if (rpc.request_schema) {
+            try {
+                const astFields = md.decls[rpc.request_schema.named!.id].type.struct!.fields
+
+                const bodyFields: Record<string, any> = HJSON.parse(reqBody)
+                if (typeof (bodyFields) !== "object") {
+                    throw new Error("Request Body isn't a JSON object")
+                }
+
+                const newBody: Record<string, any> = {}
+
+
+                for (const fieldName in bodyFields) {
+                    if (!bodyFields.hasOwnProperty(fieldName)) {
+                        continue
+                    }
+
+                    const fieldValue = bodyFields[fieldName]
+
+                    for (const f of astFields) {
+                        if (f.name === fieldName) {
+                            let [encodedName, location] = fieldNameAndLocation(f, method, false)
+
+                            switch (location) {
+                                case FieldLocation.Header:
+                                    headers[encodedName] = fieldValue
+                                    break
+                                case FieldLocation.Query:
+                                    addQuery(encodedName, fieldValue)
+                                    break
+                                case FieldLocation.Body:
+                                    newBody[encodedName] = fieldValue
+                                    break
+                            }
+                        }
+                    }
+                }
+
+                reqBody = JSON.stringify(newBody)
+
+            } catch (e) {
+                console.error("Unable to parse body: ", e)
+                // but continue anyway
+            }
         }
 
         const defaultMethod = (reqBody !== "" ? "POST" : "GET")
@@ -230,7 +276,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         if (method !== defaultMethod) {
             cmd += `-X ${method} `
         }
-        cmd += `'http://${addr ?? "localhost:4000"}${path}'`
+        cmd += `'http://${addr ?? "localhost:4000"}${path}${queryString}'`
 
         for (const header in headers) {
             cmd += ` -H "${header}: ${headers[header]}"`
@@ -251,14 +297,9 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
                 className={`text-xs mt-1 rounded border border-gray-200 ${rpc.request_schema || hasPathParams ? "block" : "hidden"} p-1 divide-y divide-gray-500`}
                 style={{backgroundColor: "#2d3748"}}>
                 <div>
-                    <RPCPathEditor ref={pathRef} rpc={rpc} method={method} setMethod={setMethod} queryString={queryString}/>
+                    <RPCPathEditor ref={pathRef} rpc={rpc} method={method} setMethod={setMethod}/>
                 </div>
-                <div className={`${rpc.request_schema && hasHeaders ? "block" : " hidden"}`}>
-                    <div className="text-base text-bold text-white">HTTP Headers:</div>
-                    <CM ref={headersCM} cfg={cfg}/>
-                </div>
-                <div className={`${rpc.request_schema && hasPayload ? "block" : " hidden"}`}>
-                    <div className={"text-base text-bold text-white" + (!hasHeaders ? " hidden" : "")}>JSON Payload:</div>
+                <div className={`${rpc.request_schema ? "block" : " hidden"}`}>
                     <CM ref={payloadCM} cfg={cfg}/>
                 </div>
             </div>
@@ -372,8 +413,8 @@ function classNames(...classes: string[]) {
 }
 
 const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
-    rpc: RPC; method: string; queryString: string; setMethod: (m: string) => void;
-}>(({rpc, method, setMethod, queryString}, ref) => {
+    rpc: RPC; method: string; setMethod: (m: string) => void;
+}>(({rpc, method, setMethod}, ref) => {
     interface DocState {
         rpc: RPC;
         doc: CodeMirror.Doc;
@@ -410,7 +451,7 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
         }
 
         const val = segments.join("")
-        const doc = new CodeMirror.Doc(val + queryString,)
+        const doc = new CodeMirror.Doc(val,)
 
         let prevEnd = 0
         let i = 0
@@ -484,7 +525,7 @@ const RPCPathEditor = React.forwardRef<{ getPath: () => string | undefined }, {
         docs.current.set(rpc, ds)
         docMap.current.set(doc, ds)
         pathCM.current?.open(ds!.doc)
-    }, [rpc, method, queryString])
+    }, [rpc, method])
 
     useImperativeHandle(ref, () => {
         // noinspection JSUnusedGlobalSymbols

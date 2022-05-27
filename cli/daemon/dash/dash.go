@@ -108,6 +108,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	case "api-call":
 		var params struct {
 			AppID       string
+			Service     string
+			Endpoint    string
 			Path        string
 			Method      string
 			Payload     []byte
