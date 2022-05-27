@@ -37,13 +37,13 @@ type NonBasicData struct {
 	QueryNumber int    `query:"no"`
 
 	// Path Parameters
-	PathString string `query:"-"`
-	PathInt    int    `query:"-"`
-	PathWild   string `query:"-"`
+	PathString string
+	PathInt    int
+	PathWild   string
 
 	// Auth Parameters
-	AuthHeader string `query:"-"`
-	AuthQuery  []int  `query:"-"`
+	AuthHeader string
+	AuthQuery  []int 
 
 	// Unexported fields
 	unexported string
