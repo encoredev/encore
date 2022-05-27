@@ -117,7 +117,11 @@ abstract class TextBasedDialect extends DialectIface {
 
     protected renderTypeParameter(t: TypeParameterRef) {
         const typeArguments = this.typeArgumentStack[this.typeArgumentStack.length - 1]
-        this.writeType(typeArguments[t.param_idx])
+        if (typeArguments === undefined || typeArguments.length <= t.param_idx) {
+            this.write("?")
+        } else {
+            this.writeType(typeArguments[t.param_idx])
+        }
     }
 
     protected abstract writeSeenDecl(decl: Decl): void

@@ -111,7 +111,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         let path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`
         let reqBody = ""
         let headers: Record<string, string> = {}
-        
+
         if (rpc.request_schema) {
             const doc = docs.current.get(rpc)
             const headerDoc = headerDocs.current.get(rpc)
@@ -184,6 +184,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             const render = new JSONDialect(md)
             render.method = method
             render.asResponse = false
+            render.typeArgumentStack.push(rpc.request_schema!.named!.type_arguments)
             const [queryString, headers, js] = render.structBits(md.decls[rpc.request_schema!.named!.id].type.struct!)
 
             setQueryString(queryString)
@@ -203,6 +204,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             })
             headerDocs.current.set(rpc, headerDoc)
             headersCM.current?.open(headerDoc)
+            headersCM.current.forceUpdate()
         }
 
         setResponse(undefined)

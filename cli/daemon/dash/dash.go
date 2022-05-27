@@ -107,12 +107,12 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 	case "api-call":
 		var params struct {
-			AppID     string
-			Path      string
-			Method    string
-			Payload   []byte
-			AuthToken string
-			Headers   map[string]interface{} `json:"headers,omitempty"`
+			AppID       string
+			Path        string
+			Method      string
+			Payload     []byte
+			AuthPayload []byte `json:"auth_payload,omitempty"`
+			AuthToken   string `json:"auth_token,omitempty"`
 		}
 
 		if err := unmarshal(&params); err != nil {
@@ -131,11 +131,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			log.Err(err).Msg("dash: api call failed")
 			return reply(ctx, nil, err)
-		}
-		if len(params.Headers) > 0 {
-			for k, v := range params.Headers {
-				req.Header.Set(k, fmt.Sprintf("%v", v))
-			}
 		}
 		if tok := params.AuthToken; tok != "" {
 			req.Header.Set("Authorization", "Bearer "+tok)
