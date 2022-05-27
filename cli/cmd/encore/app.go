@@ -554,21 +554,42 @@ func addEncoreRemote(root, appID string) {
 func linkApp(appID string, force bool) {
 	root, _ := determineAppRoot()
 	filePath := filepath.Join(root, "encore.app")
-
-	// Parse the app data using a map so we preserve all
-	// the keys present when writing it back below.
-	var appData map[string]interface{}
-	if data, err := ioutil.ReadFile(filePath); err != nil {
+	data, err := ioutil.ReadFile(filePath)
+	if err != nil {
 		fatal(err)
 		os.Exit(1)
-	} else if err := hujson.Unmarshal(data, &appData); err != nil {
+	}
+
+	val, err := hujson.Parse(data)
+	if err != nil {
 		fatal("could not parse encore.app: ", err)
-		os.Exit(1)
-	} else if appData["id"] != nil && appData["id"] != "" {
-		fatal("the app is already linked.\n\nNote: to link to a different app, specify the --force flag.")
+	}
+
+	appData, ok := val.Value.(*hujson.Object)
+	if !ok {
+		fatal("could not parse encore.app: expected JSON object")
+	}
+
+	// Find the "id" value, if any.
+	var idValue *hujson.Value
+	for i := 0; i < len(appData.Members); i++ {
+		kv := &appData.Members[i]
+		lit, ok := kv.Name.Value.(hujson.Literal)
+		if !ok || lit.String() != "id" {
+			continue
+		}
+		idValue = &kv.Value
+	}
+
+	if idValue != nil {
+		val, ok := idValue.Value.(hujson.Literal)
+		if ok && val.String() != "" {
+			fatal("the app is already linked.\n\nNote: to link to a different app, specify the --force flag.")
+		}
 	}
 
 	if appID == "" {
+		// The app is not linked. Prompt the user for an app ID.
 		fmt.Println("Make sure the app is created on app.encore.dev, and then enter its ID to link it.")
 		fmt.Print("App ID: ")
 		if _, err := fmt.Scanln(&appID); err != nil {
@@ -585,9 +606,18 @@ func linkApp(appID string, force bool) {
 		os.Exit(1)
 	}
 
-	appData["id"] = appID
-	data, _ := hujson.MarshalIndent(appData, "", "    ")
-	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
+	// Write it back to our data structure.
+	if idValue != nil {
+		idValue.Value = hujson.String(appID)
+	} else {
+		appData.Members = append(appData.Members, hujson.ObjectMember{
+			Name:  hujson.Value{Value: hujson.String("id")},
+			Value: hujson.Value{Value: hujson.String(appID)},
+		})
+	}
+
+	val.Format()
+	if err := ioutil.WriteFile(filePath, val.Pack(), 0644); err != nil {
 		fatal(err)
 		os.Exit(1)
 	}
