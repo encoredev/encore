@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/rs/zerolog/log"
@@ -181,7 +182,9 @@ func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCal
 	resp.Body.Close()
 
 	// Encode the body back into a Go style struct
-	body = handleResponse(proc.Meta, p, resp.Header, body)
+	if resp.StatusCode == http.StatusOK {
+		body = handleResponse(proc.Meta, p, resp.Header, body)
+	}
 
 	log.Info().Int("status", resp.StatusCode).Msg("dash: api call completed")
 	return reply(ctx, map[string]interface{}{
@@ -333,8 +336,7 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 		return nil, fmt.Errorf("unknown service/endpoint: %s/%s", p.Service, p.Endpoint)
 	}
 
-	encodingOptions := &encoding.Options{}
-	rpcEncoding, err := encoding.DescribeRPC(md, rpc, encodingOptions)
+	rpcEncoding, err := encoding.DescribeRPC(md, rpc, nil)
 	if err != nil {
 		return nil, fmt.Errorf("describe rpc: %v", err)
 	}
@@ -343,16 +345,18 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 	{
 		reqEnc := rpcEncoding.RequestEncodingForMethod(p.Method)
 		if reqEnc == nil {
-			return nil, fmt.Errorf("unsupported method: %s", p.Method)
+			return nil, fmt.Errorf("unsupported method: %s (supports: %s)", p.Method, strings.Join(rpc.HttpMethods, ","))
 		}
-		if err := addToRequest(reqSpec, p.Payload, reqEnc.ParameterEncodingMap()); err != nil {
-			return nil, fmt.Errorf("encode request params: %v", err)
+		if len(p.Payload) > 0 {
+			if err := addToRequest(reqSpec, p.Payload, reqEnc.ParameterEncodingMap()); err != nil {
+				return nil, fmt.Errorf("encode request params: %v", err)
+			}
 		}
 	}
 
 	// Add auth encoding, if any
 	if h := md.AuthHandler; h != nil {
-		auth, err := encoding.DescribeAuth(md, h.Params, encodingOptions)
+		auth, err := encoding.DescribeAuth(md, h.Params, nil)
 		if err != nil {
 			return nil, fmt.Errorf("describe auth: %v", err)
 		}
@@ -428,8 +432,12 @@ func handleResponse(md *v1.Data, p *apiCallParams, headers http.Header, body []b
 		}
 
 		var beforeExtra []byte
-		if i == 0 && len(rpcEncoding.ResponseEncoding.HeaderParameters) > 0 {
-			beforeExtra = []byte("\n\n    // JSON Payload\n    ")
+		if i == 0 {
+			if len(rpcEncoding.ResponseEncoding.HeaderParameters) > 0 {
+				beforeExtra = []byte("\n\n    // JSON Payload\n    ")
+			} else {
+				beforeExtra = []byte("\n    ")
+			}
 		}
 
 		hValue, err := hujson.Parse(value)

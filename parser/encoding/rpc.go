@@ -96,7 +96,7 @@ type RPCEncoding struct {
 	// Note: DefaultRequestEncoding.HTTPMethods will always be a slice with length 1
 	DefaultRequestEncoding *RequestEncoding `json:"request_encoding"`
 	// Expresses all the different ways the request can be encoded for this RPC
-	RequestEncoding []*RequestEncoding `json:"-"`
+	RequestEncoding []*RequestEncoding `json:"all_request_encodings"`
 	// Expresses how the response to this RPC will be encoded
 	ResponseEncoding *ResponseEncoding `json:"response_encoding"`
 }
@@ -104,14 +104,20 @@ type RPCEncoding struct {
 // RequestEncodingForMethod returns the request encoding required for the given HTTP method.
 // If the method is not supported by the RPC it reports nil.
 func (e *RPCEncoding) RequestEncodingForMethod(method string) *RequestEncoding {
+	var wildcardOption *RequestEncoding
+
 	for _, reqEnc := range e.RequestEncoding {
 		for _, m := range reqEnc.HTTPMethods {
-			if m == method {
+			if strings.EqualFold(m, method) {
 				return reqEnc
+			}
+
+			if m == "*" {
+				wildcardOption = reqEnc
 			}
 		}
 	}
-	return nil
+	return wildcardOption
 }
 
 // AuthEncoding expresses how a response should be encoded on the wire.
@@ -423,13 +429,6 @@ func keyDiff[T comparable, V any](src map[T]V, keys ...T) (diff []T) {
 // DescribeRequest groups the provided httpMethods by default ParameterLocation and returns a RequestEncoding
 // per ParameterLocation
 func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options *Options, httpMethods ...string) ([]*RequestEncoding, error) {
-	if requestSchema == nil {
-		return nil, nil
-	}
-	requestStruct, err := getConcreteStructType(appMetaData, requestSchema, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "request struct")
-	}
 	methodsByDefaultLocation := make(map[ParameterLocation][]string)
 	for _, m := range httpMethods {
 		switch m {
@@ -443,12 +442,26 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options
 		}
 	}
 
+	var requestStruct *schema.Struct
+	var err error
+	if requestSchema != nil {
+		requestStruct, err = getConcreteStructType(appMetaData, requestSchema, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, "request struct")
+		}
+	}
+
 	var reqs []*RequestEncoding
 	for location, methods := range methodsByDefaultLocation {
-		fields, err := describeParams(&encodingHints{location, requestTags, options}, requestStruct)
-		if err != nil {
-			return nil, err
+		var fields map[ParameterLocation][]*ParameterEncoding
+
+		if requestStruct != nil {
+			fields, err = describeParams(&encodingHints{location, requestTags, options}, requestStruct)
+			if err != nil {
+				return nil, err
+			}
 		}
+
 		if keys := keyDiff(fields, Query, Header, Body); len(keys) > 0 {
 			return nil, errors.Newf("request must only contain Query, Body and Header parameters. Found: %v", keys)
 		}

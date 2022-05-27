@@ -105,7 +105,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
     const hasPathParams = rpc.path.segments.findIndex(s => s.type !== "LITERAL") !== -1
 
     const [loading, setLoading] = useState(false)
-    const [respErr, setRespErr] = useState<string | undefined>(undefined)
+    const [respErr, setRespErr] = useState<[string, string] | undefined>(undefined)
     const [response, setResponse] = useState<string | undefined>(undefined)
     const [method, setMethod] = useState<string>(rpc.http_methods[0])
 
@@ -149,14 +149,14 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
             }
 
             if (resp.status_code !== 200) {
-                setRespErr(`HTTP ${resp.status}: ${respBody}`)
+                setRespErr([`HTTP ${resp.status}`, respBody])
             } else if (rpc.response_schema) {
                 setResponse(respBody)
             } else {
                 setResponse("Request completed successfully.")
             }
         } catch (err) {
-            setRespErr(`Internal Error: ${err}`)
+            setRespErr([`Internal Error: ${err}`, ''])
         } finally {
             setLoading(false)
         }
@@ -235,6 +235,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
 
         let headers: Record<string, any> = {}
         let queryString = ''
+
         function addQuery(name: string, value: any) {
             if (Array.isArray(value)) {
                 return value.map((v) => {
@@ -251,6 +252,7 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
         }
 
         const newBody: Record<string, any> = {}
+
         function processStruct(named: NamedType, payload: string) {
             try {
                 const astFields = md.decls[named.id].type.struct!.fields
@@ -370,7 +372,22 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
           />
         </pre>
             ) : respErr ? (
-                <div className="text-xs text-red-600 font-mono">{respErr}</div>
+                <div className="text-sm text-red-600 font-mono">
+                    <div className="font-bold">{respErr[0]}</div>
+                    {respErr[1] &&
+                        <pre
+                            className="text-xs shadow-inner rounded border border-gray-300 bg-gray-200 p-2 overflow-x-auto response-docs">
+                            <CM
+                                cfg={{
+                                    value:    respErr[1],
+                                    readOnly: true,
+                                    theme:    "encore",
+                                    mode:     {name: "javascript", json: true},
+                                }}
+                                noShadow={true}
+                            />
+                        </pre>}
+                </div>
             ) : (
                 <div className="text-xs text-gray-400">Make a request to see the response.</div>
             )}

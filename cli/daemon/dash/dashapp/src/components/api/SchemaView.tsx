@@ -169,7 +169,7 @@ class GoDialect extends TextBasedDialect {
         this.write(`*${decl.loc.pkg_name}.${decl.name}`)
     }
 
-    renderStruct(t: StructType) {
+    renderStruct(t: StructType, topLevel?: boolean) {
         this.writeln("struct {")
         this.level++
 
@@ -191,7 +191,7 @@ class GoDialect extends TextBasedDialect {
 
             return previous
         }, 0)
-        
+
         const longestSingleLineType = t.fields.reduce<number>((previous: number, current: Field) => {
             const type = typeAsString(current.typ)
             if (type.indexOf("\n") < 0 && type.length > previous) {
@@ -202,8 +202,12 @@ class GoDialect extends TextBasedDialect {
         }, 0)
 
         t.fields.map(f => {
-            const [_, location] = fieldNameAndLocation(f, this.method, this.asResponse)
-            if (location === FieldLocation.UnusedField) {
+            if (topLevel) {
+                const [_, location] = fieldNameAndLocation(f, this.method, this.asResponse)
+                if (location === FieldLocation.UnusedField) {
+                    return
+                }
+            } else if (f.json_name == "-") {
                 return
             }
 
@@ -506,6 +510,11 @@ export class JSONDialect extends TextBasedDialect {
         this.level++
         for (let i = 0; i < t.fields.length; i++) {
             const f = t.fields[i]
+
+            if (f.json_name == "-") {
+                continue
+            }
+
             this.indent()
             this.write(`"${f.json_name !== "" ? f.json_name : f.name}": `)
             this.writeType(f.typ)
@@ -759,7 +768,7 @@ class CurlDialect extends TextBasedDialect {
     }
 
     protected writeSeenDecl(): void {
-        
+
     }
 
 }
