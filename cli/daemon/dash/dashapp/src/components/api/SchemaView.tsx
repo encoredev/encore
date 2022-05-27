@@ -17,8 +17,9 @@ import {
     Type,
     TypeParameterRef
 } from "./schema"
+import HJSON from "hjson";
 
-export type Dialect = "go" | "typescript" | "json" | "table";
+export type Dialect = "go" | "typescript" | "json" | "curl" |  "table";
 
 interface Props {
     meta: APIMeta;
@@ -554,6 +555,170 @@ export class JSONDialect extends TextBasedDialect {
     }
 }
 
+class CurlDialect extends TextBasedDialect {
+    constructor(meta: APIMeta) {
+        super(meta, {name:"javascript", json: true})
+    }
+
+    protected renderBuiltin(t: Builtin, altValue?: boolean): void {
+        throw new Error("unexpected call")
+    }
+
+    protected renderList(t: ListType): void {
+        throw new Error("unexpected call")
+    }
+
+    protected renderMap(t: MapType): void {
+        throw new Error("unexpected call")
+    }
+
+    protected renderStruct(t: StructType, topLevel?: boolean): void {
+        if (!topLevel) {
+            throw new Error("expected top level call only")
+        }
+
+        const method = "POST"
+        const addr = undefined
+        const path = "/todo"
+
+        if (this.asResponse) {
+            const render = new JSONDialect(this.meta)
+            render.method = this.method
+            render.asResponse = this.asResponse
+            render.typeArgumentStack = this.typeArgumentStack
+            this.write(render.renderAsText({ struct: t } as Type))
+            return
+        }
+
+        const namedTypeToHJSON = (struct: StructType): string => {
+            const render = new JSONDialect(this.meta)
+            render.method = this.method
+            render.asResponse = false
+            render.typeArgumentStack = this.typeArgumentStack
+            const [queryString, headers, js] = render.structBits(struct, true)
+
+            let bits: string[] = ["{\n"]
+            let previousSection = false
+            if (headers) {
+                bits.push("    // HTTP headers", headers)
+                previousSection = true
+            }
+            if (queryString) {
+                if (previousSection) {
+                    bits.push(",\n\n")
+                }
+
+                bits.push("    // Query string", queryString)
+                previousSection = true
+            }
+            if (js) {
+                if (previousSection) {
+                    bits.push(",\n\n")
+                }
+
+                bits.push("    // HTTP body", js)
+            }
+            bits.push("\n}")
+
+            return bits.join("")
+        }
+
+        let headers: Record<string, any> = {}
+        let queryString = ''
+        function addQuery(name: string, value: any) {
+            if (Array.isArray(value)) {
+                return value.map((v) => {
+                    addQuery(name, v)
+                })
+            }
+
+            if (queryString) {
+                queryString += '&'
+            } else {
+                queryString = '?'
+            }
+            queryString += name + '=' + encodeURIComponent(value)
+        }
+
+        const newBody: Record<string, any> = {}
+        const processStruct = (struct: StructType, payload: string) => {
+            try {
+                const astFields = struct.fields
+
+                const bodyFields: Record<string, any> = HJSON.parse(payload)
+                if (typeof (bodyFields) !== "object") {
+                    throw new Error("Request Body isn't a JSON object")
+                }
+
+                for (const fieldName in bodyFields) {
+                    if (!bodyFields.hasOwnProperty(fieldName)) {
+                        continue
+                    }
+
+                    const fieldValue = bodyFields[fieldName]
+
+                    for (const f of astFields) {
+                        if (f.name === fieldName) {
+                            let [encodedName, location] = fieldNameAndLocation(f, method, false)
+
+                            switch (location) {
+                                case FieldLocation.Header:
+                                    headers[encodedName] = fieldValue
+                                    break
+                                case FieldLocation.Query:
+                                    addQuery(encodedName, fieldValue)
+                                    break
+                                case FieldLocation.Body:
+                                    newBody[encodedName] = fieldValue
+                                    break
+                            }
+                        }
+                    }
+                }
+
+            } catch (e) {
+                console.error("Unable to parse body: ", e)
+                // but continue anyway
+            }
+        }
+
+        processStruct(t, namedTypeToHJSON(t))
+        if (this.meta.auth_handler?.params?.named) {
+            const authStruct = this.meta.decls[this.meta.auth_handler.params.named.id].type.struct!
+            processStruct(authStruct, namedTypeToHJSON(authStruct))
+        }
+
+        let reqBody = HJSON.stringify(newBody, {
+            quotes: "strings",
+            separator: true,
+            space: "  ",
+        })
+
+        const defaultMethod = (reqBody !== "" ? "POST" : "GET")
+        let cmd = "curl "
+        if (method !== defaultMethod) {
+            cmd += `-X ${method} `
+        }
+        cmd += `'http://${addr ?? "localhost:4000"}${path}${queryString}'`
+
+        for (const header in headers) {
+            cmd += ` \\\n  -H "${header}: ${headers[header]}"`
+        }
+
+        if (reqBody !== "") {
+            reqBody = reqBody.split("\n").join("\n  ")
+            cmd += ` \\\n  -d '${reqBody}'`
+        }
+
+        this.write(cmd)
+    }
+
+    protected writeSeenDecl(): void {
+        
+    }
+
+}
+
 class TableDialect extends DialectIface {
     typeArgumentStack: Type[][] = [];
 
@@ -596,7 +761,8 @@ class TableDialect extends DialectIface {
                             ) : (
                                 <div className="text-xs text-gray-400 flex-grow">No description.</div>
                             )}
-                            <div className="text-xs font-mono text-gray-500" title={"The encoded field name on the wire"}>
+                            <div className="text-xs font-mono text-gray-500"
+                                 title={"The encoded field name on the wire"}>
                                 {name}
                             </div>
                         </div>
@@ -699,6 +865,7 @@ const dialects: { [key in Dialect]: (meta: APIMeta) => DialectIface } = {
     "go":         (meta) => new GoDialect(meta),
     "typescript": (meta) => new TypescriptDialect(meta),
     "json":       (meta) => new JSONDialect(meta),
+    "curl":       (meta) => new CurlDialect(meta),
     "table":      (meta) => new TableDialect(meta),
 }
 

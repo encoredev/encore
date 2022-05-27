@@ -332,6 +332,11 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
                 <div className={`${rpc.request_schema ? "block" : " hidden"}`}>
                     <CM ref={payloadCM} cfg={cfg}/>
                 </div>
+                {md.auth_handler && md.auth_handler.params?.named !== undefined &&
+                    <div className="">
+                        <CM ref={authCM} cfg={cfg}/>
+                    </div>
+                }
             </div>
             <div className={`text-xs mt-1 ${rpc.request_schema ? "hidden" : "block"}`}>
                 This API takes no request data.
@@ -341,11 +346,6 @@ const RPCCaller: FC<Props> = ({md, svc, rpc, conn, appID, addr}) => {
                     <div className="flex-1 min-w-0 mr-1 relative rounded-md shadow-sm">
                         <Input id="" cls="w-full" placeholder="Auth Token" required={rpc.access_type === "AUTH"}
                                value={authToken} onChange={setAuthToken}/>
-                    </div>
-                }
-                {md.auth_handler && md.auth_handler.params?.named !== undefined &&
-                    <div className="text-xs flex-1 min-w-0 mr-1 relative rounded-md shadow-sm">
-                        <CM ref={authCM} cfg={cfg}/>
                     </div>
                 }
                 <APICallButton send={makeRequest} copyCurl={copyCurl}/>

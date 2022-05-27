@@ -218,6 +218,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   className="form-select h-full py-0 border-transparent bg-transparent text-gray-300 text-xs leading-none">
                 <option value="json">JSON</option>
                 <option value="go">Go</option>
+                <option value="curl">curl</option>
                 {/*<option value="typescript">TypeScript</option>*/}
               </select>
             </div>
@@ -236,6 +237,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   className="form-select h-full py-0 border-transparent bg-transparent text-gray-500 text-xs leading-none">
                 <option value="json">JSON</option>
                 <option value="go">Go</option>
+                <option value="curl">curl</option>
                 {/*<option value="typescript">TypeScript</option>*/}
               </select>
             </div>
