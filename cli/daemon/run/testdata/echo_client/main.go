@@ -138,11 +138,13 @@ func main() {
 	_, err = api.Test.TestAuthHandler(ctx)
 	assertStructuredError(err, client.ErrUnauthenticated, "invalid token")
 
-	// Test with basic auth token
+	// Test with static auth data
 	{
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuthToken("tokendata"),
+			client.WithAuth(client.EchoAuthParams{
+				Authorization: "Bearer tokendata",
+			}),
 		)
 		assert(err, nil, "Wanted no error from client creation")
 
@@ -151,13 +153,15 @@ func main() {
 		assert(resp.Message, "user::true", "expected the user ID back")
 	}
 
-	// Test with token generator function
+	// Test with auth data generator function
 	{
 		tokenToReturn := "tokendata"
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuthFunc(func(ctx context.Context) (string, error) {
-				return tokenToReturn, nil
+			client.WithAuthFunc(func(ctx context.Context) (*client.EchoAuthParams, error) {
+				return &client.EchoAuthParams{
+					Authorization: "Bearer " + tokenToReturn,
+				}, nil
 			}),
 		)
 		assert(err, nil, "Wanted no error from client creation")
@@ -173,11 +177,30 @@ func main() {
 		assertStructuredError(err, client.ErrUnauthenticated, "invalid token")
 	}
 
+	// Test with headers and query string auth data
+	{
+		api, err := client.New(
+			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
+			client.WithAuth(client.EchoAuthParams{
+				NewAuth: true,
+				Header:  "102",
+				Query:   []int{42, 100, -50, 10},
+			}),
+		)
+		assert(err, nil, "Wanted no error from client creation")
+
+		resp, err := api.Test.TestAuthHandler(ctx)
+		assert(err, nil, "Expected no error from second auth")
+		assert(resp.Message, "second_user::true", "expected the user ID back")
+	}
+
 	// Test the raw endpoint
 	{
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuthToken("tokendata"),
+			client.WithAuth(client.EchoAuthParams{
+				Authorization: "Bearer tokendata",
+			}),
 		)
 		assert(err, nil, "Wanted no error from client creation")
 

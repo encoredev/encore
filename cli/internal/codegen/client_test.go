@@ -5,6 +5,7 @@ package codegen
 
 import (
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -23,33 +24,49 @@ func TestClientCodeGeneration(t *testing.T) {
 	t.Helper()
 	c := qt.New(t)
 
-	ar, err := txtar.ParseFile("testdata/input.go")
+	tests, err := filepath.Glob("./testdata/input*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
 	c.Assert(err, qt.IsNil)
 
-	base := t.TempDir()
-	err = txtar.Write(ar, base)
-	c.Assert(err, qt.IsNil)
+	for _, path := range tests {
+		path := path
+		c.Run("expected"+strings.TrimPrefix(strings.TrimSuffix(filepath.Base(path), ".go"), "input"), func(c *qt.C) {
+			ar, err := txtar.ParseFile(path)
+			c.Assert(err, qt.IsNil)
 
-	res, err := parser.Parse(&parser.Config{
-		AppRoot:    base,
-		ModulePath: "app",
-	})
-	c.Assert(err, qt.IsNil)
+			base := t.TempDir()
+			err = txtar.Write(ar, base)
+			c.Assert(err, qt.IsNil)
 
-	files, err := ioutil.ReadDir("./testdata")
-	c.Assert(err, qt.IsNil)
-
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), "expected_") {
-			c.Run(file.Name()[9:], func(c *qt.C) {
-				language, ok := Detect(file.Name())
-				c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
-
-				generatedClient, err := Client(language, "app", res.Meta)
-				c.Assert(err, qt.IsNil)
-
-				golden.TestAgainst(c, file.Name(), string(generatedClient))
+			res, err := parser.Parse(&parser.Config{
+				AppRoot:    base,
+				ModulePath: "app",
 			})
-		}
+			c.Assert(err, qt.IsNil)
+
+			files, err := ioutil.ReadDir("./testdata")
+			c.Assert(err, qt.IsNil)
+
+			expectedPrefix := "expected" + strings.TrimPrefix(strings.TrimSuffix(filepath.Base(path), ".go"), "input") + "_"
+
+			for _, file := range files {
+				testName := strings.TrimPrefix(file.Name(), expectedPrefix)
+
+				// Check that the trim prefix removed the expectedPrefix && there are no other underscores in the testName
+				if testName != file.Name() && !strings.Contains(testName, "_") {
+					c.Run(testName, func(c *qt.C) {
+						language, ok := Detect(file.Name())
+						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
+
+						generatedClient, err := Client(language, "app", res.Meta)
+						c.Assert(err, qt.IsNil)
+
+						golden.TestAgainst(c, file.Name(), string(generatedClient))
+					})
+				}
+			}
+		})
 	}
 }

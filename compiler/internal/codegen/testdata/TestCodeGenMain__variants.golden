@@ -933,7 +933,6 @@ func __encore_resolveAuthParam(req *http.Request) (param *svc.AuthParams, err er
 	if dec.LastError != nil {
 		return nil, dec.LastError
 	}
-
 	return params, nil
 }
 

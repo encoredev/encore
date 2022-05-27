@@ -57,9 +57,9 @@ type typescript struct {
 	generatorVersion tsGenVersion
 
 	seenJSON           bool // true if a JSON type was seen
-	seenQueryString    bool // true if a query string was seen
-	seenRawEndpoint    bool // true if we've seen a raw endpoint
 	seenHeaderResponse bool // true if we've seen a header used in a response object
+	hasAuth            bool // true if we've seen an authentication handler
+	authIsComplexType  bool // true if the auth type is a complex type
 }
 
 func (ts *typescript) Version() int {
@@ -73,6 +73,12 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	ts.md = md
 	ts.appSlug = appSlug
 	ts.typs = getNamedTypes(md)
+
+	if ts.md.AuthHandler != nil {
+		ts.hasAuth = true
+		ts.authIsComplexType = ts.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
+
+	}
 
 	ts.WriteString("// " + doNotEditHeader() + "\n\n")
 	ts.WriteString("/* eslint-disable @typescript-eslint/no-namespace */\n")
@@ -93,7 +99,9 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 		}
 	}
 	ts.writeExtraTypes()
-	ts.writeBaseClient(appSlug)
+	if err := ts.writeBaseClient(appSlug); err != nil {
+		return err
+	}
 	ts.writeCustomErrorType()
 
 	return nil
@@ -275,8 +283,6 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	// Raw end points just pass through the request
 	// and need no further code generation
 	if rpc.Proto == meta.RPC_RAW {
-		ts.seenRawEndpoint = true
-
 		w.WriteStringf(
 			"return this.baseClient.callAPI(method, `%s`, body, options)\n",
 			rpcPath,
@@ -314,7 +320,6 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		// Generate the query string
 		if len(reqEnc.QueryParameters) > 0 {
 			query = "query"
-			ts.seenQueryString = true
 
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
@@ -533,39 +538,50 @@ export default class Client {
 		}
 		w.WriteString("\n")
 
-		w.WriteString(`
+		// Only include the deprecated constructor if bearer token authentication is being used
+		if ts.hasAuth && !ts.authIsComplexType {
+			w.WriteString(`
 /**
  * @deprecated This constructor is deprecated, and you should move to using BaseURL with an Options object
  */
-constructor(target?: string, token?: string)
+constructor(target: string, token?: string)
+`)
+		}
 
+		w.WriteString(`
 /**
  * Creates a Client for calling the public and authenticated APIs of your Encore application.
  *
  * @param target  The target which the client should be configured to use. See Local and Environment for options.
  * @param options Options for the client
  */
-constructor(target: BaseURL, options?: ClientOptions)
-`)
-		w.WriteString("constructor(target: string | BaseURL = \"prod\", opts?: string | ClientOptions) {\n")
-		{
-			w := w.Indent()
+constructor(target: BaseURL, options?: ClientOptions)`)
 
-			w.WriteString(`
+		if ts.hasAuth && !ts.authIsComplexType {
+			w.WriteString("\nconstructor(target: string | BaseURL = \"prod\", options?: string | ClientOptions) {\n")
+			{
+				w := w.Indent()
+
+				w.WriteString(`
 // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
 if (!target.startsWith("http://") && !target.startsWith("https://")) {
     target = Environment(target)
 }
 
-if (typeof opts === "string") {
-    opts = { bearerToken: opts }
-} else {
-    opts ??= {}
+if (typeof options === "string") {
+    options = { auth: options }
 }
 
 `)
+			}
+		} else {
+			w.WriteString(" {\n")
+		}
 
-			w.WriteString("const base = new BaseClient(target, opts)\n")
+		{
+			w := w.Indent()
+
+			w.WriteString("const base = new BaseClient(target, options ?? {})\n")
 			for _, svc := range ts.md.Svcs {
 				if hasPublicRPC(svc) {
 					w.WriteStringf("this.%s = new %s.ServiceClient(base)\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
@@ -587,7 +603,11 @@ export interface ClientOptions {
      * code on each API request made or response received.
      */
     fetcher?: Fetcher
+`)
 
+	if ts.hasAuth {
+		if !ts.authIsComplexType {
+			w.WriteString(`
     /**
      * Allows you to set the auth token to be used for each request
      * either by passing in a static token string or by passing in a function
@@ -595,13 +615,28 @@ export interface ClientOptions {
      *
      * These tokens will be sent as bearer tokens in the Authorization header.
      */
-    bearerToken?: string | TokenGenerator
-}
+`)
+		} else {
+			w.WriteString(`
+    /**
+     * Allows you to set the authentication data to be used for each
+     * request either by passing in a static object or by passing in
+     * a function which returns a new object for each request.
+     */
+`)
+		}
+
+		w.WriteString("    auth?: ")
+		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
+		w.WriteString(" | AuthDataGenerator\n")
+	}
+
+	w.WriteString(`}
 
 `)
 }
 
-func (ts *typescript) writeBaseClient(appSlug string) {
+func (ts *typescript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-TS-Client (Encore/%s)", appSlug, version.Version)
 
 	ts.WriteString(`
@@ -613,9 +648,16 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
     /** Any query parameters to be sent with the request */
     query?: Record<string, string | string[]>
 }
+`)
 
-// TokenGenerator is a function that returns a token
-export type TokenGenerator = () => string
+	if ts.hasAuth {
+		ts.WriteString(`
+// AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
+export type AuthDataGenerator = () => `)
+		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+	}
+
+	ts.WriteString(`
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
@@ -623,8 +665,14 @@ export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Respon
 class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
-    readonly headers: Record<string, string>
-    readonly tokenGenerator?: TokenGenerator
+    readonly headers: Record<string, string>`)
+
+	if ts.hasAuth {
+		ts.WriteString("\n    readonly authGenerator?: () => ")
+		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+	}
+
+	ts.WriteString(`
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -638,53 +686,104 @@ class BaseClient {
             this.fetcher = options.fetcher
         } else {
             this.fetcher = fetch
-        }
+        }`)
 
-        // Setup a token generator using the bearer token option
-        if (options.bearerToken !== undefined) {
-            const token = options.bearerToken
-            if (typeof token === "string") {
-                this.tokenGenerator = () => token
+	if ts.hasAuth {
+		ts.WriteString(`
+
+        // Setup an authentication data generator using the auth data token option
+        if (options.auth !== undefined) {
+            const auth = options.auth
+            if (typeof auth === "function") {
+                this.authGenerator = auth
             } else {
-                this.tokenGenerator = token
+                this.authGenerator = () => auth                
             }
         }
+`)
+	}
+
+	ts.WriteString(`
     }
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+        // eslint-disable-next-line prefer-const
+        let { query, ...rest } = params ?? {}
         const init = {
-            ...(params ?? {}),
+            ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers}
+`)
+	w := ts.newIdentWriter(2)
 
-        let bearerToken: string | undefined
+	if ts.hasAuth {
+		w.WriteString(`
+// If authorization data generator is present, call it and add the returned data to the request
+let authData: `)
+		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
+		w.WriteString(" | undefined\n")
+		w.WriteString(`if (this.authGenerator) {
+    authData = this.authGenerator()
+}
 
-        // If an authorization token generator is present, call it and add the returned token to the request
-        if (this.tokenGenerator) {
-            bearerToken = this.tokenGenerator()
-        }
+// If we now have authentication data, add it to the request
+if (authData) {
+`)
 
-        // If we now have a bearer token, add it to the request
-        if (bearerToken) {
-            init.headers["Authorization"] = "Bearer " + bearerToken
-        }
+		{
+			w := w.Indent()
+			if ts.authIsComplexType {
+				authData, err := encoding.DescribeAuth(ts.md, ts.md.AuthHandler.Params, &encoding.Options{SrcNameTag: "json"})
+				if err != nil {
+					return errors.Wrap(err, "unable to describe auth data")
+				}
 
-        // Make the actual request
-        `)
+				// Write all the query string fields in
+				for i, field := range authData.QueryParameters {
+					// We need to ensure that the query field is not undefined
+					if i == 0 {
+						w.WriteString("query = query ?? {}\n")
+					}
 
-	if ts.seenRawEndpoint || ts.seenQueryString {
-		ts.WriteString(`const query = params?.query ? '?' + encodeQuery(params.query) : ''
-        const response = await this.fetcher(this.baseURL+path+query, init)`)
-	} else {
-		ts.WriteString("const response = await this.fetcher(this.baseURL+path, init)")
+					w.WriteString("query[\"")
+					w.WriteString(field.Name)
+					w.WriteString("\"] = ")
+					if list := field.Type.GetList(); list != nil {
+						w.WriteString(
+							ts.Dot("authData", field.SrcName) +
+								".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")",
+						)
+					} else {
+						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName)))
+					}
+					w.WriteString("\n")
+				}
+
+				// Write all the headers
+				for _, field := range authData.HeaderParameters {
+					w.WriteString("init.headers[\"")
+					w.WriteString(field.Name)
+					w.WriteString("\"] = ")
+					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName)))
+					w.WriteString("\n")
+				}
+			} else {
+				w.WriteString("init.headers[\"Authorization\"] = \"Bearer \" + authData\n")
+			}
+		}
+
+		w.WriteString("}\n")
 	}
 
 	ts.WriteString(`
+        // Make the actual request
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        const response = await this.fetcher(this.baseURL+path+queryString, init)
 
         // handle any error responses
         if (!response.ok) {
@@ -716,6 +815,7 @@ class BaseClient {
         return response
     }
 }`)
+	return nil
 }
 
 func (ts *typescript) writeExtraTypes() {
@@ -725,8 +825,7 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 `)
 	}
 
-	if ts.seenQueryString || ts.seenRawEndpoint {
-		ts.WriteString(`
+	ts.WriteString(`
 
 function encodeQuery(parts: Record<string, string | string[]>): string {
     const pairs = []
@@ -738,7 +837,6 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     }
     return pairs.join("&")
 }`)
-	}
 
 	if ts.seenHeaderResponse {
 		ts.WriteString(`

@@ -27,31 +27,13 @@ export default class Client {
 
 
     /**
-     * @deprecated This constructor is deprecated, and you should move to using BaseURL with an Options object
-     */
-    constructor(target?: string, token?: string)
-
-    /**
      * Creates a Client for calling the public and authenticated APIs of your Encore application.
      *
      * @param target  The target which the client should be configured to use. See Local and Environment for options.
      * @param options Options for the client
      */
-    constructor(target: BaseURL, options?: ClientOptions)
-    constructor(target: string | BaseURL = "prod", opts?: string | ClientOptions) {
-
-        // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
-        if (!target.startsWith("http://") && !target.startsWith("https://")) {
-            target = Environment(target)
-        }
-
-        if (typeof opts === "string") {
-            opts = { bearerToken: opts }
-        } else {
-            opts ??= {}
-        }
-
-        const base = new BaseClient(target, opts)
+    constructor(target: BaseURL, options?: ClientOptions) {
+        const base = new BaseClient(target, options ?? {})
         this.echo = new echo.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
         this.test = new test.ServiceClient(base)
@@ -70,13 +52,11 @@ export interface ClientOptions {
     fetcher?: Fetcher
 
     /**
-     * Allows you to set the auth token to be used for each request
-     * either by passing in a static token string or by passing in a function
-     * which returns the auth token.
-     *
-     * These tokens will be sent as bearer tokens in the Authorization header.
+     * Allows you to set the authentication data to be used for each
+     * request either by passing in a static object or by passing in
+     * a function which returns a new object for each request.
      */
-    bearerToken?: string | TokenGenerator
+    auth?: echo.AuthParams | AuthDataGenerator
 }
 
 export namespace echo {
@@ -85,6 +65,13 @@ export namespace echo {
         APIBaseURL: string
         EnvName: string
         EnvType: string
+    }
+
+    export interface AuthParams {
+        Header: string
+        Authorization: string
+        Query: number[]
+        NewAuth: boolean
     }
 
     export interface BasicData {
@@ -579,8 +566,8 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
     query?: Record<string, string | string[]>
 }
 
-// TokenGenerator is a function that returns a token
-export type TokenGenerator = () => string
+// AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
+export type AuthDataGenerator = () => echo.AuthParams
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
@@ -589,7 +576,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
-    readonly tokenGenerator?: TokenGenerator
+    readonly authGenerator?: () => echo.AuthParams
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -605,21 +592,24 @@ class BaseClient {
             this.fetcher = fetch
         }
 
-        // Setup a token generator using the bearer token option
-        if (options.bearerToken !== undefined) {
-            const token = options.bearerToken
-            if (typeof token === "string") {
-                this.tokenGenerator = () => token
+        // Setup an authentication data generator using the auth data token option
+        if (options.auth !== undefined) {
+            const auth = options.auth
+            if (typeof auth === "function") {
+                this.authGenerator = auth
             } else {
-                this.tokenGenerator = token
+                this.authGenerator = () => auth                
             }
         }
+
     }
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+        // eslint-disable-next-line prefer-const
+        let { query, ...rest } = params ?? {}
         const init = {
-            ...(params ?? {}),
+            ...rest,
             method,
             body: body ?? null,
         }
@@ -627,21 +617,24 @@ class BaseClient {
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers}
 
-        let bearerToken: string | undefined
-
-        // If an authorization token generator is present, call it and add the returned token to the request
-        if (this.tokenGenerator) {
-            bearerToken = this.tokenGenerator()
+        // If authorization data generator is present, call it and add the returned data to the request
+        let authData: echo.AuthParams | undefined
+        if (this.authGenerator) {
+            authData = this.authGenerator()
         }
 
-        // If we now have a bearer token, add it to the request
-        if (bearerToken) {
-            init.headers["Authorization"] = "Bearer " + bearerToken
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            query = query ?? {}
+            query["query"] = authData.Query.map((v) => String(v))
+            query["new-auth"] = String(authData.NewAuth)
+            init.headers["x-header"] = authData.Header
+            init.headers["authorization"] = authData.Authorization
         }
 
         // Make the actual request
-        const query = params?.query ? '?' + encodeQuery(params.query) : ''
-        const response = await this.fetcher(this.baseURL+path+query, init)
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        const response = await this.fetcher(this.baseURL+path+queryString, init)
 
         // handle any error responses
         if (!response.ok) {
