@@ -64,6 +64,7 @@ func (b *Builder) Main() (f *File, err error) {
 	}
 
 	f.Var().Id("json").Op("=").Qual(JsonPkg, "Config").Values(Dict{
+		Id("IndentionStep"):          Qual("encore.dev/runtime/config", "JsonIndentStepForResponses").Call(),
 		Id("EscapeHTML"):             False(),
 		Id("SortMapKeys"):            True(),
 		Id("ValidateJsonRawMessage"): True(),

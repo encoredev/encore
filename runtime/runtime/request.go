@@ -32,9 +32,9 @@ var (
 )
 
 var json = jsoniter.Config{
-	IndentionStep:          2,
+	IndentionStep:          config.JsonIndentStepForResponses(),
 	EscapeHTML:             false,
-	SortMapKeys:            false,
+	SortMapKeys:            true,
 	ValidateJsonRawMessage: true,
 }.Froze()
 
