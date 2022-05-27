@@ -471,7 +471,7 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	return &config.Runtime{
 		AppID:         r.ID,
 		AppSlug:       r.AppSlug,
-		APIBaseURL:    fmt.Sprintf("http://localhost:%d", params.RuntimePort),
+		APIBaseURL:    "http://" + r.ListenAddr,
 		DeployID:      fmt.Sprintf("run_%s", xid.New()),
 		DeployedAt:    time.Now().UTC(), // Force UTC to not cause confusion
 		EnvID:         p.ID,
