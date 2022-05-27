@@ -43,7 +43,7 @@ type NonBasicData struct {
 
 	// Auth Parameters
 	AuthHeader string
-	AuthQuery  []int 
+	AuthQuery  []int
 
 	// Unexported fields
 	unexported string

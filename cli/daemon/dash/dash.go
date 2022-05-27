@@ -179,6 +179,10 @@ func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCal
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
+
+	// Encode the body back into a Go style struct
+	body = handleResponse(proc.Meta, p, resp.Header, body)
+
 	log.Info().Int("status", resp.StatusCode).Msg("dash: api call completed")
 	return reply(ctx, map[string]interface{}{
 		"status":      resp.Status,
@@ -383,6 +387,65 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 		req.Header[k] = v
 	}
 	return req, nil
+}
+
+func handleResponse(md *v1.Data, p *apiCallParams, headers http.Header, body []byte) []byte {
+	rpc := findRPC(md, p.Service, p.Endpoint)
+	if rpc == nil {
+		return body
+	}
+
+	encodingOptions := &encoding.Options{}
+	rpcEncoding, err := encoding.DescribeRPC(md, rpc, encodingOptions)
+	if err != nil {
+		return body
+	}
+
+	decoded := map[string]json.RawMessage{}
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		return body
+	}
+
+	members := make([]hujson.ObjectMember, 0)
+	for i, m := range rpcEncoding.ResponseEncoding.HeaderParameters {
+		value := headers.Get(m.Name)
+
+		var beforeExtra []byte
+		if i == 0 {
+			beforeExtra = []byte("\n    // HTTP Headers\n    ")
+		}
+
+		members = append(members, hujson.ObjectMember{
+			Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
+			Value: hujson.Value{Value: hujson.String(value)},
+		})
+	}
+
+	for i, m := range rpcEncoding.ResponseEncoding.BodyParameters {
+		value, ok := decoded[m.Name]
+		if !ok {
+			value = []byte("null")
+		}
+
+		var beforeExtra []byte
+		if i == 0 && len(rpcEncoding.ResponseEncoding.HeaderParameters) > 0 {
+			beforeExtra = []byte("\n\n    // JSON Payload\n    ")
+		}
+
+		hValue, err := hujson.Parse(value)
+		if err != nil {
+			hValue = hujson.Value{Value: hujson.Literal(value)}
+		}
+
+		members = append(members, hujson.ObjectMember{
+			Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
+			Value: hValue,
+		})
+	}
+
+	value := hujson.Value{Value: &hujson.Object{Members: members}}
+	value.Format()
+	return value.Pack()
 }
 
 // httpRequestSpec specifies how the HTTP request should be generated.
