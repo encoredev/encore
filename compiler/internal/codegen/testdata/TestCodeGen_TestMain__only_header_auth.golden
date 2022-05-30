@@ -1,0 +1,32 @@
+// pkg svc
+package svc_test
+
+import (
+	"encore.app/svc"
+	_ "encore.dev/runtime"
+	"encore.dev/runtime/config"
+	"os"
+	"reflect"
+	_ "unsafe"
+)
+
+//go:linkname loadConfig encore.dev/runtime/config.loadConfig
+func loadConfig() (*config.Config, error) {
+	services := []*config.Service{{
+		Endpoints: nil,
+		Name:      "svc",
+		RelPath:   "svc",
+	}}
+	static := &config.Static{
+		AuthData:    reflect.TypeOf((*svc.AuthData)(nil)),
+		Services:    services,
+		TestService: "svc",
+		Testing:     true,
+	}
+	return &config.Config{
+		Runtime: config.ParseRuntime(os.Getenv("ENCORE_RUNTIME_CONFIG")),
+		Secrets: config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
+		Static:  static,
+	}, nil
+}
+
