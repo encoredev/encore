@@ -482,6 +482,9 @@ func (b *Builder) decodeRequest(requestDecoder *gocodegen.MarshallingCodeWrapper
 }
 
 func (b *Builder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
+	if len(params) == 0 {
+		return
+	}
 	g.Comment("Decode Headers")
 	g.Id("h").Op(":=").Id("req").Dot("Header")
 	for _, f := range params {
@@ -495,6 +498,9 @@ func (b *Builder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *gocod
 }
 
 func (b *Builder) decodeQueryString(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
+	if len(params) == 0 {
+		return
+	}
 	g.Comment("Decode Query String")
 	g.Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call()
 
@@ -511,14 +517,10 @@ func (b *Builder) decodeQueryString(g *Group, pos gotoken.Pos, requestDecoder *g
 func (b *Builder) decodeRequestParameters(g *Group, rpc *est.RPC, requestDecoder *gocodegen.MarshallingCodeWrapper, req *encoding.RequestEncoding) {
 
 	// Decode headers
-	if len(req.HeaderParameters) > 0 {
-		b.decodeHeaders(g, rpc.Func.Pos(), requestDecoder, req.HeaderParameters)
-	}
+	b.decodeHeaders(g, rpc.Func.Pos(), requestDecoder, req.HeaderParameters)
 
 	// Decode QueryString
-	if len(req.QueryParameters) > 0 {
-		b.decodeQueryString(g, rpc.Func.Pos(), requestDecoder, req.QueryParameters)
-	}
+	b.decodeQueryString(g, rpc.Func.Pos(), requestDecoder, req.QueryParameters)
 
 	// Decode Body
 	if len(req.BodyParameters) > 0 {
