@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/internal/codegen"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -47,10 +47,18 @@ Supported language codes are:
 
 			if lang == "" {
 				var ok bool
-				lang, ok = detectLang(output)
+				l, ok := codegen.Detect(output)
 				if !ok {
 					fatal("could not detect language from output.\n\nNote: you can specify the language explicitly with --lang.")
 				}
+				lang = string(l)
+			} else {
+				// Validate the user input for the language
+				l, err := codegen.GetLang(lang)
+				if err != nil {
+					fatal(fmt.Sprintf("%s: supported langauges are `typescript` and `go`", err))
+				}
+				lang = string(l)
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -74,22 +82,21 @@ Supported language codes are:
 				}
 			}
 		},
+
+		ValidArgsFunction: autoCompleteAppSlug,
 	}
 
 	genCmd.AddCommand(genClientCmd)
-	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
-	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\" and \"go\" are supported)")
-	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
-}
 
-func detectLang(path string) (string, bool) {
-	suffix := strings.ToLower(filepath.Ext(path))
-	switch suffix {
-	case ".ts":
-		return "typescript", true
-	case ".go":
-		return "go", true
-	default:
-		return "", false
-	}
+	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\" and \"go\" are supported)")
+	_ = genClientCmd.RegisterFlagCompletionFunc("lang", autoCompleteFromStaticList(
+		"typescript\tA TypeScript-client using the in-browser Fetch API",
+		"go\tA Go client using net/http",
+	))
+
+	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
+	_ = genClientCmd.MarkFlagFilename("output", "go", "ts", "tsx")
+
+	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
+	_ = genClientCmd.RegisterFlagCompletionFunc("env", autoCompleteEnvSlug)
 }
