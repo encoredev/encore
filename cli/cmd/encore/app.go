@@ -79,6 +79,7 @@ func init() {
 			}
 			linkApp(appID, forceLink)
 		},
+		ValidArgsFunction: autoCompleteAppSlug,
 	}
 	appCmd.AddCommand(linkAppCmd)
 	linkAppCmd.Flags().BoolVarP(&forceLink, "force", "f", false, "Force link even if the app is already linked.")
@@ -97,6 +98,16 @@ func init() {
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				os.Exit(1)
+			}
+		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch len(args) {
+			case 0:
+				return autoCompleteAppSlug(cmd, args, toComplete)
+			case 1:
+				return nil, cobra.ShellCompDirectiveFilterDirs
+			default:
+				return nil, cobra.ShellCompDirectiveDefault
 			}
 		},
 	}
