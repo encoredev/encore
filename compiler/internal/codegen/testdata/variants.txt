@@ -75,6 +75,27 @@ func Eight(ctx context.Context, bar, baz string) (*Response, error) {
 	return &Response{Message: bar}, nil
 }
 
+type ComplexResponse struct {
+	Header string `header:"X-Header"`
+	Message string
+}
+
+//encore:api public path=/nine/:bar/:baz
+func Nine(ctx context.Context, bar, baz string) (*ComplexResponse, error) {
+	rlog.Info("nine", "bar", bar, "baz", baz)
+	return &Response{Message: bar, Header: baz}, nil
+}
+
+type HeaderResponse struct {
+	Header string `header:"X-Header"`
+}
+
+//encore:api public path=/ten
+func Ten(ctx context.Context) (*HeaderResponse, error) {
+	rlog.Info("nine")
+	return &HeaderResponse{Header: "header"}, nil
+}
+
 //encore:api private path=/cron
 func CronOne(ctx context.Context) error {
 	return nil

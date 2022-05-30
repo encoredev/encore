@@ -189,6 +189,9 @@ type EchoClient interface {
 	// MuteEcho absorbs a request
 	MuteEcho(ctx context.Context, params EchoData[string, string]) error
 
+	// NilResponse returns a nil response and nil error
+	NilResponse(ctx context.Context) (EchoBasicData, error)
+
 	// NonBasicEcho echoes back the request data.
 	NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild []string, params EchoNonBasicData) (EchoNonBasicData, error)
 
@@ -305,6 +308,17 @@ func (c *echoClient) MuteEcho(ctx context.Context, params EchoData[string, strin
 
 	_, err := callAPI(ctx, c.base, "GET", fmt.Sprintf("/echo.MuteEcho?%s", queryString.Encode()), nil, nil, nil)
 	return err
+}
+
+// NilResponse returns a nil response and nil error
+func (c *echoClient) NilResponse(ctx context.Context) (resp EchoBasicData, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/echo.NilResponse", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 // NonBasicEcho echoes back the request data.
