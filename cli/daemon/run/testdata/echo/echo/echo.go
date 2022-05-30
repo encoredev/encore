@@ -116,6 +116,12 @@ func Noop(ctx context.Context) error {
 	return nil
 }
 
+// NilResponse returns a nil response and nil error
+//encore:api public method=GET,POST
+func NilResponse(ctx context.Context) (*BasicData, error) {
+	return nil, nil
+}
+
 // MuteEcho absorbs a request
 //encore:api public method=GET
 func MuteEcho(ctx context.Context, params Data[string, string]) error {

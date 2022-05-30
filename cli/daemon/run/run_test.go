@@ -271,6 +271,14 @@ func TestEndToEndWithApp(t *testing.T) {
 			c.Assert(w2.Body.Bytes(), qt.DeepEquals, w2.Body.Bytes())
 		}
 
+		// Call an endpoint without request parameters, returning nil
+		{
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/echo.NilResponse", nil)
+			run.ServeHTTP(w, req)
+			c.Assert(w.Code, qt.Equals, 200)
+		}
+
 		// Call an endpoint without request parameters and response value
 		{
 			w := httptest.NewRecorder()
