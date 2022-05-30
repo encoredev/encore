@@ -18,10 +18,10 @@ type Driver interface {
 
 	// DestroyCluster destroys a cluster with the given id.
 	// If a Driver doesn't support destroying the cluster it reports ErrUnsupported.
-	DestroyCluster(ctx context.Context, clusterID string) error
+	DestroyCluster(ctx context.Context, id ClusterID) error
 
 	// ClusterStatus reports the current status of a cluster.
-	ClusterStatus(ctx context.Context, clusterID string) (*ClusterStatus, error)
+	ClusterStatus(ctx context.Context, id ClusterID) (*ClusterStatus, error)
 }
 
 type ConnConfig struct {
@@ -35,10 +35,16 @@ type ConnConfig struct {
 	RootDatabase string // root database to connect to
 }
 
+type ClusterType string
+
+const (
+	Run  ClusterType = "run"
+	Test ClusterType = "test"
+)
+
 // CreateParams are the params to (*ClusterManager).Create.
 type CreateParams struct {
-	// ClusterID is the unique id of the cluster.
-	ClusterID string
+	ClusterID ClusterID
 
 	// Memfs, if true, configures the database container to use an
 	// in-memory filesystem as opposed to persisting the database to disk.

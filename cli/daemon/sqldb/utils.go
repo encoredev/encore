@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // WaitForConn waits for a successful connection to uri to be established.
@@ -28,4 +30,14 @@ func WaitForConn(ctx context.Context, uri string) error {
 		time.Sleep(250 * time.Millisecond)
 	}
 	return fmt.Errorf("database did not come up: %v", err)
+}
+
+// IsUsed reports whether the application uses SQL databases at all.
+func IsUsed(md *meta.Data) bool {
+	for _, svc := range md.Svcs {
+		if len(svc.Migrations) > 0 {
+			return true
+		}
+	}
+	return false
 }

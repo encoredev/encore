@@ -24,7 +24,6 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/export"
-	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
@@ -102,24 +101,25 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		sendExit(1)
 		return nil
 	}
-	man, err := manifest.ReadOrCreate(req.AppRoot)
+
+	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
 		ops.Fail(parseOp, err)
 		sendExit(1)
 		return nil
 	}
-	s.cacheAppRoot(man.AppID, req.AppRoot)
+
 	ops.Done(parseOp, 500*time.Millisecond)
 	ops.Done(topoOp, 300*time.Millisecond)
 
-	clusterID := man.AppID
 	dbSetupCh := make(chan error, 1)
 
 	// Set up the database only if the app requires it.
-	if requiresSQLDB(parse.Meta) {
+	var cluster *sqldb.Cluster
+	if sqldb.IsUsed(parse.Meta) {
 		dbOp := ops.Add("Creating PostgreSQL database cluster", start.Add(300*time.Millisecond))
-		cluster := s.cm.Create(ctx, &sqldb.CreateParams{
-			ClusterID: clusterID,
+		cluster = s.cm.Create(ctx, &sqldb.CreateParams{
+			ClusterID: sqldb.GetClusterID(app, sqldb.Run),
 			Memfs:     false,
 		})
 		if _, err := exec.LookPath("docker"); err != nil {
@@ -177,15 +177,14 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// before output starts.
 	s.mu.Lock()
 	run, err := s.mgr.Start(ctx, run.StartParams{
-		AppRoot:     req.AppRoot,
-		AppID:       man.AppID,
-		WorkingDir:  req.WorkingDir,
-		Listener:    ln,
-		ListenAddr:  req.ListenAddr,
-		DBClusterID: clusterID,
-		Parse:       parse,
-		Watch:       req.Watch,
-		Environ:     req.Environ,
+		App:          app,
+		SQLDBCluster: cluster,
+		WorkingDir:   req.WorkingDir,
+		Listener:     ln,
+		ListenAddr:   req.ListenAddr,
+		Parse:        parse,
+		Watch:        req.Watch,
+		Environ:      req.Environ,
 	})
 	if err != nil {
 		s.mu.Unlock()
@@ -209,7 +208,8 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	fmt.Fprintf(stderr, "  Encore development server running!\n\n")
 
 	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+run.ListenAddr))
-	fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf("http://localhost:%d/%s", s.mgr.DashPort, man.AppID)))
+	fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf(
+		"http://localhost:%d/%s", s.mgr.DashPort, app.PlatformOrLocalID())))
 	if req.Debug {
 		fmt.Fprintf(stderr, "  Process ID:             %d\n", aurora.Cyan(pid))
 	}
@@ -260,23 +260,20 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		return nil
 	}
 
-	man, err := manifest.ReadOrCreate(req.AppRoot)
+	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
 		sendErr(err)
 		return nil
 	}
-	s.cacheAppRoot(man.AppID, req.AppRoot)
-
-	usesSQLDB := requiresSQLDB(parse.Meta)
-	clusterID := man.AppID + "-test"
 
 	// Set up the database asynchronously since it can take a while.
 	dbSetupErr := make(chan error, 1)
 
-	if usesSQLDB {
+	var cluster *sqldb.Cluster
+	if sqldb.IsUsed(parse.Meta) {
 		setupCtx, setupCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		cluster := s.cm.Create(setupCtx, &sqldb.CreateParams{
-			ClusterID: clusterID,
+		cluster = s.cm.Create(setupCtx, &sqldb.CreateParams{
+			ClusterID: sqldb.GetClusterID(app, sqldb.Test),
 			Memfs:     true,
 		})
 
@@ -296,19 +293,15 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	testResults := make(chan error, 1)
 	go func() {
 		tp := run.TestParams{
-			AppRoot:    req.AppRoot,
-			WorkingDir: req.WorkingDir,
-			Environ:    req.Environ,
-			Args:       req.Args,
-			Parse:      parse,
-			Stdout:     slog.Stdout(false),
-			Stderr:     slog.Stderr(false),
+			App:          app,
+			SQLDBCluster: cluster,
+			WorkingDir:   req.WorkingDir,
+			Environ:      req.Environ,
+			Args:         req.Args,
+			Parse:        parse,
+			Stdout:       slog.Stdout(false),
+			Stderr:       slog.Stderr(false),
 		}
-
-		if usesSQLDB {
-			tp.DBClusterID = clusterID
-		}
-
 		testResults <- s.mgr.Test(testCtx, tp)
 	}()
 
@@ -423,15 +416,6 @@ func (s *Server) parseApp(appRoot, workingDir string, parseTests bool) (*parser.
 		ParseTests:               parseTests,
 	}
 	return parser.Parse(cfg)
-}
-
-func requiresSQLDB(md *meta.Data) bool {
-	for _, svc := range md.Svcs {
-		if len(svc.Migrations) > 0 {
-			return true
-		}
-	}
-	return false
 }
 
 func showFirstRunExperience(run *run.Run, md *meta.Data, stdout io.Writer) {

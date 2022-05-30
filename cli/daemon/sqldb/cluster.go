@@ -21,8 +21,9 @@ import (
 
 // Cluster represents a running database Cluster.
 type Cluster struct {
-	ID    string // cluster ID
-	Memfs bool   // use an in-memory filesystem?
+	ID       ClusterID // cluster ID
+	Memfs    bool      // use an in-memory filesystem?
+	Password string    // randomly generated password for this cluster
 
 	driver Driver
 	log    zerolog.Logger

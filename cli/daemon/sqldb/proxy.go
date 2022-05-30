@@ -64,10 +64,10 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	}
 	startup := cl.Hello.(*pgproxy.StartupData)
 
-	clusterID := startup.Password
-	cluster, ok := cm.Get(clusterID)
+	password := startup.Password
+	cluster, ok := cm.LookupPassword(password)
 	if !ok {
-		cm.log.Error().Str("cluster", clusterID).Msg("dbproxy: could not find cluster")
+		cm.log.Error().Interface("cluster", cluster.ID).Msg("dbproxy: could not find cluster")
 		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
@@ -188,7 +188,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 }
 
 // PreauthProxyConn is a pre-authenticated proxy conn directly specifically to the given cluster.
-func (cm *ClusterManager) PreauthProxyConn(client net.Conn, clusterID string) error {
+func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error {
 	defer client.Close()
 	cl, err := pgproxy.SetupClient(client, &pgproxy.ClientConfig{
 		TLS: &tls.Config{},
@@ -204,9 +204,9 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, clusterID string) er
 	}
 	startup := cl.Hello.(*pgproxy.StartupData)
 
-	cluster, ok := cm.Get(clusterID)
+	cluster, ok := cm.Get(id)
 	if !ok {
-		cm.log.Error().Str("cluster", clusterID).Msg("dbproxy: could not find cluster")
+		cm.log.Error().Interface("cluster", id).Msg("dbproxy: could not find cluster")
 		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
