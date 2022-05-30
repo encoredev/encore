@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/run"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
@@ -21,13 +22,12 @@ import (
 type ID [16]byte
 
 type TraceMeta struct {
-	ID      ID
-	Reqs    []*tracepb.Request
-	AppID   string
-	AppRoot string
-	EnvID   string
-	Date    time.Time
-	Meta    *metapb.Data
+	ID    ID
+	Reqs  []*tracepb.Request
+	App   *apps.Instance
+	EnvID string
+	Date  time.Time
+	Meta  *metapb.Data
 }
 
 // A Store stores traces received from running applications.
@@ -53,8 +53,9 @@ func (st *Store) Listen(ch chan<- *TraceMeta) {
 }
 
 func (st *Store) Store(ctx context.Context, tr *TraceMeta) error {
+	appID := tr.App.PlatformOrLocalID()
 	st.trmu.Lock()
-	st.traces[tr.AppID] = append(st.traces[tr.AppID], tr)
+	st.traces[appID] = append(st.traces[appID], tr)
 	st.trmu.Unlock()
 
 	st.lnmu.Lock()

@@ -71,12 +71,11 @@ func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
 	}
 
 	tm := &trace.TraceMeta{
-		ID:      traceID,
-		Reqs:    reqs,
-		AppID:   proc.Run.AppID,
-		AppRoot: proc.Run.Root,
-		Date:    time.Now(),
-		Meta:    proc.Meta,
+		ID:   traceID,
+		Reqs: reqs,
+		App:  proc.Run.App,
+		Date: time.Now(),
+		Meta: proc.Meta,
 	}
 
 	err = s.ts.Store(req.Context(), tm)

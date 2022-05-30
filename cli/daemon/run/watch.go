@@ -11,7 +11,7 @@ import (
 // them on c.
 func (mgr *Manager) watch(run *Run) error {
 	evs := make(chan notify.EventInfo)
-	if err := notify.Watch(filepath.Join(run.Root, "..."), evs, notify.All); err != nil {
+	if err := notify.Watch(filepath.Join(run.App.Root(), "..."), evs, notify.All); err != nil {
 		return err
 	}
 
@@ -26,7 +26,7 @@ func (mgr *Manager) watch(run *Run) error {
 			case <-run.Done():
 				return
 			case ev := <-evs:
-				if ignoreEvent(run.Root, ev) {
+				if ignoreEvent(ev) {
 					continue
 				}
 				// We've seen that some editors like vim rename the .go files to another extension,
@@ -46,7 +46,7 @@ func (mgr *Manager) watch(run *Run) error {
 	return nil
 }
 
-func ignoreEvent(appRoot string, ev notify.EventInfo) bool {
+func ignoreEvent(ev notify.EventInfo) bool {
 	path := ev.Path()
 
 	// Ignore non-Go files

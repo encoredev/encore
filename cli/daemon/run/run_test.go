@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/yamux"
 	"go.uber.org/goleak"
 
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
@@ -81,7 +82,8 @@ func TestEndToEndWithApp(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 	defer ln.Close()
 
-	run := &Run{ID: genID(), ListenAddr: ln.Addr().String(), AppSlug: "slug"}
+	app := apps.NewInstance("/", "slug", "slug")
+	run := &Run{ID: genID(), ListenAddr: ln.Addr().String(), App: app}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -378,13 +380,14 @@ func TestEndToEndWithApp(t *testing.T) {
 // the given ctx is cancelled.
 func TestProcClosedOnCtxCancel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	app := &Run{ID: genID()}
+	app := apps.NewInstance("/", "local_id", "platform_id")
+	run := &Run{ID: genID(), App: app}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	build := testBuild(c, "./testdata/echo")
-	p, err := app.startProc(&startProcParams{
+	p, err := run.startProc(&startProcParams{
 		Ctx:         ctx,
 		BuildDir:    build.Dir,
 		BinPath:     build.Exe,

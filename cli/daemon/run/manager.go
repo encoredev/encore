@@ -54,7 +54,7 @@ func (mgr *Manager) FindRunByAppID(appID string) *Run {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 	for _, run := range mgr.runs {
-		if run.AppID == appID {
+		if appID == run.App.PlatformID() || appID == run.App.LocalID() {
 			select {
 			case <-run.Done():
 				// exited
@@ -75,7 +75,7 @@ func (mgr *Manager) ListRuns() []*Run {
 	}
 	mgr.mu.Unlock()
 
-	sort.Slice(runs, func(i, j int) bool { return runs[i].AppID < runs[j].AppID })
+	sort.Slice(runs, func(i, j int) bool { return runs[i].App.PlatformOrLocalID() < runs[j].App.PlatformOrLocalID() })
 	return runs
 }
 

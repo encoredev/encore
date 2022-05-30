@@ -30,8 +30,9 @@ import (
 
 	encore "encore.dev"
 	"encore.dev/runtime/config"
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
-	"encr.dev/cli/internal/appfile"
+	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
@@ -44,9 +45,7 @@ import (
 // Run represents a running Encore application.
 type Run struct {
 	ID         string // unique ID for this instance of the running app
-	AppID      string // unique identifier for the app
-	AppSlug    string // the optional app slug, if linked to encore.dev
-	Root       string // the filesystem path to the app root
+	App        *apps.Instance
 	ListenAddr string // the address the app is listening on
 
 	log     zerolog.Logger
@@ -61,18 +60,15 @@ type Run struct {
 
 // StartParams groups the parameters for the Run method.
 type StartParams struct {
-	// AppRoot is the application root.
-	AppRoot string
+	// App is the app to start.
+	App *apps.Instance
 
-	// AppID is the unique app id, as defined by the manifest.
-	AppID string
+	// SQLDBCluster is the SQLDB cluster to use, if any.
+	SQLDBCluster *sqldb.Cluster
 
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
 	WorkingDir string
-
-	// DBClusterID is the database cluster id to connect to.
-	DBClusterID string
 
 	// Parse is the parse result for the initial run of the app.
 	// If nil the app is parsed before starting.
@@ -92,19 +88,12 @@ type StartParams struct {
 // Start starts the application.
 // Its lifetime is bounded by ctx.
 func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, err error) {
-	appSlug, err := appfile.Slug(params.AppRoot)
-	if err != nil {
-		return nil, err
-	}
-
 	run = &Run{
 		ID:         genID(),
-		AppID:      params.AppID,
-		Root:       params.AppRoot,
-		AppSlug:    appSlug,
+		App:        params.App,
 		ListenAddr: params.ListenAddr,
 
-		log:     log.With().Str("appID", params.AppID).Logger(),
+		log:     log.With().Str("appID", params.App.PlatformOrLocalID()).Logger(),
 		mgr:     mgr,
 		params:  &params,
 		ctx:     ctx,
@@ -157,7 +146,7 @@ func (r *Run) Done() <-chan struct{} {
 // Reload rebuilds the app and, if successful,
 // starts a new proc and switches over.
 func (r *Run) Reload() (*Proc, error) {
-	modPath := filepath.Join(r.Root, "go.mod")
+	modPath := filepath.Join(r.App.Root(), "go.mod")
 	modData, err := ioutil.ReadFile(modPath)
 	if err != nil {
 		return nil, err
@@ -167,10 +156,10 @@ func (r *Run) Reload() (*Proc, error) {
 		return nil, err
 	}
 
-	vcsRevision := vcs.GetRevision(r.Root)
+	vcsRevision := vcs.GetRevision(r.App.Root())
 
 	cfg := &parser.Config{
-		AppRoot:                  r.Root,
+		AppRoot:                  r.App.Root(),
 		AppRevision:              vcsRevision.Revision,
 		AppHasUncommittedChanges: vcsRevision.Uncommitted,
 		ModulePath:               mod.Module.Mod.Path,
@@ -279,7 +268,7 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 		BuildTags:             []string{"encore_local"},
 	}
 
-	build, err := compiler.Build(r.Root, cfg)
+	build, err := compiler.Build(r.App.Root(), cfg)
 	if err != nil {
 		return nil, fmt.Errorf("compile error:\n%v", err)
 	}
@@ -291,10 +280,10 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 
 	var secrets map[string]string
 	if usesSecrets(r.params.Parse.Meta) {
-		if r.AppSlug == "" {
+		if r.App.PlatformID() == "" {
 			return nil, fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
 		}
-		data, err := r.mgr.Secret.Get(ctx, r.AppSlug)
+		data, err := r.mgr.Secret.Get(ctx, r.App.PlatformID())
 		if err != nil {
 			return nil, err
 		}
@@ -302,16 +291,16 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 	}
 
 	p, err = r.startProc(&startProcParams{
-		Ctx:         ctx,
-		BuildDir:    build.Dir,
-		BinPath:     build.Exe,
-		Meta:        build.Parse.Meta,
-		Logger:      r.mgr,
-		RuntimePort: r.mgr.RuntimePort,
-		DBProxyPort: r.mgr.DBProxyPort,
-		DBClusterID: r.params.DBClusterID,
-		Secrets:     secrets,
-		Environ:     r.params.Environ,
+		Ctx:          ctx,
+		BuildDir:     build.Dir,
+		BinPath:      build.Exe,
+		Meta:         build.Parse.Meta,
+		Logger:       r.mgr,
+		RuntimePort:  r.mgr.RuntimePort,
+		DBProxyPort:  r.mgr.DBProxyPort,
+		SQLDBCluster: r.params.SQLDBCluster,
+		Secrets:      secrets,
+		Environ:      r.params.Environ,
 	})
 	if err != nil {
 		return nil, err
@@ -331,6 +320,7 @@ type Proc struct {
 	Meta    *meta.Data // app metadata snapshot
 	Started time.Time  // when the process started
 
+	ctx      context.Context
 	log      zerolog.Logger
 	exit     chan struct{} // closed when the process has exited
 	cmd      *exec.Cmd
@@ -346,16 +336,16 @@ type Proc struct {
 }
 
 type startProcParams struct {
-	Ctx         context.Context
-	BuildDir    string
-	BinPath     string
-	Meta        *meta.Data
-	Secrets     map[string]string
-	RuntimePort int
-	DBProxyPort int
-	DBClusterID string
-	Logger      runLogger
-	Environ     []string
+	Ctx          context.Context
+	BuildDir     string
+	BinPath      string
+	Meta         *meta.Data
+	Secrets      map[string]string
+	RuntimePort  int
+	DBProxyPort  int
+	SQLDBCluster *sqldb.Cluster // nil means no cluster
+	Logger       runLogger
+	Environ      []string
 }
 
 // startProc starts a single actual OS process for app.
@@ -366,6 +356,7 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 		ID:        pid,
 		Run:       r,
 		Meta:      params.Meta,
+		ctx:       params.Ctx,
 		exit:      make(chan struct{}),
 		buildDir:  params.BuildDir,
 		log:       r.log.With().Str("procID", pid).Str("buildDir", params.BuildDir).Logger(),
@@ -453,24 +444,31 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 }
 
 func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
-	sqlServer := &config.SQLServer{
-		Host: "localhost:" + strconv.Itoa(params.DBProxyPort),
-	}
+	var (
+		sqlServers []*config.SQLServer
+		sqlDBs     []*config.SQLDatabase
+	)
+	if params.SQLDBCluster != nil {
+		srv := &config.SQLServer{
+			Host: "localhost:" + strconv.Itoa(params.DBProxyPort),
+		}
+		sqlServers = append(sqlServers, srv)
 
-	var dbs []*config.SQLDatabase
-	for _, svc := range params.Meta.Svcs {
-		if len(svc.Migrations) > 0 {
-			dbs = append(dbs, &config.SQLDatabase{
-				EncoreName:   svc.Name,
-				DatabaseName: svc.Name,
-				User:         "encore",
-				Password:     params.DBClusterID,
-			})
+		for _, svc := range params.Meta.Svcs {
+			if len(svc.Migrations) > 0 {
+				sqlDBs = append(sqlDBs, &config.SQLDatabase{
+					EncoreName:   svc.Name,
+					DatabaseName: svc.Name,
+					User:         "encore",
+					Password:     params.SQLDBCluster.Password,
+				})
+			}
 		}
 	}
+
 	return &config.Runtime{
 		AppID:         r.ID,
-		AppSlug:       r.AppSlug,
+		AppSlug:       r.App.PlatformID(),
 		APIBaseURL:    "http://" + r.ListenAddr,
 		DeployID:      fmt.Sprintf("run_%s", xid.New()),
 		DeployedAt:    time.Now().UTC(), // Force UTC to not cause confusion
@@ -479,8 +477,8 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		EnvCloud:      string(encore.CloudLocal),
 		EnvType:       string(encore.EnvLocal),
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
-		SQLDatabases:  dbs,
-		SQLServers:    []*config.SQLServer{sqlServer},
+		SQLDatabases:  sqlDBs,
+		SQLServers:    sqlServers,
 		AuthKeys:      []config.EncoreAuthKey{p.authKey},
 	}
 }
@@ -510,10 +508,10 @@ func (p *Proc) waitForExit() {
 	defer close(p.exit)
 	defer closeAll(p.reqWr, p.respRd)
 
-	if err := p.cmd.Wait(); err != nil {
+	if err := p.cmd.Wait(); err != nil && p.ctx.Err() == nil {
 		p.log.Error().Err(err).Msg("process exited with error")
 	} else {
-		p.log.Info().Err(err).Msg("process exited successfully")
+		p.log.Info().Msg("process exited successfully")
 	}
 
 	// Flush the logs in case the output did not end in a newline.

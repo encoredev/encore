@@ -4,6 +4,7 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
@@ -34,13 +36,13 @@ var _ daemonpb.DaemonServer = (*Server)(nil)
 
 // Server implements daemonpb.DaemonServer.
 type Server struct {
-	mgr *run.Manager
-	cm  *sqldb.ClusterManager
-	sm  *secret.Manager
+	apps *apps.Manager
+	mgr  *run.Manager
+	cm   *sqldb.ClusterManager
+	sm   *secret.Manager
 
-	mu       sync.Mutex
-	streams  map[string]*streamLog // run id -> stream
-	appRoots map[string]string     // cache of app id -> app root
+	mu      sync.Mutex
+	streams map[string]*streamLog // run id -> stream
 
 	availableVerInit sync.Once
 	availableVer     atomic.Value // string
@@ -49,13 +51,13 @@ type Server struct {
 }
 
 // New creates a new Server.
-func New(mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
+func New(apps *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
 	srv := &Server{
-		mgr:      mgr,
-		cm:       cm,
-		sm:       sm,
-		streams:  make(map[string]*streamLog),
-		appRoots: make(map[string]string),
+		apps:    apps,
+		mgr:     mgr,
+		cm:      cm,
+		sm:      sm,
+		streams: make(map[string]*streamLog),
 	}
 	mgr.AddListener(srv)
 	// Check immediately for the latest version to avoid blocking 'encore run'
@@ -68,16 +70,16 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	var md *meta.Data
 	if params.EnvName == "local" {
 		// Determine the app root
-		s.mu.Lock()
-		appRoot, ok := s.appRoots[params.AppId]
-		s.mu.Unlock()
-		if !ok {
+		app, err := s.apps.FindLatestByPlatformID(params.AppId)
+		if errors.Is(err, apps.ErrNotFound) {
 			return nil, status.Errorf(codes.FailedPrecondition, "the app %s must be run locally before generating a client for the 'local' environment.",
 				params.AppId)
+		} else if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to query app info: %v", err)
 		}
 
 		// Get the app metadata
-		result, err := s.parseApp(appRoot, ".", false)
+		result, err := s.parseApp(app.Root(), ".", false)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to parse app metadata: %v", err)
 		}
@@ -181,13 +183,6 @@ func (s *Server) availableUpdate() string {
 		return latest
 	}
 	return ""
-}
-
-// cacheAppRoot adds the appID -> appRoot mapping to the app root cache.
-func (s *Server) cacheAppRoot(appID, appRoot string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.appRoots[appID] = appRoot
 }
 
 var errNotLinked = (func() error {

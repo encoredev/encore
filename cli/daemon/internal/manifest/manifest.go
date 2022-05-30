@@ -11,8 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"encr.dev/cli/internal/appfile"
 )
 
 // Manifest represents the persisted manifest for
@@ -22,7 +20,11 @@ type Manifest struct {
 	// AppID is a unique identifier for the app.
 	// It uses the encore.dev app slug if the app
 	// is linked, and is otherwise a randomly generated id.
-	AppID string `json:"appID"`
+	AppID string `json:"appID,omitempty"`
+
+	// LocalID is a unique id for the app that's only used locally.
+	// It is randomly generated on first use.
+	LocalID string `json:"local_id"`
 }
 
 // ReadOrCreate reads the manifest for the app rooted at appRoot.
@@ -44,22 +46,22 @@ func ReadOrCreate(appRoot string) (mf *Manifest, err error) {
 		err = json.Unmarshal(data, &man)
 		if err != nil {
 			return nil, err
-		} else if man.AppID != "" {
-			return &Manifest{AppID: man.AppID}, nil
 		}
 	}
 
-	// Otherwise create it. Default to the App ID in the encore.app file,
-	// and fall back to randomly generating an ID if the app is not linked.
-	if f, err := appfile.ParseFile(filepath.Join(appRoot, appfile.Name)); err == nil && f.ID != "" {
-		man.AppID = f.ID
-	}
-	if man.AppID == "" {
-		id, err := genID()
-		if err != nil {
-			return nil, err
+	// Generate a local ID if we don't have one.
+	if man.LocalID == "" {
+		// If we have a legacy AppID, migrate that over to the local id.
+		if man.AppID != "" {
+			man.LocalID = man.AppID
+			man.AppID = ""
+		} else {
+			id, err := genID()
+			if err != nil {
+				return nil, err
+			}
+			man.LocalID = id
 		}
-		man.AppID = id
 	}
 
 	// Write it back.
@@ -76,7 +78,7 @@ const encodeStr = "23456789abcdefghikmnopqrstuvwxyz"
 
 var encoding = base32.NewEncoding(encodeStr).WithPadding(base32.NoPadding)
 
-// genID generates a
+// genID generates a random id.
 func genID() (string, error) {
 	var data [3]byte
 	if _, err := rand.Read(data[:]); err != nil {

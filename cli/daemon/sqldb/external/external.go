@@ -23,7 +23,7 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 	return d.ClusterStatus(ctx, p.ClusterID)
 }
 
-func (d *Driver) ClusterStatus(ctx context.Context, clusterID string) (*sqldb.ClusterStatus, error) {
+func (d *Driver) ClusterStatus(ctx context.Context, id sqldb.ClusterID) (*sqldb.ClusterStatus, error) {
 	st := &sqldb.ClusterStatus{
 		Status: sqldb.Running,
 		Config: &sqldb.ConnConfig{
@@ -39,7 +39,7 @@ func (d *Driver) ClusterStatus(ctx context.Context, clusterID string) (*sqldb.Cl
 	return st, nil
 }
 
-func (d *Driver) DestroyCluster(ctx context.Context, clusterID string) error {
+func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
 	return sqldb.ErrUnsupported
 }
 

@@ -570,7 +570,7 @@ func (tp *traceParser) stack(s *tracepb.StackTrace) Stack {
 		}
 		st.Frames = append(st.Frames, StackFrame{
 			FullFile:  f.Filename,
-			ShortFile: shortenFilename(tp.meta.AppRoot, f.Filename, f.Func),
+			ShortFile: shortenFilename(tp.meta.App.Root(), f.Filename, f.Func),
 			Func:      shortenFunc(f.Func),
 			Line:      int(f.Line),
 		})
