@@ -52,7 +52,7 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	}()
 
 	var gen generator
-	switch lang {
+	switch Lang(strings.ToLower(string(lang))) {
 	case LangTypeScript:
 		gen = &typescript{generatorVersion: typescriptGenLatestVersion}
 	case LangGo:
