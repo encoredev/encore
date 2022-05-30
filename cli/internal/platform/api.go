@@ -20,8 +20,16 @@ type CreateAppParams struct {
 }
 
 type App struct {
-	Slug       string  `json:"slug"`
-	MainBranch *string `json:"main_branch"` // nil if not set
+	Slug        string  `json:"slug"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"` // can be blank
+	MainBranch  *string `json:"main_branch"` // nil if not set
+}
+
+type Env struct {
+	Slug  string `json:"slug"`
+	Type  string `json:"type"`
+	Cloud string `json:"cloud"`
 }
 
 func CreateApp(ctx context.Context, p *CreateAppParams) (*App, error) {
@@ -30,10 +38,22 @@ func CreateApp(ctx context.Context, p *CreateAppParams) (*App, error) {
 	return &resp, err
 }
 
+func ListApps(ctx context.Context) ([]*App, error) {
+	var resp []*App
+	err := call(ctx, "GET", "/user/apps", nil, &resp, true)
+	return resp, err
+}
+
 func GetApp(ctx context.Context, appSlug string) (*App, error) {
 	var resp App
 	err := call(ctx, "GET", "/apps/"+url.PathEscape(appSlug), nil, &resp, true)
 	return &resp, err
+}
+
+func ListEnvs(ctx context.Context, appSlug string) ([]*Env, error) {
+	var resp []*Env
+	err := call(ctx, "GET", "/apps/"+url.PathEscape(appSlug)+"/envs", nil, &resp, true)
+	return resp, err
 }
 
 type CreateOAuthSessionParams struct {

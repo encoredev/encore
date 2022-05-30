@@ -67,3 +67,15 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// GetLang returns the language specified by the given string, allowing for case insensitivity and common aliases.
+func GetLang(lang string) (Lang, error) {
+	switch strings.TrimSpace(strings.ToLower(lang)) {
+	case "typescript", "ts":
+		return LangTypeScript, nil
+	case "go", "golang":
+		return LangGo, nil
+	default:
+		return LangUnknown, ErrUnknownLang
+	}
+}
