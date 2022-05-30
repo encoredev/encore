@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -15,7 +16,6 @@ type Builder struct {
 	encoreGo string
 	dst      string
 	version  string
-	cgo      bool
 }
 
 func (b *Builder) PrepareWorkdir() error {
@@ -49,14 +49,12 @@ func (b *Builder) BuildBinaries() error {
 	env := append(os.Environ(),
 		"GOOS="+b.GOOS,
 		"GOARCH="+b.GOARCH,
+		"CGO_ENABLED=1",
 	)
-	if b.cgo {
-		env = append(env, "CGO_ENABLED=1")
-	} else {
-		env = append(env, "CGO_ENABLED=0")
-	}
 
-	if b.GOOS == "darwin" {
+	switch {
+	case b.GOOS == "darwin":
+		// Darwin needs to specify the target when cross-compiling.
 		var target string
 		switch b.GOARCH {
 		case "amd64":
@@ -70,6 +68,18 @@ func (b *Builder) BuildBinaries() error {
 		env = append(env,
 			"LDFLAGS=--target="+target,
 			"CFLAGS=-O3 --target="+target,
+		)
+
+	case b.GOOS == "linux" && b.GOARCH == "arm64":
+		// GitHub Actions doesn't have builders for linux/arm64 so we need to
+		// cross-compile. Unfortunately we need cgo for sqlite so use zig to do so.
+		mustWriteFile("/usr/local/bin/zcc", 0755,
+			"#!/bin/sh\nzig cc -Wl,--no-gc-sections -target aarch64-linux-gnu $@")
+		mustWriteFile("/usr/local/bin/zxx", 0755,
+			"#!/bin/sh\nzig c++ -Wl,--no-gc-sections -target aarch64-linux-gnu $@")
+		env = append(env,
+			"CC=/usr/local/bin/zcc",
+			"CXX=/usr/local/bin/zxx",
 		)
 	}
 
@@ -127,7 +137,6 @@ func main() {
 	dst := flag.String("dst", "", "build destination")
 	version := flag.String("v", "", "version number (without 'v')")
 	encoreGo := flag.String("encore-go", "", "path to encore-go root")
-	cgo := flag.Bool("cgo", true, "whether to build with cgo")
 	flag.Parse()
 	if *goos == "" || *goarch == "" || *dst == "" || *version == "" || *encoreGo == "" {
 		log.Fatalf("missing -dst %q, -goos %q, -goarch %q, -v %q, or -encore-go %q", *dst, *goos, *goarch, *version, *encoreGo)
@@ -155,7 +164,6 @@ func main() {
 		encoreGo: filepath.FromSlash(*encoreGo),
 		dst:      join(*dst, *goos+"_"+*goarch),
 		version:  *version,
-		cgo:      *cgo,
 	}
 
 	for _, f := range []func() error{
@@ -168,5 +176,11 @@ func main() {
 		if err := f(); err != nil {
 			log.Fatalln(err)
 		}
+	}
+}
+
+func mustWriteFile(filename string, perm fs.FileMode, contents string) {
+	if err := os.WriteFile(filename, []byte(contents), perm); err != nil {
+		log.Fatalln(err)
 	}
 }
