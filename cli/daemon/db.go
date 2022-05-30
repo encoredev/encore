@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/platform"
@@ -46,13 +45,13 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		return nil, err
 	}
 
-	man, err := manifest.ReadOrCreate(req.AppRoot)
+	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
 		return nil, err
 	}
 
-	clusterID := man.AppID
-	log := log.With().Str("appID", man.AppID).Logger()
+	clusterID := sqldb.GetClusterID(app, sqldb.Run)
+	log := log.With().Interface("cluster", clusterID).Logger()
 	log.Info().Msg("setting up database cluster")
 	cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 		ClusterID: clusterID,
@@ -67,7 +66,8 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		return nil, err
 	}
 	log.Info().Msg("created database cluster")
-	dsn := fmt.Sprintf("postgresql://encore:%s@localhost:%d/%s?sslmode=disable", clusterID, s.mgr.DBProxyPort, req.DbName)
+	dsn := fmt.Sprintf("postgresql://encore:%s@localhost:%d/%s?sslmode=disable",
+		cluster.Password, s.mgr.DBProxyPort, req.DbName)
 	return &daemonpb.DBConnectResponse{Dsn: dsn}, nil
 }
 
@@ -112,12 +112,12 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 			return err
 		}
 
-		man, err := manifest.ReadOrCreate(params.AppRoot)
+		app, err := s.apps.Track(params.AppRoot)
 		if err != nil {
 			return err
 		}
 
-		clusterID := man.AppID
+		clusterID := sqldb.GetClusterID(app, sqldb.Run)
 		cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 			ClusterID: clusterID,
 			Memfs:     false,
@@ -189,13 +189,13 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		return nil
 	}
 
-	man, err := manifest.ReadOrCreate(req.AppRoot)
+	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
 		sendErr(err)
 		return nil
 	}
 
-	clusterID := man.AppID
+	clusterID := sqldb.GetClusterID(app, sqldb.Run)
 	cluster, ok := s.cm.Get(clusterID)
 	if !ok {
 		cluster = s.cm.Create(stream.Context(), &sqldb.CreateParams{

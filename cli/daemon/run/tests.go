@@ -14,7 +14,8 @@ import (
 
 	encore "encore.dev"
 	"encore.dev/runtime/config"
-	"encr.dev/cli/internal/appfile"
+	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/version"
 	"encr.dev/compiler"
@@ -52,18 +53,15 @@ func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDeb
 
 // TestParams groups the parameters for the Test method.
 type TestParams struct {
-	// AppRoot is the application root.
-	AppRoot string
+	// App is the app to test.
+	App *apps.Instance
 
-	// AppID is the unique app id, as defined by the manifest.
-	AppID string
+	// SQLDBCluster is the SQLDB cluster to use, if any.
+	SQLDBCluster *sqldb.Cluster
 
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
 	WorkingDir string
-
-	// DBClusterID is the database cluster id to connect to.
-	DBClusterID string
 
 	// Parse is the parse result for the initial run of the app.
 	// It must be set.
@@ -82,38 +80,40 @@ type TestParams struct {
 
 // Test runs the tests.
 func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
-	appSlug, err := appfile.Slug(params.AppRoot)
-	if err != nil {
-		return err
-	}
-
 	var secrets map[string]string
-	if appSlug != "" {
-		data, err := mgr.Secret.Get(ctx, appSlug)
+	if pid := params.App.PlatformID(); pid != "" {
+		data, err := mgr.Secret.Get(ctx, pid)
 		if err != nil {
 			return err
 		}
 		secrets = data.Values
 	}
 
-	sqlServer := &config.SQLServer{
-		Host: "localhost:" + strconv.Itoa(mgr.DBProxyPort),
-	}
-	var dbs []*config.SQLDatabase
-	for _, svc := range params.Parse.Meta.Svcs {
-		if len(svc.Migrations) > 0 {
-			dbs = append(dbs, &config.SQLDatabase{
-				ServerID:     0,
-				EncoreName:   svc.Name,
-				DatabaseName: svc.Name,
-				User:         "encore",
-				Password:     params.DBClusterID,
-			})
+	var (
+		sqlServers []*config.SQLServer
+		sqlDBs     []*config.SQLDatabase
+	)
+	if params.SQLDBCluster != nil {
+		srv := &config.SQLServer{
+			Host: "localhost:" + strconv.Itoa(mgr.DBProxyPort),
+		}
+		sqlServers = append(sqlServers, srv)
+		for _, svc := range params.Parse.Meta.Svcs {
+			if len(svc.Migrations) > 0 {
+				sqlDBs = append(sqlDBs, &config.SQLDatabase{
+					ServerID:     0,
+					EncoreName:   svc.Name,
+					DatabaseName: svc.Name,
+					User:         "encore",
+					Password:     params.SQLDBCluster.Password,
+				})
+			}
 		}
 	}
+
 	runtimeJSON, err := json.Marshal(&config.Runtime{
 		AppID:         "test",
-		AppSlug:       appSlug,
+		AppSlug:       params.App.PlatformID(),
 		APIBaseURL:    fmt.Sprintf("http://localhost:%d", mgr.RuntimePort),
 		DeployID:      fmt.Sprintf("clitest_%s", xid.New()),
 		DeployedAt:    time.Now(),
@@ -122,9 +122,9 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EnvCloud:      string(encore.CloudLocal),
 		EnvType:       string(encore.EnvLocal),
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(mgr.RuntimePort) + "/trace",
-		SQLDatabases:  dbs,
+		SQLDatabases:  sqlDBs,
+		SQLServers:    sqlServers,
 		AuthKeys:      []config.EncoreAuthKey{genAuthKey()},
-		SQLServers:    []*config.SQLServer{sqlServer},
 	})
 	if err != nil {
 		return err
@@ -149,5 +149,5 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 			Stderr: params.Stderr,
 		},
 	}
-	return compiler.Test(ctx, params.AppRoot, cfg)
+	return compiler.Test(ctx, params.App.Root(), cfg)
 }

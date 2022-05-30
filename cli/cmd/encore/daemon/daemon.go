@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"database/sql"
+	_ "embed" // for go:embed
 	"fmt"
 	"io"
 	"net"
@@ -10,11 +12,13 @@ import (
 	"strconv"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3" // for "sqlite3" driver
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
 	"encr.dev/cli/daemon"
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/dash"
 	"encr.dev/cli/daemon/engine"
 	"encr.dev/cli/daemon/engine/trace"
@@ -23,6 +27,7 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/daemon/sqldb/external"
+	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -56,12 +61,13 @@ func runMain(dev bool) (err error) {
 
 // Daemon orchestrates setting up the different daemon subsystems.
 type Daemon struct {
-	Log     zerolog.Logger
-	Daemon  *net.UnixListener
-	Runtime *net.TCPListener
-	DBProxy *net.TCPListener
-	Dash    *net.TCPListener
+	Daemon   *net.UnixListener
+	Runtime  *net.TCPListener
+	DBProxy  *net.TCPListener
+	Dash     *net.TCPListener
+	EncoreDB *sql.DB
 
+	Apps       *apps.Manager
 	Secret     *secret.Manager
 	RunMgr     *run.Manager
 	ClusterMgr *sqldb.ClusterManager
@@ -84,6 +90,7 @@ func (d *Daemon) init() {
 	d.Dash = d.listenTCP(9400)
 	d.Runtime = d.listenTCP(9401)
 	d.DBProxy = d.listenTCP(9402)
+	d.EncoreDB = d.openDB()
 
 	// If ENCORE_SQLDB_HOST is set, use the external cluster instead of
 	// creating our own docker container cluster.
@@ -99,6 +106,7 @@ func (d *Daemon) init() {
 	}
 	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver)
 
+	d.Apps = apps.NewManager(d.EncoreDB)
 	d.Trace = trace.NewStore()
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
@@ -108,7 +116,8 @@ func (d *Daemon) init() {
 		Secret:      d.Secret,
 	}
 	d.DashSrv = dash.NewServer(d.RunMgr, d.Trace)
-	d.Server = daemon.New(d.RunMgr, d.ClusterMgr, d.Secret)
+
+	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret)
 }
 
 func (d *Daemon) serve() {
@@ -186,6 +195,28 @@ func (d *Daemon) listenTCP(devPort int) *net.TCPListener {
 	d.closeOnExit(ln)
 	return ln.(*net.TCPListener)
 }
+
+func (d *Daemon) openDB() *sql.DB {
+	dir, err := conf.Dir()
+	if err != nil {
+		fatal(err)
+	}
+	dbPath := filepath.Join(dir, "encore.db")
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared", dbPath))
+	if err != nil {
+		fatal(err)
+	}
+
+	// Initialize db schema
+	if _, err := db.Exec(dbSchema); err != nil {
+		fatal(err)
+	}
+
+	return db
+}
+
+//go:embed schema.sql
+var dbSchema string
 
 func tcpPort(ln net.Listener) int {
 	return ln.Addr().(*net.TCPAddr).Port

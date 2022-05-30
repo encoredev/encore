@@ -49,10 +49,10 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		apps := []app{} // prevent marshalling as null
 		seen := make(map[string]bool)
 		for _, r := range runs {
-			id := r.AppID
-			name := r.AppSlug
+			id := r.App.PlatformOrLocalID()
+			name := r.App.PlatformID()
 			if name == "" {
-				name = filepath.Base(r.Root)
+				name = filepath.Base(r.App.Root())
 			}
 			if !seen[id] {
 				seen[id] = true
@@ -105,7 +105,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 		return reply(ctx, map[string]interface{}{
 			"running": true,
-			"appID":   run.AppID,
+			"appID":   run.App.PlatformOrLocalID(),
 			"pid":     run.ID,
 			"meta":    json.RawMessage(str),
 			"addr":    run.ListenAddr,
@@ -250,7 +250,7 @@ func (s *Server) OnStart(r *run.Run) {
 	s.notify(&notification{
 		Method: "process/start",
 		Params: map[string]interface{}{
-			"appID": r.AppID,
+			"appID": r.App.PlatformOrLocalID(),
 			"pid":   r.ID,
 			"addr":  r.ListenAddr,
 			"meta":  json.RawMessage(str),
@@ -270,7 +270,7 @@ func (s *Server) OnReload(r *run.Run) {
 	s.notify(&notification{
 		Method: "process/reload",
 		Params: map[string]interface{}{
-			"appID": r.AppID,
+			"appID": r.App.PlatformOrLocalID(),
 			"pid":   r.ID,
 			"meta":  json.RawMessage(str),
 		},
@@ -282,7 +282,7 @@ func (s *Server) OnStop(r *run.Run) {
 	s.notify(&notification{
 		Method: "process/stop",
 		Params: map[string]interface{}{
-			"appID": r.AppID,
+			"appID": r.App.PlatformOrLocalID(),
 			"pid":   r.ID,
 		},
 	})
@@ -305,7 +305,7 @@ func (s *Server) onOutput(r *run.Run, out []byte) {
 	s.notify(&notification{
 		Method: "process/output",
 		Params: map[string]interface{}{
-			"appID":  r.AppID,
+			"appID":  r.App.PlatformOrLocalID(),
 			"pid":    r.ID,
 			"output": out2,
 		},

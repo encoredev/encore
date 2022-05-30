@@ -71,8 +71,8 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 	}()
 
 	cid := p.ClusterID
-	cname := containerName(cid)
-	status, err = d.ClusterStatus(ctx, cid)
+	cnames := containerNames(cid)
+	status, existingContainerName, err := d.clusterStatus(ctx, cid)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get container status")
 		return nil, err
@@ -101,7 +101,8 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 
 	case sqldb.Stopped:
 		log.Debug().Msg("cluster stopped, restarting")
-		if out, err := exec.CommandContext(ctx, "docker", "start", cname).CombinedOutput(); err != nil {
+
+		if out, err := exec.CommandContext(ctx, "docker", "start", existingContainerName).CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("could not start sqldb container: %s (%v)", string(out), err)
 		}
 		return waitForPort()
@@ -116,7 +117,7 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 			"-e", "POSTGRES_USER=" + DefaultSuperuserUsername,
 			"-e", "POSTGRES_PASSWORD=" + DefaultSuperuserPassword,
 			"-e", "POSTGRES_DB=" + DefaultRootDatabase,
-			"--name", cname,
+			"--name", cnames[0],
 		}
 		if p.Memfs {
 			args = append(args,
@@ -141,18 +142,37 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 	}
 }
 
-func (d *Driver) ClusterStatus(ctx context.Context, clusterID string) (*sqldb.ClusterStatus, error) {
-	cname := containerName(clusterID)
-	out, err := exec.CommandContext(ctx, "docker", "container", "inspect", cname).CombinedOutput()
-	if err == exec.ErrNotFound {
-		return nil, errors.New("docker not found: is it installed and in your PATH?")
-	} else if err != nil {
-		// Docker returns a non-zero exit code if the container does not exist.
-		// Try to tell this apart from an error by parsing the output.
-		if bytes.Contains(out, []byte("No such container")) {
-			return &sqldb.ClusterStatus{Status: sqldb.NotFound}, nil
+func (d *Driver) ClusterStatus(ctx context.Context, id sqldb.ClusterID) (*sqldb.ClusterStatus, error) {
+	status, _, err := d.clusterStatus(ctx, id)
+	return status, err
+}
+
+// clusterStatus reports both the standard ClusterStatus but also the container name we actually resolved to.
+func (d *Driver) clusterStatus(ctx context.Context, id sqldb.ClusterID) (status *sqldb.ClusterStatus, containerName string, err error) {
+	var output []byte
+
+	// Try the candidate container names in order.
+	cnames := containerNames(id)
+	for _, cname := range cnames {
+		var err error
+		out, err := exec.CommandContext(ctx, "docker", "container", "inspect", cname).CombinedOutput()
+		if err == exec.ErrNotFound {
+			return nil, "", errors.New("docker not found: is it installed and in your PATH?")
+		} else if err != nil {
+			// Docker returns a non-zero exit code if the container does not exist.
+			// Try to tell this apart from an error by parsing the output.
+			if bytes.Contains(out, []byte("No such container")) {
+				continue
+			}
+			return nil, "", fmt.Errorf("docker container inspect failed: %s (%v)", out, err)
+		} else {
+			// Found our container; use it.
+			output, containerName = out, cname
+			break
 		}
-		return nil, fmt.Errorf("docker container inspect failed: %s (%v)", out, err)
+	}
+	if output == nil {
+		return &sqldb.ClusterStatus{Status: sqldb.NotFound}, containerName, nil
 	}
 
 	var resp []struct {
@@ -170,11 +190,11 @@ func (d *Driver) ClusterStatus(ctx context.Context, clusterID string) (*sqldb.Cl
 			}
 		}
 	}
-	if err := json.Unmarshal(out, &resp); err != nil {
-		return nil, fmt.Errorf("parse `docker container inspect` response: %v", err)
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return nil, "", fmt.Errorf("parse `docker container inspect` response: %v", err)
 	}
 	for _, c := range resp {
-		if c.Name == "/"+cname {
+		if c.Name == "/"+containerName {
 			status := &sqldb.ClusterStatus{Status: sqldb.Stopped, Config: &sqldb.ConnConfig{
 				// Defaults if we don't find anything else configured.
 				Superuser: sqldb.Role{
@@ -206,27 +226,43 @@ func (d *Driver) ClusterStatus(ctx context.Context, clusterID string) (*sqldb.Cl
 				}
 			}
 
-			return status, nil
+			return status, containerName, nil
 		}
 	}
-	return &sqldb.ClusterStatus{Status: sqldb.NotFound}, nil
+	return &sqldb.ClusterStatus{Status: sqldb.NotFound}, containerName, nil
 }
 
-func (d *Driver) DestroyCluster(ctx context.Context, clusterID string) error {
-	cname := containerName(clusterID)
-	out, err := exec.CommandContext(ctx, "docker", "rm", "-f", cname).CombinedOutput()
-	if err != nil {
-		if bytes.Contains(out, []byte("No such container")) {
-			return nil
+func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
+	cnames := containerNames(id)
+	for _, cname := range cnames {
+		out, err := exec.CommandContext(ctx, "docker", "rm", "-f", cname).CombinedOutput()
+		if err != nil {
+			if bytes.Contains(out, []byte("No such container")) {
+				continue
+			}
+			return fmt.Errorf("could not delete cluster: %s (%v)", out, err)
 		}
-		return fmt.Errorf("could not delete cluster: %s (%v)", out, err)
 	}
 	return nil
 }
 
-// containerName computes the container name for a given clusterID.
-func containerName(clusterID string) string {
-	return "sqldb-" + clusterID
+// containerName computes the container name candidates for a given clusterID.
+func containerNames(id sqldb.ClusterID) []string {
+	var names []string
+	if pid := id.App.PlatformID(); pid != "" {
+		names = append(names, pid)
+	}
+	names = append(names, id.App.LocalID())
+
+	// Format the names into container names
+	for i, name := range names {
+		name = "sqldb-" + name
+		if id.Type != sqldb.Run {
+			name += "-" + string(id.Type)
+		}
+		names[i] = name
+	}
+	return names
 }
 
 // ImageExists reports whether the docker image exists.
