@@ -123,21 +123,22 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 	}
 
 	// Serialize the response
-	var respData []byte
-
-	// Encode JSON body
-	respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
-		ser.WriteField("Message", resp.Message, false)
-	})
-	if err != nil {
-		marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
-		runtime.FinishRequest(nil, marshalErr)
-		errs.HTTPError(w, marshalErr)
-		return
+	respData := []byte("null\n")
+	if resp != nil {
+		// Encode JSON body
+		respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+			ser.WriteField("Message", resp.Message, false)
+		})
+		if err != nil {
+			marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
+			runtime.FinishRequest(nil, marshalErr)
+			errs.HTTPError(w, marshalErr)
+			return
+		}
+		respData = append(respData, '\n')
 	}
 
 	// Record tracing data
-	respData = append(respData, '\n')
 	output := [][]byte{respData}
 	runtime.FinishRequest(output, nil)
 

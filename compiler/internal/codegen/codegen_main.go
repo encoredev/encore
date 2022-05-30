@@ -289,51 +289,68 @@ func (b *Builder) buildRPC(svc *est.Service, rpc *est.RPC) *Statement {
 
 func (b *Builder) encodeResponse(g *Group, rpc *est.RPC) {
 	g.Comment("Serialize the response")
-	g.Var().Id("respData").Index().Byte()
 	resp, err := encoding.DescribeResponse(b.res.Meta, rpc.Response.Type, nil)
 	if err != nil {
 		b.errors.Addf(rpc.Func.Pos(), "failed to describe response: %v", err.Error())
 	}
 
 	if len(resp.BodyParameters) > 0 {
-		g.Line().Comment("Encode JSON body")
-		g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/runtime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/runtime/serde", "JSONSerializer")).BlockFunc(
-			func(g *Group) {
-				for _, f := range resp.BodyParameters {
-					g.Add(Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
-				}
-			}))
-		g.If(Err().Op("!=").Nil()).Block(
-			Id("marshalErr").Op(":=").Add(wrapErrCode(Err(), "Internal", "failed to marshal response")),
-			Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("marshalErr")),
-			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Id("marshalErr")),
-			Return(),
-		)
+		g.Id("respData").Op(":=").Index().Byte().Parens(Lit("null\n"))
+	} else {
+		g.Id("respData").Op(":=").Index().Byte().Values(LitRune('\n'))
+	}
+	if len(resp.HeaderParameters) > 0 {
+		g.Var().Id("headers").Map(String()).Index().String()
 	}
 
-	if len(resp.HeaderParameters) > 0 {
-		headerEncoder := b.marshaller.NewPossibleInstance("headerEncoder")
-		g.Line().Comment("Encode headers")
-		headerEncoder.Add(Id("headers").Op(":=").Map(String()).Index().String().ValuesFunc(
-			func(g *Group) {
-				for _, f := range resp.HeaderParameters {
-					headerSlice, err := headerEncoder.ToStringSlice(f.Type, Id("resp").Dot(f.SrcName))
-					if err != nil {
-						b.errors.Addf(rpc.Func.Pos(), "failed to generate haader serializers: %v", err.Error())
+	responseEncoder := CustomFunc(Options{Separator: "\n"}, func(g *Group) {
+		if len(resp.BodyParameters) > 0 {
+			g.Comment("Encode JSON body")
+			g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/runtime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/runtime/serde", "JSONSerializer")).BlockFunc(
+				func(g *Group) {
+					for _, f := range resp.BodyParameters {
+						g.Add(Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
 					}
-					g.Add(Lit(f.Name).Op(":").Add(headerSlice))
-				}
-			}))
-		g.Add(headerEncoder.Finalize(
-			Id("headerErr").Op(":=").Add(wrapErrCode(Id("headerEncoder").Dot("LastError"), "Internal", "failed to marshal headers")),
-			Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("headerErr")),
-			Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Id("headerErr")),
-			Return(),
-		)...)
+				}))
+			g.If(Err().Op("!=").Nil()).Block(
+				Id("marshalErr").Op(":=").Add(wrapErrCode(Err(), "Internal", "failed to marshal response")),
+				Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("marshalErr")),
+				Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Id("marshalErr")),
+				Return(),
+			)
+			g.Id("respData").Op("=").Append(Id("respData"), LitRune('\n'))
+		}
+
+		if len(resp.HeaderParameters) > 0 {
+			headerEncoder := b.marshaller.NewPossibleInstance("headerEncoder")
+			g.Line().Comment("Encode headers")
+			headerEncoder.Add(Id("headers").Op("=").Map(String()).Index().String().ValuesFunc(
+				func(g *Group) {
+					for _, f := range resp.HeaderParameters {
+						headerSlice, err := headerEncoder.ToStringSlice(f.Type, Id("resp").Dot(f.SrcName))
+						if err != nil {
+							b.errors.Addf(rpc.Func.Pos(), "failed to generate haader serializers: %v", err.Error())
+						}
+						g.Add(Lit(f.Name).Op(":").Add(headerSlice))
+					}
+				}))
+			g.Add(headerEncoder.Finalize(
+				Id("headerErr").Op(":=").Add(wrapErrCode(Id("headerEncoder").Dot("LastError"), "Internal", "failed to marshal headers")),
+				Qual("encore.dev/runtime", "FinishRequest").Call(Nil(), Id("headerErr")),
+				Qual("encore.dev/beta/errs", "HTTPError").Call(Id("w"), Id("headerErr")),
+				Return(),
+			)...)
+		}
+	})
+
+	// If response is a ptr we need to check it's not nil
+	if rpc.Response.IsPtr {
+		g.If(Id("resp").Op("!=").Nil()).Block(responseEncoder)
+	} else {
+		g.Add(responseEncoder)
 	}
 
 	g.Line().Comment("Record tracing data")
-	g.Id("respData").Op("=").Append(Id("respData"), LitRune('\n'))
 	g.Id("output").Op(":=").Index().Index().Byte().Values(Id("respData"))
 	g.Qual("encore.dev/runtime", "FinishRequest").Call(Id("output"), Nil())
 

@@ -235,6 +235,15 @@ export namespace echo {
         }
 
         /**
+         * NilResponse returns a nil response and nil error
+         */
+        public async NilResponse(): Promise<BasicData> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/echo.NilResponse`)
+            return await resp.json() as BasicData
+        }
+
+        /**
          * NonBasicEcho echoes back the request data.
          */
         public async NonBasicEcho(pathString: string, pathInt: number, pathWild: string[], params: NonBasicData): Promise<NonBasicData> {
