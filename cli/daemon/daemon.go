@@ -25,6 +25,7 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/codegen"
+	"encr.dev/cli/internal/experiment"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
 	"encr.dev/cli/internal/version"
@@ -47,21 +48,31 @@ type Server struct {
 	availableVerInit sync.Once
 	availableVer     atomic.Value // string
 
+	appDebounceMu sync.Mutex
+	appDebouncers map[*apps.Instance]debouncer
+
 	daemonpb.UnimplementedDaemonServer
 }
 
 // New creates a new Server.
-func New(apps *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
+func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
 	srv := &Server{
-		apps:    apps,
+		apps:    appsMgr,
 		mgr:     mgr,
 		cm:      cm,
 		sm:      sm,
 		streams: make(map[string]*streamLog),
+
+		appDebouncers: make(map[*apps.Instance]debouncer),
 	}
 	mgr.AddListener(srv)
 	// Check immediately for the latest version to avoid blocking 'encore run'
 	go srv.availableUpdate()
+
+	if experiment.Enabled(experiment.DependencyInjection) {
+		go srv.watchApps()
+	}
+
 	return srv
 }
 

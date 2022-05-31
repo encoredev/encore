@@ -6,6 +6,7 @@ require (
 	encore.dev v1.1.0
 	github.com/AlecAivazis/survey/v2 v2.3.4
 	github.com/alecthomas/chroma v0.10.0
+	github.com/bep/debounce v1.2.1
 	github.com/briandowns/spinner v1.18.1
 	github.com/cockroachdb/errors v1.9.0
 	github.com/containerd/stargz-snapshotter/estargz v0.11.4
@@ -26,6 +27,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.0
 	github.com/json-iterator/go v1.1.12
 	github.com/logrusorgru/aurora/v3 v3.0.0
+	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/rjeczalik/notify v0.9.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rogpeppe/go-internal v1.8.1
@@ -84,7 +86,6 @@ require (
 	github.com/lib/pq v1.10.5 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mdlayher/genetlink v1.2.0 // indirect
 	github.com/mdlayher/netlink v1.6.0 // indirect
