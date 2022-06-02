@@ -69,6 +69,7 @@ export namespace echo {
 
     export interface AuthParams {
         Header: string
+        AuthInt: number
         Authorization: string
         Query: number[]
         NewAuth: boolean
@@ -643,6 +644,7 @@ class BaseClient {
             query["query"] = authData.Query.map((v) => String(v))
             query["new-auth"] = String(authData.NewAuth)
             init.headers["x-header"] = authData.Header
+            init.headers["x-auth-int"] = String(authData.AuthInt)
             init.headers["authorization"] = authData.Authorization
         }
 

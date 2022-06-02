@@ -93,7 +93,7 @@ const mResp = await api.test.MarshallerTestHandler(params)
 deepEqual(mResp, params, "Expected the same response from the marshaller test")
 
 // Test auth handlers
-await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated, "invalid token")
+await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated, "missing auth param")
 
 // Test with static auth data
 {
@@ -101,6 +101,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
     "http://" + process.argv[2] as BaseURL,
     {
       auth: {
+        AuthInt:        34,
         Authorization: "Bearer tokendata",
         NewAuth:        false,
         Header:        "",
@@ -122,6 +123,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
       auth: (): echo.AuthParams => {
         return {
           Authorization: "Bearer " + tokenToReturn,
+          AuthInt:        34,
           NewAuth:        false,
           Header:        "",
           Query:         [],
@@ -146,6 +148,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
     {
       auth: {
         Authorization: "",
+        AuthInt:        34,
         NewAuth:        true,
         Header:        "102",
         Query:         [42, 100, -50, 10],
@@ -163,6 +166,7 @@ await assertStructuredError(api.test.TestAuthHandler(), ErrCode.Unauthenticated,
     "http://" + process.argv[2] as BaseURL,
     {
       auth: {
+        AuthInt:        34,
         Authorization: "Bearer tokendata",
         NewAuth:        false,
         Header:        "",

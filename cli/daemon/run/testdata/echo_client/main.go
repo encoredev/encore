@@ -136,7 +136,7 @@ func main() {
 
 	// Test auth handlers
 	_, err = api.Test.TestAuthHandler(ctx)
-	assertStructuredError(err, client.ErrUnauthenticated, "invalid token")
+	assertStructuredError(err, client.ErrUnauthenticated, "missing auth param")
 
 	// Test with static auth data
 	{
