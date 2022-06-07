@@ -105,6 +105,7 @@ type EchoAppMetadata struct {
 
 type EchoAuthParams struct {
 	Header        string `header:"X-Header"`
+	AuthInt       int    `header:"X-Auth-Int"`
 	Authorization string `header:"Authorization"`
 	Query         []int  `query:"query"`
 	NewAuth       bool   `query:"new-auth"`
@@ -270,13 +271,14 @@ func (c *echoClient) HeadersEcho(ctx context.Context, params EchoHeadersData) (r
 
 	headers := http.Header{
 		"x-int":    {reqEncoder.FromInt(params.Int)},
-		"x-string": {params.String},
+		"x-string": {reqEncoder.FromString(params.String)},
 	}
 
 	if reqEncoder.LastError != nil {
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
+
 	// Now make the actual call to the API
 	var respHeaders http.Header
 	respHeaders, err = callAPI(ctx, c.base, "POST", "/echo.HeadersEcho", headers, nil, nil)
@@ -288,7 +290,7 @@ func (c *echoClient) HeadersEcho(ctx context.Context, params EchoHeadersData) (r
 	respDecoder := &serde{}
 
 	resp.Int = respDecoder.ToInt("Int", respHeaders.Get("x-int"), true)
-	resp.String = respHeaders.Get("x-string")
+	resp.String = respDecoder.ToString("String", respHeaders.Get("x-string"), true)
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
@@ -301,9 +303,15 @@ func (c *echoClient) HeadersEcho(ctx context.Context, params EchoHeadersData) (r
 // MuteEcho absorbs a request
 func (c *echoClient) MuteEcho(ctx context.Context, params EchoData[string, string]) error {
 	// Convert our params into the objects we need for the request
+	reqEncoder := &serde{}
+
 	queryString := url.Values{
-		"key":   {params.Key},
-		"value": {params.Value},
+		"key":   {reqEncoder.FromString(params.Key)},
+		"value": {reqEncoder.FromString(params.Value)},
+	}
+
+	if reqEncoder.LastError != nil {
+		return fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 	}
 
 	_, err := callAPI(ctx, c.base, "GET", fmt.Sprintf("/echo.MuteEcho?%s", queryString.Encode()), nil, nil, nil)
@@ -328,18 +336,19 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 
 	headers := http.Header{
 		"x-header-number": {reqEncoder.FromInt(params.HeaderNumber)},
-		"x-header-string": {params.HeaderString},
+		"x-header-string": {reqEncoder.FromString(params.HeaderString)},
 	}
 
 	queryString := url.Values{
 		"no":     {reqEncoder.FromInt(params.QueryNumber)},
-		"string": {params.QueryString},
+		"string": {reqEncoder.FromString(params.QueryString)},
 	}
 
 	if reqEncoder.LastError != nil {
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
+
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
 		Struct       EchoData[EchoData[string, string], int] `json:"Struct"`
@@ -405,7 +414,7 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 	// Copy the unmarshalled response body into our response struct
 	respDecoder := &serde{}
 
-	resp.HeaderString = respHeaders.Get("x-header-string")
+	resp.HeaderString = respDecoder.ToString("HeaderString", respHeaders.Get("x-header-string"), true)
 	resp.HeaderNumber = respDecoder.ToInt("HeaderNumber", respHeaders.Get("x-header-number"), true)
 	resp.Struct = respBody.Struct
 	resp.StructPtr = respBody.StructPtr
@@ -590,10 +599,10 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 		"x-float":   {reqEncoder.FromFloat64(params.HeaderFloat)},
 		"x-int":     {reqEncoder.FromInt(params.HeaderInt)},
 		"x-json":    {reqEncoder.FromJSON(params.HeaderJson)},
-		"x-string":  {params.HeaderString},
+		"x-string":  {reqEncoder.FromString(params.HeaderString)},
 		"x-time":    {reqEncoder.FromTime(params.HeaderTime)},
-		"x-user-id": {params.HeaderUserID},
-		"x-uuid":    {params.HeaderUUID},
+		"x-user-id": {reqEncoder.FromString(params.HeaderUserID)},
+		"x-uuid":    {reqEncoder.FromString(params.HeaderUUID)},
 	}
 
 	queryString := url.Values{
@@ -603,16 +612,17 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 		"int":     {reqEncoder.FromInt(params.QueryInt)},
 		"json":    {reqEncoder.FromJSON(params.QueryJson)},
 		"slice":   reqEncoder.FromIntList(params.QuerySlice),
-		"string":  {params.QueryString},
+		"string":  {reqEncoder.FromString(params.QueryString)},
 		"time":    {reqEncoder.FromTime(params.QueryTime)},
-		"user-id": {params.QueryUserID},
-		"uuid":    {params.QueryUUID},
+		"user-id": {reqEncoder.FromString(params.QueryUserID)},
+		"uuid":    {reqEncoder.FromString(params.QueryUUID)},
 	}
 
 	if reqEncoder.LastError != nil {
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
+
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
 		BodyBoolean bool            `json:"boolean"`
@@ -676,12 +686,12 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 	resp.HeaderBoolean = respDecoder.ToBool("HeaderBoolean", respHeaders.Get("x-boolean"), true)
 	resp.HeaderInt = respDecoder.ToInt("HeaderInt", respHeaders.Get("x-int"), true)
 	resp.HeaderFloat = respDecoder.ToFloat64("HeaderFloat", respHeaders.Get("x-float"), true)
-	resp.HeaderString = respHeaders.Get("x-string")
+	resp.HeaderString = respDecoder.ToString("HeaderString", respHeaders.Get("x-string"), true)
 	resp.HeaderBytes = respDecoder.ToBytes("HeaderBytes", respHeaders.Get("x-bytes"), true)
 	resp.HeaderTime = respDecoder.ToTime("HeaderTime", respHeaders.Get("x-time"), true)
 	resp.HeaderJson = respDecoder.ToJSON("HeaderJson", respHeaders.Get("x-json"), true)
-	resp.HeaderUUID = respHeaders.Get("x-uuid")
-	resp.HeaderUserID = respHeaders.Get("x-user-id")
+	resp.HeaderUUID = respDecoder.ToString("HeaderUUID", respHeaders.Get("x-uuid"), true)
+	resp.HeaderUserID = respDecoder.ToString("HeaderUserID", respHeaders.Get("x-user-id"), true)
 	resp.QueryBoolean = respBody.QueryBoolean
 	resp.QueryInt = respBody.QueryInt
 	resp.QueryFloat = respBody.QueryFloat
@@ -766,9 +776,16 @@ func (c *testClient) RawEndpoint(ctx context.Context, id []string, request *http
 // using Encore request handlers
 func (c *testClient) RestStyleAPI(ctx context.Context, objType int, name string, params TestRestParams) (resp TestRestParams, err error) {
 	// Convert our params into the objects we need for the request
-	headers := http.Header{"some-key": {params.HeaderValue}}
+	reqEncoder := &serde{}
 
-	queryString := url.Values{"Some-Key": {params.QueryValue}}
+	headers := http.Header{"some-key": {reqEncoder.FromString(params.HeaderValue)}}
+
+	queryString := url.Values{"Some-Key": {reqEncoder.FromString(params.QueryValue)}}
+
+	if reqEncoder.LastError != nil {
+		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
+		return
+	}
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
@@ -803,10 +820,17 @@ func (c *testClient) RestStyleAPI(ctx context.Context, objType int, name string,
 	}
 
 	// Copy the unmarshalled response body into our response struct
-	resp.HeaderValue = respHeaders.Get("some-key")
+	respDecoder := &serde{}
+
+	resp.HeaderValue = respDecoder.ToString("HeaderValue", respHeaders.Get("some-key"), true)
 	resp.QueryValue = respBody.QueryValue
 	resp.BodyValue = respBody.BodyValue
 	resp.Nested = respBody.Nested
+
+	if respDecoder.LastError != nil {
+		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
+		return
+	}
 
 	return
 }
@@ -877,12 +901,14 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 			req.URL.RawQuery = query.Encode()
 
 			// Add the auth fields to the headers
-			req.Header.Set("x-header", authData.Header)
-			req.Header.Set("authorization", authData.Authorization)
+			req.Header.Set("x-header", authEncoder.FromString(authData.Header))
+			req.Header.Set("x-auth-int", authEncoder.FromInt(authData.AuthInt))
+			req.Header.Set("authorization", authEncoder.FromString(authData.Authorization))
 
 			if authEncoder.LastError != nil {
 				return nil, fmt.Errorf("unable to marshal authentication data: %w", authEncoder.LastError)
 			}
+
 		}
 	}
 
@@ -1230,43 +1256,65 @@ func (c *ErrCode) UnmarshalJSON(b []byte) error {
 
 // serde is used to serialize request data into strings and deserialize response data from strings
 type serde struct {
-	LastError error // The last error that occurred
+	LastError      error // The last error that occurred
+	NonEmptyValues int   // The number of values this decoder has decoded
 }
 
 func (e *serde) FromInt(s int) (v string) {
+	e.NonEmptyValues++
 	return strconv.FormatInt(int64(s), 10)
+}
+
+func (e *serde) FromString(s string) (v string) {
+	e.NonEmptyValues++
+	return s
 }
 
 func (e *serde) ToInt(field string, s string, required bool) (v int) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseInt(s, 10, 64)
 	e.setErr("invalid parameter", field, err)
 	return int(x)
 }
 
+func (e *serde) ToString(field string, s string, required bool) (v string) {
+	if !required && s == "" {
+		return
+	}
+	e.NonEmptyValues++
+	return s
+}
+
 func (e *serde) FromBool(s bool) (v string) {
+	e.NonEmptyValues++
 	return strconv.FormatBool(s)
 }
 
 func (e *serde) FromFloat64(s float64) (v string) {
+	e.NonEmptyValues++
 	return strconv.FormatFloat(s, uint8(0x66), -1, 64)
 }
 
 func (e *serde) FromBytes(s []byte) (v string) {
+	e.NonEmptyValues++
 	return base64.URLEncoding.EncodeToString(s)
 }
 
 func (e *serde) FromTime(s time.Time) (v string) {
+	e.NonEmptyValues++
 	return s.Format(time.RFC3339)
 }
 
 func (e *serde) FromJSON(s json.RawMessage) (v string) {
+	e.NonEmptyValues++
 	return string(s)
 }
 
 func (e *serde) FromIntList(s []int) (v []string) {
+	e.NonEmptyValues++
 	for _, x := range s {
 		v = append(v, e.FromInt(x))
 	}
@@ -1277,6 +1325,7 @@ func (e *serde) ToBool(field string, s string, required bool) (v bool) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := strconv.ParseBool(s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -1286,6 +1335,7 @@ func (e *serde) ToFloat64(field string, s string, required bool) (v float64) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseFloat(s, 64)
 	e.setErr("invalid parameter", field, err)
 	return x
@@ -1295,6 +1345,7 @@ func (e *serde) ToBytes(field string, s string, required bool) (v []byte) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := base64.URLEncoding.DecodeString(s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -1304,6 +1355,7 @@ func (e *serde) ToTime(field string, s string, required bool) (v time.Time) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := time.Parse(time.RFC3339, s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -1313,6 +1365,7 @@ func (e *serde) ToJSON(field string, s string, required bool) (v json.RawMessage
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	return json.RawMessage(s)
 }
 

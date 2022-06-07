@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -166,6 +167,7 @@ func AppMeta(ctx context.Context) (*AppMetadata, error) {
 
 type AuthParams struct {
 	Header        string `header:"X-Header"`
+	AuthInt       int    `header:"X-Auth-Int"`
 	Authorization string `header:"Authorization"`
 	Query         []int  `query:"query"`
 	NewAuth       bool   `query:"new-auth"`
@@ -173,6 +175,9 @@ type AuthParams struct {
 
 //encore:authhandler
 func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthParams, error) {
+	if reflect.ValueOf(params).Elem().IsZero() {
+		panic("zero value auth params should skip authhandler")
+	}
 	if params.Authorization == "Bearer tokendata" && params.NewAuth == false {
 		return "user", params, nil
 	}

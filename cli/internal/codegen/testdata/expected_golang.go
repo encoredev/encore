@@ -144,7 +144,14 @@ var _ ProductsClient = (*productsClient)(nil)
 
 func (c *productsClient) Create(ctx context.Context, params ProductsCreateProductRequest) (resp ProductsProduct, err error) {
 	// Convert our params into the objects we need for the request
-	headers := http.Header{"idempotency-key": {params.IdempotencyKey}}
+	reqEncoder := &serde{}
+
+	headers := http.Header{"idempotency-key": {reqEncoder.FromString(params.IdempotencyKey)}}
+
+	if reqEncoder.LastError != nil {
+		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
+		return
+	}
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
@@ -260,6 +267,7 @@ func (c *svcClient) Get(ctx context.Context, params SvcGetRequest) error {
 	if reqEncoder.LastError != nil {
 		return fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 	}
+
 	_, err := callAPI(ctx, c.base, "GET", fmt.Sprintf("/svc.Get?%s", queryString.Encode()), nil, nil, nil)
 	return err
 }
@@ -280,6 +288,7 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
+
 	// Now make the actual call to the API
 	var respHeaders http.Header
 	respHeaders, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/svc.GetRequestWithAllInputTypes?%s", queryString.Encode()), headers, nil, nil)
@@ -293,12 +302,12 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	resp.Boolean = respDecoder.ToBool("Boolean", respHeaders.Get("x-boolean"), true)
 	resp.Int = respDecoder.ToInt("Int", respHeaders.Get("x-int"), true)
 	resp.Float = respDecoder.ToFloat64("Float", respHeaders.Get("x-float"), true)
-	resp.String = respHeaders.Get("x-string")
+	resp.String = respDecoder.ToString("String", respHeaders.Get("x-string"), true)
 	resp.Bytes = respDecoder.ToBytes("Bytes", respHeaders.Get("x-bytes"), true)
 	resp.Time = respDecoder.ToTime("Time", respHeaders.Get("x-time"), true)
 	resp.Json = respDecoder.ToJSON("Json", respHeaders.Get("x-json"), true)
-	resp.UUID = respHeaders.Get("x-uuid")
-	resp.UserID = respHeaders.Get("x-user-id")
+	resp.UUID = respDecoder.ToString("UUID", respHeaders.Get("x-uuid"), true)
+	resp.UserID = respDecoder.ToString("UserID", respHeaders.Get("x-user-id"), true)
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
@@ -318,15 +327,16 @@ func (c *svcClient) HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyS
 		"x-float":   {reqEncoder.FromFloat64(params.Float)},
 		"x-int":     {reqEncoder.FromInt(params.Int)},
 		"x-json":    {reqEncoder.FromJSON(params.Json)},
-		"x-string":  {params.String},
+		"x-string":  {reqEncoder.FromString(params.String)},
 		"x-time":    {reqEncoder.FromTime(params.Time)},
-		"x-user-id": {params.UserID},
-		"x-uuid":    {params.UUID},
+		"x-user-id": {reqEncoder.FromString(params.UserID)},
+		"x-uuid":    {reqEncoder.FromString(params.UUID)},
 	}
 
 	if reqEncoder.LastError != nil {
 		return fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 	}
+
 	_, err := callAPI(ctx, c.base, "GET", "/svc.HeaderOnlyRequest", headers, nil, nil)
 	return err
 }
@@ -348,6 +358,7 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 		return
 	}
+
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
 		C    bool   `json:"Charlies-Bool,omitempty"`
@@ -799,18 +810,27 @@ func (c *ErrCode) UnmarshalJSON(b []byte) error {
 
 // serde is used to serialize request data into strings and deserialize response data from strings
 type serde struct {
-	LastError error // The last error that occurred
+	LastError      error // The last error that occurred
+	NonEmptyValues int   // The number of values this decoder has decoded
+}
+
+func (e *serde) FromString(s string) (v string) {
+	e.NonEmptyValues++
+	return s
 }
 
 func (e *serde) FromInt(s int) (v string) {
+	e.NonEmptyValues++
 	return strconv.FormatInt(int64(s), 10)
 }
 
 func (e *serde) FromTime(s time.Time) (v string) {
+	e.NonEmptyValues++
 	return s.Format(time.RFC3339)
 }
 
 func (e *serde) FromIntList(s []int) (v []string) {
+	e.NonEmptyValues++
 	for _, x := range s {
 		v = append(v, e.FromInt(x))
 	}
@@ -818,6 +838,7 @@ func (e *serde) FromIntList(s []int) (v []string) {
 }
 
 func (e *serde) FromBool(s bool) (v string) {
+	e.NonEmptyValues++
 	return strconv.FormatBool(s)
 }
 
@@ -825,6 +846,7 @@ func (e *serde) ToBool(field string, s string, required bool) (v bool) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := strconv.ParseBool(s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -834,6 +856,7 @@ func (e *serde) ToInt(field string, s string, required bool) (v int) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseInt(s, 10, 64)
 	e.setErr("invalid parameter", field, err)
 	return int(x)
@@ -843,15 +866,25 @@ func (e *serde) ToFloat64(field string, s string, required bool) (v float64) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseFloat(s, 64)
 	e.setErr("invalid parameter", field, err)
 	return x
+}
+
+func (e *serde) ToString(field string, s string, required bool) (v string) {
+	if !required && s == "" {
+		return
+	}
+	e.NonEmptyValues++
+	return s
 }
 
 func (e *serde) ToBytes(field string, s string, required bool) (v []byte) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := base64.URLEncoding.DecodeString(s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -861,6 +894,7 @@ func (e *serde) ToTime(field string, s string, required bool) (v time.Time) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := time.Parse(time.RFC3339, s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -870,18 +904,22 @@ func (e *serde) ToJSON(field string, s string, required bool) (v json.RawMessage
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	return json.RawMessage(s)
 }
 
 func (e *serde) FromFloat64(s float64) (v string) {
+	e.NonEmptyValues++
 	return strconv.FormatFloat(s, uint8(0x66), -1, 64)
 }
 
 func (e *serde) FromBytes(s []byte) (v string) {
+	e.NonEmptyValues++
 	return base64.URLEncoding.EncodeToString(s)
 }
 
 func (e *serde) FromJSON(s json.RawMessage) (v string) {
+	e.NonEmptyValues++
 	return string(s)
 }
 

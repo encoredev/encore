@@ -9,7 +9,6 @@ import (
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	serde "encore.dev/runtime/serde"
-	"errors"
 	"fmt"
 	"github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
@@ -206,16 +205,10 @@ func (validationDetails) ErrDetails() {}
 // If requireAuth is false, it reports ("", nil, true) on authentication failure.
 func __encore_authenticate(w http.ResponseWriter, req *http.Request, requireAuth bool, svcName, rpcName string) (uid auth.UID, authData interface{}, proceed bool) {
 	param, err := __encore_resolveAuthParam(req)
-	if err != nil {
-		if requireAuth {
-			runtime.Logger().Info().Str("service", svcName).Str("endpoint", rpcName).Msg("rejecting request due to missing auth")
-			errs.HTTPError(w, errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err())
-			return "", nil, false
-		}
-		return "", nil, true
-	}
 
-	uid, authData, err = __encore_validateToken(req.Context(), param)
+	if err == nil {
+		uid, authData, err = __encore_validateToken(req.Context(), param)
+	}
 	if errs.Code(err) == errs.Unauthenticated && !requireAuth {
 		return "", nil, true
 	} else if err != nil {
@@ -237,7 +230,7 @@ func __encore_resolveAuthParam(req *http.Request) (param string, err error) {
 			}
 		}
 	}
-	return "", errors.New("missing auth token")
+	return "", errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err()
 }
 
 // __encore_validateToken validates an auth token.
@@ -281,13 +274,15 @@ func __encore_validateToken(ctx context.Context, param string) (uid auth.UID, au
 
 // marshaller is used to serialize request data into strings and deserialize response data from strings
 type marshaller struct {
-	LastError error // The last error that occurred
+	LastError      error // The last error that occurred
+	NonEmptyValues int   // The number of values this decoder has decoded
 }
 
 func (e *marshaller) ToString(field string, s string, required bool) (v string) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	return s
 }
 

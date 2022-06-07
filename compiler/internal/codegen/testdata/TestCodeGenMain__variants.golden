@@ -190,7 +190,7 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	case "GET":
 		// Decode Query String
 		qs := req.URL.Query()
-		params.Name = qs.Get("name")
+		params.Name = dec.ToString("name", qs.Get("name"), false)
 
 	case "POST":
 		// Decode JSON Body
@@ -415,7 +415,15 @@ func __encore_svc_Nine(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		respData = append(respData, '\n')
 
 		// Encode headers
-		headers = map[string][]string{"x-header": {resp.Header}}
+		headerEncoder := &marshaller{}
+		headers = map[string][]string{"x-header": {headerEncoder.FromString(resp.Header)}}
+		if headerEncoder.LastError != nil {
+			headerErr := errs.WrapCode(headerEncoder.LastError, errs.Internal, "failed to marshal headers")
+			runtime.FinishRequest(nil, headerErr)
+			errs.HTTPError(w, headerErr)
+			return
+		}
+
 	}
 
 	// Record tracing data
@@ -501,7 +509,7 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 		params.JSON = dec.ToJSON("json", qs.Get("json"), false)
 		params.Float32 = dec.ToFloat32("float32", qs.Get("float32"), false)
 		params.Float64 = dec.ToFloat64("float64", qs.Get("float64"), false)
-		params.Strings = qs["strings"]
+		params.Strings = dec.ToStringList("strings", qs["strings"], false)
 		params.Times = dec.ToTimeList("times", qs["times"], false)
 
 	default:
@@ -643,7 +651,7 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	case "GET":
 		// Decode Query String
 		qs := req.URL.Query()
-		params.Name = qs.Get("name")
+		params.Name = dec.ToString("name", qs.Get("name"), false)
 
 	case "POST":
 		// Decode JSON Body
@@ -770,7 +778,15 @@ func __encore_svc_Ten(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	if resp != nil {
 
 		// Encode headers
-		headers = map[string][]string{"x-header": {resp.Header}}
+		headerEncoder := &marshaller{}
+		headers = map[string][]string{"x-header": {headerEncoder.FromString(resp.Header)}}
+		if headerEncoder.LastError != nil {
+			headerErr := errs.WrapCode(headerEncoder.LastError, errs.Internal, "failed to marshal headers")
+			runtime.FinishRequest(nil, headerErr)
+			errs.HTTPError(w, headerErr)
+			return
+		}
+
 	}
 
 	// Record tracing data
@@ -1074,16 +1090,10 @@ func (validationDetails) ErrDetails() {}
 // If requireAuth is false, it reports ("", nil, true) on authentication failure.
 func __encore_authenticate(w http.ResponseWriter, req *http.Request, requireAuth bool, svcName, rpcName string) (uid auth.UID, authData interface{}, proceed bool) {
 	param, err := __encore_resolveAuthParam(req)
-	if err != nil {
-		if requireAuth {
-			runtime.Logger().Info().Str("service", svcName).Str("endpoint", rpcName).Msg("rejecting request due to missing auth")
-			errs.HTTPError(w, errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err())
-			return "", nil, false
-		}
-		return "", nil, true
-	}
 
-	uid, authData, err = __encore_validateToken(req.Context(), param)
+	if err == nil {
+		uid, authData, err = __encore_validateToken(req.Context(), param)
+	}
 	if errs.Code(err) == errs.Unauthenticated && !requireAuth {
 		return "", nil, true
 	} else if err != nil {
@@ -1100,18 +1110,21 @@ func __encore_resolveAuthParam(req *http.Request) (param *svc.AuthParams, err er
 	dec := &marshaller{}
 	// Decode Headers
 	h := req.Header
-	params.Header1 = h.Get("one")
+	params.Header1 = dec.ToString("one", h.Get("one"), false)
 	params.Header2 = dec.ToInt("two", h.Get("two"), false)
 	params.Header3 = dec.ToUint("three", h.Get("three"), false)
 
 	// Decode Query String
 	qs := req.URL.Query()
-	params.Query1 = qs.Get("one")
-	params.Query2 = qs["two"]
+	params.Query1 = dec.ToString("one", qs.Get("one"), false)
+	params.Query2 = dec.ToStringList("two", qs["two"], false)
 	params.Query3 = dec.ToTime("three", qs.Get("three"), false)
 
 	if dec.LastError != nil {
-		return nil, dec.LastError
+		return nil, errs.B().Code(errs.InvalidArgument).Msgf("invalid auth param: %v", dec.LastError).Err()
+	}
+	if dec.NonEmptyValues == 0 {
+		return nil, errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
 	}
 	return params, nil
 }
@@ -1161,13 +1174,15 @@ func __encore_validateToken(ctx context.Context, param *svc.AuthParams) (uid aut
 
 // marshaller is used to serialize request data into strings and deserialize response data from strings
 type marshaller struct {
-	LastError error // The last error that occurred
+	LastError      error // The last error that occurred
+	NonEmptyValues int   // The number of values this decoder has decoded
 }
 
 func (e *marshaller) ToString(field string, s string, required bool) (v string) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	return s
 }
 
@@ -1175,6 +1190,7 @@ func (e *marshaller) ToUUID(field string, s string, required bool) (v uuid.UUID)
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := uuid.FromString(s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -1184,15 +1200,22 @@ func (e *marshaller) ToUint(field string, s string, required bool) (v uint) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseUint(s, 10, 64)
 	e.setErr("invalid parameter", field, err)
 	return uint(x)
+}
+
+func (e *marshaller) FromString(s string) (v string) {
+	e.NonEmptyValues++
+	return s
 }
 
 func (e *marshaller) ToTime(field string, s string, required bool) (v time.Time) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	v, err := time.Parse(time.RFC3339, s)
 	e.setErr("invalid parameter", field, err)
 	return v
@@ -1202,6 +1225,7 @@ func (e *marshaller) ToUserID(field string, s string, required bool) (v auth.UID
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	return auth.UID(s)
 }
 
@@ -1209,6 +1233,7 @@ func (e *marshaller) ToJSON(field string, s string, required bool) (v stdjson.Ra
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	return stdjson.RawMessage(s)
 }
 
@@ -1216,6 +1241,7 @@ func (e *marshaller) ToFloat32(field string, s string, required bool) (v float32
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseFloat(s, 32)
 	e.setErr("invalid parameter", field, err)
 	return float32(x)
@@ -1225,15 +1251,28 @@ func (e *marshaller) ToFloat64(field string, s string, required bool) (v float64
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseFloat(s, 64)
 	e.setErr("invalid parameter", field, err)
 	return x
+}
+
+func (e *marshaller) ToStringList(field string, s []string, required bool) (v []string) {
+	if !required && len(s) == 0 {
+		return
+	}
+	e.NonEmptyValues++
+	for _, x := range s {
+		v = append(v, e.ToString(field, x, required))
+	}
+	return v
 }
 
 func (e *marshaller) ToTimeList(field string, s []string, required bool) (v []time.Time) {
 	if !required && len(s) == 0 {
 		return
 	}
+	e.NonEmptyValues++
 	for _, x := range s {
 		v = append(v, e.ToTime(field, x, required))
 	}
@@ -1244,6 +1283,7 @@ func (e *marshaller) ToInt(field string, s string, required bool) (v int) {
 	if !required && s == "" {
 		return
 	}
+	e.NonEmptyValues++
 	x, err := strconv.ParseInt(s, 10, 64)
 	e.setErr("invalid parameter", field, err)
 	return int(x)
