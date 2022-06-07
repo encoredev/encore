@@ -574,23 +574,10 @@ func (b *Builder) writeAuthFuncs(f *File) {
 		Id("proceed").Bool(),
 	).Block(
 		List(Id("param"), Err()).Op(":=").Id("__encore_resolveAuthParam").Call(Id("req")),
-		If(Err().Op("!=").Nil()).Block(
-			If(Id("requireAuth")).Block(
-				Qual("encore.dev/runtime", "Logger").Call().Dot("Info").Call().
-					Dot("Str").Call(Lit("service"), Id("svcName")).
-					Dot("Str").Call(Lit("endpoint"), Id("rpcName")).
-					Dot("Msg").Call(Lit("rejecting request due to missing auth")),
-				Qual("encore.dev/beta/errs", "HTTPError").Call(
-					Id("w"), buildErr("Unauthenticated", "invalid auth param"),
-				),
-				Return(Lit(""), Nil(), False()),
-			),
-			Return(Lit(""), Nil(), True()),
-		),
-
 		Line(),
-
-		List(Id("uid"), Id("authData"), Err()).Op("=").Id("__encore_validateToken").Call(Id("req").Dot("Context").Call(), Id("param")),
+		If(Err().Op("==").Nil()).Block(
+			List(Id("uid"), Id("authData"), Err()).Op("=").Id("__encore_validateToken").Call(Id("req").Dot("Context").Call(), Id("param")),
+		),
 		If(
 			Qual("encore.dev/beta/errs", "Code").Call(Err()).Op("==").Qual("encore.dev/beta/errs", "Unauthenticated").Op("&&").Op("!").Id("requireAuth"),
 		).Block(
@@ -636,7 +623,7 @@ func (b *Builder) writeAuthFuncs(f *File) {
 					),
 				),
 			)
-			g.Return(Lit(""), Qual("errors", "New").Call(Lit("missing auth token")))
+			g.Return(Lit(""), buildErr("Unauthenticated", "invalid auth param"))
 			return
 		}
 
@@ -648,8 +635,11 @@ func (b *Builder) writeAuthFuncs(f *File) {
 			b.decodeHeaders(g, authHandler.Func.Pos(), decoder, authEncoding.HeaderParameters)
 			b.decodeQueryString(g, authHandler.Func.Pos(), decoder, authEncoding.QueryParameters)
 		}))
+		decoder.EndBlock(If(Id("dec").Dot("NonEmptyValues").Op("==").Lit(0)).Block(
+			Return(Nil(), buildErr("Unauthenticated", "missing auth param")),
+		))
 		g.Add(decoder.Finalize(
-			Return(Nil(), Id("dec").Dot("LastError")),
+			Return(Nil(), buildErrf("InvalidArgument", "invalid auth param: %v", Id("dec").Dot("LastError"))),
 		)...)
 		g.Return(Id("params"), Nil())
 	})

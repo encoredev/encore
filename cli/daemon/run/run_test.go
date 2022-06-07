@@ -281,6 +281,20 @@ func TestEndToEndWithApp(t *testing.T) {
 			c.Assert(w.Code, qt.Equals, 200)
 		}
 
+		// Call an endpoint with an invalid auth parameter
+		{
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/echo.NilResponse", nil)
+			req.Header.Add("x-auth-int", "invalid")
+			run.ServeHTTP(w, req)
+			c.Assert(w.Code, qt.Equals, 400)
+			c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
+				"code":    "invalid_argument",
+				"details": nil,
+				"message": "invalid auth param: x-auth-int: invalid parameter: strconv.ParseInt: parsing \"invalid\": invalid syntax",
+			})
+		}
+
 		// Call an endpoint without request parameters and response value
 		{
 			w := httptest.NewRecorder()

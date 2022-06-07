@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	lastErrorField = "LastError"
+	lastErrorField      = "LastError"
+	nonEmptyValuesField = "NonEmptyValues"
 )
 
 // MarshallingCodeGenerator is used to generate a structure has methods for decoding various types, collecting the errors.
@@ -47,7 +48,8 @@ type MarshallingCodeWrapper struct {
 	instanceName string
 	used         bool
 
-	code []Code
+	code     []Code
+	endBlock []Code
 }
 
 func NewMarshallingCodeGenerator(structName string, forClientGen bool) *MarshallingCodeGenerator {
@@ -82,6 +84,7 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 	f.Commentf("%s is used to serialize request data into strings and deserialize response data from strings", g.structName)
 	f.Type().Id(g.structName).Struct(
 		Id(lastErrorField).Error().Comment("The last error that occurred"),
+		Id(nonEmptyValuesField).Int().Comment("The number of values this decoder has decoded"),
 	)
 
 	for _, desc := range g.builtins {
@@ -103,6 +106,7 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 					g.If(Op("!").Id("required").Op("&&").Id("s").Op("==").Lit("")).Block(Return())
 				}
 			}
+			g.Id("e").Dot(nonEmptyValuesField).Op("++")
 			for _, s := range desc.Block {
 				g.Add(s)
 			}
@@ -404,6 +408,11 @@ func (w *MarshallingCodeWrapper) Add(c ...Code) {
 	w.code = append(w.code, c...)
 }
 
+// EndBlock adds custom logic after the error block
+func (w *MarshallingCodeWrapper) EndBlock(endBlock ...Code) {
+	w.endBlock = endBlock
+}
+
 // Finalize returns the final code block including all wrapped code
 func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 	if !w.used {
@@ -413,6 +422,8 @@ func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 	code := []Code{Id(w.instanceName).Op(":=").Op("&").Id(w.g.structName).Values(), Line()}
 	code = append(code, w.code...)
 	code = append(code, Line().If(Id(w.instanceName).Dot(lastErrorField).Op("!=").Nil()).Block(ifErrorBlock...))
+	code = append(code, Line())
+	code = append(code, w.endBlock...)
 	return code
 }
 
@@ -456,7 +467,7 @@ func (w *MarshallingCodeWrapper) FromJSON(targetType *schema.Type, fieldName str
 	return Id(w.instanceName).Dot("ParseJSON").Call(Lit(fieldName), Id(iterName), Op("&").Add(dst)), nil
 }
 
-// FromString will return either the original string or a call to the encoder
+// FromString will return a call to a decoder method
 func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName string, getAsString Code, getAsStringSlice Code, required bool) (code Code, err error) {
 	// get the method name for the target type
 	funcName := ""
@@ -464,12 +475,13 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 	switch t := targetType.Typ.(type) {
 	case *schema.Type_List:
 		if bt, ok := t.List.Elem.Typ.(*schema.Type_Builtin); ok {
-			// If the list is strings, we can just return the slice
+			// If the list is uuids or userids, treat it as string
+			builtin := bt.Builtin
 			if w.g.shouldBeTreatedAsString(bt.Builtin) {
-				return getAsStringSlice, nil
+				builtin = schema.Builtin_STRING
 			}
 
-			funcName, err = w.g.builtinFromString(bt.Builtin, true)
+			funcName, err = w.g.builtinFromString(builtin, true)
 			srcCode = getAsStringSlice
 			if err != nil {
 				return nil, err
@@ -478,12 +490,13 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 			return nil, errors.Newf("unsupported list type %T", t.List.Elem.Typ)
 		}
 	case *schema.Type_Builtin:
-		// If the list is strings, we can just return the slice
+		// If it's uuid, userid then treat it as string
+		builtin := t.Builtin
 		if w.g.shouldBeTreatedAsString(t.Builtin) {
-			return getAsString, nil
+			builtin = schema.Builtin_STRING
 		}
 
-		funcName, err = w.g.builtinFromString(t.Builtin, false)
+		funcName, err = w.g.builtinFromString(builtin, false)
 		if err != nil {
 			return nil, err
 		}
@@ -503,12 +516,12 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 	switch t := sourceType.Typ.(type) {
 	case *schema.Type_List:
 		if bt, ok := t.List.Elem.Typ.(*schema.Type_Builtin); ok {
-			// If the list is strings, we can just return the slice
+			builtin := bt.Builtin
 			if w.g.shouldBeTreatedAsString(bt.Builtin) {
-				return sourceValue, nil
+				builtin = schema.Builtin_STRING
 			}
 
-			funcName, err = w.g.builtinToString(bt.Builtin, true)
+			funcName, err = w.g.builtinToString(builtin, true)
 			if err != nil {
 				return nil, err
 			}
@@ -519,12 +532,12 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 			return nil, errors.Newf("unsupported list type %T", t.List.Elem.Typ)
 		}
 	case *schema.Type_Builtin:
-		// If the list is strings, we can just return the slice
+		builtin := t.Builtin
 		if w.g.shouldBeTreatedAsString(t.Builtin) {
-			return Values(sourceValue), nil
+			builtin = schema.Builtin_STRING
 		}
 
-		funcName, err = w.g.builtinToString(t.Builtin, false)
+		funcName, err = w.g.builtinToString(builtin, false)
 		if err != nil {
 			return nil, err
 		}
@@ -542,12 +555,12 @@ func (w *MarshallingCodeWrapper) ToString(sourceType *schema.Type, sourceValue C
 	funcName := ""
 	switch t := sourceType.Typ.(type) {
 	case *schema.Type_Builtin:
-		// If the list is strings, we can just return the slice
+		builtin := t.Builtin
 		if w.g.shouldBeTreatedAsString(t.Builtin) {
-			return sourceValue, nil
+			builtin = schema.Builtin_STRING
 		}
 
-		funcName, err = w.g.builtinToString(t.Builtin, false)
+		funcName, err = w.g.builtinToString(builtin, false)
 		if err != nil {
 			return nil, err
 		}
