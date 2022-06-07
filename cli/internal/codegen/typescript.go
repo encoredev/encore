@@ -653,8 +653,9 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 	if ts.hasAuth {
 		ts.WriteString(`
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => `)
+export type AuthDataGenerator = () => (`)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.WriteString(` | undefined)`)
 	}
 
 	ts.WriteString(`
