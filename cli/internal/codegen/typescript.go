@@ -669,8 +669,7 @@ class BaseClient {
     readonly headers: Record<string, string>`)
 
 	if ts.hasAuth {
-		ts.WriteString("\n    readonly authGenerator?: () => ")
-		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.WriteString("\n    readonly authGenerator?: AuthDataGenerator")
 	}
 
 	ts.WriteString(`
