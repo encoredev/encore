@@ -49,10 +49,18 @@ type SingleBackendProxy struct {
 	FrontendTLS     *tls.Config
 	DialBackend     func(context.Context, *StartupData) (LogicalConn, error)
 
-	gotBackend chan struct{} // closed when be is set
+	gotBackend chan struct{} // closed when first connection is received
 
-	mu sync.Mutex
-	be LogicalConn
+	mu      sync.Mutex
+	keyData map[pgproto3.BackendKeyData]LogicalConn
+}
+
+type DatabaseNotFoundError struct {
+	Database string
+}
+
+func (e DatabaseNotFoundError) Error() string {
+	return fmt.Sprintf("database %s not found", e.Database)
 }
 
 func (p *SingleBackendProxy) Serve(ctx context.Context, ln net.Listener) error {
@@ -73,6 +81,7 @@ func (p *SingleBackendProxy) Serve(ctx context.Context, ln net.Listener) error {
 	}()
 
 	var tempDelay time.Duration // how long to sleep on accept failure
+	gotBackend := false
 	for {
 		frontend, err := ln.Accept()
 		if err != nil {
@@ -92,6 +101,11 @@ func (p *SingleBackendProxy) Serve(ctx context.Context, ln net.Listener) error {
 			return fmt.Errorf("pgproxy: could not accept: %v", err)
 		}
 
+		if !gotBackend {
+			close(p.gotBackend)
+			gotBackend = true
+		}
+
 		go p.ProxyConn(ctx, frontend)
 		tempDelay = 0
 	}
@@ -109,26 +123,26 @@ func (p *SingleBackendProxy) ProxyConn(ctx context.Context, client net.Conn) {
 		return
 	}
 
-	p.mu.Lock()
-	if p.be == nil {
-		// setupBackend unlocks the mutex when ready.
-		if err := p.setupBackend(ctx, cl); err != nil {
-			p.Log.Error().Err(err).Msg("unable to setup backend")
+	switch data := cl.Hello.(type) {
+	case *StartupData:
+		if err := p.doRunProxy(ctx, cl); err != nil {
+			p.Log.Error().Err(err).Msg("unable to run backend proxy")
 		}
-	} else {
-		p.mu.Unlock()
-		p.cancelRequest(ctx, cl.Hello)
+	case *CancelData:
+		p.cancelRequest(ctx, data)
+	default:
+		p.Log.Error().Msgf("unknown hello message type: %T", data)
 	}
 }
 
-func (p *SingleBackendProxy) setupBackend(ctx context.Context, cl *Client) error {
-	startup, ok := cl.Hello.(*StartupData)
-	if !ok {
-		return fmt.Errorf("unsupported startup message: %T", cl.Hello)
-	}
-
+func (p *SingleBackendProxy) doRunProxy(ctx context.Context, cl *Client) error {
+	startup := cl.Hello.(*StartupData)
 	server, err := p.DialBackend(ctx, startup)
 	if err != nil {
+		cl.Backend.Send(&pgproto3.ErrorResponse{
+			Severity: "FATAL",
+			Message:  err.Error(),
+		})
 		return err
 	}
 	defer server.Close()
@@ -143,10 +157,19 @@ func (p *SingleBackendProxy) setupBackend(ctx context.Context, cl *Client) error
 	}
 	log.Trace().Msg("successfully authenticated client")
 
-	_, err = FinalizeInitialHandshake(cl.Backend, fe)
+	key, err := FinalizeInitialHandshake(cl.Backend, fe)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to finalize handshake")
 		return err
+	}
+
+	if key != nil {
+		p.mu.Lock()
+		if p.keyData == nil {
+			p.keyData = make(map[pgproto3.BackendKeyData]LogicalConn)
+		}
+		p.keyData[*key] = server
+		p.mu.Unlock()
 	}
 
 	err = CopySteadyState(cl.Backend, fe)
@@ -504,14 +527,21 @@ func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error 
 	}
 }
 
-func (p *SingleBackendProxy) cancelRequest(ctx context.Context, hello HelloData) {
-	cancel, ok := hello.(*CancelData)
-	if !ok {
-		p.Log.Error().Msgf("follow-up conn sent %T, expected cancel request", hello)
-		return
-	}
+func (p *SingleBackendProxy) cancelRequest(ctx context.Context, cancel *CancelData) {
 	p.Log.Trace().Msg("received cancel request")
-	if err := p.be.Cancel(cancel); err != nil {
-		p.Log.Error().Err(err).Msg("unable to send cancel request")
+	key := pgproto3.BackendKeyData{
+		ProcessID: cancel.Raw.ProcessID,
+		SecretKey: cancel.Raw.SecretKey,
+	}
+	p.mu.Lock()
+	conn, ok := p.keyData[key]
+	p.mu.Unlock()
+
+	if ok {
+		if err := conn.Cancel(cancel); err != nil {
+			p.Log.Error().Err(err).Msg("unable to send cancel request")
+		}
+	} else {
+		p.Log.Error().Msg("could not find backend key data")
 	}
 }
