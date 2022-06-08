@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -44,6 +45,10 @@ func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlu
 			startupData := startup.Raw.Encode(nil)
 			ws, err := platform.DBConnect(ctx, appSlug, envSlug, startup.Database, startupData)
 			if err != nil {
+				var e platform.Error
+				if errors.As(err, &e) && e.HTTPCode == 404 {
+					return nil, pgproxy.DatabaseNotFoundError{Database: startup.Database}
+				}
 				return nil, err
 			}
 			conn := &WebsocketLogicalConn{Conn: ws}
