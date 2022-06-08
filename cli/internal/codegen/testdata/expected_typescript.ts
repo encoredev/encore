@@ -371,7 +371,7 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 }
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => string
+export type AuthDataGenerator = () => (string | undefined)
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
@@ -380,7 +380,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
-    readonly authGenerator?: () => string
+    readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
