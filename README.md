@@ -1,17 +1,17 @@
   <img width="1500px" src="https://encore.dev/assets//branding/github_header.png" alt="Encore - Backend development engine">
-  <h3><a href="https://encore.dev">Encore – Backend Development Engine</a></h3>
-Encore makes it incredibly simple to create distributed systems, backend services and APIs. While still deploying to your own cloud account, Encore helps you escape the maze of cloud complexity:</br>
+  <h1><a href="https://encore.dev">Encore – Backend Development Engine</a></h1>
+Encore is a Backend Development Engine, purpose-built for a flow state developer experience when creating cloud-based backend applications, APIs, and distributed systems using Go. Write your business logic with the Encore Go framework, then let the platform analyze your code to automatically deal with the rest. Start building today and unlock your creative potential with:</br>
 
 * No endless repetition of boilerplate.
 
-* No infrastructure to worry about.
+* No orchestrating and managing cloud services.
 
 * No reinventing the wheel.
 
-Start building with a fantastic flow state experience that unlocks your creative potential. <br/>All of this is freely available, based on the Open Source Encore Go Framework.
+Encore is freely available, based on the Open Source Encore Go Framework.
 <br/>
 
-**🏁 Get started in minutes and check out the documentation: [encore.dev/docs](https://encore.dev/docs/quick-start)**
+**🏁 Check out the documentation and get started in minutes: [encore.dev/docs](https://encore.dev/docs)**
 
 **⭐ If you find Encore interesting, star this repository to help spread the word.**
 
@@ -20,26 +20,21 @@ Start building with a fantastic flow state experience that unlocks your creative
 ## Key features
 * **[Write a function, get an API](https://encore.dev/docs/develop/services-and-apis):** Call any function as an API by adding a single annotation.
 
-* **[No Boilerplate](https://encore.dev/docs/develop/services-and-apis):** Define services, API endpoints, and call APIs with a single line of Go code. Create multiple services as easy as creating Go packages.
+* **[Microservices without hassle](https://encore.dev/docs/develop/services-and-apis):** Define services and API endpoints with a single line of Go code. Create multiple services as easy as creating Go packages.
 
-* **[Databases made simple](https://encore.dev/docs/concepts/databases):** Define the schema and then start querying. Encore takes care of provisioning, migrations, connections and passwords. Both for local development and production.
+* **[Cloud primitives at your fingertips](https://encore.dev/docs/introduction#a-developer-experience-designed-to-help-you-stay-in-the-flow):** Primitives like databases, queues, and scheduled tasks, are native concepts that you express through Go code.
 
-* **Built in CI/CD:** Build and ship your application with the push of a button. No setup needed.
+* **[Built-in DevOps](https://encore.dev/docs/introduction#3-encore-takes-care-of-your-entire-devops-process):** Run `git push encore` to build, test, provision necessary infrastructure, and deploy.
 
 * **[One developer experience, unlimited environments](https://encore.dev/docs/deploy/environments):** All features work the same in any environment, including local development. Create as many or as few environments as you wish.
 
-* **[Infrastructure Provisioning in your own cloud account](https://encore.dev/docs/deploy/infra):** Encore understands how your application works,
+* **[Infrastructure Provisioning in your own cloud account](https://encore.dev/docs/deploy/own-cloud):** Encore understands how your application works,
   and provisions and manages your cloud infrastructure in your own account. Works with all the major cloud providers, including AWS/Azure/GCP. Encore also offers free build-in cloud hosting for development.
-  
-* **[Single cloud, multi-cloud, hybrid cloud](https://encore.dev/docs/deploy/environments):** Deploy your app to multiple clouds, with the click of a button.
-  
-* **[Preview Environments](https://encore.dev/docs/deploy/platform):** Every pull request automatically becomes an isolated test environment. Collaborate and iterate faster than ever.
-
-* **Cloud primitives at your fingertips:** Use primitives like Cron Jobs, Databases, and Queues simply by writing code. No configuration. No setup. Just float into the flow.
+    
+* **[Preview Environments](https://encore.dev/docs/how-to/github):** Integrate with GitHub to automatically set up each pull request as a preview environment.
 
 * **[Distributed Tracing](https://encore.dev/docs/observability/tracing):** Your application is automatically instrumented for excellent observability.
-  Automatically capture information about API calls, goroutines, HTTP requests,
-  database queries, and more.
+  Automatically capture information about API calls, goroutines, HTTP requests, database queries, and more.
   
 * **[Simple Secrets](https://encore.dev/docs/develop/secrets):** The easiest way ever to store and securely use secrets and API keys. Define secrets in your code like any other variable, and Encore takes care of the rest.
 
@@ -49,12 +44,21 @@ Start building with a fantastic flow state experience that unlocks your creative
   
 * **[Generated Frontend Clients](https://encore.dev/docs/how-to/integrate-frontend):**  Automatically generate type-safe, documented clients for your frontends.
 
+## Use cases
+
+Encore is designed to help individual developers and teams be incredibly productive, and have more fun, when solving most backend use cases. There are many developers building with Encore, loving the experience when building things like:
+
+-   CRUD backends and REST APIs.
+-   Microservices backends for advanced web and mobile apps.
+-   Highly performant APIs providing advanced business logic to 3rd parties.
+-   And much more...
+
 ## Getting started
 
 Deploy your first app in minutes by following the [Quick Start Guide](https://encore.dev/docs/quick-start).
 
 ## Join the most pioneering developer community
-Engineers building with Encore are forward thinkers who wish to unlock their creativity and focus on building great software to solve meaningful problems. It's a friendly place to be, great for exchanging ideas and learnings! **Join the conversation on [Slack](https://encore.dev/slack).**
+Engineers building with Encore are forward-thinkers who want to focus on creative programming and building great software to solve meaningful problems. It's a friendly place to be, great for exchanging ideas and learnings! **Join the conversation on [Slack](https://encore.dev/slack).**
 
 We rely on your contributions and feedback to improve Encore for everyone who is using it.
 Here's how you can contribute:
@@ -124,7 +128,7 @@ Encore has been designed to let you go outside of the framework when you want to
 
 If you really do want to migrate away, it's relatively easy to do. Because when you build an Encore application, the vast majority of code is just plain Go. So in practice, the amount of code specific to Encore is very small.
 
-And with Encore, most of the value comes from letting you avoid doing a bunch of foundational work. Which means what you need to do when migrating away, is exactly what you would have had to do without Encore anyway.
+Encore has built-in support for ejecting your application as a way of removing the connection to the Encore Platform. Ejecting your app produces a standalone Docker image that can be deployed any where you'd like, and can help facilitating the migration away according to the process above.
 
 Migrating away is also very low risk, since Encore deploys to your own cloud account from the start, so there's never any data to migrate.
 
