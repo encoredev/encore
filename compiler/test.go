@@ -102,7 +102,7 @@ func (b *builder) runTests(ctx context.Context) error {
 		args = append(args, "-ldflags", `-extldflags "-static"`)
 	}
 	args = append(args, b.cfg.Test.Args...)
-	cmd := exec.CommandContext(ctx, filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+exe), args...)
+	cmd := exec.CommandContext(ctx, filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
 	env := append(b.cfg.Test.Env,
 		"GO111MODULE=on",
 		"GOROOT="+b.cfg.EncoreGoRoot,

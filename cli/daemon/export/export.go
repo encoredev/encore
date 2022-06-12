@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -41,11 +40,6 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 		return false, errors.Newf("unsupported format: %T", req.Format)
 	}
 
-	if req.Goarch != "" && req.Goarch != runtime.GOARCH {
-		log.Error().Msgf("encore export currently only supports building for the host architecture (%s)", runtime.GOARCH)
-		return false, errors.Newf("unsupported goarch: %q", errors.Safe(req.Goarch))
-	}
-
 	vcsRevision := vcs.GetRevision(req.AppRoot)
 	cfg := &compiler.Config{
 		Revision:              vcsRevision.Revision,
@@ -58,10 +52,11 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		GOOS:                  req.Goos,
+		GOARCH:                req.Goarch,
 		KeepOutput:            false,
 	}
 
-	log.Info().Msg("compiling Encore application")
+	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)
 	result, err := compiler.Build(req.AppRoot, cfg)
 	if result != nil && result.Dir != "" {
 		defer os.RemoveAll(result.Dir)
@@ -110,6 +105,11 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 
 // buildDockerImage builds a docker image.
 func buildDockerImage(ctx context.Context, log zerolog.Logger, req *daemonpb.ExportRequest, res *compiler.Result) (v1.Image, error) {
+	baseImg, err := resolveBaseImage(ctx, log, req.GetDocker())
+	if err != nil {
+		return nil, errors.Wrap(err, "resolve base image")
+	}
+
 	log.Info().Msg("building docker image")
 	opener, err := buildImageFilesystem(ctx, res)
 	if err != nil {
@@ -129,7 +129,8 @@ func buildDockerImage(ctx context.Context, log zerolog.Logger, req *daemonpb.Exp
 	}
 
 	created := v1.Time{Time: time.Now()}
-	img, err := mutate.Append(empty.Image, mutate.Addendum{
+
+	img, err := mutate.Append(baseImg, mutate.Addendum{
 		Layer: layer,
 		History: v1.History{
 			Author:    "encore-app",
@@ -160,6 +161,44 @@ func buildDockerImage(ctx context.Context, log zerolog.Logger, req *daemonpb.Exp
 	}
 
 	log.Info().Msg("successfully built docker image")
+	return img, nil
+}
+
+func resolveBaseImage(ctx context.Context, log zerolog.Logger, p *daemonpb.DockerExportParams) (v1.Image, error) {
+	baseImgTag := p.BaseImageTag
+	if baseImgTag == "" || baseImgTag == "scratch" {
+		return empty.Image, nil
+	}
+
+	// Try to get it from the daemon if it exists.
+	log.Info().Msgf("resolving base image %s", baseImgTag)
+	baseImgRef, err := name.ParseReference(baseImgTag)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse base image")
+	}
+
+	img, err := daemon.Image(baseImgRef)
+	if err != nil {
+		log.Info().Msg("could not get image from local daemon, fetching it remotely")
+		keychain := authn.DefaultKeychain
+		img, err = remote.Image(baseImgRef, remote.WithAuthFromKeychain(keychain), remote.WithContext(ctx))
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to fetch image")
+		}
+
+		// If the user requested to push the image locally, save the remote image locally as well.
+		if p.LocalDaemonTag != "" {
+			if tag, err := name.NewTag(baseImgTag, name.WeakValidation); err == nil {
+				log.Info().Msgf("saving remote image %s to local docker daemon", baseImgTag)
+				if _, err = daemon.Write(tag, img); err != nil {
+					log.Warn().Err(err).Msg("unable to save remote image to local docker daemon, skipping")
+				} else {
+					log.Info().Msgf("saved remote image to local docker daemon")
+				}
+			}
+		}
+	}
+
 	return img, nil
 }
 

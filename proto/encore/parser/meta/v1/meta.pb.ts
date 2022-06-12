@@ -1,5 +1,9 @@
 /* eslint-disable */
-import type {Decl, Loc, Type,} from "../../../../encore/parser/schema/v1/schema.pb";
+import type {
+  Loc,
+  Decl,
+  Type,
+} from "../../../../encore/parser/schema/v1/schema.pb";
 
 export const protobufPackage = "encore.parser.meta.v1";
 

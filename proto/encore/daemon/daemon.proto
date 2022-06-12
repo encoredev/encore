@@ -89,9 +89,6 @@ message ExportRequest {
 
   // goos and goarch specify the platform configuration to compile
   // the application for. The values must be valid GOOS/GOARCH values.
-  //
-  // Currently "encore eject" cannot build for other architectures than the
-  // host architecture. If
   string goos = 2;
   string goarch = 3;
 
@@ -116,6 +113,9 @@ message DockerExportParams {
   // to push the exported image to. If empty the built image
   // is not pushed anywhere.
   string push_destination_tag = 2;
+
+  // base_image_tag is the base image to build the image from.
+  string base_image_tag = 3;
 }
 
 message ResetDBRequest {
