@@ -39,6 +39,9 @@ type Config struct {
 	// GOOS sets the GOOS to build for, if nonempty.
 	GOOS string
 
+	// GOARCH sets the GOARCH to build for, if nonempty.
+	GOARCH string
+
 	// CgoEnabled decides whether to build with cgo enabled.
 	CgoEnabled bool
 
@@ -139,7 +142,7 @@ func (b *builder) Build() (res *Result, err error) {
 	}
 	res = &Result{
 		Dir: b.workdir,
-		Exe: filepath.Join(b.workdir, binaryName+exe),
+		Exe: filepath.Join(b.workdir, binaryName+b.exe()),
 	}
 	defer func() {
 		if err != nil && !b.cfg.KeepOutput {
@@ -288,20 +291,23 @@ func (b *builder) buildMain() error {
 		"-overlay=" + overlayPath,
 		"-modfile=" + filepath.Join(b.workdir, "go.mod"),
 		"-mod=mod",
-		"-o=" + filepath.Join(b.workdir, "out"+exe),
+		"-o=" + filepath.Join(b.workdir, "out"+b.exe()),
 	}
 	if b.cfg.StaticLink {
 		args = append(args, "-ldflags", `-extldflags "-static"`)
 	}
 
 	args = append(args, "./"+mainPkgName)
-	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+exe), args...)
+	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
 	env := []string{
 		"GO111MODULE=on",
 		"GOROOT=" + b.cfg.EncoreGoRoot,
 	}
 	if goos := b.cfg.GOOS; goos != "" {
 		env = append(env, "GOOS="+goos)
+	}
+	if goarch := b.cfg.GOARCH; goarch != "" {
+		env = append(env, "GOARCH="+goarch)
 	}
 	if !b.cfg.CgoEnabled {
 		env = append(env, "CGO_ENABLED=0")
@@ -370,12 +376,15 @@ func (b *builder) errf(format string, args ...interface{}) {
 
 const binaryName = "out"
 
-var exe string
-
-func init() {
-	if runtime.GOOS == "windows" {
-		exe = ".exe"
+func (b *builder) exe() string {
+	goos := b.cfg.GOOS
+	if goos == "" {
+		goos = runtime.GOOS
 	}
+	if goos == "windows" {
+		return ".exe"
+	}
+	return ""
 }
 
 // makeErrsRelative goes through the errors and tweaks the filename to be relative
