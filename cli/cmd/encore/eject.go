@@ -18,25 +18,39 @@ func init() {
 		Short: "eject provides ways to eject your application to migrate away from using Encore",
 	}
 
-	var push bool
+	p := ejectParams{
+		CgoEnabled: os.Getenv("CGO_ENABLED") == "1",
+		Goos:       or(os.Getenv("GOOS"), "linux"),
+		Goarch:     or(os.Getenv("GOARCH"), runtime.GOARCH),
+	}
 	dockerEjectCmd := &cobra.Command{
 		Use:   "docker IMAGE_TAG",
 		Short: "docker builds a portable docker image of your Encore application",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			appRoot, _ := determineAppRoot()
-			imgTag := args[0]
-			dockerEject(appRoot, imgTag, push)
+			p.AppRoot, _ = determineAppRoot()
+			p.ImageTag = args[0]
+			dockerEject(p)
 		},
 	}
 
-	dockerEjectCmd.Flags().BoolVarP(&push, "push", "p", false, "push image to remote repository")
-
+	dockerEjectCmd.Flags().BoolVarP(&p.Push, "push", "p", false, "push image to remote repository")
+	dockerEjectCmd.Flags().StringVar(&p.BaseImg, "base", "scratch", "base image to build from")
 	rootCmd.AddCommand(ejectCmd)
 	ejectCmd.AddCommand(dockerEjectCmd)
 }
 
-func dockerEject(appRoot string, imageTag string, push bool) {
+type ejectParams struct {
+	AppRoot    string
+	ImageTag   string
+	Push       bool
+	BaseImg    string
+	Goos       string
+	Goarch     string
+	CgoEnabled bool
+}
+
+func dockerEject(p ejectParams) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -47,24 +61,20 @@ func dockerEject(appRoot string, imageTag string, push bool) {
 	}()
 
 	daemon := setupDaemon(ctx)
-	params := &daemonpb.DockerExportParams{}
-	if push {
-		params.PushDestinationTag = imageTag
-	} else {
-		params.LocalDaemonTag = imageTag
+	params := &daemonpb.DockerExportParams{
+		BaseImageTag: p.BaseImg,
 	}
-
-	goos, goarch := "linux", runtime.GOARCH
-	cgoEnabled := false
-	if s := os.Getenv("CGO_ENABLED"); s != "" {
-		cgoEnabled = s == "1"
+	if p.Push {
+		params.PushDestinationTag = p.ImageTag
+	} else {
+		params.LocalDaemonTag = p.ImageTag
 	}
 
 	stream, err := daemon.Export(ctx, &daemonpb.ExportRequest{
-		AppRoot:    appRoot,
-		CgoEnabled: cgoEnabled,
-		Goos:       goos,
-		Goarch:     goarch,
+		AppRoot:    p.AppRoot,
+		CgoEnabled: p.CgoEnabled,
+		Goos:       p.Goos,
+		Goarch:     p.Goarch,
 		Format: &daemonpb.ExportRequest_Docker{
 			Docker: params,
 		},
@@ -83,4 +93,11 @@ as documented here: https://encore.dev/docs/how-to/migrate-away.
 
 `)
 
+}
+
+func or(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
