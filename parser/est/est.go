@@ -14,12 +14,13 @@ import (
 )
 
 type Application struct {
-	ModulePath  string
-	Packages    []*Package
-	Services    []*Service
-	CronJobs    []*CronJob
-	Decls       []*schema.Decl
-	AuthHandler *AuthHandler
+	ModulePath   string
+	Packages     []*Package
+	Services     []*Service
+	CronJobs     []*CronJob
+	PubSubTopics []*PubSubTopic
+	Decls        []*schema.Decl
+	AuthHandler  *AuthHandler
 }
 
 type File struct {
@@ -79,6 +80,37 @@ func (cj *CronJob) IsValid() (bool, error) {
 	return true, nil
 }
 
+type PubSubTopic struct {
+	Name              string          // The unique name of the pub sub topic
+	Doc               string          // The documentation on the pub sub topic
+	DeliveryGuarantee PubSubGuarantee // What guarantees does the pub sub topic have?
+	Ordered           bool            // Whether the topic uses First-In-First-Out (FIFO) logic (default no)
+	GroupingField     string          // What field in the message type should be used to group messages
+	Package           *File           // What file the topic is declared in
+	MessageType       *Param          // The message type of the pub sub topic
+	AST               *ast.ValueSpec  // The AST node representing the value this topic is bound against
+
+	Subscribers []*PubSubSubscriber
+	Publishers  []*PubSubPublisher
+}
+
+type PubSubGuarantee int
+
+const (
+	AtLeastOnce PubSubGuarantee = iota
+	ExactlyOnce
+)
+
+type PubSubSubscriber struct {
+	Name string        // The unique name of the subscriber
+	AST  *ast.FuncDecl // The function which implements the subscriber
+	File *File         // The file that the subscriber is defined in
+}
+
+type PubSubPublisher struct {
+	File *File // The file the publisher is declared in
+}
+
 type Param struct {
 	IsPtr bool
 	Type  *schema.Type
@@ -115,6 +147,9 @@ const (
 	SQLDBNode
 	RLogNode
 	SecretsNode
+	PubSubTopicDefNode
+	PubSubPublisherNode
+	PubSubSubscriberNode
 )
 
 type Node struct {
@@ -129,6 +164,10 @@ type Node struct {
 
 	// Resource this refers to, if any
 	Res Resource
+
+	// If Type == PubSubPublisherNode or PubSubSubscriberNode
+	// The topic being subscribed to or published to
+	Topic *PubSubTopic
 }
 
 type AuthHandler struct {
