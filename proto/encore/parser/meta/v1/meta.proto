@@ -16,6 +16,7 @@ message Data {
   repeated Service        svcs                = 5;
   optional AuthHandler    auth_handler        = 6; // the auth handler or nil
   repeated CronJob        cron_jobs           = 7;
+  repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -96,10 +97,13 @@ message TraceNode {
   int32 src_col_end = 9;
 
   oneof context {
-    RPCDefNode rpc_def = 10;
-    RPCCallNode rpc_call = 11;
-    StaticCallNode static_call = 12;
-    AuthHandlerDefNode auth_handler_def = 13;
+    RPCDefNode           rpc_def           = 10;
+    RPCCallNode          rpc_call          = 11;
+    StaticCallNode       static_call       = 12;
+    AuthHandlerDefNode   auth_handler_def  = 13;
+    PubSubTopicDefNode   pubsub_topic_def  = 14;
+    PubSubPublishNode    pubsub_publish    = 15;
+    PubSubSubscriberNode pubsub_subscriber = 16;
   }
 }
 
@@ -130,6 +134,19 @@ message AuthHandlerDefNode {
   string service_name = 1;
   string name = 2;
   string context = 3;
+}
+
+message PubSubTopicDefNode {
+  string topic_name = 1;
+}
+
+message PubSubPublishNode {
+  string topic_name = 1;
+}
+
+message PubSubSubscriberNode {
+  string topic_name      = 1;
+  string subscriber_name = 2;
 }
 
 message Path {
@@ -170,4 +187,30 @@ message CronJob {
   string doc = 3;
   string schedule = 4;
   QualifiedName endpoint = 5;
+}
+
+message PubSubTopic {
+  string                name               = 1; // The pub sub topic name (unique per application)
+  string                doc                = 2; // The documentation for the topic
+  schema.v1.Type        message_type       = 3; // The type of the message
+  DeliveryGuarantee     delivery_guarantee = 4; // The delivery guarantee for the topic
+  bool                  ordered            = 5; // If messages are received in the order they where published
+  optional string       grouped_by         = 6; // What field should be used to group messages to which replica of a subscription
+  repeated Publisher    publishers         = 7; // The publishers for this topic
+  repeated Subscription subscriptions      = 8; // The subscriptions to the topic
+
+
+  message Publisher {
+    string service_name = 1; // The service the publisher is in
+  }
+
+  message Subscription {
+    string name         = 1; // The unique name of the subscription for this topic
+    string service_name = 2; // The service that the subscriber is in
+  }
+
+  enum DeliveryGuarantee {
+    AT_LEAST_ONCE = 0; // All messages will be delivered to each subscription at least once
+    EXACTLY_ONCE  = 1; // All messages will be delivered to each subscription exactly once
+  }
 }
