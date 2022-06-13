@@ -43,19 +43,20 @@ type parser struct {
 	cfg *Config
 
 	// accumulated results
-	fset        *token.FileSet
-	errors      *errlist.List
-	pkgs        []*est.Package
-	pkgMap      map[string]*est.Package // import path -> pkg
-	svcs        []*est.Service
-	jobs        []*est.CronJob
-	svcMap      map[string]*est.Service // name -> svc
-	jobsMap     map[string]*est.CronJob // ID -> job
-	names       map[*est.Package]*names.Resolution
-	authHandler *est.AuthHandler
-	declMap     map[string]*schema.Decl // pkg/path.Name -> decl
-	decls       []*schema.Decl
-	paths       paths.Set // RPC paths
+	fset         *token.FileSet
+	errors       *errlist.List
+	pkgs         []*est.Package
+	pkgMap       map[string]*est.Package // import path -> pkg
+	svcs         []*est.Service
+	jobs         []*est.CronJob
+	svcMap       map[string]*est.Service // name -> svc
+	jobsMap      map[string]*est.CronJob // ID -> job
+	pubSubTopics []*est.PubSubTopic
+	names        map[*est.Package]*names.Resolution
+	authHandler  *est.AuthHandler
+	declMap      map[string]*schema.Decl // pkg/path.Name -> decl
+	decls        []*schema.Decl
+	paths        paths.Set // RPC paths
 
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.
@@ -90,6 +91,19 @@ const (
 	cronImportPath  = "encore.dev/cron"
 )
 
+var defaultTrackedPackages = names.TrackedPackages{
+	sqldbImportPath: "sqldb",
+	rlogImportPath:  "rlog",
+	uuidImportPath:  "uuid",
+	authImportPath:  "auth",
+	cronImportPath:  "cron",
+
+	"net/http":      "http",
+	"context":       "context",
+	"encoding/json": "json",
+	"time":          "time",
+}
+
 func (p *parser) Parse() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -118,17 +132,9 @@ func (p *parser) Parse() (res *Result, err error) {
 		p.pkgMap[pkg.ImportPath] = pkg
 	}
 
-	track := names.TrackedPackages{
-		sqldbImportPath: "sqldb",
-		rlogImportPath:  "rlog",
-		uuidImportPath:  "uuid",
-		authImportPath:  "auth",
-		cronImportPath:  "cron",
-
-		"net/http":      "http",
-		"context":       "context",
-		"encoding/json": "json",
-		"time":          "time",
+	track := make(names.TrackedPackages, len(defaultTrackedPackages))
+	for pkgPath, name := range defaultTrackedPackages {
+		track[pkgPath] = name
 	}
 	p.resolveNames(track)
 	p.parseServices()
@@ -150,12 +156,13 @@ func (p *parser) Parse() (res *Result, err error) {
 		})
 	}
 	app := &est.Application{
-		ModulePath:  p.cfg.ModulePath,
-		Packages:    p.pkgs,
-		Services:    p.svcs,
-		CronJobs:    p.jobs,
-		Decls:       p.decls,
-		AuthHandler: p.authHandler,
+		ModulePath:   p.cfg.ModulePath,
+		Packages:     p.pkgs,
+		Services:     p.svcs,
+		CronJobs:     p.jobs,
+		PubSubTopics: p.pubSubTopics,
+		Decls:        p.decls,
+		AuthHandler:  p.authHandler,
 	}
 	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app)
 	if err != nil {
@@ -406,13 +413,15 @@ func (p *parser) parseReferences() {
 					switch node.Type {
 					case est.RPCRefNode:
 						rpc := node.RPC
-						p.errf(astNode.Pos(), "cannot reference API %s.%s outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
+						p.errf(astNode.Pos(), "cannot reference API %s.%s outside of a service\n\tpackage %s is not considered a service (it has no APIs or pubsub subscribers defined)", rpc.Svc.Name, rpc.Name, pkg.Name)
 					case est.SQLDBNode:
 						// sqldb calls are allowed outside of services
 					case est.RLogNode:
 						// rlog calls are allowed outside of services
+					case est.PubSubTopicDefNode:
+						// pubsub topic definitions are allowed outside of services
 					default:
-						p.errf(astNode.Pos(), "invalid reference outside of a service\n\tpackage %s is not considered a service (it has no APIs defined)", pkg.Name)
+						p.errf(astNode.Pos(), "invalid reference outside of a service\n\tpackage %s is not considered a service (it has no APIs or pubsub subscribers defined)", pkg.Name)
 					}
 					break
 				}
@@ -871,6 +880,12 @@ func (p *parser) parseCronLiteral(info *names.File, durationExpr ast.Expr) (dur 
 // If the node is not an *ast.SelectorExpr or it doesn't reference a tracked package,
 // it reports "", "".
 func pkgObj(info *names.File, node ast.Node) (pkgPath, objName string) {
+	// foo.bar[baz] is an index expression - so we want to unwrap the index expression
+	if index, ok := node.(*ast.IndexExpr); ok {
+		node = index.X
+	}
+
+	// foo.bar is a selector expression
 	if sel, ok := node.(*ast.SelectorExpr); ok {
 		if id, ok := sel.X.(*ast.Ident); ok {
 			ri := info.Idents[id]

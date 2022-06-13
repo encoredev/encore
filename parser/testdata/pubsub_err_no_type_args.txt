@@ -1,0 +1,13 @@
+! parse
+stderr 'pubsub.NewTopic requires exactly one type argument, the message payload type.'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+)
+
+var BasicTopic = pubsub.NewTopic("basic-topic")

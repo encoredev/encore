@@ -69,7 +69,8 @@ PkgLoop:
 }
 
 // parseResources parses infrastructure resources declared in the packages.
-func (p *parser) parseResources() {
+func (p *parser) parseOldResources() {
+
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			info := p.names[pkg].Files[file]

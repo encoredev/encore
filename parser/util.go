@@ -1,28 +1,60 @@
 package parser
 
 import (
-	"unicode"
+	"go/ast"
+	"strings"
 )
 
-// SnakeCase converts CamelCase names to snake_case with lowercase letters and
-// underscores. Names already in snake_case are left untouched.
-// Adapted from github.com/pasztorpisti/qs.
-func SnakeCase(s string) string {
-	in := []rune(s)
-	isLower := func(idx int) bool {
-		return idx >= 0 && idx < len(in) && unicode.IsLower(in[idx])
+// walkerFunc allows us to pass a function to ast.Walk which will recursively descend the AST until the function returns false
+type walkerFunc func(node ast.Node) bool
+
+func (w walkerFunc) Visit(node ast.Node) ast.Visitor {
+	if w(node) {
+		return w
 	}
 
-	out := make([]rune, 0, len(in)+len(in)/2)
-	for i, r := range in {
-		if unicode.IsUpper(r) {
-			r = unicode.ToLower(r)
-			if i > 0 && in[i-1] != '_' && (isLower(i-1) || isLower(i+1)) {
-				out = append(out, '_')
-			}
+	return nil
+}
+
+// docNodeToString converts a Comment or CommentGroup into a parsed string
+//
+// If the given node isn't a comment or comment group, a blank string will be returned
+func docNodeToString(node ast.Node) string {
+	switch node := node.(type) {
+	case *ast.Comment:
+		if node == nil {
+			return ""
 		}
-		out = append(out, r)
-	}
 
-	return string(out)
+		return node.Text
+
+	case *ast.CommentGroup:
+		if node == nil {
+			return ""
+		}
+
+		var str strings.Builder
+		for i, comment := range node.List {
+			if i > 0 {
+				str.WriteString("\n")
+			}
+
+			str.WriteString(comment.Text)
+		}
+		return str.String()
+
+	default:
+		return ""
+	}
+}
+
+func getTypeArguments(node ast.Node) []ast.Expr {
+	switch node := node.(type) {
+	case *ast.IndexExpr:
+		return []ast.Expr{node.Index}
+	case *ast.IndexListExpr:
+		return node.Indices
+	default:
+		return nil
+	}
 }

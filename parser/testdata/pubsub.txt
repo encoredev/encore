@@ -1,0 +1,53 @@
+# Verify that pub sub is parsed
+parse
+stdout 'pubsubTopic basic-topic'
+stdout 'pubsubTopic another-topic'
+
+# TODO(domblack)
+# stdout 'pubsubPublisher basic-topic foo'
+# stdout 'pubsubSubscriber basic-topic basic-subscription svc'
+# stdout 'pubsubSubscriber basic-topic subscription-two svc'
+
+-- shared/topics.go --
+package shared
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
+    AnotherTopic = pubsub.NewTopic[*MessageType]("another-topic")
+)
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "test/shared"
+)
+
+
+var _ = shared.BasicTopic.NewSubscription("basic-subscription", Subscriber1)
+
+func init() {
+    shared.BasicTopic.NewSubscription("subscription-two", Subscriber1)
+}
+
+func Subscriber1(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
+
+
+-- foo/code.go --
+package foo
+
+func DoStuff(ctx context.Context) error {
+    shared.BasicTopic.Publish(ctx, &shared.MessageType{Name: "foo"})
+}

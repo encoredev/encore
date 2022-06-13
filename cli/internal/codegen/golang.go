@@ -13,6 +13,7 @@ import (
 	"encr.dev/cli/internal/version"
 	"encr.dev/internal/gocodegen"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/identifiers"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -1205,7 +1206,7 @@ func (g *golang) writeErrorType(file *File) {
 		Switch(Id("c")).BlockFunc(func(g *Group) {
 			for _, err := range errorCodes {
 				g.Case(Id(ErrPrefix + err.Name)).Block(
-					Return(Lit(convertIdentifierTo(err.Name, SnakeCase))),
+					Return(Lit(identifiers.ConvertIdentifierTo(err.Name, identifiers.SnakeCase))),
 				)
 			}
 
@@ -1226,7 +1227,7 @@ func (g *golang) writeErrorType(file *File) {
 	file.Func().Params(Id("c").Op("*").Id("ErrCode")).Id("UnmarshalJSON").Params(Id("b").Index().Byte()).Error().Block(
 		Switch(String().Call(Id("b"))).BlockFunc(func(g *Group) {
 			for _, err := range errorCodes {
-				g.Case(Lit(fmt.Sprintf("\"%s\"", convertIdentifierTo(err.Name, SnakeCase)))).Block(
+				g.Case(Lit(fmt.Sprintf("\"%s\"", identifiers.ConvertIdentifierTo(err.Name, identifiers.SnakeCase)))).Block(
 					Op("*").Id("c").Op("=").Id(ErrPrefix + err.Name),
 				)
 			}

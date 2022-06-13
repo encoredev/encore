@@ -1,0 +1,19 @@
+! parse
+stderr 'A pubsub topic must be declared as a package level variable. For more information please see https://encore.dev/docs/develop/pubsub'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    pb "encore.dev/pubsub"
+)
+
+type MyMessage struct {}
+
+//encore:api
+func SomeAPI(ctx context.Context) error {
+    topic := pb.NewTopic[MyMessage]("basic-topic")
+    topic.Publish(ctx, &MyMessage{})
+}
