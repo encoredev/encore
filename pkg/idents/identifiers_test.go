@@ -1,4 +1,4 @@
-package identifiers
+package idents
 
 import (
 	"testing"
@@ -59,11 +59,11 @@ func Test_convertIdentifierTo(t *testing.T) {
 		c.Run(tt.input, func(c *qt.C) {
 			c.Parallel()
 
-			c.Assert(ConvertIdentifierTo(tt.input, CamelCase), qt.Equals, tt.camelCase)
-			c.Assert(ConvertIdentifierTo(tt.input, PascalCase), qt.Equals, tt.pascalCase)
-			c.Assert(ConvertIdentifierTo(tt.input, SnakeCase), qt.Equals, tt.snakeCase)
-			c.Assert(ConvertIdentifierTo(tt.input, ScreamingSnakeCase), qt.Equals, tt.screamingSnakeCase)
-			c.Assert(ConvertIdentifierTo(tt.input, KebabCase), qt.Equals, tt.kebabCase)
+			c.Assert(Convert(tt.input, CamelCase), qt.Equals, tt.camelCase)
+			c.Assert(Convert(tt.input, PascalCase), qt.Equals, tt.pascalCase)
+			c.Assert(Convert(tt.input, SnakeCase), qt.Equals, tt.snakeCase)
+			c.Assert(Convert(tt.input, ScreamingSnakeCase), qt.Equals, tt.screamingSnakeCase)
+			c.Assert(Convert(tt.input, KebabCase), qt.Equals, tt.kebabCase)
 		})
 	}
 }

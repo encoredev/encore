@@ -10,7 +10,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/exp/slices"
 
-	"encr.dev/pkg/identifiers"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -500,7 +499,7 @@ func describeParams(encodingHints *encodingHints, payload *schema.Struct) (field
 func formatName(location ParameterLocation, name string) string {
 	switch location {
 	case Query:
-		return identifiers.ConvertIdentifierTo(name, identifiers.SnakeCase)
+		return idents.Convert(name, idents.SnakeCase)
 	default:
 		return name
 	}

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"encr.dev/parser/est"
-	"encr.dev/pkg/identifiers"
 )
 
 const pubsubPackage = "encore.dev/pubsub"
@@ -75,5 +74,5 @@ func (p *parser) parsePubSubTopic(file *est.File, doc string, valueSpec *ast.Val
 }
 
 func normaliseTopicName(name string) string {
-	return identifiers.ConvertIdentifierTo(name, identifiers.KebabCase)
+	return idents.Convert(name, idents.KebabCase)
 }

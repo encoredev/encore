@@ -1,4 +1,4 @@
-package identifiers
+package idents
 
 import (
 	"strings"
@@ -15,9 +15,9 @@ const (
 	KebabCase                             // kebab-case
 )
 
-// ConvertIdentifierTo will take a Go identifier and convert it to the
+// Convert will take a given identifier and convert it to the
 // specified format.
-func ConvertIdentifierTo(goIdentifier string, format IdentFormat) string {
+func Convert(goIdentifier string, format IdentFormat) string {
 	parts := parseIdentifier(goIdentifier)
 
 	// Step 1: convert case

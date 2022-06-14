@@ -13,7 +13,6 @@ import (
 
 	"encr.dev/cli/internal/version"
 	"encr.dev/parser/encoding"
-	"encr.dev/pkg/identifiers"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -1113,7 +1112,7 @@ func (ts *typescript) typeName(identifier string) string {
 	if ts.generatorVersion < TsExperimental {
 		return identifier
 	} else {
-		return identifiers.ConvertIdentifierTo(identifier, identifiers.PascalCase)
+		return idents.Convert(identifier, idents.PascalCase)
 	}
 }
 
@@ -1121,7 +1120,7 @@ func (ts *typescript) memberName(identifier string) string {
 	if ts.generatorVersion < TsExperimental {
 		return identifier
 	} else {
-		return identifiers.ConvertIdentifierTo(identifier, identifiers.CamelCase)
+		return idents.Convert(identifier, idents.CamelCase)
 	}
 }
 
