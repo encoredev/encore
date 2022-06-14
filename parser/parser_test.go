@@ -159,6 +159,17 @@ func TestMain(m *testing.M) {
 			for _, job := range res.App.CronJobs {
 				fmt.Fprintf(os.Stdout, "cronJob %s title=%q\n", job.ID, job.Title)
 			}
+			for _, topic := range res.App.PubSubTopics {
+				fmt.Fprintf(os.Stdout, "pubsubTopic %s\n", topic.Name)
+
+				for _, pub := range topic.Publishers {
+					fmt.Fprintf(os.Stdout, "pubsubPublisher %s %s\n", topic.Name, pub.File.Pkg.Service.Name)
+				}
+
+				for _, sub := range topic.Subscribers {
+					fmt.Fprintf(os.Stdout, "pubsubSubscriber %s %s %s\n", topic.Name, sub.Name, sub.File.Pkg.Service.Name)
+				}
+			}
 			for _, pkg := range res.App.Packages {
 				for _, res := range pkg.Resources {
 					switch res := res.(type) {

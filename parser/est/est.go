@@ -86,7 +86,7 @@ type PubSubTopic struct {
 	DeliveryGuarantee PubSubGuarantee // What guarantees does the pub sub topic have?
 	Ordered           bool            // Whether the topic uses First-In-First-Out (FIFO) logic (default no)
 	GroupingField     string          // What field in the message type should be used to group messages
-	Package           *File           // What file the topic is declared in
+	File              *File           // What file the topic is declared in
 	MessageType       *Param          // The message type of the pub sub topic
 	AST               *ast.ValueSpec  // The AST node representing the value this topic is bound against
 

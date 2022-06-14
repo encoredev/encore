@@ -1,0 +1,17 @@
+! parse
+stderr 'pubsub.NewTopic can only be used to declare package level variables. For more information please see https://encore.dev/docs/develop/pubsub'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+)
+
+type MyMessage struct {}
+
+var creator = pubsub.NewTopic[MyMessage]
+
+var topic = creator("my-topic")

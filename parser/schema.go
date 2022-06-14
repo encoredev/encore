@@ -12,6 +12,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -122,7 +123,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 					RawTag:          opts.RawTag,
 				}
 				if f.QueryStringName == "" {
-					f.QueryStringName = SnakeCase(f.Name)
+					f.QueryStringName = idents.Convert(f.Name, idents.SnakeCase)
 				}
 
 				st.Fields = append(st.Fields, f)
