@@ -24,6 +24,7 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/export"
+	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
@@ -164,6 +165,20 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		dbSetupCh <- nil // no database to set up
 	}
 
+	var nsqd *pubsub.NSQDaemon
+	if pubsub.IsUsed(parse.Meta) {
+		pubsubOp := ops.Add("Starting NSQ messaging deamon", start.Add(300*time.Millisecond))
+		nsqd = &pubsub.NSQDaemon{}
+		err := nsqd.Start()
+		if err != nil {
+			ops.Fail(pubsubOp, err)
+			sendExit(1)
+			return nil
+		}
+		defer nsqd.Stop()
+		ops.Done(pubsubOp, 700*time.Millisecond)
+	}
+
 	// Check for available update before we start the proc
 	// so the output from the proc doesn't race with our
 	// prints below.
@@ -179,6 +194,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	run, err := s.mgr.Start(ctx, run.StartParams{
 		App:          app,
 		SQLDBCluster: cluster,
+		NSQDaemon:    nsqd,
 		WorkingDir:   req.WorkingDir,
 		Listener:     ln,
 		ListenAddr:   req.ListenAddr,

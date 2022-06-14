@@ -3,6 +3,8 @@ package echo
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -12,7 +14,21 @@ import (
 	encore "encore.dev"
 	"encore.dev/beta/auth"
 	"encore.dev/beta/errs"
+	"encore.dev/pubsub"
 )
+
+type Message struct {
+	Attr    string `pubsub-attr:"attr"`
+	Subject string
+	Body    string
+}
+
+var Topic = pubsub.NewTopic[*Message](
+	"test",
+	&pubsub.TopicConfig{},
+)
+
+var _ = Topic.NewSubscription("test", Consumer, &pubsub.SubscriptionConfig{})
 
 type Data[K any, V any] struct {
 	Key   K
@@ -73,6 +89,34 @@ type BasicData struct {
 type HeadersData struct {
 	Int    int    `header:"X-Int"`
 	String string `header:"X-String"`
+}
+
+// Publish publishes a request on a topic
+//encore:api public
+func Publish(ctx context.Context) error {
+	id, err := Topic.Publish(ctx, &Message{
+		Attr:    "Attr",
+		Subject: "subject",
+		Body:    "body",
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Published: %s\n", id)
+	return nil
+}
+
+func Consumer(ctx context.Context, msg *Message) error {
+	if msg.Attr != "Attr" {
+		return errors.New("incorrect Attr value")
+	}
+	if msg.Subject != "subject" {
+		return errors.New("incorrect Subject value")
+	}
+	if msg.Body != "body" {
+		return errors.New("incorrect Body value")
+	}
+	return nil
 }
 
 // Echo echoes back the request data.

@@ -10,6 +10,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )

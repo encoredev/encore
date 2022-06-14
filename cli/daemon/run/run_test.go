@@ -20,6 +20,7 @@ import (
 	"go.uber.org/goleak"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
@@ -87,6 +88,11 @@ func TestEndToEndWithApp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	nsqd := &pubsub.NSQDaemon{}
+	err = nsqd.Start()
+	c.Assert(err, qt.IsNil)
+	defer nsqd.Stop()
+
 	build := testBuild(c, "./testdata/echo")
 	wantEnv := []string{"FOO=bar", "BAR=baz"}
 	p, err := run.startProc(&startProcParams{
@@ -98,6 +104,7 @@ func TestEndToEndWithApp(t *testing.T) {
 		DBProxyPort: 0,
 		Logger:      testRunLogger{t},
 		Environ:     wantEnv,
+		NSQDaemon:   nsqd,
 	})
 	c.Assert(err, qt.IsNil)
 	defer p.close()
@@ -120,7 +127,7 @@ func TestEndToEndWithApp(t *testing.T) {
 
 	c.Run("basic requests", func(c *qt.C) {
 		// Send a simple request
-		{
+		c.Run("Send a simple request", func(c *qt.C) {
 			input := Data[string, int]{"hello", 1}
 			body, err := json.Marshal(&input)
 			c.Assert(err, qt.IsNil)
@@ -129,18 +136,35 @@ func TestEndToEndWithApp(t *testing.T) {
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
 			c.Assert(w.Body.Bytes(), qt.JSONEquals, input)
-		}
+		})
+
+		// Send a pubsub
+
+		c.Run("send a pubsub", func(c *qt.C) {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("POST", "/echo.Publish", nil)
+			run.ServeHTTP(w, req)
+			c.Assert(w.Code, qt.Equals, 200)
+			stats, err := nsqd.Stats()
+			c.Assert(err, qt.IsNil)
+			c.Assert(len(stats.Producers), qt.Equals, 1)
+			c.Assert(len(stats.Topics), qt.Equals, 1)
+			c.Assert(stats.Topics[0].TopicName, qt.Equals, "test")
+			c.Assert(len(stats.Topics[0].Channels), qt.Equals, 1)
+			c.Assert(stats.Topics[0].Channels[0].RequeueCount == 0, qt.IsTrue)
+			c.Assert(stats.Topics[0].Channels[0].Depth == 0, qt.IsTrue)
+		})
 
 		// Call an endpoint using an unsupported HTTP Method
-		{
+		c.Run("unsupported HTTP Method", func(c *qt.C) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.Echo", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 404)
-		}
+		})
 
 		// Send an empty request
-		{
+		c.Run("empty request", func(c *qt.C) {
 			c.Assert(err, qt.IsNil)
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("POST", "/echo.EmptyEcho", bytes.NewReader([]byte("{}")))
@@ -150,10 +174,10 @@ func TestEndToEndWithApp(t *testing.T) {
 				"NullPtr": nil,
 				"Zero":    Data[string, string]{},
 			})
-		}
+		})
 
 		// Send a non-basic type request with path params, headers, query string and body
-		{
+		c.Run("non-basic type request", func(c *qt.C) {
 			input := NonBasicRequest{
 				Struct:      Data[*Data[string, string], int]{&Data[string, string]{"peacock", "duck"}, 1},
 				StructPtr:   &Data[int, uint16]{2, 3},
@@ -202,10 +226,10 @@ func TestEndToEndWithApp(t *testing.T) {
 			c.Assert(w.Header().Get("X-Header-String"), qt.Equals, "starling")
 			c.Assert(w.Header().Get("X-Header-Number"), qt.Equals, "10")
 			c.Assert(w.Body.Bytes(), qt.JSONEquals, output)
-		}
+		})
 
 		// Send a request with only header parameters
-		{
+		c.Run("only headers", func(c *qt.C) {
 			c.Assert(err, qt.IsNil)
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.HeadersEcho", nil)
@@ -217,10 +241,10 @@ func TestEndToEndWithApp(t *testing.T) {
 			c.Assert(w.Code, qt.Equals, 200)
 			c.Assert(w.Header().Get("X-Int"), qt.Equals, "1")
 			c.Assert(w.Header().Get("X-String"), qt.Equals, "nightingale")
-		}
+		})
 
 		// Send POST and GET requests to the same endpoint with an assortment of basic types
-		{
+		c.Run("POST and GET", func(c *qt.C) {
 			input := map[string]any{
 				"string":       "string",
 				"uint":         1,
@@ -271,18 +295,18 @@ func TestEndToEndWithApp(t *testing.T) {
 			c.Assert(w.Code, qt.Equals, 200)
 			c.Assert(w.Body.Bytes(), qt.JSONEquals, output)
 			c.Assert(w2.Body.Bytes(), qt.DeepEquals, w2.Body.Bytes())
-		}
+		})
 
 		// Call an endpoint without request parameters, returning nil
-		{
+		c.Run("without request", func(c *qt.C) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.NilResponse", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
-		}
+		})
 
 		// Call an endpoint with an invalid auth parameter
-		{
+		c.Run("invalid parameter", func(c *qt.C) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.NilResponse", nil)
 			req.Header.Add("x-auth-int", "invalid")
@@ -293,32 +317,32 @@ func TestEndToEndWithApp(t *testing.T) {
 				"details": nil,
 				"message": "invalid auth param: x-auth-int: invalid parameter: strconv.ParseInt: parsing \"invalid\": invalid syntax",
 			})
-		}
+		})
 
 		// Call an endpoint without request parameters and response value
-		{
+		c.Run("without response", func(c *qt.C) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.Noop", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
-		}
+		})
 
 		// Call an endpoint with request parameters but no response value
-		{
+		c.Run("only request", func(c *qt.C) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.MuteEcho?key=pelican&value=cocabura", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
-		}
+		})
 
 		// Call an endpoint with a response value but no request parameters
-		{
+		c.Run("no request, response", func(c *qt.C) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.Pong", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
 			c.Assert(w.Body.Bytes(), qt.JSONEquals, Data[string, string]{"woodpecker", "kingfisher"})
-		}
+		})
 
 		// Call the env endpoint and make sure we get our env variables back
 		{
@@ -330,7 +354,7 @@ func TestEndToEndWithApp(t *testing.T) {
 		}
 
 		// Call the app metadata endpoint and make sure we get correct data back
-		{
+		c.Run("app metadata", func(c *qt.C) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.AppMeta", nil)
 			run.ServeHTTP(w, req)
@@ -348,7 +372,7 @@ func TestEndToEndWithApp(t *testing.T) {
 				"EnvName":    "local",
 				"EnvType":    "local",
 			})
-		}
+		})
 	})
 
 	c.Run("generated_wrappers_for_intra_service_calls", func(c *qt.C) {
