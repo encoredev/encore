@@ -9,7 +9,10 @@ import (
 )
 
 type pkgPath = string
-type resourceInitFuncIdent = string
+type resourceCreator struct {
+	funcName    string
+	numTypeArgs int
+}
 type resourceParser struct {
 	ResourceName string // The human read-able name of the resource
 	CreationFunc string //
@@ -17,8 +20,8 @@ type resourceParser struct {
 	Parse        func(*parser, *est.File, string, *ast.ValueSpec, *ast.CallExpr)
 }
 
-// resourceRegistry is a map of pkg name => creation function name
-var resourceRegistry = map[pkgPath]map[resourceInitFuncIdent]*resourceParser{}
+// resourceRegistry is a map of pkg path => creation function name
+var resourceRegistry = map[pkgPath]map[resourceCreator]*resourceParser{}
 
 // parseResources parses infrastructure resources declared in the packages.
 func (p *parser) parseResources() {
@@ -90,7 +93,7 @@ func (f *resourceCreationVisitor) VisitAndReportInvalidCreationCalls(node ast.No
 			return false
 		}
 
-	case *ast.SelectorExpr:
+	case *ast.SelectorExpr, *ast.IndexExpr, *ast.IndexListExpr:
 		if parser := f.parserFor(node); parser != nil {
 			f.p.errf(node.Pos(), "%s can only be used to declare package level variables. For more information please see %s\n", parser.CreationFunc, parser.DocsPage)
 			return false
@@ -101,10 +104,23 @@ func (f *resourceCreationVisitor) VisitAndReportInvalidCreationCalls(node ast.No
 }
 
 func (f *resourceCreationVisitor) parserFor(node ast.Node) *resourceParser {
+	numTypeArguments := 0
+
+	// foo.bar[baz] is an index expression - so we want to unwrap the index expression
+	// and foo.bar[baz, qux] is an index list expression
+	switch idx := node.(type) {
+	case *ast.IndexExpr:
+		node = idx.X
+		numTypeArguments = 1
+	case *ast.IndexListExpr:
+		node = idx.X
+		numTypeArguments = len(idx.Indices)
+	}
+
 	pkgPath, objName := pkgObj(f.names, node)
 	if pkgPath != "" && objName != "" {
 		if packageResources, found := resourceRegistry[pkgPath]; found {
-			if parser, found := packageResources[objName]; found {
+			if parser, found := packageResources[resourceCreator{objName, numTypeArguments}]; found {
 				return parser
 			}
 		}

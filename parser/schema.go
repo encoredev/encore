@@ -12,6 +12,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 

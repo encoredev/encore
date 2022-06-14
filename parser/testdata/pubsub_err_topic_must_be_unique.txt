@@ -28,4 +28,4 @@ type MessageType struct {
     Name string
 }
 
-var AnotherTopic = pubsub.NewTopic[*MessageType]("sameName")
+var AnotherTopic = pubsub.NewTopic[*MessageType]("same-Name")

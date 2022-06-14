@@ -880,12 +880,6 @@ func (p *parser) parseCronLiteral(info *names.File, durationExpr ast.Expr) (dur 
 // If the node is not an *ast.SelectorExpr or it doesn't reference a tracked package,
 // it reports "", "".
 func pkgObj(info *names.File, node ast.Node) (pkgPath, objName string) {
-	// foo.bar[baz] is an index expression - so we want to unwrap the index expression
-	if index, ok := node.(*ast.IndexExpr); ok {
-		node = index.X
-	}
-
-	// foo.bar is a selector expression
 	if sel, ok := node.(*ast.SelectorExpr); ok {
 		if id, ok := sel.X.(*ast.Ident); ok {
 			ri := info.Idents[id]
