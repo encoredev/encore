@@ -2,11 +2,10 @@
 parse
 stdout 'pubsubTopic basic-topic'
 stdout 'pubsubTopic another-topic'
-
-# TODO(domblack)
-# stdout 'pubsubPublisher basic-topic foo'
-# stdout 'pubsubSubscriber basic-topic basic-subscription svc'
-# stdout 'pubsubSubscriber basic-topic subscription-two svc'
+stdout 'pubsubPublisher basic-topic foo'
+stdout 'pubsubSubscriber basic-topic basic-subscription svc'
+stdout 'pubsubSubscriber basic-topic another-subscription svc'
+stdout 'pubsubSubscriber basic-topic a-third-subscription foo'
 
 -- shared/topics.go --
 package shared
@@ -31,23 +30,44 @@ import (
     "context"
 
     "test/shared"
+    "test/svc/domain"
 )
 
 
-var _ = shared.BasicTopic.NewSubscription("basic-subscription", Subscriber1)
+var (
+    _ = shared.BasicTopic.NewSubscription("basic-subscription", Subscriber1)
+    _ = shared.BasicTopic.NewSubscription("another-subscription", domain.SubscriptionCode)
+)
 
-func init() {
-    shared.BasicTopic.NewSubscription("subscription-two", Subscriber1)
-}
-
+// encore:api
 func Subscriber1(ctx context.Context, msg *shared.MessageType) error {
     return nil
 }
 
+-- svc/domain/code.go --
+package domain
+
+func SubscriptionCode(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
 
 -- foo/code.go --
 package foo
 
+import (
+    "context"
+
+    "test/shared"
+)
+
+var _ = shared.BasicTopic.NewSubscription(
+    "a-third-subscription",
+    func(ctx context.Context, msg *shared.MessageType) error {
+        return nil
+    },
+)
+
+// encore:api
 func DoStuff(ctx context.Context) error {
     shared.BasicTopic.Publish(ctx, &shared.MessageType{Name: "foo"})
 }

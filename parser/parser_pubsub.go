@@ -1,25 +1,43 @@
 package parser
 
 import (
+	"fmt"
 	"go/ast"
 	"reflect"
 	"strings"
 
 	"encr.dev/parser/est"
+	"encr.dev/parser/internal/locations"
 )
 
-const pubsubPackage = "encore.dev/pubsub"
-
 func init() {
-	defaultTrackedPackages[pubsubPackage] = "pubsub"
-	resourceRegistry[pubsubPackage] = map[resourceCreator]*resourceParser{
-		resourceCreator{"NewTopic", 1}: {
-			ResourceName: "pubsub topic",
-			CreationFunc: "pubsub.NewTopic",
-			DocsPage:     "https://encore.dev/docs/develop/pubsub",
-			Parse:        (*parser).parsePubSubTopic,
-		},
-	}
+	registerResource(
+		est.PubSubTopicResource,
+		"pubsub topic",
+		"https://encore.dev/docs/develop/pubsub",
+		"pubsub",
+		"encore.dev/pubsub",
+	)
+
+	registerResourceCreationParser(
+		est.PubSubTopicResource,
+		"NewTopic", 1,
+		(*parser).parsePubSubTopic,
+	)
+
+	registerResourceUsageParser(
+		est.PubSubTopicResource,
+		"NewSubscription",
+		(*parser).parsePubSubSubscription,
+		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
+	)
+
+	registerResourceUsageParser(
+		est.PubSubTopicResource,
+		"Publish",
+		(*parser).parsePubSubPublish,
+		locations.AllowedIn(locations.Function).ButNotIn(locations.InitFunction),
+	)
 }
 
 func (p *parser) parsePubSubTopic(file *est.File, doc string, valueSpec *ast.ValueSpec, callExpr *ast.CallExpr) {
@@ -37,7 +55,7 @@ func (p *parser) parsePubSubTopic(file *est.File, doc string, valueSpec *ast.Val
 	// check the topic isn't already declared somewhere else
 	for _, topic := range p.pubSubTopics {
 		if strings.EqualFold(topic.Name, topicName) {
-			p.errf(valueSpec.Pos(), "Pubsub topic names must be unique, \"%s\" was previously declared in %s/%s: if you wish to reuse the same topic, then you can export the original Topic object from %s and reuse it here.", topic.Name, topic.File.Pkg.Name, topic.File.Name, topic.File.Pkg.Name)
+			p.errf(valueSpec.Pos(), "Pubsub topic names must be unique, \"%s\" was previously declared in %s/%s: if you wish to reuse the same topic, then you can export the original Topic object from %s and reuse it here.", topic.Name, topic.DeclFile.Pkg.Name, topic.DeclFile.Name, topic.DeclFile.Pkg.Name)
 			return
 		}
 	}
@@ -51,7 +69,7 @@ func (p *parser) parsePubSubTopic(file *est.File, doc string, valueSpec *ast.Val
 		DeliveryGuarantee: est.AtLeastOnce,
 		Ordered:           false,
 		GroupingField:     "",
-		File:              file,
+		DeclFile:          file,
 		MessageType:       messageType,
 		AST:               valueSpec,
 		Subscribers:       nil,
@@ -62,6 +80,124 @@ func (p *parser) parsePubSubTopic(file *est.File, doc string, valueSpec *ast.Val
 	// Record the reference to the topic declaration
 	file.References[valueSpec.Names[0]] = &est.Node{
 		Type:  est.PubSubTopicDefNode,
+		Topic: topic,
+	}
+
+	file.Pkg.Resources = append(file.Pkg.Resources, topic)
+}
+
+func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, callExpr *ast.CallExpr) {
+	topic, ok := resource.(*est.PubSubTopic)
+	if !ok {
+		p.errf(
+			callExpr.Fun.Pos(),
+			"%s.NewSubscription can only be used on a pubsub topic, was given a %v.",
+			resource.Ident().Name, reflect.TypeOf(resource),
+		)
+		return
+	}
+
+	if len(callExpr.Args) < 2 {
+		p.errf(
+			callExpr.Pos(),
+			"%s.NewSubscription requires at least two arguments, the subscription name given as a string literal and the function to consume messages",
+			resource.Ident().Name,
+		)
+		return
+	}
+
+	subscriberName, ok := litString(callExpr.Args[0])
+	if !ok {
+		p.errf(
+			callExpr.Args[0].Pos(),
+			"%s.NewSubscription requires the first argument to be a string literal, was given a %v.",
+			resource.Ident().Name, reflect.TypeOf(callExpr.Args[0]),
+		)
+		return
+	}
+
+	// check the subscription isn't already declared somewhere else
+	for _, subscriber := range topic.Subscribers {
+		if strings.EqualFold(subscriber.Name, subscriberName) {
+			p.errf(
+				callExpr.Args[0].Pos(),
+				"Subscriptions on topics must be unique, \"%s\" was previously declared in %s/%s.",
+				subscriber.Name, subscriber.DeclFile.Pkg.Name, subscriber.DeclFile.Name,
+			)
+			return
+		}
+	}
+
+	funcDecl, funcFile := p.findFuncFor(
+		callExpr.Args[1], file,
+		fmt.Sprintf(
+			"The function passed as the second argument to `%s.NewSubscription`",
+			resource.Ident().Name,
+		),
+	)
+	if funcDecl == nil {
+		// The error is reported by p.findFuncFor
+		return
+	}
+
+	if file.Pkg.Service == nil {
+		p.errf(
+			callExpr.Args[1].Pos(),
+			"The call to `%s.NewSubscription` must be declared within a service.",
+			resource.Ident().Name,
+		)
+		return
+	}
+
+	if funcFile.Pkg.Service == nil {
+		p.errf(
+			callExpr.Args[1].Pos(),
+			"The function passed to `%s.NewSubscription` must be declared in the same service. Currently the function is not declared within a service.",
+			resource.Ident().Name,
+		)
+		return
+	}
+
+	if funcFile.Pkg.Service != file.Pkg.Service {
+		p.errf(
+			callExpr.Args[1].Pos(),
+			"The call to `%s.NewSubscription` must be declared in the same service as the function passed in"+
+				"as the second argument. The call was made in %s, but the function was declared in %s.",
+			resource.Ident().Name, file.Pkg.Service.Name, funcFile.Pkg.Service.Name,
+		)
+		return
+	}
+
+	// Record the subscription
+	subscription := &est.PubSubSubscriber{
+		Name:     subscriberName,
+		Func:     funcDecl,
+		FuncFile: funcFile,
+		DeclFile: file,
+	}
+	topic.Subscribers = append(topic.Subscribers, subscription)
+
+	// Record the reference to the topic declaration
+	file.References[callExpr] = &est.Node{
+		Type:  est.PubSubSubscriberNode,
+		Topic: topic,
+	}
+}
+
+func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, callExpr *ast.CallExpr) {
+	topic, ok := resource.(*est.PubSubTopic)
+	if !ok {
+		p.errf(callExpr.Fun.Pos(), "pubsub.Publish can only be used on a pubsub topic, was given a %v.", reflect.TypeOf(resource))
+		return
+	}
+
+	// Record the publisher
+	topic.Publishers = append(topic.Publishers, &est.PubSubPublisher{
+		DeclFile: file,
+	})
+
+	file.References[callExpr] = &est.Node{
+		Type:  est.PubSubPublisherNode,
 		Topic: topic,
 	}
 }

@@ -86,12 +86,22 @@ type PubSubTopic struct {
 	DeliveryGuarantee PubSubGuarantee // What guarantees does the pub sub topic have?
 	Ordered           bool            // Whether the topic uses First-In-First-Out (FIFO) logic (default no)
 	GroupingField     string          // What field in the message type should be used to group messages
-	File              *File           // What file the topic is declared in
+	DeclFile          *File           // What file the topic is declared in
 	MessageType       *Param          // The message type of the pub sub topic
 	AST               *ast.ValueSpec  // The AST node representing the value this topic is bound against
 
 	Subscribers []*PubSubSubscriber
 	Publishers  []*PubSubPublisher
+}
+
+func (p *PubSubTopic) Type() ResourceType { return PubSubTopicResource }
+
+func (p *PubSubTopic) File() *File {
+	return p.DeclFile
+}
+
+func (p *PubSubTopic) Ident() *ast.Ident {
+	return p.AST.Names[0]
 }
 
 type PubSubGuarantee int
@@ -102,13 +112,14 @@ const (
 )
 
 type PubSubSubscriber struct {
-	Name string        // The unique name of the subscriber
-	AST  *ast.FuncDecl // The function which implements the subscriber
-	File *File         // The file that the subscriber is defined in
+	Name     string   // The unique name of the subscriber
+	Func     ast.Node // The function that is the subscriber (either a *ast.FuncLit or a *ast.FuncDecl)
+	FuncFile *File    // The file the subscriber function is declared in
+	DeclFile *File    // The file that the subscriber is defined in
 }
 
 type PubSubPublisher struct {
-	File *File // The file the publisher is declared in
+	DeclFile *File // The file the publisher is declared in
 }
 
 type Param struct {
@@ -196,6 +207,7 @@ type ResourceType int
 
 const (
 	SQLDBResource ResourceType = iota + 1
+	PubSubTopicResource
 )
 
 type SQLDB struct {

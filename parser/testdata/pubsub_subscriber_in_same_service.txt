@@ -1,0 +1,34 @@
+parse
+stdout 'pubsubTopic basic-topic'
+stdout 'pubsubPublisher basic-topic svc'
+stdout 'pubsubSubscriber basic-topic basic-subscription svc'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "test/shared"
+    "test/svc/domain"
+
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
+    _ = BasicTopic.NewSubscription("basic-subscription", Subscriber)
+)
+
+// encore:api
+func DoStuff(ctx context.Context) error {
+    return BasicTopic.Publish(ctx, &MessageType{Name: "foo"})
+}
+
+func Subscriber(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
