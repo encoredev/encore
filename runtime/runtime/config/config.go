@@ -74,6 +74,11 @@ type Runtime struct {
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
 }
 
+// UnsafeAllOriginWithCredentials can be used to specify that all origins are
+// allowed to call this API with credentials. It is unsafe and misuse can lead
+// to security issues. Only use if you know what you're doing.
+const UnsafeAllOriginWithCredentials = "UNSAFE_ALL_ORIGINS_WITH_CREDENTIALS"
+
 type CORS struct {
 	// DisableCredentials, if true, causes Encore to respond to OPTIONS requests
 	// without setting Access-Control-Allow-Credentials: true.

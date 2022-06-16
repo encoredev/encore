@@ -19,19 +19,21 @@ func Options(cfg *config.CORS) cors.Options {
 	originsCreds := sortedSliceCopy(cfg.AllowOriginsWithCredentials)
 	originsWithoutCreds := sortedSliceCopy(cfg.AllowOriginsWithoutCredentials)
 
-	// Determine if we have a wildcard origin for requests without credentials
+	// Determine if we have a wildcard origins
 	hasWildcardOriginWithoutCreds := cfg.AllowOriginsWithoutCredentials == nil || sortedSliceContains(originsWithoutCreds, "*")
+	hasUnsafeWildcardOriginWithCreds := sortedSliceContains(originsCreds, config.UnsafeAllOriginWithCredentials)
 
 	return cors.Options{
 		AllowCredentials: !cfg.DisableCredentials,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "HEAD", "DELETE", "OPTIONS", "TRACE", "CONNECT"},
-		AllowedHeaders:   []string{"Authorization"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "TRACE", "CONNECT"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.
 			hasCreds := len(r.Cookies()) > 0 || r.Header["Authorization"] != nil || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0)
 			if hasCreds {
-				return sortedSliceContains(originsCreds, origin)
+				ok := hasUnsafeWildcardOriginWithCreds || sortedSliceContains(originsCreds, origin)
+				return ok
 			}
 			// Post-condition: request is without credentials
 
