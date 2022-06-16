@@ -58,6 +58,22 @@ func TestOptions(t *testing.T) {
 			nocredsGoodOrigins: []string{"bar.org"},
 			nocredsBadOrigins:  []string{"foo.com", "", "localhost"},
 		},
+		{
+			name: "allowed_wildcard_without_creds",
+			cfg: config.CORS{
+				AllowOriginsWithoutCredentials: []string{"*"},
+			},
+			credsGoodOrigins:   []string{},
+			credsBadOrigins:    []string{"bar.org", "", "localhost"},
+			nocredsGoodOrigins: []string{"bar.org", "bar.com", "", "localhost"},
+		},
+		{
+			name: "allowed_unsafe_wildcard_with_creds",
+			cfg: config.CORS{
+				AllowOriginsWithCredentials: []string{config.UnsafeAllOriginWithCredentials},
+			},
+			credsGoodOrigins: []string{"bar.org", "bar.com", "", "localhost", "unsafe.evil.com"},
+		},
 	}
 
 	checkOrigins := func(t *testing.T, c *cors.Cors, creds, good bool, origins []string) {
