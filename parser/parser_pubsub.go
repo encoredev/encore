@@ -53,6 +53,11 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		p.errf(callExpr.Args[0].Pos(), "pubsub.NewTopic requires the first argument to be a string literal, was given a %v.", reflect.TypeOf(callExpr.Args[0]))
 		return nil
 	}
+	topicName = strings.TrimSpace(topicName)
+	if len(topicName) <= 0 {
+		p.errf(callExpr.Args[0].Pos(), "pubsub.NewTopic requires the first argument to be a string literal, was given an empty string.")
+		return nil
+	}
 
 	// check the topic isn't already declared somewhere else
 	for _, topic := range p.pubSubTopics {
@@ -109,6 +114,11 @@ func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, 
 			"%s.NewSubscription requires the first argument to be a string literal, was given a %v.",
 			resource.Ident().Name, reflect.TypeOf(callExpr.Args[0]),
 		)
+		return
+	}
+	subscriberName = strings.TrimSpace(subscriberName)
+	if len(subscriberName) <= 0 {
+		p.errf(callExpr.Args[0].Pos(), "%s.NewSubscription requires the first argument to be a string literal, was given an empty string.", resource.Ident().Name)
 		return
 	}
 
