@@ -163,11 +163,11 @@ func TestMain(m *testing.M) {
 				fmt.Fprintf(os.Stdout, "pubsubTopic %s\n", topic.Name)
 
 				for _, pub := range topic.Publishers {
-					fmt.Fprintf(os.Stdout, "pubsubPublisher %s %s\n", topic.Name, pub.File.Pkg.Service.Name)
+					fmt.Fprintf(os.Stdout, "pubsubPublisher %s %s\n", topic.Name, pub.DeclFile.Pkg.Service.Name)
 				}
 
 				for _, sub := range topic.Subscribers {
-					fmt.Fprintf(os.Stdout, "pubsubSubscriber %s %s %s\n", topic.Name, sub.Name, sub.File.Pkg.Service.Name)
+					fmt.Fprintf(os.Stdout, "pubsubSubscriber %s %s %s\n", topic.Name, sub.Name, sub.DeclFile.Pkg.Service.Name)
 				}
 			}
 			for _, pkg := range res.App.Packages {

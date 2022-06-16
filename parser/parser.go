@@ -139,6 +139,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.resolveNames(track)
 	p.parseServices()
 	p.parseResources()
+	p.parseResourceUsage()
 	p.parseReferences()
 	p.parseCronJobs()
 	p.parseSecrets()
@@ -342,9 +343,12 @@ func (p *parser) parseReferences() {
 						}
 						return true
 					} else if res := resourceMap[path][obj]; res != nil {
-						file.References[node] = &est.Node{
-							Type: est.SQLDBNode,
-							Res:  res,
+						switch res.Type() {
+						case est.SQLDBResource:
+							file.References[node] = &est.Node{
+								Type: est.SQLDBNode,
+								Res:  res,
+							}
 						}
 					}
 
@@ -691,6 +695,9 @@ func (p *parser) validateApp() {
 				switch res.Type() {
 				case est.SQLDBResource:
 					resType = "SQL Database"
+				case est.PubSubTopicResource:
+					// we do allow pubsub to be declared outside of a service package
+					continue
 				default:
 					panic(fmt.Sprintf("unsupported resource type %v", res.Type()))
 				}

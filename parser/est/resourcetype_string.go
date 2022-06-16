@@ -9,11 +9,12 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[SQLDBResource-1]
+	_ = x[PubSubTopicResource-2]
 }
 
-const _ResourceType_name = "SQLDBResource"
+const _ResourceType_name = "SQLDBResourcePubSubTopicResource"
 
-var _ResourceType_index = [...]uint8{0, 13}
+var _ResourceType_index = [...]uint8{0, 13, 32}
 
 func (i ResourceType) String() string {
 	i -= 1

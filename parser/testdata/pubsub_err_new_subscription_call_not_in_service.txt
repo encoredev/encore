@@ -1,0 +1,43 @@
+! parse
+stderr 'The call to `BasicTopic.NewSubscription` must be declared within a service.'
+
+-- shared/shared.go --
+package shared
+
+type MessageType struct {
+    Name string
+}
+
+-- svc1/svc.go --
+package svc1
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+
+    "test/shared"
+)
+
+var BasicTopic = pubsub.NewTopic[*shared.MessageType]("basic-topic")
+
+// encore:api
+func Stuff(ctx context.Context) error {
+    return nil
+}
+
+-- svc2/svc.go --
+package svc2
+
+import (
+    "context"
+
+    "test/shared"
+    "test/svc1"
+)
+
+var _ = svc1.BasicTopic.NewSubscription("basic-subscription", Subscriber)
+
+func Subscriber(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
