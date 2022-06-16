@@ -26,7 +26,7 @@ func Options(cfg *config.CORS) cors.Options {
 	return cors.Options{
 		AllowCredentials: !cfg.DisableCredentials,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "TRACE", "CONNECT"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"*"},
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.
