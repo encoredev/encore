@@ -8,6 +8,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
+	"encr.dev/parser/internal/walker"
 )
 
 func init() {
@@ -23,6 +24,7 @@ func init() {
 		est.PubSubTopicResource,
 		"NewTopic", 1,
 		(*parser).parsePubSubTopic,
+		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
 	)
 
 	registerResourceUsageParser(
@@ -40,23 +42,23 @@ func init() {
 	)
 }
 
-func (p *parser) parsePubSubTopic(file *est.File, doc string, valueSpec *ast.ValueSpec, callExpr *ast.CallExpr) {
+func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
 	if len(callExpr.Args) < 1 {
-		p.errf(valueSpec.Pos(), "pubsub.NewTopic requires at least one argument, the topic name given as a string literal. For example `pubsub.NewTopic[MyMessage](\"my-topic\")`")
-		return
+		p.errf(callExpr.Pos(), "pubsub.NewTopic requires at least one argument, the topic name given as a string literal. For example `pubsub.NewTopic[MyMessage](\"my-topic\")`")
+		return nil
 	}
 
 	topicName, ok := litString(callExpr.Args[0])
 	if !ok {
 		p.errf(callExpr.Args[0].Pos(), "pubsub.NewTopic requires the first argument to be a string literal, was given a %v.", reflect.TypeOf(callExpr.Args[0]))
-		return
+		return nil
 	}
 
 	// check the topic isn't already declared somewhere else
 	for _, topic := range p.pubSubTopics {
 		if strings.EqualFold(topic.Name, topicName) {
-			p.errf(valueSpec.Pos(), "Pubsub topic names must be unique, \"%s\" was previously declared in %s/%s: if you wish to reuse the same topic, then you can export the original Topic object from %s and reuse it here.", topic.Name, topic.DeclFile.Pkg.Name, topic.DeclFile.Name, topic.DeclFile.Pkg.Name)
-			return
+			p.errf(callExpr.Args[0].Pos(), "Pubsub topic names must be unique, \"%s\" was previously declared in %s/%s: if you wish to reuse the same topic, then you can export the original Topic object from %s and reuse it here.", topic.Name, topic.DeclFile.Pkg.Name, topic.DeclFile.Name, topic.DeclFile.Pkg.Name)
+			return nil
 		}
 	}
 
@@ -65,28 +67,22 @@ func (p *parser) parsePubSubTopic(file *est.File, doc string, valueSpec *ast.Val
 	// Record the topic
 	topic := &est.PubSubTopic{
 		Name:              topicName,
-		Doc:               doc,
+		Doc:               cursor.DocComment(),
 		DeliveryGuarantee: est.AtLeastOnce,
 		Ordered:           false,
 		GroupingField:     "",
 		DeclFile:          file,
 		MessageType:       messageType,
-		AST:               valueSpec,
+		IdentAST:          ident,
 		Subscribers:       nil,
 		Publishers:        nil,
 	}
 	p.pubSubTopics = append(p.pubSubTopics, topic)
 
-	// Record the reference to the topic declaration
-	file.References[valueSpec.Names[0]] = &est.Node{
-		Type:  est.PubSubTopicDefNode,
-		Topic: topic,
-	}
-
-	file.Pkg.Resources = append(file.Pkg.Resources, topic)
+	return topic
 }
 
-func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, callExpr *ast.CallExpr) {
+func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {
 	topic, ok := resource.(*est.PubSubTopic)
 	if !ok {
 		p.errf(
@@ -184,7 +180,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, 
 	}
 }
 
-func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, callExpr *ast.CallExpr) {
+func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {
 	topic, ok := resource.(*est.PubSubTopic)
 	if !ok {
 		p.errf(callExpr.Fun.Pos(), "pubsub.Publish can only be used on a pubsub topic, was given a %v.", reflect.TypeOf(resource))

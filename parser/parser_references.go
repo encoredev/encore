@@ -43,13 +43,14 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 		resource, parser := r.resourceAndFuncFor(node)
 		if parser != nil {
 			if parser.AllowedLocations.Allowed(cursor.Location()) {
-				parser.Parse(r.p, r.file, resource, node)
+				parser.Parse(r.p, r.file, resource, cursor, node)
 			} else {
 				call := fmt.Sprintf("`%s.%s`", resource.Ident().Name, parser.Name)
 				r.p.errf(node.Pos(),
-					"You can not call %s here, %s️.",
+					"You can not call %s here, %s️. For more information please see %s",
 					call,
 					parser.AllowedLocations.Describe("it", "called"),
+					parser.Resource.Docs,
 				)
 			}
 
@@ -58,8 +59,14 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 
 	case *ast.SelectorExpr:
 		if resource := r.resourceFor(node); resource != nil {
-			// TODO(domblack)
-			r.p.errf(node.Pos(), "A %s can not be used in this location. 👷‍♂️\n", resource.Type())
+			// If the resource type isn't registered, for now this is Ok as we have SQLDB resources that are not tracked
+			if res, found := resourceTypes[resource.Type()]; found {
+				r.p.errf(node.Pos(),
+					"A %s can not be referenced, apart from when calling a method on it. For more information please see %s",
+					res.Name,
+					res.Docs,
+				)
+			}
 			return nil
 		}
 	}

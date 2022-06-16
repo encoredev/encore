@@ -88,21 +88,16 @@ type PubSubTopic struct {
 	GroupingField     string          // What field in the message type should be used to group messages
 	DeclFile          *File           // What file the topic is declared in
 	MessageType       *Param          // The message type of the pub sub topic
-	AST               *ast.ValueSpec  // The AST node representing the value this topic is bound against
+	IdentAST          *ast.Ident      // The AST node representing the value this topic is bound against
 
 	Subscribers []*PubSubSubscriber
 	Publishers  []*PubSubPublisher
 }
 
 func (p *PubSubTopic) Type() ResourceType { return PubSubTopicResource }
-
-func (p *PubSubTopic) File() *File {
-	return p.DeclFile
-}
-
-func (p *PubSubTopic) Ident() *ast.Ident {
-	return p.AST.Names[0]
-}
+func (p *PubSubTopic) File() *File        { return p.DeclFile }
+func (p *PubSubTopic) Ident() *ast.Ident  { return p.IdentAST }
+func (p *PubSubTopic) NodeType() NodeType { return PubSubTopicDefNode }
 
 type PubSubGuarantee int
 
@@ -198,7 +193,8 @@ type AuthHandler struct {
 type Resource interface {
 	Type() ResourceType
 	File() *File
-	Ident() *ast.Ident
+	Ident() *ast.Ident  // the ident
+	NodeType() NodeType // The NodeType of the ast.Node that the resource is bound to
 }
 
 //go:generate stringer -type=ResourceType
@@ -219,3 +215,4 @@ type SQLDB struct {
 func (r *SQLDB) Type() ResourceType { return SQLDBResource }
 func (r *SQLDB) File() *File        { return r.DeclFile }
 func (r *SQLDB) Ident() *ast.Ident  { return r.DeclName }
+func (r *SQLDB) NodeType() NodeType { return SQLDBNode }

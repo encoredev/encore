@@ -118,7 +118,7 @@ func (f Filter) ButNotIn(locations ...Location) Filter {
 // See both AllowedIn and ButNotIn for examples
 func (f Filter) Allowed(location Location) bool {
 	return (f.Allow&location) == f.Allow &&
-		((f.Disallowed&location) == 0 || f.Disallowed == 0)
+		(f.Disallowed&location) == 0
 }
 
 func (f Filter) Describe() string {
