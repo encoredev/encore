@@ -66,11 +66,29 @@ type Runtime struct {
 	AuthKeys      []EncoreAuthKey `json:"auth_keys"`
 	SQLDatabases  []*SQLDatabase  `json:"sql_databases"`
 	SQLServers    []*SQLServer    `json:"sql_servers"`
+	CORS          *CORS           `json:"cors"`
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
 	// If zero, it shuts down immediately.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
+}
+
+type CORS struct {
+	// DisableCredentials, if true, causes Encore to respond to OPTIONS requests
+	// without setting Access-Control-Allow-Credentials: true.
+	DisableCredentials bool `json:"disable_credentials"`
+
+	// AllowOriginsWithCredentials specifies the allowed origins for requests
+	// that include credentials. If a request is made from an Origin in this list
+	// Encore responds with Access-Control-Allow-Origin: <Origin>.
+	// If DisableCredentials is true this field is not used.
+	AllowOriginsWithCredentials []string `json:"allow_origins_with_credentials"`
+
+	// AllowOriginsWithoutCredentials specifies the allowed origins for requests
+	// that don't include credentials. If nil it defaults to allowing all domains
+	// (equivalent to []string{"*"}).
+	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials"`
 }
 
 type CommitInfo struct {

@@ -480,6 +480,10 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		SQLDatabases:  sqlDBs,
 		SQLServers:    sqlServers,
 		AuthKeys:      []config.EncoreAuthKey{p.authKey},
+		CORS: &config.CORS{
+			AllowOriginsWithCredentials:    []string{"localhost"},
+			AllowOriginsWithoutCredentials: []string{"*"},
+		},
 	}
 }
 
