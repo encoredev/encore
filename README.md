@@ -74,6 +74,9 @@ Here's how you can contribute:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Demo video
+<a href="https://www.youtube.com/watch?v=aSE7wdjhcnw" alt="Encore Demo" target="_blank"><img src="https://user-images.githubusercontent.com/78424526/174304596-52145f47-f58a-4c4b-b386-53ad33d48548.jpg" alt="encore demo video"></a>
+
 ## Visuals
 
 ### Built-in CI/CD & Infrastructure Provisioning
