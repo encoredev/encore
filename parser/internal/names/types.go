@@ -33,7 +33,7 @@ type Application map[*est.Package]*Resolution
 // - This function accounts for scoping and variable shadowing. (i.e. it will not mistake a variable "foo" in a function
 //   for the package imported as "foo").
 // - This function does not validate the existence of the objName for objects referenced in other packages. As such it
-//   can return references for objects in Go Modules.
+//   can return references for objects in Go Modules as long as those packages are marked to be tracked by the parser.
 func (a Application) PkgObjRef(inFile *est.File, node ast.Node) (pkgPath string, objName string, indexArguments []ast.Expr) {
 	f, ok := a[inFile.Pkg].Files[inFile]
 	if !ok {
