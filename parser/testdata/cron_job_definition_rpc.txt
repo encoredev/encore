@@ -1,6 +1,6 @@
 # Verify the cron job definition
 ! parse
-stderr 'A cron job can not be declared here, they can only be declared in a package level variable. For more information please see https://encore.dev/docs/develop/cron-jobs'
+stderr 'A cron job cannot be declared here, they can only be declared in a package level variable. For more information see https://encore.dev/docs/develop/cron-jobs'
 
 -- svc/svc.go --
 package svc

@@ -43,12 +43,10 @@ func (c *Cursor) Location() (loc locations.Location) {
 	return
 }
 
-// DocComment will return the doc comment which is associated with the given node.
-// it works by walking through the parent nodes until it finds a node with a Comment field
-// or fields.
-//
-// It will stop walking when it comes across a node which represents a block where a previous
-// comment would no longer be valid (such as a FuncType, StructType, InterfaceType or BlockStmt)
+// DocComment returns the doc comment associated with the given node.
+// It walks through the parent nodes until it finds a node with a Comment field or fields,
+// and stops when it comes across a node which represents a block where a previous
+// comment would no longer be valid (such as a FuncType, StructType, InterfaceType or BlockStmt).
 func (c *Cursor) DocComment() string {
 	groupToString := func(node *ast.CommentGroup) string {
 		if node == nil {

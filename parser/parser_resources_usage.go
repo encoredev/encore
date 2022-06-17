@@ -47,7 +47,7 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 			} else {
 				call := fmt.Sprintf("`%s.%s`", resource.Ident().Name, parser.Name)
 				r.p.errf(node.Pos(),
-					"You can not call %s here, %s️. For more information please see %s",
+					"You cannot call %s here, %s️. For more information see %s",
 					call,
 					parser.AllowedLocations.Describe("it", "called"),
 					parser.Resource.Docs,
@@ -62,7 +62,7 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 			// If the resource type isn't registered, for now this is Ok as we have SQLDB resources that are not tracked
 			if res, found := resourceTypes[resource.Type()]; found {
 				r.p.errf(node.Pos(),
-					"A %s can not be referenced, apart from when calling a method on it. For more information please see %s",
+					"A %s cannot be referenced, apart from when calling a method on it. For more information see %s",
 					res.Name,
 					res.Docs,
 				)

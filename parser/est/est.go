@@ -202,9 +202,9 @@ type AuthHandler struct {
 type Resource interface {
 	Type() ResourceType
 	File() *File
-	Ident() *ast.Ident          // the ident
-	NodeType() NodeType         // The NodeType of the ast.Node that the resource is bound to
-	AllowOnlyParsedUsage() bool // If this resource can only be used with parsed usage parsers
+	Ident() *ast.Ident
+	NodeType() NodeType
+	AllowOnlyParsedUsage() bool // If true this resource can only be used with registered resource parsers. If false we allow any usage.
 }
 
 //go:generate stringer -type=ResourceType

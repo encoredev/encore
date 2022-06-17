@@ -69,7 +69,7 @@ func (f *resourceCreationVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor
 			} else {
 				f.p.errf(
 					node.Pos(),
-					"A %s can not be declared here, %s. For more information please see %s",
+					"A %s cannot be declared here, %s. For more information see %s",
 					parser.Resource.Name,
 					parser.AllowedLocations.Describe("they", "declared"),
 					parser.Resource.Docs,
@@ -84,7 +84,7 @@ func (f *resourceCreationVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor
 		// then we want to check if that references a resource creation function and if so
 		// report an error, as all valid usages should already have been parsed and returned
 		if parser := f.parserFor(node); parser != nil {
-			f.p.errf(node.Pos(), "%s.%s can only be called as a function to create a new instance and not referenced otherwise. For more information please see %s", parser.Resource.PkgName, parser.Name, parser.Resource.Docs)
+			f.p.errf(node.Pos(), "%s.%s can only be called as a function to create a new instance and not referenced otherwise. For more information see %s", parser.Resource.PkgName, parser.Name, parser.Resource.Docs)
 			return nil
 		}
 	}

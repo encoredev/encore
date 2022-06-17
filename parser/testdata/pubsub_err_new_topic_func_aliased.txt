@@ -1,5 +1,5 @@
 ! parse
-stderr 'pubsub.NewTopic can only be called as a function to create a new instance and not referenced otherwise. For more information please see https://encore.dev/docs/develop/pubsub'
+stderr 'pubsub.NewTopic can only be called as a function to create a new instance and not referenced otherwise. For more information see https://encore.dev/docs/develop/pubsub'
 
 -- svc/svc.go --
 package svc
