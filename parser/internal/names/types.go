@@ -18,10 +18,11 @@ type TrackedPackages map[string]string
 // Application presents all resolved names throughout the Application
 type Application map[*est.Package]*Resolution
 
-// PkgObjRef resolves the given ast.Node to a package path, object name and type arguments. In the case it fails to
+// PkgObjRef resolves the given ast.Node to a package path, object name and index arguments. In the case it fails to
 // resolve, it will return ("", "", nil).
 //
-// If the given node is a index or index list, then the type arguments will be extracted.
+// If the given node is a index or index list, then the index arguments will be extracted. These could either be type
+// arguments, or map access arguments.
 //
 // If the given node is:
 // - an ident, then it is resolved to a package level deceleration in the same file as the ident.
@@ -33,7 +34,7 @@ type Application map[*est.Package]*Resolution
 //   for the package imported as "foo").
 // - This function does not validate the existence of the objName for objects referenced in other packages. As such it
 //   can return references for objects in Go Modules.
-func (a Application) PkgObjRef(inFile *est.File, node ast.Node) (pkgPath string, objName string, typeArguments []ast.Expr) {
+func (a Application) PkgObjRef(inFile *est.File, node ast.Node) (pkgPath string, objName string, indexArguments []ast.Expr) {
 	f, ok := a[inFile.Pkg].Files[inFile]
 	if !ok {
 		return "", "", nil
