@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
-	"strconv"
 	"strings"
 
 	"encr.dev/parser/est"
@@ -87,57 +85,6 @@ PkgLoop:
 					svc.Pkgs = append(svc.Pkgs, pkg)
 				} else if pkg.Service != svc {
 					p.errf(pkg.Files[0].AST.Pos(), "package %s is part of service %s, but is also part of service %s", pkg.Name, svc.Name, pkg.Service.Name)
-				}
-			}
-		}
-	}
-}
-
-// parseResources parses infrastructure resources declared in the packages.
-func (p *parser) parseOldResources() {
-
-	for _, pkg := range p.pkgs {
-		for _, file := range pkg.Files {
-			info := p.names[pkg].Files[file]
-			for _, decl := range file.AST.Decls {
-				gd, ok := decl.(*ast.GenDecl)
-				if !ok || gd.Tok != token.VAR {
-					continue
-				}
-				for _, s := range gd.Specs {
-					vs := s.(*ast.ValueSpec)
-					for i, x := range vs.Values {
-						if call, ok := x.(*ast.CallExpr); ok {
-							if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-								if id, ok := sel.X.(*ast.Ident); ok {
-									ri := info.Idents[id]
-									if ri == nil {
-										continue
-									}
-
-									// We have "var x = pkg.Foo()" which is the shape we're looking for.
-									// Check what package it is.
-									switch ri.ImportPath {
-									case sqldbImportPath:
-										if sel.Sel.Name == "Named" && len(call.Args) > 0 {
-											decl := vs.Names[i]
-											if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-												if name, err := strconv.Unquote(lit.Value); err == nil {
-													pkg.Resources = append(pkg.Resources, &est.SQLDB{
-														DeclFile: file,
-														DeclName: decl,
-														DBName:   name,
-													})
-												}
-											} else {
-												p.errf(call.Args[0].Pos(), "sqldb.Named must be called with a string literal, not %v", call.Args[0])
-											}
-										}
-									}
-								}
-							}
-						}
-					}
 				}
 			}
 		}

@@ -93,11 +93,10 @@ const (
 )
 
 var defaultTrackedPackages = names.TrackedPackages{
-	sqldbImportPath: "sqldb",
-	rlogImportPath:  "rlog",
-	uuidImportPath:  "uuid",
-	authImportPath:  "auth",
-	cronImportPath:  "cron",
+	rlogImportPath: "rlog",
+	uuidImportPath: "uuid",
+	authImportPath: "auth",
+	cronImportPath: "cron",
 
 	"net/http":      "http",
 	"context":       "context",
@@ -362,7 +361,7 @@ func (p *parser) parseReferences() {
 					case sqldbImportPath:
 						// Allow types to be references
 						switch obj {
-						case "Tx", "Row", "Rows":
+						case "ExecResult", "Tx", "Row", "Rows":
 							return true
 						default:
 							p.errf(node.Pos(), "cannot reference func %s.%s without calling it", path, obj)

@@ -58,7 +58,7 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 		}
 
 	case *ast.SelectorExpr:
-		if resource := r.resourceFor(node); resource != nil {
+		if resource := r.resourceFor(node); resource != nil && resource.AllowOnlyParsedUsage() {
 			// If the resource type isn't registered, for now this is Ok as we have SQLDB resources that are not tracked
 			if res, found := resourceTypes[resource.Type()]; found {
 				r.p.errf(node.Pos(),

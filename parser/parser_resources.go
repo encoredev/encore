@@ -10,8 +10,6 @@ import (
 
 // parseResources parses infrastructure resources declared in the packages.
 func (p *parser) parseResources() {
-	p.parseOldResources()
-
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
 			walker.Walk(file.AST, &resourceCreationVisitor{p, file, p.names})

@@ -94,10 +94,11 @@ type PubSubTopic struct {
 	Publishers  []*PubSubPublisher
 }
 
-func (p *PubSubTopic) Type() ResourceType { return PubSubTopicResource }
-func (p *PubSubTopic) File() *File        { return p.DeclFile }
-func (p *PubSubTopic) Ident() *ast.Ident  { return p.IdentAST }
-func (p *PubSubTopic) NodeType() NodeType { return PubSubTopicDefNode }
+func (p *PubSubTopic) Type() ResourceType         { return PubSubTopicResource }
+func (p *PubSubTopic) File() *File                { return p.DeclFile }
+func (p *PubSubTopic) Ident() *ast.Ident          { return p.IdentAST }
+func (p *PubSubTopic) NodeType() NodeType         { return PubSubTopicDefNode }
+func (p *PubSubTopic) AllowOnlyParsedUsage() bool { return true }
 
 type PubSubGuarantee int
 
@@ -193,8 +194,9 @@ type AuthHandler struct {
 type Resource interface {
 	Type() ResourceType
 	File() *File
-	Ident() *ast.Ident  // the ident
-	NodeType() NodeType // The NodeType of the ast.Node that the resource is bound to
+	Ident() *ast.Ident          // the ident
+	NodeType() NodeType         // The NodeType of the ast.Node that the resource is bound to
+	AllowOnlyParsedUsage() bool // If this resource can only be used with parsed usage parsers
 }
 
 //go:generate stringer -type=ResourceType
@@ -212,7 +214,8 @@ type SQLDB struct {
 	DBName   string
 }
 
-func (r *SQLDB) Type() ResourceType { return SQLDBResource }
-func (r *SQLDB) File() *File        { return r.DeclFile }
-func (r *SQLDB) Ident() *ast.Ident  { return r.DeclName }
-func (r *SQLDB) NodeType() NodeType { return SQLDBNode }
+func (r *SQLDB) Type() ResourceType         { return SQLDBResource }
+func (r *SQLDB) File() *File                { return r.DeclFile }
+func (r *SQLDB) Ident() *ast.Ident          { return r.DeclName }
+func (r *SQLDB) NodeType() NodeType         { return SQLDBNode }
+func (r *SQLDB) AllowOnlyParsedUsage() bool { return false }
