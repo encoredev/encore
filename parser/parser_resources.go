@@ -9,6 +9,7 @@ import (
 )
 
 // parseResources parses infrastructure resources declared in the packages.
+// These are defined by calls to registerResource and registerResourceCreationParser.
 func (p *parser) parseResources() {
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
@@ -34,15 +35,19 @@ func (f *resourceCreationVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor
 			if parser.AllowedLocations.Allowed(cursor.Location()) {
 				// Identify the variable name from the value spec
 				var ident *ast.Ident
-				if spec := walker.GetAncestor[*ast.ValueSpec](cursor); spec != nil {
-					if len(spec.Names) == 1 && len(spec.Values) == 1 {
-						ident = spec.Names[0]
-					} else {
+				if spec, ok := cursor.Parent().(*ast.ValueSpec); ok {
+					for i := 0; i < len(spec.Names); i++ {
+						if spec.Values[i] == node {
+							ident = spec.Names[i]
+							break
+						}
+					}
+
+					if ident == nil {
 						f.p.errf(
 							spec.Pos(),
-							"A %s must be bound to a variable with one name and value. For more information please see %s",
+							"Unable to find the identifier that the %s is bound to.",
 							parser.Resource.Name,
-							parser.Resource.Docs,
 						)
 						return nil
 					}

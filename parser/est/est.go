@@ -62,8 +62,15 @@ type CronJob struct {
 	Doc      string
 	Schedule string
 	RPC      *RPC
-	AST      *ast.ValueSpec
+	DeclFile *File
+	AST      *ast.Ident
 }
+
+func (cj *CronJob) Type() ResourceType         { return CronJobResource }
+func (cj *CronJob) File() *File                { return cj.DeclFile }
+func (cj *CronJob) Ident() *ast.Ident          { return cj.AST }
+func (cj *CronJob) NodeType() NodeType         { return CronJobNode }
+func (cj *CronJob) AllowOnlyParsedUsage() bool { return true }
 
 func (cj *CronJob) IsValid() (bool, error) {
 	switch {
@@ -154,6 +161,7 @@ const (
 	SQLDBNode
 	RLogNode
 	SecretsNode
+	CronJobNode
 	PubSubTopicDefNode
 	PubSubPublisherNode
 	PubSubSubscriberNode
@@ -205,6 +213,7 @@ type ResourceType int
 
 const (
 	SQLDBResource ResourceType = iota + 1
+	CronJobResource
 	PubSubTopicResource
 )
 
