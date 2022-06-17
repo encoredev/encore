@@ -146,13 +146,9 @@ func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, 
 		return
 	}
 
+	// If the "NewSubscription" function call is not inside a service, then we'll make it a service.
 	if file.Pkg.Service == nil {
-		p.errf(
-			callExpr.Args[1].Pos(),
-			"The call to `%s.NewSubscription` must be declared within a service.",
-			resource.Ident().Name,
-		)
-		return
+		p.createService(file.Pkg)
 	}
 
 	if funcFile.Pkg.Service == nil {

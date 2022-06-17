@@ -1,0 +1,50 @@
+# Verify that pub sub is parsed
+parse
+stdout 'pubsubTopic basic-topic'
+stdout 'pubsubPublisher basic-topic svc'
+stdout 'pubsubSubscriber basic-topic foo-service-sub foo'
+
+-- shared/topics.go --
+package shared
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
+)
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "test/shared"
+)
+
+// encore:api
+func DoStuff(ctx context.Context, msg *shared.MessageType) error {
+    shared.BasicTopic.Publish(ctx, msg)
+}
+
+-- foo/code.go --
+package foo
+
+import (
+    "context"
+
+    "test/shared"
+)
+
+var _ = shared.BasicTopic.NewSubscription(
+    "foo-service-sub",
+    func(ctx context.Context, msg *shared.MessageType) error {
+        return nil
+    },
+)

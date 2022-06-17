@@ -50,9 +50,10 @@ type parser struct {
 	svcs         []*est.Service
 	jobs         []*est.CronJob
 	svcMap       map[string]*est.Service // name -> svc
+	svcPkgPaths  map[string]*est.Service // pkg path -> svc
 	jobsMap      map[string]*est.CronJob // ID -> job
 	pubSubTopics []*est.PubSubTopic
-	names        map[*est.Package]*names.Resolution
+	names        names.Application
 	authHandler  *est.AuthHandler
 	declMap      map[string]*schema.Decl // pkg/path.Name -> decl
 	decls        []*schema.Decl
@@ -274,7 +275,7 @@ func collectPackages(fs *token.FileSet, rootDir, rootImportPath string, mode gop
 // resolveNames resolves identifiers for the application's packages.
 // track defines the non-application packages to track usage for.
 func (p *parser) resolveNames(track names.TrackedPackages) {
-	p.names = make(map[*est.Package]*names.Resolution)
+	p.names = make(names.Application)
 
 	for _, pkg := range p.pkgs {
 		track[pkg.ImportPath] = pkg.Name

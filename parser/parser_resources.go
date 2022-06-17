@@ -14,7 +14,7 @@ func (p *parser) parseResources() {
 
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
-			walker.Walk(file.AST, &resourceCreationVisitor{p, file, p.names[pkg].Files[file]})
+			walker.Walk(file.AST, &resourceCreationVisitor{p, file, p.names})
 		}
 	}
 }
@@ -22,7 +22,7 @@ func (p *parser) parseResources() {
 type resourceCreationVisitor struct {
 	p     *parser
 	file  *est.File
-	names *names.File
+	names names.Application
 }
 
 // Visit will walk the AST of a file looking for package level variable declarations made to resource creation functions
@@ -90,23 +90,10 @@ func (f *resourceCreationVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor
 }
 
 func (f *resourceCreationVisitor) parserFor(node ast.Node) *resourceCreatorParser {
-	numTypeArguments := 0
-
-	// foo.bar[baz] is an index expression - so we want to unwrap the index expression
-	// and foo.bar[baz, qux] is an index list expression
-	switch idx := node.(type) {
-	case *ast.IndexExpr:
-		node = idx.X
-		numTypeArguments = 1
-	case *ast.IndexListExpr:
-		node = idx.X
-		numTypeArguments = len(idx.Indices)
-	}
-
-	pkgPath, objName := pkgObj(f.names, node)
+	pkgPath, objName, typeArgs := f.names.PkgObjRef(f.file, node)
 	if pkgPath != "" && objName != "" {
 		if packageResources, found := resourceCreationRegistry[pkgPath]; found {
-			if parser, found := packageResources[funcIdent{objName, numTypeArguments}]; found {
+			if parser, found := packageResources[funcIdent{objName, len(typeArgs)}]; found {
 				return parser
 			}
 		}

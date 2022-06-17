@@ -23,7 +23,7 @@ func (p *parser) parseResourceUsage() {
 
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
-			walker.Walk(file.AST, &resourceUsageVisitor{p, file, p.names[pkg].Files[file], resourceMap})
+			walker.Walk(file.AST, &resourceUsageVisitor{p, file, p.names, resourceMap})
 		}
 	}
 }
@@ -31,7 +31,7 @@ func (p *parser) parseResourceUsage() {
 type resourceUsageVisitor struct {
 	p         *parser
 	file      *est.File
-	names     *names.File
+	names     names.Application
 	resources map[string]map[string]est.Resource
 }
 
@@ -104,18 +104,14 @@ func (r *resourceUsageVisitor) resourceAndFuncFor(callExpr *ast.CallExpr) (est.R
 }
 
 func (r *resourceUsageVisitor) resourceFor(node ast.Node) est.Resource {
-	if ident, ok := node.(*ast.Ident); ok {
-		if resource, found := r.resources[r.file.Pkg.ImportPath][ident.Name]; found {
+	pkgPath, objName, _ := r.names.PkgObjRef(r.file, node)
+	if pkgPath == "" {
+		return nil
+	}
+
+	if idents, found := r.resources[pkgPath]; found {
+		if resource, found := idents[objName]; found {
 			return resource
-		}
-	} else {
-		pkgPath, objName := pkgObj(r.names, node)
-		if pkgPath != "" && objName != "" {
-			if idents, found := r.resources[pkgPath]; found {
-				if resource, found := idents[objName]; found {
-					return resource
-				}
-			}
 		}
 	}
 
