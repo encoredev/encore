@@ -62,8 +62,15 @@ type CronJob struct {
 	Doc      string
 	Schedule string
 	RPC      *RPC
-	AST      *ast.ValueSpec
+	DeclFile *File
+	AST      *ast.Ident
 }
+
+func (cj *CronJob) Type() ResourceType         { return CronJobResource }
+func (cj *CronJob) File() *File                { return cj.DeclFile }
+func (cj *CronJob) Ident() *ast.Ident          { return cj.AST }
+func (cj *CronJob) NodeType() NodeType         { return CronJobNode }
+func (cj *CronJob) AllowOnlyParsedUsage() bool { return true }
 
 func (cj *CronJob) IsValid() (bool, error) {
 	switch {
@@ -88,21 +95,17 @@ type PubSubTopic struct {
 	GroupingField     string          // What field in the message type should be used to group messages
 	DeclFile          *File           // What file the topic is declared in
 	MessageType       *Param          // The message type of the pub sub topic
-	AST               *ast.ValueSpec  // The AST node representing the value this topic is bound against
+	IdentAST          *ast.Ident      // The AST node representing the value this topic is bound against
 
 	Subscribers []*PubSubSubscriber
 	Publishers  []*PubSubPublisher
 }
 
-func (p *PubSubTopic) Type() ResourceType { return PubSubTopicResource }
-
-func (p *PubSubTopic) File() *File {
-	return p.DeclFile
-}
-
-func (p *PubSubTopic) Ident() *ast.Ident {
-	return p.AST.Names[0]
-}
+func (p *PubSubTopic) Type() ResourceType         { return PubSubTopicResource }
+func (p *PubSubTopic) File() *File                { return p.DeclFile }
+func (p *PubSubTopic) Ident() *ast.Ident          { return p.IdentAST }
+func (p *PubSubTopic) NodeType() NodeType         { return PubSubTopicDefNode }
+func (p *PubSubTopic) AllowOnlyParsedUsage() bool { return true }
 
 type PubSubGuarantee int
 
@@ -158,6 +161,7 @@ const (
 	SQLDBNode
 	RLogNode
 	SecretsNode
+	CronJobNode
 	PubSubTopicDefNode
 	PubSubPublisherNode
 	PubSubSubscriberNode
@@ -199,6 +203,8 @@ type Resource interface {
 	Type() ResourceType
 	File() *File
 	Ident() *ast.Ident
+	NodeType() NodeType
+	AllowOnlyParsedUsage() bool // If true this resource can only be used with registered resource parsers. If false we allow any usage.
 }
 
 //go:generate stringer -type=ResourceType
@@ -207,6 +213,7 @@ type ResourceType int
 
 const (
 	SQLDBResource ResourceType = iota + 1
+	CronJobResource
 	PubSubTopicResource
 )
 
@@ -216,6 +223,8 @@ type SQLDB struct {
 	DBName   string
 }
 
-func (r *SQLDB) Type() ResourceType { return SQLDBResource }
-func (r *SQLDB) File() *File        { return r.DeclFile }
-func (r *SQLDB) Ident() *ast.Ident  { return r.DeclName }
+func (r *SQLDB) Type() ResourceType         { return SQLDBResource }
+func (r *SQLDB) File() *File                { return r.DeclFile }
+func (r *SQLDB) Ident() *ast.Ident          { return r.DeclName }
+func (r *SQLDB) NodeType() NodeType         { return SQLDBNode }
+func (r *SQLDB) AllowOnlyParsedUsage() bool { return false }

@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
-	"strconv"
 	"strings"
 
 	"encr.dev/parser/est"
@@ -18,7 +16,7 @@ import (
 // parseFeatures parses the application packages looking for Encore features
 // such as RPCs and auth handlers, and computes the set of services.
 func (p *parser) parseServices() {
-	svcPaths := make(map[string]*est.Service) // import path -> *Service
+	p.svcPkgPaths = make(map[string]*est.Service) // import path -> *Service
 
 	// First determine which packages are considered services based on
 	// whether they define RPCs.
@@ -34,16 +32,36 @@ func (p *parser) parseServices() {
 		if isSvc := p.parseFuncs(pkg, svc); !isSvc {
 			continue
 		}
-		pkg.Service = svc
-		svcPaths[pkg.ImportPath] = svc
-		if svc2 := p.svcMap[svc.Name]; svc2 != nil {
-			p.errf(pkg.AST.Pos(), "service %s defined twice (previous definition at %s)",
-				svc.Name, p.fset.Position(svc2.Root.Files[0].AST.Pos()))
-			continue
-		}
-		p.svcs = append(p.svcs, svc)
-		p.svcMap[svc.Name] = svc
+
+		p.registerService(svc)
 	}
+}
+
+// createService creates a new service registered as the given package
+func (p *parser) createService(pkg *est.Package) {
+	if pkg.Service != nil {
+		p.errf(pkg.Files[0].AST.Pos(), "tried to turn package %s into a service, but it is already part of service %s", pkg.Name, pkg.Service.Name)
+		return
+	}
+
+	svc := &est.Service{
+		Name: pkg.Name,
+		Root: pkg,
+		Pkgs: []*est.Package{pkg},
+	}
+	p.registerService(svc)
+}
+
+// registerService adds a service to the list of services.
+func (p *parser) registerService(svc *est.Service) {
+	svc.Root.Service = svc
+	p.svcPkgPaths[svc.Root.ImportPath] = svc
+	if svc2 := p.svcMap[svc.Name]; svc2 != nil {
+		p.errf(svc.Root.AST.Pos(), "service %s defined twice (previous definition at %s)",
+			svc.Name, p.fset.Position(svc2.Root.Files[0].AST.Pos()))
+	}
+	p.svcs = append(p.svcs, svc)
+	p.svcMap[svc.Name] = svc
 
 PkgLoop:
 	for _, pkg := range p.pkgs {
@@ -55,64 +73,18 @@ PkgLoop:
 				break
 			}
 			path = path[:idx]
-			if svc := svcPaths[path]; svc != nil {
-				if svcPaths[pkg.ImportPath] != nil {
+			if svc := p.svcPkgPaths[path]; svc != nil {
+				if p.svcPkgPaths[pkg.ImportPath] != nil {
 					// This pkg is a service, but it's nested within another service
 					p.errf(pkg.Files[0].AST.Pos(), "cannot nest service %s within service %s", pkg.Name, svc.Name)
 					continue PkgLoop
 				}
-				pkg.Service = svc
-				svc.Pkgs = append(svc.Pkgs, pkg)
-			}
-		}
-	}
-}
 
-// parseResources parses infrastructure resources declared in the packages.
-func (p *parser) parseOldResources() {
-
-	for _, pkg := range p.pkgs {
-		for _, file := range pkg.Files {
-			info := p.names[pkg].Files[file]
-			for _, decl := range file.AST.Decls {
-				gd, ok := decl.(*ast.GenDecl)
-				if !ok || gd.Tok != token.VAR {
-					continue
-				}
-				for _, s := range gd.Specs {
-					vs := s.(*ast.ValueSpec)
-					for i, x := range vs.Values {
-						if call, ok := x.(*ast.CallExpr); ok {
-							if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-								if id, ok := sel.X.(*ast.Ident); ok {
-									ri := info.Idents[id]
-									if ri == nil {
-										continue
-									}
-
-									// We have "var x = pkg.Foo()" which is the shape we're looking for.
-									// Check what package it is.
-									switch ri.ImportPath {
-									case sqldbImportPath:
-										if sel.Sel.Name == "Named" && len(call.Args) > 0 {
-											decl := vs.Names[i]
-											if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-												if name, err := strconv.Unquote(lit.Value); err == nil {
-													pkg.Resources = append(pkg.Resources, &est.SQLDB{
-														DeclFile: file,
-														DeclName: decl,
-														DBName:   name,
-													})
-												}
-											} else {
-												p.errf(call.Args[0].Pos(), "sqldb.Named must be called with a string literal, not %v", call.Args[0])
-											}
-										}
-									}
-								}
-							}
-						}
-					}
+				if pkg.Service == nil {
+					pkg.Service = svc
+					svc.Pkgs = append(svc.Pkgs, pkg)
+				} else if pkg.Service != svc {
+					p.errf(pkg.Files[0].AST.Pos(), "package %s is part of service %s, but is also part of service %s", pkg.Name, svc.Name, pkg.Service.Name)
 				}
 			}
 		}

@@ -23,7 +23,7 @@ func (p *parser) parseResourceUsage() {
 
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
-			walker.Walk(file.AST, &resourceUsageVisitor{p, file, p.names[pkg].Files[file], resourceMap})
+			walker.Walk(file.AST, &resourceUsageVisitor{p, file, p.names, resourceMap})
 		}
 	}
 }
@@ -31,7 +31,7 @@ func (p *parser) parseResourceUsage() {
 type resourceUsageVisitor struct {
 	p         *parser
 	file      *est.File
-	names     *names.File
+	names     names.Application
 	resources map[string]map[string]est.Resource
 }
 
@@ -43,13 +43,14 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 		resource, parser := r.resourceAndFuncFor(node)
 		if parser != nil {
 			if parser.AllowedLocations.Allowed(cursor.Location()) {
-				parser.Parse(r.p, r.file, resource, node)
+				parser.Parse(r.p, r.file, resource, cursor, node)
 			} else {
 				call := fmt.Sprintf("`%s.%s`", resource.Ident().Name, parser.Name)
 				r.p.errf(node.Pos(),
-					"You can not call %s here, %s️.",
+					"You cannot call %s here, %s️. For more information see %s",
 					call,
 					parser.AllowedLocations.Describe("it", "called"),
+					parser.Resource.Docs,
 				)
 			}
 
@@ -57,9 +58,15 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 		}
 
 	case *ast.SelectorExpr:
-		if resource := r.resourceFor(node); resource != nil {
-			// TODO(domblack)
-			r.p.errf(node.Pos(), "A %s can not be used in this location. 👷‍♂️\n", resource.Type())
+		if resource := r.resourceFor(node); resource != nil && resource.AllowOnlyParsedUsage() {
+			// If the resource type isn't registered, for now this is Ok as we have SQLDB resources that are not tracked
+			if res, found := resourceTypes[resource.Type()]; found {
+				r.p.errf(node.Pos(),
+					"A %s cannot be referenced, apart from when calling a method on it. For more information see %s",
+					res.Name,
+					res.Docs,
+				)
+			}
 			return nil
 		}
 	}
@@ -97,18 +104,14 @@ func (r *resourceUsageVisitor) resourceAndFuncFor(callExpr *ast.CallExpr) (est.R
 }
 
 func (r *resourceUsageVisitor) resourceFor(node ast.Node) est.Resource {
-	if ident, ok := node.(*ast.Ident); ok {
-		if resource, found := r.resources[r.file.Pkg.ImportPath][ident.Name]; found {
+	pkgPath, objName, _ := r.names.PackageLevelRef(r.file, node)
+	if pkgPath == "" {
+		return nil
+	}
+
+	if idents, found := r.resources[pkgPath]; found {
+		if resource, found := idents[objName]; found {
 			return resource
-		}
-	} else {
-		pkgPath, objName := pkgObj(r.names, node)
-		if pkgPath != "" && objName != "" {
-			if idents, found := r.resources[pkgPath]; found {
-				if resource, found := idents[objName]; found {
-					return resource
-				}
-			}
 		}
 	}
 
