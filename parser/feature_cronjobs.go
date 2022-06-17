@@ -141,7 +141,7 @@ func (p *parser) parseCronJob(file *est.File, cursor *walker.Cursor, ident *ast.
 					// This is one of the places where it's fine to reference an RPC endpoint.
 					p.validRPCReferences[kv.Value] = true
 
-					pkgPath, objName, _ := p.names.PkgObjRef(file, kv.Value)
+					pkgPath, objName, _ := p.names.PackageLevelRef(file, kv.Value)
 					if pkgPath != "" {
 						if svc, found := p.svcPkgPaths[pkgPath]; found {
 							for _, rpc := range svc.RPCs {

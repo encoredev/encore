@@ -93,7 +93,7 @@ func (f *resourceCreationVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor
 }
 
 func (f *resourceCreationVisitor) parserFor(node ast.Node) *resourceCreatorParser {
-	pkgPath, objName, typeArgs := f.names.PkgObjRef(f.file, node)
+	pkgPath, objName, typeArgs := f.names.PackageLevelRef(f.file, node)
 	if pkgPath != "" && objName != "" {
 		if packageResources, found := resourceCreationRegistry[pkgPath]; found {
 			if parser, found := packageResources[funcIdent{objName, len(typeArgs)}]; found {

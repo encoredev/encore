@@ -104,7 +104,7 @@ func (r *resourceUsageVisitor) resourceAndFuncFor(callExpr *ast.CallExpr) (est.R
 }
 
 func (r *resourceUsageVisitor) resourceFor(node ast.Node) est.Resource {
-	pkgPath, objName, _ := r.names.PkgObjRef(r.file, node)
+	pkgPath, objName, _ := r.names.PackageLevelRef(r.file, node)
 	if pkgPath == "" {
 		return nil
 	}
