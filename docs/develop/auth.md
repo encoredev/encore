@@ -29,6 +29,9 @@ and returning an `auth.UID` (a string type representing a **user id**). The `aut
 can be whatever you wish, but in practice it usually maps directly to the primary key
 stored in a user table (either defined in the Encore service or in an external service like Firebase or Okta).
 
+The auth handler is global: once defined it works like an API Gateway, running for all
+incoming requests to your Encore application, regardless of which service is being called.
+
 <Callout type="important">
 
 If your auth handler returns an error, Encore responds with a `500 Internal Server Error`.
