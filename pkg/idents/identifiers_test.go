@@ -22,7 +22,7 @@ func Test_parseIdentifier(t *testing.T) {
 		{"_Hello___World__", []string{"hello", "world"}},
 		{"RenderMarkdown", []string{"render", "markdown"}},
 		{"RenderHTML", []string{"render", "HTML"}},
-		{"getVersion2", []string{"get", "version", "2"}},
+		{"getVersion2", []string{"get", "version2"}},
 		{"GetAPIDocs", []string{"get", "API", "docs"}},
 	}
 	for _, tt := range tests {
@@ -50,7 +50,7 @@ func Test_convertIdentifierTo(t *testing.T) {
 	tests := []args{
 		{"Hello", "hello", "Hello", "hello", "HELLO", "hello"},
 		{"HelloWorld", "helloWorld", "HelloWorld", "hello_world", "HELLO_WORLD", "hello-world"},
-		{"getVersion2", "getVersion2", "GetVersion2", "get_version_2", "GET_VERSION_2", "get-version-2"},
+		{"getVersion2", "getVersion2", "GetVersion2", "get_version2", "GET_VERSION2", "get-version2"},
 		{"GetAPIDocs", "getAPIDocs", "GetAPIDocs", "get_api_docs", "GET_API_DOCS", "get-api-docs"},
 	}
 
