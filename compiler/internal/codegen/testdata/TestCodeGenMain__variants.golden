@@ -512,6 +512,34 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 		params.Strings = dec.ToStringList("strings", qs["strings"], false)
 		params.Times = dec.ToTimeList("times", qs["times"], false)
 
+	case "POST":
+		// Decode JSON Body
+		payload := dec.Body(req.Body)
+		iter := jsoniter.ParseBytes(json, payload)
+
+		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+			switch strings.ToLower(key) {
+			case "time":
+				dec.ParseJSON("Time", iter, &params.Time)
+			case "uid":
+				dec.ParseJSON("UID", iter, &params.UID)
+			case "json":
+				dec.ParseJSON("JSON", iter, &params.JSON)
+			case "float32":
+				dec.ParseJSON("Float32", iter, &params.Float32)
+			case "float64":
+				dec.ParseJSON("Float64", iter, &params.Float64)
+			case "strings":
+				dec.ParseJSON("Strings", iter, &params.Strings)
+			case "times":
+				dec.ParseJSON("Times", iter, &params.Times)
+			default:
+				_ = iter.SkipAndReturnBytes()
+			}
+			return true
+		}) {
+		}
+
 	default:
 		panic("HTTP method is not supported")
 	}
@@ -559,7 +587,7 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 			errs.HTTPError(w, err)
 		}
 	}()
-	respErr := svc.Query(req.Context(), params)
+	resp, respErr := svc.Query(req.Context(), params)
 	if respErr != nil {
 		respErr = errs.Convert(respErr)
 		runtime.FinishRequest(nil, respErr)
@@ -567,9 +595,36 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 		return
 	}
 
-	runtime.FinishRequest(nil, nil)
+	// Serialize the response
+	respData := []byte("null\n")
+	if resp != nil {
+		// Encode JSON body
+		respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+			ser.WriteField("Time", resp.Time, false)
+			ser.WriteField("UID", resp.UID, false)
+			ser.WriteField("JSON", resp.JSON, false)
+			ser.WriteField("Float32", resp.Float32, false)
+			ser.WriteField("Float64", resp.Float64, false)
+			ser.WriteField("Strings", resp.Strings, false)
+			ser.WriteField("Times", resp.Times, false)
+		})
+		if err != nil {
+			marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
+			runtime.FinishRequest(nil, marshalErr)
+			errs.HTTPError(w, marshalErr)
+			return
+		}
+		respData = append(respData, '\n')
+	}
+
+	// Record tracing data
+	output := [][]byte{respData}
+	runtime.FinishRequest(output, nil)
+
+	// Write response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	w.Write(respData)
 }
 
 func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -1004,7 +1059,7 @@ func loadConfig() (*config.Config, error) {
 		}, {
 			Access:  config.Public,
 			Handler: __encore_svc_Query,
-			Methods: []string{"GET"},
+			Methods: []string{"GET", "POST"},
 			Name:    "Query",
 			Path:    "/query",
 			Raw:     false,
@@ -1727,7 +1782,7 @@ func __encore_svc_One(ctx context.Context) (err error) {
 	return response.err
 }
 
-func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (err error) {
+func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (resp *QueryParams, err error) {
 	inputs, err := runtime.SerializeInputs(p0)
 	if err != nil {
 		return
@@ -1778,7 +1833,8 @@ func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (err error) {
 			return
 		}
 
-		rpcErr := Query(ctx, r0)
+		rpcResp, rpcErr := Query(ctx, r0)
+		response.data, _ = runtime.SerializeInputs(rpcResp)
 		if rpcErr != nil {
 			call.FinishReq(nil, rpcErr)
 			response.err = errs.RoundTrip(rpcErr)
@@ -1789,7 +1845,10 @@ func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (err error) {
 	<-done
 
 	call.Finish(response.err)
-	return response.err
+	if response.data != nil {
+		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
+	}
+	return resp, response.err
 }
 
 func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {

@@ -64,19 +64,18 @@ func parseIdentifier(goIdentifier string) (parts []string) {
 	type runeType int
 	const (
 		other runeType = iota
-		digit
 		upper
 		lower
 	)
 
-	runeToType := func(r rune) runeType {
+	runeToType := func(r rune, lastType runeType) runeType {
 		switch {
 		case unicode.IsUpper(r):
 			return upper
 		case unicode.IsLower(r):
 			return lower
 		case unicode.IsDigit(r):
-			return digit
+			return lastType
 		default:
 			return other
 		}
@@ -108,9 +107,9 @@ func parseIdentifier(goIdentifier string) (parts []string) {
 		parts = append(parts, part)
 	}
 
-	lastType := runeToType(rune(goIdentifier[0]))
+	lastType := runeToType(rune(goIdentifier[0]), other)
 	for _, r := range goIdentifier {
-		runeType := runeToType(r)
+		runeType := runeToType(r, lastType)
 
 		// If the type of rune has changed
 		if lastType > runeType {

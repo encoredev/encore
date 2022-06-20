@@ -111,9 +111,9 @@ type QueryParams struct {
 	Times []time.Time
 }
 
-//encore:api public path=/query method=GET
-func Query(ctx context.Context, p *QueryParams) error {
-	return nil
+//encore:api public path=/query method=GET,POST
+func Query(ctx context.Context, p *QueryParams) (*QueryParams, error) {
+	return p, nil
 }
 
 type AuthData struct{}
