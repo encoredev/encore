@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"encore.dev/pubsub/utils"
+	"encore.dev/pubsub/internal/utils"
 )
 
 type EmbedStruct struct {
@@ -67,9 +67,11 @@ func Assert(t *testing.T, val any, check CheckType, want ...any) {
 			t.Fatalf("%v != %v\n%s", val, want[0], stack)
 		}
 	case DeepEquals:
-		if deref(val) != deref(want[0]) {
+		derefVal := deref(val)
+		derefWant := deref(want[0])
+		if derefVal != derefWant {
 			stack := debug.Stack()
-			t.Fatalf("%v != %v\n%s", val, want, stack)
+			t.Fatalf("%v != %v\n%s", derefVal, derefWant, stack)
 		}
 	case LessThanEqual:
 		fVal, err1 := strconv.ParseFloat(fmt.Sprintf("%d", val), 64)

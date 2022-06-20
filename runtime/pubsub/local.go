@@ -10,7 +10,8 @@ import (
 
 	"github.com/nsqio/go-nsq"
 
-	"encore.dev/pubsub/utils"
+	"encore.dev/beta/errs"
+	"encore.dev/pubsub/internal/utils"
 	"encore.dev/rlog"
 	"encore.dev/runtime/config"
 )
@@ -62,17 +63,17 @@ func (h *handler[T]) HandleMessage(m *nsq.Message) (err error) {
 	msg := &message[T]{}
 	err = json.Unmarshal(m.Body, msg)
 	if err != nil {
-		return err
+		return errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal message").Err()
 	}
 	// unmarshal the attributes and write them to the message type
 	err = utils.UnmarshalFields(msg.Attributes, &msg.Data, "pubsub-attr")
 	if err != nil {
-		return err
+		return errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal fields").Err()
 	}
 	// forward the message to the subscriber
 	err = h.sub(context.Background(), msg.Data)
 	if err != nil {
-		return err
+		return errs.B().Cause(err).Code(errs.Internal).Msg("failed to process message").Err()
 	}
 	m.Finish()
 	return nil
@@ -88,7 +89,7 @@ func (l *localTopic[T]) NewSubscription(name string, sub Subscriber[T], cfg *Sub
 	conCfg := nsq.NewConfig()
 	consumer, err := nsq.NewConsumer(l.name, name, conCfg)
 	if err != nil {
-		panic(fmt.Sprintf("Error: %v", err))
+		panic(fmt.Sprintf("unable to setup subscription %s for topic %s: %v", name, l.name, err))
 	}
 	// drop log messages for now since we cannot format them in the common daemon format
 	consumer.SetLoggerLevel(nsq.LogLevelMax)
@@ -97,7 +98,7 @@ func (l *localTopic[T]) NewSubscription(name string, sub Subscriber[T], cfg *Sub
 	// connect the consumer to the NSQD
 	err = consumer.ConnectToNSQD(l.addr)
 	if err != nil {
-		panic(fmt.Sprintf("Error: %v", err))
+		panic(fmt.Sprintf("failed to connect %s to nsqd for topic %s: %v", name, l.name, err))
 	}
 	// add the consumer to the known consumers
 	l.consumers[name] = consumer
@@ -111,7 +112,7 @@ func (l *localTopic[T]) Publish(ctx context.Context, msg T) (id string, err erro
 		cfg := nsq.NewConfig()
 		producer, err := nsq.NewProducer(l.addr, cfg)
 		if err != nil {
-			return "", err
+			return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to connect to NSQD").Err()
 		}
 		l.producer = producer
 	}
@@ -121,16 +122,16 @@ func (l *localTopic[T]) Publish(ctx context.Context, msg T) (id string, err erro
 	// turn the attributes into an attribute map
 	attrs, err := utils.MarshalFields(msg, "pubsub-attr")
 	if err != nil {
-		return "", err
+		return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to marshal fields").Err()
 	}
 	// create and publish the message wrapper
 	data, err := json.Marshal(&message[T]{ID: idx, Data: msg, Attributes: attrs})
 	if err != nil {
-		return "", err
+		return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to marshal message").Err()
 	}
 	err = l.producer.Publish(l.name, data)
 	if err != nil {
-		return "", err
+		return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to connect to NSQD").Err()
 	}
 	// return the message id!
 	return idx, nil
@@ -145,7 +146,7 @@ func NewTopic[T any](name string, cfg *TopicConfig) Topic[T] {
 	// fetch the topic configuration
 	topic, ok := config.Cfg.Runtime.PubsubTopics[name]
 	if !ok {
-		panic("unregistered/unknown topic: " + name)
+		panic(fmt.Sprintf("unregistered/unknown topic: %v", name))
 	}
 	id := topic.ServerID
 	if id >= len(config.Cfg.Runtime.PubsubServers) {

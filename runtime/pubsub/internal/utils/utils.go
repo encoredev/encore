@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -54,6 +55,8 @@ func MarshalFields[T any](msg T, tag string) (map[string]string, error) {
 	return rtn, nil
 }
 
+var decodeCache = sync.Map{}
+
 // UnmarshalFields copies values from the attrs map to val the struct. The attrs key to copy the value from is
 // retrieved from the name of the field tag with key `tag`. The string value is parsed to the target type before
 // being assigned. Invalid values will return an error. Only basic types (bool, numeric, string) and pointers
@@ -88,49 +91,72 @@ func UnmarshalFields[T any](attrs map[string]string, val T, tag string) error {
 				for ; dataType.Kind() == reflect.Ptr; ptrDepth++ {
 					dataType = dataType.Elem()
 				}
-				// Parse and set the value. If the target type is a pointer, we need to
-				// create a pointer. We use the type specific setter (e.g. SetInt) to handle
-				// int bitsize conversions, and the generic setter (Set) to set pointers
-				switch dataType.Kind() {
-				case reflect.String:
-					setValue(attrVal, ptrDepth, dataField, reflect.Value.SetString)
-				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-					val, err := strconv.ParseInt(attrVal, 10, 64)
-					if err != nil {
-						return err
+
+				assigner, _ := decodeCache.LoadOrStore(dataType.Kind(), func() fieldAssigner {
+					// Parse and set the value. If the target type is a pointer, we need to
+					// create a pointer. We use the type specific setter (e.g. SetInt) to handle
+					// int bitsize conversions, and the generic setter (Set) to set pointers
+					switch dataType.Kind() {
+					case reflect.String:
+						return getFieldAssigner(
+							func(v string) (string, error) {
+								return v, nil
+							}, reflect.Value.SetString)
+					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+						return getFieldAssigner(
+							func(v string) (int64, error) {
+								return strconv.ParseInt(v, 10, 64)
+							}, reflect.Value.SetInt)
+					case reflect.Float32, reflect.Float64:
+						return getFieldAssigner(
+							func(v string) (float64, error) {
+								return strconv.ParseFloat(v, 64)
+							}, reflect.Value.SetFloat)
+					case reflect.Bool:
+						return getFieldAssigner(
+							func(v string) (bool, error) {
+								return strconv.ParseBool(v)
+							}, reflect.Value.SetBool)
+					case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+						return getFieldAssigner(
+							func(v string) (uint64, error) {
+								return strconv.ParseUint(v, 10, 64)
+							}, reflect.Value.SetUint)
+					case reflect.Complex64, reflect.Complex128:
+						return getFieldAssigner(
+							func(v string) (complex128, error) {
+								return strconv.ParseComplex(v, 128)
+							}, reflect.Value.SetComplex)
+					default:
+						return func(val string, ptrDepth int, dataField reflect.Value) error {
+							return errors.New(fmt.Sprintf("unsupported kind: %s", dataField.Kind()))
+						}
 					}
-					setValue(val, ptrDepth, dataField, reflect.Value.SetInt)
-				case reflect.Float32, reflect.Float64:
-					val, err := strconv.ParseFloat(attrVal, 64)
-					if err != nil {
-						return err
-					}
-					setValue(val, ptrDepth, dataField, reflect.Value.SetFloat)
-				case reflect.Bool:
-					val, err := strconv.ParseBool(attrVal)
-					if err != nil {
-						return err
-					}
-					setValue(val, ptrDepth, dataField, reflect.Value.SetBool)
-				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-					val, err := strconv.ParseUint(attrVal, 10, 64)
-					if err != nil {
-						return err
-					}
-					setValue(val, ptrDepth, dataField, reflect.Value.SetUint)
-				case reflect.Complex64, reflect.Complex128:
-					val, err := strconv.ParseComplex(attrVal, 128)
-					if err != nil {
-						return err
-					}
-					setValue(val, ptrDepth, dataField, reflect.Value.SetComplex)
-				default:
-					return errors.New(fmt.Sprintf("unsupported kind: %s", dataField.Kind()))
+				}())
+				assignFunc := assigner.(fieldAssigner)
+				err := assignFunc(attrVal, ptrDepth, dataField)
+				if err != nil {
+					return err
 				}
 			}
 		}
 	}
 	return nil
+}
+
+type fieldAssigner = func(val string, ptrDepth int, dataField reflect.Value) error
+type valueSetter[T any] func(reflect.Value, T)
+type fieldParser[T any] func(string) (T, error)
+
+func getFieldAssigner[T any](parser fieldParser[T], setter valueSetter[T]) fieldAssigner {
+	return func(val string, ptrDepth int, dataField reflect.Value) error {
+		v, err := parser(val)
+		if err != nil {
+			return err
+		}
+		setValue(v, ptrDepth, dataField, setter)
+		return nil
+	}
 }
 
 // setValue assigns a value or a (nested) pointer to a value to f
@@ -175,7 +201,7 @@ func GetDelay(maxRetries int, minDelay, maxDelay time.Duration, attempt uint16) 
 	if maxDelay < minDelay {
 		return true, maxDelay
 	}
-	delay = time.Duration(math.Max(float64(1*time.Second), float64(minDelay))) // delay at least 1 second
+	delay = time.Duration( /**/ math.Max(float64(1*time.Second), float64(minDelay))) // delay at least 1 second
 
 	for i := uint16(0); i < attempt; i++ {
 		delay *= 2

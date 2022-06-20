@@ -167,7 +167,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	var nsqd *pubsub.NSQDaemon
 	if pubsub.IsUsed(parse.Meta) {
-		pubsubOp := ops.Add("Starting NSQ messaging deamon", start.Add(300*time.Millisecond))
+		pubsubOp := ops.Add("Starting pubsub daemon", start.Add(300*time.Millisecond))
 		nsqd = &pubsub.NSQDaemon{}
 		err := nsqd.Start()
 		if err != nil {
