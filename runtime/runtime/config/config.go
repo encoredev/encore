@@ -53,19 +53,21 @@ type Endpoint struct {
 }
 
 type Runtime struct {
-	AppID         string          `json:"app_id"`
-	AppSlug       string          `json:"app_slug"`
-	APIBaseURL    string          `json:"api_base_url"`
-	EnvID         string          `json:"env_id"`
-	EnvName       string          `json:"env_name"`
-	EnvType       string          `json:"env_type"`
-	EnvCloud      string          `json:"env_cloud"`
-	DeployID      string          `json:"deploy_id"`
-	DeployedAt    time.Time       `json:"deploy_time"`
-	TraceEndpoint string          `json:"trace_endpoint"`
-	AuthKeys      []EncoreAuthKey `json:"auth_keys"`
-	SQLDatabases  []*SQLDatabase  `json:"sql_databases"`
-	SQLServers    []*SQLServer    `json:"sql_servers"`
+	AppID         string                  `json:"app_id"`
+	AppSlug       string                  `json:"app_slug"`
+	APIBaseURL    string                  `json:"api_base_url"`
+	EnvID         string                  `json:"env_id"`
+	EnvName       string                  `json:"env_name"`
+	EnvType       string                  `json:"env_type"`
+	EnvCloud      string                  `json:"env_cloud"`
+	DeployID      string                  `json:"deploy_id"`
+	DeployedAt    time.Time               `json:"deploy_time"`
+	TraceEndpoint string                  `json:"trace_endpoint"`
+	AuthKeys      []EncoreAuthKey         `json:"auth_keys"`
+	SQLDatabases  []*SQLDatabase          `json:"sql_databases"`
+	SQLServers    []*SQLServer            `json:"sql_servers"`
+	PubsubServers []*PubsubServer         `json:"pubsub_servers"`
+	PubsubTopics  map[string]*PubsubTopic `json:"pubsub_topics"`
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
@@ -105,6 +107,19 @@ func (eak EncoreAuthKey) Copy() EncoreAuthKey {
 	c := eak
 	copy(c.Data, eak.Data)
 	return c
+}
+
+type PubsubServer struct {
+	NSQServer NSQServer `json:"nsq_server"` // set if server is NSQ
+}
+
+type NSQServer struct {
+	Address string `json:"nsq_server"` // the NSQ server address
+}
+
+type PubsubTopic struct {
+	ServerID   int    `json:"server_id"`   // the index into (*Runtime).PubsubServers
+	EncoreName string `json:"encore_name"` // the Encore name for the database
 }
 
 type SQLServer struct {

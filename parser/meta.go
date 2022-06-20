@@ -88,11 +88,41 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.CronJobs = append(data.CronJobs, cj)
 	}
 
+	for _, topic := range app.PubSubTopics {
+		t := parsePubsubTopic(topic)
+		data.PubsubTopics = append(data.PubsubTopics, t)
+	}
+
 	if app.AuthHandler != nil {
 		data.AuthHandler = parseAuthHandler(app.AuthHandler)
 	}
 
 	return data, nodes, nil
+}
+
+func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
+	parsePublisher := func(pubs ...*est.PubSubPublisher) (rtn []*meta.PubSubTopic_Publisher) {
+		for _, p := range pubs {
+			rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.File.Pkg.Service.Name})
+		}
+		return rtn
+	}
+	parseSubscribers := func(subs ...*est.PubSubSubscriber) (rtn []*meta.PubSubTopic_Subscription) {
+		for _, s := range subs {
+			rtn = append(rtn, &meta.PubSubTopic_Subscription{ServiceName: s.File.Pkg.Service.Name})
+		}
+		return rtn
+	}
+	return &meta.PubSubTopic{
+		Name:              topic.Name,
+		Doc:               topic.Doc,
+		MessageType:       topic.MessageType.Type,
+		DeliveryGuarantee: meta.PubSubTopic_DeliveryGuarantee(topic.DeliveryGuarantee),
+		Ordered:           topic.Ordered,
+		GroupedBy:         &topic.GroupingField,
+		Publishers:        parsePublisher(topic.Publishers...),
+		Subscriptions:     parseSubscribers(topic.Subscribers...),
+	}
 }
 
 var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.up.sql$`)

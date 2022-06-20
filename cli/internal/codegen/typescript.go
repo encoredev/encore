@@ -13,6 +13,7 @@ import (
 
 	"encr.dev/cli/internal/version"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )

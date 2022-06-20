@@ -32,6 +32,7 @@ import (
 	"encore.dev/runtime/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
+	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/version"
@@ -65,6 +66,9 @@ type StartParams struct {
 
 	// SQLDBCluster is the SQLDB cluster to use, if any.
 	SQLDBCluster *sqldb.Cluster
+
+	// NSQDaemon is the NSQDaemon to use, if any
+	NSQDaemon *pubsub.NSQDaemon
 
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
@@ -299,6 +303,7 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 		RuntimePort:  r.mgr.RuntimePort,
 		DBProxyPort:  r.mgr.DBProxyPort,
 		SQLDBCluster: r.params.SQLDBCluster,
+		NSQDaemon:    r.params.NSQDaemon,
 		Secrets:      secrets,
 		Environ:      r.params.Environ,
 	})
@@ -343,7 +348,8 @@ type startProcParams struct {
 	Secrets      map[string]string
 	RuntimePort  int
 	DBProxyPort  int
-	SQLDBCluster *sqldb.Cluster // nil means no cluster
+	SQLDBCluster *sqldb.Cluster    // nil means no cluster
+	NSQDaemon    *pubsub.NSQDaemon // nil means no pubsub
 	Logger       runLogger
 	Environ      []string
 }
@@ -466,6 +472,26 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		}
 	}
 
+	var (
+		pubsubServers []*config.PubsubServer
+		pubsubTopics  map[string]*config.PubsubTopic
+	)
+	if params.NSQDaemon != nil {
+		srv := &config.PubsubServer{
+			NSQServer: config.NSQServer{
+				Address: params.NSQDaemon.Opts.TCPAddress,
+			},
+		}
+		pubsubServers = append(pubsubServers, srv)
+		pubsubTopics = make(map[string]*config.PubsubTopic)
+		for _, t := range params.Meta.PubsubTopics {
+			pubsubTopics[t.Name] = &config.PubsubTopic{
+				ServerID:   0,
+				EncoreName: t.Name,
+			}
+		}
+	}
+
 	return &config.Runtime{
 		AppID:         r.ID,
 		AppSlug:       r.App.PlatformID(),
@@ -479,6 +505,8 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
 		SQLDatabases:  sqlDBs,
 		SQLServers:    sqlServers,
+		PubsubServers: pubsubServers,
+		PubsubTopics:  pubsubTopics,
 		AuthKeys:      []config.EncoreAuthKey{p.authKey},
 	}
 }

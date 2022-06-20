@@ -88,7 +88,8 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 				ln := fset.Position(decl.Pos())
 				rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_runtime %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/runtime"), ln.Line, ln.Column)))
 				return true
-
+			case est.PubSubTopicDefNode:
+				return true
 			default:
 				panic(fmt.Sprintf("unhandled rewrite type: %v", rewrite.Type))
 			}
