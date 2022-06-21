@@ -142,7 +142,10 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Line()
 
 	f.Func().Id("main").Params().Block(
-		If(Err().Op(":=").Qual("encore.dev/runtime", "ListenAndServe").Call(), Err().Op("!=").Nil()).Block(
+		If(
+			Err().Op(":=").Qual("encore.dev/runtime", "ListenAndServe").Call(),
+			Err().Op("!=").Nil().Op("&&").Err().Op("!=").Qual("io", "EOF"),
+		).Block(
 			Qual("encore.dev/runtime", "Logger").Call().Dot("Fatal").Call().
 				Dot("Err").Call(Err()).
 				Dot("Msg").Call(Lit("could not listen and serve")),

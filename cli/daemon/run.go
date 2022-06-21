@@ -2,35 +2,29 @@ package daemon
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"go/scanner"
 	"io"
 	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/logrusorgru/aurora/v3"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/export"
-	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/onboarding"
 	"encr.dev/cli/internal/version"
+	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -90,93 +84,12 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// Clear screen.
 	stderr.Write([]byte("\033[2J\033[H\n"))
 
-	ops := newOpTracker(stderr)
-
-	// Parse the app to figure out what infrastructure is needed.
-	start := time.Now()
-	parseOp := ops.Add("Building Encore application graph", start)
-	topoOp := ops.Add("Analyzing service topology", start.Add(450*time.Millisecond))
-	parse, err := s.parseApp(req.AppRoot, req.WorkingDir, false)
-	if err != nil {
-		ops.Fail(parseOp, err)
-		sendExit(1)
-		return nil
-	}
+	ops := optracker.New(stderr)
 
 	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
-		ops.Fail(parseOp, err)
 		sendExit(1)
 		return nil
-	}
-
-	ops.Done(parseOp, 500*time.Millisecond)
-	ops.Done(topoOp, 300*time.Millisecond)
-
-	dbSetupCh := make(chan error, 1)
-
-	// Set up the database only if the app requires it.
-	var cluster *sqldb.Cluster
-	if sqldb.IsUsed(parse.Meta) {
-		dbOp := ops.Add("Creating PostgreSQL database cluster", start.Add(300*time.Millisecond))
-		cluster = s.cm.Create(ctx, &sqldb.CreateParams{
-			ClusterID: sqldb.GetClusterID(app, sqldb.Run),
-			Memfs:     false,
-		})
-		if _, err := exec.LookPath("docker"); err != nil {
-			ops.Fail(dbOp, errors.New("This application requires docker to run since it uses an SQL database. Install docker first."))
-			sendExit(1)
-			return nil
-		}
-
-		log.Debug().Msg("checking if sqldb image exists")
-		if ok, err := docker.ImageExists(ctx); err == nil && !ok {
-			log.Debug().Msg("pulling sqldb image")
-			pullOp := ops.Add("Pulling PostgreSQL docker image", start.Add(400*time.Millisecond))
-			if err := docker.PullImage(ctx); err != nil {
-				log.Error().Err(err).Msg("unable to pull sqldb image")
-				ops.Fail(pullOp, err)
-			} else {
-				ops.Done(pullOp, 0)
-				log.Info().Msg("successfully pulled sqldb image")
-			}
-		}
-
-		if _, err := cluster.Start(ctx); err != nil {
-			ops.Fail(dbOp, err)
-			sendExit(1)
-			return nil
-		}
-		ops.Done(dbOp, 700*time.Millisecond)
-
-		// Set up the database asynchronously since it can take a while.
-		migrateOp := ops.Add("Running database migrations", start.Add(700*time.Millisecond))
-		go func() {
-			err := cluster.SetupAndMigrate(ctx, req.AppRoot, parse.Meta)
-			if err != nil {
-				log.Error().Err(err).Msg("failed to setup db")
-				ops.Fail(migrateOp, err)
-			} else {
-				ops.Done(migrateOp, 500*time.Millisecond)
-			}
-			dbSetupCh <- err
-		}()
-	} else {
-		dbSetupCh <- nil // no database to set up
-	}
-
-	var nsqd *pubsub.NSQDaemon
-	if pubsub.IsUsed(parse.Meta) {
-		pubsubOp := ops.Add("Starting pubsub daemon", start.Add(300*time.Millisecond))
-		nsqd = &pubsub.NSQDaemon{}
-		err := nsqd.Start()
-		if err != nil {
-			ops.Fail(pubsubOp, err)
-			sendExit(1)
-			return nil
-		}
-		defer nsqd.Stop()
-		ops.Done(pubsubOp, 700*time.Millisecond)
 	}
 
 	// Check for available update before we start the proc
@@ -184,38 +97,26 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// prints below.
 	newVer := s.availableUpdate()
 
-	codegenOp := ops.Add("Generating boilerplate code", start.Add(1000*time.Millisecond))
-	compileOp := ops.Add("Compiling application source code", start.Add(1500*time.Millisecond))
-	ops.Done(codegenOp, 450*time.Millisecond)
-
 	// Hold the stream mutex so we can set up the stream map
 	// before output starts.
 	s.mu.Lock()
 	run, err := s.mgr.Start(ctx, run.StartParams{
-		App:          app,
-		SQLDBCluster: cluster,
-		NSQDaemon:    nsqd,
-		WorkingDir:   req.WorkingDir,
-		Listener:     ln,
-		ListenAddr:   req.ListenAddr,
-		Parse:        parse,
-		Watch:        req.Watch,
-		Environ:      req.Environ,
+		App:        app,
+		WorkingDir: req.WorkingDir,
+		Listener:   ln,
+		ListenAddr: req.ListenAddr,
+		Watch:      req.Watch,
+		Environ:    req.Environ,
+		OpsTracker: ops,
 	})
 	if err != nil {
 		s.mu.Unlock()
-		ops.Fail(compileOp, err)
 		sendExit(1)
 		return nil
 	}
-	ops.Done(compileOp, 300*time.Millisecond)
+	defer run.ResourceServers.StopAll()
 	s.streams[run.ID] = slog
 	s.mu.Unlock()
-
-	if err := <-dbSetupCh; err != nil {
-		sendExit(1)
-		return nil
-	}
 
 	ops.AllDone()
 
@@ -244,7 +145,10 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		case <-run.Done():
 			return
 		case <-time.After(5 * time.Second):
-			showFirstRunExperience(run, parse.Meta, stderr)
+			parse, err := s.parseApp(req.AppRoot, req.WorkingDir, false)
+			if err == nil {
+				showFirstRunExperience(run, parse.Meta, stderr)
+			}
 		}
 	}()
 
@@ -531,157 +435,6 @@ func genCurlCommand(run *run.Run, md *meta.Data, rpc *meta.RPC) string {
 	}
 	return strings.Join(parts, "")
 }
-
-func newOpTracker(w io.Writer) *opTracker {
-	return &opTracker{
-		w: w,
-	}
-}
-
-type opTracker struct {
-	mu      sync.Mutex
-	ops     []*slowOp
-	w       io.Writer
-	nl      int // number of lines written
-	started bool
-	quit    bool
-}
-
-// AllDone marks all ops as done.
-func (t *opTracker) AllDone() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	now := time.Now()
-	for _, o := range t.ops {
-		if o.done.IsZero() || o.done.After(now) {
-			o.done = now
-		}
-		if o.start.After(now) {
-			o.start = now
-		}
-	}
-	t.quit = true
-	t.refresh()
-}
-
-func (t *opTracker) Add(msg string, minStart time.Time) int {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	id := len(t.ops)
-
-	start := time.Now()
-	if start.Before(minStart) {
-		start = minStart
-	}
-	op := &slowOp{msg: msg, start: start}
-	t.ops = append(t.ops, op)
-	t.refresh()
-
-	if !t.started {
-		go t.spin()
-		t.started = true
-	}
-
-	return id
-}
-
-func (t *opTracker) Done(id int, minDuration time.Duration) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	o := t.ops[id]
-
-	done := time.Now()
-	if a := o.start.Add(minDuration); a.After(done) {
-		done = a
-	}
-	o.done = done
-	t.refresh()
-}
-
-func (t *opTracker) Fail(id int, err error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if !t.ops[id].done.IsZero() {
-		return
-	}
-	t.ops[id].err = err
-	t.ops[id].done = time.Now()
-	t.refresh()
-}
-
-// refresh refreshes the display by writing to t.w.
-// The mutex must be held by the caller.
-func (t *opTracker) refresh() {
-	fmt.Fprint(t.w, "\u001b[0;0H\u001b[0J\n")
-
-	nl := 0
-	now := time.Now()
-
-	// Sort ops by start time
-	ops := make([]*slowOp, len(t.ops))
-	copy(ops, t.ops)
-	sort.Slice(ops, func(i, j int) bool {
-		return ops[i].start.Before(ops[j].start)
-	})
-
-	for _, o := range ops {
-		started := o.start.Before(now)
-		done := !o.done.IsZero() && o.done.Before(now)
-		if !started && !done {
-			continue
-		}
-
-		var msg aurora.Value
-		format := "  %s %s... "
-		switch {
-		case done && o.err != nil:
-			msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, o.err))
-		case done && o.err == nil:
-			msg = aurora.Green(fmt.Sprintf(format+"Done!", success, o.msg))
-		case !done:
-			msg = aurora.Cyan(fmt.Sprintf(format, spinner[o.spinIdx], o.msg))
-			o.spinIdx = (o.spinIdx + 1) % len(spinner)
-		}
-		str := msg.String()
-		fmt.Fprintf(t.w, "\u001b[2K%s\n", str)
-		nl += strings.Count(str, "\n") + 1
-	}
-	t.nl = nl
-}
-
-func (t *opTracker) spin() {
-	refresh := 100 * time.Millisecond
-	if runtime.GOOS == "windows" {
-		// Window's terminal is quite slow at rendering.
-		// Reduce the refresh rate to avoid excessive flickering.
-		refresh = 250 * time.Millisecond
-	}
-	for {
-		time.Sleep(refresh)
-		(func() {
-			t.mu.Lock()
-			defer t.mu.Unlock()
-			if !t.quit {
-				t.refresh()
-			}
-		})()
-	}
-
-}
-
-type slowOp struct {
-	msg     string
-	err     error
-	spinIdx int
-	start   time.Time
-	done    time.Time
-}
-
-var (
-	success = "✔"
-	fail    = "❌"
-	spinner = []string{"⠋", "⠙", "⠚", "⠒", "⠂", "⠂", "⠒", "⠲", "⠴", "⠦", "⠖", "⠒", "⠐", "⠐", "⠒", "⠓", "⠋"}
-)
 
 // errIsAddrInUse reports whether the error is due to the address already being in use.
 func errIsAddrInUse(err error) bool {

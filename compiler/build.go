@@ -14,11 +14,13 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
+	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
 )
@@ -75,6 +77,9 @@ type Config struct {
 
 	// KeepOutput keeps the temporary build directory from being deleted in the case of failure.
 	KeepOutput bool
+
+	// OpTracker is an option tracker to output the progress to the UI
+	OpTracker *optracker.OpTracker
 }
 
 // Validate validates the config.
@@ -106,8 +111,9 @@ func Build(appRoot string, cfg *Config) (*Result, error) {
 	}
 
 	b := &builder{
-		cfg:     cfg,
-		appRoot: appRoot,
+		cfg:      cfg,
+		appRoot:  appRoot,
+		lastOpID: optracker.NoOperationID,
 	}
 	return b.Build()
 }
@@ -123,11 +129,15 @@ type builder struct {
 	overlay map[string]string
 
 	res *parser.Result
+
+	lastOpID optracker.OperationID
 }
 
 func (b *builder) Build() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
+			b.cfg.OpTracker.Fail(b.lastOpID, err)
+
 			if b, ok := e.(bailout); ok {
 				err = b.err
 			} else {
@@ -153,19 +163,32 @@ func (b *builder) Build() (res *Result, err error) {
 	for _, fn := range []func() error{
 		b.parseApp,
 		b.checkApp,
+		b.startCodeGenTracker,
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
 		b.writeMainPkg,
+		b.endCodeGenTracker,
 		b.buildMain,
 	} {
 		if err := fn(); err != nil {
+			b.cfg.OpTracker.Fail(b.lastOpID, err)
 			return res, err
 		}
 	}
 
 	res.Parse = b.res
 	return res, nil
+}
+
+func (b *builder) startCodeGenTracker() error {
+	b.lastOpID = b.cfg.OpTracker.Add("Generating boilerplate code", time.Now())
+	return nil
+}
+
+func (b *builder) endCodeGenTracker() error {
+	b.cfg.OpTracker.Done(b.lastOpID, 450*time.Millisecond)
+	return nil
 }
 
 // parseApp parses the app situated at appRoot.
@@ -278,6 +301,8 @@ func (b *builder) writePackages() error {
 }
 
 func (b *builder) buildMain() error {
+	b.lastOpID = b.cfg.OpTracker.Add("Compiling application source code", time.Now())
+
 	overlayData, _ := json.Marshal(map[string]interface{}{"Replace": b.overlay})
 	overlayPath := filepath.Join(b.workdir, "overlay.json")
 	if err := ioutil.WriteFile(overlayPath, overlayData, 0644); err != nil {
@@ -321,6 +346,9 @@ func (b *builder) buildMain() error {
 		out = makeErrsRelative(out, b.workdir, b.appRoot, b.cfg.WorkingDir)
 		return &Error{Output: out}
 	}
+
+	b.cfg.OpTracker.Done(b.lastOpID, 300*time.Millisecond)
+
 	return nil
 }
 
