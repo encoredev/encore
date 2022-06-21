@@ -103,13 +103,13 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
 	parsePublisher := func(pubs ...*est.PubSubPublisher) (rtn []*meta.PubSubTopic_Publisher) {
 		for _, p := range pubs {
-			rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.File.Pkg.Service.Name})
+			rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.DeclFile.Pkg.Service.Name})
 		}
 		return rtn
 	}
 	parseSubscribers := func(subs ...*est.PubSubSubscriber) (rtn []*meta.PubSubTopic_Subscription) {
 		for _, s := range subs {
-			rtn = append(rtn, &meta.PubSubTopic_Subscription{ServiceName: s.File.Pkg.Service.Name})
+			rtn = append(rtn, &meta.PubSubTopic_Subscription{ServiceName: s.DeclFile.Pkg.Service.Name})
 		}
 		return rtn
 	}

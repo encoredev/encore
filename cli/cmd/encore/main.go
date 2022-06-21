@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/rs/zerolog"
@@ -156,7 +157,7 @@ func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
 			case st.Code() == codes.FailedPrecondition:
 				fmt.Fprintln(os.Stderr, st.Message())
 				return 1
-			case err == io.EOF || st.Code() == codes.Canceled:
+			case err == io.EOF || st.Code() == codes.Canceled || strings.HasSuffix(err.Error(), "error reading from server: EOF"):
 				return 0
 			default:
 				log.Fatal().Err(err).Msg("connection failure")

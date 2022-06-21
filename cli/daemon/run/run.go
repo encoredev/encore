@@ -38,6 +38,7 @@ import (
 	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
+	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -45,9 +46,10 @@ import (
 
 // Run represents a running Encore application.
 type Run struct {
-	ID         string // unique ID for this instance of the running app
-	App        *apps.Instance
-	ListenAddr string // the address the app is listening on
+	ID              string // unique ID for this instance of the running app
+	App             *apps.Instance
+	ListenAddr      string // the address the app is listening on
+	ResourceServers *ResourceServices
 
 	log     zerolog.Logger
 	mgr     *Manager
@@ -64,19 +66,9 @@ type StartParams struct {
 	// App is the app to start.
 	App *apps.Instance
 
-	// SQLDBCluster is the SQLDB cluster to use, if any.
-	SQLDBCluster *sqldb.Cluster
-
-	// NSQDaemon is the NSQDaemon to use, if any
-	NSQDaemon *pubsub.NSQDaemon
-
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
 	WorkingDir string
-
-	// Parse is the parse result for the initial run of the app.
-	// If nil the app is parsed before starting.
-	Parse *parser.Result
 
 	// Watch enables watching for code changes for live reloading.
 	Watch bool
@@ -87,15 +79,19 @@ type StartParams struct {
 	// Environ are the environment variables to set for the running app,
 	// in the same format as os.Environ().
 	Environ []string
+
+	// The Ops tracker being used for this run
+	OpsTracker *optracker.OpTracker
 }
 
 // Start starts the application.
 // Its lifetime is bounded by ctx.
 func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, err error) {
 	run = &Run{
-		ID:         genID(),
-		App:        params.App,
-		ListenAddr: params.ListenAddr,
+		ID:              genID(),
+		App:             params.App,
+		ResourceServers: newResourceServices(params.App, mgr.ClusterMgr),
+		ListenAddr:      params.ListenAddr,
 
 		log:     log.With().Str("appID", params.App.PlatformOrLocalID()).Logger(),
 		mgr:     mgr,
@@ -104,6 +100,12 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		exited:  make(chan struct{}),
 		started: make(chan struct{}),
 	}
+	defer func(r *Run) {
+		// Stop all the resource servers if we exit due to an error
+		if err != nil {
+			r.ResourceServers.StopAll()
+		}
+	}(run)
 
 	// Add the run to our map before starting to avoid
 	// racing with initialization (though it's unlikely to ever matter).
@@ -114,7 +116,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	mgr.runs[run.ID] = run
 	mgr.mu.Unlock()
 
-	if err := run.start(params.Listener); err != nil {
+	if err := run.start(params.Listener, params.OpsTracker); err != nil {
 		return nil, err
 	}
 
@@ -149,50 +151,21 @@ func (r *Run) Done() <-chan struct{} {
 
 // Reload rebuilds the app and, if successful,
 // starts a new proc and switches over.
-func (r *Run) Reload() (*Proc, error) {
-	modPath := filepath.Join(r.App.Root(), "go.mod")
-	modData, err := ioutil.ReadFile(modPath)
+func (r *Run) Reload() error {
+	err := r.buildAndStart(r.ctx, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	mod, err := modfile.Parse(modPath, modData, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	vcsRevision := vcs.GetRevision(r.App.Root())
-
-	cfg := &parser.Config{
-		AppRoot:                  r.App.Root(),
-		AppRevision:              vcsRevision.Revision,
-		AppHasUncommittedChanges: vcsRevision.Uncommitted,
-		ModulePath:               mod.Module.Mod.Path,
-		WorkingDir:               r.params.WorkingDir,
-		ParseTests:               false,
-	}
-	parse, err := parser.Parse(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	p, err := r.buildAndStart(r.ctx, parse)
-	if err != nil {
-		return nil, err
-	}
-
-	prev := r.Proc()
-	r.proc.Store(p)
-	prev.close()
 
 	for _, ln := range r.mgr.listeners {
 		ln.OnReload(r)
 	}
 
-	return p, nil
+	return nil
 }
 
 // start starts the application and serves requests over HTTP using ln.
-func (r *Run) start(ln net.Listener) (err error) {
+func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	defer func() {
 		if err != nil {
 			// This is closed below when err == nil,
@@ -202,11 +175,10 @@ func (r *Run) start(ln net.Listener) (err error) {
 		}
 	}()
 
-	p, err := r.buildAndStart(r.ctx, r.params.Parse)
+	err = r.buildAndStart(r.ctx, tracker)
 	if err != nil {
 		return err
 	}
-	r.proc.Store(p)
 
 	// Below this line the function must never return an error
 	// in order to only ensure we close r.exited exactly once.
@@ -251,50 +223,108 @@ func (r *Run) start(ln net.Listener) (err error) {
 	return nil
 }
 
-// buildAndStart builds the app, starts the proc, and cleans up
-// the build dir when it exits.
-// The proc exits when ctx is canceled.
-func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc, err error) {
-	// Return early if the ctx is already canceled.
-	if err := ctx.Err(); err != nil {
+// parseApp parses the app and returns the parse result.
+func (r *Run) parseApp() (*parser.Result, error) {
+	modPath := filepath.Join(r.App.Root(), "go.mod")
+	modData, err := ioutil.ReadFile(modPath)
+	if err != nil {
+		return nil, err
+	}
+	mod, err := modfile.Parse(modPath, modData, nil)
+	if err != nil {
 		return nil, err
 	}
 
-	cfg := &compiler.Config{
-		Revision:              parse.Meta.AppRevision,
-		UncommittedChanges:    parse.Meta.UncommittedChanges,
-		WorkingDir:            r.params.WorkingDir,
-		CgoEnabled:            true,
-		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-		EncoreRuntimePath:     env.EncoreRuntimePath(),
-		EncoreGoRoot:          env.EncoreGoRoot(),
-		Parse:                 parse,
-		BuildTags:             []string{"encore_local"},
+	vcsRevision := vcs.GetRevision(r.App.Root())
+
+	cfg := &parser.Config{
+		AppRoot:                  r.App.Root(),
+		AppRevision:              vcsRevision.Revision,
+		AppHasUncommittedChanges: vcsRevision.Uncommitted,
+		ModulePath:               mod.Module.Mod.Path,
+		WorkingDir:               r.params.WorkingDir,
+		ParseTests:               false,
 	}
 
-	build, err := compiler.Build(r.App.Root(), cfg)
-	if err != nil {
-		return nil, fmt.Errorf("compile error:\n%v", err)
+	return parser.Parse(cfg)
+}
+
+// buildAndStart builds the app, starts the proc, and cleans up
+// the build dir when it exits.
+// The proc exits when ctx is canceled.
+func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) error {
+	// Return early if the ctx is already canceled.
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	defer func() {
+
+	jobs := newAsyncBuildJobs(ctx, r.App.PlatformOrLocalID(), tracker)
+
+	// Parse the app source code
+	// Parse the app to figure out what infrastructure is needed.
+	start := time.Now()
+	parseOp := tracker.Add("Building Encore application graph", start)
+	topoOp := tracker.Add("Analyzing service topology", start)
+	parse, err := r.parseApp()
+	if err != nil {
+		tracker.Fail(parseOp, err)
+		return err
+	}
+	tracker.Done(parseOp, 500*time.Millisecond)
+	tracker.Done(topoOp, 300*time.Millisecond)
+
+	if err := r.ResourceServers.StartRequiredServices(jobs, parse); err != nil {
+		return err
+	}
+
+	var build *compiler.Result
+	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
+		cfg := &compiler.Config{
+			Revision:              parse.Meta.AppRevision,
+			UncommittedChanges:    parse.Meta.UncommittedChanges,
+			WorkingDir:            r.params.WorkingDir,
+			CgoEnabled:            true,
+			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
+			EncoreRuntimePath:     env.EncoreRuntimePath(),
+			EncoreGoRoot:          env.EncoreGoRoot(),
+			Parse:                 parse,
+			BuildTags:             []string{"encore_local"},
+			OpTracker:             tracker,
+		}
+
+		build, err = compiler.Build(r.App.Root(), cfg)
 		if err != nil {
+			return fmt.Errorf("compile error:\n%v", err)
+		}
+		return nil
+	})
+	defer func() {
+		if err != nil && build != nil {
 			os.RemoveAll(build.Dir)
 		}
 	}()
 
 	var secrets map[string]string
-	if usesSecrets(r.params.Parse.Meta) {
-		if r.App.PlatformID() == "" {
-			return nil, fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
-		}
-		data, err := r.mgr.Secret.Get(ctx, r.App.PlatformID())
-		if err != nil {
-			return nil, err
-		}
-		secrets = data.Values
+	if usesSecrets(parse.Meta) {
+		jobs.Go("Fetching application secrets", true, 150*time.Millisecond, func(ctx context.Context) error {
+			if r.App.PlatformID() == "" {
+				return fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
+			}
+			data, err := r.mgr.Secret.Get(ctx, r.App.PlatformID())
+			if err != nil {
+				return err
+			}
+			secrets = data.Values
+			return nil
+		})
 	}
 
-	p, err = r.startProc(&startProcParams{
+	if err := jobs.Wait(); err != nil {
+		return err
+	}
+
+	startOp := tracker.Add("Starting Encore application", start)
+	newProcess, err := r.startProc(&startProcParams{
 		Ctx:          ctx,
 		BuildDir:     build.Dir,
 		BinPath:      build.Exe,
@@ -302,19 +332,28 @@ func (r *Run) buildAndStart(ctx context.Context, parse *parser.Result) (p *Proc,
 		Logger:       r.mgr,
 		RuntimePort:  r.mgr.RuntimePort,
 		DBProxyPort:  r.mgr.DBProxyPort,
-		SQLDBCluster: r.params.SQLDBCluster,
-		NSQDaemon:    r.params.NSQDaemon,
+		SQLDBCluster: r.ResourceServers.GetSQLCluster(),
+		NSQDaemon:    r.ResourceServers.GetPubSub(),
 		Secrets:      secrets,
 		Environ:      r.params.Environ,
 	})
 	if err != nil {
-		return nil, err
+		tracker.Fail(startOp, err)
+		return err
 	}
 	go func() {
-		<-p.Done()
+		<-newProcess.Done()
 		os.RemoveAll(build.Dir)
 	}()
-	return p, nil
+
+	previousProcess := r.proc.Swap(newProcess)
+	if previousProcess != nil {
+		previousProcess.(*Proc).close()
+	}
+
+	tracker.Done(startOp, 50*time.Millisecond)
+
+	return nil
 }
 
 // Proc represents a running Encore process.
@@ -479,7 +518,7 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	if params.NSQDaemon != nil {
 		srv := &config.PubsubServer{
 			NSQServer: config.NSQServer{
-				Address: params.NSQDaemon.Opts.TCPAddress,
+				Address: params.NSQDaemon.Addr(),
 			},
 		}
 		pubsubServers = append(pubsubServers, srv)

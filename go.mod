@@ -27,6 +27,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/logrusorgru/aurora/v3 v3.0.0
 	github.com/mattn/go-sqlite3 v1.14.13
+	github.com/nsqio/go-nsq v1.1.0
 	github.com/nsqio/nsq v1.2.1
 	github.com/rjeczalik/notify v0.9.2
 	github.com/robfig/cron/v3 v3.0.1
@@ -98,7 +99,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nsqio/go-diskqueue v1.0.0 // indirect
-	github.com/nsqio/go-nsq v1.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198 // indirect
 	github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e // indirect
