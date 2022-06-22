@@ -94,6 +94,11 @@ type CORS struct {
 	// that don't include credentials. If nil it defaults to allowing all domains
 	// (equivalent to []string{"*"}).
 	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials"`
+
+	// ExtraAllowedHeaders specifies extra headers to allow, beyond
+	// the default set of {"Origin", "Authorization", "Content-Type"}.
+	// As a special case, if the list contains "*" all headers are allowed.
+	ExtraAllowedHeaders []string `json:"raw_allowed_headers"`
 }
 
 type CommitInfo struct {
