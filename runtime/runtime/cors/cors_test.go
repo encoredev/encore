@@ -1,7 +1,11 @@
 package cors
 
 import (
+	"log"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	_ "unsafe"
 
@@ -18,6 +22,8 @@ func TestOptions(t *testing.T) {
 		credsBadOrigins    []string
 		nocredsGoodOrigins []string
 		nocredsBadOrigins  []string
+		goodHeaders        []string
+		badHeaders         []string
 	}{
 		{
 			name:               "empty",
@@ -26,6 +32,8 @@ func TestOptions(t *testing.T) {
 			credsBadOrigins:    []string{"foo.com", "evil.com", "localhost"},
 			nocredsGoodOrigins: []string{"foo.com", "localhost", "", "icanhazcheezburger.com"},
 			nocredsBadOrigins:  []string{},
+			goodHeaders:        []string{"Authorization", "Content-Type", "Origin"},
+			badHeaders:         []string{"X-Requested-With", "X-Forwarded-For"},
 		},
 		{
 			name: "allowed_creds",
@@ -74,6 +82,21 @@ func TestOptions(t *testing.T) {
 			},
 			credsGoodOrigins: []string{"bar.org", "bar.com", "", "localhost", "unsafe.evil.com"},
 		},
+		{
+			name: "extra_headers",
+			cfg: config.CORS{
+				ExtraAllowedHeaders: []string{"X-Forwarded-For", "X-Real-Ip"},
+			},
+			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
+			badHeaders:  []string{"X-Requested-With", "X-Evil-Header"},
+		},
+		{
+			name: "extra_headers_wildcard",
+			cfg: config.CORS{
+				ExtraAllowedHeaders: []string{"X-Forwarded-For", "*", "X-Real-Ip"},
+			},
+			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
+		},
 	}
 
 	checkOrigins := func(t *testing.T, c *cors.Cors, creds, good bool, origins []string) {
@@ -92,15 +115,57 @@ func TestOptions(t *testing.T) {
 		}
 	}
 
+	checkHeaders := func(t *testing.T, c *cors.Cors, headers []string, wantOK bool) {
+		req := httptest.NewRequest("OPTIONS", "/", nil)
+		req.Header.Set("Origin", "https://example.org")
+		req.Header.Set("Access-Control-Request-Method", "GET")
+		req.Header.Set("Access-Control-Request-Headers", strings.Join(headers, ", "))
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, req, nil)
+
+		if w.Code != http.StatusNoContent {
+			t.Fatalf("got OPTIONS response code %d, want 204", w.Code)
+		}
+		rawAllowedHeaders := w.Header().Get("Access-Control-Allow-Headers")
+		allowHeaders := strings.Split(rawAllowedHeaders, ", ")
+		allowed := make(map[string]bool)
+		for _, val := range allowHeaders {
+			allowed[strings.TrimSpace(val)] = true
+		}
+
+		if wantOK {
+			for _, val := range headers {
+				if !allowed[val] {
+					t.Fatalf("want header %q to be allowed, got false; resp header=%q", val, rawAllowedHeaders)
+				}
+			}
+		} else {
+			if rawAllowedHeaders != "" {
+				t.Fatalf("want headers not to be allowed, got %q", rawAllowedHeaders)
+			}
+		}
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Options(&tt.cfg)
+			got.Debug = true
 			c := cors.New(got)
+			c.Log = log.New(os.Stdout, "cors: ", 0)
 
 			checkOrigins(t, c, true, true, tt.credsGoodOrigins)
 			checkOrigins(t, c, true, false, tt.credsBadOrigins)
 			checkOrigins(t, c, false, true, tt.nocredsGoodOrigins)
 			checkOrigins(t, c, false, false, tt.nocredsBadOrigins)
+
+			// Only good headers should always be ok
+			checkHeaders(t, c, tt.goodHeaders, true)
+
+			// Make sure all the bad headers are invalid, one by one
+			for _, vad := range tt.badHeaders {
+				headers := append(tt.goodHeaders, vad)
+				checkHeaders(t, c, headers, false)
+			}
 		})
 	}
 }
