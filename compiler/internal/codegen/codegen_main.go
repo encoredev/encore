@@ -86,9 +86,12 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadConfig registers the Encore services.")
 	f.Comment("//go:linkname loadConfig encore.dev/runtime/config.loadConfig")
-	f.Func().Id("loadConfig").Params().Params(Op("*").Qual("encore.dev/runtime/config", "Config"), Error()).Block(
-		Id("services").Op(":=").Index().Op("*").Qual("encore.dev/runtime/config", "Service").ValuesFunc(func(g *Group) {
-			for _, svc := range b.res.App.Services {
+	f.Func().Id("loadConfig").Params().Params(Op("*").Qual("encore.dev/runtime/config", "Config"), Error()).BlockFunc(func(g *Group) {
+		svcIndex := map[*est.Service]int{}
+
+		g.Id("services").Op(":=").Index().Op("*").Qual("encore.dev/runtime/config", "Service").ValuesFunc(func(g *Group) {
+			for idx, svc := range b.res.App.Services {
+				svcIndex[svc] = idx
 				g.Values(Dict{
 					Id("Name"):    Lit(svc.Name),
 					Id("RelPath"): Lit(svc.Root.RelPath),
@@ -121,8 +124,27 @@ func (b *Builder) Main() (f *File, err error) {
 					}),
 				})
 			}
-		}),
-		Id("static").Op(":=").Op("&").Qual("encore.dev/runtime/config", "Static").Values(Dict{
+		})
+
+		pubsubTopicDict := Dict{}
+		for _, topic := range b.res.App.PubSubTopics {
+			subscriptions := Dict{}
+
+			for _, sub := range topic.Subscribers {
+				traceID := int(b.res.Nodes[sub.DeclFile.Pkg][sub.CallSite].Id)
+
+				subscriptions[Lit(sub.Name)] = Values(Dict{
+					Id("Service"):  Id("services").Index(Lit(svcIndex[sub.DeclFile.Pkg.Service])),
+					Id("TraceIdx"): Lit(traceID),
+				})
+			}
+
+			pubsubTopicDict[Lit(topic.Name)] = Values(Dict{
+				Id("Subscriptions"): Map(String()).Op("*").Qual("encore.dev/runtime/config", "StaticPubsubSubscription").Values(subscriptions),
+			})
+		}
+
+		g.Id("static").Op(":=").Op("&").Qual("encore.dev/runtime/config", "Static").Values(Dict{
 			Id("Services"):       Id("services"),
 			Id("AuthData"):       b.authDataType(),
 			Id("EncoreCompiler"): Lit(b.compilerVersion),
@@ -130,15 +152,17 @@ func (b *Builder) Main() (f *File, err error) {
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
 			}),
-			Id("Testing"):     False(),
-			Id("TestService"): Lit(""),
-		}),
-		Return(Op("&").Qual("encore.dev/runtime/config", "Config").Values(Dict{
+			Id("PubsubTopics"): Map(String()).Op("*").Qual("encore.dev/runtime/config", "StaticPubsubTopic").Values(pubsubTopicDict),
+			Id("Testing"):      False(),
+			Id("TestService"):  Lit(""),
+		})
+
+		g.Return(Op("&").Qual("encore.dev/runtime/config", "Config").Values(Dict{
 			Id("Static"):  Id("static"),
 			Id("Runtime"): Qual("encore.dev/runtime/config", "ParseRuntime").Call(getAndClearEnv("ENCORE_RUNTIME_CONFIG")),
 			Id("Secrets"): Qual("encore.dev/runtime/config", "ParseSecrets").Call(getAndClearEnv("ENCORE_APP_SECRETS")),
-		}), Nil()),
-	)
+		}), Nil())
+	})
 	f.Line()
 
 	f.Func().Id("main").Params().Block(

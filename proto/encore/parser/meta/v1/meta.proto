@@ -138,15 +138,19 @@ message AuthHandlerDefNode {
 
 message PubSubTopicDefNode {
   string topic_name = 1;
+  string context    = 2;
 }
 
 message PubSubPublishNode {
   string topic_name = 1;
+  string context    = 2;
 }
 
 message PubSubSubscriberNode {
   string topic_name      = 1;
   string subscriber_name = 2;
+  string service_name    = 3;
+  string context         = 4;
 }
 
 message Path {

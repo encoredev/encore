@@ -517,17 +517,32 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	)
 	if params.NSQDaemon != nil {
 		srv := &config.PubsubServer{
-			NSQServer: config.NSQServer{
+			NSQServer: &config.NSQServer{
 				Address: params.NSQDaemon.Addr(),
 			},
 		}
 		pubsubServers = append(pubsubServers, srv)
 		pubsubTopics = make(map[string]*config.PubsubTopic)
 		for _, t := range params.Meta.PubsubTopics {
-			pubsubTopics[t.Name] = &config.PubsubTopic{
-				ServerID:   0,
-				EncoreName: t.Name,
+			topicCfg := &config.PubsubTopic{
+				ServerID:      0,
+				EncoreName:    t.Name,
+				CloudName:     t.Name,
+				Subscriptions: make(map[string]*config.PubsubSubscription),
 			}
+
+			if t.Ordered && t.GroupedBy != nil {
+				topicCfg.OrderingKey = *t.GroupedBy
+			}
+
+			for _, s := range t.Subscriptions {
+				topicCfg.Subscriptions[s.Name] = &config.PubsubSubscription{
+					EncoreName: s.Name,
+					CloudName:  s.Name,
+				}
+			}
+
+			pubsubTopics[t.Name] = topicCfg
 		}
 	}
 

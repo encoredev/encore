@@ -2,11 +2,10 @@ package runtime
 
 import (
 	"context"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
+	"encore.dev/internal/ctx"
 	"encore.dev/runtime/config"
 )
 
@@ -39,9 +38,8 @@ func RegisterShutdown(fn func(force context.Context)) {
 }
 
 func init() {
-	graceful, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	go func() {
-		<-graceful.Done()
+		<-ctx.App.Done()
 		doShutdown()
 	}()
 }
@@ -59,6 +57,7 @@ func doShutdown() {
 		if t := config.Cfg.Runtime.ShutdownTimeout; t > 0 {
 			maxWait = t
 		}
+		// we use a new background context here, as we want the shutdown to continue even when ctx.App has been cancelled.
 		force, cancel := context.WithTimeout(context.Background(), maxWait)
 		defer cancel()
 

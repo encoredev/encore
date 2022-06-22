@@ -7,8 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -16,6 +16,8 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/rs/zerolog"
 
+	"encore.dev/internal/ctx"
+	"encore.dev/internal/logging"
 	"encore.dev/internal/metrics"
 	"encore.dev/runtime/config"
 )
@@ -27,7 +29,7 @@ func ListenAndServe() error {
 }
 
 type Server struct {
-	logger  zerolog.Logger
+	logger  *zerolog.Logger
 	public  *httprouter.Router
 	private *httprouter.Router
 }
@@ -55,6 +57,9 @@ func (srv *Server) ListenAndServe() error {
 	}
 	httpsrv := &http.Server{
 		Handler: http.HandlerFunc(srv.handler),
+		BaseContext: func(listener net.Listener) context.Context {
+			return ctx.App
+		},
 	}
 	srv.logger.Info().Msg("listening for incoming HTTP requests")
 
@@ -204,11 +209,6 @@ func (srv *Server) checkAuth(req *http.Request, macSig string) (bool, error) {
 }
 
 func setup() *Server {
-	configureZerologOutput()
-
-	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
-	RootLogger = &logger
-
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -220,7 +220,7 @@ func setup() *Server {
 	private.RedirectTrailingSlash = false
 
 	srv := &Server{
-		logger:  logger,
+		logger:  logging.RootLogger,
 		public:  public,
 		private: private,
 	}

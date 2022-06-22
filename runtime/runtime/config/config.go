@@ -18,9 +18,9 @@ const (
 )
 
 type Config struct {
-	Static  *Static
-	Runtime *Runtime
-	Secrets map[string]string
+	Static  *Static           // Static config is code generated and compiled into the binary
+	Runtime *Runtime          // Runtime config is loaded from the environment
+	Secrets map[string]string // Secrets are loaded from the environment
 }
 
 type Static struct {
@@ -32,6 +32,8 @@ type Static struct {
 	// This is string is for informational use only, and it's format should not be relied on.
 	EncoreCompiler string
 	AppCommit      CommitInfo // The commit which this service was built from
+
+	PubsubTopics map[string]*StaticPubsubTopic
 
 	Testing     bool
 	TestService string // service being tested, if any
@@ -110,16 +112,38 @@ func (eak EncoreAuthKey) Copy() EncoreAuthKey {
 }
 
 type PubsubServer struct {
-	NSQServer NSQServer `json:"nsq_server"` // set if server is NSQ
+	NSQServer *NSQServer  `json:"nsq_server"` // set if server is NSQ
+	GCP       *GCPProject `json:"gcp"`        // set if server is GCP
 }
 
 type NSQServer struct {
 	Address string `json:"nsq_server"` // the NSQ server address
 }
 
+type GCPProject struct {
+	ID string `json:"project_id"` // the GCP project ID
+}
+
 type PubsubTopic struct {
-	ServerID   int    `json:"server_id"`   // the index into (*Runtime).PubsubServers
-	EncoreName string `json:"encore_name"` // the Encore name for the database
+	ServerID      int                            `json:"server_id"`     // the index into (*Runtime).PubsubServers
+	EncoreName    string                         `json:"encore_name"`   // the Encore name for the pubsub topic
+	CloudName     string                         `json:"cloud_name"`    // the name for the pubsub topic as defined on the server
+	OrderingKey   string                         `json:"ordering_key"`  // the ordering key for the pubsub topic (blank if not ordered)
+	Subscriptions map[string]*PubsubSubscription `json:"subscriptions"` // a map of Encore subscription names to PubsubSubscription
+}
+
+type PubsubSubscription struct {
+	EncoreName string `json:"encore_name"` // the Encore name for the subscription
+	CloudName  string `json:"cloud_name"`  // the name for the pubsub subscription as defined on the server
+}
+
+type StaticPubsubTopic struct {
+	Subscriptions map[string]*StaticPubsubSubscription
+}
+
+type StaticPubsubSubscription struct {
+	Service  *Service // the service that subscription is in
+	TraceIdx int32    // The trace Idx of the subscription
 }
 
 type SQLServer struct {
