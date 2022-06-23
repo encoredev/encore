@@ -41,7 +41,7 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 	gcpMsg := &pubsub.Message{
 		Data:        data,
 		Attributes:  attrs,
-		OrderingKey: t.cfg.OrderingKey,
+		OrderingKey: t.cfg.OrderingKey, // FIXME(domblack): this should be the ordering VALUE not column name
 	}
 
 	// Attempt to publish the message
