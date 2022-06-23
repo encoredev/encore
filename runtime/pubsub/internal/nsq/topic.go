@@ -49,6 +49,10 @@ type messageWrapper struct {
 }
 
 func (l *topic) Subscribe(logger *zerolog.Logger, cfg *types.SubscriptionConfig, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+	if implCfg.PushOnly {
+		panic("push-only subscriptions are not supported by nsq")
+	}
+
 	l.m.Lock()
 	defer l.m.Unlock()
 

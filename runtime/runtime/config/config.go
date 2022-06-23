@@ -136,7 +136,7 @@ type PubsubSubscription struct {
 	ResourceID string `json:"resource_id"` // the resource ID for the pubsub subscription
 	EncoreName string `json:"encore_name"` // the Encore name for the subscription
 	CloudName  string `json:"cloud_name"`  // the name for the pubsub subscription as defined on the server
-	IsPush     bool   `json:"is_push"`     // true if the subscription is pushed to the application, or false if the application pulls from the queue
+	PushOnly   bool   `json:"push_only"`   // if true the application will not actively subscribe to the pub, but instead will rely on HTTP push messages
 }
 
 type StaticPubsubTopic struct {

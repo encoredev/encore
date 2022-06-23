@@ -141,6 +141,8 @@ func (e *Error) Unwrap() error {
 
 func HTTPError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
 	if err == nil {
 		w.WriteHeader(200)
 		w.Write([]byte(`{

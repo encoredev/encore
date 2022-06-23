@@ -49,38 +49,50 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 }
 
 func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, cfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
-	// Create the subscription object (and then check it exists on GCP's side)
-	subscription := t.client.Subscription(cfg.CloudName)
-	exists, err := subscription.Exists(ctx.App)
-	if err != nil {
-		panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", cfg.EncoreName, t.cfg.EncoreName, err))
-	}
-	if !exists {
-		panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", cfg.EncoreName, t.cfg.EncoreName))
+	if cfg.PushOnly && cfg.ResourceID == "" {
+		panic("push-only subscriptions must have a resource ID")
 	}
 
-	// Start the subscription
-	go func() {
-		for ctx.App.Err() == nil {
-			// Subscribe to the topic to receive messages
-			err := subscription.Receive(ctx.App, func(ctx context.Context, msg *pubsub.Message) {
-				deliveryAttempt := 1
-				if msg.DeliveryAttempt != nil {
-					deliveryAttempt = *msg.DeliveryAttempt
-				}
+	// If we have a resource ID, let's register a push endpoint for it
+	if cfg.ResourceID != "" {
+		registerPushEndpoint(cfg, f)
+	}
 
-				if err := f(ctx, msg.ID, msg.PublishTime, deliveryAttempt, msg.Attributes, msg.Data); err != nil {
-					msg.Nack()
-				} else {
-					msg.Ack()
-				}
-			})
-
-			// If there was an error and we're not shutting down, log it and then sleep for a bit before trying again
-			if err != nil && ctx.App.Err() == nil {
-				logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
-				time.Sleep(5 * time.Second)
-			}
+	// If we're not push only, then let's also setup the subscription
+	if !cfg.PushOnly {
+		// Create the subscription object (and then check it exists on GCP's side)
+		subscription := t.client.Subscription(cfg.CloudName)
+		exists, err := subscription.Exists(ctx.App)
+		if err != nil {
+			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", cfg.EncoreName, t.cfg.EncoreName, err))
 		}
-	}()
+		if !exists {
+			panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", cfg.EncoreName, t.cfg.EncoreName))
+		}
+
+		// Start the subscription
+		go func() {
+			for ctx.App.Err() == nil {
+				// Subscribe to the topic to receive messages
+				err := subscription.Receive(ctx.App, func(ctx context.Context, msg *pubsub.Message) {
+					deliveryAttempt := 1
+					if msg.DeliveryAttempt != nil {
+						deliveryAttempt = *msg.DeliveryAttempt
+					}
+
+					if err := f(ctx, msg.ID, msg.PublishTime, deliveryAttempt, msg.Attributes, msg.Data); err != nil {
+						msg.Nack()
+					} else {
+						msg.Ack()
+					}
+				})
+
+				// If there was an error and we're not shutting down, log it and then sleep for a bit before trying again
+				if err != nil && ctx.App.Err() == nil {
+					logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
+					time.Sleep(5 * time.Second)
+				}
+			}
+		}()
+	}
 }

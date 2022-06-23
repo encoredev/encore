@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +14,7 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/rs/zerolog"
 
+	"encore.dev/beta/errs"
 	"encore.dev/internal/ctx"
 	"encore.dev/internal/logging"
 	"encore.dev/internal/metrics"
@@ -32,6 +31,7 @@ type Server struct {
 	logger  *zerolog.Logger
 	public  *httprouter.Router
 	private *httprouter.Router
+	encore  *httprouter.Router // Internal Encore routes
 }
 
 // wildcardMethod is an internal method name we register wildcard methods under.
@@ -85,18 +85,12 @@ func (srv *Server) ListenAndServe() error {
 }
 
 func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
-	ep := strings.TrimPrefix(req.URL.Path, "/")
-	if strings.HasPrefix(ep, "__encore/") {
-		// TODO this should only run for authenticated requests.
-		api := ep[len("__encore/"):]
-		switch api {
-		case "healthz":
-			srv.healthz(w, req)
-		default:
-			http.Error(w, "unknown internal endpoint: "+ep, http.StatusNotFound)
-		}
-		return
-	}
+	// We use EscapedPath rather than `req.URL.Path` because if the path contains an encoded
+	// forward slash as %2F we don't want the router to treat that as a segment split.
+	//
+	// i.e. `/foo%2Fbar/baz` should be routed to `/:a/*b` as a = "foo/bar", b = "baz"
+	// where as if we use req.URL.Path we would get a = "foo", b = "bar/baz` which is incorrect.
+	path := req.URL.EscapedPath()
 
 	// Select a router based on access
 	r := srv.public
@@ -107,40 +101,38 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 	if h := req.Header.Get("X-Encore-Auth"); h != "" {
 		if ok, err := srv.checkAuth(req, h); err == nil && ok {
 			// Successfully authenticated
+			req = req.WithContext(withEncoreAuthentication(req.Context()))
 			r = srv.private
 		} else if err != nil {
-			http.Error(w, "could not authenticate request", http.StatusBadGateway)
+			errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("could not authenticate request").Err())
 			return
 		} else {
-			http.Error(w, "invalid request signature", http.StatusUnauthorized)
+			errs.HTTPError(w, errs.B().Code(errs.Unauthenticated).Msg("invalid request signature").Err())
 			return
 		}
 	}
 
-	// We use EscapedPath rather than `req.URL.Path` because if the path contains an encoded
-	// forward slash as %2F we don't want the router to treat that as a segment split.
-	//
-	// i.e. `/foo%2Fbar/baz` should be routed to `/:a/*b` as a = "foo/bar", b = "baz"
-	// where as if we use req.URL.Path we would get a = "foo", b = "bar/baz` which is incorrect.
-	path := req.URL.EscapedPath()
+	// Switch to the Encore internal router if we are on a Encore internal path
+	// Historically we used a prefix of `/__encore` but this is now deprecated in favour of a well-known `encore` path
+	// But for now we support both
+	if strings.HasPrefix(path, "/__encore/") || strings.HasPrefix(path, "/.well-known/encore/") {
+		r = srv.encore
+		path = strings.TrimPrefix(strings.TrimPrefix(path, "/__encore"), "/.well-known/encore")
+	}
+
 	h, p, _ := r.Lookup(req.Method, path)
 	if h == nil {
 		h, p, _ = r.Lookup(wildcardMethod, path)
 	}
 	if h == nil {
 		svc, api := "unknown", "Unknown"
+
+		ep := strings.TrimPrefix(path, "/")
 		if idx := strings.IndexByte(ep, '.'); idx != -1 {
 			svc, api = ep[:idx], ep[idx+1:]
 		}
 		metrics.UnknownEndpoint(svc, api)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(404)
-		w.Write([]byte(`{
-  "code": "unknown_endpoint",
-  "message": "endpoint not found",
-  "details": null
-}
-`))
+		errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 		return
 	}
 
@@ -162,52 +154,6 @@ func (srv *Server) scrapeMetrics(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (srv *Server) healthz(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	bytes, _ := json.Marshal(struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-		Details any    `json:"details"`
-	}{
-		Code:    "ok",
-		Message: "Your Encore app is up and running!",
-		Details: struct {
-			AppRevision    string `json:"app_revision"`
-			EncoreCompiler string `json:"encore_compiler"`
-			DeployId       string `json:"deploy_id"`
-		}{
-			AppRevision:    config.Cfg.Static.AppCommit.AsRevisionString(),
-			EncoreCompiler: config.Cfg.Static.EncoreCompiler,
-			DeployId:       config.Cfg.Runtime.DeployID,
-		},
-	})
-	_, _ = w.Write(bytes)
-}
-
-func (srv *Server) checkAuth(req *http.Request, macSig string) (bool, error) {
-	macBytes, err := base64.RawStdEncoding.DecodeString(macSig)
-	if err != nil {
-		return false, nil
-	}
-
-	// Pull out key ID from hmac prefix
-	const keyIDLen = 4
-	if len(macBytes) < keyIDLen {
-		return false, nil
-	}
-
-	keyID := binary.BigEndian.Uint32(macBytes[:keyIDLen])
-	mac := macBytes[keyIDLen:]
-	for _, k := range config.Cfg.Runtime.AuthKeys {
-		if k.KeyID == keyID {
-			return checkAuth(k, req, mac), nil
-		}
-	}
-
-	return false, nil
-}
-
 func setup() *Server {
 	public := httprouter.New()
 	public.HandleOPTIONS = false
@@ -219,10 +165,17 @@ func setup() *Server {
 	private.RedirectFixedPath = false
 	private.RedirectTrailingSlash = false
 
+	encore := httprouter.New()
+	encore.HandleOPTIONS = false
+	encore.RedirectFixedPath = false
+	encore.RedirectTrailingSlash = false
+	registerEncoreRoutes(encore)
+
 	srv := &Server{
 		logger:  logging.RootLogger,
 		public:  public,
 		private: private,
+		encore:  encore,
 	}
 
 	if config.Cfg != nil {
