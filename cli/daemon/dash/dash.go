@@ -154,15 +154,15 @@ type apiCallParams struct {
 }
 
 func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCallParams) error {
-	log := log.With().Str("appID", p.AppID).Str("path", p.Path).Str("service", p.Service).Str("endpoint", p.Endpoint).Logger()
+	log := log.With().Str("app_id", p.AppID).Str("path", p.Path).Str("service", p.Service).Str("endpoint", p.Endpoint).Logger()
 	run := h.run.FindRunByAppID(p.AppID)
 	if run == nil {
-		log.Error().Str("appID", p.AppID).Msg("dash: cannot make api call: app not running")
+		log.Error().Str("app_id", p.AppID).Msg("dash: cannot make api call: app not running")
 		return reply(ctx, nil, fmt.Errorf("app not running"))
 	}
 	proc := run.Proc()
 	if proc == nil {
-		log.Error().Str("appID", p.AppID).Msg("dash: cannot make api call: app not running")
+		log.Error().Str("app_id", p.AppID).Msg("dash: cannot make api call: app not running")
 		return reply(ctx, nil, fmt.Errorf("app not running"))
 	}
 

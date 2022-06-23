@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const AttrTag = "pubsub-attr"
+
 // MarshalFields creates a map[string]string of fields in `msg` tagged with `tag`. The name of the tag
 // will be used as map key, and values are converted to strings using fmt.Sprintf. Pointers will be dereferenced
 // and ignored if nil. Only basic types (bool, numeric, string) and pointers to those types are supported fields.
@@ -74,7 +76,7 @@ func UnmarshalFields[T any](attrs map[string]string, val T, tag string) error {
 	}
 	// We only support structs for now
 	if v.Kind() != reflect.Struct {
-		return errors.New(fmt.Sprintf("unsupported kind: %s", v.Kind()))
+		return errors.New(fmt.Sprintf("unsupported kind, fields can only be unmarshaled into a struct. Got a %s", v.Kind()))
 	}
 
 	// Loop through the fields of the struct and look for `tag`s

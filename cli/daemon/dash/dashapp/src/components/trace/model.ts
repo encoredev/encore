@@ -14,7 +14,7 @@ export interface Trace {
 }
 
 export interface Request {
-  type: "RPC" | "AUTH";
+  type: "RPC" | "AUTH" | "PUBSUB_MSG";
   id: string;
   parent_id: string | null;
   goid: number;
@@ -22,6 +22,12 @@ export interface Request {
 
   svc_name: string;
   rpc_name: string;
+  topic_name: string;
+  subscriber_name: string;
+  msg_id: string;
+  attempt: number;
+  published: number | null;
+
   def_loc: number;
   call_loc: number | null;
 
@@ -69,6 +75,18 @@ export interface Goroutine {
   call_loc: number;
   start_time: number;
   end_time?: number;
+}
+
+export interface PubSubPublish {
+  type: "PubSubPublish";
+  goid: number;
+  start_time: number;
+  end_time?: number;
+  topic: string;
+  message: Base64EncodedBytes;
+  message_id?: string;
+  err: Base64EncodedBytes | null;
+  stack: Stack;
 }
 
 export interface RPCCall {
@@ -148,9 +166,9 @@ export interface StackFrame {
   line: number;
 }
 
-export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine | LogMessage;
+export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine | LogMessage | PubSubPublish;
 
-export type TraceExpr = RpcDefExpr | RpcCallExpr | StaticCallExpr | AuthHandlerDefExpr
+export type TraceExpr = RpcDefExpr | RpcCallExpr | StaticCallExpr | AuthHandlerDefExpr | PubsubSubscriberExpr
 
 interface BaseExpr {
   filepath: string;       // source file path
@@ -187,6 +205,15 @@ type AuthHandlerDefExpr = BaseExpr & {
   auth_handler_def: {
     service_name: string;
     name: string;
+    context: string;
+  }
+}
+
+type PubsubSubscriberExpr = BaseExpr & {
+  pubsub_subscriber: {
+    service_name: string;
+    topic_name: string;
+    subscriber_name: string;
     context: string;
   }
 }

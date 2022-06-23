@@ -173,6 +173,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, 
 	// Record the subscription
 	subscription := &est.PubSubSubscriber{
 		Name:     subscriberName,
+		CallSite: callExpr,
 		Func:     funcDecl,
 		FuncFile: funcFile,
 		DeclFile: file,
@@ -180,9 +181,10 @@ func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, 
 	topic.Subscribers = append(topic.Subscribers, subscription)
 
 	// Record the reference to the topic declaration
-	file.References[callExpr] = &est.Node{
-		Type:  est.PubSubSubscriberNode,
-		Topic: topic,
+	funcFile.References[subscription.CallSite] = &est.Node{
+		Type:       est.PubSubSubscriberNode,
+		Topic:      topic,
+		Subscriber: subscription,
 	}
 }
 

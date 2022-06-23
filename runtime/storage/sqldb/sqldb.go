@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v4/stdlib"
 
 	"encore.dev/beta/errs"
+	"encore.dev/internal/ctx"
 	"encore.dev/internal/stack"
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
@@ -259,7 +260,7 @@ func getPool(name string) *pgxpool.Pool {
 	if err != nil {
 		panic("sqldb: " + err.Error())
 	}
-	pool, err := pgxpool.ConnectConfig(context.Background(), cfg)
+	pool, err := pgxpool.ConnectConfig(ctx.App, cfg)
 	if err != nil {
 		panic("sqldb: setup db: " + err.Error())
 	}

@@ -170,15 +170,19 @@ export interface AuthHandlerDefNode {
 
 export interface PubSubTopicDefNode {
   topic_name: string;
+  context: string;
 }
 
 export interface PubSubPublishNode {
   topic_name: string;
+  context: string;
 }
 
 export interface PubSubSubscriberNode {
   topic_name: string;
   subscriber_name: string;
+  service_name: string;
+  context: string;
 }
 
 export interface Path {

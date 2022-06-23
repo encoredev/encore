@@ -109,7 +109,10 @@ func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
 	}
 	parseSubscribers := func(subs ...*est.PubSubSubscriber) (rtn []*meta.PubSubTopic_Subscription) {
 		for _, s := range subs {
-			rtn = append(rtn, &meta.PubSubTopic_Subscription{ServiceName: s.DeclFile.Pkg.Service.Name})
+			rtn = append(rtn, &meta.PubSubTopic_Subscription{
+				Name:        s.Name,
+				ServiceName: s.DeclFile.Pkg.Service.Name,
+			})
 		}
 		return rtn
 	}
@@ -297,7 +300,7 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 			for _, r := range sortedRefs(file.References) {
 				switch r.Node.Type {
 				// Secret nodes are not relevant for tracing
-				case est.SecretsNode:
+				case est.SecretsNode, est.PubSubTopicDefNode:
 					continue
 				}
 
@@ -313,6 +316,24 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 							ServiceName: r.Node.RPC.Svc.Name,
 							RpcName:     r.Node.RPC.Name,
 							Context:     string(file.Contents[start:end]),
+						},
+					}
+
+				case est.PubSubPublisherNode:
+					tx.Context = &meta.TraceNode_PubsubPublish{
+						PubsubPublish: &meta.PubSubPublishNode{
+							TopicName: r.Node.Topic.Name,
+							Context:   string(file.Contents[start:end]),
+						},
+					}
+
+				case est.PubSubSubscriberNode:
+					tx.Context = &meta.TraceNode_PubsubSubscriber{
+						PubsubSubscriber: &meta.PubSubSubscriberNode{
+							TopicName:      r.Node.Topic.Name,
+							SubscriberName: r.Node.Subscriber.Name,
+							ServiceName:    r.Node.Subscriber.DeclFile.Pkg.Service.Name,
+							Context:        string(file.Contents[start:end]),
 						},
 					}
 				}

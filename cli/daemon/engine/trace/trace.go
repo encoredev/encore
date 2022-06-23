@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"encore.dev/runtime/trace"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/run"
 	tracepb "encr.dev/proto/encore/engine/trace"
@@ -92,6 +93,7 @@ func Parse(traceID ID, data []byte, proc *run.Proc) ([]*tracepb.Request, error) 
 		callMap:     make(map[uint64]interface{}),
 		goMap:       make(map[goKey]*tracepb.Goroutine),
 		httpMap:     make(map[uint64]*tracepb.HTTPCall),
+		publishMap:  make(map[uint64]*tracepb.PubsubMsgPublished),
 	}
 	if err := tp.Parse(); err != nil {
 		return nil, err
@@ -106,15 +108,16 @@ type goKey struct {
 
 type traceParser struct {
 	traceReader
-	proc     *run.Proc
-	traceID  *tracepb.TraceID
-	reqs     []*tracepb.Request
-	reqMap   map[uint64]*tracepb.Request
-	txMap    map[uint64]*tracepb.DBTransaction
-	queryMap map[uint64]*tracepb.DBQuery
-	callMap  map[uint64]interface{} // *RPCCall or *AuthCall
-	httpMap  map[uint64]*tracepb.HTTPCall
-	goMap    map[goKey]*tracepb.Goroutine
+	proc       *run.Proc
+	traceID    *tracepb.TraceID
+	reqs       []*tracepb.Request
+	reqMap     map[uint64]*tracepb.Request
+	txMap      map[uint64]*tracepb.DBTransaction
+	queryMap   map[uint64]*tracepb.DBQuery
+	callMap    map[uint64]interface{} // *RPCCall or *AuthCall
+	httpMap    map[uint64]*tracepb.HTTPCall
+	goMap      map[goKey]*tracepb.Goroutine
+	publishMap map[uint64]*tracepb.PubsubMsgPublished
 }
 
 func (tp *traceParser) Parse() error {
@@ -125,41 +128,45 @@ func (tp *traceParser) Parse() error {
 		startOff := tp.Offset()
 
 		var err error
-		switch ev {
-		case 0x01:
+		switch trace.TraceEvent(ev) {
+		case trace.RequestStart:
 			err = tp.requestStart(ts)
-		case 0x02:
+		case trace.RequestEnd:
 			err = tp.requestEnd(ts)
-		case 0x03:
+		case trace.GoStart:
 			err = tp.goroutineStart(ts)
-		case 0x04:
+		case trace.GoEnd:
 			err = tp.goroutineEnd(ts)
-		case 0x05:
+		case trace.GoClear:
 			err = tp.goroutineClear(ts)
-		case 0x06:
+		case trace.TxStart:
 			err = tp.transactionStart(ts)
-		case 0x07:
+		case trace.TxEnd:
 			err = tp.transactionEnd(ts)
-		case 0x08:
+		case trace.QueryStart:
 			err = tp.queryStart(ts)
-		case 0x09:
+		case trace.QueryEnd:
 			err = tp.queryEnd(ts)
-		case 0x0A:
+		case trace.CallStart:
 			err = tp.callStart(ts)
-		case 0x0B:
+		case trace.CallEnd:
 			err = tp.callEnd(ts)
-		case 0x0C, 0x0D:
+		case trace.AuthStart, trace.AuthEnd:
 			// Skip these events for now
 			tp.Skip(size)
 
-		case 0x0E:
+		case trace.HTTPCallStart:
 			err = tp.httpStart(ts)
-		case 0x0F:
+		case trace.HTTPCallEnd:
 			err = tp.httpEnd(ts)
-		case 0x10:
+		case trace.HTTPCallBodyClosed:
 			err = tp.httpBodyClosed(ts)
-		case 0x11:
+		case trace.LogMessage:
 			err = tp.logMessage(ts)
+		case trace.PublishStart:
+			err = tp.publishStart(ts)
+		case trace.PublishEnd:
+			err = tp.publishEnd(ts)
 
 		default:
 			log.Error().Int("idx", i).Hex("event", []byte{ev}).Msg("trace: unknown event type, skipping")
@@ -167,7 +174,7 @@ func (tp *traceParser) Parse() error {
 			err = nil
 		}
 		if err != nil {
-			return fmt.Errorf("event #%d: parsing event=%x: %v", i, ev, err)
+			return fmt.Errorf("event #%d: parsing event=%x (%s): %v", i, ev, trace.TraceEvent(ev), err)
 		}
 
 		if tp.Overflow() {
@@ -190,6 +197,8 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		typ = tracepb.Request_RPC
 	case 0x02:
 		typ = tracepb.Request_AUTH
+	case 0x03:
+		typ = tracepb.Request_PUBSUB_MSG
 	default:
 		return fmt.Errorf("unknown request type %x", b)
 	}
@@ -221,6 +230,13 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		tp.Bytes(input)
 		req.Inputs = append(req.Inputs, input)
 	}
+
+	if typ == tracepb.Request_PUBSUB_MSG {
+		req.MessageId = tp.String()
+		req.Attempt = tp.Uint32()
+		req.PublishTime = uint64(tp.Time().UnixMilli())
+	}
+
 	tp.reqs = append(tp.reqs, req)
 	tp.reqMap[req.SpanId] = req
 	return nil
@@ -689,6 +705,41 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 		return nil, fmt.Errorf("unknown field type %v", int(typ))
 	}
 	return f, nil
+}
+
+func (tp *traceParser) publishStart(ts uint64) error {
+	publishID := tp.UVarint()
+	spanID := tp.Uint64()
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return fmt.Errorf("unknown request span: %v", spanID)
+	}
+
+	publish := &tracepb.PubsubMsgPublished{
+		Goid:      tp.UVarint(),
+		StartTime: ts,
+		Topic:     tp.String(),
+		Message:   tp.ByteString(),
+		Stack:     tp.stack(filterNone),
+	}
+	tp.publishMap[publishID] = publish
+
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_PublishedMsg{PublishedMsg: publish},
+	})
+	return nil
+}
+
+func (tp *traceParser) publishEnd(ts uint64) error {
+	publishID := tp.UVarint()
+	publish, ok := tp.publishMap[publishID]
+	if !ok {
+		return fmt.Errorf("unknown publish %v", publishID)
+	}
+	publish.EndTime = ts
+	publish.MessageId = tp.String()
+	publish.Err = tp.ByteString()
+	return nil
 }
 
 type stackFilter int

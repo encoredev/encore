@@ -116,6 +116,7 @@ const (
 
 type PubSubSubscriber struct {
 	Name     string   // The unique name of the subscriber
+	CallSite ast.Node // The AST node representing the creation of the subscriber
 	Func     ast.Node // The function that is the subscriber (either a *ast.FuncLit or a *ast.FuncDecl)
 	FuncFile *File    // The file the subscriber function is declared in
 	DeclFile *File    // The file that the subscriber is defined in
@@ -183,6 +184,9 @@ type Node struct {
 	// If Type == PubSubPublisherNode or PubSubSubscriberNode
 	// The topic being subscribed to or published to
 	Topic *PubSubTopic
+
+	// If Type == PubSubSubscriberNode then the subscriber
+	Subscriber *PubSubSubscriber
 }
 
 type AuthHandler struct {

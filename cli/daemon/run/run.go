@@ -93,7 +93,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		ResourceServers: newResourceServices(params.App, mgr.ClusterMgr),
 		ListenAddr:      params.ListenAddr,
 
-		log:     log.With().Str("appID", params.App.PlatformOrLocalID()).Logger(),
+		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
 		mgr:     mgr,
 		params:  &params,
 		ctx:     ctx,
@@ -404,7 +404,7 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 		ctx:       params.Ctx,
 		exit:      make(chan struct{}),
 		buildDir:  params.BuildDir,
-		log:       r.log.With().Str("procID", pid).Str("buildDir", params.BuildDir).Logger(),
+		log:       r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
 		symParsed: make(chan struct{}),
 		authKey:   authKey,
 	}
@@ -517,17 +517,32 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	)
 	if params.NSQDaemon != nil {
 		srv := &config.PubsubServer{
-			NSQServer: config.NSQServer{
+			NSQServer: &config.NSQServer{
 				Address: params.NSQDaemon.Addr(),
 			},
 		}
 		pubsubServers = append(pubsubServers, srv)
 		pubsubTopics = make(map[string]*config.PubsubTopic)
 		for _, t := range params.Meta.PubsubTopics {
-			pubsubTopics[t.Name] = &config.PubsubTopic{
-				ServerID:   0,
-				EncoreName: t.Name,
+			topicCfg := &config.PubsubTopic{
+				ServerID:      0,
+				EncoreName:    t.Name,
+				CloudName:     t.Name,
+				Subscriptions: make(map[string]*config.PubsubSubscription),
 			}
+
+			if t.Ordered && t.GroupedBy != nil {
+				topicCfg.OrderingKey = *t.GroupedBy
+			}
+
+			for _, s := range t.Subscriptions {
+				topicCfg.Subscriptions[s.Name] = &config.PubsubSubscription{
+					EncoreName: s.Name,
+					CloudName:  s.Name,
+				}
+			}
+
+			pubsubTopics[t.Name] = topicCfg
 		}
 	}
 
