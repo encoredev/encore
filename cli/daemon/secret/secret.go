@@ -134,9 +134,9 @@ func (f *Manager) startPolling() {
 
 			for _, s := range slugs {
 				if _, err := f.fetch(s, true); err != nil {
-					log.Error().Err(err).Str("appID", s).Msg("failed to sync secrets")
+					log.Error().Err(err).Str("app_id", s).Msg("failed to sync secrets")
 				} else {
-					log.Info().Str("appID", s).Msg("successfully synced app secrets")
+					log.Info().Str("app_id", s).Msg("successfully synced app secrets")
 				}
 			}
 		}

@@ -717,7 +717,6 @@ func (tp *traceParser) publishStart(ts uint64) error {
 
 	publish := &tracepb.PubsubMsgPublished{
 		Goid:      tp.UVarint(),
-		CallLoc:   0, // TODO(eandre) reintroduce (not sure why ;) )
 		StartTime: ts,
 		Topic:     tp.String(),
 		Message:   tp.ByteString(),

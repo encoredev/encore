@@ -78,7 +78,7 @@ func (l *topic) Subscribe(logger *zerolog.Logger, cfg *types.SubscriptionConfig,
 				retry, delay := utils.GetDelay(policy.MaxRetries, policy.MinRetryDelay, policy.MaxRetryDelay, m.Attempts)
 				if !retry {
 
-					logger.Error().Str("msg-id", msg.ID).Int("retry", int(m.Attempts)-1).Msg("depleted message retries. Dropping message")
+					logger.Error().Str("msg_id", msg.ID).Int("retry", int(m.Attempts)-1).Msg("depleted message retries. Dropping message")
 					// TODO; offload this to the dead letter queue
 					m.Finish()
 					return

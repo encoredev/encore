@@ -107,7 +107,6 @@ message DBQuery {
 
 message PubsubMsgPublished {
   uint64 goid = 1;
-  int32 call_loc = 2;
   uint64 start_time = 3;
   uint64 end_time = 4;
   string topic = 5;

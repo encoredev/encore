@@ -93,7 +93,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		ResourceServers: newResourceServices(params.App, mgr.ClusterMgr),
 		ListenAddr:      params.ListenAddr,
 
-		log:     log.With().Str("appID", params.App.PlatformOrLocalID()).Logger(),
+		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
 		mgr:     mgr,
 		params:  &params,
 		ctx:     ctx,
@@ -404,7 +404,7 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 		ctx:       params.Ctx,
 		exit:      make(chan struct{}),
 		buildDir:  params.BuildDir,
-		log:       r.log.With().Str("procID", pid).Str("buildDir", params.BuildDir).Logger(),
+		log:       r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
 		symParsed: make(chan struct{}),
 		authKey:   authKey,
 	}

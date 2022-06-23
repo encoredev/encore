@@ -108,13 +108,13 @@ func (t *topicAdapter[T]) NewSubscription(name string, sub Subscriber[T], cfg *S
 
 		if err = json.Unmarshal(data, &msg); err != nil {
 			err = errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal message").Err()
-			log.Err(err).Str("msg-id", msgID).Int("delivery-attempt", deliveryAttempt).Msg("failed to unmarshal message")
+			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message")
 			return err
 		}
 
 		if err = utils.UnmarshalFields(attrs, &msg, utils.AttrTag); err != nil {
 			err = errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal attributes").Err()
-			log.Err(err).Str("msg-id", msgID).Int("delivery-attempt", deliveryAttempt).Msg("failed to unmarshal message attributes")
+			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message attributes")
 			return err
 		}
 
