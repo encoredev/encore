@@ -44,7 +44,7 @@ func Detect(path string) (lang Lang, ok bool) {
 }
 
 // Client generates an API client based on the given app metadata.
-func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
+func Client(lang Lang, appSlug string, md *meta.Data, nextJsSupport bool) (code []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("codegen.Client %s %s panicked: %v\n%s", lang, appSlug, e, debug.Stack())
@@ -54,7 +54,7 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	var gen generator
 	switch lang {
 	case LangTypeScript:
-		gen = &typescript{generatorVersion: typescriptGenLatestVersion}
+		gen = &typescript{generatorVersion: typescriptGenLatestVersion, noNamespaces: nextJsSupport, generateSWRHelpers: nextJsSupport}
 	case LangGo:
 		gen = &golang{generatorVersion: goGenLatestVersion}
 	default:

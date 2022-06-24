@@ -56,15 +56,25 @@ func TestClientCodeGeneration(t *testing.T) {
 
 				// Check that the trim prefix removed the expectedPrefix && there are no other underscores in the testName
 				if testName != file.Name() && !strings.Contains(testName, "_") {
+					language, ok := Detect(file.Name())
+
 					c.Run(testName, func(c *qt.C) {
-						language, ok := Detect(file.Name())
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
-						generatedClient, err := Client(language, "app", res.Meta)
+						generatedClient, err := Client(language, "app", res.Meta, false)
 						c.Assert(err, qt.IsNil)
 
 						golden.TestAgainst(c, file.Name(), string(generatedClient))
 					})
+
+					if ok && language == LangTypeScript {
+						c.Run(testName+"_nextjs_support", func(c *qt.C) {
+							generatedClient, err := Client(language, "app", res.Meta, true)
+							c.Assert(err, qt.IsNil)
+
+							golden.TestAgainst(c, "nextjs_"+file.Name(), string(generatedClient))
+						})
+					}
 				}
 			}
 		})

@@ -145,10 +145,11 @@ message DBResetRequest {
 }
 
 message GenClientRequest {
-  string app_id = 1;
-  string env_name = 2;
-  string lang = 3;
-  string filepath = 4;
+  string app_id         = 1;
+  string env_name       = 2;
+  string lang           = 3;
+  string filepath       = 4;
+  bool   next_js_support = 5; // True if the client is a TypeScript client being generated for NextJS
 }
 
 message GenClientResponse {

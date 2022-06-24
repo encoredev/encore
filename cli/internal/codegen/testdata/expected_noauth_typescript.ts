@@ -2,6 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-namespace */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-empty-interface */
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.

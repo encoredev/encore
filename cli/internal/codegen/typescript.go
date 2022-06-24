@@ -60,6 +60,9 @@ type typescript struct {
 	seenHeaderResponse bool // true if we've seen a header used in a response object
 	hasAuth            bool // true if we've seen an authentication handler
 	authIsComplexType  bool // true if the auth type is a complex type
+
+	noNamespaces       bool // true if we want to generate a client without using namespaces
+	generateSWRHelpers bool // true if we want to generate the SWR helpers
 }
 
 func (ts *typescript) Version() int {
@@ -80,9 +83,22 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 
 	}
 
-	ts.WriteString("// " + doNotEditHeader() + "\n\n")
-	ts.WriteString("/* eslint-disable @typescript-eslint/no-namespace */\n")
+	ts.WriteString("// " + doNotEditHeader() + "\n")
+
+	if ts.generateSWRHelpers {
+		ts.WriteString("import useSWR, {SWRConfiguration, SWRResponse} from \"swr\"\n")
+	}
+
+	ts.WriteString("\n")
+
+	if !ts.noNamespaces {
+		ts.WriteString("/* eslint-disable @typescript-eslint/no-namespace */\n")
+	}
 	ts.WriteString("/* eslint-disable @typescript-eslint/no-explicit-any */\n")
+	ts.WriteString("/* eslint-disable @typescript-eslint/no-empty-interface */\n") // (Parameter structs with no fields will generate these)
+	if ts.generateSWRHelpers {
+		ts.WriteString("/* eslint-disable react-hooks/rules-of-hooks */\n")
+	}
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
@@ -117,7 +133,17 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 	}
 
 	ns := svc.Name
-	fmt.Fprintf(ts, "export namespace %s {\n", ts.typeName(ns))
+	numIndent := 0
+	if !ts.noNamespaces {
+		numIndent = 1
+		fmt.Fprintf(ts, "export namespace %s {\n", ts.typeName("", ns))
+	}
+	defer func() {
+		if !ts.noNamespaces {
+			ts.WriteString("}\n")
+		}
+		ts.WriteString("\n")
+	}()
 
 	sort.Slice(decls, func(i, j int) bool {
 		return decls[i].Name < decls[j].Name
@@ -130,18 +156,20 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 	}
 
 	if !publicRPC {
-		ts.WriteString("}\n\n")
 		return nil
 	}
 	ts.WriteString("\n")
 
-	numIndent := 1
 	indent := func() {
 		ts.WriteString(strings.Repeat("    ", numIndent))
 	}
 
 	indent()
-	fmt.Fprint(ts, "export class ServiceClient {\n")
+	if ts.noNamespaces {
+		fmt.Fprintf(ts, "export class %s {\n", ts.typeName("ServiceClient", svc.Name))
+	} else {
+		fmt.Fprint(ts, "export class ServiceClient {\n")
+	}
 	numIndent++
 
 	// Constructor
@@ -266,10 +294,188 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 
 		indent()
 		ts.WriteString("}\n")
+
+		if ts.generateSWRHelpers {
+			ts.WriteString("\n")
+			if err := ts.writeSWRHelper(numIndent, ns, rpc); err != nil {
+				return err
+			}
+		}
 	}
 	numIndent--
 	indent()
-	ts.WriteString("}\n}\n\n")
+	ts.WriteString("}\n")
+
+	return nil
+}
+
+func (ts *typescript) writeSWRHelper(indent int, ns string, rpc *meta.RPC) error {
+	w := ts.newIdentWriter(indent)
+
+	// Doc string
+	if rpc.Doc != "" {
+		scanner := bufio.NewScanner(strings.NewReader(rpc.Doc))
+		w.WriteString("/**\n")
+		for scanner.Scan() {
+			w.WriteString(" * ")
+			w.WriteString(scanner.Text())
+			w.WriteString("\n")
+		}
+		w.WriteString(" */\n")
+	}
+
+	// Signature
+	w.WriteStringf("public use%s(", ts.memberName(rpc.Name))
+
+	if rpc.Proto == meta.RPC_RAW {
+		w.WriteString("method: ")
+		for i, method := range rpc.HttpMethods {
+			if i > 0 {
+				w.WriteString(" | ")
+			}
+
+			if method == "*" {
+				w.WriteString("string")
+			} else {
+				w.WriteString("\"" + method + "\"")
+			}
+		}
+		w.WriteString(", ")
+	}
+
+	nParams := 0
+	var rpcPath strings.Builder
+	for _, s := range rpc.Path.Segments {
+		rpcPath.WriteByte('/')
+		if s.Type != meta.PathSegment_LITERAL {
+			if nParams > 0 {
+				w.WriteString(", ")
+			}
+
+			w.WriteString(ts.nonReservedId(s.Value))
+			w.WriteString(": ")
+			switch s.ValueType {
+			case meta.PathSegment_STRING, meta.PathSegment_UUID:
+				w.WriteString("string")
+			case meta.PathSegment_BOOL:
+				w.WriteString("boolean")
+			case meta.PathSegment_INT8, meta.PathSegment_INT16, meta.PathSegment_INT32, meta.PathSegment_INT64, meta.PathSegment_INT,
+				meta.PathSegment_UINT8, meta.PathSegment_UINT16, meta.PathSegment_UINT32, meta.PathSegment_UINT64, meta.PathSegment_UINT:
+				w.WriteString("number")
+			default:
+				panic(fmt.Sprintf("unhandled PathSegment type %s", s.ValueType))
+			}
+			if s.Type == meta.PathSegment_WILDCARD {
+				w.WriteString("[]")
+				rpcPath.WriteString("${" + ts.nonReservedId(s.Value) + ".map(encodeURIComponent).join(\"/\")}")
+			} else {
+				rpcPath.WriteString("${encodeURIComponent(" + ts.nonReservedId(s.Value) + ")}")
+			}
+			nParams++
+		} else {
+			rpcPath.WriteString(s.Value)
+		}
+	}
+
+	// Avoid a name collision.
+	payloadName := "params"
+
+	if rpc.RequestSchema != nil {
+		if nParams > 0 {
+			w.WriteString(", ")
+		}
+		w.WriteString(payloadName + ": ")
+		ts.writeTyp(ns, rpc.RequestSchema, 0)
+		nParams++
+	} else if rpc.Proto == meta.RPC_RAW {
+		if nParams > 0 {
+			w.WriteString(", ")
+		}
+		w.WriteString("body?: BodyInit, options?: CallParameters")
+	}
+
+	if nParams > 0 {
+		w.WriteString(", ")
+	}
+	w.WriteString("swrConfig?: SWRConfiguration<")
+	if rpc.ResponseSchema != nil {
+		ts.writeTyp(ns, rpc.ResponseSchema, 0)
+	} else if rpc.Proto == meta.RPC_RAW {
+		w.WriteString("Response")
+	} else {
+		w.WriteString("void")
+	}
+	w.WriteString(", APIError>")
+
+	w.WriteString("): SWRResponse<")
+	if rpc.ResponseSchema != nil {
+		ts.writeTyp(ns, rpc.ResponseSchema, 0)
+	} else if rpc.Proto == meta.RPC_RAW {
+		w.WriteString("Response")
+	} else {
+		w.WriteString("void")
+	}
+	w.WriteString(", APIError> {\n")
+
+	{
+		w := w.Indent()
+
+		w.WriteString("return useSWR(\n")
+		{
+			w := w.Indent()
+
+			// Write the key
+			w.WriteString("[`")
+			w.WriteString(rpcPath.String())
+			w.WriteString("`")
+			if rpc.RequestSchema != nil {
+				w.WriteString(", ")
+				w.WriteString(payloadName)
+			}
+			w.WriteString("],\n")
+
+			// Write the fetcher
+			w.WriteStringf("() => this.%s(", ts.memberName(rpc.Name))
+
+			nParams := 0
+
+			if rpc.Proto == meta.RPC_RAW {
+				w.WriteString("method")
+				nParams++
+			}
+
+			for _, s := range rpc.Path.Segments {
+				rpcPath.WriteByte('/')
+				if s.Type != meta.PathSegment_LITERAL {
+					if nParams > 0 {
+						w.WriteString(", ")
+					}
+
+					w.WriteString(ts.nonReservedId(s.Value))
+					nParams++
+				}
+			}
+
+			if rpc.RequestSchema != nil {
+				if nParams > 0 {
+					w.WriteString(", ")
+				}
+				w.WriteString(payloadName)
+			} else if rpc.Proto == meta.RPC_RAW {
+				if nParams > 0 {
+					w.WriteString(", ")
+				}
+				w.WriteString("body, options")
+			}
+			w.WriteString("),\n")
+
+			// Write the SWR config
+			w.WriteString("swrConfig\n")
+		}
+		w.WriteString(")\n")
+	}
+
+	w.WriteString("}\n")
 	return nil
 }
 
@@ -401,27 +607,40 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	respEnc := rpcEncoding.ResponseEncoding
 
-	// If we don't need to do anything with the body, we can just return the response
-	if len(respEnc.HeaderParameters) == 0 {
-		w.WriteString("return await resp.json() as ")
-		ts.writeTyp(ns, rpc.ResponseSchema, 0)
-		w.WriteString("\n")
-		return nil
+	w.WriteString("try {\n")
+	{
+		w := w.Indent()
+
+		// If we don't need to do anything with the body, we can just return the response
+		if len(respEnc.HeaderParameters) == 0 {
+
+			w.WriteString("return await resp.json() as ")
+			ts.writeTyp(ns, rpc.ResponseSchema, w.depth)
+			w.WriteString("\n")
+		} else {
+
+			// Otherwise, we need to add the header fields to the response
+			w.WriteString("\n//Populate the return object from the JSON body and received headers\nconst rtn = await resp.json() as ")
+			ts.writeTyp(ns, rpc.ResponseSchema, w.depth)
+			w.WriteString("\n")
+
+			for _, headerField := range respEnc.HeaderParameters {
+				ts.seenHeaderResponse = true
+				fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.Name, headerField.Name)
+
+				w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+			}
+
+			w.WriteString("return rtn\n")
+		}
 	}
-
-	// Otherwise, we need to add the header fields to the response
-	w.WriteString("\n//Populate the return object from the JSON body and received headers\nconst rtn = await resp.json() as ")
-	ts.writeTyp(ns, rpc.ResponseSchema, 0)
-	w.WriteString("\n")
-
-	for _, headerField := range respEnc.HeaderParameters {
-		ts.seenHeaderResponse = true
-		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.Name, headerField.Name)
-
-		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+	w.WriteString("} catch (err) {\n")
+	{
+		w := w.Indent()
+		w.WriteString("throw new APIError(500, { code: ErrCode.DataLoss, message: \"unable to unmarshal the response\", details: err })\n")
 	}
+	w.WriteString("}\n")
 
-	w.WriteString("return rtn\n")
 	return nil
 }
 
@@ -453,7 +672,9 @@ func (ts *typescript) writeNamespace(ns string) {
 		return
 	}
 
-	fmt.Fprintf(ts, "export namespace %s {\n", ts.typeName(ns))
+	if !ts.noNamespaces {
+		fmt.Fprintf(ts, "export namespace %s {\n", ts.typeName("", ns))
+	}
 	sort.Slice(decls, func(i, j int) bool {
 		return decls[i].Name < decls[j].Name
 	})
@@ -463,19 +684,28 @@ func (ts *typescript) writeNamespace(ns string) {
 		}
 		ts.writeDeclDef(ns, d)
 	}
-	ts.WriteString("}\n\n")
+
+	if !ts.noNamespaces {
+		ts.WriteString("}\n")
+	}
+	ts.WriteString("\n")
 }
 
 func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
+	w := ts.newIdentWriter(0)
+	if !ts.noNamespaces {
+		w = w.Indent()
+	}
+
 	if decl.Doc != "" {
 		scanner := bufio.NewScanner(strings.NewReader(decl.Doc))
-		ts.WriteString("    /**\n")
+		w.WriteString("/**\n")
 		for scanner.Scan() {
-			ts.WriteString("     * ")
-			ts.WriteString(scanner.Text())
-			ts.WriteByte('\n')
+			w.WriteString(" * ")
+			w.WriteString(scanner.Text())
+			w.WriteString("\n")
 		}
-		ts.WriteString("     */\n")
+		w.WriteString(" */\n")
 	}
 
 	var typeParams strings.Builder
@@ -496,12 +726,12 @@ func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
 	// If it's a struct type, expose it as an interface;
 	// other types should be type aliases.
 	if st := decl.Type.GetStruct(); st != nil {
-		fmt.Fprintf(ts, "    export interface %s%s ", ts.typeName(decl.Name), typeParams.String())
+		w.WriteStringf("export interface %s%s ", ts.typeName(ns, decl.Name), typeParams.String())
 	} else {
-		fmt.Fprintf(ts, "    export type %s%s = ", ts.typeName(decl.Name), typeParams.String())
+		w.WriteStringf("export type %s%s = ", ts.typeName(ns, decl.Name), typeParams.String())
 	}
 	ts.currDecl = decl
-	ts.writeTyp(ns, decl.Type, 1)
+	ts.writeTyp(ns, decl.Type, w.depth)
 	ts.WriteString("\n")
 }
 
@@ -533,7 +763,11 @@ export default class Client {
 
 		for _, svc := range ts.md.Svcs {
 			if hasPublicRPC(svc) {
-				w.WriteStringf("public readonly %s: %s.ServiceClient\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
+				if ts.noNamespaces {
+					w.WriteStringf("public readonly %s: %s\n", ts.memberName(svc.Name), ts.typeName("ServiceClient", svc.Name))
+				} else {
+					w.WriteStringf("public readonly %s: %s.ServiceClient\n", ts.memberName(svc.Name), ts.typeName("", svc.Name))
+				}
 			}
 		}
 		w.WriteString("\n")
@@ -584,7 +818,11 @@ if (typeof options === "string") {
 			w.WriteString("const base = new BaseClient(target, options ?? {})\n")
 			for _, svc := range ts.md.Svcs {
 				if hasPublicRPC(svc) {
-					w.WriteStringf("this.%s = new %s.ServiceClient(base)\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
+					if ts.noNamespaces {
+						w.WriteStringf("this.%s = new %s(base)\n", ts.memberName(svc.Name), ts.typeName("ServiceClient", svc.Name))
+					} else {
+						w.WriteStringf("this.%s = new %s.ServiceClient(base)\n", ts.memberName(svc.Name), ts.typeName("", svc.Name))
+					}
 				}
 			}
 		}
@@ -859,10 +1097,15 @@ function mustBeSet<A>(field: string, value: A | null | undefined): A {
 }
 
 func (ts *typescript) writeDecl(ns string, decl *schema.Decl) {
-	if decl.Loc.PkgName != ns {
-		ts.WriteString(ts.typeName(decl.Loc.PkgName) + ".")
+	if ts.noNamespaces {
+		ts.WriteString(ts.typeName(decl.Loc.PkgName, decl.Name))
+		return
 	}
-	ts.WriteString(ts.typeName(decl.Name))
+
+	if decl.Loc.PkgName != ns {
+		ts.WriteString(ts.typeName(ns, decl.Loc.PkgName) + ".")
+	}
+	ts.WriteString(ts.typeName(ns, decl.Name))
 }
 
 func (ts *typescript) builtinType(typ schema.Builtin) string {
@@ -1108,12 +1351,17 @@ func (ts *typescript) Values(w *indentWriter, dict map[string]string) {
 	w.WriteString("}\n")
 }
 
-func (ts *typescript) typeName(identifier string) string {
-	if ts.generatorVersion < TsExperimental {
-		return identifier
-	} else {
-		return convertIdentifierTo(identifier, PascalCase)
+func (ts *typescript) typeName(namespace string, identifier string) string {
+	if ts.generatorVersion >= TsExperimental {
+		identifier = convertIdentifierTo(identifier, PascalCase)
 	}
+
+	// If we're supporting NextJS, we don't use namespaces, thus we prefix all type names with the namespace instead
+	if ts.noNamespaces {
+		identifier = namespace + "_" + identifier
+	}
+
+	return identifier
 }
 
 func (ts *typescript) memberName(identifier string) string {

@@ -21,9 +21,10 @@ func init() {
 	rootCmd.AddCommand(genCmd)
 
 	var (
-		output  string
-		lang    string
-		envName string
+		output        string
+		lang          string
+		envName       string
+		nextJsSupport bool
 	)
 
 	genClientCmd := &cobra.Command{
@@ -61,14 +62,19 @@ Supported language codes are:
 				lang = string(l)
 			}
 
+			if nextJsSupport && lang != "typescript" {
+				fatal("--nextjs is only supported for typescript")
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
 			daemon := setupDaemon(ctx)
 			resp, err := daemon.GenClient(ctx, &daemonpb.GenClientRequest{
-				AppId:   appID,
-				EnvName: envName,
-				Lang:    lang,
+				AppId:         appID,
+				EnvName:       envName,
+				Lang:          lang,
+				NextJsSupport: nextJsSupport,
 			})
 			if err != nil {
 				fatal(err)
@@ -99,4 +105,7 @@ Supported language codes are:
 
 	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("env", autoCompleteEnvSlug)
+
+	genClientCmd.Flags().BoolVar(&nextJsSupport, "nextjs", false, "Generates a TypeScript client which is compatible with a Next.js (disable Namespaces)")
+	_ = genClientCmd.RegisterFlagCompletionFunc("nextjs", autoCompleteFromStaticList("true", "false"))
 }
