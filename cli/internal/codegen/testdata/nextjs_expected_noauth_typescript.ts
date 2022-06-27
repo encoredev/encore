@@ -3,6 +3,7 @@ import useSWR, {SWRConfiguration, SWRResponse} from "swr"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-empty-interface */
+/* eslint-disable react-hooks/rules-of-hooks */
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.

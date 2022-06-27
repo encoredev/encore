@@ -2,6 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-namespace */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-empty-interface */
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.
@@ -163,7 +164,11 @@ export namespace echo {
         public async AppMeta(): Promise<AppMetadata> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.AppMeta`)
-            return await resp.json() as AppMetadata
+            try {
+                return await resp.json() as AppMetadata
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -172,7 +177,11 @@ export namespace echo {
         public async BasicEcho(params: BasicData): Promise<BasicData> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.BasicEcho`, JSON.stringify(params))
-            return await resp.json() as BasicData
+            try {
+                return await resp.json() as BasicData
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -181,7 +190,11 @@ export namespace echo {
         public async Echo(params: Data<string, number>): Promise<Data<string, number>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.Echo`, JSON.stringify(params))
-            return await resp.json() as Data<string, number>
+            try {
+                return await resp.json() as Data<string, number>
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -190,7 +203,11 @@ export namespace echo {
         public async EmptyEcho(params: EmptyData): Promise<EmptyData> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.EmptyEcho`, JSON.stringify(params))
-            return await resp.json() as EmptyData
+            try {
+                return await resp.json() as EmptyData
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -199,7 +216,11 @@ export namespace echo {
         public async Env(): Promise<EnvResponse> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.Env`)
-            return await resp.json() as EnvResponse
+            try {
+                return await resp.json() as EnvResponse
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -214,12 +235,16 @@ export namespace echo {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, undefined, {headers})
+            try {
 
-            //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as HeadersData
-            rtn.Int = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
-            rtn.String = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
-            return rtn
+                //Populate the return object from the JSON body and received headers
+                const rtn = await resp.json() as HeadersData
+                rtn.Int = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
+                rtn.String = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
+                return rtn
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -241,7 +266,11 @@ export namespace echo {
         public async NilResponse(): Promise<BasicData> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.NilResponse`)
-            return await resp.json() as BasicData
+            try {
+                return await resp.json() as BasicData
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -278,12 +307,16 @@ export namespace echo {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${encodeURIComponent(pathString)}/${encodeURIComponent(pathInt)}/${pathWild.map(encodeURIComponent).join("/")}`, JSON.stringify(body), {headers, query})
+            try {
 
-            //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as NonBasicData
-            rtn.HeaderString = mustBeSet("Header `x-header-string`", resp.headers.get("x-header-string"))
-            rtn.HeaderNumber = parseInt(mustBeSet("Header `x-header-number`", resp.headers.get("x-header-number")), 10)
-            return rtn
+                //Populate the return object from the JSON body and received headers
+                const rtn = await resp.json() as NonBasicData
+                rtn.HeaderString = mustBeSet("Header `x-header-string`", resp.headers.get("x-header-string"))
+                rtn.HeaderNumber = parseInt(mustBeSet("Header `x-header-number`", resp.headers.get("x-header-number")), 10)
+                return rtn
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -299,7 +332,11 @@ export namespace echo {
         public async Pong(): Promise<Data<string, string>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("GET", `/echo.Pong`)
-            return await resp.json() as Data<string, string>
+            try {
+                return await resp.json() as Data<string, string>
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
     }
 }
@@ -389,7 +426,11 @@ export namespace test {
         public async GetMessage(clientID: string): Promise<BodyEcho> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("GET", `/last_message/${encodeURIComponent(clientID)}`)
-            return await resp.json() as BodyEcho
+            try {
+                return await resp.json() as BodyEcho
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -439,19 +480,23 @@ export namespace test {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler`, JSON.stringify(body), {headers, query})
+            try {
 
-            //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as MarshallerTest<number>
-            rtn.HeaderBoolean = mustBeSet("Header `x-boolean`", resp.headers.get("x-boolean")).toLowerCase() === "true"
-            rtn.HeaderInt = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
-            rtn.HeaderFloat = Number(mustBeSet("Header `x-float`", resp.headers.get("x-float")))
-            rtn.HeaderString = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
-            rtn.HeaderBytes = mustBeSet("Header `x-bytes`", resp.headers.get("x-bytes"))
-            rtn.HeaderTime = mustBeSet("Header `x-time`", resp.headers.get("x-time"))
-            rtn.HeaderJson = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
-            rtn.HeaderUUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
-            rtn.HeaderUserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
-            return rtn
+                //Populate the return object from the JSON body and received headers
+                const rtn = await resp.json() as MarshallerTest<number>
+                rtn.HeaderBoolean = mustBeSet("Header `x-boolean`", resp.headers.get("x-boolean")).toLowerCase() === "true"
+                rtn.HeaderInt = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
+                rtn.HeaderFloat = Number(mustBeSet("Header `x-float`", resp.headers.get("x-float")))
+                rtn.HeaderString = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
+                rtn.HeaderBytes = mustBeSet("Header `x-bytes`", resp.headers.get("x-bytes"))
+                rtn.HeaderTime = mustBeSet("Header `x-time`", resp.headers.get("x-time"))
+                rtn.HeaderJson = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
+                rtn.HeaderUUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
+                rtn.HeaderUserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
+                return rtn
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -474,7 +519,11 @@ export namespace test {
         public async PathMultiSegments(bool: boolean, int: number, _string: string, uuid: string, wildcard: string[]): Promise<MultiPathSegment> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(int)}/${encodeURIComponent(_string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`)
-            return await resp.json() as MultiPathSegment
+            try {
+                return await resp.json() as MultiPathSegment
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -507,11 +556,15 @@ export namespace test {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("PUT", `/rest/object/${encodeURIComponent(objType)}/${encodeURIComponent(name)}`, JSON.stringify(body), {headers, query})
+            try {
 
-            //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as RestParams
-            rtn.HeaderValue = mustBeSet("Header `some-key`", resp.headers.get("some-key"))
-            return rtn
+                //Populate the return object from the JSON body and received headers
+                const rtn = await resp.json() as RestParams
+                rtn.HeaderValue = mustBeSet("Header `some-key`", resp.headers.get("some-key"))
+                return rtn
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -521,7 +574,11 @@ export namespace test {
         public async SimpleBodyEcho(params: BodyEcho): Promise<BodyEcho> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/test.SimpleBodyEcho`, JSON.stringify(params))
-            return await resp.json() as BodyEcho
+            try {
+                return await resp.json() as BodyEcho
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
@@ -530,7 +587,11 @@ export namespace test {
         public async TestAuthHandler(): Promise<BodyEcho> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/test.TestAuthHandler`)
-            return await resp.json() as BodyEcho
+            try {
+                return await resp.json() as BodyEcho
+            } catch (err) {
+                throw new APIError(500, { code: ErrCode.DataLoss, message: "unable to unmarshal the response", details: err })
+            }
         }
 
         /**
