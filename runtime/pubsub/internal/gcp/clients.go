@@ -17,7 +17,7 @@ var (
 )
 
 // getClient returns a singleton pubsub client for the given project or panics if it cannot be created.
-func getClient(project *config.GCPProject) *pubsub.Client {
+func getClient(project *config.GCPPubSubServer) *pubsub.Client {
 	clientMutex.Lock()
 	defer clientMutex.Unlock()
 
