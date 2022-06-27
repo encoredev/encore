@@ -291,17 +291,37 @@ func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 }
 
 func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
+	var lastPackage *est.Package
+	var lastFile *est.File
+	var lastReference *refPair
+
+	defer func() {
+		if err := recover(); err != nil {
+			panic(fmt.Sprintf("panic in parseTraceNodes (Package %s, File %s, AST %+v, Reference %+v): %v", lastPackage.Name, lastFile.Name, lastReference.AST, lastReference.Node, err))
+		}
+	}()
+
 	var id int32
 	res := make(map[*est.Package]TraceNodes)
 	for _, pkg := range app.Packages {
+		lastPackage = pkg
 		nodes := make(TraceNodes)
 		res[pkg] = nodes
 		for _, file := range pkg.Files {
+			lastFile = file
+
 			for _, r := range sortedRefs(file.References) {
+				lastReference = &r
+
+				file := file
+
 				switch r.Node.Type {
 				// Secret nodes are not relevant for tracing
 				case est.SecretsNode, est.PubSubTopicDefNode:
 					continue
+				case est.PubSubSubscriberNode:
+					// Subscribers can be declared in a different file than the reference
+					file = r.Node.Subscriber.DeclFile
 				}
 
 				tx := newTraceNode(&id, pkg, file, r.AST)
@@ -340,6 +360,7 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 			}
 		}
 	}
+	lastReference = nil
 
 	for _, svc := range app.Services {
 		for _, rpc := range svc.RPCs {
