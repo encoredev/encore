@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"encore.dev/beta/errs"
+	"encore.dev/internal/logging"
 	"encore.dev/runtime/config"
 )
 
@@ -53,16 +54,23 @@ func handleHealthz(w http.ResponseWriter, _ *http.Request) {
 func handlePubSubPush(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	subscriptionID := ps.ByName("subscription_id")
 	if subscriptionID == "" {
-		errs.HTTPError(w, errs.B().Code(errs.InvalidArgument).Msg("missing subscription ID").Err())
+		err := errs.B().Code(errs.InvalidArgument).Msg("missing subscription ID").Err()
+		logging.RootLogger.Err(err).Msg("invalid PubSub push request")
+		errs.HTTPError(w, err)
 		return
 	}
 
 	handler, found := pubSubSubscriptions[subscriptionID]
 	if !found {
-		errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("unknown pubsub subscription").Err())
+		err := errs.B().Code(errs.NotFound).Msg("unknown pubsub subscription").Err()
+		logging.RootLogger.Err(err).Msg("invalid PubSub push request")
+		errs.HTTPError(w, err)
 		return
 	}
 
+	err := handler(req)
+	if err != nil {
+		logging.RootLogger.Err(err).Msg("error while handling PubSub push request")
+	}
 	errs.HTTPError(w, handler(req))
-	return
 }

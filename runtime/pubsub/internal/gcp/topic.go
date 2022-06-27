@@ -14,12 +14,13 @@ import (
 )
 
 type topic struct {
-	client   *pubsub.Client
-	gcpTopic *pubsub.Topic
-	cfg      *config.PubsubTopic
+	client    *pubsub.Client
+	gcpTopic  *pubsub.Topic
+	serverCfg *config.GCPPubSubServer
+	topicCfg  *config.PubsubTopic
 }
 
-func NewTopic(cfg *config.GCPProject, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func NewTopic(cfg *config.GCPPubSubServer, topicCfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
 	client := getClient(cfg)
 	gcpTopic := client.Topic(topicCfg.CloudName)
@@ -34,40 +35,44 @@ func NewTopic(cfg *config.GCPProject, topicCfg *config.PubsubTopic) types.TopicI
 		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", topicCfg.CloudName, err))
 	}
 
-	return &topic{client, gcpTopic, topicCfg}
+	return &topic{client, gcpTopic, cfg, topicCfg}
 }
 
 func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {
 	gcpMsg := &pubsub.Message{
 		Data:        data,
 		Attributes:  attrs,
-		OrderingKey: t.cfg.OrderingKey, // FIXME(domblack): this should be the ordering VALUE not column name
+		OrderingKey: t.topicCfg.OrderingKey, // FIXME(domblack): this should be the ordering VALUE not column name
 	}
 
 	// Attempt to publish the message
 	return t.gcpTopic.Publish(ctx, gcpMsg).Get(ctx)
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, cfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
-	if cfg.PushOnly && cfg.ResourceID == "" {
+func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, subscriptionCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+	if subscriptionCfg.PushOnly && subscriptionCfg.ResourceID == "" {
 		panic("push-only subscriptions must have a resource ID")
 	}
 
 	// If we have a resource ID, let's register a push endpoint for it
-	if cfg.ResourceID != "" {
-		registerPushEndpoint(cfg, f)
+	if subscriptionCfg.ResourceID != "" {
+		if t.serverCfg.PushServiceAccount != "" {
+			registerPushEndpoint(t.serverCfg, subscriptionCfg, f)
+		} else if subscriptionCfg.PushOnly {
+			panic("push-only subscriptions require a push service account to be configured for the PubSub server config")
+		}
 	}
 
 	// If we're not push only, then let's also setup the subscription
-	if !cfg.PushOnly {
+	if !subscriptionCfg.PushOnly {
 		// Create the subscription object (and then check it exists on GCP's side)
-		subscription := t.client.Subscription(cfg.CloudName)
+		subscription := t.client.Subscription(subscriptionCfg.CloudName)
 		exists, err := subscription.Exists(ctx.App)
 		if err != nil {
-			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", cfg.EncoreName, t.cfg.EncoreName, err))
+			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subscriptionCfg.EncoreName, t.topicCfg.EncoreName, err))
 		}
 		if !exists {
-			panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", cfg.EncoreName, t.cfg.EncoreName))
+			panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", subscriptionCfg.EncoreName, t.topicCfg.EncoreName))
 		}
 
 		// Start the subscription

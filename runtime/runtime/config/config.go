@@ -112,16 +112,17 @@ func (eak EncoreAuthKey) Copy() EncoreAuthKey {
 }
 
 type PubsubServer struct {
-	NSQServer *NSQServer  `json:"nsq_server"` // set if server is NSQ
-	GCP       *GCPProject `json:"gcp"`        // set if server is GCP
+	NSQServer *NSQServer       `json:"nsq_server"` // set if server is NSQ
+	GCP       *GCPPubSubServer `json:"gcp"`        // set if server is GCP
 }
 
 type NSQServer struct {
 	Address string `json:"nsq_server"` // the NSQ server address
 }
 
-type GCPProject struct {
-	ID string `json:"project_id"` // the GCP project ID
+type GCPPubSubServer struct {
+	ID                 string `json:"project_id"`      // the GCP project ID
+	PushServiceAccount string `json:"service_account"` // the GCP service account email being used to push messages to subscription handlers
 }
 
 type PubsubTopic struct {

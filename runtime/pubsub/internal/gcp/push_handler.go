@@ -26,15 +26,15 @@ type pushPayload struct {
 	Subscription string `json:"subscription"`
 }
 
-func registerPushEndpoint(cfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func registerPushEndpoint(serverCfg *config.GCPPubSubServer, subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	runtime.RegisterPubSubSubscriptionHandler(
-		cfg.ResourceID,
+		subscriptionConfig.ResourceID,
 		func(req *http.Request) error {
 			// If the request has not come from the Encore platform it must have
 			// a valid JWT set by Google.
 			if !runtime.IsEncoreAuthenticatedRequest(req.Context()) {
-				if err := validateGoogleJWT(req); err != nil {
-					return err
+				if err := validateGoogleJWT(req, serverCfg); err != nil {
+					return errs.Wrap(err, "unable to validate JWT")
 				}
 			}
 
@@ -54,7 +54,7 @@ func registerPushEndpoint(cfg *config.PubsubSubscription, f types.RawSubscriptio
 	)
 }
 
-func validateGoogleJWT(req *http.Request) error {
+func validateGoogleJWT(req *http.Request, cfg *config.GCPPubSubServer) error {
 	// Extract the JWT from the header
 	authType, token, _ := strings.Cut(req.Header.Get("Authorization"), " ")
 	if authType != "Bearer" {
@@ -68,6 +68,9 @@ func validateGoogleJWT(req *http.Request) error {
 	}
 	if jwt.Issuer != "accounts.google.com" && jwt.Issuer != "https://accounts.google.com" {
 		return errs.B().Code(errs.InvalidArgument).Msg("invalid issuer").Err()
+	}
+	if jwt.Claims["email"] != cfg.PushServiceAccount || jwt.Claims["email_verified"] != true {
+		return errs.B().Code(errs.Unauthenticated).Meta("expected_email", cfg.PushServiceAccount, "got_email", jwt.Claims["email"]).Msg("invalid email").Err()
 	}
 
 	return nil
