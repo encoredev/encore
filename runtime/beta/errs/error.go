@@ -1,3 +1,6 @@
+// Package errs provides structured error handling for Encore applications.
+//
+// See https://encore.dev/docs/develop/errors for more information about how errors work within Encore applications.
 package errs
 
 import (
@@ -17,11 +20,30 @@ var json = jsoniter.Config{
 	ValidateJsonRawMessage: true,
 }.Froze()
 
+// An Error is an error that provides structured information
+// about the error. It includes an error code, a message,
+// optionally additional structured details about the error
+// and arbitrary key-value metadata.
+//
+// The Details field is returned to external clients.
+// The Meta field is only exposed to internal calls within Encore.
+//
+// Internally it captures an underlying error for printing
+// and for use with errors.Is/As and call stack information.
+//
+// To provide accurate stack information, users are expected
+// to convert non-Error errors into *Error as close to the
+// root cause as possible. This is made simple with Wrap.
 type Error struct {
-	Code    ErrCode    `json:"code"`
-	Message string     `json:"message"`
+	// Code is the error code to return.
+	Code ErrCode `json:"code"`
+	// Message is a descriptive message of the error.
+	Message string `json:"message"`
+	// Details are user-defined additional details.
 	Details ErrDetails `json:"details"`
-	Meta    Metadata   `json:"-"` // not exposed to external clients
+	// Meta are arbitrary key-value pairs for use within
+	// the Encore application. They are not exposed to external clients.
+	Meta Metadata `json:"-"`
 
 	// underlying is the underlying error,
 	// for use with errors.Is and errors.As.
@@ -31,8 +53,16 @@ type Error struct {
 	stack stack.Stack
 }
 
+// Metadata represents structured key-value pairs, for attaching arbitrary
+// metadata to errors. The metadata is propagated between internal services
+// but is not exposed to external clients.
 type Metadata map[string]interface{}
 
+// Wrap wraps the err, adding additional error information.
+// If err is nil it returns nil.
+//
+// If err is already an *Error its code, message, and details
+// are copied over to the new error.
 func Wrap(err error, msg string, metaPairs ...interface{}) error {
 	if err == nil {
 		return nil
@@ -51,6 +81,8 @@ func Wrap(err error, msg string, metaPairs ...interface{}) error {
 	return e
 }
 
+// WrapCode is like Wrap but also sets the error code.
+// If code is OK it reports nil.
 func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) error {
 	if err == nil || code == OK {
 		return nil
@@ -69,6 +101,9 @@ func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) err
 	return e
 }
 
+// Convert converts an error to an *Error.
+// If the error is already an *Error it returns it unmodified.
+// If err is nil it returns nil.
 func Convert(err error) error {
 	if err == nil {
 		return nil
@@ -82,6 +117,9 @@ func Convert(err error) error {
 	}
 }
 
+// Code reports the error code from an error.
+// If err is nil it reports OK.
+// Otherwise if err is not an *Error it reports Unknown.
 func Code(err error) ErrCode {
 	if err == nil {
 		return OK
@@ -91,13 +129,8 @@ func Code(err error) ErrCode {
 	return Unknown
 }
 
-func Details(err error) ErrDetails {
-	if e, ok := err.(*Error); ok {
-		return e.Details
-	}
-	return nil
-}
-
+// Meta reports the metadata included in the error.
+// If err is nil or the error lacks metadata it reports nil.
 func Meta(err error) Metadata {
 	if e, ok := err.(*Error); ok {
 		return e.Meta
@@ -105,10 +138,22 @@ func Meta(err error) Metadata {
 	return nil
 }
 
+// Details reports the error details included in the error.
+// If err is nil or the error lacks details it reports nil.
+func Details(err error) ErrDetails {
+	if e, ok := err.(*Error); ok {
+		return e.Details
+	}
+	return nil
+}
+
+// Error reports the error code and message.
 func (e *Error) Error() string {
 	return e.Code.String() + ": " + e.ErrorMessage()
 }
 
+// ErrorMessage reports the error message, joining this
+// error's message with the messages from any underlying errors.
 func (e *Error) ErrorMessage() string {
 	if e.underlying == nil {
 		return e.Message
@@ -135,10 +180,16 @@ func (e *Error) ErrorMessage() string {
 	return b.String()
 }
 
+// Unwrap returns the underlying error, if any.
 func (e *Error) Unwrap() error {
 	return e.underlying
 }
 
+// HTTPError writes structured error information to w using JSON encoding.
+// The status code is computed with HTTPStatus.
+//
+// If err is nil it writes:
+//     {"code": "ok", "message": "", "details": null}
 func HTTPError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -163,48 +214,6 @@ func HTTPError(w http.ResponseWriter, err error) {
 	}
 	w.WriteHeader(e.Code.HTTPStatus())
 	w.Write(data)
-}
-
-func HTTPStatus(err error) int {
-	code := Code(err)
-	switch code {
-	case OK:
-		return 200
-	case Canceled:
-		return 499
-	case Unknown:
-		return 500
-	case InvalidArgument:
-		return 400
-	case DeadlineExceeded:
-		return 504
-	case NotFound:
-		return 404
-	case AlreadyExists:
-		return 409
-	case PermissionDenied:
-		return 403
-	case ResourceExhausted:
-		return 429
-	case FailedPrecondition:
-		return 400
-	case Aborted:
-		return 409
-	case OutOfRange:
-		return 400
-	case Unimplemented:
-		return 501
-	case Internal:
-		return 500
-	case Unavailable:
-		return 503
-	case DataLoss:
-		return 500
-	case Unauthenticated:
-		return 401
-	default:
-		return 500
-	}
 }
 
 func mergeMeta(md Metadata, pairs []interface{}) Metadata {

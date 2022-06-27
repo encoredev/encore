@@ -1,3 +1,6 @@
+// Package auth provides the APIs to get information about the authenticated users.
+//
+// For more information about how authentication works with Encore applications see https://encore.dev/docs/develop/auth.
 package auth
 
 import (
