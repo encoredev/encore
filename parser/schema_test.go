@@ -65,7 +65,7 @@ func TestParseStructTag(t *testing.T) {
 		x, err := goparser.ParseExpr("`" + test.Tag + "`")
 		c.Assert(err, qt.IsNil)
 		lit := x.(*ast.BasicLit)
-		got := p.parseStructTag(lit, nil)
+		got := p.parseStructTag(lit, nil, "", nil)
 		c.Assert(p.errors.Err(), qt.IsNil)
 		c.Assert(got, qt.DeepEquals, test.Want)
 	}

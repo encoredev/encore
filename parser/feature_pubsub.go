@@ -6,9 +6,12 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/fatih/structtag"
+
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 func init() {
@@ -39,6 +42,11 @@ func init() {
 		"Publish",
 		(*parser).parsePubSubPublish,
 		locations.AllowedIn(locations.Function).ButNotIn(locations.InitFunction),
+	)
+
+	registerStructTagParser(
+		"pubsub-attr",
+		(*parser).parsePubSubAttr,
 	)
 }
 
@@ -203,5 +211,11 @@ func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *wa
 	file.References[callExpr] = &est.Node{
 		Type:  est.PubSubPublisherNode,
 		Topic: topic,
+	}
+}
+
+func (p *parser) parsePubSubAttr(rawTag *ast.BasicLit, parsedTag *structtag.Tag, structType *schema.Struct, fieldName string, fieldType *schema.Type) {
+	if strings.HasPrefix(strings.ToLower(parsedTag.Name), "encore") {
+		p.errf(rawTag.Pos(), "Pubsub attribute tags must not start with \"encore\". The field %s currently has an attribute tag of \"%s\".", fieldName, parsedTag.Name)
 	}
 }

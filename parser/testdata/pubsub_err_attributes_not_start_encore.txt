@@ -1,0 +1,31 @@
+# Verify that pub sub is parsed
+! parse
+stderr 'Pubsub attribute tags must not start with "encore". The field Name currently has an attribute tag of "encorename".'
+
+-- shared/topics.go --
+package shared
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string `pubsub-attr:"encorename"`
+}
+
+var BasicTopic = pubsub.NewTopic[*MessageType]("same-name")
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var AnotherTopic = pubsub.NewTopic[*MessageType]("same-Name")

@@ -47,6 +47,12 @@ func Subscriber1(ctx context.Context, msg *shared.MessageType) error {
 -- svc/domain/code.go --
 package domain
 
+import (
+    "context"
+
+    "test/shared"
+)
+
 func SubscriptionCode(ctx context.Context, msg *shared.MessageType) error {
     return nil
 }
