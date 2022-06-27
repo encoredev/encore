@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -21,10 +22,15 @@ func init() {
 	rootCmd.AddCommand(genCmd)
 
 	var (
-		output        string
-		lang          string
-		envName       string
-		nextJsSupport bool
+		output  string
+		lang    string
+		envName string
+		preset  string
+
+		tsOptions = &daemonpb.GenClientRequest_TypeScriptOptions{
+			Namespaces: true,
+			Swr:        false,
+		}
 	)
 
 	genClientCmd := &cobra.Command{
@@ -38,15 +44,29 @@ Use '--env=local' to generate it based on your local development version of the 
 Supported language codes are:
   typescript: A TypeScript-client using the in-browser Fetch API
   go: A Go client using net/http"
+
+Support presets are:
+	nextjs: Generates a TypScript client for use within a Next.js application
 `,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if output == "" && lang == "" {
-				fatal("specify at least one of --output or --lang.")
+			if output == "" && lang == "" && preset == "" {
+				fatal("specify at least one of --output, --lang or --preset.")
 			}
 			appID := args[0]
 
-			if lang == "" {
+			if preset != "" {
+				switch strings.ToLower(preset) {
+				case "nextjs", "next.js":
+					lang = string(codegen.LangTypeScript)
+					tsOptions = &daemonpb.GenClientRequest_TypeScriptOptions{
+						Namespaces: false,
+						Swr:        true,
+					}
+				default:
+					fatal("unknown preset " + preset + "\n\nSupported presets are: nextjs")
+				}
+			} else if lang == "" {
 				var ok bool
 				l, ok := codegen.Detect(output)
 				if !ok {
@@ -62,19 +82,15 @@ Supported language codes are:
 				lang = string(l)
 			}
 
-			if nextJsSupport && lang != "typescript" {
-				fatal("--nextjs is only supported for typescript")
-			}
-
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
 			daemon := setupDaemon(ctx)
 			resp, err := daemon.GenClient(ctx, &daemonpb.GenClientRequest{
-				AppId:         appID,
-				EnvName:       envName,
-				Lang:          lang,
-				NextJsSupport: nextJsSupport,
+				AppId:   appID,
+				EnvName: envName,
+				Lang:    lang,
+				Ts:      tsOptions,
 			})
 			if err != nil {
 				fatal(err)
@@ -106,6 +122,15 @@ Supported language codes are:
 	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("env", autoCompleteEnvSlug)
 
-	genClientCmd.Flags().BoolVar(&nextJsSupport, "nextjs", false, "Generates a TypeScript client which is compatible with a Next.js (disable Namespaces)")
-	_ = genClientCmd.RegisterFlagCompletionFunc("nextjs", autoCompleteFromStaticList("true", "false"))
+	genClientCmd.Flags().StringVarP(&preset, "preset", "p", "", "Configures the client generation based on a given preset")
+	_ = genClientCmd.RegisterFlagCompletionFunc(
+		"preset",
+		autoCompleteFromStaticList("nextjs\tConfigures the client generation for Next.js using TypeScript"),
+	)
+
+	genClientCmd.Flags().BoolVar(&tsOptions.Namespaces, "ts.namespaces", true, "Use namespaces in TypeScript to mirror Go packages")
+	_ = genClientCmd.RegisterFlagCompletionFunc("ts.namespaces", autoCompleteFromStaticList("true", "false"))
+
+	genClientCmd.Flags().BoolVar(&tsOptions.Namespaces, "ts.swr", false, "Write SWR functions in the Typescript client")
+	_ = genClientCmd.RegisterFlagCompletionFunc("ts.swr", autoCompleteFromStaticList("true", "false"))
 }

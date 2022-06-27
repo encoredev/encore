@@ -14,6 +14,7 @@ import (
 
 	"encr.dev/parser"
 	"encr.dev/pkg/golden"
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 func TestMain(m *testing.M) {
@@ -61,7 +62,7 @@ func TestClientCodeGeneration(t *testing.T) {
 					c.Run(testName, func(c *qt.C) {
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
-						generatedClient, err := Client(language, "app", res.Meta, false)
+						generatedClient, err := Client(language, "app", res.Meta, &daemonpb.GenClientRequest_TypeScriptOptions{Namespaces: true, Swr: false})
 						c.Assert(err, qt.IsNil)
 
 						golden.TestAgainst(c, file.Name(), string(generatedClient))
@@ -69,7 +70,7 @@ func TestClientCodeGeneration(t *testing.T) {
 
 					if ok && language == LangTypeScript {
 						c.Run(testName+"_nextjs_support", func(c *qt.C) {
-							generatedClient, err := Client(language, "app", res.Meta, true)
+							generatedClient, err := Client(language, "app", res.Meta, &daemonpb.GenClientRequest_TypeScriptOptions{Namespaces: false, Swr: true})
 							c.Assert(err, qt.IsNil)
 
 							golden.TestAgainst(c, "nextjs_"+file.Name(), string(generatedClient))

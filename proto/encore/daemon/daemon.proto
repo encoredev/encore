@@ -145,11 +145,16 @@ message DBResetRequest {
 }
 
 message GenClientRequest {
-  string app_id         = 1;
-  string env_name       = 2;
-  string lang           = 3;
-  string filepath       = 4;
-  bool   next_js_support = 5; // True if the client is a TypeScript client being generated for NextJS
+  string app_id                 = 1;
+  string env_name               = 2;
+  string lang                   = 3;
+  string filepath               = 4;
+  optional TypeScriptOptions ts = 5;
+
+  message TypeScriptOptions {
+    bool namespaces = 1; // True if we should use namespaces for packages
+    bool swr        = 2; // True if we should generate SWR helper functions.
+  }
 }
 
 message GenClientResponse {

@@ -103,7 +103,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	}
 
 	lang := codegen.Lang(params.Lang)
-	code, err := codegen.Client(lang, params.AppId, md, params.NextJsSupport)
+	code, err := codegen.Client(lang, params.AppId, md, params.Ts)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
