@@ -16,7 +16,7 @@ type RetryPolicy = internal.RetryPolicy
 // message type of the topic or RawMessage
 type Subscriber[T any] func(ctx context.Context, msg T) error
 
-type Subscription[T any] interface{}
+type Subscription[T any] struct{}
 
 // DeliveryGuarantee is used to configure the delivery contract for a topic
 type DeliveryGuarantee = internal.DeliveryGuarantee
