@@ -16,25 +16,13 @@ import (
 	"encore.dev/runtime/config"
 )
 
-// Topic is the entry point for published messages
-type Topic[T any] interface {
-	// NewSubscription adds a handler to incoming messages on a topic.
-	// name is a unique name for the subscription and sub is a reference to a subscription handler.
-	// The SubscriptionConfig is used to configure filters, retries, etc.
-	NewSubscription(name string, sub Subscriber[T], cfg *SubscriptionConfig) Subscription[T]
-
-	// Publish publishes messages. The result is the message id
-	// or an error signalling a publishing failure
-	Publish(ctx context.Context, msg T) (id string, err error)
-}
-
 // NewTopic is used to declare a Topic. Encore will use static
 // analysis to identify Topics and automatically provision them
 // for you.
 //
 // The value passed to cfg will be used at compile time to configure the
 // topic. As such is not used directly by this code.
-func NewTopic[T any](name string, cfg *TopicConfig) Topic[T] {
+func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
 	// Fetch the topic configuration
 	topic, ok := config.Cfg.Runtime.PubsubTopics[name]
 	if !ok {
@@ -49,9 +37,9 @@ func NewTopic[T any](name string, cfg *TopicConfig) Topic[T] {
 
 	switch {
 	case server.NSQServer != nil:
-		return &topicAdapter[T]{topicCfg: topic, topic: nsq.NewTopic(server.NSQServer, topic)}
+		return &Topic[T]{topicCfg: topic, topic: nsq.NewTopic(server.NSQServer, topic)}
 	case server.GCP != nil:
-		return &topicAdapter[T]{topicCfg: topic, topic: gcp.NewTopic(server.GCP, topic)}
+		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(server.GCP, topic)}
 
 	default:
 		logging.RootLogger.Fatal().Msgf("unsupported PubsubServer type for server idx: %v", topic.ServerID)
@@ -66,12 +54,12 @@ func NewTopic[T any](name string, cfg *TopicConfig) Topic[T] {
 // - error handling and panic recovery
 // - message serialization to attributes and body
 //
-type topicAdapter[T any] struct {
+type Topic[T any] struct {
 	topicCfg *config.PubsubTopic
 	topic    types.TopicImplementation
 }
 
-func (t *topicAdapter[T]) NewSubscription(name string, sub Subscriber[T], cfg *SubscriptionConfig) Subscription[T] {
+func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *SubscriptionConfig) *Subscription[T] {
 	// Fetch the subscription configuration
 	subscription, ok := t.topicCfg.Subscriptions[name]
 	if !ok {
@@ -144,10 +132,10 @@ func (t *topicAdapter[T]) NewSubscription(name string, sub Subscriber[T], cfg *S
 
 	log.Info().Msg("registered subscription")
 
-	return struct{}{}
+	return &Subscription[T]{}
 }
 
-func (t *topicAdapter[T]) Publish(ctx context.Context, msg T) (id string, err error) {
+func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 	// Extract the message attributes
 	attrs, err := utils.MarshalFields(msg, utils.AttrTag)
 	if err != nil {
