@@ -13,9 +13,9 @@ import (
 
 	"encore.dev/beta/errs"
 	"encore.dev/internal/ctx"
-	"encore.dev/internal/logging"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
+	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 )
 
@@ -127,7 +127,7 @@ func (l *topic) PublishMessage(_ context.Context, attrs map[string]string, data 
 				return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to connect to NSQD").Err()
 			}
 			// only log warnings and above from the NSQ library
-			log := logging.RootLogger.With().Str("topic", l.name).Logger()
+			log := runtime.Logger().With().Str("topic", l.name).Logger()
 			producer.SetLogger(&LogAdapter{Logger: &log}, nsq.LogLevelWarning)
 			l.producer = producer
 		}

@@ -6,7 +6,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"encore.dev/beta/errs"
-	"encore.dev/internal/logging"
 	"encore.dev/runtime/config"
 )
 
@@ -55,7 +54,7 @@ func handlePubSubPush(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	subscriptionID := ps.ByName("subscription_id")
 	if subscriptionID == "" {
 		err := errs.B().Code(errs.InvalidArgument).Msg("missing subscription ID").Err()
-		logging.RootLogger.Err(err).Msg("invalid PubSub push request")
+		Logger().Err(err).Msg("invalid PubSub push request")
 		errs.HTTPError(w, err)
 		return
 	}
@@ -63,14 +62,14 @@ func handlePubSubPush(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	handler, found := pubSubSubscriptions[subscriptionID]
 	if !found {
 		err := errs.B().Code(errs.NotFound).Msg("unknown pubsub subscription").Err()
-		logging.RootLogger.Err(err).Msg("invalid PubSub push request")
+		Logger().Err(err).Msg("invalid PubSub push request")
 		errs.HTTPError(w, err)
 		return
 	}
 
 	err := handler(req)
 	if err != nil {
-		logging.RootLogger.Err(err).Msg("error while handling PubSub push request")
+		Logger().Err(err).Msg("error while handling PubSub push request")
 	}
 	errs.HTTPError(w, handler(req))
 }

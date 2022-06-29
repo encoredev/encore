@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"encore.dev/beta/errs"
-	"encore.dev/internal/logging"
 	"encore.dev/pubsub/internal/gcp"
 	"encore.dev/pubsub/internal/nsq"
+	"encore.dev/pubsub/internal/test"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
 	"encore.dev/runtime"
@@ -23,15 +23,22 @@ import (
 // The value passed to cfg will be used at compile time to configure the
 // topic. As such is not used directly by this code.
 func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
+	if config.Cfg.Static.Testing {
+		return &Topic[T]{
+			topicCfg: &config.PubsubTopic{EncoreName: name},
+			topic:    test.NewTopic[T](name),
+		}
+	}
+
 	// Fetch the topic configuration
 	topic, ok := config.Cfg.Runtime.PubsubTopics[name]
 	if !ok {
-		logging.RootLogger.Fatal().Msgf("unregistered/unknown topic: %v", name)
+		runtime.Logger().Fatal().Msgf("unregistered/unknown topic: %v", name)
 	}
 
 	// Fetch the server config
 	if topic.ServerID >= len(config.Cfg.Runtime.PubsubServers) {
-		logging.RootLogger.Fatal().Msgf("invalid PubsubServer idx: %v", topic.ServerID)
+		runtime.Logger().Fatal().Msgf("invalid PubsubServer idx: %v", topic.ServerID)
 	}
 	server := config.Cfg.Runtime.PubsubServers[topic.ServerID]
 
@@ -42,12 +49,12 @@ func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
 		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(server.GCP, topic)}
 
 	default:
-		logging.RootLogger.Fatal().Msgf("unsupported PubsubServer type for server idx: %v", topic.ServerID)
+		runtime.Logger().Fatal().Msgf("unsupported PubsubServer type for server idx: %v", topic.ServerID)
 		panic("unsupported pubsub server type")
 	}
 }
 
-// topicAdapter allows us to adapt from the types.TopicImplementation type to our public API
+// Topic allows us to adapt from the types.TopicImplementation type to our public API
 //
 // This adapter also contains unified logic for publishing and subscribing to messages on any type of backing topic,
 // including:
@@ -59,18 +66,30 @@ type Topic[T any] struct {
 	topic    types.TopicImplementation
 }
 
-func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *SubscriptionConfig) *Subscription[T] {
+func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscription, *config.StaticPubsubSubscription) {
+	if config.Cfg.Static.Testing {
+		// No subscriptions occur in testing
+		return &config.PubsubSubscription{EncoreName: name}, &config.StaticPubsubSubscription{
+			Service: &config.Service{Name: "test"},
+		}
+	}
+
 	// Fetch the subscription configuration
 	subscription, ok := t.topicCfg.Subscriptions[name]
 	if !ok {
-		logging.RootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
+		runtime.Logger().Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
 	}
 
 	staticCfg, ok := config.Cfg.Static.PubsubTopics[t.topicCfg.EncoreName].Subscriptions[name]
 	if !ok {
-		logging.RootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
+		runtime.Logger().Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
 	}
 
+	return subscription, staticCfg
+}
+
+func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *SubscriptionConfig) *Subscription[T] {
+	subscription, staticCfg := t.getSubscriptionConfig(name)
 	panicCatchWrapper := func(ctx context.Context, msg T) (err error) {
 		defer func() {
 			if err2 := recover(); err2 != nil {
@@ -81,7 +100,7 @@ func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *Subscrip
 		return sub(ctx, msg)
 	}
 
-	log := logging.RootLogger.With().
+	log := runtime.Logger().With().
 		Str("service", staticCfg.Service.Name).
 		Str("topic", t.topicCfg.EncoreName).
 		Str("subscription", name).
@@ -89,21 +108,15 @@ func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *Subscrip
 
 	// Subscribe to the topic
 	t.topic.Subscribe(&log, cfg, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
-		runtime.BeginOperation()
-		defer runtime.FinishOperation()
-
-		var msg T
-
-		if err = json.Unmarshal(data, &msg); err != nil {
-			err = errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal message").Err()
-			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message")
-			return err
+		if !config.Cfg.Static.Testing {
+			// Under test we're already inside an operation
+			runtime.BeginOperation()
+			defer runtime.FinishOperation()
 		}
 
-		if err = utils.UnmarshalFields(attrs, &msg, utils.AttrTag); err != nil {
-			err = errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal attributes").Err()
-			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message attributes")
-			return err
+		msg, err := utils.UnmarshalMessage[T](attrs, data)
+		if err != nil {
+			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message")
 		}
 
 		// Start the request tracing span
@@ -130,7 +143,10 @@ func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *Subscrip
 		return err
 	})
 
-	log.Info().Msg("registered subscription")
+	if !config.Cfg.Static.Testing {
+		// Log the subscription registration - unless we're in unit tests
+		log.Info().Msg("registered subscription")
+	}
 
 	return &Subscription[T]{}
 }
