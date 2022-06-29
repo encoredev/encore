@@ -34,7 +34,13 @@ package cron
 // 			return nil
 // 		}
 func NewJob(id string, jobConfig JobConfig) *Job {
-	panic("encore apps must be run using the encore command")
+	return &Job{
+		ID:       id,
+		Title:    jobConfig.Title,
+		Every:    jobConfig.Every,
+		Schedule: jobConfig.Schedule,
+		Endpoint: jobConfig.Endpoint,
+	}
 }
 
 // JobConfig represents the configuration of a single cron job.

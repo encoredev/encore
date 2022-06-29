@@ -157,25 +157,25 @@ const (
 )
 
 // String returns the string representation of c.
-//encore:keep
+//publicapigen:keep
 func (c ErrCode) String() string {
 	return codeNames[c]
 }
 
 // HTTPStatus reports a suitable HTTP status code for an error, based on its code.
 // If err is nil it reports 200. If it's not an *Error it reports 500.
-//encore:keep
+//publicapigen:keep
 func (c ErrCode) HTTPStatus() int {
 	return codeStatus[c]
 }
 
-//encore:keep
+//publicapigen:keep
 func (c ErrCode) MarshalJSON() ([]byte, error) {
 	s := c.String()
 	return []byte("\"" + s + "\""), nil
 }
 
-//encore:keep
+//publicapigen:keep
 var codeNames = [...]string{
 	OK:                 "ok",
 	Canceled:           "canceled",
@@ -196,7 +196,7 @@ var codeNames = [...]string{
 	Unauthenticated:    "unauthenticated",
 }
 
-//encore:keep
+//publicapigen:keep
 var codeStatus = [...]int{
 	OK:                 200,
 	Canceled:           499,

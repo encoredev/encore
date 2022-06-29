@@ -9,9 +9,9 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -29,41 +29,41 @@ var (
 
 func main() {
 	log.Logger = zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Caller().Logger()
-	log.Info().Msg("Generating Public API")
+	log.Info().Msg("generating public api")
 
 	// Walk the directory tree and parse all the Go files
-	log.Info().Msg("Parsing source files...")
+	log.Info().Msg("parsing source files...")
 	if err := walkDir(filepath.Join(repoDir(), "runtime"), "./", readAST); err != nil {
-		log.Fatal().Err(err).Msg("Unable to walk runtime directory to parse Go files")
+		log.Fatal().Err(err).Msg("unable to walk runtime directory to parse go files")
 	}
 
 	// Register all consts and types in our private files, just in case we reference them in the public API
-	log.Info().Msg("Registering types...")
+	log.Info().Msg("registering types...")
 	for fileName, fAST := range files {
 		if isPrivateFile(fileName) {
-			log.Debug().Str("file", fileName).Msg("Registering types and constants from private implementation files")
+			log.Debug().Str("file", fileName).Msg("registering types and constants from private implementation files")
 			registerTypes(fileName, fAST)
 		}
 	}
 
 	// Then rewrite all the AST to remove implementations
-	log.Info().Msg("Rewriting AST to remove implementations and unexported items...")
+	log.Info().Msg("rewriting ast to remove implementations and unexported items...")
 	for fileName, fAST := range files {
 
-		log.Debug().Str("file", fileName).Msg("Rewriting AST")
+		log.Debug().Str("file", fileName).Msg("rewriting ast")
 		if err := rewriteAST(fAST); err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("Unable to rewrite AST")
+			log.Fatal().Err(err).Str("file", fileName).Msg("unable to rewrite ast")
 		}
 
 		if len(fAST.Decls) == 0 && fAST.Doc == nil {
-			log.Debug().Str("file", fileName).Msg("Removing file as there are no exported decelerations or package comments")
+			log.Debug().Str("file", fileName).Msg("removing file as there are no exported decelerations or package comments")
 			delete(files, fileName)
 		}
 	}
 
 	// Then write the AST to a file
 	outDir := outDir()
-	log.Info().Str("out", outDir).Msg("Writing public API files...")
+	log.Info().Str("out", outDir).Msg("writing public api files...")
 	for fileName, fAST := range files {
 		if isPrivateFile(fileName) {
 			// "runtime" is a private package as are internal packages
@@ -71,19 +71,19 @@ func main() {
 			continue
 		}
 
-		log.Debug().Str("file", fileName).Msg("Writing public API file")
+		log.Debug().Str("file", fileName).Msg("writing public api file")
 
 		// Print the AST to a buffer
 		var buf bytes.Buffer
 		if err := printer.Fprint(&buf, fset, fAST); err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("Unable to write AST to file")
+			log.Fatal().Err(err).Str("file", fileName).Msg("unable to write ast to file")
 		}
 
 		// Then pass that to goimports to format the imports
 		imports.LocalPrefix = "encore.dev"
 		formatted, err := imports.Process(fileName, buf.Bytes(), nil)
 		if err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("Unable to process imports")
+			log.Fatal().Err(err).Str("file", fileName).Msg("unable to process imports")
 		}
 
 		// Now let's write the file out
@@ -91,15 +91,15 @@ func main() {
 		outputDir := filepath.Dir(outputFile)
 
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
-			log.Fatal().Err(err).Str("dir", outputDir).Msg("Unable to create output directory")
+			log.Fatal().Err(err).Str("dir", outputDir).Msg("unable to create output directory")
 		}
 
 		if err := os.WriteFile(outputFile, formatted, 0644); err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("Unable to write file")
+			log.Fatal().Err(err).Str("file", fileName).Msg("unable to write file")
 		}
 	}
 
-	log.Info().Msg("Done")
+	log.Info().Msg("done")
 }
 
 func registerTypes(name string, fAST *ast.File) {
@@ -116,7 +116,7 @@ func registerTypes(name string, fAST *ast.File) {
 				switch s := spec.(type) {
 				case *ast.TypeSpec:
 					if s.Name != nil && s.Name.IsExported() {
-						log.Debug().Str("type", s.Name.Name).Msg("Registering type")
+						log.Debug().Str("type", s.Name.Name).Msg("registering type")
 						types[pkg][s.Name.Name] = s.Type
 					}
 				case *ast.ValueSpec:
@@ -126,7 +126,7 @@ func registerTypes(name string, fAST *ast.File) {
 								break
 							}
 							if basic, ok := s.Values[i].(*ast.BasicLit); ok && name.IsExported() {
-								log.Debug().Str("const", name.Name).Msg("Registering basic const")
+								log.Debug().Str("const", name.Name).Msg("registering basic const")
 								constants[pkg][name.Name] = *basic
 							}
 						}
@@ -150,7 +150,7 @@ func readAST(path, rel string, file []os.FileInfo) error {
 			continue
 		}
 
-		log.Debug().Str("rel", rel).Str("file", f.Name()).Msg("Parsing file")
+		log.Debug().Str("rel", rel).Str("file", f.Name()).Msg("parsing file")
 
 		fAST, err := parser.ParseFile(fset, filepath.Join(path, f.Name()), nil, parser.ParseComments)
 		if err != nil {
@@ -349,7 +349,7 @@ func walkDir(dir, rel string, f func(path, rel string, files []os.FileInfo) erro
 		return nil
 	}
 
-	log.Debug().Str("rel", rel).Msg("Walking directory")
+	log.Debug().Str("rel", rel).Msg("walking directory")
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return err
@@ -381,16 +381,12 @@ func walkDir(dir, rel string, f func(path, rel string, files []os.FileInfo) erro
 }
 
 func repoDir() string {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("Unable to get caller location")
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		panic("unable to get repo directory")
 	}
-
-	publicapigenDir := filepath.Dir(file)
-	toolsDir := filepath.Dir(publicapigenDir)
-	encoreDir := filepath.Dir(toolsDir)
-
-	return encoreDir
+	return string(bytes.TrimSpace(out))
 }
 
 func outDir() string {
@@ -442,7 +438,7 @@ func mustKeep(nodes ...*ast.CommentGroup) bool {
 	for _, node := range nodes {
 		if node != nil && node.List != nil {
 			for i, comment := range node.List {
-				if comment.Text == "//encore:keep" {
+				if comment.Text == "//publicapigen:keep" {
 					if i == 0 {
 						comment.Text = "  "
 					} else {
