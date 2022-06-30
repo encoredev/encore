@@ -1,3 +1,7 @@
+// Package rlog provides a simple logging interface which is integrated with Encore's
+// inbuilt distributed tracing.
+//
+// For more information about logging inside Encore applications see https://encore.dev/docs/observability/logging.
 package rlog
 
 import (
@@ -13,25 +17,35 @@ import (
 	"encore.dev/types/uuid"
 )
 
-type Ctx struct {
-	ctx zerolog.Context
-}
-
+// Debug logs a debug-level message.
+// The variadic key-value pairs are treated as they are in With.
 func Debug(msg string, keysAndValues ...interface{}) {
 	log := runtime.Logger()
 	doLog(0, log.Debug(), msg, keysAndValues...)
 }
 
+// Info logs an info-level message.
+// The variadic key-value pairs are treated as they are in With.
 func Info(msg string, keysAndValues ...interface{}) {
 	log := runtime.Logger()
 	doLog(1, log.Info(), msg, keysAndValues...)
 }
 
+// Error logs an error-level message.
+// The variadic key-value pairs are treated as they are in With.
 func Error(msg string, keysAndValues ...interface{}) {
 	log := runtime.Logger()
 	doLog(2, log.Error(), msg, keysAndValues...)
 }
 
+// Ctx holds additional logging context for use with the Infoc and family
+// of logging functions.
+type Ctx struct {
+	ctx zerolog.Context
+}
+
+// With adds a variadic number of fields to the logging context.
+// The keysAndValues must be pairs of string keys and arbitrary data.
 func With(keysAndValues ...interface{}) Ctx {
 	ctx := runtime.Logger().With()
 	for i := 0; i < len(keysAndValues); i += 2 {
@@ -42,21 +56,9 @@ func With(keysAndValues ...interface{}) Ctx {
 	return Ctx{ctx: ctx}
 }
 
-func (ctx Ctx) Debug(msg string, keysAndValues ...interface{}) {
-	l := ctx.ctx.Logger()
-	doLog(0, l.Debug(), msg, keysAndValues...)
-}
-
-func (ctx Ctx) Info(msg string, keysAndValues ...interface{}) {
-	l := ctx.ctx.Logger()
-	doLog(1, l.Info(), msg, keysAndValues...)
-}
-
-func (ctx Ctx) Error(msg string, keysAndValues ...interface{}) {
-	l := ctx.ctx.Logger()
-	doLog(2, l.Error(), msg, keysAndValues...)
-}
-
+// With creates a new logging context that inherits the context
+// from the original ctx and adds additional context on top.
+// The original ctx is not affected.
 func (ctx Ctx) With(keysAndValues ...interface{}) Ctx {
 	c := ctx.ctx
 	for i := 0; i < len(keysAndValues); i += 2 {
@@ -65,6 +67,30 @@ func (ctx Ctx) With(keysAndValues ...interface{}) Ctx {
 		c = addContext(c, key, val)
 	}
 	return Ctx{ctx: c}
+}
+
+// Debug logs a debug-level message, merging the context from ctx
+// with the additional context provided as key-value pairs.
+// The variadic key-value pairs are treated as they are in With.
+func (ctx Ctx) Debug(msg string, keysAndValues ...interface{}) {
+	l := ctx.ctx.Logger()
+	doLog(0, l.Debug(), msg, keysAndValues...)
+}
+
+// Info logs an info-level message, merging the context from ctx
+// with the additional context provided as key-value pairs.
+// The variadic key-value pairs are treated as they are in With.
+func (ctx Ctx) Info(msg string, keysAndValues ...interface{}) {
+	l := ctx.ctx.Logger()
+	doLog(1, l.Info(), msg, keysAndValues...)
+}
+
+// Error logs an error-level message, merging the context from ctx
+// with the additional context provided as key-value pairs.
+// The variadic key-value pairs are treated as they are in With.
+func (ctx Ctx) Error(msg string, keysAndValues ...interface{}) {
+	l := ctx.ctx.Logger()
+	doLog(2, l.Error(), msg, keysAndValues...)
 }
 
 func doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
