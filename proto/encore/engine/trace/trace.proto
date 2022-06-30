@@ -12,13 +12,13 @@ message TraceID {
 }
 
 message Request {
+  reserved 7; // call_loc
   TraceID trace_id = 1;
   uint64 span_id = 2;
   uint64 parent_span_id = 3;
   uint32 goid = 4;
   uint64 start_time = 5;
   uint64 end_time = 6;
-  int32 call_loc = 7;
   int32 def_loc = 8;
   repeated bytes inputs = 9;
   repeated bytes outputs = 10;
@@ -26,7 +26,7 @@ message Request {
   repeated Event events = 12;
   string uid = 13;
   Type type = 14;
-  StackTrace err_stack = 15;
+  StackTrace err_stack = 15; // null if unavailable
 
   // abs_start_time is the absolute unix timestamp
   // (in nanosecond resolution) of when the request started.
@@ -36,9 +36,11 @@ message Request {
   string endpoint_name = 18;
 
   // Fields set if Type == PUBSUB_MSG
-  string message_id = 19;
-  uint32 attempt = 20;
-  uint64 publish_time = 21;
+  string topic_name = 19;
+  string subscription_name = 20;
+  string message_id = 21;
+  uint32 attempt = 22;
+  uint64 publish_time = 23;
 
   enum Type {
     RPC = 0;
@@ -60,19 +62,19 @@ message Event {
 }
 
 message RPCCall {
+  reserved 3; // call_loc
   uint64 span_id = 1;
   uint32 goid = 2;
-  int32 call_loc = 3;
   int32 def_loc = 4;
   uint64 start_time = 5;
   uint64 end_time = 6;
   bytes err = 7;
-  StackTrace stack = 8; // where it was called
+  StackTrace stack = 8; // where it was called (null if unavailable)
 }
 
 message Goroutine {
+  reserved 2; // call_loc
   uint32 goid = 1;
-  int32 call_loc = 2; // not yet set
   uint64 start_time = 3;
   uint64 end_time = 4;
 }
@@ -83,26 +85,26 @@ message DBTransaction {
     COMMIT = 1;
   }
 
+  reserved 2, 3; // start_loc, end_loc
+
   uint32 goid = 1;
-  int32 start_loc = 2;
-  int32 end_loc = 3;
   uint64 start_time = 4;
   uint64 end_time = 5;
   bytes err = 6;
   CompletionType completion = 7;
   repeated DBQuery queries = 8;
-  StackTrace begin_stack = 9;
-  StackTrace end_stack = 10;
+  StackTrace begin_stack = 9; // null if unavailable
+  StackTrace end_stack = 10; // null if unavailable
 }
 
 message DBQuery {
+  reserved 2; // call_loc
   uint32 goid = 1;
-  int32 call_loc = 2;
   uint64 start_time = 3;
   uint64 end_time = 4;
   bytes query = 5;
   bytes err = 6;
-  StackTrace stack = 7;
+  StackTrace stack = 7; // null if unavailable
 }
 
 message PubsubMsgPublished {
@@ -225,14 +227,15 @@ message LogMessage {
   Level level = 4;
   string msg = 5;
   repeated LogField fields = 6;
-  StackTrace stack = 7;
+  StackTrace stack = 7; // null if unavailable
 }
 
 message LogField {
   string key = 1;
 
   oneof value {
-    ErrWithStack error = 2;
+    string error_without_stack = 2; // deprecated: use error_with_stack
+    ErrWithStack error_with_stack = 13;
     string str = 3;
     bool bool = 4;
     google.protobuf.Timestamp time = 5;
@@ -252,7 +255,8 @@ message ErrWithStack {
 }
 
 message StackTrace {
-  repeated StackFrame frames = 1;
+  repeated int64 pcs = 1;
+  repeated StackFrame frames = 2;
 }
 
 message StackFrame {
