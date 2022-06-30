@@ -438,7 +438,7 @@ func mustKeep(nodes ...*ast.CommentGroup) bool {
 	for _, node := range nodes {
 		if node != nil && node.List != nil {
 			for i, comment := range node.List {
-				if comment.Text == "//publicapigen:keep" {
+				if strings.TrimSpace(comment.Text) == "//publicapigen:keep" {
 					if i == 0 {
 						comment.Text = "  "
 					} else {
