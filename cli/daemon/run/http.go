@@ -39,13 +39,6 @@ func (r *Run) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 // forwardReq forwards the request to the Encore app.
 func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Request) {
-	if req.Method == "OPTIONS" {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.WriteHeader(200)
-		return
-	}
 	// director is a simplified version from httputil.NewSingleHostReverseProxy.
 	director := func(r *http.Request) {
 		r.URL.Scheme = "http"
@@ -57,13 +50,6 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 			r.Header.Set("User-Agent", "")
 		}
 		addAuthKeyToRequest(r, p.authKey)
-	}
-	// modifyResponse sets the appropriate CORS headers for local development.
-	modifyResponse := func(r *http.Response) error {
-		r.Header.Set("Access-Control-Allow-Origin", "*")
-		r.Header.Set("Access-Control-Allow-Methods", "*")
-		r.Header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		return nil
 	}
 
 	// Create a transport that connects over yamux.
@@ -77,9 +63,8 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 	}
 
 	(&httputil.ReverseProxy{
-		Director:       director,
-		ModifyResponse: modifyResponse,
-		Transport:      transport,
+		Director:  director,
+		Transport: transport,
 	}).ServeHTTP(w, req)
 }
 

@@ -18,6 +18,7 @@ import (
 	"encore.dev/internal/ctx"
 	"encore.dev/internal/metrics"
 	"encore.dev/runtime/config"
+	"encore.dev/runtime/cors"
 )
 
 var defaultServer = setup()
@@ -54,8 +55,16 @@ func (srv *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
+
+	// Configure CORS
+	corsCfg := &config.CORS{}
+	if cfg := config.Cfg; cfg != nil && cfg.Runtime.CORS != nil {
+		corsCfg = cfg.Runtime.CORS
+	}
+	handler := cors.Wrap(corsCfg, http.HandlerFunc(srv.handler))
+
 	httpsrv := &http.Server{
-		Handler: http.HandlerFunc(srv.handler),
+		Handler: handler,
 		BaseContext: func(listener net.Listener) context.Context {
 			return ctx.App
 		},

@@ -74,9 +74,9 @@ func (b *Builder) BuildBinaries() error {
 		// GitHub Actions doesn't have builders for linux/arm64 so we need to
 		// cross-compile. Unfortunately we need cgo for sqlite so use zig to do so.
 		mustWriteFile("/usr/local/bin/zcc", 0755,
-			"#!/bin/sh\nzig cc -Wl,--no-gc-sections -target aarch64-linux-gnu $@")
+			"#!/bin/sh\nzig cc -Wl,--no-gc-sections -target aarch64-linux-gnu.2.28 $@")
 		mustWriteFile("/usr/local/bin/zxx", 0755,
-			"#!/bin/sh\nzig c++ -Wl,--no-gc-sections -target aarch64-linux-gnu $@")
+			"#!/bin/sh\nzig c++ -Wl,--no-gc-sections -target aarch64-linux-gnu.2.28 $@")
 		env = append(env,
 			"CC=/usr/local/bin/zcc",
 			"CXX=/usr/local/bin/zxx",
