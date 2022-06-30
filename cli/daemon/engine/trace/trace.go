@@ -80,7 +80,7 @@ func (st *Store) List(appID string) []*TraceMeta {
 	return tr
 }
 
-func Parse(log *zerolog.Logger, traceID ID, data []byte, version trace.Version, symTable SymTable) ([]*tracepb.Request, error) {
+func Parse(log *zerolog.Logger, traceID ID, data []byte, version trace.Version, symTable SymTabler) ([]*tracepb.Request, error) {
 	id := &tracepb.TraceID{
 		Low:  bin.Uint64(traceID[:8]),
 		High: bin.Uint64(traceID[8:]),
@@ -110,7 +110,7 @@ type goKey struct {
 	goid   uint32
 }
 
-type SymTable interface {
+type SymTabler interface {
 	SymTable(ctx context.Context) (*sym.Table, error)
 }
 
@@ -118,7 +118,7 @@ type traceParser struct {
 	traceReader
 	log        *zerolog.Logger
 	version    trace.Version
-	symTable   SymTable
+	symTable   SymTabler
 	traceID    *tracepb.TraceID
 	reqs       []*tracepb.Request
 	reqMap     map[uint64]*tracepb.Request
