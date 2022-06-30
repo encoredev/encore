@@ -323,9 +323,7 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		MessageID:      req.MessageId,
 		Attempt:        req.Attempt,
 		Published:      nil,
-
-		CallLoc: nullInt32(req.CallLoc),
-		DefLoc:  req.DefLoc,
+		DefLoc:         req.DefLoc,
 
 		Inputs:   inputs,
 		Outputs:  outputs,
@@ -374,7 +372,6 @@ func (tp *traceParser) parseGoroutine(g *tracepb.Goroutine) *Goroutine {
 	return &Goroutine{
 		Type:      "Goroutine",
 		Goid:      g.Goid,
-		CallLoc:   g.CallLoc,
 		StartTime: tp.time(g.StartTime),
 		EndTime:   tp.maybeTime(g.EndTime),
 	}
@@ -393,9 +390,9 @@ func (tp *traceParser) parseLog(l *tracepb.LogMessage) *LogMessage {
 	for _, f := range l.Fields {
 		field := LogField{Key: f.Key}
 		switch v := f.Value.(type) {
-		case *tracepb.LogField_Error:
-			field.Value = v.Error.Error
-			if s := v.Error.Stack; s != nil {
+		case *tracepb.LogField_ErrorWithStack:
+			field.Value = v.ErrorWithStack.Error
+			if s := v.ErrorWithStack.Stack; s != nil {
 				st := tp.stack(s)
 				field.Stack = &st
 			}
@@ -446,8 +443,6 @@ func (tp *traceParser) parseTx(tx *tracepb.DBTransaction) (*DBTransaction, error
 		Type:       "DBTransaction",
 		Goid:       tx.Goid,
 		Txid:       txid,
-		StartLoc:   tx.StartLoc,
-		EndLoc:     tx.EndLoc,
 		StartTime:  tp.time(tx.StartTime),
 		EndTime:    tp.maybeTime(tx.EndTime),
 		Err:        nullBytes(tx.Err),
@@ -487,7 +482,6 @@ func (tp *traceParser) parseQuery(q *tracepb.DBQuery, txid uint32) *DBQuery {
 		Type:      "DBQuery",
 		Goid:      q.Goid,
 		Txid:      nullUint32(txid),
-		CallLoc:   q.CallLoc,
 		StartTime: tp.time(q.StartTime),
 		EndTime:   tp.maybeTime(q.EndTime),
 		Query:     dedent.Bytes(q.Query),
@@ -502,7 +496,6 @@ func (tp *traceParser) parseCall(c *tracepb.RPCCall) *RPCCall {
 		Type:      "RPCCall",
 		Goid:      c.Goid,
 		ReqID:     strconv.FormatUint(c.SpanId, 10),
-		CallLoc:   c.CallLoc,
 		DefLoc:    c.DefLoc,
 		StartTime: tp.time(c.StartTime),
 		EndTime:   tp.maybeTime(c.EndTime),
@@ -578,13 +571,6 @@ func nullIntStr(n uint64) *string {
 	}
 	s := strconv.FormatUint(n, 10)
 	return &s
-}
-
-func nullInt32(n int32) *int32 {
-	if n == 0 {
-		return nil
-	}
-	return &n
 }
 
 func nullUint32(n uint32) *uint32 {

@@ -370,6 +370,8 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 		}
 
 		if req.Type == PubSubMessage {
+			tb.String(req.MsgData.Topic)
+			tb.String(req.MsgData.Subscription)
 			tb.String(req.MsgData.MessageID)
 			tb.Uint32(uint32(req.MsgData.Attempt))
 			tb.Time(req.MsgData.Published)
