@@ -10,10 +10,10 @@ import (
 	"encore.dev/runtime/trace"
 )
 
-// encoreTestStart is called when a test starts running. This allows Encore's testing framework to
-// isolate behaviour between different tests on global state.
-//go:linkname encoreTestStart testing.encoreTestStart
-func encoreTestStart(t *testing.T) {
+// encoreStartTest is called when a test starts running. This allows Encore's testing framework to
+// isolate behavior between different tests on global state.
+//go:linkname encoreStartTest testing.encoreStartTest
+func encoreStartTest(t *testing.T) {
 	var parent *Request
 	if g := encoreGetG(); g != nil && g.req != nil {
 		parent = g.req.data
@@ -22,7 +22,7 @@ func encoreTestStart(t *testing.T) {
 
 	spanID, err := trace.GenSpanID()
 	if err != nil {
-		t.Fatalf("encoreTestStart: failed to generate span ID: %v", err)
+		t.Fatalf("encoreStartTest: failed to generate span ID: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -43,22 +43,22 @@ func encoreTestStart(t *testing.T) {
 	encoreBeginReq(spanID, req, false)
 }
 
-// encoreTestPaused is called when a test is paused. This allows Encore's testing framework to
-// isolate behaviour between different tests on global state.
-//go:linkname encoreTestPaused testing.encoreTestPaused
-func encoreTestPaused(t *testing.T) {
+// encorePauseTest is called when a test is paused. This allows Encore's testing framework to
+// isolate behavior between different tests on global state.
+//go:linkname encorePauseTest testing.encorePauseTest
+func encorePauseTest(t *testing.T) {
 }
 
-// encoreTestResumed is called when a test is resumed after being paused. This allows Encore's testing framework to clear down any state from the test
+// encoreResumeTest is called when a test is resumed after being paused. This allows Encore's testing framework to clear down any state from the test
 // and to perform any assertions on that state that it needs to.
-//go:linkname encoreTestResumed testing.encoreTestResumed
-func encoreTestResumed(t *testing.T) {
+//go:linkname encoreResumeTest testing.encoreResumeTest
+func encoreResumeTest(t *testing.T) {
 	g := encoreGetG()
 	if g == nil || g.req == nil || g.req.data.Test == nil {
-		panic("encoreTestResumed: no active test")
+		panic("encoreResumeTest: no active test")
 	}
 	if g.req.data.Test.Current != t {
-		panic("encoreTestResumed: active test is not this test")
+		panic("encoreResumeTest: active test is not this test")
 	}
 
 	// Tests get paused when they call `t.Parallel()` and are held there until the parent test
@@ -67,16 +67,16 @@ func encoreTestResumed(t *testing.T) {
 	g.req.data.Start = time.Now()
 }
 
-// encoreTestEnd is called when a test ends. This allows Encore's testing framework to clear down any state from the test
+// encoreEndTest is called when a test ends. This allows Encore's testing framework to clear down any state from the test
 // and to perform any assertions on that state that it needs to.
-//go:linkname encoreTestEnd testing.encoreTestEnd
-func encoreTestEnd(t *testing.T) {
+//go:linkname encoreEndTest testing.encoreEndTest
+func encoreEndTest(t *testing.T) {
 	g := encoreGetG()
 	if g == nil || g.req == nil || g.req.data.Test == nil {
-		panic("encoreTestEnd: no active test")
+		panic("encoreEndTest: no active test")
 	}
 	if g.req.data.Test.Current != t {
-		panic("encoreTestEnd: active test is not this test")
+		panic("encoreEndTest: active test is not this test")
 	}
 	testData := g.req.data.Test
 
@@ -108,10 +108,10 @@ func encoreTestEnd(t *testing.T) {
 func RunAsyncCodeInTest(t *testing.T, f func(ctx context.Context)) {
 	g := encoreGetG()
 	if g == nil || g.req == nil || g.req.data.Test == nil {
-		panic("encoreTestEnd: no active test")
+		panic("RunAsyncCodeInTest: no active test")
 	}
 	if g.req.data.Test.Current != t {
-		panic("encoreTestEnd: active test is not this test")
+		panic("RunAsyncCodeInTest: active test is not this test")
 	}
 	testData := g.req.data.Test
 

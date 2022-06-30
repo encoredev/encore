@@ -86,6 +86,7 @@ const (
 	uuidImportPath  = "encore.dev/types/uuid"
 	authImportPath  = "encore.dev/beta/auth"
 	cronImportPath  = "encore.dev/cron"
+	testImportPath  = "encore.dev/et"
 )
 
 var defaultTrackedPackages = names.TrackedPackages{
@@ -526,6 +527,14 @@ func (p *parser) validateApp() {
 			}
 		}
 		for _, f := range pkg.Files {
+			if !strings.HasSuffix(f.Name, "_test.go") {
+				for _, imp := range f.AST.Imports {
+					if strings.Contains(imp.Path.Value, testImportPath) {
+						p.err(imp.Pos(), "Encores test packages can only be used inside tests and cannot otherwise be imported.")
+					}
+				}
+			}
+
 			for node, ref := range f.References {
 				if res := ref.Res; ref.Res != nil {
 					if ff := res.File(); ff.Pkg.Service != nil && (pkg.Service == nil || pkg.Service.Name != ff.Pkg.Service.Name) {

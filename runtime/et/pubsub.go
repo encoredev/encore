@@ -1,4 +1,4 @@
-package test
+package et
 
 import (
 	"encore.dev/pubsub"
