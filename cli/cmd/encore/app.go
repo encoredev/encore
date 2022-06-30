@@ -244,6 +244,18 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		return err
 	}
 
+	// Update to latest encore.dev release
+	{
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Prefix = "Running go get encore.dev@latest"
+		s.Start()
+		err := gogetEncore(name)
+		s.Stop()
+		if err != nil {
+			return fmt.Errorf("go get encore.dev@latest: %v", err)
+		}
+	}
+
 	if err := initGitRepo(name, app); err != nil {
 		return err
 	}
@@ -302,6 +314,15 @@ func validateName(name string) error {
 type appConf struct {
 	Slug          string  `json:"slug"`
 	DefaultBranch *string `json:"main_branch"`
+}
+
+func gogetEncore(name string) error {
+	cmd := exec.Command("go", "get", "encore.dev@latest")
+	cmd.Dir = name
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.New(string(out))
+	}
+	return nil
 }
 
 func createAppOnServer(name string) (*platform.App, error) {

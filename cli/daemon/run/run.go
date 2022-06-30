@@ -562,6 +562,15 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		PubsubServers: pubsubServers,
 		PubsubTopics:  pubsubTopics,
 		AuthKeys:      []config.EncoreAuthKey{p.authKey},
+		CORS: &config.CORS{
+			AllowOriginsWithCredentials: []string{
+				// Allow all origins with credentials for local development;
+				// since it's only running on localhost for development this is safe.
+				config.UnsafeAllOriginWithCredentials,
+			},
+
+			AllowOriginsWithoutCredentials: []string{"*"},
+		},
 	}
 }
 
