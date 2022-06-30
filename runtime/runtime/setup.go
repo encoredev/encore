@@ -16,7 +16,6 @@ import (
 
 	"encore.dev/beta/errs"
 	"encore.dev/internal/ctx"
-	"encore.dev/internal/logging"
 	"encore.dev/internal/metrics"
 	"encore.dev/runtime/config"
 )
@@ -172,7 +171,7 @@ func setup() *Server {
 	registerEncoreRoutes(encore)
 
 	srv := &Server{
-		logger:  logging.RootLogger,
+		logger:  Logger(),
 		public:  public,
 		private: private,
 		encore:  encore,

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -8,9 +9,26 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"encore.dev/beta/errs"
 )
 
 const AttrTag = "pubsub-attr"
+
+// UnmarshalMessage unmarshals a message into a struct. The message must be a JSON object.
+func UnmarshalMessage[T any](attrs map[string]string, data []byte) (msg T, err error) {
+	if err = json.Unmarshal(data, &msg); err != nil {
+		err = errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal message").Err()
+		return
+	}
+
+	if err = UnmarshalFields(attrs, &msg, AttrTag); err != nil {
+		err = errs.B().Cause(err).Code(errs.InvalidArgument).Msg("failed to unmarshal attributes").Err()
+		return
+	}
+
+	return
+}
 
 // MarshalFields creates a map[string]string of fields in `msg` tagged with `tag`. The name of the tag
 // will be used as map key, and values are converted to strings using fmt.Sprintf. Pointers will be dereferenced

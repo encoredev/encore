@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 	"sync/atomic"
+	"testing"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -12,7 +14,6 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/beta/errs"
-	"encore.dev/internal/logging"
 	"encore.dev/internal/metrics"
 	"encore.dev/internal/stack"
 	"encore.dev/runtime/config"
@@ -51,6 +52,7 @@ const (
 	RPCCall       Type = 0x01
 	AuthHandler   Type = 0x02
 	PubSubMessage Type = 0x03
+	Test          Type = 0x04
 )
 
 type Request struct {
@@ -66,8 +68,10 @@ type Request struct {
 	PathSegments httprouter.Params
 	MsgData      PubSubMsgData
 	Start        time.Time
-	Logger       zerolog.Logger
+	Logger       *zerolog.Logger
 	Traced       bool
+
+	Test *TestData // If we're running a test, this data represents the test information
 }
 
 type RequestData struct {
@@ -91,6 +95,15 @@ type PubSubMsgData struct {
 	MessageID    string
 	Published    time.Time
 	Attempt      int
+}
+
+type TestData struct {
+	Ctx     context.Context    // The context we're running for this test
+	Cancel  context.CancelFunc // The function to cancel this tests context
+	Current *testing.T         // The current test running
+	Parent  *Request           // The parent request (if we're looking at sub-tests)
+
+	Wait sync.WaitGroup // If we're spun up async go routines, this wait allows to the test to wait for them to end
 }
 
 func BeginRequest(ctx context.Context, data RequestData) error {
@@ -227,13 +240,6 @@ func (ac *AuthCall) FinishReq(outputs [][]byte, err error) {
 	finishReq(outputs, err, 0)
 }
 
-func Logger() *zerolog.Logger {
-	if req, _, ok := CurrentRequest(); ok {
-		return &req.Logger
-	}
-	return logging.RootLogger
-}
-
 func CurrentRequest() (*Request, uint32, bool) {
 	return currentReq()
 }
@@ -292,6 +298,7 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 		req.UID = prev.UID
 		req.AuthData = prev.AuthData
 		req.ParentID = prev.SpanID
+		req.Test = prev.Test
 		encoreClearReq()
 	}
 
@@ -319,8 +326,12 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 
 	encoreBeginReq(spanID, req, true /* always trace */)
 
-	logCtx := logging.RootLogger.With().
+	logCtx := Logger().With().
 		Str("service", req.Service)
+
+	if req.Test != nil {
+		logCtx = logCtx.Str("test", req.Test.Current.Name())
+	}
 
 	switch req.Type {
 	case PubSubMessage:
@@ -335,7 +346,8 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 	if req.UID != "" {
 		logCtx = logCtx.Str("uid", string(req.UID))
 	}
-	req.Logger = logCtx.Logger()
+	logger := logCtx.Logger()
+	req.Logger = &logger
 
 	g := encoreGetG()
 	req.Traced = g.op.trace != nil
