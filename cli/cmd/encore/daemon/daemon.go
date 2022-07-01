@@ -201,6 +201,8 @@ func (d *Daemon) openDB() *sql.DB {
 	dir, err := conf.Dir()
 	if err != nil {
 		fatal(err)
+	} else if err := os.MkdirAll(dir, 0755); err != nil {
+		fatal(err)
 	}
 	dbPath := filepath.Join(dir, "encore.db")
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared", dbPath))
