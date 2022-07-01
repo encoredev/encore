@@ -46,7 +46,7 @@ func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
 	case server.NSQServer != nil:
 		return &Topic[T]{topicCfg: topic, topic: nsq.NewTopic(server.NSQServer, topic)}
 	case server.GCP != nil:
-		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(server.GCP, topic)}
+		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(config.Cfg.Runtime.PubsubServers, topic)}
 
 	default:
 		runtime.Logger().Fatal().Msgf("unsupported PubsubServer type for server idx: %v", topic.ServerID)

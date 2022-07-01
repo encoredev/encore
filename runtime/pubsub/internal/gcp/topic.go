@@ -16,14 +16,14 @@ import (
 type topic struct {
 	client    *pubsub.Client
 	gcpTopic  *pubsub.Topic
-	serverCfg *config.GCPPubSubServer
+	serverCfg []*config.PubsubServer
 	topicCfg  *config.PubsubTopic
 }
 
-func NewTopic(cfg *config.GCPPubSubServer, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func NewTopic(cfg []*config.PubsubServer, topicCfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
-	client := getClient(cfg)
-	gcpTopic := client.Topic(topicCfg.CloudName)
+	client := getClient()
+	gcpTopic := client.TopicInProject(topicCfg.CloudName, cfg[topicCfg.ServerID].GCP.ProjectID)
 
 	// Enable message ordering if we have an ordering key set
 	gcpTopic.EnableMessageOrdering = topicCfg.OrderingKey != ""
@@ -56,8 +56,9 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, s
 
 	// If we have a resource ID, let's register a push endpoint for it
 	if subscriptionCfg.ResourceID != "" {
-		if t.serverCfg.PushServiceAccount != "" {
-			registerPushEndpoint(t.serverCfg, subscriptionCfg, f)
+		serverCfg := t.serverCfg[subscriptionCfg.ServerID].GCP
+		if serverCfg.PushServiceAccount != "" {
+			registerPushEndpoint(serverCfg, subscriptionCfg, f)
 		} else if subscriptionCfg.PushOnly {
 			panic("push-only subscriptions require a push service account to be configured for the PubSub server config")
 		}
@@ -66,7 +67,8 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, s
 	// If we're not push only, then let's also setup the subscription
 	if !subscriptionCfg.PushOnly {
 		// Create the subscription object (and then check it exists on GCP's side)
-		subscription := t.client.Subscription(subscriptionCfg.CloudName)
+		serverCfg := t.serverCfg[subscriptionCfg.ServerID].GCP
+		subscription := t.client.SubscriptionInProject(subscriptionCfg.CloudName, serverCfg.ProjectID)
 		exists, err := subscription.Exists(ctx.App)
 		if err != nil {
 			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subscriptionCfg.EncoreName, t.topicCfg.EncoreName, err))
