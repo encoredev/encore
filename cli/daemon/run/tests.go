@@ -109,6 +109,13 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 				})
 			}
 		}
+
+		// Configure max connections based on 96 connections
+		// divided evenly among the databases
+		maxConns := 96 / len(sqlDBs)
+		for _, db := range sqlDBs {
+			db.MaxConnections = maxConns
+		}
 	}
 
 	runtimeJSON, err := json.Marshal(&config.Runtime{
