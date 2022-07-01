@@ -9,6 +9,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	trace2 "encore.dev/runtime/trace"
 	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/daemon/run"
 )
@@ -57,7 +58,7 @@ func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	reqs, err := trace.Parse(traceID, data, proc)
+	reqs, err := trace.Parse(&log.Logger, traceID, data, trace2.CurrentVersion, proc)
 	if err != nil {
 		log.Error().Err(err).Msg("runtime: could not parse trace")
 		http.Error(w, "could not parse trace: "+err.Error(), http.StatusBadRequest)

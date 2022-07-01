@@ -301,6 +301,13 @@ export namespace echo {
             const resp = await this.baseClient.callAPI("GET", `/echo.Pong`)
             return await resp.json() as Data<string, string>
         }
+
+        /**
+         * Publish publishes a request on a topic
+         */
+        public async Publish(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/echo.Publish`)
+        }
     }
 }
 

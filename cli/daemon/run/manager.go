@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"encr.dev/cli/daemon/secret"
+	"encr.dev/cli/daemon/sqldb"
 )
 
 // Manager manages the set of running applications.
@@ -13,11 +14,11 @@ type Manager struct {
 	DBProxyPort int // port for sqldb proxy
 	DashPort    int // port for dev dashboard
 	Secret      *secret.Manager
+	ClusterMgr  *sqldb.ClusterManager
 
 	listeners []EventListener
-
-	mu   sync.Mutex
-	runs map[string]*Run // id -> run
+	mu        sync.Mutex
+	runs      map[string]*Run // id -> run
 }
 
 // EventListener is the interface for listening to events

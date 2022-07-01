@@ -159,6 +159,17 @@ func TestMain(m *testing.M) {
 			for _, job := range res.App.CronJobs {
 				fmt.Fprintf(os.Stdout, "cronJob %s title=%q\n", job.ID, job.Title)
 			}
+			for _, topic := range res.App.PubSubTopics {
+				fmt.Fprintf(os.Stdout, "pubsubTopic %s\n", topic.Name)
+
+				for _, pub := range topic.Publishers {
+					fmt.Fprintf(os.Stdout, "pubsubPublisher %s %s\n", topic.Name, pub.DeclFile.Pkg.Service.Name)
+				}
+
+				for _, sub := range topic.Subscribers {
+					fmt.Fprintf(os.Stdout, "pubsubSubscriber %s %s %s\n", topic.Name, sub.Name, sub.DeclFile.Pkg.Service.Name)
+				}
+			}
 			for _, pkg := range res.App.Packages {
 				for _, res := range pkg.Resources {
 					switch res := res.(type) {
@@ -193,13 +204,16 @@ func TestParseDurationLiteral(t *testing.T) {
 			Expr: "(4-2)*cron.Minute + cron.Hour",
 			Want: 2*minute + hour,
 		},
+		// Note the "(?s)" allows for "." to match newlines
+		// This is needed when running tests with the tag `dev_build` which includes
+		// stack traces from the parser in the error message.
 		{
 			Expr: "2.3 * 2",
-			Err:  `.+ floating point numbers are not supported .+`,
+			Err:  `(?s).+ floating point numbers are not supported .+`,
 		},
 		{
 			Expr: "2.3 / (1 - 1)",
-			Err:  `.+ cannot divide by zero.*`,
+			Err:  `(?s).+ cannot divide by zero.*`,
 		},
 	}
 

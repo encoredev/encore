@@ -201,6 +201,9 @@ type EchoClient interface {
 
 	// Pong returns a bird tuple
 	Pong(ctx context.Context) (EchoData[string, string], error)
+
+	// Publish publishes a request on a topic
+	Publish(ctx context.Context) error
 }
 
 type echoClient struct {
@@ -455,6 +458,12 @@ func (c *echoClient) Pong(ctx context.Context) (resp EchoData[string, string], e
 	}
 
 	return
+}
+
+// Publish publishes a request on a topic
+func (c *echoClient) Publish(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/echo.Publish", nil, nil, nil)
+	return err
 }
 
 // EndtoendClient Provides you access to call public and authenticated APIs on endtoend. The concrete implementation is endtoendClient.

@@ -10,12 +10,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"encore.dev/runtime/config"
 )
 
-const traceVersion = "7"
+type Version int
+
+const CurrentVersion = 7
 
 // Enabled reports whether tracing is enabled.
 // It is always enabled except for running tests and for ejected applications.
@@ -34,7 +37,7 @@ func RecordTrace(ctx context.Context, traceID [16]byte, data []byte) error {
 	req.Header.Set("X-Encore-Deploy-ID", config.Cfg.Runtime.DeployID)
 	req.Header.Set("X-Encore-App-Commit", config.Cfg.Static.AppCommit.AsRevisionString())
 	req.Header.Set("X-Encore-Trace-ID", base64.RawStdEncoding.EncodeToString(traceID[:]))
-	req.Header.Set("X-Encore-Trace-Version", traceVersion)
+	req.Header.Set("X-Encore-Trace-Version", strconv.Itoa(CurrentVersion))
 	addAuthKey(req)
 
 	resp, err := http.DefaultClient.Do(req)

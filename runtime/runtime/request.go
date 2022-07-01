@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 	"sync/atomic"
+	"testing"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -27,10 +29,6 @@ var (
 	callIDCtr uint64
 )
 
-var (
-	RootLogger *zerolog.Logger
-)
-
 var json = jsoniter.Config{
 	IndentionStep:          config.JsonIndentStepForResponses(),
 	EscapeHTML:             false,
@@ -51,8 +49,10 @@ func FinishOperation() {
 type Type byte
 
 const (
-	RPCCall     Type = 0x01
-	AuthHandler Type = 0x02
+	RPCCall       Type = 0x01
+	AuthHandler   Type = 0x02
+	PubSubMessage Type = 0x03
+	Test          Type = 0x04
 )
 
 type Request struct {
@@ -66,15 +66,19 @@ type Request struct {
 	Endpoint     string
 	Path         string
 	PathSegments httprouter.Params
+	MsgData      PubSubMsgData
 	Start        time.Time
-	Logger       zerolog.Logger
+	Logger       *zerolog.Logger
 	Traced       bool
+
+	Test *TestData // If we're running a test, this data represents the test information
 }
 
 type RequestData struct {
 	Type            Type
 	Service         string
 	Endpoint        string
+	MsgData         PubSubMsgData
 	CallExprIdx     int32
 	EndpointExprIdx int32
 	Inputs          [][]byte
@@ -83,6 +87,23 @@ type RequestData struct {
 	UID             UID
 	AuthData        any
 	RequireAuth     bool
+}
+
+type PubSubMsgData struct {
+	Topic        string
+	Subscription string
+	MessageID    string
+	Published    time.Time
+	Attempt      int
+}
+
+type TestData struct {
+	Ctx     context.Context    // The context we're running for this test
+	Cancel  context.CancelFunc // The function to cancel this tests context
+	Current *testing.T         // The current test running
+	Parent  *Request           // The parent request (if we're looking at sub-tests)
+
+	Wait sync.WaitGroup // If we're spun up async go routines, this wait allows to the test to wait for them to end
 }
 
 func BeginRequest(ctx context.Context, data RequestData) error {
@@ -219,13 +240,6 @@ func (ac *AuthCall) FinishReq(outputs [][]byte, err error) {
 	finishReq(outputs, err, 0)
 }
 
-func Logger() *zerolog.Logger {
-	if req, _, ok := CurrentRequest(); ok {
-		return &req.Logger
-	}
-	return RootLogger
-}
-
 func CurrentRequest() (*Request, uint32, bool) {
 	return currentReq()
 }
@@ -274,6 +288,7 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 		Endpoint:     data.Endpoint,
 		Path:         data.Path,
 		PathSegments: data.PathSegments,
+		MsgData:      data.MsgData,
 		Start:        time.Now(),
 		UID:          data.UID,
 		AuthData:     data.AuthData,
@@ -283,6 +298,7 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 		req.UID = prev.UID
 		req.AuthData = prev.AuthData
 		req.ParentID = prev.SpanID
+		req.Test = prev.Test
 		encoreClearReq()
 	}
 
@@ -310,13 +326,28 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 
 	encoreBeginReq(spanID, req, true /* always trace */)
 
-	logCtx := RootLogger.With().
-		Str("service", req.Service).
-		Str("endpoint", req.Endpoint)
+	logCtx := Logger().With().
+		Str("service", req.Service)
+
+	if req.Test != nil {
+		logCtx = logCtx.Str("test", req.Test.Current.Name())
+	}
+
+	switch req.Type {
+	case PubSubMessage:
+		logCtx = logCtx.Str("subscription", req.MsgData.Subscription).Str("topic", req.MsgData.Topic).Str("msg-id", req.MsgData.MessageID)
+		if req.MsgData.Attempt > 1 {
+			logCtx = logCtx.Int("retry", req.MsgData.Attempt-1)
+		}
+	default:
+		logCtx = logCtx.Str("endpoint", req.Endpoint)
+	}
+
 	if req.UID != "" {
 		logCtx = logCtx.Str("uid", string(req.UID))
 	}
-	req.Logger = logCtx.Logger()
+	logger := logCtx.Logger()
+	req.Logger = &logger
 
 	g := encoreGetG()
 	req.Traced = g.op.trace != nil
@@ -337,12 +368,23 @@ func beginReq(ctx context.Context, spanID trace.SpanID, data RequestData) error 
 			tb.UVarint(uint64(len(input)))
 			tb.Bytes(input)
 		}
+
+		if req.Type == PubSubMessage {
+			tb.String(req.MsgData.Topic)
+			tb.String(req.MsgData.Subscription)
+			tb.String(req.MsgData.MessageID)
+			tb.Uint32(uint32(req.MsgData.Attempt))
+			tb.Time(req.MsgData.Published)
+		}
+
 		encoreTraceEvent(trace.RequestStart, tb.Buf())
 	}
 
 	switch data.Type {
 	case AuthHandler:
 		req.Logger.Info().Msg("running auth handler")
+	case PubSubMessage:
+		req.Logger.Info().Msg("received pubsub message, starting processing")
 	default:
 		req.Logger.Info().Msg("starting request")
 	}
@@ -356,19 +398,6 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 	}
 
 	req := g.req.data
-	if err != nil {
-		switch req.Type {
-		case AuthHandler:
-			req.Logger.Error().Err(err).Msg("auth handler failed")
-		default:
-			e := errs.Convert(err).(*errs.Error)
-			ev := req.Logger.Error()
-			for k, v := range e.Meta {
-				ev = ev.Interface(k, v)
-			}
-			ev.Str("error", e.ErrorMessage()).Str("code", e.Code.String()).Msg("request failed")
-		}
-	}
 
 	if req.Traced {
 		tb := trace.NewTraceBuf(64)
@@ -388,19 +417,38 @@ func finishReq(outputs [][]byte, err error, httpStatus int) {
 		encoreTraceEvent(trace.RequestEnd, tb.Buf())
 	}
 
+	errCode := errs.Code(err).String()
+	if httpStatus != 0 {
+		errCode = errs.HTTPStatusToCode(httpStatus).String()
+	}
+
 	dur := time.Since(req.Start)
-	switch req.Type {
-	case AuthHandler:
-		req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
-	default:
-		if httpStatus != 0 {
-			code := errs.HTTPStatusToCode(httpStatus).String()
-			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", httpStatus).Msg("request completed")
-			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
-		} else {
-			code := errs.Code(err).String()
-			req.Logger.Info().Dur("duration", dur).Str("code", code).Msg("request completed")
-			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
+	if err != nil {
+		e := errs.Convert(err).(*errs.Error)
+		ev := req.Logger.Error()
+		for k, v := range e.Meta {
+			ev = ev.Interface(k, v)
+		}
+		ev.Str("error", e.ErrorMessage()).Str("code", e.Code.String())
+
+		switch req.Type {
+		case AuthHandler:
+			ev.Msg("auth handler failed")
+		case PubSubMessage:
+			ev.Msg("pubsub message processing failed")
+		default:
+			ev.Msg("request failed")
+			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), e.Code.String())
+		}
+	} else {
+		switch req.Type {
+		case AuthHandler:
+			req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
+		case PubSubMessage:
+			req.Logger.Info().Dur("duration", dur).Msg("pubsub message processed")
+		default:
+			req.Logger.Info().Dur("duration", dur).Str("code", errCode).Int("http_code", httpStatus).Msg("request completed")
+			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), errCode)
 		}
 	}
 	encoreCompleteReq()

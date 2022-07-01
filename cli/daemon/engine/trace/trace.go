@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -10,11 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"encore.dev/runtime/trace"
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/run"
+	"encr.dev/cli/daemon/internal/sym"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -77,14 +80,16 @@ func (st *Store) List(appID string) []*TraceMeta {
 	return tr
 }
 
-func Parse(traceID ID, data []byte, proc *run.Proc) ([]*tracepb.Request, error) {
+func Parse(log *zerolog.Logger, traceID ID, data []byte, version trace.Version, symTable SymTabler) ([]*tracepb.Request, error) {
 	id := &tracepb.TraceID{
 		Low:  bin.Uint64(traceID[:8]),
 		High: bin.Uint64(traceID[8:]),
 	}
 	tp := &traceParser{
+		log:         log,
+		version:     version,
 		traceReader: traceReader{buf: data},
-		proc:        proc,
+		symTable:    symTable,
 		traceID:     id,
 		reqMap:      make(map[uint64]*tracepb.Request),
 		txMap:       make(map[uint64]*tracepb.DBTransaction),
@@ -92,6 +97,7 @@ func Parse(traceID ID, data []byte, proc *run.Proc) ([]*tracepb.Request, error) 
 		callMap:     make(map[uint64]interface{}),
 		goMap:       make(map[goKey]*tracepb.Goroutine),
 		httpMap:     make(map[uint64]*tracepb.HTTPCall),
+		publishMap:  make(map[uint64]*tracepb.PubsubMsgPublished),
 	}
 	if err := tp.Parse(); err != nil {
 		return nil, err
@@ -104,83 +110,141 @@ type goKey struct {
 	goid   uint32
 }
 
+type SymTabler interface {
+	SymTable(ctx context.Context) (*sym.Table, error)
+}
+
 type traceParser struct {
 	traceReader
-	proc     *run.Proc
-	traceID  *tracepb.TraceID
-	reqs     []*tracepb.Request
-	reqMap   map[uint64]*tracepb.Request
-	txMap    map[uint64]*tracepb.DBTransaction
-	queryMap map[uint64]*tracepb.DBQuery
-	callMap  map[uint64]interface{} // *RPCCall or *AuthCall
-	httpMap  map[uint64]*tracepb.HTTPCall
-	goMap    map[goKey]*tracepb.Goroutine
+	log        *zerolog.Logger
+	version    trace.Version
+	symTable   SymTabler
+	traceID    *tracepb.TraceID
+	reqs       []*tracepb.Request
+	reqMap     map[uint64]*tracepb.Request
+	txMap      map[uint64]*tracepb.DBTransaction
+	queryMap   map[uint64]*tracepb.DBQuery
+	callMap    map[uint64]interface{} // *RPCCall or *AuthCall
+	httpMap    map[uint64]*tracepb.HTTPCall
+	goMap      map[goKey]*tracepb.Goroutine
+	publishMap map[uint64]*tracepb.PubsubMsgPublished
 }
 
 func (tp *traceParser) Parse() error {
 	for i := 0; !tp.Done(); i++ {
-		ev := tp.Byte()
+		ev := trace.TraceEvent(tp.Byte())
 		ts := tp.Uint64()
 		size := int(tp.Uint32())
 		startOff := tp.Offset()
 
 		var err error
-		switch ev {
-		case 0x01:
-			err = tp.requestStart(ts)
-		case 0x02:
-			err = tp.requestEnd(ts)
-		case 0x03:
-			err = tp.goroutineStart(ts)
-		case 0x04:
-			err = tp.goroutineEnd(ts)
-		case 0x05:
-			err = tp.goroutineClear(ts)
-		case 0x06:
-			err = tp.transactionStart(ts)
-		case 0x07:
-			err = tp.transactionEnd(ts)
-		case 0x08:
-			err = tp.queryStart(ts)
-		case 0x09:
-			err = tp.queryEnd(ts)
-		case 0x0A:
-			err = tp.callStart(ts)
-		case 0x0B:
-			err = tp.callEnd(ts)
-		case 0x0C, 0x0D:
-			// Skip these events for now
-			tp.Skip(size)
+		if tp.version >= 3 {
+			err = tp.parseEventV3(ev, ts, size)
+		} else {
+			err = tp.parseEventV1(byte(ev), ts, size)
+		}
 
-		case 0x0E:
-			err = tp.httpStart(ts)
-		case 0x0F:
-			err = tp.httpEnd(ts)
-		case 0x10:
-			err = tp.httpBodyClosed(ts)
-		case 0x11:
-			err = tp.logMessage(ts)
-
-		default:
-			log.Error().Int("idx", i).Hex("event", []byte{ev}).Msg("trace: unknown event type, skipping")
+		if errors.Is(err, errUnknownEvent) {
+			tp.log.Info().Msgf("trace: event #%d: unknown event type %s, skipping", i, ev)
 			tp.Skip(size)
 			err = nil
-		}
-		if err != nil {
-			return fmt.Errorf("event #%d: parsing event=%x: %v", i, ev, err)
+		} else if err != nil {
+			return fmt.Errorf("event #%d: parsing event=%s: %v", i, ev, err)
 		}
 
 		if tp.Overflow() {
-			return fmt.Errorf("event #%d: invalid trace format (reader overflow parsing event code %d)", i, ev)
+			return fmt.Errorf("event #%d: invalid trace format (reader overflow parsing event %s)", i, ev)
 		} else if off, want := tp.Offset(), startOff+size; off < want {
-			log.Error().Int("idx", i).Hex("event", []byte{ev}).Int("remainingBytes", want-off).Msg("trace: parser did not consume whole frame, skipping ahead")
+			tp.log.Error().Msgf("trace: event #%d: parsing event=%s ended before end of frame, skipping ahead %d bytes", i, ev, want-off)
 			tp.Skip(want - off)
 		} else if off > want {
-			return fmt.Errorf("event #%d: parser (event=%x) exceeded frame size by %d bytes", i, ev, off-want)
+			return fmt.Errorf("event #%d: parser (event=%s) exceeded frame size by %d bytes", i, ev, off-want)
 		}
 	}
 
 	return nil
+}
+
+var errUnknownEvent = errors.New("unknown event")
+
+func (tp *traceParser) parseEventV3(ev trace.TraceEvent, ts uint64, size int) error {
+	switch ev {
+	case trace.RequestStart:
+		return tp.requestStart(ts)
+	case trace.RequestEnd:
+		return tp.requestEnd(ts)
+	case trace.GoStart:
+		return tp.goroutineStart(ts)
+	case trace.GoEnd:
+		return tp.goroutineEnd(ts)
+	case trace.GoClear:
+		return tp.goroutineClear(ts)
+	case trace.TxStart:
+		return tp.transactionStart(ts)
+	case trace.TxEnd:
+		return tp.transactionEnd(ts)
+	case trace.QueryStart:
+		return tp.queryStart(ts)
+	case trace.QueryEnd:
+		return tp.queryEnd(ts)
+	case trace.CallStart:
+		return tp.callStart(ts, size)
+	case trace.CallEnd:
+		return tp.callEnd(ts)
+	case trace.AuthStart, trace.AuthEnd:
+		// Skip these events for now
+		tp.Skip(size)
+		return nil
+
+	case trace.HTTPCallStart:
+		return tp.httpStart(ts)
+	case trace.HTTPCallEnd:
+		return tp.httpEnd(ts)
+	case trace.HTTPCallBodyClosed:
+		return tp.httpBodyClosed(ts)
+	case trace.LogMessage:
+		return tp.logMessage(ts)
+	case trace.PublishStart:
+		return tp.publishStart(ts)
+	case trace.PublishEnd:
+		return tp.publishEnd(ts)
+	default:
+		return errUnknownEvent
+	}
+}
+
+func (tp *traceParser) parseEventV1(ev byte, ts uint64, size int) error {
+	switch ev {
+	case 0x01:
+		return tp.requestStart(ts)
+	case 0x02:
+		return tp.requestEnd(ts)
+	case 0x03:
+		return tp.goroutineStart(ts)
+	case 0x04:
+		return tp.goroutineEnd(ts)
+	case 0x05:
+		return tp.goroutineClear(ts)
+	case 0x06:
+		return tp.transactionStart(ts)
+	case 0x07:
+		return tp.transactionEnd(ts)
+	case 0x08:
+		return tp.queryStart(ts)
+	case 0x09:
+		return tp.queryEnd(ts)
+	case 0x10:
+		return tp.callStart(ts, size)
+	case 0x11:
+		return tp.callEnd(ts)
+	case 0x12, 0x13:
+		// Skip these events for now
+		tp.Skip(size)
+		return nil
+
+	default:
+		return errUnknownEvent
+	}
 }
 
 func (tp *traceParser) requestStart(ts uint64) error {
@@ -190,26 +254,51 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		typ = tracepb.Request_RPC
 	case 0x02:
 		typ = tracepb.Request_AUTH
+	case 0x03:
+		typ = tracepb.Request_PUBSUB_MSG
 	default:
 		return fmt.Errorf("unknown request type %x", b)
 	}
 
-	absStart := tp.Time()
+	// Determine the absolute start time.
+	var absStart time.Time
+	if tp.version >= 6 {
+		absStart = tp.Time()
+	} else {
+		// We don't have enough information to determine the exact start time,
+		// but approximate it from the monotonic clock reading
+		absStart = time.Unix(0, int64(ts))
+	}
+
+	spanID := tp.Uint64()
+	parentSpanID := tp.Uint64()
+
+	var service, endpoint string
+	if tp.version >= 6 {
+		service = tp.String()
+		endpoint = tp.String()
+	} else {
+		service, endpoint = "unknown", "Unknown"
+	}
+
+	goid := uint32(tp.UVarint())
+	_ = tp.UVarint() // skip CallLoc: no longer used
+	defLoc := int32(tp.UVarint())
+	uid := tp.String()
 
 	req := &tracepb.Request{
 		TraceId:      tp.traceID,
-		SpanId:       tp.Uint64(),
-		ParentSpanId: tp.Uint64(),
-		ServiceName:  tp.String(),
-		EndpointName: tp.String(),
-		AbsStartTime: uint64(absStart.UnixNano()),
+		SpanId:       spanID,
+		ParentSpanId: parentSpanID,
 		StartTime:    ts,
+		ServiceName:  service,
+		EndpointName: endpoint,
+		AbsStartTime: uint64(absStart.UnixNano()),
 		// EndTime not set yet
-		Goid:    uint32(tp.UVarint()),
-		CallLoc: int32(tp.UVarint()),
-		DefLoc:  int32(tp.UVarint()),
-		Uid:     tp.String(),
-		Type:    typ,
+		DefLoc: defLoc,
+		Goid:   goid,
+		Uid:    uid,
+		Type:   typ,
 	}
 
 	for n, i := tp.UVarint(), uint64(0); i < n; i++ {
@@ -221,6 +310,15 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		tp.Bytes(input)
 		req.Inputs = append(req.Inputs, input)
 	}
+
+	if typ == tracepb.Request_PUBSUB_MSG {
+		req.TopicName = tp.String()
+		req.SubscriptionName = tp.String()
+		req.MessageId = tp.String()
+		req.Attempt = tp.Uint32()
+		req.PublishTime = uint64(tp.Time().UnixMilli())
+	}
+
 	tp.reqs = append(tp.reqs, req)
 	tp.reqMap[req.SpanId] = req
 	return nil
@@ -252,7 +350,9 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 			msg = []byte("unknown error")
 		}
 		req.Err = msg
-		req.ErrStack = tp.stack(filterNone)
+		if tp.version >= 5 {
+			req.ErrStack = tp.stack(filterNone)
+		}
 	}
 	return nil
 }
@@ -261,12 +361,15 @@ func (tp *traceParser) goroutineStart(ts uint64) error {
 	spanID := tp.Uint64()
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request span id: %v", spanID)
+		// This is an expected error in certain situations like goroutines
+		// living past the request end that then spawn additional goroutines.
+		// Treat it as a warning but don't fail the parse.
+		tp.log.Warn().Uint64("span_id", spanID).Msg("unknown request span")
+		return nil
 	}
 	goid := tp.Uint32()
 	g := &tracepb.Goroutine{
 		Goid:      goid,
-		CallLoc:   0, // not yet supported
 		StartTime: ts,
 	}
 	k := goKey{spanID: spanID, goid: goid}
@@ -311,11 +414,17 @@ func (tp *traceParser) transactionStart(ts uint64) error {
 		return fmt.Errorf("unknown request span: %v", spanID)
 	}
 	goid := uint32(tp.UVarint())
+
+	if tp.version < 4 {
+		_ = tp.UVarint() // StartLoc; no longer used
+	}
+
 	tx := &tracepb.DBTransaction{
-		Goid:       goid,
-		StartLoc:   0, // TODO(eandre) reintroduce
-		StartTime:  ts,
-		BeginStack: tp.stack(filterDB),
+		Goid:      goid,
+		StartTime: ts,
+	}
+	if tp.version >= 5 {
+		tx.BeginStack = tp.stack(filterDB)
 	}
 	tp.txMap[txid] = tx
 	req.Events = append(req.Events, &tracepb.Event{
@@ -333,14 +442,20 @@ func (tp *traceParser) transactionEnd(ts uint64) error {
 	}
 	_ = uint32(tp.UVarint()) // goid
 	compl := tp.Byte()
+	if tp.version < 4 {
+		_ = int32(tp.UVarint()) // EndLoc; no longer used
+	}
 	errMsg := tp.ByteString()
-	stack := tp.stack(filterDB)
+
+	var stack *tracepb.StackTrace
+	if tp.version >= 5 {
+		stack = tp.stack(filterDB)
+	}
 
 	// It's possible to get multiple transaction end events.
 	// Ignore them for now; we will expose this information later.
 	if tx.EndTime == 0 {
 		tx.EndTime = ts
-		tx.EndLoc = 0 // TODO(eandre) reintroduce
 		tx.Err = errMsg
 		tx.EndStack = stack
 		switch compl {
@@ -364,12 +479,17 @@ func (tp *traceParser) queryStart(ts uint64) error {
 	}
 	txid := tp.UVarint()
 	goid := uint32(tp.UVarint())
+
+	if tp.version < 4 {
+		_ = tp.UVarint() // CallLoc; no longer used
+	}
 	q := &tracepb.DBQuery{
 		Goid:      goid,
-		CallLoc:   0, // TODO(eandre) reintroduce
 		StartTime: ts,
 		Query:     tp.ByteString(),
-		Stack:     tp.stack(filterDB),
+	}
+	if tp.version >= 5 {
+		q.Stack = tp.stack(filterDB)
 	}
 	tp.queryMap[qid] = q
 
@@ -399,21 +519,35 @@ func (tp *traceParser) queryEnd(ts uint64) error {
 	return nil
 }
 
-func (tp *traceParser) callStart(ts uint64) error {
+func (tp *traceParser) callStart(ts uint64, size int) error {
 	callID := tp.UVarint()
 	spanID := tp.Uint64()
-	childSpanID := tp.Uint64()
+	// TODO(eandre) We currently (Dec 2, 2020) have an old format
+	// that leaves out the child span id. Detect this based on the size
+	// and provide a workaround that doesn't crash.
+	var childSpanID uint64
+	if size == 12 {
+		childSpanID = spanID
+	} else {
+		childSpanID = tp.Uint64()
+	}
 	req, ok := tp.reqMap[spanID]
 	if !ok {
 		return fmt.Errorf("unknown request span: %v", spanID)
 	}
+
+	goid := uint32(tp.UVarint())
+	_ = tp.UVarint() // CallLoc: no longer used
+	defLoc := int32(tp.UVarint())
+
 	c := &tracepb.RPCCall{
 		SpanId:    childSpanID,
-		Goid:      uint32(tp.UVarint()),
-		CallLoc:   int32(tp.UVarint()),
-		DefLoc:    int32(tp.UVarint()),
-		Stack:     tp.stack(filterNone),
+		Goid:      goid,
+		DefLoc:    defLoc,
 		StartTime: ts,
+	}
+	if tp.version >= 5 {
+		c.Stack = tp.stack(filterNone)
 	}
 	tp.callMap[callID] = c
 	req.Events = append(req.Events, &tracepb.Event{
@@ -635,7 +769,9 @@ func (tp *traceParser) logMessage(ts uint64) error {
 		}
 		log.Fields = append(log.Fields, f)
 	}
-	log.Stack = tp.stack(filterNone)
+	if tp.version >= 5 {
+		log.Stack = tp.stack(filterNone)
+	}
 
 	req.Events = append(req.Events, &tracepb.Event{
 		Data: &tracepb.Event_Log{Log: log},
@@ -651,10 +787,14 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 	}
 	switch typ {
 	case 1:
-		f.Value = &tracepb.LogField_Error{Error: &tracepb.ErrWithStack{
-			Error: tp.String(),
-			Stack: tp.stack(filterNone),
-		}}
+		if tp.version >= 7 { // We only added stack's to error log fields with version 7 (it was missing from the internal runtime before that)
+			f.Value = &tracepb.LogField_ErrorWithStack{ErrorWithStack: &tracepb.ErrWithStack{
+				Error: tp.String(),
+				Stack: tp.stack(filterNone),
+			}}
+		} else {
+			f.Value = &tracepb.LogField_ErrorWithoutStack{ErrorWithoutStack: tp.String()}
+		}
 	case 2:
 		f.Value = &tracepb.LogField_Str{Str: tp.String()}
 	case 3:
@@ -671,9 +811,7 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 		val := tp.ByteString()
 		err := tp.String()
 		if err != "" {
-			f.Value = &tracepb.LogField_Error{Error: &tracepb.ErrWithStack{
-				Error: err,
-			}}
+			f.Value = &tracepb.LogField_ErrorWithoutStack{ErrorWithoutStack: err}
 		} else {
 			f.Value = &tracepb.LogField_Json{Json: val}
 		}
@@ -689,6 +827,41 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 		return nil, fmt.Errorf("unknown field type %v", int(typ))
 	}
 	return f, nil
+}
+
+func (tp *traceParser) publishStart(ts uint64) error {
+	publishID := tp.UVarint()
+	spanID := tp.Uint64()
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return fmt.Errorf("unknown request span: %v", spanID)
+	}
+
+	publish := &tracepb.PubsubMsgPublished{
+		Goid:      tp.UVarint(),
+		StartTime: ts,
+		Topic:     tp.String(),
+		Message:   tp.ByteString(),
+		Stack:     tp.stack(filterNone),
+	}
+	tp.publishMap[publishID] = publish
+
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_PublishedMsg{PublishedMsg: publish},
+	})
+	return nil
+}
+
+func (tp *traceParser) publishEnd(ts uint64) error {
+	publishID := tp.UVarint()
+	publish, ok := tp.publishMap[publishID]
+	if !ok {
+		return fmt.Errorf("unknown publish %v", publishID)
+	}
+	publish.EndTime = ts
+	publish.MessageId = tp.String()
+	publish.Err = tp.ByteString()
+	return nil
 }
 
 type stackFilter int
@@ -710,8 +883,14 @@ func (tp *traceParser) stack(filterMode stackFilter) *tracepb.StackTrace {
 		diff := tp.Varint()
 		diffs[i] = diff
 	}
+	tr.Pcs = diffs
 
-	sym, err := tp.proc.SymTable(context.Background())
+	if tp.symTable == nil {
+		return tr
+	}
+
+	// If we have a symTable, we can extract the full set of frames from the trace
+	sym, err := tp.symTable.SymTable(context.Background())
 	if err != nil {
 		log.Error().Err(err).Msg("could not parse sym table")
 		return tr

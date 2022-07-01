@@ -1,0 +1,57 @@
+! parse
+stderr 'Subscriptions on topics must be unique, "same-name" was previously declared in foo/code.go.'
+
+-- shared/topics.go --
+package shared
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
+)
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "test/shared"
+)
+
+
+var (
+    _ = shared.BasicTopic.NewSubscription("SAME-NAMe", Subscriber1)
+)
+
+// encore:api
+func Subscriber1(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
+
+-- foo/code.go --
+package foo
+
+import (
+    "context"
+
+    "test/shared"
+)
+
+var _ = shared.BasicTopic.NewSubscription(
+    "same-name",
+    func(ctx context.Context, msg *shared.MessageType) error {
+        return nil
+    },
+)
+
+// encore:api
+func DoStuff(ctx context.Context) error {
+    shared.BasicTopic.Publish(ctx, &shared.MessageType{Name: "foo"})
+}

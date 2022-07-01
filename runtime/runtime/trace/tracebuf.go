@@ -9,6 +9,7 @@ import (
 	"time"
 	_ "unsafe" // for go:linkname
 
+	"encore.dev/internal/ctx"
 	"encore.dev/internal/stack"
 )
 
@@ -34,6 +35,8 @@ const (
 	HTTPCallEnd        TraceEvent = 0x0F
 	HTTPCallBodyClosed TraceEvent = 0x10
 	LogMessage         TraceEvent = 0x11
+	PublishStart       TraceEvent = 0x12
+	PublishEnd         TraceEvent = 0x13
 )
 
 func (te TraceEvent) String() string {
@@ -72,6 +75,10 @@ func (te TraceEvent) String() string {
 		return "HTTPCallBodyClosed"
 	case LogMessage:
 		return "LogMessage"
+	case PublishStart:
+		return "PublishStart"
+	case PublishEnd:
+		return "PublishEnd"
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}
@@ -100,7 +107,7 @@ func AsyncSendTrace(data []byte) {
 		fmt.Fprintln(os.Stderr, "encore: could not generate trace id:", err)
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx.App, 5*time.Second)
 	err = RecordTrace(ctx, traceID, data)
 	cancel()
 	if err != nil {

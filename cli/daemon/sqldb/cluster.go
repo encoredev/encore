@@ -42,6 +42,10 @@ type Cluster struct {
 	dbs map[string]*DB // name -> db
 }
 
+func (c *Cluster) Stop() {
+	// no-op
+}
+
 // Ready returns a channel that is closed when the cluster is up and running.
 func (c *Cluster) Ready() <-chan struct{} {
 	return c.started

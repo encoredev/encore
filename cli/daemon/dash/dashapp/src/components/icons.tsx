@@ -334,6 +334,27 @@ export const gcpLogo: Icon = (cls, title) =>
     <path fill="#FBBC05" d="M 5.046 4.317 C 2.237 4.333 -0.024 6.623 -0.008 9.431 C 0.002 10.999 0.733 12.475 1.977 13.43 L 4.244 11.163 C 3.261 10.719 2.823 9.56 3.267 8.577 C 3.711 7.594 4.869 7.156 5.853 7.6 C 6.286 7.796 6.633 8.144 6.829 8.577 L 9.096 6.31 C 8.133 5.048 6.633 4.31 5.046 4.317 Z" />
   </svg>
 
+export const inbox: Icon = (cls, title) =>
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {renderTitle(title)}
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+              d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20"></path>
+    </svg>
+
+export const globe: Icon = (cls, title) =>
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {renderTitle(title)}
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+
+export const shield: Icon = (cls, title) =>
+    <svg className={cls}  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {renderTitle(title)}
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+    </svg>
+
 export const loading = (cls: string, color: string, baseColor: string, borderWidth: number) => (
   <>
     <style>{`
