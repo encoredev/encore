@@ -88,11 +88,44 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.CronJobs = append(data.CronJobs, cj)
 	}
 
+	for _, topic := range app.PubSubTopics {
+		t := parsePubsubTopic(topic)
+		data.PubsubTopics = append(data.PubsubTopics, t)
+	}
+
 	if app.AuthHandler != nil {
 		data.AuthHandler = parseAuthHandler(app.AuthHandler)
 	}
 
 	return data, nodes, nil
+}
+
+func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
+	parsePublisher := func(pubs ...*est.PubSubPublisher) (rtn []*meta.PubSubTopic_Publisher) {
+		for _, p := range pubs {
+			rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.DeclFile.Pkg.Service.Name})
+		}
+		return rtn
+	}
+	parseSubscribers := func(subs ...*est.PubSubSubscriber) (rtn []*meta.PubSubTopic_Subscription) {
+		for _, s := range subs {
+			rtn = append(rtn, &meta.PubSubTopic_Subscription{
+				Name:        s.Name,
+				ServiceName: s.DeclFile.Pkg.Service.Name,
+			})
+		}
+		return rtn
+	}
+	return &meta.PubSubTopic{
+		Name:              topic.Name,
+		Doc:               topic.Doc,
+		MessageType:       topic.MessageType.Type,
+		DeliveryGuarantee: meta.PubSubTopic_DeliveryGuarantee(topic.DeliveryGuarantee),
+		Ordered:           topic.Ordered,
+		GroupedBy:         &topic.GroupingField,
+		Publishers:        parsePublisher(topic.Publishers...),
+		Subscriptions:     parseSubscribers(topic.Subscribers...),
+	}
 }
 
 var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.up.sql$`)
@@ -258,17 +291,37 @@ func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 }
 
 func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
+	var lastPackage *est.Package
+	var lastFile *est.File
+	var lastReference *refPair
+
+	defer func() {
+		if err := recover(); err != nil {
+			panic(fmt.Sprintf("panic in parseTraceNodes (Package %s, File %s, AST %+v, Reference %+v): %v", lastPackage.Name, lastFile.Name, lastReference.AST, lastReference.Node, err))
+		}
+	}()
+
 	var id int32
 	res := make(map[*est.Package]TraceNodes)
 	for _, pkg := range app.Packages {
+		lastPackage = pkg
 		nodes := make(TraceNodes)
 		res[pkg] = nodes
 		for _, file := range pkg.Files {
+			lastFile = file
+
 			for _, r := range sortedRefs(file.References) {
+				lastReference = &r
+
+				file := file
+
 				switch r.Node.Type {
 				// Secret nodes are not relevant for tracing
-				case est.SecretsNode:
+				case est.SecretsNode, est.PubSubTopicDefNode:
 					continue
+				case est.PubSubSubscriberNode:
+					// Subscribers can be declared in a different file than the reference
+					file = r.Node.Subscriber.DeclFile
 				}
 
 				tx := newTraceNode(&id, pkg, file, r.AST)
@@ -285,10 +338,29 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 							Context:     string(file.Contents[start:end]),
 						},
 					}
+
+				case est.PubSubPublisherNode:
+					tx.Context = &meta.TraceNode_PubsubPublish{
+						PubsubPublish: &meta.PubSubPublishNode{
+							TopicName: r.Node.Topic.Name,
+							Context:   string(file.Contents[start:end]),
+						},
+					}
+
+				case est.PubSubSubscriberNode:
+					tx.Context = &meta.TraceNode_PubsubSubscriber{
+						PubsubSubscriber: &meta.PubSubSubscriberNode{
+							TopicName:      r.Node.Topic.Name,
+							SubscriberName: r.Node.Subscriber.Name,
+							ServiceName:    r.Node.Subscriber.DeclFile.Pkg.Service.Name,
+							Context:        string(file.Contents[start:end]),
+						},
+					}
 				}
 			}
 		}
 	}
+	lastReference = nil
 
 	for _, svc := range app.Services {
 		for _, rpc := range svc.RPCs {

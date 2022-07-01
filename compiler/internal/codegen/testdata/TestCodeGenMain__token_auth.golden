@@ -169,6 +169,7 @@ func loadConfig() (*config.Config, error) {
 		},
 		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
 		EncoreCompiler: "test",
+		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
 		Services:       services,
 		TestService:    "",
 		Testing:        false,
@@ -181,7 +182,7 @@ func loadConfig() (*config.Config, error) {
 }
 
 func main() {
-	if err := runtime.ListenAndServe(); err != nil {
+	if err := runtime.ListenAndServe(); err != nil && err != io.EOF {
 		runtime.Logger().Fatal().Err(err).Msg("could not listen and serve")
 	}
 }

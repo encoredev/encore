@@ -10,6 +10,7 @@ import {latencyStr} from '~c/trace/util'
 import {decodeBase64} from '~lib/base64'
 import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
 import {timeToDate} from '~lib/time'
+import {Icon} from "~c/icons";
 
 interface Props {
   appID: string;
@@ -63,17 +64,29 @@ export default class AppTraces extends React.Component<Props, State> {
           <ul className="divide-y divide-gray-200">
             {this.state.traces.map(tr => {
               const loc = tr.locations[(tr.root ?? tr.auth)!.def_loc]
+              let icon: Icon = icons.exclamation
               let endpoint = "<unknown endpoint>"
+              let type = "<unknown request type>"
+
               if ("rpc_def" in loc) {
                 endpoint = loc.rpc_def.service_name + "." + loc.rpc_def.rpc_name
+                icon = icons.logout
+                type = "API Call"
               } else if ("auth_handler_def" in loc) {
                 endpoint = loc.auth_handler_def.service_name + "." + loc.auth_handler_def.name
+                icon = icons.shield
+                type  = "Auth Call"
+              } else if ("pubsub_subscriber" in loc) {
+                endpoint = loc.pubsub_subscriber.topic_name + "." + loc.pubsub_subscriber.subscriber_name
+                icon = icons.inbox
+                type = "PubSub Message Received"
               }
 
               return <li key={tr.id}>
                 <div className="px-4 py-4 sm:px-6 hover:bg-gray-50" onClick={() => this.setState({selected: tr})}>
                   <div className="flex items-center justify-between">
                     <p className="text-base font-medium text-gray-800 truncate">
+                      {icon("h-4 w-4 inline-block mr-2", type)}
                       {endpoint}
                     </p>
                     <div className="ml-2 flex-shrink-0 flex">

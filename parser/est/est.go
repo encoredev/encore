@@ -14,12 +14,13 @@ import (
 )
 
 type Application struct {
-	ModulePath  string
-	Packages    []*Package
-	Services    []*Service
-	CronJobs    []*CronJob
-	Decls       []*schema.Decl
-	AuthHandler *AuthHandler
+	ModulePath   string
+	Packages     []*Package
+	Services     []*Service
+	CronJobs     []*CronJob
+	PubSubTopics []*PubSubTopic
+	Decls        []*schema.Decl
+	AuthHandler  *AuthHandler
 }
 
 type File struct {
@@ -61,8 +62,15 @@ type CronJob struct {
 	Doc      string
 	Schedule string
 	RPC      *RPC
-	AST      *ast.ValueSpec
+	DeclFile *File
+	AST      *ast.Ident
 }
+
+func (cj *CronJob) Type() ResourceType         { return CronJobResource }
+func (cj *CronJob) File() *File                { return cj.DeclFile }
+func (cj *CronJob) Ident() *ast.Ident          { return cj.AST }
+func (cj *CronJob) NodeType() NodeType         { return CronJobNode }
+func (cj *CronJob) AllowOnlyParsedUsage() bool { return true }
 
 func (cj *CronJob) IsValid() (bool, error) {
 	switch {
@@ -77,6 +85,45 @@ func (cj *CronJob) IsValid() (bool, error) {
 	}
 
 	return true, nil
+}
+
+type PubSubTopic struct {
+	Name              string          // The unique name of the pub sub topic
+	Doc               string          // The documentation on the pub sub topic
+	DeliveryGuarantee PubSubGuarantee // What guarantees does the pub sub topic have?
+	Ordered           bool            // Whether the topic uses First-In-First-Out (FIFO) logic (default no)
+	GroupingField     string          // What field in the message type should be used to group messages
+	DeclFile          *File           // What file the topic is declared in
+	MessageType       *Param          // The message type of the pub sub topic
+	IdentAST          *ast.Ident      // The AST node representing the value this topic is bound against
+
+	Subscribers []*PubSubSubscriber
+	Publishers  []*PubSubPublisher
+}
+
+func (p *PubSubTopic) Type() ResourceType         { return PubSubTopicResource }
+func (p *PubSubTopic) File() *File                { return p.DeclFile }
+func (p *PubSubTopic) Ident() *ast.Ident          { return p.IdentAST }
+func (p *PubSubTopic) NodeType() NodeType         { return PubSubTopicDefNode }
+func (p *PubSubTopic) AllowOnlyParsedUsage() bool { return true }
+
+type PubSubGuarantee int
+
+const (
+	AtLeastOnce PubSubGuarantee = iota
+	ExactlyOnce
+)
+
+type PubSubSubscriber struct {
+	Name     string   // The unique name of the subscriber
+	CallSite ast.Node // The AST node representing the creation of the subscriber
+	Func     ast.Node // The function that is the subscriber (either a *ast.FuncLit or a *ast.FuncDecl)
+	FuncFile *File    // The file the subscriber function is declared in
+	DeclFile *File    // The file that the subscriber is defined in
+}
+
+type PubSubPublisher struct {
+	DeclFile *File // The file the publisher is declared in
 }
 
 type Param struct {
@@ -115,6 +162,10 @@ const (
 	SQLDBNode
 	RLogNode
 	SecretsNode
+	CronJobNode
+	PubSubTopicDefNode
+	PubSubPublisherNode
+	PubSubSubscriberNode
 )
 
 type Node struct {
@@ -129,6 +180,13 @@ type Node struct {
 
 	// Resource this refers to, if any
 	Res Resource
+
+	// If Type == PubSubPublisherNode or PubSubSubscriberNode
+	// The topic being subscribed to or published to
+	Topic *PubSubTopic
+
+	// If Type == PubSubSubscriberNode then the subscriber
+	Subscriber *PubSubSubscriber
 }
 
 type AuthHandler struct {
@@ -149,6 +207,8 @@ type Resource interface {
 	Type() ResourceType
 	File() *File
 	Ident() *ast.Ident
+	NodeType() NodeType
+	AllowOnlyParsedUsage() bool // If true this resource can only be used with registered resource parsers. If false we allow any usage.
 }
 
 //go:generate stringer -type=ResourceType
@@ -157,6 +217,8 @@ type ResourceType int
 
 const (
 	SQLDBResource ResourceType = iota + 1
+	CronJobResource
+	PubSubTopicResource
 )
 
 type SQLDB struct {
@@ -165,6 +227,8 @@ type SQLDB struct {
 	DBName   string
 }
 
-func (r *SQLDB) Type() ResourceType { return SQLDBResource }
-func (r *SQLDB) File() *File        { return r.DeclFile }
-func (r *SQLDB) Ident() *ast.Ident  { return r.DeclName }
+func (r *SQLDB) Type() ResourceType         { return SQLDBResource }
+func (r *SQLDB) File() *File                { return r.DeclFile }
+func (r *SQLDB) Ident() *ast.Ident          { return r.DeclName }
+func (r *SQLDB) NodeType() NodeType         { return SQLDBNode }
+func (r *SQLDB) AllowOnlyParsedUsage() bool { return false }

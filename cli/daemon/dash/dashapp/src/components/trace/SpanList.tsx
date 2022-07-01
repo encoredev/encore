@@ -2,6 +2,7 @@ import React, {FC, FunctionComponent, useState} from "react"
 import * as icons from "~c/icons"
 import {Request, Trace} from "./model"
 import {svcColor} from "./util"
+import {Icon} from "~c/icons";
 
 interface Props {
   trace: Trace;
@@ -33,12 +34,23 @@ const SpanRow: FC<{
     const defLoc = trace.locations[req.def_loc]
 
     let svcName = "unknown", rpcName = "Unknown"
+    let icon: Icon | undefined
+    let type = "Unknown Request"
     if ("rpc_def" in defLoc) {
       svcName = defLoc.rpc_def.service_name
       rpcName = defLoc.rpc_def.rpc_name
+        icon = icons.logout
+        type = "API Call"
     } else if ("auth_handler_def" in defLoc) {
-      svcName = defLoc.auth_handler_def.service_name
-      rpcName = defLoc.auth_handler_def.name
+        svcName = defLoc.auth_handler_def.service_name
+        rpcName = defLoc.auth_handler_def.name
+        icon = icons.shield
+        type = "Auth Call"
+    } else if ("pubsub_subscriber" in defLoc) {
+        svcName = defLoc.pubsub_subscriber.topic_name
+        rpcName = defLoc.pubsub_subscriber.subscriber_name
+        icon = icons.inbox
+        type = "PubSub Message Received"
     }
 
     const [color, highlightColor] = svcColor(svcName)
@@ -61,6 +73,7 @@ const SpanRow: FC<{
         <div className="flex flex-grow items-center ml-1">
           <div className="w-64 flex-shrink-0 text-xs">
             <div className={`font-semibold ${req.err !== null ? "text-red-700" : "text-gray-800"}`}>
+                {icon ? icon("h-3 w-3 mr-1 inline-block", type) : undefined}
               {svcName}.{rpcName}
             </div>
           </div>

@@ -1,0 +1,17 @@
+! parse
+stderr 'pubsub.NewTopic can only be called as a function to create a new instance and not referenced otherwise. For more information see https://encore.dev/docs/develop/pubsub'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+)
+
+type MyMessage struct {}
+
+var creator = pubsub.NewTopic[MyMessage]
+
+var topic = creator("my-topic")

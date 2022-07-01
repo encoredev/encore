@@ -35,7 +35,7 @@ func (mgr *Manager) watch(run *Run) error {
 				// the user is busy working in their editor.
 				time.Sleep(100 * time.Millisecond)
 				mgr.runStdout(run, []byte("Changes detected, recompiling...\n"))
-				if _, err := run.Reload(); err != nil {
+				if err := run.Reload(); err != nil {
 					mgr.runStderr(run, []byte(err.Error()))
 				} else {
 					mgr.runStdout(run, []byte("Reloaded successfully.\n"))

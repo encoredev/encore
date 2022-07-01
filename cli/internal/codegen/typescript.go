@@ -13,6 +13,7 @@ import (
 
 	"encr.dev/cli/internal/version"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -1112,7 +1113,7 @@ func (ts *typescript) typeName(identifier string) string {
 	if ts.generatorVersion < TsExperimental {
 		return identifier
 	} else {
-		return convertIdentifierTo(identifier, PascalCase)
+		return idents.Convert(identifier, idents.PascalCase)
 	}
 }
 
@@ -1120,7 +1121,7 @@ func (ts *typescript) memberName(identifier string) string {
 	if ts.generatorVersion < TsExperimental {
 		return identifier
 	} else {
-		return convertIdentifierTo(identifier, CamelCase)
+		return idents.Convert(identifier, idents.CamelCase)
 	}
 }
 
@@ -1410,4 +1411,13 @@ export enum ErrCode {
     Unauthenticated = "unauthenticated",
 }
 `)
+}
+
+func stringIsOnly(str string, predicate func(r rune) bool) bool {
+	for _, r := range str {
+		if !predicate(r) {
+			return false
+		}
+	}
+	return true
 }

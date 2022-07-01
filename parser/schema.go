@@ -12,6 +12,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -22,6 +23,14 @@ var additionalTypeResolver = func(p *parser, pkg *est.Package, file *est.File, e
 var disallowedHeaders = []string{
 	"Cookie", "Cookie2", "Set-Cookie", "Set-Cookie2",
 	"Upgrade",
+}
+
+type structTagParser func(p *parser, rawTag *ast.BasicLit, parsedTag *structtag.Tag, structType *schema.Struct, fieldName string, fieldType *schema.Type)
+
+var structTagParsers = map[string]structTagParser{}
+
+func registerStructTagParser(tag string, f structTagParser) {
+	structTagParsers[tag] = f
 }
 
 // resolveType parses the schema from a type expression.
@@ -84,7 +93,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 			if len(field.Names) == 0 {
 				p.err(field.Pos(), "cannot use anonymous fields in Encore struct types")
 			}
-			opts := p.parseStructTag(field.Tag, typ)
+			opts := p.parseStructTag(field.Tag, st, field.Names[0].Name, typ)
 
 			// Validate the names to make sure we don't have any name collisions
 			if js := opts.JSONName; js != "" {
@@ -122,7 +131,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 					RawTag:          opts.RawTag,
 				}
 				if f.QueryStringName == "" {
-					f.QueryStringName = SnakeCase(f.Name)
+					f.QueryStringName = idents.Convert(f.Name, idents.SnakeCase)
 				}
 
 				st.Fields = append(st.Fields, f)
@@ -210,7 +219,7 @@ func schemaTags(tags []*structtag.Tag) []*schema.Tag {
 
 // parseStructTag parses the struct tag to determine any encore-specific options
 // and the JSON name, if any.
-func (p *parser) parseStructTag(tag *ast.BasicLit, resolvedType *schema.Type) structFieldOptions {
+func (p *parser) parseStructTag(tag *ast.BasicLit, structType *schema.Struct, fieldName string, fieldType *schema.Type) structFieldOptions {
 	var opts structFieldOptions
 	if tag == nil {
 		return opts
@@ -262,13 +271,13 @@ func (p *parser) parseStructTag(tag *ast.BasicLit, resolvedType *schema.Type) st
 		//
 		// We've decided against doing any encoding of strings, as that would be unexpected and hidden
 		// behaviour from handwritten clients using the APIs.
-		if resolvedType.GetList() != nil {
+		if fieldType.GetList() != nil {
 			p.errf(tag.Pos(), "header tags are not allowed on slices")
 		}
 
 		// We're not allowing generic fields in headers, as at parse time we cannot know if the generic
 		// is being used as a slice.
-		if resolvedType.GetTypeParameter() != nil {
+		if fieldType.GetTypeParameter() != nil {
 			p.errf(tag.Pos(), "header tags are not allowed on generic fields")
 		}
 
@@ -280,11 +289,19 @@ func (p *parser) parseStructTag(tag *ast.BasicLit, resolvedType *schema.Type) st
 		}
 
 		// Because we need to do type casting in the clients, we're limiting the types to built in Encore types
-		switch resolvedType.Typ.(type) {
+		switch fieldType.Typ.(type) {
 		case *schema.Type_Builtin:
 			// no-op
 		default:
 			p.errf(tag.Pos(), "header tags can only be used on built in types or types provided by Encore")
+		}
+	}
+
+	// Resolve any
+	for _, resolvedTag := range tags.Tags() {
+		tagParser, found := structTagParsers[resolvedTag.Key]
+		if found {
+			tagParser(p, tag, resolvedTag, structType, fieldName, fieldType)
 		}
 	}
 

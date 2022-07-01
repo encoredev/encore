@@ -5,6 +5,7 @@ import (
 	"encore.dev/runtime"
 	"encore.dev/runtime/config"
 	"github.com/json-iterator/go"
+	"io"
 	"os"
 	_ "unsafe"
 )
@@ -27,6 +28,7 @@ func loadConfig() (*config.Config, error) {
 		},
 		AuthData:       nil,
 		EncoreCompiler: "test",
+		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
 		Services:       services,
 		TestService:    "",
 		Testing:        false,
@@ -39,7 +41,7 @@ func loadConfig() (*config.Config, error) {
 }
 
 func main() {
-	if err := runtime.ListenAndServe(); err != nil {
+	if err := runtime.ListenAndServe(); err != nil && err != io.EOF {
 		runtime.Logger().Fatal().Err(err).Msg("could not listen and serve")
 	}
 }

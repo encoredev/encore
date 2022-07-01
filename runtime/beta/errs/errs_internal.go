@@ -97,3 +97,45 @@ func RoundTrip(err error) error {
 		}
 	}
 }
+
+func HTTPStatus(err error) int {
+	code := Code(err)
+	switch code {
+	case OK:
+		return 200
+	case Canceled:
+		return 499
+	case Unknown:
+		return 500
+	case InvalidArgument:
+		return 400
+	case DeadlineExceeded:
+		return 504
+	case NotFound:
+		return 404
+	case AlreadyExists:
+		return 409
+	case PermissionDenied:
+		return 403
+	case ResourceExhausted:
+		return 429
+	case FailedPrecondition:
+		return 400
+	case Aborted:
+		return 409
+	case OutOfRange:
+		return 400
+	case Unimplemented:
+		return 501
+	case Internal:
+		return 500
+	case Unavailable:
+		return 503
+	case DataLoss:
+		return 500
+	case Unauthenticated:
+		return 401
+	default:
+		return 500
+	}
+}

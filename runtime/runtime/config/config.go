@@ -18,9 +18,9 @@ const (
 )
 
 type Config struct {
-	Static  *Static
-	Runtime *Runtime
-	Secrets map[string]string
+	Static  *Static           // Static config is code generated and compiled into the binary
+	Runtime *Runtime          // Runtime config is loaded from the environment
+	Secrets map[string]string // Secrets are loaded from the environment
 }
 
 type Static struct {
@@ -32,6 +32,8 @@ type Static struct {
 	// This is string is for informational use only, and it's format should not be relied on.
 	EncoreCompiler string
 	AppCommit      CommitInfo // The commit which this service was built from
+
+	PubsubTopics map[string]*StaticPubsubTopic
 
 	Testing     bool
 	TestService string // service being tested, if any
@@ -53,20 +55,22 @@ type Endpoint struct {
 }
 
 type Runtime struct {
-	AppID         string          `json:"app_id"`
-	AppSlug       string          `json:"app_slug"`
-	APIBaseURL    string          `json:"api_base_url"`
-	EnvID         string          `json:"env_id"`
-	EnvName       string          `json:"env_name"`
-	EnvType       string          `json:"env_type"`
-	EnvCloud      string          `json:"env_cloud"`
-	DeployID      string          `json:"deploy_id"`
-	DeployedAt    time.Time       `json:"deploy_time"`
-	TraceEndpoint string          `json:"trace_endpoint"`
-	AuthKeys      []EncoreAuthKey `json:"auth_keys"`
-	SQLDatabases  []*SQLDatabase  `json:"sql_databases"`
-	SQLServers    []*SQLServer    `json:"sql_servers"`
-	CORS          *CORS           `json:"cors"`
+	AppID         string                  `json:"app_id"`
+	AppSlug       string                  `json:"app_slug"`
+	APIBaseURL    string                  `json:"api_base_url"`
+	EnvID         string                  `json:"env_id"`
+	EnvName       string                  `json:"env_name"`
+	EnvType       string                  `json:"env_type"`
+	EnvCloud      string                  `json:"env_cloud"`
+	DeployID      string                  `json:"deploy_id"`
+	DeployedAt    time.Time               `json:"deploy_time"`
+	TraceEndpoint string                  `json:"trace_endpoint"`
+	AuthKeys      []EncoreAuthKey         `json:"auth_keys"`
+	SQLDatabases  []*SQLDatabase          `json:"sql_databases"`
+	SQLServers    []*SQLServer            `json:"sql_servers"`
+	PubsubServers []*PubsubServer         `json:"pubsub_servers"`
+	PubsubTopics  map[string]*PubsubTopic `json:"pubsub_topics"`
+	CORS          *CORS                   `json:"cors"`
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
@@ -133,6 +137,44 @@ func (eak EncoreAuthKey) Copy() EncoreAuthKey {
 	c := eak
 	copy(c.Data, eak.Data)
 	return c
+}
+
+type PubsubServer struct {
+	NSQServer *NSQServer       `json:"nsq_server"` // set if server is NSQ
+	GCP       *GCPPubSubServer `json:"gcp"`        // set if server is GCP
+}
+
+type NSQServer struct {
+	Address string `json:"nsq_server"` // the NSQ server address
+}
+
+type GCPPubSubServer struct {
+	ID                 string `json:"project_id"`      // the GCP project ID
+	PushServiceAccount string `json:"service_account"` // the GCP service account email being used to push messages to subscription handlers
+}
+
+type PubsubTopic struct {
+	ServerID      int                            `json:"server_id"`     // the index into (*Runtime).PubsubServers
+	EncoreName    string                         `json:"encore_name"`   // the Encore name for the pubsub topic
+	CloudName     string                         `json:"cloud_name"`    // the name for the pubsub topic as defined on the server
+	OrderingKey   string                         `json:"ordering_key"`  // the ordering key for the pubsub topic (blank if not ordered)
+	Subscriptions map[string]*PubsubSubscription `json:"subscriptions"` // a map of Encore subscription names to PubsubSubscription
+}
+
+type PubsubSubscription struct {
+	ResourceID string `json:"resource_id"` // the resource ID for the pubsub subscription
+	EncoreName string `json:"encore_name"` // the Encore name for the subscription
+	CloudName  string `json:"cloud_name"`  // the name for the pubsub subscription as defined on the server
+	PushOnly   bool   `json:"push_only"`   // if true the application will not actively subscribe to the pub, but instead will rely on HTTP push messages
+}
+
+type StaticPubsubTopic struct {
+	Subscriptions map[string]*StaticPubsubSubscription
+}
+
+type StaticPubsubSubscription struct {
+	Service  *Service // the service that subscription is in
+	TraceIdx int32    // The trace Idx of the subscription
 }
 
 type SQLServer struct {

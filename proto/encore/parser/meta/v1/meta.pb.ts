@@ -1,8 +1,8 @@
 /* eslint-disable */
 import type {
   Loc,
-  Decl,
   Type,
+  Decl,
 } from "../../../../encore/parser/schema/v1/schema.pb";
 
 export const protobufPackage = "encore.parser.meta.v1";
@@ -21,6 +21,8 @@ export interface Data {
   /** the auth handler or nil */
   auth_handler?: AuthHandler | undefined;
   cron_jobs: CronJob[];
+  /** All the pub sub topics declared in the application */
+  pubsub_topics: PubSubTopic[];
 }
 
 /**
@@ -130,6 +132,9 @@ export interface TraceNode {
   rpc_call: RPCCallNode | undefined;
   static_call: StaticCallNode | undefined;
   auth_handler_def: AuthHandlerDefNode | undefined;
+  pubsub_topic_def: PubSubTopicDefNode | undefined;
+  pubsub_publish: PubSubPublishNode | undefined;
+  pubsub_subscriber: PubSubSubscriberNode | undefined;
 }
 
 export interface RPCDefNode {
@@ -160,6 +165,23 @@ export enum StaticCallNode_Package {
 export interface AuthHandlerDefNode {
   service_name: string;
   name: string;
+  context: string;
+}
+
+export interface PubSubTopicDefNode {
+  topic_name: string;
+  context: string;
+}
+
+export interface PubSubPublishNode {
+  topic_name: string;
+  context: string;
+}
+
+export interface PubSubSubscriberNode {
+  topic_name: string;
+  subscriber_name: string;
+  service_name: string;
   context: string;
 }
 
@@ -203,4 +225,43 @@ export interface CronJob {
   doc: string;
   schedule: string;
   endpoint: QualifiedName;
+}
+
+export interface PubSubTopic {
+  /** The pub sub topic name (unique per application) */
+  name: string;
+  /** The documentation for the topic */
+  doc: string;
+  /** The type of the message */
+  message_type: Type;
+  /** The delivery guarantee for the topic */
+  delivery_guarantee: PubSubTopic_DeliveryGuarantee;
+  /** If messages are received in the order they where published */
+  ordered: boolean;
+  /** What field should be used to group messages to which replica of a subscription */
+  grouped_by?: string | undefined;
+  /** The publishers for this topic */
+  publishers: PubSubTopic_Publisher[];
+  /** The subscriptions to the topic */
+  subscriptions: PubSubTopic_Subscription[];
+}
+
+export enum PubSubTopic_DeliveryGuarantee {
+  /** AT_LEAST_ONCE - All messages will be delivered to each subscription at least once */
+  AT_LEAST_ONCE = "AT_LEAST_ONCE",
+  /** EXACTLY_ONCE - All messages will be delivered to each subscription exactly once */
+  EXACTLY_ONCE = "EXACTLY_ONCE",
+  UNRECOGNIZED = "UNRECOGNIZED",
+}
+
+export interface PubSubTopic_Publisher {
+  /** The service the publisher is in */
+  service_name: string;
+}
+
+export interface PubSubTopic_Subscription {
+  /** The unique name of the subscription for this topic */
+  name: string;
+  /** The service that the subscriber is in */
+  service_name: string;
 }

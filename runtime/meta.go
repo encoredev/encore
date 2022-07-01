@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"time"
 
+	"encore.dev/internal/cloud"
 	"encore.dev/runtime/config"
 )
 
@@ -124,17 +125,17 @@ const (
 // For more information about how Cloud Providers work with Encore, see https://encore.dev/docs/deploy/own-cloud
 //
 // Additional cloud providers may be added in the future.
-type CloudProvider string
+type CloudProvider = cloud.Provider
 
 const (
-	CloudAWS   CloudProvider = "aws"
-	CloudGCP   CloudProvider = "gcp"
-	CloudAzure CloudProvider = "azure"
+	CloudAWS   CloudProvider = cloud.AWS
+	CloudGCP   CloudProvider = cloud.GCP
+	CloudAzure CloudProvider = cloud.Azure
 
 	// EncoreCloud is Encore's own cloud offering, and the default provider for new Environments.
-	EncoreCloud CloudProvider = "encore"
+	EncoreCloud CloudProvider = cloud.Encore
 
 	// CloudLocal is used when an application is running from the Encore CLI by using either
 	// 'encore run' or 'encore test'
-	CloudLocal CloudProvider = "local"
+	CloudLocal CloudProvider = cloud.Local
 )

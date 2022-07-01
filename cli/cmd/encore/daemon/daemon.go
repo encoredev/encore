@@ -114,6 +114,7 @@ func (d *Daemon) init() {
 		DBProxyPort: tcpPort(d.DBProxy),
 		DashPort:    tcpPort(d.Dash),
 		Secret:      d.Secret,
+		ClusterMgr:  d.ClusterMgr,
 	}
 	d.DashSrv = dash.NewServer(d.RunMgr, d.Trace)
 

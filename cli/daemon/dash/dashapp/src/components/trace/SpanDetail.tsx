@@ -1,11 +1,12 @@
-import {Duration} from "luxon"
+import {DateTime, Duration} from "luxon"
 import React, {FunctionComponent, useRef, useState} from "react"
 import * as icons from "~c/icons"
 import {Base64EncodedBytes, decodeBase64} from "~lib/base64"
 import {timeToDate} from "~lib/time"
-import {DBQuery, Event, HTTPCall, LogMessage, Request, RPCCall, Stack, Trace} from "./model"
+import {DBQuery, Event, HTTPCall, LogMessage, PubSubPublish, Request, RPCCall, Stack, Trace} from "./model"
 import {latencyStr, svcColor} from "./util"
 import CM from "~c/api/cm/CM"
+import {Icon} from "~c/icons";
 
 interface Props {
   trace: Trace;
@@ -22,24 +23,43 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
   const numCalls = req.children.length
   let numQueries = 0
   let logs: LogMessage[] = []
+  let publishedMessages: PubSubPublish[] = []
   for (const e of req.events) {
-    if (e.type === "DBQuery" ) { numQueries++ }
-    else if (e.type === "DBTransaction" ) { numQueries += e.queries.length }
-    else if (e.type === "LogMessage") { logs.push(e) }
+    if (e.type === "DBQuery") {
+      numQueries++
+    } else if (e.type === "DBTransaction") {
+      numQueries += e.queries.length
+    } else if (e.type === "LogMessage") {
+      logs.push(e)
+    } else if (e.type === "PubSubPublish") {
+      publishedMessages.push(e)
+    }
   }
 
   let svcName = "unknown", rpcName = "Unknown"
+  let icon: Icon = icons.exclamation
+  let type = "Unknown Request"
   if ("rpc_def" in defLoc) {
     svcName = defLoc.rpc_def.service_name
     rpcName = defLoc.rpc_def.rpc_name
+    icon = icons.logout
+    type = "API Call"
   } else if ("auth_handler_def" in defLoc) {
     svcName = defLoc.auth_handler_def.service_name
     rpcName = defLoc.auth_handler_def.name
+    icon = icons.shield
+    type = "Auth Call"
+  } else if ("pubsub_subscriber" in defLoc) {
+    svcName = defLoc.pubsub_subscriber.topic_name
+    rpcName = defLoc.pubsub_subscriber.subscriber_name
+    icon = icons.inbox
+    type = "PubSub Message Received"
   }
-
+  
   return <>
     <div>
       <h2 className="text-2xl font-bold flex items-center">
+        {icon("h-5 w-5 mr-2 inline-block", type)}
         {svcName}.{rpcName}
         {call &&
           <button className="text-gray-600 hover:text-indigo-600 focus:outline-none"
@@ -52,7 +72,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
         </span>
       </div>
 
-      <div className="py-3 grid grid-cols-4 gap-4 border-b border-gray-100">
+      <div className="py-3 grid grid-cols-5 gap-4 border-b border-gray-100">
         <div className="flex items-center text-sm font-light text-gray-400">
           {icons.clock("h-5 w-auto")}
           <span className="font-bold mx-1 text-gray-800">{req.end_time ? latencyStr(req.end_time - req.start_time) : "Unknown"}</span>
@@ -68,13 +88,19 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
         <div className="flex items-center text-sm font-light text-gray-400">
           {icons.database("h-5 w-auto")}
           <span className="font-bold mx-1 text-gray-800">{numQueries}</span>
-          DB Quer{numQueries !== 1 ? "ies" : "y"}
+          Quer{numQueries !== 1 ? "ies" : "y"}
+        </div>
+
+        <div className="flex items-center text-sm font-light text-gray-400">
+          {icons.inbox("h-5 w-auto")}
+          <span className="font-bold mx-1 text-gray-800">{publishedMessages.length}</span>
+          Publish{publishedMessages.length !== 1 ? "es" : ""}
         </div>
 
         <div className="flex items-center text-sm font-light text-gray-400">
           {icons.menuAlt2("h-5 w-auto")}
           <span className="font-bold mx-1 text-gray-800">{logs.length}</span>
-          Log Line{numQueries !== 1 ? "s" : ""}
+          Log{logs.length !== 1 ? "s" : ""}
         </div>
       </div>
 
@@ -103,7 +129,37 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
               }
             </>
           )
-        ) : <>
+        ) : (req.type === "PUBSUB_MSG" ?
+            <>
+              <div className="mt-6">
+                <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Message ID</h4>
+                <div className="text-gray-700 text-sm">{req.msg_id ?? "<unknown>"}</div>
+              </div>
+              <div className="grid grid-cols-2">
+                <div className="mt-6">
+                  <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Delivery Attempt</h4>
+                  <div className="text-gray-700 text-sm">{req.attempt ?? "<unknown>"}</div>
+                </div>
+                <div className="mt-6">
+                  <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Originally Published</h4>
+                  <div className="text-gray-700 text-sm">{req.published ? DateTime.fromMillis(req.published).toString() : "<unknown>"}</div>
+                </div>
+              </div>
+              <div className="mt-6">
+                <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Message</h4>
+                {req.inputs.length > 0 ? renderRequestPayload(tr, req, req.inputs) : <div className="text-gray-700 text-sm">No message data.</div>}
+              </div>
+              {req.err !== null ? (
+                  <div className="mt-4">
+                    <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2 flex items-center">
+                      Error <button className="text-gray-600 hover:text-indigo-600 focus:outline-none ml-1"
+                                    onClick={() => props.onStackTrace(req.err_stack!)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
+                    </h4>
+                    <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-red-800 text-sm">{decodeBase64(req.err)}</pre>
+                  </div>
+              ) : undefined}
+            </>
+                                      :               <>
           <div className="mt-6">
             <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Request</h4>
             {req.inputs.length > 0 ? renderRequestPayload(tr, req, req.inputs) : <div className="text-gray-700 text-sm">No request data.</div>}
@@ -122,7 +178,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
               {req.outputs.length > 0 ? renderData(req.outputs) : <div className="text-gray-700 text-sm">No response data.</div>}
             </div>
           )}
-        </>}
+        </>)}
 
         {logs.length > 0 &&
           <div className="mt-6">
@@ -219,7 +275,7 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
     el.style.transform = `translateX(calc(-100% + ${gel.offsetLeft}px + ${spanEl.offsetLeft}px))`
   }
 
-  const barEvents: (DBQuery | RPCCall | HTTPCall)[] = g.events.filter(e => e.type === "DBQuery" || e.type === "RPCCall" || e.type === "HTTPCall") as any
+  const barEvents: (DBQuery | RPCCall | HTTPCall | PubSubPublish)[] = g.events.filter(e => e.type === "DBQuery" || e.type === "RPCCall" || e.type === "HTTPCall" || e.type === "PubSubPublish") as any
 
   return <>
     <div className="relative" style={{height: lineHeight+"px"}}>
@@ -294,6 +350,23 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
                 }}
               />
             </React.Fragment>
+          } else if (ev.type === "PubSubPublish") {
+            const [color, highlightColor] = svcColor(ev.message_id ? ("msg_id:"+ev.message_id) : ("topic:" + ev.topic))
+            return <React.Fragment key={i}>
+              <style>{`
+                .${clsid}       { background-color: ${highlightColor}; }
+                .${clsid}:hover { background-color: ${color}; }
+              `}</style>
+              <div className={`absolute ${clsid}`}
+                   onMouseEnter={(e) => setHover(e, ev)}
+                   onMouseLeave={(e) => setHover(e, null)}
+                   style={{
+                     borderRadius: "3px",
+                     top: "2px", bottom: "2px",
+                     left: start+"%", right: (100-end)+"%",
+                     minWidth: "1px" // so it at least renders if start === stop
+                   }} />
+            </React.Fragment>
           }
         })}
       </div>
@@ -308,11 +381,49 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
             hoverObj.type === "DBQuery" ? <DBQueryTooltip q={hoverObj} trace={props.trace} onStackTrace={props.onStackTrace} /> :
             hoverObj.type === "RPCCall" ? <RPCCallTooltip call={hoverObj as RPCCall} req={req} trace={props.trace} onStackTrace={props.onStackTrace} /> :
             hoverObj.type === "HTTPCall" ? <HTTPCallTooltip call={hoverObj as HTTPCall} req={req} trace={props.trace} /> :
+                hoverObj.type === "PubSubPublish" ? <PubsubPublishTooltip publish={hoverObj} trace={props.trace} onStackTrace={props.onStackTrace} /> :
             null)}
         </div>
       }
     </div>
   </>
+}
+
+const PubsubPublishTooltip: FunctionComponent<{publish: PubSubPublish, trace: Trace, onStackTrace: (s: Stack) => void}> = (props) => {
+  const publish = props.publish
+  return <div>
+    <h3 className="flex items-center text-gray-800 font-bold text-lg">
+      {icons.inbox("h-8 w-auto text-gray-400 mr-2")}
+      Publish: {publish.topic}
+      <div className="ml-auto text-sm font-normal text-gray-500 flex items-center">
+        {publish.end_time ? latencyStr(publish.end_time - publish.start_time) : "Unknown"}
+        <button className="text-gray-600 hover:text-indigo-600 focus:outline-none -mr-1"
+                onClick={() => props.onStackTrace(publish.stack)}>{icons.stackTrace("m-1 h-4 w-auto")}</button>
+      </div>
+    </h3>
+
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Message ID</h4>
+      <div className="text-gray-700 text-sm">{publish.message_id ?? <i>Not Sent</i> }</div>
+    </div>
+
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Message</h4>
+      {renderData([publish.message])}
+    </div>
+
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold font-sans text-gray-300 leading-3 tracking-wider uppercase mb-2">Error</h4>
+      {publish.err !== null ? (
+          <pre className="rounded overflow-auto border border-gray-200 p-2 bg-gray-100 text-gray-800 text-sm">
+          {decodeBase64(publish.err)}
+        </pre>
+      ) : (
+          <div className="text-gray-700 text-sm">Completed successfully.</div>
+      )}
+    </div>
+
+  </div>
 }
 
 const DBQueryTooltip: FunctionComponent<{q: DBQuery, trace: Trace, onStackTrace: (s: Stack) => void}> = (props) => {
@@ -488,8 +599,7 @@ const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[
   const pathParams = rpc?.path.segments.filter(s => s.type !== "LITERAL")
 
   if (pathParams === undefined) {
-    renderData([data[data.length-1]])
-    return
+    return renderData([data[data.length-1]])
   }
 
   let payload: string | undefined = raw.length > pathParams.length ? raw[raw.length-1] : undefined

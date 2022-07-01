@@ -45,8 +45,13 @@ type Request struct {
 	StartTime int64   `json:"start_time"`
 	EndTime   *int64  `json:"end_time,omitempty"`
 
-	SvcName string `json:"svc_name"`
-	RPCName string `json:"rpc_name"`
+	SvcName        string  `json:"svc_name"`
+	RPCName        string  `json:"rpc_name"`
+	TopicName      string  `json:"topic_name"`
+	SubscriberName string  `json:"subscriber_name"`
+	MessageID      string  `json:"msg_id"`
+	Attempt        uint32  `json:"attempt"`
+	Published      *uint64 `json:"published"`
 
 	CallLoc *int32 `json:"call_loc"`
 	DefLoc  int32  `json:"def_loc"`
@@ -144,6 +149,18 @@ type LogMessage struct {
 	Stack   Stack      `json:"stack"`
 }
 
+type PubSubPublish struct {
+	Type      string `json:"type"` // "PubSubPublish"
+	Goid      uint64 `json:"goid"`
+	StartTime int64  `json:"start_time"`
+	EndTime   *int64 `json:"end_time,omitempty"`
+	Topic     string `json:"topic"`
+	Message   []byte `json:"message"`
+	MessageID string `json:"message_id"`
+	Err       []byte `json:"err"`
+	Stack     Stack  `json:"stack"`
+}
+
 type Stack struct {
 	Frames []StackFrame `json:"frames"`
 }
@@ -171,6 +188,7 @@ func (DBQuery) traceEvent()       {}
 func (RPCCall) traceEvent()       {}
 func (HTTPCall) traceEvent()      {}
 func (LogMessage) traceEvent()    {}
+func (PubSubPublish) traceEvent() {}
 
 func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 	traceID := traceUUID(ct.ID)
@@ -274,7 +292,7 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown def_loc %v", req.DefLoc)
 	}
-	svcName, rpcName := "", ""
+	svcName, rpcName, topicName, subscriberName := "", "", "", ""
 	switch ctx := node.Context.(type) {
 	case *v1.TraceNode_RpcDef:
 		svcName = ctx.RpcDef.ServiceName
@@ -282,6 +300,10 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 	case *v1.TraceNode_AuthHandlerDef:
 		svcName = ctx.AuthHandlerDef.ServiceName
 		rpcName = ctx.AuthHandlerDef.Name
+	case *v1.TraceNode_PubsubSubscriber:
+		svcName = ctx.PubsubSubscriber.ServiceName
+		topicName = ctx.PubsubSubscriber.TopicName
+		subscriberName = ctx.PubsubSubscriber.SubscriberName
 	default:
 		return nil, fmt.Errorf("unexpected node context type %T", node.Context)
 	}
@@ -294,10 +316,14 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		StartTime: tp.time(req.StartTime),
 		EndTime:   tp.maybeTime(req.EndTime),
 
-		SvcName: svcName,
-		RPCName: rpcName,
-		CallLoc: nullInt32(req.CallLoc),
-		DefLoc:  req.DefLoc,
+		SvcName:        svcName,
+		RPCName:        rpcName,
+		TopicName:      topicName,
+		SubscriberName: subscriberName,
+		MessageID:      req.MessageId,
+		Attempt:        req.Attempt,
+		Published:      nil,
+		DefLoc:         req.DefLoc,
 
 		Inputs:   inputs,
 		Outputs:  outputs,
@@ -305,6 +331,9 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		Events:   []Event{},    // prevent marshalling as null
 		Children: []*Request{}, // prevent marshalling as null
 		ErrStack: tp.maybeStack(req.ErrStack),
+	}
+	if req.PublishTime > 0 {
+		r.Published = &req.PublishTime
 	}
 
 	for _, ev := range req.Events {
@@ -330,6 +359,9 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 
 		case *tracepb.Event_Log:
 			r.Events = append(r.Events, tp.parseLog(e.Log))
+
+		case *tracepb.Event_PublishedMsg:
+			r.Events = append(r.Events, tp.parsePubSubPublish(e.PublishedMsg))
 		}
 	}
 
@@ -340,7 +372,6 @@ func (tp *traceParser) parseGoroutine(g *tracepb.Goroutine) *Goroutine {
 	return &Goroutine{
 		Type:      "Goroutine",
 		Goid:      g.Goid,
-		CallLoc:   g.CallLoc,
 		StartTime: tp.time(g.StartTime),
 		EndTime:   tp.maybeTime(g.EndTime),
 	}
@@ -359,9 +390,9 @@ func (tp *traceParser) parseLog(l *tracepb.LogMessage) *LogMessage {
 	for _, f := range l.Fields {
 		field := LogField{Key: f.Key}
 		switch v := f.Value.(type) {
-		case *tracepb.LogField_Error:
-			field.Value = v.Error.Error
-			if s := v.Error.Stack; s != nil {
+		case *tracepb.LogField_ErrorWithStack:
+			field.Value = v.ErrorWithStack.Error
+			if s := v.ErrorWithStack.Stack; s != nil {
 				st := tp.stack(s)
 				field.Stack = &st
 			}
@@ -391,6 +422,20 @@ func (tp *traceParser) parseLog(l *tracepb.LogMessage) *LogMessage {
 	return msg
 }
 
+func (tp *traceParser) parsePubSubPublish(publish *tracepb.PubsubMsgPublished) *PubSubPublish {
+	return &PubSubPublish{
+		Type:      "PubSubPublish",
+		Goid:      publish.Goid,
+		StartTime: tp.time(publish.StartTime),
+		EndTime:   tp.maybeTime(publish.EndTime),
+		Topic:     publish.Topic,
+		Message:   publish.Message,
+		MessageID: publish.MessageId,
+		Err:       nullBytes(publish.Err),
+		Stack:     tp.stack(publish.Stack),
+	}
+}
+
 func (tp *traceParser) parseTx(tx *tracepb.DBTransaction) (*DBTransaction, error) {
 	tp.txCounter++
 	txid := tp.txCounter
@@ -398,8 +443,6 @@ func (tp *traceParser) parseTx(tx *tracepb.DBTransaction) (*DBTransaction, error
 		Type:       "DBTransaction",
 		Goid:       tx.Goid,
 		Txid:       txid,
-		StartLoc:   tx.StartLoc,
-		EndLoc:     tx.EndLoc,
 		StartTime:  tp.time(tx.StartTime),
 		EndTime:    tp.maybeTime(tx.EndTime),
 		Err:        nullBytes(tx.Err),
@@ -439,7 +482,6 @@ func (tp *traceParser) parseQuery(q *tracepb.DBQuery, txid uint32) *DBQuery {
 		Type:      "DBQuery",
 		Goid:      q.Goid,
 		Txid:      nullUint32(txid),
-		CallLoc:   q.CallLoc,
 		StartTime: tp.time(q.StartTime),
 		EndTime:   tp.maybeTime(q.EndTime),
 		Query:     dedent.Bytes(q.Query),
@@ -454,7 +496,6 @@ func (tp *traceParser) parseCall(c *tracepb.RPCCall) *RPCCall {
 		Type:      "RPCCall",
 		Goid:      c.Goid,
 		ReqID:     strconv.FormatUint(c.SpanId, 10),
-		CallLoc:   c.CallLoc,
 		DefLoc:    c.DefLoc,
 		StartTime: tp.time(c.StartTime),
 		EndTime:   tp.maybeTime(c.EndTime),
@@ -530,13 +571,6 @@ func nullIntStr(n uint64) *string {
 	}
 	s := strconv.FormatUint(n, 10)
 	return &s
-}
-
-func nullInt32(n int32) *int32 {
-	if n == 0 {
-		return nil
-	}
-	return &n
 }
 
 func nullUint32(n uint32) *uint32 {
