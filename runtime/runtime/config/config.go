@@ -149,8 +149,8 @@ type NSQServer struct {
 }
 
 type GCPPubSubServer struct {
-	ID                 string `json:"project_id"`      // the GCP project ID
 	PushServiceAccount string `json:"service_account"` // the GCP service account email being used to push messages to subscription handlers
+	ProjectID          string `json:"project_id"`      // the GCP project ID
 }
 
 type PubsubTopic struct {
@@ -162,9 +162,10 @@ type PubsubTopic struct {
 }
 
 type PubsubSubscription struct {
+	ServerID   int    `json:"server_id"`   // the index into (*Runtime).PubsubServers
 	ResourceID string `json:"resource_id"` // the resource ID for the pubsub subscription
 	EncoreName string `json:"encore_name"` // the Encore name for the subscription
-	CloudName  string `json:"cloud_name"`  // the name for the pubsub subscription as defined on the server
+	CloudName  string `json:"cloud_name"`  // the name for the pubsub subscription as defined
 	PushOnly   bool   `json:"push_only"`   // if true the application will not actively subscribe to the pub, but instead will rely on HTTP push messages
 }
 

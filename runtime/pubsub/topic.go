@@ -46,7 +46,7 @@ func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
 	case server.NSQServer != nil:
 		return &Topic[T]{topicCfg: topic, topic: nsq.NewTopic(server.NSQServer, topic)}
 	case server.GCP != nil:
-		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(server.GCP, topic)}
+		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(config.Cfg.Runtime.PubsubServers, topic)}
 
 	default:
 		runtime.Logger().Fatal().Msgf("unsupported PubsubServer type for server idx: %v", topic.ServerID)
@@ -117,6 +117,7 @@ func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *Subscrip
 		msg, err := utils.UnmarshalMessage[T](attrs, data)
 		if err != nil {
 			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message")
+			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to unmarshal message").Err()
 		}
 
 		// Start the request tracing span
