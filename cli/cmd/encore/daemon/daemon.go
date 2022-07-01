@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"database/sql"
 	_ "embed" // for go:embed
 	"fmt"
@@ -8,8 +9,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // for "sqlite3" driver
@@ -44,6 +47,9 @@ func Main() {
 }
 
 func runMain(dev bool) (err error) {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
+	defer cancel()
+
 	// exit receives signals from the different subsystems
 	// that something went wrong and it's time to exit.
 	// Sending nil indicates it's time to gracefully exit.
@@ -56,7 +62,12 @@ func runMain(dev bool) (err error) {
 	d.init()
 	d.serve()
 
-	return <-exit
+	select {
+	case err := <-exit:
+		return err
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 // Daemon orchestrates setting up the different daemon subsystems.
@@ -212,6 +223,7 @@ func (d *Daemon) openDB() *sql.DB {
 	if _, err := db.Exec(dbSchema); err != nil {
 		fatal(err)
 	}
+	d.closeOnExit(db)
 
 	return db
 }
