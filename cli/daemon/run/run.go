@@ -509,6 +509,13 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 				})
 			}
 		}
+	
+		// Configure max connections based on 96 connections
+		// divided evenly among the databases
+		maxConns := 96 / len(sqlDBs)
+		for _, db := range sqlDBs {
+			db.MaxConnections = maxConns
+		}
 	}
 
 	var (
