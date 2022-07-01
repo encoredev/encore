@@ -48,7 +48,7 @@ func __encore_svc_CronOne(w http.ResponseWriter, req *http.Request, ps httproute
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "CronOne",
-		EndpointExprIdx: 16,
+		EndpointExprIdx: 17,
 		Inputs:          nil,
 		Path:            req.URL.Path,
 		Service:         "svc",
@@ -108,7 +108,7 @@ func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Eight",
-		EndpointExprIdx: 17,
+		EndpointExprIdx: 18,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -227,7 +227,7 @@ func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Five",
-		EndpointExprIdx: 18,
+		EndpointExprIdx: 19,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -295,7 +295,7 @@ func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Four",
-		EndpointExprIdx: 19,
+		EndpointExprIdx: 20,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -362,7 +362,7 @@ func __encore_svc_Nine(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Nine",
-		EndpointExprIdx: 20,
+		EndpointExprIdx: 21,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -455,7 +455,7 @@ func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "One",
-		EndpointExprIdx: 21,
+		EndpointExprIdx: 22,
 		Inputs:          nil,
 		Path:            req.URL.Path,
 		Service:         "svc",
@@ -559,7 +559,7 @@ func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Query",
-		EndpointExprIdx: 22,
+		EndpointExprIdx: 23,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -652,7 +652,7 @@ func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Seven",
-		EndpointExprIdx: 23,
+		EndpointExprIdx: 24,
 		Inputs:          nil,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -743,7 +743,7 @@ func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Six",
-		EndpointExprIdx: 24,
+		EndpointExprIdx: 25,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -798,7 +798,7 @@ func __encore_svc_Ten(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Ten",
-		EndpointExprIdx: 25,
+		EndpointExprIdx: 26,
 		Inputs:          nil,
 		Path:            req.URL.Path,
 		Service:         "svc",
@@ -881,7 +881,7 @@ func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Three",
-		EndpointExprIdx: 26,
+		EndpointExprIdx: 27,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -969,7 +969,7 @@ func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	err = runtime.BeginRequest(ctx, runtime.RequestData{
 		AuthData:        authData,
 		Endpoint:        "Two",
-		EndpointExprIdx: 27,
+		EndpointExprIdx: 28,
 		Inputs:          inputs,
 		Path:            req.URL.Path,
 		PathSegments:    ps,
@@ -1109,6 +1109,7 @@ func loadConfig() (*config.Config, error) {
 		},
 		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
 		EncoreCompiler: "test",
+		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
 		Services:       services,
 		TestService:    "",
 		Testing:        false,
@@ -1121,7 +1122,7 @@ func loadConfig() (*config.Config, error) {
 }
 
 func main() {
-	if err := runtime.ListenAndServe(); err != nil {
+	if err := runtime.ListenAndServe(); err != nil && err != io.EOF {
 		runtime.Logger().Fatal().Err(err).Msg("could not listen and serve")
 	}
 }
@@ -1191,7 +1192,7 @@ func __encore_validateToken(ctx context.Context, param *svc.AuthParams) (uid aut
 	if err != nil {
 		return "", nil, err
 	}
-	call, err := runtime.BeginAuth(28, paramStr)
+	call, err := runtime.BeginAuth(29, paramStr)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1200,7 +1201,7 @@ func __encore_validateToken(ctx context.Context, param *svc.AuthParams) (uid aut
 		defer close(done)
 		authErr = call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "AuthHandler",
-			EndpointExprIdx: 28,
+			EndpointExprIdx: 29,
 			Inputs:          [][]byte{[]byte(paramStr)},
 			Service:         "svc",
 			Type:            runtime.AuthHandler,
@@ -1383,7 +1384,7 @@ func __encore_svc_CronOne(ctx context.Context) (err error) {
 	var inputs [][]byte
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "CronOne",
-		EndpointExprIdx: 16,
+		EndpointExprIdx: 17,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1400,7 +1401,7 @@ func __encore_svc_CronOne(ctx context.Context) (err error) {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "CronOne",
-			EndpointExprIdx: 16,
+			EndpointExprIdx: 17,
 			Inputs:          inputs,
 			Path:            "/cron",
 			PathSegments:    nil,
@@ -1440,7 +1441,7 @@ func __encore_svc_Eight(ctx context.Context, p0 string, p1 string) (resp *Respon
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Eight",
-		EndpointExprIdx: 17,
+		EndpointExprIdx: 18,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1457,7 +1458,7 @@ func __encore_svc_Eight(ctx context.Context, p0 string, p1 string) (resp *Respon
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Eight",
-			EndpointExprIdx: 17,
+			EndpointExprIdx: 18,
 			Inputs:          inputs,
 			Path:            fmt.Sprintf("/eight/%s/%s", url.PathEscape(p0), url.PathEscape(p1)),
 			PathSegments: httprouter.Params{httprouter.Param{
@@ -1516,7 +1517,7 @@ func __encore_svc_Five(ctx context.Context, p0 uuid.UUID, p1 uint, p2 *FooParams
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Five",
-		EndpointExprIdx: 18,
+		EndpointExprIdx: 19,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1535,7 +1536,7 @@ func __encore_svc_Five(ctx context.Context, p0 uuid.UUID, p1 uint, p2 *FooParams
 		p1Str := fmt.Sprint(p1)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Five",
-			EndpointExprIdx: 18,
+			EndpointExprIdx: 19,
 			Inputs:          inputs,
 			Path:            fmt.Sprintf("/five/%s/%s", url.PathEscape(p0Str), url.PathEscape(p1Str)),
 			PathSegments: httprouter.Params{httprouter.Param{
@@ -1591,7 +1592,7 @@ func __encore_svc_Four(ctx context.Context, p0 string) (err error) {
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Four",
-		EndpointExprIdx: 19,
+		EndpointExprIdx: 20,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1608,7 +1609,7 @@ func __encore_svc_Four(ctx context.Context, p0 string) (err error) {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Four",
-			EndpointExprIdx: 19,
+			EndpointExprIdx: 20,
 			Inputs:          inputs,
 			Path:            fmt.Sprintf("/four/%s", url.PathEscape(p0)),
 			PathSegments: httprouter.Params{httprouter.Param{
@@ -1659,7 +1660,7 @@ func __encore_svc_Nine(ctx context.Context, p0 string, p1 string) (resp *Complex
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Nine",
-		EndpointExprIdx: 20,
+		EndpointExprIdx: 21,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1676,7 +1677,7 @@ func __encore_svc_Nine(ctx context.Context, p0 string, p1 string) (resp *Complex
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Nine",
-			EndpointExprIdx: 20,
+			EndpointExprIdx: 21,
 			Inputs:          inputs,
 			Path:            fmt.Sprintf("/nine/%s/%s", url.PathEscape(p0), url.PathEscape(p1)),
 			PathSegments: httprouter.Params{httprouter.Param{
@@ -1732,7 +1733,7 @@ func __encore_svc_One(ctx context.Context) (err error) {
 	var inputs [][]byte
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "One",
-		EndpointExprIdx: 21,
+		EndpointExprIdx: 22,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1749,7 +1750,7 @@ func __encore_svc_One(ctx context.Context) (err error) {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "One",
-			EndpointExprIdx: 21,
+			EndpointExprIdx: 22,
 			Inputs:          inputs,
 			Path:            "/svc.One",
 			PathSegments:    nil,
@@ -1789,7 +1790,7 @@ func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (resp *QueryParams
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Query",
-		EndpointExprIdx: 22,
+		EndpointExprIdx: 23,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1806,7 +1807,7 @@ func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (resp *QueryParams
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Query",
-			EndpointExprIdx: 22,
+			EndpointExprIdx: 23,
 			Inputs:          inputs,
 			Path:            "/query",
 			PathSegments:    nil,
@@ -1858,7 +1859,7 @@ func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Seven",
-		EndpointExprIdx: 23,
+		EndpointExprIdx: 24,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1875,7 +1876,7 @@ func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Seven",
-			EndpointExprIdx: 23,
+			EndpointExprIdx: 24,
 			Inputs:          inputs,
 			Path:            fmt.Sprintf("/foo/%s/%s", url.PathEscape(p0), url.PathEscape(p1)),
 			PathSegments: httprouter.Params{httprouter.Param{
@@ -1930,7 +1931,7 @@ func __encore_svc_Six(ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParam
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Six",
-		EndpointExprIdx: 24,
+		EndpointExprIdx: 25,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -1948,7 +1949,7 @@ func __encore_svc_Six(ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParam
 		p0Str := fmt.Sprint(p0)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Six",
-			EndpointExprIdx: 24,
+			EndpointExprIdx: 25,
 			Inputs:          inputs,
 			Path:            fmt.Sprintf("/six/%s/%s", url.PathEscape(p0Str), url.PathEscape(p1)),
 			PathSegments: httprouter.Params{httprouter.Param{
@@ -2001,7 +2002,7 @@ func __encore_svc_Ten(ctx context.Context) (resp *HeaderResponse, err error) {
 	var inputs [][]byte
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Ten",
-		EndpointExprIdx: 25,
+		EndpointExprIdx: 26,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -2018,7 +2019,7 @@ func __encore_svc_Ten(ctx context.Context) (resp *HeaderResponse, err error) {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Ten",
-			EndpointExprIdx: 25,
+			EndpointExprIdx: 26,
 			Inputs:          inputs,
 			Path:            "/ten",
 			PathSegments:    nil,
@@ -2062,7 +2063,7 @@ func __encore_svc_Three(ctx context.Context, p0 string) (err error) {
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Three",
-		EndpointExprIdx: 26,
+		EndpointExprIdx: 27,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -2079,7 +2080,7 @@ func __encore_svc_Three(ctx context.Context, p0 string) (err error) {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Three",
-			EndpointExprIdx: 26,
+			EndpointExprIdx: 27,
 			Inputs:          inputs,
 			Path:            fmt.Sprintf("/three/%s", url.PathEscape(p0)),
 			PathSegments: httprouter.Params{httprouter.Param{
@@ -2130,7 +2131,7 @@ func __encore_svc_Two(ctx context.Context, p0 *FooParams) (err error) {
 	}
 	call, err := runtime.BeginCall(runtime.CallParams{
 		Endpoint:        "Two",
-		EndpointExprIdx: 27,
+		EndpointExprIdx: 28,
 		Service:         "svc",
 	})
 	if err != nil {
@@ -2147,7 +2148,7 @@ func __encore_svc_Two(ctx context.Context, p0 *FooParams) (err error) {
 		defer close(done)
 		err := call.BeginReq(ctx, runtime.RequestData{
 			Endpoint:        "Two",
-			EndpointExprIdx: 27,
+			EndpointExprIdx: 28,
 			Inputs:          inputs,
 			Path:            "/svc.Two",
 			PathSegments:    nil,
