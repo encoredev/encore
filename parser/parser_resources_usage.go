@@ -17,7 +17,9 @@ func (p *parser) parseResourceUsage() {
 		resourceMap[pkg.ImportPath] = resources
 		for _, res := range pkg.Resources {
 			id := res.Ident()
-			resources[id.Name] = res
+			if id != nil {
+				resources[id.Name] = res
+			}
 		}
 	}
 
