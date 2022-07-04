@@ -73,10 +73,6 @@ func (l *topic) Subscribe(logger *zerolog.Logger, cfg *types.SubscriptionConfig,
 		msg := &messageWrapper{}
 
 		defer func() {
-			if cfg == nil {
-				// If not config was passed to the call to subscribe we should not read it
-				return
-			}
 			policy := cfg.RetryPolicy
 			if !m.HasResponded() {
 				retry, delay := utils.GetDelay(policy.MaxRetries, policy.MinRetryDelay, policy.MaxRetryDelay, m.Attempts)

@@ -21,7 +21,7 @@ type MessageType struct {
 
 var (
     BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
-    _ = BasicTopic.NewSubscription("basic-subscription", Subscriber)
+    _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", Subscriber)
 )
 
 // encore:api

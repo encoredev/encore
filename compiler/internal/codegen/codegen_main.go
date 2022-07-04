@@ -131,7 +131,7 @@ func (b *Builder) Main() (f *File, err error) {
 			subscriptions := Dict{}
 
 			for _, sub := range topic.Subscribers {
-				traceID := int(b.res.Nodes[sub.DeclFile.Pkg][sub.CallSite].Id)
+				traceID := int(b.res.Nodes[sub.DeclFile.Pkg][sub.IdentAST].Id)
 
 				subscriptions[Lit(sub.Name)] = Values(Dict{
 					Id("Service"):  Id("services").Index(Lit(svcIndex[sub.DeclFile.Pkg.Service])),

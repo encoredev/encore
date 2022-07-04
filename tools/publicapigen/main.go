@@ -20,11 +20,22 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+type registeredType struct {
+	node ast.Expr
+	docs *ast.CommentGroup
+}
+
+type registeredConstant struct {
+	node ast.Expr
+	typ  ast.Expr
+	docs *ast.CommentGroup
+}
+
 var (
 	fset      = token.NewFileSet()
 	files     = map[string]*ast.File{}
-	constants = map[string]map[string]ast.BasicLit{}
-	types     = map[string]map[string]ast.Expr{}
+	constants = map[string]map[string]registeredConstant{}
+	types     = map[string]map[string]registeredType{}
 )
 
 func main() {
@@ -49,7 +60,6 @@ func main() {
 	// Then rewrite all the AST to remove implementations
 	log.Info().Msg("rewriting ast to remove implementations and unexported items...")
 	for fileName, fAST := range files {
-
 		log.Debug().Str("file", fileName).Msg("rewriting ast")
 		if err := rewriteAST(fAST); err != nil {
 			log.Fatal().Err(err).Str("file", fileName).Msg("unable to rewrite ast")
@@ -105,8 +115,8 @@ func main() {
 func registerTypes(name string, fAST *ast.File) {
 	pkg := filepath.Base(filepath.Dir(name))
 	if _, found := types[pkg]; !found {
-		types[pkg] = map[string]ast.Expr{}
-		constants[pkg] = map[string]ast.BasicLit{}
+		types[pkg] = map[string]registeredType{}
+		constants[pkg] = map[string]registeredConstant{}
 	}
 
 	for _, decl := range fAST.Decls {
@@ -117,7 +127,7 @@ func registerTypes(name string, fAST *ast.File) {
 				case *ast.TypeSpec:
 					if s.Name != nil && s.Name.IsExported() {
 						log.Debug().Str("type", s.Name.Name).Msg("registering type")
-						types[pkg][s.Name.Name] = s.Type
+						types[pkg][s.Name.Name] = registeredType{s.Type, removePosFromCommentGroup(d.Doc)}
 					}
 				case *ast.ValueSpec:
 					if d.Tok == token.CONST {
@@ -125,9 +135,10 @@ func registerTypes(name string, fAST *ast.File) {
 							if len(s.Values) <= i {
 								break
 							}
-							if basic, ok := s.Values[i].(*ast.BasicLit); ok && name.IsExported() {
-								log.Debug().Str("const", name.Name).Msg("registering basic const")
-								constants[pkg][name.Name] = *basic
+
+							if name.IsExported() {
+								log.Debug().Str("const", name.Name).Interface("value", s.Values[i]).Msg("registering basic const")
+								constants[pkg][name.Name] = registeredConstant{removePosition(s.Values[i]), removePosition(s.Type), removePosFromCommentGroup(s.Doc)}
 							}
 						}
 					}
@@ -248,10 +259,20 @@ func rewriteAST(f *ast.File) error {
 						typ, found := types[pkg.Name][sel.Sel.Name]
 						if found {
 							node.Assign = token.NoPos // remove an alias assignment (as it was an alias for our own types)
-							node.Type = typ           // replace the type with the actual type
+							node.Type = typ.node      // replace the type with the actual type
+							if typ.docs != nil {
+								if parent, ok := c.Parent().(*ast.GenDecl); ok {
+									parent.Doc = typ.docs // copy the docs over
+								} else {
+									node.Doc = typ.docs // copy the docs over
+								}
+							}
 						}
 					}
 				}
+
+			case *ast.FuncType:
+				return false
 
 			case *ast.ValueSpec:
 				// Remove unexported variables and constants
@@ -273,19 +294,38 @@ func rewriteAST(f *ast.File) error {
 					return false
 				}
 
-			case *ast.SelectorExpr:
-				// else if we have a selector, rewrite the package name to see if this is an export from
-				// one of our private packages, in which case we want to copy it into the public API
-				if pkg, ok := node.X.(*ast.Ident); ok && constants[pkg.Name] != nil {
-					typ, found := constants[pkg.Name][node.Sel.Name]
-					if found {
-						typ.ValuePos = token.NoPos
-						c.Replace(&typ)
-					}
-				}
 			case *ast.GenDecl:
 				if mustKeep(node.Doc) {
 					return false
+				}
+
+				// else if we have a selector, rewrite the package name to see if this is an export from
+				// one of our private packages, in which case we want to copy it into the public API
+				if node.Tok == token.CONST {
+					for _, spec := range node.Specs {
+						switch spec := spec.(type) {
+						case *ast.ValueSpec:
+							for i, value := range spec.Values {
+								if selector, ok := value.(*ast.SelectorExpr); ok {
+									if pkg, ok := selector.X.(*ast.Ident); ok && constants[pkg.Name] != nil {
+										typ, found := constants[pkg.Name][selector.Sel.Name]
+										if found {
+											spec.Values[i] = typ.node
+
+											if typ.typ != nil {
+												// Copy the type over
+												spec.Type = typ.typ
+											}
+
+											if typ.docs != nil {
+												spec.Doc = typ.docs // copy the docs over
+											}
+										}
+									}
+								}
+							}
+						}
+					}
 				}
 
 			case *ast.Field:
@@ -456,4 +496,60 @@ func isPrivateFile(fileName string) bool {
 	return strings.HasPrefix(fileName, "runtime/") ||
 		strings.Contains(fileName, "internal/") ||
 		strings.HasSuffix(fileName, "_internal.go")
+}
+
+func removePosFromCommentGroup(doc *ast.CommentGroup) *ast.CommentGroup {
+	if doc == nil {
+		return nil
+	}
+
+	rtn := *doc
+
+	for i, originalLine := range rtn.List {
+		line := *originalLine
+		line.Slash = token.NoPos
+		rtn.List[i] = &line
+	}
+	return &rtn
+}
+
+func removePosition(node ast.Expr) ast.Expr {
+	if node == nil {
+		return nil
+	}
+
+	switch node := node.(type) {
+	case *ast.BasicLit:
+		lit := *node
+		lit.ValuePos = token.NoPos
+		return &lit
+
+	case *ast.Ident:
+		ident := *node
+		ident.NamePos = token.NoPos
+		return &ident
+
+	case *ast.SelectorExpr:
+		sel := *node
+		sel.X = removePosition(sel.X)
+		sel.Sel = removePosition(sel.Sel).(*ast.Ident)
+		return &sel
+
+	case *ast.UnaryExpr:
+		unary := *node
+		unary.OpPos = token.NoPos
+		unary.X = removePosition(unary.X)
+		return &unary
+
+	case *ast.BinaryExpr:
+		binary := *node
+		binary.OpPos = token.NoPos
+		binary.X = removePosition(binary.X)
+		binary.Y = removePosition(binary.Y)
+		return &binary
+
+	default:
+		log.Warn().Interface("node", node).Msg("unhandled node type to remove position from")
+		return node
+	}
 }

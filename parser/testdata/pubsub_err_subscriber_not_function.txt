@@ -1,5 +1,5 @@
 ! parse
-stderr 'The function passed to `BasicTopic.NewSubscription` must be declared in the same service. Currently the function is not declared within a service.'
+stderr 'The function passed to `pubsub.NewSubscription` must be declared in the same service. Currently the function is not declared within a service.'
 
 -- svc/svc.go --
 package svc
@@ -18,7 +18,7 @@ type MessageType struct {
 
 var (
     BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
-    _ = BasicTopic.NewSubscription("basic-subscription", shared.Subscriber)
+    _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", shared.Subscriber)
 )
 
 // encore:api
