@@ -14,28 +14,27 @@ import (
 )
 
 type topic struct {
-	client    *pubsub.Client
-	gcpTopic  *pubsub.Topic
-	serverCfg []*config.PubsubServer
-	topicCfg  *config.PubsubTopic
+	client   *pubsub.Client
+	gcpTopic *pubsub.Topic
+	topicCfg *config.PubsubTopic
 }
 
-func NewTopic(cfg []*config.PubsubServer, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func NewTopic(_ *config.GCPPubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
 	client := getClient()
-	gcpTopic := client.TopicInProject(topicCfg.CloudName, cfg[topicCfg.ServerID].GCP.ProjectID)
+	gcpTopic := client.TopicInProject(cfg.ProviderName, cfg.GCP.ProjectID)
 
 	// Enable message ordering if we have an ordering key set
-	gcpTopic.EnableMessageOrdering = topicCfg.OrderingKey != ""
+	gcpTopic.EnableMessageOrdering = cfg.OrderingKey != ""
 
 	// Check we have permissions to interact with the given topic
 	// (note: the call to Topic() above only creates the object, it doesn't verify that we have permissions to interact with it)
 	_, err := gcpTopic.Config(ctx.App)
 	if err != nil {
-		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", topicCfg.CloudName, err))
+		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", cfg.EncoreName, err))
 	}
 
-	return &topic{client, gcpTopic, cfg, topicCfg}
+	return &topic{client, gcpTopic, cfg}
 }
 
 func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {
@@ -49,32 +48,34 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 	return t.gcpTopic.Publish(ctx, gcpMsg).Get(ctx)
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, subscriptionCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
-	if subscriptionCfg.PushOnly && subscriptionCfg.ResourceID == "" {
-		panic("push-only subscriptions must have a resource ID")
+func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+	if subCfg.PushOnly && subCfg.ID == "" {
+		panic("push-only subscriptions must have a subscription ID")
+	}
+	gcpCfg := subCfg.GCP
+	if gcpCfg == nil {
+		panic("GCP subscriptions must have GCP-specific configuration provided, got nil")
 	}
 
-	// If we have a resource ID, let's register a push endpoint for it
-	if subscriptionCfg.ResourceID != "" {
-		serverCfg := t.serverCfg[subscriptionCfg.ServerID].GCP
-		if serverCfg.PushServiceAccount != "" {
-			registerPushEndpoint(serverCfg, subscriptionCfg, f)
-		} else if subscriptionCfg.PushOnly {
+	// If we have a subscription ID, register a push endpoint for it
+	if subCfg.ID != "" {
+		if gcpCfg.PushServiceAccount != "" {
+			registerPushEndpoint(subCfg, f)
+		} else if subCfg.PushOnly {
 			panic("push-only subscriptions require a push service account to be configured for the PubSub server config")
 		}
 	}
 
-	// If we're not push only, then let's also setup the subscription
-	if !subscriptionCfg.PushOnly {
+	// If we're not push only, then also set up the subscription
+	if !subCfg.PushOnly {
 		// Create the subscription object (and then check it exists on GCP's side)
-		serverCfg := t.serverCfg[subscriptionCfg.ServerID].GCP
-		subscription := t.client.SubscriptionInProject(subscriptionCfg.CloudName, serverCfg.ProjectID)
+		subscription := t.client.SubscriptionInProject(subCfg.ProviderName, gcpCfg.ProjectID)
 		exists, err := subscription.Exists(ctx.App)
 		if err != nil {
-			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subscriptionCfg.EncoreName, t.topicCfg.EncoreName, err))
+			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subCfg.EncoreName, t.topicCfg.EncoreName, err))
 		}
 		if !exists {
-			panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", subscriptionCfg.EncoreName, t.topicCfg.EncoreName))
+			panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", subCfg.EncoreName, t.topicCfg.EncoreName))
 		}
 
 		// Start the subscription

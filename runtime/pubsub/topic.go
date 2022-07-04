@@ -30,26 +30,23 @@ func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
 		}
 	}
 
-	// Fetch the topic configuration
+	// Look up the topic configuration
 	topic, ok := config.Cfg.Runtime.PubsubTopics[name]
 	if !ok {
 		runtime.Logger().Fatal().Msgf("unregistered/unknown topic: %v", name)
 	}
 
-	// Fetch the server config
-	if topic.ServerID >= len(config.Cfg.Runtime.PubsubServers) {
-		runtime.Logger().Fatal().Msgf("invalid PubsubServer idx: %v", topic.ServerID)
-	}
-	server := config.Cfg.Runtime.PubsubServers[topic.ServerID]
+	// Look up the server config
+	provider := config.Cfg.Runtime.PubsubProviders[topic.ProviderID]
 
 	switch {
-	case server.NSQServer != nil:
-		return &Topic[T]{topicCfg: topic, topic: nsq.NewTopic(server.NSQServer, topic)}
-	case server.GCP != nil:
-		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(config.Cfg.Runtime.PubsubServers, topic)}
+	case provider.NSQ != nil:
+		return &Topic[T]{topicCfg: topic, topic: nsq.NewTopic(provider.NSQ, topic)}
+	case provider.GCP != nil:
+		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(provider.GCP, topic)}
 
 	default:
-		runtime.Logger().Fatal().Msgf("unsupported PubsubServer type for server idx: %v", topic.ServerID)
+		runtime.Logger().Fatal().Msgf("unsupported PubsubProvider type for server idx: %v", topic.ProviderID)
 		panic("unsupported pubsub server type")
 	}
 }

@@ -120,12 +120,11 @@ func (srv *Server) handler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Switch to the Encore internal router if we are on a Encore internal path
-	// Historically we used a prefix of `/__encore` but this is now deprecated in favour of a well-known `encore` path
-	// But for now we support both
-	if strings.HasPrefix(path, "/__encore/") || strings.HasPrefix(path, "/.well-known/encore/") {
+	// Switch to the Encore internal router if we are on the Encore internal path
+	const internalPrefix = "/__encore"
+	if strings.HasPrefix(path, internalPrefix+"/") {
 		r = srv.encore
-		path = strings.TrimPrefix(strings.TrimPrefix(path, "/__encore"), "/.well-known/encore")
+		path = path[len(internalPrefix):] // keep leading slash
 	}
 
 	h, p, _ := r.Lookup(req.Method, path)

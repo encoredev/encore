@@ -26,14 +26,14 @@ type pushPayload struct {
 	Subscription string `json:"subscription"`
 }
 
-func registerPushEndpoint(serverCfg *config.GCPPubSubServer, subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	runtime.RegisterPubSubSubscriptionHandler(
-		subscriptionConfig.ResourceID,
+		subscriptionConfig.ID,
 		func(req *http.Request) error {
 			// If the request has not come from the Encore platform it must have
 			// a valid JWT set by Google.
 			if !runtime.IsEncoreAuthenticatedRequest(req.Context()) {
-				if err := validateGoogleJWT(req, serverCfg); err != nil {
+				if err := validateGoogleJWT(req, subscriptionConfig.GCP.PushServiceAccount); err != nil {
 					return errs.Wrap(err, "unable to validate JWT")
 				}
 			}
@@ -54,7 +54,7 @@ func registerPushEndpoint(serverCfg *config.GCPPubSubServer, subscriptionConfig 
 	)
 }
 
-func validateGoogleJWT(req *http.Request, cfg *config.GCPPubSubServer) error {
+func validateGoogleJWT(req *http.Request, serviceAccountEmail string) error {
 	// Extract the JWT from the header
 	authType, token, _ := strings.Cut(req.Header.Get("Authorization"), " ")
 	if authType != "Bearer" {
@@ -69,8 +69,11 @@ func validateGoogleJWT(req *http.Request, cfg *config.GCPPubSubServer) error {
 	if jwt.Issuer != "accounts.google.com" && jwt.Issuer != "https://accounts.google.com" {
 		return errs.B().Code(errs.InvalidArgument).Msg("invalid issuer").Err()
 	}
-	if jwt.Claims["email"] != cfg.PushServiceAccount || jwt.Claims["email_verified"] != true {
-		return errs.B().Code(errs.Unauthenticated).Meta("expected_email", cfg.PushServiceAccount, "got_email", jwt.Claims["email"]).Msg("invalid email").Err()
+	if jwt.Claims["email"] != serviceAccountEmail || jwt.Claims["email_verified"] != true {
+		return errs.B().Code(errs.Unauthenticated).Meta(
+			"expected_email", serviceAccountEmail,
+			"got_email", jwt.Claims["email"],
+		).Msg("invalid email").Err()
 	}
 
 	return nil

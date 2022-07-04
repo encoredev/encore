@@ -14,7 +14,7 @@ const DNS1035LabelMaxLength int = 63
 
 var dns1035LabelRegexp = regexp.MustCompile("^" + dns1035LabelFmt + "$")
 
-// IsDNS1035Label tests for a string that conforms to the definition of a label in
+// DNS1035Label tests for a string that conforms to the definition of a label in
 // DNS (RFC 1035).
 // A DNS-1035 label must consist of lower case alphanumeric characters or '-',
 // start with an alphabetic character, and end with an alphanumeric character.

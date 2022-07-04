@@ -30,10 +30,10 @@ type topic struct {
 	idSeq     uint32
 }
 
-func NewTopic(server *config.NSQServer, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func NewTopic(server *config.NSQProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
 	return &topic{
 		name:      topicCfg.EncoreName,
-		addr:      server.Address,
+		addr:      server.Host,
 		producer:  nil,
 		consumers: make(map[string]*nsq.Consumer),
 		idSeq:     0,
