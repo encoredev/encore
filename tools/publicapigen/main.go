@@ -262,8 +262,10 @@ func rewriteAST(f *ast.File) error {
 							node.Type = typ.node      // replace the type with the actual type
 							if typ.docs != nil {
 								if parent, ok := c.Parent().(*ast.GenDecl); ok {
-									parent.Doc = typ.docs // copy the docs over
-								} else {
+									if parent.Doc == nil {
+										parent.Doc = typ.docs // copy the docs over
+									}
+								} else if node.Doc == nil {
 									node.Doc = typ.docs // copy the docs over
 								}
 							}
@@ -317,7 +319,7 @@ func rewriteAST(f *ast.File) error {
 												spec.Type = typ.typ
 											}
 
-											if typ.docs != nil {
+											if typ.docs != nil && spec.Doc == nil {
 												spec.Doc = typ.docs // copy the docs over
 											}
 										}
