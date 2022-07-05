@@ -125,7 +125,7 @@ const (
 // For more information about how Cloud Providers work with Encore, see https://encore.dev/docs/deploy/own-cloud
 //
 // Additional cloud providers may be added in the future.
-type CloudProvider = cloud.Provider
+type CloudProvider = cloud.CloudProvider
 
 const (
 	CloudAWS   CloudProvider = cloud.AWS

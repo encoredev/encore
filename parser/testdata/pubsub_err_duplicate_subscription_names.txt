@@ -22,12 +22,14 @@ package svc
 import (
     "context"
 
+    "encore.dev/pubsub"
+
     "test/shared"
 )
 
 
 var (
-    _ = shared.BasicTopic.NewSubscription("SAME-NAMe", Subscriber1)
+    _ = pubsub.NewSubscription(shared.BasicTopic, "SAME-NAMe", Subscriber1)
 )
 
 // encore:api
@@ -41,10 +43,13 @@ package foo
 import (
     "context"
 
+    "encore.dev/pubsub"
+
     "test/shared"
 )
 
-var _ = shared.BasicTopic.NewSubscription(
+var _ = pubsub.NewSubscription(
+    shared.BasicTopic,
     "same-name",
     func(ctx context.Context, msg *shared.MessageType) error {
         return nil

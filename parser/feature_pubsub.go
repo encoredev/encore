@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"go/ast"
 	"reflect"
 	"strings"
@@ -32,17 +31,29 @@ func init() {
 
 	registerResourceUsageParser(
 		est.PubSubTopicResource,
-		"NewSubscription",
-		(*parser).parsePubSubSubscription,
-		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-	)
-
-	registerResourceUsageParser(
-		est.PubSubTopicResource,
 		"Publish",
 		(*parser).parsePubSubPublish,
 		locations.AllowedIn(locations.Function).ButNotIn(locations.InitFunction),
 	)
+
+	registerResource(
+		est.PubSubSubscriptionResource,
+		"pubsub subscription",
+		"https://encore.dev/docs/develop/pubsub",
+		"pubsub",
+		"encore.dev/pubsub",
+		est.PubSubTopicResource,
+	)
+
+	// NewSubscription can be called with 0 or 1 type parameter, so we register against both
+	for i := 0; i <= 1; i++ {
+		registerResourceCreationParser(
+			est.PubSubSubscriptionResource,
+			"NewSubscription", i,
+			(*parser).parsePubSubSubscription,
+			locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
+		)
+	}
 
 	registerStructTagParser(
 		"pubsub-attr",
@@ -95,63 +106,64 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 	return topic
 }
 
-func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {
+func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
+	if len(callExpr.Args) < 3 {
+		p.err(
+			callExpr.Pos(),
+			"pubsub.NewSubscription requires at least three arguments, the topic, the subscription name given as a string literal and the function to consume messages",
+		)
+		return nil
+	}
+
+	resource := p.resourceFor(file, callExpr.Args[0])
+	if resource == nil {
+		p.errf(callExpr.Args[0].Pos(), "pubsub.NewSubscription requires the first argument to reference to pubsub topic, was given %v.", prettyPrint(callExpr.Args[0]))
+		return nil
+	}
 	topic, ok := resource.(*est.PubSubTopic)
 	if !ok {
 		p.errf(
 			callExpr.Fun.Pos(),
-			"%s.NewSubscription can only be used on a pubsub topic, was given a %v.",
-			resource.Ident().Name, reflect.TypeOf(resource),
+			"pubsub.NewSubscription can only be used on a pubsub topic, was given a %v.",
+			reflect.TypeOf(resource),
 		)
-		return
+		return nil
 	}
 
-	if len(callExpr.Args) < 2 {
-		p.errf(
-			callExpr.Pos(),
-			"%s.NewSubscription requires at least two arguments, the subscription name given as a string literal and the function to consume messages",
-			resource.Ident().Name,
-		)
-		return
-	}
-
-	subscriberName, ok := litString(callExpr.Args[0])
+	subscriberName, ok := litString(callExpr.Args[1])
 	if !ok {
 		p.errf(
-			callExpr.Args[0].Pos(),
-			"%s.NewSubscription requires the first argument to be a string literal, was given a %v.",
-			resource.Ident().Name, reflect.TypeOf(callExpr.Args[0]),
+			callExpr.Args[1].Pos(),
+			"pubsub.NewSubscription requires the first argument to be a string literal, was given a %v.",
+			reflect.TypeOf(callExpr.Args[1]),
 		)
-		return
+		return nil
 	}
 	subscriberName = strings.TrimSpace(subscriberName)
 	if len(subscriberName) <= 0 {
-		p.errf(callExpr.Args[0].Pos(), "%s.NewSubscription requires the first argument to be a string literal, was given an empty string.", resource.Ident().Name)
-		return
+		p.err(callExpr.Args[1].Pos(), "pubsub.NewSubscription requires the first argument to be a string literal, was given an empty string.")
+		return nil
 	}
 
 	// check the subscription isn't already declared somewhere else
 	for _, subscriber := range topic.Subscribers {
 		if strings.EqualFold(subscriber.Name, subscriberName) {
 			p.errf(
-				callExpr.Args[0].Pos(),
+				callExpr.Args[1].Pos(),
 				"Subscriptions on topics must be unique, \"%s\" was previously declared in %s/%s.",
 				subscriber.Name, subscriber.DeclFile.Pkg.Name, subscriber.DeclFile.Name,
 			)
-			return
+			return nil
 		}
 	}
 
 	funcDecl, funcFile := p.findFuncFor(
-		callExpr.Args[1], file,
-		fmt.Sprintf(
-			"The function passed as the second argument to `%s.NewSubscription`",
-			resource.Ident().Name,
-		),
+		callExpr.Args[2], file,
+		"The function passed as the second argument to `pubsub.NewSubscription`",
 	)
 	if funcDecl == nil {
 		// The error is reported by p.findFuncFor
-		return
+		return nil
 	}
 
 	// If the "NewSubscription" function call is not inside a service, then we'll make it a service.
@@ -160,40 +172,35 @@ func (p *parser) parsePubSubSubscription(file *est.File, resource est.Resource, 
 	}
 
 	if funcFile.Pkg.Service == nil {
-		p.errf(
+		p.err(
 			callExpr.Args[1].Pos(),
-			"The function passed to `%s.NewSubscription` must be declared in the same service. Currently the function is not declared within a service.",
-			resource.Ident().Name,
+			"The function passed to `pubsub.NewSubscription` must be declared in the same service. Currently the function is not declared within a service.",
 		)
-		return
+		return nil
 	}
 
 	if funcFile.Pkg.Service != file.Pkg.Service {
 		p.errf(
 			callExpr.Args[1].Pos(),
-			"The call to `%s.NewSubscription` must be declared in the same service as the function passed in"+
+			"The call to `pubsub.NewSubscription` must be declared in the same service as the function passed in"+
 				"as the second argument. The call was made in %s, but the function was declared in %s.",
-			resource.Ident().Name, file.Pkg.Service.Name, funcFile.Pkg.Service.Name,
+			file.Pkg.Service.Name, funcFile.Pkg.Service.Name,
 		)
-		return
+		return nil
 	}
 
 	// Record the subscription
 	subscription := &est.PubSubSubscriber{
 		Name:     subscriberName,
+		Topic:    topic,
 		CallSite: callExpr,
 		Func:     funcDecl,
 		FuncFile: funcFile,
 		DeclFile: file,
+		IdentAST: ident,
 	}
 	topic.Subscribers = append(topic.Subscribers, subscription)
-
-	// Record the reference to the topic declaration
-	funcFile.References[subscription.CallSite] = &est.Node{
-		Type:       est.PubSubSubscriberNode,
-		Topic:      topic,
-		Subscriber: subscription,
-	}
+	return subscription
 }
 
 func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {
@@ -209,8 +216,8 @@ func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *wa
 	})
 
 	file.References[callExpr] = &est.Node{
-		Type:  est.PubSubPublisherNode,
-		Topic: topic,
+		Type: est.PubSubPublisherNode,
+		Res:  topic,
 	}
 }
 

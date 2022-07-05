@@ -52,7 +52,8 @@ type parser struct {
 	authHandler  *est.AuthHandler
 	declMap      map[string]*schema.Decl // pkg/path.Name -> decl
 	decls        []*schema.Decl
-	paths        paths.Set // RPC paths
+	paths        paths.Set                          // RPC paths
+	resourceMap  map[string]map[string]est.Resource // pkg/path -> name -> resource
 
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.
@@ -76,6 +77,7 @@ func Parse(cfg *Config) (*Result, error) {
 		declMap:            make(map[string]*schema.Decl),
 		validRPCReferences: make(map[ast.Node]bool),
 		jobsMap:            make(map[string]*est.CronJob),
+		resourceMap:        make(map[string]map[string]est.Resource),
 	}
 	return p.Parse()
 }

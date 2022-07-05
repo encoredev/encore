@@ -6,7 +6,7 @@ import {timeToDate} from "~lib/time"
 import {DBQuery, Event, HTTPCall, LogMessage, PubSubPublish, Request, RPCCall, Stack, Trace} from "./model"
 import {latencyStr, svcColor} from "./util"
 import CM from "~c/api/cm/CM"
-import {Icon} from "~c/icons";
+import {arrowsExpand, Icon} from "~c/icons"
 
 interface Props {
   trace: Trace;
@@ -52,10 +52,10 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
   } else if ("pubsub_subscriber" in defLoc) {
     svcName = defLoc.pubsub_subscriber.topic_name
     rpcName = defLoc.pubsub_subscriber.subscriber_name
-    icon = icons.inbox
+    icon = icons.arrowsExpand
     type = "PubSub Message Received"
   }
-  
+
   return <>
     <div>
       <h2 className="text-2xl font-bold flex items-center">
@@ -92,7 +92,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
         </div>
 
         <div className="flex items-center text-sm font-light text-gray-400">
-          {icons.inbox("h-5 w-auto")}
+          {icons.arrowsExpand("h-5 w-auto")}
           <span className="font-bold mx-1 text-gray-800">{publishedMessages.length}</span>
           Publish{publishedMessages.length !== 1 ? "es" : ""}
         </div>
@@ -393,7 +393,7 @@ const PubsubPublishTooltip: FunctionComponent<{publish: PubSubPublish, trace: Tr
   const publish = props.publish
   return <div>
     <h3 className="flex items-center text-gray-800 font-bold text-lg">
-      {icons.inbox("h-8 w-auto text-gray-400 mr-2")}
+      {icons.arrowsExpand("h-8 w-auto text-gray-400 mr-2")}
       Publish: {publish.topic}
       <div className="ml-auto text-sm font-normal text-gray-500 flex items-center">
         {publish.end_time ? latencyStr(publish.end_time - publish.start_time) : "Unknown"}

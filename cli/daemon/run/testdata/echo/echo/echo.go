@@ -25,10 +25,10 @@ type Message struct {
 
 var Topic = pubsub.NewTopic[*Message](
 	"test",
-	&pubsub.TopicConfig{},
+	pubsub.TopicConfig{},
 )
 
-var _ = Topic.NewSubscription("test", Consumer, &pubsub.SubscriptionConfig{})
+var _ = pubsub.NewSubscription(Topic, "test", Consumer, pubsub.SubscriptionConfig{})
 
 type Data[K any, V any] struct {
 	Key   K
