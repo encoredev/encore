@@ -2,7 +2,7 @@ import React, {FC, FunctionComponent, useState} from "react"
 import * as icons from "~c/icons"
 import {Request, Trace} from "./model"
 import {svcColor} from "./util"
-import {Icon} from "~c/icons";
+import {arrowsExpand, Icon} from "~c/icons"
 
 interface Props {
   trace: Trace;
@@ -49,7 +49,7 @@ const SpanRow: FC<{
     } else if ("pubsub_subscriber" in defLoc) {
         svcName = defLoc.pubsub_subscriber.topic_name
         rpcName = defLoc.pubsub_subscriber.subscriber_name
-        icon = icons.inbox
+        icon = icons.arrowsExpand
         type = "PubSub Message Received"
     }
 

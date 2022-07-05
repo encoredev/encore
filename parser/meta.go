@@ -321,7 +321,7 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 					continue
 				case est.PubSubSubscriberNode:
 					// Subscribers can be declared in a different file than the reference
-					file = r.Node.Subscriber.DeclFile
+					file = r.Node.Res.(*est.PubSubSubscriber).DeclFile
 				}
 
 				tx := newTraceNode(&id, pkg, file, r.AST)
@@ -342,17 +342,18 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				case est.PubSubPublisherNode:
 					tx.Context = &meta.TraceNode_PubsubPublish{
 						PubsubPublish: &meta.PubSubPublishNode{
-							TopicName: r.Node.Topic.Name,
+							TopicName: r.Node.Res.(*est.PubSubTopic).Name,
 							Context:   string(file.Contents[start:end]),
 						},
 					}
 
 				case est.PubSubSubscriberNode:
+					sub := r.Node.Res.(*est.PubSubSubscriber)
 					tx.Context = &meta.TraceNode_PubsubSubscriber{
 						PubsubSubscriber: &meta.PubSubSubscriberNode{
-							TopicName:      r.Node.Topic.Name,
-							SubscriberName: r.Node.Subscriber.Name,
-							ServiceName:    r.Node.Subscriber.DeclFile.Pkg.Service.Name,
+							TopicName:      sub.Topic.Name,
+							SubscriberName: sub.Name,
+							ServiceName:    sub.DeclFile.Pkg.Service.Name,
 							Context:        string(file.Contents[start:end]),
 						},
 					}

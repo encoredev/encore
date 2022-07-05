@@ -11,11 +11,12 @@ import (
 // resource represents a type of resource that can be created & used within an Encore application,
 // such as a CronJob, PubSub Topic or database instance.
 type resource struct {
-	Type    est.ResourceType // The type of resource in the Encore Syntax Tree (EST)
-	Name    string           // The human-readable name for the type of resource
-	Docs    string           // The link to the docs page for this resource on the Encore website
-	PkgName string           // The name of the Go package that the resource API is defined in
-	PkgPath string           // The path to the Go package that the resource API is defined in
+	Type     est.ResourceType // The type of resource in the Encore Syntax Tree (EST)
+	Name     string           // The human-readable name for the type of resource
+	Docs     string           // The link to the docs page for this resource on the Encore website
+	PkgName  string           // The name of the Go package that the resource API is defined in
+	PkgPath  string           // The path to the Go package that the resource API is defined in
+	PhaseNum int              // What phase of resource parsing should we be in when we look for this resource type
 }
 
 // resourceTypes maps resource types to their corresponding resource structs.
@@ -23,15 +24,23 @@ var resourceTypes = map[est.ResourceType]*resource{}
 
 // registerResource is used by resources to add themselves to the map above, but also to ensure that
 // we track the usage of the package the resource is declared in
-func registerResource(resourceType est.ResourceType, name string, docs string, pkgName string, pkgPath string) {
-	defaultTrackedPackages[pkgPath] = pkgName
-	resourceTypes[resourceType] = &resource{
-		Type:    resourceType,
-		Name:    name,
-		Docs:    docs,
-		PkgName: pkgName,
-		PkgPath: pkgPath,
+func registerResource(resourceType est.ResourceType, name string, docs string, pkgName string, pkgPath string, dependsOn ...est.ResourceType) {
+	res := &resource{
+		Type:     resourceType,
+		Name:     name,
+		Docs:     docs,
+		PkgName:  pkgName,
+		PkgPath:  pkgPath,
+		PhaseNum: 0,
 	}
+	for _, dependancy := range dependsOn {
+		if resourceTypes[dependancy].PhaseNum >= res.PhaseNum {
+			res.PhaseNum = resourceTypes[dependancy].PhaseNum + 1
+		}
+	}
+
+	defaultTrackedPackages[pkgPath] = pkgName
+	resourceTypes[resourceType] = res
 }
 
 // creatorParserFunc is a function that parses a call expression to create a resource.

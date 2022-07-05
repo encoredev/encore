@@ -39,10 +39,13 @@ package foo
 import (
     "context"
 
+    "encore.dev/pubsub"
+
     "test/shared"
 )
 
-var _ = shared.BasicTopic.NewSubscription(
+var _ = pubsub.NewSubscription(
+    shared.BasicTopic,
     "foo-service-sub",
     func(ctx context.Context, msg *shared.MessageType) error {
         return nil

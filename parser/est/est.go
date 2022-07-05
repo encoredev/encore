@@ -105,7 +105,7 @@ func (p *PubSubTopic) Type() ResourceType         { return PubSubTopicResource }
 func (p *PubSubTopic) File() *File                { return p.DeclFile }
 func (p *PubSubTopic) Ident() *ast.Ident          { return p.IdentAST }
 func (p *PubSubTopic) NodeType() NodeType         { return PubSubTopicDefNode }
-func (p *PubSubTopic) AllowOnlyParsedUsage() bool { return true }
+func (p *PubSubTopic) AllowOnlyParsedUsage() bool { return false }
 
 type PubSubGuarantee int
 
@@ -115,12 +115,20 @@ const (
 )
 
 type PubSubSubscriber struct {
-	Name     string   // The unique name of the subscriber
-	CallSite ast.Node // The AST node representing the creation of the subscriber
-	Func     ast.Node // The function that is the subscriber (either a *ast.FuncLit or a *ast.FuncDecl)
-	FuncFile *File    // The file the subscriber function is declared in
-	DeclFile *File    // The file that the subscriber is defined in
+	Name     string       // The unique name of the subscriber
+	Topic    *PubSubTopic // The topic the subscriber is registered against
+	CallSite ast.Node     // The AST node representing the creation of the subscriber
+	Func     ast.Node     // The function that is the subscriber (either a *ast.FuncLit or a *ast.FuncDecl)
+	FuncFile *File        // The file the subscriber function is declared in
+	DeclFile *File        // The file that the subscriber is defined in
+	IdentAST *ast.Ident   // The AST node representing the value this topic is bound against
 }
+
+func (p *PubSubSubscriber) Type() ResourceType         { return PubSubTopicResource }
+func (p *PubSubSubscriber) File() *File                { return p.DeclFile }
+func (p *PubSubSubscriber) Ident() *ast.Ident          { return p.IdentAST }
+func (p *PubSubSubscriber) NodeType() NodeType         { return PubSubSubscriberNode }
+func (p *PubSubSubscriber) AllowOnlyParsedUsage() bool { return true }
 
 type PubSubPublisher struct {
 	DeclFile *File // The file the publisher is declared in
@@ -180,13 +188,6 @@ type Node struct {
 
 	// Resource this refers to, if any
 	Res Resource
-
-	// If Type == PubSubPublisherNode or PubSubSubscriberNode
-	// The topic being subscribed to or published to
-	Topic *PubSubTopic
-
-	// If Type == PubSubSubscriberNode then the subscriber
-	Subscriber *PubSubSubscriber
 }
 
 type AuthHandler struct {
@@ -219,6 +220,7 @@ const (
 	SQLDBResource ResourceType = iota + 1
 	CronJobResource
 	PubSubTopicResource
+	PubSubSubscriptionResource
 )
 
 type SQLDB struct {
