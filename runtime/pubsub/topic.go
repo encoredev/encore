@@ -35,12 +35,16 @@ type Topic[T any] struct {
 // in a compiler error.
 //
 // The topic name must be unique within an Encore application. Topic names must be defined
-// in kebab-case (lowercase alphanumerics and hyphen seperated). Once created and deployed never
+// in kebab-case (lowercase alphanumerics and hyphen seperated). The topic name must start with a letter
+// and end with either a letter or number. It cannot be longer than 63 characters. Once created and deployed never
 // change the topic name. When refactoring the topic name must stay the same.
 // This allows for messages already on the topic to continue to be received after the refactored
 // code is deployed.
 //
 // Example:
+//
+//     import "encore.dev/pubsub"
+//
 //     type MyEvent struct {
 //       Foo string
 //     }

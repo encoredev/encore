@@ -1,29 +1,8 @@
 package types
 
 import (
-	"context"
 	"time"
 )
-
-// SubscriptionConfig is used when creating a subscription
-type SubscriptionConfig struct {
-	// Filter is a boolean expression using =, !=, IN, &&
-	// It is used to filter which messages are forwarded from the
-	// topic to a subscription
-	// Filter string - Filters are not currently supported
-
-	// AckDeadline is the time a consumer has to process a message
-	// before it's returned to the subscription
-	AckDeadline time.Duration
-
-	// MessageRetention is how long an undelivered message is kept
-	// on the topic before it's purged
-	MessageRetention time.Duration
-
-	// RetryPolicy defines how a message should be retried when
-	// the subscriber returns an error
-	RetryPolicy *RetryPolicy
-}
 
 // RetryPolicy defines how a subscription should handle retries
 // after errors either delivering the message or processing the message.
@@ -49,31 +28,40 @@ type RetryPolicy struct {
 }
 
 const (
-	NoRetries       = -2
+	// NoRetries is used to control deadletter queuing logic, when set as the MaxRetires within the RetryPolicy
+	// it will attempt to immediately forward a message to the dead letter queue if the subscription Handler
+	// returns any error or panics.
+	//
+	// Note: With some cloud providers, having no retries may not be supported, in which case the minimum number of
+	// retries permitted by the provider will be used.
+	NoRetries = -2
+
+	// InfiniteRetries is used to control deadletter queuing logic, when set as the MaxRetires within the RetryPolicy
+	// it will attempt to always retry a message without ever sending it to the dead letter queue.
+	//
+	// Note: With some cloud providers, infinite retries may not be supported, in which case the maximum number of
+	// retries permitted by the provider will be used.
 	InfiniteRetries = -1
 )
-
-// Subscriber is a function reference
-// The signature must be `func(context.Context, msg M) error` where M is either the
-// message type of the topic or RawMessage
-type Subscriber[T any] func(ctx context.Context, msg T) error
 
 // DeliveryGuarantee is used to configure the delivery contract for a topic
 type DeliveryGuarantee int
 
 const (
 	// AtLeastOnce guarantees that a message for a subscription is delivered to
-	// a subscriber at least once
+	// a consumer at least once. This is supported by all cloud providers.
 	AtLeastOnce DeliveryGuarantee = iota + 1
 
 	// ExactlyOnce guarantees that a message for a subscription is delivered to
-	// a subscriber exactly once
+	// a consumer exactly once
 	// ExactlyOnce // - ExactlyOnce is currently not supported.
 )
 
 // TopicConfig is used when creating a Topic
 type TopicConfig struct {
 	// DeliveryGuarantee is used to configure the delivery guarantee of a Topic
+	//
+	// This field is required.
 	DeliveryGuarantee DeliveryGuarantee
 
 	// OrderingKey is the name of the message attribute used to group

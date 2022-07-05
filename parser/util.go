@@ -28,6 +28,11 @@ func (p *parser) findFuncFor(node ast.Node, from *est.File, errPrefix string) (a
 		return node, from
 	case *ast.Ident:
 		name = node.Name
+
+		if name == "nil" {
+			p.errf(node.Pos(), "%s is required, was given as nil.", errPrefix)
+			return nil, nil
+		}
 	case *ast.SelectorExpr:
 		pkgPath, objName := pkgObj(p.names[pkg].Files[from], node)
 		if pkgPath == "" {

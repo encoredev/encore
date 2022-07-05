@@ -555,7 +555,7 @@ func (p *parser) validateApp() {
 			astutil.Apply(f.AST, func(c *astutil.Cursor) bool {
 				node := c.Node()
 				if ref, ok := f.References[node]; ok && ref.Type == est.RPCRefNode && !p.validRPCReferences[node] {
-					if _, isCall := c.Parent().(*ast.CallExpr); !isCall {
+					if call, isCall := c.Parent().(*ast.CallExpr); !isCall || call.Fun != node {
 						rpc := ref.RPC
 						p.errf(node.Pos(), "cannot reference API endpoint %s.%s without calling it", rpc.Svc.Name, rpc.Name)
 					}

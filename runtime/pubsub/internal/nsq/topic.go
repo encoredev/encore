@@ -48,7 +48,7 @@ type messageWrapper struct {
 	Data       json.RawMessage
 }
 
-func (l *topic) Subscribe(logger *zerolog.Logger, cfg *types.SubscriptionConfig, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (l *topic) Subscribe(logger *zerolog.Logger, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if implCfg.PushOnly {
 		panic("push-only subscriptions are not supported by nsq")
 	}
@@ -73,9 +73,8 @@ func (l *topic) Subscribe(logger *zerolog.Logger, cfg *types.SubscriptionConfig,
 		msg := &messageWrapper{}
 
 		defer func() {
-			policy := cfg.RetryPolicy
 			if !m.HasResponded() {
-				retry, delay := utils.GetDelay(policy.MaxRetries, policy.MinRetryDelay, policy.MaxRetryDelay, m.Attempts)
+				retry, delay := utils.GetDelay(retryPolicy.MaxRetries, retryPolicy.MinRetryDelay, retryPolicy.MaxRetryDelay, m.Attempts)
 				if !retry {
 
 					logger.Error().Str("msg_id", msg.ID).Int("retry", int(m.Attempts)-1).Msg("depleted message retries. Dropping message")

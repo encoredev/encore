@@ -1,7 +1,5 @@
-parse
-stdout 'pubsubTopic basic-topic'
-stdout 'pubsubPublisher basic-topic svc'
-stdout 'pubsubSubscriber basic-topic basic-subscription svc'
+! parse
+stderr 'pubsub.NewSubscription requires the configuration field named "Handler" to populated with the subscription handler function.'
 
 -- svc/svc.go --
 package svc
@@ -21,7 +19,7 @@ type MessageType struct {
 
 var (
     BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
-    _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig { Handler: Subscriber })
+    _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig{})
 )
 
 // encore:api

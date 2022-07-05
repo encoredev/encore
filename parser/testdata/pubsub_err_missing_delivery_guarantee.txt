@@ -1,7 +1,5 @@
-parse
-stdout 'pubsubTopic basic-topic'
-stdout 'pubsubPublisher basic-topic svc'
-stdout 'pubsubSubscriber basic-topic basic-subscription svc'
+! parse
+stderr 'pubsub.NewTopic requires the configuration field named "DeliveryGuarantee" to be explicitly set.'
 
 -- svc/svc.go --
 package svc
@@ -20,7 +18,7 @@ type MessageType struct {
 }
 
 var (
-    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{})
     _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig { Handler: Subscriber })
 )
 
