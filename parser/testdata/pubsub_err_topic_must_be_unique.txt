@@ -13,7 +13,7 @@ type MessageType struct {
     Name string
 }
 
-var BasicTopic = pubsub.NewTopic[*MessageType]("same-name")
+var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
 
 -- svc/svc.go --
 package svc
@@ -28,4 +28,4 @@ type MessageType struct {
     Name string
 }
 
-var AnotherTopic = pubsub.NewTopic[*MessageType]("same-Name")
+var AnotherTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })

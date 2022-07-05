@@ -1,7 +1,5 @@
-parse
-stdout 'pubsubTopic basic-topic'
-stdout 'pubsubPublisher basic-topic svc'
-stdout 'pubsubSubscriber basic-topic basic-subscription svc'
+! parse
+stderr 'pubsub.NewSubscription requires the subscription name to be between "kebab-case". It must start with a letter, end with a letter or number and only contain lower case letters, numbers and dashes.'
 
 -- svc/svc.go --
 package svc
@@ -21,7 +19,7 @@ type MessageType struct {
 
 var (
     BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
-    _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig { Handler: Subscriber })
+    _ = pubsub.NewSubscription(BasicTopic, "basic subscription", pubsub.SusbcriptionConfig { Handler: Subscriber })
 )
 
 // encore:api

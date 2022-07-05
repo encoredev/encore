@@ -62,19 +62,14 @@ func init() {
 }
 
 func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
-	if len(callExpr.Args) < 1 {
+	if len(callExpr.Args) != 2 {
 		p.errf(callExpr.Pos(), "pubsub.NewTopic requires at least one argument, the topic name given as a string literal. For example `pubsub.NewTopic[MyMessage](\"my-topic\")`")
 		return nil
 	}
 
-	topicName, ok := litString(callExpr.Args[0])
-	if !ok {
-		p.errf(callExpr.Args[0].Pos(), "pubsub.NewTopic requires the first argument to be a string literal, was given a %v.", reflect.TypeOf(callExpr.Args[0]))
-		return nil
-	}
-	topicName = strings.TrimSpace(topicName)
-	if len(topicName) <= 0 {
-		p.errf(callExpr.Args[0].Pos(), "pubsub.NewTopic requires the first argument to be a string literal, was given an empty string.")
+	topicName := p.parseResourceName("pubsub.NewTopic", "topic name", callExpr.Args[0])
+	if topicName == "" {
+		// we already reported the error inside parseResourceName
 		return nil
 	}
 
@@ -84,6 +79,19 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 			p.errf(callExpr.Args[0].Pos(), "Pubsub topic names must be unique, \"%s\" was previously declared in %s/%s: if you wish to reuse the same topic, then you can export the original Topic object from %s and reuse it here.", topic.Name, topic.DeclFile.Pkg.Name, topic.DeclFile.Name, topic.DeclFile.Pkg.Name)
 			return nil
 		}
+	}
+
+	// Parse the literal struct representing the subscription configuration
+	// so we can extract the reference to the handler function
+	constantCfg, _ := p.parseStructLit(file, "pubsub.TopicConfig", callExpr.Args[1])
+	deliveryGuarantee, found := constantCfg["DeliveryGuarantee"]
+	if !found {
+		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to be explicitly set.")
+		return nil
+	}
+	if deliveryGuarantee != 1 {
+		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to a valid value such as \"pubsub.AtLeastOnce\".")
+		return nil
 	}
 
 	messageType := p.resolveParameter("pubsub message type", file.Pkg, file, getTypeArguments(callExpr.Fun)[0])
@@ -107,10 +115,10 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 }
 
 func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
-	if len(callExpr.Args) < 3 {
+	if len(callExpr.Args) != 3 {
 		p.err(
 			callExpr.Pos(),
-			"pubsub.NewSubscription requires at least three arguments, the topic, the subscription name given as a string literal and the function to consume messages",
+			"pubsub.NewSubscription requires three arguments, the topic, the subscription name given as a string literal and the subscription configuration",
 		)
 		return nil
 	}
@@ -130,18 +138,9 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 		return nil
 	}
 
-	subscriberName, ok := litString(callExpr.Args[1])
-	if !ok {
-		p.errf(
-			callExpr.Args[1].Pos(),
-			"pubsub.NewSubscription requires the first argument to be a string literal, was given a %v.",
-			reflect.TypeOf(callExpr.Args[1]),
-		)
-		return nil
-	}
-	subscriberName = strings.TrimSpace(subscriberName)
-	if len(subscriberName) <= 0 {
-		p.err(callExpr.Args[1].Pos(), "pubsub.NewSubscription requires the first argument to be a string literal, was given an empty string.")
+	subscriberName := p.parseResourceName("pubsub.NewSubscription", "subscription name", callExpr.Args[1])
+	if subscriberName == "" {
+		// we already reported the error inside parseResourceName
 		return nil
 	}
 
@@ -157,9 +156,19 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 		}
 	}
 
+	// Parse the literal struct representing the subscription configuration
+	// so we can extract the reference to the handler function
+	_, dynamicCfg := p.parseStructLit(file, "pubsub.SubscriptionConfig", callExpr.Args[2])
+	handler, found := dynamicCfg["Handler"]
+	if !found {
+		p.errf(callExpr.Args[2].Pos(), "pubsub.NewSubscription requires the configuration field named \"Handler\" to populated with the subscription handler function.")
+		return nil
+	}
+	p.validRPCReferences[handler] = true
+
 	funcDecl, funcFile := p.findFuncFor(
-		callExpr.Args[2], file,
-		"The function passed as the second argument to `pubsub.NewSubscription`",
+		handler, file,
+		"The function passed as the Handler argument to `pubsub.SubscriptionConfig`",
 	)
 	if funcDecl == nil {
 		// The error is reported by p.findFuncFor
@@ -174,7 +183,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 	if funcFile.Pkg.Service == nil {
 		p.err(
 			callExpr.Args[1].Pos(),
-			"The function passed to `pubsub.NewSubscription` must be declared in the same service. Currently the function is not declared within a service.",
+			"The function passed to `pubsub.NewSubscription` must be declared in the same service. Currently the handler is not declared within a service.",
 		)
 		return nil
 	}
@@ -182,8 +191,8 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 	if funcFile.Pkg.Service != file.Pkg.Service {
 		p.errf(
 			callExpr.Args[1].Pos(),
-			"The call to `pubsub.NewSubscription` must be declared in the same service as the function passed in"+
-				"as the second argument. The call was made in %s, but the function was declared in %s.",
+			"The call to `pubsub.NewSubscription` must be declared in the same service as the handler passed in"+
+				". The call was made in %s, but the handler function was declared in %s.",
 			file.Pkg.Service.Name, funcFile.Pkg.Service.Name,
 		)
 		return nil

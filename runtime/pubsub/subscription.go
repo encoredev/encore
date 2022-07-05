@@ -13,11 +13,6 @@ import (
 // Subscription represents a subscription to a Topic.
 type Subscription[T any] struct{}
 
-// Subscriber is a function reference
-// The signature must be `func(context.Context, msg M) error` where M is either the
-// message type of the topic or RawMessage
-type Subscriber[T any] func(ctx context.Context, msg T) error
-
 // NewSubscription is used to declare a Subscription to a topic. The passed in handler will be called
 // for each message published to the topic.
 //
@@ -26,11 +21,16 @@ type Subscriber[T any] func(ctx context.Context, msg T) error
 // in a compiler error.
 //
 // The subscription name must be unique for that topic. Subscription names must be defined
-// in kebab-case (lowercase alphanumerics and hyphen seperated).Once created and deployed never
-// change the subscription name, or the topic name otherwise messages will be lost which
-// could be inflight.
+// in kebab-case (lowercase alphanumerics and hyphen seperated). The subscription name must start with a letter
+// and end with either a letter or number. It cannot be longer than 63 characters.
+//
+// Once created and deployed never change the subscription name, or the topic name otherwise messages will be lost which
+// could be in flight.
 //
 // Example:
+//
+//     import "encore.dev/pubsub"
+//
 //     type MyEvent struct {
 //       Foo string
 //     }
@@ -39,7 +39,8 @@ type Subscriber[T any] func(ctx context.Context, msg T) error
 //       DeliveryGuarantee: pubsub.AtLeastOnce,
 //     })
 //
-//     var Subscription = pubsub.NewSubscription(MyTopic, "my-subscription", HandleEvent, pubsub.SubscriptionConfig{
+//     var Subscription = pubsub.NewSubscription(MyTopic, "my-subscription", pubsub.SubscriptionConfig[*MyEvent]{
+//       Handler:     HandleEvent,
 //       RetryPolicy: &pubsub.RetryPolicy { MaxRetries: 10 },
 //     })
 //
@@ -47,7 +48,7 @@ type Subscriber[T any] func(ctx context.Context, msg T) error
 //       rlog.Info("received foo")
 //       return nil
 //     }
-func NewSubscription[T any](topic *Topic[T], name string, handler Subscriber[T], subscriptionCfg SubscriptionConfig) *Subscription[T] {
+func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg SubscriptionConfig[T]) *Subscription[T] {
 	if topic.topicCfg == nil || topic.topic == nil {
 		panic("pubsub topic was not created using pubsub.NewTopic")
 	}
@@ -75,7 +76,7 @@ func NewSubscription[T any](topic *Topic[T], name string, handler Subscriber[T],
 			}
 		}()
 
-		return handler(ctx, msg)
+		return subscriptionCfg.Handler(ctx, msg)
 	}
 
 	log := runtime.Logger().With().
@@ -85,7 +86,7 @@ func NewSubscription[T any](topic *Topic[T], name string, handler Subscriber[T],
 		Logger()
 
 	// Subscribe to the topic
-	topic.topic.Subscribe(&log, &subscriptionCfg, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
+	topic.topic.Subscribe(&log, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
 		if !config.Cfg.Static.Testing {
 			// Under test we're already inside an operation
 			runtime.BeginOperation()
