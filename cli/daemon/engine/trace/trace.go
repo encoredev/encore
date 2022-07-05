@@ -18,6 +18,7 @@ import (
 	"encore.dev/runtime/trace"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
+	"encr.dev/pkg/eerror"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	metapb "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -145,20 +146,20 @@ func (tp *traceParser) Parse() error {
 		}
 
 		if errors.Is(err, errUnknownEvent) {
-			tp.log.Info().Msgf("trace: event #%d: unknown event type %s, skipping", i, ev)
+			tp.log.Info().Msgf("trace: event #%d: unknown event type %s, skipping", i, ev.String())
 			tp.Skip(size)
 			err = nil
 		} else if err != nil {
-			return fmt.Errorf("event #%d: parsing event=%s: %v", i, ev, err)
+			return eerror.WithMeta(err, map[string]any{"event#": i, "event": ev.String()})
 		}
 
 		if tp.Overflow() {
-			return fmt.Errorf("event #%d: invalid trace format (reader overflow parsing event %s)", i, ev)
+			return eerror.New("trace_parser", "invalid trace format: reader overflow parsing event", map[string]any{"event#": i, "event": ev})
 		} else if off, want := tp.Offset(), startOff+size; off < want {
-			tp.log.Error().Msgf("trace: event #%d: parsing event=%s ended before end of frame, skipping ahead %d bytes", i, ev, want-off)
+			tp.log.Warn().Msgf("trace: event #%d: parsing event=%s ended before end of frame, skipping ahead %d bytes", i, ev, want-off)
 			tp.Skip(want - off)
 		} else if off > want {
-			return fmt.Errorf("event #%d: parser (event=%s) exceeded frame size by %d bytes", i, ev, off-want)
+			return eerror.New("trace_parser", "event exceed frame size", map[string]any{"event#": i, "event": ev.String(), "excess": off - want})
 		}
 	}
 
@@ -257,7 +258,7 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	case 0x03:
 		typ = tracepb.Request_PUBSUB_MSG
 	default:
-		return fmt.Errorf("unknown request type %x", b)
+		return eerror.New("trace_parser", "unknown request type", map[string]any{"type": fmt.Sprintf("%x", b)})
 	}
 
 	// Determine the absolute start time.
@@ -304,7 +305,7 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	for n, i := tp.UVarint(), uint64(0); i < n; i++ {
 		size := tp.UVarint()
 		if size > (10 << 20) {
-			return fmt.Errorf("input too large: %d bytes", size)
+			return eerror.New("trace_parser", "input too large", map[string]any{"size": size})
 		}
 		input := make([]byte, size)
 		tp.Bytes(input)
@@ -328,7 +329,7 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 	spanID := tp.Uint64()
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request span: %v", spanID)
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
 	}
 	// dur := ts - rd.startTs
 	req.EndTime = ts
@@ -338,7 +339,7 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 		for n, i := tp.UVarint(), uint64(0); i < n; i++ {
 			size := tp.UVarint()
 			if size > (10 << 20) {
-				return fmt.Errorf("input too large: %d bytes", size)
+				return eerror.New("trace_parser", "input too large", map[string]any{"size": size})
 			}
 			output := make([]byte, size)
 			tp.Bytes(output)
@@ -386,7 +387,7 @@ func (tp *traceParser) goroutineEnd(ts uint64) error {
 	k := goKey{spanID: spanID, goid: goid}
 	g, ok := tp.goMap[k]
 	if !ok {
-		return fmt.Errorf("unknown goroutine id: %v", goid)
+		return eerror.New("trace_parser", "unknown goroutine id", map[string]any{"goid": goid})
 	}
 	g.EndTime = ts
 	delete(tp.goMap, k)
@@ -399,7 +400,7 @@ func (tp *traceParser) goroutineClear(ts uint64) error {
 	k := goKey{spanID: spanID, goid: goid}
 	g, ok := tp.goMap[k]
 	if !ok {
-		return fmt.Errorf("unknown goroutine id: %v/%v", spanID, goid)
+		return eerror.New("trace_parser", "unknown goroutine id", map[string]any{"spanID": spanID, "goid": goid})
 	}
 	g.EndTime = ts
 	delete(tp.goMap, k)
@@ -411,7 +412,7 @@ func (tp *traceParser) transactionStart(ts uint64) error {
 	spanID := tp.Uint64()
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request span: %v", spanID)
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
 	}
 	goid := uint32(tp.UVarint())
 
@@ -438,7 +439,7 @@ func (tp *traceParser) transactionEnd(ts uint64) error {
 	_ = tp.Uint64() // spanID
 	tx, ok := tp.txMap[txid]
 	if !ok {
-		return fmt.Errorf("unknown transaction id: %v", txid)
+		return eerror.New("trace_parser", "unknown transaction id", map[string]any{"txid": txid})
 	}
 	_ = uint32(tp.UVarint()) // goid
 	compl := tp.Byte()
@@ -464,7 +465,7 @@ func (tp *traceParser) transactionEnd(ts uint64) error {
 		case 1:
 			tx.Completion = tracepb.DBTransaction_COMMIT
 		default:
-			return fmt.Errorf("unknown completion type: %x", compl)
+			return eerror.New("trace_parser", "unknown completion type", map[string]any{"compl": compl})
 		}
 	}
 	return nil
@@ -475,7 +476,7 @@ func (tp *traceParser) queryStart(ts uint64) error {
 	spanID := tp.Uint64()
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request span: %v", spanID)
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
 	}
 	txid := tp.UVarint()
 	goid := uint32(tp.UVarint())
@@ -496,7 +497,7 @@ func (tp *traceParser) queryStart(ts uint64) error {
 	if txid != 0 {
 		tx, ok := tp.txMap[txid]
 		if !ok {
-			return fmt.Errorf("unknown transaction id: %v", txid)
+			return eerror.New("trace_parser", "unknown transaction id", map[string]any{"txid": txid})
 		}
 		tx.Queries = append(tx.Queries, q)
 	} else {
@@ -512,7 +513,7 @@ func (tp *traceParser) queryEnd(ts uint64) error {
 	qid := tp.UVarint()
 	q, ok := tp.queryMap[qid]
 	if !ok {
-		return fmt.Errorf("unknown query id: %v", qid)
+		return eerror.New("trace_parser", "unknown query id", map[string]any{"qid": qid})
 	}
 	q.EndTime = ts
 	q.Err = tp.ByteString()
@@ -533,7 +534,7 @@ func (tp *traceParser) callStart(ts uint64, size int) error {
 	}
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request span: %v", spanID)
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
 	}
 
 	goid := uint32(tp.UVarint())
@@ -561,7 +562,7 @@ func (tp *traceParser) callEnd(ts uint64) error {
 	errMsg := tp.ByteString()
 	c, ok := tp.callMap[callID].(*tracepb.RPCCall)
 	if !ok {
-		return fmt.Errorf("unknown call: %v ", callID)
+		return eerror.New("trace_parser", "unknown call ", map[string]any{"callID": callID})
 	}
 	c.EndTime = ts
 	c.Err = errMsg
@@ -575,7 +576,7 @@ func (tp *traceParser) httpStart(ts uint64) error {
 	childSpanID := tp.Uint64()
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request span: %v", spanID)
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
 	}
 	c := &tracepb.HTTPCall{
 		SpanId:    childSpanID,
@@ -597,7 +598,7 @@ func (tp *traceParser) httpEnd(ts uint64) error {
 	status := tp.UVarint()
 	c, ok := tp.httpMap[callID]
 	if !ok {
-		return fmt.Errorf("unknown call: %v ", callID)
+		return eerror.New("trace_parser", "unknown call ", map[string]any{"callID": callID})
 	}
 	c.EndTime = ts
 	c.Err = errMsg
@@ -621,7 +622,7 @@ func (tp *traceParser) httpBodyClosed(ts uint64) error {
 	_ = tp.ByteString() // close error
 	c, ok := tp.httpMap[callID]
 	if !ok {
-		return fmt.Errorf("unknown call: %v ", callID)
+		return eerror.New("trace_parser", "unknown call ", map[string]any{"callID": callID})
 	}
 	c.BodyClosedTime = ts
 	delete(tp.httpMap, callID)
@@ -727,7 +728,7 @@ func (tp *traceParser) httpEvent() (*tracepb.HTTPTraceEvent, error) {
 		// no data
 
 	default:
-		return nil, fmt.Errorf("unknown http event %v", code)
+		return nil, eerror.New("trace_parser", "unknown http event", map[string]any{"code": code})
 	}
 	return ev, nil
 }
@@ -741,9 +742,9 @@ func (tp *traceParser) logMessage(ts uint64) error {
 
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request %v", spanID)
+		return eerror.New("trace_parser", "unknown request", map[string]any{"spanID": spanID})
 	} else if fields > 64 {
-		return fmt.Errorf("too many fields: %d", fields)
+		return eerror.New("trace_parser", "too many fields", map[string]any{"fields": fields})
 	}
 
 	log := &tracepb.LogMessage{
@@ -760,12 +761,12 @@ func (tp *traceParser) logMessage(ts uint64) error {
 	case 2:
 		log.Level = tracepb.LogMessage_ERROR
 	default:
-		return fmt.Errorf("unknown log message level: %d", int(level))
+		return eerror.New("trace_parser", "unknown log message level", map[string]any{"level": level})
 	}
 	for i := 0; i < fields; i++ {
 		f, err := tp.logField()
 		if err != nil {
-			return fmt.Errorf("error parsing field #%d: %v", i, err)
+			return eerror.Wrap(err, "trace_parser", "error parsing field", map[string]any{"field#": i})
 		}
 		log.Fields = append(log.Fields, f)
 	}
@@ -824,7 +825,7 @@ func (tp *traceParser) logField() (*tracepb.LogField, error) {
 	case 11:
 		f.Value = &tracepb.LogField_Float64{Float64: tp.Float64()}
 	default:
-		return nil, fmt.Errorf("unknown field type %v", int(typ))
+		return nil, eerror.New("trace_parser", "unknown field type", map[string]any{"typ": typ})
 	}
 	return f, nil
 }
@@ -834,7 +835,7 @@ func (tp *traceParser) publishStart(ts uint64) error {
 	spanID := tp.Uint64()
 	req, ok := tp.reqMap[spanID]
 	if !ok {
-		return fmt.Errorf("unknown request span: %v", spanID)
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
 	}
 
 	publish := &tracepb.PubsubMsgPublished{
@@ -856,7 +857,7 @@ func (tp *traceParser) publishEnd(ts uint64) error {
 	publishID := tp.UVarint()
 	publish, ok := tp.publishMap[publishID]
 	if !ok {
-		return fmt.Errorf("unknown publish %v", publishID)
+		return eerror.New("trace_parser", "unknown publish", map[string]any{"publishID": publishID})
 	}
 	publish.EndTime = ts
 	publish.MessageId = tp.String()
