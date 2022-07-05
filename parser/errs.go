@@ -38,6 +38,9 @@ func prettyPrint(node ast.Expr) string {
 		}
 		return fmt.Sprintf("%s[%s]", prettyPrint(node.X), strings.Join(indices, ", "))
 
+	case *ast.FuncLit:
+		return "a function literal"
+
 	default:
 		return fmt.Sprintf("a %v", reflect.TypeOf(node))
 	}

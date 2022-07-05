@@ -16,7 +16,7 @@ type MessageType struct {
 }
 
 var (
-    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
 )
 
 -- svc/svc.go --
@@ -47,7 +47,7 @@ import (
 var _ = pubsub.NewSubscription(
     shared.BasicTopic,
     "foo-service-sub",
-    func(ctx context.Context, msg *shared.MessageType) error {
+    pubsub.SusbcriptionConfig { Handler: func(ctx context.Context, msg *shared.MessageType) error {
         return nil
-    },
+    }},
 )

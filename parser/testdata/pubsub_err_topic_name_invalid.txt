@@ -1,0 +1,27 @@
+! parse
+stderr 'pubsub.NewTopic requires the topic name to be between "kebab-case". It must start with a letter, end with a letter or number and only contain lower case letters, numbers and dashes.'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "test/shared"
+    "test/svc/domain"
+
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+)
+
+// encore:api
+func DoStuff(ctx context.Context) error {
+    return BasicTopic.Publish(ctx, &MessageType{Name: "foo"})
+}
