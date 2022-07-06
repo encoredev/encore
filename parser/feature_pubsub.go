@@ -81,9 +81,11 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		}
 	}
 
+	messageType := p.resolveParameter("pubsub message type", file.Pkg, file, getTypeArguments(callExpr.Fun)[0])
+
 	// Parse the literal struct representing the subscription configuration
 	// so we can extract the reference to the handler function
-	constantCfg, _ := p.parseStructLit(file, "pubsub.TopicConfig", callExpr.Args[1])
+	constantCfg, dynamicCfg := p.parseStructLit(file, "pubsub.TopicConfig", callExpr.Args[1])
 	deliveryGuarantee, found := constantCfg["DeliveryGuarantee"]
 	if !found {
 		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to be explicitly set.")
@@ -94,15 +96,39 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		return nil
 	}
 
-	messageType := p.resolveParameter("pubsub message type", file.Pkg, file, getTypeArguments(callExpr.Fun)[0])
+	// Get the ordering key
+	orderingKey := ""
+	if value, found := constantCfg["OrderingKey"]; found {
+		if str, ok := value.(string); ok {
+			orderingKey = str
+
+			str := messageType.Type.GetStruct()
+			if str != nil {
+				found := false
+				for _, field := range str.Fields {
+					if field.Name == orderingKey {
+						found = true
+						break
+					}
+				}
+
+				if !found || !ast.IsExported(orderingKey) {
+					p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a one of the exported fields on the message type.")
+				}
+			}
+		} else {
+			p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a string literal.")
+		}
+	} else if val, found := dynamicCfg["OrderingKey"]; found {
+		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a string literal, got %s", prettyPrint(val))
+	}
 
 	// Record the topic
 	topic := &est.PubSubTopic{
 		Name:              topicName,
 		Doc:               cursor.DocComment(),
 		DeliveryGuarantee: est.AtLeastOnce,
-		Ordered:           false,
-		GroupingField:     "",
+		OrderingKey:       orderingKey,
 		DeclFile:          file,
 		MessageType:       messageType,
 		IdentAST:          ident,

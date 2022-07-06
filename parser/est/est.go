@@ -91,8 +91,7 @@ type PubSubTopic struct {
 	Name              string          // The unique name of the pub sub topic
 	Doc               string          // The documentation on the pub sub topic
 	DeliveryGuarantee PubSubGuarantee // What guarantees does the pub sub topic have?
-	Ordered           bool            // Whether the topic uses First-In-First-Out (FIFO) logic (default no)
-	GroupingField     string          // What field in the message type should be used to group messages
+	OrderingKey       string          // What field in the message type should be used to ensure First-In-First-Out (FIFO) for messages with the same key
 	DeclFile          *File           // What file the topic is declared in
 	MessageType       *Param          // The message type of the pub sub topic
 	IdentAST          *ast.Ident      // The AST node representing the value this topic is bound against

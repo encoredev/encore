@@ -509,7 +509,7 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 				})
 			}
 		}
-	
+
 		// Configure max connections based on 96 connections
 		// divided evenly among the databases
 		maxConns := 96 / len(sqlDBs)
@@ -538,8 +538,8 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 				Subscriptions: make(map[string]*config.PubsubSubscription),
 			}
 
-			if t.Ordered && t.GroupedBy != nil {
-				topicCfg.OrderingKey = *t.GroupedBy
+			if t.OrderingKey != "" {
+				topicCfg.OrderingKey = t.OrderingKey
 			}
 
 			for _, s := range t.Subscriptions {
