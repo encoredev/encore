@@ -1,19 +1,19 @@
 // Package cloud contains some helpers for referring to different cloud implementations
 package cloud
 
-// Provider represents the cloud provider this application is running in.
+// CloudProvider represents the cloud provider this application is running in.
 //
 // Additional cloud providers may be added in the future.
-type Provider = string
+type CloudProvider = string
 
 const (
-	AWS   Provider = "aws"
-	GCP   Provider = "gcp"
-	Azure Provider = "azure"
+	AWS   CloudProvider = "aws"
+	GCP   CloudProvider = "gcp"
+	Azure CloudProvider = "azure"
 
 	// Encore is Encore's own cloud offering, and the default provider for new Environments.
-	Encore Provider = "encore"
+	Encore CloudProvider = "encore"
 
 	// Local is used when an application is running from the Encore CLI by using either 'encore run' or 'encore test'
-	Local Provider = "local"
+	Local CloudProvider = "local"
 )

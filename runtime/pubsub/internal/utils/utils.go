@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"encore.dev/beta/errs"
+	"encore.dev/pubsub/internal/types"
 )
 
 const AttrTag = "pubsub-attr"
@@ -213,21 +214,31 @@ func pointify(rval reflect.Value, ptrDepth int) reflect.Value {
 
 // GetDelay returns whether a message should be retried and if so the backoff duration based on the
 // configuration in the RetryPolicy
-func GetDelay(maxRetries int, minDelay, maxDelay time.Duration, attempt uint16) (retry bool, delay time.Duration) {
-	if maxRetries != -1 &&
-		int(attempt) >= maxRetries {
+func GetDelay(maxRetries int, minDelay, maxDelay time.Duration, attempt uint16) (shouldRetry bool, backoff time.Duration) {
+	if maxRetries == types.NoRetries || (int(attempt) > maxRetries && maxRetries != types.InfiniteRetries) {
 		return false, 0
 	}
 	if maxDelay < minDelay {
 		return true, maxDelay
 	}
-	delay = time.Duration( /**/ math.Max(float64(1*time.Second), float64(minDelay))) // delay at least 1 second
+	backoff = time.Duration( /**/ math.Max(float64(1*time.Second), float64(minDelay))) // backoff at least 1 second
 
 	for i := uint16(0); i < attempt; i++ {
-		delay *= 2
-		if delay > maxDelay {
+		backoff *= 2
+		if backoff > maxDelay {
 			return true, maxDelay
 		}
 	}
-	return true, delay
+	return true, backoff
+}
+
+// WithDefaultValue returns setValue if it is a non zero value, otherwise it returns defaultValue
+func WithDefaultValue[T comparable](setValue, defaultValue T) T {
+	var zeroValue T
+
+	if setValue == zeroValue {
+		return defaultValue
+	}
+
+	return setValue
 }

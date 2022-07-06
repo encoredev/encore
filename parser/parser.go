@@ -52,7 +52,8 @@ type parser struct {
 	authHandler  *est.AuthHandler
 	declMap      map[string]*schema.Decl // pkg/path.Name -> decl
 	decls        []*schema.Decl
-	paths        paths.Set // RPC paths
+	paths        paths.Set                          // RPC paths
+	resourceMap  map[string]map[string]est.Resource // pkg/path -> name -> resource
 
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.
@@ -76,6 +77,7 @@ func Parse(cfg *Config) (*Result, error) {
 		declMap:            make(map[string]*schema.Decl),
 		validRPCReferences: make(map[ast.Node]bool),
 		jobsMap:            make(map[string]*est.CronJob),
+		resourceMap:        make(map[string]map[string]est.Resource),
 	}
 	return p.Parse()
 }
@@ -314,7 +316,9 @@ func (p *parser) parseReferences() {
 		resourceMap[pkg.ImportPath] = resources
 		for _, res := range pkg.Resources {
 			id := res.Ident()
-			resources[id.Name] = res
+			if id != nil {
+				resources[id.Name] = res
+			}
 		}
 	}
 
@@ -551,7 +555,7 @@ func (p *parser) validateApp() {
 			astutil.Apply(f.AST, func(c *astutil.Cursor) bool {
 				node := c.Node()
 				if ref, ok := f.References[node]; ok && ref.Type == est.RPCRefNode && !p.validRPCReferences[node] {
-					if _, isCall := c.Parent().(*ast.CallExpr); !isCall {
+					if call, isCall := c.Parent().(*ast.CallExpr); !isCall || call.Fun != node {
 						rpc := ref.RPC
 						p.errf(node.Pos(), "cannot reference API endpoint %s.%s without calling it", rpc.Svc.Name, rpc.Name)
 					}

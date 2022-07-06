@@ -1,5 +1,5 @@
 ! parse
-stderr 'The function passed to `BasicTopic.NewSubscription` must be declared in the same service. Currently the function is not declared within a service.'
+stderr 'The function passed to `pubsub.NewSubscription` must be declared in the same service. Currently the handler is not declared within a service.'
 
 -- svc/svc.go --
 package svc
@@ -17,8 +17,8 @@ type MessageType struct {
 }
 
 var (
-    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
-    _ = BasicTopic.NewSubscription("basic-subscription", shared.Subscriber)
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+    _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig { Handler: shared.Subscriber })
 )
 
 // encore:api

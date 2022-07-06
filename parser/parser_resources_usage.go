@@ -5,34 +5,20 @@ import (
 	"go/ast"
 
 	"encr.dev/parser/est"
-	"encr.dev/parser/internal/names"
 	"encr.dev/parser/internal/walker"
 )
 
 func (p *parser) parseResourceUsage() {
-	// For all resources defined, store them in a map per package for faster lookup
-	resourceMap := make(map[string]map[string]est.Resource, len(p.pkgs)) // path -> name -> resource
-	for _, pkg := range p.pkgs {
-		resources := make(map[string]est.Resource, len(pkg.Resources))
-		resourceMap[pkg.ImportPath] = resources
-		for _, res := range pkg.Resources {
-			id := res.Ident()
-			resources[id.Name] = res
-		}
-	}
-
 	for _, pkg := range p.pkgs {
 		for _, file := range pkg.Files {
-			walker.Walk(file.AST, &resourceUsageVisitor{p, file, p.names, resourceMap})
+			walker.Walk(file.AST, &resourceUsageVisitor{p, file})
 		}
 	}
 }
 
 type resourceUsageVisitor struct {
-	p         *parser
-	file      *est.File
-	names     names.Application
-	resources map[string]map[string]est.Resource
+	p    *parser
+	file *est.File
 }
 
 func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
@@ -58,7 +44,7 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 		}
 
 	case *ast.SelectorExpr:
-		if resource := r.resourceFor(node); resource != nil && resource.AllowOnlyParsedUsage() {
+		if resource := r.p.resourceFor(r.file, node); resource != nil && resource.AllowOnlyParsedUsage() {
 			// If the resource type isn't registered, for now this is Ok as we have SQLDB resources that are not tracked
 			if res, found := resourceTypes[resource.Type()]; found {
 				r.p.errf(node.Pos(),
@@ -76,7 +62,7 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 
 func (r *resourceUsageVisitor) resourceAndFuncFor(callExpr *ast.CallExpr) (est.Resource, *resourceUsageParser) {
 	if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-		var arg ast.Node
+		var arg ast.Expr
 
 		// We expect either a double selector; (`[[pkg.name].func]`) and we want to identify the resource from the
 		// inner selector (`[pkg.name]`), then identify the function from the outer selector (`func`).
@@ -91,7 +77,7 @@ func (r *resourceUsageVisitor) resourceAndFuncFor(callExpr *ast.CallExpr) (est.R
 			return nil, nil
 		}
 
-		if resource := r.resourceFor(arg); resource != nil {
+		if resource := r.p.resourceFor(r.file, arg); resource != nil {
 			if resourceFuncs, found := resourceUsageRegistry[resource.Type()]; found {
 				if parser, found := resourceFuncs[sel.Sel.Name]; found {
 					return resource, parser
@@ -101,19 +87,4 @@ func (r *resourceUsageVisitor) resourceAndFuncFor(callExpr *ast.CallExpr) (est.R
 	}
 
 	return nil, nil
-}
-
-func (r *resourceUsageVisitor) resourceFor(node ast.Node) est.Resource {
-	pkgPath, objName, _ := r.names.PackageLevelRef(r.file, node)
-	if pkgPath == "" {
-		return nil
-	}
-
-	if idents, found := r.resources[pkgPath]; found {
-		if resource, found := idents[objName]; found {
-			return resource
-		}
-	}
-
-	return nil
 }

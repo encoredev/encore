@@ -11,7 +11,6 @@ import (
 
 	cronparser "github.com/robfig/cron/v3"
 
-	"encr.dev/parser/dnsname"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/names"
@@ -53,15 +52,9 @@ func (p *parser) parseCronJob(file *est.File, cursor *walker.Cursor, ident *ast.
 		DeclFile: file,
 	}
 
-	cronJobID, _ := litString(callExpr.Args[0])
+	cronJobID := p.parseResourceName("cron.NewJob", "cronjob ID", callExpr.Args[0])
 	if cronJobID == "" {
-		p.errf(callExpr.Args[0].Pos(), "cron.NewJob must be called with a string literal as its first argument")
-		return nil
-	}
-	err := dnsname.DNS1035Label(cronJobID)
-	if err != nil {
-		p.errf(callExpr.Pos(), "cron.NewJob: id must consist of lower case alphanumeric characters"+
-			" or '-',\n// start with an alphabetic character, and end with an alphanumeric character ")
+		// error already reported
 		return nil
 	}
 	cj.ID = cronJobID

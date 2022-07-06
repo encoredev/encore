@@ -10,7 +10,7 @@ import {latencyStr} from '~c/trace/util'
 import {decodeBase64} from '~lib/base64'
 import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
 import {timeToDate} from '~lib/time'
-import {Icon} from "~c/icons";
+import {arrowsExpand, Icon} from "~c/icons"
 
 interface Props {
   appID: string;
@@ -78,7 +78,7 @@ export default class AppTraces extends React.Component<Props, State> {
                 type  = "Auth Call"
               } else if ("pubsub_subscriber" in loc) {
                 endpoint = loc.pubsub_subscriber.topic_name + "." + loc.pubsub_subscriber.subscriber_name
-                icon = icons.inbox
+                icon = icons.arrowsExpand
                 type = "PubSub Message Received"
               }
 

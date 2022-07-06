@@ -48,7 +48,7 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 	return t.gcpTopic.Publish(ctx, gcpMsg).Get(ctx)
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.SubscriptionConfig, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if subCfg.PushOnly && subCfg.ID == "" {
 		panic("push-only subscriptions must have a subscription ID")
 	}

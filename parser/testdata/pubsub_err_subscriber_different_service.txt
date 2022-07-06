@@ -1,5 +1,5 @@
 ! parse
-stderr 'The call to `BasicTopic.NewSubscription` must be declared in the same service as the function passed inas the second argument. The call was made in svc1, but the function was declared in svc2.'
+stderr 'The call to `pubsub.NewSubscription` must be declared in the same service as the handler passed in. The call was made in svc1, but the handler function was declared in svc2.'
 
 -- shared/shared.go --
 package shared
@@ -20,9 +20,9 @@ import (
     "test/svc2"
 )
 
-var BasicTopic = pubsub.NewTopic[*shared.MessageType]("basic-topic")
+var BasicTopic = pubsub.NewTopic[*shared.MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
 
-var _ = BasicTopic.NewSubscription("basic-subscription", svc2.Subscriber)
+var _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig { Handler: svc2.Subscriber })
 
 // encore:api
 func Stuff(ctx context.Context) error {

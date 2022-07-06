@@ -13,7 +13,7 @@ type MessageType struct {
 }
 
 var (
-    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic")
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
 )
 
 -- svc/svc.go --
@@ -22,12 +22,14 @@ package svc
 import (
     "context"
 
+    "encore.dev/pubsub"
+
     "test/shared"
 )
 
 
 var (
-    _ = shared.BasicTopic.NewSubscription("SAME-NAMe", Subscriber1)
+    _ = pubsub.NewSubscription(shared.BasicTopic, "same-name", pubsub.SusbcriptionConfig { Handler: Subscriber1 })
 )
 
 // encore:api
@@ -41,14 +43,17 @@ package foo
 import (
     "context"
 
+    "encore.dev/pubsub"
+
     "test/shared"
 )
 
-var _ = shared.BasicTopic.NewSubscription(
+var _ = pubsub.NewSubscription(
+    shared.BasicTopic,
     "same-name",
-    func(ctx context.Context, msg *shared.MessageType) error {
+    pubsub.SusbcriptionConfig { Handler: func(ctx context.Context, msg *shared.MessageType) error {
         return nil
-    },
+    }},
 )
 
 // encore:api

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"sync/atomic"
-	"time"
 
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/gcp"
@@ -16,13 +15,52 @@ import (
 	"encore.dev/runtime/config"
 )
 
+// Topic presents a flow of events of type T from any number of publishers to
+// any number of subscribers.
+//
+// Each subscription will receive a copy of each message published to the topic.
+//
+// See NewTopic for more information on how to declare a Topic.
+type Topic[T any] struct {
+	topicCfg *config.PubsubTopic
+	topic    types.TopicImplementation
+}
+
 // NewTopic is used to declare a Topic. Encore will use static
 // analysis to identify Topics and automatically provision them
 // for you.
 //
-// The value passed to cfg will be used at compile time to configure the
-// topic. As such is not used directly by this code.
-func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
+// A call to NewTopic can only be made when declaring a package level variable. Any
+// calls to this function made outside a package level variable declaration will result
+// in a compiler error.
+//
+// The topic name must be unique within an Encore application. Topic names must be defined
+// in kebab-case (lowercase alphanumerics and hyphen seperated). The topic name must start with a letter
+// and end with either a letter or number. It cannot be longer than 63 characters. Once created and deployed never
+// change the topic name. When refactoring the topic name must stay the same.
+// This allows for messages already on the topic to continue to be received after the refactored
+// code is deployed.
+//
+// Example:
+//
+//     import "encore.dev/pubsub"
+//
+//     type MyEvent struct {
+//       Foo string
+//     }
+//
+//     var MyTopic = pubsub.NewTopic[*MyEvent]("my-topic", pubsub.TopicConfig{
+//       DeliveryGuarantee: pubsub.AtLeastOnce,
+//     })
+//
+//    //encore:api public
+//    func DoFoo(ctx context.Context) error {
+//      msgID, err := MyTopic.Publish(ctx, &MyEvent{Foo: "bar"})
+//      if err != nil { return err }
+//      rlog.Info("foo published", "message_id", msgID)
+//      return nil
+//    }
+func NewTopic[T any](name string, cfg TopicConfig) *Topic[T] {
 	if config.Cfg.Static.Testing {
 		return &Topic[T]{
 			topicCfg: &config.PubsubTopic{EncoreName: name},
@@ -51,105 +89,17 @@ func NewTopic[T any](name string, cfg *TopicConfig) *Topic[T] {
 	}
 }
 
-// Topic allows us to adapt from the types.TopicImplementation type to our public API
+// Publish will publish a message to the topic and returns a unique message ID for the message.
 //
-// This adapter also contains unified logic for publishing and subscribing to messages on any type of backing topic,
-// including:
-// - error handling and panic recovery
-// - message serialization to attributes and body
+// This function will not return until the message has been successfully accepted by the topic.
 //
-type Topic[T any] struct {
-	topicCfg *config.PubsubTopic
-	topic    types.TopicImplementation
-}
-
-func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscription, *config.StaticPubsubSubscription) {
-	if config.Cfg.Static.Testing {
-		// No subscriptions occur in testing
-		return &config.PubsubSubscription{EncoreName: name}, &config.StaticPubsubSubscription{
-			Service: &config.Service{Name: "test"},
-		}
-	}
-
-	// Fetch the subscription configuration
-	subscription, ok := t.topicCfg.Subscriptions[name]
-	if !ok {
-		runtime.Logger().Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
-	}
-
-	staticCfg, ok := config.Cfg.Static.PubsubTopics[t.topicCfg.EncoreName].Subscriptions[name]
-	if !ok {
-		runtime.Logger().Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
-	}
-
-	return subscription, staticCfg
-}
-
-func (t *Topic[T]) NewSubscription(name string, sub Subscriber[T], cfg *SubscriptionConfig) *Subscription[T] {
-	subscription, staticCfg := t.getSubscriptionConfig(name)
-	panicCatchWrapper := func(ctx context.Context, msg T) (err error) {
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				err = errs.B().Code(errs.Internal).Msgf("subscriber paniced: %s", err2).Err()
-			}
-		}()
-
-		return sub(ctx, msg)
-	}
-
-	log := runtime.Logger().With().
-		Str("service", staticCfg.Service.Name).
-		Str("topic", t.topicCfg.EncoreName).
-		Str("subscription", name).
-		Logger()
-
-	// Subscribe to the topic
-	t.topic.Subscribe(&log, cfg, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
-		if !config.Cfg.Static.Testing {
-			// Under test we're already inside an operation
-			runtime.BeginOperation()
-			defer runtime.FinishOperation()
-		}
-
-		msg, err := utils.UnmarshalMessage[T](attrs, data)
-		if err != nil {
-			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message")
-			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to unmarshal message").Err()
-		}
-
-		// Start the request tracing span
-		err = runtime.BeginRequest(ctx, runtime.RequestData{
-			Type:    runtime.PubSubMessage,
-			Service: staticCfg.Service.Name,
-			MsgData: runtime.PubSubMsgData{
-				Topic:        t.topicCfg.EncoreName,
-				Subscription: subscription.EncoreName,
-				MessageID:    msgID,
-				Attempt:      deliveryAttempt,
-				Published:    publishTime,
-			},
-			CallExprIdx:     0,
-			EndpointExprIdx: staticCfg.TraceIdx,
-			Inputs:          [][]byte{data},
-		})
-		if err != nil {
-			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to begin request").Err()
-		}
-
-		err = panicCatchWrapper(ctx, msg)
-		runtime.FinishRequest(nil, err)
-		return err
-	})
-
-	if !config.Cfg.Static.Testing {
-		// Log the subscription registration - unless we're in unit tests
-		log.Info().Msg("registered subscription")
-	}
-
-	return &Subscription[T]{}
-}
-
+// If an error is returned, it is probable that the message failed to be published, however it is possible
+// that the message could still be received by subscriptions to the topic.
 func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
+	if t.topicCfg == nil || t.topic == nil {
+		return "", errs.B().Code(errs.Unimplemented).Msg("pubsub topic was not created using pubsub.NewTopic").Err()
+	}
+
 	// Extract the message attributes
 	attrs, err := utils.MarshalFields(msg, utils.AttrTag)
 	if err != nil {

@@ -49,7 +49,7 @@ func getStack() string {
 	frame, more := cf.Next()
 
 	// Skip this package
-	for strings.Contains(frame.File, "errlist") {
+	for strings.Contains(frame.File, "errlist") || strings.Contains(frame.File, "errs") {
 		if !more {
 			return ""
 		}
