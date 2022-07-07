@@ -509,7 +509,7 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 				})
 			}
 		}
-	
+
 		// Configure max connections based on 96 connections
 		// divided evenly among the databases
 		maxConns := 96 / len(sqlDBs)
@@ -519,33 +519,34 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	}
 
 	var (
-		pubsubServers []*config.PubsubServer
-		pubsubTopics  map[string]*config.PubsubTopic
+		pubsubProviders []*config.PubsubProvider
+		pubsubTopics    map[string]*config.PubsubTopic
 	)
 	if params.NSQDaemon != nil {
-		srv := &config.PubsubServer{
-			NSQServer: &config.NSQServer{
-				Address: params.NSQDaemon.Addr(),
+		p := &config.PubsubProvider{
+			NSQ: &config.NSQProvider{
+				Host: params.NSQDaemon.Addr(),
 			},
 		}
-		pubsubServers = append(pubsubServers, srv)
+		pubsubProviders = append(pubsubProviders, p)
 		pubsubTopics = make(map[string]*config.PubsubTopic)
 		for _, t := range params.Meta.PubsubTopics {
 			topicCfg := &config.PubsubTopic{
-				ServerID:      0,
 				EncoreName:    t.Name,
-				CloudName:     t.Name,
+				ProviderID:    0,
+				ProviderName:  t.Name,
 				Subscriptions: make(map[string]*config.PubsubSubscription),
 			}
 
-			if t.Ordered && t.GroupedBy != nil {
-				topicCfg.OrderingKey = *t.GroupedBy
+			if t.OrderingKey != "" {
+				topicCfg.OrderingKey = t.OrderingKey
 			}
 
 			for _, s := range t.Subscriptions {
 				topicCfg.Subscriptions[s.Name] = &config.PubsubSubscription{
-					EncoreName: s.Name,
-					CloudName:  s.Name,
+					ID:           s.Name,
+					EncoreName:   s.Name,
+					ProviderName: s.Name,
 				}
 			}
 
@@ -554,21 +555,21 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 	}
 
 	return &config.Runtime{
-		AppID:         r.ID,
-		AppSlug:       r.App.PlatformID(),
-		APIBaseURL:    "http://" + r.ListenAddr,
-		DeployID:      fmt.Sprintf("run_%s", xid.New()),
-		DeployedAt:    time.Now().UTC(), // Force UTC to not cause confusion
-		EnvID:         p.ID,
-		EnvName:       "local",
-		EnvCloud:      string(encore.CloudLocal),
-		EnvType:       string(encore.EnvLocal),
-		TraceEndpoint: "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
-		SQLDatabases:  sqlDBs,
-		SQLServers:    sqlServers,
-		PubsubServers: pubsubServers,
-		PubsubTopics:  pubsubTopics,
-		AuthKeys:      []config.EncoreAuthKey{p.authKey},
+		AppID:           r.ID,
+		AppSlug:         r.App.PlatformID(),
+		APIBaseURL:      "http://" + r.ListenAddr,
+		DeployID:        fmt.Sprintf("run_%s", xid.New()),
+		DeployedAt:      time.Now().UTC(), // Force UTC to not cause confusion
+		EnvID:           p.ID,
+		EnvName:         "local",
+		EnvCloud:        string(encore.CloudLocal),
+		EnvType:         string(encore.EnvLocal),
+		TraceEndpoint:   "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
+		SQLDatabases:    sqlDBs,
+		SQLServers:      sqlServers,
+		PubsubProviders: pubsubProviders,
+		PubsubTopics:    pubsubTopics,
+		AuthKeys:        []config.EncoreAuthKey{p.authKey},
 		CORS: &config.CORS{
 			AllowOriginsWithCredentials: []string{
 				// Allow all origins with credentials for local development;

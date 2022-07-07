@@ -236,10 +236,8 @@ export interface PubSubTopic {
   message_type: Type;
   /** The delivery guarantee for the topic */
   delivery_guarantee: PubSubTopic_DeliveryGuarantee;
-  /** If messages are received in the order they where published */
-  ordered: boolean;
-  /** What field should be used to group messages to which replica of a subscription */
-  grouped_by?: string | undefined;
+  /** The field used to group messages; if empty, the topic is not ordered */
+  ordering_key: string;
   /** The publishers for this topic */
   publishers: PubSubTopic_Publisher[];
   /** The subscriptions to the topic */

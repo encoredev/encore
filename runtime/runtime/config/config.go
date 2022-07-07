@@ -55,22 +55,22 @@ type Endpoint struct {
 }
 
 type Runtime struct {
-	AppID         string                  `json:"app_id"`
-	AppSlug       string                  `json:"app_slug"`
-	APIBaseURL    string                  `json:"api_base_url"`
-	EnvID         string                  `json:"env_id"`
-	EnvName       string                  `json:"env_name"`
-	EnvType       string                  `json:"env_type"`
-	EnvCloud      string                  `json:"env_cloud"`
-	DeployID      string                  `json:"deploy_id"`
-	DeployedAt    time.Time               `json:"deploy_time"`
-	TraceEndpoint string                  `json:"trace_endpoint"`
-	AuthKeys      []EncoreAuthKey         `json:"auth_keys"`
-	SQLDatabases  []*SQLDatabase          `json:"sql_databases"`
-	SQLServers    []*SQLServer            `json:"sql_servers"`
-	PubsubServers []*PubsubServer         `json:"pubsub_servers"`
-	PubsubTopics  map[string]*PubsubTopic `json:"pubsub_topics"`
-	CORS          *CORS                   `json:"cors"`
+	AppID           string                  `json:"app_id"`
+	AppSlug         string                  `json:"app_slug"`
+	APIBaseURL      string                  `json:"api_base_url"`
+	EnvID           string                  `json:"env_id"`
+	EnvName         string                  `json:"env_name"`
+	EnvType         string                  `json:"env_type"`
+	EnvCloud        string                  `json:"env_cloud"`
+	DeployID        string                  `json:"deploy_id"`
+	DeployedAt      time.Time               `json:"deploy_time"`
+	TraceEndpoint   string                  `json:"trace_endpoint,omitempty"`
+	AuthKeys        []EncoreAuthKey         `json:"auth_keys,omitempty"`
+	SQLDatabases    []*SQLDatabase          `json:"sql_databases,omitempty"`
+	SQLServers      []*SQLServer            `json:"sql_servers,omitempty"`
+	PubsubProviders []*PubsubProvider       `json:"pubsub_providers,omitempty"`
+	PubsubTopics    map[string]*PubsubTopic `json:"pubsub_topics,omitempty"`
+	CORS            *CORS                   `json:"cors,omitempty"`
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
@@ -86,23 +86,23 @@ const UnsafeAllOriginWithCredentials = "UNSAFE_ALL_ORIGINS_WITH_CREDENTIALS"
 type CORS struct {
 	// DisableCredentials, if true, causes Encore to respond to OPTIONS requests
 	// without setting Access-Control-Allow-Credentials: true.
-	DisableCredentials bool `json:"disable_credentials"`
+	DisableCredentials bool `json:"disable_credentials,omitempty"`
 
 	// AllowOriginsWithCredentials specifies the allowed origins for requests
 	// that include credentials. If a request is made from an Origin in this list
 	// Encore responds with Access-Control-Allow-Origin: <Origin>.
 	// If DisableCredentials is true this field is not used.
-	AllowOriginsWithCredentials []string `json:"allow_origins_with_credentials"`
+	AllowOriginsWithCredentials []string `json:"allow_origins_with_credentials,omitempty"`
 
 	// AllowOriginsWithoutCredentials specifies the allowed origins for requests
 	// that don't include credentials. If nil it defaults to allowing all domains
 	// (equivalent to []string{"*"}).
-	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials"`
+	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials,omitempty"`
 
 	// ExtraAllowedHeaders specifies extra headers to allow, beyond
 	// the default set of {"Origin", "Authorization", "Content-Type"}.
 	// As a special case, if the list contains "*" all headers are allowed.
-	ExtraAllowedHeaders []string `json:"raw_allowed_headers"`
+	ExtraAllowedHeaders []string `json:"raw_allowed_headers,omitempty"`
 }
 
 type CommitInfo struct {
@@ -139,33 +139,58 @@ func (eak EncoreAuthKey) Copy() EncoreAuthKey {
 	return c
 }
 
-type PubsubServer struct {
-	NSQServer *NSQServer       `json:"nsq_server"` // set if server is NSQ
-	GCP       *GCPPubSubServer `json:"gcp"`        // set if server is GCP
+type PubsubProvider struct {
+	NSQ *NSQProvider       `json:"nsq,omitempty"` // set if the provider is NSQ
+	GCP *GCPPubsubProvider `json:"gcp,omitempty"` // set if the provider is GCP
 }
 
-type NSQServer struct {
-	Address string `json:"nsq_server"` // the NSQ server address
+type NSQProvider struct {
+	Host string `json:"host"`
 }
 
-type GCPPubSubServer struct {
-	ID                 string `json:"project_id"`      // the GCP project ID
-	PushServiceAccount string `json:"service_account"` // the GCP service account email being used to push messages to subscription handlers
+// GCPPubsubProvider currently has no specific configuration.
+type GCPPubsubProvider struct {
 }
 
 type PubsubTopic struct {
-	ServerID      int                            `json:"server_id"`     // the index into (*Runtime).PubsubServers
-	EncoreName    string                         `json:"encore_name"`   // the Encore name for the pubsub topic
-	CloudName     string                         `json:"cloud_name"`    // the name for the pubsub topic as defined on the server
-	OrderingKey   string                         `json:"ordering_key"`  // the ordering key for the pubsub topic (blank if not ordered)
-	Subscriptions map[string]*PubsubSubscription `json:"subscriptions"` // a map of Encore subscription names to PubsubSubscription
+	EncoreName   string `json:"encore_name"`   // the Encore name for the pubsub topic
+	ProviderID   int    `json:"provider_id"`   // The index into (*Runtime).PubsubProviders.
+	ProviderName string `json:"provider_name"` // the name for the pubsub topic as defined by the provider
+	OrderingKey  string `json:"ordering_key"`  // the ordering key for the pubsub topic (blank if not ordered)
+
+	// Subscriptions contains the subscriptions to this topic,
+	// keyed by the Encore name.
+	Subscriptions map[string]*PubsubSubscription `json:"subscriptions"`
+
+	// GCP contains GCP-specific configuration.
+	// It is set if the provider is GCP.
+	GCP *PubsubTopicGCPData `json:"gcp,omitempty"`
 }
 
 type PubsubSubscription struct {
-	ResourceID string `json:"resource_id"` // the resource ID for the pubsub subscription
-	EncoreName string `json:"encore_name"` // the Encore name for the subscription
-	CloudName  string `json:"cloud_name"`  // the name for the pubsub subscription as defined on the server
-	PushOnly   bool   `json:"push_only"`   // if true the application will not actively subscribe to the pub, but instead will rely on HTTP push messages
+	ID           string `json:"id"`            // the subscription ID
+	EncoreName   string `json:"encore_name"`   // the Encore name for the subscription
+	ProviderName string `json:"provider_name"` // the name for the pubsub subscription as defined by the provider
+	PushOnly     bool   `json:"push_only"`     // if true the application will not actively subscribe to the pub, but instead will rely on HTTP push messages
+
+	// GCP contains GCP-specific configuration.
+	// It is set if the subscription exists in GCP.
+	GCP *PubsubSubscriptionGCPData `json:"gcp,omitempty"`
+}
+
+type PubsubTopicGCPData struct {
+	// ProjectID is the GCP project id where the topic exists.
+	ProjectID string `json:"project_id"`
+}
+
+type PubsubSubscriptionGCPData struct {
+	// ProjectID is the GCP project id where the subscription exists.
+	ProjectID string `json:"project_id"`
+
+	// PushServiceAccount is the service account used to authenticate
+	// messages being delivered over push.
+	// If empty pushes are not accepted.
+	PushServiceAccount string `json:"push_service_account"`
 }
 
 type StaticPubsubTopic struct {
@@ -183,11 +208,11 @@ type SQLServer struct {
 	Host string `json:"host"`
 
 	// ServerCACert is the PEM-encoded server CA cert, or "" if not required.
-	ServerCACert string `json:"server_ca_cert"`
+	ServerCACert string `json:"server_ca_cert,omitempty"`
 	// ClientCert is the PEM-encoded client cert, or "" if not required.
-	ClientCert string `json:"client_cert"`
+	ClientCert string `json:"client_cert,omitempty"`
 	// ClientKey is the PEM-encoded client key, or "" if not required.
-	ClientKey string `json:"client_key"`
+	ClientKey string `json:"client_key,omitempty"`
 }
 
 type SQLDatabase struct {
