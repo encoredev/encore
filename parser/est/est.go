@@ -121,6 +121,12 @@ type PubSubSubscriber struct {
 	FuncFile *File        // The file the subscriber function is declared in
 	DeclFile *File        // The file that the subscriber is defined in
 	IdentAST *ast.Ident   // The AST node representing the value this topic is bound against
+
+	AckDeadline      int64 // time in nanoseconds
+	MessageRetention int64 // time in nanoseconds
+	MinRetryBackoff  int64 // time in nanoseconds
+	MaxRetryBackoff  int64 // time in nanoseconds
+	MaxRetries       int64 // number of attempts
 }
 
 func (p *PubSubSubscriber) Type() ResourceType         { return PubSubTopicResource }

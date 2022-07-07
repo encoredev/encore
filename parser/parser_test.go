@@ -167,7 +167,7 @@ func TestMain(m *testing.M) {
 				}
 
 				for _, sub := range topic.Subscribers {
-					fmt.Fprintf(os.Stdout, "pubsubSubscriber %s %s %s\n", topic.Name, sub.Name, sub.DeclFile.Pkg.Service.Name)
+					fmt.Fprintf(os.Stdout, "pubsubSubscriber %s %s %s %d %d %d %d %d\n", topic.Name, sub.Name, sub.DeclFile.Pkg.Service.Name, sub.AckDeadline, sub.MessageRetention, sub.MaxRetries, sub.MinRetryBackoff, sub.MaxRetryBackoff)
 				}
 			}
 			for _, pkg := range res.App.Packages {

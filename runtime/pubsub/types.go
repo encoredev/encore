@@ -32,10 +32,12 @@ type SubscriptionConfig[T any] struct {
 
 	// AckDeadline is the time a consumer has to process a message
 	// before it's returned to the subscription
+	// Default is 30 seconds.
 	AckDeadline time.Duration
 
 	// MessageRetention is how long an undelivered message is kept
 	// on the topic before it's purged
+	// Default is 7 days.
 	MessageRetention time.Duration
 
 	// RetryPolicy defines how a message should be retried when

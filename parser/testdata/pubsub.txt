@@ -3,9 +3,9 @@ parse
 stdout 'pubsubTopic basic-topic'
 stdout 'pubsubTopic another-topic'
 stdout 'pubsubPublisher basic-topic foo'
-stdout 'pubsubSubscriber basic-topic basic-subscription svc'
-stdout 'pubsubSubscriber basic-topic another-subscription svc'
-stdout 'pubsubSubscriber basic-topic a-third-subscription foo'
+stdout 'pubsubSubscriber basic-topic basic-subscription svc 45000000000 396000000000000 3 8000000000 1920000000000'
+stdout 'pubsubSubscriber basic-topic another-subscription svc 30000000000 604800000000000 100 10000000000 600000000000'
+stdout 'pubsubSubscriber basic-topic a-third-subscription foo 1000000 1999000 47 3998000 4997000'
 
 -- shared/topics.go --
 package shared
@@ -28,6 +28,7 @@ package svc
 
 import (
     "context"
+    "time"
 
     "encore.dev/pubsub"
 
@@ -38,7 +39,16 @@ import (
 
 var (
     _ = pubsub.NewSubscription(shared.BasicTopic, "basic-subscription",
-        pubsub.SubscriptionConfig { Handler: Subscriber1 },
+        pubsub.SubscriptionConfig {
+            Handler: Subscriber1,
+            AckDeadline: 45 * time.Second,
+            MessageRetention: 5 * time.Hour * 24 + -10 * time.Hour,
+            RetryPolicy: &pubsub.RetryPolicy{
+                MaxRetries: 3,
+                MinBackoff: 8 * time.Second,
+                MaxBackoff: 32 * time.Minute,
+            },
+        },
     )
 
     _ = pubsub.NewSubscription(shared.BasicTopic, "another-subscription",
@@ -69,6 +79,7 @@ package foo
 
 import (
     "context"
+    "time"
 
     "encore.dev/pubsub"
 
@@ -81,6 +92,13 @@ var _ = pubsub.NewSubscription(
     pubsub.SubscriptionConfig {
         Handler: func(ctx context.Context, msg *shared.MessageType) error {
           return nil
+      },
+      AckDeadline: 1 * time.Millisecond,
+      MessageRetention: 2 * time.Millisecond + -1 * time.Microsecond,
+      RetryPolicy: &pubsub.RetryPolicy{
+          MaxRetries: -3 + 10 * 5,
+          MinBackoff: 4 * time.Millisecond + -2 * time.Microsecond,
+          MaxBackoff: 5 * time.Millisecond + -3 * time.Microsecond,
       },
     },
 )

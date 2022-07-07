@@ -262,4 +262,19 @@ export interface PubSubTopic_Subscription {
   name: string;
   /** The service that the subscriber is in */
   service_name: string;
+  /** How long has a consumer got to process and ack a message in nanoseconds */
+  ack_deadline: number;
+  /** How long is an undelivered message kept in nanoseconds */
+  message_retention: number;
+  /** The retry policy for the subscription */
+  retry_policy: PubSubTopic_RetryPolicy;
+}
+
+export interface PubSubTopic_RetryPolicy {
+  /** min backoff in nanoseconds */
+  min_backoff: number;
+  /** max backoff in nanoseconds */
+  max_backoff: number;
+  /** max number of retires */
+  max_retries: number;
 }

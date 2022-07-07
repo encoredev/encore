@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/fatih/structtag"
 
@@ -91,7 +92,7 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to be explicitly set.")
 		return nil
 	}
-	if deliveryGuarantee != 1 {
+	if deliveryGuarantee != int64(1) {
 		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to a valid value such as \"pubsub.AtLeastOnce\".")
 		return nil
 	}
@@ -184,7 +185,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 
 	// Parse the literal struct representing the subscription configuration
 	// so we can extract the reference to the handler function
-	_, dynamicCfg := p.parseStructLit(file, "pubsub.SubscriptionConfig", callExpr.Args[2])
+	constantCfg, dynamicCfg := p.parseStructLit(file, "pubsub.SubscriptionConfig", callExpr.Args[2])
 	handler, found := dynamicCfg["Handler"]
 	if !found {
 		p.errf(callExpr.Args[2].Pos(), "pubsub.NewSubscription requires the configuration field named \"Handler\" to populated with the subscription handler function.")
@@ -226,16 +227,65 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 
 	// Record the subscription
 	subscription := &est.PubSubSubscriber{
-		Name:     subscriberName,
-		Topic:    topic,
-		CallSite: callExpr,
-		Func:     funcDecl,
-		FuncFile: funcFile,
-		DeclFile: file,
-		IdentAST: ident,
+		Name:             subscriberName,
+		Topic:            topic,
+		CallSite:         callExpr,
+		Func:             funcDecl,
+		FuncFile:         funcFile,
+		DeclFile:         file,
+		IdentAST:         ident,
+		AckDeadline:      asInt64(constantCfg, "AckDeadline", int64(30*time.Second)),
+		MessageRetention: asInt64(constantCfg, "MessageRetention", int64(7*24*time.Hour)),
+		MinRetryBackoff:  asInt64(constantCfg["RetryPolicy"], "MinBackoff", int64(10*time.Second)),
+		MaxRetryBackoff:  asInt64(constantCfg["RetryPolicy"], "MaxBackoff", int64(10*time.Minute)),
+		MaxRetries:       asInt64(constantCfg["RetryPolicy"], "MaxRetries", 100),
 	}
 	topic.Subscribers = append(topic.Subscribers, subscription)
 	return subscription
+}
+
+func asInt64(obj any, key string, defaultValue int64) int64 {
+	if obj == nil {
+		return defaultValue
+	}
+	objMap, ok := obj.(map[string]any)
+	if !ok {
+		return defaultValue
+	}
+
+	value, found := objMap[key]
+	if !found || value == nil {
+		return defaultValue
+	}
+
+	switch value := value.(type) {
+	case int64:
+		if value != 0 {
+			return value
+		}
+	case uint64:
+		if value != 0 {
+			return int64(value)
+		}
+	case int32:
+		if value != 0 {
+			return int64(value)
+		}
+	case uint32:
+		if value != 0 {
+			return int64(value)
+		}
+	case int:
+		if value != 0 {
+			return int64(value)
+		}
+	case uint:
+		if value != 0 {
+			return int64(value)
+		}
+	}
+
+	return defaultValue
 }
 
 func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {

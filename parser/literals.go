@@ -2,7 +2,9 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/token"
 	"reflect"
 	"strconv"
@@ -45,27 +47,44 @@ elemLoop:
 				continue elemLoop
 			}
 
+			// Parse any sub data structures
 			switch value := elem.Value.(type) {
-			case *ast.BasicLit:
-				v, err := basicLit(value)
-				if err != nil {
-					p.errf(value.Pos(), "Unable to parse the basic literal: %v", err)
-				} else {
-					constants[ident.Name] = v
-				}
+			case *ast.UnaryExpr:
+				if value.Op == token.AND {
+					if compositeLiteral, ok := value.X.(*ast.CompositeLit); ok {
+						subConstants, subDynamic := p.parseStructLit(file, "struct", compositeLiteral)
 
-			case *ast.SelectorExpr:
-				pkg, obj := pkgObj(p.names[file.Pkg].Files[file], value)
-				if pkg != "" {
-					if value, found := runtimeconstants.Get(pkg, obj); found {
-						constants[ident.Name] = value
+						if len(subDynamic) > 0 {
+							p.errf(compositeLiteral.Pos(), "Dynamic structs are not supported in constant values")
+						} else {
+							constants[ident.Name] = subConstants
+						}
+
 						continue elemLoop
 					}
 				}
 
-				dynamic[ident.Name] = value
-			default:
-				dynamic[ident.Name] = value
+			case *ast.CompositeLit:
+				subConstants, subDynamic := p.parseStructLit(file, "struct", value)
+
+				if len(subDynamic) > 0 {
+					p.errf(value.Pos(), "Dynamic structs are not supported in constant values")
+				} else {
+					constants[ident.Name] = subConstants
+				}
+
+				continue elemLoop
+			}
+
+			// Parse the value
+			value := p.parseConstantValue(file, elem.Value)
+			if value.Kind() == constant.Unknown {
+				if ident.Name != "Handler" {
+					p.errf(elem.Value.Pos(), "Expected a literal value, got %s for %s.", prettyPrint(elem.Value), ident.Name)
+				}
+				dynamic[ident.Name] = elem.Value
+			} else {
+				constants[ident.Name] = constant.Val(value)
 			}
 		default:
 			p.errf(elem.Pos(), "Expected a key-value pair, got a %v", reflect.TypeOf(elem))
@@ -75,12 +94,63 @@ elemLoop:
 	return
 }
 
+func (p *parser) parseConstantValue(file *est.File, value ast.Expr) (rtn constant.Value) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.errf(value.Pos(), "Panicked while parsing constant value: %v", r)
+			rtn = constant.MakeUnknown()
+		}
+	}()
+
+	switch value := value.(type) {
+	case *ast.FuncLit:
+		// Functions are not literal constant values
+		return constant.MakeUnknown()
+
+	case *ast.Ident:
+		// We don't track constants within the package, so this isn't know to us now
+		return constant.MakeUnknown()
+
+	case *ast.BasicLit:
+		v, err := basicLit(value)
+		if err != nil {
+			p.errf(value.Pos(), "Unable to parse the basic literal: %v", err)
+			return constant.MakeUnknown()
+		} else {
+			return constant.Make(v)
+		}
+
+	case *ast.SelectorExpr:
+		pkg, obj := pkgObj(p.names[file.Pkg].Files[file], value)
+		if pkg != "" {
+			if v, found := runtimeconstants.Get(pkg, obj); found {
+				return constant.Make(v)
+			}
+		}
+
+	case *ast.BinaryExpr:
+		x := p.parseConstantValue(file, value.X)
+		y := p.parseConstantValue(file, value.Y)
+		return constant.BinaryOp(x, value.Op, y)
+
+	case *ast.UnaryExpr:
+		x := p.parseConstantValue(file, value.X)
+		fmt.Println("Uniary op", value.Op, x)
+		return constant.UnaryOp(value.Op, x, 0)
+
+	default:
+		p.errf(value.Pos(), "Unable to parse constant value, unknown data type: %v", reflect.TypeOf(value))
+	}
+
+	return constant.MakeUnknown()
+}
+
 func basicLit(value *ast.BasicLit) (any, error) {
 	switch value.Kind {
 	case token.IDENT:
 		return value.Value, nil
 	case token.INT:
-		return strconv.Atoi(value.Value)
+		return strconv.ParseInt(value.Value, 10, 64)
 	case token.FLOAT:
 		return strconv.ParseFloat(value.Value, 64)
 	case token.IMAG:
