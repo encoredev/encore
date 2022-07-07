@@ -17,13 +17,13 @@ import (
 // This is documented in https://cloud.google.com/pubsub/docs/push
 type pushPayload struct {
 	Message struct {
-		Attributes      map[string]string `json:"attributes"`
-		Data            []byte            `json:"data"`
-		MessageID       string            `json:"messageId"`
-		PublishTime     time.Time         `json:"publishTime"`
-		DeliveryAttempt int               `json:"deliveryAttempt,omitempty"` // Field documented in: https://cloud.google.com/pubsub/docs/handling-failures#track_delivery_attempts
+		Attributes  map[string]string `json:"attributes"`
+		Data        []byte            `json:"data"`
+		MessageID   string            `json:"messageId"`
+		PublishTime time.Time         `json:"publishTime"`
 	} `json:"message"`
-	Subscription string `json:"subscription"`
+	Subscription    string `json:"subscription"`
+	DeliveryAttempt int    `json:"deliveryAttempt,omitempty"` // Field documented in: https://cloud.google.com/pubsub/docs/handling-failures#track_delivery_attempts
 }
 
 func registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
@@ -47,7 +47,7 @@ func registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types
 			// Call the subscription callback
 			return f(
 				req.Context(),
-				payload.Message.MessageID, payload.Message.PublishTime, payload.Message.DeliveryAttempt,
+				payload.Message.MessageID, payload.Message.PublishTime, payload.DeliveryAttempt,
 				payload.Message.Attributes, payload.Message.Data,
 			)
 		},
