@@ -71,5 +71,5 @@ func handlePubSubPush(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	if err != nil {
 		Logger().Err(err).Msg("error while handling PubSub push request")
 	}
-	errs.HTTPError(w, handler(req))
+	errs.HTTPError(w, err)
 }

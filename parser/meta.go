@@ -121,8 +121,7 @@ func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
 		Doc:               topic.Doc,
 		MessageType:       topic.MessageType.Type,
 		DeliveryGuarantee: meta.PubSubTopic_DeliveryGuarantee(topic.DeliveryGuarantee),
-		Ordered:           topic.Ordered,
-		GroupedBy:         &topic.GroupingField,
+		OrderingKey:       topic.OrderingKey,
 		Publishers:        parsePublisher(topic.Publishers...),
 		Subscriptions:     parseSubscribers(topic.Subscribers...),
 	}

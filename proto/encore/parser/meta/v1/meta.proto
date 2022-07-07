@@ -198,11 +198,9 @@ message PubSubTopic {
   string                doc                = 2; // The documentation for the topic
   schema.v1.Type        message_type       = 3; // The type of the message
   DeliveryGuarantee     delivery_guarantee = 4; // The delivery guarantee for the topic
-  bool                  ordered            = 5; // If messages are received in the order they where published
-  optional string       grouped_by         = 6; // What field should be used to group messages to which replica of a subscription
-  repeated Publisher    publishers         = 7; // The publishers for this topic
-  repeated Subscription subscriptions      = 8; // The subscriptions to the topic
-
+  string                ordering_key       = 5; // The field used to group messages; if empty, the topic is not ordered
+  repeated Publisher    publishers         = 6; // The publishers for this topic
+  repeated Subscription subscriptions      = 7; // The subscriptions to the topic
 
   message Publisher {
     string service_name = 1; // The service the publisher is in

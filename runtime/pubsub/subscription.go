@@ -96,6 +96,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		msg, err := utils.UnmarshalMessage[T](attrs, data)
 		if err != nil {
 			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to unmarshal message")
+			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to unmarshal message").Err()
 		}
 
 		// Start the request tracing span
