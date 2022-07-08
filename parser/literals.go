@@ -2,7 +2,6 @@ package parser
 
 import (
 	"errors"
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -152,12 +151,9 @@ func (p *parser) parseConstantValue(file *est.File, value ast.Expr) (rtn constan
 		case token.QUO:
 			// constant.BinaryOp panics when dividing by zero
 			if floatValue, _ := constant.Float64Val(constant.ToFloat(rhs)); floatValue <= 0.000000001 && floatValue >= -0.000000001 {
-				fmt.Printf("this is a float! %v\n", floatValue)
 				p.errf(value.Pos(), "cannot divide by zero")
 				return constant.MakeUnknown()
 			}
-
-			fmt.Println("Divide")
 
 			return constant.BinaryOp(lhs, value.Op, rhs)
 		case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
