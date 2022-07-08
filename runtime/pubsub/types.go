@@ -8,6 +8,10 @@ import (
 )
 
 // SubscriptionConfig is used when creating a subscription
+//
+// The values given here may be clamped to the supported values by
+// the target cloud. (i.e. ack deadline may be brought within the supported range
+// by the target cloud pubsub implementation).
 type SubscriptionConfig[T any] struct {
 	// The function which will be called to process a message
 	// sent on the topic.
@@ -32,7 +36,9 @@ type SubscriptionConfig[T any] struct {
 
 	// AckDeadline is the time a consumer has to process a message
 	// before it's returned to the subscription
-	// Default is 30 seconds.
+	//
+	// Default is 30 seconds, however the ack deadline must be at least
+	// 1 second.
 	AckDeadline time.Duration
 
 	// MessageRetention is how long an undelivered message is kept

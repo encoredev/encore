@@ -5,7 +5,7 @@ stdout 'pubsubTopic another-topic'
 stdout 'pubsubPublisher basic-topic foo'
 stdout 'pubsubSubscriber basic-topic basic-subscription svc 45000000000 396000000000000 3 8000000000 1920000000000'
 stdout 'pubsubSubscriber basic-topic another-subscription svc 30000000000 604800000000000 100 10000000000 600000000000'
-stdout 'pubsubSubscriber basic-topic a-third-subscription foo 1000000 1999000 47 3998000 4997000'
+stdout 'pubsubSubscriber basic-topic a-third-subscription foo 1000000000 119999999000 47 14399999998000 17999999997000'
 
 -- shared/topics.go --
 package shared
@@ -93,12 +93,12 @@ var _ = pubsub.NewSubscription(
         Handler: func(ctx context.Context, msg *shared.MessageType) error {
           return nil
       },
-      AckDeadline: 1 * time.Millisecond,
-      MessageRetention: 2 * time.Millisecond + -1 * time.Microsecond,
+      AckDeadline: 1 * time.Second,
+      MessageRetention: 2 * time.Minute + -1 * time.Microsecond,
       RetryPolicy: &pubsub.RetryPolicy{
           MaxRetries: -3 + 10 * 5,
-          MinBackoff: 4 * time.Millisecond + -2 * time.Microsecond,
-          MaxBackoff: 5 * time.Millisecond + -3 * time.Microsecond,
+          MinBackoff: 4 * time.Hour + -2 * time.Microsecond,
+          MaxBackoff: 5 * time.Hour + -3 * time.Microsecond,
       },
     },
 )

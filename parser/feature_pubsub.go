@@ -86,21 +86,32 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 
 	// Parse the literal struct representing the subscription configuration
 	// so we can extract the reference to the handler function
-	constantCfg, dynamicCfg := p.parseStructLit(file, "pubsub.TopicConfig", callExpr.Args[1])
-	deliveryGuarantee, found := constantCfg["DeliveryGuarantee"]
-	if !found {
-		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to be explicitly set.")
+	cfg, ok := p.parseStructLit(file, "pubsub.TopicConfig", callExpr.Args[1])
+	if !ok {
 		return nil
 	}
-	if deliveryGuarantee != int64(1) {
-		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to a valid value such as \"pubsub.AtLeastOnce\".")
+	if !cfg.FullyConstant() {
+		for fieldName, expr := range cfg.DynamicFields() {
+			p.errf(expr.Pos(), "All values in pubsub.TopicConfig must be a constant, however %s was not a constant, got %s", fieldName, prettyPrint(expr))
+		}
+		return nil
+	}
+
+	if !cfg.IsSet("DeliveryGuarantee") {
+		p.errf(cfg.Pos("DeliveryGuarantee"), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to be explicitly set.")
+		return nil
+	}
+	deliveryGuarantee := cfg.Int64("DeliveryGuarantee", 0)
+	if deliveryGuarantee != 1 {
+		p.errf(cfg.Pos("DeliveryGuarantee"), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to a valid value such as \"pubsub.AtLeastOnce\".")
 		return nil
 	}
 
 	// Get the ordering key
 	orderingKey := ""
-	if value, found := constantCfg["OrderingKey"]; found {
-		if str, ok := value.(string); ok {
+	if cfg.IsSet("OrderingKey") {
+		str := cfg.Str("OrderingKey", "")
+		if str != "" {
 			orderingKey = str
 
 			str := messageType.Type.GetStruct()
@@ -114,14 +125,12 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 				}
 
 				if !found || !ast.IsExported(orderingKey) {
-					p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a one of the exported fields on the message type.")
+					p.errf(cfg.Pos("OrderingKey"), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a one of the exported fields on the message type.")
 				}
 			}
 		} else {
-			p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a string literal.")
+			p.errf(cfg.Pos("OrderingKey"), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to either not be set, or be set to a non empty string referencing the field in the message type you want to order messages by.")
 		}
-	} else if val, found := dynamicCfg["OrderingKey"]; found {
-		p.errf(callExpr.Args[1].Pos(), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a string literal, got %s", prettyPrint(val))
 	}
 
 	// Record the topic
@@ -185,9 +194,25 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 
 	// Parse the literal struct representing the subscription configuration
 	// so we can extract the reference to the handler function
-	constantCfg, dynamicCfg := p.parseStructLit(file, "pubsub.SubscriptionConfig", callExpr.Args[2])
-	handler, found := dynamicCfg["Handler"]
-	if !found {
+	cfg, ok := p.parseStructLit(file, "pubsub.SubscriptionConfig", callExpr.Args[2])
+	if !ok {
+		return nil
+	}
+
+	// Check everything apart from Handler is constant
+	ok = true
+	for fieldName, expr := range cfg.DynamicFields() {
+		if fieldName != "Handler" {
+			p.errf(expr.Pos(), "All values in pubsub.SubscriptionConfig must be a constant, however %s was not a constant, got %s", fieldName, prettyPrint(expr))
+			ok = false
+		}
+	}
+	if !ok {
+		return nil
+	}
+
+	handler := cfg.Expr("Handler")
+	if handler == nil {
 		p.errf(callExpr.Args[2].Pos(), "pubsub.NewSubscription requires the configuration field named \"Handler\" to populated with the subscription handler function.")
 		return nil
 	}
@@ -225,6 +250,32 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 		return nil
 	}
 
+	// Verify other configuration
+	ackDeadline := time.Duration(cfg.Int64("AckDeadline", int64(30*time.Second)))
+	if ackDeadline < 1*time.Second {
+		p.errf(cfg.Pos("AckDeadline"), "AckDeadline must be at least 1 second, was %s", ackDeadline)
+	}
+
+	messageRetention := time.Duration(cfg.Int64("MessageRetention", int64(7*24*time.Hour)))
+	if messageRetention < 1*time.Minute {
+		p.errf(cfg.Pos("MessageRetention"), "MessageRetention must be at least 1 minute, was %s", messageRetention)
+	}
+
+	minRetryBackoff := time.Duration(cfg.Int64("RetryPolicy.MinBackoff", int64(10*time.Second)))
+	if minRetryBackoff < 1*time.Second {
+		p.errf(cfg.Pos("RetryPolicy.MinBackoff"), "RetryPolicy.MinBackoff must be at least 1 second, was %s", minRetryBackoff)
+	}
+
+	maxRetryBackoff := time.Duration(cfg.Int64("RetryPolicy.MaxBackoff", int64(10*time.Minute)))
+	if maxRetryBackoff < 1*time.Second {
+		p.errf(cfg.Pos("RetryPolicy.MaxBackoff"), "RetryPolicy.MaxBackoff must be at least 1 second, was %s", minRetryBackoff)
+	}
+
+	maxRetries := cfg.Int64("RetryPolicy.MaxRetries", 100)
+	if maxRetries < -2 {
+		p.errf(cfg.Pos("RetryPolicy.MaxRetries"), "RetryPolicy.MaxRetries must be a positive number or the constants `pubsub.InfiniteRetries` or `pubsub.NoRetries`, was %d", maxRetries)
+	}
+
 	// Record the subscription
 	subscription := &est.PubSubSubscriber{
 		Name:             subscriberName,
@@ -234,58 +285,14 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 		FuncFile:         funcFile,
 		DeclFile:         file,
 		IdentAST:         ident,
-		AckDeadline:      asInt64(constantCfg, "AckDeadline", int64(30*time.Second)),
-		MessageRetention: asInt64(constantCfg, "MessageRetention", int64(7*24*time.Hour)),
-		MinRetryBackoff:  asInt64(constantCfg["RetryPolicy"], "MinBackoff", int64(10*time.Second)),
-		MaxRetryBackoff:  asInt64(constantCfg["RetryPolicy"], "MaxBackoff", int64(10*time.Minute)),
-		MaxRetries:       asInt64(constantCfg["RetryPolicy"], "MaxRetries", 100),
+		AckDeadline:      ackDeadline,
+		MessageRetention: messageRetention,
+		MinRetryBackoff:  minRetryBackoff,
+		MaxRetryBackoff:  maxRetryBackoff,
+		MaxRetries:       maxRetries,
 	}
 	topic.Subscribers = append(topic.Subscribers, subscription)
 	return subscription
-}
-
-func asInt64(obj any, key string, defaultValue int64) int64 {
-	if obj == nil {
-		return defaultValue
-	}
-	objMap, ok := obj.(map[string]any)
-	if !ok {
-		return defaultValue
-	}
-
-	value, found := objMap[key]
-	if !found || value == nil {
-		return defaultValue
-	}
-
-	switch value := value.(type) {
-	case int64:
-		if value != 0 {
-			return value
-		}
-	case uint64:
-		if value != 0 {
-			return int64(value)
-		}
-	case int32:
-		if value != 0 {
-			return int64(value)
-		}
-	case uint32:
-		if value != 0 {
-			return int64(value)
-		}
-	case int:
-		if value != 0 {
-			return int64(value)
-		}
-	case uint:
-		if value != 0 {
-			return int64(value)
-		}
-	}
-
-	return defaultValue
 }
 
 func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {

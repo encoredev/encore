@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"go/ast"
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
@@ -17,10 +16,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"golang.org/x/mod/modfile"
 
-	"encr.dev/pkg/errlist"
-
 	"encr.dev/parser/est"
-	"encr.dev/parser/internal/names"
 )
 
 func TestCollectPackages(t *testing.T) {
@@ -183,75 +179,4 @@ func TestMain(m *testing.M) {
 			return 0
 		},
 	}))
-}
-
-func TestParseDurationLiteral(t *testing.T) {
-	c := qt.New(t)
-	var tests = []struct {
-		Expr string
-		Want int64
-		Err  string
-	}{
-		{
-			Expr: "1*cron.Minute",
-			Want: 1 * minute,
-		},
-		{
-			Expr: "(4/2)*cron.Minute",
-			Want: 2 * minute,
-		},
-		{
-			Expr: "(4-2)*cron.Minute + cron.Hour",
-			Want: 2*minute + hour,
-		},
-		// Note the "(?s)" allows for "." to match newlines
-		// This is needed when running tests with the tag `dev_build` which includes
-		// stack traces from the parser in the error message.
-		{
-			Expr: "2.3 * 2",
-			Err:  `(?s).+ floating point numbers are not supported .+`,
-		},
-		{
-			Expr: "2.3 / (1 - 1)",
-			Err:  `(?s).+ cannot divide by zero.*`,
-		},
-	}
-
-	for i, test := range tests {
-		c.Run(fmt.Sprintf("test[%d]", i), func(c *qt.C) {
-			fset := token.NewFileSet()
-			x, err := goparser.ParseExprFrom(fset, c.Name()+".go", test.Expr, goparser.AllErrors)
-			c.Assert(err, qt.IsNil)
-
-			// Find the "cron" import ident and add it to the file info object.
-			info := &names.File{
-				Idents: make(map[*ast.Ident]*names.Name),
-			}
-			ast.Inspect(x, func(n ast.Node) bool {
-				if sel, ok := n.(*ast.SelectorExpr); ok {
-					if id, ok := sel.X.(*ast.Ident); ok {
-						if id.Name == "cron" {
-							info.Idents[id] = &names.Name{
-								Package:    true,
-								ImportPath: "encore.dev/cron",
-							}
-						}
-					}
-				}
-				return true
-			})
-
-			p := &parser{fset: fset, errors: errlist.New(fset)}
-			dur, ok := p.parseCronLiteral(info, x)
-			if test.Err != "" {
-				c.Check(ok, qt.IsFalse)
-				c.Check(p.errors.Err(), qt.IsNotNil)
-				c.Check(p.errors.Err(), qt.ErrorMatches, test.Err)
-			} else {
-				c.Check(ok, qt.IsTrue)
-				c.Check(dur, qt.Equals, test.Want)
-				c.Check(p.errors.Err(), qt.IsNil)
-			}
-		})
-	}
 }

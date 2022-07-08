@@ -275,6 +275,6 @@ export interface PubSubTopic_RetryPolicy {
   min_backoff: number;
   /** max backoff in nanoseconds */
   max_backoff: number;
-  /** max number of retires */
+  /** max number of retries */
   max_retries: number;
 }

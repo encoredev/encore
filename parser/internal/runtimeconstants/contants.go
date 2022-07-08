@@ -10,6 +10,10 @@ var constants = map[string]map[string]int64{
 		"InfiniteRetries": -1,
 		"AtLeastOnce":     1,
 	},
+	"encore.dev/cron": {
+		"Minute": 60,
+		"Hour":   60 * 60,
+	},
 	"time": {
 		"Nanosecond":  int64(time.Nanosecond),
 		"Microsecond": int64(time.Microsecond),

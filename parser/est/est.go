@@ -8,6 +8,7 @@ import (
 	"errors"
 	"go/ast"
 	"go/token"
+	"time"
 
 	"encr.dev/parser/paths"
 	schema "encr.dev/proto/encore/parser/schema/v1"
@@ -122,10 +123,10 @@ type PubSubSubscriber struct {
 	DeclFile *File        // The file that the subscriber is defined in
 	IdentAST *ast.Ident   // The AST node representing the value this topic is bound against
 
-	AckDeadline      int64 // time in nanoseconds
-	MessageRetention int64 // time in nanoseconds
-	MinRetryBackoff  int64 // time in nanoseconds
-	MaxRetryBackoff  int64 // time in nanoseconds
+	AckDeadline      time.Duration
+	MessageRetention time.Duration
+	MinRetryBackoff  time.Duration
+	MaxRetryBackoff  time.Duration
 	MaxRetries       int64 // number of attempts
 }
 

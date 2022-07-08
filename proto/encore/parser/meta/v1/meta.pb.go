@@ -2024,7 +2024,7 @@ type PubSubTopic_RetryPolicy struct {
 
 	MinBackoff int64 `protobuf:"varint,1,opt,name=min_backoff,json=minBackoff,proto3" json:"min_backoff,omitempty"` // min backoff in nanoseconds
 	MaxBackoff int64 `protobuf:"varint,2,opt,name=max_backoff,json=maxBackoff,proto3" json:"max_backoff,omitempty"` // max backoff in nanoseconds
-	MaxRetries int64 `protobuf:"varint,3,opt,name=max_retries,json=maxRetries,proto3" json:"max_retries,omitempty"` // max number of retires
+	MaxRetries int64 `protobuf:"varint,3,opt,name=max_retries,json=maxRetries,proto3" json:"max_retries,omitempty"` // max number of retries
 }
 
 func (x *PubSubTopic_RetryPolicy) Reset() {

@@ -217,7 +217,7 @@ message PubSubTopic {
   message RetryPolicy {
     int64 min_backoff = 1; // min backoff in nanoseconds
     int64 max_backoff = 2; // max backoff in nanoseconds
-    int64 max_retries = 3; // max number of retires
+    int64 max_retries = 3; // max number of retries
   }
 
   enum DeliveryGuarantee {

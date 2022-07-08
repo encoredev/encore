@@ -112,11 +112,11 @@ func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
 			rtn = append(rtn, &meta.PubSubTopic_Subscription{
 				Name:             s.Name,
 				ServiceName:      s.DeclFile.Pkg.Service.Name,
-				AckDeadline:      s.AckDeadline,
-				MessageRetention: s.MessageRetention,
+				AckDeadline:      int64(s.AckDeadline),
+				MessageRetention: int64(s.MessageRetention),
 				RetryPolicy: &meta.PubSubTopic_RetryPolicy{
-					MinBackoff: s.MinRetryBackoff,
-					MaxBackoff: s.MaxRetryBackoff,
+					MinBackoff: int64(s.MinRetryBackoff),
+					MaxBackoff: int64(s.MaxRetryBackoff),
 					MaxRetries: s.MaxRetries,
 				},
 			})
