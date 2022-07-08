@@ -207,8 +207,17 @@ message PubSubTopic {
   }
 
   message Subscription {
-    string name         = 1; // The unique name of the subscription for this topic
-    string service_name = 2; // The service that the subscriber is in
+    string name              = 1; // The unique name of the subscription for this topic
+    string service_name      = 2; // The service that the subscriber is in
+    int64  ack_deadline      = 3; // How long has a consumer got to process and ack a message in nanoseconds
+    int64  message_retention = 4; // How long is an undelivered message kept in nanoseconds
+    RetryPolicy retry_policy = 5; // The retry policy for the subscription
+  }
+
+  message RetryPolicy {
+    int64 min_backoff = 1; // min backoff in nanoseconds
+    int64 max_backoff = 2; // max backoff in nanoseconds
+    int64 max_retries = 3; // max number of retries
   }
 
   enum DeliveryGuarantee {

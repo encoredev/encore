@@ -3,17 +3,12 @@ package parser
 import (
 	"fmt"
 	"go/ast"
-	"go/constant"
-	"go/token"
-	"math/big"
 	"sort"
-	"strconv"
 
 	cronparser "github.com/robfig/cron/v3"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
-	"encr.dev/parser/internal/names"
 	"encr.dev/parser/internal/walker"
 )
 
@@ -57,123 +52,106 @@ func (p *parser) parseCronJob(file *est.File, cursor *walker.Cursor, ident *ast.
 		// error already reported
 		return nil
 	}
+
+	// Parse the literal struct representing the job configuration
+	cfg, ok := p.parseStructLit(file, "cron.JobConfig", callExpr.Args[1])
+	if !ok {
+		return nil
+	}
+	// Check everything apart from Handler is constant
+	ok = true
+	for fieldName, expr := range cfg.DynamicFields() {
+		if fieldName != "Endpoint" {
+			p.errf(expr.Pos(), "All values in cron.JobConfig must be a constant, however %s was not a constant, got %s", fieldName, prettyPrint(expr))
+			ok = false
+		}
+	}
+	if !ok {
+		return nil
+	}
+
 	cj.ID = cronJobID
-	cj.Title = cronJobID // Set ID as the default title
+	cj.Title = cfg.Str("Title", cronJobID)
 
-	if cl, ok := callExpr.Args[1].(*ast.CompositeLit); ok {
-		info := p.names[file.Pkg].Files[file]
+	// Parse the schedule
+	switch {
+	case cfg.IsSet("Every") && cfg.IsSet("Schedule"):
+		p.errf(cfg.Pos("Every"), "Cron execution schedule was set twice, once in Every and one in Schedule, at least one must be set but not both")
+		return nil
+	case cfg.IsSet("Schedule"):
+		parsed := cfg.Str("Schedule", "")
+		_, err := cronjobParser.Parse(parsed)
+		if err != nil {
+			p.errf(cfg.Pos("Schedule"), "Schedule must be a valid cron expression: %s", err)
+			return nil
+		}
+		cj.Schedule = fmt.Sprintf("schedule:%s", parsed)
+	case cfg.IsSet("Every"):
+		dur := cfg.Int64("Every", 0)
+		if rem := dur % minute; rem != 0 {
+			p.errf(cfg.Pos("Every"), "Every: must be an integer number of minutes, got %d", dur)
+			return nil
+		}
 
-		if imp, obj := pkgObj(info, cl.Type); imp == cronImportPath && obj == "JobConfig" {
-			hasSchedule := false
-			for _, e := range cl.Elts {
-				kv := e.(*ast.KeyValueExpr)
-				key, ok := kv.Key.(*ast.Ident)
-				if !ok {
-					p.errf(kv.Pos(), "field must be an identifier")
-					return nil
-				}
-				switch key.Name {
-				case "Title":
-					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
-						parsed, _ := strconv.Unquote(v.Value)
-						cj.Title = parsed
-					} else {
-						p.errf(v.Pos(), "Title must be a string literal")
-						return nil
-					}
-				case "Every":
-					if hasSchedule {
-						p.errf(kv.Pos(), "Every: cron execution schedule was already defined using the Schedule field, at least one must be set but not both")
-						return nil
-					}
-					if dur, ok := p.parseCronLiteral(info, kv.Value); ok {
-						// We only support intervals that are a positive integer number of minutes.
-						if rem := dur % minute; rem != 0 {
-							p.errf(kv.Value.Pos(), "Every: must be an integer number of minutes, got %d", dur)
-							return nil
-						}
+		minutes := dur / minute
+		if minutes < 1 {
+			p.errf(cfg.Pos("Every"), "Every: duration must be one minute or greater, got %d", minutes)
+			return nil
+		} else if minutes > 24*60 {
+			p.errf(cfg.Pos("Every"), "Every: duration must not be greater than 24 hours (1440 minutes), got %d", minutes)
+			return nil
+		} else if suggestion, ok := p.isCronIntervalAllowed(int(minutes)); !ok {
+			suggestionStr := p.formatMinutes(suggestion)
+			minutesStr := p.formatMinutes(int(minutes))
+			p.errf(cfg.Pos("Every"), "Every: 24 hour time range (from 00:00 to 23:59) "+
+				"needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
+			return nil
+		}
+		cj.Schedule = fmt.Sprintf("every:%d", minutes)
+	}
 
-						minutes := dur / minute
-						if minutes < 1 {
-							p.errf(kv.Value.Pos(), "Every: duration must be one minute or greater, got %d", minutes)
-							return nil
-						} else if minutes > 24*60 {
-							p.errf(kv.Value.Pos(), "Every: duration must not be greater than 24 hours (1440 minutes), got %d", minutes)
-							return nil
-						} else if suggestion, ok := p.isCronIntervalAllowed(int(minutes)); !ok {
-							suggestionStr := p.formatMinutes(suggestion)
-							minutesStr := p.formatMinutes(int(minutes))
-							p.errf(kv.Value.Pos(), "Every: 24 hour time range (from 00:00 to 23:59) "+
-								"needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
-							return nil
-						}
-						cj.Schedule = fmt.Sprintf("every:%d", minutes)
-						hasSchedule = true
-					} else {
-						return nil
-					}
-				case "Schedule":
-					if hasSchedule {
-						p.errf(kv.Pos(), "cron execution schedule was already defined using the Every field, at least one must be set but not both")
-						return nil
-					}
-					if v, ok := kv.Value.(*ast.BasicLit); ok && v.Kind == token.STRING {
-						parsed, _ := strconv.Unquote(v.Value)
-						_, err := cronjobParser.Parse(parsed)
-						if err != nil {
-							p.errf(v.Pos(), "Schedule must be a valid cron expression: %s", err)
-							return nil
-						}
-						cj.Schedule = fmt.Sprintf("schedule:%s", parsed)
-						hasSchedule = true
-					} else {
-						p.errf(v.Pos(), "Schedule must be a string literal")
-						return nil
-					}
-				case "Endpoint":
-					// This is one of the places where it's fine to reference an RPC endpoint.
-					p.validRPCReferences[kv.Value] = true
+	// Parse the endpoint
+	{
+		endpoint := cfg.Expr("Endpoint")
+		if endpoint == nil {
+			p.errf(cfg.Pos("Endpoint"), "Endpoint must be defined in cron.JobConfig.")
+			return nil
+		}
 
-					pkgPath, objName, _ := p.names.PackageLevelRef(file, kv.Value)
-					if pkgPath != "" {
-						if svc, found := p.svcPkgPaths[pkgPath]; found {
-							for _, rpc := range svc.RPCs {
-								if rpc.Func.Name.Name == objName {
-									cj.RPC = rpc
-									break
-								}
-							}
-						}
+		// This is one of the places where it's fine to reference an RPC endpoint.
+		p.validRPCReferences[endpoint] = true
+		pkgPath, objName, _ := p.names.PackageLevelRef(file, endpoint)
+		if pkgPath != "" {
+			if svc, found := p.svcPkgPaths[pkgPath]; found {
+				for _, rpc := range svc.RPCs {
+					if rpc.Func.Name.Name == objName {
+						cj.RPC = rpc
+						break
 					}
-
-					if cj.RPC == nil {
-						p.errf(kv.Value.Pos(), "Endpoint does not reference an Encore API")
-						return nil
-					}
-				default:
-					p.errf(key.Pos(), "cron.JobConfig has unknown key %s", key.Name)
-					return nil
 				}
 			}
-
-			if _, err := cj.IsValid(); err != nil {
-				p.errf(cl.Pos(), "cron.NewJob: %s", err)
-			}
-
-			cj.Doc = cursor.DocComment()
-			if cronJob2 := p.jobsMap[cj.ID]; cronJob2 != nil {
-				p.errf(callExpr.Pos(), "cron job %s defined twice", cj.ID)
-				return nil
-			}
-
-			p.jobs = append(p.jobs, cj)
-			p.jobsMap[cj.ID] = cj
-
-			return cj
+		}
+		if cj.RPC == nil {
+			p.errf(endpoint.Pos(), "Endpoint does not reference an Encore API")
+			return nil
 		}
 	}
 
-	return nil
+	if _, err := cj.IsValid(); err != nil {
+		p.errf(callExpr.Pos(), "cron.NewJob: %s", err)
+		return nil
+	}
+
+	cj.Doc = cursor.DocComment()
+	if cronJob2 := p.jobsMap[cj.ID]; cronJob2 != nil {
+		p.errf(callExpr.Pos(), "cron job %s defined twice", cj.ID)
+		return nil
+	}
+
+	p.jobs = append(p.jobs, cj)
+	p.jobsMap[cj.ID] = cj
+
+	return cj
 }
 
 // abs returns the absolute value of x.
@@ -211,117 +189,4 @@ func (p *parser) isCronIntervalAllowed(val int) (suggestion int, ok bool) {
 	}
 
 	return allowed[idx], false
-}
-
-// parseCronLiteral parses an expression representing a cron duration constant.
-// It uses go/constant to perform arbitrary-precision arithmetic according
-// to the rules of the Go compiler.
-func (p *parser) parseCronLiteral(info *names.File, durationExpr ast.Expr) (dur int64, ok bool) {
-	zero := constant.MakeInt64(0)
-	var parse func(expr ast.Expr) constant.Value
-	parse = func(expr ast.Expr) constant.Value {
-		switch x := expr.(type) {
-		case *ast.BinaryExpr:
-			lhs := parse(x.X)
-			rhs := parse(x.Y)
-			switch x.Op {
-			case token.MUL, token.ADD, token.SUB, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
-				return constant.BinaryOp(lhs, x.Op, rhs)
-			case token.QUO:
-				// constant.BinaryOp panics when dividing by zero
-				if constant.Compare(rhs, token.EQL, zero) {
-					p.errf(x.Pos(), "cannot divide by zero")
-					return constant.MakeUnknown()
-				}
-
-				return constant.BinaryOp(lhs, x.Op, rhs)
-			default:
-				p.errf(x.Pos(), "unsupported operation: %s", x.Op)
-				return constant.MakeUnknown()
-			}
-
-		case *ast.UnaryExpr:
-			val := parse(x.X)
-			switch x.Op {
-			case token.ADD, token.SUB, token.XOR:
-				return constant.UnaryOp(x.Op, val, 0)
-			default:
-				p.errf(x.Pos(), "unsupported operation: %s", x.Op)
-				return constant.MakeUnknown()
-			}
-
-		case *ast.BasicLit:
-			switch x.Kind {
-			case token.INT, token.FLOAT:
-				return constant.MakeFromLiteral(x.Value, x.Kind, 0)
-			default:
-				p.errf(x.Pos(), "unsupported literal in duration expression: %s", x.Kind)
-				return constant.MakeUnknown()
-			}
-
-		case *ast.CallExpr:
-			// We allow "cron.Duration(x)" as a no-op
-			if sel, ok := x.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Duration" {
-				if id, ok := sel.X.(*ast.Ident); ok {
-					ri := info.Idents[id]
-					if ri != nil && ri.ImportPath == cronImportPath {
-						if len(x.Args) == 1 {
-							return parse(x.Args[0])
-						}
-					}
-				}
-			}
-			p.errf(x.Pos(), "unsupported call expression in duration expression")
-			return constant.MakeUnknown()
-
-		case *ast.SelectorExpr:
-			if pkg, obj := pkgObj(info, x); pkg == cronImportPath {
-				var d int64
-				switch obj {
-				case "Minute":
-					d = minute
-				case "Hour":
-					d = hour
-				default:
-					p.errf(x.Pos(), "unsupported duration value: %s.%s (expected cron.Minute or cron.Hour)", pkg, obj)
-					return constant.MakeUnknown()
-				}
-				return constant.MakeInt64(d)
-			}
-			p.errf(x.Pos(), "unexpected value in duration literal")
-			return constant.MakeUnknown()
-
-		case *ast.ParenExpr:
-			return parse(x.X)
-
-		default:
-			p.errf(x.Pos(), "unsupported expression in duration literal: %T", x)
-			return constant.MakeUnknown()
-		}
-	}
-
-	val := constant.Val(parse(durationExpr))
-	switch val := val.(type) {
-	case int64:
-		return val, true
-	case *big.Int:
-		if !val.IsInt64() {
-			p.errf(durationExpr.Pos(), "duration expression out of bounds")
-			return 0, false
-		}
-		return val.Int64(), true
-	case *big.Rat:
-		num := val.Num()
-		if val.IsInt() && num.IsInt64() {
-			return num.Int64(), true
-		}
-		p.errf(durationExpr.Pos(), "floating point numbers are not supported in duration literals")
-		return 0, false
-	case *big.Float:
-		p.errf(durationExpr.Pos(), "floating point numbers are not supported in duration literals")
-		return 0, false
-	default:
-		p.errf(durationExpr.Pos(), "unsupported duration literal")
-		return 0, false
-	}
 }
