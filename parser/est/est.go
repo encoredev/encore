@@ -8,6 +8,7 @@ import (
 	"errors"
 	"go/ast"
 	"go/token"
+	"time"
 
 	"encr.dev/parser/paths"
 	schema "encr.dev/proto/encore/parser/schema/v1"
@@ -121,6 +122,12 @@ type PubSubSubscriber struct {
 	FuncFile *File        // The file the subscriber function is declared in
 	DeclFile *File        // The file that the subscriber is defined in
 	IdentAST *ast.Ident   // The AST node representing the value this topic is bound against
+
+	AckDeadline      time.Duration
+	MessageRetention time.Duration
+	MinRetryBackoff  time.Duration
+	MaxRetryBackoff  time.Duration
+	MaxRetries       int64 // number of attempts
 }
 
 func (p *PubSubSubscriber) Type() ResourceType         { return PubSubTopicResource }

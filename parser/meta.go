@@ -110,8 +110,15 @@ func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
 	parseSubscribers := func(subs ...*est.PubSubSubscriber) (rtn []*meta.PubSubTopic_Subscription) {
 		for _, s := range subs {
 			rtn = append(rtn, &meta.PubSubTopic_Subscription{
-				Name:        s.Name,
-				ServiceName: s.DeclFile.Pkg.Service.Name,
+				Name:             s.Name,
+				ServiceName:      s.DeclFile.Pkg.Service.Name,
+				AckDeadline:      int64(s.AckDeadline),
+				MessageRetention: int64(s.MessageRetention),
+				RetryPolicy: &meta.PubSubTopic_RetryPolicy{
+					MinBackoff: int64(s.MinRetryBackoff),
+					MaxBackoff: int64(s.MaxRetryBackoff),
+					MaxRetries: s.MaxRetries,
+				},
 			})
 		}
 		return rtn

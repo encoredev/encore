@@ -1,5 +1,5 @@
 ! parse
-stderr 'The function passed as the Handler argument to `pubsub.SubscriptionConfig` is required, was given as nil.'
+stderr 'pubsub.NewSubscription requires the configuration field named "Handler" to populated with the subscription handler function.'
 
 -- svc/svc.go --
 package svc

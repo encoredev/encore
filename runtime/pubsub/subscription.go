@@ -59,14 +59,14 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 			MaxRetries: 100,
 		}
 	}
-	if subscriptionCfg.RetryPolicy.MinRetryDelay < 0 {
+	if subscriptionCfg.RetryPolicy.MinBackoff < 0 {
 		panic("MinRetryDelay cannot be negative")
 	}
-	if subscriptionCfg.RetryPolicy.MaxRetryDelay < 0 {
+	if subscriptionCfg.RetryPolicy.MaxBackoff < 0 {
 		panic("MaxRetryDelay cannot be negative")
 	}
-	subscriptionCfg.RetryPolicy.MinRetryDelay = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MinRetryDelay, 10*time.Second)
-	subscriptionCfg.RetryPolicy.MaxRetryDelay = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MaxRetryDelay, 10*time.Minute)
+	subscriptionCfg.RetryPolicy.MinBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MinBackoff, 10*time.Second)
+	subscriptionCfg.RetryPolicy.MaxBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MaxBackoff, 10*time.Minute)
 
 	subscription, staticCfg := topic.getSubscriptionConfig(name)
 	panicCatchWrapper := func(ctx context.Context, msg T) (err error) {

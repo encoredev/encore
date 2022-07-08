@@ -15,10 +15,10 @@ import (
 // by the target cloud).
 type RetryPolicy struct {
 	// The minimum time to wait between retries. Defaults to 10 seconds.
-	MinRetryDelay time.Duration
+	MinBackoff time.Duration
 
 	// The maximum time to wait between retries. Defaults to 10 minutes.
-	MaxRetryDelay time.Duration
+	MaxBackoff time.Duration
 
 	// MaxRetries is used to control deadletter queuing logic, when:
 	//   n == 0: A default value of 100 retries will be used
