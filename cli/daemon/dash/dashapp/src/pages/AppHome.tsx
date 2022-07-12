@@ -19,13 +19,13 @@ const AppHome: FunctionComponent = (props) => {
             <div className="flex-1 min-w-0 md:mr-8">
               <h2 className="px-2 text-lg font-medium">API Explorer</h2>
               <div className="mt-2 rounded-lg overflow-hidden">
-                <AppCaller appID={appID} conn={conn} />
+                <AppCaller key={appID} appID={appID} conn={conn} />
               </div>
             </div>
             <div className="mt-4 md:mt-0 flex-1 min-w-0">
               <h2 className="px-2 text-lg font-medium">Traces</h2>
               <div className="mt-2 rounded-lg overflow-hidden">
-                <AppTraces appID={appID} conn={conn} />
+                <AppTraces key={appID} appID={appID} conn={conn} />
               </div>
             </div>
           </div>
