@@ -633,7 +633,7 @@ const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack
   dt = dt.plus(Duration.fromMillis(ms))
 
   const render = (v: any) => {
-    if (typeof v === "object" && v !== null) {
+    if (v !== null) {
       return JSON.stringify(v)
     }
     return v
