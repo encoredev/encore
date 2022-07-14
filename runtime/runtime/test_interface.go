@@ -7,6 +7,7 @@ import (
 	"time"
 	_ "unsafe"
 
+	"encore.dev/runtime/config"
 	"encore.dev/runtime/trace"
 )
 
@@ -28,10 +29,11 @@ func encoreStartTest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := Logger().With().Str("test", t.Name()).Logger()
 	req := &Request{
-		Type:   Test,
-		SpanID: spanID,
-		Start:  time.Now(),
-		Traced: false,
+		Type:    Test,
+		SpanID:  spanID,
+		Start:   time.Now(),
+		Traced:  false,
+		Service: config.Cfg.Static.TestService,
 		Test: &TestData{
 			Ctx:     ctx,
 			Cancel:  cancel,
