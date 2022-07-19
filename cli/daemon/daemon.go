@@ -221,7 +221,11 @@ func (w streamWriter) Write(b []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.buffer && w.sl.buffered {
-		return w.sl.writeBuffered(&w.sl.stdout, b)
+		if w.stderr {
+			return w.sl.writeBuffered(&w.sl.stderr, b)
+		} else {
+			return w.sl.writeBuffered(&w.sl.stdout, b)
+		}
 	}
 	return w.sl.writeStream(w.stderr, b)
 }
