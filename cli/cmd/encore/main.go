@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"strings"
 
 	"github.com/fatih/color"
@@ -112,6 +113,9 @@ func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
 	var outWrite io.Writer = os.Stdout
 	var errWrite io.Writer = os.Stderr
 
+	var writesDone sync.WaitGroup
+	defer writesDone.Wait()
+
 	if convertJSON {
 		cout, cerr := zerolog.NewConsoleWriter(), zerolog.NewConsoleWriter()
 		cout.Out, cerr.Out = os.Stdout, os.Stderr
@@ -127,7 +131,9 @@ func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
 		for i, read := range []io.Reader{outRead, errRead} {
 			read := read
 			stdout := i == 0
+			writesDone.Add(1)
 			go func() {
+				defer writesDone.Done()
 				scanner := bufio.NewScanner(read)
 				for scanner.Scan() {
 					line := append(scanner.Bytes(), '\n')
