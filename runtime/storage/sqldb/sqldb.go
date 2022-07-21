@@ -5,35 +5,18 @@ package sqldb
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
-	"net"
-	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/jackc/pgx/v4/stdlib"
 
+	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
-	"encore.dev/internal/ctx"
 	"encore.dev/internal/stack"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
-	"encore.dev/runtime/trace"
 )
 
-var (
-	txidCounter  uint64
-	queryCounter uint64
-)
-
-// An error satisfying ErrNoRows is reported by Scan
-// when QueryRow doesn't return a row.
+// ErrNoRows is an error reported by Scan when QueryRow doesn't return a row.
 // It must be tested against with errors.Is.
 var ErrNoRows = sql.ErrNoRows
 
@@ -44,168 +27,107 @@ type ExecResult interface {
 	RowsAffected() int64
 }
 
-// Exec executes a query without returning any rows.
-// The args are for any placeholder parameters in the query.
-//
-// See (*database/sql.DB).ExecContext() for additional documentation.
-func Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
-	return getDB().exec(ctx, query, args...)
-}
-
-// Query executes a query that returns rows, typically a SELECT.
-// The args are for any placeholder parameters in the query.
-//
-// See (*database/sql.DB).QueryContext() for additional documentation.
-func Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
-	return getDB().query(ctx, query, args...)
-}
-
-// QueryRow executes a query that is expected to return at most one row.
-//
-// See (*database/sql.DB).QueryRowContext() for additional documentation.
-func QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
-	return getDB().queryRow(ctx, query, args...)
-}
-
-// Tx is a handle to a database transaction.
-//
-// See *database/sql.Tx for additional documentation.
 type Tx struct {
+	mgr  *Manager
 	txid uint64
 	std  pgx.Tx
 }
 
-// Begin opens a new database transaction.
-//
-// See (*database/sql.DB).Begin() for additional documentation.
-func Begin(ctx context.Context) (*Tx, error) {
-	return getDB().begin(ctx)
-}
-
 // Commit commits the given transaction.
 //
 // See (*database/sql.Tx).Commit() for additional documentation.
-func (tx *Tx) Commit() error {
-	return tx.commit()
-}
+func (tx *Tx) Commit() error { return tx.commit() }
 
 // Rollback rolls back the given transaction.
 //
 // See (*database/sql.Tx).Rollback() for additional documentation.
-func (tx *Tx) Rollback() error {
-	return tx.rollback()
-}
-
-// Exec is like Exec but executes the query in the given transaction.
-//
-// See (*database/sql.Tx).ExecContext() for additional documentation.
-func (tx *Tx) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
-	return tx.exec(ctx, query, args...)
-}
-
-// Query is like Query but executes the query in the given transaction.
-//
-// See (*database/sql.Tx).QueryContext() for additional documentation.
-func (tx *Tx) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
-	return tx.query(ctx, query, args...)
-}
-
-// QueryRow is like QueryRow but executes the query in the given transaction.
-//
-// See (*database/sql.Tx).QueryRowContext() for additional documentation.
-func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
-	return tx.queryRow(ctx, query, args...)
-}
-
-// Commit commits the given transaction.
-//
-// See (*database/sql.Tx).Commit() for additional documentation.
-// Deprecated: use tx.Commit() instead.
-func Commit(tx *Tx) error {
-	return tx.Commit()
-}
-
-// Rollback rolls back the given transaction.
-//
-// See (*database/sql.Tx).Rollback() for additional documentation.
-// Deprecated: use tx.Rollback() instead.
-func Rollback(tx *Tx) error {
-	return tx.rollback()
-}
-
-// ExecTx is like Exec but executes the query in the given transaction.
-//
-// See (*database/sql.Tx).ExecContext() for additional documentation.
-// Deprecated: use tx.Exec() instead.
-func ExecTx(tx *Tx, ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
-	return tx.exec(ctx, query, args...)
-}
-
-// QueryTx is like Query but executes the query in the given transaction.
-//
-// See (*database/sql.Tx).QueryContext() for additional documentation.
-// Deprecated: use tx.Query() instead.
-func QueryTx(tx *Tx, ctx context.Context, query string, args ...interface{}) (*Rows, error) {
-	return tx.query(ctx, query, args...)
-}
-
-// QueryRowTx is like QueryRow but executes the query in the given transaction.
-//
-// See (*database/sql.Tx).QueryRowContext() for additional documentation.
-// Deprecated: use tx.QueryRow() instead.
-func QueryRowTx(tx *Tx, ctx context.Context, query string, args ...interface{}) *Row {
-	return tx.queryRow(ctx, query, args...)
-}
+func (tx *Tx) Rollback() error { return tx.rollback() }
 
 func (tx *Tx) commit() error {
 	err := tx.std.Commit(context.Background())
 	err = convertErr(err)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceCompleteTxEnd(req.SpanID, uint64(goid), tx.txid, true, err, 4)
+
+	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxEnd(trace.DBTxEndParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   tx.txid,
+			Commit: true,
+			Err:    err,
+			Stack:  stack.Build(4),
+		})
 	}
+
 	return err
 }
 
 func (tx *Tx) rollback() error {
 	err := tx.std.Rollback(context.Background())
 	err = convertErr(err)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceCompleteTxEnd(req.SpanID, uint64(goid), tx.txid, false, err, 4)
+
+	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxEnd(trace.DBTxEndParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   tx.txid,
+			Commit: false,
+			Err:    err,
+			Stack:  stack.Build(4),
+		})
 	}
+
 	return err
 }
 
+func (tx *Tx) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
+	return tx.exec(ctx, query, args...)
+}
+
 func (tx *Tx) exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, tx.txid, 4)
+	qid := atomic.AddUint64(&tx.mgr.queryCtr, 1)
+
+	curr := tx.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    tx.txid,
+			Stack:   stack.Build(4),
+		})
 	}
 
 	res, err := tx.std.Exec(ctx, query, args...)
 	err = convertErr(err)
 
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
 
 	return res, err
 }
 
-func (tx *Tx) query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, tx.txid, 4)
+func (tx *Tx) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
+	qid := atomic.AddUint64(&tx.mgr.queryCtr, 1)
+
+	curr := tx.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    tx.txid,
+			Stack:   stack.Build(4),
+		})
 	}
 
 	rows, err := tx.std.Query(ctx, query, args...)
 	err = convertErr(err)
 
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
 
 	if err != nil {
@@ -214,11 +136,19 @@ func (tx *Tx) query(ctx context.Context, query string, args ...interface{}) (*Ro
 	return &Rows{std: rows}, nil
 }
 
-func (tx *Tx) queryRow(ctx context.Context, query string, args ...interface{}) *Row {
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, tx.txid, 4)
+func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
+	qid := atomic.AddUint64(&tx.mgr.queryCtr, 1)
+
+	curr := tx.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    tx.txid,
+			Stack:   stack.Build(4),
+		})
 	}
 
 	// pgx currently does not support .Err() on Row.
@@ -227,8 +157,8 @@ func (tx *Tx) queryRow(ctx context.Context, query string, args ...interface{}) *
 	err = convertErr(err)
 	r := &Row{rows: rows, err: err}
 
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, r.Err())
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
 
 	return r
@@ -304,125 +234,6 @@ func (r *Row) Err() error {
 	return convertErr(r.rows.Err())
 }
 
-var (
-	dbMu  sync.RWMutex
-	dbMap = make(map[string]*Database)
-)
-
-func getDB() *Database {
-	var dbName string
-	if req, _, _ := runtime.CurrentRequest(); req != nil {
-		dbName = req.Service
-	} else if testSvc := config.Cfg.Static.TestService; testSvc != "" {
-		dbName = testSvc
-	} else {
-		panic("sqldb: no current request")
-	}
-
-	dbMu.RLock()
-	db, ok := dbMap[dbName]
-	dbMu.RUnlock()
-	if ok {
-		return db
-	}
-
-	dbMu.Lock()
-	defer dbMu.Unlock()
-	// Check again now that we've re-acquired the mutex
-	if db, ok := dbMap[dbName]; ok {
-		return db
-	}
-	db = &Database{name: dbName, pool: getPool(dbName)}
-	dbMap[dbName] = db
-	return db
-}
-
-func getPool(name string) *pgxpool.Pool {
-	var db *config.SQLDatabase
-	for _, d := range config.Cfg.Runtime.SQLDatabases {
-		if d.EncoreName == name {
-			db = d
-			break
-		}
-	}
-	if db == nil {
-		panic("sqldb: unknown database: " + name)
-	}
-	srv := config.Cfg.Runtime.SQLServers[db.ServerID]
-	cfg, err := dbConf(srv, db)
-	if err != nil {
-		panic("sqldb: " + err.Error())
-	}
-	pool, err := pgxpool.ConnectConfig(ctx.App, cfg)
-	if err != nil {
-		panic("sqldb: setup db: " + err.Error())
-	}
-	runtime.RegisterShutdown(func(force context.Context) {
-		done := make(chan struct{}, 1)
-		go func() {
-			pool.Close()
-			close(done)
-		}()
-		select {
-		case <-force.Done():
-		case <-done:
-		}
-	})
-	return pool
-}
-
-func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, error) {
-	uri := fmt.Sprintf("user=%s password=%s dbname=%s", db.User, db.Password, db.DatabaseName)
-
-	// Handle different ways of expressing the host
-	if strings.HasPrefix(srv.Host, "/") {
-		uri += " host=" + srv.Host // unix socket
-	} else if host, port, err := net.SplitHostPort(srv.Host); err == nil {
-		uri += fmt.Sprintf(" host=%s port=%s", host, port) // host:port
-	} else {
-		uri += " host=" + srv.Host // hostname
-	}
-
-	if srv.ServerCACert != "" {
-		uri += " sslmode=verify-ca"
-	} else {
-		uri += " sslmode=prefer"
-	}
-
-	cfg, err := pgxpool.ParseConfig(uri)
-	if err != nil {
-		return nil, fmt.Errorf("invalid database uri: %v", err)
-	}
-	cfg.LazyConnect = true
-
-	// Set the pool size based on the config.
-	cfg.MaxConns = 30
-	if n := db.MaxConnections; n > 0 {
-		cfg.MaxConns = int32(n)
-	}
-
-	// If we have a server CA, set it in the TLS config.
-	if srv.ServerCACert != "" {
-		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM([]byte(srv.ServerCACert)) {
-			return nil, fmt.Errorf("invalid server ca cert")
-		}
-		cfg.ConnConfig.TLSConfig.RootCAs = caCertPool
-		cfg.ConnConfig.TLSConfig.ClientCAs = caCertPool
-	}
-
-	// If we have a client cert, set it in the TLS config.
-	if srv.ClientCert != "" {
-		cert, err := tls.X509KeyPair([]byte(srv.ClientCert), []byte(srv.ClientKey))
-		if err != nil {
-			return nil, fmt.Errorf("parse client cert: %v", err)
-		}
-		cfg.ConnConfig.TLSConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	return cfg, nil
-}
-
 func convertErr(err error) error {
 	switch err {
 	case pgx.ErrNoRows, sql.ErrNoRows:
@@ -435,71 +246,53 @@ func convertErr(err error) error {
 	return errs.DropStackFrame(err)
 }
 
-// constStr is a string that can only be provided as a constant.
-type constStr string
-
-// Named returns a database object connected to the database with the given name.
-//
-// The name must be a string literal constant, to facilitate static analysis.
-func Named(name constStr) *Database {
-	return &Database{name: string(name)}
-}
-
-type Database struct {
-	name string
-	cfg  *config.SQLDatabase
-
-	initOnce sync.Once
-	pool     *pgxpool.Pool
-	connStr  string
-
-	stdlibOnce sync.Once
-	stdlib     *sql.DB
-}
-
 func (db *Database) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
-	return db.exec(ctx, query, args...)
-}
-
-func (db *Database) exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
 	db.init()
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, 0, 4)
+	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(4),
+		})
 	}
 
 	res, err := db.pool.Exec(ctx, query, args...)
 	err = convertErr(err)
 
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
 
 	return res, err
 }
 
 func (db *Database) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
-	return db.query(ctx, query, args...)
-}
-
-func (db *Database) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
-	return db.queryRow(ctx, query, args...)
-}
-
-func (db *Database) query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	db.init()
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, 0, 4)
+	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(4),
+		})
 	}
 
 	rows, err := db.pool.Query(ctx, query, args...)
 	err = convertErr(err)
 
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
 
 	if err != nil {
@@ -508,172 +301,190 @@ func (db *Database) query(ctx context.Context, query string, args ...interface{}
 	return &Rows{std: rows}, nil
 }
 
-func (db *Database) queryRow(ctx context.Context, query string, args ...interface{}) *Row {
+func (db *Database) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
 	db.init()
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, 0, 4)
+	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(4),
+		})
 	}
 
 	rows, err := db.pool.Query(ctx, query, args...)
 	err = convertErr(err)
 	r := &Row{rows: rows, err: err}
 
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, r.Err())
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
 
 	return r
 }
 
 func (db *Database) Begin(ctx context.Context) (*Tx, error) {
-	return db.begin(ctx)
-}
-
-func (db *Database) begin(ctx context.Context) (*Tx, error) {
 	db.init()
 	tx, err := db.pool.Begin(ctx)
 	err = convertErr(err)
 	if err != nil {
 		return nil, err
 	}
-	txid := atomic.AddUint64(&txidCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceBeginTxEnd(req.SpanID, uint64(goid), txid, 4)
+	txid := atomic.AddUint64(&db.mgr.txidCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxStart(trace.DBTxStartParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   txid,
+			Stack:  stack.Build(4),
+		})
 	}
 
-	return &Tx{txid: txid, std: tx}, nil
+	return &Tx{mgr: db.mgr, txid: txid, std: tx}, nil
 }
 
-func (db *Database) init() {
-	db.initOnce.Do(func() {
-		if db.pool == nil {
-			db.pool = getPool(db.name)
-		}
-		db.connStr = stdlib.RegisterConnConfig(db.pool.Config().ConnConfig)
-	})
+type interceptor struct {
+	mgr *Manager
 }
-
-// Stdlib returns a *sql.DB object that is connected to the same db,
-// for use with libraries that expect a *sql.DB.
-func (db *Database) Stdlib() *sql.DB {
-	db.init()
-	registerDriver.Do(func() {
-		stdlibDriver = &wrappedDriver{parent: stdlib.GetDefaultDriver(), mw: &interceptor{}}
-		sql.Register(driverName, stdlibDriver)
-	})
-
-	var openErr error
-	db.stdlibOnce.Do(func() {
-		c, err := stdlibDriver.(driver.DriverContext).OpenConnector(db.connStr)
-		if err == nil {
-			db.stdlib = sql.OpenDB(c)
-
-			// Set the pool size based on the config.
-			cfg := db.pool.Config()
-			maxConns := int(cfg.MaxConns)
-			db.stdlib.SetMaxOpenConns(maxConns)
-			db.stdlib.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
-			db.stdlib.SetMaxIdleConns(maxConns)
-
-			runtime.RegisterShutdown(func(force context.Context) {
-				closeErr := make(chan error, 1)
-				go func() {
-					closeErr <- db.stdlib.Close()
-				}()
-				select {
-				case <-force.Done():
-				case <-closeErr:
-				}
-			})
-		}
-		openErr = err
-	})
-	if openErr != nil {
-		// This should never happen as (*stdlib.Driver).OpenConnector is hard-coded to never return nil.
-		// Guard it with a panic so we detect it as early as possible in case this changes.
-		panic("sqldb: stdlib.OpenConnector failed: " + openErr.Error())
-	}
-	return db.stdlib
-}
-
-type interceptor struct{}
 
 var _ middleware = (*interceptor)(nil)
 
-func (*interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, 0, 5)
+func (i *interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
 	}
+
 	rows, err := conn.QueryContext(ctx, query, args)
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
+
 	return rows, err
 }
 
-func (*interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, query string, args []driver.NamedValue) (driver.Result, error) {
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, 0, 5)
+func (i *interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, query string, args []driver.NamedValue) (driver.Result, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
 	}
+
 	res, err := conn.ExecContext(ctx, query, args)
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
+
 	return res, err
 }
 
-func (*interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, 0, 5)
+func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
 	}
+
 	rows, err := conn.QueryContext(ctx, args)
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
+
 	return rows, err
 }
 
-func (*interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
-	qid := atomic.AddUint64(&queryCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceQueryStart(query, req.SpanID, uint64(goid), qid, 0, 5)
+func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
 	}
+
 	res, err := conn.ExecContext(ctx, args)
-	if req != nil && req.Traced {
-		traceQueryEnd(qid, err)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
 	}
+
 	return res, err
 }
 
-func (*interceptor) ConnBegin(tx driver.Tx) (driver.Tx, error) {
-	txid := atomic.AddUint64(&txidCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceBeginTxEnd(req.SpanID, uint64(goid), txid, 5)
+func (i *interceptor) ConnBegin(tx driver.Tx) (driver.Tx, error) {
+	txid := atomic.AddUint64(&i.mgr.txidCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxStart(trace.DBTxStartParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   txid,
+			Stack:  stack.Build(5),
+		})
 	}
+
 	return stdlibTx{Tx: tx, txid: txid}, nil
 }
 
-func (*interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, opts driver.TxOptions) (driver.Tx, error) {
+func (i *interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, opts driver.TxOptions) (driver.Tx, error) {
 	tx, err := conn.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
-	txid := atomic.AddUint64(&txidCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		traceBeginTxEnd(req.SpanID, uint64(goid), txid, 5)
+	txid := atomic.AddUint64(&i.mgr.txidCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxStart(trace.DBTxStartParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   txid,
+			Stack:  stack.Build(5),
+		})
 	}
+
 	return stdlibTx{Tx: tx, txid: txid}, nil
 }
 
@@ -682,81 +493,41 @@ type stdlibTx struct {
 	txid uint64
 }
 
-func (*interceptor) TxCommit(ctx context.Context, tx driver.Tx) error {
+func (i *interceptor) TxCommit(ctx context.Context, tx driver.Tx) error {
 	err := tx.Commit()
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		if s, ok := tx.(stdlibTx); ok {
-			traceCompleteTxEnd(req.SpanID, uint64(goid), s.txid, true, err, 5)
+
+	if s, ok := tx.(stdlibTx); ok {
+		curr := i.mgr.rt.Current()
+		if curr.Req != nil && curr.Trace != nil {
+			curr.Trace.DBTxEnd(trace.DBTxEndParams{
+				SpanID: curr.Req.SpanID,
+				Goid:   curr.Goctr,
+				TxID:   s.txid,
+				Commit: true,
+				Err:    err,
+				Stack:  stack.Build(5),
+			})
 		}
 	}
+
 	return err
 }
 
-func (*interceptor) TxRollback(ctx context.Context, tx driver.Tx) error {
+func (i *interceptor) TxRollback(ctx context.Context, tx driver.Tx) error {
 	err := tx.Rollback()
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		if s, ok := tx.(stdlibTx); ok {
-			traceCompleteTxEnd(req.SpanID, uint64(goid), s.txid, false, err, 5)
+
+	if s, ok := tx.(stdlibTx); ok {
+		curr := i.mgr.rt.Current()
+		if curr.Req != nil && curr.Trace != nil {
+			curr.Trace.DBTxEnd(trace.DBTxEndParams{
+				SpanID: curr.Req.SpanID,
+				Goid:   curr.Goctr,
+				TxID:   s.txid,
+				Commit: false,
+				Err:    err,
+				Stack:  stack.Build(5),
+			})
 		}
 	}
 	return err
-}
-
-var (
-	registerDriver sync.Once
-	stdlibDriver   driver.Driver
-)
-
-const driverName = "__encore_stdlib"
-
-func traceQueryStart(query string, spanID trace.SpanID, goid, qid, txid uint64, skipFrames int) {
-	var tb trace.TraceBuf
-	tb.UVarint(qid)
-	tb.Bytes(spanID[:])
-	tb.UVarint(txid)
-	tb.UVarint(goid)
-	tb.String(query)
-	tb.Stack(stack.Build(skipFrames))
-	runtime.TraceLog(trace.QueryStart, tb.Buf())
-}
-
-func traceQueryEnd(qid uint64, err error) {
-	var tb trace.TraceBuf
-	tb.UVarint(qid)
-	if err != nil {
-		tb.String(err.Error())
-	} else {
-		tb.String("")
-	}
-	runtime.TraceLog(trace.QueryEnd, tb.Buf())
-}
-
-func traceBeginTxEnd(spanID trace.SpanID, goid, txid uint64, skipFrames int) {
-	var tb trace.TraceBuf
-	tb.UVarint(txid)
-	tb.Bytes(spanID[:])
-	tb.UVarint(goid)
-	tb.Stack(stack.Build(skipFrames))
-	runtime.TraceLog(trace.TxStart, tb.Buf())
-}
-
-func traceCompleteTxEnd(spanID trace.SpanID, goid, txid uint64, commit bool, err error, skipFrames int) {
-	var tb trace.TraceBuf
-	tb.UVarint(txid)
-	tb.Bytes(spanID[:])
-	tb.UVarint(uint64(goid))
-	if commit {
-		tb.Bytes([]byte{1})
-	} else {
-		tb.Bytes([]byte{0})
-	}
-	if err != nil {
-		tb.String(err.Error())
-	} else {
-		tb.String("")
-	}
-	tb.Stack(stack.Build(skipFrames))
-	runtime.TraceLog(trace.TxEnd, tb.Buf())
 }
