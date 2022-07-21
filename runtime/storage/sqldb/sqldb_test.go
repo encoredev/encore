@@ -4,7 +4,7 @@ import (
 	"testing"
 	_ "unsafe" // for go:linkname
 
-	"encore.dev/runtime/config"
+	"encore.dev/appruntime/config"
 )
 
 func TestDBConf(t *testing.T) {
@@ -81,6 +81,3 @@ func TestDBConf(t *testing.T) {
 		}
 	}
 }
-
-//go:linkname loadConfig encore.dev/runtime/config.loadConfig
-func loadConfig() (*config.Config, error) { return nil, nil }
