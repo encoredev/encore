@@ -169,7 +169,9 @@ func (b *builder) Build() (res *Result, err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
+		b.writeSvcHandlers,
 		b.writeMainPkg,
+		b.writeEtypePkg,
 		b.endCodeGenTracker,
 		b.buildMain,
 	} {
@@ -322,7 +324,7 @@ func (b *builder) buildMain() error {
 		return err
 	}
 
-	tags := append([]string{"encore", "encore_internal"}, b.cfg.BuildTags...)
+	tags := append([]string{"encore", "encore_internal", "encore_app"}, b.cfg.BuildTags...)
 	args := []string{
 		"build",
 		"-tags=" + strings.Join(tags, ","),
@@ -335,7 +337,7 @@ func (b *builder) buildMain() error {
 		args = append(args, "-ldflags", `-extldflags "-static"`)
 	}
 
-	args = append(args, "./"+mainPkgName)
+	args = append(args, fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName))
 	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
 	env := []string{
 		"GO111MODULE=on",
