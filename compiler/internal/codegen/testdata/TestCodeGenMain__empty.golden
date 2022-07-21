@@ -2,25 +2,15 @@
 package main
 
 import (
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
-	"github.com/json-iterator/go"
-	"io"
-	"os"
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/config"
 	_ "unsafe"
 )
 
-var json = jsoniter.Config{
-	EscapeHTML:             false,
-	IndentionStep:          config.JsonIndentStepForResponses(),
-	SortMapKeys:            true,
-	ValidateJsonRawMessage: true,
-}.Froze()
-
-// loadConfig registers the Encore services.
-//go:linkname loadConfig encore.dev/runtime/config.loadConfig
-func loadConfig() (*config.Config, error) {
-	services := []*config.Service{}
+// loadApp loads the Encore app runtime.
+//go:linkname loadApp encore.dev/appruntime/app/appinit.load
+func loadApp() *appinit.LoadData {
 	static := &config.Static{
 		AppCommit: config.CommitInfo{
 			Revision:    "",
@@ -28,34 +18,20 @@ func loadConfig() (*config.Config, error) {
 		},
 		AuthData:       nil,
 		EncoreCompiler: "test",
-		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
-		Services:       services,
 		TestService:    "",
 		Testing:        false,
 	}
-	return &config.Config{
-		Runtime: config.ParseRuntime(getAndClearEnv("ENCORE_RUNTIME_CONFIG")),
-		Secrets: config.ParseSecrets(getAndClearEnv("ENCORE_APP_SECRETS")),
-		Static:  static,
-	}, nil
-}
-
-func main() {
-	if err := runtime.ListenAndServe(); err != nil && err != io.EOF {
-		runtime.Logger().Fatal().Err(err).Msg("could not listen and serve")
+	handlers := []api.Handler{}
+	return &appinit.LoadData{
+		APIHandlers: handlers,
+		StaticCfg:   static,
 	}
 }
 
-// getAndClearEnv gets an env variable and unsets it.
-func getAndClearEnv(env string) string {
-	val := os.Getenv(env)
-	os.Unsetenv(env)
-	return val
+func main() {
+	appinit.AppMain()
 }
+// etype package
+package etype
 
-type validationDetails struct {
-	Field string `json:"field"`
-	Err   string `json:"err"`
-}
-
-func (validationDetails) ErrDetails() {}
+import _ "encore.dev/appruntime/app/appinit"

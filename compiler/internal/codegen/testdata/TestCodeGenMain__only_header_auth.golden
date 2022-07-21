@@ -2,166 +2,17 @@
 package main
 
 import (
-	"context"
 	"encore.app/svc"
-	auth "encore.dev/beta/auth"
-	"encore.dev/beta/errs"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
-	serde "encore.dev/runtime/serde"
-	"fmt"
-	"github.com/json-iterator/go"
-	"github.com/julienschmidt/httprouter"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"os"
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/config"
 	"reflect"
-	"strconv"
-	"strings"
 	_ "unsafe"
 )
 
-var json = jsoniter.Config{
-	EscapeHTML:             false,
-	IndentionStep:          config.JsonIndentStepForResponses(),
-	SortMapKeys:            true,
-	ValidateJsonRawMessage: true,
-}.Froze()
-
-func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	p0 := dec.ToString("bar", ps[0].Value, true)
-	if value, err := url.PathUnescape(ps[1].Value); err == nil {
-		ps[1].Value = value
-	}
-	p1 := dec.ToString("baz", ps[1].Value, true)
-	inputs, _ := runtime.SerializeInputs(p0, p1)
-
-	params := &svc.FooParams{}
-	switch m := req.Method; m {
-	case "POST":
-		// Decode JSON Body
-		payload := dec.Body(req.Body)
-		iter := jsoniter.ParseBytes(json, payload)
-
-		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
-			switch strings.ToLower(key) {
-			case "name":
-				dec.ParseJSON("Name", iter, &params.Name)
-			default:
-				_ = iter.SkipAndReturnBytes()
-			}
-			return true
-		}) {
-		}
-
-	default:
-		panic("HTTP method is not supported")
-	}
-	// Add trace info
-	jsonParams, err := json.Marshal(params)
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	inputs = append(inputs, jsonParams)
-
-	uid, authData, proceed := __encore_authenticate(w, req, true, "svc", "Eight")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Eight",
-		EndpointExprIdx: 2,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	resp, respErr := svc.Eight(req.Context(), p0, p1, params)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	// Serialize the response
-	respData := []byte("null\n")
-	if resp != nil {
-		// Encode JSON body
-		respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
-			ser.WriteField("Message", resp.Message, false)
-		})
-		if err != nil {
-			marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
-			runtime.FinishRequest(nil, marshalErr)
-			errs.HTTPError(w, marshalErr)
-			return
-		}
-		respData = append(respData, '\n')
-	}
-
-	// Record tracing data
-	output := [][]byte{respData}
-	runtime.FinishRequest(output, nil)
-
-	// Write response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(respData)
-}
-
-// loadConfig registers the Encore services.
-//go:linkname loadConfig encore.dev/runtime/config.loadConfig
-func loadConfig() (*config.Config, error) {
-	services := []*config.Service{{
-		Endpoints: []*config.Endpoint{{
-			Access:  config.Auth,
-			Handler: __encore_svc_Eight,
-			Methods: []string{"POST"},
-			Name:    "Eight",
-			Path:    "/eight/:bar/:baz",
-			Raw:     false,
-		}},
-		Name:    "svc",
-		RelPath: "svc",
-	}}
+// loadApp loads the Encore app runtime.
+//go:linkname loadApp encore.dev/appruntime/app/appinit.load
+func loadApp() *appinit.LoadData {
 	static := &config.Static{
 		AppCommit: config.CommitInfo{
 			Revision:    "",
@@ -169,125 +20,209 @@ func loadConfig() (*config.Config, error) {
 		},
 		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
 		EncoreCompiler: "test",
-		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
-		Services:       services,
 		TestService:    "",
 		Testing:        false,
 	}
-	return &config.Config{
-		Runtime: config.ParseRuntime(getAndClearEnv("ENCORE_RUNTIME_CONFIG")),
-		Secrets: config.ParseSecrets(getAndClearEnv("ENCORE_APP_SECRETS")),
-		Static:  static,
-	}, nil
+	handlers := []api.Handler{
+		svc.EightHandler,
+	}
+	return &appinit.LoadData{
+		APIHandlers: handlers,
+		StaticCfg:   static,
+	}
 }
 
 func main() {
-	if err := runtime.ListenAndServe(); err != nil && err != io.EOF {
-		runtime.Logger().Fatal().Err(err).Msg("could not listen and serve")
+	appinit.AppMain()
+}
+
+
+// generated types for service svc
+package svc
+
+import (
+	"context"
+	"encore.app/__encore/etype"
+	"encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/serde"
+	"github.com/json-iterator/go"
+	"github.com/julienschmidt/httprouter"
+	"net/http"
+	"net/url"
+	"strings"
+)
+
+type EightReq struct {
+	Bar    string
+	Baz    string
+	Params *FooParams
+}
+
+func (p *EightReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 3)
+	for i, val := range [...]any{p.Bar, p.Baz, p.Params} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
 	}
+	return data, nil
 }
-
-// getAndClearEnv gets an env variable and unsets it.
-func getAndClearEnv(env string) string {
-	val := os.Getenv(env)
-	os.Unsetenv(env)
-	return val
-}
-
-type validationDetails struct {
-	Field string `json:"field"`
-	Err   string `json:"err"`
-}
-
-func (validationDetails) ErrDetails() {}
-
-// __encore_authenticate authenticates a request.
-// It reports the user id, user data, and whether or not to proceed with the request.
-// If requireAuth is false, it reports ("", nil, true) on authentication failure.
-func __encore_authenticate(w http.ResponseWriter, req *http.Request, requireAuth bool, svcName, rpcName string) (uid auth.UID, authData interface{}, proceed bool) {
-	param, err := __encore_resolveAuthParam(req)
-
+func (p *EightReq) Clone() (*EightReq, error) {
+	var clone EightReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
 	if err == nil {
-		uid, authData, err = __encore_validateToken(req.Context(), param)
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
 	}
-	if errs.Code(err) == errs.Unauthenticated && !requireAuth {
-		return "", nil, true
-	} else if err != nil {
-		errs.HTTPError(w, err)
-		return "", nil, false
+	return &clone, err
+}
+func (p *EightReq) Path() (string, api.PathParams, error) {
+	enc := &etype.Marshaller{}
+
+	params := api.PathParams{{
+		Key:   "Bar",
+		Value: enc.FromString(p.Bar),
+	}, {
+		Key:   "Baz",
+		Value: enc.FromString(p.Baz),
+	}}
+	if enc.LastError != nil {
+
+		return "", nil, enc.LastError
 	}
-	return uid, authData, true
+
+	return "/eight" + "/" + params[0].Value + "/" + params[1].Value, params, nil
 }
 
-// __encore_resolveAuthParam resolves the auth parameters from the http request
-//  or returns an error if auth params cannot be found
-func __encore_resolveAuthParam(req *http.Request) (param *svc.AuthHeaders, err error) {
-	params := &svc.AuthHeaders{}
-	dec := &marshaller{}
-	// Decode Headers
-	h := req.Header
-	params.Header1 = dec.ToString("header1", h.Get("header1"), false)
-	params.Header2 = dec.ToInt("header2", h.Get("header2"), false)
-
-	if dec.LastError != nil {
-		return nil, errs.B().Code(errs.InvalidArgument).Msgf("invalid auth param: %v", dec.LastError).Err()
-	}
-	if dec.NonEmptyValues == 0 {
-		return nil, errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
-	}
-	return params, nil
+type EightResp struct {
+	Data *Response
 }
 
-// __encore_validateToken validates an auth token.
-func __encore_validateToken(ctx context.Context, param *svc.AuthHeaders) (uid auth.UID, authData interface{}, authErr error) {
-	done := make(chan struct{})
-	paramStr, err := json.MarshalToString(param)
-	if err != nil {
-		return "", nil, err
-	}
-	call, err := runtime.BeginAuth(3, paramStr)
-	if err != nil {
-		return "", nil, err
-	}
-
-	go func() {
-		defer close(done)
-		authErr = call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "AuthHandler",
-			EndpointExprIdx: 3,
-			Inputs:          [][]byte{[]byte(paramStr)},
-			Service:         "svc",
-			Type:            runtime.AuthHandler,
-		})
-		if authErr != nil {
-			return
+func (p *EightResp) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Data} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
 		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				authErr = errs.B().Code(errs.Internal).Msgf("auth handler panicked: %v", err2).Err()
-				call.FinishReq(nil, authErr)
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *EightResp) Clone() (*EightResp, error) {
+	var clone EightResp
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+
+var EightHandler = &api.Desc[*EightReq, *EightResp]{
+	Service:  "svc",
+	Endpoint: "Eight",
+	Methods:  []string{"POST"},
+	Path:     "/eight/:bar/:baz",
+	DefLoc:   2,
+	Access:   api.RequiresAuth,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EightReq, err error) {
+		reqData = &EightReq{}
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		reqData.Bar = dec.ToString("bar", ps[0].Value, true)
+
+		if value, err := url.PathUnescape(ps[1].Value); err == nil {
+			ps[1].Value = value
+		}
+
+		reqData.Baz = dec.ToString("baz", ps[1].Value, true)
+
+		params := &FooParams{}
+
+		reqData.Params = params
+
+		switch m := req.Method; m {
+		case "POST":
+			// Decode JSON Body
+			payload := dec.Body(req.Body)
+			iter := jsoniter.ParseBytes(json, payload)
+
+			for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+				switch strings.ToLower(key) {
+				case "name":
+					dec.ParseJSON("Name", iter, &params.Name)
+				default:
+					_ = iter.SkipAndReturnBytes()
+				}
+				return true
+			}) {
 			}
-		}()
-		uid, authData, authErr = svc.AuthHandler(ctx, param)
-		serialized, _ := runtime.SerializeInputs(uid, authData)
-		if authErr != nil {
-			call.FinishReq(nil, authErr)
-		} else {
-			call.FinishReq(serialized, nil)
+
+		default:
+			panic("HTTP method is not supported")
 		}
-	}()
-	<-done
-	call.Finish(uid, authErr)
-	return uid, authData, authErr
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *EightReq) (*EightResp, error) {
+		resp, err := Eight(ctx, req.Bar, req.Baz, req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return &EightResp{resp}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *EightResp) error {
+		var err error
+		respData := []byte("null\n")
+		if out.Data != nil {
+			// Encode JSON body
+			respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+				ser.WriteField("Message", out.Data.Message, false)
+			})
+			if err != nil {
+				return err
+			}
+			respData = append(respData, '\n')
+		}
+
+		// Write response
+		w.Write(respData)
+		return nil
+	},
 }
 
-// marshaller is used to serialize request data into strings and deserialize response data from strings
-type marshaller struct {
+func CallEight(ctx context.Context, bar string, baz string, params *FooParams) (*Response, error) {
+	resp, err := EightHandler.Call(api.CallContext{}, &EightReq{bar, baz, params})
+	return resp.Data, err
+}
+// etype package
+package etype
+
+import (
+	_ "encore.dev/appruntime/app/appinit"
+	"fmt"
+	"github.com/json-iterator/go"
+	"io"
+	"io/ioutil"
+)
+
+// Marshaller is used to serialize request data into strings and deserialize response data from strings
+type Marshaller struct {
 	LastError      error // The last error that occurred
 	NonEmptyValues int   // The number of values this decoder has decoded
 }
 
-func (e *marshaller) ToString(field string, s string, required bool) (v string) {
+func (e *Marshaller) ToString(field string, s string, required bool) (v string) {
 	if !required && s == "" {
 		return
 	}
@@ -295,24 +230,19 @@ func (e *marshaller) ToString(field string, s string, required bool) (v string) 
 	return s
 }
 
-func (e *marshaller) ToInt(field string, s string, required bool) (v int) {
-	if !required && s == "" {
-		return
-	}
+func (e *Marshaller) FromString(s string) (v string) {
 	e.NonEmptyValues++
-	x, err := strconv.ParseInt(s, 10, 64)
-	e.setErr("invalid parameter", field, err)
-	return int(x)
+	return s
 }
 
 // setErr sets the last error within the object if one is not already set
-func (e *marshaller) setErr(msg, field string, err error) {
+func (e *Marshaller) setErr(msg, field string, err error) {
 	if err != nil && e.LastError == nil {
 		e.LastError = fmt.Errorf("%s: %s: %w", field, msg, err)
 	}
 }
 
-func (d *marshaller) Body(body io.Reader) (payload []byte) {
+func (d *Marshaller) Body(body io.Reader) (payload []byte) {
 	payload, err := ioutil.ReadAll(body)
 	if err == nil && len(payload) == 0 {
 		d.setErr("missing request body", "request_body", fmt.Errorf("missing request body"))
@@ -321,7 +251,7 @@ func (d *marshaller) Body(body io.Reader) (payload []byte) {
 	}
 	return payload
 }
-func (d *marshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst interface{}) {
+func (d *Marshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst interface{}) {
 	iter.ReadVal(dst)
 	d.setErr("invalid json parameter", field, iter.Error)
 }
