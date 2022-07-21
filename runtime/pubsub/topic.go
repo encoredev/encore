@@ -5,14 +5,11 @@ import (
 	"encoding/json"
 	"sync/atomic"
 
+	"encore.dev/appruntime/config"
 	"encore.dev/beta/errs"
-	"encore.dev/pubsub/internal/gcp"
-	"encore.dev/pubsub/internal/nsq"
 	"encore.dev/pubsub/internal/test"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
 )
 
 // Topic presents a flow of events of type T from any number of publishers to
@@ -22,6 +19,7 @@ import (
 //
 // See NewTopic for more information on how to declare a Topic.
 type Topic[T any] struct {
+	mgr      *Manager
 	topicCfg *config.PubsubTopic
 	topic    types.TopicImplementation
 }
@@ -60,31 +58,32 @@ type Topic[T any] struct {
 //      rlog.Info("foo published", "message_id", msgID)
 //      return nil
 //    }
-func NewTopic[T any](name string, cfg TopicConfig) *Topic[T] {
-	if config.Cfg.Static.Testing {
+func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
+	if mgr.cfg.Static.Testing {
 		return &Topic[T]{
+			mgr:      mgr,
 			topicCfg: &config.PubsubTopic{EncoreName: name},
-			topic:    test.NewTopic[T](name),
+			topic:    test.NewTopic[T](mgr.ts, name),
 		}
 	}
 
 	// Look up the topic configuration
-	topic, ok := config.Cfg.Runtime.PubsubTopics[name]
+	topic, ok := mgr.cfg.Runtime.PubsubTopics[name]
 	if !ok {
-		runtime.Logger().Fatal().Msgf("unregistered/unknown topic: %v", name)
+		mgr.rootLogger.Fatal().Msgf("unregistered/unknown topic: %v", name)
 	}
 
 	// Look up the server config
-	provider := config.Cfg.Runtime.PubsubProviders[topic.ProviderID]
+	provider := mgr.cfg.Runtime.PubsubProviders[topic.ProviderID]
 
 	switch {
 	case provider.NSQ != nil:
-		return &Topic[T]{topicCfg: topic, topic: nsq.NewTopic(provider.NSQ, topic)}
+		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.nsq.NewTopic(provider.NSQ, topic)}
 	case provider.GCP != nil:
-		return &Topic[T]{topicCfg: topic, topic: gcp.NewTopic(provider.GCP, topic)}
+		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.gcp.NewTopic(provider.GCP, topic)}
 
 	default:
-		runtime.Logger().Fatal().Msgf("unsupported PubsubProvider type for server idx: %v", topic.ProviderID)
+		mgr.rootLogger.Fatal().Msgf("unsupported PubsubProvider type for server idx: %v", topic.ProviderID)
 		panic("unsupported pubsub server type")
 	}
 }
@@ -113,21 +112,22 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 	}
 
 	// Start the trace span
-	publishTraceID := atomic.AddUint64(&publishCounter, 1)
-	req, goid, _ := runtime.CurrentRequest()
-	if req != nil && req.Traced {
-		tracePublishStart(t.topicCfg.EncoreName, data, req.SpanID, uint64(goid), publishTraceID, 2)
+	publishTraceID := atomic.AddUint64(&t.mgr.publishCounter, 1)
+	curr := t.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.PublishStart(t.topicCfg.EncoreName, data, curr.Req.SpanID, curr.Goctr, publishTraceID, 2)
 	}
 
 	// Publish to the clouds topic
 	id, err = t.topic.PublishMessage(ctx, attrs, data)
-	if err != nil {
-		return "", errs.B().Cause(err).Code(errs.Unavailable).Msgf("failed to publish message to %s", t.topicCfg.EncoreName).Err()
-	}
 
 	// End the trace span
-	if req != nil && req.Traced {
-		tracePublishEnd(publishTraceID, id, err)
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.PublishEnd(publishTraceID, id, err)
+	}
+
+	if err != nil {
+		return "", errs.B().Cause(err).Code(errs.Unavailable).Msgf("failed to publish message to %s", t.topicCfg.EncoreName).Err()
 	}
 
 	return id, nil

@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"encore.dev/pubsub/internal/test"
-	"encore.dev/runtime"
 )
 
 // GetTestTopicInstance is an internal API for Encore. This function should
@@ -14,5 +13,9 @@ func GetTestTopicInstance[T any](topic *Topic[T]) any {
 		panic("testTopic not called with a test topic")
 	}
 
-	return testTopic.TestInstance(runtime.CurrentTest())
+	req := topic.mgr.rt.Current().Req
+	if req == nil || req.Test == nil {
+		panic("testTopic called outside of test")
+	}
+	return testTopic.TestInstance(req.Test.Current)
 }

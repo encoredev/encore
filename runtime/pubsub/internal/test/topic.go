@@ -10,10 +10,10 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/testsupport"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
 )
 
 // TestTopic is used during a "encore test" call.
@@ -23,14 +23,16 @@ import (
 //
 // Any messages published to this type of topic _will not_ be passed to subscribers.
 type TestTopic[T any] struct {
+	ts          *testsupport.Manager
 	name        string
 	m           sync.RWMutex
 	instances   map[*testing.T]*testInstance[T]
 	subscribers map[string]types.RawSubscriptionCallback
 }
 
-func NewTopic[T any](name string) types.TopicImplementation {
+func NewTopic[T any](ts *testsupport.Manager, name string) types.TopicImplementation {
 	return &TestTopic[T]{
+		ts:          ts,
 		name:        name,
 		instances:   make(map[*testing.T]*testInstance[T]),
 		subscribers: make(map[string]types.RawSubscriptionCallback),
@@ -45,7 +47,7 @@ func (t *TestTopic[T]) PublishMessage(ctx context.Context, attrs map[string]stri
 		return "", err
 	}
 
-	test := runtime.CurrentTest()
+	test := t.ts.CurrentTest()
 	unmarshalled, err := utils.UnmarshalMessage[T](attrs, data)
 	if err != nil {
 		test.Fatalf("failed to unmarshal published message: %s", err)
@@ -66,7 +68,7 @@ func (t *TestTopic[T]) PublishMessage(ctx context.Context, attrs map[string]stri
 		for name, sub := range t.subscribers {
 			name := name
 			sub := sub
-			runtime.RunAsyncCodeInTest(test, func(ctx context.Context) {
+			t.ts.RunAsyncCodeInTest(test, func(ctx context.Context) {
 				if err := sub(ctx, msgID, published, 1, attrs, data); err != nil {
 					test.Errorf("an error was returned while processing subscription %s for message %s: %s", name, msgID, err)
 					test.Fail()
@@ -126,7 +128,7 @@ func (t *testInstance[T]) publishMessage(unmarshalled T) (id string, err error) 
 	defer t.m.Unlock()
 	t.messages = append(t.messages, unmarshalled)
 
-	// we use "/" as the seperator to mirror the behaviour of tests and sub tests
+	// we use "/" as the separator to mirror the behaviour of tests and sub tests
 	return fmt.Sprintf("%s/%s/%d", t.t.Name(), t.topicName, msgID), nil
 }
 
