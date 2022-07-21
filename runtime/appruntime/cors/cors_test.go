@@ -11,7 +11,7 @@ import (
 
 	"github.com/rs/cors"
 
-	"encore.dev/runtime/config"
+	"encore.dev/appruntime/config"
 )
 
 func TestOptions(t *testing.T) {
@@ -168,9 +168,4 @@ func TestOptions(t *testing.T) {
 			}
 		})
 	}
-}
-
-//go:linkname testConfig encore.dev/runtime/config.loadConfig
-func testConfig() (*config.Config, error) {
-	return nil, nil
 }
