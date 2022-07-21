@@ -13,7 +13,7 @@ import (
 	"github.com/rs/xid"
 
 	encore "encore.dev"
-	"encore.dev/runtime/config"
+	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/env"
