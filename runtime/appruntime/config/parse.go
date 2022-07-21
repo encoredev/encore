@@ -5,20 +5,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 )
-
-func init() {
-	cfg, err := loadConfig()
-	if err != nil {
-		log.Fatalf("encore runtime: fatal error: could not load config: %v", err)
-	}
-	Cfg = cfg
-}
-
-// loadConfig loads the Encore app configuration.
-// It is provided by the main package using go:linkname.
-func loadConfig() (*Config, error)
 
 // ParseRuntime parses the Encore runtime config.
 func ParseRuntime(s string) *Runtime {
@@ -71,16 +60,9 @@ func ParseSecrets(s string) map[string]string {
 	return m
 }
 
-// JsonIndentStepForResponses is the number of spaces to indent JSON responses sent from the application.
-//
-// - 0 means no pretty printing will occur for JSON responses.
-// - any other value means pretty printing with that number of spaces for each level of indentation.
-//
-// In production environments this function will return 0, for all others it will return 2.
-func JsonIndentStepForResponses() int {
-	if Cfg.Runtime.EnvType == "production" {
-		return 0
-	}
-
-	return 2
+// GetAndClearEnv gets an env variable by name and then clears it.
+func GetAndClearEnv(env string) string {
+	val := os.Getenv(env)
+	_ = os.Unsetenv(env)
+	return val
 }

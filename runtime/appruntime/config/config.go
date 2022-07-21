@@ -2,19 +2,8 @@ package config
 
 import (
 	"fmt"
-	"net/http"
 	"reflect"
 	"time"
-
-	"github.com/julienschmidt/httprouter"
-)
-
-type Access string
-
-const (
-	Public  Access = "public"
-	Auth    Access = "auth"
-	Private Access = "private"
 )
 
 type Config struct {
@@ -24,7 +13,6 @@ type Config struct {
 }
 
 type Static struct {
-	Services []*Service
 	// AuthData is the custom auth data type, or nil
 	AuthData reflect.Type
 
@@ -37,21 +25,6 @@ type Static struct {
 
 	Testing     bool
 	TestService string // service being tested, if any
-}
-
-type Service struct {
-	Name      string
-	RelPath   string // relative path to service pkg (from app root)
-	Endpoints []*Endpoint
-}
-
-type Endpoint struct {
-	Name    string
-	Raw     bool
-	Path    string
-	Methods []string
-	Access  Access
-	Handler func(w http.ResponseWriter, req *http.Request, ps httprouter.Params)
 }
 
 type Runtime struct {
@@ -198,8 +171,8 @@ type StaticPubsubTopic struct {
 }
 
 type StaticPubsubSubscription struct {
-	Service  *Service // the service that subscription is in
-	TraceIdx int32    // The trace Idx of the subscription
+	Service  string // the service that subscription is in
+	TraceIdx int32  // The trace Idx of the subscription
 }
 
 type SQLServer struct {
@@ -230,5 +203,3 @@ type SQLDatabase struct {
 	// for this database. If zero it defaults to 30.
 	MaxConnections int `json:"max_connections"`
 }
-
-var Cfg *Config
