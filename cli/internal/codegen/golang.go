@@ -44,7 +44,7 @@ type golang struct {
 
 func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
 	g.md = md
-	g.enc = gocodegen.NewMarshallingCodeGenerator("serde", true)
+	g.enc = gocodegen.NewMarshallingCodeGenerator(gocodegen.UnknownPkgPath, "serde", true)
 
 	namedTypes := getNamedTypes(md)
 
