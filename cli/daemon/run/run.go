@@ -29,7 +29,7 @@ import (
 	"github.com/hashicorp/yamux"
 
 	encore "encore.dev"
-	"encore.dev/runtime/config"
+	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/pubsub"

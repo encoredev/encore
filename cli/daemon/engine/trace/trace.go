@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"encore.dev/runtime/trace"
+	"encore.dev/appruntime/trace"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/pkg/eerror"
@@ -133,7 +133,7 @@ type traceParser struct {
 
 func (tp *traceParser) Parse() error {
 	for i := 0; !tp.Done(); i++ {
-		ev := trace.TraceEvent(tp.Byte())
+		ev := trace.EventType(tp.Byte())
 		ts := tp.Uint64()
 		size := int(tp.Uint32())
 		startOff := tp.Offset()
@@ -168,7 +168,7 @@ func (tp *traceParser) Parse() error {
 
 var errUnknownEvent = errors.New("unknown event")
 
-func (tp *traceParser) parseEventV3(ev trace.TraceEvent, ts uint64, size int) error {
+func (tp *traceParser) parseEventV3(ev trace.EventType, ts uint64, size int) error {
 	switch ev {
 	case trace.RequestStart:
 		return tp.requestStart(ts)
