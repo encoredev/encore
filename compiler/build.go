@@ -253,6 +253,11 @@ func (b *builder) writeModFile() error {
 	if err := b.modfile.AddReplace(oldPath, "", newPath, ""); err != nil {
 		return fmt.Errorf("could not replace encore.dev path: %v", err)
 	}
+	// We require Go 1.18+ now that we use generics in code gen.
+	if !isGo118Plus(b.modfile) {
+		b.modfile.AddGoStmt("1.18")
+	}
+
 	b.modfile.Cleanup()
 
 	runtimeModData, err := os.ReadFile(filepath.Join(newPath, "go.mod"))
@@ -531,4 +536,17 @@ func readSourceOfError(filename string, lineNumberStr string, columnNumberStr st
 	}
 
 	return builder.String()
+}
+
+func isGo118Plus(f *modfile.File) bool {
+	if f.Go == nil {
+		return false
+	}
+	m := modfile.GoVersionRE.FindStringSubmatch(f.Go.Version)
+	if m == nil {
+		return false
+	}
+	major, _ := strconv.Atoi(m[1])
+	minor, _ := strconv.Atoi(m[2])
+	return major > 1 || (major == 1 && minor >= 18)
 }
