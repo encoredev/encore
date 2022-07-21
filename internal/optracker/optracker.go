@@ -1,6 +1,7 @@
 package optracker
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"runtime"
@@ -102,6 +103,8 @@ func (t *OpTracker) Done(id OperationID, minDuration time.Duration) {
 	t.refresh()
 }
 
+var ErrCanceled = errors.New("operation canceled")
+
 // Fail marks the operation as failed with the given error
 //
 // This function is safe to call on a Nil OpTracker and will no-op in that case
@@ -118,6 +121,12 @@ func (t *OpTracker) Fail(id OperationID, err error) {
 	t.ops[id].err = err
 	t.ops[id].done = time.Now()
 	t.refresh()
+}
+
+// Cancel marks the operation as canceled.
+// It is equivalent to t.Fail(id, ErrCanceled).
+func (t *OpTracker) Cancel(id OperationID) {
+	t.Fail(id, ErrCanceled)
 }
 
 // refresh refreshes the display by writing to t.w.
@@ -146,7 +155,11 @@ func (t *OpTracker) refresh() {
 		format := "  %s %s... "
 		switch {
 		case done && o.err != nil:
-			msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, o.err))
+			if errors.Is(o.err, ErrCanceled) {
+				msg = aurora.Yellow(fmt.Sprintf(format+"Canceled", canceled, o.msg))
+			} else {
+				msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, o.err))
+			}
 		case done && o.err == nil:
 			msg = aurora.Green(fmt.Sprintf(format+"Done!", success, o.msg))
 		case !done:
@@ -189,7 +202,8 @@ type slowOp struct {
 }
 
 var (
-	success = "✔"
-	fail    = "❌"
-	spinner = []string{"⠋", "⠙", "⠚", "⠒", "⠂", "⠂", "⠒", "⠲", "⠴", "⠦", "⠖", "⠒", "⠐", "⠐", "⠒", "⠓", "⠋"}
+	success  = "✔"
+	fail     = "❌"
+	canceled = "⚠️"
+	spinner  = []string{"⠋", "⠙", "⠚", "⠒", "⠂", "⠂", "⠒", "⠲", "⠴", "⠦", "⠖", "⠒", "⠐", "⠐", "⠒", "⠓", "⠋"}
 )
