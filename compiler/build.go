@@ -20,6 +20,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
+	"encr.dev/compiler/internal/codegen"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
@@ -127,6 +128,7 @@ type builder struct {
 	workdir string
 	modfile *modfile.File
 	overlay map[string]string
+	codegen *codegen.Builder
 
 	res *parser.Result
 
@@ -205,6 +207,7 @@ func (b *builder) parseApp() error {
 
 	if pc := b.cfg.Parse; pc != nil {
 		b.res = pc
+		b.codegen = codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
 		return nil
 	}
 
@@ -217,6 +220,11 @@ func (b *builder) parseApp() error {
 		ParseTests:               b.parseTests,
 	}
 	b.res, err = parser.Parse(cfg)
+
+	if err == nil {
+		b.codegen = codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
+	}
+
 	return err
 }
 

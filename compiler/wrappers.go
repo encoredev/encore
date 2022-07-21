@@ -65,8 +65,7 @@ func (b *builder) generateTestMain(pkg *est.Package) (err error) {
 		}
 	}()
 
-	mb := codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
-	f := mb.TestMain(pkg, b.res.App.Services)
+	f := b.codegen.TestMain(pkg, b.res.App.Services)
 	b.addOverlay(filepath.Join(pkg.Dir, "encore_testmain_test.go"), testMainPath)
 	return f.Render(file)
 }
