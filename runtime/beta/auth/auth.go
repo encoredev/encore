@@ -6,19 +6,28 @@ package auth
 import (
 	"context"
 
-	"encore.dev/runtime"
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/reqtrack"
 )
 
 // UID is a unique identifier representing a user (a user id).
-type UID = runtime.UID
+type UID = model.UID
+
+type Manager struct {
+	rt *reqtrack.RequestTracker
+}
+
+func NewManager(rt *reqtrack.RequestTracker) *Manager {
+	return &Manager{rt}
+}
 
 // UserID reports the uid of the user making the request.
 // The second result is true if there is a user and false
 // if the request was made without authentication details.
-func UserID() (UID, bool) {
-	req, _, ok := runtime.CurrentRequest()
-	if ok {
-		return req.UID, req.UID != ""
+func (mgr *Manager) UserID() (UID, bool) {
+	if curr := mgr.rt.Current(); curr.Req != nil {
+		return curr.Req.UID, curr.Req.UID != ""
 	}
 	return "", false
 }
@@ -32,10 +41,9 @@ func UserID() (UID, bool) {
 //   usr, ok := auth.Data().(*user.Data)
 //   if !ok { /* ... */ }
 //
-func Data() interface{} {
-	req, _, ok := runtime.CurrentRequest()
-	if ok {
-		return req.AuthData
+func (mgr *Manager) Data() interface{} {
+	if curr := mgr.rt.Current(); curr.Req != nil {
+		return curr.Req.AuthData
 	}
 	return nil
 }
@@ -53,7 +61,7 @@ func Data() interface{} {
 // API calls made with these options will not be made and will immediately return
 // a client-side error.
 func WithContext(ctx context.Context, uid UID, data interface{}) context.Context {
-	opts := *runtime.GetCallOptions(ctx) // make a copy
-	opts.Auth = &runtime.AuthInfo{UID: uid, UserData: data}
-	return runtime.WithCallOptions(ctx, &opts)
+	opts := *api.GetCallOptions(ctx) // make a copy
+	opts.Auth = &model.AuthInfo{UID: uid, UserData: data}
+	return api.WithCallOptions(ctx, &opts)
 }
