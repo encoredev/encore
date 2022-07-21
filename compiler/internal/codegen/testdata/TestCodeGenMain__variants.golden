@@ -2,1106 +2,17 @@
 package main
 
 import (
-	"context"
-	stdjson "encoding/json"
 	"encore.app/svc"
-	auth "encore.dev/beta/auth"
-	"encore.dev/beta/errs"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
-	serde "encore.dev/runtime/serde"
-	"encore.dev/types/uuid"
-	"fmt"
-	"github.com/felixge/httpsnoop"
-	"github.com/json-iterator/go"
-	"github.com/julienschmidt/httprouter"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"os"
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/config"
 	"reflect"
-	"strconv"
-	"strings"
-	"time"
 	_ "unsafe"
 )
 
-var json = jsoniter.Config{
-	EscapeHTML:             false,
-	IndentionStep:          config.JsonIndentStepForResponses(),
-	SortMapKeys:            true,
-	ValidateJsonRawMessage: true,
-}.Froze()
-
-func __encore_svc_CronOne(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "CronOne")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "CronOne",
-		EndpointExprIdx: 17,
-		Inputs:          nil,
-		Path:            req.URL.Path,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	respErr := svc.CronOne(req.Context())
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	runtime.FinishRequest(nil, nil)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-}
-
-func __encore_svc_Eight(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	p0 := dec.ToString("bar", ps[0].Value, true)
-	if value, err := url.PathUnescape(ps[1].Value); err == nil {
-		ps[1].Value = value
-	}
-	p1 := dec.ToString("baz", ps[1].Value, true)
-	inputs, _ := runtime.SerializeInputs(p0, p1)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Eight")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Eight",
-		EndpointExprIdx: 18,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	resp, respErr := svc.Eight(req.Context(), p0, p1)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	// Serialize the response
-	respData := []byte("null\n")
-	if resp != nil {
-		// Encode JSON body
-		respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
-			ser.WriteField("Message", resp.Message, false)
-		})
-		if err != nil {
-			marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
-			runtime.FinishRequest(nil, marshalErr)
-			errs.HTTPError(w, marshalErr)
-			return
-		}
-		respData = append(respData, '\n')
-	}
-
-	// Record tracing data
-	output := [][]byte{respData}
-	runtime.FinishRequest(output, nil)
-
-	// Write response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(respData)
-}
-
-func __encore_svc_Five(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	p0 := dec.ToUUID("id", ps[0].Value, true)
-	p1 := dec.ToUint("key", ps[1].Value, true)
-	inputs, _ := runtime.SerializeInputs(p0, p1)
-
-	params := &svc.FooParams{}
-	switch m := req.Method; m {
-	case "GET":
-		// Decode Query String
-		qs := req.URL.Query()
-		params.Name = dec.ToString("name", qs.Get("name"), false)
-
-	case "POST":
-		// Decode JSON Body
-		payload := dec.Body(req.Body)
-		iter := jsoniter.ParseBytes(json, payload)
-
-		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
-			switch strings.ToLower(key) {
-			case "name":
-				dec.ParseJSON("Name", iter, &params.Name)
-			default:
-				_ = iter.SkipAndReturnBytes()
-			}
-			return true
-		}) {
-		}
-
-	default:
-		panic("HTTP method is not supported")
-	}
-	// Add trace info
-	jsonParams, err := json.Marshal(params)
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	inputs = append(inputs, jsonParams)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Five")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Five",
-		EndpointExprIdx: 19,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	respErr := svc.Five(req.Context(), p0, p1, params)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	runtime.FinishRequest(nil, nil)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-}
-
-func __encore_svc_Four(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-
-	// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
-	// while the httprouter implementation includes it.
-	ps[0].Value = strings.TrimPrefix(ps[0].Value, "/")
-
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	p0 := dec.ToString("baz", ps[0].Value, true)
-	inputs, _ := runtime.SerializeInputs(p0)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Four")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Four",
-		EndpointExprIdx: 20,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	respErr := svc.Four(req.Context(), p0)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	runtime.FinishRequest(nil, nil)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-}
-
-func __encore_svc_Nine(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	p0 := dec.ToString("bar", ps[0].Value, true)
-	if value, err := url.PathUnescape(ps[1].Value); err == nil {
-		ps[1].Value = value
-	}
-	p1 := dec.ToString("baz", ps[1].Value, true)
-	inputs, _ := runtime.SerializeInputs(p0, p1)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Nine")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Nine",
-		EndpointExprIdx: 21,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	resp, respErr := svc.Nine(req.Context(), p0, p1)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	// Serialize the response
-	respData := []byte("null\n")
-	var headers map[string][]string
-	if resp != nil {
-		// Encode JSON body
-		respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
-			ser.WriteField("Message", resp.Message, false)
-		})
-		if err != nil {
-			marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
-			runtime.FinishRequest(nil, marshalErr)
-			errs.HTTPError(w, marshalErr)
-			return
-		}
-		respData = append(respData, '\n')
-
-		// Encode headers
-		headerEncoder := &marshaller{}
-		headers = map[string][]string{"x-header": {headerEncoder.FromString(resp.Header)}}
-		if headerEncoder.LastError != nil {
-			headerErr := errs.WrapCode(headerEncoder.LastError, errs.Internal, "failed to marshal headers")
-			runtime.FinishRequest(nil, headerErr)
-			errs.HTTPError(w, headerErr)
-			return
-		}
-
-	}
-
-	// Record tracing data
-	output := [][]byte{respData}
-	runtime.FinishRequest(output, nil)
-
-	// Write response
-	for k, vs := range headers {
-		for _, v := range vs {
-			w.Header().Add(k, v)
-		}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(respData)
-}
-
-func __encore_svc_One(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "One")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "One",
-		EndpointExprIdx: 22,
-		Inputs:          nil,
-		Path:            req.URL.Path,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	respErr := svc.One(req.Context())
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	runtime.FinishRequest(nil, nil)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-}
-
-func __encore_svc_Query(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	var inputs [][]byte
-
-	params := &svc.QueryParams{}
-	switch m := req.Method; m {
-	case "GET":
-		// Decode Query String
-		qs := req.URL.Query()
-		params.Time = dec.ToTime("time", qs.Get("time"), false)
-		params.UID = dec.ToUserID("uid", qs.Get("uid"), false)
-		params.JSON = dec.ToJSON("json", qs.Get("json"), false)
-		params.Float32 = dec.ToFloat32("float32", qs.Get("float32"), false)
-		params.Float64 = dec.ToFloat64("float64", qs.Get("float64"), false)
-		params.Strings = dec.ToStringList("strings", qs["strings"], false)
-		params.Times = dec.ToTimeList("times", qs["times"], false)
-
-	case "POST":
-		// Decode JSON Body
-		payload := dec.Body(req.Body)
-		iter := jsoniter.ParseBytes(json, payload)
-
-		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
-			switch strings.ToLower(key) {
-			case "time":
-				dec.ParseJSON("Time", iter, &params.Time)
-			case "uid":
-				dec.ParseJSON("UID", iter, &params.UID)
-			case "json":
-				dec.ParseJSON("JSON", iter, &params.JSON)
-			case "float32":
-				dec.ParseJSON("Float32", iter, &params.Float32)
-			case "float64":
-				dec.ParseJSON("Float64", iter, &params.Float64)
-			case "strings":
-				dec.ParseJSON("Strings", iter, &params.Strings)
-			case "times":
-				dec.ParseJSON("Times", iter, &params.Times)
-			default:
-				_ = iter.SkipAndReturnBytes()
-			}
-			return true
-		}) {
-		}
-
-	default:
-		panic("HTTP method is not supported")
-	}
-	// Add trace info
-	jsonParams, err := json.Marshal(params)
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	inputs = append(inputs, jsonParams)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Query")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Query",
-		EndpointExprIdx: 23,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	resp, respErr := svc.Query(req.Context(), params)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	// Serialize the response
-	respData := []byte("null\n")
-	if resp != nil {
-		// Encode JSON body
-		respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
-			ser.WriteField("Time", resp.Time, false)
-			ser.WriteField("UID", resp.UID, false)
-			ser.WriteField("JSON", resp.JSON, false)
-			ser.WriteField("Float32", resp.Float32, false)
-			ser.WriteField("Float64", resp.Float64, false)
-			ser.WriteField("Strings", resp.Strings, false)
-			ser.WriteField("Times", resp.Times, false)
-		})
-		if err != nil {
-			marshalErr := errs.WrapCode(err, errs.Internal, "failed to marshal response")
-			runtime.FinishRequest(nil, marshalErr)
-			errs.HTTPError(w, marshalErr)
-			return
-		}
-		respData = append(respData, '\n')
-	}
-
-	// Record tracing data
-	output := [][]byte{respData}
-	runtime.FinishRequest(output, nil)
-
-	// Write response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(respData)
-}
-
-func __encore_svc_Seven(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	_ = dec.ToString("bar", ps[0].Value, true)
-	if value, err := url.PathUnescape(ps[1].Value); err == nil {
-		ps[1].Value = value
-	}
-	_ = dec.ToString("baz", ps[1].Value, true)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Seven")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Seven",
-		EndpointExprIdx: 24,
-		Inputs:          nil,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	m := httpsnoop.CaptureMetrics(http.HandlerFunc(svc.Seven), w, req)
-	if m.Code >= 400 {
-		err = fmt.Errorf("response status code %d", m.Code)
-	}
-	runtime.FinishHTTPRequest(nil, err, m.Code)
-}
-
-func __encore_svc_Six(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-
-	// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
-	// while the httprouter implementation includes it.
-	ps[1].Value = strings.TrimPrefix(ps[1].Value, "/")
-
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	p0 := dec.ToUUID("id", ps[0].Value, true)
-	if value, err := url.PathUnescape(ps[1].Value); err == nil {
-		ps[1].Value = value
-	}
-	p1 := dec.ToString("key", ps[1].Value, true)
-	inputs, _ := runtime.SerializeInputs(p0, p1)
-
-	params := &svc.FooParams{}
-	switch m := req.Method; m {
-	case "GET":
-		// Decode Query String
-		qs := req.URL.Query()
-		params.Name = dec.ToString("name", qs.Get("name"), false)
-
-	case "POST":
-		// Decode JSON Body
-		payload := dec.Body(req.Body)
-		iter := jsoniter.ParseBytes(json, payload)
-
-		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
-			switch strings.ToLower(key) {
-			case "name":
-				dec.ParseJSON("Name", iter, &params.Name)
-			default:
-				_ = iter.SkipAndReturnBytes()
-			}
-			return true
-		}) {
-		}
-
-	default:
-		panic("HTTP method is not supported")
-	}
-	// Add trace info
-	jsonParams, err := json.Marshal(params)
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	inputs = append(inputs, jsonParams)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Six")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Six",
-		EndpointExprIdx: 25,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	respErr := svc.Six(req.Context(), p0, p1, params)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	runtime.FinishRequest(nil, nil)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-}
-
-func __encore_svc_Ten(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Ten")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Ten",
-		EndpointExprIdx: 26,
-		Inputs:          nil,
-		Path:            req.URL.Path,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	resp, respErr := svc.Ten(req.Context())
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	// Serialize the response
-	respData := []byte{'\n'}
-	var headers map[string][]string
-	if resp != nil {
-
-		// Encode headers
-		headerEncoder := &marshaller{}
-		headers = map[string][]string{"x-header": {headerEncoder.FromString(resp.Header)}}
-		if headerEncoder.LastError != nil {
-			headerErr := errs.WrapCode(headerEncoder.LastError, errs.Internal, "failed to marshal headers")
-			runtime.FinishRequest(nil, headerErr)
-			errs.HTTPError(w, headerErr)
-			return
-		}
-
-	}
-
-	// Record tracing data
-	output := [][]byte{respData}
-	runtime.FinishRequest(output, nil)
-
-	// Write response
-	for k, vs := range headers {
-		for _, v := range vs {
-			w.Header().Add(k, v)
-		}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(respData)
-}
-
-func __encore_svc_Three(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	if value, err := url.PathUnescape(ps[0].Value); err == nil {
-		ps[0].Value = value
-	}
-	p0 := dec.ToString("id", ps[0].Value, true)
-	inputs, _ := runtime.SerializeInputs(p0)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Three")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Three",
-		EndpointExprIdx: 27,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	respErr := svc.Three(req.Context(), p0)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	runtime.FinishRequest(nil, nil)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-}
-
-func __encore_svc_Two(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	ctx := req.Context()
-	runtime.BeginOperation()
-	defer runtime.FinishOperation()
-
-	var err error
-	dec := &marshaller{}
-	// Decode request
-	var inputs [][]byte
-
-	params := &svc.FooParams{}
-	switch m := req.Method; m {
-	case "POST":
-		// Decode JSON Body
-		payload := dec.Body(req.Body)
-		iter := jsoniter.ParseBytes(json, payload)
-
-		for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
-			switch strings.ToLower(key) {
-			case "name":
-				dec.ParseJSON("Name", iter, &params.Name)
-			default:
-				_ = iter.SkipAndReturnBytes()
-			}
-			return true
-		}) {
-		}
-
-	default:
-		panic("HTTP method is not supported")
-	}
-	// Add trace info
-	jsonParams, err := json.Marshal(params)
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	inputs = append(inputs, jsonParams)
-
-	uid, authData, proceed := __encore_authenticate(w, req, false, "svc", "Two")
-	if !proceed {
-		return
-	}
-
-	err = runtime.BeginRequest(ctx, runtime.RequestData{
-		AuthData:        authData,
-		Endpoint:        "Two",
-		EndpointExprIdx: 28,
-		Inputs:          inputs,
-		Path:            req.URL.Path,
-		PathSegments:    ps,
-		Service:         "svc",
-		Type:            runtime.RPCCall,
-		UID:             uid,
-	})
-	if err != nil {
-		errs.HTTPError(w, errs.B().Code(errs.Internal).Msg("internal error").Err())
-		return
-	}
-	if dec.LastError != nil {
-		err := dec.LastError
-		runtime.FinishRequest(nil, err)
-		errs.HTTPError(w, err)
-		return
-	}
-
-	// Call the endpoint
-	defer func() {
-		// Catch handler panic
-		if e := recover(); e != nil {
-			err := errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
-			runtime.FinishRequest(nil, err)
-			errs.HTTPError(w, err)
-		}
-	}()
-	respErr := svc.Two(req.Context(), params)
-	if respErr != nil {
-		respErr = errs.Convert(respErr)
-		runtime.FinishRequest(nil, respErr)
-		errs.HTTPError(w, respErr)
-		return
-	}
-
-	runtime.FinishRequest(nil, nil)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-}
-
-// loadConfig registers the Encore services.
-//go:linkname loadConfig encore.dev/runtime/config.loadConfig
-func loadConfig() (*config.Config, error) {
-	services := []*config.Service{{
-		Endpoints: []*config.Endpoint{{
-			Access:  config.Private,
-			Handler: __encore_svc_CronOne,
-			Methods: []string{"GET", "POST"},
-			Name:    "CronOne",
-			Path:    "/cron",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Eight,
-			Methods: []string{"GET", "POST"},
-			Name:    "Eight",
-			Path:    "/eight/:bar/:baz",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Five,
-			Methods: []string{"GET", "POST"},
-			Name:    "Five",
-			Path:    "/five/:id/:key",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Four,
-			Methods: []string{"GET", "POST"},
-			Name:    "Four",
-			Path:    "/four/*baz",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Nine,
-			Methods: []string{"GET", "POST"},
-			Name:    "Nine",
-			Path:    "/nine/:bar/:baz",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_One,
-			Methods: []string{"GET", "POST"},
-			Name:    "One",
-			Path:    "/svc.One",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Query,
-			Methods: []string{"GET", "POST"},
-			Name:    "Query",
-			Path:    "/query",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Seven,
-			Methods: []string{"*"},
-			Name:    "Seven",
-			Path:    "/foo/:bar/:baz",
-			Raw:     true,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Six,
-			Methods: []string{"GET", "POST"},
-			Name:    "Six",
-			Path:    "/six/:id/*key",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Ten,
-			Methods: []string{"GET", "POST"},
-			Name:    "Ten",
-			Path:    "/ten",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Three,
-			Methods: []string{"GET", "POST"},
-			Name:    "Three",
-			Path:    "/three/:id",
-			Raw:     false,
-		}, {
-			Access:  config.Public,
-			Handler: __encore_svc_Two,
-			Methods: []string{"POST"},
-			Name:    "Two",
-			Path:    "/svc.Two",
-			Raw:     false,
-		}},
-		Name:    "svc",
-		RelPath: "svc",
-	}}
+// loadApp loads the Encore app runtime.
+//go:linkname loadApp encore.dev/appruntime/app/appinit.load
+func loadApp() *appinit.LoadData {
 	static := &config.Static{
 		AppCommit: config.CommitInfo{
 			Revision:    "",
@@ -1109,132 +20,1247 @@ func loadConfig() (*config.Config, error) {
 		},
 		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
 		EncoreCompiler: "test",
-		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
-		Services:       services,
 		TestService:    "",
 		Testing:        false,
 	}
-	return &config.Config{
-		Runtime: config.ParseRuntime(getAndClearEnv("ENCORE_RUNTIME_CONFIG")),
-		Secrets: config.ParseSecrets(getAndClearEnv("ENCORE_APP_SECRETS")),
-		Static:  static,
-	}, nil
+	handlers := []api.Handler{
+		svc.CronOneHandler,
+		svc.EightHandler,
+		svc.FiveHandler,
+		svc.FourHandler,
+		svc.NineHandler,
+		svc.OneHandler,
+		svc.QueryHandler,
+		svc.SevenHandler,
+		svc.SixHandler,
+		svc.TenHandler,
+		svc.ThreeHandler,
+		svc.TwoHandler,
+	}
+	return &appinit.LoadData{
+		APIHandlers: handlers,
+		StaticCfg:   static,
+	}
 }
 
 func main() {
-	if err := runtime.ListenAndServe(); err != nil && err != io.EOF {
-		runtime.Logger().Fatal().Err(err).Msg("could not listen and serve")
-	}
+	appinit.AppMain()
 }
 
-// getAndClearEnv gets an env variable and unsets it.
-func getAndClearEnv(env string) string {
-	val := os.Getenv(env)
-	os.Unsetenv(env)
-	return val
+
+// generated types for service svc
+package svc
+
+import (
+	"context"
+	"encore.app/__encore/etype"
+	"encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/serde"
+	"encore.dev/types/uuid"
+	"github.com/json-iterator/go"
+	"github.com/julienschmidt/httprouter"
+	"net/http"
+	"net/url"
+	"strings"
+)
+
+type CronOneReq struct{}
+
+func (p *CronOneReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	return nil, nil
 }
-
-type validationDetails struct {
-	Field string `json:"field"`
-	Err   string `json:"err"`
-}
-
-func (validationDetails) ErrDetails() {}
-
-// __encore_authenticate authenticates a request.
-// It reports the user id, user data, and whether or not to proceed with the request.
-// If requireAuth is false, it reports ("", nil, true) on authentication failure.
-func __encore_authenticate(w http.ResponseWriter, req *http.Request, requireAuth bool, svcName, rpcName string) (uid auth.UID, authData interface{}, proceed bool) {
-	param, err := __encore_resolveAuthParam(req)
-
+func (p *CronOneReq) Clone() (*CronOneReq, error) {
+	var clone CronOneReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
 	if err == nil {
-		uid, authData, err = __encore_validateToken(req.Context(), param)
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
 	}
-	if errs.Code(err) == errs.Unauthenticated && !requireAuth {
-		return "", nil, true
-	} else if err != nil {
-		errs.HTTPError(w, err)
-		return "", nil, false
-	}
-	return uid, authData, true
+	return &clone, err
+}
+func (p *CronOneReq) Path() (string, api.PathParams, error) {
+
+	return "/cron", nil, nil
 }
 
-// __encore_resolveAuthParam resolves the auth parameters from the http request
-//  or returns an error if auth params cannot be found
-func __encore_resolveAuthParam(req *http.Request) (param *svc.AuthParams, err error) {
-	params := &svc.AuthParams{}
-	dec := &marshaller{}
-	// Decode Headers
-	h := req.Header
-	params.Header1 = dec.ToString("one", h.Get("one"), false)
-	params.Header2 = dec.ToInt("two", h.Get("two"), false)
-	params.Header3 = dec.ToUint("three", h.Get("three"), false)
+type CronOneResp = api.Void
 
-	// Decode Query String
-	qs := req.URL.Query()
-	params.Query1 = dec.ToString("one", qs.Get("one"), false)
-	params.Query2 = dec.ToStringList("two", qs["two"], false)
-	params.Query3 = dec.ToTime("three", qs.Get("three"), false)
-
-	if dec.LastError != nil {
-		return nil, errs.B().Code(errs.InvalidArgument).Msgf("invalid auth param: %v", dec.LastError).Err()
-	}
-	if dec.NonEmptyValues == 0 {
-		return nil, errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
-	}
-	return params, nil
-}
-
-// __encore_validateToken validates an auth token.
-func __encore_validateToken(ctx context.Context, param *svc.AuthParams) (uid auth.UID, authData interface{}, authErr error) {
-	done := make(chan struct{})
-	paramStr, err := json.MarshalToString(param)
-	if err != nil {
-		return "", nil, err
-	}
-	call, err := runtime.BeginAuth(29, paramStr)
-	if err != nil {
-		return "", nil, err
-	}
-
-	go func() {
-		defer close(done)
-		authErr = call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "AuthHandler",
-			EndpointExprIdx: 29,
-			Inputs:          [][]byte{[]byte(paramStr)},
-			Service:         "svc",
-			Type:            runtime.AuthHandler,
-		})
-		if authErr != nil {
-			return
+var CronOneHandler = &api.Desc[*CronOneReq, *CronOneResp]{
+	Service:  "svc",
+	Endpoint: "CronOne",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/cron",
+	DefLoc:   17,
+	Access:   api.Private,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *CronOneReq, err error) {
+		reqData = &CronOneReq{}
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *CronOneReq) (*CronOneResp, error) {
+		err := CronOne(ctx)
+		if err != nil {
+			return nil, err
 		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				authErr = errs.B().Code(errs.Internal).Msgf("auth handler panicked: %v", err2).Err()
-				call.FinishReq(nil, authErr)
+		return &CronOneResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *CronOneResp) error {
+		return nil
+	},
+}
+
+func CallCronOne(ctx context.Context) error {
+	_, err := CronOneHandler.Call(api.CallContext{}, &CronOneReq{})
+	return err
+}
+
+type EightReq struct {
+	Bar string
+	Baz string
+}
+
+func (p *EightReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 2)
+	for i, val := range [...]any{p.Bar, p.Baz} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *EightReq) Clone() (*EightReq, error) {
+	var clone EightReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *EightReq) Path() (string, api.PathParams, error) {
+	enc := &etype.Marshaller{}
+
+	params := api.PathParams{{
+		Key:   "Bar",
+		Value: enc.FromString(p.Bar),
+	}, {
+		Key:   "Baz",
+		Value: enc.FromString(p.Baz),
+	}}
+	if enc.LastError != nil {
+
+		return "", nil, enc.LastError
+	}
+
+	return "/eight" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+}
+
+type EightResp struct {
+	Data *Response
+}
+
+func (p *EightResp) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Data} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *EightResp) Clone() (*EightResp, error) {
+	var clone EightResp
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+
+var EightHandler = &api.Desc[*EightReq, *EightResp]{
+	Service:  "svc",
+	Endpoint: "Eight",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/eight/:bar/:baz",
+	DefLoc:   18,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EightReq, err error) {
+		reqData = &EightReq{}
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		reqData.Bar = dec.ToString("bar", ps[0].Value, true)
+
+		if value, err := url.PathUnescape(ps[1].Value); err == nil {
+			ps[1].Value = value
+		}
+
+		reqData.Baz = dec.ToString("baz", ps[1].Value, true)
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *EightReq) (*EightResp, error) {
+		resp, err := Eight(ctx, req.Bar, req.Baz)
+		if err != nil {
+			return nil, err
+		}
+		return &EightResp{resp}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *EightResp) error {
+		var err error
+		respData := []byte("null\n")
+		if out.Data != nil {
+			// Encode JSON body
+			respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+				ser.WriteField("Message", out.Data.Message, false)
+			})
+			if err != nil {
+				return err
 			}
-		}()
-		uid, authData, authErr = svc.AuthHandler(ctx, param)
-		serialized, _ := runtime.SerializeInputs(uid, authData)
-		if authErr != nil {
-			call.FinishReq(nil, authErr)
-		} else {
-			call.FinishReq(serialized, nil)
+			respData = append(respData, '\n')
 		}
-	}()
-	<-done
-	call.Finish(uid, authErr)
-	return uid, authData, authErr
+
+		// Write response
+		w.Write(respData)
+		return nil
+	},
 }
 
-// marshaller is used to serialize request data into strings and deserialize response data from strings
-type marshaller struct {
+func CallEight(ctx context.Context, bar string, baz string) (*Response, error) {
+	resp, err := EightHandler.Call(api.CallContext{}, &EightReq{bar, baz})
+	return resp.Data, err
+}
+
+type FiveReq struct {
+	Id     uuid.UUID
+	Key    uint
+	Params *FooParams
+}
+
+func (p *FiveReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 3)
+	for i, val := range [...]any{p.Id, p.Key, p.Params} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *FiveReq) Clone() (*FiveReq, error) {
+	var clone FiveReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *FiveReq) Path() (string, api.PathParams, error) {
+	enc := &etype.Marshaller{}
+
+	params := api.PathParams{{
+		Key:   "Id",
+		Value: enc.FromUUID(p.Id),
+	}, {
+		Key:   "Key",
+		Value: enc.FromUint(p.Key),
+	}}
+	if enc.LastError != nil {
+
+		return "", nil, enc.LastError
+	}
+
+	return "/five" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+}
+
+type FiveResp = api.Void
+
+var FiveHandler = &api.Desc[*FiveReq, *FiveResp]{
+	Service:  "svc",
+	Endpoint: "Five",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/five/:id/:key",
+	DefLoc:   19,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *FiveReq, err error) {
+		reqData = &FiveReq{}
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		reqData.Id = dec.ToUUID("id", ps[0].Value, true)
+
+		reqData.Key = dec.ToUint("key", ps[1].Value, true)
+
+		params := &FooParams{}
+
+		reqData.Params = params
+
+		switch m := req.Method; m {
+		case "GET":
+			// Decode Query String
+			qs := req.URL.Query()
+			params.Name = dec.ToString("name", qs.Get("name"), false)
+
+		case "POST":
+			// Decode JSON Body
+			payload := dec.Body(req.Body)
+			iter := jsoniter.ParseBytes(json, payload)
+
+			for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+				switch strings.ToLower(key) {
+				case "name":
+					dec.ParseJSON("Name", iter, &params.Name)
+				default:
+					_ = iter.SkipAndReturnBytes()
+				}
+				return true
+			}) {
+			}
+
+		default:
+			panic("HTTP method is not supported")
+		}
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *FiveReq) (*FiveResp, error) {
+		err := Five(ctx, req.Id, req.Key, req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return &FiveResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *FiveResp) error {
+		return nil
+	},
+}
+
+func CallFive(ctx context.Context, id uuid.UUID, key uint, params *FooParams) error {
+	_, err := FiveHandler.Call(api.CallContext{}, &FiveReq{id, key, params})
+	return err
+}
+
+type FourReq struct {
+	Baz string
+}
+
+func (p *FourReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Baz} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *FourReq) Clone() (*FourReq, error) {
+	var clone FourReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *FourReq) Path() (string, api.PathParams, error) {
+	enc := &etype.Marshaller{}
+
+	params := api.PathParams{{
+		Key:   "Baz",
+		Value: enc.FromString(p.Baz),
+	}}
+	if enc.LastError != nil {
+
+		return "", nil, enc.LastError
+	}
+
+	return "/four" + "/" + params[0].Value, params, nil
+}
+
+type FourResp = api.Void
+
+var FourHandler = &api.Desc[*FourReq, *FourResp]{
+	Service:  "svc",
+	Endpoint: "Four",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/four/*baz",
+	DefLoc:   20,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *FourReq, err error) {
+		reqData = &FourReq{}
+		// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
+		// while the httprouter implementation includes it.
+		ps[0].Value = strings.TrimPrefix(ps[0].Value, "/")
+
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		reqData.Baz = dec.ToString("baz", ps[0].Value, true)
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *FourReq) (*FourResp, error) {
+		err := Four(ctx, req.Baz)
+		if err != nil {
+			return nil, err
+		}
+		return &FourResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *FourResp) error {
+		return nil
+	},
+}
+
+func CallFour(ctx context.Context, baz string) error {
+	_, err := FourHandler.Call(api.CallContext{}, &FourReq{baz})
+	return err
+}
+
+type NineReq struct {
+	Bar string
+	Baz string
+}
+
+func (p *NineReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 2)
+	for i, val := range [...]any{p.Bar, p.Baz} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *NineReq) Clone() (*NineReq, error) {
+	var clone NineReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *NineReq) Path() (string, api.PathParams, error) {
+	enc := &etype.Marshaller{}
+
+	params := api.PathParams{{
+		Key:   "Bar",
+		Value: enc.FromString(p.Bar),
+	}, {
+		Key:   "Baz",
+		Value: enc.FromString(p.Baz),
+	}}
+	if enc.LastError != nil {
+
+		return "", nil, enc.LastError
+	}
+
+	return "/nine" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+}
+
+type NineResp struct {
+	Data *ComplexResponse
+}
+
+func (p *NineResp) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Data} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *NineResp) Clone() (*NineResp, error) {
+	var clone NineResp
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+
+var NineHandler = &api.Desc[*NineReq, *NineResp]{
+	Service:  "svc",
+	Endpoint: "Nine",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/nine/:bar/:baz",
+	DefLoc:   21,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *NineReq, err error) {
+		reqData = &NineReq{}
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		reqData.Bar = dec.ToString("bar", ps[0].Value, true)
+
+		if value, err := url.PathUnescape(ps[1].Value); err == nil {
+			ps[1].Value = value
+		}
+
+		reqData.Baz = dec.ToString("baz", ps[1].Value, true)
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *NineReq) (*NineResp, error) {
+		resp, err := Nine(ctx, req.Bar, req.Baz)
+		if err != nil {
+			return nil, err
+		}
+		return &NineResp{resp}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *NineResp) error {
+		var err error
+		respData := []byte("null\n")
+		var headers map[string][]string
+		if out.Data != nil {
+			// Encode JSON body
+			respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+				ser.WriteField("Message", out.Data.Message, false)
+			})
+			if err != nil {
+				return err
+			}
+			respData = append(respData, '\n')
+
+			// Encode headers
+			headerEncoder := &etype.Marshaller{}
+			headers = map[string][]string{"x-header": {headerEncoder.FromString(out.Data.Header)}}
+			if headerEncoder.LastError != nil {
+				return headerEncoder.LastError
+			}
+
+		}
+
+		// Write response
+		for k, vs := range headers {
+			for _, v := range vs {
+				w.Header().Add(k, v)
+			}
+		}
+		w.Write(respData)
+		return nil
+	},
+}
+
+func CallNine(ctx context.Context, bar string, baz string) (*ComplexResponse, error) {
+	resp, err := NineHandler.Call(api.CallContext{}, &NineReq{bar, baz})
+	return resp.Data, err
+}
+
+type OneReq struct{}
+
+func (p *OneReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	return nil, nil
+}
+func (p *OneReq) Clone() (*OneReq, error) {
+	var clone OneReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *OneReq) Path() (string, api.PathParams, error) {
+
+	return "/svc.One", nil, nil
+}
+
+type OneResp = api.Void
+
+var OneHandler = &api.Desc[*OneReq, *OneResp]{
+	Service:  "svc",
+	Endpoint: "One",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/svc.One",
+	DefLoc:   22,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *OneReq, err error) {
+		reqData = &OneReq{}
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *OneReq) (*OneResp, error) {
+		err := One(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &OneResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *OneResp) error {
+		return nil
+	},
+}
+
+func CallOne(ctx context.Context) error {
+	_, err := OneHandler.Call(api.CallContext{}, &OneReq{})
+	return err
+}
+
+type QueryReq struct {
+	Params *QueryParams
+}
+
+func (p *QueryReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Params} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *QueryReq) Clone() (*QueryReq, error) {
+	var clone QueryReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *QueryReq) Path() (string, api.PathParams, error) {
+
+	return "/query", nil, nil
+}
+
+type QueryResp struct {
+	Data *QueryParams
+}
+
+func (p *QueryResp) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Data} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *QueryResp) Clone() (*QueryResp, error) {
+	var clone QueryResp
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+
+var QueryHandler = &api.Desc[*QueryReq, *QueryResp]{
+	Service:  "svc",
+	Endpoint: "Query",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/query",
+	DefLoc:   23,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *QueryReq, err error) {
+		reqData = &QueryReq{}
+		dec := &etype.Marshaller{}
+
+		params := &QueryParams{}
+
+		reqData.Params = params
+
+		switch m := req.Method; m {
+		case "GET":
+			// Decode Query String
+			qs := req.URL.Query()
+			params.Time = dec.ToTime("time", qs.Get("time"), false)
+			params.UID = dec.ToUserID("uid", qs.Get("uid"), false)
+			params.JSON = dec.ToJSON("json", qs.Get("json"), false)
+			params.Float32 = dec.ToFloat32("float32", qs.Get("float32"), false)
+			params.Float64 = dec.ToFloat64("float64", qs.Get("float64"), false)
+			params.Strings = dec.ToStringList("strings", qs["strings"], false)
+			params.Times = dec.ToTimeList("times", qs["times"], false)
+
+		case "POST":
+			// Decode JSON Body
+			payload := dec.Body(req.Body)
+			iter := jsoniter.ParseBytes(json, payload)
+
+			for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+				switch strings.ToLower(key) {
+				case "time":
+					dec.ParseJSON("Time", iter, &params.Time)
+				case "uid":
+					dec.ParseJSON("UID", iter, &params.UID)
+				case "json":
+					dec.ParseJSON("JSON", iter, &params.JSON)
+				case "float32":
+					dec.ParseJSON("Float32", iter, &params.Float32)
+				case "float64":
+					dec.ParseJSON("Float64", iter, &params.Float64)
+				case "strings":
+					dec.ParseJSON("Strings", iter, &params.Strings)
+				case "times":
+					dec.ParseJSON("Times", iter, &params.Times)
+				default:
+					_ = iter.SkipAndReturnBytes()
+				}
+				return true
+			}) {
+			}
+
+		default:
+			panic("HTTP method is not supported")
+		}
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *QueryReq) (*QueryResp, error) {
+		resp, err := Query(ctx, req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return &QueryResp{resp}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *QueryResp) error {
+		var err error
+		respData := []byte("null\n")
+		if out.Data != nil {
+			// Encode JSON body
+			respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+				ser.WriteField("Time", out.Data.Time, false)
+				ser.WriteField("UID", out.Data.UID, false)
+				ser.WriteField("JSON", out.Data.JSON, false)
+				ser.WriteField("Float32", out.Data.Float32, false)
+				ser.WriteField("Float64", out.Data.Float64, false)
+				ser.WriteField("Strings", out.Data.Strings, false)
+				ser.WriteField("Times", out.Data.Times, false)
+			})
+			if err != nil {
+				return err
+			}
+			respData = append(respData, '\n')
+		}
+
+		// Write response
+		w.Write(respData)
+		return nil
+	},
+}
+
+func CallQuery(ctx context.Context, params *QueryParams) (*QueryParams, error) {
+	resp, err := QueryHandler.Call(api.CallContext{}, &QueryReq{params})
+	return resp.Data, err
+}
+
+type SevenReq struct {
+	W   http.ResponseWriter
+	Req *http.Request
+}
+
+func (p *SevenReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 2)
+	for i, val := range [...]any{p.W, p.Req} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *SevenReq) Clone() (*SevenReq, error) {
+	var clone SevenReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *SevenReq) Path() (string, api.PathParams, error) {
+
+	return "/foo/:bar/:baz", nil, nil
+}
+
+type SevenResp = api.Void
+
+var SevenHandler = &api.Desc[*SevenReq, *SevenResp]{
+	Service:  "svc",
+	Endpoint: "Seven",
+	Methods:  []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
+	Path:     "/foo/:bar/:baz",
+	DefLoc:   24,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *SevenReq, err error) {
+		reqData = &SevenReq{}
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		_ = dec.ToString("bar", ps[0].Value, true)
+
+		if value, err := url.PathUnescape(ps[1].Value); err == nil {
+			ps[1].Value = value
+		}
+
+		_ = dec.ToString("baz", ps[1].Value, true)
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *SevenReq) (*SevenResp, error) {
+		Seven(req.W, req.Req)
+		return &SevenResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *SevenResp) error {
+		return nil
+	},
+}
+
+type SixReq struct {
+	Id     uuid.UUID
+	Key    string
+	Params *FooParams
+}
+
+func (p *SixReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 3)
+	for i, val := range [...]any{p.Id, p.Key, p.Params} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *SixReq) Clone() (*SixReq, error) {
+	var clone SixReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *SixReq) Path() (string, api.PathParams, error) {
+	enc := &etype.Marshaller{}
+
+	params := api.PathParams{{
+		Key:   "Id",
+		Value: enc.FromUUID(p.Id),
+	}, {
+		Key:   "Key",
+		Value: enc.FromString(p.Key),
+	}}
+	if enc.LastError != nil {
+
+		return "", nil, enc.LastError
+	}
+
+	return "/six" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+}
+
+type SixResp = api.Void
+
+var SixHandler = &api.Desc[*SixReq, *SixResp]{
+	Service:  "svc",
+	Endpoint: "Six",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/six/:id/*key",
+	DefLoc:   25,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *SixReq, err error) {
+		reqData = &SixReq{}
+		// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
+		// while the httprouter implementation includes it.
+		ps[1].Value = strings.TrimPrefix(ps[1].Value, "/")
+
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		reqData.Id = dec.ToUUID("id", ps[0].Value, true)
+
+		if value, err := url.PathUnescape(ps[1].Value); err == nil {
+			ps[1].Value = value
+		}
+
+		reqData.Key = dec.ToString("key", ps[1].Value, true)
+
+		params := &FooParams{}
+
+		reqData.Params = params
+
+		switch m := req.Method; m {
+		case "GET":
+			// Decode Query String
+			qs := req.URL.Query()
+			params.Name = dec.ToString("name", qs.Get("name"), false)
+
+		case "POST":
+			// Decode JSON Body
+			payload := dec.Body(req.Body)
+			iter := jsoniter.ParseBytes(json, payload)
+
+			for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+				switch strings.ToLower(key) {
+				case "name":
+					dec.ParseJSON("Name", iter, &params.Name)
+				default:
+					_ = iter.SkipAndReturnBytes()
+				}
+				return true
+			}) {
+			}
+
+		default:
+			panic("HTTP method is not supported")
+		}
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *SixReq) (*SixResp, error) {
+		err := Six(ctx, req.Id, req.Key, req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return &SixResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *SixResp) error {
+		return nil
+	},
+}
+
+func CallSix(ctx context.Context, id uuid.UUID, key string, params *FooParams) error {
+	_, err := SixHandler.Call(api.CallContext{}, &SixReq{id, key, params})
+	return err
+}
+
+type TenReq struct{}
+
+func (p *TenReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	return nil, nil
+}
+func (p *TenReq) Clone() (*TenReq, error) {
+	var clone TenReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *TenReq) Path() (string, api.PathParams, error) {
+
+	return "/ten", nil, nil
+}
+
+type TenResp struct {
+	Data *HeaderResponse
+}
+
+func (p *TenResp) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Data} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *TenResp) Clone() (*TenResp, error) {
+	var clone TenResp
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+
+var TenHandler = &api.Desc[*TenReq, *TenResp]{
+	Service:  "svc",
+	Endpoint: "Ten",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/ten",
+	DefLoc:   26,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *TenReq, err error) {
+		reqData = &TenReq{}
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *TenReq) (*TenResp, error) {
+		resp, err := Ten(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &TenResp{resp}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *TenResp) error {
+		var err error
+		respData := []byte{'\n'}
+		var headers map[string][]string
+		if out.Data != nil {
+
+			// Encode headers
+			headerEncoder := &etype.Marshaller{}
+			headers = map[string][]string{"x-header": {headerEncoder.FromString(out.Data.Header)}}
+			if headerEncoder.LastError != nil {
+				return headerEncoder.LastError
+			}
+
+		}
+
+		// Write response
+		for k, vs := range headers {
+			for _, v := range vs {
+				w.Header().Add(k, v)
+			}
+		}
+		w.Write(respData)
+		return nil
+	},
+}
+
+func CallTen(ctx context.Context) (*HeaderResponse, error) {
+	resp, err := TenHandler.Call(api.CallContext{}, &TenReq{})
+	return resp.Data, err
+}
+
+type ThreeReq struct {
+	Id string
+}
+
+func (p *ThreeReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Id} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *ThreeReq) Clone() (*ThreeReq, error) {
+	var clone ThreeReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *ThreeReq) Path() (string, api.PathParams, error) {
+	enc := &etype.Marshaller{}
+
+	params := api.PathParams{{
+		Key:   "Id",
+		Value: enc.FromString(p.Id),
+	}}
+	if enc.LastError != nil {
+
+		return "", nil, enc.LastError
+	}
+
+	return "/three" + "/" + params[0].Value, params, nil
+}
+
+type ThreeResp = api.Void
+
+var ThreeHandler = &api.Desc[*ThreeReq, *ThreeResp]{
+	Service:  "svc",
+	Endpoint: "Three",
+	Methods:  []string{"GET", "POST"},
+	Path:     "/three/:id",
+	DefLoc:   27,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *ThreeReq, err error) {
+		reqData = &ThreeReq{}
+		dec := &etype.Marshaller{}
+
+		if value, err := url.PathUnescape(ps[0].Value); err == nil {
+			ps[0].Value = value
+		}
+
+		reqData.Id = dec.ToString("id", ps[0].Value, true)
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *ThreeReq) (*ThreeResp, error) {
+		err := Three(ctx, req.Id)
+		if err != nil {
+			return nil, err
+		}
+		return &ThreeResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *ThreeResp) error {
+		return nil
+	},
+}
+
+func CallThree(ctx context.Context, id string) error {
+	_, err := ThreeHandler.Call(api.CallContext{}, &ThreeReq{id})
+	return err
+}
+
+type TwoReq struct {
+	Params *FooParams
+}
+
+func (p *TwoReq) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Params} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *TwoReq) Clone() (*TwoReq, error) {
+	var clone TwoReq
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+func (p *TwoReq) Path() (string, api.PathParams, error) {
+
+	return "/svc.Two", nil, nil
+}
+
+type TwoResp = api.Void
+
+var TwoHandler = &api.Desc[*TwoReq, *TwoResp]{
+	Service:  "svc",
+	Endpoint: "Two",
+	Methods:  []string{"POST"},
+	Path:     "/svc.Two",
+	DefLoc:   28,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *TwoReq, err error) {
+		reqData = &TwoReq{}
+		dec := &etype.Marshaller{}
+
+		params := &FooParams{}
+
+		reqData.Params = params
+
+		switch m := req.Method; m {
+		case "POST":
+			// Decode JSON Body
+			payload := dec.Body(req.Body)
+			iter := jsoniter.ParseBytes(json, payload)
+
+			for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
+				switch strings.ToLower(key) {
+				case "name":
+					dec.ParseJSON("Name", iter, &params.Name)
+				default:
+					_ = iter.SkipAndReturnBytes()
+				}
+				return true
+			}) {
+			}
+
+		default:
+			panic("HTTP method is not supported")
+		}
+		if dec.LastError != nil {
+
+			return nil, dec.LastError
+		}
+
+		return reqData, nil
+	},
+	AppHandler: func(ctx context.Context, req *TwoReq) (*TwoResp, error) {
+		err := Two(ctx, req.Params)
+		if err != nil {
+			return nil, err
+		}
+		return &TwoResp{}, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *TwoResp) error {
+		return nil
+	},
+}
+
+func CallTwo(ctx context.Context, params *FooParams) error {
+	_, err := TwoHandler.Call(api.CallContext{}, &TwoReq{params})
+	return err
+}
+// etype package
+package etype
+
+import (
+	stdjson "encoding/json"
+	_ "encore.dev/appruntime/app/appinit"
+	auth "encore.dev/beta/auth"
+	"encore.dev/types/uuid"
+	"fmt"
+	"github.com/json-iterator/go"
+	"io"
+	"io/ioutil"
+	"strconv"
+	"time"
+)
+
+// Marshaller is used to serialize request data into strings and deserialize response data from strings
+type Marshaller struct {
 	LastError      error // The last error that occurred
 	NonEmptyValues int   // The number of values this decoder has decoded
 }
 
-func (e *marshaller) ToString(field string, s string, required bool) (v string) {
+func (e *Marshaller) ToString(field string, s string, required bool) (v string) {
 	if !required && s == "" {
 		return
 	}
@@ -1242,7 +1268,12 @@ func (e *marshaller) ToString(field string, s string, required bool) (v string) 
 	return s
 }
 
-func (e *marshaller) ToUUID(field string, s string, required bool) (v uuid.UUID) {
+func (e *Marshaller) FromString(s string) (v string) {
+	e.NonEmptyValues++
+	return s
+}
+
+func (e *Marshaller) ToUUID(field string, s string, required bool) (v uuid.UUID) {
 	if !required && s == "" {
 		return
 	}
@@ -1252,7 +1283,7 @@ func (e *marshaller) ToUUID(field string, s string, required bool) (v uuid.UUID)
 	return v
 }
 
-func (e *marshaller) ToUint(field string, s string, required bool) (v uint) {
+func (e *Marshaller) ToUint(field string, s string, required bool) (v uint) {
 	if !required && s == "" {
 		return
 	}
@@ -1262,12 +1293,17 @@ func (e *marshaller) ToUint(field string, s string, required bool) (v uint) {
 	return uint(x)
 }
 
-func (e *marshaller) FromString(s string) (v string) {
+func (e *Marshaller) FromUUID(s uuid.UUID) (v string) {
 	e.NonEmptyValues++
-	return s
+	return s.String()
 }
 
-func (e *marshaller) ToTime(field string, s string, required bool) (v time.Time) {
+func (e *Marshaller) FromUint(s uint) (v string) {
+	e.NonEmptyValues++
+	return strconv.FormatUint(uint64(s), 10)
+}
+
+func (e *Marshaller) ToTime(field string, s string, required bool) (v time.Time) {
 	if !required && s == "" {
 		return
 	}
@@ -1277,7 +1313,7 @@ func (e *marshaller) ToTime(field string, s string, required bool) (v time.Time)
 	return v
 }
 
-func (e *marshaller) ToUserID(field string, s string, required bool) (v auth.UID) {
+func (e *Marshaller) ToUserID(field string, s string, required bool) (v auth.UID) {
 	if !required && s == "" {
 		return
 	}
@@ -1285,7 +1321,7 @@ func (e *marshaller) ToUserID(field string, s string, required bool) (v auth.UID
 	return auth.UID(s)
 }
 
-func (e *marshaller) ToJSON(field string, s string, required bool) (v stdjson.RawMessage) {
+func (e *Marshaller) ToJSON(field string, s string, required bool) (v stdjson.RawMessage) {
 	if !required && s == "" {
 		return
 	}
@@ -1293,7 +1329,7 @@ func (e *marshaller) ToJSON(field string, s string, required bool) (v stdjson.Ra
 	return stdjson.RawMessage(s)
 }
 
-func (e *marshaller) ToFloat32(field string, s string, required bool) (v float32) {
+func (e *Marshaller) ToFloat32(field string, s string, required bool) (v float32) {
 	if !required && s == "" {
 		return
 	}
@@ -1303,7 +1339,7 @@ func (e *marshaller) ToFloat32(field string, s string, required bool) (v float32
 	return float32(x)
 }
 
-func (e *marshaller) ToFloat64(field string, s string, required bool) (v float64) {
+func (e *Marshaller) ToFloat64(field string, s string, required bool) (v float64) {
 	if !required && s == "" {
 		return
 	}
@@ -1313,7 +1349,7 @@ func (e *marshaller) ToFloat64(field string, s string, required bool) (v float64
 	return x
 }
 
-func (e *marshaller) ToStringList(field string, s []string, required bool) (v []string) {
+func (e *Marshaller) ToStringList(field string, s []string, required bool) (v []string) {
 	if !required && len(s) == 0 {
 		return
 	}
@@ -1324,7 +1360,7 @@ func (e *marshaller) ToStringList(field string, s []string, required bool) (v []
 	return v
 }
 
-func (e *marshaller) ToTimeList(field string, s []string, required bool) (v []time.Time) {
+func (e *Marshaller) ToTimeList(field string, s []string, required bool) (v []time.Time) {
 	if !required && len(s) == 0 {
 		return
 	}
@@ -1335,24 +1371,14 @@ func (e *marshaller) ToTimeList(field string, s []string, required bool) (v []ti
 	return v
 }
 
-func (e *marshaller) ToInt(field string, s string, required bool) (v int) {
-	if !required && s == "" {
-		return
-	}
-	e.NonEmptyValues++
-	x, err := strconv.ParseInt(s, 10, 64)
-	e.setErr("invalid parameter", field, err)
-	return int(x)
-}
-
 // setErr sets the last error within the object if one is not already set
-func (e *marshaller) setErr(msg, field string, err error) {
+func (e *Marshaller) setErr(msg, field string, err error) {
 	if err != nil && e.LastError == nil {
 		e.LastError = fmt.Errorf("%s: %s: %w", field, msg, err)
 	}
 }
 
-func (d *marshaller) Body(body io.Reader) (payload []byte) {
+func (d *Marshaller) Body(body io.Reader) (payload []byte) {
 	payload, err := ioutil.ReadAll(body)
 	if err == nil && len(payload) == 0 {
 		d.setErr("missing request body", "request_body", fmt.Errorf("missing request body"))
@@ -1361,830 +1387,7 @@ func (d *marshaller) Body(body io.Reader) (payload []byte) {
 	}
 	return payload
 }
-func (d *marshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst interface{}) {
+func (d *Marshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst interface{}) {
 	iter.ReadVal(dst)
 	d.setErr("invalid json parameter", field, iter.Error)
-}
-
-
-// wrappers for service svc
-package svc
-
-import (
-	"context"
-	"encore.dev/beta/errs"
-	"encore.dev/runtime"
-	"encore.dev/types/uuid"
-	"fmt"
-	"github.com/julienschmidt/httprouter"
-	"net/url"
-)
-
-func __encore_svc_CronOne(ctx context.Context) (err error) {
-	var inputs [][]byte
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "CronOne",
-		EndpointExprIdx: 17,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "CronOne",
-			EndpointExprIdx: 17,
-			Inputs:          inputs,
-			Path:            "/cron",
-			PathSegments:    nil,
-			RequireAuth:     false,
-			Service:         "svc",
-			Type:            runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		rpcErr := CronOne(ctx)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
-}
-
-func __encore_svc_Eight(ctx context.Context, p0 string, p1 string) (resp *Response, err error) {
-	inputs, err := runtime.SerializeInputs(p0, p1)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Eight",
-		EndpointExprIdx: 18,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Eight",
-			EndpointExprIdx: 18,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/eight/%s/%s", url.PathEscape(p0), url.PathEscape(p1)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "bar",
-				Value: p0,
-			}, httprouter.Param{
-				Key:   "baz",
-				Value: p1,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 string
-			r1 string
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcResp, rpcErr := Eight(ctx, r0, r1)
-		response.data, _ = runtime.SerializeInputs(rpcResp)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	if response.data != nil {
-		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
-	}
-	return resp, response.err
-}
-
-func __encore_svc_Five(ctx context.Context, p0 uuid.UUID, p1 uint, p2 *FooParams) (err error) {
-	inputs, err := runtime.SerializeInputs(p0, p1, p2)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Five",
-		EndpointExprIdx: 19,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		p0Str := fmt.Sprint(p0)
-		p1Str := fmt.Sprint(p1)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Five",
-			EndpointExprIdx: 19,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/five/%s/%s", url.PathEscape(p0Str), url.PathEscape(p1Str)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "id",
-				Value: p0Str,
-			}, httprouter.Param{
-				Key:   "key",
-				Value: p1Str,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 uuid.UUID
-			r1 uint
-			r2 *FooParams
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1, &r2}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcErr := Five(ctx, r0, r1, r2)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
-}
-
-func __encore_svc_Four(ctx context.Context, p0 string) (err error) {
-	inputs, err := runtime.SerializeInputs(p0)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Four",
-		EndpointExprIdx: 20,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Four",
-			EndpointExprIdx: 20,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/four/%s", url.PathEscape(p0)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "baz",
-				Value: p0,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 string
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcErr := Four(ctx, r0)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
-}
-
-func __encore_svc_Nine(ctx context.Context, p0 string, p1 string) (resp *ComplexResponse, err error) {
-	inputs, err := runtime.SerializeInputs(p0, p1)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Nine",
-		EndpointExprIdx: 21,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Nine",
-			EndpointExprIdx: 21,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/nine/%s/%s", url.PathEscape(p0), url.PathEscape(p1)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "bar",
-				Value: p0,
-			}, httprouter.Param{
-				Key:   "baz",
-				Value: p1,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 string
-			r1 string
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcResp, rpcErr := Nine(ctx, r0, r1)
-		response.data, _ = runtime.SerializeInputs(rpcResp)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	if response.data != nil {
-		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
-	}
-	return resp, response.err
-}
-
-func __encore_svc_One(ctx context.Context) (err error) {
-	var inputs [][]byte
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "One",
-		EndpointExprIdx: 22,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "One",
-			EndpointExprIdx: 22,
-			Inputs:          inputs,
-			Path:            "/svc.One",
-			PathSegments:    nil,
-			RequireAuth:     false,
-			Service:         "svc",
-			Type:            runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		rpcErr := One(ctx)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
-}
-
-func __encore_svc_Query(ctx context.Context, p0 *QueryParams) (resp *QueryParams, err error) {
-	inputs, err := runtime.SerializeInputs(p0)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Query",
-		EndpointExprIdx: 23,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Query",
-			EndpointExprIdx: 23,
-			Inputs:          inputs,
-			Path:            "/query",
-			PathSegments:    nil,
-			RequireAuth:     false,
-			Service:         "svc",
-			Type:            runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 *QueryParams
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcResp, rpcErr := Query(ctx, r0)
-		response.data, _ = runtime.SerializeInputs(rpcResp)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	if response.data != nil {
-		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
-	}
-	return resp, response.err
-}
-
-func __encore_svc_Seven(ctx context.Context, p0 string, p1 string) (err error) {
-	inputs, err := runtime.SerializeInputs(p0, p1)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Seven",
-		EndpointExprIdx: 24,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Seven",
-			EndpointExprIdx: 24,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/foo/%s/%s", url.PathEscape(p0), url.PathEscape(p1)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "bar",
-				Value: p0,
-			}, httprouter.Param{
-				Key:   "baz",
-				Value: p1,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 string
-			r1 string
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcErr := Seven(ctx, r0, r1)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
-}
-
-func __encore_svc_Six(ctx context.Context, p0 uuid.UUID, p1 string, p2 *FooParams) (err error) {
-	inputs, err := runtime.SerializeInputs(p0, p1, p2)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Six",
-		EndpointExprIdx: 25,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		p0Str := fmt.Sprint(p0)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Six",
-			EndpointExprIdx: 25,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/six/%s/%s", url.PathEscape(p0Str), url.PathEscape(p1)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "id",
-				Value: p0Str,
-			}, httprouter.Param{
-				Key:   "key",
-				Value: p1,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 uuid.UUID
-			r1 string
-			r2 *FooParams
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0, &r1, &r2}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcErr := Six(ctx, r0, r1, r2)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
-}
-
-func __encore_svc_Ten(ctx context.Context) (resp *HeaderResponse, err error) {
-	var inputs [][]byte
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Ten",
-		EndpointExprIdx: 26,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Ten",
-			EndpointExprIdx: 26,
-			Inputs:          inputs,
-			Path:            "/ten",
-			PathSegments:    nil,
-			RequireAuth:     false,
-			Service:         "svc",
-			Type:            runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		rpcResp, rpcErr := Ten(ctx)
-		response.data, _ = runtime.SerializeInputs(rpcResp)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	if response.data != nil {
-		_ = runtime.CopyInputs(response.data, []interface{}{&resp})
-	}
-	return resp, response.err
-}
-
-func __encore_svc_Three(ctx context.Context, p0 string) (err error) {
-	inputs, err := runtime.SerializeInputs(p0)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Three",
-		EndpointExprIdx: 27,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Three",
-			EndpointExprIdx: 27,
-			Inputs:          inputs,
-			Path:            fmt.Sprintf("/three/%s", url.PathEscape(p0)),
-			PathSegments: httprouter.Params{httprouter.Param{
-				Key:   "id",
-				Value: p0,
-			}},
-			RequireAuth: false,
-			Service:     "svc",
-			Type:        runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 string
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcErr := Three(ctx, r0)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
-}
-
-func __encore_svc_Two(ctx context.Context, p0 *FooParams) (err error) {
-	inputs, err := runtime.SerializeInputs(p0)
-	if err != nil {
-		return
-	}
-	call, err := runtime.BeginCall(runtime.CallParams{
-		Endpoint:        "Two",
-		EndpointExprIdx: 28,
-		Service:         "svc",
-	})
-	if err != nil {
-		return
-	}
-
-	// Run the request in a different goroutine
-	var response struct {
-		data [][]byte
-		err  error
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		err := call.BeginReq(ctx, runtime.RequestData{
-			Endpoint:        "Two",
-			EndpointExprIdx: 28,
-			Inputs:          inputs,
-			Path:            "/svc.Two",
-			PathSegments:    nil,
-			RequireAuth:     false,
-			Service:         "svc",
-			Type:            runtime.RPCCall,
-		})
-		if err != nil {
-			response.err = err
-			return
-		}
-		defer func() {
-			if err2 := recover(); err2 != nil {
-				response.err = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", err2).Err()
-				call.FinishReq(nil, response.err)
-			}
-		}()
-
-		var (
-			r0 *FooParams
-		)
-		if response.err = runtime.CopyInputs(inputs, []interface{}{&r0}); response.err != nil {
-			call.FinishReq(nil, response.err)
-			return
-		}
-
-		rpcErr := Two(ctx, r0)
-		if rpcErr != nil {
-			call.FinishReq(nil, rpcErr)
-			response.err = errs.RoundTrip(rpcErr)
-		} else {
-			call.FinishReq(response.data, nil)
-		}
-	}()
-	<-done
-
-	call.Finish(response.err)
-	return response.err
 }
