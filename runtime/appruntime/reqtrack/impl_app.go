@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"sync/atomic"
 	_ "unsafe" // for go:linkname
-
 )
 
 func newImpl() reqTrackImpl {
@@ -51,20 +50,7 @@ func startEncoreG(src *encoreG) *encoreG {
 	// Log an event if we are tracing this
 	if src.req != nil && src.op.trace != nil {
 		spanID := src.req.spanID
-		src.op.trace.Add(0x03, []byte{
-			spanID[0],
-			spanID[1],
-			spanID[2],
-			spanID[3],
-			spanID[4],
-			spanID[5],
-			spanID[6],
-			spanID[7],
-			byte(goctr),
-			byte(goctr >> 8),
-			byte(goctr >> 16),
-			byte(goctr >> 24),
-		})
+		src.op.trace.GoStart(spanID, goctr)
 	}
 
 	return dst
@@ -74,20 +60,7 @@ func startEncoreG(src *encoreG) *encoreG {
 func exitEncoreG(e *encoreG) {
 	if e.req != nil && e.op.trace != nil {
 		spanID := e.req.spanID
-		e.op.trace.Add(0x04, []byte{
-			spanID[0],
-			spanID[1],
-			spanID[2],
-			spanID[3],
-			spanID[4],
-			spanID[5],
-			spanID[6],
-			spanID[7],
-			byte(e.goctr),
-			byte(e.goctr >> 8),
-			byte(e.goctr >> 16),
-			byte(e.goctr >> 24),
-		})
+		e.op.trace.GoEnd(spanID, e.goctr)
 	}
 }
 
