@@ -38,3 +38,15 @@ func (s *JSONSerializer) WriteField(name string, val any, omitEmpty bool) {
 	s.stream.WriteVal(val)
 	s.writtenFields++
 }
+
+func SerializeInputs(json jsoniter.API, inputs ...any) ([][]byte, error) {
+	outputs := make([][]byte, len(inputs))
+	for i, input := range inputs {
+		out, err := json.Marshal(input)
+		if err != nil {
+			return nil, err
+		}
+		outputs[i] = out
+	}
+	return outputs, nil
+}
