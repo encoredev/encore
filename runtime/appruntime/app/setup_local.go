@@ -1,6 +1,6 @@
 //go:build encore_local
 
-package runtime
+package app
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ import (
 
 var devMode = true
 
-func listen() (net.Listener, error) {
+func Listen() (net.Listener, error) {
 	var in, out *os.File
 	if runtime.GOOS == "windows" {
 		extraFiles := os.Getenv("ENCORE_EXTRA_FILES")
@@ -47,7 +47,7 @@ func listen() (net.Listener, error) {
 	return yamux.Server(rwc, yamux.DefaultConfig())
 }
 
-// configureZerologOutput configures the zerolog logger's output format.
-func configureZerologOutput() {
+// ConfigureZerologOutput configures the zerolog Logger's output format.
+func ConfigureZerologOutput() {
 	// Use default settings for local development.
 }
