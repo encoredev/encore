@@ -2,16 +2,10 @@ package api
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
-	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
@@ -20,6 +14,7 @@ import (
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/cors"
 	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/metrics"
@@ -53,6 +48,7 @@ type Handler interface {
 type Server struct {
 	cfg        *config.Config
 	rt         *reqtrack.RequestTracker
+	pc         *platform.Client
 	rootLogger zerolog.Logger
 	json       jsoniter.API
 
@@ -66,7 +62,7 @@ type Server struct {
 	pubsubSubscriptions map[string]func(r *http.Request) error
 }
 
-func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, rootLogger zerolog.Logger, json jsoniter.API) *Server {
+func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Client, rootLogger zerolog.Logger, json jsoniter.API) *Server {
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -84,8 +80,9 @@ func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, rootLogger zerol
 
 	s := &Server{
 		cfg:        cfg,
-		rootLogger: rootLogger,
+		pc:         pc,
 		rt:         rt,
+		rootLogger: rootLogger,
 		json:       json,
 
 		public:  public,
@@ -164,10 +161,10 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	r := s.public
 
 	// The Encore platform is authorised to call private APIs directly, thus if we have this header set,
-	// and authenticate it, then we can switch over to the private router which contains all API's not just
+	// and authenticate it, then we can switch over to the private router which contains all APIs not just
 	// the publicly accessible ones.
-	if h := req.Header.Get("X-Encore-Auth"); h != "" {
-		if ok, err := s.authPlatformReq(req, h); err == nil && ok {
+	if sig := req.Header.Get("X-Encore-Auth"); sig != "" {
+		if ok, err := s.pc.ValidatePlatformRequest(req, sig); err == nil && ok {
 			// Successfully authenticated
 			req = req.WithContext(withEncorePlatformSealOfApproval(req.Context()))
 			r = s.private
@@ -235,49 +232,6 @@ func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
 		},
 	})
 	_, _ = w.Write(bytes)
-}
-
-func (s *Server) authPlatformReq(req *http.Request, macSig string) (bool, error) {
-	macBytes, err := base64.RawStdEncoding.DecodeString(macSig)
-	if err != nil {
-		return false, nil
-	}
-
-	// Pull out key ID from hmac prefix
-	const keyIDLen = 4
-	if len(macBytes) < keyIDLen {
-		return false, nil
-	}
-
-	keyID := binary.BigEndian.Uint32(macBytes[:keyIDLen])
-	mac := macBytes[keyIDLen:]
-	for _, k := range s.cfg.Runtime.AuthKeys {
-		if k.KeyID == keyID {
-			return checkAuthKey(k, req, mac), nil
-		}
-	}
-
-	return false, nil
-}
-
-func checkAuthKey(key config.EncoreAuthKey, req *http.Request, gotMac []byte) bool {
-	dateStr := req.Header.Get("Date")
-	if dateStr == "" {
-		return false
-	}
-	date, err := http.ParseTime(dateStr)
-	if err != nil {
-		return false
-	}
-	const threshold = 15 * time.Minute
-	if diff := time.Since(date); diff > threshold || diff < -threshold {
-		return false
-	}
-
-	mac := hmac.New(sha256.New, key.Data)
-	fmt.Fprintf(mac, "%s\x00%s", dateStr, req.URL.Path)
-	expected := mac.Sum(nil)
-	return hmac.Equal(expected, gotMac)
 }
 
 func (s *Server) NewContext(w http.ResponseWriter, req *http.Request, ps PathParams, auth model.AuthInfo) Context {

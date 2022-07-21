@@ -187,20 +187,7 @@ func (t *RequestTracker) clearReq() {
 	spanID := e.req.spanID
 	e.req = nil
 	if e.op.trace != nil {
-		e.op.trace.Add(0x05, []byte{
-			spanID[0],
-			spanID[1],
-			spanID[2],
-			spanID[3],
-			spanID[4],
-			spanID[5],
-			spanID[6],
-			spanID[7],
-			byte(e.goctr),
-			byte(e.goctr >> 8),
-			byte(e.goctr >> 16),
-			byte(e.goctr >> 24),
-		})
+		e.op.trace.GoClear(spanID, e.goctr)
 	}
 }
 
