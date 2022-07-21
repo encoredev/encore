@@ -1,6 +1,6 @@
 //go:build !encore_local
 
-package runtime
+package app
 
 import (
 	"net"
@@ -13,7 +13,7 @@ import (
 
 var devMode = false
 
-func listen() (net.Listener, error) {
+func Listen() (net.Listener, error) {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	if port == 0 {
 		port = 8080
@@ -21,8 +21,8 @@ func listen() (net.Listener, error) {
 	return net.Listen("tcp", ":"+strconv.Itoa(port))
 }
 
-// configureZerologOutput configures the zerolog logger's output format.
-func configureZerologOutput() {
+// ConfigureZerologOutput configures the zerolog Logger's output format.
+func ConfigureZerologOutput() {
 	// Settings to match what Cloud Logging expects.
 	// TODO(andre): change this to vary by cloud provider?
 	zerolog.LevelFieldName = "severity"
