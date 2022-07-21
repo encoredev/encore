@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/cors"
 
-	"encore.dev/runtime/config"
+	"encore.dev/appruntime/config"
 )
 
 func Wrap(cfg *config.CORS, handler http.Handler) http.Handler {
