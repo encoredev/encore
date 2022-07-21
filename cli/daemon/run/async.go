@@ -46,9 +46,14 @@ func (a *asyncBuildJobs) Go(description string, track bool, minDuration time.Dur
 
 		log.Info().Str("app_id", a.appID).Str("job", description).Msg("starting build job")
 		if err := f(a.ctx); err != nil {
-			log.Err(err).Str("app_id", a.appID).Str("job", description).Msg("build job failed")
-			a.tracker.Fail(trackerID, err)
-			a.recordError(err)
+			// If the context was canceled, it probably means the error was due to that.
+			if a.ctx.Err() != nil {
+				a.tracker.Cancel(trackerID)
+			} else {
+				log.Err(err).Str("app_id", a.appID).Str("job", description).Msg("build job failed")
+				a.tracker.Fail(trackerID, err)
+				a.recordError(err)
+			}
 		} else {
 			a.tracker.Done(trackerID, minDuration)
 			log.Info().Str("app_id", a.appID).Str("job", description).Msg("build job finished")
