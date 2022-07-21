@@ -1,11 +1,9 @@
-//go:build encore_internal
-
 package encore
 
 import (
 	"time"
 
-	"encore.dev/runtime"
+	"encore.dev/appruntime/model"
 )
 
 var applicationStartTime = time.Now()
@@ -16,9 +14,9 @@ var applicationStartTime = time.Now()
 // calling code without impacting future calls.
 //
 // CurrentRequest never returns nil.
-func CurrentRequest() *Request {
-	req, _, inRequest := runtime.CurrentRequest()
-	if !inRequest {
+func (mgr *Manager) CurrentRequest() *Request {
+	req := mgr.rt.Current().Req
+	if req == nil {
 		return &Request{
 			Type:    None,
 			Started: applicationStartTime,
@@ -27,7 +25,7 @@ func CurrentRequest() *Request {
 
 	opType := None
 	switch req.Type {
-	case runtime.RPCCall, runtime.AuthHandler:
+	case model.RPCCall, model.AuthHandler:
 		opType = APICall
 	}
 
