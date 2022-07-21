@@ -262,3 +262,54 @@ func (l *Log) PublishEnd(publishID uint64, messageID string, err error) {
 	tb.Err(err)
 	l.Add(PublishEnd, tb.Buf())
 }
+
+func (l *Log) GoStart(spanID model.SpanID, goctr uint32) {
+	l.Add(GoStart, []byte{
+		spanID[0],
+		spanID[1],
+		spanID[2],
+		spanID[3],
+		spanID[4],
+		spanID[5],
+		spanID[6],
+		spanID[7],
+		byte(goctr),
+		byte(goctr >> 8),
+		byte(goctr >> 16),
+		byte(goctr >> 24),
+	})
+}
+
+func (l *Log) GoClear(spanID model.SpanID, goctr uint32) {
+	l.Add(GoClear, []byte{
+		spanID[0],
+		spanID[1],
+		spanID[2],
+		spanID[3],
+		spanID[4],
+		spanID[5],
+		spanID[6],
+		spanID[7],
+		byte(goctr),
+		byte(goctr >> 8),
+		byte(goctr >> 16),
+		byte(goctr >> 24),
+	})
+}
+
+func (l *Log) GoEnd(spanID model.SpanID, goctr uint32) {
+	l.Add(GoEnd, []byte{
+		spanID[0],
+		spanID[1],
+		spanID[2],
+		spanID[3],
+		spanID[4],
+		spanID[5],
+		spanID[6],
+		spanID[7],
+		byte(goctr),
+		byte(goctr >> 8),
+		byte(goctr >> 16),
+		byte(goctr >> 24),
+	})
+}

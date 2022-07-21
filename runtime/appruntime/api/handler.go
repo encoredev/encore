@@ -47,7 +47,6 @@ type Desc[Req RequestSpec[Req], Resp Clonable[Resp]] struct {
 	DefLoc   int32
 
 	// Access describes the access type for this API.
-	// If Access == RequiresAuth the AuthHandler field must be non-nil.
 	Access Access
 
 	DecodeReq  func(*http.Request, PathParams, jsoniter.API) (Req, error)

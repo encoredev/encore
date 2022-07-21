@@ -52,17 +52,13 @@ func New(p *NewParams) *App {
 	cfg := p.Cfg
 	rootLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
-	var pc *platform.Client
-	if len(cfg.Runtime.AuthKeys) > 0 {
-		pc = platform.NewClient(cfg)
-	}
-
+	pc := platform.NewClient(cfg)
 	doTrace := trace.Enabled(cfg)
 	rt := reqtrack.New(rootLogger, pc, doTrace)
 	json := jsonAPI(cfg)
 	shutdown := newShutdownTracker()
 
-	apiSrv := api.NewServer(cfg, rt, rootLogger, json)
+	apiSrv := api.NewServer(cfg, rt, pc, rootLogger, json)
 	apiSrv.Register(p.APIHandlers)
 
 	appCtx, cancel := context.WithCancel(context.Background())
