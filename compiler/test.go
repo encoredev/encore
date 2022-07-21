@@ -89,7 +89,7 @@ func (b *builder) runTests(ctx context.Context) error {
 		return err
 	}
 
-	tags := append([]string{"encore", "encore_internal"}, b.cfg.BuildTags...)
+	tags := append([]string{"encore", "encore_internal", "encore_app"}, b.cfg.BuildTags...)
 	args := []string{
 		"test",
 		"-tags=" + strings.Join(tags, ","),
