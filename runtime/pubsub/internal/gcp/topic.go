@@ -3,25 +3,40 @@ package gcp
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/rs/zerolog"
 
-	"encore.dev/internal/ctx"
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/config"
 	"encore.dev/pubsub/internal/types"
-	"encore.dev/runtime/config"
 )
 
+type Manager struct {
+	ctx    context.Context
+	cfg    *config.Config
+	server *api.Server
+
+	clientOnce sync.Once
+	_client    *pubsub.Client // access via getClient()
+}
+
+func NewManager(ctx context.Context, cfg *config.Config, server *api.Server) *Manager {
+	return &Manager{ctx: ctx, cfg: cfg, server: server}
+}
+
 type topic struct {
+	mgr      *Manager
 	client   *pubsub.Client
 	gcpTopic *pubsub.Topic
 	topicCfg *config.PubsubTopic
 }
 
-func NewTopic(_ *config.GCPPubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(_ *config.GCPPubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
-	client := getClient()
+	client := mgr.getClient()
 	gcpTopic := client.TopicInProject(cfg.ProviderName, cfg.GCP.ProjectID)
 
 	// Enable message ordering if we have an ordering key set
@@ -29,12 +44,12 @@ func NewTopic(_ *config.GCPPubsubProvider, cfg *config.PubsubTopic) types.TopicI
 
 	// Check we have permissions to interact with the given topic
 	// (note: the call to Topic() above only creates the object, it doesn't verify that we have permissions to interact with it)
-	_, err := gcpTopic.Config(ctx.App)
+	_, err := gcpTopic.Config(mgr.ctx)
 	if err != nil {
 		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", cfg.EncoreName, err))
 	}
 
-	return &topic{client, gcpTopic, cfg}
+	return &topic{mgr, client, gcpTopic, cfg}
 }
 
 func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {
@@ -60,7 +75,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.RetryPolicy, subCfg *
 	// If we have a subscription ID, register a push endpoint for it
 	if subCfg.ID != "" {
 		if gcpCfg.PushServiceAccount != "" {
-			registerPushEndpoint(subCfg, f)
+			t.mgr.registerPushEndpoint(subCfg, f)
 		} else if subCfg.PushOnly {
 			panic("push-only subscriptions require a push service account to be configured for the PubSub server config")
 		}
@@ -70,7 +85,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.RetryPolicy, subCfg *
 	if !subCfg.PushOnly {
 		// Create the subscription object (and then check it exists on GCP's side)
 		subscription := t.client.SubscriptionInProject(subCfg.ProviderName, gcpCfg.ProjectID)
-		exists, err := subscription.Exists(ctx.App)
+		exists, err := subscription.Exists(t.mgr.ctx)
 		if err != nil {
 			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subCfg.EncoreName, t.topicCfg.EncoreName, err))
 		}
@@ -80,9 +95,9 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.RetryPolicy, subCfg *
 
 		// Start the subscription
 		go func() {
-			for ctx.App.Err() == nil {
+			for t.mgr.ctx.Err() == nil {
 				// Subscribe to the topic to receive messages
-				err := subscription.Receive(ctx.App, func(ctx context.Context, msg *pubsub.Message) {
+				err := subscription.Receive(t.mgr.ctx, func(ctx context.Context, msg *pubsub.Message) {
 					deliveryAttempt := 1
 					if msg.DeliveryAttempt != nil {
 						deliveryAttempt = *msg.DeliveryAttempt
@@ -96,7 +111,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ *types.RetryPolicy, subCfg *
 				})
 
 				// If there was an error and we're not shutting down, log it and then sleep for a bit before trying again
-				if err != nil && ctx.App.Err() == nil {
+				if err != nil && t.mgr.ctx.Err() == nil {
 					logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
 					time.Sleep(5 * time.Second)
 				}
