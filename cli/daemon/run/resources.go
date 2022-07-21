@@ -103,6 +103,8 @@ func (rs *ResourceServices) StartSQLCluster(a *asyncBuildJobs, parse *parser.Res
 		})
 		if _, err := exec.LookPath("docker"); err != nil {
 			return errors.New("This application requires docker to run since it uses an SQL database. Install docker first.")
+		} else if !isDockerRunning(ctx) {
+			return errors.New("The docker daemon is not running. Start it first.")
 		}
 
 		log.Debug().Msg("checking if sqldb image exists")
@@ -150,4 +152,9 @@ func (rs *ResourceServices) GetSQLCluster() *sqldb.Cluster {
 		return cluster.(*sqldb.Cluster)
 	}
 	return nil
+}
+
+func isDockerRunning(ctx context.Context) bool {
+	err := exec.CommandContext(ctx, "docker", "info").Run()
+	return err == nil
 }
