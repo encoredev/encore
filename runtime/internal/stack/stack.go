@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	_ "unsafe" // for go:linkname
 )
 
 type Stack struct {
@@ -69,6 +68,3 @@ var (
 	stopMu  sync.RWMutex
 	stopPCs = make(map[uintptr]bool)
 )
-
-//go:linkname encoreCallers runtime.encoreCallers
-func encoreCallers(skip int, pc []uintptr) (n int, off uintptr)

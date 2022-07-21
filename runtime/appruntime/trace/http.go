@@ -1,24 +1,99 @@
-package runtime
+package trace
 
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptrace"
 	"net/textproto"
 	"sync"
 	"sync/atomic"
+	_ "unsafe" // for go:linkname
 
-	"encore.dev/runtime/trace"
+	"encore.dev/appruntime/model"
 )
+
+func (l *Log) HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid uint32) (context.Context, error) {
+	if l == nil {
+		return httpReq.Context(), nil
+	}
+
+	spanID, err := model.GenSpanID()
+	if err != nil {
+		return nil, err
+	}
+
+	reqID := atomic.AddUint64(&httpReqIDCtr, 1)
+
+	tb := NewBuffer(8 + 4 + 4 + 4 + len(httpReq.Method) + 128)
+	tb.UVarint(reqID)
+	tb.Bytes(req.SpanID[:])
+	tb.Bytes(spanID[:])
+	tb.UVarint(uint64(goid))
+	tb.String(httpReq.Method)
+	tb.String(httpReq.URL.String())
+
+	l.Add(HTTPCallStart, tb.Buf())
+
+	rt := &httpRoundTrip{
+		ReqID:  reqID,
+		SpanID: spanID,
+		log:    l,
+	}
+	ctx := context.WithValue(httpReq.Context(), rtKey, rt)
+	tr := &httptrace.ClientTrace{
+		GetConn:              rt.getConn,
+		GotConn:              rt.gotConn,
+		GotFirstResponseByte: rt.gotFirstResponseByte,
+		Got1xxResponse:       rt.got1xxResponse,
+		DNSStart:             rt.dnsStart,
+		DNSDone:              rt.dnsDone,
+		ConnectStart:         rt.connectStart,
+		ConnectDone:          rt.connectDone,
+		TLSHandshakeStart:    rt.tlsHandshakeStart,
+		TLSHandshakeDone:     rt.tlsHandshakeDone,
+		WroteHeaders:         rt.wroteHeaders,
+		Wait100Continue:      rt.wait100Continue,
+		WroteRequest:         rt.wroteRequest,
+	}
+	return httptrace.WithClientTrace(ctx, tr), nil
+}
+
+func (l *Log) HTTPCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
+	rt, ok := req.Context().Value(rtKey).(*httpRoundTrip)
+	if !ok {
+		return
+	}
+
+	tb := NewBuffer(8 + 4 + 4 + 4)
+	tb.UVarint(rt.ReqID)
+	if err != nil {
+		msg := err.Error()
+		if msg == "" {
+			msg = "unknown error"
+		}
+		tb.String(msg)
+		tb.UVarint(0)
+	} else {
+		tb.String("")
+		tb.UVarint(uint64(resp.StatusCode))
+	}
+	rt.encodeEvents(&tb)
+	rt.log.Add(HTTPCallEnd, tb.Buf())
+
+	if req.Method != "HEAD" && resp != nil {
+		resp.Body = wrapRespBody(resp.Body, rt)
+	}
+}
 
 var httpReqIDCtr uint64
 
 type httpRoundTrip struct {
 	ReqID  uint64
-	SpanID trace.SpanID
+	SpanID model.SpanID
+
+	log *Log
 
 	mu     sync.Mutex
 	events []httpEvent
@@ -89,7 +164,7 @@ func (rt *httpRoundTrip) addEvent(code httpEventCode, data httpEventData) {
 	})
 }
 
-func (rt *httpRoundTrip) encodeEvents(tb *trace.TraceBuf) {
+func (rt *httpRoundTrip) encodeEvents(tb *Buffer) {
 	rt.mu.Lock()
 	n := len(rt.events)
 	evs := rt.events[:]
@@ -105,83 +180,8 @@ func (rt *httpRoundTrip) encodeEvents(tb *trace.TraceBuf) {
 	}
 }
 
-func httpBeginRoundTrip(req *http.Request) (context.Context, error) {
-	g := encoreGetG()
-	if g == nil || g.req == nil || !g.req.data.Traced {
-		return req.Context(), nil
-	} else if req.URL == nil {
-		return nil, fmt.Errorf("http: nil Request.URL")
-	}
-
-	spanID, err := trace.GenSpanID()
-	if err != nil {
-		return nil, err
-	}
-
-	reqID := atomic.AddUint64(&httpReqIDCtr, 1)
-
-	tb := trace.NewTraceBuf(8 + 4 + 4 + 4 + len(req.Method) + 128)
-	tb.UVarint(reqID)
-	tb.Bytes(g.req.data.SpanID[:])
-	tb.Bytes(spanID[:])
-	tb.UVarint(uint64(g.goid))
-	tb.String(req.Method)
-	tb.String(req.URL.String())
-
-	encoreTraceEvent(trace.HTTPCallStart, tb.Buf())
-
-	rt := &httpRoundTrip{
-		ReqID:  reqID,
-		SpanID: spanID,
-	}
-	ctx := context.WithValue(req.Context(), rtKey, rt)
-	tr := &httptrace.ClientTrace{
-		GetConn:              rt.getConn,
-		GotConn:              rt.gotConn,
-		GotFirstResponseByte: rt.gotFirstResponseByte,
-		Got1xxResponse:       rt.got1xxResponse,
-		DNSStart:             rt.dnsStart,
-		DNSDone:              rt.dnsDone,
-		ConnectStart:         rt.connectStart,
-		ConnectDone:          rt.connectDone,
-		TLSHandshakeStart:    rt.tlsHandshakeStart,
-		TLSHandshakeDone:     rt.tlsHandshakeDone,
-		WroteHeaders:         rt.wroteHeaders,
-		Wait100Continue:      rt.wait100Continue,
-		WroteRequest:         rt.wroteRequest,
-	}
-	return httptrace.WithClientTrace(ctx, tr), nil
-}
-
-func httpCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
-	rt, ok := req.Context().Value(rtKey).(*httpRoundTrip)
-	if !ok {
-		return
-	}
-
-	tb := trace.NewTraceBuf(8 + 4 + 4 + 4)
-	tb.UVarint(rt.ReqID)
-	if err != nil {
-		msg := err.Error()
-		if msg == "" {
-			msg = "unknown error"
-		}
-		tb.String(msg)
-		tb.UVarint(0)
-	} else {
-		tb.String("")
-		tb.UVarint(uint64(resp.StatusCode))
-	}
-	rt.encodeEvents(&tb)
-	encoreTraceEvent(trace.HTTPCallEnd, tb.Buf())
-
-	if req.Method != "HEAD" && resp != nil {
-		resp.Body = wrapRespBody(resp.Body, rt)
-	}
-}
-
 func (rt *httpRoundTrip) ClosedBody(err error) {
-	tb := trace.NewTraceBuf(8 + 4)
+	tb := NewBuffer(8 + 4)
 	tb.UVarint(rt.ReqID)
 	if err != nil {
 		msg := err.Error()
@@ -192,7 +192,8 @@ func (rt *httpRoundTrip) ClosedBody(err error) {
 	} else {
 		tb.String("")
 	}
-	encoreTraceEvent(trace.HTTPCallBodyClosed, tb.Buf())
+
+	rt.log.Add(HTTPCallBodyClosed, tb.Buf())
 }
 
 func wrapRespBody(body io.ReadCloser, rt *httpRoundTrip) io.ReadCloser {
@@ -231,7 +232,7 @@ type httpEvent struct {
 }
 
 type httpEventData interface {
-	Encode(tb *trace.TraceBuf)
+	Encode(tb *Buffer)
 }
 
 type httpEventCode byte
@@ -256,7 +257,7 @@ type getConnEvent struct {
 	hostPort string
 }
 
-func (e *getConnEvent) Encode(tb *trace.TraceBuf) {
+func (e *getConnEvent) Encode(tb *Buffer) {
 	tb.String(e.hostPort)
 }
 
@@ -264,7 +265,7 @@ type gotConnEvent struct {
 	info httptrace.GotConnInfo
 }
 
-func (e *gotConnEvent) Encode(tb *trace.TraceBuf) {
+func (e *gotConnEvent) Encode(tb *Buffer) {
 	tb.Bool(e.info.Reused)
 	tb.Bool(e.info.WasIdle)
 	tb.Int64(int64(e.info.IdleTime))
@@ -275,7 +276,7 @@ type got1xxResponseEvent struct {
 	header textproto.MIMEHeader
 }
 
-func (e *got1xxResponseEvent) Encode(tb *trace.TraceBuf) {
+func (e *got1xxResponseEvent) Encode(tb *Buffer) {
 	tb.Varint(int64(e.code))
 	// TODO: write header as well?
 }
@@ -284,7 +285,7 @@ type dnsStartEvent struct {
 	info httptrace.DNSStartInfo
 }
 
-func (e *dnsStartEvent) Encode(tb *trace.TraceBuf) {
+func (e *dnsStartEvent) Encode(tb *Buffer) {
 	tb.String(e.info.Host)
 }
 
@@ -292,7 +293,7 @@ type dnsDoneEvent struct {
 	info httptrace.DNSDoneInfo
 }
 
-func (e *dnsDoneEvent) Encode(tb *trace.TraceBuf) {
+func (e *dnsDoneEvent) Encode(tb *Buffer) {
 	if err := e.info.Err; err != nil {
 		msg := err.Error()
 		if msg == "" {
@@ -313,7 +314,7 @@ type connectStartEvent struct {
 	addr    string
 }
 
-func (e *connectStartEvent) Encode(tb *trace.TraceBuf) {
+func (e *connectStartEvent) Encode(tb *Buffer) {
 	tb.String(e.network)
 	tb.String(e.addr)
 }
@@ -324,7 +325,7 @@ type connectDoneEvent struct {
 	err     error
 }
 
-func (e *connectDoneEvent) Encode(tb *trace.TraceBuf) {
+func (e *connectDoneEvent) Encode(tb *Buffer) {
 	tb.String(e.network)
 	tb.String(e.addr)
 	tb.Err(e.err)
@@ -335,7 +336,7 @@ type tlsHandshakeDoneEvent struct {
 	err  error
 }
 
-func (e *tlsHandshakeDoneEvent) Encode(tb *trace.TraceBuf) {
+func (e *tlsHandshakeDoneEvent) Encode(tb *Buffer) {
 	tb.Err(e.err)
 	tb.Uint32(uint32(e.info.Version))
 	tb.Uint32(uint32(e.info.CipherSuite))
@@ -347,7 +348,7 @@ type wroteRequestEvent struct {
 	info httptrace.WroteRequestInfo
 }
 
-func (e *wroteRequestEvent) Encode(tb *trace.TraceBuf) {
+func (e *wroteRequestEvent) Encode(tb *Buffer) {
 	tb.Err(e.info.Err)
 }
 
