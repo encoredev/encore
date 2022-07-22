@@ -61,9 +61,6 @@ func (d *Desc[Req, Resp]) HTTPMethods() []string { return d.Methods }
 func (d *Desc[Req, Resp]) HTTPPath() string      { return d.Path }
 
 func (d *Desc[Req, Resp]) Handle(c Context) {
-	c.server.beginOperation()
-	defer c.server.finishOperation()
-
 	reqData, err := d.begin(c)
 	if err != nil {
 		errs.HTTPError(c.w, err)
@@ -85,21 +82,14 @@ func (d *Desc[Req, Resp]) Handle(c Context) {
 func (d *Desc[Req, Resp]) begin(c Context) (reqData Req, beginErr error) {
 	reqData, decodeErr := d.DecodeReq(c.req, c.ps, c.server.json)
 
-	//// TODO(andre) Should begin the trace request before calling the auth handler.
-	//authInfo, authErr := d.authenticate(c)
-	//if authErr != nil {
-	//	beginErr = authErr
-	//	return
-	//}
-
-	//if d.Access == RequiresAuth && c.auth.UID == "" {
-	//	beginErr = errs.B().
-	//		Code(errs.Unauthenticated).
-	//		Meta("service", d.Service, "endpoint", d.Endpoint).
-	//		Msg("endpoint requires auth but none provided").
-	//		Err()
-	//	return
-	//}
+	if d.Access == RequiresAuth && c.auth.UID == "" {
+		beginErr = errs.B().
+			Code(errs.Unauthenticated).
+			Meta("service", d.Service, "endpoint", d.Endpoint).
+			Msg("endpoint requires auth but none provided").
+			Err()
+		return
+	}
 
 	inputs, _ := reqData.Serialize(c.server.json)
 	err := c.server.beginRequest(c.req.Context(), &beginRequestParams{

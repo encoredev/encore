@@ -20,14 +20,16 @@ func loadApp() *appinit.LoadData {
 		},
 		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
 		EncoreCompiler: "test",
+		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
 		TestService:    "",
 		Testing:        false,
 	}
 	handlers := []api.Handler{
-		svc.EightHandler,
+		svc.EncoreInternal_EightHandler,
 	}
 	return &appinit.LoadData{
 		APIHandlers: handlers,
+		AuthHandler: svc.EncoreInternal_AuthHandlerAuthHandler,
 		StaticCfg:   static,
 	}
 }
@@ -45,7 +47,9 @@ import (
 	"encore.app/__encore/etype"
 	"encore.dev/appruntime/api"
 	_ "encore.dev/appruntime/app/appinit"
+	model "encore.dev/appruntime/model"
 	"encore.dev/appruntime/serde"
+	"encore.dev/beta/errs"
 	"github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
@@ -53,13 +57,13 @@ import (
 	"strings"
 )
 
-type EightReq struct {
+type EncoreInternal_EightReq struct {
 	Bar    string
 	Baz    string
 	Params *FooParams
 }
 
-func (p *EightReq) Serialize(json jsoniter.API) ([][]byte, error) {
+func (p *EncoreInternal_EightReq) Serialize(json jsoniter.API) ([][]byte, error) {
 	data := make([][]byte, 3)
 	for i, val := range [...]any{p.Bar, p.Baz, p.Params} {
 		v, err := json.Marshal(val)
@@ -70,15 +74,15 @@ func (p *EightReq) Serialize(json jsoniter.API) ([][]byte, error) {
 	}
 	return data, nil
 }
-func (p *EightReq) Clone() (*EightReq, error) {
-	var clone EightReq
+func (p *EncoreInternal_EightReq) Clone() (*EncoreInternal_EightReq, error) {
+	var clone EncoreInternal_EightReq
 	bytes, err := jsoniter.ConfigDefault.Marshal(p)
 	if err == nil {
 		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
 	}
 	return &clone, err
 }
-func (p *EightReq) Path() (string, api.PathParams, error) {
+func (p *EncoreInternal_EightReq) Path() (string, api.PathParams, error) {
 	enc := &etype.Marshaller{}
 
 	params := api.PathParams{{
@@ -96,11 +100,11 @@ func (p *EightReq) Path() (string, api.PathParams, error) {
 	return "/eight" + "/" + params[0].Value + "/" + params[1].Value, params, nil
 }
 
-type EightResp struct {
+type EncoreInternal_EightResp struct {
 	Data *Response
 }
 
-func (p *EightResp) Serialize(json jsoniter.API) ([][]byte, error) {
+func (p *EncoreInternal_EightResp) Serialize(json jsoniter.API) ([][]byte, error) {
 	data := make([][]byte, 1)
 	for i, val := range [...]any{p.Data} {
 		v, err := json.Marshal(val)
@@ -111,8 +115,8 @@ func (p *EightResp) Serialize(json jsoniter.API) ([][]byte, error) {
 	}
 	return data, nil
 }
-func (p *EightResp) Clone() (*EightResp, error) {
-	var clone EightResp
+func (p *EncoreInternal_EightResp) Clone() (*EncoreInternal_EightResp, error) {
+	var clone EncoreInternal_EightResp
 	bytes, err := jsoniter.ConfigDefault.Marshal(p)
 	if err == nil {
 		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
@@ -120,15 +124,15 @@ func (p *EightResp) Clone() (*EightResp, error) {
 	return &clone, err
 }
 
-var EightHandler = &api.Desc[*EightReq, *EightResp]{
+var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInternal_EightResp]{
 	Service:  "svc",
 	Endpoint: "Eight",
 	Methods:  []string{"POST"},
 	Path:     "/eight/:bar/:baz",
 	DefLoc:   2,
 	Access:   api.RequiresAuth,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EightReq, err error) {
-		reqData = &EightReq{}
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_EightReq, err error) {
+		reqData = &EncoreInternal_EightReq{}
 		dec := &etype.Marshaller{}
 
 		if value, err := url.PathUnescape(ps[0].Value); err == nil {
@@ -149,7 +153,7 @@ var EightHandler = &api.Desc[*EightReq, *EightResp]{
 
 		switch m := req.Method; m {
 		case "POST":
-			// Decode JSON Body
+			// Decode JSON body
 			payload := dec.Body(req.Body)
 			iter := jsoniter.ParseBytes(json, payload)
 
@@ -174,15 +178,14 @@ var EightHandler = &api.Desc[*EightReq, *EightResp]{
 
 		return reqData, nil
 	},
-	AppHandler: func(ctx context.Context, req *EightReq) (*EightResp, error) {
+	AppHandler: func(ctx context.Context, req *EncoreInternal_EightReq) (*EncoreInternal_EightResp, error) {
 		resp, err := Eight(ctx, req.Bar, req.Baz, req.Params)
 		if err != nil {
 			return nil, err
 		}
-		return &EightResp{resp}, nil
+		return &EncoreInternal_EightResp{resp}, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *EightResp) error {
-		var err error
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, out *EncoreInternal_EightResp) (err error) {
 		respData := []byte("null\n")
 		if out.Data != nil {
 			// Encode JSON body
@@ -201,9 +204,62 @@ var EightHandler = &api.Desc[*EightReq, *EightResp]{
 	},
 }
 
-func CallEight(ctx context.Context, bar string, baz string, params *FooParams) (*Response, error) {
-	resp, err := EightHandler.Call(api.CallContext{}, &EightReq{bar, baz, params})
+func EncoreInternal_CallEight(ctx context.Context, bar string, baz string, params *FooParams) (*Response, error) {
+	resp, err := EncoreInternal_EightHandler.Call(api.CallContext{}, &EncoreInternal_EightReq{bar, baz, params})
 	return resp.Data, err
+}
+
+type EncoreInternal_AuthHandlerAuthData struct {
+	Params *AuthHeaders
+}
+
+func (p *EncoreInternal_AuthHandlerAuthData) Serialize(json jsoniter.API) ([][]byte, error) {
+	data := make([][]byte, 1)
+	for i, val := range [...]any{p.Params} {
+		v, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		data[i] = v
+	}
+	return data, nil
+}
+func (p *EncoreInternal_AuthHandlerAuthData) Clone() (*EncoreInternal_AuthHandlerAuthData, error) {
+	var clone EncoreInternal_AuthHandlerAuthData
+	bytes, err := jsoniter.ConfigDefault.Marshal(p)
+	if err == nil {
+		err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+	}
+	return &clone, err
+}
+
+var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthData]{
+	Service:     "svc",
+	Endpoint:    "AuthHandler",
+	DefLoc:      3,
+	HasAuthData: true,
+	DecodeAuth: func(req *http.Request) (authData *EncoreInternal_AuthHandlerAuthData, err error) {
+		authData = &EncoreInternal_AuthHandlerAuthData{}
+		params := &AuthHeaders{}
+		authData.Params = params
+		dec := &etype.Marshaller{}
+		// Decode headers
+		h := req.Header
+		params.Header1 = dec.ToString("header1", h.Get("header1"), false)
+		params.Header2 = dec.ToInt("header2", h.Get("header2"), false)
+
+		if dec.LastError != nil {
+			return nil, errs.B().Code(errs.InvalidArgument).Msgf("invalid auth param: %v", dec.LastError).Err()
+		}
+		if dec.NonEmptyValues == 0 {
+			return nil, errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
+		}
+		return authData, nil
+	},
+	AuthHandler: func(ctx context.Context, authData *EncoreInternal_AuthHandlerAuthData) (info model.AuthInfo, err error) {
+		info.UID, info.UserData, err = AuthHandler(ctx, authData.Params)
+		return info, err
+	},
 }
 // etype package
 package etype
@@ -214,6 +270,7 @@ import (
 	"github.com/json-iterator/go"
 	"io"
 	"io/ioutil"
+	"strconv"
 )
 
 // Marshaller is used to serialize request data into strings and deserialize response data from strings
@@ -233,6 +290,16 @@ func (e *Marshaller) ToString(field string, s string, required bool) (v string) 
 func (e *Marshaller) FromString(s string) (v string) {
 	e.NonEmptyValues++
 	return s
+}
+
+func (e *Marshaller) ToInt(field string, s string, required bool) (v int) {
+	if !required && s == "" {
+		return
+	}
+	e.NonEmptyValues++
+	x, err := strconv.ParseInt(s, 10, 64)
+	e.setErr("invalid parameter", field, err)
+	return int(x)
 }
 
 // setErr sets the last error within the object if one is not already set

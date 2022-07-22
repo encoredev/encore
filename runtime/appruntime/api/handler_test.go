@@ -61,7 +61,7 @@ func TestDesc_EndToEnd(t *testing.T) {
 	logger := zerolog.New(os.Stdout)
 	rt := reqtrack.New(logger, nil, false)
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
-	server := api.NewServer(cfg, rt, logger, json)
+	server := api.NewServer(cfg, rt, nil, logger, json)
 
 	desc := &api.Desc[mockReq, mockResp]{
 		Service:  "service",
@@ -95,5 +95,46 @@ func TestDesc_EndToEnd(t *testing.T) {
 	}
 	if got := w.Body.String(); got != wantBody {
 		t.Errorf("got body %q, want %q", got, wantBody)
+	}
+}
+
+func TestDesc_Unauthenticated(t *testing.T) {
+	cfg := &config.Config{
+		Static:  &config.Static{},
+		Runtime: &config.Runtime{},
+	}
+	logger := zerolog.New(os.Stdout)
+	rt := reqtrack.New(logger, nil, false)
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	server := api.NewServer(cfg, rt, nil, logger, json)
+
+	desc := &api.Desc[mockReq, mockResp]{
+		Service:  "service",
+		Endpoint: "endpoint",
+		Path:     "/foo",
+		Access:   api.RequiresAuth,
+
+		DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (mockReq, error) {
+			body, _ := io.ReadAll(req.Body)
+			return mockReq{
+				Body:   string(body),
+				Params: ps,
+			}, nil
+		},
+		AppHandler: func(ctx context.Context, req mockReq) (mockResp, error) {
+			return mockResp{Message: req.Body}, nil
+		},
+		EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp mockResp) error {
+			w.Write([]byte(resp.Message))
+			return nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/", nil)
+	ps := httprouter.Params{{Key: "key", Value: "value"}}
+	desc.Handle(server.NewContext(w, req, ps, model.AuthInfo{}))
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("got code %d, want %d", w.Code, http.StatusUnauthorized)
 	}
 }

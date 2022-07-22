@@ -46,6 +46,7 @@ func (app *App) RootLogger() *zerolog.Logger        { return &app.rootLogger }
 type NewParams struct {
 	Cfg         *config.Config
 	APIHandlers []api.Handler
+	AuthHandler api.AuthHandler // nil means no auth handler
 }
 
 func New(p *NewParams) *App {
@@ -60,6 +61,7 @@ func New(p *NewParams) *App {
 
 	apiSrv := api.NewServer(cfg, rt, pc, rootLogger, json)
 	apiSrv.Register(p.APIHandlers)
+	apiSrv.SetAuthHandler(p.AuthHandler)
 
 	appCtx, cancel := context.WithCancel(context.Background())
 

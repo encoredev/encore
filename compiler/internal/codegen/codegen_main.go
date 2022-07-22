@@ -43,8 +43,8 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
-	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").Block(
-		Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
+	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
+		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
 			Id("AuthData"):       b.authDataType(),
 			Id("EncoreCompiler"): Lit(b.compilerVersion),
 			Id("AppCommit"): Qual("encore.dev/appruntime/config", "CommitInfo").Values(Dict{
@@ -54,8 +54,8 @@ func (b *Builder) Main() (f *File, err error) {
 			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
 			Id("Testing"):      False(),
 			Id("TestService"):  Lit(""),
-		}),
-		Id("handlers").Op(":=").Index().Qual("encore.dev/appruntime/api", "Handler").CustomFunc(Options{
+		})
+		g.Id("handlers").Op(":=").Index().Qual("encore.dev/appruntime/api", "Handler").CustomFunc(Options{
 			Open:      "{",
 			Close:     "}",
 			Separator: ",",
@@ -66,13 +66,19 @@ func (b *Builder) Main() (f *File, err error) {
 					g.Add(Qual(svc.Root.ImportPath, b.rpcHandlerName(rpc)))
 				}
 			}
-		}),
+		})
 
-		Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
+		authHandlerExpr := Nil()
+		if ah := b.res.App.AuthHandler; ah != nil {
+			authHandlerExpr = Qual(ah.Svc.Root.ImportPath, b.authHandlerName(ah))
+		}
+
+		g.Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
 			Id("StaticCfg"):   Id("static"),
 			Id("APIHandlers"): Id("handlers"),
-		})),
-	)
+			Id("AuthHandler"): authHandlerExpr,
+		}))
+	})
 	f.Line()
 
 	f.Func().Id("main").Params().Block(
