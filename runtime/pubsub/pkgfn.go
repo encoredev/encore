@@ -2,6 +2,7 @@
 
 package pubsub
 
+//publicapigen:drop
 var Singleton *Manager
 
 // NewTopic is used to declare a Topic. Encore will use static

@@ -27,6 +27,9 @@ type ExecResult interface {
 	RowsAffected() int64
 }
 
+// Tx is a handle to a database transaction.
+//
+// See *database/sql.Tx for additional documentation.
 type Tx struct {
 	mgr  *Manager
 	txid uint64
@@ -244,110 +247,6 @@ func convertErr(err error) error {
 		err = errs.WrapCode(err, errs.Unavailable, "")
 	}
 	return errs.DropStackFrame(err)
-}
-
-func (db *Database) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
-	db.init()
-	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
-
-	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
-			SpanID:  curr.Req.SpanID,
-			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(4),
-		})
-	}
-
-	res, err := db.pool.Exec(ctx, query, args...)
-	err = convertErr(err)
-
-	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
-	}
-
-	return res, err
-}
-
-func (db *Database) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
-	db.init()
-	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
-
-	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
-			SpanID:  curr.Req.SpanID,
-			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(4),
-		})
-	}
-
-	rows, err := db.pool.Query(ctx, query, args...)
-	err = convertErr(err)
-
-	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	return &Rows{std: rows}, nil
-}
-
-func (db *Database) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
-	db.init()
-	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
-
-	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
-			SpanID:  curr.Req.SpanID,
-			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(4),
-		})
-	}
-
-	rows, err := db.pool.Query(ctx, query, args...)
-	err = convertErr(err)
-	r := &Row{rows: rows, err: err}
-
-	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
-	}
-
-	return r
-}
-
-func (db *Database) Begin(ctx context.Context) (*Tx, error) {
-	db.init()
-	tx, err := db.pool.Begin(ctx)
-	err = convertErr(err)
-	if err != nil {
-		return nil, err
-	}
-	txid := atomic.AddUint64(&db.mgr.txidCtr, 1)
-
-	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBTxStart(trace.DBTxStartParams{
-			SpanID: curr.Req.SpanID,
-			Goid:   curr.Goctr,
-			TxID:   txid,
-			Stack:  stack.Build(4),
-		})
-	}
-
-	return &Tx{mgr: db.mgr, txid: txid, std: tx}, nil
 }
 
 type interceptor struct {
