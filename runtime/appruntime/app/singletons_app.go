@@ -4,6 +4,7 @@ package app
 
 import (
 	encore "encore.dev"
+	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/beta/auth"
 	"encore.dev/pubsub"
@@ -12,6 +13,7 @@ import (
 )
 
 func initSingletonsForEncoreApp(a *App) {
+	api.Singleton = a.api
 	testsupport.Singleton = a.ts
 	encore.Singleton = a.encore
 	auth.Singleton = a.auth
