@@ -12,9 +12,10 @@ import (
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
 	static := &config.Static{
-		AuthData:    reflect.TypeOf((*svc.AuthData)(nil)),
-		TestService: "svc",
-		Testing:     true,
+		AuthData:     reflect.TypeOf((*svc.AuthData)(nil)),
+		PubsubTopics: map[string]*config.StaticPubsubTopic{},
+		TestService:  "svc",
+		Testing:      true,
 	}
 	return &appinit.LoadData{
 		APIHandlers: nil,

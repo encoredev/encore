@@ -31,6 +31,29 @@ var importNames = map[string]string{
 	"encore.dev/types/uuid":             "uuid",
 }
 
+func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
+	defer b.errors.HandleBailout(&err)
+
+	f = NewFilePathName(svc.Root.ImportPath, svc.Name)
+	b.registerImports(f)
+
+	// Import the runtime package with '_' as its name to start with to ensure it's imported.
+	// If other code uses it will be imported under its proper name.
+	f.Anon("encore.dev/appruntime/app/appinit")
+
+	for _, rpc := range svc.RPCs {
+		f.Line()
+		b.buildRPC(f, svc, rpc)
+	}
+
+	if ah := b.res.App.AuthHandler; ah != nil {
+		f.Line()
+		b.buildAuthHandler(f, ah)
+	}
+
+	return f, b.errors.Err()
+}
+
 func (b *Builder) registerImports(f *File) {
 	f.ImportNames(importNames)
 	f.ImportAlias("encoding/json", "stdjson")
@@ -47,7 +70,14 @@ func (b *Builder) registerImports(f *File) {
 }
 
 func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) {
-	bb := &rpcBuilder{Builder: b, f: f, svc: svc, rpc: rpc}
+	bb := &rpcBuilder{
+		Builder:  b,
+		f:        f,
+		svc:      svc,
+		rpc:      rpc,
+		reqType:  newStructDesc("p"),
+		respType: newStructDesc("p"),
+	}
 	bb.Write(f)
 }
 
@@ -61,15 +91,15 @@ type rpcBuilder struct {
 	svc *est.Service
 	rpc *est.RPC
 
-	reqType  structDesc
-	respType structDesc
+	reqType  *structDesc
+	respType *structDesc
 }
 
-func (b *rpcBuilder) Write(f *File) error {
+func (b *rpcBuilder) Write(f *File) {
 	decodeReq := b.renderDecodeReq()
 	encodeResp := b.renderEncodeResp()
-	reqType := b.renderStructDesc(b.ReqTypeName(), &b.reqType, true)
-	respType := b.renderStructDesc(b.RespTypeName(), &b.respType, false)
+	reqType := b.renderRequestStructDesc(b.ReqTypeName(), b.reqType)
+	respType := b.renderStructDesc(b.RespTypeName(), b.respType, true)
 
 	rpc := b.rpc
 
@@ -136,13 +166,18 @@ func (b *rpcBuilder) Write(f *File) error {
 		caller := b.renderCaller()
 		f.Add(caller)
 	}
+}
 
-	return nil
+func newStructDesc(recv string) *structDesc {
+	desc := &structDesc{}
+	desc.recvName = desc.names.Get(recv)
+	return desc
 }
 
 type structDesc struct {
-	fields []structField
-	names  namealloc.Allocator
+	fields   []structField
+	names    namealloc.Allocator
+	recvName string
 }
 
 type fieldKind int
@@ -271,7 +306,8 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 					g.Id("params").Op(":=").Op("&").Add(b.typeName(b.rpc.Request, true)).Values()
 					g.Id("reqData").Dot(field).Op("=").Id("params")
 				} else {
-					g.Var().Id("params").Add(b.typeName(b.rpc.Request, true))
+					field := b.reqType.AddField(payload, "Params", b.typeName(b.rpc.Request, false), schema.Builtin_ANY)
+					g.Id("params").Op(":=").Op("&").Id("reqData").Dot(field)
 				}
 
 				g.Add(Switch(Id("m").Op(":=").Id("req").Dot("Method"), Id("m")).BlockFunc(
@@ -344,14 +380,12 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
 		Id("out").Op("*").Id(b.RespTypeName()),
-	).Params(Error()).BlockFunc(func(g *Group) {
+	).Params(Err().Error()).BlockFunc(func(g *Group) {
 		if b.rpc.Response == nil {
 			g.Return(Nil())
 			return
 		}
 		b.respType.AddField(payload, "Data", b.namedType(b.f, b.rpc.Response), schema.Builtin_ANY)
-
-		g.Var().Err().Error()
 
 		resp, err := encoding.DescribeResponse(b.res.Meta, b.rpc.Response.Type, nil)
 		if err != nil {
@@ -429,12 +463,82 @@ func (b *rpcBuilder) RespTypeName() string {
 	return fmt.Sprintf("EncoreInternal_%sResp", b.rpc.Name)
 }
 
-func (b *rpcBuilder) renderStructDesc(typName string, desc *structDesc, forRequest bool) []Code {
-	if len(desc.fields) == 0 && !forRequest {
+func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) []Code {
+	codes := b.renderStructDesc(typName, desc, false)
+	recv := desc.recvName
+
+	pathParamsFn := Func().Params(Id(recv).Op("*").Id(typName)).Id("Path").Params().Params(
+		String(),
+		Qual("encore.dev/appruntime/api", "PathParams"),
+		Error(),
+	).BlockFunc(func(g *Group) {
+		var pathParamFields []structField
+
+		enc := b.marshaller.NewPossibleInstance("enc")
+		g.Add(enc.WithFunc(func(g *Group) {
+			for _, f := range desc.fields {
+				if f.kind == pathParam {
+					pathParamFields = append(pathParamFields, f)
+				}
+			}
+			if len(pathParamFields) == 0 {
+				g.Return(Lit(b.rpc.Path.String()), Nil(), Nil())
+				return
+			}
+
+			g.Id("params").Op(":=").Qual("encore.dev/appruntime/api", "PathParams").ValuesFunc(func(g *Group) {
+				for _, f := range pathParamFields {
+					typ := &schema.Type{Typ: &schema.Type_Builtin{Builtin: f.builtin}}
+					code, err := enc.ToString(typ, Id(recv).Dot(f.fieldName))
+					if err != nil {
+						b.errorf("api endpoint %s.%s: unable to convert path parameter %s to string: %v",
+							b.svc.Name, b.rpc.Name, f.originalName, err)
+						break
+					}
+
+					g.Values(Dict{
+						Id("Key"):   Lit(f.originalName),
+						Id("Value"): code,
+					})
+				}
+			})
+		}, func(g *Group) {
+			g.Return(Lit(""), Nil(), enc.LastError())
+		})...)
+
+		// If we don't have any params we've already yielded a return statement above. We're done.
+		if len(pathParamFields) == 0 {
+			return
+		}
+
+		// Construct the path as an expression in the form
+		//		"/foo" + params[N].Value + "/bar"
+		pathExpr := CustomFunc(Options{
+			Separator: " + ",
+		}, func(g *Group) {
+			idx := 0
+			for _, seg := range b.rpc.Path.Segments {
+				if seg.Type == paths.Literal {
+					g.Lit("/" + seg.Value)
+				} else {
+					g.Lit("/")
+					g.Id("params").Index(Lit(idx)).Dot("Value")
+					idx++
+				}
+			}
+		})
+		g.Return(pathExpr, Id("params"), Nil())
+	})
+	codes = append(codes, pathParamsFn)
+	return codes
+}
+
+func (b *Builder) renderStructDesc(typName string, desc *structDesc, allowVoidAlias bool) []Code {
+	if len(desc.fields) == 0 && allowVoidAlias {
 		return []Code{Type().Id(typName).Op("=").Qual("encore.dev/appruntime/api", "Void")}
 	}
 
-	recv := desc.names.Get("p")
+	recv := desc.recvName
 
 	codes := []Code{
 		Type().Id(typName).StructFunc(func(g *Group) {
@@ -474,76 +578,10 @@ func (b *rpcBuilder) renderStructDesc(typName string, desc *structDesc, forReque
 		}),
 	}
 
-	if forRequest {
-		pathParamsFn := Func().Params(Id(recv).Op("*").Id(typName)).Id("Path").Params().Params(
-			String(),
-			Qual("encore.dev/appruntime/api", "PathParams"),
-			Error(),
-		).BlockFunc(func(g *Group) {
-			var pathParamFields []structField
-
-			enc := b.marshaller.NewPossibleInstance("enc")
-			g.Add(enc.WithFunc(func(g *Group) {
-				for _, f := range desc.fields {
-					if f.kind == pathParam {
-						pathParamFields = append(pathParamFields, f)
-					}
-				}
-				if len(pathParamFields) == 0 {
-					g.Return(Lit(b.rpc.Path.String()), Nil(), Nil())
-					return
-				}
-
-				g.Id("params").Op(":=").Qual("encore.dev/appruntime/api", "PathParams").ValuesFunc(func(g *Group) {
-					for _, f := range pathParamFields {
-						typ := &schema.Type{Typ: &schema.Type_Builtin{Builtin: f.builtin}}
-						code, err := enc.ToString(typ, Id(recv).Dot(f.fieldName))
-						if err != nil {
-							b.errorf("api endpoint %s.%s: unable to convert path parameter %s to string: %v",
-								b.svc.Name, b.rpc.Name, f.originalName, err)
-							break
-						}
-
-						g.Values(Dict{
-							Id("Key"):   Lit(f.originalName),
-							Id("Value"): code,
-						})
-					}
-				})
-			}, func(g *Group) {
-				g.Return(Lit(""), Nil(), enc.LastError())
-			})...)
-
-			// If we don't have any params we've already yielded a return statement above. We're done.
-			if len(pathParamFields) == 0 {
-				return
-			}
-
-			// Construct the path as an expression in the form
-			//		"/foo" + params[N].Value + "/bar"
-			pathExpr := CustomFunc(Options{
-				Separator: " + ",
-			}, func(g *Group) {
-				idx := 0
-				for _, seg := range b.rpc.Path.Segments {
-					if seg.Type == paths.Literal {
-						g.Lit("/" + seg.Value)
-					} else {
-						g.Lit("/")
-						g.Id("params").Index(Lit(idx)).Dot("Value")
-						idx++
-					}
-				}
-			})
-			g.Return(pathExpr, Id("params"), Nil())
-		})
-		codes = append(codes, pathParamsFn)
-	}
-
 	return codes
 }
 
-func (b *rpcBuilder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
+func (b *Builder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
 	if len(params) == 0 {
 		return
 	}
@@ -559,7 +597,7 @@ func (b *rpcBuilder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *go
 	g.Line()
 }
 
-func (b *rpcBuilder) decodeQueryString(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
+func (b *Builder) decodeQueryString(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
 	if len(params) == 0 {
 		return
 	}

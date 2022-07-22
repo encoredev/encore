@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"strings"
@@ -48,9 +47,11 @@ type Handler interface {
 type Server struct {
 	cfg        *config.Config
 	rt         *reqtrack.RequestTracker
-	pc         *platform.Client
+	pc         *platform.Client // if nil, requests are not authenticated against platform
 	rootLogger zerolog.Logger
 	json       jsoniter.API
+
+	authHandler AuthHandler
 
 	public  *httprouter.Router
 	private *httprouter.Router
@@ -113,6 +114,12 @@ func (s *Server) Register(handlers []Handler) {
 	}
 }
 
+// SetAuthHandler sets the auth handler to use.
+// If h is nil it means no auth handler is used.
+func (s *Server) SetAuthHandler(h AuthHandler) {
+	s.authHandler = h
+}
+
 // wildcardMethod is an internal method name we register wildcard methods under.
 const wildcardMethod = "__ENCORE_WILDCARD__"
 
@@ -130,7 +137,7 @@ func (s *Server) register(h Handler) {
 		}
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-			h.Handle(Context{
+			s.processRequest(h, Context{
 				server: s,
 				w:      w,
 				req:    req,
@@ -163,7 +170,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	// The Encore platform is authorised to call private APIs directly, thus if we have this header set,
 	// and authenticate it, then we can switch over to the private router which contains all APIs not just
 	// the publicly accessible ones.
-	if sig := req.Header.Get("X-Encore-Auth"); sig != "" {
+	if sig := req.Header.Get("X-Encore-Auth"); sig != "" && s.pc != nil {
 		if ok, err := s.pc.ValidatePlatformRequest(req, sig); err == nil && ok {
 			// Successfully authenticated
 			req = req.WithContext(withEncorePlatformSealOfApproval(req.Context()))
@@ -210,28 +217,15 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 
-// healthz serves the /__encore/healthz health checking endpoint.
-func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func (s *Server) processRequest(h Handler, c Context) {
+	c.server.beginOperation()
+	defer c.server.finishOperation()
 
-	bytes, _ := json.Marshal(struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-		Details any    `json:"details"`
-	}{
-		Code:    "ok",
-		Message: "Your Encore app is up and running!",
-		Details: struct {
-			AppRevision    string `json:"app_revision"`
-			EncoreCompiler string `json:"encore_compiler"`
-			DeployId       string `json:"deploy_id"`
-		}{
-			AppRevision:    s.cfg.Static.AppCommit.AsRevisionString(),
-			EncoreCompiler: s.cfg.Static.EncoreCompiler,
-			DeployId:       s.cfg.Runtime.DeployID,
-		},
-	})
-	_, _ = w.Write(bytes)
+	info, proceed := s.runAuthHandler(h, c)
+	if proceed {
+		c.auth = info
+		h.Handle(c)
+	}
 }
 
 func (s *Server) NewContext(w http.ResponseWriter, req *http.Request, ps PathParams, auth model.AuthInfo) Context {
