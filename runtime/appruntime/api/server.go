@@ -255,3 +255,9 @@ func IsEncorePlatformRequest(ctx context.Context) bool {
 	v, ok := value.(bool)
 	return ok && v
 }
+
+var Singleton *Server // for use in generated code
+
+func NewCallContext(ctx context.Context) CallContext {
+	return Singleton.NewCallContext(ctx)
+}

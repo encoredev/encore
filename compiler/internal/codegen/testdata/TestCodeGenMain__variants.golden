@@ -113,7 +113,7 @@ var EncoreInternal_CronOneHandler = &api.Desc[*EncoreInternal_CronOneReq, *Encor
 }
 
 func EncoreInternal_CallCronOne(ctx context.Context) error {
-	_, err := EncoreInternal_CronOneHandler.Call(api.CallContext{}, &EncoreInternal_CronOneReq{})
+	_, err := EncoreInternal_CronOneHandler.Call(api.NewCallContext(ctx), &EncoreInternal_CronOneReq{})
 	return err
 }
 
@@ -239,7 +239,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 }
 
 func EncoreInternal_CallEight(ctx context.Context, bar string, baz string) (*Response, error) {
-	resp, err := EncoreInternal_EightHandler.Call(api.CallContext{}, &EncoreInternal_EightReq{bar, baz})
+	resp, err := EncoreInternal_EightHandler.Call(api.NewCallContext(ctx), &EncoreInternal_EightReq{bar, baz})
 	return resp.Data, err
 }
 
@@ -356,7 +356,7 @@ var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, *EncoreInter
 }
 
 func EncoreInternal_CallFive(ctx context.Context, id uuid.UUID, key uint, params *FooParams) error {
-	_, err := EncoreInternal_FiveHandler.Call(api.CallContext{}, &EncoreInternal_FiveReq{id, key, params})
+	_, err := EncoreInternal_FiveHandler.Call(api.NewCallContext(ctx), &EncoreInternal_FiveReq{id, key, params})
 	return err
 }
 
@@ -440,7 +440,7 @@ var EncoreInternal_FourHandler = &api.Desc[*EncoreInternal_FourReq, *EncoreInter
 }
 
 func EncoreInternal_CallFour(ctx context.Context, baz string) error {
-	_, err := EncoreInternal_FourHandler.Call(api.CallContext{}, &EncoreInternal_FourReq{baz})
+	_, err := EncoreInternal_FourHandler.Call(api.NewCallContext(ctx), &EncoreInternal_FourReq{baz})
 	return err
 }
 
@@ -580,7 +580,7 @@ var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, *EncoreInter
 }
 
 func EncoreInternal_CallNine(ctx context.Context, bar string, baz string) (*ComplexResponse, error) {
-	resp, err := EncoreInternal_NineHandler.Call(api.CallContext{}, &EncoreInternal_NineReq{bar, baz})
+	resp, err := EncoreInternal_NineHandler.Call(api.NewCallContext(ctx), &EncoreInternal_NineReq{bar, baz})
 	return resp.Data, err
 }
 
@@ -628,7 +628,7 @@ var EncoreInternal_OneHandler = &api.Desc[*EncoreInternal_OneReq, *EncoreInterna
 }
 
 func EncoreInternal_CallOne(ctx context.Context) error {
-	_, err := EncoreInternal_OneHandler.Call(api.CallContext{}, &EncoreInternal_OneReq{})
+	_, err := EncoreInternal_OneHandler.Call(api.NewCallContext(ctx), &EncoreInternal_OneReq{})
 	return err
 }
 
@@ -782,7 +782,7 @@ var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInt
 }
 
 func EncoreInternal_CallQuery(ctx context.Context, params *QueryParams) (*QueryParams, error) {
-	resp, err := EncoreInternal_QueryHandler.Call(api.CallContext{}, &EncoreInternal_QueryReq{params})
+	resp, err := EncoreInternal_QueryHandler.Call(api.NewCallContext(ctx), &EncoreInternal_QueryReq{params})
 	return resp.Data, err
 }
 
@@ -976,7 +976,7 @@ var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, *EncoreInterna
 }
 
 func EncoreInternal_CallSix(ctx context.Context, id uuid.UUID, key string, params *FooParams) error {
-	_, err := EncoreInternal_SixHandler.Call(api.CallContext{}, &EncoreInternal_SixReq{id, key, params})
+	_, err := EncoreInternal_SixHandler.Call(api.NewCallContext(ctx), &EncoreInternal_SixReq{id, key, params})
 	return err
 }
 
@@ -1066,7 +1066,7 @@ var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, *EncoreInterna
 }
 
 func EncoreInternal_CallTen(ctx context.Context) (*HeaderResponse, error) {
-	resp, err := EncoreInternal_TenHandler.Call(api.CallContext{}, &EncoreInternal_TenReq{})
+	resp, err := EncoreInternal_TenHandler.Call(api.NewCallContext(ctx), &EncoreInternal_TenReq{})
 	return resp.Data, err
 }
 
@@ -1146,7 +1146,7 @@ var EncoreInternal_ThreeHandler = &api.Desc[*EncoreInternal_ThreeReq, *EncoreInt
 }
 
 func EncoreInternal_CallThree(ctx context.Context, id string) error {
-	_, err := EncoreInternal_ThreeHandler.Call(api.CallContext{}, &EncoreInternal_ThreeReq{id})
+	_, err := EncoreInternal_ThreeHandler.Call(api.NewCallContext(ctx), &EncoreInternal_ThreeReq{id})
 	return err
 }
 
@@ -1235,7 +1235,7 @@ var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, *EncoreInterna
 }
 
 func EncoreInternal_CallTwo(ctx context.Context, params *FooParams) error {
-	_, err := EncoreInternal_TwoHandler.Call(api.CallContext{}, &EncoreInternal_TwoReq{params})
+	_, err := EncoreInternal_TwoHandler.Call(api.NewCallContext(ctx), &EncoreInternal_TwoReq{params})
 	return err
 }
 
