@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	cloud.google.com/go/pubsub v1.22.2
+	github.com/felixge/httpsnoop v1.0.3
 	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87
 	github.com/jackc/pgx/v4 v4.16.0
 	github.com/json-iterator/go v1.1.12

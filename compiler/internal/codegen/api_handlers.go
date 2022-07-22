@@ -133,6 +133,11 @@ func (b *rpcBuilder) Write(f *File) {
 		}
 	})
 
+	rawHandler := Nil()
+	if rpc.Raw {
+		rawHandler = Qual(rpc.Svc.Root.ImportPath, rpc.Name)
+	}
+
 	defLoc := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
 	handler := Var().Id(b.rpcHandlerName(rpc)).Op("=").Op("&").Qual("encore.dev/appruntime/api", "Desc").Types(
 		Op("*").Id(b.ReqTypeName()),
@@ -146,12 +151,14 @@ func (b *rpcBuilder) Write(f *File) {
 		Id("Service").Op(":").Lit(b.svc.Name),
 		Id("Endpoint").Op(":").Lit(rpc.Name),
 		Id("Methods").Op(":").Add(methods),
+		Id("Raw").Op(":").Lit(rpc.Raw),
 		Id("Path").Op(":").Lit(rpc.Path.String()),
 		Id("DefLoc").Op(":").Lit(defLoc),
 		Id("Access").Op(":").Add(access),
 		Id("DecodeReq").Op(":").Add(decodeReq),
 		Id("AppHandler").Op(":").Add(b.AppHandlerFunc()),
 		Id("EncodeResp").Op(":").Add(encodeResp),
+		Id("RawHandler").Op(":").Add(rawHandler),
 	)
 
 	for _, c := range reqType {
@@ -215,12 +222,6 @@ func (r *structDesc) AddField(kind fieldKind, name string, goType *Statement, bu
 
 // renderDecodeReq renders the DecodeReq code as a func literal.
 func (b *rpcBuilder) renderDecodeReq() *Statement {
-	// If this is a raw endpoint, we already know the fields to use.
-	if b.rpc.Raw {
-		b.reqType.AddField(other, "W", Qual("net/http", "ResponseWriter"), schema.Builtin_ANY)
-		b.reqType.AddField(other, "Req", Op("*").Qual("net/http", "Request"), schema.Builtin_ANY)
-	}
-
 	return Func().Params(
 		Id("req").Op("*").Qual("net/http", "Request"),
 		Id("ps").Qual("github.com/julienschmidt/httprouter", "Params"),
@@ -335,6 +336,10 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 
 func (b *rpcBuilder) AppHandlerFunc() *Statement {
 	rpc := b.rpc
+	if rpc.Raw {
+		return Nil()
+	}
+
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
 		Id("req").Op("*").Id(b.ReqTypeName()),
@@ -349,7 +354,6 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 			return
 		}
 
-		// TODO handle raw endpoints, no return vals, etc
 		g.Do(func(s *Statement) {
 			if rpc.Response != nil {
 				s.List(Id("resp"), Err())
@@ -376,6 +380,10 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 }
 
 func (b *rpcBuilder) renderEncodeResp() *Statement {
+	if b.rpc.Raw {
+		return Nil()
+	}
+
 	return Func().Params(
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
