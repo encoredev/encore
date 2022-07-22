@@ -51,8 +51,9 @@ func (b *Builder) Main() (f *File, err error) {
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
 			}),
-			Id("Testing"):     False(),
-			Id("TestService"): Lit(""),
+			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
+			Id("Testing"):      False(),
+			Id("TestService"):  Lit(""),
 		}),
 		Id("handlers").Op(":=").Index().Qual("encore.dev/appruntime/api", "Handler").CustomFunc(Options{
 			Open:      "{",
@@ -79,6 +80,27 @@ func (b *Builder) Main() (f *File, err error) {
 	)
 
 	return f, b.errors.Err()
+}
+
+func (b *Builder) computeStaticPubsubConfig() Code {
+	pubsubTopicDict := Dict{}
+	for _, topic := range b.res.App.PubSubTopics {
+		subscriptions := Dict{}
+
+		for _, sub := range topic.Subscribers {
+			traceID := int(b.res.Nodes[sub.DeclFile.Pkg][sub.IdentAST].Id)
+
+			subscriptions[Lit(sub.Name)] = Values(Dict{
+				Id("Service"):  Lit(sub.DeclFile.Pkg.Service.Name),
+				Id("TraceIdx"): Lit(traceID),
+			})
+		}
+
+		pubsubTopicDict[Lit(topic.Name)] = Values(Dict{
+			Id("Subscriptions"): Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubSubscription").Values(subscriptions),
+		})
+	}
+	return Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubTopic").Values(pubsubTopicDict)
 }
 
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {

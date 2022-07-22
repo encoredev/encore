@@ -27,9 +27,10 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").Block(
 		Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
-			Id("AuthData"):    b.authDataType(),
-			Id("Testing"):     True(),
-			Id("TestService"): Lit(testSvc),
+			Id("AuthData"):     b.authDataType(),
+			Id("Testing"):      True(),
+			Id("TestService"):  Lit(testSvc),
+			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
 		}),
 		Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
 			Id("StaticCfg"):   Id("static"),
