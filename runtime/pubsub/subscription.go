@@ -11,6 +11,7 @@ import (
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/testsupport"
+	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/gcp"
 	"encore.dev/pubsub/internal/nsq"
@@ -112,6 +113,8 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		Str("subscription", name).
 		Logger()
 
+	tracingEnabled := trace.Enabled(mgr.cfg)
+
 	// Subscribe to the topic
 	topic.topic.Subscribe(&log, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
 		if !mgr.cfg.Static.Testing {
@@ -139,6 +142,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 			},
 			Inputs: [][]byte{data},
 			DefLoc: staticCfg.TraceIdx,
+			Traced: tracingEnabled,
 
 			// Unset for subscriptions
 			UID:      "",
