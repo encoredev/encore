@@ -52,7 +52,7 @@ func (b *Builder) buildRPC(f *File, svc *est.Service, rpc *est.RPC) {
 }
 
 func (b *Builder) rpcHandlerName(rpc *est.RPC) string {
-	return fmt.Sprintf("%sHandler", rpc.Name)
+	return fmt.Sprintf("EncoreInternal_%sHandler", rpc.Name)
 }
 
 type rpcBuilder struct {
@@ -422,11 +422,11 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 }
 
 func (b *rpcBuilder) ReqTypeName() string {
-	return fmt.Sprintf("%sReq", b.rpc.Name)
+	return fmt.Sprintf("EncoreInternal_%sReq", b.rpc.Name)
 }
 
 func (b *rpcBuilder) RespTypeName() string {
-	return fmt.Sprintf("%sResp", b.rpc.Name)
+	return fmt.Sprintf("EncoreInternal_%sResp", b.rpc.Name)
 }
 
 func (b *rpcBuilder) renderStructDesc(typName string, desc *structDesc, forRequest bool) []Code {
@@ -547,7 +547,7 @@ func (b *rpcBuilder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *go
 	if len(params) == 0 {
 		return
 	}
-	g.Comment("Decode Headers")
+	g.Comment("Decode headers")
 	g.Id("h").Op(":=").Id("req").Dot("Header")
 	for _, f := range params {
 		decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("h").Dot("Get").Call(Lit(f.Name)), Id("h").Dot("Values").Call(Lit(f.Name)), false)
@@ -563,7 +563,7 @@ func (b *rpcBuilder) decodeQueryString(g *Group, pos gotoken.Pos, requestDecoder
 	if len(params) == 0 {
 		return
 	}
-	g.Comment("Decode Query String")
+	g.Comment("Decode query string")
 	g.Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call()
 
 	for _, f := range params {
@@ -582,7 +582,7 @@ func (b *rpcBuilder) decodeRequestParameters(g *Group, rpc *est.RPC, requestDeco
 
 	// Decode Body
 	if len(req.BodyParameters) > 0 {
-		g.Comment("Decode JSON Body")
+		g.Comment("Decode JSON body")
 		g.Id("payload").Op(":=").Add(requestDecoder.Body(Id("req").Dot("Body")))
 		g.Id("iter").Op(":=").Qual(JsonPkg, "ParseBytes").Call(Id("json"), Id("payload"))
 		g.Line()
@@ -608,7 +608,7 @@ func (b *rpcBuilder) decodeRequestParameters(g *Group, rpc *est.RPC, requestDeco
 
 func (b *rpcBuilder) renderCaller() *Statement {
 	rpc := b.rpc
-	return Func().Id(fmt.Sprintf("Call%s", rpc.Name)).ParamsFunc(func(g *Group) {
+	return Func().Id(fmt.Sprintf("EncoreInternal_Call%s", rpc.Name)).ParamsFunc(func(g *Group) {
 		g.Id("ctx").Qual("context", "Context")
 		for _, f := range b.reqType.fields {
 			g.Id(f.paramName()).Add(f.goType.Clone())
