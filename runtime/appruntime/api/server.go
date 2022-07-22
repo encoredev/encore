@@ -111,44 +111,49 @@ func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Cli
 	return s
 }
 
-func (s *Server) Register(handlers []Handler) {
-	for _, h := range handlers {
-		s.register(h)
-	}
-}
-
 // SetAuthHandler sets the auth handler to use.
 // If h is nil it means no auth handler is used.
 func (s *Server) SetAuthHandler(h AuthHandler) {
 	s.authHandler = h
 }
 
-// wildcardMethod is an internal method name we register wildcard methods under.
-const wildcardMethod = "__ENCORE_WILDCARD__"
+func (s *Server) Register(handlers []Handler) {
+	// If we have a lot of handlers, don't log each one being registered.
+	logAllRegistrations := len(handlers) < 8 // chosen by a fair dice roll
 
-func (s *Server) register(h Handler) {
-	path := h.HTTPPath()
-	s.rootLogger.Info().
-		Str("service", h.ServiceName()).
-		Str("endpoint", h.EndpointName()).
-		Str("path", path).
-		Msg("registered endpoint")
-
-	for _, m := range h.HTTPMethods() {
-		if m == "*" {
-			m = wildcardMethod
+	for _, h := range handlers {
+		path := h.HTTPPath()
+		if logAllRegistrations {
+			s.rootLogger.Info().
+				Str("service", h.ServiceName()).
+				Str("endpoint", h.EndpointName()).
+				Str("path", path).
+				Msg("registered API endpoint")
 		}
 
-		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-			s.processRequest(h, s.NewContext(w, req, ps, model.AuthInfo{}))
-		}
+		for _, m := range h.HTTPMethods() {
+			if m == "*" {
+				m = wildcardMethod
+			}
 
-		s.private.Handle(m, path, adapter)
-		if access := h.AccessType(); access == Public || access == RequiresAuth {
-			s.public.Handle(m, path, adapter)
+			adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+				s.processRequest(h, s.NewContext(w, req, ps, model.AuthInfo{}))
+			}
+
+			s.private.Handle(m, path, adapter)
+			if access := h.AccessType(); access == Public || access == RequiresAuth {
+				s.public.Handle(m, path, adapter)
+			}
 		}
 	}
+
+	if !logAllRegistrations {
+		s.rootLogger.Info().Msgf("registered %d API endpoints", len(handlers))
+	}
 }
+
+// wildcardMethod is an internal method name we register wildcard methods under.
+const wildcardMethod = "__ENCORE_WILDCARD__"
 
 func (s *Server) Serve(ln net.Listener) error {
 	s.rootLogger.Info().Msg("listening for incoming HTTP requests")
