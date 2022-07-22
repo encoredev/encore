@@ -199,7 +199,10 @@ func (s *Server) beginCall() (*model.APICall, error) {
 		SpanID: spanID,
 	}
 
-	if curr := s.rt.Current(); curr.Trace != nil {
+	curr := s.rt.Current()
+	call.Source = curr.Req
+
+	if curr.Trace != nil {
 		curr.Trace.BeginCall(call, curr.Goctr)
 	}
 

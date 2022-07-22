@@ -137,12 +137,7 @@ func (s *Server) register(h Handler) {
 		}
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-			s.processRequest(h, Context{
-				server: s,
-				w:      w,
-				req:    req,
-				ps:     ps,
-			})
+			s.processRequest(h, s.NewContext(w, req, ps, model.AuthInfo{}))
 		}
 
 		s.private.Handle(m, path, adapter)
