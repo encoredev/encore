@@ -15,6 +15,7 @@ import (
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/metrics"
 )
@@ -45,11 +46,12 @@ type Handler interface {
 }
 
 type Server struct {
-	cfg        *config.Config
-	rt         *reqtrack.RequestTracker
-	pc         *platform.Client // if nil, requests are not authenticated against platform
-	rootLogger zerolog.Logger
-	json       jsoniter.API
+	cfg            *config.Config
+	rt             *reqtrack.RequestTracker
+	pc             *platform.Client // if nil, requests are not authenticated against platform
+	rootLogger     zerolog.Logger
+	json           jsoniter.API
+	tracingEnabled bool
 
 	authHandler AuthHandler
 
@@ -80,11 +82,12 @@ func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Cli
 	encore.RedirectTrailingSlash = false
 
 	s := &Server{
-		cfg:        cfg,
-		pc:         pc,
-		rt:         rt,
-		rootLogger: rootLogger,
-		json:       json,
+		cfg:            cfg,
+		pc:             pc,
+		rt:             rt,
+		rootLogger:     rootLogger,
+		json:           json,
+		tracingEnabled: trace.Enabled(cfg),
 
 		public:  public,
 		private: private,

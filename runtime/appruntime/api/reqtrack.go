@@ -59,6 +59,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		Start:        time.Now(),
 		UID:          p.UID,
 		AuthData:     p.AuthData,
+		Traced:       s.tracingEnabled,
 	}
 
 	logCtx := s.rootLogger.With().Str("service", req.Service).Str("endpoint", req.Endpoint)
@@ -72,6 +73,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		req.UID = prev.UID
 		req.AuthData = prev.AuthData
 		req.ParentID = prev.SpanID
+		req.Traced = prev.Traced
 	}
 
 	// Update request data based on call options, if any
