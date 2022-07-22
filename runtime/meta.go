@@ -9,12 +9,14 @@ import (
 	"encore.dev/internal/cloud"
 )
 
+//publicapigen:drop
 type Manager struct {
 	cfg        *config.Config
 	rt         *reqtrack.RequestTracker
 	apiBaseURL *url.URL
 }
 
+//publicapigen:drop
 func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
 	baseURL, err := url.Parse(cfg.Runtime.APIBaseURL)
 	if err != nil {

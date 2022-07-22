@@ -17,10 +17,12 @@ import (
 	"encore.dev/types/uuid"
 )
 
+//publicapigen:drop
 type Manager struct {
 	rt *reqtrack.RequestTracker
 }
 
+//publicapigen:drop
 func NewManager(rt *reqtrack.RequestTracker) *Manager {
 	return &Manager{rt}
 }
