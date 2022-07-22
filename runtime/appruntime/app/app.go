@@ -95,6 +95,9 @@ func (app *App) Run() error {
 
 	app.WatchForShutdownSignals()
 	app.RegisterShutdown(app.api.Shutdown)
+	app.RegisterShutdown(app.sqldb.Shutdown)
+	app.RegisterShutdown(app.pubsub.Shutdown)
+
 	serveErr := app.api.Serve(ln)
 
 	isGraceful := app.ShutdownInitiated()
