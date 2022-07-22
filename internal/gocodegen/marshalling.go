@@ -450,7 +450,15 @@ func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 		return w.code
 	}
 
-	code := []Code{Id(w.instanceName).Op(":=").Op("&").Qual(w.g.pkgPath, w.g.structName).Values(), Line()}
+	// If we know the package path, refer to the decoder with a qualified name.
+	var structRef *Statement
+	if w.g.pkgPath != UnknownPkgPath {
+		structRef = Qual(w.g.pkgPath, w.g.structName)
+	} else {
+		structRef = Id(w.g.structName)
+	}
+
+	code := []Code{Id(w.instanceName).Op(":=").Op("&").Add(structRef).Values(), Line()}
 	code = append(code, w.code...)
 	code = append(code, Line().If(Id(w.instanceName).Dot(lastErrorField).Op("!=").Nil()).Block(ifErrorBlock...))
 	code = append(code, Line())
