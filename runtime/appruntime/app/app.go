@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"os"
 
 	jsoniter "github.com/json-iterator/go"
@@ -21,9 +20,6 @@ import (
 )
 
 type App struct {
-	appCtx       context.Context
-	cancelAppCtx func()
-
 	cfg        *config.Config
 	rt         *reqtrack.RequestTracker
 	json       jsoniter.API
@@ -63,17 +59,14 @@ func New(p *NewParams) *App {
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
 
-	appCtx, cancel := context.WithCancel(context.Background())
-
 	ts := testsupport.NewManager(cfg, rt, rootLogger)
 	encore := encore.NewManager(cfg, rt)
 	auth := auth.NewManager(rt)
 	rlog := rlog.NewManager(rt)
 	sqldb := sqldb.NewManager(cfg, rt)
-	pubsub := pubsub.NewManager(appCtx, cfg, rt, ts, apiSrv, rootLogger)
+	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
 
 	app := &App{
-		appCtx, cancel,
 		cfg, rt, json, rootLogger, apiSrv, ts,
 		shutdown,
 		encore, auth, rlog, sqldb, pubsub,

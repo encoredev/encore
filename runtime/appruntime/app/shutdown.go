@@ -27,7 +27,7 @@ func newShutdownTracker() *shutdownTracker {
 // WatchForShutdownSignals watches for shutdown signals (SIGTERM, SIGINT)
 // and triggers the graceful shutdown when such a signal is received.
 func (app *App) WatchForShutdownSignals() {
-	graceful, cancel := signal.NotifyContext(app.appCtx, syscall.SIGTERM, syscall.SIGINT)
+	graceful, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		<-graceful.Done()
 		cancel()
@@ -59,7 +59,6 @@ func (app *App) Shutdown() {
 		if !devMode {
 			app.rootLogger.Info().Msg("got shutdown signal, initiating graceful shutdown")
 		}
-		app.cancelAppCtx()
 
 		var maxWait time.Duration
 		if t := app.cfg.Runtime.ShutdownTimeout; t > 0 {
