@@ -128,6 +128,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 	Service:  "svc",
 	Endpoint: "Eight",
 	Methods:  []string{"POST"},
+	Raw:      false,
 	Path:     "/eight/:bar/:baz",
 	DefLoc:   2,
 	Access:   api.RequiresAuth,
@@ -202,6 +203,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		w.Write(respData)
 		return nil
 	},
+	RawHandler: nil,
 }
 
 func EncoreInternal_CallEight(ctx context.Context, bar string, baz string, params *FooParams) (*Response, error) {

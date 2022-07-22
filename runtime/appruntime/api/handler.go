@@ -2,8 +2,11 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"runtime/debug"
 
+	"github.com/felixge/httpsnoop"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
 
@@ -49,9 +52,13 @@ type Desc[Req RequestSpec[Req], Resp Clonable[Resp]] struct {
 	// Access describes the access type for this API.
 	Access Access
 
+	// If raw is true, RawHandler is set and AppHandler and EncodeResp are nil.
+	Raw bool
+
 	DecodeReq  func(*http.Request, PathParams, jsoniter.API) (Req, error)
 	AppHandler func(context.Context, Req) (Resp, error)
 	EncodeResp func(http.ResponseWriter, jsoniter.API, Resp) error
+	RawHandler func(http.ResponseWriter, *http.Request)
 }
 
 func (d *Desc[Req, Resp]) AccessType() Access    { return d.Access }
@@ -67,16 +74,19 @@ func (d *Desc[Req, Resp]) Handle(c Context) {
 		return
 	}
 
-	resp, err := d.executeEndpoint(c.req.Context(), reqData)
+	resp, httpStatus, err := d.executeEndpoint(c, reqData)
 	if err != nil {
-		c.server.finishRequest(nil, err, 0)
+		c.server.finishRequest(nil, err, httpStatus)
 		errs.HTTPError(c.w, err)
 		return
 	}
 
-	err = d.EncodeResp(c.w, c.server.json, resp)
-	// TODO handle outputs, raw endpoints, httpStatus
-	c.server.finishRequest(nil, err, 0)
+	var output [][]byte
+	if !d.Raw {
+		err = d.EncodeResp(c.w, c.server.json, resp)
+		output, _ = resp.Serialize(c.server.json)
+	}
+	c.server.finishRequest(output, err, httpStatus)
 }
 
 func (d *Desc[Req, Resp]) begin(c Context) (reqData Req, beginErr error) {
@@ -125,21 +135,32 @@ func (d *Desc[Req, Resp]) begin(c Context) (reqData Req, beginErr error) {
 	return reqData, nil
 }
 
-func (d *Desc[Req, Resp]) executeEndpoint(ctx context.Context, reqData Req) (resp Resp, respErr error) {
+func (d *Desc[Req, Resp]) executeEndpoint(c Context, reqData Req) (resp Resp, httpStatus int, respErr error) {
 	defer func() {
 		// Catch endpoint panic
 		if e := recover(); e != nil {
-			respErr = errs.B().Code(errs.Internal).Msgf("panic handling request: %v", e).Err()
+			stack := debug.Stack()
+			respErr = errs.B().Code(errs.Internal).Meta("panic_stack", string(stack)).Msgf("panic handling request: %v\n%s", e, stack).Err()
 		}
 	}()
 
-	resp, err := d.AppHandler(ctx, reqData)
-	if err != nil {
-		respErr = errs.Convert(respErr)
+	if d.Raw {
+		m := httpsnoop.CaptureMetrics(http.HandlerFunc(d.RawHandler), c.w, c.req)
+		httpStatus = m.Code
+		if m.Code >= 400 {
+			err := fmt.Errorf("response status code %d", m.Code)
+			respErr = errs.Convert(err)
+		}
 		return
 	}
 
-	return resp, nil
+	resp, err := d.AppHandler(c.req.Context(), reqData)
+	if err != nil {
+		respErr = errs.Convert(err)
+		return
+	}
+
+	return resp, 0, nil
 }
 
 type CallContext struct {
