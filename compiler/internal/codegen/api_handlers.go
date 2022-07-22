@@ -665,8 +665,7 @@ func (b *rpcBuilder) renderCaller() *Statement {
 			}
 			g.Err()
 		}).Op(":=").Id(b.rpcHandlerName(rpc)).Dot("Call").CallFunc(func(g *Group) {
-			// TODO implement
-			g.Qual("encore.dev/appruntime/api", "CallContext").Values()
+			g.Qual("encore.dev/appruntime/api", "NewCallContext").Call(Id("ctx"))
 			g.Op("&").Id(b.ReqTypeName()).ValuesFunc(func(g *Group) {
 				for _, f := range b.reqType.fields {
 					g.Id(f.paramName())

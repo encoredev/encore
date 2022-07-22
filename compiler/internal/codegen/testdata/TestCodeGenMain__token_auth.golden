@@ -205,7 +205,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 }
 
 func EncoreInternal_CallEight(ctx context.Context, bar string, baz string, params *FooParams) (*Response, error) {
-	resp, err := EncoreInternal_EightHandler.Call(api.CallContext{}, &EncoreInternal_EightReq{bar, baz, params})
+	resp, err := EncoreInternal_EightHandler.Call(api.NewCallContext(ctx), &EncoreInternal_EightReq{bar, baz, params})
 	return resp.Data, err
 }
 
