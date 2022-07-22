@@ -45,7 +45,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 			case est.RPCRefNode:
 				rpc := rewrite.RPC
-				wrapperName := "Call" + rpc.Name
+				wrapperName := "EncoreInternal_Call" + rpc.Name
 				node := c.Node()
 
 				if sel, ok := node.(*ast.SelectorExpr); ok {
