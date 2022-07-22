@@ -2,7 +2,6 @@ package trace
 
 import (
 	"math"
-	"sync"
 	"time"
 	_ "unsafe" // for go:linkname
 
@@ -10,7 +9,11 @@ import (
 )
 
 type Log struct {
-	mu   sync.Mutex
+	// mu must be the runtime mutex and not a regular sync.Mutex,
+	// as certain events (Go{Start,Clear,End}) are sometimes executed by system goroutines,
+	// which do not support sync.Mutex.
+	mu mutex
+
 	data []byte
 }
 
@@ -26,8 +29,8 @@ func (l *Log) Add(event EventType, data []byte) {
 		return
 	}
 
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	mutexLock(&l.mu)
+	defer mutexUnlock(&l.mu)
 
 	// Do this in the critical section to ensure we don't get
 	// out-of-order timestamps.
@@ -51,10 +54,10 @@ func (l *Log) Add(event EventType, data []byte) {
 
 // GetAndClear gets the data and clears the buffer.
 func (l *Log) GetAndClear() []byte {
-	l.mu.Lock()
+	mutexLock(&l.mu)
 	data := l.data
 	l.data = l.data[len(l.data):]
-	l.mu.Unlock()
+	mutexUnlock(&l.mu)
 	return data
 }
 
