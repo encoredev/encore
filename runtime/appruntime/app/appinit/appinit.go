@@ -28,6 +28,7 @@ func load() *LoadData
 type LoadData struct {
 	StaticCfg   *config.Static
 	APIHandlers []api.Handler
+	AuthHandler api.AuthHandler
 }
 
 // We load everything during init so that the whole runtime is available to the Encore app
@@ -42,6 +43,7 @@ func init() {
 	singleton = app.New(&app.NewParams{
 		Cfg:         cfg,
 		APIHandlers: data.APIHandlers,
+		AuthHandler: data.AuthHandler,
 	})
 }
 

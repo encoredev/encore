@@ -18,12 +18,14 @@ func loadApp() *appinit.LoadData {
 		},
 		AuthData:       nil,
 		EncoreCompiler: "test",
+		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
 		TestService:    "",
 		Testing:        false,
 	}
 	handlers := []api.Handler{}
 	return &appinit.LoadData{
 		APIHandlers: handlers,
+		AuthHandler: nil,
 		StaticCfg:   static,
 	}
 }

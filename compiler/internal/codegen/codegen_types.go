@@ -9,24 +9,6 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
-func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
-	defer b.errors.HandleBailout(&err)
-
-	f = NewFilePathName(svc.Root.ImportPath, svc.Name)
-	b.registerImports(f)
-
-	// Import the runtime package with '_' as its name to start with to ensure it's imported.
-	// If other code uses it will be imported under its proper name.
-	f.Anon("encore.dev/appruntime/app/appinit")
-
-	for _, rpc := range svc.RPCs {
-		f.Line()
-		b.buildRPC(f, svc, rpc)
-	}
-
-	return f, b.errors.Err()
-}
-
 func (b *Builder) Etype() (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 	f = NewFile("etype")
