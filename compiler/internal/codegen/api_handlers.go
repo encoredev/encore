@@ -46,7 +46,7 @@ func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
 		b.buildRPC(f, svc, rpc)
 	}
 
-	if ah := b.res.App.AuthHandler; ah != nil {
+	if ah := b.res.App.AuthHandler; ah != nil && ah.Svc == svc {
 		f.Line()
 		b.buildAuthHandler(f, ah)
 	}
