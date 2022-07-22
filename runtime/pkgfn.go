@@ -2,6 +2,7 @@
 
 package encore
 
+//publicapigen:drop
 var Singleton *Manager
 
 // Meta returns metadata about the running application.

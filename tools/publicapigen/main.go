@@ -32,10 +32,11 @@ type registeredConstant struct {
 }
 
 var (
-	fset      = token.NewFileSet()
-	files     = map[string]*ast.File{}
-	constants = map[string]map[string]registeredConstant{}
-	types     = map[string]map[string]registeredType{}
+	fset        = token.NewFileSet()
+	files       = map[string]*ast.File{}
+	constants   = map[string]map[string]registeredConstant{}
+	types       = map[string]map[string]registeredType{}
+	typesToDrop = map[string]map[string]bool{}
 )
 
 func main() {
@@ -55,6 +56,7 @@ func main() {
 			log.Debug().Str("file", fileName).Msg("registering types and constants from private implementation files")
 			registerTypes(fileName, fAST)
 		}
+		registerTypesToDrop(fAST)
 	}
 
 	// Then rewrite all the AST to remove implementations
@@ -148,6 +150,28 @@ func registerTypes(name string, fAST *ast.File) {
 	}
 }
 
+func registerTypesToDrop(fAST *ast.File) {
+	pkg := fAST.Name.Name
+	if _, found := typesToDrop[pkg]; !found {
+		typesToDrop[pkg] = map[string]bool{}
+	}
+
+	for _, decl := range fAST.Decls {
+		switch d := decl.(type) {
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					if lookupDirective(d.Doc, s.Doc) == mustDrop {
+						fmt.Printf("dropping %s.%s\n", pkg, s.Name.Name)
+						typesToDrop[pkg][s.Name.Name] = true
+					}
+				}
+			}
+		}
+	}
+}
+
 // readAST parses the AST of all non-test Go files in a directory and stores it in the files map
 func readAST(path, rel string, file []os.FileInfo) error {
 	for _, f := range file {
@@ -183,15 +207,16 @@ func rewriteAST(f *ast.File) error {
 		func(c *astutil.Cursor) bool {
 			switch node := c.Node().(type) {
 			case *ast.FuncDecl:
-				if mustKeep(node.Doc) {
+				dir := lookupDirective(node.Doc)
+				if dir == mustKeep {
 					return false
 				}
 
 				// Should we delete this function declaration if it's unexported or a receiver on an unexported object?
-				shouldDelete := !node.Name.IsExported()
+				shouldDelete := !node.Name.IsExported() || dir == mustDrop
 				if node.Recv != nil {
 					for i, field := range node.Recv.List {
-						if ident := typeName(field.Type); ident != nil && !ident.IsExported() {
+						if ident := typeName(field.Type); ident != nil && (!ident.IsExported() || typesToDrop[f.Name.Name][ident.Name]) {
 							shouldDelete = true
 							break
 						}
@@ -243,9 +268,18 @@ func rewriteAST(f *ast.File) error {
 				return false
 
 			case *ast.TypeSpec:
-				keep := node.Name.IsExported()
-				if mustKeep(node.Doc, node.Comment) {
-					keep = true
+				var genDeclComment *ast.CommentGroup
+				if gd, ok := c.Parent().(*ast.GenDecl); ok {
+					genDeclComment = gd.Doc
+				}
+
+				dir := lookupDirective(node.Doc, node.Comment, genDeclComment)
+				keep := node.Name.IsExported() || dir == mustKeep
+				if dir == mustDrop || typesToDrop[f.Name.Name][node.Name.Name] {
+					keep = false
+				}
+				if node.Name.Name == "constStr" {
+					fmt.Printf("constStr dir %s keep %v %q\n", dir, keep, genDeclComment.Text())
 				}
 
 				// Remove unexported types
@@ -287,8 +321,11 @@ func rewriteAST(f *ast.File) error {
 					}
 				}
 
-				if mustKeep(node.Doc, node.Comment) {
+				dir := lookupDirective(node.Doc, node.Comment)
+				if dir == mustKeep {
 					keep = true
+				} else if dir == mustDrop {
+					keep = false
 				}
 
 				if !keep {
@@ -297,7 +334,11 @@ func rewriteAST(f *ast.File) error {
 				}
 
 			case *ast.GenDecl:
-				if mustKeep(node.Doc) {
+				dir := lookupDirective(node.Doc)
+				if dir == mustKeep {
+					return false
+				} else if dir == mustDrop {
+					c.Delete()
 					return false
 				}
 
@@ -332,7 +373,8 @@ func rewriteAST(f *ast.File) error {
 
 			case *ast.Field:
 				// Keep exported fields if there's a doc saying we should
-				keep := mustKeep(node.Doc, node.Comment)
+				dir := lookupDirective(node.Doc, node.Comment)
+				keep := dir == mustKeep
 
 				if !keep {
 					// Remove unexported fields from structs
@@ -343,6 +385,10 @@ func rewriteAST(f *ast.File) error {
 							node.Names[i] = ast.NewIdent("_")
 						}
 					}
+				}
+
+				if dir == mustDrop {
+					keep = false
 				}
 
 				if !keep {
@@ -476,26 +522,74 @@ func clearCommentGroup(node *ast.CommentGroup) {
 	node.List[0].Text = "  " // double space to prevent a panic when printing the file back out
 }
 
-func mustKeep(nodes ...*ast.CommentGroup) bool {
+type keepDirective string
+
+const (
+	none     keepDirective = "none"
+	mustKeep               = "keep"
+	mustDrop               = "drop"
+)
+
+// directiveCache caches the directive for a given comment group,
+// as the lookupDirective function mutates the comment which would
+// otherwise cause subsequent calls to return a different value.
+var directiveCache = make(map[*ast.CommentGroup]keepDirective)
+
+func lookupDirective(nodes ...*ast.CommentGroup) keepDirective {
+	result := none
 	for _, node := range nodes {
-		if node != nil && node.List != nil {
-			for i, comment := range node.List {
-				if strings.TrimSpace(comment.Text) == "//publicapigen:keep" {
-					if i == 0 {
-						comment.Text = "  "
-					} else {
-						comment.Text = "//" // empty comment line as I want the docs to remain active, but I can't remove this without causing a blank line between the comment group and what ever it's associated with
-					}
-					return true
-				}
+		dir, cached := directiveCache[node]
+		if !cached {
+			dir = parseDirective(node)
+			clearDirectives(node)
+			directiveCache[node] = dir
+		}
+
+		if dir != none {
+			result = dir
+		}
+	}
+	return result
+}
+
+func parseDirective(node *ast.CommentGroup) keepDirective {
+	if node != nil && node.List != nil {
+		for _, comment := range node.List {
+			text := strings.TrimSpace(comment.Text)
+			switch text {
+			case "//publicapigen:keep":
+				return mustKeep
+			case "//publicapigen:drop":
+				return mustDrop
+			default:
+				continue
 			}
 		}
 	}
-	return false
+	return none
+}
+
+func clearDirectives(node *ast.CommentGroup) {
+	if node != nil && node.List != nil {
+		for i, comment := range node.List {
+			text := strings.TrimSpace(comment.Text)
+			switch text {
+			case "//publicapigen:keep":
+			case "//publicapigen:drop":
+			default:
+				continue
+			}
+			if i == 0 {
+				comment.Text = "  "
+			} else {
+				comment.Text = "//" // empty comment line as I want the docs to remain active, but I can't remove this without causing a blank line between the comment group and what ever it's associated with
+			}
+		}
+	}
 }
 
 func isPrivateFile(fileName string) bool {
-	return strings.HasPrefix(fileName, "runtime/") ||
+	return strings.HasPrefix(fileName, "appruntime/") ||
 		strings.Contains(fileName, "internal/") ||
 		strings.HasSuffix(fileName, "_internal.go")
 }

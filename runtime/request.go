@@ -2,48 +2,9 @@ package encore
 
 import (
 	"time"
-
-	"encore.dev/appruntime/model"
 )
 
 var applicationStartTime = time.Now()
-
-// CurrentRequest returns the Request that is currently being handled by the calling goroutine
-//
-// It is safe for concurrent use and will return a new Request on each evocation, so can be mutated by the
-// calling code without impacting future calls.
-//
-// CurrentRequest never returns nil.
-func (mgr *Manager) CurrentRequest() *Request {
-	req := mgr.rt.Current().Req
-	if req == nil {
-		return &Request{
-			Type:    None,
-			Started: applicationStartTime,
-		}
-	}
-
-	opType := None
-	switch req.Type {
-	case model.RPCCall, model.AuthHandler:
-		opType = APICall
-	}
-
-	pathParams := make(PathParams, len(req.PathSegments))
-	for i, param := range req.PathSegments {
-		pathParams[i].Name = param.Key
-		pathParams[i].Value = param.Value
-	}
-
-	return &Request{
-		Type:       opType,
-		Service:    req.Service,
-		Endpoint:   req.Endpoint,
-		Started:    req.Start,
-		Path:       req.Path,
-		PathParams: pathParams,
-	}
-}
 
 // Request provides metadata about how and why the currently running code was started.
 //

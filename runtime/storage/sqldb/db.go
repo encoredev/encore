@@ -10,12 +10,14 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/jackc/pgx/v4/stdlib"
 
 	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/trace"
+	"encore.dev/internal/stack"
 )
 
 type Database struct {
@@ -30,111 +32,6 @@ type Database struct {
 	stdlib     *sql.DB
 }
 
-// Manager manages database connections.
-type Manager struct {
-	rt  *reqtrack.RequestTracker
-	cfg *config.Config
-
-	mu  sync.RWMutex
-	dbs map[string]*Database
-
-	// Accessed atomically
-	txidCtr  uint64
-	queryCtr uint64
-}
-
-func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
-	return &Manager{
-		rt:  rt,
-		cfg: cfg,
-		dbs: make(map[string]*Database),
-	}
-}
-
-// GetCurrentDB gets the database for the current request.
-func (mgr *Manager) GetCurrentDB() *Database {
-	var dbName string
-	if curr := mgr.rt.Current(); curr.Req != nil {
-		dbName = curr.Req.Service
-	} else if testSvc := mgr.cfg.Static.TestService; testSvc != "" {
-		dbName = testSvc
-	} else {
-		panic("sqldb: no current request")
-	}
-	return mgr.GetDB(dbName)
-}
-
-func (mgr *Manager) GetDB(dbName string) *Database {
-	mgr.mu.RLock()
-	db, ok := mgr.dbs[dbName]
-	mgr.mu.RUnlock()
-	if ok {
-		return db
-	}
-
-	mgr.mu.Lock()
-	defer mgr.mu.Unlock()
-	// Check again now that we've re-acquired the mutex
-	if db, ok := mgr.dbs[dbName]; ok {
-		return db
-	}
-	db = &Database{
-		name: dbName,
-		mgr:  mgr,
-		pool: mgr.getPool(dbName),
-	}
-	mgr.dbs[dbName] = db
-	return db
-}
-
-// getPool returns a database connection pool for the given database name.
-// Each time it's called it returns a new pool.
-func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
-	var db *config.SQLDatabase
-	for _, d := range mgr.cfg.Runtime.SQLDatabases {
-		if d.EncoreName == dbName {
-			db = d
-			break
-		}
-	}
-	if db == nil {
-		panic("sqldb: unknown database: " + dbName)
-	}
-
-	srv := mgr.cfg.Runtime.SQLServers[db.ServerID]
-	cfg, err := dbConf(srv, db)
-	if err != nil {
-		panic("sqldb: " + err.Error())
-	}
-
-	pool, err := pgxpool.ConnectConfig(context.Background(), cfg)
-	if err != nil {
-		panic("sqldb: setup db: " + err.Error())
-	}
-
-	return pool
-}
-
-func (mgr *Manager) Shutdown(force context.Context) {
-	var wg sync.WaitGroup
-	mgr.mu.RLock()
-	defer mgr.mu.RUnlock()
-
-	wg.Add(len(mgr.dbs))
-	for _, db := range mgr.dbs {
-		db := db
-		go func() {
-			defer wg.Done()
-			db.shutdown(force)
-		}()
-	}
-	wg.Wait()
-}
-
-func (mgr *Manager) Named(name string) *Database {
-	return mgr.GetDB(name)
-}
-
 func (db *Database) init() {
 	db.initOnce.Do(func() {
 		if db.pool == nil {
@@ -144,6 +41,8 @@ func (db *Database) init() {
 	})
 }
 
+// Stdlib returns a *sql.DB object that is connected to the same db,
+// for use with libraries that expect a *sql.DB.
 func (db *Database) Stdlib() *sql.DB {
 	db.init()
 	registerDriver.Do(func() {
@@ -244,4 +143,108 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, err
 	}
 
 	return cfg, nil
+}
+
+func (db *Database) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
+	db.init()
+	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(4),
+		})
+	}
+
+	res, err := db.pool.Exec(ctx, query, args...)
+	err = convertErr(err)
+
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
+	}
+
+	return res, err
+}
+
+func (db *Database) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
+	db.init()
+	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(4),
+		})
+	}
+
+	rows, err := db.pool.Query(ctx, query, args...)
+	err = convertErr(err)
+
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return &Rows{std: rows}, nil
+}
+
+func (db *Database) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
+	db.init()
+	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(4),
+		})
+	}
+
+	rows, err := db.pool.Query(ctx, query, args...)
+	err = convertErr(err)
+	r := &Row{rows: rows, err: err}
+
+	if curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
+	}
+
+	return r
+}
+
+func (db *Database) Begin(ctx context.Context) (*Tx, error) {
+	db.init()
+	tx, err := db.pool.Begin(ctx)
+	err = convertErr(err)
+	if err != nil {
+		return nil, err
+	}
+	txid := atomic.AddUint64(&db.mgr.txidCtr, 1)
+
+	curr := db.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxStart(trace.DBTxStartParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   txid,
+			Stack:  stack.Build(4),
+		})
+	}
+
+	return &Tx{mgr: db.mgr, txid: txid, std: tx}, nil
 }
