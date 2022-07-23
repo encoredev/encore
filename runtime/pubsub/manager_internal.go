@@ -35,14 +35,15 @@ func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport
 	gcpMgr := gcp.NewManager(ctx, cfg, server)
 	nsqMgr := nsq.NewManager(ctx, cfg, rt)
 	return &Manager{
-		ctx:        ctx,
-		cancelCtx:  cancel,
-		cfg:        cfg,
-		rt:         rt,
-		ts:         ts,
-		rootLogger: rootLogger,
-		gcp:        gcpMgr,
-		nsq:        nsqMgr,
+		ctx:         ctx,
+		cancelCtx:   cancel,
+		cfg:         cfg,
+		rt:          rt,
+		ts:          ts,
+		rootLogger:  rootLogger,
+		gcp:         gcpMgr,
+		nsq:         nsqMgr,
+		outstanding: newOutstandingMessageTracker(),
 	}
 }
 
