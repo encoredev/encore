@@ -166,6 +166,11 @@ func (p *parser) initRPC(rpc *est.RPC) {
 		p.initTypedRPC(rpc)
 	}
 
+	if recv := rpc.Func.Recv; recv != nil {
+		typ := recv.List[len(recv.List)-1].Type
+		rpc.Receiver = p.resolveType(rpc.Svc.Root, rpc.File, typ, nil)
+	}
+
 	for _, m := range rpc.HTTPMethods {
 		if err := p.paths.Add(m, rpc.Path); err != nil {
 			if e, ok := err.(*paths.ConflictError); ok {

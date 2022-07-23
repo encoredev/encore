@@ -166,6 +166,10 @@ type RPC struct {
 	HTTPMethods []string
 	Request     *Param // request data; nil for Raw RPCs
 	Response    *Param // response data; nil for Raw RPCs
+
+	// Receiver specifies the receiver type, if this RPC is defined
+	// as a method instead of a package-level func.
+	Receiver *schema.Type
 }
 
 type NodeType int
