@@ -11,8 +11,6 @@ import (
 	"encr.dev/parser/paths"
 )
 
-const directiveParamPath = "path"
-
 // parseDirectives parses the encore:foo directives in cg.
 // It returns the parsed directive, if any, and the
 // remaining doc text after stripping the directive lines.
@@ -143,6 +141,12 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 			return nil, fmt.Errorf("unrecognized encore:authhandler directive field: %q", fields[1])
 		}
 		return &authHandlerDirective{TokenPos: pos}, nil
+
+	case "apigroup":
+		if len(fields) > 1 {
+			return nil, fmt.Errorf("unrecognized encore:apigroup directive field: %q", fields[1])
+		}
+		return &apiGroupDirective{TokenPos: pos}, nil
 	}
 }
 
@@ -151,6 +155,8 @@ func validateDirective(d directive) error {
 	case *rpcDirective:
 		return validateRPCDirective(td)
 	case *authHandlerDirective:
+		return nil
+	case *apiGroupDirective:
 		return nil
 	default:
 		return errors.New("unexpected directive type")
@@ -197,7 +203,14 @@ type authHandlerDirective struct {
 	TokenPos token.Pos
 }
 
+// An apiGroupDirective is the parsed representation of the encore:apigroup directive.
+type apiGroupDirective struct {
+	TokenPos token.Pos
+}
+
 func (d *rpcDirective) Pos() token.Pos         { return d.TokenPos }
 func (d *authHandlerDirective) Pos() token.Pos { return d.TokenPos }
+func (d *apiGroupDirective) Pos() token.Pos    { return d.TokenPos }
 func (*rpcDirective) directive()               {}
 func (*authHandlerDirective) directive()       {}
+func (*apiGroupDirective) directive()          {}

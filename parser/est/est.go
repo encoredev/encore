@@ -60,10 +60,13 @@ type Service struct {
 
 // APIGroup describes a group of APIs with a common receiver type.
 type APIGroup struct {
+	Name string
 	Svc  *Service
-	Type *schema.Type
+	Doc  string
+	Decl *ast.TypeSpec
 	RPCs []*RPC
 	// Init is the function for initializing this group.
+	// It is nil if there is no initialization function.
 	Init *ast.FuncDecl
 }
 
