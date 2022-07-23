@@ -2,6 +2,8 @@ package encore
 
 import (
 	"time"
+
+	"encore.dev/appruntime/model"
 )
 
 var applicationStartTime = time.Now()
@@ -49,4 +51,35 @@ func (p PathParams) Get(name string) string {
 	}
 
 	return ""
+}
+
+func (mgr *Manager) CurrentRequest() *Request {
+	req := mgr.rt.Current().Req
+	if req == nil {
+		return &Request{
+			Type:    None,
+			Started: applicationStartTime,
+		}
+	}
+
+	opType := None
+	switch req.Type {
+	case model.RPCCall, model.AuthHandler:
+		opType = APICall
+	}
+
+	pathParams := make(PathParams, len(req.PathSegments))
+	for i, param := range req.PathSegments {
+		pathParams[i].Name = param.Key
+		pathParams[i].Value = param.Value
+	}
+
+	return &Request{
+		Type:       opType,
+		Service:    req.Service,
+		Endpoint:   req.Endpoint,
+		Started:    req.Start,
+		Path:       req.Path,
+		PathParams: pathParams,
+	}
 }
