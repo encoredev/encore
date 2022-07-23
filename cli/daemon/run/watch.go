@@ -2,6 +2,7 @@ package run
 
 import (
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/rjeczalik/notify"
@@ -36,7 +37,11 @@ func (mgr *Manager) watch(run *Run) error {
 				time.Sleep(100 * time.Millisecond)
 				mgr.runStdout(run, []byte("Changes detected, recompiling...\n"))
 				if err := run.Reload(); err != nil {
-					mgr.runStderr(run, []byte(err.Error()))
+					errStr := err.Error()
+					if !strings.HasSuffix(errStr, "\n") {
+						errStr += "\n"
+					}
+					mgr.runStderr(run, []byte(errStr))
 				} else {
 					mgr.runStdout(run, []byte("Reloaded successfully.\n"))
 				}
