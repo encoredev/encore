@@ -49,9 +49,12 @@ func (b *builder) genUser() error {
 }
 
 func (b *builder) generateUserCode(svc *est.Service) (err error) {
-	f := b.codegen.EncoreGen(svc)
+	dst := filepath.Join(b.appRoot, svc.Root.RelPath, "encore.gen.go")
+	f := b.codegen.EncoreGen(svc, false)
 	if f == nil {
-		// Nothing to do
+		// No need for any generated code. Try to remove the existing file
+		// if it's there as it's no longer needed.
+		_ = os.Remove(dst)
 		return nil
 	}
 
@@ -60,6 +63,5 @@ func (b *builder) generateUserCode(svc *est.Service) (err error) {
 		return err
 	}
 
-	dst := filepath.Join(b.appRoot, svc.Root.RelPath, "encore.gen.go")
 	return os.WriteFile(dst, buf.Bytes(), 0644)
 }

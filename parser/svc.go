@@ -160,15 +160,12 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 }
 
 func (p *parser) initRPC(rpc *est.RPC) {
+	p.resolveAPIGroup(rpc)
+
 	if rpc.Raw {
 		p.initRawRPC(rpc)
 	} else {
 		p.initTypedRPC(rpc)
-	}
-
-	if recv := rpc.Func.Recv; recv != nil {
-		typ := recv.List[len(recv.List)-1].Type
-		rpc.Receiver = p.resolveType(rpc.Svc.Root, rpc.File, typ, nil)
 	}
 
 	for _, m := range rpc.HTTPMethods {
@@ -292,6 +289,59 @@ func (p *parser) initTypedRPC(rpc *est.RPC) {
 			rpc.HTTPMethods = []string{"GET", "POST"}
 		}
 	}
+}
+
+// resolveAPIGroup resolves the API Group a receiver type refers to
+// and adds the rpc to the group.
+// If the API Group does not already exist it is created.
+// It returns nil if the rpc does not belong to any API Group.
+func (p *parser) resolveAPIGroup(rpc *est.RPC) *est.APIGroup {
+	recv := rpc.Func.Recv
+	if recv == nil {
+		return nil
+	}
+	recvType := recv.List[len(recv.List)-1].Type
+	typ := p.resolveType(rpc.Svc.Root, rpc.File, recvType, nil)
+	named := typ.GetNamed()
+	if named == nil {
+		p.errf(recvType.Pos(), "api receiver must refer to named type, not %T", typ.Typ)
+		return nil
+	}
+
+	// Does an API Group already exist for this type?
+	for _, g := range rpc.Svc.APIGroups {
+		if g.Type.GetNamed().Id == named.Id {
+			g.RPCs = append(g.RPCs, rpc)
+			rpc.APIGroup = g
+			return g
+		}
+	}
+
+	// Do we have an init function for this API Group?
+	groupName := p.decls[named.Id].Name
+	names := p.names[rpc.Svc.Root].Decls
+
+	var initFunc *ast.FuncDecl
+	for name, decl := range names {
+		if decl.Type == token.FUNC && strings.EqualFold(name, "new"+groupName) {
+			if initFunc != nil {
+				p.errf(decl.Pos, "multiple service initialization functions found (previous declararation at %s)",
+					p.fset.Position(initFunc.Pos()))
+			} else {
+				initFunc = decl.Func
+			}
+		}
+	}
+
+	group := &est.APIGroup{
+		Svc:  rpc.Svc,
+		Type: typ,
+		RPCs: []*est.RPC{rpc},
+		Init: initFunc,
+	}
+	rpc.Svc.APIGroups = append(rpc.Svc.APIGroups, group)
+	rpc.APIGroup = group
+	return group
 }
 
 func (p *parser) validatePathParamType(param *ast.Field, name string, typ *schema.Type, segType paths.SegmentType) bool {

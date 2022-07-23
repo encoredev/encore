@@ -127,7 +127,15 @@ type AuthParams struct {
     Query3 time.Time `query:"three"`
 
 }
+
 //encore:authhandler
 func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthData, error) {
 	return "", nil, nil
+}
+
+type Service struct{}
+
+//encore:api public path=/di method=GET
+func (s *Service) DI(ctx context.Context) error {
+    return nil
 }

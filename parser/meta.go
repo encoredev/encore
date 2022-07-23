@@ -214,7 +214,6 @@ func parseRPC(rpc *est.RPC) (*meta.RPC, error) {
 		Loc:            parseLoc(rpc.File, rpc.Func),
 		Path:           parsePath(rpc.Path),
 		HttpMethods:    rpc.HTTPMethods,
-		Receiver:       rpc.Receiver,
 	}
 	return r, nil
 }

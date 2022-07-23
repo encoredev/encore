@@ -312,6 +312,13 @@ func (b *builder) writePackages() error {
 			return err
 		}
 	}
+
+	for _, svc := range b.res.App.Services {
+		if err := b.generateServiceSetup(svc); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
