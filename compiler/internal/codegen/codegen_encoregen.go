@@ -33,59 +33,15 @@ func (b *Builder) EncoreGen(svc *est.Service, withImpl bool) *File {
 
 	for _, group := range svc.APIGroups {
 		for _, rpc := range group.RPCs {
-			b.encoreGenRPC(f, rpc, withImpl)
+			b.encoreGenRPC(f, group, rpc, withImpl)
 			f.Line()
-		}
-	}
-
-	if withImpl {
-		for _, group := range svc.APIGroups {
-			name := b.res.Meta.Decls[group.Type.GetNamed().Id].Name
-			f.Commentf("Initialization for the %s API Group", name)
-			f.Var().Defs(
-				Id("__encore_svc_init_once_"+name).Qual("encore.dev/runtime/runtimeutil", "Once"),
-				// We currently only support a single receiver for all methods, so just pick the first one.
-				Id("__encore_svc_"+name).Op("*").Add(b.schemaTypeToGoType(group.Type)),
-			)
-			f.Line()
-
-			f.Func().Id("__encore_do_svc_init_" + name).Params().Error().Block(
-				Return(
-					Id("__encore_svc_init_once_" + name).Dot("Do").Call(
-						Func().Params().Error().BlockFunc(func(g *Group) {
-							if group.Init == nil {
-								g.Id("__encore_svc_" + name).Op("=").New(b.schemaTypeToGoType(group.Type))
-								g.Return(Nil())
-							} else {
-								fd := group.Init
-								if fd.Type.Results.NumFields() == 2 {
-									g.Var().Err().Error()
-									g.List(Id("__encore_svc_"+name), Err()).Op("=").Id(fd.Name.Name).Call()
-									g.If(Err().Op("!=").Nil()).Block(
-										Qual("encore.dev/rlog", "Error").Call(
-											Lit("service initialization failed"), Lit("err"), Err()),
-										Return(Qual("encore.dev/beta/errs", "B").Call().
-											Dot("Code").Call(Qual("encore.dev/beta/errs", "Internal")).
-											Dot("Msg").Call(Lit("service initialization failed"))).
-											Dot("Err").Call(),
-									)
-									g.Return(Nil())
-								} else {
-									g.Id("__encore_svc_" + name).Op("=").Id(fd.Name.Name).Call()
-									g.Return(Nil())
-								}
-							}
-						}),
-					),
-				),
-			)
 		}
 	}
 
 	return f
 }
 
-func (b *Builder) encoreGenRPC(f *File, rpc *est.RPC, withImpl bool) {
+func (b *Builder) encoreGenRPC(f *File, group *est.APIGroup, rpc *est.RPC, withImpl bool) {
 	if rpc.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(rpc.Doc), "\n") {
 			f.Comment(line)
@@ -111,33 +67,44 @@ func (b *Builder) encoreGenRPC(f *File, rpc *est.RPC, withImpl bool) {
 		if rpc.Raw {
 			g.Id(alloc("req")).Op("*").Qual("net/http", "Request")
 		} else if req := rpc.Request; req != nil {
-			g.Id(alloc("req")).Add(b.namedType(req))
+			g.Id(alloc("req")).Add(b.namedType(f, req))
 		}
 	}).Do(func(s *Statement) {
 		if withImpl {
 			if rpc.Raw {
-				s.Params(Id("resp").Op("*").Qual("net/http", "Response"), Err().Error())
+				s.Params(Op("*").Qual("net/http", "Response"), Error())
 			} else if resp := rpc.Response; resp != nil {
-				s.Params(Id("resp").Add(b.namedType(resp)), Err().Error())
+				s.Params(Add(b.namedType(f, resp)), Error())
 			} else {
-				s.Params(Err().Error())
+				s.Params(Error())
 			}
 		} else {
 			if rpc.Raw {
 				s.Params(Op("*").Qual("net/http", "Response"), Error())
 			} else if resp := rpc.Response; resp != nil {
-				s.Params(b.namedType(resp), Error())
+				s.Params(b.namedType(f, resp), Error())
 			} else {
 				s.Error()
 			}
 		}
 	}).BlockFunc(func(g *Group) {
 		if withImpl {
-			name := b.res.Meta.Decls[rpc.APIGroup.Type.GetNamed().Id].Name
-			g.If(Err().Op("=").Id("__encore_do_svc_init_"+name).Call(), Err().Op("!=").Nil()).Block(
-				Return(),
-			)
-			g.Return(Id("__encore_svc_" + name).Dot(rpc.Name).CallFunc(func(g *Group) {
+			g.List(Id("svc"), Err()).Op(":=").Id(b.apiGroupHandlerName(group)).Dot("Get").Call()
+			g.If(Err().Op("!=").Nil()).Block(ReturnFunc(func(g *Group) {
+				if rpc.Raw {
+					g.Nil()
+				} else if rpc.Response != nil {
+					// (*T, error) or (T, error)
+					if rpc.Response.IsPtr {
+						g.Nil()
+					} else {
+						g.Add(b.namedType(f, rpc.Response).Values())
+					}
+				}
+				g.Err()
+			}))
+
+			g.Return(Id("svc").Dot(rpc.Name).CallFunc(func(g *Group) {
 				for _, name := range argNames {
 					g.Id(name)
 				}
@@ -145,13 +112,13 @@ func (b *Builder) encoreGenRPC(f *File, rpc *est.RPC, withImpl bool) {
 		} else {
 			g.Comment("The implementation is elided here, and generated at compile-time by Encore.")
 			if rpc.Raw {
-				// Do nothing
+				g.Return(Nil(), Nil())
 			} else if rpc.Response != nil {
 				// (*T, error) or (T, error)
 				if rpc.Response.IsPtr {
 					g.Return(Nil(), Nil())
 				} else {
-					g.Return(b.namedType(rpc.Response).Values(), Nil())
+					g.Return(b.namedType(f, rpc.Response).Values(), Nil())
 				}
 			} else {
 				// Just an error return

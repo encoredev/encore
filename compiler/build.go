@@ -209,7 +209,7 @@ func (b *builder) parseApp() error {
 
 	if pc := b.cfg.Parse; pc != nil {
 		b.res = pc
-		b.codegen = codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
+		b.codegen = codegen.NewBuilder(b.res)
 		return nil
 	}
 
@@ -224,7 +224,7 @@ func (b *builder) parseApp() error {
 	b.res, err = parser.Parse(cfg)
 
 	if err == nil {
-		b.codegen = codegen.NewBuilder(b.res, b.cfg.EncoreCompilerVersion)
+		b.codegen = codegen.NewBuilder(b.res)
 	}
 
 	return err

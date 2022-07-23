@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
 
@@ -29,7 +30,16 @@ func (p *parser) parseServices() {
 			Root: pkg,
 			Pkgs: []*est.Package{pkg},
 		}
-		if isSvc := p.parseFuncs(pkg, svc); !isSvc {
+		apiGroups := p.parseAPIGroups(pkg, svc)
+		isSvc := p.parseFuncs(pkg, svc)
+		for _, group := range apiGroups {
+			if len(group.RPCs) == 0 {
+				p.errf(group.Decl.Pos(), "cannot define API group without any APIs belonging to it"+
+					"\n\tHint: define APIs on an API group as a method receiver: func (*%s) MyEndpoint(...) error",
+					group.Name)
+			}
+		}
+		if !isSvc {
 			continue
 		}
 
@@ -89,6 +99,52 @@ PkgLoop:
 			}
 		}
 	}
+}
+
+// parseAPIGroups parses the pkg for any declared API groups.
+func (p *parser) parseAPIGroups(pkg *est.Package, svc *est.Service) []*est.APIGroup {
+	var groups []*est.APIGroup
+	for _, f := range pkg.Files {
+		for _, decl := range f.AST.Decls {
+			gd, ok := decl.(*ast.GenDecl)
+			if !ok || gd.Tok != token.TYPE {
+				continue
+			}
+
+			// We can either have the directive comment attached directly
+			// on the GenDecl, or on the TypeSpec. Handle both cases.
+			dir, doc := p.parseDirectives(gd.Doc)
+			if dir != nil && len(gd.Specs) != 1 {
+				p.err(gd.Doc.Pos(), "invalid encore directive location (expected on declaration, not group)")
+				continue
+			}
+
+			for _, spec := range gd.Specs {
+				s := spec.(*ast.TypeSpec)
+				if dir == nil {
+					dir, doc = p.parseDirectives(s.Doc)
+				}
+				if dir != nil {
+					switch dir := dir.(type) {
+					case *apiGroupDirective:
+						group := &est.APIGroup{
+							Name: s.Name.Name,
+							Svc:  svc,
+							Doc:  doc,
+							Decl: s,
+						}
+						p.initAPIGroup(group)
+						groups = append(groups, group)
+
+					default:
+						p.errf(dir.Pos(), "unexpected directive type %T on type declaration", dir)
+						p.abort()
+					}
+				}
+			}
+		}
+	}
+	return groups
 }
 
 // parseFuncs parses the pkg for any declared RPCs and auth handlers.
@@ -160,7 +216,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 }
 
 func (p *parser) initRPC(rpc *est.RPC) {
-	p.resolveAPIGroup(rpc)
+	p.addToAPIGroup(rpc)
 
 	if rpc.Raw {
 		p.initRawRPC(rpc)
@@ -291,57 +347,54 @@ func (p *parser) initTypedRPC(rpc *est.RPC) {
 	}
 }
 
-// resolveAPIGroup resolves the API Group a receiver type refers to
+func (p *parser) initAPIGroup(group *est.APIGroup) {
+	if group.Decl.TypeParams.NumFields() > 0 {
+		p.errf(group.Decl.Pos(), "API groups cannot be defined as generic types")
+	}
+	// Do we have an init function for this API Group?
+	pkgDecls := p.names[group.Svc.Root].Decls
+	for name, decl := range pkgDecls {
+		if decl.Type == token.FUNC && strings.EqualFold(name, "new"+group.Name) {
+			if prev := group.Init; prev != nil {
+				p.errf(decl.Pos, "multiple API group initialization functions found (previous declaration at %s)",
+					p.fset.Position(prev.Pos()))
+			} else {
+				group.Init = decl.Func
+			}
+		}
+	}
+	svc := group.Svc
+	svc.APIGroups = append(svc.APIGroups, group)
+}
+
+// addToAPIGroup resolves the API Group a receiver type refers to
 // and adds the rpc to the group.
-// If the API Group does not already exist it is created.
-// It returns nil if the rpc does not belong to any API Group.
-func (p *parser) resolveAPIGroup(rpc *est.RPC) *est.APIGroup {
+func (p *parser) addToAPIGroup(rpc *est.RPC) {
 	recv := rpc.Func.Recv
 	if recv == nil {
-		return nil
+		return
 	}
 	recvType := recv.List[len(recv.List)-1].Type
 	typ := p.resolveType(rpc.Svc.Root, rpc.File, recvType, nil)
 	named := typ.GetNamed()
 	if named == nil {
-		p.errf(recvType.Pos(), "api receiver must refer to named type, not %T", typ.Typ)
-		return nil
+		p.errf(recvType.Pos(), "API group must refer to named type, not %T", typ.Typ)
+		return
 	}
+	groupName := p.decls[named.Id].Name
 
-	// Does an API Group already exist for this type?
 	for _, g := range rpc.Svc.APIGroups {
-		if g.Type.GetNamed().Id == named.Id {
+		if g.Name == groupName {
 			g.RPCs = append(g.RPCs, rpc)
 			rpc.APIGroup = g
-			return g
+			return
 		}
 	}
 
-	// Do we have an init function for this API Group?
-	groupName := p.decls[named.Id].Name
-	names := p.names[rpc.Svc.Root].Decls
-
-	var initFunc *ast.FuncDecl
-	for name, decl := range names {
-		if decl.Type == token.FUNC && strings.EqualFold(name, "new"+groupName) {
-			if initFunc != nil {
-				p.errf(decl.Pos, "multiple service initialization functions found (previous declararation at %s)",
-					p.fset.Position(initFunc.Pos()))
-			} else {
-				initFunc = decl.Func
-			}
-		}
-	}
-
-	group := &est.APIGroup{
-		Svc:  rpc.Svc,
-		Type: typ,
-		RPCs: []*est.RPC{rpc},
-		Init: initFunc,
-	}
-	rpc.Svc.APIGroups = append(rpc.Svc.APIGroups, group)
-	rpc.APIGroup = group
-	return group
+	p.errf(recvType.Pos(), "type %s is not as an API group"+
+		"\n\tAPIs can only be defined as methods on API groups."+
+		"\n\tHint: declare it as an API group with //encore:apigroup",
+		groupName)
 }
 
 func (p *parser) validatePathParamType(param *ast.Field, name string, typ *schema.Type, segType paths.SegmentType) bool {

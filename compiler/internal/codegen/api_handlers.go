@@ -41,6 +41,11 @@ func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
 	// If other code uses it will be imported under its proper name.
 	f.Anon("encore.dev/appruntime/app/appinit")
 
+	for _, group := range svc.APIGroups {
+		f.Line()
+		b.buildAPIGroupHandler(f, group)
+	}
+
 	for _, rpc := range svc.RPCs {
 		f.Line()
 		b.buildRPC(f, svc, rpc)
@@ -344,8 +349,19 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 		Id("ctx").Qual("context", "Context"),
 		Id("req").Op("*").Id(b.ReqTypeName()),
 	).Params(Op("*").Id(b.RespTypeName()), Error()).BlockFunc(func(g *Group) {
+		// If we have an API Group, initialize it first.
+		group := rpc.APIGroup
+		funcExpr := Id(b.rpc.Name)
+		if group != nil {
+			g.List(Id("svc"), Id("initErr")).Op(":=").Id(b.apiGroupHandlerName(group)).Dot("Get").Call()
+			g.If(Id("initErr").Op("!=").Nil()).Block(
+				Return(Nil(), Id("initErr")),
+			)
+			funcExpr = Id("svc").Dot(b.rpc.Name)
+		}
+
 		if rpc.Raw {
-			g.Qual(b.rpc.Svc.Root.ImportPath, b.rpc.Name).CallFunc(func(g *Group) {
+			g.Add(funcExpr).CallFunc(func(g *Group) {
 				for _, f := range b.reqType.fields {
 					g.Id("req").Dot(f.fieldName)
 				}
@@ -360,7 +376,7 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 			} else {
 				s.Err()
 			}
-		}).Op(":=").Qual(b.rpc.Svc.Root.ImportPath, b.rpc.Name).CallFunc(func(g *Group) {
+		}).Op(":=").Add(funcExpr).CallFunc(func(g *Group) {
 			g.Id("ctx")
 			for _, f := range b.reqType.fields {
 				g.Id("req").Dot(f.fieldName)
