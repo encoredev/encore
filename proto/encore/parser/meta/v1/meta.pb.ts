@@ -89,8 +89,6 @@ export interface RPC {
   loc: Loc;
   path: Path;
   http_methods: string[];
-  /** method receiver, or nil */
-  receiver?: Type | undefined;
 }
 
 export enum RPC_AccessType {

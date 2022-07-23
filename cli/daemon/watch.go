@@ -91,7 +91,7 @@ func (s *Server) updateGitIgnore(i *apps.Instance) error {
 	updated := false
 	for i, directive := range directives {
 		if !found[i] {
-			if !bytes.HasSuffix(data, []byte("\n")) {
+			if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
 				data = append(data, '\n')
 			}
 			data = append(data, directive+"\n"...)

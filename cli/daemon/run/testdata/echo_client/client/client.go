@@ -20,6 +20,7 @@ import (
 
 // Client is an API client for the slug Encore application.
 type Client struct {
+	Di       DiClient
 	Echo     EchoClient
 	Endtoend EndtoendClient
 	Test     TestClient
@@ -62,6 +63,7 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	}
 
 	return &Client{
+		Di:       &diClient{base},
 		Echo:     &echoClient{base},
 		Endtoend: &endtoendClient{base},
 		Test:     &testClient{base},
@@ -94,6 +96,49 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (*EchoAuthParams, erro
 		base.authGenerator = authGenerator
 		return nil
 	}
+}
+
+type DiResponse struct {
+	Msg string
+}
+
+// DiClient Provides you access to call public and authenticated APIs on di. The concrete implementation is diClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type DiClient interface {
+	One(ctx context.Context) error
+	Three(ctx context.Context) (DiResponse, error)
+	Two(ctx context.Context) (DiResponse, error)
+}
+
+type diClient struct {
+	base *baseClient
+}
+
+var _ DiClient = (*diClient)(nil)
+
+func (c *diClient) One(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/di/one", nil, nil, nil)
+	return err
+}
+
+func (c *diClient) Three(ctx context.Context) (resp DiResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/di/three", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *diClient) Two(ctx context.Context) (resp DiResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/di/two", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 type EchoAppMetadata struct {

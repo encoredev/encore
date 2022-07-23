@@ -33,7 +33,7 @@ func (b *builder) writeMainPkg() error {
 
 	b.addOverlay(filepath.Join(b.appRoot, encorePkgDir, mainPkgName, "main.go"), mainPath)
 
-	f, err := b.codegen.Main()
+	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion)
 	if err != nil {
 		return err
 	}
@@ -117,5 +117,26 @@ func (b *builder) generateTestMain(pkg *est.Package) (err error) {
 
 	f := b.codegen.TestMain(pkg, b.res.App.Services)
 	b.addOverlay(filepath.Join(pkg.Dir, "encore_testmain_test.go"), testMainPath)
+	return f.Render(file)
+}
+
+func (b *builder) generateServiceSetup(svc *est.Service) (err error) {
+	f := b.codegen.EncoreGen(svc, true)
+	if f == nil {
+		return nil // nothing to do
+	}
+
+	encoreGenPath := filepath.Join(b.workdir, filepath.FromSlash(svc.Root.RelPath), "encore.gen.go")
+	file, err := os.Create(encoreGenPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err2 := file.Close(); err == nil {
+			err = err2
+		}
+	}()
+
+	b.addOverlay(filepath.Join(svc.Root.Dir, "encore.gen.go"), encoreGenPath)
 	return f.Render(file)
 }

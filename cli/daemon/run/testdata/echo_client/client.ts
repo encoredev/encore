@@ -21,6 +21,7 @@ export function Environment(name: string): BaseURL {
  * Client is an API client for the slug Encore application. 
  */
 export default class Client {
+    public readonly di: di.ServiceClient
     public readonly echo: echo.ServiceClient
     public readonly endtoend: endtoend.ServiceClient
     public readonly test: test.ServiceClient
@@ -34,6 +35,7 @@ export default class Client {
      */
     constructor(target: BaseURL, options?: ClientOptions) {
         const base = new BaseClient(target, options ?? {})
+        this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
         this.test = new test.ServiceClient(base)
@@ -57,6 +59,36 @@ export interface ClientOptions {
      * a function which returns a new object for each request.
      */
     auth?: echo.AuthParams | AuthDataGenerator
+}
+
+export namespace di {
+    export interface Response {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async One(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/di/one`)
+        }
+
+        public async Three(): Promise<Response> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/di/three`)
+            return await resp.json() as Response
+        }
+
+        public async Two(): Promise<Response> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/di/two`)
+            return await resp.json() as Response
+        }
+    }
 }
 
 export namespace echo {

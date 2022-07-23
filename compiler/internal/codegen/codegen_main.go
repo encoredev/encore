@@ -15,26 +15,24 @@ import (
 const JsonPkg = "github.com/json-iterator/go"
 
 type Builder struct {
-	res             *parser.Result
-	compilerVersion string
+	res *parser.Result
 
 	marshaller *gocodegen.MarshallingCodeGenerator
 	errors     *errlist.List
 }
 
-func NewBuilder(res *parser.Result, compilerVersion string) *Builder {
+func NewBuilder(res *parser.Result) *Builder {
 	marshallerPkgPath := path.Join(res.Meta.ModulePath, "__encore", "etype")
 	marshaller := gocodegen.NewMarshallingCodeGenerator(marshallerPkgPath, "Marshaller", false)
 
 	return &Builder{
 		res:             res,
-		compilerVersion: compilerVersion,
 		errors:          errlist.New(res.FileSet),
 		marshaller:      marshaller,
 	}
 }
 
-func (b *Builder) Main() (f *File, err error) {
+func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
 	f = NewFile("main")
@@ -46,7 +44,7 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
 		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
 			Id("AuthData"):       b.authDataType(),
-			Id("EncoreCompiler"): Lit(b.compilerVersion),
+			Id("EncoreCompiler"): Lit(compilerVersion),
 			Id("AppCommit"): Qual("encore.dev/appruntime/config", "CommitInfo").Values(Dict{
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),

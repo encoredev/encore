@@ -294,7 +294,7 @@ func TestEndToEndWithApp(t *testing.T) {
 			run.ServeHTTP(w2, req2)
 			c.Assert(w.Code, qt.Equals, 200)
 			c.Assert(w.Body.Bytes(), qt.JSONEquals, output)
-			c.Assert(w2.Body.Bytes(), qt.DeepEquals, w2.Body.Bytes())
+			c.Assert(w2.Body.Bytes(), qt.DeepEquals, w.Body.Bytes())
 		})
 
 		// Call an endpoint without request parameters, returning nil
@@ -372,6 +372,45 @@ func TestEndToEndWithApp(t *testing.T) {
 				"EnvName":    "local",
 				"EnvType":    "local",
 			})
+		})
+
+		// Try the dependency injection services
+		c.Run("dependency_injection", func(c *qt.C) {
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/one", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.HasLen, 0)
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/two", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]string{"Msg": "simple"})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/three", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 500)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
+					"code":    "internal",
+					"message": "service initialization failed",
+					"details": nil,
+				})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/three", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Msg": "complex"})
+			}
 		})
 	})
 

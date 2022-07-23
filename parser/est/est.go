@@ -51,10 +51,20 @@ type Package struct {
 // Its name is defined by the Go package name.
 // A Service may not be a located in a child directory of another service.
 type Service struct {
-	Name string
-	Root *Package
-	Pkgs []*Package
+	Name      string
+	Root      *Package
+	Pkgs      []*Package
+	RPCs      []*RPC
+	APIGroups []*APIGroup
+}
+
+// APIGroup describes a group of APIs with a common receiver type.
+type APIGroup struct {
+	Svc  *Service
+	Type *schema.Type
 	RPCs []*RPC
+	// Init is the function for initializing this group.
+	Init *ast.FuncDecl
 }
 
 type CronJob struct {
@@ -167,9 +177,9 @@ type RPC struct {
 	Request     *Param // request data; nil for Raw RPCs
 	Response    *Param // response data; nil for Raw RPCs
 
-	// Receiver specifies the receiver type, if this RPC is defined
-	// as a method instead of a package-level func.
-	Receiver *schema.Type
+	// APIGroup specifies the API Group this RPC belongs to,
+	// or nil if this is a package-level func.
+	APIGroup *APIGroup
 }
 
 type NodeType int

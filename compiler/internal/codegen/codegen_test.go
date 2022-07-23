@@ -48,14 +48,14 @@ func TestCodeGenMain(t *testing.T) {
 			})
 			c.Assert(err, qt.IsNil)
 
-			bld := NewBuilder(res, "test")
+			bld := NewBuilder(res)
 			var combined bytes.Buffer
 
 			// Main
 			{
 				var buf bytes.Buffer
 				buf.WriteString("// main code\n")
-				f, err := bld.Main()
+				f, err := bld.Main("test")
 				c.Assert(err, qt.IsNil)
 				err = f.Render(&buf)
 				if err != nil {
@@ -96,6 +96,23 @@ func TestCodeGenMain(t *testing.T) {
 					if err != nil {
 						c.Fatalf("got types error: \n%s", err.Error())
 					}
+					err = f.Render(&buf)
+					if err != nil {
+						c.Fatalf("got render error: \n%s", err.Error())
+					}
+					c.Assert(err, qt.IsNil)
+					code := buf.Bytes()
+					fs := token.NewFileSet()
+					_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
+					if err != nil {
+						c.Fatalf("got parse error: \n%s\ncode:\n%s", err.Error(), code)
+					}
+					combined.Write(code)
+				}
+
+				if f := bld.EncoreGen(svc, true); f != nil {
+					var buf bytes.Buffer
+					fmt.Fprintf(&buf, "\n\n// encore.gen.go for service %s\n", svc.Name)
 					err = f.Render(&buf)
 					if err != nil {
 						c.Fatalf("got render error: \n%s", err.Error())
@@ -160,7 +177,7 @@ func TestCodeGen_TestMain(t *testing.T) {
 			})
 			c.Assert(err, qt.IsNil)
 
-			bld := NewBuilder(res, "test")
+			bld := NewBuilder(res)
 			var buf bytes.Buffer
 			var code []byte
 

@@ -62,7 +62,6 @@ message RPC {
   schema.v1.Loc            loc             = 8;
   Path                     path            = 9;
   repeated string          http_methods    = 10;
-  optional schema.v1.Type  receiver        = 11; // method receiver, or nil
 
   enum AccessType {
     PRIVATE = 0;
