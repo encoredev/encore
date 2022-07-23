@@ -52,16 +52,17 @@ message DBMigration {
 }
 
 message RPC {
-  string                    name            = 1; // name of the RPC endpoint
-  string                    doc             = 2; // associated documentation
-  string                    service_name    = 3; // the service the RPC belongs to.
-  AccessType                access_type     = 4; // how can the RPC be accessed?
+  string                   name            = 1; // name of the RPC endpoint
+  string                   doc             = 2; // associated documentation
+  string                   service_name    = 3; // the service the RPC belongs to.
+  AccessType               access_type     = 4; // how can the RPC be accessed?
   optional schema.v1.Type  request_schema  = 5; // request schema, or nil
   optional schema.v1.Type  response_schema = 6; // response schema, or nil
   Protocol                 proto           = 7;
   schema.v1.Loc            loc             = 8;
   Path                     path            = 9;
   repeated string          http_methods    = 10;
+  optional schema.v1.Type  receiver        = 11; // method receiver, or nil
 
   enum AccessType {
     PRIVATE = 0;
