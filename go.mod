@@ -6,6 +6,7 @@ require (
 	encore.dev v1.1.0
 	github.com/AlecAivazis/survey/v2 v2.3.4
 	github.com/alecthomas/chroma v0.10.0
+	github.com/bep/debounce v1.2.1
 	github.com/briandowns/spinner v1.18.1
 	github.com/cockroachdb/errors v1.9.0
 	github.com/containerd/stargz-snapshotter/estargz v0.11.4
