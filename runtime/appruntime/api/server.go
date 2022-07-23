@@ -119,41 +119,45 @@ func (s *Server) SetAuthHandler(h AuthHandler) {
 
 func (s *Server) Register(handlers []Handler) {
 	// If we have a lot of handlers, don't log each one being registered.
-	logAllRegistrations := len(handlers) < 8 // chosen by a fair dice roll
+	logEachRegistration := len(handlers) < 8 // chosen by a fair dice roll
 
 	for _, h := range handlers {
-		path := h.HTTPPath()
-		if logAllRegistrations {
-			s.rootLogger.Info().
-				Str("service", h.ServiceName()).
-				Str("endpoint", h.EndpointName()).
-				Str("path", path).
-				Msg("registered API endpoint")
-		}
-
-		for _, m := range h.HTTPMethods() {
-			if m == "*" {
-				m = wildcardMethod
-			}
-
-			adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-				s.processRequest(h, s.NewContext(w, req, ps, model.AuthInfo{}))
-			}
-
-			s.private.Handle(m, path, adapter)
-			if access := h.AccessType(); access == Public || access == RequiresAuth {
-				s.public.Handle(m, path, adapter)
-			}
-		}
+		s.register(h, logEachRegistration)
 	}
 
-	if !logAllRegistrations {
+	if !logEachRegistration {
 		s.rootLogger.Info().Msgf("registered %d API endpoints", len(handlers))
 	}
 }
 
 // wildcardMethod is an internal method name we register wildcard methods under.
 const wildcardMethod = "__ENCORE_WILDCARD__"
+
+func (s *Server) register(h Handler, logRegistration bool) {
+	path := h.HTTPPath()
+	if logRegistration {
+		s.rootLogger.Info().
+			Str("service", h.ServiceName()).
+			Str("endpoint", h.EndpointName()).
+			Str("path", path).
+			Msg("registered API endpoint")
+	}
+
+	for _, m := range h.HTTPMethods() {
+		if m == "*" {
+			m = wildcardMethod
+		}
+
+		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			s.processRequest(h, s.NewContext(w, req, ps, model.AuthInfo{}))
+		}
+
+		s.private.Handle(m, path, adapter)
+		if access := h.AccessType(); access == Public || access == RequiresAuth {
+			s.public.Handle(m, path, adapter)
+		}
+	}
+}
 
 func (s *Server) Serve(ln net.Listener) error {
 	s.rootLogger.Info().Msg("listening for incoming HTTP requests")
