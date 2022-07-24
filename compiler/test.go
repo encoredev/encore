@@ -103,15 +103,22 @@ func (b *builder) runTests(ctx context.Context) error {
 	if b.cfg.StaticLink {
 		args = append(args, "-ldflags", `-extldflags "-static"`)
 	}
+
 	args = append(args, b.cfg.Test.Args...)
 	cmd := exec.CommandContext(ctx, filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
-	env := append(b.cfg.Test.Env,
+
+	// Copy the env before we add additional env vars
+	// to avoid accidentally sharing the same backing array.
+	env := make([]string, len(b.cfg.Test.Env))
+	copy(env, b.cfg.Test.Env)
+	env = append(env,
 		"GO111MODULE=on",
 		"GOROOT="+b.cfg.EncoreGoRoot,
 	)
 	if !b.cfg.CgoEnabled {
 		env = append(env, "CGO_ENABLED=0")
 	}
+
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Dir = filepath.Join(b.appRoot, b.cfg.WorkingDir)
 	cmd.Stdout = b.cfg.Test.Stdout
