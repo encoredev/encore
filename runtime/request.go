@@ -27,8 +27,9 @@ type Request struct {
 type RequestType string
 
 const (
-	None    RequestType = "none"     // There was no external trigger which caused this code to run. Most likely it was triggered by a package level init function.
-	APICall RequestType = "api-call" // The code was triggered via an API call to a service
+	None          RequestType = "none"           // There was no external trigger which caused this code to run. Most likely it was triggered by a package level init function.
+	APICall       RequestType = "api-call"       // The code was triggered via an API call to a service
+	PubSubMessage RequestType = "pubsub-message" // The code was triggered by a PubSub subscriber
 )
 
 // PathParams contains the path parameters parsed from the request path.
@@ -66,6 +67,8 @@ func (mgr *Manager) CurrentRequest() *Request {
 	switch req.Type {
 	case model.RPCCall, model.AuthHandler:
 		opType = APICall
+	case model.PubSubMessage:
+		opType = PubSubMessage
 	}
 
 	pathParams := make(PathParams, len(req.PathSegments))
