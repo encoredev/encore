@@ -566,6 +566,90 @@ func (p *parser) validateApp() {
 	}
 }
 
+// resolveRPCRef resolves an expression as a reference to an RPC.
+// It must either be in the form "svc.RPC" (if different service)
+// or "RPC", "Service.RPC" or "(*Service).RPC" if within a service.
+func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
+	// Simple case: just "RPC"
+	if _, ok := expr.(*ast.Ident); ok {
+		pkgPath, objName, _ := p.names.PackageLevelRef(file, expr)
+		if pkgPath != "" {
+			if svc, found := p.svcPkgPaths[pkgPath]; found {
+				for _, rpc := range svc.RPCs {
+					if rpc.Name == objName {
+						return rpc, true
+					}
+				}
+			}
+		}
+		return nil, false
+	}
+
+	// See if it's "othersvc.RPC"
+	{
+		pkgPath, objName, _ := p.names.PackageLevelRef(file, expr)
+		if pkgPath != "" {
+			if svc, found := p.svcPkgPaths[pkgPath]; found {
+				for _, rpc := range svc.RPCs {
+					if rpc.Name == objName {
+						return rpc, true
+					}
+				}
+			}
+			return nil, false
+		}
+	}
+
+	// Finally it might be "Service.RPC" where "Service" is an API Group.
+	sel, ok := expr.(*ast.SelectorExpr)
+	if !ok {
+		return nil, false
+	}
+	endpointName := sel.Sel.Name
+
+	// Unwrap "(*Service)", if necessary
+	groupExpr := sel.X
+	if paren, ok := groupExpr.(*ast.ParenExpr); ok {
+		groupExpr = paren.X
+	}
+	if ptr, ok := groupExpr.(*ast.StarExpr); ok {
+		groupExpr = ptr.X
+	}
+
+	pkgPath, objName, _ := p.names.PackageLevelRef(file, groupExpr)
+	if pkgPath != file.Pkg.ImportPath {
+		// Refers to a different package; API group references must be within
+		// the same package.
+		return nil, false
+	}
+
+	// Resolve the "Service" in "Service.RPC" to an API Group.
+	var apiGroup *est.APIGroup
+	{
+		svc, ok := p.svcPkgPaths[pkgPath]
+		if !ok {
+			// Not a service, so doesn't contain an API Group
+			return nil, false
+		}
+		for _, g := range svc.APIGroups {
+			if g.Name == objName {
+				apiGroup = g
+				break
+			}
+		}
+		if apiGroup == nil {
+			return nil, false
+		}
+	}
+
+	for _, rpc := range apiGroup.RPCs {
+		if rpc.Name == endpointName {
+			return rpc, true
+		}
+	}
+	return nil, false
+}
+
 // pkgObj attempts to unpack a node as a reference to a package obj, returning the
 // package path and object name if resolvable.
 // If the node is not an *ast.SelectorExpr or it doesn't reference a tracked package,
