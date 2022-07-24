@@ -6,6 +6,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
 	qt "github.com/frankban/quicktest"
@@ -74,6 +75,29 @@ func TestParseDirectiveRPC(t *testing.T) {
 					{Type: paths.Literal, Value: "bar", ValueType: schema.Builtin_STRING},
 				}},
 			},
+		},
+		{
+			desc:        "api with tags",
+			line:        "api public tag:foo tag:bar",
+			expectedErr: "",
+			expected: &rpcDirective{
+				Access:   est.Public,
+				TokenPos: staticPos,
+				Tags: selector.Set{
+					{Type: selector.Tag, Value: "foo"},
+					{Type: selector.Tag, Value: "bar"},
+				},
+			},
+		},
+		{
+			desc:        "api with duplicate tag",
+			line:        "api public tag:foo tag:foo",
+			expectedErr: `duplicate tag "tag:foo"`,
+		},
+		{
+			desc:        "api with invalid selector",
+			line:        "api public tag:foo.bar",
+			expectedErr: `invalid tag format "tag:foo.bar": invalid value`,
 		},
 	}
 	for _, tc := range testcases {

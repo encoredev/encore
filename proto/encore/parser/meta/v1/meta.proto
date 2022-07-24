@@ -45,6 +45,17 @@ message Service {
   repeated string      databases  = 5; // databases this service connects to
 }
 
+message Selector {
+  enum Type {
+    UNKNOWN = 0;
+    TAG = 1;
+    // NOTE: If more types are added, update the (selector.Selector).ToProto method.
+  }
+
+  Type type = 1;
+  string value = 2;
+}
+
 message DBMigration {
   string filename    = 1; // filename
   int32  number      = 2; // migration number
@@ -62,6 +73,7 @@ message RPC {
   schema.v1.Loc            loc             = 8;
   Path                     path            = 9;
   repeated string          http_methods    = 10;
+  repeated Selector        tags            = 11;
 
   enum AccessType {
     PRIVATE = 0;

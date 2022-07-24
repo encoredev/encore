@@ -9,6 +9,7 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 )
 
 // parseDirectives parses the encore:foo directives in cg.
@@ -114,7 +115,15 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 			case "raw":
 				rpc.Raw = true
 			default:
-				if strings.Contains(field, "=") {
+				if strings.HasPrefix(field, "tag:") {
+					sel, err := selector.Parse(field)
+					if err != nil {
+						return nil, fmt.Errorf("invalid tag format %q: %v", field, err)
+					}
+					if !rpc.Tags.Add(sel) {
+						return nil, fmt.Errorf("duplicate tag %q", field)
+					}
+				} else if strings.Contains(field, "=") {
 					parts := strings.SplitN(field, "=", 2)
 					switch parts[0] {
 					case "path":
@@ -196,6 +205,7 @@ type rpcDirective struct {
 	Raw      bool
 	Method   []string
 	Path     *paths.Path // nil if not specified
+	Tags     selector.Set
 }
 
 // An authHandlerDirective is the parsed representation of the encore:authhandler directive.

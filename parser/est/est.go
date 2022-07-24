@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -184,6 +185,7 @@ type RPC struct {
 	HTTPMethods []string
 	Request     *Param // request data; nil for Raw RPCs
 	Response    *Param // response data; nil for Raw RPCs
+	Tags        selector.Set
 
 	// Receiver is the receiver type if this is a method
 	// on a ServiceStruct, or nil otherwise.

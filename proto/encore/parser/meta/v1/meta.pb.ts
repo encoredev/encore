@@ -63,6 +63,18 @@ export interface Service {
   databases: string[];
 }
 
+export interface Selector {
+  type: Selector_Type;
+  value: string;
+}
+
+export enum Selector_Type {
+  UNKNOWN = "UNKNOWN",
+  /** TAG - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
+  TAG = "TAG",
+  UNRECOGNIZED = "UNRECOGNIZED",
+}
+
 export interface DBMigration {
   /** filename */
   filename: string;
@@ -89,6 +101,7 @@ export interface RPC {
   loc: Loc;
   path: Path;
   http_methods: string[];
+  tags: Selector[];
 }
 
 export enum RPC_AccessType {

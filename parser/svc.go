@@ -181,6 +181,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 					File:        f,
 					Path:        path,
 					HTTPMethods: dir.Method,
+					Tags:        dir.Tags,
 				}
 				p.initRPC(rpc)
 
