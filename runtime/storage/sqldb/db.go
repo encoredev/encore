@@ -145,6 +145,10 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, err
 	return cfg, nil
 }
 
+// Exec executes a query without returning any rows.
+// The args are for any placeholder parameters in the query.
+//
+// See (*database/sql.DB).ExecContext() for additional documentation.
 func (db *Database) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
 	db.init()
 	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
@@ -171,6 +175,10 @@ func (db *Database) Exec(ctx context.Context, query string, args ...interface{})
 	return res, err
 }
 
+// Query executes a query that returns rows, typically a SELECT.
+// The args are for any placeholder parameters in the query.
+//
+// See (*database/sql.DB).QueryContext() for additional documentation.
 func (db *Database) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	db.init()
 	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
@@ -200,6 +208,9 @@ func (db *Database) Query(ctx context.Context, query string, args ...interface{}
 	return &Rows{std: rows}, nil
 }
 
+// QueryRow executes a query that is expected to return at most one row.
+//
+// See (*database/sql.DB).QueryRowContext() for additional documentation.
 func (db *Database) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
 	db.init()
 	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
@@ -227,6 +238,9 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...interfac
 	return r
 }
 
+// Begin opens a new database transaction.
+//
+// See (*database/sql.DB).Begin() for additional documentation.
 func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 	db.init()
 	tx, err := db.pool.Begin(ctx)
