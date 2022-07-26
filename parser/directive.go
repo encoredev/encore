@@ -156,6 +156,46 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 			return nil, fmt.Errorf("unrecognized encore:service directive field: %q", fields[1])
 		}
 		return &serviceDirective{TokenPos: pos}, nil
+
+	case "middleware":
+		mw := &middlewareDirective{
+			TokenPos: pos,
+		}
+		for _, field := range fields[1:] {
+			switch field {
+			case "global":
+				mw.Global = true
+			default:
+				key, value, ok := strings.Cut(field, "=")
+				if !ok {
+					return nil, fmt.Errorf("middleware field %q must be in the form '%s=value'", key, key)
+				} else if value == "" {
+					return nil, fmt.Errorf("empty directive field: %q", field)
+				}
+
+				switch key {
+				case "target":
+					parts := strings.Split(value, ",")
+					for _, p := range parts {
+						sel, err := selector.Parse(p)
+						if err != nil {
+							return nil, fmt.Errorf("invalid selector format %q: %v", p, err)
+						} else if sel.Type != selector.Tag {
+							return nil, fmt.Errorf("middleware target only supports tags as selectors (got '%s')", sel.Type)
+						}
+						if !mw.Target.Add(sel) {
+							return nil, fmt.Errorf("duplicate tag %q", p)
+						}
+					}
+				default:
+					return nil, fmt.Errorf("unrecognized encore:middleware directive field: %q", key)
+				}
+			}
+		}
+		if len(mw.Target) == 0 {
+			return nil, errors.New("middleware must specify at least one target tag")
+		}
+		return mw, nil
 	}
 }
 
@@ -166,6 +206,8 @@ func validateDirective(d directive) error {
 	case *authHandlerDirective:
 		return nil
 	case *serviceDirective:
+		return nil
+	case *middlewareDirective:
 		return nil
 	default:
 		return errors.New("unexpected directive type")
@@ -218,9 +260,18 @@ type serviceDirective struct {
 	TokenPos token.Pos
 }
 
+// A middlewareDirective is the parsed representation of the encore:middleware directive.
+type middlewareDirective struct {
+	TokenPos token.Pos
+	Global   bool
+	Target   selector.Set
+}
+
 func (d *rpcDirective) Pos() token.Pos         { return d.TokenPos }
 func (d *authHandlerDirective) Pos() token.Pos { return d.TokenPos }
 func (d *serviceDirective) Pos() token.Pos     { return d.TokenPos }
+func (d *middlewareDirective) Pos() token.Pos  { return d.TokenPos }
 func (*rpcDirective) directive()               {}
 func (*authHandlerDirective) directive()       {}
 func (*serviceDirective) directive()           {}
+func (*middlewareDirective) directive()        {}

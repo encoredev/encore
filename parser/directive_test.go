@@ -12,13 +12,13 @@ import (
 	qt "github.com/frankban/quicktest"
 )
 
-func TestParseDirectiveRPC(t *testing.T) {
+func TestParseDirective(t *testing.T) {
 	const staticPos = token.Pos(0)
 
 	testcases := []struct {
 		desc        string
 		line        string
-		expected    *rpcDirective
+		expected    directive
 		expectedErr string
 	}{
 		{
@@ -99,6 +99,46 @@ func TestParseDirectiveRPC(t *testing.T) {
 			line:        "api public tag:foo.bar",
 			expectedErr: `invalid tag format "tag:foo.bar": invalid value`,
 		},
+		{
+			desc: "middleware",
+			line: "middleware target=tag:foo,tag:bar",
+			expected: &middlewareDirective{
+				Target: selector.Set{
+					{Type: selector.Tag, Value: "foo"},
+					{Type: selector.Tag, Value: "bar"},
+				},
+			},
+		},
+		{
+			desc: "global middleware",
+			line: "middleware global target=tag:foo",
+			expected: &middlewareDirective{
+				Global: true,
+				Target: selector.Set{
+					{Type: selector.Tag, Value: "foo"},
+				},
+			},
+		},
+		{
+			desc:        "middleware duplicate tag",
+			line:        "middleware target=tag:foo,tag:foo",
+			expectedErr: `duplicate tag "tag:foo"`,
+		},
+		{
+			desc:        "middleware missing target",
+			line:        "middleware",
+			expectedErr: `middleware must specify at least one target tag`,
+		},
+		{
+			desc:        "middleware empty target",
+			line:        "middleware target=",
+			expectedErr: `empty directive field: "target="`,
+		},
+		{
+			desc:        "middleware empty target",
+			line:        "middleware target",
+			expectedErr: `middleware field "target" must be in the form 'target=value'`,
+		},
 	}
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -108,9 +148,7 @@ func TestParseDirectiveRPC(t *testing.T) {
 				c.Assert(err, qt.ErrorMatches, tc.expectedErr)
 				return
 			}
-			rpcDir, ok := dir.(*rpcDirective)
-			c.Assert(ok, qt.IsTrue)
-			c.Assert(rpcDir, qt.DeepEquals, tc.expected)
+			c.Assert(dir, qt.DeepEquals, tc.expected)
 		})
 	}
 }

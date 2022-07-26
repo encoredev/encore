@@ -365,7 +365,7 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 		})
 
 		// If we have a service struct, initialize it first.
-		group := rpc.Receiver
+		group := rpc.SvcStruct
 		if group != nil {
 			ss := rpc.Svc.Struct
 			g.List(Id("svc"), Id("initErr")).Op(":=").Id(b.serviceStructName(ss)).Dot("Get").Call()

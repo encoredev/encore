@@ -145,7 +145,7 @@ func (p *parser) parseServiceStruct(pkg *est.Package, svc *est.Service) *est.Ser
 	return ss
 }
 
-// parseFuncs parses the pkg for any declared RPCs and auth handlers.
+// parseFuncs parses the pkg for any declared RPCs, auth handlers, and middleware.
 func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool) {
 	for _, f := range pkg.Files {
 		for _, decl := range f.AST.Decls {
@@ -204,6 +204,22 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 				p.parseAuthHandler(authHandler)
 				p.authHandler = authHandler
 				isService = true
+
+			case *middlewareDirective:
+				mw := &est.Middleware{
+					Name:   fd.Name.Name,
+					Doc:    doc,
+					Func:   fd,
+					File:   f,
+					Global: dir.Global,
+					Target: dir.Target,
+					Pkg:    pkg,
+				}
+				if !mw.Global {
+					mw.Svc = svc
+					mw.SvcStruct = p.resolveServiceStruct("middleware receiver", svc, fd, f)
+				}
+				p.middleware = append(p.middleware, mw)
 
 			default:
 				p.errf(dir.Pos(), "unexpected directive type %T", dir)
@@ -367,32 +383,49 @@ func (p *parser) initServiceStruct(ss *est.ServiceStruct) {
 	svc.Struct = ss
 }
 
-// addToServiceStruct resolves the Service struct a receiver type refers to
-// and adds the rpc to the struct.
-func (p *parser) addToServiceStruct(rpc *est.RPC) {
-	recv := rpc.Func.Recv
+// resolveServiceStruct resolves the service struct a receiver type refers to.
+// It returns nil, nil if the func declaration has no receiver.
+func (p *parser) resolveServiceStruct(parameterType string, svc *est.Service, fd *ast.FuncDecl, file *est.File) *est.ServiceStruct {
+	recv := fd.Recv
 	if recv == nil {
-		return
+		return nil
 	}
+
 	recvType := recv.List[len(recv.List)-1].Type
-	typ := p.resolveParameter("receiver", rpc.Svc.Root, rpc.File, recvType)
+	typ := p.resolveParameter(parameterType, file.Pkg, file, recvType)
 	named := typ.Type.GetNamed()
 	if named == nil {
-		p.errf(recvType.Pos(), "method receiver must refer to named type, not %T", typ.Type.Typ)
-		return
+		p.errf(recvType.Pos(), "%s receiver must refer to named type, not %T", parameterType, typ.Type.Typ)
+		return nil
+	} else if !typ.IsPtr {
+		p.errf(recvType.Pos(), "%s must be defined as a pointer receiver", parameterType, typ.Type.Typ)
+		return nil
 	}
 	recvName := p.decls[named.Id].Name
 
-	if ss := rpc.Svc.Struct; ss != nil && ss.Name == recvName {
-		ss.RPCs = append(ss.RPCs, rpc)
-		rpc.Receiver = typ
+	if ss := svc.Struct; ss != nil && ss.Name == recvName {
+		return ss
+	}
+
+	p.errf(recvType.Pos(), "type %s is not defined as an encore:service struct"+
+		"\n\tAPIs and middleware can only be defined as methods on service structs."+
+		"\n\tHint: declare it as such with //encore:service",
+		recvName)
+	return nil
+}
+
+// addToServiceStruct resolves the service struct a receiver type refers to
+// and adds the rpc to the struct.
+func (p *parser) addToServiceStruct(rpc *est.RPC) {
+	fd := rpc.Func
+	if fd.Recv == nil {
 		return
 	}
 
-	p.errf(recvType.Pos(), "type %s is not as an encore:service struct"+
-		"\n\tAPIs can only be defined as methods on service structs."+
-		"\n\tHint: declare it as such with //encore:service",
-		recvName)
+	if ss := p.resolveServiceStruct("api receiver", rpc.Svc, rpc.Func, rpc.File); ss != nil {
+		ss.RPCs = append(ss.RPCs, rpc)
+		rpc.SvcStruct = ss
+	}
 }
 
 func (p *parser) validatePathParamType(param *ast.Field, name string, typ *schema.Type, segType paths.SegmentType) bool {
@@ -599,7 +632,8 @@ func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *
 	// Check it's a supported parameter type (i.e. a named type which is a structure)
 	n := typ.GetNamed()
 	if n == nil {
-		p.errf(expr.Pos(), "%s is not a named type. API Parameters must be a struct type.", types.ExprString(expr))
+		p.errf(expr.Pos(), "%s is not a named type (%s must be a named struct type)",
+			types.ExprString(expr), parameterType)
 		p.abort()
 	}
 

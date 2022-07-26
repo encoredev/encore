@@ -187,13 +187,9 @@ type RPC struct {
 	Response    *Param // response data; nil for Raw RPCs
 	Tags        selector.Set
 
-	// Receiver is the receiver type if this is a method
-	// on a ServiceStruct, or nil otherwise.
-	Receiver *Param
-
-	// APIGroup specifies the API Group this RPC belongs to,
-	// or nil if this is a package-level func.
-	//DI *ServiceStruct
+	// SvcStruct is the service struct this RPC is defined on,
+	// or nil otherwise. It is always a pointer receiver.
+	SvcStruct *ServiceStruct
 }
 
 type NodeType int
@@ -236,6 +232,20 @@ type AuthHandler struct {
 	// as part of the returns from the auth handler.
 	// It is nil if no such auth data type is specified.
 	AuthData *Param
+}
+
+type Middleware struct {
+	Name   string
+	Doc    string
+	Global bool
+	Target selector.Set
+
+	Func *ast.FuncDecl
+	File *File
+
+	Pkg       *Package       // pkg this middleware is defined in
+	Svc       *Service       // nil if global
+	SvcStruct *ServiceStruct // nil if not defined on a service struct
 }
 
 type Resource interface {

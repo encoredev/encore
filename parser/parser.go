@@ -50,6 +50,7 @@ type parser struct {
 	pubSubTopics []*est.PubSubTopic
 	names        names.Application
 	authHandler  *est.AuthHandler
+	middleware   []*est.Middleware
 	declMap      map[string]*schema.Decl // pkg/path.Name -> decl
 	decls        []*schema.Decl
 	paths        paths.Set                          // RPC paths
