@@ -354,7 +354,7 @@ func (p *parser) initAPIGroup(group *est.APIGroup) {
 	// Do we have an init function for this API Group?
 	pkgDecls := p.names[group.Svc.Root].Decls
 	for name, decl := range pkgDecls {
-		if decl.Type == token.FUNC && strings.EqualFold(name, "new"+group.Name) {
+		if decl.Type == token.FUNC && strings.EqualFold(name, "init"+group.Name) {
 			if prev := group.Init; prev != nil {
 				p.errf(decl.Pos, "multiple API group initialization functions found (previous declaration at %s)",
 					p.fset.Position(prev.Pos()))
