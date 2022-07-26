@@ -1,6 +1,8 @@
 package sqldb
 
 import (
+	"os"
+	"strings"
 	"testing"
 	_ "unsafe" // for go:linkname
 
@@ -8,6 +10,14 @@ import (
 )
 
 func TestDBConf(t *testing.T) {
+	// Unset all the "PG*" variables that may affect the test.
+	for _, env := range os.Environ() {
+		key, _, _ := strings.Cut(env, "=")
+		if strings.HasPrefix(key, "PG") {
+			os.Unsetenv(key)
+		}
+	}
+
 	tests := []struct {
 		Srv      *config.SQLServer
 		DB       *config.SQLDatabase

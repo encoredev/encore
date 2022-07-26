@@ -680,10 +680,21 @@ func (b *rpcBuilder) renderCaller() *Statement {
 				}
 			})
 		})
+		g.If(Err().Op("!=").Nil()).BlockFunc(func(g *Group) {
+			if rpc.Response != nil {
+				if rpc.Response.IsPtr {
+					g.Return(Nil(), Err())
+				} else {
+					g.Return(b.namedType(b.f, rpc.Response).Values(), Err())
+				}
+			} else {
+				g.Return(Err())
+			}
+		})
 		if rpc.Response != nil {
-			g.Return(Id("resp").Dot("Data"), Err())
+			g.Return(Id("resp").Dot("Data"), Nil())
 		} else {
-			g.Return(Err())
+			g.Return(Nil())
 		}
 	})
 }
