@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
@@ -63,6 +64,9 @@ type Server struct {
 	callCtr uint64
 
 	pubsubSubscriptions map[string]func(r *http.Request) error
+
+	shutdownMu       sync.Mutex
+	shutdownHandlers []gracefulShutdowner
 }
 
 func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Client, rootLogger zerolog.Logger, json jsoniter.API) *Server {
@@ -164,8 +168,37 @@ func (s *Server) Serve(ln net.Listener) error {
 	return s.httpsrv.Serve(ln)
 }
 
+func (s *Server) registerShutdownHandler(h gracefulShutdowner) {
+	s.shutdownMu.Lock()
+	defer s.shutdownMu.Unlock()
+	s.shutdownHandlers = append(s.shutdownHandlers, h)
+}
+
 func (s *Server) Shutdown(force context.Context) {
-	_ = s.httpsrv.Shutdown(force)
+	var wg sync.WaitGroup
+
+	// Shut down HTTP server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_ = s.httpsrv.Shutdown(force)
+	}()
+
+	// Shut down any registered handlers
+	s.shutdownMu.Lock()
+	handlers := s.shutdownHandlers
+	s.shutdownMu.Unlock()
+	wg.Add(len(handlers))
+	for _, h := range handlers {
+		h := h
+		go func() {
+			defer wg.Done()
+			h.Shutdown(force)
+		}()
+	}
+
+	// Wait for all the shutdowns to complete
+	wg.Wait()
 }
 
 func (s *Server) handler(w http.ResponseWriter, req *http.Request) {

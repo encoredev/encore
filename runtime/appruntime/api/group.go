@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+
 	"encore.dev/appruntime/runtimeutil/syncutil"
 	"encore.dev/beta/errs"
 )
@@ -18,20 +20,31 @@ type Group[T any] struct {
 }
 
 // Get returns the API Group, initializing it if necessary.
-func (d *Group[T]) Get() (*T, error) {
-	err := d.setupOnce.Do(func() error {
-		if d.Setup == nil {
-			d.instance = new(T)
-			return nil
-		}
-
-		var err error
-		d.instance, err = d.Setup()
+func (g *Group[T]) Get() (*T, error) {
+	err := g.setupOnce.Do(func() error {
+		i, err := g.doSetup()
 		if err != nil {
-			Singleton.rt.Logger().Error().Err(err).Str("apigroup", d.Name).Msg("api group initialization failed")
+			Singleton.rt.Logger().Error().Err(err).Str("apigroup", g.Name).Msg("api group initialization failed")
 			return errs.B().Code(errs.Internal).Msg("service initialization failed").Err()
 		}
-		return err
+		g.instance = i
+
+		// If the API Group supports graceful shutdown, register that with the server.
+		if gs, ok := any(i).(gracefulShutdowner); ok {
+			Singleton.registerShutdownHandler(gs)
+		}
+		return nil
 	})
-	return d.instance, err
+	return g.instance, err
+}
+
+func (g *Group[T]) doSetup() (*T, error) {
+	if g.Setup == nil {
+		return new(T), nil
+	}
+	return g.Setup()
+}
+
+type gracefulShutdowner interface {
+	Shutdown(force context.Context)
 }
