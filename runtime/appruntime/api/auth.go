@@ -34,7 +34,7 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c Context) (model.AuthInfo, error
 	}
 
 	done := make(chan struct{})
-	call, err := c.server.beginAuth()
+	call, err := c.server.beginAuth(d.DefLoc)
 	if err != nil {
 		return model.AuthInfo{}, err
 	}

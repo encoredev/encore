@@ -87,7 +87,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 	tb.String(req.Endpoint)
 	tb.UVarint(uint64(goid))
 	tb.UVarint(0)                  // call expr idx; unused
-	tb.UVarint(uint64(req.DefLoc)) // endpoint expr idx; unused
+	tb.UVarint(uint64(req.DefLoc)) // endpoint expr idx
 	tb.String(string(req.UID))
 	tb.UVarint(uint64(len(req.Inputs)))
 	for _, input := range req.Inputs {
@@ -121,8 +121,8 @@ func (l *Log) BeginCall(call *model.APICall, goid uint32) {
 	tb.Bytes(call.Source.SpanID[:])
 	tb.Bytes(call.SpanID[:])
 	tb.UVarint(uint64(goid))
-	tb.UVarint(0) // call expr idx; no longer used
-	tb.UVarint(0) // endpoint expr idx; no longer used
+	tb.UVarint(0)                   // call expr idx; no longer used
+	tb.UVarint(uint64(call.DefLoc)) // endpoint expr idx
 	tb.Stack(stack.Build(3))
 	l.Add(CallStart, tb.Buf())
 }
@@ -147,7 +147,7 @@ func (l *Log) BeginAuth(call *model.AuthCall, goid uint32) {
 	tb.UVarint(call.ID)
 	tb.Bytes(call.SpanID[:])
 	tb.UVarint(uint64(goid))
-	tb.UVarint(0) // auth handler expr idx; no longer used
+	tb.UVarint(uint64(call.DefLoc)) // auth handler expr idx
 	l.Add(AuthStart, tb.Buf())
 }
 
