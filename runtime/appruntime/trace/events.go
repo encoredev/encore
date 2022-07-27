@@ -94,6 +94,15 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 		tb.UVarint(uint64(len(input)))
 		tb.Bytes(input)
 	}
+
+	if req.Type == model.PubSubMessage {
+		tb.String(req.MsgData.Topic)
+		tb.String(req.MsgData.Subscription)
+		tb.String(req.MsgData.MessageID)
+		tb.Uint32(uint32(req.MsgData.Attempt))
+		tb.Time(req.MsgData.Published)
+	}
+
 	l.Add(RequestStart, tb.Buf())
 }
 
