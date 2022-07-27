@@ -181,7 +181,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 		return
 	}
 
-	call, err := c.server.beginCall()
+	call, err := c.server.beginCall(d.DefLoc)
 	if respErr != nil {
 		respErr = err
 		return

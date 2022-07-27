@@ -189,7 +189,7 @@ func checkAuthData(authDataType reflect.Type, uid model.UID, userData interface{
 
 	return nil
 }
-func (s *Server) beginCall() (*model.APICall, error) {
+func (s *Server) beginCall(defLoc int32) (*model.APICall, error) {
 	spanID, err := model.GenSpanID()
 	if err != nil {
 		return nil, err
@@ -199,6 +199,7 @@ func (s *Server) beginCall() (*model.APICall, error) {
 	call := &model.APICall{
 		ID:     callID,
 		SpanID: spanID,
+		DefLoc: defLoc,
 	}
 
 	curr := s.rt.Current()
@@ -217,7 +218,7 @@ func (s *Server) finishCall(call *model.APICall, err error) {
 	}
 }
 
-func (s *Server) beginAuth() (*model.AuthCall, error) {
+func (s *Server) beginAuth(defLoc int32) (*model.AuthCall, error) {
 	spanID, err := model.GenSpanID()
 	if err != nil {
 		return nil, fmt.Errorf("could not generate request id: %v", err)
@@ -227,6 +228,7 @@ func (s *Server) beginAuth() (*model.AuthCall, error) {
 	call := &model.AuthCall{
 		ID:     callID,
 		SpanID: spanID,
+		DefLoc: defLoc,
 	}
 
 	if curr := s.rt.Current(); curr.Trace != nil {

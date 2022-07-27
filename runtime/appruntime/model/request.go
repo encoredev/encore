@@ -67,11 +67,13 @@ type APICall struct {
 	ID     uint64 // call id
 	Source *Request
 	SpanID SpanID
+	DefLoc int32
 }
 
 type AuthCall struct {
 	ID     uint64 // call id
 	SpanID SpanID
+	DefLoc int32
 }
 
 type UID string
