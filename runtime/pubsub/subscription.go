@@ -108,10 +108,18 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to unmarshal message").Err()
 		}
 
+		spanID, err := model.GenSpanID()
+		if err != nil {
+			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate span id")
+			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate span id").Err()
+		}
+
 		// Start the request tracing span
 		req := &model.Request{
 			Type:    model.PubSubMessage,
+			SpanID:  spanID,
 			Service: staticCfg.Service,
+			Start:   time.Now(),
 			MsgData: &model.PubSubMsgData{
 				Topic:        topic.topicCfg.EncoreName,
 				Subscription: subscription.EncoreName,
