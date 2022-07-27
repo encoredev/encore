@@ -71,7 +71,7 @@ import (
 	"encore.app/usr/ent"
 )
 
-var usrDB = sqldb.Named("gitbot")
+var usrDB = sqldb.Named("usr")
 
 // Get returns an ent client connected to this service's database.
 func Get() (*ent.Client, error) {
@@ -130,7 +130,7 @@ import (
 	"entgo.io/ent/dialect/sql/schema"
 	_ "github.com/lib/pq"
 
-	"encore.app/gitbot/ent"
+	"encore.app/usr/ent"
 )
 
 const system = "usr"
