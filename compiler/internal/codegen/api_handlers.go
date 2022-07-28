@@ -41,9 +41,9 @@ func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
 	// If other code uses it will be imported under its proper name.
 	f.Anon("encore.dev/appruntime/app/appinit")
 
-	for _, group := range svc.APIGroups {
+	if svc.Struct != nil {
 		f.Line()
-		b.buildAPIGroupHandler(f, group)
+		b.buildServiceStructHandler(f, svc.Struct)
 	}
 
 	for _, rpc := range svc.RPCs {
@@ -349,25 +349,29 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 		Id("ctx").Qual("context", "Context"),
 		Id("req").Op("*").Id(b.ReqTypeName()),
 	).Params(Op("*").Id(b.RespTypeName()), Error()).BlockFunc(func(g *Group) {
-		// If we have an API Group, initialize it first.
-		group := rpc.APIGroup
-		funcExpr := Id(b.rpc.Name)
+		// Resolve the function we want to call.
+		g.Var().Id("fn").Func().ParamsFunc(func(g *Group) {
+			for _, f := range b.reqType.fields {
+				g.Add(f.goType.Clone())
+			}
+		}).ParamsFunc(func(g *Group) {
+			if rpc.Response != nil {
+				g.Add(b.namedType(b.f, rpc.Response))
+			}
+			g.Error()
+		})
+
+		// If we have a service struct, initialize it first.
+		group := rpc.Receiver
 		if group != nil {
-			g.List(Id("svc"), Id("initErr")).Op(":=").Id(b.apiGroupHandlerName(group)).Dot("Get").Call()
+			ss := rpc.Svc.Struct
+			g.List(Id("svc"), Id("initErr")).Op(":=").Id(b.serviceStructName(ss)).Dot("Get").Call()
 			g.If(Id("initErr").Op("!=").Nil()).Block(
 				Return(Nil(), Id("initErr")),
 			)
-			funcExpr = Id("svc").Dot(b.rpc.Name)
-		}
-
-		if rpc.Raw {
-			g.Add(funcExpr).CallFunc(func(g *Group) {
-				for _, f := range b.reqType.fields {
-					g.Id("req").Dot(f.fieldName)
-				}
-			})
-			g.Return(Op("&").Id(b.RespTypeName()).Values(), Nil())
-			return
+			g.Id("fn").Op("=").Id("svc").Dot(b.rpc.Name)
+		} else {
+			g.Id("fn").Op("=").Id(b.rpc.Name)
 		}
 
 		g.Do(func(s *Statement) {
@@ -376,7 +380,7 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 			} else {
 				s.Err()
 			}
-		}).Op(":=").Add(funcExpr).CallFunc(func(g *Group) {
+		}).Op(":=").Id("fn").CallFunc(func(g *Group) {
 			g.Id("ctx")
 			for _, f := range b.reqType.fields {
 				g.Id("req").Dot(f.fieldName)
