@@ -25,7 +25,6 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/codegen"
-	"encr.dev/cli/internal/experiment"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
 	"encr.dev/cli/internal/version"
@@ -67,12 +66,12 @@ func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *
 		appDebouncers: make(map[*apps.Instance]debouncer),
 	}
 	mgr.AddListener(srv)
+
 	// Check immediately for the latest version to avoid blocking 'encore run'
 	go srv.availableUpdate()
 
-	if experiment.Enabled(experiment.DependencyInjection) {
-		go srv.watchApps()
-	}
+	// Begin watching known apps for changes
+	go srv.watchApps()
 
 	return srv
 }
