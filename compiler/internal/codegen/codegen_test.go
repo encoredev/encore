@@ -48,7 +48,7 @@ func TestCodeGenMain(t *testing.T) {
 			})
 			c.Assert(err, qt.IsNil)
 
-			bld := NewBuilder(res)
+			bld := NewBuilder(res, false)
 			var combined bytes.Buffer
 
 			// Main
@@ -177,7 +177,7 @@ func TestCodeGen_TestMain(t *testing.T) {
 			})
 			c.Assert(err, qt.IsNil)
 
-			bld := NewBuilder(res)
+			bld := NewBuilder(res, true)
 			var buf bytes.Buffer
 			var code []byte
 

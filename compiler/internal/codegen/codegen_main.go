@@ -15,20 +15,22 @@ import (
 const JsonPkg = "github.com/json-iterator/go"
 
 type Builder struct {
-	res *parser.Result
+	res        *parser.Result
+	forTesting bool
 
 	marshaller *gocodegen.MarshallingCodeGenerator
 	errors     *errlist.List
 }
 
-func NewBuilder(res *parser.Result) *Builder {
+func NewBuilder(res *parser.Result, forTesting bool) *Builder {
 	marshallerPkgPath := path.Join(res.Meta.ModulePath, "__encore", "etype")
 	marshaller := gocodegen.NewMarshallingCodeGenerator(marshallerPkgPath, "Marshaller", false)
 
 	return &Builder{
-		res:             res,
-		errors:          errlist.New(res.FileSet),
-		marshaller:      marshaller,
+		res:        res,
+		forTesting: forTesting,
+		errors:     errlist.New(res.FileSet),
+		marshaller: marshaller,
 	}
 }
 
