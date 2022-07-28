@@ -1,0 +1,20 @@
+! parse
+stderr 'cannot define encore:service type without any APIs belonging to it'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+//encore:service
+type Service struct {}
+
+type Params struct{}
+
+type SomeOtherType struct {}
+
+//encore:api public
+func (s *SomeOtherType) Str(ctx context.Context, p *Params) error { return nil }

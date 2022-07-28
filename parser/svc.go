@@ -30,15 +30,8 @@ func (p *parser) parseServices() {
 			Root: pkg,
 			Pkgs: []*est.Package{pkg},
 		}
-		apiGroups := p.parseAPIGroups(pkg, svc)
+		p.parseServiceStruct(pkg, svc)
 		isSvc := p.parseFuncs(pkg, svc)
-		for _, group := range apiGroups {
-			if len(group.RPCs) == 0 {
-				p.errf(group.Decl.Pos(), "cannot define API group without any APIs belonging to it"+
-					"\n\tHint: define APIs on an API group as a method receiver: func (*%s) MyEndpoint(...) error",
-					group.Name)
-			}
-		}
 		if !isSvc {
 			continue
 		}
@@ -101,9 +94,9 @@ PkgLoop:
 	}
 }
 
-// parseAPIGroups parses the pkg for any declared API groups.
-func (p *parser) parseAPIGroups(pkg *est.Package, svc *est.Service) []*est.APIGroup {
-	var groups []*est.APIGroup
+// parseServiceStruct parses the pkg for any declared encore:service structs.
+func (p *parser) parseServiceStruct(pkg *est.Package, svc *est.Service) *est.ServiceStruct {
+	var ss *est.ServiceStruct
 	for _, f := range pkg.Files {
 		for _, decl := range f.AST.Decls {
 			gd, ok := decl.(*ast.GenDecl)
@@ -126,15 +119,19 @@ func (p *parser) parseAPIGroups(pkg *est.Package, svc *est.Service) []*est.APIGr
 				}
 				if dir != nil {
 					switch dir := dir.(type) {
-					case *apiGroupDirective:
-						group := &est.APIGroup{
+					case *serviceDirective:
+						if ss != nil {
+							p.errf(s.Pos(), "duplicate encore:service directive (previous declaration at %s)",
+								p.fset.Position(ss.Decl.Pos()))
+							continue
+						}
+						ss = &est.ServiceStruct{
 							Name: s.Name.Name,
 							Svc:  svc,
 							Doc:  doc,
 							Decl: s,
 						}
-						p.initAPIGroup(group)
-						groups = append(groups, group)
+						p.initServiceStruct(ss)
 
 					default:
 						p.errf(dir.Pos(), "unexpected directive type %T on type declaration", dir)
@@ -144,7 +141,7 @@ func (p *parser) parseAPIGroups(pkg *est.Package, svc *est.Service) []*est.APIGr
 			}
 		}
 	}
-	return groups
+	return ss
 }
 
 // parseFuncs parses the pkg for any declared RPCs and auth handlers.
@@ -216,7 +213,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 }
 
 func (p *parser) initRPC(rpc *est.RPC) {
-	p.addToAPIGroup(rpc)
+	p.addToServiceStruct(rpc)
 
 	if rpc.Raw {
 		p.initRawRPC(rpc)
@@ -347,54 +344,52 @@ func (p *parser) initTypedRPC(rpc *est.RPC) {
 	}
 }
 
-func (p *parser) initAPIGroup(group *est.APIGroup) {
-	if group.Decl.TypeParams.NumFields() > 0 {
-		p.errf(group.Decl.Pos(), "API groups cannot be defined as generic types")
+func (p *parser) initServiceStruct(ss *est.ServiceStruct) {
+	if ss.Decl.TypeParams.NumFields() > 0 {
+		p.errf(ss.Decl.Pos(), "encore:service types cannot be defined as generic types")
 	}
-	// Do we have an init function for this API Group?
-	pkgDecls := p.names[group.Svc.Root].Decls
+	// Do we have an init function for this struct?
+	pkgDecls := p.names[ss.Svc.Root].Decls
 	for name, decl := range pkgDecls {
-		if decl.Type == token.FUNC && strings.EqualFold(name, "init"+group.Name) {
-			if prev := group.Init; prev != nil {
+		if decl.Type == token.FUNC && strings.EqualFold(name, "init"+ss.Name) {
+			if prev := ss.Init; prev != nil {
 				p.errf(decl.Pos, "multiple API group initialization functions found (previous declaration at %s)",
 					p.fset.Position(prev.Pos()))
 			} else {
-				group.Init = decl.Func
+				ss.Init = decl.Func
 			}
 		}
 	}
-	svc := group.Svc
-	svc.APIGroups = append(svc.APIGroups, group)
+	svc := ss.Svc
+	svc.Struct = ss
 }
 
-// addToAPIGroup resolves the API Group a receiver type refers to
-// and adds the rpc to the group.
-func (p *parser) addToAPIGroup(rpc *est.RPC) {
+// addToServiceStruct resolves the Service struct a receiver type refers to
+// and adds the rpc to the struct.
+func (p *parser) addToServiceStruct(rpc *est.RPC) {
 	recv := rpc.Func.Recv
 	if recv == nil {
 		return
 	}
 	recvType := recv.List[len(recv.List)-1].Type
-	typ := p.resolveType(rpc.Svc.Root, rpc.File, recvType, nil)
-	named := typ.GetNamed()
+	typ := p.resolveParameter("receiver", rpc.Svc.Root, rpc.File, recvType)
+	named := typ.Type.GetNamed()
 	if named == nil {
-		p.errf(recvType.Pos(), "API group must refer to named type, not %T", typ.Typ)
+		p.errf(recvType.Pos(), "method receiver must refer to named type, not %T", typ.Type.Typ)
 		return
 	}
-	groupName := p.decls[named.Id].Name
+	recvName := p.decls[named.Id].Name
 
-	for _, g := range rpc.Svc.APIGroups {
-		if g.Name == groupName {
-			g.RPCs = append(g.RPCs, rpc)
-			rpc.APIGroup = g
-			return
-		}
+	if ss := rpc.Svc.Struct; ss != nil && ss.Name == recvName {
+		ss.RPCs = append(ss.RPCs, rpc)
+		rpc.Receiver = typ
+		return
 	}
 
-	p.errf(recvType.Pos(), "type %s is not as an API group"+
-		"\n\tAPIs can only be defined as methods on API groups."+
-		"\n\tHint: declare it as an API group with //encore:apigroup",
-		groupName)
+	p.errf(recvType.Pos(), "type %s is not as an encore:service struct"+
+		"\n\tAPIs can only be defined as methods on service structs."+
+		"\n\tHint: declare it as such with //encore:service",
+		recvName)
 }
 
 func (p *parser) validatePathParamType(param *ast.Field, name string, typ *schema.Type, segType paths.SegmentType) bool {
