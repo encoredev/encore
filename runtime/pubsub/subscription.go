@@ -140,6 +140,13 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 
 		mgr.rt.BeginRequest(req)
 		curr := mgr.rt.Current()
+
+		if prev := curr.Req; prev != nil {
+			req.ParentID = prev.SpanID
+			req.Traced = prev.Traced
+			req.Test = prev.Test
+		}
+
 		if curr.Trace != nil {
 			curr.Trace.BeginRequest(req, curr.Goctr)
 		}

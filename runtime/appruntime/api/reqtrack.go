@@ -62,19 +62,23 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		Traced:       s.tracingEnabled,
 	}
 
-	logCtx := s.rootLogger.With().Str("service", req.Service).Str("endpoint", req.Endpoint)
-	if req.UID != "" {
-		logCtx = logCtx.Str("uid", string(req.UID))
-	}
-	reqLogger := logCtx.Logger()
-	req.Logger = &reqLogger
-
 	if prev := s.rt.Current().Req; prev != nil {
 		req.UID = prev.UID
 		req.AuthData = prev.AuthData
 		req.ParentID = prev.SpanID
 		req.Traced = prev.Traced
+		req.Test = prev.Test
 	}
+
+	logCtx := s.rootLogger.With().Str("service", req.Service).Str("endpoint", req.Endpoint)
+	if req.UID != "" {
+		logCtx = logCtx.Str("uid", string(req.UID))
+	}
+	if req.Test != nil {
+		logCtx = logCtx.Str("test", req.Test.Current.Name())
+	}
+	reqLogger := logCtx.Logger()
+	req.Logger = &reqLogger
 
 	// Update request data based on call options, if any
 	if opts, _ := ctx.Value(callOptionsKey).(*CallOptions); opts != nil {
