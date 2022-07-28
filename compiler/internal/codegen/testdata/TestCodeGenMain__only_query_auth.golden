@@ -47,7 +47,7 @@ import (
 	"encore.app/__encore/etype"
 	"encore.dev/appruntime/api"
 	_ "encore.dev/appruntime/app/appinit"
-	model "encore.dev/appruntime/model"
+	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/serde"
 	"encore.dev/beta/errs"
 	"github.com/json-iterator/go"
@@ -180,7 +180,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		return reqData, nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_EightReq) (*EncoreInternal_EightResp, error) {
-		var fn func(string, string, *FooParams) (*Response, error)
+		var fn func(context.Context, string, string, *FooParams) (*Response, error)
 		fn = Eight
 		resp, err := fn(ctx, req.Bar, req.Baz, req.Params)
 		if err != nil {

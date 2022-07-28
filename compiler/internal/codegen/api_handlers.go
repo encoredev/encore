@@ -25,7 +25,9 @@ var importNames = map[string]string{
 	"encore.dev/appruntime/app":         "app",
 	"encore.dev/appruntime/app/appinit": "appinit",
 	"encore.dev/appruntime/config":      "config",
+	"encore.dev/appruntime/model":       "model",
 	"encore.dev/appruntime/serde":       "serde",
+	"encore.dev/appruntime/service":     "service",
 	"encore.dev/beta/errs":              "errs",
 	"encore.dev/storage/sqldb":          "sqldb",
 	"encore.dev/types/uuid":             "uuid",
@@ -351,6 +353,7 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 	).Params(Op("*").Id(b.RespTypeName()), Error()).BlockFunc(func(g *Group) {
 		// Resolve the function we want to call.
 		g.Var().Id("fn").Func().ParamsFunc(func(g *Group) {
+			g.Qual("context", "Context")
 			for _, f := range b.reqType.fields {
 				g.Add(f.goType.Clone())
 			}

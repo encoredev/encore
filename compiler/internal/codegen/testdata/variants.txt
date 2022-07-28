@@ -136,6 +136,8 @@ func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthData, 
 //encore:service
 type Service struct{}
 
+func InitService() (*Service, error) { return nil, nil }
+
 //encore:api public path=/di method=GET
 func (s *Service) DI(ctx context.Context) error {
     return nil
