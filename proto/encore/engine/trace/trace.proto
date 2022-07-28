@@ -58,6 +58,7 @@ message Event {
     HTTPCall http = 5;
     LogMessage log = 6;
     PubsubMsgPublished publishedMsg = 7;
+    ServiceInit service_init = 8;
   }
 }
 
@@ -116,6 +117,16 @@ message PubsubMsgPublished {
   string message_id = 7;
   bytes err = 8;
   StackTrace stack = 9;
+}
+
+message ServiceInit {
+  uint64 goid = 1;
+  int32 def_loc = 2;
+  uint64 start_time = 3;
+  uint64 end_time = 4;
+  string service = 5;
+  bytes err = 6;
+  StackTrace err_stack = 7; // null if not an error
 }
 
 message HTTPCall {

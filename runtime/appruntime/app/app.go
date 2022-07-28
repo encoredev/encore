@@ -60,7 +60,7 @@ func New(p *NewParams) *App {
 	apiSrv := api.NewServer(cfg, rt, pc, rootLogger, json)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
-	service := service.NewManager(rootLogger)
+	service := service.NewManager(rt)
 
 	ts := testsupport.NewManager(cfg, rt, rootLogger)
 	encore := encore.NewManager(cfg, rt)

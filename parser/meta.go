@@ -385,6 +385,23 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				},
 			}
 		}
+
+		if ss := svc.Struct; ss != nil && ss.Init != nil {
+			fd := ss.Init
+			f := ss.InitFile
+			nod := newTraceNode(&id, svc.Root, f, ss.Init)
+			res[svc.Root][fd] = nod
+
+			start := f.Token.Offset(fd.Type.Pos())
+			end := f.Token.Offset(fd.Type.End())
+			nod.Context = &meta.TraceNode_ServiceInit{
+				ServiceInit: &meta.ServiceInitNode{
+					ServiceName:   svc.Name,
+					SetupFuncName: ss.Init.Name.Name,
+					Context:       string(f.Contents[start:end]),
+				},
+			}
+		}
 	}
 
 	if h := app.AuthHandler; h != nil {

@@ -31,6 +31,11 @@ func (b *serviceStructHandlerBuilder) Write() {
 		initFuncName = Id(b.ss.Init.Name.Name)
 	}
 
+	setupDefLoc := 0
+	if b.ss.Init != nil {
+		setupDefLoc = int(b.res.Nodes[b.svc.Root][b.ss.Init].Id)
+	}
+
 	handler := Var().Id(b.serviceStructName(b.ss)).Op("=").Op("&").Qual("encore.dev/appruntime/service", "Decl").Types(
 		Id(b.ss.Name),
 	).Custom(Options{
@@ -42,6 +47,7 @@ func (b *serviceStructHandlerBuilder) Write() {
 		Id("Service").Op(":").Lit(b.svc.Name),
 		Id("Name").Op(":").Lit(b.ss.Name),
 		Id("Setup").Op(":").Add(initFuncName),
+		Id("SetupDefLoc").Op(":").Lit(setupDefLoc),
 	)
 	b.f.Add(handler)
 }

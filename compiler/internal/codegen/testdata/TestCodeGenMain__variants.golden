@@ -72,9 +72,10 @@ import (
 )
 
 var EncoreInternal_ServiceService = &service.Decl[Service]{
-	Service: "svc",
-	Name:    "Service",
-	Setup:   nil,
+	Service:     "svc",
+	Name:        "Service",
+	Setup:       InitService,
+	SetupDefLoc: 31,
 }
 
 type EncoreInternal_CronOneReq struct{}
@@ -1396,7 +1397,7 @@ func (p *EncoreInternal_AuthHandlerAuthData) Clone() (*EncoreInternal_AuthHandle
 var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthData]{
 	Service:     "svc",
 	Endpoint:    "AuthHandler",
-	DefLoc:      31,
+	DefLoc:      32,
 	HasAuthData: true,
 	DecodeAuth: func(req *http.Request) (authData *EncoreInternal_AuthHandlerAuthData, err error) {
 		authData = &EncoreInternal_AuthHandlerAuthData{}

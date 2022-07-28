@@ -135,6 +135,7 @@ export interface TraceNode {
   pubsub_topic_def: PubSubTopicDefNode | undefined;
   pubsub_publish: PubSubPublishNode | undefined;
   pubsub_subscriber: PubSubSubscriberNode | undefined;
+  service_init: ServiceInitNode | undefined;
 }
 
 export interface RPCDefNode {
@@ -182,6 +183,12 @@ export interface PubSubSubscriberNode {
   topic_name: string;
   subscriber_name: string;
   service_name: string;
+  context: string;
+}
+
+export interface ServiceInitNode {
+  service_name: string;
+  setup_func_name: string;
   context: string;
 }
 

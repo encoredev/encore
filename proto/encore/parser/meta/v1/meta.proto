@@ -104,6 +104,7 @@ message TraceNode {
     PubSubTopicDefNode   pubsub_topic_def  = 14;
     PubSubPublishNode    pubsub_publish    = 15;
     PubSubSubscriberNode pubsub_subscriber = 16;
+    ServiceInitNode      service_init      = 17;
   }
 }
 
@@ -151,6 +152,12 @@ message PubSubSubscriberNode {
   string subscriber_name = 2;
   string service_name    = 3;
   string context         = 4;
+}
+
+message ServiceInitNode {
+  string service_name    = 1;
+  string setup_func_name = 2;
+  string context         = 3;
 }
 
 message Path {
