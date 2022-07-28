@@ -64,12 +64,15 @@ type Service struct {
 type ServiceStruct struct {
 	Name string
 	Svc  *Service
+	File *File // where the struct is defined
 	Doc  string
 	Decl *ast.TypeSpec
 	RPCs []*RPC // RPCs defined on the service struct
+
 	// Init is the function for initializing this group.
 	// It is nil if there is no initialization function.
-	Init *ast.FuncDecl
+	Init     *ast.FuncDecl
+	InitFile *File // where the init func is declared
 }
 
 type CronJob struct {

@@ -128,6 +128,7 @@ func (p *parser) parseServiceStruct(pkg *est.Package, svc *est.Service) *est.Ser
 						ss = &est.ServiceStruct{
 							Name: s.Name.Name,
 							Svc:  svc,
+							File: f,
 							Doc:  doc,
 							Decl: s,
 						}
@@ -357,6 +358,7 @@ func (p *parser) initServiceStruct(ss *est.ServiceStruct) {
 					p.fset.Position(prev.Pos()))
 			} else {
 				ss.Init = decl.Func
+				ss.InitFile = decl.File
 			}
 		}
 	}

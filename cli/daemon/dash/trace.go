@@ -161,6 +161,17 @@ type PubSubPublish struct {
 	Stack     Stack  `json:"stack"`
 }
 
+type ServiceInit struct {
+	Type      string `json:"type"` // "ServiceInit"
+	Goid      uint64 `json:"goid"`
+	DefLoc    int32  `json:"def_loc"`
+	StartTime int64  `json:"start_time"`
+	EndTime   *int64 `json:"end_time,omitempty"`
+	Service   string `json:"service"`
+	Err       []byte `json:"err"`
+	ErrStack  *Stack `json:"err_stack"` // can be null
+}
+
 type Stack struct {
 	Frames []StackFrame `json:"frames"`
 }
@@ -189,6 +200,7 @@ func (RPCCall) traceEvent()       {}
 func (HTTPCall) traceEvent()      {}
 func (LogMessage) traceEvent()    {}
 func (PubSubPublish) traceEvent() {}
+func (ServiceInit) traceEvent()   {}
 
 func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 	traceID := traceUUID(ct.ID)
@@ -362,6 +374,9 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 
 		case *tracepb.Event_PublishedMsg:
 			r.Events = append(r.Events, tp.parsePubSubPublish(e.PublishedMsg))
+
+		case *tracepb.Event_ServiceInit:
+			r.Events = append(r.Events, tp.parseServiceInit(e.ServiceInit))
 		}
 	}
 
@@ -433,6 +448,19 @@ func (tp *traceParser) parsePubSubPublish(publish *tracepb.PubsubMsgPublished) *
 		MessageID: publish.MessageId,
 		Err:       nullBytes(publish.Err),
 		Stack:     tp.stack(publish.Stack),
+	}
+}
+
+func (tp *traceParser) parseServiceInit(svcInit *tracepb.ServiceInit) *ServiceInit {
+	return &ServiceInit{
+		Type:      "ServiceInit",
+		Goid:      svcInit.Goid,
+		DefLoc:    svcInit.DefLoc,
+		StartTime: tp.time(svcInit.StartTime),
+		EndTime:   tp.maybeTime(svcInit.EndTime),
+		Service:   svcInit.Service,
+		Err:       nullBytes(svcInit.Err),
+		ErrStack:  tp.maybeStack(svcInit.ErrStack),
 	}
 }
 

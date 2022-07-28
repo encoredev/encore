@@ -30,6 +30,8 @@ const (
 	LogMessage         EventType = 0x11
 	PublishStart       EventType = 0x12
 	PublishEnd         EventType = 0x13
+	ServiceInitStart   EventType = 0x14
+	ServiceInitEnd     EventType = 0x15
 )
 
 func (te EventType) String() string {
@@ -72,6 +74,10 @@ func (te EventType) String() string {
 		return "PublishStart"
 	case PublishEnd:
 		return "PublishEnd"
+	case ServiceInitStart:
+		return "ServiceInitStart"
+	case ServiceInitEnd:
+		return "ServiceInitEnd"
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}
@@ -321,4 +327,32 @@ func (l *Log) GoEnd(spanID model.SpanID, goctr uint32) {
 		byte(goctr >> 16),
 		byte(goctr >> 24),
 	})
+}
+
+type ServiceInitStartParams struct {
+	InitCtr uint64
+	SpanID  model.SpanID
+	Goctr   uint32
+	DefLoc  int32
+	Service string
+}
+
+func (l *Log) ServiceInitStart(p ServiceInitStartParams) {
+	var tb Buffer
+	tb.Bytes(p.SpanID[:])
+	tb.UVarint(p.InitCtr)
+	tb.UVarint(uint64(p.Goctr))
+	tb.UVarint(uint64(p.DefLoc))
+	tb.String(p.Service)
+	l.Add(ServiceInitStart, tb.Buf())
+}
+
+func (l *Log) ServiceInitEnd(initCtr uint64, err error) {
+	var tb Buffer
+	tb.UVarint(initCtr)
+	tb.Err(err)
+	if err != nil {
+		tb.Stack(errs.Stack(err))
+	}
+	l.Add(ServiceInitEnd, tb.Buf())
 }

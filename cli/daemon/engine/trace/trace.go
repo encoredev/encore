@@ -87,18 +87,19 @@ func Parse(log *zerolog.Logger, traceID ID, data []byte, version trace.Version, 
 		High: bin.Uint64(traceID[8:]),
 	}
 	tp := &traceParser{
-		log:         log,
-		version:     version,
-		traceReader: traceReader{buf: data},
-		symTable:    symTable,
-		traceID:     id,
-		reqMap:      make(map[uint64]*tracepb.Request),
-		txMap:       make(map[uint64]*tracepb.DBTransaction),
-		queryMap:    make(map[uint64]*tracepb.DBQuery),
-		callMap:     make(map[uint64]interface{}),
-		goMap:       make(map[goKey]*tracepb.Goroutine),
-		httpMap:     make(map[uint64]*tracepb.HTTPCall),
-		publishMap:  make(map[uint64]*tracepb.PubsubMsgPublished),
+		log:          log,
+		version:      version,
+		traceReader:  traceReader{buf: data},
+		symTable:     symTable,
+		traceID:      id,
+		reqMap:       make(map[uint64]*tracepb.Request),
+		txMap:        make(map[uint64]*tracepb.DBTransaction),
+		queryMap:     make(map[uint64]*tracepb.DBQuery),
+		callMap:      make(map[uint64]interface{}),
+		goMap:        make(map[goKey]*tracepb.Goroutine),
+		httpMap:      make(map[uint64]*tracepb.HTTPCall),
+		publishMap:   make(map[uint64]*tracepb.PubsubMsgPublished),
+		serviceInits: make(map[uint64]*tracepb.ServiceInit),
 	}
 	if err := tp.Parse(); err != nil {
 		return nil, err
@@ -117,18 +118,19 @@ type SymTabler interface {
 
 type traceParser struct {
 	traceReader
-	log        *zerolog.Logger
-	version    trace.Version
-	symTable   SymTabler
-	traceID    *tracepb.TraceID
-	reqs       []*tracepb.Request
-	reqMap     map[uint64]*tracepb.Request
-	txMap      map[uint64]*tracepb.DBTransaction
-	queryMap   map[uint64]*tracepb.DBQuery
-	callMap    map[uint64]interface{} // *RPCCall or *AuthCall
-	httpMap    map[uint64]*tracepb.HTTPCall
-	goMap      map[goKey]*tracepb.Goroutine
-	publishMap map[uint64]*tracepb.PubsubMsgPublished
+	log          *zerolog.Logger
+	version      trace.Version
+	symTable     SymTabler
+	traceID      *tracepb.TraceID
+	reqs         []*tracepb.Request
+	reqMap       map[uint64]*tracepb.Request
+	txMap        map[uint64]*tracepb.DBTransaction
+	queryMap     map[uint64]*tracepb.DBQuery
+	callMap      map[uint64]interface{} // *RPCCall or *AuthCall
+	httpMap      map[uint64]*tracepb.HTTPCall
+	goMap        map[goKey]*tracepb.Goroutine
+	publishMap   map[uint64]*tracepb.PubsubMsgPublished
+	serviceInits map[uint64]*tracepb.ServiceInit
 }
 
 func (tp *traceParser) Parse() error {
@@ -209,6 +211,10 @@ func (tp *traceParser) parseEventV3(ev trace.EventType, ts uint64, size int) err
 		return tp.publishStart(ts)
 	case trace.PublishEnd:
 		return tp.publishEnd(ts)
+	case trace.ServiceInitStart:
+		return tp.serviceInitStart(ts)
+	case trace.ServiceInitEnd:
+		return tp.serviceInitEnd(ts)
 	default:
 		return errUnknownEvent
 	}
@@ -865,6 +871,42 @@ func (tp *traceParser) publishEnd(ts uint64) error {
 	return nil
 }
 
+func (tp *traceParser) serviceInitStart(ts uint64) error {
+	spanID := tp.Uint64()
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
+	}
+
+	initID := tp.UVarint()
+	svcInit := &tracepb.ServiceInit{
+		Goid:      tp.UVarint(),
+		DefLoc:    int32(tp.UVarint()),
+		StartTime: ts,
+		Service:   tp.String(),
+	}
+	tp.serviceInits[initID] = svcInit
+
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_ServiceInit{ServiceInit: svcInit},
+	})
+	return nil
+}
+
+func (tp *traceParser) serviceInitEnd(ts uint64) error {
+	initID := tp.UVarint()
+	svcInit, ok := tp.serviceInits[initID]
+	if !ok {
+		return eerror.New("trace_parser", "unknown service init", map[string]any{"initID": initID})
+	}
+	svcInit.EndTime = ts
+	svcInit.Err = tp.ByteString()
+	if len(svcInit.Err) > 0 {
+		svcInit.ErrStack = tp.stack(filterNone)
+	}
+	return nil
+}
+
 type stackFilter int
 
 const (
@@ -975,6 +1017,9 @@ func (tr *traceReader) String() string {
 
 func (tr *traceReader) ByteString() []byte {
 	size := tr.UVarint()
+	if (size) == 0 {
+		return nil
+	}
 	b := make([]byte, int(size))
 	tr.Bytes(b)
 	return b
