@@ -180,7 +180,9 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		return reqData, nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_EightReq) (*EncoreInternal_EightResp, error) {
-		resp, err := Eight(ctx, req.Bar, req.Baz, req.Params)
+		var fn func(string, string, *FooParams) (*Response, error)
+		fn = Eight
+		resp, err := fn(ctx, req.Bar, req.Baz, req.Params)
 		if err != nil {
 			return nil, err
 		}

@@ -564,15 +564,6 @@ func (p *parser) validateApp() {
 			}, nil)
 		}
 	}
-
-	// Error if we have service structs without any APIs on them.
-	for _, svc := range p.svcs {
-		if ss := svc.Struct; ss != nil && len(ss.RPCs) == 0 {
-			p.errf(ss.Decl.Pos(), "cannot define encore:service type without any APIs belonging to it"+
-				"\n\tHint: define APIs on a service struct as a method receiver: func (*%s) MyEndpoint(...) error",
-				ss.Name)
-		}
-	}
 }
 
 // resolveRPCRef resolves an expression as a reference to an RPC.

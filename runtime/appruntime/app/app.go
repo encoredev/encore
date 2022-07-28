@@ -11,6 +11,7 @@ import (
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/service"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/auth"
@@ -25,6 +26,7 @@ type App struct {
 	json       jsoniter.API
 	rootLogger zerolog.Logger
 	api        *api.Server
+	service    *service.Manager
 	ts         *testsupport.Manager
 	shutdown   *shutdownTracker
 
@@ -58,6 +60,7 @@ func New(p *NewParams) *App {
 	apiSrv := api.NewServer(cfg, rt, pc, rootLogger, json)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
+	service := service.NewManager(rootLogger)
 
 	ts := testsupport.NewManager(cfg, rt, rootLogger)
 	encore := encore.NewManager(cfg, rt)
@@ -67,7 +70,7 @@ func New(p *NewParams) *App {
 	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
 
 	app := &App{
-		cfg, rt, json, rootLogger, apiSrv, ts,
+		cfg, rt, json, rootLogger, apiSrv, service, ts,
 		shutdown,
 		encore, auth, rlog, sqldb, pubsub,
 	}
@@ -90,6 +93,7 @@ func (app *App) Run() error {
 	app.RegisterShutdown(app.api.Shutdown)
 	app.RegisterShutdown(app.sqldb.Shutdown)
 	app.RegisterShutdown(app.pubsub.Shutdown)
+	app.RegisterShutdown(app.service.Shutdown)
 
 	serveErr := app.api.Serve(ln)
 

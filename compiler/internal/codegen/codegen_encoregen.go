@@ -13,8 +13,8 @@ import (
 // EncoreGen generates the encore.gen.go file containing user-facing
 // generated code. If nothing needs to be generated it returns nil.
 func (b *Builder) EncoreGen(svc *est.Service, withImpl bool) *File {
-	// If there are no API Groups, there's nothing to do.
-	if len(svc.APIGroups) == 0 {
+	// If there are is no service struct, there's nothing to do.
+	if svc.Struct == nil {
 		return nil
 	}
 
@@ -31,17 +31,15 @@ func (b *Builder) EncoreGen(svc *est.Service, withImpl bool) *File {
 	f.Comment("They are automatically updated by Encore whenever your API endpoints change.")
 	f.Line()
 
-	for _, group := range svc.APIGroups {
-		for _, rpc := range group.RPCs {
-			b.encoreGenRPC(f, group, rpc, withImpl)
-			f.Line()
-		}
+	for _, rpc := range svc.Struct.RPCs {
+		b.encoreGenRPC(f, svc.Struct, rpc, withImpl)
+		f.Line()
 	}
 
 	return f
 }
 
-func (b *Builder) encoreGenRPC(f *File, group *est.APIGroup, rpc *est.RPC, withImpl bool) {
+func (b *Builder) encoreGenRPC(f *File, ss *est.ServiceStruct, rpc *est.RPC, withImpl bool) {
 	if rpc.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(rpc.Doc), "\n") {
 			f.Comment(line)
@@ -89,7 +87,7 @@ func (b *Builder) encoreGenRPC(f *File, group *est.APIGroup, rpc *est.RPC, withI
 		}
 	}).BlockFunc(func(g *Group) {
 		if withImpl {
-			g.List(Id("svc"), Err()).Op(":=").Id(b.apiGroupHandlerName(group)).Dot("Get").Call()
+			g.List(Id("svc"), Err()).Op(":=").Id(b.serviceStructName(ss)).Dot("Get").Call()
 			g.If(Err().Op("!=").Nil()).Block(ReturnFunc(func(g *Group) {
 				if rpc.Raw {
 					g.Nil()
