@@ -138,15 +138,18 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		}
 		req.Logger = &log
 
-		mgr.rt.BeginRequest(req)
-		curr := mgr.rt.Current()
-
-		if prev := curr.Req; prev != nil {
-			req.ParentID = prev.SpanID
-			req.Traced = prev.Traced
-			req.Test = prev.Test
+		// Copy the previous request information over, if any
+		{
+			prev := mgr.rt.Current()
+			if prevReq := prev.Req; prevReq != nil {
+				req.ParentID = prevReq.ParentID
+				req.Traced = prevReq.Traced
+				req.Test = prevReq.Test
+			}
 		}
 
+		mgr.rt.BeginRequest(req)
+		curr := mgr.rt.Current()
 		if curr.Trace != nil {
 			curr.Trace.BeginRequest(req, curr.Goctr)
 		}
