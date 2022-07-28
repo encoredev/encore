@@ -40,6 +40,8 @@ type DaemonClient interface {
 	DBReset(ctx context.Context, in *DBResetRequest, opts ...grpc.CallOption) (Daemon_DBResetClient, error)
 	// GenClient generates a client based on the app's API.
 	GenClient(ctx context.Context, in *GenClientRequest, opts ...grpc.CallOption) (*GenClientResponse, error)
+	// GenWrappers generates user-facing wrapper code.
+	GenWrappers(ctx context.Context, in *GenWrappersRequest, opts ...grpc.CallOption) (*GenWrappersResponse, error)
 	// SetSecret sets a secret key on the encore.dev platform.
 	SetSecret(ctx context.Context, in *SetSecretRequest, opts ...grpc.CallOption) (*SetSecretResponse, error)
 	// Version reports the daemon version.
@@ -264,6 +266,15 @@ func (c *daemonClient) GenClient(ctx context.Context, in *GenClientRequest, opts
 	return out, nil
 }
 
+func (c *daemonClient) GenWrappers(ctx context.Context, in *GenWrappersRequest, opts ...grpc.CallOption) (*GenWrappersResponse, error) {
+	out := new(GenWrappersResponse)
+	err := c.cc.Invoke(ctx, "/encore.daemon.Daemon/GenWrappers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *daemonClient) SetSecret(ctx context.Context, in *SetSecretRequest, opts ...grpc.CallOption) (*SetSecretResponse, error) {
 	out := new(SetSecretResponse)
 	err := c.cc.Invoke(ctx, "/encore.daemon.Daemon/SetSecret", in, out, opts...)
@@ -303,6 +314,8 @@ type DaemonServer interface {
 	DBReset(*DBResetRequest, Daemon_DBResetServer) error
 	// GenClient generates a client based on the app's API.
 	GenClient(context.Context, *GenClientRequest) (*GenClientResponse, error)
+	// GenWrappers generates user-facing wrapper code.
+	GenWrappers(context.Context, *GenWrappersRequest) (*GenWrappersResponse, error)
 	// SetSecret sets a secret key on the encore.dev platform.
 	SetSecret(context.Context, *SetSecretRequest) (*SetSecretResponse, error)
 	// Version reports the daemon version.
@@ -337,6 +350,9 @@ func (UnimplementedDaemonServer) DBReset(*DBResetRequest, Daemon_DBResetServer) 
 }
 func (UnimplementedDaemonServer) GenClient(context.Context, *GenClientRequest) (*GenClientResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenClient not implemented")
+}
+func (UnimplementedDaemonServer) GenWrappers(context.Context, *GenWrappersRequest) (*GenWrappersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenWrappers not implemented")
 }
 func (UnimplementedDaemonServer) SetSecret(context.Context, *SetSecretRequest) (*SetSecretResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetSecret not implemented")
@@ -519,6 +535,24 @@ func _Daemon_GenClient_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Daemon_GenWrappers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenWrappersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DaemonServer).GenWrappers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/encore.daemon.Daemon/GenWrappers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DaemonServer).GenWrappers(ctx, req.(*GenWrappersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Daemon_SetSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetSecretRequest)
 	if err := dec(in); err != nil {
@@ -569,6 +603,10 @@ var Daemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GenClient",
 			Handler:    _Daemon_GenClient_Handler,
+		},
+		{
+			MethodName: "GenWrappers",
+			Handler:    _Daemon_GenWrappers_Handler,
 		},
 		{
 			MethodName: "SetSecret",

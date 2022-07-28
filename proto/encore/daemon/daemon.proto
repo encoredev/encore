@@ -26,6 +26,8 @@ service Daemon {
 
   // GenClient generates a client based on the app's API.
   rpc GenClient (GenClientRequest) returns (GenClientResponse);
+  // GenWrappers generates user-facing wrapper code.
+  rpc GenWrappers (GenWrappersRequest) returns (GenWrappersResponse);
   // SetSecret sets a secret key on the encore.dev platform.
   rpc SetSecret (SetSecretRequest) returns (SetSecretResponse);
   // Version reports the daemon version.
@@ -153,6 +155,13 @@ message GenClientRequest {
 
 message GenClientResponse {
   bytes code = 1;
+}
+
+message GenWrappersRequest {
+  string app_root = 1;
+}
+
+message GenWrappersResponse {
 }
 
 message SetSecretRequest {

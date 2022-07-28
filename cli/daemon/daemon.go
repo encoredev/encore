@@ -29,6 +29,7 @@ import (
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
 	"encr.dev/cli/internal/version"
+	"encr.dev/compiler"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -119,6 +120,14 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	return &daemonpb.GenClientResponse{Code: code}, nil
+}
+
+// GenWrappers generates Encore wrappers.
+func (s *Server) GenWrappers(ctx context.Context, params *daemonpb.GenWrappersRequest) (*daemonpb.GenWrappersResponse, error) {
+	if err := compiler.GenUser(params.AppRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to generate wrappers: %v", err)
+	}
+	return &daemonpb.GenWrappersResponse{}, nil
 }
 
 // SetSecret sets a secret key on the encore.dev platform.
