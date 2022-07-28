@@ -7,11 +7,7 @@ import (
 
 type Experiment string
 
-const (
-	// DependencyInjection enables the dependency injection experiment,
-	// generating code to facilitate dependency injection.
-	DependencyInjection Experiment = "di"
-)
+// No experiments currently defined.
 
 // Enabled reports whether the given experiment is enabled.
 func Enabled(x Experiment) bool {
