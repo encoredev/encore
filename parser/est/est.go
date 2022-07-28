@@ -51,20 +51,22 @@ type Package struct {
 // Its name is defined by the Go package name.
 // A Service may not be a located in a child directory of another service.
 type Service struct {
-	Name      string
-	Root      *Package
-	Pkgs      []*Package
-	RPCs      []*RPC
-	APIGroups []*APIGroup
+	Name string
+	Root *Package
+	Pkgs []*Package
+	RPCs []*RPC
+
+	// Struct is the dependency injection struct, or nil if none exists.
+	Struct *ServiceStruct
 }
 
-// APIGroup describes a group of APIs with a common receiver type.
-type APIGroup struct {
+// ServiceStruct describes a dependency injection struct a particular service defines.
+type ServiceStruct struct {
 	Name string
 	Svc  *Service
 	Doc  string
 	Decl *ast.TypeSpec
-	RPCs []*RPC
+	RPCs []*RPC // RPCs defined on the service struct
 	// Init is the function for initializing this group.
 	// It is nil if there is no initialization function.
 	Init *ast.FuncDecl
@@ -180,9 +182,13 @@ type RPC struct {
 	Request     *Param // request data; nil for Raw RPCs
 	Response    *Param // response data; nil for Raw RPCs
 
+	// Receiver is the receiver type if this is a method
+	// on a ServiceStruct, or nil otherwise.
+	Receiver *Param
+
 	// APIGroup specifies the API Group this RPC belongs to,
 	// or nil if this is a package-level func.
-	APIGroup *APIGroup
+	//DI *ServiceStruct
 }
 
 type NodeType int

@@ -1,5 +1,5 @@
-parse
-stdout 'rpc svc.Str access=public .* recv=\*Service'
+! parse
+stderr 'duplicate encore:service directive'
 
 -- svc/svc.go --
 package svc
@@ -11,6 +11,9 @@ import (
 
 //encore:service
 type Service struct {}
+
+//encore:service
+type Duplicate struct {}
 
 type Params struct{}
 

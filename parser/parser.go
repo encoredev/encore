@@ -564,6 +564,15 @@ func (p *parser) validateApp() {
 			}, nil)
 		}
 	}
+
+	// Error if we have service structs without any APIs on them.
+	for _, svc := range p.svcs {
+		if ss := svc.Struct; ss != nil && len(ss.RPCs) == 0 {
+			p.errf(ss.Decl.Pos(), "cannot define encore:service type without any APIs belonging to it"+
+				"\n\tHint: define APIs on a service struct as a method receiver: func (*%s) MyEndpoint(...) error",
+				ss.Name)
+		}
+	}
 }
 
 // resolveRPCRef resolves an expression as a reference to an RPC.
@@ -624,25 +633,19 @@ func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
 	}
 
 	// Resolve the "Service" in "Service.RPC" to an API Group.
-	var apiGroup *est.APIGroup
-	{
-		svc, ok := p.svcPkgPaths[pkgPath]
-		if !ok {
-			// Not a service, so doesn't contain an API Group
-			return nil, false
-		}
-		for _, g := range svc.APIGroups {
-			if g.Name == objName {
-				apiGroup = g
-				break
-			}
-		}
-		if apiGroup == nil {
-			return nil, false
-		}
+	svc, ok := p.svcPkgPaths[pkgPath]
+	if !ok {
+		// Not a service, so doesn't contain a service struct
+		return nil, false
+	}
+	var ss *est.ServiceStruct
+	if svc.Struct != nil && svc.Struct.Name == objName {
+		ss = svc.Struct
+	} else {
+		return nil, false
 	}
 
-	for _, rpc := range apiGroup.RPCs {
+	for _, rpc := range ss.RPCs {
 		if rpc.Name == endpointName {
 			return rpc, true
 		}

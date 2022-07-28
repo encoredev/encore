@@ -142,11 +142,11 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 		}
 		return &authHandlerDirective{TokenPos: pos}, nil
 
-	case "apigroup":
+	case "service":
 		if len(fields) > 1 {
-			return nil, fmt.Errorf("unrecognized encore:apigroup directive field: %q", fields[1])
+			return nil, fmt.Errorf("unrecognized encore:service directive field: %q", fields[1])
 		}
-		return &apiGroupDirective{TokenPos: pos}, nil
+		return &serviceDirective{TokenPos: pos}, nil
 	}
 }
 
@@ -156,7 +156,7 @@ func validateDirective(d directive) error {
 		return validateRPCDirective(td)
 	case *authHandlerDirective:
 		return nil
-	case *apiGroupDirective:
+	case *serviceDirective:
 		return nil
 	default:
 		return errors.New("unexpected directive type")
@@ -203,14 +203,14 @@ type authHandlerDirective struct {
 	TokenPos token.Pos
 }
 
-// An apiGroupDirective is the parsed representation of the encore:apigroup directive.
-type apiGroupDirective struct {
+// An serviceDirective is the parsed representation of the encore:service directive.
+type serviceDirective struct {
 	TokenPos token.Pos
 }
 
 func (d *rpcDirective) Pos() token.Pos         { return d.TokenPos }
 func (d *authHandlerDirective) Pos() token.Pos { return d.TokenPos }
-func (d *apiGroupDirective) Pos() token.Pos    { return d.TokenPos }
+func (d *serviceDirective) Pos() token.Pos     { return d.TokenPos }
 func (*rpcDirective) directive()               {}
 func (*authHandlerDirective) directive()       {}
-func (*apiGroupDirective) directive()          {}
+func (*serviceDirective) directive()           {}

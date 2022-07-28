@@ -149,12 +149,15 @@ func TestMain(m *testing.M) {
 			}
 			for _, svc := range res.App.Services {
 				for _, rpc := range svc.RPCs {
-					var groupName string
-					if rpc.APIGroup != nil {
-						groupName = rpc.APIGroup.Name
+					var recvName string
+					if rpc.Receiver != nil {
+						recvName = res.App.Decls[rpc.Receiver.Type.GetNamed().Id].Name
+						if rpc.Receiver.IsPtr {
+							recvName = "*" + recvName
+						}
 					}
-					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v group=%v\n",
-						svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, groupName)
+					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v recv=%v\n",
+						svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, recvName)
 				}
 			}
 			for _, job := range res.App.CronJobs {
