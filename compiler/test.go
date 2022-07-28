@@ -36,7 +36,7 @@ func Test(ctx context.Context, appRoot string, cfg *Config) error {
 	b := &builder{
 		cfg:        cfg,
 		appRoot:    appRoot,
-		parseTests: true,
+		forTesting: true,
 	}
 	return b.Test(ctx)
 }

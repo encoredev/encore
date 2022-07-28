@@ -123,7 +123,7 @@ type builder struct {
 	// inputs
 	cfg        *Config
 	appRoot    string
-	parseTests bool
+	forTesting bool
 
 	workdir string
 	modfile *modfile.File
@@ -209,7 +209,7 @@ func (b *builder) parseApp() error {
 
 	if pc := b.cfg.Parse; pc != nil {
 		b.res = pc
-		b.codegen = codegen.NewBuilder(b.res)
+		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
 		return nil
 	}
 
@@ -219,12 +219,12 @@ func (b *builder) parseApp() error {
 		AppHasUncommittedChanges: b.cfg.UncommittedChanges,
 		ModulePath:               b.modfile.Module.Mod.Path,
 		WorkingDir:               b.cfg.WorkingDir,
-		ParseTests:               b.parseTests,
+		ParseTests:               b.forTesting,
 	}
 	b.res, err = parser.Parse(cfg)
 
 	if err == nil {
-		b.codegen = codegen.NewBuilder(b.res)
+		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
 	}
 
 	return err
