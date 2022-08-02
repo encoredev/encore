@@ -24,6 +24,7 @@ export default class Client {
     public readonly di: di.ServiceClient
     public readonly echo: echo.ServiceClient
     public readonly endtoend: endtoend.ServiceClient
+    public readonly flakey_di: flakey_di.ServiceClient
     public readonly test: test.ServiceClient
 
 
@@ -38,6 +39,7 @@ export default class Client {
         this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
+        this.flakey_di = new flakey_di.ServiceClient(base)
         this.test = new test.ServiceClient(base)
     }
 }
@@ -75,12 +77,6 @@ export namespace di {
 
         public async One(): Promise<void> {
             await this.baseClient.callAPI("POST", `/di/one`)
-        }
-
-        public async Three(): Promise<Response> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/di/three`)
-            return await resp.json() as Response
         }
 
         public async Two(): Promise<Response> {
@@ -354,6 +350,26 @@ export namespace endtoend {
 
         public async GeneratedWrappersEndToEndTest(): Promise<void> {
             await this.baseClient.callAPI("GET", `/generated-wrappers-end-to-end-test`)
+        }
+    }
+}
+
+export namespace flakey_di {
+    export interface Response {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async Flakey(): Promise<Response> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/di/flakey`)
+            return await resp.json() as Response
         }
     }
 }

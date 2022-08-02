@@ -389,12 +389,12 @@ func TestEndToEndWithApp(t *testing.T) {
 				req := httptest.NewRequest("GET", "/di/two", nil)
 				run.ServeHTTP(w, req)
 				c.Assert(w.Code, qt.Equals, 200)
-				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]string{"Msg": "simple"})
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]string{"Msg": "Hello World"})
 			}
 
 			{
 				w := httptest.NewRecorder()
-				req := httptest.NewRequest("GET", "/di/three", nil)
+				req := httptest.NewRequest("GET", "/di/flakey", nil)
 				run.ServeHTTP(w, req)
 				c.Assert(w.Code, qt.Equals, 500)
 				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
@@ -406,10 +406,10 @@ func TestEndToEndWithApp(t *testing.T) {
 
 			{
 				w := httptest.NewRecorder()
-				req := httptest.NewRequest("GET", "/di/three", nil)
+				req := httptest.NewRequest("GET", "/di/flakey", nil)
 				run.ServeHTTP(w, req)
 				c.Assert(w.Code, qt.Equals, 200)
-				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Msg": "complex"})
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Msg": "Hello, Flakey World"})
 			}
 		})
 	})
@@ -426,12 +426,10 @@ func TestEndToEndWithApp(t *testing.T) {
 
 	c.Run("go_generated_client", func(c *qt.C) {
 		cmd := exec.Command("go", "run", ".", ln.Addr().String())
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
 		cmd.Dir = filepath.Join("testdata", "echo_client")
 
-		c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated Go client"))
+		out, err := cmd.CombinedOutput()
+		c.Assert(err, qt.IsNil, qt.Commentf("Got error running generated Go client: %s", out))
 	})
 
 	c.Run("typescript_generated_client", func(c *qt.C) {
@@ -443,12 +441,10 @@ func TestEndToEndWithApp(t *testing.T) {
 
 		for _, args := range npmCommandsToRun {
 			cmd := exec.Command("npm", args...)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
 			cmd.Dir = filepath.Join("testdata", "echo_client")
 
-			c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated Typescript client"))
+			out, err := cmd.CombinedOutput()
+			c.Assert(err, qt.IsNil, qt.Commentf("Got error running generated Typescript client: %s", out))
 		}
 	})
 }
