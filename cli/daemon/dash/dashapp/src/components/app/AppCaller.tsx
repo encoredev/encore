@@ -3,7 +3,7 @@ import {APIMeta, RPC, Service} from '~c/api/api'
 import RPCCaller from '~c/api/RPCCaller'
 import {ProcessReload, ProcessStart} from '~lib/client/client'
 import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
-import Combobox from "~c/Combobox";
+import Combobox, {ComboboxOptionsItem} from "~c/Combobox";
 
 interface API {
   svc: Service;
@@ -72,9 +72,11 @@ const AppCaller: FC<{appID: string; conn: JSONRPCConn}> = ({appID, conn}) => {
     <div className="bg-white p-4">
       <Combobox
         label="API Endpoint"
-        selectedValue={state.selected!.name}
-        options={state.list!}
-        onChange={(e) => dispatch({ type: "select", name: e.target.value })}
+        selectedItem={state.selected!}
+        items={state.list!}
+        onChange={(item: ComboboxOptionsItem) =>
+          dispatch({ type: "select", name: item.name })
+        }
       />
       <div className="mt-3">
         <RPCCaller conn={conn} appID={appID} md={state.md} svc={state.selected.svc} rpc={state.selected.rpc} addr={addr} />
