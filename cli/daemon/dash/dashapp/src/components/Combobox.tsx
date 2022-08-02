@@ -1,4 +1,5 @@
 import React, { FC, FocusEvent, useEffect, useRef, useState } from "react";
+import fuzzysort from "fuzzysort";
 import { Combobox as HeadlessCombobox } from "@headlessui/react";
 import * as icons from "~c/icons";
 
@@ -16,7 +17,7 @@ interface Props {
   onChange: (selected: ComboboxOptionsItem) => void;
 }
 
-const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
+  const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState<string>("");
 
@@ -32,12 +33,11 @@ const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
     };
   }, [wrapperRef]);
 
-  const filteredItems =
-    query === ""
-      ? items
-      : items.filter((item) => {
-          return item.name.toLowerCase().includes(query.toLowerCase());
-        });
+  const filteredItems = fuzzysort.go(query, items, {
+    key: "name",
+    all: true,
+    threshold: -200,
+  });
 
   return (
     <HeadlessCombobox
@@ -69,10 +69,10 @@ const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
                 static
                 className="focus:outline-none absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 sm:text-sm"
               >
-                {filteredItems.map((item) => (
+                {filteredItems.map((filteredItem) => (
                   <HeadlessCombobox.Option
-                    key={item.name}
-                    value={item}
+                    key={filteredItem.obj.name}
+                    value={filteredItem.obj}
                     className={({ active }) =>
                       classNames(
                         "relative cursor-default select-none py-2 pl-3 pr-9",
@@ -88,7 +88,11 @@ const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
                             selected && "font-semibold"
                           )}
                         >
-                          {item.name}
+                          {query &&
+                            fuzzysort.highlight(filteredItem, (m, i) => (
+                              <b key={i}>{m}</b>
+                            ))}
+                          {!query && filteredItem.obj.name}
                         </span>
 
                         {selected && (
