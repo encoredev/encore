@@ -193,6 +193,7 @@ func checkAuthData(authDataType reflect.Type, uid model.UID, userData interface{
 
 	return nil
 }
+
 func (s *Server) beginCall(defLoc int32) (*model.APICall, error) {
 	spanID, err := model.GenSpanID()
 	if err != nil {
