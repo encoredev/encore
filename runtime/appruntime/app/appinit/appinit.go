@@ -13,7 +13,7 @@ import (
 
 // AppMain is the entrypoint to the Encore Application.
 func AppMain() {
-	if err := singleton.Run(); err != nil {
+	if err := singleton.Run(); err != nil && err != io.EOF {
 		singleton.RootLogger().Fatal().Err(err).Msg("could not run")
 	}
 }
