@@ -96,13 +96,20 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 			opts := p.parseStructTag(field.Tag, st, field.Names[0].Name, typ)
 
 			// Validate the names to make sure we don't have any name collisions
-			if js := opts.JSONName; js != "" {
+			switch js := opts.JSONName; true {
+			case js == "-":
+				// Ignore
+
+			case js != "":
+				// Check JSON names
 				if len(field.Names) > 1 {
 					pp := p.fset.Position(field.Names[0].Pos())
 					p.errf(field.Names[1].Pos(), "json field name %s conflicts with previous field (defined at %s)", js, pp)
 				}
 				checkName(field.Tag.Pos(), js, "json")
-			} else {
+
+			case js == "":
+				// Check field names
 				for _, name := range field.Names {
 					checkName(name.Pos(), name.Name, "field")
 				}
