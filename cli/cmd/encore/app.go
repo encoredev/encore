@@ -27,6 +27,7 @@ import (
 	"github.com/tailscale/hujson"
 
 	"encr.dev/cli/internal/conf"
+	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/platform"
 )
 
@@ -249,11 +250,10 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
-		err := gogetEncore(name)
-		s.Stop()
-		if err != nil {
-			return fmt.Errorf("go get encore.dev@latest: %v", err)
+		if err := gogetEncore(name); err != nil {
+			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
+		s.Stop()
 	}
 
 	if err := initGitRepo(name, app); err != nil {
@@ -317,7 +317,10 @@ type appConf struct {
 }
 
 func gogetEncore(name string) error {
-	cmd := exec.Command("go", "get", "encore.dev@latest")
+	// Use the 'go' binary from the Encore GOROOT in case the user
+	// does not have Go installed separately from Encore.
+	goPath := filepath.Join(env.EncoreGoRoot(), "bin", "go")
+	cmd := exec.Command(goPath, "get", "encore.dev@latest")
 	cmd.Dir = name
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.New(string(out))
