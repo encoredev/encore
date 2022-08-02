@@ -18,7 +18,7 @@ const AppHome: FunctionComponent = (props) => {
           <div className="md:flex md:items-stretch">
             <div className="flex-1 min-w-0 md:mr-8">
               <h2 className="px-2 text-lg font-medium">API Explorer</h2>
-              <div className="mt-2 rounded-lg overflow-hidden">
+              <div className="mt-2 rounded-lg">
                 <AppCaller key={appID} appID={appID} conn={conn} />
               </div>
             </div>
