@@ -33,7 +33,8 @@ type Request struct {
 	Endpoint     string
 	Path         string
 	PathSegments httprouter.Params
-	Inputs       [][]byte // TODO figure out if this makes sense
+	Payload      any
+	Inputs       [][]byte
 	Start        time.Time
 	Logger       *zerolog.Logger
 	Traced       bool

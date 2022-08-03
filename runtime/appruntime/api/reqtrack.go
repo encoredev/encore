@@ -26,9 +26,10 @@ type beginRequestParams struct {
 	Type         model.RequestType
 	Service      string
 	Endpoint     string
-	Inputs       [][]byte
 	Path         string
 	PathSegments httprouter.Params
+	Payload      any
+	Inputs       [][]byte
 	UID          model.UID
 	AuthData     any
 	DefLoc       int32
@@ -55,6 +56,8 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		Endpoint:     p.Endpoint,
 		Path:         p.Path,
 		PathSegments: p.PathSegments,
+		Payload:      p.Payload,
+		Inputs:       p.Inputs,
 		DefLoc:       p.DefLoc,
 		Start:        time.Now(),
 		UID:          p.UID,

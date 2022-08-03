@@ -21,6 +21,7 @@ type Request struct {
 	Endpoint   string     // Which API endpoint was called.
 	Path       string     // What was the path made to the API server.
 	PathParams PathParams // If there are path parameters, what are they?
+	Payload    any
 }
 
 // RequestType describes how the currently running code was triggered
@@ -84,5 +85,6 @@ func (mgr *Manager) CurrentRequest() *Request {
 		Started:    req.Start,
 		Path:       req.Path,
 		PathParams: pathParams,
+		Payload:    req.Payload,
 	}
 }
