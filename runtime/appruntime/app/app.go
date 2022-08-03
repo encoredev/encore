@@ -43,7 +43,7 @@ func (app *App) RootLogger() *zerolog.Logger        { return &app.rootLogger }
 
 type NewParams struct {
 	Cfg         *config.Config
-	APIHandlers []api.Handler
+	APIHandlers []api.HandlerRegistration
 	AuthHandler api.AuthHandler // nil means no auth handler
 }
 
@@ -56,14 +56,14 @@ func New(p *NewParams) *App {
 	rt := reqtrack.New(rootLogger, pc, doTrace)
 	json := jsonAPI(cfg)
 	shutdown := newShutdownTracker()
+	encore := encore.NewManager(cfg, rt)
 
-	apiSrv := api.NewServer(cfg, rt, pc, rootLogger, json)
+	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, json)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
 	service := service.NewManager(rt)
 
 	ts := testsupport.NewManager(cfg, rt, rootLogger)
-	encore := encore.NewManager(cfg, rt)
 	auth := auth.NewManager(rt)
 	rlog := rlog.NewManager(rt)
 	sqldb := sqldb.NewManager(cfg, rt)

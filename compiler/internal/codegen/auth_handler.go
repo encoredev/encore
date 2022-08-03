@@ -33,11 +33,11 @@ type authHandlerBuilder struct {
 func (b *authHandlerBuilder) Write() {
 	decodeAuth := b.renderDecodeAuth()
 	authHandler := b.renderAuthHandler()
-	paramsType := b.renderStructDesc(b.AuthTypeName(), b.paramsType, true)
+	paramDesc := b.renderStructDesc(b.AuthTypeName(), b.paramsType, true, b.ah.AuthData)
 
 	defLoc := int(b.res.Nodes[b.svc.Root][b.ah.Func].Id)
 	handler := Var().Id(b.authHandlerName(b.ah)).Op("=").Op("&").Qual("encore.dev/appruntime/api", "AuthHandlerDesc").Types(
-		Op("*").Id(b.AuthTypeName()),
+		Id(b.AuthTypeName()),
 	).Custom(Options{
 		Open:      "{",
 		Close:     "}",
@@ -50,12 +50,16 @@ func (b *authHandlerBuilder) Write() {
 		Id("HasAuthData").Op(":").Lit(b.ah.AuthData != nil),
 		Id("DecodeAuth").Op(":").Add(decodeAuth),
 		Id("AuthHandler").Op(":").Add(authHandler),
+		Id("SerializeParams").Op(":").Add(paramDesc.Serialize),
 	)
 
-	for _, c := range paramsType {
-		b.f.Add(c)
+	for _, part := range [...]Code{
+		paramDesc.TypeDecl,
+		handler,
+	} {
+		b.f.Add(part)
+		b.f.Line()
 	}
-	b.f.Add(handler)
 }
 
 func (b *Builder) authHandlerName(ah *est.AuthHandler) string {

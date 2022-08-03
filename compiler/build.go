@@ -169,7 +169,7 @@ func (b *builder) Build() (res *Result, err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
-		b.writeSvcHandlers,
+		b.writeHandlers,
 		b.writeMainPkg,
 		b.writeEtypePkg,
 		b.endCodeGenTracker,

@@ -40,6 +40,8 @@ func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 	f = NewFile("main")
 	b.registerImports(f)
 
+	mwNames, mwCode := b.RenderMiddlewares("")
+
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
@@ -55,18 +57,7 @@ func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 			Id("Testing"):      False(),
 			Id("TestService"):  Lit(""),
 		})
-		g.Id("handlers").Op(":=").Index().Qual("encore.dev/appruntime/api", "Handler").CustomFunc(Options{
-			Open:      "{",
-			Close:     "}",
-			Separator: ",",
-			Multi:     true,
-		}, func(g *Group) {
-			for _, svc := range b.res.App.Services {
-				for _, rpc := range svc.RPCs {
-					g.Add(Qual(svc.Root.ImportPath, b.rpcHandlerName(rpc)))
-				}
-			}
-		})
+		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
 
 		authHandlerExpr := Nil()
 		if ah := b.res.App.AuthHandler; ah != nil {
@@ -84,6 +75,11 @@ func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 	f.Func().Id("main").Params().Block(
 		Qual("encore.dev/appruntime/app/appinit", "AppMain").Call(),
 	)
+
+	for _, c := range mwCode {
+		f.Line()
+		f.Add(c)
+	}
 
 	return f, b.errors.Err()
 }
@@ -107,6 +103,42 @@ func (b *Builder) computeStaticPubsubConfig() Code {
 		})
 	}
 	return Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubTopic").Values(pubsubTopicDict)
+}
+
+func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*Statement) *Statement {
+	return Index().Qual("encore.dev/appruntime/api", "HandlerRegistration").CustomFunc(Options{
+		Open:      "{",
+		Close:     "}",
+		Separator: ",",
+		Multi:     true,
+	}, func(g *Group) {
+		var globalMW []*est.Middleware
+		for _, mw := range b.res.App.Middleware {
+			if mw.Global {
+				globalMW = append(globalMW, mw)
+			}
+		}
+
+		for _, svc := range b.res.App.Services {
+			for _, rpc := range svc.RPCs {
+				// Compute middleware for this service.
+				rpcMW := b.res.App.MatchingMiddleware(rpc)
+				mwExpr := Nil()
+				if len(rpcMW) > 0 {
+					mwExpr = Index().Op("*").Qual("encore.dev/appruntime/api", "Middleware").ValuesFunc(func(g *Group) {
+						for _, mw := range rpcMW {
+							g.Add(mwNames[mw])
+						}
+					})
+				}
+
+				g.Values(Dict{
+					Id("Handler"):    Qual(svc.Root.ImportPath, b.rpcHandlerName(rpc)),
+					Id("Middleware"): mwExpr,
+				})
+			}
+		}
+	})
 }
 
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {

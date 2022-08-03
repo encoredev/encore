@@ -89,7 +89,7 @@ func TestDesc_EndToEnd(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/", strings.NewReader(wantBody))
 	ps := httprouter.Params{{Key: "key", Value: "value"}}
-	desc.Handle(server.NewContext(w, req, ps, model.AuthInfo{}))
+	desc.Handle(server.NewIncomingContext(w, req, ps, model.AuthInfo{}))
 	if w.Code != 200 {
 		t.Errorf("got code %d, want 200", w.Code)
 	}
@@ -133,7 +133,7 @@ func TestDesc_Unauthenticated(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/", nil)
 	ps := httprouter.Params{{Key: "key", Value: "value"}}
-	desc.Handle(server.NewContext(w, req, ps, model.AuthInfo{}))
+	desc.Handle(server.NewIncomingContext(w, req, ps, model.AuthInfo{}))
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("got code %d, want %d", w.Code, http.StatusUnauthorized)
 	}

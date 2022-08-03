@@ -4,6 +4,7 @@ package appinit
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"encore.dev/appruntime/api"
@@ -27,7 +28,7 @@ func load() *LoadData
 
 type LoadData struct {
 	StaticCfg   *config.Static
-	APIHandlers []api.Handler
+	APIHandlers []api.HandlerRegistration
 	AuthHandler api.AuthHandler
 }
 

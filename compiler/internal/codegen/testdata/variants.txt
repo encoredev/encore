@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"encore.dev/beta/auth"
-	"encore.dev/rlog"
 	"encore.dev/cron"
+	"encore.dev/middleware"
+	"encore.dev/rlog"
 	"encore.dev/types/uuid"
 )
 
@@ -138,7 +139,12 @@ type Service struct{}
 
 func InitService() (*Service, error) { return nil, nil }
 
-//encore:api public path=/di method=GET
+//encore:api public path=/di method=GET tag:di
 func (s *Service) DI(ctx context.Context) error {
     return nil
+}
+
+//encore:middleware target=tag:di
+func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
 }

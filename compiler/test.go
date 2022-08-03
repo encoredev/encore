@@ -63,7 +63,7 @@ func (b *builder) Test(ctx context.Context) (err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
-		b.writeSvcHandlers,
+		b.writeHandlers,
 		b.writeTestMains,
 		b.writeEtypePkg,
 	} {

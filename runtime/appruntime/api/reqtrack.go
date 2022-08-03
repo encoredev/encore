@@ -39,12 +39,12 @@ type beginRequestParams struct {
 	SpanID model.SpanID
 }
 
-func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error {
+func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
 	spanID := p.SpanID
 	if spanID == (model.SpanID{}) {
 		id, err := model.GenSpanID()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		spanID = id
 	}
@@ -88,7 +88,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		if a := opts.Auth; a != nil {
 			authDataType := s.cfg.Static.AuthData
 			if err := checkAuthData(authDataType, a.UID, a.UserData); err != nil {
-				return err
+				return nil, err
 			}
 			req.UID = a.UID
 			req.AuthData = a.UserData
@@ -107,7 +107,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		req.Logger.Info().Msg("starting request")
 	}
 
-	return nil
+	return req, nil
 }
 
 func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {

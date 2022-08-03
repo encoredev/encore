@@ -105,8 +105,8 @@ type rpcBuilder struct {
 func (b *rpcBuilder) Write(f *File) {
 	decodeReq := b.renderDecodeReq()
 	encodeResp := b.renderEncodeResp()
-	reqType := b.renderRequestStructDesc(b.ReqTypeName(), b.reqType)
-	respType := b.renderStructDesc(b.RespTypeName(), b.respType, true)
+	reqDesc := b.renderRequestStructDesc(b.ReqTypeName(), b.reqType)
+	respDesc := b.renderResponseStructDesc(b.RespTypeName())
 
 	rpc := b.rpc
 
@@ -147,8 +147,8 @@ func (b *rpcBuilder) Write(f *File) {
 
 	defLoc := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
 	handler := Var().Id(b.rpcHandlerName(rpc)).Op("=").Op("&").Qual("encore.dev/appruntime/api", "Desc").Types(
-		Op("*").Id(b.ReqTypeName()),
-		Op("*").Id(b.RespTypeName()),
+		Id(b.ReqTypeName()),
+		Id(b.RespTypeName()),
 	).Custom(Options{
 		Open:      "{",
 		Close:     "}",
@@ -162,19 +162,28 @@ func (b *rpcBuilder) Write(f *File) {
 		Id("Path").Op(":").Lit(rpc.Path.String()),
 		Id("DefLoc").Op(":").Lit(defLoc),
 		Id("Access").Op(":").Add(access),
+
 		Id("DecodeReq").Op(":").Add(decodeReq),
+		Id("CloneReq").Op(":").Add(reqDesc.Clone),
+		Id("SerializeReq").Op(":").Add(reqDesc.Serialize),
+		Id("ReqPath").Op(":").Add(reqDesc.Path),
+		Id("ReqUserPayload").Op(":").Add(reqDesc.UserPayload),
+
 		Id("AppHandler").Op(":").Add(b.AppHandlerFunc()),
-		Id("EncodeResp").Op(":").Add(encodeResp),
 		Id("RawHandler").Op(":").Add(rawHandler),
+		Id("EncodeResp").Op(":").Add(encodeResp),
+		Id("SerializeResp").Op(":").Add(respDesc.Serialize),
+		Id("CloneResp").Op(":").Add(respDesc.Clone),
 	)
 
-	for _, c := range reqType {
-		f.Add(c)
+	for _, part := range [...]Code{
+		reqDesc.TypeDecl,
+		respDesc.TypeDecl,
+		handler,
+	} {
+		f.Add(part)
+		f.Line()
 	}
-	for _, c := range respType {
-		f.Add(c)
-	}
-	f.Add(handler)
 
 	if !rpc.Raw {
 		caller := b.renderCaller()
@@ -391,14 +400,11 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 		})
 		g.If(Err().Op("!=").Nil()).Block(Return(Nil(), Err()))
 
-		g.Return(
-			Op("&").Id(b.RespTypeName()).ValuesFunc(func(g *Group) {
-				if rpc.Response != nil {
-					g.Id("resp")
-				}
-			}),
-			Nil(),
-		)
+		if rpc.Response != nil {
+			g.Return(Id("resp"), Nil())
+		} else {
+			g.Return(Op("&").Id(b.RespTypeName()).Values(), Nil())
+		}
 	})
 }
 
@@ -410,13 +416,12 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 	return Func().Params(
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
-		Id("out").Op("*").Id(b.RespTypeName()),
+		Id("resp").Op("*").Id(b.RespTypeName()),
 	).Params(Err().Error()).BlockFunc(func(g *Group) {
 		if b.rpc.Response == nil {
 			g.Return(Nil())
 			return
 		}
-		b.respType.AddField(payload, "Data", b.namedType(b.f, b.rpc.Response), schema.Builtin_ANY)
 
 		resp, err := encoding.DescribeResponse(b.res.Meta, b.rpc.Response.Type, nil)
 		if err != nil {
@@ -438,7 +443,7 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 				g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/appruntime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/appruntime/serde", "JSONSerializer")).BlockFunc(
 					func(g *Group) {
 						for _, f := range resp.BodyParameters {
-							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("out").Dot("Data").Dot(f.SrcName), Lit(f.OmitEmpty)))
+							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
 						}
 					}))
 				g.If(Err().Op("!=").Nil()).Block(
@@ -453,7 +458,7 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 				headerEncoder.Add(Id("headers").Op("=").Map(String()).Index().String().ValuesFunc(
 					func(g *Group) {
 						for _, f := range resp.HeaderParameters {
-							headerSlice, err := headerEncoder.ToStringSlice(f.Type, Id("out").Dot("Data").Dot(f.SrcName))
+							headerSlice, err := headerEncoder.ToStringSlice(f.Type, Id("resp").Dot(f.SrcName))
 							if err != nil {
 								b.errors.Addf(b.rpc.Func.Pos(), "failed to generate header serializers: %v", err.Error())
 							}
@@ -468,7 +473,7 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 
 		// If response is a ptr we need to check it's not nil
 		if b.rpc.Response.IsPtr {
-			g.If(Id("out").Dot("Data").Op("!=").Nil()).Block(responseEncoder)
+			g.If(Id("resp").Op("!=").Nil()).Block(responseEncoder)
 		} else {
 			g.Add(responseEncoder)
 		}
@@ -494,11 +499,18 @@ func (b *rpcBuilder) RespTypeName() string {
 	return fmt.Sprintf("EncoreInternal_%sResp", b.rpc.Name)
 }
 
-func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) []Code {
-	codes := b.renderStructDesc(typName, desc, false)
+type requestCodegen struct {
+	structCodegen
+	Path        *Statement
+	UserPayload *Statement
+}
+
+func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) requestCodegen {
+	var result requestCodegen
+	result.structCodegen = b.renderStructDesc(typName, desc, false, b.rpc.Request)
 	recv := desc.recvName
 
-	pathParamsFn := Func().Params(Id(recv).Op("*").Id(typName)).Id("Path").Params().Params(
+	result.Path = Func().Params(Id(recv).Op("*").Id(typName)).Params(
 		String(),
 		Qual("encore.dev/appruntime/api", "PathParams"),
 		Error(),
@@ -560,56 +572,115 @@ func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) [
 		})
 		g.Return(pathExpr, Id("params"), Nil())
 	})
-	codes = append(codes, pathParamsFn)
-	return codes
+
+	result.UserPayload = Func().Params(Id(recv).Op("*").Id(typName)).Params(Any()).BlockFunc(func(g *Group) {
+		for _, f := range desc.fields {
+			if f.kind == payload {
+				g.Return(Id(recv).Dot(f.fieldName))
+				return
+			}
+		}
+		g.Return(Nil())
+	})
+
+	return result
 }
 
-func (b *Builder) renderStructDesc(typName string, desc *structDesc, allowVoidAlias bool) []Code {
-	if len(desc.fields) == 0 && allowVoidAlias {
-		return []Code{Type().Id(typName).Op("=").Qual("encore.dev/appruntime/api", "Void")}
+type structCodegen struct {
+	TypeDecl  *Statement
+	Serialize *Statement
+	Clone     *Statement
+}
+
+func (b *Builder) renderStructDesc(typName string, desc *structDesc, allowAlias bool, payloadType *est.Param) structCodegen {
+	if len(desc.fields) == 0 && allowAlias {
+		return structCodegen{
+			TypeDecl:  Type().Id(typName).Op("=").Qual("encore.dev/appruntime/api", "Void"),
+			Serialize: Qual("encore.dev/appruntime/api", "SerializeVoid"),
+			Clone:     Qual("encore.dev/appruntime/api", "CloneVoid"),
+		}
 	}
 
+	var result structCodegen
 	recv := desc.recvName
 
-	codes := []Code{
-		Type().Id(typName).StructFunc(func(g *Group) {
+	if len(desc.fields) == 1 && desc.fields[0].kind == payload && allowAlias {
+		result.TypeDecl = Type().Id(typName).Op("=").Add(b.typeName(payloadType, true))
+	} else {
+		result.TypeDecl = Type().Id(typName).StructFunc(func(g *Group) {
 			for _, f := range desc.fields {
 				g.Id(f.fieldName).Add(f.goType.Clone())
 			}
-		}),
-		Func().Params(Id(recv).Op("*").Id(typName)).Id("Serialize").Params(Id("json").Qual("github.com/json-iterator/go", "API")).Params(Index().Index().Byte(), Error()).BlockFunc(func(g *Group) {
-			if len(desc.fields) == 0 {
-				g.Return(Nil(), Nil())
-				return
-			}
-
-			g.Id("data").Op(":=").Make(Index().Index().Byte(), Lit(len(desc.fields)))
-
-			g.For(List(Id("i"), Id("val")).Op(":=").Range().Index(Op("...")).Any().ValuesFunc(func(g *Group) {
-				for _, f := range desc.fields {
-					g.Id(recv).Dot(f.fieldName)
-				}
-			})).Block(
-				List(Id("v"), Err()).Op(":=").Id("json").Dot("Marshal").Call(Id("val")),
-				If(Err().Op("!=").Nil()).Block(Return(Nil(), Err())),
-				Id("data").Index(Id("i")).Op("=").Id("v"),
-			)
-
-			g.Return(Id("data"), Nil())
-		}),
-		Func().Params(Id(recv).Op("*").Id(typName)).Id("Clone").Params().Params(Op("*").Id(typName), Error()).BlockFunc(func(g *Group) {
-			// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
-			// in the struct. For now, simply serialize it as JSON and back.
-			g.Var().Id("clone").Id(typName)
-			g.List(Id("bytes"), Id("err")).Op(":=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Marshal").Call(Id(recv))
-			g.If(Err().Op("==").Nil()).Block(
-				Err().Op("=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
-			)
-			g.Return(Op("&").Id("clone"), Err())
-		}),
+		})
 	}
 
-	return codes
+	result.Serialize = Func().Params(Id("json").Qual("github.com/json-iterator/go", "API"), Id(recv).Op("*").Id(typName)).Params(Index().Index().Byte(), Error()).BlockFunc(func(g *Group) {
+		if len(desc.fields) == 0 {
+			g.Return(Nil(), Nil())
+			return
+		}
+
+		g.Id("data").Op(":=").Make(Index().Index().Byte(), Lit(len(desc.fields)))
+
+		g.For(List(Id("i"), Id("val")).Op(":=").Range().Index(Op("...")).Any().ValuesFunc(func(g *Group) {
+			for _, f := range desc.fields {
+				g.Id(recv).Dot(f.fieldName)
+			}
+		})).Block(
+			List(Id("v"), Err()).Op(":=").Id("json").Dot("Marshal").Call(Id("val")),
+			If(Err().Op("!=").Nil()).Block(Return(Nil(), Err())),
+			Id("data").Index(Id("i")).Op("=").Id("v"),
+		)
+
+		g.Return(Id("data"), Nil())
+	})
+
+	result.Clone = Func().Params(Id(recv).Op("*").Id(typName)).Params(Op("*").Id(typName), Error()).BlockFunc(func(g *Group) {
+		// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
+		// in the struct. For now, simply serialize it as JSON and back.
+		g.Var().Id("clone").Id(typName)
+		g.List(Id("bytes"), Id("err")).Op(":=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Marshal").Call(Id(recv))
+		g.If(Err().Op("==").Nil()).Block(
+			Err().Op("=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
+		)
+		g.Return(Op("&").Id("clone"), Err())
+	})
+
+	return result
+}
+
+func (b *rpcBuilder) renderResponseStructDesc(typName string) structCodegen {
+	rpc := b.rpc
+	if rpc.Response == nil {
+		return structCodegen{
+			TypeDecl:  Type().Id(typName).Op("=").Qual("encore.dev/appruntime/api", "Void"),
+			Serialize: Qual("encore.dev/appruntime/api", "SerializeVoid"),
+			Clone:     Qual("encore.dev/appruntime/api", "CloneVoid"),
+		}
+	}
+
+	var result structCodegen
+
+	result.TypeDecl = Type().Id(typName).Op("=").Add(b.typeName(rpc.Response, true))
+
+	result.Serialize = Func().Params(Id("json").Qual("github.com/json-iterator/go", "API"), Id("resp").Op("*").Id(typName)).Params(Index().Index().Byte(), Error()).BlockFunc(func(g *Group) {
+		g.List(Id("v"), Err()).Op(":=").Id("json").Dot("Marshal").Call(Id("resp"))
+		g.If(Err().Op("!=").Nil()).Block(Return(Nil(), Err()))
+		g.Return(Index().Index().Byte().Values(Id("v")), Nil())
+	})
+
+	result.Clone = Func().Params(Id("resp").Op("*").Id(typName)).Params(Op("*").Id(typName), Error()).BlockFunc(func(g *Group) {
+		// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
+		// in the struct. For now, simply serialize it as JSON and back.
+		g.Var().Id("clone").Id(typName)
+		g.List(Id("bytes"), Id("err")).Op(":=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Marshal").Call(Id("resp"))
+		g.If(Err().Op("==").Nil()).Block(
+			Err().Op("=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
+		)
+		g.Return(Op("&").Id("clone"), Err())
+	})
+
+	return result
 }
 
 func (b *Builder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *gocodegen.MarshallingCodeWrapper, params []*encoding.ParameterEncoding) {
@@ -715,7 +786,7 @@ func (b *rpcBuilder) renderCaller() *Statement {
 			}
 		})
 		if rpc.Response != nil {
-			g.Return(Id("resp").Dot("Data"), Nil())
+			g.Return(Id("resp"), Nil())
 		} else {
 			g.Return(Nil())
 		}
