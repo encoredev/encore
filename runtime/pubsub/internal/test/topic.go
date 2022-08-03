@@ -81,7 +81,7 @@ func (t *TestTopic[T]) PublishMessage(ctx context.Context, attrs map[string]stri
 }
 
 // Subscribe will register a new subscriber for the pub sub topic. By default these will not be called during tests
-func (t *TestTopic[T]) Subscribe(_ *zerolog.Logger, _ *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *TestTopic[T]) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	t.m.Lock()
 	defer t.m.Unlock()
 	t.subscribers[implCfg.EncoreName] = f
