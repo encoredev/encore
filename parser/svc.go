@@ -399,7 +399,7 @@ func (p *parser) resolveServiceStruct(parameterType string, svc *est.Service, fd
 		p.errf(recvType.Pos(), "%s receiver must refer to named type, not %T", parameterType, typ.Type.Typ)
 		return nil
 	} else if !typ.IsPtr {
-		p.errf(recvType.Pos(), "%s must be defined as a pointer receiver", parameterType, typ.Type.Typ)
+		p.errf(recvType.Pos(), "%s must be defined as a pointer receiver", parameterType)
 		return nil
 	}
 	recvName := p.decls[named.Id].Name

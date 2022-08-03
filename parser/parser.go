@@ -357,6 +357,16 @@ func (p *parser) parseReferences() {
 						}
 					}
 
+					// Are we referencing a service struct from another service?
+					if pkg2.Service != nil && pkg.Service != nil && pkg2.Service != pkg.Service &&
+						pkg2.Service.Struct != nil && obj == pkg2.Service.Struct.Name {
+						if !strings.HasSuffix(file.Name, "_test.go") {
+							p.errf(node.Pos(), "cannot reference encore:service struct type %s.%s from another service",
+								pkg2.Name, obj)
+							return false
+						}
+					}
+
 					if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && obj == h.Name {
 						p.errf(node.Pos(), "cannot reference auth handler %s.%s from another package", h.Svc.Root.RelPath, obj)
 						return false
@@ -539,7 +549,7 @@ func (p *parser) validateApp() {
 			if !strings.HasSuffix(f.Name, "_test.go") {
 				for _, imp := range f.AST.Imports {
 					if strings.Contains(imp.Path.Value, testImportPath) {
-						p.err(imp.Pos(), "Encores test packages can only be used inside tests and cannot otherwise be imported.")
+						p.err(imp.Pos(), "Encore's test packages can only be used inside tests and cannot otherwise be imported.")
 					}
 				}
 			}
@@ -676,7 +686,7 @@ func (p *parser) validateMiddleware() {
 		} else if !mw.Global && mw.Pkg.Service == nil {
 			p.errf(mw.Func.Pos(), "cannot define non-global middleware outside of a service\n"+
 				"\tNote: package %s is not a service. To define a global middleware,\n"+
-				"\tspecify //encore:middleware global")
+				"\tspecify //encore:middleware global", mw.Pkg.Name)
 		}
 
 		// Make sure the middleware is targeting tags that actually exist

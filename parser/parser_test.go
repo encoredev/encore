@@ -150,11 +150,8 @@ func TestMain(m *testing.M) {
 			for _, svc := range res.App.Services {
 				for _, rpc := range svc.RPCs {
 					var recvName string
-					if rpc.Receiver != nil {
-						recvName = res.App.Decls[rpc.Receiver.Type.GetNamed().Id].Name
-						if rpc.Receiver.IsPtr {
-							recvName = "*" + recvName
-						}
+					if rpc.SvcStruct != nil {
+						recvName = "*" + rpc.SvcStruct.Name
 					}
 					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v recv=%v\n",
 						svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, recvName)
