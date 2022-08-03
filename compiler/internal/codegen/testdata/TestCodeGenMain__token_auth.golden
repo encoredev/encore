@@ -68,7 +68,7 @@ type EncoreInternal_EightReq struct {
 
 type EncoreInternal_EightResp = Response
 
-var EncoreInternal_EightHandler = &api.Desc[EncoreInternal_EightReq, EncoreInternal_EightResp]{
+var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, EncoreInternal_EightResp]{
 	Service:  "svc",
 	Endpoint: "Eight",
 	Methods:  []string{"POST"},

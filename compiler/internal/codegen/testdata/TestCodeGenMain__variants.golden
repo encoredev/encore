@@ -136,7 +136,7 @@ type EncoreInternal_CronOneReq struct{}
 
 type EncoreInternal_CronOneResp = api.Void
 
-var EncoreInternal_CronOneHandler = &api.Desc[EncoreInternal_CronOneReq, EncoreInternal_CronOneResp]{
+var EncoreInternal_CronOneHandler = &api.Desc[*EncoreInternal_CronOneReq, EncoreInternal_CronOneResp]{
 	Service:  "svc",
 	Endpoint: "CronOne",
 	Methods:  []string{"GET", "POST"},
@@ -195,7 +195,7 @@ type EncoreInternal_DIReq struct{}
 
 type EncoreInternal_DIResp = api.Void
 
-var EncoreInternal_DIHandler = &api.Desc[EncoreInternal_DIReq, EncoreInternal_DIResp]{
+var EncoreInternal_DIHandler = &api.Desc[*EncoreInternal_DIReq, EncoreInternal_DIResp]{
 	Service:  "svc",
 	Endpoint: "DI",
 	Methods:  []string{"GET"},
@@ -261,7 +261,7 @@ type EncoreInternal_EightReq struct {
 
 type EncoreInternal_EightResp = Response
 
-var EncoreInternal_EightHandler = &api.Desc[EncoreInternal_EightReq, EncoreInternal_EightResp]{
+var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, EncoreInternal_EightResp]{
 	Service:  "svc",
 	Endpoint: "Eight",
 	Methods:  []string{"GET", "POST"},
@@ -390,7 +390,7 @@ type EncoreInternal_FiveReq struct {
 
 type EncoreInternal_FiveResp = api.Void
 
-var EncoreInternal_FiveHandler = &api.Desc[EncoreInternal_FiveReq, EncoreInternal_FiveResp]{
+var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, EncoreInternal_FiveResp]{
 	Service:  "svc",
 	Endpoint: "Five",
 	Methods:  []string{"GET", "POST"},
@@ -516,7 +516,7 @@ type EncoreInternal_FourReq struct {
 
 type EncoreInternal_FourResp = api.Void
 
-var EncoreInternal_FourHandler = &api.Desc[EncoreInternal_FourReq, EncoreInternal_FourResp]{
+var EncoreInternal_FourHandler = &api.Desc[*EncoreInternal_FourReq, EncoreInternal_FourResp]{
 	Service:  "svc",
 	Endpoint: "Four",
 	Methods:  []string{"GET", "POST"},
@@ -612,7 +612,7 @@ type EncoreInternal_NineReq struct {
 
 type EncoreInternal_NineResp = ComplexResponse
 
-var EncoreInternal_NineHandler = &api.Desc[EncoreInternal_NineReq, EncoreInternal_NineResp]{
+var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, EncoreInternal_NineResp]{
 	Service:  "svc",
 	Endpoint: "Nine",
 	Methods:  []string{"GET", "POST"},
@@ -751,7 +751,7 @@ type EncoreInternal_OneReq struct{}
 
 type EncoreInternal_OneResp = api.Void
 
-var EncoreInternal_OneHandler = &api.Desc[EncoreInternal_OneReq, EncoreInternal_OneResp]{
+var EncoreInternal_OneHandler = &api.Desc[*EncoreInternal_OneReq, EncoreInternal_OneResp]{
 	Service:  "svc",
 	Endpoint: "One",
 	Methods:  []string{"GET", "POST"},
@@ -812,7 +812,7 @@ type EncoreInternal_QueryReq struct {
 
 type EncoreInternal_QueryResp = QueryParams
 
-var EncoreInternal_QueryHandler = &api.Desc[EncoreInternal_QueryReq, EncoreInternal_QueryResp]{
+var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, EncoreInternal_QueryResp]{
 	Service:  "svc",
 	Endpoint: "Query",
 	Methods:  []string{"GET", "POST"},
@@ -966,7 +966,7 @@ type EncoreInternal_SevenReq struct{}
 
 type EncoreInternal_SevenResp = api.Void
 
-var EncoreInternal_SevenHandler = &api.Desc[EncoreInternal_SevenReq, EncoreInternal_SevenResp]{
+var EncoreInternal_SevenHandler = &api.Desc[*EncoreInternal_SevenReq, EncoreInternal_SevenResp]{
 	Service:  "svc",
 	Endpoint: "Seven",
 	Methods:  []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
@@ -1029,7 +1029,7 @@ type EncoreInternal_SixReq struct {
 
 type EncoreInternal_SixResp = api.Void
 
-var EncoreInternal_SixHandler = &api.Desc[EncoreInternal_SixReq, EncoreInternal_SixResp]{
+var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, EncoreInternal_SixResp]{
 	Service:  "svc",
 	Endpoint: "Six",
 	Methods:  []string{"GET", "POST"},
@@ -1161,7 +1161,7 @@ type EncoreInternal_TenReq struct{}
 
 type EncoreInternal_TenResp = HeaderResponse
 
-var EncoreInternal_TenHandler = &api.Desc[EncoreInternal_TenReq, EncoreInternal_TenResp]{
+var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, EncoreInternal_TenResp]{
 	Service:  "svc",
 	Endpoint: "Ten",
 	Methods:  []string{"GET", "POST"},
@@ -1255,7 +1255,7 @@ type EncoreInternal_ThreeReq struct {
 
 type EncoreInternal_ThreeResp = api.Void
 
-var EncoreInternal_ThreeHandler = &api.Desc[EncoreInternal_ThreeReq, EncoreInternal_ThreeResp]{
+var EncoreInternal_ThreeHandler = &api.Desc[*EncoreInternal_ThreeReq, EncoreInternal_ThreeResp]{
 	Service:  "svc",
 	Endpoint: "Three",
 	Methods:  []string{"GET", "POST"},
@@ -1346,7 +1346,7 @@ type EncoreInternal_TwoReq struct {
 
 type EncoreInternal_TwoResp = api.Void
 
-var EncoreInternal_TwoHandler = &api.Desc[EncoreInternal_TwoReq, EncoreInternal_TwoResp]{
+var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, EncoreInternal_TwoResp]{
 	Service:  "svc",
 	Endpoint: "Two",
 	Methods:  []string{"POST"},

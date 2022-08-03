@@ -18,9 +18,9 @@ type AuthHandlerDesc[Params any] struct {
 	DefLoc      int32
 	HasAuthData bool // whether the handler returns custom auth data
 
-	DecodeAuth      func(*http.Request) (*Params, error)
-	AuthHandler     func(context.Context, *Params) (model.AuthInfo, error)
-	SerializeParams func(jsoniter.API, *Params) ([][]byte, error)
+	DecodeAuth      func(*http.Request) (Params, error)
+	AuthHandler     func(context.Context, Params) (model.AuthInfo, error)
+	SerializeParams func(jsoniter.API, Params) ([][]byte, error)
 }
 
 type AuthHandler interface {

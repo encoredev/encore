@@ -20,17 +20,17 @@ type PathParams = httprouter.Params
 
 type Void struct{}
 
-func SerializeVoid(json jsoniter.API, _ *Void) ([][]byte, error) {
+func SerializeVoid(json jsoniter.API, _ Void) ([][]byte, error) {
 	return [][]byte{[]byte("{}")}, nil
 }
 
-func CloneVoid(*Void) (*Void, error) {
-	return &Void{}, nil
+func CloneVoid(Void) (Void, error) {
+	return Void{}, nil
 }
 
 func isVoid[T any]() bool {
-	var zero *T
-	_, ok := any(zero).(*Void)
+	var zero T
+	_, ok := any(zero).(Void)
 	return ok
 }
 
@@ -49,18 +49,18 @@ type Desc[Req, Resp any] struct {
 	// If raw is true, RawHandler is set and AppHandler and EncodeResp are nil.
 	Raw bool
 
-	DecodeReq      func(*http.Request, PathParams, jsoniter.API) (*Req, error)
-	CloneReq       func(*Req) (*Req, error)
-	SerializeReq   func(jsoniter.API, *Req) ([][]byte, error)
-	ReqPath        func(*Req) (path string, params PathParams, err error)
-	ReqUserPayload func(*Req) any
+	DecodeReq      func(*http.Request, PathParams, jsoniter.API) (Req, error)
+	CloneReq       func(Req) (Req, error)
+	SerializeReq   func(jsoniter.API, Req) ([][]byte, error)
+	ReqPath        func(Req) (path string, params PathParams, err error)
+	ReqUserPayload func(Req) any
 
-	AppHandler func(context.Context, *Req) (*Resp, error)
+	AppHandler func(context.Context, Req) (Resp, error)
 	RawHandler func(http.ResponseWriter, *http.Request)
 
-	EncodeResp    func(http.ResponseWriter, jsoniter.API, *Resp) error
-	SerializeResp func(jsoniter.API, *Resp) ([][]byte, error)
-	CloneResp     func(*Resp) (*Resp, error)
+	EncodeResp    func(http.ResponseWriter, jsoniter.API, Resp) error
+	SerializeResp func(jsoniter.API, Resp) ([][]byte, error)
+	CloneResp     func(Resp) (Resp, error)
 
 	// middleware is the ordered list of middleware to invoke before
 	// calling the API handler. It's set with SetMiddleware during setup.
@@ -102,7 +102,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 	c.server.finishRequest(output, err, httpStatus)
 }
 
-func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData *Req, beginErr error) {
+func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error) {
 	reqData, decodeErr := d.DecodeReq(c.req, c.ps, c.server.json)
 
 	if d.Access == RequiresAuth && c.auth.UID == "" {
@@ -150,7 +150,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData *Req, beginErr error
 }
 
 // handleIncoming executes the given handler, running middleware in the process.
-func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData *Req) (resp *Resp, httpStatus int, respErr error) {
+func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp Resp, httpStatus int, respErr error) {
 	invokeHandler := func(mwReq middleware.Request) (mwResp middleware.Response) {
 		if d.Raw {
 			return d.invokeHandlerRaw(mwReq, c)
@@ -162,7 +162,7 @@ func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData *Req) (resp 
 }
 
 // invokeHandlerNonRaw invokes the handler for a regular (non-raw) endpoint. If the endpoint is raw, it panics.
-func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData *Req) (mwResp middleware.Response) {
+func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData Req) (mwResp middleware.Response) {
 	if d.Raw {
 		panic("invokeHandlerNonRaw called on Raw endpoint")
 	}
@@ -205,7 +205,7 @@ func (d *Desc[Req, Resp]) invokeHandlerRaw(mwReq middleware.Request, c IncomingC
 }
 
 // executeEndpoint executes the given handler, running middleware in the process.
-func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(middleware.Request) middleware.Response) (resp *Resp, httpStatus int, respErr error) {
+func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(middleware.Request) middleware.Response) (resp Resp, httpStatus int, respErr error) {
 	var counter int
 	var nextFn middleware.Next
 	numMiddleware := len(d.middleware)
@@ -252,7 +252,7 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	if mwResp.Err != nil {
 		return resp, mwResp.HTTPStatus, mwResp.Err
 	} else {
-		if resp, ok := mwResp.Payload.(*Resp); ok || isVoid[Resp]() {
+		if resp, ok := mwResp.Payload.(Resp); ok || isVoid[Resp]() {
 			return resp, mwResp.HTTPStatus, nil
 		}
 		return resp, mwResp.HTTPStatus, errs.B().Code(errs.Internal).Msgf(
@@ -267,12 +267,13 @@ type CallContext struct {
 	server *Server
 }
 
-func (d *Desc[Req, Resp]) Call(c CallContext, req *Req) (resp *Resp, respErr error) {
+func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error) {
 	// TODO: we don't currently support service-to-service calls of raw endpoints.
 	// To fix this we need to improve our request serialization and DI support to
 	// separate the signature for outgoing calls versus handlers.
 	if d.Raw {
-		return nil, errs.B().Code(errs.Internal).Msg("internal encore error: cannot call raw endpoints in service-to-service calls").Err()
+		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: cannot call raw endpoints in service-to-service calls").Err()
+		return
 	}
 
 	req, err := d.CloneReq(req)
