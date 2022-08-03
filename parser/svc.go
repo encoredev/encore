@@ -218,6 +218,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 				if !mw.Global {
 					mw.Svc = svc
 					mw.SvcStruct = p.resolveServiceStruct("middleware receiver", svc, fd, f)
+					svc.Middleware = append(svc.Middleware, mw)
 				}
 				p.middleware = append(p.middleware, mw)
 

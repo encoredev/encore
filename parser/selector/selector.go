@@ -11,7 +11,10 @@ import (
 
 type Type string
 
+// NOTE: New types added should be also added to meta.proto and est/selectors.go.
+
 const (
+	All Type = "all"
 	Tag Type = "tag"
 )
 
@@ -21,12 +24,17 @@ type Selector struct {
 }
 
 func (s Selector) String() string {
+	if s.Type == All {
+		return "all"
+	}
 	return string(s.Type) + ":" + s.Value
 }
 
 func (s Selector) ToProto() *meta.Selector {
 	pb := &meta.Selector{Type: meta.Selector_UNKNOWN, Value: s.Value}
 	switch s.Type {
+	case All:
+		pb.Type = meta.Selector_ALL
 	case Tag:
 		pb.Type = meta.Selector_TAG
 	}
@@ -34,26 +42,35 @@ func (s Selector) ToProto() *meta.Selector {
 }
 
 func Parse(s string) (Selector, error) {
+	if s == "all" {
+		return Selector{Type: All, Value: ""}, nil
+	}
+
 	typ, val, ok := strings.Cut(s, ":")
 	if !ok {
 		return Selector{}, errors.New("missing selector type")
 	}
 
 	sel := Selector{Type: Type(typ), Value: val}
+
+	var re *regexp.Regexp
 	switch sel.Type {
 	case Tag:
+		re = tagRegexp
 	default:
 		return Selector{}, fmt.Errorf("unknown selector type %q", typ)
 	}
 
-	if !valueRegexp.MatchString(val) {
+	if !re.MatchString(val) {
 		return Selector{}, errors.New("invalid value")
 	}
 
 	return sel, nil
 }
 
-var valueRegexp = regexp.MustCompile(`^[a-z]([-_a-z0-9]*[a-z0-9])?$`)
+var (
+	tagRegexp = regexp.MustCompile(`^[a-z]([-_a-z0-9]*[a-z0-9])?$`)
+)
 
 type Set []Selector
 

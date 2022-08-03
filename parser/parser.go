@@ -15,11 +15,13 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
@@ -142,6 +144,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.parseResourceUsage()
 	p.parseReferences()
 	p.parseSecrets()
+	p.validateMiddleware()
 	p.validateApp()
 
 	sort.Slice(p.pkgs, func(i, j int) bool {
@@ -163,6 +166,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		PubSubTopics: p.pubSubTopics,
 		Decls:        p.decls,
 		AuthHandler:  p.authHandler,
+		Middleware:   p.middleware,
 	}
 	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app)
 	if err != nil {
@@ -643,6 +647,83 @@ func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
 		}
 	}
 	return nil, false
+}
+
+// validateMiddleware validates the middleware and sorts them in file and line order,
+// to ensure that middleware runs in the order they were defined.
+func (p *parser) validateMiddleware() {
+	// Find which tags are used so we can error for unknown tags
+	type svcTag struct{ svc, tag string }
+	globalTags := make(map[string]bool)
+	svcTags := make(map[svcTag]bool)
+	for _, svc := range p.svcs {
+		for _, rpc := range svc.RPCs {
+			for _, tag := range rpc.Tags {
+				globalTags[tag.Value] = true
+				svcTags[svcTag{svc: svc.Name, tag: tag.Value}] = true
+			}
+		}
+	}
+
+	// Ensure global middleware are not defined in service packages, and vice versa.
+	for _, mw := range p.middleware {
+		// We can't check mw.Svc as during parsing it wasn't yet clear if a package was a service or not,
+		// so it's nil iff Global is false.
+		if mw.Global && mw.Pkg.Service != nil {
+			p.errf(mw.Func.Pos(), "cannot define global middleware within a service package\n"+
+				"\tNote: since global middleware applies to all services it must be defined outside\n"+
+				"\tof any particular service.")
+		} else if !mw.Global && mw.Pkg.Service == nil {
+			p.errf(mw.Func.Pos(), "cannot define non-global middleware outside of a service\n"+
+				"\tNote: package %s is not a service. To define a global middleware,\n"+
+				"\tspecify //encore:middleware global")
+		}
+
+		// Make sure the middleware is targeting tags that actually exist
+		for _, sel := range mw.Target {
+			if sel.Type == selector.Tag {
+				if mw.Global {
+					if !globalTags[sel.Value] {
+						p.errf(mw.Func.Pos(), "undefined tag (no API in the application defines this tag): %s",
+							sel.String())
+					}
+				} else {
+					if !svcTags[svcTag{svc: mw.Svc.Name, tag: sel.Value}] {
+						p.errf(mw.Func.Pos(), "undefined tag (no API in the %s service defines this tag): %s",
+							mw.Svc.Name, sel.String())
+					}
+				}
+			}
+		}
+	}
+
+	// Sort the middleware in file and column order
+	sortFn := func(a, b *est.Middleware) bool {
+		// Globals come first, then group by package
+		if a.Global != b.Global {
+			return a.Global
+		} else if a.Pkg != b.Pkg {
+			return a.Pkg.RelPath < b.Pkg.RelPath
+		}
+
+		posA := p.fset.Position(a.Func.Pos())
+		posB := p.fset.Position(b.Func.Pos())
+
+		// Sort by filename, then line, then column
+		if posA.Filename != posB.Filename {
+			return posA.Filename < posB.Filename
+		} else if posA.Line != posB.Line {
+			return posA.Line < posB.Line
+		} else {
+			return posA.Column < posB.Column
+		}
+	}
+
+	// Sort both the overall list and the service-specific lists.
+	slices.SortStableFunc(p.middleware, sortFn)
+	for _, svc := range p.svcs {
+		slices.SortStableFunc(svc.Middleware, sortFn)
+	}
 }
 
 // pkgObj attempts to unpack a node as a reference to a package obj, returning the

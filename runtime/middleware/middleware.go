@@ -2,24 +2,40 @@ package middleware
 
 import (
 	"context"
-	"time"
 
 	encore "encore.dev"
 )
 
 type Request struct {
-	*encore.Request
-	Ctx context.Context
-
-	Next NextFunc
+	ctx   context.Context
+	cache *reqCache
 }
 
-type NextFunc func(Request) Response
+func (r *Request) WithContext(ctx context.Context) Request {
+	r2 := *r
+	r2.ctx = ctx
+	return r2
+}
+
+func (r *Request) Context() context.Context { return r.ctx }
+
+func (r *Request) Data() *encore.Request {
+	return r.cache.Get()
+}
+
+type Next func(Request) Response
 
 type Response struct {
-	Payload  any
-	Err      error
-	Duration time.Duration
+	Payload    any
+	Err        error
+	HTTPStatus int // if non-zero, gets used as status code
 }
 
-type Signature func(req Request, next NextFunc) Response
+type Signature func(req Request, next Next) Response
+
+func NewRequest(ctx context.Context, req *encore.Request) Request {
+	return Request{
+		ctx:   ctx,
+		cache: newReqCache(func() *encore.Request { return req }),
+	}
+}

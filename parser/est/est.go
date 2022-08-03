@@ -23,6 +23,7 @@ type Application struct {
 	PubSubTopics []*PubSubTopic
 	Decls        []*schema.Decl
 	AuthHandler  *AuthHandler
+	Middleware   []*Middleware
 }
 
 type File struct {
@@ -52,10 +53,11 @@ type Package struct {
 // Its name is defined by the Go package name.
 // A Service may not be a located in a child directory of another service.
 type Service struct {
-	Name string
-	Root *Package
-	Pkgs []*Package
-	RPCs []*RPC
+	Name       string
+	Root       *Package
+	Pkgs       []*Package
+	RPCs       []*RPC
+	Middleware []*Middleware
 
 	// Struct is the dependency injection struct, or nil if none exists.
 	Struct *ServiceStruct

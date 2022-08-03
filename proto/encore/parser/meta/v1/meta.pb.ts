@@ -23,6 +23,7 @@ export interface Data {
   cron_jobs: CronJob[];
   /** All the pub sub topics declared in the application */
   pubsub_topics: PubSubTopic[];
+  middleware: Middleware[];
 }
 
 /**
@@ -70,8 +71,11 @@ export interface Selector {
 
 export enum Selector_Type {
   UNKNOWN = "UNKNOWN",
-  /** TAG - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
   TAG = "TAG",
+  API = "API",
+  SERVICE = "SERVICE",
+  /** ALL - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
+  ALL = "ALL",
   UNRECOGNIZED = "UNRECOGNIZED",
 }
 
@@ -131,6 +135,16 @@ export interface AuthHandler {
   params?: Type | undefined;
 }
 
+export interface Middleware {
+  name: QualifiedName;
+  doc: string;
+  loc: Loc;
+  global: boolean;
+  /** nil if global */
+  service_name?: string | undefined;
+  target: Selector[];
+}
+
 export interface TraceNode {
   id: number;
   /** slash-separated, relative to app root */
@@ -149,6 +163,7 @@ export interface TraceNode {
   pubsub_publish: PubSubPublishNode | undefined;
   pubsub_subscriber: PubSubSubscriberNode | undefined;
   service_init: ServiceInitNode | undefined;
+  middleware_def: MiddlewareDefNode | undefined;
 }
 
 export interface RPCDefNode {
@@ -203,6 +218,13 @@ export interface ServiceInitNode {
   service_name: string;
   setup_func_name: string;
   context: string;
+}
+
+export interface MiddlewareDefNode {
+  pkg_rel_path: string;
+  name: string;
+  context: string;
+  target: Selector[];
 }
 
 export interface Path {

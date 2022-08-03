@@ -97,6 +97,10 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.AuthHandler = parseAuthHandler(app.AuthHandler)
 	}
 
+	for _, mw := range app.Middleware {
+		data.Middleware = append(data.Middleware, parseMiddleware(mw))
+	}
+
 	return data, nodes, nil
 }
 
@@ -297,6 +301,20 @@ func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 	return pb
 }
 
+func parseMiddleware(mw *est.Middleware) *meta.Middleware {
+	pb := &meta.Middleware{
+		Name:   &meta.QualifiedName{Pkg: mw.Pkg.RelPath, Name: mw.Name},
+		Doc:    mw.Doc,
+		Loc:    parseLoc(mw.File, mw.Func),
+		Global: mw.Global,
+		Target: mw.Target.ToProto(),
+	}
+	if mw.Svc != nil {
+		pb.ServiceName = &mw.Svc.Name
+	}
+	return pb
+}
+
 func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 	var lastPackage *est.Package
 	var lastFile *est.File
@@ -417,6 +435,23 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				ServiceName: h.Svc.Name,
 				Name:        fd.Name.Name,
 				Context:     string(f.Contents[start:end]),
+			},
+		}
+	}
+
+	for _, mw := range app.Middleware {
+		fd := mw.Func
+		f := mw.File
+		tx := newTraceNode(&id, mw.Pkg, f, fd)
+		res[mw.Pkg][fd] = tx
+		start := f.Token.Offset(fd.Type.Pos())
+		end := f.Token.Offset(fd.Type.End())
+		tx.Context = &meta.TraceNode_MiddlewareDef{
+			MiddlewareDef: &meta.MiddlewareDefNode{
+				PkgRelPath: mw.Pkg.RelPath,
+				Name:       fd.Name.Name,
+				Context:    string(f.Contents[start:end]),
+				Target:     mw.Target.ToProto(),
 			},
 		}
 	}

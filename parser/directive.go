@@ -180,9 +180,14 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 						sel, err := selector.Parse(p)
 						if err != nil {
 							return nil, fmt.Errorf("invalid selector format %q: %v", p, err)
-						} else if sel.Type != selector.Tag {
+						}
+
+						switch sel.Type {
+						case selector.Tag, selector.All:
+						default:
 							return nil, fmt.Errorf("middleware target only supports tags as selectors (got '%s')", sel.Type)
 						}
+
 						if !mw.Target.Add(sel) {
 							return nil, fmt.Errorf("duplicate tag %q", p)
 						}

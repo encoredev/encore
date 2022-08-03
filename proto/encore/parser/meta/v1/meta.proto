@@ -17,6 +17,7 @@ message Data {
   optional AuthHandler    auth_handler        = 6; // the auth handler or nil
   repeated CronJob        cron_jobs           = 7;
   repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
+  repeated Middleware     middleware          = 10;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -48,7 +49,8 @@ message Service {
 message Selector {
   enum Type {
     UNKNOWN = 0;
-    TAG = 1;
+    ALL     = 1;
+    TAG     = 2;
     // NOTE: If more types are added, update the (selector.Selector).ToProto method.
   }
 
@@ -97,6 +99,15 @@ message AuthHandler {
   optional schema.v1.Type params    = 7; // builtin string or named type
 }
 
+message Middleware {
+  QualifiedName     name         = 1;
+  string            doc          = 2;
+  schema.v1.Loc     loc          = 3;
+  bool              global       = 4;
+  optional string   service_name = 5; // nil if global
+  repeated Selector target       = 6;
+}
+
 message TraceNode {
   int32 id = 1;
   string filepath = 2; // slash-separated, relative to app root
@@ -117,6 +128,7 @@ message TraceNode {
     PubSubPublishNode    pubsub_publish    = 15;
     PubSubSubscriberNode pubsub_subscriber = 16;
     ServiceInitNode      service_init      = 17;
+    MiddlewareDefNode    middleware_def    = 18;
   }
 }
 
@@ -170,6 +182,13 @@ message ServiceInitNode {
   string service_name    = 1;
   string setup_func_name = 2;
   string context         = 3;
+}
+
+message MiddlewareDefNode {
+  string pkg_rel_path      = 1;
+  string name              = 2;
+  string context           = 3;
+  repeated Selector target = 4;
 }
 
 message Path {
