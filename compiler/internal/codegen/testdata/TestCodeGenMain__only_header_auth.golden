@@ -68,7 +68,7 @@ type EncoreInternal_EightReq struct {
 
 type EncoreInternal_EightResp = Response
 
-var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, EncoreInternal_EightResp]{
+var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInternal_EightResp]{
 	Service:  "svc",
 	Endpoint: "Eight",
 	Methods:  []string{"POST"},
@@ -214,17 +214,15 @@ func EncoreInternal_CallEight(ctx context.Context, bar string, baz string, param
 	return resp, nil
 }
 
-type EncoreInternal_AuthHandlerAuthData = AuthData
+type EncoreInternal_AuthHandlerAuthParams = AuthHeaders
 
-var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[EncoreInternal_AuthHandlerAuthData]{
+var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
 	Endpoint:    "AuthHandler",
 	DefLoc:      3,
 	HasAuthData: true,
-	DecodeAuth: func(req *http.Request) (authData *EncoreInternal_AuthHandlerAuthData, err error) {
-		authData = &EncoreInternal_AuthHandlerAuthData{}
-		params := &AuthHeaders{}
-		authData.Params = params
+	DecodeAuth: func(req *http.Request) (params *EncoreInternal_AuthHandlerAuthParams, err error) {
+		params = &EncoreInternal_AuthHandlerAuthParams{}
 		dec := &etype.Marshaller{}
 		// Decode headers
 		h := req.Header
@@ -237,22 +235,18 @@ var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[EncoreInternal_
 		if dec.NonEmptyValues == 0 {
 			return nil, errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
 		}
-		return authData, nil
+		return params, nil
 	},
-	AuthHandler: func(ctx context.Context, authData *EncoreInternal_AuthHandlerAuthData) (info model.AuthInfo, err error) {
-		info.UID, info.UserData, err = AuthHandler(ctx, authData.Params)
+	AuthHandler: func(ctx context.Context, params *EncoreInternal_AuthHandlerAuthParams) (info model.AuthInfo, err error) {
+		info.UID, info.UserData, err = AuthHandler(ctx, params)
 		return info, err
 	},
-	SerializeParams: func(json jsoniter.API, p *EncoreInternal_AuthHandlerAuthData) ([][]byte, error) {
-		data := make([][]byte, 1)
-		for i, val := range [...]any{p.Params} {
-			v, err := json.Marshal(val)
-			if err != nil {
-				return nil, err
-			}
-			data[i] = v
+	SerializeParams: func(json jsoniter.API, params *EncoreInternal_AuthHandlerAuthParams) ([][]byte, error) {
+		v, err := json.Marshal(params)
+		if err != nil {
+			return nil, err
 		}
-		return data, nil
+		return [][]byte{v}, nil
 	},
 }
 // etype package
