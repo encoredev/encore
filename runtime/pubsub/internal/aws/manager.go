@@ -7,7 +7,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
@@ -32,7 +31,7 @@ func NewManager(ctx context.Context, cfg *config.Config) *Manager {
 // getConfig loads the required AWS config to connect to AWS
 func (mgr *Manager) getConfig(ctx context.Context) aws.Config {
 	mgr.cfgOnce.Do(func() {
-		cfg, err := awsConfig.LoadDefaultConfig(ctx, awsConfig.WithCredentialsProvider(ec2rolecreds.New()))
+		cfg, err := awsConfig.LoadDefaultConfig(ctx)
 		if err != nil {
 			panic(fmt.Sprintf("unable to load AWS config: %v", err))
 		}

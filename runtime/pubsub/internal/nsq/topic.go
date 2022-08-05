@@ -59,7 +59,7 @@ type messageWrapper struct {
 	Data       json.RawMessage
 }
 
-func (l *topic) Subscribe(logger *zerolog.Logger, _ time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (l *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if implCfg.PushOnly {
 		panic("push-only subscriptions are not supported by nsq")
 	}
@@ -103,7 +103,10 @@ func (l *topic) Subscribe(logger *zerolog.Logger, _ time.Duration, retryPolicy *
 		}
 
 		// forward the message to the subscriber
-		err = f(l.mgr.ctx, msg.ID, time.Unix(0, m.Timestamp), int(m.Attempts), msg.Attributes, msg.Data)
+		msgCtx, cancel := context.WithTimeout(l.mgr.ctx, ackDeadline)
+		defer cancel()
+
+		err = f(msgCtx, msg.ID, time.Unix(0, m.Timestamp), int(m.Attempts), msg.Attributes, msg.Data)
 		if err != nil {
 			return err
 		}

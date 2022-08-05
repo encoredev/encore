@@ -14,9 +14,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/config"
 	"encore.dev/pubsub/internal/types"
+	"encore.dev/pubsub/internal/utils"
 )
 
 type topic struct {
@@ -48,7 +50,7 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 	return aws.ToString(result.MessageId), nil
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, _ *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	// Check we have permissions to interact with the given queue
 	// otherwise the first time we will find out is when we try and publish to it
 	_, err := t.sqsClient.GetQueueAttributes(t.ctx, &sqs.GetQueueAttributesInput{
@@ -57,6 +59,8 @@ func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, _ *
 	if err != nil {
 		panic(fmt.Sprintf("unable to verify SQS queue attributes (may be missing IAM role allowing access): %v", err))
 	}
+
+	ackDeadline = utils.Clamp(ackDeadline, time.Second, 12*time.Hour)
 
 	go func() {
 		for t.ctx.Err() == nil {
@@ -101,7 +105,21 @@ func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, _ *
 				}
 
 				// Call the callback, and if there was no error, then we can delete the message
-				err = f(t.ctx, msgWrapper.MessageId, msgWrapper.Timestamp, int(deliveryAttempt), attributes, []byte(msgWrapper.Message))
+				msgCtx, cancel := context.WithTimeout(t.ctx, ackDeadline)
+				err = f(msgCtx, msgWrapper.MessageId, msgWrapper.Timestamp, int(deliveryAttempt), attributes, []byte(msgWrapper.Message))
+				cancel()
+				if err != nil {
+					// If there was an error processing the message, apply the backoff policy
+					_, delay := utils.GetDelay(retryPolicy.MaxRetries, retryPolicy.MinBackoff, retryPolicy.MaxBackoff, uint16(deliveryAttempt))
+					_, visibilityChangeErr := t.sqsClient.ChangeMessageVisibility(t.ctx, &sqs.ChangeMessageVisibilityInput{
+						QueueUrl:          aws.String(implCfg.ProviderName),
+						ReceiptHandle:     msg.ReceiptHandle,
+						VisibilityTimeout: int32(utils.Clamp(delay, time.Second, 12*time.Hour).Seconds()),
+					})
+					if visibilityChangeErr != nil {
+						log.Warn().Err(visibilityChangeErr).Str("msg_id", msgWrapper.MessageId).Msg("unable to change message visibility to apply backoff rules")
+					}
+				}
 				if err == nil {
 					_, err = t.sqsClient.DeleteMessage(t.ctx, &sqs.DeleteMessageInput{
 						QueueUrl:      aws.String(implCfg.ProviderName),

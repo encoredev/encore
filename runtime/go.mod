@@ -18,6 +18,7 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.26.1
+	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	google.golang.org/api v0.85.0
 )
 
