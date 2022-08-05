@@ -360,18 +360,9 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 		Id("ctx").Qual("context", "Context"),
 		Id("req").Op("*").Id(b.ReqTypeName()),
 	).Params(b.RespType(), Error()).BlockFunc(func(g *Group) {
-		// Resolve the function we want to call.
-		g.Var().Id("fn").Func().ParamsFunc(func(g *Group) {
-			g.Qual("context", "Context")
-			for _, f := range b.reqType.fields {
-				g.Add(f.goType.Clone())
-			}
-		}).ParamsFunc(func(g *Group) {
-			if rpc.Response != nil {
-				g.Add(b.namedType(b.f, rpc.Response))
-			}
-			g.Error()
-		})
+		// fnExpr is the expression for the function we want to call,
+		// either just MyRPCName or svc.MyRPCName if we have a service struct.
+		var fnExpr *Statement
 
 		// If we have a service struct, initialize it first.
 		group := rpc.SvcStruct
@@ -381,9 +372,9 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 			g.If(Id("initErr").Op("!=").Nil()).Block(
 				Return(b.RespZeroValue(), Id("initErr")),
 			)
-			g.Id("fn").Op("=").Id("svc").Dot(b.rpc.Name)
+			fnExpr = Id("svc").Dot(b.rpc.Name)
 		} else {
-			g.Id("fn").Op("=").Id(b.rpc.Name)
+			fnExpr = Id(b.rpc.Name)
 		}
 
 		g.Do(func(s *Statement) {
@@ -392,7 +383,7 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 			} else {
 				s.Err()
 			}
-		}).Op(":=").Id("fn").CallFunc(func(g *Group) {
+		}).Op(":=").Add(fnExpr).CallFunc(func(g *Group) {
 			g.Id("ctx")
 			for _, f := range b.reqType.fields {
 				g.Id("req").Dot(f.fieldName)

@@ -167,9 +167,7 @@ var EncoreInternal_CronOneHandler = &api.Desc[*EncoreInternal_CronOneReq, Encore
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_CronOneReq) (EncoreInternal_CronOneResp, error) {
-		var fn func(context.Context) error
-		fn = CronOne
-		err := fn(ctx)
+		err := CronOne(ctx)
 		if err != nil {
 			return EncoreInternal_CronOneResp{}, err
 		}
@@ -226,13 +224,11 @@ var EncoreInternal_DIHandler = &api.Desc[*EncoreInternal_DIReq, EncoreInternal_D
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_DIReq) (EncoreInternal_DIResp, error) {
-		var fn func(context.Context) error
 		svc, initErr := EncoreInternal_ServiceService.Get()
 		if initErr != nil {
 			return EncoreInternal_DIResp{}, initErr
 		}
-		fn = svc.DI
-		err := fn(ctx)
+		err := svc.DI(ctx)
 		if err != nil {
 			return EncoreInternal_DIResp{}, err
 		}
@@ -331,9 +327,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_EightReq) (*EncoreInternal_EightResp, error) {
-		var fn func(context.Context, string, string) (*Response, error)
-		fn = Eight
-		resp, err := fn(ctx, req.Bar, req.Baz)
+		resp, err := Eight(ctx, req.Bar, req.Baz)
 		if err != nil {
 			return nil, err
 		}
@@ -486,9 +480,7 @@ var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, EncoreIntern
 		return p.Params
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_FiveReq) (EncoreInternal_FiveResp, error) {
-		var fn func(context.Context, uuid.UUID, uint, *FooParams) error
-		fn = Five
-		err := fn(ctx, req.Id, req.Key, req.Params)
+		err := Five(ctx, req.Id, req.Key, req.Params)
 		if err != nil {
 			return EncoreInternal_FiveResp{}, err
 		}
@@ -581,9 +573,7 @@ var EncoreInternal_FourHandler = &api.Desc[*EncoreInternal_FourReq, EncoreIntern
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_FourReq) (EncoreInternal_FourResp, error) {
-		var fn func(context.Context, string) error
-		fn = Four
-		err := fn(ctx, req.Baz)
+		err := Four(ctx, req.Baz)
 		if err != nil {
 			return EncoreInternal_FourResp{}, err
 		}
@@ -682,9 +672,7 @@ var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, *EncoreInter
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_NineReq) (*EncoreInternal_NineResp, error) {
-		var fn func(context.Context, string, string) (*ComplexResponse, error)
-		fn = Nine
-		resp, err := fn(ctx, req.Bar, req.Baz)
+		resp, err := Nine(ctx, req.Bar, req.Baz)
 		if err != nil {
 			return nil, err
 		}
@@ -782,9 +770,7 @@ var EncoreInternal_OneHandler = &api.Desc[*EncoreInternal_OneReq, EncoreInternal
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_OneReq) (EncoreInternal_OneResp, error) {
-		var fn func(context.Context) error
-		fn = One
-		err := fn(ctx)
+		err := One(ctx)
 		if err != nil {
 			return EncoreInternal_OneResp{}, err
 		}
@@ -905,9 +891,7 @@ var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInt
 		return p.Params
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_QueryReq) (*EncoreInternal_QueryResp, error) {
-		var fn func(context.Context, *QueryParams) (*QueryParams, error)
-		fn = Query
-		resp, err := fn(ctx, req.Params)
+		resp, err := Query(ctx, req.Params)
 		if err != nil {
 			return nil, err
 		}
@@ -1133,9 +1117,7 @@ var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, EncoreInternal
 		return p.Params
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_SixReq) (EncoreInternal_SixResp, error) {
-		var fn func(context.Context, uuid.UUID, string, *FooParams) error
-		fn = Six
-		err := fn(ctx, req.Id, req.Key, req.Params)
+		err := Six(ctx, req.Id, req.Key, req.Params)
 		if err != nil {
 			return EncoreInternal_SixResp{}, err
 		}
@@ -1192,9 +1174,7 @@ var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, *EncoreInterna
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_TenReq) (*EncoreInternal_TenResp, error) {
-		var fn func(context.Context) (*HeaderResponse, error)
-		fn = Ten
-		resp, err := fn(ctx)
+		resp, err := Ten(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1316,9 +1296,7 @@ var EncoreInternal_ThreeHandler = &api.Desc[*EncoreInternal_ThreeReq, EncoreInte
 		return nil
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_ThreeReq) (EncoreInternal_ThreeResp, error) {
-		var fn func(context.Context, string) error
-		fn = Three
-		err := fn(ctx, req.Id)
+		err := Three(ctx, req.Id)
 		if err != nil {
 			return EncoreInternal_ThreeResp{}, err
 		}
@@ -1416,9 +1394,7 @@ var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, EncoreInternal
 		return p.Params
 	},
 	AppHandler: func(ctx context.Context, req *EncoreInternal_TwoReq) (EncoreInternal_TwoResp, error) {
-		var fn func(context.Context, *FooParams) error
-		fn = Two
-		err := fn(ctx, req.Params)
+		err := Two(ctx, req.Params)
 		if err != nil {
 			return EncoreInternal_TwoResp{}, err
 		}
