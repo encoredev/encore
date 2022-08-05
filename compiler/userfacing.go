@@ -8,16 +8,16 @@ import (
 	"encr.dev/parser/est"
 )
 
-// GenUser generates user-facing application code.
-func GenUser(appRoot string) error {
+// GenUserFacing generates user-facing application code.
+func GenUserFacing(appRoot string) error {
 	b := &builder{
 		cfg:     &Config{},
 		appRoot: appRoot,
 	}
-	return b.GenUser()
+	return b.GenUserFacing()
 }
 
-func (b *builder) GenUser() (err error) {
+func (b *builder) GenUserFacing() (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if b, ok := e.(bailout); ok {
@@ -30,7 +30,7 @@ func (b *builder) GenUser() (err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
-		b.genUser,
+		b.genUserFacing,
 	} {
 		if err := fn(); err != nil {
 			return err
@@ -39,18 +39,18 @@ func (b *builder) GenUser() (err error) {
 	return nil
 }
 
-func (b *builder) genUser() error {
+func (b *builder) genUserFacing() error {
 	for _, svc := range b.res.App.Services {
-		if err := b.generateUserCode(svc); err != nil {
+		if err := b.generateUserFacingCode(svc); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (b *builder) generateUserCode(svc *est.Service) (err error) {
+func (b *builder) generateUserFacingCode(svc *est.Service) (err error) {
 	dst := filepath.Join(b.appRoot, svc.Root.RelPath, "encore.gen.go")
-	f := b.codegen.EncoreGen(svc, false)
+	f := b.codegen.UserFacing(svc, false)
 	if f == nil {
 		// No need for any generated code. Try to remove the existing file
 		// if it's there as it's no longer needed.

@@ -110,7 +110,7 @@ func TestCodeGenMain(t *testing.T) {
 					combined.Write(code)
 				}
 
-				if f := bld.EncoreGen(svc, true); f != nil {
+				if f := bld.UserFacing(svc, true); f != nil {
 					var buf bytes.Buffer
 					fmt.Fprintf(&buf, "\n\n// encore.gen.go for service %s\n", svc.Name)
 					err = f.Render(&buf)

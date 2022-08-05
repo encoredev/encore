@@ -59,7 +59,7 @@ func (s *Server) onWatchEvent(i *apps.Instance, ev notify.EventInfo) {
 }
 
 func (s *Server) regenerateUserCode(i *apps.Instance) {
-	if err := compiler.GenUser(i.Root()); err != nil {
+	if err := compiler.GenUserFacing(i.Root()); err != nil {
 		log.Error().Err(err).Str("app", i.PlatformOrLocalID()).Msg("failed to regenerate app")
 	} else {
 		log.Info().Str("app", i.PlatformOrLocalID()).Msg("successfully generated user code")

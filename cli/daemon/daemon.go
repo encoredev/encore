@@ -123,7 +123,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 
 // GenWrappers generates Encore wrappers.
 func (s *Server) GenWrappers(ctx context.Context, params *daemonpb.GenWrappersRequest) (*daemonpb.GenWrappersResponse, error) {
-	if err := compiler.GenUser(params.AppRoot); err != nil {
+	if err := compiler.GenUserFacing(params.AppRoot); err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to generate wrappers: %v", err)
 	}
 	return &daemonpb.GenWrappersResponse{}, nil

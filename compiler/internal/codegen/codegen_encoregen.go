@@ -10,9 +10,9 @@ import (
 	"encr.dev/pkg/namealloc"
 )
 
-// EncoreGen generates the encore.gen.go file containing user-facing
+// UserFacing generates the encore.gen.go file containing user-facing
 // generated code. If nothing needs to be generated it returns nil.
-func (b *Builder) EncoreGen(svc *est.Service, withImpl bool) *File {
+func (b *Builder) UserFacing(svc *est.Service, withImpl bool) *File {
 	// If there are is no service struct, there's nothing to do.
 	if svc.Struct == nil {
 		return nil

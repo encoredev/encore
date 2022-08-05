@@ -121,7 +121,7 @@ func (b *builder) generateTestMain(pkg *est.Package) (err error) {
 }
 
 func (b *builder) generateServiceSetup(svc *est.Service) (err error) {
-	f := b.codegen.EncoreGen(svc, true)
+	f := b.codegen.UserFacing(svc, true)
 	if f == nil {
 		return nil // nothing to do
 	}
