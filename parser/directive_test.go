@@ -120,6 +120,15 @@ func TestParseDirective(t *testing.T) {
 			},
 		},
 		{
+			desc: "middleware target all",
+			line: "middleware target=all",
+			expected: &middlewareDirective{
+				Target: selector.Set{
+					{Type: selector.All, Value: ""},
+				},
+			},
+		},
+		{
 			desc:        "middleware duplicate tag",
 			line:        "middleware target=tag:foo,tag:foo",
 			expectedErr: `duplicate tag "tag:foo"`,

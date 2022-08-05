@@ -1,4 +1,4 @@
-// Package syncutil is a vendored version of go4.org/syncutil.
+// Package syncutil is a vendored version of go4.org/syncutil.Once.
 
 /*
 Copyright 2014 The Perkeep Authors

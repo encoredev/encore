@@ -13,14 +13,20 @@ func TestOnce(t *testing.T) {
 	}
 
 	once := Once{}
-	grp := Group{}
 
-	for i := 0; i < 10; i++ {
-		grp.Go(func() error { return once.Do(f) })
+	const numCalls = 10
+	results := make(chan error, numCalls)
+
+	for i := 0; i < numCalls; i++ {
+		go func() {
+			results <- once.Do(f)
+		}()
 	}
 
-	if grp.Err() != nil {
-		t.Errorf("Expected no errors, got %v", grp.Err())
+	for i := 0; i < numCalls; i++ {
+		if err := <-results; err != nil {
+			t.Errorf("Expected no errors, got %v", err)
+		}
 	}
 
 	if timesRan != 1 {
@@ -41,14 +47,24 @@ func TestOnceErroring(t *testing.T) {
 	}
 
 	once := Once{}
-	grp := Group{}
+	const numCalls = 10
+	results := make(chan error, numCalls)
 
-	for i := 0; i < 10; i++ {
-		grp.Go(func() error { return once.Do(f) })
+	for i := 0; i < numCalls; i++ {
+		go func() {
+			results <- once.Do(f)
+		}()
 	}
 
-	if len(grp.Errs()) != 2 {
-		t.Errorf("Expected two errors, got %d", len(grp.Errs()))
+	numErrs := 0
+	for i := 0; i < numCalls; i++ {
+		if err := <-results; err != nil {
+			numErrs++
+		}
+	}
+
+	if numErrs != 2 {
+		t.Errorf("Expected two errors, got %d", numErrs)
 	}
 
 	if timesRan != 3 {
