@@ -34,6 +34,9 @@ type beginRequestParams struct {
 	AuthData     any
 	DefLoc       int32
 
+	// RPC describes the endpoint, if Type == RPCCall.
+	RPCDesc *model.RPCDesc
+
 	// SpanID is the span ID to use.
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
@@ -63,6 +66,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		UID:          p.UID,
 		AuthData:     p.AuthData,
 		Traced:       s.tracingEnabled,
+		RPCDesc:      p.RPCDesc,
 	}
 
 	logCtx := s.rootLogger.With().Str("service", req.Service).Str("endpoint", req.Endpoint)

@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"runtime/debug"
 	"strconv"
+	"sync"
 
 	"github.com/felixge/httpsnoop"
 	jsoniter "github.com/json-iterator/go"
@@ -20,14 +22,17 @@ type PathParams = httprouter.Params
 
 type Void struct{}
 
+// SerializeVoid serializes the Void type. It's called by generated code.
 func SerializeVoid(json jsoniter.API, _ Void) ([][]byte, error) {
 	return [][]byte{[]byte("{}")}, nil
 }
 
+// CloneVoid clones the Void type. It's called by generated code.
 func CloneVoid(Void) (Void, error) {
 	return Void{}, nil
 }
 
+// isVoid reports whether a generic type is Void.
 func isVoid[T any]() bool {
 	var zero T
 	_, ok := any(zero).(Void)
@@ -65,6 +70,9 @@ type Desc[Req, Resp any] struct {
 	// middleware is the ordered list of middleware to invoke before
 	// calling the API handler. It's set with SetMiddleware during setup.
 	middleware []*Middleware
+
+	rpcDescOnce   sync.Once
+	cachedRPCDesc *model.RPCDesc
 }
 
 func (d *Desc[Req, Resp]) AccessType() Access            { return d.Access }
@@ -125,6 +133,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		PathSegments: c.ps,
 		Payload:      d.ReqUserPayload(reqData),
 		Inputs:       inputs,
+		RPCDesc:      d.rpcDesc(),
 
 		UID:      c.auth.UID,
 		AuthData: c.auth.UserData,
@@ -314,6 +323,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 			PathSegments: params,
 			Payload:      d.ReqUserPayload(req),
 			Inputs:       inputs,
+			RPCDesc:      d.rpcDesc(),
 
 			SpanID: call.SpanID,
 		})
@@ -344,4 +354,25 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 
 	c.server.finishCall(call, respErr)
 	return
+}
+
+// rpcDesc returns the RPC description for this endpoint,
+// computing and caching the first time it's called.
+func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
+	d.rpcDescOnce.Do(func() {
+		var reqTyp Req
+		desc := &model.RPCDesc{
+			Service:     d.Service,
+			Endpoint:    d.Endpoint,
+			Raw:         d.Raw,
+			RequestType: reflect.TypeOf(reqTyp),
+		}
+
+		if !isVoid[Resp]() {
+			var typ Resp
+			desc.ResponseType = reflect.TypeOf(typ)
+		}
+		d.cachedRPCDesc = desc
+	})
+	return d.cachedRPCDesc
 }
