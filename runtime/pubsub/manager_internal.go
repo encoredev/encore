@@ -11,6 +11,7 @@ import (
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/testsupport"
+	"encore.dev/pubsub/internal/aws"
 	"encore.dev/pubsub/internal/gcp"
 	"encore.dev/pubsub/internal/nsq"
 )
@@ -24,6 +25,7 @@ type Manager struct {
 	rootLogger zerolog.Logger
 	gcp        *gcp.Manager
 	nsq        *nsq.Manager
+	aws        *aws.Manager
 
 	publishCounter uint64
 
@@ -34,6 +36,7 @@ func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport
 	ctx, cancel := context.WithCancel(context.Background())
 	gcpMgr := gcp.NewManager(ctx, cfg, server)
 	nsqMgr := nsq.NewManager(ctx, cfg, rt)
+	awsMgr := aws.NewManager(ctx, cfg)
 	return &Manager{
 		ctx:         ctx,
 		cancelCtx:   cancel,
@@ -43,6 +46,7 @@ func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport
 		rootLogger:  rootLogger,
 		gcp:         gcpMgr,
 		nsq:         nsqMgr,
+		aws:         awsMgr,
 		outstanding: newOutstandingMessageTracker(),
 	}
 }

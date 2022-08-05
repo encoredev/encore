@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/constraints"
+
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/types"
 )
@@ -216,7 +218,9 @@ func pointify(rval reflect.Value, ptrDepth int) reflect.Value {
 // configuration in the RetryPolicy
 func GetDelay(maxRetries int, minDelay, maxDelay time.Duration, attempt uint16) (shouldRetry bool, backoff time.Duration) {
 	if maxRetries == types.NoRetries || (int(attempt) > maxRetries && maxRetries != types.InfiniteRetries) {
-		return false, 0
+		// return the max delay here, so if we can't dead letter a message
+		// the could will at least apply the largest allowed backoff
+		return false, maxDelay
 	}
 	if maxDelay < minDelay {
 		return true, maxDelay
@@ -241,4 +245,15 @@ func WithDefaultValue[T comparable](setValue, defaultValue T) T {
 	}
 
 	return setValue
+}
+
+// Clamp returns the value clamped to the range [min, max].
+func Clamp[T constraints.Ordered](d T, min T, max T) T {
+	if d < min {
+		return min
+	}
+	if d > max {
+		return max
+	}
+	return d
 }

@@ -115,6 +115,7 @@ func (eak EncoreAuthKey) Copy() EncoreAuthKey {
 type PubsubProvider struct {
 	NSQ *NSQProvider       `json:"nsq,omitempty"` // set if the provider is NSQ
 	GCP *GCPPubsubProvider `json:"gcp,omitempty"` // set if the provider is GCP
+	AWS *AWSPubsubProvider `json:"aws,omitempty"` // set if the provider is AWS
 }
 
 type NSQProvider struct {
@@ -123,6 +124,10 @@ type NSQProvider struct {
 
 // GCPPubsubProvider currently has no specific configuration.
 type GCPPubsubProvider struct {
+}
+
+// AWSPubsubProvider currently has no specific configuration.
+type AWSPubsubProvider struct {
 }
 
 type PubsubTopic struct {
