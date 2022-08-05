@@ -47,6 +47,8 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.nsq.NewTopic(provider.NSQ, topic)}
 	case provider.GCP != nil:
 		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.gcp.NewTopic(provider.GCP, topic)}
+	case provider.AWS != nil:
+		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.aws.NewTopic(provider.AWS, topic)}
 
 	default:
 		mgr.rootLogger.Fatal().Msgf("unsupported PubsubProvider type for server idx: %v", topic.ProviderID)

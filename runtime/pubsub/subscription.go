@@ -72,6 +72,12 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 	subscriptionCfg.RetryPolicy.MinBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MinBackoff, 10*time.Second)
 	subscriptionCfg.RetryPolicy.MaxBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MaxBackoff, 10*time.Minute)
 
+	if subscriptionCfg.AckDeadline == 0 {
+		subscriptionCfg.AckDeadline = 30 * time.Second
+	} else if subscriptionCfg.AckDeadline < 0 {
+		panic("AckDeadline cannot be negative")
+	}
+
 	subscription, staticCfg := topic.getSubscriptionConfig(name)
 	panicCatchWrapper := func(ctx context.Context, msg T) (err error) {
 		defer func() {
@@ -92,7 +98,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 	tracingEnabled := trace.Enabled(mgr.cfg)
 
 	// Subscribe to the topic
-	topic.topic.Subscribe(&log, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
+	topic.topic.Subscribe(&log, subscriptionCfg.AckDeadline, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
 		mgr.outstanding.Inc()
 		defer mgr.outstanding.Dec()
 
