@@ -65,21 +65,14 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		Traced:       s.tracingEnabled,
 	}
 
-	if prev := s.rt.Current().Req; prev != nil {
-		req.UID = prev.UID
-		req.AuthData = prev.AuthData
-		req.ParentID = prev.SpanID
-		req.Traced = prev.Traced
-		req.Test = prev.Test
-	}
-
 	logCtx := s.rootLogger.With().Str("service", req.Service).Str("endpoint", req.Endpoint)
 	if req.UID != "" {
 		logCtx = logCtx.Str("uid", string(req.UID))
 	}
-	if req.Test != nil {
-		logCtx = logCtx.Str("test", req.Test.Current.Name())
+	if prev := s.rt.Current().Req; prev != nil && prev.Test != nil {
+		logCtx = logCtx.Str("test", prev.Test.Current.Name())
 	}
+
 	reqLogger := logCtx.Logger()
 	req.Logger = &reqLogger
 
