@@ -22,7 +22,6 @@ func (r *reqCache) Get() *encore.Request {
 	return r.req
 }
 
-//publicapigen:drop
 func NewLazyRequest(ctx context.Context, fn func() *encore.Request) Request {
 	return Request{ctx: ctx, cache: newReqCache(fn)}
 }
