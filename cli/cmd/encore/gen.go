@@ -89,7 +89,14 @@ Supported language codes are:
 	genWrappersCmd := &cobra.Command{
 		Use:   "wrappers",
 		Short: "Generates user-facing wrapper code",
-		Args:  cobra.ExactArgs(0),
+		Long: `Manually regenerates user-facing wrapper code.
+
+This is typically not something you ever need to call during regular development,
+as Encore automatically regenerates the wrappers whenever the code-base changes.
+
+Its core use case is for CI/CD workflows where you want to run custom linters,
+which may require the user-facing wrapper code to be manually generated.`,
+		Args: cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, _ := determineAppRoot()
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
