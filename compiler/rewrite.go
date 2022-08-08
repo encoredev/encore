@@ -76,7 +76,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 				decl := file.AST.Decls[0]
 				ln := fset.Position(decl.Pos())
-				rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_app %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
+				rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_app %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/app"), ln.Line, ln.Column)))
 				return true
 
 			case est.CronJobNode:

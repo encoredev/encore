@@ -37,8 +37,7 @@ func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
 	f = NewFilePathName(svc.Root.ImportPath, svc.Name)
 	b.registerImports(f)
 
-	// Import the runtime package with '_' as its name to start with to ensure it's imported.
-	// If other code uses it will be imported under its proper name.
+	// Import the appinit package to ensure the runtime is initialized.
 	f.Anon("encore.dev/appruntime/app/appinit")
 
 	for _, rpc := range svc.RPCs {
@@ -58,8 +57,7 @@ func (b *Builder) registerImports(f *File) {
 	f.ImportNames(importNames)
 	f.ImportAlias("encoding/json", "stdjson")
 
-	// Import the runtime package with '_' as its name to start with to ensure it's imported.
-	// If other code uses it will be imported under its proper name.
+	// Import the appinit package to ensure the runtime is initialized.
 	f.Anon("encore.dev/appruntime/app/appinit")
 
 	for _, pkg := range b.res.App.Packages {

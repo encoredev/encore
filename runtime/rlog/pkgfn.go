@@ -2,6 +2,11 @@
 
 package rlog
 
+import (
+	// Ensure the runtime is initialized.
+	_ "encore.dev/appruntime/app/appinit"
+)
+
 //publicapigen:drop
 var Singleton *Manager
 
