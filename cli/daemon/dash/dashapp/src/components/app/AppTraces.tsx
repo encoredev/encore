@@ -10,7 +10,7 @@ import {latencyStr} from '~c/trace/util'
 import {decodeBase64} from '~lib/base64'
 import JSONRPCConn, {NotificationMsg} from '~lib/client/jsonrpc'
 import {timeToDate} from '~lib/time'
-import {arrowsExpand, Icon} from "~c/icons"
+import {Icon} from "~c/icons"
 
 interface Props {
   appID: string;
@@ -29,10 +29,11 @@ export default class AppTraces extends React.Component<Props, State> {
     this.onNotification = this.onNotification.bind(this)
   }
 
-  async componentDidMount() {
-    const traces = await this.props.conn.request("list-traces", {appID: this.props.appID}) as Trace[]
-    this.setState({traces: traces.reverse()})
+  componentDidMount() {
     this.props.conn.on("notification", this.onNotification)
+    this.props.conn.request("list-traces", {appID: this.props.appID}).then((traces) => {
+      this.setState({traces: (traces as Trace[]).reverse()})
+    })
   }
 
   componentWillUnmount() {

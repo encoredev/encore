@@ -21,12 +21,13 @@ export default class AppAPI extends React.Component<Props, State> {
     this.onNotification = this.onNotification.bind(this)
   }
 
-  async componentDidMount() {
+  componentDidMount() {
     this.props.conn.on("notification", this.onNotification)
-    const status: any = await this.props.conn.request("status", {appID: this.props.appID})
-    if (status.meta) {
-      this.setState({meta: status.meta})
-    }
+    this.props.conn.request("status", {appID: this.props.appID}).then((status: any) => {
+      if (status.meta) {
+        this.setState({meta: status.meta})
+      }
+    })
   }
 
   componentWillUnmount() {

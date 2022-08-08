@@ -1,5 +1,5 @@
 import React, {FunctionComponent, useEffect, useState} from "react";
-import {Link, useParams, useRouteMatch} from "react-router-dom"
+import {Link, useParams, useLocation, matchPath} from "react-router-dom"
 import {useConn} from "~lib/ctx"
 import logo from "../logo.svg"
 import wordmark from "../wordmark.svg"
@@ -14,7 +14,6 @@ const Nav: FunctionComponent = () => {
   const { appID } = useParams<{appID: string}>()
   const [menuOpen, setMenuOpen] = useState(false)
   const [appsOpen, setAppsOpen] = useState(false)
-  const route = useRouteMatch()
 
   return (
     <nav className="bg-gray-800">
@@ -32,10 +31,11 @@ const Nav: FunctionComponent = () => {
               <div className="ml-10 flex items-baseline space-x-4">
                 {menuItems.filter((it) => !it.external).map(it => {
                   const as = `/${appID}${it.href}`
-                  const selected = route.path === ("/:appID"+it.href)
+                  const { pathname } = useLocation();
+                  const isSelected = !!matchPath({path: "/:appID"+it.href}, pathname);
                   return (
                     <Link key={it.name} to={as}
-                        className={`px-3 py-2 rounded-md text-sm font-medium ${selected ? "text-white bg-gray-600" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
+                        className={`px-3 py-2 rounded-md text-sm font-medium ${isSelected ? "text-white bg-gray-600" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
                       {it.name}
                     </Link>
                   )
@@ -56,7 +56,7 @@ const Nav: FunctionComponent = () => {
             </div>
             {/* <-- App dropdown --> */}
             <div className="ml-3">
-              <AppDropdown appID={appID} open={appsOpen} setOpen={setAppsOpen} />
+              <AppDropdown appID={appID!} open={appsOpen} setOpen={setAppsOpen} />
             </div>
           </div>
 
@@ -84,10 +84,11 @@ const Nav: FunctionComponent = () => {
               </a>
             } else {
               const as = `/${appID}${it.href}`
-              const selected = route.path === ("/:appID" + it.href)
+              const { pathname } = useLocation();
+              const isSelected = !!matchPath({path: "/:appID"+it.href}, pathname);
               return (
                 <Link key={it.name} to={as}
-                      className={`block px-2 py-2 rounded-md text-base font-medium ${selected ? "text-white bg-gray-900" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
+                      className={`block px-2 py-2 rounded-md text-base font-medium ${isSelected ? "text-white bg-gray-900" : "text-gray-300 hover:text-white hover:bg-gray-700"} focus:outline-none focus:text-white focus:bg-gray-700`}>
                   {it.name}
                 </Link>
               )
