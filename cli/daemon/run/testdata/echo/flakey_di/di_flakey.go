@@ -21,7 +21,7 @@ func (s *Service) Flakey(ctx context.Context) (*Response, error) {
 
 var ctr int
 
-func InitService() (*Service, error) {
+func initService() (*Service, error) {
 	ctr++
 	if ctr == 1 {
 		return nil, errors.New("temporary error")

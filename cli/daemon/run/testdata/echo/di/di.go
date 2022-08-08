@@ -23,6 +23,6 @@ func (s *Service) Two(ctx context.Context) (*Response, error) {
 	return &Response{Msg: s.Msg}, nil
 }
 
-func InitService() (*Service, error) {
+func initService() (*Service, error) {
 	return &Service{Msg: "Hello World"}, nil
 }

@@ -367,18 +367,12 @@ func (p *parser) initServiceStruct(ss *est.ServiceStruct) {
 	if ss.Decl.TypeParams.NumFields() > 0 {
 		p.errf(ss.Decl.Pos(), "encore:service types cannot be defined as generic types")
 	}
+
 	// Do we have an init function for this struct?
 	pkgDecls := p.names[ss.Svc.Root].Decls
-	for name, decl := range pkgDecls {
-		if decl.Type == token.FUNC && strings.EqualFold(name, "init"+ss.Name) {
-			if prev := ss.Init; prev != nil {
-				p.errf(decl.Pos, "multiple API group initialization functions found (previous declaration at %s)",
-					p.fset.Position(prev.Pos()))
-			} else {
-				ss.Init = decl.Func
-				ss.InitFile = decl.File
-			}
-		}
+	if decl, ok := pkgDecls["init"+ss.Name]; ok && decl.Type == token.FUNC {
+		ss.Init = decl.Func
+		ss.InitFile = decl.File
 	}
 	svc := ss.Svc
 	svc.Struct = ss

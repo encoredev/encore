@@ -11,7 +11,8 @@ interfaces).
 
 Encore provides built-in support for dependency injection in services. It works by
 defining a struct type of your choice (typically called `Service`) and declaring it with
-`//encore:service`. Then, you can define a special function named `initService` (or `initWhatever` if you named the type `Whatever`)
+`//encore:service`. Then, you can define a special function named `initService`
+(or `initWhatever` if you named the type `Whatever`)
 that gets called by Encore to initialize your service when it starts up.
 
 It looks like this:
@@ -40,6 +41,7 @@ func (s *Service) Send(ctx context.Context, p *SendParams) error {
 	// ... use s.sendgridClient to send emails ...
 }
 ```
+
 
 ### Code Generation
 
@@ -116,10 +118,15 @@ your service when it's time to gracefully shut down. This works
 by having your service struct implement the method
 `func (s *Service) Shutdown(force context.Context)`.
 
-
 If that method exists, Encore will call it when it's time to begin
 gracefully shutting down. Initially the shutdown is in "graceful mode",
 which means that you have a few seconds to complete ongoing work.
+
+The provided `force` context is canceled when the graceful shutdown window
+is over, and it's time to forcefully shut down. The amount of time you have
+from when `Shutdown` is called to when forceful shutdown begins depends on the
+cloud provider and the underlying infrastructure, but typically is anywhere
+from 5-30 seconds.
 
 <Callout type="important">
 
@@ -130,12 +137,6 @@ The graceful shutdown functionality is provided if you have additional,
 non-Encore-related resources that need graceful shutdown.
 
 </Callout>
-
-The provided `force` context is canceled when the graceful shutdown window
-is over, and it's time to forcefully shut down. The amount of time you have
-from when `Shutdown` is called to when forceful shutdown begins depends on the
-cloud provider and the underlying infrastructure, but typically is anywhere
-from 5-30 seconds.
 
 Note that graceful shutdown in Encore is *cooperative*: Encore will wait indefinitely
 for your `Shutdown` method to return. If your `Shutdown` method does not return promptly

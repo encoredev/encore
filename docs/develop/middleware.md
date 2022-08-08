@@ -76,6 +76,25 @@ func CachingMiddleware(req middleware.Request, next middleware.Next) middleware.
 This uses `target=tag:cache` to have the middleware only apply to APIs that have
 that tag. More on this below in [Targeting APIs](#targeting-apis).
 
+<Callout type="important">
+
+Middleware functions can also be defined as methods on a Dependency Injection
+struct declared with `//encore:service`. For example:
+
+```go
+//encore:service
+type Service struct{}
+
+//encore:middleware target=all
+func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) middleware.Response {
+	// ...
+}
+```
+
+See the [Dependency Injection](dependency-injection) docs for more information.
+
+</Callout>
+
 ## Middleware ordering
 
 Middleware can either be defined inside a service, in which case it only runs
@@ -83,7 +102,7 @@ for APIs within that service, or it can be defined as a `global` middleware,
 in which case it applies to all services. For global middleware the `target`
 directive still applies and enables you to easily match a subset of APIs.
 
-<Callout type="info">
+<Callout type="important">
 
 Global middleware always run before all service-specific middleware,
 and then run in the order they are defined in the source code based on
