@@ -160,6 +160,11 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 
 // handleIncoming executes the given handler, running middleware in the process.
 func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp Resp, httpStatus int, respErr error) {
+	if err := d.validate(reqData); err != nil {
+		respErr = err
+		return
+	}
+
 	invokeHandler := func(mwReq middleware.Request) (mwResp middleware.Response) {
 		if d.Raw {
 			return d.invokeHandlerRaw(mwReq, c)
@@ -332,6 +337,11 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 			return
 		}
 
+		if err := d.validate(req); err != nil {
+			respErr = err
+			return
+		}
+
 		ec := c.server.newExecContext(c.ctx, params, model.AuthInfo{reqObj.UID, reqObj.AuthData})
 		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
@@ -354,6 +364,21 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 
 	c.server.finishCall(call, respErr)
 	return
+}
+
+// validate validates the request, and returns a validation error on failure.
+// If Req does not implement Validator, it returns nil.
+func (d *Desc[Req, Resp]) validate(req Req) error {
+	if v, ok := any(req).(Validator); ok {
+		if err := v.Validate(); err != nil {
+			// If we already have an *errs.Error, return it directly.
+			if _, ok := err.(*errs.Error); ok {
+				return err
+			}
+			return errs.WrapCode(err, errs.InvalidArgument, "validation failed: "+err.Error())
+		}
+	}
+	return nil
 }
 
 // rpcDesc returns the RPC description for this endpoint,
