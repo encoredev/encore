@@ -37,8 +37,9 @@ type Request struct {
 	Endpoint   string     // Which API endpoint is being called
 	Path       string     // What was the path made to the API server
 	PathParams PathParams // If there are path parameters, what are they?
-	// Payload is the decoded request payload, or nil if the endpoint
-	// has no request payload or the endpoint is raw.
+
+	// Payload is the decoded request payload or Pub/Sub message payload,
+	// or nil if the API endpoint has no request payload or the endpoint is raw.
 	Payload any
 }
 

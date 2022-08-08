@@ -6,8 +6,11 @@ subtitle: Handling cross-cutting, generic functionality
 Middleware is a way to write reusable code that runs before or after (or both)
 the handling of API requests, often across several (or all) API endpoints.
 
-It's commonly used to implement cross-cutting concerns like request logging,
-authentication, tracing, and so on. One of the benefits of Encore is that
+It's commonly used to implement cross-cutting concerns like
+[request logging](/docs/observability/logging),
+[authentication](/docs/develop/auth),
+[tracing](/docs/observability/tracing),
+and so on. One of the benefits of Encore is that
 all of these use cases are already handled out-of-the-box, so there's no
 need to use middleware for those things.
 

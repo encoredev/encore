@@ -1,6 +1,8 @@
 // Package middleware provides middleware functionality for defining
 // generic processing across multiple API endpoints, typically for
 // cross-cutting concerns like validation, caching, or error monitoring.
+//
+// For documentation on how to use middleware in Encore see https://encore.dev/docs/develop/middleware.
 package middleware
 
 import (

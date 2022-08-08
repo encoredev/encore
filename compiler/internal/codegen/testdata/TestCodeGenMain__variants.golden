@@ -128,7 +128,7 @@ import (
 var EncoreInternal_ServiceService = &service.Decl[Service]{
 	Service:     "svc",
 	Name:        "Service",
-	Setup:       InitService,
+	Setup:       initService,
 	SetupDefLoc: 31,
 }
 
