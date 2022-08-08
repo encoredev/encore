@@ -72,6 +72,7 @@ sections: [
 			{title: "Testing", segment: "testing"},
 			{title: "Middleware", segment: "middleware"},
 			{title: "Dependency Injection", segment: "dependency-injection"},
+			{title: "Validation", segment: "validation"},
 			{title: "Metadata", segment: "metadata"},
 			{title: "Generated API Docs", segment: "api-docs"},
 			{title: "CLI Reference", segment: "cli-reference"},
