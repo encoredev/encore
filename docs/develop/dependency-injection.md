@@ -108,3 +108,37 @@ func TestFoo(t *testing.T) {
     // ...
 }
 ```
+
+### Graceful Shutdown
+
+When defining a service struct, Encore supports notifying
+your service when it's time to gracefully shut down. This works
+by having your service struct implement the method
+`func (s *Service) Shutdown(force context.Context)`.
+
+
+If that method exists, Encore will call it when it's time to begin
+gracefully shutting down. Initially the shutdown is in "graceful mode",
+which means that you have a few seconds to complete ongoing work.
+
+<Callout type="important">
+
+Encore automatically handles graceful shutdown of all Encore-managed
+functionality, such as HTTP servers, database connection pools,
+Pub/Sub message receivers, distributed tracing recorders, and so on.
+The graceful shutdown functionality is provided if you have additional,
+non-Encore-related resources that need graceful shutdown.
+
+</Callout>
+
+The provided `force` context is canceled when the graceful shutdown window
+is over, and it's time to forcefully shut down. The amount of time you have
+from when `Shutdown` is called to when forceful shutdown begins depends on the
+cloud provider and the underlying infrastructure, but typically is anywhere
+from 5-30 seconds.
+
+Note that graceful shutdown in Encore is *cooperative*: Encore will wait indefinitely
+for your `Shutdown` method to return. If your `Shutdown` method does not return promptly
+after the `force` context is closed, the underlying infrastructure at your cloud provider
+will typically force-kill your service, which can lead to lingering connections and other
+such issues.
