@@ -3,14 +3,15 @@ package main
 
 import (
 	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/app"
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
 	_ "unsafe"
 )
 
 // loadApp loads the Encore app runtime.
-//go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *appinit.LoadData {
+//go:linkname loadApp encore.dev/appruntime/app.load
+func loadApp() *app.LoadData {
 	static := &config.Static{
 		AppCommit: config.CommitInfo{
 			Revision:    "",
@@ -23,7 +24,7 @@ func loadApp() *appinit.LoadData {
 		Testing:        false,
 	}
 	handlers := []api.Handler{}
-	return &appinit.LoadData{
+	return &app.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: nil,
 		StaticCfg:   static,

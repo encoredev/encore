@@ -3,21 +3,21 @@ package svc_test
 
 import (
 	"encore.app/svc"
-	"encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/app"
 	"encore.dev/appruntime/config"
 	"reflect"
 	_ "unsafe"
 )
 
-//go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *appinit.LoadData {
+//go:linkname loadApp encore.dev/appruntime/app.load
+func loadApp() *app.LoadData {
 	static := &config.Static{
 		AuthData:     reflect.TypeOf((*svc.AuthData)(nil)),
 		PubsubTopics: map[string]*config.StaticPubsubTopic{},
 		TestService:  "svc",
 		Testing:      true,
 	}
-	return &appinit.LoadData{
+	return &app.LoadData{
 		APIHandlers: nil,
 		StaticCfg:   static,
 	}

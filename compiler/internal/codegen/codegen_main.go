@@ -42,8 +42,8 @@ func (b *Builder) Main() (f *File, err error) {
 
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
-	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
-	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
+	f.Comment("//go:linkname loadApp encore.dev/appruntime/app.load")
+	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app", "LoadData").BlockFunc(func(g *Group) {
 		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
 			Id("AuthData"):       b.authDataType(),
 			Id("EncoreCompiler"): Lit(b.compilerVersion),
@@ -73,7 +73,7 @@ func (b *Builder) Main() (f *File, err error) {
 			authHandlerExpr = Qual(ah.Svc.Root.ImportPath, b.authHandlerName(ah))
 		}
 
-		g.Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
+		g.Return(Op("&").Qual("encore.dev/appruntime/app", "LoadData").Values(Dict{
 			Id("StaticCfg"):   Id("static"),
 			Id("APIHandlers"): Id("handlers"),
 			Id("AuthHandler"): authHandlerExpr,

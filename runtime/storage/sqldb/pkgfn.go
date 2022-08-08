@@ -4,6 +4,8 @@ package sqldb
 
 import (
 	"context"
+
+	_ "encore.dev/appruntime/app/appinit" // Force the app to initialise all singletons before these functions can be used
 )
 
 // Exec executes a query without returning any rows.

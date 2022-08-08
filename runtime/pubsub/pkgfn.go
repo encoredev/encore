@@ -2,6 +2,8 @@
 
 package pubsub
 
+import _ "encore.dev/appruntime/app/appinit" // Force the app to initialise all singletons before these functions can be used
+
 //publicapigen:drop
 var Singleton *Manager
 
