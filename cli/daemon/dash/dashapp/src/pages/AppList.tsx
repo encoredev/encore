@@ -5,9 +5,24 @@ import {useConn} from '~lib/ctx'
 const AppList: FunctionComponent = (props) => {
   const conn = useConn()
   const [apps, setApps] = useState<{id: string; name: string}[] | undefined>(undefined)
+
   useEffect(() => {
-    conn.request("list-apps").then(apps => setApps(apps as {id: string; name: string}[]))
-  }, [])
+    let ignore = false;
+    async function fetchApps() {
+      await conn.request("list-apps").then((apps) => {
+        if (!ignore) {
+          setApps(apps as { id: string; name: string }[]);
+        }
+      });
+    }
+
+    fetchApps();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
 
   return (
     <>
