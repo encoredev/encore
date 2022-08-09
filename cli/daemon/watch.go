@@ -35,13 +35,15 @@ func (s *Server) watchApps() {
 func (s *Server) onWatchEvent(i *apps.Instance, ev notify.EventInfo) {
 	path := ev.Path()
 	ext := filepath.Ext(path)
+	filename := filepath.Base(path)
 	switch ext {
 	case ".go", ".mod", ".sum", ".work":
 		// Our code may have changed; regenerate
 	default:
 		return
 	}
-	if strings.Contains(strings.ToLower(path), ".gen.") {
+
+	if strings.HasPrefix(strings.ToLower(filename), "encore.gen.") {
 		// Ignore generated code
 		return
 	}
