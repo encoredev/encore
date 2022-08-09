@@ -42,9 +42,30 @@ func (t *RequestTracker) FinishOperation() {
 
 func (t *RequestTracker) BeginRequest(req *model.Request) {
 	if prev, _, _ := t.currentReq(); prev != nil {
+		copyReqInfoFromParent(req, prev)
 		t.clearReq()
 	}
 	t.beginReq(req, req.Traced)
+}
+
+// copyReqInfoFromParent copies over relevant request from the parent request.
+// If the relevant fields are already set on next they are not copied over.
+func copyReqInfoFromParent(next, prev *model.Request) {
+	if next.UID == "" {
+		next.UID = prev.UID
+	}
+	if next.AuthData == nil {
+		next.AuthData = prev.AuthData
+	}
+	if next.ParentID == (model.SpanID{}) {
+		next.ParentID = prev.SpanID
+	}
+	if !next.Traced {
+		next.Traced = prev.Traced
+	}
+	if next.Test == nil {
+		next.Test = prev.Test
+	}
 }
 
 func (t *RequestTracker) FinishRequest() {

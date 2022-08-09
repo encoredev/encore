@@ -86,7 +86,35 @@ Supported language codes are:
 		ValidArgsFunction: autoCompleteAppSlug,
 	}
 
+	genWrappersCmd := &cobra.Command{
+		Use:   "wrappers",
+		Short: "Generates user-facing wrapper code",
+		Long: `Manually regenerates user-facing wrapper code.
+
+This is typically not something you ever need to call during regular development,
+as Encore automatically regenerates the wrappers whenever the code-base changes.
+
+Its core use case is for CI/CD workflows where you want to run custom linters,
+which may require the user-facing wrapper code to be manually generated.`,
+		Args: cobra.ExactArgs(0),
+		Run: func(cmd *cobra.Command, args []string) {
+			appRoot, _ := determineAppRoot()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			daemon := setupDaemon(ctx)
+			_, err := daemon.GenWrappers(ctx, &daemonpb.GenWrappersRequest{
+				AppRoot: appRoot,
+			})
+			if err != nil {
+				fatal(err)
+			} else {
+				fmt.Println("successfully generated encore wrappers.")
+			}
+		},
+	}
+
 	genCmd.AddCommand(genClientCmd)
+	genCmd.AddCommand(genWrappersCmd)
 
 	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\" and \"go\" are supported)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("lang", autoCompleteFromStaticList(

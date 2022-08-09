@@ -15,30 +15,32 @@ import (
 const JsonPkg = "github.com/json-iterator/go"
 
 type Builder struct {
-	res             *parser.Result
-	compilerVersion string
+	res        *parser.Result
+	forTesting bool
 
 	marshaller *gocodegen.MarshallingCodeGenerator
 	errors     *errlist.List
 }
 
-func NewBuilder(res *parser.Result, compilerVersion string) *Builder {
+func NewBuilder(res *parser.Result, forTesting bool) *Builder {
 	marshallerPkgPath := path.Join(res.Meta.ModulePath, "__encore", "etype")
 	marshaller := gocodegen.NewMarshallingCodeGenerator(marshallerPkgPath, "Marshaller", false)
 
 	return &Builder{
-		res:             res,
-		compilerVersion: compilerVersion,
-		errors:          errlist.New(res.FileSet),
-		marshaller:      marshaller,
+		res:        res,
+		forTesting: forTesting,
+		errors:     errlist.New(res.FileSet),
+		marshaller: marshaller,
 	}
 }
 
-func (b *Builder) Main() (f *File, err error) {
+func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
 	f = NewFile("main")
 	b.registerImports(f)
+
+	mwNames, mwCode := b.RenderMiddlewares("")
 
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
@@ -46,7 +48,7 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
 		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
 			Id("AuthData"):       b.authDataType(),
-			Id("EncoreCompiler"): Lit(b.compilerVersion),
+			Id("EncoreCompiler"): Lit(compilerVersion),
 			Id("AppCommit"): Qual("encore.dev/appruntime/config", "CommitInfo").Values(Dict{
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
@@ -55,18 +57,7 @@ func (b *Builder) Main() (f *File, err error) {
 			Id("Testing"):      False(),
 			Id("TestService"):  Lit(""),
 		})
-		g.Id("handlers").Op(":=").Index().Qual("encore.dev/appruntime/api", "Handler").CustomFunc(Options{
-			Open:      "{",
-			Close:     "}",
-			Separator: ",",
-			Multi:     true,
-		}, func(g *Group) {
-			for _, svc := range b.res.App.Services {
-				for _, rpc := range svc.RPCs {
-					g.Add(Qual(svc.Root.ImportPath, b.rpcHandlerName(rpc)))
-				}
-			}
-		})
+		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
 
 		authHandlerExpr := Nil()
 		if ah := b.res.App.AuthHandler; ah != nil {
@@ -84,6 +75,11 @@ func (b *Builder) Main() (f *File, err error) {
 	f.Func().Id("main").Params().Block(
 		Qual("encore.dev/appruntime/app/appinit", "AppMain").Call(),
 	)
+
+	for _, c := range mwCode {
+		f.Line()
+		f.Add(c)
+	}
 
 	return f, b.errors.Err()
 }
@@ -107,6 +103,42 @@ func (b *Builder) computeStaticPubsubConfig() Code {
 		})
 	}
 	return Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubTopic").Values(pubsubTopicDict)
+}
+
+func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*Statement) *Statement {
+	return Index().Qual("encore.dev/appruntime/api", "HandlerRegistration").CustomFunc(Options{
+		Open:      "{",
+		Close:     "}",
+		Separator: ",",
+		Multi:     true,
+	}, func(g *Group) {
+		var globalMW []*est.Middleware
+		for _, mw := range b.res.App.Middleware {
+			if mw.Global {
+				globalMW = append(globalMW, mw)
+			}
+		}
+
+		for _, svc := range b.res.App.Services {
+			for _, rpc := range svc.RPCs {
+				// Compute middleware for this service.
+				rpcMW := b.res.App.MatchingMiddleware(rpc)
+				mwExpr := Nil()
+				if len(rpcMW) > 0 {
+					mwExpr = Index().Op("*").Qual("encore.dev/appruntime/api", "Middleware").ValuesFunc(func(g *Group) {
+						for _, mw := range rpcMW {
+							g.Add(mwNames[mw])
+						}
+					})
+				}
+
+				g.Values(Dict{
+					Id("Handler"):    Qual(svc.Root.ImportPath, b.rpcHandlerName(rpc)),
+					Id("Middleware"): mwExpr,
+				})
+			}
+		}
+	})
 }
 
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {

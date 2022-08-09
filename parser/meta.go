@@ -97,6 +97,10 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.AuthHandler = parseAuthHandler(app.AuthHandler)
 	}
 
+	for _, mw := range app.Middleware {
+		data.Middleware = append(data.Middleware, parseMiddleware(mw))
+	}
+
 	return data, nodes, nil
 }
 
@@ -214,6 +218,7 @@ func parseRPC(rpc *est.RPC) (*meta.RPC, error) {
 		Loc:            parseLoc(rpc.File, rpc.Func),
 		Path:           parsePath(rpc.Path),
 		HttpMethods:    rpc.HTTPMethods,
+		Tags:           rpc.Tags.ToProto(),
 	}
 	return r, nil
 }
@@ -292,6 +297,20 @@ func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 	}
 	if h.AuthData != nil {
 		pb.AuthData = h.AuthData.Type
+	}
+	return pb
+}
+
+func parseMiddleware(mw *est.Middleware) *meta.Middleware {
+	pb := &meta.Middleware{
+		Name:   &meta.QualifiedName{Pkg: mw.Pkg.RelPath, Name: mw.Name},
+		Doc:    mw.Doc,
+		Loc:    parseLoc(mw.File, mw.Func),
+		Global: mw.Global,
+		Target: mw.Target.ToProto(),
+	}
+	if mw.Svc != nil {
+		pb.ServiceName = &mw.Svc.Name
 	}
 	return pb
 }
@@ -385,6 +404,23 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				},
 			}
 		}
+
+		if ss := svc.Struct; ss != nil && ss.Init != nil {
+			fd := ss.Init
+			f := ss.InitFile
+			nod := newTraceNode(&id, svc.Root, f, ss.Init)
+			res[svc.Root][fd] = nod
+
+			start := f.Token.Offset(fd.Type.Pos())
+			end := f.Token.Offset(fd.Type.End())
+			nod.Context = &meta.TraceNode_ServiceInit{
+				ServiceInit: &meta.ServiceInitNode{
+					ServiceName:   svc.Name,
+					SetupFuncName: ss.Init.Name.Name,
+					Context:       string(f.Contents[start:end]),
+				},
+			}
+		}
 	}
 
 	if h := app.AuthHandler; h != nil {
@@ -399,6 +435,23 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				ServiceName: h.Svc.Name,
 				Name:        fd.Name.Name,
 				Context:     string(f.Contents[start:end]),
+			},
+		}
+	}
+
+	for _, mw := range app.Middleware {
+		fd := mw.Func
+		f := mw.File
+		tx := newTraceNode(&id, mw.Pkg, f, fd)
+		res[mw.Pkg][fd] = tx
+		start := f.Token.Offset(fd.Type.Pos())
+		end := f.Token.Offset(fd.Type.End())
+		tx.Context = &meta.TraceNode_MiddlewareDef{
+			MiddlewareDef: &meta.MiddlewareDefNode{
+				PkgRelPath: mw.Pkg.RelPath,
+				Name:       fd.Name.Name,
+				Context:    string(f.Contents[start:end]),
+				Target:     mw.Target.ToProto(),
 			},
 		}
 	}

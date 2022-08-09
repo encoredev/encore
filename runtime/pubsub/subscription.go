@@ -133,9 +133,10 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 				Attempt:      deliveryAttempt,
 				Published:    publishTime,
 			},
-			Inputs: [][]byte{data},
-			DefLoc: staticCfg.TraceIdx,
-			Traced: tracingEnabled,
+			Payload: msg,
+			Inputs:  [][]byte{data},
+			DefLoc:  staticCfg.TraceIdx,
+			Traced:  tracingEnabled,
 
 			// Unset for subscriptions
 			UID:      "",

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+	"net/http"
 
 	"encore.dev/internal/stack"
 )
@@ -138,4 +139,40 @@ func HTTPStatus(err error) int {
 	default:
 		return 500
 	}
+}
+
+// HTTPErrorWithCode writes structured error information to w using JSON encoding.
+// The given status code is used if it is non-zero, and otherwise
+// it is computed with HTTPStatus.
+//
+// If err is nil it writes:
+//     {"code": "ok", "message": "", "details": null}
+func HTTPErrorWithCode(w http.ResponseWriter, err error, code int) {
+	if code == 0 {
+		code = HTTPStatus(err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if err == nil {
+		w.WriteHeader(code)
+		w.Write([]byte(`{
+  "code": "ok",
+  "message": "",
+  "details": null
+}
+`))
+		return
+	}
+
+	e := Convert(err).(*Error)
+	data, err2 := json.MarshalIndent(e, "", "  ")
+	if err2 != nil {
+		// Must be the details; drop them
+		e2 := &Error{Code: e.Code, Message: e.Message}
+		data, _ = json.MarshalIndent(e2, "", "  ")
+	}
+	w.WriteHeader(code)
+	w.Write(data)
 }

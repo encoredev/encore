@@ -11,6 +11,7 @@ import (
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/service"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/auth"
@@ -25,6 +26,7 @@ type App struct {
 	json       jsoniter.API
 	rootLogger zerolog.Logger
 	api        *api.Server
+	service    *service.Manager
 	ts         *testsupport.Manager
 	shutdown   *shutdownTracker
 
@@ -41,7 +43,7 @@ func (app *App) RootLogger() *zerolog.Logger        { return &app.rootLogger }
 
 type NewParams struct {
 	Cfg         *config.Config
-	APIHandlers []api.Handler
+	APIHandlers []api.HandlerRegistration
 	AuthHandler api.AuthHandler // nil means no auth handler
 }
 
@@ -54,20 +56,21 @@ func New(p *NewParams) *App {
 	rt := reqtrack.New(rootLogger, pc, doTrace)
 	json := jsonAPI(cfg)
 	shutdown := newShutdownTracker()
+	encore := encore.NewManager(cfg, rt)
 
-	apiSrv := api.NewServer(cfg, rt, pc, rootLogger, json)
+	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, json)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
+	service := service.NewManager(rt)
 
 	ts := testsupport.NewManager(cfg, rt, rootLogger)
-	encore := encore.NewManager(cfg, rt)
 	auth := auth.NewManager(rt)
 	rlog := rlog.NewManager(rt)
 	sqldb := sqldb.NewManager(cfg, rt)
 	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
 
 	app := &App{
-		cfg, rt, json, rootLogger, apiSrv, ts,
+		cfg, rt, json, rootLogger, apiSrv, service, ts,
 		shutdown,
 		encore, auth, rlog, sqldb, pubsub,
 	}
@@ -90,6 +93,7 @@ func (app *App) Run() error {
 	app.RegisterShutdown(app.api.Shutdown)
 	app.RegisterShutdown(app.sqldb.Shutdown)
 	app.RegisterShutdown(app.pubsub.Shutdown)
+	app.RegisterShutdown(app.service.Shutdown)
 
 	serveErr := app.api.Serve(ln)
 

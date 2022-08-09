@@ -17,6 +17,7 @@ message Data {
   optional AuthHandler    auth_handler        = 6; // the auth handler or nil
   repeated CronJob        cron_jobs           = 7;
   repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
+  repeated Middleware     middleware          = 10;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -45,6 +46,18 @@ message Service {
   repeated string      databases  = 5; // databases this service connects to
 }
 
+message Selector {
+  enum Type {
+    UNKNOWN = 0;
+    ALL     = 1;
+    TAG     = 2;
+    // NOTE: If more types are added, update the (selector.Selector).ToProto method.
+  }
+
+  Type type = 1;
+  string value = 2;
+}
+
 message DBMigration {
   string filename    = 1; // filename
   int32  number      = 2; // migration number
@@ -52,16 +65,17 @@ message DBMigration {
 }
 
 message RPC {
-  string                    name            = 1; // name of the RPC endpoint
-  string                    doc             = 2; // associated documentation
-  string                    service_name    = 3; // the service the RPC belongs to.
-  AccessType                access_type     = 4; // how can the RPC be accessed?
+  string                   name            = 1; // name of the RPC endpoint
+  string                   doc             = 2; // associated documentation
+  string                   service_name    = 3; // the service the RPC belongs to.
+  AccessType               access_type     = 4; // how can the RPC be accessed?
   optional schema.v1.Type  request_schema  = 5; // request schema, or nil
   optional schema.v1.Type  response_schema = 6; // response schema, or nil
   Protocol                 proto           = 7;
   schema.v1.Loc            loc             = 8;
   Path                     path            = 9;
   repeated string          http_methods    = 10;
+  repeated Selector        tags            = 11;
 
   enum AccessType {
     PRIVATE = 0;
@@ -85,6 +99,15 @@ message AuthHandler {
   optional schema.v1.Type params    = 7; // builtin string or named type
 }
 
+message Middleware {
+  QualifiedName     name         = 1;
+  string            doc          = 2;
+  schema.v1.Loc     loc          = 3;
+  bool              global       = 4;
+  optional string   service_name = 5; // nil if global
+  repeated Selector target       = 6;
+}
+
 message TraceNode {
   int32 id = 1;
   string filepath = 2; // slash-separated, relative to app root
@@ -104,6 +127,8 @@ message TraceNode {
     PubSubTopicDefNode   pubsub_topic_def  = 14;
     PubSubPublishNode    pubsub_publish    = 15;
     PubSubSubscriberNode pubsub_subscriber = 16;
+    ServiceInitNode      service_init      = 17;
+    MiddlewareDefNode    middleware_def    = 18;
   }
 }
 
@@ -151,6 +176,19 @@ message PubSubSubscriberNode {
   string subscriber_name = 2;
   string service_name    = 3;
   string context         = 4;
+}
+
+message ServiceInitNode {
+  string service_name    = 1;
+  string setup_func_name = 2;
+  string context         = 3;
+}
+
+message MiddlewareDefNode {
+  string pkg_rel_path      = 1;
+  string name              = 2;
+  string context           = 3;
+  repeated Selector target = 4;
 }
 
 message Path {

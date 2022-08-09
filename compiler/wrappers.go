@@ -33,7 +33,7 @@ func (b *builder) writeMainPkg() error {
 
 	b.addOverlay(filepath.Join(b.appRoot, encorePkgDir, mainPkgName, "main.go"), mainPath)
 
-	f, err := b.codegen.Main()
+	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion)
 	if err != nil {
 		return err
 	}
@@ -66,16 +66,16 @@ func (b *builder) writeEtypePkg() error {
 	return f.Render(file)
 }
 
-func (b *builder) writeSvcHandlers() error {
+func (b *builder) writeHandlers() error {
 	for _, svc := range b.res.App.Services {
-		if err := b.writeHandlers(svc); err != nil {
+		if err := b.writeServiceHandlers(svc); err != nil {
 			return fmt.Errorf("write handlers for svc %s: %v", svc.Name, err)
 		}
 	}
 	return nil
 }
 
-func (b *builder) writeHandlers(svc *est.Service) error {
+func (b *builder) writeServiceHandlers(svc *est.Service) error {
 	// Write the file to disk
 	dir := filepath.Join(b.workdir, filepath.FromSlash(svc.Root.RelPath))
 	name := "encore_internal__service.go"
@@ -117,5 +117,26 @@ func (b *builder) generateTestMain(pkg *est.Package) (err error) {
 
 	f := b.codegen.TestMain(pkg, b.res.App.Services)
 	b.addOverlay(filepath.Join(pkg.Dir, "encore_testmain_test.go"), testMainPath)
+	return f.Render(file)
+}
+
+func (b *builder) generateServiceSetup(svc *est.Service) (err error) {
+	f := b.codegen.UserFacing(svc, true)
+	if f == nil {
+		return nil // nothing to do
+	}
+
+	encoreGenPath := filepath.Join(b.workdir, filepath.FromSlash(svc.Root.RelPath), "encore.gen.go")
+	file, err := os.Create(encoreGenPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err2 := file.Close(); err == nil {
+			err = err2
+		}
+	}()
+
+	b.addOverlay(filepath.Join(svc.Root.Dir, "encore.gen.go"), encoreGenPath)
 	return f.Render(file)
 }

@@ -70,6 +70,8 @@ sections: [
 			{title: "Configuration", segment: "config"},
 			{title: "Secrets", segment: "secrets"},
 			{title: "Testing", segment: "testing"},
+			{title: "Middleware", segment: "middleware"},
+			{title: "Dependency Injection", segment: "dependency-injection"},
 			{title: "Metadata", segment: "metadata"},
 			{title: "Generated API Docs", segment: "api-docs"},
 			{title: "CLI Reference", segment: "cli-reference"},

@@ -3,6 +3,7 @@ package svc_test
 
 import (
 	"encore.app/svc"
+	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
 	"reflect"
@@ -17,8 +18,14 @@ func loadApp() *appinit.LoadData {
 		TestService:  "svc",
 		Testing:      true,
 	}
+	handlers := []api.HandlerRegistration{
+		{
+			Handler:    svc.EncoreInternal_EightHandler,
+			Middleware: nil,
+		},
+	}
 	return &appinit.LoadData{
-		APIHandlers: nil,
+		APIHandlers: handlers,
 		StaticCfg:   static,
 	}
 }

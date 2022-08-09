@@ -18,9 +18,9 @@ var Version string
 // It is used to decide whether to restart the daemon.
 func ConfigHash() (string, error) {
 	envs := []string{
-		"ENCORE_DAEMON_DEV",
 		"ENCORE_PLATFORM_API_URL",
 		"ENCORE_CONFIG_DIR",
+		"ENCORE_EXPERIMENT",
 	}
 	h := sha256.New()
 	for _, e := range envs {
