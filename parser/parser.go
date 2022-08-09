@@ -40,23 +40,24 @@ type parser struct {
 	cfg *Config
 
 	// accumulated results
-	fset         *token.FileSet
-	errors       *errlist.List
-	pkgs         []*est.Package
-	pkgMap       map[string]*est.Package // import path -> pkg
-	svcs         []*est.Service
-	jobs         []*est.CronJob
-	svcMap       map[string]*est.Service // name -> svc
-	svcPkgPaths  map[string]*est.Service // pkg path -> svc
-	jobsMap      map[string]*est.CronJob // ID -> job
-	pubSubTopics []*est.PubSubTopic
-	names        names.Application
-	authHandler  *est.AuthHandler
-	middleware   []*est.Middleware
-	declMap      map[string]*schema.Decl // pkg/path.Name -> decl
-	decls        []*schema.Decl
-	paths        paths.Set                          // RPC paths
-	resourceMap  map[string]map[string]est.Resource // pkg/path -> name -> resource
+	fset          *token.FileSet
+	errors        *errlist.List
+	pkgs          []*est.Package
+	pkgMap        map[string]*est.Package // import path -> pkg
+	svcs          []*est.Service
+	jobs          []*est.CronJob
+	svcMap        map[string]*est.Service // name -> svc
+	svcPkgPaths   map[string]*est.Service // pkg path -> svc
+	jobsMap       map[string]*est.CronJob // ID -> job
+	pubSubTopics  []*est.PubSubTopic
+	cacheClusters []*est.CacheCluster
+	names         names.Application
+	authHandler   *est.AuthHandler
+	middleware    []*est.Middleware
+	declMap       map[string]*schema.Decl // pkg/path.Name -> decl
+	decls         []*schema.Decl
+	paths         paths.Set                          // RPC paths
+	resourceMap   map[string]map[string]est.Resource // pkg/path -> name -> resource
 
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.

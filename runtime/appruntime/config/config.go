@@ -29,22 +29,25 @@ type Static struct {
 }
 
 type Runtime struct {
-	AppID           string                  `json:"app_id"`
-	AppSlug         string                  `json:"app_slug"`
-	APIBaseURL      string                  `json:"api_base_url"`
-	EnvID           string                  `json:"env_id"`
-	EnvName         string                  `json:"env_name"`
-	EnvType         string                  `json:"env_type"`
-	EnvCloud        string                  `json:"env_cloud"`
-	DeployID        string                  `json:"deploy_id"`
-	DeployedAt      time.Time               `json:"deploy_time"`
-	TraceEndpoint   string                  `json:"trace_endpoint,omitempty"`
-	AuthKeys        []EncoreAuthKey         `json:"auth_keys,omitempty"`
+	AppID         string          `json:"app_id"`
+	AppSlug       string          `json:"app_slug"`
+	APIBaseURL    string          `json:"api_base_url"`
+	EnvID         string          `json:"env_id"`
+	EnvName       string          `json:"env_name"`
+	EnvType       string          `json:"env_type"`
+	EnvCloud      string          `json:"env_cloud"`
+	DeployID      string          `json:"deploy_id"`
+	DeployedAt    time.Time       `json:"deploy_time"`
+	TraceEndpoint string          `json:"trace_endpoint,omitempty"`
+	AuthKeys      []EncoreAuthKey `json:"auth_keys,omitempty"`
+	CORS          *CORS           `json:"cors,omitempty"`
+
 	SQLDatabases    []*SQLDatabase          `json:"sql_databases,omitempty"`
 	SQLServers      []*SQLServer            `json:"sql_servers,omitempty"`
 	PubsubProviders []*PubsubProvider       `json:"pubsub_providers,omitempty"`
 	PubsubTopics    map[string]*PubsubTopic `json:"pubsub_topics,omitempty"`
-	CORS            *CORS                   `json:"cors,omitempty"`
+	RedisServers    []*RedisServer          `json:"redis_servers,omitempty"`
+	RedisDatabases  []*RedisDatabase        `json:"redis_databases,omitempty"`
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
@@ -211,5 +214,35 @@ type SQLDatabase struct {
 
 	// MaxConnections is the maximum number of open connections to use
 	// for this database. If zero it defaults to 30.
+	MaxConnections int `json:"max_connections"`
+}
+
+type RedisServer struct {
+	// Host is the host to connect to.
+	// Valid formats are "hostname", "hostname:port", and "/path/to/unix.socket".
+	Host     string `json:"host"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+
+	// ServerCACert is the PEM-encoded server CA cert, or "" if not required.
+	ServerCACert string `json:"server_ca_cert,omitempty"`
+	// ClientCert is the PEM-encoded client cert, or "" if not required.
+	ClientCert string `json:"client_cert,omitempty"`
+	// ClientKey is the PEM-encoded client key, or "" if not required.
+	ClientKey string `json:"client_key,omitempty"`
+}
+
+type RedisDatabase struct {
+	ServerID int `json:"server_id"` // the index into (*Runtime).SQLServers
+
+	// Database is the database index to use, from 0-15.
+	Database int `json:"database"`
+
+	// MinConnections is the minimum number of open connections to use
+	// for this database. It defaults to 1.
+	MinConnections int `json:"min_connections"`
+
+	// MaxConnections is the maximum number of open connections to use
+	// for this database. If zero it defaults to 10*GOMAXPROCS.
 	MaxConnections int `json:"max_connections"`
 }

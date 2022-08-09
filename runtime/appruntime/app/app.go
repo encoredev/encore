@@ -18,6 +18,7 @@ import (
 	"encore.dev/beta/auth"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
+	"encore.dev/storage/cache"
 	"encore.dev/storage/sqldb"
 )
 
@@ -36,6 +37,7 @@ type App struct {
 	rlog   *rlog.Manager
 	sqldb  *sqldb.Manager
 	pubsub *pubsub.Manager
+	cache  *cache.Manager
 }
 
 func (app *App) Cfg() *config.Config                { return app.cfg }
@@ -77,11 +79,12 @@ func New(p *NewParams) *App {
 	rlog := rlog.NewManager(rt)
 	sqldb := sqldb.NewManager(cfg, rt)
 	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
+	cache := cache.NewManager(cfg)
 
 	app := &App{
 		cfg, rt, json, rootLogger, apiSrv, service, ts,
 		shutdown,
-		encore, auth, rlog, sqldb, pubsub,
+		encore, auth, rlog, sqldb, pubsub, cache,
 	}
 
 	// If this is running inside an Encore app, initialize the singletons

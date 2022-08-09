@@ -22,4 +22,5 @@ func initSingletonsForEncoreApp(a *App) {
 	rlog.Singleton = a.rlog
 	sqldb.Singleton = a.sqldb
 	pubsub.Singleton = a.pubsub
+	cache.Singleton = a.cache
 }
