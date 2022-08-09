@@ -143,3 +143,10 @@ for your `Shutdown` method to return. If your `Shutdown` method does not return 
 after the `force` context is closed, the underlying infrastructure at your cloud provider
 will typically force-kill your service, which can lead to lingering connections and other
 such issues.
+
+In summary, when your `Shutdown(force conetxt.Context)` function is called:
+
+- Immediately begin gracefully shutting down
+- When the `force` context is canceled, you should forcefully shut down
+  the resources that haven't yet completed their shutdown
+- Wait until the shutdown is complete before returning from the `Shutdown` function
