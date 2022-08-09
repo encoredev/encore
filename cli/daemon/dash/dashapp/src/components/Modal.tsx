@@ -1,8 +1,8 @@
-import React from "react";
+import React, {PropsWithChildren} from "react";
 import ReactDOM from "react-dom";
 import {Transition} from "@headlessui/react"
 
-interface Props {
+interface Props extends PropsWithChildren {
   show: boolean;
   close?: () => void;
   width?: string;

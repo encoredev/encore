@@ -58,6 +58,10 @@ export default class CM extends React.Component<Props> {
     this.cm.on("focus", () => this.props.onFocus?.())
   }
 
+  componentWillUnmount() {
+    this.cm?.setValue("");
+  }
+
   shouldComponentUpdate(): boolean {
     return false
   }

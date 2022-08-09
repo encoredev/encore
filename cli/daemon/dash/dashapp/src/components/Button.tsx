@@ -1,6 +1,6 @@
-import React, {FunctionComponent, MouseEventHandler} from "react";
+import React, {FunctionComponent, MouseEventHandler, PropsWithChildren} from "react";
 
-export interface Props {
+export interface Props extends PropsWithChildren {
   theme: "purple" | "purple:secondary" | "purple:border" | "white" | "red" | "red:secondary" | "gray" | "gray:border";
   size: "xxs" | "xs" | "sm" | "md" | "lg" | "xl";
   cls?: string;
