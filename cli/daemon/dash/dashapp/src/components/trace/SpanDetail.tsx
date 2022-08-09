@@ -271,7 +271,9 @@ const GoroutineDetail: FunctionComponent<{g: gdata, req: Request, trace: Trace, 
     setBarOver(true)
     setHoverObj(obj)
     const spanEl = (ev.target as HTMLElement)
-    el.style.marginTop = `calc(${spanEl.offsetTop}px - 40px)`;
+    const offset = spanEl.getBoundingClientRect();
+
+    el.style.top = `calc(${offset.top}px - 40px)`;
     el.style.transform = `translateX(calc(-100% + ${gel.offsetLeft}px + ${spanEl.offsetLeft}px))`
   }
 
