@@ -695,6 +695,13 @@ func (b *rpcBuilder) renderResponseStructDesc() structCodegen {
 		b.RespType(),
 		Error(),
 	).BlockFunc(func(g *Group) {
+		if b.RespIsPtr() {
+			// If the response is nil, we should return nil as well.
+			g.If(Id("resp").Op("==").Nil()).Block(
+				Return(Nil(), Nil()),
+			)
+		}
+
 		// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
 		// in the struct. For now, simply serialize it as JSON and back.
 		g.Var().Id("clone").Id(b.RespTypeName())

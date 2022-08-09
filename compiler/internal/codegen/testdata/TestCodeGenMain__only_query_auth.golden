@@ -195,6 +195,9 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		return [][]byte{v}, nil
 	},
 	CloneResp: func(resp *EncoreInternal_EightResp) (*EncoreInternal_EightResp, error) {
+		if resp == nil {
+			return nil, nil
+		}
 		var clone EncoreInternal_EightResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(resp)
 		if err == nil {

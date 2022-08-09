@@ -359,6 +359,9 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		return [][]byte{v}, nil
 	},
 	CloneResp: func(resp *EncoreInternal_EightResp) (*EncoreInternal_EightResp, error) {
+		if resp == nil {
+			return nil, nil
+		}
 		var clone EncoreInternal_EightResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(resp)
 		if err == nil {
@@ -718,6 +721,9 @@ var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, *EncoreInter
 		return [][]byte{v}, nil
 	},
 	CloneResp: func(resp *EncoreInternal_NineResp) (*EncoreInternal_NineResp, error) {
+		if resp == nil {
+			return nil, nil
+		}
 		var clone EncoreInternal_NineResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(resp)
 		if err == nil {
@@ -929,6 +935,9 @@ var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInt
 		return [][]byte{v}, nil
 	},
 	CloneResp: func(resp *EncoreInternal_QueryResp) (*EncoreInternal_QueryResp, error) {
+		if resp == nil {
+			return nil, nil
+		}
 		var clone EncoreInternal_QueryResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(resp)
 		if err == nil {
@@ -1212,6 +1221,9 @@ var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, *EncoreInterna
 		return [][]byte{v}, nil
 	},
 	CloneResp: func(resp *EncoreInternal_TenResp) (*EncoreInternal_TenResp, error) {
+		if resp == nil {
+			return nil, nil
+		}
 		var clone EncoreInternal_TenResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(resp)
 		if err == nil {
