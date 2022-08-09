@@ -13,17 +13,18 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 	//
 	// Use a synthetic (and invalid) import path of "!test" to tell jennifer to
 	// add import statements for the non-"_test" package.
-	f := NewFilePathName(pkg.ImportPath+"!test", pkg.Name+"_test")
-	f.ImportNames(importNames)
-	for _, p := range b.res.App.Packages {
-		f.ImportName(p.ImportPath, p.Name)
-	}
-
+	importPath := pkg.ImportPath + "!test"
+	f := NewFilePathName(importPath, pkg.Name+"_test")
+	b.registerImports(f)
 	f.Anon("unsafe") // for go:linkname
+
 	testSvc := ""
 	if pkg.Service != nil {
 		testSvc = pkg.Service.Name
 	}
+
+	mwNames, mwCode := b.RenderMiddlewares(importPath)
+
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").Block(
 		Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
@@ -32,11 +33,17 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 			Id("TestService"):  Lit(testSvc),
 			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
 		}),
+		Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames)),
 		Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
 			Id("StaticCfg"):   Id("static"),
-			Id("APIHandlers"): Nil(),
+			Id("APIHandlers"): Id("handlers"),
 		})),
 	)
+
+	for _, c := range mwCode {
+		f.Line()
+		f.Add(c)
+	}
 
 	return f
 }

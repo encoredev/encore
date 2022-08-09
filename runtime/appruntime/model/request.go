@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -22,6 +23,14 @@ const (
 	Test          RequestType = 0x04
 )
 
+type RPCDesc struct {
+	Service      string
+	Endpoint     string
+	Raw          bool
+	RequestType  reflect.Type // nil if no payload
+	ResponseType reflect.Type // nil if no payload
+}
+
 type Request struct {
 	Type     RequestType
 	SpanID   SpanID
@@ -33,13 +42,17 @@ type Request struct {
 	Endpoint     string
 	Path         string
 	PathSegments httprouter.Params
-	Inputs       [][]byte // TODO figure out if this makes sense
+	Payload      any
+	Inputs       [][]byte
 	Start        time.Time
 	Logger       *zerolog.Logger
 	Traced       bool
 	DefLoc       int32
 
-	// If this is a pubsub message, this contains information about it.
+	// Set if Type == RPCCall
+	RPCDesc *RPCDesc
+
+	// Set if Type == PubSubMessage
 	MsgData *PubSubMsgData
 
 	// If we're running a test, this contains the test information.

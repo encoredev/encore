@@ -10,6 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
 
+	encore "encore.dev"
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/cors"
 	"encore.dev/appruntime/model"
@@ -28,12 +29,18 @@ const (
 	Private      Access = "private"
 )
 
-type Context struct {
+// execContext contains the data needed for executing a request.
+type execContext struct {
 	server *Server
-	w      http.ResponseWriter
-	req    *http.Request
-	ps     httprouter.Params
+	ctx    context.Context
+	ps     PathParams
 	auth   model.AuthInfo
+}
+
+type IncomingContext struct {
+	execContext
+	w   http.ResponseWriter
+	req *http.Request
 }
 
 type Handler interface {
@@ -42,13 +49,15 @@ type Handler interface {
 	AccessType() Access
 	HTTPPath() string
 	HTTPMethods() []string
-	Handle(c Context)
+	SetMiddleware([]*Middleware)
+	Handle(c IncomingContext)
 }
 
 type Server struct {
 	cfg            *config.Config
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
+	encoreMgr      *encore.Manager
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
 	tracingEnabled bool
@@ -65,7 +74,8 @@ type Server struct {
 	pubsubSubscriptions map[string]func(r *http.Request) error
 }
 
-func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Client, rootLogger zerolog.Logger, json jsoniter.API) *Server {
+func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Client,
+	encoreMgr *encore.Manager, rootLogger zerolog.Logger, json jsoniter.API) *Server {
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -85,6 +95,7 @@ func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Cli
 		cfg:            cfg,
 		pc:             pc,
 		rt:             rt,
+		encoreMgr:      encoreMgr,
 		rootLogger:     rootLogger,
 		json:           json,
 		tracingEnabled: trace.Enabled(cfg),
@@ -117,15 +128,25 @@ func (s *Server) SetAuthHandler(h AuthHandler) {
 	s.authHandler = h
 }
 
-func (s *Server) Register(handlers []Handler) {
+type HandlerRegistration struct {
+	Handler    Handler
+	Middleware []*Middleware
+}
+
+func (s *Server) Register(handlers []HandlerRegistration) {
 	// If we have a lot of handlers, don't log each one being registered.
 	logEachRegistration := len(handlers) < 8 // chosen by a fair dice roll
+
+	// Don't log during tests.
+	if s.cfg.Static.Testing {
+		logEachRegistration = false
+	}
 
 	for _, h := range handlers {
 		s.register(h, logEachRegistration)
 	}
 
-	if !logEachRegistration {
+	if !logEachRegistration && !s.cfg.Static.Testing {
 		s.rootLogger.Info().Msgf("registered %d API endpoints", len(handlers))
 	}
 }
@@ -133,7 +154,10 @@ func (s *Server) Register(handlers []Handler) {
 // wildcardMethod is an internal method name we register wildcard methods under.
 const wildcardMethod = "__ENCORE_WILDCARD__"
 
-func (s *Server) register(h Handler, logRegistration bool) {
+func (s *Server) register(reg HandlerRegistration, logRegistration bool) {
+	h := reg.Handler
+	h.SetMiddleware(reg.Middleware)
+
 	path := h.HTTPPath()
 	if logRegistration {
 		s.rootLogger.Info().
@@ -149,7 +173,7 @@ func (s *Server) register(h Handler, logRegistration bool) {
 		}
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-			s.processRequest(h, s.NewContext(w, req, ps, model.AuthInfo{}))
+			s.processRequest(h, s.NewIncomingContext(w, req, ps, model.AuthInfo{}))
 		}
 
 		s.private.Handle(m, path, adapter)
@@ -224,7 +248,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 
-func (s *Server) processRequest(h Handler, c Context) {
+func (s *Server) processRequest(h Handler, c IncomingContext) {
 	c.server.beginOperation()
 	defer c.server.finishOperation()
 
@@ -235,8 +259,13 @@ func (s *Server) processRequest(h Handler, c Context) {
 	}
 }
 
-func (s *Server) NewContext(w http.ResponseWriter, req *http.Request, ps PathParams, auth model.AuthInfo) Context {
-	return Context{s, w, req, ps, auth}
+func (s *Server) newExecContext(ctx context.Context, ps PathParams, auth model.AuthInfo) execContext {
+	return execContext{s, ctx, ps, auth}
+}
+
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps PathParams, auth model.AuthInfo) IncomingContext {
+	ec := s.newExecContext(req.Context(), ps, auth)
+	return IncomingContext{ec, w, req}
 }
 
 func (s *Server) NewCallContext(ctx context.Context) CallContext {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -22,6 +23,7 @@ type Application struct {
 	PubSubTopics []*PubSubTopic
 	Decls        []*schema.Decl
 	AuthHandler  *AuthHandler
+	Middleware   []*Middleware
 }
 
 type File struct {
@@ -51,10 +53,29 @@ type Package struct {
 // Its name is defined by the Go package name.
 // A Service may not be a located in a child directory of another service.
 type Service struct {
+	Name       string
+	Root       *Package
+	Pkgs       []*Package
+	RPCs       []*RPC
+	Middleware []*Middleware
+
+	// Struct is the dependency injection struct, or nil if none exists.
+	Struct *ServiceStruct
+}
+
+// ServiceStruct describes a dependency injection struct a particular service defines.
+type ServiceStruct struct {
 	Name string
-	Root *Package
-	Pkgs []*Package
-	RPCs []*RPC
+	Svc  *Service
+	File *File // where the struct is defined
+	Doc  string
+	Decl *ast.TypeSpec
+	RPCs []*RPC // RPCs defined on the service struct
+
+	// Init is the function for initializing this group.
+	// It is nil if there is no initialization function.
+	Init     *ast.FuncDecl
+	InitFile *File // where the init func is declared
 }
 
 type CronJob struct {
@@ -166,6 +187,11 @@ type RPC struct {
 	HTTPMethods []string
 	Request     *Param // request data; nil for Raw RPCs
 	Response    *Param // response data; nil for Raw RPCs
+	Tags        selector.Set
+
+	// SvcStruct is the service struct this RPC is defined on,
+	// or nil otherwise. It is always a pointer receiver.
+	SvcStruct *ServiceStruct
 }
 
 type NodeType int
@@ -208,6 +234,20 @@ type AuthHandler struct {
 	// as part of the returns from the auth handler.
 	// It is nil if no such auth data type is specified.
 	AuthData *Param
+}
+
+type Middleware struct {
+	Name   string
+	Doc    string
+	Global bool
+	Target selector.Set
+
+	Func *ast.FuncDecl
+	File *File
+
+	Pkg       *Package       // pkg this middleware is defined in
+	Svc       *Service       // nil if global
+	SvcStruct *ServiceStruct // nil if not defined on a service struct
 }
 
 type Resource interface {

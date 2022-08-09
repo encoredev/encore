@@ -5,28 +5,31 @@ import (
 	"fmt"
 	"net/http"
 
+	jsoniter "github.com/json-iterator/go"
+
 	"encore.dev/appruntime/model"
 	"encore.dev/beta/errs"
 )
 
-type AuthHandlerDesc[Params Serializable] struct {
+type AuthHandlerDesc[Params any] struct {
 	// Service and Endpoint name the auth handler this description is for.
 	Service     string
 	Endpoint    string
 	DefLoc      int32
 	HasAuthData bool // whether the handler returns custom auth data
 
-	DecodeAuth  func(*http.Request) (Params, error)
-	AuthHandler func(ctx context.Context, p Params) (model.AuthInfo, error)
+	DecodeAuth      func(*http.Request) (Params, error)
+	AuthHandler     func(context.Context, Params) (model.AuthInfo, error)
+	SerializeParams func(jsoniter.API, Params) ([][]byte, error)
 }
 
 type AuthHandler interface {
-	Authenticate(Context) (model.AuthInfo, error)
+	Authenticate(IncomingContext) (model.AuthInfo, error)
 }
 
 // Authenticate authenticates the request.
 // If err != nil it should be written back as the response.
-func (d *AuthHandlerDesc[Params]) Authenticate(c Context) (model.AuthInfo, error) {
+func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInfo, error) {
 	param, err := d.DecodeAuth(c.req)
 	var info model.AuthInfo
 	if err != nil {
@@ -42,8 +45,8 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c Context) (model.AuthInfo, error
 	var authErr error
 	go func() {
 		defer close(done)
-		inputs, _ := param.Serialize(c.server.json)
-		authErr = c.server.beginRequest(c.req.Context(), &beginRequestParams{
+		inputs, _ := d.SerializeParams(c.server.json, param)
+		_, authErr = c.server.beginRequest(c.req.Context(), &beginRequestParams{
 			SpanID:   call.SpanID,
 			Service:  d.Service,
 			Endpoint: d.Endpoint,
@@ -78,7 +81,7 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c Context) (model.AuthInfo, error
 
 // runAuthHandler runs the auth handler, if provided.
 // It reports whether to proceed with calling the handler.
-func (s *Server) runAuthHandler(h Handler, c Context) (info model.AuthInfo, proceed bool) {
+func (s *Server) runAuthHandler(h Handler, c IncomingContext) (info model.AuthInfo, proceed bool) {
 	requiresAuth := h.AccessType() == RequiresAuth
 	if s.authHandler == nil {
 		if requiresAuth {

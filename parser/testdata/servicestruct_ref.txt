@@ -1,0 +1,29 @@
+! parse
+stderr 'cannot reference encore:service struct type svc.Service from another service'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+)
+
+//encore:service
+type Service struct {}
+
+//encore:api public
+func (*Service) Foo(ctx context.Context) error { return nil }
+
+-- svc2/svc2.go --
+package svc2
+
+import (
+	"context"
+
+	"test/svc"
+)
+
+//encore:api public
+func Bar(ctx context.Context) error { return nil }
+
+func Foo(s *svc.Service) {}

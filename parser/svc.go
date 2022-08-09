@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
 
@@ -29,7 +30,9 @@ func (p *parser) parseServices() {
 			Root: pkg,
 			Pkgs: []*est.Package{pkg},
 		}
-		if isSvc := p.parseFuncs(pkg, svc); !isSvc {
+		p.parseServiceStruct(pkg, svc)
+		isSvc := p.parseFuncs(pkg, svc)
+		if !isSvc {
 			continue
 		}
 
@@ -91,7 +94,58 @@ PkgLoop:
 	}
 }
 
-// parseFuncs parses the pkg for any declared RPCs and auth handlers.
+// parseServiceStruct parses the pkg for any declared encore:service structs.
+func (p *parser) parseServiceStruct(pkg *est.Package, svc *est.Service) *est.ServiceStruct {
+	var ss *est.ServiceStruct
+	for _, f := range pkg.Files {
+		for _, decl := range f.AST.Decls {
+			gd, ok := decl.(*ast.GenDecl)
+			if !ok || gd.Tok != token.TYPE {
+				continue
+			}
+
+			// We can either have the directive comment attached directly
+			// on the GenDecl, or on the TypeSpec. Handle both cases.
+			dir, doc := p.parseDirectives(gd.Doc)
+			if dir != nil && len(gd.Specs) != 1 {
+				p.err(gd.Doc.Pos(), "invalid encore directive location (expected on declaration, not group)")
+				continue
+			}
+
+			for _, spec := range gd.Specs {
+				s := spec.(*ast.TypeSpec)
+				if dir == nil {
+					dir, doc = p.parseDirectives(s.Doc)
+				}
+				if dir != nil {
+					switch dir := dir.(type) {
+					case *serviceDirective:
+						if ss != nil {
+							p.errf(s.Pos(), "duplicate encore:service directive (previous declaration at %s)",
+								p.fset.Position(ss.Decl.Pos()))
+							continue
+						}
+						ss = &est.ServiceStruct{
+							Name: s.Name.Name,
+							Svc:  svc,
+							File: f,
+							Doc:  doc,
+							Decl: s,
+						}
+						p.initServiceStruct(ss)
+
+					default:
+						p.errf(dir.Pos(), "unexpected directive type %T on type declaration", dir)
+						p.abort()
+					}
+				}
+			}
+		}
+	}
+	return ss
+}
+
+// parseFuncs parses the pkg for any declared RPCs, auth handlers, and middleware.
 func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool) {
 	for _, f := range pkg.Files {
 		for _, decl := range f.AST.Decls {
@@ -127,6 +181,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 					File:        f,
 					Path:        path,
 					HTTPMethods: dir.Method,
+					Tags:        dir.Tags,
 				}
 				p.initRPC(rpc)
 
@@ -150,6 +205,23 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 				p.authHandler = authHandler
 				isService = true
 
+			case *middlewareDirective:
+				mw := &est.Middleware{
+					Name:   fd.Name.Name,
+					Doc:    doc,
+					Func:   fd,
+					File:   f,
+					Global: dir.Global,
+					Target: dir.Target,
+					Pkg:    pkg,
+				}
+				if !mw.Global {
+					mw.Svc = svc
+					mw.SvcStruct = p.resolveServiceStruct("middleware receiver", svc, fd, f)
+					svc.Middleware = append(svc.Middleware, mw)
+				}
+				p.middleware = append(p.middleware, mw)
+
 			default:
 				p.errf(dir.Pos(), "unexpected directive type %T", dir)
 				p.abort()
@@ -160,6 +232,8 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 }
 
 func (p *parser) initRPC(rpc *est.RPC) {
+	p.addToServiceStruct(rpc)
+
 	if rpc.Raw {
 		p.initRawRPC(rpc)
 	} else {
@@ -286,6 +360,66 @@ func (p *parser) initTypedRPC(rpc *est.RPC) {
 		} else {
 			rpc.HTTPMethods = []string{"GET", "POST"}
 		}
+	}
+}
+
+func (p *parser) initServiceStruct(ss *est.ServiceStruct) {
+	if ss.Decl.TypeParams.NumFields() > 0 {
+		p.errf(ss.Decl.Pos(), "encore:service types cannot be defined as generic types")
+	}
+
+	// Do we have an init function for this struct?
+	pkgDecls := p.names[ss.Svc.Root].Decls
+	if decl, ok := pkgDecls["init"+ss.Name]; ok && decl.Type == token.FUNC {
+		ss.Init = decl.Func
+		ss.InitFile = decl.File
+	}
+	svc := ss.Svc
+	svc.Struct = ss
+}
+
+// resolveServiceStruct resolves the service struct a receiver type refers to.
+// It returns nil, nil if the func declaration has no receiver.
+func (p *parser) resolveServiceStruct(parameterType string, svc *est.Service, fd *ast.FuncDecl, file *est.File) *est.ServiceStruct {
+	recv := fd.Recv
+	if recv == nil {
+		return nil
+	}
+
+	recvType := recv.List[len(recv.List)-1].Type
+	typ := p.resolveParameter(parameterType, file.Pkg, file, recvType)
+	named := typ.Type.GetNamed()
+	if named == nil {
+		p.errf(recvType.Pos(), "%s receiver must refer to named type, not %T", parameterType, typ.Type.Typ)
+		return nil
+	} else if !typ.IsPtr {
+		p.errf(recvType.Pos(), "%s must be defined as a pointer receiver", parameterType)
+		return nil
+	}
+	recvName := p.decls[named.Id].Name
+
+	if ss := svc.Struct; ss != nil && ss.Name == recvName {
+		return ss
+	}
+
+	p.errf(recvType.Pos(), "type %s is not defined as an encore:service struct"+
+		"\n\tAPIs and middleware can only be defined as methods on service structs."+
+		"\n\tHint: declare it as such with //encore:service",
+		recvName)
+	return nil
+}
+
+// addToServiceStruct resolves the service struct a receiver type refers to
+// and adds the rpc to the struct.
+func (p *parser) addToServiceStruct(rpc *est.RPC) {
+	fd := rpc.Func
+	if fd.Recv == nil {
+		return
+	}
+
+	if ss := p.resolveServiceStruct("api receiver", rpc.Svc, rpc.Func, rpc.File); ss != nil {
+		ss.RPCs = append(ss.RPCs, rpc)
+		rpc.SvcStruct = ss
 	}
 }
 
@@ -493,7 +627,8 @@ func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *
 	// Check it's a supported parameter type (i.e. a named type which is a structure)
 	n := typ.GetNamed()
 	if n == nil {
-		p.errf(expr.Pos(), "%s is not a named type. API Parameters must be a struct type.", types.ExprString(expr))
+		p.errf(expr.Pos(), "%s is not a named type (%s must be a named struct type)",
+			types.ExprString(expr), parameterType)
 		p.abort()
 	}
 

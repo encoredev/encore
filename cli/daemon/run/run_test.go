@@ -294,7 +294,7 @@ func TestEndToEndWithApp(t *testing.T) {
 			run.ServeHTTP(w2, req2)
 			c.Assert(w.Code, qt.Equals, 200)
 			c.Assert(w.Body.Bytes(), qt.JSONEquals, output)
-			c.Assert(w2.Body.Bytes(), qt.DeepEquals, w2.Body.Bytes())
+			c.Assert(w2.Body.Bytes(), qt.DeepEquals, w.Body.Bytes())
 		})
 
 		// Call an endpoint without request parameters, returning nil
@@ -373,6 +373,45 @@ func TestEndToEndWithApp(t *testing.T) {
 				"EnvType":    "local",
 			})
 		})
+
+		// Try the dependency injection services
+		c.Run("dependency_injection", func(c *qt.C) {
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/one", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.HasLen, 0)
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/two", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]string{"Msg": "Hello World"})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/flakey", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 500)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
+					"code":    "internal",
+					"message": "service initialization failed",
+					"details": nil,
+				})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/di/flakey", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Msg": "Hello, Flakey World"})
+			}
+		})
 	})
 
 	c.Run("generated_wrappers_for_intra_service_calls", func(c *qt.C) {
@@ -387,12 +426,10 @@ func TestEndToEndWithApp(t *testing.T) {
 
 	c.Run("go_generated_client", func(c *qt.C) {
 		cmd := exec.Command("go", "run", ".", ln.Addr().String())
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
 		cmd.Dir = filepath.Join("testdata", "echo_client")
 
-		c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated Go client"))
+		out, err := cmd.CombinedOutput()
+		c.Assert(err, qt.IsNil, qt.Commentf("Got error running generated Go client: %s", out))
 	})
 
 	c.Run("typescript_generated_client", func(c *qt.C) {
@@ -404,12 +441,10 @@ func TestEndToEndWithApp(t *testing.T) {
 
 		for _, args := range npmCommandsToRun {
 			cmd := exec.Command("npm", args...)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
 			cmd.Dir = filepath.Join("testdata", "echo_client")
 
-			c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated Typescript client"))
+			out, err := cmd.CombinedOutput()
+			c.Assert(err, qt.IsNil, qt.Commentf("Got error running generated Typescript client: %s", out))
 		}
 	})
 }

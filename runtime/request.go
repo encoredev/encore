@@ -1,12 +1,27 @@
 package encore
 
 import (
+	"reflect"
 	"time"
 
 	"encore.dev/appruntime/model"
 )
 
 var applicationStartTime = time.Now()
+
+// APIDesc describes the API endpoint being called.
+type APIDesc struct {
+	// RequestType specifies the type of the request payload,
+	// or nil if the endpoint has no request payload or is Raw.
+	RequestType reflect.Type
+
+	// ResponseType specifies the type of the response payload,
+	// or nil if the endpoint has no response payload or is Raw.
+	ResponseType reflect.Type
+
+	// Raw specifies whether the endpoint is a Raw endpoint.
+	Raw bool
+}
 
 // Request provides metadata about how and why the currently running code was started.
 //
@@ -17,10 +32,15 @@ type Request struct {
 
 	// APICall specific parameters.
 	// These will be empty for operations with a type not APICall
+	API        *APIDesc   // Metadata about the API endpoint being called
 	Service    string     // Which service is processing this request
-	Endpoint   string     // Which API endpoint was called.
-	Path       string     // What was the path made to the API server.
+	Endpoint   string     // Which API endpoint is being called
+	Path       string     // What was the path made to the API server
 	PathParams PathParams // If there are path parameters, what are they?
+
+	// Payload is the decoded request payload or Pub/Sub message payload,
+	// or nil if the API endpoint has no request payload or the endpoint is raw.
+	Payload any
 }
 
 // RequestType describes how the currently running code was triggered
@@ -77,12 +97,23 @@ func (mgr *Manager) CurrentRequest() *Request {
 		pathParams[i].Value = param.Value
 	}
 
+	var api *APIDesc
+	if d := req.RPCDesc; d != nil {
+		api = &APIDesc{
+			RequestType:  d.RequestType,
+			ResponseType: d.ResponseType,
+			Raw:          d.Raw,
+		}
+	}
+
 	return &Request{
 		Type:       opType,
+		API:        api,
 		Service:    req.Service,
 		Endpoint:   req.Endpoint,
 		Started:    req.Start,
 		Path:       req.Path,
 		PathParams: pathParams,
+		Payload:    req.Payload,
 	}
 }

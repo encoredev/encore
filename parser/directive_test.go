@@ -6,18 +6,19 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
 	qt "github.com/frankban/quicktest"
 )
 
-func TestParseDirectiveRPC(t *testing.T) {
+func TestParseDirective(t *testing.T) {
 	const staticPos = token.Pos(0)
 
 	testcases := []struct {
 		desc        string
 		line        string
-		expected    *rpcDirective
+		expected    directive
 		expectedErr string
 	}{
 		{
@@ -75,6 +76,78 @@ func TestParseDirectiveRPC(t *testing.T) {
 				}},
 			},
 		},
+		{
+			desc:        "api with tags",
+			line:        "api public tag:foo tag:bar",
+			expectedErr: "",
+			expected: &rpcDirective{
+				Access:   est.Public,
+				TokenPos: staticPos,
+				Tags: selector.Set{
+					{Type: selector.Tag, Value: "foo"},
+					{Type: selector.Tag, Value: "bar"},
+				},
+			},
+		},
+		{
+			desc:        "api with duplicate tag",
+			line:        "api public tag:foo tag:foo",
+			expectedErr: `duplicate tag "tag:foo"`,
+		},
+		{
+			desc:        "api with invalid selector",
+			line:        "api public tag:foo.bar",
+			expectedErr: `invalid tag format "tag:foo.bar": invalid value`,
+		},
+		{
+			desc: "middleware",
+			line: "middleware target=tag:foo,tag:bar",
+			expected: &middlewareDirective{
+				Target: selector.Set{
+					{Type: selector.Tag, Value: "foo"},
+					{Type: selector.Tag, Value: "bar"},
+				},
+			},
+		},
+		{
+			desc: "global middleware",
+			line: "middleware global target=tag:foo",
+			expected: &middlewareDirective{
+				Global: true,
+				Target: selector.Set{
+					{Type: selector.Tag, Value: "foo"},
+				},
+			},
+		},
+		{
+			desc: "middleware target all",
+			line: "middleware target=all",
+			expected: &middlewareDirective{
+				Target: selector.Set{
+					{Type: selector.All, Value: ""},
+				},
+			},
+		},
+		{
+			desc:        "middleware duplicate tag",
+			line:        "middleware target=tag:foo,tag:foo",
+			expectedErr: `duplicate tag "tag:foo"`,
+		},
+		{
+			desc:        "middleware missing target",
+			line:        "middleware",
+			expectedErr: `middleware must specify at least one target tag`,
+		},
+		{
+			desc:        "middleware empty target",
+			line:        "middleware target=",
+			expectedErr: `empty directive field: "target="`,
+		},
+		{
+			desc:        "middleware empty target",
+			line:        "middleware target",
+			expectedErr: `middleware field "target" must be in the form 'target=value'`,
+		},
 	}
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -84,9 +157,7 @@ func TestParseDirectiveRPC(t *testing.T) {
 				c.Assert(err, qt.ErrorMatches, tc.expectedErr)
 				return
 			}
-			rpcDir, ok := dir.(*rpcDirective)
-			c.Assert(ok, qt.IsTrue)
-			c.Assert(rpcDir, qt.DeepEquals, tc.expected)
+			c.Assert(dir, qt.DeepEquals, tc.expected)
 		})
 	}
 }

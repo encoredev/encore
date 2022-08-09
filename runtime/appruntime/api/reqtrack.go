@@ -26,24 +26,28 @@ type beginRequestParams struct {
 	Type         model.RequestType
 	Service      string
 	Endpoint     string
-	Inputs       [][]byte
 	Path         string
 	PathSegments httprouter.Params
+	Payload      any
+	Inputs       [][]byte
 	UID          model.UID
 	AuthData     any
 	DefLoc       int32
+
+	// RPC describes the endpoint, if Type == RPCCall.
+	RPCDesc *model.RPCDesc
 
 	// SpanID is the span ID to use.
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
 }
 
-func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error {
+func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
 	spanID := p.SpanID
 	if spanID == (model.SpanID{}) {
 		id, err := model.GenSpanID()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		spanID = id
 	}
@@ -55,28 +59,24 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		Endpoint:     p.Endpoint,
 		Path:         p.Path,
 		PathSegments: p.PathSegments,
+		Payload:      p.Payload,
+		Inputs:       p.Inputs,
 		DefLoc:       p.DefLoc,
 		Start:        time.Now(),
 		UID:          p.UID,
 		AuthData:     p.AuthData,
 		Traced:       s.tracingEnabled,
-	}
-
-	if prev := s.rt.Current().Req; prev != nil {
-		req.UID = prev.UID
-		req.AuthData = prev.AuthData
-		req.ParentID = prev.SpanID
-		req.Traced = prev.Traced
-		req.Test = prev.Test
+		RPCDesc:      p.RPCDesc,
 	}
 
 	logCtx := s.rootLogger.With().Str("service", req.Service).Str("endpoint", req.Endpoint)
 	if req.UID != "" {
 		logCtx = logCtx.Str("uid", string(req.UID))
 	}
-	if req.Test != nil {
-		logCtx = logCtx.Str("test", req.Test.Current.Name())
+	if prev := s.rt.Current().Req; prev != nil && prev.Test != nil {
+		logCtx = logCtx.Str("test", prev.Test.Current.Name())
 	}
+
 	reqLogger := logCtx.Logger()
 	req.Logger = &reqLogger
 
@@ -85,7 +85,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		if a := opts.Auth; a != nil {
 			authDataType := s.cfg.Static.AuthData
 			if err := checkAuthData(authDataType, a.UID, a.UserData); err != nil {
-				return err
+				return nil, err
 			}
 			req.UID = a.UID
 			req.AuthData = a.UserData
@@ -104,7 +104,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) error 
 		req.Logger.Info().Msg("starting request")
 	}
 
-	return nil
+	return req, nil
 }
 
 func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {

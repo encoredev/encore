@@ -3,8 +3,10 @@ package svc_test
 
 import (
 	"encore.app/svc"
+	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
+	middleware "encore.dev/middleware"
 	"reflect"
 	_ "unsafe"
 )
@@ -17,9 +19,77 @@ func loadApp() *appinit.LoadData {
 		TestService:  "svc",
 		Testing:      true,
 	}
+	handlers := []api.HandlerRegistration{
+		{
+			Handler:    svc.EncoreInternal_CronOneHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_DIHandler,
+			Middleware: []*api.Middleware{EncoreInternal_svcMyMiddleware},
+		},
+		{
+			Handler:    svc.EncoreInternal_EightHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_FiveHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_FourHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_NineHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_OneHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_QueryHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_SevenHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_SixHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_TenHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_ThreeHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_TwoHandler,
+			Middleware: nil,
+		},
+	}
 	return &appinit.LoadData{
-		APIHandlers: nil,
+		APIHandlers: handlers,
 		StaticCfg:   static,
 	}
+}
+
+var EncoreInternal_svcMyMiddleware = &api.Middleware{
+	PkgName: "svc",
+	Name:    "MyMiddleware",
+	Global:  false,
+	DefLoc:  33,
+	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
+		svc, err := svc.EncoreInternal_ServiceService.Get()
+		if err != nil {
+			return middleware.Response{Err: err}
+		}
+		return svc.MyMiddleware(req, next)
+	},
 }
 

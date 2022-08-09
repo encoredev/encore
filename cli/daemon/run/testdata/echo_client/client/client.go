@@ -20,9 +20,11 @@ import (
 
 // Client is an API client for the slug Encore application.
 type Client struct {
-	Echo     EchoClient
-	Endtoend EndtoendClient
-	Test     TestClient
+	Di        DiClient
+	Echo      EchoClient
+	Endtoend  EndtoendClient
+	Flakey_di Flakey_diClient
+	Test      TestClient
 }
 
 // BaseURL is the base URL for calling the Encore application's API.
@@ -62,9 +64,11 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	}
 
 	return &Client{
-		Echo:     &echoClient{base},
-		Endtoend: &endtoendClient{base},
-		Test:     &testClient{base},
+		Di:        &diClient{base},
+		Echo:      &echoClient{base},
+		Endtoend:  &endtoendClient{base},
+		Flakey_di: &flakey_diClient{base},
+		Test:      &testClient{base},
 	}, nil
 }
 
@@ -94,6 +98,38 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (*EchoAuthParams, erro
 		base.authGenerator = authGenerator
 		return nil
 	}
+}
+
+type DiResponse struct {
+	Msg string
+}
+
+// DiClient Provides you access to call public and authenticated APIs on di. The concrete implementation is diClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type DiClient interface {
+	One(ctx context.Context) error
+	Two(ctx context.Context) (DiResponse, error)
+}
+
+type diClient struct {
+	base *baseClient
+}
+
+var _ DiClient = (*diClient)(nil)
+
+func (c *diClient) One(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/di/one", nil, nil, nil)
+	return err
+}
+
+func (c *diClient) Two(ctx context.Context) (resp DiResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/di/two", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 type EchoAppMetadata struct {
@@ -481,6 +517,32 @@ var _ EndtoendClient = (*endtoendClient)(nil)
 func (c *endtoendClient) GeneratedWrappersEndToEndTest(ctx context.Context) error {
 	_, err := callAPI(ctx, c.base, "GET", "/generated-wrappers-end-to-end-test", nil, nil, nil)
 	return err
+}
+
+type Flakey_diResponse struct {
+	Msg string
+}
+
+// Flakey_diClient Provides you access to call public and authenticated APIs on flakey_di. The concrete implementation is flakey_diClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type Flakey_diClient interface {
+	Flakey(ctx context.Context) (Flakey_diResponse, error)
+}
+
+type flakey_diClient struct {
+	base *baseClient
+}
+
+var _ Flakey_diClient = (*flakey_diClient)(nil)
+
+func (c *flakey_diClient) Flakey(ctx context.Context) (resp Flakey_diResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/di/flakey", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 type TestBodyEcho struct {

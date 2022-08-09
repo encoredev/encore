@@ -1,0 +1,18 @@
+parse
+stdout 'rpc svc.Str access=public .* recv=\*Service'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+//encore:service
+type Service struct {}
+
+type Params struct{}
+
+//encore:api public
+func (s *Service) Str(ctx context.Context, p *Params) error { return nil }

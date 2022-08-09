@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"encore.dev/beta/auth"
-	"encore.dev/rlog"
 	"encore.dev/cron"
+	"encore.dev/middleware"
+	"encore.dev/rlog"
 	"encore.dev/types/uuid"
 )
 
@@ -127,7 +128,23 @@ type AuthParams struct {
     Query3 time.Time `query:"three"`
 
 }
+
 //encore:authhandler
 func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthData, error) {
 	return "", nil, nil
+}
+
+//encore:service
+type Service struct{}
+
+func initService() (*Service, error) { return nil, nil }
+
+//encore:api public path=/di method=GET tag:di
+func (s *Service) DI(ctx context.Context) error {
+    return nil
+}
+
+//encore:middleware target=tag:di
+func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
 }

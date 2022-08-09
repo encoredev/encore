@@ -4,6 +4,7 @@ package appinit
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"encore.dev/appruntime/api"
@@ -13,7 +14,7 @@ import (
 
 // AppMain is the entrypoint to the Encore Application.
 func AppMain() {
-	if err := singleton.Run(); err != nil {
+	if err := singleton.Run(); err != nil && err != io.EOF {
 		singleton.RootLogger().Fatal().Err(err).Msg("could not run")
 	}
 }
@@ -27,7 +28,7 @@ func load() *LoadData
 
 type LoadData struct {
 	StaticCfg   *config.Static
-	APIHandlers []api.Handler
+	APIHandlers []api.HandlerRegistration
 	AuthHandler api.AuthHandler
 }
 

@@ -22,7 +22,7 @@ func loadApp() *appinit.LoadData {
 		TestService:    "",
 		Testing:        false,
 	}
-	handlers := []api.Handler{}
+	handlers := []api.HandlerRegistration{}
 	return &appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: nil,
