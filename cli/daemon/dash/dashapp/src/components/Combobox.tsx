@@ -17,7 +17,7 @@ interface Props {
   onChange: (selected: ComboboxOptionsItem) => void;
 }
 
-  const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
+const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState<string>("");
 
@@ -55,6 +55,7 @@ interface Props {
             <div className="flex">
               <HeadlessCombobox.Input
                 className="focus:outline-none w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                data-testid="combobox-input"
                 onFocus={(event: FocusEvent<HTMLInputElement>) =>
                   event.target.select()
                 }
