@@ -72,6 +72,13 @@ func (b *builder) writeHandlers() error {
 			return fmt.Errorf("write handlers for svc %s: %v", svc.Name, err)
 		}
 	}
+
+	for _, pkg := range b.res.App.Packages {
+		if err := b.writePackageHandlers(pkg); err != nil {
+			return fmt.Errorf("write handlers for pkg %s: %v", pkg.RelPath, err)
+		}
+	}
+
 	return nil
 }
 
@@ -97,6 +104,60 @@ func (b *builder) writeServiceHandlers(svc *est.Service) error {
 	b.addOverlay(filepath.Join(svc.Root.Dir, name), filePath)
 
 	f, err := b.codegen.ServiceHandlers(svc)
+	if err != nil {
+		return err
+	}
+	return f.Render(file)
+}
+
+func (b *builder) writePackageHandlers(pkg *est.Package) error {
+	// If we have a package that uses Encore resources we need to ensure
+	// the runtime is properly initialized before said package.
+	//
+	// The easiest way to ensure that is through package dependency order,
+	// so we generate a synthetic file that imports the runtime's appinit package.
+	//
+	// This is a bit hacky and in the future we'll want to migrate to a cleaner solution,
+	// but it's at least simple and reliable.
+
+	// Only do this if this is not a root package of a service (since for those
+	// we already have this covered through other code generation).
+	if pkg.Service != nil && pkg.Service.Root == pkg {
+		return nil
+	}
+
+	hasResources := false
+	for _, file := range pkg.Files {
+		if len(file.References) > 0 {
+			hasResources = true
+			break
+		}
+	}
+	if !hasResources {
+		return nil
+	}
+
+	// Write the file to disk
+	dir := filepath.Join(b.workdir, filepath.FromSlash(pkg.RelPath))
+	name := "encore_internal__package.go"
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	filePath := filepath.Join(dir, name)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err2 := file.Close(); err == nil {
+			err = err2
+		}
+	}()
+
+	b.addOverlay(filepath.Join(pkg.Dir, name), filePath)
+
+	f, err := b.codegen.ForceRuntimeDependency(pkg)
 	if err != nil {
 		return err
 	}
