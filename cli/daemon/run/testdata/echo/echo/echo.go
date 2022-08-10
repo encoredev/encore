@@ -224,6 +224,13 @@ type AuthParams struct {
 	NewAuth       bool   `query:"new-auth"`
 }
 
+func (p *AuthParams) Validate() error {
+	if p.Header == "fail-validation" {
+		return errors.New("auth validation fail")
+	}
+	return nil
+}
+
 //encore:authhandler
 func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthParams, error) {
 	if reflect.ValueOf(params).Elem().IsZero() {

@@ -20,11 +20,12 @@ import (
 
 // Client is an API client for the slug Encore application.
 type Client struct {
-	Di        DiClient
-	Echo      EchoClient
-	Endtoend  EndtoendClient
-	Flakey_di Flakey_diClient
-	Test      TestClient
+	Di         DiClient
+	Echo       EchoClient
+	Endtoend   EndtoendClient
+	Flakey_di  Flakey_diClient
+	Test       TestClient
+	Validation ValidationClient
 }
 
 // BaseURL is the base URL for calling the Encore application's API.
@@ -64,11 +65,12 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	}
 
 	return &Client{
-		Di:        &diClient{base},
-		Echo:      &echoClient{base},
-		Endtoend:  &endtoendClient{base},
-		Flakey_di: &flakey_diClient{base},
-		Test:      &testClient{base},
+		Di:         &diClient{base},
+		Echo:       &echoClient{base},
+		Endtoend:   &endtoendClient{base},
+		Flakey_di:  &flakey_diClient{base},
+		Test:       &testClient{base},
+		Validation: &validationClient{base},
 	}, nil
 }
 
@@ -933,6 +935,27 @@ func (c *testClient) TestAuthHandler(ctx context.Context) (resp TestBodyEcho, er
 // but doesn't return anything
 func (c *testClient) UpdateMessage(ctx context.Context, clientID string, params TestBodyEcho) error {
 	_, err := callAPI(ctx, c.base, "PUT", fmt.Sprintf("/last_message/%s", url.PathEscape(clientID)), nil, params, nil)
+	return err
+}
+
+type ValidationRequest struct {
+	Msg string
+}
+
+// ValidationClient Provides you access to call public and authenticated APIs on validation. The concrete implementation is validationClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type ValidationClient interface {
+	TestOne(ctx context.Context, params ValidationRequest) error
+}
+
+type validationClient struct {
+	base *baseClient
+}
+
+var _ ValidationClient = (*validationClient)(nil)
+
+func (c *validationClient) TestOne(ctx context.Context, params ValidationRequest) error {
+	_, err := callAPI(ctx, c.base, "POST", "/validation.TestOne", nil, params, nil)
 	return err
 }
 

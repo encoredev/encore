@@ -241,6 +241,23 @@ func main() {
 	assert(resp.UUID, "503f4487-1e15-4c37-9a80-7b70f86387bb", "invalid UUID returned")
 	assert(resp.Wildcard, "foo/bar/blah/seperate/segments = great success", "invalid wildcard field returned")
 
+	// Test validation
+	err = api.Validation.TestOne(ctx, client.ValidationRequest{Msg: "pass"})
+	assert(err, nil, "expected no error from validation")
+	err = api.Validation.TestOne(ctx, client.ValidationRequest{Msg: "fail"})
+	assertStructuredError(err, client.ErrInvalidArgument, "validation failed: bad message")
+	{
+		api, err := client.New(
+			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
+			client.WithAuth(client.EchoAuthParams{
+				Header: "fail-validation",
+			}),
+		)
+		assert(err, nil, "expected no error from client init")
+		err = api.Test.Noop(ctx)
+		assertStructuredError(err, client.ErrInvalidArgument, "validation failed: auth validation fail")
+	}
+
 	// Client test completed
 	os.Exit(0)
 }
