@@ -63,6 +63,13 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 				c.server.finishRequest(nil, authErr, 0)
 			}
 		}()
+
+		if err := runValidate(param); err != nil {
+			authErr = err
+			c.server.finishRequest(nil, authErr, 0)
+			return
+		}
+
 		info, authErr = d.AuthHandler(c.req.Context(), param)
 
 		if authErr != nil {
