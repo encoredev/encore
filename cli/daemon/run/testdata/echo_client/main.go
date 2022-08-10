@@ -258,6 +258,18 @@ func main() {
 		assertStructuredError(err, client.ErrInvalidArgument, "validation failed: auth validation fail")
 	}
 
+	// Test middleware
+	{
+		err = api.Middleware.Error(ctx)
+		assertStructuredError(err, client.ErrInternal, "middleware error")
+		resp, err := api.Middleware.ResponseRewrite(ctx, client.MiddlewarePayload{Msg: "foo"})
+		assert(err, nil, "expected no error")
+		assert(resp.Msg, "middleware(req=foo, resp=handler(foo))", "unexpected response")
+
+		resp, err = api.Middleware.ResponseGen(ctx, client.MiddlewarePayload{Msg: "foo"})
+		assert(resp.Msg, "middleware generated", "unexpected response")
+	}
+
 	// Client test completed
 	os.Exit(0)
 }
