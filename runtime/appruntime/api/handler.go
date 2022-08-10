@@ -367,15 +367,21 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 }
 
 // validate validates the request, and returns a validation error on failure.
-// If Req does not implement Validator, it returns nil.
+// If the user payload does not implement Validator, it returns nil.
 func (d *Desc[Req, Resp]) validate(req Req) error {
-	if v, ok := any(req).(Validator); ok {
+	return runValidate(d.ReqUserPayload(req))
+}
+
+// runValidate validates the request, and returns a validation error on failure.
+// If the user payload does not implement Validator, it returns nil.
+func runValidate(userPayload any) error {
+	if v, ok := userPayload.(Validator); ok {
 		if err := v.Validate(); err != nil {
 			// If we already have an *errs.Error, return it directly.
 			if _, ok := err.(*errs.Error); ok {
 				return err
 			}
-			return errs.WrapCode(err, errs.InvalidArgument, "validation failed: "+err.Error())
+			return errs.WrapCode(err, errs.InvalidArgument, "validation failed")
 		}
 	}
 	return nil
