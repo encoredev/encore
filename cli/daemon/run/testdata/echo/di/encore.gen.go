@@ -17,8 +17,3 @@ func Two(ctx context.Context) (*Response, error) {
 	// The implementation is elided here, and generated at compile-time by Encore.
 	return nil, nil
 }
-
-func Three(ctx context.Context) (*Response, error) {
-	// The implementation is elided here, and generated at compile-time by Encore.
-	return nil, nil
-}

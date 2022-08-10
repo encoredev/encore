@@ -26,6 +26,7 @@ export default class Client {
     public readonly endtoend: endtoend.ServiceClient
     public readonly flakey_di: flakey_di.ServiceClient
     public readonly test: test.ServiceClient
+    public readonly validation: validation.ServiceClient
 
 
     /**
@@ -41,6 +42,7 @@ export default class Client {
         this.endtoend = new endtoend.ServiceClient(base)
         this.flakey_di = new flakey_di.ServiceClient(base)
         this.test = new test.ServiceClient(base)
+        this.validation = new validation.ServiceClient(base)
     }
 }
 
@@ -594,6 +596,24 @@ export namespace test {
          */
         public async UpdateMessage(clientID: string, params: BodyEcho): Promise<void> {
             await this.baseClient.callAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, JSON.stringify(params))
+        }
+    }
+}
+
+export namespace validation {
+    export interface Request {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async TestOne(params: Request): Promise<void> {
+            await this.baseClient.callAPI("POST", `/validation.TestOne`, JSON.stringify(params))
         }
     }
 }

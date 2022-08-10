@@ -8,7 +8,7 @@ import "context"
 // to simplify calling them from other services, as they were implemented as methods.
 // They are automatically updated by Encore whenever your API endpoints change.
 
-func Flakey(ctx context.Context) error {
+func Flakey(ctx context.Context) (*Response, error) {
 	// The implementation is elided here, and generated at compile-time by Encore.
-	return nil
+	return nil, nil
 }
