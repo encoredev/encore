@@ -17,7 +17,7 @@ func init() {
 		"cache cluster",
 		"https://encore.dev/docs/develop/caching",
 		"cache",
-		"encore.dev/cache",
+		"encore.dev/storage/cache",
 	)
 
 	registerResourceCreationParser(
@@ -94,8 +94,8 @@ func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident 
 }
 
 func (p *parser) parseCacheKeyspace(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
-	funcName := ident.Name
-	if len(callExpr.Args) != 3 {
+	funcName := cursor.Name()
+	if len(callExpr.Args) != 2 {
 		p.errf(
 			callExpr.Pos(),
 			"cache.%s requires three arguments, the topic, the subscription name given as a string literal and the subscription configuration",
@@ -122,7 +122,7 @@ func (p *parser) parseCacheKeyspace(file *est.File, cursor *walker.Cursor, ident
 
 	// Parse the literal struct representing the subscription configuration
 	// so we can extract the reference to the handler function
-	cfg, ok := p.parseStructLit(file, "cache.KeyspaceConfig", callExpr.Args[2])
+	cfg, ok := p.parseStructLit(file, "cache.KeyspaceConfig", callExpr.Args[1])
 	if !ok {
 		return nil
 	}
@@ -156,11 +156,12 @@ func (p *parser) parseCacheKeyspace(file *est.File, cursor *walker.Cursor, ident
 
 	// Record the subscription
 	keyspace := &est.CacheKeyspace{
-		Cluster:  cluster,
-		Doc:      cursor.DocComment(),
-		DeclFile: file,
-		IdentAST: ident,
-		Path:     path,
+		Cluster:   cluster,
+		Doc:       cursor.DocComment(),
+		DeclFile:  file,
+		IdentAST:  ident,
+		Path:      path,
+		ConfigLit: cfg.Lit(),
 		// TODO KeyType, ValueType
 	}
 	cluster.Keyspaces = append(cluster.Keyspaces, keyspace)

@@ -10,6 +10,7 @@ import (
 	"encore.dev/beta/auth"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
+	"encore.dev/storage/cache"
 	"encore.dev/storage/sqldb"
 )
 

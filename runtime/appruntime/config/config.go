@@ -221,8 +221,8 @@ type RedisServer struct {
 	// Host is the host to connect to.
 	// Valid formats are "hostname", "hostname:port", and "/path/to/unix.socket".
 	Host     string `json:"host"`
-	User     string `json:"user"`
-	Password string `json:"password"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
 
 	// ServerCACert is the PEM-encoded server CA cert, or "" if not required.
 	ServerCACert string `json:"server_ca_cert,omitempty"`
@@ -233,7 +233,8 @@ type RedisServer struct {
 }
 
 type RedisDatabase struct {
-	ServerID int `json:"server_id"` // the index into (*Runtime).SQLServers
+	ServerID   int    `json:"server_id"`   // the index into (*Runtime).SQLServers
+	EncoreName string `json:"encore_name"` // the Encore name for the database
 
 	// Database is the database index to use, from 0-15.
 	Database int `json:"database"`
@@ -245,4 +246,10 @@ type RedisDatabase struct {
 	// MaxConnections is the maximum number of open connections to use
 	// for this database. If zero it defaults to 10*GOMAXPROCS.
 	MaxConnections int `json:"max_connections"`
+
+	// KeyPrefix specifies a prefix to add to all cache keys
+	// for this database. It exists to enable multiple cache clusters
+	// to use the same physical Redis database for local development
+	// without having to coordinate and persist database index ids.
+	KeyPrefix string
 }

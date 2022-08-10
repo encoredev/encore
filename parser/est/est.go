@@ -16,14 +16,15 @@ import (
 )
 
 type Application struct {
-	ModulePath   string
-	Packages     []*Package
-	Services     []*Service
-	CronJobs     []*CronJob
-	PubSubTopics []*PubSubTopic
-	Decls        []*schema.Decl
-	AuthHandler  *AuthHandler
-	Middleware   []*Middleware
+	ModulePath    string
+	Packages      []*Package
+	Services      []*Service
+	CronJobs      []*CronJob
+	PubSubTopics  []*PubSubTopic
+	CacheClusters []*CacheCluster
+	Decls         []*schema.Decl
+	AuthHandler   *AuthHandler
+	Middleware    []*Middleware
 }
 
 type File struct {
@@ -301,10 +302,11 @@ func (p *CacheCluster) NodeType() NodeType         { return CacheClusterDefNode 
 func (p *CacheCluster) AllowOnlyParsedUsage() bool { return false }
 
 type CacheKeyspace struct {
-	Cluster  *CacheCluster
-	Doc      string     // The documentation on the cluster
-	DeclFile *File      // What file the cache is declared in
-	IdentAST *ast.Ident // The AST node representing the value this cache cluster is bound against
+	Cluster   *CacheCluster
+	Doc       string     // The documentation on the cluster
+	DeclFile  *File      // What file the cache is declared in
+	IdentAST  *ast.Ident // The AST node representing the value this cache cluster is bound against
+	ConfigLit *ast.CompositeLit
 
 	KeyType   *Param      // The key type for this keyspace
 	ValueType *Param      // The value type for this keyspace

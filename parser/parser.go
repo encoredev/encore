@@ -160,14 +160,15 @@ func (p *parser) Parse() (res *Result, err error) {
 		})
 	}
 	app := &est.Application{
-		ModulePath:   p.cfg.ModulePath,
-		Packages:     p.pkgs,
-		Services:     p.svcs,
-		CronJobs:     p.jobs,
-		PubSubTopics: p.pubSubTopics,
-		Decls:        p.decls,
-		AuthHandler:  p.authHandler,
-		Middleware:   p.middleware,
+		ModulePath:    p.cfg.ModulePath,
+		Packages:      p.pkgs,
+		Services:      p.svcs,
+		CronJobs:      p.jobs,
+		PubSubTopics:  p.pubSubTopics,
+		CacheClusters: p.cacheClusters,
+		Decls:         p.decls,
+		AuthHandler:   p.authHandler,
+		Middleware:    p.middleware,
 	}
 	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app)
 	if err != nil {

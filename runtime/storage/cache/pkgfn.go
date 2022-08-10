@@ -6,6 +6,6 @@ var Singleton *Manager
 
 func NewCluster(name string, cfg ClusterConfig) *Cluster {
 	return &Cluster{
-		cl: Singleton.redis,
+		cl: Singleton.getClient(name),
 	}
 }

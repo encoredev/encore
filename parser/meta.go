@@ -93,6 +93,11 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.PubsubTopics = append(data.PubsubTopics, t)
 	}
 
+	for _, cluster := range app.CacheClusters {
+		cc := parseCacheCluster(cluster)
+		data.CacheClusters = append(data.CacheClusters, cc)
+	}
+
 	if app.AuthHandler != nil {
 		data.AuthHandler = parseAuthHandler(app.AuthHandler)
 	}
@@ -235,6 +240,22 @@ func parseCronJob(job *est.CronJob) (*meta.CronJob, error) {
 		},
 	}
 	return j, nil
+}
+
+func parseCacheCluster(cluster *est.CacheCluster) *meta.CacheCluster {
+	parseKeyspaces := func(keyspaces ...*est.CacheKeyspace) (rtn []*meta.CacheCluster_Keyspace) {
+		for range keyspaces {
+			// TODO implement
+			rtn = append(rtn, &meta.CacheCluster_Keyspace{})
+		}
+		return rtn
+	}
+
+	return &meta.CacheCluster{
+		Name:      cluster.Name,
+		Doc:       cluster.Doc,
+		Keyspaces: parseKeyspaces(cluster.Keyspaces...),
+	}
 }
 
 func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {

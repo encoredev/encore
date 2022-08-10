@@ -554,6 +554,26 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		}
 	}
 
+	var (
+		redisServers []*config.RedisServer
+		redisDBs     []*config.RedisDatabase
+	)
+	if params.SQLDBCluster != nil || true { // TODO(andre) fix this
+		srv := &config.RedisServer{
+			Host: "localhost:6379",
+		}
+		redisServers = append(redisServers, srv)
+
+		for _, cluster := range params.Meta.CacheClusters {
+			redisDBs = append(redisDBs, &config.RedisDatabase{
+				ServerID:   0,
+				Database:   0,
+				EncoreName: cluster.Name,
+				KeyPrefix:  cluster.Name + "/",
+			})
+		}
+	}
+
 	return &config.Runtime{
 		AppID:           r.ID,
 		AppSlug:         r.App.PlatformID(),
@@ -569,6 +589,8 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		SQLServers:      sqlServers,
 		PubsubProviders: pubsubProviders,
 		PubsubTopics:    pubsubTopics,
+		RedisServers:    redisServers,
+		RedisDatabases:  redisDBs,
 		AuthKeys:        []config.EncoreAuthKey{p.authKey},
 		CORS: &config.CORS{
 			AllowOriginsWithCredentials: []string{

@@ -8,7 +8,11 @@ import (
 // Multi-get, multi-set
 
 func NewStringKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *StringKeyspace[K] {
-	return nil
+	return &StringKeyspace[K]{
+		&basicKeyspace[K, string]{
+			newClient[K, string](cluster, cfg),
+		},
+	}
 }
 
 type StringKeyspace[K any] struct {

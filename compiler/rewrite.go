@@ -84,6 +84,16 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 			case est.PubSubTopicDefNode, est.PubSubPublisherNode, est.PubSubSubscriberNode:
 				return true
+
+			case est.CacheClusterDefNode:
+				return true
+			case est.CacheKeyspaceDefNode:
+				keyspace := rewrite.Res.(*est.CacheKeyspace)
+				cfgLit := keyspace.ConfigLit
+				// TODO check if there is a comma?
+				rw.Insert(cfgLit.Rbrace, []byte(`EncoreInternal_KeyMapper: keyMapper, EncoreInternal_ValueMapper: valueMapper,`))
+				return true
+
 			default:
 				panic(fmt.Sprintf("unhandled rewrite type: %v", rewrite.Type))
 			}

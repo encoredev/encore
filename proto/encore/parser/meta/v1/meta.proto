@@ -18,6 +18,7 @@ message Data {
   repeated CronJob        cron_jobs           = 7;
   repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
   repeated Middleware     middleware          = 10;
+  repeated CacheCluster   cache_clusters      = 11;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -261,5 +262,16 @@ message PubSubTopic {
   enum DeliveryGuarantee {
     AT_LEAST_ONCE = 0; // All messages will be delivered to each subscription at least once
     EXACTLY_ONCE  = 1; // All messages will be delivered to each subscription exactly once
+  }
+}
+
+message CacheCluster {
+  string            name      = 1; // The pub sub topic name (unique per application)
+  string            doc       = 2; // The documentation for the topic
+  repeated Keyspace keyspaces = 3; // The publishers for this topic
+
+  message Keyspace {
+    // TODO(andre) add more fields
+    schema.v1.Type key_type     = 1; // The type of the key
   }
 }
