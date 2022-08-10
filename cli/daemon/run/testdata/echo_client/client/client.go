@@ -24,6 +24,7 @@ type Client struct {
 	Echo       EchoClient
 	Endtoend   EndtoendClient
 	Flakey_di  Flakey_diClient
+	Middleware MiddlewareClient
 	Test       TestClient
 	Validation ValidationClient
 }
@@ -69,6 +70,7 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 		Echo:       &echoClient{base},
 		Endtoend:   &endtoendClient{base},
 		Flakey_di:  &flakey_diClient{base},
+		Middleware: &middlewareClient{base},
 		Test:       &testClient{base},
 		Validation: &validationClient{base},
 	}, nil
@@ -540,6 +542,49 @@ var _ Flakey_diClient = (*flakey_diClient)(nil)
 func (c *flakey_diClient) Flakey(ctx context.Context) (resp Flakey_diResponse, err error) {
 	// Now make the actual call to the API
 	_, err = callAPI(ctx, c.base, "POST", "/di/flakey", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+type MiddlewarePayload struct {
+	Msg string
+}
+
+// MiddlewareClient Provides you access to call public and authenticated APIs on middleware. The concrete implementation is middlewareClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type MiddlewareClient interface {
+	Error(ctx context.Context) error
+	ResponseGen(ctx context.Context, params MiddlewarePayload) (MiddlewarePayload, error)
+	ResponseRewrite(ctx context.Context, params MiddlewarePayload) (MiddlewarePayload, error)
+}
+
+type middlewareClient struct {
+	base *baseClient
+}
+
+var _ MiddlewareClient = (*middlewareClient)(nil)
+
+func (c *middlewareClient) Error(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/middleware.Error", nil, nil, nil)
+	return err
+}
+
+func (c *middlewareClient) ResponseGen(ctx context.Context, params MiddlewarePayload) (resp MiddlewarePayload, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/middleware.ResponseGen", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *middlewareClient) ResponseRewrite(ctx context.Context, params MiddlewarePayload) (resp MiddlewarePayload, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/middleware.ResponseRewrite", nil, params, &resp)
 	if err != nil {
 		return
 	}
