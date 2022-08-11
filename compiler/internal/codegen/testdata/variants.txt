@@ -10,6 +10,7 @@ import (
 	"encore.dev/beta/auth"
 	"encore.dev/cron"
 	"encore.dev/middleware"
+	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/types/uuid"
 )
@@ -19,6 +20,13 @@ var _ = cron.NewJob("cron-one", cron.JobConfig{
 	Schedule: "* * * * 5",
 	Endpoint: CronOne,
 })
+
+var Topic = pubsub.NewTopic[*FooParams](
+	"test-topic",
+	pubsub.TopicConfig{
+		DeliveryGuarantee: pubsub.AtLeastOnce,
+	},
+)
 
 type FooParams struct {
 	Name string
@@ -147,4 +155,26 @@ func (s *Service) DI(ctx context.Context) error {
 //encore:middleware target=tag:di
 func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) middleware.Response {
     return next(req)
+}
+
+-- otherservice/svc.go --
+package otherservice
+
+import (
+	"context"
+
+	"encore.dev/pubsub"
+
+	"encore.app/svc"
+)
+
+var _ = pubsub.NewSubscription(
+	svc.Topic, "subscription-name",
+	pubsub.SubscriptionConfig[*svc.Topic]{
+		Handler: Consumer,
+	},
+)
+
+func Consumer(ctx context.Context, msg *svc.Topic) error {
+    return nil
 }

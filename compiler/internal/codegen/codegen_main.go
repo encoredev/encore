@@ -39,6 +39,7 @@ func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 
 	f = NewFile("main")
 	b.registerImports(f)
+	b.importServices(f)
 
 	mwNames, mwCode := b.RenderMiddlewares("")
 
@@ -139,6 +140,15 @@ func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*
 			}
 		}
 	})
+}
+
+func (b *Builder) importServices(f *File) {
+	// All services should be imported by the main package so they get initialized on system startup
+	// Services may not have API handlers as they could be purely operating on PubSub subscriptions
+	// so without this anonymous package import, that service might not be initialised.
+	for _, svc := range b.res.App.Services {
+		f.Anon(svc.Root.ImportPath)
+	}
 }
 
 func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
