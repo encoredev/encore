@@ -7,6 +7,9 @@ Encore supports returning structured error information from your APIs.
 
 The key piece is the [encore.dev/beta/errs](https://pkg.go.dev/encore.dev/beta/errs) package.
 
+These errors are propagated accross the network to the [generated clients](/docs/develop/client-generation) and can be
+used within your front-ends without having to build any custom marshalling code.
+
 ## The errs.Error type
 
 Structured errors are represented by the `errs.Error` type:

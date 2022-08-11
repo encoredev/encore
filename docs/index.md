@@ -1,12 +1,39 @@
 ---
 title: Welcome to Encore
-subtitle: A synthesis of clarity and flow.
+subtitle: Escape the maze of cloud complexity
 ---
-Encore is a Backend Development Engine, purpose-built for a flow state developer experience when creating cloud-based backend applications and distributed systems using Go.
+Encore is the Backend Development Engine purpose-built for a flow state developer experience, when building cloud-based backend applications and distributed systems using Go.
 
-Write your business logic with the Encore Go framework, then let the platform analyze your code to automatically deal with everything else: provisioning environments and infrastructure, deploying your app to the cloud of your choice, adding observability and documentation, and much more. Just float into the flow.
-
-<a href="/docs/quick-start"><Button kind="primary">Quick Start</Button></a>
+<div className="grid grid-cols-2 gap-6 mobile:grid-cols-1">
+    <a className="block group relative no-brandient" href="/docs/quick-start">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+                <h3>Quick Start</h3>
+                <p>Spend a few minutes getting set up and experience the Encore workflow.</p>
+            </div>
+    </a>
+    <a className="block group relative no-brandient" href="/docs/tutorials/rest-api">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+                <h3>REST API + Database tutorial</h3>
+                <p>Learn how to build a fully fledged backend with Encore.</p>
+            </div>
+    </a>
+     <a className="block group relative no-brandient" href="/docs/introduction">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+                <h3>Why Encore?</h3>
+                <p>Learn about what problems Encore solves and the philosophy behind it.</p>
+            </div>
+    </a>
+    <a className="block group relative no-brandient" href="/docs/community">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+                <h3>Join the community</h3>
+                <p>See how you can engange with the developer community and contribute to the Open Source project.</p>
+            </div>
+    </a>
+</div>
 
 ## Your input is everything
 
@@ -43,5 +70,4 @@ Connect with fellow Encore developers, ask questions or just hang out!
     </svg>
     <a href="https://twitter.com/encoredotdev">Follow on Twitter</a>
 </p>
-
-Keep up with the latest news and updates.
+<p className="pb-16">Keep up with the latest news and updates.</p>

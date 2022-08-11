@@ -6,20 +6,25 @@ In this tutorial you will create a Slack bot that brings the greatness of the `c
 
 ![Slack Cowsay](https://encore.dev/assets/docs/cowsay.png "Slack bot")
 
+<Callout type="important">
+To make it easier to follow along, we've laid out a trail of croissants to guide your way.
+Whenever you see a 🥐 it means there's something for you to do.
+</Callout>
+
 ## Create your Encore application
 
-Create a new Encore application to house the Slack bot with `encore app create`.
-Select `Empty app` as the template. **Take a note of your app id, we'll need it in the next step.**
+🥐 Create a new Encore application by running `encore app create` and select `Empty app` as the template.
+**Take a note of your app id, we'll need it in the next step.**
 
 ## Creating our Slack app
 
-The first step is to create a new Slack app:
+🥐 The first step is to create a new Slack app:
 
 1. Head over to [Slack's API site](https://api.slack.com/apps) and create a new app.
 2. When prompted, choose to create the app **from an app manifest**.
 3. Choose a workspace to install the app in.
 
-Enter the following manifest (replace `$APP_ID` in the URL below with your app id from above):
+🥐 Enter the following manifest (replace `$APP_ID` in the URL below with your app id from above):
 
 ```yaml
 _metadata:
@@ -58,8 +63,7 @@ Since Slack sends custom HTTP headers that we need to pay attention to, we're go
 use a raw endpoint in Encore. For more information on this check out Slack's documentation
 on [Enabling interactivity with Slash Commands](https://api.slack.com/interactivity/slash-commands).
 
-In your Encore app, create a new directory named `slack`
-and create a file `slack/slack.go` with the following contents:
+🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.go` with the following contents:
 
 ```go
 package slack
@@ -86,14 +90,18 @@ func Cowsay(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-Let's try it out locally. Run it with `encore run` and then call it in another terminal:
+Let's try it out locally.
+
+🥐 Start your app with `encore run` and then call it in another terminal:
 
 ```bash
 $ curl http://localhost:4000/cowsay -d 'text=Eat your greens!'
 {"response_type":"in_channel","text":"Moo! Eat your greens!"}
 ```
 
-Looks great! Let's deploy it to the cloud.
+Looks great!
+
+🥐 Next, let's deploy it to the cloud:
 
 ```bash
 $ git add -A .
@@ -102,7 +110,8 @@ $ git push encore
 ```
 
 Once deployed, we're ready to try our Slack command!
-Head over to the workspace you installed the app in and run `/cowsay Hello there`.
+
+🥐 Head over to the workspace you installed the app in and run `/cowsay Hello there`.
 You should see something like this:
 
 ![Cowsay](https://encore.dev/assets/docs/cowsay-wip.png "Cowsay (Work in Progress)")
@@ -123,7 +132,9 @@ In short, what we need to do is:
 
 ### Save the shared secret
 
-Let's define a secret using Encore's secrets management functionality. Add to your `slack.go` file:
+Let's define a secret using Encore's secrets management functionality.
+
+🥐 Add this to your `slack.go` file:
 
 ```go
 var secrets struct {
@@ -131,17 +142,18 @@ var secrets struct {
 }
 ```
 
-Head over to the configuration section for your Slack app (go to [Your Apps](https://api.slack.com/apps) &rarr; select your app &rarr; Basic Information).
+🥐 Head over to the configuration section for your Slack app (go to [Your Apps](https://api.slack.com/apps) &rarr; select your app &rarr; Basic Information).
 
-Copy the **Signing Secret**. Run `encore secret set --prod SlackSigningSecret` and paste the secret.
-For local development you will also want to set `encore secret set --dev SlackSigningSecret`.
+🥐 Copy the **Signing Secret** and then run `encore secret set --prod SlackSigningSecret` and paste the secret.
+
+🥐 For local development you will also want to set `encore secret set --dev SlackSigningSecret`.
 You can use the same secret value or a placeholder value.
 
 ### Compute the HMAC
 
 Go makes computing HMAC very straightforward, but it's still a fair amount of code.
 
-Add a few more imports to your file, so that it reads:
+🥐 Add a few more imports to your file, so that it reads:
 ```go
 import (
 	"crypto/hmac"
@@ -161,7 +173,7 @@ import (
 )
 ```
 
-Next, we'll add the `verifyRequest` function:
+🥐 Next, we'll add the `verifyRequest` function:
 
 ```go
 // verifyRequest verifies that a request is coming from Slack.
@@ -207,7 +219,9 @@ This breaks the use of `req.FormValue("text")` that we used earlier, since it re
 
 </Callout>
 
-We're now ready to verify the signature. Update the `Cowsay` function to look like this:
+We're now ready to verify the signature.
+
+🥐 Update the `Cowsay` function to look like this:
 
 ```go
 //encore:api public raw path=/cowsay
@@ -231,7 +245,9 @@ func Cowsay(w http.ResponseWriter, req *http.Request) {
 
 ## Putting it all together
 
-Finally we're ready to put it all together. Update the `cowart` like so:
+Finally we're ready to put it all together.
+
+🥐 Update the `cowart` like so:
 
 ```go
 const cowart = `
@@ -246,7 +262,7 @@ const cowart = `
 `
 ```
 
-And then let's commit our changes and deploy it:
+🥐 Finally, let's commit our changes and deploy it:
 
 ```bash
 $ git add -A .
@@ -254,9 +270,12 @@ $ git commit -m 'Verify webhook requests and improve art'
 $ git push encore
 ```
 
-Once deployed, head back to Slack and let's try our finished product.
+🥐 Once deployed, head back to Slack and run `/cowsay Hello there`.
+
 If everything is set up correctly, you should see:
 
 ![Slack Cowsay](https://encore.dev/assets/docs/cowsay.png "Slack bot")
 
-And there we go! A fully working, production-ready Slack bot in less than 100 lines of code.
+And there we go, a production-ready Slack bot in less than 100 lines of code.
+
+Well done!
