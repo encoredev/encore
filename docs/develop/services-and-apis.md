@@ -48,9 +48,9 @@ When you define an API, you have three options for how the API can be accessed:
 * `//encore:api private` &ndash; defines a private API that only other backend services can call.
 * `//encore:api auth` &ndash; defines a public API that anybody can call, but that requires valid authentication.
 
-For defining APIs that require authentication, see the [authentication guide](/docs/concepts/auth).
+For defining APIs that require authentication, see the [authentication guide](/docs/develop/auth).
 
-This approach is simple, but very powerful. It lets Encore use [static analysis](/docs/concepts/application-model)
+This approach is simple, but very powerful. It lets Encore use [static analysis](/docs/introduction#meet-the-encore-application-model)
 to understand the request and response schemas of all your APIs, which enables it to automatically generate API documentation
 and type-safe API clients, and much more.
 
@@ -193,7 +193,7 @@ func MyOtherAPI(ctx context.Context) error {
 }
 ```
 
-When building your application, Encore uses [static analysis](/docs/concepts/application-model) to identify all
+When building your application, Encore uses [static analysis](/docs/introduction#meet-the-encore-application-model) to identify all
 API calls and compiles them to proper API calls. This provides all the benefits of function calls, like
 compile-time checking of all the parameters and auto-completion in your editor,
 while still allowing the division of code into logical components, services, and systems.
@@ -205,36 +205,3 @@ current request. Including the type of request, the time the request started, th
 which was called on the service.
 
 For more information, see the [metadata documentation](/docs/develop/metadata).
-
-## App Structure
-
-When building with Encore, it's best to use *one Encore application* for your entire project.
-This lets Encore build an application model that spans your entire application, which is necessary for features like distributed tracing to work.
-
-You can use separate subfolders and packages to create a logical separation between the different major systems in your project.
-
-As an example, a Trello app might consist of three systems: the **Trello** system (for managing trello boards & cards),
-the **User** system (for user and organization management, and authentication), and the **Premium** system (for subscriptions
-and paid features).
-
-On disk it might look like this:
-
-```go
-/my-trello-clone
-├── encore.app       // ... and other top-level project files
-│
-├── premium          // premium system
-│   ├── payment      // payment service
-│   └── subscription // subscription service
-│
-├── trello           // trello system
-│   ├── board        // board service
-│   └── card         // card service
-│
-└── usr              // user system
-    ├── org          // org service
-    └── user         // user service
-```
-
-Each service consists of Go files that implement the service business logic,
-database migrations for defining the structure of the database(s), and so on.
