@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -528,6 +529,22 @@ func (p *parser) validateApp() {
 		}
 	}
 
+	// Validate types which get marshaled outside the app (RPC or PubSub)
+	// don't use the config Value types
+	for _, svc := range p.svcs {
+		for _, rpc := range svc.RPCs {
+			if rpc.Request != nil {
+				p.validateTypeDoesntUseConfigTypes(rpc.Func.Pos(), rpc.Request)
+			}
+			if rpc.Response != nil {
+				p.validateTypeDoesntUseConfigTypes(rpc.Func.Pos(), rpc.Response)
+			}
+		}
+	}
+	for _, topic := range p.pubSubTopics {
+		p.validateTypeDoesntUseConfigTypes(topic.Ident().Pos(), topic.MessageType)
+	}
+
 	// Error if resources are defined in non-services
 	for _, pkg := range p.pkgs {
 		if pkg.Service == nil {
@@ -578,6 +595,18 @@ func (p *parser) validateApp() {
 				return true
 			}, nil)
 		}
+	}
+}
+
+func (p *parser) validateTypeDoesntUseConfigTypes(pos token.Pos, param *est.Param) {
+	err := schema.Walk(p.decls, param.Type, func(n any) error {
+		if _, ok := n.(*schema.ConfigValue); ok {
+			return errors.New("config.Value")
+		}
+		return nil
+	})
+	if err != nil {
+		p.errf(pos, "type %s can only be used in data types used by config.Load and cannot be used for API response/response parameters or PubSub message types", err.Error())
 	}
 }
 

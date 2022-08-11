@@ -53,11 +53,12 @@ type Package struct {
 // Its name is defined by the Go package name.
 // A Service may not be a located in a child directory of another service.
 type Service struct {
-	Name       string
-	Root       *Package
-	Pkgs       []*Package
-	RPCs       []*RPC
-	Middleware []*Middleware
+	Name        string
+	Root        *Package
+	Pkgs        []*Package
+	RPCs        []*RPC
+	Middleware  []*Middleware
+	ConfigLoads []*Config
 
 	// Struct is the dependency injection struct, or nil if none exists.
 	Struct *ServiceStruct
@@ -206,6 +207,7 @@ const (
 	PubSubTopicDefNode
 	PubSubPublisherNode
 	PubSubSubscriberNode
+	ConfigLoadNode
 )
 
 type Node struct {
@@ -250,6 +252,20 @@ type Middleware struct {
 	SvcStruct *ServiceStruct // nil if not defined on a service struct
 }
 
+// Config represents a config load statement.
+type Config struct {
+	Svc          *Service   // The service the config is loaded for
+	DeclFile     *File      // The file that the subscriber is defined in
+	IdentAST     *ast.Ident // The AST node representing the value this topic is bound against
+	ConfigStruct *Param     // The type the config loads in as
+}
+
+func (c *Config) Type() ResourceType         { return ConfigResource }
+func (c *Config) File() *File                { return c.DeclFile }
+func (c *Config) Ident() *ast.Ident          { return c.IdentAST }
+func (c *Config) NodeType() NodeType         { return ConfigLoadNode }
+func (c *Config) AllowOnlyParsedUsage() bool { return false }
+
 type Resource interface {
 	Type() ResourceType
 	File() *File
@@ -267,6 +283,7 @@ const (
 	CronJobResource
 	PubSubTopicResource
 	PubSubSubscriptionResource
+	ConfigResource
 )
 
 type SQLDB struct {

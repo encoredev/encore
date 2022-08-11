@@ -51,6 +51,8 @@ export interface Type {
   builtin: Builtin | undefined;
   /** Abstract Types */
   type_parameter: TypeParameterRef | undefined;
+  /** Encore Special Types */
+  config: ConfigValue | undefined;
 }
 
 /** TypeParameterRef is a reference to a `TypeParameter` within a declaration block */
@@ -187,5 +189,11 @@ export interface Map {
 /** List represents a list type (array or slice) */
 export interface List {
   /** The type of the elements in the list */
+  elem: Type;
+}
+
+/** ConfigValue represents a config value wrapper. */
+export interface ConfigValue {
+  /** The type of the config value */
   elem: Type;
 }

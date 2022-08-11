@@ -156,6 +156,10 @@ func TestMain(m *testing.M) {
 					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v recv=%v\n",
 						svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, recvName)
 				}
+
+				for _, config := range svc.ConfigLoads {
+					fmt.Fprintf(os.Stdout, "config %s %s\n", svc.Name, config.ConfigStruct.Type)
+				}
 			}
 			for _, job := range res.App.CronJobs {
 				fmt.Fprintf(os.Stdout, "cronJob %s title=%q\n", job.ID, job.Title)

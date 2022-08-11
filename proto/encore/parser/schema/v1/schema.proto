@@ -20,6 +20,9 @@ message Type {
 
     /* Abstract Types */
     TypeParameterRef type_parameter = 6; // This is placeholder for a unknown type within the declaration block
+
+    /* Encore Special Types */
+    ConfigValue config              = 7; // This value is a config value
   }
 }
 
@@ -120,6 +123,11 @@ message Map {
 // List represents a list type (array or slice)
 message List {
   Type elem = 1; // The type of the elements in the list
+}
+
+// ConfigValue represents a config value wrapper.
+message ConfigValue {
+  Type elem = 1; // The type of the config value
 }
 
 // Builtin represents a type which Encore (and Go) have inbuilt support for and so can be represented by Encore's tooling
