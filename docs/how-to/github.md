@@ -22,11 +22,11 @@ Preview Environments are named after the pull request, so PR #72 will create an 
 ### Frontend Collaboration
 
 When you integrate Encore with a frontend, Preview Environments makes it really easy to collaborate
-and test your changes against the frontend. Just update your frontend API client to point to the 
+and test your changes against the frontend. Just update your frontend API client to point to the
 `pr:#` environment. This should just be a one-line change since your API client always specifies
-the environment name like `https://<my-app>.encoreapi.com/<env>`.
+the environment name like `https://<env>-<my-app>.encr.app/`.
 
-If your pull request makes changes to the API, you can also easily [generate an API client](/docs/how-to/integrate-frontend)
+If your pull request makes changes to the API, you can also easily [generate an API client](/docs/develop/client-generation)
 against the new backend API using `encore gen client --env=pr:72 --lang=typescript my-app`
 
 ## Setup Walkthrough

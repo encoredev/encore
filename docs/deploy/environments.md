@@ -49,7 +49,7 @@ This functionality also lets you easily deploy a hybrid or multi-cloud applicati
 
 When deploying to an external cloud, Encore will add a preliminary deployment phase
 to provision the necessary infrastructure based on what your app needs.
-This is computed with static analysis using the [Encore Application Model](/docs/application-model).
+This is computed with static analysis using the [Encore Application Model](/docs/introduction#meet-the-encore-application-model).
 
 For certain infrastructure resources, you may be asked to tell Encore a bit more about the performance requirements
 you have. This lets Encore provision appropriately sized infrastructure for your needs.

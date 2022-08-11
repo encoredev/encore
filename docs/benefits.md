@@ -32,7 +32,8 @@ lots of manual steps and glue work.
 Encore reimagines how backend development should be like. A single command to run your whole
 application. Access to all your infrastructure at your fingertips, regardless of environment.
 A much faster feedback loop through features like Hot Reload, tracing for local development,
-automatic and always up-to-date API documentation and generated, type-safe API clients.
+automatic and always up-to-date [API documentation](/docs/develop/api-docs) and
+[generated, type-safe API clients](/docs/develop/client-generation).
 
 ## From prototype to production
 
