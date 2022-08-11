@@ -1,7 +1,8 @@
-// pkg svc
-package svc_test
+// pkg otherservice
+package otherservice_test
 
 import (
+	_ "encore.app/otherservice"
 	"encore.app/svc"
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/app/appinit"
@@ -14,10 +15,13 @@ import (
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
 	static := &config.Static{
-		AuthData:     reflect.TypeOf((*svc.AuthData)(nil)),
-		PubsubTopics: map[string]*config.StaticPubsubTopic{},
-		TestService:  "svc",
-		Testing:      true,
+		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
+		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
+			Service:  "otherservice",
+			TraceIdx: 1,
+		}}}},
+		TestService: "otherservice",
+		Testing:     true,
 	}
 	handlers := []api.HandlerRegistration{
 		{
@@ -83,7 +87,106 @@ var EncoreInternal_svcMyMiddleware = &api.Middleware{
 	PkgName: "svc",
 	Name:    "MyMiddleware",
 	Global:  false,
-	DefLoc:  33,
+	DefLoc:  34,
+	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
+		svc, err := svc.EncoreInternal_ServiceService.Get()
+		if err != nil {
+			return middleware.Response{Err: err}
+		}
+		return svc.MyMiddleware(req, next)
+	},
+}
+
+// pkg svc
+package svc_test
+
+import (
+	_ "encore.app/otherservice"
+	"encore.app/svc"
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/config"
+	middleware "encore.dev/middleware"
+	"reflect"
+	_ "unsafe"
+)
+
+//go:linkname loadApp encore.dev/appruntime/app/appinit.load
+func loadApp() *appinit.LoadData {
+	static := &config.Static{
+		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
+		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
+			Service:  "otherservice",
+			TraceIdx: 1,
+		}}}},
+		TestService: "svc",
+		Testing:     true,
+	}
+	handlers := []api.HandlerRegistration{
+		{
+			Handler:    svc.EncoreInternal_CronOneHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_DIHandler,
+			Middleware: []*api.Middleware{EncoreInternal_svcMyMiddleware},
+		},
+		{
+			Handler:    svc.EncoreInternal_EightHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_FiveHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_FourHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_NineHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_OneHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_QueryHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_SevenHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_SixHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_TenHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_ThreeHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_TwoHandler,
+			Middleware: nil,
+		},
+	}
+	return &appinit.LoadData{
+		APIHandlers: handlers,
+		StaticCfg:   static,
+	}
+}
+
+var EncoreInternal_svcMyMiddleware = &api.Middleware{
+	PkgName: "svc",
+	Name:    "MyMiddleware",
+	Global:  false,
+	DefLoc:  34,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
 		if err != nil {
