@@ -71,11 +71,9 @@ export interface Selector {
 
 export enum Selector_Type {
   UNKNOWN = "UNKNOWN",
-  TAG = "TAG",
-  API = "API",
-  SERVICE = "SERVICE",
-  /** ALL - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
   ALL = "ALL",
+  /** TAG - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
+  TAG = "TAG",
   UNRECOGNIZED = "UNRECOGNIZED",
 }
 

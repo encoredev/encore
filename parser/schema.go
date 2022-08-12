@@ -16,7 +16,9 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
-var additionalTypeResolver = func(p *parser, pkg *est.Package, file *est.File, expr ast.Expr) *schema.Type { return nil }
+var additionalTypeResolver = func(p *parser, pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) *schema.Type {
+	return nil
+}
 
 // disallowedHeaders is a list of headers that we will not let an
 // application either read from requests or write in responses.
@@ -31,6 +33,16 @@ var structTagParsers = map[string]structTagParser{}
 
 func registerStructTagParser(tag string, f structTagParser) {
 	structTagParsers[tag] = f
+}
+
+// If nil is returned the parser will bailout, however it will not report an error
+// so it's expected the implementation of this function has already reported an error
+type typeResolver func(p *parser, ident *ast.Ident, typeParameters typeParameterLookup) *schema.Type
+
+var encoreTypeResolvers = map[string]typeResolver{}
+
+func registerTypeResolver(packagePath string, f typeResolver) {
+	encoreTypeResolvers[packagePath] = f
 }
 
 // resolveType parses the schema from a type expression.
@@ -63,7 +75,14 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 		// pkg.T
 		if pkgName, ok := expr.X.(*ast.Ident); ok {
 			pkgPath := pkgNames.Files[file].NameToPath[pkgName.Name]
-			if otherPkg, ok := p.pkgMap[pkgPath]; ok {
+
+			if typeResolverF, found := encoreTypeResolvers[pkgPath]; found {
+				typ := typeResolverF(p, expr.Sel, typeParameters)
+				if typ == nil {
+					panic(errlist.Bailout{})
+				}
+				return typ
+			} else if otherPkg, ok := p.pkgMap[pkgPath]; ok {
 				if d, ok := p.names[otherPkg].Decls[expr.Sel.Name]; ok && d.Type == token.TYPE {
 					return p.parseDecl(otherPkg, d, typeParameters)
 				}
@@ -169,7 +188,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 		p.err(expr.Pos(), "cannot use function types in Encore schema definitions")
 
 	default:
-		if resolvedType := additionalTypeResolver(p, pkg, file, expr); resolvedType != nil {
+		if resolvedType := additionalTypeResolver(p, pkg, file, expr, typeParameters); resolvedType != nil {
 			return resolvedType
 		}
 

@@ -4,6 +4,10 @@ title: Auth Keys
 
 Pre-authentication keys (“auth keys” for short) let you authenticate the Encore CLI without needing to sign in via a web browser. This is most useful when setting up CI/CD pipelines.
 
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+	<source src="/assets/docs/authkeys.mp4" className="w-full h-full" type="video/mp4" />
+</video>
+
 ## Types of auth keys
 
 - **Reusable Keys** for authenticating more than one machine.
@@ -26,8 +30,6 @@ Pre-authentication keys (“auth keys” for short) let you authenticate the Enc
 
 As an Encore user, visit the auth key page by going to **[Your apps](https://app.encore.dev/) > (Select your app) > App Settings > Auth Keys**.
 
-![Generate Auth key screenshot](/assets/img/gen-auth-key-screenshot.png)
-
 A key can be both **reusable** and **ephemeral** at the same time (you can decide the combination based on your particular use case).
 
 <Callout type="important">
@@ -35,8 +37,6 @@ A key can be both **reusable** and **ephemeral** at the same time (you can decid
 **Don't forget to store your key!** Once generated, you will need to copy and store your key in a vault product (eg. 1Password, LastPass). We do not display the full contents of a key in our dashboard for security reasons.
 
 </Callout>
-
-![Copy Auth key screenshot](/assets/img/copy-auth-key-screenshot.png)
 
 This page also gives you the ability to revoke existing keys.
 
@@ -51,5 +51,3 @@ encore auth login --auth-key=ena_nEQIkfeM43t7oxpleMsIULbhbtLAbYnnLf1D
 ## Revoking a key
 
 You can revoke a key simply by pressing the **Delete** button next to it. This will prevent any machines currently using it to authenticate to the Encore platform (regardless of the key type).
-
-<kbd><img src="/assets/img/del-auth-key-screenshot.png" alt="Delete Auth key screenshot" /></kbd>

@@ -7,7 +7,7 @@ As developers, we often find ourselves in a situation where we need to change so
 want to change it everywhere the code is deployed. This is where configuration files come in, allowing us to define the
 default behaviour of our applications, but then allow us to override these values for other environments.
 
-Using Encore's [Application metadata API](https://pkg.go.dev/encore.dev/#AppMetadata) we can query the runtime to find
+Using Encore's [Application metadata API](/docs/develop/metadata) we can query the runtime to find
 out what [environment](/docs/environments) the application is running in and load the appropriate configuration files into memory.
 
 <Callout type="important">

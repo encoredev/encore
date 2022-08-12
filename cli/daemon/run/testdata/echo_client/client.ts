@@ -25,6 +25,7 @@ export default class Client {
     public readonly echo: echo.ServiceClient
     public readonly endtoend: endtoend.ServiceClient
     public readonly flakey_di: flakey_di.ServiceClient
+    public readonly middleware: middleware.ServiceClient
     public readonly test: test.ServiceClient
     public readonly validation: validation.ServiceClient
 
@@ -41,6 +42,7 @@ export default class Client {
         this.echo = new echo.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
         this.flakey_di = new flakey_di.ServiceClient(base)
+        this.middleware = new middleware.ServiceClient(base)
         this.test = new test.ServiceClient(base)
         this.validation = new validation.ServiceClient(base)
     }
@@ -372,6 +374,36 @@ export namespace flakey_di {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/di/flakey`)
             return await resp.json() as Response
+        }
+    }
+}
+
+export namespace middleware {
+    export interface Payload {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async Error(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/middleware.Error`)
+        }
+
+        public async ResponseGen(params: Payload): Promise<Payload> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseGen`, JSON.stringify(params))
+            return await resp.json() as Payload
+        }
+
+        public async ResponseRewrite(params: Payload): Promise<Payload> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseRewrite`, JSON.stringify(params))
+            return await resp.json() as Payload
         }
     }
 }

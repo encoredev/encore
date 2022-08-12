@@ -226,6 +226,16 @@ deepEqual(resp.Wildcard, "foo/bar/blah/seperate/segments = great success", "inva
   await assertStructuredError(client.test.Noop(), ErrCode.InvalidArgument, "validation failed: auth validation fail")
 }
 
+// Test middleware
+{
+  await assertStructuredError(api.middleware.Error(), ErrCode.Internal, "middleware error")
+  const resp1 = await api.middleware.ResponseRewrite({Msg: "foo"})
+  deepEqual(resp1.Msg, "middleware(req=foo, resp=handler(foo))")
+
+  const resp2 = await api.middleware.ResponseGen({Msg: "foo"})
+  deepEqual(resp2.Msg, "middleware generated")
+}
+
 // Client test completed
 process.exit(0)
 

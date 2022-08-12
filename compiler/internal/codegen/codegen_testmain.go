@@ -16,6 +16,7 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service) *File {
 	importPath := pkg.ImportPath + "!test"
 	f := NewFilePathName(importPath, pkg.Name+"_test")
 	b.registerImports(f)
+	b.importServices(f)
 	f.Anon("unsafe") // for go:linkname
 
 	testSvc := ""

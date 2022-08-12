@@ -29,14 +29,6 @@ and returning an `auth.UID` (a string type representing a **user id**). The `aut
 can be whatever you wish, but in practice it usually maps directly to the primary key
 stored in a user table (either defined in the Encore service or in an external service like Firebase or Okta).
 
-<Callout type="important">
-
-If your auth handler returns an error, Encore responds with a `500 Internal Server Error`.
-To signify that the token is not valid, return the empty string (`""`) as the `auth.UID`.
-Encore will then respond with `401 Unauthorized.
-
-</Callout>
-
 ### With custom user data
 
 Oftentimes it's convenient for the rest of your application to easily be able to look up

@@ -12,11 +12,12 @@ func _() {
 	_ = x[CronJobResource-2]
 	_ = x[PubSubTopicResource-3]
 	_ = x[PubSubSubscriptionResource-4]
+	_ = x[ConfigResource-5]
 }
 
-const _ResourceType_name = "SQLDBResourceCronJobResourcePubSubTopicResourcePubSubSubscriptionResource"
+const _ResourceType_name = "SQLDBResourceCronJobResourcePubSubTopicResourcePubSubSubscriptionResourceConfigResource"
 
-var _ResourceType_index = [...]uint8{0, 13, 28, 47, 73}
+var _ResourceType_index = [...]uint8{0, 13, 28, 47, 73, 87}
 
 func (i ResourceType) String() string {
 	i -= 1
