@@ -1,7 +1,10 @@
 package di
 
 import (
+	"archive/zip"
 	"context"
+	"database/sql"
+	"sync"
 )
 
 type Response struct {
@@ -11,6 +14,12 @@ type Response struct {
 //encore:service
 type Service struct {
 	Msg string
+
+	// Include various types to make sure the parser doesn't complain.
+	mu   sync.Mutex
+	once *sync.Once
+	db   *sql.DB
+	fn   func() *zip.Writer
 }
 
 //encore:api public path=/di/one
