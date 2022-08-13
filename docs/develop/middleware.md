@@ -94,7 +94,7 @@ func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) mid
 }
 ```
 
-See the [Dependency Injection](/docs/how-to/dependency-injection.md) docs for more information.
+See the [Dependency Injection](/docs/how-to/dependency-injection) docs for more information.
 
 </Callout>
 
