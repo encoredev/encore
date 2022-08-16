@@ -129,6 +129,7 @@ sections: [
 			{title: "Use Firebase Authentication", segment: "firebase-auth"},
 			{title: "Integrate with GitHub", segment: "github"},
 			{title: "Migrate away from Encore", segment: "migrate-away"},
+			{title: "Use the ent ORM for migrations", segment: "entgo-orm"},
 		]
 	},
 	{
