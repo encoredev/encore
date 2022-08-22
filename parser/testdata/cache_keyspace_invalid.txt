@@ -1,0 +1,26 @@
+parse
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/cache"
+)
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+type Key struct {
+    ID float64
+    Bar float64
+}
+
+var keyspace = cache.NewStringKeyspace[Key](cluster, cache.KeyspaceConfig{
+    Path: "/foo/:ID",
+})
+
+//encore:api public
+func Foo(context.Context) error {
+    return nil
+}

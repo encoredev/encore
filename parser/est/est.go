@@ -308,9 +308,9 @@ type CacheKeyspace struct {
 	IdentAST  *ast.Ident // The AST node representing the value this cache cluster is bound against
 	ConfigLit *ast.CompositeLit
 
-	KeyType   *Param      // The key type for this keyspace
-	ValueType *Param      // The value type for this keyspace
-	Path      *paths.Path // The keyspace path
+	KeyType   *schema.Type // The key type for this keyspace
+	ValueType *Param       // The value type for this keyspace
+	Path      *paths.Path  // The keyspace path
 }
 
 func (p *CacheKeyspace) Type() ResourceType         { return CacheKeyspaceResource }

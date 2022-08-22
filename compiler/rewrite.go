@@ -87,6 +87,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 			case est.CacheClusterDefNode:
 				return true
+
 			case est.CacheKeyspaceDefNode:
 				keyspace := rewrite.Res.(*est.CacheKeyspace)
 				cfgLit := keyspace.ConfigLit
