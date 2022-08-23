@@ -58,7 +58,7 @@ func Walk(decls []*Decl, node any, visitor func(node any) error) error {
 		return Walk(decls, node.Value, visitor)
 	case *List:
 		return Walk(decls, node.Elem, visitor)
-	case *Builtin:
+	case Builtin:
 		return nil
 	case *TypeParameterRef:
 		return nil

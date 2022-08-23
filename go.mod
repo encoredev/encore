@@ -44,10 +44,10 @@ require (
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
-	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664
 	golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2
-	golang.org/x/tools v0.1.11
+	golang.org/x/tools v0.1.12
 	golang.zx2c4.com/wireguard v0.0.0-20210728232740-bad6caeb82ed
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20210803171230-4253848d036c
 	golang.zx2c4.com/wireguard/windows v0.4.1
@@ -57,9 +57,11 @@ require (
 )
 
 require (
+	cuelang.org/go v0.4.3 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/bmizerany/perks v0.0.0-20141205001514-d9a9656a3a4b // indirect
+	github.com/cockroachdb/apd/v2 v2.0.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20211118104740-dabe8e521a4f // indirect
 	github.com/cockroachdb/redact v1.1.3 // indirect
 	github.com/dlclark/regexp2 v1.4.0 // indirect
@@ -96,6 +98,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de // indirect
 	github.com/nsqio/go-diskqueue v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198 // indirect
@@ -105,7 +108,7 @@ require (
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9 // indirect
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
