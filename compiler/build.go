@@ -21,6 +21,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	"encr.dev/compiler/internal/codegen"
+	"encr.dev/compiler/internal/cuegen"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
@@ -129,6 +130,7 @@ type builder struct {
 	modfile *modfile.File
 	overlay map[string]string
 	codegen *codegen.Builder
+	cuegen  *cuegen.Generator
 
 	res *parser.Result
 
@@ -210,6 +212,7 @@ func (b *builder) parseApp() error {
 	if pc := b.cfg.Parse; pc != nil {
 		b.res = pc
 		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
+		b.cuegen = cuegen.NewGenerator(b.res)
 		return nil
 	}
 
@@ -225,6 +228,7 @@ func (b *builder) parseApp() error {
 
 	if err == nil {
 		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
+		b.cuegen = cuegen.NewGenerator(b.res)
 	}
 
 	return err

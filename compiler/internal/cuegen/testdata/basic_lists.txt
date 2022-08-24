@@ -1,0 +1,21 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+    "time"
+
+	"encore.dev/config"
+	"encore.dev/types/uuid"
+)
+
+type Config struct {
+    Ages []int32
+}
+
+var _ = config.Load[*Config]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}

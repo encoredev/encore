@@ -278,22 +278,41 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCE
 	return encoding, nil
 }
 
-// getConcreteStructType returns a construct Struct object for the given schema. This means any generic types
+// GetConcreteStructType returns a construct Struct object for the given schema. This means any generic types
 // in the struct will be resolved to their concrete types and there will be no generic parameters in the struct object.
 // However, any nested structs may still contain generic types.
 //
 // If a nil schema is provided, a nil struct is returned.
-func getConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []*schema.Type) (*schema.Struct, error) {
-	if typ == nil {
+func GetConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []*schema.Type) (*schema.Struct, error) {
+	typ, err := GetConcreteType(appMetaData, typ, typeArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	struc := typ.GetStruct()
+	if struc == nil {
+		return nil, errors.Newf("unsupported type %+v", reflect.TypeOf(typ))
+	}
+
+	return struc, nil
+}
+
+// GetConcreteType returns a concrete type for the given schema. This means any generic types
+// in the top level type will be resolved to their concrete types and there will be no generic parameters in returned typ.
+// However, any nested types may still contain generic types.
+//
+// If a nil schema is provided, a nil is returned.
+func GetConcreteType(appMetaData *meta.Data, originalType *schema.Type, typeArgs []*schema.Type) (*schema.Type, error) {
+	if originalType == nil {
 		// If there's no schema type, we want to shortcut
 		return nil, nil
 	}
 
-	switch typ := typ.Typ.(type) {
+	switch typ := originalType.Typ.(type) {
 	case *schema.Type_Struct:
 		// If there are no type arguments, we've got a concrete type
 		if len(typeArgs) == 0 {
-			return typ.Struct, nil
+			return originalType, nil
 		}
 
 		// Deep copy the original struct
@@ -307,10 +326,56 @@ func getConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []
 			field.Typ = resolveTypeParams(field.Typ, typeArgs)
 		}
 
-		return struc, nil
+		return &schema.Type{Typ: &schema.Type_Struct{Struct: struc}}, nil
+
+	case *schema.Type_Map:
+		// If there are no type arguments, we've got a concrete type
+		if len(typeArgs) == 0 {
+			return originalType, nil
+		}
+
+		// Deep copy the original struct
+		mapType, ok := proto.Clone(typ.Map).(*schema.Map)
+		if !ok {
+			return nil, errors.New("failed to clone map")
+		}
+
+		return resolveTypeParams(&schema.Type{Typ: &schema.Type_Map{Map: mapType}}, typeArgs), nil
+
+	case *schema.Type_List:
+		// If there are no type arguments, we've got a concrete type
+		if len(typeArgs) == 0 {
+			return originalType, nil
+		}
+
+		// Deep copy the original struct
+		list, ok := proto.Clone(typ.List).(*schema.List)
+		if !ok {
+			return nil, errors.New("failed to clone list type")
+		}
+
+		// replace any type parameters with the type argument
+		return resolveTypeParams(&schema.Type{Typ: &schema.Type_List{List: list}}, typeArgs), nil
+
+	case *schema.Type_Config:
+		// If there are no type arguments, we've got a concrete type
+		if len(typeArgs) == 0 {
+			return originalType, nil
+		}
+
+		// Deep copy the original struct
+		config, ok := proto.Clone(typ.Config).(*schema.ConfigValue)
+		if !ok {
+			return nil, errors.New("failed to clone config type")
+		}
+
+		// replace any type parameters with the type argument
+		return resolveTypeParams(&schema.Type{Typ: &schema.Type_Config{Config: config}}, typeArgs), nil
+
 	case *schema.Type_Named:
 		decl := appMetaData.Decls[typ.Named.Id]
-		return getConcreteStructType(appMetaData, decl.Type, typ.Named.TypeArguments)
+		return GetConcreteType(appMetaData, decl.Type, typ.Named.TypeArguments)
+
 	default:
 		return nil, errors.Newf("unsupported type %+v", reflect.TypeOf(typ))
 	}
@@ -329,6 +394,9 @@ func resolveTypeParams(typ *schema.Type, typeArgs []*schema.Type) *schema.Type {
 	case *schema.Type_Map:
 		t.Map.Key = resolveTypeParams(t.Map.Key, typeArgs)
 		t.Map.Value = resolveTypeParams(t.Map.Value, typeArgs)
+
+	case *schema.Type_Config:
+		t.Config.Elem = resolveTypeParams(t.Config.Elem, typeArgs)
 
 	case *schema.Type_Named:
 		for i, param := range t.Named.TypeArguments {
@@ -376,7 +444,7 @@ func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Opti
 		return nil, errors.Newf("unsupported auth parameter type %T", errors.Safe(t))
 	}
 
-	authStruct, err := getConcreteStructType(appMetaData, authSchema, nil)
+	authStruct, err := GetConcreteStructType(appMetaData, authSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "auth struct")
 	}
@@ -399,7 +467,7 @@ func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, optio
 	if responseSchema == nil {
 		return nil, nil
 	}
-	responseStruct, err := getConcreteStructType(appMetaData, responseSchema, nil)
+	responseStruct, err := GetConcreteStructType(appMetaData, responseSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "response struct")
 	}
@@ -445,7 +513,7 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options
 	var requestStruct *schema.Struct
 	var err error
 	if requestSchema != nil {
-		requestStruct, err = getConcreteStructType(appMetaData, requestSchema, nil)
+		requestStruct, err = GetConcreteStructType(appMetaData, requestSchema, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "request struct")
 		}

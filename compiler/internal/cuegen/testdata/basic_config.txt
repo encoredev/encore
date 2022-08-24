@@ -1,0 +1,31 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+    "time"
+
+	"encore.dev/config"
+	"encore.dev/types/uuid"
+)
+
+type Config struct {
+    Name        string    // The users name
+    Port        uint16
+    ReadOnly    bool      // true if we're in read only mode
+
+    // MagicNumber is complicated and requires
+    // a multi-line comment to explain it.
+    MagicNumber int
+
+    ID          uuid.UUID // An ID
+
+    publicKey []byte
+}
+
+var _ = config.Load[*Config]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}
