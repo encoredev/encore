@@ -11,7 +11,7 @@ import (
 )
 
 // definitionGenerator is used to count the number of types a specific named type
-// is used (named types include type arguements, such that Option[string] != Option[int]).
+// is used (named types include type arguments, such that Option[string] != Option[int]).
 //
 // It also counts the number of times a unique named type uses a decl.
 //
@@ -22,8 +22,8 @@ type definitionGenerator struct {
 	decls          []*schema.Decl
 	ids            []*schema.Named
 	definitionName map[int]string // id -> name
-	nameCount      map[string]int // name -> usage count
-	counts         map[int]int
+	nameCount      map[string]int // name -> usage count for base name
+	counts         map[int]int    // id -> usage count for ID
 }
 
 func newDefinitionGenerator(decls []*schema.Decl) *definitionGenerator {
@@ -36,7 +36,7 @@ func newDefinitionGenerator(decls []*schema.Decl) *definitionGenerator {
 	}
 }
 
-// ID returns the id for the named type. If two named takes are passed in
+// ID returns the id for the named type. If two named types are passed in
 // which are identical, it will return the same id.
 //
 // This function then also creates a unique definition name for the named type

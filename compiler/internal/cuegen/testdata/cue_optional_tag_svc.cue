@@ -13,6 +13,7 @@ package svc
 	Option:    int64
 	Disabled?: bool // True if this is disabled
 }
+
 HTTP:    #ServerOption
 Another: #ServerOption
 TCP?:    #ServerOption

@@ -12,6 +12,7 @@ package svc
 Name:     string // The users name
 Port:     uint16
 ReadOnly: bool // true if we're in read only mode
+
 // MagicNumber is complicated and requires
 // a multi-line comment to explain it.
 MagicNumber: int

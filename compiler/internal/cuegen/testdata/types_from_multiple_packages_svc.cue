@@ -18,6 +18,7 @@ package svc
 	Foo: string
 	Bar: int
 }
+
 A: #ExtraConfig
 B: #ExtraConfig_1
 C: #ExtraConfig

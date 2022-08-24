@@ -4,12 +4,11 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/format"
+	"cuelang.org/go/cue/token"
 
 	"encr.dev/parser"
 	"encr.dev/parser/est"
 )
-
-// base off: https://github.com/cue-lang/cue/blob/06484a39d8d44c656212ac2d3b5589f8aa9db033/encoding/jsonschema/decode.go
 
 type Generator struct {
 	res *parser.Result
@@ -21,7 +20,7 @@ func NewGenerator(res *parser.Result) *Generator {
 	}
 }
 
-// UserFacing generates a CUE file for the given service based.
+// UserFacing generates a CUE file for the given service.
 //
 // It includes constraints and requirements based on the types passed to `encore.dev/config.Load[T]()`
 // within the service.
@@ -49,10 +48,22 @@ func (g *Generator) UserFacing(svc *est.Service) ([]byte, error) {
 		}
 	}
 
-	// Add all the topc level fields required by this service
+	// Add all the top level fields required by this service
 	for _, configLoad := range svc.ConfigLoads {
 		if err := service.registerTopLevelField(configLoad.ConfigStruct.Type); err != nil {
 			return nil, err
+		}
+	}
+
+	// For the first top level field in a service, if it's not go a comment above it, then we want to put it's label position
+	// as a new section. This forces a blank line between the type decelerations and the first field.
+	if len(service.topLevelFields) > 0 {
+		if field, ok := service.topLevelFields[0].(*ast.Field); ok {
+			if !hasCommentInPosition(field, 0) {
+				if ident, ok := field.Label.(*ast.Ident); ok {
+					ident.NamePos = token.NewSection.Pos()
+				}
+			}
 		}
 	}
 

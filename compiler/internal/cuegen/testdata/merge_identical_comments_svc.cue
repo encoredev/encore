@@ -9,12 +9,7 @@
 // https://encore.dev/docs/develop/config
 package svc
 
-#ServerOption: {
-	Option:    int64
-	Disabled?: bool // True if this is disabled
-}
-
-HTTP:          #ServerOption
-a_n_o_t_h_e_r: #ServerOption
-TCP?:          #ServerOption
-GRPC?:         #ServerOption
+// Multiline test
+// comment to deduplicate.
+// Some extra comment
+Foo: string

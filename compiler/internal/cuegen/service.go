@@ -54,8 +54,7 @@ func (s *service) registerTopLevelField(typ *schema.Type) error {
 		return err
 	}
 
-	for _, fieldDecl := range fields {
-		field := fieldDecl.(*ast.Field)
+	for _, field := range fields {
 		name, _, err := ast.LabelName(field.Label)
 		if err != nil {
 			return err
@@ -71,9 +70,17 @@ func (s *service) registerTopLevelField(typ *schema.Type) error {
 					existing.SetComments(field.Comments())
 				} else {
 					existingCommentGrp := existing.Comments()[0]
-					existingCommentGrp.Position = 0 // now multi line, so needs to go above the field
 					for _, comment := range field.Comments() {
-						existingCommentGrp.List = append(existingCommentGrp.List, comment.List...)
+						if !commentAlreadyPresent(existing, comment) {
+							existingCommentGrp.List = append(existingCommentGrp.List, comment.List...)
+						}
+					}
+
+					// If after this check the existing comment group is now multiline, we need to move the comment groups
+					// position to be before the field label.
+					if len(existingCommentGrp.List) > 0 {
+						existingCommentGrp.Position = 0
+						existingCommentGrp.List[0].Slash = token.NewSection.Pos()
 					}
 				}
 			}
@@ -83,7 +90,7 @@ func (s *service) registerTopLevelField(typ *schema.Type) error {
 				existing.Value = ast.NewBinExpr(token.AND, existing.Value, field.Value)
 			}
 		} else {
-			// otherwise
+			// otherwise add this field
 			s.fieldLookup[name] = field
 			s.topLevelFields = append(s.topLevelFields, field)
 		}
@@ -178,9 +185,9 @@ func (s *service) generateCue() error {
 }
 
 // structToFields converts a struct to a list of fields which can then be
-// either included in a definition, an line struct or the file level declarations
-func (s *service) structToFields(stru *schema.Struct) ([]ast.Decl, error) {
-	var fields []ast.Decl
+// either included in a definition, a line struct or the file level declarations
+func (s *service) structToFields(stru *schema.Struct) ([]*ast.Field, error) {
+	var fields []*ast.Field
 
 	for _, f := range stru.Fields {
 		isOptional := false
