@@ -8,20 +8,23 @@ import (
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
 	middleware "encore.dev/middleware"
+	"os"
 	"reflect"
 	_ "unsafe"
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
+	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &config.Static{
 		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
 		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
 		}}}},
-		TestService: "otherservice",
-		Testing:     true,
+		TestAsExternalBinary: true,
+		TestService:          "otherservice",
+		Testing:              true,
 	}
 	handlers := []api.HandlerRegistration{
 		{
@@ -107,20 +110,23 @@ import (
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
 	middleware "encore.dev/middleware"
+	"os"
 	"reflect"
 	_ "unsafe"
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
+	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &config.Static{
 		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
 		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
 		}}}},
-		TestService: "svc",
-		Testing:     true,
+		TestAsExternalBinary: true,
+		TestService:          "svc",
+		Testing:              true,
 	}
 	handlers := []api.HandlerRegistration{
 		{

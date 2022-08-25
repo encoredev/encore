@@ -6,17 +6,20 @@ import (
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
+	"os"
 	"reflect"
 	_ "unsafe"
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
+	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &config.Static{
-		AuthData:     reflect.TypeOf((*svc.AuthData)(nil)),
-		PubsubTopics: map[string]*config.StaticPubsubTopic{},
-		TestService:  "svc",
-		Testing:      true,
+		AuthData:             reflect.TypeOf((*svc.AuthData)(nil)),
+		PubsubTopics:         map[string]*config.StaticPubsubTopic{},
+		TestAsExternalBinary: true,
+		TestService:          "svc",
+		Testing:              true,
 	}
 	handlers := []api.HandlerRegistration{
 		{

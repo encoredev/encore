@@ -1,6 +1,7 @@
 package app
 
 import (
+	"io"
 	"os"
 
 	jsoniter "github.com/json-iterator/go"
@@ -49,7 +50,15 @@ type NewParams struct {
 
 func New(p *NewParams) *App {
 	cfg := p.Cfg
-	rootLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+	var logOutput io.Writer = os.Stderr
+	if cfg.Static.TestAsExternalBinary {
+		// If we're running as a test and as a binary outside of the Encore Daemon, then we want to
+		// log the output via a console logger, rather than the underlying JSON logs.
+		logOutput = zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+			w.Out = logOutput
+		})
+	}
+	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
 
 	pc := platform.NewClient(cfg)
 	doTrace := trace.Enabled(cfg)
