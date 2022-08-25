@@ -23,8 +23,9 @@ type Static struct {
 
 	PubsubTopics map[string]*StaticPubsubTopic
 
-	Testing     bool
-	TestService string // service being tested, if any
+	Testing              bool
+	TestService          string // service being tested, if any
+	TestAsExternalBinary bool   // should logs be pretty printed in tests (used when building a test binary to be used outside of the Encore daemon)
 }
 
 type Runtime struct {
