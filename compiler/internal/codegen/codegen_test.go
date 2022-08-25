@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	goparser "go/parser"
 	"go/token"
@@ -183,7 +184,7 @@ func TestCodeGen_TestMain(t *testing.T) {
 
 			for _, pkg := range res.App.Packages {
 				fmt.Fprintf(&buf, "// pkg %s\n", pkg.RelPath)
-				err = bld.TestMain(pkg, res.App.Services).Render(&buf)
+				err = bld.TestMain(pkg, res.App.Services, []string{"ENCORE_DUMMY_ENV_VAR=" + base64.RawURLEncoding.EncodeToString([]byte("{ \"test\": true }"))}).Render(&buf)
 				if err != nil {
 					c.Fatalf("got render error: \n%s", err.Error())
 				}
