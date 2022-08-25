@@ -22,7 +22,7 @@ func (mgr *Manager) getClient(cfg *config.AzureServiceBusProvider) *azservicebus
 	// Create a new client
 	credential, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		panic(fmt.Sprintf("failed to create azure credential: %s", err))
+		panic(fmt.Sprintf("failed to create azure credential: %v", err))
 	}
 	azclient, err := azservicebus.NewClient(
 		fmt.Sprintf("%s.servicebus.windows.net",
