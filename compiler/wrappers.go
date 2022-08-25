@@ -176,7 +176,7 @@ func (b *builder) generateTestMain(pkg *est.Package) (err error) {
 		}
 	}()
 
-	f := b.codegen.TestMain(pkg, b.res.App.Services)
+	f := b.codegen.TestMain(pkg, b.res.App.Services, b.EncoreEnvironmentalVariablesToEmbed())
 	b.addOverlay(filepath.Join(pkg.Dir, "encore_testmain_test.go"), testMainPath)
 	return f.Render(file)
 }
