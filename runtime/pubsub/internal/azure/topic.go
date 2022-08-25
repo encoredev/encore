@@ -2,7 +2,6 @@ package azure
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -64,7 +63,7 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 
 	messageID, err := uuid.NewV4()
 	if err != nil {
-		return "", errors.New("failed to generate message ID: %v" + err.Error())
+		return "", fmt.Errorf("failed to generate message ID: %v", err.Error())
 	}
 	msg := &azservicebus.Message{
 		MessageID:             to.Ptr(messageID.String()),
