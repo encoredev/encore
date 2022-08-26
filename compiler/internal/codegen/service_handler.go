@@ -7,6 +7,8 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/parser/est"
+	"encr.dev/parser/paths"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
@@ -33,7 +35,8 @@ func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
 		for _, res := range pkg.Resources {
 			if res.Type() == est.CacheKeyspaceResource {
 				f.Line()
-				b.buildKeyspaceMappers(f, svc, res.(*est.CacheKeyspace))
+				ks := res.(*est.CacheKeyspace)
+				b.buildCacheKeyspaceMappers(f, svc, ks)
 			}
 		}
 	}
@@ -112,20 +115,73 @@ type cacheKeyspaceMapperBuilder struct {
 }
 
 func (b *cacheKeyspaceMapperBuilder) Write() {
+	b.writeKeyMapper()
+	b.writeValueMapper()
+}
+
+func (b *cacheKeyspaceMapperBuilder) writeKeyMapper() {
 	keyType := b.schemaTypeToGoType(b.ks.KeyType)
-	fn := Func().Id(b.cacheKeyspaceKeyMapperName(b.ks)).Params(
+	fn := Func().Id(b.CacheKeyspaceKeyMapperName(b.ks)).Params(
 		Id("key").Add(keyType),
 	).String().BlockFunc(func(g *Group) {
+		_, keyIsBuiltin := b.ks.KeyType.Typ.(*schema.Type_Builtin)
 		var pathLit strings.Builder
-		for _, seg := range b.ks.Path.Segments {
+		var fmtArgs []Code
+
+		for i, seg := range b.ks.Path.Segments {
+			if i > 0 {
+				pathLit.WriteString("/")
+			}
+			if seg.Type == paths.Literal {
+				pathLit.WriteString(seg.Value)
+				continue
+			}
+
+			pathLit.WriteString("%v")
+			if keyIsBuiltin {
+				fmtArgs = append(fmtArgs, Id("key"))
+			} else {
+				fmtArgs = append(fmtArgs, Id("key").Dot(seg.Value))
+			}
+		}
+
+		if len(fmtArgs) == 0 {
+			g.Return(Lit(pathLit.String()))
+		} else {
+			args := append([]Code{Lit(pathLit.String())}, fmtArgs...)
+			g.Return(Qual("fmt", "Sprintf").Call(args...))
 		}
 	})
 	b.f.Add(fn)
 }
 
-func (b *Builder) cacheKeyspaceKeyMapperName(ks *est.CacheKeyspace) string {
+func (b *cacheKeyspaceMapperBuilder) writeValueMapper() {
+	valueType := b.schemaTypeToGoType(b.ks.ValueType.Type)
+	fn := Func().Id(b.CacheKeyspaceValueMapperName(b.ks)).Params(
+		Id("val").String(),
+	).Params(Id("res").Add(valueType), Err().Error()).BlockFunc(func(g *Group) {
+		builtin, valueIsBuiltin := b.ks.ValueType.Type.Typ.(*schema.Type_Builtin)
+		dec := b.marshaller.NewPossibleInstance("dec")
+		g.Add(dec.WithFunc(func(g *Group) {
+			if !valueIsBuiltin {
+				panic("internal error: value mapper currently only supports builtin value types")
+			}
+			decodeCall, err := dec.FromStringToBuiltin(builtin.Builtin, "value", Id("val"), false)
+			if err != nil {
+				b.errors.Addf(b.ks.Ident().Pos(), "could not create decoder for path param, %v", err)
+			}
+			g.Id("res").Op("=").Add(decodeCall)
+		}, func(g *Group) {
+			g.Return(Id("res"), dec.LastError())
+		})...)
+		g.Return(Id("res"), Nil())
+	})
+	b.f.Add(fn)
+}
+
+func (b *Builder) CacheKeyspaceKeyMapperName(ks *est.CacheKeyspace) string {
 	return fmt.Sprintf("EncoreInternal_%sKeyMapper", ks.Ident().Name)
 }
-func (b *Builder) cacheKeyspaceValueMapperName(ks *est.CacheKeyspace) string {
+func (b *Builder) CacheKeyspaceValueMapperName(ks *est.CacheKeyspace) string {
 	return fmt.Sprintf("EncoreInternal_%sValueMapper", ks.Ident().Name)
 }

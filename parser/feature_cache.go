@@ -24,7 +24,7 @@ var keyspaceConstructors = map[string]cacheKeyspaceConstructor{
 		Typ: &schema.Type_Builtin{Builtin: schema.Builtin_STRING},
 	}},
 	"NewIntKeyspace": {false, &schema.Type{
-		Typ: &schema.Type_Builtin{Builtin: schema.Builtin_INT},
+		Typ: &schema.Type_Builtin{Builtin: schema.Builtin_INT64},
 	}},
 	"NewFloatKeyspace": {false, &schema.Type{
 		Typ: &schema.Type_Builtin{Builtin: schema.Builtin_FLOAT64},

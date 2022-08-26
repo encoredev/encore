@@ -12,6 +12,7 @@ import (
 	"encore.dev/middleware"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
+	"encore.dev/storage/cache"
 	"encore.dev/types/uuid"
 )
 
@@ -156,6 +157,12 @@ func (s *Service) DI(ctx context.Context) error {
 func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) middleware.Response {
     return next(req)
 }
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+var strings = cache.NewIntKeyspace[int](cluster, cache.KeyspaceConfig{
+    Path: "/foo/:key",
+})
 
 -- otherservice/svc.go --
 package otherservice

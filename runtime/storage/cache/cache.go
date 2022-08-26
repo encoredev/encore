@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -24,3 +25,6 @@ type KeyspaceConfig struct {
 	//publicapigen:drop
 	EncoreInternal_ValueMapper any
 }
+
+// Nil is the error value reported when a key is missing from the cache.
+var Nil = errors.New("cache: nil")

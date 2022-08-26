@@ -91,8 +91,11 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 			case est.CacheKeyspaceDefNode:
 				keyspace := rewrite.Res.(*est.CacheKeyspace)
 				cfgLit := keyspace.ConfigLit
-				// TODO check if there is a comma?
-				rw.Insert(cfgLit.Rbrace, []byte(`EncoreInternal_KeyMapper: keyMapper, EncoreInternal_ValueMapper: valueMapper,`))
+				rw.Insert(cfgLit.Lbrace+1, []byte(fmt.Sprintf(
+					"EncoreInternal_KeyMapper: %s, EncoreInternal_ValueMapper: %s,",
+					b.codegen.CacheKeyspaceKeyMapperName(keyspace),
+					b.codegen.CacheKeyspaceValueMapperName(keyspace),
+				)))
 				return true
 
 			default:

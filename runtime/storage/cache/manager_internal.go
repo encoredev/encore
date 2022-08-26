@@ -117,7 +117,7 @@ func (s *client[K, V]) valPtr(res string) (*V, error) {
 }
 
 func (s *client[K, V]) valOrNil(res string, err error) (*V, error) {
-	if err == redis.Nil {
+	if err == redis.Nil || err == Nil {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
