@@ -4,9 +4,9 @@ go 1.18
 
 require (
 	cloud.google.com/go/pubsub v1.22.2
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.0.0
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.0.0
-	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.0.2
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v0.22.0
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v0.13.2
+	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v0.4.1
 	github.com/aws/aws-sdk-go-v2 v1.16.10
 	github.com/aws/aws-sdk-go-v2/config v1.15.17
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.12
