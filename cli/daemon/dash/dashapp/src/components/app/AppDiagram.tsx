@@ -29,7 +29,7 @@ const AppDiagram: FC<Props> = ({ appID, conn }) => {
   const [graphLayoutData, setGraphLayoutData] = useState<GraphData>();
   const hasServiceDatabase = (node: ServiceNode) => {
     const svc = metaData!.svcs.find((s) => s.name === node.service_name);
-    return !!svc?.databases.filter((dbName) => dbName === svc.name).length;
+    return !!svc?.databases.some((dbName) => dbName === svc.name);
   };
   const isServiceOutsideFacing = (node: ServiceNode) => {
     const svc = metaData!.svcs.find((s) => s.name === node.service_name);
