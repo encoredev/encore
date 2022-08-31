@@ -106,6 +106,7 @@ export const EdgeSVG = ({ edge }: { edge: PositionedEdge }) => {
 export const DatabaseSVG = (props: SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
+    data-testid="service-database"
     x={0}
     y={0}
     viewBox="0 0 300 300"
