@@ -6,5 +6,6 @@ module.exports = {
     "^~mod/(.*)$": "<rootDir>/src/mod/$1",
     "^~p/(.*)$": "<rootDir>/src/pages/$1",
   },
+  modulePathIgnorePatterns: ["(.*).fixture.ts"],
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
 };

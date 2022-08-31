@@ -7,6 +7,8 @@ import wordmark from "../wordmark.svg"
 const menuItems: {href: string; name: string, external?: boolean}[] = [
   {href: "", name: "Requests"},
   {href: "/api", name: "API Docs"},
+  // Hiding this for now
+  // {href: "/diagram", name: "System Diagram"},
   {href: "https://encore.dev/docs", name: "Encore Docs", external: true},
 ]
 
