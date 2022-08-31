@@ -9,15 +9,15 @@ html, body {
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+  sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
+  monospace;
 }
 
 #root {
@@ -30,10 +30,12 @@ pre.code {
   white-space: no-wrap;
   counter-reset: listing var(--line-start);
 }
+
 pre.code code {
   counter-increment: listing;
   display: block;
 }
+
 pre.code code::before {
   content: counter(listing) " ";
   display: inline-block;
@@ -41,4 +43,15 @@ pre.code code::before {
   padding-left: auto;
   margin-left: auto;
   text-align: right;
+}
+
+path.animate-edge {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
 }
