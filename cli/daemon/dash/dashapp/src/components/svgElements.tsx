@@ -22,34 +22,32 @@ export const ServiceSVG = ({
         onClick={onClick}
         height={node.height}
         width={node.width}
-        y={-node.height / 2}
-        x={-node.width / 2}
         stroke="#111111"
         strokeWidth={3}
         fill="#EEEEE1"
       />
       <text
         onClick={onClick}
-        dy="1.2em"
+        dy="3em"
         fontSize={16}
         fontFamily="monospace"
-        textAnchor="middle"
+        textAnchor="start"
         fill="#111111"
       >
         {node.label}
       </text>
-      {hasDatabase && (
-        <Group top={-node.height / 2 + 20} left={node.width / 2 - 20}>
-          <Circle r={15} fill="#111111" />
-          <DatabaseSVG x={-14} y={-400} width={28} />
-        </Group>
-      )}
-      {isOutsideFacing && (
-        <Group top={-node.height / 2 + 20} left={-node.width / 2 + 20}>
-          <Circle r={15} fill="#111111" />
-          <OutsideFacingApiSVG x={-14} y={-400} width={28} />
-        </Group>
-      )}
+      {/*{hasDatabase && (*/}
+      {/*  <Group top={-node.height / 2 + 20} left={node.width / 2 - 20}>*/}
+      {/*    <Circle r={15} fill="#111111" />*/}
+      {/*    <DatabaseSVG x={-14} y={-400} width={28} />*/}
+      {/*  </Group>*/}
+      {/*)}*/}
+      {/*{isOutsideFacing && (*/}
+      {/*  <Group top={-node.height / 2 + 20} left={-node.width / 2 + 20}>*/}
+      {/*    <Circle r={15} fill="#111111" />*/}
+      {/*    <OutsideFacingApiSVG x={-14} y={-400} width={28} />*/}
+      {/*  </Group>*/}
+      {/*)}*/}
     </Group>
   );
 };
@@ -67,18 +65,16 @@ export const TopicSVG = ({
         onClick={onClick}
         height={node.height}
         width={node.width}
-        y={-node.height / 2}
-        x={-node.width / 2}
         stroke="#111111"
         strokeWidth={3}
         fill="#111111"
       />
       <text
         onClick={onClick}
-        dy="0.3em"
+        dy="1em"
         fontSize={16}
         fontFamily="monospace"
-        textAnchor="middle"
+        textAnchor="start"
         fill="#EEEEE1"
       >
         {node.label}
@@ -91,7 +87,7 @@ export const EdgeSVG = ({ edge }: { edge: PositionedEdge }) => {
   const shouldAnimate = edge.type === "publish" || edge.type === "subscription";
   return (
     <LinePath
-      curve={curveCatmullRom}
+      // curve={curveCatmullRom}
       data={edge.points}
       className={shouldAnimate ? "animate-edge" : ""}
       x={(d) => d.x}

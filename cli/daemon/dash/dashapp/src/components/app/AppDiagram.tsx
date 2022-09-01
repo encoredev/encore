@@ -10,7 +10,6 @@ import {
   PositionedNode,
   ServiceNode,
 } from "~lib/graph/graph-utils";
-import { getGraphLayoutData } from "~lib/graph/dagre-algo";
 import {
   EdgeSVG,
   EncoreArrowHeadSVG,
@@ -18,6 +17,7 @@ import {
   TopicSVG,
 } from "~c/svgElements";
 import { ProvidedZoom } from "@visx/zoom/lib/types";
+import { getElkGraphLayoutData } from "~lib/graph/elk-algo";
 
 interface Props {
   appID: string;
@@ -37,13 +37,18 @@ const AppDiagram: FC<Props> = ({ appID, conn }) => {
       (rpc) => rpc.access_type === "PUBLIC" || rpc.access_type === "AUTH"
     );
   };
-  const width = 1600;
-  const height = 800;
+  const graphPadding = 20;
+  const width = graphLayoutData?.width
+    ? graphLayoutData.width + graphPadding * 2
+    : 1600;
+  const height = graphLayoutData?.height
+    ? graphLayoutData?.height + graphPadding * 2
+    : 800;
   const initialZoomTransform = {
     scaleX: 1,
     scaleY: 1,
-    translateX: 20,
-    translateY: 20,
+    translateX: graphPadding,
+    translateY: graphPadding,
     skewX: 0,
     skewY: 0,
   };
@@ -61,7 +66,7 @@ const AppDiagram: FC<Props> = ({ appID, conn }) => {
     const serviceNodeHeight = 80;
     const topicNodeHeight = 40;
     if (metaData) {
-      const graphLayoutData = getGraphLayoutData(
+      getElkGraphLayoutData(
         getNodesFromMetaData(metaData),
         getEdgesFromMetaData(metaData),
         {
@@ -75,11 +80,12 @@ const AppDiagram: FC<Props> = ({ appID, conn }) => {
               : serviceNodeHeight;
           },
           // drawOutsideDependencyToNode: (nodeData) => {
-          //   return nodeData.type === "service" && isServiceOutsideFacing(nodeData);
+          //   return (
+          //     nodeData.type === "service" && isServiceOutsideFacing(nodeData)
+          //   );
           // },
         }
-      );
-      setGraphLayoutData(graphLayoutData);
+      ).then((data) => setGraphLayoutData(data));
     }
   }, [metaData]);
 
@@ -158,10 +164,7 @@ const AppDiagram: FC<Props> = ({ appID, conn }) => {
               />
 
               {/* Drawable area */}
-              <Group
-                transform={zoom.toString()}
-                // style={{ transition: "transform 0.2s ease-out" }}
-              >
+              <Group transform={zoom.toString()}>
                 {graphLayoutData.nodes.map(getNodeElement.bind(null, zoom))}
                 {graphLayoutData.edges.map((edge, index) => (
                   <EdgeSVG

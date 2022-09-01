@@ -63,5 +63,5 @@ export const getGraphLayoutData: GetGraphLayoutData = (
     .edges()
     .map((e) => graphData.edge(e) as PositionedEdge);
 
-  return { nodes: positionNodes, edges: positionedEdges };
+  return Promise.resolve({ nodes: positionNodes, edges: positionedEdges });
 };

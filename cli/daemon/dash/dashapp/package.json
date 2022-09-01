@@ -19,6 +19,7 @@
     "@visx/zoom": "^2.10.0",
     "codemirror": "^5.65.1",
     "dagre": "^0.8.5",
+    "elkjs": "^0.8.2",
     "events": "^3.2.0",
     "fuzzysort": "^2.0.1",
     "hjson": "^3.2.2",

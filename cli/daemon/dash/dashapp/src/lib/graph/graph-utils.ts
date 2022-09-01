@@ -39,6 +39,8 @@ export type PositionedEdge = EdgeData & {
 export interface GraphData {
   edges: PositionedEdge[];
   nodes: PositionedNode[];
+  width?: number;
+  height?: number;
 }
 
 export interface GraphLayoutOptions {
@@ -52,7 +54,7 @@ export interface GetGraphLayoutData {
     nodes: NodeData[],
     edges: EdgeData[],
     options: GraphLayoutOptions
-  ): GraphData;
+  ): Promise<GraphData>;
 }
 
 const serviceID = (svcName: string) => {
@@ -64,6 +66,7 @@ const topicID = (topicName: string) => {
 };
 
 export const getNodesFromMetaData = (metaData: APIMeta) => {
+  console.log(metaData);
   const nodes: NodeData[] = [];
 
   // Services
