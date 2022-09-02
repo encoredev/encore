@@ -21,7 +21,7 @@ package svc
 	Disabled: bool // True if this is disabled
 }
 
-#List_string: [string]
+#List_string: [...string]
 
 // A nice generic map
 #Map_string_string: {
@@ -34,7 +34,7 @@ TCP:     #DisablableOption_uint16 // The options for the TCP server
 GRPC:    #DisablableOption_uint64 // The options for the GRPC server
 List1:   #List_string             // A list of strings
 List2:   #List_string
-List3: [int]
+List3: [...int]
 Map1: #Map_string_string
 Map2: [int]: string
 Map3: #Map_string_string

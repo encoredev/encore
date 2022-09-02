@@ -10,5 +10,11 @@ package config
 //
 // Note: This function can only be called from within services.
 func Load[T any]() T {
-	return nil
+	// Initialise default value
+	var rtnValue T
+
+	// FIXME: Initialise the value
+
+	// Return the value
+	return rtnValue
 }

@@ -9,4 +9,4 @@
 // https://encore.dev/docs/develop/config
 package svc
 
-Ages: [int32]
+Ages: [...int32]

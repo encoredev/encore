@@ -60,6 +60,8 @@ func (b *builder) Test(ctx context.Context) (err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
+		b.pickupConfigFiles,
+		b.checkApp, // we need to validate the config
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,

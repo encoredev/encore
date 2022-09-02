@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"math"
 	"os"
@@ -96,9 +97,10 @@ func (cfg *Config) Validate() error {
 
 // Result is the combined results of a build.
 type Result struct {
-	Dir   string         // absolute path to build temp dir
-	Exe   string         // absolute path to the build executable
-	Parse *parser.Result // set only if build succeeded
+	Dir            string         // absolute path to build temp dir
+	Exe            string         // absolute path to the build executable
+	Parse          *parser.Result // set only if build succeeded
+	AppConfigFiles fs.FS          // all found configuration files within the application source
 }
 
 // Build builds the application.
@@ -132,7 +134,8 @@ type builder struct {
 	codegen *codegen.Builder
 	cuegen  *cuegen.Generator
 
-	res *parser.Result
+	res         *parser.Result
+	configFiles fs.FS
 
 	lastOpID optracker.OperationID
 }
@@ -140,11 +143,14 @@ type builder struct {
 func (b *builder) Build() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			b.cfg.OpTracker.Fail(b.lastOpID, err)
-
-			if b, ok := e.(bailout); ok {
-				err = b.err
+			if bailoutErr, ok := e.(bailout); ok {
+				err = bailoutErr.err
+				b.cfg.OpTracker.Fail(b.lastOpID, err)
 			} else {
+				if err == nil {
+					err = fmt.Errorf("panic: %v", e)
+				}
+				b.cfg.OpTracker.Fail(b.lastOpID, err)
 				panic(e)
 			}
 		}
@@ -166,7 +172,10 @@ func (b *builder) Build() (res *Result, err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
+		b.startAppCheck,
+		b.pickupConfigFiles,
 		b.checkApp,
+		b.endAppCheck,
 		b.startCodeGenTracker,
 		b.writeModFile,
 		b.writeSumFile,
@@ -184,7 +193,18 @@ func (b *builder) Build() (res *Result, err error) {
 	}
 
 	res.Parse = b.res
+	res.AppConfigFiles = b.configFiles
 	return res, nil
+}
+
+func (b *builder) startAppCheck() error {
+	b.lastOpID = b.cfg.OpTracker.Add("Verifying application configuration", time.Now())
+	return nil
+}
+
+func (b *builder) endAppCheck() error {
+	b.cfg.OpTracker.Done(b.lastOpID, 50*time.Millisecond)
+	return nil
 }
 
 func (b *builder) startCodeGenTracker() error {
@@ -243,6 +263,8 @@ func (b *builder) checkApp() error {
 		}
 	}
 
+	serviceConfigsChecked := make(map[*est.Service]struct{})
+
 	for _, pkg := range b.res.App.Packages {
 		for _, res := range pkg.Resources {
 			switch res := res.(type) {
@@ -250,6 +272,16 @@ func (b *builder) checkApp() error {
 				if !dbs[res.DBName] {
 					pp := b.res.FileSet.Position(res.Ident().Pos())
 					b.errf("%s: database not found: %s", pp, res.DBName)
+				}
+
+			case *est.Config:
+				if _, found := serviceConfigsChecked[res.Svc]; !found {
+					serviceConfigsChecked[res.Svc] = struct{}{}
+
+					if err := b.computeConfigForService(res.Svc); err != nil {
+						pp := b.res.FileSet.Position(res.Ident().Pos())
+						b.errf("%s: invalid config for service %s: %s", pp, res.Svc.Name, err)
+					}
 				}
 			}
 		}
