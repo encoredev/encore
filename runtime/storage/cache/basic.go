@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -9,6 +10,10 @@ import (
 // TODO:
 // Multi-get, multi-set
 
+// NewStringKeyspace creates a keyspace that stores string values in the given cluster.
+//
+// The type parameter K specifies the key type, which can either be a
+// named struct type or a basic type (string, int, etc).
 func NewStringKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *StringKeyspace[K] {
 	return &StringKeyspace[K]{
 		&basicKeyspace[K, string]{
@@ -17,6 +22,7 @@ func NewStringKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *StringKeysp
 	}
 }
 
+// StringKeyspace represents a set of cache keys that hold string values.
 type StringKeyspace[K any] struct {
 	*basicKeyspace[K, string]
 }
@@ -89,24 +95,24 @@ func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error)
 	return s.val(res)
 }
 
-func (s *basicKeyspace[K, V]) Add(ctx context.Context, key K, val V) error {
-	exp := s.cfg.DefaultExpiry
-	_, err := toErr2(s.redis.SetNX(ctx, s.key(key), val, exp).Result())
-	return err
-}
-
 // TODO explore Set options:
 // - Expiry duration
 // - Expiry deadline
 // - Keep TTL
 
 func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
-	exp := s.cfg.DefaultExpiry
+	exp := s.expiry()
 	return toErr(s.redis.Set(ctx, s.key(key), val, exp).Err())
 }
 
+func (s *basicKeyspace[K, V]) SetIfNotExist(ctx context.Context, key K, val V) error {
+	exp := s.expiry()
+	_, err := toErr2(s.redis.SetNX(ctx, s.key(key), val, exp).Result())
+	return err
+}
+
 func (s *basicKeyspace[K, V]) Update(ctx context.Context, key K, val V) error {
-	exp := s.cfg.DefaultExpiry
+	exp := s.expiry()
 	return toErr(s.redis.SetXX(ctx, s.key(key), val, exp).Err())
 }
 
@@ -124,6 +130,23 @@ func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K) error {
 	return toErr(s.redis.Del(ctx, s.key(key)).Err())
 }
 
+func (s *basicKeyspace[K, V]) expiry() time.Duration {
+	now := time.Now()
+	expiry := s.defaultExpiry(now)
+
+	// The redis library treats the zero duration as "never expire",
+	// whereas we have a dedicated sentinel value for that.
+	// Translate this to durations.
+	if expiry == NeverExpire {
+		return 0
+	}
+	dur := expiry.Sub(now)
+	if dur == 0 {
+		dur = time.Millisecond // expire immediately
+	}
+	return dur
+}
+
 func toErr(err error) error {
 	if err == redis.Nil {
 		err = Nil
@@ -137,3 +160,9 @@ func toErr2[T any](val T, err error) (T, error) {
 	}
 	return val, err
 }
+
+// Key Expiry Rules:
+// 1. If a DefaultExpiry is used, all mutations cause the TTL to be updated
+// 2. For operations that support it this happens with a single command,
+// otherwise it performs a pipelined mutate + expire.
+// 3. To avoid this use NeverExpire or KeepTTL

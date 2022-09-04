@@ -158,22 +158,22 @@ func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor)
 			return nil
 		}
 
-		if !cfg.IsSet("Path") {
-			p.errf(callExpr.Args[2].Pos(), "cache.KeyspaceConfig requires the field \"Path\" to be set")
+		if !cfg.IsSet("KeyPattern") {
+			p.errf(callExpr.Args[1].Pos(), "cache.KeyspaceConfig requires the field \"KeyPattern\" to be set")
 			return nil
 		}
 
-		pathPos := cfg.Pos("Path")
-		pathStr := cfg.Str("Path", "")
-		if pathStr == "" {
-			p.errf(pathPos, "cache.KeyspaceConfig requires the configuration field named \"Path\" to be populated with a valid keyspace path.")
+		keyPatternPos := cfg.Pos("KeyPattern")
+		keyPatternStr := cfg.Str("KeyPattern", "")
+		if keyPatternStr == "" {
+			p.errf(keyPatternPos, "cache.KeyspaceConfig requires the configuration field named \"KeyPattern\" to be populated with a valid keyspace pattern.")
 			return nil
 		}
 
 		// TODO avoid requirement of leading '/'
-		path, err := paths.Parse(pathPos, pathStr)
+		path, err := paths.Parse(keyPatternPos, keyPatternStr)
 		if err != nil {
-			p.errf(pathPos, "cache.KeyspaceConfig got an invalid path: %v", err)
+			p.errf(keyPatternPos, "cache.KeyspaceConfig got an invalid keyspace pattern: %v", err)
 			return nil
 		}
 		// TODO check for non-overlapping paths
@@ -185,7 +185,7 @@ func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor)
 		{
 			keyType = p.resolveType(file.Pkg, file, typeArgs[0], nil)
 			if _, isPtr := typeArgs[0].(*ast.StarExpr); isPtr {
-				p.errf(pathPos, "cache.%s does not accept pointer types as the key type parameter, use a non-pointer type instead",
+				p.errf(keyPatternPos, "cache.%s does not accept pointer types as the key type parameter, use a non-pointer type instead",
 					funcName)
 				return nil
 			}

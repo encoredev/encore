@@ -220,7 +220,12 @@ type SQLDatabase struct {
 type RedisServer struct {
 	// Host is the host to connect to.
 	// Valid formats are "hostname", "hostname:port", and "/path/to/unix.socket".
-	Host     string `json:"host"`
+	Host string `json:"host"`
+
+	// User and password specify the authentication behavior to redis.
+	// If both are provided, it uses Redis v6's ACL support.
+	// If a password but no username is provided, it uses Redis's AUTH string support.
+	// If neither is supplied it uses no authentication.
 	User     string `json:"user,omitempty"`
 	Password string `json:"password,omitempty"`
 

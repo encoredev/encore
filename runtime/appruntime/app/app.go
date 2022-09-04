@@ -79,7 +79,7 @@ func New(p *NewParams) *App {
 	rlog := rlog.NewManager(rt)
 	sqldb := sqldb.NewManager(cfg, rt)
 	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
-	cache := cache.NewManager(cfg)
+	cache := cache.NewManager(cfg, ts)
 
 	app := &App{
 		cfg, rt, json, rootLogger, apiSrv, service, ts,

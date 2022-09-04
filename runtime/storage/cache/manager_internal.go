@@ -2,27 +2,38 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/runtimeutil/syncutil"
+	"encore.dev/appruntime/testsupport"
 )
 
 // Manager manages cache clients.
 type Manager struct {
 	cfg *config.Config
+	ts  *testsupport.Manager
+
+	initTestSrv syncutil.Once
+	testSrv     *miniredis.Miniredis
 
 	clientMu sync.RWMutex
 	clients  map[string]*redis.Client
 }
 
-func NewManager(cfg *config.Config) *Manager {
+func NewManager(cfg *config.Config, ts *testsupport.Manager) *Manager {
 	return &Manager{
 		cfg:     cfg,
+		ts:      ts,
 		clients: make(map[string]*redis.Client),
 	}
 }
@@ -44,18 +55,31 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 		return cl
 	}
 
+	// Are we in a test? If so, use the redismock library.
+	if mgr.cfg.Static.Testing {
+		cl, err := mgr.newTestClient()
+		if err != nil {
+			panic(fmt.Sprintf("cache: unable to start redis mock: %v", err))
+		}
+		mgr.clients[clusterName] = cl
+		return cl
+	}
+
 	for _, rdb := range mgr.cfg.Runtime.RedisDatabases {
 		if rdb.EncoreName == clusterName {
-			cl := mgr.newClient(rdb)
+			cl, err := mgr.newClient(rdb)
+			if err != nil {
+				panic(fmt.Sprintf("cache: unable to create redis client: %v", err))
+			}
 			mgr.clients[clusterName] = cl
 			return cl
 		}
 	}
 
-	panic(fmt.Sprintf("cache: unknown cluster name %q", clusterName))
+	panic(fmt.Sprintf("cache: unknown cluster %q", clusterName))
 }
 
-func (mgr *Manager) newClient(rdb *config.RedisDatabase) *redis.Client {
+func (mgr *Manager) newClient(rdb *config.RedisDatabase) (*redis.Client, error) {
 	srv := mgr.cfg.Runtime.RedisServers[rdb.ServerID]
 	opts := &redis.Options{
 		Network:      "tcp",
@@ -70,9 +94,50 @@ func (mgr *Manager) newClient(rdb *config.RedisDatabase) *redis.Client {
 		opts.Network = "unix"
 	}
 
-	// TODO(andre) handle TLS config
+	if srv.ServerCACert != "" || srv.ClientCert != "" {
+		opts.TLSConfig = &tls.Config{}
+		if srv.ServerCACert != "" {
+			caCertPool := x509.NewCertPool()
+			if !caCertPool.AppendCertsFromPEM([]byte(srv.ServerCACert)) {
+				return nil, fmt.Errorf("invalid server ca cert")
+			}
+			opts.TLSConfig.RootCAs = caCertPool
+		}
+		if srv.ClientCert != "" {
+			cert, err := tls.X509KeyPair([]byte(srv.ClientCert), []byte(srv.ClientKey))
+			if err != nil {
+				return nil, fmt.Errorf("parse client cert: %v", err)
+			}
+			opts.TLSConfig.Certificates = []tls.Certificate{cert}
+		}
+	}
 
-	return redis.NewClient(opts)
+	return redis.NewClient(opts), nil
+}
+
+func (mgr *Manager) newTestClient() (*redis.Client, error) {
+	err := mgr.initTestSrv.Do(func() error {
+		var err error
+		mgr.testSrv, err = miniredis.Run()
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	opts := &redis.Options{
+		Network:      "tcp",
+		Addr:         mgr.testSrv.Addr(),
+		DB:           0,
+		MinIdleConns: 1,
+		PoolSize:     runtime.GOMAXPROCS(0) * 10,
+	}
+	cl := redis.NewClient(opts)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	err = cl.Ping(ctx).Err()
+	cancel()
+	return cl, err
 }
 
 func (mgr *Manager) Shutdown(force context.Context) {
@@ -85,19 +150,47 @@ func (mgr *Manager) Shutdown(force context.Context) {
 }
 
 func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig) *client[K, V] {
+	keyMapper := cfg.EncoreInternal_KeyMapper.(func(K) string)
+	valueMapper := cfg.EncoreInternal_ValueMapper.(func(string) (V, error))
+
+	if mgr := cluster.mgr; mgr.cfg.Static.Testing {
+		// If we're running tests, map keys to a test-specific key.
+		orig := keyMapper
+		keyMapper = func(k K) string {
+			key := orig(k)
+			if t := mgr.ts.CurrentTest(); t != nil {
+				key = t.Name() + "::" + key
+			}
+			return key
+		}
+	}
+
+	// Determine the default expiry function.
+	defaultExpiry := cfg.DefaultExpiry
+	if defaultExpiry == nil {
+		defaultExpiry = cluster.cfg.DefaultExpiry
+		if defaultExpiry == nil {
+			defaultExpiry = func(now time.Time) time.Time {
+				return NeverExpire
+			}
+		}
+	}
+
 	return &client[K, V]{
-		redis:       cluster.cl,
-		cfg:         cfg,
-		keyMapper:   cfg.EncoreInternal_KeyMapper.(func(K) string),
-		valueMapper: cfg.EncoreInternal_ValueMapper.(func(string) (V, error)),
+		redis:         cluster.cl,
+		cfg:           cfg,
+		defaultExpiry: defaultExpiry,
+		keyMapper:     keyMapper,
+		valueMapper:   valueMapper,
 	}
 }
 
 type client[K, V any] struct {
-	redis       *redis.Client
-	cfg         KeyspaceConfig
-	keyMapper   func(K) string
-	valueMapper func(string) (V, error)
+	redis         *redis.Client
+	cfg           KeyspaceConfig
+	defaultExpiry ExpiryFunc
+	keyMapper     func(K) string
+	valueMapper   func(string) (V, error)
 }
 
 func (s *client[K, V]) key(k K) string {

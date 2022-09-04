@@ -4,8 +4,11 @@ package cache
 
 var Singleton *Manager
 
+// NewCluster declares a new cache cluster.
 func NewCluster(name string, cfg ClusterConfig) *Cluster {
 	return &Cluster{
-		cl: Singleton.getClient(name),
+		cfg: cfg,
+		mgr: Singleton,
+		cl:  Singleton.getClient(name),
 	}
 }
