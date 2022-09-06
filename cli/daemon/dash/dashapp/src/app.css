@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mono Spaced */
+@font-face {
+  font-family: 'Suisse Intl Mono';
+  font-style: normal;
+  font-weight: 200;
+  font-display: swap;
+  src: url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.woff") format("woff2"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.woff") format("woff"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.ttf") format("ttf"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.svg") format("svg"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.eot") format("eot");
+}
+
+@font-face {
+  font-family: 'Suisse Intl Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.woff") format("woff2"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.woff") format("woff"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.ttf") format("ttf"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.svg") format("svg"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.eot") format("eot");
+}
+
+@font-face {
+  font-family: 'Suisse Intl Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.woff") format("woff2"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.woff") format("woff"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.ttf") format("ttf"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.svg") format("svg"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.eot") format("eot");
+}
+
+
 html, body {
   height: 100%;
 }
