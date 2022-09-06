@@ -73,7 +73,6 @@ const topicID = (topicName: string) => {
 };
 
 export const getNodesFromMetaData = (metaData: APIMeta) => {
-  console.log(metaData);
   const nodes: NodeData[] = [];
 
   // Services

@@ -40,6 +40,7 @@ export const ServiceSVG = ({
       top={node.y}
       left={node.x}
       key={node.id}
+      data-testid={`node-${node.id}`}
       className={`node group ${getActiveClass(isActive)}`}
       // onClick={onClick}
       onMouseEnter={onMouseEnter}
@@ -49,7 +50,6 @@ export const ServiceSVG = ({
       <rect width={node.width} height={node.height} fill={SOFT_BLACK_COLOR} />
 
       <foreignObject
-        id={node.id}
         className="transform duration-100 ease-in-out group-hover:-translate-x-1 group-hover:-translate-y-1"
         style={{ background: OFF_WHITE_COLOR }}
         width={node.width}
@@ -62,7 +62,7 @@ export const ServiceSVG = ({
           <div className="p-1 px-2 font-mono font-semibold">
             <p>{node.label}</p>
           </div>
-          <div className="px-1">
+          <div data-testid="service-endpoints" className="px-1">
             <div className="flex items-center pb-1">
               <EndpointIconSVG />
               <p className="flex w-full justify-between px-1 text-xs">

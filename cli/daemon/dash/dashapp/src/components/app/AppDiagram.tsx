@@ -203,7 +203,7 @@ const AppDiagram: FC<Props> = ({ appID, conn }) => {
                       {/* Drawable area */}
                       <Group transform={zoom.toString()}>
                         {graphLayoutData.edges.map((edge) => (
-                          <Group key={edge.id}>
+                          <Group key={edge.id} className="edge-group">
                             <EdgeSVG
                               edge={edge}
                               activeNodeId={activeNode?.id || null}

@@ -6,7 +6,7 @@ import { META_DATA_FIXTURE } from "../../__tests__/meta-data-fixture";
 
 describe("Graph Utils", () => {
   describe("getNodesFromMetaData", () => {
-    it("should nodes from meta data", () => {
+    it("should get nodes from meta data", () => {
       const nodes = getNodesFromMetaData(META_DATA_FIXTURE);
 
       expect(nodes).toHaveLength(4);
@@ -17,6 +17,7 @@ describe("Graph Utils", () => {
         id: "service:service-1",
         label: "service-1",
         service_name: "service-1",
+        has_database: true,
       });
 
       const topic = nodes.filter((n) => n.type === "topic")[0];
