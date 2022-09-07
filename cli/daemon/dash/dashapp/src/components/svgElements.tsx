@@ -57,7 +57,7 @@ export const ServiceSVG = ({
       >
         <div
           className="h-full w-full border-2"
-          style={{ borderColor: SOFT_BLACK_COLOR }}
+          style={{ background: OFF_WHITE_COLOR, borderColor: SOFT_BLACK_COLOR }}
         >
           <div className="p-1 px-2 font-mono font-semibold">
             <p>{node.label}</p>
