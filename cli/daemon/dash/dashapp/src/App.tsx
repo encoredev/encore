@@ -37,7 +37,7 @@ function App() {
     <ConnContext.Provider value={conn}>
       <Router>
         <Routes>
-          <Route path="/:appID/diagram" element={<AppDiagram />} />
+          <Route path="/:appID/flow" element={<AppDiagram />} />
           <Route path="/:appID/api" element={<AppAPI />} />
           <Route path="/:appID" element={<AppHome />} />
           <Route path="/" element={<AppList />} />

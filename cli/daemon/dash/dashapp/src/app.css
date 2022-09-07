@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mono Spaced */
+@font-face {
+  font-family: 'Suisse Intl Mono';
+  font-style: normal;
+  font-weight: 200;
+  font-display: swap;
+  src: url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.woff") format("woff2"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.woff") format("woff"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.ttf") format("ttf"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.svg") format("svg"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Thin-WebXL.eot") format("eot");
+}
+
+@font-face {
+  font-family: 'Suisse Intl Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.woff") format("woff2"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.woff") format("woff"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.ttf") format("ttf"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.svg") format("svg"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Regular-WebXL.eot") format("eot");
+}
+
+@font-face {
+  font-family: 'Suisse Intl Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.woff") format("woff2"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.woff") format("woff"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.ttf") format("ttf"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.svg") format("svg"),
+  url("https://encore.dev/assets/fonts/suisse-intl/SuisseIntlMono-Bold-WebXL.eot") format("eot");
+}
+
+
 html, body {
   height: 100%;
 }
@@ -45,9 +83,22 @@ pre.code code::before {
   text-align: right;
 }
 
-path.animate-edge {
+.font-mono {
+  font-family: 'Suisse Intl Mono', 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
+}
+
+/* Animations for:
+   - Hovering a node (some nodes then become inactive)
+   - Replacing nodes (can happen if you add new services/connections)
+*/
+.app-diagram .node, .app-diagram .edge, .app-diagram .label {
+  transition: opacity 100ms, transform 1s ease-in-out;
+}
+
+/* Animation for topic edges */
+.app-diagram .edge.animate-message {
   stroke-dasharray: 5;
-  animation: dashdraw 0.5s linear infinite;
+  animation: dashdraw 0.6s linear infinite;
 }
 
 @keyframes dashdraw {

@@ -2,6 +2,11 @@ import { APIMeta } from "~c/api/api";
 
 export const OUTSIDE_FACING_NODE_ID = ":outside-facing:";
 
+export interface Coordinates {
+  x: number;
+  y: number;
+}
+
 export interface EdgeData {
   source: string;
   target: string;
@@ -17,6 +22,7 @@ interface BaseNode {
 export interface ServiceNode extends BaseNode {
   type: "service";
   service_name: string;
+  has_database: boolean;
 }
 
 export interface TopicNode extends BaseNode {
@@ -25,20 +31,23 @@ export interface TopicNode extends BaseNode {
 
 export type NodeData = ServiceNode | TopicNode;
 
-export type PositionedNode = NodeData & {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+export type PositionedNode = NodeData &
+  Coordinates & {
+    width: number;
+    height: number;
+  };
 
 export type PositionedEdge = EdgeData & {
-  points: { x: number; y: number }[];
+  id: string;
+  points: Coordinates[];
+  label?: Coordinates & { text: string };
 };
 
 export interface GraphData {
   edges: PositionedEdge[];
   nodes: PositionedNode[];
+  width?: number;
+  height?: number;
 }
 
 export interface GraphLayoutOptions {
@@ -52,7 +61,7 @@ export interface GetGraphLayoutData {
     nodes: NodeData[],
     edges: EdgeData[],
     options: GraphLayoutOptions
-  ): GraphData;
+  ): Promise<GraphData>;
 }
 
 const serviceID = (svcName: string) => {
@@ -73,6 +82,7 @@ export const getNodesFromMetaData = (metaData: APIMeta) => {
       label: svc.name,
       type: "service",
       service_name: svc.name,
+      has_database: svc.databases.some((dbName) => dbName === svc.name),
     });
   });
 
