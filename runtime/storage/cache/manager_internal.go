@@ -168,11 +168,8 @@ func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig) *client[K, V] {
 	// Determine the default expiry function.
 	defaultExpiry := cfg.DefaultExpiry
 	if defaultExpiry == nil {
-		defaultExpiry = cluster.cfg.DefaultExpiry
-		if defaultExpiry == nil {
-			defaultExpiry = func(now time.Time) time.Time {
-				return NeverExpire
-			}
+		defaultExpiry = func(now time.Time) time.Time {
+			return NeverExpire
 		}
 	}
 
@@ -216,6 +213,68 @@ func (s *client[K, V]) valOrNil(res string, err error) (*V, error) {
 		return nil, err
 	}
 	return s.valPtr(res)
+}
+
+func (s *client[K, V]) expiryCmd(ctx context.Context, key string, opts []WriteOption) *redis.BoolCmd {
+	now := time.Now()
+	expTime := s.expiryTime(now, opts)
+	if expTime == keepTTL {
+		return nil
+	} else if expTime == NeverExpire {
+		return redis.NewBoolCmd(ctx, "persist", key)
+	}
+
+	expMs := expTime.UnixNano() / int64(time.Millisecond)
+	return redis.NewBoolCmd(ctx, "pexpireat", key, expMs)
+}
+
+func (s *client[K, V]) expiryDur(opts []WriteOption) time.Duration {
+	now := time.Now()
+	expTime := s.expiryTime(now, opts)
+
+	var exp time.Duration
+	switch {
+	case expTime == NeverExpire:
+		exp = 0
+	case expTime == keepTTL:
+		exp = redis.KeepTTL
+	default:
+		exp = expTime.Sub(now)
+	}
+	return exp
+}
+
+func (s *client[K, V]) expiryTime(now time.Time, opts []WriteOption) time.Time {
+	var expiry time.Time
+
+	// Check if we have any option that overrides the expiry
+	found := false
+	for _, o := range opts {
+		if exp, ok := o.(expiryOption); ok {
+			exp.setExpiry(now, &expiry)
+			found = true
+		}
+	}
+
+	if !found {
+		expiry = s.defaultExpiry(now)
+	}
+
+	return expiry
+}
+
+func toErr(err error) error {
+	if err == redis.Nil {
+		err = Nil
+	}
+	return err
+}
+
+func toErr2[T any](val T, err error) (T, error) {
+	if err == redis.Nil {
+		err = Nil
+	}
+	return val, err
 }
 
 func orDefault[T comparable](val, orDefault T) T {

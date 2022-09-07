@@ -132,7 +132,7 @@ func (p *parser) parseConstantValue(file *est.File, value ast.Expr) (rtn constan
 		pkg, obj := pkgObj(p.names[file.Pkg].Files[file], value)
 		if pkg != "" {
 			if v, found := runtimeconstants.Get(pkg, obj); found {
-				return constant.Make(v)
+				return v
 			}
 		}
 

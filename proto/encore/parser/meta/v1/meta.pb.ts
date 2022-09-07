@@ -327,6 +327,8 @@ export interface CacheCluster {
   doc: string;
   /** The publishers for this topic */
   keyspaces: CacheCluster_Keyspace[];
+  /** redis eviction policy */
+  eviction_policy: string;
 }
 
 export interface CacheCluster_Keyspace {

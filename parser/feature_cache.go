@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"encore.dev/storage/cache"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
@@ -99,11 +100,49 @@ func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident 
 		}
 	}
 
+	// Parse the literal struct representing the cluster configuration.
+	cfg, ok := p.parseStructLit(file, "cache.ClusterConfig", callExpr.Args[1])
+	if !ok {
+		return nil
+	}
+
+	if !cfg.FullyConstant() {
+		dynamic := cfg.DynamicFields()
+		failed := false
+		for fieldName, expr := range dynamic {
+			switch fieldName {
+			case "DefaultExpiry":
+				// allowed
+			default:
+				failed = true
+				p.errf(expr.Pos(), "The %s field in cache.KeyspaceConfig must be a constant literal, got %v", fieldName, prettyPrint(expr))
+			}
+		}
+		if failed {
+			return nil
+		}
+	}
+
+	if !cfg.IsSet("EvictionPolicy") {
+		p.errf(callExpr.Args[1].Pos(), "cache.ClusterConfig requires the \"EvictionPolicy\" field to be set")
+		return nil
+	}
+	evictionPolicy := cfg.Str("EvictionPolicy", "")
+	switch cache.EvictionPolicy(evictionPolicy) {
+	case cache.AllKeysLRU, cache.AllKeysLFU, cache.AllKeysRandom, cache.VolatileLRU,
+		cache.VolatileLFU, cache.VolatileTTL, cache.VolatileRandom, cache.NoEviction:
+		// all good
+	default:
+		p.errf(callExpr.Args[1].Pos(), "invalid \"EvictionPolicy\" value: %q", evictionPolicy)
+		return nil
+	}
+
 	cluster := &est.CacheCluster{
-		Name:     clusterName,
-		Doc:      cursor.DocComment(),
-		DeclFile: file,
-		IdentAST: ident,
+		Name:           clusterName,
+		Doc:            cursor.DocComment(),
+		DeclFile:       file,
+		IdentAST:       ident,
+		EvictionPolicy: evictionPolicy,
 	}
 	p.cacheClusters = append(p.cacheClusters, cluster)
 
@@ -152,10 +191,20 @@ func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor)
 		}
 
 		if !cfg.FullyConstant() {
-			for fieldName, expr := range cfg.DynamicFields() {
-				p.errf(expr.Pos(), "All values in cache.KeyspaceConfig must be a constant, however %s was not a constant, got %s", fieldName, prettyPrint(expr))
+			dynamic := cfg.DynamicFields()
+			failed := false
+			for fieldName, expr := range dynamic {
+				switch fieldName {
+				case "DefaultExpiry":
+					// allowed
+				default:
+					failed = true
+					p.errf(expr.Pos(), "The %s field in cache.KeyspaceConfig must be a constant literal, got %v", fieldName, prettyPrint(expr))
+				}
 			}
-			return nil
+			if failed {
+				return nil
+			}
 		}
 
 		if !cfg.IsSet("KeyPattern") {

@@ -27,16 +27,24 @@ type StringKeyspace[K any] struct {
 	*basicKeyspace[K, string]
 }
 
-func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newLen int64, err error) {
-	return toErr2(s.client.redis.Append(ctx, s.key(key), val).Result())
+func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string, opts ...WriteOption) (newLen int64, err error) {
+	k := s.key(key)
+	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+		return c.Append(ctx, k, val)
+	})
+	return toErr2(res.Result())
 }
 
 func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64) (string, error) {
 	return toErr2(s.client.redis.GetRange(ctx, s.key(key), from, to).Result())
 }
 
-func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string) (newLen int64, err error) {
-	return toErr2(s.client.redis.SetRange(ctx, s.key(key), offset, val).Result())
+func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string, opts ...WriteOption) (newLen int64, err error) {
+	k := s.key(key)
+	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+		return c.SetRange(ctx, k, offset, val)
+	})
+	return toErr2(res.Result())
 }
 
 func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (int64, error) {
@@ -55,12 +63,20 @@ type IntKeyspace[K any] struct {
 	*basicKeyspace[K, int64]
 }
 
-func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (int64, error) {
-	return toErr2(s.client.redis.IncrBy(ctx, s.key(key), delta).Result())
+func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64, opts ...WriteOption) (int64, error) {
+	k := s.key(key)
+	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+		return c.IncrBy(ctx, k, delta)
+	})
+	return toErr2(res.Result())
 }
 
-func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (int64, error) {
-	return toErr2(s.client.redis.DecrBy(ctx, s.key(key), delta).Result())
+func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64, opts ...WriteOption) (int64, error) {
+	k := s.key(key)
+	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+		return c.DecrBy(ctx, k, delta)
+	})
+	return toErr2(res.Result())
 }
 
 func NewFloatKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *FloatKeyspace[K] {
@@ -75,12 +91,20 @@ type FloatKeyspace[K any] struct {
 	*basicKeyspace[K, float64]
 }
 
-func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (float64, error) {
-	return toErr2(s.client.redis.IncrByFloat(ctx, s.key(key), delta).Result())
+func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64, opts ...WriteOption) (float64, error) {
+	k := s.key(key)
+	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.FloatCmd {
+		return c.IncrByFloat(ctx, k, delta)
+	})
+	return toErr2(res.Result())
 }
 
-func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64) (float64, error) {
-	return toErr2(s.client.redis.IncrByFloat(ctx, s.key(key), -delta).Result())
+func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64, opts ...WriteOption) (float64, error) {
+	k := s.key(key)
+	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.FloatCmd {
+		return c.IncrByFloat(ctx, k, -delta)
+	})
+	return toErr2(res.Result())
 }
 
 type basicKeyspace[K any, V BasicType] struct {
@@ -95,74 +119,109 @@ func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error)
 	return s.val(res)
 }
 
-// TODO explore Set options:
-// - Expiry duration
-// - Expiry deadline
-// - Keep TTL
-
-func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
-	exp := s.expiry()
-	return toErr(s.redis.Set(ctx, s.key(key), val, exp).Err())
-}
-
-func (s *basicKeyspace[K, V]) SetIfNotExist(ctx context.Context, key K, val V) error {
-	exp := s.expiry()
-	_, err := toErr2(s.redis.SetNX(ctx, s.key(key), val, exp).Result())
+func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V, opts ...WriteOption) error {
+	_, err := s.set(ctx, key, val, opts, 0)
 	return err
 }
 
-func (s *basicKeyspace[K, V]) Update(ctx context.Context, key K, val V) error {
-	exp := s.expiry()
-	return toErr(s.redis.SetXX(ctx, s.key(key), val, exp).Err())
+func do[K, V, Res any](cl *client[K, V], ctx context.Context, key string, opts []WriteOption, fn func(redis.Cmdable) Res) Res {
+	exp := cl.expiryCmd(ctx, key, opts)
+	if exp == nil {
+		return fn(cl.redis)
+	}
+
+	pipe := cl.redis.TxPipeline()
+	res := fn(pipe)
+	_ = pipe.Process(ctx, exp)
+	_, _ = pipe.Exec(ctx)
+	return res
 }
 
-func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V) (prev *V, err error) {
-	res, err := s.redis.GetSet(ctx, s.key(key), val).Result()
-	return s.valOrNil(res, err)
+func (s *basicKeyspace[K, V]) Add(ctx context.Context, key K, val V, opts ...WriteOption) error {
+	_, err := s.set(ctx, key, val, opts, setNX)
+	return err
 }
 
-func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val *V, err error) {
+func (s *basicKeyspace[K, V]) Replace(ctx context.Context, key K, val V, opts ...WriteOption) error {
+	_, err := s.set(ctx, key, val, opts, setXX)
+	return err
+}
+
+func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V, opts ...WriteOption) (prev *V, err error) {
+	return s.valOrNil(s.set(ctx, key, val, opts, setGet))
+}
+
+func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K, opts ...WriteOption) (val *V, err error) {
+	// When deleting we don't need to deal with expiry
 	res, err := toErr2(s.redis.GetDel(ctx, s.key(key)).Result())
 	return s.valOrNil(res, err)
 }
 
-func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K) error {
+func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K, opts ...WriteOption) error {
+	// When deleting we don't need to deal with expiry
 	return toErr(s.redis.Del(ctx, s.key(key)).Err())
 }
 
-func (s *basicKeyspace[K, V]) expiry() time.Duration {
+type setFlag uint8
+
+const (
+	setGet setFlag = 1 << iota
+	setNX
+	setXX
+)
+
+func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, opts []WriteOption, flag setFlag) (string, error) {
+	get := (flag & setGet) == setGet
+	nx := (flag & setNX) == setNX
+	xx := (flag & setXX) == setXX
+
+	args := make([]any, 3, 7)
+	args[0] = "set"
+	args[1] = s.key(key)
+	args[2] = val
+	if nx {
+		args = append(args, "nx")
+	} else if xx {
+		args = append(args, "xx")
+	}
+	if get {
+		args = append(args, "get")
+	}
+
 	now := time.Now()
-	expiry := s.defaultExpiry(now)
+	exp := s.expiryTime(now, opts)
+	switch exp {
+	case NeverExpire:
+		// do nothing; default Redis behavior
+	case keepTTL:
+		args = append(args, "keepttl")
+	default:
+		dur := exp.Sub(now)
+		if dur < 0 {
+			// The expiry is in the past; use a very old unix timestamp to
+			// delete the key immediately. Note that we can't use timestamp 0
+			// or else [Mini]redis complains.
+			args = append(args, "exat", 1)
+		} else {
+			if usePreciseDur(dur) {
+				args = append(args, "px", int64(dur/time.Millisecond))
+			} else {
+				args = append(args, "ex", int64(dur/time.Second))
+			}
+		}
+	}
 
-	// The redis library treats the zero duration as "never expire",
-	// whereas we have a dedicated sentinel value for that.
-	// Translate this to durations.
-	if expiry == NeverExpire {
-		return 0
+	if get {
+		cmd := redis.NewStringCmd(ctx, args...)
+		_ = s.redis.Process(ctx, cmd)
+		return toErr2(cmd.Result())
 	}
-	dur := expiry.Sub(now)
-	if dur == 0 {
-		dur = time.Millisecond // expire immediately
-	}
-	return dur
+
+	cmd := redis.NewStatusCmd(ctx, args...)
+	_ = s.redis.Process(ctx, cmd)
+	return "", toErr(cmd.Err())
 }
 
-func toErr(err error) error {
-	if err == redis.Nil {
-		err = Nil
-	}
-	return err
+func usePreciseDur(dur time.Duration) bool {
+	return dur < time.Second || dur%time.Second != 0
 }
-
-func toErr2[T any](val T, err error) (T, error) {
-	if err == redis.Nil {
-		err = Nil
-	}
-	return val, err
-}
-
-// Key Expiry Rules:
-// 1. If a DefaultExpiry is used, all mutations cause the TTL to be updated
-// 2. For operations that support it this happens with a single command,
-// otherwise it performs a pipelined mutate + expire.
-// 3. To avoid this use NeverExpire or KeepTTL

@@ -14,16 +14,6 @@ type ClusterConfig struct {
 	//
 	// If not specified the cache defaults to AllKeysLRU.
 	EvictionPolicy EvictionPolicy
-
-	// DefaultExpiry specifies the default key expiry for cache items
-	// in the cluster.
-	//
-	// Per-Keyspace configuration takes precedence over this field.
-	//
-	// If both Cluster and Keyspace have a nil DefaultExpiry,
-	// values will be set without an expiry but may still be evicted
-	// based on the EvictionPolicy.
-	DefaultExpiry ExpiryFunc
 }
 
 // An EvictionPolicy describes how the cache evicts keys to make room for new data
@@ -31,6 +21,9 @@ type ClusterConfig struct {
 //
 // See https://redis.io/docs/manual/eviction/#eviction-policies for more information.
 type EvictionPolicy string
+
+// NOTE: These values need to be added to the runtimeconstants package
+// and the parser package for the parser to be aware of them.
 
 const (
 	// AllKeysLRU keeps most recently used keys and removes least recently used (LRU) keys.
@@ -45,7 +38,7 @@ const (
 
 	// VolatileLRU removes least recently used keys with an expiration set.
 	// It behaves like NoEviction if there are no keys to evict with an expiration set.
-	VolatileLRU EvictionPolicy = "volatile-lfu"
+	VolatileLRU EvictionPolicy = "volatile-lru"
 
 	// VolatileLFU removes least frequently used keys with an expiration set.
 	// It behaves like NoEviction if there are no keys to evict with an expiration set.
@@ -80,7 +73,16 @@ type KeyspaceConfig struct {
 	KeyPattern constStr
 
 	// DefaultExpiry specifies the default key expiry for cache items
-	// in this keyspace. If nil the cluster default expiry is used.
+	// in this keyspace.
+	//
+	// When set, all write operations set (for new keys)
+	// or update (for existing keys) the expiration time.
+	// When possible, Encore performs
+	//
+	// If nil, cache items have no expiry date by default.
+	//
+	// The default behavior can be overridden by passing in
+	// an ExpiryFunc or KeepTTL as a cache.WriteOption to a specific operation.
 	DefaultExpiry ExpiryFunc
 
 	// EncoreInternal_KeyMapper specifies how typed keys are translated
@@ -98,12 +100,36 @@ type KeyspaceConfig struct {
 // Nil is the error value reported when a key is missing from the cache.
 var Nil = errors.New("cache: nil")
 
+// An WriteOption customizes the behavior of a single cache write operation.
+type WriteOption interface {
+	writeOption() // ensure only our package can implement
+}
+
+type expiryOption interface {
+	WriteOption
+	setExpiry(now time.Time, curr *time.Time)
+}
+
+var (
+	// NeverExpire is an WriteOption indicating the key should never expire.
+	NeverExpire = time.Unix(0, 1)
+
+	// keepTTL is a time constant indicating the key's TTL should be kept the same.
+	keepTTL = time.Unix(0, 2)
+)
+
 // ExpiryFunc is a function that reports when a key should expire
-// given the current time.
+// given the current time. It can be used as a WriteOption to customize
+// the expiration for that particular operation.
 type ExpiryFunc func(now time.Time) time.Time
 
-// NeverExpire is a sentinel value indicating a key should never expire.
-var NeverExpire = time.Unix(0, 1)
+// option implements WriteOption.
+func (ExpiryFunc) writeOption() {}
+
+// setExpiry implements expiryOption.
+func (fn ExpiryFunc) setExpiry(now time.Time, curr *time.Time) {
+	*curr = fn(now)
+}
 
 // ExpireIn returns an ExpiryFunc that expires keys after a constant duration.
 func ExpireIn(dur time.Duration) ExpiryFunc {

@@ -287,10 +287,11 @@ func (r *SQLDB) NodeType() NodeType         { return SQLDBNode }
 func (r *SQLDB) AllowOnlyParsedUsage() bool { return false }
 
 type CacheCluster struct {
-	Name     string     // The unique name of the cache cluster
-	Doc      string     // The documentation on the cluster
-	DeclFile *File      // What file the cache is declared in
-	IdentAST *ast.Ident // The AST node representing the value this cache cluster is bound against
+	Name           string     // The unique name of the cache cluster
+	Doc            string     // The documentation on the cluster
+	DeclFile       *File      // What file the cache is declared in
+	IdentAST       *ast.Ident // The AST node representing the value this cache cluster is bound against
+	EvictionPolicy string
 
 	Keyspaces []*CacheKeyspace
 }

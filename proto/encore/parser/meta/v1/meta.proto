@@ -266,9 +266,10 @@ message PubSubTopic {
 }
 
 message CacheCluster {
-  string            name      = 1; // The pub sub topic name (unique per application)
-  string            doc       = 2; // The documentation for the topic
-  repeated Keyspace keyspaces = 3; // The publishers for this topic
+  string            name            = 1; // The pub sub topic name (unique per application)
+  string            doc             = 2; // The documentation for the topic
+  repeated Keyspace keyspaces       = 3; // The publishers for this topic
+  string            eviction_policy = 4; // redis eviction policy
 
   message Keyspace {
     // TODO(andre) add more fields

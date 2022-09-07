@@ -252,9 +252,10 @@ func parseCacheCluster(cluster *est.CacheCluster) *meta.CacheCluster {
 	}
 
 	return &meta.CacheCluster{
-		Name:      cluster.Name,
-		Doc:       cluster.Doc,
-		Keyspaces: parseKeyspaces(cluster.Keyspaces...),
+		Name:           cluster.Name,
+		Doc:            cluster.Doc,
+		EvictionPolicy: cluster.EvictionPolicy,
+		Keyspaces:      parseKeyspaces(cluster.Keyspaces...),
 	}
 }
 

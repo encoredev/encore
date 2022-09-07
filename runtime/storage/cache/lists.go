@@ -10,7 +10,7 @@ func NewListKeyspace[K any, V BasicType](cluster *Cluster, cfg KeyspaceConfig) *
 }
 
 type BasicType interface {
-	~string | ~int | ~int64 | ~float64 | ~[]byte
+	~string | ~int | ~int64 | ~float64
 }
 
 type ListKeyspace[K any, V BasicType] struct {
