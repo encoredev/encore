@@ -51,7 +51,6 @@ export const ServiceSVG = ({
 
       <foreignObject
         className="transform duration-100 ease-in-out group-hover:-translate-x-1 group-hover:-translate-y-1"
-        style={{ background: OFF_WHITE_COLOR }}
         width={node.width}
         height={node.height}
       >
