@@ -2,12 +2,7 @@ import * as React from "react";
 import { SVGProps, useEffect, useState } from "react";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import {
-  Coordinates,
-  EdgeData,
-  PositionedEdge,
-  PositionedNode,
-} from "~lib/graph/graph-utils";
+import { Coordinates, EdgeData, PositionedEdge, PositionedNode } from "./flow-utils";
 
 const OFF_WHITE_COLOR = "#EEEEE1";
 const SOFT_BLACK_COLOR = "#111111";
@@ -30,11 +25,7 @@ export const ServiceSVG = ({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) => {
-  const {
-    public: publicEndpoints,
-    auth: authEndpoints,
-    private: privateEndpoints,
-  } = endpoints;
+  const { public: publicEndpoints, auth: authEndpoints, private: privateEndpoints } = endpoints;
   return (
     <Group
       top={node.y}
@@ -51,7 +42,6 @@ export const ServiceSVG = ({
 
       <foreignObject
         className="transform duration-100 ease-in-out group-hover:-translate-x-1 group-hover:-translate-y-1"
-        style={{ background: OFF_WHITE_COLOR }}
         width={node.width}
         height={node.height}
       >
@@ -138,9 +128,7 @@ export const EdgeSVG = ({
   isInitialRender: boolean;
 }) => {
   // we want to add edges directly if it's the initial render
-  const [points, setPoints] = useState<Coordinates[]>(
-    isInitialRender ? edge.points : []
-  );
+  const [points, setPoints] = useState<Coordinates[]>(isInitialRender ? edge.points : []);
   useEffect(() => {
     if (JSON.stringify(edge.points) !== JSON.stringify(points)) {
       setPoints([]);
@@ -199,9 +187,7 @@ export const EdgeLabelSVG = ({
       height={25}
       x={edge.label.x - 60}
       y={edge.label.y - (isArrowPointingUp ? 5 : 20)}
-      className={`label ${
-        activeNodeId === edge.source ? "opacity-100" : "opacity-0"
-      }`}
+      className={`label ${activeNodeId === edge.source ? "opacity-100" : "opacity-0"}`}
     >
       <div className="flex h-full items-center justify-center">
         <p
