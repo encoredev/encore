@@ -191,7 +191,7 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, opts []Writ
 	now := time.Now()
 	exp := s.expiryTime(now, opts)
 	switch exp {
-	case NeverExpire:
+	case neverExpire:
 		// do nothing; default Redis behavior
 	case keepTTL:
 		args = append(args, "keepttl")

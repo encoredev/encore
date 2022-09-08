@@ -77,12 +77,14 @@ type KeyspaceConfig struct {
 	//
 	// When set, all write operations set (for new keys)
 	// or update (for existing keys) the expiration time.
-	// When possible, Encore performs
+	//
+	// When updating the expiration time Encore always
+	// performs the combined operation atomically.
 	//
 	// If nil, cache items have no expiry date by default.
 	//
 	// The default behavior can be overridden by passing in
-	// an ExpiryFunc or KeepTTL as a cache.WriteOption to a specific operation.
+	// an ExpiryFunc or KeepTTL as a WriteOption to a specific operation.
 	DefaultExpiry ExpiryFunc
 
 	// EncoreInternal_KeyMapper specifies how typed keys are translated
@@ -109,14 +111,6 @@ type expiryOption interface {
 	WriteOption
 	setExpiry(now time.Time, curr *time.Time)
 }
-
-var (
-	// NeverExpire is an WriteOption indicating the key should never expire.
-	NeverExpire = time.Unix(0, 1)
-
-	// keepTTL is a time constant indicating the key's TTL should be kept the same.
-	keepTTL = time.Unix(0, 2)
-)
 
 // ExpiryFunc is a function that reports when a key should expire
 // given the current time. It can be used as a WriteOption to customize
@@ -149,3 +143,24 @@ func ExpireDailyAt(hour, minute, second int, loc *time.Location) ExpiryFunc {
 		return next
 	}
 }
+
+// expiryTime is a type for time constants that are also WriteOptions.
+type expiryTime time.Time
+
+func (expiryTime) writeOption() {}
+func (et expiryTime) setExpiry(now time.Time, curr *time.Time) {
+	*curr = time.Time(et)
+}
+
+var (
+	// NeverExpire is a WriteOption indicating the key should never expire.
+	NeverExpire = expiryTime(neverExpire)
+
+	// KeepTTL is a WriteOption indicating the key's TTL should be kept the same.
+	KeepTTL = expiryTime(keepTTL)
+)
+
+var (
+	neverExpire = time.Unix(0, 1)
+	keepTTL     = time.Unix(0, 2)
+)

@@ -169,7 +169,7 @@ func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig) *client[K, V] {
 	defaultExpiry := cfg.DefaultExpiry
 	if defaultExpiry == nil {
 		defaultExpiry = func(now time.Time) time.Time {
-			return NeverExpire
+			return neverExpire
 		}
 	}
 
@@ -220,7 +220,7 @@ func (s *client[K, V]) expiryCmd(ctx context.Context, key string, opts []WriteOp
 	expTime := s.expiryTime(now, opts)
 	if expTime == keepTTL {
 		return nil
-	} else if expTime == NeverExpire {
+	} else if expTime == neverExpire {
 		return redis.NewBoolCmd(ctx, "persist", key)
 	}
 
@@ -234,7 +234,7 @@ func (s *client[K, V]) expiryDur(opts []WriteOption) time.Duration {
 
 	var exp time.Duration
 	switch {
-	case expTime == NeverExpire:
+	case expTime == neverExpire:
 		exp = 0
 	case expTime == keepTTL:
 		exp = redis.KeepTTL
