@@ -5,13 +5,17 @@ import {
   OUTSIDE_FACING_NODE_ID,
   PositionedEdge,
   PositionedNode,
-} from "../flow-utils";
+} from "~lib/graph/graph-utils";
 
 /**
  * Directed graph layout
  * https://github.com/dagrejs/dagre/wiki
  */
-export const getGraphLayoutData: GetGraphLayoutData = (nodes, edges, options) => {
+export const getGraphLayoutData: GetGraphLayoutData = (
+  nodes,
+  edges,
+  options
+) => {
   const graphData = new dagre.graphlib.Graph<NodeData>();
 
   graphData.setGraph({
@@ -38,7 +42,10 @@ export const getGraphLayoutData: GetGraphLayoutData = (nodes, edges, options) =>
       width: options.getNodeWidth(nodeData),
       height: options.getNodeHeight(nodeData),
     });
-    if (options.drawOutsideDependencyToNode && options.drawOutsideDependencyToNode(nodeData)) {
+    if (
+      options.drawOutsideDependencyToNode &&
+      options.drawOutsideDependencyToNode(nodeData)
+    ) {
       graphData.setEdge(OUTSIDE_FACING_NODE_ID, nodeData.id, { weight: 10000 });
     }
   });
@@ -49,7 +56,9 @@ export const getGraphLayoutData: GetGraphLayoutData = (nodes, edges, options) =>
 
   dagre.layout(graphData, {});
 
-  const positionNodes: PositionedNode[] = graphData.nodes().map((n) => graphData.node(n));
+  const positionNodes: PositionedNode[] = graphData
+    .nodes()
+    .map((n) => graphData.node(n));
   const positionedEdges: PositionedEdge[] = graphData
     .edges()
     .map((e) => graphData.edge(e) as PositionedEdge);

@@ -86,3 +86,23 @@ pre.code code::before {
 .font-mono {
   font-family: 'Suisse Intl Mono', 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
 }
+
+/* Animations for:
+   - Hovering a node (some nodes then become inactive)
+   - Replacing nodes (can happen if you add new services/connections)
+*/
+.app-diagram .node, .app-diagram .edge, .app-diagram .label {
+  transition: opacity 100ms, transform 1s ease-in-out;
+}
+
+/* Animation for topic edges */
+.app-diagram .edge.animate-message {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.6s linear infinite;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}
