@@ -1,4 +1,6 @@
 import React, { FC, useEffect, useState } from "react";
+import { APIMeta } from "~c/api/api";
+import JSONRPCConn, { NotificationMsg } from "~lib/client/jsonrpc";
 import {
   getEdgesFromMetaData,
   getNodesFromMetaData,
@@ -7,9 +9,10 @@ import {
   NodeData,
   PositionedNode,
   ServiceNode,
-} from "./flow-utils";
+} from "~lib/graph/graph-utils";
 import { ProvidedZoom } from "@visx/zoom/lib/types";
-import { getElkGraphLayoutData } from "./algorithms/elk-algo";
+import { getElkGraphLayoutData } from "~lib/graph/elk-algo";
+import { ProcessReload } from "~lib/client/client";
 import { Group } from "@visx/group";
 import { Zoom } from "@visx/zoom";
 import {
@@ -18,11 +21,10 @@ import {
   EncoreArrowHeadSVG,
   ServiceSVG,
   TopicSVG,
-} from "./flowSvgElements";
+} from "~c/svgElements";
 import { ParentSize } from "@visx/responsive";
-import { APIMeta } from "~c/api/api";
 
-class LayoutOptions implements GraphLayoutOptions {
+class AppDiagramLayoutOptions implements GraphLayoutOptions {
   serviceNodeMinWidth = 220;
   topicNodeMinWidth = 50;
   serviceNodeMinHeight = 60;
@@ -44,10 +46,12 @@ class LayoutOptions implements GraphLayoutOptions {
 }
 
 interface Props {
-  metaData: APIMeta;
+  appID: string;
+  conn: JSONRPCConn;
 }
 
-const FlowDiagram: FC<Props> = ({ metaData }) => {
+const AppDiagram: FC<Props> = ({ appID, conn }) => {
+  const [metaData, setMetaData] = useState<APIMeta>();
   const [graphLayoutData, setGraphLayoutData] = useState<GraphData>();
   const [activeNode, setActiveNode] = useState<PositionedNode | null>(null);
   const [activeDescendants, setActiveDescendants] = useState<string[] | null>(
@@ -58,7 +62,7 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
   const graphHeight = graphLayoutData?.height ?? 800;
 
   const getNumberOfEndpoints = (node: ServiceNode) => {
-    const svc = metaData.svcs.find((s) => s.name === node.service_name);
+    const svc = metaData!.svcs.find((s) => s.name === node.service_name);
     const endpoints = { public: 0, auth: 0, private: 0 };
     svc?.rpcs.forEach((rpc) => {
       if (rpc.access_type === "PUBLIC") endpoints.public++;
@@ -97,11 +101,31 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
   };
 
   useEffect(() => {
+    conn.request("status", { appID }).then((status: any) => {
+      if (status.meta) {
+        setMetaData(status.meta);
+      }
+    });
+    const onNotify = (msg: NotificationMsg) => {
+      if (msg.method === "process/reload") {
+        const data = msg.params as ProcessReload;
+        if (data.appID === appID) {
+          setMetaData(data.meta);
+        }
+      }
+    };
+    conn.on("notification", onNotify);
+    return () => {
+      conn.off("notification", onNotify);
+    };
+  }, []);
+
+  useEffect(() => {
     if (metaData) {
       getElkGraphLayoutData(
         getNodesFromMetaData(metaData),
         getEdgesFromMetaData(metaData),
-        new LayoutOptions()
+        new AppDiagramLayoutOptions()
       ).then(setGraphLayoutData);
     }
   }, [metaData]);
@@ -110,12 +134,12 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
 
   return (
     <div
-      className="relative flex h-full w-full flex-col items-center justify-center"
-      style={{ background: "#EEEEE1" }}
+      className="relative flex w-full flex-col items-center justify-center"
+      style={{ height: "calc(100vh - 120px)", background: "#EEEEE1" }}
     >
       {!graphLayoutData.nodes.length ? (
         <div>
-          <p>Add an service to your app and it will show up here</p>
+          <p>Add an encore service to your app and it will show up here</p>
         </div>
       ) : (
         <ParentSize>
@@ -138,8 +162,8 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
                 initialTransformMatrix={{
                   scaleX: 1,
                   scaleY: 1,
-                  translateX: parent.width / 2 - graphLayoutData.width! / 2,
-                  translateY: parent.height / 2 - graphLayoutData.height! / 2,
+                  translateX: parent.width / 2 - graphLayoutData?.width! / 2,
+                  translateY: parent.height / 2 - graphLayoutData?.height! / 2,
                   skewX: 0,
                   skewY: 0,
                 }}
@@ -147,7 +171,7 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
                 {(zoom) => (
                   <div className="relative">
                     <svg
-                      id="flow-diagram"
+                      className="app-diagram"
                       width={parent.width}
                       height={parent.height}
                       ref={zoom.containerRef}
@@ -245,4 +269,4 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
   );
 };
 
-export default FlowDiagram;
+export default AppDiagram;

@@ -6,14 +6,18 @@ import {
   NodeData,
   PositionedEdge,
   PositionedNode,
-} from "../flow-utils";
+} from "~lib/graph/graph-utils";
 import ELK, { ElkNode } from "elkjs/lib/elk.bundled.js";
 import { ElkExtendedEdge } from "elkjs/lib/elk-api";
 
 /**
  * https://github.com/kieler/elkjs
  */
-export const getElkGraphLayoutData: GetGraphLayoutData = (nodes, edges, options) => {
+export const getElkGraphLayoutData: GetGraphLayoutData = (
+  nodes,
+  edges,
+  options
+) => {
   const edgeTypeMap = new Map<string, number>();
   let elkEdges: (ElkExtendedEdge & EdgeData)[] = [];
   edges.forEach((edge) => {
@@ -69,17 +73,21 @@ export const getElkGraphLayoutData: GetGraphLayoutData = (nodes, edges, options)
     },
   });
 
-  return elk.layout({ id: "add-diagram", children: elkNodes, edges: elkEdges }).then((graph) => {
-    const { width, height } = graph;
-    const children = graph.children as (ElkNode & PositionedNode)[];
-    const edges = getEdgesWithCoordinatePoints(graph.edges as (ElkExtendedEdge & EdgeData)[]);
-    return {
-      nodes: children,
-      edges,
-      width,
-      height,
-    } as GraphData;
-  });
+  return elk
+    .layout({ id: "add-diagram", children: elkNodes, edges: elkEdges })
+    .then((graph) => {
+      const { width, height } = graph;
+      const children = graph.children as (ElkNode & PositionedNode)[];
+      const edges = getEdgesWithCoordinatePoints(
+        graph.edges as (ElkExtendedEdge & EdgeData)[]
+      );
+      return {
+        nodes: children,
+        edges,
+        width,
+        height,
+      } as GraphData;
+    });
 };
 
 const getEdgesWithCoordinatePoints = (
