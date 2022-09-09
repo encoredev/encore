@@ -7,9 +7,9 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import AppDiagram from "~c/app/AppDiagram";
-import { PositionedEdge, PositionedNode } from "~lib/graph/graph-utils";
-import * as ElkGraphLayoutData from "~lib/graph/elk-algo";
+import { PositionedEdge, PositionedNode } from "./flow-utils";
+import * as ElkGraphLayoutData from "./algorithms/elk-algo";
+import FlowDiagram from "~c/FlowDiagram/FlowDiagram";
 
 jest.mock("@visx/responsive", () => ({
   ParentSize: (props: any) => {
@@ -57,18 +57,11 @@ const setMockLayoutData = (
     );
 };
 
-const getConnMock = (metaData: any = {}) => {
-  return {
-    request: () =>
-      Promise.resolve({
-        meta: { svcs: [], pubsub_topics: [], pkgs: [], ...metaData },
-      }),
-    on: () => {},
-    off: () => {},
-  } as any;
+const getMetaDataMock = (metaData: any = {}) => {
+  return { svcs: [], pubsub_topics: [], pkgs: [], ...metaData } as any;
 };
 
-describe("AppDiagram", () => {
+describe("FlowDiagram", () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.resetAllMocks();
@@ -86,7 +79,7 @@ describe("AppDiagram", () => {
         type: "topic",
       },
     ]);
-    render(<AppDiagram appID={"app-id"} conn={getConnMock()} />);
+    render(<FlowDiagram metaData={getMetaDataMock()} />);
 
     await waitFor(() => {
       expect(screen.getByText("service-1")).toBeInTheDocument();
@@ -113,9 +106,7 @@ describe("AppDiagram", () => {
         },
       ]
     );
-    const { container } = render(
-      <AppDiagram appID={"app-id"} conn={getConnMock()} />
-    );
+    const { container } = render(<FlowDiagram metaData={getMetaDataMock()} />);
 
     await waitFor(() => {
       const edgeEl = container.querySelector(".edge");
@@ -131,7 +122,7 @@ describe("AppDiagram", () => {
         has_database: true,
       },
     ]);
-    render(<AppDiagram appID={"app-id"} conn={getConnMock()} />);
+    render(<FlowDiagram metaData={getMetaDataMock()} />);
 
     await waitFor(() => {
       const serviceNode1 = screen.getByText("service-1").parentElement!
@@ -143,9 +134,8 @@ describe("AppDiagram", () => {
 
   it("should show endpoints for service", async () => {
     render(
-      <AppDiagram
-        appID={"app-id"}
-        conn={getConnMock({
+      <FlowDiagram
+        metaData={getMetaDataMock({
           svcs: [
             {
               name: "service-1",
@@ -199,9 +189,7 @@ describe("AppDiagram", () => {
         },
       ]
     );
-    const { container } = render(
-      <AppDiagram appID={"app-id"} conn={getConnMock()} />
-    );
+    const { container } = render(<FlowDiagram metaData={getMetaDataMock()} />);
 
     await waitFor(() => {
       fireEvent.mouseEnter(screen.getByTestId("node-service-1"));
