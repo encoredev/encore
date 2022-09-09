@@ -1,0 +1,19 @@
+/* Animations for:
+   - Hovering a node (some nodes then become inactive)
+   - Replacing nodes (can happen if you add new services/connections)
+*/
+#flow-diagram .node, #flow-diagram .edge, #flow-diagram .label {
+  transition: opacity 100ms, transform 1s ease-in-out;
+}
+
+/* Animation for topic edges */
+#flow-diagram .edge.animate-message {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.6s linear infinite;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}
