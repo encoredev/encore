@@ -14,22 +14,41 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
+type valueKind int
+
+const (
+	// implicitValue means the user does not specify the value type as
+	// a type parameter, but is implicit from the constructor name.
+	// If used, the ImplicitValueType field must be set on the constructor spec.
+	implicitValue valueKind = iota
+
+	// basicValue means the constructor supports basic types only.
+	basicValue
+
+	// structValue means the constructor supports struct values only.
+	structValue
+)
+
 // cacheKeyspaceConstructor describes a particular cache keyspace constructor.
 type cacheKeyspaceConstructor struct {
-	HasValueType      bool
+	FuncName          string
+	ValueKind         valueKind
 	ImplicitValueType *schema.Type
 }
 
-var keyspaceConstructors = map[string]cacheKeyspaceConstructor{
-	"NewStringKeyspace": {false, &schema.Type{
+var keyspaceConstructors = []cacheKeyspaceConstructor{
+	{"NewStringKeyspace", implicitValue, &schema.Type{
 		Typ: &schema.Type_Builtin{Builtin: schema.Builtin_STRING},
 	}},
-	"NewIntKeyspace": {false, &schema.Type{
+	{"NewIntKeyspace", implicitValue, &schema.Type{
 		Typ: &schema.Type_Builtin{Builtin: schema.Builtin_INT64},
 	}},
-	"NewFloatKeyspace": {false, &schema.Type{
+	{"NewFloatKeyspace", implicitValue, &schema.Type{
 		Typ: &schema.Type_Builtin{Builtin: schema.Builtin_FLOAT64},
 	}},
+	{"NewListKeyspace", basicValue, nil},
+	{"NewSetKeyspace", basicValue, nil},
+	{"NewStructKeyspace", structValue, nil},
 }
 
 func init() {
@@ -57,16 +76,16 @@ func init() {
 		est.CacheClusterResource,
 	)
 
-	for funcName, constructor := range keyspaceConstructors {
+	for _, constructor := range keyspaceConstructors {
 		numTypeArgs := 1 // always key type
-		if constructor.HasValueType {
+		if constructor.ValueKind != implicitValue {
 			numTypeArgs++
 		}
 
 		registerResourceCreationParser(
 			est.CacheKeyspaceResource,
-			funcName, numTypeArgs,
-			createKeyspaceParser(funcName, constructor),
+			constructor.FuncName, numTypeArgs,
+			createKeyspaceParser(constructor),
 			locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
 		)
 	}
@@ -149,27 +168,27 @@ func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident 
 	return cluster
 }
 
-func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor) func(*parser, *est.File, *walker.Cursor, *ast.Ident, *ast.CallExpr) est.Resource {
+func createKeyspaceParser(con cacheKeyspaceConstructor) func(*parser, *est.File, *walker.Cursor, *ast.Ident, *ast.CallExpr) est.Resource {
 	return func(p *parser, file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
 		if len(callExpr.Args) != 2 {
 			p.errf(
 				callExpr.Pos(),
 				"cache.%s requires three arguments, the topic, the subscription name given as a string literal and the subscription configuration",
-				funcName,
+				con.FuncName,
 			)
 			return nil
 		}
 
 		if file.Pkg.Service == nil {
 			p.errf(callExpr.Pos(), "cache.%s can only be called from within Encore services. package %s is not a service",
-				funcName, file.Pkg.RelPath)
+				con.FuncName, file.Pkg.RelPath)
 			return nil
 		}
 
 		resource := p.resourceFor(file, callExpr.Args[0])
 		if resource == nil {
 			p.errf(callExpr.Args[0].Pos(), "cache.%s requires the first argument to reference a cache cluster, was given %v.",
-				funcName, prettyPrint(callExpr.Args[0]))
+				con.FuncName, prettyPrint(callExpr.Args[0]))
 			return nil
 		}
 		cluster, ok := resource.(*est.CacheCluster)
@@ -177,7 +196,7 @@ func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor)
 			p.errf(
 				callExpr.Fun.Pos(),
 				"cache.%s requires the first argument to reference a cache cluster, was given a %v.",
-				funcName,
+				con.FuncName,
 				reflect.TypeOf(resource),
 			)
 			return nil
@@ -229,20 +248,19 @@ func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor)
 
 		// Resolve key and value types
 		typeArgs := getTypeArguments(callExpr.Fun)
-		var keyType *schema.Type
-		var valueParam *est.Param
+		var keyType, valueType *schema.Type
 		{
 			keyType = p.resolveType(file.Pkg, file, typeArgs[0], nil)
 			if _, isPtr := typeArgs[0].(*ast.StarExpr); isPtr {
 				p.errf(keyPatternPos, "cache.%s does not accept pointer types as the key type parameter, use a non-pointer type instead",
-					funcName)
+					con.FuncName)
 				return nil
 			}
 
-			if constructor.HasValueType {
-				valueParam = p.resolveParameter("value type parameter", file.Pkg, file, typeArgs[1])
+			if con.ValueKind == implicitValue {
+				valueType = con.ImplicitValueType
 			} else {
-				valueParam = &est.Param{IsPtr: false, Type: constructor.ImplicitValueType}
+				valueType = p.resolveType(file.Pkg, file, typeArgs[1], nil)
 			}
 		}
 
@@ -254,9 +272,9 @@ func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor)
 			Path:      path,
 			ConfigLit: cfg.Lit(),
 			KeyType:   keyType,
-			ValueType: valueParam,
+			ValueType: valueType,
 		}
-		p.validateCacheKeyspace(keyspace, funcName)
+		p.validateCacheKeyspace(keyspace, con)
 
 		cluster.Keyspaces = append(cluster.Keyspaces, keyspace)
 		return keyspace
@@ -264,51 +282,67 @@ func createKeyspaceParser(funcName string, constructor cacheKeyspaceConstructor)
 }
 
 // validateCacheKeyspace validates a parsed cache keyspace.
-func (p *parser) validateCacheKeyspace(ks *est.CacheKeyspace, funcName string) {
-	validateBuiltin := func(b schema.Builtin) error {
-		switch b {
-		case schema.Builtin_ANY:
-			return fmt.Errorf("'any'/'interface{}' is not supported")
-		case schema.Builtin_JSON:
-			return fmt.Errorf("json.RawMessage is not supported")
-		case schema.Builtin_FLOAT64, schema.Builtin_FLOAT32:
-			return fmt.Errorf("floating point values are not supported")
-		}
-		return nil
-	}
-
+func (p *parser) validateCacheKeyspace(ks *est.CacheKeyspace, con cacheKeyspaceConstructor) {
 	// Check that the key type is a basic type or a named struct
-	key := ks.KeyType
-	switch key := key.Typ.(type) {
-	case *schema.Type_Builtin:
-		if err := validateBuiltin(key.Builtin); err != nil {
-			p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: %v", funcName, err)
+	{
+		validateBuiltin := func(b schema.Builtin) error {
+			switch b {
+			case schema.Builtin_ANY:
+				return fmt.Errorf("'any'/'interface{}' is not supported")
+			case schema.Builtin_JSON:
+				return fmt.Errorf("json.RawMessage is not supported")
+			case schema.Builtin_FLOAT64, schema.Builtin_FLOAT32:
+				return fmt.Errorf("floating point values are not supported")
+			}
+			return nil
 		}
 
-	case *schema.Type_Named:
-		named := p.decls[key.Named.Id]
-		st := named.Type.GetStruct()
-		if st == nil {
-			p.errf(ks.Ident().Pos(), "cache.%s key type must be a basic type or a named struct type",
-				funcName)
-			return
-		}
+		key := ks.KeyType
+		switch key := key.Typ.(type) {
+		case *schema.Type_Builtin:
+			if err := validateBuiltin(key.Builtin); err != nil {
+				p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: %v", con.FuncName, err)
+			}
 
-		// Validate struct fields
-		for _, f := range st.Fields {
-			switch typ := f.Typ.Typ.(type) {
-			case *schema.Type_Builtin:
-				if err := validateBuiltin(typ.Builtin); err != nil {
-					p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is invalid: %v",
-						funcName, f.Name, err)
+		case *schema.Type_Named:
+			named := p.decls[key.Named.Id]
+			st := named.Type.GetStruct()
+			if st == nil {
+				p.errf(ks.Ident().Pos(), "cache.%s key type must be a basic type or a named struct type",
+					con.FuncName)
+			} else {
+				// Validate struct fields
+				for _, f := range st.Fields {
+					switch typ := f.Typ.Typ.(type) {
+					case *schema.Type_Builtin:
+						if err := validateBuiltin(typ.Builtin); err != nil {
+							p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is invalid: %v",
+								con.FuncName, f.Name, err)
+						}
+
+					default:
+						p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is not a basic type",
+							con.FuncName, f.Name)
+					}
 				}
-
-			default:
-				p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is not a basic type",
-					funcName, f.Name)
 			}
 		}
 	}
 
-	// TODO validate value type
+	// Check the value type. We only need to do this for struct types since they need
+	// to be represented as 'any' constraints. Basic type constructors enforce that the value type
+	// through the Go type system and don't need to be verified again.
+	if con.ValueKind == structValue {
+		value := ks.ValueType
+		ok := false
+		if named := value.GetNamed(); named != nil {
+			if st := p.decls[named.Id].Type.GetStruct(); st != nil {
+				ok = true
+			}
+		}
+		if !ok {
+			p.errf(ks.Ident().Pos(), "cache.%s has invalid value type parameter: must be a named struct type",
+				con.FuncName)
+		}
+	}
 }

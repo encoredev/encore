@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -174,28 +175,69 @@ func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig) *client[K, V] {
 	}
 
 	return &client[K, V]{
-		redis:         cluster.cl,
-		cfg:           cfg,
-		defaultExpiry: defaultExpiry,
-		keyMapper:     keyMapper,
-		valueMapper:   valueMapper,
+		redis:       cluster.cl,
+		cfg:         cfg,
+		expiry:      defaultExpiry,
+		keyMapper:   keyMapper,
+		valueMapper: valueMapper,
 	}
 }
 
 type client[K, V any] struct {
-	redis         *redis.Client
-	cfg           KeyspaceConfig
-	defaultExpiry ExpiryFunc
-	keyMapper     func(K) string
-	valueMapper   func(string) (V, error)
+	redis       *redis.Client
+	cfg         KeyspaceConfig
+	expiry      ExpiryFunc
+	keyMapper   func(K) string
+	valueMapper func(string) (V, error)
 }
 
-func (s *client[K, V]) key(k K) string {
-	return s.keyMapper(k)
+func (c *client[K, V]) with(opts []WriteOption) *client[K, V] {
+	expFunc := c.expiry
+	for _, opt := range opts {
+		if eo, ok := opt.(expiryOption); ok {
+			expFunc = eo.expiry
+		}
+	}
+
+	c2 := *c
+	c2.expiry = expFunc
+	return &c2
+}
+
+func (s *client[K, V]) key(k K) (string, error) {
+	res := s.keyMapper(k)
+	if strings.HasPrefix(res, "__encore") {
+		return "", errors.New(`cache: use of reserved key prefix "encore"`)
+	}
+	return res, nil
+}
+
+func (s *client[K, V]) keys(keys []K) ([]string, error) {
+	strs := make([]string, len(keys))
+	var err error
+	for i, k := range keys {
+		strs[i], err = s.key(k)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return strs, nil
 }
 
 func (s *client[K, V]) val(res string) (V, error) {
 	return s.valueMapper(res)
+}
+
+func (s *client[K, V]) vals(res []string) ([]V, error) {
+	vals := make([]V, len(res))
+	for i, r := range res {
+		v, err := s.valueMapper(r)
+		if err != nil {
+			return nil, err
+		}
+		vals[i] = v
+	}
+	return vals, nil
 }
 
 func (s *client[K, V]) valPtr(res string) (*V, error) {
@@ -215,9 +257,9 @@ func (s *client[K, V]) valOrNil(res string, err error) (*V, error) {
 	return s.valPtr(res)
 }
 
-func (s *client[K, V]) expiryCmd(ctx context.Context, key string, opts []WriteOption) *redis.BoolCmd {
+func (s *client[K, V]) expiryCmd(ctx context.Context, key string) *redis.BoolCmd {
 	now := time.Now()
-	expTime := s.expiryTime(now, opts)
+	expTime := s.expiry(now)
 	if expTime == keepTTL {
 		return nil
 	} else if expTime == neverExpire {
@@ -228,9 +270,9 @@ func (s *client[K, V]) expiryCmd(ctx context.Context, key string, opts []WriteOp
 	return redis.NewBoolCmd(ctx, "pexpireat", key, expMs)
 }
 
-func (s *client[K, V]) expiryDur(opts []WriteOption) time.Duration {
+func (s *client[K, V]) expiryDur() time.Duration {
 	now := time.Now()
-	expTime := s.expiryTime(now, opts)
+	expTime := s.expiry(now)
 
 	var exp time.Duration
 	switch {
@@ -242,25 +284,6 @@ func (s *client[K, V]) expiryDur(opts []WriteOption) time.Duration {
 		exp = expTime.Sub(now)
 	}
 	return exp
-}
-
-func (s *client[K, V]) expiryTime(now time.Time, opts []WriteOption) time.Time {
-	var expiry time.Time
-
-	// Check if we have any option that overrides the expiry
-	found := false
-	for _, o := range opts {
-		if exp, ok := o.(expiryOption); ok {
-			exp.setExpiry(now, &expiry)
-			found = true
-		}
-	}
-
-	if !found {
-		expiry = s.defaultExpiry(now)
-	}
-
-	return expiry
 }
 
 func toErr(err error) error {

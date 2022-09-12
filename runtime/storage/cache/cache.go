@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -109,7 +110,7 @@ type WriteOption interface {
 
 type expiryOption interface {
 	WriteOption
-	setExpiry(now time.Time, curr *time.Time)
+	expiry(now time.Time) time.Time
 }
 
 // ExpiryFunc is a function that reports when a key should expire
@@ -120,10 +121,12 @@ type ExpiryFunc func(now time.Time) time.Time
 // option implements WriteOption.
 func (ExpiryFunc) writeOption() {}
 
-// setExpiry implements expiryOption.
-func (fn ExpiryFunc) setExpiry(now time.Time, curr *time.Time) {
-	*curr = fn(now)
+// expiry implements expiryOption.
+func (fn ExpiryFunc) expiry(now time.Time) time.Time {
+	return fn(now)
 }
+
+var _ expiryOption = (ExpiryFunc)(nil)
 
 // ExpireIn returns an ExpiryFunc that expires keys after a constant duration.
 func ExpireIn(dur time.Duration) ExpiryFunc {
@@ -148,9 +151,12 @@ func ExpireDailyAt(hour, minute, second int, loc *time.Location) ExpiryFunc {
 type expiryTime time.Time
 
 func (expiryTime) writeOption() {}
-func (et expiryTime) setExpiry(now time.Time, curr *time.Time) {
-	*curr = time.Time(et)
+
+func (et expiryTime) expiry(_ time.Time) time.Time {
+	return time.Time(et)
 }
+
+var _ expiryOption = (expiryTime)(time.Time{})
 
 var (
 	// NeverExpire is a WriteOption indicating the key should never expire.
@@ -164,3 +170,57 @@ var (
 	neverExpire = time.Unix(0, 1)
 	keepTTL     = time.Unix(0, 2)
 )
+
+func fnMap[A, B any](src []A, fn func(A) B) []B {
+	dst := make([]B, len(src))
+	for i, v := range src {
+		dst[i] = fn(v)
+	}
+	return dst
+}
+
+func do[K, V, Res any](cl *client[K, V], ctx context.Context, key string, fn func(cmdable) Res) Res {
+	exp := cl.expiryCmd(ctx, key)
+	if exp == nil {
+		return fn(cl.redis)
+	}
+
+	pipe := cl.redis.TxPipeline()
+	res := fn(pipe)
+	_ = pipe.Process(ctx, exp)
+	_, _ = pipe.Exec(ctx)
+	return res
+}
+
+func do2[K, V, Res any](
+	cl *client[K, V],
+	ctx context.Context,
+	keyA, keyB string,
+	fn func(cmdable) Res,
+) Res {
+	expA := cl.expiryCmd(ctx, keyA)
+	expB := cl.expiryCmd(ctx, keyB)
+
+	// If we don't have any expiry commands, process the command directly.
+	if expA == nil && expB == nil {
+		return fn(cl.redis)
+	}
+
+	// Otherwise use a pipeline.
+	pipe := cl.redis.TxPipeline()
+	res := fn(pipe)
+	if expA != nil {
+		_ = pipe.Process(ctx, expA)
+	}
+	if expB != nil {
+		_ = pipe.Process(ctx, expB)
+	}
+	_, _ = pipe.Exec(ctx)
+
+	return res
+}
+
+type cmdable interface {
+	redis.Cmdable
+	Process(context.Context, redis.Cmder) error
+}

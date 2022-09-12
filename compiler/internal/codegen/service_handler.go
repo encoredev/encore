@@ -156,11 +156,11 @@ func (b *cacheKeyspaceMapperBuilder) writeKeyMapper() {
 }
 
 func (b *cacheKeyspaceMapperBuilder) writeValueMapper() {
-	valueType := b.schemaTypeToGoType(b.ks.ValueType.Type)
+	valueType := b.schemaTypeToGoType(b.ks.ValueType)
 	fn := Func().Id(b.CacheKeyspaceValueMapperName(b.ks)).Params(
 		Id("val").String(),
 	).Params(Id("res").Add(valueType), Err().Error()).BlockFunc(func(g *Group) {
-		builtin, valueIsBuiltin := b.ks.ValueType.Type.Typ.(*schema.Type_Builtin)
+		builtin, valueIsBuiltin := b.ks.ValueType.Typ.(*schema.Type_Builtin)
 		dec := b.marshaller.NewPossibleInstance("dec")
 		g.Add(dec.WithFunc(func(g *Group) {
 			if !valueIsBuiltin {

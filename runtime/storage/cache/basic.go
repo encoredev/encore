@@ -27,28 +27,50 @@ type StringKeyspace[K any] struct {
 	*basicKeyspace[K, string]
 }
 
-func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string, opts ...WriteOption) (newLen int64, err error) {
-	k := s.key(key)
-	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+func (k *StringKeyspace[K]) With(opts ...WriteOption) *StringKeyspace[K] {
+	return &StringKeyspace[K]{k.basicKeyspace.with(opts)}
+}
+
+func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newLen int64, err error) {
+	k, err := s.key(key)
+	if err != nil {
+		return 0, err
+	}
+
+	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.Append(ctx, k, val)
 	})
 	return toErr2(res.Result())
 }
 
 func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64) (string, error) {
-	return toErr2(s.client.redis.GetRange(ctx, s.key(key), from, to).Result())
+	k, err := s.key(key)
+	if err != nil {
+		return "", err
+	}
+
+	return toErr2(s.client.redis.GetRange(ctx, k, from, to).Result())
 }
 
-func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string, opts ...WriteOption) (newLen int64, err error) {
-	k := s.key(key)
-	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string) (newLen int64, err error) {
+	k, err := s.key(key)
+	if err != nil {
+		return 0, err
+	}
+
+	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.SetRange(ctx, k, offset, val)
 	})
 	return toErr2(res.Result())
 }
 
 func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (int64, error) {
-	return toErr2(s.client.redis.StrLen(ctx, s.key(key)).Result())
+	k, err := s.key(key)
+	if err != nil {
+		return 0, err
+	}
+
+	return toErr2(s.client.redis.StrLen(ctx, k).Result())
 }
 
 func NewIntKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *IntKeyspace[K] {
@@ -63,17 +85,29 @@ type IntKeyspace[K any] struct {
 	*basicKeyspace[K, int64]
 }
 
-func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64, opts ...WriteOption) (int64, error) {
-	k := s.key(key)
-	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+func (k *IntKeyspace[K]) With(opts ...WriteOption) *IntKeyspace[K] {
+	return &IntKeyspace[K]{k.basicKeyspace.with(opts)}
+}
+
+func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (int64, error) {
+	k, err := s.key(key)
+	if err != nil {
+		return 0, err
+	}
+
+	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.IncrBy(ctx, k, delta)
 	})
 	return toErr2(res.Result())
 }
 
-func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64, opts ...WriteOption) (int64, error) {
-	k := s.key(key)
-	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.IntCmd {
+func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (int64, error) {
+	k, err := s.key(key)
+	if err != nil {
+		return 0, err
+	}
+
+	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.DecrBy(ctx, k, delta)
 	})
 	return toErr2(res.Result())
@@ -91,75 +125,93 @@ type FloatKeyspace[K any] struct {
 	*basicKeyspace[K, float64]
 }
 
-func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64, opts ...WriteOption) (float64, error) {
-	k := s.key(key)
-	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.FloatCmd {
+func (k *FloatKeyspace[K]) With(opts ...WriteOption) *FloatKeyspace[K] {
+	return &FloatKeyspace[K]{k.basicKeyspace.with(opts)}
+}
+
+func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (float64, error) {
+	k, err := s.key(key)
+	if err != nil {
+		return 0, err
+	}
+
+	res := do(s.client, ctx, k, func(c cmdable) *redis.FloatCmd {
 		return c.IncrByFloat(ctx, k, delta)
 	})
 	return toErr2(res.Result())
 }
 
-func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64, opts ...WriteOption) (float64, error) {
-	k := s.key(key)
-	res := do(s.client, ctx, k, opts, func(c redis.Cmdable) *redis.FloatCmd {
+func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64) (float64, error) {
+	k, err := s.key(key)
+	if err != nil {
+		return 0, err
+	}
+
+	res := do(s.client, ctx, k, func(c cmdable) *redis.FloatCmd {
 		return c.IncrByFloat(ctx, k, -delta)
 	})
 	return toErr2(res.Result())
 }
 
-type basicKeyspace[K any, V BasicType] struct {
+type basicKeyspace[K, V any] struct {
 	*client[K, V]
 }
 
+func (s *basicKeyspace[K, V]) with(opts []WriteOption) *basicKeyspace[K, V] {
+	return &basicKeyspace[K, V]{s.client.with(opts)}
+}
+
 func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error) {
-	res, err := toErr2(s.redis.Get(ctx, s.key(key)).Result())
+	k, err := s.key(key)
+	if err != nil {
+		return val, err
+	}
+
+	res, err := toErr2(s.redis.Get(ctx, k).Result())
 	if err != nil {
 		return val, err
 	}
 	return s.val(res)
 }
 
-func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V, opts ...WriteOption) error {
-	_, err := s.set(ctx, key, val, opts, 0)
+func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
+	_, err := s.set(ctx, key, val, 0)
 	return err
 }
 
-func do[K, V, Res any](cl *client[K, V], ctx context.Context, key string, opts []WriteOption, fn func(redis.Cmdable) Res) Res {
-	exp := cl.expiryCmd(ctx, key, opts)
-	if exp == nil {
-		return fn(cl.redis)
+func (s *basicKeyspace[K, V]) SetIfNotExists(ctx context.Context, key K, val V) error {
+	_, err := s.set(ctx, key, val, setNX)
+	return err
+}
+
+func (s *basicKeyspace[K, V]) Replace(ctx context.Context, key K, val V) error {
+	_, err := s.set(ctx, key, val, setXX)
+	return err
+}
+
+func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V) (prev *V, err error) {
+	return s.valOrNil(s.set(ctx, key, val, setGet))
+}
+
+func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val *V, err error) {
+	k, err := s.key(key)
+	if err != nil {
+		return nil, err
 	}
 
-	pipe := cl.redis.TxPipeline()
-	res := fn(pipe)
-	_ = pipe.Process(ctx, exp)
-	_, _ = pipe.Exec(ctx)
-	return res
-}
-
-func (s *basicKeyspace[K, V]) Add(ctx context.Context, key K, val V, opts ...WriteOption) error {
-	_, err := s.set(ctx, key, val, opts, setNX)
-	return err
-}
-
-func (s *basicKeyspace[K, V]) Replace(ctx context.Context, key K, val V, opts ...WriteOption) error {
-	_, err := s.set(ctx, key, val, opts, setXX)
-	return err
-}
-
-func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V, opts ...WriteOption) (prev *V, err error) {
-	return s.valOrNil(s.set(ctx, key, val, opts, setGet))
-}
-
-func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K, opts ...WriteOption) (val *V, err error) {
 	// When deleting we don't need to deal with expiry
-	res, err := toErr2(s.redis.GetDel(ctx, s.key(key)).Result())
+	res, err := toErr2(s.redis.GetDel(ctx, k).Result())
 	return s.valOrNil(res, err)
 }
 
-func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K, opts ...WriteOption) error {
+func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K) error {
+	k, err := s.key(key)
+	if err != nil {
+		return err
+	}
+
 	// When deleting we don't need to deal with expiry
-	return toErr(s.redis.Del(ctx, s.key(key)).Err())
+	return toErr(s.redis.Del(ctx, k).Err())
 }
 
 type setFlag uint8
@@ -170,14 +222,19 @@ const (
 	setXX
 )
 
-func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, opts []WriteOption, flag setFlag) (string, error) {
+func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFlag) (string, error) {
+	k, err := s.key(key)
+	if err != nil {
+		return "", err
+	}
+
 	get := (flag & setGet) == setGet
 	nx := (flag & setNX) == setNX
 	xx := (flag & setXX) == setXX
 
 	args := make([]any, 3, 7)
 	args[0] = "set"
-	args[1] = s.key(key)
+	args[1] = k
 	args[2] = val
 	if nx {
 		args = append(args, "nx")
@@ -189,7 +246,7 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, opts []Writ
 	}
 
 	now := time.Now()
-	exp := s.expiryTime(now, opts)
+	exp := s.expiry(now)
 	switch exp {
 	case neverExpire:
 		// do nothing; default Redis behavior
