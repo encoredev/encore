@@ -1,15 +1,13 @@
   <img width="1500px" src="https://encore.dev/assets//branding/github_header.png" alt="Encore - Backend development engine">
   <h1><a href="https://encore.dev">Encore – Backend Development Engine</a></h1>
-Encore is a Backend Development Engine, purpose-built for a flow state developer experience when creating cloud-based backend applications, APIs, and distributed systems using Go. Write your business logic with the Encore Go framework, then let the platform analyze your code to automatically deal with the rest. Start building today and unlock your creative potential with:</br>
+Encore is a Backend Development Engine, purpose-built for a flow state developer experience when creating cloud-based backend applications, APIs, and distributed systems using Go. With Encore you build microservices with the same simple developer experience as building a monolith. You write your business logic with the Open Source Encore Go framework, then let the Encore platform analyze your code to automatically deal with the rest.
+Start building today and unlock your creative potential with:</br>
 
 * No endless repetition of boilerplate.
 
 * No orchestrating and managing cloud services.
 
 * No reinventing the wheel.
-
-Encore is freely available, based on the Open Source Encore Go Framework.
-<br/>
 
 **🏁 Check out the documentation and get started in minutes: [encore.dev/docs](https://encore.dev/docs)**
 
@@ -30,6 +28,8 @@ Encore is freely available, based on the Open Source Encore Go Framework.
 
 * **[Infrastructure Provisioning in your own cloud account](https://encore.dev/docs/deploy/own-cloud):** Encore understands how your application works,
   and provisions and manages your cloud infrastructure in your own account. Works with all the major cloud providers, including AWS/Azure/GCP. Encore also offers free build-in cloud hosting for development.
+  
+* **[Intelligent architecture diagrams](https://encore.dev/docs/develop/encore-flow):** Real-time automated and interactive microservices architecture diagrams, we call it Encore Flow.
     
 * **[Preview Environments](https://encore.dev/docs/how-to/github):** Integrate with GitHub to automatically set up each pull request as a preview environment.
 
@@ -48,7 +48,7 @@ Encore is freely available, based on the Open Source Encore Go Framework.
 
 Encore is designed to help individual developers and teams be incredibly productive, and have more fun, when solving most backend use cases. There are many developers building with Encore, loving the experience when building things like:
 
--   CRUD backends and REST APIs.
+-   CRUD backends and REST APIs powering SaaS products.
 -   Microservices backends for advanced web and mobile apps.
 -   Highly performant APIs providing advanced business logic to 3rd parties.
 -   And much more...
@@ -64,7 +64,8 @@ We rely on your contributions and feedback to improve Encore for everyone who is
 Here's how you can contribute:
 
 * ⭐ **Star and watch this repository to help spread the word and stay up to date.**
-* Share your ideas and questions on [Slack](https://encore.dev/slack).
+* Share your ideas and ask questions on [Discourse](https://community.encore.dev/).
+* Meet fellow Encore developers and chat on [Slack](https://encore.dev/slack).
 * Follow Encore on [Twitter](https://twitter.com/encoredotdev).
 * Share feedback or ask questions via [email](mailto:hello@encore.dev).
 * Leave feedback on the [Public Roadmap](https://encore.dev/roadmap).
@@ -82,6 +83,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ### Built-in CI/CD & Infrastructure Provisioning
 
 https://user-images.githubusercontent.com/78424526/169317801-7711b7a2-080d-4da5-bba4-7b8d4104dd68.mp4
+
+### Intelligent real-time architecture diagrams
+
+https://user-images.githubusercontent.com/78424526/189940352-99fd57e1-7d6b-4fd6-b162-948444fe2c36.mp4
 
 ### Distributed Tracing
 
@@ -117,13 +122,13 @@ For teams in mature organizations that want to focus on innovating and building 
 
 ### How is Encore different?
 
-Encore is the only tool that understands what you’re building. The Encore framework, coupled with static analysis, lets Encore deeply understand the application you’re building. This enables the platform to provide a unique developer experience that helps you stay in the flowstate as you’re building.
+Encore is the only tool that understands what you’re building. The Encore framework, coupled with static analysis, lets Encore deeply understand the application you’re building. This enables the platform to provide a unique developer experience that helps you stay in the flowstate as you’re building. For instance you don't need to bother with configuring and managing infrastructure, setting up environments and keeping them in sync, or writing documentation and drafting architecture diagrams. Encore does all of this automatically out of the box.
 
 Unlike many tools that aim to only make cloud deployment easier, Encore is not a cloud hosting provider. With Encore, you can use your own cloud account with all the major cloud providers: AWS/Azure/GCP. This means you’re in control of your data and can maintain your trust relationship with your cloud provider. You can also use Encore's development cloud for free, with pretty generous "fair use" limits. 
 
 ### Why is the framework integrated with cloud hosting?
 
-We've found that to meaningfully improve the developer experience, you have to operate across the full stack. Unless you understand how an application is deployed, there are a large number of things in the development process that you can't simplify. That's why so many other developer tools have such a limited impact. With Encore, we're bravely rethinking the developer experience in a much more significant way.
+We've found that to meaningfully improve the developer experience, you have to operate across the full stack. Unless you understand how an application is deployed, there are a large number of things in the development process that you can't simplify. That's why so many other developer tools have such a limited impact. With Encore's more integrated approach, we're able to unlock a radically better experience for developers.
 
 ### What if I want to migrate away from Encore?
 
@@ -131,7 +136,7 @@ Encore has been designed to let you go outside of the framework when you want to
 
 If you really do want to migrate away, it's relatively easy to do. Because when you build an Encore application, the vast majority of code is just plain Go. So in practice, the amount of code specific to Encore is very small.
 
-Encore has built-in support for ejecting your application as a way of removing the connection to the Encore Platform. Ejecting your app produces a standalone Docker image that can be deployed any where you'd like, and can help facilitating the migration away according to the process above.
+Encore has built-in support for [ejecting](https://encore.dev/docs/how-to/migrate-away#ejecting) your application as a way of removing the connection to the Encore Platform. Ejecting your app produces a standalone Docker image that can be deployed any where you'd like, and can help facilitating the migration away according to the process above.
 
 Migrating away is also very low risk, since Encore deploys to your own cloud account from the start, so there's never any data to migrate.
 
