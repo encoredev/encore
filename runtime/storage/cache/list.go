@@ -2,13 +2,18 @@ package cache
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
 	"github.com/go-redis/redis/v8"
 )
 
 func NewListKeyspace[K any, V BasicType](cluster *Cluster, cfg KeyspaceConfig) *ListKeyspace[K, V] {
+	fromRedis := basicFromRedisFactory[V]()
+	toRedis := basicToRedisFactory[V]()
+
 	return &ListKeyspace[K, V]{
-		client: newClient[K, V](cluster, cfg),
+		client: newClient[K, V](cluster, cfg, fromRedis, toRedis),
 	}
 }
 
@@ -65,7 +70,7 @@ func (l *ListKeyspace[K, V]) PopLeft(ctx context.Context, key K) (val V, err err
 	if err != nil {
 		return val, err
 	}
-	return l.val(s)
+	return l.fromRedis(s)
 }
 
 func (l *ListKeyspace[K, V]) PopRight(ctx context.Context, key K) (val V, err error) {
@@ -81,7 +86,7 @@ func (l *ListKeyspace[K, V]) PopRight(ctx context.Context, key K) (val V, err er
 	if err != nil {
 		return val, err
 	}
-	return l.val(s)
+	return l.fromRedis(s)
 }
 
 func (l *ListKeyspace[K, V]) Len(ctx context.Context, key K) (int64, error) {
@@ -124,7 +129,7 @@ func (l *ListKeyspace[K, V]) Get(ctx context.Context, key K, idx int64) (val V, 
 	if err != nil {
 		return val, err
 	}
-	return l.val(res)
+	return l.fromRedis(res)
 }
 
 func (l *ListKeyspace[K, V]) Items(ctx context.Context, key K) ([]V, error) {
@@ -143,7 +148,7 @@ func (l *ListKeyspace[K, V]) Slice(ctx context.Context, key K, from, to int64) (
 
 	ret := make([]V, len(res))
 	for i, s := range res {
-		val, err := l.val(s)
+		val, err := l.fromRedis(s)
 		if err != nil {
 			return nil, err
 		}
@@ -257,5 +262,39 @@ func (l *ListKeyspace[K, V]) Move(ctx context.Context, src, dst K, fromPos, toPo
 	if err != nil {
 		return moved, err
 	}
-	return l.val(s)
+	return l.fromRedis(s)
+}
+
+func basicFromRedisFactory[V BasicType]() func(val string) (V, error) {
+	var zero V
+	typ := any(zero)
+
+	var fn any
+	switch typ.(type) {
+	case string:
+		fn = func(val string) (string, error) {
+			return val, nil
+		}
+	case int:
+		fn = func(val string) (int, error) {
+			res, err := strconv.ParseInt(val, 10, 64)
+			return int(res), err
+		}
+	case int64:
+		fn = func(val string) (int64, error) {
+			return strconv.ParseInt(val, 10, 64)
+		}
+	case float64:
+		fn = func(val string) (float64, error) {
+			return strconv.ParseFloat(val, 64)
+		}
+	default:
+		panic(fmt.Sprintf("unsupported BasicType %T", typ))
+	}
+
+	return fn.(func(val string) (V, error))
+}
+
+func basicToRedisFactory[V BasicType]() func(val V) (any, error) {
+	return func(val V) (any, error) { return val, nil }
 }

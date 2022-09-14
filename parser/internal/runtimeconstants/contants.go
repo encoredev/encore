@@ -45,6 +45,12 @@ func Get(pkg, ident string) (constant.Value, bool) {
 	}
 
 	if value, found := pkgMap[ident]; found {
+		// constant.Make recognizes int64 but not int.
+		// If we have an int, turn it to int64.
+		if val, ok := value.(int); ok {
+			return constant.Make(int64(val)), true
+		}
+
 		return constant.Make(value), true
 	}
 	return constant.MakeUnknown(), false

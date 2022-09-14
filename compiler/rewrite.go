@@ -92,9 +92,8 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 				keyspace := rewrite.Res.(*est.CacheKeyspace)
 				cfgLit := keyspace.ConfigLit
 				rw.Insert(cfgLit.Lbrace+1, []byte(fmt.Sprintf(
-					"EncoreInternal_KeyMapper: %s, EncoreInternal_ValueMapper: %s,",
+					"EncoreInternal_KeyMapper: %s,",
 					b.codegen.CacheKeyspaceKeyMapperName(keyspace),
-					b.codegen.CacheKeyspaceValueMapperName(keyspace),
 				)))
 				return true
 

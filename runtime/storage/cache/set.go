@@ -7,8 +7,11 @@ import (
 )
 
 func NewSetKeyspace[K any, V BasicType](cluster *Cluster, cfg KeyspaceConfig) *SetKeyspace[K, V] {
+	fromRedis := basicFromRedisFactory[V]()
+	toRedis := basicToRedisFactory[V]()
+
 	return &SetKeyspace[K, V]{
-		newClient[K, V](cluster, cfg),
+		newClient[K, V](cluster, cfg, fromRedis, toRedis),
 	}
 }
 
@@ -64,7 +67,7 @@ func (s *SetKeyspace[K, V]) PopOne(ctx context.Context, key K) (val V, err error
 	if err != nil {
 		return val, err
 	}
-	return s.val(rs)
+	return s.fromRedis(rs)
 }
 
 func (s *SetKeyspace[K, V]) Pop(ctx context.Context, key K, count int) ([]V, error) {
@@ -81,7 +84,7 @@ func (s *SetKeyspace[K, V]) Pop(ctx context.Context, key K, count int) ([]V, err
 	if err != nil {
 		return nil, err
 	}
-	return s.vals(rs)
+	return s.fromRedisMulti(rs)
 }
 
 func (s *SetKeyspace[K, V]) Contains(ctx context.Context, key K, val V) (bool, error) {
@@ -259,7 +262,7 @@ func (s *SetKeyspace[K, V]) SampleOne(ctx context.Context, key K) (val V, err er
 	if err != nil {
 		return val, err
 	}
-	return s.val(res)
+	return s.fromRedis(res)
 }
 
 func (s *SetKeyspace[K, V]) Sample(ctx context.Context, key K, count int) ([]V, error) {
@@ -278,7 +281,7 @@ func (s *SetKeyspace[K, V]) Sample(ctx context.Context, key K, count int) ([]V, 
 	if err != nil {
 		return nil, err
 	}
-	return s.vals(res)
+	return s.fromRedisMulti(res)
 }
 
 func (s *SetKeyspace[K, V]) SampleWithReplacement(ctx context.Context, key K, count int) ([]V, error) {
@@ -296,7 +299,7 @@ func (s *SetKeyspace[K, V]) SampleWithReplacement(ctx context.Context, key K, co
 	if err != nil {
 		return nil, err
 	}
-	return s.vals(res)
+	return s.fromRedisMulti(res)
 }
 
 func (s *SetKeyspace[K, V]) Move(ctx context.Context, src, dst K, val V) (moved bool, err error) {
@@ -318,7 +321,7 @@ func (s *SetKeyspace[K, V]) Move(ctx context.Context, src, dst K, val V) (moved 
 func (s *SetKeyspace[K, V]) toSlice(res []string) ([]V, error) {
 	ret := make([]V, len(res))
 	for i, r := range res {
-		val, err := s.val(r)
+		val, err := s.fromRedis(r)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +333,7 @@ func (s *SetKeyspace[K, V]) toSlice(res []string) ([]V, error) {
 func (s *SetKeyspace[K, V]) toMap(res []string) (map[V]struct{}, error) {
 	ret := make(map[V]struct{}, len(res))
 	for _, r := range res {
-		val, err := s.val(r)
+		val, err := s.fromRedis(r)
 		if err != nil {
 			return nil, err
 		}

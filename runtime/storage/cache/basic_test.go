@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"strconv"
 	"testing"
 	"time"
 
@@ -92,15 +91,15 @@ func TestIntKeyspace(t *testing.T) {
 
 	check(ks.Set(ctx, "one", 1))
 	if got, want := must(ks.Get(ctx, "one")), int64(1); got != want {
-		t.Errorf("set/get: got val %v, want %v", got, want)
+		t.Errorf("set/get: got %v, want %v", got, want)
 	}
 
 	if got, want := must(ks.Incr(ctx, "one", 3)), int64(4); got != want {
-		t.Errorf("incr: got val %v, want %v", got, want)
+		t.Errorf("incr: got %v, want %v", got, want)
 	}
 
 	if got, want := must(ks.Decr(ctx, "one", 1)), int64(3); got != want {
-		t.Errorf("decr: got val %v, want %v", got, want)
+		t.Errorf("decr: got %v, want %v", got, want)
 	}
 }
 
@@ -112,23 +111,22 @@ func TestFloatKeyspace(t *testing.T) {
 	// at least passing for me right now.
 	check(ks.Set(ctx, "one", 1))
 	if got, want := must(ks.Get(ctx, "one")), float64(1); got != want {
-		t.Errorf("set/get: got val %v, want %v", got, want)
+		t.Errorf("set/get: got %v, want %v", got, want)
 	}
 
 	if got, want := must(ks.Incr(ctx, "one", 3)), float64(4); got != want {
-		t.Errorf("incr: got val %v, want %v", got, want)
+		t.Errorf("incr: got %v, want %v", got, want)
 	}
 
 	if got, want := must(ks.Decr(ctx, "one", 1)), float64(3); got != want {
-		t.Errorf("decr: got val %v, want %v", got, want)
+		t.Errorf("decr: got %v, want %v", got, want)
 	}
 }
 
 func newStringTest(t *testing.T) *stringTester {
 	cluster, srv := newTestCluster(t)
 	ks := NewStringKeyspace[string](cluster, KeyspaceConfig{
-		EncoreInternal_KeyMapper:   func(s string) string { return s },
-		EncoreInternal_ValueMapper: func(s string) (string, error) { return s, nil },
+		EncoreInternal_KeyMapper: func(s string) string { return s },
 	})
 
 	ctx := context.Background()
@@ -138,8 +136,7 @@ func newStringTest(t *testing.T) *stringTester {
 func newIntTest(t *testing.T) *IntKeyspace[string] {
 	cluster, _ := newTestCluster(t)
 	ks := NewIntKeyspace[string](cluster, KeyspaceConfig{
-		EncoreInternal_KeyMapper:   func(s string) string { return s },
-		EncoreInternal_ValueMapper: func(s string) (int64, error) { return strconv.ParseInt(s, 10, 64) },
+		EncoreInternal_KeyMapper: func(s string) string { return s },
 	})
 	return ks
 }
@@ -147,8 +144,7 @@ func newIntTest(t *testing.T) *IntKeyspace[string] {
 func newFloatTest(t *testing.T) *FloatKeyspace[string] {
 	cluster, _ := newTestCluster(t)
 	ks := NewFloatKeyspace[string](cluster, KeyspaceConfig{
-		EncoreInternal_KeyMapper:   func(s string) string { return s },
-		EncoreInternal_ValueMapper: func(s string) (float64, error) { return strconv.ParseFloat(s, 64) },
+		EncoreInternal_KeyMapper: func(s string) string { return s },
 	})
 	return ks
 }

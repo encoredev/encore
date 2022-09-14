@@ -97,12 +97,6 @@ func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident 
 		return nil
 	}
 
-	if file.Pkg.Service == nil {
-		p.errf(callExpr.Pos(), "cache.NewCluster can only be called from within Encore services. package %s is not a service",
-			file.Pkg.RelPath)
-		return nil
-	}
-
 	clusterName := p.parseResourceName("cache.NewCluster", "cluster name", callExpr.Args[0])
 	if clusterName == "" {
 		// we already reported the error inside parseResourceName
@@ -179,7 +173,8 @@ func createKeyspaceParser(con cacheKeyspaceConstructor) func(*parser, *est.File,
 			return nil
 		}
 
-		if file.Pkg.Service == nil {
+		svc := file.Pkg.Service
+		if svc == nil {
 			p.errf(callExpr.Pos(), "cache.%s can only be called from within Encore services. package %s is not a service",
 				con.FuncName, file.Pkg.RelPath)
 			return nil
@@ -238,13 +233,16 @@ func createKeyspaceParser(con cacheKeyspaceConstructor) func(*parser, *est.File,
 			return nil
 		}
 
-		// TODO avoid requirement of leading '/'
-		path, err := paths.Parse(keyPatternPos, keyPatternStr)
+		if strings.HasPrefix(keyPatternStr, "__encore") {
+			p.err(keyPatternPos, `invalid KeyPattern: use of reserved prefix "encore"`)
+			return nil
+		}
+
+		path, err := paths.Parse(keyPatternPos, keyPatternStr, paths.CacheKeyspace)
 		if err != nil {
 			p.errf(keyPatternPos, "cache.KeyspaceConfig got an invalid keyspace pattern: %v", err)
 			return nil
 		}
-		// TODO check for non-overlapping paths
 
 		// Resolve key and value types
 		typeArgs := getTypeArguments(callExpr.Fun)
@@ -266,6 +264,7 @@ func createKeyspaceParser(con cacheKeyspaceConstructor) func(*parser, *est.File,
 
 		keyspace := &est.CacheKeyspace{
 			Cluster:   cluster,
+			Svc:       svc,
 			Doc:       cursor.DocComment(),
 			DeclFile:  file,
 			IdentAST:  ident,
@@ -298,6 +297,21 @@ func (p *parser) validateCacheKeyspace(ks *est.CacheKeyspace, con cacheKeyspaceC
 		}
 
 		key := ks.KeyType
+		_, keyIsBuiltin := key.Typ.(*schema.Type_Builtin)
+
+		seenPathSegments := make(map[string]bool)
+		for _, seg := range ks.Path.Segments {
+			if seg.Type == paths.Literal {
+				continue
+			}
+			name := seg.Value
+			seenPathSegments[name] = false
+
+			if keyIsBuiltin && name != "key" {
+				p.errf(ks.Ident().Pos(), "KeyPattern parameter must be named ':key' for basic (non-struct) key types")
+			}
+		}
+
 		switch key := key.Typ.(type) {
 		case *schema.Type_Builtin:
 			if err := validateBuiltin(key.Builtin); err != nil {
@@ -310,20 +324,37 @@ func (p *parser) validateCacheKeyspace(ks *est.CacheKeyspace, con cacheKeyspaceC
 			if st == nil {
 				p.errf(ks.Ident().Pos(), "cache.%s key type must be a basic type or a named struct type",
 					con.FuncName)
-			} else {
-				// Validate struct fields
-				for _, f := range st.Fields {
-					switch typ := f.Typ.Typ.(type) {
-					case *schema.Type_Builtin:
-						if err := validateBuiltin(typ.Builtin); err != nil {
-							p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is invalid: %v",
-								con.FuncName, f.Name, err)
-						}
+				return
+			}
 
-					default:
-						p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is not a basic type",
-							con.FuncName, f.Name)
+			// Validate struct fields
+			for _, f := range st.Fields {
+				fieldName := f.Name
+				if _, exists := seenPathSegments[fieldName]; !exists {
+					p.errf(ks.Ident().Pos(), "invalid cache value type %s: field %s not used in KeyPattern",
+						named.Name, fieldName)
+				} else {
+					seenPathSegments[fieldName] = true
+				}
+
+				switch typ := f.Typ.Typ.(type) {
+				case *schema.Type_Builtin:
+					if err := validateBuiltin(typ.Builtin); err != nil {
+						p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is invalid: %v",
+							con.FuncName, fieldName, err)
 					}
+
+				default:
+					p.errf(ks.Ident().Pos(), "cache.%s has invalid key type parameter: struct field %s is not a basic type",
+						con.FuncName, fieldName)
+				}
+			}
+
+			// Ensure all path segments are valid field names
+			for fieldName, seen := range seenPathSegments {
+				if !seen {
+					p.errf(ks.Ident().Pos(), "invalid cache KeyPattern: field %s does not exist in value type %s",
+						fieldName, named.Name)
 				}
 			}
 		}
@@ -343,6 +374,23 @@ func (p *parser) validateCacheKeyspace(ks *est.CacheKeyspace, con cacheKeyspaceC
 		if !ok {
 			p.errf(ks.Ident().Pos(), "cache.%s has invalid value type parameter: must be a named struct type",
 				con.FuncName)
+		}
+	}
+}
+
+func (p *parser) validateCacheKeyspacePathConflicts() {
+	for _, cc := range p.cacheClusters {
+		var set paths.Set
+		pathToKeyspace := make(map[*paths.Path]*est.CacheKeyspace)
+		for _, ks := range cc.Keyspaces {
+			pathToKeyspace[ks.Path] = ks
+
+			if err := set.Add("", ks.Path); err != nil {
+				conflict := err.(*paths.ConflictError)
+				other := pathToKeyspace[conflict.Other]
+				p.errf(ks.Ident().Pos(), "cache KeyPattern conflict: %v\n\tsee other cache declaration at %s",
+					err, p.fset.Position(other.Ident().Pos()))
+			}
 		}
 	}
 }

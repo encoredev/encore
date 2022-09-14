@@ -65,8 +65,7 @@ func TestListKeyspace(t *testing.T) {
 func newListTest(t *testing.T) *listTester {
 	cluster, srv := newTestCluster(t)
 	ks := NewListKeyspace[string, string](cluster, KeyspaceConfig{
-		EncoreInternal_KeyMapper:   func(s string) string { return s },
-		EncoreInternal_ValueMapper: func(s string) (string, error) { return s, nil },
+		EncoreInternal_KeyMapper: func(s string) string { return s },
 	})
 	ctx := context.Background()
 	return &listTester{t: t, ctx: ctx, ks: ks, srv: srv}

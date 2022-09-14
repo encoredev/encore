@@ -127,8 +127,7 @@ func checkSetMap(t *testing.T, got map[string]struct{}, want ...string) {
 func newSetTest(t *testing.T) *setTester {
 	cluster, srv := newTestCluster(t)
 	ks := NewSetKeyspace[string, string](cluster, KeyspaceConfig{
-		EncoreInternal_KeyMapper:   func(s string) string { return s },
-		EncoreInternal_ValueMapper: func(s string) (string, error) { return s, nil },
+		EncoreInternal_KeyMapper: func(s string) string { return s },
 	})
 	ctx := context.Background()
 	return &setTester{t: t, ctx: ctx, ks: ks, srv: srv}

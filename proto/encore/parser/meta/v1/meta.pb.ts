@@ -228,6 +228,13 @@ export interface MiddlewareDefNode {
 
 export interface Path {
   segments: PathSegment[];
+  type: Path_Type;
+}
+
+export enum Path_Type {
+  URL = "URL",
+  CACHE_KEYSPACE = "CACHE_KEYSPACE",
+  UNRECOGNIZED = "UNRECOGNIZED",
 }
 
 export interface PathSegment {

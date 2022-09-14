@@ -13,6 +13,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/pubsub"
+	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/parser"
@@ -66,6 +67,10 @@ func (rs *ResourceServices) StartRequiredServices(a *asyncBuildJobs, parse *pars
 		a.Go("Starting PubSub daemon", true, 250*time.Millisecond, rs.StartPubSub)
 	}
 
+	if redis.IsUsed(parse.Meta) && rs.GetRedis() == nil {
+		a.Go("Starting Redis server", true, 250*time.Millisecond, rs.StartRedis)
+	}
+
 	return nil
 }
 
@@ -90,6 +95,31 @@ func (rs *ResourceServices) GetPubSub() *pubsub.NSQDaemon {
 
 	if daemon, found := rs.servers[est.PubSubTopicResource]; found {
 		return daemon.(*pubsub.NSQDaemon)
+	}
+	return nil
+}
+
+// StartRedis starts a Redis server if it is not already running.
+func (rs *ResourceServices) StartRedis(ctx context.Context) error {
+	srv := redis.New()
+	err := srv.Start()
+	if err != nil {
+		return err
+	}
+
+	rs.mutex.Lock()
+	rs.servers[est.CacheClusterResource] = srv
+	rs.mutex.Unlock()
+	return nil
+}
+
+// GetRedis returns the Redis server if it is running otherwise it returns nil
+func (rs *ResourceServices) GetRedis() *redis.Server {
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+
+	if srv, found := rs.servers[est.CacheClusterResource]; found {
+		return srv.(*redis.Server)
 	}
 	return nil
 }

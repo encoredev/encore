@@ -581,6 +581,8 @@ func (p *parser) validateApp() {
 			}, nil)
 		}
 	}
+
+	p.validateCacheKeyspacePathConflicts()
 }
 
 // resolveRPCRef resolves an expression as a reference to an RPC.

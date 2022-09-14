@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -15,9 +16,12 @@ import (
 // The type parameter K specifies the key type, which can either be a
 // named struct type or a basic type (string, int, etc).
 func NewStringKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *StringKeyspace[K] {
+	fromRedis := func(val string) (string, error) { return val, nil }
+	toRedis := func(val string) (any, error) { return val, nil }
+
 	return &StringKeyspace[K]{
 		&basicKeyspace[K, string]{
-			newClient[K, string](cluster, cfg),
+			newClient[K, string](cluster, cfg, fromRedis, toRedis),
 		},
 	}
 }
@@ -74,9 +78,12 @@ func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (int64, error) {
 }
 
 func NewIntKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *IntKeyspace[K] {
+	fromRedis := func(val string) (int64, error) { return strconv.ParseInt(val, 10, 64) }
+	toRedis := func(val int64) (any, error) { return val, nil }
+
 	return &IntKeyspace[K]{
 		&basicKeyspace[K, int64]{
-			newClient[K, int64](cluster, cfg),
+			newClient[K, int64](cluster, cfg, fromRedis, toRedis),
 		},
 	}
 }
@@ -114,9 +121,12 @@ func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (int64, e
 }
 
 func NewFloatKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *FloatKeyspace[K] {
+	fromRedis := func(val string) (float64, error) { return strconv.ParseFloat(val, 64) }
+	toRedis := func(val float64) (any, error) { return val, nil }
+
 	return &FloatKeyspace[K]{
 		&basicKeyspace[K, float64]{
-			newClient[K, float64](cluster, cfg),
+			newClient[K, float64](cluster, cfg, fromRedis, toRedis),
 		},
 	}
 }
@@ -171,7 +181,7 @@ func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error)
 	if err != nil {
 		return val, err
 	}
-	return s.val(res)
+	return s.fromRedis(res)
 }
 
 func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
@@ -232,10 +242,15 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 	nx := (flag & setNX) == setNX
 	xx := (flag & setXX) == setXX
 
+	redisVal, err := s.toRedis(val)
+	if err != nil {
+		return "", err
+	}
+
 	args := make([]any, 3, 7)
 	args[0] = "set"
 	args[1] = k
-	args[2] = val
+	args[2] = redisVal
 	if nx {
 		args = append(args, "nx")
 	} else if xx {

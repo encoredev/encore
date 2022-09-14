@@ -33,7 +33,7 @@ func TestParse(t *testing.T) {
 
 	for _, test := range tests {
 		c.Run(test.Path, func(c *qt.C) {
-			p, err := Parse(0, test.Path)
+			p, err := Parse(0, test.Path, URL)
 			if err != nil {
 				c.Assert(err, qt.ErrorMatches, test.Err)
 			} else if test.Err != "" {
@@ -73,7 +73,7 @@ func TestAdd(t *testing.T) {
 	set := &Set{}
 
 	for _, test := range paths {
-		p, err := Parse(0, test.Path)
+		p, err := Parse(0, test.Path, URL)
 		c.Assert(err, qt.IsNil)
 		err = set.Add(test.Method, p)
 		if test.Err != "" {

@@ -116,7 +116,6 @@ type cacheKeyspaceMapperBuilder struct {
 
 func (b *cacheKeyspaceMapperBuilder) Write() {
 	b.writeKeyMapper()
-	b.writeValueMapper()
 }
 
 func (b *cacheKeyspaceMapperBuilder) writeKeyMapper() {
@@ -124,9 +123,36 @@ func (b *cacheKeyspaceMapperBuilder) writeKeyMapper() {
 	fn := Func().Id(b.CacheKeyspaceKeyMapperName(b.ks)).Params(
 		Id("key").Add(keyType),
 	).String().BlockFunc(func(g *Group) {
-		_, keyIsBuiltin := b.ks.KeyType.Typ.(*schema.Type_Builtin)
+		keyType, keyIsBuiltin := b.ks.KeyType.Typ.(*schema.Type_Builtin)
 		var pathLit strings.Builder
 		var fmtArgs []Code
+
+		rewriteBuiltin := func(builtin schema.Builtin, expr Code) (verb string, rewritten Code) {
+			switch builtin {
+			case schema.Builtin_STRING:
+				return "%s", Qual("strings", "ReplaceAll").Call(expr, Lit("/"), Lit(`\/`))
+			case schema.Builtin_BYTES:
+				return "%s", Qual("bytes", "ReplaceAll").Call(
+					expr,
+					Index().Byte().Parens(Lit("/")),
+					Index().Byte().Parens(Lit(`\/`)),
+				)
+			default:
+				return "%v", expr
+			}
+		}
+
+		// structFields provides a map of field names to the builtin
+		// they represent. We're guaranteed these are all builtins by
+		// the parser.
+		structFields := make(map[string]schema.Builtin)
+		if !keyIsBuiltin {
+			decl := b.ks.KeyType.GetNamed()
+			st := b.res.App.Decls[decl.Id].Type.GetStruct()
+			for _, f := range st.Fields {
+				structFields[f.Name] = f.Typ.GetBuiltin()
+			}
+		}
 
 		for i, seg := range b.ks.Path.Segments {
 			if i > 0 {
@@ -137,11 +163,14 @@ func (b *cacheKeyspaceMapperBuilder) writeKeyMapper() {
 				continue
 			}
 
-			pathLit.WriteString("%v")
 			if keyIsBuiltin {
-				fmtArgs = append(fmtArgs, Id("key"))
+				verb, expr := rewriteBuiltin(keyType.Builtin, Id("key"))
+				pathLit.WriteString(verb)
+				fmtArgs = append(fmtArgs, expr)
 			} else {
-				fmtArgs = append(fmtArgs, Id("key").Dot(seg.Value))
+				verb, expr := rewriteBuiltin(structFields[seg.Value], Id("key").Dot(seg.Value))
+				pathLit.WriteString(verb)
+				fmtArgs = append(fmtArgs, expr)
 			}
 		}
 
@@ -155,33 +184,6 @@ func (b *cacheKeyspaceMapperBuilder) writeKeyMapper() {
 	b.f.Add(fn)
 }
 
-func (b *cacheKeyspaceMapperBuilder) writeValueMapper() {
-	valueType := b.schemaTypeToGoType(b.ks.ValueType)
-	fn := Func().Id(b.CacheKeyspaceValueMapperName(b.ks)).Params(
-		Id("val").String(),
-	).Params(Id("res").Add(valueType), Err().Error()).BlockFunc(func(g *Group) {
-		builtin, valueIsBuiltin := b.ks.ValueType.Typ.(*schema.Type_Builtin)
-		dec := b.marshaller.NewPossibleInstance("dec")
-		g.Add(dec.WithFunc(func(g *Group) {
-			if !valueIsBuiltin {
-				panic("internal error: value mapper currently only supports builtin value types")
-			}
-			decodeCall, err := dec.FromStringToBuiltin(builtin.Builtin, "value", Id("val"), false)
-			if err != nil {
-				b.errors.Addf(b.ks.Ident().Pos(), "could not create decoder for path param, %v", err)
-			}
-			g.Id("res").Op("=").Add(decodeCall)
-		}, func(g *Group) {
-			g.Return(Id("res"), dec.LastError())
-		})...)
-		g.Return(Id("res"), Nil())
-	})
-	b.f.Add(fn)
-}
-
 func (b *Builder) CacheKeyspaceKeyMapperName(ks *est.CacheKeyspace) string {
 	return fmt.Sprintf("EncoreInternal_%sKeyMapper", ks.Ident().Name)
-}
-func (b *Builder) CacheKeyspaceValueMapperName(ks *est.CacheKeyspace) string {
-	return fmt.Sprintf("EncoreInternal_%sValueMapper", ks.Ident().Name)
 }

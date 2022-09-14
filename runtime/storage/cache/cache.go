@@ -91,13 +91,10 @@ type KeyspaceConfig struct {
 	// EncoreInternal_KeyMapper specifies how typed keys are translated
 	// to a string. It's of type any to avoid making KeyspaceConfig
 	// a generic type. It's an internal field set by Encore's compiler.
+	//
+	// The type must be func(K) string.
 	//publicapigen:drop
 	EncoreInternal_KeyMapper any
-	// EncoreInternal_ValueMapper specifies how Redis values are translated
-	// to Go. It's of type any to avoid making KeyspaceConfig
-	// a generic type. It's an internal field set by Encore's compiler.
-	//publicapigen:drop
-	EncoreInternal_ValueMapper any
 }
 
 // Nil is the error value reported when a key is missing from the cache.

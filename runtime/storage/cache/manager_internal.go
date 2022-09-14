@@ -13,6 +13,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
+	jsoniter "github.com/json-iterator/go"
 
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/runtimeutil/syncutil"
@@ -21,8 +22,9 @@ import (
 
 // Manager manages cache clients.
 type Manager struct {
-	cfg *config.Config
-	ts  *testsupport.Manager
+	cfg  *config.Config
+	ts   *testsupport.Manager
+	json jsoniter.API
 
 	initTestSrv syncutil.Once
 	testSrv     *miniredis.Miniredis
@@ -31,10 +33,11 @@ type Manager struct {
 	clients  map[string]*redis.Client
 }
 
-func NewManager(cfg *config.Config, ts *testsupport.Manager) *Manager {
+func NewManager(cfg *config.Config, ts *testsupport.Manager, json jsoniter.API) *Manager {
 	return &Manager{
 		cfg:     cfg,
 		ts:      ts,
+		json:    json,
 		clients: make(map[string]*redis.Client),
 	}
 }
@@ -150,10 +153,11 @@ func (mgr *Manager) Shutdown(force context.Context) {
 	//_ = mgr.redis.Close()
 }
 
-func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig) *client[K, V] {
+func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig,
+	fromRedis func(string) (V, error),
+	toRedis func(V) (any, error),
+) *client[K, V] {
 	keyMapper := cfg.EncoreInternal_KeyMapper.(func(K) string)
-	valueMapper := cfg.EncoreInternal_ValueMapper.(func(string) (V, error))
-
 	if mgr := cluster.mgr; mgr.cfg.Static.Testing {
 		// If we're running tests, map keys to a test-specific key.
 		orig := keyMapper
@@ -175,20 +179,22 @@ func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig) *client[K, V] {
 	}
 
 	return &client[K, V]{
-		redis:       cluster.cl,
-		cfg:         cfg,
-		expiry:      defaultExpiry,
-		keyMapper:   keyMapper,
-		valueMapper: valueMapper,
+		redis:     cluster.cl,
+		cfg:       cfg,
+		expiry:    defaultExpiry,
+		keyMapper: keyMapper,
+		toRedis:   toRedis,
+		fromRedis: fromRedis,
 	}
 }
 
 type client[K, V any] struct {
-	redis       *redis.Client
-	cfg         KeyspaceConfig
-	expiry      ExpiryFunc
-	keyMapper   func(K) string
-	valueMapper func(string) (V, error)
+	redis     *redis.Client
+	cfg       KeyspaceConfig
+	expiry    ExpiryFunc
+	keyMapper func(K) string
+	toRedis   func(V) (any, error)
+	fromRedis func(string) (V, error)
 }
 
 func (c *client[K, V]) with(opts []WriteOption) *client[K, V] {
@@ -224,14 +230,10 @@ func (s *client[K, V]) keys(keys []K) ([]string, error) {
 	return strs, nil
 }
 
-func (s *client[K, V]) val(res string) (V, error) {
-	return s.valueMapper(res)
-}
-
-func (s *client[K, V]) vals(res []string) ([]V, error) {
+func (s *client[K, V]) fromRedisMulti(res []string) ([]V, error) {
 	vals := make([]V, len(res))
 	for i, r := range res {
-		v, err := s.valueMapper(r)
+		v, err := s.fromRedis(r)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +243,7 @@ func (s *client[K, V]) vals(res []string) ([]V, error) {
 }
 
 func (s *client[K, V]) valPtr(res string) (*V, error) {
-	vv, err := s.val(res)
+	vv, err := s.fromRedis(res)
 	if err != nil {
 		return nil, err
 	}

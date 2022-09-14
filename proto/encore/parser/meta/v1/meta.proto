@@ -193,7 +193,13 @@ message MiddlewareDefNode {
 }
 
 message Path {
+  enum Type {
+    URL = 0;
+    CACHE_KEYSPACE = 1;
+  }
+
   repeated PathSegment segments = 1;
+  Type type = 2;
 }
 
 message PathSegment {
