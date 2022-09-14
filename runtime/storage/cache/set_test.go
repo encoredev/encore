@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"sort"
 	"testing"
@@ -33,11 +34,11 @@ func TestSets(t *testing.T) {
 	if got, want := must(ks.PopOne(ctx, "one")), "a"; got != want {
 		t.Errorf("PopOne: got %v, want %v", got, want)
 	}
-	if _, err := ks.SampleOne(ctx, "one"); err != Nil {
-		t.Errorf("SampleOne: got err %v, want %v", err, Nil)
+	if _, err := ks.SampleOne(ctx, "one"); !errors.Is(err, Miss) {
+		t.Errorf("SampleOne: got err %v, want %v", err, Miss)
 	}
-	if _, err := ks.PopOne(ctx, "one"); err != Nil {
-		t.Errorf("PopOne: got err %v, want %v", err, Nil)
+	if _, err := ks.PopOne(ctx, "one"); !errors.Is(err, Miss) {
+		t.Errorf("PopOne: got err %v, want %v", err, Miss)
 	}
 
 	kt.Add("one", "a", "b")

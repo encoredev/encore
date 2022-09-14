@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -30,86 +31,99 @@ func (k *ListKeyspace[K, V]) With(opts ...WriteOption) *ListKeyspace[K, V] {
 }
 
 func (l *ListKeyspace[K, V]) PushLeft(ctx context.Context, key K, values ...V) (newLen int64, err error) {
-	k, err := l.key(key)
+	const op = "push left"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
 	// Convert []V to []any since that's what the Redis library expects.
 	vals := fnMap(values, func(v V) any { return v })
-	res := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	res, err := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.LPush(ctx, k, vals...)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (l *ListKeyspace[K, V]) PushRight(ctx context.Context, key K, values ...V) (newLen int64, err error) {
-	k, err := l.key(key)
+	const op = "push right"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
 	// Convert []V to []any since that's what the Redis library expects.
 	vals := fnMap(values, func(v V) any { return v })
-	res := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	res, err := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.RPush(ctx, k, vals...)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (l *ListKeyspace[K, V]) PopLeft(ctx context.Context, key K) (val V, err error) {
-	k, err := l.key(key)
+	const op = "pop left"
+	k, err := l.key(key, op)
 	if err != nil {
 		return val, err
 	}
 
-	res := do(l.client, ctx, k, func(c cmdable) *redis.StringCmd {
+	res, err := do(l.client, ctx, k, func(c cmdable) *redis.StringCmd {
 		return c.LPop(ctx, k)
-	})
-	s, err := toErr2(res.Result())
-	if err != nil {
-		return val, err
+	}).Result()
+
+	if err == nil {
+		val, err = l.fromRedis(res)
 	}
-	return l.fromRedis(s)
+	err = toErr(err, op, k)
+	return val, err
 }
 
 func (l *ListKeyspace[K, V]) PopRight(ctx context.Context, key K) (val V, err error) {
-	k, err := l.key(key)
+	const op = "pop right"
+	k, err := l.key(key, op)
 	if err != nil {
 		return val, err
 	}
 
-	res := do(l.client, ctx, k, func(c cmdable) *redis.StringCmd {
+	res, err := do(l.client, ctx, k, func(c cmdable) *redis.StringCmd {
 		return c.RPop(ctx, k)
-	})
-	s, err := toErr2(res.Result())
-	if err != nil {
-		return val, err
+	}).Result()
+	if err == nil {
+		val, err = l.fromRedis(res)
 	}
-	return l.fromRedis(s)
+	err = toErr(err, op, k)
+	return val, err
 }
 
 func (l *ListKeyspace[K, V]) Len(ctx context.Context, key K) (int64, error) {
-	k, err := l.key(key)
+	const op = "list len"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
-	return toErr2(l.redis.LLen(ctx, k).Result())
+
+	res, err := l.redis.LLen(ctx, k).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (l *ListKeyspace[K, V]) Trim(ctx context.Context, key K, start, stop int64) error {
-	k, err := l.key(key)
+	const op = "list trim"
+	k, err := l.key(key, op)
 	if err != nil {
 		return err
 	}
 	res := do(l.client, ctx, k, func(c cmdable) *redis.StatusCmd {
 		return c.LTrim(ctx, k, start, stop)
 	})
-	return toErr(res.Err())
+	return toErr(res.Err(), op, k)
 }
 
 func (l *ListKeyspace[K, V]) Set(ctx context.Context, key K, idx int64, val V) error {
-	k, err := l.key(key)
+	const op = "list set"
+	k, err := l.key(key, op)
 	if err != nil {
 		return err
 	}
@@ -117,40 +131,47 @@ func (l *ListKeyspace[K, V]) Set(ctx context.Context, key K, idx int64, val V) e
 	res := do(l.client, ctx, k, func(c cmdable) *redis.StatusCmd {
 		return c.LSet(ctx, k, idx, val)
 	})
-	return toErr(res.Err())
+	return toErr(res.Err(), op, k)
 }
 
 func (l *ListKeyspace[K, V]) Get(ctx context.Context, key K, idx int64) (val V, err error) {
-	k, err := l.key(key)
+	const op = "list get"
+	k, err := l.key(key, op)
 	if err != nil {
 		return val, err
 	}
-	res, err := toErr2(l.redis.LIndex(ctx, k, idx).Result())
-	if err != nil {
-		return val, err
+	res, err := l.redis.LIndex(ctx, k, idx).Result()
+
+	if err == nil {
+		val, err = l.fromRedis(res)
 	}
-	return l.fromRedis(res)
+	err = toErr(err, op, k)
+	return val, err
 }
 
 func (l *ListKeyspace[K, V]) Items(ctx context.Context, key K) ([]V, error) {
-	return l.Slice(ctx, key, 0, -1)
+	return l.slice(ctx, key, 0, -1, "items")
 }
 
 func (l *ListKeyspace[K, V]) Slice(ctx context.Context, key K, from, to int64) ([]V, error) {
-	k, err := l.key(key)
+	return l.slice(ctx, key, from, to, "slice")
+}
+
+func (l *ListKeyspace[K, V]) slice(ctx context.Context, key K, from, to int64, op string) ([]V, error) {
+	k, err := l.key(key, op)
 	if err != nil {
 		return nil, err
 	}
-	res, err := toErr2(l.redis.LRange(ctx, k, from, to).Result())
+	res, err := l.redis.LRange(ctx, k, from, to).Result()
 	if err != nil {
-		return nil, err
+		return nil, toErr(err, op, k)
 	}
 
 	ret := make([]V, len(res))
 	for i, s := range res {
 		val, err := l.fromRedis(s)
 		if err != nil {
-			return nil, err
+			return nil, toErr(err, op, k)
 		}
 		ret[i] = val
 	}
@@ -158,83 +179,93 @@ func (l *ListKeyspace[K, V]) Slice(ctx context.Context, key K, from, to int64) (
 }
 
 func (l *ListKeyspace[K, V]) InsertBefore(ctx context.Context, key K, needle, newVal V) (newLen int64, err error) {
-	k, err := l.key(key)
+	const op = "insert before"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	newLen, err = do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.LInsertBefore(ctx, k, needle, newVal)
-	})
+	}).Result()
 
-	newLen, err = toErr2(res.Result())
-	if newLen == -1 {
-		return 0, Nil
+	if err == nil && newLen == -1 {
+		return 0, toErr(Miss, op, k)
 	}
-	return newLen, err
+	return newLen, toErr(err, op, k)
 }
 
 func (l *ListKeyspace[K, V]) InsertAfter(ctx context.Context, key K, needle, newVal V) (newLen int64, err error) {
-	k, err := l.key(key)
+	const op = "insert after"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	newLen, err = do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.LInsertAfter(ctx, k, needle, newVal)
-	})
+	}).Result()
 
-	newLen, err = toErr2(res.Result())
-	if newLen == -1 {
-		return 0, Nil
+	if err == nil && newLen == -1 {
+		return 0, toErr(Miss, op, k)
 	}
-	return newLen, err
+	return newLen, toErr(err, op, k)
 }
 
 func (l *ListKeyspace[K, V]) RemoveAll(ctx context.Context, key K, needle V) (removed int64, err error) {
-	k, err := l.key(key)
+	const op = "remove all"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	res, err := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.LRem(ctx, k, 0, needle)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (l *ListKeyspace[K, V]) RemoveFirst(ctx context.Context, key K, count int64, needle V) (removed int64, err error) {
-	if count < 0 {
-		panic("RemoveFirst: negative count")
-	} else if count == 0 {
-		return 0, nil
-	}
-	k, err := l.key(key)
+	const op = "remove first"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	if count < 0 {
+		err = toErr(errors.New("negative count"), op, k)
+		return 0, err
+	} else if count == 0 {
+		return 0, nil
+	}
+
+	res, err := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.LRem(ctx, k, count, needle)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (l *ListKeyspace[K, V]) RemoveLast(ctx context.Context, key K, count int64, needle V) (removed int64, err error) {
-	if count < 0 {
-		panic("RemoveFirst: negative count")
-	} else if count == 0 {
-		return 0, nil
-	}
-	k, err := l.key(key)
+	const op = "remove last"
+	k, err := l.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	if count < 0 {
+		err = toErr(errors.New("negative count"), op, k)
+		return 0, err
+	} else if count == 0 {
+		return 0, nil
+	}
+
+	res, err := do(l.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.LRem(ctx, k, -count, needle)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 type ListPos string
@@ -245,24 +276,25 @@ const (
 )
 
 func (l *ListKeyspace[K, V]) Move(ctx context.Context, src, dst K, fromPos, toPos ListPos) (moved V, err error) {
-	srcKey, err := l.key(src)
+	const op = "list move"
+	srcKey, err := l.key(src, op)
 	if err != nil {
 		return moved, err
 	}
-	dstKey, err := l.key(dst)
+	dstKey, err := l.key(dst, op)
 	if err != nil {
 		return moved, err
 	}
 
-	res := do2(l.client, ctx, srcKey, dstKey, func(c cmdable) *redis.StringCmd {
+	res, err := do2(l.client, ctx, srcKey, dstKey, func(c cmdable) *redis.StringCmd {
 		return c.LMove(ctx, srcKey, dstKey, string(fromPos), string(toPos))
-	})
+	}).Result()
 
-	s, err := toErr2(res.Result())
-	if err != nil {
-		return moved, err
+	if err == nil {
+		moved, err = l.fromRedis(res)
 	}
-	return l.fromRedis(s)
+	err = toErr(err, op, srcKey)
+	return moved, err
 }
 
 func basicFromRedisFactory[V BasicType]() func(val string) (V, error) {

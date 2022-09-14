@@ -210,19 +210,23 @@ func (c *client[K, V]) with(opts []WriteOption) *client[K, V] {
 	return &c2
 }
 
-func (s *client[K, V]) key(k K) (string, error) {
+func (s *client[K, V]) key(k K, op string) (string, error) {
 	res := s.keyMapper(k)
 	if strings.HasPrefix(res, "__encore") {
-		return "", errors.New(`cache: use of reserved key prefix "encore"`)
+		return "", &OpError{
+			Operation: op,
+			RawKey:    res,
+			Err:       errors.New(`use of reserved key prefix "encore"`),
+		}
 	}
 	return res, nil
 }
 
-func (s *client[K, V]) keys(keys []K) ([]string, error) {
+func (s *client[K, V]) keys(keys []K, op string) ([]string, error) {
 	strs := make([]string, len(keys))
 	var err error
 	for i, k := range keys {
-		strs[i], err = s.key(k)
+		strs[i], err = s.key(k, op)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +255,7 @@ func (s *client[K, V]) valPtr(res string) (*V, error) {
 }
 
 func (s *client[K, V]) valOrNil(res string, err error) (*V, error) {
-	if err == redis.Nil || err == Nil {
+	if err == redis.Nil || errors.Is(err, Miss) {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
@@ -288,18 +292,24 @@ func (s *client[K, V]) expiryDur() time.Duration {
 	return exp
 }
 
-func toErr(err error) error {
-	if err == redis.Nil {
-		err = Nil
+func toErr(err error, op, key string) error {
+	if err == nil {
+		return nil
 	}
-	return err
+	if err == redis.Nil {
+		err = Miss
+	}
+
+	// Is it already an op error? if so, do nothing
+	if _, ok := err.(*OpError); ok {
+		return err
+	}
+
+	return &OpError{Operation: op, RawKey: key, Err: err}
 }
 
-func toErr2[T any](val T, err error) (T, error) {
-	if err == redis.Nil {
-		err = Nil
-	}
-	return val, err
+func toErr2[T any](val T, err error, op, key string) (T, error) {
+	return val, toErr(err, op, key)
 }
 
 func orDefault[T comparable](val, orDefault T) T {

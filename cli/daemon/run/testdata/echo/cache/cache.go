@@ -47,7 +47,7 @@ func PostStruct(ctx context.Context, key int, val string) error {
 //encore:api public method=GET path=/cache/struct/:key
 func GetStruct(ctx context.Context, key int) (StructVal, error) {
 	val, err := structs.Get(ctx, StructKey{Key: key, Dummy: "x"})
-	if err == cache.Nil {
+	if err == cache.Miss {
 		return StructVal{}, &errs.Error{Code: errs.NotFound}
 	} else if err != nil {
 		return StructVal{}, err

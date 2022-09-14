@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -28,13 +29,13 @@ func TestBasicKeyspace(t *testing.T) {
 	kt.Missing("one")
 
 	// Replace should fail if the key is missing
-	if err := ks.Replace(ctx, "one", "test"); err != Nil {
+	if err := ks.Replace(ctx, "one", "test"); !errors.Is(err, Miss) {
 		t.Errorf("replace: unexpected error: %v", err)
 	}
 	check(ks.SetIfNotExists(ctx, "one", "added"))
 
 	// Add should fail if the key is already present.
-	if err := ks.SetIfNotExists(ctx, "one", "added twice"); err != Nil {
+	if err := ks.SetIfNotExists(ctx, "one", "added twice"); !errors.Is(err, Miss) {
 		t.Errorf("add: unexpected error: %v", err)
 	}
 	kt.Val("one", "added")
@@ -166,7 +167,7 @@ func (t *stringTester) Set(key, val string) {
 func (t *stringTester) Val(key, want string) {
 	t.t.Helper()
 	if got, err := t.ks.Get(t.ctx, key); err != nil {
-		if err == Nil {
+		if err == Miss {
 			t.t.Errorf("key %s: key not in cache", key)
 		} else {
 			t.t.Errorf("key %s: got err %v, want nil", key, err)
@@ -191,7 +192,7 @@ func (t *stringTester) Missing(key string) {
 	t.t.Helper()
 	if _, err := t.ks.Get(t.ctx, key); err == nil {
 		t.t.Errorf("key %s: key still in cache", key)
-	} else if err != Nil {
-		t.t.Errorf("key %s: got err %v, want Nil", key, err)
+	} else if !errors.Is(err, Miss) {
+		t.t.Errorf("key %s: got err %v, want Miss", key, err)
 	}
 }

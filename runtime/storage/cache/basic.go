@@ -8,9 +8,6 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// TODO:
-// Multi-get, multi-set
-
 // NewStringKeyspace creates a keyspace that stores string values in the given cluster.
 //
 // The type parameter K specifies the key type, which can either be a
@@ -36,45 +33,55 @@ func (k *StringKeyspace[K]) With(opts ...WriteOption) *StringKeyspace[K] {
 }
 
 func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newLen int64, err error) {
-	k, err := s.key(key)
+	const op = "append"
+	k, err := s.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	res, err := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.Append(ctx, k, val)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64) (string, error) {
-	k, err := s.key(key)
+	const op = "get range"
+	k, err := s.key(key, op)
 	if err != nil {
 		return "", err
 	}
 
-	return toErr2(s.client.redis.GetRange(ctx, k, from, to).Result())
+	res, err := s.client.redis.GetRange(ctx, k, from, to).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string) (newLen int64, err error) {
-	k, err := s.key(key)
+	const op = "set range"
+	k, err := s.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	res, err := do[K, string, *redis.IntCmd](s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.SetRange(ctx, k, offset, val)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (int64, error) {
-	k, err := s.key(key)
+	const op = "len"
+	k, err := s.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	return toErr2(s.client.redis.StrLen(ctx, k).Result())
+	res, err := s.client.redis.StrLen(ctx, k).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func NewIntKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *IntKeyspace[K] {
@@ -97,27 +104,32 @@ func (k *IntKeyspace[K]) With(opts ...WriteOption) *IntKeyspace[K] {
 }
 
 func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (int64, error) {
-	k, err := s.key(key)
+	const op = "incr"
+	k, err := s.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	res, err := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.IncrBy(ctx, k, delta)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (int64, error) {
-	k, err := s.key(key)
+	const op = "decr"
+	k, err := s.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
+	res, err := do(s.client, ctx, k, func(c cmdable) *redis.IntCmd {
 		return c.DecrBy(ctx, k, delta)
-	})
-	return toErr2(res.Result())
+	}).Result()
+
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func NewFloatKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *FloatKeyspace[K] {
@@ -140,27 +152,31 @@ func (k *FloatKeyspace[K]) With(opts ...WriteOption) *FloatKeyspace[K] {
 }
 
 func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (float64, error) {
-	k, err := s.key(key)
+	const op = "incr"
+	k, err := s.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(s.client, ctx, k, func(c cmdable) *redis.FloatCmd {
+	res, err := do[K, float64, *redis.FloatCmd](s.client, ctx, k, func(c cmdable) *redis.FloatCmd {
 		return c.IncrByFloat(ctx, k, delta)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64) (float64, error) {
-	k, err := s.key(key)
+	const op = "decr"
+	k, err := s.key(key, op)
 	if err != nil {
 		return 0, err
 	}
 
-	res := do(s.client, ctx, k, func(c cmdable) *redis.FloatCmd {
+	res, err := do[K, float64, *redis.FloatCmd](s.client, ctx, k, func(c cmdable) *redis.FloatCmd {
 		return c.IncrByFloat(ctx, k, -delta)
-	})
-	return toErr2(res.Result())
+	}).Result()
+	err = toErr(err, op, k)
+	return res, err
 }
 
 type basicKeyspace[K, V any] struct {
@@ -172,56 +188,61 @@ func (s *basicKeyspace[K, V]) with(opts []WriteOption) *basicKeyspace[K, V] {
 }
 
 func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error) {
-	k, err := s.key(key)
+	const op = "get"
+	k, err := s.key(key, op)
 	if err != nil {
 		return val, err
 	}
 
-	res, err := toErr2(s.redis.Get(ctx, k).Result())
-	if err != nil {
-		return val, err
+	res, err := s.redis.Get(ctx, k).Result()
+	if err == nil {
+		val, err = s.fromRedis(res)
 	}
-	return s.fromRedis(res)
+	err = toErr(err, op, k)
+	return val, err
 }
 
 func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
-	_, err := s.set(ctx, key, val, 0)
+	_, err := s.set(ctx, key, val, 0, "set")
 	return err
 }
 
 func (s *basicKeyspace[K, V]) SetIfNotExists(ctx context.Context, key K, val V) error {
-	_, err := s.set(ctx, key, val, setNX)
+	_, err := s.set(ctx, key, val, setNX, "set if not exists")
 	return err
 }
 
 func (s *basicKeyspace[K, V]) Replace(ctx context.Context, key K, val V) error {
-	_, err := s.set(ctx, key, val, setXX)
+	_, err := s.set(ctx, key, val, setXX, "replace")
 	return err
 }
 
 func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V) (prev *V, err error) {
-	return s.valOrNil(s.set(ctx, key, val, setGet))
+	return s.valOrNil(s.set(ctx, key, val, setGet, "get and set"))
 }
 
 func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val *V, err error) {
-	k, err := s.key(key)
+	const op = "get and delete"
+	k, err := s.key(key, op)
 	if err != nil {
 		return nil, err
 	}
 
 	// When deleting we don't need to deal with expiry
-	res, err := toErr2(s.redis.GetDel(ctx, k).Result())
+	res, err := s.redis.GetDel(ctx, k).Result()
+	err = toErr(err, op, k)
 	return s.valOrNil(res, err)
 }
 
 func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K) error {
-	k, err := s.key(key)
+	const op = "delete"
+	k, err := s.key(key, op)
 	if err != nil {
 		return err
 	}
 
 	// When deleting we don't need to deal with expiry
-	return toErr(s.redis.Del(ctx, k).Err())
+	return toErr(s.redis.Del(ctx, k).Err(), op, k)
 }
 
 type setFlag uint8
@@ -232,8 +253,8 @@ const (
 	setXX
 )
 
-func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFlag) (string, error) {
-	k, err := s.key(key)
+func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFlag, op string) (string, error) {
+	k, err := s.key(key, op)
 	if err != nil {
 		return "", err
 	}
@@ -244,7 +265,7 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 
 	redisVal, err := s.toRedis(val)
 	if err != nil {
-		return "", err
+		return "", toErr(err, op, k)
 	}
 
 	args := make([]any, 3, 7)
@@ -286,12 +307,14 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 	if get {
 		cmd := redis.NewStringCmd(ctx, args...)
 		_ = s.redis.Process(ctx, cmd)
-		return toErr2(cmd.Result())
+		res, err := cmd.Result()
+		err = toErr(err, op, k)
+		return res, err
 	}
 
 	cmd := redis.NewStatusCmd(ctx, args...)
 	_ = s.redis.Process(ctx, cmd)
-	return "", toErr(cmd.Err())
+	return "", toErr(cmd.Err(), op, k)
 }
 
 func usePreciseDur(dur time.Duration) bool {

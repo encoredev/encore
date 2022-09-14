@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -97,8 +98,24 @@ type KeyspaceConfig struct {
 	EncoreInternal_KeyMapper any
 }
 
-// Nil is the error value reported when a key is missing from the cache.
-var Nil = errors.New("cache: nil")
+// An OpError describes the operation that failed.
+type OpError struct {
+	Operation string
+	RawKey    string
+	Err       error
+}
+
+func (e *OpError) Error() string {
+	return fmt.Sprintf("cache: %s %q: %v", e.Operation, e.RawKey, e.Err)
+}
+
+func (e *OpError) Unwrap() error {
+	return e.Err
+}
+
+// Miss is the error value reported when a key is missing from the cache.
+// It must be checked against with errors.Is.
+var Miss = errors.New("cache miss")
 
 // An WriteOption customizes the behavior of a single cache write operation.
 type WriteOption interface {
