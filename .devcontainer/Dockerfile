@@ -1,4 +1,4 @@
-FROM golang:1.16
+FROM golang:1.19
 
 RUN apt-get update && apt-get install -y sudo
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash - && \
