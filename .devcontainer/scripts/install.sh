@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-encore_uri=$(curl -sSf -N "https://encore.dev/api/releases?target=linux_amd64&show=url")
+target="$(go env GOOS)_$(go env GOARCH)"
+
+encore_uri=$(curl -sSf -N "https://encore.dev/api/releases?target=${target}&show=url")
 if [ ! "$encore_uri" ]; then
     echo "Error: Unable to determine latest Encore release." 1>&2
     exit 1
