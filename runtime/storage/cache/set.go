@@ -20,6 +20,11 @@ type SetKeyspace[K any, V BasicType] struct {
 	*client[K, V]
 }
 
+// With returns a reference to the same keyspace but with customized write options.
+// The primary use case is for overriding the expiration time for certain cache operations.
+//
+// It is intended to be used with method chaining:
+//		myKeyspace.With(cache.ExpireIn(3 * time.Second)).Set(...)
 func (k *SetKeyspace[K, V]) With(opts ...WriteOption) *SetKeyspace[K, V] {
 	return &SetKeyspace[K, V]{k.client.with(opts)}
 }

@@ -1,3 +1,7 @@
+// Package cache provides the ability to define distributed Redis cache clusters
+// and functionality to use them in a fully type-safe manner.
+//
+// For more information see https://encore.dev/docs/develop/caching
 package cache
 
 import (
@@ -116,6 +120,12 @@ func (e *OpError) Unwrap() error {
 // Miss is the error value reported when a key is missing from the cache.
 // It must be checked against with errors.Is.
 var Miss = errors.New("cache miss")
+
+// ErrExists is the error reported when a key already exists
+// and the requested operation is specified to only apply to
+// keys that do not already exist.
+// It must be checked against with errors.Is.
+var ErrExists = errors.New("key already exists")
 
 // An WriteOption customizes the behavior of a single cache write operation.
 type WriteOption interface {

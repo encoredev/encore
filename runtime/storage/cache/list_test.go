@@ -114,12 +114,12 @@ func (t *listTester) Trim(key string, from, to int) {
 
 func (t *listTester) Val(key string, want ...string) {
 	t.t.Helper()
-	got := must(t.ks.Slice(t.ctx, key, 0, -1))
+	got := must(t.ks.GetRange(t.ctx, key, 0, -1))
 	if !reflect.DeepEqual(got, want) {
 		t.t.Errorf("key %s: got %+v, want %+v", key, got, want)
 	}
 	num := must(t.ks.Len(t.ctx, key))
 	if num != int64(len(got)) {
-		t.t.Errorf("got len %d, expected %d (from slice)", num, len(got))
+		t.t.Errorf("got len %d, expected %d (from getRange)", num, len(got))
 	}
 }

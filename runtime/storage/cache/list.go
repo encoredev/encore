@@ -26,6 +26,11 @@ type ListKeyspace[K any, V BasicType] struct {
 	*client[K, V]
 }
 
+// With returns a reference to the same keyspace but with customized write options.
+// The primary use case is for overriding the expiration time for certain cache operations.
+//
+// It is intended to be used with method chaining:
+//		myKeyspace.With(cache.ExpireIn(3 * time.Second)).Set(...)
 func (k *ListKeyspace[K, V]) With(opts ...WriteOption) *ListKeyspace[K, V] {
 	return &ListKeyspace[K, V]{k.client.with(opts)}
 }
@@ -150,14 +155,14 @@ func (l *ListKeyspace[K, V]) Get(ctx context.Context, key K, idx int64) (val V, 
 }
 
 func (l *ListKeyspace[K, V]) Items(ctx context.Context, key K) ([]V, error) {
-	return l.slice(ctx, key, 0, -1, "items")
+	return l.getRange(ctx, key, 0, -1, "items")
 }
 
-func (l *ListKeyspace[K, V]) Slice(ctx context.Context, key K, from, to int64) ([]V, error) {
-	return l.slice(ctx, key, from, to, "slice")
+func (l *ListKeyspace[K, V]) GetRange(ctx context.Context, key K, from, to int64) ([]V, error) {
+	return l.getRange(ctx, key, from, to, "get range")
 }
 
-func (l *ListKeyspace[K, V]) slice(ctx context.Context, key K, from, to int64, op string) ([]V, error) {
+func (l *ListKeyspace[K, V]) getRange(ctx context.Context, key K, from, to int64, op string) ([]V, error) {
 	k, err := l.key(key, op)
 	if err != nil {
 		return nil, err

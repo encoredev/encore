@@ -35,7 +35,7 @@ func TestBasicKeyspace(t *testing.T) {
 	check(ks.SetIfNotExists(ctx, "one", "added"))
 
 	// Add should fail if the key is already present.
-	if err := ks.SetIfNotExists(ctx, "one", "added twice"); !errors.Is(err, Miss) {
+	if err := ks.SetIfNotExists(ctx, "one", "added twice"); !errors.Is(err, ErrExists) {
 		t.Errorf("add: unexpected error: %v", err)
 	}
 	kt.Val("one", "added")
@@ -44,12 +44,12 @@ func TestBasicKeyspace(t *testing.T) {
 	kt.Val("one", "replaced")
 
 	old := must(ks.GetAndSet(ctx, "one", "updated"))
-	if old == nil || *old != "replaced" {
+	if old != "replaced" {
 		t.Errorf("get and set: want old value %q, got %v", "replaced", old)
 	}
 
 	old = must(ks.GetAndDelete(ctx, "one"))
-	if old == nil || *old != "updated" {
+	if old != "updated" {
 		t.Errorf("get and delete: want old value %q, got %v", "updated", old)
 	}
 	kt.Missing("one")
@@ -68,8 +68,15 @@ func TestStringKeyspace(t *testing.T) {
 		t.Errorf("append: got resulting length %d, want %d", newLen, len(want))
 	}
 
-	newLen = must(ks.SetRange(ctx, "one", 6, "charlie"))
-	want = "alpha charlie"
+	newLen = must(ks.SetRange(ctx, "one", 6, "ch"))
+	want = "alpha chavo"
+	kt.Val("one", want)
+	if newLen != int64(len(want)) {
+		t.Errorf("setrange: got resulting length %d, want %d", newLen, len(want))
+	}
+
+	newLen = must(ks.SetRange(ctx, "one", 13, "pad"))
+	want = "alpha chavo\x00\x00pad"
 	kt.Val("one", want)
 	if newLen != int64(len(want)) {
 		t.Errorf("setrange: got resulting length %d, want %d", newLen, len(want))

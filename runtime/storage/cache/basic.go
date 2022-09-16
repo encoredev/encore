@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -28,10 +29,65 @@ type StringKeyspace[K any] struct {
 	*basicKeyspace[K, string]
 }
 
-func (k *StringKeyspace[K]) With(opts ...WriteOption) *StringKeyspace[K] {
-	return &StringKeyspace[K]{k.basicKeyspace.with(opts)}
+// Get gets the value stored at key.
+// If the key does not exist, it returns an error matching Miss.
+func (s *StringKeyspace[K]) Get(ctx context.Context, key K) (string, error) {
+	return s.basicKeyspace.Get(ctx, key)
 }
 
+// Set updates the value stored at key to val.
+// If the key does not exist, it returns an error matching Miss.
+func (s *StringKeyspace[K]) Set(ctx context.Context, key K, val string) error {
+	return s.basicKeyspace.Set(ctx, key, val)
+}
+
+// SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
+// If the key already exists, it reports an error matching ErrExists.
+func (s *StringKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val string) error {
+	return s.basicKeyspace.SetIfNotExists(ctx, key, val)
+}
+
+// Replace replaces the existing value stored at key to val.
+// If the key does not already exist, it reports an error matching Miss.
+func (s *StringKeyspace[K]) Replace(ctx context.Context, key K, val string) error {
+	return s.basicKeyspace.Replace(ctx, key, val)
+}
+
+// GetAndSet updates the value of key to val and returns the previously stored value.
+// If the key does not already exist, it sets it and returns "", nil.
+func (s *StringKeyspace[K]) GetAndSet(ctx context.Context, key K, val string) (oldVal string, err error) {
+	return s.basicKeyspace.GetAndSet(ctx, key, val)
+}
+
+// GetAndDelete deletes the key and returns the previously stored value.
+// If the key does not already exist, it does nothing and returns "", nil.
+func (s *StringKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal string, err error) {
+	return s.basicKeyspace.GetAndDelete(ctx, key)
+}
+
+// Delete deletes the key.
+// If the key does not already exist it returns nil.
+func (s *StringKeyspace[K]) Delete(ctx context.Context, key K) error {
+	return s.basicKeyspace.Delete(ctx, key)
+}
+
+// With returns a reference to the same keyspace but with customized write options.
+// The primary use case is for overriding the expiration time for certain cache operations.
+//
+// It is intended to be used with method chaining:
+//		myKeyspace.With(cache.ExpireIn(3 * time.Second)).Set(...)
+func (k *StringKeyspace[K]) With(opts ...WriteOption) *StringKeyspace[K] {
+	return &StringKeyspace[K]{k.with(opts)}
+}
+
+// Append appends to the string with the given key.
+//
+// If the key does not exist it is first created and set as the empty string,
+// causing Append to behave like Set.
+//
+// It returns the new string length.
+//
+// See https://redis.io/commands/append/ for more information.
 func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newLen int64, err error) {
 	const op = "append"
 	k, err := s.key(key, op)
@@ -46,6 +102,18 @@ func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newL
 	return res, err
 }
 
+// GetRange returns a substring of the string value stored in key.
+//
+// The from and to values are zero-based indices, but unlike Go slicing
+// the 'to' value is inclusive.
+//
+// Negative values can be used in order to provide an offset starting
+// from the end of the string, so -1 means the last character
+// and -len(str) the first character, and so forth.
+//
+// If the string does not exist it returns the empty string.
+//
+// See https://redis.io/commands/setrange/ for more information.
 func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64) (string, error) {
 	const op = "get range"
 	k, err := s.key(key, op)
@@ -58,6 +126,16 @@ func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64)
 	return res, err
 }
 
+// SetRange overwrites part of the string stored at key, starting at
+// the zero-based offset and for the entire length of val, extending
+// the string if necessary to make room for val.
+//
+// If the offset is larger than the current string length stored at key,
+// the string is first padded with zero-bytes to make offset fit.
+//
+// Non-existing keys are considered as empty strings.
+//
+// See https://redis.io/commands/setrange/ for more information.
 func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string) (newLen int64, err error) {
 	const op = "set range"
 	k, err := s.key(key, op)
@@ -72,6 +150,11 @@ func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, v
 	return res, err
 }
 
+// Len reports the length of the string value stored at key.
+//
+// Non-existing keys are considered as empty strings.
+//
+// See https://redis.io/commands/strlen/ for more information.
 func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (int64, error) {
 	const op = "len"
 	k, err := s.key(key, op)
@@ -84,6 +167,10 @@ func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (int64, error) {
 	return res, err
 }
 
+// NewIntKeyspace creates a keyspace that stores int64 values in the given cluster.
+//
+// The type parameter K specifies the key type, which can either be a
+// named struct type or a basic type (string, int, etc).
 func NewIntKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *IntKeyspace[K] {
 	fromRedis := func(val string) (int64, error) { return strconv.ParseInt(val, 10, 64) }
 	toRedis := func(val int64) (any, error) { return val, nil }
@@ -95,15 +182,73 @@ func NewIntKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *IntKeyspace[K]
 	}
 }
 
+// IntKeyspace is a cache keyspace that stores int64 values.
 type IntKeyspace[K any] struct {
 	*basicKeyspace[K, int64]
 }
 
+// With returns a reference to the same keyspace but with customized write options.
+// The primary use case is for overriding the expiration time for certain cache operations.
+//
+// It is intended to be used with method chaining:
+//		myKeyspace.With(cache.ExpireIn(3 * time.Second)).Set(...)
 func (k *IntKeyspace[K]) With(opts ...WriteOption) *IntKeyspace[K] {
 	return &IntKeyspace[K]{k.basicKeyspace.with(opts)}
 }
 
-func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (int64, error) {
+// Get gets the value stored at key.
+// If the key does not exist, it returns an error matching Miss.
+func (s *IntKeyspace[K]) Get(ctx context.Context, key K) (int64, error) {
+	return s.basicKeyspace.Get(ctx, key)
+}
+
+// Set updates the value stored at key to val.
+// If the key does not exist, it returns an error matching Miss.
+func (s *IntKeyspace[K]) Set(ctx context.Context, key K, val int64) error {
+	return s.basicKeyspace.Set(ctx, key, val)
+}
+
+// SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
+// If the key already exists, it reports an error matching ErrExists.
+func (s *IntKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val int64) error {
+	return s.basicKeyspace.SetIfNotExists(ctx, key, val)
+}
+
+// Replace replaces the existing value stored at key to val.
+// If the key does not already exist, it reports an error matching Miss.
+func (s *IntKeyspace[K]) Replace(ctx context.Context, key K, val int64) error {
+	return s.basicKeyspace.Replace(ctx, key, val)
+}
+
+// GetAndSet updates the value of key to val and returns the previously stored value.
+// If the key does not already exist, it sets it and returns 0, nil.
+func (s *IntKeyspace[K]) GetAndSet(ctx context.Context, key K, val int64) (oldVal int64, err error) {
+	return s.basicKeyspace.GetAndSet(ctx, key, val)
+}
+
+// GetAndDelete deletes the key and returns the previously stored value.
+// If the key does not already exist, it does nothing and returns 0, nil.
+func (s *IntKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal int64, err error) {
+	return s.basicKeyspace.GetAndDelete(ctx, key)
+}
+
+// Delete deletes the key.
+// If the key does not already exist it returns nil.
+func (s *IntKeyspace[K]) Delete(ctx context.Context, key K) error {
+	return s.basicKeyspace.Delete(ctx, key)
+}
+
+// Incr increments the number stored in key by delta,
+// and returns the new value.
+//
+// If the key does not exist it is first created with a value of 0
+// before incrementing.
+//
+// Negative values can be used to decrease the value,
+// but typically you want to use the Decr method for that.
+//
+// See https://redis.io/commands/incrby/ for more information.
+func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (newVal int64, err error) {
 	const op = "incr"
 	k, err := s.key(key, op)
 	if err != nil {
@@ -117,7 +262,17 @@ func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (int64, e
 	return res, err
 }
 
-func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (int64, error) {
+// Decr decrements the number stored in key by delta,
+// and returns the new value.
+//
+// If the key does not exist it is first created with a value of 0
+// before decrementing.
+//
+// Negative values can be used to increase the value,
+// but typically you want to use the Incr method for that.
+//
+// See https://redis.io/commands/decrby/ for more information.
+func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (newVal int64, err error) {
 	const op = "decr"
 	k, err := s.key(key, op)
 	if err != nil {
@@ -132,6 +287,10 @@ func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (int64, e
 	return res, err
 }
 
+// NewFloatKeyspace creates a keyspace that stores float64 values in the given cluster.
+//
+// The type parameter K specifies the key type, which can either be a
+// named struct type or a basic type (string, int, etc).
 func NewFloatKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *FloatKeyspace[K] {
 	fromRedis := func(val string) (float64, error) { return strconv.ParseFloat(val, 64) }
 	toRedis := func(val float64) (any, error) { return val, nil }
@@ -143,15 +302,73 @@ func NewFloatKeyspace[K any](cluster *Cluster, cfg KeyspaceConfig) *FloatKeyspac
 	}
 }
 
+// FloatKeyspace is a cache keyspace that stores float64 values.
 type FloatKeyspace[K any] struct {
 	*basicKeyspace[K, float64]
 }
 
+// With returns a reference to the same keyspace but with customized write options.
+// The primary use case is for overriding the expiration time for certain cache operations.
+//
+// It is intended to be used with method chaining:
+//		myKeyspace.With(cache.ExpireIn(3 * time.Second)).Set(...)
 func (k *FloatKeyspace[K]) With(opts ...WriteOption) *FloatKeyspace[K] {
 	return &FloatKeyspace[K]{k.basicKeyspace.with(opts)}
 }
 
-func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (float64, error) {
+// Get gets the value stored at key.
+// If the key does not exist, it returns an error matching Miss.
+func (s *FloatKeyspace[K]) Get(ctx context.Context, key K) (float64, error) {
+	return s.basicKeyspace.Get(ctx, key)
+}
+
+// Set updates the value stored at key to val.
+// If the key does not exist, it returns an error matching Miss.
+func (s *FloatKeyspace[K]) Set(ctx context.Context, key K, val float64) error {
+	return s.basicKeyspace.Set(ctx, key, val)
+}
+
+// SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
+// If the key already exists, it reports an error matching ErrExists.
+func (s *FloatKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val float64) error {
+	return s.basicKeyspace.SetIfNotExists(ctx, key, val)
+}
+
+// Replace replaces the existing value stored at key to val.
+// If the key does not already exist, it reports an error matching Miss.
+func (s *FloatKeyspace[K]) Replace(ctx context.Context, key K, val float64) error {
+	return s.basicKeyspace.Replace(ctx, key, val)
+}
+
+// GetAndSet updates the value of key to val and returns the previously stored value.
+// If the key does not already exist, it sets it and returns 0, nil.
+func (s *FloatKeyspace[K]) GetAndSet(ctx context.Context, key K, val float64) (oldVal float64, err error) {
+	return s.basicKeyspace.GetAndSet(ctx, key, val)
+}
+
+// GetAndDelete deletes the key and returns the previously stored value.
+// If the key does not already exist, it does nothing and returns 0, nil.
+func (s *FloatKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal float64, err error) {
+	return s.basicKeyspace.GetAndDelete(ctx, key)
+}
+
+// Delete deletes the key.
+// If the key does not already exist it returns nil.
+func (s *FloatKeyspace[K]) Delete(ctx context.Context, key K) error {
+	return s.basicKeyspace.Delete(ctx, key)
+}
+
+// Incr increments the number stored in key by delta,
+// and returns the new value.
+//
+// If the key does not exist it is first created with a value of 0
+// before incrementing.
+//
+// Negative values can be used to decrease the value,
+// but typically you want to use the Decr method for that.
+//
+// See https://redis.io/commands/incrbyfloat/ for more information.
+func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (newVal float64, err error) {
 	const op = "incr"
 	k, err := s.key(key, op)
 	if err != nil {
@@ -165,7 +382,17 @@ func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (floa
 	return res, err
 }
 
-func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64) (float64, error) {
+// Decr decrements the number stored in key by delta,
+// and returns the new value.
+//
+// If the key does not exist it is first created with a value of 0
+// before decrementing.
+//
+// Negative values can be used to increase the value,
+// but typically you want to use the Incr method for that.
+//
+// See https://redis.io/commands/incrbyfloat/ for more information.
+func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64) (newVal float64, err error) {
 	const op = "decr"
 	k, err := s.key(key, op)
 	if err != nil {
@@ -203,35 +430,49 @@ func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error)
 }
 
 func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
-	_, err := s.set(ctx, key, val, 0, "set")
+	_, _, err := s.set(ctx, key, val, 0, "set")
 	return err
 }
 
 func (s *basicKeyspace[K, V]) SetIfNotExists(ctx context.Context, key K, val V) error {
-	_, err := s.set(ctx, key, val, setNX, "set if not exists")
+	const op = "set if not exists"
+	_, k, err := s.set(ctx, key, val, setNX, op)
+	// Convert Miss to ErrExists.
+	if errors.Is(err, Miss) {
+		err = toErr(ErrExists, op, k)
+	}
 	return err
 }
 
 func (s *basicKeyspace[K, V]) Replace(ctx context.Context, key K, val V) error {
-	_, err := s.set(ctx, key, val, setXX, "replace")
+	_, _, err := s.set(ctx, key, val, setXX, "replace")
 	return err
 }
 
-func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V) (prev *V, err error) {
-	return s.valOrNil(s.set(ctx, key, val, setGet, "get and set"))
+func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V) (prev V, err error) {
+	const op = "get and set"
+	res, k, err := s.set(ctx, key, val, setGet, op)
+	if err == nil {
+		val, err = s.fromRedis(res)
+		err = toErr(err, op, k)
+	}
+	return val, err
 }
 
-func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val *V, err error) {
+func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val V, err error) {
 	const op = "get and delete"
 	k, err := s.key(key, op)
 	if err != nil {
-		return nil, err
+		return val, err
 	}
 
 	// When deleting we don't need to deal with expiry
 	res, err := s.redis.GetDel(ctx, k).Result()
+	if err == nil {
+		val, err = s.fromRedis(res)
+	}
 	err = toErr(err, op, k)
-	return s.valOrNil(res, err)
+	return val, err
 }
 
 func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K) error {
@@ -253,10 +494,10 @@ const (
 	setXX
 )
 
-func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFlag, op string) (string, error) {
-	k, err := s.key(key, op)
+func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFlag, op string) (strVal, k string, err error) {
+	k, err = s.key(key, op)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	get := (flag & setGet) == setGet
@@ -265,7 +506,7 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 
 	redisVal, err := s.toRedis(val)
 	if err != nil {
-		return "", toErr(err, op, k)
+		return "", k, toErr(err, op, k)
 	}
 
 	args := make([]any, 3, 7)
@@ -309,12 +550,12 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 		_ = s.redis.Process(ctx, cmd)
 		res, err := cmd.Result()
 		err = toErr(err, op, k)
-		return res, err
+		return res, k, err
 	}
 
 	cmd := redis.NewStatusCmd(ctx, args...)
 	_ = s.redis.Process(ctx, cmd)
-	return "", toErr(cmd.Err(), op, k)
+	return "", k, toErr(cmd.Err(), op, k)
 }
 
 func usePreciseDur(dur time.Duration) bool {
