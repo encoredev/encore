@@ -65,6 +65,10 @@ func TestListKeyspace(t *testing.T) {
 	kt.Val("one", "d", "e", "f", "d")
 	must(ks.RemoveAll(ctx, "one", "d"))
 	kt.Val("one", "e", "f")
+
+	kt.PushLeft("one", "a", "b")
+	kt.PushRight("one", "c", "d")
+	kt.Val("one", "b", "a", "e", "f", "c", "d")
 }
 
 func newListTest(t *testing.T) *listTester {
@@ -83,18 +87,18 @@ type listTester struct {
 	srv *miniredis.Miniredis
 }
 
-func (t *listTester) PushLeft(key, val string) int64 {
+func (t *listTester) PushLeft(key string, val ...string) int64 {
 	t.t.Helper()
-	newLen, err := t.ks.PushLeft(t.ctx, key, val)
+	newLen, err := t.ks.PushLeft(t.ctx, key, val...)
 	if err != nil {
 		t.t.Errorf("LPush(%q, %q) = %v, want nil", key, val, err)
 	}
 	return newLen
 }
 
-func (t *listTester) PushRight(key, val string) int64 {
+func (t *listTester) PushRight(key string, val ...string) int64 {
 	t.t.Helper()
-	newLen, err := t.ks.PushRight(t.ctx, key, val)
+	newLen, err := t.ks.PushRight(t.ctx, key, val...)
 	if err != nil {
 		t.t.Errorf("RPush(%q, %q) = %v, want nil", key, val, err)
 	}

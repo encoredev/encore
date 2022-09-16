@@ -31,42 +31,55 @@ type StringKeyspace[K any] struct {
 
 // Get gets the value stored at key.
 // If the key does not exist, it returns an error matching Miss.
+//
+// See https://redis.io/commands/get/ for more information.
 func (s *StringKeyspace[K]) Get(ctx context.Context, key K) (string, error) {
 	return s.basicKeyspace.Get(ctx, key)
 }
 
 // Set updates the value stored at key to val.
-// If the key does not exist, it returns an error matching Miss.
+//
+// See https://redis.io/commands/set/ for more information.
 func (s *StringKeyspace[K]) Set(ctx context.Context, key K, val string) error {
 	return s.basicKeyspace.Set(ctx, key, val)
 }
 
 // SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
 // If the key already exists, it reports an error matching ErrExists.
+//
+// See https://redis.io/commands/setnx/ for more information.
 func (s *StringKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val string) error {
 	return s.basicKeyspace.SetIfNotExists(ctx, key, val)
 }
 
 // Replace replaces the existing value stored at key to val.
 // If the key does not already exist, it reports an error matching Miss.
+//
+// See https://redis.io/commands/set/ for more information.
 func (s *StringKeyspace[K]) Replace(ctx context.Context, key K, val string) error {
 	return s.basicKeyspace.Replace(ctx, key, val)
 }
 
 // GetAndSet updates the value of key to val and returns the previously stored value.
 // If the key does not already exist, it sets it and returns "", nil.
+//
+// See https://redis.io/commands/getset/ for more information.
 func (s *StringKeyspace[K]) GetAndSet(ctx context.Context, key K, val string) (oldVal string, err error) {
 	return s.basicKeyspace.GetAndSet(ctx, key, val)
 }
 
 // GetAndDelete deletes the key and returns the previously stored value.
 // If the key does not already exist, it does nothing and returns "", nil.
+//
+// See https://redis.io/commands/getdel/ for more information.
 func (s *StringKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal string, err error) {
 	return s.basicKeyspace.GetAndDelete(ctx, key)
 }
 
 // Delete deletes the key.
-// If the key does not already exist it returns nil.
+// If the key does not exist it returns nil.
+//
+// See https://redis.io/commands/del/ for more information.
 func (s *StringKeyspace[K]) Delete(ctx context.Context, key K) error {
 	return s.basicKeyspace.Delete(ctx, key)
 }
@@ -198,42 +211,55 @@ func (k *IntKeyspace[K]) With(opts ...WriteOption) *IntKeyspace[K] {
 
 // Get gets the value stored at key.
 // If the key does not exist, it returns an error matching Miss.
+//
+// See https://redis.io/commands/get/ for more information.
 func (s *IntKeyspace[K]) Get(ctx context.Context, key K) (int64, error) {
 	return s.basicKeyspace.Get(ctx, key)
 }
 
 // Set updates the value stored at key to val.
-// If the key does not exist, it returns an error matching Miss.
+//
+// See https://redis.io/commands/set/ for more information.
 func (s *IntKeyspace[K]) Set(ctx context.Context, key K, val int64) error {
 	return s.basicKeyspace.Set(ctx, key, val)
 }
 
 // SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
 // If the key already exists, it reports an error matching ErrExists.
+//
+// See https://redis.io/commands/setnx/ for more information.
 func (s *IntKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val int64) error {
 	return s.basicKeyspace.SetIfNotExists(ctx, key, val)
 }
 
 // Replace replaces the existing value stored at key to val.
 // If the key does not already exist, it reports an error matching Miss.
+//
+// See https://redis.io/commands/set/ for more information.
 func (s *IntKeyspace[K]) Replace(ctx context.Context, key K, val int64) error {
 	return s.basicKeyspace.Replace(ctx, key, val)
 }
 
 // GetAndSet updates the value of key to val and returns the previously stored value.
 // If the key does not already exist, it sets it and returns 0, nil.
+//
+// See https://redis.io/commands/getset/ for more information.
 func (s *IntKeyspace[K]) GetAndSet(ctx context.Context, key K, val int64) (oldVal int64, err error) {
 	return s.basicKeyspace.GetAndSet(ctx, key, val)
 }
 
 // GetAndDelete deletes the key and returns the previously stored value.
 // If the key does not already exist, it does nothing and returns 0, nil.
+//
+// See https://redis.io/commands/getdel/ for more information.
 func (s *IntKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal int64, err error) {
 	return s.basicKeyspace.GetAndDelete(ctx, key)
 }
 
 // Delete deletes the key.
-// If the key does not already exist it returns nil.
+// If the key does not exist it returns nil.
+//
+// See https://redis.io/commands/del/ for more information.
 func (s *IntKeyspace[K]) Delete(ctx context.Context, key K) error {
 	return s.basicKeyspace.Delete(ctx, key)
 }
@@ -318,42 +344,55 @@ func (k *FloatKeyspace[K]) With(opts ...WriteOption) *FloatKeyspace[K] {
 
 // Get gets the value stored at key.
 // If the key does not exist, it returns an error matching Miss.
+//
+// See https://redis.io/commands/get/ for more information.
 func (s *FloatKeyspace[K]) Get(ctx context.Context, key K) (float64, error) {
 	return s.basicKeyspace.Get(ctx, key)
 }
 
 // Set updates the value stored at key to val.
-// If the key does not exist, it returns an error matching Miss.
+//
+// See https://redis.io/commands/set/ for more information.
 func (s *FloatKeyspace[K]) Set(ctx context.Context, key K, val float64) error {
 	return s.basicKeyspace.Set(ctx, key, val)
 }
 
 // SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
 // If the key already exists, it reports an error matching ErrExists.
+//
+// See https://redis.io/commands/setnx/ for more information.
 func (s *FloatKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val float64) error {
 	return s.basicKeyspace.SetIfNotExists(ctx, key, val)
 }
 
 // Replace replaces the existing value stored at key to val.
 // If the key does not already exist, it reports an error matching Miss.
+//
+// See https://redis.io/commands/set/ for more information.
 func (s *FloatKeyspace[K]) Replace(ctx context.Context, key K, val float64) error {
 	return s.basicKeyspace.Replace(ctx, key, val)
 }
 
 // GetAndSet updates the value of key to val and returns the previously stored value.
 // If the key does not already exist, it sets it and returns 0, nil.
+//
+// See https://redis.io/commands/getset/ for more information.
 func (s *FloatKeyspace[K]) GetAndSet(ctx context.Context, key K, val float64) (oldVal float64, err error) {
 	return s.basicKeyspace.GetAndSet(ctx, key, val)
 }
 
 // GetAndDelete deletes the key and returns the previously stored value.
 // If the key does not already exist, it does nothing and returns 0, nil.
+//
+// See https://redis.io/commands/getdel/ for more information.
 func (s *FloatKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal float64, err error) {
 	return s.basicKeyspace.GetAndDelete(ctx, key)
 }
 
 // Delete deletes the key.
-// If the key does not already exist it returns nil.
+// If the key does not exist it returns nil.
+//
+// See https://redis.io/commands/del/ for more information.
 func (s *FloatKeyspace[K]) Delete(ctx context.Context, key K) error {
 	return s.basicKeyspace.Delete(ctx, key)
 }
