@@ -136,11 +136,7 @@ func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident 
 		}
 	}
 
-	if !cfg.IsSet("EvictionPolicy") {
-		p.errf(callExpr.Args[1].Pos(), "cache.ClusterConfig requires the \"EvictionPolicy\" field to be set")
-		return nil
-	}
-	evictionPolicy := cfg.Str("EvictionPolicy", "")
+	evictionPolicy := cfg.Str("EvictionPolicy", string(cache.AllKeysLRU))
 	switch cache.EvictionPolicy(evictionPolicy) {
 	case cache.AllKeysLRU, cache.AllKeysLFU, cache.AllKeysRandom, cache.VolatileLRU,
 		cache.VolatileLFU, cache.VolatileTTL, cache.VolatileRandom, cache.NoEviction:
