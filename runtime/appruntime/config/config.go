@@ -238,7 +238,7 @@ type RedisServer struct {
 }
 
 type RedisDatabase struct {
-	ServerID   int    `json:"server_id"`   // the index into (*Runtime).SQLServers
+	ServerID   int    `json:"server_id"`   // the index into (*Runtime).RedisServers
 	EncoreName string `json:"encore_name"` // the Encore name for the database
 
 	// Database is the database index to use, from 0-15.
@@ -256,5 +256,5 @@ type RedisDatabase struct {
 	// for this database. It exists to enable multiple cache clusters
 	// to use the same physical Redis database for local development
 	// without having to coordinate and persist database index ids.
-	KeyPrefix string
+	KeyPrefix string `json:"key_prefix"`
 }
