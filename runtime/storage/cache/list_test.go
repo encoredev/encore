@@ -60,6 +60,11 @@ func TestListKeyspace(t *testing.T) {
 		t.Errorf("move: got %q, want %q", got, want)
 	}
 	kt.Val("one", "d", "e", "f")
+
+	kt.PushRight("one", "d")
+	kt.Val("one", "d", "e", "f", "d")
+	must(ks.RemoveAll(ctx, "one", "d"))
+	kt.Val("one", "e", "f")
 }
 
 func newListTest(t *testing.T) *listTester {

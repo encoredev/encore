@@ -102,6 +102,19 @@ func TestSets(t *testing.T) {
 		}
 		kt.Val("U3", want...)
 	}
+
+	{
+		kt.Add("M1", "a", "b", "c")
+		kt.Add("M2", "a")
+
+		must(ks.Move(ctx, "M1", "M2", "a"))
+		kt.Val("M1", "b", "c")
+		kt.Val("M2", "a")
+
+		must(ks.Move(ctx, "M1", "M2", "b"))
+		kt.Val("M1", "c")
+		kt.Val("M2", "a", "b")
+	}
 }
 
 func checkSorted(t *testing.T, got []string, want ...string) {
