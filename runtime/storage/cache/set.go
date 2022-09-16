@@ -38,6 +38,17 @@ func (k *SetKeyspace[K, V]) With(opts ...WriteOption) *SetKeyspace[K, V] {
 	return &SetKeyspace[K, V]{k.client.with(opts)}
 }
 
+// Delete deletes the specified keys.
+//
+// If a key does not exist it is ignored.
+//
+// It reports the number of keys that were deleted.
+//
+// See https://redis.io/commands/del/ for more information.
+func (s *SetKeyspace[K, V]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
+	return s.client.Delete(ctx, keys...)
+}
+
 // Add adds one or more values to the set stored at key.
 // If the key does not already exist, it is first created as an empty set.
 //

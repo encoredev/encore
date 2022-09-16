@@ -46,6 +46,17 @@ func (k *ListKeyspace[K, V]) With(opts ...WriteOption) *ListKeyspace[K, V] {
 	return &ListKeyspace[K, V]{k.client.with(opts)}
 }
 
+// Delete deletes the specified keys.
+//
+// If a key does not exist it is ignored.
+//
+// It reports the number of keys that were deleted.
+//
+// See https://redis.io/commands/del/ for more information.
+func (s *ListKeyspace[K, V]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
+	return s.client.Delete(ctx, keys...)
+}
+
 // PushLeft pushes one or more values at the head of the list stored at key.
 // If the key does not already exist, it is first created as an empty list.
 //

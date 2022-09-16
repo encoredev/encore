@@ -87,10 +87,13 @@ func (s *StructKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (oldVal 
 	return s.basicKeyspace.GetAndDelete(ctx, key)
 }
 
-// Delete deletes the key.
-// If the key does not already exist it returns nil.
+// Delete deletes the specified keys.
+//
+// If a key does not exist it is ignored.
+//
+// It reports the number of keys that were deleted.
 //
 // See https://redis.io/commands/del/ for more information.
-func (s *StructKeyspace[K, V]) Delete(ctx context.Context, key K) error {
-	return s.basicKeyspace.Delete(ctx, key)
+func (s *StructKeyspace[K, V]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
+	return s.client.Delete(ctx, keys...)
 }

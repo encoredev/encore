@@ -25,7 +25,7 @@ func TestBasicKeyspace(t *testing.T) {
 
 	kt.Set("one", "delta")
 	kt.Val("one", "delta")
-	check(ks.Delete(ctx, "one"))
+	must(ks.Delete(ctx, "one"))
 	kt.Missing("one")
 
 	// Replace should fail if the key is missing

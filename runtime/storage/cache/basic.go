@@ -76,12 +76,15 @@ func (s *StringKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal str
 	return s.basicKeyspace.GetAndDelete(ctx, key)
 }
 
-// Delete deletes the key.
-// If the key does not exist it returns nil.
+// Delete deletes the specified keys.
+//
+// If a key does not exist it is ignored.
+//
+// It reports the number of keys that were deleted.
 //
 // See https://redis.io/commands/del/ for more information.
-func (s *StringKeyspace[K]) Delete(ctx context.Context, key K) error {
-	return s.basicKeyspace.Delete(ctx, key)
+func (s *StringKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
+	return s.client.Delete(ctx, keys...)
 }
 
 // With returns a reference to the same keyspace but with customized write options.
@@ -256,12 +259,15 @@ func (s *IntKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal int64,
 	return s.basicKeyspace.GetAndDelete(ctx, key)
 }
 
-// Delete deletes the key.
-// If the key does not exist it returns nil.
+// Delete deletes the specified keys.
+//
+// If a key does not exist it is ignored.
+//
+// It reports the number of keys that were deleted.
 //
 // See https://redis.io/commands/del/ for more information.
-func (s *IntKeyspace[K]) Delete(ctx context.Context, key K) error {
-	return s.basicKeyspace.Delete(ctx, key)
+func (s *IntKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
+	return s.client.Delete(ctx, keys...)
 }
 
 // Incr increments the number stored in key by delta,
@@ -389,12 +395,15 @@ func (s *FloatKeyspace[K]) GetAndDelete(ctx context.Context, key K) (oldVal floa
 	return s.basicKeyspace.GetAndDelete(ctx, key)
 }
 
-// Delete deletes the key.
-// If the key does not exist it returns nil.
+// Delete deletes the specified keys.
+//
+// If a key does not exist it is ignored.
+//
+// It reports the number of keys that were deleted.
 //
 // See https://redis.io/commands/del/ for more information.
-func (s *FloatKeyspace[K]) Delete(ctx context.Context, key K) error {
-	return s.basicKeyspace.Delete(ctx, key)
+func (s *FloatKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
+	return s.client.Delete(ctx, keys...)
 }
 
 // Incr increments the number stored in key by delta,
@@ -514,15 +523,22 @@ func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val V, e
 	return val, err
 }
 
-func (s *basicKeyspace[K, V]) Delete(ctx context.Context, key K) error {
+func (s *client[K, V]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
 	const op = "delete"
-	k, err := s.key(key, op)
+	ks, err := s.keys(keys, op)
 	if err != nil {
-		return err
+		return 0, err
+	}
+
+	var firstKey string
+	if len(ks) > 0 {
+		firstKey = ks[0]
 	}
 
 	// When deleting we don't need to deal with expiry
-	return toErr(s.redis.Del(ctx, k).Err(), op, k)
+	res, err := s.redis.Del(ctx, ks...).Result()
+	err = toErr(err, op, firstKey)
+	return int(res), err
 }
 
 type setFlag uint8
