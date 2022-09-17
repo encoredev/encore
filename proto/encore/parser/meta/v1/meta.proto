@@ -130,6 +130,7 @@ message TraceNode {
     PubSubSubscriberNode pubsub_subscriber = 16;
     ServiceInitNode      service_init      = 17;
     MiddlewareDefNode    middleware_def    = 18;
+    CacheKeyspaceDefNode cache_keyspace    = 19;
   }
 }
 
@@ -190,6 +191,13 @@ message MiddlewareDefNode {
   string name              = 2;
   string context           = 3;
   repeated Selector target = 4;
+}
+
+message CacheKeyspaceDefNode {
+  string pkg_rel_path = 1;
+  string var_name     = 2;
+  string cluster_name = 3;
+  string context      = 4;
 }
 
 message Path {

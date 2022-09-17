@@ -93,6 +93,11 @@ type KeyspaceConfig struct {
 	// an ExpiryFunc or KeepTTL as a WriteOption to a specific operation.
 	DefaultExpiry ExpiryFunc
 
+	// EncoreInternal_DefLoc specifies where the keyspace is defined.
+	// It's an internal field set by Encore's compiler.
+	//publicapigen:drop
+	EncoreInternal_DefLoc int32
+
 	// EncoreInternal_KeyMapper specifies how typed keys are translated
 	// to a string. It's of type any to avoid making KeyspaceConfig
 	// a generic type. It's an internal field set by Encore's compiler.

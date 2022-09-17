@@ -365,10 +365,11 @@ func (l *Log) ServiceInitEnd(initCtr uint64, err error) {
 }
 
 type CacheOpStartParams struct {
+	DefLoc    int32
 	Operation string
 	IsWrite   bool
 	Keys      []string
-	Values    [][]byte
+	Inputs    [][]byte
 	SpanID    model.SpanID
 	Goid      uint32
 	OpID      uint64
@@ -380,6 +381,7 @@ func (l *Log) CacheOpStart(p CacheOpStartParams) {
 	tb.UVarint(p.OpID)
 	tb.Bytes(p.SpanID[:])
 	tb.UVarint(uint64(p.Goid))
+	tb.UVarint(uint64(p.DefLoc))
 	tb.String(p.Operation)
 	tb.Bool(p.IsWrite)
 	tb.Stack(p.Stack)
@@ -389,8 +391,8 @@ func (l *Log) CacheOpStart(p CacheOpStartParams) {
 		tb.String(k)
 	}
 
-	tb.UVarint(uint64(len(p.Values)))
-	for _, val := range p.Values {
+	tb.UVarint(uint64(len(p.Inputs)))
+	for _, val := range p.Inputs {
 		tb.ByteString(val)
 	}
 
@@ -398,10 +400,10 @@ func (l *Log) CacheOpStart(p CacheOpStartParams) {
 }
 
 type CacheOpEndParams struct {
-	OpID   uint64
-	Res    CacheOpResult
-	Err    error // must be set iff Res == CacheErr
-	Values [][]byte
+	OpID    uint64
+	Res     CacheOpResult
+	Err     error // must be set iff Res == CacheErr
+	Outputs [][]byte
 }
 
 func (l *Log) CacheOpEnd(p CacheOpEndParams) {
@@ -415,8 +417,8 @@ func (l *Log) CacheOpEnd(p CacheOpEndParams) {
 		}
 		tb.Err(err)
 	}
-	tb.UVarint(uint64(len(p.Values)))
-	for _, val := range p.Values {
+	tb.UVarint(uint64(len(p.Outputs)))
+	for _, val := range p.Outputs {
 		tb.ByteString(val)
 	}
 	l.Add(CacheOpEnd, tb.Buf())

@@ -335,10 +335,11 @@ func (c *client[K, V]) traceStart(op string, write bool, keys ...string) (opID u
 		}
 
 		curr.Trace.CacheOpStart(trace.CacheOpStartParams{
+			DefLoc:    c.cfg.EncoreInternal_DefLoc,
 			Operation: op,
 			IsWrite:   write,
 			Keys:      keys,
-			Values:    nil,
+			Inputs:    nil,
 			SpanID:    curr.Req.SpanID,
 			Goid:      curr.Goctr,
 			OpID:      opID,
@@ -370,10 +371,10 @@ func (c *client[K, V]) traceEnd(opID uint64, err error, values ...any) {
 		}
 
 		curr.Trace.CacheOpEnd(trace.CacheOpEndParams{
-			OpID:   opID,
-			Res:    res,
-			Err:    cacheErr,
-			Values: nil, // TODO(andre) add
+			OpID:    opID,
+			Res:     res,
+			Err:     cacheErr,
+			Outputs: nil, // TODO(andre) add
 		})
 	}
 }

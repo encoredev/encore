@@ -91,9 +91,15 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 			case est.CacheKeyspaceDefNode:
 				keyspace := rewrite.Res.(*est.CacheKeyspace)
 				cfgLit := keyspace.ConfigLit
-				rw.Insert(cfgLit.Lbrace+1, []byte(fmt.Sprintf(
-					"EncoreInternal_KeyMapper: %s,",
-					b.codegen.CacheKeyspaceKeyMapperName(keyspace),
+
+				insertPos := cfgLit.Lbrace + 1
+				ep := fset.Position(insertPos)
+				defLoc := b.res.Nodes[keyspace.Svc.Root][node].Id
+
+				rw.Insert(insertPos, []byte(fmt.Sprintf(
+					"EncoreInternal_DefLoc: %d, EncoreInternal_KeyMapper: %s,/*line :%d:%d*/",
+					defLoc, b.codegen.CacheKeyspaceKeyMapperName(keyspace),
+					ep.Line, ep.Column,
 				)))
 				return true
 

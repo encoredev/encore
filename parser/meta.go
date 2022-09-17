@@ -403,6 +403,17 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 							Context:        string(file.Contents[start:end]),
 						},
 					}
+
+				case est.CacheKeyspaceDefNode:
+					ks := r.Node.Res.(*est.CacheKeyspace)
+					tx.Context = &meta.TraceNode_CacheKeyspace{
+						CacheKeyspace: &meta.CacheKeyspaceDefNode{
+							PkgRelPath:  pkg.RelPath,
+							VarName:     ks.Ident().Name,
+							ClusterName: ks.Cluster.Name,
+							Context:     string(file.Contents[start:end]),
+						},
+					}
 				}
 			}
 		}

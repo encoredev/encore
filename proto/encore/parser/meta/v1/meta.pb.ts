@@ -163,6 +163,7 @@ export interface TraceNode {
   pubsub_subscriber: PubSubSubscriberNode | undefined;
   service_init: ServiceInitNode | undefined;
   middleware_def: MiddlewareDefNode | undefined;
+  cache_keyspace: CacheKeyspaceDefNode | undefined;
 }
 
 export interface RPCDefNode {
@@ -224,6 +225,13 @@ export interface MiddlewareDefNode {
   name: string;
   context: string;
   target: Selector[];
+}
+
+export interface CacheKeyspaceDefNode {
+  pkg_rel_path: string;
+  var_name: string;
+  cluster_name: string;
+  context: string;
 }
 
 export interface Path {

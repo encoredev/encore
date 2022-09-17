@@ -441,6 +441,8 @@ func (p *parser) parseReferences() {
 						// rlog calls are allowed outside of services
 					case est.PubSubTopicDefNode:
 						// pubsub topic definitions are allowed outside of services
+					case est.CacheClusterDefNode:
+						// cache cluster definitions are allowed outside of services
 					default:
 						p.errf(astNode.Pos(), "invalid reference outside of a service\n\tpackage %s is not considered a service (it has no APIs or pubsub subscribers defined)", pkg.Name)
 					}
