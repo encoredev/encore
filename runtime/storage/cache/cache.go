@@ -121,11 +121,11 @@ func (e *OpError) Unwrap() error {
 // It must be checked against with errors.Is.
 var Miss = errors.New("cache miss")
 
-// ErrExists is the error reported when a key already exists
+// KeyExists is the error reported when a key already exists
 // and the requested operation is specified to only apply to
 // keys that do not already exist.
 // It must be checked against with errors.Is.
-var ErrExists = errors.New("key already exists")
+var KeyExists = errors.New("key already exists")
 
 // An WriteOption customizes the behavior of a single cache write operation.
 type WriteOption interface {

@@ -45,7 +45,7 @@ func (s *StringKeyspace[K]) Set(ctx context.Context, key K, val string) error {
 }
 
 // SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
-// If the key already exists, it reports an error matching ErrExists.
+// If the key already exists, it reports an error matching KeyExists.
 //
 // See https://redis.io/commands/setnx/ for more information.
 func (s *StringKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val string) error {
@@ -107,6 +107,7 @@ func (k *StringKeyspace[K]) With(opts ...WriteOption) *StringKeyspace[K] {
 func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newLen int64, err error) {
 	const op = "append"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -130,9 +131,10 @@ func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newL
 // If the string does not exist it returns the empty string.
 //
 // See https://redis.io/commands/setrange/ for more information.
-func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64) (string, error) {
+func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64) (val string, err error) {
 	const op = "get range"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return "", err
 	}
@@ -155,6 +157,7 @@ func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64)
 func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string) (newLen int64, err error) {
 	const op = "set range"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -171,9 +174,10 @@ func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, v
 // Non-existing keys are considered as empty strings.
 //
 // See https://redis.io/commands/strlen/ for more information.
-func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (int64, error) {
+func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (length int64, err error) {
 	const op = "len"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -228,7 +232,7 @@ func (s *IntKeyspace[K]) Set(ctx context.Context, key K, val int64) error {
 }
 
 // SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
-// If the key already exists, it reports an error matching ErrExists.
+// If the key already exists, it reports an error matching KeyExists.
 //
 // See https://redis.io/commands/setnx/ for more information.
 func (s *IntKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val int64) error {
@@ -283,6 +287,7 @@ func (s *IntKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, er
 func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (newVal int64, err error) {
 	const op = "incr"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -307,6 +312,7 @@ func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (newVal i
 func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (newVal int64, err error) {
 	const op = "decr"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -364,7 +370,7 @@ func (s *FloatKeyspace[K]) Set(ctx context.Context, key K, val float64) error {
 }
 
 // SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
-// If the key already exists, it reports an error matching ErrExists.
+// If the key already exists, it reports an error matching KeyExists.
 //
 // See https://redis.io/commands/setnx/ for more information.
 func (s *FloatKeyspace[K]) SetIfNotExists(ctx context.Context, key K, val float64) error {
@@ -419,6 +425,7 @@ func (s *FloatKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, 
 func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (newVal float64, err error) {
 	const op = "incr"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -443,6 +450,7 @@ func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (newV
 func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64) (newVal float64, err error) {
 	const op = "decr"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -465,6 +473,7 @@ func (s *basicKeyspace[K, V]) with(opts []WriteOption) *basicKeyspace[K, V] {
 func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error) {
 	const op = "get"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return val, err
 	}
@@ -484,11 +493,7 @@ func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
 
 func (s *basicKeyspace[K, V]) SetIfNotExists(ctx context.Context, key K, val V) error {
 	const op = "set if not exists"
-	_, k, err := s.set(ctx, key, val, setNX, op)
-	// Convert Miss to ErrExists.
-	if errors.Is(err, Miss) {
-		err = toErr(ErrExists, op, k)
-	}
+	_, _, err := s.set(ctx, key, val, setNX, op)
 	return err
 }
 
@@ -510,6 +515,7 @@ func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V) (prev
 func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val V, err error) {
 	const op = "get and delete"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return val, err
 	}
@@ -526,6 +532,7 @@ func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val V, e
 func (s *client[K, V]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
 	const op = "delete"
 	ks, err := s.keys(keys, op)
+	defer s.doTrace(op, true, ks...)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -555,9 +562,20 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 		return "", "", err
 	}
 
+	defer s.doTrace(op, true, k)(err)
+
 	get := (flag & setGet) == setGet
 	nx := (flag & setNX) == setNX
 	xx := (flag & setXX) == setXX
+
+	if nx {
+		// If this is a setNX, convert Miss to KeyExists.
+		defer func() {
+			if errors.Is(err, Miss) {
+				err = toErr(KeyExists, op, k)
+			}
+		}()
+	}
 
 	redisVal, err := s.toRedis(val)
 	if err != nil {

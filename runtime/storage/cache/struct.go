@@ -56,7 +56,7 @@ func (s *StructKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
 }
 
 // SetIfNotExists sets the value stored at key to val, but only if the key does not exist beforehand.
-// If the key already exists, it reports an error matching ErrExists.
+// If the key already exists, it reports an error matching KeyExists.
 //
 // See https://redis.io/commands/setnx/ for more information.
 func (s *StructKeyspace[K, V]) SetIfNotExists(ctx context.Context, key K, val V) error {

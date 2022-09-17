@@ -6,9 +6,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -16,13 +18,17 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/runtimeutil/syncutil"
 	"encore.dev/appruntime/testsupport"
+	"encore.dev/appruntime/trace"
+	"encore.dev/internal/stack"
 )
 
 // Manager manages cache clients.
 type Manager struct {
 	cfg  *config.Config
+	rt   *reqtrack.RequestTracker
 	ts   *testsupport.Manager
 	json jsoniter.API
 
@@ -33,9 +39,10 @@ type Manager struct {
 	clients  map[string]*redis.Client
 }
 
-func NewManager(cfg *config.Config, ts *testsupport.Manager, json jsoniter.API) *Manager {
+func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport.Manager, json jsoniter.API) *Manager {
 	return &Manager{
 		cfg:     cfg,
+		rt:      rt,
 		ts:      ts,
 		json:    json,
 		clients: make(map[string]*redis.Client),
@@ -59,9 +66,9 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 		return cl
 	}
 
-	// Are we in a test? If so, use the redismock library.
-	if mgr.cfg.Static.Testing {
-		cl, err := mgr.newTestClient()
+	// Are we in a test or running in Encore Cloud? If so, use the redismock library.
+	if mgr.cfg.Static.Testing || mgr.runningInEncoreCloud() {
+		cl, err := mgr.newMiniredisClient()
 		if err != nil {
 			panic(fmt.Sprintf("cache: unable to start redis mock: %v", err))
 		}
@@ -81,6 +88,13 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 	}
 
 	panic(fmt.Sprintf("cache: unknown cluster %q", clusterName))
+}
+
+func (mgr *Manager) runningInEncoreCloud() bool {
+	if mgr.cfg != nil && mgr.cfg.Runtime.EnvCloud == "encore" {
+		return true
+	}
+	return false
 }
 
 func (mgr *Manager) newClient(rdb *config.RedisDatabase) (*redis.Client, error) {
@@ -119,10 +133,16 @@ func (mgr *Manager) newClient(rdb *config.RedisDatabase) (*redis.Client, error) 
 	return redis.NewClient(opts), nil
 }
 
-func (mgr *Manager) newTestClient() (*redis.Client, error) {
+func (mgr *Manager) newMiniredisClient() (*redis.Client, error) {
 	err := mgr.initTestSrv.Do(func() error {
 		var err error
 		mgr.testSrv, err = miniredis.Run()
+
+		// Periodically clean up cache keys if running in Encore Cloud.
+		if err == nil && mgr.runningInEncoreCloud() {
+			go miniredisCleanup(mgr.testSrv, 15*time.Second, 100)
+		}
+
 		return err
 	})
 	if err != nil {
@@ -149,8 +169,11 @@ func (mgr *Manager) Shutdown(force context.Context) {
 	// so wait for the force shutdown before we close the connections.
 	<-force.Done()
 
-	// TODO
-	//_ = mgr.redis.Close()
+	mgr.clientMu.Lock()
+	mgr.clientMu.Unlock()
+	for _, c := range mgr.clients {
+		_ = c.Close()
+	}
 }
 
 func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig,
@@ -179,6 +202,7 @@ func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig,
 	}
 
 	return &client[K, V]{
+		rt:        cluster.mgr.rt,
 		redis:     cluster.cl,
 		cfg:       cfg,
 		expiry:    defaultExpiry,
@@ -189,12 +213,14 @@ func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig,
 }
 
 type client[K, V any] struct {
+	rt        *reqtrack.RequestTracker
 	redis     *redis.Client
 	cfg       KeyspaceConfig
 	expiry    ExpiryFunc
 	keyMapper func(K) string
 	toRedis   func(V) (any, error)
 	fromRedis func(string) (V, error)
+	traceOpID uint64
 }
 
 func (c *client[K, V]) with(opts []WriteOption) *client[K, V] {
@@ -292,6 +318,66 @@ func (s *client[K, V]) expiryDur() time.Duration {
 	return exp
 }
 
+func (c *client[K, V]) doTrace(op string, write bool, keys ...string) func(error) {
+	opID := c.traceStart(op, write, keys...)
+	return func(err error) {
+		c.traceEnd(opID, err)
+	}
+}
+
+func (c *client[K, V]) traceStart(op string, write bool, keys ...string) (opID uint64) {
+	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil {
+		opID = atomic.AddUint64(&c.traceOpID, 1)
+		if opID == 0 {
+			// We wrapped around. Increment again since we use the zero opID
+			// to indicate that nothing was traced.
+			opID = atomic.AddUint64(&c.traceOpID, 1)
+		}
+
+		curr.Trace.CacheOpStart(trace.CacheOpStartParams{
+			Operation: op,
+			IsWrite:   write,
+			Keys:      keys,
+			Values:    nil,
+			SpanID:    curr.Req.SpanID,
+			Goid:      curr.Goctr,
+			OpID:      opID,
+			Stack:     stack.Build(3),
+		})
+	}
+
+	return opID
+}
+
+func (c *client[K, V]) traceEnd(opID uint64, err error, values ...any) {
+	if opID == 0 { // indicates the operation start was not traced
+		return
+	}
+
+	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil {
+		var cacheErr error
+		var res trace.CacheOpResult
+		switch {
+		case err == nil:
+			res = trace.CacheOK
+		case errors.Is(err, Miss):
+			res = trace.CacheNoSuchKey
+		case errors.Is(err, KeyExists):
+			res = trace.CacheConflict
+		case err != nil:
+			res = trace.CacheErr
+			cacheErr = err
+		}
+
+		curr.Trace.CacheOpEnd(trace.CacheOpEndParams{
+			OpID:   opID,
+			Res:    res,
+			Err:    cacheErr,
+			Values: nil, // TODO(andre) add
+		})
+	}
+}
+
 func toErr(err error, op, key string) error {
 	if err == nil {
 		return nil
@@ -318,4 +404,27 @@ func orDefault[T comparable](val, orDefault T) T {
 		return orDefault
 	}
 	return val
+}
+
+func miniredisCleanup(srv *miniredis.Miniredis, every time.Duration, maxKeys int) {
+	var acc time.Duration
+	ticker := time.NewTicker(time.Second)
+	for range ticker.C {
+		srv.FastForward(time.Second)
+
+		// Clean up keys every so often
+		acc += every
+		if acc > every {
+			acc -= every
+
+			keys := srv.Keys()
+			for len(keys) > 100 {
+				id := rand.Intn(len(keys))
+				if keys[id] != "" {
+					srv.Del(keys[id])
+					keys[id] = "" // mark it as deleted
+				}
+			}
+		}
+	}
 }

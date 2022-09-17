@@ -35,7 +35,7 @@ func TestBasicKeyspace(t *testing.T) {
 	check(ks.SetIfNotExists(ctx, "one", "added"))
 
 	// Add should fail if the key is already present.
-	if err := ks.SetIfNotExists(ctx, "one", "added twice"); !errors.Is(err, ErrExists) {
+	if err := ks.SetIfNotExists(ctx, "one", "added twice"); !errors.Is(err, KeyExists) {
 		t.Errorf("add: unexpected error: %v", err)
 	}
 	kt.Val("one", "added")

@@ -1,6 +1,7 @@
 package trace
 
 import (
+	"errors"
 	"fmt"
 
 	"encore.dev/appruntime/model"
@@ -32,6 +33,8 @@ const (
 	PublishEnd         EventType = 0x13
 	ServiceInitStart   EventType = 0x14
 	ServiceInitEnd     EventType = 0x15
+	CacheOpStart       EventType = 0x16
+	CacheOpEnd         EventType = 0x17
 )
 
 func (te EventType) String() string {
@@ -78,6 +81,10 @@ func (te EventType) String() string {
 		return "ServiceInitStart"
 	case ServiceInitEnd:
 		return "ServiceInitEnd"
+	case CacheOpStart:
+		return "CacheOpStart"
+	case CacheOpEnd:
+		return "CacheOpEnd"
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}
@@ -356,3 +363,70 @@ func (l *Log) ServiceInitEnd(initCtr uint64, err error) {
 	}
 	l.Add(ServiceInitEnd, tb.Buf())
 }
+
+type CacheOpStartParams struct {
+	Operation string
+	IsWrite   bool
+	Keys      []string
+	Values    [][]byte
+	SpanID    model.SpanID
+	Goid      uint32
+	OpID      uint64
+	Stack     stack.Stack
+}
+
+func (l *Log) CacheOpStart(p CacheOpStartParams) {
+	var tb Buffer
+	tb.UVarint(p.OpID)
+	tb.Bytes(p.SpanID[:])
+	tb.UVarint(uint64(p.Goid))
+	tb.String(p.Operation)
+	tb.Bool(p.IsWrite)
+	tb.Stack(p.Stack)
+
+	tb.UVarint(uint64(len(p.Keys)))
+	for _, k := range p.Keys {
+		tb.String(k)
+	}
+
+	tb.UVarint(uint64(len(p.Values)))
+	for _, val := range p.Values {
+		tb.ByteString(val)
+	}
+
+	l.Add(CacheOpStart, tb.Buf())
+}
+
+type CacheOpEndParams struct {
+	OpID   uint64
+	Res    CacheOpResult
+	Err    error // must be set iff Res == CacheErr
+	Values [][]byte
+}
+
+func (l *Log) CacheOpEnd(p CacheOpEndParams) {
+	var tb Buffer
+	tb.UVarint(p.OpID)
+	tb.Byte(byte(p.Res))
+	if p.Res == CacheErr {
+		err := p.Err
+		if err == nil {
+			err = errors.New("unknown error")
+		}
+		tb.Err(err)
+	}
+	tb.UVarint(uint64(len(p.Values)))
+	for _, val := range p.Values {
+		tb.ByteString(val)
+	}
+	l.Add(CacheOpEnd, tb.Buf())
+}
+
+type CacheOpResult uint8
+
+const (
+	CacheOK        CacheOpResult = 1
+	CacheNoSuchKey CacheOpResult = 2
+	CacheConflict  CacheOpResult = 3
+	CacheErr       CacheOpResult = 4
+)

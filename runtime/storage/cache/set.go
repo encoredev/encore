@@ -59,6 +59,7 @@ func (s *SetKeyspace[K, V]) Delete(ctx context.Context, keys ...K) (deleted int,
 func (s *SetKeyspace[K, V]) Add(ctx context.Context, key K, values ...V) (added int, err error) {
 	const op = "set add"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -83,6 +84,7 @@ func (s *SetKeyspace[K, V]) Add(ctx context.Context, key K, values ...V) (added 
 func (s *SetKeyspace[K, V]) Remove(ctx context.Context, key K, values ...V) (removed int, err error) {
 	const op = "set remove"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -104,6 +106,7 @@ func (s *SetKeyspace[K, V]) Remove(ctx context.Context, key K, values ...V) (rem
 func (s *SetKeyspace[K, V]) PopOne(ctx context.Context, key K) (val V, err error) {
 	const op = "set pop one"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return val, err
 	}
@@ -125,9 +128,10 @@ func (s *SetKeyspace[K, V]) PopOne(ctx context.Context, key K) (val V, err error
 // If the set is empty it returns an empty slice and no error.
 //
 // See https://redis.io/commands/spop/ for more information.
-func (s *SetKeyspace[K, V]) Pop(ctx context.Context, key K, count int) ([]V, error) {
+func (s *SetKeyspace[K, V]) Pop(ctx context.Context, key K, count int) (values []V, err error) {
 	const op = "set pop"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, true, k)(err)
 	if err != nil {
 		return nil, err
 	}
@@ -136,12 +140,11 @@ func (s *SetKeyspace[K, V]) Pop(ctx context.Context, key K, count int) ([]V, err
 		return c.SPopN(ctx, k, int64(count))
 	}).Result()
 
-	var vals []V
 	if err == nil {
-		vals, err = s.fromRedisMulti(res)
+		values, err = s.fromRedisMulti(res)
 	}
 	err = toErr(err, op, k)
-	return vals, err
+	return values, err
 }
 
 // Contains reports whether the set stored at key contains the given value.
@@ -149,9 +152,10 @@ func (s *SetKeyspace[K, V]) Pop(ctx context.Context, key K, count int) ([]V, err
 // If the key does not exist it reports false, nil.
 //
 // See https://redis.io/commands/sismember/ for more information.
-func (s *SetKeyspace[K, V]) Contains(ctx context.Context, key K, val V) (bool, error) {
+func (s *SetKeyspace[K, V]) Contains(ctx context.Context, key K, val V) (contains bool, err error) {
 	const op = "set contains"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return false, err
 	}
@@ -166,9 +170,10 @@ func (s *SetKeyspace[K, V]) Contains(ctx context.Context, key K, val V) (bool, e
 // If the key does not exist it reports 0, nil.
 //
 // See https://redis.io/commands/slen/ for more information.
-func (s *SetKeyspace[K, V]) Len(ctx context.Context, key K) (int64, error) {
+func (s *SetKeyspace[K, V]) Len(ctx context.Context, key K) (length int64, err error) {
 	const op = "set len"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -183,9 +188,10 @@ func (s *SetKeyspace[K, V]) Len(ctx context.Context, key K) (int64, error) {
 // If the key does not exist it returns an empty slice and no error.
 //
 // See https://redis.io/commands/smembers/ for more information.
-func (s *SetKeyspace[K, V]) Items(ctx context.Context, key K) ([]V, error) {
+func (s *SetKeyspace[K, V]) Items(ctx context.Context, key K) (values []V, err error) {
 	const op = "set items"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return nil, err
 	}
@@ -201,9 +207,10 @@ func (s *SetKeyspace[K, V]) Items(ctx context.Context, key K) ([]V, error) {
 // If the key does not exist it returns an empty (but non-nil) map and no error.
 //
 // See https://redis.io/commands/smembers/ for more information.
-func (s *SetKeyspace[K, V]) ItemsMap(ctx context.Context, key K) (map[V]struct{}, error) {
+func (s *SetKeyspace[K, V]) ItemsMap(ctx context.Context, key K) (values map[V]struct{}, err error) {
 	const op = "set items"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return nil, err
 	}
@@ -254,6 +261,7 @@ func (s *SetKeyspace[K, V]) DiffMap(ctx context.Context, keys ...K) (map[V]struc
 
 func (s *SetKeyspace[K, V]) diff(ctx context.Context, op string, keys []K) (vals []string, firstKey string, err error) {
 	ks, err := s.keys(keys, op)
+	defer s.doTrace(op, false, ks...)(err)
 	if err != nil {
 		return nil, "", err
 	}
@@ -273,6 +281,7 @@ func (s *SetKeyspace[K, V]) diff(ctx context.Context, op string, keys []K) (vals
 func (s *SetKeyspace[K, V]) DiffStore(ctx context.Context, destination K, keys ...K) (size int64, err error) {
 	const op = "store set diff"
 	dst, err := s.key(destination, op)
+	defer s.doTrace(op, true, dst)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -323,6 +332,7 @@ func (s *SetKeyspace[K, V]) IntersectMap(ctx context.Context, keys ...K) (map[V]
 
 func (s *SetKeyspace[K, V]) intersect(ctx context.Context, op string, keys []K) (vals []string, firstKey string, err error) {
 	ks, err := s.keys(keys, op)
+	defer s.doTrace(op, false, ks...)(err)
 	if err != nil {
 		return nil, "", err
 	}
@@ -343,6 +353,7 @@ func (s *SetKeyspace[K, V]) intersect(ctx context.Context, op string, keys []K) 
 func (s *SetKeyspace[K, V]) IntersectStore(ctx context.Context, destination K, keys ...K) (size int64, err error) {
 	const op = "store set intersect"
 	dst, err := s.key(destination, op)
+	defer s.doTrace(op, true, dst)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -390,6 +401,7 @@ func (s *SetKeyspace[K, V]) UnionMap(ctx context.Context, keys ...K) (map[V]stru
 
 func (s *SetKeyspace[K, V]) union(ctx context.Context, op string, keys []K) (vals []string, firstKey string, err error) {
 	ks, err := s.keys(keys, op)
+	defer s.doTrace(op, false, ks...)(err)
 	if err != nil {
 		return nil, "", err
 	}
@@ -411,6 +423,7 @@ func (s *SetKeyspace[K, V]) union(ctx context.Context, op string, keys []K) (val
 func (s *SetKeyspace[K, V]) UnionStore(ctx context.Context, destination K, keys ...K) (size int64, err error) {
 	const op = "store set union"
 	dst, err := s.key(destination, op)
+	defer s.doTrace(op, true, dst)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -433,6 +446,7 @@ func (s *SetKeyspace[K, V]) UnionStore(ctx context.Context, destination K, keys 
 func (s *SetKeyspace[K, V]) SampleOne(ctx context.Context, key K) (val V, err error) {
 	const op = "set sample one"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return val, err
 	}
@@ -451,9 +465,10 @@ func (s *SetKeyspace[K, V]) SampleOne(ctx context.Context, key K) (val V, err er
 // If the key does not exist it returns an empty slice and no error.
 //
 // See https://redis.io/commands/srandmember/ for more information.
-func (s *SetKeyspace[K, V]) Sample(ctx context.Context, key K, count int) ([]V, error) {
+func (s *SetKeyspace[K, V]) Sample(ctx context.Context, key K, count int) (values []V, err error) {
 	const op = "set sample one"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return nil, err
 	}
@@ -465,13 +480,12 @@ func (s *SetKeyspace[K, V]) Sample(ctx context.Context, key K, count int) ([]V, 
 		return nil, nil
 	}
 
-	var vals []V
 	res, err := s.redis.SRandMemberN(ctx, k, int64(count)).Result()
 	if err == nil {
-		vals, err = s.fromRedisMulti(res)
+		values, err = s.fromRedisMulti(res)
 	}
 	err = toErr(err, op, k)
-	return vals, err
+	return values, err
 }
 
 // SampleWithReplacement returns count random elements from the set stored at key.
@@ -480,9 +494,10 @@ func (s *SetKeyspace[K, V]) Sample(ctx context.Context, key K, count int) ([]V, 
 // If the key does not exist it returns an empty slice and no error.
 //
 // See https://redis.io/commands/srandmember/ for more information.
-func (s *SetKeyspace[K, V]) SampleWithReplacement(ctx context.Context, key K, count int) ([]V, error) {
+func (s *SetKeyspace[K, V]) SampleWithReplacement(ctx context.Context, key K, count int) (values []V, err error) {
 	const op = "set sample with replacement"
 	k, err := s.key(key, op)
+	defer s.doTrace(op, false, k)(err)
 	if err != nil {
 		return nil, err
 	}
@@ -494,13 +509,12 @@ func (s *SetKeyspace[K, V]) SampleWithReplacement(ctx context.Context, key K, co
 		return nil, nil
 	}
 
-	var vals []V
 	res, err := s.redis.SRandMemberN(ctx, k, -int64(count)).Result()
 	if err == nil {
-		vals, err = s.fromRedisMulti(res)
+		values, err = s.fromRedisMulti(res)
 	}
 	err = toErr(err, op, k)
-	return vals, err
+	return values, err
 }
 
 // Move atomically moves the given value from the set stored at src
@@ -512,15 +526,13 @@ func (s *SetKeyspace[K, V]) SampleWithReplacement(ctx context.Context, key K, co
 // and Move still reports true, nil.
 func (s *SetKeyspace[K, V]) Move(ctx context.Context, src, dst K, val V) (moved bool, err error) {
 	const op = "move"
-	srcKey, err := s.key(src, op)
-	if err != nil {
-		return false, err
-	}
-	dstKey, err := s.key(dst, op)
+	ks, err := s.keys([]K{src, dst}, op)
+	defer s.doTrace(op, true, ks...)(err)
 	if err != nil {
 		return false, err
 	}
 
+	srcKey, dstKey := ks[0], ks[1]
 	res, err := do2(s.client, ctx, srcKey, dstKey, func(c cmdable) *redis.BoolCmd {
 		return c.SMove(ctx, srcKey, dstKey, val)
 	}).Result()

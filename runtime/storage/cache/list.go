@@ -70,6 +70,7 @@ func (s *ListKeyspace[K, V]) Delete(ctx context.Context, keys ...K) (deleted int
 func (l *ListKeyspace[K, V]) PushLeft(ctx context.Context, key K, values ...V) (newLen int64, err error) {
 	const op = "push left"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -96,6 +97,7 @@ func (l *ListKeyspace[K, V]) PushLeft(ctx context.Context, key K, values ...V) (
 func (l *ListKeyspace[K, V]) PushRight(ctx context.Context, key K, values ...V) (newLen int64, err error) {
 	const op = "push right"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -116,6 +118,7 @@ func (l *ListKeyspace[K, V]) PushRight(ctx context.Context, key K, values ...V) 
 func (l *ListKeyspace[K, V]) PopLeft(ctx context.Context, key K) (val V, err error) {
 	const op = "pop left"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return val, err
 	}
@@ -138,6 +141,7 @@ func (l *ListKeyspace[K, V]) PopLeft(ctx context.Context, key K) (val V, err err
 func (l *ListKeyspace[K, V]) PopRight(ctx context.Context, key K) (val V, err error) {
 	const op = "pop right"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return val, err
 	}
@@ -157,9 +161,10 @@ func (l *ListKeyspace[K, V]) PopRight(ctx context.Context, key K) (val V, err er
 // Non-existing keys are considered as empty lists.
 //
 // See https://redis.io/commands/llen/ for more information.
-func (l *ListKeyspace[K, V]) Len(ctx context.Context, key K) (int64, error) {
+func (l *ListKeyspace[K, V]) Len(ctx context.Context, key K) (length int64, err error) {
 	const op = "list len"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, false, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -182,6 +187,7 @@ func (l *ListKeyspace[K, V]) Len(ctx context.Context, key K) (int64, error) {
 func (l *ListKeyspace[K, V]) Trim(ctx context.Context, key K, start, stop int64) error {
 	const op = "list trim"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return err
 	}
@@ -199,9 +205,10 @@ func (l *ListKeyspace[K, V]) Trim(ctx context.Context, key K, start, stop int64)
 // An error is returned for out of bounds indices.
 //
 // See https://redis.io/commands/lset/ for more information.
-func (l *ListKeyspace[K, V]) Set(ctx context.Context, key K, idx int64, val V) error {
+func (l *ListKeyspace[K, V]) Set(ctx context.Context, key K, idx int64, val V) (err error) {
 	const op = "list set"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return err
 	}
@@ -223,6 +230,7 @@ func (l *ListKeyspace[K, V]) Set(ctx context.Context, key K, idx int64, val V) e
 func (l *ListKeyspace[K, V]) Get(ctx context.Context, key K, idx int64) (val V, err error) {
 	const op = "list get"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, false, k)(err)
 	if err != nil {
 		return val, err
 	}
@@ -256,8 +264,9 @@ func (l *ListKeyspace[K, V]) GetRange(ctx context.Context, key K, start, stop in
 	return l.getRange(ctx, key, start, stop, "get range")
 }
 
-func (l *ListKeyspace[K, V]) getRange(ctx context.Context, key K, from, to int64, op string) ([]V, error) {
+func (l *ListKeyspace[K, V]) getRange(ctx context.Context, key K, from, to int64, op string) (vals []V, err error) {
 	k, err := l.key(key, op)
+	defer l.doTrace(op, false, k)(err)
 	if err != nil {
 		return nil, err
 	}
@@ -288,6 +297,7 @@ func (l *ListKeyspace[K, V]) getRange(ctx context.Context, key K, from, to int64
 func (l *ListKeyspace[K, V]) InsertBefore(ctx context.Context, key K, needle, newVal V) (newLen int64, err error) {
 	const op = "insert before"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -313,6 +323,7 @@ func (l *ListKeyspace[K, V]) InsertBefore(ctx context.Context, key K, needle, ne
 func (l *ListKeyspace[K, V]) InsertAfter(ctx context.Context, key K, needle, newVal V) (newLen int64, err error) {
 	const op = "insert after"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -337,6 +348,7 @@ func (l *ListKeyspace[K, V]) InsertAfter(ctx context.Context, key K, needle, new
 func (l *ListKeyspace[K, V]) RemoveAll(ctx context.Context, key K, needle V) (removed int64, err error) {
 	const op = "remove all"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -358,6 +370,7 @@ func (l *ListKeyspace[K, V]) RemoveAll(ctx context.Context, key K, needle V) (re
 func (l *ListKeyspace[K, V]) RemoveFirst(ctx context.Context, key K, count int64, needle V) (removed int64, err error) {
 	const op = "remove first"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -386,6 +399,7 @@ func (l *ListKeyspace[K, V]) RemoveFirst(ctx context.Context, key K, count int64
 func (l *ListKeyspace[K, V]) RemoveLast(ctx context.Context, key K, count int64, needle V) (removed int64, err error) {
 	const op = "remove last"
 	k, err := l.key(key, op)
+	defer l.doTrace(op, true, k)(err)
 	if err != nil {
 		return 0, err
 	}
@@ -422,14 +436,12 @@ const (
 // or if fromPos == toPos nothing happens.
 func (l *ListKeyspace[K, V]) Move(ctx context.Context, src, dst K, fromPos, toPos ListPos) (moved V, err error) {
 	const op = "list move"
-	srcKey, err := l.key(src, op)
+	ks, err := l.keys([]K{src, dst}, op)
+	defer l.doTrace(op, true, ks...)(err)
 	if err != nil {
 		return moved, err
 	}
-	dstKey, err := l.key(dst, op)
-	if err != nil {
-		return moved, err
-	}
+	srcKey, dstKey := ks[0], ks[1]
 
 	res, err := do2(l.client, ctx, srcKey, dstKey, func(c cmdable) *redis.StringCmd {
 		return c.LMove(ctx, srcKey, dstKey, string(fromPos), string(toPos))
