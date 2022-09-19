@@ -13,6 +13,7 @@ var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
 
 var keyspace = cache.NewStringKeyspace[string](cluster, cache.KeyspaceConfig{
     KeyPattern: "foo/:key",
+    DefaultExpiry: cache.ExpireIn(10 * time.Second),
 })
 
 //encore:api public

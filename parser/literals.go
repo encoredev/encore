@@ -188,7 +188,7 @@ func (p *parser) parseConstantValue(file *est.File, value ast.Expr) (rtn constan
 				}
 			}
 		}
-		p.errf(value.Pos(), "You can not call a function here, only constant values are supported")
+
 		return constant.MakeUnknown()
 
 	case *ast.ParenExpr:
