@@ -63,6 +63,7 @@ const (
 	NoEviction EvictionPolicy = "noeviction"
 )
 
+//publicapigen:keep
 type constStr string
 
 // Cluster represents a Redis cache cluster.
@@ -134,6 +135,7 @@ var KeyExists = errors.New("key already exists")
 
 // An WriteOption customizes the behavior of a single cache write operation.
 type WriteOption interface {
+	//publicapigen:keep
 	writeOption() // ensure only our package can implement
 }
 
@@ -148,6 +150,7 @@ type expiryOption interface {
 type ExpiryFunc func(now time.Time) time.Time
 
 // option implements WriteOption.
+//publicapigen:keep
 func (ExpiryFunc) writeOption() {}
 
 // expiry implements expiryOption.
@@ -177,8 +180,10 @@ func ExpireDailyAt(hour, minute, second int, loc *time.Location) ExpiryFunc {
 }
 
 // expiryTime is a type for time constants that are also WriteOptions.
+//publicapigen:keep
 type expiryTime time.Time
 
+//publicapigen:keep
 func (expiryTime) writeOption() {}
 
 func (et expiryTime) expiry(_ time.Time) time.Time {
@@ -195,6 +200,7 @@ var (
 	KeepTTL = expiryTime(keepTTL)
 )
 
+//publicapigen:keep
 var (
 	neverExpire = time.Unix(0, 1)
 	keepTTL     = time.Unix(0, 2)
@@ -208,6 +214,11 @@ func fnMap[A, B any](src []A, fn func(A) B) []B {
 	return dst
 }
 
+// do executes a Redis command, by invoking fn.
+//
+// Depending on the keyspace's expiration logic it either calls fn with
+// a plain Redis client or with a transactional pipeline, in order to ensure
+// the command executes atomically with the expiration update.
 func do[K, V, Res any](cl *client[K, V], ctx context.Context, key string, fn func(cmdable) Res) Res {
 	exp := cl.expiryCmd(ctx, key)
 	if exp == nil {
@@ -221,6 +232,7 @@ func do[K, V, Res any](cl *client[K, V], ctx context.Context, key string, fn fun
 	return res
 }
 
+// do2 is like do, except it operates on two keys instead of one.
 func do2[K, V, Res any](
 	cl *client[K, V],
 	ctx context.Context,

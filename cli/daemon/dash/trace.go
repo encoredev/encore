@@ -172,15 +172,9 @@ type ServiceInit struct {
 	ErrStack  *Stack `json:"err_stack"` // can be null
 }
 
+// CacheResult defines the result of a cache op.
+// The values are identical to that of tracepb.CacheOp_Result.
 type CacheResult uint8
-
-const (
-	CacheUnknown   CacheResult = 0
-	CacheOK        CacheResult = 1
-	CacheNoSuchKey CacheResult = 2
-	CacheConflict  CacheResult = 3
-	CacheErr       CacheResult = 4
-)
 
 type CacheOp struct {
 	Type      string `json:"type"` // "CacheOp"

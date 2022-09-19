@@ -2,6 +2,7 @@
 
 package cache
 
+//publicapigen:drop
 var Singleton *Manager
 
 // NewCluster declares a new cache cluster.

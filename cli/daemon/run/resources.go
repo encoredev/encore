@@ -74,7 +74,7 @@ func (rs *ResourceServices) StartRequiredServices(a *asyncBuildJobs, parse *pars
 	return nil
 }
 
-// StartPubSub starts a PubSub daemon if it is not already running
+// StartPubSub starts a PubSub daemon.
 func (rs *ResourceServices) StartPubSub(ctx context.Context) error {
 	nsqd := &pubsub.NSQDaemon{}
 	err := nsqd.Start()
@@ -99,7 +99,7 @@ func (rs *ResourceServices) GetPubSub() *pubsub.NSQDaemon {
 	return nil
 }
 
-// StartRedis starts a Redis server if it is not already running.
+// StartRedis starts a Redis server.
 func (rs *ResourceServices) StartRedis(ctx context.Context) error {
 	srv := redis.New()
 	err := srv.Start()

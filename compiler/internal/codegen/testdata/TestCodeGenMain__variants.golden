@@ -1442,17 +1442,6 @@ func EncoreInternal_CallTwo(ctx context.Context, params *FooParams) error {
 func EncoreInternal_stringsKeyMapper(key int) string {
 	return fmt.Sprintf("foo/%v", key)
 }
-func EncoreInternal_stringsValueMapper(val string) (res int, err error) {
-	dec := &etype.Marshaller{}
-
-	res = dec.ToInt("value", val, false)
-	if dec.LastError != nil {
-
-		return res, dec.LastError
-	}
-
-	return res, nil
-}
 
 type EncoreInternal_AuthHandlerAuthParams = AuthParams
 

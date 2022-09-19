@@ -93,7 +93,7 @@ func init() {
 
 func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
 	if len(callExpr.Args) != 2 {
-		p.errf(callExpr.Pos(), "cache.NewCluster requires at least one argument, the cache cluster name given as a string literal. For example `cache.New(\"my-cache\")`")
+		p.errf(callExpr.Pos(), "cache.NewCluster requires at least two arguments, the cache cluster name given as a string literal and a cluster config.`")
 		return nil
 	}
 
@@ -107,7 +107,7 @@ func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident 
 	for _, cluster := range p.cacheClusters {
 		if strings.EqualFold(cluster.Name, clusterName) {
 			p.errf(callExpr.Args[0].Pos(), "cache cluster names must be unique, \"%s\" was previously declared in %s/%s\n"+
-				"\tNote: if you wish to reuse the same cache, export the original Cache object from %s and reuse it here.",
+				"\tNote: if you wish to reuse the same cluster, export the original cache.Cluster object from %s and reuse it here.",
 				cluster.Name, cluster.DeclFile.Pkg.Name, cluster.DeclFile.Name, cluster.DeclFile.Pkg.Name)
 			return nil
 		}
@@ -163,7 +163,7 @@ func createKeyspaceParser(con cacheKeyspaceConstructor) func(*parser, *est.File,
 		if len(callExpr.Args) != 2 {
 			p.errf(
 				callExpr.Pos(),
-				"cache.%s requires three arguments, the topic, the subscription name given as a string literal and the subscription configuration",
+				"cache.%s requires two arguments: the cache cluster and the keyspace configuration",
 				con.FuncName,
 			)
 			return nil

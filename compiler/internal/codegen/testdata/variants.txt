@@ -161,7 +161,7 @@ func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) mid
 var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
 
 var strings = cache.NewIntKeyspace[int](cluster, cache.KeyspaceConfig{
-    Path: "/foo/:key",
+    KeyPattern: "foo/:key",
 })
 
 -- otherservice/svc.go --
