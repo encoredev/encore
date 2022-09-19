@@ -24,9 +24,11 @@ If there's another language you think Encore should support, please either submi
 request on [GitHub](https://github.com/encoredev/encore/issues/new), or [reach out on Slack](/slack).
 
 <Callout type="warning">
+
 If you ship the generated client to end customers, it's important to note that with any public API, old clients will
 continue to be used for some time after you've made changes. So it's always best to avoid making breaking changes in any
 API's that your clients access otherwise your generated clients could stop working or cause hard to debug issues.
+
 </Callout>
 
 <br />
@@ -47,8 +49,10 @@ If you want to generate the client for the version of your application you have 
 special environment name `local` (you'll need to be running the application first).
 
 <Callout type="important">
+
 The generated client can be used with any environment, not just the one it was generated for. However, the API's, datastructures
 and marshalling logic will be based on whatever is present and running in that environment at the point in time the client is generated.
+
 </Callout>
 
 
