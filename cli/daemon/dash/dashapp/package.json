@@ -2,8 +2,8 @@
   "name": "dashapp",
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "node prepare-assets.js && vite",
+    "build": "node prepare-assets.js && tsc && vite build",
     "serve": "vite preview",
     "test": "jest"
   },
