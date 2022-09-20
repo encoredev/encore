@@ -91,7 +91,7 @@ export class Modal extends React.Component<Props> {
           className="pointer-events-none fixed inset-x-0 bottom-0 transform px-4 pb-4 transition-all sm:inset-0 sm:flex sm:items-center sm:justify-center"
         >
           <div
-            className={`shadow-xl overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 ${width} pointer-events-auto sm:p-6`}
+            className={`brand-shadow overflow-hidden bg-white px-4 pt-5 pb-4 ${width} pointer-events-auto sm:p-6`}
           >
             {this.props.children}
           </div>

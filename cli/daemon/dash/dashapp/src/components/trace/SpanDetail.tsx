@@ -1,7 +1,6 @@
 import { DateTime, Duration } from "luxon";
 import React, { FunctionComponent, useRef, useState } from "react";
-import * as icons from "~c/icons";
-import { Icon } from "~c/icons";
+import { Icon, icons } from "~c/icons";
 import { Base64EncodedBytes, decodeBase64 } from "~lib/base64";
 import { timeToDate } from "~lib/time";
 import {
@@ -70,12 +69,12 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
   return (
     <>
       <div>
-        <h2 className="flex items-center text-2xl font-bold">
+        <h2 className="text-2xl font-semibold">
           {icon("h-5 w-5 mr-2 inline-block", type)}
           {svcName}.{rpcName}
           {call && (
             <button
-              className="text-gray-600 hover:text-indigo-600 focus:outline-none"
+              className="focus:outline-none"
               onClick={() => props.onStackTrace(call.stack)}
             >
               {icons.stackTrace("m-1 h-4 w-auto")}
@@ -83,15 +82,15 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           )}
         </h2>
         <div className="text-xs">
-          <span className="text-blue-700">
+          <span>
             {defLoc.filepath}:{defLoc.src_line_start}
           </span>
         </div>
 
-        <div className="border-gray-100 grid grid-cols-5 gap-4 border-b py-3">
-          <div className="text-gray-400 flex items-center text-sm font-light">
-            {icons.clock("h-5 w-auto")}
-            <span className="text-gray-800 mx-1 font-bold">
+        <div className="wrap [&>*]:basis-1/5 flex w-full flex-row flex-wrap py-3 [&>*]:min-w-[150px] [&>*]:pb-2">
+          <div className="body-sm flex items-center">
+            <div>{icons.clock("h-5 w-auto")}</div>
+            <span className="mx-1 font-semibold">
               {req.end_time
                 ? latencyStr(req.end_time - req.start_time)
                 : "Unknown"}
@@ -99,30 +98,34 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
             Duration
           </div>
 
-          <div className="text-gray-400 flex items-center text-sm font-light">
-            {icons.logout("h-5 w-auto")}
-            <span className="text-gray-800 mx-1 font-bold">{numCalls}</span>
+          <div className="body-sm flex items-center">
+            <div>{icons.logout("h-5 w-auto")}</div>
+            <span className="text-gray-800 mx-1 font-semibold">{numCalls}</span>
             API Call{numCalls !== 1 ? "s" : ""}
           </div>
 
-          <div className="text-gray-400 flex items-center text-sm font-light">
-            {icons.database("h-5 w-auto")}
-            <span className="text-gray-800 mx-1 font-bold">{numQueries}</span>
-            Quer{numQueries !== 1 ? "ies" : "y"}
+          <div className="body-sm flex items-center">
+            <div>{icons.database("h-5 w-auto")}</div>
+            <span className="text-gray-800 mx-1 font-semibold">
+              {numQueries}
+            </span>
+            DB Quer{numQueries !== 1 ? "ies" : "y"}
           </div>
 
-          <div className="text-gray-400 flex items-center text-sm font-light">
-            {icons.arrowsExpand("h-5 w-auto")}
-            <span className="text-gray-800 mx-1 font-bold">
+          <div className="body-sm flex items-center">
+            <div>{icons.arrowsExpand("h-5 w-auto")}</div>
+            <span className="text-gray-800 mx-1 font-semibold">
               {publishedMessages.length}
             </span>
             Publish{publishedMessages.length !== 1 ? "es" : ""}
           </div>
 
-          <div className="text-gray-400 flex items-center text-sm font-light">
-            {icons.menuAlt2("h-5 w-auto")}
-            <span className="text-gray-800 mx-1 font-bold">{logs.length}</span>
-            Log{logs.length !== 1 ? "s" : ""}
+          <div className="body-sm flex items-center">
+            <div>{icons.menuAlt2("h-5 w-auto")}</div>
+            <span className="text-gray-800 mx-1 font-semibold">
+              {logs.length}
+            </span>
+            Log Line{logs.length !== 1 ? "s" : ""}
           </div>
         </div>
 
@@ -141,7 +144,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
                 <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                   Error
                 </h4>
-                <pre className="border-gray-200 bg-gray-100 text-red-800 overflow-auto rounded border p-2 text-sm">
+                <pre className="overflow-auto rounded bg-black p-2 text-sm text-red">
                   {decodeBase64(req.err)}
                 </pre>
               </div>
@@ -205,16 +208,16 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
               </div>
               {req.err !== null ? (
                 <div className="mt-4">
-                  <h4 className="text-gray-300 mb-2 flex items-center font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                     Error{" "}
                     <button
-                      className="text-gray-600 hover:text-indigo-600 focus:outline-none ml-1"
+                      className="text-gray-600 ml-1"
                       onClick={() => props.onStackTrace(req.err_stack!)}
                     >
                       {icons.stackTrace("m-1 h-4 w-auto")}
                     </button>
                   </h4>
-                  <pre className="border-gray-200 bg-gray-100 text-red-800 overflow-auto rounded border p-2 text-sm">
+                  <pre className="overflow-auto rounded bg-black p-2 text-sm text-red">
                     {decodeBase64(req.err)}
                   </pre>
                 </div>
@@ -234,16 +237,16 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
               </div>
               {req.err !== null ? (
                 <div className="mt-4">
-                  <h4 className="text-gray-300 mb-2 flex items-center font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                     Error{" "}
                     <button
-                      className="text-gray-600 hover:text-indigo-600 focus:outline-none ml-1"
+                      className="text-gray-600 ml-1"
                       onClick={() => props.onStackTrace(req.err_stack!)}
                     >
                       {icons.stackTrace("m-1 h-4 w-auto")}
                     </button>
                   </h4>
-                  <pre className="border-gray-200 bg-gray-100 text-red-800 overflow-auto rounded border p-2 text-sm">
+                  <pre className="overflow-auto rounded bg-black p-2 text-sm text-red">
                     {decodeBase64(req.err)}
                   </pre>
                 </div>
@@ -269,7 +272,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
               <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                 Logs
               </h4>
-              <pre className="border-gray-200 bg-gray-100 text-gray-800 overflow-auto rounded border p-2 text-xs">
+              <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
                 {logs.map((log, i) =>
                   renderLog(tr, log, i, props.onStackTrace)
                 )}
@@ -331,22 +334,24 @@ const EventMap: FunctionComponent<{
     .filter((g) => g.events.length > 0 || g.goid === req.goid);
   return (
     <div>
-      <div className="text-gray-400 mb-1 flex items-center text-xs font-light">
+      <div className="body-xs text-gray-400 mb-1 flex items-center">
         {icons.chip("h-4 w-auto")}
         <span className="text-gray-800 mx-1 font-bold">{lines.length}</span>
         Goroutine{lines.length !== 1 ? "s" : ""}
       </div>
-      {lines.map((g, i) => (
-        <div key={g.goid} className={i > 0 ? "mt-1" : ""}>
-          <GoroutineDetail
-            key={g.goid}
-            g={g}
-            req={req}
-            trace={props.trace}
-            onStackTrace={props.onStackTrace}
-          />
-        </div>
-      ))}
+      <div className="bg-white">
+        {lines.map((g, i) => (
+          <div key={g.goid} className={i > 0 ? "mt-0.5" : ""}>
+            <GoroutineDetail
+              key={g.goid}
+              g={g}
+              req={req}
+              trace={props.trace}
+              onStackTrace={props.onStackTrace}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -406,15 +411,17 @@ const GoroutineDetail: FunctionComponent<{
       <div className="relative" style={{ height: lineHeight + "px" }}>
         <div
           ref={goroutineEl}
-          className={`bg-gray-600 absolute`}
+          className={`absolute`}
           style={{
-            borderRadius: "3px",
             height: lineHeight + "px",
             left: start + "%",
             right: 100 - end + "%",
-            minWidth: "1px", // so it at least renders
+            minWidth: "3px", // so it at least renders
           }}
         >
+          <div className="absolute inset-0 flex items-center">
+            <div className="h-px w-full bg-lightgray" />
+          </div>
           {barEvents.map((ev, i) => {
             const start = Math.round(((ev.start_time - g.start) / gdur) * 100);
             const end = Math.round(((ev.end_time! - g.start) / gdur) * 100);
@@ -435,7 +442,6 @@ const GoroutineDetail: FunctionComponent<{
                     onMouseEnter={(e) => setHover(e, ev)}
                     onMouseLeave={(e) => setHover(e, null)}
                     style={{
-                      borderRadius: "3px",
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
@@ -463,7 +469,6 @@ const GoroutineDetail: FunctionComponent<{
                     onMouseEnter={(e) => setHover(e, ev)}
                     onMouseLeave={(e) => setHover(e, null)}
                     style={{
-                      borderRadius: "3px",
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
@@ -486,7 +491,6 @@ const GoroutineDetail: FunctionComponent<{
                     onMouseEnter={(e) => setHover(e, ev)}
                     onMouseLeave={(e) => setHover(e, null)}
                     style={{
-                      borderRadius: "3px",
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
@@ -511,7 +515,6 @@ const GoroutineDetail: FunctionComponent<{
                     onMouseEnter={(e) => setHover(e, ev)}
                     onMouseLeave={(e) => setHover(e, null)}
                     style={{
-                      borderRadius: "3px",
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
@@ -529,6 +532,7 @@ const GoroutineDetail: FunctionComponent<{
         ref={tooltipRef}
         className="absolute z-40 w-full max-w-md pr-2"
         style={{
+          width: "500px",
           paddingRight:
             "10px" /* extra padding to make it easier to hover into the tooltip */,
         }}
@@ -536,7 +540,7 @@ const GoroutineDetail: FunctionComponent<{
         onMouseLeave={() => setTooltipOver(false)}
       >
         {(barOver || tooltipOver) && (
-          <div className="border-gray-100 shadow-lg w-full overflow-auto rounded-md border bg-white p-3">
+          <div className="w-full overflow-auto border-2 border-black bg-white p-3">
             {hoverObj &&
               "type" in hoverObj &&
               (hoverObj.type === "DBQuery" ? (
@@ -580,7 +584,7 @@ const PubsubPublishTooltip: FunctionComponent<{
   const publish = props.publish;
   return (
     <div>
-      <h3 className="text-gray-800 flex items-center text-lg font-bold">
+      <h3 className="flex items-center text-lg font-bold text-black">
         {icons.arrowsExpand("h-8 w-auto text-gray-400 mr-2")}
         Publish: {publish.topic}
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
@@ -588,7 +592,7 @@ const PubsubPublishTooltip: FunctionComponent<{
             ? latencyStr(publish.end_time - publish.start_time)
             : "Unknown"}
           <button
-            className="text-gray-600 hover:text-indigo-600 focus:outline-none -mr-1"
+            className="focus:outline-none -mr-1"
             onClick={() => props.onStackTrace(publish.stack)}
           >
             {icons.stackTrace("m-1 h-4 w-auto")}
@@ -617,7 +621,7 @@ const PubsubPublishTooltip: FunctionComponent<{
           Error
         </h4>
         {publish.err !== null ? (
-          <pre className="border-gray-200 bg-gray-100 text-gray-800 overflow-auto rounded border p-2 text-sm">
+          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
             {decodeBase64(publish.err)}
           </pre>
         ) : (
@@ -636,13 +640,13 @@ const DBQueryTooltip: FunctionComponent<{
   const q = props.q;
   return (
     <div>
-      <h3 className="text-gray-800 flex items-center text-lg font-bold">
+      <h3 className="flex items-center text-lg font-bold text-black">
         {icons.database("h-8 w-auto text-gray-400 mr-2")}
         DB Query
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
           {q.end_time ? latencyStr(q.end_time - q.start_time) : "Unknown"}
           <button
-            className="text-gray-600 hover:text-indigo-600 focus:outline-none -mr-1"
+            className="focus:outline-none -mr-1"
             onClick={() => props.onStackTrace(q.stack)}
           >
             {icons.stackTrace("m-1 h-4 w-auto")}
@@ -656,11 +660,11 @@ const DBQueryTooltip: FunctionComponent<{
         </h4>
         {q.html_query !== null ? (
           <pre
-            className="border-gray-200 overflow-auto rounded border p-2 text-sm"
+            className="border-gray-200 overflow-auto rounded border bg-[#fff] p-2 text-sm"
             dangerouslySetInnerHTML={{ __html: decodeBase64(q.html_query) }}
           />
         ) : (
-          <pre className="border-gray-200 bg-gray-100 text-gray-800 overflow-auto rounded border p-2 text-sm">
+          <pre className="border-gray-200 overflow-auto rounded border bg-black p-2 text-sm text-white">
             {decodeBase64(q.query)}
           </pre>
         )}
@@ -671,7 +675,7 @@ const DBQueryTooltip: FunctionComponent<{
           Error
         </h4>
         {q.err !== null ? (
-          <pre className="border-gray-200 bg-gray-100 text-gray-800 overflow-auto rounded border p-2 text-sm">
+          <pre className="overflow-auto rounded bg-black p-2 text-sm text-white">
             {decodeBase64(q.err)}
           </pre>
         ) : (
@@ -698,7 +702,7 @@ const RPCCallTooltip: FunctionComponent<{
 
   return (
     <div>
-      <h3 className="text-gray-800 flex items-center text-lg font-bold">
+      <h3 className="flex items-center text-lg font-bold text-black">
         {icons.logout("h-8 w-auto text-gray-400 mr-2")}
         API Call
         {endpoint !== null ? (
@@ -709,7 +713,7 @@ const RPCCallTooltip: FunctionComponent<{
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
           {c.end_time ? latencyStr(c.end_time - c.start_time) : "Unknown"}
           <button
-            className="text-gray-600 hover:text-indigo-600 focus:outline-none -mr-1"
+            className="focus:outline-none -mr-1"
             onClick={() => props.onStackTrace(c.stack)}
           >
             {icons.stackTrace("m-1 h-4 w-auto")}
@@ -752,7 +756,7 @@ const RPCCallTooltip: FunctionComponent<{
           Error
         </h4>
         {c.err !== null ? (
-          <pre className="border-gray-200 bg-gray-100 text-gray-800 overflow-auto rounded border p-2 text-sm">
+          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
             {decodeBase64(c.err)}
           </pre>
         ) : (
@@ -775,7 +779,7 @@ const HTTPCallTooltip: FunctionComponent<{
         {icons.logout("h-8 w-auto text-gray-400 mr-2")}
         HTTP {call.method} {call.host}
         {call.path}
-        <div className="text-gray-500 ml-auto text-sm font-normal">
+        <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
           {call.end_time
             ? latencyStr(call.end_time - call.start_time)
             : "Unknown"}
@@ -807,7 +811,7 @@ const HTTPCallTooltip: FunctionComponent<{
           Error
         </h4>
         {call.err !== null ? (
-          <pre className="border-gray-200 bg-gray-100 text-gray-800 overflow-auto rounded border p-2 text-sm">
+          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
             {decodeBase64(call.err)}
           </pre>
         ) : (
@@ -885,7 +889,7 @@ const renderData = (data: Base64EncodedBytes[]) => {
     /* do nothing */
   }
   return (
-    <pre className="border-gray-200 bg-gray-100 text-gray-800 response-docs overflow-auto rounded border p-2 text-sm">
+    <pre className="response-docs overflow-auto rounded border bg-black p-2 text-sm text-white">
       <CM
         key={pretty}
         cfg={{
@@ -926,7 +930,7 @@ const renderRequestPayload = (
   }
 
   return (
-    <pre className="border-gray-200 bg-gray-100 text-gray-800 response-docs overflow-auto rounded border p-2 text-sm">
+    <pre className="response-docs overflow-auto rounded border bg-black p-2 text-sm text-white">
       {pathParams.map((s, i) => (
         <div key={i}>
           <span className="text-gray-400">{s.value}:</span> {raw[i]}
@@ -973,7 +977,7 @@ const renderLog = (
   return (
     <div key={key} className="flex items-center gap-x-1.5">
       <button
-        className="text-gray-600 hover:text-indigo-600 focus:outline-none -ml-2 -mr-1"
+        className="focus:outline-none -ml-2 -mr-1"
         onClick={() => onStackTrace(log.stack)}
       >
         {icons.stackTrace("m-1 h-4 w-auto")}

@@ -1,24 +1,16 @@
 const unselected = [
-  "#fde8e8",
-  "#feecdc",
-  "#fdf6b2",
-  "#def7ec",
-  "#d5f5f6",
-  "#e1effe",
-  "#e5edff",
-  "#edebfe",
-  "#fce8f3",
+  "#93C0FF", // Encore Light Blue
+  "#FFB84A", // Code Orange
+  "#B3D77E", // Code Green
+  "#6E89FF", // Code Blue
+  "#A36C8C", // Code Purple
 ];
 const selected = [
-  "#fbd5d5",
-  "#fcd9bd",
-  "#fce96a",
-  "#bcf0da",
-  "#afecef",
-  "#c3ddfd",
-  "#cddbfe",
-  "#dcd7fe",
-  "#fad1e8",
+  "#AACCF8", // Encore Light Blue Highlight
+  "#FBC674", // Code Orange Highlight
+  "#C2DD98", // Code Green Highlight
+  "#8EA3F8", // Code Blue Highlight
+  "#B68DA2", // Code Purple Highlight
 ];
 
 export function svcColor(svc: string): [string, string] {

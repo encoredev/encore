@@ -13,9 +13,7 @@ const API: FunctionComponent = (props) => {
       <Nav />
 
       <section className="bg-gray-200 flex flex-grow flex-col items-center">
-        <div className="mt-6 w-full px-4 md:px-10">
-          <AppAPI appID={appID!} conn={conn} />
-        </div>
+        <AppAPI appID={appID!} conn={conn} />
       </section>
     </>
   );

@@ -87,11 +87,11 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({
   }, []);
 
   if (!state.md || !state.selected) {
-    return null;
+    return <div>Create an endpoint to view it here!</div>;
   }
 
   return (
-    <div className="bg-white p-4">
+    <div className="bg-white pt-2">
       <Combobox
         label="API Endpoint"
         selectedItem={state.selected!}

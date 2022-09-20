@@ -4,6 +4,7 @@ import RPCCaller from "~c/api/RPCCaller";
 import SchemaView, { Dialect } from "~c/api/SchemaView";
 import { ProcessReload } from "~lib/client/client";
 import JSONRPCConn, { NotificationMsg } from "~lib/client/jsonrpc";
+import APINav from "~c/api/APINav";
 
 interface Props {
   appID: string;
@@ -46,17 +47,15 @@ export default class AppAPI extends React.Component<Props, State> {
   }
 
   render() {
-    return (
-      <div className="flex flex-col">
-        {this.state.meta ? (
-          this.renderAPI()
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center">
-            <div className="text-gray-400 mb-6 px-4 text-lg">
-              No API schema available yet.
-            </div>
+    return this.state.meta ? (
+      this.renderAPI()
+    ) : (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center">
+          <div className="text-gray-400 mb-6 px-4 text-lg">
+            No API schema available yet. Create an endpoint to view it here
           </div>
-        )}
+        </div>
       </div>
     );
   }
@@ -68,173 +67,202 @@ export default class AppAPI extends React.Component<Props, State> {
     };
 
     return (
-      <div className="relative flex flex-grow items-start">
-        <div className="sticky top-4 hidden w-56 flex-none md:block">
-          <SvcMenu svcs={meta.svcs} />
-        </div>
-        <div className="shadow-lg h-full min-w-0 flex-grow rounded-lg bg-white md:ml-6">
-          {meta.svcs.map((svc) => {
-            const rootPkg = svcPkg(svc);
-            return (
-              <div
-                key={svc.name}
-                className="border-gray-300 border-b px-4 md:px-8 lg:px-16"
-              >
-                <div className="py-4 md:py-8 lg:py-16">
-                  <h2 className="text-gray-600 text-3xl font-bold leading-10">
-                    Service {svc.name}
-                  </h2>
-                  {rootPkg.doc && (
-                    <p className="mt-4 mb-6 leading-6">{rootPkg.doc}</p>
-                  )}
-                </div>
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-auto">
+        <div className="flex min-w-0 flex-1 items-stretch overflow-auto">
+          <div
+            className={`hidden h-full-minus-nav w-64 flex-shrink-0 overflow-auto bg-black text-white lg:flex lg:flex-col`}
+          >
+            <APINav meta={meta} />
+          </div>
+          <div
+            className={`flex h-full-minus-nav min-w-0 flex-1 flex-col overflow-auto`}
+          >
+            <div className="min-h-0 flex-grow rounded-lg p-4">
+              {meta.svcs.map((svc, i) => {
+                const rootPkg = svcPkg(svc);
+                return (
+                  <div key={i} className="px-4">
+                    <div className="py-4">
+                      <h2 className="text-gray-600 font-sans text-3xl leading-10">
+                        Service {svc.name}
+                      </h2>
+                      {rootPkg.doc && (
+                        <p className="mt-4 mb-6 leading-6">{rootPkg.doc}</p>
+                      )}
+                    </div>
 
-                {svc.rpcs.map((rpc) => {
-                  const pathParams = rpc.path.segments.filter(
-                    (p) => p.type !== "LITERAL"
-                  );
+                    {svc.rpcs.map((rpc) => {
+                      const pathParams = rpc.path.segments.filter(
+                        (p) => p.type !== "LITERAL"
+                      );
 
-                  let defaultMethod = rpc.http_methods[0];
-                  if (defaultMethod === "*") {
-                    defaultMethod = "POST";
-                  } else if (defaultMethod !== "POST") {
-                    for (const method of rpc.http_methods) {
-                      if (method === "POST") {
-                        defaultMethod = method;
-                        break;
+                      let defaultMethod = rpc.http_methods[0];
+                      if (defaultMethod === "*") {
+                        defaultMethod = "POST";
+                      } else if (defaultMethod !== "POST") {
+                        for (const method of rpc.http_methods) {
+                          if (method === "POST") {
+                            defaultMethod = method;
+                            break;
+                          }
+                        }
                       }
-                    }
-                  }
 
-                  return (
-                    <div
-                      key={rpc.name}
-                      className="border-gray-300 border-t py-10"
-                    >
-                      <h3
-                        id={svc.name + "." + rpc.name}
-                        className="text-gray-700 flex items-center font-sans text-2xl font-medium leading-10"
-                      >
-                        <span className="min-w-0 flex-grow truncate">
-                          func {rpc.name}
-                        </span>
-                      </h3>
-                      <div className="md:flex md:items-stretch">
-                        <div
-                          className="w-full min-w-0 flex-initial md:mr-12"
-                          style={{ maxWidth: "600px" }}
-                        >
-                          {rpc.doc && (
-                            <p className="mb-6 leading-6">{rpc.doc}</p>
-                          )}
-
-                          {rpc.proto === "RAW" ? (
-                            <div className="mt-4">
-                              <div className="text-gray-900 flex text-sm leading-6">
-                                This API processes unstructured HTTP requests
-                                and therefore has no explicit schema.
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              {pathParams.length > 0 && (
-                                <div className="mt-4">
-                                  <h4 className="text-gray-700 font-sans font-medium">
-                                    Path Parameters
-                                  </h4>
-                                  <hr className="border-gray-200 my-4" />
-                                  <div>
-                                    {pathParams.map((p, i) => (
-                                      <div
-                                        key={p.value}
-                                        className={
-                                          i > 0
-                                            ? "border-gray-200 border-t"
-                                            : ""
-                                        }
-                                      >
-                                        <div className="flex font-mono leading-6">
-                                          <div className="text-gray-900 text-sm font-bold">
-                                            {p.value}
-                                          </div>
-                                          <div className="text-gray-500 ml-2 text-xs">
-                                            string
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
+                      return (
+                        <div key={i} className="py-4">
+                          <div className="md:flex md:items-stretch">
+                            <div
+                              className="w-full min-w-0 flex-initial md:mr-12"
+                              style={{ maxWidth: "600px" }}
+                            >
+                              <h3
+                                id={svc.name + "." + rpc.name}
+                                className="text-gray-700 flex min-w-0 items-center font-sans text-2xl leading-10"
+                              >
+                                <span className="flex-shrink truncate">
+                                  func {rpc.name}{" "}
+                                </span>
+                                {rpc.access_type === "PUBLIC" ? (
+                                  <span
+                                    className="lead-xs ml-4 inline-flex flex-none items-center rounded bg-codegreen px-2 py-1.5 leading-none text-black"
+                                    title="This API is publicly accessible to anyone on the internet"
+                                  >
+                                    Public
+                                  </span>
+                                ) : rpc.access_type === "AUTH" ? (
+                                  <span
+                                    className="lead-xs ml-4 inline-flex flex-none items-center rounded bg-codeyellow px-2 py-1.5 leading-none text-black"
+                                    title="This API requires authentication by the client"
+                                  >
+                                    Auth
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="lead-xs ml-4 inline-flex flex-none items-center rounded bg-codeorange px-2 py-1.5 leading-none text-black"
+                                    title="This API is only accessible by your organization"
+                                  >
+                                    Private
+                                  </span>
+                                )}
+                              </h3>
+                              {rpc.doc && (
+                                <p className="mb-6 text-xs">{rpc.doc}</p>
                               )}
 
-                              <div className="mt-4">
-                                <h4 className="text-gray-700 font-sans font-medium">
-                                  Request
-                                </h4>
-                                <hr className="border-gray-200 my-4" />
-                                {rpc.request_schema ? (
-                                  <SchemaView
-                                    meta={meta}
-                                    service={svc}
-                                    rpc={rpc}
-                                    method={defaultMethod}
-                                    type={rpc.request_schema}
-                                    dialect="table"
-                                  />
-                                ) : (
-                                  <div className="text-gray-400 text-sm">
-                                    No parameters.
+                              {rpc.proto === "RAW" ? (
+                                <div className="mt-4">
+                                  <div className="text-gray-900 flex text-sm leading-6">
+                                    This API processes unstructured HTTP
+                                    requests and therefore has no explicit
+                                    schema.
                                   </div>
-                                )}
-                              </div>
+                                </div>
+                              ) : (
+                                <>
+                                  {pathParams.length > 0 && (
+                                    <div className="mt-4">
+                                      <h4 className="mb-2 border-b border-black border-opacity-[15%] pb-2 font-sans text-black">
+                                        Path Parameters
+                                      </h4>
+                                      <div>
+                                        {pathParams.map((p, i) => (
+                                          <div key={p.value}>
+                                            <div className="flex items-center font-mono leading-6">
+                                              <div className="text-gray-900 text-sm font-bold">
+                                                {p.value}
+                                              </div>
+                                              <div className="text-gray-500 ml-2 text-xs">
+                                                string
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {rpc.request_schema ? (
+                                        <SchemaView
+                                          meta={meta}
+                                          service={svc}
+                                          rpc={rpc}
+                                          type={rpc.request_schema}
+                                          method={defaultMethod}
+                                          dialect="table"
+                                        />
+                                      ) : (
+                                        <div className="text-gray-400 text-sm">
+                                          No parameters.
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
 
-                              <div className="mt-12">
-                                <h4 className="text-gray-700 font-sans font-medium">
-                                  Response
-                                </h4>
-                                <hr className="border-gray-200 my-4" />
-                                {rpc.response_schema ? (
-                                  <SchemaView
-                                    meta={meta}
-                                    service={svc}
-                                    rpc={rpc}
-                                    method={defaultMethod}
-                                    type={rpc.response_schema}
-                                    dialect="table"
-                                    asResponse
-                                  />
-                                ) : (
-                                  <div className="text-gray-400 text-sm">
-                                    No response.
+                                  <div className="mt-4">
+                                    <h4 className="mb-2 border-b border-black border-opacity-[15%] pb-2 font-sans text-black">
+                                      Request
+                                    </h4>
+                                    {rpc.request_schema ? (
+                                      <SchemaView
+                                        meta={meta}
+                                        service={svc}
+                                        rpc={rpc}
+                                        type={rpc.request_schema}
+                                        method={defaultMethod}
+                                        dialect="table"
+                                      />
+                                    ) : (
+                                      <div className="text-gray-400 text-sm">
+                                        No parameters.
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        {rpc.proto !== "RAW" && (
-                          <div
-                            className="mt-10 w-full min-w-0 flex-initial md:mt-0"
-                            style={{ maxWidth: "600px" }}
-                          >
-                            <div className="sticky top-4">
-                              <RPCDemo
-                                conn={this.props.conn}
-                                appID={this.props.appID}
-                                meta={meta}
-                                svc={svc}
-                                rpc={rpc}
-                              />
+
+                                  <div className="mt-12">
+                                    <h4 className="mb-2 border-b border-black border-opacity-[15%] pb-2 font-sans text-black">
+                                      Response
+                                    </h4>
+                                    {rpc.response_schema ? (
+                                      <SchemaView
+                                        meta={meta}
+                                        service={svc}
+                                        rpc={rpc}
+                                        type={rpc.response_schema}
+                                        method={defaultMethod}
+                                        dialect="table"
+                                        asResponse
+                                      />
+                                    ) : (
+                                      <div className="text-gray-400 text-sm">
+                                        No response.
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              )}
                             </div>
+                            {rpc.proto !== "RAW" && (
+                              <div
+                                className="mt-10 w-full min-w-0 flex-initial md:mt-0"
+                                style={{ maxWidth: "600px" }}
+                              >
+                                <div className="sticky top-4">
+                                  <RPCDemo
+                                    conn={this.props.conn}
+                                    appID={this.props.appID}
+                                    meta={meta}
+                                    svc={svc}
+                                    rpc={rpc}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -277,10 +305,10 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
         {tabs.map((t) => (
           <button
             key={t.type}
-            className={`focus:outline-none rounded-md px-3 py-2 text-sm font-medium ${
+            className={`lead-xs focus:outline-none lead-small rounded px-5 py-2 uppercase ${
               selectedTab === t.type
-                ? "text-purple-700 bg-purple-100"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-black text-white"
+                : "border border-black bg-white text-black"
             }`}
             onClick={() => setSelectedTab(t.type)}
           >
@@ -292,14 +320,14 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
       {selectedTab === "schema" ? (
         <>
           {props.rpc.request_schema && (
-            <div className="border-gray-200 shadow request-docs rounded-md">
-              <div className="bg-gray-600 text-gray-200 flex rounded-t-md p-2 font-header text-xs uppercase tracking-wider">
-                <div className="flex-grow">Request</div>
+            <div className="request-docs rounded-md border border-black">
+              <div className="flex rounded-t bg-white p-2 text-xs tracking-wider text-black">
+                <div className="lead-xs flex-grow uppercase">Request</div>
                 <div className="flex-shrink-0">
                   <select
                     value={respDialect}
                     onChange={(e) => setRespDialect(e.target.value as Dialect)}
-                    className="form-select text-gray-300 h-full border-transparent bg-transparent py-0 text-xs leading-none"
+                    className="form-select focus:outline-none h-full !border-transparent bg-transparent py-0 text-right font-mono text-xs leading-none text-black focus:ring-0"
                   >
                     <option value="json">JSON</option>
                     <option value="go">Go</option>
@@ -308,7 +336,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   </select>
                 </div>
               </div>
-              <div className="bg-gray-800 text-gray-100 overflow-auto rounded-b-md p-2 font-mono">
+              <div className="code-xs overflow-auto rounded-b bg-black p-2 text-white">
                 <SchemaView
                   meta={props.meta}
                   service={props.svc}
@@ -321,14 +349,14 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
             </div>
           )}
           {props.rpc.response_schema && (
-            <div className="border-gray-200 shadow response-docs mt-6 rounded-md">
-              <div className="bg-gray-200 text-gray-600 flex rounded-t-md p-2 font-header text-xs uppercase tracking-wider">
-                <div className="flex-grow">Response</div>
+            <div className="response-docs mt-6 rounded-md border border-black">
+              <div className="flex rounded-t bg-white p-2 text-xs uppercase tracking-wider text-black">
+                <div className="lead-xs flex-grow uppercase">Response</div>
                 <div className="flex-shrink-0">
                   <select
                     value={respDialect}
                     onChange={(e) => setRespDialect(e.target.value as Dialect)}
-                    className="form-select text-gray-500 h-full border-transparent bg-transparent py-0 text-xs leading-none"
+                    className="form-select focus:outline-none h-full !border-transparent bg-transparent py-0 text-right font-mono text-xs leading-none text-black focus:ring-0"
                   >
                     <option value="json">JSON</option>
                     <option value="go">Go</option>
@@ -337,7 +365,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   </select>
                 </div>
               </div>
-              <div className="bg-gray-100 overflow-auto rounded-b-md p-2 font-mono">
+              <div className="code-xs overflow-auto rounded-b bg-black p-2 text-white">
                 <SchemaView
                   meta={props.meta}
                   service={props.svc}
@@ -361,41 +389,5 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
         />
       )}
     </div>
-  );
-};
-
-interface SvcMenuProps {
-  svcs: Service[];
-}
-
-const SvcMenu: FunctionComponent<SvcMenuProps> = (props) => {
-  return (
-    <>
-      {props.svcs.map((svc, i) => (
-        <div key={svc.name} className={i > 0 ? "border-gray-300 border-t" : ""}>
-          <div className="text-gray-900 flex w-full px-4 py-2 text-left">
-            <div className="flex flex-grow">
-              <div className="text-gray-800 flex-grow text-sm font-medium leading-5">
-                {svc.name}
-              </div>
-              <div className="text-gray-400 flex-shrink-0 text-xs font-light">
-                Service
-              </div>
-            </div>
-          </div>
-          <div className="py-1">
-            {svc.rpcs.map((rpc, j) => (
-              <a
-                key={j}
-                href={`#${svc.name}.${rpc.name}`}
-                className="text-gray-700 hover:bg-gray-300 hover:text-gray-900 focus:outline-none focus:bg-gray-100 focus:text-gray-900 block rounded-sm py-2 pl-6 pr-4 text-sm leading-5"
-              >
-                {rpc.name}
-              </a>
-            ))}
-          </div>
-        </div>
-      ))}
-    </>
   );
 };

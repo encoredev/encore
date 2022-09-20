@@ -1,8 +1,7 @@
 import React, { FC, FunctionComponent, useState } from "react";
-import * as icons from "~c/icons";
-import { Icon } from "~c/icons";
 import { Request, Trace } from "./model";
 import { svcColor } from "./util";
+import { Icon, icons } from "~c/icons";
 
 interface Props {
   trace: Trace;
@@ -85,8 +84,8 @@ const SpanRow: FC<{
   return (
     <>
       <div
-        className={`flex cursor-pointer items-stretch p-4 ${
-          sel ? "bg-blue-50" : "hover:bg-gray-50"
+        className={`flex cursor-pointer select-none items-stretch p-4 ${
+          sel ? "bg-black bg-opacity-[5%]" : ""
         }`}
         onClick={select}
       >
@@ -98,21 +97,21 @@ const SpanRow: FC<{
         />
 
         {expanded && req.children.length > 0
-          ? icons.chevronRight("h-4 w-auto ml-1 mr-0.5")
-          : icons.chevronDown("h-4 w-auto ml-1 mr-0.5")}
+          ? icons.chevronRight("h-3 w-auto ml-1 mr-0.5")
+          : icons.chevronDown("h-3 w-auto ml-1 mr-0.5")}
 
         <div className="ml-1 flex flex-grow items-center">
-          <div className="w-64 flex-shrink-0 text-xs">
+          <div className="min-w-0 flex-1 truncate text-xs">
             <div
               className={`font-semibold ${
-                req.err !== null ? "text-red-700" : "text-gray-800"
+                req.err !== null ? "text-red" : "text-black"
               }`}
             >
               {icon ? icon("h-3 w-3 mr-1 inline-block", type) : undefined}
               {svcName}.{rpcName}
             </div>
           </div>
-          <div className="min-w-0 flex-shrink flex-grow">
+          <div className="w-64 flex-none">
             <style>{`
               .spanlist-${req.id}       { background-color: ${
               sel ? highlightColor : color
@@ -121,7 +120,7 @@ const SpanRow: FC<{
             `}</style>
             <div className="relative" style={{ height: "8px" }}>
               <div
-                className="bg-gray-200 absolute inset-x-0"
+                className="absolute inset-x-0 bg-lightgray"
                 style={{ height: "1px", top: "3px" }}
               />
               <div
@@ -131,7 +130,6 @@ const SpanRow: FC<{
                   left: start + "%",
                   right: 100 - end + "%",
                   minWidth: "2px", // so it at least renders if start === stop
-                  borderRadius: "3px",
                 }}
               />
             </div>
@@ -169,24 +167,24 @@ const TreeHint: FunctionComponent<{
       {props.siblings.map((s) => (
         <div
           key={s}
-          className="bg-gray-200 absolute"
+          className="absolute bg-lightgray"
           style={{ top: 0, bottom: 0, width: "1px", left: s * 10 + "px" }}
         />
       ))}
 
       {props.up && (
         <div
-          className="bg-gray-200 absolute"
+          className="absolute bg-lightgray"
           style={{ left: lvl * 10 + "px", top: 0, bottom: "50%", width: "1px" }}
         />
       )}
       <div
-        className="bg-gray-200 absolute"
+        className="absolute bg-lightgray"
         style={{ left: lvl * 10 + "px", right: 0, height: "1px", top: "50%" }}
       />
       {props.down && (
         <div
-          className="bg-gray-200 absolute"
+          className="absolute bg-lightgray"
           style={{
             width: "1px",
             left: lvl * 10 + 10 + "px",
