@@ -97,10 +97,10 @@ func (cfg *Config) Validate() error {
 
 // Result is the combined results of a build.
 type Result struct {
-	Dir            string         // absolute path to build temp dir
-	Exe            string         // absolute path to the build executable
-	Parse          *parser.Result // set only if build succeeded
-	AppConfigFiles fs.FS          // all found configuration files within the application source
+	Dir         string         // absolute path to build temp dir
+	Exe         string         // absolute path to the build executable
+	Parse       *parser.Result // set only if build succeeded
+	ConfigFiles fs.FS          // all found configuration files within the application source
 }
 
 // Build builds the application.
@@ -137,7 +137,9 @@ type builder struct {
 	res         *parser.Result
 	configFiles fs.FS
 
-	lastOpID optracker.OperationID
+	appCheckOpID optracker.OperationID
+	codegenOpID  optracker.OperationID
+	lastOpID     optracker.OperationID
 }
 
 func (b *builder) Build() (res *Result, err error) {
@@ -193,27 +195,29 @@ func (b *builder) Build() (res *Result, err error) {
 	}
 
 	res.Parse = b.res
-	res.AppConfigFiles = b.configFiles
+	res.ConfigFiles = b.configFiles
 	return res, nil
 }
 
 func (b *builder) startAppCheck() error {
-	b.lastOpID = b.cfg.OpTracker.Add("Verifying application configuration", time.Now())
+	b.appCheckOpID = b.cfg.OpTracker.Add("Verifying application configuration", time.Now())
+	b.lastOpID = b.appCheckOpID
 	return nil
 }
 
 func (b *builder) endAppCheck() error {
-	b.cfg.OpTracker.Done(b.lastOpID, 50*time.Millisecond)
+	b.cfg.OpTracker.Done(b.appCheckOpID, 50*time.Millisecond)
 	return nil
 }
 
 func (b *builder) startCodeGenTracker() error {
-	b.lastOpID = b.cfg.OpTracker.Add("Generating boilerplate code", time.Now())
+	b.codegenOpID = b.cfg.OpTracker.Add("Generating boilerplate code", time.Now())
+	b.lastOpID = b.codegenOpID
 	return nil
 }
 
 func (b *builder) endCodeGenTracker() error {
-	b.cfg.OpTracker.Done(b.lastOpID, 450*time.Millisecond)
+	b.cfg.OpTracker.Done(b.codegenOpID, 450*time.Millisecond)
 	return nil
 }
 
@@ -359,7 +363,8 @@ func (b *builder) writePackages() error {
 }
 
 func (b *builder) buildMain() error {
-	b.lastOpID = b.cfg.OpTracker.Add("Compiling application source code", time.Now())
+	compileAppOpId := b.cfg.OpTracker.Add("Compiling application source code", time.Now())
+	b.lastOpID = compileAppOpId
 
 	overlayData, _ := json.Marshal(map[string]interface{}{"Replace": b.overlay})
 	overlayPath := filepath.Join(b.workdir, "overlay.json")
@@ -405,7 +410,7 @@ func (b *builder) buildMain() error {
 		return &Error{Output: out}
 	}
 
-	b.cfg.OpTracker.Done(b.lastOpID, 300*time.Millisecond)
+	b.cfg.OpTracker.Done(compileAppOpId, 300*time.Millisecond)
 
 	return nil
 }

@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 // configuration for each service
 func (b *builder) pickupConfigFiles() error {
 	// Create a virtual filesystem for the config files
-	configFiles, err := vfs.FromDir(b.appRoot, func(path string) bool {
+	configFiles, err := vfs.FromDir(b.appRoot, func(path string, info fs.DirEntry) bool {
 		// any CUE files
 		if filepath.Ext(path) == ".cue" {
 			return true
@@ -26,17 +27,6 @@ func (b *builder) pickupConfigFiles() error {
 		if strings.Contains(path, "/cue.mod/") || strings.HasPrefix(path, "cue.mod/") {
 			return true
 		}
-
-		// Pickup any files called "config.ext" where the file type is supported by CUE
-		if strings.HasPrefix(filepath.Base(path), "config.") && supportedCUEFileFormat(path) {
-			return true
-		}
-
-		// Pickup any files in a "config" folder which are a type supported bye CUE
-		if filepath.Base(filepath.Dir(path)) == "config" && supportedCUEFileFormat(path) {
-			return true
-		}
-
 		return false
 	})
 	if err != nil {
@@ -58,13 +48,4 @@ func (b *builder) computeConfigForService(service *est.Service) error {
 	fmt.Println("CONFIG FOR ", service.Name, "\n", cfg)
 
 	return nil
-}
-
-func supportedCUEFileFormat(path string) bool {
-	switch filepath.Ext(path) {
-	case ".cue", ".json", ".jsonl", ".ldjson", ".ndjson", ".yaml", ".yml":
-		return true
-	default:
-		return false
-	}
 }

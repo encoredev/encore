@@ -14,7 +14,7 @@ func TestFromDir(t *testing.T) {
 
 	dir, err := FromDir(
 		filepath.Join(".", "testdata", "filteredglob"),
-		func(file string) bool { return filepath.Ext(file) == ".json" },
+		func(file string, info fs.DirEntry) bool { return filepath.Ext(file) == ".json" },
 	)
 	c.Assert(err, qt.IsNil, qt.Commentf("error creating VFS"))
 

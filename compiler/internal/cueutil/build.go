@@ -19,23 +19,27 @@ import (
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
-	"cuelang.org/go/encoding/json"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 
-	"encr.dev/compiler/internal/cueutil/internal/yaml"
 	"encr.dev/pkg/eerror"
 )
 
 // LoadFromFS takes a given filesystem object and the app-relative path to the service's root package
 // and loads the full configuration needed for that service.
 func LoadFromFS(filesys fs.FS, serviceRelPath string) (cue.Value, error) {
+	// Work out of a temporary directory
+	tmpPath, err := os.MkdirTemp("", "encr-cfg-")
+	if err != nil {
+		return cue.Value{}, eerror.Wrap(err, "config", "unable to create temporary directory", nil)
+	}
+	defer func() { _ = os.RemoveAll(tmpPath) }()
+
 	// Write the FS to the file system
-	tmpPath, err := writeFSToTmpPath(filesys)
+	err = writeFSToPath(filesys, tmpPath)
 	if err != nil {
 		return cue.Value{}, err
 	}
-	defer func() { _ = os.RemoveAll(tmpPath) }()
 
 	// Find all config files for the service
 	configFilesForService, err := allFilesUnder(filesys, serviceRelPath)
@@ -137,16 +141,10 @@ func toDescriptiveError(err error) error {
 	return errors.New(str.String())
 }
 
-// writeFSToTmpPath writes the contents of the given filesystem to a temporary directory on the local filesystem.
-func writeFSToTmpPath(filesys fs.FS) (string, error) {
-	// Work out of a temporary directory
-	tmpPath, err := os.MkdirTemp("", "encr-cfg-")
-	if err != nil {
-		return "", eerror.Wrap(err, "config", "unable to create temporary directory", nil)
-	}
-
+// writeFSToPath writes the contents of the given filesystem to a temporary directory on the local filesystem.
+func writeFSToPath(filesys fs.FS, targetPath string) error {
 	// Copy the files into the temporary directory
-	err = fs.WalkDir(filesys, ".", func(path string, info fs.DirEntry, err error) error {
+	err := fs.WalkDir(filesys, ".", func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -158,7 +156,7 @@ func writeFSToTmpPath(filesys fs.FS) (string, error) {
 				return err
 			}
 
-			dstFile, err := os.OpenFile(filepath.Join(tmpPath, path), os.O_CREATE|os.O_WRONLY, 0644)
+			dstFile, err := os.OpenFile(filepath.Join(targetPath, path), os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				return err
 			}
@@ -168,7 +166,7 @@ func writeFSToTmpPath(filesys fs.FS) (string, error) {
 				return err
 			}
 		} else {
-			if err := os.Mkdir(filepath.Join(tmpPath, path), 0755); err != nil && !errors.Is(err, os.ErrExist) {
+			if err := os.Mkdir(filepath.Join(targetPath, path), 0755); err != nil && !errors.Is(err, os.ErrExist) {
 				return err
 			}
 		}
@@ -176,11 +174,9 @@ func writeFSToTmpPath(filesys fs.FS) (string, error) {
 		return nil
 	})
 	if err != nil {
-		_ = os.RemoveAll(tmpPath) // clear the temporary directory incase of error
-		return "", eerror.Wrap(err, "config", "unable to write config files to temporary directory", map[string]any{"path": tmpPath})
+		return eerror.Wrap(err, "config", "unable to write config files to temporary directory", map[string]any{"path": targetPath})
 	}
-
-	return tmpPath, nil
+	return nil
 }
 
 // addOrphanedFiles adds any orphaned files outside the package to the build instance. This could be CUE, YAML or JSON files
@@ -196,6 +192,7 @@ func addOrphanedFiles(i *build.Instance) (err error) {
 		if err != nil {
 			return err
 		}
+		//goland:noinspection GoDeferInLoop
 		defer func() { _ = rc.Close() }()
 
 		t := unicode.BOMOverride(unicode.UTF8.NewDecoder())
@@ -207,14 +204,6 @@ func addOrphanedFiles(i *build.Instance) (err error) {
 			if err != nil {
 				return err
 			}
-		case build.JSON, build.JSONL:
-			file, err = json.NewDecoder(nil, f.Filename, r).Extract()
-		case build.YAML:
-			dec, err := yaml.NewDecoder(f.Filename, r)
-			if err != nil {
-				return err
-			}
-			file, err = dec.Decode()
 		default:
 			return errors.New(fmt.Sprintf("unsupported encoding: %s", f.Encoding))
 		}

@@ -7,17 +7,27 @@ import (
 	"encr.dev/pkg/eerror"
 )
 
-func FromDir(workingDir string, predicate func(fileName string) bool) (*VFS, error) {
+// FromDir creates a Virtual File System (VFS) from the workingDir on the local computer
+//
+// Only files or folders which match the predicate will be added into the file system
+// A nil predicate will result in all files and folders being added into the file system
+func FromDir(workingDir string, predicate func(fileName string, info fs.DirEntry) bool) (*VFS, error) {
 	dirFS := os.DirFS(workingDir)
 	rtn := New()
 
 	if predicate == nil {
-		predicate = func(fileName string) bool { return true }
+		predicate = func(fileName string, info fs.DirEntry) bool { return true }
 	}
 
 	err := fs.WalkDir(dirFS, ".", func(path string, info fs.DirEntry, err error) error {
-		if !info.IsDir() {
-			if predicate(path) {
+		if err != nil {
+			return eerror.Wrap(err, "vfs", "error walking directory", map[string]any{"path": path})
+		}
+
+		if predicate(path, info) {
+			if info.IsDir() {
+				_ = rtn.AddDir(path)
+			} else {
 				bytes, err := fs.ReadFile(dirFS, path)
 				if err != nil {
 					return eerror.Wrap(err, "vfs", "error reading file", map[string]any{"path": path})

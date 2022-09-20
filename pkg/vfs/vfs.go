@@ -182,19 +182,31 @@ func (v *VFS) Stat(name string) (fs.FileInfo, error) {
 // AddFile records a file into the VFS
 func (v *VFS) AddFile(path string, bytes []byte, time time.Time) (*fileContents, error) {
 	dirPath, filename := filepath.Split(path)
-	dirParts := strings.Split(dirPath, string(os.PathSeparator))
+	dir := v.AddDir(dirPath)
+	dir.files[filename] = &fileContents{
+		node: node{
+			name:    filename,
+			parent:  dir,
+			modTime: time,
+		},
+		contents: bytes,
+	}
 
+	return dir.files[filename], nil
+}
+
+// AddDir records a directory into the VFS.
+func (v *VFS) AddDir(dirPath string) *directoryContents {
+	dirParts := strings.Split(dirPath, string(os.PathSeparator))
 	dir := v.root
 	for _, dirPart := range dirParts {
-		// dirPart = strings.TrimSuffix(dirPart, string(os.PathSeparator))
-
 		if dirPart == "." || dirPart == "" {
 			continue
 		}
 
 		if dirPart == ".." {
 			if dir.node.parent == nil {
-				return nil, errors.New("cannot go above root of filesystem")
+				return nil
 			}
 
 			dir = dir.node.parent
@@ -210,14 +222,5 @@ func (v *VFS) AddFile(path string, bytes []byte, time time.Time) (*fileContents,
 		dir = child
 	}
 
-	dir.files[filename] = &fileContents{
-		node: node{
-			name:    filename,
-			parent:  dir,
-			modTime: time,
-		},
-		contents: bytes,
-	}
-
-	return dir.files[filename], nil
+	return dir
 }
