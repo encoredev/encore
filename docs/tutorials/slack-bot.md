@@ -7,8 +7,10 @@ In this tutorial you will create a Slack bot that brings the greatness of the `c
 ![Slack Cowsay](https://encore.dev/assets/docs/cowsay.png "Slack bot")
 
 <Callout type="important">
+
 To make it easier to follow along, we've laid out a trail of croissants to guide your way.
 Whenever you see a 🥐 it means there's something for you to do.
+
 </Callout>
 
 ## Create your Encore application

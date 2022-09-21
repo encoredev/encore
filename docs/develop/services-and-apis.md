@@ -8,6 +8,7 @@ Encore divides applications into systems, services, and components.
 ## Defining a service
 
 With Encore you define a service by [defining one or more APIs](#defining-apis) within a regular Go package; the package name is used as the service name.
+This means building a microservices architecture is as easy as creating multiple Go packages within your Encore application.
 
 Within a service, you can also have multiple sub-packages, which is a good way to define components.
 Note that only the service package can define APIs, any sub-packages within a service cannot themselves define APIs.
@@ -103,8 +104,10 @@ func UpdateBlogPost(ctx context.Context, id int, post *BlogPost) error {
 ```
 
 <Callout type="important">
+
 You will not be able to define paths that conflict with each other, including paths
 where the static part can be mistaken for a parameter, e.g both `/blog` and `/blog/:id` would conflict with `/:username`.
+
 </Callout>
 
 As a rule of thumb, try to place path parameters at the end of the path and
@@ -176,12 +179,12 @@ You can read more about receiving webhooks in the [receive webhooks guide](/docs
 
 ## Calling an API
 Calling an API endpoint with Encore looks like a regular function call. Import the service package as if it's a regular
-Go package, and then call the API endpoint as if it's a regular function.
+Go package, using `import "encore.app/package-name"` and then call the API endpoint as if it's a regular function.
 
 In the example below, we import the service package `hello`, and call the `Ping` endpoint.
 
 ```go
-import "app.encore.dev/myapp/hello" // import service
+import "encore.app/hello" // import service
 
 //encore:api public
 func MyOtherAPI(ctx context.Context) error {
@@ -300,6 +303,7 @@ from 5-30 seconds.
 Encore automatically handles graceful shutdown of all Encore-managed
 functionality, such as HTTP servers, database connection pools,
 Pub/Sub message receivers, distributed tracing recorders, and so on.
+
 The graceful shutdown functionality is provided if you have additional,
 non-Encore-related resources that need graceful shutdown.
 

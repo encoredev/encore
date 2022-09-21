@@ -33,34 +33,6 @@ var importNames = map[string]string{
 	"encore.dev/types/uuid":             "uuid",
 }
 
-func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
-	defer b.errors.HandleBailout(&err)
-
-	f = NewFilePathName(svc.Root.ImportPath, svc.Name)
-	b.registerImports(f)
-
-	// Import the runtime package with '_' as its name to start with to ensure it's imported.
-	// If other code uses it will be imported under its proper name.
-	f.Anon("encore.dev/appruntime/app/appinit")
-
-	if svc.Struct != nil {
-		f.Line()
-		b.buildServiceStructHandler(f, svc.Struct)
-	}
-
-	for _, rpc := range svc.RPCs {
-		f.Line()
-		b.buildRPC(f, svc, rpc)
-	}
-
-	if ah := b.res.App.AuthHandler; ah != nil && ah.Svc == svc {
-		f.Line()
-		b.buildAuthHandler(f, ah)
-	}
-
-	return f, b.errors.Err()
-}
-
 func (b *Builder) registerImports(f *File) {
 	f.ImportNames(importNames)
 	f.ImportAlias("encoding/json", "stdjson")

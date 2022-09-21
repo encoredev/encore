@@ -1062,6 +1062,28 @@ export namespace icons {
     </svg>
   );
 
+  export const archiveBoxArrowDown: Icon = (cls, title) => (
+    <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      {renderTitle(title)}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
+      />
+    </svg>
+  );
+  
+  export const archiveBoxArrowUp: Icon = (cls, title) => (
+    <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      {renderTitle(title)}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21.5192 6.82692L20.7981 19.0946C20.7592 19.7558 20.4691 20.3772 19.9871 20.8315C19.5051 21.2858 18.8677 21.5387 18.2054 21.5385H5.79462C5.13226 21.5387 4.49486 21.2858 4.01288 20.8315C3.53089 20.3772 3.24078 19.7558 3.20192 19.0946L2.48077 6.82692M12 18.0769V10.2885M12 10.2885L8.53846 13.75M12 10.2885L15.4615 13.75M2.04808 6.82692H21.9519C22.6685 6.82692 23.25 6.24538 23.25 5.52885V3.79808C23.25 3.08154 22.6685 2.5 21.9519 2.5H2.04808C1.33154 2.5 0.75 3.08154 0.75 3.79808V5.52885C0.75 6.24538 1.33154 6.82692 2.04808 6.82692Z"
+      />
+    </svg>
+  );
+
   export const shield: Icon = (cls, title) => (
     <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       {renderTitle(title)}
