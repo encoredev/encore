@@ -64,7 +64,7 @@ sections: [
 			{title: "API Schemas", segment: "api-schemas"},
 			{title: "API Errors", segment: "errors", old_paths:["/concepts/errors"], shortcuts: ["beta/errs", "errs"]},
 			{title: "Authentication", segment: "auth", shortcuts: ["beta/auth", "auth"]},
-			{title: "SQL Databases", segment: "databases", shortcuts: ["storage/sqldb"]},
+			{title: "SQL Databases", segment: "databases", old_paths:["/develop/sql-database"], shortcuts: ["storage/sqldb"]},
 			{
 				title: "Cron Jobs",
 				segment: "cron-jobs"
@@ -75,7 +75,8 @@ sections: [
 			},
 			{title: "Configuration", segment: "config"},
 			{title: "Secrets", segment: "secrets"},
-			{title: "PubSub Events", segment: "pubsub", shortcuts: ["pubsub"]},
+			{title: "PubSub", segment: "pubsub", shortcuts: ["pubsub"]},
+			{title: "Caching", segment: "caching", shortcuts: ["storage/cache"]},
 			{title: "Testing", segment: "testing"},
 			{title: "Middleware", segment: "middleware"},
 			{title: "Validation", segment: "validation"},
@@ -83,6 +84,7 @@ sections: [
 			{title: "Generated API Docs", segment: "api-docs"},
 			{title: "Client Generation", segment: "client-generation"},
 			{title: "CLI Reference", segment: "cli-reference"},
+			{title: "Encore Flow", segment: "encore-flow"},
 		]
 	},
 	{

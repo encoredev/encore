@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -15,13 +16,17 @@ import (
 type Path struct {
 	Pos      token.Pos
 	Segments []Segment
+	Type     Type
 }
 
 // String returns the path's string representation.
 func (p *Path) String() string {
 	var b strings.Builder
-	for _, s := range p.Segments {
-		b.WriteByte('/')
+	for i, s := range p.Segments {
+		if i != 0 || p.Type.LeadingSlash() {
+			b.WriteByte('/')
+		}
+
 		switch s.Type {
 		case Param:
 			b.WriteByte(':')
@@ -74,19 +79,57 @@ const (
 	Wildcard
 )
 
-// Parse parses a rooted path (starting with '/') into path segments.
-func Parse(pos token.Pos, path string) (*Path, error) {
-	if path == "" || path[0] != '/' {
+type Type int
+
+const (
+	URL           Type = 0
+	CacheKeyspace Type = 1
+)
+
+func (t Type) LeadingSlash() bool {
+	switch t {
+	case URL:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t Type) SupportsWildcards() bool {
+	switch t {
+	case URL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Parse parses a slash-separated path into path segments.
+func Parse(pos token.Pos, path string, typ Type) (*Path, error) {
+	leadingSlash := typ.LeadingSlash()
+	if path == "" {
+		return nil, errors.New("empty path")
+	} else if leadingSlash && path[0] != '/' {
 		return nil, errors.New("path must begin with '/'")
-	} else if _, err := url.ParseRequestURI(path); err != nil {
-		return nil, fmt.Errorf("invalid path: %v", errors.Unwrap(err))
-	} else if idx := strings.IndexByte(path, '?'); idx != -1 {
-		return nil, fmt.Errorf("path cannot contain '?'")
+	} else if !leadingSlash && path[0] == '/' {
+		return nil, errors.New("path must not begin with '/'")
+	}
+
+	switch typ {
+	case URL:
+		if _, err := url.ParseRequestURI(path); err != nil {
+			return nil, fmt.Errorf("invalid path: %v", errors.Unwrap(err))
+		} else if idx := strings.IndexByte(path, '?'); idx != -1 {
+			return nil, fmt.Errorf("path cannot contain '?'")
+		}
 	}
 
 	var segs []Segment
 	for path != "" {
-		path = path[1:] // drop leading '/'
+		if leadingSlash || len(segs) > 0 {
+			path = path[1:] // drop leading '/'
+		}
+
 		// Find the next path segment
 		var val string
 		switch idx := strings.IndexByte(path, '/'); idx {
@@ -100,15 +143,15 @@ func Parse(pos token.Pos, path string) (*Path, error) {
 			path = path[idx:]
 		}
 
-		typ := Literal
+		segType := Literal
 		if val != "" && val[0] == ':' {
-			typ = Param
+			segType = Param
 			val = val[1:]
-		} else if val != "" && val[0] == '*' {
-			typ = Wildcard
+		} else if val != "" && val[0] == '*' && typ.SupportsWildcards() {
+			segType = Wildcard
 			val = val[1:]
 		}
-		segs = append(segs, Segment{Type: typ, Value: val, ValueType: schema.Builtin_STRING})
+		segs = append(segs, Segment{Type: segType, Value: val, ValueType: schema.Builtin_STRING})
 	}
 
 	// Validate the segments
@@ -135,7 +178,69 @@ func Parse(pos token.Pos, path string) (*Path, error) {
 		}
 	}
 
-	return &Path{Pos: pos, Segments: segs}, nil
+	return &Path{Pos: pos, Segments: segs, Type: typ}, nil
+}
+
+func (p *Path) ToProto() *meta.Path {
+	mp := &meta.Path{}
+	switch p.Type {
+	case URL:
+		mp.Type = meta.Path_URL
+	case CacheKeyspace:
+		mp.Type = meta.Path_CACHE_KEYSPACE
+	default:
+		panic(fmt.Sprintf("path: unknown type %+v", p.Type))
+	}
+
+	for _, seg := range p.Segments {
+		s := &meta.PathSegment{Value: seg.Value}
+		switch seg.Type {
+		case Literal:
+			s.Type = meta.PathSegment_LITERAL
+		case Param:
+			s.Type = meta.PathSegment_PARAM
+		case Wildcard:
+			s.Type = meta.PathSegment_WILDCARD
+		default:
+			panic(fmt.Sprintf("unhandled path segment type %v", seg.Type))
+		}
+
+		if s.Type != meta.PathSegment_LITERAL {
+			switch seg.ValueType {
+			case schema.Builtin_STRING:
+				s.ValueType = meta.PathSegment_STRING
+			case schema.Builtin_BOOL:
+				s.ValueType = meta.PathSegment_BOOL
+			case schema.Builtin_INT8:
+				s.ValueType = meta.PathSegment_INT8
+			case schema.Builtin_INT16:
+				s.ValueType = meta.PathSegment_INT16
+			case schema.Builtin_INT32:
+				s.ValueType = meta.PathSegment_INT32
+			case schema.Builtin_INT64:
+				s.ValueType = meta.PathSegment_INT64
+			case schema.Builtin_INT:
+				s.ValueType = meta.PathSegment_INT
+			case schema.Builtin_UINT8:
+				s.ValueType = meta.PathSegment_UINT8
+			case schema.Builtin_UINT16:
+				s.ValueType = meta.PathSegment_UINT16
+			case schema.Builtin_UINT32:
+				s.ValueType = meta.PathSegment_UINT32
+			case schema.Builtin_UINT64:
+				s.ValueType = meta.PathSegment_UINT64
+			case schema.Builtin_UINT:
+				s.ValueType = meta.PathSegment_UINT
+			case schema.Builtin_UUID:
+				s.ValueType = meta.PathSegment_UUID
+			default:
+				panic(fmt.Sprintf("unhandled path segment value type %v", seg.ValueType))
+			}
+		}
+
+		mp.Segments = append(mp.Segments, s)
+	}
+	return mp
 }
 
 // Set tracks a set of paths, ensuring they are compatible with each other.

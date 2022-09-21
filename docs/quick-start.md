@@ -6,8 +6,10 @@ In this short guide, you'll learn Encore's key concepts and get to experience th
 It should only take about 5 minutes to complete, and by the end you'll have an API running in the cloud.
 
 <Callout type="important">
+
 To make it easier to follow along, we've laid out a trail of croissants to guide your way.
 Whenever you see a 🥐 it means there's something for you to do.
+
 </Callout>
 
 _Let's get started!_
@@ -160,11 +162,16 @@ Your development dashboard is a powerful tool to help you move faster when you'r
 
 It comes with an API explorer with automatically generated documentation, and powerful oberservability features like [distributed tracing](/docs/observability/tracing). _Did we mention Encore automatically instruments your entire application with logs and tracing?_
 
+Through the development dashboard you also have access to [Encore Flow](/docs/develop/encore-flow) which is a visual representation
+of your microservice architecture that updates in real-time as you develop your application.
+
 These features may not look like much when viewing such a simple example, but just imagine how much easier it will be to debug your app once it's grown more complex, with multiple services and databases.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
 	<source src="/assets/docs/quickstart_localdevdash.mp4" className="w-full h-full" type="video/mp4" />
 </video>
+
+For this example video we have added another service called `foobar` that we call from `hello` to be able to showcase the tracing and architecture visualizations.
 
 ## Make a code change
 

@@ -24,6 +24,7 @@ export interface Data {
   /** All the pub sub topics declared in the application */
   pubsub_topics: PubSubTopic[];
   middleware: Middleware[];
+  cache_clusters: CacheCluster[];
 }
 
 /**
@@ -71,11 +72,9 @@ export interface Selector {
 
 export enum Selector_Type {
   UNKNOWN = "UNKNOWN",
-  TAG = "TAG",
-  API = "API",
-  SERVICE = "SERVICE",
-  /** ALL - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
   ALL = "ALL",
+  /** TAG - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
+  TAG = "TAG",
   UNRECOGNIZED = "UNRECOGNIZED",
 }
 
@@ -164,6 +163,7 @@ export interface TraceNode {
   pubsub_subscriber: PubSubSubscriberNode | undefined;
   service_init: ServiceInitNode | undefined;
   middleware_def: MiddlewareDefNode | undefined;
+  cache_keyspace: CacheKeyspaceDefNode | undefined;
 }
 
 export interface RPCDefNode {
@@ -227,8 +227,22 @@ export interface MiddlewareDefNode {
   target: Selector[];
 }
 
+export interface CacheKeyspaceDefNode {
+  pkg_rel_path: string;
+  var_name: string;
+  cluster_name: string;
+  context: string;
+}
+
 export interface Path {
   segments: PathSegment[];
+  type: Path_Type;
+}
+
+export enum Path_Type {
+  URL = "URL",
+  CACHE_KEYSPACE = "CACHE_KEYSPACE",
+  UNRECOGNIZED = "UNRECOGNIZED",
 }
 
 export interface PathSegment {
@@ -319,4 +333,20 @@ export interface PubSubTopic_RetryPolicy {
   max_backoff: number;
   /** max number of retries */
   max_retries: number;
+}
+
+export interface CacheCluster {
+  /** The pub sub topic name (unique per application) */
+  name: string;
+  /** The documentation for the topic */
+  doc: string;
+  /** The publishers for this topic */
+  keyspaces: CacheCluster_Keyspace[];
+  /** redis eviction policy */
+  eviction_policy: string;
+}
+
+export interface CacheCluster_Keyspace {
+  /** TODO(andre) add more fields */
+  key_type: Type;
 }

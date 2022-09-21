@@ -28,23 +28,23 @@ func init() {
 
 var (
 	rpcCountTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "rpc_count_total",
+		Name: "encore_rpc_count_total",
 		Help: "Total RPC count",
 	})
 
 	rpcCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "rpc_count_endpoint_total",
+		Name: "encore_rpc_count_endpoint_total",
 		Help: "Per-endpoint RPC counts",
 	}, []string{"service", "api"})
 
 	rpcDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "rpc_durations_histogram_seconds",
+		Name:    "encore_rpc_durations_histogram_seconds",
 		Help:    "RPC latency distributions.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"service", "api", "status"})
 
 	unknownEndpoint = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "rpc_unknown_endpoint_total",
+		Name: "encore_rpc_unknown_endpoint_total",
 		Help: "RPC calls to unknown endpoints",
 	}, []string{"service", "api"})
 )

@@ -88,7 +88,10 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
 
 <Callout type="important">
 
-Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here. Whenever possible we recommend using a third-party auth provider; see [Using Firebase Authentication](../how-to/firebase-auth) for an example of how to do that.
+Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here.
+
+Whenever possible we recommend using a third-party auth provider.<br/>
+See [Using Firebase Authentication](/docs/how-to/firebase-auth) for an example of how to do that.
 
 </Callout>
 

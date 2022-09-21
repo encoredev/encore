@@ -21,6 +21,7 @@ export function Environment(name: string): BaseURL {
  * Client is an API client for the slug Encore application. 
  */
 export default class Client {
+    public readonly cache: cache.ServiceClient
     public readonly di: di.ServiceClient
     public readonly echo: echo.ServiceClient
     public readonly endtoend: endtoend.ServiceClient
@@ -38,6 +39,7 @@ export default class Client {
      */
     constructor(target: BaseURL, options?: ClientOptions) {
         const base = new BaseClient(target, options ?? {})
+        this.cache = new cache.ServiceClient(base)
         this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
@@ -65,6 +67,54 @@ export interface ClientOptions {
      * a function which returns a new object for each request.
      */
     auth?: echo.AuthParams | AuthDataGenerator
+}
+
+export namespace cache {
+    export interface IncrResponse {
+        Val: number
+    }
+
+    export interface ListResponse {
+        Vals: string[]
+    }
+
+    export interface StructVal {
+        Val: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async GetList(key: number): Promise<ListResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("GET", `/cache/list/${encodeURIComponent(key)}`)
+            return await resp.json() as ListResponse
+        }
+
+        public async GetStruct(key: number): Promise<StructVal> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("GET", `/cache/struct/${encodeURIComponent(key)}`)
+            return await resp.json() as StructVal
+        }
+
+        public async Incr(key: string): Promise<IncrResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/cache/incr/${encodeURIComponent(key)}`)
+            return await resp.json() as IncrResponse
+        }
+
+        public async PostList(key: number, val: string): Promise<void> {
+            await this.baseClient.callAPI("POST", `/cache/list/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
+        }
+
+        public async PostStruct(key: number, val: string): Promise<void> {
+            await this.baseClient.callAPI("POST", `/cache/struct/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
+        }
+    }
 }
 
 export namespace di {

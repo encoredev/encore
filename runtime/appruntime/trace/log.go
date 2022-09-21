@@ -97,6 +97,19 @@ func (tb *Buffer) ByteString(b []byte) {
 	tb.Bytes(b)
 }
 
+// TruncatedByteString is like ByteString except it truncates b to maximum of maxLen.
+// If truncationSuffix is provided, it is appended after truncating, leading to
+// the final length being maxLen+len(truncationSuffix).
+func (tb *Buffer) TruncatedByteString(b []byte, maxLen int, truncationSuffix []byte) {
+	if size := len(b); size > maxLen {
+		tb.UVarint(uint64(maxLen + len(truncationSuffix)))
+		tb.Bytes(b[:maxLen])
+		tb.Bytes(truncationSuffix)
+	} else {
+		tb.ByteString(b)
+	}
+}
+
 func (tb *Buffer) Now() {
 	now := time.Now()
 	tb.Time(now)
