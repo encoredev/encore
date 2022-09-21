@@ -281,11 +281,11 @@ func (s *IntKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, er
 // before incrementing.
 //
 // Negative values can be used to decrease the value,
-// but typically you want to use the Decr method for that.
+// but typically you want to use the Decrement method for that.
 //
 // See https://redis.io/commands/incrby/ for more information.
 func (s *IntKeyspace[K]) Increment(ctx context.Context, key K, delta int64) (newVal int64, err error) {
-	const op = "incr"
+	const op = "increment"
 	k, err := s.key(key, op)
 	defer s.doTrace(op, true, k)(err)
 	if err != nil {
@@ -299,18 +299,18 @@ func (s *IntKeyspace[K]) Increment(ctx context.Context, key K, delta int64) (new
 	return res, err
 }
 
-// Decr decrements the number stored in key by delta,
+// Decrement decrements the number stored in key by delta,
 // and returns the new value.
 //
 // If the key does not exist it is first created with a value of 0
 // before decrementing.
 //
 // Negative values can be used to increase the value,
-// but typically you want to use the Incr method for that.
+// but typically you want to use the Increment method for that.
 //
 // See https://redis.io/commands/decrby/ for more information.
-func (s *IntKeyspace[K]) Decr(ctx context.Context, key K, delta int64) (newVal int64, err error) {
-	const op = "decr"
+func (s *IntKeyspace[K]) Decrement(ctx context.Context, key K, delta int64) (newVal int64, err error) {
+	const op = "decrement"
 	k, err := s.key(key, op)
 	defer s.doTrace(op, true, k)(err)
 	if err != nil {
@@ -419,11 +419,11 @@ func (s *FloatKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, 
 // before incrementing.
 //
 // Negative values can be used to decrease the value,
-// but typically you want to use the Decr method for that.
+// but typically you want to use the Decrement method for that.
 //
 // See https://redis.io/commands/incrbyfloat/ for more information.
 func (s *FloatKeyspace[K]) Increment(ctx context.Context, key K, delta float64) (newVal float64, err error) {
-	const op = "incr"
+	const op = "increment"
 	k, err := s.key(key, op)
 	defer s.doTrace(op, true, k)(err)
 	if err != nil {
@@ -437,18 +437,18 @@ func (s *FloatKeyspace[K]) Increment(ctx context.Context, key K, delta float64) 
 	return res, err
 }
 
-// Decr decrements the number stored in key by delta,
+// Decrement decrements the number stored in key by delta,
 // and returns the new value.
 //
 // If the key does not exist it is first created with a value of 0
 // before decrementing.
 //
 // Negative values can be used to increase the value,
-// but typically you want to use the Incr method for that.
+// but typically you want to use the Increment method for that.
 //
 // See https://redis.io/commands/incrbyfloat/ for more information.
-func (s *FloatKeyspace[K]) Decr(ctx context.Context, key K, delta float64) (newVal float64, err error) {
-	const op = "decr"
+func (s *FloatKeyspace[K]) Decrement(ctx context.Context, key K, delta float64) (newVal float64, err error) {
+	const op = "decrement"
 	k, err := s.key(key, op)
 	defer s.doTrace(op, true, k)(err)
 	if err != nil {
