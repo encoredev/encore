@@ -1,5 +1,6 @@
 import { Listbox, Menu, Transition } from "@headlessui/react";
 import CodeMirror, { EditorConfiguration } from "codemirror";
+import HJSON from "hjson";
 import React, {
   FC,
   useEffect,
@@ -7,8 +8,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import HJSON from "hjson";
-import * as icons from "~c/icons";
+import Button from "~c/Button";
+import { icons } from "~c/icons";
 import Input from "~c/Input";
 import { decodeBase64, encodeBase64 } from "~lib/base64";
 import JSONRPCConn from "~lib/client/jsonrpc";
@@ -63,17 +64,15 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
   const authGeneratedJS = useRef("");
   const [authToken, setAuthToken] = useState("");
   const hasPathParams =
-    rpc.path.segments.findIndex((s) => s.type !== "LITERAL") !== -1;
+    rpc.path?.segments.findIndex((s) => s.type !== "LITERAL") !== -1 ?? false;
 
   const [loading, setLoading] = useState(false);
-  const [respErr, setRespErr] = useState<[string, string] | undefined>(
-    undefined
-  );
+  const [respErr, setRespErr] = useState<string | undefined>(undefined);
   const [response, setResponse] = useState<string | undefined>(undefined);
   const [method, setMethod] = useState<string>(rpc.http_methods[0]);
 
   const serializeRequest = (): [string, string, string] => {
-    let path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`;
+    const path = pathRef.current?.getPath() ?? `/${svc.name}.${rpc.name}`;
     let body = "";
 
     if (rpc.request_schema) {
@@ -92,6 +91,7 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
     if (path === "") {
       return;
     }
+
     try {
       setLoading(true);
       setResponse(undefined);
@@ -112,18 +112,24 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
       }
 
       if (resp.status_code !== 200) {
-        setRespErr([`HTTP ${resp.status}`, respBody]);
+        setRespErr(`HTTP ${resp.status}: ${respBody}`);
       } else if (rpc.response_schema) {
         setResponse(respBody);
       } else {
         setResponse("Request completed successfully.");
       }
     } catch (err) {
-      setRespErr([`Internal Error: ${err}`, ""]);
+      setRespErr(`Internal Error: ${err}`);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (method !== rpc.http_methods[0]) {
+      setMethod(rpc.http_methods[0]);
+    }
+  }, [rpc]);
 
   useEffect(() => {
     if (rpc.request_schema) {
@@ -153,7 +159,7 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
       true
     );
 
-    let bits: string[] = ["{\n"];
+    const bits: string[] = ["{\n"];
     let previousSection = false;
     if (headers) {
       bits.push("    // HTTP headers", headers);
@@ -181,7 +187,7 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
 
   useEffect(() => {
     if (rpc.request_schema) {
-      let doc = new CodeMirror.Doc(
+      const doc = new CodeMirror.Doc(
         namedTypeToHJSON(rpc.request_schema.named!),
         {
           name: "javascript",
@@ -309,14 +315,13 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
     <div>
       <h4 className="text-bold text-base">Request</h4>
       <div
-        className={`mt-1 rounded border border-gray-200 text-xs ${
+        className={`mt-1 rounded border bg-black text-xs ${
           rpc.request_schema || hasPathParams || md.auth_handler
             ? "block"
             : "hidden"
-        } divide-y divide-gray-500 p-1`}
-        style={{ backgroundColor: "#2d3748" }}
+        } divide-gray-500 divide-y p-1`}
       >
-        <div>
+        <div className={`${hasPathParams ? "block" : " hidden"}`}>
           <RPCPathEditor
             ref={pathRef}
             rpc={rpc}
@@ -334,20 +339,26 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
         )}
       </div>
       <div
-        className={`mt-1 text-xs ${rpc.request_schema ? "hidden" : "block"}`}
+        className={`mt-1 text-xs ${
+          rpc.request_schema ||
+          (md.auth_handler && md.auth_handler.params?.named)
+            ? "hidden"
+            : "block"
+        }`}
       >
         This API takes no request data.
       </div>
-      <div className="mt-1 flex items-start items-center">
+      <div className="mt-1 flex items-center">
         {md.auth_handler && md.auth_handler.params?.builtin === Builtin.STRING && (
-          <div className="relative mr-1 min-w-0 flex-1 rounded-md shadow-sm">
+          <div className="shadow-sm relative mr-1 min-w-0 flex-1 rounded-md">
             <Input
               id=""
-              cls="w-full"
-              placeholder="Auth Token"
+              className="w-full"
+              label="Auth Token"
               required={rpc.access_type === "AUTH"}
               value={authToken}
               onChange={setAuthToken}
+              noInputWrapper
             />
           </div>
         )}
@@ -356,10 +367,10 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
 
       <h4 className="text-bold mt-4 mb-1 flex items-center text-base">
         Response{" "}
-        {loading && icons.loading("ml-1 h-5 w-5", "#A081D9", "transparent", 4)}
+        {loading && icons.loading("ml-1 h-5 w-5", "#111111", "transparent", 4)}
       </h4>
       {response ? (
-        <pre className="response-docs overflow-x-auto rounded border border-gray-300 bg-gray-200 p-2 text-xs shadow-inner">
+        <pre className="shadow-inner response-docs overflow-x-auto rounded bg-black p-2 text-xs text-white">
           <CM
             key={response}
             cfg={{
@@ -372,24 +383,11 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
           />
         </pre>
       ) : respErr ? (
-        <div className="font-mono text-sm text-red-600">
-          <div className="font-bold">{respErr[0]}</div>
-          {respErr[1] && (
-            <pre className="response-docs overflow-x-auto rounded border border-gray-300 bg-gray-200 p-2 text-xs shadow-inner">
-              <CM
-                cfg={{
-                  value: respErr[1],
-                  readOnly: true,
-                  theme: "encore",
-                  mode: { name: "javascript", json: true },
-                }}
-                noShadow={true}
-              />
-            </pre>
-          )}
+        <div className="overflow-x-auto bg-black p-2 font-mono text-xs text-red">
+          {respErr}
         </div>
       ) : (
-        <div className="text-xs text-gray-400">
+        <div className="text-gray-400 text-xs">
           Make a request to see the response.
         </div>
       )}
@@ -403,21 +401,22 @@ const APICallButton: FC<{ send: () => void; copyCurl: () => void }> = (
   props
 ) => {
   return (
-    <span className="relative z-0 ml-auto inline-flex flex-none self-start rounded-md shadow-sm">
-      <button
-        type="button"
-        className="focus:outline-none relative inline-flex items-center rounded-l-md border border-purple-700 bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:border-purple-500 focus:ring-0"
-        onClick={() => props.send()}
-      >
+    <span className="shadow-sm relative z-0 ml-auto inline-flex flex-none rounded-md">
+      <Button kind="primary" onClick={() => props.send()}>
         Call API
-      </button>
-      <span className="relative z-10 -ml-px block">
+      </Button>
+      <span className="relative z-10 ml-1 block">
         <Menu>
           {({ open }) => (
             <>
-              <Menu.Button className="focus:outline-none relative inline-flex items-center rounded-r-md border border-purple-700 bg-purple-600 px-2 py-2 text-sm font-medium text-white hover:bg-purple-500 focus:z-10 focus:ring-0">
-                <span className="sr-only">Open options</span>
-                {icons.chevronDown("h-5 w-5")}
+              <Menu.Button className="focus:outline-none group relative h-full text-sm font-medium focus:z-10 focus:ring-0">
+                <div className="absolute inset-0 bg-gradient-to-r brandient-5" />
+                <div className="relative inline-flex h-full items-center bg-black px-4 py-2 transition-transform duration-100 ease-in-out group-hover:-translate-x-1 group-hover:-translate-y-1">
+                  <div className="text-white">
+                    {icons.chevronDown("h-4 w-4")}
+                  </div>
+                  <span className="sr-only">Open options</span>
+                </div>
               </Menu.Button>
 
               <Transition
@@ -431,7 +430,7 @@ const APICallButton: FC<{ send: () => void; copyCurl: () => void }> = (
               >
                 <Menu.Items
                   static
-                  className="outline-none absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-md border border-gray-200 bg-white shadow-lg"
+                  className="border-gray-200 divide-gray-100 shadow-lg outline-none absolute right-0 mt-2 w-56 origin-top-right divide-y rounded-md border bg-white"
                 >
                   <div className="py-1">
                     <Menu.Item>
@@ -539,12 +538,8 @@ function classNames(...classes: string[]) {
 }
 
 const RPCPathEditor = React.forwardRef<
-  { getPath: () => string | undefined },
-  {
-    rpc: RPC;
-    method: string;
-    setMethod: (m: string) => void;
-  }
+  { getPath: () => string | undefined; getMethod: () => string },
+  { rpc: RPC; method: string; setMethod: (m: string) => void }
 >(({ rpc, method, setMethod }, ref) => {
   interface DocState {
     rpc: RPC;
@@ -555,7 +550,7 @@ const RPCPathEditor = React.forwardRef<
   const pathCM = useRef<CM>(null);
   const docs = useRef(new Map<RPC, DocState>());
   const docMap = useRef(new Map<CodeMirror.Doc, DocState>());
-  const timeoutHandle = useRef<{ id: number | null }>({ id: null });
+  const timeoutHandle = useRef<{ id: any | null }>({ id: null });
 
   // Reset the method when the RPC changes
   useEffect(() => {
@@ -602,7 +597,7 @@ const RPCPathEditor = React.forwardRef<
           readOnly: true,
           clearWhenEmpty: false,
           clearOnEnter: false,
-          className: "text-gray-400",
+          className: "text-white text-opacity-70",
           selectLeft: i > 0,
           selectRight: true,
         }
@@ -611,7 +606,7 @@ const RPCPathEditor = React.forwardRef<
         { ch: rw.from, line: 0 },
         { ch: rw.to, line: 0 },
         {
-          className: "text-green-400",
+          className: "text-codeorange",
           clearWhenEmpty: false,
           clearOnEnter: false,
           inclusiveLeft: true,
@@ -647,7 +642,7 @@ const RPCPathEditor = React.forwardRef<
         readOnly: true,
         clearWhenEmpty: false,
         clearOnEnter: false,
-        className: "text-gray-400",
+        className: "text-white text-opacity-70",
         selectLeft: prevEnd > 0,
         selectRight: false,
       }
@@ -676,7 +671,7 @@ const RPCPathEditor = React.forwardRef<
     const ds = { rpc, doc, markers: markers };
     docs.current.set(rpc, ds);
     docMap.current.set(doc, ds);
-    pathCM.current?.open(ds!.doc);
+    pathCM.current?.open(ds.doc);
   }, [rpc, method]);
 
   useImperativeHandle(ref, () => {
@@ -693,10 +688,10 @@ const RPCPathEditor = React.forwardRef<
         <Listbox value={method} onChange={setMethod}>
           {({ open }) => (
             <div className="relative">
-              <Listbox.Button className="focus:outline-none relative block cursor-default rounded-sm bg-green-100 py-0.5 pl-1 pr-5 text-left font-mono text-xs font-semibold text-green-800 hover:bg-green-200">
+              <Listbox.Button className="focus:outline-none hover:bg-green-200 relative block cursor-default rounded-sm py-0.5 pl-1 pr-5 text-left font-mono text-xs font-semibold text-codegreen">
                 <span className="block truncate">{method}</span>
                 <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
-                  {icons.chevronDown("h-5 w-5 text-green-600")}
+                  {icons.chevronDown("h-3 w-3 mr-1")}
                 </span>
               </Listbox.Button>
               <Transition
@@ -707,14 +702,14 @@ const RPCPathEditor = React.forwardRef<
               >
                 <Listbox.Options
                   static
-                  className="focus:outline-none absolute z-10 mt-1 max-h-60 w-32 overflow-auto rounded bg-white py-1 text-xs shadow-lg ring-1 ring-black ring-opacity-5"
+                  className="focus:outline-none absolute z-10 max-h-60 w-32 overflow-auto bg-white text-xs ring-1 ring-black ring-opacity-5"
                 >
                   {rpc.http_methods.map((m) => (
                     <Listbox.Option
                       key={m}
                       className={({ active }) =>
                         classNames(
-                          active ? "bg-green-600 text-white" : "text-gray-900",
+                          active ? "bg-black text-white" : "text-black",
                           "relative cursor-default select-none py-1 pl-3 pr-9"
                         )
                       }

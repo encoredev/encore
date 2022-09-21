@@ -1,5 +1,4 @@
 import React, { FC, useState } from "react";
-import * as icons from "~c/icons";
 import { Modal } from "~c/Modal";
 import { Request, Stack, Trace } from "~c/trace/model";
 import SpanDetail from "~c/trace/SpanDetail";
@@ -10,7 +9,7 @@ import { latencyStr } from "~c/trace/util";
 import { decodeBase64 } from "~lib/base64";
 import JSONRPCConn, { NotificationMsg } from "~lib/client/jsonrpc";
 import { timeToDate } from "~lib/time";
-import { Icon } from "~c/icons";
+import { Icon, icons } from "~c/icons";
 
 interface Props {
   appID: string;
@@ -57,7 +56,7 @@ export default class AppTraces extends React.Component<Props, State> {
         <Modal
           show={this.state.selected !== undefined}
           close={() => this.setState({ selected: undefined })}
-          width="w-full h-full mt-4"
+          width="w-full h-full mt-6"
         >
           {this.state.selected && (
             <TraceView
@@ -67,13 +66,20 @@ export default class AppTraces extends React.Component<Props, State> {
           )}
         </Modal>
 
-        <div className="overflow-hidden bg-white shadow sm:rounded-md">
-          {this.state.traces.length === 0 && (
-            <div className="p-4">
-              No traces yet. Make an API call to see it here!
-            </div>
-          )}
-          <ul className="divide-y divide-gray-200">
+        <div className="shadow overflow-hidden bg-white sm:rounded-md">
+          <ul>
+            <li className="flex items-center py-4 pt-2 text-left text-xs font-medium uppercase leading-4 tracking-wider">
+              <p className="flex flex-1 items-center">Request</p>
+              <p className="flex min-w-[80px]">Status</p>
+              <p className="flex min-w-[80px] items-center justify-end">
+                Duration
+              </p>
+            </li>
+
+            {this.state.traces.length === 0 && (
+              <div>No traces yet. Make an API call to see it here!</div>
+            )}
+
             {this.state.traces.map((tr) => {
               const loc = tr.locations[(tr.root ?? tr.auth)!.def_loc];
               let icon: Icon = icons.exclamation;
@@ -102,47 +108,30 @@ export default class AppTraces extends React.Component<Props, State> {
               }
 
               return (
-                <li key={tr.id}>
-                  <div
-                    className="px-4 py-4 hover:bg-gray-50 sm:px-6"
-                    onClick={() => this.setState({ selected: tr })}
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="truncate text-base font-medium text-gray-800">
+                <li key={tr.id} className="py-4">
+                  <div className="hover:bg-gray-50">
+                    <div className="flex items-center">
+                      <p className="text-gray-800 flex-1 truncate text-base font-medium">
                         {icon("h-4 w-4 inline-block mr-2", type)}
-                        {endpoint}
+                        <a
+                          className="cursor-pointer brandient-5 link-brandient"
+                          onClick={() => this.setState({ selected: tr })}
+                        >
+                          <span>{endpoint}</span>
+                        </a>
                       </p>
-                      <div className="ml-2 flex flex-shrink-0">
+                      <div className="ml-2 flex w-[80px]">
                         {tr.root?.err === null ? (
-                          <span className="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">
+                          <span className="inline-flex items-center rounded bg-codegreen px-2.5 py-0.5 text-xs font-medium capitalize leading-4">
                             Success
                           </span>
                         ) : (
-                          <span className="inline-flex rounded-full bg-red-100 px-2 text-xs font-semibold leading-5 text-red-800">
+                          <span className="inline-flex items-center rounded bg-validation-fail px-2.5 py-0.5 text-xs font-medium capitalize leading-4 text-white">
                             Error
                           </span>
                         )}
                       </div>
-                    </div>
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex">
-                        <p className="flex cursor-pointer items-center truncate text-sm font-medium text-indigo-600 hover:underline">
-                          <svg
-                            className="mr-1 h-4 w-4"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <polyline points="2 14.308 5.076 14.308 8.154 2 11.231 20.462 14.308 9.692 15.846 14.308 18.924 14.308" />
-                            <circle cx="20.462" cy="14.308" r="1.538" />
-                          </svg>
-                          View Trace
-                        </p>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                      <div className="text-gray-500 mt-2 flex min-w-[80px] items-center justify-end text-sm sm:mt-0">
                         <svg
                           className="mr-1 h-4 w-4"
                           fill="none"
@@ -187,7 +176,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
     <section className="relative flex h-full flex-grow items-stretch bg-white">
       <div className="absolute -top-2 -right-2">
         <div
-          className="cursor-pointer rounded-full p-1 hover:bg-gray-100"
+          className="hover:bg-gray-100 cursor-pointer rounded-full p-1"
           onClick={() => props.close()}
         >
           <svg
@@ -206,16 +195,16 @@ const TraceView: FC<TraceViewProps> = (props) => {
         </div>
       </div>
 
-      <div className="flex flex-grow flex-col overflow-scroll">
-        <div className="flex border-b border-gray-100 p-4">
+      <div className="flex flex-grow flex-col overflow-scroll scrollbar-none">
+        <div className="border-gray-100 flex border-b p-4">
           <div className="mr-4 flex-shrink-0">
-            <h1 className="mb-1 text-2xl font-bold leading-none text-gray-900">
+            <h1 className="text-gray-900 mb-1 text-2xl font-semibold leading-none">
               Trace Details
             </h1>
             <table className="text-sm">
               <tbody>
                 <tr>
-                  <th className="pr-2 text-left text-sm font-light text-gray-400">
+                  <th className="pr-2 text-left text-sm font-semibold text-black">
                     Recorded
                   </th>
                   <td>{dt.toFormat("ff")}</td>
@@ -223,7 +212,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
                 {tr.auth !== null && tr.auth.err === null && (
                   <>
                     <tr className="text-left font-normal">
-                      <th className="pr-2 text-left text-sm font-light text-gray-400">
+                      <th className="text-gray-400 pr-2 text-left text-sm font-light">
                         User ID
                       </th>
                       <td className="font-mono">
@@ -255,15 +244,12 @@ const TraceView: FC<TraceViewProps> = (props) => {
               <StackTrace stack={stack} />
             </div>
           ) : (
-            <>
-              <h3 className="mb-2 text-xl font-semibold">Request Tree</h3>
-              <SpanList trace={tr} selected={selected} onSelect={setSelected} />
-            </>
+            <SpanList trace={tr} selected={selected} onSelect={setSelected} />
           )}
         </div>
       </div>
 
-      <div className="w-96 flex-shrink-0 overflow-scroll border-l border-gray-100 p-4 md:w-1/2">
+      <div className="w-96 flex-shrink-0 overflow-scroll border-l border-black p-4 scrollbar-none md:w-1/2">
         <SpanDetail req={selected} trace={tr} onStackTrace={setStack} />
       </div>
     </section>
