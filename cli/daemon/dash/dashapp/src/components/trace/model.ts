@@ -1,5 +1,5 @@
-import {APIMeta} from "~c/api/api";
-import {Base64EncodedBytes} from "~lib/base64"
+import { APIMeta } from "~c/api/api";
+import { Base64EncodedBytes } from "~lib/base64";
 
 export interface Trace {
   id: string;
@@ -9,7 +9,7 @@ export interface Trace {
   end_time?: number;
   root: Request | null;
   auth: Request | null;
-  locations: {[key: number]: TraceExpr};
+  locations: { [key: number]: TraceExpr };
   meta: APIMeta;
 }
 
@@ -89,6 +89,30 @@ export interface PubSubPublish {
   stack: Stack;
 }
 
+export enum CacheResult {
+  Unknown = 0,
+  Ok = 1,
+  NoSuchKey = 2,
+  Conflict = 3,
+  Err = 4,
+}
+
+export interface CacheOp {
+  type: "CacheOp";
+  goid: number;
+  def_loc: number;
+  start_time: number;
+  end_time?: number;
+  operation: string;
+  keys: string[];
+  inputs: Base64EncodedBytes[];
+  outputs: Base64EncodedBytes[];
+  result: CacheResult;
+  err: Base64EncodedBytes | null; // non-null iff result === Err
+  stack: Stack;
+  write: boolean;
+}
+
 export interface RPCCall {
   type: "RPCCall";
   goid: number;
@@ -161,21 +185,35 @@ export interface Stack {
 
 export interface StackFrame {
   short_file: string;
-  full_file: string
+  full_file: string;
   func: string;
   line: number;
 }
 
-export type Event = DBTransaction | DBQuery | RPCCall | HTTPCall | Goroutine | LogMessage | PubSubPublish;
+export type Event =
+  | DBTransaction
+  | DBQuery
+  | RPCCall
+  | HTTPCall
+  | Goroutine
+  | LogMessage
+  | PubSubPublish
+  | CacheOp;
 
-export type TraceExpr = RpcDefExpr | RpcCallExpr | StaticCallExpr | AuthHandlerDefExpr | PubsubSubscriberExpr
+export type TraceExpr =
+  | RpcDefExpr
+  | RpcCallExpr
+  | StaticCallExpr
+  | AuthHandlerDefExpr
+  | PubsubSubscriberExpr
+  | CacheKeyspaceDefExpr;
 
 interface BaseExpr {
-  filepath: string;       // source file path
+  filepath: string; // source file path
   src_line_start: number; // line number in source file
-  src_line_end: number;   // line number in source file
-  src_col_start: number;  // column start in source file
-  src_col_end: number;    // colum end in source file (exclusive)
+  src_line_end: number; // line number in source file
+  src_col_start: number; // column start in source file
+  src_col_end: number; // colum end in source file (exclusive)
 }
 
 type RpcDefExpr = BaseExpr & {
@@ -183,31 +221,31 @@ type RpcDefExpr = BaseExpr & {
     service_name: string;
     rpc_name: string;
     context: string;
-  }
-}
+  };
+};
 
 type RpcCallExpr = BaseExpr & {
   rpc_call: {
     service_name: string;
     rpc_name: string;
     context: string;
-  }
-}
+  };
+};
 
 type StaticCallExpr = BaseExpr & {
   static_call: {
     package: "SQLDB" | "RLOG";
     func: string;
-  }
-}
+  };
+};
 
 type AuthHandlerDefExpr = BaseExpr & {
   auth_handler_def: {
     service_name: string;
     name: string;
     context: string;
-  }
-}
+  };
+};
 
 type PubsubSubscriberExpr = BaseExpr & {
   pubsub_subscriber: {
@@ -215,5 +253,14 @@ type PubsubSubscriberExpr = BaseExpr & {
     topic_name: string;
     subscriber_name: string;
     context: string;
-  }
-}
+  };
+};
+
+type CacheKeyspaceDefExpr = BaseExpr & {
+  cache_keyspace: {
+    pkg_rel_path: string;
+    var_name: string;
+    cluster_name: string;
+    context: string;
+  };
+};

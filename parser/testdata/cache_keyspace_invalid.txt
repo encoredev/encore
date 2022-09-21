@@ -1,0 +1,27 @@
+! parse
+stderr 'field Bar not used in KeyPattern'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/cache"
+)
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+type Key struct {
+    ID int
+    Bar string
+}
+
+var keyspace = cache.NewStringKeyspace[Key](cluster, cache.KeyspaceConfig{
+    KeyPattern: "foo/:ID",
+})
+
+//encore:api public
+func Foo(context.Context) error {
+    return nil
+}

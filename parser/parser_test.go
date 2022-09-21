@@ -134,13 +134,7 @@ func TestMain(m *testing.M) {
 			}
 			res, err := Parse(cfg)
 			if err != nil {
-				if list, ok := err.(scanner.ErrorList); ok {
-					for _, e := range list {
-						os.Stderr.WriteString(e.Error())
-					}
-					return 1
-				}
-				os.Stderr.WriteString(err.Error())
+				scanner.PrintError(os.Stderr, err)
 				return 1
 			}
 

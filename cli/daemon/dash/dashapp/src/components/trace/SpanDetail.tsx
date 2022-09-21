@@ -4,6 +4,8 @@ import { Icon, icons } from "~c/icons";
 import { Base64EncodedBytes, decodeBase64 } from "~lib/base64";
 import { timeToDate } from "~lib/time";
 import {
+  CacheOp,
+  CacheResult,
   DBQuery,
   Event,
   HTTPCall,
@@ -397,13 +399,14 @@ const GoroutineDetail: FunctionComponent<{
     el.style.transform = `translateX(calc(-100% + ${gel.offsetLeft}px + ${spanEl.offsetLeft}px))`;
   };
 
-  const barEvents: (DBQuery | RPCCall | HTTPCall | PubSubPublish)[] =
+  const barEvents: (DBQuery | RPCCall | HTTPCall | PubSubPublish | CacheOp)[] =
     g.events.filter(
       (e) =>
         e.type === "DBQuery" ||
         e.type === "RPCCall" ||
         e.type === "HTTPCall" ||
-        e.type === "PubSubPublish"
+        e.type === "PubSubPublish" ||
+        e.type === "CacheOp"
     ) as any;
 
   return (
@@ -524,6 +527,28 @@ const GoroutineDetail: FunctionComponent<{
                   />
                 </React.Fragment>
               );
+            } else if (ev.type === "CacheOp") {
+              const [color, highlightColor] = svcColor(ev.operation);
+              return (
+                <React.Fragment key={i}>
+                  <style>{`
+                .${clsid}       { background-color: ${highlightColor}; }
+                .${clsid}:hover { background-color: ${color}; }
+              `}</style>
+                  <div
+                    className={`absolute ${clsid}`}
+                    onMouseEnter={(e) => setHover(e, ev)}
+                    onMouseLeave={(e) => setHover(e, null)}
+                    style={{
+                      top: "2px",
+                      bottom: "2px",
+                      left: start + "%",
+                      right: 100 - end + "%",
+                      minWidth: "1px", // so it at least renders if start === stop
+                    }}
+                  />
+                </React.Fragment>
+              );
             }
           })}
         </div>
@@ -565,6 +590,12 @@ const GoroutineDetail: FunctionComponent<{
               ) : hoverObj.type === "PubSubPublish" ? (
                 <PubsubPublishTooltip
                   publish={hoverObj}
+                  trace={props.trace}
+                  onStackTrace={props.onStackTrace}
+                />
+              ) : hoverObj.type === "CacheOp" ? (
+                <CacheOpTooltip
+                  op={hoverObj}
                   trace={props.trace}
                   onStackTrace={props.onStackTrace}
                 />
@@ -626,6 +657,93 @@ const PubsubPublishTooltip: FunctionComponent<{
           </pre>
         ) : (
           <div className="text-gray-700 text-sm">Completed successfully.</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CacheOpTooltip: FunctionComponent<{
+  op: CacheOp;
+  trace: Trace;
+  onStackTrace: (s: Stack) => void;
+}> = (props) => {
+  const op = props.op;
+  const defLoc = props.trace.locations[op.def_loc];
+  let keyspaceName: string | undefined;
+  if (defLoc && "cache_keyspace" in defLoc) {
+    keyspaceName = defLoc.cache_keyspace.var_name;
+  }
+
+  return (
+    <div>
+      <h3 className="flex items-center text-lg font-bold text-black">
+        {(op.write ? icons.archiveBoxArrowDown : icons.archiveBoxArrowUp)(
+          "h-8 w-auto text-gray-400 mr-2"
+        )}
+        Cache {op.write ? "Write" : "Read"}
+        <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
+          {op.end_time ? latencyStr(op.end_time - op.start_time) : "Unknown"}
+          {op.stack.frames.length > 0 && (
+            <button
+              className="focus:outline-none -mr-1"
+              onClick={() => props.onStackTrace(op.stack)}
+            >
+              {icons.stackTrace("m-1 h-4 w-auto")}
+            </button>
+          )}
+        </div>
+      </h3>
+
+      {keyspaceName && (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Keyspace
+          </h4>
+          <div className="text-gray-700 text-sm">
+            {keyspaceName}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Operation
+        </h4>
+        <div className="text-gray-700 text-sm">
+          {op.operation}
+        </div>
+      </div>
+
+      {op.keys.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            {op.keys.length !== 1 ? "Keys" : "Key"}
+          </h4>
+          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
+            {op.keys.join("\n")}
+          </pre>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Result
+        </h4>
+        {op.err ? (
+          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
+            {decodeBase64(op.err)}
+          </pre>
+        ) : (
+          <div className="text-gray-700 text-sm">
+            {op.result === CacheResult.NoSuchKey
+              ? "Key not found"
+              : op.result === CacheResult.Conflict
+              ? "Precondition failed"
+              : op.result === CacheResult.Ok
+              ? "Completed successfully"
+              : "Unknown"}
+          </div>
         )}
       </div>
     </div>

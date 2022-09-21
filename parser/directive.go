@@ -128,7 +128,7 @@ func parseDirective(pos token.Pos, line string) (directive, error) {
 					switch parts[0] {
 					case "path":
 						var err error
-						rpc.Path, err = paths.Parse(pos, parts[1])
+						rpc.Path, err = paths.Parse(pos, parts[1], paths.URL)
 						if err != nil {
 							return nil, fmt.Errorf("invalid API path: %v", err)
 						}

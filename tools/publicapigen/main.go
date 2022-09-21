@@ -278,9 +278,6 @@ func rewriteAST(f *ast.File) error {
 				if dir == mustDrop || typesToDrop[f.Name.Name][node.Name.Name] {
 					keep = false
 				}
-				if node.Name.Name == "constStr" {
-					fmt.Printf("constStr dir %s keep %v %q\n", dir, keep, genDeclComment.Text())
-				}
 
 				// Remove unexported types
 				if !keep {
@@ -385,6 +382,11 @@ func rewriteAST(f *ast.File) error {
 							node.Names[i] = ast.NewIdent("_")
 						}
 					}
+				}
+
+				// Is this field a type list? If so, keep it.
+				if bin, ok := node.Type.(*ast.BinaryExpr); ok && bin.Op == token.OR && node.Names == nil {
+					keep = true
 				}
 
 				if dir == mustDrop {

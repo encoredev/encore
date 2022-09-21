@@ -20,6 +20,7 @@ import (
 
 // Client is an API client for the slug Encore application.
 type Client struct {
+	Cache      CacheClient
 	Di         DiClient
 	Echo       EchoClient
 	Endtoend   EndtoendClient
@@ -66,6 +67,7 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	}
 
 	return &Client{
+		Cache:      &cacheClient{base},
 		Di:         &diClient{base},
 		Echo:       &echoClient{base},
 		Endtoend:   &endtoendClient{base},
@@ -102,6 +104,74 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (*EchoAuthParams, erro
 		base.authGenerator = authGenerator
 		return nil
 	}
+}
+
+type CacheIncrResponse struct {
+	Val int64
+}
+
+type CacheListResponse struct {
+	Vals []string
+}
+
+type CacheStructVal struct {
+	Val string
+}
+
+// CacheClient Provides you access to call public and authenticated APIs on cache. The concrete implementation is cacheClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type CacheClient interface {
+	GetList(ctx context.Context, key int) (CacheListResponse, error)
+	GetStruct(ctx context.Context, key int) (CacheStructVal, error)
+	Incr(ctx context.Context, key string) (CacheIncrResponse, error)
+	PostList(ctx context.Context, key int, val string) error
+	PostStruct(ctx context.Context, key int, val string) error
+}
+
+type cacheClient struct {
+	base *baseClient
+}
+
+var _ CacheClient = (*cacheClient)(nil)
+
+func (c *cacheClient) GetList(ctx context.Context, key int) (resp CacheListResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/cache/list/%d", key), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *cacheClient) GetStruct(ctx context.Context, key int) (resp CacheStructVal, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/cache/struct/%d", key), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *cacheClient) Incr(ctx context.Context, key string) (resp CacheIncrResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/cache/incr/%s", url.PathEscape(key)), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *cacheClient) PostList(ctx context.Context, key int, val string) error {
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/cache/list/%d/%s", key, url.PathEscape(val)), nil, nil, nil)
+	return err
+}
+
+func (c *cacheClient) PostStruct(ctx context.Context, key int, val string) error {
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/cache/struct/%d/%s", key, url.PathEscape(val)), nil, nil, nil)
+	return err
 }
 
 type DiResponse struct {

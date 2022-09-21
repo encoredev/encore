@@ -172,6 +172,27 @@ type ServiceInit struct {
 	ErrStack  *Stack `json:"err_stack"` // can be null
 }
 
+// CacheResult defines the result of a cache op.
+// The values are identical to that of tracepb.CacheOp_Result.
+type CacheResult uint8
+
+type CacheOp struct {
+	Type      string `json:"type"` // "CacheOp"
+	Goid      uint32 `json:"goid"`
+	DefLoc    int32  `json:"def_loc"`
+	StartTime int64  `json:"start_time"`
+	EndTime   *int64 `json:"end_time,omitempty"`
+
+	Operation string   `json:"operation"`
+	Keys      []string `json:"keys"`
+	Inputs    [][]byte `json:"inputs"`
+	Outputs   [][]byte `json:"outputs"`
+	Stack     Stack    `json:"stack"`
+	Err       []byte   `json:"err"`
+	Result    int      `json:"result"`
+	Write     bool     `json:"write"`
+}
+
 type Stack struct {
 	Frames []StackFrame `json:"frames"`
 }
@@ -201,6 +222,7 @@ func (HTTPCall) traceEvent()      {}
 func (LogMessage) traceEvent()    {}
 func (PubSubPublish) traceEvent() {}
 func (ServiceInit) traceEvent()   {}
+func (CacheOp) traceEvent()       {}
 
 func TransformTrace(ct *trace.TraceMeta) (*Trace, error) {
 	traceID := traceUUID(ct.ID)
@@ -377,6 +399,9 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 
 		case *tracepb.Event_ServiceInit:
 			r.Events = append(r.Events, tp.parseServiceInit(e.ServiceInit))
+
+		case *tracepb.Event_Cache:
+			r.Events = append(r.Events, tp.parseCacheOp(e.Cache))
 		}
 	}
 
@@ -461,6 +486,24 @@ func (tp *traceParser) parseServiceInit(svcInit *tracepb.ServiceInit) *ServiceIn
 		Service:   svcInit.Service,
 		Err:       nullBytes(svcInit.Err),
 		ErrStack:  tp.maybeStack(svcInit.ErrStack),
+	}
+}
+
+func (tp *traceParser) parseCacheOp(op *tracepb.CacheOp) *CacheOp {
+	return &CacheOp{
+		Type:      "CacheOp",
+		Goid:      op.Goid,
+		DefLoc:    op.DefLoc,
+		StartTime: tp.time(op.StartTime),
+		EndTime:   tp.maybeTime(op.EndTime),
+		Write:     op.Write,
+		Operation: op.Operation,
+		Keys:      op.Keys,
+		Inputs:    op.Inputs,
+		Outputs:   op.Outputs,
+		Err:       nullBytes(op.Err),
+		Stack:     tp.stack(op.Stack),
+		Result:    int(op.Result),
 	}
 }
 

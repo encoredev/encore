@@ -1,10 +1,13 @@
 package runtimeconstants
 
 import (
+	"go/constant"
 	"time"
+
+	"encore.dev/storage/cache"
 )
 
-var constants = map[string]map[string]int64{
+var constants = map[string]map[string]any{
 	"encore.dev/pubsub": {
 		"NoRetries":       -2,
 		"InfiniteRetries": -1,
@@ -13,6 +16,16 @@ var constants = map[string]map[string]int64{
 	"encore.dev/cron": {
 		"Minute": 60,
 		"Hour":   60 * 60,
+	},
+	"encore.dev/storage/cache": {
+		"AllKeysLRU":     string(cache.AllKeysLRU),
+		"AllKeysLFU":     string(cache.AllKeysLFU),
+		"AllKeysRandom":  string(cache.AllKeysRandom),
+		"VolatileLRU":    string(cache.VolatileLRU),
+		"VolatileLFU":    string(cache.VolatileLFU),
+		"VolatileTTL":    string(cache.VolatileTTL),
+		"VolatileRandom": string(cache.VolatileRandom),
+		"NoEviction":     string(cache.NoEviction),
 	},
 	"time": {
 		"Nanosecond":  int64(time.Nanosecond),
@@ -25,12 +38,20 @@ var constants = map[string]map[string]int64{
 }
 
 // Get returns the value of a constant within the runtime, if it's registered in this package
-func Get(pkg, ident string) (int64, bool) {
+func Get(pkg, ident string) (constant.Value, bool) {
 	pkgMap, found := constants[pkg]
 	if !found {
-		return 0, false
+		return constant.MakeUnknown(), false
 	}
 
-	value, found := pkgMap[ident]
-	return value, found
+	if value, found := pkgMap[ident]; found {
+		// constant.Make recognizes int64 but not int.
+		// If we have an int, turn it to int64.
+		if val, ok := value.(int); ok {
+			return constant.Make(int64(val)), true
+		}
+
+		return constant.Make(value), true
+	}
+	return constant.MakeUnknown(), false
 }

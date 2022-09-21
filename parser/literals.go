@@ -39,7 +39,7 @@ func (p *parser) parseStructLit(file *est.File, expectedType string, node ast.Ex
 	}
 
 	lit = &LiteralStruct{
-		ast:            node,
+		ast:            cl,
 		constantFields: make(map[string]constant.Value),
 		allFields:      make(map[string]ast.Expr),
 		childStructs:   make(map[string]*LiteralStruct),
@@ -132,7 +132,7 @@ func (p *parser) parseConstantValue(file *est.File, value ast.Expr) (rtn constan
 		pkg, obj := pkgObj(p.names[file.Pkg].Files[file], value)
 		if pkg != "" {
 			if v, found := runtimeconstants.Get(pkg, obj); found {
-				return constant.Make(v)
+				return v
 			}
 		}
 
@@ -188,7 +188,7 @@ func (p *parser) parseConstantValue(file *est.File, value ast.Expr) (rtn constan
 				}
 			}
 		}
-		p.errf(value.Pos(), "You can not call a function here, only constant values are supported")
+
 		return constant.MakeUnknown()
 
 	case *ast.ParenExpr:
@@ -228,10 +228,14 @@ func basicLit(value *ast.BasicLit) (constant.Value, error) {
 
 // LiteralStruct represents a struct literal at compile time
 type LiteralStruct struct {
-	ast            ast.Expr                  // The AST node which presents the literal
+	ast            *ast.CompositeLit         // The AST node which presents the literal
 	constantFields map[string]constant.Value // All found constant expressions
 	allFields      map[string]ast.Expr       // All field expressions (constant or otherwise)
 	childStructs   map[string]*LiteralStruct // Any child struct literals
+}
+
+func (l *LiteralStruct) Lit() *ast.CompositeLit {
+	return l.ast
 }
 
 // FullyConstant returns true if every value in this struct and the child structs fully known as compile time
