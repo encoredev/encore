@@ -21,7 +21,7 @@ type IncrResponse struct {
 
 //encore:api public path=/cache/incr/:key
 func Incr(ctx context.Context, key string) (*IncrResponse, error) {
-	val, err := ints.Incr(ctx, key, 1)
+	val, err := ints.Increment(ctx, key, 1)
 	return &IncrResponse{Val: val}, err
 }
 
