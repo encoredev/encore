@@ -1,8 +1,8 @@
 import * as React from "react";
-import { SVGProps, useEffect, useState } from "react";
+import { PropsWithChildren, SVGProps, useEffect, useState } from "react";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import { Coordinates, EdgeData, PositionedEdge, PositionedNode } from "./flow-utils";
+import { Coordinates, EdgeData, PositionedEdge, PositionedNode, ServiceNode } from "./flow-utils";
 
 const OFF_WHITE_COLOR = "#EEEEE1";
 const SOFT_BLACK_COLOR = "#111111";
@@ -18,7 +18,7 @@ export const ServiceSVG = ({
   onMouseEnter,
   onMouseLeave,
 }: {
-  node: PositionedNode;
+  node: PositionedNode<ServiceNode>;
   isActive: boolean;
   endpoints: { public: number; auth: number; private: number };
   onClick: (event: any) => void;
@@ -46,16 +46,15 @@ export const ServiceSVG = ({
         height={node.height}
       >
         <div
-          className="h-full w-full border-2"
+          className="h-full w-full border-2 flex flex-col justify-between px-2 py-2"
           style={{ background: OFF_WHITE_COLOR, borderColor: SOFT_BLACK_COLOR }}
         >
-          <div className="p-1 px-2 font-mono font-semibold">
-            <p>{node.label}</p>
-          </div>
-          <div data-testid="service-endpoints" className="px-1">
-            <div className="flex items-center pb-1">
-              <EndpointIconSVG />
-              <p className="flex w-full justify-between px-1 text-xs">
+          <p className="font-mono font-semibold">{node.label}</p>
+          <ServiceInfoRow
+            data-testid="service-endpoints"
+            icon={<EndpointIconSVG />}
+            text={
+              <p className="flex flex-1 justify-between">
                 <span>
                   <b>{publicEndpoints}</b> public
                 </span>
@@ -66,17 +65,47 @@ export const ServiceSVG = ({
                   <b>{privateEndpoints}</b> private
                 </span>
               </p>
-            </div>
-            {node.type === "service" && node.has_database && (
-              <div className="flex items-center">
-                <DatabaseIconSVG />
-                <p className="pl-1 text-xs">Database</p>
-              </div>
-            )}
-          </div>
+            }
+          />
+
+          {node.has_database && (
+            <ServiceInfoRow icon={<DatabaseIconSVG />} text={<span>Database</span>} />
+          )}
+
+          {node.cron_jobs && !!node.cron_jobs.length && (
+            <ServiceInfoRow
+              data-testid="service-cron-jobs"
+              icon={<CronJobsIconSVG />}
+              text={
+                node.cron_jobs.length === 1 ? (
+                  <span className="whitespace-nowrap overflow-hidden overflow-ellipsis">
+                    {node.cron_jobs[0].title}
+                  </span>
+                ) : (
+                  <span>
+                    <b>{node.cron_jobs.length}</b> cron jobs
+                  </span>
+                )
+              }
+            />
+          )}
         </div>
       </foreignObject>
     </Group>
+  );
+};
+
+const ServiceInfoRow = (
+  props: PropsWithChildren<
+    { icon: JSX.Element; text?: JSX.Element } & React.HTMLAttributes<HTMLDivElement>
+  >
+) => {
+  const { icon, text, ...attr } = props;
+  return (
+    <div className="w-full flex flex-row pt-1" {...attr}>
+      <div className="pr-1">{props.icon}</div>
+      <div className="flex items-center text-xs w-[calc(100%-1.2rem)]">{props.text}</div>
+    </div>
   );
 };
 
@@ -187,7 +216,9 @@ export const EdgeLabelSVG = ({
       height={25}
       x={edge.label.x - 60}
       y={edge.label.y - (isArrowPointingUp ? 5 : 20)}
-      className={`label ${activeNodeId === edge.source ? "opacity-100" : "opacity-0"}`}
+      className={`label pointer-events-none ${
+        activeNodeId === edge.source ? "opacity-100" : "opacity-0"
+      }`}
     >
       <div className="flex h-full items-center justify-center">
         <p
@@ -213,6 +244,21 @@ export const DatabaseIconSVG = () => (
       d="M10 1c3.866 0 7 1.79 7 4s-3.134 4-7 4-7-1.79-7-4 3.134-4 7-4zm5.694 8.13c.464-.264.91-.583 1.306-.952V10c0 2.21-3.134 4-7 4s-7-1.79-7-4V8.178c.396.37.842.688 1.306.953C5.838 10.006 7.854 10.5 10 10.5s4.162-.494 5.694-1.37zM3 13.179V15c0 2.21 3.134 4 7 4s7-1.79 7-4v-1.822c-.396.37-.842.688-1.306.953-1.532.875-3.548 1.369-5.694 1.369s-4.162-.494-5.694-1.37A7.009 7.009 0 013 13.179z"
       clipRule="evenodd"
     />
+  </svg>
+);
+
+export const CronJobsIconSVG = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    className="h-5 w-5"
+  >
+    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 

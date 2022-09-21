@@ -5,17 +5,12 @@ import { useConn } from "~lib/ctx";
 import { NotificationMsg } from "~lib/client/jsonrpc";
 import { ProcessReload } from "~lib/client/client";
 import { APIMeta } from "~c/api/api";
-import FlowDiagram from "~c/FlowDiagram/FlowDiagram";
+import { FlowDiagram } from "~c/FlowDiagram/FlowDiagram";
 
 const Diagram: FunctionComponent = () => {
   const conn = useConn();
   const { appID } = useParams<{ appID: string }>();
   const [metaData, setMetaData] = useState<APIMeta>();
-
-  // header + padding has a height of 110px
-  const wrapperDivStyling: React.CSSProperties = {
-    height: "calc(100vh - 110px)",
-  };
 
   useEffect(() => {
     conn.request("status", { appID }).then((status: any) => {
@@ -40,11 +35,9 @@ const Diagram: FunctionComponent = () => {
   return (
     <>
       <Nav />
-      <section className="flex flex-grow flex-col items-center bg-gray-200">
-        <div className="mt-6 w-full px-4 md:px-10" style={wrapperDivStyling}>
-          {metaData && <FlowDiagram metaData={metaData} />}
-        </div>
-      </section>
+      <div className="h-full-minus-nav w-full">
+        {metaData && <FlowDiagram metaData={metaData} />}
+      </div>
     </>
   );
 };
