@@ -1,6 +1,6 @@
 import React, {FC, useEffect, useState} from "react"
 import {Stack, StackFrame} from '~c/trace/model'
-import * as icons from "~c/icons"
+import { icons } from "~c/icons";
 import {useConn} from "~lib/ctx"
 import {useParams} from "react-router-dom"
 
