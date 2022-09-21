@@ -119,10 +119,14 @@ type MyKey struct {
 
 // ResourceRequestsPerUser tracks the number of requests per user and resource.
 // The cache items expire after 10 seconds without activity.
-var ResourceRequestsPerUser = cache.NewIntKeyspace[auth.UID](cluster, cache.KeyspaceConfig{
+var ResourceRequestsPerUser = cache.NewIntKeyspace[MyKey](cluster, cache.KeyspaceConfig{
 	KeyPattern:    "requests/:UserID/:ResourcePath",
 	DefaultExpiry: cache.ExpireIn(10 * time.Second),
 })
+
+// ... then:
+key := MyKey{UserID: "some-user-id", ResourcePath: "/foo"}
+ResourceRequestsPerUser.Increment(ctx, key, 1)
 ```
 
 <Callout type="important">
@@ -147,7 +151,7 @@ Basic keyspace types include
 [strings](https://pkg.go.dev/encore.dev/storage/cache#NewStringKeyspace),
 [integers](https://pkg.go.dev/encore.dev/storage/cache#NewIntKeyspace),
 [floats](https://pkg.go.dev/encore.dev/storage/cache#NewFloatKeyspace),
-and [struct types](https://pkg.go.dev/encore.dev/storage/cache#NewStringKeyspace).
+and [struct types](https://pkg.go.dev/encore.dev/storage/cache#NewStructKeyspace).
 These keyspaces all share the same set of methods (along with a few keyspace-specific ones).
 
 There are also more advanced keyspaces for storing [sets of basic types](https://pkg.go.dev/encore.dev/storage/cache#NewSetKeyspace)

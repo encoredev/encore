@@ -106,7 +106,7 @@ func TestIntKeyspace(t *testing.T) {
 		t.Errorf("incr: got %v, want %v", got, want)
 	}
 
-	if got, want := must(ks.Decr(ctx, "one", 1)), int64(3); got != want {
+	if got, want := must(ks.Decrement(ctx, "one", 1)), int64(3); got != want {
 		t.Errorf("decr: got %v, want %v", got, want)
 	}
 }
@@ -126,7 +126,7 @@ func TestFloatKeyspace(t *testing.T) {
 		t.Errorf("incr: got %v, want %v", got, want)
 	}
 
-	if got, want := must(ks.Decr(ctx, "one", 1)), float64(3); got != want {
+	if got, want := must(ks.Decrement(ctx, "one", 1)), float64(3); got != want {
 		t.Errorf("decr: got %v, want %v", got, want)
 	}
 }
