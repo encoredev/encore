@@ -18,6 +18,7 @@ import {
 } from "./model";
 import { latencyStr, svcColor } from "./util";
 import CM from "~c/api/cm/CM";
+import { ModeSpec, ModeSpecOptions } from "codemirror";
 
 interface Props {
   trace: Trace;
@@ -89,7 +90,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           </span>
         </div>
 
-        <div className="wrap [&>*]:basis-1/5 flex w-full flex-row flex-wrap py-3 [&>*]:min-w-[150px] [&>*]:pb-2">
+        <div className="wrap flex w-full flex-row flex-wrap py-3 [&>*]:min-w-[150px] [&>*]:basis-1/5 [&>*]:pb-2">
           <div className="body-sm flex items-center">
             <div>{icons.clock("h-5 w-auto")}</div>
             <span className="mx-1 font-semibold">
@@ -441,6 +442,7 @@ const GoroutineDetail: FunctionComponent<{
                 .${clsid}:hover { background-color: ${color}; }
               `}</style>
                   <div
+                    data-testid={clsid}
                     className={`absolute ${clsid}`}
                     onMouseEnter={(e) => setHover(e, ev)}
                     onMouseLeave={(e) => setHover(e, null)}
@@ -554,6 +556,7 @@ const GoroutineDetail: FunctionComponent<{
         </div>
       </div>
       <div
+        data-testid="trace-tooltip"
         ref={tooltipRef}
         className="absolute z-40 w-full max-w-md pr-2"
         style={{
@@ -623,7 +626,7 @@ const PubsubPublishTooltip: FunctionComponent<{
             ? latencyStr(publish.end_time - publish.start_time)
             : "Unknown"}
           <button
-            className="focus:outline-none -mr-1"
+            className="-mr-1 focus:outline-none"
             onClick={() => props.onStackTrace(publish.stack)}
           >
             {icons.stackTrace("m-1 h-4 w-auto")}
@@ -764,7 +767,7 @@ const DBQueryTooltip: FunctionComponent<{
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
           {q.end_time ? latencyStr(q.end_time - q.start_time) : "Unknown"}
           <button
-            className="focus:outline-none -mr-1"
+            className="-mr-1 focus:outline-none"
             onClick={() => props.onStackTrace(q.stack)}
           >
             {icons.stackTrace("m-1 h-4 w-auto")}
@@ -776,16 +779,7 @@ const DBQueryTooltip: FunctionComponent<{
         <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
           Query
         </h4>
-        {q.html_query !== null ? (
-          <pre
-            className="border-gray-200 overflow-auto rounded border bg-[#fff] p-2 text-sm"
-            dangerouslySetInnerHTML={{ __html: decodeBase64(q.html_query) }}
-          />
-        ) : (
-          <pre className="border-gray-200 overflow-auto rounded border bg-black p-2 text-sm text-white">
-            {decodeBase64(q.query)}
-          </pre>
-        )}
+        {renderData([q.query], "sql")}
       </div>
 
       <div className="mt-4">
@@ -831,7 +825,7 @@ const RPCCallTooltip: FunctionComponent<{
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
           {c.end_time ? latencyStr(c.end_time - c.start_time) : "Unknown"}
           <button
-            className="focus:outline-none -mr-1"
+            className="-mr-1 focus:outline-none"
             onClick={() => props.onStackTrace(c.stack)}
           >
             {icons.stackTrace("m-1 h-4 w-auto")}
@@ -997,7 +991,13 @@ const HTTPCallTooltip: FunctionComponent<{
   );
 };
 
-const renderData = (data: Base64EncodedBytes[]) => {
+const renderData = (
+  data: Base64EncodedBytes[],
+  mode: string | ModeSpec<ModeSpecOptions> = {
+    name: "javascript",
+    json: true,
+  }
+) => {
   const raw = decodeBase64(data[0]);
   let pretty = raw;
   try {
@@ -1014,7 +1014,7 @@ const renderData = (data: Base64EncodedBytes[]) => {
           value: pretty,
           readOnly: true,
           theme: "encore",
-          mode: { name: "javascript", json: true },
+          mode: mode,
         }}
         noShadow={true}
       />
@@ -1095,7 +1095,7 @@ const renderLog = (
   return (
     <div key={key} className="flex items-center gap-x-1.5">
       <button
-        className="focus:outline-none -ml-2 -mr-1"
+        className="-ml-2 -mr-1 focus:outline-none"
         onClick={() => onStackTrace(log.stack)}
       >
         {icons.stackTrace("m-1 h-4 w-auto")}
