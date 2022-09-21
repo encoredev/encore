@@ -102,7 +102,7 @@ func TestIntKeyspace(t *testing.T) {
 		t.Errorf("set/get: got %v, want %v", got, want)
 	}
 
-	if got, want := must(ks.Incr(ctx, "one", 3)), int64(4); got != want {
+	if got, want := must(ks.Increment(ctx, "one", 3)), int64(4); got != want {
 		t.Errorf("incr: got %v, want %v", got, want)
 	}
 
@@ -122,7 +122,7 @@ func TestFloatKeyspace(t *testing.T) {
 		t.Errorf("set/get: got %v, want %v", got, want)
 	}
 
-	if got, want := must(ks.Incr(ctx, "one", 3)), float64(4); got != want {
+	if got, want := must(ks.Increment(ctx, "one", 3)), float64(4); got != want {
 		t.Errorf("incr: got %v, want %v", got, want)
 	}
 

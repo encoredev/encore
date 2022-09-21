@@ -229,8 +229,9 @@ func createKeyspaceParser(con cacheKeyspaceConstructor) func(*parser, *est.File,
 			return nil
 		}
 
-		if strings.HasPrefix(keyPatternStr, "__encore") {
-			p.err(keyPatternPos, `invalid KeyPattern: use of reserved prefix "encore"`)
+		const reservedPrefix = "__encore"
+		if strings.HasPrefix(keyPatternStr, reservedPrefix) {
+			p.errf(keyPatternPos, "invalid KeyPattern: use of reserved prefix %q", reservedPrefix)
 			return nil
 		}
 

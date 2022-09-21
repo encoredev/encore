@@ -392,8 +392,10 @@ func (l *Log) CacheOpStart(p CacheOpStartParams) {
 	}
 
 	tb.UVarint(uint64(len(p.Inputs)))
+	suffix := []byte("...")
 	for _, val := range p.Inputs {
-		tb.ByteString(val)
+		const maxLen = 4 * 1024 // 4KiB
+		tb.TruncatedByteString(val, maxLen, suffix)
 	}
 
 	l.Add(CacheOpStart, tb.Buf())
@@ -417,9 +419,12 @@ func (l *Log) CacheOpEnd(p CacheOpEndParams) {
 		}
 		tb.Err(err)
 	}
+
 	tb.UVarint(uint64(len(p.Outputs)))
+	suffix := []byte("...")
 	for _, val := range p.Outputs {
-		tb.ByteString(val)
+		const maxLen = 4 * 1024 // 4KiB
+		tb.TruncatedByteString(val, maxLen, suffix)
 	}
 	l.Add(CacheOpEnd, tb.Buf())
 }

@@ -31,6 +31,8 @@ type EvictionPolicy string
 // NOTE: These values need to be added to the runtimeconstants package
 // and the parser package for the parser to be aware of them.
 
+// The eviction policies Encore supports.
+// See https://redis.io/docs/manual/eviction/#eviction-policies for more information.
 const (
 	// AllKeysLRU keeps most recently used keys and removes least recently used (LRU) keys.
 	// This is a good default choice for most cache use cases if you're not sure.

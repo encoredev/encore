@@ -86,7 +86,7 @@ var RequestsPerUser = cache.NewIntKeyspace[auth.UID](cluster, cache.KeyspaceConf
 //encore:middleware target=all
 func RateLimitMiddleware(req middleware.Request, next middleware.Next) middleware.Response {
 	if userID, ok := auth.UserID(); ok {
-		val, err := RequestsPerUser.Incr(req.Context(), userID, 1)
+		val, err := RequestsPerUser.Increment(req.Context(), userID, 1)
 
 		// NOTE: this "fails open", meaning if we can't communicate with the cache
 		// we default to allowing the requests.

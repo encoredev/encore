@@ -379,20 +379,39 @@ func (c *client[K, V]) traceEnd(opID uint64, err error, values ...any) {
 	}
 }
 
+type errWrapper struct {
+	err error
+}
+
+func (ew errWrapper) Error() string {
+	return ew.err.Error()
+}
+
+func (ew errWrapper) Unwrap() error {
+	return ew.err
+}
+
 func toErr(err error, op, key string) error {
 	if err == nil {
 		return nil
 	}
-	if err == redis.Nil {
+
+	// Convert redis.Nil to cache.Miss.
+	if errors.Is(err, redis.Nil) {
 		err = Miss
 	}
 
-	// Is it already an op error? if so, do nothing
-	if _, ok := err.(*OpError); ok {
+	// Is it already an OpError? If so, do nothing.
+	var opErr *OpError
+	if errors.As(err, &opErr) {
 		return err
 	}
 
-	return &OpError{Operation: op, RawKey: key, Err: err}
+	err = &OpError{Operation: op, RawKey: key, Err: err}
+
+	// Wrap the error in an opaque type to ensure callers check for errors
+	// with errors.Is and errors.As.
+	return errWrapper{err}
 }
 
 func toErr2[T any](val T, err error, op, key string) (T, error) {

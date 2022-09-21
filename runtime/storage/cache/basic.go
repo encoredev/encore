@@ -274,7 +274,7 @@ func (s *IntKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, er
 	return s.client.Delete(ctx, keys...)
 }
 
-// Incr increments the number stored in key by delta,
+// Increment increments the number stored in key by delta,
 // and returns the new value.
 //
 // If the key does not exist it is first created with a value of 0
@@ -284,7 +284,7 @@ func (s *IntKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, er
 // but typically you want to use the Decr method for that.
 //
 // See https://redis.io/commands/incrby/ for more information.
-func (s *IntKeyspace[K]) Incr(ctx context.Context, key K, delta int64) (newVal int64, err error) {
+func (s *IntKeyspace[K]) Increment(ctx context.Context, key K, delta int64) (newVal int64, err error) {
 	const op = "incr"
 	k, err := s.key(key, op)
 	defer s.doTrace(op, true, k)(err)
@@ -412,7 +412,7 @@ func (s *FloatKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, 
 	return s.client.Delete(ctx, keys...)
 }
 
-// Incr increments the number stored in key by delta,
+// Increment increments the number stored in key by delta,
 // and returns the new value.
 //
 // If the key does not exist it is first created with a value of 0
@@ -422,7 +422,7 @@ func (s *FloatKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, 
 // but typically you want to use the Decr method for that.
 //
 // See https://redis.io/commands/incrbyfloat/ for more information.
-func (s *FloatKeyspace[K]) Incr(ctx context.Context, key K, delta float64) (newVal float64, err error) {
+func (s *FloatKeyspace[K]) Increment(ctx context.Context, key K, delta float64) (newVal float64, err error) {
 	const op = "incr"
 	k, err := s.key(key, op)
 	defer s.doTrace(op, true, k)(err)
