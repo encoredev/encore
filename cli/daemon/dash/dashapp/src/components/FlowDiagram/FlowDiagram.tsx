@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, useEffect, useRef, useState } from "react";
 import {
   getEdgesFromMetaData,
   getNodesFromMetaData,
@@ -20,12 +20,15 @@ import {
   TopicSVG,
 } from "./flowSvgElements";
 import { ParentSize } from "@visx/responsive";
+import useDownloadDiagram from "~c/FlowDiagram/useDownloadDiagram";
+import Button from "~c/Button";
+import { icons } from "~c/icons";
 import { APIMeta } from "~c/api/api";
 
 class LayoutOptions implements GraphLayoutOptions {
   serviceNodeMinWidth = 220;
   topicNodeMinWidth = 50;
-  serviceNodeMinHeight = 60;
+  serviceNodeMinHeight = 57;
   topicNodeMinHeight = 40;
 
   getNodeWidth(nodeData: NodeData) {
@@ -37,9 +40,11 @@ class LayoutOptions implements GraphLayoutOptions {
   }
 
   getNodeHeight(nodeData: NodeData) {
+    let height = this.serviceNodeMinHeight;
     if (nodeData.type === "topic") return this.topicNodeMinHeight;
-    if (nodeData.has_database) return this.serviceNodeMinHeight + 27;
-    return this.serviceNodeMinHeight;
+    if (nodeData.has_database) height += 29;
+    if (nodeData.cron_jobs.length) height += 29;
+    return height;
   }
 }
 
@@ -47,16 +52,29 @@ interface Props {
   metaData: APIMeta;
 }
 
-const FlowDiagram: FC<Props> = ({ metaData }) => {
+export const FlowDiagram: FC<Props> = ({ metaData }) => {
   const [graphLayoutData, setGraphLayoutData] = useState<GraphData>();
   const [activeNode, setActiveNode] = useState<PositionedNode | null>(null);
   const [activeDescendants, setActiveDescendants] = useState<string[] | null>(
     null
   );
   const [isInitialRender, setIsInitialRender] = useState<boolean>(true);
+  const [isLoadingScreenshot, setIsLoadingScreenshot] =
+    useState<boolean>(false);
+  const screenshotRef = useRef<HTMLDivElement>(null);
+  const downloadDiagram = useDownloadDiagram(screenshotRef);
   const graphWidth = graphLayoutData?.width ?? 1600;
   const graphHeight = graphLayoutData?.height ?? 800;
 
+  const onDownloadScreenshot = () => {
+    setIsLoadingScreenshot(true);
+    // putting this in a timeout to ensure that the loading animation
+    // starts before the browser is blocked
+    setTimeout(async () => {
+      await downloadDiagram();
+      setIsLoadingScreenshot(false);
+    }, 50);
+  };
   const getNumberOfEndpoints = (node: ServiceNode) => {
     const svc = metaData.svcs.find((s) => s.name === node.service_name);
     const endpoints = { public: 0, auth: 0, private: 0 };
@@ -127,30 +145,44 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
             }, [parent]);
             if (!parent.width || !parent.height) return null;
 
+            const scaleX = parent.width / graphLayoutData.width!;
+            const scaleY = parent.height / graphLayoutData.height!;
+            let scale = scaleY > scaleX ? scaleX : scaleY;
+            scale = Math.min(scale, 2);
+
             return (
               <Zoom<SVGSVGElement>
                 width={parent.width}
                 height={parent.height}
-                scaleXMin={0.5}
+                scaleXMin={0.1}
                 scaleXMax={4}
-                scaleYMin={0.5}
+                scaleYMin={0.1}
                 scaleYMax={4}
                 initialTransformMatrix={{
-                  scaleX: 1,
-                  scaleY: 1,
-                  translateX: parent.width / 2 - graphLayoutData.width! / 2,
-                  translateY: parent.height / 2 - graphLayoutData.height! / 2,
+                  scaleX: scale,
+                  scaleY: scale,
+                  translateX:
+                    parent.width / 2 - (graphLayoutData.width! * scale) / 2,
+                  translateY:
+                    parent.height / 2 - (graphLayoutData.height! * scale) / 2,
                   skewX: 0,
                   skewY: 0,
                 }}
+                pinchDelta={(event) => {
+                  const factor = event.direction[0] > 0 ? 1.02 : 0.98;
+                  return { scaleX: factor, scaleY: factor };
+                }}
+                wheelDelta={(event) => {
+                  const factor = event.deltaY < 0 ? 1.05 : 0.95;
+                  return { scaleX: factor, scaleY: factor };
+                }}
               >
                 {(zoom) => (
-                  <div className="relative">
+                  <div className="relative" ref={screenshotRef}>
                     <svg
                       id="flow-diagram"
                       width={parent.width}
                       height={parent.height}
-                      ref={zoom.containerRef}
                     >
                       <defs>
                         <EncoreArrowHeadSVG id="encore-arrow" fill="#333" />
@@ -174,10 +206,14 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
                           cursor: zoom.isDragging ? "grabbing" : "grab",
                           touchAction: "none",
                         }}
+                        ref={zoom.containerRef as any}
                       />
 
                       {/* Drawable area */}
-                      <Group transform={zoom.toString()}>
+                      <Group
+                        transform={zoom.toString()}
+                        className="select-none"
+                      >
                         {graphLayoutData.edges.map((edge) => (
                           <Group key={edge.id} className="edge-group">
                             <EdgeSVG
@@ -226,6 +262,13 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
           }}
         </ParentSize>
       )}
+      <div className="absolute right-2 top-2">
+        <Button kind="primary" onClick={onDownloadScreenshot}>
+          {isLoadingScreenshot
+            ? icons.loading("h-6 w-6", "#EEEEE1", "transparent", 4)
+            : icons.camera("h-6 w-6")}
+        </Button>
+      </div>
       <a
         target="_blank"
         href="https://encoredev.slack.com/app_redirect?channel=CQFNUESN9"
@@ -244,5 +287,3 @@ const FlowDiagram: FC<Props> = ({ metaData }) => {
     </div>
   );
 };
-
-export default FlowDiagram;

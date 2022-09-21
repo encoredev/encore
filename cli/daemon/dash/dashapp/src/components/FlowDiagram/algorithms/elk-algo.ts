@@ -47,7 +47,7 @@ export const getElkGraphLayoutData: GetGraphLayoutData = (nodes, edges, options)
     };
   });
 
-  const elkNodes: (ElkNode & NodeData)[] = nodes.map((nodeData, index) => {
+  const elkNodes: (ElkNode & NodeData)[] = nodes.map((nodeData) => {
     return {
       layoutOptions: {},
       width: options.getNodeWidth(nodeData),
