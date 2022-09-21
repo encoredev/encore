@@ -84,6 +84,10 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 			case est.PubSubTopicDefNode, est.PubSubPublisherNode, est.PubSubSubscriberNode:
 				return true
+
+			case est.ConfigLoadNode:
+				return true
+
 			default:
 				panic(fmt.Sprintf("unhandled rewrite type: %v", rewrite.Type))
 			}

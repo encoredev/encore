@@ -288,7 +288,7 @@ func (s *service) toCueType(unknownType *schema.Type) (ast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewList(listType), nil
+		return ast.NewList(&ast.Ellipsis{Type: listType}), nil
 	case *schema.Type_Builtin:
 		return s.builtinToCue(typ.Builtin), nil
 	case *schema.Type_Config:
