@@ -44,7 +44,7 @@ jobs:
         key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
     - name: Build dashapp
-      run: cd encr.dev/cli/daemon/dash/dashapp && npm install && node node_modules/esbuild/install.js && npm run build
+      run: cd encr.dev/cli/daemon/dash/dashapp && npm install && npm test && node node_modules/esbuild/install.js && npm run build
 
     - name: Build
       run: cd encr.dev && go build ./...
