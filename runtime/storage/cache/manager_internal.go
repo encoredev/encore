@@ -112,7 +112,7 @@ func (mgr *Manager) newClient(rdb *config.RedisDatabase) (*redis.Client, error) 
 		opts.Network = "unix"
 	}
 
-	if srv.ServerCACert != "" || srv.ClientCert != "" {
+	if srv.EnableTLS || srv.ServerCACert != "" || srv.ClientCert != "" {
 		opts.TLSConfig = &tls.Config{}
 		if srv.ServerCACert != "" {
 			caCertPool := x509.NewCertPool()

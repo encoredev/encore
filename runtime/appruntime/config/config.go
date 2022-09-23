@@ -229,6 +229,10 @@ type RedisServer struct {
 	User     string `json:"user,omitempty"`
 	Password string `json:"password,omitempty"`
 
+	// EnableTLS specifies whether or not to use TLS to connect.
+	// If ServerCACert, ClientCert, or ClientKey are provided it is
+	// automatically enabled regardless of the value.
+	EnableTLS bool `json:"enable_tls"`
 	// ServerCACert is the PEM-encoded server CA cert, or "" if not required.
 	ServerCACert string `json:"server_ca_cert,omitempty"`
 	// ClientCert is the PEM-encoded client cert, or "" if not required.
