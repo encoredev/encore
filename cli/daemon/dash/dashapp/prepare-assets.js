@@ -134,7 +134,7 @@ Promise.all(
     const [dir, fileName] = font.split("/");
     return download(
       `https://encore.dev/assets/fonts/${font}`,
-      path.join(__dirname, "public", "fonts", dir, fileName)
+      path.join(__dirname, "public", "assets", "fonts", dir, fileName)
     );
   })
 )
