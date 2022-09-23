@@ -174,7 +174,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
 
   return (
     <section className="relative flex h-full flex-grow items-stretch bg-white">
-      <div className="absolute -top-2 -right-2">
+      <div className="absolute -top-2 -right-2 bg-white">
         <div
           className="hover:bg-gray-100 cursor-pointer rounded-full p-1"
           onClick={() => props.close()}
@@ -195,7 +195,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
         </div>
       </div>
 
-      <div className="flex flex-grow flex-col overflow-scroll scrollbar-none">
+      <div className="flex flex-grow flex-col overflow-auto">
         <div className="border-gray-100 flex border-b p-4">
           <div className="mr-4 flex-shrink-0">
             <h1 className="text-gray-900 mb-1 text-2xl font-semibold leading-none">
@@ -235,7 +235,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
               <h3 className="mb-2 flex items-center justify-between text-xl font-semibold">
                 Stack Trace
                 <button
-                  className="focus:outline-none hover:text-gray-600"
+                  className="hover:text-gray-600 focus:outline-none"
                   onClick={() => setStack(undefined)}
                 >
                   {icons.x("h-5 w-5")}
@@ -249,7 +249,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
         </div>
       </div>
 
-      <div className="w-96 flex-shrink-0 overflow-scroll border-l border-black p-4 scrollbar-none md:w-1/2">
+      <div className="h-full w-96 flex-shrink-0 border-l border-black p-4 md:w-1/2">
         <SpanDetail req={selected} trace={tr} onStackTrace={setStack} />
       </div>
     </section>
