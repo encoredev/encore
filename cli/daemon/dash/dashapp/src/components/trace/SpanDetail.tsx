@@ -69,9 +69,16 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
     type = "PubSub Message Received";
   }
 
+  const logsRef = useRef<HTMLDivElement>(null);
+  const scrollToRef = (ref: React.MutableRefObject<HTMLDivElement | null>) => {
+    if (ref.current && ref.current.scrollIntoView) {
+      ref.current.scrollIntoView();
+    }
+  };
+
   return (
     <>
-      <div>
+      <div className="flex h-full flex-col">
         <h2 className="text-2xl font-semibold">
           {icon("h-5 w-5 mr-2 inline-block", type)}
           {svcName}.{rpcName}
@@ -123,7 +130,12 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
             Publish{publishedMessages.length !== 1 ? "es" : ""}
           </div>
 
-          <div className="body-sm flex items-center">
+          <div
+            className={`body-sm flex items-center ${
+              logs.length ? "cursor-pointer" : ""
+            }`}
+            onClick={() => scrollToRef(logsRef)}
+          >
             <div>{icons.menuAlt2("h-5 w-auto")}</div>
             <span className="text-gray-800 mx-1 font-semibold">
               {logs.length}
@@ -132,7 +144,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           </div>
         </div>
 
-        <div>
+        <div className="h-full overflow-auto">
           <div className="mt-6">
             <EventMap
               trace={props.trace}
@@ -271,7 +283,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           )}
 
           {logs.length > 0 && (
-            <div className="mt-6">
+            <div className="mt-6" ref={logsRef}>
               <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                 Logs
               </h4>
@@ -647,7 +659,7 @@ const PubsubPublishTooltip: FunctionComponent<{
         <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
           Message
         </h4>
-        {renderData([publish.message])}
+        {renderData([publish.message], "max-h-96")}
       </div>
 
       <div className="mt-4">
@@ -689,7 +701,7 @@ const CacheOpTooltip: FunctionComponent<{
           {op.end_time ? latencyStr(op.end_time - op.start_time) : "Unknown"}
           {op.stack.frames.length > 0 && (
             <button
-              className="focus:outline-none -mr-1"
+              className="-mr-1 focus:outline-none"
               onClick={() => props.onStackTrace(op.stack)}
             >
               {icons.stackTrace("m-1 h-4 w-auto")}
@@ -703,9 +715,7 @@ const CacheOpTooltip: FunctionComponent<{
           <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
             Keyspace
           </h4>
-          <div className="text-gray-700 text-sm">
-            {keyspaceName}
-          </div>
+          <div className="text-gray-700 text-sm">{keyspaceName}</div>
         </div>
       )}
 
@@ -713,9 +723,7 @@ const CacheOpTooltip: FunctionComponent<{
         <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
           Operation
         </h4>
-        <div className="text-gray-700 text-sm">
-          {op.operation}
-        </div>
+        <div className="text-gray-700 text-sm">{op.operation}</div>
       </div>
 
       {op.keys.length > 0 && (
@@ -779,7 +787,7 @@ const DBQueryTooltip: FunctionComponent<{
         <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
           Query
         </h4>
-        {renderData([q.query], "sql")}
+        {renderData([q.query], "max-h-96", "sql")}
       </div>
 
       <div className="mt-4">
@@ -854,7 +862,7 @@ const RPCCallTooltip: FunctionComponent<{
         </h4>
         {target !== undefined ? (
           target.outputs.length > 0 ? (
-            renderData(target.outputs)
+            renderData(target.outputs, "max-h-96")
           ) : (
             <div className="text-gray-700 text-sm">No response data.</div>
           )
@@ -993,6 +1001,7 @@ const HTTPCallTooltip: FunctionComponent<{
 
 const renderData = (
   data: Base64EncodedBytes[],
+  className: string = "",
   mode: string | ModeSpec<ModeSpecOptions> = {
     name: "javascript",
     json: true,
@@ -1007,7 +1016,9 @@ const renderData = (
     /* do nothing */
   }
   return (
-    <pre className="response-docs overflow-auto rounded border bg-black p-2 text-sm text-white">
+    <pre
+      className={`response-docs overflow-auto rounded border bg-black p-2 text-sm text-white ${className}`}
+    >
       <CM
         key={pretty}
         cfg={{
