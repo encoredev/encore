@@ -5,7 +5,9 @@
     "dev": "node prepare-assets.js && vite",
     "build": "node prepare-assets.js && tsc && vite build",
     "serve": "vite preview",
-    "test": "jest"
+    "test": "jest",
+    "prettier": "prettier . --check",
+    "prettier:fix": "npm run prettier -- --write"
   },
   "dependencies": {
     "@codemirror/basic-setup": "^0.20.0",
