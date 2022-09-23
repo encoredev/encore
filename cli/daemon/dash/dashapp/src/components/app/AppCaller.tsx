@@ -11,10 +11,7 @@ interface API {
   name: string;
 }
 
-const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({
-  appID,
-  conn,
-}) => {
+const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) => {
   const [addr, setAddr] = useState("localhost:4000");
 
   interface State {
@@ -43,11 +40,7 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({
         const exists = state.selected
           ? list.findIndex((a) => a.name === state.selected!.name) >= 0
           : false;
-        const newSel = exists
-          ? state.selected
-          : list.length > 0
-          ? list[0]
-          : undefined;
+        const newSel = exists ? state.selected : list.length > 0 ? list[0] : undefined;
         return { md: md, list: list, selected: newSel };
       case "select":
         const sel = state.list?.find((a) => a.name === action.name);
@@ -96,9 +89,7 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({
         label="API Endpoint"
         selectedItem={state.selected!}
         items={state.list!}
-        onChange={(item: ComboboxOptionsItem) =>
-          dispatch({ type: "select", name: item.name })
-        }
+        onChange={(item: ComboboxOptionsItem) => dispatch({ type: "select", name: item.name })}
       />
       <div className="mt-3">
         <RPCCaller

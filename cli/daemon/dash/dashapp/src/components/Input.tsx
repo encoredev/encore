@@ -1,10 +1,4 @@
-import React, {
-  FC,
-  FunctionComponent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { FC, FunctionComponent, useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
 
 export type InputType = "text" | "number" | "email" | "password";
@@ -40,11 +34,7 @@ const Input: FunctionComponent<InputProps> = (props: InputProps) => {
   };
 
   const autoComplete =
-    props.autoComplete !== undefined
-      ? props.autoComplete
-        ? "on"
-        : "off"
-      : undefined;
+    props.autoComplete !== undefined ? (props.autoComplete ? "on" : "off") : undefined;
 
   const input = (
     <input
@@ -122,10 +112,7 @@ export const TextArea: FunctionComponent<TextAreaProps> = (props) => {
   return (
     <div className={props.cls}>
       {props.label && (
-        <label
-          htmlFor={props.id}
-          className="mb-1 block text-sm font-medium leading-5 text-black"
-        >
+        <label htmlFor={props.id} className="mb-1 block text-sm font-medium leading-5 text-black">
           {props.label}
         </label>
       )}
@@ -146,10 +133,7 @@ export const TextArea: FunctionComponent<TextAreaProps> = (props) => {
               aria-describedby={props.id + "-error"}
             />
           </div>
-          <p
-            className="mt-2 text-sm text-validation-fail"
-            id={props.id + "-error"}
-          >
+          <p className="mt-2 text-sm text-validation-fail" id={props.id + "-error"}>
             {props.error}
           </p>
         </>
@@ -170,10 +154,7 @@ export const TextArea: FunctionComponent<TextAreaProps> = (props) => {
           </div>
 
           {props.desc && (
-            <p
-              className="mt-2 text-sm text-black"
-              id={props.id + "-description"}
-            >
+            <p className="mt-2 text-sm text-black" id={props.id + "-description"}>
               {props.desc}
             </p>
           )}
@@ -197,8 +178,7 @@ interface RangeProps {
 }
 
 export const Range: FunctionComponent<RangeProps> = (props) => {
-  const filled =
-    ((props.value - props.min) / (props.max - props.min)) * 100 + "%";
+  const filled = ((props.value - props.min) / (props.max - props.min)) * 100 + "%";
   const slider = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -220,13 +200,7 @@ export const Range: FunctionComponent<RangeProps> = (props) => {
     const rect = slider.current?.getBoundingClientRect();
     const x = event.pageX;
     const y = event.pageY;
-    if (
-      rect &&
-      rect.left <= x &&
-      x <= rect.right &&
-      rect.top <= y &&
-      y <= rect.bottom
-    ) {
+    if (rect && rect.left <= x && x <= rect.right && rect.top <= y && y <= rect.bottom) {
       update(event);
     }
 
@@ -308,10 +282,7 @@ export const Range: FunctionComponent<RangeProps> = (props) => {
                     viewBox="0 0 255 255"
                     xmlSpace="preserve"
                   >
-                    <polygon
-                      className="fill-current"
-                      points="0,0 127.5,127.5 255,0"
-                    ></polygon>
+                    <polygon className="fill-current" points="0,0 127.5,127.5 255,0"></polygon>
                   </svg>
                 </div>
               </div>
@@ -374,24 +345,21 @@ export const Counter: FunctionComponent<CounterProps> = (props) => {
         }
       `}</style>
       {props.label && (
-        <label
-          htmlFor={props.id}
-          className="text-gray-700 w-full text-sm font-medium"
-        >
+        <label htmlFor={props.id} className="text-gray-700 w-full text-sm font-medium">
           {props.label}
         </label>
       )}
       <div className="relative mt-1 flex h-10 w-full flex-row rounded-lg bg-transparent">
         <button
           onClick={() => update(dec(props.value))}
-          className="bg-coolgray-300 text-gray-600 hover:text-gray-700 hover:bg-coolgray-400 outline-none h-full w-20 cursor-pointer rounded-l"
+          className="bg-coolgray-300 text-gray-600 hover:text-gray-700 hover:bg-coolgray-400 h-full w-20 cursor-pointer rounded-l outline-none"
         >
           <span className="m-auto text-2xl font-thin">−</span>
         </button>
         <input
           id={props.id}
           type="number"
-          className="outline-none focus:outline-none bg-coolgray-300 text-md md:text-basecursor-default text-gray-700 flex w-full items-center border-none text-center font-semibold focus:text-black focus:ring-0 hover:text-black"
+          className="bg-coolgray-300 text-md md:text-basecursor-default text-gray-700 flex w-full items-center border-none text-center font-semibold outline-none focus:text-black focus:outline-none focus:ring-0 hover:text-black"
           value={props.value}
           min={props.min}
           max={props.max}

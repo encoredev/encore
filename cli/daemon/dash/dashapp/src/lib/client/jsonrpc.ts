@@ -1,12 +1,12 @@
-import {EventEmitter} from 'events';
-import * as protocol from "json-rpc-protocol"
+import { EventEmitter } from "events";
+import * as protocol from "json-rpc-protocol";
 
 function makeAsync<T>(fn: (msg: Message) => T): (msg: Message) => Promise<T> {
-  return function(msg) {
-    return new Promise(function(resolve) {
+  return function (msg) {
+    return new Promise(function (resolve) {
       return resolve(fn(msg));
     });
-  }
+  };
 }
 
 export interface RequestMsg {
@@ -47,25 +47,25 @@ export default class JSONRPCConn extends EventEmitter {
 
   constructor(ws: WebSocket) {
     super();
-    this._ws = ws
+    this._ws = ws;
     this._peer = new Peer(
       (msg) => ws.send(msg),
-      (msg) => this.emit("notification", msg),
-    )
+      (msg) => this.emit("notification", msg)
+    );
     ws.onmessage = (event) => this._peer.processMsg(event.data);
   }
 
   async request<T>(method: string, params?: any): Promise<T> {
-      return await this._peer.request<T>(method, params);
+    return await this._peer.request<T>(method, params);
   }
 
   async notify(method: string, params?: any): Promise<void> {
-    this._peer.notify(method, params)
+    this._peer.notify(method, params);
   }
 
   close() {
-    this._peer.failPendingRequests("closing connection")
-    this._ws.close()
+    this._peer.failPendingRequests("closing connection");
+    this._ws.close();
   }
 }
 
@@ -102,7 +102,7 @@ let nextRequestId = -9007199254740991;
 // ===================================================================
 
 export class Peer {
-  _deferreds: {[key: number]: Deferred};
+  _deferreds: { [key: number]: Deferred };
   _handle: (msg: Message) => Promise<any>;
   _send: (msg: string) => void;
 
@@ -139,10 +139,8 @@ export class Peer {
       this._handle(msg).catch(noop);
     } else if (msg.type === "request") {
       return this._handle(msg)
-        .then(result =>
-          protocol.format.response(msg.id, result === undefined ? null : result)
-        )
-        .catch(error =>
+        .then((result) => protocol.format.response(msg.id, result === undefined ? null : result))
+        .catch((error) =>
           protocol.format.error(
             msg.id,
 
@@ -160,7 +158,7 @@ export class Peer {
   failPendingRequests(reason: any) {
     Object.entries(this._deferreds).forEach(([id, deferred]) => {
       deferred.reject(reason);
-      delete this._deferreds[(id as unknown) as number];
+      delete this._deferreds[id as unknown as number];
     });
   }
 
@@ -175,7 +173,7 @@ export class Peer {
 
       try {
         this._send(protocol.format.request(requestId, method, params));
-      } catch(err) {
+      } catch (err) {
         reject(err);
         return;
       }

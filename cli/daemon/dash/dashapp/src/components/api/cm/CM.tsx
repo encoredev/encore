@@ -88,21 +88,11 @@ export default class CM extends React.Component<Props> {
           this.props.sans ? "font-sans" : "font-mono"
         } subpixel-antialiased ${shadow} ${this.props.className}`}
       >
-        <style>
-          {styles}
-        </style>
-        <style>
-          {encoreStyles}
-        </style>
-        <style>
-          {ideaStyles}
-        </style>
-        <style>
-          {mdStyles}
-        </style>
-        <style>
-          {showHintStyles}
-        </style>
+        <style>{styles}</style>
+        <style>{encoreStyles}</style>
+        <style>{ideaStyles}</style>
+        <style>{mdStyles}</style>
+        <style>{showHintStyles}</style>
         <style>{`
           .CodeMirror {
             height: 100%;
