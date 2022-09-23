@@ -17,3 +17,4 @@ ReadOnly: bool // true if we're in read only mode
 // a multi-line comment to explain it.
 MagicNumber: int
 ID:          string // An ID
+PublicKey:   bytes

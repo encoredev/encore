@@ -196,4 +196,6 @@ export interface List {
 export interface ConfigValue {
   /** The type of the config value */
   elem: Type;
+  /** Does this config value represent the type to `config.Values[T]`. If false it represents `config.Value[T]` */
+  IsValuesList: boolean;
 }

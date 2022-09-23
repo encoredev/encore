@@ -7,6 +7,7 @@ require (
 	encore.dev v1.1.0
 	github.com/AlecAivazis/survey/v2 v2.3.4
 	github.com/alecthomas/chroma v0.10.0
+	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/bep/debounce v1.2.1
 	github.com/briandowns/spinner v1.18.1
 	github.com/cockroachdb/errors v1.9.0
@@ -60,10 +61,10 @@ require (
 require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
-	github.com/alicebob/miniredis/v2 v2.23.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/bmizerany/perks v0.0.0-20141205001514-d9a9656a3a4b // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cockroachdb/apd/v2 v2.0.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20211118104740-dabe8e521a4f // indirect
 	github.com/cockroachdb/redact v1.1.3 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect

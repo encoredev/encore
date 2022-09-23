@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -44,8 +43,11 @@ func (b *builder) computeConfigForService(service *est.Service) error {
 		return err
 	}
 
-	// FIXME: take the computed config
-	fmt.Println("CONFIG FOR ", service.Name, "\n", cfg)
+	bytes, err := cfg.MarshalJSON()
+	if err != nil {
+		return eerror.Wrap(err, "config", "unable to marshal config to JSON", map[string]any{"service": service.Name})
+	}
+	b.configs[service.Name] = string(bytes)
 
 	return nil
 }

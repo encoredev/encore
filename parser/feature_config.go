@@ -54,10 +54,18 @@ func (p *parser) parseConfigLoad(file *est.File, _ *walker.Cursor, ident *ast.Id
 		return nil
 	}
 
+	if len(callExpr.Args) > 0 {
+		p.err(
+			callExpr.Args[0].Pos(),
+			"A call to config.Load[T]() does not accept any arguments.",
+		)
+	}
+
 	estNode := &est.Config{
 		Svc:          file.Pkg.Service,
 		DeclFile:     file,
 		IdentAST:     ident,
+		FuncCall:     callExpr,
 		ConfigStruct: configType,
 	}
 	svc.ConfigLoads = append(svc.ConfigLoads, estNode)
@@ -71,7 +79,24 @@ func (p *parser) resolveConfigTypes(ident *ast.Ident, typeParameters typeParamet
 		return &schema.Type{
 			Typ: &schema.Type_Config{
 				Config: &schema.ConfigValue{
-					Elem: nil, // we set this to nil here, and expect the type resolver to set it later
+					IsValuesList: false,
+					Elem:         nil, // we set this to nil here, and expect the type resolver to set it later
+				},
+			},
+		}
+
+	case "Values":
+		return &schema.Type{
+			Typ: &schema.Type_Config{
+				Config: &schema.ConfigValue{
+					IsValuesList: true,
+					Elem: &schema.Type{
+						Typ: &schema.Type_List{
+							List: &schema.List{
+								Elem: nil, // we set this to nil here, an expect the type resolver to set it later
+							},
+						},
+					},
 				},
 			},
 		}
@@ -101,6 +126,8 @@ func (p *parser) resolveConfigTypes(ident *ast.Ident, typeParameters typeParamet
 		return createBuiltinConfigWrapper(schema.Builtin_FLOAT64)
 	case "String":
 		return createBuiltinConfigWrapper(schema.Builtin_STRING)
+	case "Bytes":
+		return createBuiltinConfigWrapper(schema.Builtin_BYTES)
 	case "Time":
 		return createBuiltinConfigWrapper(schema.Builtin_TIME)
 	case "UUID":

@@ -97,10 +97,11 @@ func (cfg *Config) Validate() error {
 
 // Result is the combined results of a build.
 type Result struct {
-	Dir         string         // absolute path to build temp dir
-	Exe         string         // absolute path to the build executable
-	Parse       *parser.Result // set only if build succeeded
-	ConfigFiles fs.FS          // all found configuration files within the application source
+	Dir         string            // absolute path to build temp dir
+	Exe         string            // absolute path to the build executable
+	Parse       *parser.Result    // set only if build succeeded
+	ConfigFiles fs.FS             // all found configuration files within the application source
+	Configs     map[string]string // each services runtime config as defined
 }
 
 // Build builds the application.
@@ -117,6 +118,7 @@ func Build(appRoot string, cfg *Config) (*Result, error) {
 	b := &builder{
 		cfg:      cfg,
 		appRoot:  appRoot,
+		configs:  make(map[string]string),
 		lastOpID: optracker.NoOperationID,
 	}
 	return b.Build()
@@ -136,6 +138,7 @@ type builder struct {
 
 	res         *parser.Result
 	configFiles fs.FS
+	configs     map[string]string // Configs by service name -> config JSON
 
 	appCheckOpID optracker.OperationID
 	codegenOpID  optracker.OperationID
@@ -185,6 +188,7 @@ func (b *builder) Build() (res *Result, err error) {
 		b.writeHandlers,
 		b.writeMainPkg,
 		b.writeEtypePkg,
+		b.writeConfigUnmarshallers,
 		b.endCodeGenTracker,
 		b.buildMain,
 	} {
@@ -196,6 +200,7 @@ func (b *builder) Build() (res *Result, err error) {
 
 	res.Parse = b.res
 	res.ConfigFiles = b.configFiles
+	res.Configs = b.configs
 	return res, nil
 }
 
@@ -355,6 +360,10 @@ func (b *builder) writePackages() error {
 
 	for _, svc := range b.res.App.Services {
 		if err := b.generateServiceSetup(svc); err != nil {
+			return err
+		}
+
+		if err := b.generateCueFiles(svc); err != nil {
 			return err
 		}
 	}
@@ -524,11 +533,15 @@ func makeErrsRelative(out []byte, workdir, appRoot, relwd string) []byte {
 // This code outputs something line this;
 //
 // ```
-//  9 | func myFunc() {
+//
+//	9 | func myFunc() {
+//
 // 10 |   x := 5
 // 11 |   y := "hello"
 // 12 |   z := x + y
-//    |~~~~~~~~~~^
+//
+//	|~~~~~~~~~~^
+//
 // 13 |   fmt.Println(z)
 // 14 | }
 // ```

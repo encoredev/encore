@@ -28,6 +28,7 @@ import (
 type Config[T any] struct {
     Library    shared.LibraryConfig
     OtherValue config.Value[T]
+    NameList   config.Values[string]
 }
 
 var cfg = config.Load[Config[int]]()

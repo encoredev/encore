@@ -3,6 +3,7 @@ package run
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -102,20 +103,25 @@ func TestEndToEndWithApp(t *testing.T) {
 	build := testBuild(c, "./testdata/echo")
 	wantEnv := []string{"FOO=bar", "BAR=baz"}
 	p, err := run.startProc(&startProcParams{
-		Ctx:         ctx,
-		BuildDir:    build.Dir,
-		BinPath:     build.Exe,
-		Meta:        build.Parse.Meta,
-		RuntimePort: 0,
-		DBProxyPort: 0,
-		Logger:      testRunLogger{t},
-		Environ:     wantEnv,
-		NSQDaemon:   nsqd,
-		Redis:       redisSrv,
+		Ctx:            ctx,
+		BuildDir:       build.Dir,
+		BinPath:        build.Exe,
+		Meta:           build.Parse.Meta,
+		RuntimePort:    0,
+		DBProxyPort:    0,
+		Logger:         testRunLogger{t},
+		Environ:        wantEnv,
+		NSQDaemon:      nsqd,
+		Redis:          redisSrv,
+		ServiceConfigs: build.Configs,
 	})
 	c.Assert(err, qt.IsNil)
 	defer p.close()
 	run.proc.Store(p)
+
+	for serviceName, config := range build.Configs {
+		wantEnv = append(wantEnv, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
+	}
 
 	// start proxying TCP requests to the running application
 	go proxyTcp(ctx, ln, p.client)
@@ -518,6 +524,21 @@ func TestEndToEndWithApp(t *testing.T) {
 			req := httptest.NewRequest("GET", "/generated-wrappers-end-to-end-test", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
+		}
+	})
+
+	c.Run("config_test", func(c *qt.C) {
+		{
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/echo.ConfigValues", nil)
+			run.ServeHTTP(w, req)
+			c.Assert(w.Code, qt.Equals, 200)
+			c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
+				"ReadOnlyMode": true,
+				"PublicKey":    "aGVsbG8gd29ybGQK",
+				"AdminUsers":   []string{"foo", "bar"},
+				"SubKeyCount":  123,
+			})
 		}
 	})
 

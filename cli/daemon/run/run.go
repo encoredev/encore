@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -326,18 +327,19 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 	startOp := tracker.Add("Starting Encore application", start)
 	newProcess, err := r.startProc(&startProcParams{
-		Ctx:          ctx,
-		BuildDir:     build.Dir,
-		BinPath:      build.Exe,
-		Meta:         build.Parse.Meta,
-		Logger:       r.mgr,
-		RuntimePort:  r.mgr.RuntimePort,
-		DBProxyPort:  r.mgr.DBProxyPort,
-		SQLDBCluster: r.ResourceServers.GetSQLCluster(),
-		NSQDaemon:    r.ResourceServers.GetPubSub(),
+		Ctx:            ctx,
+		BuildDir:       build.Dir,
+		BinPath:        build.Exe,
+		Meta:           build.Parse.Meta,
+		Logger:         r.mgr,
+		RuntimePort:    r.mgr.RuntimePort,
+		DBProxyPort:    r.mgr.DBProxyPort,
+		SQLDBCluster:   r.ResourceServers.GetSQLCluster(),
+		NSQDaemon:      r.ResourceServers.GetPubSub(),
 		Redis:        r.ResourceServers.GetRedis(),
-		Secrets:      secrets,
-		Environ:      r.params.Environ,
+		Secrets:        secrets,
+		ServiceConfigs: build.Configs,
+		Environ:        r.params.Environ,
 	})
 	if err != nil {
 		tracker.Fail(startOp, err)
@@ -382,18 +384,19 @@ type Proc struct {
 }
 
 type startProcParams struct {
-	Ctx          context.Context
-	BuildDir     string
-	BinPath      string
-	Meta         *meta.Data
-	Secrets      map[string]string
-	RuntimePort  int
-	DBProxyPort  int
-	SQLDBCluster *sqldb.Cluster    // nil means no cluster
-	NSQDaemon    *pubsub.NSQDaemon // nil means no pubsub
-	Redis        *redis.Server     // nil means no redis
-	Logger       runLogger
-	Environ      []string
+	Ctx            context.Context
+	BuildDir       string
+	BinPath        string
+	Meta           *meta.Data
+	Secrets        map[string]string
+	ServiceConfigs map[string]string
+	RuntimePort    int
+	DBProxyPort    int
+	SQLDBCluster   *sqldb.Cluster    // nil means no cluster
+	NSQDaemon      *pubsub.NSQDaemon // nil means no pubsub
+	Redis          *redis.Server     // nil means no redis
+	Logger         runLogger
+	Environ        []string
 }
 
 // startProc starts a single actual OS process for app.
@@ -417,10 +420,14 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
 	cmd := exec.Command(params.BinPath)
-	cmd.Env = append(params.Environ,
+	envs := append(params.Environ,
 		"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
 		"ENCORE_APP_SECRETS="+encodeSecretsEnv(params.Secrets),
 	)
+	for serviceName, cfgString := range params.ServiceConfigs {
+		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+	}
+	cmd.Env = envs
 	p.cmd = cmd
 
 	// Proxy stdout and stderr to the given app logger, if any.

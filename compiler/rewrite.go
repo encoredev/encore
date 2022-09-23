@@ -105,6 +105,16 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 
 			case est.ConfigLoadNode:
+				res := rewrite.Res.(*est.Config)
+
+				var buf bytes.Buffer
+				buf.WriteString(strconv.Quote(pkg.Service.Name))
+				buf.WriteString(", EncoreInternal_UnmarshalConfig_")
+				buf.WriteString(b.res.Meta.Decls[res.ConfigStruct.Type.GetNamed().Id].Name)
+				ep := fset.Position(res.FuncCall.Rparen)
+				_, _ = fmt.Fprintf(&buf, "/*line :%d:%d*/", ep.Line, ep.Column)
+				rw.Replace(res.FuncCall.Lparen+1, res.FuncCall.Rparen, buf.Bytes())
+
 				return true
 
 			default:

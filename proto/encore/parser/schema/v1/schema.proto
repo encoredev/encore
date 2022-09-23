@@ -127,7 +127,8 @@ message List {
 
 // ConfigValue represents a config value wrapper.
 message ConfigValue {
-  Type elem = 1; // The type of the config value
+  Type elem         = 1; // The type of the config value
+  bool IsValuesList = 2; // Does this config value represent the type to `config.Values[T]`. If false it represents `config.Value[T]`
 }
 
 // Builtin represents a type which Encore (and Go) have inbuilt support for and so can be represented by Encore's tooling

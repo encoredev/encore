@@ -20,3 +20,5 @@ ReadOnly: bool // true if we're in read only mode
 MagicNumber: int
 Start:       time.Time // The time at which the service was first started
 ID:          string    // An ID
+PublicKey:   bytes
+AdminUsers: [...string]

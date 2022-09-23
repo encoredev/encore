@@ -10,3 +10,4 @@
 package svc
 
 Ages: [...int32]
+OtherBits: [...string]
