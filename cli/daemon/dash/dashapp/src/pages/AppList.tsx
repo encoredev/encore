@@ -1,8 +1,8 @@
 import React, { FunctionComponent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { icons } from "~c/icons";
 import { useConn } from "~lib/ctx";
 import Nav from "~c/Nav";
+import encorePathImg from "../encore-patch-beginning.png";
 
 const AppList: FunctionComponent = (props) => {
   const conn = useConn();
@@ -55,7 +55,7 @@ const AppList: FunctionComponent = (props) => {
           </div>
           <div className="ml-10 hidden md:flex">
             <div className="w-60 self-center">
-              <img src="/encore-patch-beginning.png" />
+              <img src={encorePathImg} alt="in the beginning was encore run" />
             </div>
           </div>
         </section>

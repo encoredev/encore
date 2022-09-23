@@ -4,5 +4,5 @@ dist
 dist-ssr
 *.local
 
-public/fonts/*/**
-!public/fonts/*/.gitkeep
+public/assets/fonts/*/**
+!public/assets/fonts/*/.gitkeep
