@@ -13,6 +13,7 @@ import (
 )
 
 // loadApp loads the Encore app runtime.
+//
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
 	static := &config.Static{
