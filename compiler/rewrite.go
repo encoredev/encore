@@ -85,6 +85,25 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 			case est.PubSubTopicDefNode, est.PubSubPublisherNode, est.PubSubSubscriberNode:
 				return true
 
+			case est.CacheClusterDefNode:
+				return true
+
+			case est.CacheKeyspaceDefNode:
+				keyspace := rewrite.Res.(*est.CacheKeyspace)
+				cfgLit := keyspace.ConfigLit
+
+				insertPos := cfgLit.Lbrace + 1
+				ep := fset.Position(insertPos)
+				defLoc := b.res.Nodes[keyspace.Svc.Root][node].Id
+
+				rw.Insert(insertPos, []byte(fmt.Sprintf(
+					"EncoreInternal_DefLoc: %d, EncoreInternal_KeyMapper: %s,/*line :%d:%d*/",
+					defLoc, b.codegen.CacheKeyspaceKeyMapperName(keyspace),
+					ep.Line, ep.Column,
+				)))
+				return true
+
+
 			case est.ConfigLoadNode:
 				return true
 

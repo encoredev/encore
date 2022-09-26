@@ -37,7 +37,9 @@ traffic through.
 
 If you configure multiple domains against a single environment, Encore will serve traffic through all
 configured domains. The `encr.app` subdomain which was created when you originally created an environment will always be
-configured to serve traffic to that environment. This allows you to migrate to a custom domain safely without risking
+configured to serve traffic to that environment.
+
+This allows you to migrate to a custom domain safely without risking
 cutting traffic off to older clients which may be hard coded to access your applications via the default subdomain.
 
 </Callout>

@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 type TestConfig struct {
@@ -74,6 +76,29 @@ func (b *builder) Test(ctx context.Context) (err error) {
 		}
 	}
 	return b.runTests(ctx)
+}
+
+// EncoreEnvironmentalVariablesToEmbed tells us if we need to embed the environmental variables into the built
+// binary for testing.
+//
+// This is needed because GoLand first builds the test binary as one phase, and then secondary executes that built binary
+func (b *builder) EncoreEnvironmentalVariablesToEmbed() []string {
+	if b.forTesting == false || b.cfg.Test == nil {
+		return nil
+	}
+
+	// If -c is passed to the go test, it means compile the test binary to pkg.test but do not run it
+	if !slices.Contains(b.cfg.Test.Args, "-c") {
+		return nil
+	}
+
+	rtn := make([]string, 0)
+	for _, env := range b.cfg.Test.Env {
+		if strings.HasPrefix(env, "ENCORE_") {
+			rtn = append(rtn, env)
+		}
+	}
+	return rtn
 }
 
 func (b *builder) writeTestMains() error {

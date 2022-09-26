@@ -386,20 +386,22 @@ func (p *parser) resolveServiceStruct(parameterType string, svc *est.Service, fd
 		return nil
 	}
 
-	recvType := recv.List[len(recv.List)-1].Type
-	typ := p.resolveParameter(parameterType, file.Pkg, file, recvType)
-	named := typ.Type.GetNamed()
-	if named == nil {
-		p.errf(recvType.Pos(), "%s receiver must refer to named type, not %T", parameterType, typ.Type.Typ)
-		return nil
-	} else if !typ.IsPtr {
-		p.errf(recvType.Pos(), "%s must be defined as a pointer receiver", parameterType)
+	recvType := deref(recv.List[len(recv.List)-1].Type)
+	id, ok := recvType.(*ast.Ident)
+	if !ok {
+		p.errf(recvType.Pos(), "%s receiver must refer to named type, not %T", parameterType, recvType)
 		return nil
 	}
-	recvName := p.decls[named.Id].Name
 
+	recvName := id.Name
 	if ss := svc.Struct; ss != nil && ss.Name == recvName {
 		return ss
+	}
+
+	// If the type doesn't even exist, return a more helpful error message.
+	if p.names[svc.Root].Decls[recvName] == nil {
+		p.errf(recvType.Pos(), "undefined type: %s", recvName)
+		return nil
 	}
 
 	p.errf(recvType.Pos(), "type %s is not defined as an encore:service struct"+

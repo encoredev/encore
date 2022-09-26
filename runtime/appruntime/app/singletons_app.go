@@ -10,6 +10,7 @@ import (
 	"encore.dev/beta/auth"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
+	"encore.dev/storage/cache"
 	"encore.dev/storage/sqldb"
 )
 
@@ -22,4 +23,5 @@ func initSingletonsForEncoreApp(a *App) {
 	rlog.Singleton = a.rlog
 	sqldb.Singleton = a.sqldb
 	pubsub.Singleton = a.pubsub
+	cache.Singleton = a.cache
 }

@@ -21,6 +21,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/pubsub"
+	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
@@ -93,6 +94,11 @@ func TestEndToEndWithApp(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 	defer nsqd.Stop()
 
+	redisSrv := redis.New()
+	err = redisSrv.Start()
+	c.Assert(err, qt.IsNil)
+	defer redisSrv.Stop()
+
 	build := testBuild(c, "./testdata/echo")
 	wantEnv := []string{"FOO=bar", "BAR=baz"}
 	p, err := run.startProc(&startProcParams{
@@ -105,6 +111,7 @@ func TestEndToEndWithApp(t *testing.T) {
 		Logger:      testRunLogger{t},
 		Environ:     wantEnv,
 		NSQDaemon:   nsqd,
+		Redis:       redisSrv,
 	})
 	c.Assert(err, qt.IsNil)
 	defer p.close()
@@ -411,6 +418,96 @@ func TestEndToEndWithApp(t *testing.T) {
 				c.Assert(w.Code, qt.Equals, 200)
 				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Msg": "Hello, Flakey World"})
 			}
+		})
+
+		c.Run("cache", func(c *qt.C) {
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/cache/incr/one", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Val": 1})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/cache/incr/one", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Val": 2})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/cache/incr/two", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Val": 1})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("POST", "/cache/struct/1/foo", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.HasLen, 0)
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/cache/struct/1", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Val": "foo"})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/cache/list/1", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Vals": []string{}})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("POST", "/cache/list/1/foo", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.HasLen, 0)
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/cache/list/1", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Vals": []string{"foo"}})
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("POST", "/cache/list/1/bar", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.HasLen, 0)
+			}
+
+			{
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("GET", "/cache/list/1", nil)
+				run.ServeHTTP(w, req)
+				c.Assert(w.Code, qt.Equals, 200)
+				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Vals": []string{"foo", "bar"}})
+			}
+
+			keys := redisSrv.Miniredis().Keys()
+			c.Assert(keys, qt.DeepEquals, []string{
+				"int/one",
+				"int/two",
+				"list/1/foo/1",
+				"struct/1/dummy/x",
+			})
 		})
 	})
 

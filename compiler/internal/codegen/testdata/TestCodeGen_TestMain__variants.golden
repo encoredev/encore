@@ -8,20 +8,23 @@ import (
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
 	middleware "encore.dev/middleware"
+	"os"
 	"reflect"
 	_ "unsafe"
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
+	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &config.Static{
 		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
 		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
 		}}}},
-		TestService: "otherservice",
-		Testing:     true,
+		TestAsExternalBinary: true,
+		TestService:          "otherservice",
+		Testing:              true,
 	}
 	handlers := []api.HandlerRegistration{
 		{
@@ -87,7 +90,7 @@ var EncoreInternal_svcMyMiddleware = &api.Middleware{
 	PkgName: "svc",
 	Name:    "MyMiddleware",
 	Global:  false,
-	DefLoc:  34,
+	DefLoc:  36,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
 		if err != nil {
@@ -107,20 +110,23 @@ import (
 	"encore.dev/appruntime/app/appinit"
 	"encore.dev/appruntime/config"
 	middleware "encore.dev/middleware"
+	"os"
 	"reflect"
 	_ "unsafe"
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
 func loadApp() *appinit.LoadData {
+	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &config.Static{
 		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
 		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
 		}}}},
-		TestService: "svc",
-		Testing:     true,
+		TestAsExternalBinary: true,
+		TestService:          "svc",
+		Testing:              true,
 	}
 	handlers := []api.HandlerRegistration{
 		{
@@ -186,7 +192,7 @@ var EncoreInternal_svcMyMiddleware = &api.Middleware{
 	PkgName: "svc",
 	Name:    "MyMiddleware",
 	Global:  false,
-	DefLoc:  34,
+	DefLoc:  36,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
 		if err != nil {

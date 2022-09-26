@@ -100,6 +100,7 @@ func Parse(log *zerolog.Logger, traceID ID, data []byte, version trace.Version, 
 		httpMap:      make(map[uint64]*tracepb.HTTPCall),
 		publishMap:   make(map[uint64]*tracepb.PubsubMsgPublished),
 		serviceInits: make(map[uint64]*tracepb.ServiceInit),
+		cacheMap:     make(map[uint64]*tracepb.CacheOp),
 	}
 	if err := tp.Parse(); err != nil {
 		return nil, err
@@ -131,6 +132,7 @@ type traceParser struct {
 	goMap        map[goKey]*tracepb.Goroutine
 	publishMap   map[uint64]*tracepb.PubsubMsgPublished
 	serviceInits map[uint64]*tracepb.ServiceInit
+	cacheMap     map[uint64]*tracepb.CacheOp
 }
 
 func (tp *traceParser) Parse() error {
@@ -215,6 +217,10 @@ func (tp *traceParser) parseEventV3(ev trace.EventType, ts uint64, size int) err
 		return tp.serviceInitStart(ts)
 	case trace.ServiceInitEnd:
 		return tp.serviceInitEnd(ts)
+	case trace.CacheOpStart:
+		return tp.cacheOpStart(ts)
+	case trace.CacheOpEnd:
+		return tp.cacheOpEnd(ts)
 	default:
 		return errUnknownEvent
 	}
@@ -868,6 +874,7 @@ func (tp *traceParser) publishEnd(ts uint64) error {
 	publish.EndTime = ts
 	publish.MessageId = tp.String()
 	publish.Err = tp.ByteString()
+	delete(tp.publishMap, publishID)
 	return nil
 }
 
@@ -904,6 +911,75 @@ func (tp *traceParser) serviceInitEnd(ts uint64) error {
 	if len(svcInit.Err) > 0 {
 		svcInit.ErrStack = tp.stack(filterNone)
 	}
+	delete(tp.serviceInits, initID)
+	return nil
+}
+
+func (tp *traceParser) cacheOpStart(ts uint64) error {
+	opID := tp.UVarint()
+	spanID := tp.Uint64()
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
+	}
+
+	op := &tracepb.CacheOp{
+		Goid:      uint32(tp.UVarint()),
+		DefLoc:    int32(tp.UVarint()),
+		StartTime: ts,
+		Operation: tp.String(),
+		Write:     tp.Bool(),
+		Result:    tracepb.CacheOp_UNKNOWN,
+		Stack:     tp.stack(filterNone),
+	}
+
+	numKeys := tp.UVarint()
+	op.Keys = make([]string, numKeys)
+	for i := 0; i < int(numKeys); i++ {
+		op.Keys[i] = tp.String()
+	}
+
+	numInputs := tp.UVarint()
+	op.Inputs = make([][]byte, numInputs)
+	for i := 0; i < int(numInputs); i++ {
+		op.Inputs[i] = tp.ByteString()
+	}
+	tp.cacheMap[opID] = op
+
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_Cache{Cache: op},
+	})
+	return nil
+}
+
+func (tp *traceParser) cacheOpEnd(ts uint64) error {
+	opID := tp.UVarint()
+	op, ok := tp.cacheMap[opID]
+	if !ok {
+		return eerror.New("trace_parser", "unknown cache", map[string]any{"opID": opID})
+	}
+	op.EndTime = ts
+
+	res := trace.CacheOpResult(tp.Byte())
+	switch res {
+	case trace.CacheOK:
+		op.Result = tracepb.CacheOp_OK
+	case trace.CacheNoSuchKey:
+		op.Result = tracepb.CacheOp_NO_SUCH_KEY
+	case trace.CacheConflict:
+		op.Result = tracepb.CacheOp_CONFLICT
+	case trace.CacheErr:
+		op.Result = tracepb.CacheOp_ERR
+		op.Err = tp.ByteString()
+	}
+
+	numOutputs := tp.UVarint()
+	op.Outputs = make([][]byte, numOutputs)
+	for i := 0; i < int(numOutputs); i++ {
+		op.Outputs[i] = tp.ByteString()
+	}
+
+	delete(tp.cacheMap, opID)
 	return nil
 }
 

@@ -1,49 +1,113 @@
-import React, {FunctionComponent, MouseEventHandler, PropsWithChildren} from "react";
+import React, { MouseEventHandler } from "react";
 
-export interface Props extends PropsWithChildren {
-  theme: "purple" | "purple:secondary" | "purple:border" | "white" | "red" | "red:secondary" | "gray" | "gray:border";
-  size: "xxs" | "xs" | "sm" | "md" | "lg" | "xl";
-  cls?: string;
+export type Props = React.PropsWithChildren<{
+  id?: string;
+  className?: string;
+  buttonClassName?: string;
+  kind: "primary" | "secondary" | "danger";
+  section?: "white" | "black";
   disabled?: boolean;
-  onClick?: MouseEventHandler<HTMLButtonElement>;
+  loading?: boolean;
   type?: "button" | "submit";
-}
+  title?: string;
+  ariaLabel?: string;
 
-const sizeClasses = {
-  "xxs": "px-1 py-0.5 text-xs leading-4 rounded",
-  "xs": "px-2.5 py-1.5 text-xs leading-4 rounded",
-  "sm": "px-3 py-2 text-sm leading-4 rounded-md",
-  "md": "px-4 py-2 text-sm leading-5 rounded-md",
-  "lg": "px-4 py-2 text-base leading-6 rounded-md",
-  "xl": "px-6 py-3 text-base leading-6 rounded-md",
-}
+  onClick?: MouseEventHandler<HTMLButtonElement>;
+  onMouseDown?: MouseEventHandler<HTMLButtonElement>;
+  onMouseUp?: MouseEventHandler<HTMLButtonElement>;
+}>;
 
-const enabledClasses = {
-  "purple": "border-transparent text-white bg-purple-600 hover:bg-purple-500 focus:outline-none focus:border-purple-700 focus:shadow-outline-purple active:bg-purple-700",
-  "purple:secondary": "border-transparent text-purple-700 bg-purple-100 hover:bg-purple-50 focus:outline-none focus:border-purple-300 focus:shadow-outline-purple active:bg-purple-200",
-  "purple:border": "border-purple-600 text-purple-700 bg-white hover:text-purple-500 hover:bg-purple-50 focus:outline-none focus:border-purple-500 focus:shadow-outline-purple active:text-purple-800 active:bg-gray-50",
-  "white": "border-gray-300 text-gray-700 bg-white hover:text-gray-500 focus:outline-none focus:border-purple-300 focus:shadow-outline-purple active:text-gray-800 active:bg-gray-50",
-  "red": "border-transparent bg-red-600 text-white hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700",
-  "red:secondary": "border-red-600 text-red-700 bg-white hover:text-white hover:bg-red-600 focus:outline-none focus:border-red-500 focus:shadow-outline-red active:text-white active:bg-red-600",
-  "gray": "border-transparent text-white bg-gray-700 hover:bg-gray-600 focus:outline-none active:bg-gray-800",
-  "gray:border": "border-gray-700 text-gray-800 bg-white hover:text-gray-600 hover:bg-gray-50 focus:outline-none focus:border-gray-600 active:text-gray-800 active:bg-gray-50",
-}
+const classes = {
+  primary: {
+    white: "bg-black dark:bg-white text-white dark:text-black",
+    black: "bg-white text-black",
+  },
+  secondary: {
+    white:
+      "bg-white dark:bg-black text-black dark:text-white border-2 border-black dark:border-white",
+    black: "bg-black text-white border-2 border-white",
+  },
+  danger: {
+    white: "bg-black dark:bg-white text-white dark:text-black",
+    black: "bg-white text-black",
+  },
+};
 
-const disabledClasses = {
-  "purple": "border-transparent text-white bg-purple-500 opacity-50 cursor-not-allowed focus:outline-none",
-  "purple:secondary": "border-transparent text-purple-700 bg-purple-100 opacity-50 cursor-not-allowed focus:outline-none",
-  "purple:border": "border-gray-200 text-gray-600 bg-white opacity-50 cursor-not-allowed focus:outline-none",
-  "white": "border-gray-200 text-gray-600 bg-white opacity-50 cursor-not-allowed focus:outline-none",
-  "red": "border-transparent text-white bg-red-500 opacity-50 cursor-not-allowed focus:outline-none",
-  "red:secondary": "border-gray-200 text-red-800 bg-white opacity-50 cursor-not-allowed focus:outline-none",
-  "gray": "border-transparent text-white bg-gray-500 opacity-50 cursor-not-allowed focus:outline-none",
-  "gray:border": "border-gray-200 text-gray-600 bg-white opacity-50 cursor-not-allowed focus:outline-none",
-}
+const hoverClasses = {
+  primary: {
+    white: "bg-gradient-to-r brandient-5",
+    black: "bg-gradient-to-r brandient-5",
+  },
+  secondary: { white: "bg-black dark:bg-white", black: "bg-white" },
+  danger: {
+    white: "bg-[url('/assets/img/fire.gif')] bg-bottom bg-cover",
+    black: "bg-red",
+  },
+};
 
-const Button: FunctionComponent<Props> = (props) => {
-  const baseCls = "inline-flex justify-center items-center border font-medium transition duration-150 ease-in-out"
-  const cls = `${baseCls} ${props.disabled ? disabledClasses[props.theme] : enabledClasses[props.theme]} ${sizeClasses[props.size]} ${props.cls || ""}`
-  return <button onClick={props.onClick} type={props.type ?? "button"} className={cls}>{props.children}</button>
-}
+export type Ref = HTMLButtonElement;
 
-export default Button
+const Button = React.forwardRef<Ref, Props>((props, ref) => {
+  const disabled = props.disabled || props.loading;
+
+  const pos =
+    (props.className ?? "").indexOf("absolute") === -1 ? "relative" : "";
+  const section = props.section ?? "white";
+
+  return (
+    <div
+      className={`group relative inline-block h-10 mobile:h-10 ${
+        props.className ?? ""
+      }`}
+    >
+      {!disabled && (
+        <div
+          className={`
+          absolute inset-0
+          ${
+            props.kind
+              ? hoverClasses[props.kind][section]
+              : hoverClasses["primary"][section]
+          }
+          ${props.buttonClassName ?? ""}
+        `}
+        />
+      )}
+      <button
+        id={props.id}
+        ref={ref}
+        onClick={props.onClick}
+        onMouseDown={props.onMouseDown}
+        onMouseUp={props.onMouseUp}
+        type={props.type ?? "button"}
+        title={props.title}
+        disabled={disabled}
+        aria-label={props.ariaLabel}
+        className={`
+          lead-xxsmall inline-flex h-full w-full
+          items-center justify-center px-6 font-mono uppercase mobile:px-4
+
+          ${
+            props.kind
+              ? classes[props.kind][section]
+              : classes["primary"][section]
+          } ${pos}
+
+          transition-transform duration-100 ease-in-out
+          disabled:cursor-not-allowed disabled:opacity-50
+          group-hover:-translate-x-1 group-hover:-translate-y-1
+
+          disabled:group-hover:translate-x-0
+          disabled:group-hover:translate-y-0 group-active:-translate-x-1
+          group-active:-translate-y-1 disabled:group-active:translate-x-0
+          disabled:group-active:translate-y-0
+          ${props.buttonClassName ?? ""}
+        `}
+      >
+        {props.children}
+      </button>
+    </div>
+  );
+});
+
+export default Button;
