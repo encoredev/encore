@@ -122,7 +122,16 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		return
 	}
 
-	inputs, _ := d.SerializeReq(c.server.json, reqData)
+	// Only compute inputs and payload if we have valid reqData.
+	var (
+		inputs  [][]byte
+		payload any
+	)
+	if decodeErr == nil {
+		inputs, _ = d.SerializeReq(c.server.json, reqData)
+		payload = d.ReqUserPayload(reqData)
+	}
+
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
 		Type:     model.RPCCall,
 		Service:  d.Service,
@@ -131,7 +140,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 
 		Path:         c.req.URL.Path,
 		PathSegments: c.ps,
-		Payload:      d.ReqUserPayload(reqData),
+		Payload:      payload,
 		Inputs:       inputs,
 		RPCDesc:      d.rpcDesc(),
 
@@ -151,7 +160,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	}()
 
 	if decodeErr != nil {
-		beginErr = decodeErr
+		beginErr = errs.WrapCode(decodeErr, errs.InvalidArgument, "decode request")
 		return
 	}
 

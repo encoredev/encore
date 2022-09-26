@@ -1,11 +1,7 @@
 ---
-title: PubSub Events
+title: PubSub
 subtitle: Decoupling applications for better reliability
 ---
-
-<Callout type="warning">
-PubSub is in preview and is currently only available for local development, GCP, AWS & Encore Cloud.
-</Callout>
 
 Building software using publishers & subscribers (PubSub) allows you to build systems which communicate with each other
 by broadcasting events asynchronously. Events are a great way to decouple applications for better reliability by reducing
@@ -115,7 +111,9 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig {
 ```
 
 <Callout type="important">
+
 Note: Topics must be declared as package level variables, and cannot be created inside functions.
+
 </Callout>
 
 ### At-least-once delivery
@@ -203,9 +201,11 @@ that if one subscription is running very slowly it will grow a backlog up, howev
 processing events in real time as they are published.
 
 <Callout type="important">
-Note: The SusbcriptionConfig struct fields must all be defined as compiled time constants, and cannot be defined in
+
+Note: The `SubscriptionConfig` struct fields must all be defined as compiled time constants, and cannot be defined in
 terms of function calls. This is to allow Encore to understand the exact requirements for the subscription and provision
 the correct infrastructure upon deployment to the cloud.
+
 </Callout>
 
 ### Error Handling

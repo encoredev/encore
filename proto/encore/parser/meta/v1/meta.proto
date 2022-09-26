@@ -18,6 +18,7 @@ message Data {
   repeated CronJob        cron_jobs           = 7;
   repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
   repeated Middleware     middleware          = 10;
+  repeated CacheCluster   cache_clusters      = 11;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -129,6 +130,7 @@ message TraceNode {
     PubSubSubscriberNode pubsub_subscriber = 16;
     ServiceInitNode      service_init      = 17;
     MiddlewareDefNode    middleware_def    = 18;
+    CacheKeyspaceDefNode cache_keyspace    = 19;
   }
 }
 
@@ -191,8 +193,21 @@ message MiddlewareDefNode {
   repeated Selector target = 4;
 }
 
+message CacheKeyspaceDefNode {
+  string pkg_rel_path = 1;
+  string var_name     = 2;
+  string cluster_name = 3;
+  string context      = 4;
+}
+
 message Path {
+  enum Type {
+    URL = 0;
+    CACHE_KEYSPACE = 1;
+  }
+
   repeated PathSegment segments = 1;
+  Type type = 2;
 }
 
 message PathSegment {
@@ -261,5 +276,17 @@ message PubSubTopic {
   enum DeliveryGuarantee {
     AT_LEAST_ONCE = 0; // All messages will be delivered to each subscription at least once
     EXACTLY_ONCE  = 1; // All messages will be delivered to each subscription exactly once
+  }
+}
+
+message CacheCluster {
+  string            name            = 1; // The pub sub topic name (unique per application)
+  string            doc             = 2; // The documentation for the topic
+  repeated Keyspace keyspaces       = 3; // The publishers for this topic
+  string            eviction_policy = 4; // redis eviction policy
+
+  message Keyspace {
+    // TODO(andre) add more fields
+    schema.v1.Type key_type     = 1; // The type of the key
   }
 }

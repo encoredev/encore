@@ -16,14 +16,15 @@ import (
 )
 
 type Application struct {
-	ModulePath   string
-	Packages     []*Package
-	Services     []*Service
-	CronJobs     []*CronJob
-	PubSubTopics []*PubSubTopic
-	Decls        []*schema.Decl
-	AuthHandler  *AuthHandler
-	Middleware   []*Middleware
+	ModulePath    string
+	Packages      []*Package
+	Services      []*Service
+	CronJobs      []*CronJob
+	PubSubTopics  []*PubSubTopic
+	CacheClusters []*CacheCluster
+	Decls         []*schema.Decl
+	AuthHandler   *AuthHandler
+	Middleware    []*Middleware
 }
 
 type File struct {
@@ -207,6 +208,8 @@ const (
 	PubSubTopicDefNode
 	PubSubPublisherNode
 	PubSubSubscriberNode
+	CacheClusterDefNode
+	CacheKeyspaceDefNode
 	ConfigLoadNode
 )
 
@@ -283,6 +286,8 @@ const (
 	CronJobResource
 	PubSubTopicResource
 	PubSubSubscriptionResource
+	CacheClusterResource
+	CacheKeyspaceResource
 	ConfigResource
 )
 
@@ -297,3 +302,38 @@ func (r *SQLDB) File() *File                { return r.DeclFile }
 func (r *SQLDB) Ident() *ast.Ident          { return r.DeclName }
 func (r *SQLDB) NodeType() NodeType         { return SQLDBNode }
 func (r *SQLDB) AllowOnlyParsedUsage() bool { return false }
+
+type CacheCluster struct {
+	Name           string     // The unique name of the cache cluster
+	Doc            string     // The documentation on the cluster
+	DeclFile       *File      // What file the cache is declared in
+	IdentAST       *ast.Ident // The AST node representing the value this cache cluster is bound against
+	EvictionPolicy string
+
+	Keyspaces []*CacheKeyspace
+}
+
+func (p *CacheCluster) Type() ResourceType         { return CacheClusterResource }
+func (p *CacheCluster) File() *File                { return p.DeclFile }
+func (p *CacheCluster) Ident() *ast.Ident          { return p.IdentAST }
+func (p *CacheCluster) NodeType() NodeType         { return CacheClusterDefNode }
+func (p *CacheCluster) AllowOnlyParsedUsage() bool { return false }
+
+type CacheKeyspace struct {
+	Cluster   *CacheCluster
+	Svc       *Service
+	Doc       string     // The documentation on the cluster
+	DeclFile  *File      // What file the cache is declared in
+	IdentAST  *ast.Ident // The AST node representing the value this cache cluster is bound against
+	ConfigLit *ast.CompositeLit
+
+	KeyType   *schema.Type // The key type for this keyspace
+	ValueType *schema.Type // The value type for this keyspace
+	Path      *paths.Path  // The keyspace path
+}
+
+func (p *CacheKeyspace) Type() ResourceType         { return CacheKeyspaceResource }
+func (p *CacheKeyspace) File() *File                { return p.DeclFile }
+func (p *CacheKeyspace) Ident() *ast.Ident          { return p.IdentAST }
+func (p *CacheKeyspace) NodeType() NodeType         { return CacheKeyspaceDefNode }
+func (p *CacheKeyspace) AllowOnlyParsedUsage() bool { return false }

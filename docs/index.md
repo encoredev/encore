@@ -38,7 +38,7 @@ Encore is the Backend Development Engine purpose-built for a flow state develope
 ## Your input is everything
 
 <p className="flex items-center gap-x-2 lead-xsmall">
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16" fill="#111111" stroke="none">
+     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16" fill="#111111" stroke="none">
       <path fillRule="evenodd"
             d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
     </svg>
@@ -47,6 +47,12 @@ Encore is the Backend Development Engine purpose-built for a flow state develope
 
 Get involved and star Encore on GitHub.
 
+<p className="flex items-center gap-x-2 lead-xsmall">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 -1 104 106" fill="currentColor"><path d="M51.87,0C23.71,0,0,22.83,0,51c0,.91,0,52.81,0,52.81l51.86-.05c28.16,0,51-23.71,51-51.87S80,0,51.87,0Z" fill="currentColor"></path><path d="M52.37,19.74A31.62,31.62,0,0,0,24.58,66.41l-5.72,18.4L39.4,80.17a31.61,31.61,0,1,0,13-60.43Z" fill="#fff9ae"></path><path d="M77.45,32.12a31.6,31.6,0,0,1-38.05,48L18.86,84.82l20.91-2.47A31.6,31.6,0,0,0,77.45,32.12Z" fill="#00aeef"></path><path d="M71.63,26.29A31.6,31.6,0,0,1,38.8,78L18.86,84.82,39.4,80.17A31.6,31.6,0,0,0,71.63,26.29Z" fill="#00a94f"></path><path d="M26.47,67.11a31.61,31.61,0,0,1,51-35A31.61,31.61,0,0,0,24.58,66.41l-5.72,18.4Z" fill="#f15d22"></path><path d="M24.58,66.41A31.61,31.61,0,0,1,71.63,26.29a31.61,31.61,0,0,0-49,39.63l-3.76,18.9Z" fill="#e31b23"></path></svg>
+    <a href="https://community.encore.dev">Join the Discourse community</a>
+</p>
+
+Find answers, ask questions, and learn from other backend developers.
 
 <p className="flex items-center gap-x-2 lead-xsmall">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 123 123">
