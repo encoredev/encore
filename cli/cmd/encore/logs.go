@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
@@ -94,7 +96,7 @@ func streamLogs(appRoot, envName string) {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	if !logsQuiet {
-		os.Stdout.WriteString("Connected, waiting for logs...")
+		fmt.Println(aurora.Gray(12, "Connected, waiting for logs..."))
 	}
 
 	cw := zerolog.NewConsoleWriter()
