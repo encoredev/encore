@@ -257,10 +257,11 @@ type Middleware struct {
 
 // Config represents a config load statement.
 type Config struct {
-	Svc          *Service   // The service the config is loaded for
-	DeclFile     *File      // The file that the subscriber is defined in
-	IdentAST     *ast.Ident // The AST node representing the value this topic is bound against
-	ConfigStruct *Param     // The type the config loads in as
+	Svc          *Service      // The service the config is loaded for
+	DeclFile     *File         // The file that the subscriber is defined in
+	IdentAST     *ast.Ident    // The AST node representing the value this topic is bound against
+	FuncCall     *ast.CallExpr // The AST node representing the call to the config load function (we use this for rewriting)
+	ConfigStruct *Param        // The type the config loads in as
 }
 
 func (c *Config) Type() ResourceType         { return ConfigResource }

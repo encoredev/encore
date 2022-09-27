@@ -10,7 +10,8 @@ import (
 )
 
 type Config struct {
-    Ages []int32
+    Ages      []int32
+    OtherBits []string
 }
 
 var _ = config.Load[*Config]()

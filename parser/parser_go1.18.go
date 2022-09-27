@@ -36,9 +36,18 @@ func resolveWithTypeArguments(p *parser, pkg *est.Package, file *est.File, typeP
 
 	// If it's a config value, we just need to update the wrapper
 	if configType := parameterizedType.GetConfig(); configType != nil {
-		if configType.Elem != nil {
-			p.errf(ident.Pos(), "Expected a config.Value type without an element, got %+v", configType.Elem)
-			p.abort()
+		if configType.IsValuesList {
+			if configType.Elem != nil {
+				if list := configType.Elem.GetList(); list.Elem != nil {
+					p.errf(ident.Pos(), "Expected a config.Values type without an list element, got %+v", list.Elem)
+					p.abort()
+				}
+			}
+		} else {
+			if configType.Elem != nil {
+				p.errf(ident.Pos(), "Expected a config.Value type without an element, got %+v", configType.Elem)
+				p.abort()
+			}
 		}
 
 		if len(typeArguments) != 1 {
@@ -46,7 +55,11 @@ func resolveWithTypeArguments(p *parser, pkg *est.Package, file *est.File, typeP
 			p.abort()
 		}
 
-		configType.Elem = p.resolveType(pkg, file, typeArguments[0], typeParameters)
+		if list := configType.Elem.GetList(); list != nil {
+			list.Elem = p.resolveType(pkg, file, typeArguments[0], typeParameters)
+		} else {
+			configType.Elem = p.resolveType(pkg, file, typeArguments[0], typeParameters)
+		}
 
 		return parameterizedType
 	}

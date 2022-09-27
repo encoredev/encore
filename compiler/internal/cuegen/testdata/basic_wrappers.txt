@@ -21,7 +21,9 @@ type Config struct {
     Start       config.Time // The time at which the service was first started
     ID          config.UUID // An ID
 
-    publicKey config.Value[[]byte]
+    PublicKey config.Value[[]byte]
+
+    AdminUsers config.Values[string]
 }
 
 var _ = config.Load[*Config]()

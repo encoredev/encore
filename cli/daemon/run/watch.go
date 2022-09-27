@@ -57,7 +57,7 @@ func ignoreEvent(ev notify.EventInfo) bool {
 	// Ignore non-Go files
 	ext := filepath.Ext(path)
 	switch ext {
-	case ".go", ".sql", ".mod", ".sum", ".app":
+	case ".go", ".sql", ".mod", ".sum", ".app", ".cue":
 		return false
 	default:
 		return true

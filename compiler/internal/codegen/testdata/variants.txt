@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"encore.dev/beta/auth"
+	"encore.dev/config"
 	"encore.dev/cron"
 	"encore.dev/middleware"
 	"encore.dev/pubsub"
@@ -32,6 +33,29 @@ var Topic = pubsub.NewTopic[*FooParams](
 type FooParams struct {
 	Name string
 }
+
+type SubType struct {
+	FieldA config.String
+	FieldB config.Value[[]string]
+	FieldC []config.Int
+	FieldD map[int]config.String
+	FieldE struct{
+	    SubA config.String
+	    SubB FooParams
+	    Blah time.Time
+	    Foo  []byte
+	    Json json.RawMessage
+	}
+}
+
+type Cfg struct {
+    DefaultFooParams config.Value[FooParams]
+    ReadOnly         config.Bool
+    MagicNumber      int
+    Sub              SubType
+}
+
+var _ = config.Load[Cfg]()
 
 //encore:api public
 func One(ctx context.Context) error {
