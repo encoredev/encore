@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	logsEnv  string
-	logsJSON bool
+	logsEnv   string
+	logsJSON  bool
+	logsQuiet bool
 )
 
 var logsCmd = &cobra.Command{
@@ -92,6 +93,10 @@ func streamLogs(appRoot, envName string) {
 	// Use the same configuration as the runtime
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
+	if !logsQuiet {
+		os.Stdout.WriteString("Connected, waiting for logs...")
+	}
+
 	cw := zerolog.NewConsoleWriter()
 	for {
 		_, message, err := logs.ReadMessage()
@@ -123,4 +128,5 @@ func init() {
 	rootCmd.AddCommand(logsCmd)
 	logsCmd.Flags().StringVarP(&logsEnv, "env", "e", "", "Environment name to stream logs from (defaults to the production environment)")
 	logsCmd.Flags().BoolVar(&logsJSON, "json", false, "Whether to print logs in raw JSON format")
+	logsCmd.Flags().BoolVarP(&logsQuiet, "quiet", "q", false, "Whether to print initial message when the command is waiting for logs")
 }
