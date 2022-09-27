@@ -279,7 +279,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	}
 
 	var build *compiler.Result
-	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
+	jobs.Go("Compiling Encore application", true, 0, func(ctx context.Context) (err error) {
 		cfg := &compiler.Config{
 			Revision:              parse.Meta.AppRevision,
 			UncommittedChanges:    parse.Meta.UncommittedChanges,
