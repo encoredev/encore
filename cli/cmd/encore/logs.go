@@ -121,6 +121,6 @@ func streamLogs(appRoot, envName string) {
 
 func init() {
 	rootCmd.AddCommand(logsCmd)
-	logsCmd.Flags().StringVarP(&logsEnv, "env", "e", "", "Environment name to stream logs from (defaults to the production environment)")
+	logsCmd.Flags().StringVarP(&logsEnv, "env", "e", "@primary", "Environment name to stream logs from (defaults to the primary environment)")
 	logsCmd.Flags().BoolVar(&logsJSON, "json", false, "Whether to print logs in raw JSON format")
 }
