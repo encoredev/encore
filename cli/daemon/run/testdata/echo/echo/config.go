@@ -6,21 +6,21 @@ import (
 	"encore.dev/config"
 )
 
-type CfgType struct {
+type CfgType[T any] struct {
 	ReadOnlyMode config.Bool
 	PublicKey    config.Bytes
 	AdminUsers   config.Values[string]
 
 	SubConfig config.Value[struct {
-		SubKey SubCfgType
+		SubKey SubCfgType[T]
 	}]
 }
 
-type SubCfgType struct {
-	MaxCount uint
+type SubCfgType[T any] struct {
+	MaxCount T
 }
 
-var cfg = config.Load[CfgType]()
+var cfg = config.Load[CfgType[uint]]()
 
 type ConfigResponse struct {
 	ReadOnlyMode bool

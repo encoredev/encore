@@ -128,7 +128,7 @@ func TestCodeGenMain(t *testing.T) {
 					combined.Write(code)
 				}
 
-				if f, err := bld.ConfigUnmarshallers(svc); f != nil {
+				if f, err := bld.ConfigUnmarshalers(svc); f != nil {
 					var buf bytes.Buffer
 					fmt.Fprintf(&buf, "\n\n// config unmarshallers for service %s\n", svc.Name)
 					err = f.Render(&buf)
@@ -144,7 +144,7 @@ func TestCodeGenMain(t *testing.T) {
 					}
 					combined.Write(code)
 				} else if err != nil {
-					c.Fatalf("got config unmarshallers error: \n%s", err.Error())
+					c.Fatalf("got config unmarshalers error: \n%s", err.Error())
 				}
 			}
 
