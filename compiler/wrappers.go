@@ -114,7 +114,7 @@ func (b *builder) writeServiceHandlers(svc *est.Service) error {
 func (b *builder) writeConfigUnmarshallers() error {
 	for _, svc := range b.res.App.Services {
 		if len(svc.ConfigLoads) > 0 {
-			if err := b.writeServiceConfigUnmarshallers(svc); err != nil {
+			if err := b.writeServiceConfigUnmarshalers(svc); err != nil {
 				return eerror.Wrap(err, "compiler", "write config unmarshallers for svc", nil)
 			}
 		}
@@ -122,10 +122,10 @@ func (b *builder) writeConfigUnmarshallers() error {
 	return nil
 }
 
-func (b *builder) writeServiceConfigUnmarshallers(svc *est.Service) error {
+func (b *builder) writeServiceConfigUnmarshalers(svc *est.Service) error {
 	// Write the file to disk
 	dir := filepath.Join(b.workdir, filepath.FromSlash(svc.Root.RelPath))
-	name := "encore_internal__cfg_unmarshallers.go"
+	name := "encore_internal__config_unmarshalers.go"
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -143,11 +143,11 @@ func (b *builder) writeServiceConfigUnmarshallers(svc *est.Service) error {
 
 	b.addOverlay(filepath.Join(svc.Root.Dir, name), filePath)
 
-	f, err := b.codegen.ConfigUnmarshallers(svc)
+	f, err := b.codegen.ConfigUnmarshalers(svc)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("CONFIG: %#v", f)
+
 	return f.Render(file)
 }
 

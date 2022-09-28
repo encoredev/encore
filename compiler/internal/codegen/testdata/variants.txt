@@ -34,7 +34,7 @@ type FooParams struct {
 	Name string
 }
 
-type SubType struct {
+type SubType[T any] struct {
 	FieldA config.String
 	FieldB config.Value[[]string]
 	FieldC []config.Int
@@ -42,20 +42,27 @@ type SubType struct {
 	FieldE struct{
 	    SubA config.String
 	    SubB FooParams
-	    Blah time.Time
+	    Blah config.Value[T]
 	    Foo  []byte
 	    Json json.RawMessage
 	}
+}
+
+type Optional[T any] struct {
+    Wrapped T
+    Present bool
 }
 
 type Cfg struct {
     DefaultFooParams config.Value[FooParams]
     ReadOnly         config.Bool
     MagicNumber      int
-    Sub              SubType
+    Sub              SubType[Optional[string]]
 }
 
 var _ = config.Load[Cfg]()
+
+var _ = config.Load[Optional[bool]]()
 
 //encore:api public
 func One(ctx context.Context) error {

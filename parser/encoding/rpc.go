@@ -376,6 +376,9 @@ func GetConcreteType(appMetaData *meta.Data, originalType *schema.Type, typeArgs
 		decl := appMetaData.Decls[typ.Named.Id]
 		return GetConcreteType(appMetaData, decl.Type, typ.Named.TypeArguments)
 
+	case *schema.Type_Builtin:
+		return originalType, nil
+
 	default:
 		return nil, errors.Newf("unsupported type %+v", reflect.TypeOf(typ))
 	}
@@ -387,6 +390,11 @@ func resolveTypeParams(typ *schema.Type, typeArgs []*schema.Type) *schema.Type {
 	switch t := typ.Typ.(type) {
 	case *schema.Type_TypeParameter:
 		return typeArgs[t.TypeParameter.ParamIdx]
+
+	case *schema.Type_Struct:
+		for _, field := range t.Struct.Fields {
+			field.Typ = resolveTypeParams(field.Typ, typeArgs)
+		}
 
 	case *schema.Type_List:
 		t.List.Elem = resolveTypeParams(t.List.Elem, typeArgs)
