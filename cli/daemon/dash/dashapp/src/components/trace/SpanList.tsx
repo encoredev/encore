@@ -46,9 +46,7 @@ const SpanRow: FC<{
 }> = ({ trace, req, level, siblings, selected, onSelect }) => {
   const [expanded, setExpanded] = useState(true);
   const traceDur = trace.end_time! - trace.start_time;
-  const start = Math.round(
-    ((req.start_time - trace.start_time) / traceDur) * 100
-  );
+  const start = Math.round(((req.start_time - trace.start_time) / traceDur) * 100);
   const end = Math.round(((req.end_time! - trace.start_time) / traceDur) * 100);
   const defLoc = trace.locations[req.def_loc];
 
@@ -89,12 +87,7 @@ const SpanRow: FC<{
         }`}
         onClick={select}
       >
-        <TreeHint
-          up={level > 0}
-          down={showChildren}
-          siblings={siblings}
-          level={level}
-        />
+        <TreeHint up={level > 0} down={showChildren} siblings={siblings} level={level} />
 
         {expanded && req.children.length > 0
           ? icons.chevronRight("h-3 w-auto ml-1 mr-0.5")
@@ -102,20 +95,14 @@ const SpanRow: FC<{
 
         <div className="ml-1 flex flex-grow items-center">
           <div className="min-w-0 flex-1 truncate text-xs">
-            <div
-              className={`font-semibold ${
-                req.err !== null ? "text-red" : "text-black"
-              }`}
-            >
+            <div className={`font-semibold ${req.err !== null ? "text-red" : "text-black"}`}>
               {icon ? icon("h-3 w-3 mr-1 inline-block", type) : undefined}
               {svcName}.{rpcName}
             </div>
           </div>
           <div className="w-64 flex-none">
             <style>{`
-              .spanlist-${req.id}       { background-color: ${
-              sel ? highlightColor : color
-            }; }
+              .spanlist-${req.id}       { background-color: ${sel ? highlightColor : color}; }
               .spanlist-${req.id}:hover { background-color: ${highlightColor}; }
             `}</style>
             <div className="relative" style={{ height: "8px" }}>
@@ -146,9 +133,7 @@ const SpanRow: FC<{
             level={level + 1}
             selected={selected}
             onSelect={onSelect}
-            siblings={siblings.concat(
-              i < req.children.length - 1 ? [level + 1] : []
-            )}
+            siblings={siblings.concat(i < req.children.length - 1 ? [level + 1] : [])}
           />
         ))}
     </>

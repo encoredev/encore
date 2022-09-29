@@ -50,25 +50,16 @@ export type Ref = HTMLButtonElement;
 const Button = React.forwardRef<Ref, Props>((props, ref) => {
   const disabled = props.disabled || props.loading;
 
-  const pos =
-    (props.className ?? "").indexOf("absolute") === -1 ? "relative" : "";
+  const pos = (props.className ?? "").indexOf("absolute") === -1 ? "relative" : "";
   const section = props.section ?? "white";
 
   return (
-    <div
-      className={`group relative inline-block h-10 mobile:h-10 ${
-        props.className ?? ""
-      }`}
-    >
+    <div className={`group relative inline-block h-10 mobile:h-10 ${props.className ?? ""}`}>
       {!disabled && (
         <div
           className={`
           absolute inset-0
-          ${
-            props.kind
-              ? hoverClasses[props.kind][section]
-              : hoverClasses["primary"][section]
-          }
+          ${props.kind ? hoverClasses[props.kind][section] : hoverClasses["primary"][section]}
           ${props.buttonClassName ?? ""}
         `}
         />
@@ -87,11 +78,7 @@ const Button = React.forwardRef<Ref, Props>((props, ref) => {
           lead-xxsmall inline-flex h-full w-full
           items-center justify-center px-6 font-mono uppercase mobile:px-4
 
-          ${
-            props.kind
-              ? classes[props.kind][section]
-              : classes["primary"][section]
-          } ${pos}
+          ${props.kind ? classes[props.kind][section] : classes["primary"][section]} ${pos}
 
           transition-transform duration-100 ease-in-out
           disabled:cursor-not-allowed disabled:opacity-50

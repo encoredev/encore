@@ -27,27 +27,18 @@ const Nav: FunctionComponent<NavProps> = (props) => {
 
   return (
     <nav className="bg-black">
-      {appsOpen && (
-        <div
-          className="absolute inset-0 z-10"
-          onClick={() => setAppsOpen(false)}
-        />
-      )}
+      {appsOpen && <div className="absolute inset-0 z-10" onClick={() => setAppsOpen(false)} />}
       <div className="mx-auto px-4 md:px-10">
         <div className="flex h-nav-bar items-center justify-between">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <img
-                className={`h-8 ${
-                  props.withoutLinks ? "hidden" : "hidden md:inline-block"
-                }`}
+                className={`h-8 ${props.withoutLinks ? "hidden" : "hidden md:inline-block"}`}
                 src={logo}
                 alt="Encore Logo"
               />
               <img
-                className={`h-8 ${
-                  props.withoutLinks ? "inline-block" : "inline-block md:hidden"
-                }`}
+                className={`h-8 ${props.withoutLinks ? "inline-block" : "inline-block md:hidden"}`}
                 src={wordmark}
                 alt="Encore Logo"
               />
@@ -61,15 +52,12 @@ const Nav: FunctionComponent<NavProps> = (props) => {
                     .map((it) => {
                       const as = `/${appID}${it.href}`;
                       const { pathname } = useLocation();
-                      const isSelected = !!matchPath(
-                        { path: "/:appID" + it.href },
-                        pathname
-                      );
+                      const isSelected = !!matchPath({ path: "/:appID" + it.href }, pathname);
                       return (
                         <div key={it.name} className="flex items-center">
                           <Link
                             to={as}
-                            className={`focus:outline-none flex items-center rounded-sm px-3 py-2 text-lead-xxs text-white hover:bg-white hover:bg-opacity-10 ${
+                            className={`flex items-center rounded-sm px-3 py-2 text-lead-xxs text-white focus:outline-none hover:bg-white hover:bg-opacity-10 ${
                               isSelected ? "bg-white bg-opacity-10" : ""
                             }`}
                           >
@@ -107,7 +95,7 @@ const Nav: FunctionComponent<NavProps> = (props) => {
                           key={it.href}
                           href={it.href}
                           target="_blank"
-                          className="focus:outline-none rounded-sm px-3 py-2 text-lead-xxs text-white hover:bg-white hover:bg-opacity-10"
+                          className="rounded-sm px-3 py-2 text-lead-xxs text-white focus:outline-none hover:bg-white hover:bg-opacity-10"
                         >
                           {it.name}&nbsp;
                           <svg
@@ -130,18 +118,14 @@ const Nav: FunctionComponent<NavProps> = (props) => {
                 </div>
                 {/* <-- App dropdown --> */}
                 <div className="ml-3">
-                  <AppDropdown
-                    appID={appID!}
-                    open={appsOpen}
-                    setOpen={setAppsOpen}
-                  />
+                  <AppDropdown appID={appID!} open={appsOpen} setOpen={setAppsOpen} />
                 </div>
               </div>
 
               <div className="-mr-2 flex md:hidden">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="focus:outline-none inline-flex items-center justify-center rounded-md p-2 text-white hover:bg-white hover:bg-opacity-10"
+                  className="inline-flex items-center justify-center rounded-md p-2 text-white focus:outline-none hover:bg-white hover:bg-opacity-10"
                 >
                   <svg
                     className={`${menuOpen ? "hidden" : "block"} h-6 w-6`}
@@ -186,7 +170,7 @@ const Nav: FunctionComponent<NavProps> = (props) => {
                     key={it.href}
                     href={it.href}
                     target="_blank"
-                    className="focus:outline-none block rounded-md px-2 py-2 text-base font-medium text-white hover:bg-white hover:bg-opacity-10"
+                    className="block rounded-md px-2 py-2 text-base font-medium text-white focus:outline-none hover:bg-white hover:bg-opacity-10"
                   >
                     {it.name}&nbsp;
                     <svg
@@ -208,10 +192,7 @@ const Nav: FunctionComponent<NavProps> = (props) => {
               } else {
                 const as = `/${appID}${it.href}`;
                 const { pathname } = useLocation();
-                const isSelected = !!matchPath(
-                  { path: "/:appID" + it.href },
-                  pathname
-                );
+                const isSelected = !!matchPath({ path: "/:appID" + it.href }, pathname);
                 return (
                   <Link
                     key={it.name}
@@ -240,9 +221,7 @@ interface AppDropdownProps {
   setOpen: (open: boolean) => void;
 }
 
-const AppDropdown: FunctionComponent<AppDropdownProps> = (
-  props
-): JSX.Element => {
+const AppDropdown: FunctionComponent<AppDropdownProps> = (props): JSX.Element => {
   interface app {
     id: string;
     name: string;
@@ -262,7 +241,7 @@ const AppDropdown: FunctionComponent<AppDropdownProps> = (
         <div>
           <button
             type="button"
-            className="focus:outline-none inline-flex justify-center rounded-sm px-3 py-2 text-sm text-lead-xxs text-white hover:bg-white hover:bg-opacity-10"
+            className="inline-flex justify-center rounded-sm px-3 py-2 text-sm text-lead-xxs text-white focus:outline-none hover:bg-white hover:bg-opacity-10"
             // className="leading-5 transition duration-150 ease-in-out hover:text-white active:text-white"
             id="app-menu"
             aria-haspopup="true"
@@ -295,9 +274,7 @@ const AppDropdown: FunctionComponent<AppDropdownProps> = (
               <div className="py-1">
                 {apps !== undefined ? (
                   <>
-                    <div className="px-2 py-1 font-mono text-xs uppercase">
-                      Running Apps
-                    </div>
+                    <div className="px-2 py-1 font-mono text-xs uppercase">Running Apps</div>
                     {apps.map((app) => (
                       <Link
                         key={app.id}
