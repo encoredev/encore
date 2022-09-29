@@ -237,6 +237,14 @@ func (cb *configUnmarshalersBuilder) readType(typ *schema.Type, pathElement Code
 	case *schema.Type_Builtin:
 		return cb.readBuiltin(t.Builtin)
 
+	case *schema.Type_Pointer:
+		reader, returnType := cb.readType(t.Pointer.Base, pathElement)
+
+		return Func().Params().Op("*").Add(returnType).Block(
+			Id("obj").Op(":=").Add(reader),
+			Return(Op("&").Id("obj")),
+		).Call(), Op("*").Add(returnType)
+
 	case *schema.Type_Config:
 		// The config type is the dynamic values which can be changed at runtime
 		// by unit tests

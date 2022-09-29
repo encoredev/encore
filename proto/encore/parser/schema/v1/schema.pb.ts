@@ -49,6 +49,8 @@ export interface Type {
   list: List | undefined;
   /** The type is one of the base built in types within Go */
   builtin: Builtin | undefined;
+  /** The type is a pointer */
+  pointer: Pointer | undefined;
   /** Abstract Types */
   type_parameter: TypeParameterRef | undefined;
   /** Encore Special Types */
@@ -190,6 +192,12 @@ export interface Map {
 export interface List {
   /** The type of the elements in the list */
   elem: Type;
+}
+
+/** Pointer represents a pointer to a base type */
+export interface Pointer {
+  /** The type of the pointer */
+  base: Type;
 }
 
 /** ConfigValue represents a config value wrapper. */

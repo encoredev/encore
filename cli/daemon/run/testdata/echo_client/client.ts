@@ -66,7 +66,7 @@ export interface ClientOptions {
      * request either by passing in a static object or by passing in
      * a function which returns a new object for each request.
      */
-    auth?: echo.AuthParams | AuthDataGenerator
+    auth?: (echo.AuthParams | null) | AuthDataGenerator
 }
 
 export namespace cache {
@@ -184,7 +184,7 @@ export namespace echo {
 
     export interface EmptyData {
         OmitEmpty: Data<string, string>
-        NullPtr: string
+        NullPtr: (string | null)
         Zero: Data<string, string>
     }
 
@@ -207,16 +207,16 @@ export namespace echo {
         /**
          * Body
          */
-        Struct: Data<Data<string, string>, number>
+        Struct: Data<(Data<string, string> | null), number>
 
-        StructPtr: Data<number, number>
-        StructSlice: Data<string, string>[]
-        StructMap: { [key: string]: Data<string, number> }
-        StructMapPtr: { [key: string]: Data<string, string> }
+        StructPtr: (Data<number, number> | null)
+        StructSlice: (Data<string, string> | null)[]
+        StructMap: { [key: string]: (Data<string, number> | null) }
+        StructMapPtr: ({ [key: string]: (Data<string, string> | null) } | null)
         AnonStruct: {
             AnonBird: string
         }
-        "formatted_nest": Data<string, number>
+        "formatted_nest": (Data<string, number> | null)
         RawStruct: JSONValue
         /**
          * Query
@@ -752,7 +752,7 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 }
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => (echo.AuthParams | undefined)
+export type AuthDataGenerator = () => ((echo.AuthParams | null) | undefined)
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
@@ -803,7 +803,7 @@ class BaseClient {
         init.headers = {...this.headers, ...init.headers}
 
         // If authorization data generator is present, call it and add the returned data to the request
-        let authData: echo.AuthParams | undefined
+        let authData: (echo.AuthParams | null) | undefined
         if (this.authGenerator) {
             authData = this.authGenerator()
         }

@@ -284,6 +284,13 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCE
 //
 // If a nil schema is provided, a nil struct is returned.
 func GetConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []*schema.Type) (*schema.Struct, error) {
+	// dereference pointers
+	pointer := typ.GetPointer()
+	for pointer != nil {
+		typ = pointer.Base
+		pointer = typ.GetPointer()
+	}
+
 	typ, err := GetConcreteType(appMetaData, typ, typeArgs)
 	if err != nil {
 		return nil, err
@@ -291,7 +298,7 @@ func GetConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []
 
 	struc := typ.GetStruct()
 	if struc == nil {
-		return nil, errors.Newf("unsupported type %+v", reflect.TypeOf(typ))
+		return nil, errors.Newf("unsupported type %+v", reflect.TypeOf(typ.Typ))
 	}
 
 	return struc, nil
@@ -357,6 +364,27 @@ func GetConcreteType(appMetaData *meta.Data, originalType *schema.Type, typeArgs
 		// replace any type parameters with the type argument
 		return resolveTypeParams(&schema.Type{Typ: &schema.Type_List{List: list}}, typeArgs), nil
 
+	case *schema.Type_Pointer:
+		// If there are no type arguments, we've got a concrete type
+		if len(typeArgs) == 0 {
+			return originalType, nil
+		}
+
+		// Deep copy the original struct
+		pointer, ok := proto.Clone(typ.Pointer).(*schema.Pointer)
+		if !ok {
+			return nil, errors.New("failed to clone pointer type")
+		}
+
+		var err error
+		pointer.Base, err = GetConcreteType(appMetaData, pointer.Base, typeArgs)
+		if err != nil {
+			return nil, err
+		}
+
+		// replace any type parameters with the type argument
+		return resolveTypeParams(&schema.Type{Typ: &schema.Type_Pointer{Pointer: pointer}}, typeArgs), nil
+
 	case *schema.Type_Config:
 		// If there are no type arguments, we've got a concrete type
 		if len(typeArgs) == 0 {
@@ -406,6 +434,9 @@ func resolveTypeParams(typ *schema.Type, typeArgs []*schema.Type) *schema.Type {
 	case *schema.Type_Config:
 		t.Config.Elem = resolveTypeParams(t.Config.Elem, typeArgs)
 
+	case *schema.Type_Pointer:
+		t.Pointer.Base = resolveTypeParams(t.Pointer.Base, typeArgs)
+
 	case *schema.Type_Named:
 		for i, param := range t.Named.TypeArguments {
 			t.Named.TypeArguments[i] = resolveTypeParams(param, typeArgs)
@@ -448,6 +479,7 @@ func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Opti
 		}
 		return &AuthEncoding{LegacyTokenFormat: true}, nil
 	case *schema.Type_Named:
+	case *schema.Type_Pointer:
 	default:
 		return nil, errors.Newf("unsupported auth parameter type %T", errors.Safe(t))
 	}

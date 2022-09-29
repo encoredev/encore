@@ -76,6 +76,9 @@ func ConvertSchemaToJenType(typ *schema.Type, md *meta.Data) *Statement {
 	case *schema.Type_Builtin:
 		return ConvertBuiltInSchemaToJenType(typ.Builtin)
 
+	case *schema.Type_Pointer:
+		return Op("*").Add(ConvertSchemaToJenType(typ.Pointer.Base, md))
+
 	case *schema.Type_TypeParameter:
 		return Id(md.Decls[typ.TypeParameter.DeclId].TypeParams[typ.TypeParameter.ParamIdx].Name)
 

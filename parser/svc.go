@@ -322,7 +322,7 @@ func (p *parser) initTypedRPC(rpc *est.RPC) {
 				continue
 			}
 
-			rpc.Request = p.resolveParameter("payload parameter", rpc.Svc.Root, rpc.File, param.Type)
+			rpc.Request = p.resolveParameter("payload parameter", rpc.Svc.Root, rpc.File, param.Type, true)
 		}
 	}
 	if seenParams < len(pathParams) {
@@ -336,7 +336,7 @@ func (p *parser) initTypedRPC(rpc *est.RPC) {
 	// First return value must be *T or *pkg.T
 	if numResults >= 2 {
 		result := results.List[0]
-		rpc.Response = p.resolveParameter("response", rpc.Svc.Root, rpc.File, result.Type)
+		rpc.Response = p.resolveParameter("response", rpc.Svc.Root, rpc.File, result.Type, true)
 	}
 
 	if numResults > 2 {
@@ -609,7 +609,7 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 		// Second result must be *T or *pkg.T
 		authData, _ := getField(results, 1)
 
-		h.AuthData = p.resolveParameter("auth data", h.Svc.Root, h.File, authData.Type)
+		h.AuthData = p.resolveParameter("auth data", h.Svc.Root, h.File, authData.Type, true)
 	}
 
 	// Last result must be error
@@ -623,8 +623,19 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 	}
 }
 
-func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *est.File, expr ast.Expr) *est.Param {
+func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *est.File, expr ast.Expr, derefPointers bool) *est.Param {
 	typ := p.resolveType(pkg, file, expr, nil)
+
+	// Deref pointers
+	isPointer := false
+	if derefPointers {
+		pointer := typ.GetPointer()
+		for pointer != nil {
+			typ = pointer.Base
+			pointer = typ.GetPointer()
+			isPointer = true
+		}
+	}
 
 	// Check it's a supported parameter type (i.e. a named type which is a structure)
 	n := typ.GetNamed()
@@ -640,7 +651,7 @@ func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *
 	_, isPtr := expr.(*ast.StarExpr)
 
 	return &est.Param{
-		IsPtr: isPtr,
+		IsPtr: isPointer || isPtr,
 		Type:  typ,
 	}
 }

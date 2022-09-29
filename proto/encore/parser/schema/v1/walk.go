@@ -27,6 +27,8 @@ func Walk(decls []*Decl, node any, visitor func(node any) error) error {
 			return Walk(decls, v.List, visitor)
 		case *Type_Builtin:
 			return Walk(decls, v.Builtin, visitor)
+		case *Type_Pointer:
+			return Walk(decls, v.Pointer, visitor)
 		case *Type_TypeParameter:
 			return Walk(decls, v.TypeParameter, visitor)
 		case *Type_Config:
@@ -60,6 +62,8 @@ func Walk(decls []*Decl, node any, visitor func(node any) error) error {
 		return Walk(decls, node.Elem, visitor)
 	case Builtin:
 		return nil
+	case *Pointer:
+		return Walk(decls, node.Base, visitor)
 	case *TypeParameterRef:
 		return nil
 	case *ConfigValue:

@@ -12,7 +12,7 @@ type CfgType[T any] struct {
 	AdminUsers   config.Values[string]
 
 	SubConfig config.Value[struct {
-		SubKey SubCfgType[T]
+		SubKey *SubCfgType[T]
 	}]
 }
 

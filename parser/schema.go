@@ -47,10 +47,19 @@ func registerTypeResolver(packagePath string, f typeResolver) {
 
 // resolveType parses the schema from a type expression.
 func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) *schema.Type {
-	expr = deref(expr)
 	pkgNames := p.names[pkg]
 
 	switch expr := expr.(type) {
+	case *ast.StarExpr:
+		// resolve pointers
+		return &schema.Type{
+			Typ: &schema.Type_Pointer{
+				Pointer: &schema.Pointer{
+					Base: p.resolveType(pkg, file, expr.X, typeParameters),
+				},
+			},
+		}
+
 	case *ast.Ident:
 		// Check if we have a type parameter defined for this
 		if ref, ok := typeParameters[expr.Name]; ok {

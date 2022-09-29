@@ -89,10 +89,10 @@ func WithHTTPClient(client HTTPDoer) Option {
 }
 
 // WithAuth allows you to set the authentication data to be used with each request
-func WithAuth(auth EchoAuthParams) Option {
+func WithAuth(auth *EchoAuthParams) Option {
 	return func(base *baseClient) error {
 		base.authGenerator = func(_ context.Context) (*EchoAuthParams, error) {
-			return &auth, nil
+			return auth, nil
 		}
 		return nil
 	}
@@ -248,7 +248,7 @@ type EchoData[K any, V any] struct {
 
 type EchoEmptyData struct {
 	OmitEmpty EchoData[string, string] `json:"OmitEmpty,omitempty"`
-	NullPtr   string
+	NullPtr   *string
 	Zero      EchoData[string, string]
 }
 
@@ -262,17 +262,17 @@ type EchoHeadersData struct {
 }
 
 type EchoNonBasicData struct {
-	HeaderString string                                  `header:"X-Header-String"` // Header
-	HeaderNumber int                                     `header:"X-Header-Number"`
-	Struct       EchoData[EchoData[string, string], int] // Body
-	StructPtr    EchoData[int, uint16]
-	StructSlice  []EchoData[string, string]
-	StructMap    map[string]EchoData[string, float32]
-	StructMapPtr map[string]EchoData[string, string]
+	HeaderString string                                   `header:"X-Header-String"` // Header
+	HeaderNumber int                                      `header:"X-Header-Number"`
+	Struct       EchoData[*EchoData[string, string], int] // Body
+	StructPtr    *EchoData[int, uint16]
+	StructSlice  []*EchoData[string, string]
+	StructMap    map[string]*EchoData[string, float32]
+	StructMapPtr *map[string]*EchoData[string, string]
 	AnonStruct   struct {
 		AnonBird string
 	}
-	NamedStruct EchoData[string, float64] `json:"formatted_nest"`
+	NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
 	RawStruct   json.RawMessage
 	QueryString string `query:"string"` // Query
 	QueryNumber int    `query:"no"`
@@ -482,21 +482,21 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		Struct       EchoData[EchoData[string, string], int] `json:"Struct"`
-		StructPtr    EchoData[int, uint16]                   `json:"StructPtr"`
-		StructSlice  []EchoData[string, string]              `json:"StructSlice"`
-		StructMap    map[string]EchoData[string, float32]    `json:"StructMap"`
-		StructMapPtr map[string]EchoData[string, string]     `json:"StructMapPtr"`
+		Struct       EchoData[*EchoData[string, string], int] `json:"Struct"`
+		StructPtr    *EchoData[int, uint16]                   `json:"StructPtr"`
+		StructSlice  []*EchoData[string, string]              `json:"StructSlice"`
+		StructMap    map[string]*EchoData[string, float32]    `json:"StructMap"`
+		StructMapPtr *map[string]*EchoData[string, string]    `json:"StructMapPtr"`
 		AnonStruct   struct {
 			AnonBird string
 		} `json:"AnonStruct"`
-		NamedStruct EchoData[string, float64] `json:"formatted_nest"`
-		RawStruct   json.RawMessage           `json:"RawStruct"`
-		PathString  string                    `json:"PathString"`
-		PathInt     int                       `json:"PathInt"`
-		PathWild    string                    `json:"PathWild"`
-		AuthHeader  string                    `json:"AuthHeader"`
-		AuthQuery   []int                     `json:"AuthQuery"`
+		NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
+		RawStruct   json.RawMessage            `json:"RawStruct"`
+		PathString  string                     `json:"PathString"`
+		PathInt     int                        `json:"PathInt"`
+		PathWild    string                     `json:"PathWild"`
+		AuthHeader  string                     `json:"AuthHeader"`
+		AuthQuery   []int                      `json:"AuthQuery"`
 	}{
 		AnonStruct:   params.AnonStruct,
 		AuthHeader:   params.AuthHeader,
@@ -516,23 +516,23 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 	// We only want the response body to marshal into these fields and none of the header fields,
 	// so we'll construct a new struct with only those fields.
 	respBody := struct {
-		Struct       EchoData[EchoData[string, string], int] `json:"Struct"`
-		StructPtr    EchoData[int, uint16]                   `json:"StructPtr"`
-		StructSlice  []EchoData[string, string]              `json:"StructSlice"`
-		StructMap    map[string]EchoData[string, float32]    `json:"StructMap"`
-		StructMapPtr map[string]EchoData[string, string]     `json:"StructMapPtr"`
+		Struct       EchoData[*EchoData[string, string], int] `json:"Struct"`
+		StructPtr    *EchoData[int, uint16]                   `json:"StructPtr"`
+		StructSlice  []*EchoData[string, string]              `json:"StructSlice"`
+		StructMap    map[string]*EchoData[string, float32]    `json:"StructMap"`
+		StructMapPtr *map[string]*EchoData[string, string]    `json:"StructMapPtr"`
 		AnonStruct   struct {
 			AnonBird string
 		} `json:"AnonStruct"`
-		NamedStruct EchoData[string, float64] `json:"formatted_nest"`
-		RawStruct   json.RawMessage           `json:"RawStruct"`
-		QueryString string                    `json:"QueryString"`
-		QueryNumber int                       `json:"QueryNumber"`
-		PathString  string                    `json:"PathString"`
-		PathInt     int                       `json:"PathInt"`
-		PathWild    string                    `json:"PathWild"`
-		AuthHeader  string                    `json:"AuthHeader"`
-		AuthQuery   []int                     `json:"AuthQuery"`
+		NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
+		RawStruct   json.RawMessage            `json:"RawStruct"`
+		QueryString string                     `json:"QueryString"`
+		QueryNumber int                        `json:"QueryNumber"`
+		PathString  string                     `json:"PathString"`
+		PathInt     int                        `json:"PathInt"`
+		PathWild    string                     `json:"PathWild"`
+		AuthHeader  string                     `json:"AuthHeader"`
+		AuthQuery   []int                      `json:"AuthQuery"`
 	}{}
 
 	// Now make the actual call to the API

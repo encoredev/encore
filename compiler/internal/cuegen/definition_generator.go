@@ -109,6 +109,8 @@ func (n *definitionGenerator) typeToDefinitionName(typ *schema.Type) string {
 		return "List_" + n.typeToDefinitionName(typ.List.Elem)
 	case *schema.Type_Map:
 		return "Map_" + n.typeToDefinitionName(typ.Map.Key) + "_" + n.typeToDefinitionName(typ.Map.Value)
+	case *schema.Type_Pointer:
+		return n.typeToDefinitionName(typ.Pointer.Base)
 	case *schema.Type_Config:
 		return n.typeToDefinitionName(typ.Config.Elem)
 	case *schema.Type_Builtin:

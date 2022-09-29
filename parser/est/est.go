@@ -168,6 +168,11 @@ type Param struct {
 	Type  *schema.Type
 }
 
+// IsPointer returns if this parameter is a a pointer or not
+func (p *Param) IsPointer() bool {
+	return p.IsPtr || p.Type.GetPointer() != nil
+}
+
 type AccessType string
 
 const (

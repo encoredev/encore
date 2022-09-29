@@ -46,6 +46,11 @@ func (r *schemaRenderer) renderType(typ *schema.Type) {
 		r.renderBuiltin(typ.Builtin)
 	case *schema.Type_Named:
 		r.renderNamed(typ.Named)
+	case *schema.Type_Pointer:
+		r.renderType(typ.Pointer.Base)
+	case *schema.Type_Config:
+		// Config is invisible here
+		r.renderType(typ.Config.Elem)
 	default:
 		panic(fmt.Sprintf("unknown schema type %T", typ))
 	}
