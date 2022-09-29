@@ -45,6 +45,9 @@ func streamLogs(appRoot, envName string) {
 		fatal("app is not linked with Encore Cloud")
 	}
 
+	if envName == "" {
+		envName = "@primary"
+	}
 	logs, err := platform.EnvLogs(ctx, appSlug, envName)
 	if err != nil {
 		var e platform.Error
@@ -128,7 +131,7 @@ func streamLogs(appRoot, envName string) {
 
 func init() {
 	rootCmd.AddCommand(logsCmd)
-	logsCmd.Flags().StringVarP(&logsEnv, "env", "e", "", "Environment name to stream logs from (defaults to the production environment)")
+	logsCmd.Flags().StringVarP(&logsEnv, "env", "e", "", "Environment name to stream logs from (defaults to the primary environment)")
 	logsCmd.Flags().BoolVar(&logsJSON, "json", false, "Whether to print logs in raw JSON format")
 	logsCmd.Flags().BoolVarP(&logsQuiet, "quiet", "q", false, "Whether to print initial message when the command is waiting for logs")
 }
