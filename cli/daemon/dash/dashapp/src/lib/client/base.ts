@@ -1,13 +1,13 @@
 import JSONRPCConn from "./jsonrpc";
-import {ResponseError} from "./errs";
+import { ResponseError } from "./errs";
 
-const DEV = import.meta.env.DEV
+const DEV = import.meta.env.DEV;
 
 export default class BaseClient {
   base: string;
 
   constructor() {
-    this.base = DEV ? "localhost:9400" : window.location.host
+    this.base = DEV ? "localhost:9400" : window.location.host;
   }
 
   async do<T>(path: string, data?: any): Promise<T> {
@@ -18,43 +18,47 @@ export default class BaseClient {
       }
       return Promise.resolve(resp.data);
     } catch (err) {
-      return Promise.reject(new ResponseError(path, "network_error", null, err as any))
+      return Promise.reject(new ResponseError(path, "network_error", null, err as any));
     }
   }
 
   ws(path: string): Promise<WebSocket> {
-    const base = this.base
-    return new Promise<WebSocket>(function(resolve, reject) {
+    const base = this.base;
+    return new Promise<WebSocket>(function (resolve, reject) {
       let ws = new WebSocket(`ws://${base}${path}`);
-      ws.onopen = function() {
-        ws.onerror = null
-        resolve(ws)
+      ws.onopen = function () {
+        ws.onerror = null;
+        resolve(ws);
       };
-      ws.onerror = function(err: any) {
+      ws.onerror = function (err: any) {
         if (DEV) {
-          reject(new Error("could not connect to Encore daemon in development mode. to start it, run: ENCORE_DAEMON_DEV=1 encore daemon -f"))
+          reject(
+            new Error(
+              "could not connect to Encore daemon in development mode. to start it, run: ENCORE_DAEMON_DEV=1 encore daemon -f"
+            )
+          );
         }
-        reject(new ResponseError(path, "network", null, err))
-      }
-    })
+        reject(new ResponseError(path, "network", null, err));
+      };
+    });
   }
 
   async jsonrpc(path: string): Promise<JSONRPCConn> {
-    const ws = await this.ws(path)
-    return new JSONRPCConn(ws)
+    const ws = await this.ws(path);
+    return new JSONRPCConn(ws);
   }
 
   async _do<T>(path: string, data?: any): Promise<APIResponse<T>> {
-    let body = null
+    let body = null;
     if (data) {
-      body = JSON.stringify(data)
+      body = JSON.stringify(data);
     }
 
     let resp = await fetch(`http://${this.base}${path}`, {
       method: "POST",
       body: body,
-    })
-    return await resp.json()
+    });
+    return await resp.json();
   }
 }
 
@@ -63,7 +67,7 @@ interface ErrorResponse {
   error: {
     code: string;
     detail: any;
-  }
+  };
 }
 
 interface SuccessResponse<T> {

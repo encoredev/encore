@@ -58,11 +58,7 @@ export interface GraphLayoutOptions {
 }
 
 export interface GetGraphLayoutData {
-  (
-    nodes: NodeData[],
-    edges: EdgeData[],
-    options: GraphLayoutOptions
-  ): Promise<GraphData>;
+  (nodes: NodeData[], edges: EdgeData[], options: GraphLayoutOptions): Promise<GraphData>;
 }
 
 const serviceID = (svcName: string) => {
@@ -101,9 +97,7 @@ export const getNodesFromMetaData = (metaData: APIMeta) => {
   // Services
   metaData.svcs.forEach((svc) => {
     // clone cron jobs array
-    const cronJobs = metaData.cron_jobs.map((cronJob) =>
-      Object.assign({}, cronJob)
-    );
+    const cronJobs = metaData.cron_jobs.map((cronJob) => Object.assign({}, cronJob));
 
     nodes.push({
       id: serviceID(svc.name),

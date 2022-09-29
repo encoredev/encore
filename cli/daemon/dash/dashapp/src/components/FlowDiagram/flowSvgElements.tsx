@@ -46,7 +46,7 @@ export const ServiceSVG = ({
         height={node.height}
       >
         <div
-          className="h-full w-full border-2 flex flex-col justify-between px-2 py-2"
+          className="flex h-full w-full flex-col justify-between border-2 px-2 py-2"
           style={{ background: OFF_WHITE_COLOR, borderColor: SOFT_BLACK_COLOR }}
         >
           <p className="font-mono font-semibold">{node.label}</p>
@@ -78,7 +78,7 @@ export const ServiceSVG = ({
               icon={<CronJobsIconSVG />}
               text={
                 node.cron_jobs.length === 1 ? (
-                  <span className="whitespace-nowrap overflow-hidden overflow-ellipsis">
+                  <span className="overflow-hidden overflow-ellipsis whitespace-nowrap">
                     {node.cron_jobs[0].title}
                   </span>
                 ) : (
@@ -102,9 +102,9 @@ const ServiceInfoRow = (
 ) => {
   const { icon, text, ...attr } = props;
   return (
-    <div className="w-full flex flex-row pt-1" {...attr}>
+    <div className="flex w-full flex-row pt-1" {...attr}>
       <div className="pr-1">{props.icon}</div>
-      <div className="flex items-center text-xs w-[calc(100%-1.2rem)]">{props.text}</div>
+      <div className="flex w-[calc(100%-1.2rem)] items-center text-xs">{props.text}</div>
     </div>
   );
 };
@@ -222,7 +222,7 @@ export const EdgeLabelSVG = ({
     >
       <div className="flex h-full items-center justify-center">
         <p
-          className="inline-block rounded border border-gray-700 px-1 text-xs"
+          className="border-gray-700 inline-block rounded border px-1 text-xs"
           style={{ background: SOFT_BLACK_COLOR, color: OFF_WHITE_COLOR }}
         >
           {getText(edge)}

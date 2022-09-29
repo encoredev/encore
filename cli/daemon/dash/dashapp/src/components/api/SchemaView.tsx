@@ -74,10 +74,7 @@ abstract class TextBasedDialect extends DialectIface {
   service?: Service;
   rpc?: RPC;
 
-  protected constructor(
-    meta: APIMeta,
-    codeMirrorMode: string | ModeSpec<ModeSpecOptions>
-  ) {
+  protected constructor(meta: APIMeta, codeMirrorMode: string | ModeSpec<ModeSpecOptions>) {
     super(meta);
     this.codeMirrorMode = codeMirrorMode;
     this.seenDecls = new Set<number>();
@@ -88,13 +85,7 @@ abstract class TextBasedDialect extends DialectIface {
     this.asResponse = false;
   }
 
-  render(
-    d: Type,
-    service: Service,
-    rpc: RPC,
-    method: string,
-    asResponse: boolean
-  ): JSX.Element {
+  render(d: Type, service: Service, rpc: RPC, method: string, asResponse: boolean): JSX.Element {
     this.service = service;
     this.rpc = rpc;
     this.method = method;
@@ -155,8 +146,7 @@ abstract class TextBasedDialect extends DialectIface {
   }
 
   protected renderTypeParameter(t: TypeParameterRef) {
-    const typeArguments =
-      this.typeArgumentStack[this.typeArgumentStack.length - 1];
+    const typeArguments = this.typeArgumentStack[this.typeArgumentStack.length - 1];
     if (typeArguments === undefined || typeArguments.length <= t.param_idx) {
       this.write("?");
     } else {
@@ -215,36 +205,26 @@ class GoDialect extends TextBasedDialect {
     };
 
     // Calculate the longest field name so we can align the types
-    const longestFieldName = t.fields.reduce<number>(
-      (previous: number, current: Field) => {
-        if (current.name.length > previous) {
-          return current.name.length;
-        }
+    const longestFieldName = t.fields.reduce<number>((previous: number, current: Field) => {
+      if (current.name.length > previous) {
+        return current.name.length;
+      }
 
-        return previous;
-      },
-      0
-    );
+      return previous;
+    }, 0);
 
-    const longestSingleLineType = t.fields.reduce<number>(
-      (previous: number, current: Field) => {
-        const type = typeAsString(current.typ);
-        if (type.indexOf("\n") < 0 && type.length > previous) {
-          return type.length;
-        }
+    const longestSingleLineType = t.fields.reduce<number>((previous: number, current: Field) => {
+      const type = typeAsString(current.typ);
+      if (type.indexOf("\n") < 0 && type.length > previous) {
+        return type.length;
+      }
 
-        return previous;
-      },
-      0
-    );
+      return previous;
+    }, 0);
 
     t.fields.map((f) => {
       if (topLevel) {
-        const [_, location] = fieldNameAndLocation(
-          f,
-          this.method,
-          this.asResponse
-        );
+        const [_, location] = fieldNameAndLocation(f, this.method, this.asResponse);
         if (location === FieldLocation.UnusedField) {
           return;
         }
@@ -259,9 +239,7 @@ class GoDialect extends TextBasedDialect {
       const type = typeAsString(f.typ);
       this.write(type);
       if (type.indexOf("\n") < 0) {
-        this.write(
-          " ".repeat(Math.max(longestSingleLineType - type.length, 0))
-        );
+        this.write(" ".repeat(Math.max(longestSingleLineType - type.length, 0)));
       }
 
       if (f.raw_tag) {
@@ -442,10 +420,7 @@ export class JSONDialect extends TextBasedDialect {
     this.write("null");
   }
 
-  public structBits(
-    t: StructType,
-    asGoStruct: boolean
-  ): [string, string, string] {
+  public structBits(t: StructType, asGoStruct: boolean): [string, string, string] {
     const writeObj = (fields: DescribedField[]): string => {
       const oldBuf = this.buf;
       this.buf = [];
@@ -765,11 +740,7 @@ class CurlDialect extends TextBasedDialect {
 
           for (const f of astFields) {
             if (f.name === fieldName) {
-              let [encodedName, location] = fieldNameAndLocation(
-                f,
-                this.method,
-                false
-              );
+              let [encodedName, location] = fieldNameAndLocation(f, this.method, false);
 
               switch (location) {
                 case FieldLocation.Header:
@@ -793,8 +764,7 @@ class CurlDialect extends TextBasedDialect {
 
     processStruct(t, namedTypeToHJSON(t));
     if (this.meta.auth_handler?.params?.named) {
-      const authStruct =
-        this.meta.decls[this.meta.auth_handler.params.named.id].type.struct!;
+      const authStruct = this.meta.decls[this.meta.auth_handler.params.named.id].type.struct!;
       processStruct(authStruct, namedTypeToHJSON(authStruct));
     }
 
@@ -804,9 +774,7 @@ class CurlDialect extends TextBasedDialect {
       space: "  ",
     });
 
-    const hasBody = this.rpc
-      ? rpcHasBody(this.meta, this.rpc, this.method)
-      : false;
+    const hasBody = this.rpc ? rpcHasBody(this.meta, this.rpc, this.method) : false;
     const defaultMethod = hasBody ? "POST" : "GET";
     let cmd = "curl ";
     if (this.method !== defaultMethod) {
@@ -832,13 +800,7 @@ class CurlDialect extends TextBasedDialect {
 class TableDialect extends DialectIface {
   typeArgumentStack: Type[][] = [];
 
-  render(
-    d: Type,
-    service: Service,
-    rpc: RPC,
-    method: string,
-    asResponse: boolean
-  ) {
+  render(d: Type, service: Service, rpc: RPC, method: string, asResponse: boolean) {
     if (!d?.named) {
       throw new Error("TableDialect can only rendered named structs");
     }
@@ -852,12 +814,7 @@ class TableDialect extends DialectIface {
     return this.renderStruct(st, 0, method, asResponse);
   }
 
-  renderStruct(
-    t: StructType,
-    level: number,
-    method: string,
-    asResponse: boolean
-  ): JSX.Element {
+  renderStruct(t: StructType, level: number, method: string, asResponse: boolean): JSX.Element {
     return (
       <div className={level !== 0 ? "border-gray-200 rounded-sm" : ""}>
         {t.fields.map((f, i) => {
@@ -868,10 +825,7 @@ class TableDialect extends DialectIface {
           }
 
           return (
-            <div
-              key={f.name}
-              className={i > 0 ? "border-gray-200 mt-1 border-t pt-1" : ""}
-            >
+            <div key={f.name} className={i > 0 ? "border-gray-200 mt-1 border-t pt-1" : ""}>
               <div className="flex font-mono leading-6">
                 <div className="text-gray-900 text-sm font-bold">{f.name}</div>
                 <div className="text-gray-500 ml-2 flex-grow p-0.5 text-xs">
@@ -888,9 +842,7 @@ class TableDialect extends DialectIface {
                 {f.doc !== "" ? (
                   <div className="text-gray-700 flex-grow text-sm">{f.doc}</div>
                 ) : (
-                  <div className="text-gray-400 flex-grow text-xs">
-                    No description.
-                  </div>
+                  <div className="text-gray-400 flex-grow text-xs">No description.</div>
                 )}
                 <div
                   className="text-gray-500 font-mono text-xs"
@@ -923,8 +875,7 @@ class TableDialect extends DialectIface {
   }
 
   describeTypeParameter(t: TypeParameterRef): string {
-    const typeArgument =
-      this.typeArgumentStack[this.typeArgumentStack.length - 1][t.param_idx];
+    const typeArgument = this.typeArgumentStack[this.typeArgumentStack.length - 1][t.param_idx];
     return this.describeType(typeArgument);
   }
 

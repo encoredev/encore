@@ -12,13 +12,7 @@ import { ProvidedZoom } from "@visx/zoom/lib/types";
 import { getElkGraphLayoutData } from "./algorithms/elk-algo";
 import { Group } from "@visx/group";
 import { Zoom } from "@visx/zoom";
-import {
-  EdgeLabelSVG,
-  EdgeSVG,
-  EncoreArrowHeadSVG,
-  ServiceSVG,
-  TopicSVG,
-} from "./flowSvgElements";
+import { EdgeLabelSVG, EdgeSVG, EncoreArrowHeadSVG, ServiceSVG, TopicSVG } from "./flowSvgElements";
 import { ParentSize } from "@visx/responsive";
 import useDownloadDiagram from "~c/FlowDiagram/useDownloadDiagram";
 import Button from "~c/Button";
@@ -55,12 +49,9 @@ interface Props {
 export const FlowDiagram: FC<Props> = ({ metaData }) => {
   const [graphLayoutData, setGraphLayoutData] = useState<GraphData>();
   const [activeNode, setActiveNode] = useState<PositionedNode | null>(null);
-  const [activeDescendants, setActiveDescendants] = useState<string[] | null>(
-    null
-  );
+  const [activeDescendants, setActiveDescendants] = useState<string[] | null>(null);
   const [isInitialRender, setIsInitialRender] = useState<boolean>(true);
-  const [isLoadingScreenshot, setIsLoadingScreenshot] =
-    useState<boolean>(false);
+  const [isLoadingScreenshot, setIsLoadingScreenshot] = useState<boolean>(false);
   const screenshotRef = useRef<HTMLDivElement>(null);
   const downloadDiagram = useDownloadDiagram(screenshotRef);
   const graphWidth = graphLayoutData?.width ?? 1600;
@@ -86,18 +77,11 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
     return endpoints;
   };
   const getDescendantNodes = (node: NodeData) => {
-    return graphLayoutData!.edges
-      .filter((e) => e.source === node.id)
-      .map((e) => e.target);
+    return graphLayoutData!.edges.filter((e) => e.source === node.id).map((e) => e.target);
   };
   const isNodeActive = (node: NodeData) =>
-    activeNode === null ||
-    activeNode.id === node.id ||
-    !!activeDescendants?.includes(node.id);
-  const onNodeClick = (
-    zoom: ProvidedZoom<SVGSVGElement>,
-    node: PositionedNode
-  ) => {
+    activeNode === null || activeNode.id === node.id || !!activeDescendants?.includes(node.id);
+  const onNodeClick = (zoom: ProvidedZoom<SVGSVGElement>, node: PositionedNode) => {
     const centerPoint = { x: graphWidth / 2, y: graphHeight / 2 };
     const inverseCentroid = zoom.applyInverseToPoint(centerPoint);
     zoom.translate({
@@ -161,10 +145,8 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
                 initialTransformMatrix={{
                   scaleX: scale,
                   scaleY: scale,
-                  translateX:
-                    parent.width / 2 - (graphLayoutData.width! * scale) / 2,
-                  translateY:
-                    parent.height / 2 - (graphLayoutData.height! * scale) / 2,
+                  translateX: parent.width / 2 - (graphLayoutData.width! * scale) / 2,
+                  translateY: parent.height / 2 - (graphLayoutData.height! * scale) / 2,
                   skewX: 0,
                   skewY: 0,
                 }}
@@ -179,11 +161,7 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
               >
                 {(zoom) => (
                   <div className="relative" ref={screenshotRef}>
-                    <svg
-                      id="flow-diagram"
-                      width={parent.width}
-                      height={parent.height}
-                    >
+                    <svg id="flow-diagram" width={parent.width} height={parent.height}>
                       <defs>
                         <EncoreArrowHeadSVG id="encore-arrow" fill="#333" />
                       </defs>
@@ -210,10 +188,7 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
                       />
 
                       {/* Drawable area */}
-                      <Group
-                        transform={zoom.toString()}
-                        className="select-none"
-                      >
+                      <Group transform={zoom.toString()} className="select-none">
                         {graphLayoutData.edges.map((edge) => (
                           <Group key={edge.id} className="edge-group">
                             <EdgeSVG
@@ -221,10 +196,7 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
                               activeNodeId={activeNode?.id || null}
                               isInitialRender={isInitialRender}
                             />
-                            <EdgeLabelSVG
-                              edge={edge}
-                              activeNodeId={activeNode?.id || null}
-                            />
+                            <EdgeLabelSVG edge={edge} activeNodeId={activeNode?.id || null} />
                           </Group>
                         ))}
                         {graphLayoutData.nodes.map((node) => {
@@ -269,19 +241,14 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
             : icons.camera("h-6 w-6")}
         </Button>
       </div>
-      <a
-        target="_blank"
-        href="https://encoredev.slack.com/app_redirect?channel=CQFNUESN9"
-      >
+      <a target="_blank" href="https://encoredev.slack.com/app_redirect?channel=CQFNUESN9">
         <p
           className="absolute left-2 bottom-2 p-2 text-sm font-semibold"
           style={{ background: "#EEEEE1" }}
         >
           Want to see more?
           <br />
-          <span className="font-normal underline">
-            Please share your feedback and ideas
-          </span>
+          <span className="font-normal underline">Please share your feedback and ideas</span>
         </p>
       </a>
     </div>

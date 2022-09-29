@@ -83,10 +83,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           {icon("h-5 w-5 mr-2 inline-block", type)}
           {svcName}.{rpcName}
           {call && (
-            <button
-              className="focus:outline-none"
-              onClick={() => props.onStackTrace(call.stack)}
-            >
+            <button className="focus:outline-none" onClick={() => props.onStackTrace(call.stack)}>
               {icons.stackTrace("m-1 h-4 w-auto")}
             </button>
           )}
@@ -101,9 +98,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           <div className="body-sm flex items-center">
             <div>{icons.clock("h-5 w-auto")}</div>
             <span className="mx-1 font-semibold">
-              {req.end_time
-                ? latencyStr(req.end_time - req.start_time)
-                : "Unknown"}
+              {req.end_time ? latencyStr(req.end_time - req.start_time) : "Unknown"}
             </span>
             Duration
           </div>
@@ -116,41 +111,29 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
 
           <div className="body-sm flex items-center">
             <div>{icons.database("h-5 w-auto")}</div>
-            <span className="text-gray-800 mx-1 font-semibold">
-              {numQueries}
-            </span>
+            <span className="text-gray-800 mx-1 font-semibold">{numQueries}</span>
             DB Quer{numQueries !== 1 ? "ies" : "y"}
           </div>
 
           <div className="body-sm flex items-center">
             <div>{icons.arrowsExpand("h-5 w-auto")}</div>
-            <span className="text-gray-800 mx-1 font-semibold">
-              {publishedMessages.length}
-            </span>
+            <span className="text-gray-800 mx-1 font-semibold">{publishedMessages.length}</span>
             Publish{publishedMessages.length !== 1 ? "es" : ""}
           </div>
 
           <div
-            className={`body-sm flex items-center ${
-              logs.length ? "cursor-pointer" : ""
-            }`}
+            className={`body-sm flex items-center ${logs.length ? "cursor-pointer" : ""}`}
             onClick={() => scrollToRef(logsRef)}
           >
             <div>{icons.menuAlt2("h-5 w-auto")}</div>
-            <span className="text-gray-800 mx-1 font-semibold">
-              {logs.length}
-            </span>
+            <span className="text-gray-800 mx-1 font-semibold">{logs.length}</span>
             Log Line{logs.length !== 1 ? "s" : ""}
           </div>
         </div>
 
         <div className="h-full overflow-auto">
           <div className="mt-6">
-            <EventMap
-              trace={props.trace}
-              req={req}
-              onStackTrace={props.onStackTrace}
-            />
+            <EventMap trace={props.trace} req={req} onStackTrace={props.onStackTrace} />
           </div>
 
           {req.type === "AUTH" ? (
@@ -187,27 +170,21 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
                 <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                   Message ID
                 </h4>
-                <div className="text-gray-700 text-sm">
-                  {req.msg_id ?? "<unknown>"}
-                </div>
+                <div className="text-gray-700 text-sm">{req.msg_id ?? "<unknown>"}</div>
               </div>
               <div className="grid grid-cols-2">
                 <div className="mt-6">
                   <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                     Delivery Attempt
                   </h4>
-                  <div className="text-gray-700 text-sm">
-                    {req.attempt ?? "<unknown>"}
-                  </div>
+                  <div className="text-gray-700 text-sm">{req.attempt ?? "<unknown>"}</div>
                 </div>
                 <div className="mt-6">
                   <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                     Originally Published
                   </h4>
                   <div className="text-gray-700 text-sm">
-                    {req.published
-                      ? DateTime.fromMillis(req.published).toString()
-                      : "<unknown>"}
+                    {req.published ? DateTime.fromMillis(req.published).toString() : "<unknown>"}
                   </div>
                 </div>
               </div>
@@ -273,9 +250,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
                   {req.outputs.length > 0 ? (
                     renderData(req.outputs)
                   ) : (
-                    <div className="text-gray-700 text-sm">
-                      No response data.
-                    </div>
+                    <div className="text-gray-700 text-sm">No response data.</div>
                   )}
                 </div>
               )}
@@ -288,9 +263,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
                 Logs
               </h4>
               <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
-                {logs.map((log, i) =>
-                  renderLog(tr, log, i, props.onStackTrace)
-                )}
+                {logs.map((log, i) => renderLog(tr, log, i, props.onStackTrace))}
               </pre>
             </div>
           )}
@@ -344,9 +317,7 @@ const EventMap: FunctionComponent<{
     }
   }
 
-  const lines = gnums
-    .map((n) => gmap[n])
-    .filter((g) => g.events.length > 0 || g.goid === req.goid);
+  const lines = gnums.map((n) => gmap[n]).filter((g) => g.events.length > 0 || g.goid === req.goid);
   return (
     <div>
       <div className="body-xs text-gray-400 mb-1 flex items-center">
@@ -412,15 +383,14 @@ const GoroutineDetail: FunctionComponent<{
     el.style.transform = `translateX(calc(-100% + ${gel.offsetLeft}px + ${spanEl.offsetLeft}px))`;
   };
 
-  const barEvents: (DBQuery | RPCCall | HTTPCall | PubSubPublish | CacheOp)[] =
-    g.events.filter(
-      (e) =>
-        e.type === "DBQuery" ||
-        e.type === "RPCCall" ||
-        e.type === "HTTPCall" ||
-        e.type === "PubSubPublish" ||
-        e.type === "CacheOp"
-    ) as any;
+  const barEvents: (DBQuery | RPCCall | HTTPCall | PubSubPublish | CacheOp)[] = g.events.filter(
+    (e) =>
+      e.type === "DBQuery" ||
+      e.type === "RPCCall" ||
+      e.type === "HTTPCall" ||
+      e.type === "PubSubPublish" ||
+      e.type === "CacheOp"
+  ) as any;
 
   return (
     <>
@@ -573,8 +543,7 @@ const GoroutineDetail: FunctionComponent<{
         className="absolute z-40 w-full max-w-md pr-2"
         style={{
           width: "500px",
-          paddingRight:
-            "10px" /* extra padding to make it easier to hover into the tooltip */,
+          paddingRight: "10px" /* extra padding to make it easier to hover into the tooltip */,
         }}
         onMouseEnter={() => setTooltipOver(true)}
         onMouseLeave={() => setTooltipOver(false)}
@@ -597,11 +566,7 @@ const GoroutineDetail: FunctionComponent<{
                   onStackTrace={props.onStackTrace}
                 />
               ) : hoverObj.type === "HTTPCall" ? (
-                <HTTPCallTooltip
-                  call={hoverObj as HTTPCall}
-                  req={req}
-                  trace={props.trace}
-                />
+                <HTTPCallTooltip call={hoverObj as HTTPCall} req={req} trace={props.trace} />
               ) : hoverObj.type === "PubSubPublish" ? (
                 <PubsubPublishTooltip
                   publish={hoverObj}
@@ -634,9 +599,7 @@ const PubsubPublishTooltip: FunctionComponent<{
         {icons.arrowsExpand("h-8 w-auto text-gray-400 mr-2")}
         Publish: {publish.topic}
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
-          {publish.end_time
-            ? latencyStr(publish.end_time - publish.start_time)
-            : "Unknown"}
+          {publish.end_time ? latencyStr(publish.end_time - publish.start_time) : "Unknown"}
           <button
             className="-mr-1 focus:outline-none"
             onClick={() => props.onStackTrace(publish.stack)}
@@ -650,9 +613,7 @@ const PubsubPublishTooltip: FunctionComponent<{
         <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
           Message ID
         </h4>
-        <div className="text-gray-700 text-sm">
-          {publish.message_id ?? <i>Not Sent</i>}
-        </div>
+        <div className="text-gray-700 text-sm">{publish.message_id ?? <i>Not Sent</i>}</div>
       </div>
 
       <div className="mt-4">
@@ -774,10 +735,7 @@ const DBQueryTooltip: FunctionComponent<{
         DB Query
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
           {q.end_time ? latencyStr(q.end_time - q.start_time) : "Unknown"}
-          <button
-            className="-mr-1 focus:outline-none"
-            onClick={() => props.onStackTrace(q.stack)}
-          >
+          <button className="-mr-1 focus:outline-none" onClick={() => props.onStackTrace(q.stack)}>
             {icons.stackTrace("m-1 h-4 w-auto")}
           </button>
         </div>
@@ -832,10 +790,7 @@ const RPCCallTooltip: FunctionComponent<{
         )}
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
           {c.end_time ? latencyStr(c.end_time - c.start_time) : "Unknown"}
-          <button
-            className="-mr-1 focus:outline-none"
-            onClick={() => props.onStackTrace(c.stack)}
-          >
+          <button className="-mr-1 focus:outline-none" onClick={() => props.onStackTrace(c.stack)}>
             {icons.stackTrace("m-1 h-4 w-auto")}
           </button>
         </div>
@@ -900,9 +855,7 @@ const HTTPCallTooltip: FunctionComponent<{
         HTTP {call.method} {call.host}
         {call.path}
         <div className="text-gray-500 ml-auto flex items-center text-sm font-normal">
-          {call.end_time
-            ? latencyStr(call.end_time - call.start_time)
-            : "Unknown"}
+          {call.end_time ? latencyStr(call.end_time - call.start_time) : "Unknown"}
         </div>
       </h3>
 
@@ -946,26 +899,21 @@ const HTTPCallTooltip: FunctionComponent<{
         <div className="text-gray-600 inline-grid grid-cols-2 text-xs">
           {m.conn_reused ? (
             <>
-              <span>Reused Connection:</span>{" "}
-              <span className="text-right">Yes</span>
+              <span>Reused Connection:</span> <span className="text-right">Yes</span>
             </>
           ) : (
             <>
               {m.dns_done && (
                 <>
                   <span>DNS Lookup:</span>{" "}
-                  <span className="text-right">
-                    {latencyStr(m.dns_done - call.start_time)}
-                  </span>
+                  <span className="text-right">{latencyStr(m.dns_done - call.start_time)}</span>
                 </>
               )}
               {m.tls_handshake_done && (
                 <>
                   <span>TLS Handshake:</span>{" "}
                   <span className="text-right">
-                    {latencyStr(
-                      m.tls_handshake_done - (m.dns_done ?? call.start_time)
-                    )}
+                    {latencyStr(m.tls_handshake_done - (m.dns_done ?? call.start_time))}
                   </span>
                 </>
               )}
@@ -976,8 +924,7 @@ const HTTPCallTooltip: FunctionComponent<{
               <span>Wrote Request:</span>{" "}
               <span className="text-right">
                 {latencyStr(
-                  m.wrote_request -
-                    (m.tls_handshake_done ?? m.got_conn ?? call.start_time)
+                  m.wrote_request - (m.tls_handshake_done ?? m.got_conn ?? call.start_time)
                 )}
               </span>
             </>
@@ -986,10 +933,7 @@ const HTTPCallTooltip: FunctionComponent<{
             <>
               <span>Response Start:</span>{" "}
               <span className="text-right">
-                {latencyStr(
-                  m.first_response -
-                    (m.wrote_headers ?? m.got_conn ?? call.start_time)
-                )}
+                {latencyStr(m.first_response - (m.wrote_headers ?? m.got_conn ?? call.start_time))}
               </span>
             </>
           )}
@@ -1033,11 +977,7 @@ const renderData = (
   );
 };
 
-const renderRequestPayload = (
-  tr: Trace,
-  req: Request,
-  data: Base64EncodedBytes[]
-) => {
+const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[]) => {
   const raw = data.map((e) => decodeBase64(e));
   const svc = tr.meta.svcs.find((s) => s.name === req.svc_name);
   const rpc = svc?.rpcs.find((r) => r.name === req.rpc_name);
@@ -1067,9 +1007,7 @@ const renderRequestPayload = (
       ))}
       {payload !== undefined && (
         <div>
-          {pathParams.length > 0 && (
-            <span className="text-gray-400">payload: </span>
-          )}
+          {pathParams.length > 0 && <span className="text-gray-400">payload: </span>}
           <CM
             key={payload}
             cfg={{
@@ -1086,12 +1024,7 @@ const renderRequestPayload = (
   );
 };
 
-const renderLog = (
-  tr: Trace,
-  log: LogMessage,
-  key: any,
-  onStackTrace: (s: Stack) => void
-) => {
+const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack) => void) => {
   let dt = timeToDate(tr.date)!;
   const ms = (log.time - tr.start_time) / 1000;
   dt = dt.plus(Duration.fromMillis(ms));
@@ -1105,10 +1038,7 @@ const renderLog = (
 
   return (
     <div key={key} className="flex items-center gap-x-1.5">
-      <button
-        className="-ml-2 -mr-1 focus:outline-none"
-        onClick={() => onStackTrace(log.stack)}
-      >
+      <button className="-ml-2 -mr-1 focus:outline-none" onClick={() => onStackTrace(log.stack)}>
         {icons.stackTrace("m-1 h-4 w-auto")}
       </button>
       <span className="text-gray-400">{dt.toFormat("HH:mm:ss.SSS")}</span>

@@ -25,9 +25,7 @@ const useDownloadDiagram = (ref: React.RefObject<HTMLDivElement>) => {
 
 export default useDownloadDiagram;
 
-const watermarkCanvas = (
-  canvas: HTMLCanvasElement
-): Promise<HTMLCanvasElement> => {
+const watermarkCanvas = (canvas: HTMLCanvasElement): Promise<HTMLCanvasElement> => {
   return new Promise((resolve) => {
     const context = canvas.getContext("2d");
     const encoreLockupLogoSvg = `

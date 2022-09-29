@@ -6,9 +6,7 @@ import encorePathImg from "../encore-patch-beginning.png";
 
 const AppList: FunctionComponent = (props) => {
   const conn = useConn();
-  const [apps, setApps] = useState<{ id: string; name: string }[] | undefined>(
-    undefined
-  );
+  const [apps, setApps] = useState<{ id: string; name: string }[] | undefined>(undefined);
 
   useEffect(() => {
     let ignore = false;
@@ -35,9 +33,7 @@ const AppList: FunctionComponent = (props) => {
       <div className="relative -mt-[100px] flex h-full w-full min-w-0 flex-col justify-center">
         <section className="flex flex-row justify-center">
           <div className="mr-0 flex-col px-4 sm:mr-24 sm:px-6">
-            <h1 className="font-sans text-lead font-normal">
-              Your applications
-            </h1>
+            <h1 className="font-sans text-lead font-normal">Your applications</h1>
 
             <ol className="my-10 list-decimal space-y-2 list-brandient brandient-1">
               {apps !== undefined ? (

@@ -76,6 +76,6 @@ describe("Combobox", () => {
     const input = screen.getByTestId("combobox-input") as HTMLInputElement;
     await userEvent.type(input, "si");
 
-    expect(getByTextContent('Simon')).toBeInTheDocument();
+    expect(getByTextContent("Simon")).toBeInTheDocument();
   });
 });

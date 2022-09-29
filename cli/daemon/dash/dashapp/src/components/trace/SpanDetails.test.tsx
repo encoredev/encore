@@ -38,8 +38,7 @@ describe("SpanDetails", () => {
             call_loc: 0,
             start_time: 4041,
             end_time: 816712,
-            query:
-              "U0VMRUNUIGtleSwgdmFsdWUgRlJPTSAia2V5X3ZhbHVlcyIgV0hFUkUga2V5PSQx",
+            query: "U0VMRUNUIGtleSwgdmFsdWUgRlJPTSAia2V5X3ZhbHVlcyIgV0hFUkUga2V5PSQx",
             html_query:
               "PHByZSB0YWJpbmRleD0iMCIgc3R5bGU9ImJhY2tncm91bmQtY29sb3I6I2ZmZjsiPjxjb2RlPjxzcGFuIHN0eWxlPSJkaXNwbGF5OmZsZXg7Ij48c3Bhbj48c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+U0VMRUNUPC9zcGFuPiA8c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+a2V5PC9zcGFuPiwgPHNwYW4gc3R5bGU9ImNvbG9yOiMwMGYiPnZhbHVlPC9zcGFuPiA8c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+RlJPTTwvc3Bhbj4gPHNwYW4gc3R5bGU9ImNvbG9yOiNhMzE1MTUiPjwvc3Bhbj48c3BhbiBzdHlsZT0iY29sb3I6I2EzMTUxNSI+JiMzNDs8L3NwYW4+PHNwYW4gc3R5bGU9ImNvbG9yOiNhMzE1MTUiPmtleV92YWx1ZXM8L3NwYW4+PHNwYW4gc3R5bGU9ImNvbG9yOiNhMzE1MTUiPiYjMzQ7PC9zcGFuPiA8c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+V0hFUkU8L3NwYW4+IDxzcGFuIHN0eWxlPSJjb2xvcjojMDBmIj5rZXk8L3NwYW4+PSQxPC9zcGFuPjwvc3Bhbj48L2NvZGU+PC9wcmU+",
             err: null,
@@ -66,8 +65,7 @@ describe("SpanDetails", () => {
           rpc_def: {
             service_name: "user",
             rpc_name: "Read",
-            context:
-              "func Read(ctx context.Context, key string) (*KeyValuePair, error)",
+            context: "func Read(ctx context.Context, key string) (*KeyValuePair, error)",
           },
         },
       },
@@ -103,8 +101,7 @@ describe("SpanDetails", () => {
           call_loc: 0,
           start_time: 4041,
           end_time: 816712,
-          query:
-            "U0VMRUNUIGtleSwgdmFsdWUgRlJPTSAia2V5X3ZhbHVlcyIgV0hFUkUga2V5PSQx",
+          query: "U0VMRUNUIGtleSwgdmFsdWUgRlJPTSAia2V5X3ZhbHVlcyIgV0hFUkUga2V5PSQx",
           html_query:
             "PHByZSB0YWJpbmRleD0iMCIgc3R5bGU9ImJhY2tncm91bmQtY29sb3I6I2ZmZjsiPjxjb2RlPjxzcGFuIHN0eWxlPSJkaXNwbGF5OmZsZXg7Ij48c3Bhbj48c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+U0VMRUNUPC9zcGFuPiA8c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+a2V5PC9zcGFuPiwgPHNwYW4gc3R5bGU9ImNvbG9yOiMwMGYiPnZhbHVlPC9zcGFuPiA8c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+RlJPTTwvc3Bhbj4gPHNwYW4gc3R5bGU9ImNvbG9yOiNhMzE1MTUiPjwvc3Bhbj48c3BhbiBzdHlsZT0iY29sb3I6I2EzMTUxNSI+JiMzNDs8L3NwYW4+PHNwYW4gc3R5bGU9ImNvbG9yOiNhMzE1MTUiPmtleV92YWx1ZXM8L3NwYW4+PHNwYW4gc3R5bGU9ImNvbG9yOiNhMzE1MTUiPiYjMzQ7PC9zcGFuPiA8c3BhbiBzdHlsZT0iY29sb3I6IzAwZiI+V0hFUkU8L3NwYW4+IDxzcGFuIHN0eWxlPSJjb2xvcjojMDBmIj5rZXk8L3NwYW4+PSQxPC9zcGFuPjwvc3Bhbj48L2NvZGU+PC9wcmU+",
           err: null,
@@ -116,13 +113,7 @@ describe("SpanDetails", () => {
       children: [],
     };
 
-    render(
-      <SpanDetail
-        trace={trace as any}
-        req={req as any}
-        onStackTrace={() => {}}
-      />
-    );
+    render(<SpanDetail trace={trace as any} req={req as any} onStackTrace={() => {}} />);
 
     const traceBar = screen.getByTestId("ev-4922198311992459089-1-0");
     await userEvent.hover(traceBar);
@@ -131,9 +122,7 @@ describe("SpanDetails", () => {
       const tooltipEl = screen.getByTestId("trace-tooltip");
       const divEl = tooltipEl.querySelector(".CodeMirror.cm-s-encore");
 
-      expect(divEl!.textContent).toEqual(
-        'SELECT key, value FROM "key_values" WHERE key=$1'
-      );
+      expect(divEl!.textContent).toEqual('SELECT key, value FROM "key_values" WHERE key=$1');
     });
   });
 });

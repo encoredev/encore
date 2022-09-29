@@ -24,13 +24,11 @@ export default class AppAPI extends React.Component<Props, State> {
 
   componentDidMount() {
     this.props.conn.on("notification", this.onNotification);
-    this.props.conn
-      .request("status", { appID: this.props.appID })
-      .then((status: any) => {
-        if (status.meta) {
-          this.setState({ meta: status.meta });
-        }
-      });
+    this.props.conn.request("status", { appID: this.props.appID }).then((status: any) => {
+      if (status.meta) {
+        this.setState({ meta: status.meta });
+      }
+    });
   }
 
   componentWillUnmount() {
@@ -74,9 +72,7 @@ export default class AppAPI extends React.Component<Props, State> {
           >
             <APINav meta={meta} />
           </div>
-          <div
-            className={`flex h-full-minus-nav min-w-0 flex-1 flex-col overflow-auto`}
-          >
+          <div className={`flex h-full-minus-nav min-w-0 flex-1 flex-col overflow-auto`}>
             <div className="min-h-0 flex-grow rounded-lg p-4">
               {meta.svcs.map((svc, i) => {
                 const rootPkg = svcPkg(svc);
@@ -86,15 +82,11 @@ export default class AppAPI extends React.Component<Props, State> {
                       <h2 className="text-gray-600 font-sans text-3xl leading-10">
                         Service {svc.name}
                       </h2>
-                      {rootPkg.doc && (
-                        <p className="mt-4 mb-6 leading-6">{rootPkg.doc}</p>
-                      )}
+                      {rootPkg.doc && <p className="mt-4 mb-6 leading-6">{rootPkg.doc}</p>}
                     </div>
 
                     {svc.rpcs.map((rpc) => {
-                      const pathParams = rpc.path.segments.filter(
-                        (p) => p.type !== "LITERAL"
-                      );
+                      const pathParams = rpc.path.segments.filter((p) => p.type !== "LITERAL");
 
                       let defaultMethod = rpc.http_methods[0];
                       if (defaultMethod === "*") {
@@ -119,9 +111,7 @@ export default class AppAPI extends React.Component<Props, State> {
                                 id={svc.name + "." + rpc.name}
                                 className="text-gray-700 flex min-w-0 items-center font-sans text-2xl leading-10"
                               >
-                                <span className="flex-shrink truncate">
-                                  func {rpc.name}{" "}
-                                </span>
+                                <span className="flex-shrink truncate">func {rpc.name} </span>
                                 {rpc.access_type === "PUBLIC" ? (
                                   <span
                                     className="lead-xs ml-4 inline-flex flex-none items-center rounded bg-codegreen px-2 py-1.5 leading-none text-black"
@@ -145,16 +135,13 @@ export default class AppAPI extends React.Component<Props, State> {
                                   </span>
                                 )}
                               </h3>
-                              {rpc.doc && (
-                                <p className="mb-6 text-xs">{rpc.doc}</p>
-                              )}
+                              {rpc.doc && <p className="mb-6 text-xs">{rpc.doc}</p>}
 
                               {rpc.proto === "RAW" ? (
                                 <div className="mt-4">
                                   <div className="text-gray-900 flex text-sm leading-6">
-                                    This API processes unstructured HTTP
-                                    requests and therefore has no explicit
-                                    schema.
+                                    This API processes unstructured HTTP requests and therefore has
+                                    no explicit schema.
                                   </div>
                                 </div>
                               ) : (
@@ -188,9 +175,7 @@ export default class AppAPI extends React.Component<Props, State> {
                                           dialect="table"
                                         />
                                       ) : (
-                                        <div className="text-gray-400 text-sm">
-                                          No parameters.
-                                        </div>
+                                        <div className="text-gray-400 text-sm">No parameters.</div>
                                       )}
                                     </div>
                                   )}
@@ -209,9 +194,7 @@ export default class AppAPI extends React.Component<Props, State> {
                                         dialect="table"
                                       />
                                     ) : (
-                                      <div className="text-gray-400 text-sm">
-                                        No parameters.
-                                      </div>
+                                      <div className="text-gray-400 text-sm">No parameters.</div>
                                     )}
                                   </div>
 
@@ -230,9 +213,7 @@ export default class AppAPI extends React.Component<Props, State> {
                                         asResponse
                                       />
                                     ) : (
-                                      <div className="text-gray-400 text-sm">
-                                        No response.
-                                      </div>
+                                      <div className="text-gray-400 text-sm">No response.</div>
                                     )}
                                   </div>
                                 </>
@@ -305,7 +286,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
         {tabs.map((t) => (
           <button
             key={t.type}
-            className={`lead-xs focus:outline-none lead-small rounded px-5 py-2 uppercase ${
+            className={`lead-xs lead-small rounded px-5 py-2 uppercase focus:outline-none ${
               selectedTab === t.type
                 ? "bg-black text-white"
                 : "border border-black bg-white text-black"
@@ -327,7 +308,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   <select
                     value={respDialect}
                     onChange={(e) => setRespDialect(e.target.value as Dialect)}
-                    className="form-select focus:outline-none h-full !border-transparent bg-transparent py-0 text-right font-mono text-xs leading-none text-black focus:ring-0"
+                    className="form-select h-full !border-transparent bg-transparent py-0 text-right font-mono text-xs leading-none text-black focus:outline-none focus:ring-0"
                   >
                     <option value="json">JSON</option>
                     <option value="go">Go</option>
@@ -356,7 +337,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
                   <select
                     value={respDialect}
                     onChange={(e) => setRespDialect(e.target.value as Dialect)}
-                    className="form-select focus:outline-none h-full !border-transparent bg-transparent py-0 text-right font-mono text-xs leading-none text-black focus:ring-0"
+                    className="form-select h-full !border-transparent bg-transparent py-0 text-right font-mono text-xs leading-none text-black focus:outline-none focus:ring-0"
                   >
                     <option value="json">JSON</option>
                     <option value="go">Go</option>

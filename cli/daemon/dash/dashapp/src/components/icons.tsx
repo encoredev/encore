@@ -1072,7 +1072,7 @@ export namespace icons {
       />
     </svg>
   );
-  
+
   export const archiveBoxArrowUp: Icon = (cls, title) => (
     <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       {renderTitle(title)}
@@ -1391,7 +1391,7 @@ export namespace icons {
         }
       `}</style>
       <div
-        className={`inline-block ${cls} border-transparent loading ease-linear rounded-full`}
+        className={`inline-block ${cls} loading rounded-full border-transparent ease-linear`}
         style={{ borderWidth, borderTopColor: color }}
       />
     </>

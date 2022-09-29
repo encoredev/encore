@@ -27,15 +27,11 @@ const SvcMenu: FC<{ svc: Service }> = ({ svc }) => {
       <button
         type="button"
         onClick={() => setContracted(!contracted)}
-        className="text-gray-900 hover:text-gray-700 focus:outline-none flex w-full items-center px-2 py-1 text-left transition duration-150 ease-in-out"
+        className="text-gray-900 hover:text-gray-700 flex w-full items-center px-2 py-1 text-left transition duration-150 ease-in-out focus:outline-none"
       >
         <div className="flex flex-grow items-center">
-          <div className="flex-grow font-semibold leading-5 text-white">
-            {svc.name}
-          </div>
-          <div className="flex-shrink-0 text-white text-opacity-70">
-            Service
-          </div>
+          <div className="flex-grow font-semibold leading-5 text-white">{svc.name}</div>
+          <div className="flex-shrink-0 text-white text-opacity-70">Service</div>
         </div>
         {contracted
           ? icons.chevronRight("flex-shrink-0 -mr-1 ml-2 h-3 w-3 opacity-70")
@@ -48,7 +44,7 @@ const SvcMenu: FC<{ svc: Service }> = ({ svc }) => {
             <a
               key={j}
               href={`#${svc.name}.${rpc.name}`}
-              className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:bg-gray-100 focus:text-gray-900 block py-1 pl-4"
+              className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 block py-1 pl-4 focus:outline-none"
             >
               {rpc.name}
             </a>
