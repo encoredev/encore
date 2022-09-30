@@ -92,6 +92,8 @@ func Logout() error {
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	DefaultTokenSource = &TokenSource{}
+	AuthClient = oauth2.NewClient(nil, DefaultTokenSource)
 	return nil
 }
 
