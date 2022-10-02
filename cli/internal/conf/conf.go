@@ -166,6 +166,11 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 		return nil
 	})
 	if err != nil {
+		var re *oauth2.RetrieveError
+		if errors.As(err, re) && re.Response.StatusCode == 422 {
+			// The refresh token is invalid. Log the user out to reset the token.
+			_ = Logout()
+		}
 		return nil, err
 	}
 	return ts.ts.Token()
