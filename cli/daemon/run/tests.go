@@ -20,6 +20,7 @@ import (
 	"encr.dev/cli/internal/version"
 	"encr.dev/compiler"
 	"encr.dev/parser"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
 )
 
@@ -118,16 +119,18 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		}
 	}
 
+	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
+
 	runtimeJSON, err := json.Marshal(&config.Runtime{
 		AppID:         "test",
 		AppSlug:       params.App.PlatformID(),
-		APIBaseURL:    fmt.Sprintf("http://localhost:%d", mgr.RuntimePort),
+		APIBaseURL:    apiBaseURL,
 		DeployID:      fmt.Sprintf("clitest_%s", xid.New()),
 		DeployedAt:    time.Now(),
 		EnvID:         "test",
 		EnvName:       "local",
 		EnvCloud:      string(encore.CloudLocal),
-		EnvType:       string(encore.EnvLocal),
+		EnvType:       string(encore.EnvTest),
 		TraceEndpoint: "http://localhost:" + strconv.Itoa(mgr.RuntimePort) + "/trace",
 		SQLDatabases:  sqlDBs,
 		SQLServers:    sqlServers,
@@ -146,6 +149,12 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		BuildTags:             []string{"encore_local"},
+		Meta: &cueutil.Meta{
+			APIBaseURL: apiBaseURL,
+			EnvName:    "local",
+			EnvType:    cueutil.EnvType_Test,
+			CloudType:  cueutil.CloudType_Local,
+		},
 		Test: &compiler.TestConfig{
 			Env: append(params.Environ,
 				"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),

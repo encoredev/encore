@@ -122,8 +122,8 @@ const (
 	// that only exist while a particular pull request is open.
 	EnvEphemeral EnvironmentType = "ephemeral"
 
-	// EnvLocal represents the local development environment when using 'encore run' or `encore test`.
-	EnvLocal EnvironmentType = "local"
+	// EnvTest represents a running unit test
+	EnvTest EnvironmentType = "test"
 )
 
 // CloudProvider represents the cloud provider this application is running in.

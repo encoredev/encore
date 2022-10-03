@@ -26,6 +26,7 @@ import (
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/golden"
 )
 
@@ -383,7 +384,7 @@ func TestEndToEndWithApp(t *testing.T) {
 				"AppID":      "slug",
 				"APIBaseURL": got["APIBaseURL"],
 				"EnvName":    "local",
-				"EnvType":    "local",
+				"EnvType":    "development",
 			})
 		})
 
@@ -537,7 +538,7 @@ func TestEndToEndWithApp(t *testing.T) {
 				"ReadOnlyMode": true,
 				"PublicKey":    "aGVsbG8gd29ybGQK",
 				"AdminUsers":   []string{"foo", "bar"},
-				"SubKeyCount":  123,
+				"SubKeyCount":  2,
 			})
 		}
 	})
@@ -596,13 +597,23 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 // testBuild is a helper that compiles the app situated at appRoot
 // and cleans up the build dir during test cleanup.
 func testBuild(c *qt.C, appRoot string) *compiler.Result {
+	// Generate use facing code
+	err := compiler.GenUserFacing(appRoot)
+
+	// Then compile the app
 	wd, err := os.Getwd()
 	c.Assert(err, qt.IsNil)
 	runtimePath := filepath.Join(wd, "../../../runtime")
-	build, err := compiler.Build("./testdata/echo", &compiler.Config{
+	build, err := compiler.Build(appRoot, &compiler.Config{
 		EncoreRuntimePath: runtimePath,
 		EncoreGoRoot:      env.EncoreGoRoot(),
-		BuildTags:         []string{"encore_local"},
+		Meta: &cueutil.Meta{
+			APIBaseURL: "http://what?",
+			EnvName:    "end_to_end_test",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
+		BuildTags: []string{"encore_local"},
 	})
 	if err != nil {
 		fmt.Println(err.Error())

@@ -42,6 +42,7 @@ import (
 	"encr.dev/compiler"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -281,6 +282,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 	var build *compiler.Result
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
+		//goland:noinspection HttpUrlsUsage
 		cfg := &compiler.Config{
 			Revision:              parse.Meta.AppRevision,
 			UncommittedChanges:    parse.Meta.UncommittedChanges,
@@ -289,9 +291,15 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
 			EncoreRuntimePath:     env.EncoreRuntimePath(),
 			EncoreGoRoot:          env.EncoreGoRoot(),
-			Parse:                 parse,
-			BuildTags:             []string{"encore_local"},
-			OpTracker:             tracker,
+			Meta: &cueutil.Meta{
+				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
+				EnvName:    "local",
+				EnvType:    cueutil.EnvType_Development,
+				CloudType:  cueutil.CloudType_Local,
+			},
+			Parse:     parse,
+			BuildTags: []string{"encore_local"},
+			OpTracker: tracker,
 		}
 
 		build, err = compiler.Build(r.App.Root(), cfg)
@@ -336,7 +344,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		DBProxyPort:    r.mgr.DBProxyPort,
 		SQLDBCluster:   r.ResourceServers.GetSQLCluster(),
 		NSQDaemon:      r.ResourceServers.GetPubSub(),
-		Redis:        r.ResourceServers.GetRedis(),
+		Redis:          r.ResourceServers.GetRedis(),
 		Secrets:        secrets,
 		ServiceConfigs: build.Configs,
 		Environ:        r.params.Environ,
@@ -593,7 +601,7 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		EnvID:           p.ID,
 		EnvName:         "local",
 		EnvCloud:        string(encore.CloudLocal),
-		EnvType:         string(encore.EnvLocal),
+		EnvType:         string(encore.EnvDevelopment),
 		TraceEndpoint:   "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
 		SQLDatabases:    sqlDBs,
 		SQLServers:      sqlServers,

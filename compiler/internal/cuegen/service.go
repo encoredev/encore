@@ -21,7 +21,7 @@ type service struct {
 	svc            *est.Service
 	file           *ast.File
 	neededImports  map[string]string // map of package path to name
-	topLevelFields []ast.Decl
+	topLevelFields []any
 	fieldLookup    map[string]*ast.Field
 
 	typeUsage *definitionGenerator
@@ -122,6 +122,8 @@ func (s *service) generateCue() error {
 		},
 	})
 
+	s.generateEnvironmentalDefinitions()
+
 	// Add any missing imports
 	if len(s.neededImports) > 0 {
 		// Get an ordered list of the imports
@@ -147,6 +149,22 @@ func (s *service) generateCue() error {
 			Specs: s.file.Imports,
 		})
 	}
+
+	// Now write the top level fields required in the config
+	appConfigStruct := &ast.Field{
+		Label: ast.NewIdent("#Config"),
+		Value: ast.NewStruct(s.topLevelFields...),
+	}
+	appConfigStruct.AddComment(&ast.CommentGroup{
+		List: []*ast.Comment{
+			{Text: "// #Config is the top level configuration for the application and is generated"},
+			{Text: "// from the Go types you've passed into `config.Load[T]()`. Encore uses a definition"},
+			{Text: "// of this struct which is closed, such that the CUE tooling can any typos of field names."},
+			{Text: "// this definition is then immediately inlined, so any fields within it are expected"},
+			{Text: "// as fields at the package level."},
+		},
+	})
+	s.file.Decls = append(s.file.Decls, appConfigStruct, ast.NewIdent("#Config"))
 
 	// Write any declarations we've used multiple times to the file
 	for _, named := range s.typeUsage.NamesWithCountsOver(1) {
@@ -177,9 +195,6 @@ func (s *service) generateCue() error {
 		}
 		s.file.Decls = append(s.file.Decls, field)
 	}
-
-	// Now write the top level fields required in the config
-	s.file.Decls = append(s.file.Decls, s.topLevelFields...)
 
 	return nil
 }
@@ -349,4 +364,92 @@ func (s *service) builtinToCue(builtin schema.Builtin) ast.Expr {
 	default:
 		panic(fmt.Sprintf("unknown builtin: %s", builtin))
 	}
+}
+
+func (s *service) generateEnvironmentalDefinitions() {
+	appMetadata := createStruct(
+		"#Meta",
+		createTaggedDefinition(
+			"APIBaseURL", "APIBaseURL",
+			"The base URL which can be used to call the API of this running application.",
+			ast.NewIdent("string"),
+		),
+		createStruct(
+			"Environment",
+			createTaggedDefinition(
+				"Name", "EnvName",
+				"The name of this environment",
+				ast.NewIdent("string"),
+			),
+			createTaggedEnumDefinition(
+				"Type", "EnvType",
+				"The type of environment that the application is running in",
+				"production", "development", "ephemeral", "test",
+			),
+			createTaggedEnumDefinition(
+				"Cloud", "CloudType",
+				"The cloud provider that the application is running in",
+				"aws", "azure", "gcp", "encore", "local",
+			),
+		),
+	)
+
+	appMetadata.AddComment(&ast.CommentGroup{
+		List: []*ast.Comment{
+			{Text: "// #Meta contains metadata about the running Encore application."},
+			{Text: "// The values in this struct will be injected by Encore upon deployment and can be"},
+			{Text: "// referenced from other config values for example when configuring a callback URL:"},
+			{Text: "//    CallbackURL: \"\\(#Meta.APIBaseURL)/webhooks.Handle`\""},
+		},
+	})
+
+	s.file.Decls = append(s.file.Decls, appMetadata)
+}
+
+func createStruct(name string, fields ...any) *ast.Field {
+	return &ast.Field{
+		Label: ast.NewIdent(name),
+		Value: ast.NewStruct(fields...),
+	}
+}
+
+func createTaggedEnumDefinition(name string, tagName string, comment string, options ...string) *ast.Field {
+	set := make([]ast.Expr, len(options))
+	for i, key := range options {
+		set[i] = ast.NewString(key)
+	}
+
+	return createTaggedDefinition(
+		name, tagName,
+		comment,
+		ast.NewBinExpr(token.OR, set...),
+	)
+}
+
+func createTaggedDefinition(name string, tagName string, comment string, value ast.Expr) *ast.Field {
+	field := &ast.Field{
+		Label: ast.NewIdent(name),
+		Value: value,
+		Attrs: []*ast.Attribute{
+			{
+				At: token.NoPos,
+				Text: fmt.Sprintf(
+					"@tag(%s)",
+					tagName,
+				),
+			},
+		},
+	}
+
+	field.AddComment(&ast.CommentGroup{
+		Position: 4,
+		List: []*ast.Comment{
+			{
+				Slash: token.NoPos,
+				Text:  fmt.Sprintf("// %s", comment),
+			},
+		},
+	})
+
+	return field
 }

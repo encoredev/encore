@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"encr.dev/compiler/internal/cueutil"
 	"encr.dev/parser/est"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/vfs"
 )
@@ -38,7 +38,7 @@ func (b *builder) pickupConfigFiles() error {
 
 // computeConfigForService takes a given service and computes the configuration needed for it
 func (b *builder) computeConfigForService(service *est.Service) error {
-	cfg, err := cueutil.LoadFromFS(b.configFiles, service.Root.RelPath)
+	cfg, err := cueutil.LoadFromFS(b.configFiles, service.Root.RelPath, b.cfg.Meta)
 	if err != nil {
 		return err
 	}

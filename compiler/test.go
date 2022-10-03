@@ -39,6 +39,7 @@ func Test(ctx context.Context, appRoot string, cfg *Config) error {
 		cfg:        cfg,
 		appRoot:    appRoot,
 		forTesting: true,
+		configs:    make(map[string]string),
 	}
 	return b.Test(ctx)
 }
@@ -69,6 +70,7 @@ func (b *builder) Test(ctx context.Context) (err error) {
 		b.writePackages,
 		b.writeHandlers,
 		b.writeTestMains,
+		b.writeConfigUnmarshallers,
 		b.writeEtypePkg,
 	} {
 		if err := fn(); err != nil {

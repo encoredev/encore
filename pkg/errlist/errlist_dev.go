@@ -19,7 +19,7 @@ var projectSourcePath = getProjectSrcPath()
 // addErrToList adds a parse error to the list, but also captures
 // the position within our parse that the error originated.
 func addErrToList(list *scanner.ErrorList, position token.Position, msg string) {
-	list.Add(position, msg+getStack())
+	list.Add(position, msg+GetStack())
 }
 
 // getRepoPath returns the path to this repo on the local system.
@@ -36,8 +36,8 @@ func getProjectSrcPath() string {
 	return fmt.Sprintf("%s%c", encoreProjectPath, os.PathSeparator)
 }
 
-// getStack returns a human readable stack trace.
-func getStack() string {
+// GetStack returns a human readable stack trace.
+func GetStack() string {
 	ret := make([]uintptr, 100)
 
 	index := runtime.Callers(1, ret)

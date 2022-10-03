@@ -7,18 +7,18 @@
 //
 // For more information about this file, see:
 // https://encore.dev/docs/develop/config
-package svc
+package echo
 
 // #Meta contains metadata about the running Encore application.
 // The values in this struct will be injected by Encore upon deployment and can be
 // referenced from other config values for example when configuring a callback URL:
 //    CallbackURL: "\(#Meta.APIBaseURL)/webhooks.Handle`"
 #Meta: {
-	APIBaseURL: string @tag(ApiURL) // The base URL which can be used to call the API of this running application.
+	APIBaseURL: string @tag(APIBaseURL) // The base URL which can be used to call the API of this running application.
 	Environment: {
-		Name:  string                                                        @tag(EnvName)   // The name of this environment
-		Type:  "production" | "development" | "ephemeral" | "local" | "test" @tag(EnvType)   // The type of environment that the application is running in
-		Cloud: "aws" | "azure" | "gcp" | "encore" | "local" | "test"         @tag(CloudType) // The cloud provider that the application is running in
+		Name:  string                                              @tag(EnvName)   // The name of this environment
+		Type:  "production" | "development" | "ephemeral" | "test" @tag(EnvType)   // The type of environment that the application is running in
+		Cloud: "aws" | "azure" | "gcp" | "encore" | "local"        @tag(CloudType) // The cloud provider that the application is running in
 	}
 }
 
@@ -28,10 +28,9 @@ package svc
 // this definition is then immediately inlined, so any fields within it are expected
 // as fields at the package level.
 #Config: {
-	// The options for the HTTP server
-	HTTP: {
-		Enabled: bool   // Is this option enabled?
-		Port:    uint32 // What port should we run on?
-	}
+	ReadOnlyMode: bool
+	PublicKey:    bytes
+	AdminUsers: [...string]
+	SubConfig: SubKey: MaxCount: uint
 }
 #Config
