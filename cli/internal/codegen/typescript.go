@@ -972,9 +972,9 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		ts.WriteString(ts.builtinType(typ.Builtin))
 
 	case *schema.Type_Pointer:
-		ts.WriteString("(")
+		// FIXME(ENC-827): Handle pointers in TypeScript in a way which more technically correct without
+		// making the end user experience of using a generated client worse.
 		ts.writeTyp(ns, typ.Pointer.Base, numIndents)
-		ts.WriteString(" | null)") // Go will encore a Nil pointer as null (unless omitempty is specified, in which case it will be undefined)
 
 	case *schema.Type_Struct:
 		indent := func() {
