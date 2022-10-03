@@ -142,7 +142,7 @@ func main() {
 	{
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuth(client.EchoAuthParams{
+			client.WithAuth(&client.EchoAuthParams{
 				Authorization: "Bearer tokendata",
 			}),
 		)
@@ -181,7 +181,7 @@ func main() {
 	{
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuth(client.EchoAuthParams{
+			client.WithAuth(&client.EchoAuthParams{
 				NewAuth: true,
 				Header:  "102",
 				Query:   []int{42, 100, -50, 10},
@@ -198,7 +198,7 @@ func main() {
 	{
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuth(client.EchoAuthParams{
+			client.WithAuth(&client.EchoAuthParams{
 				Authorization: "Bearer tokendata",
 			}),
 		)
@@ -249,7 +249,7 @@ func main() {
 	{
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuth(client.EchoAuthParams{
+			client.WithAuth(&client.EchoAuthParams{
 				Header: "fail-validation",
 			}),
 		)

@@ -32,7 +32,7 @@ func init() {
 
 func (p *parser) parseConfigLoad(file *est.File, _ *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
 	// Resolve the named struct used for the config type
-	configType := p.resolveParameter("config type", file.Pkg, file, getTypeArguments(callExpr.Fun)[0])
+	configType := p.resolveParameter("config type", file.Pkg, file, getTypeArguments(callExpr.Fun)[0], true)
 	if configType == nil {
 		return nil
 	}

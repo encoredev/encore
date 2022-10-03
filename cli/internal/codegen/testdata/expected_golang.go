@@ -76,26 +76,26 @@ func WithHTTPClient(client HTTPDoer) Option {
 	}
 }
 
-// WithAuthToken allows you to set an authentication token to be used for each request.
-//
-// This token will be sent as a Bearer token in the Authorization header.
-func WithAuthToken(bearerToken string) Option {
+// WithAuth allows you to set the authentication data to be used with each request
+func WithAuth(auth *AuthenticationAuthData) Option {
 	return func(base *baseClient) error {
-		base.authGenerator = func(_ context.Context) (string, error) {
-			return bearerToken, nil
+		base.authGenerator = func(_ context.Context) (*AuthenticationAuthData, error) {
+			return auth, nil
 		}
 		return nil
 	}
 }
 
-// WithAuthFunc allows you to pass a function which is called for each request to return an authentication token to be used for each request.
-//
-// This token will be sent as a Bearer token in the Authorization header.
-func WithAuthFunc(authGenerator func(ctx context.Context) (string, error)) Option {
+// WithAuthFunc allows you to pass a function which is called for each request to return the authentication data to be used with each request
+func WithAuthFunc(authGenerator func(ctx context.Context) (*AuthenticationAuthData, error)) Option {
 	return func(base *baseClient) error {
 		base.authGenerator = authGenerator
 		return nil
 	}
+}
+
+type AuthenticationAuthData struct {
+	APIKey string `header:"X-API-Key"`
 }
 
 type AuthenticationUser struct {
@@ -110,15 +110,15 @@ type ProductsCreateProductRequest struct {
 }
 
 type ProductsProduct struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	Description string             `json:"description,omitempty"`
-	CreatedAt   time.Time          `json:"created_at"`
-	CreatedBy   AuthenticationUser `json:"created_by"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *AuthenticationUser `json:"created_by"`
 }
 
 type ProductsProductListing struct {
-	Products     []ProductsProduct `json:"products"`
+	Products     []*ProductsProduct `json:"products"`
 	PreviousPage struct {
 		Cursor string `json:"cursor,omitempty"`
 		Exists bool   `json:"exists"`
@@ -446,10 +446,10 @@ type HTTPDoer interface {
 
 // baseClient holds all the information we need to make requests to an Encore application
 type baseClient struct {
-	authGenerator func(ctx context.Context) (string, error) // The function which will add the authentication data to the requests
-	httpClient    HTTPDoer                                  // The HTTP client which will be used for all API requests
-	baseURL       *url.URL                                  // The base URL which API requests will be made against
-	userAgent     string                                    // What user agent we will use in the API requests
+	authGenerator func(ctx context.Context) (*AuthenticationAuthData, error) // The function which will add the authentication data to the requests
+	httpClient    HTTPDoer                                                   // The HTTP client which will be used for all API requests
+	baseURL       *url.URL                                                   // The base URL which API requests will be made against
+	userAgent     string                                                     // What user agent we will use in the API requests
 }
 
 // Do sends the req to the Encore application adding the authorization token as required.
@@ -459,10 +459,18 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 
 	// If a authorization data generator is present, call it and add the returned token to the request
 	if b.authGenerator != nil {
-		if token, err := b.authGenerator(req.Context()); err != nil {
+		if authData, err := b.authGenerator(req.Context()); err != nil {
 			return nil, fmt.Errorf("unable to create authorization token for api request: %w", err)
-		} else if token != "" {
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		} else if authData != nil {
+			authEncoder := &serde{}
+
+			// Add the auth fields to the headers
+			req.Header.Set("x-api-key", authEncoder.FromString(authData.APIKey))
+
+			if authEncoder.LastError != nil {
+				return nil, fmt.Errorf("unable to marshal authentication data: %w", authEncoder.LastError)
+			}
+
 		}
 	}
 

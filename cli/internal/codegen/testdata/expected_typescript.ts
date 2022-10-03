@@ -26,28 +26,12 @@ export default class Client {
 
 
     /**
-     * @deprecated This constructor is deprecated, and you should move to using BaseURL with an Options object
-     */
-    constructor(target: string, token?: string)
-
-    /**
      * Creates a Client for calling the public and authenticated APIs of your Encore application.
      *
      * @param target  The target which the client should be configured to use. See Local and Environment for options.
      * @param options Options for the client
      */
-    constructor(target: BaseURL, options?: ClientOptions)
-    constructor(target: string | BaseURL = "prod", options?: string | ClientOptions) {
-
-        // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
-        if (!target.startsWith("http://") && !target.startsWith("https://")) {
-            target = Environment(target)
-        }
-
-        if (typeof options === "string") {
-            options = { auth: options }
-        }
-
+    constructor(target: BaseURL, options?: ClientOptions) {
         const base = new BaseClient(target, options ?? {})
         this.products = new products.ServiceClient(base)
         this.svc = new svc.ServiceClient(base)
@@ -66,16 +50,18 @@ export interface ClientOptions {
     fetcher?: Fetcher
 
     /**
-     * Allows you to set the auth token to be used for each request
-     * either by passing in a static token string or by passing in a function
-     * which returns the auth token.
-     *
-     * These tokens will be sent as bearer tokens in the Authorization header.
+     * Allows you to set the authentication data to be used for each
+     * request either by passing in a static object or by passing in
+     * a function which returns a new object for each request.
      */
-    auth?: string | AuthDataGenerator
+    auth?: authentication.AuthData | AuthDataGenerator
 }
 
 export namespace authentication {
+    export interface AuthData {
+        APIKey: string
+    }
+
     export interface User {
         id: number
         name: string
@@ -371,7 +357,7 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 }
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => (string | undefined)
+export type AuthDataGenerator = () => (authentication.AuthData | undefined)
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
@@ -422,14 +408,14 @@ class BaseClient {
         init.headers = {...this.headers, ...init.headers}
 
         // If authorization data generator is present, call it and add the returned data to the request
-        let authData: string | undefined
+        let authData: authentication.AuthData | undefined
         if (this.authGenerator) {
             authData = this.authGenerator()
         }
 
         // If we now have authentication data, add it to the request
         if (authData) {
-            init.headers["Authorization"] = "Bearer " + authData
+            init.headers["x-api-key"] = authData.APIKey
         }
 
         // Make the actual request

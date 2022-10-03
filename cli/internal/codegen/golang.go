@@ -227,8 +227,8 @@ Defaults to http.DefaultClient`,
 		if g.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING {
 			funcName = "Auth"
 			paramName = "auth"
-			pointer = Op("&").Id("auth")
-			typ = Op("*").Add(rawType)
+			pointer = Id("auth")
+			typ = rawType
 			comment = "the authentication data to be used with each request"
 		}
 
@@ -796,6 +796,9 @@ func (g *golang) getType(typ *schema.Type) Code {
 			return Any()
 		}
 
+	case *schema.Type_Pointer:
+		return Op("*").Add(g.getType(typ.Pointer.Base))
+
 	case *schema.Type_Struct:
 		fields := make([]Code, 0, len(typ.Struct.Fields))
 
@@ -848,6 +851,10 @@ func (g *golang) getType(typ *schema.Type) Code {
 		typeParam := decl.TypeParams[typ.TypeParameter.ParamIdx]
 
 		return Id(typeParam.Name)
+
+	case *schema.Type_Config:
+		// Config types are invisible outside of the Encore app
+		return g.getType(typ.Config.Elem)
 
 	default:
 		return Any()
@@ -988,9 +995,6 @@ func (g *golang) generateBaseClient(file *File) (err error) {
 	file.Type().Id("baseClient").StructFunc(func(grp *Group) {
 		if g.md.AuthHandler != nil {
 			typ := g.getType(g.md.AuthHandler.Params)
-			if g.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING {
-				typ = Op("*").Add(typ)
-			}
 
 			grp.Id("authGenerator").Func().
 				Params(Id("ctx").Qual("context", "Context")).

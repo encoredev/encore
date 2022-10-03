@@ -72,7 +72,13 @@ func (v *typeRegistry) Visit(typ *schema.Type) {
 			v.Visit(f.Typ)
 		}
 	case *schema.Type_Builtin, *schema.Type_TypeParameter:
-		// do nothing
+	// do nothing
+
+	case *schema.Type_Pointer:
+		v.Visit(t.Pointer.Base)
+
+	case *schema.Type_Config:
+		v.Visit(t.Config.Elem)
 	default:
 		panic(fmt.Sprintf("unhandled type: %+v", reflect.TypeOf(typ.Typ)))
 	}

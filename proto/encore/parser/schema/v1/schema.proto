@@ -17,6 +17,7 @@ message Type {
     Map              map            = 3; // The type is a map
     List             list           = 4; // The type is a slice
     Builtin          builtin        = 5; // The type is one of the base built in types within Go
+    Pointer          pointer        = 8; // The type is a pointer
 
     /* Abstract Types */
     TypeParameterRef type_parameter = 6; // This is placeholder for a unknown type within the declaration block
@@ -123,6 +124,11 @@ message Map {
 // List represents a list type (array or slice)
 message List {
   Type elem = 1; // The type of the elements in the list
+}
+
+// Pointer represents a pointer to a base type
+message Pointer {
+  Type base = 1; // The type of the pointer
 }
 
 // ConfigValue represents a config value wrapper.

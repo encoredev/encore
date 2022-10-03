@@ -172,7 +172,7 @@ func (b *authHandlerBuilder) renderAuthHandlerStructDesc() structCodegen {
 		if b.enc.LegacyTokenFormat {
 			s.String()
 		} else {
-			s.Add(b.schemaTypeToGoType(ah.Params))
+			s.Add(b.schemaTypeToGoType(derefPointer(ah.Params)))
 		}
 	})
 

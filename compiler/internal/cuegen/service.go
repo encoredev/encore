@@ -291,6 +291,10 @@ func (s *service) toCueType(unknownType *schema.Type) (ast.Expr, error) {
 		return ast.NewList(&ast.Ellipsis{Type: listType}), nil
 	case *schema.Type_Builtin:
 		return s.builtinToCue(typ.Builtin), nil
+	case *schema.Type_Pointer:
+		// Pointers are not supported in CUE, so we just convert the
+		// underlying type
+		return s.toCueType(typ.Pointer.Base)
 	case *schema.Type_Config:
 		// The config.Value type is a simple wrapper another type
 		// and from the point of the CUE files, the wrapper is invisible

@@ -163,8 +163,8 @@ func (b *Builder) typeName(param *est.Param, skipPtr bool) *Statement {
 
 func (b *Builder) authDataType() Code {
 	if ah := b.res.App.AuthHandler; ah != nil && ah.AuthData != nil {
-		typName := b.schemaTypeToGoType(ah.AuthData.Type)
-		if ah.AuthData.IsPtr {
+		typName := b.schemaTypeToGoType(derefPointer(ah.AuthData.Type))
+		if ah.AuthData.IsPointer() {
 			// reflect.TypeOf((*T)(nil))
 			return Qual("reflect", "TypeOf").Call(Parens(Op("*").Add(typName)).Call(Nil()))
 		} else {
@@ -185,4 +185,8 @@ func (b *Builder) errorf(format string, args ...interface{}) {
 
 type bailout struct {
 	err error
+}
+
+func (b bailout) String() string {
+	return fmt.Sprintf("bailout(%s)", b.err)
 }
