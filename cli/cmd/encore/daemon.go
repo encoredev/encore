@@ -135,6 +135,16 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 	return daemonpb.NewDaemonClient(cc)
 }
 
+func stopDaemon() {
+	socketPath, err := daemonSockPath()
+	if err != nil {
+		fatal("stopping daemon: ", err)
+	}
+	if _, err := xos.SocketStat(socketPath); err == nil {
+		_ = os.Remove(socketPath)
+	}
+}
+
 func dialDaemon(ctx context.Context, socketPath string) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
