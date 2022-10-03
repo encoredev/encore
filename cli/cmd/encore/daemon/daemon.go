@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed" // for go:embed
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,7 +19,10 @@ import (
 	_ "github.com/mattn/go-sqlite3" // for "sqlite3" driver
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/daemon"
 	"encr.dev/cli/daemon/apps"
@@ -168,9 +172,36 @@ func (d *Daemon) listenDaemonSocket() *net.UnixListener {
 	return ln
 }
 
+func failedPreconditionError(msg, typ, desc string) error {
+	st, err := status.New(codes.FailedPrecondition, msg).WithDetails(
+		&errdetails.PreconditionFailure{
+			Violations: []*errdetails.PreconditionFailure_Violation{
+				{
+					Type:        typ,
+					Description: desc,
+				},
+			},
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+	return st.Err()
+}
+
+func ErrInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	resp, err = handler(ctx, req)
+	if errors.Is(err, conf.ErrInvalidRefreshToken) {
+		return nil, failedPreconditionError("invalid refresh token", "INVALID_REFRESH_TOKEN", "invalid refresh token")
+	} else if errors.Is(err, conf.ErrNotLoggedIn) {
+		return nil, status.Error(codes.Unauthenticated, "not logged in")
+	}
+	return resp, err
+}
+
 func (d *Daemon) serveDaemon() {
 	log.Info().Stringer("addr", d.Daemon.Addr()).Msg("serving daemon")
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(grpc.UnaryInterceptor(ErrInterceptor))
 	daemonpb.RegisterDaemonServer(srv, d.Server)
 	d.exit <- srv.Serve(d.Daemon)
 }
