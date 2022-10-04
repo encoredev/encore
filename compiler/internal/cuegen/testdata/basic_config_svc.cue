@@ -14,11 +14,11 @@ package svc
 // referenced from other config values for example when configuring a callback URL:
 //    CallbackURL: "\(#Meta.APIBaseURL)/webhooks.Handle`"
 #Meta: {
-	APIBaseURL: string @tag(ApiURL) // The base URL which can be used to call the API of this running application.
+	APIBaseURL: string @tag(APIBaseURL) // The base URL which can be used to call the API of this running application.
 	Environment: {
-		Name:  string                                                        @tag(EnvName)   // The name of this environment
-		Type:  "production" | "development" | "ephemeral" | "local" | "test" @tag(EnvType)   // The type of environment that the application is running in
-		Cloud: "aws" | "azure" | "gcp" | "encore" | "local" | "test"         @tag(CloudType) // The cloud provider that the application is running in
+		Name:  string                                              @tag(EnvName)   // The name of this environment
+		Type:  "production" | "development" | "ephemeral" | "test" @tag(EnvType)   // The type of environment that the application is running in
+		Cloud: "aws" | "azure" | "gcp" | "encore" | "local"        @tag(CloudType) // The cloud provider that the application is running in
 	}
 }
 

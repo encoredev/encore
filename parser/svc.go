@@ -556,6 +556,9 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 	// Second param must be string or named type pointing to a struct
 	authInfo, _ := getField(params, 1)
 	paramType := p.resolveType(h.Svc.Root, h.File, authInfo.Type, nil)
+	if pointer := paramType.GetPointer(); pointer != nil {
+		paramType = pointer.Base
+	}
 	switch typ := paramType.Typ.(type) {
 	case *schema.Type_Named:
 		decl := p.decls[typ.Named.Id]
