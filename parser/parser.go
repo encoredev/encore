@@ -602,6 +602,7 @@ func (p *parser) validateApp() {
 	}
 
 	p.validateCacheKeyspacePathConflicts()
+	p.validateConfigTypes()
 }
 
 func (p *parser) validateTypeDoesntUseConfigTypes(pos token.Pos, param *est.Param) {

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"go/ast"
 
 	"encr.dev/parser/est"
@@ -153,5 +154,33 @@ func createBuiltinConfigWrapper(builtIn schema.Builtin) *schema.Type {
 				},
 			},
 		},
+	}
+}
+
+func (p *parser) validateConfigTypes() {
+	// We're looking for nested `config.Value[T]`'s
+	// i.e. `config.Value[config.Value[T]]` and that is now allowed.
+	for _, svc := range p.svcs {
+		for _, load := range svc.ConfigLoads {
+			err := schema.Walk(p.decls, load.ConfigStruct.Type, func(node any) error {
+				switch node := node.(type) {
+				case *schema.ConfigValue:
+					if node.Elem == nil {
+						return errors.New("internal error: config value type is not set")
+					}
+
+					switch elem := node.Elem.Typ.(type) {
+					case *schema.Type_Config:
+						if !node.IsValuesList && !elem.Config.IsValuesList {
+							return errors.New("the type of config.Value[T] cannot be another config.Value[T]")
+						}
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				p.errf(load.FuncCall.Pos(), "%s", err)
+			}
+		}
 	}
 }

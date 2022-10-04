@@ -122,6 +122,13 @@ const (
 	// that only exist while a particular pull request is open.
 	EnvEphemeral EnvironmentType = "ephemeral"
 
+	// EnvLocal represents the local development environment when using 'encore run' or `encore test`.
+	//
+	// Deprecated: EnvLocal is deprecated and Encore will no longer return this value. A locally running environment
+	// can be identified by the combination of EnvDevelopment && CloudLocal. This constant will be removed in a future
+	// version of Encore.
+	EnvLocal EnvironmentType = "local"
+
 	// EnvTest represents a running unit test
 	EnvTest EnvironmentType = "test"
 )

@@ -1,0 +1,23 @@
+! parse
+stderr 'the type of config.Value'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/config"
+)
+
+type Config struct {
+    Name config.Value[config.Value[string]]
+}
+
+var cfg = config.Load[Config]()
+
+
+// encore:api
+func Subscriber1(ctx context.Context) error {
+    return nil
+}
