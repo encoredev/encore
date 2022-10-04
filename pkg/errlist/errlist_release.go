@@ -12,3 +12,7 @@ import (
 func addErrToList(list *scanner.ErrorList, position token.Position, msg string) {
 	list.Add(position, msg)
 }
+
+func GetStack() string {
+	return ""
+}

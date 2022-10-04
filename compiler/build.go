@@ -26,6 +26,7 @@ import (
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
+	"encr.dev/pkg/cueutil"
 )
 
 type Config struct {
@@ -73,6 +74,10 @@ type Config struct {
 
 	// Test is the specific settings for running tests.
 	Test *TestConfig
+
+	// The meta config we pass to CUE when computing the runtime configuration for the services within this
+	// application
+	Meta *cueutil.Meta
 
 	// If Parse is set, the build will skip parsing the app again
 	// and use the information provided.

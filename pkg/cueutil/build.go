@@ -27,7 +27,7 @@ import (
 
 // LoadFromFS takes a given filesystem object and the app-relative path to the service's root package
 // and loads the full configuration needed for that service.
-func LoadFromFS(filesys fs.FS, serviceRelPath string) (cue.Value, error) {
+func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, error) {
 	// Work out of a temporary directory
 	tmpPath, err := os.MkdirTemp("", "encr-cfg-")
 	if err != nil {
@@ -51,6 +51,7 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string) (cue.Value, error) {
 	loaderCfg := &load.Config{
 		Dir:   tmpPath,
 		Tools: true,
+		Tags:  meta.ToTags(),
 	}
 	pkgs := load.Instances(configFilesForService, loaderCfg)
 	for _, pkg := range pkgs {

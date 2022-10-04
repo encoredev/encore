@@ -1,6 +1,13 @@
+import "encoding/base64"
+
 ReadOnlyMode: true
-PublicKey: "aGVsbG8gd29ybGQK" // "hello world" in Base64
-SubConfig: SubKey: MaxCount: 123
+PublicKey: base64.Decode(null, "aGVsbG8gd29ybGQK") // "hello world" in Base64
+
+SubConfig: SubKey: MaxCount: [
+	if #Meta.Environment.Type  == "test"  { 3 },
+	if #Meta.Environment.Cloud == "local" { 2 },
+	1
+][0]
 
 AdminUsers: [
 	"foo",
