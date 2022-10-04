@@ -27,6 +27,11 @@ func init() {
 		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
 	)
 
+	registerResourceReferenceParser(
+		est.ConfigResource,
+		(*parser).parseConfigReference,
+	)
+
 	registerTypeResolver(configImportPath, (*parser).resolveConfigTypes)
 }
 
@@ -71,6 +76,17 @@ func (p *parser) parseConfigLoad(file *est.File, _ *walker.Cursor, ident *ast.Id
 	svc.ConfigLoads = append(svc.ConfigLoads, estNode)
 
 	return estNode
+}
+
+func (p *parser) parseConfigReference(file *est.File, resource est.Resource, cursor *walker.Cursor) {
+	config := resource.(*est.Config)
+	if file.Pkg.Service != config.Svc {
+		p.err(
+			cursor.Node().Pos(),
+			"A config instance can only be referenced from within the service that the call to `config.Load[T]()` was made in.",
+		)
+		return
+	}
 }
 
 func (p *parser) resolveConfigTypes(ident *ast.Ident, typeParameters typeParameterLookup) *schema.Type {

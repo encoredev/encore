@@ -44,16 +44,29 @@ func (r *resourceUsageVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 		}
 
 	case *ast.SelectorExpr:
-		if resource := r.p.resourceFor(r.file, node); resource != nil && resource.AllowOnlyParsedUsage() {
-			// If the resource type isn't registered, for now this is Ok as we have SQLDB resources that are not tracked
-			if res, found := resourceTypes[resource.Type()]; found {
-				r.p.errf(node.Pos(),
-					"A %s cannot be referenced, apart from when calling a method on it. For more information see %s",
-					res.Name,
-					res.Docs,
-				)
+		if resource := r.p.resourceFor(r.file, node); resource != nil {
+			if referenceParser, found := resourceReferenceRegistry[resource.Type()]; found {
+				referenceParser.Parse(r.p, r.file, resource, cursor)
+			} else if resource.AllowOnlyParsedUsage() {
+				// If the resource type isn't registered, for now this is Ok as we have SQLDB resources that are not tracked
+				if res, found := resourceTypes[resource.Type()]; found {
+					r.p.errf(node.Pos(),
+						"A %s cannot be referenced, apart from when calling a method on it. For more information see %s",
+						res.Name,
+						res.Docs,
+					)
+				}
+				return nil
 			}
-			return nil
+		}
+
+	case *ast.Ident:
+		if resource := r.p.resourceFor(r.file, node); resource != nil {
+			if resource.Ident() != node { // skip a reference if this is the actual node used to define the resource
+				if referenceParser, found := resourceReferenceRegistry[resource.Type()]; found {
+					referenceParser.Parse(r.p, r.file, resource, cursor)
+				}
+			}
 		}
 	}
 
