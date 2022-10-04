@@ -191,6 +191,10 @@ func (p *parser) validateConfigTypes() {
 							return errors.New("the type of config.Value[T] cannot be another config.Value[T]")
 						}
 					}
+				case *schema.Struct:
+					if field, found := p.structsWithUnexportedFields[node]; found {
+						p.errf(field.Pos(), "field %s is not exported and is in a datatype which is used by a call to `config.Load[T]()`. Unexported fields cannot be initialised by Encore, thus are not allowed in this context.", field.Names[0].Name)
+					}
 				}
 				return nil
 			})
