@@ -59,7 +59,7 @@ type parser struct {
 	decls                       []*schema.Decl
 	paths                       paths.Set                          // RPC paths
 	resourceMap                 map[string]map[string]est.Resource // pkg/path -> name -> resource
-	structsWithUnexportedFields map[*schema.Struct]*ast.Field      // A struct will be in this map if it has unexported fields
+	hasUnexportedFields map[*schema.Struct]*ast.Field      // A struct will be in this map if it has unexported fields
 
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.
