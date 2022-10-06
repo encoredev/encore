@@ -102,7 +102,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		}
 		meta, err := platform.GetEnvMeta(ctx, params.AppId, envName)
 		if err != nil {
-			if strings.Contains(err.Error(), "env_not_found") {
+			if strings.Contains(err.Error(), "env_not_found") || strings.Contains(err.Error(), "env_not_deployed") {
 				if envName == "@primary" {
 					return nil, status.Error(codes.NotFound, "You have no deployments of this application.\n\nYou can generate the client for your local code by setting `--env=local`.")
 				}
