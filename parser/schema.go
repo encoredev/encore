@@ -146,6 +146,7 @@ func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, ty
 			for _, name := range field.Names {
 				// Skip unexported fields
 				if !ast.IsExported(name.Name) {
+					p.hasUnexportedFields[st] = field
 					continue
 				}
 				// Use the documentation block above the field by default,
