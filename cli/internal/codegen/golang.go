@@ -1295,92 +1295,100 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 		return errors.Wrap(err, "unable to describe auth data")
 	}
 
-	grp.If(Id("b").Dot("authGenerator").Op("!=").Nil()).Block(
-		If(
-			List(Id("authData"), Err()).Op(":=").
-				Id("b").Dot("authGenerator").Call(
-				Id("req").Dot("Context").Call(),
-			),
-			Err().Op("!=").Nil(),
-		).Block(
-			Return(Nil(), Qual("fmt", "Errorf").Call(Lit("unable to create authorization token for api request: %w"), Err())),
-		).Else().If(Id("authData").Op("!=").Nil()).BlockFunc(func(grp *Group) {
+	authGeneratorCodeBlock := If(
+		List(Id("authData"), Err()).Op(":=").
+			Id("b").Dot("authGenerator").Call(
+			Id("req").Dot("Context").Call(),
+		),
+		Err().Op("!=").Nil(),
+	).Block(
+		Return(Nil(), Qual("fmt", "Errorf").Call(Lit("unable to create authorization token for api request: %w"), Err())),
+	).Else()
 
-			enc := g.enc.NewPossibleInstance("authEncoder")
-			enc.Add(Line())
+	if g.md.AuthHandler.AuthData.GetPointer() != nil {
+		authGeneratorCodeBlock = authGeneratorCodeBlock.If(Id("authData").Op("!=").Nil())
+	}
 
-			if len(auth.QueryParameters) > 0 {
-				enc.Add(Comment("Add the auth fields to the query string"), Line())
-				enc.Add(Id("query").Op(":=").Id("req").Dot("URL").Dot("Query").Call(), Line())
+	authGeneratorCodeBlock = authGeneratorCodeBlock.BlockFunc(func(grp *Group) {
 
-				// Check the request schema for fields we can put in the query string
-				for _, field := range auth.QueryParameters {
-					if field.Type.GetList() != nil {
-						// If we have a slice, we need to encode each bit
-						slice, err := enc.ToStringSlice(
-							field.Type,
-							Id("authData").Dot(field.SrcName),
-						)
-						if err != nil {
-							err = errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
-							return
-						}
+		enc := g.enc.NewPossibleInstance("authEncoder")
+		enc.Add(Line())
 
-						enc.Add(For(List(Id("_"), Id("v")).Op(":=").Range().Add(slice)).Block(
-							Id("query").Dot("Add").Call(
-								Lit(field.Name),
-								Id("v"),
-							),
-						), Line())
-					} else {
-						// Otherwise, we can just append the field
-						val, err := enc.ToString(
-							field.Type,
-							Id("authData").Dot(field.SrcName),
-						)
-						if err != nil {
-							err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
-							return
-						}
+		if len(auth.QueryParameters) > 0 {
+			enc.Add(Comment("Add the auth fields to the query string"), Line())
+			enc.Add(Id("query").Op(":=").Id("req").Dot("URL").Dot("Query").Call(), Line())
 
-						enc.Add(Id("query").Dot("Set").Call(
-							Lit(field.Name),
-							val,
-						), Line())
+			// Check the request schema for fields we can put in the query string
+			for _, field := range auth.QueryParameters {
+				if field.Type.GetList() != nil {
+					// If we have a slice, we need to encode each bit
+					slice, err := enc.ToStringSlice(
+						field.Type,
+						Id("authData").Dot(field.SrcName),
+					)
+					if err != nil {
+						err = errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
+						return
 					}
 
-				}
-
-				enc.Add(Id("req").Dot("URL").Dot("RawQuery").Op("=").Id("query").Dot("Encode").Call(), Line(), Line())
-			}
-
-			if len(auth.HeaderParameters) > 0 {
-				enc.Add(Comment("Add the auth fields to the headers"), Line())
-
-				// Check the request schema for fields we can put in the query string
-				for _, field := range auth.HeaderParameters {
+					enc.Add(For(List(Id("_"), Id("v")).Op(":=").Range().Add(slice)).Block(
+						Id("query").Dot("Add").Call(
+							Lit(field.Name),
+							Id("v"),
+						),
+					), Line())
+				} else {
 					// Otherwise, we can just append the field
 					val, err := enc.ToString(
 						field.Type,
 						Id("authData").Dot(field.SrcName),
 					)
 					if err != nil {
-						err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
+						err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
 						return
 					}
 
-					enc.Add(Id("req").Dot("Header").Dot("Set").Call(
+					enc.Add(Id("query").Dot("Set").Call(
 						Lit(field.Name),
 						val,
 					), Line())
 				}
+
 			}
 
-			grp.Add(enc.Finalize(Return(Nil(), Qual("fmt", "Errorf").Call(
-				Lit("unable to marshal authentication data: %w"),
-				enc.LastError(),
-			)))...)
-		}),
+			enc.Add(Id("req").Dot("URL").Dot("RawQuery").Op("=").Id("query").Dot("Encode").Call(), Line(), Line())
+		}
+
+		if len(auth.HeaderParameters) > 0 {
+			enc.Add(Comment("Add the auth fields to the headers"), Line())
+
+			// Check the request schema for fields we can put in the query string
+			for _, field := range auth.HeaderParameters {
+				// Otherwise, we can just append the field
+				val, err := enc.ToString(
+					field.Type,
+					Id("authData").Dot(field.SrcName),
+				)
+				if err != nil {
+					err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
+					return
+				}
+
+				enc.Add(Id("req").Dot("Header").Dot("Set").Call(
+					Lit(field.Name),
+					val,
+				), Line())
+			}
+		}
+
+		grp.Add(enc.Finalize(Return(Nil(), Qual("fmt", "Errorf").Call(
+			Lit("unable to marshal authentication data: %w"),
+			enc.LastError(),
+		)))...)
+	})
+
+	grp.If(Id("b").Dot("authGenerator").Op("!=").Nil()).Block(
+		authGeneratorCodeBlock,
 	)
 	grp.Line()
 

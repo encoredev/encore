@@ -89,9 +89,9 @@ func WithHTTPClient(client HTTPDoer) Option {
 }
 
 // WithAuth allows you to set the authentication data to be used with each request
-func WithAuth(auth *EchoAuthParams) Option {
+func WithAuth(auth EchoAuthParams) Option {
 	return func(base *baseClient) error {
-		base.authGenerator = func(_ context.Context) (*EchoAuthParams, error) {
+		base.authGenerator = func(_ context.Context) (EchoAuthParams, error) {
 			return auth, nil
 		}
 		return nil
@@ -99,7 +99,7 @@ func WithAuth(auth *EchoAuthParams) Option {
 }
 
 // WithAuthFunc allows you to pass a function which is called for each request to return the authentication data to be used with each request
-func WithAuthFunc(authGenerator func(ctx context.Context) (*EchoAuthParams, error)) Option {
+func WithAuthFunc(authGenerator func(ctx context.Context) (EchoAuthParams, error)) Option {
 	return func(base *baseClient) error {
 		base.authGenerator = authGenerator
 		return nil
@@ -1101,10 +1101,10 @@ type HTTPDoer interface {
 
 // baseClient holds all the information we need to make requests to an Encore application
 type baseClient struct {
-	authGenerator func(ctx context.Context) (*EchoAuthParams, error) // The function which will add the authentication data to the requests
-	httpClient    HTTPDoer                                           // The HTTP client which will be used for all API requests
-	baseURL       *url.URL                                           // The base URL which API requests will be made against
-	userAgent     string                                             // What user agent we will use in the API requests
+	authGenerator func(ctx context.Context) (EchoAuthParams, error) // The function which will add the authentication data to the requests
+	httpClient    HTTPDoer                                          // The HTTP client which will be used for all API requests
+	baseURL       *url.URL                                          // The base URL which API requests will be made against
+	userAgent     string                                            // What user agent we will use in the API requests
 }
 
 // Do sends the req to the Encore application adding the authorization token as required.
@@ -1116,7 +1116,7 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 	if b.authGenerator != nil {
 		if authData, err := b.authGenerator(req.Context()); err != nil {
 			return nil, fmt.Errorf("unable to create authorization token for api request: %w", err)
-		} else if authData != nil {
+		} else {
 			authEncoder := &serde{}
 
 			// Add the auth fields to the query string
