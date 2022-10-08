@@ -1,5 +1,5 @@
 ! parse
-stderr 'field subField is not exported and is in a datatype which is used by a call'
+stderr 'Field subField is not exported and is in a datatype which is used by a call'
 
 -- svc/svc.go --
 package svc

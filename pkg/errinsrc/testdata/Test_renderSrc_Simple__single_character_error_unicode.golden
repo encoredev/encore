@@ -1,0 +1,17 @@
+── simple test error ──────────────────────────────────────────────────────────────────────[E0001]──
+
+There has been a simple error in your code
+
+    ╭─[/test.cue:13:13]
+    │
+ 11 │ 
+ 12 │ // If foo then bar is 12
+ 13 │ if blah.foo {
+    ⋮             🭯
+    ⋮             ╰─ This brace is dodgy
+ 14 │ 	blah: bar: 12
+ 15 │ }
+────╯
+
+For more information please visit our great help documentation
+

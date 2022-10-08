@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 
+	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -47,7 +47,7 @@ func Detect(path string) (lang Lang, ok bool) {
 func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			err = fmt.Errorf("codegen.Client %s %s panicked: %v\n%s", lang, appSlug, e, debug.Stack())
+			err = srcerrors.UnhandledPanic(e)
 		}
 	}()
 

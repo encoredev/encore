@@ -1,5 +1,5 @@
 ! parse
-stderr 'the type of config.Value'
+stderr 'The type of config.Value'
 
 -- svc/svc.go --
 package svc

@@ -11,7 +11,6 @@ import (
 	"github.com/fatih/structtag"
 
 	"encr.dev/parser/est"
-	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -37,7 +36,7 @@ func registerStructTagParser(tag string, f structTagParser) {
 
 // If nil is returned the parser will bailout, however it will not report an error
 // so it's expected the implementation of this function has already reported an error
-type typeResolver func(p *parser, ident *ast.Ident, typeParameters typeParameterLookup) *schema.Type
+type typeResolver func(p *parser, selector *ast.SelectorExpr, ident *ast.Ident, typeParameters typeParameterLookup) *schema.Type
 
 var encoreTypeResolvers = map[string]typeResolver{}
 
@@ -49,163 +48,199 @@ func registerTypeResolver(packagePath string, f typeResolver) {
 func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) *schema.Type {
 	pkgNames := p.names[pkg]
 
-	switch expr := expr.(type) {
-	case *ast.StarExpr:
-		// resolve pointers
-		return &schema.Type{
-			Typ: &schema.Type_Pointer{
-				Pointer: &schema.Pointer{
-					Base: p.resolveType(pkg, file, expr.X, typeParameters),
-				},
-			},
-		}
-
-	case *ast.Ident:
-		// Check if we have a type parameter defined for this
-		if ref, ok := typeParameters[expr.Name]; ok {
-			return &schema.Type{Typ: &schema.Type_TypeParameter{TypeParameter: ref}}
-		}
-
-		// Local type name or universe scope
-		if d, ok := pkgNames.Decls[expr.Name]; ok && d.Type == token.TYPE {
-			return p.parseDecl(pkg, d, typeParameters)
-		}
-
-		// Finally check if it's a built-in type
-		if b, ok := builtinTypes[expr.Name]; ok {
+	typ := func() *schema.Type {
+		switch expr := expr.(type) {
+		case *ast.StarExpr:
+			// resolve pointers
 			return &schema.Type{
-				Typ: &schema.Type_Builtin{Builtin: b},
+				Typ: &schema.Type_Pointer{
+					Pointer: &schema.Pointer{
+						Base: p.resolveType(pkg, file, expr.X, typeParameters),
+					},
+				},
 			}
-		}
 
-		p.errf(expr.Pos(), "undefined type: %s", expr.Name)
+		case *ast.Ident:
+			// Check if we have a type parameter defined for this
+			if ref, ok := typeParameters[expr.Name]; ok {
+				return &schema.Type{Typ: &schema.Type_TypeParameter{TypeParameter: ref}}
+			}
 
-	case *ast.SelectorExpr:
-		// pkg.T
-		if pkgName, ok := expr.X.(*ast.Ident); ok {
-			pkgPath := pkgNames.Files[file].NameToPath[pkgName.Name]
+			// Local type name or universe scope
+			if d, ok := pkgNames.Decls[expr.Name]; ok && d.Type == token.TYPE {
+				return p.parseDecl(pkg, d, typeParameters)
+			}
 
-			if typeResolverF, found := encoreTypeResolvers[pkgPath]; found {
-				typ := typeResolverF(p, expr.Sel, typeParameters)
-				if typ == nil {
-					panic(errlist.Bailout{})
+			// Finally check if it's a built-in type
+			if b, ok := builtinTypes[expr.Name]; ok {
+				return &schema.Type{
+					Typ: &schema.Type_Builtin{Builtin: b},
 				}
-				return typ
-			} else if otherPkg, ok := p.pkgMap[pkgPath]; ok {
-				if d, ok := p.names[otherPkg].Decls[expr.Sel.Name]; ok && d.Type == token.TYPE {
-					return p.parseDecl(otherPkg, d, typeParameters)
+			}
+
+			p.errf(expr.Pos(), "undefined type: %s", expr.Name)
+
+		case *ast.SelectorExpr:
+			// pkg.T
+			if pkgName, ok := expr.X.(*ast.Ident); ok {
+				pkgPath := pkgNames.Files[file].NameToPath[pkgName.Name]
+
+				if typeResolverF, found := encoreTypeResolvers[pkgPath]; found {
+					typ := typeResolverF(p, expr, expr.Sel, typeParameters)
+					if typ == nil {
+						p.errors.Abort()
+					}
+					return typ
+				} else if otherPkg, ok := p.pkgMap[pkgPath]; ok {
+					if d, ok := p.names[otherPkg].Decls[expr.Sel.Name]; ok && d.Type == token.TYPE {
+						return p.parseDecl(otherPkg, d, typeParameters)
+					}
+				} else {
+					return p.parseEncoreBuiltin(expr.Pos(), pkgPath, expr.Sel.Name)
 				}
-			} else {
-				return p.parseEncoreBuiltin(expr.Pos(), pkgPath, expr.Sel.Name)
 			}
-		}
-		p.errf(expr.Pos(), "%s is not a type", types.ExprString(expr))
+			p.errf(expr.Pos(), "%s is not a type", types.ExprString(expr))
 
-	case *ast.StructType:
-		st := &schema.Struct{}
+		case *ast.StructType:
+			st := &schema.Struct{}
 
-		// Track seen names to make sure there aren't any name conflicts
-		// in the presence of json tags.
-		seenNames := make(map[string]token.Pos)
-		checkName := func(pos token.Pos, name, typ string) {
-			if pos2, ok := seenNames[name]; ok {
-				pp := p.fset.Position(pos2)
-				p.errf(pos, typ+" name %s conflicts with already defined name at %s", name, pp)
-			} else {
-				seenNames[name] = pos
-			}
-		}
-
-		for _, field := range expr.Fields.List {
-			typ := p.resolveType(pkg, file, field.Type, typeParameters)
-			if len(field.Names) == 0 {
-				p.err(field.Pos(), "cannot use anonymous fields in Encore struct types")
-			}
-			opts := p.parseStructTag(field.Tag, st, field.Names[0].Name, typ)
-
-			// Validate the names to make sure we don't have any name collisions
-			switch js := opts.JSONName; true {
-			case js == "-":
-				// Ignore
-
-			case js != "":
-				// Check JSON names
-				if len(field.Names) > 1 {
-					pp := p.fset.Position(field.Names[0].Pos())
-					p.errf(field.Names[1].Pos(), "json field name %s conflicts with previous field (defined at %s)", js, pp)
+			// Track seen names to make sure there aren't any name conflicts
+			// in the presence of json tags.
+			seenNames := make(map[string]token.Pos)
+			checkName := func(pos token.Pos, name, typ string) {
+				if pos2, ok := seenNames[name]; ok {
+					pp := p.fset.Position(pos2)
+					p.errf(pos, typ+" name %s conflicts with already defined name at %s", name, pp)
+				} else {
+					seenNames[name] = pos
 				}
-				checkName(field.Tag.Pos(), js, "json")
+			}
 
-			case js == "":
-				// Check field names
+			for _, field := range expr.Fields.List {
+				typ := p.resolveType(pkg, file, field.Type, typeParameters)
+				if len(field.Names) == 0 {
+					p.err(field.Pos(), "cannot use anonymous fields in Encore struct types")
+				}
+				opts := p.parseStructTag(field.Tag, st, field.Names[0].Name, typ)
+
+				// Validate the names to make sure we don't have any name collisions
+				switch js := opts.JSONName; true {
+				case js == "-":
+					// Ignore
+
+				case js != "":
+					// Check JSON names
+					if len(field.Names) > 1 {
+						pp := p.fset.Position(field.Names[0].Pos())
+						p.errf(field.Names[1].Pos(), "json field name %s conflicts with previous field (defined at %s)", js, pp)
+					}
+					checkName(field.Tag.Pos(), js, "json")
+
+				case js == "":
+					// Check field names
+					for _, name := range field.Names {
+						checkName(name.Pos(), name.Name, "field")
+					}
+				}
+
 				for _, name := range field.Names {
-					checkName(name.Pos(), name.Name, "field")
+					// Skip unexported fields
+					if !ast.IsExported(name.Name) {
+						p.hasUnexportedFields[st] = field
+						continue
+					}
+					// Use the documentation block above the field by default,
+					// however if that is blank, then use the line comment instead
+					docBlock := field.Doc
+					if docBlock == nil || docBlock.Text() == "" {
+						docBlock = field.Comment
+					}
+
+					f := &schema.Field{
+						Typ:             typ,
+						Name:            name.Name,
+						Doc:             docBlock.Text(),
+						Optional:        opts.Optional,
+						JsonName:        opts.JSONName,
+						QueryStringName: opts.QueryStringName,
+						Tags:            schemaTags(opts.Tags),
+						RawTag:          opts.RawTag,
+					}
+					if f.QueryStringName == "" {
+						f.QueryStringName = idents.Convert(f.Name, idents.SnakeCase)
+					}
+
+					p.schemaToAST[f] = field
+					st.Fields = append(st.Fields, f)
 				}
 			}
+			return &schema.Type{Typ: &schema.Type_Struct{Struct: st}}
 
-			for _, name := range field.Names {
-				// Skip unexported fields
-				if !ast.IsExported(name.Name) {
-					p.hasUnexportedFields[st] = field
-					continue
-				}
-				// Use the documentation block above the field by default,
-				// however if that is blank, then use the line comment instead
-				docBlock := field.Doc
-				if docBlock == nil || docBlock.Text() == "" {
-					docBlock = field.Comment
-				}
+		case *ast.MapType:
+			key := p.resolveType(pkg, file, expr.Key, typeParameters)
+			value := p.resolveType(pkg, file, expr.Value, typeParameters)
+			return &schema.Type{Typ: &schema.Type_Map{Map: &schema.Map{Key: key, Value: value}}}
 
-				f := &schema.Field{
-					Typ:             typ,
-					Name:            name.Name,
-					Doc:             docBlock.Text(),
-					Optional:        opts.Optional,
-					JsonName:        opts.JSONName,
-					QueryStringName: opts.QueryStringName,
-					Tags:            schemaTags(opts.Tags),
-					RawTag:          opts.RawTag,
-				}
-				if f.QueryStringName == "" {
-					f.QueryStringName = idents.Convert(f.Name, idents.SnakeCase)
-				}
-
-				st.Fields = append(st.Fields, f)
+		case *ast.ArrayType:
+			elem := p.resolveType(pkg, file, expr.Elt, typeParameters)
+			// Translate []byte to BYTES
+			if b, ok := elem.Typ.(*schema.Type_Builtin); ok && b.Builtin == schema.Builtin_UINT8 {
+				return &schema.Type{Typ: &schema.Type_Builtin{Builtin: schema.Builtin_BYTES}}
 			}
-		}
-		return &schema.Type{Typ: &schema.Type_Struct{Struct: st}}
+			return &schema.Type{Typ: &schema.Type_List{List: &schema.List{Elem: elem}}}
 
-	case *ast.MapType:
-		key := p.resolveType(pkg, file, expr.Key, typeParameters)
-		value := p.resolveType(pkg, file, expr.Value, typeParameters)
-		return &schema.Type{Typ: &schema.Type_Map{Map: &schema.Map{Key: key, Value: value}}}
+		case *ast.InterfaceType:
+			p.err(expr.Pos(), "cannot use interface types in Encore schema definitions")
 
-	case *ast.ArrayType:
-		elem := p.resolveType(pkg, file, expr.Elt, typeParameters)
-		// Translate []byte to BYTES
-		if b, ok := elem.Typ.(*schema.Type_Builtin); ok && b.Builtin == schema.Builtin_UINT8 {
-			return &schema.Type{Typ: &schema.Type_Builtin{Builtin: schema.Builtin_BYTES}}
-		}
-		return &schema.Type{Typ: &schema.Type_List{List: &schema.List{Elem: elem}}}
+		case *ast.ChanType:
+			p.err(expr.Pos(), "cannot use channel types in Encore schema definitions")
 
-	case *ast.InterfaceType:
-		p.err(expr.Pos(), "cannot use interface types in Encore schema definitions")
+		case *ast.FuncType:
+			p.err(expr.Pos(), "cannot use function types in Encore schema definitions")
 
-	case *ast.ChanType:
-		p.err(expr.Pos(), "cannot use channel types in Encore schema definitions")
+		default:
+			if resolvedType := additionalTypeResolver(p, pkg, file, expr, typeParameters); resolvedType != nil {
+				return resolvedType
+			}
 
-	case *ast.FuncType:
-		p.err(expr.Pos(), "cannot use function types in Encore schema definitions")
-
-	default:
-		if resolvedType := additionalTypeResolver(p, pkg, file, expr, typeParameters); resolvedType != nil {
-			return resolvedType
+			p.errf(expr.Pos(), "%s is not a supported type; got %+v", types.ExprString(expr), reflect.TypeOf(expr))
 		}
 
-		p.errf(expr.Pos(), "%s is not a supported type; got %+v", types.ExprString(expr), reflect.TypeOf(expr))
+		p.errors.Abort()
+		return nil
+	}()
+
+	// Track the reutrned schema against the AST which created it
+	if typ != nil {
+		p.schemaToAST[typ] = expr
+
+		switch t := typ.Typ.(type) {
+		case *schema.Type_Named:
+			p.schemaToAST[t] = expr
+			p.schemaToAST[t.Named] = expr
+		case *schema.Type_Struct:
+			p.schemaToAST[t] = expr
+			p.schemaToAST[t.Struct] = expr
+		case *schema.Type_Map:
+			p.schemaToAST[t] = expr
+			p.schemaToAST[t.Map] = expr
+		case *schema.Type_List:
+			p.schemaToAST[t] = expr
+			p.schemaToAST[t.List] = expr
+		case *schema.Type_Builtin:
+			p.schemaToAST[t] = expr
+		case *schema.Type_Pointer:
+			p.schemaToAST[t] = expr
+			p.schemaToAST[t.Pointer] = expr
+		case *schema.Type_TypeParameter:
+			p.schemaToAST[t] = expr
+			p.schemaToAST[t.TypeParameter] = expr
+		case *schema.Type_Config:
+			p.schemaToAST[t] = expr
+			p.schemaToAST[t.Config] = expr
+		}
 	}
-
-	panic(errlist.Bailout{})
+	return typ
 }
 
 func (p *parser) parseEncoreBuiltin(pos token.Pos, pkgPath, name string) *schema.Type {
@@ -220,7 +255,8 @@ func (p *parser) parseEncoreBuiltin(pos token.Pos, pkgPath, name string) *schema
 		return &schema.Type{Typ: &schema.Type_Builtin{Builtin: schema.Builtin_JSON}}
 	}
 	p.errf(pos, "%s.%s is not a supported type in Encore\n\tnote: you can only use types defined within your Encore app and builtins\n\tbuiltins also include time.Time, json.RawMessage, and encore.dev/types/uuid.UUID", pkgPath, name)
-	panic(errlist.Bailout{})
+	p.errors.Abort()
+	return nil
 }
 
 // structFieldOptions represents the parsed struct tag information

@@ -1,12 +1,12 @@
 package parser
 
 import (
-	"errors"
 	"go/ast"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
+	"encr.dev/pkg/errinsrc/srcerrors"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -43,28 +43,18 @@ func (p *parser) parseConfigLoad(file *est.File, _ *walker.Cursor, ident *ast.Id
 		return nil
 	}
 
-	// Check we have a service
+	// Validate the call to configLoad
 	svc := file.Pkg.Service
 	if svc == nil {
-		p.err(
-			callExpr.Pos(),
-			"A call to config.Load[T]() can only be made from within a service.",
-		)
+		p.errInSrc(srcerrors.ConfigOnlyLoadedFromService(p.fset, callExpr))
 		return nil
 	}
 	if svc.Root != file.Pkg {
-		p.err(
-			callExpr.Pos(),
-			"A call to config.Load[T]() can only be made from the top level package of a service.",
-		)
+		p.errInSrc(srcerrors.ConfigMustBeTopLevelPackage(p.fset, callExpr))
 		return nil
 	}
-
 	if len(callExpr.Args) > 0 {
-		p.err(
-			callExpr.Args[0].Pos(),
-			"A call to config.Load[T]() does not accept any arguments.",
-		)
+		p.errInSrc(srcerrors.ConfigLoadNoArguments(p.fset, callExpr))
 	}
 
 	estNode := &est.Config{
@@ -82,15 +72,12 @@ func (p *parser) parseConfigLoad(file *est.File, _ *walker.Cursor, ident *ast.Id
 func (p *parser) parseConfigReference(file *est.File, resource est.Resource, cursor *walker.Cursor) {
 	config := resource.(*est.Config)
 	if file.Pkg.Service != config.Svc {
-		p.err(
-			cursor.Node().Pos(),
-			"A config instance can only be referenced from within the service that the call to `config.Load[T]()` was made in.",
-		)
+		p.errInSrc(srcerrors.ConfigOnlyReferencedSameService(p.fset, cursor.Node(), config.IdentAST))
 		return
 	}
 }
 
-func (p *parser) resolveConfigTypes(ident *ast.Ident, typeParameters typeParameterLookup) *schema.Type {
+func (p *parser) resolveConfigTypes(selector *ast.SelectorExpr, ident *ast.Ident, typeParameters typeParameterLookup) *schema.Type {
 	switch ident.Name {
 	case "Value":
 		return &schema.Type{
@@ -154,7 +141,7 @@ func (p *parser) resolveConfigTypes(ident *ast.Ident, typeParameters typeParamet
 	case "UInt":
 		return createBuiltinConfigWrapper(schema.Builtin_UINT)
 	default:
-		p.errf(ident.Pos(), "config.%s is not type which can be used within data structures", ident.Name)
+		p.errInSrc(srcerrors.UnknownConfigWrapperType(p.fset, selector, ident))
 		return nil
 	}
 }
@@ -182,24 +169,24 @@ func (p *parser) validateConfigTypes() {
 				switch node := node.(type) {
 				case *schema.ConfigValue:
 					if node.Elem == nil {
-						return errors.New("internal error: config value type is not set")
+						return srcerrors.ConfigValueTypeNotSet(p.fset, load.FuncCall)
 					}
 
 					switch elem := node.Elem.Typ.(type) {
 					case *schema.Type_Config:
 						if !node.IsValuesList && !elem.Config.IsValuesList {
-							return errors.New("the type of config.Value[T] cannot be another config.Value[T]")
+							return srcerrors.ConfigWrapperNested(p.fset, p.schemaToAST[node], load.FuncCall)
 						}
 					}
 				case *schema.Struct:
 					if field, found := p.hasUnexportedFields[node]; found {
-						p.errf(field.Pos(), "field %s is not exported and is in a datatype which is used by a call to `config.Load[T]()`. Unexported fields cannot be initialised by Encore, thus are not allowed in this context.", field.Names[0].Name)
+						return srcerrors.ConfigTypeHasUnexportFields(p.fset, load.FuncCall, field)
 					}
 				}
 				return nil
 			})
 			if err != nil {
-				p.errf(load.FuncCall.Pos(), "%s", err)
+				p.errInSrc(err)
 			}
 		}
 	}

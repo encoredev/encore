@@ -1,0 +1,28 @@
+── simple test error ──────────────────────────────────────────────────────────────────────[E0001]──
+
+There has been a simple error in your code
+
+   ╭─[/test.cue:5:7]
+   │
+ 3 │ // This is a sample file
+ 4 │ blah: {
+ 5 │ 	foo: bool
+   ⋮ 	     ─┬──
+   ⋮ 	      ╰─ hint: change this to an int
+ 6 │ 	bar: int | *3
+ 7 │ }
+───╯
+
+   ╭─[/test.cue:5:2]
+   │
+ 3 │ // This is a sample file
+ 4 │ blah: {
+ 5 │ 	foo: bool
+   ⋮ 	─┬─
+   ⋮ 	 ╰─ wrong type here
+ 6 │ 	bar: int | *3
+ 7 │ }
+───╯
+
+For more information please visit our great help documentation
+

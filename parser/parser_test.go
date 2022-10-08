@@ -109,7 +109,7 @@ func TestCompile(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"parse": func() int {
+		"parse": func() (rtnCode int) {
 			wd, err := os.Getwd()
 			if err != nil {
 				os.Stderr.WriteString(err.Error())

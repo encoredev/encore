@@ -8,10 +8,19 @@ import (
 	"strings"
 )
 
+// errInSrc reports an error in the source code.
+//
+// Note: err must be either a errinsrc.ErrorList or an *errinsrc.Error.
+func (p *parser) errInSrc(err error) {
+	p.errors.Report(err)
+}
+
+// Deprecated: use errors.errInSrc instead
 func (p *parser) err(pos token.Pos, msg string) {
 	p.errors.Add(pos, msg)
 }
 
+// Deprecated: use errors.errInSrc instead
 func (p *parser) errf(pos token.Pos, format string, args ...interface{}) {
 	p.errors.Addf(pos, format, args...)
 }

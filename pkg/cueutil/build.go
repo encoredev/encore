@@ -15,7 +15,6 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
-	cueerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
@@ -23,6 +22,7 @@ import (
 	"golang.org/x/text/transform"
 
 	"encr.dev/pkg/eerror"
+	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 // LoadFromFS takes a given filesystem object and the app-relative path to the service's root package
@@ -56,12 +56,12 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, er
 	pkgs := load.Instances(configFilesForService, loaderCfg)
 	for _, pkg := range pkgs {
 		if pkg.Err != nil {
-			return cue.Value{}, toDescriptiveError(pkg.Err)
+			return cue.Value{}, srcerrors.UnableToLoadCUEInstances(pkg.Err, tmpPath)
 		}
 
 		// Non CUE files may be orphaned (JSON/YAML), so need to be parsed into the CUE AST and added to the package.
 		if err := addOrphanedFiles(pkg); err != nil {
-			return cue.Value{}, toDescriptiveError(err)
+			return cue.Value{}, srcerrors.UnableToAddOrphanedCUEFiles(err, tmpPath)
 		}
 	}
 
@@ -69,29 +69,23 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, er
 	ctx := cuecontext.New()
 	values, err := ctx.BuildInstances(pkgs)
 	if err != nil {
-		return cue.Value{}, toDescriptiveError(err)
+		return cue.Value{}, srcerrors.UnableToLoadCUEInstances(err, tmpPath)
 	}
 	if len(values) == 0 {
 		return cue.Value{}, eerror.New("config", "no values generated from config", nil)
 	}
 
 	// Unify all returned values into a single value
+	// Note; to get all errors in the CUE files, we want to wait until
+	// the validate output to check for errors
 	rtnValue := values[0]
 	for _, value := range values {
-		if value.Err() != nil {
-			return cue.Value{}, toDescriptiveError(value.Err())
-		}
 		rtnValue = rtnValue.Unify(value)
-	}
-
-	// Check the unified value for errors
-	if rtnValue.Err() != nil {
-		return cue.Value{}, toDescriptiveError(err)
 	}
 
 	// Validate the unified value is concrete
 	if err := rtnValue.Validate(cue.Concrete(true)); err != nil {
-		return cue.Value{}, toDescriptiveError(err)
+		return cue.Value{}, srcerrors.CUEEvaluationFailed(err, tmpPath)
 	}
 
 	return rtnValue, nil
@@ -115,31 +109,6 @@ func allFilesUnder(filesys fs.FS, path string) ([]string, error) {
 	}
 
 	return files, nil
-}
-
-// toDescriptiveError takes a CUE error list and expands it to show each error (unless there is more than 10)
-func toDescriptiveError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	errs := cueerrors.Errors(err)
-	if len(errs) == 1 {
-		return errs[0]
-	}
-
-	var str strings.Builder
-	str.WriteString("the following errors where detected:\n")
-	for i, err2 := range errs {
-		str.WriteString(fmt.Sprintf("\t- %s\n", err2))
-
-		if i >= 10 {
-			str.WriteString("\t- ... (too many errors to show)")
-			break
-		}
-	}
-
-	return errors.New(str.String())
 }
 
 // writeFSToPath writes the contents of the given filesystem to a temporary directory on the local filesystem.

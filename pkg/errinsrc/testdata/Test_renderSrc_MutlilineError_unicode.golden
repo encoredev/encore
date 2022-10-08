@@ -1,0 +1,22 @@
+── simple test error ──────────────────────────────────────────────────────────────────────[E0001]──
+
+There has been a simple error in your code
+
+    ╭─[/test.cue:4:7]
+    │
+  2 │     
+  3 │     // This is a sample file
+  4 │     blah: {
+    ⋮           🭯
+    ⋮ ╭─────────╯
+  5 │ │   	foo: bool
+  6 │ │   	bar: int | *3
+  7 │ ├─▶ }
+    ⋮ ╰─ this is an error which spans multiple lines
+    ⋮    like this so we can test alignment
+  8 │     
+  9 │     // Let's set foo to true
+────╯
+
+For more information please visit our great help documentation
+

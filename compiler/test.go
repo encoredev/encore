@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"golang.org/x/exp/slices"
+
+	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 type TestConfig struct {
@@ -50,7 +52,7 @@ func (b *builder) Test(ctx context.Context) (err error) {
 			if b, ok := e.(bailout); ok {
 				err = b.err
 			} else {
-				panic(e)
+				err = srcerrors.UnhandledPanic(e)
 			}
 		}
 	}()

@@ -20,22 +20,22 @@ package cron
 //
 // To define a new cron job, call NewJob and assign it a package-level variable:
 //
-// 		import "encore.dev/cron"
+//	import "encore.dev/cron"
 //
-// 		// Send a welcome email to everyone who signed up in the last two hours.
-// 		var _ = cron.NewJob("welcome-email", cron.JobConfig{
-// 			Title:    "Send welcome emails",
-// 			Every:    2 * cron.Hour,
-// 			Endpoint: SendWelcomeEmail,
-// 		})
+//	// Send a welcome email to everyone who signed up in the last two hours.
+//	var _ = cron.NewJob("welcome-email", cron.JobConfig{
+//		title:    "Send welcome emails",
+//		Every:    2 * cron.Hour,
+//		Endpoint: SendWelcomeEmail,
+//	})
 //
-// 		// SendWelcomeEmail emails everyone who signed up recently.
-// 		// It's idempotent: it only sends a welcome email to each person once.
-// 		//encore:api private
-// 		func SendWelcomeEmail(ctx context.Context) error {
-// 			// ...
-// 			return nil
-// 		}
+//	// SendWelcomeEmail emails everyone who signed up recently.
+//	// It's idempotent: it only sends a welcome email to each person once.
+//	//encore:api private
+//	func SendWelcomeEmail(ctx context.Context) error {
+//		// ...
+//		return nil
+//	}
 func NewJob(id string, jobConfig JobConfig) *Job {
 	return &Job{
 		ID:       id,
@@ -89,8 +89,7 @@ type Job struct {
 // Duration represents the duration between cron execution intervals, expressed in seconds.
 // Specific durations can easily be achieved using constant expressions, such as:
 //
-//    cron.Hour + 30*cron.Minute // 90 minutes
-//
+//	cron.Hour + 30*cron.Minute // 90 minutes
 type Duration int64
 
 const (

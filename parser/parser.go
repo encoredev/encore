@@ -12,7 +12,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -23,6 +22,7 @@ import (
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
 	"encr.dev/parser/selector"
+	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
@@ -64,6 +64,9 @@ type parser struct {
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.
 	validRPCReferences map[ast.Node]bool
+
+	// schema types -> ast.Node mappings (used for errors)
+	schemaToAST map[any]ast.Node
 }
 
 // Config represents the configuration options for parsing.
@@ -85,6 +88,7 @@ func Parse(cfg *Config) (*Result, error) {
 		jobsMap:             make(map[string]*est.CronJob),
 		resourceMap:         make(map[string]map[string]est.Resource),
 		hasUnexportedFields: make(map[*schema.Struct]*ast.Field),
+		schemaToAST:         make(map[any]ast.Node),
 	}
 	return p.Parse()
 }
@@ -113,13 +117,9 @@ var defaultTrackedPackages = names.TrackedPackages{
 func (p *parser) Parse() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			if _, ok := e.(errlist.Bailout); !ok {
-				const size = 64 << 10
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
-				err = fmt.Errorf("parser panicked: %+v\n%s", e, buf)
-			}
+			p.errors.Report(srcerrors.UnhandledPanic(e))
 		}
+
 		if err == nil {
 			p.errors.Sort()
 			p.errors.MakeRelative(p.cfg.AppRoot, p.cfg.WorkingDir)
@@ -131,6 +131,10 @@ func (p *parser) Parse() (res *Result, err error) {
 
 	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, goparser.ParseComments, p.cfg.ParseTests)
 	if err != nil {
+		if errList, ok := err.(scanner.ErrorList); ok {
+			p.errors.Report(errList)
+			return nil, p.errors
+		}
 		return nil, err
 	}
 	p.pkgMap = make(map[string]*est.Package)
@@ -173,7 +177,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		AuthHandler:   p.authHandler,
 		Middleware:    p.middleware,
 	}
-	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app)
+	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset)
 	if err != nil {
 		return nil, err
 	}
