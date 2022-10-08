@@ -51,5 +51,5 @@ func runChecks(appRoot, relPath string) {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)
 	}
-	os.Exit(streamCommandOutput(stream, true))
+	os.Exit(streamCommandOutput(stream, convertJSONLogs()))
 }
