@@ -51,7 +51,7 @@ var dbResetCmd = &cobra.Command{
 		if err != nil {
 			fatal("reset databases: ", err)
 		}
-		os.Exit(streamCommandOutput(stream, false))
+		os.Exit(streamCommandOutput(stream, nil))
 	},
 }
 
@@ -166,7 +166,7 @@ var dbProxyCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal().Err(err).Msg("could not setup db proxy")
 		}
-		os.Exit(streamCommandOutput(stream, false))
+		os.Exit(streamCommandOutput(stream, nil))
 	},
 }
 
