@@ -2,6 +2,7 @@
 title: Quick Start Guide
 subtitle: Get started building with Encore in minutes
 ---
+
 In this short guide, you'll learn Encore's key concepts and get to experience the Encore developer workflow.
 It should only take about 5 minutes to complete, and by the end you'll have an API running in the cloud.
 
@@ -15,41 +16,48 @@ Whenever you see a 🥐 it means there's something for you to do.
 _Let's get started!_
 
 ## Install the Encore CLI
+
 To develop locally with Encore, you need the Encore CLI. This is what provisions your local development environment, and runs your local development dashboard complete with logs, tracing, and API documentation.
 
 🥐 Install the Encore CLI by running the appropriate command for your system:
 
 **Mac OS**
+
 ```bash
 brew install encoredev/tap/encore
 ```
 
 **Windows**
+
 ```bash
 iwr https://encore.dev/install.ps1 | iex
 ```
 
 **Linux**
+
 ```bash
 curl -L https://encore.dev/install.sh | bash
 ```
 
 You can check that everything's working by running `encore version` in your terminal.
 It should print something like:
+
 ```bash
 encore version v1.0.0
 ```
 
 ## Create your first app
+
 When you're building with Encore, it’s best to use one application for an entire project.
 
 🥐 Create your app by running:
+
 ```bash
 encore app create
 ```
 
 Since this is the first time you're using Encore, you will be asked to create an account.
-After running the above command, press `Enter` to create your Encore account, following the instructions on screen.
+After running the above command, press `Enter` to create your Encore account, following the instructions on the screen.
 You can use your account with GitHub or Google, or create an account using your email.
 
 Continue by picking a name for your app, using lowercase letters, digits, or dashes.
@@ -109,7 +117,7 @@ This annotation is all that's needed for Encore to understand that this Go packa
 
 If you want to create more services and endpoints, it's as easy as creating more Go packages and defining endpoints using the `//encore:api` annotation. _If you're curious, you can read more about [defining services and APIs](/docs/develop/services-and-apis)._
 
-Encore includes a few more native concepts that we'll begin to cover in [the next tutorial](/docs/tutorials/rest-api), which for instance let you use backend primitives like databases and scheduled tasks by simply writing code.
+Encore includes a few more native concepts that we'll begin to cover in [the next tutorial](/docs/tutorials/rest-api), which for instance lets you use backend primitives like databases and scheduled tasks by simply writing code.
 
 ## Run your app locally
 
@@ -119,11 +127,13 @@ Encore integrates your entire workflow, from writing code to running in producti
 Next, let's try running your application locally.
 
 🥐 Open the folder created for your app, using the app name you picked.
+
 ```text
 cd your-app-name
 ```
 
 🥐 Then while in the app root directory, run your app:
+
 ```text
 encore run
 ```
@@ -148,6 +158,7 @@ You should see this response:
 ```text
 {"Message": "Hello, world!"}
 ```
+
 If you see the `Message` response, you've successfully made an API call to your very first Encore application.
 
 _Well done, you're on your way!_
@@ -178,7 +189,7 @@ For this example video we have added another service called `foobar` that we cal
 Let's put our mark on this API and make our first code change.
 
 🥐 Head back to your code editor and look at the `hello.go` file again.
-If you can't come up a creative change yourself, why not simply change the "Hello" message to a more sassy "Howdy"?
+If you can't come up with a creative change yourself, why not simply change the "Hello" message to a more sassy "Howdy"?
 
 🥐 Once you've made your change, save the file.
 
@@ -270,7 +281,7 @@ _Your app will soon be running in the cloud, isn't this exciting?_
 ## Head to the web platform
 
 After triggering the deployment, you will see a url where you can view its progress in the Encore web platform.
-It will look something like:  `https://app.encore.dev/$APP_ID/deploys/staging/$DEPLOY_ID`
+It will look something like: `https://app.encore.dev/$APP_ID/deploys/staging/$DEPLOY_ID`
 
 🥐 Open the url to access the web platform and check the progress of your deployment.
 
