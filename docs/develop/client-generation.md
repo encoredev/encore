@@ -18,6 +18,7 @@ but always includes all the publicly accessible endpoints, data structures, and 
 Currently, Encore supports generating clients for:
 - `go` - using `net/http` for the underlying HTTP transport.
 - `typescript` - using the browser `fetch` API for the underlying HTTP client.
+- `javascript` - using the browser `fetch` API for the underlying HTTP client.
 
 
 If there's another language you think Encore should support, please either submit a pull request or create a feature
