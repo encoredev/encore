@@ -15,7 +15,7 @@ For example, if you have two migration files already,
 the next migration file should be named `3_something.up.sql` where
 `something` is a short description of what the migration does.
 
-<Callout type="important">
+<Callout type="warning">
 
 Database migrations are applied before the application is restarted
 with the new code. Always make sure the old application code works with

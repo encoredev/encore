@@ -48,7 +48,7 @@ of your application. You can change this using the `--env` flag and specifying t
 If you want to generate the client for the version of your application you have local running, then you can use the
 special environment name `local` (you'll need to be running the application first).
 
-<Callout type="important">
+<Callout type="info">
 
 The generated client can be used with any environment, not just the one it was generated for. However, the API's, datastructures
 and marshalling logic will be based on whatever is present and running in that environment at the point in time the client is generated.

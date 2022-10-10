@@ -53,6 +53,7 @@ sections: [
 		docs: [
 			{title: "Building a REST API", segment: "rest-api"},
 			{title: "Building a Slack bot", segment: "slack-bot"},
+			{title: "Building an Incident Tool", segment: "incident-management-tool"},
 		]
 	},
 	{

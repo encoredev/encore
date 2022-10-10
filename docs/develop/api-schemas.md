@@ -28,7 +28,7 @@ type NestedRequestResponse struct {
 
 would be unmarshalled from this request
 
-```http request
+```output
 POST /example?query=a%20query HTTP/1.1
 Content-Type: application/json
 X-Header: A header
@@ -46,7 +46,7 @@ X-Header: A header
 
 and marshalled to this response
 
-```http request
+```output
 HTTP/1.1 200 OK
 Content-Type: application/json
 X-Header: A header
