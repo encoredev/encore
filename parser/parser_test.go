@@ -134,13 +134,7 @@ func TestMain(m *testing.M) {
 			}
 			res, err := Parse(cfg)
 			if err != nil {
-				if list, ok := err.(scanner.ErrorList); ok {
-					for _, e := range list {
-						os.Stderr.WriteString(e.Error())
-					}
-					return 1
-				}
-				os.Stderr.WriteString(err.Error())
+				scanner.PrintError(os.Stderr, err)
 				return 1
 			}
 
@@ -149,7 +143,12 @@ func TestMain(m *testing.M) {
 			}
 			for _, svc := range res.App.Services {
 				for _, rpc := range svc.RPCs {
-					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v\n", svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path)
+					var recvName string
+					if rpc.SvcStruct != nil {
+						recvName = "*" + rpc.SvcStruct.Name
+					}
+					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v recv=%v\n",
+						svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, recvName)
 				}
 			}
 			for _, job := range res.App.CronJobs {

@@ -16,6 +16,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var ErrInvalidRefreshToken = errors.New("invalid refresh token")
+var ErrNotLoggedIn = errors.New("not logged in: run 'encore auth login' first")
+
 // These can be overwritten using
 // `go build -ldflags "-X encr.dev/cli/internal/conf.defaultPlatformURL=https://api.encore.dev"`.
 var (
@@ -92,6 +95,8 @@ func Logout() error {
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	DefaultTokenSource = &TokenSource{}
+	AuthClient = oauth2.NewClient(nil, DefaultTokenSource)
 	return nil
 }
 
@@ -150,7 +155,7 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 	err := ts.setup.Do(func() error {
 		cfg, err := CurrentUser()
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("not logged in: run 'encore auth login' first")
+			return ErrNotLoggedIn
 		} else if err != nil {
 			return fmt.Errorf("could not get Encore auth token: %v", err)
 		}
@@ -166,7 +171,16 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ts.ts.Token()
+	token, err := ts.ts.Token()
+	if err != nil {
+		var re *oauth2.RetrieveError
+		if errors.As(err, &re) && re.Response.StatusCode == 422 {
+			// The refresh token is invalid. Log the user out to reset the token.
+			_ = Logout()
+			return nil, ErrInvalidRefreshToken
+		}
+	}
+	return token, err
 }
 
 var DefaultTokenSource = &TokenSource{}

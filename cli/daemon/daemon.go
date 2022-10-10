@@ -28,6 +28,7 @@ import (
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
 	"encr.dev/cli/internal/version"
+	"encr.dev/compiler"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -47,21 +48,31 @@ type Server struct {
 	availableVerInit sync.Once
 	availableVer     atomic.Value // string
 
+	appDebounceMu sync.Mutex
+	appDebouncers map[*apps.Instance]debouncer
+
 	daemonpb.UnimplementedDaemonServer
 }
 
 // New creates a new Server.
-func New(apps *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
+func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
 	srv := &Server{
-		apps:    apps,
+		apps:    appsMgr,
 		mgr:     mgr,
 		cm:      cm,
 		sm:      sm,
 		streams: make(map[string]*streamLog),
+
+		appDebouncers: make(map[*apps.Instance]debouncer),
 	}
 	mgr.AddListener(srv)
+
 	// Check immediately for the latest version to avoid blocking 'encore run'
 	go srv.availableUpdate()
+
+	// Begin watching known apps for changes
+	go srv.watchApps()
+
 	return srv
 }
 
@@ -91,7 +102,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		}
 		meta, err := platform.GetEnvMeta(ctx, params.AppId, envName)
 		if err != nil {
-			if strings.Contains(err.Error(), "env_not_found") {
+			if strings.Contains(err.Error(), "env_not_found") || strings.Contains(err.Error(), "env_not_deployed") {
 				if envName == "@primary" {
 					return nil, status.Error(codes.NotFound, "You have no deployments of this application.\n\nYou can generate the client for your local code by setting `--env=local`.")
 				}
@@ -108,6 +119,14 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	return &daemonpb.GenClientResponse{Code: code}, nil
+}
+
+// GenWrappers generates Encore wrappers.
+func (s *Server) GenWrappers(ctx context.Context, params *daemonpb.GenWrappersRequest) (*daemonpb.GenWrappersResponse, error) {
+	if err := compiler.GenUserFacing(params.AppRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to generate wrappers: %v", err)
+	}
+	return &daemonpb.GenWrappersResponse{}, nil
 }
 
 // SetSecret sets a secret key on the encore.dev platform.
@@ -221,7 +240,11 @@ func (w streamWriter) Write(b []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.buffer && w.sl.buffered {
-		return w.sl.writeBuffered(&w.sl.stdout, b)
+		if w.stderr {
+			return w.sl.writeBuffered(&w.sl.stderr, b)
+		} else {
+			return w.sl.writeBuffered(&w.sl.stdout, b)
+		}
 	}
 	return w.sl.writeStream(w.stderr, b)
 }

@@ -8,10 +8,10 @@ import (
 
 	"google.golang.org/api/idtoken"
 
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/config"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/types"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
 )
 
 // This is documented in https://cloud.google.com/pubsub/docs/push
@@ -26,14 +26,14 @@ type pushPayload struct {
 	DeliveryAttempt int    `json:"deliveryAttempt,omitempty"` // Field documented in: https://cloud.google.com/pubsub/docs/handling-failures#track_delivery_attempts
 }
 
-func registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
-	runtime.RegisterPubSubSubscriptionHandler(
+func (mgr *Manager) registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+	mgr.server.RegisterPubsubSubscriptionHandler(
 		subscriptionConfig.ID,
 		func(req *http.Request) error {
 			// If the request has not come from the Encore platform it must have
 			// a valid JWT set by Google.
-			if !runtime.IsEncoreAuthenticatedRequest(req.Context()) {
-				if err := validateGoogleJWT(req, subscriptionConfig.GCP.PushServiceAccount); err != nil {
+			if !api.IsEncorePlatformRequest(req.Context()) {
+				if err := mgr.validateGoogleJWT(req, subscriptionConfig.GCP.PushServiceAccount); err != nil {
 					return errs.Wrap(err, "unable to validate JWT")
 				}
 			}
@@ -54,7 +54,7 @@ func registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types
 	)
 }
 
-func validateGoogleJWT(req *http.Request, serviceAccountEmail string) error {
+func (mgr *Manager) validateGoogleJWT(req *http.Request, serviceAccountEmail string) error {
 	// Extract the JWT from the header
 	authType, token, _ := strings.Cut(req.Header.Get("Authorization"), " ")
 	if authType != "Bearer" {
@@ -62,7 +62,7 @@ func validateGoogleJWT(req *http.Request, serviceAccountEmail string) error {
 	}
 
 	// Validate it
-	jwt, err := idtoken.Validate(req.Context(), token, config.Cfg.Runtime.AppID+"-"+config.Cfg.Runtime.EnvID)
+	jwt, err := idtoken.Validate(req.Context(), token, mgr.cfg.Runtime.AppID+"-"+mgr.cfg.Runtime.EnvID)
 	if err != nil {
 		return errs.B().Code(errs.InvalidArgument).Msg("unable to validate authorization").Err()
 	}

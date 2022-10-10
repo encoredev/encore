@@ -23,6 +23,8 @@ export interface Data {
   cron_jobs: CronJob[];
   /** All the pub sub topics declared in the application */
   pubsub_topics: PubSubTopic[];
+  middleware: Middleware[];
+  cache_clusters: CacheCluster[];
 }
 
 /**
@@ -63,6 +65,19 @@ export interface Service {
   databases: string[];
 }
 
+export interface Selector {
+  type: Selector_Type;
+  value: string;
+}
+
+export enum Selector_Type {
+  UNKNOWN = "UNKNOWN",
+  ALL = "ALL",
+  /** TAG - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
+  TAG = "TAG",
+  UNRECOGNIZED = "UNRECOGNIZED",
+}
+
 export interface DBMigration {
   /** filename */
   filename: string;
@@ -89,6 +104,7 @@ export interface RPC {
   loc: Loc;
   path: Path;
   http_methods: string[];
+  tags: Selector[];
 }
 
 export enum RPC_AccessType {
@@ -118,6 +134,16 @@ export interface AuthHandler {
   params?: Type | undefined;
 }
 
+export interface Middleware {
+  name: QualifiedName;
+  doc: string;
+  loc: Loc;
+  global: boolean;
+  /** nil if global */
+  service_name?: string | undefined;
+  target: Selector[];
+}
+
 export interface TraceNode {
   id: number;
   /** slash-separated, relative to app root */
@@ -135,6 +161,9 @@ export interface TraceNode {
   pubsub_topic_def: PubSubTopicDefNode | undefined;
   pubsub_publish: PubSubPublishNode | undefined;
   pubsub_subscriber: PubSubSubscriberNode | undefined;
+  service_init: ServiceInitNode | undefined;
+  middleware_def: MiddlewareDefNode | undefined;
+  cache_keyspace: CacheKeyspaceDefNode | undefined;
 }
 
 export interface RPCDefNode {
@@ -185,8 +214,35 @@ export interface PubSubSubscriberNode {
   context: string;
 }
 
+export interface ServiceInitNode {
+  service_name: string;
+  setup_func_name: string;
+  context: string;
+}
+
+export interface MiddlewareDefNode {
+  pkg_rel_path: string;
+  name: string;
+  context: string;
+  target: Selector[];
+}
+
+export interface CacheKeyspaceDefNode {
+  pkg_rel_path: string;
+  var_name: string;
+  cluster_name: string;
+  context: string;
+}
+
 export interface Path {
   segments: PathSegment[];
+  type: Path_Type;
+}
+
+export enum Path_Type {
+  URL = "URL",
+  CACHE_KEYSPACE = "CACHE_KEYSPACE",
+  UNRECOGNIZED = "UNRECOGNIZED",
 }
 
 export interface PathSegment {
@@ -277,4 +333,20 @@ export interface PubSubTopic_RetryPolicy {
   max_backoff: number;
   /** max number of retries */
   max_retries: number;
+}
+
+export interface CacheCluster {
+  /** The pub sub topic name (unique per application) */
+  name: string;
+  /** The documentation for the topic */
+  doc: string;
+  /** The publishers for this topic */
+  keyspaces: CacheCluster_Keyspace[];
+  /** redis eviction policy */
+  eviction_policy: string;
+}
+
+export interface CacheCluster_Keyspace {
+  /** TODO(andre) add more fields */
+  key_type: Type;
 }

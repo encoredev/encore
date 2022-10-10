@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -40,6 +43,11 @@ func runTests(appRoot, testDir string, args []string) {
 		cancel()
 	}()
 
+	converter := convertJSONLogs()
+	if slices.Contains(args, "-json") {
+		converter = convertTestEventOutputOnly(converter)
+	}
+
 	daemon := setupDaemon(ctx)
 	stream, err := daemon.Test(ctx, &daemonpb.TestRequest{
 		AppRoot:    appRoot,
@@ -50,10 +58,56 @@ func runTests(appRoot, testDir string, args []string) {
 	if err != nil {
 		fatal(err)
 	}
-	os.Exit(streamCommandOutput(stream, true))
+	os.Exit(streamCommandOutput(stream, converter))
 }
 
 func init() {
 	testCmd.DisableFlagParsing = true
 	rootCmd.AddCommand(testCmd)
+}
+
+func convertTestEventOutputOnly(converter outputConverter) outputConverter {
+	return func(line []byte) []byte {
+		// If this isn't a JSON log line, just return it as-is
+		if len(line) == 0 || line[0] != '{' {
+			return line
+		}
+
+		testEvent := &testJSONEvent{}
+		if err := json.Unmarshal(line, testEvent); err == nil && testEvent.Action == "output" {
+			if testEvent.Output != nil && (*(testEvent.Output))[0] == '{' {
+				convertedLogs := textBytes(converter(*testEvent.Output))
+				testEvent.Output = &convertedLogs
+
+				newLine, err := json.Marshal(testEvent)
+				if err == nil {
+					return append(newLine, '\n')
+				}
+			}
+		}
+
+		return line
+	}
+}
+
+// testJSONEvent and textBytes taken from the Go source code
+type testJSONEvent struct {
+	Time    *time.Time `json:",omitempty"`
+	Action  string
+	Package string     `json:",omitempty"`
+	Test    string     `json:",omitempty"`
+	Elapsed *float64   `json:",omitempty"`
+	Output  *textBytes `json:",omitempty"`
+}
+
+// textBytes is a hack to get JSON to emit a []byte as a string
+// without actually copying it to a string.
+// It implements encoding.TextMarshaler, which returns its text form as a []byte,
+// and then json encodes that text form as a string (which was our goal).
+type textBytes []byte
+
+func (b *textBytes) MarshalText() ([]byte, error) { return *b, nil }
+func (b *textBytes) UnmarshalText(in []byte) error {
+	*b = in
+	return nil
 }

@@ -11,17 +11,27 @@ import (
 	"github.com/nsqio/go-nsq"
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/reqtrack"
 	"encore.dev/beta/errs"
-	"encore.dev/internal/ctx"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
 )
+
+type Manager struct {
+	ctx context.Context
+	cfg *config.Config
+	rt  *reqtrack.RequestTracker
+}
+
+func NewManager(ctx context.Context, cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
+	return &Manager{ctx, cfg, rt}
+}
 
 // topic is the nsq implementation of pubsub.Topic. It exposes methods to publish
 // and subscribe to messages of a topic
 type topic struct {
+	mgr       *Manager
 	name      string
 	addr      string
 	m         sync.Mutex
@@ -30,8 +40,9 @@ type topic struct {
 	idSeq     uint32
 }
 
-func NewTopic(server *config.NSQProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(server *config.NSQProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
 	return &topic{
+		mgr:       mgr,
 		name:      topicCfg.EncoreName,
 		addr:      server.Host,
 		producer:  nil,
@@ -48,7 +59,7 @@ type messageWrapper struct {
 	Data       json.RawMessage
 }
 
-func (l *topic) Subscribe(logger *zerolog.Logger, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (l *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if implCfg.PushOnly {
 		panic("push-only subscriptions are not supported by nsq")
 	}
@@ -92,7 +103,10 @@ func (l *topic) Subscribe(logger *zerolog.Logger, retryPolicy *types.RetryPolicy
 		}
 
 		// forward the message to the subscriber
-		err = f(ctx.App, msg.ID, time.Unix(0, m.Timestamp), int(m.Attempts), msg.Attributes, msg.Data)
+		msgCtx, cancel := context.WithTimeout(l.mgr.ctx, ackDeadline)
+		defer cancel()
+
+		err = f(msgCtx, msg.ID, time.Unix(0, m.Timestamp), int(m.Attempts), msg.Attributes, msg.Data)
 		if err != nil {
 			return err
 		}
@@ -122,7 +136,7 @@ func (l *topic) PublishMessage(_ context.Context, attrs map[string]string, data 
 				return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to connect to NSQD").Err()
 			}
 			// only log warnings and above from the NSQ library
-			log := runtime.Logger().With().Str("topic", l.name).Logger()
+			log := l.mgr.rt.Logger().With().Str("topic", l.name).Logger()
 			producer.SetLogger(&LogAdapter{Logger: &log}, nsq.LogLevelWarning)
 			l.producer = producer
 		}

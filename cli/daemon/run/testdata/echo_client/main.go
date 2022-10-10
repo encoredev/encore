@@ -241,6 +241,35 @@ func main() {
 	assert(resp.UUID, "503f4487-1e15-4c37-9a80-7b70f86387bb", "invalid UUID returned")
 	assert(resp.Wildcard, "foo/bar/blah/seperate/segments = great success", "invalid wildcard field returned")
 
+	// Test validation
+	err = api.Validation.TestOne(ctx, client.ValidationRequest{Msg: "pass"})
+	assert(err, nil, "expected no error from validation")
+	err = api.Validation.TestOne(ctx, client.ValidationRequest{Msg: "fail"})
+	assertStructuredError(err, client.ErrInvalidArgument, "validation failed: bad message")
+	{
+		api, err := client.New(
+			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
+			client.WithAuth(client.EchoAuthParams{
+				Header: "fail-validation",
+			}),
+		)
+		assert(err, nil, "expected no error from client init")
+		err = api.Test.Noop(ctx)
+		assertStructuredError(err, client.ErrInvalidArgument, "validation failed: auth validation fail")
+	}
+
+	// Test middleware
+	{
+		err = api.Middleware.Error(ctx)
+		assertStructuredError(err, client.ErrInternal, "middleware error")
+		resp, err := api.Middleware.ResponseRewrite(ctx, client.MiddlewarePayload{Msg: "foo"})
+		assert(err, nil, "expected no error")
+		assert(resp.Msg, "middleware(req=foo, resp=handler(foo))", "unexpected response")
+
+		resp, err = api.Middleware.ResponseGen(ctx, client.MiddlewarePayload{Msg: "foo"})
+		assert(resp.Msg, "middleware generated", "unexpected response")
+	}
+
 	// Client test completed
 	os.Exit(0)
 }

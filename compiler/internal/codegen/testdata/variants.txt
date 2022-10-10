@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"encore.dev/beta/auth"
-	"encore.dev/rlog"
 	"encore.dev/cron"
+	"encore.dev/middleware"
+	"encore.dev/pubsub"
+	"encore.dev/rlog"
+	"encore.dev/storage/cache"
 	"encore.dev/types/uuid"
 )
 
@@ -18,6 +21,13 @@ var _ = cron.NewJob("cron-one", cron.JobConfig{
 	Schedule: "* * * * 5",
 	Endpoint: CronOne,
 })
+
+var Topic = pubsub.NewTopic[*FooParams](
+	"test-topic",
+	pubsub.TopicConfig{
+		DeliveryGuarantee: pubsub.AtLeastOnce,
+	},
+)
 
 type FooParams struct {
 	Name string
@@ -127,7 +137,51 @@ type AuthParams struct {
     Query3 time.Time `query:"three"`
 
 }
+
 //encore:authhandler
 func AuthHandler(ctx context.Context, params *AuthParams) (auth.UID, *AuthData, error) {
 	return "", nil, nil
+}
+
+//encore:service
+type Service struct{}
+
+func initService() (*Service, error) { return nil, nil }
+
+//encore:api public path=/di method=GET tag:di
+func (s *Service) DI(ctx context.Context) error {
+    return nil
+}
+
+//encore:middleware target=tag:di
+func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
+}
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+var strings = cache.NewIntKeyspace[int](cluster, cache.KeyspaceConfig{
+    KeyPattern: "foo/:key",
+})
+
+-- otherservice/svc.go --
+package otherservice
+
+import (
+	"context"
+
+	"encore.dev/pubsub"
+
+	"encore.app/svc"
+)
+
+var _ = pubsub.NewSubscription(
+	svc.Topic, "subscription-name",
+	pubsub.SubscriptionConfig[*svc.Topic]{
+		Handler: Consumer,
+	},
+)
+
+func Consumer(ctx context.Context, msg *svc.Topic) error {
+    return nil
 }

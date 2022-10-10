@@ -1,50 +1,26 @@
-//go:build encore_internal
-
 package encore
 
 import (
+	"reflect"
 	"time"
 
-	"encore.dev/runtime"
+	"encore.dev/appruntime/model"
 )
 
 var applicationStartTime = time.Now()
 
-// CurrentRequest returns the Request that is currently being handled by the calling goroutine
-//
-// It is safe for concurrent use and will return a new Request on each evocation, so can be mutated by the
-// calling code without impacting future calls.
-//
-// CurrentRequest never returns nil.
-func CurrentRequest() *Request {
-	req, _, inRequest := runtime.CurrentRequest()
-	if !inRequest {
-		return &Request{
-			Type:    None,
-			Started: applicationStartTime,
-		}
-	}
+// APIDesc describes the API endpoint being called.
+type APIDesc struct {
+	// RequestType specifies the type of the request payload,
+	// or nil if the endpoint has no request payload or is Raw.
+	RequestType reflect.Type
 
-	opType := None
-	switch req.Type {
-	case runtime.RPCCall, runtime.AuthHandler:
-		opType = APICall
-	}
+	// ResponseType specifies the type of the response payload,
+	// or nil if the endpoint has no response payload or is Raw.
+	ResponseType reflect.Type
 
-	pathParams := make(PathParams, len(req.PathSegments))
-	for i, param := range req.PathSegments {
-		pathParams[i].Name = param.Key
-		pathParams[i].Value = param.Value
-	}
-
-	return &Request{
-		Type:       opType,
-		Service:    req.Service,
-		Endpoint:   req.Endpoint,
-		Started:    req.Start,
-		Path:       req.Path,
-		PathParams: pathParams,
-	}
+	// Raw specifies whether the endpoint is a Raw endpoint.
+	Raw bool
 }
 
 // Request provides metadata about how and why the currently running code was started.
@@ -56,18 +32,24 @@ type Request struct {
 
 	// APICall specific parameters.
 	// These will be empty for operations with a type not APICall
+	API        *APIDesc   // Metadata about the API endpoint being called
 	Service    string     // Which service is processing this request
-	Endpoint   string     // Which API endpoint was called.
-	Path       string     // What was the path made to the API server.
+	Endpoint   string     // Which API endpoint is being called
+	Path       string     // What was the path made to the API server
 	PathParams PathParams // If there are path parameters, what are they?
+
+	// Payload is the decoded request payload or Pub/Sub message payload,
+	// or nil if the API endpoint has no request payload or the endpoint is raw.
+	Payload any
 }
 
 // RequestType describes how the currently running code was triggered
 type RequestType string
 
 const (
-	None    RequestType = "none"     // There was no external trigger which caused this code to run. Most likely it was triggered by a package level init function.
-	APICall RequestType = "api-call" // The code was triggered via an API call to a service
+	None          RequestType = "none"           // There was no external trigger which caused this code to run. Most likely it was triggered by a package level init function.
+	APICall       RequestType = "api-call"       // The code was triggered via an API call to a service
+	PubSubMessage RequestType = "pubsub-message" // The code was triggered by a PubSub subscriber
 )
 
 // PathParams contains the path parameters parsed from the request path.
@@ -90,4 +72,48 @@ func (p PathParams) Get(name string) string {
 	}
 
 	return ""
+}
+
+func (mgr *Manager) CurrentRequest() *Request {
+	req := mgr.rt.Current().Req
+	if req == nil {
+		return &Request{
+			Type:    None,
+			Started: applicationStartTime,
+		}
+	}
+
+	opType := None
+	switch req.Type {
+	case model.RPCCall, model.AuthHandler:
+		opType = APICall
+	case model.PubSubMessage:
+		opType = PubSubMessage
+	}
+
+	pathParams := make(PathParams, len(req.PathSegments))
+	for i, param := range req.PathSegments {
+		pathParams[i].Name = param.Key
+		pathParams[i].Value = param.Value
+	}
+
+	var api *APIDesc
+	if d := req.RPCDesc; d != nil {
+		api = &APIDesc{
+			RequestType:  d.RequestType,
+			ResponseType: d.ResponseType,
+			Raw:          d.Raw,
+		}
+	}
+
+	return &Request{
+		Type:       opType,
+		API:        api,
+		Service:    req.Service,
+		Endpoint:   req.Endpoint,
+		Started:    req.Start,
+		Path:       req.Path,
+		PathParams: pathParams,
+		Payload:    req.Payload,
+	}
 }

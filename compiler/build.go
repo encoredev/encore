@@ -20,6 +20,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
+	"encr.dev/compiler/internal/codegen"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
@@ -122,11 +123,12 @@ type builder struct {
 	// inputs
 	cfg        *Config
 	appRoot    string
-	parseTests bool
+	forTesting bool
 
 	workdir string
 	modfile *modfile.File
 	overlay map[string]string
+	codegen *codegen.Builder
 
 	res *parser.Result
 
@@ -167,7 +169,9 @@ func (b *builder) Build() (res *Result, err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
+		b.writeHandlers,
 		b.writeMainPkg,
+		b.writeEtypePkg,
 		b.endCodeGenTracker,
 		b.buildMain,
 	} {
@@ -205,6 +209,7 @@ func (b *builder) parseApp() error {
 
 	if pc := b.cfg.Parse; pc != nil {
 		b.res = pc
+		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
 		return nil
 	}
 
@@ -214,9 +219,14 @@ func (b *builder) parseApp() error {
 		AppHasUncommittedChanges: b.cfg.UncommittedChanges,
 		ModulePath:               b.modfile.Module.Mod.Path,
 		WorkingDir:               b.cfg.WorkingDir,
-		ParseTests:               b.parseTests,
+		ParseTests:               b.forTesting,
 	}
 	b.res, err = parser.Parse(cfg)
+
+	if err == nil {
+		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
+	}
+
 	return err
 }
 
@@ -253,6 +263,11 @@ func (b *builder) writeModFile() error {
 	if err := b.modfile.AddReplace(oldPath, "", newPath, ""); err != nil {
 		return fmt.Errorf("could not replace encore.dev path: %v", err)
 	}
+	// We require Go 1.18+ now that we use generics in code gen.
+	if !isGo118Plus(b.modfile) {
+		b.modfile.AddGoStmt("1.18")
+	}
+
 	b.modfile.Cleanup()
 
 	runtimeModData, err := os.ReadFile(filepath.Join(newPath, "go.mod"))
@@ -297,6 +312,13 @@ func (b *builder) writePackages() error {
 			return err
 		}
 	}
+
+	for _, svc := range b.res.App.Services {
+		if err := b.generateServiceSetup(svc); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -309,7 +331,7 @@ func (b *builder) buildMain() error {
 		return err
 	}
 
-	tags := append([]string{"encore", "encore_internal"}, b.cfg.BuildTags...)
+	tags := append([]string{"encore", "encore_internal", "encore_app"}, b.cfg.BuildTags...)
 	args := []string{
 		"build",
 		"-tags=" + strings.Join(tags, ","),
@@ -322,7 +344,7 @@ func (b *builder) buildMain() error {
 		args = append(args, "-ldflags", `-extldflags "-static"`)
 	}
 
-	args = append(args, "./"+mainPkgName)
+	args = append(args, fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName))
 	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
 	env := []string{
 		"GO111MODULE=on",
@@ -531,4 +553,17 @@ func readSourceOfError(filename string, lineNumberStr string, columnNumberStr st
 	}
 
 	return builder.String()
+}
+
+func isGo118Plus(f *modfile.File) bool {
+	if f.Go == nil {
+		return false
+	}
+	m := modfile.GoVersionRE.FindStringSubmatch(f.Go.Version)
+	if m == nil {
+		return false
+	}
+	major, _ := strconv.Atoi(m[1])
+	minor, _ := strconv.Atoi(m[2])
+	return major > 1 || (major == 1 && minor >= 18)
 }

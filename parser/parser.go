@@ -15,11 +15,13 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
@@ -38,22 +40,24 @@ type parser struct {
 	cfg *Config
 
 	// accumulated results
-	fset         *token.FileSet
-	errors       *errlist.List
-	pkgs         []*est.Package
-	pkgMap       map[string]*est.Package // import path -> pkg
-	svcs         []*est.Service
-	jobs         []*est.CronJob
-	svcMap       map[string]*est.Service // name -> svc
-	svcPkgPaths  map[string]*est.Service // pkg path -> svc
-	jobsMap      map[string]*est.CronJob // ID -> job
-	pubSubTopics []*est.PubSubTopic
-	names        names.Application
-	authHandler  *est.AuthHandler
-	declMap      map[string]*schema.Decl // pkg/path.Name -> decl
-	decls        []*schema.Decl
-	paths        paths.Set                          // RPC paths
-	resourceMap  map[string]map[string]est.Resource // pkg/path -> name -> resource
+	fset          *token.FileSet
+	errors        *errlist.List
+	pkgs          []*est.Package
+	pkgMap        map[string]*est.Package // import path -> pkg
+	svcs          []*est.Service
+	jobs          []*est.CronJob
+	svcMap        map[string]*est.Service // name -> svc
+	svcPkgPaths   map[string]*est.Service // pkg path -> svc
+	jobsMap       map[string]*est.CronJob // ID -> job
+	pubSubTopics  []*est.PubSubTopic
+	cacheClusters []*est.CacheCluster
+	names         names.Application
+	authHandler   *est.AuthHandler
+	middleware    []*est.Middleware
+	declMap       map[string]*schema.Decl // pkg/path.Name -> decl
+	decls         []*schema.Decl
+	paths         paths.Set                          // RPC paths
+	resourceMap   map[string]map[string]est.Resource // pkg/path -> name -> resource
 
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.
@@ -141,6 +145,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.parseResourceUsage()
 	p.parseReferences()
 	p.parseSecrets()
+	p.validateMiddleware()
 	p.validateApp()
 
 	sort.Slice(p.pkgs, func(i, j int) bool {
@@ -155,13 +160,15 @@ func (p *parser) Parse() (res *Result, err error) {
 		})
 	}
 	app := &est.Application{
-		ModulePath:   p.cfg.ModulePath,
-		Packages:     p.pkgs,
-		Services:     p.svcs,
-		CronJobs:     p.jobs,
-		PubSubTopics: p.pubSubTopics,
-		Decls:        p.decls,
-		AuthHandler:  p.authHandler,
+		ModulePath:    p.cfg.ModulePath,
+		Packages:      p.pkgs,
+		Services:      p.svcs,
+		CronJobs:      p.jobs,
+		PubSubTopics:  p.pubSubTopics,
+		CacheClusters: p.cacheClusters,
+		Decls:         p.decls,
+		AuthHandler:   p.authHandler,
+		Middleware:    p.middleware,
 	}
 	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app)
 	if err != nil {
@@ -352,6 +359,16 @@ func (p *parser) parseReferences() {
 						}
 					}
 
+					// Are we referencing a service struct from another service?
+					if pkg2.Service != nil && pkg.Service != nil && pkg2.Service != pkg.Service &&
+						pkg2.Service.Struct != nil && obj == pkg2.Service.Struct.Name {
+						if !strings.HasSuffix(file.Name, "_test.go") {
+							p.errf(node.Pos(), "cannot reference encore:service struct type %s.%s from another service",
+								pkg2.Name, obj)
+							return false
+						}
+					}
+
 					if h := p.authHandler; h != nil && path == h.Svc.Root.ImportPath && obj == h.Name {
 						p.errf(node.Pos(), "cannot reference auth handler %s.%s from another package", h.Svc.Root.RelPath, obj)
 						return false
@@ -424,6 +441,8 @@ func (p *parser) parseReferences() {
 						// rlog calls are allowed outside of services
 					case est.PubSubTopicDefNode:
 						// pubsub topic definitions are allowed outside of services
+					case est.CacheClusterDefNode:
+						// cache cluster definitions are allowed outside of services
 					default:
 						p.errf(astNode.Pos(), "invalid reference outside of a service\n\tpackage %s is not considered a service (it has no APIs or pubsub subscribers defined)", pkg.Name)
 					}
@@ -534,7 +553,7 @@ func (p *parser) validateApp() {
 			if !strings.HasSuffix(f.Name, "_test.go") {
 				for _, imp := range f.AST.Imports {
 					if strings.Contains(imp.Path.Value, testImportPath) {
-						p.err(imp.Pos(), "Encores test packages can only be used inside tests and cannot otherwise be imported.")
+						p.err(imp.Pos(), "Encore's test packages can only be used inside tests and cannot otherwise be imported.")
 					}
 				}
 			}
@@ -563,6 +582,179 @@ func (p *parser) validateApp() {
 				return true
 			}, nil)
 		}
+	}
+
+	p.validateCacheKeyspacePathConflicts()
+}
+
+func (p *parser) rpcForName(pkgPath, objName string) (*est.RPC, bool) {
+	if svc, found := p.svcPkgPaths[pkgPath]; found {
+		for _, rpc := range svc.RPCs {
+			if rpc.Name == objName {
+				return rpc, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
+// resolveRPCRef resolves an expression as a reference to an RPC.
+// It must either be in the form "svc.RPC" (if different service)
+// or "RPC", "Service.RPC" or "(*Service).RPC" if within a service.
+func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
+	// Simple case: just "RPC"
+	if ident, ok := expr.(*ast.Ident); ok {
+		pkgPath, objName, _ := p.names.PackageLevelRef(file, expr)
+		if pkgPath != "" {
+			return p.rpcForName(pkgPath, objName)
+		} else {
+			// On first compiles of an Encore app using service structs the `encore.gen.go` file has not been created yet.
+			// which means during the parsers name resolution phase, a reference of `Blah()` on `(*Service).Blah` would
+			// not be resolved to any RPC. However after the generation of `encore.gen.go` the reference would be resolved.
+			//
+			// As such if `pkgPath` is blank, it means name resolution failed, so we'll check if there is an RPC on the
+			// service struct with that name, if there is we'll return that one.
+			//
+			// Note we can't first generate `encore.gen.go` as it needs a successful parse output to generate, which we
+			// can't do without either having `encore.gen.go` or putting in this work around.
+			if file.Pkg.Service != nil && file.Pkg.Service.Struct != nil {
+				for _, rpc := range file.Pkg.Service.RPCs {
+					if rpc.Name == ident.Name {
+						return rpc, true
+					}
+				}
+			}
+		}
+		return nil, false
+	}
+
+	// See if it's "othersvc.RPC"
+	{
+		pkgPath, objName, _ := p.names.PackageLevelRef(file, expr)
+		if pkgPath != "" {
+			return p.rpcForName(pkgPath, objName)
+		}
+	}
+
+	// Finally it might be "Service.RPC" where "Service" is an API Group.
+	sel, ok := expr.(*ast.SelectorExpr)
+	if !ok {
+		return nil, false
+	}
+	endpointName := sel.Sel.Name
+
+	// Unwrap "(*Service)", if necessary
+	groupExpr := sel.X
+	if paren, ok := groupExpr.(*ast.ParenExpr); ok {
+		groupExpr = paren.X
+	}
+	if ptr, ok := groupExpr.(*ast.StarExpr); ok {
+		groupExpr = ptr.X
+	}
+
+	pkgPath, objName, _ := p.names.PackageLevelRef(file, groupExpr)
+	if pkgPath != file.Pkg.ImportPath {
+		// Refers to a different package; API group references must be within
+		// the same package.
+		return nil, false
+	}
+
+	// Resolve the "Service" in "Service.RPC" to an API Group.
+	svc, ok := p.svcPkgPaths[pkgPath]
+	if !ok {
+		// Not a service, so doesn't contain a service struct
+		return nil, false
+	}
+	var ss *est.ServiceStruct
+	if svc.Struct != nil && svc.Struct.Name == objName {
+		ss = svc.Struct
+	} else {
+		return nil, false
+	}
+
+	for _, rpc := range ss.RPCs {
+		if rpc.Name == endpointName {
+			return rpc, true
+		}
+	}
+	return nil, false
+}
+
+// validateMiddleware validates the middleware and sorts them in file and line order,
+// to ensure that middleware runs in the order they were defined.
+func (p *parser) validateMiddleware() {
+	// Find which tags are used so we can error for unknown tags
+	type svcTag struct{ svc, tag string }
+	globalTags := make(map[string]bool)
+	svcTags := make(map[svcTag]bool)
+	for _, svc := range p.svcs {
+		for _, rpc := range svc.RPCs {
+			for _, tag := range rpc.Tags {
+				globalTags[tag.Value] = true
+				svcTags[svcTag{svc: svc.Name, tag: tag.Value}] = true
+			}
+		}
+	}
+
+	// Ensure global middleware are not defined in service packages, and vice versa.
+	for _, mw := range p.middleware {
+		// We can't check mw.Svc as during parsing it wasn't yet clear if a package was a service or not,
+		// so it's nil iff Global is false.
+		if mw.Global && mw.Pkg.Service != nil {
+			p.errf(mw.Func.Pos(), "cannot define global middleware within a service package\n"+
+				"\tNote: since global middleware applies to all services it must be defined outside\n"+
+				"\tof any particular service.")
+		} else if !mw.Global && mw.Pkg.Service == nil {
+			p.errf(mw.Func.Pos(), "cannot define non-global middleware outside of a service\n"+
+				"\tNote: package %s is not a service. To define a global middleware,\n"+
+				"\tspecify //encore:middleware global", mw.Pkg.Name)
+		}
+
+		// Make sure the middleware is targeting tags that actually exist
+		for _, sel := range mw.Target {
+			if sel.Type == selector.Tag {
+				if mw.Global {
+					if !globalTags[sel.Value] {
+						p.errf(mw.Func.Pos(), "undefined tag (no API in the application defines this tag): %s",
+							sel.String())
+					}
+				} else {
+					if !svcTags[svcTag{svc: mw.Svc.Name, tag: sel.Value}] {
+						p.errf(mw.Func.Pos(), "undefined tag (no API in the %s service defines this tag): %s",
+							mw.Svc.Name, sel.String())
+					}
+				}
+			}
+		}
+	}
+
+	// Sort the middleware in file and column order
+	sortFn := func(a, b *est.Middleware) bool {
+		// Globals come first, then group by package
+		if a.Global != b.Global {
+			return a.Global
+		} else if a.Pkg != b.Pkg {
+			return a.Pkg.RelPath < b.Pkg.RelPath
+		}
+
+		posA := p.fset.Position(a.Func.Pos())
+		posB := p.fset.Position(b.Func.Pos())
+
+		// Sort by filename, then line, then column
+		if posA.Filename != posB.Filename {
+			return posA.Filename < posB.Filename
+		} else if posA.Line != posB.Line {
+			return posA.Line < posB.Line
+		} else {
+			return posA.Column < posB.Column
+		}
+	}
+
+	// Sort both the overall list and the service-specific lists.
+	slices.SortStableFunc(p.middleware, sortFn)
+	for _, svc := range p.svcs {
+		slices.SortStableFunc(svc.Middleware, sortFn)
 	}
 }
 

@@ -10,50 +10,74 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/stack"
-	"encore.dev/runtime"
-	"encore.dev/runtime/trace"
 	"encore.dev/types/uuid"
 )
 
-// Debug logs a debug-level message.
-// The variadic key-value pairs are treated as they are in With.
-func Debug(msg string, keysAndValues ...interface{}) {
-	log := runtime.Logger()
-	doLog(0, log.Debug(), msg, keysAndValues...)
+//publicapigen:drop
+type Manager struct {
+	rt *reqtrack.RequestTracker
 }
 
-// Info logs an info-level message.
-// The variadic key-value pairs are treated as they are in With.
-func Info(msg string, keysAndValues ...interface{}) {
-	log := runtime.Logger()
-	doLog(1, log.Info(), msg, keysAndValues...)
-}
-
-// Error logs an error-level message.
-// The variadic key-value pairs are treated as they are in With.
-func Error(msg string, keysAndValues ...interface{}) {
-	log := runtime.Logger()
-	doLog(2, log.Error(), msg, keysAndValues...)
+//publicapigen:drop
+func NewManager(rt *reqtrack.RequestTracker) *Manager {
+	return &Manager{rt}
 }
 
 // Ctx holds additional logging context for use with the Infoc and family
 // of logging functions.
 type Ctx struct {
 	ctx zerolog.Context
+	mgr *Manager
 }
 
-// With adds a variadic number of fields to the logging context.
-// The keysAndValues must be pairs of string keys and arbitrary data.
-func With(keysAndValues ...interface{}) Ctx {
-	ctx := runtime.Logger().With()
+func (l *Manager) Debug(msg string, keysAndValues ...interface{}) {
+	l.doLog(0, l.rt.Logger().Debug(), msg, keysAndValues...)
+}
+
+func (l *Manager) Info(msg string, keysAndValues ...interface{}) {
+	l.doLog(1, l.rt.Logger().Info(), msg, keysAndValues...)
+}
+
+func (l *Manager) Error(msg string, keysAndValues ...interface{}) {
+	l.doLog(2, l.rt.Logger().Error(), msg, keysAndValues...)
+}
+
+func (l *Manager) With(keysAndValues ...interface{}) Ctx {
+	ctx := l.rt.Logger().With()
 	for i := 0; i < len(keysAndValues); i += 2 {
 		key := keysAndValues[i].(string)
 		val := keysAndValues[i+1]
 		ctx = addContext(ctx, key, val)
 	}
-	return Ctx{ctx: ctx}
+	return Ctx{ctx: ctx, mgr: l}
+}
+
+// Debug logs a debug-level message, merging the context from ctx
+// with the additional context provided as key-value pairs.
+// The variadic key-value pairs are treated as they are in With.
+func (ctx Ctx) Debug(msg string, keysAndValues ...interface{}) {
+	l := ctx.ctx.Logger()
+	ctx.mgr.doLog(0, l.Debug(), msg, keysAndValues...)
+}
+
+// Info logs an info-level message, merging the context from ctx
+// with the additional context provided as key-value pairs.
+// The variadic key-value pairs are treated as they are in With.
+func (ctx Ctx) Info(msg string, keysAndValues ...interface{}) {
+	l := ctx.ctx.Logger()
+	ctx.mgr.doLog(1, l.Info(), msg, keysAndValues...)
+}
+
+// Error logs an error-level message, merging the context from ctx
+// with the additional context provided as key-value pairs.
+// The variadic key-value pairs are treated as they are in With.
+func (ctx Ctx) Error(msg string, keysAndValues ...interface{}) {
+	l := ctx.ctx.Logger()
+	ctx.mgr.doLog(2, l.Error(), msg, keysAndValues...)
 }
 
 // With creates a new logging context that inherits the context
@@ -66,43 +90,19 @@ func (ctx Ctx) With(keysAndValues ...interface{}) Ctx {
 		val := keysAndValues[i+1]
 		c = addContext(c, key, val)
 	}
-	return Ctx{ctx: c}
+	return Ctx{ctx: c, mgr: ctx.mgr}
 }
 
-// Debug logs a debug-level message, merging the context from ctx
-// with the additional context provided as key-value pairs.
-// The variadic key-value pairs are treated as they are in With.
-func (ctx Ctx) Debug(msg string, keysAndValues ...interface{}) {
-	l := ctx.ctx.Logger()
-	doLog(0, l.Debug(), msg, keysAndValues...)
-}
-
-// Info logs an info-level message, merging the context from ctx
-// with the additional context provided as key-value pairs.
-// The variadic key-value pairs are treated as they are in With.
-func (ctx Ctx) Info(msg string, keysAndValues ...interface{}) {
-	l := ctx.ctx.Logger()
-	doLog(1, l.Info(), msg, keysAndValues...)
-}
-
-// Error logs an error-level message, merging the context from ctx
-// with the additional context provided as key-value pairs.
-// The variadic key-value pairs are treated as they are in With.
-func (ctx Ctx) Error(msg string, keysAndValues ...interface{}) {
-	l := ctx.ctx.Logger()
-	doLog(2, l.Error(), msg, keysAndValues...)
-}
-
-func doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
-	var tb *trace.TraceBuf
-	req, goid, _ := runtime.CurrentRequest()
+func (l *Manager) doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
+	var tb *trace.Buffer
+	curr := l.rt.Current()
 	fields := len(keysAndValues) / 2
 
-	if req != nil && req.Traced {
-		t := trace.NewTraceBuf(16 + 8 + len(msg) + 4 + fields*50)
+	if curr.Req != nil && curr.Trace != nil {
+		t := trace.NewBuffer(16 + 8 + len(msg) + 4 + fields*50)
 		tb = &t
-		tb.Bytes(req.SpanID[:])
-		tb.UVarint(uint64(goid))
+		tb.Bytes(curr.Req.SpanID[:])
+		tb.UVarint(uint64(curr.Goctr))
 		tb.Byte(level)
 		tb.String(msg)
 		tb.UVarint(uint64(fields))
@@ -118,9 +118,9 @@ func doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface
 	}
 	ev.Msg(msg)
 
-	if tb != nil {
+	if curr.Trace != nil {
 		tb.Stack(stack.Build(3))
-		runtime.TraceLog(trace.LogMessage, tb.Buf())
+		curr.Trace.Add(trace.LogMessage, tb.Buf())
 	}
 }
 
@@ -234,7 +234,7 @@ const (
 	float64Type byte = 11
 )
 
-func addTraceBufEntry(tb *trace.TraceBuf, key string, val interface{}) {
+func addTraceBufEntry(tb *trace.Buffer, key string, val interface{}) {
 	switch val := val.(type) {
 	case error:
 		tb.Byte(errType)

@@ -37,3 +37,26 @@ We're working every single day on making it even easier to start, <i>and stop</i
 If you have specific concerns or questions, we'd love to hear from you!
 
 Please reach out on [Slack](https://encore.dev/slack) or [send an email](mailto:hello@encore.dev) with your thoughts.
+
+## Ejecting
+If you've decided to migrate away from Encore, Encore has built-in support for ejecting your application as a way of
+removing the connection to the Encore Platform. Ejecting your app produces a standalone Docker image that can be
+deployed any where you'd like, and can help facilitating the migration away according to the process above.
+See `encore eject docker --help` for more information.
+
+### Configuring your ejected docker image
+To run your app as an ejected image it needs to be configured. This configuration is normally handled by the Encore Platform,
+but needs to be manually managed when ejecting. There are two environment variables that need to be set: `ENCORE_APP_SECRETS`
+and `ENCORE_RUNTIME_CONFIG`.
+
+`ENCORE_APP_SECRETS` provides the values of all of your application secrets. The value should be a comma-separated list
+of key-value pairs, where the key is the secret name and the value is the secret value in base64 encoded form
+(using Go's [RawURLEncoding](https://pkg.go.dev/encoding/base64#pkg-variables) scheme). For example, if you had two secrets
+`Foo` and `Bar` with the values `Hello` and `World` respectively, the value of `ENCORE_APP_SECRETS` should be
+`Foo=SGVsbG8,Bar=V29ybGQ`.
+
+`ENCORE_RUNTIME_CONFIG` provides the runtime configuration Encore applications need. As the precise configuration changes
+over time, please refer to the [current runtime config definition](https://github.com/encoredev/encore/blob/main/runtime/appruntime/config/config.go). The app, environment, and deployment related information powers the [encore.Meta](https://pkg.go.dev/encore.dev#AppMetadata) API
+and can be set to arbitrary values. The SQL database and SQL server information is used to configure how Encore connects to SQL databases,
+and should be configured according to your own infrastructure setup. `AuthKeys` and `TraceEndpoint` must both be left unspecified as they
+determine how the application communicates with the Encore Platform, and leaving them empty disables that functionality.

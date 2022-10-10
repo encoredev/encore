@@ -12,7 +12,6 @@ import (
 	"strconv"
 
 	"encr.dev/parser/est"
-	"encr.dev/parser/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -93,8 +92,17 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.PubsubTopics = append(data.PubsubTopics, t)
 	}
 
+	for _, cluster := range app.CacheClusters {
+		cc := parseCacheCluster(cluster)
+		data.CacheClusters = append(data.CacheClusters, cc)
+	}
+
 	if app.AuthHandler != nil {
 		data.AuthHandler = parseAuthHandler(app.AuthHandler)
+	}
+
+	for _, mw := range app.Middleware {
+		data.Middleware = append(data.Middleware, parseMiddleware(mw))
 	}
 
 	return data, nodes, nil
@@ -212,8 +220,9 @@ func parseRPC(rpc *est.RPC) (*meta.RPC, error) {
 		ResponseSchema: resp,
 		Proto:          proto,
 		Loc:            parseLoc(rpc.File, rpc.Func),
-		Path:           parsePath(rpc.Path),
+		Path:           rpc.Path.ToProto(),
 		HttpMethods:    rpc.HTTPMethods,
+		Tags:           rpc.Tags.ToProto(),
 	}
 	return r, nil
 }
@@ -230,6 +239,23 @@ func parseCronJob(job *est.CronJob) (*meta.CronJob, error) {
 		},
 	}
 	return j, nil
+}
+
+func parseCacheCluster(cluster *est.CacheCluster) *meta.CacheCluster {
+	parseKeyspaces := func(keyspaces ...*est.CacheKeyspace) (rtn []*meta.CacheCluster_Keyspace) {
+		for range keyspaces {
+			// TODO implement
+			rtn = append(rtn, &meta.CacheCluster_Keyspace{})
+		}
+		return rtn
+	}
+
+	return &meta.CacheCluster{
+		Name:           cluster.Name,
+		Doc:            cluster.Doc,
+		EvictionPolicy: cluster.EvictionPolicy,
+		Keyspaces:      parseKeyspaces(cluster.Keyspaces...),
+	}
 }
 
 func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {
@@ -292,6 +318,20 @@ func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 	}
 	if h.AuthData != nil {
 		pb.AuthData = h.AuthData.Type
+	}
+	return pb
+}
+
+func parseMiddleware(mw *est.Middleware) *meta.Middleware {
+	pb := &meta.Middleware{
+		Name:   &meta.QualifiedName{Pkg: mw.Pkg.RelPath, Name: mw.Name},
+		Doc:    mw.Doc,
+		Loc:    parseLoc(mw.File, mw.Func),
+		Global: mw.Global,
+		Target: mw.Target.ToProto(),
+	}
+	if mw.Svc != nil {
+		pb.ServiceName = &mw.Svc.Name
 	}
 	return pb
 }
@@ -363,6 +403,17 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 							Context:        string(file.Contents[start:end]),
 						},
 					}
+
+				case est.CacheKeyspaceDefNode:
+					ks := r.Node.Res.(*est.CacheKeyspace)
+					tx.Context = &meta.TraceNode_CacheKeyspace{
+						CacheKeyspace: &meta.CacheKeyspaceDefNode{
+							PkgRelPath:  pkg.RelPath,
+							VarName:     ks.Ident().Name,
+							ClusterName: ks.Cluster.Name,
+							Context:     string(file.Contents[start:end]),
+						},
+					}
 				}
 			}
 		}
@@ -385,6 +436,23 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				},
 			}
 		}
+
+		if ss := svc.Struct; ss != nil && ss.Init != nil {
+			fd := ss.Init
+			f := ss.InitFile
+			nod := newTraceNode(&id, svc.Root, f, ss.Init)
+			res[svc.Root][fd] = nod
+
+			start := f.Token.Offset(fd.Type.Pos())
+			end := f.Token.Offset(fd.Type.End())
+			nod.Context = &meta.TraceNode_ServiceInit{
+				ServiceInit: &meta.ServiceInitNode{
+					ServiceName:   svc.Name,
+					SetupFuncName: ss.Init.Name.Name,
+					Context:       string(f.Contents[start:end]),
+				},
+			}
+		}
 	}
 
 	if h := app.AuthHandler; h != nil {
@@ -399,6 +467,23 @@ func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
 				ServiceName: h.Svc.Name,
 				Name:        fd.Name.Name,
 				Context:     string(f.Contents[start:end]),
+			},
+		}
+	}
+
+	for _, mw := range app.Middleware {
+		fd := mw.Func
+		f := mw.File
+		tx := newTraceNode(&id, mw.Pkg, f, fd)
+		res[mw.Pkg][fd] = tx
+		start := f.Token.Offset(fd.Type.Pos())
+		end := f.Token.Offset(fd.Type.End())
+		tx.Context = &meta.TraceNode_MiddlewareDef{
+			MiddlewareDef: &meta.MiddlewareDefNode{
+				PkgRelPath: mw.Pkg.RelPath,
+				Name:       fd.Name.Name,
+				Context:    string(f.Contents[start:end]),
+				Target:     mw.Target.ToProto(),
 			},
 		}
 	}
@@ -469,59 +554,6 @@ func parseLoc(f *est.File, node ast.Node) *schema.Loc {
 		SrcColStart:  int32(sPos.Column),
 		SrcColEnd:    int32(ePos.Column),
 	}
-}
-
-func parsePath(p *paths.Path) *meta.Path {
-	mp := &meta.Path{}
-	for _, seg := range p.Segments {
-		s := &meta.PathSegment{Value: seg.Value}
-		switch seg.Type {
-		case paths.Literal:
-			s.Type = meta.PathSegment_LITERAL
-		case paths.Param:
-			s.Type = meta.PathSegment_PARAM
-		case paths.Wildcard:
-			s.Type = meta.PathSegment_WILDCARD
-		default:
-			panic(fmt.Sprintf("unhandled path segment type %v", seg.Type))
-		}
-
-		if s.Type != meta.PathSegment_LITERAL {
-			switch seg.ValueType {
-			case schema.Builtin_STRING:
-				s.ValueType = meta.PathSegment_STRING
-			case schema.Builtin_BOOL:
-				s.ValueType = meta.PathSegment_BOOL
-			case schema.Builtin_INT8:
-				s.ValueType = meta.PathSegment_INT8
-			case schema.Builtin_INT16:
-				s.ValueType = meta.PathSegment_INT16
-			case schema.Builtin_INT32:
-				s.ValueType = meta.PathSegment_INT32
-			case schema.Builtin_INT64:
-				s.ValueType = meta.PathSegment_INT64
-			case schema.Builtin_INT:
-				s.ValueType = meta.PathSegment_INT
-			case schema.Builtin_UINT8:
-				s.ValueType = meta.PathSegment_UINT8
-			case schema.Builtin_UINT16:
-				s.ValueType = meta.PathSegment_UINT16
-			case schema.Builtin_UINT32:
-				s.ValueType = meta.PathSegment_UINT32
-			case schema.Builtin_UINT64:
-				s.ValueType = meta.PathSegment_UINT64
-			case schema.Builtin_UINT:
-				s.ValueType = meta.PathSegment_UINT
-			case schema.Builtin_UUID:
-				s.ValueType = meta.PathSegment_UUID
-			default:
-				panic(fmt.Sprintf("unhandled path segment value type %v", seg.ValueType))
-			}
-		}
-
-		mp.Segments = append(mp.Segments, s)
-	}
-	return mp
 }
 
 type refPair struct {

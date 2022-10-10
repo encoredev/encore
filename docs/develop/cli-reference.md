@@ -134,9 +134,7 @@ Code generation commands
 
 #### Generate client
 
-Generates an API client for your app
-
-Generates an API client for your app.
+Generates an API client for your app. For more information about the generated clients, see [this page](/docs/develop/client-generation).
 
 By default generates the API based on your primary production environment.
 Use '--env=local' to generate it based on your local development version of the app.

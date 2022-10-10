@@ -84,6 +84,17 @@ npm install
 npm run build
 ```
 
+### Testing the Development Dashboard
+Tests are written using [Jest](https://jestjs.io/) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+
+To run the front-end unit tests:
+
+```bash
+cd cli/daemon/dash/dashapp
+npm test #run all tests 
+npm test -- --watch #re-run tests on file change
+```
+
 ## Architecture
 
 The code base is divided into several parts:

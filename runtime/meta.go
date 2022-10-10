@@ -4,42 +4,48 @@ import (
 	"net/url"
 	"time"
 
+	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/reqtrack"
 	"encore.dev/internal/cloud"
-	"encore.dev/runtime/config"
 )
 
-var apiBaseURL *url.URL
+//publicapigen:drop
+type Manager struct {
+	cfg        *config.Config
+	rt         *reqtrack.RequestTracker
+	apiBaseURL *url.URL
+}
+
+//publicapigen:drop
+func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
+	baseURL, err := url.Parse(cfg.Runtime.APIBaseURL)
+	if err != nil {
+		panic("invalid APIBaseURL: " + err.Error())
+	}
+	return &Manager{cfg, rt, baseURL}
+}
 
 // Meta returns metadata about the running application.
 //
 // Meta will never return nil.
-func Meta() *AppMetadata {
-
+func (mgr *Manager) Meta() *AppMetadata {
+	cfg := mgr.cfg
 	return &AppMetadata{
-		AppID:      config.Cfg.Runtime.AppSlug,
-		APIBaseURL: *apiBaseURL,
+		AppID:      cfg.Runtime.AppSlug,
+		APIBaseURL: *mgr.apiBaseURL,
 		Environment: EnvironmentMeta{
-			Name:  config.Cfg.Runtime.EnvName,
-			Type:  EnvironmentType(config.Cfg.Runtime.EnvType),
-			Cloud: CloudProvider(config.Cfg.Runtime.EnvCloud),
+			Name:  cfg.Runtime.EnvName,
+			Type:  EnvironmentType(cfg.Runtime.EnvType),
+			Cloud: CloudProvider(cfg.Runtime.EnvCloud),
 		},
 		Build: BuildMeta{
-			Revision:           config.Cfg.Static.AppCommit.Revision,
-			UncommittedChanges: config.Cfg.Static.AppCommit.Uncommitted,
+			Revision:           cfg.Static.AppCommit.Revision,
+			UncommittedChanges: cfg.Static.AppCommit.Uncommitted,
 		},
 		Deploy: DeployMeta{
-			ID:   config.Cfg.Runtime.DeployID,
-			Time: config.Cfg.Runtime.DeployedAt,
+			ID:   cfg.Runtime.DeployID,
+			Time: cfg.Runtime.DeployedAt,
 		},
-	}
-}
-
-func init() {
-	// If this package is imported outside an Encore application, these will be nil, as we will not have initialised
-	// or a dummy `config.LoadConfig` would have been linked in which will not return a config
-	if config.Cfg != nil && config.Cfg.Runtime != nil {
-		// We don't need to check for errors, as we already check it's parsable during the config.ParseConfig initialization
-		apiBaseURL, _ = url.Parse(config.Cfg.Runtime.APIBaseURL)
 	}
 }
 

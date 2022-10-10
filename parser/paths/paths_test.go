@@ -8,7 +8,7 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
-func TestParse(t *testing.T) {
+func TestParseURL(t *testing.T) {
 	c := qt.New(t)
 
 	str := schema.Builtin_STRING
@@ -17,6 +17,7 @@ func TestParse(t *testing.T) {
 		Want []Segment
 		Err  string
 	}{
+		{"foo", nil, "path must begin with '/'"},
 		{"/foo", []Segment{{Literal, "foo", str}}, ""},
 		{"/foo/", nil, "path cannot contain trailing slash"},
 		{"/foo/bar", []Segment{{Literal, "foo", str}, {Literal, "bar", str}}, ""},
@@ -33,7 +34,45 @@ func TestParse(t *testing.T) {
 
 	for _, test := range tests {
 		c.Run(test.Path, func(c *qt.C) {
-			p, err := Parse(0, test.Path)
+			p, err := Parse(0, test.Path, URL)
+			if err != nil {
+				c.Assert(err, qt.ErrorMatches, test.Err)
+			} else if test.Err != "" {
+				c.Fatalf("expected err %q, got nil", test.Err)
+			} else {
+				c.Assert(p.Segments, qt.DeepEquals, test.Want)
+			}
+		})
+	}
+}
+
+func TestParseCacheKeyspace(t *testing.T) {
+	c := qt.New(t)
+
+	str := schema.Builtin_STRING
+	tests := []struct {
+		Path string
+		Want []Segment
+		Err  string
+	}{
+		{"foo", []Segment{{Literal, "foo", str}}, ""},
+		{"foo/", nil, "path cannot contain trailing slash"},
+		{"/foo", nil, "path must not begin with '/'"},
+		{"foo/bar", []Segment{{Literal, "foo", str}, {Literal, "bar", str}}, ""},
+		{"foo//bar", nil, "path cannot contain double slash"},
+		{":foo/*bar", []Segment{{Param, "foo", str}, {Literal, "*bar", str}}, ""},
+		{":foo/*", []Segment{{Param, "foo", str}, {Literal, "*", str}}, ""},
+		{":foo/*/bar", []Segment{{Param, "foo", str}, {Literal, "*", str}, {Literal, "bar", str}}, ""},
+		{":foo/*;", []Segment{{Param, "foo", str}, {Literal, "*;", str}}, ""},
+		{":;", nil, "path parameter must be a valid Go identifier name"},
+		{":foo/*;", []Segment{{Param, "foo", str}, {Literal, "*;", str}}, ""},
+		{"\u0000", []Segment{{Literal, "\u0000", str}}, ""},
+		{"foo?bar=baz", []Segment{{Literal, "foo?bar=baz", str}}, ""},
+	}
+
+	for _, test := range tests {
+		c.Run(test.Path, func(c *qt.C) {
+			p, err := Parse(0, test.Path, CacheKeyspace)
 			if err != nil {
 				c.Assert(err, qt.ErrorMatches, test.Err)
 			} else if test.Err != "" {
@@ -73,7 +112,7 @@ func TestAdd(t *testing.T) {
 	set := &Set{}
 
 	for _, test := range paths {
-		p, err := Parse(0, test.Path)
+		p, err := Parse(0, test.Path, URL)
 		c.Assert(err, qt.IsNil)
 		err = set.Add(test.Method, p)
 		if test.Err != "" {

@@ -8,7 +8,8 @@ import "strings"
 	section: string
 	category: string
 	path: string | *strings.Replace("/\(section)/\(segment)", "/index", "", -1)
-	old_paths: [string] | *null
+	old_paths: [...string] | *null
+	shortcuts: [...string] | *null // URL's which can be used on the root of the website or on docs if it would have been a 404 (i.e. https://encore.dev/topics => https://encore.dev/docs/develop/pubsub)
 }
 
 #Section: {
@@ -32,11 +33,13 @@ sections: [
 		title: "Introduction"
 		segment: "index"
 		docs: [
-			{title: "Overview", segment: "index"},
-			{title: "Why Encore?", segment: "benefits"},
-			{title: "Encore Application Model", segment: "application-model"},
-			{title: "The Encore Way", segment: "encore-way", old_paths: ["/deploy/platform"]},
+			{title: "Welcome", segment: "index"},
 			{title: "Installation", segment: "install"},
+			{
+				title: "What is Encore?",
+				segment: "introduction",
+				old_paths: ["/benefits", "/application-model", "/encore-way"]
+			},
 			{
 				title: "Quick Start",
 				segment: "quick-start",
@@ -50,29 +53,39 @@ sections: [
 		docs: [
 			{title: "Building a REST API", segment: "rest-api"},
 			{title: "Building a Slack bot", segment: "slack-bot"},
+			{title: "Building an Incident Tool", segment: "incident-management-tool"},
 		]
 	},
 	{
 		title: "Develop"
 		segment: "develop"
 		docs: [
+			{title: "App Structure", segment: "app-structure"},
 			{title: "Services and APIs", segment: "services-and-apis"},
-			{title: "API Errors", segment: "errors", old_paths:["/concepts/errors"]},
-			{title: "Authentication", segment: "auth"},
-			{title: "SQL Databases", segment: "databases"},
+			{title: "API Schemas", segment: "api-schemas"},
+			{title: "API Errors", segment: "errors", old_paths:["/concepts/errors"], shortcuts: ["beta/errs", "errs"]},
+			{title: "Authentication", segment: "auth", shortcuts: ["beta/auth", "auth"]},
+			{title: "SQL Databases", segment: "databases", old_paths:["/develop/sql-database"], shortcuts: ["storage/sqldb"]},
 			{
 				title: "Cron Jobs",
 				segment: "cron-jobs"
 				old_paths: [
 					"/cron-jobs" // linked to from our go package
-				]
+				],
+				 shortcuts: ["cron"]
 			},
 			{title: "Configuration", segment: "config"},
 			{title: "Secrets", segment: "secrets"},
+			{title: "PubSub", segment: "pubsub", shortcuts: ["pubsub"]},
+			{title: "Caching", segment: "caching", shortcuts: ["storage/cache"]},
 			{title: "Testing", segment: "testing"},
+			{title: "Middleware", segment: "middleware"},
+			{title: "Validation", segment: "validation"},
 			{title: "Metadata", segment: "metadata"},
 			{title: "Generated API Docs", segment: "api-docs"},
+			{title: "Client Generation", segment: "client-generation"},
 			{title: "CLI Reference", segment: "cli-reference"},
+			{title: "Encore Flow", segment: "encore-flow"},
 		]
 	},
 	{
@@ -92,7 +105,7 @@ sections: [
 		segment: "observability"
 		docs: [
 			{title: "Development Dashboard", segment: "dev-dash"},
-			{title: "Logging", segment: "logging"},
+			{title: "Logging", segment: "logging", shortcuts: ["rlog"]},
 			{title: "Monitoring", segment: "monitoring"},
 			{title: "Distributed Tracing", segment: "tracing"},
 		]
@@ -112,11 +125,14 @@ sections: [
 			{title: "Change SQL database schema", segment: "change-db-schema"},
 			{title: "Connect to an existing database", segment: "connect-existing-db"},
 			{title: "Share SQL databases between services", segment: "share-db-between-services"},
+			{title: "Insert test data in a database", segment: "insert-test-data-db"},
 			{title: "Receive webhooks", segment: "webhooks"},
+			{title: "Use Dependency Injection", segment: "dependency-injection"},
 			{title: "Integrate with a web frontend", segment: "integrate-frontend"},
 			{title: "Use Firebase Authentication", segment: "firebase-auth"},
 			{title: "Integrate with GitHub", segment: "github"},
 			{title: "Migrate away from Encore", segment: "migrate-away"},
+			{title: "Use the ent ORM for migrations", segment: "entgo-orm"},
 		]
 	},
 	{
@@ -144,9 +160,24 @@ redirects: [
 	if doc.old_paths != null
 	for old_path in doc.old_paths {
 		{
-			source: old_path,
-			destination: doc.path,
+			source: "/docs\(old_path)",
+			destination: "/docs\(doc.path)",
 			permanent: true
+		}
+	}
+]
+
+
+shortcuts: [...#Redirect]
+shortcuts: [
+  for sec in sections
+	for doc in sec.docs
+	if doc.shortcuts != null
+	for shortcut in doc.shortcuts {
+		{
+			source: shortcut,
+			destination: "/docs\(doc.path)",
+			permanent: false
 		}
 	}
 ]

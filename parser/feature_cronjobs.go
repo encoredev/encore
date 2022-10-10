@@ -120,21 +120,12 @@ func (p *parser) parseCronJob(file *est.File, cursor *walker.Cursor, ident *ast.
 
 		// This is one of the places where it's fine to reference an RPC endpoint.
 		p.validRPCReferences[endpoint] = true
-		pkgPath, objName, _ := p.names.PackageLevelRef(file, endpoint)
-		if pkgPath != "" {
-			if svc, found := p.svcPkgPaths[pkgPath]; found {
-				for _, rpc := range svc.RPCs {
-					if rpc.Func.Name.Name == objName {
-						cj.RPC = rpc
-						break
-					}
-				}
-			}
-		}
-		if cj.RPC == nil {
+		rpc, ok := p.resolveRPCRef(file, endpoint)
+		if !ok {
 			p.errf(endpoint.Pos(), "Endpoint does not reference an Encore API")
 			return nil
 		}
+		cj.RPC = rpc
 	}
 
 	if _, err := cj.IsValid(); err != nil {

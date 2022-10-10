@@ -13,6 +13,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/pubsub"
+	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/parser"
@@ -66,10 +67,14 @@ func (rs *ResourceServices) StartRequiredServices(a *asyncBuildJobs, parse *pars
 		a.Go("Starting PubSub daemon", true, 250*time.Millisecond, rs.StartPubSub)
 	}
 
+	if redis.IsUsed(parse.Meta) && rs.GetRedis() == nil {
+		a.Go("Starting Redis server", true, 250*time.Millisecond, rs.StartRedis)
+	}
+
 	return nil
 }
 
-// StartPubSub starts a PubSub daemon if it is not already running
+// StartPubSub starts a PubSub daemon.
 func (rs *ResourceServices) StartPubSub(ctx context.Context) error {
 	nsqd := &pubsub.NSQDaemon{}
 	err := nsqd.Start()
@@ -94,6 +99,31 @@ func (rs *ResourceServices) GetPubSub() *pubsub.NSQDaemon {
 	return nil
 }
 
+// StartRedis starts a Redis server.
+func (rs *ResourceServices) StartRedis(ctx context.Context) error {
+	srv := redis.New()
+	err := srv.Start()
+	if err != nil {
+		return err
+	}
+
+	rs.mutex.Lock()
+	rs.servers[est.CacheClusterResource] = srv
+	rs.mutex.Unlock()
+	return nil
+}
+
+// GetRedis returns the Redis server if it is running otherwise it returns nil
+func (rs *ResourceServices) GetRedis() *redis.Server {
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+
+	if srv, found := rs.servers[est.CacheClusterResource]; found {
+		return srv.(*redis.Server)
+	}
+	return nil
+}
+
 func (rs *ResourceServices) StartSQLCluster(a *asyncBuildJobs, parse *parser.Result) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 
@@ -103,6 +133,8 @@ func (rs *ResourceServices) StartSQLCluster(a *asyncBuildJobs, parse *parser.Res
 		})
 		if _, err := exec.LookPath("docker"); err != nil {
 			return errors.New("This application requires docker to run since it uses an SQL database. Install docker first.")
+		} else if !isDockerRunning(ctx) {
+			return errors.New("The docker daemon is not running. Start it first.")
 		}
 
 		log.Debug().Msg("checking if sqldb image exists")
@@ -150,4 +182,9 @@ func (rs *ResourceServices) GetSQLCluster() *sqldb.Cluster {
 		return cluster.(*sqldb.Cluster)
 	}
 	return nil
+}
+
+func isDockerRunning(ctx context.Context) bool {
+	err := exec.CommandContext(ctx, "docker", "info").Run()
+	return err == nil
 }

@@ -3,17 +3,16 @@ title: Store API keys and secrets
 subtitle: Simply storing secrets securely
 ---
 
-Wouldn't it be nice to store API keys, database passwords, and private keys directly in the source code?
-
-Of course we can’t do that &ndash; it's horrifyingly insecure!
-Unfortunately it's also [very common](https://www.ndss-symposium.org/ndss-paper/how-bad-can-it-git-characterizing-secret-leakage-in-public-github-repositories/).
+Wouldn't it be nice to store secret values like API keys, database passwords, and private keys directly in the source code?
+Of course, we can’t do that &ndash; it's horrifyingly insecure!
+Unfortunately, it's also [very common](https://www.ndss-symposium.org/ndss-paper/how-bad-can-it-git-characterizing-secret-leakage-in-public-github-repositories/).
 
 So why does it happen? Because storing secrets securely used to be quite annoying.
 Fortunately, Encore makes it easy.
 
 ## Defining secrets
 
-With Encore you define secrets directly in your code:
+With Encore you define secrets directly in your code by creating a struct:
 
 ```go
 var secrets struct {
@@ -25,24 +24,21 @@ var secrets struct {
 
 <Callout type="important">
 
-The variable must be an unexported struct named `secrets`, and all
-the fields must be of type `string` like you see above.
+The variable must be an unexported struct named `secrets`, and all the fields must be of type `string` like you see above.
 
 </Callout>
 
-Then, you can set the secret value using `encore secret set --<dev|prod> <name>`.
-For example, `encore secret set --prod SSHPrivateKey`.
+Then you set the secret value using `encore secret set --<dev|prod> <secret-name>`.
+As you can see, secrets are defined per environment class. This makes it easy to set different secrets for production and development environments.
+Your local development environment is included in the `dev` environment class.
 
-The values are stored safely using HashiCorp Vault, and delivered securely directly
-to your production environment.
+For example `encore secret set --prod SSHPrivateKey` sets a production secret,<br/> and `encore secret set --dev GitHubAPIToken` sets a development and local development secret.
 
-You can also set secret values for your development environments (including local development),
-using `encore secret set --dev GitHubAPIToken`.
+The values are stored safely using HashiCorp Vault, and delivered securely directly to your production environment.
 
 ### Using secrets
 
-Once you've provided values for all the secrets, you can just use them in your program
-like a regular variable. For example:
+Once you've provided values for all the secrets, you can just use them in your program like a regular variable. For example:
 
 ```go
 func callGitHub(ctx context.Context) {
@@ -53,5 +49,10 @@ func callGitHub(ctx context.Context) {
 }
 ```
 
-Secret keys are globally unique for your whole application; if multiple services use the same
-secret name they both receive the same secret value at runtime.
+Secret keys are globally unique for your whole application; if multiple services use the same secret name they both receive the same secret value at runtime.
+
+<Callout type="info">
+
+Once you've used secrets in your program, the Encore compiler will check that they are set before running or deploying your application.
+    
+</Callout>

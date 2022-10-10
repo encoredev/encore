@@ -191,29 +191,7 @@ func (e *Error) Unwrap() error {
 // If err is nil it writes:
 //     {"code": "ok", "message": "", "details": null}
 func HTTPError(w http.ResponseWriter, err error) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	if err == nil {
-		w.WriteHeader(200)
-		w.Write([]byte(`{
-  "code": "ok",
-  "message": "",
-  "details": null
-}
-`))
-		return
-	}
-
-	e := Convert(err).(*Error)
-	data, err2 := json.MarshalIndent(e, "", "  ")
-	if err2 != nil {
-		// Must be the details; drop them
-		e2 := &Error{Code: e.Code, Message: e.Message}
-		data, _ = json.MarshalIndent(e2, "", "  ")
-	}
-	w.WriteHeader(e.Code.HTTPStatus())
-	w.Write(data)
+	HTTPErrorWithCode(w, err, 0)
 }
 
 func mergeMeta(md Metadata, pairs []interface{}) Metadata {

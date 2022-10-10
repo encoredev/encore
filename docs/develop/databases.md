@@ -26,6 +26,8 @@ descriptive name of what the migration does.
 Each migration runs in order, and expresses the change in the database schema
 from the previous migration.
 
+The file name format is important: Migration files must be sequentially named, starting with `1_` and counting up for each migration. Each file name must also end with `.up.sql`.
+
 The first migration usually defines the initial table structure. For example,
 a `todo` service might start out by creating `todo/migrations/1_create_table.up.sql` with
 the following contents:
@@ -60,7 +62,10 @@ err := sqldb.QueryRow(ctx, `
 `).Scan(&item.ID, &item.Title, &item.Done)
 ```
 
-### Connecting to databases
+If `sqldb.QueryRow` does not find a matching row, it reports an error that can be checked against
+by importing the standard library `errors` package and calling `errors.Is(err, sqldb.ErrNoRows)`.
+
+## Connecting to databases
 
 It's often useful to be able to connect to the database from outside the backend application.
 For example for scripts, ad-hoc querying or dumping data for analysis.
@@ -136,3 +141,30 @@ To roll forward to the new migration:
 1. Use `encore db shell <service-name>` to log in to the database
 2. Apply the necessary changes to the schema to fix the migration failure and bring the schema up to date with the new migration
 3. Execute the query `UPDATE schema_migrations SET dirty = false;`
+
+## Troubleshooting
+
+### Application won't run
+
+When you run your application locally with `encore run`, Encore will parse and compile your application, and provision the necessary infrastructure including databases. If this fails with a database error, there are a few common causes.
+
+** Error: sqldb: unknown database **
+
+The error `sqldb: unknown database` is often caused by a problem with the initial migration file, such as incorrect naming or location.
+
+- Verify that you've [created the migration file](/docs/develop/databases#defining-a-database-schema) correctly, then try `encore run` again.
+
+** Error: could not connect to the database **
+
+If you get the error `could not connect to the database`, there may be an issue with Docker.
+
+- Make sure that you have [Docker](https://docker.com) installed and running, then try `encore run` again.
+- If this fails, restart the Encore daemon by running `encore daemon`, then try `encore run` again.
+
+** Error: Creating PostgreSQL database cluster Failed **
+
+This means Encore was not able to create the database. Often this is due to a problem with Docker.
+
+- Check if you have permission to access Docker by running `docker images`.
+- Set the correct permissions with `sudo usermod -aG docker $USER` (Learn more in the [Docker documentation](https://docs.docker.com/engine/install/linux-postinstall/))
+- Then log out and log back in so that your group membership is refreshed.

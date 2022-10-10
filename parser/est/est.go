@@ -11,17 +11,20 @@ import (
 	"time"
 
 	"encr.dev/parser/paths"
+	"encr.dev/parser/selector"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 type Application struct {
-	ModulePath   string
-	Packages     []*Package
-	Services     []*Service
-	CronJobs     []*CronJob
-	PubSubTopics []*PubSubTopic
-	Decls        []*schema.Decl
-	AuthHandler  *AuthHandler
+	ModulePath    string
+	Packages      []*Package
+	Services      []*Service
+	CronJobs      []*CronJob
+	PubSubTopics  []*PubSubTopic
+	CacheClusters []*CacheCluster
+	Decls         []*schema.Decl
+	AuthHandler   *AuthHandler
+	Middleware    []*Middleware
 }
 
 type File struct {
@@ -51,10 +54,29 @@ type Package struct {
 // Its name is defined by the Go package name.
 // A Service may not be a located in a child directory of another service.
 type Service struct {
+	Name       string
+	Root       *Package
+	Pkgs       []*Package
+	RPCs       []*RPC
+	Middleware []*Middleware
+
+	// Struct is the dependency injection struct, or nil if none exists.
+	Struct *ServiceStruct
+}
+
+// ServiceStruct describes a dependency injection struct a particular service defines.
+type ServiceStruct struct {
 	Name string
-	Root *Package
-	Pkgs []*Package
-	RPCs []*RPC
+	Svc  *Service
+	File *File // where the struct is defined
+	Doc  string
+	Decl *ast.TypeSpec
+	RPCs []*RPC // RPCs defined on the service struct
+
+	// Init is the function for initializing this group.
+	// It is nil if there is no initialization function.
+	Init     *ast.FuncDecl
+	InitFile *File // where the init func is declared
 }
 
 type CronJob struct {
@@ -166,6 +188,11 @@ type RPC struct {
 	HTTPMethods []string
 	Request     *Param // request data; nil for Raw RPCs
 	Response    *Param // response data; nil for Raw RPCs
+	Tags        selector.Set
+
+	// SvcStruct is the service struct this RPC is defined on,
+	// or nil otherwise. It is always a pointer receiver.
+	SvcStruct *ServiceStruct
 }
 
 type NodeType int
@@ -180,6 +207,8 @@ const (
 	PubSubTopicDefNode
 	PubSubPublisherNode
 	PubSubSubscriberNode
+	CacheClusterDefNode
+	CacheKeyspaceDefNode
 )
 
 type Node struct {
@@ -210,6 +239,20 @@ type AuthHandler struct {
 	AuthData *Param
 }
 
+type Middleware struct {
+	Name   string
+	Doc    string
+	Global bool
+	Target selector.Set
+
+	Func *ast.FuncDecl
+	File *File
+
+	Pkg       *Package       // pkg this middleware is defined in
+	Svc       *Service       // nil if global
+	SvcStruct *ServiceStruct // nil if not defined on a service struct
+}
+
 type Resource interface {
 	Type() ResourceType
 	File() *File
@@ -227,6 +270,8 @@ const (
 	CronJobResource
 	PubSubTopicResource
 	PubSubSubscriptionResource
+	CacheClusterResource
+	CacheKeyspaceResource
 )
 
 type SQLDB struct {
@@ -240,3 +285,38 @@ func (r *SQLDB) File() *File                { return r.DeclFile }
 func (r *SQLDB) Ident() *ast.Ident          { return r.DeclName }
 func (r *SQLDB) NodeType() NodeType         { return SQLDBNode }
 func (r *SQLDB) AllowOnlyParsedUsage() bool { return false }
+
+type CacheCluster struct {
+	Name           string     // The unique name of the cache cluster
+	Doc            string     // The documentation on the cluster
+	DeclFile       *File      // What file the cache is declared in
+	IdentAST       *ast.Ident // The AST node representing the value this cache cluster is bound against
+	EvictionPolicy string
+
+	Keyspaces []*CacheKeyspace
+}
+
+func (p *CacheCluster) Type() ResourceType         { return CacheClusterResource }
+func (p *CacheCluster) File() *File                { return p.DeclFile }
+func (p *CacheCluster) Ident() *ast.Ident          { return p.IdentAST }
+func (p *CacheCluster) NodeType() NodeType         { return CacheClusterDefNode }
+func (p *CacheCluster) AllowOnlyParsedUsage() bool { return false }
+
+type CacheKeyspace struct {
+	Cluster   *CacheCluster
+	Svc       *Service
+	Doc       string     // The documentation on the cluster
+	DeclFile  *File      // What file the cache is declared in
+	IdentAST  *ast.Ident // The AST node representing the value this cache cluster is bound against
+	ConfigLit *ast.CompositeLit
+
+	KeyType   *schema.Type // The key type for this keyspace
+	ValueType *schema.Type // The value type for this keyspace
+	Path      *paths.Path  // The keyspace path
+}
+
+func (p *CacheKeyspace) Type() ResourceType         { return CacheKeyspaceResource }
+func (p *CacheKeyspace) File() *File                { return p.DeclFile }
+func (p *CacheKeyspace) Ident() *ast.Ident          { return p.IdentAST }
+func (p *CacheKeyspace) NodeType() NodeType         { return CacheKeyspaceDefNode }
+func (p *CacheKeyspace) AllowOnlyParsedUsage() bool { return false }

@@ -20,9 +20,14 @@ import (
 
 // Client is an API client for the slug Encore application.
 type Client struct {
-	Echo     EchoClient
-	Endtoend EndtoendClient
-	Test     TestClient
+	Cache      CacheClient
+	Di         DiClient
+	Echo       EchoClient
+	Endtoend   EndtoendClient
+	Flakey_di  Flakey_diClient
+	Middleware MiddlewareClient
+	Test       TestClient
+	Validation ValidationClient
 }
 
 // BaseURL is the base URL for calling the Encore application's API.
@@ -62,9 +67,14 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	}
 
 	return &Client{
-		Echo:     &echoClient{base},
-		Endtoend: &endtoendClient{base},
-		Test:     &testClient{base},
+		Cache:      &cacheClient{base},
+		Di:         &diClient{base},
+		Echo:       &echoClient{base},
+		Endtoend:   &endtoendClient{base},
+		Flakey_di:  &flakey_diClient{base},
+		Middleware: &middlewareClient{base},
+		Test:       &testClient{base},
+		Validation: &validationClient{base},
 	}, nil
 }
 
@@ -94,6 +104,106 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (*EchoAuthParams, erro
 		base.authGenerator = authGenerator
 		return nil
 	}
+}
+
+type CacheIncrResponse struct {
+	Val int64
+}
+
+type CacheListResponse struct {
+	Vals []string
+}
+
+type CacheStructVal struct {
+	Val string
+}
+
+// CacheClient Provides you access to call public and authenticated APIs on cache. The concrete implementation is cacheClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type CacheClient interface {
+	GetList(ctx context.Context, key int) (CacheListResponse, error)
+	GetStruct(ctx context.Context, key int) (CacheStructVal, error)
+	Incr(ctx context.Context, key string) (CacheIncrResponse, error)
+	PostList(ctx context.Context, key int, val string) error
+	PostStruct(ctx context.Context, key int, val string) error
+}
+
+type cacheClient struct {
+	base *baseClient
+}
+
+var _ CacheClient = (*cacheClient)(nil)
+
+func (c *cacheClient) GetList(ctx context.Context, key int) (resp CacheListResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/cache/list/%d", key), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *cacheClient) GetStruct(ctx context.Context, key int) (resp CacheStructVal, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/cache/struct/%d", key), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *cacheClient) Incr(ctx context.Context, key string) (resp CacheIncrResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/cache/incr/%s", url.PathEscape(key)), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *cacheClient) PostList(ctx context.Context, key int, val string) error {
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/cache/list/%d/%s", key, url.PathEscape(val)), nil, nil, nil)
+	return err
+}
+
+func (c *cacheClient) PostStruct(ctx context.Context, key int, val string) error {
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/cache/struct/%d/%s", key, url.PathEscape(val)), nil, nil, nil)
+	return err
+}
+
+type DiResponse struct {
+	Msg string
+}
+
+// DiClient Provides you access to call public and authenticated APIs on di. The concrete implementation is diClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type DiClient interface {
+	One(ctx context.Context) error
+	Two(ctx context.Context) (DiResponse, error)
+}
+
+type diClient struct {
+	base *baseClient
+}
+
+var _ DiClient = (*diClient)(nil)
+
+func (c *diClient) One(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/di/one", nil, nil, nil)
+	return err
+}
+
+func (c *diClient) Two(ctx context.Context) (resp DiResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/di/two", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 type EchoAppMetadata struct {
@@ -481,6 +591,75 @@ var _ EndtoendClient = (*endtoendClient)(nil)
 func (c *endtoendClient) GeneratedWrappersEndToEndTest(ctx context.Context) error {
 	_, err := callAPI(ctx, c.base, "GET", "/generated-wrappers-end-to-end-test", nil, nil, nil)
 	return err
+}
+
+type Flakey_diResponse struct {
+	Msg string
+}
+
+// Flakey_diClient Provides you access to call public and authenticated APIs on flakey_di. The concrete implementation is flakey_diClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type Flakey_diClient interface {
+	Flakey(ctx context.Context) (Flakey_diResponse, error)
+}
+
+type flakey_diClient struct {
+	base *baseClient
+}
+
+var _ Flakey_diClient = (*flakey_diClient)(nil)
+
+func (c *flakey_diClient) Flakey(ctx context.Context) (resp Flakey_diResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/di/flakey", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+type MiddlewarePayload struct {
+	Msg string
+}
+
+// MiddlewareClient Provides you access to call public and authenticated APIs on middleware. The concrete implementation is middlewareClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type MiddlewareClient interface {
+	Error(ctx context.Context) error
+	ResponseGen(ctx context.Context, params MiddlewarePayload) (MiddlewarePayload, error)
+	ResponseRewrite(ctx context.Context, params MiddlewarePayload) (MiddlewarePayload, error)
+}
+
+type middlewareClient struct {
+	base *baseClient
+}
+
+var _ MiddlewareClient = (*middlewareClient)(nil)
+
+func (c *middlewareClient) Error(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/middleware.Error", nil, nil, nil)
+	return err
+}
+
+func (c *middlewareClient) ResponseGen(ctx context.Context, params MiddlewarePayload) (resp MiddlewarePayload, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/middleware.ResponseGen", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *middlewareClient) ResponseRewrite(ctx context.Context, params MiddlewarePayload) (resp MiddlewarePayload, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/middleware.ResponseRewrite", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 type TestBodyEcho struct {
@@ -874,6 +1053,27 @@ func (c *testClient) UpdateMessage(ctx context.Context, clientID string, params 
 	return err
 }
 
+type ValidationRequest struct {
+	Msg string
+}
+
+// ValidationClient Provides you access to call public and authenticated APIs on validation. The concrete implementation is validationClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type ValidationClient interface {
+	TestOne(ctx context.Context, params ValidationRequest) error
+}
+
+type validationClient struct {
+	base *baseClient
+}
+
+var _ ValidationClient = (*validationClient)(nil)
+
+func (c *validationClient) TestOne(ctx context.Context, params ValidationRequest) error {
+	_, err := callAPI(ctx, c.base, "POST", "/validation.TestOne", nil, params, nil)
+	return err
+}
+
 // HTTPDoer is an interface which can be used to swap out the default
 // HTTP client (http.DefaultClient) with your own custom implementation.
 // This can be used to inject middleware or mock responses during unit tests.
@@ -1092,18 +1292,19 @@ const (
 	//
 	// A litmus test that may help a service implementor in deciding
 	// between FailedPrecondition, Aborted, and Unavailable:
-	//  (a) Use Unavailable if the client can retry just the failing call.
-	//  (b) Use Aborted if the client should retry at a higher-level
-	//      (e.g., restarting a read-modify-write sequence).
-	//  (c) Use FailedPrecondition if the client should not retry until
-	//      the system state has been explicitly fixed. E.g., if an "rmdir"
-	//      fails because the directory is non-empty, FailedPrecondition
-	//      should be returned since the client should not retry unless
-	//      they have first fixed up the directory by deleting files from it.
-	//  (d) Use FailedPrecondition if the client performs conditional
-	//      REST Get/Update/Delete on a resource and the resource on the
-	//      server does not match the condition. E.g., conflicting
-	//      read-modify-write on the same resource.
+	//
+	//	(a) Use Unavailable if the client can retry just the failing call.
+	//	(b) Use Aborted if the client should retry at a higher-level
+	//	    (e.g., restarting a read-modify-write sequence).
+	//	(c) Use FailedPrecondition if the client should not retry until
+	//	    the system state has been explicitly fixed. E.g., if an "rmdir"
+	//	    fails because the directory is non-empty, FailedPrecondition
+	//	    should be returned since the client should not retry unless
+	//	    they have first fixed up the directory by deleting files from it.
+	//	(d) Use FailedPrecondition if the client performs conditional
+	//	    REST Get/Update/Delete on a resource and the resource on the
+	//	    server does not match the condition. E.g., conflicting
+	//	    read-modify-write on the same resource.
 	//
 	// This error code will not be generated by the gRPC framework.
 	ErrFailedPrecondition ErrCode = 9

@@ -8,6 +8,7 @@ Encore divides applications into systems, services, and components.
 ## Defining a service
 
 With Encore you define a service by [defining one or more APIs](#defining-apis) within a regular Go package; the package name is used as the service name.
+This means building a microservices architecture is as easy as creating multiple Go packages within your Encore application.
 
 Within a service, you can also have multiple sub-packages, which is a good way to define components.
 Note that only the service package can define APIs, any sub-packages within a service cannot themselves define APIs.
@@ -48,9 +49,9 @@ When you define an API, you have three options for how the API can be accessed:
 * `//encore:api private` &ndash; defines a private API that only other backend services can call.
 * `//encore:api auth` &ndash; defines a public API that anybody can call, but that requires valid authentication.
 
-For defining APIs that require authentication, see the [authentication guide](/docs/concepts/auth).
+For defining APIs that require authentication, see the [authentication guide](/docs/develop/auth).
 
-This approach is simple, but very powerful. It lets Encore use [static analysis](/docs/concepts/application-model)
+This approach is simple, but very powerful. It lets Encore use [static analysis](/docs/introduction#meet-the-encore-application-model)
 to understand the request and response schemas of all your APIs, which enables it to automatically generate API documentation
 and type-safe API clients, and much more.
 
@@ -103,8 +104,10 @@ func UpdateBlogPost(ctx context.Context, id int, post *BlogPost) error {
 ```
 
 <Callout type="important">
+
 You will not be able to define paths that conflict with each other, including paths
 where the static part can be mistaken for a parameter, e.g both `/blog` and `/blog/:id` would conflict with `/:username`.
+
 </Callout>
 
 As a rule of thumb, try to place path parameters at the end of the path and
@@ -143,7 +146,7 @@ func ListBlogPosts(ctx context.Context, opts *ListParams) (*ListResponse, error)
 
 This could then be queried as `/blog?limit=10&offset=20`.
 
-Since query parameters are much more limited than structured JSON data, they can consist of basic types (`string`, `bool`, integer and floating point numbers, and `encore.dev/types/uuid.UUID`), as well as slices of those types.
+Since query parameters are much more limited than structured JSON data, they can consist of basic types (`string`, `bool`, integer and floating point numbers), [Encore's UUID types](https://pkg.go.dev/encore.dev/types/uuid#UUID), and slices of those types.
 
 ### Raw endpoints
 
@@ -164,8 +167,8 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-Like any other Encore API endpoint, this will be exposed at the URL <br/>
-`https://<app-id>.encr.app/<env>/service.Webhook`.
+Like any other Encore API endpoint, once deployed this will be exposed at the URL <br/>
+`https://<env>-<app-id>.encr.app/service.Webhook`.
 
 If you're an experienced Go developer, this is just a regular Go HTTP handler.
 
@@ -176,12 +179,12 @@ You can read more about receiving webhooks in the [receive webhooks guide](/docs
 
 ## Calling an API
 Calling an API endpoint with Encore looks like a regular function call. Import the service package as if it's a regular
-Go package, and then call the API endpoint as if it's a regular function.
+Go package, using `import "encore.app/package-name"` and then call the API endpoint as if it's a regular function.
 
 In the example below, we import the service package `hello`, and call the `Ping` endpoint.
 
 ```go
-import "app.encore.dev/myapp/hello" // import service
+import "encore.app/hello" // import service
 
 //encore:api public
 func MyOtherAPI(ctx context.Context) error {
@@ -193,7 +196,7 @@ func MyOtherAPI(ctx context.Context) error {
 }
 ```
 
-When building your application, Encore uses [static analysis](/docs/concepts/application-model) to identify all
+When building your application, Encore uses [static analysis](/docs/introduction#meet-the-encore-application-model) to identify all
 API calls and compiles them to proper API calls. This provides all the benefits of function calls, like
 compile-time checking of all the parameters and auto-completion in your editor,
 while still allowing the division of code into logical components, services, and systems.
@@ -206,35 +209,115 @@ which was called on the service.
 
 For more information, see the [metadata documentation](/docs/develop/metadata).
 
-## App Structure
+## Service Structs
 
-When building with Encore, it's best to use *one Encore application* for your entire project.
-This lets Encore build an application model that spans your entire application, which is necessary for features like distributed tracing to work.
+You can also define a **service struct** which then enables you to define APIs as methods
+on that service struct. This is primarily helpful for [dependency injection](/docs/how-to/dependency-injection).
 
-You can use separate subfolders and packages to create a logical separation between the different major systems in your project.
+It works by defining a struct type of your choice (typically called `Service`)
+and declaring it with `//encore:service`.
+Then, you can define a special function named `initService`
+(or `initWhatever` if you named the type `Whatever`)
+that gets called by Encore to initialize your service when it starts up.
 
-As an example, a Trello app might consist of three systems: the **Trello** system (for managing trello boards & cards),
-the **User** system (for user and organization management, and authentication), and the **Premium** system (for subscriptions
-and paid features).
-
-On disk it might look like this:
-
+It looks like this:
 ```go
-/my-trello-clone
-├── encore.app       // ... and other top-level project files
-│
-├── premium          // premium system
-│   ├── payment      // payment service
-│   └── subscription // subscription service
-│
-├── trello           // trello system
-│   ├── board        // board service
-│   └── card         // card service
-│
-└── usr              // user system
-    ├── org          // org service
-    └── user         // user service
+//encore:service
+type Service struct {
+	// Add your dependencies here
+}
+
+func initService() (*Service, error) {
+	// Write your service initialization code here.
+}
+
+//encore:api public
+func (s *Service) MyAPI(ctx context.Context) error {
+	// ...
+}
 ```
 
-Each service consists of Go files that implement the service business logic,
-database migrations for defining the structure of the database(s), and so on.
+### Calling APIs defined on service structs
+
+When using a service struct like above, Encore will create a file named `encore.gen.go`
+in your service directory. This file contains package-level functions for the APIs defined
+as methods on the service struct. In the example above, you would see:
+
+```go
+// Code generated by encore. DO NOT EDIT.
+
+package email
+
+import "context"
+
+// These functions are automatically generated and maintained by Encore
+// to simplify calling them from other services, as they were implemented as methods.
+// They are automatically updated by Encore whenever your API endpoints change.
+
+func Send(ctx context.Context, p *SendParams) error {
+	// The implementation is elided here, and generated at compile-time by Encore.
+	return nil
+}
+```
+
+These functions are generated in order to allow other services to keep calling your
+APIs as package-level functions, in the same way as before: `email.Send(...)`.
+Other services do not have to care about whether you're using Dependency Injection
+internally. You must always use these generated package-level functions for making API calls.
+
+<Callout type="info">
+
+Encore will automatically generate these files and keep them up to date
+whenever your code changes. There is no need to manually invoke anything
+to regenerate this code.
+
+</Callout>
+
+Encore adds all `encore.gen.go` files to your `.gitignore` since you typically
+don't want to commit them to your repository; doing so ends up creating
+a lot of unnecessary merge conflicts.
+
+However, in some cases when running third-party linters in a CI/CD environment
+it can be helpful to generate these wrappers to make the linter happy.
+You can do that by invoking `encore gen wrappers`.
+
+### Graceful Shutdown
+
+When defining a service struct, Encore supports notifying
+your service when it's time to gracefully shut down. This works
+by having your service struct implement the method
+`func (s *Service) Shutdown(force context.Context)`.
+
+If that method exists, Encore will call it when it's time to begin
+gracefully shutting down. Initially the shutdown is in "graceful mode",
+which means that you have a few seconds to complete ongoing work.
+
+The provided `force` context is canceled when the graceful shutdown window
+is over, and it's time to forcefully shut down. The amount of time you have
+from when `Shutdown` is called to when forceful shutdown begins depends on the
+cloud provider and the underlying infrastructure, but typically is anywhere
+from 5-30 seconds.
+
+<Callout type="info">
+
+Encore automatically handles graceful shutdown of all Encore-managed
+functionality, such as HTTP servers, database connection pools,
+Pub/Sub message receivers, distributed tracing recorders, and so on.
+
+The graceful shutdown functionality is provided if you have additional,
+non-Encore-related resources that need graceful shutdown.
+
+</Callout>
+
+Note that graceful shutdown in Encore is *cooperative*: Encore will wait indefinitely
+for your `Shutdown` method to return. If your `Shutdown` method does not return promptly
+after the `force` context is closed, the underlying infrastructure at your cloud provider
+will typically force-kill your service, which can lead to lingering connections and other
+such issues.
+
+In summary, when your `Shutdown(force context.Context)` function is called:
+
+- Immediately begin gracefully shutting down
+- When the `force` context is canceled, you should forcefully shut down
+  the resources that haven't yet completed their shutdown
+- Wait until the shutdown is complete before returning from the `Shutdown` function

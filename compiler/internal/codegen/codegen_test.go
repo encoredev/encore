@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	goparser "go/parser"
 	"go/token"
@@ -48,21 +49,27 @@ func TestCodeGenMain(t *testing.T) {
 			})
 			c.Assert(err, qt.IsNil)
 
-			bld := NewBuilder(res, "test")
-			var buf bytes.Buffer
-			buf.WriteString("// main code\n")
-			f, err := bld.Main()
-			c.Assert(err, qt.IsNil)
-			err = f.Render(&buf)
-			if err != nil {
-				c.Fatalf("render failed: %v", err)
-			}
-			c.Assert(err, qt.IsNil)
+			bld := NewBuilder(res, false)
+			var combined bytes.Buffer
 
-			fs := token.NewFileSet()
-			code := buf.Bytes()
-			_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
-			c.Assert(err, qt.IsNil)
+			// Main
+			{
+				var buf bytes.Buffer
+				buf.WriteString("// main code\n")
+				f, err := bld.Main("test")
+				c.Assert(err, qt.IsNil)
+				err = f.Render(&buf)
+				if err != nil {
+					c.Fatalf("render failed: %v", err)
+				}
+				c.Assert(err, qt.IsNil)
+
+				fs := token.NewFileSet()
+				code := buf.Bytes()
+				_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
+				c.Assert(err, qt.IsNil)
+				combined.Write(code)
+			}
 
 			for _, svc := range res.App.Services {
 				// Find all RPCs referenced
@@ -81,23 +88,67 @@ func TestCodeGenMain(t *testing.T) {
 						}
 					}
 				}
-				if len(rpcs) > 0 {
-					fmt.Fprintf(&buf, "\n\n// wrappers for service %s\n", svc.Name)
-					err = bld.Wrappers(svc.Root, svc.RPCs).Render(&buf)
+
+				// Generated types
+				{
+					var buf bytes.Buffer
+					fmt.Fprintf(&buf, "\n\n// generated types for service %s\n", svc.Name)
+					f, err := bld.ServiceHandlers(svc)
+					if err != nil {
+						c.Fatalf("got types error: \n%s", err.Error())
+					}
+					err = f.Render(&buf)
 					if err != nil {
 						c.Fatalf("got render error: \n%s", err.Error())
 					}
 					c.Assert(err, qt.IsNil)
-					code = buf.Bytes()[len(code):]
+					code := buf.Bytes()
 					fs := token.NewFileSet()
 					_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
 					if err != nil {
 						c.Fatalf("got parse error: \n%s\ncode:\n%s", err.Error(), code)
 					}
+					combined.Write(code)
+				}
+
+				if f := bld.UserFacing(svc, true); f != nil {
+					var buf bytes.Buffer
+					fmt.Fprintf(&buf, "\n\n// encore.gen.go for service %s\n", svc.Name)
+					err = f.Render(&buf)
+					if err != nil {
+						c.Fatalf("got render error: \n%s", err.Error())
+					}
+					c.Assert(err, qt.IsNil)
+					code := buf.Bytes()
+					fs := token.NewFileSet()
+					_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
+					if err != nil {
+						c.Fatalf("got parse error: \n%s\ncode:\n%s", err.Error(), code)
+					}
+					combined.Write(code)
 				}
 			}
 
-			golden.Test(c.TB, buf.String())
+			// Etype package
+			{
+				var buf bytes.Buffer
+				buf.WriteString("// etype package\n")
+				f, err := bld.Etype()
+				c.Assert(err, qt.IsNil)
+				err = f.Render(&buf)
+				if err != nil {
+					c.Fatalf("render failed: %v", err)
+				}
+				c.Assert(err, qt.IsNil)
+
+				fs := token.NewFileSet()
+				code := buf.Bytes()
+				_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
+				c.Assert(err, qt.IsNil)
+				combined.Write(code)
+			}
+
+			golden.Test(c.TB, combined.String())
 		})
 	}
 }
@@ -127,13 +178,13 @@ func TestCodeGen_TestMain(t *testing.T) {
 			})
 			c.Assert(err, qt.IsNil)
 
-			bld := NewBuilder(res, "test")
+			bld := NewBuilder(res, true)
 			var buf bytes.Buffer
 			var code []byte
 
 			for _, pkg := range res.App.Packages {
 				fmt.Fprintf(&buf, "// pkg %s\n", pkg.RelPath)
-				err = bld.TestMain(pkg, res.App.Services).Render(&buf)
+				err = bld.TestMain(pkg, res.App.Services, []string{"ENCORE_DUMMY_ENV_VAR=" + base64.RawURLEncoding.EncodeToString([]byte("{ \"test\": true }"))}).Render(&buf)
 				if err != nil {
 					c.Fatalf("got render error: \n%s", err.Error())
 				}

@@ -17,8 +17,6 @@ import (
 // rewritePkg writes out modified files to targetDir.
 func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 	fset := b.res.FileSet
-	seenWrappers := make(map[string]bool)
-	var wrappers []*est.RPC
 	for _, file := range pkg.Files {
 		if len(file.References) == 0 {
 			// No references to other RPCs, we can skip it immediately
@@ -47,23 +45,15 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 			case est.RPCRefNode:
 				rpc := rewrite.RPC
-				wrapperName := "__encore_" + rpc.Svc.Name + "_" + rpc.Name
+				wrapperName := "EncoreInternal_Call" + rpc.Name
 				node := c.Node()
 
-				// Capture rewrites that should be ignored when computing if an import
-				// is still in use. The func is generally a SelectorExpr but if we call
-				// an API within the same package it's an ident, and can be safely ignored.
 				if sel, ok := node.(*ast.SelectorExpr); ok {
-					useExceptions[sel] = true
+					rw.Replace(sel.Sel.Pos(), sel.Sel.End(), []byte(wrapperName))
+				} else {
+					rw.Replace(node.Pos(), node.End(), []byte(wrapperName))
 				}
-
-				rw.Replace(node.Pos(), node.End(), []byte(wrapperName))
 				rewrittenPkgs[rpc.Svc.Root] = true
-
-				if !seenWrappers[wrapperName] {
-					wrappers = append(wrappers, rpc)
-					seenWrappers[wrapperName] = true
-				}
 				return true
 
 			case est.RPCDefNode:
@@ -76,7 +66,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 				var buf bytes.Buffer
 				buf.WriteString("{\n")
 				for _, secret := range pkg.Secrets {
-					fmt.Fprintf(&buf, "\t%s: __encore_runtime.LoadSecret(%s),\n", secret, strconv.Quote(secret))
+					fmt.Fprintf(&buf, "\t%s: __encore_app.LoadSecret(%s),\n", secret, strconv.Quote(secret))
 				}
 				ep := fset.Position(spec.End())
 				fmt.Fprintf(&buf, "}/*line :%d:%d*/", ep.Line, ep.Column)
@@ -86,7 +76,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 				decl := file.AST.Decls[0]
 				ln := fset.Position(decl.Pos())
-				rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_runtime %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/runtime"), ln.Line, ln.Column)))
+				rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_app %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
 				return true
 
 			case est.CronJobNode:
@@ -94,6 +84,25 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 			case est.PubSubTopicDefNode, est.PubSubPublisherNode, est.PubSubSubscriberNode:
 				return true
+
+			case est.CacheClusterDefNode:
+				return true
+
+			case est.CacheKeyspaceDefNode:
+				keyspace := rewrite.Res.(*est.CacheKeyspace)
+				cfgLit := keyspace.ConfigLit
+
+				insertPos := cfgLit.Lbrace + 1
+				ep := fset.Position(insertPos)
+				defLoc := b.res.Nodes[keyspace.Svc.Root][node].Id
+
+				rw.Insert(insertPos, []byte(fmt.Sprintf(
+					"EncoreInternal_DefLoc: %d, EncoreInternal_KeyMapper: %s,/*line :%d:%d*/",
+					defLoc, b.codegen.CacheKeyspaceKeyMapperName(keyspace),
+					ep.Line, ep.Column,
+				)))
+				return true
+
 			default:
 				panic(fmt.Sprintf("unhandled rewrite type: %v", rewrite.Type))
 			}
@@ -123,13 +132,5 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 		b.addOverlay(file.Path, dst)
 	}
 
-	if len(wrappers) > 0 {
-		name := "encore_internal__rpc_wrappers.go"
-		wrapperPath := filepath.Join(targetDir, name)
-		if err := b.generateWrappers(pkg, wrappers, wrapperPath); err != nil {
-			return err
-		}
-		b.addOverlay(filepath.Join(pkg.Dir, name), wrapperPath)
-	}
 	return nil
 }

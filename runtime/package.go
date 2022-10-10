@@ -22,5 +22,5 @@
 // Package encore
 //
 // This package provides the APIs for getting AppMetadata about the current application and the CurrentRequest.
-// For more information see http://encore.dev/docs/develop/metadata.
+// For more information see https://encore.dev/docs/develop/metadata.
 package encore

@@ -21,9 +21,14 @@ export function Environment(name: string): BaseURL {
  * Client is an API client for the slug Encore application. 
  */
 export default class Client {
+    public readonly cache: cache.ServiceClient
+    public readonly di: di.ServiceClient
     public readonly echo: echo.ServiceClient
     public readonly endtoend: endtoend.ServiceClient
+    public readonly flakey_di: flakey_di.ServiceClient
+    public readonly middleware: middleware.ServiceClient
     public readonly test: test.ServiceClient
+    public readonly validation: validation.ServiceClient
 
 
     /**
@@ -34,9 +39,14 @@ export default class Client {
      */
     constructor(target: BaseURL, options?: ClientOptions) {
         const base = new BaseClient(target, options ?? {})
+        this.cache = new cache.ServiceClient(base)
+        this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
+        this.flakey_di = new flakey_di.ServiceClient(base)
+        this.middleware = new middleware.ServiceClient(base)
         this.test = new test.ServiceClient(base)
+        this.validation = new validation.ServiceClient(base)
     }
 }
 
@@ -57,6 +67,78 @@ export interface ClientOptions {
      * a function which returns a new object for each request.
      */
     auth?: echo.AuthParams | AuthDataGenerator
+}
+
+export namespace cache {
+    export interface IncrResponse {
+        Val: number
+    }
+
+    export interface ListResponse {
+        Vals: string[]
+    }
+
+    export interface StructVal {
+        Val: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async GetList(key: number): Promise<ListResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("GET", `/cache/list/${encodeURIComponent(key)}`)
+            return await resp.json() as ListResponse
+        }
+
+        public async GetStruct(key: number): Promise<StructVal> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("GET", `/cache/struct/${encodeURIComponent(key)}`)
+            return await resp.json() as StructVal
+        }
+
+        public async Incr(key: string): Promise<IncrResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/cache/incr/${encodeURIComponent(key)}`)
+            return await resp.json() as IncrResponse
+        }
+
+        public async PostList(key: number, val: string): Promise<void> {
+            await this.baseClient.callAPI("POST", `/cache/list/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
+        }
+
+        public async PostStruct(key: number, val: string): Promise<void> {
+            await this.baseClient.callAPI("POST", `/cache/struct/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
+        }
+    }
+}
+
+export namespace di {
+    export interface Response {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async One(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/di/one`)
+        }
+
+        public async Two(): Promise<Response> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/di/two`)
+            return await resp.json() as Response
+        }
+    }
 }
 
 export namespace echo {
@@ -326,6 +408,56 @@ export namespace endtoend {
     }
 }
 
+export namespace flakey_di {
+    export interface Response {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async Flakey(): Promise<Response> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/di/flakey`)
+            return await resp.json() as Response
+        }
+    }
+}
+
+export namespace middleware {
+    export interface Payload {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async Error(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/middleware.Error`)
+        }
+
+        public async ResponseGen(params: Payload): Promise<Payload> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseGen`, JSON.stringify(params))
+            return await resp.json() as Payload
+        }
+
+        public async ResponseRewrite(params: Payload): Promise<Payload> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseRewrite`, JSON.stringify(params))
+            return await resp.json() as Payload
+        }
+    }
+}
+
 export namespace test {
     export interface BodyEcho {
         Message: string
@@ -546,6 +678,24 @@ export namespace test {
          */
         public async UpdateMessage(clientID: string, params: BodyEcho): Promise<void> {
             await this.baseClient.callAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, JSON.stringify(params))
+        }
+    }
+}
+
+export namespace validation {
+    export interface Request {
+        Msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async TestOne(params: Request): Promise<void> {
+            await this.baseClient.callAPI("POST", `/validation.TestOne`, JSON.stringify(params))
         }
     }
 }

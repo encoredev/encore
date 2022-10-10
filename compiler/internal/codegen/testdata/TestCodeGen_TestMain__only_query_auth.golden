@@ -3,30 +3,33 @@ package svc_test
 
 import (
 	"encore.app/svc"
-	_ "encore.dev/runtime"
-	"encore.dev/runtime/config"
+	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/app/appinit"
+	"encore.dev/appruntime/config"
 	"os"
 	"reflect"
 	_ "unsafe"
 )
 
-//go:linkname loadConfig encore.dev/runtime/config.loadConfig
-func loadConfig() (*config.Config, error) {
-	services := []*config.Service{{
-		Endpoints: nil,
-		Name:      "svc",
-		RelPath:   "svc",
-	}}
+//go:linkname loadApp encore.dev/appruntime/app/appinit.load
+func loadApp() *appinit.LoadData {
+	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &config.Static{
-		AuthData:    reflect.TypeOf((*svc.AuthData)(nil)),
-		Services:    services,
-		TestService: "svc",
-		Testing:     true,
+		AuthData:             reflect.TypeOf((*svc.AuthData)(nil)),
+		PubsubTopics:         map[string]*config.StaticPubsubTopic{},
+		TestAsExternalBinary: true,
+		TestService:          "svc",
+		Testing:              true,
 	}
-	return &config.Config{
-		Runtime: config.ParseRuntime(os.Getenv("ENCORE_RUNTIME_CONFIG")),
-		Secrets: config.ParseSecrets(os.Getenv("ENCORE_APP_SECRETS")),
-		Static:  static,
-	}, nil
+	handlers := []api.HandlerRegistration{
+		{
+			Handler:    svc.EncoreInternal_EightHandler,
+			Middleware: nil,
+		},
+	}
+	return &appinit.LoadData{
+		APIHandlers: handlers,
+		StaticCfg:   static,
+	}
 }
 

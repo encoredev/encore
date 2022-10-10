@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 type TestConfig struct {
@@ -36,7 +38,7 @@ func Test(ctx context.Context, appRoot string, cfg *Config) error {
 	b := &builder{
 		cfg:        cfg,
 		appRoot:    appRoot,
-		parseTests: true,
+		forTesting: true,
 	}
 	return b.Test(ctx)
 }
@@ -63,13 +65,38 @@ func (b *builder) Test(ctx context.Context) (err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
+		b.writeHandlers,
 		b.writeTestMains,
+		b.writeEtypePkg,
 	} {
 		if err := fn(); err != nil {
 			return err
 		}
 	}
 	return b.runTests(ctx)
+}
+
+// EncoreEnvironmentalVariablesToEmbed tells us if we need to embed the environmental variables into the built
+// binary for testing.
+//
+// This is needed because GoLand first builds the test binary as one phase, and then secondary executes that built binary
+func (b *builder) EncoreEnvironmentalVariablesToEmbed() []string {
+	if b.forTesting == false || b.cfg.Test == nil {
+		return nil
+	}
+
+	// If -c is passed to the go test, it means compile the test binary to pkg.test but do not run it
+	if !slices.Contains(b.cfg.Test.Args, "-c") {
+		return nil
+	}
+
+	rtn := make([]string, 0)
+	for _, env := range b.cfg.Test.Env {
+		if strings.HasPrefix(env, "ENCORE_") {
+			rtn = append(rtn, env)
+		}
+	}
+	return rtn
 }
 
 func (b *builder) writeTestMains() error {
@@ -89,7 +116,7 @@ func (b *builder) runTests(ctx context.Context) error {
 		return err
 	}
 
-	tags := append([]string{"encore", "encore_internal"}, b.cfg.BuildTags...)
+	tags := append([]string{"encore", "encore_internal", "encore_app"}, b.cfg.BuildTags...)
 	args := []string{
 		"test",
 		"-tags=" + strings.Join(tags, ","),
@@ -101,15 +128,22 @@ func (b *builder) runTests(ctx context.Context) error {
 	if b.cfg.StaticLink {
 		args = append(args, "-ldflags", `-extldflags "-static"`)
 	}
+
 	args = append(args, b.cfg.Test.Args...)
 	cmd := exec.CommandContext(ctx, filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
-	env := append(b.cfg.Test.Env,
+
+	// Copy the env before we add additional env vars
+	// to avoid accidentally sharing the same backing array.
+	env := make([]string, len(b.cfg.Test.Env))
+	copy(env, b.cfg.Test.Env)
+	env = append(env,
 		"GO111MODULE=on",
 		"GOROOT="+b.cfg.EncoreGoRoot,
 	)
 	if !b.cfg.CgoEnabled {
 		env = append(env, "CGO_ENABLED=0")
 	}
+
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Dir = filepath.Join(b.appRoot, b.cfg.WorkingDir)
 	cmd.Stdout = b.cfg.Test.Stdout

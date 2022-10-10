@@ -9,6 +9,8 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
+const UnknownPkgPath = "__unknown_path__"
+
 const (
 	lastErrorField      = "LastError"
 	nonEmptyValuesField = "NonEmptyValues"
@@ -17,6 +19,8 @@ const (
 // MarshallingCodeGenerator is used to generate a structure has methods for decoding various types, collecting the errors.
 // It will only generate methods required for the given types.
 type MarshallingCodeGenerator struct {
+	// pkgPath is the package import path where the marshaller is defined.
+	pkgPath             string
 	structName          string
 	used                bool
 	encoreTypesAsString bool // true if  auth.UID and uuid.UUID should be treated as strings?
@@ -45,6 +49,7 @@ type methodDescription struct {
 // MarshallingCodeWrapper is returned by NewPossibleInstance and tracks usage within a block
 type MarshallingCodeWrapper struct {
 	g            *MarshallingCodeGenerator
+	pkgPath      string
 	instanceName string
 	used         bool
 
@@ -52,8 +57,9 @@ type MarshallingCodeWrapper struct {
 	endBlock []Code
 }
 
-func NewMarshallingCodeGenerator(structName string, forClientGen bool) *MarshallingCodeGenerator {
+func NewMarshallingCodeGenerator(pkgPath, structName string, forClientGen bool) *MarshallingCodeGenerator {
 	return &MarshallingCodeGenerator{
+		pkgPath:             pkgPath,
 		structName:          structName,
 		builtins:            nil,
 		seenBuiltins:        make(map[methodKey]methodDescription),
@@ -72,7 +78,23 @@ func NewMarshallingCodeGenerator(structName string, forClientGen bool) *Marshall
 // the supporting struct and methods to the given file
 func (g *MarshallingCodeGenerator) NewPossibleInstance(instanceName string) *MarshallingCodeWrapper {
 	g.used = true
-	return &MarshallingCodeWrapper{g: g, instanceName: instanceName}
+	return &MarshallingCodeWrapper{
+		g:            g,
+		instanceName: instanceName,
+	}
+}
+
+// GenerateAll causes the generator to generate all possible methods.
+func (g *MarshallingCodeGenerator) GenerateAll() {
+	for _, val := range schema.Builtin_value {
+		b := schema.Builtin(val)
+		_, _ = g.builtinToString(b, true)
+		_, _ = g.builtinToString(b, false)
+		_, _ = g.builtinFromString(b, true)
+		_, _ = g.builtinFromString(b, false)
+	}
+	g.usedBody = true
+	g.usedJson = true
 }
 
 // WriteToFile writes the full encoder type into the given file.
@@ -399,6 +421,15 @@ func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice bool)
 	return fn.Method, nil
 }
 
+func (w *MarshallingCodeWrapper) WithFunc(body func(*Group), errBlock func(*Group)) []Code {
+	o := Options{Separator: "\n", Multi: true}
+	bodyStatement := CustomFunc(o, body)
+	errStatement := CustomFunc(o, errBlock)
+
+	w.Add(bodyStatement)
+	return w.Finalize(errStatement)
+}
+
 func (w *MarshallingCodeWrapper) LastError() Code {
 	return Id(w.instanceName).Dot(lastErrorField)
 }
@@ -419,7 +450,15 @@ func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 		return w.code
 	}
 
-	code := []Code{Id(w.instanceName).Op(":=").Op("&").Id(w.g.structName).Values(), Line()}
+	// If we know the package path, refer to the decoder with a qualified name.
+	var structRef *Statement
+	if w.g.pkgPath != UnknownPkgPath {
+		structRef = Qual(w.g.pkgPath, w.g.structName)
+	} else {
+		structRef = Id(w.g.structName)
+	}
+
+	code := []Code{Id(w.instanceName).Op(":=").Op("&").Add(structRef).Values(), Line()}
 	code = append(code, w.code...)
 	code = append(code, Line().If(Id(w.instanceName).Dot(lastErrorField).Op("!=").Nil()).Block(ifErrorBlock...))
 	code = append(code, Line())
@@ -568,6 +607,6 @@ func (w *MarshallingCodeWrapper) ToString(sourceType *schema.Type, sourceValue C
 		w.used = true
 		return Id(w.instanceName).Dot(funcName).Call(sourceValue), nil
 	default:
-		return nil, errors.Newf("unsupported type for deserialization: %T", t)
+		return nil, errors.Newf("unsupported type for serialization: %T", t)
 	}
 }

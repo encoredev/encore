@@ -120,6 +120,8 @@ func doLogout() {
 		fmt.Fprintln(os.Stderr, "could not logout:", err)
 		os.Exit(1)
 	}
+	// Stop running daemon to clear any cached credentials
+	stopDaemon()
 	fmt.Fprintln(os.Stdout, "encore: logged out.")
 }
 

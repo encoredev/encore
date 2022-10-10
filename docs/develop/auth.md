@@ -29,14 +29,6 @@ and returning an `auth.UID` (a string type representing a **user id**). The `aut
 can be whatever you wish, but in practice it usually maps directly to the primary key
 stored in a user table (either defined in the Encore service or in an external service like Firebase or Okta).
 
-<Callout type="important">
-
-If your auth handler returns an error, Encore responds with a `500 Internal Server Error`.
-To signify that the token is not valid, return the empty string (`""`) as the `auth.UID`.
-Encore will then respond with `401 Unauthorized.
-
-</Callout>
-
 ### With custom user data
 
 Oftentimes it's convenient for the rest of your application to easily be able to look up
@@ -96,7 +88,10 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
 
 <Callout type="important">
 
-Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here. Whenever possible we recommend using a third-party auth provider; see [Using Firebase Authentication](../how-to/firebase-auth) for an example of how to do that.
+Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here.
+
+Whenever possible we recommend using a third-party auth provider.<br/>
+See [Using Firebase Authentication](/docs/how-to/firebase-auth) for an example of how to do that.
 
 </Callout>
 
@@ -112,7 +107,7 @@ as usual. If it wishes to inspect the authenticated user, it can use the
 For an incoming request from the outside to an API that uses the `auth` access level,
 these are guaranteed to be set since the API won't be called if the auth handler doesn't succeed.
 
-<Callout type="important">
+<Callout type="info">
 
 If an endpoint calls another endpoint during its processing, and the original
 does not have an authenticated user, the request will fail. This behavior

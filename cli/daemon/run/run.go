@@ -29,10 +29,11 @@ import (
 	"github.com/hashicorp/yamux"
 
 	encore "encore.dev"
-	"encore.dev/runtime/config"
+	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/pubsub"
+	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/version"
@@ -334,6 +335,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		DBProxyPort:  r.mgr.DBProxyPort,
 		SQLDBCluster: r.ResourceServers.GetSQLCluster(),
 		NSQDaemon:    r.ResourceServers.GetPubSub(),
+		Redis:        r.ResourceServers.GetRedis(),
 		Secrets:      secrets,
 		Environ:      r.params.Environ,
 	})
@@ -389,6 +391,7 @@ type startProcParams struct {
 	DBProxyPort  int
 	SQLDBCluster *sqldb.Cluster    // nil means no cluster
 	NSQDaemon    *pubsub.NSQDaemon // nil means no pubsub
+	Redis        *redis.Server     // nil means no redis
 	Logger       runLogger
 	Environ      []string
 }
@@ -554,6 +557,26 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		}
 	}
 
+	var (
+		redisServers []*config.RedisServer
+		redisDBs     []*config.RedisDatabase
+	)
+	if params.Redis != nil {
+		srv := &config.RedisServer{
+			Host: params.Redis.Addr(),
+		}
+		redisServers = append(redisServers, srv)
+
+		for _, cluster := range params.Meta.CacheClusters {
+			redisDBs = append(redisDBs, &config.RedisDatabase{
+				ServerID:   0,
+				Database:   0,
+				EncoreName: cluster.Name,
+				KeyPrefix:  cluster.Name + "/",
+			})
+		}
+	}
+
 	return &config.Runtime{
 		AppID:           r.ID,
 		AppSlug:         r.App.PlatformID(),
@@ -569,6 +592,8 @@ func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
 		SQLServers:      sqlServers,
 		PubsubProviders: pubsubProviders,
 		PubsubTopics:    pubsubTopics,
+		RedisServers:    redisServers,
+		RedisDatabases:  redisDBs,
 		AuthKeys:        []config.EncoreAuthKey{p.authKey},
 		CORS: &config.CORS{
 			AllowOriginsWithCredentials: []string{

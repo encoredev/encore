@@ -1,4 +1,4 @@
-package utils_test
+package utils
 
 import (
 	"fmt"
@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"encore.dev/pubsub/internal/utils"
 )
 
 type EmbedStruct struct {
@@ -28,7 +26,7 @@ type TestStruct struct {
 
 func TestSetAttributes(t *testing.T) {
 	testStruct := TestStruct{}
-	err := utils.UnmarshalFields(
+	err := UnmarshalFields(
 		map[string]string{
 			"string":    "stringval",
 			"stringptr": "stringptrval",
@@ -128,7 +126,7 @@ func TestGetAttributes(t *testing.T) {
 		ComplexAttr:   12 + 8i,
 	}
 
-	attrs, err := utils.MarshalFields(testStruct, "pubsub-attr")
+	attrs, err := MarshalFields(testStruct, "pubsub-attr")
 	Assert(t, err, IsNil)
 	Assert(t, attrs["string"], Equals, "stringattrval")
 	Assert(t, attrs["stringptr"], Equals, "stringptrval")
@@ -184,7 +182,7 @@ func TestGetDelay(t *testing.T) {
 			prevDelay := 0 * time.Second
 			for ; retry && attempt < maxAttempt; attempt++ {
 				var delay time.Duration
-				retry, delay = utils.GetDelay(policy.MaxRetries, policy.MinRetryDelay, policy.MaxRetryDelay, attempt)
+				retry, delay = GetDelay(policy.MaxRetries, policy.MinRetryDelay, policy.MaxRetryDelay, attempt)
 				if !retry {
 					continue
 				}
@@ -202,7 +200,7 @@ func TestGetDelay(t *testing.T) {
 			if policy.MaxRetries == -1 {
 				Assert(t, attempt, Equals, maxAttempt)
 			} else {
-				Assert(t, attempt, Equals, policy.MaxRetries+1)
+				Assert(t, attempt, Equals, policy.MaxRetries+2) // +2 as delivery attempts are not 0 index, they start at 1
 			}
 		})
 

@@ -4,14 +4,17 @@ import (
 	"context"
 	"time"
 
+	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/utils"
-	"encore.dev/runtime"
-	"encore.dev/runtime/config"
 )
 
 // Subscription represents a subscription to a Topic.
-type Subscription[T any] struct{}
+type Subscription[T any] struct {
+	mgr *Manager
+}
 
 // NewSubscription is used to declare a Subscription to a topic. The passed in handler will be called
 // for each message published to the topic.
@@ -49,9 +52,10 @@ type Subscription[T any] struct{}
 //       return nil
 //     }
 func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg SubscriptionConfig[T]) *Subscription[T] {
-	if topic.topicCfg == nil || topic.topic == nil {
+	if topic.topicCfg == nil || topic.topic == nil || topic.mgr == nil {
 		panic("pubsub topic was not created using pubsub.NewTopic")
 	}
+	mgr := topic.mgr
 
 	// Set default config values for missing values
 	if subscriptionCfg.RetryPolicy == nil {
@@ -68,29 +72,40 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 	subscriptionCfg.RetryPolicy.MinBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MinBackoff, 10*time.Second)
 	subscriptionCfg.RetryPolicy.MaxBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MaxBackoff, 10*time.Minute)
 
+	if subscriptionCfg.AckDeadline == 0 {
+		subscriptionCfg.AckDeadline = 30 * time.Second
+	} else if subscriptionCfg.AckDeadline < 0 {
+		panic("AckDeadline cannot be negative")
+	}
+
 	subscription, staticCfg := topic.getSubscriptionConfig(name)
 	panicCatchWrapper := func(ctx context.Context, msg T) (err error) {
 		defer func() {
 			if err2 := recover(); err2 != nil {
-				err = errs.B().Code(errs.Internal).Msgf("subscriber paniced: %s", err2).Err()
+				err = errs.B().Code(errs.Internal).Msgf("subscriber panicked: %s", err2).Err()
 			}
 		}()
 
 		return subscriptionCfg.Handler(ctx, msg)
 	}
 
-	log := runtime.Logger().With().
-		Str("service", staticCfg.Service.Name).
+	log := mgr.rootLogger.With().
+		Str("service", staticCfg.Service).
 		Str("topic", topic.topicCfg.EncoreName).
 		Str("subscription", name).
 		Logger()
 
+	tracingEnabled := trace.Enabled(mgr.cfg)
+
 	// Subscribe to the topic
-	topic.topic.Subscribe(&log, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
-		if !config.Cfg.Static.Testing {
+	topic.topic.Subscribe(&log, subscriptionCfg.AckDeadline, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
+		mgr.outstanding.Inc()
+		defer mgr.outstanding.Dec()
+
+		if !mgr.cfg.Static.Testing {
 			// Under test we're already inside an operation
-			runtime.BeginOperation()
-			defer runtime.FinishOperation()
+			mgr.rt.BeginOperation()
+			defer mgr.rt.FinishOperation()
 		}
 
 		msg, err := utils.UnmarshalMessage[T](attrs, data)
@@ -99,55 +114,88 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to unmarshal message").Err()
 		}
 
+		spanID, err := model.GenSpanID()
+		if err != nil {
+			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate span id")
+			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate span id").Err()
+		}
+
 		// Start the request tracing span
-		err = runtime.BeginRequest(ctx, runtime.RequestData{
-			Type:    runtime.PubSubMessage,
-			Service: staticCfg.Service.Name,
-			MsgData: runtime.PubSubMsgData{
+		req := &model.Request{
+			Type:    model.PubSubMessage,
+			SpanID:  spanID,
+			Service: staticCfg.Service,
+			Start:   time.Now(),
+			MsgData: &model.PubSubMsgData{
 				Topic:        topic.topicCfg.EncoreName,
 				Subscription: subscription.EncoreName,
 				MessageID:    msgID,
 				Attempt:      deliveryAttempt,
 				Published:    publishTime,
 			},
-			CallExprIdx:     0,
-			EndpointExprIdx: staticCfg.TraceIdx,
-			Inputs:          [][]byte{data},
-		})
-		if err != nil {
-			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to begin request").Err()
+			Payload: msg,
+			Inputs:  [][]byte{data},
+			DefLoc:  staticCfg.TraceIdx,
+			Traced:  tracingEnabled,
+
+			// Unset for subscriptions
+			UID:      "",
+			AuthData: nil,
+			ParentID: model.SpanID{},
+		}
+		req.Logger = &log
+
+		// Copy the previous request information over, if any
+		{
+			prev := mgr.rt.Current()
+			if prevReq := prev.Req; prevReq != nil {
+				req.ParentID = prevReq.ParentID
+				req.Traced = prevReq.Traced
+				req.Test = prevReq.Test
+			}
+		}
+
+		mgr.rt.BeginRequest(req)
+		curr := mgr.rt.Current()
+		if curr.Trace != nil {
+			curr.Trace.BeginRequest(req, curr.Goctr)
 		}
 
 		err = panicCatchWrapper(ctx, msg)
-		runtime.FinishRequest(nil, err)
+
+		if curr.Trace != nil {
+			curr.Trace.FinishRequest(req, nil, err)
+		}
+		mgr.rt.FinishRequest()
+
 		return err
 	})
 
-	if !config.Cfg.Static.Testing {
+	if !mgr.cfg.Static.Testing {
 		// Log the subscription registration - unless we're in unit tests
 		log.Info().Msg("registered subscription")
 	}
 
-	return &Subscription[T]{}
+	return &Subscription[T]{mgr: mgr}
 }
 
 func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscription, *config.StaticPubsubSubscription) {
-	if config.Cfg.Static.Testing {
+	if t.mgr.cfg.Static.Testing {
 		// No subscriptions occur in testing
 		return &config.PubsubSubscription{EncoreName: name}, &config.StaticPubsubSubscription{
-			Service: &config.Service{Name: "test"},
+			Service: t.mgr.cfg.Static.TestService,
 		}
 	}
 
 	// Fetch the subscription configuration
 	subscription, ok := t.topicCfg.Subscriptions[name]
 	if !ok {
-		runtime.Logger().Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
+		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
 	}
 
-	staticCfg, ok := config.Cfg.Static.PubsubTopics[t.topicCfg.EncoreName].Subscriptions[name]
+	staticCfg, ok := t.mgr.cfg.Static.PubsubTopics[t.topicCfg.EncoreName].Subscriptions[name]
 	if !ok {
-		runtime.Logger().Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
+		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
 	}
 
 	return subscription, staticCfg
