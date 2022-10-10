@@ -23,12 +23,12 @@ const echoRsp = await api.test.SimpleBodyEcho({Message: "hello world"})
 deepEqual(echoRsp.Message, "hello world", "Wanted body to be 'hello world'")
 
 // Check our UpdateMessage and GetMessage API's
-let getRsp = await api.test.GetMessage("typescript")
+let getRsp = await api.test.GetMessage("javascript")
 deepEqual(getRsp.Message, "", "Expected no message on first request")
 
-await api.test.UpdateMessage("typescript", {Message: "updating now"})
+await api.test.UpdateMessage("javascript", {Message: "updating now"})
 
-getRsp = await api.test.GetMessage("typescript")
+getRsp = await api.test.GetMessage("javascript")
 deepEqual(getRsp.Message, "updating now", "Expected data from Update request")
 
 // Test the rest API which uses all input types (query string, json body and header fields)
