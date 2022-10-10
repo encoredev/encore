@@ -20,7 +20,7 @@ it uses plain SQL migration files for its migrations.
 Let's take a look at how you may integrate ent with encore.
 
 ## Add ent schemas to a service
-[Install ent](https://entgo.io/docs/getting-started#installation), then initialize your first
+[Install ent](https://entgo.io/docs/tutorial-setup#installation), then initialize your first
 schema in the system where you want to use it. For example, if you had the following app structure.
 
 ```
@@ -51,6 +51,21 @@ go run -mod=mod entgo.io/ent/cmd/ent generate --feature sql/versioned-migration 
 
 This generates the client files, as-well-as the logic for generating versioned migrations in SQL. Run
 this command again whenever you change the schemas.
+
+### Integrating with a new system
+When adding End support in a new Encore system, there are a few steps that need to be completed to make sure the
+database exists and the migrations can be created.
+
+First, create the `migrations` directory in the `usr` system and add an empty migration named `1_init.up.sql`. This
+migration is necessary for encore to pick up the system as a [database](../develop/databases.md) system. Run this
+command to have Encore build the application and create teh database:
+
+```bash
+encore run
+```
+
+With the database created, you are ready to continue with the guide. You may delete the `1_init` migration or leave
+it there, the next steps will work whether it is there or not.
 
 ## Connect ent to the system's database
 When it generates all its files, ent generates a client interface to connect the ORM to the actual
@@ -118,7 +133,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"text/template"
@@ -134,36 +148,53 @@ import (
 )
 
 const system = "usr"
+const dirPathTemplate = "./%s/migrations"
+const migrationFilePathTemplate = "%d_ent_migration"
 
-func main() {
-	ctx := context.Background()
-
-	connectionString := os.Args[1]
-
-	// Open an SQL connection to the system's postgres database.
+func openPostgresConnection(connectionString string) *sql.Driver {
 	driver, err := sql.Open(dialect.Postgres, connectionString)
 	if err != nil {
 		log.Fatalf("failed to connect to the database. %s", err)
+		return nil
 	}
+	return driver
+}
 
-	// Get the migration directory and read the files
-	dirPath := fmt.Sprintf("./%s/migrations", system)
-	files, err := ioutil.ReadDir(dirPath)
-	
-	// The migration count is either 1 is the files couldn't be read, or the number of files
-	// + 1 if we can read them. This makes sure the migration file's index is always incremented.
-	migrationCount := 1
+// The migration count is either 1 is the files couldn't be read, or the number of files
+// + 1 if we can read them. This makes sure the migration file's index is always incremented.
+func createMigrationName() string {
+	count := 1
+	dirPath := fmt.Sprintf(dirPathTemplate, system)
+
+	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		log.Printf("failed to list files in the migrations directory, will generate the count as 1. %s", err)
 	} else {
-		migrationCount = len(files) + 1
+		count = len(files) + 1
 	}
 
+	return fmt.Sprintf(migrationFilePathTemplate, count)
+}
+
+func createMigrateDir() *sqltool.GolangMigrateDir {
 	// Create a local migration directory able to understand golang-migrate migration files for replay.
+	dirPath := fmt.Sprintf(dirPathTemplate, system)
+
 	dir, err := sqltool.NewGolangMigrateDir(dirPath)
 	if err != nil {
 		log.Fatalf("failed creating atlas migration directory: %v", err)
+		return nil
 	}
+
+	return dir
+}
+
+func main() {
+	ctx := context.Background()
+	connectionString := os.Args[1]
+	driver := openPostgresConnection(connectionString)
+	migrationName := createMigrationName()
+	migrateDir := createMigrateDir()
 
 	// Create a formatter for the migration files. This will make sure they generate
 	// with a name encore can parse and valid SQL content. This will only generate the
@@ -180,15 +211,15 @@ func main() {
 	versionedClient := ent.NewClient(ent.Driver(driver))
 
 	// Write the migration diff without a checksum file
-	// (Encore expects only SQL files in the migrations directory)
+	// (Encore expects only SQL files in the migration directory)
 	opts := []schema.MigrateOption{
-		schema.WithDir(dir),
+		schema.WithDir(migrateDir),
 		schema.DisableChecksum(),
 		schema.WithFormatter(formatter),
 	}
 
 	// Generate migrations using Atlas.
-	err = versionedClient.Schema.NamedDiff(ctx, fmt.Sprintf("%d_ent_migration", migrationCount), opts...)
+	err = versionedClient.Schema.NamedDiff(ctx, migrationName, opts...)
 	if err != nil {
 		log.Fatalf("failed generating migration file: %v", err)
 	}
@@ -205,10 +236,62 @@ Finally, run `encore run` to generate your system and apply the migrations. The 
 of the migration script will diff against this newly migrated database and only generate SQL
 for what actually changed.
 
-> Note that running the migration script multiple times without first running `encore run`
-> will cause multiple migrations to be created with the same content. Make sure to apply
-> all previous migrations before generating a new one.
+<Callout type="info">
+
+Running the migration script multiple times without first running `encore run`
+will cause multiple migrations to be created with the same content. Make sure to apply
+all previous migrations before generating a new one.
+
+</Callout>
 
 That's it! You can now use the `Get` function from your system to connect your ent client
 to the system's database and generate migrations while still using Encore's simple migration
-and database management system.
+and database management system, like this:
+
+```go
+package usr
+
+import (
+	"context"
+
+	"encore.dev/beta/errs"
+)
+
+type GetUserResponse struct {
+    ID   int
+    Age  int
+    Name string
+}
+
+//encore:api public path=/users/:id
+func GetUser(ctx context.Context, id int) (*GetUserResponse, error) {
+	client, err := Get()
+	if err != nil {
+		return nil, &errs.Error{
+			Code:    errs.Internal,
+			Message: "Database connection is closed",
+		}
+	}
+
+	user, err := client.User.Get(ctx, id)
+	if err != nil {
+		return nil, &errs.Error{
+			Code:    errs.NotFound,
+			Message: "Could not find user",
+		}
+	}
+
+	return &GetUserResponse{
+		ID:   user.ID,
+		Name: user.Name,
+		Age:  user.Age,
+	}, nil
+}
+```
+
+<Callout type="info">
+
+Ent types cannot be used as parameter types or return types in Encore endpoints; they contain values that are not
+marshalable. You must use your own struct and mirror the fields you want to send back to your users.
+
+</Callout>
