@@ -202,6 +202,37 @@ deepEqual(resp.String, "foo/blah/should/get/escaped", "invalid string field retu
 deepEqual(resp.UUID, "503f4487-1e15-4c37-9a80-7b70f86387bb", "invalid UUID returned")
 deepEqual(resp.Wildcard, "foo/bar/blah/seperate/segments = great success", "invalid wildcard field returned")
 
+// Test validation
+{
+  await api.validation.TestOne({
+    Msg: "pass",
+  })
+  await assertStructuredError(api.validation.TestOne({Msg: "fail"}), ErrCode.InvalidArgument, "validation failed: bad message")
+  const client = new Client(
+      "http://" + process.argv[2],
+      {
+        auth: {
+          AuthInt:        0,
+          Authorization: "",
+          NewAuth:       false,
+          Header:        "fail-validation",
+          Query:         [],
+        },
+      },
+  )
+  await assertStructuredError(client.test.Noop(), ErrCode.InvalidArgument, "validation failed: auth validation fail")
+}
+
+// Test middleware
+{
+  await assertStructuredError(api.middleware.Error(), ErrCode.Internal, "middleware error")
+  const resp1 = await api.middleware.ResponseRewrite({Msg: "foo"})
+  deepEqual(resp1.Msg, "middleware(req=foo, resp=handler(foo))")
+
+  const resp2 = await api.middleware.ResponseGen({Msg: "foo"})
+  deepEqual(resp2.Msg, "middleware generated")
+}
+
 // Client test completed
 process.exit(0)
 
