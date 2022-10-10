@@ -10,8 +10,7 @@ In a few short minutes, you'll learn how to:
 * Use PostgreSQL databases
 * Create and run tests
   
-<br/>
-<Callout type="important">
+<Callout type="info">
 
 To make it easier to follow along, we've laid out a trail of croissants to guide your way.
 Whenever you see a 🥐 it means there's something for you to do.

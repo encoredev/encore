@@ -110,9 +110,9 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig {
 })
 ```
 
-<Callout type="important">
+<Callout type="info">
 
-Note: Topics must be declared as package level variables, and cannot be created inside functions.
+Topics must be declared as package level variables, and cannot be created inside functions.
 
 </Callout>
 

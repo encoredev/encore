@@ -16,7 +16,7 @@ To add your own domain, you will need to modify the DNS records for the domain a
 `custom-domain.encr.app`. We recommend setting a TTL (Time-To-Live) of 30 minutes for the CNAME record.
 
 
-<Callout type="warning">
+<Callout type="important">
 
 Do not create a CNAME record using a wildcard (e.g. `*.example.com`), instead it's required that you explicitly set up a
 CNAME record for each domain you wish to serve traffic from. 
@@ -33,7 +33,7 @@ serve on that domain, then click `Add`.
 At this point the Encore platform will start the process of setting up your domain & issuing SSL certificates to serve the
 traffic through.
 
-<Callout type="important">
+<Callout type="info">
 
 If you configure multiple domains against a single environment, Encore will serve traffic through all
 configured domains. The `encr.app` subdomain which was created when you originally created an environment will always be
