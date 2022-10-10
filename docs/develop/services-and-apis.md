@@ -146,7 +146,7 @@ func ListBlogPosts(ctx context.Context, opts *ListParams) (*ListResponse, error)
 
 This could then be queried as `/blog?limit=10&offset=20`.
 
-Since query parameters are much more limited than structured JSON data, they can consist of basic types (`string`, `bool`, integer and floating point numbers, and `encore.dev/types/uuid.UUID`), as well as slices of those types.
+Since query parameters are much more limited than structured JSON data, they can consist of basic types (`string`, `bool`, integer and floating point numbers), [Encore's UUID types](https://pkg.go.dev/encore.dev/types/uuid#UUID), and slices of those types.
 
 ### Raw endpoints
 
@@ -167,8 +167,8 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-Like any other Encore API endpoint, this will be exposed at the URL <br/>
-`https://<app-id>.encr.app/<env>/service.Webhook`.
+Like any other Encore API endpoint, once deployed this will be exposed at the URL <br/>
+`https://<env>-<app-id>.encr.app/service.Webhook`.
 
 If you're an experienced Go developer, this is just a regular Go HTTP handler.
 
@@ -265,7 +265,7 @@ APIs as package-level functions, in the same way as before: `email.Send(...)`.
 Other services do not have to care about whether you're using Dependency Injection
 internally. You must always use these generated package-level functions for making API calls.
 
-<Callout type="important">
+<Callout type="info">
 
 Encore will automatically generate these files and keep them up to date
 whenever your code changes. There is no need to manually invoke anything
@@ -298,7 +298,7 @@ from when `Shutdown` is called to when forceful shutdown begins depends on the
 cloud provider and the underlying infrastructure, but typically is anywhere
 from 5-30 seconds.
 
-<Callout type="important">
+<Callout type="info">
 
 Encore automatically handles graceful shutdown of all Encore-managed
 functionality, such as HTTP servers, database connection pools,

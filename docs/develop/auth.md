@@ -107,7 +107,7 @@ as usual. If it wishes to inspect the authenticated user, it can use the
 For an incoming request from the outside to an API that uses the `auth` access level,
 these are guaranteed to be set since the API won't be called if the auth handler doesn't succeed.
 
-<Callout type="important">
+<Callout type="info">
 
 If an endpoint calls another endpoint during its processing, and the original
 does not have an authenticated user, the request will fail. This behavior

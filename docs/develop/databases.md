@@ -62,6 +62,9 @@ err := sqldb.QueryRow(ctx, `
 `).Scan(&item.ID, &item.Title, &item.Done)
 ```
 
+If `sqldb.QueryRow` does not find a matching row, it reports an error that can be checked against
+by importing the standard library `errors` package and calling `errors.Is(err, sqldb.ErrNoRows)`.
+
 ## Connecting to databases
 
 It's often useful to be able to connect to the database from outside the backend application.

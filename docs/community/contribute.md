@@ -20,7 +20,7 @@ You can view the docs and contribute fixes or improvements directly in [GitHub](
 
 You can also email your feedback to us at [hello@encore.dev](mailto:hello@encore.dev).
 
-### Blogs posts
+### Blog posts
 
 If you’ve built something cool using Encore, we’d really like you to talk about it! We love it when developers share their projects on blogs and on Twitter.
 
