@@ -83,7 +83,7 @@ func dockerEject(p ejectParams) {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)
 	}
-	if code := streamCommandOutput(stream, true); code != 0 {
+	if code := streamCommandOutput(stream, convertJSONLogs()); code != 0 {
 		os.Exit(code)
 	}
 	fmt.Print(`
