@@ -416,6 +416,24 @@ func TestEndToEndWithApp(t *testing.T) {
 			c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated Typescript client"))
 		}
 	})
+
+	c.Run("javascript_generated_client", func(c *qt.C) {
+		npmCommandsToRun := [][]string{
+			{"install", "--prefer-offline", "--no-audit"},
+			{"run", "lint"},
+			{"run", "test:js", "--", ln.Addr().String()},
+		}
+
+		for _, args := range npmCommandsToRun {
+			cmd := exec.Command("npm", args...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			cmd.Dir = filepath.Join("testdata", "echo_client")
+
+			c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated JavaScript client"))
+		}
+	})
 }
 
 // TestProcClosedOnCtxCancel tests that the proc is closed when
