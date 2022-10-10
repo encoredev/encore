@@ -49,7 +49,7 @@ var versionUpdateCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		if version.Version == "" || strings.HasPrefix(version.Version, "devel") {
-			fatal("cannot update development build, first install Encore from https://encore.dev/docs/intro/install")
+			fatal("cannot update development build, first install Encore from https://encore.dev/docs/install")
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
