@@ -114,7 +114,11 @@ func TestEndToEndWithApp(t *testing.T) {
 	go proxyTcp(ctx, ln, p.client)
 
 	// Use golden to test that the generated clients are as expected for the echo test app
-	for lang, path := range map[codegen.Lang]string{codegen.LangGo: "client/client.go", codegen.LangTypeScript: "client.ts"} {
+	for lang, path := range map[codegen.Lang]string{
+		codegen.LangGo:         "client/client.go",
+		codegen.LangTypeScript: "client.ts",
+		codegen.LangJavascript: "client.js",
+	} {
 		client, err := codegen.Client(lang, "slug", build.Parse.Meta)
 		if err != nil {
 			fmt.Println(err.Error())

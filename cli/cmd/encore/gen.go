@@ -36,6 +36,7 @@ Use '--env=local' to generate it based on your local development version of the 
 
 Supported language codes are:
   typescript: A TypeScript-client using the in-browser Fetch API
+  javascript: A JavaScript client using the in-browser Fetch API
   go: A Go client using net/http"
 `,
 		Args: cobra.ExactArgs(1),
@@ -56,7 +57,7 @@ Supported language codes are:
 				// Validate the user input for the language
 				l, err := codegen.GetLang(lang)
 				if err != nil {
-					fatal(fmt.Sprintf("%s: supported langauges are `typescript` and `go`", err))
+					fatal(fmt.Sprintf("%s: supported langauges are `typescript`, `javascript`, and `go`", err))
 				}
 				lang = string(l)
 			}
