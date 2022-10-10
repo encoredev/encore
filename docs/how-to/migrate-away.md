@@ -56,7 +56,7 @@ of key-value pairs, where the key is the secret name and the value is the secret
 `Foo=SGVsbG8,Bar=V29ybGQ`.
 
 `ENCORE_RUNTIME_CONFIG` provides the runtime configuration Encore applications need. As the precise configuration changes
-over time, please refer to the [current runtime config definition](https://github.com/encoredev/encore/blob/main/runtime/runtime/config/config.go). The app, environment, and deployment related information powers the [encore.Meta](https://pkg.go.dev/encore.dev#AppMetadata) API
+over time, please refer to the [current runtime config definition](https://github.com/encoredev/encore/blob/main/runtime/appruntime/config/config.go). The app, environment, and deployment related information powers the [encore.Meta](https://pkg.go.dev/encore.dev#AppMetadata) API
 and can be set to arbitrary values. The SQL database and SQL server information is used to configure how Encore connects to SQL databases,
 and should be configured according to your own infrastructure setup. `AuthKeys` and `TraceEndpoint` must both be left unspecified as they
 determine how the application communicates with the Encore Platform, and leaving them empty disables that functionality.
