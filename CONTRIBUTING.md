@@ -95,6 +95,11 @@ npm test #run all tests
 npm test -- --watch #re-run tests on file change
 ```
 
+### Testing the Daemon run logic
+The deamon tests in the `cli/daemon/run` use many auto generated files from the `testdata` directory. To generate the
+client files and other test files, run `go test -golden-update` from the `cli/daemon/run` directory and update the
+tests.
+
 ## Architecture
 
 The code base is divided into several parts:
