@@ -9,6 +9,7 @@ import (
 	pathpkg "path"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errlist"
@@ -59,7 +60,15 @@ func collectPackageObjects(pkg *est.Package) (map[string]*PkgDecl, *scope) {
 		for _, d := range f.AST.Decls {
 			switch d := d.(type) {
 			case *ast.FuncDecl:
-				if d.Recv == nil {
+				// HACK(andre) If the RPC was defined as a method on a service struct we
+				// generate a synthetic package-level func as part of the user-facing code generation.
+				// This happens after parsing, so at the parsing phase we ignore the user-facing code generation.
+				//
+				// To properly parse code that references those package-level funcs, register
+				// service struct-based APIs as existing with synthetic package-level identifiers.
+				isServiceStructAPI := d.Recv != nil && isEncoreAPI(d)
+
+				if d.Recv == nil || isServiceStructAPI {
 					scope.Insert(d.Name.Name, &Name{Package: true})
 					decls[d.Name.Name] = &PkgDecl{
 						Name: d.Name.Name,
@@ -69,8 +78,8 @@ func collectPackageObjects(pkg *est.Package) (map[string]*PkgDecl, *scope) {
 						Func: d,
 						Doc:  d.Doc.Text(),
 					}
-
 				}
+
 			case *ast.GenDecl:
 				for _, spec := range d.Specs {
 					var doc string
@@ -402,4 +411,28 @@ func (r *resolver) openScope() {
 
 func (r *resolver) closeScope() {
 	r.scope = r.scope.Pop()
+}
+
+func isEncoreAPI(fd *ast.FuncDecl) bool {
+	fd.Doc.Text()
+	if fd.Doc == nil {
+		return false
+	}
+
+	const directive = "encore:api"
+	for _, c := range fd.Doc.List {
+		if strings.HasPrefix(c.Text, "//"+directive) {
+			return true
+		}
+	}
+
+	// Legacy syntax
+	lines := strings.Split(fd.Doc.Text(), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, directive) {
+			return true
+		}
+	}
+
+	return false
 }
