@@ -200,6 +200,13 @@ func collectPackages(fs *token.FileSet, rootDir, rootImportPath string, mode gop
 	var pkgs []*est.Package
 	var errors scanner.ErrorList
 	filter := func(f os.FileInfo) bool {
+		// Don't parse encore.gen.go files, since they're not intended to be checked in.
+		// We've had several issues where things work locally but not in CI/CD because
+		// the encore.gen.go file was parsed for local development which papered over issues.
+		if strings.Contains(f.Name(), "encore.gen.go") {
+			return false
+		}
+
 		return parseTests || !strings.HasSuffix(f.Name(), "_test.go")
 	}
 
