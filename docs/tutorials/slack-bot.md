@@ -6,7 +6,7 @@ In this tutorial you will create a Slack bot that brings the greatness of the `c
 
 ![Slack Cowsay](https://encore.dev/assets/docs/cowsay.png "Slack bot")
 
-<Callout type="important">
+<Callout type="info">
 
 To make it easier to follow along, we've laid out a trail of croissants to guide your way.
 Whenever you see a 🥐 it means there's something for you to do.
@@ -38,7 +38,7 @@ features:
   slash_commands:
     - command: /cowsay
       # Replace $APP_ID below
-      url: https://$APP_ID.encr.app/prod/cowsay
+      url: https://staging-$APP_ID.encr.app/cowsay
       description: Say things with a flair!
       usage_hint: your message here
       should_escape: false
@@ -213,7 +213,7 @@ func verifyRequest(req *http.Request) (body []byte, err error) {
 }
 ```
 
-<Callout type="important">
+<Callout type="info">
 
 As you can see, this function needs to consume the whole HTTP body in order to compute the HMAC.
 

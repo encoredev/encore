@@ -110,21 +110,20 @@ type commandOutputStream interface {
 	Recv() (*daemonpb.CommandMessage, error)
 }
 
+type outputConverter func(line []byte) []byte
+
 // streamCommandOutput streams the output from the given command stream,
 // and reports the command's exit code.
 // If convertJSON is true, lines that look like JSON are fed through
 // zerolog's console writer.
-func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
+func streamCommandOutput(stream commandOutputStream, converter outputConverter) int {
 	var outWrite io.Writer = os.Stdout
 	var errWrite io.Writer = os.Stderr
 
 	var writesDone sync.WaitGroup
 	defer writesDone.Wait()
 
-	if convertJSON {
-		cout, cerr := zerolog.NewConsoleWriter(), zerolog.NewConsoleWriter()
-		cout.Out, cerr.Out = os.Stdout, os.Stderr
-
+	if converter != nil {
 		// Create a pipe that we read from line-by-line so we can detect JSON lines.
 		outRead, outw := io.Pipe()
 		errRead, errw := io.Pipe()
@@ -142,18 +141,11 @@ func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
 				scanner := bufio.NewScanner(read)
 				for scanner.Scan() {
 					line := append(scanner.Bytes(), '\n')
-					if bytes.HasPrefix(line, []byte{'{'}) {
-						if stdout {
-							cout.Write(line)
-						} else {
-							cerr.Write(line)
-						}
+					line = converter(line)
+					if stdout {
+						_, _ = os.Stdout.Write(line)
 					} else {
-						if stdout {
-							os.Stdout.Write(line)
-						} else {
-							os.Stderr.Write(line)
-						}
+						_, _ = os.Stderr.Write(line)
 					}
 				}
 			}()
@@ -166,7 +158,7 @@ func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
 			st := status.Convert(err)
 			switch {
 			case st.Code() == codes.FailedPrecondition:
-				fmt.Fprintln(os.Stderr, st.Message())
+				_, _ = fmt.Fprintln(os.Stderr, st.Message())
 				return 1
 			case err == io.EOF || st.Code() == codes.Canceled || strings.HasSuffix(err.Error(), "error reading from server: EOF"):
 				return 0
@@ -178,14 +170,40 @@ func streamCommandOutput(stream commandOutputStream, convertJSON bool) int {
 		switch m := msg.Msg.(type) {
 		case *daemonpb.CommandMessage_Output:
 			if m.Output.Stdout != nil {
-				outWrite.Write(m.Output.Stdout)
+				_, _ = outWrite.Write(m.Output.Stdout)
 			}
 			if m.Output.Stderr != nil {
-				errWrite.Write(m.Output.Stderr)
+				_, _ = errWrite.Write(m.Output.Stderr)
 			}
 		case *daemonpb.CommandMessage_Exit:
 			return int(m.Exit.Code)
 		}
+	}
+}
+
+func convertJSONLogs() outputConverter {
+	var logMutex sync.Mutex
+	logLineBuffer := bytes.NewBuffer(make([]byte, 0, 1024))
+	cout := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+		w.Out = logLineBuffer
+	})
+
+	return func(line []byte) []byte {
+		// If this isn't a JSON log line, just return it as-is
+		if len(line) == 0 || line[0] != '{' {
+			return line
+		}
+
+		// Otherwise grab the the converter buffer and reset it
+		logMutex.Lock()
+		defer logMutex.Unlock()
+		logLineBuffer.Reset()
+
+		// Then convert the JSON log line to pretty formatted text
+		_, _ = cout.Write(line)
+		out := make([]byte, len(logLineBuffer.Bytes()))
+		copy(out, logLineBuffer.Bytes())
+		return out
 	}
 }
 

@@ -15,7 +15,6 @@ out what [environment](/docs/deploy/environments) the application is running in 
 For sensitive data use Encore's [secrets management](/docs/develop/secrets) functionality instead of configuration.
 
 </Callout>
-<br />
 
 ## Example using Go Embed
 

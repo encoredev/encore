@@ -5,11 +5,19 @@ import (
 	"context"
 	"database/sql"
 	"sync"
+
+	"encore.dev/cron"
 )
 
 type Response struct {
 	Msg string
 }
+
+var _ = cron.NewJob("repeating-one", cron.JobConfig{
+	Title:    "Call One every 2 hours",
+	Every:    2 * cron.Hour,
+	Endpoint: One,
+})
 
 //encore:service
 type Service struct {

@@ -3,8 +3,7 @@ import fuzzysort from "fuzzysort";
 import { Combobox as HeadlessCombobox } from "@headlessui/react";
 import { icons } from "~c/icons";
 
-const classNames = (...classes: [string, string | boolean]) =>
-  classes.filter(Boolean).join(" ");
+const classNames = (...classes: [string, string | boolean]) => classes.filter(Boolean).join(" ");
 
 export interface ComboboxOptionsItem {
   name: string;
@@ -40,12 +39,7 @@ const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
   });
 
   return (
-    <HeadlessCombobox
-      as="div"
-      value={selectedItem}
-      onChange={onChange}
-      ref={wrapperRef}
-    >
+    <HeadlessCombobox as="div" value={selectedItem} onChange={onChange} ref={wrapperRef}>
       {({ open }) => (
         <HeadlessCombobox.Button as="div" className="flex-col">
           <HeadlessCombobox.Label className="text-gray-700 block text-sm">
@@ -54,11 +48,9 @@ const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
           <div className="relative mt-1">
             <div className="flex">
               <HeadlessCombobox.Input
-                className="focus:outline-none border-gray-300 shadow-sm w-full border-2 border-black bg-white py-3 pl-3 pr-10 font-mono focus:border-black focus:ring-0 focus:ring-black sm:text-sm"
+                className="border-gray-300 shadow-sm w-full border-2 border-black bg-white py-3 pl-3 pr-10 font-mono focus:border-black focus:outline-none focus:ring-0 focus:ring-black sm:text-sm"
                 data-testid="combobox-input"
-                onFocus={(event: FocusEvent<HTMLInputElement>) =>
-                  event.target.select()
-                }
+                onFocus={(event: FocusEvent<HTMLInputElement>) => event.target.select()}
                 onChange={(event) => setQuery(event.target.value)}
                 displayValue={(item: ComboboxOptionsItem) => item.name}
               />
@@ -68,7 +60,7 @@ const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
             {open && filteredItems.length > 0 && (
               <HeadlessCombobox.Options
                 static
-                className="focus:outline-none absolute z-10 max-h-96 w-full overflow-auto border-2 border-t-0 border-black bg-white font-mono ring-1 ring-black ring-opacity-5 scrollbar-none sm:text-sm"
+                className="absolute z-10 max-h-96 w-full overflow-auto border-2 border-t-0 border-black bg-white font-mono ring-1 ring-black ring-opacity-5 scrollbar-none focus:outline-none sm:text-sm"
               >
                 {filteredItems.map((filteredItem) => (
                   <HeadlessCombobox.Option
@@ -83,16 +75,8 @@ const Combobox: FC<Props> = ({ label, selectedItem, onChange, items }) => {
                   >
                     {({ active, selected }) => (
                       <>
-                        <span
-                          className={classNames(
-                            "block truncate",
-                            selected && "font-semibold"
-                          )}
-                        >
-                          {query &&
-                            fuzzysort.highlight(filteredItem, (m, i) => (
-                              <b key={i}>{m}</b>
-                            ))}
+                        <span className={classNames("block truncate", selected && "font-semibold")}>
+                          {query && fuzzysort.highlight(filteredItem, (m, i) => <b key={i}>{m}</b>)}
                           {!query && filteredItem.obj.name}
                         </span>
 

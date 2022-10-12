@@ -41,7 +41,7 @@ var MyCacheCluster = cache.NewCluster("my-cache-cluster", cache.ClusterConfig{
 })
 ```
 
-<Callout type="important">
+<Callout type="info">
 
 When starting out it's recommended to use a single cache cluster
 that's shared between different your services.
@@ -129,7 +129,7 @@ key := MyKey{UserID: "some-user-id", ResourcePath: "/foo"}
 ResourceRequestsPerUser.Increment(ctx, key, 1)
 ```
 
-<Callout type="important">
+<Callout type="info">
 
 Encore ensures that all the struct fields are present in the `KeyPattern`,
 and that the placeholder values are all valid field names.

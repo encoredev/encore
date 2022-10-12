@@ -12,7 +12,6 @@ import (
 
 	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/platform"
-	"encr.dev/cli/internal/wgtunnel"
 )
 
 // Flow keeps the state of an ongoing login flow.
@@ -104,11 +103,6 @@ func (f *Flow) oauthHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	conf := &conf.Config{Token: *resp.Token, Email: resp.Email, AppSlug: resp.AppSlug}
-	pub, priv, err := wgtunnel.GenKey()
-	if err == nil {
-		conf.WireGuard.PublicKey = pub.String()
-		conf.WireGuard.PrivateKey = priv.String()
-	}
 	select {
 	case f.LoginCh <- conf:
 		http.Redirect(w, req, "https://www.encore.dev/auth/success", http.StatusFound)

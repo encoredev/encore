@@ -30,11 +30,9 @@ export default class AppTraces extends React.Component<Props, State> {
 
   componentDidMount() {
     this.props.conn.on("notification", this.onNotification);
-    this.props.conn
-      .request("list-traces", { appID: this.props.appID })
-      .then((traces) => {
-        this.setState({ traces: (traces as Trace[]).reverse() });
-      });
+    this.props.conn.request("list-traces", { appID: this.props.appID }).then((traces) => {
+      this.setState({ traces: (traces as Trace[]).reverse() });
+    });
   }
 
   componentWillUnmount() {
@@ -71,9 +69,7 @@ export default class AppTraces extends React.Component<Props, State> {
             <li className="flex items-center py-4 pt-2 text-left text-xs font-medium uppercase leading-4 tracking-wider">
               <p className="flex flex-1 items-center">Request</p>
               <p className="flex min-w-[80px]">Status</p>
-              <p className="flex min-w-[80px] items-center justify-end">
-                Duration
-              </p>
+              <p className="flex min-w-[80px] items-center justify-end">Duration</p>
             </li>
 
             {this.state.traces.length === 0 && (
@@ -87,22 +83,16 @@ export default class AppTraces extends React.Component<Props, State> {
               let type = "<unknown request type>";
 
               if ("rpc_def" in loc) {
-                endpoint =
-                  loc.rpc_def.service_name + "." + loc.rpc_def.rpc_name;
+                endpoint = loc.rpc_def.service_name + "." + loc.rpc_def.rpc_name;
                 icon = icons.logout;
                 type = "API Call";
               } else if ("auth_handler_def" in loc) {
-                endpoint =
-                  loc.auth_handler_def.service_name +
-                  "." +
-                  loc.auth_handler_def.name;
+                endpoint = loc.auth_handler_def.service_name + "." + loc.auth_handler_def.name;
                 icon = icons.shield;
                 type = "Auth Call";
               } else if ("pubsub_subscriber" in loc) {
                 endpoint =
-                  loc.pubsub_subscriber.topic_name +
-                  "." +
-                  loc.pubsub_subscriber.subscriber_name;
+                  loc.pubsub_subscriber.topic_name + "." + loc.pubsub_subscriber.subscriber_name;
                 icon = icons.arrowsExpand;
                 type = "PubSub Message Received";
               }
@@ -145,9 +135,7 @@ export default class AppTraces extends React.Component<Props, State> {
                             d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                           />
                         </svg>
-                        {tr.end_time
-                          ? latencyStr(tr.end_time - tr.start_time)
-                          : "Unknown"}
+                        {tr.end_time ? latencyStr(tr.end_time - tr.start_time) : "Unknown"}
                       </div>
                     </div>
                   </div>
@@ -179,12 +167,7 @@ const TraceView: FC<TraceViewProps> = (props) => {
           className="hover:bg-gray-100 cursor-pointer rounded-full p-1"
           onClick={() => props.close()}
         >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -204,20 +187,14 @@ const TraceView: FC<TraceViewProps> = (props) => {
             <table className="text-sm">
               <tbody>
                 <tr>
-                  <th className="pr-2 text-left text-sm font-semibold text-black">
-                    Recorded
-                  </th>
+                  <th className="pr-2 text-left text-sm font-semibold text-black">Recorded</th>
                   <td>{dt.toFormat("ff")}</td>
                 </tr>
                 {tr.auth !== null && tr.auth.err === null && (
                   <>
                     <tr className="text-left font-normal">
-                      <th className="text-gray-400 pr-2 text-left text-sm font-light">
-                        User ID
-                      </th>
-                      <td className="font-mono">
-                        {JSON.parse(decodeBase64(tr.auth.outputs[0]))}
-                      </td>
+                      <th className="text-gray-400 pr-2 text-left text-sm font-light">User ID</th>
+                      <td className="font-mono">{JSON.parse(decodeBase64(tr.auth.outputs[0]))}</td>
                     </tr>
                   </>
                 )}

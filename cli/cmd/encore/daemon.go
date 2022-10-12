@@ -12,7 +12,10 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	daemonpkg "encr.dev/cli/cmd/encore/daemon"
 	"encr.dev/cli/internal/env"
@@ -135,6 +138,38 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 	return daemonpb.NewDaemonClient(cc)
 }
 
+func stopDaemon() {
+	socketPath, err := daemonSockPath()
+	if err != nil {
+		fatal("stopping daemon: ", err)
+	}
+	if _, err := xos.SocketStat(socketPath); err == nil {
+		_ = os.Remove(socketPath)
+	}
+}
+
+func ErrInterceptorfunc(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	err := invoker(ctx, method, req, reply, cc, opts...)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			if st.Code() == codes.Unauthenticated {
+				fatal("not logged in: run 'encore auth login' first")
+			}
+			for _, detail := range st.Details() {
+				switch t := detail.(type) {
+				case *errdetails.PreconditionFailure:
+					for _, violation := range t.Violations {
+						if violation.Type == "INVALID_REFRESH_TOKEN" {
+							fatal("OAuth Refresh Token was invalid. Please run `encore auth login` again.")
+						}
+					}
+				}
+			}
+		}
+	}
+	return err
+}
+
 func dialDaemon(ctx context.Context, socketPath string) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
@@ -145,6 +180,7 @@ func dialDaemon(ctx context.Context, socketPath string) (*grpc.ClientConn, error
 	return grpc.DialContext(ctx, "",
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
+		grpc.WithUnaryInterceptor(ErrInterceptorfunc),
 		grpc.WithContextDialer(dialer))
 }
 

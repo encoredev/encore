@@ -65,7 +65,7 @@ func runApp(appRoot, wd string) {
 		fatal(err)
 	}
 
-	code := streamCommandOutput(stream, true)
+	code := streamCommandOutput(stream, convertJSONLogs())
 	if code == 0 {
 		if state, err := onboarding.Load(); err == nil {
 			if state.DeployHint.Set() {

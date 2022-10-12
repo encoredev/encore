@@ -207,6 +207,13 @@ func collectPackages(fs *token.FileSet, rootDir, rootImportPath string, mode gop
 	var pkgs []*est.Package
 	var errors scanner.ErrorList
 	filter := func(f os.FileInfo) bool {
+		// Don't parse encore.gen.go files, since they're not intended to be checked in.
+		// We've had several issues where things work locally but not in CI/CD because
+		// the encore.gen.go file was parsed for local development which papered over issues.
+		if strings.Contains(f.Name(), "encore.gen.go") {
+			return false
+		}
+
 		return parseTests || !strings.HasSuffix(f.Name(), "_test.go")
 	}
 
@@ -623,17 +630,40 @@ func (p *parser) validateTypeDoesntUseConfigTypes(pos token.Pos, param *est.Para
 	}
 }
 
+func (p *parser) rpcForName(pkgPath, objName string) (*est.RPC, bool) {
+	if svc, found := p.svcPkgPaths[pkgPath]; found {
+		for _, rpc := range svc.RPCs {
+			if rpc.Name == objName {
+				return rpc, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
 // resolveRPCRef resolves an expression as a reference to an RPC.
 // It must either be in the form "svc.RPC" (if different service)
 // or "RPC", "Service.RPC" or "(*Service).RPC" if within a service.
 func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
 	// Simple case: just "RPC"
-	if _, ok := expr.(*ast.Ident); ok {
+	if ident, ok := expr.(*ast.Ident); ok {
 		pkgPath, objName, _ := p.names.PackageLevelRef(file, expr)
 		if pkgPath != "" {
-			if svc, found := p.svcPkgPaths[pkgPath]; found {
-				for _, rpc := range svc.RPCs {
-					if rpc.Name == objName {
+			return p.rpcForName(pkgPath, objName)
+		} else {
+			// On first compiles of an Encore app using service structs the `encore.gen.go` file has not been created yet.
+			// which means during the parsers name resolution phase, a reference of `Blah()` on `(*Service).Blah` would
+			// not be resolved to any RPC. However after the generation of `encore.gen.go` the reference would be resolved.
+			//
+			// As such if `pkgPath` is blank, it means name resolution failed, so we'll check if there is an RPC on the
+			// service struct with that name, if there is we'll return that one.
+			//
+			// Note we can't first generate `encore.gen.go` as it needs a successful parse output to generate, which we
+			// can't do without either having `encore.gen.go` or putting in this work around.
+			if file.Pkg.Service != nil && file.Pkg.Service.Struct != nil {
+				for _, rpc := range file.Pkg.Service.RPCs {
+					if rpc.Name == ident.Name {
 						return rpc, true
 					}
 				}
@@ -646,14 +676,7 @@ func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
 	{
 		pkgPath, objName, _ := p.names.PackageLevelRef(file, expr)
 		if pkgPath != "" {
-			if svc, found := p.svcPkgPaths[pkgPath]; found {
-				for _, rpc := range svc.RPCs {
-					if rpc.Name == objName {
-						return rpc, true
-					}
-				}
-			}
-			return nil, false
+			return p.rpcForName(pkgPath, objName)
 		}
 	}
 
