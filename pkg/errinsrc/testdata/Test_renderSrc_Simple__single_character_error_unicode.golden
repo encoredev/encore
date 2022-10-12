@@ -7,7 +7,7 @@ There has been a simple error in your code
  11 │ 
  12 │ // If foo then bar is 12
  13 │ if blah.foo {
-    ⋮             🭯
+    ⋮             ▲
     ⋮             ╰─ This brace is dodgy
  14 │ 	blah: bar: 12
  15 │ }

@@ -31,7 +31,7 @@ var unicodeSet = CharacterSet{
 	CrossBar:      '┼',
 	VerticalBreak: '·',
 	VerticalGap:   '⋮',
-	UpArrow:       '🭯',
+	UpArrow:       '▲',
 	RightArrow:    '▶',
 	LeftTop:       '╭',
 	MiddleTop:     '┬',
