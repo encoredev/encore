@@ -86,7 +86,7 @@ import "encore.dev"
 func Signup(ctx context.Context, params *SignupParams) (*SignupResponse, error) {
     // ...
 
-    // If this is a testing enviroment, skip sending the verification email
+    // If this is a testing environment, skip sending the verification email
     switch encore.Meta().Environment.Type {
     case encore.EnvLocal, encore.EnvDevelopment:
         if err := MarkEmailVerified(ctx, userID); err != nil {

@@ -9,7 +9,7 @@ The same approach applies to how Encore generates API clients; it generates an A
 Go function, with the same parameters and response signature as the server.
 
 The generated clients are all designed to be single files written in the same way you would write them without using
-any additional dependencies apart from the standard functionality of the target language with full typesafety.
+any additional dependencies apart from the standard functionality of the target language with full type safety.
 This is to allow anybody to look at the generated client and understand exactly how it works.
 
 The precise structure of the generated code depends on the language, to make sure it's idiomatic and easy to use,
@@ -50,7 +50,7 @@ special environment name `local` (you'll need to be running the application firs
 
 <Callout type="info">
 
-The generated client can be used with any environment, not just the one it was generated for. However, the API's, datastructures
+The generated client can be used with any environment, not just the one it was generated for. However, the APIs, data structures
 and marshalling logic will be based on whatever is present and running in that environment at the point in time the client is generated.
 
 </Callout>
@@ -100,7 +100,7 @@ used as the BaseURL.
 
 If your application has any API's which require [authentication](/docs/develop/auth), then additional options will generated
 into the client, which can be used when constructing the client. Just like with API's schemas, the data type required by
-your applications `authandler` will be part of the client library, allowing you to set it in two ways:
+your application's `auth handler` will be part of the client library, allowing you to set it in two ways:
 
 If your credentials wont change during the lifetime of the client, simply passing the authentication data to the client
 through the `WithAuth` (Go) or `auth` (TypeScript) options.
@@ -161,7 +161,7 @@ func main() {
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
 
-    // Call the Shorten functon in the URL service
+    // Call the Shorten function in the URL service
     resp, err := client.Url.Shorten(
         ctx,
         client.UrlShortenParams{ URL: os.Args[1] },
