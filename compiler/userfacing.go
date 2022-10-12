@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"encr.dev/parser/est"
+	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 // GenUserFacing generates user-facing application code.
@@ -23,7 +24,7 @@ func (b *builder) GenUserFacing() (err error) {
 			if b, ok := e.(bailout); ok {
 				err = b.err
 			} else {
-				panic(e)
+				err = srcerrors.UnhandledPanic(e)
 			}
 		}
 	}()

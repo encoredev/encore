@@ -101,7 +101,7 @@ func (cj *CronJob) IsValid() (bool, error) {
 	case cj.ID == "":
 		return false, errors.New("field ID is required")
 	case cj.Title == "":
-		return false, errors.New("field Title is required")
+		return false, errors.New("field title is required")
 	case cj.RPC == nil:
 		return false, errors.New("field RPC is required")
 	case cj.Schedule == "":

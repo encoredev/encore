@@ -8,10 +8,23 @@ import (
 	"strings"
 )
 
+// errInSrc reports an error in the source code.
+//
+// Note: err should be either a errinsrc.ErrorList, an *errinsrc.Error or a errlist.List.
+//
+// A scanner.Error and scanner.ErrorList are also supported, but this is only to
+// allow backwards compatibility with the older errors, new code should not pass
+// these two types in.
+func (p *parser) errInSrc(err error) {
+	p.errors.Report(err)
+}
+
+// Deprecated: use errors.errInSrc instead
 func (p *parser) err(pos token.Pos, msg string) {
 	p.errors.Add(pos, msg)
 }
 
+// Deprecated: use errors.errInSrc instead
 func (p *parser) errf(pos token.Pos, format string, args ...interface{}) {
 	p.errors.Addf(pos, format, args...)
 }

@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/rs/zerolog"
@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"encr.dev/pkg/errlist"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -36,6 +37,10 @@ var rootCmd = &cobra.Command{
 			level = zerolog.DebugLevel
 		} else if verbosity >= 2 {
 			level = zerolog.TraceLevel
+		}
+
+		if verbosity >= 1 {
+			errlist.Verbose = true
 		}
 		log.Logger = log.Logger.Level(level)
 	},

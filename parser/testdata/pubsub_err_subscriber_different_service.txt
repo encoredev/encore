@@ -1,5 +1,5 @@
 ! parse
-stderr 'The call to `pubsub.NewSubscription` must be declared in the same service as the handler passed in. The call was made in svc1, but the handler function was declared in svc2.'
+stderr 'The call to `pubsub.NewSubscription` must be declared in the same service as the handler passed in.'
 
 -- shared/shared.go --
 package shared

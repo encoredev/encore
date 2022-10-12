@@ -27,7 +27,6 @@ import (
 	"encr.dev/cli/internal/version"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
-	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -224,7 +223,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 					err = fmt.Errorf("%v", recovered)
 				}
 				log.Err(err).Msg("panic during test run")
-				testResults <- fmt.Errorf("panic occured witihn Encore during test run: %w\n%s", recovered, errlist.GetStack())
+				testResults <- fmt.Errorf("panic occured witihn Encore during test run: %v\n", recovered)
 			}
 		}()
 
