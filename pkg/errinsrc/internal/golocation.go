@@ -12,7 +12,7 @@ import (
 // locations of that node.
 func FromGoASTNode(fileset *token.FileSet, node ast.Node) *SrcLocation {
 	start := fileset.Position(node.Pos())
-	end := fileset.Position(node.Pos())
+	end := fileset.Position(node.End())
 
 	// Custom end locations for some node types
 	switch node := node.(type) {
@@ -23,8 +23,11 @@ func FromGoASTNode(fileset *token.FileSet, node ast.Node) *SrcLocation {
 	return FromGoTokenPositions(start, end)
 }
 
-// FromGoTokenPositions returns a SrcLocation from a Go token position.
-// This will only be a single character in the code
+// FromGoTokenPositions returns a SrcLocation from two Go token positions.
+// They can be the same position or different positions. However, they must
+// be locations within the same file.
+//
+// This function will panic if the locations are in different files.
 func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation {
 	if start.Filename != end.Filename {
 		panic("FromGoASTNode: start and end files must be the same")

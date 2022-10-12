@@ -10,7 +10,11 @@ import (
 
 // errInSrc reports an error in the source code.
 //
-// Note: err must be either a errinsrc.ErrorList or an *errinsrc.Error.
+// Note: err should be either a errinsrc.ErrorList, an *errinsrc.Error or a errlist.List.
+//
+// A scanner.Error and scanner.ErrorList are also supported, but this is only to
+// allow backwards compatibility with the older errors, new code should not pass
+// these two types in.
 func (p *parser) errInSrc(err error) {
 	p.errors.Report(err)
 }

@@ -14,7 +14,7 @@ import (
 )
 
 // Verbose controls whether the error list prints all errors
-// or just the first two.
+// or just the what MaxErrorsToPrint is set to
 var Verbose = false
 
 // MaxErrorsToPrint is the maximum number of errors to print
@@ -150,6 +150,8 @@ func (l *List) AddRaw(err *scanner.Error) {
 // Merge merges another list into this one.
 // The token.FileSet in use must be the same one as this one,
 // or else it panics.
+//
+// Deprecated: use Report instead
 func (l *List) Merge(other *List) {
 	if other.fset != l.fset {
 		panic("errlist: cannot merge lists with different *token.FileSets")

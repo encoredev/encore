@@ -1,8 +1,11 @@
 package internal
 
-// ErrParams is an internal data type to force the
-// creation of ErrInSrc objects from only being inside
-// the errinsrc package, ideally the `srcerrors` package.
+// ErrParams are used to create *errinsrc.ErrInSrc objects.
+//
+// It exists within an `internal` package so that it can only
+// be used by other packages within the `errinsrc` folder.
+// This is enforce through the Go compiler that all
+// errors are created inside the `srcerrors` subpackage.
 type ErrParams struct {
 	Code      int          `json:"code"`
 	Title     string       `json:"title"`
