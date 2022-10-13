@@ -9,6 +9,11 @@ import (
 //
 // If visitor returns false, the walk will be aborted.
 func Walk(decls []*Decl, node any, visitor func(node any) error) error {
+	namedChain := make([]uint32, 0, 10)
+	return walk(decls, node, visitor, namedChain)
+}
+
+func walk(decls []*Decl, node any, visitor func(node any) error, namedChain []uint32) error {
 	// Check the visitor against the node type
 	if err := visitor(node); err != nil {
 		return err
@@ -18,56 +23,65 @@ func Walk(decls []*Decl, node any, visitor func(node any) error) error {
 	case *Type:
 		switch v := node.Typ.(type) {
 		case *Type_Named:
-			return Walk(decls, v.Named, visitor)
+			return walk(decls, v.Named, visitor, namedChain)
 		case *Type_Struct:
-			return Walk(decls, v.Struct, visitor)
+			return walk(decls, v.Struct, visitor, namedChain)
 		case *Type_Map:
-			return Walk(decls, v.Map, visitor)
+			return walk(decls, v.Map, visitor, namedChain)
 		case *Type_List:
-			return Walk(decls, v.List, visitor)
+			return walk(decls, v.List, visitor, namedChain)
 		case *Type_Builtin:
-			return Walk(decls, v.Builtin, visitor)
+			return walk(decls, v.Builtin, visitor, namedChain)
 		case *Type_Pointer:
-			return Walk(decls, v.Pointer, visitor)
+			return walk(decls, v.Pointer, visitor, namedChain)
 		case *Type_TypeParameter:
-			return Walk(decls, v.TypeParameter, visitor)
+			return walk(decls, v.TypeParameter, visitor, namedChain)
 		case *Type_Config:
-			return Walk(decls, v.Config, visitor)
+			return walk(decls, v.Config, visitor, namedChain)
 		default:
 			panic(fmt.Sprintf("unknown type encountered: %+v", reflect.TypeOf(v)))
 		}
 
 	case *Decl:
-		return Walk(decls, decls[node.Id].Type, visitor)
+		return walk(decls, decls[node.Id].Type, visitor, namedChain)
 
 	case *Named:
 		for _, typ := range node.TypeArguments {
-			if err := Walk(decls, typ, visitor); err != nil {
+			if err := walk(decls, typ, visitor, namedChain); err != nil {
 				return err
 			}
 		}
-		return Walk(decls, decls[node.Id].Type, visitor)
+
+		// Have we already visited this named type?
+		for i := len(namedChain) - 1; i >= 0; i-- {
+			if namedChain[i] == node.Id {
+				return nil
+			}
+		}
+		namedChain = append(namedChain, node.Id)
+
+		return walk(decls, decls[node.Id].Type, visitor, namedChain)
 	case *Struct:
 		for _, field := range node.Fields {
-			if err := Walk(decls, field.Typ, visitor); err != nil {
+			if err := walk(decls, field.Typ, visitor, namedChain); err != nil {
 				return err
 			}
 		}
 	case *Map:
-		if err := Walk(decls, node.Key, visitor); err != nil {
+		if err := walk(decls, node.Key, visitor, namedChain); err != nil {
 			return err
 		}
-		return Walk(decls, node.Value, visitor)
+		return walk(decls, node.Value, visitor, namedChain)
 	case *List:
-		return Walk(decls, node.Elem, visitor)
+		return walk(decls, node.Elem, visitor, namedChain)
 	case Builtin:
 		return nil
 	case *Pointer:
-		return Walk(decls, node.Base, visitor)
+		return walk(decls, node.Base, visitor, namedChain)
 	case *TypeParameterRef:
 		return nil
 	case *ConfigValue:
-		return Walk(decls, node.Elem, visitor)
+		return walk(decls, node.Elem, visitor, namedChain)
 	default:
 		panic(fmt.Sprintf("unsupported node type encountered during walk: %+v", reflect.TypeOf(node)))
 	}
