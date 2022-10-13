@@ -27,6 +27,7 @@ import (
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
+	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -85,7 +86,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// Clear screen.
 	stderr.Write([]byte("\033[2J\033[H\n"))
 
-	ops := optracker.New(stderr)
+	ops := optracker.New(stderr, stream)
 
 	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
@@ -325,6 +326,16 @@ func (s *Server) OnStderr(r *run.Run, line []byte) {
 
 	if ok {
 		slog.Stderr(true).Write(line)
+	}
+}
+
+func (s *Server) OnError(r *run.Run, err *errlist.List) {
+	s.mu.Lock()
+	slog, ok := s.streams[r.ID]
+	s.mu.Unlock()
+
+	if ok {
+		slog.Error(err)
 	}
 }
 

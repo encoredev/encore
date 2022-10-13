@@ -47,7 +47,13 @@ func New(params ErrParams, alwaysIncludeStack bool) *ErrInSrc {
 	}
 }
 
-const errorWidth = 100
+// TerminalWidth is the width of the terminal in columns that we're rendering to.
+//
+// We default to 100 characters, but the CLI overrides this when it renders errors.
+// When using the value, note it might be very small (e.g. 5) if the user has shrunk
+// their terminal window super small. Thus any code which uses this or creates new
+// widths off it should cope with <= 0 values.
+var TerminalWidth = 100
 
 func (e *ErrInSrc) Unwrap() error {
 	return e.Params.Cause
@@ -88,16 +94,24 @@ func (e *ErrInSrc) Bailout() {
 	panic(Bailout{List: List{e}})
 }
 
+func (e *ErrInSrc) Title() string {
+	return e.Params.Title
+}
+
 func (e *ErrInSrc) Error() string {
 	var b strings.Builder
 
 	// Write the header
 	const headerGrayLevel = 12
 	const spacing = 4 + 2 + 7 // (4 = "--" on both sides, 2 = " " on the sides of the title, 7 = "[E0000]")
+	b.WriteRune('\n')         // Always start with a new line as these errors are expected to be full screen
 	b.WriteString(aurora.Gray(headerGrayLevel, fmt.Sprintf("%c%c ", set.HorizontalBar, set.HorizontalBar)).String())
 	b.WriteString(aurora.Red(e.Params.Title).String())
 	b.WriteByte(' ')
-	b.WriteString(aurora.Gray(headerGrayLevel, strings.Repeat(string(set.HorizontalBar), errorWidth-len(e.Params.Title)-spacing)).String())
+	headerWidth := TerminalWidth - len(e.Params.Title) - spacing
+	if headerWidth > 0 {
+		b.WriteString(aurora.Gray(headerGrayLevel, strings.Repeat(string(set.HorizontalBar), headerWidth)).String())
+	}
 	b.WriteString(aurora.Gray(headerGrayLevel, fmt.Sprintf("%cE%04d%c", set.LeftBracket, e.Params.Code, set.RightBracket)).String())
 	b.WriteString(aurora.Gray(headerGrayLevel, fmt.Sprintf("%c%c\n\n", set.HorizontalBar, set.HorizontalBar)).String())
 

@@ -11,11 +11,15 @@ import (
 	"time"
 
 	"github.com/logrusorgru/aurora/v3"
+
+	"encr.dev/pkg/errlist"
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
-func New(w io.Writer) *OpTracker {
+func New(w io.Writer, stream daemonpb.Daemon_RunServer) *OpTracker {
 	return &OpTracker{
-		w: w,
+		w:      w,
+		stream: stream,
 	}
 }
 
@@ -26,6 +30,9 @@ type OpTracker struct {
 	nl      int // number of lines written
 	started bool
 	quit    bool
+	stream  interface {
+		Send(*daemonpb.CommandMessage) error
+	}
 }
 
 type OperationID int
@@ -144,6 +151,7 @@ func (t *OpTracker) refresh() {
 		return ops[i].start.Before(ops[j].start)
 	})
 
+	var errlistToSend *errlist.List
 	for _, o := range ops {
 		started := o.start.Before(now)
 		done := !o.done.IsZero() && o.done.Before(now)
@@ -158,7 +166,12 @@ func (t *OpTracker) refresh() {
 			if errors.Is(o.err, ErrCanceled) {
 				msg = aurora.Yellow(fmt.Sprintf(format+"Canceled", canceled, o.msg))
 			} else {
-				msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, o.err))
+				if errlist := errlist.Convert(o.err); errlist != nil {
+					errlistToSend = errlist
+					msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, errlist.List[0].Title()))
+				} else {
+					msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, o.err))
+				}
 			}
 		case done && o.err == nil:
 			msg = aurora.Green(fmt.Sprintf(format+"Done!", success, o.msg))
@@ -167,8 +180,13 @@ func (t *OpTracker) refresh() {
 			o.spinIdx = (o.spinIdx + 1) % len(spinner)
 		}
 		str := msg.String()
+
 		fmt.Fprintf(t.w, "\u001b[2K%s\n", str)
 		nl += strings.Count(str, "\n") + 1
+	}
+	if errlistToSend != nil {
+		// We sent this after we clear and repaint the screen
+		errlistToSend.SendToStream(t.stream)
 	}
 	t.nl = nl
 }

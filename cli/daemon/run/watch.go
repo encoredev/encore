@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/rjeczalik/notify"
+
+	"encr.dev/pkg/errlist"
 )
 
 // watch watches the given app for changes, and reports
@@ -37,11 +39,15 @@ func (mgr *Manager) watch(run *Run) error {
 				time.Sleep(100 * time.Millisecond)
 				mgr.RunStdout(run, []byte("Changes detected, recompiling...\n"))
 				if err := run.Reload(); err != nil {
-					errStr := err.Error()
-					if !strings.HasSuffix(errStr, "\n") {
-						errStr += "\n"
+					if errList := errlist.Convert(err); errList != nil {
+						mgr.RunError(run, errList)
+					} else {
+						errStr := err.Error()
+						if !strings.HasSuffix(errStr, "\n") {
+							errStr += "\n"
+						}
+						mgr.RunStderr(run, []byte(errStr))
 					}
-					mgr.RunStderr(run, []byte(errStr))
 				} else {
 					mgr.RunStdout(run, []byte("Reloaded successfully.\n"))
 				}
