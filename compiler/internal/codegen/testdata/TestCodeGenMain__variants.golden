@@ -99,7 +99,7 @@ var EncoreInternal_svcMyMiddleware = &api.Middleware{
 	PkgName: "svc",
 	Name:    "MyMiddleware",
 	Global:  false,
-	DefLoc:  36,
+	DefLoc:  38,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
 		if err != nil {
@@ -114,6 +114,17 @@ var EncoreInternal_svcMyMiddleware = &api.Middleware{
 package otherservice
 
 import _ "encore.dev/appruntime/app/appinit"
+
+
+// config unmarshallers for service otherservice
+package otherservice
+
+/*
+These functions are automatically generated and maintained by Encore to allow config values
+to be unmarshalled into the correct types. They are not intended to be used directly. They
+are automatically updated by Encore whenever you change the data types used within your
+calls to config.Load[T]().
+*/
 
 
 // generated types for service svc
@@ -141,7 +152,7 @@ var EncoreInternal_ServiceService = &service.Decl[Service]{
 	Service:     "svc",
 	Name:        "Service",
 	Setup:       initService,
-	SetupDefLoc: 34,
+	SetupDefLoc: 36,
 }
 
 type EncoreInternal_CronOneReq struct{}
@@ -154,7 +165,7 @@ var EncoreInternal_CronOneHandler = &api.Desc[*EncoreInternal_CronOneReq, Encore
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/cron",
-	DefLoc:   21,
+	DefLoc:   23,
 	Access:   api.Private,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_CronOneReq, err error) {
 		reqData = &EncoreInternal_CronOneReq{}
@@ -211,7 +222,7 @@ var EncoreInternal_DIHandler = &api.Desc[*EncoreInternal_DIReq, EncoreInternal_D
 	Methods:  []string{"GET"},
 	Raw:      false,
 	Path:     "/di",
-	DefLoc:   22,
+	DefLoc:   24,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_DIReq, err error) {
 		reqData = &EncoreInternal_DIReq{}
@@ -275,7 +286,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/eight/:bar/:baz",
-	DefLoc:   23,
+	DefLoc:   25,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_EightReq, err error) {
 		reqData = &EncoreInternal_EightReq{}
@@ -405,7 +416,7 @@ var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, EncoreIntern
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/five/:id/:key",
-	DefLoc:   24,
+	DefLoc:   26,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_FiveReq, err error) {
 		reqData = &EncoreInternal_FiveReq{}
@@ -529,7 +540,7 @@ var EncoreInternal_FourHandler = &api.Desc[*EncoreInternal_FourReq, EncoreIntern
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/four/*baz",
-	DefLoc:   25,
+	DefLoc:   27,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_FourReq, err error) {
 		reqData = &EncoreInternal_FourReq{}
@@ -623,7 +634,7 @@ var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, *EncoreInter
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/nine/:bar/:baz",
-	DefLoc:   26,
+	DefLoc:   28,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_NineReq, err error) {
 		reqData = &EncoreInternal_NineReq{}
@@ -763,7 +774,7 @@ var EncoreInternal_OneHandler = &api.Desc[*EncoreInternal_OneReq, EncoreInternal
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/svc.One",
-	DefLoc:   27,
+	DefLoc:   29,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_OneReq, err error) {
 		reqData = &EncoreInternal_OneReq{}
@@ -822,7 +833,7 @@ var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInt
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/query",
-	DefLoc:   28,
+	DefLoc:   30,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_QueryReq, err error) {
 		reqData = &EncoreInternal_QueryReq{}
@@ -977,7 +988,7 @@ var EncoreInternal_SevenHandler = &api.Desc[*EncoreInternal_SevenReq, EncoreInte
 	Methods:  []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
 	Raw:      true,
 	Path:     "/foo/:bar/:baz",
-	DefLoc:   29,
+	DefLoc:   31,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_SevenReq, err error) {
 		reqData = &EncoreInternal_SevenReq{}
@@ -1040,7 +1051,7 @@ var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, EncoreInternal
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/six/:id/*key",
-	DefLoc:   30,
+	DefLoc:   32,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_SixReq, err error) {
 		reqData = &EncoreInternal_SixReq{}
@@ -1170,7 +1181,7 @@ var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, *EncoreInterna
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/ten",
-	DefLoc:   31,
+	DefLoc:   33,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_TenReq, err error) {
 		reqData = &EncoreInternal_TenReq{}
@@ -1265,7 +1276,7 @@ var EncoreInternal_ThreeHandler = &api.Desc[*EncoreInternal_ThreeReq, EncoreInte
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/three/:id",
-	DefLoc:   32,
+	DefLoc:   34,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_ThreeReq, err error) {
 		reqData = &EncoreInternal_ThreeReq{}
@@ -1354,7 +1365,7 @@ var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, EncoreInternal
 	Methods:  []string{"POST"},
 	Raw:      false,
 	Path:     "/svc.Two",
-	DefLoc:   33,
+	DefLoc:   35,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_TwoReq, err error) {
 		reqData = &EncoreInternal_TwoReq{}
@@ -1449,7 +1460,7 @@ type EncoreInternal_AuthHandlerAuthParams = AuthParams
 var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
 	Endpoint:    "AuthHandler",
-	DefLoc:      35,
+	DefLoc:      37,
 	HasAuthData: true,
 	DecodeAuth: func(req *http.Request) (params *EncoreInternal_AuthHandlerAuthParams, err error) {
 		params = &EncoreInternal_AuthHandlerAuthParams{}
@@ -1506,10 +1517,170 @@ func DI(ctx context.Context) error {
 	}
 	return svc.DI(ctx)
 }
+
+
+// config unmarshallers for service svc
+package svc
+
+import (
+	"encoding/json"
+	etype "encore.app/__encore/etype"
+	config "encore.dev/config"
+	"fmt"
+	jsoniter "github.com/json-iterator/go"
+	"strconv"
+)
+
+/*
+These functions are automatically generated and maintained by Encore to allow config values
+to be unmarshalled into the correct types. They are not intended to be used directly. They
+are automatically updated by Encore whenever you change the data types used within your
+calls to config.Load[T]().
+*/
+
+// Concrete unmarshalers for all config.Load calls, including those using generic types.
+// These instances are used directly by calls to `config.Load[T]()`.
+var (
+	encoreInternalConfigUnmarshaler_Cfg            = encoreInternalTypeConfigUnmarshaler_Cfg
+	encoreInternalConfigUnmarshaler_Optional_bool_ = encoreInternalTypeConfigUnmarshaler_Optional[bool](func(itr *jsoniter.Iterator, path []string) bool {
+		return itr.ReadBool()
+	})
+)
+
+// encoreInternalTypeConfigUnmarshaler_FooParams will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_FooParams(itr *jsoniter.Iterator, path []string) (obj FooParams) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Name":
+			obj.Name = itr.ReadString()
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_Cfg will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_Cfg(itr *jsoniter.Iterator, path []string) (obj Cfg) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "DefaultFooParams":
+			obj.DefaultFooParams = config.CreateValue[FooParams](encoreInternalTypeConfigUnmarshaler_FooParams(itr, append(path, "DefaultFooParams")), append(path, "DefaultFooParams"))
+		case "ReadOnly":
+			obj.ReadOnly = config.CreateValue[bool](itr.ReadBool(), append(path, "ReadOnly"))
+		case "MagicNumber":
+			obj.MagicNumber = itr.ReadInt()
+		case "Sub":
+			obj.Sub = encoreInternalTypeConfigUnmarshaler_SubType[Optional[string]](encoreInternalTypeConfigUnmarshaler_Optional[string](func(itr *jsoniter.Iterator, path []string) string {
+				return itr.ReadString()
+			}))(itr, append(path, "Sub"))
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_SubType will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_SubType[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[SubType[T]]) {
+	return func(itr *jsoniter.Iterator, path []string) (obj SubType[T]) {
+		itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+			switch field {
+			case "FieldA":
+				obj.FieldA = config.CreateValue[string](itr.ReadString(), append(path, "FieldA"))
+			case "FieldB":
+				obj.FieldB = config.CreateValue[[]string](config.ReadArray[string](itr, func(itr *jsoniter.Iterator, idx int) string {
+					return itr.ReadString()
+				}), append(path, "FieldB"))
+			case "FieldC":
+				obj.FieldC = config.ReadArray[int](itr, func(itr *jsoniter.Iterator, idx int) int {
+					return config.CreateValue[int](itr.ReadInt(), append(path, strconv.Itoa(idx)))
+				})
+			case "FieldD":
+				obj.FieldD = config.ReadMap[int, string](itr, func(itr *jsoniter.Iterator, keyAsString string) (int, string) {
+					// Decode the map key from the JSON string to the underlying type it needs to be
+					keyDecoder := &etype.Marshaller{}
+					key := keyDecoder.ToInt("keyAsString", key, true)
+					if keyDecoder.LastError != nil {
+						panic(fmt.Sprintf("unable to decode the config: %v", keyDecoder.LastError))
+					}
+
+					return key, config.CreateValue[string](itr.ReadString(), append(path, keyAsString))
+				})
+			case "FieldE":
+				obj.FieldE = func() (obj struct {
+					SubA string
+					SubB FooParams
+					Blah T
+					Foo  []byte
+					Json json.RawMessage
+				}) {
+					itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+						switch field {
+						case "SubA":
+							obj.SubA = config.CreateValue[string](itr.ReadString(), append(path, "SubA"))
+						case "SubB":
+							obj.SubB = encoreInternalTypeConfigUnmarshaler_FooParams(itr, append(path, "SubB"))
+						case "Blah":
+							obj.Blah = config.CreateValue[T](_T_unmarshaler(itr, append(path, "Blah")), append(path, "Blah"))
+						case "Foo":
+							obj.Foo = func() (rtn []byte) {
+								decoder := &etype.Marshaller{}
+
+								rtn = decoder.ToBytes("value", itr.ReadString(), true)
+
+								if decoder.LastError != nil {
+									panic(fmt.Sprintf("unable to decode the config: %v", decoder.LastError))
+								}
+
+								return
+							}()
+						case "Json":
+							obj.Json = func() (rtn json.RawMessage) {
+								decoder := &etype.Marshaller{}
+
+								rtn = decoder.ToJSON("value", itr.ReadString(), true)
+
+								if decoder.LastError != nil {
+									panic(fmt.Sprintf("unable to decode the config: %v", decoder.LastError))
+								}
+
+								return
+							}()
+						}
+						return true
+					})
+					return
+				}()
+			}
+			return true
+		})
+		return
+	}
+}
+
+// encoreInternalTypeConfigUnmarshaler_Optional will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_Optional[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[Optional[T]]) {
+	return func(itr *jsoniter.Iterator, path []string) (obj Optional[T]) {
+		itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+			switch field {
+			case "Wrapped":
+				obj.Wrapped = _T_unmarshaler(itr, append(path, "Wrapped"))
+			case "Present":
+				obj.Present = itr.ReadBool()
+			}
+			return true
+		})
+		return
+	}
+}
 // etype package
 package etype
 
 import (
+	"encoding/base64"
 	stdjson "encoding/json"
 	_ "encore.dev/appruntime/app/appinit"
 	auth "encore.dev/beta/auth"
@@ -1647,6 +1818,16 @@ func (e *Marshaller) ToInt(field string, s string, required bool) (v int) {
 	x, err := strconv.ParseInt(s, 10, 64)
 	e.setErr("invalid parameter", field, err)
 	return int(x)
+}
+
+func (e *Marshaller) ToBytes(field string, s string, required bool) (v []byte) {
+	if !required && s == "" {
+		return
+	}
+	e.NonEmptyValues++
+	v, err := base64.URLEncoding.DecodeString(s)
+	e.setErr("invalid parameter", field, err)
+	return v
 }
 
 // setErr sets the last error within the object if one is not already set

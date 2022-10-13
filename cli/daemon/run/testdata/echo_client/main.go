@@ -158,8 +158,8 @@ func main() {
 		tokenToReturn := "tokendata"
 		api, err := client.New(
 			client.BaseURL(fmt.Sprintf("http://%s", os.Args[1])),
-			client.WithAuthFunc(func(ctx context.Context) (*client.EchoAuthParams, error) {
-				return &client.EchoAuthParams{
+			client.WithAuthFunc(func(ctx context.Context) (client.EchoAuthParams, error) {
+				return client.EchoAuthParams{
 					Authorization: "Bearer " + tokenToReturn,
 				}, nil
 			}),

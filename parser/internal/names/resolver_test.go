@@ -110,7 +110,7 @@ import (
 	"foo2"
 )
 			`,
-			Err: `.*pkg.go:5:2: name foo already declared \(import of package foo\)`,
+			Err: `(?s).+name foo already declared \(import of package foo\).*`,
 		},
 	}
 

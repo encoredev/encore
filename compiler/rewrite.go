@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 
+	"encr.dev/compiler/internal/codegen"
 	"encr.dev/compiler/internal/rewrite"
 	"encr.dev/parser/est"
 )
@@ -101,6 +102,19 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 					defLoc, b.codegen.CacheKeyspaceKeyMapperName(keyspace),
 					ep.Line, ep.Column,
 				)))
+				return true
+
+			case est.ConfigLoadNode:
+				res := rewrite.Res.(*est.Config)
+
+				var buf bytes.Buffer
+				buf.WriteString(strconv.Quote(pkg.Service.Name))
+				buf.WriteString(", ")
+				buf.WriteString(codegen.ConfigUnmarshalFuncName(res.ConfigStruct.Type, b.res.Meta))
+				ep := fset.Position(res.FuncCall.Rparen)
+				_, _ = fmt.Fprintf(&buf, "/*line :%d:%d*/", ep.Line, ep.Column)
+				rw.Replace(res.FuncCall.Lparen+1, res.FuncCall.Rparen, buf.Bytes())
+
 				return true
 
 			default:

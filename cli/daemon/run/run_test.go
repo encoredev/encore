@@ -3,6 +3,7 @@ package run
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,6 +26,7 @@ import (
 	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/env"
 	"encr.dev/compiler"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/golden"
 )
 
@@ -102,20 +104,25 @@ func TestEndToEndWithApp(t *testing.T) {
 	build := testBuild(c, "./testdata/echo")
 	wantEnv := []string{"FOO=bar", "BAR=baz"}
 	p, err := run.startProc(&startProcParams{
-		Ctx:         ctx,
-		BuildDir:    build.Dir,
-		BinPath:     build.Exe,
-		Meta:        build.Parse.Meta,
-		RuntimePort: 0,
-		DBProxyPort: 0,
-		Logger:      testRunLogger{t},
-		Environ:     wantEnv,
-		NSQDaemon:   nsqd,
-		Redis:       redisSrv,
+		Ctx:            ctx,
+		BuildDir:       build.Dir,
+		BinPath:        build.Exe,
+		Meta:           build.Parse.Meta,
+		RuntimePort:    0,
+		DBProxyPort:    0,
+		Logger:         testRunLogger{t},
+		Environ:        wantEnv,
+		NSQDaemon:      nsqd,
+		Redis:          redisSrv,
+		ServiceConfigs: build.Configs,
 	})
 	c.Assert(err, qt.IsNil)
 	defer p.close()
 	run.proc.Store(p)
+
+	for serviceName, config := range build.Configs {
+		wantEnv = append(wantEnv, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
+	}
 
 	// start proxying TCP requests to the running application
 	go proxyTcp(ctx, ln, p.client)
@@ -377,7 +384,7 @@ func TestEndToEndWithApp(t *testing.T) {
 				"AppID":      "slug",
 				"APIBaseURL": got["APIBaseURL"],
 				"EnvName":    "local",
-				"EnvType":    "local",
+				"EnvType":    "development",
 			})
 		})
 
@@ -521,6 +528,21 @@ func TestEndToEndWithApp(t *testing.T) {
 		}
 	})
 
+	c.Run("config_test", func(c *qt.C) {
+		{
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/echo.ConfigValues", nil)
+			run.ServeHTTP(w, req)
+			c.Assert(w.Code, qt.Equals, 200)
+			c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
+				"ReadOnlyMode": true,
+				"PublicKey":    "aGVsbG8gd29ybGQK",
+				"AdminUsers":   []string{"foo", "bar"},
+				"SubKeyCount":  2,
+			})
+		}
+	})
+
 	c.Run("go_generated_client", func(c *qt.C) {
 		cmd := exec.Command("go", "run", ".", ln.Addr().String())
 		cmd.Dir = filepath.Join("testdata", "echo_client")
@@ -575,13 +597,23 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 // testBuild is a helper that compiles the app situated at appRoot
 // and cleans up the build dir during test cleanup.
 func testBuild(c *qt.C, appRoot string) *compiler.Result {
+	// Generate use facing code
+	err := compiler.GenUserFacing(appRoot)
+
+	// Then compile the app
 	wd, err := os.Getwd()
 	c.Assert(err, qt.IsNil)
 	runtimePath := filepath.Join(wd, "../../../runtime")
-	build, err := compiler.Build("./testdata/echo", &compiler.Config{
+	build, err := compiler.Build(appRoot, &compiler.Config{
 		EncoreRuntimePath: runtimePath,
 		EncoreGoRoot:      env.EncoreGoRoot(),
-		BuildTags:         []string{"encore_local"},
+		Meta: &cueutil.Meta{
+			APIBaseURL: "http://what?",
+			EnvName:    "end_to_end_test",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
+		BuildTags: []string{"encore_local"},
 	})
 	if err != nil {
 		fmt.Println(err.Error())

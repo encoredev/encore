@@ -1,5 +1,5 @@
 ! parse
-stderr 'pubsub.NewTopic requires the topic name to be between "kebab-case". It must start with a letter, end with a letter or number and only contain lower case letters, numbers and dashes.'
+stderr 'pubsub.NewTopic requires the topic name to be between "kebab-case". It must start with a letter,'
 
 -- svc/svc.go --
 package svc

@@ -187,12 +187,16 @@ import (
     "encore.dev/beta/auth"
 )
 
+type AuthData struct {
+    APIKey string `header:"X-API-Key"`
+}
+
 type User struct {
     ID   int     `json:"id"`
     Name string  `json:"name"`
 }
 
 //encore:authhandler
-func AuthenticateRequest(ctx context.Context, token string) (auth.UID, *User, error) {
+func AuthenticateRequest(ctx context.Context, auth *AuthData) (auth.UID, *User, error) {
     return "", nil, nil
 }
