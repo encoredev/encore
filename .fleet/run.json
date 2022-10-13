@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+          "type": "go",
+          "mode": "debug",
+          "name": "🤖 encore daemon -f",
+          "goExecPath": "/opt/homebrew/Cellar/go/1.19.1/libexec/bin/go",
+          "buildTargets": [
+            "github.com/encoredev/encore/cli/cmd/encore"
+          ],
+          "environment": {
+            "ENCORE_DAEMON_DEV": "1"
+          },
+          "args": "run"
+        },
+    ]
+}

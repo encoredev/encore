@@ -170,6 +170,13 @@ export namespace echo {
         Time: string
     }
 
+    export interface ConfigResponse {
+        ReadOnlyMode: boolean
+        PublicKey: string
+        SubKeyCount: number
+        AdminUsers: string[]
+    }
+
     export interface Data<K, V> {
         Key: K
         Value: V
@@ -255,6 +262,12 @@ export namespace echo {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.BasicEcho`, JSON.stringify(params))
             return await resp.json() as BasicData
+        }
+
+        public async ConfigValues(): Promise<ConfigResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/echo.ConfigValues`)
+            return await resp.json() as ConfigResponse
         }
 
         /**

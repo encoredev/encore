@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"encr.dev/parser/est"
+	"encr.dev/pkg/eerror"
 )
 
 const (
@@ -110,6 +111,46 @@ func (b *builder) writeServiceHandlers(svc *est.Service) error {
 	return f.Render(file)
 }
 
+func (b *builder) writeConfigUnmarshallers() error {
+	for _, svc := range b.res.App.Services {
+		if len(svc.ConfigLoads) > 0 {
+			if err := b.writeServiceConfigUnmarshalers(svc); err != nil {
+				return eerror.Wrap(err, "compiler", "write config unmarshallers for svc", nil)
+			}
+		}
+	}
+	return nil
+}
+
+func (b *builder) writeServiceConfigUnmarshalers(svc *est.Service) error {
+	// Write the file to disk
+	dir := filepath.Join(b.workdir, filepath.FromSlash(svc.Root.RelPath))
+	name := "encore_internal__config_unmarshalers.go"
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	filePath := filepath.Join(dir, name)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err2 := file.Close(); err == nil {
+			err = err2
+		}
+	}()
+
+	b.addOverlay(filepath.Join(svc.Root.Dir, name), filePath)
+
+	f, err := b.codegen.ConfigUnmarshalers(svc)
+	if err != nil {
+		return err
+	}
+
+	return f.Render(file)
+}
+
 func (b *builder) writePackageHandlers(pkg *est.Package) error {
 	// If we have a package that uses Encore resources we need to ensure
 	// the runtime is properly initialized before said package.
@@ -200,4 +241,14 @@ func (b *builder) generateServiceSetup(svc *est.Service) (err error) {
 
 	b.addOverlay(filepath.Join(svc.Root.Dir, "encore.gen.go"), encoreGenPath)
 	return f.Render(file)
+}
+
+func (b *builder) generateCueFiles(svc *est.Service) (err error) {
+	f, err := b.cuegen.UserFacing(svc)
+	if f == nil || len(f) == 0 {
+		return nil
+	}
+
+	dst := filepath.Join(b.workdir, filepath.FromSlash(svc.Root.RelPath), "encore.gen.cue")
+	return os.WriteFile(dst, f, 0644)
 }

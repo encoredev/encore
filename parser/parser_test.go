@@ -109,7 +109,7 @@ func TestCompile(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"parse": func() int {
+		"parse": func() (rtnCode int) {
 			wd, err := os.Getwd()
 			if err != nil {
 				os.Stderr.WriteString(err.Error())
@@ -149,6 +149,10 @@ func TestMain(m *testing.M) {
 					}
 					fmt.Fprintf(os.Stdout, "rpc %s.%s access=%v raw=%v path=%v recv=%v\n",
 						svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, recvName)
+				}
+
+				for _, config := range svc.ConfigLoads {
+					fmt.Fprintf(os.Stdout, "config %s %s\n", svc.Name, config.ConfigStruct.Type)
 				}
 			}
 			for _, job := range res.App.CronJobs {

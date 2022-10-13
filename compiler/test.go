@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"golang.org/x/exp/slices"
+
+	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 type TestConfig struct {
@@ -39,6 +41,7 @@ func Test(ctx context.Context, appRoot string, cfg *Config) error {
 		cfg:        cfg,
 		appRoot:    appRoot,
 		forTesting: true,
+		configs:    make(map[string]string),
 	}
 	return b.Test(ctx)
 }
@@ -49,7 +52,7 @@ func (b *builder) Test(ctx context.Context) (err error) {
 			if b, ok := e.(bailout); ok {
 				err = b.err
 			} else {
-				panic(e)
+				err = srcerrors.UnhandledPanic(e)
 			}
 		}
 	}()
@@ -62,11 +65,14 @@ func (b *builder) Test(ctx context.Context) (err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
+		b.pickupConfigFiles,
+		b.checkApp, // we need to validate the config
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
 		b.writeHandlers,
 		b.writeTestMains,
+		b.writeConfigUnmarshallers,
 		b.writeEtypePkg,
 	} {
 		if err := fn(); err != nil {

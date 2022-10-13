@@ -1,0 +1,40 @@
+# Verify calls to config.Load are called
+parse
+stdout 'config svc named:{type_arguments:{builtin:INT}}'
+
+-- libraries/shared/shared.go --
+package shared
+
+import (
+    "encore.dev/config"
+)
+
+type LibraryConfig struct {
+    Name    config.String
+    Enabled config.Bool
+}
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/config"
+
+    "test/libraries/shared"
+)
+
+type Config[T any] struct {
+    Library    shared.LibraryConfig
+    OtherValue config.Value[T]
+    NameList   config.Values[string]
+}
+
+var cfg = config.Load[Config[int]]()
+
+
+// encore:api
+func Subscriber1(ctx context.Context) error {
+    return nil
+}

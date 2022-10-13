@@ -247,6 +247,17 @@ var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[string]{
 		return [][]byte{v}, nil
 	},
 }
+
+
+// config unmarshallers for service svc
+package svc
+
+/*
+These functions are automatically generated and maintained by Encore to allow config values
+to be unmarshalled into the correct types. They are not intended to be used directly. They
+are automatically updated by Encore whenever you change the data types used within your
+calls to config.Load[T]().
+*/
 // etype package
 package etype
 

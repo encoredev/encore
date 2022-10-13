@@ -91,15 +91,15 @@ func WithHTTPClient(client HTTPDoer) Option {
 // WithAuth allows you to set the authentication data to be used with each request
 func WithAuth(auth EchoAuthParams) Option {
 	return func(base *baseClient) error {
-		base.authGenerator = func(_ context.Context) (*EchoAuthParams, error) {
-			return &auth, nil
+		base.authGenerator = func(_ context.Context) (EchoAuthParams, error) {
+			return auth, nil
 		}
 		return nil
 	}
 }
 
 // WithAuthFunc allows you to pass a function which is called for each request to return the authentication data to be used with each request
-func WithAuthFunc(authGenerator func(ctx context.Context) (*EchoAuthParams, error)) Option {
+func WithAuthFunc(authGenerator func(ctx context.Context) (EchoAuthParams, error)) Option {
 	return func(base *baseClient) error {
 		base.authGenerator = authGenerator
 		return nil
@@ -234,6 +234,13 @@ type EchoBasicData struct {
 	Time        time.Time
 }
 
+type EchoConfigResponse struct {
+	ReadOnlyMode bool
+	PublicKey    []byte
+	SubKeyCount  uint
+	AdminUsers   []string
+}
+
 type EchoData[K any, V any] struct {
 	Key   K
 	Value V
@@ -241,7 +248,7 @@ type EchoData[K any, V any] struct {
 
 type EchoEmptyData struct {
 	OmitEmpty EchoData[string, string] `json:"OmitEmpty,omitempty"`
-	NullPtr   string
+	NullPtr   *string
 	Zero      EchoData[string, string]
 }
 
@@ -255,17 +262,17 @@ type EchoHeadersData struct {
 }
 
 type EchoNonBasicData struct {
-	HeaderString string                                  `header:"X-Header-String"` // Header
-	HeaderNumber int                                     `header:"X-Header-Number"`
-	Struct       EchoData[EchoData[string, string], int] // Body
-	StructPtr    EchoData[int, uint16]
-	StructSlice  []EchoData[string, string]
-	StructMap    map[string]EchoData[string, float32]
-	StructMapPtr map[string]EchoData[string, string]
+	HeaderString string                                   `header:"X-Header-String"` // Header
+	HeaderNumber int                                      `header:"X-Header-Number"`
+	Struct       EchoData[*EchoData[string, string], int] // Body
+	StructPtr    *EchoData[int, uint16]
+	StructSlice  []*EchoData[string, string]
+	StructMap    map[string]*EchoData[string, float32]
+	StructMapPtr *map[string]*EchoData[string, string]
 	AnonStruct   struct {
 		AnonBird string
 	}
-	NamedStruct EchoData[string, float64] `json:"formatted_nest"`
+	NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
 	RawStruct   json.RawMessage
 	QueryString string `query:"string"` // Query
 	QueryNumber int    `query:"no"`
@@ -284,6 +291,7 @@ type EchoClient interface {
 
 	// BasicEcho echoes back the request data.
 	BasicEcho(ctx context.Context, params EchoBasicData) (EchoBasicData, error)
+	ConfigValues(ctx context.Context) (EchoConfigResponse, error)
 
 	// Echo echoes back the request data.
 	Echo(ctx context.Context, params EchoData[string, int]) (EchoData[string, int], error)
@@ -337,6 +345,16 @@ func (c *echoClient) AppMeta(ctx context.Context) (resp EchoAppMetadata, err err
 func (c *echoClient) BasicEcho(ctx context.Context, params EchoBasicData) (resp EchoBasicData, err error) {
 	// Now make the actual call to the API
 	_, err = callAPI(ctx, c.base, "POST", "/echo.BasicEcho", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *echoClient) ConfigValues(ctx context.Context) (resp EchoConfigResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/echo.ConfigValues", nil, nil, &resp)
 	if err != nil {
 		return
 	}
@@ -464,21 +482,21 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		Struct       EchoData[EchoData[string, string], int] `json:"Struct"`
-		StructPtr    EchoData[int, uint16]                   `json:"StructPtr"`
-		StructSlice  []EchoData[string, string]              `json:"StructSlice"`
-		StructMap    map[string]EchoData[string, float32]    `json:"StructMap"`
-		StructMapPtr map[string]EchoData[string, string]     `json:"StructMapPtr"`
+		Struct       EchoData[*EchoData[string, string], int] `json:"Struct"`
+		StructPtr    *EchoData[int, uint16]                   `json:"StructPtr"`
+		StructSlice  []*EchoData[string, string]              `json:"StructSlice"`
+		StructMap    map[string]*EchoData[string, float32]    `json:"StructMap"`
+		StructMapPtr *map[string]*EchoData[string, string]    `json:"StructMapPtr"`
 		AnonStruct   struct {
 			AnonBird string
 		} `json:"AnonStruct"`
-		NamedStruct EchoData[string, float64] `json:"formatted_nest"`
-		RawStruct   json.RawMessage           `json:"RawStruct"`
-		PathString  string                    `json:"PathString"`
-		PathInt     int                       `json:"PathInt"`
-		PathWild    string                    `json:"PathWild"`
-		AuthHeader  string                    `json:"AuthHeader"`
-		AuthQuery   []int                     `json:"AuthQuery"`
+		NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
+		RawStruct   json.RawMessage            `json:"RawStruct"`
+		PathString  string                     `json:"PathString"`
+		PathInt     int                        `json:"PathInt"`
+		PathWild    string                     `json:"PathWild"`
+		AuthHeader  string                     `json:"AuthHeader"`
+		AuthQuery   []int                      `json:"AuthQuery"`
 	}{
 		AnonStruct:   params.AnonStruct,
 		AuthHeader:   params.AuthHeader,
@@ -498,23 +516,23 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 	// We only want the response body to marshal into these fields and none of the header fields,
 	// so we'll construct a new struct with only those fields.
 	respBody := struct {
-		Struct       EchoData[EchoData[string, string], int] `json:"Struct"`
-		StructPtr    EchoData[int, uint16]                   `json:"StructPtr"`
-		StructSlice  []EchoData[string, string]              `json:"StructSlice"`
-		StructMap    map[string]EchoData[string, float32]    `json:"StructMap"`
-		StructMapPtr map[string]EchoData[string, string]     `json:"StructMapPtr"`
+		Struct       EchoData[*EchoData[string, string], int] `json:"Struct"`
+		StructPtr    *EchoData[int, uint16]                   `json:"StructPtr"`
+		StructSlice  []*EchoData[string, string]              `json:"StructSlice"`
+		StructMap    map[string]*EchoData[string, float32]    `json:"StructMap"`
+		StructMapPtr *map[string]*EchoData[string, string]    `json:"StructMapPtr"`
 		AnonStruct   struct {
 			AnonBird string
 		} `json:"AnonStruct"`
-		NamedStruct EchoData[string, float64] `json:"formatted_nest"`
-		RawStruct   json.RawMessage           `json:"RawStruct"`
-		QueryString string                    `json:"QueryString"`
-		QueryNumber int                       `json:"QueryNumber"`
-		PathString  string                    `json:"PathString"`
-		PathInt     int                       `json:"PathInt"`
-		PathWild    string                    `json:"PathWild"`
-		AuthHeader  string                    `json:"AuthHeader"`
-		AuthQuery   []int                     `json:"AuthQuery"`
+		NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
+		RawStruct   json.RawMessage            `json:"RawStruct"`
+		QueryString string                     `json:"QueryString"`
+		QueryNumber int                        `json:"QueryNumber"`
+		PathString  string                     `json:"PathString"`
+		PathInt     int                        `json:"PathInt"`
+		PathWild    string                     `json:"PathWild"`
+		AuthHeader  string                     `json:"AuthHeader"`
+		AuthQuery   []int                      `json:"AuthQuery"`
 	}{}
 
 	// Now make the actual call to the API
@@ -1083,10 +1101,10 @@ type HTTPDoer interface {
 
 // baseClient holds all the information we need to make requests to an Encore application
 type baseClient struct {
-	authGenerator func(ctx context.Context) (*EchoAuthParams, error) // The function which will add the authentication data to the requests
-	httpClient    HTTPDoer                                           // The HTTP client which will be used for all API requests
-	baseURL       *url.URL                                           // The base URL which API requests will be made against
-	userAgent     string                                             // What user agent we will use in the API requests
+	authGenerator func(ctx context.Context) (EchoAuthParams, error) // The function which will add the authentication data to the requests
+	httpClient    HTTPDoer                                          // The HTTP client which will be used for all API requests
+	baseURL       *url.URL                                          // The base URL which API requests will be made against
+	userAgent     string                                            // What user agent we will use in the API requests
 }
 
 // Do sends the req to the Encore application adding the authorization token as required.
@@ -1098,7 +1116,7 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 	if b.authGenerator != nil {
 		if authData, err := b.authGenerator(req.Context()); err != nil {
 			return nil, fmt.Errorf("unable to create authorization token for api request: %w", err)
-		} else if authData != nil {
+		} else {
 			authEncoder := &serde{}
 
 			// Add the auth fields to the query string

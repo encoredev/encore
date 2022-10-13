@@ -1,5 +1,5 @@
 ! parse
-stderr 'pubsub.NewSubscription requires the configuration field named "Handler" to populated with the subscription handler function.'
+stderr 'pubsub.NewSubscription requires the configuration field named "Handler" to populated with the'
 
 -- svc/svc.go --
 package svc

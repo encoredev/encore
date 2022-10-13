@@ -82,7 +82,7 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		}
 	}
 
-	messageType := p.resolveParameter("pubsub message type", file.Pkg, file, getTypeArguments(callExpr.Fun)[0])
+	messageType := p.resolveParameter("pubsub message type", file.Pkg, file, getTypeArguments(callExpr.Fun)[0], true)
 
 	// Parse the literal struct representing the subscription configuration
 	// so we can extract the reference to the handler function

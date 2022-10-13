@@ -124,3 +124,28 @@ func registerResourceUsageParser(resourceType est.ResourceType, name string, par
 		Parse:            parse,
 	}
 }
+
+type resourceReferenceParserFunc func(*parser, *est.File, est.Resource, *walker.Cursor)
+
+type resourceReferenceParser struct {
+	Resource *resource                   // The type of resource being referenced
+	Parse    resourceReferenceParserFunc // The function to call to parse the reference
+}
+
+// resourceReferenceRegistry is a map of resource type => parser
+var resourceReferenceRegistry = map[est.ResourceType]*resourceReferenceParser{}
+
+// registerResourceReferenceParser is used by resources to register any references to a resource instance.
+//
+// It will panic if the resource type is not registered already.
+func registerResourceReferenceParser(resourceType est.ResourceType, parse resourceReferenceParserFunc) {
+	res, ok := resourceTypes[resourceType]
+	if !ok {
+		panic("registerResourceReferenceParser: unknown resource type")
+	}
+
+	resourceReferenceRegistry[resourceType] = &resourceReferenceParser{
+		Resource: res,
+		Parse:    parse,
+	}
+}

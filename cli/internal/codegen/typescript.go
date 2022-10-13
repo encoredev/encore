@@ -971,6 +971,11 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 	case *schema.Type_Builtin:
 		ts.WriteString(ts.builtinType(typ.Builtin))
 
+	case *schema.Type_Pointer:
+		// FIXME(ENC-827): Handle pointers in TypeScript in a way which more technically correct without
+		// making the end user experience of using a generated client worse.
+		ts.writeTyp(ns, typ.Pointer.Base, numIndents)
+
 	case *schema.Type_Struct:
 		indent := func() {
 			ts.WriteString(strings.Repeat("    ", numIndents+1))
@@ -1030,6 +1035,10 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		typeParam := decl.TypeParams[typ.TypeParameter.ParamIdx]
 
 		ts.WriteString(typeParam.Name)
+
+	case *schema.Type_Config:
+		// Config type is transparent
+		ts.writeTyp(ns, typ.Config.Elem, numIndents)
 
 	default:
 		ts.errorf("unknown type %+v", reflect.TypeOf(typ))

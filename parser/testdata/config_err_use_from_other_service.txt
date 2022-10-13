@@ -1,0 +1,38 @@
+# Verify calls to config.Load are called
+! parse
+stderr 'A config instance can only be referenced from within the service that the call to'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/config"
+)
+
+type Config struct {
+    FooEnabled bool
+}
+
+var Cfg = config.Load[Config]()
+
+
+//encore:api
+func Subscriber1(ctx context.Context) error {
+    return nil
+}
+
+
+-- libraries/foo/foo.go --
+package foo
+
+import (
+    "test/svc"
+)
+
+func init() {
+    if svc.Cfg.FooEnabled {
+        // do something
+    }
+}

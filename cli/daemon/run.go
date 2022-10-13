@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/logrusorgru/aurora/v3"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/export"
@@ -212,6 +213,20 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 
 	testResults := make(chan error, 1)
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				var err error
+				switch recovered := recovered.(type) {
+				case error:
+					err = recovered
+				default:
+					err = fmt.Errorf("%v", recovered)
+				}
+				log.Err(err).Msg("panic during test run")
+				testResults <- fmt.Errorf("panic occured witihn Encore during test run: %v\n", recovered)
+			}
+		}()
+
 		tp := run.TestParams{
 			App:          app,
 			SQLDBCluster: cluster,

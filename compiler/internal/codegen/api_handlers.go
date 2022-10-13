@@ -290,7 +290,7 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 					b.errors.Addf(b.rpc.Func.Pos(), "failed to describe request: %v", err.Error())
 				}
 				g.Line()
-				if b.rpc.Request.IsPtr {
+				if b.rpc.Request.IsPointer() {
 					field := b.reqType.AddField(payload, "Params", b.typeName(b.rpc.Request, false), schema.Builtin_ANY)
 					g.Id("params").Op(":=").Op("&").Add(b.typeName(b.rpc.Request, true)).Values()
 					g.Id("reqData").Dot(field).Op("=").Id("params")
@@ -479,7 +479,7 @@ func (b *rpcBuilder) RespZeroValue() *Statement {
 }
 
 func (b *rpcBuilder) RespIsPtr() bool {
-	if b.rpc.Response != nil && b.rpc.Response.IsPtr {
+	if b.rpc.Response != nil && b.rpc.Response.IsPointer() {
 		return true
 	}
 	return false
