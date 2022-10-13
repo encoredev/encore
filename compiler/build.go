@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -540,7 +541,7 @@ func convertCompileErrors(out []byte, workdir, appRoot, relwd string) []byte {
 			}
 
 			modified = true
-			errList.Report(srcerrors.GenericGoCompilerError(parts[0], lineNumber, colNumber, parts[3]))
+			errList.Report(srcerrors.GenericGoCompilerError(changeToAppRootFile(parts[0], workdir, appRoot), lineNumber, colNumber, parts[3]))
 		} else {
 			output = append(output, line)
 		}
@@ -550,11 +551,36 @@ func convertCompileErrors(out []byte, workdir, appRoot, relwd string) []byte {
 		return out
 	}
 
-	// Append the err list
+	// Append the err list for both the workDir and the appRoot
+	// as files might be coming from either of them
 	errList.MakeRelative(workdir, relwd)
+	errList.MakeRelative(appRoot, relwd)
 	output = append(output, []byte(errList.Error()))
 
 	return bytes.Join(output, []byte{'\n'})
+}
+
+// changeToAppRootFile will return the compiledFile path inside the appRoot directory
+// if that file exists within the app root. Otherwise it will return the original
+// compiledFile path.
+//
+// This means when we display compiler errors to the user, we will show them their
+// original rewritten code, where line numbers and column numbers will align with
+// their own code.
+//
+// However for generated files which don't exist in their own folders, we will
+// still be able to render the source causing the issue
+func changeToAppRootFile(compiledFile string, workDirectory, appRoot string) string {
+	if strings.HasPrefix(compiledFile, workDirectory) {
+		fileInOriginalSrc := strings.TrimPrefix(compiledFile, workDirectory)
+		fileInOriginalSrc = path.Join(appRoot, fileInOriginalSrc)
+
+		if _, err := os.Stat(fileInOriginalSrc); err == nil {
+			return fileInOriginalSrc
+		}
+	}
+
+	return compiledFile
 }
 
 func isGo118Plus(f *modfile.File) bool {
