@@ -3,7 +3,7 @@
 
 There has been a simple error in your code
 
-    ╭─[/test.cue:4:7]
+    ╭─[ /test.cue:4:7 ]
     │
   2 │     
   3 │     // This is a sample file

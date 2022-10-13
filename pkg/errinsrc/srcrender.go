@@ -50,7 +50,10 @@ func renderSrc(builder *strings.Builder, causes SrcLocations) {
 	// Render the filename
 	builder.WriteString(strings.Repeat(" ", numDigitsInLineNumbers+1))
 	builder.WriteString(aurora.Gray(grayLevelOnLineNumbers, fmt.Sprintf(" %c%c%c", set.LeftTop, set.HorizontalBar, set.LeftBracket)).String())
-	builder.WriteString(aurora.Cyan(fmt.Sprintf("%s:%d:%d",
+	// Note the space on both sides of this string is important
+	// as it allows editors (such as GoLand) to pickup the filename in
+	// terminal output and convert it into a clickable link into the code
+	builder.WriteString(aurora.Cyan(fmt.Sprintf(" %s:%d:%d ",
 		causes[0].File.RelPath,
 		causes[0].Start.Line,
 		causes[0].Start.Col,
