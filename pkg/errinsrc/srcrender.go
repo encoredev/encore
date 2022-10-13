@@ -63,7 +63,9 @@ func renderSrc(builder *strings.Builder, causes SrcLocations) {
 
 	var currentLine int
 	gapRenderedUntil := currentCause.Start.Line
-	sc := bufio.NewScanner(bytes.NewBuffer(causes[0].File.Contents))
+	bBuffer := new(bytes.Buffer)
+	bBuffer.Write(causes[0].File.Contents)
+	sc := bufio.NewScanner(bBuffer)
 	for sc.Scan() {
 		currentLine++
 
