@@ -204,6 +204,11 @@ func (s *Server) availableUpdate() string {
 	return ""
 }
 
+var errDatabaseNotFound = (func() error {
+	st := status.New(codes.NotFound, "database not found")
+	return st.Err()
+})()
+
 var errNotLinked = (func() error {
 	st, err := status.New(codes.FailedPrecondition, "app not linked").WithDetails(
 		&errdetails.PreconditionFailure{
