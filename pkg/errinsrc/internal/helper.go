@@ -11,6 +11,6 @@ type ErrParams struct {
 	Title     string       `json:"title"`
 	Summary   string       `json:"summary"`
 	Detail    string       `json:"detail,omitempty"`
-	Cause     error        `json:"-,omitempty"`
+	Cause     error        `json:"-"`
 	Locations SrcLocations `json:"locations,omitempty"`
 }

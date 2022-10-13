@@ -47,7 +47,7 @@ func New(params ErrParams, alwaysIncludeStack bool) *ErrInSrc {
 	}
 }
 
-const errorWidth = 100
+var ErrorWidth = 100
 
 func (e *ErrInSrc) Unwrap() error {
 	return e.Params.Cause
@@ -88,16 +88,21 @@ func (e *ErrInSrc) Bailout() {
 	panic(Bailout{List: List{e}})
 }
 
+func (e *ErrInSrc) Title() string {
+	return e.Params.Title
+}
+
 func (e *ErrInSrc) Error() string {
 	var b strings.Builder
 
 	// Write the header
 	const headerGrayLevel = 12
 	const spacing = 4 + 2 + 7 // (4 = "--" on both sides, 2 = " " on the sides of the title, 7 = "[E0000]")
+	b.WriteRune('\n')         // Always start with a new line as these errors are expected to be full screen
 	b.WriteString(aurora.Gray(headerGrayLevel, fmt.Sprintf("%c%c ", set.HorizontalBar, set.HorizontalBar)).String())
 	b.WriteString(aurora.Red(e.Params.Title).String())
 	b.WriteByte(' ')
-	b.WriteString(aurora.Gray(headerGrayLevel, strings.Repeat(string(set.HorizontalBar), errorWidth-len(e.Params.Title)-spacing)).String())
+	b.WriteString(aurora.Gray(headerGrayLevel, strings.Repeat(string(set.HorizontalBar), ErrorWidth-len(e.Params.Title)-spacing)).String())
 	b.WriteString(aurora.Gray(headerGrayLevel, fmt.Sprintf("%cE%04d%c", set.LeftBracket, e.Params.Code, set.RightBracket)).String())
 	b.WriteString(aurora.Gray(headerGrayLevel, fmt.Sprintf("%c%c\n\n", set.HorizontalBar, set.HorizontalBar)).String())
 

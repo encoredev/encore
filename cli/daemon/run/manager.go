@@ -6,6 +6,7 @@ import (
 
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/pkg/errlist"
 )
 
 // Manager manages the set of running applications.
@@ -34,6 +35,8 @@ type EventListener interface {
 	OnStdout(r *Run, out []byte)
 	// OnStderr is called when a run outputs something on stderr.
 	OnStderr(r *Run, out []byte)
+	// OnError is called when a run encounters an error.
+	OnError(r *Run, err *errlist.List)
 }
 
 // FindProc finds the proc with the given id.
@@ -99,5 +102,11 @@ func (mgr *Manager) RunStderr(r *Run, out []byte) {
 	<-r.started
 	for _, ln := range mgr.listeners {
 		ln.OnStderr(r, out)
+	}
+}
+
+func (mgr *Manager) RunError(r *Run, err *errlist.List) {
+	for _, ln := range mgr.listeners {
+		ln.OnError(r, err)
 	}
 }

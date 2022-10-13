@@ -22,6 +22,7 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/errlist"
 	v1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -296,6 +297,12 @@ func (s *Server) OnStdout(r *run.Run, out []byte) {
 // OnStderr forwards the output to active websocket clients.
 func (s *Server) OnStderr(r *run.Run, out []byte) {
 	s.onOutput(r, out)
+}
+
+func (s *Server) OnError(r *run.Run, err *errlist.List) {
+	if err != nil {
+		s.onOutput(r, []byte(err.Error()))
+	}
 }
 
 func (s *Server) onOutput(r *run.Run, out []byte) {

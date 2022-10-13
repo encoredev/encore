@@ -1,6 +1,7 @@
 package errlist
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/scanner"
 	"go/token"
@@ -11,6 +12,7 @@ import (
 
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 // Verbose controls whether the error list prints all errors
@@ -243,6 +245,34 @@ func (l *List) Len() int {
 // Abort aborts early if there is an error in the list.
 func (l *List) Abort() {
 	errinsrc.Panic(l)
+}
+
+// SendToStream sends a GRPC command with this
+// full errlist
+//
+// If l is nil or empty, it sends a nil command
+// allowing the client to know that there are no
+// longer an error present
+func (l *List) SendToStream(stream interface {
+	Send(*daemonpb.CommandMessage) error
+}) error {
+	var bytes []byte
+	if l != nil && len(l.List) > 0 {
+		var err error
+		bytes, err = json.Marshal(l)
+		if err != nil {
+			panic("unable to marshal error list")
+		}
+	}
+	return stream.Send(
+		&daemonpb.CommandMessage{
+			Msg: &daemonpb.CommandMessage_Errors{
+				Errors: &daemonpb.CommandDisplayErrors{
+					Errinsrc: bytes,
+				},
+			},
+		},
+	)
 }
 
 // Print is a utility function that prints a list of errors to w,
