@@ -50,6 +50,17 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		return nil, err
 	}
 
+	databaseExists := false
+	for _, s := range parse.Meta.Svcs {
+		if s.Name == req.DbName {
+			databaseExists = len(s.Migrations) > 0
+			break
+		}
+	}
+	if !databaseExists {
+		return nil, errDatabaseNotFound
+	}
+
 	clusterID := sqldb.GetClusterID(app, sqldb.Run)
 	log := log.With().Interface("cluster", clusterID).Logger()
 	log.Info().Msg("setting up database cluster")
