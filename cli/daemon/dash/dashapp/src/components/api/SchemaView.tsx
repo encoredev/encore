@@ -13,6 +13,7 @@ import {
   locationDescription,
   MapType,
   NamedType,
+  Pointer,
   rpcHasBody,
   splitFieldsByLocation,
   StructType,
@@ -125,6 +126,8 @@ abstract class TextBasedDialect extends DialectIface {
       ? this.renderNamed(t.named, topLevel)
       : t.type_parameter
       ? this.renderTypeParameter(t.type_parameter)
+      : t.pointer
+      ? this.renderPointer(t.pointer)
       : this.write("<unknown type>");
   }
 
@@ -161,6 +164,8 @@ abstract class TextBasedDialect extends DialectIface {
   protected abstract renderMap(t: MapType): void;
 
   protected abstract renderList(t: ListType): void;
+
+  protected abstract renderPointer(t: Pointer, topLevel?: boolean): void;
 
   protected abstract renderBuiltin(t: Builtin, altValue?: boolean): void;
 
@@ -267,6 +272,11 @@ class GoDialect extends TextBasedDialect {
     this.writeType(t.elem);
   }
 
+  renderPointer(t: Pointer, topLevel?: boolean) {
+    this.write("*");
+    this.writeType(t.base, topLevel);
+  }
+
   renderBuiltin(t: Builtin) {
     switch (t) {
       case Builtin.ANY:
@@ -352,9 +362,13 @@ class TypescriptDialect extends TextBasedDialect {
     this.write("}");
   }
 
-  renderList(t: ListType) {
-    this.writeType(t.elem);
+  renderList(t: ListType, topLevel?: boolean) {
+    this.writeType(t.elem, topLevel);
     this.write("[]");
+  }
+
+  renderPointer(t: Pointer) {
+    this.writeType(t.base);
   }
 
   renderBuiltin(t: Builtin) {
@@ -572,6 +586,10 @@ export class JSONDialect extends TextBasedDialect {
     this.write("]");
   }
 
+  protected renderPointer(t: Pointer, topLevel?: boolean) {
+    this.writeType(t.base, topLevel);
+  }
+
   protected renderBuiltin(t: Builtin, alt?: boolean, urlEncode?: boolean) {
     let write = (s: string) => {
       if (!urlEncode) {
@@ -634,6 +652,10 @@ class CurlDialect extends TextBasedDialect {
   }
 
   protected renderList(t: ListType): void {
+    throw new Error("unexpected call");
+  }
+
+  protected renderPointer(t: Pointer, topLevel?: boolean) {
     throw new Error("unexpected call");
   }
 
@@ -871,6 +893,8 @@ class TableDialect extends DialectIface {
       ? this.describeNamed(t.named)
       : t.type_parameter
       ? this.describeTypeParameter(t.type_parameter)
+      : t.pointer
+      ? this.describePointer(t.pointer)
       : "<unknown>";
   }
 
@@ -947,6 +971,10 @@ class TableDialect extends DialectIface {
     }
 
     return decl.loc.pkg_name + "." + decl.name + types;
+  }
+
+  describePointer(ptr: Pointer): string {
+    return this.describeType(ptr.base);
   }
 }
 
