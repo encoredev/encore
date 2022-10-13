@@ -49,7 +49,6 @@ func (mgr *Manager) watch(run *Run) error {
 						mgr.RunStderr(run, []byte(errStr))
 					}
 				} else {
-					mgr.RunError(run, nil)
 					mgr.RunStdout(run, []byte("Reloaded successfully.\n"))
 				}
 			}

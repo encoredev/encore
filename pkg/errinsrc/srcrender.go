@@ -275,7 +275,10 @@ func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumb
 
 func splitTextOnWords(text string, startingCol int) (rtn []string) {
 	text = strings.TrimSpace(text)
-	maxLineLength := ErrorWidth - startingCol
+	maxLineLength := TerminalWidth - startingCol
+	if maxLineLength <= 0 {
+		maxLineLength = 20
+	}
 
 	for _, line := range strings.Split(text, "\n") {
 		if len(line) <= maxLineLength {

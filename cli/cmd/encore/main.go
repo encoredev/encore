@@ -222,7 +222,7 @@ func displayError(out *os.File, err []byte) {
 	// if we can so we render using the most space possible.
 	width, _, sizeErr := terminal.GetSize(int(out.Fd()))
 	if sizeErr == nil {
-		errinsrc.ErrorWidth = width
+		errinsrc.TerminalWidth = width
 	}
 
 	// Unmarshal the error into a structured errlist
