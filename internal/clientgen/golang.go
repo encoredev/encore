@@ -1,4 +1,4 @@
-package codegen
+package clientgen
 
 import (
 	"bytes"
@@ -10,8 +10,8 @@ import (
 	. "github.com/dave/jennifer/jen"
 	"github.com/fatih/structtag"
 
-	"encr.dev/cli/internal/version"
 	"encr.dev/internal/gocodegen"
+	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"

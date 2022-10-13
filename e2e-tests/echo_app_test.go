@@ -1,4 +1,4 @@
-package run
+package tests
 
 import (
 	"bytes"
@@ -23,9 +23,10 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
-	"encr.dev/cli/internal/codegen"
-	"encr.dev/cli/internal/env"
+	. "encr.dev/cli/daemon/run"
 	"encr.dev/compiler"
+	"encr.dev/internal/clientgen"
+	"encr.dev/internal/env"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/golden"
 )
@@ -87,7 +88,7 @@ func TestEndToEndWithApp(t *testing.T) {
 	defer ln.Close()
 
 	app := apps.NewInstance("/", "slug", "slug")
-	run := &Run{ID: genID(), ListenAddr: ln.Addr().String(), App: app}
+	run := &Run{ID: GenID(), ListenAddr: ln.Addr().String(), App: app}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -103,7 +104,7 @@ func TestEndToEndWithApp(t *testing.T) {
 
 	build := testBuild(c, "./testdata/echo")
 	wantEnv := []string{"FOO=bar", "BAR=baz"}
-	p, err := run.startProc(&startProcParams{
+	p, err := run.StartProc(&StartProcParams{
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
@@ -117,19 +118,19 @@ func TestEndToEndWithApp(t *testing.T) {
 		ServiceConfigs: build.Configs,
 	})
 	c.Assert(err, qt.IsNil)
-	defer p.close()
-	run.proc.Store(p)
+	defer p.Close()
+	run.StoreProc(p)
 
 	for serviceName, config := range build.Configs {
 		wantEnv = append(wantEnv, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
 	}
 
 	// start proxying TCP requests to the running application
-	go proxyTcp(ctx, ln, p.client)
+	go proxyTcp(ctx, ln, p.Client)
 
 	// Use golden to test that the generated clients are as expected for the echo test app
-	for lang, path := range map[codegen.Lang]string{codegen.LangGo: "client/client.go", codegen.LangTypeScript: "client.ts"} {
-		client, err := codegen.Client(lang, "slug", build.Parse.Meta)
+	for lang, path := range map[clientgen.Lang]string{clientgen.LangGo: "client/client.go", clientgen.LangTypeScript: "client.ts"} {
+		client, err := clientgen.Client(lang, "slug", build.Parse.Meta)
 		if err != nil {
 			fmt.Println(err.Error())
 			c.FailNow()
@@ -573,13 +574,13 @@ func TestEndToEndWithApp(t *testing.T) {
 func TestProcClosedOnCtxCancel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	app := apps.NewInstance("/", "local_id", "platform_id")
-	run := &Run{ID: genID(), App: app}
+	run := &Run{ID: GenID(), App: app}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	build := testBuild(c, "./testdata/echo")
-	p, err := run.startProc(&startProcParams{
+	p, err := run.StartProc(&StartProcParams{
 		Ctx:         ctx,
 		BuildDir:    build.Dir,
 		BinPath:     build.Exe,
@@ -603,7 +604,7 @@ func testBuild(c *qt.C, appRoot string) *compiler.Result {
 	// Then compile the app
 	wd, err := os.Getwd()
 	c.Assert(err, qt.IsNil)
-	runtimePath := filepath.Join(wd, "../../../runtime")
+	runtimePath := filepath.Join(wd, "../runtime")
 	build, err := compiler.Build(appRoot, &compiler.Config{
 		EncoreRuntimePath: runtimePath,
 		EncoreGoRoot:      env.EncoreGoRoot(),
@@ -630,12 +631,12 @@ type testRunLogger struct {
 	t *testing.T
 }
 
-func (l testRunLogger) runStdout(r *Run, line []byte) {
+func (l testRunLogger) RunStdout(r *Run, line []byte) {
 	line = bytes.TrimSuffix(line, []byte{'\n'})
 	l.t.Log(string(line))
 }
 
-func (l testRunLogger) runStderr(r *Run, line []byte) {
+func (l testRunLogger) RunStderr(r *Run, line []byte) {
 	line = bytes.TrimSuffix(line, []byte{'\n'})
 	l.t.Log(string(line))
 }

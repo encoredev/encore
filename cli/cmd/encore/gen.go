@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"encr.dev/cli/internal/codegen"
+	"encr.dev/internal/clientgen"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -47,14 +47,14 @@ Supported language codes are:
 
 			if lang == "" {
 				var ok bool
-				l, ok := codegen.Detect(output)
+				l, ok := clientgen.Detect(output)
 				if !ok {
 					fatal("could not detect language from output.\n\nNote: you can specify the language explicitly with --lang.")
 				}
 				lang = string(l)
 			} else {
 				// Validate the user input for the language
-				l, err := codegen.GetLang(lang)
+				l, err := clientgen.GetLang(lang)
 				if err != nil {
 					fatal(fmt.Sprintf("%s: supported langauges are `typescript` and `go`", err))
 				}

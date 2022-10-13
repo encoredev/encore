@@ -1,5 +1,5 @@
 // Package codegen generates code for use with Encore apps.
-package codegen
+package clientgen
 
 import (
 	"bytes"

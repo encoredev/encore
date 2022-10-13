@@ -1,4 +1,4 @@
-package codegen
+package clientgen
 
 type ErrCode struct {
 	Name           string

@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/internal/browser"
-	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/login"
+	"encr.dev/internal/conf"
 )
 
 var authKey string

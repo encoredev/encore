@@ -36,11 +36,11 @@ import (
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/cli/internal/env"
-	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
+	"encr.dev/internal/env"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/version"
 	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
@@ -91,7 +91,7 @@ type StartParams struct {
 // Its lifetime is bounded by ctx.
 func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, err error) {
 	run = &Run{
-		ID:              genID(),
+		ID:              GenID(),
 		App:             params.App,
 		ResourceServers: newResourceServices(params.App, mgr.ClusterMgr),
 		ListenAddr:      params.ListenAddr,
@@ -135,8 +135,8 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 // runLogger is the interface for listening to run logs.
 // The log methods are called for each logline on stdout and stderr respectively.
 type runLogger interface {
-	runStdout(r *Run, line []byte)
-	runStderr(r *Run, line []byte)
+	RunStdout(r *Run, line []byte)
+	RunStderr(r *Run, line []byte)
 }
 
 // Proc returns the current running process.
@@ -145,6 +145,10 @@ type runLogger interface {
 func (r *Run) Proc() *Proc {
 	p, _ := r.proc.Load().(*Proc)
 	return p
+}
+
+func (r *Run) StoreProc(p *Proc) {
+	r.proc.Store(p)
 }
 
 // Done returns a channel that is closed when the run is closed.
@@ -184,7 +188,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	}
 
 	// Below this line the function must never return an error
-	// in order to only ensure we close r.exited exactly once.
+	// in order to only ensure we Close r.exited exactly once.
 
 	go func() {
 		for _, ln := range r.mgr.listeners {
@@ -205,7 +209,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 		srv.Close()
 	}()
 
-	// Monitor the running proc and close the app when it exits.
+	// Monitor the running proc and Close the app when it exits.
 	go func() {
 		for {
 			p := r.proc.Load().(*Proc)
@@ -334,7 +338,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	}
 
 	startOp := tracker.Add("Starting Encore application", start)
-	newProcess, err := r.startProc(&startProcParams{
+	newProcess, err := r.StartProc(&StartProcParams{
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
@@ -360,7 +364,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 	previousProcess := r.proc.Swap(newProcess)
 	if previousProcess != nil {
-		previousProcess.(*Proc).close()
+		previousProcess.(*Proc).Close()
 	}
 
 	tracker.Done(startOp, 50*time.Millisecond)
@@ -383,7 +387,7 @@ type Proc struct {
 	reqWr    *os.File
 	respRd   *os.File
 	buildDir string
-	client   *yamux.Session
+	Client   *yamux.Session
 	authKey  config.EncoreAuthKey
 
 	sym       *sym.Table
@@ -391,7 +395,7 @@ type Proc struct {
 	symParsed chan struct{} // closed when sym and symErr are set
 }
 
-type startProcParams struct {
+type StartProcParams struct {
 	Ctx            context.Context
 	BuildDir       string
 	BinPath        string
@@ -407,9 +411,9 @@ type startProcParams struct {
 	Environ        []string
 }
 
-// startProc starts a single actual OS process for app.
-func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
-	pid := genID()
+// StartProc starts a single actual OS process for app.
+func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
+	pid := GenID()
 	authKey := genAuthKey()
 	p = &Proc{
 		ID:        pid,
@@ -440,8 +444,8 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 
 	// Proxy stdout and stderr to the given app logger, if any.
 	if l := params.Logger; l != nil {
-		cmd.Stdout = newLogWriter(r, l.runStdout)
-		cmd.Stderr = newLogWriter(r, l.runStderr)
+		cmd.Stdout = newLogWriter(r, l.RunStdout)
+		cmd.Stderr = newLogWriter(r, l.RunStderr)
 	}
 
 	// Set up extra file descriptors for communicating requests/responses:
@@ -483,7 +487,7 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 		ReadCloser: ioutil.NopCloser(respRd),
 		Writer:     reqWr,
 	}
-	p.client, err = yamux.Client(rwc, yamux.DefaultConfig())
+	p.Client, err = yamux.Client(rwc, yamux.DefaultConfig())
 	if err != nil {
 		return nil, fmt.Errorf("could not initialize connection: %v", err)
 	}
@@ -493,11 +497,11 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 	p.Pid = cmd.Process.Pid
 	p.Started = time.Now()
 
-	// Monitor the context and close the process when it is done.
+	// Monitor the context and Close the process when it is done.
 	go func() {
 		select {
 		case <-params.Ctx.Done():
-			p.close()
+			p.Close()
 		case <-p.exit:
 		}
 	}()
@@ -506,7 +510,7 @@ func (r *Run) startProc(params *startProcParams) (p *Proc, err error) {
 	return p, nil
 }
 
-func (r *Run) generateConfig(p *Proc, params *startProcParams) *config.Runtime {
+func (r *Run) generateConfig(p *Proc, params *StartProcParams) *config.Runtime {
 	var (
 		sqlServers []*config.SQLServer
 		sqlDBs     []*config.SQLDatabase
@@ -627,9 +631,9 @@ func (p *Proc) Done() <-chan struct{} {
 	return p.exit
 }
 
-// close closes the process and waits for it to shutdown.
+// Close closes the process and waits for it to shutdown.
 // It can safely be called multiple times.
-func (p *Proc) close() {
+func (p *Proc) Close() {
 	p.reqWr.Close()
 	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
@@ -761,9 +765,9 @@ func (w *logWriter) Flush() {
 	}
 }
 
-// genID generates a random run/process id.
+// GenID generates a random run/process id.
 // It panics if it cannot get random bytes.
-func genID() string {
+func GenID() string {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		panic("cannot generate random data: " + err.Error())

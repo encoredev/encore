@@ -24,11 +24,11 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
-	"encr.dev/cli/internal/codegen"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
-	"encr.dev/cli/internal/version"
 	"encr.dev/compiler"
+	"encr.dev/internal/clientgen"
+	"encr.dev/internal/version"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -113,8 +113,8 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		md = meta
 	}
 
-	lang := codegen.Lang(params.Lang)
-	code, err := codegen.Client(lang, params.AppId, md)
+	lang := clientgen.Lang(params.Lang)
+	code, err := clientgen.Client(lang, params.AppId, md)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

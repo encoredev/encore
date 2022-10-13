@@ -86,7 +86,7 @@ func (mgr *Manager) AddListener(ln EventListener) {
 	mgr.listeners = append(mgr.listeners, ln)
 }
 
-func (mgr *Manager) runStdout(r *Run, out []byte) {
+func (mgr *Manager) RunStdout(r *Run, out []byte) {
 	// Make sure the run has started before we start outputting
 	<-r.started
 	for _, ln := range mgr.listeners {
@@ -94,7 +94,7 @@ func (mgr *Manager) runStdout(r *Run, out []byte) {
 	}
 }
 
-func (mgr *Manager) runStderr(r *Run, out []byte) {
+func (mgr *Manager) RunStderr(r *Run, out []byte) {
 	// Make sure the run has started before we start outputting
 	<-r.started
 	for _, ln := range mgr.listeners {

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	"encr.dev/cli/internal/update"
-	"encr.dev/cli/internal/version"
+	"encr.dev/internal/version"
 )
 
 var versionCmd = &cobra.Command{
