@@ -18,7 +18,7 @@ import (
 
 	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/internal/dedent"
-	"encr.dev/cli/internal/env"
+	"encr.dev/internal/env"
 	tracepb "encr.dev/proto/encore/engine/trace"
 	v1 "encr.dev/proto/encore/parser/meta/v1"
 )

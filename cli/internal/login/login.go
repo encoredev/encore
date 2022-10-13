@@ -10,8 +10,8 @@ import (
 	"net"
 	"net/http"
 
-	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/internal/conf"
 )
 
 // Flow keeps the state of an ongoing login flow.

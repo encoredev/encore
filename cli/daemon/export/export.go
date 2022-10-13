@@ -22,9 +22,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/rs/zerolog"
 
-	"encr.dev/cli/internal/env"
-	"encr.dev/cli/internal/version"
 	"encr.dev/compiler"
+	"encr.dev/internal/env"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )

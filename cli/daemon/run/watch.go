@@ -35,15 +35,15 @@ func (mgr *Manager) watch(run *Run) error {
 				// This race is annoying, but in practice a 100ms delay is imperceptible since
 				// the user is busy working in their editor.
 				time.Sleep(100 * time.Millisecond)
-				mgr.runStdout(run, []byte("Changes detected, recompiling...\n"))
+				mgr.RunStdout(run, []byte("Changes detected, recompiling...\n"))
 				if err := run.Reload(); err != nil {
 					errStr := err.Error()
 					if !strings.HasSuffix(errStr, "\n") {
 						errStr += "\n"
 					}
-					mgr.runStderr(run, []byte(errStr))
+					mgr.RunStderr(run, []byte(errStr))
 				} else {
-					mgr.runStdout(run, []byte("Reloaded successfully.\n"))
+					mgr.RunStdout(run, []byte("Reloaded successfully.\n"))
 				}
 			}
 		}

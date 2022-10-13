@@ -7,11 +7,11 @@ import (
 	"os"
 	"runtime/debug"
 
-	"encr.dev/cli/internal/conf"
+	"encr.dev/internal/conf"
 )
 
 // Version is the version of the encore binary.
-// It is set using `go build -ldflags "-X encr.dev/cli/internal/version.Version=v1.2.3"`.
+// It is set using `go build -ldflags "-X encr.dev/internal/version.Version=v1.2.3"`.
 var Version string
 
 // ConfigHash reports a hash of the configuration that affects the behavior of the daemon.

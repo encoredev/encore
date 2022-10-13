@@ -58,7 +58,7 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 	transport := &http.Transport{
 		DisableKeepAlives: true,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return p.client.Open()
+			return p.Client.Open()
 		},
 	}
 
