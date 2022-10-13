@@ -11,15 +11,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         path: encr.dev
 
     - name: Set up Node
-      uses: actions/setup-node@v2.1.5
+      uses: actions/setup-node@v3
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: 1.19
 
@@ -32,13 +32,13 @@ jobs:
       run: curl --fail -L -o encore-go.tar.gz https://github.com/encoredev/go/releases/download/encore-go1.18.4/linux_x86-64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
 
     - name: Go Build Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{ steps.go-cache-paths.outputs.go-build }}
         key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
 
     - name: Go Mod Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{ steps.go-cache-paths.outputs.go-mod }}
         key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
