@@ -18,9 +18,9 @@ import (
 	"google.golang.org/grpc/status"
 
 	daemonpkg "encr.dev/cli/cmd/encore/daemon"
-	"encr.dev/cli/internal/env"
-	"encr.dev/cli/internal/version"
 	"encr.dev/cli/internal/xos"
+	"encr.dev/internal/env"
+	"encr.dev/internal/version"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 

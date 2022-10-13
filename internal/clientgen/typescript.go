@@ -1,4 +1,4 @@
-package codegen
+package clientgen
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"encr.dev/cli/internal/version"
+	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"

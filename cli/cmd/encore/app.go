@@ -26,9 +26,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
 
-	"encr.dev/cli/internal/conf"
-	"encr.dev/cli/internal/env"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/internal/conf"
+	"encr.dev/internal/env"
 )
 
 // These can be overwritten using

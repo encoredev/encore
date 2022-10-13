@@ -34,8 +34,8 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/daemon/sqldb/external"
-	"encr.dev/cli/internal/conf"
 	"encr.dev/cli/internal/xos"
+	"encr.dev/internal/conf"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 

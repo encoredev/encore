@@ -1,11 +1,11 @@
-package codegen
+package clientgen
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
 
-	"encr.dev/cli/internal/version"
+	"encr.dev/internal/version"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
