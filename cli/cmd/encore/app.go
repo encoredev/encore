@@ -92,7 +92,7 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(c *cobra.Command, args []string) {
-			cmdArgs := append([]string{"clone", defaultGitRemoteURL + args[0]}, args[1:]...)
+			cmdArgs := append([]string{"clone", "--origin", defaultGitRemoteName, defaultGitRemoteURL + args[0]}, args[1:]...)
 			cmd := exec.Command("git", cmdArgs...)
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
