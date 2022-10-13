@@ -38,6 +38,7 @@ message CommandMessage {
   oneof msg {
     CommandOutput output = 1;
     CommandExit exit = 2;
+    CommandDisplayErrors errors = 3;
   }
 }
 
@@ -48,6 +49,10 @@ message CommandOutput {
 
 message CommandExit {
   int32 code = 1; // exit code
+}
+
+message CommandDisplayErrors {
+  bytes errinsrc = 1; // error messages in source code
 }
 
 message RunRequest {

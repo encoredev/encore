@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -14,10 +15,12 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/tools/go/packages"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errlist"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -175,6 +178,9 @@ func streamCommandOutput(stream commandOutputStream, converter outputConverter) 
 			if m.Output.Stderr != nil {
 				_, _ = errWrite.Write(m.Output.Stderr)
 			}
+		case *daemonpb.CommandMessage_Errors:
+			displayError(os.Stderr, m.Errors.Errinsrc)
+
 		case *daemonpb.CommandMessage_Exit:
 			return int(m.Exit.Code)
 		}
@@ -205,6 +211,31 @@ func convertJSONLogs() outputConverter {
 		copy(out, logLineBuffer.Bytes())
 		return out
 	}
+}
+
+func displayError(out *os.File, err []byte) {
+	if len(err) == 0 {
+		return
+	}
+
+	// Get the width of the terminal we're rendering in
+	// if we can so we render using the most space possible.
+	width, _, sizeErr := terminal.GetSize(int(out.Fd()))
+	if sizeErr == nil {
+		errinsrc.TerminalWidth = width
+	}
+
+	// Unmarshal the error into a structured errlist
+	errList := errlist.New(nil)
+	if err := json.Unmarshal(err, &errList); err != nil {
+		fatalf("unable to parse error: %v", err)
+	}
+
+	if errList.Len() == 0 {
+		return
+	}
+
+	_, _ = os.Stderr.Write([]byte(errList.Error()))
 }
 
 func fatal(args ...interface{}) {
