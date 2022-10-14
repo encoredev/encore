@@ -24,7 +24,7 @@ package cron
 //
 //	// Send a welcome email to everyone who signed up in the last two hours.
 //	var _ = cron.NewJob("welcome-email", cron.JobConfig{
-//		title:    "Send welcome emails",
+//		Title:    "Send welcome emails",
 //		Every:    2 * cron.Hour,
 //		Endpoint: SendWelcomeEmail,
 //	})
