@@ -12,6 +12,12 @@ import (
 	"os"
 
 	jsoniter "github.com/json-iterator/go"
+
+	// We need to force the appinit package to run first, as during tests
+	// we embed config into the built binary, and we need to make sure that
+	// appinit has run before we try and load any config, otherwise those
+	// embedded configs will not be found.
+	_ "encore.dev/appruntime/app/appinit"
 )
 
 var json = jsoniter.Config{

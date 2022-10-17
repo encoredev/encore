@@ -37,7 +37,7 @@ func New(params ErrParams, alwaysIncludeStack bool) *ErrInSrc {
 	var stack []*StackFrame
 
 	//goland:noinspection GoBoolExpressions
-	if includeStackByDefault || alwaysIncludeStack {
+	if IncludeStackByDefault || alwaysIncludeStack {
 		stack = GetStack()
 	}
 
