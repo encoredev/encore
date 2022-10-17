@@ -45,6 +45,7 @@ message Service {
   repeated RPC         rpcs       = 3;
   repeated DBMigration migrations = 4;
   repeated string      databases  = 5; // databases this service connects to
+  bool                 has_config = 6; // true if the service has uses config
 }
 
 message Selector {

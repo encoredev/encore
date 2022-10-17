@@ -149,8 +149,9 @@ var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.up.sql$`)
 
 func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 	s := &meta.Service{
-		Name:    svc.Name,
-		RelPath: svc.Root.RelPath,
+		Name:      svc.Name,
+		RelPath:   svc.Root.RelPath,
+		HasConfig: len(svc.ConfigLoads) > 0,
 	}
 	for _, rpc := range svc.RPCs {
 		r, err := parseRPC(rpc)
