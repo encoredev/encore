@@ -12,11 +12,11 @@ Encore is the Backend Development Engine purpose-built for a flow state develope
                 <p>Spend a few minutes getting set up and experience the Encore workflow.</p>
             </div>
     </a>
-    <a className="block group relative no-brandient" href="/docs/tutorials/rest-api">
+    <a className="block group relative no-brandient" target="_blank" href="https://youtu.be/IwplIbwJtD0">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
             <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
-                <h3>REST API + Database tutorial</h3>
-                <p>Learn how to build a fully fledged backend with Encore.</p>
+                <h3>Watch a demo video</h3>
+                <p>See how to build a fully fledged cloud backend with Encore, in 5 minutes.</p>
             </div>
     </a>
      <a className="block group relative no-brandient" href="/docs/introduction">

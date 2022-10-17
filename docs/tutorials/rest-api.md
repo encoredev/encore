@@ -2,13 +2,14 @@
 title: Building a REST API
 ---
 
-In this tutorial you will create a REST API for a URL Shortener service.
-
-In a few short minutes, you'll learn how to:
+In this tutorial you will create a REST API for a URL Shortener service. In a few short minutes, you'll learn how to:
 
 * Create REST APIs with Encore
 * Use PostgreSQL databases
 * Create and run tests
+
+_Let’s get going!_
+
   
 <Callout type="info">
 
@@ -16,8 +17,6 @@ To make it easier to follow along, we've laid out a trail of croissants to guide
 Whenever you see a 🥐 it means there's something for you to do.
 
 </Callout>
-
-_Let’s get going!_
 
 ## API structure
 

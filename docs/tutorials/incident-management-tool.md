@@ -4,11 +4,9 @@ subtitle: Set up your own PagerDuty from zero-to-production in just 30 minutes
 social_card: /assets/docs/incident-og-image.png
 ---
 
-![Slack Incident Management Tool](/assets/docs/incident-slack-example.png "Incident Management Tool")
-
 In this tutorial, we're going to walk through together how to build our very own Incident Management Tool like [Incident.io](https://incident.io) or [PagerDuty](https://pagerduty.com). We can then have our own on call schedule that can be rotated between many users, and have incidents come and be assigned according to the schedule!
 
-<iframe width="400" height="240" src="https://www.youtube.com/embed/BR_ys_qR2kI?controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+![Slack Incident Management Tool](/assets/docs/incident-slack-example.png "Incident Management Tool")
 
 In about 30 minutes, your application will be able to support:
 
@@ -16,7 +14,12 @@ In about 30 minutes, your application will be able to support:
 - Creating incidents, and reminders for unacknowledged incidents on Slack every 10 minutes
 - Auto-assign incidents which are unassigned (when the next user is on call)
 
-_Sounds good? Let's dig in!_
+_ Sounds good? Let's dig in! _
+
+Or if you'd rather watch a video of this tutorial, you can do that below.
+
+<iframe width="360" height="202" src="https://www.youtube.com/embed/BR_ys_qR2kI?controls=0" title="Building an Incident Management Tool Video Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 
 <Callout type="info">
 
