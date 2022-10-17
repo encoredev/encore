@@ -11,14 +11,14 @@ The easiest way to get started with developing Encore is using
 GitHub Codespaces. Simply open this repository in a new Codespace
 and your development environment will be set up with everything preconfigured for building the `encore` CLI and running applications with it.
 
-This also works just as well with [VS Code's Remote Development](https://code.visualstudio.com/docs/remote/remote-overview).
+This also works just as well with [Visual Studio Code's Remote Development](https://code.visualstudio.com/docs/remote/remote-overview).
 
 
 ## Building the encore command from source
 To build from source, [build the dashboard](#Building-the-Development-Dashboard) and simply run `go build ./cli/cmd/encore`.
 
 Running an Encore application requires both the Encore runtime (the `encore.dev` package) as well as a custom-built
-([Go runtime](https://github.com/encoredev/go)) to implement Encore's request semantics and automated instrumentation.
+[Go runtime](https://github.com/encoredev/go) to implement Encore's request semantics and automated instrumentation.
 
 As a result the Encore Daemon must know where these two things exist on the filesystem in order to properly compile the Encore application.
 
@@ -32,7 +32,7 @@ The environment variables are:
 **ENCORE_RUNTIME_PATH**
 
 This must be set to the location of the `encore.dev` runtime package.
-It's located in this Git repository in the `runtime` directory:
+It's located in encore's GitHub repository in the `runtime` directory:
 
 ```bash
 export ENCORE_RUNTIME_PATH=/path/to/encore/runtime
@@ -85,7 +85,7 @@ npm run build
 ```
 
 ### Testing the Development Dashboard
-Tests are written using [Jest](https://jestjs.io/) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+Tests are written using [Jest](https://jestjs.io/) and the [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
 
 To run the front-end unit tests:
 
@@ -97,7 +97,7 @@ npm test -- --watch #re-run tests on file change
 
 ## Architecture
 
-The code base is divided into several parts:
+encore's code base is divided into several parts:
 
 ### cli
 The `encore` command line interface. The encore background daemon
