@@ -32,7 +32,7 @@ The environment variables are:
 **ENCORE_RUNTIME_PATH**
 
 This must be set to the location of the `encore.dev` runtime package.
-It's located in encore's GitHub repository in the `runtime` directory:
+It's located in this Git repository in the `runtime` directory:
 
 ```bash
 export ENCORE_RUNTIME_PATH=/path/to/encore/runtime
@@ -97,7 +97,7 @@ npm test -- --watch #re-run tests on file change
 
 ## Architecture
 
-encore's code base is divided into several parts:
+The code base is divided into several parts:
 
 ### cli
 The `encore` command line interface. The encore background daemon
