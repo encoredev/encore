@@ -63,6 +63,8 @@ export interface Service {
   migrations: DBMigration[];
   /** databases this service connects to */
   databases: string[];
+  /** true if the service has uses config */
+  has_config: boolean;
 }
 
 export interface Selector {
