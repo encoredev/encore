@@ -131,6 +131,12 @@ class EchoServiceClient {
         return await resp.json()
     }
 
+    async ConfigValues() {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/echo.ConfigValues`)
+        return await resp.json()
+    }
+
     /**
      * Echo echoes back the request data.
      */
