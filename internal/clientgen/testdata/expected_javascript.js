@@ -28,15 +28,6 @@ export default class Client {
      * @param options Options for the client
      */
     constructor(target = "prod", options) {
-        // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
-        if (!target.startsWith("http://") && !target.startsWith("https://")) {
-            target = Environment(target)
-        }
-
-        if (typeof options === "string") {
-            options = { auth: options }
-        }
-
         const base = new BaseClient(target, options ?? {})
         this.products = new products.ServiceClient(base)
         this.svc = new svc.ServiceClient(base)
@@ -274,7 +265,7 @@ class BaseClient {
 
         // If we now have authentication data, add it to the request
         if (authData) {
-            init.headers["Authorization"] = "Bearer " + authData
+            init.headers["x-api-key"] = authData.APIKey
         }
 
         // Make the actual request
