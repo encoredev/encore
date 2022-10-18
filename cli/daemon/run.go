@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/logrusorgru/aurora/v3"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/export"
@@ -23,9 +24,10 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/onboarding"
-	"encr.dev/cli/internal/version"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/version"
 	"encr.dev/parser"
+	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -84,7 +86,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// Clear screen.
 	stderr.Write([]byte("\033[2J\033[H\n"))
 
-	ops := optracker.New(stderr)
+	ops := optracker.New(stderr, stream)
 
 	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
@@ -212,6 +214,20 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 
 	testResults := make(chan error, 1)
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				var err error
+				switch recovered := recovered.(type) {
+				case error:
+					err = recovered
+				default:
+					err = fmt.Errorf("%v", recovered)
+				}
+				log.Err(err).Msg("panic during test run")
+				testResults <- fmt.Errorf("panic occured witihn Encore during test run: %v\n", recovered)
+			}
+		}()
+
 		tp := run.TestParams{
 			App:          app,
 			SQLDBCluster: cluster,
@@ -310,6 +326,16 @@ func (s *Server) OnStderr(r *run.Run, line []byte) {
 
 	if ok {
 		slog.Stderr(true).Write(line)
+	}
+}
+
+func (s *Server) OnError(r *run.Run, err *errlist.List) {
+	s.mu.Lock()
+	slog, ok := s.streams[r.ID]
+	s.mu.Unlock()
+
+	if ok {
+		slog.Error(err)
 	}
 }
 

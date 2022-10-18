@@ -26,12 +26,22 @@ func (b *Builder) schemaTypeToGoType(typ *schema.Type) *Statement {
 	case *schema.Type_Builtin:
 		return b.schemaBuiltInToGoType(v.Builtin)
 
+	case *schema.Type_Pointer:
+		return Op("*").Add(b.schemaTypeToGoType(v.Pointer.Base))
+
 	case *schema.Type_List:
 		return Index().
 			Add(b.schemaTypeToGoType(v.List.Elem))
 
 	case *schema.Type_TypeParameter:
 		panic(bailout{fmt.Errorf("did not expect the type parameter on a initialized value")})
+
+	case *schema.Type_Config:
+		if v.Config.IsValuesList {
+			return Qual("encore.dev/config", "Values").Types(b.schemaTypeToGoType(v.Config.Elem))
+		} else {
+			return Qual("encore.dev/config", "Value").Types(b.schemaTypeToGoType(v.Config.Elem))
+		}
 
 	default:
 		panic(bailout{fmt.Errorf("unknown type: %+v", reflect.TypeOf(typ.Typ))})

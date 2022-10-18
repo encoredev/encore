@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
-	"encr.dev/cli/internal/conf"
-	"encr.dev/cli/internal/version"
+	"encr.dev/internal/conf"
+	"encr.dev/internal/version"
 )
 
 type Error struct {

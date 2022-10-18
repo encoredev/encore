@@ -11,6 +11,8 @@ import (
 
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/runtimeconstants"
+	"encr.dev/pkg/errinsrc"
+	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 var noOpCasts = map[string][]string{
@@ -99,7 +101,11 @@ elemLoop:
 func (p *parser) parseConstantValue(file *est.File, value ast.Expr) (rtn constant.Value) {
 	defer func() {
 		if r := recover(); r != nil {
-			p.errf(value.Pos(), "Panicked while parsing constant value: %v", r)
+			// Recover the panic
+			err := srcerrors.UnhandledPanic(r)
+			errinsrc.AddHintFromGo(err, p.fset, value, "panic occurred processing this expression")
+			p.errInSrc(err)
+
 			rtn = constant.MakeUnknown()
 		}
 	}()

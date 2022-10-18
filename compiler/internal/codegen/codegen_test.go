@@ -127,6 +127,25 @@ func TestCodeGenMain(t *testing.T) {
 					}
 					combined.Write(code)
 				}
+
+				if f, err := bld.ConfigUnmarshalers(svc); f != nil {
+					var buf bytes.Buffer
+					fmt.Fprintf(&buf, "\n\n// config unmarshallers for service %s\n", svc.Name)
+					err = f.Render(&buf)
+					if err != nil {
+						c.Fatalf("got render error: \n%s", err.Error())
+					}
+					c.Assert(err, qt.IsNil)
+					code := buf.Bytes()
+					fs := token.NewFileSet()
+					_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
+					if err != nil {
+						c.Fatalf("got parse error: \n%s\ncode:\n%s", err.Error(), code)
+					}
+					combined.Write(code)
+				} else if err != nil {
+					c.Fatalf("got config unmarshalers error: \n%s", err.Error())
+				}
 			}
 
 			// Etype package

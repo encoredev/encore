@@ -1,0 +1,30 @@
+
+── simple test error ──────────────────────────────────────────────────────────────────────[E0001]──
+
+There has been a simple error in your code
+
+   ╭─[ /test.cue:1:9 ]
+   │
+ 1 │ package test_cue
+   ⋮         ───┬────
+   ⋮            ╰─ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean interdum porttitor elementum.
+   ⋮               Duis eget cursus arcu, ut interdum lorem. Suspendisse vel diam et eros cursus vestibulum at et
+   ⋮               lacus. Nullam felis tellus, cursus nec arcu nec, laoreet maximus ante. Cras pellentesque est
+   ⋮               est, nec laoreet magna accumsan vel. Mauris commodo dui purus, non ullamcorper nisl commodo
+   ⋮               auctor. Vivamus finibus mi ut risus tempor pellentesque. Nulla facilisi. Nullam rhoncus neque
+   ⋮               porta erat molestie, at malesuada est aliquam. Etiam convallis lorem eget euismod eleifend.
+   ⋮               Phasellus sit amet diam in orci molestie pulvinar. Vestibulum non auctor dolor, vel imperdiet
+   ⋮               risus. Nam egestas et purus id sodales. Aliquam in metus varius, porta mi nec, ornare mauris.
+   ⋮               
+   ⋮               Quisque eu nisi vel nulla sodales pretium sed a dolor. Morbi convallis ornare ligula, ut
+   ⋮               aliquam velit auctor id. In in neque turpis. Pellentesque habitant morbi tristique senectus et
+   ⋮               netus et malesuada fames ac turpis egestas. Cras et arcu id magna accumsan semper. Vestibulum
+   ⋮               ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Nunc semper
+   ⋮               rhoncus tincidunt. Vestibulum lacus erat, molestie ut ultrices convallis, placerat at lacus.
+   ⋮               Integer tempus tempus sodales. Integer sit amet est quam. Praesent vitae condimentum mi.
+ 2 │ 
+ 3 │ // This is a sample file
+───╯
+
+For more information please visit our great help documentation
+

@@ -1,29 +1,33 @@
 package compiler
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
-	"math"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
 	"encr.dev/compiler/internal/codegen"
+	"encr.dev/compiler/internal/cuegen"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
+	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/errinsrc"
+	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/errlist"
 )
 
 type Config struct {
@@ -72,6 +76,10 @@ type Config struct {
 	// Test is the specific settings for running tests.
 	Test *TestConfig
 
+	// The meta config we pass to CUE when computing the runtime configuration for the services within this
+	// application
+	Meta *cueutil.Meta
+
 	// If Parse is set, the build will skip parsing the app again
 	// and use the information provided.
 	Parse *parser.Result
@@ -95,9 +103,11 @@ func (cfg *Config) Validate() error {
 
 // Result is the combined results of a build.
 type Result struct {
-	Dir   string         // absolute path to build temp dir
-	Exe   string         // absolute path to the build executable
-	Parse *parser.Result // set only if build succeeded
+	Dir         string            // absolute path to build temp dir
+	Exe         string            // absolute path to the build executable
+	Parse       *parser.Result    // set only if build succeeded
+	ConfigFiles fs.FS             // all found configuration files within the application source
+	Configs     map[string]string // each services runtime config as defined
 }
 
 // Build builds the application.
@@ -114,6 +124,7 @@ func Build(appRoot string, cfg *Config) (*Result, error) {
 	b := &builder{
 		cfg:      cfg,
 		appRoot:  appRoot,
+		configs:  make(map[string]string),
 		lastOpID: optracker.NoOperationID,
 	}
 	return b.Build()
@@ -129,22 +140,34 @@ type builder struct {
 	modfile *modfile.File
 	overlay map[string]string
 	codegen *codegen.Builder
+	cuegen  *cuegen.Generator
 
-	res *parser.Result
+	res         *parser.Result
+	configFiles fs.FS
+	configs     map[string]string // Configs by service name -> config JSON
 
-	lastOpID optracker.OperationID
+	appCheckOpID optracker.OperationID
+	codegenOpID  optracker.OperationID
+	lastOpID     optracker.OperationID
 }
 
 func (b *builder) Build() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			b.cfg.OpTracker.Fail(b.lastOpID, err)
-
-			if b, ok := e.(bailout); ok {
-				err = b.err
+			if bailoutErr, ok := e.(bailout); ok {
+				err = bailoutErr.err
 			} else {
-				panic(e)
+				if err == nil {
+					err = srcerrors.UnhandledPanic(e)
+				}
 			}
+
+			if list := errlist.Convert(err); list != nil {
+				list.MakeRelative(b.appRoot, "")
+				err = list
+			}
+
+			b.cfg.OpTracker.Fail(b.lastOpID, err)
 		}
 	}()
 
@@ -164,7 +187,10 @@ func (b *builder) Build() (res *Result, err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
+		b.startAppCheck,
+		b.pickupConfigFiles,
 		b.checkApp,
+		b.endAppCheck,
 		b.startCodeGenTracker,
 		b.writeModFile,
 		b.writeSumFile,
@@ -172,6 +198,7 @@ func (b *builder) Build() (res *Result, err error) {
 		b.writeHandlers,
 		b.writeMainPkg,
 		b.writeEtypePkg,
+		b.writeConfigUnmarshallers,
 		b.endCodeGenTracker,
 		b.buildMain,
 	} {
@@ -182,16 +209,30 @@ func (b *builder) Build() (res *Result, err error) {
 	}
 
 	res.Parse = b.res
+	res.ConfigFiles = b.configFiles
+	res.Configs = b.configs
 	return res, nil
 }
 
+func (b *builder) startAppCheck() error {
+	b.appCheckOpID = b.cfg.OpTracker.Add("Verifying application configuration", time.Now())
+	b.lastOpID = b.appCheckOpID
+	return nil
+}
+
+func (b *builder) endAppCheck() error {
+	b.cfg.OpTracker.Done(b.appCheckOpID, 50*time.Millisecond)
+	return nil
+}
+
 func (b *builder) startCodeGenTracker() error {
-	b.lastOpID = b.cfg.OpTracker.Add("Generating boilerplate code", time.Now())
+	b.codegenOpID = b.cfg.OpTracker.Add("Generating boilerplate code", time.Now())
+	b.lastOpID = b.codegenOpID
 	return nil
 }
 
 func (b *builder) endCodeGenTracker() error {
-	b.cfg.OpTracker.Done(b.lastOpID, 450*time.Millisecond)
+	b.cfg.OpTracker.Done(b.codegenOpID, 450*time.Millisecond)
 	return nil
 }
 
@@ -210,6 +251,7 @@ func (b *builder) parseApp() error {
 	if pc := b.cfg.Parse; pc != nil {
 		b.res = pc
 		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
+		b.cuegen = cuegen.NewGenerator(b.res)
 		return nil
 	}
 
@@ -225,6 +267,7 @@ func (b *builder) parseApp() error {
 
 	if err == nil {
 		b.codegen = codegen.NewBuilder(b.res, b.forTesting)
+		b.cuegen = cuegen.NewGenerator(b.res)
 	}
 
 	return err
@@ -239,13 +282,32 @@ func (b *builder) checkApp() error {
 		}
 	}
 
+	serviceConfigsChecked := make(map[*est.Service]struct{})
+
 	for _, pkg := range b.res.App.Packages {
 		for _, res := range pkg.Resources {
 			switch res := res.(type) {
 			case *est.SQLDB:
 				if !dbs[res.DBName] {
-					pp := b.res.FileSet.Position(res.Ident().Pos())
-					b.errf("%s: database not found: %s", pp, res.DBName)
+					panic(bailout{srcerrors.DatabaseNotFound(b.res.FileSet, res.Ident(), res.DBName)})
+				}
+
+			case *est.Config:
+				if _, found := serviceConfigsChecked[res.Svc]; !found {
+					serviceConfigsChecked[res.Svc] = struct{}{}
+
+					if err := b.computeConfigForService(res.Svc); err != nil {
+						if list := errlist.Convert(err); list != nil {
+							err = list
+
+							errinsrc.AddHintFromGo(err, b.res.FileSet, res.FuncCall, "config loaded from here")
+						} else {
+							err = srcerrors.UnknownErrorCompilingConfig(
+								b.res.FileSet, res.FuncCall, err,
+							)
+						}
+						panic(bailout{err})
+					}
 				}
 			}
 		}
@@ -317,13 +379,18 @@ func (b *builder) writePackages() error {
 		if err := b.generateServiceSetup(svc); err != nil {
 			return err
 		}
+
+		if err := b.generateCueFiles(svc); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func (b *builder) buildMain() error {
-	b.lastOpID = b.cfg.OpTracker.Add("Compiling application source code", time.Now())
+	compileAppOpId := b.cfg.OpTracker.Add("Compiling application source code", time.Now())
+	b.lastOpID = compileAppOpId
 
 	overlayData, _ := json.Marshal(map[string]interface{}{"Replace": b.overlay})
 	overlayPath := filepath.Join(b.workdir, "overlay.json")
@@ -365,11 +432,11 @@ func (b *builder) buildMain() error {
 		if len(out) == 0 {
 			out = []byte(err.Error())
 		}
-		out = makeErrsRelative(out, b.workdir, b.appRoot, b.cfg.WorkingDir)
+		out = convertCompileErrors(out, b.workdir, b.appRoot, b.cfg.WorkingDir)
 		return &Error{Output: out}
 	}
 
-	b.cfg.OpTracker.Done(b.lastOpID, 300*time.Millisecond)
+	b.cfg.OpTracker.Done(compileAppOpId, 300*time.Millisecond)
 
 	return nil
 }
@@ -416,14 +483,6 @@ type bailout struct {
 	err error
 }
 
-func (b *builder) err(msg string) {
-	panic(bailout{errors.New(msg)})
-}
-
-func (b *builder) errf(format string, args ...interface{}) {
-	b.err(fmt.Sprintf(format, args...))
-}
-
 const binaryName = "out"
 
 func (b *builder) exe() string {
@@ -437,122 +496,91 @@ func (b *builder) exe() string {
 	return ""
 }
 
-// makeErrsRelative goes through the errors and tweaks the filename to be relative
-// to the relwd.
-func makeErrsRelative(out []byte, workdir, appRoot, relwd string) []byte {
+// convertCompileErrors goes through the errors and converts basic compiler errors into
+// ErrInSrc errors, which are more useful for the user.
+func convertCompileErrors(out []byte, workdir, appRoot, relwd string) []byte {
 	wdroot := filepath.Join(appRoot, relwd)
 	lines := bytes.Split(out, []byte{'\n'})
 	prefix := append([]byte(workdir), '/')
 	modified := false
-	for i, line := range lines {
+
+	errList := errlist.New(nil)
+
+	output := make([][]byte, 0)
+
+	for _, line := range lines {
 		if !bytes.HasPrefix(line, prefix) {
+			output = append(output, line)
 			continue
 		}
 		idx := bytes.IndexByte(line, ':')
 		if idx == -1 || idx < len(prefix) {
+			output = append(output, line)
 			continue
 		}
+
 		filename := line[:idx]
 		appPath := filepath.Join(appRoot, string(filename[len(prefix):]))
-		if rel, err := filepath.Rel(wdroot, appPath); err == nil {
-			lines[i] = append([]byte(rel), line[idx:]...)
+		if _, err := filepath.Rel(wdroot, appPath); err == nil {
+			parts := strings.SplitN(string(line), ":", 4)
+			if len(parts) != 4 {
+				output = append(output, line)
+				continue
+			}
 
-			// If this is an encore generated code file, let's grab the surrounding source code
-			if strings.Contains(rel, "__encore_") {
-				parts := strings.SplitN(string(line), ":", 4)
-				if len(parts) >= 3 {
-					sourceCode := readSourceOfError(parts[0], parts[1], parts[2])
-					if sourceCode != "" {
-						lines[i] = append(lines[i], []byte(sourceCode)...)
-					}
-				}
+			lineNumber, err := strconv.Atoi(parts[1])
+			if err != nil {
+				output = append(output, line)
+				continue
+			}
+
+			colNumber, err := strconv.Atoi(parts[2])
+			if err != nil {
+				output = append(output, line)
+				continue
 			}
 
 			modified = true
+			errList.Report(srcerrors.GenericGoCompilerError(changeToAppRootFile(parts[0], workdir, appRoot), lineNumber, colNumber, parts[3]))
+		} else {
+			output = append(output, line)
 		}
 	}
 
 	if !modified {
 		return out
 	}
-	return bytes.Join(lines, []byte{'\n'})
+
+	// Append the err list for both the workDir and the appRoot
+	// as files might be coming from either of them
+	errList.MakeRelative(workdir, relwd)
+	errList.MakeRelative(appRoot, relwd)
+	output = append(output, []byte(errList.Error()))
+
+	return bytes.Join(output, []byte{'\n'})
 }
 
-// readSourceOfError returns the 15 lines of code surrounding the error with a pointer to the error on the error line
+// changeToAppRootFile will return the compiledFile path inside the appRoot directory
+// if that file exists within the app root. Otherwise it will return the original
+// compiledFile path.
 //
-// This code outputs something line this;
+// This means when we display compiler errors to the user, we will show them their
+// original rewritten code, where line numbers and column numbers will align with
+// their own code.
 //
-// ```
-//  9 | func myFunc() {
-// 10 |   x := 5
-// 11 |   y := "hello"
-// 12 |   z := x + y
-//    |~~~~~~~~~~^
-// 13 |   fmt.Println(z)
-// 14 | }
-// ```
-func readSourceOfError(filename string, lineNumberStr string, columnNumberStr string) string {
-	const linesBeforeError = 10
-	const linesAfterError = 5
+// However for generated files which don't exist in their own folders, we will
+// still be able to render the source causing the issue
+func changeToAppRootFile(compiledFile string, workDirectory, appRoot string) string {
+	if strings.HasPrefix(compiledFile, workDirectory) {
+		fileInOriginalSrc := strings.TrimPrefix(compiledFile, workDirectory)
+		fileInOriginalSrc = path.Join(appRoot, fileInOriginalSrc)
 
-	lineNumber, err := strconv.ParseInt(lineNumberStr, 10, 64)
-	if err != nil {
-		log.Error().AnErr("error", err).Msgf("Unable to parse line number: %s", lineNumberStr)
-		return ""
-	}
-
-	columnNumber, err := strconv.ParseInt(columnNumberStr, 10, 64)
-	if err != nil {
-		log.Error().AnErr("error", err).Msgf("Unable to parse column number: %s", columnNumberStr)
-		return ""
-	}
-
-	numDigitsInLineNumbers := int(math.Log10(float64(lineNumber+linesAfterError) + 1))
-	lineNumberFmt := fmt.Sprintf(" %%%dd | ", numDigitsInLineNumbers)
-
-	f, err := os.Open(filename)
-	if err != nil {
-		log.Error().AnErr("error", err).Str("filename", filename).Msg("Unable to open file")
-		return ""
-	}
-	defer func() { _ = f.Close() }()
-
-	var (
-		builder     strings.Builder
-		currentLine int64
-	)
-
-	builder.WriteRune('\n')
-
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		currentLine++
-
-		if currentLine >= lineNumber-linesBeforeError {
-			// Write the line number
-			builder.WriteString(fmt.Sprintf(lineNumberFmt, currentLine))
-
-			// Then the line of code itself
-			builder.WriteString(sc.Text())
-			builder.WriteRune('\n')
-		}
-
-		if currentLine == lineNumber {
-			// Write empty line number column
-			builder.WriteString(strings.Repeat(" ", numDigitsInLineNumbers+2))
-			builder.WriteString(" |")
-
-			// Write a pointer to the error
-			builder.WriteString(strings.Repeat("~", int(columnNumber)+1))
-			builder.WriteString("^\n")
-		}
-
-		if currentLine > lineNumber+linesAfterError {
-			break
+		if _, err := os.Stat(fileInOriginalSrc); err == nil {
+			return fileInOriginalSrc
 		}
 	}
 
-	return builder.String()
+	return compiledFile
 }
 
 func isGo118Plus(f *modfile.File) bool {

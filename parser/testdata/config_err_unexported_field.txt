@@ -1,0 +1,28 @@
+! parse
+stderr 'Field subField is not exported and is in a datatype which is used by a call'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/config"
+)
+
+type SubType struct {
+    subField string
+}
+
+type Config struct {
+    FooEnabled bool
+    Sub        SubType
+}
+
+var Cfg = config.Load[Config]()
+
+
+//encore:api
+func Subscriber1(ctx context.Context) error {
+    return nil
+}

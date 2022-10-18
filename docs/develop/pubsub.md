@@ -69,7 +69,7 @@ from the rest of the application.
 
 In parallel, the `email` and `analytics` services will receive the signup event from the `signups` topic and will then
 perform their respective tasks. If either service returns an error, the event will automatically be backed off and retried
-until the service is able to process the event successfully, or reaches the maximumn number of attempts and is placed
+until the service is able to process the event successfully, or reaches the maximum number of attempts and is placed
 into the deadletter queue (DLQ).
 
 </div>
@@ -80,7 +80,7 @@ into the deadletter queue (DLQ).
 
 <Callout type="info">
 
-Notice how in this version, the processing time of the two other services did not impact the end user and infact the `user`
+Notice how in this version, the processing time of the two other services did not impact the end user and in fact the `user`
 service is not even aware of the `email` and `analytics` services. This means that new systems which need to know about
 new users signing up can be added to the application, without the need to change the `user` service or impacting its
 performance.
@@ -140,7 +140,7 @@ import (
 )
 
 //encore:api public
-func Register(ctx context.Context, params *RegisterationParams) error {
+func Register(ctx context.Context, params *RegistrationParams) error {
     tx, err := sqldb.Begin(ctx) // start a database transaction
     defer tx.Rollback() // rollback the transaction if we don't commit it
 
@@ -155,7 +155,7 @@ func Register(ctx context.Context, params *RegisterationParams) error {
 
     // then commit the transaction, this way if the publishing of the event fails
     // the user isn't created, however if it succeeds then we can return OK now
-    // and let the other processes handle the event asynchroniously without risking
+    // and let the other processes handle the event asynchronously without risking
     // the user being created without the event being published.
     if err := tx.Commit(); err != nil {
         return err

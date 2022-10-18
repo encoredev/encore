@@ -93,7 +93,7 @@ func (b *Builder) encoreGenRPC(f *File, ss *est.ServiceStruct, rpc *est.RPC, wit
 					g.Nil()
 				} else if rpc.Response != nil {
 					// (*T, error) or (T, error)
-					if rpc.Response.IsPtr {
+					if rpc.Response.IsPointer() {
 						g.Nil()
 					} else {
 						g.Add(b.namedType(f, rpc.Response).Values())
@@ -113,7 +113,7 @@ func (b *Builder) encoreGenRPC(f *File, ss *est.ServiceStruct, rpc *est.RPC, wit
 				g.Return(Nil(), Nil())
 			} else if rpc.Response != nil {
 				// (*T, error) or (T, error)
-				if rpc.Response.IsPtr {
+				if rpc.Response.IsPointer() {
 					g.Return(Nil(), Nil())
 				} else {
 					g.Return(b.namedType(f, rpc.Response).Values(), Nil())

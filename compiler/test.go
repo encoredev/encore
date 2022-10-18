@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -11,6 +12,8 @@ import (
 	"strings"
 
 	"golang.org/x/exp/slices"
+
+	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 type TestConfig struct {
@@ -39,6 +42,7 @@ func Test(ctx context.Context, appRoot string, cfg *Config) error {
 		cfg:        cfg,
 		appRoot:    appRoot,
 		forTesting: true,
+		configs:    make(map[string]string),
 	}
 	return b.Test(ctx)
 }
@@ -49,7 +53,7 @@ func (b *builder) Test(ctx context.Context) (err error) {
 			if b, ok := e.(bailout); ok {
 				err = b.err
 			} else {
-				panic(e)
+				err = srcerrors.UnhandledPanic(e)
 			}
 		}
 	}()
@@ -62,11 +66,14 @@ func (b *builder) Test(ctx context.Context) (err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
+		b.pickupConfigFiles,
+		b.checkApp, // we need to validate & compute the config
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
 		b.writeHandlers,
 		b.writeTestMains,
+		b.writeConfigUnmarshallers,
 		b.writeEtypePkg,
 	} {
 		if err := fn(); err != nil {
@@ -95,6 +102,11 @@ func (b *builder) EncoreEnvironmentalVariablesToEmbed() []string {
 		if strings.HasPrefix(env, "ENCORE_") {
 			rtn = append(rtn, env)
 		}
+	}
+
+	// Embed any computed configs
+	for serviceName, cfgString := range b.configs {
+		rtn = append(rtn, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
 	}
 	return rtn
 }
@@ -142,6 +154,9 @@ func (b *builder) runTests(ctx context.Context) error {
 	)
 	if !b.cfg.CgoEnabled {
 		env = append(env, "CGO_ENABLED=0")
+	}
+	for serviceName, cfgString := range b.configs {
+		env = append(env, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
 	}
 
 	cmd.Env = append(os.Environ(), env...)

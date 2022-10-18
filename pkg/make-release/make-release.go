@@ -84,7 +84,7 @@ func (b *Builder) BuildBinaries() error {
 	}
 
 	cmd := exec.Command("go", "build",
-		fmt.Sprintf("-ldflags=-X 'encr.dev/cli/internal/version.Version=v%s'", b.version),
+		fmt.Sprintf("-ldflags=-X 'encr.dev/internal/version.Version=v%s'", b.version),
 		"-o", join(b.dst, "bin", "encore"),
 		"./cli/cmd/encore")
 	cmd.Env = env

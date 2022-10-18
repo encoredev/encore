@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"encr.dev/cli/internal/conf"
+	"encr.dev/internal/conf"
 )
 
 func main() {

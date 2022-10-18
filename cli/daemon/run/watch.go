@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/rjeczalik/notify"
+
+	"encr.dev/pkg/errlist"
 )
 
 // watch watches the given app for changes, and reports
@@ -35,15 +37,19 @@ func (mgr *Manager) watch(run *Run) error {
 				// This race is annoying, but in practice a 100ms delay is imperceptible since
 				// the user is busy working in their editor.
 				time.Sleep(100 * time.Millisecond)
-				mgr.runStdout(run, []byte("Changes detected, recompiling...\n"))
+				mgr.RunStdout(run, []byte("Changes detected, recompiling...\n"))
 				if err := run.Reload(); err != nil {
-					errStr := err.Error()
-					if !strings.HasSuffix(errStr, "\n") {
-						errStr += "\n"
+					if errList := errlist.Convert(err); errList != nil {
+						mgr.RunError(run, errList)
+					} else {
+						errStr := err.Error()
+						if !strings.HasSuffix(errStr, "\n") {
+							errStr += "\n"
+						}
+						mgr.RunStderr(run, []byte(errStr))
 					}
-					mgr.runStderr(run, []byte(errStr))
 				} else {
-					mgr.runStdout(run, []byte("Reloaded successfully.\n"))
+					mgr.RunStdout(run, []byte("Reloaded successfully.\n"))
 				}
 			}
 		}
@@ -57,7 +63,7 @@ func ignoreEvent(ev notify.EventInfo) bool {
 	// Ignore non-Go files
 	ext := filepath.Ext(path)
 	switch ext {
-	case ".go", ".sql", ".mod", ".sum", ".app":
+	case ".go", ".sql", ".mod", ".sum", ".app", ".cue":
 		return false
 	default:
 		return true

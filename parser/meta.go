@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 
 	"encr.dev/parser/est"
+	"encr.dev/pkg/errinsrc"
+	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -19,7 +22,7 @@ import (
 type TraceNodes map[ast.Node]*meta.TraceNode
 
 // ParseMeta parses app metadata.
-func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string, app *est.Application) (*meta.Data, map[*est.Package]TraceNodes, error) {
+func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string, app *est.Application, fset *token.FileSet) (*meta.Data, map[*est.Package]TraceNodes, error) {
 	data := &meta.Data{
 		ModulePath:         app.ModulePath,
 		AppRevision:        appRevision,
@@ -27,7 +30,7 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		Decls:              app.Decls,
 	}
 	pkgMap := make(map[string]*meta.Package)
-	nodes := parceTraceNodes(app)
+	nodes := parceTraceNodes(app, fset)
 	for _, pkg := range app.Packages {
 		p := &meta.Package{
 			RelPath: pkg.RelPath,
@@ -146,8 +149,9 @@ var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.up.sql$`)
 
 func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 	s := &meta.Service{
-		Name:    svc.Name,
-		RelPath: svc.Root.RelPath,
+		Name:      svc.Name,
+		RelPath:   svc.Root.RelPath,
+		HasConfig: len(svc.ConfigLoads) > 0,
 	}
 	for _, rpc := range svc.RPCs {
 		r, err := parseRPC(rpc)
@@ -336,25 +340,23 @@ func parseMiddleware(mw *est.Middleware) *meta.Middleware {
 	return pb
 }
 
-func parceTraceNodes(app *est.Application) map[*est.Package]TraceNodes {
-	var lastPackage *est.Package
-	var lastFile *est.File
+func parceTraceNodes(app *est.Application, fset *token.FileSet) map[*est.Package]TraceNodes {
 	var lastReference *refPair
 
 	defer func() {
 		if err := recover(); err != nil {
-			panic(fmt.Sprintf("panic in parseTraceNodes (Package %s, File %s, AST %+v, Reference %+v): %v", lastPackage.Name, lastFile.Name, lastReference.AST, lastReference.Node, err))
+			err := srcerrors.UnhandledPanic(err)
+			errinsrc.AddHintFromGo(err, fset, lastReference.AST, fmt.Sprintf("paniced on this node while processing: %+v", lastReference.Node))
+			panic(err)
 		}
 	}()
 
 	var id int32
 	res := make(map[*est.Package]TraceNodes)
 	for _, pkg := range app.Packages {
-		lastPackage = pkg
 		nodes := make(TraceNodes)
 		res[pkg] = nodes
 		for _, file := range pkg.Files {
-			lastFile = file
 
 			for _, r := range sortedRefs(file.References) {
 				lastReference = &r

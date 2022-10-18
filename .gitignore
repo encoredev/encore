@@ -7,8 +7,13 @@
 /.encore
 /.vscode
 
+cli/daemon/dash/dashapp/public/assets/fonts/*/**
+!cli/daemon/dash/dashapp/public/assets/fonts/*/.gitkeep
+
+
 # Build artifact that must be placed alongside go files for Windows
 *.syso
 
 # JetBrains
 .idea
+.fleet

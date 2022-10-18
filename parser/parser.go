@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -11,7 +12,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -22,6 +22,7 @@ import (
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
 	"encr.dev/parser/selector"
+	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
@@ -40,28 +41,32 @@ type parser struct {
 	cfg *Config
 
 	// accumulated results
-	fset          *token.FileSet
-	errors        *errlist.List
-	pkgs          []*est.Package
-	pkgMap        map[string]*est.Package // import path -> pkg
-	svcs          []*est.Service
-	jobs          []*est.CronJob
-	svcMap        map[string]*est.Service // name -> svc
-	svcPkgPaths   map[string]*est.Service // pkg path -> svc
-	jobsMap       map[string]*est.CronJob // ID -> job
-	pubSubTopics  []*est.PubSubTopic
-	cacheClusters []*est.CacheCluster
-	names         names.Application
-	authHandler   *est.AuthHandler
-	middleware    []*est.Middleware
-	declMap       map[string]*schema.Decl // pkg/path.Name -> decl
-	decls         []*schema.Decl
-	paths         paths.Set                          // RPC paths
-	resourceMap   map[string]map[string]est.Resource // pkg/path -> name -> resource
+	fset                *token.FileSet
+	errors              *errlist.List
+	pkgs                []*est.Package
+	pkgMap              map[string]*est.Package // import path -> pkg
+	svcs                []*est.Service
+	jobs                []*est.CronJob
+	svcMap              map[string]*est.Service // name -> svc
+	svcPkgPaths         map[string]*est.Service // pkg path -> svc
+	jobsMap             map[string]*est.CronJob // ID -> job
+	pubSubTopics        []*est.PubSubTopic
+	cacheClusters       []*est.CacheCluster
+	names               names.Application
+	authHandler         *est.AuthHandler
+	middleware          []*est.Middleware
+	declMap             map[string]*schema.Decl // pkg/path.Name -> decl
+	decls               []*schema.Decl
+	paths               paths.Set                          // RPC paths
+	resourceMap         map[string]map[string]est.Resource // pkg/path -> name -> resource
+	hasUnexportedFields map[*schema.Struct]*ast.Field      // A struct will be in this map if it has unexported fields
 
 	// validRPCReferences is a set of ast nodes that are allowed to
 	// reference RPCs without calling them.
 	validRPCReferences map[ast.Node]bool
+
+	// schema types -> ast.Node mappings (used for errors)
+	schemaToAST map[any]ast.Node
 }
 
 // Config represents the configuration options for parsing.
@@ -77,11 +82,13 @@ type Config struct {
 
 func Parse(cfg *Config) (*Result, error) {
 	p := &parser{
-		cfg:                cfg,
-		declMap:            make(map[string]*schema.Decl),
-		validRPCReferences: make(map[ast.Node]bool),
-		jobsMap:            make(map[string]*est.CronJob),
-		resourceMap:        make(map[string]map[string]est.Resource),
+		cfg:                 cfg,
+		declMap:             make(map[string]*schema.Decl),
+		validRPCReferences:  make(map[ast.Node]bool),
+		jobsMap:             make(map[string]*est.CronJob),
+		resourceMap:         make(map[string]map[string]est.Resource),
+		hasUnexportedFields: make(map[*schema.Struct]*ast.Field),
+		schemaToAST:         make(map[any]ast.Node),
 	}
 	return p.Parse()
 }
@@ -110,13 +117,9 @@ var defaultTrackedPackages = names.TrackedPackages{
 func (p *parser) Parse() (res *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			if _, ok := e.(errlist.Bailout); !ok {
-				const size = 64 << 10
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
-				err = fmt.Errorf("parser panicked: %+v\n%s", e, buf)
-			}
+			p.errors.Report(srcerrors.UnhandledPanic(e))
 		}
+
 		if err == nil {
 			p.errors.Sort()
 			p.errors.MakeRelative(p.cfg.AppRoot, p.cfg.WorkingDir)
@@ -128,6 +131,10 @@ func (p *parser) Parse() (res *Result, err error) {
 
 	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, goparser.ParseComments, p.cfg.ParseTests)
 	if err != nil {
+		if errList, ok := err.(scanner.ErrorList); ok {
+			p.errors.Report(errList)
+			return nil, p.errors
+		}
 		return nil, err
 	}
 	p.pkgMap = make(map[string]*est.Package)
@@ -170,7 +177,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		AuthHandler:   p.authHandler,
 		Middleware:    p.middleware,
 	}
-	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app)
+	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset)
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +207,13 @@ func collectPackages(fs *token.FileSet, rootDir, rootImportPath string, mode gop
 	var pkgs []*est.Package
 	var errors scanner.ErrorList
 	filter := func(f os.FileInfo) bool {
+		// Don't parse encore.gen.go files, since they're not intended to be checked in.
+		// We've had several issues where things work locally but not in CI/CD because
+		// the encore.gen.go file was parsed for local development which papered over issues.
+		if strings.Contains(f.Name(), "encore.gen.go") {
+			return false
+		}
+
 		return parseTests || !strings.HasSuffix(f.Name(), "_test.go")
 	}
 
@@ -532,6 +546,22 @@ func (p *parser) validateApp() {
 		}
 	}
 
+	// Validate types which get marshaled outside the app (RPC or PubSub)
+	// don't use the config Value types
+	for _, svc := range p.svcs {
+		for _, rpc := range svc.RPCs {
+			if rpc.Request != nil {
+				p.validateTypeDoesntUseConfigTypes(rpc.Func.Pos(), rpc.Request)
+			}
+			if rpc.Response != nil {
+				p.validateTypeDoesntUseConfigTypes(rpc.Func.Pos(), rpc.Response)
+			}
+		}
+	}
+	for _, topic := range p.pubSubTopics {
+		p.validateTypeDoesntUseConfigTypes(topic.Ident().Pos(), topic.MessageType)
+	}
+
 	// Error if resources are defined in non-services
 	for _, pkg := range p.pkgs {
 		if pkg.Service == nil {
@@ -585,6 +615,19 @@ func (p *parser) validateApp() {
 	}
 
 	p.validateCacheKeyspacePathConflicts()
+	p.validateConfigTypes()
+}
+
+func (p *parser) validateTypeDoesntUseConfigTypes(pos token.Pos, param *est.Param) {
+	err := schema.Walk(p.decls, param.Type, func(n any) error {
+		if _, ok := n.(*schema.ConfigValue); ok {
+			return errors.New("config.Value")
+		}
+		return nil
+	})
+	if err != nil {
+		p.errf(pos, "type %s can only be used in data types used by config.Load and cannot be used for API response/response parameters or PubSub message types", err.Error())
+	}
 }
 
 func (p *parser) rpcForName(pkgPath, objName string) (*est.RPC, bool) {
