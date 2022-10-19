@@ -1,0 +1,95 @@
+name: "🐛 Bug Report"
+description: Got an error or If you think you found a bug in the project then create a ticket!
+title: "🐛 [BUG] - <title>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for taking out time to fill out this bug report for improving the project!
+        
+        We would love to hear all about this bug. It would be great to get as many details you wish to provide.
+  - type: checkbox
+    id: terms
+    attributes:
+      label: "Reporting a bug"
+      description: This project has a Code of Conduct and Contribution guide that all contributors are expected to understand and follow.
+      options:
+        - label: I have read and agree to the project's [Code of Conduct](https://github.com/encoredev/encore/blob/main/CODE_OF_CONDUCT.md)
+          required: true
+        - label: I have read and agree to follow the project's [Contribution Guide](https://github.com/encoredev/encore/blob/main/CONTRIBUTING.md)
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: Please enter an explicit description of your issue & also tell us, what did you expect to happen?
+      placeholder: Short and explicit description of your incident...
+    validations:
+      required: true
+  - type: input
+    id: reprod-url
+    attributes:
+      label: "Reproduction URL"
+      description: Please enter your GitHub URL to provide a reproduction of the issue
+      placeholder: ex. https://github.com/USERNAME/REPO-NAME
+    validations:
+      required: true
+  - type: textarea
+    id: reprod
+    attributes:
+      label: "Reproduction steps"
+      description: Please enter an explicit description of how to reproduce your issue
+      value: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: "Screenshots"
+      description: If possible, attach screenshots to demonstrate your problem
+      value: |
+        ![DESCRIPTION](LINK.png)
+      render: bash
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs"
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: bash
+    validations:
+      required: false
+  - type: dropdown
+    id: os
+    attributes:
+      label: "Operating System"
+      description: What is the impacted environment ?
+      multiple: true
+      options:
+        - Windows
+        - Mac
+        - Linux
+    validations:
+      required: false
+  - type: dropdown
+    id: browsers
+    attributes:
+      label: "Browser"
+      description: What kind of browsers are you seeing this problem on ?
+      multiple: true
+      options:
+        - Chrome
+        - Safari
+        - Ubuntu
+        - Microsoft Edge
+        - Firefox
+        - Opera
+    validations:
+      required: false
