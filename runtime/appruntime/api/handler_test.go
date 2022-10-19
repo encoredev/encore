@@ -17,6 +17,7 @@ import (
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/reqtrack"
+	"encore.dev/custommetrics"
 )
 
 type mockReq struct {
@@ -86,10 +87,11 @@ func TestDesc_EndToEnd(t *testing.T) {
 		Runtime: &config.Runtime{},
 	}
 	logger := zerolog.New(os.Stdout)
+	customMetrics := custommetrics.NewManager("", "", logger)
 	rt := reqtrack.New(logger, nil, false)
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	encoreMgr := encore.NewManager(cfg, rt)
-	server := api.NewServer(cfg, rt, nil, encoreMgr, logger, json)
+	server := api.NewServer(cfg, rt, nil, encoreMgr, logger, customMetrics, json)
 
 	tests := []struct {
 		name     string
