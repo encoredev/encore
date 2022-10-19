@@ -62,7 +62,7 @@ func New(p *NewParams) *App {
 		})
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
-	customMetrics := custommetrics.NewManager(cfg.Runtime.EnvCloud, rootLogger)
+	customMetrics := custommetrics.NewManager(cfg.Runtime.AppSlug, cfg.Runtime.EnvCloud, rootLogger)
 
 	pc := platform.NewClient(cfg)
 	doTrace := trace.Enabled(cfg)

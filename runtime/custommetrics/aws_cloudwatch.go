@@ -1,6 +1,8 @@
 package custommetrics
 
 import (
+	"fmt"
+
 	"github.com/rs/zerolog"
 )
 
@@ -14,10 +16,13 @@ import (
 // defined in this file.
 
 type awsMetricsManager struct {
-	logger zerolog.Logger
+	metricPrefix string
+	logger       zerolog.Logger
 }
 
 func (m *awsMetricsManager) Counter(name string, tags map[string]string) {
+	name = fmt.Sprintf("%s_%s", m.metricPrefix, name)
+
 	// See comment above.
 	if len(tags) > 3 {
 		m.logger.Trace().Str("dropped_metric_name", name).Msg("dropping metric")
