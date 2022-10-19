@@ -1,5 +1,5 @@
 ---
-title: Bring your own cloud
+title: Connect your cloud account
 subtitle: Whatever cloud you prefer is fine by us
 ---
 
