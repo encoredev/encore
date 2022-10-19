@@ -16,6 +16,7 @@ import (
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/auth"
+	"encore.dev/custommetrics"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -61,6 +62,7 @@ func New(p *NewParams) *App {
 		})
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
+	customMetrics := custommetrics.NewManager(cfg.Runtime.EnvCloud, rootLogger)
 
 	pc := platform.NewClient(cfg)
 	doTrace := trace.Enabled(cfg)
@@ -69,7 +71,7 @@ func New(p *NewParams) *App {
 	shutdown := newShutdownTracker()
 	encore := encore.NewManager(cfg, rt)
 
-	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, json)
+	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, customMetrics, json)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
 	service := service.NewManager(rt)

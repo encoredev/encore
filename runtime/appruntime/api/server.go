@@ -18,6 +18,7 @@ import (
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
+	"encore.dev/custommetrics"
 	"encore.dev/internal/metrics"
 )
 
@@ -59,6 +60,7 @@ type Server struct {
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
 	rootLogger     zerolog.Logger
+	customMetrics  custommetrics.Manager
 	json           jsoniter.API
 	tracingEnabled bool
 
@@ -74,8 +76,15 @@ type Server struct {
 	pubsubSubscriptions map[string]func(r *http.Request) error
 }
 
-func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Client,
-	encoreMgr *encore.Manager, rootLogger zerolog.Logger, json jsoniter.API) *Server {
+func NewServer(
+	cfg *config.Config,
+	rt *reqtrack.RequestTracker,
+	pc *platform.Client,
+	encoreMgr *encore.Manager,
+	rootLogger zerolog.Logger,
+	customMetrics custommetrics.Manager,
+	json jsoniter.API,
+) *Server {
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -97,6 +106,7 @@ func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Cli
 		rt:             rt,
 		encoreMgr:      encoreMgr,
 		rootLogger:     rootLogger,
+		customMetrics:  customMetrics,
 		json:           json,
 		tracingEnabled: trace.Enabled(cfg),
 
