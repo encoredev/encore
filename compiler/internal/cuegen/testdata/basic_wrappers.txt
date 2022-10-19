@@ -11,7 +11,7 @@ import (
 
 type Config struct {
     Name        config.String    // The users name
-    Port        config.UInt16
+    Port        config.Uint16
     ReadOnly    config.Bool      // true if we're in read only mode
 
     // MagicNumber is complicated and requires
