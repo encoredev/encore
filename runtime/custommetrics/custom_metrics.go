@@ -24,7 +24,9 @@ func NewManager(envCloud string, logger zerolog.Logger) Manager {
 	case encore.CloudAzure:
 		// Custom metrics are in still in preview, so we won't be using them for now.
 	case encore.EncoreCloud:
-		// TODO
+		impl = &gcpMetricsManager{
+			logger: logger,
+		}
 	case encore.CloudLocal:
 		// TODO
 	default:
