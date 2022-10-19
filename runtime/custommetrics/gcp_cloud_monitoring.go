@@ -30,7 +30,7 @@ func (m *gcpMetricsManager) Counter(name string, tags map[string]string) {
 		return
 	}
 
-	loggerCtx := m.logger.With().Str("metric_name", name)
+	loggerCtx := m.logger.With().Str("e_metric_name", name)
 	for k, v := range tags {
 		loggerCtx = loggerCtx.Str(k, v)
 	}
