@@ -221,7 +221,7 @@ In order to achieve this, let's create a new service called `schedules`:
 
 For the SQL migration in #1, we need to create both a table and an index. For every rotation let's need a new entry containing the user who it is for as well as the start and end times of the scheduled rotation.
 
-🥐 Let's create our migration file in `schedules/schedules/1_create_schedules.up.sql`:
+🥐 Let's create our migration file in `schedules/migrations/1_create_schedules.up.sql`:
 
 ```sql
 CREATE TABLE schedules
@@ -451,7 +451,7 @@ CREATE TABLE incidents
 );
 ```
 
-🥐 Next, our code for being able to support incidents is below:
+🥐 Next, our code belonging in `incidents/incidents.go` for being able to support incidents is below:
 
 ```go
 package incidents
@@ -742,7 +742,7 @@ curl -d '{
 
 Congratulations! Our application looks ready for others to try - we have our `users`, `schedules` `incidents` and `slack` services along with 3 database tables and 2 cronjobs. Even better that all of the deployment and maintenance is taken care by Encore!
 
-🥐 To try out your application, type `encore dev` in your Terminal and run the following cURL commands:
+🥐 To try out your application, type `encore run` in your Terminal and run the following cURL commands:
 
 ```bash
 # Step 1: Create a User and copy the User ID to your clipboard
