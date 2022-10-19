@@ -10,6 +10,7 @@ import "strings"
 	path: string | *strings.Replace("/\(section)/\(segment)", "/index", "", -1)
 	old_paths: [...string] | *null
 	shortcuts: [...string] | *null // URL's which can be used on the root of the website or on docs if it would have been a 404 (i.e. https://encore.dev/topics => https://encore.dev/docs/develop/pubsub)
+	hide_in_menu?: bool
 }
 
 #Section: {
@@ -51,6 +52,7 @@ sections: [
 		title: "Tutorials"
 		segment: "tutorials"
 		docs: [
+			{title: "Tutorials", segment: "index", hide_in_menu: true},
 			{title: "Building a REST API", segment: "rest-api"},
 			{title: "Building a Slack bot", segment: "slack-bot"},
 			{title: "Building an Incident Tool", segment: "incident-management-tool"},
@@ -92,11 +94,10 @@ sections: [
 		title: "Deploy"
 		segment: "deploy"
 		docs: [
-			{title: "Scaling", segment: "scaling"},
+			{title: "Cloud Infrastructure", segment: "infra", old_paths: ["/docs/deploy/scaling", "/docs/concepts/scaling"]},
 			{title: "Environments", segment: "environments"},
 			{title: "Bring your own cloud", segment: "own-cloud"},
 			{title: "Custom Domains", segment: "custom-domains"},
-			{title: "Infrastructure", segment: "infra"},
 			{title: "Security", segment: "security"},
 		]
 	},
