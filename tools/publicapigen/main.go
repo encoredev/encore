@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -32,11 +34,15 @@ type registeredConstant struct {
 }
 
 var (
-	fset        = token.NewFileSet()
-	files       = map[string]*ast.File{}
-	constants   = map[string]map[string]registeredConstant{}
-	types       = map[string]map[string]registeredType{}
-	typesToDrop = map[string]map[string]bool{}
+	resolvedRepo             = repoDir()
+	gitRef                   = repoCommit()
+	fset                     = token.NewFileSet()
+	formattedFset            = token.NewFileSet()
+	files                    = map[string]*ast.File{}
+	commentsToAddToFunctions = map[*ast.File]map[string]*ast.CommentGroup{}
+	constants                = map[string]map[string]registeredConstant{}
+	types                    = map[string]map[string]registeredType{}
+	typesToDrop              = map[string]map[string]bool{}
 )
 
 func main() {
@@ -45,7 +51,7 @@ func main() {
 
 	// Walk the directory tree and parse all the Go files
 	log.Info().Msg("parsing source files...")
-	if err := walkDir(filepath.Join(repoDir(), "runtime"), "./", readAST); err != nil {
+	if err := walkDir(filepath.Join(resolvedRepo, "runtime"), "./", readAST); err != nil {
 		log.Fatal().Err(err).Msg("unable to walk runtime directory to parse go files")
 	}
 
@@ -85,18 +91,17 @@ func main() {
 
 		log.Debug().Str("file", fileName).Msg("writing public api file")
 
-		// Print the AST to a buffer
-		var buf bytes.Buffer
-		if err := printer.Fprint(&buf, fset, fAST); err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("unable to write ast to file")
+		// Pretty print the file and then re-parse it
+		// This repopulates the AST with the comments and formatting
+		formattedFile := convertASTToFormattedSrc(fset, fAST, fileName)
+		formattedAST, err := parser.ParseFile(formattedFset, fileName, formattedFile, parser.ParseComments)
+		if err != nil {
+			log.Fatal().Err(err).Str("file", fileName).Msg("unable to convert back to an AST")
 		}
 
-		// Then pass that to goimports to format the imports
-		imports.LocalPrefix = "encore.dev"
-		formatted, err := imports.Process(fileName, buf.Bytes(), nil)
-		if err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("unable to process imports")
-		}
+		// Now we can add brand new comments list given set, we
+		// can write the help comment into the functions
+		writePendingComments(fAST, formattedAST)
 
 		// Now let's write the file out
 		outputFile := filepath.Join(outDir, fileName)
@@ -106,12 +111,29 @@ func main() {
 			log.Fatal().Err(err).Str("dir", outputDir).Msg("unable to create output directory")
 		}
 
-		if err := os.WriteFile(outputFile, formatted, 0644); err != nil {
+		if err := os.WriteFile(outputFile, convertASTToFormattedSrc(formattedFset, formattedAST, fileName), 0644); err != nil {
 			log.Fatal().Err(err).Str("file", fileName).Msg("unable to write file")
 		}
 	}
 
 	log.Info().Msg("done")
+}
+
+func convertASTToFormattedSrc(fset *token.FileSet, fAST *ast.File, fileName string) []byte {
+	// Print the AST to a buffer
+	var buf bytes.Buffer
+	if err := printer.Fprint(&buf, fset, fAST); err != nil {
+		log.Fatal().Err(err).Str("file", fileName).Msg("unable to write ast to file")
+	}
+
+	// Then pass that to goimports to format the imports
+	imports.LocalPrefix = "encore.dev"
+	formatted, err := imports.Process(fileName, buf.Bytes(), nil)
+	if err != nil {
+		log.Fatal().Err(err).Str("file", fileName).Msg("unable to process imports")
+	}
+
+	return formatted
 }
 
 func registerTypes(name string, fAST *ast.File) {
@@ -206,6 +228,11 @@ func rewriteAST(f *ast.File) error {
 		f,
 		func(c *astutil.Cursor) bool {
 			switch node := c.Node().(type) {
+			case *ast.ImportSpec:
+				// Drop "_" imports as they are implementation details and not needed in the API contract
+				if node.Name != nil && node.Name.Name == "_" {
+					c.Delete()
+				}
 			case *ast.FuncDecl:
 				dir := lookupDirective(node.Doc)
 				if dir == mustKeep {
@@ -239,7 +266,53 @@ func rewriteAST(f *ast.File) error {
 				if node.Body != nil {
 					start = node.Body.Lbrace
 					end = node.Body.Rbrace
+
+					if _, found := commentsToAddToFunctions[f]; !found {
+						commentsToAddToFunctions[f] = map[string]*ast.CommentGroup{}
+					}
+
+					startLine := fset.Position(start).Line
+					endLine := fset.Position(end).Line
+					filePath := strings.TrimPrefix(fset.File(node.Pos()).Name(), resolvedRepo)
+
+					commentsToAddToFunctions[f][funcName(node)] = &ast.CommentGroup{
+						List: []*ast.Comment{
+							{
+								Text: "// Encore will provide an implementation to this function at runtime, we do not expose",
+							},
+							{
+								Text: "// the implementation in the API contract as it is an implementation detail, which may change",
+							},
+							{
+								Text: "// between releases.",
+							},
+							{
+								Text: "//",
+							},
+							{
+								Text: "// The current implementation of this function can be found here:",
+							},
+							{
+								Text: "//    https://github.com/encoredev/encore/blob/" + gitRef + filePath + "#L" + strconv.Itoa(startLine) + "-L" + strconv.Itoa(endLine),
+							},
+						},
+					}
 				}
+
+				// Drop any parameters that are prefixed with "__" as these are used to indicate that
+				// the arguments are added in by Encore's code generators and should be ignored in
+				// the customer facing code.
+				newFieldList := &ast.FieldList{
+					Opening: token.NoPos,
+					Closing: token.NoPos,
+				}
+				for _, p := range node.Type.Params.List {
+					if len(p.Names) == 0 || strings.HasPrefix(p.Names[0].Name, "__") {
+						continue
+					}
+					newFieldList.List = append(newFieldList.List, p)
+				}
+				node.Type.Params = newFieldList
 
 				// If we are keeping the function, replace the implementation with a panic
 				// as the code we're generating is only to help the IDE and users understand our API
@@ -432,6 +505,46 @@ func rewriteAST(f *ast.File) error {
 	return nil
 }
 
+func writePendingComments(originalFile *ast.File, formattedFile *ast.File) {
+	comments, found := commentsToAddToFunctions[originalFile]
+	if !found {
+		return
+	}
+
+	astutil.Apply(formattedFile, func(c *astutil.Cursor) bool {
+		switch node := c.Node().(type) {
+		case *ast.FuncDecl:
+			if comments, found := comments[funcName(node)]; found {
+				// check if the body is inline like this:
+				//   func Foo() { panic("foo") }
+				// and if so, then add a new line to the beginning of the comment
+				// to force it to be formatted like:
+				//   func Foo() {
+				//      // comment
+				//      panic("foo")
+				//   }
+				file := formattedFset.File(node.Pos())
+				panicPos := node.Body.List[0].Pos()
+				panicLine := file.Line(panicPos)
+				if file.LineStart(panicLine) < panicPos-3 {
+					comments.List[0].Text = "\n" + comments.List[0].Text
+				}
+
+				// Position the comment just before the first expression in the body
+				comments.List[0].Slash = panicPos - 1
+				formattedFile.Comments = append(formattedFile.Comments, comments)
+			}
+		}
+		return true
+	}, nil)
+
+	// The comments _must_ be sorted, otherwise the formatter will get confused
+	// and put all out of order comments under the last ordered comment
+	sort.SliceStable(formattedFile.Comments, func(i, j int) bool {
+		return formattedFile.Comments[i].List[0].Slash < formattedFile.Comments[j].List[0].Slash
+	})
+}
+
 // walkDir recursively descends path, calling walkFn for directory
 func walkDir(dir, rel string, f func(path, rel string, files []os.FileInfo) error) error {
 	if rel == "types/uuid" {
@@ -477,6 +590,27 @@ func repoDir() string {
 		panic("unable to get repo directory")
 	}
 	return string(bytes.TrimSpace(out))
+}
+
+func repoCommit() string {
+	// First check if we have a tag pointed at this commit
+	cmd := exec.Command("git", "tag", "--points-at", "HEAD")
+	cmd.Dir = resolvedRepo
+	out, err := cmd.CombinedOutput()
+
+	// If that doesn't work, then just get the commit hash
+	if err != nil || string(bytes.TrimSpace(out)) == "" {
+		cmd := exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = resolvedRepo
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			panic("unable to get repo commit")
+		}
+		return string(bytes.TrimSpace(out))
+	}
+
+	parts := strings.Split(string(bytes.TrimSpace(out)), "\n")
+	return strings.TrimSpace(parts[0])
 }
 
 func outDir() string {
@@ -650,4 +784,33 @@ func removePosition(node ast.Expr) ast.Expr {
 		log.Warn().Interface("node", node).Msg("unhandled node type to remove position from")
 		return node
 	}
+}
+
+func funcName(node *ast.FuncDecl) string {
+	var name strings.Builder
+
+	if node.Recv != nil {
+		name.WriteRune('(')
+		typ := node.Recv.List[0].Type
+
+		if star, ok := typ.(*ast.StarExpr); ok {
+			typ = star.X
+			name.WriteRune('*')
+		}
+
+		if index, ok := typ.(*ast.IndexExpr); ok {
+			name.WriteString(index.X.(*ast.Ident).Name)
+			name.WriteString("[]")
+		} else if indexList, ok := typ.(*ast.IndexListExpr); ok {
+			name.WriteString(indexList.X.(*ast.Ident).Name)
+			name.WriteString("[]")
+		} else {
+			name.WriteString(typ.(*ast.Ident).Name)
+		}
+
+		name.WriteString(").")
+	}
+
+	name.WriteString(node.Name.Name)
+	return name.String()
 }
