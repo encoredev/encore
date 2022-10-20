@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"context"
-	"encore.dev/appruntime/metrics"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +15,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/reqtrack"
 )
