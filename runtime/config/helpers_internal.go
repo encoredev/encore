@@ -43,6 +43,7 @@ func GetMetaForValue[T any](value func() T) (ValueID, ValuePath) {
 
 	// Lock so we're the only running extraction
 	Singleton.extraction.mutex.Lock()
+	defer Singleton.extraction.mutex.Unlock()
 
 	// Scope the extraction to the current goroutine
 	Singleton.extraction.scopeMutex.Lock()
@@ -63,7 +64,6 @@ func GetMetaForValue[T any](value func() T) (ValueID, ValuePath) {
 
 		// Release the locks
 		Singleton.extraction.running.Store(false)
-		Singleton.extraction.mutex.Unlock()
 	}()
 
 	// Call the value, which will trigger the extraction inside Manager.valueMeta

@@ -15,7 +15,7 @@ import (
 )
 
 type ValueID uint64
-type ValuePath = []string
+type ValuePath []string
 
 type Manager struct {
 	// Runtime components we need for config
