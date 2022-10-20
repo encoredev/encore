@@ -13,13 +13,12 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/cors"
+	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
-	"encore.dev/custommetrics"
-	"encore.dev/internal/metrics"
 )
 
 type Access string
@@ -60,7 +59,7 @@ type Server struct {
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
 	rootLogger     zerolog.Logger
-	customMetrics  custommetrics.Manager
+	metrics        *metrics.Manager
 	json           jsoniter.API
 	tracingEnabled bool
 
@@ -82,7 +81,7 @@ func NewServer(
 	pc *platform.Client,
 	encoreMgr *encore.Manager,
 	rootLogger zerolog.Logger,
-	customMetrics custommetrics.Manager,
+	metrics *metrics.Manager,
 	json jsoniter.API,
 ) *Server {
 	public := httprouter.New()
@@ -106,7 +105,7 @@ func NewServer(
 		rt:             rt,
 		encoreMgr:      encoreMgr,
 		rootLogger:     rootLogger,
-		customMetrics:  customMetrics,
+		metrics:        metrics,
 		json:           json,
 		tracingEnabled: trace.Enabled(cfg),
 
@@ -250,11 +249,11 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Endpoint not found
-	svc, api := "unknown", "Unknown"
+	svc, endpoint := "unknown", "Unknown"
 	if idx := strings.IndexByte(ep, '.'); idx != -1 {
-		svc, api = ep[:idx], ep[idx+1:]
+		svc, endpoint = ep[:idx], ep[idx+1:]
 	}
-	metrics.UnknownEndpoint(svc, api)
+	s.metrics.UnknownEndpoint(svc, endpoint)
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 

@@ -1,7 +1,8 @@
-package custommetrics
+package metrics
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rs/zerolog"
 )
@@ -15,24 +16,25 @@ import (
 // published with different sets of tags over multiple calls to the functions
 // defined in this file.
 
-type awsMetricsManager struct {
+type AWSMetricsExporter struct {
 	metricPrefix string
 	logger       zerolog.Logger
 }
 
-func (m *awsMetricsManager) Counter(name string, tags map[string]string) {
-	name = fmt.Sprintf("%s_%s", m.metricPrefix, name)
+func NewAWSMetricsExporter(appSlug string, logger zerolog.Logger) *AWSMetricsExporter {
+	metricPrefix := strings.Replace(appSlug, "-", "_", 1)
+	return &AWSMetricsExporter{
+		metricPrefix: metricPrefix,
+		logger:       logger,
+	}
+}
 
+func (e *AWSMetricsExporter) IncCounter(name string, tags ...string) {
 	// See comment above.
-	if len(tags) > 3 {
-		m.logger.Trace().Str("dropped_metric_name", name).Msg("dropping metric")
-		return
+	if len(tags) > 6 {
+		panic("emitting counter metric with more than 3 dimensions is not supported")
 	}
 
-	loggerCtx := m.logger.With().Str("e_metric_name", name)
-	for k, v := range tags {
-		loggerCtx = loggerCtx.Str(k, v)
-	}
-	logger := loggerCtx.Logger()
-	logger.Trace().Send()
+	name = fmt.Sprintf("%s_%s", e.metricPrefix, name)
+	logCounter(e.logger, name, tags...)
 }

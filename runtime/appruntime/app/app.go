@@ -10,13 +10,13 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/service"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/auth"
-	"encore.dev/custommetrics"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -62,7 +62,7 @@ func New(p *NewParams) *App {
 		})
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
-	customMetrics := custommetrics.NewManager(cfg.Runtime.AppSlug, cfg.Runtime.EnvCloud, rootLogger)
+	metrics := metrics.NewManager(metricsExporter(cfg, rootLogger))
 
 	pc := platform.NewClient(cfg)
 	doTrace := trace.Enabled(cfg)
@@ -71,7 +71,7 @@ func New(p *NewParams) *App {
 	shutdown := newShutdownTracker()
 	encore := encore.NewManager(cfg, rt)
 
-	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, customMetrics, json)
+	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, metrics, json)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
 	service := service.NewManager(rt)
@@ -137,4 +137,23 @@ func jsonAPI(cfg *config.Config) jsoniter.API {
 		SortMapKeys:            true,
 		ValidateJsonRawMessage: true,
 	}.Froze()
+}
+
+func metricsExporter(cfg *config.Config, logger zerolog.Logger) metrics.Exporter {
+	switch cfg.Runtime.EnvCloud {
+	case encore.CloudAWS:
+		return metrics.NewAWSMetricsExporter(cfg.Runtime.AppSlug, logger)
+	case encore.CloudGCP:
+		return metrics.NewGCPMetricsExporter(cfg.Runtime.AppSlug, logger)
+	case encore.CloudAzure:
+		// Custom metrics are in still in preview, so we won't be using them for now.
+		return metrics.NewNullMetricsExporter()
+	case encore.EncoreCloud:
+		return metrics.NewGCPMetricsExporter(cfg.Runtime.AppSlug, logger)
+	case encore.CloudLocal:
+		// TODO
+	default:
+		logger.Error().Str("env_cloud", cfg.Runtime.EnvCloud).Msg("unexpected cloud environment")
+	}
+	return nil
 }

@@ -11,7 +11,6 @@ import (
 
 	"encore.dev/appruntime/model"
 	"encore.dev/beta/errs"
-	"encore.dev/internal/metrics"
 )
 
 func (s *Server) beginOperation() {
@@ -97,10 +96,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		curr.Trace.BeginRequest(req, curr.Goctr)
 	}
 
-	s.customMetrics.Counter("e_requests_total", map[string]string{
-		"service":  req.Service,
-		"endpoint": req.Endpoint,
-	})
+	s.metrics.ReqBegin(req.Service, req.Endpoint)
 
 	switch req.Type {
 	case model.AuthHandler:
@@ -141,11 +137,11 @@ func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
 		if httpStatus != 0 {
 			code := errs.HTTPStatusToCode(httpStatus).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", httpStatus).Msg("request completed")
-			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
+			// TODO: Emit request duration metric
 		} else {
 			code := errs.Code(err).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Msg("request completed")
-			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
+			// TODO: Emit request duration metric
 		}
 	}
 
