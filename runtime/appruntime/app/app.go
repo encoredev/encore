@@ -9,13 +9,14 @@ import (
 
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/config"
+	runtimeCfg "encore.dev/appruntime/config"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/service"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/auth"
+	appCfg "encore.dev/config"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -23,7 +24,7 @@ import (
 )
 
 type App struct {
-	cfg        *config.Config
+	cfg        *runtimeCfg.Config
 	rt         *reqtrack.RequestTracker
 	json       jsoniter.API
 	rootLogger zerolog.Logger
@@ -38,14 +39,15 @@ type App struct {
 	sqldb  *sqldb.Manager
 	pubsub *pubsub.Manager
 	cache  *cache.Manager
+	config *appCfg.Manager
 }
 
-func (app *App) Cfg() *config.Config                { return app.cfg }
+func (app *App) Cfg() *runtimeCfg.Config            { return app.cfg }
 func (app *App) ReqTrack() *reqtrack.RequestTracker { return app.rt }
 func (app *App) RootLogger() *zerolog.Logger        { return &app.rootLogger }
 
 type NewParams struct {
-	Cfg         *config.Config
+	Cfg         *runtimeCfg.Config
 	APIHandlers []api.HandlerRegistration
 	AuthHandler api.AuthHandler // nil means no auth handler
 }
@@ -80,11 +82,12 @@ func New(p *NewParams) *App {
 	sqldb := sqldb.NewManager(cfg, rt)
 	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
 	cache := cache.NewManager(cfg, rt, ts, json)
+	appCfg := appCfg.NewManager(rt, json)
 
 	app := &App{
 		cfg, rt, json, rootLogger, apiSrv, service, ts,
 		shutdown,
-		encore, auth, rlog, sqldb, pubsub, cache,
+		encore, auth, rlog, sqldb, pubsub, cache, appCfg,
 	}
 
 	// If this is running inside an Encore app, initialize the singletons
@@ -124,7 +127,7 @@ func (app *App) GetSecret(key string) (string, bool) {
 	return val, ok
 }
 
-func jsonAPI(cfg *config.Config) jsoniter.API {
+func jsonAPI(cfg *runtimeCfg.Config) jsoniter.API {
 	indentStep := 2
 	if cfg.Runtime.EnvType == "production" {
 		indentStep = 0
