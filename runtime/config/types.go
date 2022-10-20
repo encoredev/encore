@@ -11,7 +11,8 @@ import (
 //
 // It is a function because the underlying value could change while
 // the application is still running due to unit tests providing
-// overrides to test different behaviours.
+// overrides to test different behaviours. To change the value within
+// a single unit test, use the et.SetCfg function.
 type Value[T any] func() T
 
 // Values represents a list of values in the configuration for this
