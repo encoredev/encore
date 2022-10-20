@@ -13,7 +13,7 @@ Start building today and unlock your creative potential with:</br>
 
 **⭐ If you find Encore interesting, star this repository to help spread the word.**
 
-**👋 Have questions? Join the friendly developer community on [Slack](https://encore.dev/slack).**
+**👋 Have questions? Join the friendly [developer community](https://community.encore.dev), or say hello on [Slack](https://encore.dev/slack).**
 
 ## Key features
 
@@ -78,6 +78,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 <a href="https://www.youtube.com/watch?v=aSE7wdjhcnw" alt="Encore Demo" target="_blank"><img src="https://user-images.githubusercontent.com/78424526/174304596-52145f47-f58a-4c4b-b386-53ad33d48548.jpg" alt="encore demo video"></a>
 
 ## Visuals
+
+### Local Development Dashboard
+
+https://user-images.githubusercontent.com/78424526/196938940-9b132373-2b31-41fe-8ca7-aaa3be7b8537.mp4
 
 ### Built-in CI/CD & Infrastructure Provisioning
 
