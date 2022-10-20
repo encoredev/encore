@@ -8,6 +8,7 @@ import (
 	"encore.dev/appruntime/service"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/beta/auth"
+	"encore.dev/config"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -24,4 +25,5 @@ func initSingletonsForEncoreApp(a *App) {
 	sqldb.Singleton = a.sqldb
 	pubsub.Singleton = a.pubsub
 	cache.Singleton = a.cache
+	config.Singleton = a.config
 }
