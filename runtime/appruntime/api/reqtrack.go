@@ -97,7 +97,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		curr.Trace.BeginRequest(req, curr.Goctr)
 	}
 
-	s.customMetrics.Counter("e-requests-total", map[string]string{
+	s.customMetrics.Counter("e_requests_total", map[string]string{
 		"service":  req.Service,
 		"endpoint": req.Endpoint,
 	})
