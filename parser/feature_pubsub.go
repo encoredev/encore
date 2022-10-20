@@ -302,6 +302,14 @@ func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *wa
 		return
 	}
 
+	// FIXME: this is a temporary error, while we fix it at a deeper level
+	if file.Pkg.Service == nil {
+		p.err(
+			callExpr.Args[1].Pos(),
+			"pubsub.Publish can only be used within a service. Currently the call is not declared within a service.",
+		)
+	}
+
 	// Record the publisher
 	topic.Publishers = append(topic.Publishers, &est.PubSubPublisher{
 		DeclFile: file,
