@@ -20,6 +20,6 @@ func TestCounter_AWS(t *testing.T) {
 	want := `{"level":"trace","e_metric_name":"app_a1b2_test_counter","key":"value"}
 `
 	if actual != want {
-		t.Fatalf("want %q, got %q", want, actual)
+		t.Fatalf("\nwant:\n\t%q\ngot:\n\t%q\n", want, actual)
 	}
 }
