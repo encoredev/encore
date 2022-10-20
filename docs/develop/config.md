@@ -119,7 +119,9 @@ Will result in the following CUE type definition being generated:
 
 ## Config Wrappers
 
-Encore provides type wrappers for config in the form of `config.Value[T]` and `config.Values[T]` which expand into functions of type `T` and `[]T` respectively. These functions allow you to override the default value of your configuration in your CUE files inside unit tests, where only code run from that unit test will see the override.
+Encore provides type wrappers for config in the form of `config.Value[T]` and `config.Values[T]` which expand into
+functions of type `T` and `[]T` respectively. These functions allow you to override the default value of your
+configuration in your CUE files inside tests, where only code run from that test will see the override.
 
 In the future we plan to support real-time updating of configuration values on running applications, thus using
 these wrappers in your configuration today will future proof your code and allow you to automatically take advantage of this feature when it is
@@ -208,12 +210,91 @@ if #Meta.Environment.Type == "production" {}
 // An application running in an enviroment that Encore has created
 // for an open Pull Request on Github
 if #Meta.Environment.Type == "ephemeral" {}
-
-// Tests being run on the application either due to a call to
-// `encore test` or Encore's CI system running tests
-if #Meta.Environment.Type == "test" {}
 ```
 
+## Testing with Config
+
+Through the provided meta values, your applications configuration can have different values in tests, compared to
+when the application is running. This can be useful to prevent external side effects from your tests, such as emailing
+customers across all test.
+
+Sometimes however, you may want to test specific behaviours based on different configurations (such as disabling user signups),
+in this scenario using the Meta data does not give you fine enough control. To allow you to set a configuration value
+at a per test level, Encore provides the helper function [`et.SetCfg`](https://pkg.go.dev/encore.dev/et#SetCfg). You can
+use this function to set a new value only in the current test and any sub tests, while all other tests will
+continue to use the value defined in the CUE files.
+
+```go
+-- config.cue --
+// By default we want to sent emails
+SendEmails: bool | *true
+
+// But in all tests we want to disable emails
+if #Meta.Environment.Type == "test" {
+    SendEmails: false
+}
+-- signup.go --
+import (
+    "context"
+
+    "encore.dev/config"
+)
+
+type Config struct {
+    SendEmails config.Bool
+}
+
+var cfg = config.Load[Config]()
+
+//encore:api public
+func Signup(ctx context.Context, p *SignupParams) error {
+    user := createUser(p)
+
+    if cfg.SendEmails() {
+        SendWelcomeEmail(user)
+    }
+
+    return nil
+}
+-- signup_test.go --
+import (
+    "errors"
+    "testing"
+
+    "encore.dev/et"
+)
+
+func TestSignup(t *testing.T) {
+    err := Signup(context.Background(), &SignupParams { ... })
+    if err != nil {
+        // We don't expect an error here
+        t.Fatal(err)
+    }
+
+    if emailWasSent() {
+        // We don't expect an email to be sent
+        // as it's disabled for all tests
+        t.Fatal("email was sent")
+    }
+}
+
+func TestSignup_TestEmails(t *testing.T) {
+    // For this test, we want to enable the welcome
+    // emails so we can test that they are sent
+    et.SetCfg(cfg.SendEmails, true)
+
+    err := Signup(context.Background(), &SignupParams { ... })
+    if err != nil {
+        // We don't expect an error here
+        t.Fatal(err)
+    }
+
+    // Check the email was sent
+    if !emailWasSent() {
+        t.Fatal("email was not sent")
+    }
+}
+```
 
 ## Useful CUE Patterns
 
@@ -235,10 +316,6 @@ value is specified by prefixing it with a `*`.
 // will default to false.
 ReadOnlyMode: bool | *false
 
-// Because CUE allows circlular references, we can also write
-// this as
-ReadOnlyMode: ReadOnlyMode | *false
-
 if #Meta.Environment.Name == "old-prod" {
     // On this enviroment, we want to set ReadOnlyMode to true
     ReadOnlyMode: true
@@ -257,27 +334,27 @@ values unify, we can build complex validation logic.
 
 ```cue
 import (
-		"list" // import CUE's list package
+    "list" // import CUE's list package
 )
 
 // Set some port numbers defaulting just to 8080
 // but in development including 8443
-portNumbers: portNumbers | *[8080]
+portNumbers: [...int] | *[8080]
 if #Meta.Environment.Type == "development" {
     portNumbers: [8080, 8443]
 }
 
 // Port numbers must be an array and all values
-// are integers larger than 1024
-portNumbers: [...int & > 1024]
+// are integers 1024 or above.
+portNumbers: [...int & >= 1024]
 
-// We only expect _portsAreValid to be true
-_portsAreValid: true
-
-// But it will be also be false here if portNumbers
-// does not contain 8080, if that's the case CUE
-// will report an error of conflicting values.
+// The ports are considered valid if they contain the port number 8080.
 _portsAreValid: list.Contains(portNumbers, 8080)
+
+// Ensure that the ports are valid by constraining the value to be true.
+// CUE will report an error if the value is false (that is if the portNumbers list
+// does not contain the value 8080).
+_portsAreValid: true
 ```
 
 </Accordion>
@@ -307,7 +384,7 @@ SendEmailsFrom: [
 
 ### Using Map Keys as Values
 
-CUE allows us to extract map keys and use them as values to simply the config we need to write and minimise duplication.
+CUE allows us to extract map keys and use them as values to simply the config we need to write and minimize duplication.
 
 ```cue
 // Define the type we want to use

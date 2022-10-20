@@ -76,7 +76,7 @@ sections: [
 				],
 				 shortcuts: ["cron"]
 			},
-			{title: "Configuration", segment: "config"},
+			{title: "Configuration", segment: "config", shortcuts: ["config"]},
 			{title: "Secrets", segment: "secrets"},
 			{title: "PubSub", segment: "pubsub", shortcuts: ["pubsub"]},
 			{title: "Caching", segment: "caching", shortcuts: ["storage/cache"]},
@@ -96,7 +96,7 @@ sections: [
 		docs: [
 			{title: "Cloud Infrastructure", segment: "infra", old_paths: ["/docs/deploy/scaling", "/docs/concepts/scaling"]},
 			{title: "Environments", segment: "environments"},
-			{title: "Bring your own cloud", segment: "own-cloud"},
+			{title: "Connect your cloud account", segment: "own-cloud"},
 			{title: "Custom Domains", segment: "custom-domains"},
 			{title: "Security", segment: "security"},
 		]
