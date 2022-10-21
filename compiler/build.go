@@ -239,7 +239,7 @@ func (b *builder) endCodeGenTracker() error {
 // parseApp parses the app situated at appRoot.
 func (b *builder) parseApp() error {
 	modPath := filepath.Join(b.appRoot, "go.mod")
-	modData, err := ioutil.ReadFile(modPath)
+	modData, err := os.ReadFile(modPath)
 	if err != nil {
 		return err
 	}
@@ -348,11 +348,11 @@ func (b *builder) writeModFile() error {
 }
 
 func (b *builder) writeSumFile() error {
-	appSum, err := ioutil.ReadFile(filepath.Join(b.appRoot, "go.sum"))
+	appSum, err := os.ReadFile(filepath.Join(b.appRoot, "go.sum"))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	runtimeSum, err := ioutil.ReadFile(filepath.Join(b.cfg.EncoreRuntimePath, "go.sum"))
+	runtimeSum, err := os.ReadFile(filepath.Join(b.cfg.EncoreRuntimePath, "go.sum"))
 	if err != nil {
 		return err
 	}

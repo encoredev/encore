@@ -84,7 +84,7 @@ func parseDir(buildContext build.Context, fset *token.FileSet, dir, relPath stri
 	for _, d := range list {
 		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
 			filename := filepath.Join(dir, d.Name())
-			contents, err := ioutil.ReadFile(filename)
+			contents, err := os.ReadFile(filename)
 			if err != nil {
 				return nil, nil, err
 			}

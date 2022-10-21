@@ -233,7 +233,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 // parseApp parses the app and returns the parse result.
 func (r *Run) parseApp() (*parser.Result, error) {
 	modPath := filepath.Join(r.App.Root(), "go.mod")
-	modData, err := ioutil.ReadFile(modPath)
+	modData, err := os.ReadFile(modPath)
 	if err != nil {
 		return nil, err
 	}

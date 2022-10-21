@@ -131,7 +131,7 @@ func OriginalUser(configDir string) (cfg *Config, err error) {
 
 func readConf(configDir string) (*Config, error) {
 	path := filepath.Join(configDir, ".auth_token")
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

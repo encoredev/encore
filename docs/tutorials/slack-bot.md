@@ -181,7 +181,7 @@ import (
 // verifyRequest verifies that a request is coming from Slack.
 func verifyRequest(req *http.Request) (body []byte, err error) {
 	eb := errs.B().Code(errs.InvalidArgument)
-	body, err = ioutil.ReadAll(req.Body)
+	body, err = io.ReadAll(req.Body)
 	if err != nil {
 		return nil, eb.Cause(err).Err()
 	}

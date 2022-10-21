@@ -116,7 +116,7 @@ func TestMain(m *testing.M) {
 				return 1
 			}
 			modPath := filepath.Join(wd, "go.mod")
-			modData, err := ioutil.ReadFile(modPath)
+			modData, err := os.ReadFile(modPath)
 			if err != nil {
 				os.Stderr.WriteString(err.Error())
 				return 1

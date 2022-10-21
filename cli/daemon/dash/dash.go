@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -179,7 +178,7 @@ func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCal
 		log.Error().Err(err).Msg("dash: api call failed")
 		return reply(ctx, nil, err)
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 
 	// Encode the body back into a Go style struct

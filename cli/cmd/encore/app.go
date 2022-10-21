@@ -505,7 +505,7 @@ func slurpJSON(req *http.Request, respData interface{}) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("got non-200 response: %s: %s", resp.Status, body)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(respData); err != nil {
@@ -589,7 +589,7 @@ func addEncoreRemote(root, appID string) {
 func linkApp(appID string, force bool) {
 	root, _ := determineAppRoot()
 	filePath := filepath.Join(root, "encore.app")
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		fatal(err)
 		os.Exit(1)
