@@ -39,6 +39,9 @@ func ExtractFromPanic(recovered any) error {
 				return err.List
 			case interface{ Unwrap() error }:
 				unwrapped = err.Unwrap()
+			default:
+				// If we get here, it's not an errinsrc or error list, so return nil
+				return nil
 			}
 		}
 	}

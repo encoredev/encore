@@ -457,6 +457,8 @@ func (p *parser) parseReferences() {
 						// pubsub topic definitions are allowed outside of services
 					case est.CacheClusterDefNode:
 						// cache cluster definitions are allowed outside of services
+					case est.PubSubPublisherNode:
+						// we verify this inside the pubsub publisher parser
 					default:
 						p.errf(astNode.Pos(), "invalid reference outside of a service\n\tpackage %s is not considered a service (it has no APIs or pubsub subscribers defined)", pkg.Name)
 					}
@@ -589,7 +591,8 @@ func (p *parser) validateApp() {
 			}
 
 			for node, ref := range f.References {
-				if res := ref.Res; ref.Res != nil {
+				if res := ref.Res; ref.Res != nil &&
+					res.Type() != est.PubSubTopicResource { // PubSub topics are allow to be published to in global middleware, so it's ok to reference a topic outside a service
 					if ff := res.File(); ff.Pkg.Service != nil && (pkg.Service == nil || pkg.Service.Name != ff.Pkg.Service.Name) {
 						p.errf(node.Pos(), "cannot reference resource %s.%s outside the service", ff.Pkg.Name, res.Ident().Name)
 					}

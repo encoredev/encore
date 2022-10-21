@@ -8,6 +8,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func FromGoASTNodeWithTypeAndText(fileset *token.FileSet, node ast.Node, typ LocationType, text string) *SrcLocation {
+	loc := FromGoASTNode(fileset, node)
+	loc.Type = typ
+	loc.Text = text
+	return loc
+}
+
 // FromGoASTNode returns a SrcLocation from a Go AST node storing the start and end
 // locations of that node.
 func FromGoASTNode(fileset *token.FileSet, node ast.Node) *SrcLocation {

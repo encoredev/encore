@@ -8,6 +8,7 @@ import (
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/internal/walker"
+	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 // parseResources parses infrastructure resources declared in the packages.
@@ -149,27 +150,27 @@ func (p *parser) resourceFor(file *est.File, node ast.Expr) est.Resource {
 
 // parseResourceName checks the given node is a string literal, and then checks it conforms
 // to the DNS-1035 label spec:
-//  - lowercase alpha-numeric, dashes
-//  - must start and with a letter
-//  - must not end with a dash
-//  - must be between 1 and 63 characters long
+//   - lowercase alpha-numeric, dashes
+//   - must start and with a letter
+//   - must not end with a dash
+//   - must be between 1 and 63 characters long
 //
 // If an error is encountered, it will report a parse error and return an empty string
 // otherwise it will return the parsed resource name
 func (p *parser) parseResourceName(resourceType string, paramName string, node ast.Expr) string {
 	name, ok := litString(node)
 	if !ok {
-		p.errf(node.Pos(), "%s requires the %s to be a string literal, was given %s.", resourceType, paramName, prettyPrint(node))
+		p.errInSrc(srcerrors.ResourceNameNotStringLiteral(p.fset, node, resourceType, paramName))
 		return ""
 	}
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > dnsname.DNS1035LabelMaxLength {
-		p.errf(node.Pos(), "%s requires the %s to be between 1 and %d characters long.", resourceType, paramName, dnsname.DNS1035LabelMaxLength)
+		p.errInSrc(srcerrors.ResourceNameWrongLength(p.fset, node, resourceType, paramName, name))
 		return ""
 	}
 
 	if !dnsname.Dns1035LabelRegexp.MatchString(name) {
-		p.errf(node.Pos(), "%s requires the %s to be between \"kebab-case\". It must start with a letter, end with a letter or number and only contain lower case letters, numbers and dashes.", resourceType, paramName)
+		p.errInSrc(srcerrors.ResourceNameNotKebabCase(p.fset, node, resourceType, paramName, name))
 		return ""
 	}
 
