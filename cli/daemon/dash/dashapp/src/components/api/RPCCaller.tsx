@@ -273,9 +273,15 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
     const hasBody = rpcHasBody(md, rpc, method);
     const defaultMethod = hasBody ? "POST" : "GET";
     let cmd = "curl ";
-    if (method !== defaultMethod) {
+
+    if (method !== defaultMethod && method !== "*") {
       cmd += `-X ${method} `;
+    } else if (method === "*" && defaultMethod !== "GET") {
+      // If we have a wildcard endpoint we use the default method,
+      // unless it's GET in which case it's already implied.
+      cmd += `-X ${defaultMethod}`;
     }
+
     cmd += `'http://${addr ?? "localhost:4000"}${path}${queryString}'`;
 
     for (const header in headers) {
