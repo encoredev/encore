@@ -15,7 +15,7 @@ import (
 // The implementation must return a Response which then
 // becomes the API's response.
 //
-// Middleware processing forms a chain, where the first
+// GlobalMiddleware processing forms a chain, where the first
 // defined middleware is called first. The provided next
 // function is used to invoke the next middleware in the
 // chain, or the actual API handler if it's the last middleware.

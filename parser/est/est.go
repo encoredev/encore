@@ -163,6 +163,10 @@ func (p *PubSubSubscriber) AllowOnlyParsedUsage() bool { return true }
 
 type PubSubPublisher struct {
 	DeclFile *File // The file the publisher is declared in
+
+	// One of
+	Service          *Service    // The service the publisher is declared in
+	GlobalMiddleware *Middleware // The name of the middleware target
 }
 
 type Param struct {

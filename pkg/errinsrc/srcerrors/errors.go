@@ -469,3 +469,15 @@ func PubSubAttrInvalidTag(fileset *token.FileSet, node ast.Node, fieldName strin
 		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("try \"%s\"", fieldName[6:]))},
 	}, false)
 }
+
+func PubSubPublishInvalidLocation(fileset *token.FileSet, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:    35,
+		Title:   "Invalid PubSub publish",
+		Summary: "PubSub publish calls must be made in the either from within a service or from within a global middleware function",
+		Detail: combine(
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+	}, false)
+}

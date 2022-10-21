@@ -280,7 +280,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 	return subscription
 }
 
-func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {
+func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, c *walker.Cursor, callExpr *ast.CallExpr) {
 	topic, ok := resource.(*est.PubSubTopic)
 	if !ok {
 		// This is an internal error, so we panic rather than report an error
@@ -288,10 +288,24 @@ func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *wa
 		return
 	}
 
-	// Record the publisher
-	topic.Publishers = append(topic.Publishers, &est.PubSubPublisher{
+	publisher := &est.PubSubPublisher{
 		DeclFile: file,
-	})
+	}
+
+	if file.Pkg.Service == nil {
+		middleware := p.findContainingMiddlewareDefinition(c)
+		if middleware == nil || !middleware.Global {
+			p.errInSrc(srcerrors.PubSubPublishInvalidLocation(p.fset, callExpr))
+			panic("needs to be in a service or global middleware")
+		}
+
+		publisher.GlobalMiddleware = middleware
+	} else {
+		publisher.Service = file.Pkg.Service
+	}
+
+	// Record the publisher
+	topic.Publishers = append(topic.Publishers, publisher)
 
 	file.References[callExpr] = &est.Node{
 		Type: est.PubSubPublisherNode,
