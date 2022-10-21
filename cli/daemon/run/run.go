@@ -244,8 +244,14 @@ func (r *Run) parseApp() (*parser.Result, error) {
 
 	vcsRevision := vcs.GetRevision(r.App.Root())
 
+	experiments, err := r.App.ExperimentsEnabled(r.params.Environ)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &parser.Config{
 		AppRoot:                  r.App.Root(),
+		Experiments:              experiments,
 		AppRevision:              vcsRevision.Revision,
 		AppHasUncommittedChanges: vcsRevision.Uncommitted,
 		ModulePath:               mod.Module.Mod.Path,
@@ -286,6 +292,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 	var build *compiler.Result
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
+		experiments, err := r.App.ExperimentsEnabled(r.params.Environ)
 		//goland:noinspection HttpUrlsUsage
 		cfg := &compiler.Config{
 			Revision:              parse.Meta.AppRevision,
@@ -295,6 +302,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
 			EncoreRuntimePath:     env.EncoreRuntimePath(),
 			EncoreGoRoot:          env.EncoreGoRoot(),
+			Experiments:           experiments,
 			Meta: &cueutil.Meta{
 				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
 				EnvName:    "local",

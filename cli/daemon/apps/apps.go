@@ -16,6 +16,7 @@ import (
 
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/cli/internal/appfile"
+	"encr.dev/internal/experiment"
 )
 
 var ErrNotFound = errors.New("app not found")
@@ -277,6 +278,20 @@ func (i *Instance) PlatformOrLocalID() string {
 		return i.platformID
 	}
 	return i.localID
+}
+
+// ExperimentsEnabled returns the experiments enabled for this app
+//
+// Note: we read the app file here instead of a cached value so we
+// can detect changes between runs of the compiler if we're in
+// watch mode.
+func (i *Instance) ExperimentsEnabled(environ []string) (*experiment.Set, error) {
+	enabledExperiments, err := appfile.Experiments(i.root)
+	if err != nil {
+		return nil, err
+	}
+
+	return experiment.NewSet(enabledExperiments, environ), nil
 }
 
 func (i *Instance) Watch(fn WatchFunc) error {

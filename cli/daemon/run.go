@@ -24,6 +24,7 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/onboarding"
+	"encr.dev/internal/experiment"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
@@ -381,10 +382,16 @@ func (s *Server) parseApp(appRoot, workingDir string, parseTests bool) (*parser.
 		return nil, err
 	}
 
+	experimentalFeatures, err := appfile.Experiments(appRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	vcsRevision := vcs.GetRevision(appRoot)
 
 	cfg := &parser.Config{
 		AppRoot:                  appRoot,
+		Experiments:              experiment.NewSet(experimentalFeatures, nil),
 		AppRevision:              vcsRevision.Revision,
 		AppHasUncommittedChanges: vcsRevision.Uncommitted,
 		ModulePath:               mod.Module.Mod.Path,

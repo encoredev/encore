@@ -9,6 +9,7 @@ import (
 
 	"github.com/fatih/structtag"
 
+	"encr.dev/internal/experiment"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
@@ -17,45 +18,17 @@ import (
 )
 
 func init() {
-	registerResource(
-		est.PubSubTopicResource,
-		"pubsub topic",
-		"https://encore.dev/docs/develop/pubsub",
-		"pubsub",
-		"encore.dev/pubsub",
-	)
+	registerResource(est.PubSubTopicResource, "pubsub topic", "https://encore.dev/docs/develop/pubsub", "pubsub", "encore.dev/pubsub", experiment.None)
 
-	registerResourceCreationParser(
-		est.PubSubTopicResource,
-		"NewTopic", 1,
-		(*parser).parsePubSubTopic,
-		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-	)
+	registerResourceCreationParser(est.PubSubTopicResource, "NewTopic", 1, (*parser).parsePubSubTopic, experiment.None, locations.AllowedIn(locations.Variable).ButNotIn(locations.Function))
 
-	registerResourceUsageParser(
-		est.PubSubTopicResource,
-		"Publish",
-		(*parser).parsePubSubPublish,
-		locations.AllowedIn(locations.Function).ButNotIn(locations.InitFunction),
-	)
+	registerResourceUsageParser(est.PubSubTopicResource, "Publish", (*parser).parsePubSubPublish, experiment.None, locations.AllowedIn(locations.Function).ButNotIn(locations.InitFunction))
 
-	registerResource(
-		est.PubSubSubscriptionResource,
-		"pubsub subscription",
-		"https://encore.dev/docs/develop/pubsub",
-		"pubsub",
-		"encore.dev/pubsub",
-		est.PubSubTopicResource,
-	)
+	registerResource(est.PubSubSubscriptionResource, "pubsub subscription", "https://encore.dev/docs/develop/pubsub", "pubsub", "encore.dev/pubsub", experiment.None, est.PubSubTopicResource)
 
 	// NewSubscription can be called with 0 or 1 type parameter, so we register against both
 	for i := 0; i <= 1; i++ {
-		registerResourceCreationParser(
-			est.PubSubSubscriptionResource,
-			"NewSubscription", i,
-			(*parser).parsePubSubSubscription,
-			locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-		)
+		registerResourceCreationParser(est.PubSubSubscriptionResource, "NewSubscription", i, (*parser).parsePubSubSubscription, experiment.None, locations.AllowedIn(locations.Variable).ButNotIn(locations.Function))
 	}
 
 	registerStructTagParser(

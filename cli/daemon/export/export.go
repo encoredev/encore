@@ -22,8 +22,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/rs/zerolog"
 
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
+	"encr.dev/internal/experiment"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
@@ -41,6 +43,11 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 		return false, errors.Newf("unsupported format: %T", req.Format)
 	}
 
+	experimentalFeatures, err := appfile.Experiments(req.AppRoot)
+	if err != nil {
+		return false, errors.Wrap(err, "check experimental features")
+	}
+
 	vcsRevision := vcs.GetRevision(req.AppRoot)
 	cfg := &compiler.Config{
 		Revision:              vcsRevision.Revision,
@@ -55,6 +62,7 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 		GOOS:                  req.Goos,
 		GOARCH:                req.Goarch,
 		KeepOutput:            false,
+		Experiments:           experiment.NewSet(experimentalFeatures, nil),
 		Meta: &cueutil.Meta{
 			// Dummy data to satisfy config validation.
 			APIBaseURL: "http://localhost:0",

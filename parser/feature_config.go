@@ -3,6 +3,7 @@ package parser
 import (
 	"go/ast"
 
+	"encr.dev/internal/experiment"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
@@ -13,25 +14,11 @@ import (
 const configImportPath = "encore.dev/config"
 
 func init() {
-	registerResource(
-		est.ConfigResource,
-		"config",
-		"https://encore.dev/docs/develop/config",
-		"config",
-		configImportPath,
-	)
+	registerResource(est.ConfigResource, "config", "https://encore.dev/docs/develop/config", "config", configImportPath, experiment.None)
 
-	registerResourceCreationParser(
-		est.ConfigResource,
-		"Load", 1,
-		(*parser).parseConfigLoad,
-		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-	)
+	registerResourceCreationParser(est.ConfigResource, "Load", 1, (*parser).parseConfigLoad, experiment.None, locations.AllowedIn(locations.Variable).ButNotIn(locations.Function))
 
-	registerResourceReferenceParser(
-		est.ConfigResource,
-		(*parser).parseConfigReference,
-	)
+	registerResourceReferenceParser(est.ConfigResource, (*parser).parseConfigReference, experiment.None)
 
 	registerTypeResolver(configImportPath, (*parser).resolveConfigTypes)
 }

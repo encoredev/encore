@@ -7,26 +7,16 @@ import (
 
 	cronparser "github.com/robfig/cron/v3"
 
+	"encr.dev/internal/experiment"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
 )
 
 func init() {
-	registerResource(
-		est.CronJobResource,
-		"cron job",
-		"https://encore.dev/docs/develop/cron-jobs",
-		"cron",
-		cronImportPath,
-	)
+	registerResource(est.CronJobResource, "cron job", "https://encore.dev/docs/develop/cron-jobs", "cron", cronImportPath, experiment.None)
 
-	registerResourceCreationParser(
-		est.CronJobResource,
-		"NewJob", 0,
-		(*parser).parseCronJob,
-		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-	)
+	registerResourceCreationParser(est.CronJobResource, "NewJob", 0, (*parser).parseCronJob, experiment.None, locations.AllowedIn(locations.Variable).ButNotIn(locations.Function))
 }
 
 const (

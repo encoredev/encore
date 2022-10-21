@@ -21,6 +21,7 @@ import (
 
 	"encr.dev/compiler/internal/codegen"
 	"encr.dev/compiler/internal/cuegen"
+	"encr.dev/internal/experiment"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
@@ -89,6 +90,9 @@ type Config struct {
 
 	// OpTracker is an option tracker to output the progress to the UI
 	OpTracker *optracker.OpTracker
+
+	// Are experimental features of Encore switched on?
+	Experiments *experiment.Set
 }
 
 // Validate validates the config.
@@ -257,6 +261,7 @@ func (b *builder) parseApp() error {
 
 	cfg := &parser.Config{
 		AppRoot:                  b.appRoot,
+		Experiments:              b.cfg.Experiments,
 		AppRevision:              b.cfg.Revision,
 		AppHasUncommittedChanges: b.cfg.UncommittedChanges,
 		ModulePath:               b.modfile.Module.Mod.Path,

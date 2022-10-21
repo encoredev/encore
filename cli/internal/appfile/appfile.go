@@ -22,6 +22,11 @@ type File struct {
 	// ID is the encore.dev app id for the app.
 	// It is empty if the app is not linked to encore.dev.
 	ID string `json:"id"` // can be empty
+
+	// Enable experimental features in Encore.
+	// These are not guaranteed to be stable in either runtime behaviour
+	// or in API design. Do not use these features in production.
+	Experiments map[string]bool `json:"experiments,omitempty"`
 }
 
 // Parse parses the app file data into a File.
@@ -56,4 +61,14 @@ func Slug(appRoot string) (string, error) {
 		return "", err
 	}
 	return f.ID, nil
+}
+
+// Experiments returns true if the app has
+// opted into experimental features of Encore.
+func Experiments(appRoot string) (map[string]bool, error) {
+	f, err := ParseFile(filepath.Join(appRoot, Name))
+	if err != nil {
+		return nil, err
+	}
+	return f.Experiments, nil
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"encore.dev/storage/cache"
+	"encr.dev/internal/experiment"
 	"encr.dev/parser/encoding"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
@@ -53,29 +54,11 @@ var keyspaceConstructors = []cacheKeyspaceConstructor{
 }
 
 func init() {
-	registerResource(
-		est.CacheClusterResource,
-		"cache cluster",
-		"https://encore.dev/docs/develop/caching",
-		"cache",
-		"encore.dev/storage/cache",
-	)
+	registerResource(est.CacheClusterResource, "cache cluster", "https://encore.dev/docs/develop/caching", "cache", "encore.dev/storage/cache", experiment.None)
 
-	registerResourceCreationParser(
-		est.CacheClusterResource,
-		"NewCluster", 0,
-		(*parser).parseCacheCluster,
-		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-	)
+	registerResourceCreationParser(est.CacheClusterResource, "NewCluster", 0, (*parser).parseCacheCluster, experiment.None, locations.AllowedIn(locations.Variable).ButNotIn(locations.Function))
 
-	registerResource(
-		est.CacheKeyspaceResource,
-		"cache keyspace",
-		"https://encore.dev/docs/develop/caching",
-		"cache",
-		"encore.dev/storage/cache",
-		est.CacheClusterResource,
-	)
+	registerResource(est.CacheKeyspaceResource, "cache keyspace", "https://encore.dev/docs/develop/caching", "cache", "encore.dev/storage/cache", experiment.None, est.CacheClusterResource)
 
 	for _, constructor := range keyspaceConstructors {
 		numTypeArgs := 1 // always key type
@@ -83,12 +66,7 @@ func init() {
 			numTypeArgs++
 		}
 
-		registerResourceCreationParser(
-			est.CacheKeyspaceResource,
-			constructor.FuncName, numTypeArgs,
-			createKeyspaceParser(constructor),
-			locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-		)
+		registerResourceCreationParser(est.CacheKeyspaceResource, constructor.FuncName, numTypeArgs, createKeyspaceParser(constructor), experiment.None, locations.AllowedIn(locations.Variable).ButNotIn(locations.Function))
 	}
 }
 

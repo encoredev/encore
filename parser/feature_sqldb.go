@@ -5,26 +5,16 @@ import (
 	"reflect"
 	"strings"
 
+	"encr.dev/internal/experiment"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
 )
 
 func init() {
-	registerResource(
-		est.SQLDBResource,
-		"shared database",
-		"https://encore.dev/docs/how-to/share-db-between-services",
-		"sqldb",
-		sqldbImportPath,
-	)
+	registerResource(est.SQLDBResource, "shared database", "https://encore.dev/docs/how-to/share-db-between-services", "sqldb", sqldbImportPath, experiment.None)
 
-	registerResourceCreationParser(
-		est.SQLDBResource,
-		"Named", 0,
-		(*parser).parseNamedSQLDB,
-		locations.AllowedIn(locations.Variable).ButNotIn(locations.Function),
-	)
+	registerResourceCreationParser(est.SQLDBResource, "Named", 0, (*parser).parseNamedSQLDB, experiment.None, locations.AllowedIn(locations.Variable).ButNotIn(locations.Function))
 }
 
 func (p *parser) parseNamedSQLDB(file *est.File, _ *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {

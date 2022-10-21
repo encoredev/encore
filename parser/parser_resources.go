@@ -50,7 +50,7 @@ type resourceCreationVisitor struct {
 func (f *resourceCreationVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor) {
 	switch node := cursor.Node().(type) {
 	case *ast.CallExpr:
-		if parser := f.parserFor(node.Fun); parser != nil {
+		if parser := f.parserFor(node.Fun); parser != nil && f.p.IsEnabled(parser.Experiment) {
 			if parser.AllowedLocations.Allowed(cursor.Location()) {
 				// Identify the variable name from the value spec
 				var ident *ast.Ident
@@ -108,7 +108,7 @@ func (f *resourceCreationVisitor) Visit(cursor *walker.Cursor) (w walker.Visitor
 		// If we find a selector (`a.foo`) an index (`a.foo[bar]`) or an index list (`a.foo[bar, baz]`)
 		// then we want to check if that references a resource creation function and if so
 		// report an error, as all valid usages should already have been parsed and returned
-		if parser := f.parserFor(node); parser != nil {
+		if parser := f.parserFor(node); parser != nil && f.p.IsEnabled(parser.Experiment) {
 			f.p.errf(node.Pos(), "%s.%s can only be called as a function to create a new instance and not referenced otherwise. For more information see %s", parser.Resource.PkgName, parser.Name, parser.Resource.Docs)
 			return nil
 		}
@@ -121,7 +121,7 @@ func (f *resourceCreationVisitor) parserFor(node ast.Node) *resourceCreatorParse
 	pkgPath, objName, typeArgs := f.names.PackageLevelRef(f.file, node)
 	if pkgPath != "" && objName != "" {
 		if packageResources, found := resourceCreationRegistry[pkgPath]; found {
-			if parser, found := packageResources[funcIdent{objName, len(typeArgs)}]; found {
+			if parser, found := packageResources[funcIdent{objName, len(typeArgs)}]; found && f.p.IsEnabled(parser.Experiment) {
 				if parser.Resource.PhaseNum == f.phaseNum {
 					return parser
 				}

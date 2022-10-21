@@ -27,6 +27,7 @@ import (
 	"encr.dev/compiler"
 	"encr.dev/internal/clientgen"
 	"encr.dev/internal/env"
+	"encr.dev/internal/experiment"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/golden"
 )
@@ -614,7 +615,8 @@ func testBuild(c *qt.C, appRoot string) *compiler.Result {
 			EnvType:    cueutil.EnvType_Development,
 			CloudType:  cueutil.CloudType_Local,
 		},
-		BuildTags: []string{"encore_local"},
+		Experiments: experiment.NewSet(nil, nil),
+		BuildTags:   []string{"encore_local"},
 	})
 	if err != nil {
 		fmt.Println(err.Error())

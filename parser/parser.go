@@ -18,6 +18,7 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 
+	"encr.dev/internal/experiment"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
@@ -73,6 +74,7 @@ type parser struct {
 // TODO(domblack): Remove AppRevision and AppHasUncommittedChanges from here as it's compiler concern not a parser concern
 type Config struct {
 	AppRoot                  string
+	Experiments              *experiment.Set
 	AppRevision              string
 	AppHasUncommittedChanges bool
 	ModulePath               string
