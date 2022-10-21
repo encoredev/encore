@@ -283,7 +283,7 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCE
 // However, any nested structs may still contain generic types.
 //
 // If a nil schema is provided, a nil struct is returned.
-func GetConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []*schema.Type) (*schema.Struct, error) {
+func GetConcreteStructType(appDecls []*schema.Decl, typ *schema.Type, typeArgs []*schema.Type) (*schema.Struct, error) {
 	// dereference pointers
 	pointer := typ.GetPointer()
 	for pointer != nil {
@@ -291,7 +291,7 @@ func GetConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []
 		pointer = typ.GetPointer()
 	}
 
-	typ, err := GetConcreteType(appMetaData, typ, typeArgs)
+	typ, err := GetConcreteType(appDecls, typ, typeArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ func GetConcreteStructType(appMetaData *meta.Data, typ *schema.Type, typeArgs []
 // However, any nested types may still contain generic types.
 //
 // If a nil schema is provided, a nil is returned.
-func GetConcreteType(appMetaData *meta.Data, originalType *schema.Type, typeArgs []*schema.Type) (*schema.Type, error) {
+func GetConcreteType(appDecls []*schema.Decl, originalType *schema.Type, typeArgs []*schema.Type) (*schema.Type, error) {
 	if originalType == nil {
 		// If there's no schema type, we want to shortcut
 		return nil, nil
@@ -377,7 +377,7 @@ func GetConcreteType(appMetaData *meta.Data, originalType *schema.Type, typeArgs
 		}
 
 		var err error
-		pointer.Base, err = GetConcreteType(appMetaData, pointer.Base, typeArgs)
+		pointer.Base, err = GetConcreteType(appDecls, pointer.Base, typeArgs)
 		if err != nil {
 			return nil, err
 		}
@@ -401,8 +401,8 @@ func GetConcreteType(appMetaData *meta.Data, originalType *schema.Type, typeArgs
 		return resolveTypeParams(&schema.Type{Typ: &schema.Type_Config{Config: config}}, typeArgs), nil
 
 	case *schema.Type_Named:
-		decl := appMetaData.Decls[typ.Named.Id]
-		return GetConcreteType(appMetaData, decl.Type, typ.Named.TypeArguments)
+		decl := appDecls[typ.Named.Id]
+		return GetConcreteType(appDecls, decl.Type, typ.Named.TypeArguments)
 
 	case *schema.Type_Builtin:
 		return originalType, nil
@@ -484,7 +484,7 @@ func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Opti
 		return nil, errors.Newf("unsupported auth parameter type %T", errors.Safe(t))
 	}
 
-	authStruct, err := GetConcreteStructType(appMetaData, authSchema, nil)
+	authStruct, err := GetConcreteStructType(appMetaData.Decls, authSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "auth struct")
 	}
@@ -507,7 +507,7 @@ func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, optio
 	if responseSchema == nil {
 		return nil, nil
 	}
-	responseStruct, err := GetConcreteStructType(appMetaData, responseSchema, nil)
+	responseStruct, err := GetConcreteStructType(appMetaData.Decls, responseSchema, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "response struct")
 	}
@@ -553,7 +553,7 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options
 	var requestStruct *schema.Struct
 	var err error
 	if requestSchema != nil {
-		requestStruct, err = GetConcreteStructType(appMetaData, requestSchema, nil)
+		requestStruct, err = GetConcreteStructType(appMetaData.Decls, requestSchema, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "request struct")
 		}
