@@ -132,8 +132,8 @@ func GetFurthestAncestor[T ast.Node](cursor *Cursor) T {
 	}
 }
 
-// getAncestor returns true if the current node has an ancestor of the given type and the index
-// into the parents slice where it was found.
+// getAncestor checks if the current node has an ancestor of the given type and returns
+// that ancestor and the index into the parents slice where it was found.
 func getAncestor[T ast.Node](cursor *Cursor, startIdx int) (T, int) {
 	for i := startIdx; i < len(cursor.parents); i++ {
 		if val, ok := cursor.parents[i].(T); ok {

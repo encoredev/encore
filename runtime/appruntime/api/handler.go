@@ -208,7 +208,7 @@ func (d *Desc[Req, Resp]) invokeHandlerRaw(mwReq middleware.Request, c IncomingC
 		panic("invokeHandlerRaw called on non-Raw endpoint")
 	}
 
-	// GlobalMiddleware can override the context, so check if the context is different
+	// Middleware can override the context, so check if the context is different
 	// and if so change the request context.
 	httpReq := c.req
 	if ctx := mwReq.Context(); ctx != c.req.Context() {

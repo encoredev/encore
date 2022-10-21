@@ -13,7 +13,6 @@ import (
 	"strconv"
 
 	"encr.dev/parser/est"
-	"encr.dev/parser/selector"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -51,18 +50,12 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		pkgMap[p.RelPath] = p
 	}
 
-	selectorMap := newSelectorMap()
-
 	for _, svc := range app.Services {
 		s, err := parseSvc(appRoot, svc)
 		if err != nil {
 			return nil, nil, err
 		}
 		data.Svcs = append(data.Svcs, s)
-
-		for _, rpc := range svc.RPCs {
-			selectorMap.TrackRPC(rpc)
-		}
 	}
 
 	// Populate rpc calls based on rewrite information
@@ -97,8 +90,9 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.CronJobs = append(data.CronJobs, cj)
 	}
 
+	selectors := app.SelectorLookup()
 	for _, topic := range app.PubSubTopics {
-		t := parsePubsubTopic(topic, selectorMap)
+		t := parsePubsubTopic(topic, selectors)
 		data.PubsubTopics = append(data.PubsubTopics, t)
 	}
 
@@ -118,14 +112,14 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 	return data, nodes, nil
 }
 
-func parsePubsubTopic(topic *est.PubSubTopic, selectorMap *selectorMap) *meta.PubSubTopic {
+func parsePubsubTopic(topic *est.PubSubTopic, selectors *est.SelectorLookup) *meta.PubSubTopic {
 	parsePublisher := func(pubs ...*est.PubSubPublisher) (rtn []*meta.PubSubTopic_Publisher) {
 		for _, p := range pubs {
 			switch {
 			case p.Service != nil:
 				rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.Service.Name})
 			case p.GlobalMiddleware != nil:
-				for _, svc := range selectorMap.GetServices(p.GlobalMiddleware.Target) {
+				for _, svc := range selectors.GetServices(p.GlobalMiddleware.Target) {
 					rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: svc.Name})
 				}
 			default:
@@ -588,49 +582,4 @@ func sortedRefs(refs map[ast.Node]*est.Node) []refPair {
 		return p[i].AST.Pos() < p[j].AST.Pos()
 	})
 	return p
-}
-
-type selectorMap struct {
-	services map[selector.Selector]map[*est.Service]struct{}
-	rpcs     map[selector.Selector]map[*est.RPC]struct{}
-}
-
-func newSelectorMap() *selectorMap {
-	return &selectorMap{
-		services: make(map[selector.Selector]map[*est.Service]struct{}),
-		rpcs:     make(map[selector.Selector]map[*est.RPC]struct{}),
-	}
-}
-
-func (sm *selectorMap) recordRPC(s selector.Selector, rpc *est.RPC) {
-	if sm.rpcs[s] == nil {
-		sm.rpcs[s] = make(map[*est.RPC]struct{})
-	}
-	sm.rpcs[s][rpc] = struct{}{}
-
-	if sm.services[s] == nil {
-		sm.services[s] = make(map[*est.Service]struct{})
-	}
-	sm.services[s][rpc.Svc] = struct{}{}
-}
-
-func (sm *selectorMap) TrackRPC(rpc *est.RPC) {
-	// Track against all
-	sm.recordRPC(selector.Selector{Type: selector.All}, rpc)
-
-	// Track against any defined tags
-	for _, s := range rpc.Tags {
-		sm.recordRPC(s, rpc)
-	}
-}
-
-func (sm *selectorMap) GetServices(targets selector.Set) (rtn []*est.Service) {
-	for _, s := range targets {
-		if services, found := sm.services[s]; found {
-			for svc := range services {
-				rtn = append(rtn, svc)
-			}
-		}
-	}
-	return
 }

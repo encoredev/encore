@@ -296,7 +296,6 @@ func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, c *wa
 		middleware := p.findContainingMiddlewareDefinition(c)
 		if middleware == nil || !middleware.Global {
 			p.errInSrc(srcerrors.PubSubPublishInvalidLocation(p.fset, callExpr))
-			panic("needs to be in a service or global middleware")
 		}
 
 		publisher.GlobalMiddleware = middleware
