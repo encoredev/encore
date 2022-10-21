@@ -44,7 +44,7 @@ func (s *service) countNamedUsagesAndCollectImports(typ *schema.Type) error {
 }
 
 func (s *service) registerTopLevelField(typ *schema.Type) error {
-	concrete, err := encoding.GetConcreteStructType(s.g.res.Meta, typ, nil)
+	concrete, err := encoding.GetConcreteStructType(s.g.res.Meta.Decls, typ, nil)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (s *service) generateCue() error {
 	for _, named := range s.typeUsage.NamesWithCountsOver(1) {
 		namedType := &schema.Type{Typ: &schema.Type_Named{Named: named}}
 		decl := s.g.res.Meta.Decls[named.Id]
-		concrete, err := encoding.GetConcreteType(s.g.res.Meta, namedType, nil)
+		concrete, err := encoding.GetConcreteType(s.g.res.Meta.Decls, namedType, nil)
 		if err != nil {
 			return err
 		}
@@ -268,7 +268,7 @@ func (s *service) toCueType(unknownType *schema.Type) (ast.Expr, error) {
 		usageCount := s.typeUsage.Count(typ.Named)
 		if usageCount <= 1 {
 			// inline the type if it's only used once
-			concrete, err := encoding.GetConcreteType(s.g.res.Meta, unknownType, nil)
+			concrete, err := encoding.GetConcreteType(s.g.res.Meta.Decls, unknownType, nil)
 			if err != nil {
 				return nil, err
 			}
