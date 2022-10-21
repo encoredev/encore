@@ -90,8 +90,9 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.CronJobs = append(data.CronJobs, cj)
 	}
 
+	selectors := app.SelectorLookup()
 	for _, topic := range app.PubSubTopics {
-		t := parsePubsubTopic(topic)
+		t := parsePubsubTopic(topic, selectors)
 		data.PubsubTopics = append(data.PubsubTopics, t)
 	}
 
@@ -111,10 +112,19 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 	return data, nodes, nil
 }
 
-func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
+func parsePubsubTopic(topic *est.PubSubTopic, selectors *est.SelectorLookup) *meta.PubSubTopic {
 	parsePublisher := func(pubs ...*est.PubSubPublisher) (rtn []*meta.PubSubTopic_Publisher) {
 		for _, p := range pubs {
-			rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.DeclFile.Pkg.Service.Name})
+			switch {
+			case p.Service != nil:
+				rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.Service.Name})
+			case p.GlobalMiddleware != nil:
+				for _, svc := range selectors.GetServices(p.GlobalMiddleware.Target) {
+					rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: svc.Name})
+				}
+			default:
+				panic("impossible publish without a service or middleware reference")
+			}
 		}
 		return rtn
 	}

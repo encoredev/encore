@@ -1,5 +1,5 @@
 ! parse
-stderr 'pubsub.NewTopic requires the topic name to be between "kebab-case". It must start with a letter,'
+stderr 'The pubsub.NewTopic must be topic name be defined in "kebab-case"'
 
 -- svc/svc.go --
 package svc

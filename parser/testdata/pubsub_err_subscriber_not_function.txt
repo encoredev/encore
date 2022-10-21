@@ -1,5 +1,5 @@
 ! parse
-stderr 'The function passed to `pubsub.NewSubscription` must be declared in the same service. Currently the'
+stderr 'The function passed to `pubsub.NewSubscription` must be declared in the the same service'
 
 -- svc/svc.go --
 package svc
