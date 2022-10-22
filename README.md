@@ -1,4 +1,4 @@
-  <img width="1500px" src="https://encore.dev/assets//branding/github_header.png" alt="Encore - Backend development engine">
+  <a href="https://encore.dev" ><img width="1500px" src="https://encore.dev/assets//branding/github_header.png" alt="Encore - Backend development engine"></a>
   <h1><a href="https://encore.dev">Encore – Backend Development Engine</a></h1>
 Encore is a Backend Development Engine, purpose-built for a flow state developer experience when creating cloud-based backend applications, APIs, and distributed systems using Go. With Encore you build microservices with the same simple developer experience as building a monolith. You write your business logic with the Open Source Encore Go framework, then let the Encore platform analyze your code to automatically deal with the rest.
 Start building today and unlock your creative potential with:</br>
