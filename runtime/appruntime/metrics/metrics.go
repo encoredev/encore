@@ -13,7 +13,7 @@ func NewManager(exp Exporter) *Manager {
 }
 
 func (m *Manager) ReqBegin(service, endpoint string) {
-	m.exp.IncCounter("e_requests_total", service, endpoint)
+	m.exp.IncCounter("e_requests_total", "service", service, "endpoint", endpoint)
 }
 
 func (m *Manager) ReqEnd(service, endpoint, code string, durSecs float64) {
@@ -21,5 +21,5 @@ func (m *Manager) ReqEnd(service, endpoint, code string, durSecs float64) {
 }
 
 func (m *Manager) UnknownEndpoint(service, endpoint string) {
-	m.exp.IncCounter("e_requests_unknown_endpoint_total", service, endpoint)
+	m.exp.IncCounter("e_requests_unknown_endpoint_total", "service", service, "endpoint", endpoint)
 }
