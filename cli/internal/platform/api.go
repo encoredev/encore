@@ -77,8 +77,9 @@ type ExchangeOAuthTokenParams struct {
 
 type OAuthData struct {
 	Token   *oauth2.Token `json:"token"`
-	Email   string        `json:"email"`    // empty if logging in as an app
-	AppSlug string        `json:"app_slug"` // empty if logging in as a user
+	Actor   string        `json:"actor,omitempty"` // The ID of the user or app that authorized the token.
+	Email   string        `json:"email"`           // empty if logging in as an app
+	AppSlug string        `json:"app_slug"`        // empty if logging in as a user
 }
 
 func ExchangeOAuthToken(ctx context.Context, p *ExchangeOAuthTokenParams) (*OAuthData, error) {
