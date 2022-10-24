@@ -32,9 +32,19 @@ func NewAWSMetricsExporter(appSlug string, logger zerolog.Logger) *AWSMetricsExp
 func (e *AWSMetricsExporter) IncCounter(name string, tags ...string) {
 	// See comment above.
 	if len(tags) > 6 {
-		panic("emitting counter metric with more than 3 dimensions is not supported")
+		panic("emitting metric with more than 3 dimensions is not supported")
 	}
 
 	name = fmt.Sprintf("%s_%s", e.metricPrefix, name)
 	logCounter(e.logger, name, tags...)
+}
+
+func (e *AWSMetricsExporter) Observe(name string, key string, value float64, tags ...string) {
+	// See comment above.
+	if len(tags) > 6 {
+		panic("emitting metric with more than 3 dimensions is not supported")
+	}
+
+	name = fmt.Sprintf("%s_%s", e.metricPrefix, name)
+	logValue(e.logger, name, key, value, tags...)
 }

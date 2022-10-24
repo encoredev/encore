@@ -137,11 +137,9 @@ func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
 		if httpStatus != 0 {
 			code := errs.HTTPStatusToCode(httpStatus).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", httpStatus).Msg("request completed")
-			// TODO: Emit request duration metric
 		} else {
 			code := errs.Code(err).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Msg("request completed")
-			// TODO: Emit request duration metric
 		}
 	}
 
@@ -150,6 +148,7 @@ func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
 	}
 
 	s.rt.FinishRequest()
+	s.metrics.ReqEnd(req.Service, req.Endpoint, err, httpStatus, dur.Milliseconds())
 }
 
 type CallOptions struct {
