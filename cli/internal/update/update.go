@@ -1,6 +1,7 @@
 package update
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,6 +18,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
+	"encr.dev/internal/conf"
 	"encr.dev/internal/version"
 )
 
@@ -38,10 +40,23 @@ func Check(ctx context.Context) (latestVersion *LatestVersion, err error) {
 
 	// Filter the request down to the release for the current version.
 	qry := releaseAPI.Query()
+
+	// These three are used to determine the latest release for the given channel, os and arch
 	qry.Set("channel", string(version.Channel))
-	qry.Set("current", version.Version)
 	qry.Set("os", runtime.GOOS)
 	qry.Set("arch", runtime.GOARCH)
+
+	// This is used to determine if the returned release contains security updates not present
+	// in the currently running version of Encore, as well as if we need to force an upgrade
+	// on the user due to a critical security issue.
+	qry.Set("current", version.Version)
+
+	// For specific app ID's or user ID's we can provide pre-releases to them
+	// Mainly used if they've encountered a bug and we need to get them a fix asap for testing
+	if cfg, err := conf.CurrentUser(); err == nil && cfg != nil {
+		qry.Set("actor", cfg.Actor)
+	}
+
 	releaseAPI.RawQuery = qry.Encode()
 
 	// url := "https://encore.dev/api/releases"
@@ -132,6 +147,19 @@ func (lv *LatestVersion) IsNewer(current string) bool {
 //
 // Adapted from flyctl: https://github.com/superfly/flyctl
 func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
+	// What shell do we need to run?
+	arg := "-c"
+	shell, ok := os.LookupEnv("SHELL")
+	if !ok {
+		//goland:noinspection GoBoolExpressions
+		if runtime.GOOS == "windows" {
+			shell = "powershell.exe"
+			arg = "-Command"
+		} else {
+			shell = "/bin/bash"
+		}
+	}
+
 	// Base script for *nix systems
 	script := "curl -L \"https://encore.dev/install.sh\" | sh"
 
@@ -142,8 +170,8 @@ func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
 	case "windows":
 		script = "iwr https://encore.dev/install.ps1 -useb | iex"
 	case "darwin", "linux":
-		// Install via homebrew if we can
-		if _, err := exec.LookPath("brew"); err == nil {
+		// Upgrade via homebrew if we can
+		if wasInstalledViaHomebrew(shell, arg, lv.Channel) {
 			brewManaged = true
 			script = "brew upgrade encore"
 		}
@@ -165,17 +193,6 @@ func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
 		return fmt.Errorf("unknown release channel %s", lv.Channel)
 	}
 
-	arg := "-c"
-	shell, ok := os.LookupEnv("SHELL")
-	if !ok {
-		//goland:noinspection GoBoolExpressions
-		if runtime.GOOS == "windows" {
-			shell = "powershell.exe"
-			arg = "-Command"
-		} else {
-			shell = "/bin/bash"
-		}
-	}
 	fmt.Println("Running update [" + script + "]")
 	cmd := exec.Command(shell, arg, script)
 
@@ -203,4 +220,25 @@ func nightlyToNumber(version string) int64 {
 	}
 
 	return date
+}
+
+func wasInstalledViaHomebrew(shell string, arg string, channel version.ReleaseChannel) bool {
+	if _, err := exec.LookPath("brew"); err != nil {
+		return false
+	}
+
+	formulaName := "encore"
+	if channel == version.Nightly {
+		formulaName = "encore-nightly"
+	}
+
+	buf := new(bytes.Buffer)
+	cmd := exec.Command(shell, arg, fmt.Sprintf("brew list %s -1", formulaName))
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+	cmd.Stdin = os.Stdin
+
+	// No error means it was installed via homebrew, error means homebrew doesn't know about it
+	// or isn't installed
+	return cmd.Run() == nil
 }
