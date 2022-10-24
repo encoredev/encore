@@ -20,7 +20,7 @@ type SubCfgType[T any] struct {
 	MaxCount T
 }
 
-var cfg = config.Load[CfgType[uint]]()
+var cfg = config.Load[*CfgType[uint]]()
 
 type ConfigResponse struct {
 	ReadOnlyMode bool

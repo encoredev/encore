@@ -110,7 +110,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 				var buf bytes.Buffer
 				buf.WriteString(strconv.Quote(pkg.Service.Name))
 				buf.WriteString(", ")
-				buf.WriteString(codegen.ConfigUnmarshalFuncName(res.ConfigStruct.Type, b.res.Meta))
+				buf.WriteString(codegen.ConfigUnmarshalFuncName(res.ConfigStruct, b.res.Meta))
 				ep := fset.Position(res.FuncCall.Rparen)
 				_, _ = fmt.Fprintf(&buf, "/*line :%d:%d*/", ep.Line, ep.Column)
 				rw.Replace(res.FuncCall.Lparen+1, res.FuncCall.Rparen, buf.Bytes())

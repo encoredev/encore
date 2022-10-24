@@ -62,7 +62,7 @@ type Cfg struct {
 
 var _ = config.Load[Cfg]()
 
-var _ = config.Load[Optional[bool]]()
+var _ = config.Load[*Optional[bool]]()
 
 //encore:api public
 func One(ctx context.Context) error {

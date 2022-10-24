@@ -1541,10 +1541,21 @@ calls to config.Load[T]().
 // Concrete unmarshalers for all config.Load calls, including those using generic types.
 // These instances are used directly by calls to `config.Load[T]()`.
 var (
-	encoreInternalConfigUnmarshaler_Cfg            = encoreInternalTypeConfigUnmarshaler_Cfg
-	encoreInternalConfigUnmarshaler_Optional_bool_ = encoreInternalTypeConfigUnmarshaler_Optional[bool](func(itr *jsoniter.Iterator, path []string) bool {
-		return itr.ReadBool()
-	})
+	encoreInternalConfigUnmarshaler_Cfg                = encoreInternalTypeConfigUnmarshaler_Cfg
+	encoreInternalConfigUnmarshaler_ptr_Optional_bool_ = func(itr *jsoniter.Iterator, path []string) *Optional[bool] {
+		return func() *Optional[bool] {
+			// If the value is null, we return nil
+			if itr.ReadNil() {
+				return nil
+			}
+
+			// Otherwise we unmarshal the value and return a pointer to it
+			obj := encoreInternalTypeConfigUnmarshaler_Optional[bool](func(itr *jsoniter.Iterator, path []string) bool {
+				return itr.ReadBool()
+			})(itr, append(path))
+			return &obj
+		}()
+	}
 )
 
 // encoreInternalTypeConfigUnmarshaler_FooParams will unmarshal the JSON representation into the given type, taking account for

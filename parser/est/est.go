@@ -179,6 +179,19 @@ func (p *Param) IsPointer() bool {
 	return p.IsPtr || p.Type.GetPointer() != nil
 }
 
+// GetWithPointer ensures that if the parameter is marked as a pointer
+// you get the pointer schema.type back
+func (p *Param) GetWithPointer() *schema.Type {
+	// If the parameter is a pointer, but the schema isn't a pointer, then
+	// we need to update the typ to a pointer so that the unmarshaler generates as the
+	// correct type
+	typ := p.Type
+	if p.IsPtr && typ.GetPointer() == nil {
+		typ = &schema.Type{Typ: &schema.Type_Pointer{Pointer: &schema.Pointer{Base: typ}}}
+	}
+	return typ
+}
+
 type AccessType string
 
 const (
