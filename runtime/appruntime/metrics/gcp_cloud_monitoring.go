@@ -1,9 +1,6 @@
 package metrics
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/rs/zerolog"
 )
 
@@ -16,16 +13,11 @@ import (
 // only, the code panics if the caller passes in more than three dimensions.
 
 type GCPMetricsExporter struct {
-	metricPrefix string
-	logger       zerolog.Logger
+	logger zerolog.Logger
 }
 
-func NewGCPMetricsExporter(appSlug string, logger zerolog.Logger) *GCPMetricsExporter {
-	metricPrefix := strings.Replace(appSlug, "-", "_", 1)
-	return &GCPMetricsExporter{
-		metricPrefix: metricPrefix,
-		logger:       logger,
-	}
+func NewGCPMetricsExporter(logger zerolog.Logger) *GCPMetricsExporter {
+	return &GCPMetricsExporter{logger: logger}
 }
 
 func (e *GCPMetricsExporter) IncCounter(name string, tags ...string) {
@@ -34,7 +26,6 @@ func (e *GCPMetricsExporter) IncCounter(name string, tags ...string) {
 		panic("emitting metric with more than 3 dimensions is not supported")
 	}
 
-	name = fmt.Sprintf("%s_%s", e.metricPrefix, name)
 	logCounter(e.logger, name, tags...)
 }
 
@@ -44,6 +35,5 @@ func (e *GCPMetricsExporter) Observe(name string, key string, value float64, tag
 		panic("emitting metric with more than 3 dimensions is not supported")
 	}
 
-	name = fmt.Sprintf("%s_%s", e.metricPrefix, name)
 	logValue(e.logger, name, key, value, tags...)
 }

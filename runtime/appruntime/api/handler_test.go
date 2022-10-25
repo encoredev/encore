@@ -87,7 +87,7 @@ func TestDesc_EndToEnd(t *testing.T) {
 		Runtime: &config.Runtime{},
 	}
 	logger := zerolog.New(os.Stdout)
-	metrics := metrics.NewManager(metrics.NewTestMetricsExporter("", logger))
+	metrics := metrics.NewManager(metrics.NewTestMetricsExporter(logger))
 	rt := reqtrack.New(logger, nil, false)
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	encoreMgr := encore.NewManager(cfg, rt)

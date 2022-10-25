@@ -1,9 +1,6 @@
 package metrics
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/rs/zerolog"
 )
 
@@ -17,16 +14,11 @@ import (
 // defined in this file.
 
 type AWSMetricsExporter struct {
-	metricPrefix string
-	logger       zerolog.Logger
+	logger zerolog.Logger
 }
 
-func NewAWSMetricsExporter(appSlug string, logger zerolog.Logger) *AWSMetricsExporter {
-	metricPrefix := strings.Replace(appSlug, "-", "_", 1)
-	return &AWSMetricsExporter{
-		metricPrefix: metricPrefix,
-		logger:       logger,
-	}
+func NewAWSMetricsExporter(logger zerolog.Logger) *AWSMetricsExporter {
+	return &AWSMetricsExporter{logger: logger}
 }
 
 func (e *AWSMetricsExporter) IncCounter(name string, tags ...string) {
@@ -35,7 +27,6 @@ func (e *AWSMetricsExporter) IncCounter(name string, tags ...string) {
 		panic("emitting metric with more than 3 dimensions is not supported")
 	}
 
-	name = fmt.Sprintf("%s_%s", e.metricPrefix, name)
 	logCounter(e.logger, name, tags...)
 }
 
@@ -45,6 +36,5 @@ func (e *AWSMetricsExporter) Observe(name string, key string, value float64, tag
 		panic("emitting metric with more than 3 dimensions is not supported")
 	}
 
-	name = fmt.Sprintf("%s_%s", e.metricPrefix, name)
 	logValue(e.logger, name, key, value, tags...)
 }
