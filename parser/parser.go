@@ -606,10 +606,16 @@ func (p *parser) validateApp() {
 		for _, f := range pkg.Files {
 			astutil.Apply(f.AST, func(c *astutil.Cursor) bool {
 				node := c.Node()
-				if ref, ok := f.References[node]; ok && ref.Type == est.RPCRefNode && !p.validRPCReferences[node] {
-					if call, isCall := c.Parent().(*ast.CallExpr); !isCall || call.Fun != node {
-						rpc := ref.RPC
-						p.errf(node.Pos(), "cannot reference API endpoint %s.%s without calling it", rpc.Svc.Name, rpc.Name)
+				if ref, ok := f.References[node]; ok && ref.Type == est.RPCRefNode {
+					rpc := ref.RPC
+					if !p.validRPCReferences[node] {
+						if call, isCall := c.Parent().(*ast.CallExpr); !isCall || call.Fun != node {
+							p.errf(node.Pos(), "cannot reference API endpoint %s.%s without calling it", rpc.Svc.Name, rpc.Name)
+						}
+					}
+					if rpc.Raw {
+						p.errf(node.Pos(), "calling raw API endpoint %s.%s from another endpoint is not yet supported",
+							rpc.Svc.Name, rpc.Name)
 					}
 				}
 				return true
