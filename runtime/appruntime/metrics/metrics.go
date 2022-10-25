@@ -45,7 +45,3 @@ func (m *Manager) ReqEnd(service, endpoint string, err error, httpStatus int, du
 		"status_code", strconv.Itoa(httpStatus),
 	)
 }
-
-func (m *Manager) UnknownEndpoint(service, endpoint string) {
-	m.exp.IncCounter("e_requests_unknown_endpoint_total", "service", service, "endpoint", endpoint)
-}

@@ -202,8 +202,6 @@ func (s *Server) Shutdown(force context.Context) {
 }
 
 func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
-	ep := strings.TrimPrefix(req.URL.Path, "/")
-
 	// Select a router based on access
 	r := s.public
 
@@ -249,11 +247,6 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Endpoint not found
-	svc, endpoint := "unknown", "Unknown"
-	if idx := strings.IndexByte(ep, '.'); idx != -1 {
-		svc, endpoint = ep[:idx], ep[idx+1:]
-	}
-	s.metrics.UnknownEndpoint(svc, endpoint)
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 
