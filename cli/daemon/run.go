@@ -100,7 +100,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	newVer := s.availableUpdate()
 
 	// If force upgrade has been enabled, we force the upgrade now before we try and run the app
-	if newVer.ForceUpgrade {
+	if newVer != nil && newVer.ForceUpgrade {
 		_, _ = fmt.Fprintf(stderr, aurora.Red("An urgent security update for Encore is available.").String()+"\n")
 		if newVer.SecurityNotes != "" {
 			_, _ = fmt.Fprintf(stderr, aurora.Sprintf(aurora.Yellow("%s"), newVer.SecurityNotes)+"\n")
