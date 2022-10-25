@@ -67,8 +67,12 @@ func (b *Builder) encoreGenRPC(f *File, ss *est.ServiceStruct, rpc *est.RPC, wit
 		g.Id(ctxName).Qual("context", "Context")
 		for _, seg := range rpc.Path.Segments {
 			if seg.Type != paths.Literal {
-				// TODO wildcard slice
-				g.Id(alloc(seg.Value, true)).Add(b.builtinType(seg.ValueType))
+				typ := b.builtinType(seg.ValueType)
+				// Wrap wildcards as a slice of values
+				if seg.Type == paths.Wildcard {
+					typ = Index().Add(typ)
+				}
+				g.Id(alloc(seg.Value, true)).Add(typ)
 			}
 		}
 		if rpc.Raw {

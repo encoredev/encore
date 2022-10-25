@@ -229,6 +229,17 @@ func main() {
 		assert(err, nil, "expected no error when unmarshalling the response body")
 
 		assert(response, &responseType{"this is a test body", "test", "hello", "bar"}, "expected the response to match")
+	}
+
+	{
+		bodyStr := "test body"
+		req, err := http.NewRequest("GET", "?foo=bar", strings.NewReader(bodyStr))
+		assert(err, nil, "expected no error creating request")
+		resp, err := api.Di.Three(ctx, req)
+		assert(err, nil, "expected no error from DI raw endpoint")
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assert(string(body), bodyStr, "expected response body to echo incoming request body")
 
 	}
 
