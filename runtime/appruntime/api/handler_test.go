@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -18,6 +19,7 @@ import (
 	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/reqtrack"
+	"encore.dev/beta/errs"
 )
 
 type mockReq struct {
@@ -87,7 +89,8 @@ func TestDesc_EndToEnd(t *testing.T) {
 		Runtime: &config.Runtime{},
 	}
 	logger := zerolog.New(os.Stdout)
-	metrics := metrics.NewManager(metrics.NewTestMetricsExporter(logger))
+	testMetricsExporter := metrics.NewTestMetricsExporter(logger)
+	metrics := metrics.NewManager(testMetricsExporter)
 	rt := reqtrack.New(logger, nil, false)
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	encoreMgr := encore.NewManager(cfg, rt)
@@ -141,4 +144,40 @@ func TestDesc_EndToEnd(t *testing.T) {
 			}
 		})
 	}
+
+	testMetricsExporter.AssertCounter(t, "e_requests_total", 2, map[string]string{
+		"service":  "service",
+		"endpoint": "endpoint",
+	})
+	testMetricsExporter.AssertObservation(
+		t,
+		"e_request_durations_milliseconds",
+		"duration",
+		func(value float64) bool {
+			return value >= 0
+		},
+		map[string]string{
+			"service":     "service",
+			"endpoint":    "endpoint",
+			"status_code": strconv.Itoa(200),
+		},
+	)
+	testMetricsExporter.AssertCounter(t, "e_errors_total", 1, map[string]string{
+		"service":  "service",
+		"endpoint": "endpoint",
+		"code":     errs.InvalidArgument.String(),
+	})
+	testMetricsExporter.AssertObservation(
+		t,
+		"e_request_durations_milliseconds",
+		"duration",
+		func(value float64) bool {
+			return value >= 0
+		},
+		map[string]string{
+			"service":     "service",
+			"endpoint":    "endpoint",
+			"status_code": strconv.Itoa(400),
+		},
+	)
 }
