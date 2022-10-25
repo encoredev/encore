@@ -46,26 +46,37 @@ func (b *Builder) encoreGenRPC(f *File, ss *est.ServiceStruct, rpc *est.RPC, wit
 		}
 	}
 
-	var argNames []string
+	var pathParamNames []string
+
+	var names namealloc.Allocator
+	alloc := func(input string, pathParam bool) string {
+		name := names.Get(input)
+		if pathParam {
+			pathParamNames = append(pathParamNames, name)
+		}
+		return name
+	}
+
+	var (
+		ctxName    = alloc("ctx", false)
+		rawReqName string
+		paramName  string
+	)
 
 	f.Func().Id(rpc.Name).ParamsFunc(func(g *Group) {
-		var names namealloc.Allocator
-		alloc := func(input string) string {
-			name := names.Get(input)
-			argNames = append(argNames, name)
-			return name
-		}
-
-		g.Id(alloc("ctx")).Qual("context", "Context")
+		g.Id(ctxName).Qual("context", "Context")
 		for _, seg := range rpc.Path.Segments {
 			if seg.Type != paths.Literal {
-				g.Id(alloc(seg.Value)).Add(b.builtinType(seg.ValueType))
+				// TODO wildcard slice
+				g.Id(alloc(seg.Value, true)).Add(b.builtinType(seg.ValueType))
 			}
 		}
 		if rpc.Raw {
-			g.Id(alloc("req")).Op("*").Qual("net/http", "Request")
+			rawReqName = alloc("req", false)
+			g.Id(rawReqName).Op("*").Qual("net/http", "Request")
 		} else if req := rpc.Request; req != nil {
-			g.Id(alloc("req")).Add(b.namedType(f, req))
+			paramName = alloc("p", false)
+			g.Id(paramName).Add(b.namedType(f, req))
 		}
 	}).Do(func(s *Statement) {
 		if withImpl {
@@ -87,26 +98,35 @@ func (b *Builder) encoreGenRPC(f *File, ss *est.ServiceStruct, rpc *est.RPC, wit
 		}
 	}).BlockFunc(func(g *Group) {
 		if withImpl {
-			g.List(Id("svc"), Err()).Op(":=").Id(b.serviceStructName(ss)).Dot("Get").Call()
-			g.If(Err().Op("!=").Nil()).Block(ReturnFunc(func(g *Group) {
-				if rpc.Raw {
-					g.Nil()
-				} else if rpc.Response != nil {
-					// (*T, error) or (T, error)
-					if rpc.Response.IsPointer() {
+			if rpc.Raw {
+				g.Return(Nil(), Qual("errors", "New").Call(Lit("encore: calling raw endpoints is not yet supported")))
+			} else {
+				svcName := alloc("svc", false)
+				g.List(Id(svcName), Err()).Op(":=").Id(b.serviceStructName(ss)).Dot("Get").Call()
+				g.If(Err().Op("!=").Nil()).Block(ReturnFunc(func(g *Group) {
+					if rpc.Raw {
 						g.Nil()
-					} else {
-						g.Add(b.namedType(f, rpc.Response).Values())
+					} else if rpc.Response != nil {
+						// (*T, error) or (T, error)
+						if rpc.Response.IsPointer() {
+							g.Nil()
+						} else {
+							g.Add(b.namedType(f, rpc.Response).Values())
+						}
 					}
-				}
-				g.Err()
-			}))
+					g.Err()
+				}))
 
-			g.Return(Id("svc").Dot(rpc.Name).CallFunc(func(g *Group) {
-				for _, name := range argNames {
-					g.Id(name)
-				}
-			}))
+				g.Return(Id("svc").Dot(rpc.Name).CallFunc(func(g *Group) {
+					g.Id(ctxName)
+					for _, name := range pathParamNames {
+						g.Id(name)
+					}
+					if paramName != "" {
+						g.Id(paramName)
+					}
+				}))
+			}
 		} else {
 			g.Comment("The implementation is elided here, and generated at compile-time by Encore.")
 			if rpc.Raw {
