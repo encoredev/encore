@@ -418,44 +418,46 @@ func handleResponse(md *v1.Data, p *apiCallParams, headers http.Header, body []b
 	}
 
 	members := make([]hujson.ObjectMember, 0)
-	for i, m := range rpcEncoding.ResponseEncoding.HeaderParameters {
-		value := headers.Get(m.Name)
+	if rpcEncoding.ResponseEncoding != nil {
+		for i, m := range rpcEncoding.ResponseEncoding.HeaderParameters {
+			value := headers.Get(m.Name)
 
-		var beforeExtra []byte
-		if i == 0 {
-			beforeExtra = []byte("\n    // HTTP Headers\n    ")
-		}
-
-		members = append(members, hujson.ObjectMember{
-			Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
-			Value: hujson.Value{Value: hujson.String(value)},
-		})
-	}
-
-	for i, m := range rpcEncoding.ResponseEncoding.BodyParameters {
-		value, ok := decoded[m.Name]
-		if !ok {
-			value = []byte("null")
-		}
-
-		var beforeExtra []byte
-		if i == 0 {
-			if len(rpcEncoding.ResponseEncoding.HeaderParameters) > 0 {
-				beforeExtra = []byte("\n\n    // JSON Payload\n    ")
-			} else {
-				beforeExtra = []byte("\n    ")
+			var beforeExtra []byte
+			if i == 0 {
+				beforeExtra = []byte("\n    // HTTP Headers\n    ")
 			}
+
+			members = append(members, hujson.ObjectMember{
+				Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
+				Value: hujson.Value{Value: hujson.String(value)},
+			})
 		}
 
-		hValue, err := hujson.Parse(value)
-		if err != nil {
-			hValue = hujson.Value{Value: hujson.Literal(value)}
-		}
+		for i, m := range rpcEncoding.ResponseEncoding.BodyParameters {
+			value, ok := decoded[m.Name]
+			if !ok {
+				value = []byte("null")
+			}
 
-		members = append(members, hujson.ObjectMember{
-			Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
-			Value: hValue,
-		})
+			var beforeExtra []byte
+			if i == 0 {
+				if len(rpcEncoding.ResponseEncoding.HeaderParameters) > 0 {
+					beforeExtra = []byte("\n\n    // JSON Payload\n    ")
+				} else {
+					beforeExtra = []byte("\n    ")
+				}
+			}
+
+			hValue, err := hujson.Parse(value)
+			if err != nil {
+				hValue = hujson.Value{Value: hujson.Literal(value)}
+			}
+
+			members = append(members, hujson.ObjectMember{
+				Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
+				Value: hValue,
+			})
+		}
 	}
 
 	value := hujson.Value{Value: &hujson.Object{Members: members}}
