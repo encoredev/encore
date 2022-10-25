@@ -40,6 +40,10 @@ func loadApp() *appinit.LoadData {
 			Middleware: []*api.Middleware{EncoreInternal_svcMyMiddleware},
 		},
 		{
+			Handler:    svc.EncoreInternal_DIRawHandler,
+			Middleware: nil,
+		},
+		{
 			Handler:    svc.EncoreInternal_EightHandler,
 			Middleware: nil,
 		},
@@ -99,7 +103,7 @@ var EncoreInternal_svcMyMiddleware = &api.Middleware{
 	PkgName: "svc",
 	Name:    "MyMiddleware",
 	Global:  false,
-	DefLoc:  38,
+	DefLoc:  40,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
 		if err != nil {
@@ -152,7 +156,7 @@ var EncoreInternal_ServiceService = &service.Decl[Service]{
 	Service:     "svc",
 	Name:        "Service",
 	Setup:       initService,
-	SetupDefLoc: 36,
+	SetupDefLoc: 38,
 }
 
 type EncoreInternal_CronOneReq struct{}
@@ -165,7 +169,7 @@ var EncoreInternal_CronOneHandler = &api.Desc[*EncoreInternal_CronOneReq, Encore
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/cron",
-	DefLoc:   23,
+	DefLoc:   24,
 	Access:   api.Private,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_CronOneReq, err error) {
 		reqData = &EncoreInternal_CronOneReq{}
@@ -222,7 +226,7 @@ var EncoreInternal_DIHandler = &api.Desc[*EncoreInternal_DIReq, EncoreInternal_D
 	Methods:  []string{"GET"},
 	Raw:      false,
 	Path:     "/di",
-	DefLoc:   24,
+	DefLoc:   25,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_DIReq, err error) {
 		reqData = &EncoreInternal_DIReq{}
@@ -273,6 +277,54 @@ func EncoreInternal_CallDI(ctx context.Context) error {
 	return nil
 }
 
+type EncoreInternal_DIRawReq struct{}
+
+type EncoreInternal_DIRawResp = api.Void
+
+var EncoreInternal_DIRawHandler = &api.Desc[*EncoreInternal_DIRawReq, EncoreInternal_DIRawResp]{
+	Service:  "svc",
+	Endpoint: "DIRaw",
+	Methods:  []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
+	Raw:      true,
+	Path:     "/di/raw",
+	DefLoc:   26,
+	Access:   api.Public,
+	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_DIRawReq, err error) {
+		reqData = &EncoreInternal_DIRawReq{}
+		return reqData, nil
+	},
+	CloneReq: func(p *EncoreInternal_DIRawReq) (*EncoreInternal_DIRawReq, error) {
+		var clone EncoreInternal_DIRawReq
+		bytes, err := jsoniter.ConfigDefault.Marshal(p)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return &clone, err
+	},
+	SerializeReq: func(json jsoniter.API, p *EncoreInternal_DIRawReq) ([][]byte, error) {
+		return nil, nil
+	},
+	ReqPath: func(p *EncoreInternal_DIRawReq) (string, api.PathParams, error) {
+
+		return "/di/raw", nil, nil
+	},
+	ReqUserPayload: func(p *EncoreInternal_DIRawReq) any {
+		return nil
+	},
+	AppHandler: nil,
+	RawHandler: func(w http.ResponseWriter, req *http.Request) {
+		svc, initErr := EncoreInternal_ServiceService.Get()
+		if initErr != nil {
+			errs.HTTPErrorWithCode(w, initErr, 0)
+			return
+		}
+		svc.DIRaw(w, req)
+	},
+	EncodeResp:    nil,
+	SerializeResp: api.SerializeVoid,
+	CloneResp:     api.CloneVoid,
+}
+
 type EncoreInternal_EightReq struct {
 	Bar string
 	Baz string
@@ -286,7 +338,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/eight/:bar/:baz",
-	DefLoc:   25,
+	DefLoc:   27,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_EightReq, err error) {
 		reqData = &EncoreInternal_EightReq{}
@@ -416,7 +468,7 @@ var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, EncoreIntern
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/five/:id/:key",
-	DefLoc:   26,
+	DefLoc:   28,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_FiveReq, err error) {
 		reqData = &EncoreInternal_FiveReq{}
@@ -540,7 +592,7 @@ var EncoreInternal_FourHandler = &api.Desc[*EncoreInternal_FourReq, EncoreIntern
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/four/*baz",
-	DefLoc:   27,
+	DefLoc:   29,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_FourReq, err error) {
 		reqData = &EncoreInternal_FourReq{}
@@ -634,7 +686,7 @@ var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, *EncoreInter
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/nine/:bar/:baz",
-	DefLoc:   28,
+	DefLoc:   30,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_NineReq, err error) {
 		reqData = &EncoreInternal_NineReq{}
@@ -774,7 +826,7 @@ var EncoreInternal_OneHandler = &api.Desc[*EncoreInternal_OneReq, EncoreInternal
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/svc.One",
-	DefLoc:   29,
+	DefLoc:   31,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_OneReq, err error) {
 		reqData = &EncoreInternal_OneReq{}
@@ -833,7 +885,7 @@ var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInt
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/query",
-	DefLoc:   30,
+	DefLoc:   32,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_QueryReq, err error) {
 		reqData = &EncoreInternal_QueryReq{}
@@ -988,7 +1040,7 @@ var EncoreInternal_SevenHandler = &api.Desc[*EncoreInternal_SevenReq, EncoreInte
 	Methods:  []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
 	Raw:      true,
 	Path:     "/foo/:bar/:baz",
-	DefLoc:   31,
+	DefLoc:   33,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_SevenReq, err error) {
 		reqData = &EncoreInternal_SevenReq{}
@@ -1030,8 +1082,10 @@ var EncoreInternal_SevenHandler = &api.Desc[*EncoreInternal_SevenReq, EncoreInte
 	ReqUserPayload: func(p *EncoreInternal_SevenReq) any {
 		return nil
 	},
-	AppHandler:    nil,
-	RawHandler:    Seven,
+	AppHandler: nil,
+	RawHandler: func(w http.ResponseWriter, req *http.Request) {
+		Seven(w, req)
+	},
 	EncodeResp:    nil,
 	SerializeResp: api.SerializeVoid,
 	CloneResp:     api.CloneVoid,
@@ -1051,7 +1105,7 @@ var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, EncoreInternal
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/six/:id/*key",
-	DefLoc:   32,
+	DefLoc:   34,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_SixReq, err error) {
 		reqData = &EncoreInternal_SixReq{}
@@ -1181,7 +1235,7 @@ var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, *EncoreInterna
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/ten",
-	DefLoc:   33,
+	DefLoc:   35,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_TenReq, err error) {
 		reqData = &EncoreInternal_TenReq{}
@@ -1276,7 +1330,7 @@ var EncoreInternal_ThreeHandler = &api.Desc[*EncoreInternal_ThreeReq, EncoreInte
 	Methods:  []string{"GET", "POST"},
 	Raw:      false,
 	Path:     "/three/:id",
-	DefLoc:   34,
+	DefLoc:   36,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_ThreeReq, err error) {
 		reqData = &EncoreInternal_ThreeReq{}
@@ -1365,7 +1419,7 @@ var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, EncoreInternal
 	Methods:  []string{"POST"},
 	Raw:      false,
 	Path:     "/svc.Two",
-	DefLoc:   35,
+	DefLoc:   37,
 	Access:   api.Public,
 	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_TwoReq, err error) {
 		reqData = &EncoreInternal_TwoReq{}
@@ -1460,7 +1514,7 @@ type EncoreInternal_AuthHandlerAuthParams = AuthParams
 var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
 	Endpoint:    "AuthHandler",
-	DefLoc:      37,
+	DefLoc:      39,
 	HasAuthData: true,
 	DecodeAuth: func(req *http.Request) (params *EncoreInternal_AuthHandlerAuthParams, err error) {
 		params = &EncoreInternal_AuthHandlerAuthParams{}
@@ -1504,7 +1558,11 @@ var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal
 
 package svc
 
-import "context"
+import (
+	"context"
+	"errors"
+	"net/http"
+)
 
 // These functions are automatically generated and maintained by Encore
 // to simplify calling them from other services, as they were implemented as methods.
@@ -1516,6 +1574,10 @@ func DI(ctx context.Context) error {
 		return err
 	}
 	return svc.DI(ctx)
+}
+
+func DIRaw(ctx context.Context, req *http.Request) (*http.Response, error) {
+	return nil, errors.New("encore: calling raw endpoints is not yet supported")
 }
 
 

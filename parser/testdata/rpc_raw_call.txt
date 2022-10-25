@@ -1,0 +1,19 @@
+! parse
+stderr 'calling raw API endpoint svc.API from another endpoint is not yet supported'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "net/http"
+)
+
+//encore:api public raw
+func API(w http.ResponseWriter, req *http.Request) { }
+
+//encore:api public
+func NonRaw(ctx context.Context) error {
+    API(nil, nil)
+    return nil
+}
