@@ -83,16 +83,17 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	}
 	defer ln.Close()
 
+	app, err := s.apps.Track(req.AppRoot)
+	if err != nil {
+		fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to resolve app: %v"), err))
+		sendExit(1)
+		return nil
+	}
+
 	// Clear screen.
 	stderr.Write([]byte("\033[2J\033[H\n"))
 
 	ops := optracker.New(stderr, stream)
-
-	app, err := s.apps.Track(req.AppRoot)
-	if err != nil {
-		sendExit(1)
-		return nil
-	}
 
 	// Check for available update before we start the proc
 	// so the output from the proc doesn't race with our
