@@ -148,9 +148,6 @@ func metricsExporter(cfg *config.Config, logger zerolog.Logger) metrics.Exporter
 	case config.MetricsExporterTypeLogsBased:
 		return metrics.NewLogsBasedExporter(logger)
 	default:
-		logger.Error().
-			Str("metrics_exporter_type", string(cfg.Runtime.Metrics.ExporterType)).
-			Msg("unexpected metrics exporter")
+		panic("unexpected metrics exporter")
 	}
-	return nil
 }
