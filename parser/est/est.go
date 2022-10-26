@@ -252,12 +252,13 @@ type Node struct {
 }
 
 type AuthHandler struct {
-	Svc    *Service
-	Name   string
-	Doc    string
-	Func   *ast.FuncDecl
-	File   *File
-	Params *schema.Type // builtin string or named type
+	Svc       *Service
+	Name      string
+	Doc       string
+	Func      *ast.FuncDecl
+	File      *File
+	Params    *schema.Type   // builtin string or named type
+	SvcStruct *ServiceStruct // nil if not defined on a service struct
 
 	// AuthData is the custom auth data type the app may specify
 	// as part of the returns from the auth handler.
