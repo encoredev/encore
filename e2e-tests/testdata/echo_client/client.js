@@ -81,6 +81,10 @@ class DiServiceClient {
         await this.baseClient.callAPI("POST", `/di/one`)
     }
 
+    async Three(method, body, options) {
+        return this.baseClient.callAPI(method, `/di/raw`, body, options)
+    }
+
     async Two() {
         // Now make the actual call to the API
         const resp = await this.baseClient.callAPI("POST", `/di/two`)
