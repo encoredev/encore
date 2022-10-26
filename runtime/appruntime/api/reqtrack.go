@@ -133,7 +133,7 @@ func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
 	case model.AuthHandler:
 		req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
 	default:
-		if httpStatus != 0 {
+		if httpStatus != errs.HTTPStatus(err) {
 			code := errs.HTTPStatusToCode(httpStatus).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", httpStatus).Msg("request completed")
 			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)

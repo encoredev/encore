@@ -83,9 +83,9 @@ type Response struct {
 
 	// HTTPStatus is the HTTP status code the response is written with.
 	//
-	// For non-raw handlers it is zero by default and Encore chooses an appropriate
+	// For non-raw handlers it is initially Encore chooses an appropriate
 	// status code depending on the type of error being returned (or 200 for success),
-	// but setting HTTPStatus to a non-zero value causes Encore to write the response
+	// but setting HTTPStatus to another non-zero value causes Encore to write the response
 	// with that HTTP status code value instead.
 	//
 	// For raw handlers it is automatically populated with the status code
