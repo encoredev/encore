@@ -9,8 +9,7 @@ user-defined custom metrics. User-defined custom metrics aren't supported yet.
 
 These are the metrics all Encore apps export to cloud providers:
 
-- `e_requests_total` measures the number of requests and has two tags `service` and `endpoint`.
-- `e_errors_total` measures the number of errors and has three tags `service`, `endpoint` and `code`. `code` is a
-  human-readable error code (e.g. `not_found`).
-- `e_request_durations_milliseconds` measures the response time and has three tags `service`, `endpoint`
-  and `status_code`. `status_code` is an HTTP status code (e.g. `201`).
+- `e_requests_total` measures the number of requests and has three tags `service`, `endpoint` and `code`. `code` is a
+  human-readable HTTP status code (e.g. `ok`, `not_found`).
+- `e_request_duration_seconds` measures the response time in seconds and has three tags `service`, `endpoint` and
+  `code`. `code` is a human-readable HTTP status code (e.g. `ok`, `not_found`).
