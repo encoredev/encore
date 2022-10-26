@@ -60,6 +60,11 @@ func (p *parser) registerService(svc *est.Service) {
 	svc.Root.Service = svc
 	p.svcPkgPaths[svc.Root.ImportPath] = svc
 	if svc2 := p.svcMap[svc.Name]; svc2 != nil {
+		if svc2 == svc {
+			// It's the same service we've already registered, so it's good to return nil here
+			return
+		}
+
 		p.errf(svc.Root.AST.Pos(), "service %s defined twice (previous definition at %s)",
 			svc.Name, p.fset.Position(svc2.Root.Files[0].AST.Pos()))
 	}
@@ -376,6 +381,9 @@ func (p *parser) initServiceStruct(ss *est.ServiceStruct) {
 	}
 	svc := ss.Svc
 	svc.Struct = ss
+
+	// If a service struct is defined in a package, we immediately recognise it as being a service
+	p.registerService(svc)
 }
 
 // resolveServiceStruct resolves the service struct a receiver type refers to.
