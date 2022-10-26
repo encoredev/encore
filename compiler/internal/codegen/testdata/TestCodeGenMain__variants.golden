@@ -146,7 +146,6 @@ import (
 	"encore.dev/types/uuid"
 	"fmt"
 	"github.com/json-iterator/go"
-	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"net/url"
 	"strings"
@@ -164,16 +163,18 @@ type EncoreInternal_CronOneReq struct{}
 type EncoreInternal_CronOneResp = api.Void
 
 var EncoreInternal_CronOneHandler = &api.Desc[*EncoreInternal_CronOneReq, EncoreInternal_CronOneResp]{
-	Service:  "svc",
-	Endpoint: "CronOne",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/cron",
-	DefLoc:   24,
-	Access:   api.Private,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_CronOneReq, err error) {
+	Service:        "svc",
+	Endpoint:       "CronOne",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/cron",
+	RawPath:        "/cron",
+	PathParamNames: nil,
+	DefLoc:         24,
+	Access:         api.Private,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_CronOneReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_CronOneReq{}
-		return reqData, nil
+		return reqData, nil, nil
 	},
 	CloneReq: func(p *EncoreInternal_CronOneReq) (*EncoreInternal_CronOneReq, error) {
 		var clone EncoreInternal_CronOneReq
@@ -186,7 +187,7 @@ var EncoreInternal_CronOneHandler = &api.Desc[*EncoreInternal_CronOneReq, Encore
 	SerializeReq: func(json jsoniter.API, p *EncoreInternal_CronOneReq) ([][]byte, error) {
 		return nil, nil
 	},
-	ReqPath: func(p *EncoreInternal_CronOneReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_CronOneReq) (string, api.UnnamedParams, error) {
 
 		return "/cron", nil, nil
 	},
@@ -221,16 +222,18 @@ type EncoreInternal_DIReq struct{}
 type EncoreInternal_DIResp = api.Void
 
 var EncoreInternal_DIHandler = &api.Desc[*EncoreInternal_DIReq, EncoreInternal_DIResp]{
-	Service:  "svc",
-	Endpoint: "DI",
-	Methods:  []string{"GET"},
-	Raw:      false,
-	Path:     "/di",
-	DefLoc:   25,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_DIReq, err error) {
+	Service:        "svc",
+	Endpoint:       "DI",
+	Methods:        []string{"GET"},
+	Raw:            false,
+	Path:           "/di",
+	RawPath:        "/di",
+	PathParamNames: nil,
+	DefLoc:         25,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_DIReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_DIReq{}
-		return reqData, nil
+		return reqData, nil, nil
 	},
 	CloneReq: func(p *EncoreInternal_DIReq) (*EncoreInternal_DIReq, error) {
 		var clone EncoreInternal_DIReq
@@ -243,7 +246,7 @@ var EncoreInternal_DIHandler = &api.Desc[*EncoreInternal_DIReq, EncoreInternal_D
 	SerializeReq: func(json jsoniter.API, p *EncoreInternal_DIReq) ([][]byte, error) {
 		return nil, nil
 	},
-	ReqPath: func(p *EncoreInternal_DIReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_DIReq) (string, api.UnnamedParams, error) {
 
 		return "/di", nil, nil
 	},
@@ -282,16 +285,18 @@ type EncoreInternal_DIRawReq struct{}
 type EncoreInternal_DIRawResp = api.Void
 
 var EncoreInternal_DIRawHandler = &api.Desc[*EncoreInternal_DIRawReq, EncoreInternal_DIRawResp]{
-	Service:  "svc",
-	Endpoint: "DIRaw",
-	Methods:  []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
-	Raw:      true,
-	Path:     "/di/raw",
-	DefLoc:   26,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_DIRawReq, err error) {
+	Service:        "svc",
+	Endpoint:       "DIRaw",
+	Methods:        []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
+	Raw:            true,
+	Path:           "/di/raw",
+	RawPath:        "/di/raw",
+	PathParamNames: nil,
+	DefLoc:         26,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_DIRawReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_DIRawReq{}
-		return reqData, nil
+		return reqData, nil, nil
 	},
 	CloneReq: func(p *EncoreInternal_DIRawReq) (*EncoreInternal_DIRawReq, error) {
 		var clone EncoreInternal_DIRawReq
@@ -304,7 +309,7 @@ var EncoreInternal_DIRawHandler = &api.Desc[*EncoreInternal_DIRawReq, EncoreInte
 	SerializeReq: func(json jsoniter.API, p *EncoreInternal_DIRawReq) ([][]byte, error) {
 		return nil, nil
 	},
-	ReqPath: func(p *EncoreInternal_DIRawReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_DIRawReq) (string, api.UnnamedParams, error) {
 
 		return "/di/raw", nil, nil
 	},
@@ -333,34 +338,36 @@ type EncoreInternal_EightReq struct {
 type EncoreInternal_EightResp = Response
 
 var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInternal_EightResp]{
-	Service:  "svc",
-	Endpoint: "Eight",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/eight/:bar/:baz",
-	DefLoc:   27,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_EightReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Eight",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/eight/:bar/:baz",
+	RawPath:        "/eight/:0/:1",
+	PathParamNames: []string{"bar", "baz"},
+	DefLoc:         27,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_EightReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_EightReq{}
 		dec := &etype.Marshaller{}
 
-		if value, err := url.PathUnescape(ps[0].Value); err == nil {
-			ps[0].Value = value
+		if value, err := url.PathUnescape(ps[0]); err == nil {
+			ps[0] = value
 		}
 
-		reqData.Bar = dec.ToString("bar", ps[0].Value, true)
+		reqData.Bar = dec.ToString("bar", ps[0], true)
 
-		if value, err := url.PathUnescape(ps[1].Value); err == nil {
-			ps[1].Value = value
+		if value, err := url.PathUnescape(ps[1]); err == nil {
+			ps[1] = value
 		}
 
-		reqData.Baz = dec.ToString("baz", ps[1].Value, true)
+		reqData.Baz = dec.ToString("baz", ps[1], true)
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_EightReq) (*EncoreInternal_EightReq, error) {
 		var clone EncoreInternal_EightReq
@@ -381,22 +388,16 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_EightReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_EightReq) (string, api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
-		params := api.PathParams{{
-			Key:   "Bar",
-			Value: enc.FromString(p.Bar),
-		}, {
-			Key:   "Baz",
-			Value: enc.FromString(p.Baz),
-		}}
+		params := api.UnnamedParams{enc.FromString(p.Bar), enc.FromString(p.Baz)}
 		if enc.LastError != nil {
 
 			return "", nil, enc.LastError
 		}
 
-		return "/eight" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+		return "/eight" + "/" + params[0] + "/" + params[1], params, nil
 	},
 	ReqUserPayload: func(p *EncoreInternal_EightReq) any {
 		return nil
@@ -463,24 +464,26 @@ type EncoreInternal_FiveReq struct {
 type EncoreInternal_FiveResp = api.Void
 
 var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, EncoreInternal_FiveResp]{
-	Service:  "svc",
-	Endpoint: "Five",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/five/:id/:key",
-	DefLoc:   28,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_FiveReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Five",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/five/:id/:key",
+	RawPath:        "/five/:0/:1",
+	PathParamNames: []string{"id", "key"},
+	DefLoc:         28,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FiveReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_FiveReq{}
 		dec := &etype.Marshaller{}
 
-		if value, err := url.PathUnescape(ps[0].Value); err == nil {
-			ps[0].Value = value
+		if value, err := url.PathUnescape(ps[0]); err == nil {
+			ps[0] = value
 		}
 
-		reqData.Id = dec.ToUUID("id", ps[0].Value, true)
+		reqData.Id = dec.ToUUID("id", ps[0], true)
 
-		reqData.Key = dec.ToUint("key", ps[1].Value, true)
+		reqData.Key = dec.ToUint("key", ps[1], true)
 
 		params := &FooParams{}
 
@@ -513,10 +516,10 @@ var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, EncoreIntern
 		}
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_FiveReq) (*EncoreInternal_FiveReq, error) {
 		var clone EncoreInternal_FiveReq
@@ -537,22 +540,16 @@ var EncoreInternal_FiveHandler = &api.Desc[*EncoreInternal_FiveReq, EncoreIntern
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_FiveReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_FiveReq) (string, api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
-		params := api.PathParams{{
-			Key:   "Id",
-			Value: enc.FromUUID(p.Id),
-		}, {
-			Key:   "Key",
-			Value: enc.FromUint(p.Key),
-		}}
+		params := api.UnnamedParams{enc.FromUUID(p.Id), enc.FromUint(p.Key)}
 		if enc.LastError != nil {
 
 			return "", nil, enc.LastError
 		}
 
-		return "/five" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+		return "/five" + "/" + params[0] + "/" + params[1], params, nil
 	},
 	ReqUserPayload: func(p *EncoreInternal_FiveReq) any {
 		return p.Params
@@ -587,32 +584,34 @@ type EncoreInternal_FourReq struct {
 type EncoreInternal_FourResp = api.Void
 
 var EncoreInternal_FourHandler = &api.Desc[*EncoreInternal_FourReq, EncoreInternal_FourResp]{
-	Service:  "svc",
-	Endpoint: "Four",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/four/*baz",
-	DefLoc:   29,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_FourReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Four",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/four/*baz",
+	RawPath:        "/four/*0",
+	PathParamNames: []string{"baz"},
+	DefLoc:         29,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FourReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_FourReq{}
 		// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
 		// while the httprouter implementation includes it.
-		ps[0].Value = strings.TrimPrefix(ps[0].Value, "/")
+		ps[0] = strings.TrimPrefix(ps[0], "/")
 
 		dec := &etype.Marshaller{}
 
-		if value, err := url.PathUnescape(ps[0].Value); err == nil {
-			ps[0].Value = value
+		if value, err := url.PathUnescape(ps[0]); err == nil {
+			ps[0] = value
 		}
 
-		reqData.Baz = dec.ToString("baz", ps[0].Value, true)
+		reqData.Baz = dec.ToString("baz", ps[0], true)
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_FourReq) (*EncoreInternal_FourReq, error) {
 		var clone EncoreInternal_FourReq
@@ -633,19 +632,16 @@ var EncoreInternal_FourHandler = &api.Desc[*EncoreInternal_FourReq, EncoreIntern
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_FourReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_FourReq) (string, api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
-		params := api.PathParams{{
-			Key:   "Baz",
-			Value: enc.FromString(p.Baz),
-		}}
+		params := api.UnnamedParams{enc.FromString(p.Baz)}
 		if enc.LastError != nil {
 
 			return "", nil, enc.LastError
 		}
 
-		return "/four" + "/" + params[0].Value, params, nil
+		return "/four" + "/" + params[0], params, nil
 	},
 	ReqUserPayload: func(p *EncoreInternal_FourReq) any {
 		return nil
@@ -681,34 +677,36 @@ type EncoreInternal_NineReq struct {
 type EncoreInternal_NineResp = ComplexResponse
 
 var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, *EncoreInternal_NineResp]{
-	Service:  "svc",
-	Endpoint: "Nine",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/nine/:bar/:baz",
-	DefLoc:   30,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_NineReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Nine",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/nine/:bar/:baz",
+	RawPath:        "/nine/:0/:1",
+	PathParamNames: []string{"bar", "baz"},
+	DefLoc:         30,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_NineReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_NineReq{}
 		dec := &etype.Marshaller{}
 
-		if value, err := url.PathUnescape(ps[0].Value); err == nil {
-			ps[0].Value = value
+		if value, err := url.PathUnescape(ps[0]); err == nil {
+			ps[0] = value
 		}
 
-		reqData.Bar = dec.ToString("bar", ps[0].Value, true)
+		reqData.Bar = dec.ToString("bar", ps[0], true)
 
-		if value, err := url.PathUnescape(ps[1].Value); err == nil {
-			ps[1].Value = value
+		if value, err := url.PathUnescape(ps[1]); err == nil {
+			ps[1] = value
 		}
 
-		reqData.Baz = dec.ToString("baz", ps[1].Value, true)
+		reqData.Baz = dec.ToString("baz", ps[1], true)
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_NineReq) (*EncoreInternal_NineReq, error) {
 		var clone EncoreInternal_NineReq
@@ -729,22 +727,16 @@ var EncoreInternal_NineHandler = &api.Desc[*EncoreInternal_NineReq, *EncoreInter
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_NineReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_NineReq) (string, api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
-		params := api.PathParams{{
-			Key:   "Bar",
-			Value: enc.FromString(p.Bar),
-		}, {
-			Key:   "Baz",
-			Value: enc.FromString(p.Baz),
-		}}
+		params := api.UnnamedParams{enc.FromString(p.Bar), enc.FromString(p.Baz)}
 		if enc.LastError != nil {
 
 			return "", nil, enc.LastError
 		}
 
-		return "/nine" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+		return "/nine" + "/" + params[0] + "/" + params[1], params, nil
 	},
 	ReqUserPayload: func(p *EncoreInternal_NineReq) any {
 		return nil
@@ -821,16 +813,18 @@ type EncoreInternal_OneReq struct{}
 type EncoreInternal_OneResp = api.Void
 
 var EncoreInternal_OneHandler = &api.Desc[*EncoreInternal_OneReq, EncoreInternal_OneResp]{
-	Service:  "svc",
-	Endpoint: "One",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/svc.One",
-	DefLoc:   31,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_OneReq, err error) {
+	Service:        "svc",
+	Endpoint:       "One",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/svc.One",
+	RawPath:        "/svc.One",
+	PathParamNames: nil,
+	DefLoc:         31,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_OneReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_OneReq{}
-		return reqData, nil
+		return reqData, nil, nil
 	},
 	CloneReq: func(p *EncoreInternal_OneReq) (*EncoreInternal_OneReq, error) {
 		var clone EncoreInternal_OneReq
@@ -843,7 +837,7 @@ var EncoreInternal_OneHandler = &api.Desc[*EncoreInternal_OneReq, EncoreInternal
 	SerializeReq: func(json jsoniter.API, p *EncoreInternal_OneReq) ([][]byte, error) {
 		return nil, nil
 	},
-	ReqPath: func(p *EncoreInternal_OneReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_OneReq) (string, api.UnnamedParams, error) {
 
 		return "/svc.One", nil, nil
 	},
@@ -880,14 +874,16 @@ type EncoreInternal_QueryReq struct {
 type EncoreInternal_QueryResp = QueryParams
 
 var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInternal_QueryResp]{
-	Service:  "svc",
-	Endpoint: "Query",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/query",
-	DefLoc:   32,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_QueryReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Query",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/query",
+	RawPath:        "/query",
+	PathParamNames: nil,
+	DefLoc:         32,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_QueryReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_QueryReq{}
 		dec := &etype.Marshaller{}
 
@@ -940,10 +936,10 @@ var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInt
 		}
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_QueryReq) (*EncoreInternal_QueryReq, error) {
 		var clone EncoreInternal_QueryReq
@@ -964,7 +960,7 @@ var EncoreInternal_QueryHandler = &api.Desc[*EncoreInternal_QueryReq, *EncoreInt
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_QueryReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_QueryReq) (string, api.UnnamedParams, error) {
 
 		return "/query", nil, nil
 	},
@@ -1035,34 +1031,36 @@ type EncoreInternal_SevenReq struct{}
 type EncoreInternal_SevenResp = api.Void
 
 var EncoreInternal_SevenHandler = &api.Desc[*EncoreInternal_SevenReq, EncoreInternal_SevenResp]{
-	Service:  "svc",
-	Endpoint: "Seven",
-	Methods:  []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
-	Raw:      true,
-	Path:     "/foo/:bar/:baz",
-	DefLoc:   33,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_SevenReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Seven",
+	Methods:        []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
+	Raw:            true,
+	Path:           "/foo/:bar/:baz",
+	RawPath:        "/foo/:0/:1",
+	PathParamNames: []string{"bar", "baz"},
+	DefLoc:         33,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_SevenReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_SevenReq{}
 		dec := &etype.Marshaller{}
 
-		if value, err := url.PathUnescape(ps[0].Value); err == nil {
-			ps[0].Value = value
+		if value, err := url.PathUnescape(ps[0]); err == nil {
+			ps[0] = value
 		}
 
-		_ = dec.ToString("bar", ps[0].Value, true)
+		_ = dec.ToString("bar", ps[0], true)
 
-		if value, err := url.PathUnescape(ps[1].Value); err == nil {
-			ps[1].Value = value
+		if value, err := url.PathUnescape(ps[1]); err == nil {
+			ps[1] = value
 		}
 
-		_ = dec.ToString("baz", ps[1].Value, true)
+		_ = dec.ToString("baz", ps[1], true)
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_SevenReq) (*EncoreInternal_SevenReq, error) {
 		var clone EncoreInternal_SevenReq
@@ -1075,7 +1073,7 @@ var EncoreInternal_SevenHandler = &api.Desc[*EncoreInternal_SevenReq, EncoreInte
 	SerializeReq: func(json jsoniter.API, p *EncoreInternal_SevenReq) ([][]byte, error) {
 		return nil, nil
 	},
-	ReqPath: func(p *EncoreInternal_SevenReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_SevenReq) (string, api.UnnamedParams, error) {
 
 		return "/foo/:bar/:baz", nil, nil
 	},
@@ -1100,32 +1098,34 @@ type EncoreInternal_SixReq struct {
 type EncoreInternal_SixResp = api.Void
 
 var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, EncoreInternal_SixResp]{
-	Service:  "svc",
-	Endpoint: "Six",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/six/:id/*key",
-	DefLoc:   34,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_SixReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Six",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/six/:id/*key",
+	RawPath:        "/six/:0/*1",
+	PathParamNames: []string{"id", "key"},
+	DefLoc:         34,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_SixReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_SixReq{}
 		// Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,
 		// while the httprouter implementation includes it.
-		ps[1].Value = strings.TrimPrefix(ps[1].Value, "/")
+		ps[1] = strings.TrimPrefix(ps[1], "/")
 
 		dec := &etype.Marshaller{}
 
-		if value, err := url.PathUnescape(ps[0].Value); err == nil {
-			ps[0].Value = value
+		if value, err := url.PathUnescape(ps[0]); err == nil {
+			ps[0] = value
 		}
 
-		reqData.Id = dec.ToUUID("id", ps[0].Value, true)
+		reqData.Id = dec.ToUUID("id", ps[0], true)
 
-		if value, err := url.PathUnescape(ps[1].Value); err == nil {
-			ps[1].Value = value
+		if value, err := url.PathUnescape(ps[1]); err == nil {
+			ps[1] = value
 		}
 
-		reqData.Key = dec.ToString("key", ps[1].Value, true)
+		reqData.Key = dec.ToString("key", ps[1], true)
 
 		params := &FooParams{}
 
@@ -1158,10 +1158,10 @@ var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, EncoreInternal
 		}
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_SixReq) (*EncoreInternal_SixReq, error) {
 		var clone EncoreInternal_SixReq
@@ -1182,22 +1182,16 @@ var EncoreInternal_SixHandler = &api.Desc[*EncoreInternal_SixReq, EncoreInternal
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_SixReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_SixReq) (string, api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
-		params := api.PathParams{{
-			Key:   "Id",
-			Value: enc.FromUUID(p.Id),
-		}, {
-			Key:   "Key",
-			Value: enc.FromString(p.Key),
-		}}
+		params := api.UnnamedParams{enc.FromUUID(p.Id), enc.FromString(p.Key)}
 		if enc.LastError != nil {
 
 			return "", nil, enc.LastError
 		}
 
-		return "/six" + "/" + params[0].Value + "/" + params[1].Value, params, nil
+		return "/six" + "/" + params[0] + "/" + params[1], params, nil
 	},
 	ReqUserPayload: func(p *EncoreInternal_SixReq) any {
 		return p.Params
@@ -1230,16 +1224,18 @@ type EncoreInternal_TenReq struct{}
 type EncoreInternal_TenResp = HeaderResponse
 
 var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, *EncoreInternal_TenResp]{
-	Service:  "svc",
-	Endpoint: "Ten",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/ten",
-	DefLoc:   35,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_TenReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Ten",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/ten",
+	RawPath:        "/ten",
+	PathParamNames: nil,
+	DefLoc:         35,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_TenReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_TenReq{}
-		return reqData, nil
+		return reqData, nil, nil
 	},
 	CloneReq: func(p *EncoreInternal_TenReq) (*EncoreInternal_TenReq, error) {
 		var clone EncoreInternal_TenReq
@@ -1252,7 +1248,7 @@ var EncoreInternal_TenHandler = &api.Desc[*EncoreInternal_TenReq, *EncoreInterna
 	SerializeReq: func(json jsoniter.API, p *EncoreInternal_TenReq) ([][]byte, error) {
 		return nil, nil
 	},
-	ReqPath: func(p *EncoreInternal_TenReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_TenReq) (string, api.UnnamedParams, error) {
 
 		return "/ten", nil, nil
 	},
@@ -1325,28 +1321,30 @@ type EncoreInternal_ThreeReq struct {
 type EncoreInternal_ThreeResp = api.Void
 
 var EncoreInternal_ThreeHandler = &api.Desc[*EncoreInternal_ThreeReq, EncoreInternal_ThreeResp]{
-	Service:  "svc",
-	Endpoint: "Three",
-	Methods:  []string{"GET", "POST"},
-	Raw:      false,
-	Path:     "/three/:id",
-	DefLoc:   36,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_ThreeReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Three",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/three/:id",
+	RawPath:        "/three/:0",
+	PathParamNames: []string{"id"},
+	DefLoc:         36,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_ThreeReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_ThreeReq{}
 		dec := &etype.Marshaller{}
 
-		if value, err := url.PathUnescape(ps[0].Value); err == nil {
-			ps[0].Value = value
+		if value, err := url.PathUnescape(ps[0]); err == nil {
+			ps[0] = value
 		}
 
-		reqData.Id = dec.ToString("id", ps[0].Value, true)
+		reqData.Id = dec.ToString("id", ps[0], true)
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_ThreeReq) (*EncoreInternal_ThreeReq, error) {
 		var clone EncoreInternal_ThreeReq
@@ -1367,19 +1365,16 @@ var EncoreInternal_ThreeHandler = &api.Desc[*EncoreInternal_ThreeReq, EncoreInte
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_ThreeReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_ThreeReq) (string, api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
-		params := api.PathParams{{
-			Key:   "Id",
-			Value: enc.FromString(p.Id),
-		}}
+		params := api.UnnamedParams{enc.FromString(p.Id)}
 		if enc.LastError != nil {
 
 			return "", nil, enc.LastError
 		}
 
-		return "/three" + "/" + params[0].Value, params, nil
+		return "/three" + "/" + params[0], params, nil
 	},
 	ReqUserPayload: func(p *EncoreInternal_ThreeReq) any {
 		return nil
@@ -1414,14 +1409,16 @@ type EncoreInternal_TwoReq struct {
 type EncoreInternal_TwoResp = api.Void
 
 var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, EncoreInternal_TwoResp]{
-	Service:  "svc",
-	Endpoint: "Two",
-	Methods:  []string{"POST"},
-	Raw:      false,
-	Path:     "/svc.Two",
-	DefLoc:   37,
-	Access:   api.Public,
-	DecodeReq: func(req *http.Request, ps httprouter.Params, json jsoniter.API) (reqData *EncoreInternal_TwoReq, err error) {
+	Service:        "svc",
+	Endpoint:       "Two",
+	Methods:        []string{"POST"},
+	Raw:            false,
+	Path:           "/svc.Two",
+	RawPath:        "/svc.Two",
+	PathParamNames: nil,
+	DefLoc:         37,
+	Access:         api.Public,
+	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_TwoReq, pathParams api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_TwoReq{}
 		dec := &etype.Marshaller{}
 
@@ -1451,10 +1448,10 @@ var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, EncoreInternal
 		}
 		if dec.LastError != nil {
 
-			return nil, dec.LastError
+			return nil, nil, dec.LastError
 		}
 
-		return reqData, nil
+		return reqData, ps, nil
 	},
 	CloneReq: func(p *EncoreInternal_TwoReq) (*EncoreInternal_TwoReq, error) {
 		var clone EncoreInternal_TwoReq
@@ -1475,7 +1472,7 @@ var EncoreInternal_TwoHandler = &api.Desc[*EncoreInternal_TwoReq, EncoreInternal
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_TwoReq) (string, api.PathParams, error) {
+	ReqPath: func(p *EncoreInternal_TwoReq) (string, api.UnnamedParams, error) {
 
 		return "/svc.Two", nil, nil
 	},

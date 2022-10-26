@@ -10,7 +10,6 @@ import (
 
 	"github.com/felixge/httpsnoop"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/julienschmidt/httprouter"
 
 	encore "encore.dev"
 	"encore.dev/appruntime/model"
@@ -18,7 +17,11 @@ import (
 	"encore.dev/middleware"
 )
 
-type PathParams = httprouter.Params
+// NamedParams are named path parameters.
+type NamedParams = model.PathParams
+
+// UnnamedParams are unnamed parameters from an incoming request.
+type UnnamedParams []string
 
 type Void struct{}
 
@@ -46,7 +49,11 @@ type Desc[Req, Resp any] struct {
 	Endpoint string
 	Methods  []string
 	Path     string
+	RawPath  string
 	DefLoc   int32
+
+	// PathParamNames are the names of the path params, in order.
+	PathParamNames []string
 
 	// Access describes the access type for this API.
 	Access Access
@@ -54,10 +61,10 @@ type Desc[Req, Resp any] struct {
 	// If raw is true, RawHandler is set and AppHandler and EncodeResp are nil.
 	Raw bool
 
-	DecodeReq      func(*http.Request, PathParams, jsoniter.API) (Req, error)
+	DecodeReq      func(*http.Request, UnnamedParams, jsoniter.API) (Req, UnnamedParams, error)
 	CloneReq       func(Req) (Req, error)
 	SerializeReq   func(jsoniter.API, Req) ([][]byte, error)
-	ReqPath        func(Req) (path string, params PathParams, err error)
+	ReqPath        func(Req) (path string, params UnnamedParams, err error)
 	ReqUserPayload func(Req) any
 
 	AppHandler func(context.Context, Req) (Resp, error)
@@ -79,7 +86,8 @@ func (d *Desc[Req, Resp]) AccessType() Access            { return d.Access }
 func (d *Desc[Req, Resp]) ServiceName() string           { return d.Service }
 func (d *Desc[Req, Resp]) EndpointName() string          { return d.Endpoint }
 func (d *Desc[Req, Resp]) HTTPMethods() []string         { return d.Methods }
-func (d *Desc[Req, Resp]) HTTPPath() string              { return d.Path }
+func (d *Desc[Req, Resp]) SemanticPath() string          { return d.Path }
+func (d *Desc[Req, Resp]) HTTPRouterPath() string        { return d.RawPath }
 func (d *Desc[Req, Resp]) SetMiddleware(m []*Middleware) { d.middleware = m }
 
 func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
@@ -111,7 +119,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 }
 
 func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error) {
-	reqData, decodeErr := d.DecodeReq(c.req, c.ps, c.server.json)
+	reqData, params, decodeErr := d.DecodeReq(c.req, c.ps, c.server.json)
 
 	if d.Access == RequiresAuth && c.auth.UID == "" {
 		beginErr = errs.B().
@@ -139,7 +147,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		DefLoc:   d.DefLoc,
 
 		Path:         c.req.URL.Path,
-		PathSegments: c.ps,
+		PathSegments: d.toNamedParams(params),
 		Payload:      payload,
 		Inputs:       inputs,
 		RPCDesc:      d.rpcDesc(),
@@ -285,6 +293,15 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	}
 }
 
+func (d *Desc[Req, Resp]) toNamedParams(ps UnnamedParams) NamedParams {
+	named := make(NamedParams, len(ps))
+	for i, p := range ps {
+		named[i].Name = d.PathParamNames[i]
+		named[i].Value = p
+	}
+	return named
+}
+
 type CallContext struct {
 	ctx    context.Context
 	server *Server
@@ -334,7 +351,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 			DefLoc:   d.DefLoc,
 
 			Path:         path,
-			PathSegments: params,
+			PathSegments: d.toNamedParams(params),
 			Payload:      d.ReqUserPayload(req),
 			Inputs:       inputs,
 			RPCDesc:      d.rpcDesc(),
