@@ -33,7 +33,7 @@ export default class Client {
      * @param target  The target which the client should be configured to use. See Local and Environment for options.
      * @param options Options for the client
      */
-    constructor(target = "prod", options) {
+    constructor(target = "prod", options = undefined) {
         const base = new BaseClient(target, options ?? {})
         this.cache = new cache.ServiceClient(base)
         this.di = new di.ServiceClient(base)
