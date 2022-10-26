@@ -236,6 +236,15 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	var nextFn middleware.Next
 	numMiddleware := len(d.middleware)
 	nextFn = func(req middleware.Request) (resp middleware.Response) {
+		// Ensure the HTTP status code is correctly set in the response
+		defer func() {
+			// If no explicit HTTP status has been set, then we use the default for the type of error
+			// or if Err is nil, we'll set 200
+			if resp.HTTPStatus == 0 {
+				resp.HTTPStatus = errs.HTTPStatus(resp.Err)
+			}
+		}()
+
 		idx := counter
 		counter++
 
@@ -278,29 +287,19 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	})
 	mwResp := nextFn(mwReq)
 
-	if mwResp.Err != nil {
-		httpStatus := mwResp.HTTPStatus
-		if httpStatus == 0 {
-			// If no explicit HTTP status has been set, then we use the default for the type of error
-			httpStatus = errs.HTTPStatus(mwResp.Err)
-		}
-		return resp, httpStatus, mwResp.Err
+	if mwResp.Payload == nil {
+		var defaultValue Resp
+		return defaultValue, mwResp.HTTPStatus, mwResp.Err
 	} else {
-		httpStatus := mwResp.HTTPStatus
-		if httpStatus == 0 {
-			// If no explicit HTTP status has been set, then we use 200 OK
-			httpStatus = 200
-		}
-
 		if resp, ok := mwResp.Payload.(Resp); ok || isVoid[Resp]() {
-			return resp, httpStatus, nil
+			return resp, mwResp.HTTPStatus, mwResp.Err
 		}
-
-		return resp, 500, errs.B().Code(errs.Internal).Msgf(
-			"invalid middleware: cannot return payload of type %T for endpoint %s.%s (expected type %T)",
-			mwResp.Payload, d.Service, d.Endpoint, resp,
-		).Err()
 	}
+
+	return resp, 500, errs.B().Code(errs.Internal).Msgf(
+		"invalid middleware: cannot return payload of type %T for endpoint %s.%s (expected type %T)",
+		mwResp.Payload, d.Service, d.Endpoint, resp,
+	).Err()
 }
 
 type CallContext struct {
