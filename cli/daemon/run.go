@@ -90,9 +90,6 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		return nil
 	}
 
-	// Clear screen.
-	stderr.Write([]byte("\033[2J\033[H\n"))
-
 	ops := optracker.New(stderr, stream)
 
 	// Check for available update before we start the proc
