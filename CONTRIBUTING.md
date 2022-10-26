@@ -96,9 +96,12 @@ npm test -- --watch #re-run tests on file change
 ```
 
 ### Testing the Daemon run logic
-The deamon tests in the `cli/daemon/run` use many auto generated files from the `e2e-tests/testdata` directory. To generate the
-client files and other test files, run `go test -golden-update` from the `e2e-tests` directory which will update the
-test files.
+The codegen tests in the `internal/clientgen/client_test.go` file uses many auto generated files from the
+`e2e-tests/testdata` directory. To generate the client files and other test files, run `go test -golden-update` from
+the `e2e-tests` directory. This will generate client files for all the supported client generation languages.
+
+Running `go test ./internal/clientgen/client_test.go` will now work and use the most recent client generate files. If
+you change the client or content of the `testdata` folder, you may need to regenerate the client files again.
 
 ## Architecture
 

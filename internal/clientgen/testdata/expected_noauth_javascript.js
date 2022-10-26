@@ -17,24 +17,19 @@ export function Environment(name) {
  * Client is an API client for the app Encore application. 
  */
 export default class Client {
-    svc
-
-
     /**
      * Creates a Client for calling the public and authenticated APIs of your Encore application.
      *
      * @param target  The target which the client should be configured to use. See Local and Environment for options.
      * @param options Options for the client
      */
-    constructor(target = "prod", options) {
+    constructor(target = "prod", options = undefined) {
         const base = new BaseClient(target, options ?? {})
         this.svc = new svc.ServiceClient(base)
     }
 }
 
 class SvcServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -64,10 +59,6 @@ function encodeQuery(parts) {
 }
 
 class BaseClient {
-    baseURL
-    fetcher
-    headers
-
     constructor(baseURL, options) {
         this.baseURL = baseURL
         this.headers = {
@@ -148,21 +139,6 @@ function isErrCode(code) {
  * APIError represents a structured error as returned from an Encore application.
  */
 export class APIError extends Error {
-    /**
-     * The HTTP status code associated with the error.
-     */
-    status
-
-    /**
-     * The Encore error code
-     */
-    code
-
-    /**
-     * The error details
-     */
-    details
-
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
@@ -187,8 +163,19 @@ export class APIError extends Error {
             Error.captureStackTrace(this, this.constructor);
         }
 
+        /**
+         * The HTTP status code associated with the error.
+         */
         this.status = status
+
+        /**
+         * The Encore error code
+         */
         this.code = response.code
+
+        /**
+         * The error details
+         */
         this.details = response.details
     }
 }

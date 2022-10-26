@@ -17,16 +17,6 @@ export function Environment(name) {
  * Client is an API client for the slug Encore application. 
  */
 export default class Client {
-    cache
-    di
-    echo
-    endtoend
-    flakey_di
-    middleware
-    test
-    validation
-
-
     /**
      * Creates a Client for calling the public and authenticated APIs of your Encore application.
      *
@@ -47,8 +37,6 @@ export default class Client {
 }
 
 class CacheServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -85,8 +73,6 @@ export const cache = {
 }
 
 class DiServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -107,8 +93,6 @@ export const di = {
 }
 
 class EchoServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -277,8 +261,6 @@ export const echo = {
 }
 
 class EndtoendServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -293,8 +275,6 @@ export const endtoend = {
 }
 
 class Flakey_diServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -311,8 +291,6 @@ export const flakey_di = {
 }
 
 class MiddlewareServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -339,8 +317,6 @@ export const middleware = {
 }
 
 class TestServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -434,9 +410,9 @@ class TestServiceClient {
     /**
      * PathMultiSegments allows us to wildcard segments and segment URI encoding
      */
-    async PathMultiSegments(bool, int, _string, uuid, wildcard) {
+    async PathMultiSegments(bool, _int, string, uuid, wildcard) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(int)}/${encodeURIComponent(_string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`)
+        const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(_int)}/${encodeURIComponent(string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`)
         return await resp.json()
     }
 
@@ -510,8 +486,6 @@ export const test = {
 }
 
 class ValidationServiceClient {
-    baseClient
-
     constructor(baseClient) {
         this.baseClient = baseClient
     }
@@ -552,11 +526,6 @@ function mustBeSet(field, value) {
 }
 
 class BaseClient {
-    baseURL
-    fetcher
-    headers
-    authGenerator
-
     constructor(baseURL, options) {
         this.baseURL = baseURL
         this.headers = {
@@ -664,21 +633,6 @@ function isErrCode(code) {
  * APIError represents a structured error as returned from an Encore application.
  */
 export class APIError extends Error {
-    /**
-     * The HTTP status code associated with the error.
-     */
-    status
-
-    /**
-     * The Encore error code
-     */
-    code
-
-    /**
-     * The error details
-     */
-    details
-
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
@@ -703,8 +657,19 @@ export class APIError extends Error {
             Error.captureStackTrace(this, this.constructor);
         }
 
+        /**
+         * The HTTP status code associated with the error.
+         */
         this.status = status
+
+        /**
+         * The Encore error code
+         */
         this.code = response.code
+
+        /**
+         * The error details
+         */
         this.details = response.details
     }
 }

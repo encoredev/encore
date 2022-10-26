@@ -123,8 +123,6 @@ func (js *javascript) writeService(svc *meta.Service) error {
 
 	// Constructor
 	indent()
-	js.WriteString("baseClient\n\n")
-	indent()
 	js.WriteString("constructor(baseClient) {\n")
 	numIndent++
 	indent()
@@ -380,12 +378,13 @@ func (js *javascript) nonReservedId(id string) string {
 		return "_" + id
 
 	//Javascript keywords
-	case "abstract", "any", "arguments", "as", "async", "await", "boolean", "break", "byte", "case", "catch", "char",
-		"class", "const", "constructor", "continue", "debugger", "declare", "default", "delete", "do", "double", "else",
-		"enum", "eval", "export", "extends", "false", "final", "finally", "float", "for", "from", "function", "get",
-		"goto", "if", "implements", "import", "in", "instanceof", "interface", "let", "long", "module", "namespace",
-		"native", "new", "null", "number", "of", "package", "private", "protected", "public", "require", "return",
-		"set", "short", "static", "string", "super", "switch", "symbol", "synchronized", "this", "throw", "throws",
+	// Based on https://www.w3schools.com/js/js_reserved.asp
+	case "abstract", "arguments", "async", "await", "boolean", "break", "byte", "case", "catch", "char",
+		"class", "const", "continue", "debugger", "default", "delete", "do", "double", "else",
+		"enum", "eval", "export", "extends", "false", "final", "finally", "float", "for", "function", "get",
+		"goto", "if", "implements", "import", "in", "instanceof", "int", "interface", "let", "long",
+		"native", "new", "null", "of", "package", "private", "protected", "public", "require", "return",
+		"short", "static", "super", "switch", "symbol", "synchronized", "this", "throw", "throws",
 		"transient", "true", "try", "type", "typeof", "var", "void", "volatile", "while", "with", "yield":
 		return "_" + id
 
@@ -412,19 +411,10 @@ export function Environment(name) {
 /**
  * Client is an API client for the ` + js.appSlug + ` Encore application. 
  */
-export default class Client {
-`)
+export default class Client {`)
 
 	{
 		w := w.Indent()
-
-		for _, svc := range js.md.Svcs {
-			if hasPublicRPC(svc) {
-				w.WriteStringf("%s\n", js.memberName(svc.Name))
-			}
-		}
-		w.WriteString("\n")
-
 		w.WriteString(`
 /**
  * Creates a Client for calling the public and authenticated APIs of your Encore application.
@@ -432,7 +422,7 @@ export default class Client {
  * @param target  The target which the client should be configured to use. See Local and Environment for options.
  * @param options Options for the client
  */
-constructor(target = "prod", options) {`)
+constructor(target = "prod", options = undefined) {`)
 		{
 			w := w.Indent()
 
@@ -469,17 +459,8 @@ func (js *javascript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-JS-Client (Encore/%s)", appSlug, version.Version)
 
 	js.WriteString(`
-class BaseClient {
-    baseURL
-    fetcher
-    headers`)
-
-	if js.hasAuth {
-		js.WriteString("\n    authGenerator")
-	}
-
+class BaseClient {`)
 	js.WriteString(`
-
     constructor(baseURL, options) {
         this.baseURL = baseURL
         this.headers = {
@@ -814,21 +795,6 @@ function isErrCode(code) {
  * APIError represents a structured error as returned from an Encore application.
  */
 export class APIError extends Error {
-    /**
-     * The HTTP status code associated with the error.
-     */
-    status
-
-    /**
-     * The Encore error code
-     */
-    code
-
-    /**
-     * The error details
-     */
-    details
-
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
@@ -853,8 +819,19 @@ export class APIError extends Error {
             Error.captureStackTrace(this, this.constructor);
         }
 
+        /**
+         * The HTTP status code associated with the error.
+         */
         this.status = status
+
+        /**
+         * The Encore error code
+         */
         this.code = response.code
+
+        /**
+         * The error details
+         */
         this.details = response.details
     }
 }
