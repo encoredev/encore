@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -145,39 +144,40 @@ func TestDesc_EndToEnd(t *testing.T) {
 		})
 	}
 
-	testMetricsExporter.AssertCounter(t, "e_requests_total", 2, map[string]string{
+	testMetricsExporter.AssertCounter(t, "e_requests_total", 1, map[string]string{
 		"service":  "service",
 		"endpoint": "endpoint",
+		"code":     "ok",
 	})
 	testMetricsExporter.AssertObservation(
 		t,
-		"e_request_durations_milliseconds",
+		"e_request_duration_seconds",
 		"duration",
 		func(value float64) bool {
 			return value >= 0
 		},
 		map[string]string{
-			"service":     "service",
-			"endpoint":    "endpoint",
-			"status_code": strconv.Itoa(200),
+			"service":  "service",
+			"endpoint": "endpoint",
+			"code":     "ok",
 		},
 	)
-	testMetricsExporter.AssertCounter(t, "e_errors_total", 1, map[string]string{
+	testMetricsExporter.AssertCounter(t, "e_requests_total", 1, map[string]string{
 		"service":  "service",
 		"endpoint": "endpoint",
 		"code":     errs.InvalidArgument.String(),
 	})
 	testMetricsExporter.AssertObservation(
 		t,
-		"e_request_durations_milliseconds",
+		"e_request_duration_seconds",
 		"duration",
 		func(value float64) bool {
 			return value >= 0
 		},
 		map[string]string{
-			"service":     "service",
-			"endpoint":    "endpoint",
-			"status_code": strconv.Itoa(400),
+			"service":  "service",
+			"endpoint": "endpoint",
+			"code":     errs.InvalidArgument.String(),
 		},
 	)
 }
