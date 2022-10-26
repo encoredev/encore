@@ -134,3 +134,27 @@ func stringIsOnly(str string, predicate func(r rune) bool) bool {
 	}
 	return true
 }
+
+// GenerateSuggestion creates a suggestion for an identifier in the given format
+// from the given input string.
+func GenerateSuggestion(input string, format IdentFormat) string {
+	// Clean the string up first and remove unsupported characters
+	input = strings.TrimSpace(input)
+	input = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsSpace(r) || r == '_' || r == '-' {
+			return r
+		}
+		return -1
+	}, input)
+
+	// Remove any leading or trailing characters which are not letters
+	input = strings.TrimLeftFunc(input, func(r rune) bool {
+		return !unicode.IsLetter(r)
+	})
+	input = strings.TrimRightFunc(input, func(r rune) bool {
+		return !unicode.IsLetter(r)
+	})
+
+	// Now convert the cleaned input into the desired format
+	return Convert(input, format)
+}

@@ -1,6 +1,7 @@
 package srcerrors
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -16,4 +17,23 @@ const (
 		"or more API's declared within them or a PubSub subscription."
 
 	configHelp = "For more information on configuration, see https://encore.dev/docs/develop/config"
+
+	pubsubNewTopicHelp = "For example `pubsub.NewTopic[MyMessage](\"my-topic\", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })`"
+
+	pubsubNewSubscriptionHelp = "A pubsub subscription must have a unique name per topic and be given a handler function for processing the message. " +
+		"The handler for the subscription must be defined in the same service as the call to pubsub.NewSubscription and can be an inline function. " +
+		"For example:\n" +
+		"\tpubsub.NewSubscription(myTopic, \"subscription-name\", pubsub.SubscriptionConfig[MyMessage]{\n" +
+		"\t\tHandler: func(ctx context.Context, event MyMessage) error { return nil },\n" +
+		"\t})"
+
+	pubsubHelp = "For more information on PubSub, see https://encore.dev/docs/develop/pubsub"
 )
+
+func resourceNameHelp(resourceName string, paramName string) string {
+	return fmt.Sprintf("%s %s's must be defined as string literals, "+
+		"be between 1 and 63 characters long, and defined in \"kebab-case\", meaning it must start with a letter, end with a letter "+
+		"or number and only contain lower case letters, numbers and dashes.",
+		resourceName, paramName,
+	)
+}

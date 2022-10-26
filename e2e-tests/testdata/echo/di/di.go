@@ -4,12 +4,14 @@ import (
 	"archive/zip"
 	"context"
 	"database/sql"
+	"io"
+	"net/http"
 	"sync"
 
 	"encore.dev/cron"
 )
 
-type Response struct {
+type TwoResponse struct {
 	Msg string
 }
 
@@ -36,8 +38,13 @@ func (s *Service) One(ctx context.Context) error {
 }
 
 //encore:api public path=/di/two
-func (s *Service) Two(ctx context.Context) (*Response, error) {
-	return &Response{Msg: s.Msg}, nil
+func (s *Service) Two(ctx context.Context) (*TwoResponse, error) {
+	return &TwoResponse{Msg: s.Msg}, nil
+}
+
+//encore:api public raw path=/di/raw
+func (s *Service) Three(w http.ResponseWriter, req *http.Request) {
+	io.Copy(w, req.Body)
 }
 
 func initService() (*Service, error) {

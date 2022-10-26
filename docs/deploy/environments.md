@@ -1,56 +1,60 @@
 ---
 title: Environments
-subtitle: Single cloud, multi cloud, or hybrid
+subtitle: The environments you want, with none of the work
 ---
 
-When using Encore to build applications you create one or more *environments*.
-Each environment is an isolated, fully working instance of your backend.
+Encore makes it simple to create the environments you need to build your application with confidence: local, preview, testing, and production.
+Each environment is an isolated fully working instance of your backend, automatically provisioned by Encore.
 
-With Encore you can create as many or as few environments as you wish,
-all with the click of a button.
+Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/introduction#meet-the-encore-application-model). Environments are provisioned using contextually appropriate [infrastructure](/deploy/infra) depending on the type of environment.
 
 ## Creating environments
 
-To create an environment for your app, open [Your app](https://app.encore.dev) and go to the **Environments** page,
+To create an environment for your app, open your app in the [Encore web platform](https://app.encore.dev) and go to the **Environments** page,
 then click on `Create env` in the top right.
 
 There you can pick a name, and decide if you want a production
 or development environment (see [Environment Types](#environment-types) below).
 
-Choose how you would like to deploy to the environment (either on pushing
+Choose how you would like to deploy to the environment (either by pushing
 to a Git branch or manually triggered), and whether or not you want to manually approve infrastructure provisioning or simply let Encore handle it.
 
-Finally, select which cloud provider to deploy to (see [Cloud Providers](#cloud-providers) below),
+Finally, select which cloud provider you want to deploy to (see the [Cloud Providers](/docs/deploy/own-cloud) documentation to learn more),
 and click `Create`. That's it!
+
+![Creating an environment](/assets/docs/createenv.png "Creating an environment")
 
 ## Environment Types
 
-Encore offers two types of environments: **Production** and **Development**.
-They differ in the type of infrastructure that is provisioned.
+Encore has two primary types of environments: `Production` and `Development`.
 
-Production environments are provisioned for maximum reliability, availability and scalability.
-Databases are provisioned as proper, managed databases with automatic backups.
-Your backend code runs with auto-scaling to match your traffic requirements.
+`Development` environments include local, preview, and all environments created with the `Development` type.
 
-Development environments are provisioned for simplicity, cost efficiency and speed.
-The databases are provisioned with persistent disks using Kubernetes, to offer
-reasonable durability and scalability, suitable for the most development needs.
 
-## Cloud Providers
+They differ in the type of infrastructure that is provisioned:
+- Production environments are provisioned for maximum reliability, availability, and scalability.
+- Development environments are optimized to be cost-efficient and fast to provision.
 
-Encore supports deploying your application to any of the major cloud providers,
-as well as using Encore's own cloud (internally deployed using GCP), using your own cloud account.
+Learn more about how different environments are provisioned in the [infrastructure documentation](/docs/deploy/infra).
 
-This gives you enormous flexibility, letting you use Encore for improving your productivity
-while maintaining the existing trust relationship you have with your cloud provider of choice.
-This functionality also lets you easily deploy a hybrid or multi-cloud application, if desired.
+Aside from determining infrastructure, environment type is also used for [Secrets management](/docs/develop/secrets).
 
-### Provisioning infrastructure
+## Local environment
 
-When deploying to an external cloud, Encore will add a preliminary deployment phase
-to provision the necessary infrastructure based on what your app needs.
-This is computed with static analysis using the [Encore Application Model](/docs/introduction#meet-the-encore-application-model).
+When you've installed the [Encore CLI](/docs/install), you start your local environment by simply running `encore run`.
+This builds and tests your application, and provisions all the necessary infrastructure to run your application locally (see the [infra docs](/docs/deploy/infra#local-development) to learn exactly how local infrastructure is provisioned).
 
-For certain infrastructure resources, you may be asked to tell Encore a bit more about the performance requirements
-you have. This lets Encore provision appropriately sized infrastructure for your needs.
-*(This is only necessary the first time you add a new infrastructure component, and only for Production environments.)*
+By default, the local environment runs on `http://localhost:4000`.
+
+## Preview environments
+
+When you've [connected your application to GitHub](/docs/how-to/github), Encore will automatically provision ephemeral Preview Environments
+for each Pull Request. This makes collaborating on PRs much faster. 
+
+Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`, and the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
+
+See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious about how Preview Environments are provisioned.
+
+## Cloud environments
+
+Encore makes it easy to create multiple cloud environments using different cloud providers, by [connecting your cloud account](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).

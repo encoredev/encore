@@ -55,6 +55,7 @@ func Dir() (string, error) {
 // Config represents the stored Encore configuration.
 type Config struct {
 	oauth2.Token
+	Actor     string `json:"actor,omitempty"`    // The ID of either the user or app authenticated
 	Email     string `json:"email,omitempty"`    // non-zero if logged in as a user
 	AppSlug   string `json:"app_slug,omitempty"` // non-zero if logged in as an app
 	WireGuard struct {
@@ -146,8 +147,9 @@ func readConf(configDir string) (*Config, error) {
 // current logged in user's API Token.
 // The zero value is ready to be used.
 type TokenSource struct {
-	setup syncutil.Once
-	ts    oauth2.TokenSource
+	setup     syncutil.Once
+	ts        oauth2.TokenSource
+	lastToken string
 }
 
 // Token implements oauth2.TokenSource.
@@ -165,6 +167,7 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 				TokenURL: APIBaseURL + "/login/oauth:refresh-token",
 			},
 		}
+		ts.lastToken = cfg.AccessToken
 		ts.ts = oauth2Cfg.TokenSource(context.Background(), &cfg.Token)
 		return nil
 	})
@@ -179,6 +182,17 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 			_ = Logout()
 			return nil, ErrInvalidRefreshToken
 		}
+	} else if ts.lastToken != token.AccessToken {
+		// The token has changed, so update the config.
+		cfg, err := CurrentUser()
+		if err != nil {
+			return nil, err
+		}
+		cfg.Token = *token
+		if err := Write(cfg); err != nil {
+			return nil, err
+		}
+		ts.lastToken = token.AccessToken
 	}
 	return token, err
 }

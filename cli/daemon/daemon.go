@@ -14,7 +14,6 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/mod/semver"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -173,8 +172,8 @@ func (s *Server) Version(context.Context, *empty.Empty) (*daemonpb.VersionRespon
 
 // availableUpdate checks for updates to Encore.
 // If there is a new version it returns it as a semver string.
-func (s *Server) availableUpdate() string {
-	check := func() string {
+func (s *Server) availableUpdate() *update.LatestVersion {
+	check := func() *update.LatestVersion {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		ver, err := update.Check(ctx)
@@ -190,7 +189,7 @@ func (s *Server) availableUpdate() string {
 		go func() {
 			for {
 				time.Sleep(1 * time.Hour)
-				if ver := check(); ver != "" {
+				if ver := check(); ver != nil {
 					s.availableVer.Store(ver)
 				}
 			}
@@ -198,11 +197,11 @@ func (s *Server) availableUpdate() string {
 	})
 
 	curr := version.Version
-	latest := s.availableVer.Load().(string)
-	if semver.Compare(latest, curr) > 0 {
+	latest := s.availableVer.Load().(*update.LatestVersion)
+	if latest.IsNewer(curr) {
 		return latest
 	}
-	return ""
+	return nil
 }
 
 var errNotLinked = (func() error {

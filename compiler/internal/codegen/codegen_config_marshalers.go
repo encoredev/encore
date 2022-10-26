@@ -41,7 +41,7 @@ calls to config.Load[T]().`)
 
 	// Write load functions for generic types
 	for _, load := range svc.ConfigLoads {
-		builder.generateConcreteUnmarshalers(load.ConfigStruct.Type)
+		builder.generateConcreteUnmarshalers(load.ConfigStruct)
 	}
 	if len(builder.concreteUnmarshalers) > 0 {
 		builder.f.Line()
@@ -241,6 +241,12 @@ func (cb *configUnmarshalersBuilder) readType(typ *schema.Type, pathElement Code
 		reader, returnType := cb.readType(t.Pointer.Base, pathElement)
 
 		return Func().Params().Op("*").Add(returnType).Block(
+			Comment("// If the value is null, we return nil"),
+			If(Id("itr").Dot("ReadNil").Call()).Block(
+				Return(Nil()),
+			),
+			Line(),
+			Comment("// Otherwise we unmarshal the value and return a pointer to it"),
 			Id("obj").Op(":=").Add(reader),
 			Return(Op("&").Id("obj")),
 		).Call(), Op("*").Add(returnType)
@@ -427,9 +433,9 @@ func (cb *configUnmarshalersBuilder) typeParamUnmarshalerName(param *schema.Type
 
 // generateConcreteUnmarshaler generates a function that unmarshals a concrete type, taking into account any
 // type arguments passed to the given type
-func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ *schema.Type) {
-	funcBody, _ := cb.typeUnmarshalerFunc(typ)
-	funcName := ConfigUnmarshalFuncName(typ, cb.md)
+func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(param *est.Param) {
+	funcBody, _ := cb.typeUnmarshalerFunc(param.GetWithPointer())
+	funcName := ConfigUnmarshalFuncName(param, cb.md)
 
 	cb.concreteUnmarshalers = append(cb.concreteUnmarshalers, Id(funcName).Op("=").Add(funcBody))
 }
@@ -440,9 +446,10 @@ func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ *schema.Ty
 // - `int` -> `encoreInternal_LoadConfig_int`
 // - `ConfigType` -> `encoreInternal_LoadConfig_ConfigType`
 // - `ConfigType[int, string]` -> `encoreInternal_LoadConfig_ConfigType_int_string_`
-func ConfigUnmarshalFuncName(typ *schema.Type, md *meta.Data) string {
-	typeAsString := gocodegen.ConvertSchemaTypeToString(typ, md)
+func ConfigUnmarshalFuncName(param *est.Param, md *meta.Data) string {
+	typeAsString := gocodegen.ConvertSchemaTypeToString(param.GetWithPointer(), md)
 	typeAsString = strings.NewReplacer(
+		"*", "ptr_",
 		"[", "_",
 		"]", "_",
 		",", "_",

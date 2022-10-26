@@ -1,0 +1,44 @@
+parse
+stdout 'pubsubPublisher middlware basic MiddlewareFunc'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+)
+
+// encore:api
+func DoStuff(ctx context.Context) error {
+    return BasicTopic.Publish(ctx, &MessageType{Name: "foo"})
+}
+
+
+-- middleware/middleware.go --
+package middleware
+
+import (
+	"time"
+
+	"encore.dev/middleware"
+	"encore.dev/pubsub"
+
+	"test/svc"
+)
+
+//encore:middleware global target=all
+func MiddlewareFunc(req middleware.Request, next middleware.Next) middleware.Response {
+    svc.BasicTopic.Publish(req.Context(), &svc.MessageType{Name: "bar"})
+
+	return next(req)
+}
