@@ -17,6 +17,18 @@ type Bailout struct {
 	List ErrorList
 }
 
+func (b Bailout) Error() string {
+	return b.List.Error()
+}
+
+func (b Bailout) Unwrap() error {
+	return b.List
+}
+
+func (b Bailout) ErrorList() []*ErrInSrc {
+	return b.List.ErrorList()
+}
+
 func Panic(list ErrorList) {
 	panic(Bailout{list})
 }
@@ -29,8 +41,15 @@ func ExtractFromPanic(recovered any) error {
 	// If it's already an ErrInSrc or list of them, just return that
 	if unwrapped, ok := recovered.(error); ok {
 		// Check the type of the error then unwrap as needed
+		n := 0
 		for unwrapped != nil {
-			switch err := recovered.(type) {
+			// Limit recursion to 100 unwraps to prevent infinite loops.
+			n++
+			if n > 100 {
+				return nil
+			}
+
+			switch err := unwrapped.(type) {
 			case *ErrInSrc:
 				return err
 			case ErrorList:
