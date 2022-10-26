@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -9,8 +10,10 @@ import (
 
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"encr.dev/cli/internal/onboarding"
+	"encr.dev/pkg/ansi"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -63,6 +66,15 @@ func runApp(appRoot, wd string) {
 	})
 	if err != nil {
 		fatal(err)
+	}
+
+	// Clear the screen except for the first line.
+	if _, height, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
+		count := height - 2
+		if count > 0 {
+			os.Stdout.Write(bytes.Repeat([]byte{'\n'}, count))
+		}
+		fmt.Fprint(os.Stdout, ansi.SetCursorPosition(2, 1)+ansi.ClearScreen(ansi.CursorToBottom))
 	}
 
 	code := streamCommandOutput(stream, convertJSONLogs())
