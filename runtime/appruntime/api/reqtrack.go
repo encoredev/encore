@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
-
 	"encore.dev/appruntime/model"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/metrics"
@@ -27,7 +25,7 @@ type beginRequestParams struct {
 	Service      string
 	Endpoint     string
 	Path         string
-	PathSegments httprouter.Params
+	PathSegments model.PathParams
 	Payload      any
 	Inputs       [][]byte
 	UID          model.UID

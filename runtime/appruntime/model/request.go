@@ -8,7 +8,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/serde"
@@ -31,6 +30,14 @@ type RPCDesc struct {
 	ResponseType reflect.Type // nil if no payload
 }
 
+type PathParams []PathParam
+
+// PathParam represents a parsed path parameter.
+type PathParam struct {
+	Name  string // the name of the path parameter, without leading ':' or '*'.
+	Value string // the parsed path parameter value.
+}
+
 type Request struct {
 	Type     RequestType
 	SpanID   SpanID
@@ -41,7 +48,7 @@ type Request struct {
 	Service      string
 	Endpoint     string
 	Path         string
-	PathSegments httprouter.Params
+	PathSegments PathParams
 	Payload      any
 	Inputs       [][]byte
 	Start        time.Time
