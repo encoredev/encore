@@ -203,7 +203,7 @@ func (cb *configUnmarshalersBuilder) readType(typ *schema.Type, pathElement Code
 					// the etype unmarshaler to unmarshal the key to the underlying datatype
 					f.Comment("Decode the map key from the JSON string to the underlying type it needs to be")
 					instance := cb.marshaller.NewPossibleInstance("keyDecoder")
-					code, err := instance.FromString(t.Map.Key, "keyAsString", Id("key"), Index().String().List(Id("key")), true)
+					code, err := instance.FromString(t.Map.Key, "keyAsString", Id("keyAsString"), Index().String().List(Id("key")), true)
 					if err != nil {
 						panic(err)
 					}
@@ -254,11 +254,13 @@ func (cb *configUnmarshalersBuilder) readType(typ *schema.Type, pathElement Code
 	case *schema.Type_Config:
 		// The config type is the dynamic values which can be changed at runtime
 		// by unit tests
-		code, returnType := cb.readType(t.Config.Elem, pathElement)
 		if t.Config.IsValuesList {
-			return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), returnType
+			code, _ := cb.readType(t.Config.Elem, pathElement)
+			_, returnType := cb.readType(t.Config.Elem.GetList().Elem, pathElement)
+			return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Values").Types(returnType)
 		} else {
-			return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(code, Append(Id("path"), pathElement)), returnType
+			code, returnType := cb.readType(t.Config.Elem, pathElement)
+			return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Value").Types(returnType)
 		}
 
 	case *schema.Type_TypeParameter:
