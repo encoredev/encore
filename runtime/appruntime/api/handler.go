@@ -287,9 +287,8 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	})
 	mwResp := nextFn(mwReq)
 
-	if mwResp.Payload == nil {
-		var defaultValue Resp
-		return defaultValue, mwResp.HTTPStatus, mwResp.Err
+	if mwResp.Err != nil {
+		return resp, mwResp.HTTPStatus, mwResp.Err
 	} else {
 		if resp, ok := mwResp.Payload.(Resp); ok || isVoid[Resp]() {
 			return resp, mwResp.HTTPStatus, mwResp.Err
