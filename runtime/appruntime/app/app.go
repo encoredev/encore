@@ -140,20 +140,17 @@ func jsonAPI(cfg *config.Config) jsoniter.API {
 }
 
 func metricsExporter(cfg *config.Config, logger zerolog.Logger) metrics.Exporter {
-	switch cfg.Runtime.EnvCloud {
-	case encore.CloudAWS:
-		return metrics.NewAWSMetricsExporter(logger)
-	case encore.CloudGCP:
-		return metrics.NewGCPMetricsExporter(logger)
-	case encore.CloudAzure:
-		// Custom metrics are in still in preview, so we won't be using them for now.
+	if cfg.Runtime.Metrics == nil {
 		return metrics.NewNullMetricsExporter()
-	case encore.EncoreCloud:
-		return metrics.NewGCPMetricsExporter(logger)
-	case encore.CloudLocal:
-		// TODO
+	}
+
+	switch cfg.Runtime.Metrics.ExporterType {
+	case config.MetricsExporterTypeLogsBased:
+		return metrics.NewLogsBasedExporter(logger)
 	default:
-		logger.Error().Str("env_cloud", cfg.Runtime.EnvCloud).Msg("unexpected cloud environment")
+		logger.Error().
+			Str("metrics_exporter_type", string(cfg.Runtime.Metrics.ExporterType)).
+			Msg("unexpected metrics exporter")
 	}
 	return nil
 }
