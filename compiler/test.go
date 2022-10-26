@@ -137,8 +137,17 @@ func (b *builder) runTests(ctx context.Context) error {
 		"-mod=mod",
 		"-vet=off",
 	}
+
 	if b.cfg.StaticLink {
-		args = append(args, "-ldflags", `-linkmode external -extldflags "-static"`)
+		var ldflags string
+
+		// Enable external linking if we use cgo.
+		if b.cfg.CgoEnabled {
+			ldflags = "-linkmode external "
+		}
+
+		ldflags += `-extldflags "-static"`
+		args = append(args, "-ldflags", ldflags)
 	}
 
 	args = append(args, b.cfg.Test.Args...)
