@@ -96,8 +96,6 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		curr.Trace.BeginRequest(req, curr.Goctr)
 	}
 
-	s.metrics.ReqBegin(req.Service, req.Endpoint)
-
 	switch req.Type {
 	case model.AuthHandler:
 		req.Logger.Info().Msg("running auth handler")
@@ -148,7 +146,7 @@ func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
 	}
 
 	s.rt.FinishRequest()
-	s.metrics.ReqEnd(req.Service, req.Endpoint, err, httpStatus, dur.Milliseconds())
+	s.metrics.ReqEnd(req.Service, req.Endpoint, err, httpStatus, dur.Seconds())
 }
 
 type CallOptions struct {

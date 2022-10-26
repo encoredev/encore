@@ -2,9 +2,15 @@ package metrics
 
 import (
 	"net/http"
-	"strconv"
+	"strings"
 
 	"encore.dev/beta/errs"
+)
+
+var r = strings.NewReplacer(
+	" ", "_",
+	"-", "_",
+	"'", "_",
 )
 
 type Manager struct {
@@ -20,28 +26,32 @@ func NewManager(exp Exporter) *Manager {
 	return &Manager{exp: exp}
 }
 
-func (m *Manager) ReqBegin(service, endpoint string) {
-	m.exp.IncCounter("e_requests_total", "service", service, "endpoint", endpoint)
-}
-
-func (m *Manager) ReqEnd(service, endpoint string, err error, httpStatus int, durMillis int64) {
-	if err != nil {
-		e := errs.Convert(err).(*errs.Error)
-		m.exp.IncCounter("e_errors_total", "service", service, "endpoint", endpoint, "code", e.Code.String())
-
-		if httpStatus == 0 {
-			httpStatus = e.Code.HTTPStatus()
-		}
-	}
-
-	if httpStatus == 0 {
-		httpStatus = http.StatusOK
-	}
-	m.exp.Observe(
-		"e_request_durations_milliseconds",
-		"duration", float64(durMillis),
+func (m *Manager) ReqEnd(service, endpoint string, err error, httpStatus int, durSecs float64) {
+	code := code(err, httpStatus)
+	m.exp.IncCounter(
+		"e_requests_total",
 		"service", service,
 		"endpoint", endpoint,
-		"status_code", strconv.Itoa(httpStatus),
+		"code", code,
 	)
+	m.exp.Observe(
+		"e_request_duration_seconds",
+		"duration", durSecs,
+		"service", service,
+		"endpoint", endpoint,
+		"code", code,
+	)
+}
+
+func code(err error, httpStatus int) string {
+	if err != nil {
+		e := errs.Convert(err).(*errs.Error)
+		return e.Code.String()
+	}
+
+	code := http.StatusText(httpStatus)
+	if code == "" {
+		code = http.StatusText(http.StatusOK)
+	}
+	return r.Replace(strings.ToLower(code))
 }
