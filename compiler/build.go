@@ -408,7 +408,7 @@ func (b *builder) buildMain() error {
 		"-o=" + filepath.Join(b.workdir, "out"+b.exe()),
 	}
 	if b.cfg.StaticLink {
-		args = append(args, "-ldflags", `-extldflags "-static"`)
+		args = append(args, "-ldflags", `-linkmode external -extldflags "-static"`)
 	}
 
 	args = append(args, fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName))

@@ -138,7 +138,7 @@ func (b *builder) runTests(ctx context.Context) error {
 		"-vet=off",
 	}
 	if b.cfg.StaticLink {
-		args = append(args, "-ldflags", `-extldflags "-static"`)
+		args = append(args, "-ldflags", `-linkmode external -extldflags "-static"`)
 	}
 
 	args = append(args, b.cfg.Test.Args...)
