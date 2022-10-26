@@ -413,7 +413,7 @@ func (p *parser) resolveServiceStruct(parameterType string, svc *est.Service, fd
 	}
 
 	p.errf(recvType.Pos(), "type %s is not defined as an encore:service struct"+
-		"\n\tAPIs and middleware can only be defined as methods on service structs."+
+		"\n\tAPIs, auth handlers and middleware can only be defined as methods on service structs."+
 		"\n\tHint: declare it as such with //encore:service",
 		recvName)
 	return nil
@@ -632,6 +632,9 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 		p.err(err.Pos(), "last result is not of type error (local name shadows builtin)"+sigHint)
 		return
 	}
+
+	h.SvcStruct = p.resolveServiceStruct("auth handler receiver",
+		h.Svc, h.Func, h.File)
 }
 
 func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *est.File, expr ast.Expr, derefPointers bool) *est.Param {
