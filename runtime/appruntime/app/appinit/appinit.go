@@ -8,6 +8,7 @@ import (
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/app"
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/service"
 )
 
 // AppMain is the entrypoint to the Encore Application.
@@ -28,6 +29,7 @@ func load() *LoadData
 type LoadData struct {
 	StaticCfg   *config.Static
 	APIHandlers []api.HandlerRegistration
+	ServiceInit []service.Initializer
 	AuthHandler api.AuthHandler
 }
 
@@ -43,6 +45,7 @@ func init() {
 	singleton = app.New(&app.NewParams{
 		Cfg:         cfg,
 		APIHandlers: data.APIHandlers,
+		ServiceInit: data.ServiceInit,
 		AuthHandler: data.AuthHandler,
 	})
 }
