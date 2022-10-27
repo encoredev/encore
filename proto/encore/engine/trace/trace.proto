@@ -250,10 +250,16 @@ message HTTPWroteRequestData {
 }
 
 message LogMessage {
+  // Note: These values don't match the values used by the binary trace protocol,
+  // as these values are stored in persisted traces and therefore must maintain
+  // backwards compatibility. The binary trace protocol is versioned and doesn't
+  // have the same limitations.
   enum Level {
     DEBUG = 0;
     INFO = 1;
     ERROR = 2;
+    WARN = 3;
+    TRACE = 4;
   }
 
   uint64 span_id = 1;

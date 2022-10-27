@@ -1041,13 +1041,17 @@ const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack
       <button className="-ml-2 -mr-1 focus:outline-none" onClick={() => onStackTrace(log.stack)}>
         {icons.stackTrace("m-1 h-4 w-auto")}
       </button>
-      <span className="text-gray-400">{dt.toFormat("HH:mm:ss.SSS")}</span>
-      {log.level === "DEBUG" ? (
-        <span className="text-yellow-500">DBG</span>
+      <span className="text-lightgray">{dt.toFormat("HH:mm:ss.SSS")}</span>
+      {log.level === "TRACE" ? (
+        <span className="text-lightgray">TRC</span>
+      ) : log.level === "DEBUG" ? (
+        <span className="text-lightgray">DBG</span>
       ) : log.level === "INFO" ? (
-        <span className="text-green-500">INF</span>
+        <span className="text-codeblue">INF</span>
+      ) : log.level === "WARN" ? (
+        <span className="text-codeorange">WRN</span>
       ) : (
-        <span className="text-red-500">ERR</span>
+        <span className="text-red">ERR</span>
       )}
       {log.msg}
       {log.fields.map((f, i) => (
@@ -1060,14 +1064,14 @@ const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack
               >
                 {icons.stackTrace("h-4 w-auto")}
               </button>
-              <span className="text-red-600">{f.key}</span>
-              <span className="text-gray-400">=</span>
-              <span className="text-red-600">{render(f.value)}</span>
+              <span className="text-red">{f.key}</span>
+              <span className="text-lightgray text-opacity-50">=</span>
+              <span className="text-red">{render(f.value)}</span>
             </>
           ) : (
             <>
-              <span className="text-blue-600">{f.key}</span>
-              <span className="text-gray-400">=</span>
+              <span className="text-codeblue">{f.key}</span>
+              <span className="text-lightgray text-opacity-50">=</span>
               {render(f.value)}
             </>
           )}
