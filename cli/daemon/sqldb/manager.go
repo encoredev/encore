@@ -14,11 +14,12 @@ import (
 )
 
 // NewClusterManager creates a new ClusterManager.
-func NewClusterManager(driver Driver) *ClusterManager {
+func NewClusterManager(driver Driver, apps *apps.Manager) *ClusterManager {
 	log := log.Logger
 	return &ClusterManager{
 		log:            log,
 		driver:         driver,
+		apps:           apps,
 		clusters:       make(map[clusterKey]*Cluster),
 		backendKeyData: make(map[uint32]*Cluster),
 	}
@@ -28,6 +29,7 @@ func NewClusterManager(driver Driver) *ClusterManager {
 type ClusterManager struct {
 	log        zerolog.Logger
 	driver     Driver
+	apps       *apps.Manager
 	startGroup singleflight.Group
 
 	mu       sync.Mutex

@@ -64,58 +64,115 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	}
 	startup := cl.Hello.(*pgproxy.StartupData)
 
-	password := startup.Password
-	cluster, ok := cm.LookupPassword(password)
-	if !ok {
-		cm.log.Error().Msg("dbproxy: could not find cluster")
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "database cluster not found or invalid connection string",
+	// If the username is "encore" we're connecting to a database cluster
+	// which may not be local
+	var cluster *Cluster
+	if startup.Username == "encore" {
+		password := startup.Password
+		found, ok := cm.LookupPassword(password)
+		if !ok {
+			cm.log.Error().Msg("dbproxy: could not find cluster")
+			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "08006",
+				Message:  "database cluster not found or invalid connection string",
+			})
+			return nil
+		}
+		cluster = found
+	} else {
+		// The username is the app slug we want to connect to
+		app, err := cm.apps.FindLatestByPlatformOrLocalID(startup.Username)
+		if err != nil {
+			cm.log.Error().Err(err).Msg("dbproxy: could not find app")
+			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "08006",
+				Message:  "unknown app ID",
+			})
+			return nil
+		}
+
+		// and password should either be "local" or "test"
+		var clusterType ClusterType
+		switch startup.Password {
+		case "local":
+			clusterType = Run
+		case "test":
+			clusterType = Test
+		default:
+			cm.log.Error().Str("password", startup.Password).Msg("dbproxy: invalid password for connection URI")
+			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "28P01", // 28P01 = invalid password
+				Message:  "if connecting with an app slug as the username, the only accepted passwords are 'local' or 'test' to route to those instances on your local system",
+			})
+			return nil
+		}
+
+		// Create the cluster if it doesn't exist in memory yet
+		// This might be because the daemon is running, but the hasn't done anything
+		// with the app in question yet on this run
+		cluster = cm.Create(context.Background(), &CreateParams{
+			ClusterID: ClusterID{
+				App:  app,
+				Type: clusterType,
+			},
+			Memfs: false,
 		})
-		return nil
+
+		// Ensure the cluster is started
+		_, err = cluster.Start(context.Background())
+		if err != nil {
+			cm.log.Error().Err(err).Msg("dbproxy: could not start cluster")
+			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "08006",
+				Message:  "could not start database cluster",
+			})
+			return nil
+		}
 	}
 
+	// If Encore knows about the database, check if it's ready
+	// however if the cluster doesn't know about the database, skip this part.
+	//
+	// This is because either:
+	//   1. The database exists and is connected to
+	//   2. The database does not exist, and the remote server will return a "database doesn't exist" error.
 	dbname := startup.Database
 	db, ok := cluster.GetDB(dbname)
-	if !ok {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "database not found",
-		})
-		return nil
-	}
+	if ok {
+		var ready <-chan struct{}
+		if waitForSetup {
+			ready = db.Ready()
+		} else {
+			s := make(chan struct{})
+			close(s)
+			ready = s
+		}
 
-	var ready <-chan struct{}
-	if waitForSetup {
-		ready = db.Ready()
-	} else {
-		s := make(chan struct{})
-		close(s)
-		ready = s
-	}
+		// Wait for up to 60s for the cluster and database to come online.
+		select {
+		case <-db.Ctx.Done():
+			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "08006",
+				Message:  "db is shutting down",
+			})
+			return nil
+		case <-time.After(60 * time.Second):
+			cm.log.Error().Str("db", dbname).Msg("dbproxy: timed out waiting for database to come online")
+			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "08006",
+				Message:  "timed out waiting for db to complete setup",
+			})
+			return nil
 
-	// Wait for up to 60s for the cluster and database to come online.
-	select {
-	case <-db.Ctx.Done():
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "db is shutting down",
-		})
-		return nil
-	case <-time.After(60 * time.Second):
-		cm.log.Error().Str("db", dbname).Msg("dbproxy: timed out waiting for database to come online")
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
-			Severity: "FATAL",
-			Code:     "08006",
-			Message:  "timed out waiting for db to complete setup",
-		})
-		return nil
-
-	case <-ready:
-		// Continue connecting to backend, below
+		case <-ready:
+			// Continue connecting to backend, below
+		}
 	}
 
 	info, err := cluster.Info(context.Background())
