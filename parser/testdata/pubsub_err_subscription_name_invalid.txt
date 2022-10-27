@@ -1,5 +1,5 @@
 ! parse
-stderr 'pubsub.NewSubscription requires the subscription name to be between "kebab-case". It must start'
+stderr 'The pubsub.NewSubscription must be subscription name be defined in "kebab-case"'
 
 -- svc/svc.go --
 package svc

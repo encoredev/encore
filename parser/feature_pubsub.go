@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"go/ast"
 	"reflect"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
+	"encr.dev/pkg/errinsrc/srcerrors"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -64,7 +66,7 @@ func init() {
 
 func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
 	if len(callExpr.Args) != 2 {
-		p.errf(callExpr.Pos(), "pubsub.NewTopic requires at least one argument, the topic name given as a string literal. For example `pubsub.NewTopic[MyMessage](\"my-topic\")`")
+		p.errInSrc(srcerrors.PubSubNewTopicInvalidArgCount(p.fset, callExpr))
 		return nil
 	}
 
@@ -77,7 +79,7 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 	// check the topic isn't already declared somewhere else
 	for _, topic := range p.pubSubTopics {
 		if strings.EqualFold(topic.Name, topicName) {
-			p.errf(callExpr.Args[0].Pos(), "Pubsub topic names must be unique, \"%s\" was previously declared in %s/%s: if you wish to reuse the same topic, then you can export the original Topic object from %s and reuse it here.", topic.Name, topic.DeclFile.Pkg.Name, topic.DeclFile.Name, topic.DeclFile.Pkg.Name)
+			p.errInSrc(srcerrors.PubSubTopicNameNotUnique(p.fset, topic.NameAST, callExpr.Args[0]))
 			return nil
 		}
 	}
@@ -92,18 +94,18 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 	}
 	if !cfg.FullyConstant() {
 		for fieldName, expr := range cfg.DynamicFields() {
-			p.errf(expr.Pos(), "All values in pubsub.TopicConfig must be a constant, however %s was not a constant, got %s", fieldName, prettyPrint(expr))
+			p.errInSrc(srcerrors.PubSubTopicConfigNotConstant(p.fset, fieldName, expr))
 		}
 		return nil
 	}
 
 	if !cfg.IsSet("DeliveryGuarantee") {
-		p.errf(cfg.Pos("DeliveryGuarantee"), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to be explicitly set.")
+		p.errInSrc(srcerrors.PubSubTopicConfigMissingField(p.fset, "DeliveryGuarantee", callExpr.Args[1]))
 		return nil
 	}
 	deliveryGuarantee := cfg.Int64("DeliveryGuarantee", 0)
 	if deliveryGuarantee != 1 {
-		p.errf(cfg.Pos("DeliveryGuarantee"), "pubsub.NewTopic requires the configuration field named \"DeliveryGuarantee\" to a valid value such as \"pubsub.AtLeastOnce\".")
+		p.errInSrc(srcerrors.PubSubTopicConfigInvalidField(p.fset, "DeliveryGuarantee", "`pubsub.AtLeastOnce`", cfg.Expr("DeliveryGuarantee")))
 		return nil
 	}
 
@@ -125,17 +127,18 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 				}
 
 				if !found || !ast.IsExported(orderingKey) {
-					p.errf(cfg.Pos("OrderingKey"), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to be a one of the exported fields on the message type.")
+					p.errInSrc(srcerrors.PubSubOrderingKeyMustBeExported(p.fset, cfg.Expr("OrderingKey")))
 				}
 			}
 		} else {
-			p.errf(cfg.Pos("OrderingKey"), "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to either not be set, or be set to a non empty string referencing the field in the message type you want to order messages by.")
+			p.errInSrc(srcerrors.PubSubOrderingKeyNotStringLiteral(p.fset, cfg.Expr("OrderingKey")))
 		}
 	}
 
 	// Record the topic
 	topic := &est.PubSubTopic{
 		Name:              topicName,
+		NameAST:           callExpr.Args[0],
 		Doc:               cursor.DocComment(),
 		DeliveryGuarantee: est.AtLeastOnce,
 		OrderingKey:       orderingKey,
@@ -152,25 +155,18 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 
 func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, ident *ast.Ident, callExpr *ast.CallExpr) est.Resource {
 	if len(callExpr.Args) != 3 {
-		p.err(
-			callExpr.Pos(),
-			"pubsub.NewSubscription requires three arguments, the topic, the subscription name given as a string literal and the subscription configuration",
-		)
+		p.errInSrc(srcerrors.PubSubSubscriptionArguments(p.fset, callExpr))
 		return nil
 	}
 
 	resource := p.resourceFor(file, callExpr.Args[0])
 	if resource == nil {
-		p.errf(callExpr.Args[0].Pos(), "pubsub.NewSubscription requires the first argument to reference to pubsub topic, was given %v.", prettyPrint(callExpr.Args[0]))
+		p.errInSrc(srcerrors.PubSubSubscriptionTopicNotResource(p.fset, callExpr.Args[0], ""))
 		return nil
 	}
 	topic, ok := resource.(*est.PubSubTopic)
 	if !ok {
-		p.errf(
-			callExpr.Fun.Pos(),
-			"pubsub.NewSubscription can only be used on a pubsub topic, was given a %v.",
-			reflect.TypeOf(resource),
-		)
+		p.errInSrc(srcerrors.PubSubSubscriptionTopicNotResource(p.fset, callExpr.Args[0], fmt.Sprintf("got a %T", reflect.TypeOf(resource))))
 		return nil
 	}
 
@@ -183,11 +179,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 	// check the subscription isn't already declared somewhere else
 	for _, subscriber := range topic.Subscribers {
 		if strings.EqualFold(subscriber.Name, subscriberName) {
-			p.errf(
-				callExpr.Args[1].Pos(),
-				"Subscriptions on topics must be unique, \"%s\" was previously declared in %s/%s.",
-				subscriber.Name, subscriber.DeclFile.Pkg.Name, subscriber.DeclFile.Name,
-			)
+			p.errInSrc(srcerrors.PubSubSubscriptionNameNotUnique(p.fset, subscriber.NameAST, callExpr.Args[1]))
 			return nil
 		}
 	}
@@ -203,7 +195,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 	ok = true
 	for fieldName, expr := range cfg.DynamicFields() {
 		if fieldName != "Handler" {
-			p.errf(expr.Pos(), "All values in pubsub.SubscriptionConfig must be a constant, however %s was not a constant, got %s", fieldName, prettyPrint(expr))
+			p.errInSrc(srcerrors.PubSubSubscriptionConfigNotConstant(p.fset, fieldName, expr))
 			ok = false
 		}
 	}
@@ -213,7 +205,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 
 	handler := cfg.Expr("Handler")
 	if handler == nil {
-		p.errf(callExpr.Args[2].Pos(), "pubsub.NewSubscription requires the configuration field named \"Handler\" to populated with the subscription handler function.")
+		p.errInSrc(srcerrors.PubSubSubscriptionRequiresHandler(p.fset, callExpr.Args[2]))
 		return nil
 	}
 	p.validRPCReferences[handler] = true
@@ -233,52 +225,45 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 	}
 
 	if funcFile.Pkg.Service == nil {
-		p.err(
-			callExpr.Args[1].Pos(),
-			"The function passed to `pubsub.NewSubscription` must be declared in the same service. Currently the handler is not declared within a service.",
-		)
+		p.errInSrc(srcerrors.PubSubSubscriptionHandlerNotInService(p.fset, handler, funcDecl))
 		return nil
 	}
 
 	if funcFile.Pkg.Service != file.Pkg.Service {
-		p.errf(
-			callExpr.Args[1].Pos(),
-			"The call to `pubsub.NewSubscription` must be declared in the same service as the handler passed in"+
-				". The call was made in %s, but the handler function was declared in %s.",
-			file.Pkg.Service.Name, funcFile.Pkg.Service.Name,
-		)
+		p.errInSrc(srcerrors.PubSubSubscriptionHandlerNotInService(p.fset, handler, funcDecl))
 		return nil
 	}
 
 	// Verify other configuration
 	ackDeadline := time.Duration(cfg.Int64("AckDeadline", int64(30*time.Second)))
 	if ackDeadline < 1*time.Second {
-		p.errf(cfg.Pos("AckDeadline"), "AckDeadline must be at least 1 second, was %s", ackDeadline)
+		p.errInSrc(srcerrors.PubSubSubscriptionInvalidField(p.fset, "AckDeadline", "at least 1 second", cfg.Expr("AckDeadline"), ackDeadline.String()))
 	}
 
 	messageRetention := time.Duration(cfg.Int64("MessageRetention", int64(7*24*time.Hour)))
 	if messageRetention < 1*time.Minute {
-		p.errf(cfg.Pos("MessageRetention"), "MessageRetention must be at least 1 minute, was %s", messageRetention)
+		p.errInSrc(srcerrors.PubSubSubscriptionInvalidField(p.fset, "MessageRetention", "at least 1 minute", cfg.Expr("MessageRetention"), messageRetention.String()))
 	}
 
 	minRetryBackoff := time.Duration(cfg.Int64("RetryPolicy.MinBackoff", int64(10*time.Second)))
 	if minRetryBackoff < 1*time.Second {
-		p.errf(cfg.Pos("RetryPolicy.MinBackoff"), "RetryPolicy.MinBackoff must be at least 1 second, was %s", minRetryBackoff)
+		p.errInSrc(srcerrors.PubSubSubscriptionInvalidField(p.fset, "RetryPolicy.MinBackoff", "at least 1 second", cfg.Expr("RetryPolicy.MinBackoff"), minRetryBackoff.String()))
 	}
 
 	maxRetryBackoff := time.Duration(cfg.Int64("RetryPolicy.MaxBackoff", int64(10*time.Minute)))
 	if maxRetryBackoff < 1*time.Second {
-		p.errf(cfg.Pos("RetryPolicy.MaxBackoff"), "RetryPolicy.MaxBackoff must be at least 1 second, was %s", minRetryBackoff)
+		p.errInSrc(srcerrors.PubSubSubscriptionInvalidField(p.fset, "RetryPolicy.MaxBackoff", "at least 1 second", cfg.Expr("RetryPolicy.MaxBackoff"), maxRetryBackoff.String()))
 	}
 
 	maxRetries := cfg.Int64("RetryPolicy.MaxRetries", 100)
 	if maxRetries < -2 {
-		p.errf(cfg.Pos("RetryPolicy.MaxRetries"), "RetryPolicy.MaxRetries must be a positive number or the constants `pubsub.InfiniteRetries` or `pubsub.NoRetries`, was %d", maxRetries)
+		p.errInSrc(srcerrors.PubSubSubscriptionInvalidField(p.fset, "RetryPolicy.MaxRetries", "a positive number or the constants `pubsub.InfiniteRetries` or `pubsub.NoRetries`", cfg.Expr("RetryPolicy.MaxRetries"), fmt.Sprintf("%d", maxRetries)))
 	}
 
 	// Record the subscription
 	subscription := &est.PubSubSubscriber{
 		Name:             subscriberName,
+		NameAST:          callExpr.Args[1],
 		Topic:            topic,
 		CallSite:         callExpr,
 		Func:             funcDecl,
@@ -295,17 +280,31 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 	return subscription
 }
 
-func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *walker.Cursor, callExpr *ast.CallExpr) {
+func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, c *walker.Cursor, callExpr *ast.CallExpr) {
 	topic, ok := resource.(*est.PubSubTopic)
 	if !ok {
-		p.errf(callExpr.Fun.Pos(), "pubsub.Publish can only be used on a pubsub topic, was given a %v.", reflect.TypeOf(resource))
+		// This is an internal error, so we panic rather than report an error
+		panic(fmt.Sprintf("expected a PubSubTopic, got %T", resource))
 		return
 	}
 
-	// Record the publisher
-	topic.Publishers = append(topic.Publishers, &est.PubSubPublisher{
+	publisher := &est.PubSubPublisher{
 		DeclFile: file,
-	})
+	}
+
+	if file.Pkg.Service == nil {
+		middleware := p.findContainingMiddlewareDefinition(c)
+		if middleware == nil || !middleware.Global {
+			p.errInSrc(srcerrors.PubSubPublishInvalidLocation(p.fset, callExpr))
+		}
+
+		publisher.GlobalMiddleware = middleware
+	} else {
+		publisher.Service = file.Pkg.Service
+	}
+
+	// Record the publisher
+	topic.Publishers = append(topic.Publishers, publisher)
 
 	file.References[callExpr] = &est.Node{
 		Type: est.PubSubPublisherNode,
@@ -315,6 +314,6 @@ func (p *parser) parsePubSubPublish(file *est.File, resource est.Resource, _ *wa
 
 func (p *parser) parsePubSubAttr(rawTag *ast.BasicLit, parsedTag *structtag.Tag, structType *schema.Struct, fieldName string, fieldType *schema.Type) {
 	if strings.HasPrefix(strings.ToLower(parsedTag.Name), "encore") {
-		p.errf(rawTag.Pos(), "Pubsub attribute tags must not start with \"encore\". The field %s currently has an attribute tag of \"%s\".", fieldName, parsedTag.Name)
+		p.errInSrc(srcerrors.PubSubAttrInvalidTag(p.fset, rawTag, parsedTag.Name))
 	}
 }

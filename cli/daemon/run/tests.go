@@ -40,6 +40,13 @@ func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDeb
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		KeepOutput:            codegenDebug,
 		BuildTags:             []string{"encore_local"},
+		Meta: &cueutil.Meta{
+			// Dummy data to satisfy config validation.
+			APIBaseURL: "http://localhost:0",
+			EnvName:    "encore-check",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
 	}
 	result, err := compiler.Build(appRoot, cfg)
 	if result != nil && result.Dir != "" {

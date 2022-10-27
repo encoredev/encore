@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"encr.dev/parser/est"
+	"encr.dev/parser/internal/walker"
 )
 
 // findFuncFor will either return a *ast.FuncDecl, *ast.FuncLit or nil in case of an error.
@@ -64,6 +65,20 @@ func (p *parser) findFuncFor(node ast.Node, from *est.File, errPrefix string) (a
 	}
 
 	return decl.Func, decl.File
+}
+
+// Given a cursor in the AST, this function will return the the middleware that
+// the cursor is currently in.
+func (p *parser) findContainingMiddlewareDefinition(c *walker.Cursor) *est.Middleware {
+	f := walker.GetFurthestAncestor[*ast.FuncDecl](c)
+
+	for _, middleware := range p.middleware {
+		if middleware.Func == f {
+			return middleware
+		}
+	}
+
+	return nil
 }
 
 // walkerFunc allows us to pass a function to ast.Walk which will recursively descend the AST until the function returns false

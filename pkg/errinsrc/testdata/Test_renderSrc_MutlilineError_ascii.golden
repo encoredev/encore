@@ -10,8 +10,8 @@ There has been a simple error in your code
   4 |     blah: {
     :           ^
     : ,---------'
-  5 | |   	foo: bool
-  6 | |   	bar: int | *3
+  5 | |       foo: bool
+  6 | |       bar: int | *3
   7 | |-> }
     : `- this is an error which spans multiple lines
     :    like this so we can test alignment

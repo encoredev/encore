@@ -116,13 +116,13 @@ func (p *parser) resolveConfigTypes(selector *ast.SelectorExpr, ident *ast.Ident
 		return createBuiltinConfigWrapper(schema.Builtin_INT32)
 	case "Int64":
 		return createBuiltinConfigWrapper(schema.Builtin_INT64)
-	case "UInt8":
+	case "Uint8":
 		return createBuiltinConfigWrapper(schema.Builtin_UINT8)
-	case "UInt16":
+	case "Uint16":
 		return createBuiltinConfigWrapper(schema.Builtin_UINT16)
-	case "UInt32":
+	case "Uint32":
 		return createBuiltinConfigWrapper(schema.Builtin_UINT32)
-	case "UInt64":
+	case "Uint64":
 		return createBuiltinConfigWrapper(schema.Builtin_UINT64)
 	case "Float32":
 		return createBuiltinConfigWrapper(schema.Builtin_FLOAT32)
@@ -138,7 +138,7 @@ func (p *parser) resolveConfigTypes(selector *ast.SelectorExpr, ident *ast.Ident
 		return createBuiltinConfigWrapper(schema.Builtin_UUID)
 	case "Int":
 		return createBuiltinConfigWrapper(schema.Builtin_INT)
-	case "UInt":
+	case "Uint":
 		return createBuiltinConfigWrapper(schema.Builtin_UINT)
 	default:
 		p.errInSrc(srcerrors.UnknownConfigWrapperType(p.fset, selector, ident))

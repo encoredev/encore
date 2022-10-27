@@ -2,29 +2,29 @@
 package main
 
 import (
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/app/appinit"
-	"encore.dev/appruntime/config"
+	__api "encore.dev/appruntime/api"
+	__appinit "encore.dev/appruntime/app/appinit"
+	__config "encore.dev/appruntime/config"
 	_ "unsafe"
 )
 
 // loadApp loads the Encore app runtime.
 //
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *appinit.LoadData {
-	static := &config.Static{
-		AppCommit: config.CommitInfo{
+func loadApp() *__appinit.LoadData {
+	static := &__config.Static{
+		AppCommit: __config.CommitInfo{
 			Revision:    "",
 			Uncommitted: false,
 		},
 		AuthData:       nil,
 		EncoreCompiler: "test",
-		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
+		PubsubTopics:   map[string]*__config.StaticPubsubTopic{},
 		TestService:    "",
 		Testing:        false,
 	}
-	handlers := []api.HandlerRegistration{}
-	return &appinit.LoadData{
+	handlers := []__api.HandlerRegistration{}
+	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: nil,
 		StaticCfg:   static,
@@ -32,7 +32,7 @@ func loadApp() *appinit.LoadData {
 }
 
 func main() {
-	appinit.AppMain()
+	__appinit.AppMain()
 }
 // etype package
 package etype

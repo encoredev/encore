@@ -113,6 +113,7 @@ func Publish(ctx context.Context) error {
 	return nil
 }
 
+//encore:api private
 func Consumer(ctx context.Context, msg *Message) error {
 	if msg.Attr != "Attr" {
 		return errors.New("incorrect Attr value")

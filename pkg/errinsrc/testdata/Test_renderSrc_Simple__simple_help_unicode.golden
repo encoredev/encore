@@ -10,7 +10,7 @@ There has been a simple error in your code
  13 │ if blah.foo {
     ⋮    ───┬────
     ⋮       ╰─ help: try a switch statement here
- 14 │ 	blah: bar: 12
+ 14 │     blah: bar: 12
  15 │ }
 ────╯
 

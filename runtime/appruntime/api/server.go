@@ -33,7 +33,7 @@ const (
 type execContext struct {
 	server *Server
 	ctx    context.Context
-	ps     PathParams
+	ps     UnnamedParams
 	auth   model.AuthInfo
 }
 
@@ -47,7 +47,8 @@ type Handler interface {
 	ServiceName() string
 	EndpointName() string
 	AccessType() Access
-	HTTPPath() string
+	SemanticPath() string
+	HTTPRouterPath() string
 	HTTPMethods() []string
 	SetMiddleware([]*Middleware)
 	Handle(c IncomingContext)
@@ -167,12 +168,11 @@ func (s *Server) register(reg HandlerRegistration, logRegistration bool) {
 	h := reg.Handler
 	h.SetMiddleware(reg.Middleware)
 
-	path := h.HTTPPath()
 	if logRegistration {
 		s.rootLogger.Info().
 			Str("service", h.ServiceName()).
 			Str("endpoint", h.EndpointName()).
-			Str("path", path).
+			Str("path", h.SemanticPath()).
 			Msg("registered API endpoint")
 	}
 
@@ -182,12 +182,14 @@ func (s *Server) register(reg HandlerRegistration, logRegistration bool) {
 		}
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-			s.processRequest(h, s.NewIncomingContext(w, req, ps, model.AuthInfo{}))
+			params := toUnnamedParams(ps)
+			s.processRequest(h, s.NewIncomingContext(w, req, params, model.AuthInfo{}))
 		}
 
-		s.private.Handle(m, path, adapter)
+		routerPath := h.HTTPRouterPath()
+		s.private.Handle(m, routerPath, adapter)
 		if access := h.AccessType(); access == Public || access == RequiresAuth {
-			s.public.Handle(m, path, adapter)
+			s.public.Handle(m, routerPath, adapter)
 		}
 	}
 }
@@ -261,11 +263,11 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	}
 }
 
-func (s *Server) newExecContext(ctx context.Context, ps PathParams, auth model.AuthInfo) execContext {
+func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, auth model.AuthInfo) execContext {
 	return execContext{s, ctx, ps, auth}
 }
 
-func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps PathParams, auth model.AuthInfo) IncomingContext {
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, auth model.AuthInfo) IncomingContext {
 	ec := s.newExecContext(req.Context(), ps, auth)
 	return IncomingContext{ec, w, req}
 }
@@ -298,4 +300,12 @@ var Singleton *Server // for use in generated code
 
 func NewCallContext(ctx context.Context) CallContext {
 	return Singleton.NewCallContext(ctx)
+}
+
+func toUnnamedParams(ps httprouter.Params) UnnamedParams {
+	params := make(UnnamedParams, len(ps))
+	for i, p := range ps {
+		params[i] = p.Value
+	}
+	return params
 }

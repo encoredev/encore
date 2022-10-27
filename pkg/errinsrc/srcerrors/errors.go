@@ -9,6 +9,7 @@ import (
 
 	"encr.dev/pkg/errinsrc"
 	. "encr.dev/pkg/errinsrc/internal"
+	"encr.dev/pkg/idents"
 )
 
 // UnhandledPanic is an error we use to wrap a panic that was not handled
@@ -24,7 +25,6 @@ func UnhandledPanic(recovered any) error {
 	if err, ok := recovered.(error); ok {
 		srcError = err
 	}
-
 	// If we get here, it's an unhandled panic / error
 	return errinsrc.New(ErrParams{
 		Code:    1,
@@ -213,5 +213,271 @@ func ConfigTypeHasUnexportFields(fileset *token.FileSet, loadCall ast.Node, fiel
 		Summary:   fmt.Sprintf("Field %s is not exported and is in a datatype which is used by a call to `config.Load[T]()`. Unexported fields cannot be initialised by Encore, thus are not allowed in this context.", field.Names[0].Name),
 		Detail:    configHelp,
 		Locations: SrcLocations{FromGoASTNode(fileset, field), loadLoc},
+	}, false)
+}
+
+func ResourceNameNotStringLiteral(fileset *token.FileSet, node ast.Node, resourceType string, paramName string) error {
+	return errinsrc.New(ErrParams{
+		Code:      17,
+		Title:     "Invalid resource name",
+		Summary:   fmt.Sprintf("A %s requires the %s given as a string literal.", resourceType, paramName),
+		Detail:    resourceNameHelp(resourceType, paramName),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("was given %s", nodeType(node)))},
+	}, false)
+}
+
+func ResourceNameWrongLength(fileset *token.FileSet, node ast.Node, resourceType string, paramName string, name string) error {
+	return errinsrc.New(ErrParams{
+		Code:      18,
+		Title:     "Invalid resource name",
+		Summary:   fmt.Sprintf("The %s %s needs to be between 1 and 63 characters long.", resourceType, paramName),
+		Detail:    resourceNameHelp(resourceType, paramName),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("is %d characters long", len(name)))},
+	}, false)
+}
+
+func ResourceNameNotKebabCase(fileset *token.FileSet, node ast.Node, resourceType string, paramName string, name string) error {
+	proposedName := idents.GenerateSuggestion(name, idents.KebabCase)
+
+	return errinsrc.New(ErrParams{
+		Code:      19,
+		Title:     "Invalid resource name",
+		Summary:   fmt.Sprintf("The %s must be %s be defined in \"kebab-case\"", resourceType, paramName),
+		Detail:    resourceNameHelp(resourceType, paramName),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("try \"%s\"?", proposedName))},
+	}, false)
+}
+
+func PubSubNewTopicInvalidArgCount(fileset *token.FileSet, node *ast.CallExpr) error {
+	start := fileset.Position(node.Lparen + 1)
+	end := fileset.Position(node.Rparen)
+
+	return errinsrc.New(ErrParams{
+		Code:    20,
+		Title:   "Invalid call to pubsub.NewTopic",
+		Summary: "A call to pubsub.NewTopic requires two arguments, the topic name and the topic configuration",
+		Detail: combine(
+			pubsubNewTopicHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoTokenPositions(start, end)},
+	}, false)
+}
+
+func PubSubTopicNameNotUnique(fileset *token.FileSet, firstDefinition ast.Node, secondDefinition ast.Node) error {
+	first := FromGoASTNode(fileset, firstDefinition)
+	second := FromGoASTNode(fileset, secondDefinition)
+
+	first.Text = "originally defined here"
+	first.Type = LocHelp
+
+	second.Text = "redefined here"
+
+	return errinsrc.New(ErrParams{
+		Code:    21,
+		Title:   "Duplicate PubSub topic name",
+		Summary: "A PubSub topic name must be unique within an application.",
+		Detail: combine(
+			resourceNameHelp("pub sub topic", "name"),
+			"If you wish to reuse the same topic, then you can export the original Topic object import it here.",
+			pubsubHelp,
+		),
+		Locations: SrcLocations{first, second},
+	}, false)
+}
+
+func PubSubTopicConfigNotConstant(fileset *token.FileSet, fieldName string, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:    22,
+		Title:   "Invalid PubSub topic config",
+		Summary: fmt.Sprintf("All values in pubsub.TopicConfig must be a constant, however %s was not a constant.", fieldName),
+		Detail: combine(
+			pubsubNewTopicHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, "got "+nodeType(node))},
+	}, false)
+}
+
+func PubSubTopicConfigMissingField(fileset *token.FileSet, fieldName string, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:    23,
+		Title:   "Invalid PubSub topic config",
+		Summary: fmt.Sprintf("pubsub.NewTopic requires the configuration field named \"%s\" to be explicitly set.", fieldName),
+		Detail: combine(
+			pubsubNewTopicHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, "got "+nodeType(node))},
+	}, false)
+}
+
+func PubSubTopicConfigInvalidField(fileset *token.FileSet, fieldName string, exampleValue string, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:    24,
+		Title:   "Invalid PubSub topic config",
+		Summary: fmt.Sprintf("pubsub.NewTopic requires the configuration field named \"%s\" to a valid value", fieldName),
+		Detail: combine(
+			pubsubNewTopicHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, "try %s "+exampleValue)},
+	}, false)
+}
+
+func PubSubOrderingKeyMustBeExported(fileset *token.FileSet, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:      25,
+		Title:     "Invalid PubSub topic config",
+		Summary:   "The configuration field named \"OrderingKey\" must be a one of the exported fields on the message type.",
+		Detail:    pubsubHelp,
+		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+	}, false)
+}
+
+func PubSubOrderingKeyNotStringLiteral(fileset *token.FileSet, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:      26,
+		Title:     "Invalid PubSub topic config",
+		Summary:   "pubsub.NewTopic requires the configuration field named \"OrderingKey\" to either not be set, or be set to a non empty string referencing the field in the message type you want to order messages by.",
+		Detail:    pubsubHelp,
+		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+	}, false)
+}
+
+func PubSubSubscriptionArguments(fileset *token.FileSet, node *ast.CallExpr) error {
+	start := fileset.Position(node.Lparen + 1)
+	end := fileset.Position(node.Rparen)
+
+	return errinsrc.New(ErrParams{
+		Code:    27,
+		Title:   "Invalid call to pubsub.NewSubscription",
+		Summary: "A call to pubsub.NewSubscription requires three arguments, the topic, the subscription name given as a string literal and the subscription configuration",
+		Detail: combine(
+			pubsubNewSubscriptionHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoTokenPositions(start, end)},
+	}, false)
+}
+
+func PubSubSubscriptionTopicNotResource(fileset *token.FileSet, node ast.Expr, got string) error {
+	if got == "" {
+		got = "got " + nodeType(node)
+	}
+
+	return errinsrc.New(ErrParams{
+		Code:    28,
+		Title:   "Invalid call to pubsub.NewSubscription",
+		Summary: "pubsub.NewSubscription requires the first argument to reference to pubsub topic",
+		Detail: combine(
+			pubsubNewSubscriptionHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, got)},
+	}, false)
+}
+
+func PubSubSubscriptionNameNotUnique(fileset *token.FileSet, firstDefinition ast.Node, secondDefinition ast.Node) error {
+	first := FromGoASTNode(fileset, firstDefinition)
+	second := FromGoASTNode(fileset, secondDefinition)
+
+	first.Text = "originally defined here"
+	first.Type = LocHelp
+
+	second.Text = "redefined here"
+
+	return errinsrc.New(ErrParams{
+		Code:    29,
+		Title:   "Invalid PubSub subscription config",
+		Summary: "Subscriptions names on topics must be unique.",
+		Detail: combine(
+			resourceNameHelp("pubsub subscription", "name"),
+			pubsubHelp,
+		),
+		Locations: SrcLocations{first, second},
+	}, false)
+}
+
+func PubSubSubscriptionConfigNotConstant(fileset *token.FileSet, fieldName string, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:    30,
+		Title:   "Invalid PubSub subscription config",
+		Summary: fmt.Sprintf("All values in pubsub.SubscriptionConfig must be a constant, however %s was not a constant.", fieldName),
+		Detail: combine(
+			pubsubNewSubscriptionHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, "got "+nodeType(node))},
+	}, false)
+}
+
+func PubSubSubscriptionRequiresHandler(fileset *token.FileSet, cfgNode ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:    31,
+		Title:   "Invalid PubSub subscription config",
+		Summary: "pubsub.NewSubscription requires the configuration field named \"Handler\" to populated with the subscription handler function.",
+		Detail: combine(
+			pubsubNewSubscriptionHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNode(fileset, cfgNode)},
+	}, false)
+}
+
+func PubSubSubscriptionHandlerNotInService(fileset *token.FileSet, funcRef ast.Node, funcDecl ast.Node) error {
+	locations := SrcLocations{FromGoASTNode(fileset, funcDecl)}
+
+	if funcRef != nil {
+		locations[0].Text = "defined here"
+		locations = append(locations, FromGoASTNodeWithTypeAndText(fileset, funcRef, LocHelp, "passed to the config here"))
+	}
+
+	return errinsrc.New(ErrParams{
+		Code:    32,
+		Title:   "Invalid PubSub subscription config",
+		Summary: "The function passed to `pubsub.NewSubscription` must be declared in the the same service as the subscription.",
+		Detail: combine(
+			pubsubNewSubscriptionHelp,
+			pubsubHelp,
+		),
+		Locations: locations,
+	}, false)
+}
+
+func PubSubSubscriptionInvalidField(fileset *token.FileSet, fieldName string, requirement string, node ast.Node, was string) error {
+	return errinsrc.New(ErrParams{
+		Code:    33,
+		Title:   "Invalid PubSub subscription config",
+		Summary: fmt.Sprintf("%s must be %s.", fieldName, requirement),
+		Detail: combine(
+			pubsubNewSubscriptionHelp,
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, "was "+was)},
+	}, false)
+}
+
+func PubSubAttrInvalidTag(fileset *token.FileSet, node ast.Node, fieldName string) error {
+	return errinsrc.New(ErrParams{
+		Code:    34,
+		Title:   "Invalid PubSub message attribute",
+		Summary: "PubSub message attributes must not be prefixed with \"encore\".",
+		Detail: combine(
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("try \"%s\"", fieldName[6:]))},
+	}, false)
+}
+
+func PubSubPublishInvalidLocation(fileset *token.FileSet, node ast.Node) error {
+	return errinsrc.New(ErrParams{
+		Code:    35,
+		Title:   "Invalid PubSub publish",
+		Summary: "PubSub publish calls must be made in the either from within a service or from within a global middleware function",
+		Detail: combine(
+			pubsubHelp,
+		),
+		Locations: SrcLocations{FromGoASTNode(fileset, node)},
 	}, false)
 }

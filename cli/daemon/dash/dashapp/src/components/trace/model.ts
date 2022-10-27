@@ -167,7 +167,7 @@ export interface LogMessage {
   type: "LogMessage";
   goid: number;
   time: number;
-  level: "DEBUG" | "INFO" | "ERROR";
+  level: "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR";
   msg: string;
   fields: LogField[];
   stack: Stack;

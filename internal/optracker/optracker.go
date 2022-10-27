@@ -6,12 +6,12 @@ import (
 	"io"
 	"runtime"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/logrusorgru/aurora/v3"
 
+	"encr.dev/pkg/ansi"
 	"encr.dev/pkg/errlist"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -24,13 +24,13 @@ func New(w io.Writer, stream daemonpb.Daemon_RunServer) *OpTracker {
 }
 
 type OpTracker struct {
-	mu      sync.Mutex
-	ops     []*slowOp
-	w       io.Writer
-	nl      int // number of lines written
-	started bool
-	quit    bool
-	stream  interface {
+	mu          sync.Mutex
+	ops         []*slowOp
+	w           io.Writer
+	started     bool
+	quit        bool
+	savedCursor sync.Once
+	stream      interface {
 		Send(*daemonpb.CommandMessage) error
 	}
 }
@@ -139,9 +139,11 @@ func (t *OpTracker) Cancel(id OperationID) {
 // refresh refreshes the display by writing to t.w.
 // The mutex must be held by the caller.
 func (t *OpTracker) refresh() {
-	fmt.Fprint(t.w, "\u001b[0;0H\u001b[0J\n")
+	t.savedCursor.Do(func() {
+		fmt.Fprint(t.w, ansi.SaveCursorPosition)
+	})
+	fmt.Fprint(t.w, ansi.RestoreCursorPosition)
 
-	nl := 0
 	now := time.Now()
 
 	// Sort ops by start time
@@ -180,15 +182,16 @@ func (t *OpTracker) refresh() {
 			o.spinIdx = (o.spinIdx + 1) % len(spinner)
 		}
 		str := msg.String()
-
-		fmt.Fprintf(t.w, "\u001b[2K%s\n", str)
-		nl += strings.Count(str, "\n") + 1
+		fmt.Fprintf(t.w, "%s%s%s\n",
+			ansi.MoveCursorLeft(1000),
+			ansi.ClearLine(ansi.WholeLine),
+			str,
+		)
 	}
 	if errlistToSend != nil {
 		// We sent this after we clear and repaint the screen
 		errlistToSend.SendToStream(t.stream)
 	}
-	t.nl = nl
 }
 
 func (t *OpTracker) spin() {

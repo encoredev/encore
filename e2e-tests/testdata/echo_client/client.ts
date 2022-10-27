@@ -118,7 +118,7 @@ export namespace cache {
 }
 
 export namespace di {
-    export interface Response {
+    export interface TwoResponse {
         Msg: string
     }
 
@@ -133,10 +133,14 @@ export namespace di {
             await this.baseClient.callAPI("POST", `/di/one`)
         }
 
-        public async Two(): Promise<Response> {
+        public async Three(method: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
+            return this.baseClient.callAPI(method, `/di/raw`, body, options)
+        }
+
+        public async Two(): Promise<TwoResponse> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/di/two`)
-            return await resp.json() as Response
+            return await resp.json() as TwoResponse
         }
     }
 }

@@ -17,6 +17,12 @@ func Info(msg string, keysAndValues ...interface{}) {
 	Singleton.Info(msg, keysAndValues...)
 }
 
+// Warn logs a warn-level message.
+// The variadic key-value pairs are treated as they are in With.
+func Warn(msg string, keysAndValues ...interface{}) {
+	Singleton.Warn(msg, keysAndValues...)
+}
+
 // Error logs an error-level message.
 // The variadic key-value pairs are treated as they are in With.
 func Error(msg string, keysAndValues ...interface{}) {

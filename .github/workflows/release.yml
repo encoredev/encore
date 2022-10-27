@@ -23,11 +23,11 @@ jobs:
             goos: linux
             goarch: arm64
             release_key: linux_arm64
-          - builder: macos-latest
+          - builder: macos-11
             goos: darwin
             goarch: amd64
             release_key: macos_x86-64
-          - builder: macos-latest
+          - builder: macos-11
             goos: darwin
             goarch: arm64
             release_key: macos_arm64
@@ -87,3 +87,13 @@ jobs:
       with:
         name: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}
         path: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
+  notify_release_success:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Webhook
+      uses: distributhor/workflow-webhook@v3
+      env:
+        webhook_type: 'json'
+        webhook_url: ${{ secrets.RELEASE_WEBHOOK }}
+        data: '{ "version": "${{ github.event.inputs.version }}", "run_id": "${{ github.run_id }}" }'

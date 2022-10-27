@@ -32,5 +32,13 @@ package echo
 	PublicKey:    bytes
 	AdminUsers: [...string]
 	SubConfig: SubKey: MaxCount: uint
+	Currencies: [string]: {
+		Name: string
+		Code: string
+		Aliases: [...string]
+	}
+	AnotherList: [...{
+		Name: string
+	}]
 }
 #Config

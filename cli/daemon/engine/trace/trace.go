@@ -60,6 +60,13 @@ func (st *Store) Store(ctx context.Context, tr *TraceMeta) error {
 	appID := tr.App.PlatformOrLocalID()
 	st.trmu.Lock()
 	st.traces[appID] = append(st.traces[appID], tr)
+
+	const limit = 100
+	// Remove earlier traces if we exceed the limit.
+	if n := len(st.traces[appID]); n > limit {
+		st.traces[appID] = st.traces[appID][n-limit:]
+	}
+
 	st.trmu.Unlock()
 
 	st.lnmu.Lock()
@@ -765,16 +772,36 @@ func (tp *traceParser) logMessage(ts uint64) error {
 		Time:   ts,
 		Msg:    msg,
 	}
-	switch level {
-	case 0:
-		log.Level = tracepb.LogMessage_DEBUG
-	case 1:
-		log.Level = tracepb.LogMessage_INFO
-	case 2:
-		log.Level = tracepb.LogMessage_ERROR
-	default:
-		return eerror.New("trace_parser", "unknown log message level", map[string]any{"level": level})
+
+	// We introduced more log levels in trace version 8.
+	if tp.version >= 8 {
+		switch level {
+		case 0:
+			log.Level = tracepb.LogMessage_TRACE
+		case 1:
+			log.Level = tracepb.LogMessage_DEBUG
+		case 2:
+			log.Level = tracepb.LogMessage_INFO
+		case 3:
+			log.Level = tracepb.LogMessage_WARN
+		case 4:
+			log.Level = tracepb.LogMessage_ERROR
+		default:
+			return eerror.New("trace_parser", "unknown log message level", map[string]any{"level": level})
+		}
+	} else {
+		switch level {
+		case 0:
+			log.Level = tracepb.LogMessage_DEBUG
+		case 1:
+			log.Level = tracepb.LogMessage_INFO
+		case 2:
+			log.Level = tracepb.LogMessage_ERROR
+		default:
+			return eerror.New("trace_parser", "unknown log message level", map[string]any{"level": level})
+		}
 	}
+
 	for i := 0; i < fields; i++ {
 		f, err := tp.logField()
 		if err != nil {

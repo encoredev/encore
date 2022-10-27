@@ -24,6 +24,7 @@ func Test_parseIdentifier(t *testing.T) {
 		{"RenderHTML", []string{"render", "HTML"}},
 		{"getVersion2", []string{"get", "version2"}},
 		{"GetAPIDocs", []string{"get", "API", "docs"}},
+		{"This is a full sentence... with \"random! bits-and_pieces123 blah", []string{"this", "is", "a", "full", "sentence", "with", "random", "bits", "and", "pieces123", "blah"}},
 	}
 	for _, tt := range tests {
 		tt := tt

@@ -83,13 +83,13 @@ type Response struct {
 
 	// HTTPStatus is the HTTP status code the response is written with.
 	//
-	// For non-raw handlers it is zero by default and Encore chooses an appropriate
-	// status code depending on the type of error being returned (or 200 for success),
-	// but setting HTTPStatus to a non-zero value causes Encore to write the response
-	// with that HTTP status code value instead.
+	// If zero is returned from middleware, Encore will choose an appropriate status code based
+	// status code depending on the type of error being returned (or 200 for success).
 	//
-	// For raw handlers it is automatically populated with the status code
-	// written by the API handler, and middleware cannot modify this as it has already
+	// If a non-zero value is returned from a middleware, Encore will use that status code
+	// regardless of what Err is set to.
+	//
+	// For raw handlers middleware cannot modify this as it has already
 	// been written to the network.
 	HTTPStatus int
 }

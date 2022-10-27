@@ -50,6 +50,37 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		return nil, err
 	}
 
+	// The Encore IDE plugins will request a connection to the database "_any_"
+	// as they will be unaware of any database names ahead of time.
+	//
+	// We will use the first database name in the app's schema on the returned connection string
+	if req.DbName == "_any_" {
+		req.DbName = ""
+		for _, s := range parse.Meta.Svcs {
+			if len(s.Migrations) > 0 {
+				req.DbName = s.Name
+				break
+			}
+		}
+
+		// If no database has been found, return an error
+		if req.DbName == "" {
+			return nil, errDatabaseNotFound
+		}
+	} else {
+		// Otherwise we need to check the requested service exists
+		databaseExists := false
+		for _, s := range parse.Meta.Svcs {
+			if s.Name == req.DbName {
+				databaseExists = len(s.Migrations) > 0
+				break
+			}
+		}
+		if !databaseExists {
+			return nil, errDatabaseNotFound
+		}
+	}
+
 	clusterID := sqldb.GetClusterID(app, sqldb.Run)
 	log := log.With().Interface("cluster", clusterID).Logger()
 	log.Info().Msg("setting up database cluster")
@@ -66,8 +97,9 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		return nil, err
 	}
 	log.Info().Msg("created database cluster")
-	dsn := fmt.Sprintf("postgresql://encore:%s@localhost:%d/%s?sslmode=disable",
-		cluster.Password, s.mgr.DBProxyPort, req.DbName)
+
+	dsn := fmt.Sprintf("postgresql://%s:local@localhost:%d/%s?sslmode=disable",
+		app.PlatformOrLocalID(), s.mgr.DBProxyPort, req.DbName)
 	return &daemonpb.DBConnectResponse{Dsn: dsn}, nil
 }
 

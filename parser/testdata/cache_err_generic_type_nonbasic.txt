@@ -1,0 +1,26 @@
+! parse
+stderr 'has invalid key type parameter: struct field Foo is not a basic type'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/cache"
+)
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+type Key[T any] struct {
+    Foo T
+}
+
+var keyspace = cache.NewStringKeyspace[Key[Key[string]]](cluster, cache.KeyspaceConfig{
+    KeyPattern: "foo/:Foo",
+})
+
+//encore:api public
+func Foo(context.Context) error {
+    return nil
+}
