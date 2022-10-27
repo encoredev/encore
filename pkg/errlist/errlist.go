@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"io"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"encr.dev/pkg/errinsrc"
@@ -201,11 +200,6 @@ func (l *List) Error() string {
 
 func (l *List) ErrorList() []*errinsrc.ErrInSrc {
 	return l.List
-}
-
-// Sort sorts the error list.
-func (l *List) Sort() {
-	sort.Sort(l.List)
 }
 
 // MakeRelative rewrites the errors by making filenames within the
