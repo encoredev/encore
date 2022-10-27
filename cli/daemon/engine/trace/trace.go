@@ -60,6 +60,13 @@ func (st *Store) Store(ctx context.Context, tr *TraceMeta) error {
 	appID := tr.App.PlatformOrLocalID()
 	st.trmu.Lock()
 	st.traces[appID] = append(st.traces[appID], tr)
+
+	const limit = 100
+	// Remove earlier traces if we exceed the limit.
+	if n := len(st.traces[appID]); n > limit {
+		st.traces[appID] = st.traces[appID][n-limit:]
+	}
+
 	st.trmu.Unlock()
 
 	st.lnmu.Lock()
