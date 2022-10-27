@@ -14,6 +14,16 @@ type CfgType[T any] struct {
 	SubConfig config.Value[struct {
 		SubKey *SubCfgType[T]
 	}]
+
+	Currencies map[string]struct {
+		Name    config.String
+		Code    config.String
+		Aliases config.Values[string]
+	}
+
+	AnotherList config.Values[struct {
+		Name config.String
+	}]
 }
 
 type SubCfgType[T any] struct {

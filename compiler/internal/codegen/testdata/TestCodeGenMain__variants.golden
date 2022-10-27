@@ -1668,14 +1668,14 @@ func encoreInternalTypeConfigUnmarshaler_SubType[T any](_T_unmarshaler config.Un
 					return itr.ReadString()
 				}), append(path, "FieldB"))
 			case "FieldC":
-				obj.FieldC = config.ReadArray[int](itr, func(itr *jsoniter.Iterator, idx int) int {
+				obj.FieldC = config.ReadArray[config.Value[int]](itr, func(itr *jsoniter.Iterator, idx int) config.Value[int] {
 					return config.CreateValue[int](itr.ReadInt(), append(path, strconv.Itoa(idx)))
 				})
 			case "FieldD":
-				obj.FieldD = config.ReadMap[int, string](itr, func(itr *jsoniter.Iterator, keyAsString string) (int, string) {
+				obj.FieldD = config.ReadMap[int, config.Value[string]](itr, func(itr *jsoniter.Iterator, keyAsString string) (int, config.Value[string]) {
 					// Decode the map key from the JSON string to the underlying type it needs to be
 					keyDecoder := &etype.Marshaller{}
-					key := keyDecoder.ToInt("keyAsString", key, true)
+					key := keyDecoder.ToInt("keyAsString", keyAsString, true)
 					if keyDecoder.LastError != nil {
 						panic(fmt.Sprintf("unable to decode the config: %v", keyDecoder.LastError))
 					}
@@ -1684,9 +1684,9 @@ func encoreInternalTypeConfigUnmarshaler_SubType[T any](_T_unmarshaler config.Un
 				})
 			case "FieldE":
 				obj.FieldE = func() (obj struct {
-					SubA string
+					SubA config.Value[string]
 					SubB FooParams
-					Blah T
+					Blah config.Value[T]
 					Foo  []byte
 					Json json.RawMessage
 				}) {
