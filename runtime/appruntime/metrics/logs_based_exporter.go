@@ -22,6 +22,8 @@ import (
 // supported by AWS CloudWatch, we support only up to three dimensions per metric
 // in GCP too.
 
+const encoreMetricNameKey = "encore_metric_name"
+
 type LogsBasedExporter struct {
 	logger zerolog.Logger
 }
@@ -49,14 +51,14 @@ func (e *LogsBasedExporter) Observe(name string, key string, value float64, tags
 }
 
 func (e *LogsBasedExporter) logCounter(name string, tags ...string) {
-	loggerCtx := e.logger.With().Str("e_metric_name", name)
+	loggerCtx := e.logger.With().Str(encoreMetricNameKey, name)
 	loggerCtx = addTags(loggerCtx, tags...)
 	logger := loggerCtx.Logger()
 	logger.Trace().Send()
 }
 
 func (e *LogsBasedExporter) logValue(name string, observationKey string, observationValue float64, tags ...string) {
-	loggerCtx := e.logger.With().Str("e_metric_name", name).Float64(observationKey, observationValue)
+	loggerCtx := e.logger.With().Str(encoreMetricNameKey, name).Float64(observationKey, observationValue)
 	loggerCtx = addTags(loggerCtx, tags...)
 	logger := loggerCtx.Logger()
 	logger.Trace().Send()
