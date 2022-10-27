@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -70,6 +71,29 @@ func (mgr *Manager) FindLatestByPlatformID(platformID string) (*Instance, error)
 		ORDER BY updated_at DESC
 		LIMIT 1
 	`, platformID).Scan(&root)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.WithStack(ErrNotFound)
+	} else if err != nil {
+		return nil, errors.Wrap(err, "query app store")
+	}
+
+	return mgr.resolve(root)
+}
+
+func (mgr *Manager) FindLatestByPlatformOrLocalID(id string) (*Instance, error) {
+	// Local ID do not contain hyphens, platform ID's always contain hyphens.
+	if strings.Contains(id, "-") {
+		return mgr.FindLatestByPlatformID(id)
+	}
+
+	var root string
+	err := mgr.db.QueryRow(`
+		SELECT root
+		FROM app
+		WHERE local_id = ?
+		ORDER BY updated_at DESC
+		LIMIT 1
+	`, id).Scan(&root)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errors.WithStack(ErrNotFound)
 	} else if err != nil {
