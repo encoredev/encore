@@ -352,25 +352,6 @@ func TestEndToEndWithApp(t *testing.T) {
 				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]string{"Msg": "Hello World"})
 			}
 
-			{
-				w := httptest.NewRecorder()
-				req := httptest.NewRequest("GET", "/di/flakey", nil)
-				run.ServeHTTP(w, req)
-				c.Assert(w.Code, qt.Equals, 500)
-				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{
-					"code":    "internal",
-					"message": "service initialization failed",
-					"details": nil,
-				})
-			}
-
-			{
-				w := httptest.NewRecorder()
-				req := httptest.NewRequest("GET", "/di/flakey", nil)
-				run.ServeHTTP(w, req)
-				c.Assert(w.Code, qt.Equals, 200)
-				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Msg": "Hello, Flakey World"})
-			}
 		})
 
 		c.Run("cache", func(c *qt.C) {

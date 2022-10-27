@@ -23,7 +23,6 @@ type Client struct {
 	Di         DiClient
 	Echo       EchoClient
 	Endtoend   EndtoendClient
-	Flakey_di  Flakey_diClient
 	Middleware MiddlewareClient
 	Test       TestClient
 	Validation ValidationClient
@@ -75,7 +74,6 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 		Di:         &diClient{base},
 		Echo:       &echoClient{base},
 		Endtoend:   &endtoendClient{base},
-		Flakey_di:  &flakey_diClient{base},
 		Middleware: &middlewareClient{base},
 		Test:       &testClient{base},
 		Validation: &validationClient{base},
@@ -640,32 +638,6 @@ var _ EndtoendClient = (*endtoendClient)(nil)
 func (c *endtoendClient) GeneratedWrappersEndToEndTest(ctx context.Context) error {
 	_, err := callAPI(ctx, c.base, "GET", "/generated-wrappers-end-to-end-test", nil, nil, nil)
 	return err
-}
-
-type Flakey_diResponse struct {
-	Msg string
-}
-
-// Flakey_diClient Provides you access to call public and authenticated APIs on flakey_di. The concrete implementation is flakey_diClient.
-// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
-type Flakey_diClient interface {
-	Flakey(ctx context.Context) (Flakey_diResponse, error)
-}
-
-type flakey_diClient struct {
-	base *baseClient
-}
-
-var _ Flakey_diClient = (*flakey_diClient)(nil)
-
-func (c *flakey_diClient) Flakey(ctx context.Context) (resp Flakey_diResponse, err error) {
-	// Now make the actual call to the API
-	_, err = callAPI(ctx, c.base, "POST", "/di/flakey", nil, nil, &resp)
-	if err != nil {
-		return
-	}
-
-	return
 }
 
 type MiddlewarePayload struct {

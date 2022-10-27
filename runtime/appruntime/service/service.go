@@ -5,11 +5,18 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/rs/zerolog"
+
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/runtimeutil/syncutil"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 )
+
+// Initializer is a service initializer.
+type Initializer interface {
+	InitService() error
+}
 
 type Decl[T any] struct {
 	Service string
@@ -29,8 +36,12 @@ type Decl[T any] struct {
 
 // Get returns the API Decl, initializing it if necessary.
 func (g *Decl[T]) Get() (*T, error) {
-	err := g.setupOnce.Do(func() error { return doSetupService(Singleton, g) })
+	err := g.InitService()
 	return g.instance, err
+}
+
+func (g *Decl[T]) InitService() error {
+	return g.setupOnce.Do(func() error { return doSetupService(Singleton, g) })
 }
 
 func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
@@ -54,7 +65,7 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 
 	i, err := setupFn()
 	if err != nil {
-		mgr.rt.Logger().Error().Err(err).Msg("service initialization failed")
+		mgr.rt.Logger().Error().Err(err).Str("service", decl.Name).Msg("service initialization failed")
 		return errs.B().Code(errs.Internal).Msg("service initialization failed").Err()
 	}
 	decl.instance = i
@@ -72,17 +83,40 @@ type shutdowner interface {
 	Shutdown(force context.Context)
 }
 
-func NewManager(rt *reqtrack.RequestTracker) *Manager {
-	return &Manager{rt: rt}
+func NewManager(rt *reqtrack.RequestTracker, rootLogger zerolog.Logger, svcInit []Initializer) *Manager {
+	return &Manager{rt: rt, rootLogger: rootLogger, svcInit: svcInit}
 }
 
 type Manager struct {
-	rt *reqtrack.RequestTracker
+	rt         *reqtrack.RequestTracker
+	rootLogger zerolog.Logger
+	svcInit    []Initializer
 
 	shutdownMu       sync.Mutex
 	shutdownHandlers []shutdowner
 
 	initCounter uint64
+}
+
+func (mgr *Manager) InitializeServices() error {
+	num := len(mgr.svcInit)
+	results := make(chan error, num)
+
+	for _, svc := range mgr.svcInit {
+		svc := svc
+		go func() {
+			err := svc.InitService()
+			results <- err
+		}()
+	}
+
+	for i := 0; i < num; i++ {
+		if err := <-results; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (mgr *Manager) Shutdown(force context.Context) {
