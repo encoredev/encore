@@ -22,20 +22,23 @@ var importNames = map[string]string{
 	"github.com/json-iterator/go":         "jsoniter",
 	"github.com/julienschmidt/httprouter": "httprouter",
 
-	"encore.dev/appruntime/api":         "api",
-	"encore.dev/appruntime/app":         "app",
-	"encore.dev/appruntime/app/appinit": "appinit",
-	"encore.dev/appruntime/config":      "config",
-	"encore.dev/appruntime/model":       "model",
-	"encore.dev/appruntime/serde":       "serde",
-	"encore.dev/appruntime/service":     "service",
+	"encore.dev/appruntime/api":         "__api",
+	"encore.dev/appruntime/app":         "__app",
+	"encore.dev/appruntime/app/appinit": "__appinit",
+	"encore.dev/appruntime/config":      "__config",
+	"encore.dev/appruntime/model":       "__model",
+	"encore.dev/appruntime/serde":       "__serde",
+	"encore.dev/appruntime/service":     "__service",
 	"encore.dev/beta/errs":              "errs",
 	"encore.dev/storage/sqldb":          "sqldb",
 	"encore.dev/types/uuid":             "uuid",
 }
 
 func (b *Builder) registerImports(f *File) {
-	f.ImportNames(importNames)
+	for pkgPath, alias := range importNames {
+		f.ImportAlias(pkgPath, alias)
+	}
+
 	f.ImportAlias("encoding/json", "stdjson")
 
 	// Import the runtime package with '_' as its name to start with to ensure it's imported.
