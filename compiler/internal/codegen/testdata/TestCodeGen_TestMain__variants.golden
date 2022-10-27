@@ -4,10 +4,10 @@ package otherservice_test
 import (
 	_ "encore.app/otherservice"
 	"encore.app/svc"
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/app/appinit"
-	"encore.dev/appruntime/config"
-	"encore.dev/beta/errs"
+	__api "encore.dev/appruntime/api"
+	__appinit "encore.dev/appruntime/app/appinit"
+	__config "encore.dev/appruntime/config"
+	errs "encore.dev/beta/errs"
 	middleware "encore.dev/middleware"
 	"os"
 	"reflect"
@@ -15,11 +15,11 @@ import (
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *appinit.LoadData {
+func loadApp() *__appinit.LoadData {
 	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
-	static := &config.Static{
+	static := &__config.Static{
 		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
-		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
+		PubsubTopics: map[string]*__config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*__config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
 		}}}},
@@ -27,14 +27,14 @@ func loadApp() *appinit.LoadData {
 		TestService:          "otherservice",
 		Testing:              true,
 	}
-	handlers := []api.HandlerRegistration{
+	handlers := []__api.HandlerRegistration{
 		{
 			Handler:    svc.EncoreInternal_CronOneHandler,
 			Middleware: nil,
 		},
 		{
 			Handler:    svc.EncoreInternal_DIHandler,
-			Middleware: []*api.Middleware{EncoreInternal_svcMyMiddleware},
+			Middleware: []*__api.Middleware{EncoreInternal_svcMyMiddleware},
 		},
 		{
 			Handler:    svc.EncoreInternal_DIRawHandler,
@@ -85,13 +85,13 @@ func loadApp() *appinit.LoadData {
 			Middleware: nil,
 		},
 	}
-	return &appinit.LoadData{
+	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		StaticCfg:   static,
 	}
 }
 
-var EncoreInternal_svcMyMiddleware = &api.Middleware{
+var EncoreInternal_svcMyMiddleware = &__api.Middleware{
 	DefLoc: 40,
 	Global: false,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
@@ -114,10 +114,10 @@ package svc_test
 import (
 	_ "encore.app/otherservice"
 	"encore.app/svc"
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/app/appinit"
-	"encore.dev/appruntime/config"
-	"encore.dev/beta/errs"
+	__api "encore.dev/appruntime/api"
+	__appinit "encore.dev/appruntime/app/appinit"
+	__config "encore.dev/appruntime/config"
+	errs "encore.dev/beta/errs"
 	middleware "encore.dev/middleware"
 	"os"
 	"reflect"
@@ -125,11 +125,11 @@ import (
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *appinit.LoadData {
+func loadApp() *__appinit.LoadData {
 	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
-	static := &config.Static{
+	static := &__config.Static{
 		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
-		PubsubTopics: map[string]*config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*config.StaticPubsubSubscription{"subscription-name": {
+		PubsubTopics: map[string]*__config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*__config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
 		}}}},
@@ -137,14 +137,14 @@ func loadApp() *appinit.LoadData {
 		TestService:          "svc",
 		Testing:              true,
 	}
-	handlers := []api.HandlerRegistration{
+	handlers := []__api.HandlerRegistration{
 		{
 			Handler:    svc.EncoreInternal_CronOneHandler,
 			Middleware: nil,
 		},
 		{
 			Handler:    svc.EncoreInternal_DIHandler,
-			Middleware: []*api.Middleware{EncoreInternal_svcMyMiddleware},
+			Middleware: []*__api.Middleware{EncoreInternal_svcMyMiddleware},
 		},
 		{
 			Handler:    svc.EncoreInternal_DIRawHandler,
@@ -195,13 +195,13 @@ func loadApp() *appinit.LoadData {
 			Middleware: nil,
 		},
 	}
-	return &appinit.LoadData{
+	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		StaticCfg:   static,
 	}
 }
 
-var EncoreInternal_svcMyMiddleware = &api.Middleware{
+var EncoreInternal_svcMyMiddleware = &__api.Middleware{
 	DefLoc: 40,
 	Global: false,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
