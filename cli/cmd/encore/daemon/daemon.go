@@ -107,6 +107,8 @@ func (d *Daemon) init() {
 	d.Runtime = d.listenTCPRetry("runtime", 9600)
 	d.EncoreDB = d.openDB()
 
+	d.Apps = apps.NewManager(d.EncoreDB)
+
 	// If ENCORE_SQLDB_HOST is set, use the external cluster instead of
 	// creating our own docker container cluster.
 	var sqldbDriver sqldb.Driver = &docker.Driver{}
@@ -119,9 +121,8 @@ func (d *Daemon) init() {
 		}
 		log.Info().Msgf("using external postgres cluster: %s", host)
 	}
-	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver)
+	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps)
 
-	d.Apps = apps.NewManager(d.EncoreDB)
 	d.Trace = trace.NewStore()
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
