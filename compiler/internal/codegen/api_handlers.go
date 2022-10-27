@@ -112,11 +112,6 @@ func (b *rpcBuilder) Write(f *File) {
 		}
 	})
 
-	rawHandler := Nil()
-	if rpc.Raw {
-		rawHandler = Qual(rpc.Svc.Root.ImportPath, rpc.Name)
-	}
-
 	defLoc := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
 	handler := Var().Id(b.rpcHandlerName(rpc)).Op("=").Op("&").Qual("encore.dev/appruntime/api", "Desc").Types(
 		Op("*").Id(b.ReqTypeName()),
@@ -142,7 +137,7 @@ func (b *rpcBuilder) Write(f *File) {
 		Id("ReqUserPayload").Op(":").Add(reqDesc.UserPayload),
 
 		Id("AppHandler").Op(":").Add(b.AppHandlerFunc()),
-		Id("RawHandler").Op(":").Add(rawHandler),
+		Id("RawHandler").Op(":").Add(b.RawHandlerFunc()),
 		Id("EncodeResp").Op(":").Add(encodeResp),
 		Id("SerializeResp").Op(":").Add(respDesc.Serialize),
 		Id("CloneResp").Op(":").Add(respDesc.Clone),
@@ -368,6 +363,38 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 		} else {
 			g.Return(b.RespZeroValue(), Nil())
 		}
+	})
+}
+
+func (b *rpcBuilder) RawHandlerFunc() *Statement {
+	rpc := b.rpc
+	if !rpc.Raw {
+		return Nil()
+	}
+
+	return Func().Params(
+		Id("w").Qual("net/http", "ResponseWriter"),
+		Id("req").Op("*").Qual("net/http", "Request"),
+	).BlockFunc(func(g *Group) {
+		// fnExpr is the expression for the function we want to call,
+		// either just MyRPCName or svc.MyRPCName if we have a service struct.
+		var fnExpr *Statement
+
+		// If we have a service struct, initialize it first.
+		group := rpc.SvcStruct
+		if group != nil {
+			ss := rpc.Svc.Struct
+			g.List(Id("svc"), Id("initErr")).Op(":=").Id(b.serviceStructName(ss)).Dot("Get").Call()
+			g.If(Id("initErr").Op("!=").Nil()).Block(
+				Qual("encore.dev/beta/errs", "HTTPErrorWithCode").Call(Id("w"), Id("initErr"), Lit(0)),
+				Return(),
+			)
+			fnExpr = Id("svc").Dot(b.rpc.Name)
+		} else {
+			fnExpr = Id(b.rpc.Name)
+		}
+
+		g.Add(fnExpr).Call(Id("w"), Id("req"))
 	})
 }
 

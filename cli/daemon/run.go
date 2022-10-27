@@ -99,6 +99,24 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// prints below.
 	newVer := s.availableUpdate()
 
+	// If force upgrade has been enabled, we force the upgrade now before we try and run the app
+	if newVer != nil && newVer.ForceUpgrade {
+		_, _ = fmt.Fprintf(stderr, aurora.Red("An urgent security update for Encore is available.").String()+"\n")
+		if newVer.SecurityNotes != "" {
+			_, _ = fmt.Fprintf(stderr, aurora.Sprintf(aurora.Yellow("%s"), newVer.SecurityNotes)+"\n")
+		}
+
+		_, _ = fmt.Fprintf(stderr, "Upgrading Encore to %v...\n", newVer.Version())
+		if err := newVer.DoUpgrade(stderr, stderr); err != nil {
+			_, _ = fmt.Fprintf(stderr, aurora.Sprintf(aurora.Red("Upgrade failed: %v"), err)+"\n")
+		}
+
+		slog.FlushBuffers()
+		sendExit(1) // Kill the client
+		os.Exit(1)  // Kill the daemon too
+		return nil
+	}
+
 	// Hold the stream mutex so we can set up the stream map
 	// before output starts.
 	s.mu.Lock()
@@ -132,10 +150,24 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	if req.Debug {
 		fmt.Fprintf(stderr, "  Process ID:             %d\n", aurora.Cyan(pid))
 	}
-	if newVer != "" {
-		stderr.Write([]byte(aurora.Sprintf(
-			aurora.Faint("\n  New Encore release available: %s (you have %s)\n  Update with: encore version update\n"),
-			newVer, version.Version)))
+
+	// If there's a newer version available, print a message.
+	if newVer != nil {
+		if newVer.SecurityUpdate {
+			stderr.Write([]byte(aurora.Sprintf(
+				aurora.Yellow("\n  New Encore release available with security updates: %s (you have %s)\n  Update with: encore version update\n"),
+				newVer.Version(), version.Version)))
+
+			if newVer.SecurityNotes != "" {
+				stderr.Write([]byte(aurora.Sprintf(
+					aurora.Faint("\n  %s\n"),
+					newVer.SecurityNotes)))
+			}
+		} else {
+			stderr.Write([]byte(aurora.Sprintf(
+				aurora.Faint("\n  New Encore release available: %s (you have %s)\n  Update with: encore version update\n"),
+				newVer.Version(), version.Version)))
+		}
 	}
 	stderr.Write([]byte("\n"))
 

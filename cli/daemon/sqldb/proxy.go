@@ -67,11 +67,11 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	password := startup.Password
 	cluster, ok := cm.LookupPassword(password)
 	if !ok {
-		cm.log.Error().Interface("cluster", cluster.ID).Msg("dbproxy: could not find cluster")
+		cm.log.Error().Msg("dbproxy: could not find cluster")
 		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
-			Message:  "database cluster not running",
+			Message:  "database cluster not found or invalid connection string",
 		})
 		return nil
 	}

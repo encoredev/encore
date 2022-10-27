@@ -113,6 +113,7 @@ func (cj *CronJob) IsValid() (bool, error) {
 
 type PubSubTopic struct {
 	Name              string          // The unique name of the pub sub topic
+	NameAST           ast.Node        // The AST node that defines the name of the pub sub topic
 	Doc               string          // The documentation on the pub sub topic
 	DeliveryGuarantee PubSubGuarantee // What guarantees does the pub sub topic have?
 	OrderingKey       string          // What field in the message type should be used to ensure First-In-First-Out (FIFO) for messages with the same key
@@ -139,6 +140,7 @@ const (
 
 type PubSubSubscriber struct {
 	Name     string       // The unique name of the subscriber
+	NameAST  ast.Node     // The AST node that defines the name of the subscriber
 	Topic    *PubSubTopic // The topic the subscriber is registered against
 	CallSite ast.Node     // The AST node representing the creation of the subscriber
 	Func     ast.Node     // The function that is the subscriber (either a *ast.FuncLit or a *ast.FuncDecl)
@@ -161,6 +163,10 @@ func (p *PubSubSubscriber) AllowOnlyParsedUsage() bool { return true }
 
 type PubSubPublisher struct {
 	DeclFile *File // The file the publisher is declared in
+
+	// One of
+	Service          *Service    // The service the publisher is declared in
+	GlobalMiddleware *Middleware // The name of the middleware target
 }
 
 type Param struct {
@@ -171,6 +177,19 @@ type Param struct {
 // IsPointer returns if this parameter is a a pointer or not
 func (p *Param) IsPointer() bool {
 	return p.IsPtr || p.Type.GetPointer() != nil
+}
+
+// GetWithPointer ensures that if the parameter is marked as a pointer
+// you get the pointer schema.type back
+func (p *Param) GetWithPointer() *schema.Type {
+	// If the parameter is a pointer, but the schema isn't a pointer, then
+	// we need to update the typ to a pointer so that the unmarshaler generates as the
+	// correct type
+	typ := p.Type
+	if p.IsPtr && typ.GetPointer() == nil {
+		typ = &schema.Type{Typ: &schema.Type_Pointer{Pointer: &schema.Pointer{Base: typ}}}
+	}
+	return typ
 }
 
 type AccessType string

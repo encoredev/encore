@@ -91,6 +91,7 @@ func (l *List) Report(err error) {
 				l.Report(e)
 			}
 		}
+		return
 	case errinsrc.ErrorList:
 		// either another errlist or a list from `srcerrors`
 		for _, e := range err.ErrorList() {
