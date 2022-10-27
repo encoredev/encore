@@ -23,11 +23,11 @@ jobs:
             goos: linux
             goarch: arm64
             release_key: linux_arm64
-          - builder: macos-latest
+          - builder: macos-11
             goos: darwin
             goarch: amd64
             release_key: macos_x86-64
-          - builder: macos-latest
+          - builder: macos-11
             goos: darwin
             goarch: arm64
             release_key: macos_arm64
