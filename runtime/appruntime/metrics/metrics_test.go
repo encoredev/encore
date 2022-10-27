@@ -20,6 +20,10 @@ func TestCode(t *testing.T) {
 			want:       "ok",
 		},
 		{
+			err:  &errs.Error{Code: errs.OK},
+			want: errs.OK.String(),
+		},
+		{
 			err:  &errs.Error{Code: errs.Internal},
 			want: errs.Internal.String(),
 		},
@@ -32,16 +36,12 @@ func TestCode(t *testing.T) {
 			want:       "ok",
 		},
 		{
-			httpStatus: http.StatusNoContent,
-			want:       "no_content",
-		},
-		{
-			httpStatus: http.StatusNonAuthoritativeInfo,
-			want:       "non_authoritative_information",
+			httpStatus: http.StatusCreated,
+			want:       "http_201",
 		},
 		{
 			httpStatus: http.StatusTeapot,
-			want:       "i_m_a_teapot",
+			want:       "http_418",
 		},
 	}
 	for _, testCase := range testCases {

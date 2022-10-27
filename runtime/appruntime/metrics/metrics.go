@@ -2,15 +2,9 @@ package metrics
 
 import (
 	"net/http"
-	"strings"
+	"strconv"
 
 	"encore.dev/beta/errs"
-)
-
-var r = strings.NewReplacer(
-	" ", "_",
-	"-", "_",
-	"'", "_",
 )
 
 type Manager struct {
@@ -49,9 +43,8 @@ func code(err error, httpStatus int) string {
 		return e.Code.String()
 	}
 
-	code := http.StatusText(httpStatus)
-	if code == "" {
-		code = http.StatusText(http.StatusOK)
+	if httpStatus == 0 || httpStatus == http.StatusOK {
+		return errs.OK.String()
 	}
-	return r.Replace(strings.ToLower(code))
+	return "http_" + strconv.Itoa(httpStatus)
 }
