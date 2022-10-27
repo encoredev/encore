@@ -93,7 +93,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 
 	pathParams := make(PathParams, len(req.PathSegments))
 	for i, param := range req.PathSegments {
-		pathParams[i].Name = param.Key
+		pathParams[i].Name = param.Name
 		pathParams[i].Value = param.Value
 	}
 

@@ -17,6 +17,16 @@ import (
 	"encore.dev/types/uuid"
 )
 
+type logLevel byte
+
+const (
+	levelTrace logLevel = 0 // unused; reserve for future use
+	levelDebug logLevel = 1
+	levelInfo  logLevel = 2
+	levelWarn  logLevel = 3
+	levelError logLevel = 4
+)
+
 //publicapigen:drop
 type Manager struct {
 	rt *reqtrack.RequestTracker
@@ -35,15 +45,19 @@ type Ctx struct {
 }
 
 func (l *Manager) Debug(msg string, keysAndValues ...interface{}) {
-	l.doLog(0, l.rt.Logger().Debug(), msg, keysAndValues...)
+	l.doLog(levelDebug, l.rt.Logger().Debug(), msg, keysAndValues...)
 }
 
 func (l *Manager) Info(msg string, keysAndValues ...interface{}) {
-	l.doLog(1, l.rt.Logger().Info(), msg, keysAndValues...)
+	l.doLog(levelInfo, l.rt.Logger().Info(), msg, keysAndValues...)
+}
+
+func (l *Manager) Warn(msg string, keysAndValues ...interface{}) {
+	l.doLog(levelWarn, l.rt.Logger().Warn(), msg, keysAndValues...)
 }
 
 func (l *Manager) Error(msg string, keysAndValues ...interface{}) {
-	l.doLog(2, l.rt.Logger().Error(), msg, keysAndValues...)
+	l.doLog(levelError, l.rt.Logger().Error(), msg, keysAndValues...)
 }
 
 func (l *Manager) With(keysAndValues ...interface{}) Ctx {
@@ -61,7 +75,7 @@ func (l *Manager) With(keysAndValues ...interface{}) Ctx {
 // The variadic key-value pairs are treated as they are in With.
 func (ctx Ctx) Debug(msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
-	ctx.mgr.doLog(0, l.Debug(), msg, keysAndValues...)
+	ctx.mgr.doLog(levelDebug, l.Debug(), msg, keysAndValues...)
 }
 
 // Info logs an info-level message, merging the context from ctx
@@ -69,7 +83,15 @@ func (ctx Ctx) Debug(msg string, keysAndValues ...interface{}) {
 // The variadic key-value pairs are treated as they are in With.
 func (ctx Ctx) Info(msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
-	ctx.mgr.doLog(1, l.Info(), msg, keysAndValues...)
+	ctx.mgr.doLog(levelInfo, l.Info(), msg, keysAndValues...)
+}
+
+// Warn logs a warn-level message, merging the context from ctx
+// with the additional context provided as key-value pairs.
+// The variadic key-value pairs are treated as they are in With.
+func (ctx Ctx) Warn(msg string, keysAndValues ...interface{}) {
+	l := ctx.ctx.Logger()
+	ctx.mgr.doLog(levelWarn, l.Warn(), msg, keysAndValues...)
 }
 
 // Error logs an error-level message, merging the context from ctx
@@ -77,7 +99,7 @@ func (ctx Ctx) Info(msg string, keysAndValues ...interface{}) {
 // The variadic key-value pairs are treated as they are in With.
 func (ctx Ctx) Error(msg string, keysAndValues ...interface{}) {
 	l := ctx.ctx.Logger()
-	ctx.mgr.doLog(2, l.Error(), msg, keysAndValues...)
+	ctx.mgr.doLog(levelError, l.Error(), msg, keysAndValues...)
 }
 
 // With creates a new logging context that inherits the context
@@ -93,7 +115,7 @@ func (ctx Ctx) With(keysAndValues ...interface{}) Ctx {
 	return Ctx{ctx: c, mgr: ctx.mgr}
 }
 
-func (l *Manager) doLog(level byte, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
+func (l *Manager) doLog(level logLevel, ev *zerolog.Event, msg string, keysAndValues ...interface{}) {
 	var tb *trace.Buffer
 	curr := l.rt.Current()
 	fields := len(keysAndValues) / 2
@@ -103,7 +125,7 @@ func (l *Manager) doLog(level byte, ev *zerolog.Event, msg string, keysAndValues
 		tb = &t
 		tb.Bytes(curr.Req.SpanID[:])
 		tb.UVarint(uint64(curr.Goctr))
-		tb.Byte(level)
+		tb.Byte(byte(level))
 		tb.String(msg)
 		tb.UVarint(uint64(fields))
 	}

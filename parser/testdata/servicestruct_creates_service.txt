@@ -1,0 +1,15 @@
+# Verify that a service struct forces the creation of a service
+# even if it has no API's defined.
+
+parse
+stdout 'svc foobar '
+
+-- foobar/svc.go --
+package foobar
+
+import (
+	"context"
+)
+
+//encore:service
+type Service struct {}

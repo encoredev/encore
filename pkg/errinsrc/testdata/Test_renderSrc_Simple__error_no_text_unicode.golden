@@ -7,9 +7,9 @@ There has been a simple error in your code
    │
  3 │ // This is a sample file
  4 │ blah: {
- 5 │ 	foo: bool
-   ⋮ 	     ────
- 6 │ 	bar: int | *3
+ 5 │     foo: bool
+   ⋮          ────
+ 6 │     bar: int | *3
  7 │ }
 ───╯
 

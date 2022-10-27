@@ -1,6 +1,6 @@
 # Verify that pub sub is parsed
 ! parse
-stderr 'Pubsub topic names must be unique, "same-name" was previously declared in shared/topics.go'
+stderr 'A PubSub topic name must be unique within an application.'
 
 -- shared/topics.go --
 package shared

@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
-
 	"encore.dev/appruntime/model"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/metrics"
@@ -27,7 +25,7 @@ type beginRequestParams struct {
 	Service      string
 	Endpoint     string
 	Path         string
-	PathSegments httprouter.Params
+	PathSegments model.PathParams
 	Payload      any
 	Inputs       [][]byte
 	UID          model.UID
@@ -133,7 +131,7 @@ func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
 	case model.AuthHandler:
 		req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
 	default:
-		if httpStatus != 0 {
+		if httpStatus != errs.HTTPStatus(err) {
 			code := errs.HTTPStatusToCode(httpStatus).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", httpStatus).Msg("request completed")
 			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)

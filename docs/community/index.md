@@ -42,10 +42,10 @@ Find answers, ask questions, and learn from other backend developers.
 		<path fill="#111111" d="M77.7,97.2c7.1,0,12.9,5.8,12.9,12.9c0,7.1-5.8,12.9-12.9,12.9c-7.1,0-12.9-5.8-12.9-12.9V97.2H77.7z"/>
 		<path fill="#111111" d="M77.7,90.6c-7.1,0-12.9-5.8-12.9-12.9c0-7.1,5.8-12.9,12.9-12.9h32.4c7.1,0,12.9,5.8,12.9,12.9 c0,7.1-5.8,12.9-12.9,12.9H77.7z"/>
     </svg>
-    <a href="https://encore.dev/slack">Share you story on Slack</a>
+    <a href="https://encore.dev/slack">Share your story on Slack</a>
 </p>
 
-Connect with fellow Encore developers, ask questions or just hang out!
+Connect with fellow Encore developers, ask questions, or just hang out!
 
 <p className="flex items-center gap-x-2 lead-xsmall">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#111111" stroke="none">

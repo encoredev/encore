@@ -4,6 +4,7 @@ import (
 	"fmt"
 	gotoken "go/token"
 	"path"
+	"strconv"
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
@@ -21,20 +22,23 @@ var importNames = map[string]string{
 	"github.com/json-iterator/go":         "jsoniter",
 	"github.com/julienschmidt/httprouter": "httprouter",
 
-	"encore.dev/appruntime/api":         "api",
-	"encore.dev/appruntime/app":         "app",
-	"encore.dev/appruntime/app/appinit": "appinit",
-	"encore.dev/appruntime/config":      "config",
-	"encore.dev/appruntime/model":       "model",
-	"encore.dev/appruntime/serde":       "serde",
-	"encore.dev/appruntime/service":     "service",
+	"encore.dev/appruntime/api":         "__api",
+	"encore.dev/appruntime/app":         "__app",
+	"encore.dev/appruntime/app/appinit": "__appinit",
+	"encore.dev/appruntime/config":      "__config",
+	"encore.dev/appruntime/model":       "__model",
+	"encore.dev/appruntime/serde":       "__serde",
+	"encore.dev/appruntime/service":     "__service",
 	"encore.dev/beta/errs":              "errs",
 	"encore.dev/storage/sqldb":          "sqldb",
 	"encore.dev/types/uuid":             "uuid",
 }
 
 func (b *Builder) registerImports(f *File) {
-	f.ImportNames(importNames)
+	for pkgPath, alias := range importNames {
+		f.ImportAlias(pkgPath, alias)
+	}
+
 	f.ImportAlias("encoding/json", "stdjson")
 
 	// Import the runtime package with '_' as its name to start with to ensure it's imported.
@@ -112,11 +116,6 @@ func (b *rpcBuilder) Write(f *File) {
 		}
 	})
 
-	rawHandler := Nil()
-	if rpc.Raw {
-		rawHandler = Qual(rpc.Svc.Root.ImportPath, rpc.Name)
-	}
-
 	defLoc := int(b.res.Nodes[rpc.Svc.Root][rpc.Func].Id)
 	handler := Var().Id(b.rpcHandlerName(rpc)).Op("=").Op("&").Qual("encore.dev/appruntime/api", "Desc").Types(
 		Op("*").Id(b.ReqTypeName()),
@@ -132,6 +131,8 @@ func (b *rpcBuilder) Write(f *File) {
 		Id("Methods").Op(":").Add(methods),
 		Id("Raw").Op(":").Lit(rpc.Raw),
 		Id("Path").Op(":").Lit(rpc.Path.String()),
+		Id("RawPath").Op(":").Lit(rawPath(rpc.Path)),
+		Id("PathParamNames").Op(":").Add(pathParamNames(rpc.Path)),
 		Id("DefLoc").Op(":").Lit(defLoc),
 		Id("Access").Op(":").Add(access),
 
@@ -142,7 +143,7 @@ func (b *rpcBuilder) Write(f *File) {
 		Id("ReqUserPayload").Op(":").Add(reqDesc.UserPayload),
 
 		Id("AppHandler").Op(":").Add(b.AppHandlerFunc()),
-		Id("RawHandler").Op(":").Add(rawHandler),
+		Id("RawHandler").Op(":").Add(b.RawHandlerFunc()),
 		Id("EncodeResp").Op(":").Add(encodeResp),
 		Id("SerializeResp").Op(":").Add(respDesc.Serialize),
 		Id("CloneResp").Op(":").Add(respDesc.Clone),
@@ -212,9 +213,13 @@ func (r *structDesc) AddField(kind fieldKind, name string, goType *Statement, bu
 func (b *rpcBuilder) renderDecodeReq() *Statement {
 	return Func().Params(
 		Id("req").Op("*").Qual("net/http", "Request"),
-		Id("ps").Qual("github.com/julienschmidt/httprouter", "Params"),
+		Id("ps").Qual("encore.dev/appruntime/api", "UnnamedParams"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
-	).Params(Id("reqData").Op("*").Id(b.ReqTypeName()), Err().Error()).BlockFunc(func(g *Group) {
+	).Params(
+		Id("reqData").Op("*").Id(b.ReqTypeName()),
+		Id("pathParams").Qual("encore.dev/appruntime/api", "UnnamedParams"),
+		Err().Error(),
+	).BlockFunc(func(g *Group) {
 		g.Id("reqData").Op("=").Op("&").Id(b.ReqTypeName()).Values()
 
 		// Decode the path
@@ -236,14 +241,14 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 
 		if len(segs) == 0 && b.rpc.Request == nil {
 			// Nothing to do; return an empty struct
-			g.Return(Id("reqData"), Nil())
+			g.Return(Id("reqData"), Nil(), Nil())
 			return
 		}
 
 		if seenWildcard {
 			g.Comment("Trim the leading slash from wildcard parameter, as Encore's semantics excludes it,")
 			g.Comment("while the httprouter implementation includes it.")
-			g.Id("ps").Index(Lit(wildcardIdx)).Dot("Value").Op("=").Qual("strings", "TrimPrefix").Call(Id("ps").Index(Lit(wildcardIdx)).Dot("Value"), Lit("/"))
+			g.Id("ps").Index(Lit(wildcardIdx)).Op("=").Qual("strings", "TrimPrefix").Call(Id("ps").Index(Lit(wildcardIdx)), Lit("/"))
 			g.Line()
 		}
 
@@ -251,7 +256,7 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 		g.Add(dec.WithFunc(func(g *Group) {
 			// Decode path params
 			for i, seg := range segs {
-				pathSegmentValue := Id("ps").Index(Lit(i)).Dot("Value")
+				pathSegmentValue := Id("ps").Index(Lit(i))
 
 				// If the segment type is a string, then we want to unescape it
 				switch seg.ValueType {
@@ -260,7 +265,7 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 						List(Id("value"), Err()).Op(":=").Qual("net/url", "PathUnescape").Call(pathSegmentValue),
 						Err().Op("==").Nil().
 							Block(
-								Id("ps").Index(Lit(i)).Dot("Value").Op("=").Id("value"),
+								Id("ps").Index(Lit(i)).Op("=").Id("value"),
 							))
 				}
 
@@ -316,9 +321,10 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 			}
 
 		}, func(g *Group) {
-			g.Return(Nil(), dec.LastError())
+			g.Return(Nil(), Nil(), dec.LastError())
 		})...)
-		g.Return(Id("reqData"), Nil())
+
+		g.Return(Id("reqData"), Id("ps"), Nil())
 	})
 }
 
@@ -368,6 +374,38 @@ func (b *rpcBuilder) AppHandlerFunc() *Statement {
 		} else {
 			g.Return(b.RespZeroValue(), Nil())
 		}
+	})
+}
+
+func (b *rpcBuilder) RawHandlerFunc() *Statement {
+	rpc := b.rpc
+	if !rpc.Raw {
+		return Nil()
+	}
+
+	return Func().Params(
+		Id("w").Qual("net/http", "ResponseWriter"),
+		Id("req").Op("*").Qual("net/http", "Request"),
+	).BlockFunc(func(g *Group) {
+		// fnExpr is the expression for the function we want to call,
+		// either just MyRPCName or svc.MyRPCName if we have a service struct.
+		var fnExpr *Statement
+
+		// If we have a service struct, initialize it first.
+		group := rpc.SvcStruct
+		if group != nil {
+			ss := rpc.Svc.Struct
+			g.List(Id("svc"), Id("initErr")).Op(":=").Id(b.serviceStructName(ss)).Dot("Get").Call()
+			g.If(Id("initErr").Op("!=").Nil()).Block(
+				Qual("encore.dev/beta/errs", "HTTPErrorWithCode").Call(Id("w"), Id("initErr"), Lit(0)),
+				Return(),
+			)
+			fnExpr = Id("svc").Dot(b.rpc.Name)
+		} else {
+			fnExpr = Id(b.rpc.Name)
+		}
+
+		g.Add(fnExpr).Call(Id("w"), Id("req"))
 	})
 }
 
@@ -498,7 +536,7 @@ func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) r
 
 	result.Path = Func().Params(Id(recv).Op("*").Id(typName)).Params(
 		String(),
-		Qual("encore.dev/appruntime/api", "PathParams"),
+		Qual("encore.dev/appruntime/api", "UnnamedParams"),
 		Error(),
 	).BlockFunc(func(g *Group) {
 		var pathParamFields []structField
@@ -515,7 +553,7 @@ func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) r
 				return
 			}
 
-			g.Id("params").Op(":=").Qual("encore.dev/appruntime/api", "PathParams").ValuesFunc(func(g *Group) {
+			g.Id("params").Op(":=").Qual("encore.dev/appruntime/api", "UnnamedParams").ValuesFunc(func(g *Group) {
 				for _, f := range pathParamFields {
 					typ := &schema.Type{Typ: &schema.Type_Builtin{Builtin: f.builtin}}
 					code, err := enc.ToString(typ, Id(recv).Dot(f.fieldName))
@@ -525,10 +563,7 @@ func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) r
 						break
 					}
 
-					g.Values(Dict{
-						Id("Key"):   Lit(f.originalName),
-						Id("Value"): code,
-					})
+					g.Add(code)
 				}
 			})
 		}, func(g *Group) {
@@ -551,7 +586,7 @@ func (b *rpcBuilder) renderRequestStructDesc(typName string, desc *structDesc) r
 					g.Lit("/" + seg.Value)
 				} else {
 					g.Lit("/")
-					g.Id("params").Index(Lit(idx)).Dot("Value")
+					g.Id("params").Index(Lit(idx))
 					idx++
 				}
 			}
@@ -801,4 +836,49 @@ func (b *rpcBuilder) renderCaller() *Statement {
 			g.Return(Nil())
 		}
 	})
+}
+
+// rawPath creates a raw path representation, replacing path parameters
+// with their indices to ensure all httprouter paths use consistent path param names,
+// since otherwise httprouter reports path conflicts.
+func rawPath(path *paths.Path) string {
+	var b strings.Builder
+	nParam := 0
+	for i, s := range path.Segments {
+		if i != 0 || path.Type.LeadingSlash() {
+			b.WriteByte('/')
+		}
+
+		switch s.Type {
+		case paths.Literal:
+			b.WriteString(s.Value)
+			continue
+
+		case paths.Param:
+			b.WriteByte(':')
+		case paths.Wildcard:
+			b.WriteByte('*')
+		}
+		b.WriteString(strconv.Itoa(nParam))
+		nParam++
+	}
+	return b.String()
+}
+
+// pathParamNames yields a []string literal containing the names
+// of the path parameters, in order.
+func pathParamNames(path *paths.Path) Code {
+	n := 0
+	expr := Index().String().ValuesFunc(func(g *Group) {
+		for _, s := range path.Segments {
+			if s.Type != paths.Literal {
+				n++
+				g.Lit(s.Value)
+			}
+		}
+	})
+	if n > 0 {
+		return expr
+	}
+	return Nil()
 }

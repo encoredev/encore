@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"encore.dev/storage/cache"
+	"encr.dev/parser/encoding"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
@@ -317,10 +318,15 @@ func (p *parser) validateCacheKeyspace(ks *est.CacheKeyspace, con cacheKeyspaceC
 
 		case *schema.Type_Named:
 			named := p.decls[key.Named.Id]
-			st := named.Type.GetStruct()
-			if st == nil {
+			if named.Type.GetStruct() == nil {
 				p.errf(ks.Ident().Pos(), "cache.%s key type must be a basic type or a named struct type",
 					con.FuncName)
+				return
+			}
+
+			st, err := encoding.GetConcreteStructType(p.decls, named.Type, key.Named.TypeArguments)
+			if err != nil {
+				p.errf(ks.Ident().Pos(), "unable to resolve concrete type: %v", err)
 				return
 			}
 

@@ -1,4 +1,6 @@
-  <img width="1500px" src="https://encore.dev/assets//branding/github_header.png" alt="Encore - Backend development engine">
+  <a href="https://encore.dev">
+    <img width="1500px" src="https://encore.dev/assets//branding/github_header.png" alt="Encore - Backend development engine">
+  </a>
   <h1><a href="https://encore.dev">Encore – Backend Development Engine</a></h1>
 Encore is a Backend Development Engine, purpose-built for a flow state developer experience when creating cloud-based backend applications, APIs, and distributed systems using Go. With Encore you build microservices with the same simple developer experience as building a monolith. You write your business logic with the Open Source Encore Go framework, then let the Encore platform analyze your code to automatically deal with the rest.
 Start building today and unlock your creative potential with:</br>
@@ -13,7 +15,7 @@ Start building today and unlock your creative potential with:</br>
 
 **⭐ If you find Encore interesting, star this repository to help spread the word.**
 
-**👋 Have questions? Join the friendly developer community on [Slack](https://encore.dev/slack).**
+**👋 Have questions? Join the friendly [developer community](https://community.encore.dev), or say hello on [Slack](https://encore.dev/slack).**
 
 ## Key features
 
@@ -78,6 +80,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 <a href="https://www.youtube.com/watch?v=aSE7wdjhcnw" alt="Encore Demo" target="_blank"><img src="https://user-images.githubusercontent.com/78424526/174304596-52145f47-f58a-4c4b-b386-53ad33d48548.jpg" alt="encore demo video"></a>
 
 ## Visuals
+
+### Local Development Dashboard
+
+https://user-images.githubusercontent.com/78424526/196938940-9b132373-2b31-41fe-8ca7-aaa3be7b8537.mp4
 
 ### Built-in CI/CD & Infrastructure Provisioning
 

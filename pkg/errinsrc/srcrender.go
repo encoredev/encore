@@ -18,6 +18,8 @@ import (
 const grayLevelOnLineNumbers = 12
 const endEscape = "\x1b[0m"
 
+const tabSize = 4
+
 var aurora = auroraPkg.NewAurora(true)
 var enableColors = true
 
@@ -107,14 +109,16 @@ func renderSrc(builder *strings.Builder, causes SrcLocations) {
 				}
 			}
 
+			unifiedLine := replaceTabsWithSpaces(sc.Text())
+
 			// Then the line of code itself (attempting to highlight the syntax)
 			// Note: we always use the "go" lexer, as it works nicely on CUE files too
 			var subBuilder strings.Builder
-			if err := quick.Highlight(&subBuilder, sc.Text(), "go", "terminal256", "monokai"); err != nil || !enableColors {
+			if err := quick.Highlight(&subBuilder, unifiedLine, "go", "terminal256", "monokai"); err != nil || !enableColors {
 				if err != nil {
 					log.Error().AnErr("error", err).Msg("Unable to highlight line of code")
 				}
-				builder.WriteString(sc.Text())
+				builder.WriteString(unifiedLine)
 			} else {
 				syntaxHighlightedLine := subBuilder.String()
 
@@ -149,27 +153,31 @@ func renderSrc(builder *strings.Builder, causes SrcLocations) {
 			switch currentLine {
 			case currentCause.Start.Line:
 				if currentCause.Start.Col > 1 {
+					charCount := calcNumberCharactersForColumnNumber(sc.Text(), currentCause.Start.Col)
+
 					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%s%c", strings.Repeat(" ", currentCause.Start.Col+3), set.UpArrow)).String())
+					builder.WriteString(color(fmt.Sprintf("%s%c", strings.Repeat(" ", charCount+3), set.UpArrow)).String())
 					builder.WriteString("\n")
 
 					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftTop, strings.Repeat(string(set.HorizontalBar), currentCause.Start.Col+2), set.RightBottom)).String())
+					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftTop, strings.Repeat(string(set.HorizontalBar), charCount+2), set.RightBottom)).String())
 					builder.WriteString("\n")
 				}
 			case currentCause.End.Line:
 				if currentCause.End.Col > 1 {
+					charCount := calcNumberCharactersForColumnNumber(sc.Text(), currentCause.End.Col)
+
 					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.VerticalBar, strings.Repeat(" ", currentCause.End.Col+2), set.UpArrow)).String())
+					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.VerticalBar, strings.Repeat(" ", charCount+2), set.UpArrow)).String())
 					builder.WriteString("\n")
 
 					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftCross, strings.Repeat(string(set.HorizontalBar), currentCause.End.Col+2), set.RightBottom)).String())
+					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftCross, strings.Repeat(string(set.HorizontalBar), charCount+2), set.RightBottom)).String())
 					builder.WriteString("\n")
 				}
 
 				// And on the final line also render the error message
-				renderErrorText(builder, 1, numDigitsInLineNumbers, sc.Text(), 2, currentCause.Type, currentCause.Text, nil)
+				renderErrorText(builder, 0, numDigitsInLineNumbers, "", 2, currentCause.Type, currentCause.Text, nil)
 				errorRendered = true
 			}
 		} else if currentLine == currentCause.End.Line {
@@ -235,6 +243,52 @@ func lineNumberSpacer(builder *strings.Builder, numDigitsInLineNumbers int, r ru
 	builder.WriteString(aurora.Gray(grayLevelOnLineNumbers, fmt.Sprintf(" %c ", r)).String())
 }
 
+func replaceTabsWithSpaces(line string) string {
+	var str strings.Builder
+	var col int
+
+	for _, r := range line {
+		if r == '\t' {
+			// Tabs always count as at least 1 space
+			str.WriteRune(' ')
+			col++
+
+			// We then align onto the next tab column
+			for col%tabSize != 0 {
+				str.WriteRune(' ')
+				col++
+			}
+		} else {
+			str.WriteRune(r)
+			col++
+		}
+	}
+
+	return str.String()
+}
+
+// calcNumberCharactersForColumnNumber calculates the number of monospaced characters we need
+// to render the given column number on the line - accounting for tab characters
+func calcNumberCharactersForColumnNumber(line string, col int) int {
+	count := 0
+	for i, r := range line {
+		if r == '\t' {
+			count++
+			for count%tabSize != 0 {
+				count++
+			}
+		} else {
+			count++
+		}
+
+		if i+1 >= col {
+			break
+		}
+
+	}
+	return count
+}
+
 func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumbers int, srcLine string, errorTextStart int, typ LocationType, text string, errorLines []string) {
 	if text != "" {
 		lines := splitTextOnWords(text, errorTextStart)
@@ -248,16 +302,16 @@ func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumb
 		}
 	}
 
-	// Compute the whitespace prefix we need on each line
-	// (Note this will render tabs as tabs still if they are present)
-	prefixWhitespace := ""
-	for i := 0; i < startCol-1; i++ {
-		switch {
-		case unicode.IsSpace(rune(srcLine[i])):
-			prefixWhitespace += string(srcLine[i])
-		default:
-			prefixWhitespace += " "
-		}
+	var prefixWhitespace string
+
+	// It's possible the start column references generated code; in that case reset
+	// the column information as a fallback to prevent panics below.
+	if startCol > len(srcLine) {
+		startCol = 0
+	} else {
+		// Compute the whitespace prefix we need on each line
+		// (Note this will render tabs as tabs still if they are present)
+		prefixWhitespace = strings.Repeat(" ", calcNumberCharactersForColumnNumber(srcLine, startCol-1))
 	}
 
 	// Now write the error lines
@@ -352,11 +406,13 @@ func guessEndColumn(line string, startColumn int) int {
 		case '`':
 			inBackticks = !inBackticks
 		case ';', ',', ':', '"', '\'':
-			if !inBackticks {
+			if !inBackticks && params == 0 && brackets == 0 && braces == 0 {
 				return i + 1
 			}
 		case ' ', '\t', '\n', '\r':
-			return i + 1
+			if params == 0 && brackets == 0 && braces == 0 {
+				return i + 1
+			}
 		}
 	}
 

@@ -10,7 +10,6 @@ import (
 
 	"github.com/felixge/httpsnoop"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/julienschmidt/httprouter"
 
 	encore "encore.dev"
 	"encore.dev/appruntime/model"
@@ -18,7 +17,11 @@ import (
 	"encore.dev/middleware"
 )
 
-type PathParams = httprouter.Params
+// NamedParams are named path parameters.
+type NamedParams = model.PathParams
+
+// UnnamedParams are unnamed parameters from an incoming request.
+type UnnamedParams []string
 
 type Void struct{}
 
@@ -46,7 +49,11 @@ type Desc[Req, Resp any] struct {
 	Endpoint string
 	Methods  []string
 	Path     string
+	RawPath  string
 	DefLoc   int32
+
+	// PathParamNames are the names of the path params, in order.
+	PathParamNames []string
 
 	// Access describes the access type for this API.
 	Access Access
@@ -54,10 +61,10 @@ type Desc[Req, Resp any] struct {
 	// If raw is true, RawHandler is set and AppHandler and EncodeResp are nil.
 	Raw bool
 
-	DecodeReq      func(*http.Request, PathParams, jsoniter.API) (Req, error)
+	DecodeReq      func(*http.Request, UnnamedParams, jsoniter.API) (Req, UnnamedParams, error)
 	CloneReq       func(Req) (Req, error)
 	SerializeReq   func(jsoniter.API, Req) ([][]byte, error)
-	ReqPath        func(Req) (path string, params PathParams, err error)
+	ReqPath        func(Req) (path string, params UnnamedParams, err error)
 	ReqUserPayload func(Req) any
 
 	AppHandler func(context.Context, Req) (Resp, error)
@@ -79,7 +86,8 @@ func (d *Desc[Req, Resp]) AccessType() Access            { return d.Access }
 func (d *Desc[Req, Resp]) ServiceName() string           { return d.Service }
 func (d *Desc[Req, Resp]) EndpointName() string          { return d.Endpoint }
 func (d *Desc[Req, Resp]) HTTPMethods() []string         { return d.Methods }
-func (d *Desc[Req, Resp]) HTTPPath() string              { return d.Path }
+func (d *Desc[Req, Resp]) SemanticPath() string          { return d.Path }
+func (d *Desc[Req, Resp]) HTTPRouterPath() string        { return d.RawPath }
 func (d *Desc[Req, Resp]) SetMiddleware(m []*Middleware) { d.middleware = m }
 
 func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
@@ -111,7 +119,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 }
 
 func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error) {
-	reqData, decodeErr := d.DecodeReq(c.req, c.ps, c.server.json)
+	reqData, params, decodeErr := d.DecodeReq(c.req, c.ps, c.server.json)
 
 	if d.Access == RequiresAuth && c.auth.UID == "" {
 		beginErr = errs.B().
@@ -139,7 +147,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		DefLoc:   d.DefLoc,
 
 		Path:         c.req.URL.Path,
-		PathSegments: c.ps,
+		PathSegments: d.toNamedParams(params),
 		Payload:      payload,
 		Inputs:       inputs,
 		RPCDesc:      d.rpcDesc(),
@@ -171,6 +179,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp Resp, httpStatus int, respErr error) {
 	if err := d.validate(reqData); err != nil {
 		respErr = err
+		httpStatus = errs.HTTPStatus(err)
 		return
 	}
 
@@ -192,12 +201,14 @@ func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData 
 	handlerResp, handlerErr := d.AppHandler(mwReq.Context(), reqData)
 	if handlerErr != nil {
 		mwResp.Err = errs.Convert(handlerErr)
+		mwResp.HTTPStatus = errs.HTTPStatus(mwResp.Err)
 	} else {
 		// Only assign the payload if we're not dealing with *Void,
 		// otherwise we would end up making Payload a "typed nil".
 		if !isVoid[Resp]() {
 			mwResp.Payload = handlerResp
 		}
+		mwResp.HTTPStatus = 200
 	}
 	return mwResp
 }
@@ -233,6 +244,15 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	var nextFn middleware.Next
 	numMiddleware := len(d.middleware)
 	nextFn = func(req middleware.Request) (resp middleware.Response) {
+		// Ensure the HTTP status code is correctly set in the response
+		defer func() {
+			// If no explicit HTTP status has been set, then we use the default for the type of error
+			// or if Err is nil, we'll set 200
+			if resp.HTTPStatus == 0 {
+				resp.HTTPStatus = errs.HTTPStatus(resp.Err)
+			}
+		}()
+
 		idx := counter
 		counter++
 
@@ -245,6 +265,7 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 					stack := debug.Stack()
 					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", string(stack)).Msgf("panic executing middleware %s.%s: %v\n%s",
 						mw.PkgName, mw.Name, e, stack).Err()
+					resp.HTTPStatus = 500
 				}
 			}()
 			return mw.Invoke(req, nextFn)
@@ -255,13 +276,15 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 				if e := recover(); e != nil {
 					stack := debug.Stack()
 					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", string(stack)).Msgf("panic handling request: %v\n%s", e, stack).Err()
+					resp.HTTPStatus = 500
 				}
 			}()
 			return invokeHandler(req)
 
 		default:
 			return middleware.Response{
-				Err: errs.B().Code(errs.Internal).Msg("middleware called next() too many times").Err(),
+				Err:        errs.B().Code(errs.Internal).Msg("middleware called next() too many times").Err(),
+				HTTPStatus: 500,
 			}
 		}
 	}
@@ -276,13 +299,23 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 		return resp, mwResp.HTTPStatus, mwResp.Err
 	} else {
 		if resp, ok := mwResp.Payload.(Resp); ok || isVoid[Resp]() {
-			return resp, mwResp.HTTPStatus, nil
+			return resp, mwResp.HTTPStatus, mwResp.Err
 		}
-		return resp, mwResp.HTTPStatus, errs.B().Code(errs.Internal).Msgf(
-			"invalid middleware: cannot return payload of type %T for endpoint %s.%s (expected type %T)",
-			mwResp.Payload, d.Service, d.Endpoint, resp,
-		).Err()
 	}
+
+	return resp, 500, errs.B().Code(errs.Internal).Msgf(
+		"invalid middleware: cannot return payload of type %T for endpoint %s.%s (expected type %T)",
+		mwResp.Payload, d.Service, d.Endpoint, resp,
+	).Err()
+}
+
+func (d *Desc[Req, Resp]) toNamedParams(ps UnnamedParams) NamedParams {
+	named := make(NamedParams, len(ps))
+	for i, p := range ps {
+		named[i].Name = d.PathParamNames[i]
+		named[i].Value = p
+	}
+	return named
 }
 
 type CallContext struct {
@@ -334,7 +367,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 			DefLoc:   d.DefLoc,
 
 			Path:         path,
-			PathSegments: params,
+			PathSegments: d.toNamedParams(params),
 			Payload:      d.ReqUserPayload(req),
 			Inputs:       inputs,
 			RPCDesc:      d.rpcDesc(),
@@ -358,7 +391,10 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 
 		if rpcErr == nil {
 			r, rpcErr = d.CloneResp(r)
-			httpStatus = errs.HTTPStatus(errs.Convert(rpcErr))
+			if rpcErr != nil {
+				// only override the http status if an error occurred trying to clone the response
+				httpStatus = errs.HTTPStatus(errs.Convert(rpcErr))
+			}
 		}
 		if rpcErr != nil {
 			respErr = errs.RoundTrip(rpcErr)

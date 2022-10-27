@@ -78,7 +78,10 @@ const encodeStr = "23456789abcdefghikmnopqrstuvwxyz"
 
 var encoding = base32.NewEncoding(encodeStr).WithPadding(base32.NoPadding)
 
-// genID generates a random id.
+// genID generates a random id for a local ID
+//
+// Note: the fact this generates without a hyphen is expected and used
+// to identify a local ID vs a platform ID
 func genID() (string, error) {
 	var data [3]byte
 	if _, err := rand.Read(data[:]); err != nil {

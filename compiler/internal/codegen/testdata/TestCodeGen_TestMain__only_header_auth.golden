@@ -3,31 +3,31 @@ package svc_test
 
 import (
 	"encore.app/svc"
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/app/appinit"
-	"encore.dev/appruntime/config"
+	__api "encore.dev/appruntime/api"
+	__appinit "encore.dev/appruntime/app/appinit"
+	__config "encore.dev/appruntime/config"
 	"os"
 	"reflect"
 	_ "unsafe"
 )
 
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *appinit.LoadData {
+func loadApp() *__appinit.LoadData {
 	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
-	static := &config.Static{
+	static := &__config.Static{
 		AuthData:             reflect.TypeOf((*svc.AuthData)(nil)),
-		PubsubTopics:         map[string]*config.StaticPubsubTopic{},
+		PubsubTopics:         map[string]*__config.StaticPubsubTopic{},
 		TestAsExternalBinary: true,
 		TestService:          "svc",
 		Testing:              true,
 	}
-	handlers := []api.HandlerRegistration{
+	handlers := []__api.HandlerRegistration{
 		{
 			Handler:    svc.EncoreInternal_EightHandler,
 			Middleware: nil,
 		},
 	}
-	return &appinit.LoadData{
+	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		StaticCfg:   static,
 	}

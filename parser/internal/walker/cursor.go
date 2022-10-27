@@ -32,8 +32,10 @@ func (c *Cursor) Location() (loc locations.Location) {
 				loc |= locations.Variable
 			}
 		case *ast.FuncDecl:
-			if parent.Name.Name == "init" && getAncestor[*ast.FuncDecl](c, idx+1) == nil {
-				loc |= locations.InitFunction
+			if parent.Name.Name == "init" {
+				if f, _ := getAncestor[*ast.FuncDecl](c, idx+1); f == nil {
+					loc |= locations.InitFunction
+				}
 			}
 
 			loc |= locations.Function
@@ -109,19 +111,36 @@ func (c *Cursor) DocComment() string {
 	return ""
 }
 
-// GetAncestor returns the closest ancestor of the given type.
+// GetAncestor returns the closest ancestor of the given type
 func GetAncestor[T ast.Node](cursor *Cursor) T {
-	return getAncestor[T](cursor, 0)
+	rtn, _ := getAncestor[T](cursor, 0)
+	return rtn
 }
 
-// HasAncestor returns true if the current node has an ancestor of the given type.
-func getAncestor[T ast.Node](cursor *Cursor, startIdx int) T {
+// GetFurthestAncestor returns the furthest ancestor of the given type
+func GetFurthestAncestor[T ast.Node](cursor *Cursor) T {
+	var rtn T
+	idx := -1
+	for {
+		found, foundIdx := getAncestor[T](cursor, idx+1)
+		if foundIdx <= -1 {
+			// If not found, return the last found value
+			return rtn
+		}
+
+		rtn, idx = found, foundIdx
+	}
+}
+
+// getAncestor checks if the current node has an ancestor of the given type and returns
+// that ancestor and the index into the parents slice where it was found.
+func getAncestor[T ast.Node](cursor *Cursor, startIdx int) (T, int) {
 	for i := startIdx; i < len(cursor.parents); i++ {
 		if val, ok := cursor.parents[i].(T); ok {
-			return val
+			return val, i
 		}
 	}
 
 	var defaultValue T
-	return defaultValue
+	return defaultValue, -1
 }

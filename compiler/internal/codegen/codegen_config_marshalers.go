@@ -41,7 +41,7 @@ calls to config.Load[T]().`)
 
 	// Write load functions for generic types
 	for _, load := range svc.ConfigLoads {
-		builder.generateConcreteUnmarshalers(load.ConfigStruct.Type)
+		builder.generateConcreteUnmarshalers(load.ConfigStruct)
 	}
 	if len(builder.concreteUnmarshalers) > 0 {
 		builder.f.Line()
@@ -203,7 +203,7 @@ func (cb *configUnmarshalersBuilder) readType(typ *schema.Type, pathElement Code
 					// the etype unmarshaler to unmarshal the key to the underlying datatype
 					f.Comment("Decode the map key from the JSON string to the underlying type it needs to be")
 					instance := cb.marshaller.NewPossibleInstance("keyDecoder")
-					code, err := instance.FromString(t.Map.Key, "keyAsString", Id("key"), Index().String().List(Id("key")), true)
+					code, err := instance.FromString(t.Map.Key, "keyAsString", Id("keyAsString"), Index().String().List(Id("key")), true)
 					if err != nil {
 						panic(err)
 					}
@@ -241,6 +241,12 @@ func (cb *configUnmarshalersBuilder) readType(typ *schema.Type, pathElement Code
 		reader, returnType := cb.readType(t.Pointer.Base, pathElement)
 
 		return Func().Params().Op("*").Add(returnType).Block(
+			Comment("// If the value is null, we return nil"),
+			If(Id("itr").Dot("ReadNil").Call()).Block(
+				Return(Nil()),
+			),
+			Line(),
+			Comment("// Otherwise we unmarshal the value and return a pointer to it"),
 			Id("obj").Op(":=").Add(reader),
 			Return(Op("&").Id("obj")),
 		).Call(), Op("*").Add(returnType)
@@ -248,11 +254,13 @@ func (cb *configUnmarshalersBuilder) readType(typ *schema.Type, pathElement Code
 	case *schema.Type_Config:
 		// The config type is the dynamic values which can be changed at runtime
 		// by unit tests
-		code, returnType := cb.readType(t.Config.Elem, pathElement)
 		if t.Config.IsValuesList {
-			return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), returnType
+			code, _ := cb.readType(t.Config.Elem, pathElement)
+			_, returnType := cb.readType(t.Config.Elem.GetList().Elem, pathElement)
+			return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Values").Types(returnType)
 		} else {
-			return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(code, Append(Id("path"), pathElement)), returnType
+			code, returnType := cb.readType(t.Config.Elem, pathElement)
+			return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Value").Types(returnType)
 		}
 
 	case *schema.Type_TypeParameter:
@@ -427,9 +435,9 @@ func (cb *configUnmarshalersBuilder) typeParamUnmarshalerName(param *schema.Type
 
 // generateConcreteUnmarshaler generates a function that unmarshals a concrete type, taking into account any
 // type arguments passed to the given type
-func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ *schema.Type) {
-	funcBody, _ := cb.typeUnmarshalerFunc(typ)
-	funcName := ConfigUnmarshalFuncName(typ, cb.md)
+func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(param *est.Param) {
+	funcBody, _ := cb.typeUnmarshalerFunc(param.GetWithPointer())
+	funcName := ConfigUnmarshalFuncName(param, cb.md)
 
 	cb.concreteUnmarshalers = append(cb.concreteUnmarshalers, Id(funcName).Op("=").Add(funcBody))
 }
@@ -440,9 +448,10 @@ func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ *schema.Ty
 // - `int` -> `encoreInternal_LoadConfig_int`
 // - `ConfigType` -> `encoreInternal_LoadConfig_ConfigType`
 // - `ConfigType[int, string]` -> `encoreInternal_LoadConfig_ConfigType_int_string_`
-func ConfigUnmarshalFuncName(typ *schema.Type, md *meta.Data) string {
-	typeAsString := gocodegen.ConvertSchemaTypeToString(typ, md)
+func ConfigUnmarshalFuncName(param *est.Param, md *meta.Data) string {
+	typeAsString := gocodegen.ConvertSchemaTypeToString(param.GetWithPointer(), md)
 	typeAsString = strings.NewReplacer(
+		"*", "ptr_",
 		"[", "_",
 		"]", "_",
 		",", "_",

@@ -7,12 +7,12 @@ There has been a simple error in your code
    │
  3 │ // This is a sample file
  4 │ blah: {
- 5 │ 	foo: bool
-   ⋮ 	     ─┬──
-   ⋮ 	      ╰─ this is weird
- 6 │ 	bar: int | *3
-   ⋮ 	           ┬─
-   ⋮ 	           ╰─ so is this!
+ 5 │     foo: bool
+   ⋮          ─┬──
+   ⋮           ╰─ this is weird
+ 6 │     bar: int | *3
+   ⋮                ┬─
+   ⋮                ╰─ so is this!
  7 │ }
  8 │ 
 ───╯
