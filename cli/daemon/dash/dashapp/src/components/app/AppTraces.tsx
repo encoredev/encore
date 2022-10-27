@@ -43,7 +43,11 @@ export default class AppTraces extends React.Component<Props, State> {
     if (msg.method === "trace/new") {
       const tr = msg.params as Trace;
       this.setState((st) => {
-        return { traces: [tr, ...st.traces] };
+        let traces = [tr, ...st.traces];
+        if (traces.length > 100) {
+          traces = traces.slice(0, 100)
+        }
+        return { traces };
       });
     }
   }
