@@ -29,8 +29,8 @@ The variable must be an unexported struct named `secrets`, and all the fields mu
 </Callout>
 
 Then you set the secret value using `encore secret set --<dev|prod> <secret-name>`.
-As you can see, secrets are defined per environment class. This makes it easy to set different secrets for production and development environments.
-Your local development environment is included in the `dev` environment class.
+As you can see, secrets are defined per environment type. This makes it easy to set different secrets for production and development environments.
+Your local development environment and preview environments are also `dev` environments.
 
 For example `encore secret set --prod SSHPrivateKey` sets a production secret,<br/> and `encore secret set --dev GitHubAPIToken` sets a development and local development secret.
 

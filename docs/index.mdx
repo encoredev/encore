@@ -1,37 +1,75 @@
 ---
 title: Welcome to Encore
 subtitle: Escape the maze of cloud complexity
+toc: false
 ---
+
+<div className="min-h-72 bg-blue p-8 relative overflow-hidden not-prose">
+    <img
+        className="absolute left-[55%] -mt-8 top-0 right-0 bottom-0 noshadow"
+        src="/assets/img/dithered-clouds.png"
+    />
+    <div className="w-[75%] lg:w-[50%]">
+        <h2 className="text-white lead-medium">Quickstart Guide</h2>
+        <p className="body-small text-white mt-2">
+            A short guide on writing your first microservice with Encore and deploying it to the cloud.
+        </p>
+        <a href="/docs/quick-start">
+            <Button className="mt-4" kind="primary" section="black">Get started</Button>
+        </a>
+    </div>
+</div>
+
 Encore is the Backend Development Engine purpose-built for a flow state developer experience, when building cloud-based backend applications and distributed systems using Go.
 
-<div className="grid grid-cols-2 gap-6 mobile:grid-cols-1">
-    <a className="block group relative no-brandient" href="/docs/quick-start">
+<div className="mt-10 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
+    <a className="block group relative no-brandient" href="/docs/introduction">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
-            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
-                <h3>Quick Start</h3>
-                <p>Spend a few minutes getting set up and experience the Encore workflow.</p>
+            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+                <div className="flex items-center justify-between">
+                    <h3 className="body-small">Why Encore?</h3>
+                    <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/flow.png" />
+                </div>
+                <p className="mt-2">
+                    Learn about what problems Encore solves and the philosophy behind it.
+                </p>
             </div>
     </a>
     <a className="block group relative no-brandient" target="_blank" href="https://youtu.be/IwplIbwJtD0">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
-            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
-                <h3>Watch a demo video</h3>
-                <p>See how to build a fully fledged cloud backend with Encore, in 5 minutes.</p>
+        <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+            <div className="flex items-center justify-between">
+                <h3 className="body-small">Watch a demo video</h3>
+                <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/preview-envs.png" />
             </div>
+            <p className="mt-2">
+                See how to build a fully fledged cloud backend with Encore, in 5 minutes.
+            </p>
+        </div>
     </a>
-     <a className="block group relative no-brandient" href="/docs/introduction">
+    <a className="block group relative no-brandient" href="/docs/deploy/infra">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
-            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
-                <h3>Why Encore?</h3>
-                <p>Learn about what problems Encore solves and the philosophy behind it.</p>
+        <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+            <div className="flex items-center justify-between">
+                <h3 className="body-small">Cloud Infrastructure</h3>
+                <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/serverless.png" />
             </div>
+            <p className="mt-2">
+                Learn how Encore provisions Cloud Infrastructure for your use case.
+            </p>
+        </div>
     </a>
-    <a className="block group relative no-brandient" href="/docs/community">
+    <a className="block group relative no-brandient" href="/docs/tutorials">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
-            <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
-                <h3>Join the community</h3>
-                <p>See how you can engange with the developer community and contribute to the Open Source project.</p>
+        <div className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+            <div className="flex items-center justify-between">
+                <h3 className="body-small">Guides</h3>
+                <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/tracing.png" />
             </div>
+            <p className="mt-2">
+                Tutorials on building real-world applications with Encore.
+            </p>
+        </div>
     </a>
 </div>
 

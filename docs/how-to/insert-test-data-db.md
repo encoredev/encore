@@ -25,7 +25,7 @@ var fixtures string
 
 func init() {
     if encore.Meta().Environment.Type == encore.EnvLocal {
-        if err := sqldb.Exec(context.Background(), fixtures); err != nil {
+        if _, err := sqldb.Exec(context.Background(), fixtures); err != nil {
             log.Fatalln("unable to add fixtures:", err)
         }
     }
