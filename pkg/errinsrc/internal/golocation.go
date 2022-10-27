@@ -2,6 +2,7 @@ package internal
 
 import (
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"os"
 
@@ -46,6 +47,11 @@ func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation
 		// Don't return, `bytes == nil` is fine here
 	}
 
+	// Attempt to convert a single start/end position into a range
+	if start == end {
+		end = convertSingleGoPositionToRange(start.Filename, bytes, start)
+	}
+
 	return &SrcLocation{
 		File: &File{
 			RelPath:  start.Filename,
@@ -56,4 +62,41 @@ func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation
 		End:   Pos{Line: end.Line, Col: end.Column},
 		Type:  LocError,
 	}
+}
+
+// convertSingleGoPositionToRange attempts to convert a single Go token position to a range with a start and end
+// position.
+//
+// This is done by attempting to parse the file, and then if we are able to parse it successfully, we look for an AST
+// node which starts at the exact line and column of the position. If we find one, we use the end position of that
+// node as the end position of the range.
+//
+// We use the first found node at that position, as we assume the largest node at that position is the most relevant
+func convertSingleGoPositionToRange(filename string, fileBody []byte, start token.Position) (end token.Position) {
+	fs := token.NewFileSet()
+	file, err := parser.ParseFile(fs, filename, fileBody, parser.ParseComments)
+
+	if err != nil || file == nil {
+		return start
+	}
+
+	var match ast.Node
+	ast.Inspect(file, func(n ast.Node) bool {
+		if n == nil {
+			return true
+		}
+
+		nodePos := fs.Position(n.Pos())
+		if nodePos.Line == start.Line && nodePos.Column == start.Column {
+			match = n
+			return false
+		}
+
+		return true
+	})
+
+	if match != nil {
+		return fs.Position(match.End())
+	}
+	return start
 }
