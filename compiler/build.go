@@ -409,7 +409,7 @@ func (b *builder) buildMain() error {
 	}
 	if b.cfg.StaticLink {
 		var ldflags string
-
+	
 		// Enable external linking if we use cgo.
 		if b.cfg.CgoEnabled {
 			ldflags = "-linkmode external "
