@@ -64,6 +64,7 @@ func (app *App) RootLogger() *zerolog.Logger        { return &app.rootLogger }
 type NewParams struct {
 	Cfg         *runtimeCfg.Config
 	APIHandlers []api.HandlerRegistration
+	ServiceInit []service.Initializer
 	AuthHandler api.AuthHandler // nil means no auth handler
 }
 
@@ -98,7 +99,7 @@ func New(p *NewParams) *App {
 	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, metricsRegistry, json, tracingEnabled, klock)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
-	service := service.NewManager(rt)
+	service := service.NewManager(rt, rootLogger, p.ServiceInit)
 
 	ts := testsupport.NewManager(cfg, rt, rootLogger)
 	auth := auth.NewManager(rt)
@@ -140,6 +141,10 @@ func (app *App) Run() error {
 
 	go app.metrics.BeginCollection()
 
+	if err := app.service.InitializeServices(); err != nil {
+		app.Shutdown()
+		return err
+	}
 	serveErr := app.api.Serve(ln)
 
 	isGraceful := app.ShutdownInitiated()

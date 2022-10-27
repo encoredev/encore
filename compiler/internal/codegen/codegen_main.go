@@ -79,6 +79,7 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 			Id("BundledServices"): b.computeBundledServices(),
 		})
 		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
+		g.Id("svcInit").Op(":=").Add(b.computeServiceInitConfig())
 
 		authHandlerExpr := Nil()
 		if ah := b.res.App.AuthHandler; ah != nil {
@@ -88,6 +89,7 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 		g.Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
 			Id("StaticCfg"):   Id("static"),
 			Id("APIHandlers"): Id("handlers"),
+			Id("ServiceInit"): Id("svcInit"),
 			Id("AuthHandler"): authHandlerExpr,
 		}))
 	})
@@ -204,6 +206,21 @@ func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*
 					Id("Handler"):    Qual(svc.Root.ImportPath, b.rpcHandlerName(rpc)),
 					Id("Middleware"): mwExpr,
 				})
+			}
+		}
+	})
+}
+
+func (b *Builder) computeServiceInitConfig() *Statement {
+	return Index().Qual("encore.dev/appruntime/service", "Initializer").CustomFunc(Options{
+		Open:      "{",
+		Close:     "}",
+		Separator: ",",
+		Multi:     true,
+	}, func(g *Group) {
+		for _, svc := range b.res.App.Services {
+			if svc.Struct != nil {
+				g.Qual(svc.Root.ImportPath, b.serviceStructName(svc.Struct))
 			}
 		}
 	})

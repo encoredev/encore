@@ -6,6 +6,7 @@ import (
 	__api "encore.dev/appruntime/api"
 	__appinit "encore.dev/appruntime/app/appinit"
 	__config "encore.dev/appruntime/config"
+	__service "encore.dev/appruntime/service"
 	"reflect"
 	_ "unsafe"
 )
@@ -33,9 +34,11 @@ func loadApp() *__appinit.LoadData {
 			Middleware: nil,
 		},
 	}
+	svcInit := []__service.Initializer{}
 	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: svc.EncoreInternal_AuthHandlerAuthHandler,
+		ServiceInit: svcInit,
 		StaticCfg:   static,
 	}
 }
