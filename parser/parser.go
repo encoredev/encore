@@ -121,7 +121,6 @@ func (p *parser) Parse() (res *Result, err error) {
 		}
 
 		if err == nil {
-			p.errors.Sort()
 			p.errors.MakeRelative(p.cfg.AppRoot, p.cfg.WorkingDir)
 			err = p.errors.Err()
 		}
