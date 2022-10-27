@@ -53,7 +53,9 @@ for each Pull Request. This makes collaborating on PRs much faster.
 
 Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`, and the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
 
-See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious about how Preview Environments are provisioned.
+See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious about exactly how Preview Environments are provisioned.
+
+![Preview environment linked in GitHub](/assets/docs/ghpreviewenv.png "Preview environment linked in GitHub")
 
 ## Cloud environments
 
