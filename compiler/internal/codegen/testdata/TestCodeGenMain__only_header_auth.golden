@@ -3,9 +3,9 @@ package main
 
 import (
 	"encore.app/svc"
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/app/appinit"
-	"encore.dev/appruntime/config"
+	__api "encore.dev/appruntime/api"
+	__appinit "encore.dev/appruntime/app/appinit"
+	__config "encore.dev/appruntime/config"
 	"reflect"
 	_ "unsafe"
 )
@@ -13,25 +13,25 @@ import (
 // loadApp loads the Encore app runtime.
 //
 //go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *appinit.LoadData {
-	static := &config.Static{
-		AppCommit: config.CommitInfo{
+func loadApp() *__appinit.LoadData {
+	static := &__config.Static{
+		AppCommit: __config.CommitInfo{
 			Revision:    "",
 			Uncommitted: false,
 		},
 		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
 		EncoreCompiler: "test",
-		PubsubTopics:   map[string]*config.StaticPubsubTopic{},
+		PubsubTopics:   map[string]*__config.StaticPubsubTopic{},
 		TestService:    "",
 		Testing:        false,
 	}
-	handlers := []api.HandlerRegistration{
+	handlers := []__api.HandlerRegistration{
 		{
 			Handler:    svc.EncoreInternal_EightHandler,
 			Middleware: nil,
 		},
 	}
-	return &appinit.LoadData{
+	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: svc.EncoreInternal_AuthHandlerAuthHandler,
 		StaticCfg:   static,
@@ -39,7 +39,7 @@ func loadApp() *appinit.LoadData {
 }
 
 func main() {
-	appinit.AppMain()
+	__appinit.AppMain()
 }
 
 
@@ -49,12 +49,12 @@ package svc
 import (
 	"context"
 	"encore.app/__encore/etype"
-	"encore.dev/appruntime/api"
+	__api "encore.dev/appruntime/api"
 	_ "encore.dev/appruntime/app/appinit"
-	"encore.dev/appruntime/model"
-	"encore.dev/appruntime/serde"
-	"encore.dev/beta/errs"
-	"github.com/json-iterator/go"
+	__model "encore.dev/appruntime/model"
+	__serde "encore.dev/appruntime/serde"
+	errs "encore.dev/beta/errs"
+	jsoniter "github.com/json-iterator/go"
 	"net/http"
 	"net/url"
 	"strings"
@@ -68,7 +68,7 @@ type EncoreInternal_EightReq struct {
 
 type EncoreInternal_EightResp = Response
 
-var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInternal_EightResp]{
+var EncoreInternal_EightHandler = &__api.Desc[*EncoreInternal_EightReq, *EncoreInternal_EightResp]{
 	Service:        "svc",
 	Endpoint:       "Eight",
 	Methods:        []string{"POST"},
@@ -77,8 +77,8 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 	RawPath:        "/eight/:0/:1",
 	PathParamNames: []string{"bar", "baz"},
 	DefLoc:         2,
-	Access:         api.RequiresAuth,
-	DecodeReq: func(req *http.Request, ps api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_EightReq, pathParams api.UnnamedParams, err error) {
+	Access:         __api.RequiresAuth,
+	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_EightReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_EightReq{}
 		dec := &etype.Marshaller{}
 
@@ -144,10 +144,10 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		}
 		return data, nil
 	},
-	ReqPath: func(p *EncoreInternal_EightReq) (string, api.UnnamedParams, error) {
+	ReqPath: func(p *EncoreInternal_EightReq) (string, __api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
-		params := api.UnnamedParams{enc.FromString(p.Bar), enc.FromString(p.Baz)}
+		params := __api.UnnamedParams{enc.FromString(p.Bar), enc.FromString(p.Baz)}
 		if enc.LastError != nil {
 
 			return "", nil, enc.LastError
@@ -170,7 +170,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 		respData := []byte("null\n")
 		if resp != nil {
 			// Encode JSON body
-			respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+			respData, err = __serde.SerializeJSONFunc(json, func(ser *__serde.JSONSerializer) {
 				ser.WriteField("Message", resp.Message, false)
 			})
 			if err != nil {
@@ -204,7 +204,7 @@ var EncoreInternal_EightHandler = &api.Desc[*EncoreInternal_EightReq, *EncoreInt
 }
 
 func EncoreInternal_CallEight(ctx context.Context, bar string, baz string, params *FooParams) (*Response, error) {
-	resp, err := EncoreInternal_EightHandler.Call(api.NewCallContext(ctx), &EncoreInternal_EightReq{bar, baz, params})
+	resp, err := EncoreInternal_EightHandler.Call(__api.NewCallContext(ctx), &EncoreInternal_EightReq{bar, baz, params})
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func EncoreInternal_CallEight(ctx context.Context, bar string, baz string, param
 
 type EncoreInternal_AuthHandlerAuthParams = AuthHeaders
 
-var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
+var EncoreInternal_AuthHandlerAuthHandler = &__api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
 	Endpoint:    "AuthHandler",
 	DefLoc:      3,
@@ -234,7 +234,7 @@ var EncoreInternal_AuthHandlerAuthHandler = &api.AuthHandlerDesc[*EncoreInternal
 		}
 		return params, nil
 	},
-	AuthHandler: func(ctx context.Context, params *EncoreInternal_AuthHandlerAuthParams) (info model.AuthInfo, err error) {
+	AuthHandler: func(ctx context.Context, params *EncoreInternal_AuthHandlerAuthParams) (info __model.AuthInfo, err error) {
 		info.UID, info.UserData, err = AuthHandler(ctx, params)
 		return info, err
 	},
@@ -263,7 +263,7 @@ package etype
 import (
 	_ "encore.dev/appruntime/app/appinit"
 	"fmt"
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 	"io"
 	"io/ioutil"
 	"strconv"
