@@ -155,7 +155,7 @@ func parsePubsubTopic(topic *est.PubSubTopic, selectors *est.SelectorLookup) *me
 	}
 }
 
-var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.up.sql$`)
+var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.(up|down).sql$`)
 
 func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 	s := &meta.Service{
@@ -294,15 +294,17 @@ func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {
 		}
 		match := migrationRe.FindStringSubmatch(f.Name())
 		if match == nil {
-			return nil, fmt.Errorf("migration %s/%s has an invalid name (must be of the format '123_description_here.up.sql')",
+			return nil, fmt.Errorf("migration %s/%s has an invalid name (must be of the format '[123]_[description].[up|down].sql')",
 				relPath, f.Name())
 		}
 		num, _ := strconv.Atoi(match[1])
-		migrations = append(migrations, &meta.DBMigration{
-			Filename:    f.Name(),
-			Number:      int32(num),
-			Description: match[2],
-		})
+		if match[3] == "up" {
+			migrations = append(migrations, &meta.DBMigration{
+				Filename:    f.Name(),
+				Number:      int32(num),
+				Description: match[2],
+			})
+		}
 	}
 	sort.Slice(migrations, func(i, j int) bool {
 		return migrations[i].Number < migrations[j].Number
