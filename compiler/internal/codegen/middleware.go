@@ -38,18 +38,13 @@ type middlewareBuilder struct {
 func (b *middlewareBuilder) Render() Code {
 	invokeHandler := b.renderInvoke()
 	defLoc := int(b.res.Nodes[b.mw.Pkg][b.mw.Func].Id)
-	handler := Var().Id(b.name).Op("=").Op("&").Qual("encore.dev/appruntime/api", "Middleware").Custom(Options{
-		Open:      "{",
-		Close:     "}",
-		Separator: ",",
-		Multi:     true,
-	},
-		Id("PkgName").Op(":").Lit(b.mw.Pkg.Name),
-		Id("Name").Op(":").Lit(b.mw.Name),
-		Id("Global").Op(":").Lit(b.mw.Global),
-		Id("DefLoc").Op(":").Lit(defLoc),
-		Id("Invoke").Op(":").Add(invokeHandler),
-	)
+	handler := Var().Id(b.name).Op("=").Op("&").Qual("encore.dev/appruntime/api", "Middleware").Values(Dict{
+		Id("PkgName"): Lit(b.mw.Pkg.Name),
+		Id("Name"):    Lit(b.mw.Name),
+		Id("Global"):  Lit(b.mw.Global),
+		Id("DefLoc"):  Lit(defLoc),
+		Id("Invoke"):  Add(invokeHandler),
+	})
 	return handler
 }
 
@@ -67,7 +62,8 @@ func (b *middlewareBuilder) renderInvoke() *Statement {
 		g.List(Id("svc"), Err()).Op(":=").Qual(ss.Svc.Root.ImportPath, b.serviceStructName(ss)).Dot("Get").Call()
 		g.If(Err().Op("!=").Nil()).Block(
 			Return(Qual("encore.dev/middleware", "Response").Values(Dict{
-				Id("Err"): Err(),
+				Id("Err"):        Err(),
+				Id("HTTPStatus"): Qual("encore.dev/beta/errs", "HTTPStatus").Call(Err()),
 			})),
 		)
 		g.Return(Id("svc").Dot(mw.Name).Call(Id("req"), Id("next")))
