@@ -69,22 +69,22 @@ func FromCueTokenPos(cueLoc interface {
 // of the error.
 func convertSingleCUEPositionToRange(filename string, bytes []byte, start Pos) Pos {
 	file, err := parser.ParseFile(filename, bytes, parser.ParseComments)
-	if err == nil {
-		var matching ast.Node
-
-		ast.Walk(file, func(node ast.Node) bool {
-			if node.Pos().Line() == start.Line && node.Pos().Column() == start.Col {
-				matching = node
-				return false
-			}
-
-			return true
-		}, nil)
-
-		if matching != nil {
-			return Pos{Line: matching.End().Line(), Col: matching.End().Column()}
-		}
+	if err != nil {
+		return start
 	}
 
+	var matching ast.Node
+	ast.Walk(file, func(node ast.Node) bool {
+		if node.Pos().Line() == start.Line && node.Pos().Column() == start.Col {
+			matching = node
+			return false
+		}
+
+		return true
+	}, nil)
+
+	if matching != nil {
+		return Pos{Line: matching.End().Line(), Col: matching.End().Column()}
+	}
 	return start
 }

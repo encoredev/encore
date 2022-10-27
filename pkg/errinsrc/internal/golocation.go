@@ -76,27 +76,27 @@ func convertSingleGoPositionToRange(filename string, fileBody []byte, start toke
 	fs := token.NewFileSet()
 	file, err := parser.ParseFile(fs, filename, fileBody, parser.ParseComments)
 
-	if err == nil && file != nil {
-		var match ast.Node
-
-		ast.Inspect(file, func(n ast.Node) bool {
-			if n == nil {
-				return true
-			}
-
-			nodePos := fs.Position(n.Pos())
-			if nodePos.Line == start.Line && nodePos.Column == start.Column {
-				match = n
-				return false
-			}
-
-			return true
-		})
-
-		if match != nil {
-			return fs.Position(match.End())
-		}
+	if err != nil || file == nil {
+		return start
 	}
 
+	var match ast.Node
+	ast.Inspect(file, func(n ast.Node) bool {
+		if n == nil {
+			return true
+		}
+
+		nodePos := fs.Position(n.Pos())
+		if nodePos.Line == start.Line && nodePos.Column == start.Column {
+			match = n
+			return false
+		}
+
+		return true
+	})
+
+	if match != nil {
+		return fs.Position(match.End())
+	}
 	return start
 }
