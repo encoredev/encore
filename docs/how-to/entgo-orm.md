@@ -57,7 +57,7 @@ When adding End support in a new Encore system, there are a few steps that need 
 database exists and the migrations can be created.
 
 First, create the `migrations` directory in the `usr` system and add an empty migration named `1_init.up.sql`. This
-migration is necessary for encore to pick up the system as a [database](../develop/databases.md) system. Run this
+migration is necessary for encore to pick up the system as a [database](/docs/develop/databases) system. Run this
 command to have Encore build the application and create the database:
 
 ```bash
