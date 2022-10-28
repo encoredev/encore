@@ -14,11 +14,11 @@ Encore comes with built-in tools like [client generation](/docs/develop/client-g
 
 ## Monoliths and small microservices applications
 
-Small architectures like monoliths, or apps with a small number of services, can be structure as a list of Encore
-services. Services are the base building blocks of your application, they separate your application in isolated units
-with their own endpoints and database (if using one). In a microservices application, an Encore service represents a
-single microservice. While services are isolated and each have their own databases by default,
-[databases may be shared between services](/docs/how-to/share-db-between-services).
+Small architectures like monoliths, or apps with a small number of services, can be structured using one or many Encore
+services. Services are the base building blocks of your application and divide it into isolated units
+with their own endpoints and database(s). In a microservices application, an Encore service represents a
+single microservice. While services are isolated and have their own databases by default,
+[databases can also be shared between services](/docs/how-to/share-db-between-services).
 
 To create an Encore service, create a Go package for each service (also known as service packages),
 [define APIs](/docs/develop/services-and-apis) and business logic in Go files, and add database migrations to define the
@@ -43,14 +43,13 @@ On disk it might look like this:
 Encore is not opinionated about whether you use a monolith or multiple services. However, it does solve most of the
 traditional drawbacks that come with building microservices.
 
-## Define service code with sub-packages
+## Structure services using sub-packages
 
 Within a service, it's possible to have multiple sub-packages. This is a good way to define components, helper
-functions, or other code for your functions, should you wish to do that. You can create as many subpackages in any
-kind of nested structure to build your service in any way you want.
+functions, or other code for your functions, should you wish to do that. You can create as many sub-packages, in any kind of nested structure within your service, as you want.
 
-To create sub-packages, you create sub-directories within a service package. Subpackages are itnernal code for services,
-they are not service packages. Only service packages can define API endpoints, and sub-packages within services cannot
+To create sub-packages, you create sub-directories within a service package. Sub-packages are internal to services,
+they are not themselves service packages. This means sub-packages within services cannot
 themselves define APIs.
 You can however define an API in a service package that calls a function within a sub-package.
 
@@ -152,7 +151,7 @@ On disk it might look like this:
         └── user.go             // user service code
 ```
 
-The only refactoring needed to separate a service application into systems is to move services into their respective
-subfolders. This greatly simplifies the application around the specific concerns of each system. For encore, what
-matters are the packages containing services. The division in systems or subsystems will not change the endpoint and
-architecture of your application
+The only refactoring needed to divide an existing Encore application into systems is to move services into their respective
+subfolders. This is a simple way to separate the specific concerns of each system. What
+matters for Encore are the packages containing services, and the division in systems or subsystems will not change the endpoints or
+architecture of your application.
