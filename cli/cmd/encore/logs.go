@@ -65,36 +65,6 @@ func streamLogs(appRoot, envName string) {
 		logs.Close()
 	}()
 
-	const (
-		// Time allowed to write a message to the peer.
-		writeWait = 10 * time.Second
-
-		// Time allowed to read the next pong message from the peer.
-		pongTimeout = 60 * time.Second
-
-		// Send pings to peer with this period. Must be less than pongWait.
-		pingPeriod = (pongTimeout * 9) / 10
-	)
-
-	pingTicker := time.NewTicker(pingPeriod)
-	defer func() {
-		pingTicker.Stop()
-		logs.Close()
-	}()
-
-	go func() {
-		defer logs.Close() // close the stream if we fail to ping the server.
-		for range pingTicker.C {
-			logs.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := logs.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
-		}
-	}()
-
-	logs.SetReadDeadline(time.Now().Add(pongTimeout))
-	logs.SetPongHandler(func(string) error { logs.SetReadDeadline(time.Now().Add(pongTimeout)); return nil })
-
 	// Use the same configuration as the runtime
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
