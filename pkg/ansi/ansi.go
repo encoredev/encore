@@ -45,9 +45,9 @@ func ClearLine(method ClearLineMethod) string {
 
 const (
 	// SaveCursorPosition saves the current cursor position.
-	SaveCursorPosition = "\u001b[s"
+	SaveCursorPosition = "\u001b7"
 	// RestoreCursorPosition restores the cursor position to the saved position.
-	RestoreCursorPosition = "\u001b[u"
+	RestoreCursorPosition = "\u001b8"
 )
 
 // MoveCursorLeft moves the cursor left n cells.
