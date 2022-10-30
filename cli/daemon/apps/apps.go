@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,23 +80,43 @@ func (mgr *Manager) FindLatestByPlatformID(platformID string) (*Instance, error)
 	return mgr.resolve(root)
 }
 
+func (mgr *Manager) FindLatestByPlatformOrLocalID(id string) (*Instance, error) {
+	// Local ID do not contain hyphens, platform ID's always contain hyphens.
+	if strings.Contains(id, "-") {
+		return mgr.FindLatestByPlatformID(id)
+	}
+
+	var root string
+	err := mgr.db.QueryRow(`
+		SELECT root
+		FROM app
+		WHERE local_id = ?
+		ORDER BY updated_at DESC
+		LIMIT 1
+	`, id).Scan(&root)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.WithStack(ErrNotFound)
+	} else if err != nil {
+		return nil, errors.Wrap(err, "query app store")
+	}
+
+	return mgr.resolve(root)
+}
+
 // List lists all known apps.
 func (mgr *Manager) List() ([]*Instance, error) {
-	rows, err := mgr.db.Query(`SELECT root FROM app`)
+	roots, err := mgr.listRoots()
 	if err != nil {
-		return nil, errors.Wrap(err, "query apps")
+		return nil, err
 	}
-	defer rows.Close()
 
 	var apps []*Instance
-	for rows.Next() {
-		var root string
-		if err := rows.Scan(&root); err != nil {
-			return nil, errors.Wrap(err, "scan row")
-		}
+	for _, root := range roots {
 		app, err := mgr.resolve(root)
 		if errors.Is(err, fs.ErrNotExist) {
 			log.Debug().Str("root", root).Msg("app no longer exists, skipping")
+			// Delete the
+			_, _ = mgr.db.Exec(`DELETE FROM app WHERE root = ?`, root)
 			continue
 		} else if err != nil {
 			log.Error().Err(err).Str("root", root).Msg("unable to resolve app")
@@ -104,8 +125,26 @@ func (mgr *Manager) List() ([]*Instance, error) {
 		apps = append(apps, app)
 	}
 
+	return apps, nil
+}
+
+func (mgr *Manager) listRoots() ([]string, error) {
+	rows, err := mgr.db.Query(`SELECT root FROM app`)
+	if err != nil {
+		return nil, errors.Wrap(err, "query app roots")
+	}
+	defer rows.Close()
+
+	var roots []string
+	for rows.Next() {
+		var root string
+		if err := rows.Scan(&root); err != nil {
+			return nil, errors.Wrap(err, "scan row")
+		}
+		roots = append(roots, root)
+	}
 	err = errors.Wrap(rows.Err(), "iterate rows")
-	return apps, err
+	return roots, err
 }
 
 // RegisterAppListener registers a callback that gets invoked every time

@@ -14,13 +14,23 @@ type CfgType[T any] struct {
 	SubConfig config.Value[struct {
 		SubKey *SubCfgType[T]
 	}]
+
+	Currencies map[string]struct {
+		Name    config.String
+		Code    config.String
+		Aliases config.Values[string]
+	}
+
+	AnotherList config.Values[struct {
+		Name config.String
+	}]
 }
 
 type SubCfgType[T any] struct {
 	MaxCount T
 }
 
-var cfg = config.Load[CfgType[uint]]()
+var cfg = config.Load[*CfgType[uint]]()
 
 type ConfigResponse struct {
 	ReadOnlyMode bool
@@ -31,7 +41,7 @@ type ConfigResponse struct {
 
 //encore:api public
 func ConfigValues(ctx context.Context) (ConfigResponse, error) {
-	return ConfigResponse {
+	return ConfigResponse{
 		ReadOnlyMode: cfg.ReadOnlyMode(),
 		PublicKey:    cfg.PublicKey(),
 		AdminUsers:   cfg.AdminUsers(),

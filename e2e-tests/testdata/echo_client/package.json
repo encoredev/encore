@@ -3,7 +3,8 @@
   "type": "module",
   "scripts": {
     "test": "node --trace-warnings --experimental-specifier-resolution=node --loader ts-node/esm ./main.ts",
-    "lint": "tsc --noEmit && eslint \"**/*.ts\""
+    "test:js": "node --trace-warnings --experimental-specifier-resolution=node ./main.js",
+    "lint": "tsc --noEmit && eslint \"**/*.{ts,js}\""
   },
   "devDependencies": {
     "@types/node": "^17.0.35",

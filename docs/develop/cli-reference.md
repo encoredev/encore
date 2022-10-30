@@ -141,7 +141,8 @@ Use '--env=local' to generate it based on your local development version of the 
 
 Supported language codes are:
 - go: A Go client using the net/http package
-- typescript: A TypeScript-client using the in-browser Fetch API
+- typescript: A TypeScript client using the in-browser Fetch API
+- javascript: A JavaScript client using the in-browser Fetch API
 
 
 ```bash

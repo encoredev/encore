@@ -3,16 +3,16 @@
 
 There has been a simple error in your code
 
-    ,-[ /test.cue:13:13 ]
-    |
- 11 | 
- 12 | // If foo then bar is 12
- 13 | if blah.foo {
-    :             ^
-    :             `- This brace is dodgy
- 14 | 	blah: bar: 12
- 15 | }
-----'
+   ,-[ /test.cue:6:11 ]
+   |
+ 4 | blah: {
+ 5 |     foo: bool
+ 6 |     bar: int | *3
+   :              ^
+   :              `- This looks dodgy
+ 7 | }
+ 8 | 
+---'
 
 For more information please visit our great help documentation
 

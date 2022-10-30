@@ -77,9 +77,9 @@ func runMain(dev bool) (err error) {
 // Daemon orchestrates setting up the different daemon subsystems.
 type Daemon struct {
 	Daemon   *net.UnixListener
-	Runtime  *net.TCPListener
-	DBProxy  *net.TCPListener
-	Dash     *net.TCPListener
+	Runtime  *retryingTCPListener
+	DBProxy  *retryingTCPListener
+	Dash     *retryingTCPListener
 	EncoreDB *sql.DB
 
 	Apps       *apps.Manager
@@ -102,10 +102,12 @@ type Daemon struct {
 
 func (d *Daemon) init() {
 	d.Daemon = d.listenDaemonSocket()
-	d.Dash = d.listenTCP(9400)
-	d.Runtime = d.listenTCP(9401)
-	d.DBProxy = d.listenTCP(9402)
+	d.Dash = d.listenTCPRetry("dashboard", 9400)
+	d.DBProxy = d.listenTCPRetry("dbproxy", 9500)
+	d.Runtime = d.listenTCPRetry("runtime", 9600)
 	d.EncoreDB = d.openDB()
+
+	d.Apps = apps.NewManager(d.EncoreDB)
 
 	// If ENCORE_SQLDB_HOST is set, use the external cluster instead of
 	// creating our own docker container cluster.
@@ -119,15 +121,14 @@ func (d *Daemon) init() {
 		}
 		log.Info().Msgf("using external postgres cluster: %s", host)
 	}
-	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver)
+	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps)
 
-	d.Apps = apps.NewManager(d.EncoreDB)
 	d.Trace = trace.NewStore()
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
-		RuntimePort: tcpPort(d.Runtime),
-		DBProxyPort: tcpPort(d.DBProxy),
-		DashPort:    tcpPort(d.Dash),
+		RuntimePort: d.Runtime.Port(),
+		DBProxyPort: d.DBProxy.Port(),
+		DashPort:    d.Dash.Port(),
 		Secret:      d.Secret,
 		ClusterMgr:  d.ClusterMgr,
 	}
@@ -221,6 +222,14 @@ func (d *Daemon) serveDash() {
 	log.Info().Stringer("addr", d.Dash.Addr()).Msg("serving dash")
 	srv := dash.NewServer(d.RunMgr, d.Trace)
 	d.exit <- http.Serve(d.Dash, srv)
+}
+
+// listenTCPRetry listens for TCP connections on the given port, retrying
+// in the background if it's already in use.
+func (d *Daemon) listenTCPRetry(component string, port int) *retryingTCPListener {
+	ln := listenLocalhostTCP(component, port)
+	d.closeOnExit(ln)
+	return ln
 }
 
 // listenTCP listens for TCP connections on a random port on localhost.
@@ -351,4 +360,98 @@ func redirectLogOutput() error {
 	log.Info().Msgf("writing output to %s", logPath)
 	log.Logger = log.Output(io.MultiWriter(zerolog.ConsoleWriter{Out: os.Stderr}, f))
 	return nil
+}
+
+// retryingTCPListener is a TCP listener that attempts multiple times
+// to listen on a given port. It is designed to handle race conditions
+// between multiple daemon processes handing off to each other
+// and the port still being in use momentarily.
+type retryingTCPListener struct {
+	component string
+	port      int
+	ctx       context.Context
+	cancel    func() // call to cancel ctx
+
+	// doneListening is closed when the underlying listener is open,
+	// or it gave up due to an error.
+	doneListening chan struct{}
+	underlying    net.Listener
+	listenErr     error
+}
+
+func listenLocalhostTCP(component string, port int) *retryingTCPListener {
+	ctx, cancel := context.WithCancel(context.Background())
+	ln := &retryingTCPListener{
+		component:     component,
+		port:          port,
+		ctx:           ctx,
+		cancel:        cancel,
+		doneListening: make(chan struct{}),
+	}
+	go ln.listen()
+	return ln
+}
+
+func (ln *retryingTCPListener) Accept() (net.Conn, error) {
+	select {
+	case <-ln.ctx.Done():
+		return nil, net.ErrClosed
+	case <-ln.doneListening:
+		if ln.listenErr != nil {
+			return nil, ln.listenErr
+		}
+		return ln.underlying.Accept()
+	}
+}
+
+func (ln *retryingTCPListener) Close() error {
+	ln.cancel()
+	select {
+	case <-ln.doneListening:
+		if ln.listenErr == nil {
+			return ln.underlying.Close()
+		}
+	default:
+	}
+	return nil
+}
+
+func (ln *retryingTCPListener) Addr() net.Addr {
+	return &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: ln.port}
+}
+
+func (ln *retryingTCPListener) Port() int {
+	return ln.port
+}
+
+func (ln *retryingTCPListener) listen() {
+	defer close(ln.doneListening)
+
+	logger := log.With().Str("component", ln.component).Int("port", ln.port).Logger()
+	addr := "127.0.0.1:" + strconv.Itoa(ln.port)
+
+	retrySleep := 0 * time.Second
+	ctx, cancel := context.WithTimeout(ln.ctx, 5*time.Second)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// We're being told to abort; ensure we always store
+			// a non-nil listenErr.
+			if ln.listenErr == nil {
+				ln.listenErr = ctx.Err()
+			}
+			logger.Error().Err(ln.listenErr).Msg("unable to listen, giving up")
+			return
+		case <-time.After(retrySleep):
+			ln.underlying, ln.listenErr = net.Listen("tcp", addr)
+			retrySleep += 100 * time.Millisecond
+			if ln.listenErr == nil {
+				logger.Info().Msg("listening on port")
+				return
+			}
+			logger.Error().Err(ln.listenErr).Msg("unable to listen, retrying")
+		}
+	}
 }

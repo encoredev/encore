@@ -7,9 +7,9 @@ There has been a simple error in your code
     │
   3 │ // This is a sample file
   4 │ blah: {
-  5 │ 	foo: bool
-    ⋮ 	     ─┬──
-    ⋮ 	      ╰─ defined as a boolean here
+  5 │     foo: bool
+    ⋮          ─┬──
+    ⋮           ╰─ defined as a boolean here
     · 
     · 
  11 │ 
@@ -17,7 +17,7 @@ There has been a simple error in your code
  13 │ if blah.foo {
     ⋮         ─┬─
     ⋮          ╰─ referenced here
- 14 │ 	blah: bar: 12
+ 14 │     blah: bar: 12
  15 │ }
 ────╯
 

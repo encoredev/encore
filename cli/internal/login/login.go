@@ -102,7 +102,7 @@ func (f *Flow) oauthHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	conf := &conf.Config{Token: *resp.Token, Email: resp.Email, AppSlug: resp.AppSlug}
+	conf := &conf.Config{Token: *resp.Token, Actor: resp.Actor, Email: resp.Email, AppSlug: resp.AppSlug}
 	select {
 	case f.LoginCh <- conf:
 		http.Redirect(w, req, "https://www.encore.dev/auth/success", http.StatusFound)
@@ -123,7 +123,7 @@ func WithAuthKey(authKey string) (*conf.Config, error) {
 	}
 
 	tok := resp.Token
-	conf := &conf.Config{Token: *tok, AppSlug: resp.AppSlug}
+	conf := &conf.Config{Token: *tok, Actor: resp.Actor, AppSlug: resp.AppSlug}
 
 	return conf, nil
 }

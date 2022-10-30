@@ -48,6 +48,11 @@ func (s *Server) Miniredis() *miniredis.Miniredis {
 }
 
 func (s *Server) Addr() string {
+	// Ensure the server has been started
+	if err := s.Start(); err != nil {
+		panic(err)
+	}
+
 	return s.mini.Addr()
 }
 

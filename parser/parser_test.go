@@ -162,7 +162,12 @@ func TestMain(m *testing.M) {
 				fmt.Fprintf(os.Stdout, "pubsubTopic %s\n", topic.Name)
 
 				for _, pub := range topic.Publishers {
-					fmt.Fprintf(os.Stdout, "pubsubPublisher %s %s\n", topic.Name, pub.DeclFile.Pkg.Service.Name)
+					if pub.Service != nil {
+						fmt.Fprintf(os.Stdout, "pubsubPublisher %s %s\n", topic.Name, pub.Service.Name)
+					}
+					if pub.GlobalMiddleware != nil {
+						fmt.Fprintf(os.Stdout, "pubsubPublisher middlware %s %s\n", topic.Name, pub.GlobalMiddleware.Name)
+					}
 				}
 
 				for _, sub := range topic.Subscribers {

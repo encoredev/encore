@@ -25,6 +25,7 @@ import (
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -54,13 +55,13 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 		GOOS:                  req.Goos,
 		GOARCH:                req.Goarch,
 		KeepOutput:            false,
-
-		// Note: we do not pass any configuration meta data here, because we don't know how or where the
-		// generated image will be used. Thus we can't build a concrete configuration which relies on these values.
-		//
-		// However, if the user has not used the #Meta data in the CUE files, then we can still compute a concrete
-		// instance of their applications configuration.
-		Meta: nil,
+		Meta: &cueutil.Meta{
+			// Dummy data to satisfy config validation.
+			APIBaseURL: "http://localhost:0",
+			EnvName:    "encore-eject",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
 	}
 
 	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)

@@ -62,7 +62,7 @@ type Cfg struct {
 
 var _ = config.Load[Cfg]()
 
-var _ = config.Load[Optional[bool]]()
+var _ = config.Load[*Optional[bool]]()
 
 //encore:api public
 func One(ctx context.Context) error {
@@ -179,9 +179,14 @@ type Service struct{}
 
 func initService() (*Service, error) { return nil, nil }
 
+
 //encore:api public path=/di method=GET tag:di
 func (s *Service) DI(ctx context.Context) error {
     return nil
+}
+
+//encore:api public raw path=/di/raw
+func (s *Service) DIRaw(w http.ResponseWriter, req *http.Request) {
 }
 
 //encore:middleware target=tag:di

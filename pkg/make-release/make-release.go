@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type Builder struct {
@@ -83,8 +84,14 @@ func (b *Builder) BuildBinaries() error {
 		)
 	}
 
+	// Nightly builds don't prefix with "v"
+	version := b.version
+	if !strings.HasPrefix(version, "nightly-") {
+		version = "v" + version
+	}
+
 	cmd := exec.Command("go", "build",
-		fmt.Sprintf("-ldflags=-X 'encr.dev/internal/version.Version=v%s'", b.version),
+		fmt.Sprintf("-ldflags=-X 'encr.dev/internal/version.Version=%s'", version),
 		"-o", join(b.dst, "bin", "encore"),
 		"./cli/cmd/encore")
 	cmd.Env = env

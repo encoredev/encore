@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errinsrc"
@@ -90,8 +91,9 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.CronJobs = append(data.CronJobs, cj)
 	}
 
+	selectors := app.SelectorLookup()
 	for _, topic := range app.PubSubTopics {
-		t := parsePubsubTopic(topic)
+		t := parsePubsubTopic(topic, selectors)
 		data.PubsubTopics = append(data.PubsubTopics, t)
 	}
 
@@ -111,10 +113,19 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 	return data, nodes, nil
 }
 
-func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
+func parsePubsubTopic(topic *est.PubSubTopic, selectors *est.SelectorLookup) *meta.PubSubTopic {
 	parsePublisher := func(pubs ...*est.PubSubPublisher) (rtn []*meta.PubSubTopic_Publisher) {
 		for _, p := range pubs {
-			rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.DeclFile.Pkg.Service.Name})
+			switch {
+			case p.Service != nil:
+				rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: p.Service.Name})
+			case p.GlobalMiddleware != nil:
+				for _, svc := range selectors.GetServices(p.GlobalMiddleware.Target) {
+					rtn = append(rtn, &meta.PubSubTopic_Publisher{ServiceName: svc.Name})
+				}
+			default:
+				panic("impossible publish without a service or middleware reference")
+			}
 		}
 		return rtn
 	}
@@ -145,7 +156,7 @@ func parsePubsubTopic(topic *est.PubSubTopic) *meta.PubSubTopic {
 	}
 }
 
-var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.up.sql$`)
+var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.(up|down).sql$`)
 
 func parseSvc(appRoot string, svc *est.Service) (*meta.Service, error) {
 	s := &meta.Service{
@@ -282,17 +293,28 @@ func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {
 		if f.IsDir() {
 			continue
 		}
+
+		// If the file is not an SQL file ignore it, to allow for other files to be present
+		// in the migration directory. For SQL files we want to ensure they're properly named
+		// so that we complain loudly about potential typos. (It's theoretically possible to
+		// typo the filename extension as well, but it's less likely due to syntax highlighting).
+		if filepath.Ext(strings.ToLower(f.Name())) != ".sql" {
+			continue
+		}
+
 		match := migrationRe.FindStringSubmatch(f.Name())
 		if match == nil {
-			return nil, fmt.Errorf("migration %s/%s has an invalid name (must be of the format '123_description_here.up.sql')",
+			return nil, fmt.Errorf("migration %s/%s has an invalid name (must be of the format '[123]_[description].[up|down].sql')",
 				relPath, f.Name())
 		}
 		num, _ := strconv.Atoi(match[1])
-		migrations = append(migrations, &meta.DBMigration{
-			Filename:    f.Name(),
-			Number:      int32(num),
-			Description: match[2],
-		})
+		if match[3] == "up" {
+			migrations = append(migrations, &meta.DBMigration{
+				Filename:    f.Name(),
+				Number:      int32(num),
+				Description: match[2],
+			})
+		}
 	}
 	sort.Slice(migrations, func(i, j int) bool {
 		return migrations[i].Number < migrations[j].Number

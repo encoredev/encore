@@ -11,14 +11,14 @@ The easiest way to get started with developing Encore is using
 GitHub Codespaces. Simply open this repository in a new Codespace
 and your development environment will be set up with everything preconfigured for building the `encore` CLI and running applications with it.
 
-This also works just as well with [VS Code's Remote Development](https://code.visualstudio.com/docs/remote/remote-overview).
+This also works just as well with [Visual Studio Code's Remote Development](https://code.visualstudio.com/docs/remote/remote-overview).
 
 
 ## Building the encore command from source
 To build from source, [build the dashboard](#Building-the-Development-Dashboard) and simply run `go build ./cli/cmd/encore`.
 
 Running an Encore application requires both the Encore runtime (the `encore.dev` package) as well as a custom-built
-([Go runtime](https://github.com/encoredev/go)) to implement Encore's request semantics and automated instrumentation.
+[Go runtime](https://github.com/encoredev/go) to implement Encore's request semantics and automated instrumentation.
 
 As a result the Encore Daemon must know where these two things exist on the filesystem in order to properly compile the Encore application.
 
@@ -85,7 +85,7 @@ npm run build
 ```
 
 ### Testing the Development Dashboard
-Tests are written using [Jest](https://jestjs.io/) and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+Tests are written using [Jest](https://jestjs.io/) and the [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
 
 To run the front-end unit tests:
 
@@ -94,6 +94,14 @@ cd cli/daemon/dash/dashapp
 npm test #run all tests 
 npm test -- --watch #re-run tests on file change
 ```
+
+### Testing the Daemon run logic
+The codegen tests in the `internal/clientgen/client_test.go` file uses many auto generated files from the
+`e2e-tests/testdata` directory. To generate the client files and other test files, run `go test -golden-update` from
+the `e2e-tests` directory. This will generate client files for all the supported client generation languages.
+
+Running `go test ./internal/clientgen/client_test.go` will now work and use the most recent client generate files. If
+you change the client or content of the `testdata` folder, you may need to regenerate the client files again.
 
 ## Architecture
 

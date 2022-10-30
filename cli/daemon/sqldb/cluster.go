@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
@@ -31,6 +33,10 @@ type Cluster struct {
 	startOnce syncutil.Once
 	// started is closed when the cluster has been successfully started.
 	started chan struct{}
+
+	// cachedStatus is the cached cluster status; it should be accessed
+	// via status().
+	cachedStatus atomic.Pointer[ClusterStatus]
 
 	Roles EncoreRoles // set by Start
 
@@ -74,6 +80,8 @@ func (c *Cluster) Start(ctx context.Context) (*ClusterStatus, error) {
 			return err
 		}
 		status = st
+		c.cachedStatus.Store(st)
+		go c.pollStatus()
 
 		// Setup the roles
 		c.Roles, err = c.setupRoles(ctx, st)
@@ -294,7 +302,36 @@ func (c *Cluster) Recreate(ctx context.Context, appRoot string, services []strin
 
 // Status reports the cluster's status.
 func (c *Cluster) Status(ctx context.Context) (*ClusterStatus, error) {
-	return c.driver.ClusterStatus(ctx, c.ID)
+	if st := c.cachedStatus.Load(); st != nil {
+		return st, nil
+	}
+	return c.updateStatusFromDriver(ctx)
+}
+
+func (c *Cluster) updateStatusFromDriver(ctx context.Context) (*ClusterStatus, error) {
+	st, err := c.driver.ClusterStatus(ctx, c.ID)
+	if err == nil {
+		c.cachedStatus.Store(st)
+	}
+	return st, err
+}
+
+// pollStatus polls the driver for status changes.
+func (c *Cluster) pollStatus() {
+	ch := time.NewTicker(10 * time.Second)
+	defer ch.Stop()
+
+	for {
+		select {
+		case <-ch.C:
+			ctx, cancel := context.WithTimeout(c.Ctx, 5*time.Second)
+			_, _ = c.updateStatusFromDriver(ctx)
+			cancel()
+
+		case <-c.Ctx.Done():
+			return
+		}
+	}
 }
 
 // Info reports information about a cluster.

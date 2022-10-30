@@ -121,7 +121,6 @@ func (p *parser) Parse() (res *Result, err error) {
 		}
 
 		if err == nil {
-			p.errors.Sort()
 			p.errors.MakeRelative(p.cfg.AppRoot, p.cfg.WorkingDir)
 			err = p.errors.Err()
 		}
@@ -457,6 +456,8 @@ func (p *parser) parseReferences() {
 						// pubsub topic definitions are allowed outside of services
 					case est.CacheClusterDefNode:
 						// cache cluster definitions are allowed outside of services
+					case est.PubSubPublisherNode:
+						// we verify this inside the pubsub publisher parser
 					default:
 						p.errf(astNode.Pos(), "invalid reference outside of a service\n\tpackage %s is not considered a service (it has no APIs or pubsub subscribers defined)", pkg.Name)
 					}
@@ -589,7 +590,8 @@ func (p *parser) validateApp() {
 			}
 
 			for node, ref := range f.References {
-				if res := ref.Res; ref.Res != nil {
+				if res := ref.Res; ref.Res != nil &&
+					res.Type() != est.PubSubTopicResource { // PubSub topics are allow to be published to in global middleware, so it's ok to reference a topic outside a service
 					if ff := res.File(); ff.Pkg.Service != nil && (pkg.Service == nil || pkg.Service.Name != ff.Pkg.Service.Name) {
 						p.errf(node.Pos(), "cannot reference resource %s.%s outside the service", ff.Pkg.Name, res.Ident().Name)
 					}
@@ -603,10 +605,16 @@ func (p *parser) validateApp() {
 		for _, f := range pkg.Files {
 			astutil.Apply(f.AST, func(c *astutil.Cursor) bool {
 				node := c.Node()
-				if ref, ok := f.References[node]; ok && ref.Type == est.RPCRefNode && !p.validRPCReferences[node] {
-					if call, isCall := c.Parent().(*ast.CallExpr); !isCall || call.Fun != node {
-						rpc := ref.RPC
-						p.errf(node.Pos(), "cannot reference API endpoint %s.%s without calling it", rpc.Svc.Name, rpc.Name)
+				if ref, ok := f.References[node]; ok && ref.Type == est.RPCRefNode {
+					rpc := ref.RPC
+					if !p.validRPCReferences[node] {
+						if call, isCall := c.Parent().(*ast.CallExpr); !isCall || call.Fun != node {
+							p.errf(node.Pos(), "cannot reference API endpoint %s.%s without calling it", rpc.Svc.Name, rpc.Name)
+						}
+					}
+					if rpc.Raw {
+						p.errf(node.Pos(), "calling raw API endpoint %s.%s from another endpoint is not yet supported",
+							rpc.Svc.Name, rpc.Name)
 					}
 				}
 				return true

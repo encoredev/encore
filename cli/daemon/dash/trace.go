@@ -143,7 +143,7 @@ type LogMessage struct {
 	Type    string     `json:"type"` // "LogMessage"
 	Goid    uint32     `json:"goid"`
 	Time    int64      `json:"time"`
-	Level   string     `json:"level"` // "DEBUG", "INFO", or "ERROR"
+	Level   string     `json:"level"` // TRACE", "DEBUG", "INFO", "WARN", or "ERROR"
 	Message string     `json:"msg"`
 	Fields  []LogField `json:"fields"`
 	Stack   Stack      `json:"stack"`

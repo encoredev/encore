@@ -12,6 +12,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/daemon/sqldb/docker"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -207,6 +209,12 @@ var dbConnURICmd = &cobra.Command{
 			EnvName: dbEnv,
 		})
 		if err != nil {
+			st, ok := status.FromError(err)
+			if ok {
+				if st.Code() == codes.NotFound {
+					fatalf("no such database found: %s", dbName)
+				}
+			}
 			fatalf("could not connect to the database for service %s: %v", dbName, err)
 		}
 
