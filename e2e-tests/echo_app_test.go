@@ -129,7 +129,11 @@ func TestEndToEndWithApp(t *testing.T) {
 	go proxyTcp(ctx, ln, p.Client)
 
 	// Use golden to test that the generated clients are as expected for the echo test app
-	for lang, path := range map[clientgen.Lang]string{clientgen.LangGo: "client/client.go", clientgen.LangTypeScript: "client.ts"} {
+	for lang, path := range map[clientgen.Lang]string{
+		clientgen.LangGo:         "client/client.go",
+		clientgen.LangTypeScript: "client.ts",
+		clientgen.LangJavascript: "client.js",
+	} {
 		client, err := clientgen.Client(lang, "slug", build.Parse.Meta)
 		if err != nil {
 			fmt.Println(err.Error())
@@ -565,6 +569,24 @@ func TestEndToEndWithApp(t *testing.T) {
 
 			out, err := cmd.CombinedOutput()
 			c.Assert(err, qt.IsNil, qt.Commentf("Got error running generated Typescript client: %s", out))
+		}
+	})
+
+	c.Run("javascript_generated_client", func(c *qt.C) {
+		npmCommandsToRun := [][]string{
+			{"install", "--prefer-offline", "--no-audit"},
+			{"run", "lint"},
+			{"run", "test:js", "--", ln.Addr().String()},
+		}
+
+		for _, args := range npmCommandsToRun {
+			cmd := exec.Command("npm", args...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			cmd.Dir = filepath.Join("testdata", "echo_client")
+
+			c.Assert(cmd.Run(), qt.IsNil, qt.Commentf("Got error running generated JavaScript client"))
 		}
 	})
 }
