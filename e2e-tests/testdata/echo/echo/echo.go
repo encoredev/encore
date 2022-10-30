@@ -99,6 +99,7 @@ type HeadersData struct {
 }
 
 // Publish publishes a request on a topic
+//
 //encore:api public
 func Publish(ctx context.Context) error {
 	id, err := Topic.Publish(ctx, &Message{
@@ -128,18 +129,21 @@ func Consumer(ctx context.Context, msg *Message) error {
 }
 
 // Echo echoes back the request data.
+//
 //encore:api public
 func Echo(ctx context.Context, params *Data[string, int]) (*Data[string, int], error) {
 	return params, nil
 }
 
 // EmptyEcho echoes back the request data.
+//
 //encore:api public
 func EmptyEcho(ctx context.Context, params EmptyData) (EmptyData, error) {
 	return params, nil
 }
 
 // NonBasicEcho echoes back the request data.
+//
 //encore:api auth path=/NonBasicEcho/:pathString/:pathInt/*pathWild
 func NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild string, params *NonBasicData) (*NonBasicData, error) {
 	data := auth.Data().(*AuthParams)
@@ -152,30 +156,35 @@ func NonBasicEcho(ctx context.Context, pathString string, pathInt int, pathWild 
 }
 
 // BasicEcho echoes back the request data.
+//
 //encore:api public method=GET,POST
 func BasicEcho(ctx context.Context, params *BasicData) (*BasicData, error) {
 	return params, nil
 }
 
 // HeadersEcho echoes back the request headers
+//
 //encore:api public method=GET,POST
 func HeadersEcho(ctx context.Context, params *HeadersData) (*HeadersData, error) {
 	return params, nil
 }
 
 // Noop does nothing
+//
 //encore:api public method=GET
 func Noop(ctx context.Context) error {
 	return nil
 }
 
 // NilResponse returns a nil response and nil error
+//
 //encore:api public method=GET,POST
 func NilResponse(ctx context.Context) (*BasicData, error) {
 	return nil, nil
 }
 
 // MuteEcho absorbs a request
+//
 //encore:api public method=GET
 func MuteEcho(ctx context.Context, params Data[string, string]) error {
 	log.Printf("Absorbing %v\n", params)
@@ -183,6 +192,7 @@ func MuteEcho(ctx context.Context, params Data[string, string]) error {
 }
 
 // Pong returns a bird tuple
+//
 //encore:api public method=GET
 func Pong(ctx context.Context) (Data[string, string], error) {
 	return Data[string, string]{"woodpecker", "kingfisher"}, nil
@@ -193,6 +203,7 @@ type EnvResponse struct {
 }
 
 // Env returns the environment.
+//
 //encore:api public
 func Env(ctx context.Context) (*EnvResponse, error) {
 	return &EnvResponse{Env: os.Environ()}, nil
@@ -206,6 +217,7 @@ type AppMetadata struct {
 }
 
 // AppMeta returns app metadata.
+//
 //encore:api public
 func AppMeta(ctx context.Context) (*AppMetadata, error) {
 	md := encore.Meta()

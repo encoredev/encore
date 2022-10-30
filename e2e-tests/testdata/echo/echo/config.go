@@ -41,7 +41,7 @@ type ConfigResponse struct {
 
 //encore:api public
 func ConfigValues(ctx context.Context) (ConfigResponse, error) {
-	return ConfigResponse {
+	return ConfigResponse{
 		ReadOnlyMode: cfg.ReadOnlyMode(),
 		PublicKey:    cfg.PublicKey(),
 		AdminUsers:   cfg.AdminUsers(),
