@@ -16,6 +16,7 @@ import (
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/metrics"
+	"encore.dev/appruntime/metrics/metricstest"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/beta/errs"
@@ -88,7 +89,7 @@ func TestDesc_EndToEnd(t *testing.T) {
 		Runtime: &config.Runtime{},
 	}
 	logger := zerolog.New(os.Stdout)
-	testMetricsExporter := metrics.NewTestMetricsExporter(logger)
+	testMetricsExporter := metricstest.NewTestMetricsExporter(logger)
 	metrics := metrics.NewManager(testMetricsExporter)
 	rt := reqtrack.New(logger, nil, false)
 	json := jsoniter.ConfigCompatibleWithStandardLibrary

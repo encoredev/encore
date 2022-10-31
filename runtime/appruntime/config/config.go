@@ -267,7 +267,7 @@ type RedisDatabase struct {
 type MetricsExporterType string
 
 const (
-	MetricsExporterTypeLogsBased MetricsExporterType = "logs-based"
+	MetricsExporterTypeLogsBased MetricsExporterType = "logs_based"
 )
 
 type Metrics struct {

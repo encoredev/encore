@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"github.com/rs/zerolog"
+
+	"encore.dev/rlog"
 )
 
 // AWS CloudWatch logs-based metrics support up to three dimensions:
@@ -22,10 +24,7 @@ import (
 // supported by AWS CloudWatch, we support only up to three dimensions per metric
 // in GCP too.
 
-const (
-	EncoreMetricKeyPrefix = "encore_"
-	encoreMetricKey       = EncoreMetricKeyPrefix + "metric_name"
-)
+const encoreMetricKey = rlog.InternalKeyPrefix + "metric_name"
 
 type LogsBasedExporter struct {
 	logger zerolog.Logger

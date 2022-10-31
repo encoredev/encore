@@ -11,7 +11,6 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
@@ -27,6 +26,9 @@ const (
 	levelInfo  logLevel = 2
 	levelWarn  logLevel = 3
 	levelError logLevel = 4
+
+	//publicapigen:drop
+	InternalKeyPrefix = "encore_"
 )
 
 //publicapigen:drop
@@ -253,7 +255,7 @@ func addContext(ctx zerolog.Context, key string, val interface{}) zerolog.Contex
 }
 
 func reserved(key string) bool {
-	return strings.HasPrefix(key, metrics.EncoreMetricKeyPrefix)
+	return strings.HasPrefix(key, InternalKeyPrefix)
 }
 
 const (
