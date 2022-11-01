@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rogpeppe/go-internal/testscript"
 	ts "github.com/rogpeppe/go-internal/testscript"
 
 	"encr.dev/compiler"
@@ -37,7 +36,7 @@ func TestCompile(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(testscript.RunMain(m, map[string]func() int{
+	os.Exit(ts.RunMain(m, map[string]func() int{
 		"build": func() int {
 			wd, err := os.Getwd()
 			if err != nil {

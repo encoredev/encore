@@ -38,9 +38,37 @@ type Request struct {
 	Path       string     // What was the path made to the API server
 	PathParams PathParams // If there are path parameters, what are they?
 
+	// PubSubMessage specific parameters.
+	// Message contains information about the PubSub message,
+	Message *MessageData
+
 	// Payload is the decoded request payload or Pub/Sub message payload,
 	// or nil if the API endpoint has no request payload or the endpoint is raw.
 	Payload any
+}
+
+// MessageData describes the request data for a Pub/Sub message.
+type MessageData struct {
+	// Service is the name of the service with the subscription.
+	Service string
+
+	// Topic is the name of the topic the message was published to.
+	Topic string
+
+	// Subscription is the name of the subscription the message was received on.
+	Subscription string
+
+	// ID is the unique ID of the message assigned by the messaging service.
+	// It is the same value returned by topic.Publish() and is the same
+	// across delivery attempts.
+	ID string
+
+	// Published is the time the message was first published.
+	Published time.Time
+
+	// DeliveryAttempt is a counter for how many times the messages
+	// has been attempted to be delivered.
+	DeliveryAttempt int
 }
 
 // RequestType describes how the currently running code was triggered
@@ -113,6 +141,14 @@ func (mgr *Manager) CurrentRequest() *Request {
 		result.Type = PubSubMessage
 		result.Service = req.MsgData.Service
 		result.Payload = req.MsgData.DecodedPayload
+		result.Message = &MessageData{
+			Service:         req.MsgData.Service,
+			Topic:           req.MsgData.Topic,
+			Subscription:    req.MsgData.Subscription,
+			ID:              req.MsgData.MessageID,
+			Published:       req.MsgData.Published,
+			DeliveryAttempt: req.MsgData.Attempt,
+		}
 	}
 
 	return result

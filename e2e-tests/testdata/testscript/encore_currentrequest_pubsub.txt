@@ -1,0 +1,41 @@
+call GET /svc.Foo ''
+publish topic '{"Data": "test"}'
+checklog '{"topic": "topic", "subscription": "sub", "type": "pubsub-message", "msg": {"Service": "svc", "Topic": "topic", "Subscription": "sub", "ID": "1", "DeliveryAttempt": 1}, "message": "pubsub event"}'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev"
+    "encore.dev/rlog"
+    "encore.dev/pubsub"
+)
+
+type MyData struct {
+    Name string
+}
+
+type Event struct {
+    Data string
+}
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    return nil
+}
+
+var topic = pubsub.NewTopic[*Event]("topic", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+var _ = pubsub.NewSubscription(topic, "sub", pubsub.SubscriptionConfig[*Event]{
+    Handler: func(ctx context.Context, event *Event) error {
+        req := encore.CurrentRequest()
+        rlog.Info("pubsub event",
+            "type", req.Type,
+            "msg", req.Message,
+        )
+        return nil
+    },
+})
