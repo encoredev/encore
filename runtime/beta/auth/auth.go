@@ -25,15 +25,16 @@ func NewManager(rt *reqtrack.RequestTracker) *Manager {
 }
 
 func (mgr *Manager) UserID() (UID, bool) {
-	if curr := mgr.rt.Current(); curr.Req != nil {
-		return curr.Req.UID, curr.Req.UID != ""
+	if curr := mgr.rt.Current(); curr.Req != nil && curr.Req.RPCData != nil {
+		uid := curr.Req.RPCData.UserID
+		return uid, uid != ""
 	}
 	return "", false
 }
 
 func (mgr *Manager) Data() interface{} {
-	if curr := mgr.rt.Current(); curr.Req != nil {
-		return curr.Req.AuthData
+	if curr := mgr.rt.Current(); curr.Req != nil && curr.Req.RPCData != nil {
+		return curr.Req.RPCData.AuthData
 	}
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/metrics"
 )
@@ -21,19 +22,9 @@ func (s *Server) finishOperation() {
 }
 
 type beginRequestParams struct {
-	Type         model.RequestType
-	Service      string
-	Endpoint     string
-	Path         string
-	PathSegments model.PathParams
-	Payload      any
-	Inputs       [][]byte
-	UID          model.UID
-	AuthData     any
-	DefLoc       int32
-
-	// RPC describes the endpoint, if Type == RPCCall.
-	RPCDesc *model.RPCDesc
+	Type   model.RequestType
+	DefLoc int32
+	Data   *model.RPCData
 
 	// SpanID is the span ID to use.
 	// If it is the zero value a new span id is generated.
@@ -51,25 +42,18 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	req := &model.Request{
-		Type:         p.Type,
-		SpanID:       spanID,
-		Service:      p.Service,
-		Endpoint:     p.Endpoint,
-		Path:         p.Path,
-		PathSegments: p.PathSegments,
-		Payload:      p.Payload,
-		Inputs:       p.Inputs,
-		DefLoc:       p.DefLoc,
-		Start:        time.Now(),
-		UID:          p.UID,
-		AuthData:     p.AuthData,
-		Traced:       s.tracingEnabled,
-		RPCDesc:      p.RPCDesc,
+		Type:    p.Type,
+		SpanID:  spanID,
+		DefLoc:  p.DefLoc,
+		Start:   s.clock.Now(),
+		Traced:  s.tracingEnabled,
+		RPCData: p.Data,
 	}
 
-	logCtx := s.rootLogger.With().Str("service", req.Service).Str("endpoint", req.Endpoint)
-	if req.UID != "" {
-		logCtx = logCtx.Str("uid", string(req.UID))
+	data := req.RPCData
+	logCtx := s.rootLogger.With().Str("service", data.Desc.Service).Str("endpoint", data.Desc.Endpoint)
+	if data.UserID != "" {
+		logCtx = logCtx.Str("uid", string(data.UserID))
 	}
 	if prev := s.rt.Current().Req; prev != nil && prev.Test != nil {
 		logCtx = logCtx.Str("test", prev.Test.Current.Name())
@@ -85,8 +69,8 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 			if err := checkAuthData(authDataType, a.UID, a.UserData); err != nil {
 				return nil, err
 			}
-			req.UID = a.UID
-			req.AuthData = a.UserData
+			data.UserID = a.UID
+			data.AuthData = a.UserData
 		}
 	}
 
@@ -105,19 +89,19 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	return req, nil
 }
 
-func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
+func (s *Server) finishRequest(resp *model.Response) {
 	curr := s.rt.Current()
 	req := curr.Req
 	if req == nil {
 		panic("encore: no current request running")
 	}
 
-	if err != nil {
+	if resp.Err != nil {
 		switch req.Type {
 		case model.AuthHandler:
-			req.Logger.Error().Err(err).Msg("auth handler failed")
+			req.Logger.Error().Err(resp.Err).Msg("auth handler failed")
 		default:
-			e := errs.Convert(err).(*errs.Error)
+			e := errs.Convert(resp.Err).(*errs.Error)
 			ev := req.Logger.Error()
 			for k, v := range e.Meta {
 				ev = ev.Interface(k, v)
@@ -131,19 +115,38 @@ func (s *Server) finishRequest(output [][]byte, err error, httpStatus int) {
 	case model.AuthHandler:
 		req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
 	default:
-		if httpStatus != errs.HTTPStatus(err) {
-			code := errs.HTTPStatusToCode(httpStatus).String()
-			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", httpStatus).Msg("request completed")
-			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
+		if resp.HTTPStatus != errs.HTTPStatus(resp.Err) {
+			code := errs.HTTPStatusToCode(resp.HTTPStatus).String()
+			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
+			metrics.ReqEnd(req.RPCData.Desc.Service, req.RPCData.Desc.Endpoint, dur.Seconds(), code)
 		} else {
-			code := errs.Code(err).String()
+			code := errs.Code(resp.Err).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Msg("request completed")
-			metrics.ReqEnd(req.Service, req.Endpoint, dur.Seconds(), code)
+			metrics.ReqEnd(req.RPCData.Desc.Service, req.RPCData.Desc.Endpoint, dur.Seconds(), code)
 		}
 	}
 
 	if curr.Trace != nil {
-		curr.Trace.FinishRequest(req, output, err)
+		// Capture the recorded bytes from the request and response body, if any.
+		if len(resp.RawRequestPayload) > 0 {
+			curr.Trace.BodyStream(trace.BodyStreamParams{
+				SpanID:     req.SpanID,
+				IsResponse: false,
+				Overflowed: resp.RawRequestPayloadOverflowed,
+				Data:       resp.RawRequestPayload,
+			})
+		}
+
+		if len(resp.RawResponsePayload) > 0 {
+			curr.Trace.BodyStream(trace.BodyStreamParams{
+				SpanID:     req.SpanID,
+				IsResponse: true,
+				Overflowed: resp.RawResponsePayloadOverflowed,
+				Data:       resp.RawResponsePayload,
+			})
+		}
+
+		curr.Trace.FinishRequest(req, resp)
 	}
 
 	s.rt.FinishRequest()
