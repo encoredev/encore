@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/benbjohnson/clock"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 
@@ -64,14 +65,22 @@ func New(p *NewParams) *App {
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
 
-	pc := platform.NewClient(cfg)
 	doTrace := trace.Enabled(cfg)
-	rt := reqtrack.New(rootLogger, pc, doTrace)
+	var traceFactory trace.Factory = nil
+	if doTrace {
+		traceFactory = trace.DefaultFactory
+	}
+
+	pc := platform.NewClient(cfg)
+
+	rt := reqtrack.New(rootLogger, pc, traceFactory)
 	json := jsonAPI(cfg)
 	shutdown := newShutdownTracker()
 	encore := encore.NewManager(cfg, rt)
 
-	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, json)
+	klock := clock.New()
+	tracingEnabled := trace.Enabled(cfg)
+	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, json, tracingEnabled, klock)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
 	service := service.NewManager(rt)

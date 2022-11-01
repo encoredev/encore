@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/benbjohnson/clock"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
@@ -59,6 +60,7 @@ type Server struct {
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
+	clock          clock.Clock
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
 	tracingEnabled bool
@@ -76,7 +78,8 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Client,
-	encoreMgr *encore.Manager, rootLogger zerolog.Logger, json jsoniter.API) *Server {
+	encoreMgr *encore.Manager, rootLogger zerolog.Logger, json jsoniter.API, tracingEnabled bool,
+	clock clock.Clock) *Server {
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -97,9 +100,10 @@ func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Cli
 		pc:             pc,
 		rt:             rt,
 		encoreMgr:      encoreMgr,
+		clock:          clock,
 		rootLogger:     rootLogger,
 		json:           json,
-		tracingEnabled: trace.Enabled(cfg),
+		tracingEnabled: tracingEnabled,
 
 		public:  public,
 		private: private,

@@ -93,7 +93,7 @@ type httpRoundTrip struct {
 	ReqID  uint64
 	SpanID model.SpanID
 
-	log *Log
+	log Logger
 
 	mu     sync.Mutex
 	events []httpEvent
