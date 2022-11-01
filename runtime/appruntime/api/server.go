@@ -17,7 +17,6 @@ import (
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
-	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/metrics"
 )
@@ -42,6 +41,10 @@ type IncomingContext struct {
 	execContext
 	w   http.ResponseWriter
 	req *http.Request
+
+	// capturer is set in handleIncoming for raw requests
+	// to capture the request body
+	capturer *rawRequestBodyCapturer
 }
 
 type Handler interface {
@@ -208,6 +211,9 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	// and authenticate it, then we can switch over to the private router which contains all APIs not just
 	// the publicly accessible ones.
 	if sig := req.Header.Get("X-Encore-Auth"); sig != "" && s.pc != nil {
+		// Delete the header so it doesn't get picked up by tracing.
+		req.Header.Del("X-Encore-Auth")
+
 		if ok, err := s.pc.ValidatePlatformRequest(req, sig); err == nil && ok {
 			// Successfully authenticated
 			req = req.WithContext(withEncorePlatformSealOfApproval(req.Context()))
@@ -271,7 +277,7 @@ func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, auth mode
 
 func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, auth model.AuthInfo) IncomingContext {
 	ec := s.newExecContext(req.Context(), ps, auth)
-	return IncomingContext{ec, w, req}
+	return IncomingContext{ec, w, req, nil}
 }
 
 func (s *Server) NewCallContext(ctx context.Context) CallContext {

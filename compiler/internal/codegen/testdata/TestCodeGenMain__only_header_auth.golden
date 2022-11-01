@@ -133,17 +133,6 @@ var EncoreInternal_EightHandler = &__api.Desc[*EncoreInternal_EightReq, *EncoreI
 		}
 		return &clone, err
 	},
-	SerializeReq: func(json jsoniter.API, p *EncoreInternal_EightReq) ([][]byte, error) {
-		data := make([][]byte, 3)
-		for i, val := range [...]any{p.Bar, p.Baz, p.Params} {
-			v, err := json.Marshal(val)
-			if err != nil {
-				return nil, err
-			}
-			data[i] = v
-		}
-		return data, nil
-	},
 	ReqPath: func(p *EncoreInternal_EightReq) (string, __api.UnnamedParams, error) {
 		enc := &etype.Marshaller{}
 
@@ -182,13 +171,6 @@ var EncoreInternal_EightHandler = &__api.Desc[*EncoreInternal_EightReq, *EncoreI
 		// Write response
 		w.Write(respData)
 		return nil
-	},
-	SerializeResp: func(json jsoniter.API, resp *EncoreInternal_EightResp) ([][]byte, error) {
-		v, err := json.Marshal(resp)
-		if err != nil {
-			return nil, err
-		}
-		return [][]byte{v}, nil
 	},
 	CloneResp: func(resp *EncoreInternal_EightResp) (*EncoreInternal_EightResp, error) {
 		if resp == nil {
@@ -237,13 +219,6 @@ var EncoreInternal_AuthHandlerAuthHandler = &__api.AuthHandlerDesc[*EncoreIntern
 	AuthHandler: func(ctx context.Context, params *EncoreInternal_AuthHandlerAuthParams) (info __model.AuthInfo, err error) {
 		info.UID, info.UserData, err = AuthHandler(ctx, params)
 		return info, err
-	},
-	SerializeParams: func(json jsoniter.API, params *EncoreInternal_AuthHandlerAuthParams) ([][]byte, error) {
-		v, err := json.Marshal(params)
-		if err != nil {
-			return nil, err
-		}
-		return [][]byte{v}, nil
 	},
 }
 
