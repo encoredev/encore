@@ -15,6 +15,7 @@ import (
 	"github.com/alecthomas/chroma/styles"
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/jsonpb"
+	"golang.org/x/exp/slices"
 
 	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/internal/dedent"
@@ -37,6 +38,11 @@ type Trace struct {
 	Meta      json.RawMessage           `json:"meta"`
 }
 
+type KeyValue[K comparable, V any] struct {
+	Key   K `json:"key"`
+	Value V `json:"value"`
+}
+
 type Request struct {
 	ID        string  `json:"id"`
 	Type      string  `json:"type"`
@@ -56,8 +62,19 @@ type Request struct {
 	CallLoc *int32 `json:"call_loc"`
 	DefLoc  int32  `json:"def_loc"`
 
-	Inputs   [][]byte   `json:"inputs"`
-	Outputs  [][]byte   `json:"outputs"`
+	HTTPMethod      string                     `json:"http_method"`
+	UserID          string                     `json:"user_id"`
+	Path            string                     `json:"path"`
+	PathParams      []string                   `json:"path_params"`
+	RequestPayload  []byte                     `json:"request_payload"`
+	ResponsePayload []byte                     `json:"response_payload"`
+	RawReqHeaders   []KeyValue[string, string] `json:"raw_req_headers"`
+	RawRespHeaders  []KeyValue[string, string] `json:"raw_resp_headers"`
+
+	// Deprecated: Use RequestPayload, ResponsePayload etc instead.
+	Inputs  [][]byte `json:"inputs"`
+	Outputs [][]byte `json:"outputs"` // Deprecated: same as above
+
 	Err      []byte     `json:"err"`
 	ErrStack *Stack     `json:"err_stack"`
 	Events   []Event    `json:"events"`
@@ -359,6 +376,13 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		Published:      nil,
 		DefLoc:         req.DefLoc,
 
+		HTTPMethod:     req.HttpMethod,
+		UserID:         req.Uid,
+		Path:           req.Path,
+		PathParams:     sliceOrEmpty(req.PathParams),
+		RawReqHeaders:  headersToKV(req.RawRequestHeaders),
+		RawRespHeaders: headersToKV(req.RawResponseHeaders),
+
 		Inputs:   inputs,
 		Outputs:  outputs,
 		Err:      nullBytes(req.Err),
@@ -368,6 +392,13 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 	}
 	if req.PublishTime > 0 {
 		r.Published = &req.PublishTime
+	}
+
+	// Only set these values if they're non-nil, to allow the frontend to
+	// distinguish between legacy traces and the new format.
+	if req.RequestPayload != nil || req.ResponsePayload != nil {
+		r.RequestPayload = sliceOrEmpty(req.RequestPayload)
+		r.ResponsePayload = sliceOrEmpty(req.ResponsePayload)
 	}
 
 	for _, ev := range req.Events {
@@ -402,6 +433,14 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 
 		case *tracepb.Event_Cache:
 			r.Events = append(r.Events, tp.parseCacheOp(e.Cache))
+
+		case *tracepb.Event_BodyStream:
+			ev := e.BodyStream
+			if ev.IsResponse {
+				r.ResponsePayload = append(r.ResponsePayload, ev.Data...)
+			} else {
+				r.RequestPayload = append(r.RequestPayload, ev.Data...)
+			}
 		}
 	}
 
@@ -741,4 +780,22 @@ func shortenFunc(fn string) string {
 		fn = fn[idx+1:]
 	}
 	return fn
+}
+
+func headersToKV(headers map[string]string) []KeyValue[string, string] {
+	res := make([]KeyValue[string, string], 0, len(headers))
+	for k, v := range headers {
+		res = append(res, KeyValue[string, string]{k, v})
+	}
+	slices.SortFunc(res, func(a, b KeyValue[string, string]) bool {
+		return a.Key < b.Key
+	})
+	return res
+}
+
+func sliceOrEmpty[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
 }
