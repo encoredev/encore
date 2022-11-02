@@ -471,36 +471,6 @@ const RawResponseDetail: FC<{ req: Request }> = ({ req }) => {
   );
 };
 
-const colors = {
-  white: "#EEEEE1",
-  black: "#111111",
-  orange: "#FFB84A",
-  yellow: "#E9E23D",
-  green: "#B3D77E",
-  blue: "#6D89FF",
-  purple: "#A36C8C",
-  gray: "#CDCDC2",
-};
-
-const reactJsonTheme = {
-  base00: colors.black,
-  base01: "rgba(238, 238, 225, 0.2)", // white, 20% opacity
-  base02: "rgba(238, 238, 225, 0.2)", // line guide
-  base03: "rgba(238, 238, 225, 0.8)", // white, 80% opacity
-  base04: colors.green,
-  base05: colors.blue,
-  base06: colors.gray,
-  base07: colors.gray, // object keys
-  base08: colors.gray,
-  base09: colors.green, // three dots when contracted
-  base0A: colors.blue,
-  base0B: colors.blue,
-  base0C: colors.orange,
-  base0D: colors.gray, // expanded arrow
-  base0E: colors.gray, // contracted arrow
-  base0F: "rgba(238, 238, 225, 0.5)", // clipboard icon, white, 50% opacity
-};
-
 const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
   const decoded = decodeBase64(payload);
   let jsonObj: any = undefined;
@@ -511,12 +481,12 @@ const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
   }
 
   return jsonObj !== undefined ? (
-    <div className="[&_svg]:inline-block">
+    <div className="[&_svg]:inline-block [&_.data-key]:align-top">
       <JsonViewer
         value={jsonObj}
         rootName={false}
         collapseStringsAfterLength={100}
-        theme={reactJsonTheme}
+        theme={"dark"}
         displayObjectSize={false}
         displayDataTypes={false}
         indentWidth={2}
