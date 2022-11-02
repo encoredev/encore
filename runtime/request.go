@@ -45,6 +45,16 @@ type Request struct {
 	// Payload is the decoded request payload or Pub/Sub message payload,
 	// or nil if the API endpoint has no request payload or the endpoint is raw.
 	Payload any
+
+	// CronIdempotencyKey contains a unique id for a particular cron job execution
+	// if this request was triggered by a Cron Job.
+	//
+	// It can be used to uniquely identify a particular Cron Job execution event,
+	// and also serves as a way to distinguish between Cron Job-triggered requests
+	// and other requests.
+	//
+	// If the request was not triggered by a Cron Job the value is the empty string.
+	CronIdempotencyKey string
 }
 
 // MessageData describes the request data for a Pub/Sub message.
@@ -135,6 +145,10 @@ func (mgr *Manager) CurrentRequest() *Request {
 			RequestType:  desc.RequestType,
 			ResponseType: desc.ResponseType,
 			Raw:          desc.Raw,
+		}
+
+		if data.FromEncorePlatform {
+			result.CronIdempotencyKey = data.RequestHeaders.Get("X-Encore-Cron-Execution")
 		}
 
 	case model.PubSubMessage:

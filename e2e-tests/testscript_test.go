@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,8 +17,12 @@ import (
 	"github.com/nsqio/go-nsq"
 	ts "github.com/rogpeppe/go-internal/testscript"
 
+	"encr.dev/cli/daemon/run"
 	"encr.dev/pkg/golden"
 )
+
+// headerRe matches valid headers in the form "Header=value".
+var headerRe = regexp.MustCompile(`^([A-Z][A-Za-z0-9-]*)=([^ ]*)$`)
 
 func TestRun(t *testing.T) {
 	runtimePath := os.Getenv("ENCORE_RUNTIME_PATH")
@@ -49,33 +55,72 @@ func TestRun(t *testing.T) {
 		},
 		Cmds: map[string]func(ts *ts.TestScript, neg bool, args []string){
 			"call": func(ts *ts.TestScript, neg bool, args []string) {
+				usage := func() {
+					ts.Fatalf("usage: call <method> [Header=value...] <url> [data] [platform-auth]")
+				}
 				if len(args) < 2 {
-					ts.Fatalf("usage: call <method> <url> [data]")
-				} else if len(args) > 3 {
-					ts.Fatalf("usage: call <method> <url> [data]")
+					usage()
 				}
 
+				method := args[0]
+				args = args[1:]
+				headers := make(map[string]string)
+				for i, arg := range args {
+					m := headerRe.FindStringSubmatch(arg)
+					if m != nil {
+						headers[m[1]] = m[2]
+					} else {
+						args = args[i:]
+						break
+					}
+				}
+
+				if len(args) == 0 {
+					usage()
+				}
 				app := ts.Value("app").(*AppTestData)
+				url := "http://" + app.Addr + args[0]
+
+				disablePlatformAuth := false
+
 				var body io.Reader
-				if len(args) == 3 {
-					body = strings.NewReader(args[2])
+				if n := len(args); n > 1 {
+					val := args[1]
+					if val == "no-platform-auth" {
+						disablePlatformAuth = true
+					} else {
+						body = strings.NewReader(val)
+						if n > 2 {
+							if args[2] == "no-platform-auth" {
+								disablePlatformAuth = true
+							} else {
+								ts.Fatalf("unexpected argument %q", args[2])
+							}
+						}
+					}
 				}
 
-				req, err := http.NewRequest(args[0], "http://"+app.Addr+args[1], body)
-				if err != nil {
-					ts.Fatalf("unable to create request: %v", err)
+				req := httptest.NewRequest(method, url, body)
+				for k, v := range headers {
+					ts.Logf("setting %s=%v", k, v)
+					req.Header.Set(k, v)
 				}
-				resp, err := http.DefaultClient.Do(req)
-				if err != nil {
-					ts.Fatalf("unable to make request: %v", err)
+
+				if disablePlatformAuth {
+					req.Header.Set(run.TestHeaderDisablePlatformAuth, "true")
 				}
-				io.Copy(os.Stdout, resp.Body)
-				resp.Body.Close()
-				if resp.StatusCode != http.StatusOK && !neg {
-					ts.Fatalf("unexpected status code: %v", resp.StatusCode)
-				} else if resp.StatusCode == http.StatusOK && neg {
-					ts.Fatalf("unexpected status code: %v", resp.StatusCode)
+
+				w := httptest.NewRecorder()
+				app.Run.ServeHTTP(w, req)
+				respBody := w.Body.Bytes()
+				os.Stdout.Write(respBody)
+
+				if w.Code != http.StatusOK && !neg {
+					ts.Fatalf("unexpected status code: %v", w.Code)
+				} else if w.Code == http.StatusOK && neg {
+					ts.Fatalf("unexpected status code: %v", w.Code)
 				}
+				app.Values["call_resp"] = respBody
 			},
 			"publish": func(ts *ts.TestScript, neg bool, args []string) {
 				if len(args) != 2 {
@@ -126,8 +171,8 @@ func TestRun(t *testing.T) {
 					ts.Fatalf("usage: checklog <pattern|file>")
 				}
 
-				var want []logLine
-				var pattern logLine
+				var want []jsonObj
+				var pattern jsonObj
 				err := json.Unmarshal([]byte(args[0]), &pattern)
 				if err != nil {
 					if strings.Contains(args[0], "{") {
@@ -137,14 +182,14 @@ func TestRun(t *testing.T) {
 					fn := ts.ReadFile(args[0])
 					scanner := bufio.NewScanner(strings.NewReader(fn))
 					for scanner.Scan() {
-						var ln logLine
+						var ln jsonObj
 						if err := json.Unmarshal(scanner.Bytes(), &ln); err != nil {
 							ts.Fatalf("invalid log line in checklog script: %s: %v", scanner.Bytes(), err)
 						}
 						want = append(want, ln)
 					}
 				} else {
-					want = []logLine{pattern}
+					want = []jsonObj{pattern}
 				}
 
 				log := ts.Value("log").(*testBufferLogger)
@@ -153,7 +198,7 @@ func TestRun(t *testing.T) {
 
 				seen := make([]bool, len(want))
 				for scanner.Scan() {
-					var got logLine
+					var got jsonObj
 					if err := json.Unmarshal(scanner.Bytes(), &got); err == nil {
 						for i, ln := range want {
 							if !seen[i] && gotLogLine(got, ln) {
@@ -169,6 +214,37 @@ func TestRun(t *testing.T) {
 					} else if neg && seen[i] {
 						ts.Fatalf("found log line: %v", ln)
 					}
+				}
+			},
+			"checkresp": func(ts *ts.TestScript, neg bool, args []string) {
+				if len(args) != 1 {
+					ts.Fatalf("usage: checkresp <pattern|file>")
+				}
+
+				var want jsonObj
+				err := json.Unmarshal([]byte(args[0]), &want)
+				if err != nil {
+					if strings.Contains(args[0], "{") {
+						ts.Fatalf("checkresp pattern not valid log line: %v", err)
+					}
+					fn := ts.ReadFile(args[0])
+					if err := json.Unmarshal([]byte(fn), &want); err != nil {
+						ts.Fatalf("invalid json object in checkresp script: %s: %v", fn, err)
+					}
+				}
+
+				app := ts.Value("app").(*AppTestData)
+
+				var got jsonObj
+				if err := json.Unmarshal(app.Values["call_resp"].([]byte), &got); err != nil {
+					ts.Fatalf("unable to parse response: %v", err)
+				}
+
+				match := gotLogLine(got, want)
+				if !neg && !match {
+					ts.Fatalf("response does not match: got %s, want %s", got, want)
+				} else if neg && match {
+					ts.Fatalf("log line unexpectedly matched")
 				}
 			},
 		},
@@ -189,7 +265,7 @@ type messageWrapper struct {
 	Data       json.RawMessage
 }
 
-type logLine = map[string]any
+type jsonObj = map[string]any
 
 func gotLogLine(got, want any) bool {
 	switch want := want.(type) {

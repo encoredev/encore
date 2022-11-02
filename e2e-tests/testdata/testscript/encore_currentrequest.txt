@@ -1,6 +1,14 @@
-call GET /svc.Foo ''
 publish topic '{"Data": "test"}'
 checklog '{"topic": "topic", "subscription": "sub", "type": "pubsub-message", "msg": {"Service": "svc", "Topic": "topic", "Subscription": "sub", "ID": "1", "DeliveryAttempt": 1}, "message": "pubsub event"}'
+
+# Authenticated requests should return the execution id
+call GET X-Encore-Cron-Execution=foo /svc.Cron ''
+checkresp '{"IdempotencyKey": "foo"}'
+
+# Unauthenticated requests should return the empty string
+call GET X-Encore-Cron-Execution=foo /svc.Cron '' no-platform-auth
+checkresp '{"IdempotencyKey": ""}'
+
 
 -- svc/svc.go --
 package svc
@@ -20,9 +28,14 @@ type Event struct {
     Data string
 }
 
+type CronData struct {
+    IdempotencyKey string
+}
+
 //encore:api public
-func Foo(ctx context.Context) error {
-    return nil
+func Cron(ctx context.Context) (*CronData, error) {
+    req := encore.CurrentRequest()
+    return &CronData{IdempotencyKey: req.CronIdempotencyKey}, nil
 }
 
 var topic = pubsub.NewTopic[*Event]("topic", pubsub.TopicConfig{
