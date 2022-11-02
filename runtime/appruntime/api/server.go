@@ -211,7 +211,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	// and authenticate it, then we can switch over to the private router which contains all APIs not just
 	// the publicly accessible ones.
 	if sig := req.Header.Get("X-Encore-Auth"); sig != "" && s.pc != nil {
-		// Delete the header so it doesn't get picked up by tracing.
+		// Delete the header so it can't be accessed.
 		req.Header.Del("X-Encore-Auth")
 
 		if ok, err := s.pc.ValidatePlatformRequest(req, sig); err == nil && ok {

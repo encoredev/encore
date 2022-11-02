@@ -96,9 +96,12 @@ type RPCData struct {
 	// This is never set for raw requests, as the body hasn't been read yet.
 	NonRawPayload []byte
 
-	// RawHeaders specifies the HTTP headers from the incoming request,
-	// for raw endpoints only.
-	RawHeaders http.Header
+	// RequestHeaders contains the HTTP headers from the incoming request.
+	RequestHeaders http.Header
+
+	// FromEncorePlatform specifies whether the request was an
+	// authenticated request from the Encore Platform.
+	FromEncorePlatform bool
 }
 
 type PubSubMsgData struct {

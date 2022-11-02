@@ -53,9 +53,11 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 			DefLoc: d.DefLoc,
 			Type:   model.AuthHandler,
 			Data: &model.RPCData{
-				Desc:          d.rpcDesc(),
-				NonRawPayload: d.marshalParams(c.server.json, param),
-				TypedPayload:  param,
+				Desc:               d.rpcDesc(),
+				NonRawPayload:      d.marshalParams(c.server.json, param),
+				TypedPayload:       param,
+				RequestHeaders:     c.req.Header,
+				FromEncorePlatform: IsEncorePlatformRequest(c.req.Context()),
 			},
 		})
 		if authErr != nil {
