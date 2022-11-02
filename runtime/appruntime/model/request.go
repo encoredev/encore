@@ -121,6 +121,11 @@ type TestData struct {
 	Parent  *Request           // The parent request (if we're looking at sub-tests)
 	Service string             // the service being tested, if any
 
+	// UserID and AuthData are the test-level auth information,
+	// if overridden.
+	UserID   UID
+	AuthData any
+
 	Wait sync.WaitGroup // If we're spun up async go routines, this wait allows to the test to wait for them to end
 }
 
