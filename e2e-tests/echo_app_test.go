@@ -69,7 +69,7 @@ type NonBasicResponse struct {
 func TestEndToEndWithApp(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	c := qt.New(t)
-	app := AppTest(c, "./testdata/echo", nil)
+	app := RunApp(c, "./testdata/echo", nil)
 	run := app.Run
 
 	// Use golden to test that the generated clients are as expected for the echo test app

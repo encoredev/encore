@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -47,13 +48,28 @@ func TestRun(t *testing.T) {
 				return err
 			}
 
-			log := &testBufferLogger{tb: e.T().(testing.TB)}
-			app := AppTest(e.T().(testing.TB), e.WorkDir, log)
-			e.Values["app"] = app
-			e.Values["log"] = log
+			initVals(e)
 			return nil
 		},
 		Cmds: map[string]func(ts *ts.TestScript, neg bool, args []string){
+			"run": func(ts *ts.TestScript, neg bool, args []string) {
+				log := &testscriptLogger{ts: ts}
+				app := RunApp(getTB(ts), getWorkdir(ts), log)
+				setVal(ts, "app", app)
+				setVal(ts, "log", log)
+			},
+			"test": func(ts *ts.TestScript, neg bool, args []string) {
+				log := &testscriptLogger{ts: ts}
+				err := RunTests(getTB(ts), getWorkdir(ts), &log.stdout, &log.stderr, nil)
+				os.Stdout.Write(log.stdout.Bytes())
+				os.Stderr.Write(log.stderr.Bytes())
+				if !neg && err != nil {
+					ts.Fatalf("tests failed: %v", err)
+				} else if neg && err == nil {
+					ts.Fatalf("tests unexpectedly passed: %v", err)
+				}
+				setVal(ts, "log", log)
+			},
 			"call": func(ts *ts.TestScript, neg bool, args []string) {
 				usage := func() {
 					ts.Fatalf("usage: call <method> [Header=value...] <url> [data] [platform-auth]")
@@ -78,7 +94,7 @@ func TestRun(t *testing.T) {
 				if len(args) == 0 {
 					usage()
 				}
-				app := ts.Value("app").(*AppTestData)
+				app := getVal[*RunAppData](ts, "app")
 				url := "http://" + app.Addr + args[0]
 
 				disablePlatformAuth := false
@@ -129,10 +145,10 @@ func TestRun(t *testing.T) {
 				topicName := args[0]
 				data := args[1]
 
-				app := ts.Value("app").(*AppTestData)
-
+				app := getVal[*RunAppData](ts, "app")
 				id, _ := app.Values["publish_id"].(int)
 				id++
+
 				app.Values["publish_id"] = id
 				msgData, _ := json.Marshal(messageWrapper{
 					ID:         strconv.Itoa(id),
@@ -192,7 +208,7 @@ func TestRun(t *testing.T) {
 					want = []jsonObj{pattern}
 				}
 
-				log := ts.Value("log").(*testBufferLogger)
+				log := getVal[*testscriptLogger](ts, "log")
 				stderr := log.stderr.String()
 				scanner := bufio.NewScanner(strings.NewReader(stderr))
 
@@ -233,7 +249,7 @@ func TestRun(t *testing.T) {
 					}
 				}
 
-				app := ts.Value("app").(*AppTestData)
+				app := getVal[*RunAppData](ts, "app")
 
 				var got jsonObj
 				if err := json.Unmarshal(app.Values["call_resp"].([]byte), &got); err != nil {
@@ -283,4 +299,42 @@ func gotLogLine(got, want any) bool {
 	default:
 		return got == want
 	}
+}
+
+type testscriptLogger struct {
+	ts             *ts.TestScript
+	stdout, stderr bytes.Buffer
+}
+
+func (l *testscriptLogger) RunStdout(r *run.Run, line []byte) {
+	l.ts.Logf("%s", line)
+	l.stdout.Write(line)
+}
+
+func (l *testscriptLogger) RunStderr(r *run.Run, line []byte) {
+	l.ts.Logf("%s", line)
+	l.stderr.Write(line)
+}
+
+func initVals(e *ts.Env) {
+	e.Values["vars"] = map[string]any{
+		"tb": e.T().(testing.TB),
+		"wd": e.WorkDir,
+	}
+}
+
+func getTB(ts *ts.TestScript) testing.TB {
+	return getVal[testing.TB](ts, "tb")
+}
+
+func getWorkdir(ts *ts.TestScript) string {
+	return getVal[string](ts, "wd")
+}
+
+func setVal(ts *ts.TestScript, key string, val any) {
+	ts.Value("vars").(map[string]any)[key] = val
+}
+
+func getVal[T any](ts *ts.TestScript, key string) T {
+	return ts.Value("vars").(map[string]any)[key].(T)
 }

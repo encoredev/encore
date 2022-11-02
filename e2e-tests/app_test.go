@@ -18,13 +18,15 @@ import (
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	. "encr.dev/cli/daemon/run"
+	"encr.dev/cli/daemon/secret"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
+	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
-type AppTestData struct {
+type RunAppData struct {
 	Addr  string
 	Run   *Run
 	Meta  *meta.Data
@@ -35,7 +37,7 @@ type AppTestData struct {
 	Values map[string]any // arbitrary values for use in testscripts
 }
 
-func AppTest(c testing.TB, appRoot string, logger RunLogger) *AppTestData {
+func RunApp(c testing.TB, appRoot string, logger RunLogger) *RunAppData {
 	assertNil := func(err error) {
 		if err != nil {
 			c.Fatal(err)
@@ -92,7 +94,7 @@ func AppTest(c testing.TB, appRoot string, logger RunLogger) *AppTestData {
 	// start proxying TCP requests to the running application
 	go proxyTcp(ctx, ln, p.Client)
 
-	return &AppTestData{
+	return &RunAppData{
 		Addr:   ln.Addr().String(),
 		Run:    run,
 		Meta:   build.Parse.Meta,
@@ -101,6 +103,46 @@ func AppTest(c testing.TB, appRoot string, logger RunLogger) *AppTestData {
 		Env:    env,
 		Values: make(map[string]any),
 	}
+}
+
+func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []string) error {
+	assertNil := func(err error) {
+		if err != nil {
+			c.Fatal(err)
+		}
+	}
+
+	mgr := &Manager{
+		Secret:     secret.New(),
+		ClusterMgr: nil,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	c.Cleanup(cancel)
+
+	cfg := &parser.Config{
+		AppRoot:                  appRoot,
+		AppRevision:              "",
+		AppHasUncommittedChanges: false,
+		ModulePath:               "test",
+		WorkingDir:               ".",
+		ParseTests:               true,
+	}
+	parse, err := parser.Parse(cfg)
+	assertNil(err)
+
+	app := apps.NewInstance(appRoot, "slug", "")
+	err = mgr.Test(ctx, TestParams{
+		App:          app,
+		SQLDBCluster: nil,
+		WorkingDir:   ".",
+		Parse:        parse,
+		Args:         []string{"./..."},
+		Environ:      environ,
+		Stdout:       stdout,
+		Stderr:       stderr,
+	})
+	return err
 }
 
 // testRunLogger implements runLogger by calling t.Log.
@@ -116,21 +158,6 @@ func (l testRunLogger) RunStdout(r *Run, line []byte) {
 func (l testRunLogger) RunStderr(r *Run, line []byte) {
 	line = bytes.TrimSuffix(line, []byte{'\n'})
 	l.log.Log(string(line))
-}
-
-type testBufferLogger struct {
-	tb             testing.TB
-	stdout, stderr bytes.Buffer
-}
-
-func (l *testBufferLogger) RunStdout(r *Run, line []byte) {
-	l.tb.Log(string(line))
-	l.stdout.Write(line)
-}
-
-func (l *testBufferLogger) RunStderr(r *Run, line []byte) {
-	l.tb.Log(string(line))
-	l.stderr.Write(line)
 }
 
 func proxyTcp(ctx context.Context, ln net.Listener, client *yamux.Session) {

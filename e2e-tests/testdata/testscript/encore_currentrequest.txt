@@ -1,3 +1,4 @@
+run
 publish topic '{"Data": "test"}'
 checklog '{"topic": "topic", "subscription": "sub", "type": "pubsub-message", "msg": {"Service": "svc", "Topic": "topic", "Subscription": "sub", "ID": "1", "DeliveryAttempt": 1}, "message": "pubsub event"}'
 
