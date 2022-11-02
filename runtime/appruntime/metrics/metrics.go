@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"net/http"
 	"strconv"
 
 	"encore.dev/beta/errs"
@@ -43,8 +42,14 @@ func code(err error, httpStatus int) string {
 		return e.Code.String()
 	}
 
-	if httpStatus == 0 || httpStatus == http.StatusOK {
+	if httpStatus == 0 {
 		return errs.OK.String()
 	}
-	return "http_" + strconv.Itoa(httpStatus)
+
+	errCode := errs.HTTPStatusToCode(httpStatus)
+	if errCode == errs.Unknown {
+		return "http_" + strconv.Itoa(httpStatus)
+	} else {
+		return errCode.String()
+	}
 }
