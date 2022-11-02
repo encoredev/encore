@@ -65,9 +65,9 @@ func New(p *NewParams) *App {
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
 
-	doTrace := trace.Enabled(cfg)
+	tracingEnabled := trace.Enabled(cfg)
 	var traceFactory trace.Factory = nil
-	if doTrace {
+	if tracingEnabled {
 		traceFactory = trace.DefaultFactory
 	}
 
@@ -79,7 +79,6 @@ func New(p *NewParams) *App {
 	encore := encore.NewManager(cfg, rt)
 
 	klock := clock.New()
-	tracingEnabled := trace.Enabled(cfg)
 	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, json, tracingEnabled, klock)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)

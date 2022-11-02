@@ -275,12 +275,23 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		return err
 	}
 
-	absStart := tp.Time()
+	// Determine the absolute start time.
+	var absStart time.Time
+	if tp.version >= 6 {
+		absStart = tp.Time()
+	} else {
+		// We don't have enough information to determine the exact start time,
+		// but approximate it from the monotonic clock reading
+		absStart = time.Unix(0, int64(ts))
+	}
+
 	spanID := tp.Uint64()
 	parentSpanID := tp.Uint64()
 
 	var service, endpoint string
-	if tp.version < 9 {
+	if tp.version < 6 {
+		service, endpoint = "unknown", "Unknown"
+	} else if tp.version < 9 {
 		service = tp.String()
 		endpoint = tp.String()
 	}

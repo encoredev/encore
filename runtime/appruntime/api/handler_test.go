@@ -89,8 +89,6 @@ func TestDesc_EndToEnd(t *testing.T) {
 }
 
 func TestDescGeneratesTrace(t *testing.T) {
-	model.EnableTestMode(t)
-
 	klock := clock.NewMock()
 	klock.Set(time.Now())
 
@@ -242,8 +240,6 @@ func TestDescGeneratesTrace(t *testing.T) {
 // TestRawEndpointOverflow tests that raw endpoint capturing
 // is limited to the max capture size.
 func TestRawEndpointOverflow(t *testing.T) {
-	model.EnableTestMode(t)
-
 	klock := clock.NewMock()
 	klock.Set(time.Now())
 

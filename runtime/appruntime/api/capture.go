@@ -82,7 +82,7 @@ func (c *rawRequestBodyCapturer) Read(b []byte) (int, error) {
 			}
 			c.buf.Write(b[:toWrite])
 
-			if c.state == peeking && c.buf.Len() >= 1024 {
+			if c.state == peeking && c.buf.Len() >= 512 {
 				contentType := http.DetectContentType(c.buf.Bytes())
 				c.state = shouldCaptureContentType(contentType, true)
 			}
@@ -155,8 +155,8 @@ func shouldCaptureContentType(contentType string, didPeek bool) captureState {
 	}
 
 	switch contentType {
-	case "application/json", "text/plain", "application/x-www-form-urlencoded", "text/html", "text/css", "text/csv",
-		"text/javascript", "application/ld+json", "application/xhtml+xml", "application/xml", "text/xml", "application/atom+xml":
+	case "application/json", "text/plain", "application/x-www-form-urlencoded", "text/csv",
+		"text/javascript", "application/ld+json", "application/xml", "text/xml", "application/atom+xml":
 		return capturing
 
 	// Unknown content type; peek at the data to decide what to do.
@@ -283,7 +283,7 @@ func (c *rawResponseCapturer) writeToBuf(b []byte) {
 			}
 			c.buf.Write(b[:toWrite])
 
-			if c.state == peeking && c.buf.Len() >= 1024 {
+			if c.state == peeking && c.buf.Len() >= 512 {
 				contentType := http.DetectContentType(c.buf.Bytes())
 				c.state = shouldCaptureContentType(contentType, true)
 			}
