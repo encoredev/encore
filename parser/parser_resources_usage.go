@@ -10,8 +10,19 @@ import (
 
 func (p *parser) parseResourceUsage() {
 	for _, pkg := range p.pkgs {
-		for _, file := range pkg.Files {
-			walker.Walk(file.AST, &resourceUsageVisitor{p, file})
+		// Does this package import any package with resources?
+		isInteresting := false
+		for imp := range pkg.Imports {
+			if p2 := p.pkgMap[imp]; p2 != nil && len(p2.Resources) > 0 {
+				isInteresting = true
+				break
+			}
+		}
+
+		if isInteresting {
+			for _, file := range pkg.Files {
+				walker.Walk(file.AST, &resourceUsageVisitor{p, file})
+			}
 		}
 	}
 }
