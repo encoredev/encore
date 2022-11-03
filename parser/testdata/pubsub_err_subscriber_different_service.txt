@@ -1,5 +1,5 @@
 ! parse
-stderr 'The function passed to `pubsub.NewSubscription` must be declared in the the same service as the'
+err 'The function passed to `pubsub.NewSubscription` must be declared in the the same service as the'
 
 -- shared/shared.go --
 package shared

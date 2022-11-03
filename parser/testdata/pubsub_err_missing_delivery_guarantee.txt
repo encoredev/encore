@@ -1,5 +1,5 @@
 ! parse
-stderr 'pubsub.NewTopic requires the configuration field named "DeliveryGuarantee" to be explicitly set.'
+err 'pubsub.NewTopic requires the configuration field named "DeliveryGuarantee" to be explicitly set.'
 
 -- svc/svc.go --
 package svc

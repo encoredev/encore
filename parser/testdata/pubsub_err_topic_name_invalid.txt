@@ -1,5 +1,5 @@
 ! parse
-stderr 'The pubsub.NewTopic must be topic name be defined in "kebab-case"'
+err 'The pubsub.NewTopic must be topic name be defined in "kebab-case"'
 
 -- svc/svc.go --
 package svc

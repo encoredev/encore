@@ -1,5 +1,5 @@
 ! parse
-stderr 'path parameter ''p'' must be a string, .+'
+err 'path parameter ''p'' must be a string, .+'
 
 -- svc/svc.go --
 package svc

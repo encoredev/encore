@@ -1,5 +1,5 @@
 parse
-stdout 'rpc svc.API access=auth raw=false'
+output 'rpc svc.API access=auth raw=false'
 
 -- svc/svc.go --
 package svc

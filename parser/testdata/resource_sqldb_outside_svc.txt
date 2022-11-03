@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot define SQL Database resource in non-service package'
+err 'cannot define SQL Database resource in non-service package'
 
 -- pkg/pkg.go --
 package pkg

@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot reference API one.One outside of a service'
+err 'cannot reference API one.One outside of a service'
 
 -- one/one.go --
 package one

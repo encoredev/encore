@@ -2,7 +2,7 @@
 # even if it has no API's defined.
 
 parse
-stdout 'svc foobar '
+output 'svc foobar '
 
 -- foobar/svc.go --
 package foobar

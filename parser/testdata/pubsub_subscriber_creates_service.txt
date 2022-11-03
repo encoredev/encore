@@ -1,8 +1,8 @@
 # Verify that pub sub is parsed
 parse
-stdout 'pubsubTopic basic-topic'
-stdout 'pubsubPublisher basic-topic svc'
-stdout 'pubsubSubscriber basic-topic foo-service-sub foo'
+output 'pubsubTopic basic-topic'
+output 'pubsubPublisher basic-topic svc'
+output 'pubsubSubscriber basic-topic foo-service-sub foo'
 
 -- shared/topics.go --
 package shared

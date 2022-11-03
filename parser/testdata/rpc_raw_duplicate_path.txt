@@ -1,7 +1,7 @@
 # Verify that one can use custom paths for raw endpoints
 
 ! parse
-stderr 'invalid API path: cannot combine path segment ''svc.Bar'' with path ''/:foo'''
+err 'invalid API path: cannot combine path segment ''svc.Bar'' with path ''/:foo'''
 
 -- svc/svc.go --
 package svc
