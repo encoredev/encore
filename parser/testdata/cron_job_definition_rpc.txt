@@ -1,6 +1,6 @@
 # Verify the cron job definition
 ! parse
-stderr 'A cron job cannot be declared here, they can only be declared in a package level variable.'
+err 'A cron job cannot be declared here, they can only be declared in a package level variable.'
 
 -- svc/svc.go --
 package svc

@@ -1,5 +1,5 @@
 parse
-stdout 'svc foo dbs=bar,foo,moo'
+output 'svc foo dbs=bar,foo,moo'
 
 -- foo/foo.go --
 package foo

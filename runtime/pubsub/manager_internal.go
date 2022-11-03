@@ -11,10 +11,7 @@ import (
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/testsupport"
-	"encore.dev/pubsub/internal/aws"
-	"encore.dev/pubsub/internal/azure"
-	"encore.dev/pubsub/internal/gcp"
-	"encore.dev/pubsub/internal/nsq"
+	"encore.dev/pubsub/internal/types"
 )
 
 type Manager struct {
@@ -22,37 +19,33 @@ type Manager struct {
 	cancelCtx  func()
 	cfg        *config.Config
 	rt         *reqtrack.RequestTracker
+	apiSrv     *api.Server
 	ts         *testsupport.Manager
 	rootLogger zerolog.Logger
-	gcp        *gcp.Manager
-	nsq        *nsq.Manager
-	aws        *aws.Manager
-	azure      *azure.Manager
+	providers  []provider
 
 	publishCounter uint64
-
-	outstanding *outstandingMessageTracker
+	outstanding    *outstandingMessageTracker
 }
 
 func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport.Manager, server *api.Server, rootLogger zerolog.Logger) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
-	gcpMgr := gcp.NewManager(ctx, cfg, server)
-	nsqMgr := nsq.NewManager(ctx, cfg, rt)
-	awsMgr := aws.NewManager(ctx, cfg)
-	azureMgr := azure.NewManager(ctx, cfg)
-	return &Manager{
+	mgr := &Manager{
 		ctx:         ctx,
 		cancelCtx:   cancel,
 		cfg:         cfg,
 		rt:          rt,
+		apiSrv:      server,
 		ts:          ts,
 		rootLogger:  rootLogger,
-		gcp:         gcpMgr,
-		nsq:         nsqMgr,
-		azure:       azureMgr,
-		aws:         awsMgr,
 		outstanding: newOutstandingMessageTracker(),
 	}
+
+	for _, p := range providerRegistry {
+		mgr.providers = append(mgr.providers, p(mgr))
+	}
+
+	return mgr
 }
 
 func (mgr *Manager) Shutdown(force context.Context) {
@@ -120,4 +113,16 @@ func (t *outstandingMessageTracker) markDone() {
 
 func (t *outstandingMessageTracker) Done() <-chan struct{} {
 	return t.done
+}
+
+type provider interface {
+	ProviderName() string
+	Matches(providerCfg *config.PubsubProvider) bool
+	NewTopic(providerCfg *config.PubsubProvider, topicCfg *config.PubsubTopic) types.TopicImplementation
+}
+
+var providerRegistry []func(*Manager) provider
+
+func registerProvider(p func(mgr *Manager) provider) {
+	providerRegistry = append(providerRegistry, p)
 }

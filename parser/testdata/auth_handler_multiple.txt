@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot declare multiple auth handlers'
+err 'cannot declare multiple auth handlers'
 
 -- svc/svc.go --
 package svc

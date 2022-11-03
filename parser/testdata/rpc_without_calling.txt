@@ -1,6 +1,6 @@
 # Verify that not calling an endpoint is caught by the parser
 ! parse
-stderr 'cannot reference API endpoint one.One without calling it'
+err 'cannot reference API endpoint one.One without calling it'
 
 -- one/one.go --
 package one

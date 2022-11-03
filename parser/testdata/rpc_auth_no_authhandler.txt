@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot use "auth" access type'
+err 'cannot use "auth" access type'
 
 -- svc/svc.go --
 package svc

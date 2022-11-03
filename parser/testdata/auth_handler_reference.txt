@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot reference auth handler svc.MyAuth from another package'
+err 'cannot reference auth handler svc.MyAuth from another package'
 
 -- svc/svc.go --
 package svc

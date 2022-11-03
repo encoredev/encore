@@ -1,7 +1,7 @@
 parse
-stdout 'pubsubTopic basic-topic'
-stdout 'pubsubPublisher basic-topic svc'
-stdout 'pubsubSubscriber basic-topic basic-subscription svc'
+output 'pubsubTopic basic-topic'
+output 'pubsubPublisher basic-topic svc'
+output 'pubsubSubscriber basic-topic basic-subscription svc'
 
 -- svc/svc.go --
 package svc

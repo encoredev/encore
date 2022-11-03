@@ -1,12 +1,12 @@
 # Verify the cron job definition
 parse
-stdout 'rpc svc.Cron access=public raw=false path=/cron'
-stdout 'cronJob cronfooboo title="Cron Foo Boo"'
-stdout 'cronJob cronfoo title="Cron Foo Bar"'
-stdout 'cronJob cronfood title="Cron Food Bar"'
-stdout 'cronJob cronfoocious title="Cron Foo Bar Bazz"'
-stdout 'cronJob cron-every title="Cron Foo Bar Bazz"'
-stdout 'cronJob cron-external'
+output 'rpc svc.Cron access=public raw=false path=/cron'
+output 'cronJob cronfooboo title="Cron Foo Boo"'
+output 'cronJob cronfoo title="Cron Foo Bar"'
+output 'cronJob cronfood title="Cron Food Bar"'
+output 'cronJob cronfoocious title="Cron Foo Bar Bazz"'
+output 'cronJob cron-every title="Cron Foo Bar Bazz"'
+output 'cronJob cron-external'
 
 -- svc/svc.go --
 package svc

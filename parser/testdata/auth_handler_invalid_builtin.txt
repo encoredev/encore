@@ -1,5 +1,5 @@
 ! parse
-stderr 'second parameter must be of type string or a named type'
+err 'second parameter must be of type string or a named type'
 
 -- svc/svc.go --
 package svc

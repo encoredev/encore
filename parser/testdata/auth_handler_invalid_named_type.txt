@@ -1,5 +1,5 @@
 ! parse
-stderr 'Params must be a struct type'
+err 'Params must be a struct type'
 
 -- svc/svc.go --
 package svc

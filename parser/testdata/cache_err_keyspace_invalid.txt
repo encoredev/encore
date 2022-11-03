@@ -1,5 +1,5 @@
 ! parse
-stderr 'field Bar not used in KeyPattern'
+err 'field Bar not used in KeyPattern'
 
 -- svc/svc.go --
 package svc

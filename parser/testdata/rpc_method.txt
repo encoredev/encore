@@ -1,5 +1,5 @@
 parse
-stdout 'rpc svc.Str access=public .* recv=\*Service'
+output 'rpc svc.Str access=public .* recv=\*Service'
 
 -- svc/svc.go --
 package svc

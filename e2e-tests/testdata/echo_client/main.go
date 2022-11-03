@@ -87,9 +87,9 @@ func main() {
 
 	// Full marshalling test with randomised payloads
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	headerBytes := make([]byte, r.Intn(128))
-	queryBytes := make([]byte, r.Intn(128))
-	bodyBytes := make([]byte, r.Intn(128))
+	headerBytes := make([]byte, 1+r.Intn(128))
+	queryBytes := make([]byte, 1+r.Intn(128))
+	bodyBytes := make([]byte, 1+r.Intn(128))
 	r.Read(headerBytes)
 	r.Read(queryBytes)
 	r.Read(bodyBytes)

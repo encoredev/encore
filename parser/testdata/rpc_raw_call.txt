@@ -1,5 +1,5 @@
 ! parse
-stderr 'calling raw API endpoint svc.API from another endpoint is not yet supported'
+err 'calling raw API endpoint svc.API from another endpoint is not yet supported'
 
 -- svc/svc.go --
 package svc

@@ -1,5 +1,5 @@
 ! parse
-stderr 'type SomeOtherType is not defined as an encore:service struct'
+err 'type SomeOtherType is not defined as an encore:service struct'
 
 -- svc/svc.go --
 package svc

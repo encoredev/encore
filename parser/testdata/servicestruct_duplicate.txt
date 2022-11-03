@@ -1,5 +1,5 @@
 ! parse
-stderr 'duplicate encore:service directive'
+err 'duplicate encore:service directive'
 
 -- svc/svc.go --
 package svc
