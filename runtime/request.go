@@ -83,37 +83,37 @@ func (mgr *Manager) CurrentRequest() *Request {
 		}
 	}
 
-	opType := None
+	result := &Request{
+		Started: req.Start,
+	}
+
 	switch req.Type {
 	case model.RPCCall, model.AuthHandler:
-		opType = APICall
-	case model.PubSubMessage:
-		opType = PubSubMessage
-	}
+		data := req.RPCData
+		desc := data.Desc
 
-	pathParams := make(PathParams, len(req.PathSegments))
-	for i, param := range req.PathSegments {
-		pathParams[i].Name = param.Name
-		pathParams[i].Value = param.Value
-	}
+		result.Type = APICall
+		result.Service = desc.Service
+		result.Endpoint = desc.Endpoint
+		result.Payload = data.TypedPayload
 
-	var api *APIDesc
-	if d := req.RPCDesc; d != nil {
-		api = &APIDesc{
-			RequestType:  d.RequestType,
-			ResponseType: d.ResponseType,
-			Raw:          d.Raw,
+		result.PathParams = make(PathParams, len(data.PathParams))
+		for i, param := range data.PathParams {
+			result.PathParams[i].Name = param.Name
+			result.PathParams[i].Value = param.Value
 		}
+
+		result.API = &APIDesc{
+			RequestType:  desc.RequestType,
+			ResponseType: desc.ResponseType,
+			Raw:          desc.Raw,
+		}
+
+	case model.PubSubMessage:
+		result.Type = PubSubMessage
+		result.Service = req.MsgData.Service
+		result.Payload = req.MsgData.DecodedPayload
 	}
 
-	return &Request{
-		Type:       opType,
-		API:        api,
-		Service:    req.Service,
-		Endpoint:   req.Endpoint,
-		Started:    req.Start,
-		Path:       req.Path,
-		PathParams: pathParams,
-		Payload:    req.Payload,
-	}
+	return result
 }

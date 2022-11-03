@@ -30,7 +30,10 @@ var versionCmd = &cobra.Command{
 			ver, err = update.Check(ctx)
 		}
 
+		// NOTE: This output format is relied on by the Encore IntelliJ plugin.
+		// Don't change this without considering its impact on that plugin.
 		fmt.Fprintln(os.Stdout, "encore version", version.Version)
+
 		if err != nil {
 			fatalf("could not check for update: %v", err)
 		} else if ver.IsNewer(version.Version) {

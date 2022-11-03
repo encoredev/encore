@@ -15,12 +15,15 @@ import (
 )
 
 // New creates a new RequestTracker.
-// If platform is nil no traces are sent.
-func New(rootLogger zerolog.Logger, platform *platform.Client, trace bool) *RequestTracker {
+//
+// If traceProvider is nil no traces are generated.
+//
+// If platform is nil no traces are sent (but are still generated if traceProvider is non-nil).
+func New(rootLogger zerolog.Logger, platform *platform.Client, traceProvider trace.Factory) *RequestTracker {
 	return &RequestTracker{
 		platform:   platform,
 		impl:       newImpl(),
-		trace:      trace,
+		trace:      traceProvider,
 		rootLogger: rootLogger,
 	}
 }
@@ -28,12 +31,12 @@ func New(rootLogger zerolog.Logger, platform *platform.Client, trace bool) *Requ
 type RequestTracker struct {
 	platform   *platform.Client
 	impl       reqTrackImpl
-	trace      bool // whether tracing is enabled
+	trace      trace.Factory // nil if tracing is not enabled
 	rootLogger zerolog.Logger
 }
 
 func (t *RequestTracker) BeginOperation() {
-	t.beginOp(t.trace)
+	t.beginOp(true /* always trace by default */)
 }
 
 func (t *RequestTracker) FinishOperation() {
@@ -51,11 +54,13 @@ func (t *RequestTracker) BeginRequest(req *model.Request) {
 // copyReqInfoFromParent copies over relevant request from the parent request.
 // If the relevant fields are already set on next they are not copied over.
 func copyReqInfoFromParent(next, prev *model.Request) {
-	if next.UID == "" {
-		next.UID = prev.UID
-	}
-	if next.AuthData == nil {
-		next.AuthData = prev.AuthData
+	if prevData, nextData := prev.RPCData, next.RPCData; prevData != nil && nextData != nil {
+		if nextData.UserID == "" {
+			nextData.UserID = prevData.UserID
+		}
+		if nextData.AuthData == nil {
+			nextData.AuthData = prevData.AuthData
+		}
 	}
 	if next.ParentID == (model.SpanID{}) {
 		next.ParentID = prev.SpanID
@@ -74,7 +79,7 @@ func (t *RequestTracker) FinishRequest() {
 
 type Current struct {
 	Req   *model.Request // can be nil
-	Trace *trace.Log     // can be nil
+	Trace trace.Logger   // can be nil
 	Goctr uint32         // zero if Req == nil && Trace == nil
 }
 
@@ -90,7 +95,7 @@ func (t *RequestTracker) Logger() *zerolog.Logger {
 	return &t.rootLogger
 }
 
-func (t *RequestTracker) sendTrace(tr *trace.Log) {
+func (t *RequestTracker) sendTrace(tr trace.Logger) {
 	// Do this first so we clear the buffer even if t.platform == nil
 	data := tr.GetAndClear()
 
