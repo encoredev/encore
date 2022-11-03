@@ -302,7 +302,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 				CloudType:  cueutil.CloudType_Local,
 			},
 			Parse:     parse,
-			BuildTags: []string{"encore_local"},
+			BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 			OpTracker: tracker,
 		}
 

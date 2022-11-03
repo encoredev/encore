@@ -1,5 +1,5 @@
 parse
-stdout 'svc.API access=private raw=false'
+output 'svc.API access=private raw=false'
 
 -- svc/svc.go --
 package svc

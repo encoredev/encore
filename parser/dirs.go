@@ -7,11 +7,13 @@ import (
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"encr.dev/parser/est"
@@ -20,7 +22,7 @@ import (
 // walkFunc is the callback called by walkDirs to process a directory.
 // dir is the path to the current directory; relPath is the (slash-separated)
 // relative path from the original root dir.
-type walkFunc func(dir, relPath string, files []os.FileInfo) error
+type walkFunc func(dir, relPath string, files []fs.DirEntry) error
 
 // walkDirs is like filepath.Walk but it calls walkFn once for each directory and not for individual files.
 // It also reports both the full path and the path relative to the given root dir.
@@ -33,13 +35,14 @@ func walkDirs(root string, walkFn walkFunc) error {
 // dir is the current directory path, and rel is the relative path from the original root.
 // rel is always in slash form, while dir uses the OS-native filepath separator.
 func walkDir(dir, rel string, walkFn walkFunc) error {
-	entries, err := ioutil.ReadDir(dir)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
 
 	// Split the files and dirs
-	var dirs, files []os.FileInfo
+	files := make([]fs.DirEntry, 0, len(entries))
+	var dirs []fs.DirEntry
 	for _, entry := range entries {
 		if entry.IsDir() {
 			dirs = append(dirs, entry)
@@ -63,18 +66,7 @@ func walkDir(dir, rel string, walkFn walkFunc) error {
 }
 
 // parseDir is like go/parser.ParseDir but it constructs *est.File objects instead.
-func parseDir(buildContext build.Context, fset *token.FileSet, dir, relPath string, filter func(os.FileInfo) bool, mode goparser.Mode) (pkgs map[string]*ast.Package, files []*est.File, err error) {
-	fd, err := os.Open(dir)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer fd.Close()
-
-	list, err := fd.Readdir(-1)
-	if err != nil {
-		return nil, nil, err
-	}
-
+func parseDir(buildContext build.Context, fset *token.FileSet, dir string, list []fs.DirEntry, filter func(entry fs.DirEntry) bool, mode goparser.Mode) (pkgs map[string]*ast.Package, files []*est.File, err error) {
 	// Sort the slice so that we have a stable order to ensure deterministic metadata.
 	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
 
@@ -128,6 +120,7 @@ func parseDir(buildContext build.Context, fset *token.FileSet, dir, relPath stri
 				Name:       d.Name(),
 				AST:        src,
 				Token:      tokFile,
+				Imports:    getFileImports(src),
 				Contents:   contents,
 				Path:       filename,
 				References: make(map[ast.Node]*est.Node),
@@ -137,4 +130,14 @@ func parseDir(buildContext build.Context, fset *token.FileSet, dir, relPath stri
 	}
 
 	return pkgs, files, errors.Err()
+}
+
+func getFileImports(f *ast.File) map[string]bool {
+	imports := make(map[string]bool)
+	for _, s := range f.Imports {
+		if path, err := strconv.Unquote(s.Path.Value); err == nil {
+			imports[path] = true
+		}
+	}
+	return imports
 }

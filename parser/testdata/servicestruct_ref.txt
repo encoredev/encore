@@ -1,5 +1,5 @@
 ! parse
-stderr 'cannot reference encore:service struct type svc.Service from another service'
+err 'cannot reference encore:service struct type svc.Service from another service'
 
 -- svc/svc.go --
 package svc

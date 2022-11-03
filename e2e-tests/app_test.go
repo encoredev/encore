@@ -205,7 +205,7 @@ func testBuild(t testing.TB, appRoot string) *compiler.Result {
 			EnvType:    cueutil.EnvType_Development,
 			CloudType:  cueutil.CloudType_Local,
 		},
-		BuildTags: []string{"encore_local"},
+		BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 	})
 	if err != nil {
 		fmt.Println(err.Error())

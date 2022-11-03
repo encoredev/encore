@@ -42,19 +42,18 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	// Look up the server config
 	provider := mgr.cfg.Runtime.PubsubProviders[topic.ProviderID]
 
-	switch {
-	case provider.NSQ != nil:
-		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.nsq.NewTopic(provider.NSQ, topic)}
-	case provider.GCP != nil:
-		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.gcp.NewTopic(provider.GCP, topic)}
-	case provider.AWS != nil:
-		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.aws.NewTopic(provider.AWS, topic)}
-	case provider.Azure != nil:
-		return &Topic[T]{mgr: mgr, topicCfg: topic, topic: mgr.azure.NewTopic(provider.Azure, topic)}
-	default:
-		mgr.rootLogger.Fatal().Msgf("unsupported PubsubProvider type for server idx: %v", topic.ProviderID)
-		panic("unsupported pubsub server type")
+	tried := make([]string, 0, len(mgr.providers))
+	for _, p := range mgr.providers {
+		if p.Matches(provider) {
+			impl := p.NewTopic(provider, topic)
+			return &Topic[T]{mgr: mgr, topicCfg: topic, topic: impl}
+		}
+		tried = append(tried, p.ProviderName())
 	}
+
+	mgr.rootLogger.Fatal().Msgf("unsupported PubSub provider for server[%d], tried: %v",
+		topic.ProviderID, tried)
+	panic("unreachable")
 }
 
 // Publish will publish a message to the topic and returns a unique message ID for the message.

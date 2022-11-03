@@ -1,6 +1,6 @@
 # Verify that pub sub is parsed
 ! parse
-stderr 'PubSub message attributes must not be prefixed with "encore".'
+err 'PubSub message attributes must not be prefixed with "encore".'
 
 -- shared/topics.go --
 package shared

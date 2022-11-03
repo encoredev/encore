@@ -1,11 +1,11 @@
 # Verify that pub sub is parsed
 parse
-stdout 'pubsubTopic basic-topic'
-stdout 'pubsubTopic another-topic'
-stdout 'pubsubPublisher basic-topic foo'
-stdout 'pubsubSubscriber basic-topic basic-subscription svc 45000000000 396000000000000 3 8000000000 1920000000000'
-stdout 'pubsubSubscriber basic-topic another-subscription svc 30000000000 604800000000000 100 10000000000 600000000000'
-stdout 'pubsubSubscriber basic-topic a-third-subscription foo 1000000000 119999999000 47 14399999998000 17999999997000'
+output 'pubsubTopic basic-topic'
+output 'pubsubTopic another-topic'
+output 'pubsubPublisher basic-topic foo'
+output 'pubsubSubscriber basic-topic basic-subscription svc 45000000000 396000000000000 3 8000000000 1920000000000'
+output 'pubsubSubscriber basic-topic another-subscription svc 30000000000 604800000000000 100 10000000000 600000000000'
+output 'pubsubSubscriber basic-topic a-third-subscription foo 1000000000 119999999000 47 14399999998000 17999999997000'
 
 -- shared/topics.go --
 package shared

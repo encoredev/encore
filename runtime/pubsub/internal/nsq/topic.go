@@ -40,11 +40,17 @@ type topic struct {
 	idSeq     uint32
 }
 
-func (mgr *Manager) NewTopic(server *config.NSQProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) ProviderName() string { return "nsq" }
+
+func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
+	return cfg.NSQ != nil
+}
+
+func (mgr *Manager) NewTopic(server *config.PubsubProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
 	return &topic{
 		mgr:       mgr,
 		name:      topicCfg.EncoreName,
-		addr:      server.Host,
+		addr:      server.NSQ.Host,
 		producer:  nil,
 		consumers: make(map[string]*nsq.Consumer),
 		idSeq:     0,

@@ -4,6 +4,8 @@ import (
 	"go/ast"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/parser/dnsname"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
@@ -15,25 +17,48 @@ import (
 // These are defined by calls to registerResource and registerResourceCreationParser.
 func (p *parser) parseResources() {
 	maxPhases := 0
+	pkgsByPhase := make(map[int][]string)
+
 	for _, res := range resourceTypes {
 		if res.PhaseNum > maxPhases {
 			maxPhases = res.PhaseNum
 		}
+		if !slices.Contains(pkgsByPhase[res.PhaseNum], res.PkgPath) {
+			pkgsByPhase[res.PhaseNum] = append(pkgsByPhase[res.PhaseNum], res.PkgPath)
+		}
 	}
 
 	for phase := 0; phase <= maxPhases; phase++ {
+		interestingPkgs := pkgsByPhase[phase]
 		for _, pkg := range p.pkgs {
+			// If the package does not contain any imports we care about in this phase, skip it.
+			if !mapContainsAny(pkg.Imports, interestingPkgs) {
+				continue
+			}
+
 			for _, file := range pkg.Files {
+				if !mapContainsAny(file.Imports, interestingPkgs) {
+					continue
+				}
 				walker.Walk(file.AST, &resourceCreationVisitor{p, file, p.names, phase})
 			}
 		}
 
 		if p.errors.Len() > 0 {
-			// Stop parsing phases if we encountere errors, as future phases will probably have errors which end up being
-			// caused by these errors (such as pubusb.Subscriptions needing pubsub.Topics to be parsed first)
+			// Stop parsing phases if we encounter errors, as future phases will probably have errors which end up being
+			// caused by these errors (such as pubsub.Subscriptions needing pubsub.Topics to be parsed first)
 			break
 		}
 	}
+}
+
+func mapContainsAny(imports map[string]bool, pkgsPaths []string) bool {
+	for _, pkg := range pkgsPaths {
+		if imports[pkg] {
+			return true
+		}
+	}
+	return false
 }
 
 type resourceCreationVisitor struct {

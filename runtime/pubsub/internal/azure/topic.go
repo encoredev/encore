@@ -32,6 +32,12 @@ func NewManager(ctx context.Context, cfg *config.Config) *Manager {
 	return &Manager{ctx: ctx, cfg: cfg, _clients: map[string]*azservicebus.Client{}}
 }
 
+func (mgr *Manager) ProviderName() string { return "azure" }
+
+func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
+	return cfg.Azure != nil
+}
+
 type topic struct {
 	mgr        *Manager
 	client     *azservicebus.Client
@@ -42,9 +48,9 @@ type topic struct {
 
 var _ types.TopicImplementation = (*topic)(nil)
 
-func (mgr *Manager) NewTopic(providerCfg *config.AzureServiceBusProvider, cfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(providerCfg *config.PubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
-	client := mgr.getClient(providerCfg)
+	client := mgr.getClient(providerCfg.Azure)
 	return &topic{mgr: mgr, client: client, topicCfg: cfg}
 }
 
