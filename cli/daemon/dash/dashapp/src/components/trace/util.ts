@@ -20,6 +20,13 @@ export function svcColor(svc: string): [string, string] {
   return [unselected[idx], selected[idx]];
 }
 
+export function idxColor(idx: number): [string, string] {
+  const n = unselected.length;
+  idx = idx % n;
+  if (idx < 0) idx += n;
+  return [unselected[idx], selected[idx]];
+}
+
 function strhash(s: string): number {
   let hash = 0;
   for (var i = 0; i < s.length; i++) {

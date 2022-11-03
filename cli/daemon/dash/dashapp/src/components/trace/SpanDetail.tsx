@@ -1,6 +1,13 @@
 import { ModeSpec, ModeSpecOptions } from "codemirror";
 import { DateTime, Duration } from "luxon";
-import React, { FC, FunctionComponent, PropsWithChildren, useRef, useState } from "react";
+import React, {
+  CSSProperties,
+  FC,
+  FunctionComponent,
+  PropsWithChildren,
+  useRef,
+  useState,
+} from "react";
 import { JsonViewer } from "@textea/json-viewer";
 import CM from "~c/api/cm/CM";
 import { Icon, icons } from "~c/icons";
@@ -19,7 +26,7 @@ import {
   Stack,
   Trace,
 } from "./model";
-import { latencyStr, svcColor } from "./util";
+import { idxColor, latencyStr, svcColor } from "./util";
 
 interface Props {
   trace: Trace;
@@ -644,29 +651,26 @@ const GoroutineDetail: FunctionComponent<{
             const clsid = `ev-${req.id}-${g.goid}-${i}`;
 
             if (ev.type === "DBQuery") {
-              const [color, highlightColor] = svcColor(
-                ev.txid !== null ? "tx:" + ev.txid : "query:" + ev.start_time
-              );
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    data-testid={clsid}
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  data-testid={clsid}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "RPCCall") {
               const defLoc = props.trace.locations[ev.def_loc];
@@ -674,94 +678,88 @@ const GoroutineDetail: FunctionComponent<{
               if ("rpc_def" in defLoc) {
                 svcName = defLoc.rpc_def.service_name;
               }
-              const [color, highlightColor] = svcColor(svcName);
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "HTTPCall") {
-              const [color, highlightColor] = svcColor(ev.url);
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "PubSubPublish") {
-              const [color, highlightColor] = svcColor(
-                ev.message_id ? "msg_id:" + ev.message_id : "topic:" + ev.topic
-              );
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "CacheOp") {
-              const [color, highlightColor] = svcColor(ev.operation);
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             }
           })}
@@ -977,9 +975,7 @@ const DBQueryTooltip: FunctionComponent<{
           Error
         </h4>
         {q.err !== null ? (
-          <pre className="overflow-auto rounded bg-black p-2 text-sm text-white">
-            {decodeBase64(q.err)}
-          </pre>
+          <CodeBox error>{decodeBase64(q.err)}</CodeBox>
         ) : (
           <div className="text-gray-700 text-sm">Completed successfully.</div>
         )}
