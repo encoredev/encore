@@ -18,6 +18,7 @@ import (
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/auth"
 	appCfg "encore.dev/config"
+	"encore.dev/et"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -41,6 +42,7 @@ type App struct {
 	pubsub *pubsub.Manager
 	cache  *cache.Manager
 	config *appCfg.Manager
+	et     *et.Manager
 }
 
 func (app *App) Cfg() *runtimeCfg.Config            { return app.cfg }
@@ -91,11 +93,13 @@ func New(p *NewParams) *App {
 	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
 	cache := cache.NewManager(cfg, rt, ts, json)
 	appCfg := appCfg.NewManager(rt, json)
+	etMgr := et.NewManager(cfg, rt)
 
 	app := &App{
 		cfg, rt, json, rootLogger, apiSrv, service, ts,
 		shutdown,
 		encore, auth, rlog, sqldb, pubsub, cache, appCfg,
+		etMgr,
 	}
 
 	// If this is running inside an Encore app, initialize the singletons

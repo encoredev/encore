@@ -55,8 +55,10 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	if data.UserID != "" {
 		logCtx = logCtx.Str("uid", string(data.UserID))
 	}
-	if prev := s.rt.Current().Req; prev != nil && prev.Test != nil {
-		logCtx = logCtx.Str("test", prev.Test.Current.Name())
+
+	prevReq := s.rt.Current().Req
+	if prevReq != nil && prevReq.Test != nil {
+		logCtx = logCtx.Str("test", prevReq.Test.Current.Name())
 	}
 
 	reqLogger := logCtx.Logger()
@@ -66,8 +68,8 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	if opts, _ := ctx.Value(callOptionsKey).(*CallOptions); opts != nil {
 		if a := opts.Auth; a != nil {
 			authDataType := s.cfg.Static.AuthData
-			if err := checkAuthData(authDataType, a.UID, a.UserData); err != nil {
-				return nil, err
+			if err := CheckAuthData(authDataType, a.UID, a.UserData); err != nil {
+				return nil, fmt.Errorf("invalid API call options: %v", err)
 			}
 			data.UserID = a.UID
 			data.AuthData = a.UserData
@@ -171,24 +173,26 @@ func GetCallOptions(ctx context.Context) *CallOptions {
 	return &CallOptions{}
 }
 
-func checkAuthData(authDataType reflect.Type, uid model.UID, userData interface{}) error {
+// CheckAuthData checks whether the given auth information is valid
+// based on the configured auth handler's data type.
+func CheckAuthData(authDataType reflect.Type, uid model.UID, userData any) error {
 	if uid == "" && userData != nil {
-		return fmt.Errorf("invalid API call options: empty uid and non-empty auth data")
+		return fmt.Errorf("empty uid and non-empty auth data")
 	}
 
 	if authDataType != nil {
+		tt := reflect.TypeOf(userData)
 		if uid != "" && userData == nil {
-			return fmt.Errorf("invalid API call options: missing auth data")
+			return fmt.Errorf("missing auth data (auth handler specifies auth data of type %s)", tt)
 		} else if userData != nil {
-			tt := reflect.TypeOf(userData)
 			if tt != authDataType {
-				return fmt.Errorf("invalid API call options: wrong type for auth data (got %s, expected %s)",
+				return fmt.Errorf("wrong type for auth data (got %s, expected %s)",
 					tt, authDataType)
 			}
 		}
 	} else {
 		if userData != nil {
-			return fmt.Errorf("invalid API call options: non-nil auth data (auth handler specifies no auth data)")
+			return fmt.Errorf("unexpected auth data provided (auth handler specifies no auth data)")
 		}
 	}
 

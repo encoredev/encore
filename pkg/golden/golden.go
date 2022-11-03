@@ -58,8 +58,15 @@ func TestAgainst(t testing.TB, goldenFileName string, output string) {
 // Packages that want to integrate golden testing should themselves
 // implement TestMain and call this function.
 func TestMain(m *testing.M) {
+	Setup()
+	os.Exit(m.Run())
+}
+
+// Setup sets up the golden testing functionality for the package.
+// It can be called instead of TestMain if a package wants to do multiple
+// main function handling.
+func Setup() {
 	flag.BoolVar(&update, "golden-update", false, "update golden files")
 	flag.Parse()
 	testMainRan = true
-	os.Exit(m.Run())
 }

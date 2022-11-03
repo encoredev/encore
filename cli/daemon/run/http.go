@@ -49,7 +49,11 @@ func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Requ
 			// explicitly disable User-Agent so it's not set to default value
 			r.Header.Set("User-Agent", "")
 		}
-		addAuthKeyToRequest(r, p.authKey)
+
+		// Add the auth key unless the test header is set.
+		if r.Header.Get(TestHeaderDisablePlatformAuth) == "" {
+			addAuthKeyToRequest(r, p.authKey)
+		}
 	}
 
 	// Create a transport that connects over yamux.
@@ -81,3 +85,5 @@ func addAuthKeyToRequest(req *http.Request, authKey config.EncoreAuthKey) {
 	auth := base64.RawStdEncoding.EncodeToString(bytes)
 	req.Header.Set("X-Encore-Auth", auth)
 }
+
+const TestHeaderDisablePlatformAuth = "X-Encore-Test-Disable-Platform-Auth"

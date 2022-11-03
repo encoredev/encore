@@ -61,7 +61,15 @@ func copyReqInfoFromParent(next, prev *model.Request) {
 		if nextData.AuthData == nil {
 			nextData.AuthData = prevData.AuthData
 		}
+	} else if nextData != nil && prev.Test != nil {
+		if nextData.UserID == "" {
+			nextData.UserID = prev.Test.UserID
+		}
+		if nextData.AuthData == nil {
+			nextData.AuthData = prev.Test.AuthData
+		}
 	}
+
 	if next.ParentID == (model.SpanID{}) {
 		next.ParentID = prev.SpanID
 	}
