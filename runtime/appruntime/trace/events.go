@@ -120,7 +120,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 		tb.String(string(data.UserID))
 
 		if desc.Raw {
-			l.logHeaders(&tb, data.RawHeaders)
+			l.logHeaders(&tb, data.RequestHeaders)
 		} else {
 			tb.ByteString(data.NonRawPayload)
 		}

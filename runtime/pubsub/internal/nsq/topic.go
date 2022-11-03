@@ -52,7 +52,8 @@ func (mgr *Manager) NewTopic(server *config.NSQProvider, topicCfg *config.Pubsub
 }
 
 // messageWrapper is a local representation of a topic published to NSQ.
-// it wraps the raw data with an ID and an Attribute map
+// it wraps the raw data with an ID and an Attribute map.
+// It must be synchronized with the e2e-tests/testscript_test.go file.
 type messageWrapper struct {
 	ID         string
 	Attributes map[string]string

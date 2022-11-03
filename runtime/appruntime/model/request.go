@@ -96,9 +96,12 @@ type RPCData struct {
 	// This is never set for raw requests, as the body hasn't been read yet.
 	NonRawPayload []byte
 
-	// RawHeaders specifies the HTTP headers from the incoming request,
-	// for raw endpoints only.
-	RawHeaders http.Header
+	// RequestHeaders contains the HTTP headers from the incoming request.
+	RequestHeaders http.Header
+
+	// FromEncorePlatform specifies whether the request was an
+	// authenticated request from the Encore Platform.
+	FromEncorePlatform bool
 }
 
 type PubSubMsgData struct {
@@ -117,6 +120,11 @@ type TestData struct {
 	Current *testing.T         // The current test running
 	Parent  *Request           // The parent request (if we're looking at sub-tests)
 	Service string             // the service being tested, if any
+
+	// UserID and AuthData are the test-level auth information,
+	// if overridden.
+	UserID   UID
+	AuthData any
 
 	Wait sync.WaitGroup // If we're spun up async go routines, this wait allows to the test to wait for them to end
 }

@@ -3,11 +3,8 @@ package tests
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -17,17 +14,11 @@ import (
 	"testing"
 
 	qt "github.com/frankban/quicktest"
-	"github.com/hashicorp/yamux"
 	"go.uber.org/goleak"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/pubsub"
-	"encr.dev/cli/daemon/redis"
 	. "encr.dev/cli/daemon/run"
-	"encr.dev/compiler"
 	"encr.dev/internal/clientgen"
-	"encr.dev/internal/env"
-	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/golden"
 )
 
@@ -73,60 +64,12 @@ type NonBasicResponse struct {
 	AuthQuery  []int
 }
 
-func TestMain(m *testing.M) {
-	golden.TestMain(m)
-}
-
 // TestEndToEndWithApp tests that (*app).startProc correctly starts Encore processes
 // for sending requests.
 func TestEndToEndWithApp(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	c := qt.New(t)
-
-	ln, err := net.Listen("tcp", "localhost:0")
-	c.Assert(err, qt.IsNil)
-	defer ln.Close()
-
-	app := apps.NewInstance("/", "slug", "slug")
-	run := &Run{ID: GenID(), ListenAddr: ln.Addr().String(), App: app}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	nsqd := &pubsub.NSQDaemon{}
-	err = nsqd.Start()
-	c.Assert(err, qt.IsNil)
-	defer nsqd.Stop()
-
-	redisSrv := redis.New()
-	err = redisSrv.Start()
-	c.Assert(err, qt.IsNil)
-	defer redisSrv.Stop()
-
-	build := testBuild(c, "./testdata/echo")
-	wantEnv := []string{"FOO=bar", "BAR=baz"}
-	p, err := run.StartProc(&StartProcParams{
-		Ctx:            ctx,
-		BuildDir:       build.Dir,
-		BinPath:        build.Exe,
-		Meta:           build.Parse.Meta,
-		RuntimePort:    0,
-		DBProxyPort:    0,
-		Logger:         testRunLogger{t},
-		Environ:        wantEnv,
-		NSQDaemon:      nsqd,
-		Redis:          redisSrv,
-		ServiceConfigs: build.Configs,
-	})
-	c.Assert(err, qt.IsNil)
-	defer p.Close()
-	run.StoreProc(p)
-
-	for serviceName, config := range build.Configs {
-		wantEnv = append(wantEnv, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
-	}
-
-	// start proxying TCP requests to the running application
-	go proxyTcp(ctx, ln, p.Client)
+	app := RunApp(c, "./testdata/echo", nil)
+	run := app.Run
 
 	// Use golden to test that the generated clients are as expected for the echo test app
 	for lang, path := range map[clientgen.Lang]string{
@@ -134,7 +77,7 @@ func TestEndToEndWithApp(t *testing.T) {
 		clientgen.LangTypeScript: "client.ts",
 		clientgen.LangJavascript: "client.js",
 	} {
-		client, err := clientgen.Client(lang, "slug", build.Parse.Meta)
+		client, err := clientgen.Client(lang, "slug", app.Meta)
 		if err != nil {
 			fmt.Println(err.Error())
 			c.FailNow()
@@ -164,7 +107,7 @@ func TestEndToEndWithApp(t *testing.T) {
 			req := httptest.NewRequest("POST", "/echo.Publish", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
-			stats, err := nsqd.Stats()
+			stats, err := app.NSQ.Stats()
 			c.Assert(err, qt.IsNil)
 			c.Assert(len(stats.Producers), qt.Equals, 1)
 			c.Assert(len(stats.Topics), qt.Equals, 1)
@@ -184,7 +127,6 @@ func TestEndToEndWithApp(t *testing.T) {
 
 		// Send an empty request
 		c.Run("empty request", func(c *qt.C) {
-			c.Assert(err, qt.IsNil)
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("POST", "/echo.EmptyEcho", bytes.NewReader([]byte("{}")))
 			run.ServeHTTP(w, req)
@@ -249,7 +191,6 @@ func TestEndToEndWithApp(t *testing.T) {
 
 		// Send a request with only header parameters
 		c.Run("only headers", func(c *qt.C) {
-			c.Assert(err, qt.IsNil)
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.HeadersEcho", nil)
 			req.Header.Add("x-int", "1")
@@ -369,7 +310,7 @@ func TestEndToEndWithApp(t *testing.T) {
 			req := httptest.NewRequest("GET", "/echo.Env", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
-			c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string][]string{"Env": wantEnv})
+			c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string][]string{"Env": app.Env})
 		}
 
 		// Call the app metadata endpoint and make sure we get correct data back
@@ -513,7 +454,7 @@ func TestEndToEndWithApp(t *testing.T) {
 				c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string]any{"Vals": []string{"foo", "bar"}})
 			}
 
-			keys := redisSrv.Miniredis().Keys()
+			keys := app.Redis.Miniredis().Keys()
 			c.Assert(keys, qt.DeepEquals, []string{
 				"int/one",
 				"int/two",
@@ -549,7 +490,7 @@ func TestEndToEndWithApp(t *testing.T) {
 	})
 
 	c.Run("go_generated_client", func(c *qt.C) {
-		cmd := exec.Command("go", "run", ".", ln.Addr().String())
+		cmd := exec.Command("go", "run", ".", app.Addr)
 		cmd.Dir = filepath.Join("testdata", "echo_client")
 
 		out, err := cmd.CombinedOutput()
@@ -560,7 +501,7 @@ func TestEndToEndWithApp(t *testing.T) {
 		npmCommandsToRun := [][]string{
 			{"install", "--prefer-offline", "--no-audit"},
 			{"run", "lint"},
-			{"run", "test", "--", ln.Addr().String()},
+			{"run", "test", "--", app.Addr},
 		}
 
 		for _, args := range npmCommandsToRun {
@@ -576,7 +517,7 @@ func TestEndToEndWithApp(t *testing.T) {
 		npmCommandsToRun := [][]string{
 			{"install", "--prefer-offline", "--no-audit"},
 			{"run", "lint"},
-			{"run", "test:js", "--", ln.Addr().String()},
+			{"run", "test:js", "--", app.Addr},
 		}
 
 		for _, args := range npmCommandsToRun {
@@ -615,74 +556,4 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 	cancel()
 	<-p.Done()
-}
-
-// testBuild is a helper that compiles the app situated at appRoot
-// and cleans up the build dir during test cleanup.
-func testBuild(c *qt.C, appRoot string) *compiler.Result {
-	// Generate use facing code
-	err := compiler.GenUserFacing(appRoot)
-
-	// Then compile the app
-	wd, err := os.Getwd()
-	c.Assert(err, qt.IsNil)
-	runtimePath := filepath.Join(wd, "../runtime")
-	build, err := compiler.Build(appRoot, &compiler.Config{
-		EncoreRuntimePath: runtimePath,
-		EncoreGoRoot:      env.EncoreGoRoot(),
-		Meta: &cueutil.Meta{
-			APIBaseURL: "http://what?",
-			EnvName:    "end_to_end_test",
-			EnvType:    cueutil.EnvType_Development,
-			CloudType:  cueutil.CloudType_Local,
-		},
-		BuildTags: []string{"encore_local"},
-	})
-	if err != nil {
-		fmt.Println(err.Error())
-		c.FailNow()
-	}
-	c.Cleanup(func() {
-		os.RemoveAll(build.Dir)
-	})
-	return build
-}
-
-// testRunLogger implements runLogger by calling t.Log.
-type testRunLogger struct {
-	t *testing.T
-}
-
-func (l testRunLogger) RunStdout(r *Run, line []byte) {
-	line = bytes.TrimSuffix(line, []byte{'\n'})
-	l.t.Log(string(line))
-}
-
-func (l testRunLogger) RunStderr(r *Run, line []byte) {
-	line = bytes.TrimSuffix(line, []byte{'\n'})
-	l.t.Log(string(line))
-}
-
-func proxyTcp(ctx context.Context, ln net.Listener, client *yamux.Session) {
-	for ctx.Err() == nil {
-		conn, err := ln.Accept()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				return
-			}
-
-			fmt.Printf("unable to accept connection: %+v", err)
-			continue
-		}
-
-		clientConn, err := client.Open()
-		if err != nil {
-			fmt.Printf("unable to open connection to running app: %+v", err)
-			_ = conn.Close()
-			continue
-		}
-
-		go io.Copy(conn, clientConn)
-		go io.Copy(clientConn, conn)
-	}
 }

@@ -136,24 +136,20 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		payload = d.ReqUserPayload(reqData)
 	}
 
-	var rawRequestHeaders http.Header = nil
-	if d.Raw {
-		rawRequestHeaders = c.req.Header
-	}
-
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
 		Type:   model.RPCCall,
 		DefLoc: d.DefLoc,
 
 		Data: &model.RPCData{
-			Desc:         d.rpcDesc(),
-			HTTPMethod:   c.req.Method,
-			Path:         c.req.URL.Path,
-			PathParams:   d.toNamedParams(params),
-			TypedPayload: payload,
-			UserID:       c.auth.UID,
-			AuthData:     c.auth.UserData,
-			RawHeaders:   rawRequestHeaders,
+			Desc:               d.rpcDesc(),
+			HTTPMethod:         c.req.Method,
+			Path:               c.req.URL.Path,
+			PathParams:         d.toNamedParams(params),
+			TypedPayload:       payload,
+			UserID:             c.auth.UID,
+			AuthData:           c.auth.UserData,
+			RequestHeaders:     c.req.Header,
+			FromEncorePlatform: IsEncorePlatformRequest(c.req.Context()),
 		},
 	})
 	if err != nil {
@@ -379,6 +375,9 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 				PathParams:   d.toNamedParams(params),
 				TypedPayload: d.ReqUserPayload(req),
 				Desc:         d.rpcDesc(),
+
+				FromEncorePlatform: false,
+				RequestHeaders:     nil, // not set right now for internal requests
 			},
 
 			SpanID: call.SpanID,

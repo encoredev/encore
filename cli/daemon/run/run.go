@@ -132,9 +132,9 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	return run, nil
 }
 
-// runLogger is the interface for listening to run logs.
+// RunLogger is the interface for listening to run logs.
 // The log methods are called for each logline on stdout and stderr respectively.
-type runLogger interface {
+type RunLogger interface {
 	RunStdout(r *Run, line []byte)
 	RunStderr(r *Run, line []byte)
 }
@@ -407,7 +407,7 @@ type StartProcParams struct {
 	SQLDBCluster   *sqldb.Cluster    // nil means no cluster
 	NSQDaemon      *pubsub.NSQDaemon // nil means no pubsub
 	Redis          *redis.Server     // nil means no redis
-	Logger         runLogger
+	Logger         RunLogger
 	Environ        []string
 }
 

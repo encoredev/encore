@@ -9,6 +9,7 @@ import (
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/beta/auth"
 	"encore.dev/config"
+	"encore.dev/et"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -26,4 +27,5 @@ func initSingletonsForEncoreApp(a *App) {
 	pubsub.Singleton = a.pubsub
 	cache.Singleton = a.cache
 	config.Singleton = a.config
+	et.Singleton = a.et
 }

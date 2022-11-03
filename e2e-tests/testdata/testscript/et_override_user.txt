@@ -1,0 +1,80 @@
+test
+
+-- svc/svc_test.go --
+package svc
+
+import (
+    "context"
+    "testing"
+    "encore.dev/beta/auth"
+    "encore.dev/et"
+)
+
+func TestOverrideUserInfo(t *testing.T) {
+    curr, _ := auth.UserID()
+    if curr != "" {
+        t.Fatalf("got uid %q, want %q", curr, "")
+    }
+
+    et.OverrideUserInfo("foo", nil)
+
+    curr, _ = auth.UserID()
+    if curr != "foo" {
+        t.Fatalf("got uid %q, want %q", curr, "foo")
+    }
+}
+
+func TestOverrideUserInfo_ResetBetweenTests(t *testing.T) {
+    curr, _ := auth.UserID()
+    if curr != "" {
+        t.Fatalf("got uid %q, want %q", curr, "")
+    }
+}
+
+func TestOverrideUserInfo_PropagatesToAPICalls(t *testing.T) {
+    resp, err := GetUser(context.Background())
+    if err != nil {
+        t.Fatal(err)
+    } else if resp.UserID != "" {
+        t.Fatalf("got uid %q, want %q", resp.UserID, "")
+    }
+
+    et.OverrideUserInfo("foo", nil)
+
+    resp, err = GetUser(context.Background())
+    if err != nil {
+        t.Fatal(err)
+    } else if resp.UserID != "foo" {
+        t.Fatalf("got uid %q, want %q", resp.UserID, "foo")
+    }
+}
+
+func TestOverrideUserInfo_APICallOptsOverride(t *testing.T) {
+    et.OverrideUserInfo("foo", nil)
+
+    ctx := auth.WithContext(context.Background(), "bar", nil)
+    resp, err := GetUser(ctx)
+    if err != nil {
+        t.Fatal(err)
+    } else if resp.UserID != "bar" {
+        t.Fatalf("got uid %q, want %q", resp.UserID, "bar")
+    }
+}
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type Response struct {
+    UserID auth.UID
+}
+
+//encore:api public
+func GetUser(ctx context.Context) (*Response, error) {
+    uid, _ := auth.UserID()
+    return &Response{UserID: uid}, nil
+}
