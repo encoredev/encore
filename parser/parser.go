@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 
@@ -130,7 +129,6 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.fset = token.NewFileSet()
 	p.errors = errlist.New(p.fset)
 
-	log.Trace().Msg("collecting packages")
 	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, goparser.ParseComments, p.cfg.ParseTests)
 	if err != nil {
 		if errList, ok := err.(scanner.ErrorList); ok {
@@ -149,21 +147,13 @@ func (p *parser) Parse() (res *Result, err error) {
 		track[pkgPath] = name
 	}
 
-	log.Trace().Msg("resolving names")
 	p.resolveNames(track)
-	log.Trace().Msg("parse services")
 	p.parseServices()
-	log.Trace().Msg("parse resources")
 	p.parseResources()
-	log.Trace().Msg("parse resource usage")
 	p.parseResourceUsage()
-	log.Trace().Msg("parse references")
 	p.parseReferences()
-	log.Trace().Msg("parse secrets")
 	p.parseSecrets()
-	log.Trace().Msg("validate middleware")
 	p.validateMiddleware()
-	log.Trace().Msg("validate app")
 	p.validateApp()
 
 	sort.Slice(p.pkgs, func(i, j int) bool {
@@ -189,13 +179,10 @@ func (p *parser) Parse() (res *Result, err error) {
 		Middleware:    p.middleware,
 	}
 
-	log.Trace().Msg("parse meta")
 	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Trace().Msg("parse completed")
 
 	return &Result{
 		FileSet: p.fset,
