@@ -4,22 +4,35 @@ import (
 	"fmt"
 	"go/ast"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/walker"
 )
 
 func (p *parser) parseResourceUsage() {
+	var resourcePkgs []string
+	for _, res := range resourceTypes {
+		if !slices.Contains(resourcePkgs, res.PkgPath) {
+			resourcePkgs = append(resourcePkgs, res.PkgPath)
+		}
+	}
+
 	for _, pkg := range p.pkgs {
-		// Does this package import any package with resources?
-		isInteresting := false
-		for imp := range pkg.Imports {
-			if p2 := p.pkgMap[imp]; p2 != nil && len(p2.Resources) > 0 {
-				isInteresting = true
-				break
+		// We should walk this package if it contains any references
+		// to resource packages, or if it contains any imports of
+		// other packages that use resources.
+		shouldWalk := mapContainsAny(pkg.Imports, resourcePkgs)
+		if !shouldWalk {
+			for imp := range pkg.Imports {
+				if p2 := p.pkgMap[imp]; p2 != nil && len(p2.Resources) > 0 {
+					shouldWalk = true
+					break
+				}
 			}
 		}
 
-		if isInteresting {
+		if shouldWalk {
 			for _, file := range pkg.Files {
 				walker.Walk(file.AST, &resourceUsageVisitor{p, file})
 			}
