@@ -132,8 +132,12 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 
 	// Only compute inputs and payload if we have valid reqData.
 	var payload any
+	var nonRawPayload []byte
 	if decodeErr == nil {
 		payload = d.ReqUserPayload(reqData)
+		if !d.Raw {
+			nonRawPayload = marshalParams(c.server.json, reqData)
+		}
 	}
 
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
@@ -146,6 +150,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 			Path:               c.req.URL.Path,
 			PathParams:         d.toNamedParams(params),
 			TypedPayload:       payload,
+			NonRawPayload:      nonRawPayload,
 			UserID:             c.auth.UID,
 			AuthData:           c.auth.UserData,
 			RequestHeaders:     c.req.Header,
@@ -365,16 +370,22 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 			httpMethod = d.Methods[0]
 		}
 
+		var nonRawPayload []byte
+		if !d.Raw {
+			nonRawPayload = marshalParams(c.server.json, req)
+		}
+
 		reqObj, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
 			Type:   model.RPCCall,
 			DefLoc: d.DefLoc,
 
 			Data: &model.RPCData{
-				HTTPMethod:   httpMethod,
-				Path:         path,
-				PathParams:   d.toNamedParams(params),
-				TypedPayload: d.ReqUserPayload(req),
-				Desc:         d.rpcDesc(),
+				HTTPMethod:    httpMethod,
+				Path:          path,
+				PathParams:    d.toNamedParams(params),
+				TypedPayload:  d.ReqUserPayload(req),
+				Desc:          d.rpcDesc(),
+				NonRawPayload: nonRawPayload,
 
 				FromEncorePlatform: false,
 				RequestHeaders:     nil, // not set right now for internal requests
