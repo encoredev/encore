@@ -228,6 +228,8 @@ func (tp *traceParser) parseEventV3(ev trace.EventType, ts uint64, size int) err
 		return tp.cacheOpStart(ts)
 	case trace.CacheOpEnd:
 		return tp.cacheOpEnd(ts)
+	case trace.BodyStream:
+		return tp.bodyStream(ts)
 	default:
 		return errUnknownEvent
 	}
@@ -268,16 +270,9 @@ func (tp *traceParser) parseEventV1(ev byte, ts uint64, size int) error {
 }
 
 func (tp *traceParser) requestStart(ts uint64) error {
-	var typ tracepb.Request_Type
-	switch b := tp.Byte(); b {
-	case 0x01:
-		typ = tracepb.Request_RPC
-	case 0x02:
-		typ = tracepb.Request_AUTH
-	case 0x03:
-		typ = tracepb.Request_PUBSUB_MSG
-	default:
-		return eerror.New("trace_parser", "unknown request type", map[string]any{"type": fmt.Sprintf("%x", b)})
+	typ, err := tp.parseRequestType()
+	if err != nil {
+		return err
 	}
 
 	// Determine the absolute start time.
@@ -294,17 +289,18 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	parentSpanID := tp.Uint64()
 
 	var service, endpoint string
-	if tp.version >= 6 {
+	if tp.version < 6 {
+		service, endpoint = "unknown", "Unknown"
+	} else if tp.version < 9 {
 		service = tp.String()
 		endpoint = tp.String()
-	} else {
-		service, endpoint = "unknown", "Unknown"
 	}
 
 	goid := uint32(tp.UVarint())
-	_ = tp.UVarint() // skip CallLoc: no longer used
+	if tp.version < 9 {
+		_ = tp.UVarint() // skip CallLoc: no longer used
+	}
 	defLoc := int32(tp.UVarint())
-	uid := tp.String()
 
 	req := &tracepb.Request{
 		TraceId:      tp.traceID,
@@ -317,21 +313,59 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		// EndTime not set yet
 		DefLoc: defLoc,
 		Goid:   goid,
-		Uid:    uid,
 		Type:   typ,
 	}
 
-	for n, i := tp.UVarint(), uint64(0); i < n; i++ {
-		size := tp.UVarint()
-		if size > (10 << 20) {
-			return eerror.New("trace_parser", "input too large", map[string]any{"size": size})
+	if tp.version < 9 {
+		req.Uid = tp.String()
+
+		for n, i := tp.UVarint(), uint64(0); i < n; i++ {
+			size := tp.UVarint()
+			if size > (10 << 20) {
+				return eerror.New("trace_parser", "input too large", map[string]any{"size": size})
+			}
+			input := make([]byte, size)
+			tp.Bytes(input)
+			req.Inputs = append(req.Inputs, input)
 		}
-		input := make([]byte, size)
-		tp.Bytes(input)
-		req.Inputs = append(req.Inputs, input)
 	}
 
-	if typ == tracepb.Request_PUBSUB_MSG {
+	switch typ {
+	case tracepb.Request_RPC:
+		if tp.version >= 9 {
+			isRaw := tp.Bool()
+			req.ServiceName = tp.String()
+			req.EndpointName = tp.String()
+			req.HttpMethod = tp.String()
+			req.Path = tp.String()
+
+			numParams := tp.UVarint()
+			req.PathParams = make([]string, numParams)
+			for i := uint64(0); i < numParams; i++ {
+				req.PathParams[i] = tp.String()
+			}
+
+			req.Uid = tp.String()
+
+			if isRaw {
+				req.RawRequestHeaders = tp.parseHTTPHeaders()
+			} else {
+				req.RequestPayload = tp.ByteString()
+			}
+		}
+
+	case tracepb.Request_AUTH:
+		if tp.version >= 9 {
+			req.ServiceName = tp.String()
+			req.EndpointName = tp.String()
+			req.RequestPayload = tp.ByteString()
+		}
+
+	case tracepb.Request_PUBSUB_MSG:
+		if tp.version >= 9 {
+			req.ServiceName = tp.String()
+		}
+
 		req.TopicName = tp.String()
 		req.SubscriptionName = tp.String()
 		req.MessageId = tp.String()
@@ -344,36 +378,100 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	return nil
 }
 
-func (tp *traceParser) requestEnd(ts uint64) error {
+func (tp *traceParser) bodyStream(ts uint64) error {
 	spanID := tp.Uint64()
 	req, ok := tp.reqMap[spanID]
 	if !ok {
 		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
 	}
+	flags := tp.Byte()
+	data := tp.ByteString()
+
+	isResponse := (flags & 1) == 1
+	overflowed := (flags & 2) == 2
+
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_BodyStream{
+			BodyStream: &tracepb.BodyStream{
+				IsResponse: isResponse,
+				Overflowed: overflowed,
+				Data:       data,
+			},
+		},
+	})
+
+	return nil
+}
+
+func (tp *traceParser) requestEnd(ts uint64) error {
+	var typ tracepb.Request_Type
+	if tp.version >= 9 {
+		var err error
+		typ, err = tp.parseRequestType()
+		if err != nil {
+			return err
+		}
+	}
+
+	spanID := tp.Uint64()
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
+	}
+	if tp.version < 9 {
+		// Not captured by the protocol for old versions,
+		// so grab it from the request.
+		typ = req.Type
+	}
+
 	// dur := ts - rd.startTs
 	req.EndTime = ts
 
-	if tp.Byte() == 0 {
-		// No error
-		for n, i := tp.UVarint(), uint64(0); i < n; i++ {
-			size := tp.UVarint()
-			if size > (10 << 20) {
-				return eerror.New("trace_parser", "input too large", map[string]any{"size": size})
+	if tp.version >= 9 {
+		errMsg := tp.ByteString()
+		if len(errMsg) > 0 {
+			req.Err = errMsg
+			if tp.version >= 5 {
+				req.ErrStack = tp.stack(filterNone)
 			}
-			output := make([]byte, size)
-			tp.Bytes(output)
-			req.Outputs = append(req.Outputs, output)
+		}
+
+		switch typ {
+		case tracepb.Request_RPC:
+			if isRaw := tp.Bool(); isRaw {
+				req.RawResponseHeaders = tp.parseHTTPHeaders()
+			} else {
+				req.ResponsePayload = tp.ByteString()
+			}
+		case tracepb.Request_AUTH:
+			req.Uid = tp.String()
+			req.ResponsePayload = tp.ByteString()
+		case tracepb.Request_PUBSUB_MSG:
+			req.ResponsePayload = tp.ByteString()
 		}
 	} else {
-		msg := tp.ByteString()
-		if len(msg) == 0 {
-			msg = []byte("unknown error")
-		}
-		req.Err = msg
-		if tp.version >= 5 {
-			req.ErrStack = tp.stack(filterNone)
+		isErr := tp.Bool()
+		if isErr {
+			msg := tp.ByteString()
+			if len(msg) == 0 {
+				msg = []byte("unknown error")
+			}
+			if tp.version >= 5 {
+				req.ErrStack = tp.stack(filterNone)
+			}
+		} else {
+			for n, i := tp.UVarint(), uint64(0); i < n; i++ {
+				size := tp.UVarint()
+				if size > (10 << 20) {
+					return eerror.New("trace_parser", "input too large", map[string]any{"size": size})
+				}
+				output := make([]byte, size)
+				tp.Bytes(output)
+				req.Outputs = append(req.Outputs, output)
+			}
 		}
 	}
+
 	return nil
 }
 
@@ -1066,6 +1164,28 @@ PCLoop:
 		}
 	}
 	return tr
+}
+
+func (tp *traceParser) parseRequestType() (tracepb.Request_Type, error) {
+	switch b := tp.Byte(); b {
+	case 0x01:
+		return tracepb.Request_RPC, nil
+	case 0x02:
+		return tracepb.Request_AUTH, nil
+	case 0x03:
+		return tracepb.Request_PUBSUB_MSG, nil
+	default:
+		return -1, eerror.New("trace_parser", "unknown request type", map[string]any{"type": fmt.Sprintf("%x", b)})
+	}
+}
+
+func (tp *traceParser) parseHTTPHeaders() map[string]string {
+	numHeaders := tp.UVarint()
+	h := make(map[string]string, numHeaders)
+	for i := uint64(0); i < numHeaders; i++ {
+		h[tp.String()] = tp.String()
+	}
+	return h
 }
 
 var bin = binary.LittleEndian

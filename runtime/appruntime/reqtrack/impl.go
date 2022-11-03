@@ -36,7 +36,7 @@ type encoreOp struct {
 	start int64 // start time of trace from nanotime()
 
 	// trace is the trace log; it is nil if the op is not traced.
-	trace *trace.Log
+	trace trace.Logger
 
 	// refs is the op refcount. It is 1 + number of requests
 	// that reference this op (see doc comment above).
@@ -68,14 +68,14 @@ func (t *RequestTracker) beginOp(trace bool) *encoreOp {
 }
 
 // newOp creates a new encoreOp.
-func (t *RequestTracker) newOp(doTrace bool) *encoreOp {
+func (t *RequestTracker) newOp(trace bool) *encoreOp {
 	op := &encoreOp{
 		t:     t,
 		start: nanotime(),
 		refs:  1,
 	}
-	if doTrace {
-		op.trace = &trace.Log{}
+	if trace && t.trace != nil {
+		op.trace = t.trace.NewLogger()
 	}
 	return op
 }
@@ -160,9 +160,9 @@ func (t *RequestTracker) finishReq() {
 	e.req = nil
 }
 
-func (t *RequestTracker) currentReq() (req *model.Request, tr *trace.Log, goctr uint32) {
+func (t *RequestTracker) currentReq() (req *model.Request, tr trace.Logger, goctr uint32) {
 	if g := t.impl.get(); g != nil {
-		var tr *trace.Log
+		var tr trace.Logger
 		if g.op != nil {
 			tr = g.op.trace
 		}

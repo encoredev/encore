@@ -13,6 +13,11 @@ export interface Trace {
   meta: APIMeta;
 }
 
+export interface KeyValue {
+  key: string;
+  value: string;
+}
+
 export interface Request {
   type: "RPC" | "AUTH" | "PUBSUB_MSG";
   id: string;
@@ -35,6 +40,17 @@ export interface Request {
   end_time?: number;
   inputs: Base64EncodedBytes[];
   outputs: Base64EncodedBytes[];
+
+  legacy_format?: boolean;
+  user_id: string;
+  http_method: string;
+  path: string;
+  path_params: string[];
+  request_payload: Base64EncodedBytes | null;
+  response_payload: Base64EncodedBytes | null;
+  raw_req_headers: KeyValue[];
+  raw_resp_headers: KeyValue[];
+
   err: Base64EncodedBytes | null;
   err_stack: Stack | null;
   events: Event[];

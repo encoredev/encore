@@ -89,9 +89,9 @@ const SpanRow: FC<{
       >
         <TreeHint up={level > 0} down={showChildren} siblings={siblings} level={level} />
 
-        {expanded && req.children.length > 0
-          ? icons.chevronRight("h-3 w-auto ml-1 mr-0.5")
-          : icons.chevronDown("h-3 w-auto ml-1 mr-0.5")}
+        {expanded || req.children.length === 0
+          ? icons.chevronDown("h-3 w-auto ml-1 mr-0.5")
+          : icons.chevronRight("h-3 w-auto ml-1 mr-0.5")}
 
         <div className="ml-1 flex flex-grow items-center">
           <div className="min-w-0 flex-1 truncate text-xs">

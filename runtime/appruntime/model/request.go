@@ -2,15 +2,13 @@ package model
 
 import (
 	"context"
+	"net/http"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
-
-	"encore.dev/appruntime/serde"
 )
 
 type RequestType byte
@@ -25,6 +23,7 @@ const (
 type RPCDesc struct {
 	Service      string
 	Endpoint     string
+	AuthHandler  bool // true if this is an auth handler
 	Raw          bool
 	RequestType  reflect.Type // nil if no payload
 	ResponseType reflect.Type // nil if no payload
@@ -42,22 +41,14 @@ type Request struct {
 	Type     RequestType
 	SpanID   SpanID
 	ParentID SpanID
-	UID      UID
-	AuthData any
 
-	Service      string
-	Endpoint     string
-	Path         string
-	PathSegments PathParams
-	Payload      any
-	Inputs       [][]byte
-	Start        time.Time
-	Logger       *zerolog.Logger
-	Traced       bool
-	DefLoc       int32
+	Start  time.Time
+	Logger *zerolog.Logger
+	Traced bool
+	DefLoc int32
 
 	// Set if Type == RPCCall
-	RPCDesc *RPCDesc
+	RPCData *RPCData
 
 	// Set if Type == PubSubMessage
 	MsgData *PubSubMsgData
@@ -66,12 +57,58 @@ type Request struct {
 	Test *TestData
 }
 
+// Service reports the current service, if any.
+// It checks the appropriate sub-structure based on the request type.
+func (req *Request) Service() string {
+	switch req.Type {
+	case RPCCall, AuthHandler:
+		return req.RPCData.Desc.Service
+	case PubSubMessage:
+		return req.MsgData.Service
+	default:
+		if req.Test != nil {
+			return req.Test.Service
+		}
+		return ""
+	}
+}
+
+type RPCData struct {
+	Desc *RPCDesc
+
+	// HTTPMethod is the HTTP method used to call the endpoint.
+	// It is not set for auth handlers.
+	HTTPMethod string
+
+	Path       string
+	PathParams PathParams
+
+	// UserID and AuthData are the authentication information
+	// provided for this endpoint. It is not set for auth handlers
+	// as the information is not available yet.
+	UserID   UID
+	AuthData any
+
+	// Decoded request payload, for non-raw requests
+	TypedPayload any
+
+	// NonRawPayload is the JSON-marshalled request payload, if any, or nil.
+	// This is never set for raw requests, as the body hasn't been read yet.
+	NonRawPayload []byte
+
+	// RawHeaders specifies the HTTP headers from the incoming request,
+	// for raw endpoints only.
+	RawHeaders http.Header
+}
+
 type PubSubMsgData struct {
-	Topic        string
-	Subscription string
-	MessageID    string
-	Published    time.Time
-	Attempt      int
+	Service        string
+	Topic          string
+	Subscription   string
+	MessageID      string
+	Published      time.Time
+	Attempt        int
+	DecodedPayload any
 }
 
 type TestData struct {
@@ -79,8 +116,41 @@ type TestData struct {
 	Cancel  context.CancelFunc // The function to cancel this tests context
 	Current *testing.T         // The current test running
 	Parent  *Request           // The parent request (if we're looking at sub-tests)
+	Service string             // the service being tested, if any
 
 	Wait sync.WaitGroup // If we're spun up async go routines, this wait allows to the test to wait for them to end
+}
+
+type Response struct {
+	// HTTPStatus is the HTTP status to respond with.
+	HTTPStatus int
+
+	// Err is the error returned from the handler or middleware, or nil.
+	Err error
+
+	// Typed response payload, for non-raw requests.
+	TypedPayload any
+
+	// Payload is the response payload, if any, or nil.
+	// It is used for non-raw endpoints as well as auth handlers.
+	Payload []byte
+
+	// AuthUID is the resolved user id if this is an auth handler.
+	AuthUID UID
+
+	// RawRequestPayload contains the captured request payload, for raw requests.
+	// It is nil if nothing was captured.
+	RawRequestPayload           []byte
+	RawRequestPayloadOverflowed bool // whether the payload overflowed
+
+	// RawResponsePayload contains the captured response payload, for raw requests.
+	// It is nil if nothing was captured.
+	RawResponsePayload           []byte
+	RawResponsePayloadOverflowed bool // whether the payload overflowed
+
+	// RawResponseHeaders specifies the HTTP headers for the outgoing response,
+	// for raw endpoints only.
+	RawResponseHeaders http.Header
 }
 
 type APICall struct {
@@ -101,10 +171,4 @@ type UID string
 type AuthInfo struct {
 	UID      UID
 	UserData any
-}
-
-func (i *AuthInfo) Serialize(json jsoniter.API) ([][]byte, error) {
-	// BUG(andre) figure out the best way to only dump info.UID
-	// if the handler doesn't use the three-result form.
-	return serde.SerializeInputs(json, i.UID, i.UserData)
 }

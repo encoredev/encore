@@ -54,7 +54,6 @@ func (b *authHandlerBuilder) Write() {
 		Id("HasAuthData").Op(":").Lit(b.ah.AuthData != nil),
 		Id("DecodeAuth").Op(":").Add(decodeAuth),
 		Id("AuthHandler").Op(":").Add(authHandler),
-		Id("SerializeParams").Op(":").Add(paramDesc.Serialize),
 	)
 
 	for _, part := range [...]Code{
@@ -191,18 +190,6 @@ func (b *authHandlerBuilder) renderAuthHandlerStructDesc() structCodegen {
 		} else {
 			s.Add(b.schemaTypeToGoType(derefPointer(ah.Params)))
 		}
-	})
-
-	result.Serialize = Func().Params(
-		Id("json").Qual("github.com/json-iterator/go", "API"),
-		Id("params").Add(b.ParamsType()),
-	).Params(
-		Index().Index().Byte(),
-		Error(),
-	).BlockFunc(func(g *Group) {
-		g.List(Id("v"), Err()).Op(":=").Id("json").Dot("Marshal").Call(Id("params"))
-		g.If(Err().Op("!=").Nil()).Block(Return(Nil(), Err()))
-		g.Return(Index().Index().Byte().Values(Id("v")), Nil())
 	})
 
 	result.Clone = Func().Params(

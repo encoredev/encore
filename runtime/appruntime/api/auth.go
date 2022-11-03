@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	jsoniter "github.com/json-iterator/go"
 
@@ -18,9 +19,11 @@ type AuthHandlerDesc[Params any] struct {
 	DefLoc      int32
 	HasAuthData bool // whether the handler returns custom auth data
 
-	DecodeAuth      func(*http.Request) (Params, error)
-	AuthHandler     func(context.Context, Params) (model.AuthInfo, error)
-	SerializeParams func(jsoniter.API, Params) ([][]byte, error)
+	DecodeAuth  func(*http.Request) (Params, error)
+	AuthHandler func(context.Context, Params) (model.AuthInfo, error)
+
+	rpcDescOnce   sync.Once
+	cachedRPCDesc *model.RPCDesc
 }
 
 type AuthHandler interface {
@@ -45,14 +48,15 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 	var authErr error
 	go func() {
 		defer close(done)
-		inputs, _ := d.SerializeParams(c.server.json, param)
 		_, authErr = c.server.beginRequest(c.req.Context(), &beginRequestParams{
-			SpanID:   call.SpanID,
-			Service:  d.Service,
-			Endpoint: d.Endpoint,
-			DefLoc:   d.DefLoc,
-			Inputs:   inputs,
-			Type:     model.AuthHandler,
+			SpanID: call.SpanID,
+			DefLoc: d.DefLoc,
+			Type:   model.AuthHandler,
+			Data: &model.RPCData{
+				Desc:          d.rpcDesc(),
+				NonRawPayload: d.marshalParams(c.server.json, param),
+				TypedPayload:  param,
+			},
 		})
 		if authErr != nil {
 			return
@@ -60,13 +64,13 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 		defer func() {
 			if err2 := recover(); err2 != nil {
 				authErr = errs.B().Code(errs.Internal).Msgf("auth handler panicked: %v", err2).Err()
-				c.server.finishRequest(nil, authErr, 0)
+				c.server.finishRequest(newErrResp(authErr, 0))
 			}
 		}()
 
 		if err := runValidate(param); err != nil {
 			authErr = err
-			c.server.finishRequest(nil, authErr, 0)
+			c.server.finishRequest(newErrResp(authErr, 0))
 			return
 		}
 
@@ -74,10 +78,10 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 
 		if authErr != nil {
 			authErr = errs.RoundTrip(authErr)
-			c.server.finishRequest(nil, authErr, 0)
+			c.server.finishRequest(newErrResp(authErr, 0))
 		} else {
-			output, _ := info.Serialize(c.server.json)
-			c.server.finishRequest(output, nil, 0)
+			resp := d.newAuthResp(info, authErr, c.server.json)
+			c.server.finishRequest(resp)
 		}
 	}()
 	<-done
@@ -112,4 +116,44 @@ func (s *Server) runAuthHandler(h Handler, c IncomingContext) (info model.AuthIn
 	}
 
 	return info, true
+}
+
+// rpcDesc returns the RPC description for this endpoint,
+// computing and caching the first time it's called.
+func (d *AuthHandlerDesc[Params]) rpcDesc() *model.RPCDesc {
+	d.rpcDescOnce.Do(func() {
+		desc := &model.RPCDesc{
+			Service:     d.Service,
+			Endpoint:    d.Endpoint,
+			AuthHandler: true,
+			Raw:         false,
+
+			// TODO would be nice to support these for auth handlers in the future.
+			RequestType:  nil,
+			ResponseType: nil,
+		}
+		d.cachedRPCDesc = desc
+	})
+	return d.cachedRPCDesc
+}
+
+func (d *AuthHandlerDesc[Params]) marshalParams(json jsoniter.API, p Params) []byte {
+	data, _ := json.Marshal(p)
+	return data
+}
+
+// newAuthResp returns an *model.Response for an auth response.
+func (d *AuthHandlerDesc[Params]) newAuthResp(info model.AuthInfo, authErr error, json jsoniter.API) *model.Response {
+	var payload []byte
+	if d.HasAuthData {
+		payload = marshalParams(json, info.UserData)
+	}
+
+	return &model.Response{
+		HTTPStatus:   errs.HTTPStatus(authErr),
+		Err:          authErr,
+		AuthUID:      info.UID,
+		TypedPayload: info.UserData,
+		Payload:      payload,
+	}
 }

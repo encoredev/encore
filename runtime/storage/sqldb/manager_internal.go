@@ -35,7 +35,7 @@ func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
 func (mgr *Manager) GetCurrentDB() *Database {
 	var dbName string
 	if curr := mgr.rt.Current(); curr.Req != nil {
-		dbName = curr.Req.Service
+		dbName = curr.Req.Service()
 	} else if testSvc := mgr.cfg.Static.TestService; testSvc != "" {
 		dbName = testSvc
 	} else {
