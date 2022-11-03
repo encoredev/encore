@@ -4,6 +4,7 @@ import (
 	"go/build"
 	goparser "go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,7 +73,7 @@ func TestWalkDirs(t *testing.T) {
 	for _, test := range tests {
 		root := createTree(test.Tree)
 		var calls []call
-		walkDirs(root, func(dir, relPath string, files []os.FileInfo) error {
+		walkDirs(root, func(dir, relPath string, files []fs.DirEntry) error {
 			names := make([]string, len(files))
 			for i, f := range files {
 				names[i] = f.Name()

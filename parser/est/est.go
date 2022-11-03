@@ -28,9 +28,10 @@ type Application struct {
 }
 
 type File struct {
-	Name       string   // file name ("foo.go")
-	Pkg        *Package // package it belongs to
-	Path       string   // filesystem path
+	Name       string          // file name ("foo.go")
+	Pkg        *Package        // package it belongs to
+	Path       string          // filesystem path
+	Imports    map[string]bool // imports in the file, keyed by import path
 	AST        *ast.File
 	Token      *token.File
 	Contents   []byte
@@ -48,6 +49,7 @@ type Package struct {
 	Service    *Service // the service this package belongs to, if any
 	Secrets    []string
 	Resources  []Resource
+	Imports    map[string]bool // union of all imports from files
 }
 
 // A Service is a Go package that defines one or more RPCs.
