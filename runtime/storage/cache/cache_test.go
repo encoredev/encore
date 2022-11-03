@@ -16,7 +16,7 @@ func newTestCluster(t *testing.T) (*Cluster, *miniredis.Miniredis) {
 	srv := miniredis.RunT(t)
 	redisClient := redis.NewClient(&redis.Options{Addr: srv.Addr()})
 
-	rt := reqtrack.New(zerolog.New(os.Stdout), nil, true)
+	rt := reqtrack.New(zerolog.New(os.Stdout), nil, nil)
 	mgr := &Manager{
 		cfg: &config.Config{Static: &config.Static{
 			// We're testing the "production mode" of the cache, not the test mode.
