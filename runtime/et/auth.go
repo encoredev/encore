@@ -7,7 +7,7 @@ import (
 	"encore.dev/beta/auth"
 )
 
-// OverrideUserInfo overrides the user info for the current request.
+// OverrideAuthInfo overrides the auth information for the current request.
 // Subsequent calls to auth.UserID and auth.Data() within the same request
 // will return the given uid and data, and API calls made from the request
 // will propagate the newly set user info.
@@ -22,17 +22,17 @@ import (
 // API calls made with these options will not be made and will immediately return
 // a client-side error.
 //
-// OverrideUserInfo is not safe for concurrent use with code that invokes
-// auth.UserID or auth.Data() in the same request.
-func OverrideUserInfo(uid auth.UID, data any) {
-	Singleton.OverrideUserInfo(uid, data)
+// OverrideAuthInfo is not safe for concurrent use with code that invokes
+// auth.UserID or auth.Data() within the same request.
+func OverrideAuthInfo(uid auth.UID, data any) {
+	Singleton.OverrideAuthInfo(uid, data)
 }
 
-func (mgr *Manager) OverrideUserInfo(uid auth.UID, authData any) {
+func (mgr *Manager) OverrideAuthInfo(uid auth.UID, authData any) {
 	if curr := mgr.rt.Current(); curr.Req != nil {
 		authDataType := mgr.cfg.Static.AuthData
 		if err := api.CheckAuthData(authDataType, uid, authData); err != nil {
-			panic(fmt.Errorf("override user info: %v", err))
+			panic(fmt.Errorf("override auth info: %v", err))
 		}
 		if rpcData := curr.Req.RPCData; rpcData != nil {
 			rpcData.UserID = uid

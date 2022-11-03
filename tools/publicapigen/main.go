@@ -111,12 +111,20 @@ func main() {
 			log.Fatal().Err(err).Str("dir", outputDir).Msg("unable to create output directory")
 		}
 
+		if isEmptyFile(formattedAST) {
+			continue
+		}
+
 		if err := os.WriteFile(outputFile, convertASTToFormattedSrc(formattedFset, formattedAST, fileName), 0644); err != nil {
 			log.Fatal().Err(err).Str("file", fileName).Msg("unable to write file")
 		}
 	}
 
 	log.Info().Msg("done")
+}
+
+func isEmptyFile(f *ast.File) bool {
+	return len(f.Decls) == 0 && f.Doc.Text() == ""
 }
 
 func convertASTToFormattedSrc(fset *token.FileSet, fAST *ast.File, fileName string) []byte {
