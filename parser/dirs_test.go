@@ -130,7 +130,13 @@ package fo/;
 
 		fs := token.NewFileSet()
 		context := build.Default
-		pkgs, files, err := parseDir(context, fs, base, ".", nil, goparser.ParseComments)
+		dirFiles, err := os.ReadDir(base)
+		if err != nil {
+			c.Assert(err, qt.IsNil)
+			continue
+		}
+
+		pkgs, files, err := parseDir(context, fs, base, dirFiles, nil, goparser.ParseComments)
 		if test.Err != "" {
 			c.Assert(err, qt.ErrorMatches, test.Err)
 			continue
