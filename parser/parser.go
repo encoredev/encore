@@ -363,6 +363,10 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath string, mode g
 			numWorkersDone++
 		}
 	}
+
+	sort.Slice(pkgs, func(i, j int) bool {
+		return pkgs[i].RelPath < pkgs[j].RelPath
+	})
 	return pkgs, errors.Err()
 }
 
