@@ -67,7 +67,6 @@ type NonBasicResponse struct {
 // TestEndToEndWithApp tests that (*app).startProc correctly starts Encore processes
 // for sending requests.
 func TestEndToEndWithApp(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	c := qt.New(t)
 	app := RunApp(c, "./testdata/echo", nil)
 	run := app.Run
