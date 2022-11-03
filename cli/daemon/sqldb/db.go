@@ -154,9 +154,24 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 		}
 
 		db.log.Debug().Str("role", role.Username).Str("db", db.Name).Msg("granting access to role")
-		if _, err := adm.Exec(ctx, stmt); err != nil {
-			return fmt.Errorf("grant %s role %s: %v", role.Type, role.Username, err)
+
+		// We've observed race conditions in Postgres to grant access. Retry a few times.
+		{
+			var lastErr error
+			for i := 0; i < 5; i++ {
+				_, err := adm.Exec(ctx, stmt)
+				if err == nil {
+					break
+				}
+				lastErr = err
+				db.log.Debug().Str("role", role.Username).Str("db", db.Name).Err(err).Msg("error granting role, retrying")
+				time.Sleep(250 * time.Millisecond)
+			}
+			if lastErr != nil {
+				return fmt.Errorf("grant %s role %s: %v", role.Type, role.Username, err)
+			}
 		}
+
 		db.log.Debug().Str("role", role.Username).Str("db", db.Name).Msg("successfully granted access")
 	}
 	return nil
