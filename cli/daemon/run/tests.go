@@ -39,7 +39,7 @@ func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDeb
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		KeepOutput:            codegenDebug,
-		BuildTags:             []string{"encore_local"},
+		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 		Meta: &cueutil.Meta{
 			// Dummy data to satisfy config validation.
 			APIBaseURL: "http://localhost:0",
@@ -148,6 +148,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 
 	cfg := &compiler.Config{
+		Parse:                 params.Parse,
 		Revision:              params.Parse.Meta.AppRevision,
 		UncommittedChanges:    params.Parse.Meta.UncommittedChanges,
 		WorkingDir:            params.WorkingDir,
@@ -155,7 +156,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
-		BuildTags:             []string{"encore_local"},
+		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 		Meta: &cueutil.Meta{
 			APIBaseURL: apiBaseURL,
 			EnvName:    "local",
