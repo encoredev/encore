@@ -100,14 +100,16 @@ type TestParams struct {
 
 // Test runs the tests.
 func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
-	var secrets map[string]string
-	if pid := params.App.PlatformID(); pid != "" {
-		data, err := mgr.Secret.Get(ctx, pid)
-		if err != nil {
-			return err
-		}
-		secrets = data.Values
+	expSet, err := params.App.Experiments(params.Environ)
+	if err != nil {
+		return err
 	}
+
+	secretData, err := mgr.Secret.Get(ctx, params.App, expSet)
+	if err != nil {
+		return err
+	}
+	secrets := secretData.Values
 
 	var (
 		sqlServers []*config.SQLServer
@@ -159,11 +161,6 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
-	experiments, err := params.App.Experiments(params.Environ)
-	if err != nil {
-		return err
-	}
-
 	cfg := &compiler.Config{
 		Parse:                 params.Parse,
 		Revision:              params.Parse.Meta.AppRevision,
@@ -174,7 +171,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-		Experiments:           experiments,
+		Experiments:           expSet,
 		Meta: &cueutil.Meta{
 			APIBaseURL: apiBaseURL,
 			EnvName:    "local",
