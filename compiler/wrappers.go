@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"golang.org/x/exp/slices"
 
 	"encr.dev/parser/est"
 	"encr.dev/pkg/eerror"
@@ -206,6 +209,12 @@ func (b *builder) writePackageHandlers(pkg *est.Package) error {
 }
 
 func (b *builder) generateTestMain(pkg *est.Package) (err error) {
+	// Do nothing if the file contains no test files.
+	isTestFile := func(f *est.File) bool { return strings.HasSuffix(f.Name, "_test.go") }
+	if slices.IndexFunc(pkg.Files, isTestFile) == -1 {
+		return nil
+	}
+
 	testMainPath := filepath.Join(b.workdir, filepath.FromSlash(pkg.RelPath), "encore_testmain_test.go")
 	file, err := os.Create(testMainPath)
 	if err != nil {
