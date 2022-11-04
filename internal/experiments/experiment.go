@@ -12,11 +12,18 @@ const envName = "ENCORE_EXPERIMENT"
 type Name string
 
 const (
-/* Current experiments are listed here */
+	/* Current experiments are listed here */
+
+	// LocalSecretsOverride is an experiment to allow for secrets
+	// to be overridden with values from a ".secrets.local" file.
+	LocalSecretsOverride Name = "local-secrets-override"
 )
 
+// Valid reports whether the given name is a known experiment.
 func (x Name) Valid() bool {
 	switch x {
+	case LocalSecretsOverride:
+		return true
 	default:
 		return false
 	}
