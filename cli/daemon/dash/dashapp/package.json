@@ -13,6 +13,7 @@
     "@codemirror/basic-setup": "^0.20.0",
     "@codemirror/lang-javascript": "^6.0.2",
     "@headlessui/react": "^1.6.6",
+    "@textea/json-viewer": "^2.10.0",
     "@visx/group": "^2.10.0",
     "@visx/responsive": "^2.10.0",
     "@visx/shape": "^2.12.2",

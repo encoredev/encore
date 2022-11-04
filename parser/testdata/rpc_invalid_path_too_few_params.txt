@@ -1,5 +1,5 @@
 ! parse
-stderr 'invalid API signature: expected function parameters named ''foo'', ''bar'' to match API path params'
+err 'invalid API signature: expected function parameters named ''foo'', ''bar'' to match API path params'
 
 -- svc/svc.go --
 package svc

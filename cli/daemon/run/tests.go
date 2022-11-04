@@ -16,8 +16,10 @@ import (
 	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
+	"encr.dev/internal/experiments"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
@@ -29,6 +31,15 @@ import (
 func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDebug bool) (buildDir string, err error) {
 	vcsRevision := vcs.GetRevision(appRoot)
 
+	exp, err := appfile.Experiments(appRoot)
+	if err != nil {
+		return "", err
+	}
+	expSet, err := experiments.NewSet(exp, nil)
+	if err != nil {
+		return "", err
+	}
+
 	// TODO: We should check that all secret keys are defined as well.
 	cfg := &compiler.Config{
 		Revision:              vcsRevision.Revision,
@@ -39,7 +50,8 @@ func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDeb
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		KeepOutput:            codegenDebug,
-		BuildTags:             []string{"encore_local"},
+		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+		Experiments:           expSet,
 		Meta: &cueutil.Meta{
 			// Dummy data to satisfy config validation.
 			APIBaseURL: "http://localhost:0",
@@ -88,14 +100,16 @@ type TestParams struct {
 
 // Test runs the tests.
 func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
-	var secrets map[string]string
-	if pid := params.App.PlatformID(); pid != "" {
-		data, err := mgr.Secret.Get(ctx, pid)
-		if err != nil {
-			return err
-		}
-		secrets = data.Values
+	expSet, err := params.App.Experiments(params.Environ)
+	if err != nil {
+		return err
 	}
+
+	secretData, err := mgr.Secret.Get(ctx, params.App, expSet)
+	if err != nil {
+		return err
+	}
+	secrets := secretData.Values
 
 	var (
 		sqlServers []*config.SQLServer
@@ -148,6 +162,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 
 	cfg := &compiler.Config{
+		Parse:                 params.Parse,
 		Revision:              params.Parse.Meta.AppRevision,
 		UncommittedChanges:    params.Parse.Meta.UncommittedChanges,
 		WorkingDir:            params.WorkingDir,
@@ -155,7 +170,8 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
-		BuildTags:             []string{"encore_local"},
+		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+		Experiments:           expSet,
 		Meta: &cueutil.Meta{
 			APIBaseURL: apiBaseURL,
 			EnvName:    "local",

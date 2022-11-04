@@ -1,5 +1,5 @@
 ! parse
-stderr 'unexpected parameter name ''bar'', expected ''foo'' \(to match path parameter '':foo''\)'
+err 'unexpected parameter name ''bar'', expected ''foo'' \(to match path parameter '':foo''\)'
 
 -- svc/svc.go --
 package svc

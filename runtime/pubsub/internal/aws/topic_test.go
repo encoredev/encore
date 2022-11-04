@@ -52,7 +52,7 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 	defer cancel()
 	mgr := NewManager(ctx, cfg)
 
-	topic := mgr.NewTopic(cfg.Runtime.PubsubProviders[0].AWS, cfg.Runtime.PubsubTopics["test-topic"])
+	topic := mgr.NewTopic(cfg.Runtime.PubsubProviders[0], cfg.Runtime.PubsubTopics["test-topic"])
 
 	// Purge the queue of any messages from previous failed tests
 	_, err := mgr.getSQSClient(ctx).PurgeQueue(ctx, &sqs.PurgeQueueInput{

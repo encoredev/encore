@@ -1,6 +1,6 @@
 # Verify calls to config.Load are called
 parse
-stdout 'config svc named:{type_arguments:{builtin:INT}}'
+output 'config svc named:{type_arguments:{builtin:INT}}'
 
 -- libraries/shared/shared.go --
 package shared

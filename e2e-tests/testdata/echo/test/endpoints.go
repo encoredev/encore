@@ -15,12 +15,14 @@ import (
 )
 
 // Noop allows us to test if a simple HTTP request can be made
+//
 //encore:api public
 func Noop(ctx context.Context) error {
 	return nil
 }
 
 // NoopWithError allows us to test if the structured errors are returned
+//
 //encore:api public
 func NoopWithError(ctx context.Context) error {
 	return &errs.Error{
@@ -35,6 +37,7 @@ type BodyEcho struct {
 
 // SimpleBodyEcho allows us to exercise the body marshalling from JSON
 // and being returned purely as a body
+//
 //encore:api public
 func SimpleBodyEcho(ctx context.Context, body *BodyEcho) (*BodyEcho, error) {
 	return body, nil
@@ -44,6 +47,7 @@ var lastMessage = make(map[string]string)
 
 // UpdateMessage allows us to test an API which takes parameters,
 // but doesn't return anything
+//
 //encore:api public method=PUT path=/last_message/:clientID
 func UpdateMessage(ctx context.Context, clientID string, message *BodyEcho) error {
 	lastMessage[clientID] = message.Message
@@ -52,6 +56,7 @@ func UpdateMessage(ctx context.Context, clientID string, message *BodyEcho) erro
 
 // GetMessage allows us to test an API which takes no parameters,
 // but returns data. It also tests two API's on the same path with different HTTP methods
+//
 //encore:api public method=GET path=/last_message/:clientID
 func GetMessage(ctx context.Context, clientID string) (*BodyEcho, error) {
 	return &BodyEcho{
@@ -73,6 +78,7 @@ type RestParams struct {
 
 // RestStyleAPI tests all the ways we can get data into and out of the application
 // using Encore request handlers
+//
 //encore:api public method=PUT path=/rest/object/:objType/:name
 func RestStyleAPI(ctx context.Context, objType int, name string, params *RestParams) (*RestParams, error) {
 	return &RestParams{
@@ -125,12 +131,14 @@ type MarshallerTest[A any] struct {
 
 // MarshallerTestHandler allows us to test marshalling of all the inbuilt types in all
 // the field types. It simply echos all the responses back to the client
+//
 //encore:api public
 func MarshallerTestHandler(ctx context.Context, params *MarshallerTest[int]) (*MarshallerTest[int], error) {
 	return params, nil
 }
 
 // TestAuthHandler allows us to test the clients ability to add tokens to requests
+//
 //encore:api auth
 func TestAuthHandler(ctx context.Context) (*BodyEcho, error) {
 	userID, ok := auth.UserID()
@@ -149,6 +157,7 @@ type response struct {
 
 // RawEndpoint allows us to test the clients' ability to send raw requests
 // under auth
+//
 //encore:api public raw method=PUT,POST,DELETE,GET path=/raw/blah/*id
 func RawEndpoint(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
@@ -180,6 +189,7 @@ type MultiPathSegment struct {
 }
 
 // PathMultiSegments allows us to wildcard segments and segment URI encoding
+//
 //encore:api public path=/multi/:bool/:int/:string/:uuid/*wildcard
 func PathMultiSegments(ctx context.Context, bool bool, int int, string string, uuid uuid.UUID, wildcard string) (*MultiPathSegment, error) {
 	return &MultiPathSegment{

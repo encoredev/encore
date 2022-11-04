@@ -40,16 +40,16 @@ func (mgr *Manager) StartTest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := mgr.rootLogger.With().Str("test", t.Name()).Logger()
 	req := &model.Request{
-		Type:    model.Test,
-		SpanID:  spanID,
-		Start:   time.Now(),
-		Traced:  false,
-		Service: mgr.cfg.Static.TestService,
+		Type:   model.Test,
+		SpanID: spanID,
+		Start:  time.Now(),
+		Traced: false,
 		Test: &model.TestData{
 			Ctx:     ctx,
 			Cancel:  cancel,
 			Current: t,
 			Parent:  parent,
+			Service: mgr.cfg.Static.TestService,
 		},
 		Logger: &logger,
 	}

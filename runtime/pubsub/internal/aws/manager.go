@@ -28,6 +28,12 @@ func NewManager(ctx context.Context, cfg *config.Config) *Manager {
 	return &Manager{ctx: ctx, cfg: cfg}
 }
 
+func (mgr *Manager) ProviderName() string { return "aws" }
+
+func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
+	return cfg.AWS != nil
+}
+
 // getConfig loads the required AWS config to connect to AWS
 func (mgr *Manager) getConfig(ctx context.Context) aws.Config {
 	mgr.cfgOnce.Do(func() {
@@ -56,7 +62,7 @@ func (mgr *Manager) getSQSClient(ctx context.Context) *sqs.Client {
 	return mgr.sqsClient
 }
 
-func (mgr *Manager) NewTopic(_ *config.AWSPubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(_ *config.PubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
 	snsClient := mgr.getSNSClient(mgr.ctx)
 	sqsClient := mgr.getSQSClient(mgr.ctx)
 

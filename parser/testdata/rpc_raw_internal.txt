@@ -1,7 +1,7 @@
 # Verify that one cannot use internal and raw RPCs
 
 ! parse
-stderr 'private APIs cannot be declared raw'
+err 'private APIs cannot be declared raw'
 
 -- svc/svc.go --
 package svc

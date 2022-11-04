@@ -20,11 +20,8 @@ message Request {
   uint64 start_time = 5;
   uint64 end_time = 6;
   int32 def_loc = 8;
-  repeated bytes inputs = 9;
-  repeated bytes outputs = 10;
   bytes err = 11;
   repeated Event events = 12;
-  string uid = 13;
   Type type = 14;
   StackTrace err_stack = 15; // null if unavailable
 
@@ -41,6 +38,18 @@ message Request {
   string message_id = 21;
   uint32 attempt = 22;
   uint64 publish_time = 23;
+
+  // Fields set if Type == RPC or AUTH
+  repeated bytes inputs = 9; // Deprecated: use request_payload and path_params
+  repeated bytes outputs = 10; // Deprecated: use response_payload and uid
+  string uid = 13;
+  string http_method = 24;
+  string path = 25;
+  repeated string path_params = 26;
+  bytes request_payload = 27;
+  bytes response_payload = 28;
+  map<string, string> raw_request_headers = 29;
+  map<string, string> raw_response_headers = 30;
 
   enum Type {
     RPC = 0;
@@ -60,6 +69,7 @@ message Event {
     PubsubMsgPublished publishedMsg = 7;
     ServiceInit service_init = 8;
     CacheOp cache = 9;
+    BodyStream body_stream = 10;
   }
 }
 
@@ -151,6 +161,12 @@ message CacheOp {
     CONFLICT = 3;
     ERR = 4;
   }
+}
+
+message BodyStream {
+  bool is_response = 1;
+  bool overflowed = 2;
+  bytes data = 3;
 }
 
 message HTTPCall {

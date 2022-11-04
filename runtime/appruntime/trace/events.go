@@ -3,6 +3,7 @@ package trace
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"encore.dev/appruntime/model"
 	"encore.dev/beta/errs"
@@ -35,6 +36,7 @@ const (
 	ServiceInitEnd     EventType = 0x15
 	CacheOpStart       EventType = 0x16
 	CacheOpEnd         EventType = 0x17
+	BodyStream         EventType = 0x18
 )
 
 func (te EventType) String() string {
@@ -85,6 +87,8 @@ func (te EventType) String() string {
 		return "CacheOpStart"
 	case CacheOpEnd:
 		return "CacheOpEnd"
+	case BodyStream:
+		return "BodyStream"
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}
@@ -96,44 +100,78 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 	tb.Now()
 	tb.Bytes(req.SpanID[:])
 	tb.Bytes(req.ParentID[:])
-	tb.String(req.Service)
-	tb.String(req.Endpoint)
 	tb.UVarint(uint64(goid))
-	tb.UVarint(0)                  // call expr idx; unused
 	tb.UVarint(uint64(req.DefLoc)) // endpoint expr idx
-	tb.String(string(req.UID))
-	tb.UVarint(uint64(len(req.Inputs)))
-	for _, input := range req.Inputs {
-		tb.UVarint(uint64(len(input)))
-		tb.Bytes(input)
-	}
 
-	if req.Type == model.PubSubMessage {
-		tb.String(req.MsgData.Topic)
-		tb.String(req.MsgData.Subscription)
-		tb.String(req.MsgData.MessageID)
-		tb.Uint32(uint32(req.MsgData.Attempt))
-		tb.Time(req.MsgData.Published)
+	switch req.Type {
+	case model.RPCCall:
+		data := req.RPCData
+		desc := data.Desc
+		tb.Bool(desc.Raw)
+		tb.String(desc.Service)
+		tb.String(desc.Endpoint)
+		tb.String(data.HTTPMethod)
+
+		tb.String(data.Path)
+		tb.UVarint(uint64(len(data.PathParams)))
+		for _, pp := range data.PathParams {
+			tb.String(pp.Value)
+		}
+		tb.String(string(data.UserID))
+
+		if desc.Raw {
+			l.logHeaders(&tb, data.RequestHeaders)
+		} else {
+			tb.ByteString(data.NonRawPayload)
+		}
+
+	case model.AuthHandler:
+		data := req.RPCData
+		desc := data.Desc
+		tb.String(desc.Service)
+		tb.String(desc.Endpoint)
+		tb.ByteString(data.NonRawPayload)
+
+	case model.PubSubMessage:
+		data := req.MsgData
+		tb.String(data.Service)
+		tb.String(data.Topic)
+		tb.String(data.Subscription)
+		tb.String(data.MessageID)
+		tb.Uint32(uint32(data.Attempt))
+		tb.Time(data.Published)
 	}
 
 	l.Add(RequestStart, tb.Buf())
 }
 
-func (l *Log) FinishRequest(req *model.Request, output [][]byte, err error) {
+func (l *Log) FinishRequest(req *model.Request, resp *model.Response) {
 	tb := NewBuffer(64)
+	tb.Byte(byte(req.Type))
 	tb.Bytes(req.SpanID[:])
-	if err == nil {
-		tb.Byte(0) // no error
-		tb.UVarint(uint64(len(output)))
-		for _, output := range output {
-			tb.UVarint(uint64(len(output)))
-			tb.Bytes(output)
-		}
-	} else {
-		tb.Byte(1) // error
-		tb.String(err.Error())
-		tb.Stack(errs.Stack(err))
+
+	tb.Err(resp.Err)
+	if resp.Err != nil {
+		tb.String(resp.Err.Error())
+		tb.Stack(errs.Stack(resp.Err))
 	}
+
+	switch req.Type {
+	case model.RPCCall:
+		isRaw := req.RPCData.Desc.Raw
+		tb.Bool(isRaw)
+		if isRaw {
+			l.logHeaders(&tb, resp.RawResponseHeaders)
+		} else {
+			tb.ByteString(resp.Payload)
+		}
+	case model.AuthHandler:
+		tb.String(string(resp.AuthUID))
+		tb.ByteString(resp.Payload)
+	case model.PubSubMessage:
+		tb.ByteString(resp.Payload)
+	}
+
 	l.Add(RequestEnd, tb.Buf())
 }
 
@@ -437,3 +475,46 @@ const (
 	CacheConflict  CacheOpResult = 3
 	CacheErr       CacheOpResult = 4
 )
+
+type BodyStreamParams struct {
+	SpanID model.SpanID
+
+	// IsResponse specifies whether the stream was a response body
+	// or a request body.
+	IsResponse bool
+
+	// Overflowed specifies whether the capturing overflowed.
+	Overflowed bool
+
+	// Data is the data read.
+	Data []byte
+}
+
+func (l *Log) BodyStream(p BodyStreamParams) {
+	var tb Buffer
+	tb.Bytes(p.SpanID[:])
+
+	var flags byte = 0
+	if p.IsResponse {
+		flags |= 1 << 0
+	}
+	if p.Overflowed {
+		flags |= 1 << 1
+	}
+	tb.Byte(flags)
+
+	tb.ByteString(p.Data)
+	l.Add(BodyStream, tb.Buf())
+}
+
+func (l *Log) logHeaders(tb *Buffer, headers http.Header) {
+	tb.UVarint(uint64(len(headers)))
+	for k, v := range headers {
+		firstVal := ""
+		if len(v) > 0 {
+			firstVal = v[0]
+		}
+		tb.String(k)
+		tb.String(firstVal)
+	}
+}

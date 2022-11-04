@@ -39,6 +39,7 @@ import (
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
+	"encr.dev/internal/experiments"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
@@ -132,9 +133,9 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	return run, nil
 }
 
-// runLogger is the interface for listening to run logs.
+// RunLogger is the interface for listening to run logs.
 // The log methods are called for each logline on stdout and stderr respectively.
-type runLogger interface {
+type RunLogger interface {
 	RunStdout(r *Run, line []byte)
 	RunStderr(r *Run, line []byte)
 }
@@ -244,8 +245,14 @@ func (r *Run) parseApp() (*parser.Result, error) {
 
 	vcsRevision := vcs.GetRevision(r.App.Root())
 
+	experiments, err := r.App.Experiments(r.params.Environ)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &parser.Config{
 		AppRoot:                  r.App.Root(),
+		Experiments:              experiments,
 		AppRevision:              vcsRevision.Revision,
 		AppHasUncommittedChanges: vcsRevision.Uncommitted,
 		ModulePath:               mod.Module.Mod.Path,
@@ -280,6 +287,11 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
+	expSet, err := r.App.Experiments(r.params.Environ)
+	if err != nil {
+		return err
+	}
+
 	if err := r.ResourceServers.StartRequiredServices(jobs, parse); err != nil {
 		return err
 	}
@@ -295,6 +307,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
 			EncoreRuntimePath:     env.EncoreRuntimePath(),
 			EncoreGoRoot:          env.EncoreGoRoot(),
+			Experiments:           expSet,
 			Meta: &cueutil.Meta{
 				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
 				EnvName:    "local",
@@ -302,7 +315,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 				CloudType:  cueutil.CloudType_Local,
 			},
 			Parse:     parse,
-			BuildTags: []string{"encore_local"},
+			BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 			OpTracker: tracker,
 		}
 
@@ -324,7 +337,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			if r.App.PlatformID() == "" {
 				return fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
 			}
-			data, err := r.mgr.Secret.Get(ctx, r.App.PlatformID())
+			data, err := r.mgr.Secret.Get(ctx, r.App, expSet)
 			if err != nil {
 				return err
 			}
@@ -352,6 +365,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		Secrets:        secrets,
 		ServiceConfigs: build.Configs,
 		Environ:        r.params.Environ,
+		Experiments:    expSet,
 	})
 	if err != nil {
 		tracker.Fail(startOp, err)
@@ -374,11 +388,12 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 // Proc represents a running Encore process.
 type Proc struct {
-	ID      string     // unique process id
-	Run     *Run       // the run the process belongs to
-	Pid     int        // the OS process id
-	Meta    *meta.Data // app metadata snapshot
-	Started time.Time  // when the process started
+	ID          string           // unique process id
+	Run         *Run             // the run the process belongs to
+	Pid         int              // the OS process id
+	Meta        *meta.Data       // app metadata snapshot
+	Started     time.Time        // when the process started
+	Experiments *experiments.Set // enabled experiments
 
 	ctx      context.Context
 	log      zerolog.Logger
@@ -407,8 +422,9 @@ type StartProcParams struct {
 	SQLDBCluster   *sqldb.Cluster    // nil means no cluster
 	NSQDaemon      *pubsub.NSQDaemon // nil means no pubsub
 	Redis          *redis.Server     // nil means no redis
-	Logger         runLogger
+	Logger         RunLogger
 	Environ        []string
+	Experiments    *experiments.Set
 }
 
 // StartProc starts a single actual OS process for app.
@@ -416,15 +432,16 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	pid := GenID()
 	authKey := genAuthKey()
 	p = &Proc{
-		ID:        pid,
-		Run:       r,
-		Meta:      params.Meta,
-		ctx:       params.Ctx,
-		exit:      make(chan struct{}),
-		buildDir:  params.BuildDir,
-		log:       r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
-		symParsed: make(chan struct{}),
-		authKey:   authKey,
+		ID:          pid,
+		Run:         r,
+		Experiments: params.Experiments,
+		Meta:        params.Meta,
+		ctx:         params.Ctx,
+		exit:        make(chan struct{}),
+		buildDir:    params.BuildDir,
+		log:         r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
+		symParsed:   make(chan struct{}),
+		authKey:     authKey,
 	}
 	go p.parseSymTable(params.BinPath)
 

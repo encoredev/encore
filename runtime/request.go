@@ -38,9 +38,47 @@ type Request struct {
 	Path       string     // What was the path made to the API server
 	PathParams PathParams // If there are path parameters, what are they?
 
+	// PubSubMessage specific parameters.
+	// Message contains information about the PubSub message,
+	Message *MessageData
+
 	// Payload is the decoded request payload or Pub/Sub message payload,
 	// or nil if the API endpoint has no request payload or the endpoint is raw.
 	Payload any
+
+	// CronIdempotencyKey contains a unique id for a particular cron job execution
+	// if this request was triggered by a Cron Job.
+	//
+	// It can be used to uniquely identify a particular Cron Job execution event,
+	// and also serves as a way to distinguish between Cron Job-triggered requests
+	// and other requests.
+	//
+	// If the request was not triggered by a Cron Job the value is the empty string.
+	CronIdempotencyKey string
+}
+
+// MessageData describes the request data for a Pub/Sub message.
+type MessageData struct {
+	// Service is the name of the service with the subscription.
+	Service string
+
+	// Topic is the name of the topic the message was published to.
+	Topic string
+
+	// Subscription is the name of the subscription the message was received on.
+	Subscription string
+
+	// ID is the unique ID of the message assigned by the messaging service.
+	// It is the same value returned by topic.Publish() and is the same
+	// across delivery attempts.
+	ID string
+
+	// Published is the time the message was first published.
+	Published time.Time
+
+	// DeliveryAttempt is a counter for how many times the messages
+	// has been attempted to be delivered.
+	DeliveryAttempt int
 }
 
 // RequestType describes how the currently running code was triggered
@@ -83,37 +121,49 @@ func (mgr *Manager) CurrentRequest() *Request {
 		}
 	}
 
-	opType := None
+	result := &Request{
+		Started: req.Start,
+	}
+
 	switch req.Type {
 	case model.RPCCall, model.AuthHandler:
-		opType = APICall
+		data := req.RPCData
+		desc := data.Desc
+
+		result.Type = APICall
+		result.Service = desc.Service
+		result.Endpoint = desc.Endpoint
+		result.Payload = data.TypedPayload
+
+		result.PathParams = make(PathParams, len(data.PathParams))
+		for i, param := range data.PathParams {
+			result.PathParams[i].Name = param.Name
+			result.PathParams[i].Value = param.Value
+		}
+
+		result.API = &APIDesc{
+			RequestType:  desc.RequestType,
+			ResponseType: desc.ResponseType,
+			Raw:          desc.Raw,
+		}
+
+		if data.FromEncorePlatform {
+			result.CronIdempotencyKey = data.RequestHeaders.Get("X-Encore-Cron-Execution")
+		}
+
 	case model.PubSubMessage:
-		opType = PubSubMessage
-	}
-
-	pathParams := make(PathParams, len(req.PathSegments))
-	for i, param := range req.PathSegments {
-		pathParams[i].Name = param.Name
-		pathParams[i].Value = param.Value
-	}
-
-	var api *APIDesc
-	if d := req.RPCDesc; d != nil {
-		api = &APIDesc{
-			RequestType:  d.RequestType,
-			ResponseType: d.ResponseType,
-			Raw:          d.Raw,
+		result.Type = PubSubMessage
+		result.Service = req.MsgData.Service
+		result.Payload = req.MsgData.DecodedPayload
+		result.Message = &MessageData{
+			Service:         req.MsgData.Service,
+			Topic:           req.MsgData.Topic,
+			Subscription:    req.MsgData.Subscription,
+			ID:              req.MsgData.MessageID,
+			Published:       req.MsgData.Published,
+			DeliveryAttempt: req.MsgData.Attempt,
 		}
 	}
 
-	return &Request{
-		Type:       opType,
-		API:        api,
-		Service:    req.Service,
-		Endpoint:   req.Endpoint,
-		Started:    req.Start,
-		Path:       req.Path,
-		PathParams: pathParams,
-		Payload:    req.Payload,
-	}
+	return result
 }

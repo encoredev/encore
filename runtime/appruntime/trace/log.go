@@ -8,6 +8,17 @@ import (
 	"encore.dev/internal/stack"
 )
 
+type Factory interface {
+	NewLogger() Logger
+}
+
+// DefaultFactory is a Factory that creates regular trace logs.
+var DefaultFactory = &defaultFactory{}
+
+type defaultFactory struct{}
+
+func (*defaultFactory) NewLogger() Logger { return &Log{} }
+
 type Log struct {
 	// mu must be the runtime mutex and not a regular sync.Mutex,
 	// as certain events (Go{Start,Clear,End}) are sometimes executed by system goroutines,
@@ -16,6 +27,9 @@ type Log struct {
 
 	data []byte
 }
+
+// Ensure Log implements Logger.
+var _ Logger = (*Log)(nil)
 
 // Add adds a new event in the trace log.
 // If l is nil, it does nothing.

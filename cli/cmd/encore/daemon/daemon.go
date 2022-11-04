@@ -358,6 +358,7 @@ func redirectLogOutput() error {
 		return err
 	}
 	log.Info().Msgf("writing output to %s", logPath)
+	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Logger = log.Output(io.MultiWriter(zerolog.ConsoleWriter{Out: os.Stderr}, f))
 	return nil
 }

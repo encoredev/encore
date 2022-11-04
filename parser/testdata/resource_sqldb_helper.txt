@@ -1,5 +1,5 @@
 parse
-stdout 'resource SQLDBResource svc.Moo db=moo'
+output 'resource SQLDBResource svc.Moo db=moo'
 
 -- svc/svc.go --
 package svc

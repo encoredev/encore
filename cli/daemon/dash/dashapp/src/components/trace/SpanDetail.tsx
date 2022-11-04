@@ -1,5 +1,15 @@
+import { ModeSpec, ModeSpecOptions } from "codemirror";
 import { DateTime, Duration } from "luxon";
-import React, { FunctionComponent, useRef, useState } from "react";
+import React, {
+  CSSProperties,
+  FC,
+  FunctionComponent,
+  PropsWithChildren,
+  useRef,
+  useState,
+} from "react";
+import { JsonViewer } from "@textea/json-viewer";
+import CM from "~c/api/cm/CM";
 import { Icon, icons } from "~c/icons";
 import { Base64EncodedBytes, decodeBase64 } from "~lib/base64";
 import { timeToDate } from "~lib/time";
@@ -16,9 +26,7 @@ import {
   Stack,
   Trace,
 } from "./model";
-import { latencyStr, svcColor } from "./util";
-import CM from "~c/api/cm/CM";
-import { ModeSpec, ModeSpecOptions } from "codemirror";
+import { idxColor, latencyStr, svcColor } from "./util";
 
 interface Props {
   trace: Trace;
@@ -136,125 +144,10 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
             <EventMap trace={props.trace} req={req} onStackTrace={props.onStackTrace} />
           </div>
 
-          {req.type === "AUTH" ? (
-            req.err !== null ? (
-              <div className="mt-4">
-                <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                  Error
-                </h4>
-                <pre className="overflow-auto rounded bg-black p-2 text-sm text-red">
-                  {decodeBase64(req.err)}
-                </pre>
-              </div>
-            ) : (
-              <>
-                <div className="mt-6">
-                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                    User ID
-                  </h4>
-                  {renderData([req.outputs[0]])}
-                </div>
-                {req.outputs.length > 1 && (
-                  <div className="mt-4">
-                    <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                      User Data
-                    </h4>
-                    {renderData([req.outputs[1]])}
-                  </div>
-                )}
-              </>
-            )
-          ) : req.type === "PUBSUB_MSG" ? (
-            <>
-              <div className="mt-6">
-                <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                  Message ID
-                </h4>
-                <div className="text-gray-700 text-sm">{req.msg_id ?? "<unknown>"}</div>
-              </div>
-              <div className="grid grid-cols-2">
-                <div className="mt-6">
-                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                    Delivery Attempt
-                  </h4>
-                  <div className="text-gray-700 text-sm">{req.attempt ?? "<unknown>"}</div>
-                </div>
-                <div className="mt-6">
-                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                    Originally Published
-                  </h4>
-                  <div className="text-gray-700 text-sm">
-                    {req.published ? DateTime.fromMillis(req.published).toString() : "<unknown>"}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6">
-                <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                  Message
-                </h4>
-                {req.inputs.length > 0 ? (
-                  renderRequestPayload(tr, req, req.inputs)
-                ) : (
-                  <div className="text-gray-700 text-sm">No message data.</div>
-                )}
-              </div>
-              {req.err !== null ? (
-                <div className="mt-4">
-                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                    Error{" "}
-                    <button
-                      className="text-gray-600 ml-1"
-                      onClick={() => props.onStackTrace(req.err_stack!)}
-                    >
-                      {icons.stackTrace("m-1 h-4 w-auto")}
-                    </button>
-                  </h4>
-                  <pre className="overflow-auto rounded bg-black p-2 text-sm text-red">
-                    {decodeBase64(req.err)}
-                  </pre>
-                </div>
-              ) : undefined}
-            </>
+          {req.inputs.length > 0 || req.outputs.length > 0 ? (
+            <LegacyRequestInfo req={req} trace={tr} onStackTrace={props.onStackTrace} />
           ) : (
-            <>
-              <div className="mt-6">
-                <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                  Request
-                </h4>
-                {req.inputs.length > 0 ? (
-                  renderRequestPayload(tr, req, req.inputs)
-                ) : (
-                  <div className="text-gray-700 text-sm">No request data.</div>
-                )}
-              </div>
-              {req.err !== null ? (
-                <div className="mt-4">
-                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                    Error{" "}
-                    <button
-                      className="text-gray-600 ml-1"
-                      onClick={() => props.onStackTrace(req.err_stack!)}
-                    >
-                      {icons.stackTrace("m-1 h-4 w-auto")}
-                    </button>
-                  </h4>
-                  <pre className="overflow-auto rounded bg-black p-2 text-sm text-red">
-                    {decodeBase64(req.err)}
-                  </pre>
-                </div>
-              ) : (
-                <div className="mt-4">
-                  <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                    Response
-                  </h4>
-                  {req.outputs.length > 0 ? (
-                    renderData(req.outputs)
-                  ) : (
-                    <div className="text-gray-700 text-sm">No response data.</div>
-                  )}
-                </div>
-              )}
-            </>
+            <NewRequestInfo req={req} trace={tr} onStackTrace={props.onStackTrace} />
           )}
 
           {logs.length > 0 && (
@@ -262,9 +155,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
               <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
                 Logs
               </h4>
-              <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
-                {logs.map((log, i) => renderLog(tr, log, i, props.onStackTrace))}
-              </pre>
+              <CodeBox>{logs.map((log, i) => renderLog(tr, log, i, props.onStackTrace))}</CodeBox>
             </div>
           )}
         </div>
@@ -274,6 +165,352 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
 };
 
 export default SpanDetail;
+
+const LegacyRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) => void }> = ({
+  req,
+  trace,
+  onStackTrace,
+}) => {
+  return req.type === "AUTH" ? (
+    req.err !== null ? (
+      <div className="mt-4">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Error
+        </h4>
+        <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+      </div>
+    ) : (
+      <>
+        <div className="mt-6">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            User ID
+          </h4>
+          {req.outputs.length > 0 ? renderData([req.outputs[0]]) : "Unknown"}
+        </div>
+        {req.outputs.length > 1 && (
+          <div className="mt-4">
+            <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+              User Data
+            </h4>
+            {renderData([req.outputs[1]])}
+          </div>
+        )}
+      </>
+    )
+  ) : req.type === "PUBSUB_MSG" ? (
+    <>
+      <div className="mt-6">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Message ID
+        </h4>
+        <div className="text-gray-700 text-sm">{req.msg_id ?? "<unknown>"}</div>
+      </div>
+      <div className="grid grid-cols-2">
+        <div className="mt-6">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Delivery Attempt
+          </h4>
+          <div className="text-gray-700 text-sm">{req.attempt ?? "<unknown>"}</div>
+        </div>
+        <div className="mt-6">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Originally Published
+          </h4>
+          <div className="text-gray-700 text-sm">
+            {req.published ? DateTime.fromMillis(req.published).toString() : "<unknown>"}
+          </div>
+        </div>
+      </div>
+      <div className="mt-6">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Message
+        </h4>
+        {req.inputs.length > 0 ? (
+          renderRequestPayload(getRequestInfo(trace, req))
+        ) : (
+          <div className="text-gray-700 text-sm">No message data.</div>
+        )}
+      </div>
+      {req.err !== null ? (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Error{" "}
+            <button className="text-gray-600 ml-1" onClick={() => onStackTrace(req.err_stack!)}>
+              {icons.stackTrace("m-1 h-4 w-auto")}
+            </button>
+          </h4>
+          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+        </div>
+      ) : undefined}
+    </>
+  ) : (
+    <>
+      <div className="mt-4">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Request
+        </h4>
+        {renderRequestPayload(getRequestInfo(trace, req))}
+      </div>
+      {req.err !== null ? (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Error{" "}
+            <button className="text-gray-600 ml-1" onClick={() => onStackTrace(req.err_stack!)}>
+              {icons.stackTrace("m-1 h-4 w-auto")}
+            </button>
+          </h4>
+          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Response
+          </h4>
+          {req.outputs.length > 0 ? (
+            renderData(req.outputs)
+          ) : (
+            <div className="text-gray-700 text-sm">No response data.</div>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
+
+const NewRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) => void }> = ({
+  req,
+  trace,
+  onStackTrace,
+}) => {
+  const svc = trace.meta.svcs.find((s) => s.name === req.svc_name);
+  const rpc = svc?.rpcs.find((r) => r.name === req.rpc_name);
+  const isRaw = rpc?.proto === "RAW";
+
+  return req.type === "AUTH" ? (
+    req.err !== null ? (
+      <div className="mt-4">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Error
+        </h4>
+        <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+      </div>
+    ) : (
+      <>
+        <div className="mt-6">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            User ID
+          </h4>
+          {req.user_id}
+        </div>
+        {req.response_payload && (
+          <div className="mt-4">
+            <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+              User Data
+            </h4>
+            <CodeBox>
+              <PayloadViewer payload={req.response_payload} />
+            </CodeBox>
+          </div>
+        )}
+      </>
+    )
+  ) : req.type === "PUBSUB_MSG" ? (
+    <>
+      <div className="mt-6">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Message ID
+        </h4>
+        <div className="text-gray-700 text-sm">{req.msg_id ?? "<unknown>"}</div>
+      </div>
+      <div className="grid grid-cols-2">
+        <div className="mt-6">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Delivery Attempt
+          </h4>
+          <div className="text-gray-700 text-sm">{req.attempt ?? "<unknown>"}</div>
+        </div>
+        <div className="mt-6">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Originally Published
+          </h4>
+          <div className="text-gray-700 text-sm">
+            {req.published ? DateTime.fromMillis(req.published).toString() : "<unknown>"}
+          </div>
+        </div>
+      </div>
+      <div className="mt-6">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Message
+        </h4>
+        {req.request_payload ? (
+          <PayloadViewer payload={req.request_payload} />
+        ) : (
+          <div className="text-gray-700 text-sm">No message data.</div>
+        )}
+      </div>
+      {req.err !== null ? (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Error{" "}
+            <button className="text-gray-600 ml-1" onClick={() => onStackTrace(req.err_stack!)}>
+              {icons.stackTrace("m-1 h-4 w-auto")}
+            </button>
+          </h4>
+          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+        </div>
+      ) : undefined}
+    </>
+  ) : (
+    <>
+      <div className="mt-4">
+        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+          Request
+        </h4>
+        {isRaw ? (
+          <RawRequestDetail req={req} />
+        ) : req.request_payload ? (
+          <CodeBox>
+            <PayloadViewer payload={req.request_payload} />
+          </CodeBox>
+        ) : (
+          <div className="text-gray-700 text-sm">No request data.</div>
+        )}
+      </div>
+      {req.err !== null ? (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Error{" "}
+            <button className="text-gray-600 ml-1" onClick={() => onStackTrace(req.err_stack!)}>
+              {icons.stackTrace("m-1 h-4 w-auto")}
+            </button>
+          </h4>
+          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+            Response
+          </h4>
+          {isRaw ? (
+            <RawResponseDetail req={req} />
+          ) : req.response_payload ? (
+            <CodeBox>
+              <PayloadViewer payload={req.response_payload} />
+            </CodeBox>
+          ) : (
+            <div className="text-gray-700 text-sm">No response data.</div>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
+
+const RawRequestDetail: FC<{ req: Request }> = ({ req }) => {
+  const [headersExpanded, setHeadersExpanded] = useState(false);
+  return (
+    <CodeBox>
+      <div className="ml-1 text-white text-opacity-75">
+        {req.http_method} {req.path}
+      </div>
+
+      {req.raw_req_headers.length > 0 && (
+        <div className="ml-1 text-white text-opacity-75">
+          <button
+            className="flex items-center text-white text-opacity-75 hover:text-opacity-100"
+            onClick={() => setHeadersExpanded((val) => !val)}
+          >
+            {(headersExpanded ? icons.minus : icons.plus)("border h-4 w-auto mr-2")}
+            {req.raw_req_headers.length} Request Headers
+          </button>
+          {headersExpanded && (
+            <div>
+              {req.raw_req_headers.map((kv, i) => (
+                <div key={i}>
+                  {kv.key}: {kv.value}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {req.request_payload && (
+        <div className="mt-2">
+          <PayloadViewer payload={req.request_payload} />
+        </div>
+      )}
+    </CodeBox>
+  );
+};
+
+const RawResponseDetail: FC<{ req: Request }> = ({ req }) => {
+  const [headersExpanded, setHeadersExpanded] = useState(false);
+  return (
+    <CodeBox>
+      {req.raw_resp_headers.length > 0 && (
+        <div className="ml-1 text-white text-opacity-75">
+          <button
+            className="flex items-center text-white text-opacity-75 hover:text-opacity-100"
+            onClick={() => setHeadersExpanded((val) => !val)}
+          >
+            {(headersExpanded ? icons.minus : icons.plus)("border h-4 w-auto mr-2")}
+            {req.raw_resp_headers.length} Response headers
+          </button>
+          {headersExpanded && (
+            <div>
+              {req.raw_resp_headers.map((kv, i) => (
+                <div key={i}>
+                  {kv.key}: {kv.value}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {req.response_payload && (
+        <div className="mt-2">
+          <PayloadViewer payload={req.response_payload} />
+        </div>
+      )}
+    </CodeBox>
+  );
+};
+
+const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
+  const decoded = decodeBase64(payload);
+  let jsonObj: any = undefined;
+  try {
+    jsonObj = JSON.parse(decoded);
+  } catch (err) {
+    /* do nothing */
+  }
+
+  return jsonObj !== undefined ? (
+    <div className="[&_svg]:inline-block [&_.data-key]:align-top">
+      <JsonViewer
+        value={jsonObj}
+        rootName={false}
+        collapseStringsAfterLength={100}
+        theme={"dark"}
+        displayObjectSize={false}
+        displayDataTypes={false}
+        indentWidth={2}
+      />
+    </div>
+  ) : (
+    <CM
+      cfg={{
+        value: decoded,
+        readOnly: true,
+        theme: "encore",
+        mode: { name: "javascript", json: true },
+      }}
+      noShadow={true}
+    />
+  );
+};
 
 type gdata = {
   goid: number;
@@ -414,29 +651,26 @@ const GoroutineDetail: FunctionComponent<{
             const clsid = `ev-${req.id}-${g.goid}-${i}`;
 
             if (ev.type === "DBQuery") {
-              const [color, highlightColor] = svcColor(
-                ev.txid !== null ? "tx:" + ev.txid : "query:" + ev.start_time
-              );
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    data-testid={clsid}
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  data-testid={clsid}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "RPCCall") {
               const defLoc = props.trace.locations[ev.def_loc];
@@ -444,94 +678,88 @@ const GoroutineDetail: FunctionComponent<{
               if ("rpc_def" in defLoc) {
                 svcName = defLoc.rpc_def.service_name;
               }
-              const [color, highlightColor] = svcColor(svcName);
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "HTTPCall") {
-              const [color, highlightColor] = svcColor(ev.url);
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "PubSubPublish") {
-              const [color, highlightColor] = svcColor(
-                ev.message_id ? "msg_id:" + ev.message_id : "topic:" + ev.topic
-              );
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             } else if (ev.type === "CacheOp") {
-              const [color, highlightColor] = svcColor(ev.operation);
+              const [color, highlightColor] = idxColor(i);
               return (
-                <React.Fragment key={i}>
-                  <style>{`
-                .${clsid}       { background-color: ${highlightColor}; }
-                .${clsid}:hover { background-color: ${color}; }
-              `}</style>
-                  <div
-                    className={`absolute ${clsid}`}
-                    onMouseEnter={(e) => setHover(e, ev)}
-                    onMouseLeave={(e) => setHover(e, null)}
-                    style={{
+                <div
+                  key={i}
+                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  onMouseEnter={(e) => setHover(e, ev)}
+                  onMouseLeave={(e) => setHover(e, null)}
+                  style={
+                    {
+                      "--base-color": color,
+                      "--hover-color": highlightColor,
                       top: "2px",
                       bottom: "2px",
                       left: start + "%",
                       right: 100 - end + "%",
                       minWidth: "1px", // so it at least renders if start === stop
-                    }}
-                  />
-                </React.Fragment>
+                    } as CSSProperties
+                  }
+                />
               );
             }
           })}
@@ -628,9 +856,7 @@ const PubsubPublishTooltip: FunctionComponent<{
           Error
         </h4>
         {publish.err !== null ? (
-          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
-            {decodeBase64(publish.err)}
-          </pre>
+          <CodeBox error>{decodeBase64(publish.err)}</CodeBox>
         ) : (
           <div className="text-gray-700 text-sm">Completed successfully.</div>
         )}
@@ -692,9 +918,7 @@ const CacheOpTooltip: FunctionComponent<{
           <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
             {op.keys.length !== 1 ? "Keys" : "Key"}
           </h4>
-          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
-            {op.keys.join("\n")}
-          </pre>
+          <CodeBox>{op.keys.join("\n")}</CodeBox>
         </div>
       )}
 
@@ -703,9 +927,7 @@ const CacheOpTooltip: FunctionComponent<{
           Result
         </h4>
         {op.err ? (
-          <pre className="overflow-auto rounded border bg-black p-2 text-sm text-white">
-            {decodeBase64(op.err)}
-          </pre>
+          <CodeBox error>{decodeBase64(op.err)}</CodeBox>
         ) : (
           <div className="text-gray-700 text-sm">
             {op.result === CacheResult.NoSuchKey
@@ -753,9 +975,7 @@ const DBQueryTooltip: FunctionComponent<{
           Error
         </h4>
         {q.err !== null ? (
-          <pre className="overflow-auto rounded bg-black p-2 text-sm text-white">
-            {decodeBase64(q.err)}
-          </pre>
+          <CodeBox error>{decodeBase64(q.err)}</CodeBox>
         ) : (
           <div className="text-gray-700 text-sm">Completed successfully.</div>
         )}
@@ -801,13 +1021,9 @@ const RPCCallTooltip: FunctionComponent<{
           Request
         </h4>
         {target !== undefined ? (
-          target.inputs.length > 0 ? (
-            renderRequestPayload(props.trace, target, target.inputs)
-          ) : (
-            <div className="text-gray-700 text-sm">No request data.</div>
-          )
+          renderRequestPayload(getRequestInfo(props.trace, target))
         ) : (
-          <div className="text-gray-700 text-sm">Not captured.</div>
+          <div className="text-sm">Not captured.</div>
         )}
       </div>
 
@@ -818,6 +1034,8 @@ const RPCCallTooltip: FunctionComponent<{
         {target !== undefined ? (
           target.outputs.length > 0 ? (
             renderData(target.outputs, "max-h-96")
+          ) : target.response_payload ? (
+            renderPayload(target.response_payload)
           ) : (
             <div className="text-gray-700 text-sm">No response data.</div>
           )
@@ -960,9 +1178,7 @@ const renderData = (
     /* do nothing */
   }
   return (
-    <pre
-      className={`response-docs overflow-auto rounded border bg-black p-2 text-sm text-white ${className}`}
-    >
+    <CodeBox className={className}>
       <CM
         key={pretty}
         cfg={{
@@ -973,22 +1189,32 @@ const renderData = (
         }}
         noShadow={true}
       />
-    </pre>
+    </CodeBox>
   );
 };
 
-const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[]) => {
-  const raw = data.map((e) => decodeBase64(e));
+interface RequestInfo {
+  payload: string | undefined;
+  pathParams: [string, string][]; // [key, value][]
+}
+
+function getRequestInfo(tr: Trace, req: Request): RequestInfo {
   const svc = tr.meta.svcs.find((s) => s.name === req.svc_name);
   const rpc = svc?.rpcs.find((r) => r.name === req.rpc_name);
-  const pathParams = rpc?.path.segments.filter((s) => s.type !== "LITERAL");
+  const paramSpec = rpc?.path.segments.filter((s) => s.type !== "LITERAL");
 
-  if (pathParams === undefined) {
-    return renderData([data[data.length - 1]]);
+  let payload: string | undefined;
+  let pathParams: [string, string][];
+  if (req.inputs.length > 0) {
+    // Legacy format
+    const raw = req.inputs.map((e) => decodeBase64(e));
+    payload = raw.length > (paramSpec?.length ?? 0) ? raw[raw.length - 1] : undefined;
+    pathParams = paramSpec?.map((seg, i) => [seg.value, raw[i]]) ?? [];
+  } else {
+    payload = decodeBase64(req.request_payload ?? "");
+    pathParams = paramSpec?.map((seg, i) => [seg.value, req.path_params[i]]) ?? [];
   }
 
-  let payload: string | undefined =
-    raw.length > pathParams.length ? raw[raw.length - 1] : undefined;
   if (payload !== undefined) {
     try {
       const json = JSON.parse(payload);
@@ -998,20 +1224,36 @@ const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[
     }
   }
 
+  return { payload, pathParams };
+}
+
+const renderRequestPayload = (info: RequestInfo, ctx: "request" | "pubsub" = "request") => {
+  if (info.pathParams.length === 0 && !info.payload) {
+    return (
+      <div className="text-sm">{ctx === "pubsub" ? "No message data" : "No request data."}</div>
+    );
+  }
+
+  const showPath = ctx === "request";
+
   return (
-    <pre className="response-docs overflow-auto rounded border bg-black p-2 text-sm text-white">
-      {pathParams.map((s, i) => (
-        <div key={i}>
-          <span className="text-gray-400">{s.value}:</span> {raw[i]}
-        </div>
-      ))}
-      {payload !== undefined && (
+    <CodeBox>
+      {showPath &&
+        info.pathParams.map((p, i) => (
+          <div key={i}>
+            <span className="text-gray-400">{p[0]}:</span> {p[1]}
+          </div>
+        ))}
+      {info.payload && (
         <div>
-          {pathParams.length > 0 && <span className="text-gray-400">payload: </span>}
+          {showPath && info.pathParams.length > 0 && (
+            <span className="text-gray-400">
+              <br />
+            </span>
+          )}
           <CM
-            key={payload}
             cfg={{
-              value: payload,
+              value: info.payload,
               readOnly: true,
               theme: "encore",
               mode: { name: "javascript", json: true },
@@ -1020,7 +1262,32 @@ const renderRequestPayload = (tr: Trace, req: Request, data: Base64EncodedBytes[
           />
         </div>
       )}
-    </pre>
+    </CodeBox>
+  );
+};
+
+const renderPayload = (data: Base64EncodedBytes) => {
+  data = decodeBase64(data);
+  try {
+    const json = JSON.parse(data);
+    data = JSON.stringify(json, undefined, "  ");
+  } catch (err) {
+    /* do nothing */
+  }
+
+  return (
+    <CodeBox>
+      <CM
+        key={data} /* needed to re-render on request changes */
+        cfg={{
+          value: data,
+          readOnly: true,
+          theme: "encore",
+          mode: { name: "javascript", json: true },
+        }}
+        noShadow={true}
+      />
+    </CodeBox>
   );
 };
 
@@ -1098,3 +1365,15 @@ function findCall(tr: Trace, id: string): RPCCall | undefined {
   }
   return undefined;
 }
+
+const CodeBox: FC<PropsWithChildren<{ className?: string; error?: boolean }>> = (props) => {
+  return (
+    <pre
+      className={`response-docs overflow-auto rounded border bg-black p-2 text-sm ${
+        props.error ? "text-red" : "text-white"
+      } ${props.className ?? ""}`}
+    >
+      {props.children}
+    </pre>
+  );
+};

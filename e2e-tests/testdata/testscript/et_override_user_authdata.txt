@@ -1,0 +1,91 @@
+test
+
+-- svc/svc_test.go --
+package svc
+
+import (
+    "context"
+    "testing"
+    "encore.dev/beta/auth"
+    "encore.dev/et"
+)
+
+func TestOverrideAuthInfo(t *testing.T) {
+    curr, _ := auth.Data().(*AuthData)
+    if curr != nil {
+        t.Fatalf("got data %+v, want nil", curr)
+    }
+
+    et.OverrideAuthInfo("foo", &AuthData{"email"})
+
+    curr = auth.Data().(*AuthData)
+    if curr == nil || curr.Email != "email" {
+        t.Fatalf("got data %+v, want %q", curr, &AuthData{"email"})
+    }
+}
+
+func TestOverrideAuthInfo_ResetBetweenTests(t *testing.T) {
+    curr  := auth.Data()
+    if curr != nil {
+        t.Fatalf("got data %+v, want nil", curr)
+    }
+}
+
+func TestOverrideAuthInfo_PropagatesToAPICalls(t *testing.T) {
+    resp, err := GetUser(context.Background())
+    if err != nil {
+        t.Fatal(err)
+    } else if resp.Data != nil {
+        t.Fatalf("got data %+v, want nil", resp.Data)
+    }
+
+    et.OverrideAuthInfo("foo", &AuthData{"email"})
+
+    resp, err = GetUser(context.Background())
+    if err != nil {
+        t.Fatal(err)
+    } else if resp.Data == nil || resp.Data.Email != "email" {
+        t.Fatalf("got data %+v, want %+v", resp.Data, &AuthData{"email"})
+    }
+}
+
+func TestOverrideAuthInfo_APICallOptsOverride(t *testing.T) {
+    et.OverrideAuthInfo("foo", &AuthData{"email"})
+
+    ctx := auth.WithContext(context.Background(), "bar", &AuthData{"email2"})
+    resp, err := GetUser(ctx)
+    if err != nil {
+        t.Fatal(err)
+    } else if resp.Data == nil || resp.Data.Email != "email2" {
+        t.Fatalf("got data %+v, want %+v", resp.Data, &AuthData{"email2"})
+    }
+}
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type Response struct {
+    UserID auth.UID
+    Data *AuthData
+}
+
+//encore:api public
+func GetUser(ctx context.Context) (*Response, error) {
+    uid, _ := auth.UserID()
+    data, _ := auth.Data().(*AuthData)
+    return &Response{UserID: uid, Data: data}, nil
+}
+
+type AuthData struct {
+    Email string
+}
+
+//encore:authhandler
+func AuthHandler(ctx context.Context, token string) (auth.UID, *AuthData, error) {
+    return "hello", &AuthData{Email: "hello@example.org"}, nil
+}

@@ -1,6 +1,6 @@
 ! parse
-stderr 'all struct fields used in auth handler parameter Params must'
-stderr 'for the field\(s\): Foo, Bar'
+err 'all struct fields used in auth handler parameter Params must'
+err 'for the field\(s\): Foo, Bar'
 
 -- svc/svc.go --
 package svc

@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/felixge/httpsnoop"
 	jsoniter "github.com/json-iterator/go"
 
 	encore "encore.dev"
@@ -63,16 +62,14 @@ type Desc[Req, Resp any] struct {
 
 	DecodeReq      func(*http.Request, UnnamedParams, jsoniter.API) (Req, UnnamedParams, error)
 	CloneReq       func(Req) (Req, error)
-	SerializeReq   func(jsoniter.API, Req) ([][]byte, error)
 	ReqPath        func(Req) (path string, params UnnamedParams, err error)
 	ReqUserPayload func(Req) any
 
 	AppHandler func(context.Context, Req) (Resp, error)
 	RawHandler func(http.ResponseWriter, *http.Request)
 
-	EncodeResp    func(http.ResponseWriter, jsoniter.API, Resp) error
-	SerializeResp func(jsoniter.API, Resp) ([][]byte, error)
-	CloneResp     func(Resp) (Resp, error)
+	EncodeResp func(http.ResponseWriter, jsoniter.API, Resp) error
+	CloneResp  func(Resp) (Resp, error)
 
 	// middleware is the ordered list of middleware to invoke before
 	// calling the API handler. It's set with SetMiddleware during setup.
@@ -91,31 +88,34 @@ func (d *Desc[Req, Resp]) HTTPRouterPath() string        { return d.RawPath }
 func (d *Desc[Req, Resp]) SetMiddleware(m []*Middleware) { d.middleware = m }
 
 func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
-	reqData, err := d.begin(c)
-	if err != nil {
-		errs.HTTPError(c.w, err)
+	if d.Raw {
+		c.capturer = newRawRequestBodyCapturer(c.req)
+		c.req.Body = c.capturer
+		defer c.capturer.Dispose()
+	}
+
+	reqData, beginErr := d.begin(c)
+	if beginErr != nil {
+		errs.HTTPError(c.w, beginErr)
 		return
 	}
 
-	resp, httpStatus, err := d.handleIncoming(c, reqData)
-	if err != nil {
-		c.server.finishRequest(nil, err, httpStatus)
+	resp, respData := d.handleIncoming(c, reqData)
+	if resp.Err != nil {
+		c.server.finishRequest(resp)
 
 		// If the endpoint is raw it has already written its response;
 		// don't write another.
 		if !d.Raw {
-			errs.HTTPErrorWithCode(c.w, err, httpStatus)
+			errs.HTTPErrorWithCode(c.w, resp.Err, resp.HTTPStatus)
 		}
-
 		return
 	}
 
-	var output [][]byte
 	if !d.Raw {
-		err = d.EncodeResp(c.w, c.server.json, resp)
-		output, _ = d.SerializeResp(c.server.json, resp)
+		resp.Err = d.EncodeResp(c.w, c.server.json, respData)
 	}
-	c.server.finishRequest(output, err, httpStatus)
+	c.server.finishRequest(resp)
 }
 
 func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error) {
@@ -131,29 +131,31 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	}
 
 	// Only compute inputs and payload if we have valid reqData.
-	var (
-		inputs  [][]byte
-		payload any
-	)
+	var payload any
+	var nonRawPayload []byte
 	if decodeErr == nil {
-		inputs, _ = d.SerializeReq(c.server.json, reqData)
 		payload = d.ReqUserPayload(reqData)
+		if !d.Raw {
+			nonRawPayload = marshalParams(c.server.json, reqData)
+		}
 	}
 
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
-		Type:     model.RPCCall,
-		Service:  d.Service,
-		Endpoint: d.Endpoint,
-		DefLoc:   d.DefLoc,
+		Type:   model.RPCCall,
+		DefLoc: d.DefLoc,
 
-		Path:         c.req.URL.Path,
-		PathSegments: d.toNamedParams(params),
-		Payload:      payload,
-		Inputs:       inputs,
-		RPCDesc:      d.rpcDesc(),
-
-		UID:      c.auth.UID,
-		AuthData: c.auth.UserData,
+		Data: &model.RPCData{
+			Desc:               d.rpcDesc(),
+			HTTPMethod:         c.req.Method,
+			Path:               c.req.URL.Path,
+			PathParams:         d.toNamedParams(params),
+			TypedPayload:       payload,
+			NonRawPayload:      nonRawPayload,
+			UserID:             c.auth.UID,
+			AuthData:           c.auth.UserData,
+			RequestHeaders:     c.req.Header,
+			FromEncorePlatform: IsEncorePlatformRequest(c.req.Context()),
+		},
 	})
 	if err != nil {
 		beginErr = errs.B().Code(errs.Internal).Msg("internal error").Err()
@@ -163,7 +165,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	// If we fail after having begun the request, mark it as completed.
 	defer func() {
 		if beginErr != nil {
-			c.server.finishRequest(nil, beginErr, 0)
+			c.server.finishRequest(newErrResp(beginErr, 0))
 		}
 	}()
 
@@ -176,66 +178,26 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 }
 
 // handleIncoming executes the given handler, running middleware in the process.
-func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp Resp, httpStatus int, respErr error) {
+func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp *model.Response, respData Resp) {
 	if err := d.validate(reqData); err != nil {
-		respErr = err
-		httpStatus = errs.HTTPStatus(err)
-		return
+		return newErrResp(err, 0), respData
 	}
+
+	var respCapturer *rawResponseCapturer
 
 	invokeHandler := func(mwReq middleware.Request) (mwResp middleware.Response) {
 		if d.Raw {
-			return d.invokeHandlerRaw(mwReq, c)
+			respCapturer = newRawResponseCapturer(c.w, c.req)
+			return d.invokeHandlerRaw(mwReq, c, respCapturer)
 		} else {
 			return d.invokeHandlerNonRaw(mwReq, reqData)
 		}
 	}
-	return d.executeEndpoint(c.execContext, invokeHandler)
-}
 
-// invokeHandlerNonRaw invokes the handler for a regular (non-raw) endpoint. If the endpoint is raw, it panics.
-func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData Req) (mwResp middleware.Response) {
-	if d.Raw {
-		panic("invokeHandlerNonRaw called on Raw endpoint")
-	}
-	handlerResp, handlerErr := d.AppHandler(mwReq.Context(), reqData)
-	if handlerErr != nil {
-		mwResp.Err = errs.Convert(handlerErr)
-		mwResp.HTTPStatus = errs.HTTPStatus(mwResp.Err)
-	} else {
-		// Only assign the payload if we're not dealing with *Void,
-		// otherwise we would end up making Payload a "typed nil".
-		if !isVoid[Resp]() {
-			mwResp.Payload = handlerResp
-		}
-		mwResp.HTTPStatus = 200
-	}
-	return mwResp
-}
+	respData, httpStatus, err := d.executeEndpoint(c.execContext, invokeHandler)
 
-// invokeHandlerRaw invokes the handler for a raw endpoint. If the endpoint is not raw, it panics.
-func (d *Desc[Req, Resp]) invokeHandlerRaw(mwReq middleware.Request, c IncomingContext) (mwResp middleware.Response) {
-	if !d.Raw {
-		panic("invokeHandlerRaw called on non-Raw endpoint")
-	}
-
-	// Middleware can override the context, so check if the context is different
-	// and if so change the request context.
-	httpReq := c.req
-	if ctx := mwReq.Context(); ctx != c.req.Context() {
-		httpReq = httpReq.WithContext(ctx)
-	}
-	m := httpsnoop.CaptureMetrics(http.HandlerFunc(d.RawHandler), c.w, httpReq)
-
-	if m.Code >= 400 {
-		statusText := http.StatusText(m.Code)
-		if statusText == "" {
-			statusText = "HTTP " + strconv.Itoa(m.Code)
-		}
-		mwResp.Err = errs.B().Code(errs.HTTPStatusToCode(m.Code)).Msg(statusText).Err()
-	}
-	mwResp.HTTPStatus = m.Code
-	return mwResp
+	resp = newResp(respData, httpStatus, err, d.Raw, c.capturer, respCapturer, c.server.json)
+	return resp, respData
 }
 
 // executeEndpoint executes the given handler, running middleware in the process.
@@ -309,6 +271,53 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	).Err()
 }
 
+// invokeHandlerNonRaw invokes the handler for a regular (non-raw) endpoint. If the endpoint is raw, it panics.
+func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData Req) (mwResp middleware.Response) {
+	if d.Raw {
+		panic("invokeHandlerNonRaw called on Raw endpoint")
+	}
+	handlerResp, handlerErr := d.AppHandler(mwReq.Context(), reqData)
+	if handlerErr != nil {
+		mwResp.Err = errs.Convert(handlerErr)
+		mwResp.HTTPStatus = errs.HTTPStatus(mwResp.Err)
+	} else {
+		// Only assign the payload if we're not dealing with *Void,
+		// otherwise we would end up making Payload a "typed nil".
+		if !isVoid[Resp]() {
+			mwResp.Payload = handlerResp
+		}
+		mwResp.HTTPStatus = 200
+	}
+	return mwResp
+}
+
+// invokeHandlerRaw invokes the handler for a raw endpoint. If the endpoint is not raw, it panics.
+func (d *Desc[Req, Resp]) invokeHandlerRaw(mwReq middleware.Request, c IncomingContext, capturer *rawResponseCapturer) (mwResp middleware.Response) {
+	if !d.Raw {
+		panic("invokeHandlerRaw called on non-Raw endpoint")
+	}
+
+	// Middleware can override the context, so check if the context is different
+	// and if so change the request context.
+	httpReq := c.req
+	if ctx := mwReq.Context(); ctx != c.req.Context() {
+		httpReq = httpReq.WithContext(ctx)
+	}
+
+	capturer.InvokeHandler(http.HandlerFunc(d.RawHandler), httpReq)
+
+	if capturer.Code >= 400 {
+		statusText := http.StatusText(capturer.Code)
+		if statusText == "" {
+			statusText = "HTTP " + strconv.Itoa(capturer.Code)
+		}
+		mwResp.Err = errs.B().Code(errs.HTTPStatusToCode(capturer.Code)).Msg(statusText).Err()
+	}
+
+	mwResp.HTTPStatus = capturer.Code
+	return mwResp
+}
+
 func (d *Desc[Req, Resp]) toNamedParams(ps UnnamedParams) NamedParams {
 	named := make(NamedParams, len(ps))
 	for i, p := range ps {
@@ -323,7 +332,7 @@ type CallContext struct {
 	server *Server
 }
 
-func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error) {
+func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
 	// TODO: we don't currently support service-to-service calls of raw endpoints.
 	// To fix this we need to improve our request serialization and DI support to
 	// separate the signature for outgoing calls versus handlers.
@@ -333,12 +342,6 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 	}
 
 	req, err := d.CloneReq(req)
-	if err != nil {
-		respErr = errs.Convert(err)
-		return
-	}
-
-	inputs, err := d.SerializeReq(c.server.json, req)
 	if err != nil {
 		respErr = errs.Convert(err)
 		return
@@ -360,17 +363,33 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		reqObj, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
-			Type:     model.RPCCall,
-			Service:  d.Service,
-			Endpoint: d.Endpoint,
-			DefLoc:   d.DefLoc,
 
-			Path:         path,
-			PathSegments: d.toNamedParams(params),
-			Payload:      d.ReqUserPayload(req),
-			Inputs:       inputs,
-			RPCDesc:      d.rpcDesc(),
+		// Default to GET if there are no methods available (or it's a wildcard)
+		httpMethod := "GET"
+		if len(d.Methods) > 0 && d.Methods[0] != "*" {
+			httpMethod = d.Methods[0]
+		}
+
+		var nonRawPayload []byte
+		if !d.Raw {
+			nonRawPayload = marshalParams(c.server.json, req)
+		}
+
+		reqObj, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
+			Type:   model.RPCCall,
+			DefLoc: d.DefLoc,
+
+			Data: &model.RPCData{
+				HTTPMethod:    httpMethod,
+				Path:          path,
+				PathParams:    d.toNamedParams(params),
+				TypedPayload:  d.ReqUserPayload(req),
+				Desc:          d.rpcDesc(),
+				NonRawPayload: nonRawPayload,
+
+				FromEncorePlatform: false,
+				RequestHeaders:     nil, // not set right now for internal requests
+			},
 
 			SpanID: call.SpanID,
 		})
@@ -384,7 +403,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 			return
 		}
 
-		ec := c.server.newExecContext(c.ctx, params, model.AuthInfo{reqObj.UID, reqObj.AuthData})
+		ec := c.server.newExecContext(c.ctx, params, model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData})
 		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
 		})
@@ -398,11 +417,16 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (resp Resp, respErr error
 		}
 		if rpcErr != nil {
 			respErr = errs.RoundTrip(rpcErr)
-			c.server.finishRequest(nil, respErr, httpStatus)
+			c.server.finishRequest(newErrResp(respErr, httpStatus))
 		} else {
-			resp, respErr = r, nil
-			output, _ := d.SerializeResp(c.server.json, r)
-			c.server.finishRequest(output, nil, httpStatus)
+			respData, respErr = r, nil
+			// Always nil for now since we don't support raw endpoints in service-to-service calls.
+			var (
+				reqCapture  *rawRequestBodyCapturer
+				respCapture *rawResponseCapturer
+			)
+			modelResp := newResp(respData, httpStatus, respErr, d.Raw, reqCapture, respCapture, c.server.json)
+			c.server.finishRequest(modelResp)
 		}
 	}()
 	<-done
@@ -451,4 +475,48 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 		d.cachedRPCDesc = desc
 	})
 	return d.cachedRPCDesc
+}
+
+func marshalParams[Resp any](json jsoniter.API, resp Resp) []byte {
+	if isVoid[Resp]() {
+		return nil
+	}
+	data, _ := json.Marshal(resp)
+	return data
+}
+
+// newResp returns an *model.Response for a response.
+func newResp[Resp any](respData Resp, httpStatus int, err error, isRaw bool,
+	reqCapture *rawRequestBodyCapturer, respCapture *rawResponseCapturer, json jsoniter.API,
+) *model.Response {
+	resp := &model.Response{
+		HTTPStatus: httpStatus,
+		Err:        err,
+	}
+
+	if isRaw {
+		if reqCapture != nil {
+			resp.RawRequestPayload, resp.RawRequestPayloadOverflowed = reqCapture.FinishCapturing()
+		}
+		if respCapture != nil {
+			resp.RawResponseHeaders = respCapture.Header
+			resp.RawResponsePayload, resp.RawResponsePayloadOverflowed = respCapture.FinishCapturing()
+		}
+	} else {
+		resp.TypedPayload = respData
+		resp.Payload = marshalParams(json, respData)
+	}
+	return resp
+}
+
+// newErrResp returns an *model.Response for an error.
+// If httpStatus is 0 it's inferred from the error.
+func newErrResp(err error, httpStatus int) *model.Response {
+	if httpStatus == 0 {
+		httpStatus = errs.HTTPStatus(err)
+	}
+	return &model.Response{
+		HTTPStatus: httpStatus,
+		Err:        err,
+	}
 }

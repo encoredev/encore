@@ -40,11 +40,17 @@ type topic struct {
 	idSeq     uint32
 }
 
-func (mgr *Manager) NewTopic(server *config.NSQProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) ProviderName() string { return "nsq" }
+
+func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
+	return cfg.NSQ != nil
+}
+
+func (mgr *Manager) NewTopic(server *config.PubsubProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
 	return &topic{
 		mgr:       mgr,
 		name:      topicCfg.EncoreName,
-		addr:      server.Host,
+		addr:      server.NSQ.Host,
 		producer:  nil,
 		consumers: make(map[string]*nsq.Consumer),
 		idSeq:     0,
@@ -52,7 +58,8 @@ func (mgr *Manager) NewTopic(server *config.NSQProvider, topicCfg *config.Pubsub
 }
 
 // messageWrapper is a local representation of a topic published to NSQ.
-// it wraps the raw data with an ID and an Attribute map
+// it wraps the raw data with an ID and an Attribute map.
+// It must be synchronized with the e2e-tests/testscript_test.go file.
 type messageWrapper struct {
 	ID         string
 	Attributes map[string]string

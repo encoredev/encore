@@ -1,5 +1,5 @@
 ! parse
-stderr 'Subscriptions names on topics must be unique.'
+err 'Subscriptions names on topics must be unique.'
 
 -- shared/topics.go --
 package shared

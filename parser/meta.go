@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errinsrc"
@@ -292,6 +293,15 @@ func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {
 		if f.IsDir() {
 			continue
 		}
+
+		// If the file is not an SQL file ignore it, to allow for other files to be present
+		// in the migration directory. For SQL files we want to ensure they're properly named
+		// so that we complain loudly about potential typos. (It's theoretically possible to
+		// typo the filename extension as well, but it's less likely due to syntax highlighting).
+		if filepath.Ext(strings.ToLower(f.Name())) != ".sql" {
+			continue
+		}
+
 		match := migrationRe.FindStringSubmatch(f.Name())
 		if match == nil {
 			return nil, fmt.Errorf("migration %s/%s has an invalid name (must be of the format '[123]_[description].[up|down].sql')",

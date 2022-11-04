@@ -34,7 +34,13 @@ type topic struct {
 	topicCfg *config.PubsubTopic
 }
 
-func (mgr *Manager) NewTopic(_ *config.GCPPubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) ProviderName() string { return "gcp" }
+
+func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
+	return cfg.GCP != nil
+}
+
+func (mgr *Manager) NewTopic(_ *config.PubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
 	client := mgr.getClient()
 	gcpTopic := client.TopicInProject(cfg.ProviderName, cfg.GCP.ProjectID)

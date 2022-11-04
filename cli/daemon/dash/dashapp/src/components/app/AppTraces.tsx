@@ -45,7 +45,7 @@ export default class AppTraces extends React.Component<Props, State> {
       this.setState((st) => {
         let traces = [tr, ...st.traces];
         if (traces.length > 100) {
-          traces = traces.slice(0, 100)
+          traces = traces.slice(0, 100);
         }
         return { traces };
       });
@@ -198,7 +198,11 @@ const TraceView: FC<TraceViewProps> = (props) => {
                   <>
                     <tr className="text-left font-normal">
                       <th className="text-gray-400 pr-2 text-left text-sm font-light">User ID</th>
-                      <td className="font-mono">{JSON.parse(decodeBase64(tr.auth.outputs[0]))}</td>
+                      <td className="font-mono">
+                        {tr.auth.outputs.length > 0
+                          ? JSON.parse(decodeBase64(tr.auth.outputs[0]))
+                          : tr.auth.user_id}
+                      </td>
                     </tr>
                   </>
                 )}

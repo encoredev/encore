@@ -2,6 +2,7 @@
 package secret
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,10 +11,15 @@ import (
 	"sync"
 	"time"
 
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/load"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/singleflight"
 
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/internal/experiments"
 )
 
 // New returns a new manager.
@@ -32,15 +38,28 @@ type Manager struct {
 
 // Data is a snapshot of an Encore app's development secret values.
 type Data struct {
-	// Synced is when the values were last synced.
+	// Synced is when the values were last synced,
+	// or the zero value if no sync has taken place.
 	Synced time.Time
 	// Values is a key-value map of defined secrets.
 	Values map[string]string
 }
 
 // Get gets the secrets for the given app.
-func (f *Manager) Get(ctx context.Context, appSlug string) (*Data, error) {
+func (f *Manager) Get(ctx context.Context, app *apps.Instance, expSet *experiments.Set) (data *Data, err error) {
 	f.pollOnce.Do(f.startPolling)
+
+	defer func() {
+		if err == nil && experiments.LocalSecretsOverride.Enabled(expSet) {
+			// Return a new data object so we don't write the overrides to the cache.
+			data, err = f.applyLocalOverrides(app, data)
+		}
+	}()
+
+	appSlug := app.PlatformID()
+	if appSlug == "" {
+		return &Data{}, nil
+	}
 
 	// Do we have the secrets in our cache?
 	f.mu.Lock()
@@ -200,4 +219,56 @@ func (f *Manager) secretsPath(appSlug string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "encore", "secrets", appSlug+".json"), nil
+}
+
+// applyLocalOverrides parses the local secrets override file, if any,
+// and returns a new Data object with the overrides applied.
+//
+// If there are no overrides src is returned directly.
+// The original src data object is never modified.
+func (f *Manager) applyLocalOverrides(app *apps.Instance, src *Data) (*Data, error) {
+	const name = ".secrets.local.cue"
+	data, err := os.ReadFile(filepath.Join(app.Root(), name))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return src, nil
+		}
+		return nil, err
+	}
+
+	updated := &Data{
+		Synced: src.Synced,
+		Values: make(map[string]string, len(src.Values)),
+	}
+	for k, v := range src.Values {
+		updated.Values[k] = v
+	}
+
+	ctx := cuecontext.New()
+	loadCfg := &load.Config{
+		Stdin: bytes.NewReader(data),
+	}
+
+	inst := load.Instances([]string{"-"}, loadCfg)[0]
+	if inst.Err != nil {
+		return nil, fmt.Errorf("parse local secrets: %v", inst.Err)
+	}
+	secrets := ctx.BuildInstance(inst)
+	if err := secrets.Err(); err != nil {
+		return nil, fmt.Errorf("parse local secrets: %v", err)
+	}
+
+	it, err := secrets.Fields(cue.Hidden(false), cue.Concrete(true))
+	if err != nil {
+		return nil, fmt.Errorf("parse local secrets: %v", err)
+	}
+	for it.Next() {
+		key := it.Selector().String()
+		val, err := it.Value().String()
+		if err != nil {
+			return nil, fmt.Errorf("parse local secrets: secret key %s is not a string", key)
+		}
+		updated.Values[key] = val
+	}
+	return updated, nil
 }

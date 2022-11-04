@@ -1,5 +1,5 @@
 parse
-stdout 'pubsubPublisher middlware basic MiddlewareFunc'
+output 'pubsubPublisher middlware basic MiddlewareFunc'
 
 -- svc/svc.go --
 package svc

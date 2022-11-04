@@ -1,6 +1,6 @@
 # Verify calls to config.Load are called
 ! parse
-stderr 'A config instance can only be referenced from within the service that the call to'
+err 'A config instance can only be referenced from within the service that the call to'
 
 -- svc/svc.go --
 package svc
