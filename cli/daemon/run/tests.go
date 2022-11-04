@@ -16,8 +16,10 @@ import (
 	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/cli/internal/appfile"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
+	"encr.dev/internal/experiments"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
@@ -28,6 +30,15 @@ import (
 // It reports a buildDir (if available) when codegenDebug is true.
 func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDebug bool) (buildDir string, err error) {
 	vcsRevision := vcs.GetRevision(appRoot)
+
+	exp, err := appfile.Experiments(appRoot)
+	if err != nil {
+		return "", err
+	}
+	expSet, err := experiments.NewSet(exp, nil)
+	if err != nil {
+		return "", err
+	}
 
 	// TODO: We should check that all secret keys are defined as well.
 	cfg := &compiler.Config{
@@ -40,6 +51,7 @@ func (mgr *Manager) Check(ctx context.Context, appRoot, relwd string, codegenDeb
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		KeepOutput:            codegenDebug,
 		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+		Experiments:           expSet,
 		Meta: &cueutil.Meta{
 			// Dummy data to satisfy config validation.
 			APIBaseURL: "http://localhost:0",
@@ -147,6 +159,11 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
+	experiments, err := params.App.Experiments(params.Environ)
+	if err != nil {
+		return err
+	}
+
 	cfg := &compiler.Config{
 		Parse:                 params.Parse,
 		Revision:              params.Parse.Meta.AppRevision,
@@ -157,6 +174,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+		Experiments:           experiments,
 		Meta: &cueutil.Meta{
 			APIBaseURL: apiBaseURL,
 			EnvName:    "local",

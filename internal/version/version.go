@@ -33,7 +33,6 @@ func ConfigHash() (string, error) {
 	envs := []string{
 		"ENCORE_PLATFORM_API_URL",
 		"ENCORE_CONFIG_DIR",
-		"ENCORE_EXPERIMENT",
 	}
 	h := sha256.New()
 	for _, e := range envs {

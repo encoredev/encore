@@ -21,6 +21,7 @@ import (
 
 	"encr.dev/compiler/internal/codegen"
 	"encr.dev/compiler/internal/cuegen"
+	"encr.dev/internal/experiments"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
@@ -89,6 +90,9 @@ type Config struct {
 
 	// OpTracker is an option tracker to output the progress to the UI
 	OpTracker *optracker.OpTracker
+
+	// Are experimental features of Encore switched on?
+	Experiments *experiments.Set
 }
 
 // Validate validates the config.
@@ -257,6 +261,7 @@ func (b *builder) parseApp() error {
 
 	cfg := &parser.Config{
 		AppRoot:                  b.appRoot,
+		Experiments:              b.cfg.Experiments,
 		AppRevision:              b.cfg.Revision,
 		AppHasUncommittedChanges: b.cfg.UncommittedChanges,
 		ModulePath:               b.modfile.Module.Mod.Path,
@@ -409,7 +414,7 @@ func (b *builder) buildMain() error {
 	}
 	if b.cfg.StaticLink {
 		var ldflags string
-	
+
 		// Enable external linking if we use cgo.
 		if b.cfg.CgoEnabled {
 			ldflags = "-linkmode external "
