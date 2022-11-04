@@ -10,7 +10,6 @@ import (
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
-	"encore.dev/internal/metrics"
 )
 
 func (s *Server) beginOperation() {
@@ -120,11 +119,9 @@ func (s *Server) finishRequest(resp *model.Response) {
 		if resp.HTTPStatus != errs.HTTPStatus(resp.Err) {
 			code := errs.HTTPStatusToCode(resp.HTTPStatus).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
-			metrics.ReqEnd(req.RPCData.Desc.Service, req.RPCData.Desc.Endpoint, dur.Seconds(), code)
 		} else {
 			code := errs.Code(resp.Err).String()
 			req.Logger.Info().Dur("duration", dur).Str("code", code).Msg("request completed")
-			metrics.ReqEnd(req.RPCData.Desc.Service, req.RPCData.Desc.Endpoint, dur.Seconds(), code)
 		}
 	}
 
@@ -152,6 +149,7 @@ func (s *Server) finishRequest(resp *model.Response) {
 	}
 
 	s.rt.FinishRequest()
+	s.metrics.ReqEnd(req.RPCData.Desc.Service, req.RPCData.Desc.Endpoint, resp.Err, resp.HTTPStatus, dur.Seconds())
 }
 
 type CallOptions struct {

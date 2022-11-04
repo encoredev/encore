@@ -21,10 +21,13 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metrics"
+	"encore.dev/appruntime/metrics/metricstest"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/trace"
 	"encore.dev/appruntime/trace/mock_trace"
+	"encore.dev/beta/errs"
 )
 
 type mockReq struct {
@@ -36,7 +39,7 @@ type mockResp struct {
 }
 
 func TestDesc_EndToEnd(t *testing.T) {
-	server, _ := testServer(t, clock.New(), false)
+	server, _, testMetricsExporter := testServer(t, clock.New(), false)
 
 	tests := []struct {
 		name     string
@@ -86,6 +89,43 @@ func TestDesc_EndToEnd(t *testing.T) {
 			}
 		})
 	}
+
+	testMetricsExporter.AssertCounter(t, "e_requests_total", 1, map[string]string{
+		"service":  "service",
+		"endpoint": "endpoint",
+		"code":     "ok",
+	})
+	testMetricsExporter.AssertObservation(
+		t,
+		"e_request_duration_seconds",
+		"duration",
+		func(value float64) bool {
+			return value >= 0
+		},
+		map[string]string{
+			"service":  "service",
+			"endpoint": "endpoint",
+			"code":     "ok",
+		},
+	)
+	testMetricsExporter.AssertCounter(t, "e_requests_total", 1, map[string]string{
+		"service":  "service",
+		"endpoint": "endpoint",
+		"code":     errs.InvalidArgument.String(),
+	})
+	testMetricsExporter.AssertObservation(
+		t,
+		"e_request_duration_seconds",
+		"duration",
+		func(value float64) bool {
+			return value >= 0
+		},
+		map[string]string{
+			"service":  "service",
+			"endpoint": "endpoint",
+			"code":     errs.InvalidArgument.String(),
+		},
+	)
 }
 
 func TestDescGeneratesTrace(t *testing.T) {
@@ -204,7 +244,7 @@ func TestDescGeneratesTrace(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			server, traceMock := testServer(t, klock, true)
+			server, traceMock, _ := testServer(t, klock, true)
 
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("POST", "/path/hello", strings.NewReader(test.reqBody))
@@ -249,7 +289,7 @@ func TestRawEndpointOverflow(t *testing.T) {
 	klock := clock.NewMock()
 	klock.Set(time.Now())
 
-	server, traceMock := testServer(t, klock, true)
+	server, traceMock, _ := testServer(t, klock, true)
 
 	var (
 		reqBody           = strings.Repeat("a", 2*api.MaxRawRequestCaptureLen)
@@ -292,7 +332,7 @@ func TestRawEndpointOverflow(t *testing.T) {
 	}
 }
 
-func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, *mock_trace.MockLogger) {
+func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, *mock_trace.MockLogger, *metricstest.TestMetricsExporter) {
 	ctrl := gomock.NewController(t)
 
 	var tf trace.Factory
@@ -309,11 +349,13 @@ func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, 
 	}
 
 	logger := zerolog.New(os.Stdout)
+	testMetricsExporter := metricstest.NewTestMetricsExporter(logger)
+	metrics := metrics.NewManager(testMetricsExporter)
 	rt := reqtrack.New(logger, nil, tf)
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	encoreMgr := encore.NewManager(cfg, rt)
-	server := api.NewServer(cfg, rt, nil, encoreMgr, logger, json, true, klock)
-	return server, traceMock
+	server := api.NewServer(cfg, rt, nil, encoreMgr, logger, metrics, json, true, klock)
+	return server, traceMock, testMetricsExporter
 }
 
 func newMockAPIDesc(access api.Access) *api.Desc[*mockReq, *mockResp] {
