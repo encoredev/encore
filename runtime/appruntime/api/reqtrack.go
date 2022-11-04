@@ -149,7 +149,7 @@ func (s *Server) finishRequest(resp *model.Response) {
 	}
 
 	s.rt.FinishRequest()
-	s.metrics.ReqEnd(req.Service, req.Endpoint, err, httpStatus, dur.Seconds())
+	s.metrics.ReqEnd(req.RPCData.Desc.Service, req.RPCData.Desc.Endpoint, resp.Err, resp.HTTPStatus, dur.Seconds())
 }
 
 type CallOptions struct {
