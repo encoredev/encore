@@ -14,11 +14,11 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/cors"
+	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/beta/errs"
-	"encore.dev/internal/metrics"
 )
 
 type Access string
@@ -65,6 +65,7 @@ type Server struct {
 	encoreMgr      *encore.Manager
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
+	metrics        *metrics.Manager
 	json           jsoniter.API
 	tracingEnabled bool
 
@@ -80,9 +81,17 @@ type Server struct {
 	pubsubSubscriptions map[string]func(r *http.Request) error
 }
 
-func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Client,
-	encoreMgr *encore.Manager, rootLogger zerolog.Logger, json jsoniter.API, tracingEnabled bool,
-	clock clock.Clock) *Server {
+func NewServer(
+	cfg *config.Config,
+	rt *reqtrack.RequestTracker,
+	pc *platform.Client,
+	encoreMgr *encore.Manager,
+	rootLogger zerolog.Logger,
+	metrics *metrics.Manager,
+	json jsoniter.API,
+	tracingEnabled bool,
+	clock clock.Clock,
+) *Server {
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -105,6 +114,7 @@ func NewServer(cfg *config.Config, rt *reqtrack.RequestTracker, pc *platform.Cli
 		encoreMgr:      encoreMgr,
 		clock:          clock,
 		rootLogger:     rootLogger,
+		metrics:        metrics,
 		json:           json,
 		tracingEnabled: tracingEnabled,
 
@@ -202,8 +212,6 @@ func (s *Server) Shutdown(force context.Context) {
 }
 
 func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
-	ep := strings.TrimPrefix(req.URL.Path, "/")
-
 	// Select a router based on access
 	r := s.public
 
@@ -252,11 +260,6 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Endpoint not found
-	svc, api := "unknown", "Unknown"
-	if idx := strings.IndexByte(ep, '.'); idx != -1 {
-		svc, api = ep[:idx], ep[idx+1:]
-	}
-	metrics.UnknownEndpoint(svc, api)
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 

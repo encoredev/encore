@@ -6,6 +6,7 @@ package rlog
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -26,6 +27,13 @@ const (
 	levelWarn  logLevel = 3
 	levelError logLevel = 4
 )
+
+// InternalKeyPrefix is the prefix of log field keys that are reserved for
+// internal use only. Log fields starting with this value have an additional "x_"
+// prefix prepended to avoid interference with reserved names.
+//
+//publicapigen:drop
+const InternalKeyPrefix = "encore_"
 
 //publicapigen:drop
 type Manager struct {
@@ -147,6 +155,10 @@ func (l *Manager) doLog(level logLevel, ev *zerolog.Event, msg string, keysAndVa
 }
 
 func addEventEntry(ev *zerolog.Event, key string, val interface{}) {
+	if reserved(key) {
+		key = "x_" + key
+	}
+
 	switch val := val.(type) {
 	case error:
 		ev.AnErr(key, val)
@@ -195,6 +207,10 @@ func addEventEntry(ev *zerolog.Event, key string, val interface{}) {
 }
 
 func addContext(ctx zerolog.Context, key string, val interface{}) zerolog.Context {
+	if reserved(key) {
+		key = "x_" + key
+	}
+
 	switch val := val.(type) {
 	case error:
 		return ctx.AnErr(key, val)
@@ -240,6 +256,10 @@ func addContext(ctx zerolog.Context, key string, val interface{}) zerolog.Contex
 	case float64:
 		return ctx.Float64(key, val)
 	}
+}
+
+func reserved(key string) bool {
+	return strings.HasPrefix(key, InternalKeyPrefix)
 }
 
 const (

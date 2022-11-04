@@ -48,6 +48,7 @@ type Runtime struct {
 	PubsubTopics    map[string]*PubsubTopic `json:"pubsub_topics,omitempty"`
 	RedisServers    []*RedisServer          `json:"redis_servers,omitempty"`
 	RedisDatabases  []*RedisDatabase        `json:"redis_databases,omitempty"`
+	Metrics         *Metrics                `json:"metrics,omitempty"`
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
@@ -261,4 +262,14 @@ type RedisDatabase struct {
 	// to use the same physical Redis database for local development
 	// without having to coordinate and persist database index ids.
 	KeyPrefix string `json:"key_prefix"`
+}
+
+type MetricsExporterType string
+
+const (
+	MetricsExporterTypeLogsBased MetricsExporterType = "logs_based"
+)
+
+type Metrics struct {
+	ExporterType MetricsExporterType `json:"exporter_type"`
 }

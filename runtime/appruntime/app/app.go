@@ -11,6 +11,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
 	runtimeCfg "encore.dev/appruntime/config"
+	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/service"
@@ -66,6 +67,7 @@ func New(p *NewParams) *App {
 		})
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
+	metrics := metrics.NewManager(metricsExporter(cfg, rootLogger))
 
 	tracingEnabled := trace.Enabled(cfg)
 	var traceFactory trace.Factory = nil
@@ -81,7 +83,7 @@ func New(p *NewParams) *App {
 	encore := encore.NewManager(cfg, rt)
 
 	klock := clock.New()
-	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, json, tracingEnabled, klock)
+	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, metrics, json, tracingEnabled, klock)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
 	service := service.NewManager(rt)
@@ -150,4 +152,17 @@ func jsonAPI(cfg *runtimeCfg.Config) jsoniter.API {
 		SortMapKeys:            true,
 		ValidateJsonRawMessage: true,
 	}.Froze()
+}
+
+func metricsExporter(cfg *runtimeCfg.Config, logger zerolog.Logger) metrics.Exporter {
+	if cfg.Runtime.Metrics == nil {
+		return metrics.NewNullMetricsExporter()
+	}
+
+	switch cfg.Runtime.Metrics.ExporterType {
+	case runtimeCfg.MetricsExporterTypeLogsBased:
+		return metrics.NewLogsBasedExporter(logger)
+	default:
+		panic("unexpected metrics exporter")
+	}
 }
