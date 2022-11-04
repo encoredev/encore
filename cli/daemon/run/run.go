@@ -337,7 +337,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			if r.App.PlatformID() == "" {
 				return fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
 			}
-			data, err := r.mgr.Secret.Get(ctx, r.App.PlatformID())
+			data, err := r.mgr.Secret.Get(ctx, r.App, expSet)
 			if err != nil {
 				return err
 			}

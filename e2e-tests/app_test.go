@@ -74,6 +74,10 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	expSet, err := experiments.NewSet(nil, env)
 	assertNil(err)
 
+	secrets := secret.New()
+	secretData, err := secrets.Get(ctx, app, expSet)
+	assertNil(err)
+
 	p, err := run.StartProc(&StartProcParams{
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
@@ -87,6 +91,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		Redis:          redisSrv,
 		ServiceConfigs: build.Configs,
 		Experiments:    expSet,
+		Secrets:        secretData.Values,
 	})
 	assertNil(err)
 	c.Cleanup(p.Close)
