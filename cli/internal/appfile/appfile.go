@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 
 	"github.com/tailscale/hujson"
+
+	"encr.dev/internal/experiments"
 )
 
 // Name is the name of the Encore app file.
@@ -22,6 +24,13 @@ type File struct {
 	// ID is the encore.dev app id for the app.
 	// It is empty if the app is not linked to encore.dev.
 	ID string `json:"id"` // can be empty
+
+	// Experiments is a list of values to enable experimental features in Encore.
+	// These are not guaranteed to be stable in either runtime behaviour
+	// or in API design.
+	//
+	// Do not use these features in production without consulting the Encore team.
+	Experiments []experiments.Name `json:"experiments,omitempty"`
 }
 
 // Parse parses the app file data into a File.
@@ -56,4 +65,14 @@ func Slug(appRoot string) (string, error) {
 		return "", err
 	}
 	return f.ID, nil
+}
+
+// Experiments returns the experimental feature the app located
+// at appRoot has opted into.
+func Experiments(appRoot string) ([]experiments.Name, error) {
+	f, err := ParseFile(filepath.Join(appRoot, Name))
+	if err != nil {
+		return nil, err
+	}
+	return f.Experiments, nil
 }

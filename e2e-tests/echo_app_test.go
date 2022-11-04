@@ -68,7 +68,7 @@ type NonBasicResponse struct {
 // for sending requests.
 func TestEndToEndWithApp(t *testing.T) {
 	c := qt.New(t)
-	app := RunApp(c, "./testdata/echo", nil)
+	app := RunApp(c, "./testdata/echo", nil, nil)
 	run := app.Run
 
 	// Use golden to test that the generated clients are as expected for the echo test app
@@ -327,7 +327,7 @@ func TestEndToEndWithApp(t *testing.T) {
 
 			c.Assert(strings.HasPrefix(got["APIBaseURL"], "http://"), qt.IsTrue)
 			c.Assert(bytes, qt.JSONEquals, map[string]interface{}{
-				"AppID":      "slug",
+				"AppID":      "",
 				"APIBaseURL": got["APIBaseURL"],
 				"EnvName":    "local",
 				"EnvType":    "development",

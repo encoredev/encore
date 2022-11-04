@@ -24,6 +24,7 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/onboarding"
+	"encr.dev/internal/experiments"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
@@ -147,6 +148,14 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		"http://localhost:%d/%s", s.mgr.DashPort, app.PlatformOrLocalID())))
 	if req.Debug {
 		fmt.Fprintf(stderr, "  Process ID:             %d\n", aurora.Cyan(pid))
+	}
+	// Log which experiments are enabled, if any
+	if exp := run.Proc().Experiments.List(); len(exp) > 0 {
+		strs := make([]string, len(exp))
+		for i, e := range exp {
+			strs[i] = string(e)
+		}
+		fmt.Fprintf(stderr, "  Enabled experiment(s):      %s\n", aurora.Yellow(strings.Join(strs, ", ")))
 	}
 
 	// If there's a newer version available, print a message.
@@ -381,10 +390,20 @@ func (s *Server) parseApp(appRoot, workingDir string, parseTests bool) (*parser.
 		return nil, err
 	}
 
+	exp, err := appfile.Experiments(appRoot)
+	if err != nil {
+		return nil, err
+	}
+	expSet, err := experiments.NewSet(exp, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	vcsRevision := vcs.GetRevision(appRoot)
 
 	cfg := &parser.Config{
 		AppRoot:                  appRoot,
+		Experiments:              expSet,
 		AppRevision:              vcsRevision.Revision,
 		AppHasUncommittedChanges: vcsRevision.Uncommitted,
 		ModulePath:               mod.Module.Mod.Path,
