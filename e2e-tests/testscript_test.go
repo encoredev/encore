@@ -54,7 +54,8 @@ func TestRun(t *testing.T) {
 		Cmds: map[string]func(ts *ts.TestScript, neg bool, args []string){
 			"run": func(ts *ts.TestScript, neg bool, args []string) {
 				log := &testscriptLogger{ts: ts}
-				app := RunApp(getTB(ts), getWorkdir(ts), log)
+				exp := ts.Getenv("ENCORE_EXPERIMENT")
+				app := RunApp(getTB(ts), getWorkdir(ts), log, []string{"ENCORE_EXPERIMENT=" + exp})
 				setVal(ts, "app", app)
 				setVal(ts, "log", log)
 			},

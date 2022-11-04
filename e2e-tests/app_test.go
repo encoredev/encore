@@ -21,6 +21,7 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
+	"encr.dev/internal/experiments"
 	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -37,7 +38,7 @@ type RunAppData struct {
 	Values map[string]any // arbitrary values for use in testscripts
 }
 
-func RunApp(c testing.TB, appRoot string, logger RunLogger) *RunAppData {
+func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAppData {
 	assertNil := func(err error) {
 		if err != nil {
 			c.Fatal(err)
@@ -48,7 +49,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger) *RunAppData {
 	assertNil(err)
 	c.Cleanup(func() { ln.Close() })
 
-	app := apps.NewInstance("/", "slug", "slug")
+	app := apps.NewInstance(appRoot, "slug", "")
 	run := &Run{ID: GenID(), ListenAddr: ln.Addr().String(), App: app}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Cleanup(cancel)
@@ -64,11 +65,14 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger) *RunAppData {
 	c.Cleanup(redisSrv.Stop)
 
 	build := testBuild(c, appRoot)
-	env := []string{"FOO=bar", "BAR=baz"}
+	env = append(env, "FOO=bar", "BAR=baz")
 
 	if logger == nil {
 		logger = testRunLogger{c}
 	}
+
+	expSet, err := experiments.NewSet(nil, env)
+	assertNil(err)
 
 	p, err := run.StartProc(&StartProcParams{
 		Ctx:            ctx,
@@ -82,6 +86,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger) *RunAppData {
 		NSQDaemon:      nsqd,
 		Redis:          redisSrv,
 		ServiceConfigs: build.Configs,
+		Experiments:    expSet,
 	})
 	assertNil(err)
 	c.Cleanup(p.Close)
@@ -190,6 +195,11 @@ func testBuild(t testing.TB, appRoot string) *compiler.Result {
 	// Generate use facing code
 	err := compiler.GenUserFacing(appRoot)
 
+	expSet, err := experiments.NewSet(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Then compile the app
 	wd, err := os.Getwd()
 	if err != nil {
@@ -205,7 +215,8 @@ func testBuild(t testing.TB, appRoot string) *compiler.Result {
 			EnvType:    cueutil.EnvType_Development,
 			CloudType:  cueutil.CloudType_Local,
 		},
-		BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+		BuildTags:   []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+		Experiments: expSet,
 	})
 	if err != nil {
 		fmt.Println(err.Error())
