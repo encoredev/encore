@@ -431,9 +431,12 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 		errMsg := tp.ByteString()
 		if len(errMsg) > 0 {
 			req.Err = errMsg
-			if tp.version >= 5 {
-				req.ErrStack = tp.stack(filterNone)
-			}
+
+			// Version 9 has a spurious duplicated error message.
+			// Ignore it.
+			_ = tp.String()
+			
+			req.ErrStack = tp.stack(filterNone)
 		}
 
 		switch typ {
