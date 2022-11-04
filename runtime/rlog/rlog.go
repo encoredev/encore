@@ -28,17 +28,12 @@ const (
 	levelError logLevel = 4
 )
 
-const (
-	// InternalKeyPrefix is the prefix of log field keys that are reserved for
-	// internal use only. For example, logs-based metrics rely on a log field named
-	// 'encore_metric_name' to determine which metric is being emitted.
-	//
-	// If Encore apps add log fields that start with this prefix, we'll prefix them
-	// with 'x_' to make sure they don't interfere with internal log fields.
-	//
-	//publicapigen:drop
-	InternalKeyPrefix = "encore_"
-)
+// InternalKeyPrefix is the prefix of log field keys that are reserved for
+// internal use only. Log fields starting with this value have an additional "x_"
+// prefix prepended to avoid interference with reserved names.
+//
+//publicapigen:drop
+const InternalKeyPrefix = "encore_"
 
 //publicapigen:drop
 type Manager struct {

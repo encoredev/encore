@@ -46,10 +46,8 @@ func code(err error, httpStatus int) string {
 		return errs.OK.String()
 	}
 
-	errCode := errs.HTTPStatusToCode(httpStatus)
-	if errCode == errs.Unknown {
-		return "http_" + strconv.Itoa(httpStatus)
-	} else {
-		return errCode.String()
+	if code := errs.HTTPStatusToCode(httpStatus); code != errs.Unknown {
+		return code.String()
 	}
+	return "http_" + strconv.Itoa(httpStatus)
 }
