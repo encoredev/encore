@@ -37,8 +37,8 @@ func Detect(path string) (lang Lang, ok bool) {
 	switch suffix {
 	case ".ts":
 		return LangTypeScript, true
-	/*case ".js":
-	return LangJavascript, true*/
+	case ".js":
+		return LangJavascript, true
 	case ".go":
 		return LangGo, true
 	default:
@@ -58,8 +58,8 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	switch lang {
 	case LangTypeScript:
 		gen = &typescript{generatorVersion: typescriptGenLatestVersion}
-	/*case LangJavascript:
-	gen = &javascript{generatorVersion: javascriptGenLatestVersion}*/
+	case LangJavascript:
+		gen = &javascript{generatorVersion: javascriptGenLatestVersion}
 	case LangGo:
 		gen = &golang{generatorVersion: goGenLatestVersion}
 	default:

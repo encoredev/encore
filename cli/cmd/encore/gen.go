@@ -36,7 +36,6 @@ Use '--env=local' to generate it based on your local development version of the 
 
 Supported language codes are:
   typescript: A TypeScript-client using the in-browser Fetch API
-  javascript: A JavaScript client using the in-browser Fetch API
   go: A Go client using net/http"
 `,
 		Args: cobra.ExactArgs(1),
@@ -49,7 +48,8 @@ Supported language codes are:
 			if lang == "" {
 				var ok bool
 				l, ok := clientgen.Detect(output)
-				if !ok {
+				// Temporarily disable JavaScript in the CLI
+				if !ok || l == clientgen.LangJavascript {
 					fatal("could not detect language from output.\n\nNote: you can specify the language explicitly with --lang.")
 				}
 				lang = string(l)
