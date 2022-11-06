@@ -559,7 +559,7 @@ if (authData) {
 					w.WriteString("\n")
 				}
 			} else {
-				w.WriteString("init.headers[\"Authorization\"] = \"Bearer \" + authData\n")
+				w.WriteString("init.headers[\"x-api-key\"] = \"Bearer \" + authData\n")
 			}
 		}
 
