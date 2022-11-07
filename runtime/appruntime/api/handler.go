@@ -113,6 +113,8 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 	}
 
 	if !d.Raw {
+		c.w.Header().Set("Content-Type", "application/json")
+		c.w.Header().Set("X-Content-Type-Options", "nosniff")
 		resp.Err = d.EncodeResp(c.w, c.server.json, respData)
 	}
 	c.server.finishRequest(resp)
