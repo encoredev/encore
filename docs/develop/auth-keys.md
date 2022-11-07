@@ -1,4 +1,6 @@
 ---
+seotitle: Auth Keys let you authenticate without a browser
+seodesc: Learn how to use pre-authentication keys to authenticate without needing to sign in via a web browser. See how to setup reusable and ephemeral auth keys.
 title: Auth Keys
 ---
 
@@ -44,8 +46,8 @@ This page also gives you the ability to revoke existing keys.
 
 Using the Encore CLI, you can authenticate with your newly generated key:
 
-```bash
-encore auth login --auth-key=ena_nEQIkfeM43t7oxpleMsIULbhbtLAbYnnLf1D
+```shell
+$ encore auth login --auth-key=ena_nEQIkfeM43t7oxpleMsIULbhbtLAbYnnLf1D
 ```
 
 ## Revoking a key

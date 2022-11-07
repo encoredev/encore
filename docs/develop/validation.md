@@ -1,4 +1,6 @@
 ---
+seotitle: Request validation in your backend application
+seodesc: Learn how request validation works, and see how you can use Encore's built-in middleware to validate incoming requests in your backend application.
 title: Validation
 subtitle: Making sure everything's right in the world
 ---

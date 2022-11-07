@@ -1,4 +1,6 @@
 ---
+seotitle: Distributed Tracing helps you understand your app
+seodesc: See how to use distributed tracing in your backend application, across multiple services, using Encore.
 title: Tracing
 ---
 

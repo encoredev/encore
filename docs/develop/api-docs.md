@@ -1,4 +1,6 @@
 ---
+seotitle: Generated API Documentation
+seodesc: See how to automatically generate API documentation that always stays up to date and in sync.
 title: Generated API Docs
 subtitle: Encore does it automatically, so you don't have to
 ---

@@ -1,4 +1,6 @@
 ---
+seotitle: How to connect your Encore app to an existing database
+seodesc: Learn how to connect your Encore Go backend application to an existing database, in any cloud you choose.
 title: Connect to an existing database
 ---
 

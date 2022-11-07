@@ -1,4 +1,6 @@
 ---
+seotitle: How to build an Incident Management Tool with Go
+seodesc: Learn how to build an incident management tool like PagerDuty using Go and Encore. Get a working app running in the cloud in 30 minutes!
 title: Building an Incident Management Tool
 subtitle: Set up your own PagerDuty from zero-to-production in just 30 minutes
 social_card: /assets/docs/incident-og-image.png
@@ -42,9 +44,9 @@ Whenever you see a 🥐 it means there's something for you to do.
 
 🥐 Once you have your Webhook URL which starts with `https://hooks.slack.com/services/...` then copy and paste that and run the following commands to save these as secrets. We recommend having a different webhook/channel for development and production.
 
-```bash
-encore secret set --dev SlackWebhookURL
-encore secret set --prod SlackWebhookURL
+```shell
+$ encore secret set --dev SlackWebhookURL
+$ encore secret set --prod SlackWebhookURL
 ```
 
 🥐 Next, let's create our `slack` service that contains the logic for calling the Webhook URL in order to post notifications to our Slack. To do this we need to implement our code in `slack/slack.go`:
@@ -775,10 +777,10 @@ And if you don't acknowledge incoming incidents on Step 4, you will be reminded 
 
 🥐 Simply push your changes up to your Git repository by running the following:
 
-```bash
-git add .
-git commit -m "working implementation"
-git push encore main
+```shell
+$ git add .
+$ git commit -m "working implementation"
+$ git push encore main
 ```
 
 🥐 Then go to <https://app.encore.dev> and in a few minutes you should have your app deployed to the clouds!
@@ -796,8 +798,8 @@ Take a look at the [Encore Flow](/docs/develop/encore-flow) diagram that was aut
 
 Alternatively, you can clone our example application by running this in your Terminal:
 
-```bash
-encore app create --example https://github.com/encoredev/example-app-oncall
+```shell
+$ encore app create --example https://github.com/encoredev/example-app-oncall
 ```
 
 ### Feedback

@@ -1,4 +1,6 @@
 ---
+seotitle: API Schemas – Path, Query, and Body parameters
+seodesc: See how to design API schemas for your Go based backend application using Encore.
 title: API schemas
 subtitle: Defining definitions
 ---
@@ -12,7 +14,7 @@ parameter.
 All tags except `json` are ignored for nested tags, which means you can only define
 `header` and `query` parameters for root level fields.
 
-For example, the following struct
+For example, this struct:
 ```go
 type NestedRequestResponse struct {
 	Header string `header:"X-Header"`// this field will be read from the http header
@@ -26,7 +28,7 @@ type NestedRequestResponse struct {
 }
 ```
 
-would be unmarshalled from this request
+Would be unmarshalled from this request:
 
 ```output
 POST /example?query=a%20query HTTP/1.1
@@ -44,7 +46,7 @@ X-Header: A header
 
 ```
 
-and marshalled to this response
+And marshalled to this response:
 
 ```output
 HTTP/1.1 200 OK

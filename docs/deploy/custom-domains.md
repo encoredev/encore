@@ -1,4 +1,6 @@
 ---
+seotitle: Custom Domains for all your environments
+seodesc: Learn how to setup a custom domain for your cloud environments, to use your own domain to access your backend application built with Encore.
 title: Custom Domains
 subtitle: Bring more than just your own cloud
 ---

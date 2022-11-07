@@ -1,4 +1,6 @@
 ---
+seotitle: Monitoring your backend application
+seodesc: See how you can monitor your backend application using Prometheus and Encore.
 title: Monitoring
 ---
 

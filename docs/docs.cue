@@ -76,18 +76,19 @@ sections: [
 				],
 				 shortcuts: ["cron"]
 			},
-			{title: "Configuration", segment: "config", shortcuts: ["config"]},
-			{title: "Secrets", segment: "secrets"},
 			{title: "PubSub", segment: "pubsub", shortcuts: ["pubsub"]},
 			{title: "Caching", segment: "caching", shortcuts: ["storage/cache"]},
+			{title: "Configuration", segment: "config", shortcuts: ["config"]},
+			{title: "Metadata", segment: "metadata"},
+			{title: "Secrets", segment: "secrets"},
+			{title: "Auth Keys", segment: "auth-keys"},
 			{title: "Testing", segment: "testing"},
 			{title: "Middleware", segment: "middleware"},
 			{title: "Validation", segment: "validation"},
-			{title: "Metadata", segment: "metadata"},
+			{title: "Encore Flow", segment: "encore-flow"},
 			{title: "Generated API Docs", segment: "api-docs"},
 			{title: "Client Generation", segment: "client-generation"},
 			{title: "CLI Reference", segment: "cli-reference"},
-			{title: "Encore Flow", segment: "encore-flow"},
 		]
 	},
 	{
@@ -109,13 +110,6 @@ sections: [
 			{title: "Logging", segment: "logging", shortcuts: ["rlog"]},
 			{title: "Monitoring", segment: "monitoring"},
 			{title: "Distributed Tracing", segment: "tracing"},
-		]
-	},
-	{
-		title: "Configuration"
-		segment: "configuration"
-		docs: [
-			{title: "Auth Keys", segment: "auth-keys"},
 		]
 	},
 	{
@@ -144,6 +138,15 @@ sections: [
 			{title: "Contribute", segment: "contribute"},
 			{title: "Principles", segment: "principles"},
 			{title: "Open Source", segment: "open-source"},
+		]
+	},
+	{
+		title: "About"
+		segment: "about"
+		docs: [
+			{title: "Roles & Permissions", segment: "permissions"},
+			{title: "Usage limits", segment: "usage"},
+			{title: "Plans & billing", segment: "billing"},
 		]
 	},
 ]

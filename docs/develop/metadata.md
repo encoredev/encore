@@ -1,6 +1,8 @@
 ---
+seotitle: Metadata API – Get data about apps, envs, and requests
+seodesc: See how to use Encore's Metadata API to get information about specific apps, environments, and requests.
 title: Metadata
-subtitle: Not everything is meta...
+subtitle: Use the metadata API to get specifics about apps, environments, and requests
 ---
 
 While Encore tries to provide a cloud-agnostic environment, sometimes it's helpful to know more about the environment

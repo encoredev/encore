@@ -1,4 +1,6 @@
 ---
+seotitle: Encore's application model understands your app logically
+seodesc: See how Encore uses static analysis to understand your backend application and its infrastructure requirements.
 title: Encore Application Model
 ---
 

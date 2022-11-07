@@ -1,4 +1,6 @@
 ---
+seotitle: How to use Firebase Auth for your backend application
+seodesc: Learn how to use Firebase Auth for user authentication in your backend application. In this guide we show you how to integrate your Go backend with Firebase Auth.
 title: Use Firebase Auth with your app
 ---
 
@@ -14,7 +16,7 @@ Encore makes it really easy to integrate with Firebase Authentication on the bac
 
 First, install two modules:
 
-```bash
+```shell
 $ go get firebase.google.com/go/v4 go4.org/syncutil
 ```
 
@@ -129,7 +131,7 @@ Download the generated key and take note where it is stored.
 Next, store the private key as your firebase secret.
 From your terminal (inside your Encore app directory), run:
 
-```bash
+```shell
 $ encore secret set --prod FirebasePrivateKey < /path/to/firebase-private-key.json
 Successfully updated production secret FirebasePrivateKey
 ```
@@ -142,7 +144,7 @@ but we recommend generating a new private key for development in that case.
 
 Once you have a private key for development, set it similarly to before:
 
-```bash
+```shell
 $ encore secret set --dev FirebasePrivateKey < /path/to/firebase-private-key.json
 Successfully updated development secret FirebasePrivateKey
 ```

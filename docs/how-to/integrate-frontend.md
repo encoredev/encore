@@ -1,4 +1,6 @@
 ---
+seotitle: Integrate your backend application with a frontend
+seodesc: Learn how to integrate your Go backend application with a frontend, using Encore's built-in frontend client generation feature.
 title: Integrate with a web frontend
 ---
 

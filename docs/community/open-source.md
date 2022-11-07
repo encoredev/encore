@@ -1,4 +1,6 @@
 ---
+seotitle: Encore is Open Source
+seodesc: We believe Open Source is key to a sustainable and prosperous technology community. The Encore framework builds on Open Source software, and is itself Open Source.
 title: Open Source
 subtitle: Encore is Open Source Software
 ---

@@ -1,4 +1,6 @@
 ---
+seotitle: Using caches in your microservices backend application
+seodesc: Learn how to implement caches to optimize response times and reduce cost in your microservices cloud backend.
 title: Caching
 subtitle: Optimize response times and reduce costs by avoiding re-work
 ---

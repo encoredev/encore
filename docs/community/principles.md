@@ -1,4 +1,6 @@
 ---
+seotitle: Encore Community Principles
+seodesc: Everyone is welcome in the Encore community, and we want everyone to feel at home and free to contribute.
 title: Community principles
 subtitle: Everyone belongs in the Encore community
 ---

@@ -1,4 +1,6 @@
 ---
+seotitle: Cloud Infrastructure – Differences per cloud provider
+seodesc: Learn how to provision appropriate cloud infrastructure depending on the environment type, for each of the major cloud providers – AWS, GCP, and Azure.
 title: Cloud Infrastructure
 subtitle: How Encore provisions infrastructure
 ---
