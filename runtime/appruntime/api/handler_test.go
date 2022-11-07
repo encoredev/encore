@@ -42,32 +42,36 @@ func TestDesc_EndToEnd(t *testing.T) {
 	server, _, testMetricsExporter := testServer(t, clock.New(), false)
 
 	tests := []struct {
-		name     string
-		access   api.Access
-		reqBody  string
-		respBody string
-		status   int
+		name        string
+		access      api.Access
+		reqBody     string
+		respBody    string
+		status      int
+		respHeaders http.Header
 	}{
 		{
-			name:     "echo",
-			access:   api.Public,
-			reqBody:  `{"Body": "foo"}`,
-			respBody: `{"Message":"foo"}`,
-			status:   200,
+			name:        "echo",
+			access:      api.Public,
+			reqBody:     `{"Body": "foo"}`,
+			respBody:    `{"Message":"foo"}`,
+			status:      200,
+			respHeaders: http.Header{"Content-Type": []string{"application/json"}},
 		},
 		{
-			name:     "invalid",
-			access:   api.Public,
-			reqBody:  `invalid json`,
-			respBody: ``,
-			status:   400,
+			name:        "invalid",
+			access:      api.Public,
+			reqBody:     `invalid json`,
+			respBody:    ``,
+			status:      400,
+			respHeaders: http.Header{"Content-Type": []string{"application/json"}},
 		},
 		{
-			name:     "unauthenticated",
-			access:   api.RequiresAuth,
-			reqBody:  `{}`,
-			respBody: ``,
-			status:   401,
+			name:        "unauthenticated",
+			access:      api.RequiresAuth,
+			reqBody:     `{}`,
+			respBody:    ``,
+			status:      401,
+			respHeaders: http.Header{"Content-Type": []string{"application/json"}},
 		},
 	}
 
@@ -87,6 +91,14 @@ func TestDesc_EndToEnd(t *testing.T) {
 					t.Errorf("got body %q, want %q", got, test.respBody)
 				}
 			}
+			if test.respHeaders != nil {
+				for key, val := range test.respHeaders {
+					if diff := cmp.Diff(val, w.Header()[key]); diff != "" {
+						t.Errorf("header %s: unexpected response header value (-want +got):\n%s", key, diff)
+					}
+				}
+			}
+
 		})
 	}
 
