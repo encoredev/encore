@@ -363,21 +363,19 @@ func (x *TypeParameterRef) GetParamIdx() uint32 {
 //
 // Would become:
 // ```
-//
-//	_ = &Decl{
-//	    id: 1,
-//	    name: "Set",
-//	    type: &Type{
-//	        typ_map: &Map{
-//	            key: &Type { typ_type_parameter: ... reference to "A" type parameter below ... },
-//	            value: &Type { typ_struct: ... empty struct type ... },
-//	        },
-//	    },
-//	    typeParameters: []*TypeParameter{ { name: "A" } },
-//	    doc: "Set[A] represents our set type",
-//	    loc: &Loc { ... },
-//	}
-//
+// _ = &Decl{
+//     id: 1,
+//     name: "Set",
+//     type: &Type{
+//         typ_map: &Map{
+//             key: &Type { typ_type_parameter: ... reference to "A" type parameter below ... },
+//             value: &Type { typ_struct: ... empty struct type ... },
+//         },
+//     },
+//     typeParameters: []*TypeParameter{ { name: "A" } },
+//     doc: "Set[A] represents our set type",
+//     loc: &Loc { ... },
+// }
 // ```
 type Decl struct {
 	state         protoimpl.MessageState
