@@ -138,7 +138,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	if decodeErr == nil {
 		payload = d.ReqUserPayload(reqData)
 		if !d.Raw {
-			nonRawPayload = marshalParams(c.server.json, reqData)
+			nonRawPayload = marshalParams(c.server.json, payload)
 		}
 	}
 
@@ -372,9 +372,10 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 			httpMethod = d.Methods[0]
 		}
 
+		userPayload := d.ReqUserPayload(req)
 		var nonRawPayload []byte
 		if !d.Raw {
-			nonRawPayload = marshalParams(c.server.json, req)
+			nonRawPayload = marshalParams(c.server.json, userPayload)
 		}
 
 		reqObj, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
@@ -385,7 +386,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 				HTTPMethod:    httpMethod,
 				Path:          path,
 				PathParams:    d.toNamedParams(params),
-				TypedPayload:  d.ReqUserPayload(req),
+				TypedPayload:  userPayload,
 				Desc:          d.rpcDesc(),
 				NonRawPayload: nonRawPayload,
 

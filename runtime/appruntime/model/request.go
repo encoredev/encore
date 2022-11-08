@@ -112,6 +112,8 @@ type PubSubMsgData struct {
 	Published      time.Time
 	Attempt        int
 	DecodedPayload any
+	// Payload is the JSON-encoded payload.
+	Payload []byte
 }
 
 type TestData struct {

@@ -140,6 +140,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 		tb.String(data.MessageID)
 		tb.Uint32(uint32(data.Attempt))
 		tb.Time(data.Published)
+		tb.ByteString(data.Payload)
 	}
 
 	l.Add(RequestStart, tb.Buf())
@@ -152,7 +153,6 @@ func (l *Log) FinishRequest(req *model.Request, resp *model.Response) {
 
 	tb.Err(resp.Err)
 	if resp.Err != nil {
-		tb.String(resp.Err.Error())
 		tb.Stack(errs.Stack(resp.Err))
 	}
 

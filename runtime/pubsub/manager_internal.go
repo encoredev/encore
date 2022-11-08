@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/api"
@@ -22,13 +23,14 @@ type Manager struct {
 	apiSrv     *api.Server
 	ts         *testsupport.Manager
 	rootLogger zerolog.Logger
+	json       jsoniter.API
 	providers  []provider
 
 	publishCounter uint64
 	outstanding    *outstandingMessageTracker
 }
 
-func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport.Manager, server *api.Server, rootLogger zerolog.Logger) *Manager {
+func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport.Manager, server *api.Server, rootLogger zerolog.Logger, json jsoniter.API) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	mgr := &Manager{
 		ctx:         ctx,
@@ -38,6 +40,7 @@ func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport
 		apiSrv:      server,
 		ts:          ts,
 		rootLogger:  rootLogger,
+		json:        json,
 		outstanding: newOutstandingMessageTracker(),
 	}
 
