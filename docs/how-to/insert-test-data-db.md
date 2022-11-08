@@ -1,4 +1,6 @@
 ---
+seotitle: How to insert test data in a database
+seodesc: Learn how to populate your database with test data using Go and Encore, making testing your backend application much simpler.
 title: Insert test data in a database
 ---
 

@@ -136,7 +136,7 @@ greeting based on the count.
 Try it out by running `encore run`. Either open the API Documentation and try again,
 or run in a separate terminal:
 
-```bash
+```shell
 $ curl http://localhost:4000/hello.There -d '{"Name": "John"}'
 {"Message": "Nice to meet you, John!"}
 $ curl http://localhost:4000/hello.There -d '{"Name": "John"}'
@@ -151,7 +151,7 @@ Wonderful, it works!
 
 To deploy this to production, simply push this code to Encore:
 
-```bash
+```shell
 $ git add -A
 $ git commit -m "Add hello.There endpoint with a personalized greeting"
 $ git push encore

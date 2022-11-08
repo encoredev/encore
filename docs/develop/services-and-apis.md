@@ -1,4 +1,6 @@
 ---
+seotitle: Developing Services and APIs
+seodesc: Learn how to create microservices and define APIs for your cloud backend application using Go and Encore. The easiest way of building cloud backends.
 title: Services and APIs
 subtitle: Simplifying (micro-)service development
 ---

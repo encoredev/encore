@@ -1,4 +1,6 @@
 ---
+seotitle: Security – How Encore keeps your backend application sure
+seodesc: Encore applications come with built-in security best practises. See how Encore keeps your application secure by default.
 title: Security
 subtitle: Industry standard best practices
 ---

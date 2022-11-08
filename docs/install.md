@@ -1,4 +1,6 @@
 ---
+seotitle: Install Encore to start building
+seodesc: See how you can install Encore on all platforms, and get started building your next backend application in minutes.
 title: Installation
 subtitle: Install the Encore CLI to get started with local development
 ---
@@ -25,8 +27,8 @@ If you prefer to build from source, [follow these instructions](https://github.c
 ## Update to the latest version
 Check which version of Encore you have installed by running `encore version` in your terminal.
 It should print something like:
-```bash
-encore version v1.0.0
+```shell
+$ encore version v1.0.0
 ```
 
 If you think you're on an older version of Encore, you can easily update to the latest version by running

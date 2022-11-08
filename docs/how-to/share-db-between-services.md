@@ -1,4 +1,6 @@
 ---
+seotitle: How to share SQL databases between services
+seodesc: Learn how to share a SQL database between multiple Go backend services using Encore.
 title: Share SQL databases between services
 ---
 

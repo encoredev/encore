@@ -1,4 +1,6 @@
 ---
+seotitle: How to change your SQL database schema
+seodesc: Learn how to change your SQL database schema for your Go backend application, using migration files and Encore's built-in schema migration functionality.
 title: Change SQL database schema
 ---
 

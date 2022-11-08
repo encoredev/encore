@@ -1,5 +1,8 @@
 ---
+seotitle: How to build a REST API
+seodesc: Learn how to build and ship a REST API in just a few minutes, using Go and Encore. Get your backend running in the cloud in minutes!
 title: Building a REST API
+subtitle: Learn how to build a URL shortener with a REST API and SQL database
 ---
 
 In this tutorial you will create a REST API for a URL Shortener service. In a few short minutes, you'll learn how to:
@@ -86,7 +89,7 @@ Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
 
 🥐 Next, call your endpoint:
 
-```bash
+```shell
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
@@ -168,13 +171,13 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 🥐 Now let's call the API again:
 
-```bash
+```shell
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
 🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory:
 
-```bash
+```shell
 $ encore db shell url
 psql (13.1, server 11.12)
 Type "help" for help.
@@ -210,7 +213,7 @@ Encore uses the `path=/url/:id` syntax to represent a path with a parameter. The
 
 🥐 Let’s make sure it works by calling it:
 
-```bash
+```shell
 $ curl http://localhost:4000/url/zr6RmZc4
 ```
 
@@ -274,14 +277,14 @@ A final step before you deploy is to commit all changes to the project repo.
 
 🥐 Commit the new files to the project's git repo by running:
 
-```bash
+```shell
 $ git add url
 $ git commit -m 'working service including test'
 ```
 
 🥐 Then you can finally deploy your application to the cloud by running:
 
-```bash
+```shell
 $ git push encore
 ```
 This will trigger a deployment and Encore will build and test your app, provision the necessary infrastructure (including databases), and deploy your app to the cloud.

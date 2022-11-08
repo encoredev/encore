@@ -1,4 +1,6 @@
 ---
+seotitle: How to use ORMs like ent for database migrations
+seodesc: See how you can use an ORM like ent, or Atlas, to handle your database migrations for your backend application.
 title: Use the ent ORM for migrations
 ---
 
@@ -60,8 +62,8 @@ First, create the `migrations` directory in the `usr` system and add an empty mi
 migration is necessary for encore to pick up the system as a [database](/docs/develop/databases) system. Run this
 command to have Encore build the application and create the database:
 
-```bash
-encore run
+```shell
+$ encore run
 ```
 
 With the database created, you are ready to continue with the guide. You may delete the `1_init` migration or leave
@@ -291,7 +293,7 @@ func GetUser(ctx context.Context, id int) (*GetUserResponse, error) {
 
 <Callout type="info">
 
-Ent types cannot be used as parameter types or return types in Encore endpoints; they contain values that are not
+ent types cannot be used as parameter types or return types in Encore endpoints; they contain values that are not
 marshalable. You must use your own struct and mirror the fields you want to send back to your users.
 
 </Callout>

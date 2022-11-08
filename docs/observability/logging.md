@@ -1,4 +1,6 @@
 ---
+seotitle: Use structured logging to understand your application
+seodesc: Learn how to use structured logging, a combination of free-form log messages and type-safe key-value pairs, to understand your backend application's behavior.
 title: Logging
 ---
 

@@ -1,4 +1,6 @@
 ---
+seotitle: Introduction to Encore – the backend development engine
+seodesc: Learn how Encore works and how it helps backend developers build cloud based backend applications with a flow state developer experience.
 title: What is Encore?
 subtitle: Escape complexity and put the fun back into backend development
 ---

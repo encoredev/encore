@@ -1,4 +1,6 @@
 ---
+seotitle: API Errors – Types, Wrappers, and Codes
+seodesc: See how to return structured error information from your APIs using Encore's errs package, and how to build precise error messages for complex business logic.
 title: API Errors
 subtitle: When the happy path turns sad
 ---

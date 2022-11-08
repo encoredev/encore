@@ -1,4 +1,6 @@
 ---
+seotitle: How to receive webhooks in your backend application
+seodesc: Learn how to accept webhooks in your Go based backend application using Encore.
 title: Receive webhooks
 subtitle: Call me maybe!
 ---

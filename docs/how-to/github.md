@@ -1,9 +1,11 @@
 ---
+seotitle: Integrate your Encore application with GitHub
+seodesc: Learn how to integrate your Go backend application with GitHub to get automatic Preview Environments for each Pull Request using Encore.
 title: Integrate with GitHub
 ---
 
 Encore applications are easy to integrate with GitHub for source code hosting.
-To link your application to GitHub, open [Your app](https://app.encore.dev), then head to **App Settings &rarr; Git integration**
+To link your application to GitHub, open [Your app](https://app.encore.dev), then head to **Settings &rarr; GitHub**
 and follow the instructions.
 
 For a more detailed guide on linking with GitHub, see the [Setup Walkthrough](#setup-walkthrough) below.
@@ -31,20 +33,22 @@ against the new backend API using `encore gen client --env=pr:72 --lang=typescri
 
 ## Setup Walkthrough
 
-Open your application on [app.encore.dev](https://app.encore.dev), and click
-the app id in the top left. Select **App Settings** and then navigate to **Git Integration**.
+Open your application on [app.encore.dev](https://app.encore.dev), and click on **Settings** in the main navigation.
+Then select **GitHub** in the settings menu.
 
-First link your account with GitHub. Grant access either to all repositories or only the one(s)
-you want to link with Encore.
+First connect your account to GitHub by clicking the **Connect Account to GitHub** button. This will open GitHub where you can grant access either to all repositories, or only the specific one(s) you want to link with Encore.
 
-When you come back to Encore, click the **Link app to GitHub repository** button:
+<img class="max-w-lg w-full mx-auto" src="/assets/img/git-connect.png" />
+
+When you come back to Encore, click the **Link App to GitHub** button:
 
 <img class="max-w-lg w-full mx-auto" src="/assets/img/git-begin.png" />
 
-In the popup, select the repository you would like to link:
+In the popup, select the repository you would like to link your app with:
 
 <img class="max-w-lg w-full mx-auto" src="/assets/img/git-modal.png" />
 
-Click **Link** and you're done:
+Click **Link** and you're done! Encore will now automatically start building and running tests against
+your Pull Requests, and provision Preview Environments for each Pull Request.
 
 <img class="max-w-lg w-full mx-auto" src="/assets/img/git-linked.png" />

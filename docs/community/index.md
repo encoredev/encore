@@ -1,4 +1,6 @@
 ---
+seotitle: Encore's Open Source Developer Community
+seodesc: Learn how to engage in the Open Source Developer Community supporting Encore.
 title: Community
 subtitle: Join the most pioneering developer community!
 ---

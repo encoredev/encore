@@ -1,4 +1,6 @@
 ---
+seotitle: Environments – Creating local, preview, and prod environments
+seodesc: Learn how to create all the environments you need for your backend application, local, preview, testing and production. Here's how you keep them in sync!
 title: Environments
 subtitle: The environments you want, with none of the work
 ---

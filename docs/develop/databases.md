@@ -1,4 +1,6 @@
 ---
+seotitle: Using SQL databases for your backend application
+seodesc: Learn how to use SQL databases for your backend application. See how to provision, migrate, and query PostgreSQL databases using Go and Encore.
 title: Using SQL databases
 subtitle: Provisioning, migrating, querying
 ---

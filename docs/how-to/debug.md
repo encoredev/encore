@@ -1,4 +1,6 @@
 ---
+seotitle: How to debug your application with Delve
+seodesc: Learn how to debug your Go backend application using Delve and Encore.
 title: Debug with Delve
 ---
 
@@ -6,14 +8,14 @@ Encore makes it easy to debug your application using [Delve](https://github.com/
 
 First, make sure you have `dlv` installed by running (Go 1.16 and later):
 
-```bash
-go install github.com/go-delve/delve/cmd/dlv@latest
+```shell
+$ go install github.com/go-delve/delve/cmd/dlv@latest
 ```
 
 ## Enable debugging mode
 Next, run your Encore application with `encore run --debug`. This will cause Encore to print the Process ID to the terminal, which you will use to attach your debugger:
 
-```bash
+```shell
 $ encore run --debug
 API Base URL:      http://localhost:4000
 Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
@@ -29,7 +31,7 @@ When your Encore application is running, it’s time to attach the debugger. The
 ### Terminal debugging
 To debug in your terminal, run `dlv attach $PID` (replace `$PID` with your Process ID from the previous step). You should see:
 
-```bash
+```shell
 $ dlv attach 51894
 Type 'help' for list of commands.
 (dlv)
