@@ -98,7 +98,7 @@ func (p *parser) parseCacheCluster(file *est.File, cursor *walker.Cursor, ident 
 		return nil
 	}
 
-	clusterName := p.parseResourceName("cache.NewCluster", "cluster name", callExpr.Args[0])
+	clusterName := p.parseResourceName("cache.NewCluster", "cluster name", callExpr.Args[0], kebabName, "")
 	if clusterName == "" {
 		// we already reported the error inside parseResourceName
 		return nil

@@ -11,6 +11,7 @@ import (
 
 	"encr.dev/pkg/errinsrc"
 	. "encr.dev/pkg/errinsrc/internal"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 func handleCUEError(err error, pathPrefix string, param ErrParams) error {
@@ -118,5 +119,38 @@ func nodeType(node ast.Node) string {
 
 	default:
 		return fmt.Sprintf("a %v", reflect.TypeOf(node))
+	}
+}
+
+// Converts a schema type to a string that can be used in an error message.
+// such as a ast.CallExpr will return "a function call to foo.Blah"
+func schemaType(typ *schema.Type) string {
+	switch tt := typ.Typ.(type) {
+	case *schema.Type_Named:
+		return "a named type"
+
+	case *schema.Type_Struct:
+		return "a struct type"
+
+	case *schema.Type_Map:
+		return "a map type"
+
+	case *schema.Type_List:
+		return "a list type"
+
+	case *schema.Type_Builtin:
+		return fmt.Sprintf("a builtin type (%s)", tt.Builtin)
+
+	case *schema.Type_Pointer:
+		return "a pointer to " + schemaType(tt.Pointer.Base)
+
+	case *schema.Type_TypeParameter:
+		return "a type parameter"
+
+	case *schema.Type_Config:
+		return "a config value"
+
+	default:
+		return fmt.Sprintf("a %v", reflect.TypeOf(tt))
 	}
 }

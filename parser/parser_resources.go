@@ -2,11 +2,12 @@ package parser
 
 import (
 	"go/ast"
+	"go/token"
+	"regexp"
 	"strings"
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/parser/dnsname"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/internal/walker"
@@ -173,29 +174,52 @@ func (p *parser) resourceFor(file *est.File, node ast.Expr) est.Resource {
 	return nil
 }
 
+const resourceNameMaxLength int = 63
+
+type resourceNameSpec struct {
+	regexp         *regexp.Regexp
+	invalidNameErr func(fset *token.FileSet, node ast.Node, resourceType, paramName, name string) error
+	reservedErr    func(fset *token.FileSet, node ast.Node, resourceType, paramName, name, reservedPrefix string) error
+}
+
+var kebabName = resourceNameSpec{
+	regexp:         regexp.MustCompile(`^[a-z]([-a-z0-9]*[a-z0-9])?$`),
+	invalidNameErr: srcerrors.ResourceNameNotKebabCase,
+	reservedErr: func(fset *token.FileSet, node ast.Node, resourceType, paramName, name, reservedPrefix string) error {
+		return srcerrors.ResourceNameReserved(fset, node, resourceType, paramName, name, reservedPrefix, false)
+	},
+}
+
+var snakeName = resourceNameSpec{
+	regexp:         regexp.MustCompile(`^[a-z]([_a-z0-9]*[a-z0-9])?$`),
+	invalidNameErr: srcerrors.ResourceNameNotSnakeCase,
+	reservedErr: func(fset *token.FileSet, node ast.Node, resourceType, paramName, name, reservedPrefix string) error {
+		return srcerrors.ResourceNameReserved(fset, node, resourceType, paramName, name, reservedPrefix, true)
+	},
+}
+
 // parseResourceName checks the given node is a string literal, and then checks it conforms
-// to the DNS-1035 label spec:
-//   - lowercase alpha-numeric, dashes
-//   - must start and with a letter
-//   - must not end with a dash
-//   - must be between 1 and 63 characters long
+// to the given spec.
 //
 // If an error is encountered, it will report a parse error and return an empty string
 // otherwise it will return the parsed resource name
-func (p *parser) parseResourceName(resourceType string, paramName string, node ast.Expr) string {
+func (p *parser) parseResourceName(resourceType string, paramName string, node ast.Expr, nameSpec resourceNameSpec, reservedPrefix string) string {
 	name, ok := litString(node)
 	if !ok {
 		p.errInSrc(srcerrors.ResourceNameNotStringLiteral(p.fset, node, resourceType, paramName))
 		return ""
 	}
 	name = strings.TrimSpace(name)
-	if name == "" || len(name) > dnsname.DNS1035LabelMaxLength {
+	if name == "" || len(name) > resourceNameMaxLength {
 		p.errInSrc(srcerrors.ResourceNameWrongLength(p.fset, node, resourceType, paramName, name))
 		return ""
 	}
 
-	if !dnsname.Dns1035LabelRegexp.MatchString(name) {
-		p.errInSrc(srcerrors.ResourceNameNotKebabCase(p.fset, node, resourceType, paramName, name))
+	if !nameSpec.regexp.MatchString(name) {
+		p.errInSrc(nameSpec.invalidNameErr(p.fset, node, resourceType, paramName, name))
+		return ""
+	} else if reservedPrefix != "" && strings.HasPrefix(name, reservedPrefix) {
+		p.errInSrc(nameSpec.reservedErr(p.fset, node, resourceType, paramName, name, reservedPrefix))
 		return ""
 	}
 

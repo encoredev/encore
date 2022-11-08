@@ -243,6 +243,7 @@ const (
 	CacheClusterDefNode
 	CacheKeyspaceDefNode
 	ConfigLoadNode
+	MetricDefNode
 )
 
 type Node struct {
@@ -325,6 +326,7 @@ const (
 	CacheClusterResource
 	CacheKeyspaceResource
 	ConfigResource
+	MetricResource
 )
 
 type SQLDB struct {
@@ -379,3 +381,18 @@ func (p *CacheKeyspace) Ident() *ast.Ident          { return p.IdentAST }
 func (r *CacheKeyspace) DefNode() ast.Node          { return r.DeclCall }
 func (p *CacheKeyspace) NodeType() NodeType         { return CacheKeyspaceDefNode }
 func (p *CacheKeyspace) AllowOnlyParsedUsage() bool { return false }
+
+type Metric struct {
+	Doc       string     // The documentation on the metric
+	DeclFile  *File      // What file the cache is declared in
+	IdentAST  *ast.Ident // The AST node representing the value this metric is bound against
+	ConfigLit *ast.CompositeLit
+	Labels    *schema.Type // The labels for this keyspace, or nil if no labels.
+	LabelsAST ast.Node
+}
+
+func (p *Metric) Type() ResourceType         { return MetricResource }
+func (p *Metric) File() *File                { return p.DeclFile }
+func (p *Metric) Ident() *ast.Ident          { return p.IdentAST }
+func (p *Metric) NodeType() NodeType         { return MetricDefNode }
+func (p *Metric) AllowOnlyParsedUsage() bool { return false }

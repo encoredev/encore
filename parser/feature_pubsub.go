@@ -70,7 +70,7 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		return nil
 	}
 
-	topicName := p.parseResourceName("pubsub.NewTopic", "topic name", callExpr.Args[0])
+	topicName := p.parseResourceName("pubsub.NewTopic", "topic name", callExpr.Args[0], kebabName, "")
 	if topicName == "" {
 		// we already reported the error inside parseResourceName
 		return nil
@@ -171,7 +171,7 @@ func (p *parser) parsePubSubSubscription(file *est.File, cursor *walker.Cursor, 
 		return nil
 	}
 
-	subscriberName := p.parseResourceName("pubsub.NewSubscription", "subscription name", callExpr.Args[1])
+	subscriberName := p.parseResourceName("pubsub.NewSubscription", "subscription name", callExpr.Args[1], kebabName, "")
 	if subscriberName == "" {
 		// we already reported the error inside parseResourceName
 		return nil
