@@ -15,26 +15,24 @@ import (
 const JsonPkg = "github.com/json-iterator/go"
 
 type Builder struct {
-	res        *parser.Result
-	forTesting bool
+	res *parser.Result
 
 	marshaller *gocodegen.MarshallingCodeGenerator
 	errors     *errlist.List
 }
 
-func NewBuilder(res *parser.Result, forTesting bool) *Builder {
+func NewBuilder(res *parser.Result) *Builder {
 	marshallerPkgPath := path.Join(res.Meta.ModulePath, "__encore", "etype")
 	marshaller := gocodegen.NewMarshallingCodeGenerator(marshallerPkgPath, "Marshaller", false)
 
 	return &Builder{
 		res:        res,
-		forTesting: forTesting,
 		errors:     errlist.New(res.FileSet),
 		marshaller: marshaller,
 	}
 }
 
-func (b *Builder) Main(compilerVersion string) (f *File, err error) {
+func (b *Builder) Main(compilerVersion string, mainFuncName string) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
 	f = NewFile("main")
@@ -73,7 +71,11 @@ func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 	})
 	f.Line()
 
-	f.Func().Id("main").Params().Block(
+	if mainFuncName == "" {
+		mainFuncName = "main"
+	}
+
+	f.Func().Id(mainFuncName).Params().Block(
 		Qual("encore.dev/appruntime/app/appinit", "AppMain").Call(),
 	)
 

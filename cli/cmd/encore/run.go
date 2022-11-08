@@ -68,15 +68,7 @@ func runApp(appRoot, wd string) {
 		fatal(err)
 	}
 
-	// Clear the screen except for the first line.
-	if _, height, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
-		count := height - 2
-		if count > 0 {
-			os.Stdout.Write(bytes.Repeat([]byte{'\n'}, count))
-		}
-		fmt.Fprint(os.Stdout, ansi.SetCursorPosition(2, 1)+ansi.ClearScreen(ansi.CursorToBottom))
-	}
-
+	clearTerminalExceptFirstLine()
 	code := streamCommandOutput(stream, convertJSONLogs())
 	if code == 0 {
 		if state, err := onboarding.Load(); err == nil {
@@ -88,6 +80,17 @@ func runApp(appRoot, wd string) {
 		}
 	}
 	os.Exit(code)
+}
+
+func clearTerminalExceptFirstLine() {
+	// Clear the screen except for the first line.
+	if _, height, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
+		count := height - 2
+		if count > 0 {
+			os.Stdout.Write(bytes.Repeat([]byte{'\n'}, count))
+		}
+		fmt.Fprint(os.Stdout, ansi.SetCursorPosition(2, 1)+ansi.ClearScreen(ansi.CursorToBottom))
+	}
 }
 
 func init() {

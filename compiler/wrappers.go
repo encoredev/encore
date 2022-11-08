@@ -37,7 +37,7 @@ func (b *builder) writeMainPkg() error {
 
 	b.addOverlay(filepath.Join(b.appRoot, encorePkgDir, mainPkgName, "main.go"), mainPath)
 
-	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion)
+	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, "")
 	if err != nil {
 		return err
 	}

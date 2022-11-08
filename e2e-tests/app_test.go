@@ -50,21 +50,27 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	c.Cleanup(func() { ln.Close() })
 
 	app := apps.NewInstance(appRoot, "slug", "")
-	run := &Run{ID: GenID(), ListenAddr: ln.Addr().String(), App: app}
+	mgr := &Manager{}
+	rs := NewResourceServices(app, mgr.ClusterMgr /* currently nil */)
+	run := &Run{
+		ID:              GenID(),
+		ListenAddr:      ln.Addr().String(),
+		App:             app,
+		ResourceServers: rs,
+		Mgr:             mgr,
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Cleanup(cancel)
 
-	nsqd := &pubsub.NSQDaemon{}
-	err = nsqd.Start()
-	assertNil(err)
-	c.Cleanup(nsqd.Stop)
-
-	redisSrv := redis.New()
-	err = redisSrv.Start()
-	assertNil(err)
-	c.Cleanup(redisSrv.Stop)
-
 	build := testBuild(c, appRoot)
+
+	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
+	err = run.ResourceServers.StartRequiredServices(jobs, build.Parse)
+	assertNil(err)
+	c.Cleanup(rs.StopAll)
+
+	assertNil(jobs.Wait())
+
 	env = append(env, "FOO=bar", "BAR=baz")
 
 	if logger == nil {
@@ -87,8 +93,9 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		DBProxyPort:    0,
 		Logger:         logger,
 		Environ:        env,
-		NSQDaemon:      nsqd,
-		Redis:          redisSrv,
+		SQLDBCluster:   rs.GetSQLCluster(),
+		NSQDaemon:      rs.GetPubSub(),
+		Redis:          rs.GetRedis(),
 		ServiceConfigs: build.Configs,
 		Experiments:    expSet,
 		Secrets:        secretData.Values,
@@ -108,8 +115,8 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		Addr:   ln.Addr().String(),
 		Run:    run,
 		Meta:   build.Parse.Meta,
-		NSQ:    nsqd,
-		Redis:  redisSrv,
+		NSQ:    rs.GetPubSub(),
+		Redis:  rs.GetRedis(),
 		Env:    env,
 		Values: make(map[string]any),
 	}

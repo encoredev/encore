@@ -15,21 +15,15 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/rs/xid"
+	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/mod/modfile"
 
-	"github.com/hashicorp/yamux"
-
-	encore "encore.dev"
 	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
@@ -44,7 +38,6 @@ import (
 	"encr.dev/internal/version"
 	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
-	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -56,13 +49,12 @@ type Run struct {
 	ResourceServers *ResourceServices
 
 	log     zerolog.Logger
-	mgr     *Manager
+	Mgr     *Manager
 	params  *StartParams
 	ctx     context.Context // ctx is closed when the run is to exit
 	proc    atomic.Value    // current process
 	exited  chan struct{}   // exit is closed when the run has fully exited
 	started chan struct{}   // started is closed once the run has fully started
-
 }
 
 // StartParams groups the parameters for the Run method.
@@ -94,11 +86,11 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
-		ResourceServers: newResourceServices(params.App, mgr.ClusterMgr),
+		ResourceServers: NewResourceServices(params.App, mgr.ClusterMgr),
 		ListenAddr:      params.ListenAddr,
 
 		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
-		mgr:     mgr,
+		Mgr:     mgr,
 		params:  &params,
 		ctx:     ctx,
 		exited:  make(chan struct{}),
@@ -165,7 +157,7 @@ func (r *Run) Reload() error {
 		return err
 	}
 
-	for _, ln := range r.mgr.listeners {
+	for _, ln := range r.Mgr.listeners {
 		ln.OnReload(r)
 	}
 
@@ -192,7 +184,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	// in order to only ensure we Close r.exited exactly once.
 
 	go func() {
-		for _, ln := range r.mgr.listeners {
+		for _, ln := range r.Mgr.listeners {
 			ln.OnStart(r)
 		}
 		close(r.started)
@@ -220,7 +212,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 			p2 := r.proc.Load().(*Proc)
 			if p2 == p {
 				// We're done.
-				for _, ln := range r.mgr.listeners {
+				for _, ln := range r.Mgr.listeners {
 					ln.OnStop(r)
 				}
 				close(r.exited)
@@ -233,34 +225,12 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 
 // parseApp parses the app and returns the parse result.
 func (r *Run) parseApp() (*parser.Result, error) {
-	modPath := filepath.Join(r.App.Root(), "go.mod")
-	modData, err := ioutil.ReadFile(modPath)
-	if err != nil {
-		return nil, err
-	}
-	mod, err := modfile.Parse(modPath, modData, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	vcsRevision := vcs.GetRevision(r.App.Root())
-
-	experiments, err := r.App.Experiments(r.params.Environ)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := &parser.Config{
-		AppRoot:                  r.App.Root(),
-		Experiments:              experiments,
-		AppRevision:              vcsRevision.Revision,
-		AppHasUncommittedChanges: vcsRevision.Uncommitted,
-		ModulePath:               mod.Module.Mod.Path,
-		WorkingDir:               r.params.WorkingDir,
-		ParseTests:               false,
-	}
-
-	return parser.Parse(cfg)
+	return r.Mgr.parseApp(parseAppParams{
+		App:        r.App,
+		Environ:    r.params.Environ,
+		WorkingDir: r.params.WorkingDir,
+		ParseTests: false,
+	})
 }
 
 // buildAndStart builds the app, starts the proc, and cleans up
@@ -272,7 +242,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		return err
 	}
 
-	jobs := newAsyncBuildJobs(ctx, r.App.PlatformOrLocalID(), tracker)
+	jobs := NewAsyncBuildJobs(ctx, r.App.PlatformOrLocalID(), tracker)
 
 	// Parse the app source code
 	// Parse the app to figure out what infrastructure is needed.
@@ -337,7 +307,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			if r.App.PlatformID() == "" {
 				return fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
 			}
-			data, err := r.mgr.Secret.Get(ctx, r.App, expSet)
+			data, err := r.Mgr.Secret.Get(ctx, r.App, expSet)
 			if err != nil {
 				return err
 			}
@@ -356,9 +326,9 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
 		Meta:           build.Parse.Meta,
-		Logger:         r.mgr,
-		RuntimePort:    r.mgr.RuntimePort,
-		DBProxyPort:    r.mgr.DBProxyPort,
+		Logger:         r.Mgr,
+		RuntimePort:    r.Mgr.RuntimePort,
+		DBProxyPort:    r.Mgr.DBProxyPort,
 		SQLDBCluster:   r.ResourceServers.GetSQLCluster(),
 		NSQDaemon:      r.ResourceServers.GetPubSub(),
 		Redis:          r.ResourceServers.GetRedis(),
@@ -445,7 +415,16 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	}
 	go p.parseSymTable(params.BinPath)
 
-	runtimeCfg := r.generateConfig(p, params)
+	runtimeCfg := r.Mgr.generateConfig(generateConfigParams{
+		App:         r.App,
+		RS:          r.ResourceServers,
+		Meta:        params.Meta,
+		ForTests:    false,
+		AuthKey:     authKey,
+		APIBaseURL:  "http://" + r.ListenAddr,
+		ConfigAppID: r.ID,
+		ConfigEnvID: p.ID,
+	})
 	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
 	cmd := exec.Command(params.BinPath)
@@ -525,122 +504,6 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 
 	go p.waitForExit()
 	return p, nil
-}
-
-func (r *Run) generateConfig(p *Proc, params *StartProcParams) *config.Runtime {
-	var (
-		sqlServers []*config.SQLServer
-		sqlDBs     []*config.SQLDatabase
-	)
-	if params.SQLDBCluster != nil {
-		srv := &config.SQLServer{
-			Host: "localhost:" + strconv.Itoa(params.DBProxyPort),
-		}
-		sqlServers = append(sqlServers, srv)
-
-		for _, svc := range params.Meta.Svcs {
-			if len(svc.Migrations) > 0 {
-				sqlDBs = append(sqlDBs, &config.SQLDatabase{
-					EncoreName:   svc.Name,
-					DatabaseName: svc.Name,
-					User:         "encore",
-					Password:     params.SQLDBCluster.Password,
-				})
-			}
-		}
-
-		// Configure max connections based on 96 connections
-		// divided evenly among the databases
-		maxConns := 96 / len(sqlDBs)
-		for _, db := range sqlDBs {
-			db.MaxConnections = maxConns
-		}
-	}
-
-	var (
-		pubsubProviders []*config.PubsubProvider
-		pubsubTopics    map[string]*config.PubsubTopic
-	)
-	if params.NSQDaemon != nil {
-		p := &config.PubsubProvider{
-			NSQ: &config.NSQProvider{
-				Host: params.NSQDaemon.Addr(),
-			},
-		}
-		pubsubProviders = append(pubsubProviders, p)
-		pubsubTopics = make(map[string]*config.PubsubTopic)
-		for _, t := range params.Meta.PubsubTopics {
-			topicCfg := &config.PubsubTopic{
-				EncoreName:    t.Name,
-				ProviderID:    0,
-				ProviderName:  t.Name,
-				Subscriptions: make(map[string]*config.PubsubSubscription),
-			}
-
-			if t.OrderingKey != "" {
-				topicCfg.OrderingKey = t.OrderingKey
-			}
-
-			for _, s := range t.Subscriptions {
-				topicCfg.Subscriptions[s.Name] = &config.PubsubSubscription{
-					ID:           s.Name,
-					EncoreName:   s.Name,
-					ProviderName: s.Name,
-				}
-			}
-
-			pubsubTopics[t.Name] = topicCfg
-		}
-	}
-
-	var (
-		redisServers []*config.RedisServer
-		redisDBs     []*config.RedisDatabase
-	)
-	if params.Redis != nil {
-		srv := &config.RedisServer{
-			Host: params.Redis.Addr(),
-		}
-		redisServers = append(redisServers, srv)
-
-		for _, cluster := range params.Meta.CacheClusters {
-			redisDBs = append(redisDBs, &config.RedisDatabase{
-				ServerID:   0,
-				Database:   0,
-				EncoreName: cluster.Name,
-				KeyPrefix:  cluster.Name + "/",
-			})
-		}
-	}
-
-	return &config.Runtime{
-		AppID:           r.ID,
-		AppSlug:         r.App.PlatformID(),
-		APIBaseURL:      "http://" + r.ListenAddr,
-		DeployID:        fmt.Sprintf("run_%s", xid.New()),
-		DeployedAt:      time.Now().UTC(), // Force UTC to not cause confusion
-		EnvID:           p.ID,
-		EnvName:         "local",
-		EnvCloud:        string(encore.CloudLocal),
-		EnvType:         string(encore.EnvDevelopment),
-		TraceEndpoint:   "http://localhost:" + strconv.Itoa(params.RuntimePort) + "/trace",
-		SQLDatabases:    sqlDBs,
-		SQLServers:      sqlServers,
-		PubsubProviders: pubsubProviders,
-		PubsubTopics:    pubsubTopics,
-		RedisServers:    redisServers,
-		RedisDatabases:  redisDBs,
-		AuthKeys:        []config.EncoreAuthKey{p.authKey},
-		CORS: &config.CORS{
-			AllowOriginsWithCredentials: []string{
-				// Allow all origins with credentials for local development;
-				// since it's only running on localhost for development this is safe.
-				config.UnsafeAllOriginWithCredentials,
-			},
-
-			AllowOriginsWithoutCredentials: []string{"*"},
-		},
-	}
 }
 
 // Done returns a channel that is closed when the process has exited.

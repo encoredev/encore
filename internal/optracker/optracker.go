@@ -16,7 +16,11 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
-func New(w io.Writer, stream daemonpb.Daemon_RunServer) *OpTracker {
+type OutputStream interface {
+	Send(*daemonpb.CommandMessage) error
+}
+
+func New(w io.Writer, stream OutputStream) *OpTracker {
 	return &OpTracker{
 		w:      w,
 		stream: stream,
@@ -30,9 +34,7 @@ type OpTracker struct {
 	started     bool
 	quit        bool
 	savedCursor sync.Once
-	stream      interface {
-		Send(*daemonpb.CommandMessage) error
-	}
+	stream      OutputStream
 }
 
 type OperationID int
@@ -142,7 +144,7 @@ func (t *OpTracker) refresh() {
 	t.savedCursor.Do(func() {
 		fmt.Fprint(t.w, ansi.SaveCursorPosition)
 	})
-	fmt.Fprint(t.w, ansi.RestoreCursorPosition)
+	fmt.Fprint(t.w, ansi.RestoreCursorPosition+ansi.ClearScreen(ansi.CursorToBottom))
 
 	now := time.Now()
 

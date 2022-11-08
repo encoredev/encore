@@ -10,7 +10,7 @@ import (
 	"encr.dev/internal/optracker"
 )
 
-type asyncBuildJobs struct {
+type AsyncBuildJobs struct {
 	ctx        context.Context
 	cancelCtx  context.CancelFunc
 	m          sync.Mutex
@@ -21,10 +21,10 @@ type asyncBuildJobs struct {
 	appID      string
 }
 
-func newAsyncBuildJobs(ctx context.Context, appID string, tracker *optracker.OpTracker) *asyncBuildJobs {
+func NewAsyncBuildJobs(ctx context.Context, appID string, tracker *optracker.OpTracker) *AsyncBuildJobs {
 	ctx, cancelCtx := context.WithCancel(ctx)
 
-	return &asyncBuildJobs{
+	return &AsyncBuildJobs{
 		ctx:       ctx,
 		cancelCtx: cancelCtx,
 		appID:     appID,
@@ -33,11 +33,11 @@ func newAsyncBuildJobs(ctx context.Context, appID string, tracker *optracker.OpT
 	}
 }
 
-func (a *asyncBuildJobs) Go(description string, track bool, minDuration time.Duration, f func(ctx context.Context) error) {
+func (a *AsyncBuildJobs) Go(description string, track bool, minDuration time.Duration, f func(ctx context.Context) error) {
 	a.wait.Add(1)
 
 	trackerID := optracker.NoOperationID
-	if track {
+	if track && a.tracker != nil {
 		trackerID = a.tracker.Add(description, a.start)
 	}
 
@@ -48,25 +48,31 @@ func (a *asyncBuildJobs) Go(description string, track bool, minDuration time.Dur
 		if err := f(a.ctx); err != nil {
 			// If the context was canceled, it probably means the error was due to that.
 			if a.ctx.Err() != nil {
-				a.tracker.Cancel(trackerID)
+				if a.tracker != nil {
+					a.tracker.Cancel(trackerID)
+				}
 			} else {
 				log.Err(err).Str("app_id", a.appID).Str("job", description).Msg("build job failed")
-				a.tracker.Fail(trackerID, err)
+				if a.tracker != nil {
+					a.tracker.Fail(trackerID, err)
+				}
 				a.recordError(err)
 			}
 		} else {
-			a.tracker.Done(trackerID, minDuration)
+			if a.tracker != nil {
+				a.tracker.Done(trackerID, minDuration)
+			}
 			log.Info().Str("app_id", a.appID).Str("job", description).Msg("build job finished")
 		}
 	}()
 }
 
-func (a *asyncBuildJobs) Wait() error {
+func (a *AsyncBuildJobs) Wait() error {
 	a.wait.Wait()
 	return a.firstError
 }
 
-func (a *asyncBuildJobs) recordError(err error) {
+func (a *AsyncBuildJobs) recordError(err error) {
 	a.m.Lock()
 	defer a.m.Unlock()
 
