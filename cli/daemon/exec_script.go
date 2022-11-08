@@ -25,13 +25,6 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 		s.sm.Prefetch(appSlug)
 	}
 
-	// Parse the app to figure out what infrastructure is needed.
-	parse, err := s.parseApp(req.AppRoot, req.WorkingDir, false)
-	if err != nil {
-		sendErr(err)
-		return nil
-	}
-
 	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
 		sendErr(err)
@@ -61,7 +54,6 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 		Environ:       req.Environ,
 		ScriptRelPath: req.ScriptRelPath,
 		ScriptArgs:    req.ScriptArgs,
-		Parse:         parse,
 		Stdout:        slog.Stdout(false),
 		Stderr:        slog.Stderr(false),
 		OpTracker:     ops,

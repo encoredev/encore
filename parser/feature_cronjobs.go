@@ -45,6 +45,7 @@ func (p *parser) parseCronJob(file *est.File, cursor *walker.Cursor, ident *ast.
 	cj := &est.CronJob{
 		AST:      ident,
 		DeclFile: file,
+		DeclCall: callExpr,
 	}
 
 	cronJobID := p.parseResourceName("cron.NewJob", "cronjob ID", callExpr.Args[0])

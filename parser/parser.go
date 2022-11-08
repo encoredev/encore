@@ -81,6 +81,11 @@ type Config struct {
 	ModulePath               string
 	WorkingDir               string
 	ParseTests               bool
+
+	// ScriptMainPkg specifies the relative path to the main package,
+	// when running in script mode. It's used to mark that package
+	// as a synthetic "main" service.
+	ScriptMainPkg string
 }
 
 func Parse(cfg *Config) (*Result, error) {
@@ -651,10 +656,13 @@ func (p *parser) validateApp() {
 				pos := token.NoPos
 				if id := res.Ident(); id != nil {
 					pos = id.Pos()
+				} else {
+					pos = res.DefNode().Pos()
 				}
 				p.errf(pos, "cannot define %s resource in non-service package", resType)
 			}
 		}
+
 		for _, f := range pkg.Files {
 			if !strings.HasSuffix(f.Name, "_test.go") {
 				for _, imp := range f.AST.Imports {

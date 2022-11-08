@@ -126,10 +126,11 @@ func (mgr *Manager) RunError(r *Run, err *errlist.List) {
 }
 
 type parseAppParams struct {
-	App        *apps.Instance
-	Environ    []string
-	WorkingDir string
-	ParseTests bool
+	App           *apps.Instance
+	Environ       []string
+	WorkingDir    string
+	ParseTests    bool
+	ScriptMainPkg string
 }
 
 // parseApp parses the app and returns the parse result.
@@ -159,6 +160,7 @@ func (mgr *Manager) parseApp(p parseAppParams) (*parser.Result, error) {
 		ModulePath:               mod.Module.Mod.Path,
 		WorkingDir:               p.WorkingDir,
 		ParseTests:               p.ParseTests,
+		ScriptMainPkg:            p.ScriptMainPkg,
 	}
 
 	return parser.Parse(cfg)

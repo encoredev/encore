@@ -139,7 +139,7 @@ func (b *builder) writeExecMain() error {
 
 	b.addOverlay(filepath.Join(b.appRoot, mainPkg.RelPath, "exec_main.go"), mainPath)
 
-	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, "encoreInternal_ExecMain")
+	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, mainPkg.ImportPath, "encoreInternal_ExecMain")
 	if err != nil {
 		return err
 	}

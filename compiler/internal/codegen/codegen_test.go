@@ -56,7 +56,7 @@ func TestCodeGenMain(t *testing.T) {
 			{
 				var buf bytes.Buffer
 				buf.WriteString("// main code\n")
-				f, err := bld.Main("test", "")
+				f, err := bld.Main("test", "", "")
 				c.Assert(err, qt.IsNil)
 				err = f.Render(&buf)
 				if err != nil {

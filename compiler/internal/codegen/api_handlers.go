@@ -34,7 +34,7 @@ var importNames = map[string]string{
 	"encore.dev/types/uuid":             "uuid",
 }
 
-func (b *Builder) registerImports(f *File) {
+func (b *Builder) registerImports(f *File, fromPkgPath string) {
 	for pkgPath, alias := range importNames {
 		f.ImportAlias(pkgPath, alias)
 	}

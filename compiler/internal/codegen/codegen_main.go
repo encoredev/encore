@@ -32,14 +32,19 @@ func NewBuilder(res *parser.Result) *Builder {
 	}
 }
 
-func (b *Builder) Main(compilerVersion string, mainFuncName string) (f *File, err error) {
+func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
-	f = NewFile("main")
-	b.registerImports(f)
-	b.importServices(f)
+	if mainPkgPath != "" {
+		f = NewFilePathName(mainPkgPath, "main")
+	} else {
+		f = NewFile("main")
+	}
 
-	mwNames, mwCode := b.RenderMiddlewares("")
+	b.registerImports(f, mainPkgPath)
+	b.importServices(f, mainPkgPath)
+
+	mwNames, mwCode := b.RenderMiddlewares(mainPkgPath)
 
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
@@ -144,12 +149,14 @@ func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*
 	})
 }
 
-func (b *Builder) importServices(f *File) {
+func (b *Builder) importServices(f *File, mainPkgPath string) {
 	// All services should be imported by the main package so they get initialized on system startup
 	// Services may not have API handlers as they could be purely operating on PubSub subscriptions
 	// so without this anonymous package import, that service might not be initialised.
 	for _, svc := range b.res.App.Services {
-		f.Anon(svc.Root.ImportPath)
+		if svc.Root.ImportPath != mainPkgPath {
+			f.Anon(svc.Root.ImportPath)
+		}
 	}
 }
 

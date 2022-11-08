@@ -17,7 +17,6 @@ import (
 	"encr.dev/internal/env"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
-	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
 )
 
@@ -26,7 +25,8 @@ type ExecScriptParams struct {
 	// App is the app to execute the script for.
 	App *apps.Instance
 
-	// ScriptRelPath is the path holding the command. It's either a directory or a files.
+	// ScriptRelPath is the path holding the command, from the app root.
+	// It's either a directory or a files.
 	ScriptRelPath string
 
 	// ScriptArgs are the arguments to pass to the script binary.
@@ -35,10 +35,6 @@ type ExecScriptParams struct {
 	// WorkingDir is the working dir to execute the script from.
 	// It's relative to the app root.
 	WorkingDir string
-
-	// Parse is the parse result for the initial run of the app.
-	// It must be set.
-	Parse *parser.Result
 
 	// Environ are the environment variables to set when running the tests,
 	// in the same format as os.Environ().
@@ -63,16 +59,16 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	tracker := p.OpTracker
 	jobs := NewAsyncBuildJobs(ctx, p.App.PlatformOrLocalID(), tracker)
 
-	// Parse the app source code
 	// Parse the app to figure out what infrastructure is needed.
 	start := time.Now()
 	parseOp := tracker.Add("Building Encore application graph", start)
 	topoOp := tracker.Add("Analyzing service topology", start)
 	parse, err := mgr.parseApp(parseAppParams{
-		App:        p.App,
-		Environ:    p.Environ,
-		WorkingDir: p.WorkingDir,
-		ParseTests: false,
+		App:           p.App,
+		Environ:       p.Environ,
+		WorkingDir:    p.WorkingDir,
+		ParseTests:    false,
+		ScriptMainPkg: p.ScriptRelPath,
 	})
 	if err != nil {
 		tracker.Fail(parseOp, err)
@@ -105,9 +101,9 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	var build *compiler.Result
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
 		cfg := &compiler.Config{
-			Parse:                 p.Parse,
-			Revision:              p.Parse.Meta.AppRevision,
-			UncommittedChanges:    p.Parse.Meta.UncommittedChanges,
+			Parse:                 parse,
+			Revision:              parse.Meta.AppRevision,
+			UncommittedChanges:    parse.Meta.UncommittedChanges,
 			WorkingDir:            p.WorkingDir,
 			CgoEnabled:            true,
 			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
@@ -129,7 +125,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return nil
 	})
 	defer func() {
-		if err != nil && build != nil {
+		if build != nil {
 			os.RemoveAll(build.Dir)
 		}
 	}()
@@ -141,7 +137,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	runtimeCfg := mgr.generateConfig(generateConfigParams{
 		App:         p.App,
 		RS:          rs,
-		Meta:        p.Parse.Meta,
+		Meta:        parse.Meta,
 		ForTests:    false,
 		AuthKey:     genAuthKey(),
 		APIBaseURL:  apiBaseURL,

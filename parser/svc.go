@@ -32,7 +32,10 @@ func (p *parser) parseServices() {
 		}
 		p.parseServiceStruct(pkg, svc)
 		isSvc := p.parseFuncs(pkg, svc)
-		if !isSvc {
+
+		isScriptMainPkg := p.cfg.ScriptMainPkg != "" && pkg.RelPath == p.cfg.ScriptMainPkg
+
+		if !isSvc && !isScriptMainPkg {
 			continue
 		}
 

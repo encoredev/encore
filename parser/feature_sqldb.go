@@ -47,6 +47,7 @@ func (p *parser) parseNamedSQLDB(file *est.File, _ *walker.Cursor, ident *ast.Id
 	return &est.SQLDB{
 		DeclFile: file,
 		DeclName: ident,
+		DeclCall: callExpr,
 		DBName:   dbName,
 	}
 }

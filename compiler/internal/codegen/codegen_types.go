@@ -12,7 +12,7 @@ import (
 func (b *Builder) Etype() (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 	f = NewFile("etype")
-	b.registerImports(f)
+	b.registerImports(f, "")
 	b.marshaller.WriteToFile(f)
 	return f, b.errors.Err()
 }
