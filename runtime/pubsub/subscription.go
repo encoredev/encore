@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
+
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/trace"
@@ -133,6 +135,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 				Attempt:        deliveryAttempt,
 				Published:      publishTime,
 				DecodedPayload: msg,
+				Payload:        marshalParams(mgr.json, msg),
 			},
 			DefLoc: staticCfg.TraceIdx,
 			Traced: tracingEnabled,
@@ -197,4 +200,9 @@ func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscriptio
 	}
 
 	return subscription, staticCfg
+}
+
+func marshalParams[Resp any](json jsoniter.API, resp Resp) []byte {
+	data, _ := json.Marshal(resp)
+	return data
 }

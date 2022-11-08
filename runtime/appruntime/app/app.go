@@ -92,7 +92,7 @@ func New(p *NewParams) *App {
 	auth := auth.NewManager(rt)
 	rlog := rlog.NewManager(rt)
 	sqldb := sqldb.NewManager(cfg, rt)
-	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger)
+	pubsub := pubsub.NewManager(cfg, rt, ts, apiSrv, rootLogger, json)
 	cache := cache.NewManager(cfg, rt, ts, json)
 	appCfg := appCfg.NewManager(rt, json)
 	etMgr := et.NewManager(cfg, rt)
