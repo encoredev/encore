@@ -371,6 +371,10 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		req.MessageId = tp.String()
 		req.Attempt = tp.Uint32()
 		req.PublishTime = uint64(tp.Time().UnixMilli())
+
+		if tp.version >= 10 {
+			req.RequestPayload = tp.ByteString()
+		}
 	}
 
 	tp.reqs = append(tp.reqs, req)
@@ -432,10 +436,6 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 		if len(errMsg) > 0 {
 			req.Err = errMsg
 
-			// Version 9 has a spurious duplicated error message.
-			// Ignore it.
-			_ = tp.String()
-			
 			req.ErrStack = tp.stack(filterNone)
 		}
 
