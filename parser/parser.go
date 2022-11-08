@@ -647,7 +647,12 @@ func (p *parser) validateApp() {
 				default:
 					panic(fmt.Sprintf("unsupported resource type %v", res.Type()))
 				}
-				p.errf(res.Ident().Pos(), "cannot define %s resource in non-service package", resType)
+
+				pos := token.NoPos
+				if id := res.Ident(); id != nil {
+					pos = id.Pos()
+				}
+				p.errf(pos, "cannot define %s resource in non-service package", resType)
 			}
 		}
 		for _, f := range pkg.Files {
