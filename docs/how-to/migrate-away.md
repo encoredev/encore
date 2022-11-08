@@ -29,15 +29,6 @@ Because you can deploy to your own cloud account from the start, there's never a
 ### Plays well with others
 Encore is all about building distributed systems, and it's straightforward to use your Encore application in combination with other backends, and [databases](/docs/how-to/connect-existing-db), that aren't built with Encore. So if you come across a use case where Encore for some reason doesn't fit, you won't need to tear everything up and start from scratch. You can just build that specific part without Encore.
 
-### Tell us what you need
-We're engineers ourselves and we understand the importance of not being tied to a specific technology choice.
-It's our belief that adopting Encore is a low-risk decision, given it needs no initial investment in foundational work, it's been designed to avoid lock-in, and you use your own cloud account. Our ambition is simply to add a lot of value to your every-day development process, from day one.
-
-We're working every single day on making it even easier to start, <i>and stop</i>, using Encore.
-If you have specific concerns or questions, we'd love to hear from you!
-
-Please reach out on [Slack](https://encore.dev/slack) or [send an email](mailto:hello@encore.dev) with your thoughts.
-
 ## Ejecting
 If you've decided to migrate away from Encore, Encore has built-in support for ejecting your application as a way of
 removing the connection to the Encore Platform. Ejecting your app produces a standalone Docker image that can be
@@ -60,3 +51,12 @@ over time, please refer to the [current runtime config definition](https://githu
 and can be set to arbitrary values. The SQL database and SQL server information is used to configure how Encore connects to SQL databases,
 and should be configured according to your own infrastructure setup. `AuthKeys` and `TraceEndpoint` must both be left unspecified as they
 determine how the application communicates with the Encore Platform, and leaving them empty disables that functionality.
+
+## Tell us what you need
+We're engineers ourselves and we understand the importance of not being tied to a specific technology choice.
+It's our belief that adopting Encore is a low-risk decision, given it needs no initial investment in foundational work, it's been designed to avoid lock-in, and you use your own cloud account. Our ambition is simply to add a lot of value to your every-day development process, from day one.
+
+We're working every single day on making it even easier to start, <i>and stop</i>, using Encore.
+If you have specific concerns or questions, we'd love to hear from you!
+
+Please reach out on [Slack](https://encore.dev/slack) or [send an email](mailto:hello@encore.dev) with your thoughts.

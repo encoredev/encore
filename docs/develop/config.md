@@ -1,11 +1,11 @@
 ---
+seotitle: Configuration for environment specific changes
+seodesc: See how you can use configuration to define different behavior in each environment. Making it simpler to develop and test your backend application.
 title: Configuration
 subtitle: When you want to change something, but not everywhere
 ---
 
-As developers, we often find ourselves in a situation where we need to change something in our codebase, but we don't
-want to change it everywhere the code is deployed. This is where configuration files come in, allowing us to define the
-default behaviour of our applications, but then allow us to override these values for other environments.
+It's common to want to change something in your codebase, but not want to change it everywhere the code is deployed. Configuration files let you define the default behaviour of your application, and override it for specific environments.
 
 Encore supports configuration files written in [CUE](https://cuelang.org/), which is a superset of JSON. It adds the following:
 - C-style comments
@@ -24,8 +24,10 @@ For sensitive data use Encore's [secrets management](/docs/develop/secrets) func
 
 ## Using Config
 
-Inside your service, you can call <code className="hljs language-go">[config.Load[*SomeConfigType]()](https://pkg.go.dev/encore.dev/config#Load)</code>
-to load the config. This must be done at the package level, and not inside a function.
+Inside your service, you can call `config.Load[*SomeConfigType]()`
+to load the config. This must be done at the package level, and not inside a function. See more in the [package documentation](https://pkg.go.dev/encore.dev/config#Load).
+
+Here's an example implementation:
 
 ```go
 package mysvc
@@ -43,7 +45,7 @@ var cfg *SomeConfigType = config.Load[*SomeConfigType]()
 ```
 
 The type you pass as a type parameter to this function will be used to generate a `encore.gen.cue` file in your services
-directory. This file will contain both the CUE definition for your configuration type, and some [meta data](#provided-meta-values) that Encore will
+directory. This file will contain both the CUE definition for your configuration type, and some [metadata](#provided-meta-values) that Encore will
 provide to your service at runtime. This allows you to change the final value of your configuration based on the environment the
 application is running in.
 

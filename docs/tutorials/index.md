@@ -1,4 +1,6 @@
 ---
+seotitle: Learn how to build Go based backends with these tutorials
+seodesc: Start building Go based backend applications using Encore. Create REST APIs, Slack bots, and more in just a few minutes.
 title: Tutorials
 ---
 

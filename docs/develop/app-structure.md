@@ -1,4 +1,6 @@
 ---
+seotitle: Structuring your microservices backend application
+seodesc: Learn how to structure your microservices backend application. See recommended app structures for monoliths, small microservices backends, and large scale microservices applications.
 title: App Structure
 subtitle: Structuring your Encore application
 ---

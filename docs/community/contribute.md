@@ -1,4 +1,6 @@
 ---
+seotitle: How to contribute to Encore Open Source Project
+seodesc: Learn how to contribute to Encore's Open Source project by submitting pull requests, reporting bugs, or contributing documentation or example projects.
 title: Ways to contribute
 subtitle: Guidelines for contributing to Encore
 ---

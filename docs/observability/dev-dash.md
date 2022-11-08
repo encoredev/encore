@@ -1,4 +1,6 @@
 ---
+seotitle: Development dashboard for local development
+seodesc: Encore's local development dashboard comes with build-in distributed tracing, API docs, and real-time architecture diagrams.
 title: Development Dashboard
 ---
 

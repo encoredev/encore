@@ -1,5 +1,8 @@
 ---
+seotitle: Tutorial – How to build a Slack bot
+seodesc: Learn how to build a Slack bot with a Go based backend, running in the cloud, in just a few minutes.
 title: Building a Slack bot
+subtitle: Learn how to build a Slack bot with an Encore backend
 ---
 
 In this tutorial you will create a Slack bot that brings the greatness of the `cowsay` utility to Slack!
@@ -96,7 +99,7 @@ Let's try it out locally.
 
 🥐 Start your app with `encore run` and then call it in another terminal:
 
-```bash
+```shell
 $ curl http://localhost:4000/cowsay -d 'text=Eat your greens!'
 {"response_type":"in_channel","text":"Moo! Eat your greens!"}
 ```
@@ -105,7 +108,7 @@ Looks great!
 
 🥐 Next, let's deploy it to the cloud:
 
-```bash
+```shell
 $ git add -A .
 $ git commit -m 'Initial commit'
 $ git push encore
@@ -266,7 +269,7 @@ const cowart = `
 
 🥐 Finally, let's commit our changes and deploy it:
 
-```bash
+```shell
 $ git add -A .
 $ git commit -m 'Verify webhook requests and improve art'
 $ git push encore

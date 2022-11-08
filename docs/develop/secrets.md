@@ -1,5 +1,7 @@
 ---
-title: Store API keys and secrets
+seotitle: Securely storing API keys and secrets
+seodesc: Learn how to store API keys, and secrets, securely for your backend application. Encore's built in vault makes it simple to keep your app secure.
+title: Storing Secrets and API keys
 subtitle: Simply storing secrets securely
 ---
 

@@ -1,5 +1,8 @@
 ---
+seotitle: Create recurring tasks with Encore's Cron Jobs API
+seodesc: Learn how to create periodic and recurring tasks in your backend application using Encore's Cron Jobs API.
 title: Cron Jobs
+subtitle: Create recurring tasks with Encore's Cron Jobs API
 ---
 
 When building backend applications it's a common need to run periodic and recurring tasks.
@@ -11,7 +14,7 @@ There is no need to maintain any infrastructure; Encore itself takes care of the
 
 ## Defining a Cron job
 
-To define a cron job, all you need to do is to import the `encore.dev/cron` package,
+To define a cron job, all you need to do is to import the `encore.dev/cron` [package](https://pkg.go.dev/encore.dev/cron),
 and call the `cron.NewJob()` function and store it as a package-level variable:
 
 ```go

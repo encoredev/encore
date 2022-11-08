@@ -1,4 +1,6 @@
 ---
+seotitle: Adding authentication to APIs to auth users
+seodesc: Learn how to add authentication to your APIs and make sure you know who's calling your backend APIs.
 title: Authenticating users
 subtitle: Knowing what's what and who's who
 ---
