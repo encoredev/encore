@@ -35,11 +35,9 @@ func (p *parser) parseServices() {
 
 		isScriptMainPkg := p.cfg.ScriptMainPkg != "" && pkg.RelPath == p.cfg.ScriptMainPkg
 
-		if !isSvc && !isScriptMainPkg {
-			continue
+		if isSvc || isScriptMainPkg {
+			p.registerService(svc)
 		}
-
-		p.registerService(svc)
 	}
 }
 
