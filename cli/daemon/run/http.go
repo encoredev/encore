@@ -22,7 +22,7 @@ func (r *Run) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if endpoint == "" {
 		// If this appears to be a browser, serve a redirect to the dashboard.
 		// Otherwise, give a helpful error message for terminals and such.
-		dashURL := fmt.Sprintf("http://localhost:%d/%s", r.mgr.DashPort, r.App.PlatformOrLocalID())
+		dashURL := fmt.Sprintf("http://localhost:%d/%s", r.Mgr.DashPort, r.App.PlatformOrLocalID())
 		if ua := req.Header.Get("User-Agent"); strings.Contains(ua, "Gecko") {
 			http.Redirect(w, req, dashURL, http.StatusFound)
 			return

@@ -15,7 +15,7 @@ func (b *Builder) ServiceHandlers(svc *est.Service) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
 	f = NewFilePathName(svc.Root.ImportPath, svc.Name)
-	b.registerImports(f)
+	b.registerImports(f, svc.Root.ImportPath)
 
 	// Import the runtime package with '_' as its name to start with to ensure it's imported.
 	// If other code uses it will be imported under its proper name.

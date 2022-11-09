@@ -15,33 +15,36 @@ import (
 const JsonPkg = "github.com/json-iterator/go"
 
 type Builder struct {
-	res        *parser.Result
-	forTesting bool
+	res *parser.Result
 
 	marshaller *gocodegen.MarshallingCodeGenerator
 	errors     *errlist.List
 }
 
-func NewBuilder(res *parser.Result, forTesting bool) *Builder {
+func NewBuilder(res *parser.Result) *Builder {
 	marshallerPkgPath := path.Join(res.Meta.ModulePath, "__encore", "etype")
 	marshaller := gocodegen.NewMarshallingCodeGenerator(marshallerPkgPath, "Marshaller", false)
 
 	return &Builder{
 		res:        res,
-		forTesting: forTesting,
 		errors:     errlist.New(res.FileSet),
 		marshaller: marshaller,
 	}
 }
 
-func (b *Builder) Main(compilerVersion string) (f *File, err error) {
+func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
-	f = NewFile("main")
-	b.registerImports(f)
-	b.importServices(f)
+	if mainPkgPath != "" {
+		f = NewFilePathName(mainPkgPath, "main")
+	} else {
+		f = NewFile("main")
+	}
 
-	mwNames, mwCode := b.RenderMiddlewares("")
+	b.registerImports(f, mainPkgPath)
+	b.importServices(f, mainPkgPath)
+
+	mwNames, mwCode := b.RenderMiddlewares(mainPkgPath)
 
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
@@ -73,7 +76,11 @@ func (b *Builder) Main(compilerVersion string) (f *File, err error) {
 	})
 	f.Line()
 
-	f.Func().Id("main").Params().Block(
+	if mainFuncName == "" {
+		mainFuncName = "main"
+	}
+
+	f.Func().Id(mainFuncName).Params().Block(
 		Qual("encore.dev/appruntime/app/appinit", "AppMain").Call(),
 	)
 
@@ -142,12 +149,14 @@ func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*
 	})
 }
 
-func (b *Builder) importServices(f *File) {
+func (b *Builder) importServices(f *File, mainPkgPath string) {
 	// All services should be imported by the main package so they get initialized on system startup
 	// Services may not have API handlers as they could be purely operating on PubSub subscriptions
 	// so without this anonymous package import, that service might not be initialised.
 	for _, svc := range b.res.App.Services {
-		f.Anon(svc.Root.ImportPath)
+		if svc.Root.ImportPath != mainPkgPath {
+			f.Anon(svc.Root.ImportPath)
+		}
 	}
 }
 

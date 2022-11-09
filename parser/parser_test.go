@@ -82,7 +82,7 @@ package b;
 		c.Assert(err, qt.IsNil, qt.Commentf("test #%d", i))
 
 		fs := token.NewFileSet()
-		pkgs, err := collectPackages(fs, base, modulePath, goparser.ParseComments, true)
+		pkgs, err := collectPackages(fs, base, modulePath, "", goparser.ParseComments, true)
 		if test.Err != "" {
 			c.Assert(err, qt.ErrorMatches, test.Err, qt.Commentf("test #%d", i))
 			continue
