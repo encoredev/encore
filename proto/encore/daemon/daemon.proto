@@ -11,6 +11,8 @@ service Daemon {
   rpc Run (RunRequest) returns (stream CommandMessage);
   // Test runs tests.
   rpc Test (TestRequest) returns (stream CommandMessage);
+  // ExecScript executes a one-off script.
+  rpc ExecScript (ExecScriptRequest) returns (stream CommandMessage);
   // Check checks the app for compilation errors.
   rpc Check (CheckRequest) returns (stream CommandMessage);
   // Export exports the app in various formats.
@@ -82,6 +84,16 @@ message TestRequest {
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 4;
+}
+
+message ExecScriptRequest {
+  string app_root = 1;
+  string working_dir = 2;
+  string script_rel_path = 3;
+  repeated string script_args = 4;
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 5;
 }
 
 message CheckRequest {

@@ -31,7 +31,7 @@ type ResourceServices struct {
 	log    zerolog.Logger
 }
 
-func newResourceServices(app *apps.Instance, sqlMgr *sqldb.ClusterManager) *ResourceServices {
+func NewResourceServices(app *apps.Instance, sqlMgr *sqldb.ClusterManager) *ResourceServices {
 	return &ResourceServices{
 		app:    app,
 		sqlMgr: sqlMgr,
@@ -58,7 +58,7 @@ type ResourceServer interface {
 
 // StartRequiredServices will start the required services for the current application
 // if they are not already running based on the given parse result
-func (rs *ResourceServices) StartRequiredServices(a *asyncBuildJobs, parse *parser.Result) error {
+func (rs *ResourceServices) StartRequiredServices(a *AsyncBuildJobs, parse *parser.Result) error {
 	if sqldb.IsUsed(parse.Meta) && rs.GetSQLCluster() == nil {
 		a.Go("Creating PostgreSQL database cluster", true, 300*time.Millisecond, rs.StartSQLCluster(a, parse))
 	}
@@ -124,8 +124,12 @@ func (rs *ResourceServices) GetRedis() *redis.Server {
 	return nil
 }
 
-func (rs *ResourceServices) StartSQLCluster(a *asyncBuildJobs, parse *parser.Result) func(ctx context.Context) error {
+func (rs *ResourceServices) StartSQLCluster(a *AsyncBuildJobs, parse *parser.Result) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
+		// This can be the case in tests.
+		if rs.sqlMgr == nil {
+			return fmt.Errorf("StartSQLCluster: no SQL Cluster manager provided")
+		}
 
 		cluster := rs.sqlMgr.Create(ctx, &sqldb.CreateParams{
 			ClusterID: sqldb.GetClusterID(rs.app, sqldb.Run),

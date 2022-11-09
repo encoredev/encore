@@ -32,11 +32,12 @@ func (p *parser) parseServices() {
 		}
 		p.parseServiceStruct(pkg, svc)
 		isSvc := p.parseFuncs(pkg, svc)
-		if !isSvc {
-			continue
-		}
 
-		p.registerService(svc)
+		isScriptMainPkg := p.cfg.ScriptMainPkg != "" && pkg.RelPath == p.cfg.ScriptMainPkg
+
+		if isSvc || isScriptMainPkg {
+			p.registerService(svc)
+		}
 	}
 }
 

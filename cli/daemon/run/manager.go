@@ -1,12 +1,26 @@
 package run
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
+	"time"
 
+	"github.com/rs/xid"
+	"golang.org/x/mod/modfile"
+
+	encore "encore.dev"
+	"encore.dev/appruntime/config"
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/parser"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/vcs"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // Manager manages the set of running applications.
@@ -108,5 +122,180 @@ func (mgr *Manager) RunStderr(r *Run, out []byte) {
 func (mgr *Manager) RunError(r *Run, err *errlist.List) {
 	for _, ln := range mgr.listeners {
 		ln.OnError(r, err)
+	}
+}
+
+type parseAppParams struct {
+	App           *apps.Instance
+	Environ       []string
+	WorkingDir    string
+	ParseTests    bool
+	ScriptMainPkg string
+}
+
+// parseApp parses the app and returns the parse result.
+func (mgr *Manager) parseApp(p parseAppParams) (*parser.Result, error) {
+	modPath := filepath.Join(p.App.Root(), "go.mod")
+	modData, err := ioutil.ReadFile(modPath)
+	if err != nil {
+		return nil, err
+	}
+	mod, err := modfile.Parse(modPath, modData, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	vcsRevision := vcs.GetRevision(p.App.Root())
+
+	experiments, err := p.App.Experiments(p.Environ)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &parser.Config{
+		AppRoot:                  p.App.Root(),
+		Experiments:              experiments,
+		AppRevision:              vcsRevision.Revision,
+		AppHasUncommittedChanges: vcsRevision.Uncommitted,
+		ModulePath:               mod.Module.Mod.Path,
+		WorkingDir:               p.WorkingDir,
+		ParseTests:               p.ParseTests,
+		ScriptMainPkg:            p.ScriptMainPkg,
+	}
+
+	return parser.Parse(cfg)
+}
+
+type generateConfigParams struct {
+	App  *apps.Instance
+	RS   *ResourceServices
+	Meta *meta.Data
+
+	ForTests   bool
+	AuthKey    config.EncoreAuthKey
+	APIBaseURL string
+
+	ConfigAppID string
+	ConfigEnvID string
+}
+
+func (mgr *Manager) generateConfig(p generateConfigParams) *config.Runtime {
+	var (
+		sqlServers []*config.SQLServer
+		sqlDBs     []*config.SQLDatabase
+	)
+	if cluster := p.RS.GetSQLCluster(); cluster != nil {
+		srv := &config.SQLServer{
+			Host: "localhost:" + strconv.Itoa(mgr.DBProxyPort),
+		}
+		sqlServers = append(sqlServers, srv)
+
+		for _, svc := range p.Meta.Svcs {
+			if len(svc.Migrations) > 0 {
+				sqlDBs = append(sqlDBs, &config.SQLDatabase{
+					EncoreName:   svc.Name,
+					DatabaseName: svc.Name,
+					User:         "encore",
+					Password:     cluster.Password,
+				})
+			}
+		}
+
+		// Configure max connections based on 96 connections
+		// divided evenly among the databases
+		maxConns := 96 / len(sqlDBs)
+		for _, db := range sqlDBs {
+			db.MaxConnections = maxConns
+		}
+	}
+
+	var (
+		pubsubProviders []*config.PubsubProvider
+		pubsubTopics    map[string]*config.PubsubTopic
+	)
+	if nsq := p.RS.GetPubSub(); nsq != nil {
+		provider := &config.PubsubProvider{
+			NSQ: &config.NSQProvider{
+				Host: nsq.Addr(),
+			},
+		}
+		pubsubProviders = append(pubsubProviders, provider)
+		pubsubTopics = make(map[string]*config.PubsubTopic)
+		for _, t := range p.Meta.PubsubTopics {
+			topicCfg := &config.PubsubTopic{
+				EncoreName:    t.Name,
+				ProviderID:    0,
+				ProviderName:  t.Name,
+				Subscriptions: make(map[string]*config.PubsubSubscription),
+			}
+
+			if t.OrderingKey != "" {
+				topicCfg.OrderingKey = t.OrderingKey
+			}
+
+			for _, s := range t.Subscriptions {
+				topicCfg.Subscriptions[s.Name] = &config.PubsubSubscription{
+					ID:           s.Name,
+					EncoreName:   s.Name,
+					ProviderName: s.Name,
+				}
+			}
+
+			pubsubTopics[t.Name] = topicCfg
+		}
+	}
+
+	var (
+		redisServers []*config.RedisServer
+		redisDBs     []*config.RedisDatabase
+	)
+	if redis := p.RS.GetRedis(); redis != nil {
+		srv := &config.RedisServer{
+			Host: redis.Addr(),
+		}
+		redisServers = append(redisServers, srv)
+
+		for _, cluster := range p.Meta.CacheClusters {
+			redisDBs = append(redisDBs, &config.RedisDatabase{
+				ServerID:   0,
+				Database:   0,
+				EncoreName: cluster.Name,
+				KeyPrefix:  cluster.Name + "/",
+			})
+		}
+	}
+
+	envType := encore.EnvDevelopment
+	if p.ForTests {
+		envType = encore.EnvTest
+	}
+
+	return &config.Runtime{
+		AppID:           p.ConfigAppID,
+		AppSlug:         p.App.PlatformID(),
+		APIBaseURL:      p.APIBaseURL,
+		DeployID:        fmt.Sprintf("run_%s", xid.New()),
+		DeployedAt:      time.Now().UTC(), // Force UTC to not cause confusion
+		EnvID:           p.ConfigEnvID,
+		EnvName:         "local",
+		EnvCloud:        string(encore.CloudLocal),
+		EnvType:         string(envType),
+		TraceEndpoint:   fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort),
+		SQLDatabases:    sqlDBs,
+		SQLServers:      sqlServers,
+		PubsubProviders: pubsubProviders,
+		PubsubTopics:    pubsubTopics,
+		RedisServers:    redisServers,
+		RedisDatabases:  redisDBs,
+		AuthKeys:        []config.EncoreAuthKey{p.AuthKey},
+		CORS: &config.CORS{
+			AllowOriginsWithCredentials: []string{
+				// Allow all origins with credentials for local development;
+				// since it's only running on localhost for development this is safe.
+				config.UnsafeAllOriginWithCredentials,
+			},
+
+			AllowOriginsWithoutCredentials: []string{"*"},
+		},
 	}
 }

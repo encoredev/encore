@@ -27,6 +27,8 @@ type DaemonClient interface {
 	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (Daemon_RunClient, error)
 	// Test runs tests.
 	Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (Daemon_TestClient, error)
+	// ExecScript executes a one-off script.
+	ExecScript(ctx context.Context, in *ExecScriptRequest, opts ...grpc.CallOption) (Daemon_ExecScriptClient, error)
 	// Check checks the app for compilation errors.
 	Check(ctx context.Context, in *CheckRequest, opts ...grpc.CallOption) (Daemon_CheckClient, error)
 	// Export exports the app in various formats.
@@ -120,8 +122,40 @@ func (x *daemonTestClient) Recv() (*CommandMessage, error) {
 	return m, nil
 }
 
+func (c *daemonClient) ExecScript(ctx context.Context, in *ExecScriptRequest, opts ...grpc.CallOption) (Daemon_ExecScriptClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[2], "/encore.daemon.Daemon/ExecScript", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &daemonExecScriptClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Daemon_ExecScriptClient interface {
+	Recv() (*CommandMessage, error)
+	grpc.ClientStream
+}
+
+type daemonExecScriptClient struct {
+	grpc.ClientStream
+}
+
+func (x *daemonExecScriptClient) Recv() (*CommandMessage, error) {
+	m := new(CommandMessage)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *daemonClient) Check(ctx context.Context, in *CheckRequest, opts ...grpc.CallOption) (Daemon_CheckClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[2], "/encore.daemon.Daemon/Check", opts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[3], "/encore.daemon.Daemon/Check", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +187,7 @@ func (x *daemonCheckClient) Recv() (*CommandMessage, error) {
 }
 
 func (c *daemonClient) Export(ctx context.Context, in *ExportRequest, opts ...grpc.CallOption) (Daemon_ExportClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[3], "/encore.daemon.Daemon/Export", opts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[4], "/encore.daemon.Daemon/Export", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +228,7 @@ func (c *daemonClient) DBConnect(ctx context.Context, in *DBConnectRequest, opts
 }
 
 func (c *daemonClient) DBProxy(ctx context.Context, in *DBProxyRequest, opts ...grpc.CallOption) (Daemon_DBProxyClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[4], "/encore.daemon.Daemon/DBProxy", opts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[5], "/encore.daemon.Daemon/DBProxy", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +260,7 @@ func (x *daemonDBProxyClient) Recv() (*CommandMessage, error) {
 }
 
 func (c *daemonClient) DBReset(ctx context.Context, in *DBResetRequest, opts ...grpc.CallOption) (Daemon_DBResetClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[5], "/encore.daemon.Daemon/DBReset", opts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[6], "/encore.daemon.Daemon/DBReset", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -301,6 +335,8 @@ type DaemonServer interface {
 	Run(*RunRequest, Daemon_RunServer) error
 	// Test runs tests.
 	Test(*TestRequest, Daemon_TestServer) error
+	// ExecScript executes a one-off script.
+	ExecScript(*ExecScriptRequest, Daemon_ExecScriptServer) error
 	// Check checks the app for compilation errors.
 	Check(*CheckRequest, Daemon_CheckServer) error
 	// Export exports the app in various formats.
@@ -332,6 +368,9 @@ func (UnimplementedDaemonServer) Run(*RunRequest, Daemon_RunServer) error {
 }
 func (UnimplementedDaemonServer) Test(*TestRequest, Daemon_TestServer) error {
 	return status.Errorf(codes.Unimplemented, "method Test not implemented")
+}
+func (UnimplementedDaemonServer) ExecScript(*ExecScriptRequest, Daemon_ExecScriptServer) error {
+	return status.Errorf(codes.Unimplemented, "method ExecScript not implemented")
 }
 func (UnimplementedDaemonServer) Check(*CheckRequest, Daemon_CheckServer) error {
 	return status.Errorf(codes.Unimplemented, "method Check not implemented")
@@ -412,6 +451,27 @@ type daemonTestServer struct {
 }
 
 func (x *daemonTestServer) Send(m *CommandMessage) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Daemon_ExecScript_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExecScriptRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DaemonServer).ExecScript(m, &daemonExecScriptServer{stream})
+}
+
+type Daemon_ExecScriptServer interface {
+	Send(*CommandMessage) error
+	grpc.ServerStream
+}
+
+type daemonExecScriptServer struct {
+	grpc.ServerStream
+}
+
+func (x *daemonExecScriptServer) Send(m *CommandMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -626,6 +686,11 @@ var Daemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Test",
 			Handler:       _Daemon_Test_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ExecScript",
+			Handler:       _Daemon_ExecScript_Handler,
 			ServerStreams: true,
 		},
 		{

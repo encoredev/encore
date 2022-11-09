@@ -17,8 +17,8 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service, envToEmbed []s
 	// add import statements for the non-"_test" package.
 	importPath := pkg.ImportPath + "!test"
 	f := NewFilePathName(importPath, pkg.Name+"_test")
-	b.registerImports(f)
-	b.importServices(f)
+	b.registerImports(f, importPath)
+	b.importServices(f, importPath)
 	f.Anon("unsafe") // for go:linkname
 
 	testSvc := ""

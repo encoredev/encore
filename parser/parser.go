@@ -81,6 +81,11 @@ type Config struct {
 	ModulePath               string
 	WorkingDir               string
 	ParseTests               bool
+
+	// ScriptMainPkg specifies the relative path to the main package,
+	// when running in script mode. It's used to mark that package
+	// as a synthetic "main" service.
+	ScriptMainPkg string
 }
 
 func Parse(cfg *Config) (*Result, error) {
@@ -131,7 +136,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.fset = token.NewFileSet()
 	p.errors = errlist.New(p.fset)
 
-	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, goparser.ParseComments, p.cfg.ParseTests)
+	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, p.cfg.ScriptMainPkg, goparser.ParseComments, p.cfg.ParseTests)
 	if err != nil {
 		if errList, ok := err.(scanner.ErrorList); ok {
 			p.errors.Report(errList)
@@ -207,7 +212,9 @@ func encoreBuildContext() build.Context {
 
 // collectPackages collects and parses the regular Go AST
 // for all subdirectories in the root.
-func collectPackages(fset *token.FileSet, rootDir, rootImportPath string, mode goparser.Mode, parseTests bool) ([]*est.Package, error) {
+//
+// Main packages are ignored by default, except for mainPkgRelPath if set.
+func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPath string, mode goparser.Mode, parseTests bool) ([]*est.Package, error) {
 	var pkgs []*est.Package
 	var errors scanner.ErrorList
 	filter := func(f fs.DirEntry) bool {
@@ -250,7 +257,6 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath string, mode g
 		}
 
 		p := ps[pkgNames[0]]
-
 		var doc string
 		for _, astFile := range p.Files {
 			// HACK: getting package comments is not at all easy
@@ -277,6 +283,13 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath string, mode g
 			Files:      pkgFiles,
 			Imports:    make(map[string]bool),
 		}
+
+		// Ignore main packages (they're scripts) unless we're executing that very main package
+		// as an exec script.
+		if pkg.Name == "main" && pkg.RelPath != mainPkgRelPath {
+			return nil, nil
+		}
+
 		for _, f := range pkgFiles {
 			f.Pkg = pkg
 
@@ -647,9 +660,17 @@ func (p *parser) validateApp() {
 				default:
 					panic(fmt.Sprintf("unsupported resource type %v", res.Type()))
 				}
-				p.errf(res.Ident().Pos(), "cannot define %s resource in non-service package", resType)
+
+				pos := token.NoPos
+				if id := res.Ident(); id != nil {
+					pos = id.Pos()
+				} else {
+					pos = res.DefNode().Pos()
+				}
+				p.errf(pos, "cannot define %s resource in non-service package", resType)
 			}
 		}
+
 		for _, f := range pkg.Files {
 			if !strings.HasSuffix(f.Name, "_test.go") {
 				for _, imp := range f.AST.Imports {

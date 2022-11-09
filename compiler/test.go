@@ -28,9 +28,6 @@ type TestConfig struct {
 }
 
 // Test tests the application.
-//
-// On success, it is the caller's responsibility to delete the temp dir
-// returned in Result.Dir.
 func Test(ctx context.Context, appRoot string, cfg *Config) error {
 	if err := cfg.Validate(); err != nil {
 		return err

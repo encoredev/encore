@@ -537,7 +537,8 @@ func TestEndToEndWithApp(t *testing.T) {
 func TestProcClosedOnCtxCancel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	app := apps.NewInstance("/", "local_id", "platform_id")
-	run := &Run{ID: GenID(), App: app}
+	mgr := &Manager{}
+	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceServers: NewResourceServices(app, nil)}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
