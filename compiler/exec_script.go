@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -19,14 +18,8 @@ import (
 )
 
 type ExecScriptConfig struct {
-	// Env sets environment variables for "go test".
-	Env []string
-
-	// Args sets extra arguments for "go test".
-	Args []string
-
-	// Stdout and Stderr are where to redirect "go test" output.
-	Stdout, Stderr io.Writer
+	// ScriptMainPkg is the relative path to the main package.
+	ScriptMainPkg string
 }
 
 // ExecScript executes a one-off script.
@@ -84,14 +77,18 @@ func (b *builder) ExecScript() (res *Result, err error) {
 
 	for _, fn := range []func() error{
 		b.parseApp,
+		b.startAppCheck,
 		b.pickupConfigFiles,
 		b.checkApp, // we need to validate & compute the config
+		b.endAppCheck,
+		b.startCodeGenTracker,
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
 		b.writeHandlers,
 		b.writeConfigUnmarshallers,
 		b.writeEtypePkg,
+		b.endCodeGenTracker,
 		b.writeExecMain,
 		b.buildExecScript,
 	} {
@@ -109,8 +106,8 @@ func (b *builder) ExecScript() (res *Result, err error) {
 
 func (b *builder) writeExecMain() error {
 	// Find the main package in question
-	mainPkgPath := filepath.Clean(b.cfg.WorkingDir)
 	var mainPkg *est.Package
+	mainPkgPath := b.cfg.ExecScript.ScriptMainPkg
 	for _, pkg := range b.res.App.Packages {
 		if pkg.RelPath == mainPkgPath {
 			mainPkg = pkg
@@ -222,7 +219,7 @@ func (b *builder) buildExecScript() error {
 		env = append(env, "CGO_ENABLED=0")
 	}
 	cmd.Env = append(os.Environ(), env...)
-	cmd.Dir = filepath.Join(b.appRoot, b.cfg.WorkingDir)
+	cmd.Dir = filepath.Join(b.appRoot, b.cfg.ExecScript.ScriptMainPkg)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		if len(out) == 0 {
 			out = []byte(err.Error())

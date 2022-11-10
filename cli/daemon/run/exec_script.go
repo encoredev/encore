@@ -111,11 +111,15 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 			EncoreGoRoot:          env.EncoreGoRoot(),
 			BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 			Experiments:           expSet,
+			OpTracker:             tracker,
 			Meta: &cueutil.Meta{
 				APIBaseURL: apiBaseURL,
 				EnvName:    "local",
 				EnvType:    cueutil.EnvType_Development,
 				CloudType:  cueutil.CloudType_Local,
+			},
+			ExecScript: &compiler.ExecScriptConfig{
+				ScriptMainPkg: p.ScriptRelPath,
 			},
 		}
 		build, err = compiler.ExecScript(p.App.Root(), cfg)

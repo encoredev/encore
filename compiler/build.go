@@ -77,6 +77,9 @@ type Config struct {
 	// Test is the specific settings for running tests.
 	Test *TestConfig
 
+	// ExecScript is the specific settings for executing scripts.
+	ExecScript *ExecScriptConfig
+
 	// The meta config we pass to CUE when computing the runtime configuration for the services within this
 	// application
 	Meta *cueutil.Meta
