@@ -53,7 +53,7 @@ By default, the local environment runs on `http://localhost:4000`.
 When you've [connected your application to GitHub](/docs/how-to/github), Encore will automatically provision ephemeral Preview Environments
 for each Pull Request. This makes collaborating on PRs much faster. 
 
-Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`, and the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
+Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`, and the url will be `https://app.encore.dev/$APP_ID/envs/pr72`.
 
 See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious about exactly how Preview Environments are provisioned.
 
