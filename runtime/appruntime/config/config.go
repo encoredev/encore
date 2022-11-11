@@ -271,5 +271,21 @@ const (
 )
 
 type Metrics struct {
-	ExporterType MetricsExporterType `json:"exporter_type"`
+	CloudMonitoring *GCPCloudMonitoringProvider `json:"gcp_cloud_monitoring,omitempty"`
+	LogsBased       *LogsBasedMetricsProvider   `json:"logs_based,omitempty"`
+}
+
+type LogsBasedMetricsProvider struct{}
+
+type GCPCloudMonitoringProvider struct {
+	// ProjectID is the GCP project id to send metrics to.
+	ProjectID string
+
+	// MonitoredResourceType is the enum value for the monitored resource this application is monitoring.
+	// See https://cloud.google.com/monitoring/api/resources for valid values.
+	MonitoredResourceType string
+	// MonitoredResourceLabels are the labels to specify for the monitored resource.
+	// Each monitored resource type has a pre-defined set of labels that must be set.
+	// See https://cloud.google.com/monitoring/api/resources for expected labels.
+	MonitoredResourceLabels map[string]string
 }

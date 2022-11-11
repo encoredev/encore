@@ -34,9 +34,9 @@ func init() {
 	)
 
 	for _, constructor := range metricConstructors {
-		numTypeArgs := 0
+		numTypeArgs := 1
 		if constructor.HasLabels {
-			numTypeArgs = 1
+			numTypeArgs = 2
 		}
 
 		registerResourceCreationParser(
@@ -98,9 +98,8 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 			}
 			metric.Labels = p.resolveType(file.Pkg, file, typeArgs[0], nil)
 			metric.LabelsAST = typeArgs[0]
+			p.validateMetricLabels(metric, con)
 		}
-
-		p.validateMetricLabels(metric, con)
 
 		return metric
 	}

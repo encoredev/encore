@@ -8,10 +8,10 @@ import (
 )
 
 func TestCounter(t *testing.T) {
-	mgr := NewManager()
-	c := newCounter(mgr, "foo", CounterConfig{})
+	mgr := NewRegistry()
+	c := newCounter[int64](mgr, "foo", CounterConfig{})
 
-	ts, loaded := getTS[counterData](mgr, "foo", nil)
+	ts, loaded := getTS[int64](mgr, CounterType, "foo", nil)
 	eq(t, loaded, true)
 	eq(t, ts.init.state, 2)
 	eq(t, ts.metricName, "foo")
@@ -19,28 +19,26 @@ func TestCounter(t *testing.T) {
 		t.Fatalf("got labels %+v, want nil", ts.labels)
 	}
 
-	eq(t, ts.data.intVal, 0)
-	eq(t, ts.data.floatVal, 0)
+	eq(t, ts.value, 0)
 	c.Increment()
-	c.Add(1.5)
-	eq(t, ts.data.intVal, 1)
-	eq(t, ts.data.floatVal, 1.5)
+	c.Add(2)
+	eq(t, ts.value, 3)
 
-	c2 := newCounter(mgr, "foo", CounterConfig{})
-	ts2, loaded2 := getTS[counterData](mgr, "foo", nil)
+	c2 := newCounter[int64](mgr, "foo", CounterConfig{})
+	ts2, loaded2 := getTS[int64](mgr, CounterType, "foo", nil)
 	eq(t, loaded2, true)
 	eq(t, ts2, ts)
 
 	c2.Increment()
-	eq(t, ts.data.intVal, 2)
+	eq(t, ts.value, 4)
 	eq(t, countryRegistry(&mgr.registry), 1)
 }
 
 func TestGauge(t *testing.T) {
-	mgr := NewManager()
-	c := newGauge(mgr, "foo", GaugeConfig{})
+	mgr := NewRegistry()
+	c := newGauge[float64](mgr, "foo", GaugeConfig{})
 
-	ts, loaded := getTS[gaugeData](mgr, "foo", nil)
+	ts, loaded := getTS[float64](mgr, GaugeType, "foo", nil)
 	eq(t, loaded, true)
 	eq(t, ts.init.state, 2)
 	eq(t, ts.metricName, "foo")
@@ -48,50 +46,49 @@ func TestGauge(t *testing.T) {
 		t.Fatalf("got labels %+v, want nil", ts.labels)
 	}
 
-	eq(t, ts.data.val, 0)
+	eq(t, ts.value, 0)
 	c.Set(1.5)
-	eq(t, ts.data.val, 1.5)
+	eq(t, ts.value, 1.5)
 
-	c2 := newGauge(mgr, "foo", GaugeConfig{})
-	ts2, loaded2 := getTS[gaugeData](mgr, "foo", nil)
+	c2 := newGauge[float64](mgr, "foo", GaugeConfig{})
+	ts2, loaded2 := getTS[float64](mgr, GaugeType, "foo", nil)
 	eq(t, loaded2, true)
 	eq(t, ts2, ts)
 
 	c2.Set(2)
-	eq(t, ts.data.val, 2)
+	eq(t, ts.value, 2)
 
 	eq(t, countryRegistry(&mgr.registry), 1)
 }
 
-func TestCounterL(t *testing.T) {
+func TestCounterGroup(t *testing.T) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewManager()
-	c := newCounterL[myLabels](mgr, "foo", CounterConfig{
-		EncoreInternal_LabelMapper: func(labels myLabels) []keyValue {
-			return []keyValue{{key: "key", value: labels.key}}
+	mgr := NewRegistry()
+	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
+		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
+			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},
 	})
 
-	// GaugeL loads time series on-demand.
+	// GaugeGroup loads time series on-demand.
 	eq(t, countryRegistry(&mgr.registry), 0)
-	c.Increment(myLabels{key: "foo"})
+	c.With(myLabels{key: "foo"}).Increment()
 	eq(t, countryRegistry(&mgr.registry), 1)
-	c.Add(myLabels{key: "foo"}, 2)
+	c.With(myLabels{key: "foo"}).Add(2)
 	eq(t, countryRegistry(&mgr.registry), 1)
-	c.Add(myLabels{key: "bar"}, 5)
+	c.With(myLabels{key: "bar"}).Add(5)
 	eq(t, countryRegistry(&mgr.registry), 2)
 
 	ts := c.get(myLabels{key: "foo"})
 	eq(t, ts.init.state, 2)
 	eq(t, ts.metricName, "foo")
-	if !reflect.DeepEqual(ts.labels, []keyValue{{key: "key", value: "foo"}}) {
-		t.Fatalf("got labels %+v, want [{key foo}]", ts.labels)
+	if !reflect.DeepEqual(ts.labels, []KeyValue{{Key: "Key", Value: "foo"}}) {
+		t.Fatalf("got labels %+v, want [{Key foo}]", ts.labels)
 	}
 
-	eq(t, ts.data.intVal, 1)
-	eq(t, ts.data.floatVal, 2)
+	eq(t, ts.value, 3)
 
 	ts2 := c.get(myLabels{key: "foo"})
 	eq(t, ts2, ts)
@@ -99,34 +96,34 @@ func TestCounterL(t *testing.T) {
 
 }
 
-func TestGaugeL(t *testing.T) {
+func TestGaugeGroup(t *testing.T) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewManager()
-	c := newGaugeL[myLabels](mgr, "foo", GaugeConfig{
-		EncoreInternal_LabelMapper: func(labels myLabels) []keyValue {
-			return []keyValue{{key: "key", value: labels.key}}
+	mgr := NewRegistry()
+	c := newGaugeGroup[myLabels, float64](mgr, "foo", GaugeConfig{
+		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
+			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},
 	})
 
-	// GaugeL loads time series on-demand.
+	// GaugeGroup loads time series on-demand.
 	eq(t, countryRegistry(&mgr.registry), 0)
-	c.Set(myLabels{key: "foo"}, 1.5)
+	c.With(myLabels{key: "foo"}).Set(1.5)
 	eq(t, countryRegistry(&mgr.registry), 1)
-	c.Set(myLabels{key: "foo"}, 2.5)
+	c.With(myLabels{key: "foo"}).Set(2.5)
 	eq(t, countryRegistry(&mgr.registry), 1)
-	c.Set(myLabels{key: "bar"}, 3.5)
+	c.With(myLabels{key: "bar"}).Set(3.5)
 	eq(t, countryRegistry(&mgr.registry), 2)
 
 	ts := c.get(myLabels{key: "foo"})
 	eq(t, ts.init.state, 2)
 	eq(t, ts.metricName, "foo")
-	if !reflect.DeepEqual(ts.labels, []keyValue{{key: "key", value: "foo"}}) {
-		t.Fatalf("got labels %+v, want [{key foo}]", ts.labels)
+	if !reflect.DeepEqual(ts.labels, []KeyValue{{Key: "Key", Value: "foo"}}) {
+		t.Fatalf("got labels %+v, want [{Key foo}]", ts.labels)
 	}
 
-	eq(t, ts.data.val, 2.5)
+	eq(t, ts.value, 2.5)
 
 	ts2 := c.get(myLabels{key: "foo"})
 	eq(t, ts2, ts)
@@ -135,24 +132,24 @@ func TestGaugeL(t *testing.T) {
 
 func BenchmarkCounter_Inc(b *testing.B) {
 	b.ReportAllocs()
-	mgr := NewManager()
-	c := newCounter(mgr, "foo", CounterConfig{})
+	mgr := NewRegistry()
+	c := newCounter[int64](mgr, "foo", CounterConfig{})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c.Increment()
 	}
-	eq(b, c.ts.data.intVal, uint64(b.N))
+	eq(b, c.ts.value, int64(b.N))
 }
 
 func BenchmarkCounter_NewLabel(b *testing.B) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewManager()
-	c := newCounterL[myLabels](mgr, "foo", CounterConfig{
-		EncoreInternal_LabelMapper: func(labels myLabels) []keyValue {
-			return []keyValue{{key: "key", value: labels.key}}
+	mgr := NewRegistry()
+	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
+		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
+			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},
 	})
 
@@ -164,7 +161,7 @@ func BenchmarkCounter_NewLabel(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Increment(myLabels{key: keys[i]})
+		c.With(myLabels{key: keys[i]}).Increment()
 	}
 }
 
@@ -172,10 +169,10 @@ func BenchmarkCounter_NewLabelSometimes(b *testing.B) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewManager()
-	c := newCounterL[myLabels](mgr, "foo", CounterConfig{
-		EncoreInternal_LabelMapper: func(labels myLabels) []keyValue {
-			return []keyValue{{key: "key", value: labels.key}}
+	mgr := NewRegistry()
+	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
+		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
+			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},
 	})
 
@@ -191,7 +188,7 @@ func BenchmarkCounter_NewLabelSometimes(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < numLabels; i++ {
 		for j := 0; j < denom; j++ {
-			c.Increment(myLabels{key: keys[i]})
+			c.With(myLabels{key: keys[i]}).Increment()
 		}
 	}
 }

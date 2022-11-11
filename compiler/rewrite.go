@@ -117,6 +117,10 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 				return true
 
+			case est.MetricDefNode:
+				// TODO add label mapper
+				return true
+
 			default:
 				panic(fmt.Sprintf("unhandled rewrite type: %v", rewrite.Type))
 			}

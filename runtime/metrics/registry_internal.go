@@ -6,14 +6,60 @@ import (
 	"sync/atomic"
 )
 
-var Singleton *Manager // TODO
+var Singleton *Registry // TODO
 
-type Manager struct {
+type Registry struct {
+	tsid     uint64
 	registry sync.Map // map[registryKey]*timeseries
 }
 
-func NewManager() *Manager {
-	return &Manager{}
+func NewRegistry() *Registry {
+	return &Registry{}
+}
+
+// TODO this is awful
+func (r *Registry) Collect() []CollectedMetric {
+	metrics := make([]CollectedMetric, 0, 100) // TODO
+	r.registry.Range(func(key, value any) bool {
+		k := key.(registryKey)
+		switch val := value.(type) {
+		case *timeseries[int64]:
+			metrics = append(metrics, CollectedMetric{
+				MetricName:   k.metricName,
+				Type:         val.typ,
+				TimeSeriesID: val.id,
+				Labels:       val.labels,
+				Val:          val.value,
+			})
+		case *timeseries[float64]:
+			metrics = append(metrics, CollectedMetric{
+				MetricName:   k.metricName,
+				Type:         val.typ,
+				TimeSeriesID: val.id,
+				Labels:       val.labels,
+				Val:          val.value,
+			})
+		default:
+			panic(fmt.Sprintf("unhandled timeseries type %T", val))
+		}
+		return true
+	})
+	return metrics
+}
+
+type MetricType int
+
+const (
+	CounterType MetricType = iota
+	GaugeType
+)
+
+type CollectedMetric struct {
+	MetricName   string
+	Type         MetricType
+	TimeSeriesID uint64
+	Labels       []KeyValue
+	Val          any
 }
 
 type registryKey struct {
@@ -22,57 +68,34 @@ type registryKey struct {
 }
 
 type timeseries[T any] struct {
+	id         uint64
+	typ        MetricType
 	init       initGate
 	metricName string
-	labels     []keyValue
-	data       T
+	labels     []KeyValue
+	value      T
 }
 
-func (ts *timeseries[T]) setup(metricName string, labels []keyValue) {
+func (ts *timeseries[V]) setupLabels(labels []KeyValue) {
 	ts.init.Start()
 	defer ts.init.Done()
-	ts.metricName = metricName
 	ts.labels = labels
 }
 
-type keyValue struct {
-	key   string
-	value string
+type KeyValue struct {
+	Key   string
+	Value string
 }
 
-type counterData struct {
-	intVal   uint64
-	floatVal float64
-}
-
-func (d *counterData) Increment() {
-	atomic.AddUint64(&d.intVal, 1)
-}
-
-func (d *counterData) Add(delta float64) {
-	if delta < 0 {
-		panic(fmt.Sprintf("metrics: cannot add negative value %f to counter", delta))
-	}
-	atomicAddFloat64(&d.floatVal, delta)
-}
-
-type gaugeData struct {
-	val float64
-}
-
-func (d *gaugeData) Set(val float64) {
-	atomicStoreFloat64(&d.val, val)
-}
-
-func (d *gaugeData) Get() float64 {
-	return atomicLoadFloat64(&d.val)
-}
-
-func getTS[T any](mgr *Manager, name string, labels any) (ts *timeseries[T], loaded bool) {
+func getTS[T any](r *Registry, typ MetricType, name string, labels any) (ts *timeseries[T], loaded bool) {
 	key := registryKey{metricName: name, labels: labels}
-	if val, ok := mgr.registry.Load(key); ok {
+	if val, ok := r.registry.Load(key); ok {
 		return val.(*timeseries[T]), true
 	}
-	val, loaded := mgr.registry.LoadOrStore(key, &timeseries[T]{})
+	val, loaded := r.registry.LoadOrStore(key, &timeseries[T]{
+		typ:        typ,
+		metricName: name,
+		id:         atomic.AddUint64(&r.tsid, 1),
+	})
 	return val.(*timeseries[T]), loaded
 }

@@ -1,11 +1,48 @@
 package metrics
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 )
+
+func getAtomicAdder[V Value](addr *V) func(delta V) {
+	var typ V
+	switch any(typ).(type) {
+	case int64:
+		addr := (*int64)(unsafe.Pointer(addr))
+		return func(delta V) {
+			atomic.AddInt64(addr, int64(delta))
+		}
+	case float64:
+		addr := (*float64)(unsafe.Pointer(addr))
+		return func(delta V) {
+			atomicAddFloat64(addr, float64(delta))
+		}
+	default:
+		panic(fmt.Sprintf("unhandled value type %T", typ))
+	}
+}
+
+func getAtomicSetter[V Value](addr *V) func(new V) {
+	var typ V
+	switch any(typ).(type) {
+	case int64:
+		addr := (*int64)(unsafe.Pointer(addr))
+		return func(new V) {
+			atomic.StoreInt64(addr, int64(new))
+		}
+	case float64:
+		addr := (*float64)(unsafe.Pointer(addr))
+		return func(new V) {
+			atomicStoreFloat64(addr, float64(new))
+		}
+	default:
+		panic(fmt.Sprintf("unhandled value type %T", typ))
+	}
+}
 
 func atomicAddFloat64(addr *float64, delta float64) float64 {
 	for {
