@@ -6,8 +6,8 @@ subtitle: Provisioning, migrating, querying
 ---
 
 Encore treats SQL databases as logical resources and natively supports **PostreSQL** databases.
-This means using a database only requires you to [define the schema](#defining-a-database-schema)
-and then start using it. Encore takes care of provisioning the database, running
+To use a database you only need to [define the schema](#defining-a-database-schema),
+and then you can start using it. Encore takes care of provisioning the database, running
 new schema migrations during deploys, and connecting to it.
 
 ## Defining a database schema
@@ -48,14 +48,47 @@ CREATE TABLE todo_item (
 );
 ```
 
+## Provisioning databases
+
+Encore automatically provisions databases to match what your application requires.
+When you [define a database schema](#defining-a-database-schema), Encore will provision the database at your next deployment.
+
+Encore provisions databases in an appropriate way depending on the environment.
+When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
+In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
+
+- In `production` environments, the database is provisioned through the Managed SQL Database
+  service offered by the chosen cloud provider.
+- In `development` environments, the database is provisioned as a Kubernetes deployment
+  with a persistent disk attached.
+
+See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
+
+## Inserting data into databases
+
+Once you have defined a database schema, you can start inserting data into the database.
+Import `encore.dev/storage/sqldb` in your service package (or any sub-packages within the service).
+The interface is similar to that of the Go standard library's
+`database/sql` package, learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
+
+One way of inserting data is with a helper function that uses the package function `sqldb.Exec`. For example, to insert a single todo item using the example schema above, we can use the following helper function `insert`:
+
+```go
+// insert inserts a todo item into the database.
+func insert(ctx context.Context, id, title string, done bool) error {
+	_, err := sqldb.Exec(ctx, `
+		INSERT INTO todo_item (id, title, done)
+		VALUES ($1, $2, $3)
+	`, id, title, done)
+	return err
+}
+```
+
 ## Querying databases
 
-Once you have defined a database schema, you can easily query it.
-Simply import `encore.dev/storage/sqldb` in your service package (or any sub-packages within the service),
-and start using the package functions. The interface is similar to that of the Go standard library's
-`database/sql` package.
+To query a database in your application, you similarly need to import `encore.dev/storage/sqldb` in your service package or sub-package.
 
-For example, to read a single todo item using the example schema above:
+For example, to read a single todo item in the example schema above, we can use `sqldb.QueryRow`:
 
 ```go
 var item struct {
@@ -73,21 +106,7 @@ err := sqldb.QueryRow(ctx, `
 If `sqldb.QueryRow` does not find a matching row, it reports an error that can be checked against
 by importing the standard library `errors` package and calling `errors.Is(err, sqldb.ErrNoRows)`.
 
-## Provisioning databases
-
-Encore automatically provisions databases to match what your application requires.
-When you define a database schema ([see above](#defining-a-database-schema)), Encore will provision the database at your next deployment.
-
-Encore provisions databases in an appropriate way depending on the environment.
-When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
-In the cloud, it depends on the type of [Encore Environment](/docs/concepts/environments):
-
-- In `production` environments, the database is provisioned through the Managed SQL Database
-  service offered by the chosen cloud provider.
-- In `development` environments, the database is provisioned as a Kubernetes deployment
-  with a persistent disk attached.
-
-See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
+Learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
 
 ## Connecting to databases
 
@@ -117,7 +136,7 @@ This can happen for many reasons:
 - ... and so on
 
 If that happens, Encore records that it tried to apply the migration but failed.
-In that case it's possible that one part of the migration was successfully applied but another part was not.
+In that case, it's possible that one part of the migration was successfully applied but another part was not.
 
 In order to ensure safety, Encore marks the migration as "dirty" and expects you to manually resolve the problem.
 This information is tracked in the `schema_migrations` table:
