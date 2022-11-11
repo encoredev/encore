@@ -85,7 +85,6 @@ sections: [
 			{title: "Testing", segment: "testing"},
 			{title: "Middleware", segment: "middleware"},
 			{title: "Validation", segment: "validation"},
-			{title: "Encore Flow", segment: "encore-flow"},
 			{title: "Generated API Docs", segment: "api-docs"},
 			{title: "Client Generation", segment: "client-generation"},
 			{title: "CLI Reference", segment: "cli-reference"},
@@ -95,7 +94,7 @@ sections: [
 		title: "Deploy"
 		segment: "deploy"
 		docs: [
-			{title: "Cloud Infrastructure", segment: "infra", old_paths: ["/docs/deploy/scaling", "/docs/concepts/scaling"]},
+			{title: "Infrastructure provisioning", segment: "infra", old_paths: ["/deploy/scaling", "/concepts/scaling"]},
 			{title: "Environments", segment: "environments"},
 			{title: "Connect your cloud account", segment: "own-cloud"},
 			{title: "Custom Domains", segment: "custom-domains"},
@@ -107,6 +106,7 @@ sections: [
 		segment: "observability"
 		docs: [
 			{title: "Development Dashboard", segment: "dev-dash"},
+			{title: "Flow Architecture Diagram", segment: "encore-flow", old_paths: ["/develop/encore-flow"]},
 			{title: "Logging", segment: "logging", shortcuts: ["rlog"]},
 			{title: "Monitoring", segment: "monitoring"},
 			{title: "Distributed Tracing", segment: "tracing"},
@@ -121,13 +121,13 @@ sections: [
 			{title: "Connect to an existing database", segment: "connect-existing-db"},
 			{title: "Share SQL databases between services", segment: "share-db-between-services"},
 			{title: "Insert test data in a database", segment: "insert-test-data-db"},
+			{title: "Use the ent ORM for migrations", segment: "entgo-orm"},
 			{title: "Receive webhooks", segment: "webhooks"},
 			{title: "Use Dependency Injection", segment: "dependency-injection"},
 			{title: "Integrate with a web frontend", segment: "integrate-frontend"},
 			{title: "Use Firebase Authentication", segment: "firebase-auth"},
 			{title: "Integrate with GitHub", segment: "github"},
 			{title: "Migrate away from Encore", segment: "migrate-away"},
-			{title: "Use the ent ORM for migrations", segment: "entgo-orm"},
 		]
 	},
 	{

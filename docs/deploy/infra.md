@@ -1,37 +1,37 @@
 ---
-seotitle: Cloud Infrastructure – Differences per cloud provider
-seodesc: Learn how to provision appropriate cloud infrastructure depending on the environment type, for each of the major cloud providers – AWS, GCP, and Azure.
-title: Cloud Infrastructure
-subtitle: How Encore provisions infrastructure
+seotitle: Cloud Infrastructure Provisioning
+seodesc: Learn how to provision appropriate cloud infrastructure depending on the environment type, for all of the major cloud providers – AWS, GCP, and Azure.
+title: Infrastructure provisioning
+subtitle: How Encore provisions infrastructure for you
 ---
 
-When you use Encore to build your application, Encore automatically provisions the necessary infrastructure, in all environments and across all major cloud providers. This is made possible
-using the [Encore Application Model](/docs/introduction#meet-the-encore-application-model).
+Encore automatically provisions all necessary infrastructure, in all environments and across all major cloud providers. All you need to do is [connect your cloud account](./own-cloud) and create an environment.
 
-The only thing you need to do is to [connect your cloud account](./own-cloud).
+This is powered by the [Encore Application Model](/docs/introduction#meet-the-encore-application-model). It provides a precise definition of the infrastructure primitives each service requires. Encore uses this knowledge, combined with context about the environment type (production/development/preview) and the target cloud provider (GCP/AWS/Azure), to make informed decisions about how to provision the necessary infrastructure. Encore keeps all environments in sync, so you can be confident your changes will work when deployed to production.
 
-Encore's application model provides a precise definition of exactly the infrastructure primitives
-each service requires to function. Encore uses this knowledge, combined with context about the
-type of environment (production/development/preview) you're provisioning and the target cloud provider,
-to make informed decisions about how to set up the complete cloud infrastructure.
+|  | Encore Cloud | GCP / AWS / Azure |
+| - | - | - | - | - |
+| **Environment types:** | Preview, Development | Development, Production |
+| **Objectives:** | Provisioning speed, Cost\* | Reliability, Security, Scalability |
 
-This means Encore automatically optimizes the infrastructure decisions based on the environment.
-For production environments Encore optimizes for reliability, security, and scalability. For development
-and preview environments Encore optimizes for cost-efficiency and provisioning speed.
+\*Encore Cloud is free to use, subject to Fair Use guidelines and usage limits. [Learn more](/docs/about/usage)
 
-Regardless of infrastructure, Encore ensures your application works the same way so you can be
-confident your changes will work when deployed to production.
+## Configuration
 
-As your application grows in complexity and scale you can adjust the underlying infrastructure
-decisions without worrying about breaking your production environment. Since Encore knows exactly
-what infrastructure is needed for your application to function, Encore ensures all infrastructure
-operations are safe.
-
-All of this works without having to change a single line of code. And your environments always stay in sync.
+With Encore you express cloud infrastructure as logical statements directly in your application code. After deploying to your own cloud account, you can safely use your cloud provider's console to modify the provisioned resources according to your application's scaling requirements. See more details below for each cloud provider and infrastructure resource.
 
 ## Development Infrastructure
 
-#### Local Development
+Encore provisions infrastructure resources differently for each type of development environment.
+
+|  | Local | Preview / Development (Encore Cloud) | GCP / AWS / Azure |
+| - | - | - | - |
+| **SQL Databases:** | Docker | Encore Managed (Kubernetes) | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Pub/Sub:** | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Caches:** | In-memory (Redis) | In-memory (Redis) | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Cron Jobs:** | Disabled | [Encore Managed][encore-cron] | [See production](/docs/deploy/infra#production-infrastructure) |
+
+### Local Development
 
 For local development Encore provisions a combination of Docker and in-memory infrastructure components.
 [SQL Databases][encore-sqldb] are provisioned using [Docker](https://docker.com). For [Pub/Sub][encore-pubsub]
@@ -45,17 +45,16 @@ They can always be triggered manually by calling the API directly from the [deve
 
 The application code itself is compiled and run natively on your machine (without Docker).
 
-#### Preview Environments
+### Preview Environments
 
-When you've [connected your application to GitHub](/docs/how-to/github), Encore automatically provisions a temporary Preview Environment
-for each Pull Request.
+When you've [connected your application to GitHub](/docs/how-to/github), Encore automatically provisions a temporary [Preview Environment](/docs/deploy/environments#preview-environments) for each Pull Request.
 
 Preview Environments are created in Encore Cloud, and are optimized for provisioning speed and cost-effectiveness.
 The Preview Environment is automatically destroyed when the Pull Request is merged or closed.
 
 Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`.
 
-#### Encore Cloud
+### Encore Cloud
 
 Encore Cloud is a simple, zero-configuration hosting solution provided by Encore.
 It's perfect for development environments and small-scale hobby use.
@@ -66,6 +65,18 @@ like SQL Databases. Other infrastructure primitives like [Pub/Sub][encore-pubsub
 are provisioned with small-scale use in mind.
 
 ## Production Infrastructure
+
+Encore provisions production infrastructure resources using best-practice guidelines and services for each respective cloud provider.
+
+|  | GCP | AWS | Azure |
+| - | - | - | - |
+| **Networking:** | [VPC][gcp-vpc] | [VPC][aws-vpc] | [VPC][azure-vpc] |
+| **Compute:** | [Cloud Run][gcp-cloudrun] | [Fargate ECS][aws-fargate] | [App Service][azure-app-service] & [App Service Plan][azure-app-service-plan] |
+| **SQL Databases:** | [GCP Cloud SQL][gcp-cloudsql] | [Amazon RDS][aws-rds] | [Azure Database][azure-sqldb] |
+| **Pub/Sub:** | [GCP Pub/Sub][gcp-pubsub] | [Amazon SQS][aws-sqs] & [Amazon SNS][aws-sns] | [Azure Service Bus][azure-service-bus] |
+| **Caches:** | [GCP Memorystore (Redis)][gcp-redis] | [Amazon ElastiCache (Redis)][aws-redis] | [Azure Cache (Redis)][azure-redis] |
+| **Cron Jobs:** | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] |
+| **Secrets:** | [Secret Manager][gcp-secrets] | [AWS Secrets Manager][aws-secrets] | [App Service App][azure-app-service-secrets] |
 
 ### Google Cloud Platform (GCP)
 
@@ -85,14 +96,14 @@ When using [SQL Databases][encore-sqldb], Encore provisions a single [GCP Cloud 
 The machine type is chosen as the smallest available that supports auto-scaling (1 vCPU / 3.75GiB memory).
 You can freely increase the machine type yourself to handle larger scales.
 
-Additionally Encore sets up:
+Additionally, Encore sets up:
 * Automatic daily backups (retained for 7 days) with point-in-time recovery
 * Private networking, ensuring the database is only accessible from the VPC
 * Mutual TLS encryption for additional security
 * High availability mode with automatic failover (via disk replication to multiple zones)
 
 #### Pub/Sub
-When using [Pub/Sub][encore-pubsub], Encore provisions [GCP Pub/Sub][gcp-pubsub] topics and subscriptions. Additionally Encore automatically creates and configures dead-letter topics.
+When using [Pub/Sub][encore-pubsub], Encore provisions [GCP Pub/Sub][gcp-pubsub] topics and subscriptions. Additionally, Encore automatically creates and configures dead-letter topics.
 
 #### Caching
 When using [Caching][encore-caching], Encore provisions [GCP Memorystore for Redis][gcp-redis] clusters.
@@ -100,7 +111,7 @@ When using [Caching][encore-caching], Encore provisions [GCP Memorystore for Red
 The machine type is chosen as the smallest available that supports auto-scaling (5GiB memory, with one read replica).
 You can freely change the machine type yourself to handle larger scales.
 
-Additionally Encore sets up:
+Additionally, Encore sets up:
 * Redis authentication
 * Transit encryption with TLS for additional security
 * A 10% memory buffer to better memory fragmentation, and active defragmentation
@@ -134,14 +145,14 @@ The cluster is configured with the latest PostgreSQL version available at the ti
 The instance type is chosen as the smallest available latest-generation type that supports auto-scaling (currently `db.m5.large`, with 2 vCPU / 8GiB memory).
 You can freely change the instance type yourself to handle larger scales.
 
-Additionally Encore sets up:
+Additionally, Encore sets up:
 * Automatic daily backups (retained for 7 days) with point-in-time recovery
 * Private networking, ensuring the database is only accessible from the VPC
 * Dedicated subnets for the database instances, with security group rules to secure them
 
 #### Pub/Sub
 When using [Pub/Sub][encore-pubsub], Encore provisions a combination of [Amazon SQS][aws-sqs] and [Amazon SNS][aws-sns] topics and subscriptions.
-Additionally Encore automatically creates and configures dead-letter topics.
+Additionally, Encore automatically creates and configures dead-letter topics.
 
 #### Caching
 When using [Caching][encore-caching], Encore provisions [Amazon ElastiCache for Redis][aws-redis] clusters.
@@ -149,7 +160,7 @@ When using [Caching][encore-caching], Encore provisions [Amazon ElastiCache for 
 The machine type is chosen as the smallest available that supports auto-scaling (currently `cache.m6g.large`, with one read replica).
 You can freely change the machine type yourself to handle larger scales.
 
-Additionally Encore sets up:
+Additionally, Encore sets up:
 * Redis ACL authentication
 * A replication group, with multi-AZ replication and automatic failover for high availability
 * Transit encryption with TLS for additional security
@@ -184,14 +195,14 @@ The cluster is configured with the latest PostgreSQL version available at the ti
 The instance type is chosen as the smallest available latest-generation type that supports auto-scaling (currently `D2s_v3`, with 2 vCPU / 8GiB memory).
 You can freely change the instance type yourself to handle larger scales.
 
-Additionally Encore sets up:
+Additionally, Encore sets up:
 * Automatic daily backups (retained for 7 days) with point-in-time recovery
 * Private networking, ensuring the database is only accessible from the VPC
 * Dedicated subnets for the database instances, with security group rules to secure them
 
 #### Pub/Sub
 When using [Pub/Sub][encore-pubsub], Encore provisions [Azure Service Bus][azure-service-bus] topics and subscriptions.
-Additionally Encore automatically creates and configures dead-letter topics.
+Additionally, Encore automatically creates and configures dead-letter topics.
 
 #### Caching
 When using [Caching][encore-caching], Encore provisions [Azure Cache for Redis][azure-redis] clusters.
@@ -199,7 +210,7 @@ When using [Caching][encore-caching], Encore provisions [Azure Cache for Redis][
 The machine type is chosen as the smallest available that supports auto-scaling (currently `C1` with 1GiB memory).
 You can freely change the machine type yourself to handle larger scales.
 
-Additionally Encore sets up:
+Additionally, Encore sets up:
 * Redis authentication
 * Transit encryption with TLS for additional security
 * A 10% memory buffer to better memory fragmentation, and active defragmentation
