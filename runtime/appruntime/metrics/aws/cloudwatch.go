@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/internal/nativehist"
 	"encore.dev/metrics"
 )
 
@@ -115,6 +116,8 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 					doAdd(float64(val/time.Second), m.Info.Name(), dims, uint16(i))
 				}
 			}
+		case []*nativehist.Histogram:
+			// TODO implement support
 		default:
 			x.rootLogger.Error().Msgf("encore: internal error: unknown value type %T for metric %s",
 				m.Val, m.Info.Name())

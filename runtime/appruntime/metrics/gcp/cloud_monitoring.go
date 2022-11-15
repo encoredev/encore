@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/internal/nativehist"
 	"encore.dev/metrics"
 )
 
@@ -140,6 +141,7 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 					doAdd(floatVal(val), uint16(i))
 				}
 			}
+
 		case []int64:
 			if svcNum > 0 {
 				doAdd(int64Val(vals[0]), svcNum-1)
@@ -148,6 +150,7 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 					doAdd(int64Val(val), uint16(i))
 				}
 			}
+
 		case []uint64:
 			if svcNum > 0 {
 				doAdd(uint64Val(vals[0]), svcNum-1)
@@ -156,6 +159,7 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 					doAdd(uint64Val(val), uint16(i))
 				}
 			}
+
 		case []time.Duration:
 			if svcNum > 0 {
 				doAdd(floatVal(float64(vals[0]/time.Second)), svcNum-1)
@@ -164,6 +168,10 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 					doAdd(floatVal(float64(val/time.Second)), uint16(i))
 				}
 			}
+
+		case []*nativehist.Histogram:
+			// TODO implement support
+
 		default:
 			x.rootLogger.Error().Msgf("encore: internal error: unknown value type %T for metric %s",
 				m.Val, m.Info.Name())

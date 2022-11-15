@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"encore.dev/appruntime/reqtrack"
+	"encore.dev/internal/nativehist"
 )
 
 var Singleton *Registry // TODO
@@ -48,6 +49,13 @@ func (r *Registry) Collect() []CollectedMetric {
 				Val:          val.value,
 			})
 		case *timeseries[float64]:
+			metrics = append(metrics, CollectedMetric{
+				Info:         val.info,
+				TimeSeriesID: val.id,
+				Labels:       val.labels,
+				Val:          val.value,
+			})
+		case *timeseries[*nativehist.Histogram]:
 			metrics = append(metrics, CollectedMetric{
 				Info:         val.info,
 				TimeSeriesID: val.id,
