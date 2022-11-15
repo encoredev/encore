@@ -349,6 +349,9 @@ export interface CacheCluster {
 }
 
 export interface CacheCluster_Keyspace {
-  /** TODO(andre) add more fields */
   key_type: Type;
+  value_type: Type;
+  service: string;
+  doc: string;
+  path_pattern: Path;
 }

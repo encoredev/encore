@@ -287,7 +287,10 @@ message CacheCluster {
   string            eviction_policy = 4; // redis eviction policy
 
   message Keyspace {
-    // TODO(andre) add more fields
-    schema.v1.Type key_type     = 1; // The type of the key
+    schema.v1.Type key_type     = 1;
+    schema.v1.Type value_type   = 2;
+    string         service      = 3;
+    string         doc          = 4;
+    Path           path_pattern = 5;
   }
 }

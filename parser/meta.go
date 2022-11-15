@@ -258,9 +258,14 @@ func parseCronJob(job *est.CronJob) (*meta.CronJob, error) {
 
 func parseCacheCluster(cluster *est.CacheCluster) *meta.CacheCluster {
 	parseKeyspaces := func(keyspaces ...*est.CacheKeyspace) (rtn []*meta.CacheCluster_Keyspace) {
-		for range keyspaces {
-			// TODO implement
-			rtn = append(rtn, &meta.CacheCluster_Keyspace{})
+		for _, ks := range keyspaces {
+			rtn = append(rtn, &meta.CacheCluster_Keyspace{
+				KeyType:     ks.KeyType,
+				ValueType:   ks.ValueType,
+				Service:     ks.Svc.Name,
+				Doc:         ks.Doc,
+				PathPattern: ks.Path.ToProto(),
+			})
 		}
 		return rtn
 	}
