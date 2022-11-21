@@ -7,6 +7,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/parser/est"
+	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -93,8 +94,9 @@ func (b *metricLabelMapperBuilder) writeLabelMapper() {
 			sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 
 			for _, f := range fields {
+				key := idents.Convert(f.Name, idents.SnakeCase)
 				g.Add(Values(Dict{
-					Id("Key"):   Lit(f.Name),
+					Id("Key"):   Lit(key),
 					Id("Value"): formatFieldValue(f),
 				}))
 			}
