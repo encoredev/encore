@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"path"
+	"sort"
 
 	. "github.com/dave/jennifer/jen"
 
@@ -46,6 +47,12 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 
 	mwNames, mwCode := b.RenderMiddlewares(mainPkgPath)
 
+	svcNames := make([]string, 0, len(b.res.App.Services))
+	for _, svc := range b.res.App.Services {
+		svcNames = append(svcNames, svc.Name)
+	}
+	sort.Strings(svcNames)
+
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
@@ -57,9 +64,10 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
 			}),
-			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
-			Id("Testing"):      False(),
-			Id("TestService"):  Lit(""),
+			Id("PubsubTopics"):    b.computeStaticPubsubConfig(),
+			Id("Testing"):         False(),
+			Id("TestService"):     Lit(""),
+			Id("BundledServices"): b.computeBundledServices(),
 		})
 		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
 
@@ -182,6 +190,20 @@ func (b *Builder) authDataType() Code {
 		}
 	}
 	return Nil()
+}
+
+func (b *Builder) computeBundledServices() Code {
+	sortedNames := make([]string, 0, len(b.res.App.Services))
+	for _, svc := range b.res.App.Services {
+		sortedNames = append(sortedNames, svc.Name)
+	}
+	sort.Strings(sortedNames)
+
+	return Index().String().ValuesFunc(func(g *Group) {
+		for _, name := range sortedNames {
+			g.Lit(name)
+		}
+	})
 }
 
 func (b *Builder) error(err error) {
