@@ -118,7 +118,26 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 				return true
 
 			case est.MetricDefNode:
-				// TODO add label mapper
+				metric := rewrite.Res.(*est.Metric)
+
+				var toInsert []byte
+				if metric.Svc != nil {
+					num := b.bundled.SvcNum(metric.Svc)
+					toInsert = append(toInsert, fmt.Sprintf("EncoreInternal_SvcNum: %d,", num)...)
+				}
+				if metric.LabelsType != nil {
+					toInsert = append(toInsert, fmt.Sprintf("EncoreInternal_LabelMapper: %s,",
+						b.codegen.MetricLabelMapperName(metric),
+					)...)
+				}
+
+				if len(toInsert) > 0 {
+					cfgLit := metric.ConfigLit
+					insertPos := cfgLit.Lbrace + 1
+					ep := fset.Position(insertPos)
+					toInsert = append(toInsert, fmt.Sprintf("/*line :%d:%d*/", ep.Line, ep.Column)...)
+					rw.Insert(insertPos, toInsert)
+				}
 				return true
 
 			default:

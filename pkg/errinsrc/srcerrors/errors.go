@@ -522,7 +522,7 @@ func MetricLabelsNotNamedStruct(fileset *token.FileSet, node ast.Node, resourceT
 	return errinsrc.New(ErrParams{
 		Code:  38,
 		Title: "Invalid metric labels type",
-		// The metrics.NewCounterL labels type must be a named struct type
+		// The metrics.NewCounterGroup labels type must be a named struct type
 		Summary: fmt.Sprintf("The %s labels type must be a named struct type", resourceType),
 		Detail: combine(
 			metricsHelp,
@@ -531,16 +531,16 @@ func MetricLabelsNotNamedStruct(fileset *token.FileSet, node ast.Node, resourceT
 	}, false)
 }
 
-func MetricLabelsFieldNotString(fileset *token.FileSet, node ast.Node, resourceType, fieldName string) error {
+func MetricLabelsFieldInvalidType(fileset *token.FileSet, node ast.Node, resourceType, fieldName string, fieldType *schema.Type) error {
 	return errinsrc.New(ErrParams{
 		Code:  38,
 		Title: "Invalid metric labels type",
-		// The metrics.NewCounterL labels type must be a named struct type
-		Summary: fmt.Sprintf("The %s labels type's fields must be strings, but %s is not a string", resourceType, fieldName),
+		// The metrics.NewCounterGroup labels type must be a named struct type
+		Summary: fmt.Sprintf("The %s labels type's field named %s must be a string, boolean, or integer", resourceType, fieldName),
 		Detail: combine(
 			metricsHelp,
 		),
-		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("was given %s", schemaType(fieldType)))},
 	}, false)
 }
 
@@ -548,11 +548,28 @@ func MetricLabelsIsPointer(fileset *token.FileSet, node ast.Node, resourceType s
 	return errinsrc.New(ErrParams{
 		Code:  38,
 		Title: "Invalid metric labels type",
-		// The metrics.NewCounterL labels type must be a named struct type
+		// The metrics.NewCounterGroup labels type must be a named struct type
 		Summary: fmt.Sprintf("The %s labels type must be a non-pointer named struct, got a pointer type", resourceType),
 		Detail: combine(
 			metricsHelp,
 		),
 		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+	}, false)
+}
+
+func MetricReferencedInOtherService(fileset *token.FileSet, reference ast.Node, defined ast.Node) error {
+	refLoc := FromGoASTNode(fileset, reference)
+	refLoc.Text = "referenced here"
+
+	definedLoc := FromGoASTNode(fileset, defined)
+	definedLoc.Type = LocHelp
+	definedLoc.Text = "defined here"
+
+	return errinsrc.New(ErrParams{
+		Code:      12,
+		Title:     "Cross service metric reference",
+		Summary:   "A metric defined within a service can only be referenced from within that same service.",
+		Detail:    metricsHelp,
+		Locations: SrcLocations{refLoc, definedLoc},
 	}, false)
 }

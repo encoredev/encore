@@ -4,37 +4,52 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"encore.dev/appruntime/reqtrack"
 )
 
 var Singleton *Registry // TODO
 
 type Registry struct {
+	rt       *reqtrack.RequestTracker
+	numSvcs  uint16
 	tsid     uint64
 	registry sync.Map // map[registryKey]*timeseries
 }
 
-func NewRegistry() *Registry {
-	return &Registry{}
+func NewRegistry(rt *reqtrack.RequestTracker, numServicesInBinary uint16) *Registry {
+	return &Registry{rt: rt, numSvcs: numServicesInBinary}
 }
 
-// TODO this is awful
 func (r *Registry) Collect() []CollectedMetric {
-	metrics := make([]CollectedMetric, 0, 100) // TODO
+	metrics := make([]CollectedMetric, 0, 128)
 	r.registry.Range(func(key, value any) bool {
-		k := key.(registryKey)
 		switch val := value.(type) {
 		case *timeseries[int64]:
 			metrics = append(metrics, CollectedMetric{
-				MetricName:   k.metricName,
-				Type:         val.typ,
+				Info:         val.info,
+				TimeSeriesID: val.id,
+				Labels:       val.labels,
+				Val:          val.value,
+			})
+		case *timeseries[uint64]:
+			metrics = append(metrics, CollectedMetric{
+				Info:         val.info,
+				TimeSeriesID: val.id,
+				Labels:       val.labels,
+				Val:          val.value,
+			})
+		case *timeseries[time.Duration]:
+			metrics = append(metrics, CollectedMetric{
+				Info:         val.info,
 				TimeSeriesID: val.id,
 				Labels:       val.labels,
 				Val:          val.value,
 			})
 		case *timeseries[float64]:
 			metrics = append(metrics, CollectedMetric{
-				MetricName:   k.metricName,
-				Type:         val.typ,
+				Info:         val.info,
 				TimeSeriesID: val.id,
 				Labels:       val.labels,
 				Val:          val.value,
@@ -52,14 +67,20 @@ type MetricType int
 const (
 	CounterType MetricType = iota
 	GaugeType
+	HistogramType
 )
 
+type MetricInfo interface {
+	Name() string
+	Type() MetricType
+	SvcNum() uint16
+}
+
 type CollectedMetric struct {
-	MetricName   string
-	Type         MetricType
+	Info         MetricInfo
 	TimeSeriesID uint64
 	Labels       []KeyValue
-	Val          any
+	Val          any // []T where T is any of Value
 }
 
 type registryKey struct {
@@ -68,15 +89,14 @@ type registryKey struct {
 }
 
 type timeseries[T any] struct {
-	id         uint64
-	typ        MetricType
-	init       initGate
-	metricName string
-	labels     []KeyValue
-	value      T
+	info   MetricInfo
+	id     uint64
+	init   initGate
+	labels []KeyValue
+	value  []T
 }
 
-func (ts *timeseries[V]) setupLabels(labels []KeyValue) {
+func (ts *timeseries[V]) setup(labels []KeyValue) {
 	ts.init.Start()
 	defer ts.init.Done()
 	ts.labels = labels
@@ -87,15 +107,14 @@ type KeyValue struct {
 	Value string
 }
 
-func getTS[T any](r *Registry, typ MetricType, name string, labels any) (ts *timeseries[T], loaded bool) {
+func getTS[T any](r *Registry, name string, labels any, info MetricInfo) (ts *timeseries[T], loaded bool) {
 	key := registryKey{metricName: name, labels: labels}
 	if val, ok := r.registry.Load(key); ok {
 		return val.(*timeseries[T]), true
 	}
 	val, loaded := r.registry.LoadOrStore(key, &timeseries[T]{
-		typ:        typ,
-		metricName: name,
-		id:         atomic.AddUint64(&r.tsid, 1),
+		info: info,
+		id:   atomic.AddUint64(&r.tsid, 1),
 	})
 	return val.(*timeseries[T]), loaded
 }

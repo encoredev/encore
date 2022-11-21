@@ -70,9 +70,6 @@ func New(p *NewParams) *App {
 		})
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
-	metricsRegistry := usermetrics.NewRegistry()
-	metrics := rtmetrics.NewManager(metricsRegistry, cfg.Runtime.Metrics, rootLogger /* metricsExporter(cfg, rootLogger) */)
-
 	tracingEnabled := trace.Enabled(cfg)
 	var traceFactory trace.Factory = nil
 	if tracingEnabled {
@@ -85,6 +82,9 @@ func New(p *NewParams) *App {
 	json := jsonAPI(cfg)
 	shutdown := newShutdownTracker()
 	encore := encore.NewManager(cfg, rt)
+
+	metricsRegistry := usermetrics.NewRegistry(rt, uint16(len(cfg.Static.BundledServices)))
+	metrics := rtmetrics.NewManager(metricsRegistry, cfg, rootLogger)
 
 	klock := clock.New()
 	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, metrics, json, tracingEnabled, klock)

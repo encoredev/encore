@@ -5,39 +5,50 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
-func getAtomicAdder[V Value](addr *V) func(delta V) {
+func getAtomicAdder[V Value]() func(addr *V, delta V) {
 	var typ V
 	switch any(typ).(type) {
-	case int64:
-		addr := (*int64)(unsafe.Pointer(addr))
-		return func(delta V) {
-			atomic.AddInt64(addr, int64(delta))
+	case int64, time.Duration: /* time.Duration is an int64 */
+		return func(addr *V, delta V) {
+			a := (*int64)(unsafe.Pointer(addr))
+			atomic.AddInt64(a, int64(delta))
+		}
+	case uint64:
+		return func(addr *V, delta V) {
+			a := (*uint64)(unsafe.Pointer(addr))
+			atomic.AddUint64(a, uint64(delta))
 		}
 	case float64:
-		addr := (*float64)(unsafe.Pointer(addr))
-		return func(delta V) {
-			atomicAddFloat64(addr, float64(delta))
+		return func(addr *V, delta V) {
+			a := (*float64)(unsafe.Pointer(addr))
+			atomicAddFloat64(a, float64(delta))
 		}
 	default:
 		panic(fmt.Sprintf("unhandled value type %T", typ))
 	}
 }
 
-func getAtomicSetter[V Value](addr *V) func(new V) {
+func getAtomicSetter[V Value]() func(addr *V, new V) {
 	var typ V
 	switch any(typ).(type) {
-	case int64:
-		addr := (*int64)(unsafe.Pointer(addr))
-		return func(new V) {
-			atomic.StoreInt64(addr, int64(new))
+	case int64, time.Duration: // time.Duration is an int64
+		return func(addr *V, new V) {
+			a := (*int64)(unsafe.Pointer(addr))
+			atomic.StoreInt64(a, int64(new))
+		}
+	case uint64:
+		return func(addr *V, new V) {
+			a := (*uint64)(unsafe.Pointer(addr))
+			atomic.StoreUint64(a, uint64(new))
 		}
 	case float64:
-		addr := (*float64)(unsafe.Pointer(addr))
-		return func(new V) {
-			atomicStoreFloat64(addr, float64(new))
+		return func(addr *V, new V) {
+			a := (*float64)(unsafe.Pointer(addr))
+			atomicStoreFloat64(a, float64(new))
 		}
 	default:
 		panic(fmt.Sprintf("unhandled value type %T", typ))
@@ -54,6 +65,7 @@ func atomicAddFloat64(addr *float64, delta float64) float64 {
 		}
 	}
 }
+
 func atomicStoreFloat64(addr *float64, value float64) {
 	atomic.StoreUint64((*uint64)(unsafe.Pointer(addr)), math.Float64bits(value))
 }

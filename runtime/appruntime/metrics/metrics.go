@@ -16,34 +16,39 @@ type Manager struct {
 	ctx    context.Context
 	cancel func()
 
-	cfg        *config.Metrics
+	cfg        *config.Config
 	reg        *metrics.Registry
 	rootLogger zerolog.Logger
 	exp        exporter
+
+	logsEmitter *logsBasedEmitter
 }
 
-func NewManager(reg *metrics.Registry, cfg *config.Metrics, rootLogger zerolog.Logger) *Manager {
-	var exp exporter
-	var tried []string
-	for _, desc := range providerRegistry {
-		tried = append(tried, desc.name)
-		if desc.matches(cfg) {
-			exp = desc.newExporter(cfg)
-			break
-		}
-	}
+func NewManager(reg *metrics.Registry, cfg *config.Config, rootLogger zerolog.Logger) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Manager{
+	mgr := &Manager{
 		ctx:        ctx,
 		cancel:     cancel,
 		reg:        reg,
 		cfg:        cfg,
-		exp:        exp,
 		rootLogger: rootLogger,
 	}
+
+	for _, desc := range providerRegistry {
+		if desc.matches(cfg.Runtime.Metrics) {
+			mgr.exp = desc.newExporter(mgr)
+			break
+		}
+	}
+
+	if cfg.Runtime.Metrics.LogsBased != nil {
+		mgr.logsEmitter = newLogsBasedEmitter(rootLogger)
+	}
+	return mgr
 }
 
 func (mgr *Manager) Shutdown(force context.Context) {
+	mgr.collectNow(force)
 	mgr.cancel()
 	mgr.exp.Shutdown(force)
 }
@@ -53,21 +58,27 @@ func (mgr *Manager) BeginCollection() {
 		return
 	}
 
-	mgr.collectNow()
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	mgr.collectNow(ctx)
+	cancel()
+
 	ticker := time.NewTicker(30 * time.Second)
 	for {
 		select {
 		case <-mgr.ctx.Done():
 			ticker.Stop()
 		case <-ticker.C:
-			mgr.collectNow()
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			mgr.collectNow(ctx)
+			cancel()
 		}
 	}
 }
 
-func (mgr *Manager) collectNow() {
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
-	defer cancel()
+func (mgr *Manager) collectNow(ctx context.Context) {
+	if mgr.exp == nil {
+		return
+	}
 
 	m := mgr.reg.Collect()
 	if err := mgr.exp.Export(ctx, m); err != nil {
@@ -78,20 +89,23 @@ func (mgr *Manager) collectNow() {
 }
 
 func (m *Manager) ReqEnd(service, endpoint string, err error, httpStatus int, durSecs float64) {
-	//code := code(err, httpStatus)
-	//m.exp.IncCounter(
-	//	"e_requests_total",
-	//	"service", service,
-	//	"endpoint", endpoint,
-	//	"code", code,
-	//)
-	//m.exp.Observe(
-	//	"e_request_duration_seconds",
-	//	"duration", durSecs,
-	//	"service", service,
-	//	"endpoint", endpoint,
-	//	"code", code,
-	//)
+	if m.logsEmitter == nil {
+		return
+	}
+	code := code(err, httpStatus)
+	m.logsEmitter.IncCounter(
+		"e_requests_total",
+		"service", service,
+		"endpoint", endpoint,
+		"code", code,
+	)
+	m.logsEmitter.Observe(
+		"e_request_duration_seconds",
+		"duration", durSecs,
+		"service", service,
+		"endpoint", endpoint,
+		"code", code,
+	)
 }
 
 func code(err error, httpStatus int) string {
@@ -118,7 +132,7 @@ type exporter interface {
 type providerDesc struct {
 	name        string
 	matches     func(cfg *config.Metrics) bool
-	newExporter func(cfg *config.Metrics) exporter
+	newExporter func(m *Manager) exporter
 }
 
 var providerRegistry []providerDesc

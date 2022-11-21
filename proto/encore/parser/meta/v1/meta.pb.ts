@@ -25,6 +25,7 @@ export interface Data {
   pubsub_topics: PubSubTopic[];
   middleware: Middleware[];
   cache_clusters: CacheCluster[];
+  metrics: Metric[];
 }
 
 /**
@@ -354,4 +355,23 @@ export interface CacheCluster_Keyspace {
   service: string;
   doc: string;
   path_pattern: Path;
+}
+
+export interface Metric {
+  /** the name of the metric */
+  name: string;
+  /** the doc string */
+  doc: string;
+  type: Metric_MetricType;
+  /** the service the metric is exclusive to, if any. */
+  service_name?: string | undefined;
+  /** the labels struct type, or nil if no labels */
+  labels_type: Type;
+}
+
+export enum Metric_MetricType {
+  COUNTER = "COUNTER",
+  GAUGE = "GAUGE",
+  HISTOGRAM = "HISTOGRAM",
+  UNRECOGNIZED = "UNRECOGNIZED",
 }

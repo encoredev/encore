@@ -19,9 +19,9 @@ type metricConstructor struct {
 
 var metricConstructors = []metricConstructor{
 	{"NewCounter", false},
-	{"NewCounterL", true},
+	{"NewCounterGroup", true},
 	{"NewGauge", false},
-	{"NewGaugeL", true},
+	{"NewGaugeGroup", true},
 }
 
 func init() {
@@ -31,6 +31,11 @@ func init() {
 		"https://encore.dev/docs/observability/metrics",
 		"metrics",
 		"encore.dev/metrics",
+	)
+
+	registerResourceReferenceParser(
+		est.MetricResource,
+		(*parser).parseMetricReference,
 	)
 
 	for _, constructor := range metricConstructors {
@@ -84,6 +89,7 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 
 		metric := &est.Metric{
 			Doc:       cursor.DocComment(),
+			Svc:       file.Pkg.Service, // nil means global metric
 			DeclFile:  file,
 			IdentAST:  ident,
 			ConfigLit: cfg.Lit(),
@@ -96,10 +102,12 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 				p.errInSrc(srcerrors.MetricLabelsIsPointer(p.fset, typeArgs[0], "metrics."+con.FuncName))
 				return nil
 			}
-			metric.Labels = p.resolveType(file.Pkg, file, typeArgs[0], nil)
+			metric.LabelsType = p.resolveType(file.Pkg, file, typeArgs[0], nil)
 			metric.LabelsAST = typeArgs[0]
 			p.validateMetricLabels(metric, con)
 		}
+
+		p.metrics = append(p.metrics, metric)
 
 		return metric
 	}
@@ -107,33 +115,43 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 
 // validateMetricLabels validates a parsed cache keyspace.
 func (p *parser) validateMetricLabels(m *est.Metric, con metricConstructor) {
-	labels := m.Labels
+	labels := m.LabelsType
 	named := labels.GetNamed()
 	if named == nil {
 		p.errInSrc(srcerrors.MetricLabelsNotNamedStruct(p.fset, m.LabelsAST, "metrics."+con.FuncName, labels))
 		return
 	}
 
-	switch key := labels.Typ.(type) {
-	case *schema.Type_Named:
-		named := p.decls[key.Named.Id]
-		if named.Type.GetStruct() == nil {
-			p.errInSrc(srcerrors.MetricLabelsNotNamedStruct(p.fset, m.LabelsAST, "metrics."+con.FuncName, named.Type))
-			return
-		}
+	decl := p.decls[named.Id]
+	if decl.Type.GetStruct() == nil {
+		p.errInSrc(srcerrors.MetricLabelsNotNamedStruct(p.fset, m.LabelsAST, "metrics."+con.FuncName, decl.Type))
+		return
+	}
 
-		st, err := encoding.GetConcreteStructType(p.decls, named.Type, key.Named.TypeArguments)
-		if err != nil {
-			p.errf(m.Ident().Pos(), "unable to resolve concrete type: %v", err)
-			return
-		}
+	st, err := encoding.GetConcreteStructType(p.decls, decl.Type, named.TypeArguments)
+	if err != nil {
+		p.errf(m.Ident().Pos(), "unable to resolve concrete type: %v", err)
+		return
+	}
 
-		// Validate struct fields
-		for _, f := range st.Fields {
-			fieldName := f.Name
-			if f.Typ.GetBuiltin() != schema.Builtin_STRING {
-				p.errInSrc(srcerrors.MetricLabelsFieldNotString(p.fset, m.LabelsAST, "metrics."+con.FuncName, fieldName))
-			}
+	// Validate struct fields
+	for _, f := range st.Fields {
+		// Allow strings, bools, int and uint types.
+		switch f.Typ.GetBuiltin() {
+		case schema.Builtin_STRING, schema.Builtin_BOOL,
+			schema.Builtin_INT, schema.Builtin_INT8, schema.Builtin_INT16, schema.Builtin_INT32, schema.Builtin_INT64,
+			schema.Builtin_UINT, schema.Builtin_UINT8, schema.Builtin_UINT16, schema.Builtin_UINT32, schema.Builtin_UINT64:
+		// OK
+		default:
+			p.errInSrc(srcerrors.MetricLabelsFieldInvalidType(p.fset, m.LabelsAST, "metrics."+con.FuncName, f.Name, f.Typ))
 		}
+	}
+}
+
+func (p *parser) parseMetricReference(file *est.File, resource est.Resource, cursor *walker.Cursor) {
+	metric := resource.(*est.Metric)
+	if metric.Svc != nil && file.Pkg.Service != metric.Svc {
+		p.errInSrc(srcerrors.MetricReferencedInOtherService(p.fset, cursor.Node(), metric.IdentAST))
+		return
 	}
 }

@@ -26,6 +26,9 @@ type Static struct {
 	Testing              bool
 	TestService          string // service being tested, if any
 	TestAsExternalBinary bool   // should logs be pretty printed in tests (used when building a test binary to be used outside of the Encore daemon)
+
+	// BundledServices are the services bundled in this binary.
+	BundledServices []string
 }
 
 type Runtime struct {
@@ -186,6 +189,7 @@ type StaticPubsubTopic struct {
 
 type StaticPubsubSubscription struct {
 	Service  string // the service that subscription is in
+	SvcNum   uint16 // the service number the subscription is in
 	TraceIdx int32  // The trace Idx of the subscription
 }
 
@@ -271,8 +275,9 @@ const (
 )
 
 type Metrics struct {
-	CloudMonitoring *GCPCloudMonitoringProvider `json:"gcp_cloud_monitoring,omitempty"`
-	LogsBased       *LogsBasedMetricsProvider   `json:"logs_based,omitempty"`
+	CloudMonitoring *GCPCloudMonitoringProvider   `json:"gcp_cloud_monitoring,omitempty"`
+	CloudWatch      *AWSCloudWatchMetricsProvider `json:"aws_cloud_watch,omitempty"`
+	LogsBased       *LogsBasedMetricsProvider     `json:"logs_based,omitempty"`
 }
 
 type LogsBasedMetricsProvider struct{}
@@ -288,4 +293,9 @@ type GCPCloudMonitoringProvider struct {
 	// Each monitored resource type has a pre-defined set of labels that must be set.
 	// See https://cloud.google.com/monitoring/api/resources for expected labels.
 	MonitoredResourceLabels map[string]string
+}
+
+type AWSCloudWatchMetricsProvider struct {
+	// Namespace is the namespace to use for metrics.
+	Namespace string
 }

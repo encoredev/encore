@@ -39,6 +39,15 @@ func (mgr *Manager) StartTest(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := mgr.rootLogger.With().Str("test", t.Name()).Logger()
+
+	svcNum := uint16(0)
+	for i, svc := range mgr.cfg.Static.BundledServices {
+		if svc == mgr.cfg.Static.TestService {
+			svcNum = uint16(i) + 1
+			break
+		}
+	}
+
 	req := &model.Request{
 		Type:   model.Test,
 		SpanID: spanID,
@@ -52,6 +61,7 @@ func (mgr *Manager) StartTest(t *testing.T) {
 			Service: mgr.cfg.Static.TestService,
 		},
 		Logger: &logger,
+		SvcNum: svcNum,
 	}
 	mgr.rt.BeginRequest(req)
 }

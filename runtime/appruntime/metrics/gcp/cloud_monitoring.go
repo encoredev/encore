@@ -5,10 +5,13 @@ package gcp
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
+	"time"
 
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
+	"github.com/rs/zerolog"
 	metricpb "google.golang.org/genproto/googleapis/api/metric"
 	monitoredrespb "google.golang.org/genproto/googleapis/api/monitoredres"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -17,20 +20,27 @@ import (
 	"encore.dev/metrics"
 )
 
-func New(cfg *config.GCPCloudMonitoringProvider) *Exporter {
+func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerolog.Logger) *Exporter {
 	return &Exporter{
-		cfg:              cfg,
+		svcs:       svcs,
+		cfg:        cfg,
+		rootLogger: rootLogger,
+
 		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
 	}
 }
 
 type Exporter struct {
-	cfg *config.GCPCloudMonitoringProvider
+	svcs       []string
+	cfg        *config.GCPCloudMonitoringProvider
+	rootLogger zerolog.Logger
 
 	clientMu sync.Mutex
 	client   *monitoring.MetricClient
 
 	firstSeenCounter map[uint64]*timestamppb.Timestamp
+
+	dummyStart, dummyEnd time.Time
 }
 
 func (x *Exporter) Shutdown(force context.Context) {
@@ -42,43 +52,126 @@ func (x *Exporter) Shutdown(force context.Context) {
 }
 
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
-	newCounterStart := timestamppb.Now()
-	endTime := timestamppb.Now()
+	// Call time.Now twice so we don't get identical timestamps,
+	// which is not allowed for cumulative metrics.
+	newCounterStart := time.Now()
+	endTime := time.Now()
 
-	timeSeries := make([]*monitoringpb.TimeSeries, 0, len(collected))
-	for _, m := range collected {
-		var labels map[string]string
-		if len(m.Labels) > 0 {
-			labels = make(map[string]string, len(m.Labels))
-			for _, v := range m.Labels {
-				labels[v.Key] = v.Value
-			}
-		}
-
-		point, kind := x.getPoint(newCounterStart, endTime, &m)
-		timeSeries = append(timeSeries, &monitoringpb.TimeSeries{
-			MetricKind: kind,
-			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + m.MetricName,
-				Labels: labels,
-			},
-			Resource: &monitoredrespb.MonitoredResource{
-				Type:   x.cfg.MonitoredResourceType,
-				Labels: x.cfg.MonitoredResourceLabels,
-			},
-			Points: []*monitoringpb.Point{point},
-		})
-	}
-
-	// Writes time series data.
+	data := x.getMetricData(newCounterStart, endTime, collected)
 	err := x.getClient().CreateTimeSeries(ctx, &monitoringpb.CreateTimeSeriesRequest{
 		Name:       "projects/" + x.cfg.ProjectID,
-		TimeSeries: timeSeries,
+		TimeSeries: data,
 	})
 	if err != nil {
 		return fmt.Errorf("write metrics to GCP Cloud Monitoring: %v", err)
 	}
 	return nil
+}
+
+func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected []metrics.CollectedMetric) []*monitoringpb.TimeSeries {
+	pbNewCounterStart := timestamppb.New(newCounterStart)
+	pbEndTime := timestamppb.New(endTime)
+
+	monitoredResource := &monitoredrespb.MonitoredResource{
+		Type:   x.cfg.MonitoredResourceType,
+		Labels: x.cfg.MonitoredResourceLabels,
+	}
+
+	data := make([]*monitoringpb.TimeSeries, 0, len(collected))
+	for _, m := range collected {
+		var baseLabels map[string]string
+		if len(m.Labels) > 0 {
+			baseLabels = make(map[string]string, len(m.Labels))
+			for _, v := range m.Labels {
+				baseLabels[v.Key] = v.Value
+			}
+		}
+
+		var kind metricpb.MetricDescriptor_MetricKind
+		interval := &monitoringpb.TimeInterval{EndTime: pbEndTime}
+		switch m.Info.Type() {
+		case metrics.CounterType:
+			// Determine when we first saw this time series.
+			startTime := x.firstSeenCounter[m.TimeSeriesID]
+			if startTime == nil {
+				startTime = pbNewCounterStart
+				x.firstSeenCounter[m.TimeSeriesID] = startTime
+			}
+			interval.StartTime = startTime
+
+			kind = metricpb.MetricDescriptor_CUMULATIVE
+		case metrics.GaugeType:
+			kind = metricpb.MetricDescriptor_GAUGE
+		default:
+			x.rootLogger.Error().Msgf("encore: internal error: unknown metric type %v for metric %s", m.Info.Type(), m.Info.Name())
+			continue
+		}
+
+		svcNum := m.Info.SvcNum()
+		metricType := "custom.googleapis.com/" + m.Info.Name()
+
+		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
+			labels := make(map[string]string, len(baseLabels)+1)
+			for k, v := range baseLabels {
+				labels[k] = v
+			}
+			labels["service"] = x.svcs[svcIdx]
+
+			data = append(data, &monitoringpb.TimeSeries{
+				MetricKind: kind,
+				Metric: &metricpb.Metric{
+					Type:   metricType,
+					Labels: labels,
+				},
+				Resource: monitoredResource,
+				Points: []*monitoringpb.Point{{
+					Interval: interval,
+					Value:    val,
+				}},
+			})
+		}
+
+		switch vals := m.Val.(type) {
+		case []float64:
+			if svcNum > 0 {
+				doAdd(floatVal(vals[0]), svcNum-1)
+			} else {
+				for i, val := range vals {
+					doAdd(floatVal(val), uint16(i))
+				}
+			}
+		case []int64:
+			if svcNum > 0 {
+				doAdd(int64Val(vals[0]), svcNum-1)
+			} else {
+				for i, val := range vals {
+					doAdd(int64Val(val), uint16(i))
+				}
+			}
+		case []uint64:
+			if svcNum > 0 {
+				doAdd(uint64Val(vals[0]), svcNum-1)
+			} else {
+				for i, val := range vals {
+					doAdd(uint64Val(val), uint16(i))
+				}
+			}
+		case []time.Duration:
+			if svcNum > 0 {
+				doAdd(floatVal(float64(vals[0]/time.Second)), svcNum-1)
+			} else {
+				for i, val := range vals {
+					doAdd(floatVal(float64(val/time.Second)), uint16(i))
+				}
+			}
+		default:
+			x.rootLogger.Error().Msgf("encore: internal error: unknown value type %T for metric %s",
+				m.Val, m.Info.Name())
+		}
+
+	}
+
+	return data
 }
 
 func (x *Exporter) getPoint(newCounterStart, endTime *timestamppb.Timestamp, m *metrics.CollectedMetric) (point *monitoringpb.Point, kind metricpb.MetricDescriptor_MetricKind) {
@@ -92,7 +185,7 @@ func (x *Exporter) getPoint(newCounterStart, endTime *timestamppb.Timestamp, m *
 		panic(fmt.Sprintf("unhandled value type %T", v))
 	}
 
-	switch m.Type {
+	switch m.Info.Type() {
 	case metrics.CounterType:
 		// Determine when we first saw this time series.
 		startTime := x.firstSeenCounter[m.TimeSeriesID]
@@ -119,7 +212,7 @@ func (x *Exporter) getPoint(newCounterStart, endTime *timestamppb.Timestamp, m *
 			Value: value,
 		}
 	default:
-		panic(fmt.Sprintf("unhandled metric type %v", m.Type))
+		panic(fmt.Sprintf("unhandled metric type %v", m.Info.Type()))
 	}
 	return point, kind
 }
@@ -135,4 +228,35 @@ func (x *Exporter) getClient() *monitoring.MetricClient {
 		x.client = cl
 	}
 	return x.client
+}
+
+func floatVal(val float64) *monitoringpb.TypedValue {
+	return &monitoringpb.TypedValue{
+		Value: &monitoringpb.TypedValue_DoubleValue{
+			DoubleValue: val,
+		},
+	}
+}
+
+func int64Val(val int64) *monitoringpb.TypedValue {
+	return &monitoringpb.TypedValue{
+		Value: &monitoringpb.TypedValue_Int64Value{
+			Int64Value: val,
+		},
+	}
+}
+func uint64Val(val uint64) *monitoringpb.TypedValue {
+	// Return a float if this value exceeds the range of int64.
+	if val > math.MaxInt64 {
+		return &monitoringpb.TypedValue{
+			Value: &monitoringpb.TypedValue_DoubleValue{
+				DoubleValue: float64(val),
+			},
+		}
+	}
+	return &monitoringpb.TypedValue{
+		Value: &monitoringpb.TypedValue_Int64Value{
+			Int64Value: int64(val),
+		},
+	}
 }

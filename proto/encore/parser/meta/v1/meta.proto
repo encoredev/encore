@@ -19,6 +19,7 @@ message Data {
   repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
   repeated Middleware     middleware          = 10;
   repeated CacheCluster   cache_clusters      = 11;
+  repeated Metric         metrics             = 12;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -292,5 +293,19 @@ message CacheCluster {
     string         service      = 3;
     string         doc          = 4;
     Path           path_pattern = 5;
+  }
+}
+
+message Metric {
+  string          name         = 1; // the name of the metric
+  string          doc          = 2; // the doc string
+  MetricType      type         = 3;
+  optional string service_name = 4; // the service the metric is exclusive to, if any.
+  schema.v1.Type  labels_type  = 5; // the labels struct type, or nil if no labels
+
+  enum MetricType {
+    COUNTER = 0;
+    GAUGE = 1;
+    HISTOGRAM = 2;
   }
 }

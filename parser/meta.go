@@ -110,6 +110,10 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.Middleware = append(data.Middleware, parseMiddleware(mw))
 	}
 
+	for _, m := range app.Metrics {
+		data.Metrics = append(data.Metrics, parseMetric(m))
+	}
+
 	return data, nodes, nil
 }
 
@@ -363,6 +367,18 @@ func parseMiddleware(mw *est.Middleware) *meta.Middleware {
 	}
 	if mw.Svc != nil {
 		pb.ServiceName = &mw.Svc.Name
+	}
+	return pb
+}
+
+func parseMetric(m *est.Metric) *meta.Metric {
+	pb := &meta.Metric{
+		Name:       m.Ident().Name,
+		Doc:        m.Doc,
+		LabelsType: m.LabelsType,
+	}
+	if m.Svc != nil {
+		pb.ServiceName = &m.Svc.Name
 	}
 	return pb
 }

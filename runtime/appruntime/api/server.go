@@ -63,9 +63,9 @@ type Server struct {
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
+	metrics        *metrics.Manager
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
-	metrics        *metrics.Manager
 	json           jsoniter.API
 	tracingEnabled bool
 
@@ -112,9 +112,9 @@ func NewServer(
 		pc:             pc,
 		rt:             rt,
 		encoreMgr:      encoreMgr,
+		metrics:        metrics,
 		clock:          clock,
 		rootLogger:     rootLogger,
-		metrics:        metrics,
 		json:           json,
 		tracingEnabled: tracingEnabled,
 

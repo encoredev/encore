@@ -13,8 +13,8 @@ func init() {
 		matches: func(cfg *config.Metrics) bool {
 			return cfg.CloudMonitoring != nil
 		},
-		newExporter: func(cfg *config.Metrics) exporter {
-			return gcp.New(cfg.CloudMonitoring)
+		newExporter: func(mgr *Manager) exporter {
+			return gcp.New(mgr.cfg.Static.BundledServices, mgr.cfg.Runtime.Metrics.CloudMonitoring, mgr.rootLogger)
 		},
 	})
 }

@@ -5,58 +5,123 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+
+	"github.com/rs/zerolog"
+
+	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/reqtrack"
 )
 
 func TestCounter(t *testing.T) {
-	mgr := NewRegistry()
-	c := newCounter[int64](mgr, "foo", CounterConfig{})
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 1)
+	m := newMetricInfo[int64](mgr, "foo", CounterType, 1)
+	c := newCounterInternal(m)
 
-	ts, loaded := getTS[int64](mgr, CounterType, "foo", nil)
+	ts, loaded := m.getTS(nil)
 	eq(t, loaded, true)
 	eq(t, ts.init.state, 2)
-	eq(t, ts.metricName, "foo")
+	eq(t, ts.info.Name(), "foo")
 	if ts.labels != nil {
 		t.Fatalf("got labels %+v, want nil", ts.labels)
 	}
 
-	eq(t, ts.value, 0)
+	eq(t, ts.value[0], 0)
 	c.Increment()
 	c.Add(2)
-	eq(t, ts.value, 3)
+	eq(t, ts.value[0], 3)
 
-	c2 := newCounter[int64](mgr, "foo", CounterConfig{})
-	ts2, loaded2 := getTS[int64](mgr, CounterType, "foo", nil)
+	c2 := newCounterInternal(m)
+	ts2, loaded2 := c2.getTS(nil)
 	eq(t, loaded2, true)
 	eq(t, ts2, ts)
 
 	c2.Increment()
-	eq(t, ts.value, 4)
+	eq(t, ts.value[0], 4)
 	eq(t, countryRegistry(&mgr.registry), 1)
 }
 
-func TestGauge(t *testing.T) {
-	mgr := NewRegistry()
-	c := newGauge[float64](mgr, "foo", GaugeConfig{})
+func TestCounter_MultipleServices(t *testing.T) {
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 2)
+	m := newMetricInfo[int64](mgr, "foo", CounterType, 0)
+	c := newCounterInternal(m)
 
-	ts, loaded := getTS[float64](mgr, GaugeType, "foo", nil)
+	ts, loaded := m.getTS(nil)
 	eq(t, loaded, true)
 	eq(t, ts.init.state, 2)
-	eq(t, ts.metricName, "foo")
+	eq(t, ts.info.Name(), "foo")
 	if ts.labels != nil {
 		t.Fatalf("got labels %+v, want nil", ts.labels)
 	}
 
-	eq(t, ts.value, 0)
-	c.Set(1.5)
-	eq(t, ts.value, 1.5)
+	eq(t, len(ts.value), 2)
+	eq(t, ts.value[0], 0)
+	eq(t, ts.value[1], 0)
 
-	c2 := newGauge[float64](mgr, "foo", GaugeConfig{})
-	ts2, loaded2 := getTS[float64](mgr, GaugeType, "foo", nil)
+	// Without a service running these should be no-ops.
+	c.Increment()
+	c.Add(2)
+	eq(t, ts.value[0], 0)
+	eq(t, ts.value[1], 0)
+
+	// Inside a request they should work.
+	{
+		rt.BeginRequest(&model.Request{SvcNum: 1})
+		c.Increment()
+		c.Add(2)
+		eq(t, ts.value[0], 3)
+		eq(t, ts.value[1], 0)
+		rt.FinishRequest()
+	}
+
+	// Without a service running these should be no-ops again.
+	c.Increment()
+	c.Add(2)
+	eq(t, ts.value[0], 3)
+	eq(t, ts.value[1], 0)
+
+	// Inside a request they should work.
+	{
+		rt.BeginRequest(&model.Request{SvcNum: 2})
+		c.Increment()
+		eq(t, ts.value[0], 3)
+		eq(t, ts.value[1], 1)
+		rt.FinishRequest()
+	}
+
+	// Without a service running these should be no-ops again.
+	c.Increment()
+	c.Add(2)
+	eq(t, ts.value[0], 3)
+	eq(t, ts.value[1], 1)
+}
+
+func TestGauge(t *testing.T) {
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 1)
+	m := newMetricInfo[float64](mgr, "foo", GaugeType, 1)
+	c := newGauge(m)
+
+	ts, loaded := m.getTS(nil)
+	eq(t, loaded, true)
+	eq(t, ts.init.state, 2)
+	eq(t, ts.info.Name(), "foo")
+	if ts.labels != nil {
+		t.Fatalf("got labels %+v, want nil", ts.labels)
+	}
+
+	eq(t, ts.value[0], 0)
+	c.Set(1.5)
+	eq(t, ts.value[0], 1.5)
+
+	c2 := newGauge(m)
+	ts2, loaded2 := c2.getTS(nil)
 	eq(t, loaded2, true)
 	eq(t, ts2, ts)
 
 	c2.Set(2)
-	eq(t, ts.value, 2)
+	eq(t, ts.value[0], 2)
 
 	eq(t, countryRegistry(&mgr.registry), 1)
 }
@@ -65,8 +130,11 @@ func TestCounterGroup(t *testing.T) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewRegistry()
+
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 1)
 	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
+		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
 			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},
@@ -83,12 +151,12 @@ func TestCounterGroup(t *testing.T) {
 
 	ts := c.get(myLabels{key: "foo"})
 	eq(t, ts.init.state, 2)
-	eq(t, ts.metricName, "foo")
+	eq(t, ts.info.Name(), "foo")
 	if !reflect.DeepEqual(ts.labels, []KeyValue{{Key: "Key", Value: "foo"}}) {
 		t.Fatalf("got labels %+v, want [{Key foo}]", ts.labels)
 	}
 
-	eq(t, ts.value, 3)
+	eq(t, ts.value[0], 3)
 
 	ts2 := c.get(myLabels{key: "foo"})
 	eq(t, ts2, ts)
@@ -100,8 +168,10 @@ func TestGaugeGroup(t *testing.T) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewRegistry()
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 1)
 	c := newGaugeGroup[myLabels, float64](mgr, "foo", GaugeConfig{
+		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
 			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},
@@ -118,12 +188,12 @@ func TestGaugeGroup(t *testing.T) {
 
 	ts := c.get(myLabels{key: "foo"})
 	eq(t, ts.init.state, 2)
-	eq(t, ts.metricName, "foo")
+	eq(t, ts.info.Name(), "foo")
 	if !reflect.DeepEqual(ts.labels, []KeyValue{{Key: "Key", Value: "foo"}}) {
 		t.Fatalf("got labels %+v, want [{Key foo}]", ts.labels)
 	}
 
-	eq(t, ts.value, 2.5)
+	eq(t, ts.value[0], 2.5)
 
 	ts2 := c.get(myLabels{key: "foo"})
 	eq(t, ts2, ts)
@@ -132,22 +202,26 @@ func TestGaugeGroup(t *testing.T) {
 
 func BenchmarkCounter_Inc(b *testing.B) {
 	b.ReportAllocs()
-	mgr := NewRegistry()
-	c := newCounter[int64](mgr, "foo", CounterConfig{})
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 1)
+	m := newMetricInfo[int64](mgr, "foo", CounterType, 1)
+	c := newCounterInternal(m)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c.Increment()
 	}
-	eq(b, c.ts.value, int64(b.N))
+	eq(b, c.ts.value[0], int64(b.N))
 }
 
 func BenchmarkCounter_NewLabel(b *testing.B) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewRegistry()
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 1)
 	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
+		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
 			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},
@@ -169,8 +243,10 @@ func BenchmarkCounter_NewLabelSometimes(b *testing.B) {
 	type myLabels struct {
 		key string
 	}
-	mgr := NewRegistry()
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	mgr := NewRegistry(rt, 1)
 	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
+		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
 			return []KeyValue{{Key: "Key", Value: labels.key}}
 		},

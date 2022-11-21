@@ -25,6 +25,7 @@ type Application struct {
 	Decls         []*schema.Decl
 	AuthHandler   *AuthHandler
 	Middleware    []*Middleware
+	Metrics       []*Metric
 }
 
 type File struct {
@@ -383,12 +384,13 @@ func (p *CacheKeyspace) NodeType() NodeType         { return CacheKeyspaceDefNod
 func (p *CacheKeyspace) AllowOnlyParsedUsage() bool { return false }
 
 type Metric struct {
-	Doc       string     // The documentation on the metric
-	DeclFile  *File      // What file the cache is declared in
-	IdentAST  *ast.Ident // The AST node representing the value this metric is bound against
-	ConfigLit *ast.CompositeLit
-	Labels    *schema.Type // The labels for this keyspace, or nil if no labels.
-	LabelsAST ast.Node
+	Doc        string     // The documentation on the metric
+	Svc        *Service   // the service this metric is exclusive to, or nil
+	DeclFile   *File      // What file the cache is declared in
+	IdentAST   *ast.Ident // The AST node representing the value this metric is bound against
+	ConfigLit  *ast.CompositeLit
+	LabelsType *schema.Type // The labels for this keyspace, or nil if no labels.
+	LabelsAST  ast.Node
 }
 
 func (p *Metric) Type() ResourceType         { return MetricResource }

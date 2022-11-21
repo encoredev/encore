@@ -28,6 +28,8 @@ type beginRequestParams struct {
 	// SpanID is the span ID to use.
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
+
+	SvcNum uint16
 }
 
 func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
@@ -44,6 +46,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		Type:    p.Type,
 		SpanID:  spanID,
 		DefLoc:  p.DefLoc,
+		SvcNum:  p.SvcNum,
 		Start:   s.clock.Now(),
 		Traced:  s.tracingEnabled,
 		RPCData: p.Data,
