@@ -36,6 +36,7 @@ func ExecScript(appRoot string, cfg *Config) (*Result, error) {
 	b := &builder{
 		cfg:      cfg,
 		appRoot:  appRoot,
+		log:      cfg.Log,
 		configs:  make(map[string]string),
 		lastOpID: optracker.NoOperationID,
 	}
