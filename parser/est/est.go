@@ -384,9 +384,10 @@ func (p *CacheKeyspace) NodeType() NodeType         { return CacheKeyspaceDefNod
 func (p *CacheKeyspace) AllowOnlyParsedUsage() bool { return false }
 
 type Metric struct {
-	Doc        string     // The documentation on the metric
-	Svc        *Service   // the service this metric is exclusive to, or nil
-	DeclFile   *File      // What file the cache is declared in
+	Doc        string   // The documentation on the metric
+	Svc        *Service // the service this metric is exclusive to, or nil
+	DeclFile   *File    // What file the cache is declared in
+	DeclCall   *ast.CallExpr
 	IdentAST   *ast.Ident // The AST node representing the value this metric is bound against
 	ConfigLit  *ast.CompositeLit
 	LabelsType *schema.Type // The labels for this keyspace, or nil if no labels.
@@ -396,5 +397,6 @@ type Metric struct {
 func (p *Metric) Type() ResourceType         { return MetricResource }
 func (p *Metric) File() *File                { return p.DeclFile }
 func (p *Metric) Ident() *ast.Ident          { return p.IdentAST }
+func (p *Metric) DefNode() ast.Node          { return p.DeclCall }
 func (p *Metric) NodeType() NodeType         { return MetricDefNode }
 func (p *Metric) AllowOnlyParsedUsage() bool { return false }

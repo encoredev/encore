@@ -91,6 +91,7 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 			Doc:       cursor.DocComment(),
 			Svc:       file.Pkg.Service, // nil means global metric
 			DeclFile:  file,
+			DeclCall:  callExpr,
 			IdentAST:  ident,
 			ConfigLit: cfg.Lit(),
 		}
