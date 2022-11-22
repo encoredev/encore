@@ -38,6 +38,7 @@ func Test(ctx context.Context, appRoot string, cfg *Config) error {
 	b := &builder{
 		cfg:        cfg,
 		appRoot:    appRoot,
+		log:        cfg.Log,
 		forTesting: true,
 		configs:    make(map[string]string),
 	}
@@ -109,6 +110,7 @@ func (b *builder) EncoreEnvironmentalVariablesToEmbed() []string {
 }
 
 func (b *builder) writeTestMains() error {
+	defer b.trace("write test mains")()
 	for _, pkg := range b.res.App.Packages {
 		if err := b.generateTestMain(pkg); err != nil {
 			return err
@@ -119,6 +121,7 @@ func (b *builder) writeTestMains() error {
 
 // runTests runs "go test".
 func (b *builder) runTests(ctx context.Context) error {
+	defer b.trace("run tests")()
 	overlayData, _ := json.Marshal(map[string]interface{}{"Replace": b.overlay})
 	overlayPath := filepath.Join(b.workdir, "overlay.json")
 	if err := ioutil.WriteFile(overlayPath, overlayData, 0644); err != nil {

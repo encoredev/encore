@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
@@ -96,6 +97,9 @@ type Config struct {
 
 	// Are experimental features of Encore switched on?
 	Experiments *experiments.Set
+
+	// Log is the logger to use.
+	Log zerolog.Logger
 }
 
 // Validate validates the config.
@@ -131,6 +135,7 @@ func Build(appRoot string, cfg *Config) (*Result, error) {
 	b := &builder{
 		cfg:      cfg,
 		appRoot:  appRoot,
+		log:      cfg.Log,
 		configs:  make(map[string]string),
 		lastOpID: optracker.NoOperationID,
 	}
@@ -142,6 +147,8 @@ type builder struct {
 	cfg        *Config
 	appRoot    string
 	forTesting bool
+	log        zerolog.Logger
+	traceStart time.Time // for tracing durations
 
 	workdir string
 	modfile *modfile.File
@@ -245,6 +252,7 @@ func (b *builder) endCodeGenTracker() error {
 
 // parseApp parses the app situated at appRoot.
 func (b *builder) parseApp() error {
+	defer b.trace("parse app")()
 	modPath := filepath.Join(b.appRoot, "go.mod")
 	modData, err := ioutil.ReadFile(modPath)
 	if err != nil {
@@ -283,6 +291,7 @@ func (b *builder) parseApp() error {
 
 // checkApp checks the parsed app against the metadata.
 func (b *builder) checkApp() error {
+	defer b.trace("check app")()
 	dbs := make(map[string]bool)
 	for _, svc := range b.res.Meta.Svcs {
 		if len(svc.Migrations) > 0 {
@@ -325,6 +334,7 @@ func (b *builder) checkApp() error {
 }
 
 func (b *builder) writeModFile() error {
+	defer b.trace("write mod file")()
 	newPath := b.cfg.EncoreRuntimePath
 	oldPath := "encore.dev"
 	if err := b.modfile.AddRequire("encore.dev", "v0.0.0"); err != nil {
@@ -356,6 +366,7 @@ func (b *builder) writeModFile() error {
 }
 
 func (b *builder) writeSumFile() error {
+	defer b.trace("write sum file")()
 	appSum, err := ioutil.ReadFile(filepath.Join(b.appRoot, "go.sum"))
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -373,6 +384,7 @@ func (b *builder) writeSumFile() error {
 }
 
 func (b *builder) writePackages() error {
+	defer b.trace("write packages")()
 	// Copy all the packages into the workdir
 	for _, pkg := range b.res.App.Packages {
 		targetDir := filepath.Join(b.workdir, filepath.FromSlash(pkg.RelPath))
@@ -397,6 +409,7 @@ func (b *builder) writePackages() error {
 }
 
 func (b *builder) buildMain() error {
+	defer b.trace("build main")()
 	compileAppOpId := b.cfg.OpTracker.Add("Compiling application source code", time.Now())
 	b.lastOpID = compileAppOpId
 
@@ -610,4 +623,17 @@ func isGo118Plus(f *modfile.File) bool {
 	major, _ := strconv.Atoi(m[1])
 	minor, _ := strconv.Atoi(m[2])
 	return major > 1 || (major == 1 && minor >= 18)
+}
+
+func (b *builder) trace(format string, args ...any) func() {
+	if b.traceStart.IsZero() {
+		b.traceStart = time.Now()
+	}
+	dur := time.Since(b.traceStart).Truncate(time.Millisecond)
+	s := fmt.Sprintf(format, args...)
+	b.log.Trace().Msgf("%-10s START %s", dur, s)
+	return func() {
+		dur := time.Since(b.traceStart)
+		b.log.Trace().Msgf("%-10s DONE  %s", dur, s)
+	}
 }
