@@ -55,6 +55,20 @@ func getAtomicSetter[V Value]() func(addr *V, new V) {
 	}
 }
 
+func getAtomicIncrementer[V Value](adder func(addr *V, delta V)) func(addr *V) {
+	var typ V
+	switch any(typ).(type) {
+	case time.Duration:
+		return func(addr *V) {
+			adder(addr, V(time.Second))
+		}
+	default:
+		return func(addr *V) {
+			adder(addr, 1)
+		}
+	}
+}
+
 func atomicAddFloat64(addr *float64, delta float64) float64 {
 	for {
 		oldBits := atomic.LoadUint64((*uint64)(unsafe.Pointer(addr)))

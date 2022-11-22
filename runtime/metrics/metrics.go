@@ -38,9 +38,10 @@ type Counter[V Value] struct {
 }
 
 // Increment increments the counter by 1.
+// If V is time.Duration, it increments the counter by 1 second.
 func (c *Counter[V]) Increment() {
 	if idx, ok := c.svcIdx(); ok {
-		c.add(&c.ts.value[idx], 1)
+		c.inc(&c.ts.value[idx])
 	}
 }
 
@@ -164,14 +165,19 @@ func (g *GaugeGroup[L, V]) get(labels L) *timeseries[V] {
 }
 
 func newMetricInfo[V Value](mgr *Registry, name string, typ MetricType, svcNum uint16) *metricInfo[V] {
+	add := getAtomicAdder[V]()
+	set := getAtomicSetter[V]()
+	inc := getAtomicIncrementer[V](add)
+
 	return &metricInfo[V]{
 		reg:    mgr,
 		name:   name,
 		typ:    typ,
 		svcNum: svcNum,
 
-		add: getAtomicAdder[V](),
-		set: getAtomicSetter[V](),
+		add: add,
+		set: set,
+		inc: inc,
 	}
 }
 
@@ -183,6 +189,7 @@ type metricInfo[V Value] struct {
 
 	add func(addr *V, val V)
 	set func(addr *V, val V)
+	inc func(addr *V)
 }
 
 func (m *metricInfo[V]) svcIdx() (idx uint16, ok bool) {
