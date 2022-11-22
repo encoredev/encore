@@ -110,7 +110,7 @@ sections: [
 			{title: "Development Dashboard", segment: "dev-dash"},
 			{title: "Flow Architecture Diagram", segment: "encore-flow", old_paths: ["/develop/encore-flow"]},
 			{title: "Logging", segment: "logging", shortcuts: ["rlog"]},
-			{title: "Monitoring", segment: "monitoring"},
+			{title: "Metrics", segment: "metrics", shortcuts: ["metrics"], old_paths: ["/observability/monitoring"]},
 			{title: "Distributed Tracing", segment: "tracing"},
 		]
 	},
