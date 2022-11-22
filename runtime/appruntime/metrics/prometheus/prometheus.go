@@ -48,7 +48,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 
 	encoded := snappy.Encode(nil, proto)
 	body := bytes.NewReader(encoded)
-	req, err := http.NewRequest("POST", x.cfg.RemoteWriteURL, body)
+	req, err := http.NewRequest(http.MethodPost, x.cfg.RemoteWriteURL, body)
 	if err != nil {
 		return fmt.Errorf("unable to create HTTP request: %v", err)
 	}
