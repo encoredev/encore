@@ -69,9 +69,13 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	data := make([]prompb.TimeSeries, 0, len(collected))
 
 	doAdd := func(val float64, metricName string, baseLabels []prompb.Label, svcIdx uint16) {
-		labels := make([]prompb.Label, len(baseLabels)+1)
+		labels := make([]prompb.Label, len(baseLabels)+2)
 		copy(labels, baseLabels)
 		labels[len(baseLabels)] = prompb.Label{
+			Name:  "__name__",
+			Value: metricName,
+		}
+		labels[len(baseLabels)+1] = prompb.Label{
 			Name:  "service",
 			Value: x.svcs[svcIdx],
 		}
