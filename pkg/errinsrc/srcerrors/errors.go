@@ -531,9 +531,21 @@ func MetricLabelsNotNamedStruct(fileset *token.FileSet, node ast.Node, resourceT
 	}, false)
 }
 
+func MetricLabelReservedName(fileset *token.FileSet, node ast.Node, fieldName, label string) error {
+	return errinsrc.New(ErrParams{
+		Code:  39,
+		Title: "Reserved metrics label",
+		Summary: fmt.Sprintf("The %s field uses the reserved metrics label %s", fieldName, label),
+		Detail: combine(
+			metricsHelp,
+		),
+		Locations: SrcLocations{FromGoASTNode(fileset, node))},
+	}, false)
+}
+
 func MetricLabelsFieldInvalidType(fileset *token.FileSet, node ast.Node, resourceType, fieldName string, fieldType *schema.Type) error {
 	return errinsrc.New(ErrParams{
-		Code:  38,
+		Code:  40,
 		Title: "Invalid metric labels type",
 		// The metrics.NewCounterGroup labels type must be a named struct type
 		Summary: fmt.Sprintf("The %s labels type's field named %s must be a string, boolean, or integer", resourceType, fieldName),
@@ -546,7 +558,7 @@ func MetricLabelsFieldInvalidType(fileset *token.FileSet, node ast.Node, resourc
 
 func MetricLabelsIsPointer(fileset *token.FileSet, node ast.Node, resourceType string) error {
 	return errinsrc.New(ErrParams{
-		Code:  38,
+		Code:  41,
 		Title: "Invalid metric labels type",
 		// The metrics.NewCounterGroup labels type must be a named struct type
 		Summary: fmt.Sprintf("The %s labels type must be a non-pointer named struct, got a pointer type", resourceType),
@@ -566,7 +578,7 @@ func MetricReferencedInOtherService(fileset *token.FileSet, reference ast.Node, 
 	definedLoc.Text = "defined here"
 
 	return errinsrc.New(ErrParams{
-		Code:      12,
+		Code:      42,
 		Title:     "Cross service metric reference",
 		Summary:   "A metric defined within a service can only be referenced from within that same service.",
 		Detail:    metricsHelp,

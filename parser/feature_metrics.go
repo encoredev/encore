@@ -8,6 +8,7 @@ import (
 	"encr.dev/parser/internal/locations"
 	"encr.dev/parser/internal/walker"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -137,6 +138,11 @@ func (p *parser) validateMetricLabels(m *est.Metric, con metricConstructor) {
 
 	// Validate struct fields
 	for _, f := range st.Fields {
+		label := idents.Convert(f.Name, idents.SnakeCase)
+		if label == "service" {
+			p.errInSrc(srcerrors.MetricLabelReservedName(p.fset, m.LabelsAST, f.Name, label))
+		}
+
 		// Allow strings, bools, int and uint types.
 		switch f.Typ.GetBuiltin() {
 		case schema.Builtin_STRING, schema.Builtin_BOOL,
