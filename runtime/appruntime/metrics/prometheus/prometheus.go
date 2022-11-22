@@ -9,11 +9,10 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/prometheus/prometheus/model/timestamp"
-	"github.com/prometheus/prometheus/prompb"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metrics/prometheus/prompb"
 	"encore.dev/metrics"
 )
 
@@ -84,7 +83,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 			Samples: []prompb.Sample{
 				{
 					Value:     val,
-					Timestamp: timestamp.FromTime(now),
+					Timestamp: FromTime(now),
 				},
 			},
 		})
@@ -143,4 +142,9 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	return data
+}
+
+// FromTime returns a new millisecond timestamp from a time.
+func FromTime(t time.Time) int64 {
+	return t.Unix()*1000 + int64(t.Nanosecond())/int64(time.Millisecond)
 }
