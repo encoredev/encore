@@ -62,13 +62,19 @@ func (mgr *Manager) BeginCollection() {
 	mgr.collectNow(ctx)
 	cancel()
 
-	ticker := time.NewTicker(30 * time.Second)
+	interval := mgr.cfg.Runtime.Metrics.CollectionInterval
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	timeoutDur := interval / 2
+
+	ticker := time.NewTicker(interval)
 	for {
 		select {
 		case <-mgr.ctx.Done():
 			ticker.Stop()
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), timeoutDur)
 			mgr.collectNow(ctx)
 			cancel()
 		}
