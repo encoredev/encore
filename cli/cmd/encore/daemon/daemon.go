@@ -108,6 +108,7 @@ func (d *Daemon) init() {
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
+	d.close = append(d.close, d.Apps)
 
 	// If ENCORE_SQLDB_HOST is set, use the external cluster instead of
 	// creating our own docker container cluster.
