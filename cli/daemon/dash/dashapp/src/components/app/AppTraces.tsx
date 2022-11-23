@@ -206,6 +206,16 @@ const TraceView: FC<TraceViewProps> = (props) => {
                     </tr>
                   </>
                 )}
+                {tr.root?.ext_request_id && (
+                    <>
+                      <tr className="text-left font-normal">
+                        <th className="text-gray-400 pr-2 text-left text-sm font-light">External Request ID</th>
+                        <td className="font-mono">
+                          {tr.root.ext_request_id}
+                        </td>
+                      </tr>
+                    </>
+                )}
               </tbody>
             </table>
           </div>

@@ -31,10 +31,11 @@ const (
 
 // execContext contains the data needed for executing a request.
 type execContext struct {
-	server *Server
-	ctx    context.Context
-	ps     UnnamedParams
-	auth   model.AuthInfo
+	server  *Server
+	ctx     context.Context
+	ps      UnnamedParams
+	traceID model.TraceID
+	auth    model.AuthInfo
 }
 
 type IncomingContext struct {
@@ -191,7 +192,21 @@ func (s *Server) register(reg HandlerRegistration, logRegistration bool) {
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			params := toUnnamedParams(ps)
-			s.processRequest(h, s.NewIncomingContext(w, req, params, model.AuthInfo{}))
+			traceID, _ := model.GenTraceID()
+			traceIDStr := traceID.String()
+
+			// Echo the X-Request-ID back to the caller if present,
+			// otherwise send back the trace id.
+			reqID := req.Header.Get("X-Request-ID")
+			if reqID == "" {
+				reqID = traceIDStr
+			}
+			w.Header().Set("X-Request-ID", reqID)
+
+			// Always send the trace id back.
+			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
+
+			s.processRequest(h, s.NewIncomingContext(w, req, params, traceID, model.AuthInfo{}))
 		}
 
 		routerPath := h.HTTPRouterPath()
@@ -274,12 +289,12 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	}
 }
 
-func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, auth model.AuthInfo) execContext {
-	return execContext{s, ctx, ps, auth}
+func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) execContext {
+	return execContext{s, ctx, ps, trID, auth}
 }
 
-func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, auth model.AuthInfo) IncomingContext {
-	ec := s.newExecContext(req.Context(), ps, auth)
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) IncomingContext {
+	ec := s.newExecContext(req.Context(), ps, trID, auth)
 	return IncomingContext{ec, w, req, nil}
 }
 

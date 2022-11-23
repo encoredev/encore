@@ -2,6 +2,7 @@ package model
 
 import (
 	"crypto/rand"
+	"encoding/base32"
 	"testing"
 	_ "unsafe"
 )
@@ -10,6 +11,14 @@ type (
 	TraceID [16]byte
 	SpanID  [8]byte
 )
+
+func (t TraceID) String() string {
+	return b32.EncodeToString(t[:])
+}
+
+const encodeHex = "0123456789abcdefghijklmnopqrstuv"
+
+var b32 = base32.NewEncoding(encodeHex).WithPadding(base32.NoPadding)
 
 // GenerateConstantValsForTests if true causes GenTraceID and GenSpanID
 // to always generate the constant {0, 0, 0, ..., 1} byte sequence for testing.

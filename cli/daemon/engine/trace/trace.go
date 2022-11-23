@@ -285,6 +285,11 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		absStart = time.Unix(0, int64(ts))
 	}
 
+	traceID := tp.traceID
+	if tp.version >= 11 {
+		traceID = tp.parseTraceID()
+	}
+
 	spanID := tp.Uint64()
 	parentSpanID := tp.Uint64()
 
@@ -303,7 +308,7 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	defLoc := int32(tp.UVarint())
 
 	req := &tracepb.Request{
-		TraceId:      tp.traceID,
+		TraceId:      traceID,
 		SpanId:       spanID,
 		ParentSpanId: parentSpanID,
 		StartTime:    ts,
@@ -346,6 +351,10 @@ func (tp *traceParser) requestStart(ts uint64) error {
 			}
 
 			req.Uid = tp.String()
+
+			if tp.version >= 11 {
+				req.ExternalRequestId = tp.String()
+			}
 
 			if isRaw {
 				req.RawRequestHeaders = tp.parseHTTPHeaders()
@@ -1179,6 +1188,15 @@ func (tp *traceParser) parseRequestType() (tracepb.Request_Type, error) {
 		return tracepb.Request_PUBSUB_MSG, nil
 	default:
 		return -1, eerror.New("trace_parser", "unknown request type", map[string]any{"type": fmt.Sprintf("%x", b)})
+	}
+}
+
+func (tp *traceParser) parseTraceID() *tracepb.TraceID {
+	var traceID [16]byte
+	tp.Bytes(traceID[:])
+	return &tracepb.TraceID{
+		Low:  bin.Uint64(traceID[:8]),
+		High: bin.Uint64(traceID[8:]),
 	}
 }
 
