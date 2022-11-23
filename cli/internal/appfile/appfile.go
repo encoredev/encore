@@ -31,6 +31,19 @@ type File struct {
 	//
 	// Do not use these features in production without consulting the Encore team.
 	Experiments []experiments.Name `json:"experiments,omitempty"`
+
+	// Configure global CORS settings for the application which
+	// will be applied to all API gateways into the application.
+	GlobalCORS *CORS `json:"global_cors,omitempty"`
+}
+
+type CORS struct {
+	// Debug is a flag to enable debug logging for CORS
+	Debug bool `json:"debug,omitempty"`
+
+	// AllowHeaders allows an app to specify additional headers that should be
+	// accepted by the app
+	AllowHeaders []string `json:"allow_headers"`
 }
 
 // Parse parses the app file data into a File.
@@ -75,4 +88,13 @@ func Experiments(appRoot string) ([]experiments.Name, error) {
 		return nil, err
 	}
 	return f.Experiments, nil
+}
+
+// GlobalCORS returns the global CORS settings for the app located
+func GlobalCORS(appRoot string) (*CORS, error) {
+	f, err := ParseFile(filepath.Join(appRoot, Name))
+	if err != nil {
+		return nil, err
+	}
+	return f.GlobalCORS, nil
 }

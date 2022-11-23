@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/xid"
 	"golang.org/x/mod/modfile"
 
@@ -179,7 +180,7 @@ type generateConfigParams struct {
 	ConfigEnvID string
 }
 
-func (mgr *Manager) generateConfig(p generateConfigParams) *config.Runtime {
+func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, error) {
 	var (
 		sqlServers []*config.SQLServer
 		sqlDBs     []*config.SQLDatabase
@@ -270,6 +271,11 @@ func (mgr *Manager) generateConfig(p generateConfigParams) *config.Runtime {
 		envType = encore.EnvTest
 	}
 
+	globalCORS, err := p.App.GlobalCORS()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get global CORS")
+	}
+
 	return &config.Runtime{
 		AppID:           p.ConfigAppID,
 		AppSlug:         p.App.PlatformID(),
@@ -289,13 +295,15 @@ func (mgr *Manager) generateConfig(p generateConfigParams) *config.Runtime {
 		RedisDatabases:  redisDBs,
 		AuthKeys:        []config.EncoreAuthKey{p.AuthKey},
 		CORS: &config.CORS{
+			Debug: globalCORS.Debug,
 			AllowOriginsWithCredentials: []string{
 				// Allow all origins with credentials for local development;
 				// since it's only running on localhost for development this is safe.
 				config.UnsafeAllOriginWithCredentials,
 			},
-
-			AllowOriginsWithoutCredentials: []string{"*"},
+			AllowOriginsWithoutCredentials:  []string{"*"},
+			ExtraAllowedHeaders:             globalCORS.AllowHeaders,
+			AllowAccessWhenOnPrivateNetwork: true,
 		},
-	}
+	}, nil
 }

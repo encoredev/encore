@@ -294,6 +294,23 @@ func (i *Instance) Experiments(environ []string) (*experiments.Set, error) {
 	return experiments.NewSet(exp, environ)
 }
 
+// GlobalCORS returns the CORS configuration for the app which
+// will be applied against all API gateways into the app
+func (i *Instance) GlobalCORS() (appfile.CORS, error) {
+	cors, err := appfile.GlobalCORS(i.root)
+	if err != nil {
+		return appfile.CORS{}, err
+	}
+
+	// If there are no Global CORS return the default
+	if cors == nil {
+		return appfile.CORS{}, nil
+	}
+
+	return *cors, nil
+
+}
+
 func (i *Instance) Watch(fn WatchFunc) error {
 	if err := i.beginWatch(); err != nil {
 		return err
