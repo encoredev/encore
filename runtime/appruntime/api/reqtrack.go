@@ -32,6 +32,11 @@ type beginRequestParams struct {
 	// SpanID is the span ID to use.
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
+
+	// ExtRequestID specifies the externally-provided request id, if any.
+	// If not empty, it will be recorded as part of the "starting request" log message
+	// to facilitate request correlation.
+	ExtRequestID string
 }
 
 func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
@@ -97,7 +102,11 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	case model.AuthHandler:
 		req.Logger.Info().Msg("running auth handler")
 	default:
-		req.Logger.Info().Msg("starting request")
+		ev := req.Logger.Info()
+		if p.ExtRequestID != "" {
+			ev = ev.Str("ext_request_id", p.ExtRequestID)
+		}
+		ev.Msg("starting request")
 	}
 
 	return req, nil

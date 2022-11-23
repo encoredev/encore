@@ -50,6 +50,8 @@ message Request {
   bytes response_payload = 28;
   map<string, string> raw_request_headers = 29;
   map<string, string> raw_response_headers = 30;
+  // external_request_id is the value of the X-Request-ID header.
+  string external_request_id = 31;
 
   enum Type {
     RPC = 0;

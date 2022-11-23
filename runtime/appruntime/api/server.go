@@ -193,7 +193,19 @@ func (s *Server) register(reg HandlerRegistration, logRegistration bool) {
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			params := toUnnamedParams(ps)
 			traceID, _ := model.GenTraceID()
-			w.Header().Set("X-Encore-Trace-ID", traceID.String())
+			traceIDStr := traceID.String()
+
+			// Echo the X-Request-ID back to the caller if present,
+			// otherwise send back the trace id.
+			reqID := req.Header.Get("X-Request-ID")
+			if reqID == "" {
+				reqID = traceIDStr
+			}
+			w.Header().Set("X-Request-ID", reqID)
+
+			// Always send the trace id back.
+			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
+
 			s.processRequest(h, s.NewIncomingContext(w, req, params, traceID, model.AuthInfo{}))
 		}
 

@@ -119,6 +119,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 			tb.String(pp.Value)
 		}
 		tb.String(string(data.UserID))
+		tb.String(data.RequestHeaders.Get("X-Request-ID"))
 
 		if desc.Raw {
 			l.logHeaders(&tb, data.RequestHeaders)

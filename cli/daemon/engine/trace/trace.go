@@ -352,6 +352,10 @@ func (tp *traceParser) requestStart(ts uint64) error {
 
 			req.Uid = tp.String()
 
+			if tp.version >= 11 {
+				req.ExternalRequestId = tp.String()
+			}
+
 			if isRaw {
 				req.RawRequestHeaders = tp.parseHTTPHeaders()
 			} else {
