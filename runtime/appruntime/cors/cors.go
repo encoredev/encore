@@ -5,12 +5,18 @@ import (
 	"sort"
 
 	"github.com/rs/cors"
+	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/config"
 )
 
 func Wrap(cfg *config.CORS, handler http.Handler) http.Handler {
 	c := cors.New(Options(cfg))
+	if cfg.Debug {
+		logger := log.With().Str("subsystem", "cors").Logger()
+		logger.Debug().Msg("CORS system running in debug mode. All requests will be logged.")
+		c.Log = &logger
+	}
 	return c.Handler(handler)
 }
 
@@ -26,9 +32,11 @@ func Options(cfg *config.CORS) cors.Options {
 	allowedHeaders := append([]string{"Authorization", "Content-Type"}, cfg.ExtraAllowedHeaders...)
 
 	return cors.Options{
-		AllowCredentials: !cfg.DisableCredentials,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "TRACE", "CONNECT"},
-		AllowedHeaders:   allowedHeaders,
+		Debug:               cfg.Debug,
+		AllowCredentials:    !cfg.DisableCredentials,
+		AllowedMethods:      []string{"GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "TRACE", "CONNECT"},
+		AllowedHeaders:      allowedHeaders,
+		AllowPrivateNetwork: cfg.AllowPrivateNetworkAccess,
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.

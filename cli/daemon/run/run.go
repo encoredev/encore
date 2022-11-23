@@ -415,7 +415,7 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	}
 	go p.parseSymTable(params.BinPath)
 
-	runtimeCfg := r.Mgr.generateConfig(generateConfigParams{
+	runtimeCfg, err := r.Mgr.generateConfig(generateConfigParams{
 		App:         r.App,
 		RS:          r.ResourceServers,
 		Meta:        params.Meta,
@@ -425,6 +425,9 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 		ConfigAppID: r.ID,
 		ConfigEnvID: p.ID,
 	})
+	if err != nil {
+		return nil, err
+	}
 	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
 	cmd := exec.Command(params.BinPath)

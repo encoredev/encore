@@ -138,7 +138,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return err
 	}
 
-	runtimeCfg := mgr.generateConfig(generateConfigParams{
+	runtimeCfg, err := mgr.generateConfig(generateConfigParams{
 		App:         p.App,
 		RS:          rs,
 		Meta:        parse.Meta,
@@ -148,6 +148,9 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		ConfigAppID: GenID(),
 		ConfigEnvID: GenID(),
 	})
+	if err != nil {
+		return err
+	}
 	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
 	env := append(os.Environ(), p.Environ...)
