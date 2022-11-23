@@ -64,23 +64,23 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	return nil
 }
 
-func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMetric) []prompb.TimeSeries {
-	data := make([]prompb.TimeSeries, 0, len(collected))
+func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMetric) []*prompb.TimeSeries {
+	data := make([]*prompb.TimeSeries, 0, len(collected))
 
-	doAdd := func(val float64, metricName string, baseLabels []prompb.Label, svcIdx uint16) {
-		labels := make([]prompb.Label, len(baseLabels)+2)
+	doAdd := func(val float64, metricName string, baseLabels []*prompb.Label, svcIdx uint16) {
+		labels := make([]*prompb.Label, len(baseLabels)+2)
 		copy(labels, baseLabels)
-		labels[len(baseLabels)] = prompb.Label{
+		labels[len(baseLabels)] = &prompb.Label{
 			Name:  "__name__",
 			Value: metricName,
 		}
-		labels[len(baseLabels)+1] = prompb.Label{
+		labels[len(baseLabels)+1] = &prompb.Label{
 			Name:  "service",
 			Value: x.svcs[svcIdx],
 		}
-		data = append(data, prompb.TimeSeries{
+		data = append(data, &prompb.TimeSeries{
 			Labels: labels,
-			Samples: []prompb.Sample{
+			Samples: []*prompb.Sample{
 				{
 					Value:     val,
 					Timestamp: FromTime(now),
@@ -90,11 +90,11 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
-		var labels []prompb.Label
+		var labels []*prompb.Label
 		if n := len(m.Labels); n > 0 {
-			labels = make([]prompb.Label, 0, n)
+			labels = make([]*prompb.Label, 0, n)
 			for _, label := range m.Labels {
-				labels = append(labels, prompb.Label{
+				labels = append(labels, &prompb.Label{
 					Name:  label.Key,
 					Value: label.Value,
 				})

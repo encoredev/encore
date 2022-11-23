@@ -25,7 +25,7 @@ func TestGetMetricData(t *testing.T) {
 	tests := []struct {
 		name   string
 		metric metrics.CollectedMetric
-		data   []prompb.TimeSeries
+		data   []*prompb.TimeSeries
 	}{
 		{
 			name: "counter",
@@ -33,9 +33,9 @@ func TestGetMetricData(t *testing.T) {
 				Info: metricInfo{"test_counter", metrics.CounterType, 1},
 				Val:  []int64{10},
 			},
-			data: []prompb.TimeSeries{
+			data: []*prompb.TimeSeries{
 				{
-					Labels: []prompb.Label{
+					Labels: []*prompb.Label{
 						{
 							Name:  "__name__",
 							Value: "test_counter",
@@ -45,7 +45,7 @@ func TestGetMetricData(t *testing.T) {
 							Value: "foo",
 						},
 					},
-					Samples: []prompb.Sample{
+					Samples: []*prompb.Sample{
 						{
 							Value:     10,
 							Timestamp: FromTime(now),
@@ -60,9 +60,9 @@ func TestGetMetricData(t *testing.T) {
 				Info: metricInfo{"test_gauge", metrics.GaugeType, 2},
 				Val:  []float64{0.5},
 			},
-			data: []prompb.TimeSeries{
+			data: []*prompb.TimeSeries{
 				{
-					Labels: []prompb.Label{
+					Labels: []*prompb.Label{
 						{
 							Name:  "__name__",
 							Value: "test_gauge",
@@ -72,7 +72,7 @@ func TestGetMetricData(t *testing.T) {
 							Value: "bar",
 						},
 					},
-					Samples: []prompb.Sample{
+					Samples: []*prompb.Sample{
 						{
 							Value:     0.5,
 							Timestamp: FromTime(now),
@@ -88,9 +88,9 @@ func TestGetMetricData(t *testing.T) {
 				Labels: []metrics.KeyValue{{"key", "value"}},
 				Val:    []float64{-1.5},
 			},
-			data: []prompb.TimeSeries{
+			data: []*prompb.TimeSeries{
 				{
-					Labels: []prompb.Label{
+					Labels: []*prompb.Label{
 						{
 							Name:  "key",
 							Value: "value",
@@ -104,7 +104,7 @@ func TestGetMetricData(t *testing.T) {
 							Value: "foo",
 						},
 					},
-					Samples: []prompb.Sample{
+					Samples: []*prompb.Sample{
 						{
 							Value:     -1.5,
 							Timestamp: FromTime(now),

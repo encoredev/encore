@@ -14,9 +14,7 @@
 syntax = "proto3";
 package prometheus;
 
-option go_package = "prompb";
-
-import "gogoproto/gogo.proto";
+option go_package = "encore.dev/appruntime/metrics/prometheus/prompb";
 
 message MetricMetadata {
   enum MetricType {
@@ -47,7 +45,7 @@ message Sample {
 
 message Exemplar {
   // Optional, can be empty.
-  repeated Label labels = 1 [(gogoproto.nullable) = false];
+  repeated Label labels = 1;
   double value = 2;
   // timestamp is in ms format, see model/timestamp/timestamp.go for
   // conversion from time.Time to Prometheus timestamp.
@@ -123,10 +121,10 @@ message BucketSpan {
 message TimeSeries {
   // For a timeseries to be valid, and for the samples and exemplars
   // to be ingested by the remote system properly, the labels field is required.
-  repeated Label labels         = 1 [(gogoproto.nullable) = false];
-  repeated Sample samples       = 2 [(gogoproto.nullable) = false];
-  repeated Exemplar exemplars   = 3 [(gogoproto.nullable) = false];
-  repeated Histogram histograms = 4 [(gogoproto.nullable) = false];
+  repeated Label labels         = 1;
+  repeated Sample samples       = 2;
+  repeated Exemplar exemplars   = 3;
+  repeated Histogram histograms = 4;
 }
 
 message Label {
@@ -135,7 +133,7 @@ message Label {
 }
 
 message Labels {
-  repeated Label labels = 1 [(gogoproto.nullable) = false];
+  repeated Label labels = 1;
 }
 
 // Matcher specifies a rule, which can match or set of labels or not.
@@ -180,7 +178,7 @@ message Chunk {
 // ChunkedSeries represents single, encoded time series.
 message ChunkedSeries {
   // Labels should be sorted.
-  repeated Label labels = 1 [(gogoproto.nullable) = false];
+  repeated Label labels = 1;
   // Chunks will be in start time order and may overlap.
-  repeated Chunk chunks = 2 [(gogoproto.nullable) = false];
+  repeated Chunk chunks = 2;
 }
