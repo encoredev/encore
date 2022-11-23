@@ -61,6 +61,19 @@ func New(appID string) (*Watcher, error) {
 func (w *Watcher) RecursivelyWatch(folder string) error {
 	folder = filepath.Clean(folder)
 
+	// We don't want to watch certain folders as they'll never impact
+	// an Encore app, and they cause an extreme amount of noise.
+	folderName := filepath.Base(folder)
+	if folderName == "node_modules" {
+		return nil
+	}
+
+	// Don't watch hidden folders like `.git` or `.idea` as
+	// they also don't impact an Encore app.
+	if len(folderName) > 1 && folderName[0] == '.' {
+		return nil
+	}
+
 	w.mutex.Lock()
 
 	// Track the fact we're watching this directory
