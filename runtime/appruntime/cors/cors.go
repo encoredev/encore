@@ -29,7 +29,13 @@ func Options(cfg *config.CORS) cors.Options {
 	hasWildcardOriginWithoutCreds := cfg.AllowOriginsWithoutCredentials == nil || sortedSliceContains(originsWithoutCreds, "*")
 	hasUnsafeWildcardOriginWithCreds := sortedSliceContains(originsCreds, config.UnsafeAllOriginWithCredentials)
 
-	allowedHeaders := append([]string{"Authorization", "Content-Type"}, cfg.ExtraAllowedHeaders...)
+	// allowedHeaders are the headers allowed through CORS.
+	allowedHeaders := []string{
+		"Authorization",
+		"Content-Type",
+		"X-Request-ID",
+	}
+	allowedHeaders = append(allowedHeaders, cfg.ExtraAllowedHeaders...)
 
 	return cors.Options{
 		Debug:               cfg.Debug,
