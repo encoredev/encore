@@ -276,9 +276,10 @@ const (
 
 type Metrics struct {
 	CollectionInterval time.Duration                 `json:"collection_interval,omitempty"`
-	CloudMonitoring    *GCPCloudMonitoringProvider   `json:"gcp_cloud_monitoring,omitempty"`
-	CloudWatch         *AWSCloudWatchMetricsProvider `json:"aws_cloud_watch,omitempty"`
-	LogsBased          *LogsBasedMetricsProvider     `json:"logs_based,omitempty"`
+	CloudMonitoring *GCPCloudMonitoringProvider    `json:"gcp_cloud_monitoring,omitempty"`
+	CloudWatch      *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
+	LogsBased       *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
+	Prometheus      *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
 }
 
 type LogsBasedMetricsProvider struct{}
@@ -299,4 +300,9 @@ type GCPCloudMonitoringProvider struct {
 type AWSCloudWatchMetricsProvider struct {
 	// Namespace is the namespace to use for metrics.
 	Namespace string
+}
+
+type PrometheusRemoteWriteProvider struct {
+	// The URL of the endpoint to send samples to.
+	RemoteWriteURL string
 }
