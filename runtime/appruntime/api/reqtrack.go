@@ -25,6 +25,10 @@ type beginRequestParams struct {
 	DefLoc int32
 	Data   *model.RPCData
 
+	// TraceID is the trace ID to use.
+	// If it is the zero value it will be copied from the parent request.
+	TraceID model.TraceID
+
 	// SpanID is the span ID to use.
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
@@ -42,6 +46,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 
 	req := &model.Request{
 		Type:    p.Type,
+		TraceID: p.TraceID,
 		SpanID:  spanID,
 		DefLoc:  p.DefLoc,
 		Start:   s.clock.Now(),
@@ -50,18 +55,6 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	data := req.RPCData
-	logCtx := s.rootLogger.With().Str("service", data.Desc.Service).Str("endpoint", data.Desc.Endpoint)
-	if data.UserID != "" {
-		logCtx = logCtx.Str("uid", string(data.UserID))
-	}
-
-	prevReq := s.rt.Current().Req
-	if prevReq != nil && prevReq.Test != nil {
-		logCtx = logCtx.Str("test", prevReq.Test.Current.Name())
-	}
-
-	reqLogger := logCtx.Logger()
-	req.Logger = &reqLogger
 
 	// Update request data based on call options, if any
 	if opts, _ := ctx.Value(callOptionsKey).(*CallOptions); opts != nil {
@@ -75,10 +68,30 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		}
 	}
 
+	// Begin the request, copying data over from the previous request.
 	s.rt.BeginRequest(req)
 	if curr := s.rt.Current(); curr.Trace != nil {
 		curr.Trace.BeginRequest(req, curr.Goctr)
 	}
+
+	// Now that we have up-to-date information in req (possibly copied from
+	// the parent request), construct our logger.
+	desc := req.RPCData.Desc
+	logCtx := s.rootLogger.With().Str("service", desc.Service).Str("endpoint", desc.Endpoint)
+	if data.UserID != "" {
+		logCtx = logCtx.Str("uid", string(data.UserID))
+	}
+
+	if req.Test != nil {
+		logCtx = logCtx.Str("test", req.Test.Current.Name())
+	}
+
+	if req.TraceID != (model.TraceID{}) {
+		logCtx = logCtx.Str("trace_id", req.TraceID.String())
+	}
+
+	reqLogger := logCtx.Logger()
+	req.Logger = &reqLogger
 
 	switch req.Type {
 	case model.AuthHandler:

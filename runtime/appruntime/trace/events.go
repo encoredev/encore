@@ -98,6 +98,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 	tb := NewBuffer(1 + 8 + 8 + 8 + 8 + 8 + 8 + 64)
 	tb.Byte(byte(req.Type))
 	tb.Now()
+	tb.Bytes(req.TraceID[:])
 	tb.Bytes(req.SpanID[:])
 	tb.Bytes(req.ParentID[:])
 	tb.UVarint(uint64(goid))

@@ -143,8 +143,9 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	}
 
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
-		Type:   model.RPCCall,
-		DefLoc: d.DefLoc,
+		Type:    model.RPCCall,
+		DefLoc:  d.DefLoc,
+		TraceID: c.traceID,
 
 		Data: &model.RPCData{
 			Desc:               d.rpcDesc(),
@@ -406,7 +407,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 			return
 		}
 
-		ec := c.server.newExecContext(c.ctx, params, model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData})
+		ec := c.server.newExecContext(c.ctx, params, reqObj.TraceID, model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData})
 		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
 		})
