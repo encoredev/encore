@@ -301,9 +301,9 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 				// since it's only running on localhost for development this is safe.
 				config.UnsafeAllOriginWithCredentials,
 			},
-			AllowOriginsWithoutCredentials:  []string{"*"},
-			ExtraAllowedHeaders:             globalCORS.AllowHeaders,
-			AllowAccessWhenOnPrivateNetwork: true,
+			AllowOriginsWithoutCredentials: []string{"*"},
+			ExtraAllowedHeaders:            globalCORS.AllowHeaders,
+			AllowPrivateNetworkAccess:      true,
 		},
 	}, nil
 }

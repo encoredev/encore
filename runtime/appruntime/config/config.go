@@ -81,7 +81,7 @@ type CORS struct {
 	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials,omitempty"`
 
 	// ExtraAllowedHeaders specifies extra headers to allow, beyond
-	// the default set of {"Origin", "Authorization", "Content-Type"}.
+	// the default set of {"Authorization", "Content-Type"}.
 	// As a special case, if the list contains "*" all headers are allowed.
 	ExtraAllowedHeaders []string `json:"raw_allowed_headers,omitempty"`
 
@@ -89,7 +89,7 @@ type CORS struct {
 	// on private networks from websites.
 	//
 	// See: https://wicg.github.io/private-network-access/
-	AllowAccessWhenOnPrivateNetwork bool `json:"allow_private_network_access,omitempty"`
+	AllowPrivateNetworkAccess bool `json:"allow_private_network_access,omitempty"`
 }
 
 type CommitInfo struct {

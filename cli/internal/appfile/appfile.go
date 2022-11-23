@@ -42,7 +42,9 @@ type CORS struct {
 	Debug bool `json:"debug,omitempty"`
 
 	// AllowHeaders allows an app to specify additional headers that should be
-	// accepted by the app
+	// accepted by the app.
+	//
+	// If the list contains "*", then all headers are allowed.
 	AllowHeaders []string `json:"allow_headers"`
 }
 
