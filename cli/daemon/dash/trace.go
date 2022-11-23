@@ -70,6 +70,7 @@ type Request struct {
 	ResponsePayload []byte                     `json:"response_payload"`
 	RawReqHeaders   []KeyValue[string, string] `json:"raw_req_headers"`
 	RawRespHeaders  []KeyValue[string, string] `json:"raw_resp_headers"`
+	ExtRequestID    string                     `json:"ext_request_id"`
 
 	// Deprecated: Use RequestPayload, ResponsePayload etc instead.
 	Inputs  [][]byte `json:"inputs"`
@@ -382,6 +383,7 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		PathParams:     sliceOrEmpty(req.PathParams),
 		RawReqHeaders:  headersToKV(req.RawRequestHeaders),
 		RawRespHeaders: headersToKV(req.RawResponseHeaders),
+		ExtRequestID:   req.ExternalRequestId,
 
 		Inputs:   inputs,
 		Outputs:  outputs,
