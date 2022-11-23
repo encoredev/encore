@@ -6,16 +6,16 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/bep/debounce"
 	"github.com/cockroachdb/errors"
-	"github.com/rjeczalik/notify"
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/run"
 	"encr.dev/compiler"
+	"encr.dev/pkg/watcher"
 )
 
 func (s *Server) watchApps() {
@@ -32,19 +32,8 @@ func (s *Server) watchApps() {
 	}
 }
 
-func (s *Server) onWatchEvent(i *apps.Instance, ev notify.EventInfo) {
-	path := ev.Path()
-	ext := filepath.Ext(path)
-	filename := filepath.Base(path)
-	switch ext {
-	case ".go", ".mod", ".sum", ".work":
-		// Our code may have changed; regenerate
-	default:
-		return
-	}
-
-	if strings.HasPrefix(strings.ToLower(filename), "encore.gen.") {
-		// Ignore generated code
+func (s *Server) onWatchEvent(i *apps.Instance, events []watcher.Event) {
+	if run.IgnoreEvents(events) {
 		return
 	}
 

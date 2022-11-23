@@ -3,67 +3,69 @@ package run
 import (
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/rjeczalik/notify"
-
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/watcher"
 )
 
 // watch watches the given app for changes, and reports
 // them on c.
 func (mgr *Manager) watch(run *Run) error {
-	evs := make(chan notify.EventInfo)
-	if err := notify.Watch(filepath.Join(run.App.Root(), "..."), evs, notify.All); err != nil {
+	sub, err := run.App.Watch(func(i *apps.Instance, event []watcher.Event) {
+		if IgnoreEvents(event) {
+			return
+		}
+
+		mgr.RunStdout(run, []byte("Changes detected, recompiling...\n"))
+		if err := run.Reload(); err != nil {
+			if errList := errlist.Convert(err); errList != nil {
+				mgr.RunError(run, errList)
+			} else {
+				errStr := err.Error()
+				if !strings.HasSuffix(errStr, "\n") {
+					errStr += "\n"
+				}
+				mgr.RunStderr(run, []byte(errStr))
+			}
+		} else {
+			mgr.RunStdout(run, []byte("Reloaded successfully.\n"))
+		}
+	})
+	if err != nil {
 		return err
 	}
 
 	go func() {
 		<-run.Done()
-		notify.Stop(evs)
+		run.App.Unwatch(sub)
 	}()
 
-	go func() {
-		for {
-			select {
-			case <-run.Done():
-				return
-			case ev := <-evs:
-				if ignoreEvent(ev) {
-					continue
-				}
-				// We've seen that some editors like vim rename the .go files to another extension,
-				// which breaks our parser since it doesn't recognize the file as a .go file.
-				// This race is annoying, but in practice a 100ms delay is imperceptible since
-				// the user is busy working in their editor.
-				time.Sleep(100 * time.Millisecond)
-				mgr.RunStdout(run, []byte("Changes detected, recompiling...\n"))
-				if err := run.Reload(); err != nil {
-					if errList := errlist.Convert(err); errList != nil {
-						mgr.RunError(run, errList)
-					} else {
-						errStr := err.Error()
-						if !strings.HasSuffix(errStr, "\n") {
-							errStr += "\n"
-						}
-						mgr.RunStderr(run, []byte(errStr))
-					}
-				} else {
-					mgr.RunStdout(run, []byte("Reloaded successfully.\n"))
-				}
-			}
-		}
-	}()
 	return nil
 }
 
-func ignoreEvent(ev notify.EventInfo) bool {
-	path := ev.Path()
+// IgnoreEvents will return true if _all_ events are on files that should be ignored
+// as the do not impact the running app, or are the result of Encore itself generating code.
+func IgnoreEvents(events []watcher.Event) bool {
+	for _, event := range events {
+		if !ignoreEvent(event) {
+			return false
+		}
+	}
+	return true
+}
 
-	// Ignore non-Go files
-	ext := filepath.Ext(path)
+func ignoreEvent(ev watcher.Event) bool {
+	filename := filepath.Base(ev.Path)
+	if strings.HasPrefix(strings.ToLower(filename), "encore.gen.") {
+		// Ignore generated code
+		return true
+	}
+
+	// Ignore files which wouldn't impact the running app
+	ext := filepath.Ext(ev.Path)
 	switch ext {
-	case ".go", ".sql", ".mod", ".sum", ".app", ".cue":
+	case ".go", ".sql", ".mod", ".sum", ".work", ".app", ".cue":
 		return false
 	default:
 		return true
