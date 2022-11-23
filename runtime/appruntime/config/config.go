@@ -81,7 +81,7 @@ type CORS struct {
 	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials,omitempty"`
 
 	// ExtraAllowedHeaders specifies extra headers to allow, beyond
-	// the default set of {"Authorization", "Content-Type"}.
+	// the default set always recognized by Encore.
 	// As a special case, if the list contains "*" all headers are allowed.
 	ExtraAllowedHeaders []string `json:"raw_allowed_headers,omitempty"`
 

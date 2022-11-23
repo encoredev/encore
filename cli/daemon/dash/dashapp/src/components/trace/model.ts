@@ -50,6 +50,7 @@ export interface Request {
   response_payload: Base64EncodedBytes | null;
   raw_req_headers: KeyValue[];
   raw_resp_headers: KeyValue[];
+  ext_request_id: string;
 
   err: Base64EncodedBytes | null;
   err_stack: Stack | null;
