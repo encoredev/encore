@@ -14,6 +14,7 @@ import (
 
 // AppMain is the entrypoint to the Encore Application.
 func AppMain() {
+	singleton.ReconfigureZerologFormat()
 	if err := singleton.Run(); err != nil && err != io.EOF {
 		singleton.RootLogger().Fatal().Err(err).Msg("could not run")
 	}

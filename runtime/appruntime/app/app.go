@@ -3,6 +3,7 @@ package app
 import (
 	"io"
 	"os"
+	"time"
 
 	"github.com/benbjohnson/clock"
 	jsoniter "github.com/json-iterator/go"
@@ -20,6 +21,7 @@ import (
 	"encore.dev/beta/auth"
 	appCfg "encore.dev/config"
 	"encore.dev/et"
+	"encore.dev/internal/cloud"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -164,5 +166,17 @@ func metricsExporter(cfg *runtimeCfg.Config, logger zerolog.Logger) metrics.Expo
 		return metrics.NewLogsBasedExporter(logger)
 	default:
 		panic("unexpected metrics exporter")
+	}
+}
+
+// ReconfigureZerologFormat reconfigures the zerolog Logger's output format
+// based on the cloud provider.
+func (app *App) ReconfigureZerologFormat() {
+	switch app.cfg.Runtime.EnvCloud {
+	case cloud.GCP:
+		zerolog.LevelFieldName = "severity"
+		zerolog.TimestampFieldName = "timestamp"
+		zerolog.TimeFieldFormat = time.RFC3339Nano
+	default:
 	}
 }

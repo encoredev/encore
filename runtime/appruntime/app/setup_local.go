@@ -46,8 +46,3 @@ func Listen() (net.Listener, error) {
 
 	return yamux.Server(rwc, yamux.DefaultConfig())
 }
-
-// ConfigureZerologOutput configures the zerolog Logger's output format.
-func ConfigureZerologOutput() {
-	// Use default settings for local development.
-}
