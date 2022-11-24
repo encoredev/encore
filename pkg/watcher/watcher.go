@@ -3,6 +3,7 @@ package watcher
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"encr.dev/pkg/eerror"
 )
 
 type Watcher struct {
@@ -31,7 +34,7 @@ type Watcher struct {
 func New(appID string) (*Watcher, error) {
 	fswatcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return nil, err
+		return nil, eerror.Wrap(err, "watcher", "unable to create watcher", map[string]interface{}{"app": appID})
 	}
 
 	logger := log.With().Str("component", "watcher").Str("app", appID).Logger()
@@ -59,42 +62,31 @@ func New(appID string) (*Watcher, error) {
 }
 
 func (w *Watcher) RecursivelyWatch(folder string) error {
-	folder = filepath.Clean(folder)
-
-	// We don't want to watch certain folders as they'll never impact
-	// an Encore app, and they cause an extreme amount of noise.
-	folderName := filepath.Base(folder)
-	if folderName == "node_modules" {
-		return nil
-	}
-
-	// Don't watch hidden folders like `.git` or `.idea` as
-	// they also don't impact an Encore app.
-	if len(folderName) > 1 && folderName[0] == '.' {
-		return nil
-	}
-
-	w.mutex.Lock()
-
-	// Track the fact we're watching this directory
-	if _, found := w.directories[folder]; found {
-		w.mutex.Unlock()
-		return nil
-	}
-	w.directories[folder] = struct{}{}
-	w.mutex.Unlock() // unlock here to prevent reentrant locks during recursion
-
-	if err := w.watcher.Add(folder); err != nil {
-		return err
-	}
-
-	return filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
+	return filepath.WalkDir(folder, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return eerror.Wrap(err, "watcher", "unable to walk directory", map[string]any{"path": path})
 		}
 
 		if info.IsDir() {
-			return w.RecursivelyWatch(path)
+			folder := filepath.Clean(path)
+
+			if IgnoreFolder(folder) {
+				return filepath.SkipDir
+			}
+
+			// Track the fact we're watching this directory
+			w.mutex.Lock()
+			if _, found := w.directories[folder]; found {
+				w.mutex.Unlock()
+				return filepath.SkipDir
+			}
+			w.directories[folder] = struct{}{}
+			w.mutex.Unlock() // unlock here to prevent reentrant locks during recursion
+
+			// Now start watching this folder
+			if err := w.watcher.Add(folder); err != nil {
+				return eerror.Wrap(err, "watcher", "unable to add folder to watch", map[string]any{"folder": folder})
+			}
 		}
 
 		return nil
@@ -126,10 +118,10 @@ func (w *Watcher) listenForChangeEvents() {
 
 func (w *Watcher) handleCreateEvent(path string) {
 	if info, err := os.Stat(path); err != nil {
-		w.log.Err(err).Str("path", path).Msg("Unable to stat file")
+		w.log.Err(err).Str("path", path).Msg("unable to stat file")
 	} else if info.IsDir() {
 		if err := w.RecursivelyWatch(path); err != nil {
-			w.log.Err(err).Str("path", path).Msg("Unable to start watching new directory")
+			w.log.Err(err).Str("path", path).Msg("unable to start watching new directory")
 		}
 	} else {
 		w.recordEventInBatch(path, CREATED, info)
@@ -137,9 +129,18 @@ func (w *Watcher) handleCreateEvent(path string) {
 }
 
 func (w *Watcher) handleDeleteEvent(path string) {
+	path = filepath.Clean(path)
+
 	// If it's a directory we're watching, stop watching it
 	w.mutex.Lock()
-	delete(w.directories, path)
+	for watchedFolder := range w.directories {
+		if strings.HasPrefix(watchedFolder, path) || watchedFolder == path {
+			if err := w.watcher.Remove(watchedFolder); err != nil {
+				w.log.Err(err).Str("path", watchedFolder).Msg("unable to stop watching deleted directory")
+			}
+			delete(w.directories, watchedFolder)
+		}
+	}
 	w.mutex.Unlock()
 
 	w.recordEventInBatch(path, DELETED, nil)
@@ -147,7 +148,7 @@ func (w *Watcher) handleDeleteEvent(path string) {
 
 func (w *Watcher) handleWriteEvent(path string) {
 	if info, err := os.Stat(path); err != nil {
-		w.log.Err(err).Str("path", path).Msg("Unable to stat file")
+		w.log.Err(err).Str("path", path).Msg("unable to stat file")
 	} else if !info.IsDir() {
 		w.recordEventInBatch(path, MODIFIED, info)
 	}
