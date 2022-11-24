@@ -10,9 +10,9 @@ import (
 	"github.com/logrusorgru/aurora/v3"
 
 	"encr.dev/cli/daemon/run"
-	"encr.dev/cli/internal/appfile"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 

@@ -6,8 +6,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/run"
-	"encr.dev/cli/internal/appfile"
 	"encr.dev/internal/optracker"
+	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 

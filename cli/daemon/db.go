@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/pgproxy"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
