@@ -2,6 +2,7 @@
 import type {
   Loc,
   Type,
+  Builtin,
   Decl,
 } from "../../../../encore/parser/schema/v1/schema.pb";
 
@@ -365,8 +366,7 @@ export interface Metric {
   type: Metric_MetricType;
   /** the service the metric is exclusive to, if any. */
   service_name?: string | undefined;
-  /** the labels struct type, or nil if no labels */
-  labels_type: Type;
+  labels: Metric_Label[];
 }
 
 export enum Metric_MetricType {
@@ -374,4 +374,10 @@ export enum Metric_MetricType {
   GAUGE = "GAUGE",
   HISTOGRAM = "HISTOGRAM",
   UNRECOGNIZED = "UNRECOGNIZED",
+}
+
+export interface Metric_Label {
+  key: string;
+  type: Builtin;
+  doc: string;
 }

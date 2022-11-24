@@ -372,10 +372,18 @@ func parseMiddleware(mw *est.Middleware) *meta.Middleware {
 }
 
 func parseMetric(m *est.Metric) *meta.Metric {
+	var labels []*meta.Metric_Label
+	for _, label := range m.Labels {
+		labels = append(labels, &meta.Metric_Label{
+			Key:  label.Key,
+			Type: label.Type,
+			Doc:  label.Doc,
+		})
+	}
 	pb := &meta.Metric{
-		Name:       m.Ident().Name,
-		Doc:        m.Doc,
-		LabelsType: m.LabelsType,
+		Name:   m.Ident().Name,
+		Doc:    m.Doc,
+		Labels: labels,
 	}
 	if m.Svc != nil {
 		pb.ServiceName = &m.Svc.Name

@@ -301,11 +301,17 @@ message Metric {
   string          doc          = 2; // the doc string
   MetricType      type         = 3;
   optional string service_name = 4; // the service the metric is exclusive to, if any.
-  schema.v1.Type  labels_type  = 5; // the labels struct type, or nil if no labels
+  repeated Label  labels       = 5;
 
   enum MetricType {
     COUNTER = 0;
     GAUGE = 1;
     HISTOGRAM = 2;
+  }
+
+  message Label {
+    string key             = 1;
+    schema.v1.Builtin type = 2;
+    string doc             = 3;
   }
 }

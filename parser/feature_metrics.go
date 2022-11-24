@@ -106,7 +106,7 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 			}
 			metric.LabelsType = p.resolveType(file.Pkg, file, typeArgs[0], nil)
 			metric.LabelsAST = typeArgs[0]
-			p.validateMetricLabels(metric, con)
+			p.setMetricLabels(metric, con)
 		}
 
 		p.metrics = append(p.metrics, metric)
@@ -115,8 +115,7 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 	}
 }
 
-// validateMetricLabels validates a parsed cache keyspace.
-func (p *parser) validateMetricLabels(m *est.Metric, con metricConstructor) {
+func (p *parser) setMetricLabels(m *est.Metric, con metricConstructor) {
 	labels := m.LabelsType
 	named := labels.GetNamed()
 	if named == nil {
@@ -152,6 +151,12 @@ func (p *parser) validateMetricLabels(m *est.Metric, con metricConstructor) {
 		default:
 			p.errInSrc(srcerrors.MetricLabelsFieldInvalidType(p.fset, m.LabelsAST, "metrics."+con.FuncName, f.Name, f.Typ))
 		}
+
+		m.Labels = append(m.Labels, &est.Label{
+			Key:  label,
+			Type: f.Typ.GetBuiltin(),
+			Doc:  f.Doc,
+		})
 	}
 }
 
