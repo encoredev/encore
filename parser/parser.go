@@ -186,7 +186,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		Middleware:    p.middleware,
 	}
 
-	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset)
+	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset, p.cfg.Experiments)
 	if err != nil {
 		return nil, err
 	}
