@@ -14,8 +14,8 @@ import (
 	"go4.org/syncutil"
 
 	"encr.dev/cli/daemon/internal/manifest"
-	"encr.dev/cli/internal/appfile"
-	"encr.dev/internal/experiments"
+	"encr.dev/pkg/appfile"
+	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/watcher"
 )
 

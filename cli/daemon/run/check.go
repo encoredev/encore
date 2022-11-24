@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"encr.dev/cli/internal/appfile"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
-	"encr.dev/internal/experiments"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/vcs"
 )
 

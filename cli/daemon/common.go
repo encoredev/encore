@@ -15,11 +15,11 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/run"
-	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/onboarding"
-	"encr.dev/internal/experiments"
 	"encr.dev/parser"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
