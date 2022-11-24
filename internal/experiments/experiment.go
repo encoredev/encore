@@ -18,15 +18,15 @@ const (
 	// to be overridden with values from a ".secrets.local" file.
 	LocalSecretsOverride Name = "local-secrets-override"
 
-	// DefaultEncoreMetrics is an experiment to enable default Encore metrics.
-	DefaultEncoreMetrics Name = "default-encore-metrics"
+	// Metrics is an experiment to enable metrics.
+	Metrics Name = "metrics"
 )
 
 // Valid reports whether the given name is a known experiment.
 func (x Name) Valid() bool {
 	switch x {
 	case LocalSecretsOverride,
-		DefaultEncoreMetrics:
+		Metrics:
 		return true
 	default:
 		return false
