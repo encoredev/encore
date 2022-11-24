@@ -5,10 +5,8 @@
 package eerror
 
 import (
-	"encoding/json"
 	"fmt"
-	"net"
-	"time"
+	"strings"
 
 	"github.com/cockroachdb/errors/errbase"
 	"github.com/pkg/errors"
@@ -83,7 +81,15 @@ func WithMeta(err error, meta map[string]any) error {
 
 // Error returns a simple string of the error
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s: %s", e.Module, e.Message)
+	if e.cause != nil {
+		cause := e.cause.Error()
+
+		// Remove the module prefix if it's the same
+		cause = strings.TrimPrefix(cause, "["+e.Module+"]: ")
+
+		return fmt.Sprintf("[%s]: %s: %s", e.Module, e.Message, cause)
+	}
+	return fmt.Sprintf("[%s]: %s", e.Module, e.Message)
 }
 
 // Cause implements Causer for some libraries and returns the underlying cause
@@ -101,9 +107,40 @@ func (e *Error) Unwrap() error {
 func (e *Error) StackTrace() errors.StackTrace {
 	frames := make([]errors.Frame, len(e.Stack))
 	for i, frame := range e.Stack {
-		frames[i] = errors.Frame(frame.PC)
+		// Note: for historic reasons the PC is off by 1 in github.com/pkg/errors
+		frames[i] = errors.Frame(frame.PC + 1)
 	}
 	return frames
+}
+
+// MarshalZerologObject provides a strongly-typed and encoding-agnostic interface
+// to be implemented by types used with Event/Context's Object methods.
+func (e *Error) MarshalZerologObject(evt *zerolog.Event) {
+	LogWithMeta(evt, e)
+}
+
+// BottomStackTraceFrom returns the deepest stack trace from the given error
+func BottomStackTraceFrom(err error) (rtn errors.StackTrace) {
+	count := 0
+	for err != nil && count < 100 {
+		count++
+
+		// If we're an error set our return data
+		if e, ok := err.(*Error); ok {
+			rtn = e.StackTrace()
+		}
+
+		// Recurse
+		switch typed := err.(type) {
+		case interface{ Unwrap() error }:
+			err = typed.Unwrap()
+
+		case interface{ Cause() error }:
+			err = typed.Cause()
+		}
+	}
+
+	return
 }
 
 // MetaFrom will return the merged metadata from any eerror.Error objects in the errors
@@ -135,97 +172,4 @@ func mergeMeta(err error, meta map[string]any) {
 		}
 	}
 
-}
-
-// LogWithMeta merges in the metadata from the errors into the log context
-func LogWithMeta(evt *zerolog.Event, err error) *zerolog.Event {
-	if err == nil {
-		return evt
-	}
-
-	evt = evt.Err(err)
-	meta := MetaFrom(err)
-	for key, value := range meta {
-		switch value := value.(type) {
-		case json.RawMessage:
-			evt = evt.RawJSON(key, value)
-		case error:
-			evt = evt.AnErr(key, value)
-		case time.Time:
-			evt = evt.Time(key, value)
-		case time.Duration:
-			evt = evt.Dur(key, value)
-		case net.IP:
-			evt = evt.IPAddr(key, value)
-		case net.IPNet:
-			evt = evt.IPPrefix(key, value)
-		case net.HardwareAddr:
-			evt = evt.MACAddr(key, value)
-		case string:
-			evt = evt.Str(key, value)
-		case int:
-			evt = evt.Int(key, value)
-		case int8:
-			evt = evt.Int8(key, value)
-		case int16:
-			evt = evt.Int16(key, value)
-		case int32:
-			evt = evt.Int32(key, value)
-		case int64:
-			evt = evt.Int64(key, value)
-		case uint:
-			evt = evt.Uint(key, value)
-		case uint8:
-			evt = evt.Uint8(key, value)
-		case uint16:
-			evt = evt.Uint16(key, value)
-		case uint32:
-			evt = evt.Uint32(key, value)
-		case uint64:
-			evt = evt.Uint64(key, value)
-		case float32:
-			evt = evt.Float32(key, value)
-		case float64:
-			evt = evt.Float64(key, value)
-		case bool:
-			evt = evt.Bool(key, value)
-		case []error:
-			evt = evt.Errs(key, value)
-		case []time.Time:
-			evt = evt.Times(key, value)
-		case []time.Duration:
-			evt = evt.Durs(key, value)
-		case []string:
-			evt = evt.Strs(key, value)
-		case []int:
-			evt = evt.Ints(key, value)
-		case []int8:
-			evt = evt.Ints8(key, value)
-		case []int16:
-			evt = evt.Ints16(key, value)
-		case []int32:
-			evt = evt.Ints32(key, value)
-		case []int64:
-			evt = evt.Ints64(key, value)
-		case []uint:
-			evt = evt.Uints(key, value)
-		case []byte: // uint8 / byte are the same thing so we'll default to bytes
-			evt = evt.Bytes(key, value)
-		case []uint16:
-			evt = evt.Uints16(key, value)
-		case []uint32:
-			evt = evt.Uints32(key, value)
-		case []uint64:
-			evt = evt.Uints64(key, value)
-		case []float32:
-			evt = evt.Floats32(key, value)
-		case []float64:
-			evt = evt.Floats64(key, value)
-		case []bool:
-			evt = evt.Bools(key, value)
-		default:
-			evt = evt.Interface(key, value)
-		}
-	}
-	return evt
 }
