@@ -21,6 +21,7 @@ type Static struct {
 	EncoreCompiler string
 	AppCommit      CommitInfo // The commit which this service was built from
 
+	CORSHeaders  []string // Headers required to be allowed by cors, pulled from the static analysis
 	PubsubTopics map[string]*StaticPubsubTopic
 
 	Testing              bool

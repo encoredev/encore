@@ -10,8 +10,8 @@ import (
 	"encore.dev/appruntime/config"
 )
 
-func Wrap(cfg *config.CORS, handler http.Handler) http.Handler {
-	c := cors.New(Options(cfg))
+func Wrap(cfg *config.CORS, staticHeaders []string, handler http.Handler) http.Handler {
+	c := cors.New(Options(cfg, staticHeaders))
 	if cfg.Debug {
 		logger := log.With().Str("subsystem", "cors").Logger()
 		logger.Debug().Msg("CORS system running in debug mode. All requests will be logged.")
@@ -20,7 +20,7 @@ func Wrap(cfg *config.CORS, handler http.Handler) http.Handler {
 	return c.Handler(handler)
 }
 
-func Options(cfg *config.CORS) cors.Options {
+func Options(cfg *config.CORS, staticHeaders []string) cors.Options {
 	// Sort origins to allow for binary search
 	originsCreds := sortedSliceCopy(cfg.AllowOriginsWithCredentials)
 	originsWithoutCreds := sortedSliceCopy(cfg.AllowOriginsWithoutCredentials)
@@ -36,6 +36,7 @@ func Options(cfg *config.CORS) cors.Options {
 		"X-Request-ID",
 	}
 	allowedHeaders = append(allowedHeaders, cfg.ExtraAllowedHeaders...)
+	allowedHeaders = append(allowedHeaders, staticHeaders...)
 
 	return cors.Options{
 		Debug:               cfg.Debug,
