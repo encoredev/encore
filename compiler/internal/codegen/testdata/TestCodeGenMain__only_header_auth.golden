@@ -20,7 +20,7 @@ func loadApp() *__appinit.LoadData {
 			Uncommitted: false,
 		},
 		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
-		CORSHeaders:    []string{"Header1", "Header2"},
+		CORSHeaders:    nil,
 		EncoreCompiler: "test",
 		PubsubTopics:   map[string]*__config.StaticPubsubTopic{},
 		TestService:    "",

@@ -130,8 +130,8 @@ func (b *Builder) computeCORSHeaders() (Code, error) {
 
 	// Walk all the structures looking for headers
 	decls := b.res.Meta.Decls
-	for _, decl := range decls {
-		err := schema.Walk(decls, decl, func(node any) error {
+	for _, param := range b.res.App.ParamTypes() {
+		err := schema.Walk(decls, param, func(node any) error {
 			switch n := node.(type) {
 			case *schema.Struct:
 				for _, field := range n.Fields {
