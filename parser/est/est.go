@@ -392,7 +392,7 @@ type Metric struct {
 	ConfigLit  *ast.CompositeLit
 	LabelsType *schema.Type // The labels for this keyspace, or nil if no labels.
 	LabelsAST  ast.Node
-	Labels     []*Label
+	Labels     []Label
 }
 
 func (p *Metric) Type() ResourceType         { return MetricResource }

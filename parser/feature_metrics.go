@@ -106,7 +106,7 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 			}
 			metric.LabelsType = p.resolveType(file.Pkg, file, typeArgs[0], nil)
 			metric.LabelsAST = typeArgs[0]
-			p.setMetricLabels(metric, con)
+			metric.Labels = p.validateMetricLabels(metric, con)
 		}
 
 		p.metrics = append(p.metrics, metric)
@@ -115,31 +115,33 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 	}
 }
 
-func (p *parser) setMetricLabels(m *est.Metric, con metricConstructor) {
+func (p *parser) validateMetricLabels(m *est.Metric, con metricConstructor) []est.Label {
 	labels := m.LabelsType
 	named := labels.GetNamed()
 	if named == nil {
 		p.errInSrc(srcerrors.MetricLabelsNotNamedStruct(p.fset, m.LabelsAST, "metrics."+con.FuncName, labels))
-		return
+		return nil
 	}
 
 	decl := p.decls[named.Id]
 	if decl.Type.GetStruct() == nil {
 		p.errInSrc(srcerrors.MetricLabelsNotNamedStruct(p.fset, m.LabelsAST, "metrics."+con.FuncName, decl.Type))
-		return
+		return nil
 	}
 
 	st, err := encoding.GetConcreteStructType(p.decls, decl.Type, named.TypeArguments)
 	if err != nil {
 		p.errf(m.Ident().Pos(), "unable to resolve concrete type: %v", err)
-		return
+		return nil
 	}
 
 	// Validate struct fields
+	var parsed []est.Label
 	for _, f := range st.Fields {
 		label := idents.Convert(f.Name, idents.SnakeCase)
 		if label == "service" {
 			p.errInSrc(srcerrors.MetricLabelReservedName(p.fset, m.LabelsAST, f.Name, label))
+			continue
 		}
 
 		// Allow strings, bools, int and uint types.
@@ -147,17 +149,19 @@ func (p *parser) setMetricLabels(m *est.Metric, con metricConstructor) {
 		case schema.Builtin_STRING, schema.Builtin_BOOL,
 			schema.Builtin_INT, schema.Builtin_INT8, schema.Builtin_INT16, schema.Builtin_INT32, schema.Builtin_INT64,
 			schema.Builtin_UINT, schema.Builtin_UINT8, schema.Builtin_UINT16, schema.Builtin_UINT32, schema.Builtin_UINT64:
-		// OK
+			// OK
 		default:
 			p.errInSrc(srcerrors.MetricLabelsFieldInvalidType(p.fset, m.LabelsAST, "metrics."+con.FuncName, f.Name, f.Typ))
+			continue
 		}
 
-		m.Labels = append(m.Labels, &est.Label{
+		parsed = append(parsed, est.Label{
 			Key:  label,
 			Type: f.Typ.GetBuiltin(),
 			Doc:  f.Doc,
 		})
 	}
+	return parsed
 }
 
 func (p *parser) parseMetricReference(file *est.File, resource est.Resource, cursor *walker.Cursor) {
