@@ -17,12 +17,16 @@ const (
 	// LocalSecretsOverride is an experiment to allow for secrets
 	// to be overridden with values from a ".secrets.local" file.
 	LocalSecretsOverride Name = "local-secrets-override"
+
+	// Metrics is an experiment to enable metrics.
+	Metrics Name = "metrics"
 )
 
 // Valid reports whether the given name is a known experiment.
 func (x Name) Valid() bool {
 	switch x {
-	case LocalSecretsOverride:
+	case LocalSecretsOverride,
+		Metrics:
 		return true
 	default:
 		return false

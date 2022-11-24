@@ -25,6 +25,7 @@ export interface Data {
   pubsub_topics: PubSubTopic[];
   middleware: Middleware[];
   cache_clusters: CacheCluster[];
+  experiments: string[];
 }
 
 /**

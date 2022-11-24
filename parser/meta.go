@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"encr.dev/internal/experiments"
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
@@ -23,7 +24,7 @@ import (
 type TraceNodes map[ast.Node]*meta.TraceNode
 
 // ParseMeta parses app metadata.
-func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string, app *est.Application, fset *token.FileSet) (*meta.Data, map[*est.Package]TraceNodes, error) {
+func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string, app *est.Application, fset *token.FileSet, exp *experiments.Set) (*meta.Data, map[*est.Package]TraceNodes, error) {
 	data := &meta.Data{
 		ModulePath:         app.ModulePath,
 		AppRevision:        appRevision,
@@ -108,6 +109,12 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 
 	for _, mw := range app.Middleware {
 		data.Middleware = append(data.Middleware, parseMiddleware(mw))
+	}
+
+	if exp != nil {
+		for _, expName := range exp.List() {
+			data.Experiments = append(data.Experiments, string(expName))
+		}
 	}
 
 	return data, nodes, nil
