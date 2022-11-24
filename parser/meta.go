@@ -111,8 +111,10 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 		data.Middleware = append(data.Middleware, parseMiddleware(mw))
 	}
 
-	for _, expName := range exp.List() {
-		data.Experiments = append(data.Experiments, string(expName))
+	if exp != nil {
+		for _, expName := range exp.List() {
+			data.Experiments = append(data.Experiments, string(expName))
+		}
 	}
 
 	return data, nodes, nil
