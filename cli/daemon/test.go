@@ -9,7 +9,7 @@ import (
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/cli/internal/appfile"
+	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 

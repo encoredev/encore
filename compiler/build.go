@@ -22,7 +22,6 @@ import (
 
 	"encr.dev/compiler/internal/codegen"
 	"encr.dev/compiler/internal/cuegen"
-	"encr.dev/internal/experiments"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
@@ -30,6 +29,7 @@ import (
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/experiments"
 )
 
 type Config struct {

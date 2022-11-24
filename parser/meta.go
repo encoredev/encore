@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"encr.dev/internal/experiments"
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
