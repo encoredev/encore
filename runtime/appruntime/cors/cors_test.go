@@ -97,6 +97,11 @@ func TestOptions(t *testing.T) {
 			},
 			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
 		},
+		{
+			name:        "static_headers",
+			cfg:         config.CORS{},
+			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Static-Test"},
+		},
 	}
 
 	checkOrigins := func(t *testing.T, c *cors.Cors, creds, good bool, origins []string) {
@@ -148,7 +153,7 @@ func TestOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Options(&tt.cfg)
+			got := Options(&tt.cfg, []string{"X-Static-Test"})
 			got.Debug = true
 			c := cors.New(got)
 			c.Log = log.New(os.Stdout, "cors: ", 0)
