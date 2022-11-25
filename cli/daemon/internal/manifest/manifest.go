@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -68,7 +67,7 @@ func ReadOrCreate(appRoot string) (mf *Manifest, err error) {
 	out, _ := json.Marshal(&man)
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0755); err != nil {
 		return nil, err
-	} else if err := ioutil.WriteFile(cfgPath, out, 0644); err != nil {
+	} else if err := os.WriteFile(cfgPath, out, 0644); err != nil {
 		return nil, err
 	}
 	return &man, nil

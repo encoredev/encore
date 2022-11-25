@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"syscall"
 	"time"
@@ -64,7 +64,7 @@ Note that this strips trailing newlines from the secret value.`,
 			value = string(data)
 			fmt.Fprintln(os.Stderr)
 		} else {
-			data, err := ioutil.ReadAll(os.Stdin)
+			data, err := io.ReadAll(os.Stdin)
 			if err != nil {
 				fatal(err)
 			}

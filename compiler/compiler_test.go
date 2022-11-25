@@ -1,7 +1,6 @@
 package compiler_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,7 +29,7 @@ func TestCompile(t *testing.T) {
 			e.Setenv("HOME", home)
 			e.Setenv("GOFLAGS", "-modcacherw")
 			gomod := []byte("module test\n\nrequire encore.dev v0.17.0")
-			return ioutil.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755)
+			return os.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755)
 		},
 	})
 }

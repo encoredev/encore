@@ -151,7 +151,7 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 
 	if g.usedBody {
 		f.Func().Params(Id("d").Op("*").Id(g.structName)).Id("Body").Params(Id("body").Qual("io", "Reader")).Params(Id("payload").Index().Byte()).Block(
-			List(Id("payload"), Err()).Op(":=").Qual("io/ioutil", "ReadAll").Call(Id("body")),
+			List(Id("payload"), Err()).Op(":=").Qual("io", "ReadAll").Call(Id("body")),
 			If(Err().Op("==").Nil().Op("&&").Len(Id("payload")).Op("==").Lit(0)).Block(
 				Id("d").Dot("setErr").Call(Lit("missing request body"), Lit("request_body"), Qual("fmt", "Errorf").Call(Lit("missing request body"))),
 			).Else().If(Err().Op("!=").Nil()).Block(

@@ -3,7 +3,7 @@ package runtime
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -52,7 +52,7 @@ func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(req.Body)
+	data, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

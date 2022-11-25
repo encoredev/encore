@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -140,7 +140,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 		// Write out the file
 		name := filepath.Base(file.Path)
 		dst := filepath.Join(targetDir, name)
-		if err := ioutil.WriteFile(dst, rw.Data(), 0644); err != nil {
+		if err := os.WriteFile(dst, rw.Data(), 0644); err != nil {
 			return err
 		}
 		b.addOverlay(file.Path, dst)

@@ -3,7 +3,7 @@ package test
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -162,7 +162,7 @@ type response struct {
 func RawEndpoint(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
-	bytes, err := ioutil.ReadAll(req.Body)
+	bytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		panic(err)
 	}

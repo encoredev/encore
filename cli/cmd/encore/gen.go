@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -78,7 +77,7 @@ Supported language codes are:
 			if output == "" {
 				os.Stdout.Write(resp.Code)
 			} else {
-				if err := ioutil.WriteFile(output, resp.Code, 0755); err != nil {
+				if err := os.WriteFile(output, resp.Code, 0755); err != nil {
 					fatal(err)
 				}
 			}

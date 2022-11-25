@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -201,11 +200,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		gray.Printf("Downloaded template %s.\n", ex.Name)
 	} else {
 		// Set up files that we need when we don't have an example
-		if err := ioutil.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
 			fatal(err)
 		}
 		encoreModData := []byte("module encore.app\n")
-		if err := ioutil.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
 			fatal(err)
 		}
 	}
@@ -241,7 +240,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 }
 `)
 	}
-	if err := ioutil.WriteFile(filepath.Join(name, "encore.app"), encoreAppData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(name, "encore.app"), encoreAppData, 0644); err != nil {
 		return err
 	}
 
@@ -505,7 +504,7 @@ func slurpJSON(req *http.Request, respData interface{}) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("got non-200 response: %s: %s", resp.Status, body)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(respData); err != nil {
@@ -589,7 +588,7 @@ func addEncoreRemote(root, appID string) {
 func linkApp(appID string, force bool) {
 	root, _ := determineAppRoot()
 	filePath := filepath.Join(root, "encore.app")
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		fatal(err)
 		os.Exit(1)
@@ -652,7 +651,7 @@ func linkApp(appID string, force bool) {
 	}
 
 	val.Format()
-	if err := ioutil.WriteFile(filePath, val.Pack(), 0644); err != nil {
+	if err := os.WriteFile(filePath, val.Pack(), 0644); err != nil {
 		fatal(err)
 		os.Exit(1)
 	}

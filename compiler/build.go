@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -185,7 +184,7 @@ func (b *builder) Build() (res *Result, err error) {
 		}
 	}()
 
-	b.workdir, err = ioutil.TempDir("", "encore-build")
+	b.workdir, err = os.MkdirTemp("", "encore-build")
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +253,7 @@ func (b *builder) endCodeGenTracker() error {
 func (b *builder) parseApp() error {
 	defer b.trace("parse app")()
 	modPath := filepath.Join(b.appRoot, "go.mod")
-	modData, err := ioutil.ReadFile(modPath)
+	modData, err := os.ReadFile(modPath)
 	if err != nil {
 		return err
 	}
@@ -362,16 +361,16 @@ func (b *builder) writeModFile() error {
 
 	modBytes := modfile.Format(b.modfile.Syntax)
 	dstGomod := filepath.Join(b.workdir, "go.mod")
-	return ioutil.WriteFile(dstGomod, modBytes, 0644)
+	return os.WriteFile(dstGomod, modBytes, 0644)
 }
 
 func (b *builder) writeSumFile() error {
 	defer b.trace("write sum file")()
-	appSum, err := ioutil.ReadFile(filepath.Join(b.appRoot, "go.sum"))
+	appSum, err := os.ReadFile(filepath.Join(b.appRoot, "go.sum"))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	runtimeSum, err := ioutil.ReadFile(filepath.Join(b.cfg.EncoreRuntimePath, "go.sum"))
+	runtimeSum, err := os.ReadFile(filepath.Join(b.cfg.EncoreRuntimePath, "go.sum"))
 	if err != nil {
 		return err
 	}
@@ -380,7 +379,7 @@ func (b *builder) writeSumFile() error {
 	}
 	data := append(appSum, runtimeSum...)
 	dstGosum := filepath.Join(b.workdir, "go.sum")
-	return ioutil.WriteFile(dstGosum, data, 0644)
+	return os.WriteFile(dstGosum, data, 0644)
 }
 
 func (b *builder) writePackages() error {
@@ -415,7 +414,7 @@ func (b *builder) buildMain() error {
 
 	overlayData, _ := json.Marshal(map[string]interface{}{"Replace": b.overlay})
 	overlayPath := filepath.Join(b.workdir, "overlay.json")
-	if err := ioutil.WriteFile(overlayPath, overlayData, 0644); err != nil {
+	if err := os.WriteFile(overlayPath, overlayData, 0644); err != nil {
 		return err
 	}
 
