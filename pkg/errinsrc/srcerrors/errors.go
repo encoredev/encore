@@ -533,13 +533,13 @@ func MetricLabelsNotNamedStruct(fileset *token.FileSet, node ast.Node, resourceT
 
 func MetricLabelReservedName(fileset *token.FileSet, node ast.Node, fieldName, label string) error {
 	return errinsrc.New(ErrParams{
-		Code:  39,
-		Title: "Reserved metrics label",
+		Code:    39,
+		Title:   "Reserved metrics label",
 		Summary: fmt.Sprintf("The %s field uses the reserved metrics label %s", fieldName, label),
 		Detail: combine(
 			metricsHelp,
 		),
-		Locations: SrcLocations{FromGoASTNode(fileset, node))},
+		Locations: SrcLocations{FromGoASTNode(fileset, node)},
 	}, false)
 }
 

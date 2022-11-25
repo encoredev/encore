@@ -9,6 +9,7 @@ import (
 	"encr.dev/parser/internal/walker"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/idents"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -64,7 +65,44 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 			)
 			return nil
 		}
+		var metricKind meta.Metric_MetricKind
+		switch con.FuncName {
+		case "NewCounter", "NewCounterGroup":
+			metricKind = meta.Metric_COUNTER
+		case "NewGauge", "NewGaugeGroup":
+			metricKind = meta.Metric_GAUGE
+		default:
+			panic("unknown metric constructor name")
+		}
 
+		var (
+			metricValueTypeArg ast.Expr
+			labelTypeArg       ast.Expr
+		)
+		typeArgs := getTypeArguments(callExpr.Fun)
+		switch len(typeArgs) {
+		case 0:
+			// Metric constructors should always have one type argument to define the metric
+			// value type.
+			if con.HasLabels {
+				p.errf(callExpr.Pos(), "metrics.%s requires two type arguments", con.FuncName)
+			} else {
+				p.errf(callExpr.Pos(), "metrics.%s requires type argument", con.FuncName)
+			}
+			return nil
+		case 1:
+			// Error if the metric constructor needs labels.
+			if con.HasLabels {
+				p.errf(callExpr.Pos(), "metrics.%s requires two type arguments (got one type argument only)", con.FuncName)
+				return nil
+			}
+			metricValueTypeArg = typeArgs[0]
+		default:
+			labelTypeArg = typeArgs[0]
+			metricValueTypeArg = typeArgs[1]
+		}
+
+		metricValueType := p.resolveType(file.Pkg, file, metricValueTypeArg, nil).GetBuiltin()
 		metricName := p.parseResourceName("metrics."+con.FuncName, "metric name", callExpr.Args[0], snakeName, "e_")
 		if metricName == "" {
 			// we already reported the error inside parseResourceName
@@ -89,6 +127,9 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 		}
 
 		metric := &est.Metric{
+			Name:      metricName,
+			ValueType: metricValueType,
+			Kind:      metricKind,
 			Doc:       cursor.DocComment(),
 			Svc:       file.Pkg.Service, // nil means global metric
 			DeclFile:  file,
@@ -99,8 +140,7 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 
 		// Resolve labels
 		if con.HasLabels {
-			typeArgs := getTypeArguments(callExpr.Fun)
-			if _, isPtr := typeArgs[0].(*ast.StarExpr); isPtr {
+			if _, isPtr := labelTypeArg.(*ast.StarExpr); isPtr {
 				p.errInSrc(srcerrors.MetricLabelsIsPointer(p.fset, typeArgs[0], "metrics."+con.FuncName))
 				return nil
 			}

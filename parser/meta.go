@@ -381,9 +381,11 @@ func parseMetric(m *est.Metric) *meta.Metric {
 		})
 	}
 	pb := &meta.Metric{
-		Name:   m.Ident().Name,
-		Doc:    m.Doc,
-		Labels: labels,
+		Name:      m.Name,
+		ValueType: m.ValueType,
+		Kind:      m.Kind,
+		Doc:       m.Doc,
+		Labels:    labels,
 	}
 	if m.Svc != nil {
 		pb.ServiceName = &m.Svc.Name

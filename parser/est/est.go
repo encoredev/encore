@@ -6,12 +6,14 @@ package est
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"time"
 
 	"encr.dev/parser/paths"
 	"encr.dev/parser/selector"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -384,6 +386,9 @@ func (p *CacheKeyspace) NodeType() NodeType         { return CacheKeyspaceDefNod
 func (p *CacheKeyspace) AllowOnlyParsedUsage() bool { return false }
 
 type Metric struct {
+	Name       string         // The metric name
+	ValueType  schema.Builtin // The metric type
+	Kind       meta.Metric_MetricKind
 	Doc        string   // The documentation on the metric
 	Svc        *Service // the service this metric is exclusive to, or nil
 	DeclFile   *File    // What file the cache is declared in
@@ -406,4 +411,8 @@ type Label struct {
 	Key  string
 	Type schema.Builtin
 	Doc  string
+}
+
+func (l Label) String() string {
+	return fmt.Sprintf("%s %s %s", l.Key, l.Type, l.Doc)
 }

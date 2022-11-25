@@ -297,13 +297,14 @@ message CacheCluster {
 }
 
 message Metric {
-  string          name         = 1; // the name of the metric
-  string          doc          = 2; // the doc string
-  MetricType      type         = 3;
-  optional string service_name = 4; // the service the metric is exclusive to, if any.
-  repeated Label  labels       = 5;
+  string            name         = 1; // the name of the metric
+  schema.v1.Builtin value_type   = 2;
+  string            doc          = 3; // the doc string
+  MetricKind        kind         = 4;
+  optional string   service_name = 5; // the service the metric is exclusive to, if any.
+  repeated Label    labels       = 6;
 
-  enum MetricType {
+  enum MetricKind {
     COUNTER = 0;
     GAUGE = 1;
     HISTOGRAM = 2;

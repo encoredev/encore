@@ -361,15 +361,16 @@ export interface CacheCluster_Keyspace {
 export interface Metric {
   /** the name of the metric */
   name: string;
+  value_type: Builtin;
   /** the doc string */
   doc: string;
-  type: Metric_MetricType;
+  kind: Metric_MetricKind;
   /** the service the metric is exclusive to, if any. */
   service_name?: string | undefined;
   labels: Metric_Label[];
 }
 
-export enum Metric_MetricType {
+export enum Metric_MetricKind {
   COUNTER = "COUNTER",
   GAUGE = "GAUGE",
   HISTOGRAM = "HISTOGRAM",
