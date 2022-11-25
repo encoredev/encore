@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,7 +55,7 @@ func (b *builder) Test(ctx context.Context) (err error) {
 		}
 	}()
 
-	b.workdir, err = ioutil.TempDir("", "encore-test")
+	b.workdir, err = os.MkdirTemp("", "encore-test")
 	if err != nil {
 		return err
 	}
@@ -124,7 +123,7 @@ func (b *builder) runTests(ctx context.Context) error {
 	defer b.trace("run tests")()
 	overlayData, _ := json.Marshal(map[string]interface{}{"Replace": b.overlay})
 	overlayPath := filepath.Join(b.workdir, "overlay.json")
-	if err := ioutil.WriteFile(overlayPath, overlayData, 0644); err != nil {
+	if err := os.WriteFile(overlayPath, overlayData, 0644); err != nil {
 		return err
 	}
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,7 +60,7 @@ func (b *builder) ExecScript() (res *Result, err error) {
 		}
 	}()
 
-	b.workdir, err = ioutil.TempDir("", "encore-exec")
+	b.workdir, err = os.MkdirTemp("", "encore-exec")
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +168,7 @@ FileLoop:
 
 	name := filepath.Base(mainFile.Path)
 	dst := filepath.Join(dir, name)
-	if err := ioutil.WriteFile(dst, mainFile.Contents, 0644); err != nil {
+	if err := os.WriteFile(dst, mainFile.Contents, 0644); err != nil {
 		return err
 	}
 	b.addOverlay(mainFile.Path, dst)
@@ -183,7 +182,7 @@ func (b *builder) buildExecScript() error {
 
 	overlayData, _ := json.Marshal(map[string]interface{}{"Replace": b.overlay})
 	overlayPath := filepath.Join(b.workdir, "overlay.json")
-	if err := ioutil.WriteFile(overlayPath, overlayData, 0644); err != nil {
+	if err := os.WriteFile(overlayPath, overlayData, 0644); err != nil {
 		return err
 	}
 

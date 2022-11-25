@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1209,7 +1208,7 @@ func callAPI(ctx context.Context, client *baseClient, method, path string, heade
 	}()
 	if rawResponse.StatusCode >= 400 {
 		// Read the full body sent back
-		body, err := ioutil.ReadAll(rawResponse.Body)
+		body, err := io.ReadAll(rawResponse.Body)
 		if err != nil {
 			return nil, &APIError{
 				Code:    ErrUnknown,

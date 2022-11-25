@@ -6,7 +6,6 @@ import (
 	goparser "go/parser"
 	"go/scanner"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,7 +106,7 @@ func TestCompile(t *testing.T) {
 			e.Values["wd"] = e.WorkDir
 			e.Values["output"] = &bytes.Buffer{}
 			e.Values["errs"] = &bytes.Buffer{}
-			return ioutil.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755)
+			return os.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755)
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"parse": func(ts *testscript.TestScript, neg bool, args []string) {
@@ -120,7 +119,7 @@ func TestCompile(t *testing.T) {
 
 				wd := ts.Value("wd").(string)
 				modPath := filepath.Join(wd, "go.mod")
-				modData, err := ioutil.ReadFile(modPath)
+				modData, err := os.ReadFile(modPath)
 				if err != nil {
 					ts.Fatalf("cannot read go.mod: %v", err)
 				}

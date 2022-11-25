@@ -4,7 +4,7 @@
 package clientgen
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -46,7 +46,7 @@ func TestClientCodeGeneration(t *testing.T) {
 			})
 			c.Assert(err, qt.IsNil)
 
-			files, err := ioutil.ReadDir("./testdata")
+			files, err := os.ReadDir("./testdata")
 			c.Assert(err, qt.IsNil)
 
 			expectedPrefix := "expected" + strings.TrimPrefix(strings.TrimSuffix(filepath.Base(path), ".go"), "input") + "_"

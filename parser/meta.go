@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -300,7 +299,7 @@ func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {
 		return nil, fmt.Errorf("%s is not a directory", relPath)
 	}
 
-	files, err := ioutil.ReadDir(absPath)
+	files, err := os.ReadDir(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read migrations: %v", err)
 	}

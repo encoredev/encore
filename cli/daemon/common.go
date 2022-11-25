@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -68,7 +67,7 @@ func (s *Server) OnError(r *run.Run, err *errlist.List) {
 // parseApp parses the app.
 func (s *Server) parseApp(appRoot, workingDir string, parseTests bool) (*parser.Result, error) {
 	modPath := filepath.Join(appRoot, "go.mod")
-	modData, err := ioutil.ReadFile(modPath)
+	modData, err := os.ReadFile(modPath)
 	if err != nil {
 		return nil, err
 	}
