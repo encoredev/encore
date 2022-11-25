@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -61,7 +60,7 @@ func (src *src) ReadUp(version uint) (r io.ReadCloser, identifier string, err er
 	if err != nil {
 		return nil, "", err
 	}
-	return ioutil.NopCloser(bytes.NewReader(data)), m.Description, nil
+	return io.NopCloser(bytes.NewReader(data)), m.Description, nil
 }
 
 func (src *src) ReadDown(version uint) (r io.ReadCloser, identifier string, err error) {

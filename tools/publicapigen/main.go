@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -203,7 +202,7 @@ func registerTypesToDrop(fAST *ast.File) {
 }
 
 // readAST parses the AST of all non-test Go files in a directory and stores it in the files map
-func readAST(path, rel string, file []os.FileInfo) error {
+func readAST(path, rel string, file []os.DirEntry) error {
 	for _, f := range file {
 		if !strings.HasSuffix(f.Name(), ".go") {
 			// ignore non-go files
@@ -554,20 +553,20 @@ func writePendingComments(originalFile *ast.File, formattedFile *ast.File) {
 }
 
 // walkDir recursively descends path, calling walkFn for directory
-func walkDir(dir, rel string, f func(path, rel string, files []os.FileInfo) error) error {
+func walkDir(dir, rel string, f func(path, rel string, files []os.DirEntry) error) error {
 	if rel == "types/uuid" {
 		// we don't want to rewrite this package
 		return nil
 	}
 
 	log.Debug().Str("rel", rel).Msg("walking directory")
-	entries, err := ioutil.ReadDir(dir)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
 
 	// Split the files and dirs
-	var dirs, files []os.FileInfo
+	var dirs, files []os.DirEntry
 	for _, entry := range entries {
 		if entry.IsDir() {
 			dirs = append(dirs, entry)

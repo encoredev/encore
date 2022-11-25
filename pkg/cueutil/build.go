@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -212,13 +211,13 @@ func reader(f *build.File) (io.ReadCloser, error) {
 	case nil:
 		// Use the file name.
 	case string:
-		return ioutil.NopCloser(strings.NewReader(s)), nil
+		return io.NopCloser(strings.NewReader(s)), nil
 	case []byte:
-		return ioutil.NopCloser(bytes.NewReader(s)), nil
+		return io.NopCloser(bytes.NewReader(s)), nil
 	case *bytes.Buffer:
 		// is io.Reader, but it needs to be readable repeatedly
 		if s != nil {
-			return ioutil.NopCloser(bytes.NewReader(s.Bytes())), nil
+			return io.NopCloser(bytes.NewReader(s.Bytes())), nil
 		}
 	default:
 		return nil, fmt.Errorf("invalid source type %T", f.Source)

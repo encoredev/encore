@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	mathrand "math/rand"
 	"net"
 	"net/http"
@@ -483,7 +482,7 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 		io.ReadCloser
 		io.Writer
 	}{
-		ReadCloser: ioutil.NopCloser(respRd),
+		ReadCloser: io.NopCloser(respRd),
 		Writer:     reqWr,
 	}
 	p.Client, err = yamux.Client(rwc, yamux.DefaultConfig())

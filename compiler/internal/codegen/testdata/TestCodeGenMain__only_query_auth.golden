@@ -242,7 +242,6 @@ import (
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
 	"io"
-	"io/ioutil"
 	"strconv"
 )
 
@@ -283,7 +282,7 @@ func (e *Marshaller) setErr(msg, field string, err error) {
 }
 
 func (d *Marshaller) Body(body io.Reader) (payload []byte) {
-	payload, err := ioutil.ReadAll(body)
+	payload, err := io.ReadAll(body)
 	if err == nil && len(payload) == 0 {
 		d.setErr("missing request body", "request_body", fmt.Errorf("missing request body"))
 	} else if err != nil {

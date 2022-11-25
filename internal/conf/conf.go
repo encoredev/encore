@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -81,7 +80,7 @@ func Write(cfg *Config) (err error) {
 		return err
 	} else if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
-	} else if err := ioutil.WriteFile(path, data, 0600); err != nil {
+	} else if err := os.WriteFile(path, data, 0600); err != nil {
 		return err
 	}
 	return nil
@@ -132,7 +131,7 @@ func OriginalUser(configDir string) (cfg *Config, err error) {
 
 func readConf(configDir string) (*Config, error) {
 	path := filepath.Join(configDir, ".auth_token")
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

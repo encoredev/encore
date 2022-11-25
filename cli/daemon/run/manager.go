@@ -2,7 +2,7 @@ package run
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -137,7 +137,7 @@ type parseAppParams struct {
 // parseApp parses the app and returns the parse result.
 func (mgr *Manager) parseApp(p parseAppParams) (*parser.Result, error) {
 	modPath := filepath.Join(p.App.Root(), "go.mod")
-	modData, err := ioutil.ReadFile(modPath)
+	modData, err := os.ReadFile(modPath)
 	if err != nil {
 		return nil, err
 	}

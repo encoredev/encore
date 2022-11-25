@@ -1112,7 +1112,7 @@ func (g *golang) generateBaseClient(file *File) (err error) {
 			).Call(),
 			If(Id("rawResponse").Dot("StatusCode").Op(">=").Lit(400)).Block(
 				Comment("Read the full body sent back"),
-				List(Id("body"), Err()).Op(":=").Qual("io/ioutil", "ReadAll").Call(Id("rawResponse").Dot("Body")),
+				List(Id("body"), Err()).Op(":=").Qual("io", "ReadAll").Call(Id("rawResponse").Dot("Body")),
 				If(Err().Op("!=").Nil()).Block(
 					Return(
 						Nil(),
