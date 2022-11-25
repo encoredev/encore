@@ -1,0 +1,25 @@
+parse
+output 'metric gauge FLOAT64 GAUGE \[\]'
+output 'metric gauge_with_labels FLOAT64 GAUGE \[label STRING Label doc string.\n\]'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/metrics"
+)
+
+var Gauge = metrics.NewGauge[float64]("gauge", metrics.CounterConfig{})
+
+type Labels struct {
+	Label string // Label doc string.
+}
+
+var GaugeWithLabels = metrics.NewGaugeGroup[Labels, float64]("gauge_with_labels", metrics.CounterConfig{})
+
+//encore:api public
+func Foo(context.Context) error {
+	return nil
+}
