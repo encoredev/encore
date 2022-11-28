@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"math"
-	"time"
 
 	"encore.dev/internal/nativehist"
 )
@@ -119,10 +118,6 @@ func makeToFloat[V Value]() func(V) float64 {
 		return func(val V) float64 { return float64(val) }
 	case float64:
 		return func(val V) float64 { return float64(val) }
-	case time.Duration:
-		return func(val V) float64 {
-			return float64(val) / float64(time.Second)
-		}
 	default:
 		panic("invalid unit")
 	}

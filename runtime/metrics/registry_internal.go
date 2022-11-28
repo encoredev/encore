@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/internal/nativehist"
@@ -35,13 +34,6 @@ func (r *Registry) Collect() []CollectedMetric {
 				Val:          val.value,
 			})
 		case *timeseries[uint64]:
-			metrics = append(metrics, CollectedMetric{
-				Info:         val.info,
-				TimeSeriesID: val.id,
-				Labels:       val.labels,
-				Val:          val.value,
-			})
-		case *timeseries[time.Duration]:
 			metrics = append(metrics, CollectedMetric{
 				Info:         val.info,
 				TimeSeriesID: val.id,

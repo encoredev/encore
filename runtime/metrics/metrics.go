@@ -38,7 +38,6 @@ type Counter[V Value] struct {
 }
 
 // Increment increments the counter by 1.
-// If V is time.Duration, it increments the counter by 1 second.
 func (c *Counter[V]) Increment() {
 	if idx, ok := c.svcIdx(); ok {
 		c.inc(&c.ts.value[idx])

@@ -5,14 +5,13 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 )
 
 func getAtomicAdder[V Value]() func(addr *V, delta V) {
 	var typ V
 	switch any(typ).(type) {
-	case int64, time.Duration: /* time.Duration is an int64 */
+	case int64:
 		return func(addr *V, delta V) {
 			a := (*int64)(unsafe.Pointer(addr))
 			atomic.AddInt64(a, int64(delta))
@@ -35,7 +34,7 @@ func getAtomicAdder[V Value]() func(addr *V, delta V) {
 func getAtomicSetter[V Value]() func(addr *V, new V) {
 	var typ V
 	switch any(typ).(type) {
-	case int64, time.Duration: // time.Duration is an int64
+	case int64:
 		return func(addr *V, new V) {
 			a := (*int64)(unsafe.Pointer(addr))
 			atomic.StoreInt64(a, int64(new))
@@ -56,16 +55,8 @@ func getAtomicSetter[V Value]() func(addr *V, new V) {
 }
 
 func getAtomicIncrementer[V Value](adder func(addr *V, delta V)) func(addr *V) {
-	var typ V
-	switch any(typ).(type) {
-	case time.Duration:
-		return func(addr *V) {
-			adder(addr, V(time.Second))
-		}
-	default:
-		return func(addr *V) {
-			adder(addr, 1)
-		}
+	return func(addr *V) {
+		adder(addr, 1)
 	}
 }
 
