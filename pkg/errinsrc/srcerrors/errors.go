@@ -512,7 +512,7 @@ func ResourceNameReserved(fileset *token.FileSet, node ast.Node, resourceType st
 		Code:  37,
 		Title: "Reserved resource name",
 		// The metrics.NewCounter metric name "e_blah" uses the reserved prefix "e_".
-		Summary:   fmt.Sprintf("The %s %s %q uses the reserved prefix %q", resourceType, paramName),
+		Summary:   fmt.Sprintf("The %s %s %q uses the reserved prefix %q", resourceType, paramName, name, reservedPrefix),
 		Detail:    detail,
 		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, suggestion)},
 	}, false)
