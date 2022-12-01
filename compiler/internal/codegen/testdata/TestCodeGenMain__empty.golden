@@ -18,6 +18,7 @@ func loadApp() *__appinit.LoadData {
 			Uncommitted: false,
 		},
 		AuthData:       nil,
+		CORSHeaders:    nil,
 		EncoreCompiler: "test",
 		PubsubTopics:   map[string]*__config.StaticPubsubTopic{},
 		TestService:    "",

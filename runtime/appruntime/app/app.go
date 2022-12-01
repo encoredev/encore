@@ -3,6 +3,7 @@ package app
 import (
 	"io"
 	"os"
+	"time"
 
 	"github.com/benbjohnson/clock"
 	jsoniter "github.com/json-iterator/go"
@@ -20,6 +21,7 @@ import (
 	"encore.dev/beta/auth"
 	appCfg "encore.dev/config"
 	"encore.dev/et"
+	"encore.dev/internal/cloud"
 	usermetrics "encore.dev/metrics"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
@@ -159,4 +161,16 @@ func jsonAPI(cfg *runtimeCfg.Config) jsoniter.API {
 		SortMapKeys:            true,
 		ValidateJsonRawMessage: true,
 	}.Froze()
+}
+
+// ReconfigureZerologFormat reconfigures the zerolog Logger's output format
+// based on the cloud provider.
+func (app *App) ReconfigureZerologFormat() {
+	switch app.cfg.Runtime.EnvCloud {
+	case cloud.GCP:
+		zerolog.LevelFieldName = "severity"
+		zerolog.TimestampFieldName = "timestamp"
+		zerolog.TimeFieldFormat = time.RFC3339Nano
+	default:
+	}
 }

@@ -21,6 +21,7 @@ type Static struct {
 	EncoreCompiler string
 	AppCommit      CommitInfo // The commit which this service was built from
 
+	CORSHeaders  []string // Headers required to be allowed by cors, pulled from the static analysis
 	PubsubTopics map[string]*StaticPubsubTopic
 
 	Testing              bool
@@ -65,6 +66,9 @@ type Runtime struct {
 const UnsafeAllOriginWithCredentials = "UNSAFE_ALL_ORIGINS_WITH_CREDENTIALS"
 
 type CORS struct {
+	// Debug enables debug logging of all requests passing through the CORS system
+	Debug bool `json:"debug"`
+
 	// DisableCredentials, if true, causes Encore to respond to OPTIONS requests
 	// without setting Access-Control-Allow-Credentials: true.
 	DisableCredentials bool `json:"disable_credentials,omitempty"`
@@ -81,9 +85,15 @@ type CORS struct {
 	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials,omitempty"`
 
 	// ExtraAllowedHeaders specifies extra headers to allow, beyond
-	// the default set of {"Origin", "Authorization", "Content-Type"}.
+	// the default set always recognized by Encore.
 	// As a special case, if the list contains "*" all headers are allowed.
 	ExtraAllowedHeaders []string `json:"raw_allowed_headers,omitempty"`
+
+	// AllowAccessWhenOnPrivateNetwork, if true, allows requests to Encore apps running
+	// on private networks from websites.
+	//
+	// See: https://wicg.github.io/private-network-access/
+	AllowPrivateNetworkAccess bool `json:"allow_private_network_access,omitempty"`
 }
 
 type CommitInfo struct {

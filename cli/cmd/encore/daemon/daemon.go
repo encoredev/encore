@@ -36,11 +36,15 @@ import (
 	"encr.dev/cli/daemon/sqldb/external"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/conf"
+	"encr.dev/pkg/eerror"
+	"encr.dev/pkg/watcher"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 // Main runs the daemon.
 func Main() {
+	watcher.BumpRLimitSoftToHardLimit()
+
 	if err := redirectLogOutput(); err != nil {
 		log.Error().Err(err).Msg("could not setup daemon log file, skipping")
 	}
@@ -108,6 +112,7 @@ func (d *Daemon) init() {
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
+	d.close = append(d.close, d.Apps)
 
 	// If ENCORE_SQLDB_HOST is set, use the external cluster instead of
 	// creating our own docker container cluster.
@@ -358,8 +363,15 @@ func redirectLogOutput() error {
 		return err
 	}
 	log.Info().Msgf("writing output to %s", logPath)
+
 	zerolog.TimeFieldFormat = time.RFC3339Nano
-	log.Logger = log.Output(io.MultiWriter(zerolog.ConsoleWriter{Out: os.Stderr}, f))
+	consoleWriter := zerolog.ConsoleWriter{
+		Out:           os.Stderr,
+		FieldsExclude: []string{zerolog.ErrorStackFieldName},
+	}
+	consoleWriter.FormatExtra = eerror.ZeroLogConsoleExtraFormatter
+	zerolog.ErrorStackMarshaler = eerror.ZeroLogStackMarshaller
+	log.Logger = log.With().Caller().Stack().Logger().Output(io.MultiWriter(consoleWriter, f))
 	return nil
 }
 

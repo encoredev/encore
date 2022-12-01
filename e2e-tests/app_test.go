@@ -21,9 +21,9 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
-	"encr.dev/internal/experiments"
 	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 

@@ -19,7 +19,8 @@ message Data {
   repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
   repeated Middleware     middleware          = 10;
   repeated CacheCluster   cache_clusters      = 11;
-  repeated Metric         metrics             = 12;
+  repeated string         experiments         = 12;
+  repeated Metric         metrics             = 13;
 }
 
 // QualifiedName is a name of an object in a specific package.

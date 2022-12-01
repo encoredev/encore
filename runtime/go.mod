@@ -26,7 +26,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/nsqio/go-nsq v1.1.0
-	github.com/rs/cors v1.8.2
+	github.com/rs/cors v1.8.3-0.20221003140808-fcebdb403f4d
 	github.com/rs/zerolog v1.28.0
 	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326
 	google.golang.org/api v0.102.0

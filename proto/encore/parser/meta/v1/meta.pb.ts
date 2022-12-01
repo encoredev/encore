@@ -2,7 +2,6 @@
 import type {
   Loc,
   Type,
-  Builtin,
   Decl,
 } from "../../../../encore/parser/schema/v1/schema.pb";
 
@@ -26,7 +25,7 @@ export interface Data {
   pubsub_topics: PubSubTopic[];
   middleware: Middleware[];
   cache_clusters: CacheCluster[];
-  metrics: Metric[];
+  experiments: string[];
 }
 
 /**
@@ -351,34 +350,6 @@ export interface CacheCluster {
 }
 
 export interface CacheCluster_Keyspace {
+  /** TODO(andre) add more fields */
   key_type: Type;
-  value_type: Type;
-  service: string;
-  doc: string;
-  path_pattern: Path;
-}
-
-export interface Metric {
-  /** the name of the metric */
-  name: string;
-  value_type: Builtin;
-  /** the doc string */
-  doc: string;
-  kind: Metric_MetricKind;
-  /** the service the metric is exclusive to, if any. */
-  service_name?: string | undefined;
-  labels: Metric_Label[];
-}
-
-export enum Metric_MetricKind {
-  COUNTER = "COUNTER",
-  GAUGE = "GAUGE",
-  HISTOGRAM = "HISTOGRAM",
-  UNRECOGNIZED = "UNRECOGNIZED",
-}
-
-export interface Metric_Label {
-  key: string;
-  type: Builtin;
-  doc: string;
 }

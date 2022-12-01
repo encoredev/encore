@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/rjeczalik/notify"
 	"github.com/rs/zerolog/log"
 	"go4.org/syncutil"
 
 	"encr.dev/cli/daemon/internal/manifest"
-	"encr.dev/cli/internal/appfile"
-	"encr.dev/internal/experiments"
+	"encr.dev/pkg/appfile"
+	"encr.dev/pkg/experiments"
+	"encr.dev/pkg/watcher"
 )
 
 var ErrNotFound = errors.New("app not found")
@@ -165,7 +165,7 @@ func (mgr *Manager) RegisterAppListener(fn func(*Instance)) {
 }
 
 // WatchFunc is the signature of functions registered as app watchers.
-type WatchFunc func(*Instance, notify.EventInfo)
+type WatchFunc func(*Instance, []watcher.Event)
 
 // WatchAll watches all apps for changes.
 func (mgr *Manager) WatchAll(fn WatchFunc) error {
@@ -184,7 +184,7 @@ func (mgr *Manager) WatchAll(fn WatchFunc) error {
 	return nil
 }
 
-func (mgr *Manager) onWatchEvent(i *Instance, ev notify.EventInfo) {
+func (mgr *Manager) onWatchEvent(i *Instance, ev []watcher.Event) {
 	mgr.watchMu.Lock()
 	watchers := mgr.watchers
 	mgr.watchMu.Unlock()
@@ -240,6 +240,20 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 	return i, nil
 }
 
+func (mgr *Manager) Close() error {
+	mgr.instanceMu.Lock()
+	defer mgr.instanceMu.Unlock()
+
+	for _, inst := range mgr.instances {
+		if err := inst.Close(); err != nil {
+			log.Err(err).Str("id", inst.PlatformOrLocalID()).Msg("unable to close app instance")
+			// do not return an error here as we want to close all instances
+		}
+	}
+
+	return nil
+}
+
 // Instance describes an app instance known by the Encore daemon.
 type Instance struct {
 	root       string
@@ -248,15 +262,17 @@ type Instance struct {
 
 	// mgr is a reference to the manager that created it.
 	// It may be nil if an instance was created without a manager.
-	mgr *Manager
+	mgr     *Manager
+	watcher *watcher.Watcher
 
-	setupWatch syncutil.Once
-	watchMu    sync.Mutex
-	watchers   []WatchFunc
+	setupWatch  syncutil.Once
+	watchMu     sync.Mutex
+	nextWatchID WatchSubscriptionID
+	watchers    map[WatchSubscriptionID]*watchSubscription
 }
 
 func NewInstance(root, localID, platformID string) *Instance {
-	return &Instance{root: root, localID: localID, platformID: platformID}
+	return &Instance{root: root, localID: localID, platformID: platformID, watchers: make(map[WatchSubscriptionID]*watchSubscription)}
 }
 
 // Root returns the filesystem path for the app root.
@@ -294,40 +310,86 @@ func (i *Instance) Experiments(environ []string) (*experiments.Set, error) {
 	return experiments.NewSet(exp, environ)
 }
 
-func (i *Instance) Watch(fn WatchFunc) error {
+// GlobalCORS returns the CORS configuration for the app which
+// will be applied against all API gateways into the app
+func (i *Instance) GlobalCORS() (appfile.CORS, error) {
+	cors, err := appfile.GlobalCORS(i.root)
+	if err != nil {
+		return appfile.CORS{}, err
+	}
+
+	// If there are no Global CORS return the default
+	if cors == nil {
+		return appfile.CORS{}, nil
+	}
+
+	return *cors, nil
+
+}
+
+func (i *Instance) Watch(fn WatchFunc) (WatchSubscriptionID, error) {
 	if err := i.beginWatch(); err != nil {
-		return err
+		return 0, err
 	}
 
 	i.watchMu.Lock()
-	i.watchers = append(i.watchers, fn)
+	i.nextWatchID++
+	id := i.nextWatchID
+	i.watchers[id] = &watchSubscription{id, fn}
 	i.watchMu.Unlock()
-	return nil
+	return id, nil
+}
+
+func (i *Instance) Unwatch(id WatchSubscriptionID) {
+	i.watchMu.Lock()
+	delete(i.watchers, id)
+	i.watchMu.Unlock()
 }
 
 func (i *Instance) beginWatch() error {
 	return i.setupWatch.Do(func() error {
-		evs := make(chan notify.EventInfo, 100)
-		err := notify.Watch(filepath.Join(i.root, "..."), evs, notify.All)
+		watch, err := watcher.New(i.PlatformOrLocalID())
 		if err != nil {
-			return errors.Wrap(err, "watch")
+			return errors.Wrap(err, "unable to create watcher")
+		}
+		i.watcher = watch
+
+		if err := i.watcher.RecursivelyWatch(i.root); err != nil {
+			return errors.Wrap(err, "unable to watch app")
 		}
 
 		go func() {
-			for ev := range evs {
+			for range i.watcher.EventsReady {
+				batch := i.watcher.GetEventsBatch()
+				events := batch.Events()
+
 				if i.mgr != nil {
-					i.mgr.onWatchEvent(i, ev)
+					i.mgr.onWatchEvent(i, events)
 				}
 
 				i.watchMu.Lock()
 				watchers := i.watchers
 				i.watchMu.Unlock()
-				for _, fn := range watchers {
-					fn(i, ev)
+				for _, sub := range watchers {
+					sub.f(i, events)
 				}
 			}
 		}()
 
 		return nil
 	})
+}
+
+func (i *Instance) Close() error {
+	if i.watcher != nil {
+		return i.watcher.Close()
+	}
+	return nil
+}
+
+type WatchSubscriptionID int64
+
+type watchSubscription struct {
+	id WatchSubscriptionID
+	f  WatchFunc
 }

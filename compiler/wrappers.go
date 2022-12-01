@@ -19,6 +19,7 @@ const (
 )
 
 func (b *builder) writeMainPkg() error {
+	defer b.trace("write main package")()
 	// Write the file to disk
 	dir := filepath.Join(b.workdir, encorePkgDir, mainPkgName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -45,6 +46,7 @@ func (b *builder) writeMainPkg() error {
 }
 
 func (b *builder) writeEtypePkg() error {
+	defer b.trace("write etype package")()
 	// Write the file to disk
 	dir := filepath.Join(b.workdir, encorePkgDir, etypePkgName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -71,6 +73,7 @@ func (b *builder) writeEtypePkg() error {
 }
 
 func (b *builder) writeHandlers() error {
+	defer b.trace("write handlers")()
 	for _, svc := range b.res.App.Services {
 		if err := b.writeServiceHandlers(svc); err != nil {
 			return fmt.Errorf("write handlers for svc %s: %v", svc.Name, err)
@@ -115,6 +118,7 @@ func (b *builder) writeServiceHandlers(svc *est.Service) error {
 }
 
 func (b *builder) writeConfigUnmarshallers() error {
+	defer b.trace("write config unmarshallers")()
 	for _, svc := range b.res.App.Services {
 		if len(svc.ConfigLoads) > 0 {
 			if err := b.writeServiceConfigUnmarshalers(svc); err != nil {

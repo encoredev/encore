@@ -19,12 +19,12 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 
-	"encr.dev/internal/experiments"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
 	"encr.dev/parser/selector"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
@@ -188,7 +188,7 @@ func (p *parser) Parse() (res *Result, err error) {
 		Metrics:       p.metrics,
 	}
 
-	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset)
+	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset, p.cfg.Experiments)
 	if err != nil {
 		return nil, err
 	}

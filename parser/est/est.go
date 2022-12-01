@@ -30,6 +30,31 @@ type Application struct {
 	Metrics       []*Metric
 }
 
+// ParamTypes returns all used parameter types used for input to an Encore application
+func (a *Application) ParamTypes() (rtn []*schema.Type) {
+	used := make(map[*schema.Type]struct{})
+
+	// Check the auth handler
+	if a.AuthHandler != nil && a.AuthHandler.Params != nil {
+		rtn = append(rtn, a.AuthHandler.Params)
+		used[a.AuthHandler.Params] = struct{}{}
+	}
+
+	// Check all the RPC's
+	for _, s := range a.Services {
+		for _, rpc := range s.RPCs {
+			if rpc.Request != nil {
+				if _, found := used[rpc.Request.Type]; !found {
+					rtn = append(rtn, rpc.Request.Type)
+					used[rpc.Request.Type] = struct{}{}
+				}
+			}
+		}
+	}
+
+	return
+}
+
 type File struct {
 	Name       string          // file name ("foo.go")
 	Pkg        *Package        // package it belongs to

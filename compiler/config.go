@@ -15,6 +15,7 @@ import (
 // and into a virtual file system, which then can be used to generate the runtime
 // configuration for each service
 func (b *builder) pickupConfigFiles() error {
+	defer b.trace("pick up config files")()
 	// Create a virtual filesystem for the config files
 	configFiles, err := vfs.FromDir(b.appRoot, func(path string, info fs.DirEntry) bool {
 		// any CUE files

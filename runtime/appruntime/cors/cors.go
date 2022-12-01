@@ -5,16 +5,22 @@ import (
 	"sort"
 
 	"github.com/rs/cors"
+	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/config"
 )
 
-func Wrap(cfg *config.CORS, handler http.Handler) http.Handler {
-	c := cors.New(Options(cfg))
+func Wrap(cfg *config.CORS, staticHeaders []string, handler http.Handler) http.Handler {
+	c := cors.New(Options(cfg, staticHeaders))
+	if cfg.Debug {
+		logger := log.With().Str("subsystem", "cors").Logger()
+		logger.Debug().Msg("CORS system running in debug mode. All requests will be logged.")
+		c.Log = &logger
+	}
 	return c.Handler(handler)
 }
 
-func Options(cfg *config.CORS) cors.Options {
+func Options(cfg *config.CORS, staticHeaders []string) cors.Options {
 	// Sort origins to allow for binary search
 	originsCreds := sortedSliceCopy(cfg.AllowOriginsWithCredentials)
 	originsWithoutCreds := sortedSliceCopy(cfg.AllowOriginsWithoutCredentials)
@@ -23,12 +29,21 @@ func Options(cfg *config.CORS) cors.Options {
 	hasWildcardOriginWithoutCreds := cfg.AllowOriginsWithoutCredentials == nil || sortedSliceContains(originsWithoutCreds, "*")
 	hasUnsafeWildcardOriginWithCreds := sortedSliceContains(originsCreds, config.UnsafeAllOriginWithCredentials)
 
-	allowedHeaders := append([]string{"Authorization", "Content-Type"}, cfg.ExtraAllowedHeaders...)
+	// allowedHeaders are the headers allowed through CORS.
+	allowedHeaders := []string{
+		"Authorization",
+		"Content-Type",
+		"X-Request-ID",
+	}
+	allowedHeaders = append(allowedHeaders, cfg.ExtraAllowedHeaders...)
+	allowedHeaders = append(allowedHeaders, staticHeaders...)
 
 	return cors.Options{
-		AllowCredentials: !cfg.DisableCredentials,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "TRACE", "CONNECT"},
-		AllowedHeaders:   allowedHeaders,
+		Debug:               cfg.Debug,
+		AllowCredentials:    !cfg.DisableCredentials,
+		AllowedMethods:      []string{"GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "TRACE", "CONNECT"},
+		AllowedHeaders:      allowedHeaders,
+		AllowPrivateNetwork: cfg.AllowPrivateNetworkAccess,
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.

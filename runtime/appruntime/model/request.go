@@ -39,6 +39,7 @@ type PathParam struct {
 
 type Request struct {
 	Type     RequestType
+	TraceID  TraceID
 	SpanID   SpanID
 	ParentID SpanID
 

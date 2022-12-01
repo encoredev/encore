@@ -64,7 +64,8 @@ func (e *ErrInSrc) Unwrap() error {
 func (e *ErrInSrc) StackTrace() errors.StackTrace {
 	frames := make([]errors.Frame, len(e.Stack))
 	for i, frame := range e.Stack {
-		frames[i] = errors.Frame(frame.ProgramCounter)
+		// Note: interpreted as a uintptr its value represents the program counter + 1.
+		frames[i] = errors.Frame(frame.ProgramCounter + 1)
 	}
 	return frames
 }

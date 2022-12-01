@@ -19,7 +19,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/internal/platform"
-	"encr.dev/internal/experiments"
+	"encr.dev/pkg/experiments"
 )
 
 // New returns a new manager.
