@@ -278,18 +278,12 @@ type RedisDatabase struct {
 	KeyPrefix string `json:"key_prefix"`
 }
 
-type MetricsExporterType string
-
-const (
-	MetricsExporterTypeLogsBased MetricsExporterType = "logs_based"
-)
-
 type Metrics struct {
-	CollectionInterval time.Duration                 `json:"collection_interval,omitempty"`
-	CloudMonitoring *GCPCloudMonitoringProvider    `json:"gcp_cloud_monitoring,omitempty"`
-	CloudWatch      *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
-	LogsBased       *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
-	Prometheus      *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
+	CollectionInterval time.Duration                  `json:"collection_interval,omitempty"`
+	CloudMonitoring    *GCPCloudMonitoringProvider    `json:"gcp_cloud_monitoring,omitempty"`
+	CloudWatch         *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
+	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
+	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
 }
 
 type LogsBasedMetricsProvider struct{}
