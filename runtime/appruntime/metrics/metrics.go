@@ -55,7 +55,10 @@ func NewManager(reg *metrics.Registry, cfg *config.Config, rootLogger zerolog.Lo
 func (mgr *Manager) Shutdown(force context.Context) {
 	mgr.collectNow(force)
 	mgr.cancel()
-	mgr.exp.Shutdown(force)
+
+	if mgr.exp != nil {
+		mgr.exp.Shutdown(force)
+	}
 }
 
 func (mgr *Manager) BeginCollection() {
