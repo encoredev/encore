@@ -18,7 +18,8 @@ import (
 func loadApp() *__appinit.LoadData {
 	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &__config.Static{
-		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
+		AuthData:        reflect.TypeOf((*svc.AuthData)(nil)),
+		BundledServices: []string{"otherservice", "svc"},
 		PubsubTopics: map[string]*__config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*__config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
@@ -128,7 +129,8 @@ import (
 func loadApp() *__appinit.LoadData {
 	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &__config.Static{
-		AuthData: reflect.TypeOf((*svc.AuthData)(nil)),
+		AuthData:        reflect.TypeOf((*svc.AuthData)(nil)),
+		BundledServices: []string{"otherservice", "svc"},
 		PubsubTopics: map[string]*__config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*__config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,

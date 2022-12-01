@@ -22,9 +22,10 @@ func loadApp() *__appinit.LoadData {
 			Revision:    "",
 			Uncommitted: false,
 		},
-		AuthData:       reflect.TypeOf((*svc.AuthData)(nil)),
-		CORSHeaders:    []string{"One", "Three", "Two"},
-		EncoreCompiler: "test",
+		AuthData:        reflect.TypeOf((*svc.AuthData)(nil)),
+		BundledServices: []string{"otherservice", "svc"},
+		CORSHeaders:     []string{"One", "Three", "Two"},
+		EncoreCompiler:  "test",
 		PubsubTopics: map[string]*__config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*__config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
