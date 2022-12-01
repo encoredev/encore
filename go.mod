@@ -42,16 +42,16 @@ require (
 	github.com/tailscale/hujson v0.0.0-20220630195928-54599719472f
 	go.uber.org/goleak v1.1.12
 	go4.org v0.0.0-20201209231011-d4a079459e60
-	golang.org/x/crypto v0.0.0-20220924013350-4ba4fb4dd9e7
-	golang.org/x/exp v0.0.0-20220921164117-439092de6870
-	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
-	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1
-	golang.org/x/sync v0.0.0-20220923202941-7f9b1623fab7
+	golang.org/x/crypto v0.1.0
+	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326
+	golang.org/x/mod v0.6.0
+	golang.org/x/oauth2 v0.1.0
+	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.2.0
-	golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2
-	golang.org/x/tools v0.1.12
-	google.golang.org/genproto v0.0.0-20220923205249-dd2d53f1fffc
-	google.golang.org/grpc v1.49.0
+	golang.org/x/text v0.4.0
+	golang.org/x/tools v0.2.0
+	google.golang.org/genproto v0.0.0-20221109142239-94d6d90a7d66
+	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 )
 
