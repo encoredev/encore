@@ -15,15 +15,16 @@ import (
 
 // metricConstructor describes a particular metric constructor function.
 type metricConstructor struct {
-	FuncName  string
-	HasLabels bool
+	FuncName   string
+	HasLabels  bool
+	MetricKind meta.Metric_MetricKind
 }
 
 var metricConstructors = []metricConstructor{
-	{"NewCounter", false},
-	{"NewCounterGroup", true},
-	{"NewGauge", false},
-	{"NewGaugeGroup", true},
+	{"NewCounter", false, meta.Metric_COUNTER},
+	{"NewCounterGroup", true, meta.Metric_COUNTER},
+	{"NewGauge", false, meta.Metric_GAUGE},
+	{"NewGaugeGroup", true, meta.Metric_GAUGE},
 }
 
 func init() {
@@ -64,15 +65,6 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 				con.FuncName,
 			)
 			return nil
-		}
-		var metricKind meta.Metric_MetricKind
-		switch con.FuncName {
-		case "NewCounter", "NewCounterGroup":
-			metricKind = meta.Metric_COUNTER
-		case "NewGauge", "NewGaugeGroup":
-			metricKind = meta.Metric_GAUGE
-		default:
-			panic("unknown metric constructor name")
 		}
 
 		var (
@@ -129,7 +121,7 @@ func createMetricParser(con metricConstructor) func(*parser, *est.File, *walker.
 		metric := &est.Metric{
 			Name:      metricName,
 			ValueType: metricValueType,
-			Kind:      metricKind,
+			Kind:      con.MetricKind,
 			Doc:       cursor.DocComment(),
 			Svc:       file.Pkg.Service, // nil means global metric
 			DeclFile:  file,
