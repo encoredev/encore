@@ -33,6 +33,8 @@ type beginRequestParams struct {
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
 
+	SvcNum uint16
+
 	// ExtRequestID specifies the externally-provided request id, if any.
 	// If not empty, it will be recorded as part of the "starting request" log message
 	// to facilitate request correlation.
@@ -54,6 +56,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		TraceID: p.TraceID,
 		SpanID:  spanID,
 		DefLoc:  p.DefLoc,
+		SvcNum:  p.SvcNum,
 		Start:   s.clock.Now(),
 		Traced:  s.tracingEnabled,
 		RPCData: p.Data,

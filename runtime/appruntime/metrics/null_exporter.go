@@ -1,15 +1,20 @@
 package metrics
 
+import (
+	"context"
+
+	"encore.dev/metrics"
+)
+
 type NullMetricsExporter struct{}
 
 func NewNullMetricsExporter() *NullMetricsExporter {
 	return &NullMetricsExporter{}
 }
 
-func (e *NullMetricsExporter) IncCounter(_ string, _ ...string) {
-	return
+func (e *NullMetricsExporter) Export(ctx context.Context, metrics []metrics.CollectedMetric) error {
+	return nil
 }
 
-func (e *NullMetricsExporter) Observe(_ string, _ string, _ float64, _ ...string) {
-	return
+func (e *NullMetricsExporter) Shutdown(force context.Context) {
 }

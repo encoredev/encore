@@ -50,6 +50,12 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 
 	mwNames, mwCode := b.RenderMiddlewares(mainPkgPath)
 
+	svcNames := make([]string, 0, len(b.res.App.Services))
+	for _, svc := range b.res.App.Services {
+		svcNames = append(svcNames, svc.Name)
+	}
+	sort.Strings(svcNames)
+
 	corsHeaders, err := b.computeCORSHeaders()
 	if err != nil {
 		b.error(eerror.Wrap(err, "codegen", "failed to compute CORS headers", nil))
@@ -70,6 +76,7 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
 			Id("Testing"):      False(),
 			Id("TestService"):  Lit(""),
+			Id("BundledServices"): b.computeBundledServices(),
 		})
 		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
 
@@ -235,6 +242,20 @@ func (b *Builder) authDataType() Code {
 		}
 	}
 	return Nil()
+}
+
+func (b *Builder) computeBundledServices() Code {
+	sortedNames := make([]string, 0, len(b.res.App.Services))
+	for _, svc := range b.res.App.Services {
+		sortedNames = append(sortedNames, svc.Name)
+	}
+	sort.Strings(sortedNames)
+
+	return Index().String().ValuesFunc(func(g *Group) {
+		for _, name := range sortedNames {
+			g.Lit(name)
+		}
+	})
 }
 
 func (b *Builder) error(err error) {

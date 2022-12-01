@@ -31,10 +31,11 @@ func (b *Builder) TestMain(pkg *est.Package, svcs []*est.Service, envToEmbed []s
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
 		staticDict := Dict{
-			Id("AuthData"):     b.authDataType(),
-			Id("Testing"):      True(),
-			Id("TestService"):  Lit(testSvc),
-			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
+			Id("AuthData"):        b.authDataType(),
+			Id("Testing"):         True(),
+			Id("TestService"):     Lit(testSvc),
+			Id("PubsubTopics"):    b.computeStaticPubsubConfig(),
+			Id("BundledServices"): b.computeBundledServices(),
 		}
 
 		// When building tests with the arg "-c", we need to embed the encore runtime environmental arguments into the test binary.

@@ -48,7 +48,7 @@ func (p *parser) parseCronJob(file *est.File, cursor *walker.Cursor, ident *ast.
 		DeclCall: callExpr,
 	}
 
-	cronJobID := p.parseResourceName("cron.NewJob", "cronjob ID", callExpr.Args[0])
+	cronJobID := p.parseResourceName("cron.NewJob", "cronjob ID", callExpr.Args[0], kebabName, "")
 	if cronJobID == "" {
 		// error already reported
 		return nil

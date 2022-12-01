@@ -16,6 +16,7 @@ func loadApp() *__appinit.LoadData {
 	os.Setenv("ENCORE_DUMMY_ENV_VAR", "eyAidGVzdCI6IHRydWUgfQ")
 	static := &__config.Static{
 		AuthData:             reflect.TypeOf((*svc.AuthData)(nil)),
+		BundledServices:      []string{"svc"},
 		PubsubTopics:         map[string]*__config.StaticPubsubTopic{},
 		TestAsExternalBinary: true,
 		TestService:          "svc",

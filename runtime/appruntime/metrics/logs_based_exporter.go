@@ -26,15 +26,15 @@ import (
 
 const encoreMetricKey = rlog.InternalKeyPrefix + "metric_name"
 
-type LogsBasedExporter struct {
+type logsBasedEmitter struct {
 	logger zerolog.Logger
 }
 
-func NewLogsBasedExporter(logger zerolog.Logger) *LogsBasedExporter {
-	return &LogsBasedExporter{logger: logger}
+func newLogsBasedEmitter(logger zerolog.Logger) *logsBasedEmitter {
+	return &logsBasedEmitter{logger: logger}
 }
 
-func (e *LogsBasedExporter) IncCounter(name string, tags ...string) {
+func (e *logsBasedEmitter) IncCounter(name string, tags ...string) {
 	// See comment above.
 	if len(tags) > 6 {
 		panic("emitting metric with more than 3 dimensions is not supported")
@@ -43,7 +43,7 @@ func (e *LogsBasedExporter) IncCounter(name string, tags ...string) {
 	e.logCounter(name, tags...)
 }
 
-func (e *LogsBasedExporter) Observe(name string, key string, value float64, tags ...string) {
+func (e *logsBasedEmitter) Observe(name string, key string, value float64, tags ...string) {
 	// See comment above.
 	if len(tags) > 6 {
 		panic("emitting metric with more than 3 dimensions is not supported")
@@ -52,25 +52,23 @@ func (e *LogsBasedExporter) Observe(name string, key string, value float64, tags
 	e.logValue(name, key, value, tags...)
 }
 
-func (e *LogsBasedExporter) logCounter(name string, tags ...string) {
-	loggerCtx := e.logger.With().Str(encoreMetricKey, name)
-	loggerCtx = addTags(loggerCtx, tags...)
-	logger := loggerCtx.Logger()
-	logger.Trace().Send()
+func (e *logsBasedEmitter) logCounter(name string, tags ...string) {
+	ev := e.logger.Trace().Str(encoreMetricKey, name)
+	ev = addTags(ev, tags...)
+	ev.Send()
 }
 
-func (e *LogsBasedExporter) logValue(name string, observationKey string, observationValue float64, tags ...string) {
-	loggerCtx := e.logger.With().Str(encoreMetricKey, name).Float64(observationKey, observationValue)
-	loggerCtx = addTags(loggerCtx, tags...)
-	logger := loggerCtx.Logger()
-	logger.Trace().Send()
+func (e *logsBasedEmitter) logValue(name string, observationKey string, observationValue float64, tags ...string) {
+	ev := e.logger.Trace().Str(encoreMetricKey, name).Float64(observationKey, observationValue)
+	ev = addTags(ev, tags...)
+	ev.Send()
 }
 
-func addTags(loggerCtx zerolog.Context, tags ...string) zerolog.Context {
+func addTags(ev *zerolog.Event, tags ...string) *zerolog.Event {
 	for i := 0; i < len(tags); i += 2 {
 		if i+1 < len(tags) {
-			loggerCtx = loggerCtx.Str(tags[i], tags[i+1])
+			ev = ev.Str(tags[i], tags[i+1])
 		}
 	}
-	return loggerCtx
+	return ev
 }

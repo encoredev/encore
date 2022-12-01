@@ -180,6 +180,9 @@ func TestCompile(t *testing.T) {
 						fmt.Fprintf(stdout, "pubsubSubscriber %s %s %s %d %d %d %d %d\n", topic.Name, sub.Name, sub.DeclFile.Pkg.Service.Name, sub.AckDeadline, sub.MessageRetention, sub.MaxRetries, sub.MinRetryBackoff, sub.MaxRetryBackoff)
 					}
 				}
+				for _, metric := range res.App.Metrics {
+					fmt.Fprintf(stdout, "metric %s %s %s %s\n", metric.Name, metric.ValueType, metric.Kind, metric.Labels)
+				}
 				for _, pkg := range res.App.Packages {
 					for _, res := range pkg.Resources {
 						switch res := res.(type) {

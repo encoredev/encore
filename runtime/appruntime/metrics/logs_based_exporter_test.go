@@ -50,7 +50,7 @@ func TestLogCounter(t *testing.T) {
 
 			var buf bytes.Buffer
 			logger := zerolog.New(&buf)
-			NewLogsBasedExporter(logger).logCounter(testCase.Counter, testCase.Tags...)
+			newLogsBasedEmitter(logger).logCounter(testCase.Counter, testCase.Tags...)
 			actual := buf.String()
 			if actual != testCase.Want {
 				t.Fatalf("\nwant:\n\t%q\ngot:\n\t%q\n", testCase.Want, actual)

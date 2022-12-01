@@ -28,12 +28,22 @@ const (
 		"\t})"
 
 	pubsubHelp = "For more information on PubSub, see https://encore.dev/docs/develop/pubsub"
+
+	metricsHelp = "For more information on metrics, see https://encore.dev/docs/observability/metrics"
 )
 
-func resourceNameHelp(resourceName string, paramName string) string {
+func resourceNameHelpKebabCase(resourceName string, paramName string) string {
 	return fmt.Sprintf("%s %s's must be defined as string literals, "+
 		"be between 1 and 63 characters long, and defined in \"kebab-case\", meaning it must start with a letter, end with a letter "+
 		"or number and only contain lower case letters, numbers and dashes.",
+		resourceName, paramName,
+	)
+}
+
+func resourceNameHelpSnakeCase(resourceName string, paramName string) string {
+	return fmt.Sprintf("%s %s's must be defined as string literals, "+
+		"be between 1 and 63 characters long, and defined in \"snake_case\", meaning it must start with a letter, end with a letter "+
+		"or number and only contain lower case letters, numbers and underscores.",
 		resourceName, paramName,
 	)
 }
