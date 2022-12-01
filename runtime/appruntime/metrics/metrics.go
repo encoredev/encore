@@ -34,6 +34,11 @@ func NewManager(reg *metrics.Registry, cfg *config.Config, rootLogger zerolog.Lo
 		rootLogger: rootLogger,
 	}
 
+	// Metrics aren't configured, return.
+	if cfg.Runtime.Metrics == nil {
+		return mgr
+	}
+
 	for _, desc := range providerRegistry {
 		if desc.matches(cfg.Runtime.Metrics) {
 			mgr.exp = desc.newExporter(mgr)
