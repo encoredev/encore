@@ -138,6 +138,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 				Payload:        marshalParams(mgr.json, msg),
 			},
 			DefLoc: staticCfg.TraceIdx,
+			SvcNum: staticCfg.SvcNum,
 			Traced: tracingEnabled,
 		}
 		req.Logger = &log

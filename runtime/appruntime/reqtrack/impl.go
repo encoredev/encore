@@ -160,7 +160,7 @@ func (t *RequestTracker) finishReq() {
 	e.req = nil
 }
 
-func (t *RequestTracker) currentReq() (req *model.Request, tr trace.Logger, goctr uint32) {
+func (t *RequestTracker) currentReq() (req *model.Request, tr trace.Logger, goctr uint32, svcNum uint16) {
 	if g := t.impl.get(); g != nil {
 		var tr trace.Logger
 		if g.op != nil {
@@ -168,10 +168,11 @@ func (t *RequestTracker) currentReq() (req *model.Request, tr trace.Logger, goct
 		}
 		if g.req != nil {
 			req = g.req.data
+			svcNum = req.SvcNum
 		}
-		return req, tr, g.goctr
+		return req, tr, g.goctr, svcNum
 	}
-	return nil, nil, 0
+	return nil, nil, 0, 0
 }
 
 // encoreClearReq clears request data from the running g

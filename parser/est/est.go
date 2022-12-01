@@ -6,12 +6,14 @@ package est
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"time"
 
 	"encr.dev/parser/paths"
 	"encr.dev/parser/selector"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -25,6 +27,7 @@ type Application struct {
 	Decls         []*schema.Decl
 	AuthHandler   *AuthHandler
 	Middleware    []*Middleware
+	Metrics       []*Metric
 }
 
 // ParamTypes returns all used parameter types used for input to an Encore application
@@ -268,6 +271,7 @@ const (
 	CacheClusterDefNode
 	CacheKeyspaceDefNode
 	ConfigLoadNode
+	MetricDefNode
 )
 
 type Node struct {
@@ -350,6 +354,7 @@ const (
 	CacheClusterResource
 	CacheKeyspaceResource
 	ConfigResource
+	MetricResource
 )
 
 type SQLDB struct {
@@ -404,3 +409,35 @@ func (p *CacheKeyspace) Ident() *ast.Ident          { return p.IdentAST }
 func (r *CacheKeyspace) DefNode() ast.Node          { return r.DeclCall }
 func (p *CacheKeyspace) NodeType() NodeType         { return CacheKeyspaceDefNode }
 func (p *CacheKeyspace) AllowOnlyParsedUsage() bool { return false }
+
+type Metric struct {
+	Name       string         // The metric name
+	ValueType  schema.Builtin // The metric type
+	Kind       meta.Metric_MetricKind
+	Doc        string   // The documentation on the metric
+	Svc        *Service // the service this metric is exclusive to, or nil
+	DeclFile   *File    // What file the cache is declared in
+	DeclCall   *ast.CallExpr
+	IdentAST   *ast.Ident // The AST node representing the value this metric is bound against
+	ConfigLit  *ast.CompositeLit
+	LabelsType *schema.Type // The labels for this keyspace, or nil if no labels.
+	LabelsAST  ast.Node
+	Labels     []Label
+}
+
+func (p *Metric) Type() ResourceType         { return MetricResource }
+func (p *Metric) File() *File                { return p.DeclFile }
+func (p *Metric) Ident() *ast.Ident          { return p.IdentAST }
+func (p *Metric) DefNode() ast.Node          { return p.DeclCall }
+func (p *Metric) NodeType() NodeType         { return MetricDefNode }
+func (p *Metric) AllowOnlyParsedUsage() bool { return false }
+
+type Label struct {
+	Key  string
+	Type schema.Builtin
+	Doc  string
+}
+
+func (l Label) String() string {
+	return fmt.Sprintf("%s %s %s", l.Key, l.Type, l.Doc)
+}

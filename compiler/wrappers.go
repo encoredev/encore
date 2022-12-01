@@ -159,21 +159,6 @@ func (b *builder) writeServiceConfigUnmarshalers(svc *est.Service) error {
 }
 
 func (b *builder) writePackageHandlers(pkg *est.Package) error {
-	// If we have a package that uses Encore resources we need to ensure
-	// the runtime is properly initialized before said package.
-	//
-	// The easiest way to ensure that is through package dependency order,
-	// so we generate a synthetic file that imports the runtime's appinit package.
-	//
-	// This is a bit hacky and in the future we'll want to migrate to a cleaner solution,
-	// but it's at least simple and reliable.
-
-	// Only do this if this is not a root package of a service (since for those
-	// we already have this covered through other code generation).
-	if pkg.Service != nil && pkg.Service.Root == pkg {
-		return nil
-	}
-
 	hasResources := false
 	for _, file := range pkg.Files {
 		if len(file.References) > 0 {
@@ -205,7 +190,7 @@ func (b *builder) writePackageHandlers(pkg *est.Package) error {
 
 	b.addOverlay(filepath.Join(pkg.Dir, name), filePath)
 
-	f, err := b.codegen.ForceRuntimeDependency(pkg)
+	f, err := b.codegen.PackageResources(pkg)
 	if err != nil {
 		return err
 	}

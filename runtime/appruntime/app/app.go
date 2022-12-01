@@ -12,7 +12,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
 	runtimeCfg "encore.dev/appruntime/config"
-	"encore.dev/appruntime/metrics"
+	rtmetrics "encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/service"
@@ -22,6 +22,7 @@ import (
 	appCfg "encore.dev/config"
 	"encore.dev/et"
 	"encore.dev/internal/cloud"
+	usermetrics "encore.dev/metrics"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/cache"
@@ -38,14 +39,16 @@ type App struct {
 	ts         *testsupport.Manager
 	shutdown   *shutdownTracker
 
-	encore *encore.Manager
-	auth   *auth.Manager
-	rlog   *rlog.Manager
-	sqldb  *sqldb.Manager
-	pubsub *pubsub.Manager
-	cache  *cache.Manager
-	config *appCfg.Manager
-	et     *et.Manager
+	encore          *encore.Manager
+	auth            *auth.Manager
+	rlog            *rlog.Manager
+	sqldb           *sqldb.Manager
+	pubsub          *pubsub.Manager
+	cache           *cache.Manager
+	config          *appCfg.Manager
+	et              *et.Manager
+	metrics         *rtmetrics.Manager
+	metricsRegistry *usermetrics.Registry
 }
 
 func (app *App) Cfg() *runtimeCfg.Config            { return app.cfg }
@@ -69,8 +72,6 @@ func New(p *NewParams) *App {
 		})
 	}
 	rootLogger := zerolog.New(logOutput).With().Timestamp().Logger()
-	metrics := metrics.NewManager(metricsExporter(cfg, rootLogger))
-
 	tracingEnabled := trace.Enabled(cfg)
 	var traceFactory trace.Factory = nil
 	if tracingEnabled {
@@ -83,6 +84,9 @@ func New(p *NewParams) *App {
 	json := jsonAPI(cfg)
 	shutdown := newShutdownTracker()
 	encore := encore.NewManager(cfg, rt)
+
+	metricsRegistry := usermetrics.NewRegistry(rt, uint16(len(cfg.Static.BundledServices)))
+	metrics := rtmetrics.NewManager(metricsRegistry, cfg, rootLogger)
 
 	klock := clock.New()
 	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, metrics, json, tracingEnabled, klock)
@@ -103,7 +107,7 @@ func New(p *NewParams) *App {
 		cfg, rt, json, rootLogger, apiSrv, service, ts,
 		shutdown,
 		encore, auth, rlog, sqldb, pubsub, cache, appCfg,
-		etMgr,
+		etMgr, metrics, metricsRegistry,
 	}
 
 	// If this is running inside an Encore app, initialize the singletons
@@ -125,6 +129,9 @@ func (app *App) Run() error {
 	app.RegisterShutdown(app.sqldb.Shutdown)
 	app.RegisterShutdown(app.pubsub.Shutdown)
 	app.RegisterShutdown(app.service.Shutdown)
+	app.RegisterShutdown(app.metrics.Shutdown)
+
+	go app.metrics.BeginCollection()
 
 	serveErr := app.api.Serve(ln)
 
@@ -154,19 +161,6 @@ func jsonAPI(cfg *runtimeCfg.Config) jsoniter.API {
 		SortMapKeys:            true,
 		ValidateJsonRawMessage: true,
 	}.Froze()
-}
-
-func metricsExporter(cfg *runtimeCfg.Config, logger zerolog.Logger) metrics.Exporter {
-	if cfg.Runtime.Metrics == nil {
-		return metrics.NewNullMetricsExporter()
-	}
-
-	switch cfg.Runtime.Metrics.ExporterType {
-	case runtimeCfg.MetricsExporterTypeLogsBased:
-		return metrics.NewLogsBasedExporter(logger)
-	default:
-		panic("unexpected metrics exporter")
-	}
 }
 
 // ReconfigureZerologFormat reconfigures the zerolog Logger's output format
