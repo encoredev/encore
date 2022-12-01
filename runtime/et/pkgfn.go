@@ -2,6 +2,8 @@
 
 package et
 
+import "encore.dev/beta/auth"
+
 //publicapigen:drop
 var Singleton *Manager // injected on app init
 

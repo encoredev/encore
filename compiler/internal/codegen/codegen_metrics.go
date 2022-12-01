@@ -16,7 +16,7 @@ func (b *Builder) PackageResources(pkg *est.Package) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
 	f = NewFilePathName(pkg.ImportPath, pkg.Name)
-	b.registerImports(f)
+	b.registerImports(f, pkg.ImportPath)
 
 	// Import the runtime package to force this package to have a dependency
 	// on the runtime, to ensure proper initialization order.
