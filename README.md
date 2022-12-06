@@ -1,4 +1,3 @@
-<a href="https://encore.dev">![encore backend development platform](https://user-images.githubusercontent.com/78424526/205652360-005b4de4-0560-4760-9c14-8c43e15e0674.png)</a>
 <h1><a href="https://encore.dev">Encore – Backend Development Platform</a></h1>
 Encore is an end-to-end backend development platform that automatically provisions all your cloud infrastructure, based on your business logic.
 With Encore you get local, preview, and cloud environments directly from application code.
@@ -13,6 +12,9 @@ Start building today and unlock your creative potential, free from cloud complex
 **⭐ If you find Encore interesting, star this repository to help spread the word.**
 
 **👋 Have questions? Join the friendly [developer community](https://community.encore.dev), or say hello on [Slack](https://encore.dev/slack).**
+</br></br>
+
+![encore infographic](https://user-images.githubusercontent.com/78424526/205885215-ef754b5c-8d2d-4c3c-88dc-d22b68459272.png)
 
 ## Key features
 
