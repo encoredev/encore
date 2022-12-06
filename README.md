@@ -1,4 +1,3 @@
-<a href="https://encore.dev">![encore backend development platform](https://user-images.githubusercontent.com/78424526/205652360-005b4de4-0560-4760-9c14-8c43e15e0674.png)</a>
 <h1><a href="https://encore.dev">Encore – Backend Development Platform</a></h1>
 Encore is an end-to-end backend development platform that automatically provisions all your cloud infrastructure, based on your business logic.
 With Encore you get local, preview, and cloud environments directly from application code.
@@ -13,6 +12,9 @@ Start building today and unlock your creative potential, free from cloud complex
 **⭐ If you find Encore interesting, star this repository to help spread the word.**
 
 **👋 Have questions? Join the friendly [developer community](https://community.encore.dev), or say hello on [Slack](https://encore.dev/slack).**
+</br></br>
+
+![encore infographic](https://user-images.githubusercontent.com/78424526/205885215-ef754b5c-8d2d-4c3c-88dc-d22b68459272.png)
 
 ## Key features
 
@@ -26,19 +28,18 @@ Start building today and unlock your creative potential, free from cloud complex
 
 - **[Preview environments](https://encore.dev/docs/how-to/github):** Integrate with GitHub to automatically set up each pull request as an ephemeral preview environment.
 
-- **[Deploy to your existing cloud account](https://encore.dev/docs/deploy/infra):** Encore seamlessly deploys your application to your existing cloud account in AWS/GCP/Azure, using best practices for building secure and scalable distributed systems.
+- **[Deploy to your existing cloud account](https://encore.dev/docs/deploy/infra):** Encore deploys your application to your existing cloud account in AWS/GCP/Azure, using best practices for building secure and scalable distributed systems.
  
 - **[Intelligent architecture diagrams](https://encore.dev/docs/develop/encore-flow):** Visualise your application in real-time with automated and interactive architecture diagrams.
 
-- **[Distributed Tracing](https://encore.dev/docs/observability/tracing):** Your application is automatically instrumented for excellent observability.
-  Automatically capture information about API calls, goroutines, HTTP requests, database queries, and more.
+- **[Distributed Tracing](https://encore.dev/docs/observability/tracing):** Your application is automatically instrumented to capture information about API calls, goroutines, HTTP requests, database queries, and more.
   
-- **[Secrets management](https://encore.dev/docs/develop/secrets):** The easiest way ever to store and securely use secrets and API keys. Define secrets in your code like any other variable, and Encore takes care of the rest.
+- **[Secrets management](https://encore.dev/docs/develop/secrets):** Securely store and use secrets, and API keys, without doing any work. Define secrets in your code, like any other variable, and Encore takes care of the rest.
 
 - **[Automated API documentation](https://encore.dev/docs/develop/api-docs):** Encore parses your source code to understand the request/response
-  schemas for all your APIs, and automatically generates high-quality, interactive
-  API Documentation for you.
-- **[Generated Frontend Clients](https://encore.dev/docs/how-to/integrate-frontend):** Automatically generate type-safe, documented clients for your frontends.
+  schemas for all your APIs and automatically generates high-quality API Documentation.
+
+- **[Generated Frontend Clients](https://encore.dev/docs/how-to/integrate-frontend):** Automatically generate type-safe API clients to integrate with your frontend.
 
 ## Use cases
 
@@ -69,9 +70,9 @@ Here's how you can contribute:
 - Send a pull request here on GitHub with your contribution.
 
 ## Demo video
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0&t=1s" alt="Encore Demo Video" target="_blank">![demo video](https://user-images.githubusercontent.com/78424526/205661341-086c2813-455c-4af4-9517-b0398def6364.gif)</a>
+<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">![demo video](https://user-images.githubusercontent.com/78424526/205661341-086c2813-455c-4af4-9517-b0398def6364.gif)</a>
 </br>
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0&t=1s" alt="Encore Demo Video" target="_blank">Open video in YouTube</a>
+<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">Open video in YouTube</a>
 
 ## Visuals
 
