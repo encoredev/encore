@@ -10,6 +10,7 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/login"
 	"encr.dev/internal/conf"
@@ -121,7 +122,7 @@ func doLogout() {
 		os.Exit(1)
 	}
 	// Stop running daemon to clear any cached credentials
-	stopDaemon()
+	cmdutil.StopDaemon()
 	fmt.Fprintln(os.Stdout, "encore: logged out.")
 }
 
