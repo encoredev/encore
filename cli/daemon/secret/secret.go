@@ -114,7 +114,7 @@ func (f *Manager) fetch(appSlug string, poll bool) (*Data, error) {
 	data, err, _ := f.group.Do(appSlug, func() (interface{}, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		secrets, err := platform.GetAppSecrets(ctx, appSlug, poll, platform.DevelopmentSecrets)
+		secrets, err := platform.GetLocalSecretValues(ctx, appSlug, poll)
 		if err != nil {
 			return nil, fmt.Errorf("fetch secrets for %s: %v", appSlug, err)
 		}

@@ -4,13 +4,13 @@ package daemon
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -27,7 +27,6 @@ import (
 	"encr.dev/compiler"
 	"encr.dev/internal/clientgen"
 	"encr.dev/internal/version"
-	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/errlist"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -129,32 +128,13 @@ func (s *Server) GenWrappers(ctx context.Context, params *daemonpb.GenWrappersRe
 	return &daemonpb.GenWrappersResponse{}, nil
 }
 
-// SetSecret sets a secret key on the encore.dev platform.
-func (s *Server) SetSecret(ctx context.Context, req *daemonpb.SetSecretRequest) (*daemonpb.SetSecretResponse, error) {
-	// Get the app id from the app file
-	appSlug, err := appfile.Slug(req.AppRoot)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
-	} else if appSlug == "" {
-		return nil, errNotLinked
-	}
-
-	var kind platform.SecretKind
-	switch req.Type {
-	case daemonpb.SetSecretRequest_DEVELOPMENT:
-		kind = platform.DevelopmentSecrets
-	case daemonpb.SetSecretRequest_PRODUCTION:
-		kind = platform.ProductionSecrets
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, "unknown secret type %v", req.Type)
-	}
-
-	ver, err := platform.SetAppSecret(ctx, appSlug, kind, req.Key, req.Value)
+func (s *Server) SecretsRefresh(ctx context.Context, req *daemonpb.SecretsRefreshRequest) (*daemonpb.SecretsRefreshResponse, error) {
+	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
 		return nil, err
 	}
-	go s.sm.UpdateKey(appSlug, req.Key, req.Value)
-	return &daemonpb.SetSecretResponse{Created: ver.Number == 1}, nil
+	s.sm.UpdateKey(app.PlatformID(), req.Key, req.Value)
+	return &daemonpb.SecretsRefreshResponse{}, nil
 }
 
 // Version reports the daemon version.
