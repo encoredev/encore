@@ -31,6 +31,13 @@ func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerol
 	}
 }
 
+func NewEncoreCloudExporter(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerolog.Logger, metricNames map[string]string) *Exporter {
+	exp := New(svcs, cfg, rootLogger)
+	exp.exportsToEncoreCloud = true
+	exp.encoreCloudMetricNames = metricNames
+	return exp
+}
+
 type Exporter struct {
 	svcs       []string
 	cfg        *config.GCPCloudMonitoringProvider
@@ -42,6 +49,9 @@ type Exporter struct {
 	firstSeenCounter map[uint64]*timestamppb.Timestamp
 
 	dummyStart, dummyEnd time.Time
+
+	exportsToEncoreCloud   bool
+	encoreCloudMetricNames map[string]string
 }
 
 func (x *Exporter) Shutdown(force context.Context) {
@@ -109,7 +119,11 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		}
 
 		svcNum := m.Info.SvcNum()
-		metricType := "custom.googleapis.com/" + m.Info.Name()
+		encoreCloudMetricName, ok := x.encoreCloudMetricNames[m.Info.Name()]
+		if !ok {
+			continue
+		}
+		metricType := "custom.googleapis.com/" + encoreCloudMetricName
 
 		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
 			labels := make(map[string]string, len(baseLabels)+1)
