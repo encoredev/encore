@@ -428,7 +428,7 @@ func (b *builder) buildMain() error {
 		"-overlay=" + overlayPath,
 		"-modfile=" + filepath.Join(b.workdir, "go.mod"),
 		"-mod=mod",
-		"-o=" + filepath.Join(b.workdir, "out"+b.exe()),
+		"-o=" + filepath.Join(b.workdir, binaryName+b.exe()),
 	}
 	if b.cfg.StaticLink {
 		var ldflags string
@@ -514,7 +514,7 @@ type bailout struct {
 	err error
 }
 
-const binaryName = "out"
+const binaryName = "encore_app_out"
 
 func (b *builder) exe() string {
 	goos := b.cfg.GOOS

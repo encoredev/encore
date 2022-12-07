@@ -3,56 +3,32 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
-	"github.com/fatih/color"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/tools/go/packages"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"encr.dev/pkg/errinsrc"
-	"encr.dev/pkg/errlist"
+	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/root"
 	daemonpb "encr.dev/proto/encore/daemon"
+
+	// Register commands
+	_ "encr.dev/cli/cmd/encore/secrets"
 )
 
-var verbosity int
-
-var rootCmd = &cobra.Command{
-	Use:           "encore",
-	Short:         "encore is the fastest way of developing backend applications",
-	SilenceErrors: true, // We'll handle displaying an error in our main func
-	CompletionOptions: cobra.CompletionOptions{
-		HiddenDefaultCmd: true, // Hide the "completion" command from help (used for generating auto-completions for the shell)
-	},
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		level := zerolog.InfoLevel
-		if verbosity == 1 {
-			level = zerolog.DebugLevel
-		} else if verbosity >= 2 {
-			level = zerolog.TraceLevel
-		}
-
-		if verbosity >= 1 {
-			errlist.Verbose = true
-		}
-		log.Logger = log.Logger.Level(level)
-	},
-}
+// for backwards compatibility, for now
+var rootCmd = root.Cmd
 
 func main() {
-	rootCmd.PersistentFlags().CountVarP(&verbosity, "verbose", "v", "verbose output")
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	if err := rootCmd.Execute(); err != nil {
+	if err := root.Cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -65,30 +41,7 @@ func main() {
 // relative path from the app root to the working directory.
 // On errors it prints an error message and exits.
 func determineAppRoot() (appRoot, relPath string) {
-	dir, err := os.Getwd()
-	if err != nil {
-		fatal(err)
-	}
-	rel := "."
-	for {
-		path := filepath.Join(dir, "encore.app")
-		fi, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			dir2 := filepath.Dir(dir)
-			if dir2 == dir {
-				fatal("no encore.app found in directory (or any of the parent directories).")
-			}
-			rel = filepath.Join(filepath.Base(dir), rel)
-			dir = dir2
-			continue
-		} else if err != nil {
-			fatal(err)
-		} else if fi.IsDir() {
-			fatal("encore.app is a directory, not a file")
-		} else {
-			return dir, rel
-		}
-	}
+	return cmdutil.AppRoot()
 }
 
 func resolvePackages(dir string, patterns ...string) ([]string, error) {
@@ -214,55 +167,13 @@ func convertJSONLogs() outputConverter {
 }
 
 func displayError(out *os.File, err []byte) {
-	if len(err) == 0 {
-		return
-	}
-
-	// Get the width of the terminal we're rendering in
-	// if we can so we render using the most space possible.
-	width, _, sizeErr := terminal.GetSize(int(out.Fd()))
-	if sizeErr == nil {
-		errinsrc.TerminalWidth = width
-	}
-
-	// Unmarshal the error into a structured errlist
-	errList := errlist.New(nil)
-	if err := json.Unmarshal(err, &errList); err != nil {
-		fatalf("unable to parse error: %v", err)
-	}
-
-	if errList.Len() == 0 {
-		return
-	}
-
-	_, _ = os.Stderr.Write([]byte(errList.Error()))
+	cmdutil.DisplayError(out, err)
 }
 
 func fatal(args ...interface{}) {
-	// Prettify gRPC errors
-	for i, arg := range args {
-		if err, ok := arg.(error); ok {
-			if s, ok := status.FromError(err); ok {
-				args[i] = s.Message()
-			}
-		}
-	}
-
-	red := color.New(color.FgRed)
-	red.Fprint(os.Stderr, "error: ")
-	red.Fprintln(os.Stderr, args...)
-	os.Exit(1)
+	cmdutil.Fatal(args...)
 }
 
 func fatalf(format string, args ...interface{}) {
-	// Prettify gRPC errors
-	for i, arg := range args {
-		if err, ok := arg.(error); ok {
-			if s, ok := status.FromError(err); ok {
-				args[i] = s.Message()
-			}
-		}
-	}
-
-	fatal(fmt.Sprintf(format, args...))
+	cmdutil.Fatalf(format, args...)
 }

@@ -182,14 +182,16 @@ message GenWrappersResponse {
 }
 
 message SetSecretRequest {
-  enum Type {
-    DEVELOPMENT = 0;
-    PRODUCTION = 1;
-  }
   string app_root = 1;
   string key = 2;
-  string value = 3;
-  Type type = 4;
+  bytes value = 3;
+  repeated EnvSpec envs = 4;
+  string description = 5;
+
+  message EnvSpec {
+    optional string type = 1;
+    optional string name = 2;
+  }
 }
 
 message SetSecretResponse {
