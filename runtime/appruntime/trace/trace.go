@@ -7,7 +7,7 @@ import (
 type Version int
 
 // CurrentVersion is the trace protocol version this package produces traces in.
-const CurrentVersion Version = 11
+const CurrentVersion Version = 12
 
 // Enabled reports whether tracing is enabled.
 // It is always enabled except for running tests and for ejected applications.

@@ -34,6 +34,7 @@ func Options(cfg *config.CORS, staticHeaders []string) cors.Options {
 		"Authorization",
 		"Content-Type",
 		"X-Request-ID",
+		"X-Correlation-ID",
 	}
 	allowedHeaders = append(allowedHeaders, cfg.ExtraAllowedHeaders...)
 	allowedHeaders = append(allowedHeaders, staticHeaders...)

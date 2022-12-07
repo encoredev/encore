@@ -200,8 +200,23 @@ func (s *Server) register(reg HandlerRegistration, logRegistration bool) {
 			reqID := req.Header.Get("X-Request-ID")
 			if reqID == "" {
 				reqID = traceIDStr
+			} else if len(reqID) > 64 {
+				// Don't allow arbitrarily long request IDs.
+				s.rootLogger.Warn().Int("length", len(reqID)).Msg("X-Request-ID was too long and is being truncated to 64 characters")
+				reqID = reqID[:64]
 			}
 			w.Header().Set("X-Request-ID", reqID)
+
+			// Read the correlation ID from the request.
+			correlationID := req.Header.Get("X-Correlation-ID")
+			if len(correlationID) > 64 {
+				// Don't allow arbitrarily long correlation IDs.
+				s.rootLogger.Warn().Int("length", len(reqID)).Msg("X-Correlation-ID was too long and is being truncated to 64 characters")
+				correlationID = correlationID[:64]
+			}
+			if correlationID != "" {
+				w.Header().Set("X-Correlation-ID", correlationID)
+			}
 
 			// Always send the trace id back.
 			w.Header().Set("X-Encore-Trace-ID", traceIDStr)

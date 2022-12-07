@@ -285,13 +285,24 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		absStart = time.Unix(0, int64(ts))
 	}
 
+	// Set the trace ID
 	traceID := tp.traceID
 	if tp.version >= 11 {
-		traceID = tp.parseTraceID()
+		parsedTraceID := tp.parseTraceID()
+		if parsedTraceID.Low != 0 && parsedTraceID.High != 0 {
+			traceID = parsedTraceID
+		}
 	}
 
 	spanID := tp.Uint64()
 	parentSpanID := tp.Uint64()
+
+	var correlationID *tracepb.TraceID
+	var extCorrelationID string
+	if tp.version >= 12 {
+		correlationID = tp.parseTraceID()
+		extCorrelationID = tp.String()
+	}
 
 	var service, endpoint string
 	if tp.version < 6 {
@@ -308,13 +319,15 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	defLoc := int32(tp.UVarint())
 
 	req := &tracepb.Request{
-		TraceId:      traceID,
-		SpanId:       spanID,
-		ParentSpanId: parentSpanID,
-		StartTime:    ts,
-		ServiceName:  service,
-		EndpointName: endpoint,
-		AbsStartTime: uint64(absStart.UnixNano()),
+		TraceId:               traceID,
+		SpanId:                spanID,
+		ParentSpanId:          parentSpanID,
+		CorrelationId:         correlationID,
+		ExternalCorrelationId: extCorrelationID,
+		StartTime:             ts,
+		ServiceName:           service,
+		EndpointName:          endpoint,
+		AbsStartTime:          uint64(absStart.UnixNano()),
 		// EndTime not set yet
 		DefLoc: defLoc,
 		Goid:   goid,

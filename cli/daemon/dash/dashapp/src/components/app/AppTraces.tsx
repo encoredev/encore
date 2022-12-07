@@ -216,6 +216,16 @@ const TraceView: FC<TraceViewProps> = (props) => {
                       </tr>
                     </>
                 )}
+                {tr.root?.ext_correlation_id && (
+                  <>
+                    <tr className="text-left font-normal">
+                      <th className="text-gray-400 pr-2 text-left text-sm font-light">External Correlation ID</th>
+                      <td className="font-mono">
+                        {tr.root.ext_correlation_id}
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>

@@ -160,7 +160,8 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 			FromEncorePlatform: IsEncorePlatformRequest(c.req.Context()),
 		},
 
-		ExtRequestID: c.req.Header.Get("X-Request-ID"),
+		ExtRequestID:     clampTo64Chars(c.req.Header.Get("X-Request-ID")),
+		ExtCorrelationID: clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
 	})
 	if err != nil {
 		beginErr = errs.B().Code(errs.Internal).Msg("internal error").Err()
