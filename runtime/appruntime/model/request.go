@@ -42,7 +42,7 @@ type Request struct {
 	TraceID          TraceID
 	SpanID           SpanID
 	ParentID         SpanID
-	CorrelationID    TraceID
+	ParentTraceID    TraceID
 	ExtCorrelationID string // The externally-provided correlation ID, if any.
 
 	Start  time.Time

@@ -33,9 +33,9 @@ type beginRequestParams struct {
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
 
-	// CorrelationID is the correlation ID to use.
+	// ParentTraceID is the correlation ID to use.
 	// It is copied from the parent request if it is empty.
-	CorrelationID model.TraceID
+	ParentTraceID model.TraceID
 
 	SvcNum uint16
 
@@ -64,7 +64,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		Type:             p.Type,
 		TraceID:          p.TraceID,
 		SpanID:           spanID,
-		CorrelationID:    p.CorrelationID,
+		ParentTraceID:    p.ParentTraceID,
 		ExtCorrelationID: p.ExtCorrelationID,
 		DefLoc:           p.DefLoc,
 		SvcNum:           p.SvcNum,
@@ -109,10 +109,10 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		logCtx = logCtx.Str("trace_id", req.TraceID.String())
 	}
 
-	if p.ExtCorrelationID != "" {
-		logCtx = logCtx.Str("correlation_id", p.ExtCorrelationID)
-	} else if req.CorrelationID != (model.TraceID{}) {
-		logCtx = logCtx.Str("correlation_id", req.CorrelationID.String())
+	if req.ExtCorrelationID != "" {
+		logCtx = logCtx.Str("trace_correlation_id", req.ExtCorrelationID)
+	} else if req.ParentTraceID != (model.TraceID{}) {
+		logCtx = logCtx.Str("trace_correlation_id", req.ParentTraceID.String())
 	}
 
 	reqLogger := logCtx.Logger()

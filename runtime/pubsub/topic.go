@@ -82,15 +82,17 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 
 	// Add the correlation ID to the attributes
 	if req := t.mgr.rt.Current().Req; req != nil {
-		// Pass through the correlation ID from either the request or start with this request
-		if req.CorrelationID != (model.TraceID{}) {
-			attrs[correlationIDAttribute] = req.CorrelationID.String()
-		} else {
-			attrs[correlationIDAttribute] = req.TraceID.String()
+		// Pass our trace ID through, so the subscribers can mark their traces as children of this trace
+		if req.TraceID != (model.TraceID{}) {
+			attrs[parentTraceIDAttribute] = req.TraceID.String()
 		}
 
 		if req.ExtCorrelationID != "" {
+			// If we have a correlation ID from the request, use that
 			attrs[extCorrlationIDAttribute] = req.ExtCorrelationID
+		} else if req.TraceID != (model.TraceID{}) {
+			// Otherwise this is the first request in the event chain, so this trace ID becomes the correlation ID
+			attrs[extCorrlationIDAttribute] = req.TraceID.String()
 		}
 	}
 

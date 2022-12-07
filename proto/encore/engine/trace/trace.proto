@@ -16,7 +16,7 @@ message Request {
   TraceID trace_id = 1;
   uint64 span_id = 2;
   uint64 parent_span_id = 3;
-  TraceID correlation_id = 32;
+  TraceID parent_trace_id = 32;
   uint32 goid = 4;
   uint64 start_time = 5;
   uint64 end_time = 6;

@@ -284,7 +284,7 @@ func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData 
 	}
 	handlerResp, handlerErr := d.AppHandler(mwReq.Context(), reqData)
 	if handlerErr != nil {
-		mwResp.Err = handlerErr // Note: we shouldn't convert the error as if it's not an `errs.Error` it will set the type to "unknown" which appears in the traces
+		mwResp.Err = errs.Convert(handlerErr)
 		mwResp.HTTPStatus = errs.HTTPStatus(mwResp.Err)
 	} else {
 		// Only assign the payload if we're not dealing with *Void,

@@ -132,28 +132,27 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate span id").Err()
 		}
 
-		var correlationID model.TraceID
-		if correlationIDStr := attrs[correlationIDAttribute]; correlationIDStr != "" {
-			correlationID, err = model.ParseTraceID(correlationIDStr)
+		var parentTraceID model.TraceID
+		if parentTraceIDStr := attrs[parentTraceIDAttribute]; parentTraceIDStr != "" {
+			parentTraceID, err = model.ParseTraceID(parentTraceIDStr)
 			if err != nil {
-				log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to parse correlation id")
+				log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to parse parent trace id")
 			}
 		}
 
 		// Default to logging with the external correlation id if present
 		extCorrelationID := attrs[extCorrlationIDAttribute]
 		if extCorrelationID != "" {
-			logCtx = logCtx.Str("correlation_id", extCorrelationID)
-		} else if correlationID != (model.TraceID{}) {
-			logCtx = logCtx.Str("correlation_id", correlationID.String())
+			logCtx = logCtx.Str("trace_correlation_id", extCorrelationID)
+		} else if parentTraceID != (model.TraceID{}) {
+			logCtx = logCtx.Str("trace_correlation_id", parentTraceID.String())
 		}
-
 		// Start the request tracing span
 		req := &model.Request{
 			Type:             model.PubSubMessage,
 			TraceID:          traceID,
 			SpanID:           spanID,
-			CorrelationID:    correlationID,
+			ParentTraceID:    parentTraceID,
 			ExtCorrelationID: extCorrelationID,
 			Start:            time.Now(),
 			MsgData: &model.PubSubMsgData{

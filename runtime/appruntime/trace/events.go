@@ -99,10 +99,9 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 	tb.Byte(byte(req.Type))
 	tb.Now()
 	tb.Bytes(req.TraceID[:])
+	tb.Bytes(req.ParentTraceID[:])
 	tb.Bytes(req.SpanID[:])
 	tb.Bytes(req.ParentID[:])
-	tb.Bytes(req.CorrelationID[:])
-	tb.String(req.ExtCorrelationID)
 	tb.UVarint(uint64(goid))
 	tb.UVarint(uint64(req.DefLoc)) // endpoint expr idx
 
@@ -122,6 +121,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 		}
 		tb.String(string(data.UserID))
 		tb.String(data.RequestHeaders.Get("X-Request-ID"))
+		tb.String(req.ExtCorrelationID)
 
 		if desc.Raw {
 			l.logHeaders(&tb, data.RequestHeaders)
