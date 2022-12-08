@@ -9,7 +9,7 @@ import (
 	"encore.dev/beta/errs"
 )
 
-// RegisterPubSusSubscriptionHandler registers a handler for the given PubSub subscription
+// RegisterPubsubSubscriptionHandler registers a handler for the given PubSub subscription
 //
 // This is an internal Encore API and should not be used.
 func (s *Server) RegisterPubsubSubscriptionHandler(subscriptionID string, handler func(r *http.Request) error) {
@@ -52,7 +52,7 @@ func (s *Server) handlePubsubPush(w http.ResponseWriter, req *http.Request, ps h
 	subscriptionID := ps.ByName("subscription_id")
 	if subscriptionID == "" {
 		err := errs.B().Code(errs.InvalidArgument).Msg("missing subscription ID").Err()
-		s.rt.Logger().Err(err).Msg("invalid PubSub push request")
+		s.rt.Logger().Err(err).Str("subscription_id", subscriptionID).Msg("invalid PubSub push request")
 		errs.HTTPError(w, err)
 		return
 	}
@@ -60,14 +60,14 @@ func (s *Server) handlePubsubPush(w http.ResponseWriter, req *http.Request, ps h
 	handler, found := s.pubsubSubscriptions[subscriptionID]
 	if !found {
 		err := errs.B().Code(errs.NotFound).Msg("unknown pubsub subscription").Err()
-		s.rt.Logger().Err(err).Msg("invalid PubSub push request")
+		s.rt.Logger().Err(err).Str("subscription_id", subscriptionID).Msg("invalid PubSub push request")
 		errs.HTTPError(w, err)
 		return
 	}
 
 	err := handler(req)
 	if err != nil {
-		s.rt.Logger().Err(err).Msg("error while handling PubSub push request")
+		s.rt.Logger().Err(err).Str("subscription_id", subscriptionID).Msg("error while handling PubSub push request")
 	}
 	errs.HTTPError(w, err)
 }

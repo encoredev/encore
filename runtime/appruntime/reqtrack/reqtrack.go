@@ -76,6 +76,12 @@ func copyReqInfoFromParent(next, prev *model.Request) {
 	if next.ParentID == (model.SpanID{}) {
 		next.ParentID = prev.SpanID
 	}
+	if next.ParentTraceID == (model.TraceID{}) {
+		next.ParentTraceID = prev.ParentTraceID
+	}
+	if next.ExtCorrelationID == "" {
+		next.ExtCorrelationID = prev.ExtCorrelationID
+	}
 	if !next.Traced {
 		next.Traced = prev.Traced
 	}

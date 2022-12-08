@@ -33,12 +33,21 @@ type beginRequestParams struct {
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
 
+	// ParentTraceID is the correlation ID to use.
+	// It is copied from the parent request if it is empty.
+	ParentTraceID model.TraceID
+
 	SvcNum uint16
 
 	// ExtRequestID specifies the externally-provided request id, if any.
 	// If not empty, it will be recorded as part of the "starting request" log message
 	// to facilitate request correlation.
 	ExtRequestID string
+
+	// ExtCorrelationID is the externally-provided correlation ID, if any.
+	// If not empty, it will be recorded on each log message with "correlation_id" key.
+	// to facilitate request correlation.
+	ExtCorrelationID string
 }
 
 func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
@@ -52,14 +61,16 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	req := &model.Request{
-		Type:    p.Type,
-		TraceID: p.TraceID,
-		SpanID:  spanID,
-		DefLoc:  p.DefLoc,
-		SvcNum:  p.SvcNum,
-		Start:   s.clock.Now(),
-		Traced:  s.tracingEnabled,
-		RPCData: p.Data,
+		Type:             p.Type,
+		TraceID:          p.TraceID,
+		SpanID:           spanID,
+		ParentTraceID:    p.ParentTraceID,
+		ExtCorrelationID: p.ExtCorrelationID,
+		DefLoc:           p.DefLoc,
+		SvcNum:           p.SvcNum,
+		Start:            s.clock.Now(),
+		Traced:           s.tracingEnabled,
+		RPCData:          p.Data,
 	}
 
 	data := req.RPCData
@@ -96,6 +107,12 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 
 	if req.TraceID != (model.TraceID{}) {
 		logCtx = logCtx.Str("trace_id", req.TraceID.String())
+	}
+
+	if req.ExtCorrelationID != "" {
+		logCtx = logCtx.Str("x_correlation_id", req.ExtCorrelationID)
+	} else if req.ParentTraceID != (model.TraceID{}) {
+		logCtx = logCtx.Str("x_correlation_id", req.ParentTraceID.String())
 	}
 
 	reqLogger := logCtx.Logger()
