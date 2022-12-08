@@ -120,6 +120,9 @@ func mapCloudFieldNamesToExpected(jsonBytes []byte) []byte {
 		delete(unmarshaled, "severity")
 		unmarshaled[zerolog.TimestampFieldName] = unmarshaled["timestamp"]
 		delete(unmarshaled, "timestamp")
+	} else {
+		// No changes, return the original bytes unmodified
+		return jsonBytes
 	}
 
 	newBytes, err := json.Marshal(unmarshaled)

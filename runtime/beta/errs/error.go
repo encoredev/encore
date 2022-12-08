@@ -150,7 +150,7 @@ func Details(err error) ErrDetails {
 // Error reports the error code and message.
 func (e *Error) Error() string {
 	if e.Code == Unknown {
-		return "[unknown code]: " + e.ErrorMessage()
+		return "unknown code: " + e.ErrorMessage()
 	}
 	return e.Code.String() + ": " + e.ErrorMessage()
 }

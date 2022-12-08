@@ -3,6 +3,8 @@ package errs
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -55,6 +57,17 @@ func RoundTrip(err error) error {
 			Code:    e.Code,
 			Message: e.Message,
 			stack:   stack.Build(3), // skip caller of RoundTrip as well
+		}
+
+		if e.underlying != nil {
+			e2.underlying = errors.New(func() (rtn string) {
+				defer func() {
+					if r := recover(); r != nil {
+						rtn = fmt.Sprintf("panic in calling underlying.Error(): %+v", r)
+					}
+				}()
+				return e.underlying.Error()
+			}())
 		}
 
 		// Copy details
@@ -146,7 +159,8 @@ func HTTPStatus(err error) int {
 // it is computed with HTTPStatus.
 //
 // If err is nil it writes:
-//     {"code": "ok", "message": "", "details": null}
+//
+//	{"code": "ok", "message": "", "details": null}
 func HTTPErrorWithCode(w http.ResponseWriter, err error, code int) {
 	if code == 0 {
 		code = HTTPStatus(err)
