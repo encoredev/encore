@@ -110,9 +110,9 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	if req.ExtCorrelationID != "" {
-		logCtx = logCtx.Str("trace_correlation_id", req.ExtCorrelationID)
+		logCtx = logCtx.Str("x_correlation_id", req.ExtCorrelationID)
 	} else if req.ParentTraceID != (model.TraceID{}) {
-		logCtx = logCtx.Str("trace_correlation_id", req.ParentTraceID.String())
+		logCtx = logCtx.Str("x_correlation_id", req.ParentTraceID.String())
 	}
 
 	reqLogger := logCtx.Logger()

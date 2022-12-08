@@ -143,9 +143,9 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		// Default to logging with the external correlation id if present
 		extCorrelationID := attrs[extCorrlationIDAttribute]
 		if extCorrelationID != "" {
-			logCtx = logCtx.Str("trace_correlation_id", extCorrelationID)
+			logCtx = logCtx.Str("x_correlation_id", extCorrelationID)
 		} else if parentTraceID != (model.TraceID{}) {
-			logCtx = logCtx.Str("trace_correlation_id", parentTraceID.String())
+			logCtx = logCtx.Str("x_correlation_id", parentTraceID.String())
 		}
 		// Start the request tracing span
 		req := &model.Request{
