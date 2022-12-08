@@ -7,10 +7,11 @@ subtitle: Simply storing secrets securely
 
 Wouldn't it be nice to store secret values like API keys, database passwords, and private keys directly in the source code?
 Of course, we can’t do that &ndash; it's horrifyingly insecure!
-Unfortunately, it's also [very common](https://www.ndss-symposium.org/ndss-paper/how-bad-can-it-git-characterizing-secret-leakage-in-public-github-repositories/).
+(Unfortunately, it's also [very common](https://www.ndss-symposium.org/ndss-paper/how-bad-can-it-git-characterizing-secret-leakage-in-public-github-repositories/).)
 
-So why does it happen? Because storing secrets securely used to be quite annoying.
-Fortunately, Encore makes it easy.
+Encore's built-in secrets manager makes it simple to store secrets in a secure way, and lets you use them in your program like regular variables.
+
+When creating new environments, Encore automatically sets up secrets management using best practices for each cloud provider. See the [infrastructure documentation](http://localhost:3010/docs/deploy/infra#production-infrastructure) for more details.
 
 ## Defining secrets
 
