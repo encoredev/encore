@@ -38,10 +38,12 @@ type PathParam struct {
 }
 
 type Request struct {
-	Type     RequestType
-	TraceID  TraceID
-	SpanID   SpanID
-	ParentID SpanID
+	Type             RequestType
+	TraceID          TraceID
+	SpanID           SpanID
+	ParentID         SpanID
+	ParentTraceID    TraceID
+	ExtCorrelationID string // The externally-provided correlation ID, if any.
 
 	Start  time.Time
 	Logger *zerolog.Logger

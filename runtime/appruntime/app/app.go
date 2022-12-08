@@ -166,6 +166,9 @@ func jsonAPI(cfg *runtimeCfg.Config) jsoniter.API {
 // ReconfigureZerologFormat reconfigures the zerolog Logger's output format
 // based on the cloud provider.
 func (app *App) ReconfigureZerologFormat() {
+	// Note: if updating this function, also update
+	// mapCloudFieldNamesToExpected in cli/cmd/encore/logs.go
+	// as that reverses this for log streaming
 	switch app.cfg.Runtime.EnvCloud {
 	case cloud.GCP:
 		zerolog.LevelFieldName = "severity"

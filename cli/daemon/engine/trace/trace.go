@@ -36,8 +36,9 @@ type TraceMeta struct {
 
 // A Store stores traces received from running applications.
 type Store struct {
-	trmu   sync.Mutex
-	traces map[string][]*TraceMeta
+	trmu             sync.Mutex
+	traces           map[string][]*TraceMeta
+	requestIDMapping map[string]*tracepb.Request // Trace ID -> Request
 
 	lnmu sync.Mutex
 	ln   map[chan<- *TraceMeta]struct{}
@@ -45,8 +46,9 @@ type Store struct {
 
 func NewStore() *Store {
 	return &Store{
-		traces: make(map[string][]*TraceMeta),
-		ln:     make(map[chan<- *TraceMeta]struct{}),
+		traces:           make(map[string][]*TraceMeta),
+		requestIDMapping: make(map[string]*tracepb.Request),
+		ln:               make(map[chan<- *TraceMeta]struct{}),
 	}
 }
 
@@ -67,6 +69,10 @@ func (st *Store) Store(ctx context.Context, tr *TraceMeta) error {
 		st.traces[appID] = st.traces[appID][n-limit:]
 	}
 
+	for _, req := range tr.Reqs {
+		st.requestIDMapping[req.TraceId.String()] = req
+	}
+
 	st.trmu.Unlock()
 
 	st.lnmu.Lock()
@@ -79,6 +85,19 @@ func (st *Store) Store(ctx context.Context, tr *TraceMeta) error {
 		}
 	}
 	return nil
+}
+
+func (st *Store) GetRootTrace(traceID *tracepb.TraceID) (rtn *tracepb.Request) {
+	st.trmu.Lock()
+	defer st.trmu.Unlock()
+
+	next := st.requestIDMapping[traceID.String()]
+	for next != nil {
+		rtn = next
+		next = st.requestIDMapping[rtn.ParentTraceId.String()]
+	}
+
+	return rtn
 }
 
 func (st *Store) List(appID string) []*TraceMeta {
@@ -285,9 +304,17 @@ func (tp *traceParser) requestStart(ts uint64) error {
 		absStart = time.Unix(0, int64(ts))
 	}
 
+	// Set the trace ID
 	traceID := tp.traceID
 	if tp.version >= 11 {
-		traceID = tp.parseTraceID()
+		parsedTraceID := tp.parseTraceID()
+		if parsedTraceID.Low != 0 && parsedTraceID.High != 0 {
+			traceID = parsedTraceID
+		}
+	}
+	var parentTraceID *tracepb.TraceID
+	if tp.version >= 12 {
+		parentTraceID = tp.parseTraceID()
 	}
 
 	spanID := tp.Uint64()
@@ -308,13 +335,14 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	defLoc := int32(tp.UVarint())
 
 	req := &tracepb.Request{
-		TraceId:      traceID,
-		SpanId:       spanID,
-		ParentSpanId: parentSpanID,
-		StartTime:    ts,
-		ServiceName:  service,
-		EndpointName: endpoint,
-		AbsStartTime: uint64(absStart.UnixNano()),
+		TraceId:       traceID,
+		ParentTraceId: parentTraceID,
+		SpanId:        spanID,
+		ParentSpanId:  parentSpanID,
+		StartTime:     ts,
+		ServiceName:   service,
+		EndpointName:  endpoint,
+		AbsStartTime:  uint64(absStart.UnixNano()),
 		// EndTime not set yet
 		DefLoc: defLoc,
 		Goid:   goid,
@@ -354,6 +382,10 @@ func (tp *traceParser) requestStart(ts uint64) error {
 
 			if tp.version >= 11 {
 				req.ExternalRequestId = tp.String()
+
+				if tp.version >= 12 {
+					req.ExternalCorrelationId = tp.String()
+				}
 			}
 
 			if isRaw {

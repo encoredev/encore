@@ -7,6 +7,12 @@ import (
 	"encore.dev/pubsub/internal/types"
 )
 
+// parentTraceIDAttribute is the attribute name we use to track request correlation IDs
+const parentTraceIDAttribute = "encore_parent_trace_id"
+
+// extCorrelationIDAttribute is the attribute name we use to track externally provided correlation IDs
+const extCorrelationIDAttribute = "encore_ext_correlation_id"
+
 // SubscriptionConfig is used when creating a subscription
 //
 // The values given here may be clamped to the supported values by

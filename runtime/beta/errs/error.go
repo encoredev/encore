@@ -149,6 +149,9 @@ func Details(err error) ErrDetails {
 
 // Error reports the error code and message.
 func (e *Error) Error() string {
+	if e.Code == Unknown {
+		return "unknown code: " + e.ErrorMessage()
+	}
 	return e.Code.String() + ": " + e.ErrorMessage()
 }
 
@@ -189,7 +192,8 @@ func (e *Error) Unwrap() error {
 // The status code is computed with HTTPStatus.
 //
 // If err is nil it writes:
-//     {"code": "ok", "message": "", "details": null}
+//
+//	{"code": "ok", "message": "", "details": null}
 func HTTPError(w http.ResponseWriter, err error) {
 	HTTPErrorWithCode(w, err, 0)
 }

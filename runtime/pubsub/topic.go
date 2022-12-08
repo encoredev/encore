@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/model"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/test"
 	"encore.dev/pubsub/internal/types"
@@ -77,6 +78,22 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return "", errs.B().Cause(err).Code(errs.InvalidArgument).Msgf("failed to marshal message to JSON for topic %s", t.topicCfg.EncoreName).Err()
+	}
+
+	// Add the correlation ID to the attributes
+	if req := t.mgr.rt.Current().Req; req != nil {
+		// Pass our trace ID through, so the subscribers can mark their traces as children of this trace
+		if req.TraceID != (model.TraceID{}) {
+			attrs[parentTraceIDAttribute] = req.TraceID.String()
+		}
+
+		if req.ExtCorrelationID != "" {
+			// If we have a correlation ID from the request, use that
+			attrs[extCorrelationIDAttribute] = req.ExtCorrelationID
+		} else if req.TraceID != (model.TraceID{}) {
+			// Otherwise this is the first request in the event chain, so this trace ID becomes the correlation ID
+			attrs[extCorrelationIDAttribute] = req.TraceID.String()
+		}
 	}
 
 	// Start the trace span

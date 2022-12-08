@@ -62,15 +62,16 @@ type Request struct {
 	CallLoc *int32 `json:"call_loc"`
 	DefLoc  int32  `json:"def_loc"`
 
-	HTTPMethod      string                     `json:"http_method"`
-	UserID          string                     `json:"user_id"`
-	Path            string                     `json:"path"`
-	PathParams      []string                   `json:"path_params"`
-	RequestPayload  []byte                     `json:"request_payload"`
-	ResponsePayload []byte                     `json:"response_payload"`
-	RawReqHeaders   []KeyValue[string, string] `json:"raw_req_headers"`
-	RawRespHeaders  []KeyValue[string, string] `json:"raw_resp_headers"`
-	ExtRequestID    string                     `json:"ext_request_id"`
+	HTTPMethod       string                     `json:"http_method"`
+	UserID           string                     `json:"user_id"`
+	Path             string                     `json:"path"`
+	PathParams       []string                   `json:"path_params"`
+	RequestPayload   []byte                     `json:"request_payload"`
+	ResponsePayload  []byte                     `json:"response_payload"`
+	RawReqHeaders    []KeyValue[string, string] `json:"raw_req_headers"`
+	RawRespHeaders   []KeyValue[string, string] `json:"raw_resp_headers"`
+	ExtRequestID     string                     `json:"ext_request_id"`
+	ExtCorrelationID string                     `json:"ext_correlation_id"`
 
 	// Deprecated: Use RequestPayload, ResponsePayload etc instead.
 	Inputs  [][]byte `json:"inputs"`
@@ -377,13 +378,14 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		Published:      nil,
 		DefLoc:         req.DefLoc,
 
-		HTTPMethod:     req.HttpMethod,
-		UserID:         req.Uid,
-		Path:           req.Path,
-		PathParams:     sliceOrEmpty(req.PathParams),
-		RawReqHeaders:  headersToKV(req.RawRequestHeaders),
-		RawRespHeaders: headersToKV(req.RawResponseHeaders),
-		ExtRequestID:   req.ExternalRequestId,
+		HTTPMethod:       req.HttpMethod,
+		UserID:           req.Uid,
+		Path:             req.Path,
+		PathParams:       sliceOrEmpty(req.PathParams),
+		RawReqHeaders:    headersToKV(req.RawRequestHeaders),
+		RawRespHeaders:   headersToKV(req.RawResponseHeaders),
+		ExtRequestID:     req.ExternalRequestId,
+		ExtCorrelationID: req.ExternalCorrelationId,
 
 		Inputs:   inputs,
 		Outputs:  outputs,
