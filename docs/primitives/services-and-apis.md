@@ -5,11 +5,11 @@ title: Services and APIs
 subtitle: Simplifying (micro-)service development
 ---
 
-Encore makes it easy to build applications with one or many services, without needing to manually handle the typical complexity of developing microservices.
+Encore makes it simple to build applications with one or many services, without needing to manually handle the typical complexity of developing microservices.
 
 ## Defining a service
 
-With Encore you define a service by [defining one or more APIs](#defining-apis) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name.
+With Encore you define a service by [defining one or more APIs](#defining-apis) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/deploy/infra) for each service.
 
 On disk it might look like this:
 
@@ -26,13 +26,15 @@ On disk it might look like this:
 ```
 
 
-This means building a microservices architecture is as easy as creating multiple Go packages within your application.
+This means building a microservices architecture is as simple as creating multiple Go packages within your application.
 See the [app structure documentation](/docs/develop/app-structure) for more details.
 
 ## Defining APIs
 
-Defining an API is simple, you define a regular Go function and add the `//encore:api` annotation
-to tell Encore that this is an API. In the example below, we define the API endpoint `Ping`, in the `hello` service, which gets exposed as `hello.Ping`.
+To define an API, add the `//encore:api` annotation any regular Go function.
+This tells Encore that the function is an API endpoint. Encore will then automatically generate the necessary boilerplate at compile-time.
+
+In the example below, we define the API endpoint `Ping`, in the `hello` service, which gets exposed as `hello.Ping`.
 
 ```go
 package hello // service name
@@ -199,9 +201,9 @@ Experienced Go developers will have already noted this is just a regular Go HTTP
 
 You can read more about receiving webhooks in the [receive webhooks guide](/docs/how-to/webhooks).
 
-## Calling an API
-Calling an API endpoint with Encore looks like a regular function call. Import the service package as if it's a regular
-Go package, using `import "encore.app/package-name"` and then call the API endpoint as if it's a regular function.
+## Calling APIs
+Calling an API endpoint looks like a regular function call with Encore. Import the service package as a regular Go package using `import "encore.app/package-name"` and then call the API endpoint like a regular function.
+Encore will then automatically generate the necessary boilerplate at compile-time.
 
 In the example below, we import the service package `hello` and call the `Ping` endpoint using a function call to `hello.Ping`.
 

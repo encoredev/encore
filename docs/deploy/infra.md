@@ -2,23 +2,31 @@
 seotitle: Cloud Infrastructure Provisioning
 seodesc: Learn how to provision appropriate cloud infrastructure depending on the environment type, for all of the major cloud providers – AWS, GCP, and Azure.
 title: Infrastructure provisioning
-subtitle: How Encore provisions infrastructure for you
+subtitle: How Encore provisions infrastructure for your application
 ---
 
-Encore automatically provisions all necessary infrastructure, in all environments and across all major cloud providers. All you need to do is [connect your cloud account](./own-cloud) and create an environment.
+Encore automatically provisions all necessary infrastructure, in all environments and across all major cloud providers, without requiring any application code changes. All you need to do is [connect your cloud account](./own-cloud) and create an environment.
 
-This is powered by the [Encore Application Model](/docs/introduction#meet-the-encore-application-model). It provides a precise definition of the infrastructure primitives each service requires. Encore uses this knowledge, combined with context about the environment type (production/development/preview) and the target cloud provider (GCP/AWS/Azure), to make informed decisions about how to provision the necessary infrastructure. Encore keeps all environments in sync, so you can be confident your changes will work when deployed to production.
+<img src="/assets/docs/infraoverview.png" title="Infrastructure Overview" className="noshadow"/>
 
-|  | Encore Cloud | GCP / AWS / Azure |
-| - | - | - | - | - |
-| **Environment types:** | Preview, Development | Development, Production |
-| **Objectives:** | Provisioning speed, Cost\* | Reliability, Security, Scalability |
+This is powered by the Encore framework. It lets you write regular Go code, and use infrastructure primitives (databases, caches, queues, and scheduled jobs) directly in application code through cloud-agnostic APIs.
+
+This completely removes the need for infrastructure configuration files, and avoids creating cloud-specific dependencies in your application.
+
+At compile time, Encore creates an [Application Model](/docs/introduction#meet-the-encore-application-model) containing a precise definition of the infrastructure your application requires. The Encore Platform uses this model to provision necessary infrastructure in your own cloud account, and development and preview environments in Encore Cloud. 
+
+This end-to-end integration between application code and infrastructure enables Encore to always keep your environments in sync.
+
+## Environment types
+
+Encore provisions every type of environment, and ensures they stay in sync.
+
+|  | Local | Encore Cloud | GCP / AWS / Azure |
+| - | - | - | - | - | - |
+| **Environment types:** | Development | Preview, Development | Development, Production |
+| **Objectives:** | Provisioning speed | Provisioning speed, Cost\* | Reliability, Security, Scalability |
 
 \*Encore Cloud is free to use, subject to Fair Use guidelines and usage limits. [Learn more](/docs/about/usage)
-
-## Configuration
-
-With Encore you express cloud infrastructure as logical statements directly in your application code. After deploying to your own cloud account, you can safely use your cloud provider's console to modify the provisioned resources according to your application's scaling requirements. See more details below for each cloud provider and infrastructure resource.
 
 ## Development Infrastructure
 
@@ -77,6 +85,12 @@ Encore provisions production infrastructure resources using best-practice guidel
 | **Caches:** | [GCP Memorystore (Redis)][gcp-redis] | [Amazon ElastiCache (Redis)][aws-redis] | [Azure Cache (Redis)][azure-redis] |
 | **Cron Jobs:** | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] |
 | **Secrets:** | [Secret Manager][gcp-secrets] | [AWS Secrets Manager][aws-secrets] | [App Service App][azure-app-service-secrets] |
+
+### Configurability
+
+With Encore you do not define any cloud service specifics in application code. This means, after deploying to your own cloud account, you can safely use your cloud provider's console to modify the provisioned resources according to your application's scaling requirements. See more details below for each cloud provider and infrastructure resource.
+
+In the future, Encore will provide built-in optimization of cloud environments according to your applications real-world behavior.
 
 ### Google Cloud Platform (GCP)
 
