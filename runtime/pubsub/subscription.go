@@ -141,7 +141,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		}
 
 		// Default to logging with the external correlation id if present
-		extCorrelationID := attrs[extCorrlationIDAttribute]
+		extCorrelationID := attrs[extCorrelationIDAttribute]
 		if extCorrelationID != "" {
 			logCtx = logCtx.Str("x_correlation_id", extCorrelationID)
 		} else if parentTraceID != (model.TraceID{}) {

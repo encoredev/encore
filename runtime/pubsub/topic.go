@@ -89,10 +89,10 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 
 		if req.ExtCorrelationID != "" {
 			// If we have a correlation ID from the request, use that
-			attrs[extCorrlationIDAttribute] = req.ExtCorrelationID
+			attrs[extCorrelationIDAttribute] = req.ExtCorrelationID
 		} else if req.TraceID != (model.TraceID{}) {
 			// Otherwise this is the first request in the event chain, so this trace ID becomes the correlation ID
-			attrs[extCorrlationIDAttribute] = req.TraceID.String()
+			attrs[extCorrelationIDAttribute] = req.TraceID.String()
 		}
 	}
 
