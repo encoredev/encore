@@ -5,22 +5,13 @@ title: Caching
 subtitle: Optimize response times and reduce costs by avoiding re-work
 ---
 
-A cache is a high-speed storage layer that stores a subset of an application's data
-to optimize future requests by avoiding expensive computations or slow queries against
-the persistent storage layer.
+A cache is a high-speed storage layer, commonly used in distributed systems to improve user experiences
+by reducing latency, improving system performance, and avoiding expensive computation.
 
-Caching is a commonly used in building distributed systems to improve user experiences
-by reducing latency and improving system performance.
+For scalable systems you typically want to deploy the cache as a separate
+infrastructure resource, allowing you to run multiple instances of your application concurrently.
 
-For scalable distributed systems you typically want to deploy the cache as a separate
-infrastructure resource. While it's possible to build simple in-memory caches within
-the application code base itself, it's often problematic when running multiple instances
-of your application concurrently, which is common in distributed systems.
-
-For those reasons, Encore provides native support for provisioning external, in-memory
-caches through [Redis](https://redis.io). Redis is a high-performance, in-memory cache
-that supports many powerful operations for various common data structures, including
-strings, integers, floats, lists, sets, and more.
+Encore's built-in Caching API lets you use high-performance caches (using [Redis](https://redis.io/)) in a cloud-agnostic declarative fashion. At deployment, Encore will automatically [provision the required infrastructure](/docs/deploy/infra).
 
 ## Cache clusters
 

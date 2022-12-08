@@ -5,7 +5,9 @@ title: PubSub
 subtitle: Decoupling services and building asynchronous systems
 ---
 
-Publishers & Subscribers (PubSub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness. Encore has a built-in PubSub API, which lets you create cloud-agnostic PubSub implementations in your applications.
+Publishers & Subscribers (PubSub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness.
+
+Encore's built-in PubSub API lets you use PubSub in a cloud-agnostic declarative fashion. At deployment, Encore will automatically [provision the required infrastructure](/docs/deploy/infra).
 
 ## Creating a Topic
 
