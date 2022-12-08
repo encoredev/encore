@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 
 	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb/sqlerr"
@@ -92,7 +92,7 @@ func convertErr(err error) error {
 	switch err {
 	case pgx.ErrNoRows, sql.ErrNoRows:
 		err = errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
-	case pgx.ErrTxClosed, pgx.ErrInvalidLogLevel, pgx.ErrTxCommitRollback, sql.ErrTxDone, sql.ErrConnDone:
+	case pgx.ErrTxClosed, pgx.ErrTxCommitRollback, sql.ErrTxDone, sql.ErrConnDone:
 		err = errs.WrapCode(err, errs.Internal, "")
 	default:
 		err = errs.WrapCode(err, errs.Unavailable, "")
