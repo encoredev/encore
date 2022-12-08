@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/reqtrack"
@@ -87,7 +87,7 @@ func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
 		panic("sqldb: " + err.Error())
 	}
 
-	pool, err := pgxpool.ConnectConfig(context.Background(), cfg)
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		panic("sqldb: setup db: " + err.Error())
 	}
