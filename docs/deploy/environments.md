@@ -8,7 +8,7 @@ subtitle: The environments you want, with none of the work
 Encore makes it simple to create the environments you need to build your application with confidence: local, preview, testing, and production.
 Each environment is an isolated fully working instance of your backend, automatically provisioned by Encore.
 
-Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/introduction#meet-the-encore-application-model). Environments are provisioned using contextually appropriate [infrastructure](/deploy/infra) depending on the type of environment.
+Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/introduction#meet-the-encore-application-model). Environments are provisioned using contextually appropriate [infrastructure](/docs/deploy/infra) depending on the type of environment.
 
 ## Creating environments
 
@@ -50,15 +50,25 @@ By default, the local environment runs on `http://localhost:4000`.
 
 ## Preview environments
 
-When you've [connected your application to GitHub](/docs/how-to/github), Encore will automatically provision ephemeral Preview Environments
-for each Pull Request. This makes collaborating on PRs much faster. 
+When you [connect your application to GitHub](/docs/how-to/github), Encore will automatically provision ephemeral Preview Environments for each Pull Request. Preview Environments work just like regular development environments, and make it simple to test your changes before merging. This can make collaborating on PRs much faster. 
 
-Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`, and the url will be `https://app.encore.dev/$APP_ID/envs/pr72`.
+Preview Environments are named after the pull request, for example PR #72 creates a preview environment named `pr:72` with the API base url `https://pr72-$APP_ID.encr.app`.
+
+You can also view the environment in the web platform, where the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
 
 See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious about exactly how Preview Environments are provisioned.
 
 ![Preview environment linked in GitHub](/assets/docs/ghpreviewenv.png "Preview environment linked in GitHub")
 
+### Frontend Collaboration
+
+Preview Environments make it really easy to collaborate and test changes with your frontend.
+Just update your frontend API client to point to the `pr:#` environment.
+This is a one-line change since your API client always specifies the environment name, e.g. `https://<env>-<my-app>.encr.app/`.
+
+If your pull request makes changes to the API, you can [generate a new API client](/docs/develop/client-generation)
+for the new backend API using `encore gen client --env=pr:72 --lang=typescript my-app`
+
 ## Cloud environments
 
-Encore makes it easy to create multiple cloud environments using different cloud providers, by [connecting your cloud account](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
+Encore makes it simple to create multiple cloud environments using different cloud providers, by [connecting your cloud account](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).

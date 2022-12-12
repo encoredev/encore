@@ -8,7 +8,7 @@ Encore provides built-in support for **Structured Logging**, meaning log message
 
 Structured logging also enables the logs to be easily indexed, meaning they can be quickly filtered and searched through to find all logs that match a particular query.
 
-Encore’s built-in logging support is fully integrated with its Distributed Tracing, which means that all logs you emit automatically become included in the active trace. This dramatically simplifies debugging of your application.
+Encore’s logging support is fully integrated with the built-in [Distributed Tracing](/docs/observability/tracing) functionality. This means that all logs you emit automatically become included in the active trace. This dramatically simplifies debugging of your application.
 
 ## Usage
 First, import `encore.dev/rlog` in your package. Then simply call one of the package methods `Info`, `Error`, or `Debug`. For example:
@@ -34,8 +34,7 @@ For more information, see the [API Documentation](https://pkg.go.dev/encore.dev/
 
 ## Live-streaming logs
 
-Encore also makes it easy to live-stream logs directly to your terminal from any environment,
-simply by running:
+Encore also makes it simple to live-stream logs directly to your terminal, from any environment, by running:
 
 ```
 $ encore logs --env=prod

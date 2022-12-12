@@ -10,7 +10,7 @@ Encore applications are secure by default.
 We've carefully designed the framework to make building secure applications
 more convenient than insecure ones.
 
-For example, Encore's [secret management](/docs/how-to/secrets) provides
+For example, Encore's [secret management](/docs/primitives/secrets) provides
 an incredibly easy way of using secret keys, while at the same time providing
 state of the art security behind the scenes, backed by HashiCorp Vault.
 
