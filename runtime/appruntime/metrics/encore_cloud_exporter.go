@@ -9,13 +9,13 @@ import (
 
 func init() {
 	registerProvider(providerDesc{
-		name: "gcp_cloud_monitoring",
+		name: "encore_cloud",
 		matches: func(cfg *config.Metrics) bool {
-			return cfg.CloudMonitoring != nil
+			return cfg.EncoreCloud != nil
 		},
 		newExporter: func(mgr *Manager) exporter {
 			metricsCfg := mgr.cfg.Runtime.Metrics
-			return gcp.New(mgr.cfg.Static.BundledServices, metricsCfg.CloudMonitoring, mgr.rootLogger)
+			return gcp.NewEncoreCloudExporter(mgr.cfg.Static.BundledServices, metricsCfg.CloudMonitoring, mgr.rootLogger, metricsCfg.EncoreCloud.MetricNames)
 		},
 	})
 }
