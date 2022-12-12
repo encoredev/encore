@@ -119,12 +119,15 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		}
 
 		svcNum := m.Info.SvcNum()
-		encoreCloudMetricName, ok := x.encoreCloudMetricNames[m.Info.Name()]
-		if !ok {
-			x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", m.Info.Name())
-			continue
+		metricType := "custom.googleapis.com/" + m.Info.Name()
+		if x.exportsToEncoreCloud {
+			encoreCloudMetricName, ok := x.encoreCloudMetricNames[m.Info.Name()]
+			if !ok {
+				x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", m.Info.Name())
+				continue
+			}
+			metricType = "custom.googleapis.com/" + encoreCloudMetricName
 		}
-		metricType := "custom.googleapis.com/" + encoreCloudMetricName
 
 		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
 			labels := make(map[string]string, len(baseLabels)+1)
