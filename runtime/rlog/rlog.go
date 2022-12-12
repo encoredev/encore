@@ -131,7 +131,8 @@ func (ctx Ctx) With(keysAndValues ...any) Ctx {
 		val := fields[i+1]
 		c = addContext(c, key, val)
 	}
-	return Ctx{ctx: c, mgr: ctx.mgr}
+	fields = append(ctx.fields, fields...)
+	return Ctx{ctx: c, mgr: ctx.mgr, fields: fields}
 }
 
 func (l *Manager) doLog(level logLevel, ev *zerolog.Event, msg string, ctxFields, logFields []any) {
