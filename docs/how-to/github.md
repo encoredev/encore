@@ -10,7 +10,7 @@ and follow the instructions.
 
 For a more detailed guide on linking with GitHub, see the [Setup Walkthrough](#setup-walkthrough) below.
 
-## Pull Requests & Preview Environments
+## Preview Environments for each Pull Request
 
 Once you've linked with GitHub, Encore will automatically start building and running tests against
 your Pull Requests.
@@ -19,17 +19,9 @@ Encore will also provision a dedicated Preview Environment for each pull request
 This environment works just like a regular development environment, and lets you test your changes
 before merging.
 
-Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`.
+Learn more in the [Environments documentation](/docs/deploy/environments#preview-environments).
 
-### Frontend Collaboration
-
-When you integrate Encore with a frontend, Preview Environments makes it really easy to collaborate
-and test your changes against the frontend. Just update your frontend API client to point to the
-`pr:#` environment. This should just be a one-line change since your API client always specifies
-the environment name like `https://<env>-<my-app>.encr.app/`.
-
-If your pull request makes changes to the API, you can also easily [generate an API client](/docs/develop/client-generation)
-against the new backend API using `encore gen client --env=pr:72 --lang=typescript my-app`
+![Preview environment linked in GitHub](/assets/docs/ghpreviewenv.png "Preview environment linked in GitHub")
 
 ## Setup Walkthrough
 

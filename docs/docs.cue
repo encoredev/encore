@@ -81,7 +81,7 @@ sections: [
 			{title: "Authentication", segment: "auth", shortcuts: ["beta/auth", "auth"]},
 			{title: "Configuration", segment: "config", shortcuts: ["config"]},
 			{title: "Metadata", segment: "metadata"},
-			{title: "Auth Keys", segment: "auth-keys"},
+			{title: "Auth Keys", segment: "auth-keys", old_paths:["/configuration/auth-keys"]},
 			{title: "Testing", segment: "testing"},
 			{title: "Middleware", segment: "middleware"},
 			{title: "Validation", segment: "validation"},
