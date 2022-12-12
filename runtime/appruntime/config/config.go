@@ -279,14 +279,18 @@ type RedisDatabase struct {
 }
 
 type Metrics struct {
-	CollectionInterval time.Duration                  `json:"collection_interval,omitempty"`
+	CollectionInterval time.Duration `json:"collection_interval,omitempty"`
+	EncoreCloud        *EncoreCloudProvider
 	CloudMonitoring    *GCPCloudMonitoringProvider    `json:"gcp_cloud_monitoring,omitempty"`
 	CloudWatch         *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
 	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
 	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
 }
 
-type LogsBasedMetricsProvider struct{}
+type EncoreCloudProvider struct {
+	GCPCloudMonitoringProvider
+	MetricNames map[string]string
+}
 
 type GCPCloudMonitoringProvider struct {
 	// ProjectID is the GCP project id to send metrics to.
@@ -310,3 +314,5 @@ type PrometheusRemoteWriteProvider struct {
 	// The URL of the endpoint to send samples to.
 	RemoteWriteURL string
 }
+
+type LogsBasedMetricsProvider struct{}
