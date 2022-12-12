@@ -1,24 +1,32 @@
 ---
 seotitle: Distributed Tracing helps you understand your app
 seodesc: See how to use distributed tracing in your backend application, across multiple services, using Encore.
-title: Tracing
+title: Distributed Tracing
+subtitle: Track requests across your application and infrastructure
 ---
 
-When building a distributed system, or any backend really, it can be difficult to understand what your code is doing, or what’s going on in general. That’s where Tracing comes in. If you haven’t seen it before, it may just about change your life.
+Distributed systems often have many moving parts, making it it difficult to understand what your code is doing and finding the root-cause to bugs. That’s where Tracing comes in. If you haven’t seen it before, it may just about change your life.
+
+Tracing is a revolutionary way to gain insight into what your applications is doing. It works by capturing the series of events as they occur during the execution of your code (a “trace”). This works by propagating a trace id between all individual systems, then corralating and joining the information together to present a unified picture of what happened end-to-end.
+
+As opposed to the labor intensive instrumentation you'd normally need to go through to use tracing, Encore automatically captures traces for your entire application – in all environments.
+
+You view traces in the [local development dashboard](./dev-dash) and in the [Encore web platform](https://app.encore.dev) for Production and other environments.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
 	<source src="/assets/docs/dtracing.mp4" className="w-full h-full" type="video/mp4" />
 </video>
 
-Tracing is a revolutionary way to gain insight into what applications and distributed systems are doing, by capturing the series of events as they occur during the execution of your code (a “trace”). A trace id is propagated between all the systems so that when the trace information is sent off to a server for analysis, they can be correlated and joined together to present a unified picture of what happened.
+## Encore's tracing is more comprehensive and more performant than all other tools
 
-Implementing tracing is a ton of work. It involves instrumenting each and every part of your application, propagating trace IDs. It also reduces performance so it’s not running on every request. It’s complicated to set up so you typically only do it for production.
+Unlike other tracing solutions, Encore understands what each trace event is and captures unique insights about each one. This means you get access to more information than ever before:
 
-In practice these downsides lead to tracing falling short of realizing its full potential as a revolutionary way to debug backend applications. No more — Encore solves all of them.
+* Stack traces
+* Structured logging
+* HTTP requests
+* Network connection information
+* API calls
+* Database queries
+* etc.
 
-* Encore automatically traces your application, using the Encore Application Model and code generation to automatically instrument everything
-* Encore’s tracing works for all environments — production, testing, and even local development!
-* And unlike other tracing solutions, Encore understands what each trace event is, and captures unique insights about each one. Stack traces, structured logging, HTTP requests and network connection information, API calls, database queries, and more.
-* The implementation is also done at a lower abstraction level, leveraging the Go runtime to do highly performant tracing. The end result is that the performance impact is much lower than other tracing implementations.
-
-Traces are captured automatically and can be found through the [local development dashboard](./dev-dash) for local development, and in the [Encore web platform](https://app.encore.dev) for Production and other environments.
+Encore's tracing implementation sits at a lower abstraction level than what is normally possible, and leverages the Go runtime to do tracing with minimal application performance impact. This means Encore's tracing is much more performant than traditional tracing implementations like Datadog, Lightstep, or Dynatrace.
