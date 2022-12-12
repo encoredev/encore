@@ -121,6 +121,7 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		svcNum := m.Info.SvcNum()
 		encoreCloudMetricName, ok := x.encoreCloudMetricNames[m.Info.Name()]
 		if !ok {
+			x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", m.Info.Name())
 			continue
 		}
 		metricType := "custom.googleapis.com/" + encoreCloudMetricName
