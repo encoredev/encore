@@ -20,6 +20,8 @@ type CreateAppParams struct {
 }
 
 type App struct {
+	ID          string  `json:"eid"`
+	LegacyID    string  `json:"id"`
 	Slug        string  `json:"slug"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"` // can be blank
@@ -27,6 +29,7 @@ type App struct {
 }
 
 type Env struct {
+	ID    string `json:"id"`
 	Slug  string `json:"slug"`
 	Type  string `json:"type"`
 	Cloud string `json:"cloud"`
@@ -105,8 +108,8 @@ const (
 	ProductionSecrets  SecretKind = "production"
 )
 
-func GetAppSecrets(ctx context.Context, appSlug string, poll bool, kind SecretKind) (secrets map[string]string, err error) {
-	url := "/apps/" + url.PathEscape(appSlug) + "/secrets:values?kind=" + string(kind)
+func GetLocalSecretValues(ctx context.Context, appSlug string, poll bool) (secrets map[string]string, err error) {
+	url := "/apps/" + url.PathEscape(appSlug) + "/secrets:values?kind=development"
 	if poll {
 		url += "&poll=true"
 	}
@@ -161,49 +164,6 @@ func DBConnect(ctx context.Context, appSlug, envSlug, dbName string, startupData
 func EnvLogs(ctx context.Context, appSlug, envSlug string) (*websocket.Conn, error) {
 	path := escapef("/apps/%s/envs/%s/log", appSlug, envSlug)
 	return wsDial(ctx, path, true, nil)
-}
-
-type SecretGroup struct {
-	ID          string
-	Key         string
-	Selector    []string
-	Description string
-}
-
-func ListSecretGroups(ctx context.Context, appSlug string, keys []string) ([]*SecretGroup, error) {
-	var secrets []*SecretGroup
-	url := "/apps/" + url.PathEscape(appSlug) + "/secrets-v2/groups"
-
-	data := map[string]any{"secret_keys": keys}
-	err := call(ctx, "GET", url, data, &secrets, true)
-	return secrets, err
-}
-
-func GetLocalSecretValues(ctx context.Context, appSlug string, poll bool) (map[string]string, error) {
-	url := "/apps/" + url.PathEscape(appSlug) + "/secrets-v2:values"
-	if poll {
-		url += "&poll=true"
-	}
-
-	data := map[string]any{"env": "type:local"}
-	var secrets map[string]string
-	err := call(ctx, "GET", url, data, &secrets, true)
-	return secrets, err
-}
-
-func SetSecretGroupValue(ctx context.Context, appSlug string, g *SecretGroup, plaintextValue []byte) (*SecretGroup, error) {
-	url := "/apps/" + url.PathEscape(appSlug) + "/secrets-v2/groups"
-
-	data := map[string]any{
-		"key":             g.Key,
-		"env_selector":    g.Selector,
-		"description":     g.Description,
-		"plaintext_value": plaintextValue,
-	}
-
-	var out *SecretGroup
-	err := call(ctx, "POST", url, data, &out, true)
-	return out, err
 }
 
 func escapef(format string, args ...string) string {
