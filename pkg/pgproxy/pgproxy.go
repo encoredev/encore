@@ -373,6 +373,8 @@ func clientTLSNegotiate(client net.Conn, tlsConfig *tls.Config) (*pgproto3.Backe
 	log.Trace().Msg("negotiating TLS with client")
 	backend := pgproto3.NewBackend(pgproto3.NewChunkReader(client), client)
 	hasTLS := false
+
+StartupMessageLoop:
 	for {
 		startup, err := backend.ReceiveStartupMessage()
 		if err != nil {
@@ -387,6 +389,7 @@ func clientTLSNegotiate(client net.Conn, tlsConfig *tls.Config) (*pgproto3.Backe
 				if _, err := client.Write([]byte{'N'}); err != nil {
 					return nil, nil, err
 				}
+				continue StartupMessageLoop
 			}
 
 			if _, err := client.Write([]byte{'S'}); err != nil {

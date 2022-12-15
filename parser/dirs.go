@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"encr.dev/parser/est"
+	"encr.dev/pkg/watcher"
 )
 
 // walkFunc is the callback called by walkDirs to process a directory.
@@ -35,6 +36,10 @@ func walkDirs(root string, walkFn walkFunc) error {
 // dir is the current directory path, and rel is the relative path from the original root.
 // rel is always in slash form, while dir uses the OS-native filepath separator.
 func walkDir(dir, rel string, walkFn walkFunc) error {
+	if watcher.IgnoreFolder(dir) {
+		return nil
+	}
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err

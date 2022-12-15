@@ -19,6 +19,8 @@ message Data {
   repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
   repeated Middleware     middleware          = 10;
   repeated CacheCluster   cache_clusters      = 11;
+  repeated string         experiments         = 12;
+  repeated Metric         metrics             = 13;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -287,7 +289,31 @@ message CacheCluster {
   string            eviction_policy = 4; // redis eviction policy
 
   message Keyspace {
-    // TODO(andre) add more fields
-    schema.v1.Type key_type     = 1; // The type of the key
+    schema.v1.Type key_type     = 1;
+    schema.v1.Type value_type   = 2;
+    string         service      = 3;
+    string         doc          = 4;
+    Path           path_pattern = 5;
+  }
+}
+
+message Metric {
+  string            name         = 1; // the name of the metric
+  schema.v1.Builtin value_type   = 2;
+  string            doc          = 3; // the doc string
+  MetricKind        kind         = 4;
+  optional string   service_name = 5; // the service the metric is exclusive to, if any.
+  repeated Label    labels       = 6;
+
+  enum MetricKind {
+    COUNTER = 0;
+    GAUGE = 1;
+    HISTOGRAM = 2;
+  }
+
+  message Label {
+    string key             = 1;
+    schema.v1.Builtin type = 2;
+    string doc             = 3;
   }
 }

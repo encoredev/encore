@@ -44,7 +44,7 @@ func (t *RequestTracker) FinishOperation() {
 }
 
 func (t *RequestTracker) BeginRequest(req *model.Request) {
-	if prev, _, _ := t.currentReq(); prev != nil {
+	if prev, _, _, _ := t.currentReq(); prev != nil {
 		copyReqInfoFromParent(req, prev)
 		t.clearReq()
 	}
@@ -76,6 +76,12 @@ func copyReqInfoFromParent(next, prev *model.Request) {
 	if next.ParentID == (model.SpanID{}) {
 		next.ParentID = prev.SpanID
 	}
+	if next.ParentTraceID == (model.TraceID{}) {
+		next.ParentTraceID = prev.ParentTraceID
+	}
+	if next.ExtCorrelationID == "" {
+		next.ExtCorrelationID = prev.ExtCorrelationID
+	}
 	if !next.Traced {
 		next.Traced = prev.Traced
 	}
@@ -89,14 +95,15 @@ func (t *RequestTracker) FinishRequest() {
 }
 
 type Current struct {
-	Req   *model.Request // can be nil
-	Trace trace.Logger   // can be nil
-	Goctr uint32         // zero if Req == nil && Trace == nil
+	Req    *model.Request // can be nil
+	Trace  trace.Logger   // can be nil
+	Goctr  uint32         // zero if Req == nil && Trace == nil
+	SvcNum uint16         // 0 if not in a service
 }
 
 func (t *RequestTracker) Current() Current {
-	req, tr, goid := t.currentReq()
-	return Current{req, tr, goid}
+	req, tr, goid, svc := t.currentReq()
+	return Current{req, tr, goid, svc}
 }
 
 func (t *RequestTracker) Logger() *zerolog.Logger {

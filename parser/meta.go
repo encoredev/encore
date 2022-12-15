@@ -16,6 +16,7 @@ import (
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
@@ -23,7 +24,7 @@ import (
 type TraceNodes map[ast.Node]*meta.TraceNode
 
 // ParseMeta parses app metadata.
-func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string, app *est.Application, fset *token.FileSet) (*meta.Data, map[*est.Package]TraceNodes, error) {
+func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string, app *est.Application, fset *token.FileSet, exp *experiments.Set) (*meta.Data, map[*est.Package]TraceNodes, error) {
 	data := &meta.Data{
 		ModulePath:         app.ModulePath,
 		AppRevision:        appRevision,
@@ -108,6 +109,16 @@ func ParseMeta(appRevision string, appHasUncommittedChanges bool, appRoot string
 
 	for _, mw := range app.Middleware {
 		data.Middleware = append(data.Middleware, parseMiddleware(mw))
+	}
+
+	for _, m := range app.Metrics {
+		data.Metrics = append(data.Metrics, parseMetric(m))
+	}
+
+	if exp != nil {
+		for _, expName := range exp.List() {
+			data.Experiments = append(data.Experiments, string(expName))
+		}
 	}
 
 	return data, nodes, nil
@@ -258,9 +269,14 @@ func parseCronJob(job *est.CronJob) (*meta.CronJob, error) {
 
 func parseCacheCluster(cluster *est.CacheCluster) *meta.CacheCluster {
 	parseKeyspaces := func(keyspaces ...*est.CacheKeyspace) (rtn []*meta.CacheCluster_Keyspace) {
-		for range keyspaces {
-			// TODO implement
-			rtn = append(rtn, &meta.CacheCluster_Keyspace{})
+		for _, ks := range keyspaces {
+			rtn = append(rtn, &meta.CacheCluster_Keyspace{
+				KeyType:     ks.KeyType,
+				ValueType:   ks.ValueType,
+				Service:     ks.Svc.Name,
+				Doc:         ks.Doc,
+				PathPattern: ks.Path.ToProto(),
+			})
 		}
 		return rtn
 	}
@@ -358,6 +374,28 @@ func parseMiddleware(mw *est.Middleware) *meta.Middleware {
 	}
 	if mw.Svc != nil {
 		pb.ServiceName = &mw.Svc.Name
+	}
+	return pb
+}
+
+func parseMetric(m *est.Metric) *meta.Metric {
+	var labels []*meta.Metric_Label
+	for _, label := range m.Labels {
+		labels = append(labels, &meta.Metric_Label{
+			Key:  label.Key,
+			Type: label.Type,
+			Doc:  label.Doc,
+		})
+	}
+	pb := &meta.Metric{
+		Name:      m.Name,
+		ValueType: m.ValueType,
+		Kind:      m.Kind,
+		Doc:       m.Doc,
+		Labels:    labels,
+	}
+	if m.Svc != nil {
+		pb.ServiceName = &m.Svc.Name
 	}
 	return pb
 }

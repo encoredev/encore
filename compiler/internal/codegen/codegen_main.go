@@ -2,14 +2,18 @@ package codegen
 
 import (
 	"fmt"
+	"net/http"
 	"path"
+	"sort"
 
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/internal/gocodegen"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
+	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/errlist"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 const JsonPkg = "github.com/json-iterator/go"
@@ -46,6 +50,17 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 
 	mwNames, mwCode := b.RenderMiddlewares(mainPkgPath)
 
+	svcNames := make([]string, 0, len(b.res.App.Services))
+	for _, svc := range b.res.App.Services {
+		svcNames = append(svcNames, svc.Name)
+	}
+	sort.Strings(svcNames)
+
+	corsHeaders, err := b.computeCORSHeaders()
+	if err != nil {
+		b.error(eerror.Wrap(err, "codegen", "failed to compute CORS headers", nil))
+	}
+
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
@@ -57,9 +72,11 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
 			}),
+			Id("CORSHeaders"):  corsHeaders,
 			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
 			Id("Testing"):      False(),
 			Id("TestService"):  Lit(""),
+			Id("BundledServices"): b.computeBundledServices(),
 		})
 		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
 
@@ -111,6 +128,49 @@ func (b *Builder) computeStaticPubsubConfig() Code {
 		})
 	}
 	return Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubTopic").Values(pubsubTopicDict)
+}
+
+func (b *Builder) computeCORSHeaders() (Code, error) {
+	// Find all used headers
+	usedHeaderSet := map[string]struct{}{}
+	usedHeaders := []string{}
+
+	// Walk all the structures looking for headers
+	decls := b.res.Meta.Decls
+	for _, param := range b.res.App.ParamTypes() {
+		err := schema.Walk(decls, param, func(node any) error {
+			switch n := node.(type) {
+			case *schema.Struct:
+				for _, field := range n.Fields {
+					for _, tag := range field.Tags {
+						if tag.Key == "header" {
+							name := http.CanonicalHeaderKey(tag.Name)
+							if _, found := usedHeaderSet[name]; !found {
+								usedHeaderSet[name] = struct{}{}
+								usedHeaders = append(usedHeaders, name)
+							}
+						}
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(usedHeaders) == 0 {
+		return Nil(), nil
+	}
+
+	// Generate the code list of used static headers
+	sort.Strings(usedHeaders)
+	usedHeadersCode := make([]Code, len(usedHeaders))
+	for _, header := range usedHeaders {
+		usedHeadersCode = append(usedHeadersCode, Lit(header))
+	}
+	return Index().String().Values(usedHeadersCode...), nil
 }
 
 func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*Statement) *Statement {
@@ -182,6 +242,20 @@ func (b *Builder) authDataType() Code {
 		}
 	}
 	return Nil()
+}
+
+func (b *Builder) computeBundledServices() Code {
+	sortedNames := make([]string, 0, len(b.res.App.Services))
+	for _, svc := range b.res.App.Services {
+		sortedNames = append(sortedNames, svc.Name)
+	}
+	sort.Strings(sortedNames)
+
+	return Index().String().ValuesFunc(func(g *Group) {
+		for _, name := range sortedNames {
+			g.Lit(name)
+		}
+	})
 }
 
 func (b *Builder) error(err error) {

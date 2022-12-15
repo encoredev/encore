@@ -11,7 +11,7 @@ import (
 
 	"github.com/tailscale/hujson"
 
-	"encr.dev/internal/experiments"
+	"encr.dev/pkg/experiments"
 )
 
 // Name is the name of the Encore app file.

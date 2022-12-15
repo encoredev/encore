@@ -21,11 +21,15 @@ type Static struct {
 	EncoreCompiler string
 	AppCommit      CommitInfo // The commit which this service was built from
 
+	CORSHeaders  []string // Headers required to be allowed by cors, pulled from the static analysis
 	PubsubTopics map[string]*StaticPubsubTopic
 
 	Testing              bool
 	TestService          string // service being tested, if any
 	TestAsExternalBinary bool   // should logs be pretty printed in tests (used when building a test binary to be used outside of the Encore daemon)
+
+	// BundledServices are the services bundled in this binary.
+	BundledServices []string
 }
 
 type Runtime struct {
@@ -195,6 +199,7 @@ type StaticPubsubTopic struct {
 
 type StaticPubsubSubscription struct {
 	Service  string // the service that subscription is in
+	SvcNum   uint16 // the service number the subscription is in
 	TraceIdx int32  // The trace Idx of the subscription
 }
 
@@ -273,12 +278,41 @@ type RedisDatabase struct {
 	KeyPrefix string `json:"key_prefix"`
 }
 
-type MetricsExporterType string
-
-const (
-	MetricsExporterTypeLogsBased MetricsExporterType = "logs_based"
-)
-
 type Metrics struct {
-	ExporterType MetricsExporterType `json:"exporter_type"`
+	CollectionInterval time.Duration `json:"collection_interval,omitempty"`
+	EncoreCloud        *EncoreCloudProvider
+	CloudMonitoring    *GCPCloudMonitoringProvider    `json:"gcp_cloud_monitoring,omitempty"`
+	CloudWatch         *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
+	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
+	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
 }
+
+type EncoreCloudProvider struct {
+	GCPCloudMonitoringProvider
+	MetricNames map[string]string
+}
+
+type GCPCloudMonitoringProvider struct {
+	// ProjectID is the GCP project id to send metrics to.
+	ProjectID string
+
+	// MonitoredResourceType is the enum value for the monitored resource this application is monitoring.
+	// See https://cloud.google.com/monitoring/api/resources for valid values.
+	MonitoredResourceType string
+	// MonitoredResourceLabels are the labels to specify for the monitored resource.
+	// Each monitored resource type has a pre-defined set of labels that must be set.
+	// See https://cloud.google.com/monitoring/api/resources for expected labels.
+	MonitoredResourceLabels map[string]string
+}
+
+type AWSCloudWatchMetricsProvider struct {
+	// Namespace is the namespace to use for metrics.
+	Namespace string
+}
+
+type PrometheusRemoteWriteProvider struct {
+	// The URL of the endpoint to send samples to.
+	RemoteWriteURL string
+}
+
+type LogsBasedMetricsProvider struct{}

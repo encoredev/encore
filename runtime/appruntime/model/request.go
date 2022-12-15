@@ -38,15 +38,21 @@ type PathParam struct {
 }
 
 type Request struct {
-	Type     RequestType
-	TraceID  TraceID
-	SpanID   SpanID
-	ParentID SpanID
+	Type             RequestType
+	TraceID          TraceID
+	SpanID           SpanID
+	ParentID         SpanID
+	ParentTraceID    TraceID
+	ExtCorrelationID string // The externally-provided correlation ID, if any.
 
 	Start  time.Time
 	Logger *zerolog.Logger
 	Traced bool
 	DefLoc int32
+
+	// SvcNum is the 1-based index of the service into the service list.
+	// It's here instead of within RPCData/MsgData/Test for performance.
+	SvcNum uint16
 
 	// Set if Type == RPCCall
 	RPCData *RPCData

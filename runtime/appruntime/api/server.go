@@ -64,9 +64,9 @@ type Server struct {
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
+	metrics        *metrics.Manager
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
-	metrics        *metrics.Manager
 	json           jsoniter.API
 	tracingEnabled bool
 
@@ -113,9 +113,9 @@ func NewServer(
 		pc:             pc,
 		rt:             rt,
 		encoreMgr:      encoreMgr,
+		metrics:        metrics,
 		clock:          clock,
 		rootLogger:     rootLogger,
-		metrics:        metrics,
 		json:           json,
 		tracingEnabled: tracingEnabled,
 
@@ -131,7 +131,7 @@ func NewServer(
 	if cfg.Runtime.CORS != nil {
 		corsCfg = cfg.Runtime.CORS
 	}
-	handler := cors.Wrap(corsCfg, http.HandlerFunc(s.handler))
+	handler := cors.Wrap(corsCfg, cfg.Static.CORSHeaders, http.HandlerFunc(s.handler))
 	s.httpsrv = &http.Server{
 		Handler: handler,
 	}
@@ -200,8 +200,23 @@ func (s *Server) register(reg HandlerRegistration, logRegistration bool) {
 			reqID := req.Header.Get("X-Request-ID")
 			if reqID == "" {
 				reqID = traceIDStr
+			} else if len(reqID) > 64 {
+				// Don't allow arbitrarily long request IDs.
+				s.rootLogger.Warn().Int("length", len(reqID)).Msg("X-Request-ID was too long and is being truncated to 64 characters")
+				reqID = reqID[:64]
 			}
 			w.Header().Set("X-Request-ID", reqID)
+
+			// Read the correlation ID from the request.
+			correlationID := req.Header.Get("X-Correlation-ID")
+			if len(correlationID) > 64 {
+				// Don't allow arbitrarily long correlation IDs.
+				s.rootLogger.Warn().Int("length", len(reqID)).Msg("X-Correlation-ID was too long and is being truncated to 64 characters")
+				correlationID = correlationID[:64]
+			}
+			if correlationID != "" {
+				w.Header().Set("X-Correlation-ID", correlationID)
+			}
 
 			// Always send the trace id back.
 			w.Header().Set("X-Encore-Trace-ID", traceIDStr)

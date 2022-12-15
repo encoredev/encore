@@ -19,12 +19,12 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 
-	"encr.dev/internal/experiments"
 	"encr.dev/parser/est"
 	"encr.dev/parser/internal/names"
 	"encr.dev/parser/paths"
 	"encr.dev/parser/selector"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 
@@ -57,6 +57,7 @@ type parser struct {
 	names               names.Application
 	authHandler         *est.AuthHandler
 	middleware          []*est.Middleware
+	metrics             []*est.Metric
 	declMap             map[string]*schema.Decl // pkg/path.Name -> decl
 	decls               []*schema.Decl
 	paths               paths.Set                          // RPC paths
@@ -184,9 +185,10 @@ func (p *parser) Parse() (res *Result, err error) {
 		Decls:         p.decls,
 		AuthHandler:   p.authHandler,
 		Middleware:    p.middleware,
+		Metrics:       p.metrics,
 	}
 
-	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset)
+	md, nodes, err := ParseMeta(p.cfg.AppRevision, p.cfg.AppHasUncommittedChanges, p.cfg.AppRoot, app, p.fset, p.cfg.Experiments)
 	if err != nil {
 		return nil, err
 	}

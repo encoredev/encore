@@ -33,11 +33,11 @@ import (
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
-	"encr.dev/internal/experiments"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 

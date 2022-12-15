@@ -6,9 +6,7 @@ subtitle: Provisioning, migrating, querying
 ---
 
 Encore treats SQL databases as logical resources and natively supports **PostreSQL** databases.
-To use a database you only need to [define the schema](#defining-a-database-schema),
-and then you can start using it. Encore takes care of provisioning the database, running
-new schema migrations during deploys, and connecting to it.
+To start using a database you only need to [define the schema](#defining-a-database-schema) by creating a migration file. Encore takes care of [provisioning the database](/docs/primitives/databases#provisioning-databases), running new schema migrations during deploys, and connecting to it.
 
 ## Defining a database schema
 

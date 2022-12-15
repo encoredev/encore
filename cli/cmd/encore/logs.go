@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -14,8 +15,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	"encr.dev/cli/internal/appfile"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/pkg/appfile"
 )
 
 var (
@@ -86,7 +87,7 @@ func streamLogs(appRoot, envName string) {
 		for _, line := range lines {
 			// Pretty-print logs if requested and it looks like a JSON log line
 			if !logsJSON && bytes.HasPrefix(line, []byte{'{'}) {
-				if _, err := cw.Write(line); err != nil {
+				if _, err := cw.Write(mapCloudFieldNamesToExpected(line)); err != nil {
 					// Fall back to regular stdout in case of error
 					os.Stdout.Write(line)
 					os.Stdout.Write([]byte("\n"))
@@ -97,6 +98,38 @@ func streamLogs(appRoot, envName string) {
 			}
 		}
 	}
+}
+
+// mapCloudFieldNamesToExpected detects if we're logging with GCP style logging and then swaps
+// the field names to what is expected by zerolog
+func mapCloudFieldNamesToExpected(jsonBytes []byte) []byte {
+	unmarshaled := map[string]any{}
+	err := json.Unmarshal(jsonBytes, &unmarshaled)
+	if err != nil {
+		return jsonBytes
+	}
+
+	_, hasSeverity := unmarshaled["severity"]
+	_, hasExpectedLevelField := unmarshaled[zerolog.LevelFieldName]
+	_, hasTimestamp := unmarshaled["timestamp"]
+	_, hasExpectedTimeField := unmarshaled[zerolog.TimestampFieldName]
+
+	// GCP logs have a severity field and a timestamp field and not the default level and timestamp
+	if hasSeverity && !hasExpectedLevelField && hasTimestamp && !hasExpectedTimeField {
+		unmarshaled[zerolog.LevelFieldName] = unmarshaled["severity"]
+		delete(unmarshaled, "severity")
+		unmarshaled[zerolog.TimestampFieldName] = unmarshaled["timestamp"]
+		delete(unmarshaled, "timestamp")
+	} else {
+		// No changes, return the original bytes unmodified
+		return jsonBytes
+	}
+
+	newBytes, err := json.Marshal(unmarshaled)
+	if err != nil {
+		return jsonBytes
+	}
+	return newBytes
 }
 
 func init() {

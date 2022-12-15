@@ -22,7 +22,6 @@ import (
 
 	"encr.dev/compiler/internal/codegen"
 	"encr.dev/compiler/internal/cuegen"
-	"encr.dev/internal/experiments"
 	"encr.dev/internal/optracker"
 	"encr.dev/parser"
 	"encr.dev/parser/est"
@@ -30,6 +29,7 @@ import (
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/experiments"
 )
 
 type Config struct {
@@ -155,6 +155,7 @@ type builder struct {
 	overlay map[string]string
 	codegen *codegen.Builder
 	cuegen  *cuegen.Generator
+	bundled *serviceBundle
 
 	res         *parser.Result
 	configFiles fs.FS
@@ -267,6 +268,7 @@ func (b *builder) parseApp() error {
 		b.res = pc
 		b.codegen = codegen.NewBuilder(b.res)
 		b.cuegen = cuegen.NewGenerator(b.res)
+		b.bundled = newServiceBundle(b.res.App.Services)
 		return nil
 	}
 
@@ -284,6 +286,7 @@ func (b *builder) parseApp() error {
 	if err == nil {
 		b.codegen = codegen.NewBuilder(b.res)
 		b.cuegen = cuegen.NewGenerator(b.res)
+		b.bundled = newServiceBundle(b.res.App.Services)
 	}
 
 	return err
@@ -636,4 +639,24 @@ func (b *builder) trace(format string, args ...any) func() {
 		dur := time.Since(b.traceStart)
 		b.log.Trace().Msgf("%-10s DONE  %s", dur, s)
 	}
+}
+
+type serviceBundle struct {
+	nums map[string]uint16 // service name -> number
+}
+
+func newServiceBundle(svcs []*est.Service) *serviceBundle {
+	b := &serviceBundle{
+		nums: make(map[string]uint16, len(svcs)),
+	}
+	num := uint16(1)
+	for _, svc := range svcs {
+		b.nums[svc.Name] = num
+		num++
+	}
+	return b
+}
+
+func (b *serviceBundle) SvcNum(svc *est.Service) uint16 {
+	return b.nums[svc.Name]
 }

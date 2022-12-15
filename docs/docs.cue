@@ -59,29 +59,29 @@ sections: [
 		]
 	},
 	{
+		title: "Building blocks"
+		segment: "primitives"
+		docs: [
+			{title: "Overview", segment: "overview"},
+			{title: "Services and APIs", segment: "services-and-apis", old_paths:["/develop/services-and-apis"]},
+			{title: "Databases", segment: "databases", old_paths:["/develop/databases","/develop/sql-database"], shortcuts: ["storage/sqldb"]},
+			{title: "Cron Jobs", segment: "cron-jobs", old_paths:["/cron-jobs","/develop/cron-jobs"], shortcuts: ["cron"]},
+			{title: "PubSub", segment: "pubsub", old_paths:["/develop/pubsub"], shortcuts: ["pubsub"]},
+			{title: "Caching", segment: "caching", old_paths:["/develop/caching"], shortcuts: ["storage/cache"]},
+			{title: "Secrets", segment: "secrets", old_paths:["/develop/secrets"]},
+		]
+	},
+	{
 		title: "Develop"
 		segment: "develop"
 		docs: [
 			{title: "App Structure", segment: "app-structure"},
-			{title: "Services and APIs", segment: "services-and-apis"},
 			{title: "API Schemas", segment: "api-schemas"},
 			{title: "API Errors", segment: "errors", old_paths:["/concepts/errors"], shortcuts: ["beta/errs", "errs"]},
 			{title: "Authentication", segment: "auth", shortcuts: ["beta/auth", "auth"]},
-			{title: "SQL Databases", segment: "databases", old_paths:["/develop/sql-database"], shortcuts: ["storage/sqldb"]},
-			{
-				title: "Cron Jobs",
-				segment: "cron-jobs"
-				old_paths: [
-					"/cron-jobs" // linked to from our go package
-				],
-				 shortcuts: ["cron"]
-			},
-			{title: "PubSub", segment: "pubsub", shortcuts: ["pubsub"]},
-			{title: "Caching", segment: "caching", shortcuts: ["storage/cache"]},
 			{title: "Configuration", segment: "config", shortcuts: ["config"]},
 			{title: "Metadata", segment: "metadata"},
-			{title: "Secrets", segment: "secrets"},
-			{title: "Auth Keys", segment: "auth-keys"},
+			{title: "Auth Keys", segment: "auth-keys", old_paths:["/configuration/auth-keys"]},
 			{title: "Testing", segment: "testing"},
 			{title: "Middleware", segment: "middleware"},
 			{title: "Validation", segment: "validation"},
@@ -128,6 +128,13 @@ sections: [
 			{title: "Use Firebase Authentication", segment: "firebase-auth"},
 			{title: "Integrate with GitHub", segment: "github"},
 			{title: "Migrate away from Encore", segment: "migrate-away"},
+		]
+	},
+	{
+		title: "Other Topics"
+		segment: "other"
+		docs: [
+			{title: "Encore vs. Terraform / Pulumi", segment: "vsterraform"},
 		]
 	},
 	{

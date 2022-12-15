@@ -35,6 +35,13 @@ func GenTraceID() (TraceID, error) {
 	return traceID, err
 }
 
+// ParseTraceID takes the hex encoded string form of a trace id and returns the bytes
+func ParseTraceID(str string) (TraceID, error) {
+	var traceID TraceID
+	_, err := b32.Decode(traceID[:], []byte(str))
+	return traceID, err
+}
+
 // GenSpanID generates a span id.
 func GenSpanID() (SpanID, error) {
 	if GenerateConstantValsForTests {

@@ -51,6 +51,7 @@ export interface Request {
   raw_req_headers: KeyValue[];
   raw_resp_headers: KeyValue[];
   ext_request_id: string;
+  ext_correlation_id: string;
 
   err: Base64EncodedBytes | null;
   err_stack: Stack | null;

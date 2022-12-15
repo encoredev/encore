@@ -116,17 +116,45 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to unmarshal message").Err()
 		}
 
+		logCtx := log.With()
+
+		traceID, err := model.GenTraceID()
+		if err != nil {
+			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate trace id")
+			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate trace id").Err()
+		} else if traceID != (model.TraceID{}) {
+			logCtx = logCtx.Str("trace_id", traceID.String())
+		}
+
 		spanID, err := model.GenSpanID()
 		if err != nil {
 			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate span id")
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate span id").Err()
 		}
 
+		var parentTraceID model.TraceID
+		if parentTraceIDStr := attrs[parentTraceIDAttribute]; parentTraceIDStr != "" {
+			parentTraceID, err = model.ParseTraceID(parentTraceIDStr)
+			if err != nil {
+				log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to parse parent trace id")
+			}
+		}
+
+		// Default to logging with the external correlation id if present
+		extCorrelationID := attrs[extCorrelationIDAttribute]
+		if extCorrelationID != "" {
+			logCtx = logCtx.Str("x_correlation_id", extCorrelationID)
+		} else if parentTraceID != (model.TraceID{}) {
+			logCtx = logCtx.Str("x_correlation_id", parentTraceID.String())
+		}
 		// Start the request tracing span
 		req := &model.Request{
-			Type:   model.PubSubMessage,
-			SpanID: spanID,
-			Start:  time.Now(),
+			Type:             model.PubSubMessage,
+			TraceID:          traceID,
+			SpanID:           spanID,
+			ParentTraceID:    parentTraceID,
+			ExtCorrelationID: extCorrelationID,
+			Start:            time.Now(),
 			MsgData: &model.PubSubMsgData{
 				Service:        staticCfg.Service,
 				Topic:          topic.topicCfg.EncoreName,
@@ -138,9 +166,11 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 				Payload:        marshalParams(mgr.json, msg),
 			},
 			DefLoc: staticCfg.TraceIdx,
+			SvcNum: staticCfg.SvcNum,
 			Traced: tracingEnabled,
 		}
-		req.Logger = &log
+		reqLogger := logCtx.Logger()
+		req.Logger = &reqLogger
 
 		// Copy the previous request information over, if any
 		{

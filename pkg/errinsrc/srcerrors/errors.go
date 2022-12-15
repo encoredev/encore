@@ -10,6 +10,7 @@ import (
 	"encr.dev/pkg/errinsrc"
 	. "encr.dev/pkg/errinsrc/internal"
 	"encr.dev/pkg/idents"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 // UnhandledPanic is an error we use to wrap a panic that was not handled
@@ -221,7 +222,7 @@ func ResourceNameNotStringLiteral(fileset *token.FileSet, node ast.Node, resourc
 		Code:      17,
 		Title:     "Invalid resource name",
 		Summary:   fmt.Sprintf("A %s requires the %s given as a string literal.", resourceType, paramName),
-		Detail:    resourceNameHelp(resourceType, paramName),
+		Detail:    resourceNameHelpKebabCase(resourceType, paramName),
 		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("was given %s", nodeType(node)))},
 	}, false)
 }
@@ -231,7 +232,7 @@ func ResourceNameWrongLength(fileset *token.FileSet, node ast.Node, resourceType
 		Code:      18,
 		Title:     "Invalid resource name",
 		Summary:   fmt.Sprintf("The %s %s needs to be between 1 and 63 characters long.", resourceType, paramName),
-		Detail:    resourceNameHelp(resourceType, paramName),
+		Detail:    resourceNameHelpKebabCase(resourceType, paramName),
 		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("is %d characters long", len(name)))},
 	}, false)
 }
@@ -243,7 +244,7 @@ func ResourceNameNotKebabCase(fileset *token.FileSet, node ast.Node, resourceTyp
 		Code:      19,
 		Title:     "Invalid resource name",
 		Summary:   fmt.Sprintf("The %s must be %s be defined in \"kebab-case\"", resourceType, paramName),
-		Detail:    resourceNameHelp(resourceType, paramName),
+		Detail:    resourceNameHelpKebabCase(resourceType, paramName),
 		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("try \"%s\"?", proposedName))},
 	}, false)
 }
@@ -278,7 +279,7 @@ func PubSubTopicNameNotUnique(fileset *token.FileSet, firstDefinition ast.Node, 
 		Title:   "Duplicate PubSub topic name",
 		Summary: "A PubSub topic name must be unique within an application.",
 		Detail: combine(
-			resourceNameHelp("pub sub topic", "name"),
+			resourceNameHelpKebabCase("pub sub topic", "name"),
 			"If you wish to reuse the same topic, then you can export the original Topic object import it here.",
 			pubsubHelp,
 		),
@@ -316,7 +317,7 @@ func PubSubTopicConfigInvalidField(fileset *token.FileSet, fieldName string, exa
 	return errinsrc.New(ErrParams{
 		Code:    24,
 		Title:   "Invalid PubSub topic config",
-		Summary: fmt.Sprintf("pubsub.NewTopic requires the configuration field named \"%s\" to a valid value", fieldName),
+		Summary: fmt.Sprintf("pubsub.NewTopic requires the configuration field named \"%s\" to be a valid value", fieldName),
 		Detail: combine(
 			pubsubNewTopicHelp,
 			pubsubHelp,
@@ -392,7 +393,7 @@ func PubSubSubscriptionNameNotUnique(fileset *token.FileSet, firstDefinition ast
 		Title:   "Invalid PubSub subscription config",
 		Summary: "Subscriptions names on topics must be unique.",
 		Detail: combine(
-			resourceNameHelp("pubsub subscription", "name"),
+			resourceNameHelpKebabCase("pubsub subscription", "name"),
 			pubsubHelp,
 		),
 		Locations: SrcLocations{first, second},
@@ -479,5 +480,108 @@ func PubSubPublishInvalidLocation(fileset *token.FileSet, node ast.Node) error {
 			pubsubHelp,
 		),
 		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+	}, false)
+}
+
+func ResourceNameNotSnakeCase(fileset *token.FileSet, node ast.Node, resourceType string, paramName string, name string) error {
+	proposedName := idents.GenerateSuggestion(name, idents.SnakeCase)
+
+	return errinsrc.New(ErrParams{
+		Code:      36,
+		Title:     "Invalid resource name",
+		Summary:   fmt.Sprintf("The %s must be %s be defined in \"snake_case\"", resourceType, paramName),
+		Detail:    resourceNameHelpKebabCase(resourceType, paramName),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("try %q?", proposedName))},
+	}, false)
+}
+
+func ResourceNameReserved(fileset *token.FileSet, node ast.Node, resourceType string, paramName string, name, reservedPrefix string, isSnakeCase bool) error {
+	suggestion := ""
+	if strings.HasPrefix(name, reservedPrefix) { // should always be the case, but better to be safe
+		suggestion = fmt.Sprintf("try %q?", name[len(reservedPrefix):])
+	}
+
+	var detail string
+	if isSnakeCase {
+		detail = resourceNameHelpSnakeCase(resourceType, paramName)
+	} else {
+		detail = resourceNameHelpKebabCase(resourceType, paramName)
+	}
+
+	return errinsrc.New(ErrParams{
+		Code:  37,
+		Title: "Reserved resource name",
+		// The metrics.NewCounter metric name "e_blah" uses the reserved prefix "e_".
+		Summary:   fmt.Sprintf("The %s %s %q uses the reserved prefix %q", resourceType, paramName, name, reservedPrefix),
+		Detail:    detail,
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, suggestion)},
+	}, false)
+}
+
+func MetricLabelsNotNamedStruct(fileset *token.FileSet, node ast.Node, resourceType string, schema *schema.Type) error {
+	return errinsrc.New(ErrParams{
+		Code:  38,
+		Title: "Invalid metric labels type",
+		// The metrics.NewCounterGroup labels type must be a named struct type
+		Summary: fmt.Sprintf("The %s labels type must be a named struct type", resourceType),
+		Detail: combine(
+			metricsHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("was given %s", schemaType(schema)))},
+	}, false)
+}
+
+func MetricLabelReservedName(fileset *token.FileSet, node ast.Node, fieldName, label string) error {
+	return errinsrc.New(ErrParams{
+		Code:    39,
+		Title:   "Reserved metrics label",
+		Summary: fmt.Sprintf("The %s field uses the reserved metrics label %s", fieldName, label),
+		Detail: combine(
+			metricsHelp,
+		),
+		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+	}, false)
+}
+
+func MetricLabelsFieldInvalidType(fileset *token.FileSet, node ast.Node, resourceType, fieldName string, fieldType *schema.Type) error {
+	return errinsrc.New(ErrParams{
+		Code:  40,
+		Title: "Invalid metric labels type",
+		// The metrics.NewCounterGroup labels type must be a named struct type
+		Summary: fmt.Sprintf("The %s labels type's field named %s must be a string, boolean, or integer", resourceType, fieldName),
+		Detail: combine(
+			metricsHelp,
+		),
+		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, fmt.Sprintf("was given %s", schemaType(fieldType)))},
+	}, false)
+}
+
+func MetricLabelsIsPointer(fileset *token.FileSet, node ast.Node, resourceType string) error {
+	return errinsrc.New(ErrParams{
+		Code:  41,
+		Title: "Invalid metric labels type",
+		// The metrics.NewCounterGroup labels type must be a named struct type
+		Summary: fmt.Sprintf("The %s labels type must be a non-pointer named struct, got a pointer type", resourceType),
+		Detail: combine(
+			metricsHelp,
+		),
+		Locations: SrcLocations{FromGoASTNode(fileset, node)},
+	}, false)
+}
+
+func MetricReferencedInOtherService(fileset *token.FileSet, reference ast.Node, defined ast.Node) error {
+	refLoc := FromGoASTNode(fileset, reference)
+	refLoc.Text = "referenced here"
+
+	definedLoc := FromGoASTNode(fileset, defined)
+	definedLoc.Type = LocHelp
+	definedLoc.Text = "defined here"
+
+	return errinsrc.New(ErrParams{
+		Code:      42,
+		Title:     "Cross service metric reference",
+		Summary:   "A metric defined within a service can only be referenced from within that same service.",
+		Detail:    metricsHelp,
+		Locations: SrcLocations{refLoc, definedLoc},
 	}, false)
 }

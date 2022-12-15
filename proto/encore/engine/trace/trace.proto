@@ -16,6 +16,7 @@ message Request {
   TraceID trace_id = 1;
   uint64 span_id = 2;
   uint64 parent_span_id = 3;
+  TraceID parent_trace_id = 32;
   uint32 goid = 4;
   uint64 start_time = 5;
   uint64 end_time = 6;
@@ -52,6 +53,7 @@ message Request {
   map<string, string> raw_response_headers = 30;
   // external_request_id is the value of the X-Request-ID header.
   string external_request_id = 31;
+  string external_correlation_id = 33;
 
   enum Type {
     RPC = 0;
