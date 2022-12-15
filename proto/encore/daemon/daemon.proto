@@ -30,8 +30,9 @@ service Daemon {
   rpc GenClient (GenClientRequest) returns (GenClientResponse);
   // GenWrappers generates user-facing wrapper code.
   rpc GenWrappers (GenWrappersRequest) returns (GenWrappersResponse);
-  // SetSecret sets a secret key on the encore.dev platform.
-  rpc SetSecret (SetSecretRequest) returns (SetSecretResponse);
+  // SecretsRefresh tells the daemon to refresh the local development secrets
+  // for the given application.
+  rpc SecretsRefresh (SecretsRefreshRequest) returns (SecretsRefreshResponse);
   // Version reports the daemon version.
   rpc Version (google.protobuf.Empty) returns (VersionResponse);
 }
@@ -181,21 +182,13 @@ message GenWrappersRequest {
 message GenWrappersResponse {
 }
 
-message SetSecretRequest {
+message SecretsRefreshRequest {
   string app_root = 1;
   string key = 2;
-  bytes value = 3;
-  repeated EnvSpec envs = 4;
-  string description = 5;
-
-  message EnvSpec {
-    optional string type = 1;
-    optional string name = 2;
-  }
+  string value = 3;
 }
 
-message SetSecretResponse {
-  bool created = 1; // whether or not the secret was created (as opposed to updated)
+message SecretsRefreshResponse {
 }
 
 message VersionResponse {

@@ -54,8 +54,8 @@ type CreateSecretGroupParams struct {
 
 func CreateSecretGroup(ctx context.Context, p CreateSecretGroupParams) error {
 	query := `
-mutation CreateSecretGroup($input: NewSecretGroup!) {
-	createSecretGroup(input: $input) { id }
+mutation CreateSecretGroup($input: CreateSecretGroups!) {
+	createSecretGroups(input: $input) { id }
 }`
 	envTypes, envIDs, err := mapSecretSelector(p.Selector)
 	if err != nil {
@@ -63,12 +63,16 @@ mutation CreateSecretGroup($input: NewSecretGroup!) {
 	}
 
 	in := graphqlRequest{Query: query, Variables: map[string]any{"input": map[string]any{
-		"appID":          p.AppID,
-		"key":            p.Key,
-		"plaintextValue": p.PlaintextValue,
-		"envTypes":       envTypes,
-		"envIDs":         envIDs,
-		"description":    p.Description,
+		"appID": p.AppID,
+		"key":   p.Key,
+		"entries": []map[string]any{
+			{
+				"plaintextValue": p.PlaintextValue,
+				"envTypes":       envTypes,
+				"envIDs":         envIDs,
+				"description":    p.Description,
+			},
+		},
 	}}}
 	if err := graphqlCall(ctx, in, nil, true); err != nil {
 		return errors.Wrap(err, "create secret group")
@@ -84,7 +88,7 @@ type CreateSecretVersionParams struct {
 
 func CreateSecretVersion(ctx context.Context, p CreateSecretVersionParams) error {
 	query := `
-mutation CreateSecretVersion($input: NewSecretVersion!) {
+mutation CreateSecretVersion($input: CreateSecretVersion!) {
 	createSecretVersion(input: $input) { id }
 }`
 	in := graphqlRequest{Query: query, Variables: map[string]any{"input": map[string]any{
