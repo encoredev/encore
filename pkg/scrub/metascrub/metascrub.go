@@ -17,7 +17,7 @@ func New(md *meta.Data, log zerolog.Logger) *Computer {
 	return &Computer{
 		md:        md,
 		log:       log.With().Str("component", "metascrub").Logger(),
-		declCache: make(map[uint32]declResult),
+		declCache: make(map[declCacheKey]declResult),
 	}
 }
 
@@ -29,17 +29,26 @@ type Computer struct {
 	log zerolog.Logger
 
 	// declCache caches the scrub paths for encountered declarations
-	declCache map[uint32]declResult
-
-	// steps is a fail-safe to catch any potential infinite loops.
-	steps int
+	declCache map[declCacheKey]declResult
 }
+
+type Desc struct {
+	Payload []scrub.Path
+	Headers []string
+}
+
+type ParseMode int
+
+const (
+	// AuthHandler specifies that the type is an auth handler.
+	AuthHandler ParseMode = 1 << iota
+)
 
 // Compute computes the scrub paths for the given typ.
 // It is not safe for concurrent use.
-func (c *Computer) Compute(typ *schema.Type) []scrub.Path {
+func (c *Computer) Compute(typ *schema.Type, mode ParseMode) Desc {
 	if typ == nil {
-		return nil
+		return Desc{}
 	}
 
 	defer func() {
@@ -48,60 +57,83 @@ func (c *Computer) Compute(typ *schema.Type) []scrub.Path {
 		}
 	}()
 
-	c.steps = 0
-	res := c.typ(typ)
+	p := &typeParser{c: c, mode: mode}
+	res := p.typ(typ)
+
 	// Did we exceed the steps?
-	if c.steps > maxSteps {
+	if p.steps > maxSteps {
 		c.log.Error().Msg("metascrub.Compute aborted due to exceeding max steps")
 	}
 
-	return res.scrub
+	return Desc{
+		Payload: res.scrub,
+		Headers: res.headers,
+	}
 }
 
 const maxSteps = 10000
 
-func (c *Computer) decl(id uint32) declResult {
-	if res, ok := c.declCache[id]; ok {
+type typeParser struct {
+	c    *Computer
+	mode ParseMode
+
+	// steps is a fail-safe to catch any potential infinite loops.
+	steps int
+}
+
+type declCacheKey struct {
+	id   uint32
+	mode ParseMode
+}
+
+func (p *typeParser) decl(id uint32) declResult {
+	key := declCacheKey{id, p.mode}
+	if res, ok := p.c.declCache[key]; ok {
 		return res
 	}
 
 	// Mark that we're beginning to process this decl,
 	// so we avoid infinite recursion.
-	c.declCache[id] = declResult{}
+	p.c.declCache[key] = declResult{}
 
 	// Do the actual parsing.
-	decl := c.md.Decls[id]
-	res := c.typ(decl.Type)
+	decl := p.c.md.Decls[id]
+	res := p.typ(decl.Type)
 
 	// We're done, cache the final result.
-	c.declCache[id] = res
+	p.c.declCache[key] = res
 	return res
 }
 
 type declResult struct {
 	scrub      []scrub.Path
 	typeParams []typeParamPath
+	headers    []string
 }
 
-func (c *Computer) typ(typ *schema.Type) declResult {
+func (p *typeParser) typ(typ *schema.Type) declResult {
 	if typ == nil {
 		return declResult{}
 	}
-	c.steps++
-	if c.steps > maxSteps {
+	p.steps++
+	if p.steps > maxSteps {
 		return declResult{}
 	}
 
 	switch t := typ.Typ.(type) {
 	case *schema.Type_Named:
-		decl := c.decl(t.Named.Id)
+		decl := p.decl(t.Named.Id)
 		out := declResult{
+			// Clone the paths since we're modifying them.
 			scrub: slices.Clone(decl.scrub),
+
+			// Copy the headers directly since they never get modified,
+			// since we only care about the top-level type's headers.
+			headers: decl.headers,
 		}
 
-		// MultiGenericTwo[TypeParameter:1(B), string]
 		for i, arg := range t.Named.TypeArguments {
-			argRes := c.typ(arg)
+			argRes := p.typ(arg)
 			if len(argRes.scrub) == 0 && len(argRes.typeParams) == 0 {
 				// Nothing to do
 				continue
@@ -129,14 +161,14 @@ func (c *Computer) typ(typ *schema.Type) declResult {
 		return out
 
 	case *schema.Type_Pointer:
-		return c.typ(t.Pointer.Base)
+		return p.typ(t.Pointer.Base)
 
 	case *schema.Type_List:
-		return c.typ(t.List.Elem)
+		return p.typ(t.List.Elem)
 
 	case *schema.Type_Map:
-		key := c.typ(t.Map.Key)
-		val := c.typ(t.Map.Value)
+		key := p.typ(t.Map.Key)
+		val := p.typ(t.Map.Value)
 
 		combined := declResult{
 			scrub:      make([]scrub.Path, 0, len(key.scrub)+len(val.scrub)),
@@ -162,12 +194,23 @@ func (c *Computer) typ(typ *schema.Type) declResult {
 		var out declResult
 		for _, f := range t.Struct.Fields {
 			sensitive, fieldName, caseSensitive := isSensitive(f)
+
+			// For Auth Handlers everything is sensitive.
+			if (p.mode & AuthHandler) != 0 {
+				sensitive = true
+			}
+
 			if sensitive {
 				// If the field is sensitive add it directly.
 				out.scrub = append(out.scrub, scrub.Path{{Kind: scrub.ObjectField, FieldName: fieldName, CaseSensitive: caseSensitive}})
+
+				// If this is a header field, add it to the headers to scrub.
+				if headerName, ok := isHeader(f); ok {
+					out.headers = append(out.headers, headerName)
+				}
 			} else {
 				// Otherwise check the type and see if there's anything to scrub within it.
-				fieldRes := c.typ(f.Typ)
+				fieldRes := p.typ(f.Typ)
 				for _, e := range fieldRes.scrub {
 					path := append(scrub.Path{{Kind: scrub.ObjectField, FieldName: fieldName, CaseSensitive: caseSensitive}}, e...)
 					out.scrub = append(out.scrub, path)
@@ -190,7 +233,7 @@ func (c *Computer) typ(typ *schema.Type) declResult {
 		}}}
 
 	default:
-		c.log.Warn().Msgf("got unexpected schema.Type %T in metascrub, skipping", t)
+		p.c.log.Warn().Msgf("got unexpected schema.Type %T in metascrub, skipping", t)
 		return declResult{}
 	}
 }
@@ -210,6 +253,19 @@ func isSensitive(f *schema.Field) (sensitive bool, fieldName string, caseSensiti
 		}
 	}
 	return sensitive, fieldName, caseSensitive
+}
+
+func isHeader(f *schema.Field) (headerName string, ok bool) {
+	for _, t := range f.Tags {
+		if t.Key == "header" {
+			name := t.Name
+			if name == "" {
+				name = f.Name
+			}
+			return name, true
+		}
+	}
+	return "", false
 }
 
 type typeParamPath struct {
