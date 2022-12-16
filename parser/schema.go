@@ -270,6 +270,8 @@ type structFieldOptions struct {
 	QueryStringName string
 	// Optional is true if there is an `encore:"optional"` tag
 	Optional bool
+	// Sensitive is true if there is an `encore:"sensitive"` tag
+	Sensitive bool
 	// Tags contains parsed struct field tags
 	Tags []*structtag.Tag
 	// RawTag contains the raw unparsed struct field tag (if any)
@@ -312,6 +314,8 @@ func (p *parser) parseStructTag(tag *ast.BasicLit, structType *schema.Struct, fi
 			switch o {
 			case "optional":
 				opts.Optional = true
+			case "sensitive":
+				opts.Sensitive = true
 			default:
 				p.errf(tag.Pos(), "invalid encore struct tag option: %s", o)
 			}
