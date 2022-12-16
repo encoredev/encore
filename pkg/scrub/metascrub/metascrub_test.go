@@ -49,6 +49,7 @@ type Params struct {
 	MapTwo GenericMap[Bar, NestedGeneric[string, Bar]]
 
 	JsonKey string `+"`"+`json:"json_key" encore:"sensitive"`+"`"+`
+	Header string `+"`"+`header:"X-Header" encore:"sensitive"`+"`"+`
 }
 
 type Generic[T any] struct {
@@ -80,7 +81,7 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 
 	cmp := New(md, zerolog.New(os.Stdout))
 	rpc := md.Svcs[0].Rpcs[0]
-	p := cmp.Compute(rpc.RequestSchema)
+	res := cmp.Compute(rpc.RequestSchema, 0)
 
 	f := func(name string) scrub.PathEntry {
 		return scrub.PathEntry{Kind: scrub.ObjectField, FieldName: strconv.Quote(name)}
@@ -91,7 +92,7 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 	mapKey := scrub.PathEntry{Kind: scrub.MapKey}
 	mapVal := scrub.PathEntry{Kind: scrub.MapValue}
 
-	c.Assert(p, qt.DeepEquals, []scrub.Path{
+	c.Assert(res.Payload, qt.DeepEquals, []scrub.Path{
 		{f("Foo")},
 		{f("NestedScrub")},
 		{f("Nested"), f("Inner")},
@@ -113,8 +114,44 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 		{f("MapTwo"), f("Foo"), mapVal, f("One"), f("Alpha"), f("Scrub")},
 		{f("MapTwo"), f("Foo"), mapVal, f("Two"), f("Scrub")},
 		{fCase("json_key")},
+		{f("Header")},
 	})
 
+	c.Assert(res.Headers, qt.DeepEquals, []string{"X-Header"})
+}
+
+func TestScrubAuthHandler(t *testing.T) {
+	c := qt.New(t)
+	md := testParse(c, `
+-- svc/svc.go --
+package svc
+import "context"
+
+type Params struct {
+	Header string `+"`"+`header:"Foo"`+"`"+`
+	Query string `+"`"+`query:"query"`+"`"+`
+	Other string
+}
+
+//encore:api public
+func Foo(ctx context.Context, p *Params) error { return nil }
+`)
+
+	cmp := New(md, zerolog.New(os.Stdout))
+	rpc := md.Svcs[0].Rpcs[0]
+	res := cmp.Compute(rpc.RequestSchema, AuthHandler)
+
+	f := func(name string) scrub.PathEntry {
+		return scrub.PathEntry{Kind: scrub.ObjectField, FieldName: strconv.Quote(name)}
+	}
+
+	c.Assert(res.Payload, qt.DeepEquals, []scrub.Path{
+		{f("Header")},
+		{f("Query")},
+		{f("Other")},
+	})
+
+	c.Assert(res.Headers, qt.DeepEquals, []string{"Foo"})
 }
 
 func testParse(c *qt.C, code string) *meta.Data {
