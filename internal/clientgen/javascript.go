@@ -8,10 +8,11 @@ import (
 	"strings"
 	"unicode"
 
-	"encr.dev/pkg/idents"
 	"github.com/cockroachdb/errors"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+
+	"encr.dev/pkg/idents"
 
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
@@ -80,6 +81,7 @@ func (js *javascript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	}
 
 	js.WriteString("// " + doNotEditHeader() + "\n\n")
+	js.WriteString("import fetch from \"cross-fetch\";\n")
 
 	seenNs := make(map[string]bool)
 	js.writeClient()
@@ -406,6 +408,13 @@ export const Local = "http://localhost:4000"
  */
 export function Environment(name) {
     return ` + "`https://${name}-" + js.appSlug + ".encr.app`" + `
+}
+
+/**
+ * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+ */
+export function PreviewEnv(pr) {
+    return Environment(` + "`pr${pr}`" + `)
 }
 
 /**
