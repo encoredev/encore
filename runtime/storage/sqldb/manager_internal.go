@@ -87,7 +87,6 @@ func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
 		panic("sqldb: " + err.Error())
 	}
 
-	cfg.ConnConfig.Tracer = &pgxTracer{mgr: mgr}
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		panic("sqldb: setup db: " + err.Error())

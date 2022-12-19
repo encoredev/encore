@@ -46,7 +46,7 @@ func (tx *Tx) Commit() error { return tx.commit() }
 func (tx *Tx) Rollback() error { return tx.rollback() }
 
 func (tx *Tx) commit() error {
-	err := tx.std.Commit(markTraced(context.Background()))
+	err := tx.std.Commit(context.Background())
 	err = convertErr(err)
 
 	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
@@ -64,7 +64,7 @@ func (tx *Tx) commit() error {
 }
 
 func (tx *Tx) rollback() error {
-	err := tx.std.Rollback(markTraced(context.Background()))
+	err := tx.std.Rollback(context.Background())
 	err = convertErr(err)
 
 	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
@@ -100,7 +100,7 @@ func (tx *Tx) exec(ctx context.Context, query string, args ...interface{}) (Exec
 		})
 	}
 
-	res, err := tx.std.Exec(markTraced(ctx), query, args...)
+	res, err := tx.std.Exec(ctx, query, args...)
 	err = convertErr(err)
 
 	if curr.Trace != nil {
@@ -125,7 +125,7 @@ func (tx *Tx) Query(ctx context.Context, query string, args ...interface{}) (*Ro
 		})
 	}
 
-	rows, err := tx.std.Query(markTraced(ctx), query, args...)
+	rows, err := tx.std.Query(ctx, query, args...)
 	err = convertErr(err)
 
 	if curr.Trace != nil {
@@ -155,7 +155,7 @@ func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *
 
 	// pgx currently does not support .Err() on Row.
 	// Work around this by using Query.
-	rows, err := tx.std.Query(markTraced(ctx), query, args...)
+	rows, err := tx.std.Query(ctx, query, args...)
 	err = convertErr(err)
 	r := &Row{rows: rows, err: err}
 
