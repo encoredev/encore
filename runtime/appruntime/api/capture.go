@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -19,9 +20,12 @@ type rawRequestBodyCapturer struct {
 	state      captureState
 	underlying io.ReadCloser
 
-	bufMu      sync.Mutex
-	buf        *bytes.Buffer
-	overflowed bool // whether the buffer overflowed
+	bufMu       sync.Mutex
+	buf         *bytes.Buffer
+	overflowed  bool        // whether the buffer overflowed
+	httpMethod  string      // The HTTP method of the request
+	headers     http.Header // The headers of the request
+	queryString url.Values  // The query string of the request captured
 }
 
 func newRawRequestBodyCapturer(req *http.Request) *rawRequestBodyCapturer {
@@ -36,10 +40,18 @@ func newRawRequestBodyCapturer(req *http.Request) *rawRequestBodyCapturer {
 		state = shouldCaptureContentType(req.Header.Get("Content-Type"), false)
 	}
 
+	var queryString url.Values
+	if req.URL != nil {
+		queryString = req.URL.Query()
+	}
+
 	return &rawRequestBodyCapturer{
-		state:      state,
-		underlying: req.Body,
-		buf:        buf,
+		state:       state,
+		underlying:  req.Body,
+		buf:         buf,
+		httpMethod:  req.Method,
+		headers:     req.Header,
+		queryString: queryString,
 	}
 }
 
@@ -101,9 +113,9 @@ func (c *rawRequestBodyCapturer) Close() error {
 // The returned buf may be used until Dispose is called but not after that.
 //
 // If c is nil it reports nil, false.
-func (c *rawRequestBodyCapturer) FinishCapturing() (data []byte, overflowed bool) {
+func (c *rawRequestBodyCapturer) FinishCapturing() (method string, contentType string, data []byte, overflowed bool) {
 	if c == nil {
-		return nil, false
+		return "", "", nil, false
 	}
 
 	c.bufMu.Lock()
@@ -111,7 +123,7 @@ func (c *rawRequestBodyCapturer) FinishCapturing() (data []byte, overflowed bool
 
 	// If we're definitely not capturing, return no data.
 	if c.state == notCapturing {
-		return nil, false
+		return "", "", nil, false
 	}
 
 	// If we're peeking, make a decision.
@@ -121,13 +133,13 @@ func (c *rawRequestBodyCapturer) FinishCapturing() (data []byte, overflowed bool
 		c.state = shouldCaptureContentType(contentType, true)
 		if c.state != capturing {
 			// Not capturing after all; return no data.
-			return nil, false
+			return "", "", nil, false
 		}
 	}
 
 	// Stop capturing.
 	c.state = notCapturing
-	return data, c.overflowed
+	return c.httpMethod, c.headers.Get("Content-Type"), data, c.overflowed
 }
 
 // Dispose disposes of the capturer, returning the
@@ -156,7 +168,8 @@ func shouldCaptureContentType(contentType string, didPeek bool) captureState {
 
 	switch contentType {
 	case "application/json", "text/plain", "application/x-www-form-urlencoded", "text/csv",
-		"text/javascript", "application/ld+json", "application/xml", "text/xml", "application/atom+xml":
+		"text/javascript", "application/ld+json", "application/xml", "text/xml", "application/atom+xml",
+		"application/graphql":
 		return capturing
 
 	// Unknown content type; peek at the data to decide what to do.

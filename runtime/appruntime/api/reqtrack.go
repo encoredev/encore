@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/runtimeutil/graphqlutil"
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
 )
@@ -176,6 +177,17 @@ func (s *Server) finishRequest(resp *model.Response) {
 				Overflowed: resp.RawRequestPayloadOverflowed,
 				Data:       resp.RawRequestPayload,
 			})
+		}
+
+		// If we captured a possible GraphQL query from a GET request, attempt to extract the operations from
+		// the execution document
+		if len(resp.PossibleRequestGraphQLQuery) > 0 {
+			for _, op := range graphqlutil.GetOperations(resp.RawRequestMethod, resp.RawRequestContentType, resp.PossibleRequestGraphQLQuery) {
+				curr.Trace.GraphQLOp(trace.GraphQLOpParams{
+					SpanID: req.SpanID,
+					Op:     op,
+				})
+			}
 		}
 
 		if len(resp.RawResponsePayload) > 0 {

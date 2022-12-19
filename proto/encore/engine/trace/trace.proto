@@ -74,6 +74,7 @@ message Event {
     ServiceInit service_init = 8;
     CacheOp cache = 9;
     BodyStream body_stream = 10;
+    GraphQLOp graphql_op = 11;
   }
 }
 
@@ -171,6 +172,18 @@ message BodyStream {
   bool is_response = 1;
   bool overflowed = 2;
   bytes data = 3;
+}
+
+message GraphQLOp {
+  Type  type  = 1;
+  string name = 2;
+
+  enum Type {
+    UNKNOWN = 0;
+    QUERY = 1;
+    MUTATION = 2;
+    SUBSCRIPTION = 3;
+  }
 }
 
 message HTTPCall {

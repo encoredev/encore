@@ -43,6 +43,11 @@ type KeyValue[K comparable, V any] struct {
 	Value V `json:"value"`
 }
 
+type GraphQLOp struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
 type Request struct {
 	ID        string  `json:"id"`
 	Type      string  `json:"type"`
@@ -62,16 +67,17 @@ type Request struct {
 	CallLoc *int32 `json:"call_loc"`
 	DefLoc  int32  `json:"def_loc"`
 
-	HTTPMethod       string                     `json:"http_method"`
-	UserID           string                     `json:"user_id"`
-	Path             string                     `json:"path"`
-	PathParams       []string                   `json:"path_params"`
-	RequestPayload   []byte                     `json:"request_payload"`
-	ResponsePayload  []byte                     `json:"response_payload"`
-	RawReqHeaders    []KeyValue[string, string] `json:"raw_req_headers"`
-	RawRespHeaders   []KeyValue[string, string] `json:"raw_resp_headers"`
-	ExtRequestID     string                     `json:"ext_request_id"`
-	ExtCorrelationID string                     `json:"ext_correlation_id"`
+	HTTPMethod        string                     `json:"http_method"`
+	UserID            string                     `json:"user_id"`
+	Path              string                     `json:"path"`
+	PathParams        []string                   `json:"path_params"`
+	RequestPayload    []byte                     `json:"request_payload"`
+	ResponsePayload   []byte                     `json:"response_payload"`
+	RawReqHeaders     []KeyValue[string, string] `json:"raw_req_headers"`
+	RawRespHeaders    []KeyValue[string, string] `json:"raw_resp_headers"`
+	ExtRequestID      string                     `json:"ext_request_id"`
+	ExtCorrelationID  string                     `json:"ext_correlation_id"`
+	GraphQLOperations []GraphQLOp                `json:"graphql_operations"`
 
 	// Deprecated: Use RequestPayload, ResponsePayload etc instead.
 	Inputs  [][]byte `json:"inputs"`
@@ -445,6 +451,12 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 			} else {
 				r.RequestPayload = append(r.RequestPayload, ev.Data...)
 			}
+
+		case *tracepb.Event_GraphqlOp:
+			r.GraphQLOperations = append(r.GraphQLOperations, GraphQLOp{
+				Type: e.GraphqlOp.Type.String(),
+				Name: e.GraphqlOp.Name,
+			})
 		}
 	}
 

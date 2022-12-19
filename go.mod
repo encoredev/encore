@@ -15,6 +15,7 @@ require (
 	github.com/dave/jennifer v1.5.1
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structtag v1.2.0
+	github.com/fmstephe/unsafeutil v1.0.0
 	github.com/frankban/quicktest v1.14.3
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gofrs/uuid v4.3.0+incompatible
@@ -73,7 +74,6 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/proto v1.6.15 // indirect
-	github.com/fmstephe/unsafeutil v1.0.0 // indirect
 	github.com/getsentry/sentry-go v0.13.0 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -109,6 +109,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vbatts/tar-split v0.11.2 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.1 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/net v0.1.0 // indirect

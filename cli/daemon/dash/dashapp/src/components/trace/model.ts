@@ -18,6 +18,11 @@ export interface KeyValue {
   value: string;
 }
 
+export interface GraphQLOp {
+  type: "QUERY" | "MUTATION" | "SUBSCRIPTION";
+  name: string;
+}
+
 export interface Request {
   type: "RPC" | "AUTH" | "PUBSUB_MSG";
   id: string;
@@ -52,6 +57,7 @@ export interface Request {
   raw_resp_headers: KeyValue[];
   ext_request_id: string;
   ext_correlation_id: string;
+  graphql_operations: GraphQLOp[];
 
   err: Base64EncodedBytes | null;
   err_stack: Stack | null;

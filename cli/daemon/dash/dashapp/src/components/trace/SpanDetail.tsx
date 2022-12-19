@@ -17,7 +17,7 @@ import {
   CacheOp,
   CacheResult,
   DBQuery,
-  Event,
+  Event, GraphQLOp,
   HTTPCall,
   LogMessage,
   PubSubPublish,
@@ -25,7 +25,7 @@ import {
   RPCCall,
   Stack,
   Trace,
-} from "./model";
+} from "./model"
 import { idxColor, latencyStr, svcColor } from "./util";
 
 interface Props {

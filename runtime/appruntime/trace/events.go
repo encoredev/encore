@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/runtimeutil/graphqlutil"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/stack"
 )
@@ -37,6 +38,7 @@ const (
 	CacheOpStart       EventType = 0x16
 	CacheOpEnd         EventType = 0x17
 	BodyStream         EventType = 0x18
+	GraphQLOp          EventType = 0x19
 )
 
 func (te EventType) String() string {
@@ -89,6 +91,8 @@ func (te EventType) String() string {
 		return "CacheOpEnd"
 	case BodyStream:
 		return "BodyStream"
+	case GraphQLOp:
+		return "GraphQLOp"
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}
@@ -509,6 +513,30 @@ func (l *Log) BodyStream(p BodyStreamParams) {
 
 	tb.ByteString(p.Data)
 	l.Add(BodyStream, tb.Buf())
+}
+
+type GraphQLOpParams struct {
+	SpanID model.SpanID
+	Op     *graphqlutil.Op
+}
+
+func (l *Log) GraphQLOp(p GraphQLOpParams) {
+	var tb Buffer
+	tb.Bytes(p.SpanID[:])
+
+	switch p.Op.Type {
+	case graphqlutil.Query:
+		tb.Byte(1)
+	case graphqlutil.Mutation:
+		tb.Byte(2)
+	case graphqlutil.Subscription:
+		tb.Byte(3)
+	default:
+		tb.Byte(0)
+	}
+	tb.String(p.Op.Name)
+
+	l.Add(GraphQLOp, tb.Buf())
 }
 
 func (l *Log) logHeaders(tb *Buffer, headers http.Header) {

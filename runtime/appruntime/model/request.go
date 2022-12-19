@@ -155,10 +155,14 @@ type Response struct {
 	// AuthUID is the resolved user id if this is an auth handler.
 	AuthUID UID
 
+	RawRequestMethod      string
+	RawRequestContentType string
+
 	// RawRequestPayload contains the captured request payload, for raw requests.
 	// It is nil if nothing was captured.
 	RawRequestPayload           []byte
-	RawRequestPayloadOverflowed bool // whether the payload overflowed
+	RawRequestPayloadOverflowed bool   // whether the payload overflowed
+	PossibleRequestGraphQLQuery []byte // The possible request payload for a GraphQL query
 
 	// RawResponsePayload contains the captured response payload, for raw requests.
 	// It is nil if nothing was captured.

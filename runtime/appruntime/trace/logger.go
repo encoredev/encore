@@ -32,6 +32,7 @@ type Logger interface {
 	CacheOpStart(p CacheOpStartParams)
 	CacheOpEnd(p CacheOpEndParams)
 	BodyStream(p BodyStreamParams)
+	GraphQLOp(p GraphQLOpParams)
 	HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid uint32) (context.Context, error)
 	HTTPCompleteRoundTrip(req *http.Request, resp *http.Response, err error)
 }

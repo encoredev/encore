@@ -1,6 +1,6 @@
 import React, { FC, useState } from "react";
 import { Modal } from "~c/Modal";
-import { Request, Stack, Trace } from "~c/trace/model";
+import {GraphQLOp, Request, Stack, Trace} from "~c/trace/model"
 import SpanDetail from "~c/trace/SpanDetail";
 import SpanList from "~c/trace/SpanList";
 import StackTrace from "~c/trace/StackTrace";
@@ -9,7 +9,7 @@ import { latencyStr } from "~c/trace/util";
 import { decodeBase64 } from "~lib/base64";
 import JSONRPCConn, { NotificationMsg } from "~lib/client/jsonrpc";
 import { timeToDate } from "~lib/time";
-import { Icon, icons } from "~c/icons";
+import {Icon, icons} from "~c/icons"
 
 interface Props {
   appID: string;
@@ -85,11 +85,34 @@ export default class AppTraces extends React.Component<Props, State> {
               let icon: Icon = icons.exclamation;
               let endpoint = "<unknown endpoint>";
               let type = "<unknown request type>";
+              let via: string | undefined
 
               if ("rpc_def" in loc) {
                 endpoint = loc.rpc_def.service_name + "." + loc.rpc_def.rpc_name;
                 icon = icons.logout;
                 type = "API Call";
+
+                let graphQLOp: GraphQLOp[] = tr.root?.graphql_operations ?? []
+                if (graphQLOp.length > 0) {
+                  // If we know this was a GraphQL request, we can update the icon
+                  icon = icons.graphQLLogo
+
+                  if (graphQLOp.length == 1) {
+                    // And if there was only 1 operation, we can update the endpoint to be the operation name and type
+                    via = endpoint
+
+                    switch (graphQLOp[0].type) {
+                      case "QUERY":
+                        endpoint = "query " + graphQLOp[0].name
+                        break
+                      case "MUTATION":
+                        endpoint = "mutation " + graphQLOp[0].name
+                        break
+                      case "SUBSCRIPTION":
+                        endpoint = "subscription " + graphQLOp[0].name
+                    }
+                  }
+                }
               } else if ("auth_handler_def" in loc) {
                 endpoint = loc.auth_handler_def.service_name + "." + loc.auth_handler_def.name;
                 icon = icons.shield;
@@ -108,10 +131,11 @@ export default class AppTraces extends React.Component<Props, State> {
                       <p className="text-gray-800 flex-1 truncate text-base font-medium">
                         {icon("h-4 w-4 inline-block mr-2", type)}
                         <a
-                          className="cursor-pointer brandient-5 link-brandient"
+                          className="cursor-pointer"
                           onClick={() => this.setState({ selected: tr })}
                         >
-                          <span>{endpoint}</span>
+                          {via ? <span className="opacity-50">{via}: </span> : null}
+                          <span className="brandient-5 link-brandient">{endpoint}</span>
                         </a>
                       </p>
                       <div className="ml-2 flex w-[80px]">

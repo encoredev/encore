@@ -255,6 +255,18 @@ func (mr *MockLoggerMockRecorder) GoStart(spanID, goctr interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GoStart", reflect.TypeOf((*MockLogger)(nil).GoStart), spanID, goctr)
 }
 
+// GraphQLOp mocks base method.
+func (m *MockLogger) GraphQLOp(p trace.GraphQLOpParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "GraphQLOp", p)
+}
+
+// GraphQLOp indicates an expected call of GraphQLOp.
+func (mr *MockLoggerMockRecorder) GraphQLOp(p interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GraphQLOp", reflect.TypeOf((*MockLogger)(nil).GraphQLOp), p)
+}
+
 // HTTPBeginRoundTrip mocks base method.
 func (m *MockLogger) HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid uint32) (context.Context, error) {
 	m.ctrl.T.Helper()

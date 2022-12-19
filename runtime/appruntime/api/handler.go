@@ -503,7 +503,16 @@ func newResp[Resp any](respData Resp, httpStatus int, err error, isRaw bool,
 
 	if isRaw {
 		if reqCapture != nil {
-			resp.RawRequestPayload, resp.RawRequestPayloadOverflowed = reqCapture.FinishCapturing()
+			resp.RawRequestMethod, resp.RawRequestContentType, resp.RawRequestPayload, resp.RawRequestPayloadOverflowed = reqCapture.FinishCapturing()
+
+			// If this is a GraphQL GET request, the query will be a querystring param called "query"
+			// https://graphql.org/learn/serving-over-http/#http-methods-headers-and-body
+			// So we want to capture it, and let the tracer handle it to see if it's a GraphQL request.
+			if resp.RawRequestMethod == "GET" && reqCapture.queryString.Has("query") {
+				resp.PossibleRequestGraphQLQuery = []byte(reqCapture.queryString.Get("query"))
+			} else if resp.RawRequestMethod == "POST" {
+				resp.PossibleRequestGraphQLQuery = resp.RawRequestPayload
+			}
 		}
 		if respCapture != nil {
 			resp.RawResponseHeaders = respCapture.Header

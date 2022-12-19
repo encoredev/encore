@@ -249,6 +249,8 @@ func (tp *traceParser) parseEventV3(ev trace.EventType, ts uint64, size int) err
 		return tp.cacheOpEnd(ts)
 	case trace.BodyStream:
 		return tp.bodyStream(ts)
+	case trace.GraphQLOp:
+		return tp.graphQLQueryOp(ts)
 	default:
 		return errUnknownEvent
 	}
@@ -441,6 +443,40 @@ func (tp *traceParser) bodyStream(ts uint64) error {
 				IsResponse: isResponse,
 				Overflowed: overflowed,
 				Data:       data,
+			},
+		},
+	})
+
+	return nil
+}
+
+func (tp *traceParser) graphQLQueryOp(ts uint64) error {
+	spanID := tp.Uint64()
+	req, ok := tp.reqMap[spanID]
+	if !ok {
+		return eerror.New("trace_parser", "unknown request span", map[string]any{"spanID": spanID})
+	}
+
+	opTypeByte := tp.Byte()
+	name := tp.String()
+
+	var opType tracepb.GraphQLOp_Type
+	switch {
+	case opTypeByte == 1:
+		opType = tracepb.GraphQLOp_QUERY
+	case opTypeByte == 2:
+		opType = tracepb.GraphQLOp_MUTATION
+	case opTypeByte == 3:
+		opType = tracepb.GraphQLOp_SUBSCRIPTION
+	default:
+		return eerror.New("trace_parser", "unknown GraphQL op type", map[string]any{"type": opTypeByte})
+	}
+
+	req.Events = append(req.Events, &tracepb.Event{
+		Data: &tracepb.Event_GraphqlOp{
+			GraphqlOp: &tracepb.GraphQLOp{
+				Type: opType,
+				Name: name,
 			},
 		},
 	})
