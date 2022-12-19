@@ -12,8 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v4/stdlib"
 
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/trace"
@@ -115,6 +115,7 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, err
 	if err != nil {
 		return nil, fmt.Errorf("invalid database uri: %v", err)
 	}
+	cfg.LazyConnect = true
 
 	// Set the pool size based on the config.
 	cfg.MaxConns = 30

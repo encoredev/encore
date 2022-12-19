@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
 	"go4.org/syncutil"
 	"golang.org/x/sync/errgroup"
@@ -18,7 +18,7 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 
 	// stdlib registers the "pgx" driver to database/sql.
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 // Cluster represents a running database Cluster.

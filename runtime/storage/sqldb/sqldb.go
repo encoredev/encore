@@ -9,7 +9,7 @@ import (
 	"database/sql/driver"
 	"sync/atomic"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v4"
 
 	"encore.dev/appruntime/trace"
 	"encore.dev/beta/errs"
