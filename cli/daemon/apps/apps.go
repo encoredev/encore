@@ -14,6 +14,7 @@ import (
 	"go4.org/syncutil"
 
 	"encr.dev/cli/daemon/internal/manifest"
+	"encr.dev/internal/goldfish"
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/watcher"
@@ -53,7 +54,7 @@ func (mgr *Manager) Track(appRoot string) (*Instance, error) {
 	_, err = mgr.db.Exec(`
 		INSERT OR REPLACE INTO app (root, local_id, platform_id, updated_at)
 		VALUES (?, ?, ?, ?)
-	`, app.root, app.localID, app.platformID, time.Now())
+	`, app.root, app.localID, app.PlatformID(), time.Now())
 	if err != nil {
 		return nil, errors.Wrap(err, "update app store")
 	}
@@ -205,18 +206,9 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 		return existing, nil
 	}
 
-	// Parse the encore.app file
-	var encore *appfile.File
-	{
-		path := filepath.Join(appRoot, appfile.Name)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		encore, err = appfile.Parse(data)
-		if err != nil {
-			return nil, errors.Wrap(err, "parse encore.app")
-		}
+	platformID, err := readPlatformID(appRoot)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse the manifest file
@@ -225,7 +217,7 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 		return nil, errors.Wrap(err, "parse manifest")
 	}
 
-	i := NewInstance(appRoot, man.LocalID, encore.ID)
+	i := NewInstance(appRoot, man.LocalID, platformID)
 	i.mgr = mgr
 	if err := i.beginWatch(); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		log.Error().Err(err).Str("id", i.PlatformOrLocalID()).Msg("unable to begin watching app")
@@ -258,7 +250,7 @@ func (mgr *Manager) Close() error {
 type Instance struct {
 	root       string
 	localID    string
-	platformID string
+	platformID *goldfish.Cache[string]
 
 	// mgr is a reference to the manager that created it.
 	// It may be nil if an instance was created without a manager.
@@ -272,7 +264,16 @@ type Instance struct {
 }
 
 func NewInstance(root, localID, platformID string) *Instance {
-	return &Instance{root: root, localID: localID, platformID: platformID, watchers: make(map[WatchSubscriptionID]*watchSubscription)}
+	i := &Instance{
+		root:     root,
+		localID:  localID,
+		watchers: make(map[WatchSubscriptionID]*watchSubscription),
+	}
+	i.platformID = goldfish.New[string](1*time.Second, i.fetchPlatformID)
+	if platformID != "" {
+		i.platformID.Set(platformID)
+	}
+	return i
 }
 
 // Root returns the filesystem path for the app root.
@@ -286,14 +287,35 @@ func (i *Instance) LocalID() string { return i.localID }
 
 // PlatformID reports the Encore Platform's ID for this app.
 // If the app is not linked it reports the empty string.
-func (i *Instance) PlatformID() string { return i.platformID }
+func (i *Instance) PlatformID() string {
+	val, _ := i.platformID.Get()
+	return val
+}
 
 // PlatformOrLocalID reports PlatformID() if set and otherwise LocalID().
 func (i *Instance) PlatformOrLocalID() string {
-	if i.platformID != "" {
-		return i.platformID
+	if id := i.PlatformID(); id != "" {
+		return id
 	}
 	return i.localID
+}
+
+func (i *Instance) fetchPlatformID() (string, error) {
+	return readPlatformID(i.root)
+}
+
+func readPlatformID(appRoot string) (string, error) {
+	// Parse the encore.app file
+	path := filepath.Join(appRoot, appfile.Name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	encore, err := appfile.Parse(data)
+	if err != nil {
+		return "", errors.Wrap(err, "parse encore.app")
+	}
+	return encore.ID, nil
 }
 
 // Experiments returns the enabled experiments for this app.
