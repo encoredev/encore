@@ -83,7 +83,8 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 
 	ts.WriteString("// " + doNotEditHeader() + "\n\n")
 	ts.WriteString("/* eslint-disable @typescript-eslint/no-namespace */\n")
-	ts.WriteString("/* eslint-disable @typescript-eslint/no-explicit-any */\n")
+	ts.WriteString("/* eslint-disable @typescript-eslint/no-explicit-any */\n\n")
+	ts.WriteString("import fetch from \"cross-fetch\";\n")
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
@@ -524,6 +525,13 @@ export function Environment(name: string): BaseURL {
 }
 
 /**
+ * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+ */
+export function PreviewEnv(pr: number | string): BaseURL {
+    return Environment(` + "`pr${pr}`" + `)
+}
+
+/**
  * Client is an API client for the ` + ts.appSlug + ` Encore application. 
  */
 export default class Client {
@@ -662,7 +670,7 @@ export type AuthDataGenerator = () => (`)
 	ts.WriteString(`
 
 // A fetcher is the prototype for the inbuilt Fetch function
-export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
+export type Fetcher = typeof fetch;
 
 class BaseClient {
     readonly baseURL: string
@@ -829,7 +837,7 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 	ts.WriteString(`
 
 function encodeQuery(parts: Record<string, string | string[]>): string {
-    const pairs = []
+    const pairs: string[] = []
     for (const key in parts) {
         const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
         for (const v of val) {
@@ -837,7 +845,8 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
         }
     }
     return pairs.join("&")
-}`)
+}
+`)
 
 	if ts.seenHeaderResponse {
 		ts.WriteString(`

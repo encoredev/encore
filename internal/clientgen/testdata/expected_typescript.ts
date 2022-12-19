@@ -3,6 +3,8 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import fetch from "cross-fetch";
+
 /**
  * BaseURL is the base URL for calling the Encore application's API.
  */
@@ -15,6 +17,13 @@ export const Local: BaseURL = "http://localhost:4000"
  */
 export function Environment(name: string): BaseURL {
     return `https://${name}-app.encr.app`
+}
+
+/**
+ * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+ */
+export function PreviewEnv(pr: number | string): BaseURL {
+    return Environment(`pr${pr}`)
 }
 
 /**
@@ -323,7 +332,7 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 
 
 function encodeQuery(parts: Record<string, string | string[]>): string {
-    const pairs = []
+    const pairs: string[] = []
     for (const key in parts) {
         const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
         for (const v of val) {
@@ -332,6 +341,7 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     }
     return pairs.join("&")
 }
+
 
 // mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
 function mustBeSet<A>(field: string, value: A | null | undefined): A {
@@ -360,7 +370,7 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 export type AuthDataGenerator = () => (authentication.AuthData | undefined)
 
 // A fetcher is the prototype for the inbuilt Fetch function
-export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
+export type Fetcher = typeof fetch;
 
 class BaseClient {
     readonly baseURL: string
