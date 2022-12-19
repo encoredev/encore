@@ -34,7 +34,8 @@ By default generates the API based on your primary production environment.
 Use '--env=local' to generate it based on your local development version of the app.
 
 Supported language codes are:
-  typescript: A TypeScript-client using the in-browser Fetch API
+  typescript: A TypeScript client using the Fetch API
+  javascript: A JavaScript client using the Fetch API
   go: A Go client using net/http"
 `,
 		Args: cobra.ExactArgs(1),
@@ -47,8 +48,7 @@ Supported language codes are:
 			if lang == "" {
 				var ok bool
 				l, ok := clientgen.Detect(output)
-				// Temporarily disable JavaScript in the CLI
-				if !ok || l == clientgen.LangJavascript {
+				if !ok {
 					fatal("could not detect language from output.\n\nNote: you can specify the language explicitly with --lang.")
 				}
 				lang = string(l)
@@ -56,7 +56,7 @@ Supported language codes are:
 				// Validate the user input for the language
 				l, err := clientgen.GetLang(lang)
 				if err != nil {
-					fatal(fmt.Sprintf("%s: supported langauges are `typescript` and `go`", err))
+					fatal(fmt.Sprintf("%s: supported langauges are `typescript`, `javascript`, and `go`", err))
 				}
 				lang = string(l)
 			}
