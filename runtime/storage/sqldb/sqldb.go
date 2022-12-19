@@ -6,6 +6,7 @@ package sqldb
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"sync/atomic"
 
 	"github.com/jackc/pgx/v5"
@@ -234,4 +235,186 @@ func (r *Row) Err() error {
 		return r.err
 	}
 	return convertErr(r.rows.Err())
+}
+
+type interceptor struct {
+	mgr *Manager
+}
+
+var _ middleware = (*interceptor)(nil)
+
+func (i *interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
+	}
+
+	rows, err := conn.QueryContext(ctx, query, args)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
+	}
+
+	return rows, err
+}
+
+func (i *interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, query string, args []driver.NamedValue) (driver.Result, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
+	}
+
+	res, err := conn.ExecContext(ctx, query, args)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
+	}
+
+	return res, err
+}
+
+func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
+	}
+
+	rows, err := conn.QueryContext(ctx, args)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
+	}
+
+	return rows, err
+}
+
+func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
+	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+			Query:   query,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			QueryID: qid,
+			TxID:    0,
+			Stack:   stack.Build(5),
+		})
+	}
+
+	res, err := conn.ExecContext(ctx, args)
+
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBQueryEnd(qid, err)
+	}
+
+	return res, err
+}
+
+func (i *interceptor) ConnBegin(tx driver.Tx) (driver.Tx, error) {
+	txid := atomic.AddUint64(&i.mgr.txidCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxStart(trace.DBTxStartParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   txid,
+			Stack:  stack.Build(5),
+		})
+	}
+
+	return stdlibTx{Tx: tx, txid: txid}, nil
+}
+
+func (i *interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, opts driver.TxOptions) (driver.Tx, error) {
+	tx, err := conn.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	txid := atomic.AddUint64(&i.mgr.txidCtr, 1)
+
+	curr := i.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		curr.Trace.DBTxStart(trace.DBTxStartParams{
+			SpanID: curr.Req.SpanID,
+			Goid:   curr.Goctr,
+			TxID:   txid,
+			Stack:  stack.Build(5),
+		})
+	}
+
+	return stdlibTx{Tx: tx, txid: txid}, nil
+}
+
+type stdlibTx struct {
+	driver.Tx
+	txid uint64
+}
+
+func (i *interceptor) TxCommit(ctx context.Context, tx driver.Tx) error {
+	err := tx.Commit()
+
+	if s, ok := tx.(stdlibTx); ok {
+		curr := i.mgr.rt.Current()
+		if curr.Req != nil && curr.Trace != nil {
+			curr.Trace.DBTxEnd(trace.DBTxEndParams{
+				SpanID: curr.Req.SpanID,
+				Goid:   curr.Goctr,
+				TxID:   s.txid,
+				Commit: true,
+				Err:    err,
+				Stack:  stack.Build(5),
+			})
+		}
+	}
+
+	return err
+}
+
+func (i *interceptor) TxRollback(ctx context.Context, tx driver.Tx) error {
+	err := tx.Rollback()
+
+	if s, ok := tx.(stdlibTx); ok {
+		curr := i.mgr.rt.Current()
+		if curr.Req != nil && curr.Trace != nil {
+			curr.Trace.DBTxEnd(trace.DBTxEndParams{
+				SpanID: curr.Req.SpanID,
+				Goid:   curr.Goctr,
+				TxID:   s.txid,
+				Commit: false,
+				Err:    err,
+				Stack:  stack.Build(5),
+			})
+		}
+	}
+	return err
 }
