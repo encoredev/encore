@@ -18,6 +18,13 @@ export function Environment(name: string): BaseURL {
 }
 
 /**
+ * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+ */
+export function PreviewEnv(pr: number | string): BaseURL {
+    return Environment(`pr${pr}`)
+}
+
+/**
  * Client is an API client for the app Encore application. 
  */
 export default class Client {
@@ -323,7 +330,7 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 
 
 function encodeQuery(parts: Record<string, string | string[]>): string {
-    const pairs = []
+    const pairs: string[] = []
     for (const key in parts) {
         const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
         for (const v of val) {
@@ -332,6 +339,7 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     }
     return pairs.join("&")
 }
+
 
 // mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
 function mustBeSet<A>(field: string, value: A | null | undefined): A {
@@ -360,7 +368,9 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 export type AuthDataGenerator = () => (authentication.AuthData | undefined)
 
 // A fetcher is the prototype for the inbuilt Fetch function
-export type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
+export type Fetcher = typeof fetch;
+
+const boundFetch = fetch.bind(this);
 
 class BaseClient {
     readonly baseURL: string
@@ -379,7 +389,7 @@ class BaseClient {
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
-            this.fetcher = fetch
+            this.fetcher = boundFetch
         }
 
         // Setup an authentication data generator using the auth data token option

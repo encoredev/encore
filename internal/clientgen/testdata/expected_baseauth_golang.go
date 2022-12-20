@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 )
@@ -26,6 +25,11 @@ const Local BaseURL = "http://localhost:4000"
 // Environment returns a BaseURL for calling the cloud environment with the given name.
 func Environment(name string) BaseURL {
 	return BaseURL(fmt.Sprintf("https://%s-app.encr.app", name))
+}
+
+// PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+func PreviewEnv(pr int) BaseURL {
+	return Environment(fmt.Sprintf("pr%d", pr))
 }
 
 // Option allows you to customise the baseClient used by the Client
@@ -193,7 +197,7 @@ func callAPI(ctx context.Context, client *baseClient, method, path string, heade
 	}()
 	if rawResponse.StatusCode >= 400 {
 		// Read the full body sent back
-		body, err := ioutil.ReadAll(rawResponse.Body)
+		body, err := io.ReadAll(rawResponse.Body)
 		if err != nil {
 			return nil, &APIError{
 				Code:    ErrUnknown,

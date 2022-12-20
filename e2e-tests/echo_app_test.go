@@ -73,9 +73,9 @@ func TestEndToEndWithApp(t *testing.T) {
 
 	// Use golden to test that the generated clients are as expected for the echo test app
 	for lang, path := range map[clientgen.Lang]string{
-		clientgen.LangGo:         "client/client.go",
-		clientgen.LangTypeScript: "client.ts",
-		clientgen.LangJavascript: "client.js",
+		clientgen.LangGo:         "golang/client/goclient.go",
+		clientgen.LangTypeScript: "ts/client.ts",
+		clientgen.LangJavascript: "js/client.js",
 	} {
 		client, err := clientgen.Client(lang, "slug", app.Meta)
 		if err != nil {

@@ -8,10 +8,11 @@ import (
 	"strings"
 	"unicode"
 
-	"encr.dev/pkg/idents"
 	"github.com/cockroachdb/errors"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+
+	"encr.dev/pkg/idents"
 
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
@@ -409,6 +410,13 @@ export function Environment(name) {
 }
 
 /**
+ * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+ */
+export function PreviewEnv(pr) {
+    return Environment(` + "`pr${pr}`" + `)
+}
+
+/**
  * Client is an API client for the ` + js.appSlug + ` Encore application. 
  */
 export default class Client {`)
@@ -459,6 +467,9 @@ func (js *javascript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-JS-Client (Encore/%s)", appSlug, version.Version)
 
 	js.WriteString(`
+
+const boundFetch = fetch.bind(this)
+
 class BaseClient {`)
 	js.WriteString(`
     constructor(baseURL, options) {
@@ -472,7 +483,7 @@ class BaseClient {`)
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
-            this.fetcher = fetch
+            this.fetcher = boundFetch
         }`)
 
 	if js.hasAuth {

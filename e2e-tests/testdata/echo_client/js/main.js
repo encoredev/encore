@@ -1,7 +1,7 @@
 import "isomorphic-fetch"
 import {deepEqual} from "assert"
 
-import Client, {ErrCode, isAPIError} from "./client"
+import Client, {ErrCode, isAPIError} from "./client.js"
 
 if (process.argv.length < 3) {
   console.error("Usage: npm run test -- <host:port>")

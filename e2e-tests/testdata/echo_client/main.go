@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"echo_client/client"
+	"echo_client/golang/client"
 )
 
 var assertNumber = 1

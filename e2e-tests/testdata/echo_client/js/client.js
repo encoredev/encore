@@ -14,6 +14,13 @@ export function Environment(name) {
 }
 
 /**
+ * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+ */
+export function PreviewEnv(pr) {
+    return Environment(`pr${pr}`)
+}
+
+/**
  * Client is an API client for the slug Encore application. 
  */
 export default class Client {
@@ -529,6 +536,9 @@ function mustBeSet(field, value) {
     return value
 }
 
+
+const boundFetch = fetch.bind(this)
+
 class BaseClient {
     constructor(baseURL, options) {
         this.baseURL = baseURL
@@ -541,7 +551,7 @@ class BaseClient {
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
-            this.fetcher = fetch
+            this.fetcher = boundFetch
         }
 
         // Setup an authentication data generator using the auth data token option
