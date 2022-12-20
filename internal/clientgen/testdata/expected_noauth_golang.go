@@ -27,6 +27,11 @@ func Environment(name string) BaseURL {
 	return BaseURL(fmt.Sprintf("https://%s-app.encr.app", name))
 }
 
+// PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
+func PreviewEnv(pr int) BaseURL {
+	return Environment(fmt.Sprintf("pr%d", pr))
+}
+
 // Option allows you to customise the baseClient used by the Client
 type Option = func(client *baseClient) error
 

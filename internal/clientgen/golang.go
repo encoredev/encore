@@ -142,6 +142,14 @@ func (g *golang) generateClient(file *File, appSlug string, services []*meta.Ser
 			),
 		))
 
+	file.Comment("PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.")
+	file.Func().Id("PreviewEnv").
+		Params(Id("pr").Int()).
+		Id("BaseURL").
+		Block(Return(Id("Environment").Call(
+			Qual("fmt", "Sprintf").Call(Lit("pr%d"), Id("pr")),
+		)))
+
 	// Option type alias
 	file.Comment("Option allows you to customise the baseClient used by the Client")
 	file.Add(
