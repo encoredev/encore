@@ -84,7 +84,6 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	ts.WriteString("// " + doNotEditHeader() + "\n\n")
 	ts.WriteString("/* eslint-disable @typescript-eslint/no-namespace */\n")
 	ts.WriteString("/* eslint-disable @typescript-eslint/no-explicit-any */\n\n")
-	ts.WriteString("import fetch from \"cross-fetch\";\n")
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
@@ -672,6 +671,8 @@ export type AuthDataGenerator = () => (`)
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
 
+const boundFetch = fetch.bind(this);
+
 class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
@@ -694,7 +695,7 @@ class BaseClient {
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
-            this.fetcher = fetch
+            this.fetcher = boundFetch
         }`)
 
 	if ts.hasAuth {

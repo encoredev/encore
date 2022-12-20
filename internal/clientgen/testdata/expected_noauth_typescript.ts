@@ -3,7 +3,6 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import fetch from "cross-fetch";
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.
@@ -104,6 +103,8 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
 
+const boundFetch = fetch.bind(this);
+
 class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
@@ -120,7 +121,7 @@ class BaseClient {
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
-            this.fetcher = fetch
+            this.fetcher = boundFetch
         }
     }
 

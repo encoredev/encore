@@ -81,7 +81,6 @@ func (js *javascript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	}
 
 	js.WriteString("// " + doNotEditHeader() + "\n\n")
-	js.WriteString("import fetch from \"cross-fetch\";\n")
 
 	seenNs := make(map[string]bool)
 	js.writeClient()
@@ -468,6 +467,9 @@ func (js *javascript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-JS-Client (Encore/%s)", appSlug, version.Version)
 
 	js.WriteString(`
+
+const boundFetch = fetch.bind(this)
+
 class BaseClient {`)
 	js.WriteString(`
     constructor(baseURL, options) {
