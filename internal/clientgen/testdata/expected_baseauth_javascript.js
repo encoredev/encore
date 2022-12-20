@@ -96,7 +96,7 @@ class BaseClient {
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
-            this.fetcher = fetch
+            this.fetcher = boundFetch
         }
 
         // Setup an authentication data generator using the auth data token option

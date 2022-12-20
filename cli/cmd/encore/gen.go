@@ -116,14 +116,15 @@ which may require the user-facing wrapper code to be manually generated.`,
 	genCmd.AddCommand(genClientCmd)
 	genCmd.AddCommand(genWrappersCmd)
 
-	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\" and \"go\" are supported)")
+	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\", \"javascript\", and \"go\" are supported)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("lang", autoCompleteFromStaticList(
 		"typescript\tA TypeScript client using the in-browser Fetch API",
+		"javascript\tA JavaScript client using the in-browser Fetch API",
 		"go\tA Go client using net/http",
 	))
 
 	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
-	_ = genClientCmd.MarkFlagFilename("output", "go", "ts", "tsx")
+	_ = genClientCmd.MarkFlagFilename("output", "go", "ts", "tsx", "js", "jsx")
 
 	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("env", autoCompleteEnvSlug)

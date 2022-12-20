@@ -80,7 +80,7 @@ class BaseClient {
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
-            this.fetcher = fetch
+            this.fetcher = boundFetch
         }
     }
 
