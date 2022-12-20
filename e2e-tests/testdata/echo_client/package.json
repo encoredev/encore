@@ -2,8 +2,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --trace-warnings --experimental-specifier-resolution=node --loader ts-node/esm ./main.ts",
-    "test:js": "node --trace-warnings --experimental-specifier-resolution=node ./main.js",
+    "test": "node --trace-warnings --experimental-specifier-resolution=node --loader ts-node/esm ./ts/main.ts",
+    "test:js": "node --trace-warnings --experimental-specifier-resolution=node ./js/main.js",
     "lint": "tsc --noEmit && eslint \"**/*.{ts,js}\""
   },
   "devDependencies": {
