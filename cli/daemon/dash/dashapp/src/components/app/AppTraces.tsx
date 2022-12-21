@@ -110,6 +110,7 @@ export default class AppTraces extends React.Component<Props, State> {
                         break
                       case "SUBSCRIPTION":
                         endpoint = "subscription " + graphQLOp[0].name
+                        break
                     }
                   }
                 }
