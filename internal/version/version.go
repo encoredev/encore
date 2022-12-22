@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
+
+	"golang.org/x/mod/semver"
 
 	"encr.dev/internal/conf"
 )
@@ -79,16 +82,54 @@ func init() {
 			Version += "-" + vcsVersion + vcsModified
 		}
 	}
+	Channel = channelFor(Version)
+}
 
+func channelFor(version string) ReleaseChannel {
 	// Now work out the release channel
 	switch {
-	case strings.HasPrefix(Version, "v"):
-		Channel = GA
-	case strings.HasPrefix(Version, "nightly-"):
-		Channel = Nightly
-	case strings.HasPrefix(Version, "devel-"):
-		Channel = DevBuild
+	case strings.HasPrefix(version, "v"):
+		return GA
+	case strings.HasPrefix(version, "nightly-"):
+		return Nightly
+	case strings.HasPrefix(version, "devel-") || version == "devel":
+		return DevBuild
 	default:
-		Channel = unknown
+		return unknown
+	}
+}
+
+// Compare compares this version of Encore against another version
+// accounting for the release channel.
+//
+// If the releases are from the same channel, then it returns:
+//   - 0 if the versions are the same
+//   - a negative number if this version is older than the other
+//   - a positive number if this version is newer than the other
+//
+// If the releases are from different channels, it always returns 1.
+func Compare(againstVersion string) int {
+	againstChannel := channelFor(againstVersion)
+
+	if Channel != againstChannel {
+		// If the channels are different, this "version" is always newer
+		return 1
+	}
+
+	switch Channel {
+	case GA:
+		return semver.Compare(Version, againstVersion)
+	case Nightly:
+		this, _ := strconv.Atoi(strings.TrimPrefix(Version, "nightly-"))
+		that, _ := strconv.Atoi(strings.TrimPrefix(againstVersion, "nightly-"))
+		return this - that
+	case DevBuild:
+		if Version == againstVersion {
+			return 0
+		} else {
+			return 1 // For dev builds, a change is always newer
+		}
+	default:
+		return 0 // never newer if we can't test
 	}
 }
