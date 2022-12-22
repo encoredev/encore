@@ -11,7 +11,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
-	"golang.org/x/mod/semver"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -105,7 +104,7 @@ func setupDaemon(ctx context.Context) daemonpb.DaemonClient {
 			// restart it otherwise.
 			cl := daemonpb.NewDaemonClient(cc)
 			if resp, err := cl.Version(ctx, &empty.Empty{}); err == nil {
-				diff := semver.Compare(version.Version, resp.Version)
+				diff := version.Compare(resp.Version)
 				switch {
 				case diff < 0:
 					// Daemon is running a newer version
