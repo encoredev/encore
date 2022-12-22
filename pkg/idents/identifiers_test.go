@@ -24,6 +24,8 @@ func Test_parseIdentifier(t *testing.T) {
 		{"RenderHTML", []string{"render", "HTML"}},
 		{"getVersion2", []string{"get", "version2"}},
 		{"GetAPIDocs", []string{"get", "API", "docs"}},
+		{"EncoreResource-123abc", []string{"encore", "resource", "123abc"}},
+		{"EncoreResource-abs-123", []string{"encore", "resource", "abs", "123"}},
 		{"This is a full sentence... with \"random! bits-and_pieces123 blah", []string{"this", "is", "a", "full", "sentence", "with", "random", "bits", "and", "pieces123", "blah"}},
 	}
 	for _, tt := range tests {
@@ -53,6 +55,7 @@ func Test_convertIdentifierTo(t *testing.T) {
 		{"HelloWorld", "helloWorld", "HelloWorld", "hello_world", "HELLO_WORLD", "hello-world"},
 		{"getVersion2", "getVersion2", "GetVersion2", "get_version2", "GET_VERSION2", "get-version2"},
 		{"GetAPIDocs", "getAPIDocs", "GetAPIDocs", "get_api_docs", "GET_API_DOCS", "get-api-docs"},
+		{"EncoreResource-123abc", "encoreResource123abc", "EncoreResource123abc", "encore_resource_123abc", "ENCORE_RESOURCE_123ABC", "encore-resource-123abc"},
 	}
 
 	for _, tt := range tests {

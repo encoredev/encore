@@ -75,6 +75,9 @@ func parseIdentifier(goIdentifier string) (parts []string) {
 		case unicode.IsLower(r):
 			return lower
 		case unicode.IsDigit(r):
+			if lastType == other {
+				return lower
+			}
 			return lastType
 		default:
 			return other
