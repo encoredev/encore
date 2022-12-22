@@ -617,7 +617,7 @@ func linkApp(appID string, force bool) {
 
 	if idValue != nil {
 		val, ok := idValue.Value.(hujson.Literal)
-		if ok && val.String() != "" {
+		if ok && val.String() != "" && val.String() != appID && !force {
 			fatal("the app is already linked.\n\nNote: to link to a different app, specify the --force flag.")
 		}
 	}
