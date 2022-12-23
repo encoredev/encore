@@ -30,6 +30,10 @@ type Request struct {
 	Type    RequestType // What caused this request to start
 	Started time.Time   // What time the trigger occurred
 
+	// Trace contains the trace information for the current request.
+	// It is nil if the request is not traced.
+	Trace *TraceData
+
 	// APICall specific parameters.
 	// These will be empty for operations with a type not APICall
 	API        *APIDesc   // Metadata about the API endpoint being called
@@ -55,6 +59,15 @@ type Request struct {
 	//
 	// If the request was not triggered by a Cron Job the value is the empty string.
 	CronIdempotencyKey string
+}
+
+// TraceData describes the trace information for a request.
+type TraceData struct {
+	TraceID          string
+	SpanID           string
+	ParentTraceID    string // empty if no parent trace
+	ParentSpanID     string // empty if no parent span
+	ExtCorrelationID string // empty if no correlation id
 }
 
 // MessageData describes the request data for a Pub/Sub message.
@@ -123,6 +136,16 @@ func (mgr *Manager) CurrentRequest() *Request {
 
 	result := &Request{
 		Started: req.Start,
+	}
+
+	if req.Traced {
+		result.Trace = &TraceData{
+			TraceID:          req.TraceID.String(),
+			SpanID:           req.SpanID.String(),
+			ParentTraceID:    req.ParentTraceID.String(),
+			ParentSpanID:     req.ParentID.String(),
+			ExtCorrelationID: req.ExtCorrelationID,
+		}
 	}
 
 	switch req.Type {
