@@ -12,8 +12,26 @@ type (
 	SpanID  [8]byte
 )
 
-func (t TraceID) String() string {
-	return b32.EncodeToString(t[:])
+func (id TraceID) String() string {
+	if id.IsZero() {
+		return ""
+	}
+	return b32.EncodeToString(id[:])
+}
+
+func (id TraceID) IsZero() bool {
+	return id == TraceID{}
+}
+
+func (id SpanID) String() string {
+	if id.IsZero() {
+		return ""
+	}
+	return b32.EncodeToString(id[:])
+}
+
+func (id SpanID) IsZero() bool {
+	return id == SpanID{}
 }
 
 const encodeHex = "0123456789abcdefghijklmnopqrstuv"
