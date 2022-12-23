@@ -13,11 +13,11 @@ import (
 	"sync/atomic"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/trace"
 	"encore.dev/internal/stack"
+	"encore.dev/storage/sqldb/internal/stdlibdriver"
 )
 
 type Database struct {
@@ -37,7 +37,7 @@ func (db *Database) init() {
 		if db.pool == nil {
 			db.pool = db.mgr.getPool(db.name)
 		}
-		db.connStr = stdlib.RegisterConnConfig(db.pool.Config().ConnConfig)
+		db.connStr = stdlibdriver.RegisterConnConfig(db.pool.Config().ConnConfig)
 	})
 }
 
@@ -47,7 +47,7 @@ func (db *Database) Stdlib() *sql.DB {
 	db.init()
 	registerDriver.Do(func() {
 		stdlibDriver = &wrappedDriver{
-			parent: stdlib.GetDefaultDriver(),
+			parent: stdlibdriver.GetDefaultDriver(),
 			mw:     &interceptor{mgr: db.mgr},
 		}
 		sql.Register(driverName, stdlibDriver)
