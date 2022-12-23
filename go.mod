@@ -15,6 +15,7 @@ require (
 	github.com/dave/jennifer v1.5.1
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structtag v1.2.0
+	github.com/fmstephe/unsafeutil v1.0.0
 	github.com/frankban/quicktest v1.14.3
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gofrs/uuid v4.3.0+incompatible
@@ -27,7 +28,7 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgproto3/v2 v2.3.1
-	github.com/jackc/pgx/v4 v4.17.2
+	github.com/jackc/pgx/v5 v5.2.1-0.20221221235442-d737852654f5
 	github.com/json-iterator/go v1.1.12
 	github.com/logrusorgru/aurora/v3 v3.0.0
 	github.com/mattn/go-sqlite3 v1.14.15
@@ -73,7 +74,6 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/proto v1.6.15 // indirect
-	github.com/fmstephe/unsafeutil v1.0.0 // indirect
 	github.com/getsentry/sentry-go v0.13.0 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -87,7 +87,6 @@ require (
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
-	github.com/jackc/pgtype v1.12.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.15.11 // indirect

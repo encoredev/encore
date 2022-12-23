@@ -12,12 +12,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/jackc/pgx/v4/stdlib"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/trace"
 	"encore.dev/internal/stack"
+	"encore.dev/storage/sqldb/internal/stdlibdriver"
 )
 
 type Database struct {
@@ -37,7 +37,7 @@ func (db *Database) init() {
 		if db.pool == nil {
 			db.pool = db.mgr.getPool(db.name)
 		}
-		db.connStr = stdlib.RegisterConnConfig(db.pool.Config().ConnConfig)
+		db.connStr = stdlibdriver.RegisterConnConfig(db.pool.Config().ConnConfig)
 	})
 }
 
@@ -47,7 +47,7 @@ func (db *Database) Stdlib() *sql.DB {
 	db.init()
 	registerDriver.Do(func() {
 		stdlibDriver = &wrappedDriver{
-			parent: stdlib.GetDefaultDriver(),
+			parent: stdlibdriver.GetDefaultDriver(),
 			mw:     &interceptor{mgr: db.mgr},
 		}
 		sql.Register(driverName, stdlibDriver)
@@ -115,7 +115,6 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, err
 	if err != nil {
 		return nil, fmt.Errorf("invalid database uri: %v", err)
 	}
-	cfg.LazyConnect = true
 
 	// Set the pool size based on the config.
 	cfg.MaxConns = 30
@@ -165,7 +164,7 @@ func (db *Database) Exec(ctx context.Context, query string, args ...interface{})
 		})
 	}
 
-	res, err := db.pool.Exec(ctx, query, args...)
+	res, err := db.pool.Exec(markTraced(ctx), query, args...)
 	err = convertErr(err)
 
 	if curr.Trace != nil {
@@ -195,7 +194,7 @@ func (db *Database) Query(ctx context.Context, query string, args ...interface{}
 		})
 	}
 
-	rows, err := db.pool.Query(ctx, query, args...)
+	rows, err := db.pool.Query(markTraced(ctx), query, args...)
 	err = convertErr(err)
 
 	if curr.Trace != nil {
@@ -227,7 +226,7 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...interfac
 		})
 	}
 
-	rows, err := db.pool.Query(ctx, query, args...)
+	rows, err := db.pool.Query(markTraced(ctx), query, args...)
 	err = convertErr(err)
 	r := &Row{rows: rows, err: err}
 
@@ -243,7 +242,7 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...interfac
 // See (*database/sql.DB).Begin() for additional documentation.
 func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 	db.init()
-	tx, err := db.pool.Begin(ctx)
+	tx, err := db.pool.Begin(markTraced(ctx))
 	err = convertErr(err)
 	if err != nil {
 		return nil, err
@@ -261,4 +260,24 @@ func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 	}
 
 	return &Tx{mgr: db.mgr, txid: txid, std: tx}, nil
+}
+
+// Driver returns the underlying database driver for this database connection pool.
+//
+//	var db = sqldb.Driver[*pgxpool.Pool](sqldb.Named("mydatabase"))
+//
+// This is defined as a generic function to allow compile-time type checking
+// that the Encore application is expecting a driver that is supported.
+//
+// At some point in the future where Encore adds support for a different database driver
+// this will be made with backwards compatibility in mind, providing ample notice and
+// time to migrate in an opt-in fashion.
+func Driver[T SupportedDrivers](db *Database) T {
+	return any(db.pool).(T)
+}
+
+// SupportedDrivers is a type list of all supported database drivers.
+// Currently only [*pgxpool.Pool] is supported.
+type SupportedDrivers interface {
+	*pgxpool.Pool
 }
