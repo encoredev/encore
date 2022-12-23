@@ -23,7 +23,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/yamux v0.1.1
 	github.com/jackc/pgconn v1.13.0
-	github.com/jackc/pgx/v5 v5.2.0
+	github.com/jackc/pgx/v5 v5.2.1-0.20221221235442-d737852654f5
 	github.com/json-iterator/go v1.1.12
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/nsqio/go-nsq v1.1.0
