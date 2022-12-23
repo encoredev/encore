@@ -308,7 +308,7 @@ func (tp *traceParser) requestStart(ts uint64) error {
 	traceID := tp.traceID
 	if tp.version >= 11 {
 		parsedTraceID := tp.parseTraceID()
-		if parsedTraceID.Low != 0 && parsedTraceID.High != 0 {
+		if parsedTraceID.Low != 0 || parsedTraceID.High != 0 {
 			traceID = parsedTraceID
 		}
 	}
