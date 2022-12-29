@@ -11,7 +11,7 @@ Structured logging also enables the logs to be easily indexed, meaning they can 
 Encore’s logging support is fully integrated with the built-in [Distributed Tracing](/docs/observability/tracing) functionality. This means that all logs you emit automatically become included in the active trace. This dramatically simplifies debugging of your application.
 
 ## Usage
-First, import `encore.dev/rlog` in your package. Then simply call one of the package methods `Info`, `Error`, or `Debug`. For example:
+First, import `encore.dev/rlog` in your package. Then simply call one of the package methods `Info`, `Warn`, `Error`, or `Debug`. For example:
 
 ```go
 rlog.Info("log message",
