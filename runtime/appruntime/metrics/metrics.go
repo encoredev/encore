@@ -2,13 +2,11 @@ package metrics
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/config"
-	"encore.dev/beta/errs"
 	"encore.dev/metrics"
 )
 
@@ -100,42 +98,6 @@ func (mgr *Manager) collectNow(ctx context.Context) {
 	} else {
 		mgr.rootLogger.Trace().Int("num_metrics", len(m)).Msg("successfully emitted metrics")
 	}
-}
-
-func (m *Manager) ReqEnd(service, endpoint string, err error, httpStatus int, durSecs float64) {
-	if m.logsEmitter == nil {
-		return
-	}
-	code := code(err, httpStatus)
-	m.logsEmitter.IncCounter(
-		"e_requests_total",
-		"service", service,
-		"endpoint", endpoint,
-		"code", code,
-	)
-	m.logsEmitter.Observe(
-		"e_request_duration_seconds",
-		"duration", durSecs,
-		"service", service,
-		"endpoint", endpoint,
-		"code", code,
-	)
-}
-
-func code(err error, httpStatus int) string {
-	if err != nil {
-		e := errs.Convert(err).(*errs.Error)
-		return e.Code.String()
-	}
-
-	if httpStatus == 0 {
-		return errs.OK.String()
-	}
-
-	if code := errs.HTTPStatusToCode(httpStatus); code != errs.Unknown {
-		return code.String()
-	}
-	return "http_" + strconv.Itoa(httpStatus)
 }
 
 type exporter interface {

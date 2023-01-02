@@ -14,11 +14,11 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/cors"
-	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/beta/errs"
+	"encore.dev/metrics"
 )
 
 type Access string
@@ -59,12 +59,18 @@ type Handler interface {
 	Handle(c IncomingContext)
 }
 
+type RequestsTotalLabels struct {
+	Service  string // Service name.
+	Endpoint string // Endpoint name.
+	Code     string // Human-readable HTTP status code.
+}
+
 type Server struct {
 	cfg            *config.Config
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
-	metrics        *metrics.Manager
+	requestsTotal  *metrics.CounterGroup[RequestsTotalLabels, uint64]
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
@@ -88,7 +94,7 @@ func NewServer(
 	pc *platform.Client,
 	encoreMgr *encore.Manager,
 	rootLogger zerolog.Logger,
-	metrics *metrics.Manager,
+	reg *metrics.Registry,
 	json jsoniter.API,
 	tracingEnabled bool,
 	clock clock.Clock,
@@ -113,7 +119,7 @@ func NewServer(
 		pc:             pc,
 		rt:             rt,
 		encoreMgr:      encoreMgr,
-		metrics:        metrics,
+		requestsTotal:  metrics.NewCounterGroupInternal[RequestsTotalLabels, uint64]("e_requests_total", metrics.CounterConfig{}, reg),
 		clock:          clock,
 		rootLogger:     rootLogger,
 		json:           json,
