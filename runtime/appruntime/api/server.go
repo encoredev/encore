@@ -59,10 +59,9 @@ type Handler interface {
 	Handle(c IncomingContext)
 }
 
-type RequestsTotalLabels struct {
-	Service  string // Service name.
-	Endpoint string // Endpoint name.
-	Code     string // Human-readable HTTP status code.
+type requestsTotalLabels struct {
+	endpoint string // Endpoint name.
+	code     string // Human-readable HTTP status code.
 }
 
 type Server struct {
@@ -70,7 +69,7 @@ type Server struct {
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
-	requestsTotal  *metrics.CounterGroup[RequestsTotalLabels, uint64]
+	requestsTotal  *metrics.CounterGroup[requestsTotalLabels, uint64]
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
@@ -99,12 +98,11 @@ func NewServer(
 	tracingEnabled bool,
 	clock clock.Clock,
 ) *Server {
-	requestsTotal := metrics.NewCounterGroupInternal[RequestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
-		EncoreInternal_LabelMapper: func(labels RequestsTotalLabels) []metrics.KeyValue {
+	requestsTotal := metrics.NewCounterGroupInternal[requestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
+		EncoreInternal_LabelMapper: func(labels requestsTotalLabels) []metrics.KeyValue {
 			return []metrics.KeyValue{
-				{Key: "service", Value: labels.Service},
-				{Key: "endpoint", Value: labels.Endpoint},
-				{Key: "code", Value: labels.Code},
+				{Key: "endpoint", Value: labels.endpoint},
+				{Key: "code", Value: labels.code},
 			}
 		},
 	})
