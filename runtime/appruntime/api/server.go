@@ -99,6 +99,8 @@ func NewServer(
 	tracingEnabled bool,
 	clock clock.Clock,
 ) *Server {
+	requestsTotal := metrics.NewCounterGroupInternal[RequestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{})
+
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -119,7 +121,7 @@ func NewServer(
 		pc:             pc,
 		rt:             rt,
 		encoreMgr:      encoreMgr,
-		requestsTotal:  metrics.NewCounterGroupInternal[RequestsTotalLabels, uint64]("e_requests_total", metrics.CounterConfig{}, reg),
+		requestsTotal:  requestsTotal,
 		clock:          clock,
 		rootLogger:     rootLogger,
 		json:           json,

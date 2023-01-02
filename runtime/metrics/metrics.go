@@ -65,7 +65,7 @@ func NewCounterGroup[L Labels, V Value](name string, cfg CounterConfig) *Counter
 }
 
 //publicapigen:drop
-func NewCounterGroupInternal[L Labels, V Value](name string, cfg CounterConfig, reg *Registry) *CounterGroup[L, V] {
+func NewCounterGroupInternal[L Labels, V Value](reg *Registry, name string, cfg CounterConfig) *CounterGroup[L, V] {
 	return newCounterGroup[L, V](reg, name, cfg)
 }
 
