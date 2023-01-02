@@ -99,7 +99,15 @@ func NewServer(
 	tracingEnabled bool,
 	clock clock.Clock,
 ) *Server {
-	requestsTotal := metrics.NewCounterGroupInternal[RequestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{})
+	requestsTotal := metrics.NewCounterGroupInternal[RequestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
+		EncoreInternal_LabelMapper: func(labels RequestsTotalLabels) []metrics.KeyValue {
+			return []metrics.KeyValue{
+				{Key: "service", Value: labels.Service},
+				{Key: "endpoint", Value: labels.Endpoint},
+				{Key: "code", Value: labels.Code},
+			}
+		},
+	})
 
 	public := httprouter.New()
 	public.HandleOPTIONS = false
