@@ -14,11 +14,11 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/cors"
-	"encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/beta/errs"
+	"encore.dev/metrics"
 )
 
 type Access string
@@ -59,12 +59,17 @@ type Handler interface {
 	Handle(c IncomingContext)
 }
 
+type requestsTotalLabels struct {
+	endpoint string // Endpoint name.
+	code     string // Human-readable HTTP status code.
+}
+
 type Server struct {
 	cfg            *config.Config
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
-	metrics        *metrics.Manager
+	requestsTotal  *metrics.CounterGroup[requestsTotalLabels, uint64]
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
@@ -88,11 +93,20 @@ func NewServer(
 	pc *platform.Client,
 	encoreMgr *encore.Manager,
 	rootLogger zerolog.Logger,
-	metrics *metrics.Manager,
+	reg *metrics.Registry,
 	json jsoniter.API,
 	tracingEnabled bool,
 	clock clock.Clock,
 ) *Server {
+	requestsTotal := metrics.NewCounterGroupInternal[requestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
+		EncoreInternal_LabelMapper: func(labels requestsTotalLabels) []metrics.KeyValue {
+			return []metrics.KeyValue{
+				{Key: "endpoint", Value: labels.endpoint},
+				{Key: "code", Value: labels.code},
+			}
+		},
+	})
+
 	public := httprouter.New()
 	public.HandleOPTIONS = false
 	public.RedirectFixedPath = false
@@ -113,7 +127,7 @@ func NewServer(
 		pc:             pc,
 		rt:             rt,
 		encoreMgr:      encoreMgr,
-		metrics:        metrics,
+		requestsTotal:  requestsTotal,
 		clock:          clock,
 		rootLogger:     rootLogger,
 		json:           json,

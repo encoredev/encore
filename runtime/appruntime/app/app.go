@@ -89,7 +89,7 @@ func New(p *NewParams) *App {
 	metrics := rtmetrics.NewManager(metricsRegistry, cfg, rootLogger)
 
 	klock := clock.New()
-	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, metrics, json, tracingEnabled, klock)
+	apiSrv := api.NewServer(cfg, rt, pc, encore, rootLogger, metricsRegistry, json, tracingEnabled, klock)
 	apiSrv.Register(p.APIHandlers)
 	apiSrv.SetAuthHandler(p.AuthHandler)
 	service := service.NewManager(rt)
