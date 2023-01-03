@@ -64,6 +64,11 @@ func NewCounterGroup[L Labels, V Value](name string, cfg CounterConfig) *Counter
 	return newCounterGroup[L, V](Singleton, name, cfg)
 }
 
+//publicapigen:drop
+func NewCounterGroupInternal[L Labels, V Value](reg *Registry, name string, cfg CounterConfig) *CounterGroup[L, V] {
+	return newCounterGroup[L, V](reg, name, cfg)
+}
+
 func newCounterGroup[L Labels, V Value](mgr *Registry, name string, cfg CounterConfig) *CounterGroup[L, V] {
 	labelMapper := cfg.EncoreInternal_LabelMapper.(func(L) []KeyValue)
 	m := newMetricInfo[V](mgr, name, CounterType, cfg.EncoreInternal_SvcNum)

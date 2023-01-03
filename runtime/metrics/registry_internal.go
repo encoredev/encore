@@ -9,7 +9,7 @@ import (
 	"encore.dev/internal/nativehist"
 )
 
-var Singleton *Registry // TODO
+var Singleton *Registry
 
 type Registry struct {
 	rt       *reqtrack.RequestTracker

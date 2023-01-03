@@ -190,8 +190,11 @@ func (s *Server) finishRequest(resp *model.Response) {
 		curr.Trace.FinishRequest(req, resp)
 	}
 
+	s.requestsTotal.With(requestsTotalLabels{
+		endpoint: req.RPCData.Desc.Endpoint,
+		code:     code(resp.Err, resp.HTTPStatus),
+	}).Increment()
 	s.rt.FinishRequest()
-	s.metrics.ReqEnd(req.RPCData.Desc.Service, req.RPCData.Desc.Endpoint, resp.Err, resp.HTTPStatus, dur.Seconds())
 }
 
 type CallOptions struct {
