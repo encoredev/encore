@@ -45,6 +45,7 @@ func isVoid[T any]() bool {
 type Desc[Req, Resp any] struct {
 	// Service and Endpoint name the API this description is for.
 	Service  string
+	SvcNum   uint16
 	Endpoint string
 	Methods  []string
 	Path     string

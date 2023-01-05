@@ -37,8 +37,6 @@ type beginRequestParams struct {
 	// It is copied from the parent request if it is empty.
 	ParentTraceID model.TraceID
 
-	SvcNum uint16
-
 	// ExtRequestID specifies the externally-provided request id, if any.
 	// If not empty, it will be recorded as part of the "starting request" log message
 	// to facilitate request correlation.
@@ -67,7 +65,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		ParentTraceID:    p.ParentTraceID,
 		ExtCorrelationID: p.ExtCorrelationID,
 		DefLoc:           p.DefLoc,
-		SvcNum:           p.SvcNum,
+		SvcNum:           p.Data.Desc.SvcNum,
 		Start:            s.clock.Now(),
 		Traced:           s.tracingEnabled,
 		RPCData:          p.Data,

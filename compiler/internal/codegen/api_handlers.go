@@ -127,6 +127,7 @@ func (b *rpcBuilder) Write(f *File) {
 		Multi:     true,
 	},
 		Id("Service").Op(":").Lit(b.svc.Name),
+		Id("SvcNum").Op(":").Lit(b.getSvcNum(b.svc)),
 		Id("Endpoint").Op(":").Lit(rpc.Name),
 		Id("Methods").Op(":").Add(methods),
 		Id("Raw").Op(":").Lit(rpc.Raw),
