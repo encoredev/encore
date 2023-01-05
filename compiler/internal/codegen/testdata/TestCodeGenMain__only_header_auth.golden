@@ -200,6 +200,7 @@ type EncoreInternal_AuthHandlerAuthParams = AuthHeaders
 
 var EncoreInternal_AuthHandlerAuthHandler = &__api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
+	SvcNum:      1,
 	Endpoint:    "AuthHandler",
 	DefLoc:      3,
 	HasAuthData: true,

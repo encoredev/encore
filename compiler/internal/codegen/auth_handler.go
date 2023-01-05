@@ -49,6 +49,7 @@ func (b *authHandlerBuilder) Write() {
 		Multi:     true,
 	},
 		Id("Service").Op(":").Lit(b.svc.Name),
+		Id("SvcNum").Op(":").Lit(b.getSvcNum(b.svc)),
 		Id("Endpoint").Op(":").Lit(b.ah.Name),
 		Id("DefLoc").Op(":").Lit(defLoc),
 		Id("HasAuthData").Op(":").Lit(b.ah.AuthData != nil),

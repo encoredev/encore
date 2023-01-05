@@ -471,6 +471,7 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 		var reqTyp Req
 		desc := &model.RPCDesc{
 			Service:     d.Service,
+			SvcNum:      d.SvcNum,
 			Endpoint:    d.Endpoint,
 			Raw:         d.Raw,
 			RequestType: reflect.TypeOf(reqTyp),
