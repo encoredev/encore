@@ -15,6 +15,7 @@ import (
 type AuthHandlerDesc[Params any] struct {
 	// Service and Endpoint name the auth handler this description is for.
 	Service     string
+	SvcNum      uint16
 	Endpoint    string
 	DefLoc      int32
 	HasAuthData bool // whether the handler returns custom auth data
@@ -128,6 +129,7 @@ func (d *AuthHandlerDesc[Params]) rpcDesc() *model.RPCDesc {
 	d.rpcDescOnce.Do(func() {
 		desc := &model.RPCDesc{
 			Service:     d.Service,
+			SvcNum:      d.SvcNum,
 			Endpoint:    d.Endpoint,
 			AuthHandler: true,
 			Raw:         false,

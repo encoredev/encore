@@ -45,6 +45,7 @@ func isVoid[T any]() bool {
 type Desc[Req, Resp any] struct {
 	// Service and Endpoint name the API this description is for.
 	Service  string
+	SvcNum   uint16
 	Endpoint string
 	Methods  []string
 	Path     string
@@ -470,6 +471,7 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 		var reqTyp Req
 		desc := &model.RPCDesc{
 			Service:     d.Service,
+			SvcNum:      d.SvcNum,
 			Endpoint:    d.Endpoint,
 			Raw:         d.Raw,
 			RequestType: reflect.TypeOf(reqTyp),

@@ -72,6 +72,7 @@ type EncoreInternal_EightResp = Response
 
 var EncoreInternal_EightHandler = &__api.Desc[*EncoreInternal_EightReq, *EncoreInternal_EightResp]{
 	Service:        "svc",
+	SvcNum:         1,
 	Endpoint:       "Eight",
 	Methods:        []string{"POST"},
 	Raw:            false,
@@ -199,6 +200,7 @@ type EncoreInternal_AuthHandlerAuthParams = AuthQuery
 
 var EncoreInternal_AuthHandlerAuthHandler = &__api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
+	SvcNum:      1,
 	Endpoint:    "AuthHandler",
 	DefLoc:      3,
 	HasAuthData: true,
