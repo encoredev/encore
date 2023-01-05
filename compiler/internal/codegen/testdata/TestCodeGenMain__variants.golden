@@ -170,6 +170,7 @@ type EncoreInternal_CronOneResp = __api.Void
 
 var EncoreInternal_CronOneHandler = &__api.Desc[*EncoreInternal_CronOneReq, EncoreInternal_CronOneResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "CronOne",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -225,6 +226,7 @@ type EncoreInternal_DIResp = __api.Void
 
 var EncoreInternal_DIHandler = &__api.Desc[*EncoreInternal_DIReq, EncoreInternal_DIResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "DI",
 	Methods:        []string{"GET"},
 	Raw:            false,
@@ -284,6 +286,7 @@ type EncoreInternal_DIRawResp = __api.Void
 
 var EncoreInternal_DIRawHandler = &__api.Desc[*EncoreInternal_DIRawReq, EncoreInternal_DIRawResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "DIRaw",
 	Methods:        []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
 	Raw:            true,
@@ -333,6 +336,7 @@ type EncoreInternal_EightResp = Response
 
 var EncoreInternal_EightHandler = &__api.Desc[*EncoreInternal_EightReq, *EncoreInternal_EightResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Eight",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -441,6 +445,7 @@ type EncoreInternal_FiveResp = __api.Void
 
 var EncoreInternal_FiveHandler = &__api.Desc[*EncoreInternal_FiveReq, EncoreInternal_FiveResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Five",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -549,6 +554,7 @@ type EncoreInternal_FourResp = __api.Void
 
 var EncoreInternal_FourHandler = &__api.Desc[*EncoreInternal_FourReq, EncoreInternal_FourResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Four",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -630,6 +636,7 @@ type EncoreInternal_NineResp = ComplexResponse
 
 var EncoreInternal_NineHandler = &__api.Desc[*EncoreInternal_NineReq, *EncoreInternal_NineResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Nine",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -748,6 +755,7 @@ type EncoreInternal_OneResp = __api.Void
 
 var EncoreInternal_OneHandler = &__api.Desc[*EncoreInternal_OneReq, EncoreInternal_OneResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "One",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -805,6 +813,7 @@ type EncoreInternal_QueryResp = QueryParams
 
 var EncoreInternal_QueryHandler = &__api.Desc[*EncoreInternal_QueryReq, *EncoreInternal_QueryResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Query",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -944,6 +953,7 @@ type EncoreInternal_SevenResp = __api.Void
 
 var EncoreInternal_SevenHandler = &__api.Desc[*EncoreInternal_SevenReq, EncoreInternal_SevenResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Seven",
 	Methods:        []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
 	Raw:            true,
@@ -1007,6 +1017,7 @@ type EncoreInternal_SixResp = __api.Void
 
 var EncoreInternal_SixHandler = &__api.Desc[*EncoreInternal_SixReq, EncoreInternal_SixResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Six",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -1121,6 +1132,7 @@ type EncoreInternal_TenResp = HeaderResponse
 
 var EncoreInternal_TenHandler = &__api.Desc[*EncoreInternal_TenReq, *EncoreInternal_TenResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Ten",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -1208,6 +1220,7 @@ type EncoreInternal_ThreeResp = __api.Void
 
 var EncoreInternal_ThreeHandler = &__api.Desc[*EncoreInternal_ThreeReq, EncoreInternal_ThreeResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Three",
 	Methods:        []string{"GET", "POST"},
 	Raw:            false,
@@ -1284,6 +1297,7 @@ type EncoreInternal_TwoResp = __api.Void
 
 var EncoreInternal_TwoHandler = &__api.Desc[*EncoreInternal_TwoReq, EncoreInternal_TwoResp]{
 	Service:        "svc",
+	SvcNum:         2,
 	Endpoint:       "Two",
 	Methods:        []string{"POST"},
 	Raw:            false,
@@ -1372,6 +1386,7 @@ type EncoreInternal_AuthHandlerAuthParams = AuthParams
 
 var EncoreInternal_AuthHandlerAuthHandler = &__api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
+	SvcNum:      2,
 	Endpoint:    "AuthHandler",
 	DefLoc:      39,
 	HasAuthData: true,

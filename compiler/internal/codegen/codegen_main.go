@@ -72,10 +72,10 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
 			}),
-			Id("CORSHeaders"):  corsHeaders,
-			Id("PubsubTopics"): b.computeStaticPubsubConfig(),
-			Id("Testing"):      False(),
-			Id("TestService"):  Lit(""),
+			Id("CORSHeaders"):     corsHeaders,
+			Id("PubsubTopics"):    b.computeStaticPubsubConfig(),
+			Id("Testing"):         False(),
+			Id("TestService"):     Lit(""),
 			Id("BundledServices"): b.computeBundledServices(),
 		})
 		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
@@ -256,6 +256,22 @@ func (b *Builder) computeBundledServices() Code {
 			g.Lit(name)
 		}
 	})
+}
+
+func (b *Builder) getSvcNum(svc *est.Service) int {
+	sortedNames := make([]string, 0, len(b.res.App.Services))
+	for _, svc := range b.res.App.Services {
+		sortedNames = append(sortedNames, svc.Name)
+	}
+	sort.Strings(sortedNames)
+
+	for i, name := range sortedNames {
+		if name == svc.Name {
+			return i + 1
+		}
+	}
+	b.errorf("cannot find service %s", svc.Name)
+	return 0
 }
 
 func (b *Builder) error(err error) {

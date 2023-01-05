@@ -22,6 +22,7 @@ const (
 
 type RPCDesc struct {
 	Service      string
+	SvcNum       uint16
 	Endpoint     string
 	AuthHandler  bool // true if this is an auth handler
 	Raw          bool
