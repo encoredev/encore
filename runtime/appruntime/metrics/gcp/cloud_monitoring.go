@@ -69,6 +69,10 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	endTime := time.Now()
 
 	data := x.getMetricData(newCounterStart, endTime, collected)
+	if len(data) == 0 {
+		return nil
+	}
+
 	err := x.getClient().CreateTimeSeries(ctx, &monitoringpb.CreateTimeSeriesRequest{
 		Name:       "projects/" + x.cfg.ProjectID,
 		TimeSeries: data,
