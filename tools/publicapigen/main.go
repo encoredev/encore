@@ -17,6 +17,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
 )
@@ -32,16 +33,23 @@ type registeredConstant struct {
 	docs *ast.CommentGroup
 }
 
+type parsedFile struct {
+	fileName string
+	dir      string
+	ast      *ast.File
+}
+
 var (
 	resolvedRepo             = repoDir()
 	gitRef                   = repoCommit()
 	fset                     = token.NewFileSet()
 	formattedFset            = token.NewFileSet()
-	files                    = map[string]*ast.File{}
+	files                    = []*parsedFile{}
 	commentsToAddToFunctions = map[*ast.File]map[string]*ast.CommentGroup{}
 	constants                = map[string]map[string]registeredConstant{}
 	types                    = map[string]map[string]registeredType{}
 	typesToDrop              = map[string]map[string]bool{}
+	usesPanicWrapper         = map[string]bool{} // package dir -> true
 )
 
 func main() {
@@ -53,57 +61,71 @@ func main() {
 	if err := walkDir(filepath.Join(resolvedRepo, "runtime"), "./", readAST); err != nil {
 		log.Fatal().Err(err).Msg("unable to walk runtime directory to parse go files")
 	}
+	slices.SortFunc(files, func(a, b *parsedFile) bool {
+		return a.fileName < b.fileName
+	})
 
 	// Register all consts and types in our private files, just in case we reference them in the public API
 	log.Info().Msg("registering types...")
-	for fileName, fAST := range files {
-		if isPrivateFile(fileName) {
-			log.Debug().Str("file", fileName).Msg("registering types and constants from private implementation files")
-			registerTypes(fileName, fAST)
+	for _, f := range files {
+		if isPrivateFile(f.fileName) {
+			log.Debug().Str("file", f.fileName).Msg("registering types and constants from private implementation files")
+			registerTypes(f.fileName, f.ast)
 		}
-		registerTypesToDrop(fAST)
+		registerTypesToDrop(f.ast)
 	}
 
 	// Then rewrite all the AST to remove implementations
 	log.Info().Msg("rewriting ast to remove implementations and unexported items...")
-	for fileName, fAST := range files {
-		log.Debug().Str("file", fileName).Msg("rewriting ast")
-		if err := rewriteAST(fAST); err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("unable to rewrite ast")
+	remaining := make([]*parsedFile, 0, len(files))
+	for _, f := range files {
+		log.Debug().Str("file", f.fileName).Msg("rewriting ast")
+		usesPanic, err := rewriteAST(f.ast)
+		if err != nil {
+			log.Fatal().Err(err).Str("file", f.fileName).Msg("unable to rewrite ast")
 		}
 
-		if len(fAST.Decls) == 0 && fAST.Doc == nil {
-			log.Debug().Str("file", fileName).Msg("removing file as there are no exported decelerations or package comments")
-			delete(files, fileName)
+		if len(f.ast.Decls) == 0 && f.ast.Doc == nil {
+			log.Debug().Str("file", f.fileName).Msg("removing file as there are no exported decelerations or package comments")
+			continue
 		}
+
+		if usesPanic {
+			usesPanicWrapper[f.dir] = true
+		}
+
+		remaining = append(remaining, f)
 	}
+	files = remaining
+
+	writtenPanicWrapper := make(map[string]bool) // package dir -> true
 
 	// Then write the AST to a file
 	outDir := outDir()
 	log.Info().Str("out", outDir).Msg("writing public api files...")
-	for fileName, fAST := range files {
-		if isPrivateFile(fileName) {
+	for _, f := range files {
+		if isPrivateFile(f.fileName) {
 			// "runtime" is a private package as are internal packages
 			// any files suffixed with _internal.go are also private and are considered unstable API's
 			continue
 		}
 
-		log.Debug().Str("file", fileName).Msg("writing public api file")
+		log.Debug().Str("file", f.fileName).Msg("writing public api file")
 
 		// Pretty print the file and then re-parse it
 		// This repopulates the AST with the comments and formatting
-		formattedFile := convertASTToFormattedSrc(fset, fAST, fileName)
-		formattedAST, err := parser.ParseFile(formattedFset, fileName, formattedFile, parser.ParseComments)
+		formattedFile := convertASTToFormattedSrc(fset, f.ast, f.fileName)
+		formattedAST, err := parser.ParseFile(formattedFset, f.fileName, formattedFile, parser.ParseComments)
 		if err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("unable to convert back to an AST")
+			log.Fatal().Err(err).Str("file", f.fileName).Msg("unable to convert back to an AST")
 		}
 
 		// Now we can add brand new comments list given set, we
 		// can write the help comment into the functions
-		writePendingComments(fAST, formattedAST)
+		writePendingComments(f.ast, formattedAST)
 
 		// Now let's write the file out
-		outputFile := filepath.Join(outDir, fileName)
+		outputFile := filepath.Join(outDir, f.fileName)
 		outputDir := filepath.Dir(outputFile)
 
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
@@ -114,9 +136,19 @@ func main() {
 			continue
 		}
 
-		if err := os.WriteFile(outputFile, convertASTToFormattedSrc(formattedFset, formattedAST, fileName), 0644); err != nil {
-			log.Fatal().Err(err).Str("file", fileName).Msg("unable to write file")
+		out := convertASTToFormattedSrc(formattedFset, formattedAST, f.fileName)
+		if usesPanicWrapper[f.dir] && !writtenPanicWrapper[f.dir] {
+			out = append(out, panicWrapperSnippet...)
+			writtenPanicWrapper[f.dir] = true
 		}
+
+		if err := os.WriteFile(outputFile, out, 0644); err != nil {
+			log.Fatal().Err(err).Str("file", f.fileName).Msg("unable to write file")
+		}
+	}
+
+	if err := buildsSuccessfully(outDir); err != nil {
+		log.Fatal().Err(err).Msg("generated code does not build")
 	}
 
 	log.Info().Msg("done")
@@ -224,13 +256,19 @@ func readAST(path, rel string, file []os.DirEntry) error {
 		// We only want to track comments if they are part of a decl we're keeping
 		// so we need to nil out this field on the file so they aren't tracked globally
 		fAST.Comments = nil
-		files[filepath.Join(rel, f.Name())] = fAST
+		files = append(files, &parsedFile{
+			fileName: filepath.Join(rel, f.Name()),
+			dir:      rel,
+			ast:      fAST,
+		})
 	}
 
 	return nil
 }
 
-func rewriteAST(f *ast.File) error {
+func rewriteAST(f *ast.File) (usesPanicWrapper bool, err error) {
+	var lastIfaceType *ast.InterfaceType
+
 	astutil.Apply(
 		f,
 		func(c *astutil.Cursor) bool {
@@ -321,6 +359,16 @@ func rewriteAST(f *ast.File) error {
 				}
 				node.Type.Params = newFieldList
 
+				// If we have any results, add a placeholder names so we can use a naked return.
+				results := node.Type.Results
+				if results != nil && results.NumFields() > 0 {
+					for _, res := range results.List {
+						if len(res.Names) == 0 {
+							res.Names = []*ast.Ident{ast.NewIdent("_")}
+						}
+					}
+				}
+
 				// If we are keeping the function, replace the implementation with a panic
 				// as the code we're generating is only to help the IDE and users understand our API
 				// but isn't intended to be used in running apps
@@ -329,7 +377,7 @@ func rewriteAST(f *ast.File) error {
 					List: []ast.Stmt{
 						&ast.ExprStmt{
 							X: &ast.CallExpr{
-								Fun:    ast.NewIdent("panic"),
+								Fun:    ast.NewIdent("doPanic"),
 								Lparen: start,
 								Args: []ast.Expr{
 									&ast.BasicLit{
@@ -342,9 +390,11 @@ func rewriteAST(f *ast.File) error {
 								Rparen:   end,
 							},
 						},
+						&ast.ReturnStmt{},
 					},
 					Rbrace: token.NoPos,
 				}
+				usesPanicWrapper = true
 				return false
 
 			case *ast.TypeSpec:
@@ -386,6 +436,9 @@ func rewriteAST(f *ast.File) error {
 
 			case *ast.FuncType:
 				return false
+
+			case *ast.InterfaceType:
+				lastIfaceType = node
 
 			case *ast.ValueSpec:
 				// Remove unexported variables and constants
@@ -468,6 +521,10 @@ func rewriteAST(f *ast.File) error {
 				if bin, ok := node.Type.(*ast.BinaryExpr); ok && bin.Op == token.OR && node.Names == nil {
 					keep = true
 				}
+				// Or is it a type list with a single field within an interface?
+				if node.Names == nil && lastIfaceType != nil && posWithin(node.Pos(), lastIfaceType) {
+					keep = true
+				}
 
 				if dir == mustDrop {
 					keep = false
@@ -509,7 +566,7 @@ func rewriteAST(f *ast.File) error {
 			return true
 		},
 	)
-	return nil
+	return usesPanicWrapper, nil
 }
 
 func writePendingComments(originalFile *ast.File, formattedFile *ast.File) {
@@ -820,4 +877,28 @@ func funcName(node *ast.FuncDecl) string {
 
 	name.WriteString(node.Name.Name)
 	return name.String()
+}
+
+const panicWrapperSnippet = `
+// doPanic is a wrapper around panic to prevent static analysis tools
+// from thinking Encore APIs unconditionally panic.,
+func doPanic(v any) {
+	if true {
+		panic(v)
+	}
+}
+`
+
+func posWithin(pos token.Pos, node ast.Node) bool {
+	return pos >= node.Pos() && pos < node.End()
+}
+
+func buildsSuccessfully(dir string) error {
+	cmd := exec.Command("go", "build", "./...")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("'go build' failed: %v: %s", err, out)
+	}
+	return err
 }
