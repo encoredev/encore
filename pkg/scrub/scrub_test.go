@@ -230,6 +230,16 @@ func TestJSON(t *testing.T) {
 			},
 			wantOutput: "{0:\n \"[sensitive]\"}",
 		},
+		{
+			name:  "test",
+			input: `{"One":["\"one\""]}}`,
+			paths: []Path{
+				[]PathEntry{
+					{Kind: ObjectField, FieldName: `"x"`, CaseSensitive: false},
+				},
+			},
+			wantOutput: `{"One":["\"one\""]}}`,
+		},
 	}
 
 	for _, tt := range tests {
