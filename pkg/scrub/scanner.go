@@ -119,18 +119,18 @@ func (s *scanner) scanString() scanItem {
 	// Use s.pos-1 since scan already consumed the first byte.
 	it := scanItem{from: s.pos - 1, tok: literal}
 
-	var wasBackslash bool
 	for {
 		b := s.readByte()
+
+		if b == '\\' {
+			b = s.readByte()
+			// Escaped symbols never signal the end of the string,
+			// so it's safe to just continue here regardless of value.
+			continue
+		}
+
 		switch b {
-		case '\\':
-			wasBackslash = true
-		default:
-			wasBackslash = false
 		case '"':
-			if wasBackslash {
-				continue // escaped double-quote
-			}
 			it.to = s.pos
 			return it
 		case '\n', '\r':

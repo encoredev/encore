@@ -23,6 +23,27 @@ var tests = []scannerTest{
 		},
 	},
 	{
+		name: "escaped_string",
+		src:  `"foo\"bar"`,
+		want: []tokDesc{
+			str("foo\"bar"),
+		},
+	},
+	{
+		name: "escaped_string_at_end",
+		src:  `"foo\""`,
+		want: []tokDesc{
+			str("foo\""),
+		},
+	},
+	{
+		name: "escaped_quoted_string",
+		src:  `["\"one\""]`,
+		want: []tokDesc{
+			arrStart, str("\"one\""), arrEnd,
+		},
+	},
+	{
 		name: "newline_reset_key",
 		src:  "{0: true, 1:\n2: true}",
 		want: []tokDesc{
