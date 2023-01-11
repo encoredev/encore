@@ -65,7 +65,7 @@ func (x *Exporter) Shutdown(force context.Context) {
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	// Call time.Now twice so we don't get identical timestamps,
 	// which is not allowed for cumulative metrics.
-	newCounterStart := time.Now()
+	newCounterStart := time.Now().Add(-time.Microsecond)
 	endTime := time.Now()
 
 	data := x.getMetricData(newCounterStart, endTime, collected)
