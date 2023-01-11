@@ -12,6 +12,8 @@ Start building today and unlock your creative potential, free from cloud complex
 **⭐ If you find Encore interesting, star this repository to help spread the word.**
 
 **👋 Have questions? Join the friendly [developer community](https://community.encore.dev), or say hello on [Slack](https://encore.dev/slack).**
+
+**📞 Want to discuss if Encore is suitable for your project? [Book a call with us](https://encore.dev/book).**
 </br></br>
 
 ![encore infographic](https://user-images.githubusercontent.com/78424526/205885215-ef754b5c-8d2d-4c3c-88dc-d22b68459272.png)
