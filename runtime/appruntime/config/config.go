@@ -279,17 +279,12 @@ type RedisDatabase struct {
 }
 
 type Metrics struct {
-	CollectionInterval time.Duration `json:"collection_interval,omitempty"`
-	EncoreCloud        *EncoreCloudProvider
+	CollectionInterval time.Duration                  `json:"collection_interval,omitempty"`
+	EncoreCloud        *GCPCloudMonitoringProvider    `json:"encore_cloud,omitempty"`
 	CloudMonitoring    *GCPCloudMonitoringProvider    `json:"gcp_cloud_monitoring,omitempty"`
 	CloudWatch         *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
 	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
 	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
-}
-
-type EncoreCloudProvider struct {
-	GCPCloudMonitoringProvider
-	MetricNames map[string]string
 }
 
 type GCPCloudMonitoringProvider struct {
@@ -303,6 +298,10 @@ type GCPCloudMonitoringProvider struct {
 	// Each monitored resource type has a pre-defined set of labels that must be set.
 	// See https://cloud.google.com/monitoring/api/resources for expected labels.
 	MonitoredResourceLabels map[string]string
+
+	// MetricNames contains the mapping between metric names in Encore and metric
+	// names in GCP.
+	MetricNames map[string]string
 }
 
 type AWSCloudWatchMetricsProvider struct {
