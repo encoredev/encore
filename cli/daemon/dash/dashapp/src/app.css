@@ -535,4 +535,14 @@ pre {
     width: 100%;
     z-index: 100;
 }
+
+
+.json-tree .nested-node .copy-icon {
+  @apply hidden;
+}
+
+.json-tree .nested-node:hover > span .copy-icon {
+  @apply inline-block;
+}
+
 /* purgecss end ignore */
