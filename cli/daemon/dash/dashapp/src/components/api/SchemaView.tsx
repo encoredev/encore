@@ -434,7 +434,11 @@ export class JSONDialect extends TextBasedDialect {
     this.write("null");
   }
 
-  public structBits(t: StructType, asGoStruct: boolean): [string, string, string] {
+  public structBits(
+    t: StructType,
+    asGoStruct: boolean,
+    queryParamsAsObject?: boolean
+  ): [string, string, string] {
     const writeObj = (fields: DescribedField[]): string => {
       const oldBuf = this.buf;
       this.buf = [];
@@ -465,7 +469,7 @@ export class JSONDialect extends TextBasedDialect {
     let json = "";
 
     if (fields[FieldLocation.Query].length > 0) {
-      if (asGoStruct) {
+      if (asGoStruct || queryParamsAsObject) {
         query = writeObj(fields[FieldLocation.Query]);
       } else {
         const oldBuf = this.buf;
