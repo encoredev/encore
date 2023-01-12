@@ -1,8 +1,9 @@
 <h1><a href="https://encore.dev">Encore – Backend Development Platform</a></h1>
-Encore is an end-to-end backend development platform that automatically provisions all your cloud infrastructure, based on your business logic.
-With Encore you get local, preview, and cloud environments directly from application code.
+Encore is an end-to-end backend development platform that automatically provisions your cloud infrastructure in your own cloud account (AWS / GCP / Azure).
+
+With Encore you declare infrastructure like databases, queues, caches, and scheduled jobs, using logical statements in application code. Encore then parses your code, builds a graph of your application, and automatically provisions the relevant infrastructure in local, preview, and cloud environments.
 </br></br>
-Designed to help you build your product without platform distractions, you write your business logic with the Open Source Encore Go framework and let the Encore platform analyze your code to automatically deal with boilerplate and infrastructure.
+Designed to help you build your product without platform distractions, Encore removes boilerplate and gives you built-in tools for observability and collaboration.
 </br></br>
 Start building today and unlock your creative potential, free from cloud complexity.
 </br></br>
