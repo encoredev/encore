@@ -257,6 +257,7 @@ const NewRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) 
           <RawRequestDetail req={req} />
         ) : req.request_payload ? (
           <CodeBox>
+            <RequestURL method={req.http_method} path={req.path} />
             <PayloadViewer payload={req.request_payload} />
           </CodeBox>
         ) : (
@@ -362,6 +363,14 @@ const RawResponseDetail: FC<{ req: Request }> = ({ req }) => {
         </div>
       )}
     </CodeBox>
+  );
+};
+
+const RequestURL: FC<{ method: string; path: string }> = (props) => {
+  return (
+    <p className="mb-2 block font-mono text-xs text-white">
+      {props.method} <span className="text-white text-opacity-70">{props.path}</span>
+    </p>
   );
 };
 
