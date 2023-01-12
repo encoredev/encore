@@ -284,7 +284,7 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
           rpc.request_schema || hasPathParams || md.auth_handler ? "block" : "hidden"
         } divide-gray-500 divide-y p-1`}
       >
-        <div className={`${hasPathParams ? "block" : " hidden"}`}>
+        <div className="block bg-black p-1">
           <RPCPathEditor ref={pathRef} rpc={rpc} method={method} setMethod={setMethod} />
         </div>
         <div className={`${rpc.request_schema ? "block" : " hidden"}`}>
