@@ -364,6 +364,7 @@ func clientTLSNegotiate(client net.Conn, tlsConfig *tls.Config) (*pgproto3.Backe
 				if _, err := client.Write([]byte{'N'}); err != nil {
 					return nil, nil, err
 				}
+				continue
 			}
 
 			if _, err := client.Write([]byte{'S'}); err != nil {
