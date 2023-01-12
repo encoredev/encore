@@ -118,24 +118,6 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
     }
   }, [rpc]);
 
-  useEffect(() => {
-    if (rpc.request_schema) {
-      let doc = docs.current.get(rpc);
-      if (doc === undefined) {
-        const js = new JSONDialect(md).renderAsText(rpc.request_schema);
-        doc = new CodeMirror.Doc(js, {
-          name: "javascript",
-          json: true,
-        });
-        docs.current.set(rpc, doc);
-      }
-      payloadCM.current?.open(doc);
-    }
-
-    setResponse(undefined);
-    setRespErr(undefined);
-  }, [rpc]);
-
   function namedTypeToHJSON(named: NamedType): string {
     const render = new JSONDialect(md);
     render.method = method;
