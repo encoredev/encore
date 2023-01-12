@@ -146,11 +146,7 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
             <EventMap trace={props.trace} req={req} onStackTrace={props.onStackTrace} />
           </div>
 
-          {req.inputs.length > 0 || req.outputs.length > 0 ? (
-            <LegacyRequestInfo req={req} trace={tr} onStackTrace={props.onStackTrace} />
-          ) : (
-            <NewRequestInfo req={req} trace={tr} onStackTrace={props.onStackTrace} />
-          )}
+          <NewRequestInfo req={req} trace={tr} onStackTrace={props.onStackTrace} />
 
           {logs.length > 0 && (
             <div className="mt-6" ref={logsRef}>
@@ -167,117 +163,6 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
 };
 
 export default SpanDetail;
-
-const LegacyRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) => void }> = ({
-  req,
-  trace,
-  onStackTrace,
-}) => {
-  return req.type === "AUTH" ? (
-    req.err !== null ? (
-      <div className="mt-4">
-        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-          Error
-        </h4>
-        <CodeBox error>{decodeBase64(req.err)}</CodeBox>
-      </div>
-    ) : (
-      <>
-        <div className="mt-6">
-          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-            User ID
-          </h4>
-          {req.outputs.length > 0 ? renderData([req.outputs[0]]) : "Unknown"}
-        </div>
-        {req.outputs.length > 1 && (
-          <div className="mt-4">
-            <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-              User Data
-            </h4>
-            {renderData([req.outputs[1]])}
-          </div>
-        )}
-      </>
-    )
-  ) : req.type === "PUBSUB_MSG" ? (
-    <>
-      <div className="mt-6">
-        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-          Message ID
-        </h4>
-        <div className="text-gray-700 text-sm">{req.msg_id ?? "<unknown>"}</div>
-      </div>
-      <div className="grid grid-cols-2">
-        <div className="mt-6">
-          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-            Delivery Attempt
-          </h4>
-          <div className="text-gray-700 text-sm">{req.attempt ?? "<unknown>"}</div>
-        </div>
-        <div className="mt-6">
-          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-            Originally Published
-          </h4>
-          <div className="text-gray-700 text-sm">
-            {req.published ? DateTime.fromMillis(req.published).toString() : "<unknown>"}
-          </div>
-        </div>
-      </div>
-      <div className="mt-6">
-        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-          Message
-        </h4>
-        {req.inputs.length > 0 ? (
-          renderRequestPayload(getRequestInfo(trace, req))
-        ) : (
-          <div className="text-gray-700 text-sm">No message data.</div>
-        )}
-      </div>
-      {req.err !== null ? (
-        <div className="mt-4">
-          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-            Error{" "}
-            <button className="text-gray-600 ml-1" onClick={() => onStackTrace(req.err_stack!)}>
-              {icons.stackTrace("m-1 h-4 w-auto")}
-            </button>
-          </h4>
-          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
-        </div>
-      ) : undefined}
-    </>
-  ) : (
-    <>
-      <div className="mt-4">
-        <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-          Request
-        </h4>
-        {renderRequestPayload(getRequestInfo(trace, req))}
-      </div>
-      {req.err !== null ? (
-        <div className="mt-4">
-          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-            Error{" "}
-            <button className="text-gray-600 ml-1" onClick={() => onStackTrace(req.err_stack!)}>
-              {icons.stackTrace("m-1 h-4 w-auto")}
-            </button>
-          </h4>
-          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
-        </div>
-      ) : (
-        <div className="mt-4">
-          <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-            Response
-          </h4>
-          {req.outputs.length > 0 ? (
-            renderData(req.outputs)
-          ) : (
-            <div className="text-gray-700 text-sm">No response data.</div>
-          )}
-        </div>
-      )}
-    </>
-  );
-};
 
 const NewRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) => void }> = ({
   req,
