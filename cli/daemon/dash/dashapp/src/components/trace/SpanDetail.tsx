@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { JsonViewer } from "@textea/json-viewer";
+import { JSONTree } from "react-json-tree";
 import CM from "~c/api/cm/CM";
 import { Icon, icons } from "~c/icons";
 import { Base64EncodedBytes, decodeBase64 } from "~lib/base64";
@@ -26,7 +26,9 @@ import {
   Stack,
   Trace,
 } from "./model";
-import { idxColor, latencyStr, svcColor } from "./util";
+import { idxColor, latencyStr } from "./util";
+import { copyToClipboard } from "~lib/clipboard";
+import { CheckIcon, ClipboardCopyIcon } from "@heroicons/react/solid";
 
 interface Props {
   trace: Trace;
@@ -487,16 +489,54 @@ const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
     /* do nothing */
   }
 
+  const theme: any = {
+    scheme: "monokai",
+    base00: "#111111",
+    base01: "#383830",
+    base02: "#49483e",
+    base03: "#75715e",
+    base04: "#a59f85",
+    base05: "#f8f8f2",
+    base06: "#f5f4f1",
+    base07: "#f9f8f5",
+    base08: "#f92672",
+    base09: "#fd971f",
+    base0A: "#f4bf75",
+    base0B: "#a6e22e",
+    base0C: "#a1efe4",
+    base0D: "#66d9ef",
+    base0E: "#ae81ff",
+    base0F: "#cc6633",
+  };
+
   return jsonObj !== undefined ? (
-    <div className="[&_svg]:inline-block [&_.data-key]:align-top">
-      <JsonViewer
-        value={jsonObj}
-        rootName={false}
-        collapseStringsAfterLength={100}
-        theme={"dark"}
-        displayObjectSize={false}
-        displayDataTypes={false}
-        indentWidth={2}
+    <div className="json-tree whitespace-normal [&_svg]:inline-block [&_.data-key]:align-top">
+      <JSONTree
+        data={jsonObj}
+        shouldExpandNode={() => true}
+        valueRenderer={(raw, value) => {
+          if (typeof value === "string") {
+            return <StringValueRenderer str={value} collapseStringsAfterLength={100} />;
+          }
+          return raw;
+        }}
+        labelRenderer={(keyPath, nodeType, expanded, expandable) => {
+          if (keyPath.length === 1 && keyPath[0] === "root") return "";
+          return <span>{keyPath[0]}:</span>;
+        }}
+        getItemString={(type, data, itemType) => (
+          <ItemStringWrapper data={data}>{itemType}</ItemStringWrapper>
+        )}
+        invertTheme={false}
+        theme={{
+          extend: theme,
+          nestedNode: ({ style }, keyPath, nodeType, expanded) => ({
+            className: "nested-node",
+            style: {
+              ...style,
+            },
+          }),
+        }}
       />
     </div>
   ) : (
@@ -509,6 +549,41 @@ const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
       }}
       noShadow={true}
     />
+  );
+};
+
+const ItemStringWrapper: FC<PropsWithChildren & { data: any }> = (props) => {
+  const [isCopied, setIsCopied] = useState(false);
+  const className = "h-4 w-4 copy-icon text-lightgray cursor-pointer";
+  const onClick = (e: any) => {
+    e.stopPropagation();
+    copyToClipboard(JSON.stringify(props.data));
+    setIsCopied(true);
+    setTimeout(() => {
+      setIsCopied(false);
+    }, 3000);
+  };
+  return (
+    <span>
+      {props.children}
+      {isCopied ? (
+        <CheckIcon onClick={onClick} className={className} />
+      ) : (
+        <ClipboardCopyIcon onClick={onClick} className={className} />
+      )}
+    </span>
+  );
+};
+
+const StringValueRenderer: FC<{ str: string; collapseStringsAfterLength: number }> = (props) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  if (isExpanded || props.str.length < props.collapseStringsAfterLength) {
+    return <span>"{props.str}"</span>;
+  }
+  return (
+    <span className="cursor-pointer" onClick={() => setIsExpanded(true)}>
+      "{props.str.slice(0, props.collapseStringsAfterLength)}..."
+    </span>
   );
 };
 
