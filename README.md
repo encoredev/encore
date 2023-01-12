@@ -3,7 +3,7 @@ Encore is an end-to-end backend development platform that automatically provisio
 </br></br>
 With Encore you declare infrastructure like databases, queues, caches, and scheduled jobs, using logical statements in application code. Encore then parses your code, builds a graph of your application, and automatically provisions the relevant infrastructure in local, preview, and cloud environments.
 </br></br>
-Designed to help you build your product without platform distractions, Encore removes boilerplate and gives you built-in tools for observability and collaboration.
+Designed to help you build your product without platform distractions, Encore removes boilerplate and comes with built-in tools for observability and collaboration.
 </br></br>
 Start building today and unlock your creative potential, free from cloud complexity.
 </br></br>
