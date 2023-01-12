@@ -123,7 +123,8 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
     render.method = method;
     render.asResponse = false;
     render.typeArgumentStack.push(named.type_arguments);
-    const [queryString, headers, js] = render.structBits(md.decls[named.id].type.struct!, true);
+    const structType = md.decls[named.id].type.struct!;
+    const [queryString, headers, js] = render.structBits(structType, false, true);
 
     const bits: string[] = ["{\n"];
     let previousSection = false;
@@ -280,18 +281,18 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
     <div>
       <h4 className="text-bold text-base">Request</h4>
       <div
-        className={`mt-1 rounded border bg-black text-xs ${
+        className={`mt-1 flex flex-col space-y-2 text-xs ${
           rpc.request_schema || hasPathParams || md.auth_handler ? "block" : "hidden"
-        } divide-gray-500 divide-y p-1`}
+        }`}
       >
         <div className="block bg-black p-1">
           <RPCPathEditor ref={pathRef} rpc={rpc} method={method} setMethod={setMethod} />
         </div>
-        <div className={`${rpc.request_schema ? "block" : " hidden"}`}>
+        <div className={`${rpc.request_schema ? "block bg-black p-1" : " hidden"}`}>
           <CM ref={payloadCM} cfg={cfg} />
         </div>
         {md.auth_handler && md.auth_handler.params?.named !== undefined && (
-          <div className="">
+          <div className="bg-black p-1">
             <CM ref={authCM} cfg={cfg} />
           </div>
         )}
