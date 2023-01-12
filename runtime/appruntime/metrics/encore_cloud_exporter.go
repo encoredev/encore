@@ -15,7 +15,7 @@ func init() {
 		},
 		newExporter: func(mgr *Manager) exporter {
 			metricsCfg := mgr.cfg.Runtime.Metrics
-			return gcp.NewEncoreCloudExporter(mgr.cfg.Static.BundledServices, &metricsCfg.EncoreCloud.GCPCloudMonitoringProvider, mgr.rootLogger, metricsCfg.EncoreCloud.MetricNames)
+			return gcp.New(mgr.cfg.Static.BundledServices, metricsCfg.EncoreCloud, mgr.rootLogger)
 		},
 	})
 }

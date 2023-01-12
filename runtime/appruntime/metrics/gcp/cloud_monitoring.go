@@ -28,14 +28,9 @@ func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerol
 		rootLogger: rootLogger,
 
 		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
-	}
-}
 
-func NewEncoreCloudExporter(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerolog.Logger, metricNames map[string]string) *Exporter {
-	exp := New(svcs, cfg, rootLogger)
-	exp.exportsToEncoreCloud = true
-	exp.encoreCloudMetricNames = metricNames
-	return exp
+		metricNames: cfg.MetricNames,
+	}
 }
 
 type Exporter struct {
@@ -50,8 +45,7 @@ type Exporter struct {
 
 	dummyStart, dummyEnd time.Time
 
-	exportsToEncoreCloud   bool
-	encoreCloudMetricNames map[string]string
+	metricNames map[string]string
 }
 
 func (x *Exporter) Shutdown(force context.Context) {
@@ -124,14 +118,12 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 
 		svcNum := m.Info.SvcNum()
 		metricType := "custom.googleapis.com/" + m.Info.Name()
-		if x.exportsToEncoreCloud {
-			encoreCloudMetricName, ok := x.encoreCloudMetricNames[m.Info.Name()]
-			if !ok {
-				x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", m.Info.Name())
-				continue
-			}
-			metricType = "custom.googleapis.com/" + encoreCloudMetricName
+		cloudMetricName, ok := x.metricNames[m.Info.Name()]
+		if !ok {
+			x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", m.Info.Name())
+			continue
 		}
+		metricType = "custom.googleapis.com/" + cloudMetricName
 
 		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
 			labels := make(map[string]string, len(baseLabels)+1)
