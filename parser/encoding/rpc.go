@@ -127,25 +127,37 @@ type AuthEncoding struct {
 	LegacyTokenFormat bool
 
 	// Contains metadata about how to marshal an HTTP parameter
-	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
+	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
 }
 
 // ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
 func (e *AuthEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
-	return toEncodingMap(e.QueryParameters, e.HeaderParameters)
+	return toEncodingMap(srcNameKey, e.HeaderParameters, e.QueryParameters)
+}
+
+// ParameterEncodingMapByName returns the parameter encodings as a map, keyed by Name.
+// Conflicts result in an undefined encoding getting set.
+func (e *AuthEncoding) ParameterEncodingMapByName() map[string][]*ParameterEncoding {
+	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.QueryParameters)
 }
 
 // ResponseEncoding expresses how a response should be encoded on the wire
 type ResponseEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
-	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
+	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 }
 
 // ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
 func (e *ResponseEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
-	return toEncodingMap(e.BodyParameters, e.HeaderParameters)
+	return toEncodingMap(srcNameKey, e.HeaderParameters, e.BodyParameters)
+}
+
+// ParameterEncodingMapByName returns the parameter encodings as a map, keyed by Name.
+// Conflicts result in an undefined encoding getting set.
+func (e *ResponseEncoding) ParameterEncodingMapByName() map[string][]*ParameterEncoding {
+	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.BodyParameters)
 }
 
 // RequestEncoding expresses how a request should be encoded for an explicit set of HTTPMethods
@@ -153,14 +165,20 @@ type RequestEncoding struct {
 	// The HTTP methods these field configurations can be used for
 	HTTPMethods []string `json:"http_methods"`
 	// Contains metadata about how to marshal an HTTP parameter
-	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
+	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 }
 
 // ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
 func (e *RequestEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
-	return toEncodingMap(e.BodyParameters, e.HeaderParameters, e.QueryParameters)
+	return toEncodingMap(srcNameKey, e.HeaderParameters, e.QueryParameters, e.BodyParameters)
+}
+
+// ParameterEncodingMapByName returns the parameter encodings as a map, keyed by Name.
+// Conflicts result in an undefined encoding getting set.
+func (e *RequestEncoding) ParameterEncodingMapByName() map[string][]*ParameterEncoding {
+	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.QueryParameters, e.BodyParameters)
 }
 
 // ParameterEncoding expresses how a parameter should be encoded on the wire
@@ -690,12 +708,33 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (*Paramete
 }
 
 // toEncodingMap returns a map from SrcName to parameter encodings.
-func toEncodingMap(encodings ...[]*ParameterEncoding) map[string]*ParameterEncoding {
+func toEncodingMap(keyFunc func(e *ParameterEncoding) string, encodings ...[]*ParameterEncoding) map[string]*ParameterEncoding {
 	res := make(map[string]*ParameterEncoding)
 	for _, e := range encodings {
 		for _, param := range e {
-			res[param.SrcName] = param
+			res[keyFunc(param)] = param
 		}
 	}
 	return res
+}
+
+// toEncodingMultiMap returns a map from a key to the list of parameter encodings
+// matching that key.
+func toEncodingMultiMap(keyFunc func(e *ParameterEncoding) string, encodings ...[]*ParameterEncoding) map[string][]*ParameterEncoding {
+	res := make(map[string][]*ParameterEncoding)
+	for _, e := range encodings {
+		for _, param := range e {
+			key := keyFunc(param)
+			res[key] = append(res[key], param)
+		}
+	}
+	return res
+}
+
+func srcNameKey(e *ParameterEncoding) string {
+	return e.SrcName
+}
+
+func nameKey(e *ParameterEncoding) string {
+	return e.Name
 }

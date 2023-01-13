@@ -354,7 +354,7 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 			return nil, fmt.Errorf("unsupported method: %s (supports: %s)", p.Method, strings.Join(rpc.HttpMethods, ","))
 		}
 		if len(p.Payload) > 0 {
-			if err := addToRequest(reqSpec, p.Payload, reqEnc.ParameterEncodingMap()); err != nil {
+			if err := addToRequest(reqSpec, p.Payload, reqEnc.ParameterEncodingMapByName()); err != nil {
 				return nil, fmt.Errorf("encode request params: %v", err)
 			}
 		}
@@ -369,7 +369,7 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 		if auth.LegacyTokenFormat {
 			reqSpec.Header.Set("Authorization", "Bearer "+p.AuthToken)
 		} else {
-			if err := addToRequest(reqSpec, p.AuthPayload, auth.ParameterEncodingMap()); err != nil {
+			if err := addToRequest(reqSpec, p.AuthPayload, auth.ParameterEncodingMapByName()); err != nil {
 				return nil, fmt.Errorf("encode auth params: %v", err)
 			}
 		}
@@ -427,7 +427,7 @@ func handleResponse(md *v1.Data, p *apiCallParams, headers http.Header, body []b
 			}
 
 			members = append(members, hujson.ObjectMember{
-				Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
+				Name:  hujson.Value{Value: hujson.String(m.Name), BeforeExtra: beforeExtra},
 				Value: hujson.Value{Value: hujson.String(value)},
 			})
 		}
@@ -453,7 +453,7 @@ func handleResponse(md *v1.Data, p *apiCallParams, headers http.Header, body []b
 			}
 
 			members = append(members, hujson.ObjectMember{
-				Name:  hujson.Value{Value: hujson.String(m.SrcName), BeforeExtra: beforeExtra},
+				Name:  hujson.Value{Value: hujson.String(m.Name), BeforeExtra: beforeExtra},
 				Value: hValue,
 			})
 		}
@@ -488,7 +488,7 @@ func newHTTPRequestSpec() *httpRequestSpec {
 // addToRequest decodes rawPayload and adds it to the request according to the given parameter encodings.
 // The body argument is where body parameters are added; other parameter locations are added
 // directly to the request object itself.
-func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string]*encoding.ParameterEncoding) error {
+func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string][]*encoding.ParameterEncoding) error {
 	payload, err := hujson.Parse(rawPayload)
 	if err != nil {
 		return fmt.Errorf("invalid payload: %v", err)
@@ -498,46 +498,54 @@ func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string]*en
 		return fmt.Errorf("invalid payload: expected JSON object, got %s", payload.Pack())
 	}
 
+	seenKeys := make(map[string]int)
+
 	for _, kv := range vals.Members {
 		lit, _ := kv.Name.Value.(hujson.Literal)
 		key := lit.String()
 		val := kv.Value
 		val.Standardize()
 
-		if param, ok := params[key]; ok {
-			switch param.Location {
-			case encoding.Body:
-				if req.Body == nil {
-					req.Body = make(map[string]json.RawMessage)
-				}
-				req.Body[param.Name] = val.Pack()
-
-			case encoding.Query:
-				switch v := val.Value.(type) {
-				case hujson.Literal:
-					req.Query.Add(param.Name, v.String())
-				case *hujson.Array:
-					for _, elem := range v.Elements {
-						if lit, ok := elem.Value.(hujson.Literal); ok {
-							req.Query.Add(param.Name, lit.String())
-						} else {
-							return fmt.Errorf("unsupported value type for query string array element: %T", elem.Value)
-						}
+		if matches := params[key]; len(matches) > 0 {
+			// Get the index of this particular match, in case we have conflicts.
+			idx := seenKeys[key]
+			seenKeys[key]++
+			if idx < len(matches) {
+				param := matches[idx]
+				switch param.Location {
+				case encoding.Body:
+					if req.Body == nil {
+						req.Body = make(map[string]json.RawMessage)
 					}
-				default:
-					return fmt.Errorf("unsupported value type for query string: %T", v)
-				}
+					req.Body[param.WireFormat] = val.Pack()
 
-			case encoding.Header:
-				switch v := val.Value.(type) {
-				case hujson.Literal:
-					req.Header.Add(param.Name, v.String())
-				default:
-					return fmt.Errorf("unsupported value type for query string: %T", v)
-				}
+				case encoding.Query:
+					switch v := val.Value.(type) {
+					case hujson.Literal:
+						req.Query.Add(param.WireFormat, v.String())
+					case *hujson.Array:
+						for _, elem := range v.Elements {
+							if lit, ok := elem.Value.(hujson.Literal); ok {
+								req.Query.Add(param.WireFormat, lit.String())
+							} else {
+								return fmt.Errorf("unsupported value type for query string array element: %T", elem.Value)
+							}
+						}
+					default:
+						return fmt.Errorf("unsupported value type for query string: %T", v)
+					}
 
-			default:
-				return fmt.Errorf("unsupported parameter location %v", param.Location)
+				case encoding.Header:
+					switch v := val.Value.(type) {
+					case hujson.Literal:
+						req.Header.Add(param.WireFormat, v.String())
+					default:
+						return fmt.Errorf("unsupported value type for query string: %T", v)
+					}
+
+				default:
+					return fmt.Errorf("unsupported parameter location %v", param.Location)
+				}
 			}
 		}
 	}
