@@ -15,7 +15,7 @@ This also works just as well with [Visual Studio Code's Remote Development](http
 
 
 ## Building the encore command from source
-To build from source, [build the dashboard](#Building-the-Development-Dashboard) and simply run `go build ./cli/cmd/encore` and `go build ./cli/cmd/git-remote-encore`.
+To build from source, [build the dashboard](#Building-the-Development-Dashboard) and simply run `go build ./cli/cmd/encore` and `go install ./cli/cmd/git-remote-encore`.
 
 Running an Encore application requires both the Encore runtime (the `encore.dev` package) as well as a custom-built
 [Go runtime](https://github.com/encoredev/go) to implement Encore's request semantics and automated instrumentation.
