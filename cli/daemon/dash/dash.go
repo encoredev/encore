@@ -103,12 +103,14 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 
+		apiEnc := encoding.DescribeAPI(proc.Meta)
 		return reply(ctx, map[string]interface{}{
-			"running": true,
-			"appID":   run.App.PlatformOrLocalID(),
-			"pid":     run.ID,
-			"meta":    json.RawMessage(str),
-			"addr":    run.ListenAddr,
+			"running":     true,
+			"appID":       run.App.PlatformOrLocalID(),
+			"pid":         run.ID,
+			"meta":        json.RawMessage(str),
+			"addr":        run.ListenAddr,
+			"apiEncoding": apiEnc,
 		}, nil)
 
 	case "api-call":
@@ -247,13 +249,15 @@ func (s *Server) OnStart(r *run.Run) {
 		return
 	}
 
+	apiEnc := encoding.DescribeAPI(proc.Meta)
 	s.notify(&notification{
 		Method: "process/start",
 		Params: map[string]interface{}{
-			"appID": r.App.PlatformOrLocalID(),
-			"pid":   r.ID,
-			"addr":  r.ListenAddr,
-			"meta":  json.RawMessage(str),
+			"appID":       r.App.PlatformOrLocalID(),
+			"pid":         r.ID,
+			"addr":        r.ListenAddr,
+			"meta":        json.RawMessage(str),
+			"apiEncoding": apiEnc,
 		},
 	})
 }
@@ -267,12 +271,15 @@ func (s *Server) OnReload(r *run.Run) {
 		log.Error().Err(err).Msg("dash: could not marshal app meta")
 		return
 	}
+
+	apiEnc := encoding.DescribeAPI(proc.Meta)
 	s.notify(&notification{
 		Method: "process/reload",
 		Params: map[string]interface{}{
-			"appID": r.App.PlatformOrLocalID(),
-			"pid":   r.ID,
-			"meta":  json.RawMessage(str),
+			"appID":       r.App.PlatformOrLocalID(),
+			"pid":         r.ID,
+			"meta":        json.RawMessage(str),
+			"apiEncoding": apiEnc,
 		},
 	})
 }
