@@ -34,7 +34,7 @@ var (
 	HeaderTag = tagDescription{
 		location:        Header,
 		overrideDefault: true,
-		nameFormatter:   strings.ToLower,
+		wireFormatter:   strings.ToLower,
 	}
 	JSONTag = tagDescription{
 		location:        Body,
@@ -71,7 +71,7 @@ type tagDescription struct {
 	location        ParameterLocation
 	overrideDefault bool
 	omitEmptyOption string
-	nameFormatter   func(string) string
+	wireFormatter   func(name string) string
 }
 
 // encodingHints is used to determine the default location and applicable tag overrides for http
@@ -179,6 +179,8 @@ type ParameterEncoding struct {
 	Type *schema.Type `json:"type"`
 	// RawTag specifies the raw, unparsed struct tag for the field.
 	RawTag string `json:"raw_tag"`
+	// WireFormat is the wire format of the parameter.
+	WireFormat string `json:"wire_format"`
 }
 
 type Options struct {
@@ -630,13 +632,15 @@ func IgnoreField(field *schema.Field) bool {
 // It returns nil, nil if the field is not to be encoded.
 func describeParam(encodingHints *encodingHints, field *schema.Field) (*ParameterEncoding, error) {
 	location := encodingHints.defaultLocation
+	name := formatName(encodingHints.defaultLocation, field.Name)
 	param := ParameterEncoding{
-		Name:      formatName(encodingHints.defaultLocation, field.Name),
-		OmitEmpty: false,
-		SrcName:   field.Name,
-		Doc:       field.Doc,
-		Type:      field.Typ,
-		RawTag:    field.RawTag,
+		Name:       name,
+		OmitEmpty:  false,
+		SrcName:    field.Name,
+		Doc:        field.Doc,
+		Type:       field.Typ,
+		RawTag:     field.RawTag,
+		WireFormat: name,
 	}
 
 	var usedOverrideTag string
@@ -658,10 +662,11 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (*Paramete
 			usedOverrideTag = tag.Key
 		}
 		if tagHint.location == location {
-			if tagHint.nameFormatter != nil {
-				param.Name = tagHint.nameFormatter(tag.Name)
+			param.Name = tag.Name
+			if tagHint.wireFormatter != nil {
+				param.WireFormat = tagHint.wireFormatter(tag.Name)
 			} else {
-				param.Name = tag.Name
+				param.WireFormat = tag.Name
 			}
 		}
 		if tagHint.omitEmptyOption != "" {
