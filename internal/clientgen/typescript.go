@@ -310,7 +310,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			dict := make(map[string]string)
 			for _, field := range reqEnc.HeaderParameters {
 				ref := ts.Dot("params", field.SrcName)
-				dict[field.Name] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref)
+				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref)
 			}
 
 			w.WriteString("const headers: Record<string, string> = ")
@@ -325,10 +325,10 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
-					dict[field.Name] = ts.Dot("params", field.SrcName) +
+					dict[field.WireFormat] = ts.Dot("params", field.SrcName) +
 						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")"
 				} else {
-					dict[field.Name] = ts.convertBuiltinToString(
+					dict[field.WireFormat] = ts.convertBuiltinToString(
 						field.Type.GetBuiltin(),
 						ts.Dot("params", field.SrcName),
 					)
@@ -351,8 +351,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 				dict := make(map[string]string)
 				for _, field := range reqEnc.BodyParameters {
-					fieldName := field.SrcName
-					dict[fieldName] = ts.Dot("params", fieldName)
+					dict[field.WireFormat] = ts.Dot("params", field.SrcName)
 				}
 
 				w.WriteString("// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)\nconst body: Record<string, any> = ")
@@ -417,7 +416,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	for _, headerField := range respEnc.HeaderParameters {
 		ts.seenHeaderResponse = true
-		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.Name, headerField.Name)
+		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 	}
@@ -761,7 +760,7 @@ if (authData) {
 					}
 
 					w.WriteString("query[\"")
-					w.WriteString(field.Name)
+					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
 					if list := field.Type.GetList(); list != nil {
 						w.WriteString(
@@ -777,7 +776,7 @@ if (authData) {
 				// Write all the headers
 				for _, field := range authData.HeaderParameters {
 					w.WriteString("init.headers[\"")
-					w.WriteString(field.Name)
+					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
 					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName)))
 					w.WriteString("\n")

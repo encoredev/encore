@@ -259,7 +259,7 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 			dict := make(map[string]string)
 			for _, field := range reqEnc.HeaderParameters {
 				ref := js.Dot("params", field.SrcName)
-				dict[field.Name] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref)
+				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref)
 			}
 
 			w.WriteString("const headers = ")
@@ -274,10 +274,10 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
-					dict[field.Name] = js.Dot("params", field.SrcName) +
+					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
 						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")"
 				} else {
-					dict[field.Name] = js.convertBuiltinToString(
+					dict[field.WireFormat] = js.convertBuiltinToString(
 						field.Type.GetBuiltin(),
 						js.Dot("params", field.SrcName),
 					)
@@ -362,7 +362,7 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 
 	for _, headerField := range respEnc.HeaderParameters {
 		js.seenHeaderResponse = true
-		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.Name, headerField.Name)
+		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 	}
@@ -548,7 +548,7 @@ if (authData) {
 					}
 
 					w.WriteString("query[\"")
-					w.WriteString(field.Name)
+					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
 					if list := field.Type.GetList(); list != nil {
 						w.WriteString(
@@ -564,7 +564,7 @@ if (authData) {
 				// Write all the headers
 				for _, field := range authData.HeaderParameters {
 					w.WriteString("init.headers[\"")
-					w.WriteString(field.Name)
+					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
 					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName)))
 					w.WriteString("\n")

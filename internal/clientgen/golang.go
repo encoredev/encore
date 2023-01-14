@@ -553,7 +553,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 				if err != nil {
 					return nil, errors.Wrapf(err, "unable to encode header %s", field.SrcName)
 				}
-				values[Lit(field.Name)] = slice
+				values[Lit(field.WireFormat)] = slice
 			}
 
 			headers = Id("headers")
@@ -575,7 +575,7 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 					return nil, errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
 				}
 
-				values[Lit(field.Name)] = slice
+				values[Lit(field.WireFormat)] = slice
 			}
 
 			enc.Add(Id("queryString").Op(":=").Qual("net/url", "Values").Values(values), Line())
@@ -702,12 +702,12 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 			str, err := enc.FromString(
 				field.Type,
 				field.SrcName,
-				Id(headersId).Dot("Get").Call(Lit(field.Name)),
-				Id(headersId).Dot("Values").Call(Lit(field.Name)),
+				Id(headersId).Dot("Get").Call(Lit(field.WireFormat)),
+				Id(headersId).Dot("Values").Call(Lit(field.WireFormat)),
 				true,
 			)
 			if err != nil {
-				return nil, errors.Wrapf(err, "unable to convert %s to string in response header", field.Name)
+				return nil, errors.Wrapf(err, "unable to convert %s to string in response header", field.SrcName)
 			}
 
 			enc.Add(Id("resp").Dot(field.SrcName).Op("=").Add(str))
@@ -1341,7 +1341,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 
 					enc.Add(For(List(Id("_"), Id("v")).Op(":=").Range().Add(slice)).Block(
 						Id("query").Dot("Add").Call(
-							Lit(field.Name),
+							Lit(field.WireFormat),
 							Id("v"),
 						),
 					), Line())
@@ -1357,7 +1357,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 					}
 
 					enc.Add(Id("query").Dot("Set").Call(
-						Lit(field.Name),
+						Lit(field.WireFormat),
 						val,
 					), Line())
 				}
@@ -1383,7 +1383,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 				}
 
 				enc.Add(Id("req").Dot("Header").Dot("Set").Call(
-					Lit(field.Name),
+					Lit(field.WireFormat),
 					val,
 				), Line())
 			}
