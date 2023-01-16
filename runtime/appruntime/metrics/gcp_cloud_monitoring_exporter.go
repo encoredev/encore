@@ -23,7 +23,7 @@ func init() {
 			}
 
 			metricsCfg := mgr.cfg.Runtime.Metrics
-			metricsCfg.EncoreCloud.MonitoredResourceLabels["node_id"] += "-" + cloudRunInstanceID
+			metricsCfg.CloudMonitoring.MonitoredResourceLabels["node_id"] += "-" + cloudRunInstanceID
 			return gcp.New(mgr.cfg.Static.BundledServices, metricsCfg.CloudMonitoring, mgr.rootLogger)
 		},
 	})
