@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useReducer, useState } from "react";
-import { APIMeta, RPC, Service } from "~c/api/api";
+import { APIEncoding, APIMeta, RPC, Service } from "~c/api/api";
 import RPCCaller from "~c/api/RPCCaller";
 import { ProcessReload, ProcessStart } from "~lib/client/client";
 import JSONRPCConn, { NotificationMsg } from "~lib/client/jsonrpc";
@@ -16,19 +16,23 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) =>
 
   interface State {
     md?: APIMeta;
+    apiEncoding?: APIEncoding;
     list?: API[];
     selected?: API;
   }
 
   function reducer(
     state: State,
-    action: { type: "meta" | "select"; meta?: APIMeta; name?: string }
+    action:
+      | { type: "meta"; value: APIMeta }
+      | { type: "select"; value: string }
+      | { type: "apiEncoding"; value: APIEncoding }
   ): State {
     switch (action.type) {
       case "meta":
         // Recompute our API list
         const list: API[] = [];
-        const md = action.meta!;
+        const md = action.value!;
         md.svcs.forEach((svc) => {
           svc.rpcs.forEach((rpc) => {
             list.push({ svc, rpc, name: `${svc.name}.${rpc.name}` });
@@ -42,8 +46,10 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) =>
           : false;
         const newSel = exists ? state.selected : list.length > 0 ? list[0] : undefined;
         return { md: md, list: list, selected: newSel };
+      case "apiEncoding":
+        return { ...state, apiEncoding: action.value };
       case "select":
-        const sel = state.list?.find((a) => a.name === action.name);
+        const sel = state.list?.find((a) => a.name === action.value);
         return { ...state, selected: sel ?? state.selected };
     }
   }
@@ -58,7 +64,7 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) =>
     } else if (msg.method === "process/reload") {
       const data = msg.params as ProcessReload;
       if (data.appID === appID) {
-        dispatch({ type: "meta", meta: data.meta });
+        dispatch({ type: "meta", value: data.meta });
       }
     }
   };
@@ -69,7 +75,10 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) =>
         setAddr(resp.addr);
       }
       if (resp.meta) {
-        dispatch({ type: "meta", meta: resp.meta });
+        dispatch({ type: "meta", value: resp.meta });
+      }
+      if (resp.apiEncoding) {
+        dispatch({ type: "apiEncoding", value: resp.apiEncoding });
       }
     });
 
@@ -79,7 +88,7 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) =>
     };
   }, []);
 
-  if (!state.md || !state.selected) {
+  if (!state.md || !state.apiEncoding || !state.selected) {
     return <div>Create an endpoint to view it here!</div>;
   }
 
@@ -89,13 +98,14 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) =>
         label="API Endpoint"
         selectedItem={state.selected!}
         items={state.list!}
-        onChange={(item: ComboboxOptionsItem) => dispatch({ type: "select", name: item.name })}
+        onChange={(item: ComboboxOptionsItem) => dispatch({ type: "select", value: item.name })}
       />
       <div className="mt-3">
         <RPCCaller
           conn={conn}
           appID={appID}
           md={state.md}
+          apiEncoding={state.apiEncoding}
           svc={state.selected.svc}
           rpc={state.selected.rpc}
           addr={addr}
