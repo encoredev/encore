@@ -443,7 +443,7 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 				g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/appruntime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/appruntime/serde", "JSONSerializer")).BlockFunc(
 					func(g *Group) {
 						for _, f := range resp.BodyParameters {
-							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.Name), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
+							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireFormat), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
 						}
 					}))
 				g.If(Err().Op("!=").Nil()).Block(
@@ -462,7 +462,7 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 							if err != nil {
 								b.errors.Addf(b.rpc.Func.Pos(), "failed to generate header serializers: %v", err.Error())
 							}
-							g.Add(Lit(f.Name).Op(":").Add(headerSlice))
+							g.Add(Lit(f.WireFormat).Op(":").Add(headerSlice))
 						}
 					}))
 				g.Add(headerEncoder.Finalize(
@@ -698,7 +698,7 @@ func (b *Builder) decodeHeaders(g *Group, pos gotoken.Pos, requestDecoder *gocod
 	g.Comment("Decode headers")
 	g.Id("h").Op(":=").Id("req").Dot("Header")
 	for _, f := range params {
-		decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("h").Dot("Get").Call(Lit(f.Name)), Id("h").Dot("Values").Call(Lit(f.Name)), false)
+		decoder, err := requestDecoder.FromString(f.Type, f.WireFormat, Id("h").Dot("Get").Call(Lit(f.WireFormat)), Id("h").Dot("Values").Call(Lit(f.WireFormat)), false)
 		if err != nil {
 			b.errors.Addf(pos, "could not create decoder for header: %v", err.Error())
 		}
@@ -715,7 +715,7 @@ func (b *Builder) decodeQueryString(g *Group, pos gotoken.Pos, requestDecoder *g
 	g.Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call()
 
 	for _, f := range params {
-		decoder, err := requestDecoder.FromString(f.Type, f.Name, Id("qs").Dot("Get").Call(Lit(f.Name)), Id("qs").Index(Lit(f.Name)), false)
+		decoder, err := requestDecoder.FromString(f.Type, f.WireFormat, Id("qs").Dot("Get").Call(Lit(f.WireFormat)), Id("qs").Index(Lit(f.WireFormat)), false)
 		if err != nil {
 			b.errors.Addf(pos, "could not create decoder for query: %v", err.Error())
 		}
@@ -739,11 +739,11 @@ func (b *rpcBuilder) decodeRequestParameters(g *Group, rpc *est.RPC, requestDeco
 			Func().Params(Id("_").Op("*").Qual(JsonPkg, "Iterator"), Id("key").String()).Bool().Block(
 				Switch(Qual("strings", "ToLower").Call(Id("key"))).BlockFunc(func(g *Group) {
 					for _, f := range req.BodyParameters {
-						valDecoder, err := requestDecoder.FromJSON(f.Type, f.Name, "iter", Id("params").Dot(f.SrcName))
+						valDecoder, err := requestDecoder.FromJSON(f.Type, f.WireFormat, "iter", Id("params").Dot(f.SrcName))
 						if err != nil {
 							b.errorf("could not create parser for json type: %T", f.Type.Typ)
 						}
-						g.Case(Lit(strings.ToLower(f.Name))).Block(valDecoder)
+						g.Case(Lit(strings.ToLower(f.WireFormat))).Block(valDecoder)
 					}
 					g.Default().Block(Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
 				}),
