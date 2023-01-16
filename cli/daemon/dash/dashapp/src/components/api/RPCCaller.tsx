@@ -8,15 +8,16 @@ import Input from "~c/Input";
 import { decodeBase64, encodeBase64 } from "~lib/base64";
 import JSONRPCConn from "~lib/client/jsonrpc";
 import { copyToClipboard } from "~lib/clipboard";
-import { APIMeta, PathSegment, RPC, Service } from "./api";
+import { APIEncoding, APIMeta, ParameterEncoding, PathSegment, RPC, Service } from "./api";
 import CM from "./cm/CM";
-import { Builtin, FieldLocation, fieldNameAndLocation, NamedType, rpcHasBody } from "./schema";
+import { Builtin, NamedType } from "./schema";
 import { JSONDialect } from "~c/api/SchemaView";
 
 interface Props {
   conn: JSONRPCConn;
   appID: string;
   md: APIMeta;
+  apiEncoding: APIEncoding;
   svc: Service;
   rpc: RPC;
   addr?: string;
@@ -35,7 +36,7 @@ export const cfg: EditorConfiguration = {
   styleActiveLine: false,
 };
 
-const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
+const RPCCaller: FC<Props> = ({ md, apiEncoding, svc, rpc, conn, appID, addr }) => {
   const payloadCM = useRef<CM>(null);
   const authCM = useRef<CM>(null);
   const pathRef = useRef<{
@@ -180,101 +181,17 @@ const RPCCaller: FC<Props> = ({ md, svc, rpc, conn, appID, addr }) => {
 
   const copyCurl = () => {
     let [path, reqBody, authBody] = serializeRequest();
-    if (path === "") {
-      return;
-    }
-
-    let headers: Record<string, any> = {};
-    let queryString = "";
-
-    function addQuery(name: string, value: any) {
-      if (Array.isArray(value)) {
-        return value.map((v) => {
-          addQuery(name, v);
-        });
-      }
-
-      if (queryString) {
-        queryString += "&";
-      } else {
-        queryString = "?";
-      }
-      queryString += name + "=" + encodeURIComponent(value);
-    }
-
-    const newBody: Record<string, any> = {};
-
-    function processStruct(named: NamedType, payload: string) {
-      try {
-        const astFields = md.decls[named.id].type.struct!.fields;
-
-        const bodyFields: Record<string, any> = HJSON.parse(payload);
-        if (typeof bodyFields !== "object") {
-          throw new Error("Request Body isn't a JSON object");
-        }
-
-        for (const fieldName in bodyFields) {
-          if (!bodyFields.hasOwnProperty(fieldName)) {
-            continue;
-          }
-
-          const fieldValue = bodyFields[fieldName];
-
-          for (const f of astFields) {
-            if (f.name === fieldName) {
-              let [encodedName, location] = fieldNameAndLocation(f, method, false);
-
-              switch (location) {
-                case FieldLocation.Header:
-                  headers[encodedName] = fieldValue;
-                  break;
-                case FieldLocation.Query:
-                  addQuery(encodedName, fieldValue);
-                  break;
-                case FieldLocation.Body:
-                  newBody[encodedName] = fieldValue;
-                  break;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Unable to parse body: ", e);
-        // but continue anyway
-      }
-    }
-
-    if (rpc.request_schema?.named) {
-      processStruct(rpc.request_schema.named, reqBody);
-    }
-    if (md.auth_handler?.params?.named) {
-      processStruct(md.auth_handler.params.named, authBody);
-    }
-
-    reqBody = JSON.stringify(newBody);
-
-    const hasBody = rpcHasBody(md, rpc, method);
-    const defaultMethod = hasBody ? "POST" : "GET";
-    let cmd = "curl ";
-
-    if (method !== defaultMethod && method !== "*") {
-      cmd += `-X ${method} `;
-    } else if (method === "*" && defaultMethod !== "GET") {
-      // If we have a wildcard endpoint we use the default method,
-      // unless it's GET in which case it's already implied.
-      cmd += `-X ${defaultMethod}`;
-    }
-
-    cmd += `'http://${addr ?? "localhost:4000"}${path}${queryString}'`;
-
-    for (const header in headers) {
-      cmd += ` -H '${header}: ${headers[header]}'`;
-    }
-
-    if (hasBody) {
-      cmd += ` -d '${reqBody}'`;
-    }
-    copyToClipboard(cmd);
+    copyAsCurlToClipboard({
+      serializeRequest: {
+        path,
+        reqBody,
+        authBody,
+      },
+      addr,
+      method,
+      apiEncoding,
+      rpc,
+    });
   };
 
   return (
@@ -696,3 +613,119 @@ const RPCPathEditor = React.forwardRef<
     </div>
   );
 });
+
+export const copyAsCurlToClipboard = (options: {
+  serializeRequest: { path: any; reqBody: any; authBody: any };
+  method: string;
+  addr: string | undefined;
+  apiEncoding: APIEncoding;
+  rpc: RPC;
+}) => {
+  let { rpc, apiEncoding, method, addr } = options;
+  let { path, reqBody, authBody } = options.serializeRequest;
+  if (path === "") {
+    return;
+  }
+
+  let headers: Record<string, any> = {};
+  let queryString = "";
+
+  function addQuery(name: string, value: any) {
+    if (Array.isArray(value)) {
+      return value.map((v) => {
+        addQuery(name, v);
+      });
+    }
+
+    if (queryString) {
+      queryString += "&";
+    } else {
+      queryString = "?";
+    }
+    queryString += name + "=" + encodeURIComponent(value);
+  }
+
+  const newBody: Record<string, any> = {};
+
+  function processStruct(encodedParams: ParameterEncoding[], payload: string) {
+    try {
+      const bodyFields: Record<string, any> = HJSON.parse(payload);
+      if (typeof bodyFields !== "object") {
+        throw new Error("Request Body isn't a JSON object");
+      }
+
+      for (const fieldName in bodyFields) {
+        if (!bodyFields.hasOwnProperty(fieldName)) {
+          continue;
+        }
+
+        const fieldValue = bodyFields[fieldName];
+
+        encodedParams.forEach((param) => {
+          if (param.name === fieldName) {
+            switch (param.location) {
+              case "header":
+                headers[param.name] = fieldValue;
+                break;
+              case "query":
+                addQuery(param.name, fieldValue);
+                break;
+              case "body":
+                newBody[param.name] = fieldValue;
+                break;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error("Unable to parse body: ", e);
+      // but continue anyway
+    }
+  }
+
+  let hasBody = false;
+  const svcEncoding = apiEncoding.services.find((s) => s.name === rpc.service_name);
+  const rpcEncoding = svcEncoding!.rpcs.find((r) => r.name === rpc.name);
+  const reqEncoding = rpcEncoding!.all_request_encodings.find((r) =>
+    r.http_methods.includes(method)
+  );
+  const headerParams = reqEncoding!.header_parameters ?? [];
+  const queryParams = reqEncoding!.query_parameters ?? [];
+  const bodyParams = reqEncoding!.body_parameters ?? [];
+  const params = [...headerParams, ...queryParams, ...bodyParams];
+  if (params.length) {
+    hasBody = !!bodyParams.length;
+    processStruct(params, reqBody);
+  }
+  const { authorization } = apiEncoding;
+  if (authorization.query_parameters?.length || authorization.header_parameters?.length) {
+    const queryParams = authorization.query_parameters ?? [];
+    const headerParams = authorization.header_parameters ?? [];
+    processStruct([...queryParams, ...headerParams], authBody);
+  }
+
+  reqBody = JSON.stringify(newBody);
+
+  const defaultMethod = hasBody ? "POST" : "GET";
+  let cmd = "curl ";
+
+  if (method !== defaultMethod && method !== "*") {
+    cmd += `-X ${method} `;
+  } else if (method === "*" && defaultMethod !== "GET") {
+    // If we have a wildcard endpoint we use the default method,
+    // unless it's GET in which case it's already implied.
+    cmd += `-X ${defaultMethod}`;
+  }
+
+  cmd += `'http://${addr ?? "localhost:4000"}${path}${queryString}'`;
+
+  for (const header in headers) {
+    cmd += ` -H '${header}: ${headers[header]}'`;
+  }
+
+  if (hasBody) {
+    cmd += ` -d '${reqBody}'`;
+  }
+  copyToClipboard(cmd);
+  return cmd;
+};
