@@ -60,6 +60,7 @@ type Handler interface {
 }
 
 type requestsTotalLabels struct {
+	service  string // Service name.
 	endpoint string // Endpoint name.
 	code     string // Human-readable HTTP status code.
 }
@@ -101,6 +102,7 @@ func NewServer(
 	requestsTotal := metrics.NewCounterGroupInternal[requestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
 		EncoreInternal_LabelMapper: func(labels requestsTotalLabels) []metrics.KeyValue {
 			return []metrics.KeyValue{
+				{Key: "service", Value: labels.service},
 				{Key: "endpoint", Value: labels.endpoint},
 				{Key: "code", Value: labels.code},
 			}

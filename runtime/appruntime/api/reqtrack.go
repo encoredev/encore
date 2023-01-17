@@ -189,6 +189,7 @@ func (s *Server) finishRequest(resp *model.Response) {
 	}
 
 	s.requestsTotal.With(requestsTotalLabels{
+		service:  req.RPCData.Desc.Service,
 		endpoint: req.RPCData.Desc.Endpoint,
 		code:     code(resp.Err, resp.HTTPStatus),
 	}).Increment()
