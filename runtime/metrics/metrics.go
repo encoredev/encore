@@ -41,6 +41,9 @@ type Counter[V Value] struct {
 func (c *Counter[V]) Increment() {
 	if idx, ok := c.svcIdx(); ok {
 		c.inc(&c.ts.value[idx])
+		if idx != 0 {
+			c.ts.valid[idx] = true
+		}
 	}
 }
 
@@ -52,6 +55,9 @@ func (c *Counter[V]) Add(delta V) {
 	}
 	if idx, ok := c.svcIdx(); ok {
 		c.add(&c.ts.value[idx], delta)
+		if idx != 0 {
+			c.ts.valid[idx] = true
+		}
 	}
 }
 
@@ -126,12 +132,18 @@ type Gauge[V Value] struct {
 func (g *Gauge[V]) Set(val V) {
 	if idx, ok := g.svcIdx(); ok {
 		g.set(&g.ts.value[idx], val)
+		if idx != 0 {
+			g.ts.valid[idx] = true
+		}
 	}
 }
 
 func (g *Gauge[V]) Add(val V) {
 	if idx, ok := g.svcIdx(); ok {
 		g.add(&g.ts.value[idx], val)
+		if idx != 0 {
+			g.ts.valid[idx] = true
+		}
 	}
 }
 
@@ -210,11 +222,14 @@ func (m *metricInfo[V]) getTS(labels any) (ts *timeseries[V], setup bool) {
 
 	// Initialize the values if they haven't yet been set up.
 	if !setup {
-		n := m.reg.numSvcs
 		if m.svcNum > 0 {
-			n = 1
+			ts.value = make([]V, 1)
+			ts.valid = []bool{true}
+		} else {
+			n := m.reg.numSvcs
+			ts.value = make([]V, n)
+			ts.valid = make([]bool, n)
 		}
-		ts.value = make([]V, n)
 	}
 
 	return ts, setup

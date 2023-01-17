@@ -32,6 +32,7 @@ func (r *Registry) Collect() []CollectedMetric {
 				TimeSeriesID: val.id,
 				Labels:       val.labels,
 				Val:          val.value,
+				Valid:        val.valid,
 			})
 		case *timeseries[uint64]:
 			metrics = append(metrics, CollectedMetric{
@@ -39,6 +40,7 @@ func (r *Registry) Collect() []CollectedMetric {
 				TimeSeriesID: val.id,
 				Labels:       val.labels,
 				Val:          val.value,
+				Valid:        val.valid,
 			})
 		case *timeseries[float64]:
 			metrics = append(metrics, CollectedMetric{
@@ -46,6 +48,7 @@ func (r *Registry) Collect() []CollectedMetric {
 				TimeSeriesID: val.id,
 				Labels:       val.labels,
 				Val:          val.value,
+				Valid:        val.valid,
 			})
 		case *timeseries[*nativehist.Histogram]:
 			metrics = append(metrics, CollectedMetric{
@@ -53,6 +56,7 @@ func (r *Registry) Collect() []CollectedMetric {
 				TimeSeriesID: val.id,
 				Labels:       val.labels,
 				Val:          val.value,
+				Valid:        val.valid,
 			})
 		default:
 			panic(fmt.Sprintf("unhandled timeseries type %T", val))
@@ -81,6 +85,7 @@ type CollectedMetric struct {
 	TimeSeriesID uint64
 	Labels       []KeyValue
 	Val          any // []T where T is any of Value
+	Valid        []bool
 }
 
 type registryKey struct {
@@ -94,6 +99,7 @@ type timeseries[T any] struct {
 	init   initGate
 	labels []KeyValue
 	value  []T
+	valid  []bool
 }
 
 func (ts *timeseries[V]) setup(labels []KeyValue) {
