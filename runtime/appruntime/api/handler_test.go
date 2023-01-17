@@ -363,7 +363,7 @@ func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, 
 	logger := zerolog.New(os.Stdout)
 	testMetricsExporter := metricstest.NewTestMetricsExporter(logger)
 	rt := reqtrack.New(logger, nil, tf)
-	metricsRegistry := usermetrics.NewRegistry(rt, uint16(len(cfg.Static.BundledServices)))
+	metricsRegistry := usermetrics.NewRegistry()
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	encoreMgr := encore.NewManager(cfg, rt)
 	server := api.NewServer(cfg, rt, nil, encoreMgr, logger, metricsRegistry, json, true, klock)

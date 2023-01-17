@@ -85,7 +85,7 @@ func New(p *NewParams) *App {
 	shutdown := newShutdownTracker()
 	encore := encore.NewManager(cfg, rt)
 
-	metricsRegistry := usermetrics.NewRegistry(rt, uint16(len(cfg.Static.BundledServices)))
+	metricsRegistry := usermetrics.NewRegistry()
 	metrics := rtmetrics.NewManager(metricsRegistry, cfg, rootLogger)
 
 	klock := clock.New()

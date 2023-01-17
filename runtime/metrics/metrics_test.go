@@ -5,15 +5,10 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-
-	"github.com/rs/zerolog"
-
-	"encore.dev/appruntime/reqtrack"
 )
 
 func TestCounter(t *testing.T) {
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 1)
+	mgr := NewRegistry()
 	m := newMetricInfo[int64](mgr, "foo", CounterType, 1)
 	c := newCounterInternal(m)
 
@@ -41,8 +36,7 @@ func TestCounter(t *testing.T) {
 }
 
 func TestCounter_Global(t *testing.T) {
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 2)
+	mgr := NewRegistry()
 	m := newMetricInfo[int64](mgr, "foo", CounterType, 0)
 	c := newCounterInternal(m)
 
@@ -64,8 +58,7 @@ func TestCounter_Global(t *testing.T) {
 }
 
 func TestGauge(t *testing.T) {
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 1)
+	mgr := NewRegistry()
 	m := newMetricInfo[float64](mgr, "foo", GaugeType, 1)
 	c := newGauge(m)
 
@@ -97,8 +90,7 @@ func TestCounterGroup(t *testing.T) {
 		key string
 	}
 
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 1)
+	mgr := NewRegistry()
 	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
 		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
@@ -134,8 +126,7 @@ func TestGaugeGroup(t *testing.T) {
 	type myLabels struct {
 		key string
 	}
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 1)
+	mgr := NewRegistry()
 	c := newGaugeGroup[myLabels, float64](mgr, "foo", GaugeConfig{
 		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
@@ -168,8 +159,7 @@ func TestGaugeGroup(t *testing.T) {
 
 func BenchmarkCounter_Inc(b *testing.B) {
 	b.ReportAllocs()
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 1)
+	mgr := NewRegistry()
 	m := newMetricInfo[int64](mgr, "foo", CounterType, 1)
 	c := newCounterInternal(m)
 
@@ -184,8 +174,7 @@ func BenchmarkCounter_NewLabel(b *testing.B) {
 	type myLabels struct {
 		key string
 	}
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 1)
+	mgr := NewRegistry()
 	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
 		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
@@ -209,8 +198,7 @@ func BenchmarkCounter_NewLabelSometimes(b *testing.B) {
 	type myLabels struct {
 		key string
 	}
-	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
-	mgr := NewRegistry(rt, 1)
+	mgr := NewRegistry()
 	c := newCounterGroup[myLabels, int64](mgr, "foo", CounterConfig{
 		EncoreInternal_SvcNum: 1,
 		EncoreInternal_LabelMapper: func(labels myLabels) []KeyValue {
