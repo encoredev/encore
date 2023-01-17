@@ -39,9 +39,7 @@ type Counter[V Value] struct {
 
 // Increment increments the counter by 1.
 func (c *Counter[V]) Increment() {
-	if idx, ok := c.svcIdx(); ok {
-		c.inc(&c.ts.value[idx])
-	}
+	c.inc(&c.ts.value)
 }
 
 // Add adds an arbitrary, non-negative value to the counter.
@@ -50,9 +48,7 @@ func (c *Counter[V]) Add(delta V) {
 	if delta < 0 {
 		panic(fmt.Sprintf("metrics: cannot add negative value %v to counter", delta))
 	}
-	if idx, ok := c.svcIdx(); ok {
-		c.add(&c.ts.value[idx], delta)
-	}
+	c.add(&c.ts.value, delta)
 }
 
 // NewCounterGroup creates a new counter group with a set of labels,
@@ -124,15 +120,11 @@ type Gauge[V Value] struct {
 }
 
 func (g *Gauge[V]) Set(val V) {
-	if idx, ok := g.svcIdx(); ok {
-		g.set(&g.ts.value[idx], val)
-	}
+	g.set(&g.ts.value, val)
 }
 
 func (g *Gauge[V]) Add(val V) {
-	if idx, ok := g.svcIdx(); ok {
-		g.add(&g.ts.value[idx], val)
-	}
+	g.add(&g.ts.value, val)
 }
 
 // NewGaugeGroup creates a new gauge group with a set of labels,
@@ -196,27 +188,8 @@ type metricInfo[V Value] struct {
 	inc func(addr *V)
 }
 
-func (m *metricInfo[V]) svcIdx() (idx uint16, ok bool) {
-	if m.svcNum > 0 {
-		return 0, true
-	} else if curr := m.reg.rt.Current(); curr.SvcNum > 0 {
-		return curr.SvcNum - 1, true
-	}
-	return 0, false
-}
-
 func (m *metricInfo[V]) getTS(labels any) (ts *timeseries[V], setup bool) {
 	ts, setup = getTS[V](m.reg, m.name, labels, m)
-
-	// Initialize the values if they haven't yet been set up.
-	if !setup {
-		n := m.reg.numSvcs
-		if m.svcNum > 0 {
-			n = 1
-		}
-		ts.value = make([]V, n)
-	}
-
 	return ts, setup
 }
 

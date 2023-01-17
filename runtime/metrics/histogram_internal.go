@@ -27,14 +27,7 @@ func newHistogramInternal[V Value](m *metricInfo[V]) *Histogram[V] {
 
 	// Initialize the values if they haven't yet been set up.
 	if !setup {
-		n := m.reg.numSvcs
-		if m.svcNum > 0 {
-			n = 1
-		}
-		ts.value = make([]*nativehist.Histogram, n)
-		for i := range ts.value {
-			ts.value[i] = nativehist.New(bucketFactor)
-		}
+		ts.value = nativehist.New(bucketFactor)
 	}
 
 	return &Histogram[V]{
@@ -55,9 +48,7 @@ func (h *Histogram[V]) Observe(val V) {
 	if math.IsNaN(f) {
 		return
 	}
-	if idx, ok := h.svcIdx(); ok {
-		h.ts.value[idx].Observe(f)
-	}
+	h.ts.value.Observe(f)
 }
 
 // NewHistogramGroup creates a new histogram group with a set of labels,
@@ -98,14 +89,7 @@ func (c *HistogramGroup[L, V]) get(labels L) *timeseries[*nativehist.Histogram] 
 	ts, setup := getTS[*nativehist.Histogram](c.reg, c.name, labels, c.metricInfo)
 
 	if !setup {
-		n := c.reg.numSvcs
-		if c.svcNum > 0 {
-			n = 1
-		}
-		ts.value = make([]*nativehist.Histogram, n)
-		for i := range ts.value {
-			ts.value[i] = nativehist.New(bucketFactor)
-		}
+		ts.value = nativehist.New(bucketFactor)
 	}
 
 	return ts

@@ -93,7 +93,7 @@ type timeseries[T any] struct {
 	id     uint64
 	init   initGate
 	labels []KeyValue
-	value  []T
+	value  T
 }
 
 func (ts *timeseries[V]) setup(labels []KeyValue) {
