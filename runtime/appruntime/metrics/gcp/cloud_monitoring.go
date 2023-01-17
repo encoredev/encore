@@ -88,12 +88,20 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 
 	data := make([]*monitoringpb.TimeSeries, 0, len(collected))
 	for _, m := range collected {
-		var baseLabels map[string]string
+		var labels map[string]string
 		if len(m.Labels) > 0 {
-			baseLabels = make(map[string]string, len(m.Labels))
+			labels = make(map[string]string, len(m.Labels))
 			for _, v := range m.Labels {
-				baseLabels[v.Key] = v.Value
+				labels[v.Key] = v.Value
 			}
+		}
+
+		svcNum := m.Info.SvcNum()
+		if svcNum != 0 {
+			if labels == nil {
+				labels = make(map[string]string, 1)
+			}
+			labels["service"] = x.svcs[svcNum-1]
 		}
 
 		var kind metricpb.MetricDescriptor_MetricKind
@@ -116,7 +124,6 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 			continue
 		}
 
-		svcNum := m.Info.SvcNum()
 		metricType := "custom.googleapis.com/" + m.Info.Name()
 		cloudMetricName, ok := x.metricNames[m.Info.Name()]
 		if !ok {
@@ -125,13 +132,7 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		}
 		metricType = "custom.googleapis.com/" + cloudMetricName
 
-		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
-			labels := make(map[string]string, len(baseLabels)+1)
-			for k, v := range baseLabels {
-				labels[k] = v
-			}
-			labels["service"] = x.svcs[svcIdx]
-
+		doAdd := func(val *monitoringpb.TypedValue) {
 			data = append(data, &monitoringpb.TimeSeries{
 				MetricKind: kind,
 				Metric: &metricpb.Metric{
@@ -146,51 +147,21 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 			})
 		}
 
-		switch vals := m.Val.(type) {
-		case []float64:
-			if svcNum > 0 {
-				doAdd(floatVal(vals[0]), svcNum-1)
-			} else {
-				for i, val := range vals {
-					doAdd(floatVal(val), uint16(i))
-				}
-			}
-
-		case []int64:
-			if svcNum > 0 {
-				doAdd(int64Val(vals[0]), svcNum-1)
-			} else {
-				for i, val := range vals {
-					doAdd(int64Val(val), uint16(i))
-				}
-			}
-
-		case []uint64:
-			if svcNum > 0 {
-				doAdd(uint64Val(vals[0]), svcNum-1)
-			} else {
-				for i, val := range vals {
-					doAdd(uint64Val(val), uint16(i))
-				}
-			}
-
-		case []time.Duration:
-			if svcNum > 0 {
-				doAdd(floatVal(float64(vals[0]/time.Second)), svcNum-1)
-			} else {
-				for i, val := range vals {
-					doAdd(floatVal(float64(val/time.Second)), uint16(i))
-				}
-			}
-
+		switch val := m.Val.(type) {
+		case float64:
+			doAdd(floatVal(val))
+		case int64:
+			doAdd(int64Val(val))
+		case uint64:
+			doAdd(uint64Val(val))
+		case time.Duration:
+			doAdd(floatVal(float64(val / time.Second)))
 		case []*nativehist.Histogram:
 			// TODO implement support
-
 		default:
 			x.rootLogger.Error().Msgf("encore: internal error: unknown value type %T for metric %s",
 				m.Val, m.Info.Name())
 		}
-
 	}
 
 	return data

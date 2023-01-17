@@ -77,7 +77,7 @@ type CollectedMetric struct {
 	Info         MetricInfo
 	TimeSeriesID uint64
 	Labels       []KeyValue
-	Val          any // []T where T is any of Value
+	Val          any // T where T is any of Value
 }
 
 type registryKey struct {

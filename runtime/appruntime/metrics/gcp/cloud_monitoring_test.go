@@ -36,6 +36,11 @@ func TestGetMetricData(t *testing.T) {
 		ProjectID:               "test-project",
 		MonitoredResourceType:   "resource-type",
 		MonitoredResourceLabels: map[string]string{"key": "value"},
+		MetricNames: map[string]string{
+			"test_counter": "test_counter",
+			"test_gauge":   "test_gauge",
+			"test_labels":  "test_labels",
+		},
 	}
 	monitoredRes := &monitoredres.MonitoredResource{
 		Type:   "resource-type",
@@ -54,7 +59,7 @@ func TestGetMetricData(t *testing.T) {
 			name: "counter",
 			metric: metrics.CollectedMetric{
 				Info: metricInfo{"test_counter", metrics.CounterType, 1},
-				Val:  []int64{10},
+				Val:  int64(10),
 			},
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
@@ -73,7 +78,7 @@ func TestGetMetricData(t *testing.T) {
 			name: "gauge",
 			metric: metrics.CollectedMetric{
 				Info: metricInfo{"test_gauge", metrics.GaugeType, 2},
-				Val:  []float64{0.5},
+				Val:  float64(0.5),
 			},
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
@@ -93,7 +98,7 @@ func TestGetMetricData(t *testing.T) {
 			metric: metrics.CollectedMetric{
 				Info:   metricInfo{"test_labels", metrics.GaugeType, 1},
 				Labels: []metrics.KeyValue{{"key", "value"}},
-				Val:    []uint64{2},
+				Val:    uint64(2),
 			},
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
@@ -113,31 +118,19 @@ func TestGetMetricData(t *testing.T) {
 			metric: metrics.CollectedMetric{
 				Info:   metricInfo{"test_labels", metrics.GaugeType, 0},
 				Labels: []metrics.KeyValue{{"key", "value"}},
-				Val:    []time.Duration{2 * time.Second, 4 * time.Second},
+				Val:    2 * time.Second,
 			},
 			data: []*monitoringpb.TimeSeries{
 				{
 					Metric: &metricpb.Metric{
 						Type:   "custom.googleapis.com/test_labels",
-						Labels: map[string]string{"service": "foo", "key": "value"},
+						Labels: map[string]string{"key": "value"},
 					},
 					Resource:   monitoredRes,
 					MetricKind: metricpb.MetricDescriptor_GAUGE,
 					Points: []*monitoringpb.Point{{
 						Interval: &monitoringpb.TimeInterval{EndTime: pbEnd},
 						Value:    floatVal(2),
-					}},
-				},
-				{
-					Metric: &metricpb.Metric{
-						Type:   "custom.googleapis.com/test_labels",
-						Labels: map[string]string{"service": "bar", "key": "value"},
-					},
-					Resource:   monitoredRes,
-					MetricKind: metricpb.MetricDescriptor_GAUGE,
-					Points: []*monitoringpb.Point{{
-						Interval: &monitoringpb.TimeInterval{EndTime: pbEnd},
-						Value:    floatVal(4),
 					}},
 				},
 			},
