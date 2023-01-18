@@ -6,7 +6,6 @@
 # Don't commit dotfiles
 /.encore
 /.vscode
-/.fleet
 
 cli/daemon/dash/dashapp/public/assets/fonts/*/**
 !cli/daemon/dash/dashapp/public/assets/fonts/*/.gitkeep
