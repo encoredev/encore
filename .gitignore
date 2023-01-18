@@ -6,6 +6,7 @@
 # Don't commit dotfiles
 /.encore
 /.vscode
+/.fleet
 
 cli/daemon/dash/dashapp/public/assets/fonts/*/**
 !cli/daemon/dash/dashapp/public/assets/fonts/*/.gitkeep
@@ -17,3 +18,6 @@ cli/daemon/dash/dashapp/public/assets/fonts/*/**
 # JetBrains
 .idea
 .fleet
+
+# MacOS
+.DS_Store
