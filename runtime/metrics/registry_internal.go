@@ -85,7 +85,7 @@ type CollectedMetric struct {
 	TimeSeriesID uint64
 	Labels       []KeyValue
 	Val          any // []T where T is any of Value
-	Valid        []bool
+	Valid        []atomic.Bool
 }
 
 type registryKey struct {
@@ -99,7 +99,7 @@ type timeseries[T any] struct {
 	init   initGate
 	labels []KeyValue
 	value  []T
-	valid  []bool
+	valid  []atomic.Bool
 }
 
 func (ts *timeseries[V]) setup(labels []KeyValue) {

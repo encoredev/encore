@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"sync/atomic"
 )
 
 type Labels interface {
@@ -41,8 +42,8 @@ type Counter[V Value] struct {
 func (c *Counter[V]) Increment() {
 	if idx, ok := c.svcIdx(); ok {
 		c.inc(&c.ts.value[idx])
-		if idx != 0 {
-			c.ts.valid[idx] = true
+		if !c.ts.valid[idx].Load() {
+			c.ts.valid[idx].Store(true)
 		}
 	}
 }
@@ -55,8 +56,8 @@ func (c *Counter[V]) Add(delta V) {
 	}
 	if idx, ok := c.svcIdx(); ok {
 		c.add(&c.ts.value[idx], delta)
-		if idx != 0 {
-			c.ts.valid[idx] = true
+		if !c.ts.valid[idx].Load() {
+			c.ts.valid[idx].Store(true)
 		}
 	}
 }
@@ -132,8 +133,8 @@ type Gauge[V Value] struct {
 func (g *Gauge[V]) Set(val V) {
 	if idx, ok := g.svcIdx(); ok {
 		g.set(&g.ts.value[idx], val)
-		if idx != 0 {
-			g.ts.valid[idx] = true
+		if !g.ts.valid[idx].Load() {
+			g.ts.valid[idx].Store(true)
 		}
 	}
 }
@@ -141,8 +142,8 @@ func (g *Gauge[V]) Set(val V) {
 func (g *Gauge[V]) Add(val V) {
 	if idx, ok := g.svcIdx(); ok {
 		g.add(&g.ts.value[idx], val)
-		if idx != 0 {
-			g.ts.valid[idx] = true
+		if !g.ts.valid[idx].Load() {
+			g.ts.valid[idx].Store(true)
 		}
 	}
 }
@@ -224,11 +225,12 @@ func (m *metricInfo[V]) getTS(labels any) (ts *timeseries[V], setup bool) {
 	if !setup {
 		if m.svcNum > 0 {
 			ts.value = make([]V, 1)
-			ts.valid = []bool{true}
+			ts.valid = make([]atomic.Bool, 1)
+			ts.valid[0].Store(true)
 		} else {
 			n := m.reg.numSvcs
 			ts.value = make([]V, n)
-			ts.valid = make([]bool, n)
+			ts.valid = make([]atomic.Bool, n)
 		}
 	}
 
