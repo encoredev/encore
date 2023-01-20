@@ -706,7 +706,7 @@ export const copyAsCurlToClipboard = (options: {
 
   reqBody = JSON.stringify(newBody);
 
-  const defaultMethod = hasBody ? "POST" : "GET";
+  const defaultMethod = reqEncoding!.http_methods[0];
   let cmd = "curl ";
 
   if (method !== defaultMethod && method !== "*") {
