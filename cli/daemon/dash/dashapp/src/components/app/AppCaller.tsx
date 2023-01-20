@@ -65,6 +65,7 @@ const AppCaller: FC<{ appID: string; conn: JSONRPCConn }> = ({ appID, conn }) =>
       const data = msg.params as ProcessReload;
       if (data.appID === appID) {
         dispatch({ type: "meta", value: data.meta });
+        dispatch({ type: "apiEncoding", value: data.apiEncoding });
       }
     }
   };
