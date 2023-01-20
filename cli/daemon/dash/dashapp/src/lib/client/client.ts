@@ -1,5 +1,5 @@
 import BaseClient from "./base";
-import { APIMeta } from "~c/api/api";
+import { APIEncoding, APIMeta } from "~c/api/api";
 
 export default class Client {
   base: BaseClient;
@@ -20,6 +20,7 @@ export interface ProcessReload {
   appID: string;
   pid: string;
   meta: APIMeta;
+  apiEncoding: APIEncoding;
 }
 
 export interface ProcessStop {
