@@ -1,5 +1,5 @@
 import React, { FunctionComponent, useState } from "react";
-import { APIMeta, RPC, Service } from "~c/api/api";
+import { APIEncoding, APIMeta, RPC, Service } from "~c/api/api";
 import RPCCaller from "~c/api/RPCCaller";
 import SchemaView, { Dialect } from "~c/api/SchemaView";
 import { ProcessReload } from "~lib/client/client";
@@ -13,6 +13,7 @@ interface Props {
 
 interface State {
   meta?: APIMeta;
+  apiEncoding?: APIEncoding;
 }
 
 export default class AppAPI extends React.Component<Props, State> {
@@ -25,8 +26,8 @@ export default class AppAPI extends React.Component<Props, State> {
   componentDidMount() {
     this.props.conn.on("notification", this.onNotification);
     this.props.conn.request("status", { appID: this.props.appID }).then((status: any) => {
-      if (status.meta) {
-        this.setState({ meta: status.meta });
+      if (status.meta && status.apiEncoding) {
+        this.setState({ meta: status.meta, apiEncoding: status.apiEncoding });
       }
     });
   }
@@ -39,13 +40,16 @@ export default class AppAPI extends React.Component<Props, State> {
     if (msg.method === "process/reload") {
       const data = msg.params as ProcessReload;
       if (data.appID === this.props.appID) {
-        this.setState({ meta: data.meta });
+        this.setState({
+          meta: data.meta,
+          apiEncoding: data.apiEncoding,
+        });
       }
     }
   }
 
   render() {
-    return this.state.meta ? (
+    return this.state.meta && this.state.apiEncoding ? (
       this.renderAPI()
     ) : (
       <div className="flex min-h-0 flex-1 flex-col">
@@ -60,6 +64,7 @@ export default class AppAPI extends React.Component<Props, State> {
 
   renderAPI() {
     const meta = this.state.meta!;
+    const apiEncoding = this.state.apiEncoding!;
     const svcPkg = (svc: Service) => {
       return meta.pkgs.find((pkg) => pkg.rel_path === svc.rel_path)!;
     };
@@ -229,6 +234,7 @@ export default class AppAPI extends React.Component<Props, State> {
                                     conn={this.props.conn}
                                     appID={this.props.appID}
                                     meta={meta}
+                                    apiEncoding={apiEncoding}
                                     svc={svc}
                                     rpc={rpc}
                                   />
@@ -254,6 +260,7 @@ interface RPCDemoProps {
   conn: JSONRPCConn;
   appID: string;
   meta: APIMeta;
+  apiEncoding: APIEncoding;
   svc: Service;
   rpc: RPC;
 }
@@ -365,6 +372,7 @@ const RPCDemo: FunctionComponent<RPCDemoProps> = (props) => {
           conn={props.conn}
           appID={props.appID}
           md={props.meta}
+          apiEncoding={props.apiEncoding}
           svc={props.svc}
           rpc={props.rpc}
         />
