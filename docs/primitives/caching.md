@@ -37,7 +37,7 @@ var MyCacheCluster = cache.NewCluster("my-cache-cluster", cache.ClusterConfig{
 <Callout type="info">
 
 When starting out it's recommended to use a single cache cluster
-that's shared between different your services.
+that's shared between your different services.
 
 </Callout>
 
