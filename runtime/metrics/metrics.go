@@ -42,9 +42,7 @@ type Counter[V Value] struct {
 func (c *Counter[V]) Increment() {
 	if idx, ok := c.svcIdx(); ok {
 		c.inc(&c.ts.value[idx])
-		if !c.ts.valid[idx].Load() {
-			c.ts.valid[idx].Store(true)
-		}
+		c.ts.valid[idx].Store(true)
 	}
 }
 
@@ -56,9 +54,7 @@ func (c *Counter[V]) Add(delta V) {
 	}
 	if idx, ok := c.svcIdx(); ok {
 		c.add(&c.ts.value[idx], delta)
-		if !c.ts.valid[idx].Load() {
-			c.ts.valid[idx].Store(true)
-		}
+		c.ts.valid[idx].Store(true)
 	}
 }
 
@@ -133,18 +129,14 @@ type Gauge[V Value] struct {
 func (g *Gauge[V]) Set(val V) {
 	if idx, ok := g.svcIdx(); ok {
 		g.set(&g.ts.value[idx], val)
-		if !g.ts.valid[idx].Load() {
-			g.ts.valid[idx].Store(true)
-		}
+		g.ts.valid[idx].Store(true)
 	}
 }
 
 func (g *Gauge[V]) Add(val V) {
 	if idx, ok := g.svcIdx(); ok {
 		g.add(&g.ts.value[idx], val)
-		if !g.ts.valid[idx].Load() {
-			g.ts.valid[idx].Store(true)
-		}
+		g.ts.valid[idx].Store(true)
 	}
 }
 
