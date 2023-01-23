@@ -152,7 +152,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 				doAdd(floatVal(vals[0]), svcNum-1)
 			} else {
 				for i, val := range vals {
-					doAdd(floatVal(val), uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(floatVal(val), uint16(i))
+					}
 				}
 			}
 
@@ -161,7 +163,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 				doAdd(int64Val(vals[0]), svcNum-1)
 			} else {
 				for i, val := range vals {
-					doAdd(int64Val(val), uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(int64Val(val), uint16(i))
+					}
 				}
 			}
 
@@ -170,7 +174,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 				doAdd(uint64Val(vals[0]), svcNum-1)
 			} else {
 				for i, val := range vals {
-					doAdd(uint64Val(val), uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(uint64Val(val), uint16(i))
+					}
 				}
 			}
 
@@ -179,7 +185,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 				doAdd(floatVal(float64(vals[0]/time.Second)), svcNum-1)
 			} else {
 				for i, val := range vals {
-					doAdd(floatVal(float64(val/time.Second)), uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(floatVal(float64(val/time.Second)), uint16(i))
+					}
 				}
 			}
 
