@@ -21,7 +21,6 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
 	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/metrics/metricstest"
 	"encore.dev/appruntime/model"
 	"encore.dev/appruntime/reqtrack"
 	"encore.dev/appruntime/trace"
@@ -39,7 +38,7 @@ type mockResp struct {
 }
 
 func TestDesc_EndToEnd(t *testing.T) {
-	server, _, testMetricsExporter := testServer(t, clock.New(), false)
+	server, _, metricsRegistry := testServer(t, clock.New(), false)
 
 	tests := []struct {
 		name        string
@@ -102,42 +101,62 @@ func TestDesc_EndToEnd(t *testing.T) {
 		})
 	}
 
-	testMetricsExporter.AssertCounter(t, "e_requests_total", 1, map[string]string{
-		"service":  "service",
-		"endpoint": "endpoint",
-		"code":     "ok",
-	})
-	testMetricsExporter.AssertObservation(
-		t,
-		"e_request_duration_seconds",
-		"duration",
-		func(value float64) bool {
-			return value >= 0
+	collected := metricsRegistry.Collect()
+	if len(collected) != 2 {
+		t.Fatalf("got %d metrics, want 2", len(collected))
+	}
+
+	okLabels := []usermetrics.KeyValue{
+		{
+			Key:   "endpoint",
+			Value: "endpoint",
 		},
-		map[string]string{
-			"service":  "service",
-			"endpoint": "endpoint",
-			"code":     "ok",
+		{
+			Key:   "code",
+			Value: "ok",
 		},
-	)
-	testMetricsExporter.AssertCounter(t, "e_requests_total", 1, map[string]string{
-		"service":  "service",
-		"endpoint": "endpoint",
-		"code":     errs.InvalidArgument.String(),
-	})
-	testMetricsExporter.AssertObservation(
-		t,
-		"e_request_duration_seconds",
-		"duration",
-		func(value float64) bool {
-			return value >= 0
+	}
+	requestsTotalOk := findMetric(collected, "e_requests_total", okLabels)
+	if requestsTotalOk == nil {
+		t.Log(`e_requests_total{endpoint="endpoint",code="ok"} metric not found`)
+		t.FailNow()
+	}
+
+	if _, ok := requestsTotalOk.Val.([]uint64); !ok {
+		t.Log(`expected e_requests_total{endpoint="endpoint",code="ok"} value to be []uint64`)
+		t.FailNow()
+	}
+
+	invalidArgLabels := []usermetrics.KeyValue{
+		{
+			Key:   "endpoint",
+			Value: "endpoint",
 		},
-		map[string]string{
-			"service":  "service",
-			"endpoint": "endpoint",
-			"code":     errs.InvalidArgument.String(),
+		{
+			Key:   "code",
+			Value: errs.InvalidArgument.String(),
 		},
-	)
+	}
+	requestsTotalInvalidArg := findMetric(collected, "e_requests_total", invalidArgLabels)
+	if requestsTotalInvalidArg == nil {
+		t.Log(`e_requests_total{endpoint="endpoint",code="invalid_argument"} metric not found`)
+		t.FailNow()
+	}
+
+	if _, ok := requestsTotalInvalidArg.Val.([]uint64); !ok {
+		t.Log(`expected e_requests_total{endpoint="endpoint",code="invalid_argument"} value to be []uint64`)
+		t.FailNow()
+	}
+}
+
+func findMetric(collected []usermetrics.CollectedMetric, name string, labels []usermetrics.KeyValue) *usermetrics.CollectedMetric {
+	for _, metric := range collected {
+		if metric.Info.Name() == name &&
+			reflect.DeepEqual(metric.Labels, labels) {
+			return &metric
+		}
+	}
+	return nil
 }
 
 func TestDescGeneratesTrace(t *testing.T) {
@@ -344,7 +363,7 @@ func TestRawEndpointOverflow(t *testing.T) {
 	}
 }
 
-func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, *mock_trace.MockLogger, *metricstest.TestMetricsExporter) {
+func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, *mock_trace.MockLogger, *usermetrics.Registry) {
 	ctrl := gomock.NewController(t)
 
 	var tf trace.Factory
@@ -361,13 +380,12 @@ func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, 
 	}
 
 	logger := zerolog.New(os.Stdout)
-	testMetricsExporter := metricstest.NewTestMetricsExporter(logger)
 	rt := reqtrack.New(logger, nil, tf)
 	metricsRegistry := usermetrics.NewRegistry(rt, uint16(len(cfg.Static.BundledServices)))
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	encoreMgr := encore.NewManager(cfg, rt)
 	server := api.NewServer(cfg, rt, nil, encoreMgr, logger, metricsRegistry, json, true, klock)
-	return server, traceMock, testMetricsExporter
+	return server, traceMock, metricsRegistry
 }
 
 func newMockAPIDesc(access api.Access) *api.Desc[*mockReq, *mockResp] {
