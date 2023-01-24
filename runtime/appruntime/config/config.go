@@ -40,7 +40,7 @@ type Runtime struct {
 	EnvName       string          `json:"env_name"`
 	EnvType       string          `json:"env_type"`
 	EnvCloud      string          `json:"env_cloud"`
-	DeployID      string          `json:"deploy_id"`
+	DeployID      string          `json:"deploy_id"` // Overridden by ENCORE_DEPLOY_ID env var if set
 	DeployedAt    time.Time       `json:"deploy_time"`
 	TraceEndpoint string          `json:"trace_endpoint,omitempty"`
 	AuthKeys      []EncoreAuthKey `json:"auth_keys,omitempty"`
