@@ -153,10 +153,15 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 			template: "https://github.com/encoredev/example-app-uptime",
 		},
 		item{
-			title: "URL Shortener",
-			desc:  "REST API, SQL Database",
+			title:    "GraphQL",
+			desc:     "GraphQL API, Microservices, SQL Database",
+			template: "graphql",
 		},
-		item{title: "Slack bot", desc: "Slack integration"},
+		item{
+			title:    "URL Shortener",
+			desc:     "REST API, SQL Database",
+			template: "url-shortener",
+		},
 		item{title: "Empty app", desc: "Start from scratch (experienced users only)"},
 	}
 
