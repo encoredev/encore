@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -68,41 +67,14 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		}
 	}
 
-	if name == "" {
-		err := survey.AskOne(&survey.Input{
-			Message: "App Name (lowercase letters, digits, and dashes)",
-		}, &name, survey.WithValidator(func(in interface{}) error { return validateName(in.(string)) }))
-		if err != nil {
-			if err.Error() == "interrupt" {
-				os.Exit(2)
-			}
-			return err
-		}
+	if name == "" || template == "" {
+		name, template = selectTemplate(name, template)
 	}
 
 	if err := validateName(name); err != nil {
 		return err
 	} else if _, err := os.Stat(name); err == nil {
 		return fmt.Errorf("directory %s already exists", name)
-	}
-
-	if template == "" {
-		var idx int
-
-		prompt := &survey.Select{
-			Message: "Select app template:",
-			Options: []string{
-				"Hello World (Encore introduction)",
-				"Empty app",
-			},
-		}
-		survey.AskOne(prompt, &idx)
-		switch idx {
-		case 0:
-			template = "hello-world"
-		case 1:
-			template = ""
-		}
 	}
 
 	// Parse template information, if provided.
