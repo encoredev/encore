@@ -1,16 +1,16 @@
-package main
+package auth
 
 import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/login"
 	"encr.dev/internal/conf"
@@ -30,7 +30,9 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			doLogin()
+			if err := DoLogin(); err != nil {
+				cmdutil.Fatal(err)
+			}
 		},
 	}
 
@@ -40,12 +42,12 @@ func init() {
 
 		Run: func(cmd *cobra.Command, args []string) {
 			if authKey != "" {
-				if err := doLoginWithAuthKey(); err != nil {
-					fatal(err)
+				if err := DoLoginWithAuthKey(); err != nil {
+					cmdutil.Fatal(err)
 				}
 			} else {
-				if err := doLogin(); err != nil {
-					fatal(err)
+				if err := DoLogin(); err != nil {
+					cmdutil.Fatal(err)
 				}
 			}
 		},
@@ -57,7 +59,7 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			doLogout()
+			DoLogout()
 		},
 	}
 
@@ -67,7 +69,7 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			whoami()
+			Whoami()
 		},
 	}
 
@@ -78,10 +80,10 @@ func init() {
 
 	authCmd.AddCommand(logoutCmd)
 	authCmd.AddCommand(whoamiCmd)
-	rootCmd.AddCommand(authCmd)
+	root.Cmd.AddCommand(authCmd)
 }
 
-func doLogin() (err error) {
+func DoLogin() (err error) {
 	flow, err := login.Begin()
 	if err != nil {
 		return err
@@ -90,7 +92,7 @@ func doLogin() (err error) {
 	if !browser.Open(flow.URL) {
 		// On Windows we need a proper \r\n newline to ensure the URL detection doesn't extend to the next line.
 		// fmt.Fprintln and family prints just a simple \n, so don't use that.
-		fmt.Fprint(os.Stdout, "Log in to Encore using your browser here: ", flow.URL, newline)
+		fmt.Fprint(os.Stdout, "Log in to Encore using your browser here: ", flow.URL, cmdutil.Newline)
 	}
 
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
@@ -116,7 +118,7 @@ func doLogin() (err error) {
 	}
 }
 
-func doLogout() {
+func DoLogout() {
 	if err := conf.Logout(); err != nil {
 		fmt.Fprintln(os.Stderr, "could not logout:", err)
 		os.Exit(1)
@@ -126,7 +128,7 @@ func doLogout() {
 	fmt.Fprintln(os.Stdout, "encore: logged out.")
 }
 
-func doLoginWithAuthKey() error {
+func DoLoginWithAuthKey() error {
 	cfg, err := login.WithAuthKey(authKey)
 	if err != nil {
 		return err
@@ -138,30 +140,19 @@ func doLoginWithAuthKey() error {
 	return nil
 }
 
-func whoami() {
+func Whoami() {
 	cfg, err := conf.CurrentUser()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			fmt.Fprint(os.Stdout, "not logged in.", newline)
+			fmt.Fprint(os.Stdout, "not logged in.", cmdutil.Newline)
 			return
 		}
-		fatal(err)
+		cmdutil.Fatal(err)
 	}
 
 	if cfg.AppSlug != "" {
-		fmt.Fprintf(os.Stdout, "logged in as app %s%s", cfg.AppSlug, newline)
+		fmt.Fprintf(os.Stdout, "logged in as app %s%s", cfg.AppSlug, cmdutil.Newline)
 	} else {
-		fmt.Fprintf(os.Stdout, "logged in as %s%s", cfg.Email, newline)
-	}
-}
-
-var newline string
-
-func init() {
-	switch runtime.GOOS {
-	case "windows":
-		newline = "\r\n"
-	default:
-		newline = "\n"
+		fmt.Fprintf(os.Stdout, "logged in as %s%s", cfg.Email, cmdutil.Newline)
 	}
 }

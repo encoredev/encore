@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"archive/tar"
@@ -25,6 +25,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
 
+	"encr.dev/cli/cmd/encore/auth"
+	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
@@ -42,7 +45,7 @@ func init() {
 		Use:   "app",
 		Short: "Commands to create and link Encore apps",
 	}
-	rootCmd.AddCommand(appCmd)
+	root.Cmd.AddCommand(appCmd)
 
 	var createAppTemplate string
 
@@ -58,7 +61,7 @@ func init() {
 				name = args[0]
 			}
 			if err := createApp(context.Background(), name, createAppTemplate); err != nil {
-				fatal(err)
+				cmdutil.Fatal(err)
 			}
 		},
 	}
@@ -79,7 +82,7 @@ func init() {
 			}
 			linkApp(appID, forceLink)
 		},
-		ValidArgsFunction: autoCompleteAppSlug,
+		ValidArgsFunction: cmdutil.AutoCompleteAppSlug,
 	}
 	appCmd.AddCommand(linkAppCmd)
 	linkAppCmd.Flags().BoolVarP(&forceLink, "force", "f", false, "Force link even if the app is already linked.")
@@ -103,7 +106,7 @@ func init() {
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			switch len(args) {
 			case 0:
-				return autoCompleteAppSlug(cmd, args, toComplete)
+				return cmdutil.AutoCompleteAppSlug(cmd, args, toComplete)
 			case 1:
 				return nil, cobra.ShellCompDirectiveFilterDirs
 			default:
@@ -123,8 +126,8 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
 		cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
 		fmt.Scanln()
-		if err := doLogin(); err != nil {
-			fatal(err)
+		if err := auth.DoLogin(); err != nil {
+			cmdutil.Fatal(err)
 		}
 	}
 
@@ -201,11 +204,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	} else {
 		// Set up files that we need when we don't have an example
 		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
-			fatal(err)
+			cmdutil.Fatal(err)
 		}
 		encoreModData := []byte("module encore.app\n")
 		if err := os.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
-			fatal(err)
+			cmdutil.Fatal(err)
 		}
 	}
 
@@ -263,7 +266,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	cyanf := cyan.SprintfFunc()
 	if app != nil {
 		fmt.Printf("App ID:  %s\n", cyanf(app.Slug))
-		fmt.Printf("Web URL: %s%s", cyanf("https://app.encore.dev/"+app.Slug), newline)
+		fmt.Printf("Web URL: %s%s", cyanf("https://app.encore.dev/"+app.Slug), cmdutil.Newline)
 	}
 
 	fmt.Print("\nUseful commands:\n\n")
@@ -341,7 +344,7 @@ func createAppOnServer(name string) (*platform.App, error) {
 
 func validateAppSlug(slug string) (ok bool, err error) {
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
-		fatal("not logged in. Run 'encore auth login' first.")
+		cmdutil.Fatal("not logged in. Run 'encore auth login' first.")
 	} else if err != nil {
 		return false, err
 	}
@@ -586,22 +589,22 @@ func addEncoreRemote(root, appID string) {
 }
 
 func linkApp(appID string, force bool) {
-	root, _ := determineAppRoot()
+	root, _ := cmdutil.AppRoot()
 	filePath := filepath.Join(root, "encore.app")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		fatal(err)
+		cmdutil.Fatal(err)
 		os.Exit(1)
 	}
 
 	val, err := hujson.Parse(data)
 	if err != nil {
-		fatal("could not parse encore.app: ", err)
+		cmdutil.Fatal("could not parse encore.app: ", err)
 	}
 
 	appData, ok := val.Value.(*hujson.Object)
 	if !ok {
-		fatal("could not parse encore.app: expected JSON object")
+		cmdutil.Fatal("could not parse encore.app: expected JSON object")
 	}
 
 	// Find the "id" value, if any.
@@ -618,7 +621,7 @@ func linkApp(appID string, force bool) {
 	if idValue != nil {
 		val, ok := idValue.Value.(hujson.Literal)
 		if ok && val.String() != "" && val.String() != appID && !force {
-			fatal("the app is already linked.\n\nNote: to link to a different app, specify the --force flag.")
+			cmdutil.Fatal("the app is already linked.\n\nNote: to link to a different app, specify the --force flag.")
 		}
 	}
 
@@ -627,14 +630,14 @@ func linkApp(appID string, force bool) {
 		fmt.Println("Make sure the app is created on app.encore.dev, and then enter its ID to link it.")
 		fmt.Print("App ID: ")
 		if _, err := fmt.Scanln(&appID); err != nil {
-			fatal(err)
+			cmdutil.Fatal(err)
 		} else if appID == "" {
-			fatal("no app id given.")
+			cmdutil.Fatal("no app id given.")
 		}
 	}
 
 	if linked, err := validateAppSlug(appID); err != nil {
-		fatal(err)
+		cmdutil.Fatal(err)
 	} else if !linked {
 		fmt.Fprintln(os.Stderr, "Error: that app does not exist, or you don't have access to it.")
 		os.Exit(1)
@@ -652,7 +655,7 @@ func linkApp(appID string, force bool) {
 
 	val.Format()
 	if err := os.WriteFile(filePath, val.Pack(), 0644); err != nil {
-		fatal(err)
+		cmdutil.Fatal(err)
 		os.Exit(1)
 	}
 
