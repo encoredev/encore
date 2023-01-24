@@ -149,7 +149,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		switch vals := m.Val.(type) {
 		case []float64:
 			if svcNum > 0 {
-				doAdd(floatVal(vals[0]), svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(floatVal(vals[0]), svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
 					if m.Valid[i].Load() {
@@ -160,7 +162,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 
 		case []int64:
 			if svcNum > 0 {
-				doAdd(int64Val(vals[0]), svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(int64Val(vals[0]), svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
 					if m.Valid[i].Load() {
@@ -171,7 +175,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 
 		case []uint64:
 			if svcNum > 0 {
-				doAdd(uint64Val(vals[0]), svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(uint64Val(vals[0]), svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
 					if m.Valid[i].Load() {
@@ -182,7 +188,9 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 
 		case []time.Duration:
 			if svcNum > 0 {
-				doAdd(floatVal(float64(vals[0]/time.Second)), svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(floatVal(float64(vals[0]/time.Second)), svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
 					if m.Valid[i].Load() {

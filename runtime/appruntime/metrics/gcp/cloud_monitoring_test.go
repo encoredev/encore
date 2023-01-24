@@ -4,6 +4,7 @@ package gcp
 
 import (
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -55,6 +56,11 @@ func TestGetMetricData(t *testing.T) {
 			metric: metrics.CollectedMetric{
 				Info: metricInfo{"test_counter", metrics.CounterType, 1},
 				Val:  []int64{10},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 1)
+					valid[0].Store(true)
+					return valid
+				}(),
 			},
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
@@ -74,6 +80,11 @@ func TestGetMetricData(t *testing.T) {
 			metric: metrics.CollectedMetric{
 				Info: metricInfo{"test_gauge", metrics.GaugeType, 2},
 				Val:  []float64{0.5},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 1)
+					valid[0].Store(true)
+					return valid
+				}(),
 			},
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
@@ -94,6 +105,11 @@ func TestGetMetricData(t *testing.T) {
 				Info:   metricInfo{"test_labels", metrics.GaugeType, 1},
 				Labels: []metrics.KeyValue{{"key", "value"}},
 				Val:    []uint64{2},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 1)
+					valid[0].Store(true)
+					return valid
+				}(),
 			},
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
@@ -114,6 +130,12 @@ func TestGetMetricData(t *testing.T) {
 				Info:   metricInfo{"test_labels", metrics.GaugeType, 0},
 				Labels: []metrics.KeyValue{{"key", "value"}},
 				Val:    []time.Duration{2 * time.Second, 4 * time.Second},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 2)
+					valid[0].Store(true)
+					valid[1].Store(true)
+					return valid
+				}(),
 			},
 			data: []*monitoringpb.TimeSeries{
 				{
@@ -142,10 +164,50 @@ func TestGetMetricData(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "invalid_counter",
+			metric: metrics.CollectedMetric{
+				Info:  metricInfo{"test_counter", metrics.CounterType, 1},
+				Val:   make([]int64, 1),
+				Valid: make([]atomic.Bool, 1),
+			},
+			data: []*monitoringpb.TimeSeries{},
+		},
+		{
+			name: "unset_gauges",
+			metric: metrics.CollectedMetric{
+				Info:   metricInfo{"test_gauges", metrics.GaugeType, 0},
+				Labels: []metrics.KeyValue{{"key", "value"}},
+				Val:    []uint64{1, 0},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 2)
+					valid[0].Store(true)
+					valid[1].Store(false)
+					return valid
+				}(),
+			},
+			data: []*monitoringpb.TimeSeries{
+				{
+					Metric: &metricpb.Metric{
+						Type:   "custom.googleapis.com/test_gauges",
+						Labels: map[string]string{"service": "foo", "key": "value"},
+					},
+					Resource:   monitoredRes,
+					MetricKind: metricpb.MetricDescriptor_GAUGE,
+					Points: []*monitoringpb.Point{{
+						Interval: &monitoringpb.TimeInterval{EndTime: pbEnd},
+						Value:    uint64Val(1),
+					}},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			cfg.MetricNames = map[string]string{
+				test.metric.Info.Name(): test.metric.Info.Name(),
+			}
 			x := New(svcs, cfg, zerolog.New(io.Discard))
 			got := x.getMetricData(newCounterStart, now, []metrics.CollectedMetric{test.metric})
 			if diff := cmp.Diff(got, test.data, protocmp.Transform()); diff != "" {

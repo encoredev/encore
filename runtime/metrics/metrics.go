@@ -218,7 +218,6 @@ func (m *metricInfo[V]) getTS(labels any) (ts *timeseries[V], setup bool) {
 		if m.svcNum > 0 {
 			ts.value = make([]V, 1)
 			ts.valid = make([]atomic.Bool, 1)
-			ts.valid[0].Store(true)
 		} else {
 			n := m.reg.numSvcs
 			ts.value = make([]V, n)
