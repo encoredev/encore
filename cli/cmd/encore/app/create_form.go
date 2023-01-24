@@ -1,14 +1,21 @@
 package app
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tailscale/hujson"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 )
@@ -24,14 +31,14 @@ var (
 )
 
 type item struct {
-	title    string
-	desc     string
-	template string
+	ItemTitle string `json:"title"`
+	Desc      string `json:"desc"`
+	Template  string `json:"template"`
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
-func (i item) FilterValue() string { return i.title }
+func (i item) Title() string       { return i.ItemTitle }
+func (i item) Description() string { return i.Desc }
+func (i item) FilterValue() string { return i.ItemTitle }
 
 type model struct {
 	numInputs int // 1 or 2 depending on what is shown
@@ -44,14 +51,23 @@ type model struct {
 	list         list.Model
 	lastSelected int
 
+	loadingTemplates spinner.Model
+
 	aborted bool
 }
 
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(
+		textinput.Blink,
+		loadTemplates,
+		m.loadingTemplates.Tick,
+	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var c tea.Cmd
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -73,15 +89,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
 		return m, nil
+
+	case spinner.TickMsg:
+		m.loadingTemplates, c = m.loadingTemplates.Update(msg)
+		cmds = append(cmds, c)
+
+	case loadedTemplates:
+		var listItems []list.Item
+		for _, it := range msg {
+			listItems = append(listItems, it)
+		}
+		m.list.SetItems(listItems)
+		m.list, c = m.list.Update(msg)
+		cmds = append(cmds, c)
 	}
 
-	var cmd tea.Cmd
 	if m.focused == 0 && m.showName {
-		m.name, cmd = m.name.Update(msg)
+		m.name, c = m.name.Update(msg)
+		cmds = append(cmds, c)
 	} else {
-		m.list, cmd = m.list.Update(msg)
+		m.list, c = m.list.Update(msg)
+		cmds = append(cmds, c)
 	}
-	return m, cmd
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
@@ -95,9 +126,13 @@ func (m model) View() string {
 		}
 	}
 	if m.showList {
-		b.WriteString(inputStyle.Width(30).Render("Template"))
-		b.WriteByte('\n')
-		b.WriteString(m.list.View())
+		if m.templatesLoading() {
+			b.WriteString(inputStyle.Width(30).Render(m.loadingTemplates.View() + " Loading templates..."))
+		} else {
+			b.WriteString(inputStyle.Width(30).Render("Template"))
+			b.WriteByte('\n')
+			b.WriteString(m.list.View())
+		}
 	}
 	b.WriteString("\n")
 	return docStyle.Render(b.String())
@@ -137,32 +172,25 @@ func (m *model) updateFocus() {
 			m.lastSelected = 0
 		}
 		m.list.Select(m.lastSelected)
+
+		// Are we loading templates still? If so revert to the name input if we have it.
+		if m.showName && m.templatesLoading() {
+			m.focused = 0
+			m.updateFocus()
+		}
 	}
 }
+
+func (m model) templatesLoading() bool {
+	return m.showList && len(m.list.Items()) == 0
+}
+
+type loadedTemplates []item
 
 func selectTemplate(inputName, inputTemplate string) (appName, template string) {
 	// If we have both name and template already, return them.
 	if inputName != "" && inputTemplate != "" {
 		return inputName, inputTemplate
-	}
-
-	items := []list.Item{
-		item{
-			title:    "Uptime Monitor",
-			desc:     "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
-			template: "https://github.com/encoredev/example-app-uptime",
-		},
-		item{
-			title:    "GraphQL",
-			desc:     "GraphQL API, Microservices, SQL Database",
-			template: "graphql",
-		},
-		item{
-			title:    "URL Shortener",
-			desc:     "REST API, SQL Database",
-			template: "url-shortener",
-		},
-		item{title: "Empty app", desc: "Start from scratch (experienced users only)"},
 	}
 
 	name := textinput.New()
@@ -171,7 +199,7 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 	name.Width = 30
 	name.Validate = incrementalValidateNameInput
 
-	ll := list.New(items, list.NewDefaultDelegate(), 0, 14)
+	ll := list.New(nil, list.NewDefaultDelegate(), 0, 14)
 	ll.SetShowTitle(false)
 	ll.SetShowHelp(false)
 	ll.SetShowPagination(false)
@@ -179,11 +207,16 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 	ll.SetFilteringEnabled(false)
 	ll.SetShowStatusBar(false)
 
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
+	sp.Style = inputStyle.Copy().Inline(true)
+
 	m := model{
-		name:     name,
-		list:     ll,
-		showName: inputName == "",
-		showList: inputTemplate == "",
+		name:             name,
+		list:             ll,
+		showName:         inputName == "",
+		showList:         inputTemplate == "",
+		loadingTemplates: sp,
 	}
 	if m.showName {
 		m.numInputs++
@@ -221,10 +254,53 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 		if !ok {
 			cmdutil.Fatal("no template selected")
 		}
-		template = sel.template
+		template = sel.Template
 	}
 
 	return appName, template
+}
+
+func loadTemplates() tea.Msg {
+	// Get the list of templates from GitHub
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	url := "https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json"
+	if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
+		if resp, err := http.DefaultClient.Do(req); err == nil {
+			if data, err := io.ReadAll(resp.Body); err == nil {
+				if data, err = hujson.Standardize(data); err == nil {
+					var items []item
+					if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
+						return loadedTemplates(items)
+					}
+				}
+			}
+		}
+	}
+
+	// Return a precompiled list of default items in case we can't read them from GitHub.
+	return loadedTemplates([]item{
+		{
+			ItemTitle: "Uptime Monitor",
+			Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
+			Template:  "https://github.com/encoredev/example-app-uptime",
+		},
+		{
+			ItemTitle: "GraphQL",
+			Desc:      "GraphQL API, Microservices, SQL Database",
+			Template:  "graphql",
+		},
+		{
+			ItemTitle: "URL Shortener",
+			Desc:      "REST API, SQL Database",
+			Template:  "url-shortener",
+		},
+		{
+			ItemTitle: "Empty app",
+			Desc:      "Start from scratch (experienced users only)",
+			Template:  "",
+		},
+	})
 }
 
 // incrementalValidateName is like validateName but only
