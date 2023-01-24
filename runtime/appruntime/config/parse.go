@@ -37,6 +37,10 @@ func ParseRuntime(s string) *Runtime {
 		log.Fatalln("encore runtime: fatal error: could not parse api base url from encore runtime config:", err)
 	}
 
+	if deployID := os.Getenv("ENCORE_DEPLOY_ID"); deployID != "" {
+		cfg.DeployID = deployID
+	}
+
 	return &cfg
 }
 
