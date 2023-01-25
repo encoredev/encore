@@ -9,7 +9,6 @@ import (
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -21,19 +20,16 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		streamExit(stream, 1)
 	}
 
-	// Prefetch secrets if the app is linked.
-	if appSlug, err := appfile.Slug(req.AppRoot); err == nil && appSlug != "" {
-		s.sm.Prefetch(appSlug)
-	}
-
-	// Parse the app to figure out what infrastructure is needed.
-	parse, err := s.parseApp(req.AppRoot, req.WorkingDir, true /* parse tests */)
+	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
 		sendErr(err)
 		return nil
 	}
 
-	app, err := s.apps.Track(req.AppRoot)
+	secrets := s.sm.Load(app)
+
+	// Parse the app to figure out what infrastructure is needed.
+	parse, err := s.parseApp(app.Root(), req.WorkingDir, true /* parse tests */)
 	if err != nil {
 		sendErr(err)
 		return nil
@@ -86,6 +82,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 			Environ:      req.Environ,
 			Args:         req.Args,
 			Parse:        parse,
+			Secrets:      secrets,
 			Stdout:       slog.Stdout(false),
 			Stderr:       slog.Stderr(false),
 		}

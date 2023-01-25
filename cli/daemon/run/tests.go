@@ -14,6 +14,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/compiler"
 	"encr.dev/internal/env"
@@ -38,6 +39,9 @@ type TestParams struct {
 	// It must be set.
 	Parse *parser.Result
 
+	// Secrets are the secrets to use.
+	Secrets *secret.LoadResult
+
 	// Args are the arguments to pass to "go test".
 	Args []string
 
@@ -56,7 +60,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
-	secretData, err := mgr.Secret.Get(ctx, params.App, expSet)
+	secretData, err := params.Secrets.Get(ctx, expSet)
 	if err != nil {
 		return err
 	}
