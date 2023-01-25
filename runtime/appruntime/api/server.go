@@ -297,6 +297,15 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	if h == nil {
 		h, p, _ = r.Lookup(wildcardMethod, path)
 	}
+
+	if h == nil {
+		// If we still couldn't find a handler, check if there is one
+		// with a trailing slash redirect.
+		if handleTrailingSlashRedirect(r, w, req, path) {
+			return
+		}
+	}
+
 	if h != nil {
 		// Found an endpoint
 		h(w, req, p)
@@ -363,4 +372,45 @@ func toUnnamedParams(ps httprouter.Params) UnnamedParams {
 		params[i] = p.Value
 	}
 	return params
+}
+
+// handleTrailingSlashRedirect checks if there's a matching handler
+// with (without) a trailing slash and redirects to it if there is.
+//
+// This is a modified version of the built-in support in httprouter.
+// We can't use the built-in one due to how we handle multiple methods
+// for the same route using Lookup instead of Handle.
+func handleTrailingSlashRedirect(r *httprouter.Router, w http.ResponseWriter, req *http.Request, path string) (handled bool) {
+	// CONNECT does not support redirects.
+	if req.Method == http.MethodConnect {
+		return false
+	}
+
+	// Modify the path to include (exclude) the trailing slash.
+	if len(path) > 1 && path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
+	} else {
+		path += "/"
+	}
+
+	// Check if there is a handler for the modified path.
+	h, _, _ := r.Lookup(req.Method, path)
+	if h == nil {
+		h, _, _ = r.Lookup(wildcardMethod, path)
+	}
+
+	if h == nil {
+		// Couldn't find a handler.
+		return false
+	}
+
+	// Moved Permanently, request with GET method
+	code := http.StatusMovedPermanently
+	if req.Method != http.MethodGet {
+		// Permanent Redirect, request with same method
+		code = http.StatusPermanentRedirect
+	}
+
+	http.Redirect(w, req, path, code)
+	return true
 }
