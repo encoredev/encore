@@ -304,7 +304,9 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	if usesSecrets(parse.Meta) {
 		jobs.Go("Fetching application secrets", true, 150*time.Millisecond, func(ctx context.Context) error {
 			if r.App.PlatformID() == "" {
-				return fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
+				// Not linked to the Encore Platform; do nothing.
+				// We'll log an error for missing secrets later.
+				return nil
 			}
 			data, err := r.Mgr.Secret.Get(ctx, r.App, expSet)
 			if err != nil {

@@ -1,8 +1,11 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -49,6 +52,9 @@ type App struct {
 	et              *et.Manager
 	metrics         *rtmetrics.Manager
 	metricsRegistry *usermetrics.Registry
+
+	logMissingSecrets sync.Once
+	missingSecrets    []string
 }
 
 func (app *App) Cfg() *runtimeCfg.Config            { return app.cfg }
@@ -104,10 +110,11 @@ func New(p *NewParams) *App {
 	etMgr := et.NewManager(cfg, rt)
 
 	app := &App{
-		cfg, rt, json, rootLogger, apiSrv, service, ts,
-		shutdown,
-		encore, auth, rlog, sqldb, pubsub, cache, appCfg,
-		etMgr, metrics, metricsRegistry,
+		cfg: cfg, rt: rt, json: json, rootLogger: rootLogger,
+		api: apiSrv, service: service, ts: ts, shutdown: shutdown,
+		encore: encore, auth: auth, rlog: rlog, sqldb: sqldb, pubsub: pubsub,
+		cache: cache, config: appCfg, et: etMgr, metrics: metrics,
+		metricsRegistry: metricsRegistry,
 	}
 
 	// If this is running inside an Encore app, initialize the singletons
@@ -145,9 +152,30 @@ func (app *App) Run() error {
 	return serveErr
 }
 
-func (app *App) GetSecret(key string) (string, bool) {
-	val, ok := app.cfg.Secrets[key]
-	return val, ok
+func (app *App) GetSecret(key string) string {
+	if val, ok := app.cfg.Secrets[key]; ok {
+		return val
+	}
+
+	// For anything but local development, a missing secret is a fatal error.
+	if app.cfg.Runtime.EnvCloud != "local" {
+		fmt.Fprintln(os.Stderr, "encore: could not find secret", key)
+		os.Exit(2)
+		panic("unreachable")
+	}
+
+	app.missingSecrets = append(app.missingSecrets, key)
+	app.logMissingSecrets.Do(func() {
+		// Wait one second before logging all the missing secrets.
+		go func() {
+			time.Sleep(1 * time.Second)
+			fmt.Fprintln(os.Stderr, "\n\033[31mwarning: secrets not defined:", strings.Join(app.missingSecrets, ", "), "\033[0m")
+			fmt.Fprintln(os.Stderr, "\033[2mnote: undefined secrets are left empty for local development only.")
+			fmt.Fprint(os.Stderr, "see https://encore.dev/docs/primitives/secrets for more information\033[0m\n\n")
+		}()
+	})
+
+	return ""
 }
 
 func jsonAPI(cfg *runtimeCfg.Config) jsoniter.API {
