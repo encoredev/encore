@@ -28,6 +28,7 @@ import (
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
+	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/compiler"
@@ -50,6 +51,8 @@ type Run struct {
 	log     zerolog.Logger
 	Mgr     *Manager
 	params  *StartParams
+	secrets *secret.LoadResult
+
 	ctx     context.Context // ctx is closed when the run is to exit
 	proc    atomic.Value    // current process
 	exited  chan struct{}   // exit is closed when the run has fully exited
@@ -91,6 +94,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
 		Mgr:     mgr,
 		params:  &params,
+		secrets: mgr.Secret.Load(params.App),
 		ctx:     ctx,
 		exited:  make(chan struct{}),
 		started: make(chan struct{}),
@@ -303,12 +307,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	var secrets map[string]string
 	if usesSecrets(parse.Meta) {
 		jobs.Go("Fetching application secrets", true, 150*time.Millisecond, func(ctx context.Context) error {
-			if r.App.PlatformID() == "" {
-				// Not linked to the Encore Platform; do nothing.
-				// We'll log an error for missing secrets later.
-				return nil
-			}
-			data, err := r.Mgr.Secret.Get(ctx, r.App, expSet)
+			data, err := r.secrets.Get(ctx, expSet)
 			if err != nil {
 				return err
 			}

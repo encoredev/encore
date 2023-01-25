@@ -12,7 +12,6 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
-	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -28,11 +27,6 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 				Code: code,
 			}},
 		})
-	}
-
-	// Prefetch secrets if the app is linked.
-	if appSlug, err := appfile.Slug(req.AppRoot); err == nil && appSlug != "" {
-		s.sm.Prefetch(appSlug)
 	}
 
 	// ListenAddr should always be passed but guard against old clients.

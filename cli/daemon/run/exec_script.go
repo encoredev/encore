@@ -84,10 +84,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	var secrets map[string]string
 	if usesSecrets(parse.Meta) {
 		jobs.Go("Fetching application secrets", true, 150*time.Millisecond, func(ctx context.Context) error {
-			if p.App.PlatformID() == "" {
-				return fmt.Errorf("the app defines secrets, but is not yet linked to encore.dev; link it with `encore app link` to use secrets")
-			}
-			data, err := mgr.Secret.Get(ctx, p.App, expSet)
+			data, err := mgr.Secret.Load(p.App).Get(ctx, expSet)
 			if err != nil {
 				return err
 			}

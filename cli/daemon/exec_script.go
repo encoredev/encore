@@ -7,7 +7,6 @@ import (
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
-	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -18,11 +17,6 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 	sendErr := func(err error) {
 		slog.Stderr(false).Write([]byte(err.Error() + "\n"))
 		streamExit(stream, 1)
-	}
-
-	// Prefetch secrets if the app is linked.
-	if appSlug, err := appfile.Slug(req.AppRoot); err == nil && appSlug != "" {
-		s.sm.Prefetch(appSlug)
 	}
 
 	app, err := s.apps.Track(req.AppRoot)
