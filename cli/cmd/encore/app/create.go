@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"archive/tar"
@@ -19,100 +19,39 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/tailscale/hujson"
 
+	"encr.dev/cli/cmd/encore/auth"
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
 )
 
-// These can be overwritten using
-// `go build -ldflags "-X main.defaultGitRemoteName=encore"`.
-var (
-	defaultGitRemoteName = "encore"
-	defaultGitRemoteURL  = "encore://"
-)
+var createAppTemplate string
+
+var createAppCmd = &cobra.Command{
+	Use:   "create [name]",
+	Short: "Create a new Encore app",
+	Args:  cobra.MaximumNArgs(1),
+
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, args []string) {
+		name := ""
+		if len(args) > 0 {
+			name = args[0]
+		}
+		if err := createApp(context.Background(), name, createAppTemplate); err != nil {
+			cmdutil.Fatal(err)
+		}
+	},
+}
 
 func init() {
-	appCmd := &cobra.Command{
-		Use:   "app",
-		Short: "Commands to create and link Encore apps",
-	}
-	rootCmd.AddCommand(appCmd)
-
-	var createAppTemplate string
-
-	createAppCmd := &cobra.Command{
-		Use:   "create [name]",
-		Short: "Create a new Encore app",
-		Args:  cobra.MaximumNArgs(1),
-
-		DisableFlagsInUseLine: true,
-		Run: func(cmd *cobra.Command, args []string) {
-			name := ""
-			if len(args) > 0 {
-				name = args[0]
-			}
-			if err := createApp(context.Background(), name, createAppTemplate); err != nil {
-				fatal(err)
-			}
-		},
-	}
 	appCmd.AddCommand(createAppCmd)
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
-
-	var forceLink bool
-	linkAppCmd := &cobra.Command{
-		Use:   "link [app-id]",
-		Short: "Link an Encore app with the server",
-		Args:  cobra.MaximumNArgs(1),
-
-		DisableFlagsInUseLine: true,
-		Run: func(cmd *cobra.Command, args []string) {
-			var appID string
-			if len(args) > 0 {
-				appID = args[0]
-			}
-			linkApp(appID, forceLink)
-		},
-		ValidArgsFunction: autoCompleteAppSlug,
-	}
-	appCmd.AddCommand(linkAppCmd)
-	linkAppCmd.Flags().BoolVarP(&forceLink, "force", "f", false, "Force link even if the app is already linked.")
-
-	cloneAppCmd := &cobra.Command{
-		Use:   "clone [app-id] [directory]",
-		Short: "Clone an Encore app to your computer",
-		Args:  cobra.MinimumNArgs(1),
-
-		DisableFlagsInUseLine: true,
-		Run: func(c *cobra.Command, args []string) {
-			cmdArgs := append([]string{"clone", "--origin", defaultGitRemoteName, defaultGitRemoteURL + args[0]}, args[1:]...)
-			cmd := exec.Command("git", cmdArgs...)
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				os.Exit(1)
-			}
-		},
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			switch len(args) {
-			case 0:
-				return autoCompleteAppSlug(cmd, args, toComplete)
-			case 1:
-				return nil, cobra.ShellCompDirectiveFilterDirs
-			default:
-				return nil, cobra.ShellCompDirectiveDefault
-			}
-		},
-	}
-
-	appCmd.AddCommand(cloneAppCmd)
 }
 
 // createApp is the implementation of the "encore app create" command.
@@ -123,46 +62,19 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
 		cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
 		fmt.Scanln()
-		if err := doLogin(); err != nil {
-			fatal(err)
+		if err := auth.DoLogin(); err != nil {
+			cmdutil.Fatal(err)
 		}
 	}
 
-	if name == "" {
-		err := survey.AskOne(&survey.Input{
-			Message: "App Name (lowercase letters, digits, and dashes)",
-		}, &name, survey.WithValidator(func(in interface{}) error { return validateName(in.(string)) }))
-		if err != nil {
-			if err.Error() == "interrupt" {
-				os.Exit(2)
-			}
-			return err
-		}
+	if name == "" || template == "" {
+		name, template = selectTemplate(name, template)
 	}
 
 	if err := validateName(name); err != nil {
 		return err
 	} else if _, err := os.Stat(name); err == nil {
 		return fmt.Errorf("directory %s already exists", name)
-	}
-
-	if template == "" {
-		var idx int
-
-		prompt := &survey.Select{
-			Message: "Select app template:",
-			Options: []string{
-				"Hello World (Encore introduction)",
-				"Empty app",
-			},
-		}
-		survey.AskOne(prompt, &idx)
-		switch idx {
-		case 0:
-			template = "hello-world"
-		case 1:
-			template = ""
-		}
 	}
 
 	// Parse template information, if provided.
@@ -201,11 +113,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	} else {
 		// Set up files that we need when we don't have an example
 		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
-			fatal(err)
+			cmdutil.Fatal(err)
 		}
 		encoreModData := []byte("module encore.app\n")
 		if err := os.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
-			fatal(err)
+			cmdutil.Fatal(err)
 		}
 	}
 
@@ -263,7 +175,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	cyanf := cyan.SprintfFunc()
 	if app != nil {
 		fmt.Printf("App ID:  %s\n", cyanf(app.Slug))
-		fmt.Printf("Web URL: %s%s", cyanf("https://app.encore.dev/"+app.Slug), newline)
+		fmt.Printf("Web URL: %s%s", cyanf("https://app.encore.dev/"+app.Slug), cmdutil.Newline)
 	}
 
 	fmt.Print("\nUseful commands:\n\n")
@@ -310,11 +222,6 @@ func validateName(name string) error {
 	return nil
 }
 
-type appConf struct {
-	Slug          string  `json:"slug"`
-	DefaultBranch *string `json:"main_branch"`
-}
-
 func gogetEncore(name string) error {
 	// Use the 'go' binary from the Encore GOROOT in case the user
 	// does not have Go installed separately from Encore.
@@ -337,25 +244,6 @@ func createAppOnServer(name string) (*platform.App, error) {
 		Name: name,
 	}
 	return platform.CreateApp(ctx, params)
-}
-
-func validateAppSlug(slug string) (ok bool, err error) {
-	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
-		fatal("not logged in. Run 'encore auth login' first.")
-	} else if err != nil {
-		return false, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if _, err := platform.GetApp(ctx, slug); err != nil {
-		var e platform.Error
-		if errors.As(err, &e) && e.HTTPCode == 404 {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
 }
 
 type repoInfo struct {
@@ -583,81 +471,6 @@ func addEncoreRemote(root, appID string) {
 			fmt.Println("Configured git remote 'encore' to push/pull with Encore.")
 		}
 	}
-}
-
-func linkApp(appID string, force bool) {
-	root, _ := determineAppRoot()
-	filePath := filepath.Join(root, "encore.app")
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		fatal(err)
-		os.Exit(1)
-	}
-
-	val, err := hujson.Parse(data)
-	if err != nil {
-		fatal("could not parse encore.app: ", err)
-	}
-
-	appData, ok := val.Value.(*hujson.Object)
-	if !ok {
-		fatal("could not parse encore.app: expected JSON object")
-	}
-
-	// Find the "id" value, if any.
-	var idValue *hujson.Value
-	for i := 0; i < len(appData.Members); i++ {
-		kv := &appData.Members[i]
-		lit, ok := kv.Name.Value.(hujson.Literal)
-		if !ok || lit.String() != "id" {
-			continue
-		}
-		idValue = &kv.Value
-	}
-
-	if idValue != nil {
-		val, ok := idValue.Value.(hujson.Literal)
-		if ok && val.String() != "" && val.String() != appID && !force {
-			fatal("the app is already linked.\n\nNote: to link to a different app, specify the --force flag.")
-		}
-	}
-
-	if appID == "" {
-		// The app is not linked. Prompt the user for an app ID.
-		fmt.Println("Make sure the app is created on app.encore.dev, and then enter its ID to link it.")
-		fmt.Print("App ID: ")
-		if _, err := fmt.Scanln(&appID); err != nil {
-			fatal(err)
-		} else if appID == "" {
-			fatal("no app id given.")
-		}
-	}
-
-	if linked, err := validateAppSlug(appID); err != nil {
-		fatal(err)
-	} else if !linked {
-		fmt.Fprintln(os.Stderr, "Error: that app does not exist, or you don't have access to it.")
-		os.Exit(1)
-	}
-
-	// Write it back to our data structure.
-	if idValue != nil {
-		idValue.Value = hujson.String(appID)
-	} else {
-		appData.Members = append(appData.Members, hujson.ObjectMember{
-			Name:  hujson.Value{Value: hujson.String("id")},
-			Value: hujson.Value{Value: hujson.String(appID)},
-		})
-	}
-
-	val.Format()
-	if err := os.WriteFile(filePath, val.Pack(), 0644); err != nil {
-		fatal(err)
-		os.Exit(1)
-	}
-
-	addEncoreRemote(root, appID)
-	fmt.Println("Successfully linked app!")
 }
 
 // gitUserConfigured reports whether the user has configured

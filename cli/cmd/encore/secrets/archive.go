@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
-	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/platform"
 )
 
@@ -56,7 +55,6 @@ func doArchiveOrUnarchive(groupID string, archive bool) {
 }
 
 func init() {
-	root.Cmd.AddCommand(secretCmd)
 	secretCmd.AddCommand(archiveSecretCmd)
 	secretCmd.AddCommand(unarchiveSecretCmd)
 }
