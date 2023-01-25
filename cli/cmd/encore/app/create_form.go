@@ -32,17 +32,17 @@ var (
 	docStyle   = lipgloss.NewStyle().Margin(1, 2, 0, 2)
 )
 
-type item struct {
+type templateItem struct {
 	ItemTitle string `json:"title"`
 	Desc      string `json:"desc"`
 	Template  string `json:"template"`
 }
 
-func (i item) Title() string       { return i.ItemTitle }
-func (i item) Description() string { return i.Desc }
-func (i item) FilterValue() string { return i.ItemTitle }
+func (i templateItem) Title() string       { return i.ItemTitle }
+func (i templateItem) Description() string { return i.Desc }
+func (i templateItem) FilterValue() string { return i.ItemTitle }
 
-type model struct {
+type createFormModel struct {
 	numInputs int // 1 or 2 depending on what is shown
 	focused   int // 0 or 1
 
@@ -58,7 +58,7 @@ type model struct {
 	aborted bool
 }
 
-func (m model) Init() tea.Cmd {
+func (m createFormModel) Init() tea.Cmd {
 	return tea.Batch(
 		textinput.Blink,
 		loadTemplates,
@@ -66,7 +66,7 @@ func (m model) Init() tea.Cmd {
 	)
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var c tea.Cmd
 	var cmds []tea.Cmd
 
@@ -118,8 +118,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) View() string {
+func (m createFormModel) View() string {
 	var b strings.Builder
+
 	if m.showName {
 		b.WriteString(inputStyle.Render("App Name"))
 		b.WriteString(descStyle.Render(" [Use only lowercase letters, digits, and dashes]"))
@@ -129,6 +130,7 @@ func (m model) View() string {
 			b.WriteString("\n\n")
 		}
 	}
+
 	if m.showList {
 		if m.templatesLoading() {
 			b.WriteString(inputStyle.Render(m.loadingTemplates.View() + " Loading templates..."))
@@ -139,18 +141,19 @@ func (m model) View() string {
 			b.WriteString(m.list.View())
 		}
 	}
+
 	b.WriteString("\n")
 	return docStyle.Render(b.String())
 }
 
 // nextInput focuses the next input field
-func (m *model) nextInput() {
+func (m *createFormModel) nextInput() {
 	m.focused = (m.focused + 1) % m.numInputs
 	m.updateFocus()
 }
 
 // prevInput focuses the previous input field
-func (m *model) prevInput() {
+func (m *createFormModel) prevInput() {
 	m.focused--
 	// Wrap around
 	if m.focused < 0 {
@@ -159,7 +162,7 @@ func (m *model) prevInput() {
 	m.updateFocus()
 }
 
-func (m *model) updateFocus() {
+func (m *createFormModel) updateFocus() {
 	if !m.showName || !m.showList {
 		// Nothing to do
 		return
@@ -186,25 +189,25 @@ func (m *model) updateFocus() {
 	}
 }
 
-func (m model) templatesLoading() bool {
+func (m createFormModel) templatesLoading() bool {
 	return m.showList && len(m.list.Items()) == 0
 }
 
-func (m model) SelectedItem() (item, bool) {
+func (m createFormModel) SelectedItem() (templateItem, bool) {
 	if !m.showList {
-		return item{}, false
+		return templateItem{}, false
 	}
 	idx := m.list.Index()
 	if idx < 0 {
 		idx = m.lastSelected
 	}
 	if idx >= 0 {
-		return m.list.Items()[idx].(item), true
+		return m.list.Items()[idx].(templateItem), true
 	}
-	return item{}, false
+	return templateItem{}, false
 }
 
-type loadedTemplates []item
+type loadedTemplates []templateItem
 
 func selectTemplate(inputName, inputTemplate string) (appName, template string) {
 	// If we have both name and template already, return them.
@@ -236,7 +239,7 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 	sp.Spinner = spinner.Dot
 	sp.Style = inputStyle.Copy().Inline(true)
 
-	m := model{
+	m := createFormModel{
 		name:             name,
 		list:             ll,
 		showName:         inputName == "",
@@ -263,7 +266,7 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 	}
 
 	// Validate the result.
-	res := result.(model)
+	res := result.(createFormModel)
 	if res.aborted {
 		os.Exit(1)
 	}
@@ -294,7 +297,7 @@ func loadTemplates() tea.Msg {
 		if resp, err := http.DefaultClient.Do(req); err == nil {
 			if data, err := io.ReadAll(resp.Body); err == nil {
 				if data, err = hujson.Standardize(data); err == nil {
-					var items []item
+					var items []templateItem
 					if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
 						return loadedTemplates(items)
 					}
@@ -304,7 +307,7 @@ func loadTemplates() tea.Msg {
 	}
 
 	// Return a precompiled list of default items in case we can't read them from GitHub.
-	return loadedTemplates([]item{
+	return loadedTemplates([]templateItem{
 		{
 			ItemTitle: "Hello World",
 			Desc:      "A simple REST API",
