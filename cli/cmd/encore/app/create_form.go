@@ -21,13 +21,15 @@ import (
 )
 
 const (
-	hotPink  = lipgloss.Color("#FF06B7")
-	darkGray = lipgloss.Color("#767676")
+	codeBlue   = "#6D89FF"
+	codePurple = "#A36C8C"
+	codeGreen  = "#B3D77E"
 )
 
 var (
-	inputStyle = lipgloss.NewStyle().Foreground(hotPink)
-	docStyle   = lipgloss.NewStyle().Margin(1, 2)
+	inputStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeBlue, Light: codeBlue})
+	descStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeGreen, Light: codePurple})
+	docStyle   = lipgloss.NewStyle().Margin(1, 2, 0, 2)
 )
 
 type item struct {
@@ -88,6 +90,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
+		m.list.SetHeight(msg.Height - 6)
 		return m, nil
 
 	case spinner.TickMsg:
@@ -118,7 +121,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var b strings.Builder
 	if m.showName {
-		b.WriteString(inputStyle.Width(30).Render("App Name"))
+		b.WriteString(inputStyle.Render("App Name"))
+		b.WriteString(descStyle.Render(" [Use only lowercase letters, digits, and dashes]"))
 		b.WriteByte('\n')
 		b.WriteString(m.name.View())
 		if m.showList {
@@ -127,9 +131,10 @@ func (m model) View() string {
 	}
 	if m.showList {
 		if m.templatesLoading() {
-			b.WriteString(inputStyle.Width(30).Render(m.loadingTemplates.View() + " Loading templates..."))
+			b.WriteString(inputStyle.Render(m.loadingTemplates.View() + " Loading templates..."))
 		} else {
-			b.WriteString(inputStyle.Width(30).Render("Template"))
+			b.WriteString(inputStyle.Render("Template"))
+			b.WriteString(descStyle.Render(" [Use arrows to move]"))
 			b.WriteByte('\n')
 			b.WriteString(m.list.View())
 		}
@@ -185,6 +190,20 @@ func (m model) templatesLoading() bool {
 	return m.showList && len(m.list.Items()) == 0
 }
 
+func (m model) SelectedItem() (item, bool) {
+	if !m.showList {
+		return item{}, false
+	}
+	idx := m.list.Index()
+	if idx < 0 {
+		idx = m.lastSelected
+	}
+	if idx >= 0 {
+		return m.list.Items()[idx].(item), true
+	}
+	return item{}, false
+}
+
 type loadedTemplates []item
 
 func selectTemplate(inputName, inputTemplate string) (appName, template string) {
@@ -199,10 +218,16 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 	name.Width = 30
 	name.Validate = incrementalValidateNameInput
 
-	ll := list.New(nil, list.NewDefaultDelegate(), 0, 14)
+	ls := list.NewDefaultItemStyles()
+	ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+	ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+	del := list.NewDefaultDelegate()
+	del.Styles = ls
+
+	ll := list.New(nil, del, 0, 14)
 	ll.SetShowTitle(false)
 	ll.SetShowHelp(false)
-	ll.SetShowPagination(false)
+	ll.SetShowPagination(true)
 	ll.SetShowFilter(false)
 	ll.SetFilteringEnabled(false)
 	ll.SetShowStatusBar(false)
@@ -250,7 +275,7 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 	}
 
 	if template == "" {
-		sel, ok := res.list.SelectedItem().(item)
+		sel, ok := res.SelectedItem()
 		if !ok {
 			cmdutil.Fatal("no template selected")
 		}
@@ -280,6 +305,11 @@ func loadTemplates() tea.Msg {
 
 	// Return a precompiled list of default items in case we can't read them from GitHub.
 	return loadedTemplates([]item{
+		{
+			ItemTitle: "Hello World",
+			Desc:      "A simple REST API",
+			Template:  "hello-world",
+		},
 		{
 			ItemTitle: "Uptime Monitor",
 			Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
