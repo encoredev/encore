@@ -1,4 +1,4 @@
-package main
+package cmdutil
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"encr.dev/internal/conf"
 )
 
-func autoCompleteFromStaticList(args ...string) func(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func AutoCompleteFromStaticList(args ...string) func(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return func(cmd *cobra.Command, _ []string, toComplete string) (rtn []string, dir cobra.ShellCompDirective) {
 		toComplete = strings.ToLower(toComplete)
 
@@ -26,7 +26,7 @@ func autoCompleteFromStaticList(args ...string) func(cmd *cobra.Command, _ []str
 	}
 }
 
-func autoCompleteAppSlug(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func AutoCompleteAppSlug(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	// incase of not being logged in or an error, we give no auto competition
 	_, err := conf.CurrentUser()
 	if err != nil {
@@ -55,7 +55,7 @@ func autoCompleteAppSlug(cmd *cobra.Command, _ []string, toComplete string) ([]s
 	return rtn, cobra.ShellCompDirectiveNoFileComp
 }
 
-func autoCompleteEnvSlug(cmd *cobra.Command, args []string, toComplete string) (rtn []string, dir cobra.ShellCompDirective) {
+func AutoCompleteEnvSlug(cmd *cobra.Command, args []string, toComplete string) (rtn []string, dir cobra.ShellCompDirective) {
 	toComplete = strings.ToLower(toComplete)
 
 	// Support the local environment

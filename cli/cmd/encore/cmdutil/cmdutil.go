@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/fatih/color"
 	"golang.org/x/crypto/ssh/terminal"
@@ -115,4 +116,15 @@ func DisplayError(out *os.File, err []byte) {
 	}
 
 	_, _ = os.Stderr.Write([]byte(errList.Error()))
+}
+
+var Newline string
+
+func init() {
+	switch runtime.GOOS {
+	case "windows":
+		Newline = "\r\n"
+	default:
+		Newline = "\n"
+	}
 }

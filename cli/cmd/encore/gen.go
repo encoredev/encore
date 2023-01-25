@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/internal/clientgen"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -83,7 +84,7 @@ Supported language codes are:
 			}
 		},
 
-		ValidArgsFunction: autoCompleteAppSlug,
+		ValidArgsFunction: cmdutil.AutoCompleteAppSlug,
 	}
 
 	genWrappersCmd := &cobra.Command{
@@ -117,7 +118,7 @@ which may require the user-facing wrapper code to be manually generated.`,
 	genCmd.AddCommand(genWrappersCmd)
 
 	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\", \"javascript\", and \"go\" are supported)")
-	_ = genClientCmd.RegisterFlagCompletionFunc("lang", autoCompleteFromStaticList(
+	_ = genClientCmd.RegisterFlagCompletionFunc("lang", cmdutil.AutoCompleteFromStaticList(
 		"typescript\tA TypeScript client using the in-browser Fetch API",
 		"javascript\tA JavaScript client using the in-browser Fetch API",
 		"go\tA Go client using net/http",
@@ -127,5 +128,5 @@ which may require the user-facing wrapper code to be manually generated.`,
 	_ = genClientCmd.MarkFlagFilename("output", "go", "ts", "tsx", "js", "jsx")
 
 	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
-	_ = genClientCmd.RegisterFlagCompletionFunc("env", autoCompleteEnvSlug)
+	_ = genClientCmd.RegisterFlagCompletionFunc("env", cmdutil.AutoCompleteEnvSlug)
 }
