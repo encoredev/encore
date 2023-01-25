@@ -7,7 +7,7 @@ import (
 )
 
 // These can be overwritten using
-// `go build -ldflags "-X main.defaultGitRemoteName=encore"`.
+// `go build -ldflags "-X encr.dev/cli/cmd/encore/app.defaultGitRemoteName=encore"`.
 var (
 	defaultGitRemoteName = "encore"
 	defaultGitRemoteURL  = "encore://"
