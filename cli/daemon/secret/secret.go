@@ -15,6 +15,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	"github.com/rs/zerolog/log"
+	"go4.org/syncutil"
 	"golang.org/x/sync/singleflight"
 
 	"encr.dev/cli/daemon/apps"
@@ -45,73 +46,109 @@ type Data struct {
 	Values map[string]string
 }
 
-// Get gets the secrets for the given app.
-func (f *Manager) Get(ctx context.Context, app *apps.Instance, expSet *experiments.Set) (data *Data, err error) {
-	f.pollOnce.Do(f.startPolling)
+type LoadResult struct {
+	mgr *Manager
+	app *apps.Instance
+
+	once    syncutil.Once
+	ch      <-chan singleflight.Result
+	initial singleflight.Result
+}
+
+// Load loads the secrets for appSlug.
+// If appSlug is empty, (*LoadResult).Get resolves to empty secret data.
+func (mgr *Manager) Load(app *apps.Instance) *LoadResult {
+	mgr.pollOnce.Do(mgr.startPolling)
+
+	// Ignore cases when the app isn't linked.
+	if app.PlatformID() == "" {
+		return &LoadResult{mgr: mgr, app: app}
+	}
+
+	ch := mgr.fetch(app.PlatformID(), false)
+	return &LoadResult{mgr: mgr, app: app, ch: ch}
+}
+
+// Get returns the result of the prefetch.
+// It blocks until the initial fetch is ready or until ctx is cancelled.
+// For subsequent calls to Get (such as during live reload), it returns any
+// more recent data that has been subsequently cached.
+func (lr *LoadResult) Get(ctx context.Context, expSet *experiments.Set) (data *Data, err error) {
+	if lr.app.PlatformID() == "" {
+		return &Data{}, nil
+	}
 
 	defer func() {
 		if err == nil && experiments.LocalSecretsOverride.Enabled(expSet) {
 			// Return a new data object so we don't write the overrides to the cache.
-			data, err = f.applyLocalOverrides(app, data)
+			data, err = applyLocalOverrides(lr.app, data)
 		}
 	}()
 
-	appSlug := app.PlatformID()
-	if appSlug == "" {
-		return &Data{}, nil
+	// Fetch the initial result the first time.
+	err = lr.once.Do(func() error {
+		select {
+		case lr.initial = <-lr.ch:
+			// The fetch was successful so mark the Once as completed.
+			return nil
+		case <-ctx.Done():
+			// We timed out before the fetch completed.
+			return ctx.Err()
+		}
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// Do we have the secrets in our cache?
-	f.mu.Lock()
-	data, ok := f.cache[appSlug]
-	f.mu.Unlock()
-	if ok {
-		return data, nil
-	}
+	initial, _ := lr.initial.Val.(*Data)
+	haveInitial := lr.initial.Err == nil
+	cached, haveCache := lr.mgr.loadFromCache(lr.app.PlatformID())
 
-	// Do we have them on disk?
-	if data, err := f.readFromDisk(appSlug); err == nil {
-		f.mu.Lock()
-		f.cache[appSlug] = data
-		f.mu.Unlock()
-		return data, nil
-	}
+	switch {
+	case haveCache && haveInitial:
+		// Which is most recent?
+		if initial.Synced.After(cached.Synced) {
+			return initial, nil
+		} else {
+			return cached, nil
+		}
 
-	return f.fetch(appSlug, false)
+	case haveCache:
+		return cached, nil
+
+	case haveInitial:
+		return initial, nil
+
+	default:
+		// We have a prefetch error; return it.
+		return nil, lr.initial.Err
+	}
 }
 
 // UpdateKey updates the cached secret key to the given value.
-func (f *Manager) UpdateKey(appSlug, key, value string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if data, ok := f.cache[appSlug]; ok {
+func (mgr *Manager) UpdateKey(appSlug, key, value string) {
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+	if data, ok := mgr.cache[appSlug]; ok {
 		vals := make(map[string]string)
 		for k, v := range data.Values {
 			vals[k] = v
 		}
 		vals[key] = value
-		f.cache[appSlug] = &Data{
+		mgr.cache[appSlug] = &Data{
 			Synced: time.Now(),
 			Values: vals,
 		}
-		if err := f.writeToDisk(appSlug, data); err != nil {
+		if err := mgr.writeToDisk(appSlug, data); err != nil {
 			log.Error().Err(err).Msg("failed to write secrets to disk cache")
 		}
 	}
 }
 
-// Prefetch fires off a background task to prefetch secrets for appSlug.
-func (f *Manager) Prefetch(appSlug string) {
-	// Ignore cases when the app isn't linked.
-	if appSlug != "" {
-		go f.fetch(appSlug, false)
-	}
-}
-
 // fetch fetches secrets from the server.
 // mu must not be held when running.
-func (f *Manager) fetch(appSlug string, poll bool) (*Data, error) {
-	data, err, _ := f.group.Do(appSlug, func() (interface{}, error) {
+func (mgr *Manager) fetch(appSlug string, poll bool) <-chan singleflight.Result {
+	return mgr.group.DoChan(appSlug, func() (any, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		secrets, err := platform.GetLocalSecretValues(ctx, appSlug, poll)
@@ -124,36 +161,52 @@ func (f *Manager) fetch(appSlug string, poll bool) (*Data, error) {
 		}
 
 		// Update our caches
-		f.mu.Lock()
-		f.cache[appSlug] = data
-		f.mu.Unlock()
-		if err := f.writeToDisk(appSlug, data); err != nil {
+		mgr.mu.Lock()
+		mgr.cache[appSlug] = data
+		mgr.mu.Unlock()
+		if err := mgr.writeToDisk(appSlug, data); err != nil {
 			log.Error().Err(err).Msg("failed to write secrets to disk cache")
 		}
 
 		return data, nil
 	})
-	if err != nil {
-		return nil, err
+}
+
+func (mgr *Manager) loadFromCache(appSlug string) (*Data, bool) {
+	// Do we have the secrets in our cache?
+	mgr.mu.Lock()
+	data, ok := mgr.cache[appSlug]
+	mgr.mu.Unlock()
+	if ok {
+		return data, true
 	}
-	return data.(*Data), nil
+
+	// Do we have them on disk?
+	if data, err := mgr.readFromDisk(appSlug); err == nil {
+		mgr.mu.Lock()
+		mgr.cache[appSlug] = data
+		mgr.mu.Unlock()
+		return data, true
+	}
+	return nil, false
 }
 
 // startPolling begins polling for secret updates every 5 minutes for the apps
 // that have been run.
-func (f *Manager) startPolling() {
+func (mgr *Manager) startPolling() {
 	go func() {
 		for range time.Tick(5 * time.Minute) {
 			var slugs []string
-			f.mu.Lock()
-			for s := range f.cache {
+			mgr.mu.Lock()
+			for s := range mgr.cache {
 				slugs = append(slugs, s)
 			}
-			f.mu.Unlock()
+			mgr.mu.Unlock()
 
 			for _, s := range slugs {
-				if _, err := f.fetch(s, true); err != nil {
-					log.Error().Err(err).Str("app_id", s).Msg("failed to sync secrets")
+				res := <-mgr.fetch(s, true)
+				if res.Err != nil {
+					log.Error().Err(res.Err).Str("app_id", s).Msg("failed to sync secrets")
 				} else {
 					log.Info().Str("app_id", s).Msg("successfully synced app secrets")
 				}
@@ -164,14 +217,14 @@ func (f *Manager) startPolling() {
 
 // writeToDisk serializes the secret data and writes it to disk
 // readable only for the current user.
-func (f *Manager) writeToDisk(appSlug string, data *Data) (err error) {
+func (mgr *Manager) writeToDisk(appSlug string, data *Data) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("write secrets %s: %v", appSlug, err)
 		}
 	}()
 
-	path, err := f.secretsPath(appSlug)
+	path, err := mgr.secretsPath(appSlug)
 	if err != nil {
 		return err
 	}
@@ -192,14 +245,14 @@ func (f *Manager) writeToDisk(appSlug string, data *Data) (err error) {
 }
 
 // readFromDisk reads the cached secrets from disk.
-func (f *Manager) readFromDisk(appSlug string) (data *Data, err error) {
+func (mgr *Manager) readFromDisk(appSlug string) (data *Data, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("read secrets %s: %v", appSlug, err)
 		}
 	}()
 
-	path, err := f.secretsPath(appSlug)
+	path, err := mgr.secretsPath(appSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +266,7 @@ func (f *Manager) readFromDisk(appSlug string) (data *Data, err error) {
 }
 
 // secretsPath returns the file path to where the given app's secrets are stored on disk.
-func (f *Manager) secretsPath(appSlug string) (string, error) {
+func (mgr *Manager) secretsPath(appSlug string) (string, error) {
 	dir, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
@@ -226,7 +279,7 @@ func (f *Manager) secretsPath(appSlug string) (string, error) {
 //
 // If there are no overrides src is returned directly.
 // The original src data object is never modified.
-func (f *Manager) applyLocalOverrides(app *apps.Instance, src *Data) (*Data, error) {
+func applyLocalOverrides(app *apps.Instance, src *Data) (*Data, error) {
 	const name = ".secrets.local.cue"
 	data, err := os.ReadFile(filepath.Join(app.Root(), name))
 	if err != nil {

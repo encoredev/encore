@@ -81,7 +81,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	assertNil(err)
 
 	secrets := secret.New()
-	secretData, err := secrets.Get(ctx, app, expSet)
+	secretData, err := secrets.Load(app).Get(ctx, expSet)
 	assertNil(err)
 
 	p, err := run.StartProc(&StartProcParams{
