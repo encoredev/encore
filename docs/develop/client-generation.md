@@ -5,32 +5,23 @@ title: Client Library Generation
 subtitle: Stop writing the same types everywhere
 ---
 
-One of Encore's core principles is writing a scalable distributed backend should be no more difficult than writing a
-normal application, where you simply make function calls between your various packages which Encore translates into RPC calls.
-The same approach applies to how Encore generates API clients; it generates an API interface which looks like the original
-Go function, with the same parameters and response signature as the server.
+Encore makes it simple to write scalable distributed backends by allowing you to make function calls that Encore translates into RPC calls. Encore also generates API clients with interfaces that look like the original Go functions, with the same parameters and response signature as the server.
 
-The generated clients are all designed to be single files written in the same way you would write them without using
-any additional dependencies apart from the standard functionality of the target language with full type safety.
-This is to allow anybody to look at the generated client and understand exactly how it works.
+The generated clients are single files that use only the standard functionality of the target language, with full type safety. This allow anyone to look at the generated client and understand exactly how it works.
 
-The precise structure of the generated code depends on the language, to make sure it's idiomatic and easy to use,
-but always includes all the publicly accessible endpoints, data structures, and documentation strings.
+The structure of the generated code varies by language, to ensure it's idiomatic and easy to use, but always includes all publicly accessible endpoints, data structures, and documentation strings.
 
-Currently, Encore supports generating clients for:
-- `go` - using `net/http` for the underlying HTTP transport.
-- `typescript` - using the browser `fetch` API for the underlying HTTP client.
-- `javascript` - using the browser `fetch` API for the underlying HTTP client.
+Encore currently supports generating clients in these languages:
+- **Go** - Using `net/http` for the underlying HTTP transport.
+- **TypeScript** - Using the browser `fetch` API for the underlying HTTP client.
+- **JavaScript** - Using the browser `fetch` API for the underlying HTTP client.
 
-
-If there's another language you think Encore should support, please either submit a pull request or create a feature
+If there's a language you think should be added, please submit a pull request or create a feature
 request on [GitHub](https://github.com/encoredev/encore/issues/new), or [reach out on Slack](/slack).
 
-<Callout type="warning">
+<Callout type="important">
 
-If you ship the generated client to end customers, it's important to note that with any public API, old clients will
-continue to be used for some time after you've made changes. So it's always best to avoid making breaking changes in any
-API's that your clients access otherwise your generated clients could stop working or cause hard to debug issues.
+If you ship the generated client to end customers, keep in mind that old clients will continue to be used after you make changes. To prevent issues with the generated clients, avoid making breaking changes in APIs that your clients access.
 
 </Callout>
 

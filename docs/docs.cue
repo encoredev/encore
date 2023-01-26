@@ -53,6 +53,7 @@ sections: [
 		segment: "tutorials"
 		docs: [
 			{title: "Tutorials", segment: "index", hide_in_menu: true},
+			{title: "Building an Uptime Monitor", segment: "uptime"},
 			{title: "Building a REST API", segment: "rest-api"},
 			{title: "Building a Slack bot", segment: "slack-bot"},
 			{title: "Building an Incident Tool", segment: "incident-management-tool"},
@@ -69,6 +70,7 @@ sections: [
 			{title: "PubSub", segment: "pubsub", old_paths:["/develop/pubsub"], shortcuts: ["pubsub"]},
 			{title: "Caching", segment: "caching", old_paths:["/develop/caching"], shortcuts: ["storage/cache"]},
 			{title: "Secrets", segment: "secrets", old_paths:["/develop/secrets"]},
+			{title: "Code Snippets", segment: "code-snippets"},
 		]
 	},
 	{
@@ -121,12 +123,14 @@ sections: [
 			{title: "Connect to an existing database", segment: "connect-existing-db"},
 			{title: "Share SQL databases between services", segment: "share-db-between-services"},
 			{title: "Insert test data in a database", segment: "insert-test-data-db"},
+			{title: "Use Temporal", segment: "temporal"},
 			{title: "Use the ent ORM for migrations", segment: "entgo-orm"},
 			{title: "Receive webhooks", segment: "webhooks"},
 			{title: "Use Dependency Injection", segment: "dependency-injection"},
 			{title: "Integrate with a web frontend", segment: "integrate-frontend"},
 			{title: "Use Firebase Authentication", segment: "firebase-auth"},
 			{title: "Integrate with GitHub", segment: "github"},
+			{title: "Migrate an existing backend to Encore", segment: "migrate-to-encore"},
 			{title: "Migrate away from Encore", segment: "migrate-away"},
 		]
 	},
@@ -134,7 +138,9 @@ sections: [
 		title: "Other Topics"
 		segment: "other"
 		docs: [
-			{title: "Encore vs. Terraform / Pulumi", segment: "vsterraform"},
+			{title: "Encore vs. Terraform / Pulumi", segment: "vs-terraform"},
+			{title: "Encore vs. Heroku", segment: "vs-heroku"},
+			{title: "Encore vs. Supabase / Firebase", segment: "vs-supabase"},
 		]
 	},
 	{

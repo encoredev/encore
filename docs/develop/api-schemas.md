@@ -1,15 +1,11 @@
 ---
 seotitle: API Schemas – Path, Query, and Body parameters
 seodesc: See how to design API schemas for your Go based backend application using Encore.
-title: API schemas
-subtitle: Defining definitions
+title: API Schemas
+subtitle: How to design schemas for your APIs
 ---
-APIs in Encore consist of regular functions with request and response data types.
-These data types are structs (or pointers to structs) with optional field tags.
-The tags are used by Encore when encoding API requests to HTTP messages. The same tags can be used
-for requests and responses, but Encore will ignore the `query` tag when generating
-responses. This makes it possible to use the same struct as a request and response
-parameter.
+APIs in Encore are regular functions with request and response data types.
+These types are structs (or pointers to structs) with optional field tags, which Encore uses to encode API requests to HTTP messages. The same struct can be used for requests and responses, but the `query` tag is ignored when generating responses.
 
 All tags except `json` are ignored for nested tags, which means you can only define
 `header` and `query` parameters for root level fields.
@@ -67,7 +63,7 @@ X-Header: A header
 
 ## Path parameters
 
-Path parameters are specified by the `path` field in the `//encore:api` comment.
+Path parameters are specified by the `path` field in the `//encore:api` annotation.
 To specify a placeholder variable, use `:name` and add a function parameter with the same name to the function signature.
 Encore parses the incoming request URL and makes sure it matches the type of the parameter. The last segment of the path
 can be parsed as a wildcard parameter by using `*name` with a matching function parameter.
@@ -82,7 +78,7 @@ func GetBlogPost(ctx context.Context, id int, path string) (*BlogPost, error) {
 
 ## Headers
 
-Headers are defined by the `header` field tag. The tag name is used to translate between the struct field and http headers.
+Headers are defined by the `header` field tag, which can be used in both request and response data types. The tag name is used to translate between the struct field and http headers.
 In the example below, the `Language` field of `ListBlogPost` will be fetched from the
 `Accept-Language` HTTP header.
 
@@ -93,15 +89,16 @@ type ListBlogPost struct {
 }
 ```
 
-`header` can be used in both request and response data types
-
 ## Query parameters
 
 For `GET`, `HEAD` and `DELETE` requests, parameters are read from the query string by default.
-The name of the query parameter will default to the [snake-case](https://en.wikipedia.org/wiki/Snake_case)
-encoded name of the corresponding struct field (e.g. BlogPost becomes blog_post). The `query` field tag can be used
-to parse a field from the query string for other HTTP methods (e.g. POST). The tag can also be used to override the
-default parameter name.
+The query parameter name defaults to the [snake-case](https://en.wikipedia.org/wiki/Snake_case)
+encoded name of the corresponding struct field (e.g. BlogPost becomes blog_post).
+
+The `query` field tag can be used
+to parse a field from the query string for other HTTP methods (e.g. POST) and to override the default parameter name. 
+
+Query strings are not supported in HTTP responses and therefore `query` tags in response types are ignored.
 
 In the example below, the `PageLimit` field will be read from the `limit` query
 parameter, whereas the `Author` field will be parsed from the query string (as `author`) only if the method of
@@ -114,16 +111,14 @@ type ListBlogPost struct {
 }
 ```
 
-Query strings are not supported in HTTP responses and therefore `query` tags in response types are ignored.
-
 ## Body parameters
 
 Encore will default to reading request parameters from the body (as JSON) for all HTTP methods except `GET`, `HEAD` or
 `DELETE`. The name of the body parameter defaults to the field name, but can be overridden by the
 `json` tag. Response fields will be serialized as JSON in the HTTP body unless the `header` tag is set.
 
-There is no tag to force a field to be read from the body. This is because some infrastructure entities
-does not support body content in `GET`, `HEAD` or `DELETE` requests.
+There is no tag to force a field to be read from the body, as some infrastructure entities
+do not support body content in `GET`, `HEAD` or `DELETE` requests.
 
 ```go
 type CreateBlogPost struct {
@@ -157,6 +152,18 @@ For these circumstances Encore lets you define raw endpoints. Raw endpoints oper
 
 Learn more about how to use raw endpoints in the [receiving webhooks guide](/docs/how-to/webhooks).
 
+## Sensitive data
+
+Encore's built-in tracing functionality automatically captures request and response payloads
+to simplify debugging. That's not desirable if a request or response payload contains sensitive data, such
+as API keys or personally identifiable information (PII).
+
+For those use cases Encore supports marking a field as sensitive using the struct tag `encore:"sensitive"`.
+Encore's tracing system will automatically redact fields tagged as sensitive. This works for both individual
+values as well as nested fields. 
+
+Note that inputs to [auth handlers](/docs/develop/auth) are automatically marked as sensitive and are always redacted.
+
 ## Example
 
 ```go
@@ -177,6 +184,7 @@ type BatchUpdateParams struct {
 	RequestTime   time.Time `header:"X-Request-Time"`
 	CurrentAuthor string    `query:"author"`
 	Updates       *Updates  `json:"updates"`
+	MySecretKey   string    `encore:"sensitive"`
 }
 
 // BatchUpdateResponse is the response data for the BatchUpdate endpoint.

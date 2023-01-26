@@ -8,7 +8,7 @@ Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
 Encore supports both use cases in a simple yet powerful way.
 
-As described in [defining APIs](/docs/primitives/services-and-apis), Encore offers three access levels
+As described in the docs for [defining APIs](/docs/primitives/services-and-apis), Encore offers three access levels
 for APIs:
 
 * `//encore:api public` &ndash; defines a public API that anybody on the internet can call

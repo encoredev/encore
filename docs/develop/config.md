@@ -2,10 +2,10 @@
 seotitle: Configuration for environment specific changes
 seodesc: See how you can use configuration to define different behavior in each environment. Making it simpler to develop and test your backend application.
 title: Configuration
-subtitle: When you want to change something, but not everywhere
+subtitle: Define behavior in specific environments
 ---
 
-It's common to want to change something in your codebase, but not want to change it everywhere the code is deployed. Configuration files let you define the default behaviour of your application, and override it for specific environments.
+Configuration files let you define default behavior for your application, and override it for specific environments. This allows you to make changes without affecting deployments in other environments.
 
 Encore supports configuration files written in [CUE](https://cuelang.org/), which is a superset of JSON. It adds the following:
 - C-style comments

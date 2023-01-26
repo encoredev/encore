@@ -20,6 +20,10 @@ and free yourself from cloud complexity.
         <div>Create a Slack bot that brings the greatness of the cowsay utility to Slack!</div>
     </div>
     <div>
+        <a href="/docs/tutorials/uptime" class="lead-xsmall">Building an Uptime Monitoring System</a><br />
+        <div>Monitor websites and get alerted when they go down.</div>
+    </div>
+    <div>
         <a href="/docs/tutorials/incident-management-tool" class="lead-xsmall">Building an Incident Management Tool</a><br />
         <div>Create an incident management tool to assign and manage incidents.</div>
     </div>

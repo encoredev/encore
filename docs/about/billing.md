@@ -14,11 +14,12 @@ See the [pricing page](https://encore.dev/pricing) for a feature comparison betw
 
 The free plan comes with certain limitations, and should your needs exceed one or more of them, you may wish to upgrade to a paid plan:
 
-- When you want to add more than 3 team members
+- When you have more than 2 team members
 - When you want to use a Custom Domain
 - When you need multiple concurrent builds
 - When you need guaranteed logs & tracing retention
 - When you want access to private support & onboarding assistance
+- When you want to customize performance characteristics for preview and development environments hosted on Encore Cloud.
 
 Currently, there are no hard paywalls and you can access all Encore features without creating a paid plan.
 This is a good way to try out Encore and learn if it's for you. When you've decided to use Encore,

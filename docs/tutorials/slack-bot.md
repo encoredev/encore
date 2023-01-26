@@ -16,12 +16,12 @@ Whenever you see a 🥐 it means there's something for you to do.
 
 </Callout>
 
-## Create your Encore application
+## 1. Create your Encore application
 
 🥐 Create a new Encore application by running `encore app create` and select `Empty app` as the template.
 **Take a note of your app id, we'll need it in the next step.**
 
-## Creating our Slack app
+## 2. Create a Slack app
 
 🥐 The first step is to create a new Slack app:
 
@@ -62,7 +62,7 @@ settings:
 
 Once created, we're ready to move on with implementing our Encore endpoint!
 
-## Implementing the Slack endpoint
+## 3. Implement the Slack endpoint
 
 Since Slack sends custom HTTP headers that we need to pay attention to, we're going to
 use a raw endpoint in Encore. For more information on this check out Slack's documentation
@@ -123,7 +123,7 @@ You should see something like this:
 
 And just like that we have a fully working Slack integration.
 
-## Secure the webhook endpoint
+## 4. Secure the webhook endpoint
 
 In order to get up and running quickly we ignored one important aspect for a production-ready Slack app:
 verifying that the webhook requests are actually coming from Slack. Let's do that now!
@@ -248,7 +248,7 @@ func Cowsay(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-## Putting it all together
+## 5. Put it all together and deploy
 
 Finally we're ready to put it all together.
 

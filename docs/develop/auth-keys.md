@@ -34,7 +34,7 @@ As an Encore user, visit the auth key page by going to **[Your apps](https://app
 
 A key can be both **reusable** and **ephemeral** at the same time (you can decide the combination based on your particular use case).
 
-<Callout type="warning">
+<Callout type="important">
 
 **Don't forget to store your key!** Once generated, you will need to copy and store your key in a vault product (eg. 1Password, LastPass). We do not display the full contents of a key in our dashboard for security reasons.
 
