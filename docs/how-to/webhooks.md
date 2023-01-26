@@ -28,8 +28,8 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-Like any other Encore API endpoint, this will be exposed at the URL <br/>
-`https://<app-id>.encr.app/<env>/service.Webhook`.
+Like any other API endpoint, this will be exposed at: <br/>
+`https://<env>-<app-id>.encr.app/service.Webhook`.
 
 If you're an experienced Go developer, this is just a regular Go HTTP handler.
 
