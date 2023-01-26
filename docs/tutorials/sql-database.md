@@ -11,7 +11,7 @@ To locally run Encore apps with databases, you need to have [Docker](https://www
 
 </Callout>
 
-## Add a new API endpoint
+## 1. Add a new API endpoint
 
 We'll add a new API endpoint, `hello.There` that takes a name as input
 and responds with a personalized greeting. The database will store
@@ -65,7 +65,7 @@ You'll immediately see a personalized response:
 
 It works! Now it's time to add a database to track how many times you've met.
 
-## Create a database table
+## 2. Create a database table
 
 Inside your `hello` service, add a new directory named `migrations`.
 
@@ -147,7 +147,7 @@ $ curl http://localhost:4000/hello.There -d '{"Name": "John"}'
 
 Wonderful, it works!
 
-## Deploy to production
+## 3. Deploy to production
 
 To deploy this to production, simply push this code to Encore:
 

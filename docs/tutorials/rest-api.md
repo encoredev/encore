@@ -21,21 +21,13 @@ Whenever you see a 🥐 it means there's something for you to do.
 
 </Callout>
 
-## API structure
+## 1. Create a service and endpoint
 
+If you haven't already, create a new application by running `encore app create` and select `Empty app` as the template. 
 
-REST APIs are resource-oriented, meaning that we start by identifying the resources our app needs and design the URL hierarchy based on them. For our URL Shortener we’ll have just a single resource: the URL.
+Now let's create a new `url` service.
 
-Our API structure will be:
-
-* `POST /url` — Create a new, shortened URL (returns id)
-* `GET /url/:id` — Returns the full URL given an id
-
-
-## Creating our Shorten endpoint
-We start by defining a new `url` service. You can use the Encore application you created in the [Quick Start](/docs/quick-start "Quick Start") guide or create a new one from scratch, it’s up to you.
-
-🥐 Create a new folder `url` and create a new file `url/url.go` that looks like this:
+🥐 In your application's root folder, create a new folder `url` and create a new file `url.go` that looks like this:
 
 ```go
 package url
@@ -106,7 +98,7 @@ It works! There’s just one problem...
 
 Right now, we’re not actually storing the URL anywhere. That means we can generate shortened IDs but there’s no way to get back to the original URL! We need to store a mapping from the short ID to the complete URL.
 
-## Saving URLs in a database
+## 2. Save URLs in a database
 Fortunately, Encore makes it really easy to set up a PostgreSQL database to store our data. To do so, we first define a **database schema**, in the form of a migration file.
 
 🥐 Create a new folder named `migrations` inside the `url` folder. Then, inside the `migrations` folder, create an initial database migration file named `1_create_tables.up.sql`. The file name format is important (it must start with `1_` and end in `.up.sql`).
@@ -191,7 +183,7 @@ url=# select * from url;
 
 That was easy!
 
-## Retrieving the full URL
+## 3. Add endpoint to retrieve URLs
 To complete our URL shortener API, let’s add the endpoint to retrieve a URL given its short id.
 
 🥐 Add this endpoint to `url/url.go`:
@@ -228,7 +220,7 @@ You should now see this:
 
 And there you have it! That's how you build REST APIs in Encore.
 
-## Add a test and deploy
+## 4. Add a test and deploy
 
 Before deployment, it is good practice to have tests to assure that
 the service works properly. Such tests including database access

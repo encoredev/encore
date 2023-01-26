@@ -5,7 +5,7 @@ title: Quick Start Guide
 subtitle: Get started building with Encore in minutes
 ---
 
-In this short guide, you'll learn Encore's key concepts and get to experience the Encore developer workflow.
+In this short guide, you'll learn Encore's key concepts and experience the Encore workflow.
 It should only take about 5 minutes to complete, and by the end you'll have an API running in the cloud.
 
 To make it easier to follow along, we've laid out a trail of croissants to guide your way.
@@ -13,26 +13,30 @@ Whenever you see a 🥐 it means there's something for you to do.
 
 Let's get started!
 
-## Install the Encore CLI
-To develop locally with Encore, you need the Encore CLI. This is what provisions your local development environment, and runs your local development dashboard complete with logs, tracing, and API documentation.
+## 1. Install CLI & Create account
+To develop with Encore, you need the Encore CLI. It provisions your local environment, and runs your local development dashboard complete with logs, tracing, and API documentation.
 
 🥐 Install the Encore CLI by running the appropriate command for your system:
 
 <InstallInstructions />
 
-Now you're ready to create your first Encore app!
+Since this is the first time you're using Encore, you need to create an account and authenticate via the CLI.
+This is needed so that the Encore platform can orchestrate functionality like tracing, secrets, and manage cloud deployments.
 
-## Create your first app
+You can use your account with GitHub, Google, or create an account using your email.
+
+🥐 Create an account and authenticate by running:
+```shell
+$ encore auth signup
+```
+
+## 2. Create your app
 When you're building with Encore, it’s best to use one application for an entire project.
 
 🥐 Create your app by running:
 ```shell
 $ encore app create
 ```
-
-Since this is the first time you're using Encore, you will be asked to create an account.
-After running the above command, press `Enter` to create your Encore account, following the instructions on screen.
-You can use your account with GitHub or Google, or create an account using your email.
 
 Continue by picking a name for your app, using lowercase letters, digits, or dashes.
 
@@ -83,7 +87,7 @@ If you want to create more services and endpoints, it's as easy as creating more
 
 Encore includes a few more native concepts that we'll begin to cover in [the next tutorial](/docs/tutorials/rest-api), which for instance let you use backend primitives like databases and scheduled tasks by simply writing code.
 
-## Explore Encore
+### Explore Encore
 
 Making it easy to define APIs isn't the only thing Encore does to make your developer experience better.
 Encore integrates your entire workflow, from writing code to running in production.
@@ -133,7 +137,7 @@ In this short video you can see the development dashboard in use, showing the [i
 	<source src="/assets/docs/localdevdash.mp4" className="w-full h-full" type="video/mp4" />
 </video>
 
-## Make a code change
+## 3. Push a code change and deploy
 
 Let's put our mark on this API and make our first code change.
 
@@ -162,7 +166,7 @@ $ curl http://localhost:4000/hello/world
 
 Great job, you're now ready to head to the cloud!
 
-## Deploy your app to the cloud
+### Deploy your app to the cloud
 
 _Remember we said Encore integrates your entire workflow? Let's try it out!_
 
@@ -182,7 +186,7 @@ Encore will now build and test your app, provision the needed infrastructure, an
 
 _Your app will soon be running in the cloud, isn't this exciting?_
 
-## Head to the web platform
+### Head to the web platform
 
 After triggering the deployment, you will see a url where you can view its progress in the Encore web platform.
 It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
@@ -195,7 +199,7 @@ You can now use the web platform to view production [logs](/docs/observability/l
 	<source src="/assets/docs/deployment.mp4" className="w-full h-full" type="video/mp4" />
 </video>
 
-## Call your API in the cloud
+### Call your API in the cloud
 
 Now that you've created your staging environment, you're ready to call your API running in the cloud.
 Your API Base URL will be something like: `https://staging-$APP_ID.encr.app`
@@ -213,6 +217,6 @@ _Congratulations, you're well on your way to escaping the maze of cloud complexi
 
 ## What's next?
 
-🥐 Check out the [REST API tutorial](/docs/tutorials/rest-api) to learn how to add more services, use databases, and write tests, all in just a few minutes.
+🥐 Check out the [Uptime Monitor tutorial](/docs/tutorials/uptime) to learn how to add more services, use databases, PubSub, and cron jobs.
 
 If you want to chat to other pioneering developers already building with Encore, or need help, join the friendly community on [Slack](/slack).

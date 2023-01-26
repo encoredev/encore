@@ -11,8 +11,7 @@ features like [distributed tracing](/docs/observability/tracing) and [Encore Flo
 
 If you have a large application, see advice on how to [structure an app with several systems](/docs/develop/app-structure#large-applications-with-several-systems). 
 
-It's easy to integrate Encore applications with any pre-existing systems you might have. To make this frictionless,
-Encore comes with built-in tools like [client generation](/docs/develop/client-generation).
+It's simple to integrate Encore applications with any pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/develop/client-generation). See more on how to approach building new functionality incrementally with Encore in the [migrating to Encore](/docs/how-to/migrate-to-encore) documentation.
 
 ## Monoliths and small microservices applications
 

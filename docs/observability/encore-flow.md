@@ -5,9 +5,8 @@ title: Flow Architecture Diagram
 subtitle: Visualize your cloud microservices architecture
 ---
 
-Flow is a visual tool that gives you an up-to-date view of your entire system. Flow helps you improve your
-microservices architecture by letting you instantly identify which services depend on each other and how they work
-together.
+Flow is a visual tool that gives you an always up-to-date view of your entire system, helping you reason about your
+microservices architecture and identify which services depend on each other and how they work together.
 
 ## Birds-eye view
 
@@ -15,13 +14,12 @@ Having access to a zoomed out representation of your system can be invaluable in
 development cycle. Flow helps you:
 
 * Track down bottlenecks before they grow into big problems.
-* Get someone new to the team up onboarded and up to speed.
+* Get new team members onboarded much faster.
 * Pinpoint hot paths in your system, services that might need extra attention.
 
 Services and PubSub topics are represented as boxes, arrows indicate a dependency. In the example below
 the `login` service has dependencies on the `user` and `authentication` services. Dashed arrows shows publications or
 subscriptions to a topic. Here, `payment` publishes to the `payment-made` topic and `email` subscribe to it:
-
 
 <img src="/assets/docs/flow-diagram.png" title="Encore Flow - Highlight Dependencies" />
 
@@ -35,11 +33,14 @@ the `authentication` service:
 
 <img src="/assets/docs/flow-highlight.png" title="Encore Flow - Highlight Dependencies" />
 
-## Auto update
+## Real-time updates
 
-Flow is available in the [Development Dashboard](/docs/observability/dev-dash) which is accessible after
-running `encore run` in your terminal. From there, Flow will auto update in real-time to reflect your architecture as you
-develop your application. This helps you be mindful of important dependencies and make it clear if you introduce new ones.
+Flow is accessible in the [Local Development Dashboard](/docs/observability/dev-dash) and the [web platform](https://app.encore.dev) for cloud environments.
+
+When developing locally, Flow will auto update in real-time to reflect your architecture as you
+make code changes. This helps you be mindful of important dependencies and makes it clear if you introduce new ones.
+
+For cloud environments, Flow auto-updates with each deploy.
 
 In the example below a new subscription on the topic `payment-made` is introduced and then removed in `user` service:
 

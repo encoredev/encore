@@ -11,7 +11,7 @@ Of course, we can’t do that &ndash; it's horrifyingly insecure!
 
 Encore's built-in secrets manager makes it simple to store secrets in a secure way, and lets you use them in your program like regular variables.
 
-When creating new environments, Encore automatically sets up secrets management using best practices for each cloud provider. See the [infrastructure documentation](http://localhost:3010/docs/deploy/infra#production-infrastructure) for more details.
+When creating new environments, Encore automatically sets up secrets management using best practices for each cloud provider. See the [infrastructure documentation](/docs/deploy/infra#production-infrastructure) for more details.
 
 ## Defining secrets
 
@@ -31,15 +31,29 @@ The variable must be an unexported struct named `secrets`, and all the fields mu
 
 </Callout>
 
-Then you set the secret value using `encore secret set --<dev|prod> <secret-name>`.
-As you can see, secrets are defined per environment type. This makes it easy to set different secrets for production and development environments.
-Your local development environment and preview environments are also `dev` environments.
+Then you set the secret value using `encore secret set --type <types...> <secret-name>`.
 
-For example `encore secret set --prod SSHPrivateKey` sets a production secret,<br/> and `encore secret set --dev GitHubAPIToken` sets a development and local development secret.
+`<types>` defines which environment types the secret value applies to. Use a comma-separated list of `production`, `development`, `preview`, and `local`. Shorthands: `prod`, `dev`, `pr`.
 
-The values are stored safely using HashiCorp Vault, and delivered securely directly to your production environment.
+For example `encore secret set --type prod SSHPrivateKey` sets the secret value for production environments,<br/> and `encore secret set --type dev,preview,local GitHubAPIToken` sets the secret value for development, preview, and local environments.
 
-### Using secrets
+<Callout type="important">
+
+There can only be one secret value for each environment type. For example, if you already have a secret value that's shared between `development`, `preview` and `local`
+and you want to override the value for `local`, you must first edit the existing secret value and remove `local`. Only then can you define a new secret value
+specifically for `local`. (Same goes for the other environment types.)
+
+You can edit existing secret values on the [Encore web platform](https://app.encore.dev) under Settings > Secrets.
+
+</Callout>
+
+For certain use cases it can be useful to define a secret for a specific environment instead of an environment type.
+You can do so with `encore secret set --env <env-name> <secret-name>`. Secret values for specific environments
+take precedence over values for environment types.
+
+The values are stored safely using [GCP's Key Management Service](https://cloud.google.com/security-key-management), and delivered securely directly to your application.
+
+## Using secrets
 
 Once you've provided values for all the secrets, you can just use them in your program like a regular variable. For example:
 
@@ -57,5 +71,5 @@ Secret keys are globally unique for your whole application; if multiple services
 <Callout type="info">
 
 Once you've used secrets in your program, the Encore compiler will check that they are set before running or deploying your application.
-    
+
 </Callout>
