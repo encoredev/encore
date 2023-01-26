@@ -65,7 +65,7 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 ```
 
 **Hint:** Like any other API endpoint, this will be exposed at:<br/>
-`https://<app-id>.encr.app/<env>/service.Webhook`
+`https://<env>-<app-id>.encr.app/service.Webhook`
 
 ## Databases
 
