@@ -30,3 +30,11 @@ Unlike other tracing solutions, Encore understands what each trace event is and 
 * etc.
 
 Encore's tracing implementation sits at a lower abstraction level than what is normally possible, and leverages the Go runtime to do tracing with minimal application performance impact. This means Encore's tracing is much more performant than traditional tracing implementations like Datadog, Lightstep, or Dynatrace.
+
+## Redacting sensitive data
+
+Encore's tracing automatically captures request and response payloads to simplify debugging.
+
+For cases where this is undesirable, such as for passwords or personally identifiable information (PII), Encore supports redacting fields marked as containing sensitive data.
+
+See the documentation on [API Schemas](/docs/develop/api-schemas#sensitive-data) for more information.

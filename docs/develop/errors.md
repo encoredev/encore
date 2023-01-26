@@ -2,15 +2,12 @@
 seotitle: API Errors – Types, Wrappers, and Codes
 seodesc: See how to return structured error information from your APIs using Encore's errs package, and how to build precise error messages for complex business logic.
 title: API Errors
-subtitle: When the happy path turns sad
+subtitle: Returning structured error information from your APIs
 ---
 
-Encore supports returning structured error information from your APIs.
+Encore supports returning structured error information from your APIs using the [encore.dev/beta/errs](https://pkg.go.dev/encore.dev/beta/errs) package.
 
-The key piece is the [encore.dev/beta/errs](https://pkg.go.dev/encore.dev/beta/errs) package.
-
-These errors are propagated across the network to the [generated clients](/docs/develop/client-generation) and can be
-used within your front-ends without having to build any custom marshalling code.
+Errors are propagated across the network to the [generated clients](/docs/develop/client-generation) and can be used within your front-ends without having to build any custom marshalling code.
 
 ## The errs.Error type
 
@@ -56,7 +53,7 @@ Causes Encore to respond with a `HTTP 404` error with body:
 Encore applications are encouraged to always use the `errs` package to
 manipulate errors. It supports wrapping errors to gradually add more error
 information, and lets you easily define both structured error details to return
-to external clients, as well as internal, key-value metadata for debugging
+to external clients, as well as internal key-value metadata for debugging
 and error handling.
 
 ```go

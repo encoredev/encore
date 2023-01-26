@@ -4,7 +4,7 @@ seodesc: See how you can use an ORM like ent, or Atlas, to handle your database 
 title: Use the ent ORM for migrations
 ---
 
-Encore has all the tools needed to support ORMs and migration frameworks out of the box through
+Encore has all the tools needed to support ORMs and migration frameworks out-of-the-box through
 [named databases](/docs/how-to/share-db-between-services) and 
 [migration files](/docs/develop/databases#defining-a-database-schema). Writing plain SQL might
 not work for your use case, or you may not want to use SQL in the first place. 
@@ -13,13 +13,10 @@ ORMs like [ent](https://entgo.io/) or migration frameworks like [Atlas](https://
 be used with Encore by integrating their logic with a system's database. Encore is not restrictive,
 it uses plain SQL migration files for its migrations. 
 
-> If your ORM of choice can connect to any database using a 
-> [standard SQL driver](https://github.com/lib/pq), then it can be used with encore 
-> using `sqldb.Named()`
-> 
-> If your migration framework can generate SQL migration files without any modifications.
+- If your ORM of choice can connect to any database using a [standard SQL driver](https://github.com/lib/pq), then it can be used with Encore using `sqldb.Named()`.
+- If your migration framework can generate SQL migration files without any modifications, then it can be used with Encore.
 
-Let's take a look at how you may integrate ent with encore.
+Let's take a look at how you can integrate ent with Encore.
 
 ## Add ent schemas to a service
 [Install ent](https://entgo.io/docs/tutorial-setup#installation), then initialize your first
@@ -40,7 +37,7 @@ that schema and all future generated files:
 go run entgo.io/ent/cmd/ent init --target usr/ent/schema User
 ```
 
-The `--target` option sets the schema directory within your encore system. Each system
+The `--target` option sets the schema directory within your Encore system. Each system
 should contain its own models and schemas, and its own migration files. Like you would when using
 plain SQL.
 
@@ -59,7 +56,7 @@ When adding End support in a new Encore system, there are a few steps that need 
 database exists and the migrations can be created.
 
 First, create the `migrations` directory in the `usr` system and add an empty migration named `1_init.up.sql`. This
-migration is necessary for encore to pick up the system as a [database](/docs/develop/databases) system. Run this
+migration is necessary for Encore to pick up the system as a [database](/docs/develop/databases) system. Run this
 command to have Encore build the application and create the database:
 
 ```shell
@@ -71,7 +68,7 @@ it there, the next steps will work whether it is there or not.
 
 ## Connect ent to the system's database
 When it generates all its files, ent generates a client interface to connect the ORM to the actual
-database through a standard driver. We write something like this to connect the driver with encore's generated
+database through a standard driver. We write something like this to connect the driver with Encore's generated
 database, which is very similar to how we'd [connect to an external database](/docs/how-to/connect-existing-db).
 
 **`usr/connectdb.go`**
@@ -199,7 +196,7 @@ func main() {
 	migrateDir := createMigrateDir()
 
 	// Create a formatter for the migration files. This will make sure they generate
-	// with a name encore can parse and valid SQL content. This will only generate the
+	// with a name Encore can parse and valid SQL content. This will only generate the
 	// up migrations.
 	formatter, err := migrate.NewTemplateFormatter(
 		template.Must(template.New("name").Parse("{{ .Name }}.up.sql")),

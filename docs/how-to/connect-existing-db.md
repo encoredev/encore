@@ -4,12 +4,7 @@ seodesc: Learn how to connect your Encore Go backend application to an existing 
 title: Connect to an existing database
 ---
 
-When you create an Encore service and add a database to it, Encore will automatically setup the necessary infrastructure for you.
-That's usually what you want, but for some use cases you want to connect to an existing database that you've already setup:
-- To gradually migrate your backend over to using Encore
-- To use Encore for prototyping a replacement of an existing service
-
-In those cases, it's easy to integrate Encore with the existing database. 
+Encore automatically provision the necessary infrastructure when you create a service and add a database. However, you may want to connect to an existing database for migration or prototyping purposes. It's simple to integrate your Encore app with an existing database in these cases.
 
 ## Example
 

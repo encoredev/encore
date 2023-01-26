@@ -30,13 +30,11 @@ Whenever you see a 🥐 it means there's something for you to do.
 
 </Callout>
 
-## Create your Encore application
+## 1. Create your Encore application
 
-🥐 Create a new Encore application by running `encore app create` and select `Empty app` as the template. We can name it `oncall-tutorial` for now. Your newly created application will also be registered on <https://app.encore.dev> for when you deploy your new app later!
+🥐 Create a new Encore application by running `encore app create`, select `Empty app` as the template and name it `oncall-tutorial`.
 
-🥐 Run `cd oncall-tutorial` in your Terminal otherwise Encore won't be able to understand which app you're referring to when you run the `encore` CLI!
-
-## Integrating with Slack
+## 2. Integrate with Slack
 
 🥐 Follow [this guide to create your own Incoming Webhook](https://api.slack.com/messaging/webhooks) for your Slack workspace. Incoming webhooks cannot read messages, and can only post to a specific channel of your choice.
 
@@ -107,7 +105,7 @@ slack.Notify(context, &slack.NotifyParams{ Text: "Send a Slack notification" })
 
 </Callout>
 
-## Creating users
+## 3. Create a service to manage users
 
 With an Incident Management Tool (or usually any tool, for that matter) we need a service for users.
 This will allow us to figure out who we should assign incoming incidents to!
@@ -207,7 +205,7 @@ curl -d '{
 
 Fantastic, we now have a user system in our app! Next we need a list of start and end times of each scheduled rotation so we know who to assign incoming incidents to (as well as notify them on Slack!)
 
-## Adding scheduling
+## 4. Add scheduling
 
 A good incident management tool should be able to spread the workload of diagnosing and fixing incidents across multiple users in a team. Being able to know who the correct person to assign an incident to is very important; our incidents might not get resolved quickly otherwise!
 
@@ -307,6 +305,11 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 	return &schedule, nil
 }
 
+//encore:api public method=GET path=/scheduled
+func ScheduledNow(ctx context.Context) (*Schedule, error) {
+	return scheduled(ctx, time.Now())
+}
+
 //encore:api public method=GET path=/scheduled/:timestamp
 func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 	eb := errs.B().Meta("timestamp", timestamp)
@@ -315,10 +318,10 @@ func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 		return nil, eb.Code(errs.InvalidArgument).Msg("timestamp is not in a valid format").Err()
 	}
 
-	return Scheduled(ctx, parsedtime)
+	return scheduled(ctx, parsedtime)
 }
 
-func Scheduled(ctx context.Context, timestamp time.Time) (*Schedule, error) {
+func scheduled(ctx context.Context, timestamp time.Time) (*Schedule, error) {
 	eb := errs.B().Meta("timestamp", timestamp)
 	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
 		SELECT id, user_id, start_time, end_time
@@ -422,7 +425,7 @@ curl -d '{
 # }
 ```
 
-## Creating incidents: this is fine
+## 5. Create a service to manage incidents
 
 So we have users, and we know who is available to be notified (or if nobody should be notified) at any given time with the introduction of the `schedules` service. The only thing we're missing is the ability to report, assign and acknowledge incidents!
 
@@ -530,7 +533,7 @@ func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
 //encore:api public method=POST path=/incidents
 func Create(ctx context.Context, params *CreateParams) (*Incident, error) {
 	// check who is on-call
-	schedule, err := schedules.Scheduled(ctx, time.Now())
+	schedule, err := schedules.ScheduledNow(ctx)
 
 	incident := Incident{}
 	if schedule != nil {
@@ -694,7 +697,7 @@ var _ = cron.NewJob("assign-unassigned-incidents", cron.JobConfig{
 //encore:api private
 func AssignUnassignedIncidents(ctx context.Context) error {
 	// if this fails, we don't have anyone on call so let's skip this
-	schedule, err := schedules.Scheduled(ctx, time.Now())
+	schedule, err := schedules.ScheduledNow(ctx)
 	if err != nil {
 		return err
 	}
@@ -740,7 +743,7 @@ curl -d '{
 # }
 ```
 
-## Finished
+## 6. Try your app and deploy
 
 Congratulations! Our application looks ready for others to try - we have our `users`, `schedules` `incidents` and `slack` services along with 3 database tables and 2 cronjobs. Even better that all of the deployment and maintenance is taken care by Encore!
 

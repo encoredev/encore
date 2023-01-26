@@ -9,12 +9,11 @@ Encore lets you deploy your application to any of the major cloud providers, usi
 This lets you use Encore to improve your experience and productivity, while keeping the reliability of a major cloud provider.
 
 Each [environment](/docs/deploy/environments) can be configured to use a different cloud provider, and you can have as many environments as you wish.
-This functionality also lets you easily deploy a hybrid or multi-cloud application, as you see fit.
+This also lets you easily deploy a hybrid or multi-cloud application, as you see fit.
 
 <Callout type="info">
 
-Encore will provision infrastructure in your cloud account, but for safety reasons Encore does not destroy infrastructure
-once it's no longer required.
+Encore will provision infrastructure in your cloud account, but for safety reasons Encore does not destroy infrastructure once it's no longer required.
 
 This means if you disconnect your app from your cloud provider, or delete the environment
 within Encore, you need to manually remove the infrastructure that was created by Encore.
