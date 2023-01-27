@@ -132,7 +132,7 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
             const scaleX = parent.width / graphLayoutData.width!;
             const scaleY = parent.height / graphLayoutData.height!;
             let scale = scaleY > scaleX ? scaleX : scaleY;
-            scale = Math.min(scale, 2);
+            scale = Math.min(scale, 1.5) * 0.8;
 
             return (
               <Zoom<SVGSVGElement>
