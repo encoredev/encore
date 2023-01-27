@@ -167,6 +167,14 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		s.Stop()
 	}
 
+	// Rewrite any existence of ENCORE_APP_ID to the allocated app id.
+	if app != nil {
+		if err := rewritePlaceholders(name, app); err != nil {
+			red := color.New(color.FgRed)
+			red.Printf("Failed rewriting source code placeholders, skipping: %v\n", err)
+		}
+	}
+
 	if err := initGitRepo(name, app); err != nil {
 		return err
 	}
@@ -485,4 +493,56 @@ func gitUserConfigured() (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// rewritePlaceholders recursively rewrites all files within basePath
+// to replace placeholders with the actual values for this particular app.
+func rewritePlaceholders(basePath string, app *platform.App) error {
+	var first error
+	err := filepath.WalkDir(basePath, func(path string, info fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if err := rewritePlaceholder(path, info, app); err != nil {
+			if first == nil {
+				first = err
+			}
+		}
+		return nil
+	})
+	if err == nil {
+		err = first
+	}
+	return err
+}
+
+// rewritePlaceholder rewrites a file to replace placeholders with the
+// actual values for this particular app. If the file contains none of
+// the placeholders, this is a no-op.
+func rewritePlaceholder(path string, info fs.DirEntry, app *platform.App) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	placeholders := []string{
+		"{{ENCORE_APP_ID}}", app.Slug,
+	}
+
+	var replaced bool
+	for i := 0; i < len(placeholders); i += 2 {
+		placeholder := []byte(placeholders[i])
+		target := []byte(placeholders[i+1])
+		if bytes.Contains(data, placeholder) {
+			data = bytes.ReplaceAll(data, placeholder, target)
+			replaced = true
+		}
+	}
+
+	if replaced {
+		return os.WriteFile(path, data, info.Type().Perm())
+	}
+	return nil
 }
