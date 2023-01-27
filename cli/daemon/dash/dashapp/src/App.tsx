@@ -7,6 +7,7 @@ import AppHome from "~p/AppHome";
 import { ConnContext } from "~lib/ctx";
 import AppAPI from "~p/AppAPI";
 import AppDiagram from "~p/AppDiagram";
+import { SnippetPage, SnippetContent } from "~p/SnippetPage";
 
 function App() {
   const [conn, setConn] = useState<JSONRPCConn | undefined>(undefined);
@@ -37,6 +38,9 @@ function App() {
     <ConnContext.Provider value={conn}>
       <Router>
         <Routes>
+          <Route path="/:appID/snippets" element={<SnippetPage />}>
+            <Route path=":slug" element={<SnippetContent />} />
+          </Route>
           <Route path="/:appID/flow" element={<AppDiagram />} />
           <Route path="/:appID/api" element={<AppAPI />} />
           <Route path="/:appID" element={<AppHome />} />

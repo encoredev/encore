@@ -16,7 +16,8 @@ const menuItems: {
 }[] = [
   { href: "", name: "Requests" },
   { href: "/api", name: "API Docs" },
-  { href: "/flow", name: "Flow", badge: "New!" },
+  { href: "/flow", name: "Flow" },
+  { href: "/snippets", name: "Snippets", badge: "New!" },
   { href: "https://encore.dev/docs", name: "Encore Docs", external: true },
 ];
 
