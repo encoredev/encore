@@ -1,0 +1,155 @@
+/*
+  .hljs-*  = highlightjs
+  .token.* = prismjs
+*/
+
+pre code[class*="language-"] {
+  display: block;
+  overflow-x: auto;
+  padding: 0.5em;
+}
+
+code[class*="language-"] {
+  /* var(--highlight-color) */
+  color: #EEEEE1 !important;
+  /* var(--highlight-bg) */
+  background: #111111 !important;
+}
+
+@media print {
+  code[class*="language-"],
+  pre[class*="language-"] {
+    text-shadow: none;
+  }
+}
+
+.hljs-subst {
+  /* var(--highlight-color) */
+  color: #EEEEE1;
+}
+
+.hljs-comment,
+.token.comment,
+.token.prolog, .token.doctype,
+.token.cdata {
+  /* var(--highlight-comment) */
+  color: #999999;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-meta .hljs-keyword,
+.hljs-doctag,
+.hljs-section,
+.token.keyword,
+.token.builtin,
+.token.inserted
+{
+  /* var(--highlight-keyword) */
+  color: #6D89FF;
+}
+
+.hljs-attr {
+  /* var(--highlight-attribute); */
+  color: #6D89FF;
+}
+
+.hljs-attribute {
+  /* var(--highlight-symbol) */
+  color: #A36C8C;
+}
+
+.hljs-name,
+.hljs-type,
+.hljs-number,
+.hljs-selector-id,
+.hljs-quote,
+.hljs-template-tag,
+.token.boolean,
+.token.number,
+.token.tag,
+.token.property,
+.token.constant,
+.token.symbol,
+.token.deleted,
+.token.namespace {
+  /* var(--highlight-namespace) */
+  color: #FFB84A;
+}
+
+.hljs-selector-class {
+  /* var(--highlight-keyword) */
+  color: #6D89FF;
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-symbol,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-link,
+.hljs-selector-attr,
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.url,
+.token.char,
+.token.regex {
+  /* var(--highlight-variable) */
+  color: #B3D77E;
+}
+
+.hljs-meta,
+.hljs-selector-pseudo {
+  /* var(--highlight-keyword) */
+  color: #6D89FF;
+}
+
+.hljs-built_in,
+.hljs-title,
+.hljs-literal,
+.token.important {
+  /* var(--highlight-literal) */
+  color: #FFB84A;
+}
+
+.hljs-bullet,
+.hljs-code {
+  /* var(--highlight-punctuation) */
+  color: #cccccc;
+}
+
+.hljs-meta .hljs-string {
+  /* var(--highlight-variable) */
+  color: #B3D77E;
+}
+
+.hljs-deletion {
+  /* var(--highlight-deletion) */
+  color: #de7176;
+}
+
+.hljs-addition {
+  /* var(--highlight-addition) */
+  color: #76c490;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+.hljs-formula,
+.hljs-operator,
+.hljs-params,
+.hljs-property,
+.hljs-punctuation,
+.hljs-tag,
+.token.operator,
+.token.punctuation,
+.token.entity {
+  /* purposely ignored */
+}

@@ -101,17 +101,17 @@ module.exports = {
         for (let i = 1; i <= 12; i++) {
           entries[
             `gc-${i}`
-          ] = `calc((var(--layout-grid-col)*${i} + var(--layout-grid-gap)*${
+            ] = `calc((var(--layout-grid-col)*${i} + var(--layout-grid-gap)*${
             i - 1
           }) / var(--layout-width) * 100vw)`;
           entries[
             `gh-${i}`
-          ] = `calc((var(--layout-grid-col)*${i} + var(--layout-grid-gap)*${
+            ] = `calc((var(--layout-grid-col)*${i} + var(--layout-grid-gap)*${
             i - 1
           }) / var(--layout-width) * 100vw / 2)`;
           entries[
             `gi-${i}`
-          ] = `calc((var(--layout-grid-col)*${i} + var(--layout-grid-gap)*${i}) / var(--layout-width) * 100vw)`;
+            ] = `calc((var(--layout-grid-col)*${i} + var(--layout-grid-gap)*${i}) / var(--layout-width) * 100vw)`;
         }
         return entries;
       })(),
@@ -159,8 +159,8 @@ module.exports = {
         "mobile-menu": ["28px", "100%"],
       },
       screens: {
-        mobile: { max: "670px" },
-        d: { min: "671px" },
+        mobile: {max: "670px"},
+        d: {min: "671px"},
       },
       width: {
         sidebar: "250px",
@@ -244,9 +244,9 @@ module.exports = {
     require("@tailwindcss/forms"),
     require("@tailwindcss/typography"),
     require("tailwind-scrollbar"),
-    plugin(function ({ addUtilities, matchUtilities, addVariant, theme }) {
+    plugin(function({addUtilities, matchUtilities, addVariant, theme}) {
       addUtilities({
-        ".noisify": { zIndex: -200 },
+        ".noisify": {zIndex: -200},
         ".list-brandient": {},
         ".text-brandient": {
           color: "transparent",
@@ -297,7 +297,7 @@ module.exports = {
             };
           },
         },
-        { values: theme("borderWidth") }
+        {values: theme("borderWidth")}
       );
 
       matchUtilities(
@@ -308,7 +308,7 @@ module.exports = {
             };
           },
         },
-        { values: theme("borderWidth") }
+        {values: theme("borderWidth")}
       );
     }),
   ],
