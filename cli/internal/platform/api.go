@@ -16,7 +16,8 @@ import (
 )
 
 type CreateAppParams struct {
-	Name string `json:"name"`
+	Name           string `json:"name"`
+	InitialSecrets map[string]string
 }
 
 type App struct {
