@@ -74,16 +74,16 @@ func (mgr *Manager) Load(app *apps.Instance) *LoadResult {
 // For subsequent calls to Get (such as during live reload), it returns any
 // more recent data that has been subsequently cached.
 func (lr *LoadResult) Get(ctx context.Context, expSet *experiments.Set) (data *Data, err error) {
-	if lr.app.PlatformID() == "" {
-		return &Data{}, nil
-	}
-
 	defer func() {
 		if err == nil && experiments.LocalSecretsOverride.Enabled(expSet) {
 			// Return a new data object so we don't write the overrides to the cache.
 			data, err = applyLocalOverrides(lr.app, data)
 		}
 	}()
+
+	if lr == nil || lr.app.PlatformID() == "" {
+		return &Data{}, nil
+	}
 
 	// Fetch the initial result the first time.
 	err = lr.once.Do(func() error {
