@@ -22,6 +22,7 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/tailscale/hujson"
 
 	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
@@ -130,10 +131,17 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Creating app on encore.dev "
 		s.Start()
-		app, err = createAppOnServer(name)
+
+		exCfg, ok := parseExampleConfig(name)
+		app, err = createAppOnServer(name, exCfg)
 		s.Stop()
 		if err != nil {
 			return fmt.Errorf("creating app on encore.dev: %v", err)
+		}
+
+		// Remove the example.json file if the app was successfully created.
+		if ok {
+			_ = os.Remove(exampleJSONPath(name))
 		}
 	}
 
@@ -242,14 +250,15 @@ func gogetEncore(name string) error {
 	return nil
 }
 
-func createAppOnServer(name string) (*platform.App, error) {
+func createAppOnServer(name string, cfg exampleConfig) (*platform.App, error) {
 	if _, err := conf.CurrentUser(); err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	params := &platform.CreateAppParams{
-		Name: name,
+		Name:           name,
+		InitialSecrets: cfg.InitialSecrets,
 	}
 	return platform.CreateApp(ctx, params)
 }
@@ -545,4 +554,24 @@ func rewritePlaceholder(path string, info fs.DirEntry, app *platform.App) error 
 		return os.WriteFile(path, data, info.Type().Perm())
 	}
 	return nil
+}
+
+// exampleConfig is the optional configuration file for example apps.
+type exampleConfig struct {
+	InitialSecrets map[string]string `json:"initial_secrets"`
+}
+
+func parseExampleConfig(repoPath string) (cfg exampleConfig, exists bool) {
+	if data, err := os.ReadFile(exampleJSONPath(repoPath)); err == nil {
+		if data, err = hujson.Standardize(data); err == nil {
+			if err := json.Unmarshal(data, &cfg); err == nil {
+				return cfg, true
+			}
+		}
+	}
+	return exampleConfig{}, false
+}
+
+func exampleJSONPath(repoPath string) string {
+	return filepath.Join(repoPath, "example.json")
 }
