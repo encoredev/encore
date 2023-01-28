@@ -1,10 +1,10 @@
-import React, { FC, PropsWithChildren, useEffect, useState } from "react";
-import { copyToClipboard } from "~lib/clipboard";
+import { ClipboardDocumentCheckIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
+import hljs from "highlight.js";
 import Prism from "prismjs";
 import "prismjs/components/prism-cue";
 import "prismjs/components/prism-protobuf";
-import hljs from "highlight.js";
-import { CheckIcon, ClipboardCopyIcon } from "@heroicons/react/outline";
+import React, { FC, PropsWithChildren, useEffect, useState } from "react";
+import { copyToClipboard } from "~lib/clipboard";
 
 type Language = "go" | "bash" | "js" | "ts" | "css" | "cue" | "protobuf" | "output" | "sql";
 
@@ -28,10 +28,14 @@ const Code: FC<PropsWithChildren<{ lang: Language; rawContents: string }>> = ({
   }
 
   return (
-    <div className="relative">
-      <pre>
+    <div className="relative h-full text-xs">
+      <pre className="h-full">
         <code
-          className={lang ? (isPrismLanguage(lang) ? "prismjs" : "hljs") + ` language-${lang}` : ""}
+          className={
+            lang
+              ? (isPrismLanguage(lang) ? "prismjs" : "hljs") + ` h-full !p-3 language-${lang}`
+              : ""
+          }
         >
           {code}
         </code>
@@ -69,9 +73,9 @@ export const CopyButton: FC<{ contents: string; className?: string }> = ({
       onClick={onClick}
     >
       {hasCopied ? (
-        <CheckIcon className="h-6 w-6" />
+        <ClipboardDocumentCheckIcon className="h-6 w-6" />
       ) : (
-        <ClipboardCopyIcon className="h-6 w-6 hover:opacity-70" />
+        <ClipboardDocumentIcon className="h-6 w-6 hover:opacity-70" />
       )}
     </button>
   );

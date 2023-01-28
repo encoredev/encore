@@ -13,7 +13,7 @@
     "@codemirror/basic-setup": "^0.20.0",
     "@codemirror/lang-javascript": "^6.0.2",
     "@headlessui/react": "^1.6.6",
-    "@heroicons/react": "^1.0.5",
+    "@heroicons/react": "^2.0.14",
     "@visx/group": "^2.10.0",
     "@visx/responsive": "^2.10.0",
     "@visx/shape": "^2.12.2",
@@ -23,6 +23,7 @@
     "elkjs": "^0.8.2",
     "events": "^3.2.0",
     "fuzzysort": "^2.0.1",
+    "heroicons": "^2.0.14",
     "hjson": "^3.2.2",
     "html-to-image": "^1.10.8",
     "json-rpc-protocol": "^0.13.1",
@@ -31,7 +32,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-json-tree": "^0.17.0",
-    "react-router-dom": "^6.3.0"
+    "react-router-dom": "^6.3.0",
+    "react-router-hash-link": "^2.4.3"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.18.10",
@@ -55,6 +57,7 @@
     "@types/react": "^18.0.16",
     "@types/react-dom": "^18.0.6",
     "@types/react-router-dom": "^5.3.3",
+    "@types/react-router-hash-link": "^2.4.5",
     "@vitejs/plugin-react-refresh": "^1.1.0",
     "autoprefixer": "^10.2.4",
     "jest": "^28.1.3",
