@@ -1,18 +1,38 @@
-import Code from "~c/snippets/Code";
+import {
+  ChatBubbleLeftRightIcon,
+  CircleStackIcon,
+  ClockIcon,
+  CodeBracketIcon,
+  EnvelopeIcon,
+  KeyIcon,
+  Square3Stack3DIcon,
+} from "@heroicons/react/24/solid";
 import React from "react";
+import Code from "~c/snippets/Code";
 
 export interface SnippetSection {
   slug: string;
   heading: string;
+  description?: JSX.Element;
+  icon: typeof CircleStackIcon;
   subSections: {
     heading: string;
     content: JSX.Element;
   }[];
 }
 
+const extLink = (href: string, content: string | JSX.Element) => {
+  return (
+    <a href={href} target="_blank" className="brandient-5 link-brandient">
+      {content}
+    </a>
+  );
+};
+
 const apiSection: SnippetSection = {
   slug: "api",
   heading: "APIs",
+  icon: ChatBubbleLeftRightIcon,
   subSections: [
     {
       heading: "Defining APIs",
@@ -20,31 +40,10 @@ const apiSection: SnippetSection = {
         <Code
           lang="go"
           rawContents={`
-package hello // service name
-
-//encore:api public
+//encore:api public method=POST path=/ping
 func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
     msg := fmt.Sprintf("Hello, %s!", params.Name)
     return &PingResponse{Message: msg}, nil
-}
-`.trim()}
-        />
-      ),
-    },
-    {
-      heading: "Defining Request and Response schemas",
-      content: (
-        <Code
-          lang="go"
-          rawContents={`
-// PingParams is the request data for the Ping endpoint.
-type PingParams struct {
-    Name string
-}
-
-// PingResponse is the response data for the Ping endpoint.
-type PingResponse struct {
-    Message string
 }
 `.trim()}
         />
@@ -77,7 +76,7 @@ func MyOtherAPI(ctx context.Context) error {
       ),
     },
     {
-      heading: "Receive Webhooks",
+      heading: "Raw endpoints",
       content: (
         <>
           <Code
@@ -85,16 +84,32 @@ func MyOtherAPI(ctx context.Context) error {
             rawContents={`
 import "net/http"
 
-// Webhook receives incoming webhooks from Some Service That Sends Webhooks.
+// A raw endpoint operates on standard HTTP requests.
+// It's great for things like Webhooks, WebSockets, and GraphQL.
 //encore:api public raw
 func Webhook(w http.ResponseWriter, req *http.Request) {
     // ... operate on the raw HTTP request ...
 }
 `.trim()}
           />
+        </>
+      ),
+    },
+    {
+      heading: "GraphQL",
+      content: (
+        <>
+          <p>
+            Encore supports GraphQL servers through raw endpoints. We recommend using{" "}
+            {extLink("https://gqlgen.com", "gqlgen")}.
+          </p>
           <p className="mt-5">
-            <b>Hint:</b> Like any other API endpoint, this will be exposed at:{" "}
-            <code>{"https://<env>-<app-id>.encr.app/service.Webhook"}</code>
+            An example of using GraphQL with Encore{" "}
+            {extLink(
+              "https://github.com/encoredev/examples/tree/main/graphql",
+              "can be found here"
+            )}
+            .
           </p>
         </>
       ),
@@ -107,6 +122,7 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 const databaseSection: SnippetSection = {
   slug: "database",
   heading: "Databases",
+  icon: CircleStackIcon,
   subSections: [
     {
       heading: "Defining a SQL database",
@@ -204,4 +220,435 @@ err := sqldb.QueryRow(ctx, \`
   ],
 };
 
-export const snippetData: SnippetSection[] = [apiSection, databaseSection];
+/** ----- Cron Jobs -----  **/
+
+const cronJobsSection: SnippetSection = {
+  slug: "cron",
+  heading: "Cron Jobs",
+  icon: ClockIcon,
+  description: (
+    <>
+      <p>
+        Cron Jobs are periodic tasks that automatically calls a predefined API endpoint on a
+        schedule.
+      </p>
+      <p>
+        Cron Jobs are not automatically executed during local development, but can always be
+        executed by calling the API endpoint manually.
+      </p>
+    </>
+  ),
+  subSections: [
+    {
+      heading: "With basic schedule",
+      content: (
+        <Code
+          lang="go"
+          rawContents={`
+import "encore.dev/cron"
+
+// Define a cron job to send welcome emails every 2 hours.
+var _ = cron.NewJob("welcome-email", cron.JobConfig{
+	Title:    "Send welcome emails",
+	Every:    2 * cron.Hour,
+	Endpoint: SendWelcomeEmail,
+})
+`.trim()}
+        />
+      ),
+    },
+    {
+      heading: "With cron expression",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/cron"
+
+// Define a cron job to sync accounting data every night at 4:05am UTC.
+var _ = cron.NewJob("accounting-sync", cron.JobConfig{
+	Title:    "Sync accounting data",
+	Schedule: "5 4 * * *"
+	Endpoint: SyncAccountingData,
+})
+`.trim()}
+          />
+          <p className="mt-5">
+            <b>Note:</b> Cron schedule syntax is complex. See{" "}
+            {extLink("https://crontab.guru", "crontab.guru")} for an explanation of cron schedule
+            expressions.
+          </p>
+        </>
+      ),
+    },
+  ],
+};
+
+/** ----- PubSub -----  **/
+
+const pubSubSection: SnippetSection = {
+  slug: "pubsub",
+  heading: "Pub/Sub",
+  icon: EnvelopeIcon,
+  description: (
+    <>
+      <p>
+        Publishers & Subscribers (PubSub) let you build systems that communicate by broadcasting
+        events asynchronously. This is a great way to decouple services for better reliability and
+        responsiveness.
+      </p>
+    </>
+  ),
+  subSections: [
+    {
+      heading: "Define a topic",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/pubsub"
+
+type Event struct {
+    // ... fields ...
+}
+
+var TopicName = pubsub.NewTopic[*Event]("topic-name", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+`.trim()}
+          />
+          <div className="mt-5">
+            <b>Hint:</b> Publish messages to the topic with{" "}
+            <code>{`TopicName.Publish(ctx, &Event{})`}</code>
+          </div>
+        </>
+      ),
+    },
+    {
+      heading: "Define a subscriber",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/pubsub"
+
+var _ = pubsub.NewSubscription(TopicName, "subscription-name",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: func(ctx context.Context, event *Event) error {
+          // ...handle message...
+        },
+    },
+)
+`.trim()}
+          />
+          <p className="mt-5">
+            <b>Note:</b> The <code>Handler</code> function can be called concurrently by multiple
+            goroutines if there are several messages to process.
+          </p>
+          <p className="mt-5">
+            <b>Note:</b> If the <code>Handler</code> returns an error the message will be retried,
+            and eventually moved to a Dead Letter Queue (DLQ).
+          </p>
+        </>
+      ),
+    },
+    {
+      heading: "Customize retry behavior",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+import "time"
+import "encore.dev/pubsub"
+
+var _ = pubsub.NewSubscription(TopicName, "subscription-name",
+    pubsub.SubscriptionConfig[*Event]{
+        AckDeadline:      60 * time.Second,
+        MessageRetention: 14 * 24 * time.Hour, // ~14 days
+        RetryPolicy:      &pubsub.RetryPolicy{
+            MinBackoff: 5 * time.Second,
+            MaxBackoff: 30 * time.Minute,
+            MaxRetries: 10,
+        },
+
+        Handler: func(ctx context.Context, event *Event) error {
+          // ...handle message...
+        },
+    },
+)
+`.trim()}
+          />
+        </>
+      ),
+    },
+  ],
+};
+
+/** ----- Cache -----  **/
+
+const cacheSection: SnippetSection = {
+  slug: "cache",
+  heading: "Cache",
+  icon: Square3Stack3DIcon,
+  description: (
+    <>
+      <p>
+        A cache is a high-speed storage layer, commonly used in distributed systems to improve user
+        experiences by reducing latency, improving system performance, and avoiding expensive
+        computation.
+      </p>
+      <p>
+        Encore's built-in cache support lets you use high-performance caches (using{" "}
+        {extLink("https://redis.io/", "Redis")}) in a cloud-agnostic declarative fashion. At
+        deployment, Encore will automatically provision the{" "}
+        {extLink("https://encore.dev/docs/deploy/infra", "required infrastructure")}.
+      </p>
+    </>
+  ),
+  subSections: [
+    {
+      heading: "Define a cache cluster",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/storage/cache"
+
+var MyCacheCluster = cache.NewCluster("my-cache-cluster", cache.ClusterConfig{
+    // EvictionPolicy tells Redis how to evict keys when the cache reaches
+    // its memory limit. For typical cache use cases, cache.AllKeysLRU is a good default.
+    EvictionPolicy: cache.AllKeysLRU,
+})
+
+`.trim()}
+          />
+          <div className="mt-5">
+            <b>Note:</b> When starting out it's recommended to use a single cache cluster that's
+            shared between different your services.
+          </div>
+        </>
+      ),
+    },
+    {
+      heading: "Use basic keyspaces",
+      content: (
+        <>
+          <div className="mb-5 flex flex-col gap-5">
+            <p>
+              Encore comes with a full suite of keyspace types, each with a wide variety of cache
+              operations. Basic keyspace types include{" "}
+              {extLink("https://pkg.go.dev/encore.dev/storage/cache#NewStringKeyspace", "strings")},{" "}
+              {extLink("https://pkg.go.dev/encore.dev/storage/cache#NewIntKeyspace", "integers")},{" "}
+              {extLink("https://pkg.go.dev/encore.dev/storage/cache#NewFloatKeyspace", "floats")},{" "}
+              and{" "}
+              {extLink(
+                "https://pkg.go.dev/encore.dev/storage/cache#NewStructKeyspace",
+                "struct types"
+              )}
+              .
+            </p>
+            <p>
+              There are also more advanced keyspaces for storing sets of basic types and ordered
+              lists of basic types. These keyspaces offer a different, specialized set of methods
+              specific to set and list operations.
+            </p>
+            <p>
+              For a list of the supported operations, see the{" "}
+              {extLink("https://pkg.go.dev/encore.dev/storage/cache", "package documentation")}.
+            </p>
+          </div>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/cache"
+import "encore.dev/beta/auth"
+
+type MyKey struct {
+  UserID       auth.UID
+  ResourcePath string // the resource being accessed
+}
+
+// RequestsPerUser caches the number of requests to a given resource by user
+// within a 10 second window.
+var RequestsPerUser = cache.NewIntKeyspace[MyKey](cluster, cache.KeyspaceConfig{
+    KeyPattern:    "requests/:UserID/:ResourcePath",
+    DefaultExpiry: cache.ExpireIn(10 * time.Second),
+})
+`.trim()}
+          />
+        </>
+      ),
+    },
+    {
+      heading: "Use list keyspaces",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/cache"
+
+type MyKey struct {
+  UserID       auth.UID
+  ResourcePath string // the resource being accessed
+}
+
+// MyKeyspace caches lists of strings, keyed by integers.
+var MyKeyspace = cache.NewListKeyspace[int, string](cluster, cache.KeyspaceConfig{
+    KeyPattern:    "path/:key",
+})
+`.trim()}
+          />
+        </>
+      ),
+    },
+  ],
+};
+
+/** ----- Secrets -----  **/
+
+const secretsSection: SnippetSection = {
+  slug: "secrets",
+  heading: "Secrets",
+  icon: KeyIcon,
+  description: (
+    <>
+      <p>
+        Encore's built-in secrets manager makes it simple to store secrets in a secure way, and lets
+        you use them in your program like regular variables. The values are stored safely using
+        GCP's{" "}
+        {extLink("https://cloud.google.com/security-key-management", "Key Management Service")}, and
+        delivered securely directly to your application.
+      </p>
+    </>
+  ),
+  subSections: [
+    {
+      heading: "Setting a secret",
+      content: (
+        <>
+          <Code
+            lang="bash"
+            rawContents={`
+      
+# Set a secret for all environments at once
+encore secret set --type prod,dev,local,pr MySecretKey
+
+# Set a secret for only local development
+encore secret set --type local MySecretKey
+
+# Set a production secret to the contents of a JSON file
+encore secret set --type prod MySecretKey < path/to/file.json
+`.trim()}
+          />
+        </>
+      ),
+    },
+    {
+      heading: "Using a secret",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+var secrets struct {
+    MySecretKey string
+}
+`.trim()}
+          />
+          <p className="mt-5">
+            <b>Note:</b> Encore specially recognizes this pattern and ensures all the secrets
+            defined are set. Each field inside the <code>secrets</code> struct is a separate secret,
+            and must be of type <code>string</code>.
+          </p>
+        </>
+      ),
+    },
+  ],
+};
+
+/** ----- Config -----  **/
+
+const configSection: SnippetSection = {
+  slug: "config",
+  heading: "Configuration",
+  icon: CodeBracketIcon,
+  description: (
+    <>
+      <p>
+        Encore has built-in support for configuration using {extLink("https://cuelang.org/", "CUE")}
+        , a configuration language that is a superset of JSON.
+      </p>
+      <p>
+        With Encore you define your configuration schema using normal Go code, and then fill in the
+        values using CUE.
+      </p>
+    </>
+  ),
+  subSections: [
+    {
+      heading: "Defining config schema",
+      content: (
+        <>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/config"
+
+// Define config schema
+type Config struct {
+  ReadOnly config.Bool // true if the system is in read-only mode
+}
+
+// Load the config
+var cfg = config.Load[*Config]()
+`.trim()}
+          />
+          <p className="mt-5">
+            <b>Note:</b> With this code, Encore automatically generates a CUE schema file named{" "}
+            <code>encore.gen.cue</code>. This file is auto-generated and should not be modified. Add
+            your configuration values to a separate CUE file of your choice.
+          </p>
+        </>
+      ),
+    },
+    {
+      heading: "Writing config values",
+      content: (
+        <>
+          <Code
+            lang="cue"
+            rawContents={`
+// Default ReadOnly to false
+ReadOnly: bool | *false
+
+// Set ReadOnly to true for ephemeral environments (aka Preview Environments).
+if #Meta.Environment.Type == "ephemeral" {
+  ReadOnly: true
+}
+`.trim()}
+          />
+          <p className="mt-5">
+            <b>Note:</b> Add this code to a separate <code>.cue</code> file after having defined the
+            config schema (see above).
+          </p>
+        </>
+      ),
+    },
+  ],
+};
+
+export const snippetData: SnippetSection[] = [
+  apiSection,
+  cacheSection,
+  configSection,
+  cronJobsSection,
+  databaseSection,
+  pubSubSection,
+  secretsSection,
+];

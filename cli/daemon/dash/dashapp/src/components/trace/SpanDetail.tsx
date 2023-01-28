@@ -28,7 +28,7 @@ import {
 } from "./model";
 import { idxColor, latencyStr } from "./util";
 import { copyToClipboard } from "~lib/clipboard";
-import { CheckIcon, ClipboardCopyIcon } from "@heroicons/react/solid";
+import { ClipboardDocumentCheckIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 
 interface Props {
   trace: Trace;
@@ -461,9 +461,9 @@ const ItemStringWrapper: FC<PropsWithChildren & { data: any }> = (props) => {
     <span>
       {props.children}
       {isCopied ? (
-        <CheckIcon onClick={onClick} className={className} />
+        <ClipboardDocumentCheckIcon onClick={onClick} className={className} />
       ) : (
-        <ClipboardCopyIcon onClick={onClick} className={className} />
+        <ClipboardDocumentIcon onClick={onClick} className={className} />
       )}
     </span>
   );
