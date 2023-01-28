@@ -1,7 +1,7 @@
 import { HomeIcon } from "@heroicons/react/20/solid";
 import React, { FunctionComponent } from "react";
 import { Link, Outlet, useParams } from "react-router-dom";
-import { NavHashLink } from "react-router-hash-link";
+import { NavHashLink } from "~c/HashLink";
 import Nav from "~c/Nav";
 import { snippetData, SnippetSection } from "~c/snippets/snippetData";
 
