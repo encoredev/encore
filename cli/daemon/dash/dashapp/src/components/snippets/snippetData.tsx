@@ -13,7 +13,7 @@ import Code from "~c/snippets/Code";
 export interface SnippetSection {
   slug: string;
   heading: string;
-  description?: JSX.Element;
+  description?: JSX.Element | string;
   icon: typeof CircleStackIcon;
   subSections: {
     heading: string;
@@ -23,15 +23,25 @@ export interface SnippetSection {
 
 const extLink = (href: string, content: string | JSX.Element) => {
   return (
-    <a href={href} target="_blank" className="brandient-5 link-brandient">
+    <a href={href} target="_blank" className="link-brandient">
       {content}
     </a>
   );
 };
 
+const docLink = (path: string) => {
+  return <span>{extLink(`https://encore.dev/docs${path}`, "Read the docs")} to learn more.</span>;
+};
+
 const apiSection: SnippetSection = {
   slug: "api",
   heading: "APIs",
+  description: (
+    <>
+      Encore lets you define APIs as regular Go functions with an annotation. API calls are made as
+      regular function calls. {docLink("/primitives/services-and-apis")}
+    </>
+  ),
   icon: ChatBubbleLeftRightIcon,
   subSections: [
     {
@@ -122,6 +132,12 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 const databaseSection: SnippetSection = {
   slug: "database",
   heading: "Databases",
+  description: (
+    <>
+      Here are some code snippets for using SQL databases with Encore.{" "}
+      {docLink("/primitives/databases")}
+    </>
+  ),
   icon: CircleStackIcon,
   subSections: [
     {
@@ -228,14 +244,8 @@ const cronJobsSection: SnippetSection = {
   icon: ClockIcon,
   description: (
     <>
-      <p>
-        Cron Jobs are periodic tasks that automatically calls a predefined API endpoint on a
-        schedule.
-      </p>
-      <p>
-        Cron Jobs are not automatically executed during local development, but can always be
-        executed by calling the API endpoint manually.
-      </p>
+      Cron Jobs are periodic tasks that automatically calls a predefined API endpoint on a schedule.{" "}
+      {docLink("/primitives/cron-jobs")}
     </>
   ),
   subSections: [
@@ -290,16 +300,13 @@ var _ = cron.NewJob("accounting-sync", cron.JobConfig{
 const pubSubSection: SnippetSection = {
   slug: "pubsub",
   heading: "Pub/Sub",
-  icon: EnvelopeIcon,
   description: (
     <>
-      <p>
-        Publishers & Subscribers (PubSub) let you build systems that communicate by broadcasting
-        events asynchronously. This is a great way to decouple services for better reliability and
-        responsiveness.
-      </p>
+      PubSub lets you build systems that communicate by broadcasting events asynchronously.
+      {docLink("/primitives/pubsub")}
     </>
   ),
+  icon: EnvelopeIcon,
   subSections: [
     {
       heading: "Define a topic",
@@ -393,22 +400,13 @@ var _ = pubsub.NewSubscription(TopicName, "subscription-name",
 const cacheSection: SnippetSection = {
   slug: "cache",
   heading: "Cache",
-  icon: Square3Stack3DIcon,
   description: (
     <>
-      <p>
-        A cache is a high-speed storage layer, commonly used in distributed systems to improve user
-        experiences by reducing latency, improving system performance, and avoiding expensive
-        computation.
-      </p>
-      <p>
-        Encore's built-in cache support lets you use high-performance caches (using{" "}
-        {extLink("https://redis.io/", "Redis")}) in a cloud-agnostic declarative fashion. At
-        deployment, Encore will automatically provision the{" "}
-        {extLink("https://encore.dev/docs/deploy/infra", "required infrastructure")}.
-      </p>
+      Here are some snippets for using Encore's cache functionality.
+      {docLink("/primitives/caching")}
     </>
   ),
+  icon: Square3Stack3DIcon,
   subSections: [
     {
       heading: "Define a cache cluster",
@@ -515,18 +513,13 @@ var MyKeyspace = cache.NewListKeyspace[int, string](cluster, cache.KeyspaceConfi
 const secretsSection: SnippetSection = {
   slug: "secrets",
   heading: "Secrets",
-  icon: KeyIcon,
   description: (
     <>
-      <p>
-        Encore's built-in secrets manager makes it simple to store secrets in a secure way, and lets
-        you use them in your program like regular variables. The values are stored safely using
-        GCP's{" "}
-        {extLink("https://cloud.google.com/security-key-management", "Key Management Service")}, and
-        delivered securely directly to your application.
-      </p>
+      Here are some snippets for using Encore's secrets management functionality.
+      {docLink("/primitives/secrets")}
     </>
   ),
+  icon: KeyIcon,
   subSections: [
     {
       heading: "Setting a secret",
@@ -577,19 +570,13 @@ var secrets struct {
 const configSection: SnippetSection = {
   slug: "config",
   heading: "Configuration",
-  icon: CodeBracketIcon,
   description: (
     <>
-      <p>
-        Encore has built-in support for configuration using {extLink("https://cuelang.org/", "CUE")}
-        , a configuration language that is a superset of JSON.
-      </p>
-      <p>
-        With Encore you define your configuration schema using normal Go code, and then fill in the
-        values using CUE.
-      </p>
+      Here are some snippets for using Encore's config functionality.
+      {docLink("/primitives/config")}
     </>
   ),
+  icon: CodeBracketIcon,
   subSections: [
     {
       heading: "Defining config schema",

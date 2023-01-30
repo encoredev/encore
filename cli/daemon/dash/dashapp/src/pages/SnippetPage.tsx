@@ -2,6 +2,7 @@ import { HomeIcon } from "@heroicons/react/20/solid";
 import React, { FunctionComponent } from "react";
 import { Link, Outlet, useParams } from "react-router-dom";
 import { NavHashLink } from "~c/HashLink";
+import { icons } from "~c/icons";
 import Nav from "~c/Nav";
 import { snippetData, SnippetSection } from "~c/snippets/snippetData";
 
@@ -59,24 +60,32 @@ export const SnippetPage: FunctionComponent = () => {
               <div className="min-h-0 flex-grow p-8 leading-6">
                 <Outlet />
                 {slug === undefined && (
-                  <div className="grid w-full max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
-                    {snippetData.map((section) => {
-                      const Icon = section.icon;
-                      return (
-                        <Link to={section.slug} className="group relative block">
-                          <div className="absolute inset-0 -z-10 bg-black dark:bg-white"></div>
-                          <div className="relative min-h-full border border-black bg-white p-8 transition-transform duration-100 ease-in-out group-hover:-translate-x-2 group-hover:-translate-y-2 group-active:-translate-x-2 group-active:-translate-y-2 dark:border-white dark:bg-black mobile:p-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-lg font-medium">{section.heading}</h3>
-                              <Icon className="-mt-2 h-8 w-8" />
+                  <div className="w-full max-w-5xl">
+                    <div className="mb-5">
+                      When you're familiar with how Encore works, you can simplify your development
+                      workflow by copy-pasting these examples. If you're looking for details on how
+                      Encore works, please refer to the relevant docs section.
+                    </div>
+                    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                      {snippetData.map((section) => {
+                        const Icon = section.icon;
+                        return (
+                          <Link to={section.slug} className="group relative block">
+                            <div className="absolute inset-0 -z-10 bg-black dark:bg-white"></div>
+                            <div className="relative min-h-full border border-black bg-white p-8 transition-transform duration-100 ease-in-out group-hover:-translate-x-2 group-hover:-translate-y-2 group-active:-translate-x-2 group-active:-translate-y-2 dark:border-white dark:bg-black mobile:p-4">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-medium">{section.heading}</h3>
+                                <Icon className="-mt-2 h-8 w-8" />
+                              </div>
+                              <p className="mt-2">
+                                Learn about what problems Encore solves and the philosophy behind
+                                it.
+                              </p>
                             </div>
-                            <p className="mt-2">
-                              Learn about what problems Encore solves and the philosophy behind it.
-                            </p>
-                          </div>
-                        </Link>
-                      );
-                    })}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -95,8 +104,8 @@ export const SnippetContent: FunctionComponent = () => {
 
   return (
     <div className="max-w-4xl">
-      <h1 className="mb-5 text-3xl">{section.heading}</h1>
-      {section.description && <div className="mb-8 flex flex-col gap-4">{section.description}</div>}
+      <h1 className="mb-5 flex items-center gap-4 text-3xl">{section.heading}</h1>
+      {section.description && <div className="mb-8">{section.description}</div>}
 
       <div className="space-y-10 pb-10">
         {section.subSections.map((section) => (
