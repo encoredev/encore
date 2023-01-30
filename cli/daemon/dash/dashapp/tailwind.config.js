@@ -272,6 +272,9 @@ module.exports = {
         ".brandient-full": {
           "--tw-gradient-stops": gradientsStops["brandient-full"],
         },
+        ".underline-gradient": {
+          "--tw-gradient-stops": gradientsStops['brandient-full'],
+        },
 
         // These are defined in global.css, but are added here
         // in order to get auto-complete working
