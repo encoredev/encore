@@ -114,7 +114,7 @@ pre {
         @apply absolute top-full w-full left-0;
         content: "";
         height: var(--underline-bar-height);
-        animation: ScrollGradientXY 87s linear infinite;
+        animation: ScrollGradientXY 45s linear infinite;
         background: var(--underline-bar-bg);
         background-size: 200% 200%;
         background-position: var(--brandient-start-position) var(--brandient-start-position);
@@ -124,14 +124,21 @@ pre {
       --underline-bar-bg: transparent;
     }
 
-    .link-brandient, .prose a {
-        @apply underline-bar underline-bar-height hover:underline-gradient;
+    a.link-brandient {
+        @apply underline-bar-height;
+        position: relative;
+        text-decoration: none;
+        background-image: linear-gradient(to right, var(--underline-bar-bg), var(--underline-bar-bg));
+        background-repeat: no-repeat;
+        background-position: bottom left;
+        background-size: 100% var(--underline-bar-height);
     }
-    .prose a:hover {
-        @apply brandient-full;
+    a.link-brandient:hover {
+        @apply underline-gradient;
+        background-image: var(--underline-bar-bg);
     }
 
-    .text-brandient, .link-brandient, .brandient-1, .brandient-2, .brandient-3, .brandient-4, .brandient-5 {
+    .text-brandient, .brandient-1, .brandient-2, .brandient-3, .brandient-4, .brandient-5 {
         background-size: 300% 300%;
         animation: ScrollGradientXY 87s linear infinite;
         background-position: var(--brandient-start-position) var(--brandient-start-position);
