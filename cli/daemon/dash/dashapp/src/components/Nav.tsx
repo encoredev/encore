@@ -53,7 +53,10 @@ const Nav: FunctionComponent<NavProps> = (props) => {
                     .map((it) => {
                       const as = `/${appID}${it.href}`;
                       const { pathname } = useLocation();
-                      const isSelected = !!matchPath({ path: "/:appID" + it.href }, pathname);
+                      const isSelected = !!matchPath(
+                        { path: "/:appID" + it.href, end: false },
+                        pathname
+                      );
                       return (
                         <div key={it.name} className="flex items-center">
                           <Link
