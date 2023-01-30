@@ -344,7 +344,7 @@ const pubSubSection: SnippetSection = {
   heading: "Pub/Sub",
   description: (
     <>
-      PubSub lets you build systems that communicate by broadcasting events asynchronously.
+      PubSub lets you build systems that communicate by broadcasting events asynchronously.{" "}
       {docLink("/primitives/pubsub")}
     </>
   ),
@@ -444,7 +444,7 @@ const cacheSection: SnippetSection = {
   heading: "Cache",
   description: (
     <>
-      Here are some snippets for using Encore's cache functionality.
+      Here are some snippets for using Encore's cache functionality.{" "}
       {docLink("/primitives/caching")}
     </>
   ),
@@ -557,7 +557,7 @@ const secretsSection: SnippetSection = {
   heading: "Secrets",
   description: (
     <>
-      Here are some snippets for using Encore's secrets management functionality.
+      Here are some snippets for using Encore's secrets management functionality.{" "}
       {docLink("/primitives/secrets")}
     </>
   ),
@@ -614,7 +614,7 @@ const configSection: SnippetSection = {
   heading: "Configuration",
   description: (
     <>
-      Here are some snippets for using Encore's config functionality.
+      Here are some snippets for using Encore's config functionality.{" "}
       {docLink("/primitives/config")}
     </>
   ),
