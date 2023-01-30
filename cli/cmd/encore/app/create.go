@@ -573,5 +573,5 @@ func parseExampleConfig(repoPath string) (cfg exampleConfig, exists bool) {
 }
 
 func exampleJSONPath(repoPath string) string {
-	return filepath.Join(repoPath, "example.json")
+	return filepath.Join(repoPath, "example-initial-setup.json")
 }
