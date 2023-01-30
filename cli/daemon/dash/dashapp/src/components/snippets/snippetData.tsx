@@ -200,7 +200,7 @@ func insert(ctx context.Context, id, title string, done bool) error {
       ),
     },
     {
-      heading: "Querying a database",
+      heading: "Reading a single row",
       content: (
         <div className="space-y-5">
           <p>
@@ -213,9 +213,9 @@ func insert(ctx context.Context, id, title string, done bool) error {
 import "encore.dev/storage/sqldb"
 
 var item struct {
-    ID int64
+    ID    int64
     Title string
-    Done bool
+    Done  bool
 }
 err := sqldb.QueryRow(ctx, \`
     SELECT id, title, done
@@ -230,6 +230,48 @@ err := sqldb.QueryRow(ctx, \`
             package and calling
             <code>errors.Is(err, sqldb.ErrNoRows)</code>.
           </p>
+        </div>
+      ),
+    },
+    {
+      heading: "Reading multiple rows",
+      content: (
+        <div className="space-y-5">
+          <p>
+            To read multiple todo items in the example schema above, we can use{" "}
+            <code>sqldb.Query</code>:
+          </p>
+          <Code
+            lang="go"
+            rawContents={`
+import "encore.dev/storage/sqldb"
+
+type item struct {
+    ID    int64
+    Title string
+    Done  bool
+}
+
+rows, err := sqldb.Query(ctx, "SELECT id, title, done FROM todo_item")
+if err != nil {
+    return nil, err
+}
+defer rows.Close() // IMPORTANT: close the database cursor when we're done
+
+var items []item
+for rows.Next() {
+    var it item
+    if err := rows.Scan(&it.ID, &it.Title, &it.Done); err != nil {
+      return nil, err
+    }
+    items = append(items, it)
+}
+if err := rows.Err(); err != nil {
+    return nil, err
+}
+return items, nil
+`.trim()}
+          />
         </div>
       ),
     },
