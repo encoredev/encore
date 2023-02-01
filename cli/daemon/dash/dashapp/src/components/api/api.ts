@@ -59,6 +59,6 @@ export interface ServiceEncoding {
 }
 
 export interface APIEncoding {
-  authorization: AuthEncoding;
+  authorization: AuthEncoding | null;
   services: ServiceEncoding[];
 }
