@@ -697,10 +697,10 @@ export const copyAsCurlToClipboard = (options: {
     hasBody = !!bodyParams.length;
     processStruct(params, reqBody);
   }
-  const { authorization } = apiEncoding;
-  if (authorization.query_parameters?.length || authorization.header_parameters?.length) {
-    const queryParams = authorization.query_parameters ?? [];
-    const headerParams = authorization.header_parameters ?? [];
+  const { authorization: auth } = apiEncoding;
+  if (auth !== null && (auth.query_parameters?.length || auth.header_parameters?.length)) {
+    const queryParams = auth.query_parameters ?? [];
+    const headerParams = auth.header_parameters ?? [];
     processStruct([...queryParams, ...headerParams], authBody);
   }
 
