@@ -18,11 +18,8 @@ import (
 
 func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, rootLogger zerolog.Logger) *Exporter {
 	return &Exporter{
-		svcs: svcs,
-		cfg:  cfg,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		svcs:       svcs,
+		cfg:        cfg,
 		rootLogger: rootLogger,
 	}
 }
@@ -30,12 +27,10 @@ func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, rootLogger ze
 type Exporter struct {
 	svcs       []string
 	cfg        *config.PrometheusRemoteWriteProvider
-	client     *http.Client
 	rootLogger zerolog.Logger
 }
 
-func (x *Exporter) Shutdown(_ context.Context) {
-}
+func (x *Exporter) Shutdown(_ context.Context) {}
 
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
@@ -47,7 +42,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 
 	encoded := snappy.Encode(nil, proto)
 	body := bytes.NewReader(encoded)
-	req, err := http.NewRequest(http.MethodPost, x.cfg.RemoteWriteURL, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, x.cfg.RemoteWriteURL, body)
 	if err != nil {
 		return fmt.Errorf("unable to create HTTP request: %v", err)
 	}
@@ -56,7 +51,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	req.Header.Set("Content-Encoding", "snappy")
 	req.Header.Set("User-Agent", "encore")
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
-	_, err = x.client.Do(req.WithContext(ctx))
+	_, err = http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("unable to send metrics to Prometheus remote write destination: %v", err)
 	}
@@ -105,34 +100,50 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 		switch vals := m.Val.(type) {
 		case []float64:
 			if svcNum > 0 {
-				doAdd(vals[0], m.Info.Name(), labels, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(vals[0], m.Info.Name(), labels, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(val, m.Info.Name(), labels, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(val, m.Info.Name(), labels, uint16(i))
+					}
 				}
 			}
 		case []int64:
 			if svcNum > 0 {
-				doAdd(float64(vals[0]), m.Info.Name(), labels, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(float64(vals[0]), m.Info.Name(), labels, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(float64(val), m.Info.Name(), labels, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(float64(val), m.Info.Name(), labels, uint16(i))
+					}
 				}
 			}
 		case []uint64:
 			if svcNum > 0 {
-				doAdd(float64(vals[0]), m.Info.Name(), labels, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(float64(vals[0]), m.Info.Name(), labels, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(float64(val), m.Info.Name(), labels, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(float64(val), m.Info.Name(), labels, uint16(i))
+					}
 				}
 			}
 		case []time.Duration:
 			if svcNum > 0 {
-				doAdd(float64(vals[0]/time.Second), m.Info.Name(), labels, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(float64(vals[0]/time.Second), m.Info.Name(), labels, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(float64(val/time.Second), m.Info.Name(), labels, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(float64(val/time.Second), m.Info.Name(), labels, uint16(i))
+					}
 				}
 			}
 		default:

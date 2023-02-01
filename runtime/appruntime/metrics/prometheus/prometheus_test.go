@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +33,11 @@ func TestGetMetricData(t *testing.T) {
 			metric: metrics.CollectedMetric{
 				Info: metricInfo{"test_counter", metrics.CounterType, 1},
 				Val:  []int64{10},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 1)
+					valid[0].Store(true)
+					return valid
+				}(),
 			},
 			data: []*prompb.TimeSeries{
 				{
@@ -59,6 +65,11 @@ func TestGetMetricData(t *testing.T) {
 			metric: metrics.CollectedMetric{
 				Info: metricInfo{"test_gauge", metrics.GaugeType, 2},
 				Val:  []float64{0.5},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 1)
+					valid[0].Store(true)
+					return valid
+				}(),
 			},
 			data: []*prompb.TimeSeries{
 				{
@@ -87,6 +98,11 @@ func TestGetMetricData(t *testing.T) {
 				Info:   metricInfo{"test_labels", metrics.GaugeType, 1},
 				Labels: []metrics.KeyValue{{"key", "value"}},
 				Val:    []float64{-1.5},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 1)
+					valid[0].Store(true)
+					return valid
+				}(),
 			},
 			data: []*prompb.TimeSeries{
 				{
@@ -107,6 +123,57 @@ func TestGetMetricData(t *testing.T) {
 					Samples: []*prompb.Sample{
 						{
 							Value:     -1.5,
+							Timestamp: FromTime(now),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple services",
+			metric: metrics.CollectedMetric{
+				Info: metricInfo{"test_counter", metrics.CounterType, 0},
+				Val:  []int64{1, 1},
+				Valid: func() []atomic.Bool {
+					valid := make([]atomic.Bool, 2)
+					valid[0].Store(true)
+					valid[1].Store(true)
+					return valid
+				}(),
+			},
+			data: []*prompb.TimeSeries{
+				{
+					Labels: []*prompb.Label{
+						{
+							Name:  "__name__",
+							Value: "test_counter",
+						},
+						{
+							Name:  "service",
+							Value: "foo",
+						},
+					},
+					Samples: []*prompb.Sample{
+						{
+							Value:     1,
+							Timestamp: FromTime(now),
+						},
+					},
+				},
+				{
+					Labels: []*prompb.Label{
+						{
+							Name:  "__name__",
+							Value: "test_counter",
+						},
+						{
+							Name:  "service",
+							Value: "bar",
+						},
+					},
+					Samples: []*prompb.Sample{
+						{
+							Value:     1,
 							Timestamp: FromTime(now),
 						},
 					},
