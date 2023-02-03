@@ -43,7 +43,7 @@ function App() {
           </Route>
           <Route path="/:appID/flow" element={<AppDiagram />} />
           <Route path="/:appID/api" element={<AppAPI />} />
-          <Route path="/:appID" element={<AppHome />} />
+          <Route path="/:appID/requests" element={<AppHome />} />
           <Route path="/" element={<AppList />} />
         </Routes>
       </Router>
