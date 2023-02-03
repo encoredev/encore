@@ -190,7 +190,7 @@ CREATE TABLE todo_item (
       content: (
         <div className="space-y-5">
           <p>
-            One way of inserting data is with a helper function that uses the package function
+            One way of inserting data is with a helper function that uses the package function{" "}
             <code>sqldb.Exec</code>:
           </p>
           <Code
@@ -239,8 +239,7 @@ err := sqldb.QueryRow(ctx, \`
           <p>
             <b>Hint:</b> If <code>sqldb.QueryRow</code> does not find a matching row, it reports an
             error that can be checked against by importing the standard library <code>errors</code>{" "}
-            package and calling
-            <code>errors.Is(err, sqldb.ErrNoRows)</code>.
+            package and calling <code>errors.Is(err, sqldb.ErrNoRows)</code>.
           </p>
         </div>
       ),
@@ -356,7 +355,7 @@ const pubSubSection: SnippetSection = {
   heading: "Pub/Sub",
   description: (
     <>
-      PubSub lets you build systems that communicate by broadcasting events asynchronously.
+      PubSub lets you build systems that communicate by broadcasting events asynchronously.{" "}
       {docLink("/primitives/pubsub")}
     </>
   ),
@@ -456,7 +455,7 @@ const cacheSection: SnippetSection = {
   heading: "Cache",
   description: (
     <>
-      Here are some snippets for using Encore's cache functionality.
+      Here are some snippets for using Encore's cache functionality.{" "}
       {docLink("/primitives/caching")}
     </>
   ),
@@ -490,7 +489,7 @@ var MyCacheCluster = cache.NewCluster("my-cache-cluster", cache.ClusterConfig{
       heading: "Use basic keyspaces",
       content: (
         <>
-          <div className="mb-5 flex flex-col gap-5">
+          <div className="mb-5">
             <p>
               Encore comes with a full suite of keyspace types, each with a wide variety of cache
               operations. Basic keyspace types include{" "}
@@ -569,7 +568,7 @@ const secretsSection: SnippetSection = {
   heading: "Secrets",
   description: (
     <>
-      Here are some snippets for using Encore's secrets management functionality.
+      Here are some snippets for using Encore's secrets management functionality.{" "}
       {docLink("/primitives/secrets")}
     </>
   ),
@@ -626,7 +625,7 @@ const configSection: SnippetSection = {
   heading: "Configuration",
   description: (
     <>
-      Here are some snippets for using Encore's config functionality.
+      Here are some snippets for using Encore's config functionality.{" "}
       {docLink("/primitives/config")}
     </>
   ),
