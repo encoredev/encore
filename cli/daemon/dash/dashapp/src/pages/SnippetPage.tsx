@@ -105,7 +105,7 @@ export const SnippetContent: FunctionComponent = () => {
   return (
     <div className="max-w-4xl">
       <h1 className="mb-5 flex items-center gap-4 text-3xl">{section.heading}</h1>
-      {section.description && <div className="mb-8">{section.description}</div>}
+      {section.description && <div className="prose mb-8 max-w-full">{section.description}</div>}
 
       <div className="space-y-10 pb-10">
         {section.subSections.map((section) => (
@@ -113,7 +113,7 @@ export const SnippetContent: FunctionComponent = () => {
             <h2 className="mb-4 text-2xl" id={getAnchorFromHeader(section.heading)}>
               {section.heading}
             </h2>
-            {section.content}
+            <div className="prose max-w-full">{section.content}</div>
           </div>
         ))}
       </div>
