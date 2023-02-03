@@ -46,7 +46,7 @@ export const SnippetPage: FunctionComponent = () => {
                             pathname: `/${appID}/snippets/${section.slug}`,
                             hash: `#${getAnchorFromHeader(subSection.heading)}`,
                           }}
-                          className="block py-1 pl-4 focus:outline-none"
+                          className="block py-1 pl-4 focus:outline-none hover:bg-white hover:bg-opacity-10"
                         >
                           {subSection.heading}
                         </NavHashLink>
