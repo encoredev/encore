@@ -50,9 +50,21 @@ const apiSection: SnippetSection = {
         <Code
           lang="go"
           rawContents={`
+import "context"
+
+// PingParams is the request data for the Ping endpoint.
+type PingParams struct {
+    Name string
+}
+
+// PingResponse is the response data for the Ping endpoint.
+type PingResponse struct {
+    Message string
+}
+
 //encore:api public method=POST path=/ping
 func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
-    msg := fmt.Sprintf("Hello, %s!", params.Name)
+    msg := "Hello, " + params.Name
     return &PingResponse{Message: msg}, nil
 }
 `.trim()}
