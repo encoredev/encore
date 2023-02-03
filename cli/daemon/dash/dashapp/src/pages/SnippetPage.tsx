@@ -1,10 +1,9 @@
-import { HomeIcon } from "@heroicons/react/20/solid";
-import React, { FunctionComponent } from "react";
+import React, { FC, FunctionComponent } from "react";
 import { Link, Outlet, useParams } from "react-router-dom";
 import { NavHashLink } from "~c/HashLink";
-import { icons } from "~c/icons";
 import Nav from "~c/Nav";
 import { snippetData, SnippetSection } from "~c/snippets/snippetData";
+import { CircleStackIcon, QuestionMarkCircleIcon } from "@heroicons/react/24/solid";
 
 const getAnchorFromHeader = (header: string) => header.toLowerCase().split(" ").join("-");
 
@@ -70,21 +69,31 @@ export const SnippetPage: FunctionComponent = () => {
                       {snippetData.map((section) => {
                         const Icon = section.icon;
                         return (
-                          <Link to={section.slug} className="group relative block">
-                            <div className="absolute inset-0 -z-10 bg-black dark:bg-white"></div>
-                            <div className="relative min-h-full border border-black bg-white p-8 transition-transform duration-100 ease-in-out group-hover:-translate-x-2 group-hover:-translate-y-2 group-active:-translate-x-2 group-active:-translate-y-2 dark:border-white dark:bg-black mobile:p-4">
-                              <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-medium">{section.heading}</h3>
-                                <Icon className="-mt-2 h-8 w-8" />
-                              </div>
-                              <p className="mt-2">
-                                Learn about what problems Encore solves and the philosophy behind
-                                it.
-                              </p>
-                            </div>
+                          <Link
+                            key={section.slug}
+                            to={section.slug}
+                            className="group relative block"
+                          >
+                            <OverviewCard
+                              heading={section.heading}
+                              description="Learn about what problems Encore solves and the philosophy behind it."
+                              icon={section.icon}
+                            />
                           </Link>
                         );
                       })}
+                      <a
+                        target="_blank"
+                        href="https://encoredev.slack.com/app_redirect?channel=CQFNUESN9"
+                        className="group relative block"
+                      >
+                        <OverviewCard
+                          heading="Something missing?"
+                          description="Are you missing a snippet that would be useful to you? Let us know about
+                            it!"
+                          icon={QuestionMarkCircleIcon}
+                        />
+                      </a>
                     </div>
                   </div>
                 )}
@@ -93,6 +102,23 @@ export const SnippetPage: FunctionComponent = () => {
           </div>
         </div>
       </section>
+    </>
+  );
+};
+
+const OverviewCard: FC<{ heading: string; description: string; icon: typeof CircleStackIcon }> = (
+  props
+) => {
+  return (
+    <>
+      <div className="absolute inset-0 -z-10 bg-black dark:bg-white"></div>
+      <div className="relative min-h-full border border-black bg-white p-8 transition-transform duration-100 ease-in-out group-hover:-translate-x-2 group-hover:-translate-y-2 group-active:-translate-x-2 group-active:-translate-y-2 dark:border-white dark:bg-black mobile:p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">{props.heading}</h3>
+          <props.icon className="-mt-2 h-8 w-8" />
+        </div>
+        <p className="mt-2">{props.description}</p>
+      </div>
     </>
   );
 };
