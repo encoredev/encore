@@ -137,6 +137,16 @@ func Ten(ctx context.Context) (*HeaderResponse, error) {
 	return &HeaderResponse{Header: "header"}, nil
 }
 
+type NestedHeadersResponse struct {
+    TopLevelHeader string `header:"X-TopLevel"`
+    Complex *ComplexResponse
+}
+
+//encore:api public path=/nested-headers
+func NestedHeaders(ctx context.Context) (*NestedHeadersResponse, error) {
+	return &NestedHeadersResponse{TopLevelHeader: "test", Complex: &ComplexResponse{}}, nil
+}
+
 //encore:api private path=/cron
 func CronOne(ctx context.Context) error {
 	return nil

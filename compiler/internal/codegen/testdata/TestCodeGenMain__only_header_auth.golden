@@ -20,13 +20,14 @@ func loadApp() *__appinit.LoadData {
 			Revision:    "",
 			Uncommitted: false,
 		},
-		AuthData:        reflect.TypeOf((*svc.AuthData)(nil)),
-		BundledServices: []string{"svc"},
-		CORSHeaders:     []string{"Header1", "Header2"},
-		EncoreCompiler:  "test",
-		PubsubTopics:    map[string]*__config.StaticPubsubTopic{},
-		TestService:     "",
-		Testing:         false,
+		AuthData:          reflect.TypeOf((*svc.AuthData)(nil)),
+		BundledServices:   []string{"svc"},
+		CORSAllowHeaders:  nil,
+		CORSExposeHeaders: nil,
+		EncoreCompiler:    "test",
+		PubsubTopics:      map[string]*__config.StaticPubsubTopic{},
+		TestService:       "",
+		Testing:           false,
 	}
 	handlers := []__api.HandlerRegistration{
 		{
