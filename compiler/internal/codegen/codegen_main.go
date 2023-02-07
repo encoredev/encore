@@ -10,10 +10,10 @@ import (
 
 	"encr.dev/internal/gocodegen"
 	"encr.dev/parser"
+	"encr.dev/parser/encoding"
 	"encr.dev/parser/est"
 	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/errlist"
-	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
 const JsonPkg = "github.com/json-iterator/go"
@@ -23,6 +23,11 @@ type Builder struct {
 
 	marshaller *gocodegen.MarshallingCodeGenerator
 	errors     *errlist.List
+
+	// Cache of request/response encodings.
+	// Access via b.requestEncoding(rpc) and b.responseEncoding(rpc).
+	reqEncodingCache  map[*est.RPC][]*encoding.RequestEncoding
+	respEncodingCache map[*est.RPC]*encoding.ResponseEncoding
 }
 
 func NewBuilder(res *parser.Result) *Builder {
@@ -33,6 +38,9 @@ func NewBuilder(res *parser.Result) *Builder {
 		res:        res,
 		errors:     errlist.New(res.FileSet),
 		marshaller: marshaller,
+
+		reqEncodingCache:  make(map[*est.RPC][]*encoding.RequestEncoding),
+		respEncodingCache: make(map[*est.RPC]*encoding.ResponseEncoding),
 	}
 }
 
@@ -56,7 +64,7 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 	}
 	sort.Strings(svcNames)
 
-	corsHeaders, err := b.computeCORSHeaders()
+	corsAllowHeaders, corsExposeHeaders, err := b.computeCORSHeaders()
 	if err != nil {
 		b.error(eerror.Wrap(err, "codegen", "failed to compute CORS headers", nil))
 	}
@@ -72,11 +80,12 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 				Id("Revision"):    Lit(b.res.Meta.AppRevision),
 				Id("Uncommitted"): Lit(b.res.Meta.UncommittedChanges),
 			}),
-			Id("CORSHeaders"):     corsHeaders,
-			Id("PubsubTopics"):    b.computeStaticPubsubConfig(),
-			Id("Testing"):         False(),
-			Id("TestService"):     Lit(""),
-			Id("BundledServices"): b.computeBundledServices(),
+			Id("CORSAllowHeaders"):  corsAllowHeaders,
+			Id("CORSExposeHeaders"): corsExposeHeaders,
+			Id("PubsubTopics"):      b.computeStaticPubsubConfig(),
+			Id("Testing"):           False(),
+			Id("TestService"):       Lit(""),
+			Id("BundledServices"):   b.computeBundledServices(),
 		})
 		g.Id("handlers").Op(":=").Add(b.computeHandlerRegistrationConfig(mwNames))
 		g.Id("svcInit").Op(":=").Add(b.computeServiceInitConfig())
@@ -132,47 +141,67 @@ func (b *Builder) computeStaticPubsubConfig() Code {
 	return Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubTopic").Values(pubsubTopicDict)
 }
 
-func (b *Builder) computeCORSHeaders() (Code, error) {
-	// Find all used headers
-	usedHeaderSet := map[string]struct{}{}
-	usedHeaders := []string{}
+func (b *Builder) computeCORSHeaders() (allowHeaders, exposeHeaders Code, err error) {
+	// computeResponseHeaders computes the headers that are part of the request for a given RPC.
+	computeRequestHeaders := func(rpc *est.RPC) []*encoding.ParameterEncoding {
+		reqs := b.reqEncoding(rpc)
+		var params []*encoding.ParameterEncoding
+		for _, r := range reqs {
+			params = append(params, r.HeaderParameters...)
+		}
+		return params
+	}
 
-	// Walk all the structures looking for headers
-	decls := b.res.Meta.Decls
-	for _, param := range b.res.App.ParamTypes() {
-		err := schema.Walk(decls, param, func(node any) error {
-			switch n := node.(type) {
-			case *schema.Struct:
-				for _, field := range n.Fields {
-					for _, tag := range field.Tags {
-						if tag.Key == "header" {
-							name := http.CanonicalHeaderKey(tag.Name)
-							if _, found := usedHeaderSet[name]; !found {
-								usedHeaderSet[name] = struct{}{}
-								usedHeaders = append(usedHeaders, name)
-							}
-						}
+	// computeResponseHeaders computes the headers that are part of the response for a given RPC.
+	computeResponseHeaders := func(rpc *est.RPC) []*encoding.ParameterEncoding {
+		if resp := b.respEncoding(rpc); resp != nil {
+			return resp.HeaderParameters
+		}
+		return nil
+	}
+
+	type result struct {
+		computeHeaders func(rpc *est.RPC) []*encoding.ParameterEncoding
+		seenHeader     map[string]bool
+		headers        []string
+		out            Code
+	}
+
+	var (
+		allow  = &result{computeHeaders: computeRequestHeaders}
+		expose = &result{computeHeaders: computeResponseHeaders}
+	)
+
+	for _, res := range []*result{allow, expose} {
+		res.seenHeader = make(map[string]bool)
+
+		for _, svc := range b.res.App.Services {
+			for _, rpc := range svc.RPCs {
+				for _, param := range res.computeHeaders(rpc) {
+					name := http.CanonicalHeaderKey(param.Name)
+					if !res.seenHeader[name] {
+						res.seenHeader[name] = true
+						res.headers = append(res.headers, name)
 					}
 				}
 			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
+		}
+		// Sort the headers so that the generated code is deterministic.
+		sort.Strings(res.headers)
+
+		// Construct the code snippet ([]string{"Authorization", "X-Bar", "X-Foo", ...})
+		if len(res.headers) == 0 {
+			res.out = Nil()
+		} else {
+			usedHeadersCode := make([]Code, 0, len(res.headers))
+			for _, header := range res.headers {
+				usedHeadersCode = append(usedHeadersCode, Lit(header))
+			}
+			res.out = Index().String().Values(usedHeadersCode...)
 		}
 	}
 
-	if len(usedHeaders) == 0 {
-		return Nil(), nil
-	}
-
-	// Generate the code list of used static headers
-	sort.Strings(usedHeaders)
-	usedHeadersCode := make([]Code, len(usedHeaders))
-	for _, header := range usedHeaders {
-		usedHeadersCode = append(usedHeadersCode, Lit(header))
-	}
-	return Index().String().Values(usedHeadersCode...), nil
+	return allow.out, expose.out, nil
 }
 
 func (b *Builder) computeHandlerRegistrationConfig(mwNames map[*est.Middleware]*Statement) *Statement {
@@ -305,4 +334,50 @@ type bailout struct {
 
 func (b bailout) String() string {
 	return fmt.Sprintf("bailout(%s)", b.err)
+}
+
+// reqEncoding returns the request encoding for the given RPC.
+// If the RPC has no request schema, it returns nil.
+// If the parsing fails it logs an error and returns nil.
+func (b *Builder) reqEncoding(rpc *est.RPC) []*encoding.RequestEncoding {
+	if cached, ok := b.reqEncodingCache[rpc]; ok {
+		return cached
+	}
+
+	var result []*encoding.RequestEncoding
+	if rpc.Request != nil {
+		var err error
+		result, err = encoding.DescribeRequest(b.res.Meta, rpc.Request.Type, nil, rpc.HTTPMethods...)
+		if err != nil {
+			b.errors.Addf(rpc.Func.Pos(), "failed to describe request: %v", err)
+			result = nil
+		}
+	}
+
+	// Cache the result regardless of success/failure.
+	b.reqEncodingCache[rpc] = result
+	return result
+}
+
+// respEncoding returns the response encoding for the given RPC.
+// If the RPC has no response schema, it returns nil.
+// If the parsing fails it logs an error and returns nil.
+func (b *Builder) respEncoding(rpc *est.RPC) *encoding.ResponseEncoding {
+	if cached, ok := b.respEncodingCache[rpc]; ok {
+		return cached
+	}
+
+	var result *encoding.ResponseEncoding
+	if rpc.Response != nil {
+		var err error
+		result, err = encoding.DescribeResponse(b.res.Meta, rpc.Response.Type, nil)
+		if err != nil {
+			b.errors.Addf(rpc.Func.Pos(), "failed to describe response: %v", err)
+			result = nil
+		}
+	}
+
+	// Cache the result regardless of success/failure.
+	b.respEncodingCache[rpc] = result
+	return result
 }

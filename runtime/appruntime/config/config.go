@@ -21,8 +21,9 @@ type Static struct {
 	EncoreCompiler string
 	AppCommit      CommitInfo // The commit which this service was built from
 
-	CORSHeaders  []string // Headers required to be allowed by cors, pulled from the static analysis
-	PubsubTopics map[string]*StaticPubsubTopic
+	CORSAllowHeaders  []string // Headers to be allowed by cors
+	CORSExposeHeaders []string // Headers to be exposed by cors
+	PubsubTopics      map[string]*StaticPubsubTopic
 
 	Testing              bool
 	TestService          string // service being tested, if any
@@ -88,6 +89,11 @@ type CORS struct {
 	// the default set always recognized by Encore.
 	// As a special case, if the list contains "*" all headers are allowed.
 	ExtraAllowedHeaders []string `json:"raw_allowed_headers,omitempty"`
+
+	// ExtraExposedHeaders specifies extra headers to expose, beyond
+	// the default set always recognized by Encore.
+	// As a special case, if the list contains "*" all headers are allowed.
+	ExtraExposedHeaders []string `json:"raw_exposed_headers,omitempty"`
 
 	// AllowAccessWhenOnPrivateNetwork, if true, allows requests to Encore apps running
 	// on private networks from websites.

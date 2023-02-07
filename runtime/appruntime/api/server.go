@@ -145,7 +145,12 @@ func NewServer(
 	if cfg.Runtime.CORS != nil {
 		corsCfg = cfg.Runtime.CORS
 	}
-	handler := cors.Wrap(corsCfg, cfg.Static.CORSHeaders, http.HandlerFunc(s.handler))
+	handler := cors.Wrap(
+		corsCfg,
+		cfg.Static.CORSAllowHeaders,
+		cfg.Static.CORSExposeHeaders,
+		http.HandlerFunc(s.handler),
+	)
 	s.httpsrv = &http.Server{
 		Handler: handler,
 	}
