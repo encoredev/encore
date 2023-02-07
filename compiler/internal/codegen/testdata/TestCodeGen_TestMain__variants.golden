@@ -54,6 +54,10 @@ func loadApp() *__appinit.LoadData {
 			Middleware: nil,
 		},
 		{
+			Handler:    svc.EncoreInternal_NestedHeadersHandler,
+			Middleware: nil,
+		},
+		{
 			Handler:    svc.EncoreInternal_NineHandler,
 			Middleware: nil,
 		},
@@ -93,7 +97,7 @@ func loadApp() *__appinit.LoadData {
 }
 
 var EncoreInternal_svcMyMiddleware = &__api.Middleware{
-	DefLoc: 40,
+	DefLoc: 42,
 	Global: false,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
@@ -165,6 +169,10 @@ func loadApp() *__appinit.LoadData {
 			Middleware: nil,
 		},
 		{
+			Handler:    svc.EncoreInternal_NestedHeadersHandler,
+			Middleware: nil,
+		},
+		{
 			Handler:    svc.EncoreInternal_NineHandler,
 			Middleware: nil,
 		},
@@ -204,7 +212,7 @@ func loadApp() *__appinit.LoadData {
 }
 
 var EncoreInternal_svcMyMiddleware = &__api.Middleware{
-	DefLoc: 40,
+	DefLoc: 42,
 	Global: false,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
