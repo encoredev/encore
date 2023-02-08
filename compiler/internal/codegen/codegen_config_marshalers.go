@@ -303,6 +303,8 @@ func (cb *configUnmarshalersBuilder) readStruct(f *Group, struc *schema.Struct) 
 				fieldTypes[i] = Id(field.Name).Add(returnType)
 
 			}
+
+			f.Default().Block(Id("itr").Dot("Skip").Call())
 		}),
 		Return(True()),
 	))
