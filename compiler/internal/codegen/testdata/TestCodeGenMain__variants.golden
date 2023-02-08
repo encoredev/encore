@@ -1494,6 +1494,8 @@ func encoreInternalTypeConfigUnmarshaler_FooParams(itr *jsoniter.Iterator, path 
 		switch field {
 		case "Name":
 			obj.Name = itr.ReadString()
+		default:
+			itr.Skip()
 		}
 		return true
 	})
@@ -1515,6 +1517,8 @@ func encoreInternalTypeConfigUnmarshaler_Cfg(itr *jsoniter.Iterator, path []stri
 			obj.Sub = encoreInternalTypeConfigUnmarshaler_SubType[Optional[string]](encoreInternalTypeConfigUnmarshaler_Optional[string](func(itr *jsoniter.Iterator, path []string) string {
 				return itr.ReadString()
 			}))(itr, append(path, "Sub"))
+		default:
+			itr.Skip()
 		}
 		return true
 	})
@@ -1588,11 +1592,15 @@ func encoreInternalTypeConfigUnmarshaler_SubType[T any](_T_unmarshaler config.Un
 
 								return
 							}()
+						default:
+							itr.Skip()
 						}
 						return true
 					})
 					return
 				}()
+			default:
+				itr.Skip()
 			}
 			return true
 		})
@@ -1610,6 +1618,8 @@ func encoreInternalTypeConfigUnmarshaler_Optional[T any](_T_unmarshaler config.U
 				obj.Wrapped = _T_unmarshaler(itr, append(path, "Wrapped"))
 			case "Present":
 				obj.Present = itr.ReadBool()
+			default:
+				itr.Skip()
 			}
 			return true
 		})
