@@ -188,12 +188,24 @@ module.exports = {
       typography: (theme) => ({
         DEFAULT: {
           css: {
+            "code::before": false,
+            "code::after": false,
+            code: {
+              fontWeight: "400",
+              borderRadius: "4px",
+              borderWidth: "1px",
+              borderColor: "#11111199",
+              paddingLeft: "4px",
+              paddingRight: "4px",
+              paddingTop: "1px",
+              paddingBottom: "2px",
+            },
             "--tw-prose-pre-bg": theme("colors.black"),
             "--tw-prose-body": theme("colors.black"),
             "--tw-prose-pre-code": theme("colors.white"),
             "--tw-prose-bullets": theme("colors.black"),
 
-            a: { textDecoration: "none" },
+            a: {textDecoration: "none"},
             li: {},
           },
         },

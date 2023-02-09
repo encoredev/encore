@@ -28,7 +28,7 @@ const Code: FC<PropsWithChildren<{ lang: Language; rawContents: string }>> = ({
   }
 
   return (
-    <div className="relative h-full text-xs">
+    <div className="not-prose relative h-full text-xs">
       <pre className="h-full">
         <code
           className={

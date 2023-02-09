@@ -14,7 +14,7 @@ const menuItems: {
   external?: boolean;
   badge?: string;
 }[] = [
-  { href: "", name: "Requests" },
+  { href: "/requests", name: "Requests" },
   { href: "/api", name: "API Docs" },
   { href: "/flow", name: "Flow" },
   { href: "/snippets", name: "Snippets", badge: "New!" },
