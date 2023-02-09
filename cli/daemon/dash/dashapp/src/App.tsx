@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import React, { FC, useEffect, useState } from "react";
+import { BrowserRouter as Router, Navigate, Route, Routes, useParams } from "react-router-dom";
 import Client from "~lib/client/client";
 import JSONRPCConn from "~lib/client/jsonrpc";
 import AppList from "~p/AppList";
@@ -7,7 +7,7 @@ import AppHome from "~p/AppHome";
 import { ConnContext } from "~lib/ctx";
 import AppAPI from "~p/AppAPI";
 import AppDiagram from "~p/AppDiagram";
-import { SnippetPage, SnippetContent } from "~p/SnippetPage";
+import { SnippetContent, SnippetPage } from "~p/SnippetPage";
 
 function App() {
   const [conn, setConn] = useState<JSONRPCConn | undefined>(undefined);
@@ -38,13 +38,21 @@ function App() {
     <ConnContext.Provider value={conn}>
       <Router>
         <Routes>
-          <Route path="/:appID/snippets" element={<SnippetPage />}>
-            <Route path=":slug" element={<SnippetContent />} />
-          </Route>
-          <Route path="/:appID/flow" element={<AppDiagram />} />
-          <Route path="/:appID/api" element={<AppAPI />} />
-          <Route path="/:appID" element={<AppHome />} />
           <Route path="/" element={<AppList />} />
+
+          <Route path="/:appID">
+            <Route index element={<Redirect to="requests" />} />
+
+            <Route path="requests" element={<AppHome />} />
+
+            <Route path="snippets" element={<SnippetPage />}>
+              <Route path=":slug" element={<SnippetContent />} />
+            </Route>
+
+            <Route path="flow" element={<AppDiagram />} />
+
+            <Route path="api" element={<AppAPI />} />
+          </Route>
         </Routes>
       </Router>
     </ConnContext.Provider>
@@ -52,3 +60,8 @@ function App() {
 }
 
 export default App;
+
+const Redirect: FC<{ to: string }> = ({ to }) => {
+  const params = useParams<{ appID: string }>();
+  return <Navigate to={`/${params.appID}/${to}`} replace />;
+};
