@@ -131,14 +131,7 @@ func (app *App) Run() error {
 	}
 	defer ln.Close()
 
-	app.WatchForShutdownSignals()
-	app.RegisterShutdown(app.api.Shutdown)
-	app.RegisterShutdown(app.sqldb.Shutdown)
-	app.RegisterShutdown(app.pubsub.Shutdown)
-	app.RegisterShutdown(app.service.Shutdown)
-	app.RegisterShutdown(app.metrics.Shutdown)
-
-	go app.metrics.BeginCollection()
+	app.Start()
 
 	serveErr := app.api.Serve(ln)
 
@@ -150,6 +143,17 @@ func (app *App) Run() error {
 		serveErr = nil
 	}
 	return serveErr
+}
+
+func (app *App) Start() {
+	app.WatchForShutdownSignals()
+	app.RegisterShutdown(app.api.Shutdown)
+	app.RegisterShutdown(app.sqldb.Shutdown)
+	app.RegisterShutdown(app.pubsub.Shutdown)
+	app.RegisterShutdown(app.service.Shutdown)
+	app.RegisterShutdown(app.metrics.Shutdown)
+
+	go app.metrics.BeginCollection()
 }
 
 func (app *App) GetSecret(key string) string {

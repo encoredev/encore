@@ -137,7 +137,7 @@ func (p *parser) Parse() (res *Result, err error) {
 	p.fset = token.NewFileSet()
 	p.errors = errlist.New(p.fset)
 
-	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, p.cfg.ScriptMainPkg, goparser.ParseComments, p.cfg.ParseTests)
+	p.pkgs, err = collectPackages(p.fset, p.cfg.AppRoot, p.cfg.ModulePath, p.cfg.ScriptMainPkg, goparser.ParseComments, p.cfg.ParseTests, experiments.NoAPI.Enabled(p.cfg.Experiments))
 	if err != nil {
 		if errList, ok := err.(scanner.ErrorList); ok {
 			p.errors.Report(errList)
@@ -216,7 +216,7 @@ func encoreBuildContext() build.Context {
 // for all subdirectories in the root.
 //
 // Main packages are ignored by default, except for mainPkgRelPath if set.
-func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPath string, mode goparser.Mode, parseTests bool) ([]*est.Package, error) {
+func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPath string, mode goparser.Mode, parseTests bool, allowMainPkg bool) ([]*est.Package, error) {
 	var pkgs []*est.Package
 	var errors scanner.ErrorList
 	filter := func(f fs.DirEntry) bool {
@@ -288,7 +288,7 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPat
 
 		// Ignore main packages (they're scripts) unless we're executing that very main package
 		// as an exec script.
-		if pkg.Name == "main" && pkg.RelPath != mainPkgRelPath {
+		if pkg.Name == "main" && pkg.RelPath != mainPkgRelPath && !allowMainPkg {
 			return nil, nil
 		}
 

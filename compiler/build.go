@@ -132,11 +132,12 @@ func Build(appRoot string, cfg *Config) (*Result, error) {
 	}
 
 	b := &builder{
-		cfg:      cfg,
-		appRoot:  appRoot,
-		log:      cfg.Log,
-		configs:  make(map[string]string),
-		lastOpID: optracker.NoOperationID,
+		cfg:        cfg,
+		appRoot:    appRoot,
+		log:        cfg.Log,
+		configs:    make(map[string]string),
+		lastOpID:   optracker.NoOperationID,
+		disableAPI: experiments.NoAPI.Enabled(cfg.Experiments),
 	}
 	return b.Build()
 }
@@ -148,6 +149,8 @@ type builder struct {
 	forTesting bool
 	log        zerolog.Logger
 	traceStart time.Time // for tracing durations
+
+	disableAPI bool
 
 	workdir string
 	modfile *modfile.File
@@ -209,7 +212,8 @@ func (b *builder) Build() (res *Result, err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
-		b.writeHandlers,
+		b.infraCodegen,
+		b.serviceCodegen,
 		b.writeMainPkg,
 		b.writeEtypePkg,
 		b.writeConfigUnmarshallers,
@@ -398,8 +402,10 @@ func (b *builder) writePackages() error {
 	}
 
 	for _, svc := range b.res.App.Services {
-		if err := b.generateServiceSetup(svc); err != nil {
-			return err
+		if !b.disableAPI {
+			if err := b.generateServiceSetup(svc); err != nil {
+				return err
+			}
 		}
 
 		if err := b.generateCueFiles(svc); err != nil {
@@ -442,7 +448,25 @@ func (b *builder) buildMain() error {
 		args = append(args, "-ldflags", ldflags)
 	}
 
-	args = append(args, fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName))
+	mainPkgPath := fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName)
+
+	if b.disableAPI {
+		// Find the existing main package.
+		var mainPkg *est.Package
+		//mainPkgPath := b.cfg.ExecScript.ScriptMainPkg
+		for _, pkg := range b.res.App.Packages {
+			if pkg.Name == "main" {
+				mainPkg = pkg
+				break
+			}
+		}
+		if mainPkg == nil {
+			return fmt.Errorf("unable to find main package")
+		}
+		mainPkgPath = "./" + mainPkg.RelPath
+	}
+
+	args = append(args, mainPkgPath)
 	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
 	env := []string{
 		"GO111MODULE=on",

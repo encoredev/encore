@@ -18,6 +18,12 @@ func AppMain() {
 	}
 }
 
+// AppStart starts the Encore Application and doesn't block.
+func AppStart() {
+	singleton.ReconfigureZerologFormat()
+	singleton.Start()
+}
+
 // singleton is the instance of the Encore app.
 var singleton *app.App
 

@@ -85,7 +85,8 @@ func (b *builder) ExecScript() (res *Result, err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
-		b.writeHandlers,
+		b.infraCodegen,
+		b.serviceCodegen,
 		b.writeConfigUnmarshallers,
 		b.writeEtypePkg,
 		b.endCodeGenTracker,
@@ -136,7 +137,7 @@ func (b *builder) writeExecMain() error {
 
 	b.addOverlay(filepath.Join(b.appRoot, mainPkg.RelPath, "exec_main.go"), mainPath)
 
-	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, mainPkg.ImportPath, "encoreInternal_ExecMain")
+	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, mainPkg.ImportPath, "encoreInternal_ExecMain", true)
 	if err != nil {
 		return err
 	}

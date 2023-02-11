@@ -36,7 +36,7 @@ func NewBuilder(res *parser.Result) *Builder {
 	}
 }
 
-func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string) (f *File, err error) {
+func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string, generateMainFunc bool) (f *File, err error) {
 	defer b.errors.HandleBailout(&err)
 
 	if mainPkgPath != "" {
@@ -93,17 +93,19 @@ func (b *Builder) Main(compilerVersion string, mainPkgPath, mainFuncName string)
 	})
 	f.Line()
 
-	if mainFuncName == "" {
-		mainFuncName = "main"
-	}
-
-	f.Func().Id(mainFuncName).Params().Block(
-		Qual("encore.dev/appruntime/app/appinit", "AppMain").Call(),
-	)
-
 	for _, c := range mwCode {
 		f.Line()
 		f.Add(c)
+	}
+
+	if generateMainFunc {
+		if mainFuncName == "" {
+			mainFuncName = "main"
+		}
+
+		f.Func().Id(mainFuncName).Params().Block(
+			Qual("encore.dev/appruntime/app/appinit", "AppMain").Call(),
+		)
 	}
 
 	return f, b.errors.Err()
