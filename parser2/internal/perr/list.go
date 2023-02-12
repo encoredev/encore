@@ -93,6 +93,11 @@ func (l *List) AddStd(err error) {
 	}
 }
 
+func (l *List) Fatalf(pos token.Pos, format string, args ...any) {
+	l.Addf(pos, format, args...)
+	l.Bailout()
+}
+
 func (l *List) Assert(err error, pos token.Pos) {
 	l.AssertPosition(err, l.fset.Position(pos))
 }

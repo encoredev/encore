@@ -5,14 +5,23 @@ import (
 	"go/ast"
 	"go/build"
 	goparser "go/parser"
-	"io/fs"
+	"path/filepath"
 	"sync"
+
+	"golang.org/x/tools/go/packages"
 )
+
+// RelPath is a slash-separated path relative to the module root.
+type RelPath string
+
+func (rp RelPath) toFilePath() string {
+	return filepath.FromSlash(string(rp))
+}
 
 // Module holds information for a module.
 type Module struct {
-	l    *Loader // the loader that created it.
-	fsys fs.FS   // file system containing the files for this module
+	l       *Loader // the loader that created it.
+	rootDir string  // directory for the module root; absolute or relative
 
 	Path    string // module path
 	Version string // module version
@@ -20,12 +29,11 @@ type Module struct {
 
 	buildCtxOnce   sync.Once
 	cachedBuildCtx *build.Context
-}
 
-// ParseDir parses the package at relPath, relative to the module root.
-// It returns (nil, false) if the directory contains no Go files.
-func (m *Module) ParseDir(relPath string) (pkg *Package, exists bool) {
-	return m.l.parseDir(m, relPath)
+	// pkgsConfig is the go/packages config to use for
+	// resolving packages external to the current module given an import path.
+	cachedPkgsConfig *packages.Config
+	pkgsConfigOnce   sync.Once
 }
 
 func (m *Module) String() string {
@@ -39,9 +47,11 @@ type Package struct {
 	Name       string
 	Doc        string
 	ImportPath string // import path
-	RelPath    string // relative path to the module root
 	Files      []*File
 	Imports    map[string]bool // union of all imports from files
+
+	pkgNamesOnce   sync.Once
+	cachedPkgNames *PkgNames
 }
 
 type File struct {

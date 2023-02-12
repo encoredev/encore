@@ -15,17 +15,18 @@ import (
 	"sync"
 
 	"golang.org/x/exp/slices"
-	"golang.org/x/sync/singleflight"
 
 	"encr.dev/parser2/internal/parsectx"
 	"encr.dev/parser2/internal/perr"
+	"encr.dev/pkg/fns"
 )
 
 // New creates a new Loader.
 func New(c *parsectx.Context) *Loader {
 	return &Loader{
-		c:      c,
-		parsed: make(map[string]parseResult),
+		c:       c,
+		parsed:  make(map[string]*parseResult),
+		modules: make(map[string]*Module),
 	}
 }
 
@@ -33,85 +34,101 @@ func New(c *parsectx.Context) *Loader {
 type Loader struct {
 	c *parsectx.Context
 
-	// parsing is the group of directories currently being parsed.
-	parsing singleflight.Group
-
 	// parsed is a cache of parse results, guarded by parsedMu.
 	parsedMu sync.Mutex
-	parsed   map[string]parseResult
+	parsed   map[string]*parseResult
+
+	// modules contains the modules we've loaded, guarded by modulesMu.
+	modulesMu sync.Mutex
+	modules   map[string]*Module
 }
 
 // parseResult is the result from attempting to parse a package.
 type parseResult struct {
+	done    chan struct{} // closed when parsing is completed
 	pkg     *Package
 	ok      bool
 	bailout bool
 }
 
-// parseDir parses a single directory relative to m.
+// loadPkgSpec is the specification for how to load a package.
+type loadPkgSpec struct {
+	// m is the module containing the package.
+	m *Module
+
+	// dir is the directory containing the package
+	dir string
+
+	// importPath is the package's import path.
+	importPath string
+
+	// filePaths are the file paths to parse.
+	// They may be relative or absolute.
+	filePaths []string
+}
+
+// parsePkg parses a single package.
 // It returns (nil, false) if the directory contains no Go files.
-func (l *Loader) parseDir(m *Module, relPath string) (pkg *Package, ok bool) {
-	defer l.c.Trace("pkginfo.parseDir", "module", m, "path", relPath)()
-	key := m.key() + ":" + relPath
+func (l *Loader) parsePkg(s loadPkgSpec) (pkg *Package, ok bool) {
+	tr := l.c.Trace("pkginfo.parsePkg", "spec", s)
+	defer tr.Done("result", pkg, "ok", ok)
+
+	key := fmt.Sprintf("%s:%s", s.m.key(), s.importPath)
 
 	// Do we have the result cached already?
 	l.parsedMu.Lock()
-	cached, ok := l.parsed[key]
+	result, wasCached := l.parsed[key]
+	if !wasCached {
+		// Not cached; store a new entry so other goroutines will wait for us.
+		result = &parseResult{done: make(chan struct{})}
+		l.parsed[key] = result
+		defer close(result.done)
+	}
 	l.parsedMu.Unlock()
-	if ok {
-		if cached.bailout {
-			// re-bailout from the original goroutine
-			l.c.Errs.Bailout()
-		}
-		return cached.pkg, cached.ok
-	}
 
-	// Not cached. Use a singleflight group to deduplicate multiple
-	// concurrent requests for the same package.
-	ch := m.l.parsing.DoChan(key, func() (res any, err error) {
-		// Catch any bailout since this runs in a separate goroutine.
-		defer func() {
-			if _, caught := perr.CatchBailout(recover()); caught {
-				res = parseResult{nil, false, true}
+	if wasCached {
+		// We have a cached package. Wait for parsing to complete.
+		select {
+		case <-result.done:
+			if result.bailout {
+				// re-bailout
+				l.c.Errs.Bailout()
 			}
-			l.parsedMu.Lock()
-			l.parsed[key] = res.(parseResult)
-			l.parsedMu.Unlock()
-		}()
+			return result.pkg, result.ok
 
-		pkg, ok := m.l.parsePkg(m, relPath)
-		return parseResult{pkg, ok, false}, nil
-	})
+		case <-l.c.Ctx.Done():
+			// The context was cancelled first. Bail out.
+			l.c.Errs.Bailout()
+			return nil, false
+		}
+	}
 
-	// Wait for the result, or bail out if the context is cancelled.
-	select {
-	case res := <-ch:
-		r := res.Val.(parseResult)
-		if r.bailout {
+	// Not cached. Do the parsing.
+	// Catch any bailout since this runs in a separate goroutine.
+	defer func() {
+		if _, caught := perr.CatchBailout(recover()); caught {
+			result.bailout = true
+			// re-bailout
 			l.c.Errs.Bailout()
 		}
-		return r.pkg, r.ok
-	case <-m.l.c.Ctx.Done():
-		l.c.Errs.Bailout()
-		return nil, false // unreachable
-	}
+	}()
+
+	result.pkg, result.ok = l.doParsePkg(s)
+	return result.pkg, result.ok
 }
 
-// parseLocalPkg parses a single package in the given directory.
+// doParsePkg parses a single package in the given directory.
 // It returns (nil, false) if the directory contains no Go files.
-func (l *Loader) parsePkg(m *Module, relPath string) (pkg *Package, ok bool) {
-	entries, err := fs.ReadDir(m.fsys, relPath)
-	l.c.Errs.AssertFile(err, relPath)
-
+func (l *Loader) doParsePkg(s loadPkgSpec) (pkg *Package, ok bool) {
 	l.c.Errs.BailoutOnErrors(func() {
-		astPkgs, files := l.parseAST(m, relPath, entries)
-		pkg = l.processPkg(m, relPath, astPkgs, files)
+		astPkgs, files := l.parseAST(s)
+		pkg = l.processPkg(s, astPkgs, files)
 	})
 	return pkg, pkg != nil
 }
 
 // processPkg combines the results of parsing a package into a single *Package.
-func (l *Loader) processPkg(m *Module, relPath string, pkgs []*ast.Package, files []*File) *Package {
+func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *Package {
 	if n := len(pkgs); n > 1 {
 		// Make sure the extra packages are just "_test" packages.
 		// Pull out the package names.
@@ -124,7 +141,7 @@ func (l *Loader) processPkg(m *Module, relPath string, pkgs []*ast.Package, file
 			// We're good
 		} else {
 			names := strings.Join(pkgNames[:n-1], ", ") + " and " + pkgNames[n-1]
-			l.c.Errs.AddPosition(token.Position{Filename: relPath}, fmt.Sprintf("found multiple packages: %s", names))
+			l.c.Errs.AddPosition(token.Position{Filename: s.dir}, fmt.Sprintf("found multiple packages: %s", names))
 		}
 	} else if n == 0 {
 		// No Go files; ignore directory
@@ -133,11 +150,10 @@ func (l *Loader) processPkg(m *Module, relPath string, pkgs []*ast.Package, file
 
 	p := pkgs[0]
 	pkg := &Package{
-		Module:     m,
+		Module:     s.m,
 		AST:        p,
 		Name:       p.Name,
-		RelPath:    relPath,
-		ImportPath: path.Join(m.Path, relPath),
+		ImportPath: s.importPath,
 		Files:      files,
 		Imports:    make(map[string]bool),
 	}
@@ -159,12 +175,26 @@ func (l *Loader) processPkg(m *Module, relPath string, pkgs []*ast.Package, file
 }
 
 // parseAST is like go/parser.ParseDir but it constructs *File objects instead.
-func (l *Loader) parseAST(m *Module, dir string, list []fs.DirEntry) ([]*ast.Package, []*File) {
-	// Ensure deterministic parsing order.
-	slices.SortFunc(list, func(a, b fs.DirEntry) bool { return a.Name() < b.Name() })
+func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
+	if len(s.filePaths) == 0 {
+		return nil, nil
+	}
 
-	shouldParseFile := func(f fs.DirEntry) bool {
-		name := f.Name()
+	type fileInfo struct {
+		path     string
+		baseName string
+	}
+	infos := fns.Map(s.filePaths, func(path string) fileInfo {
+		return fileInfo{path: path, baseName: filepath.Base(path)}
+	})
+
+	// Ensure deterministic parsing order.
+	slices.SortFunc(infos, func(a, b fileInfo) bool {
+		return a.baseName < b.baseName
+	})
+
+	shouldParseFile := func(info fileInfo) bool {
+		name := info.baseName
 		switch {
 		// Don't parse encore.gen.go files, since they're not intended to be checked in.
 		// We've had several issues where things work locally but not in CI/CD because
@@ -184,21 +214,20 @@ func (l *Loader) parseAST(m *Module, dir string, list []fs.DirEntry) ([]*ast.Pac
 	var files []*File
 	seenPkgs := make(map[string]*ast.Package) // package name -> pkg
 
-	for _, d := range list {
+	for _, d := range infos {
 		if !shouldParseFile(d) {
 			continue
 		}
-		filePath := path.Join(dir, d.Name())
-		contents, err := fs.ReadFile(m.fsys, filePath)
+		contents, err := os.ReadFile(d.path)
 		if err != nil {
-			l.c.Errs.AddForFile(err, filePath)
+			l.c.Errs.AddForFile(err, d.path)
 			continue
 		}
 
 		// Check if this file should be part of the build
-		matched, err := m.buildCtx().MatchFile(dir, d.Name())
+		matched, err := s.m.buildCtx().MatchFile(s.dir, d.baseName)
 		if err != nil {
-			l.c.Errs.AddForFile(err, filePath)
+			l.c.Errs.AddForFile(err, d.path)
 			continue
 		} else if !matched {
 			continue
@@ -207,7 +236,7 @@ func (l *Loader) parseAST(m *Module, dir string, list []fs.DirEntry) ([]*ast.Pac
 		// Parse the package and imports only so code can consult that.
 		// We parse the full AST on-demand later.
 		mode := goparser.ParseComments | goparser.ImportsOnly
-		astFile, err := goparser.ParseFile(l.c.FS, filePath, contents, mode)
+		astFile, err := goparser.ParseFile(l.c.FS, d.path, contents, mode)
 		if err != nil {
 			l.c.Errs.AddStd(err)
 			continue
@@ -224,13 +253,12 @@ func (l *Loader) parseAST(m *Module, dir string, list []fs.DirEntry) ([]*ast.Pac
 			pkgs = append(pkgs, pkg)
 		}
 
-		pkg.Files[filePath] = astFile
+		pkg.Files[d.path] = astFile
 
-		fileName := d.Name()
-		isTestFile := strings.HasSuffix(fileName, "_test.go") || strings.HasSuffix(pkgName, "_test")
+		isTestFile := strings.HasSuffix(d.baseName, "_test.go") || strings.HasSuffix(pkgName, "_test")
 		files = append(files, &File{
-			Name:     fileName,
-			Path:     filePath,
+			Name:     d.baseName,
+			Path:     d.path,
 			Pkg:      nil, // will be set later
 			Imports:  getFileImports(astFile),
 			Contents: contents,
@@ -246,8 +274,8 @@ func (l *Loader) parseAST(m *Module, dir string, list []fs.DirEntry) ([]*ast.Pac
 func getFileImports(f *ast.File) map[string]bool {
 	imports := make(map[string]bool)
 	for _, s := range f.Imports {
-		if path, err := strconv.Unquote(s.Path.Value); err == nil {
-			imports[path] = true
+		if importPath, err := strconv.Unquote(s.Path.Value); err == nil {
+			imports[importPath] = true
 		}
 	}
 	return imports

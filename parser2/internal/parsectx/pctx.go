@@ -6,6 +6,7 @@ import (
 	"time"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
 	"encr.dev/parser2/internal/perr"
@@ -47,13 +48,17 @@ type BuildInfo struct {
 
 // Trace traces the execution of a function.
 // It emits trace-level log messages, using the given message and key-value pairs.
+// It returns the logger for logging additional information during the processing.
+//
 // Usage:
 //
-//	defer ctx.Trace("doing something", "key", value)()
-func (c *Context) Trace(msg string, kvs ...any) func() {
+//	tr := ctx.Trace("operation-name", "key", value)
+//	// ... invoke tr.Emit(...) to log additional information
+//	defer tr.Done()
+func (c *Context) Trace(op string, kvs ...any) *TraceLogger {
 	// If we're not tracing, do nothing.
 	if c.Log.GetLevel() > zerolog.TraceLevel {
-		return func() {}
+		return nil
 	}
 
 	// If we're running tests, mark this function as a testing helper.
@@ -61,10 +66,35 @@ func (c *Context) Trace(msg string, kvs ...any) func() {
 		c.c.Helper()
 	}
 
-	start := time.Now()
-	c.Log.Trace().Caller(1).Time("start", start).Fields(kvs).Msg("start: " + msg)
-	return func() {
-		end := time.Now()
-		c.Log.Trace().Caller(1).Time("end", end).Dur("duration", end.Sub(start)).Fields(kvs).Msg("end:   " + msg)
+	log := c.Log.With().Str("op", op).Str("op_id", "op_"+xid.New().String()).Logger()
+	log.Trace().Caller(1).Fields(kvs).Msg("start")
+	now := time.Now()
+	return &TraceLogger{log: log, start: now, prev: now}
+}
+
+type TraceLogger struct {
+	log   zerolog.Logger
+	start time.Time
+	prev  time.Time
+}
+
+func (t *TraceLogger) Done(kvs ...any) {
+	if t == nil {
+		return
 	}
+	t.Emit("done", kvs...)
+}
+
+func (t *TraceLogger) Emit(msg string, kvs ...any) {
+	if t == nil {
+		return
+	}
+	now := time.Now()
+	t.prev = now
+	t.log.Trace().
+		Caller(1).
+		Dur("from_start", now.Sub(t.start)).
+		Dur("from_prev", now.Sub(t.prev)).
+		Fields(kvs).
+		Msg(msg)
 }
