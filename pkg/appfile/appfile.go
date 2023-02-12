@@ -35,6 +35,9 @@ type File struct {
 	// Configure global CORS settings for the application which
 	// will be applied to all API gateways into the application.
 	GlobalCORS *CORS `json:"global_cors,omitempty"`
+
+	// CgoEnabled enables building with cgo.
+	CgoEnabled bool `json:"cgo_enabled,omitempty"`
 }
 
 type CORS struct {
