@@ -9,6 +9,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
+	"encr.dev/parser2/internal/paths"
 	"encr.dev/parser2/internal/perr"
 )
 
@@ -22,6 +23,9 @@ type Context struct {
 
 	// Build controls what files to build.
 	Build BuildInfo
+
+	// MainModuleDir is the directory containing the main module.
+	MainModuleDir paths.FS
 
 	// FS holds the fileset used for parsing.
 	FS *token.FileSet

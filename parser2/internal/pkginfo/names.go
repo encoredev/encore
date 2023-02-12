@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"encr.dev/parser2/internal/parsectx"
+	"encr.dev/parser2/internal/pkginfo/pkgload"
 )
 
 // Names returns the package-level names in the package.
@@ -21,7 +22,7 @@ func (pkg *Package) Names() *PkgNames {
 }
 
 // resolvePkgNames resolves package-level names for the given package.
-func (l *Loader) resolvePkgNames(pkg *Package) *PkgNames {
+func (l *pkgload.Loader) resolvePkgNames(pkg *Package) *PkgNames {
 	decls := make(map[string]*PkgDeclInfo)
 	scope := newScope(nil)
 
@@ -101,7 +102,7 @@ func (l *Loader) resolvePkgNames(pkg *Package) *PkgNames {
 
 // fileNameResolver resolves file-local names within a package.
 type fileNameResolver struct {
-	l   *Loader
+	l   *pkgload.Loader
 	f   *File
 	pkg *Package
 	tr  *parsectx.TraceLogger

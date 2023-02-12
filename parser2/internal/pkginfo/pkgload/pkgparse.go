@@ -1,47 +1,23 @@
-package pkginfo
+package pkgload
 
 import (
 	"fmt"
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
-	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/parser2/internal/parsectx"
-	"encr.dev/parser2/internal/perr"
+	"encr.dev/parser2/internal/paths"
 	"encr.dev/pkg/fns"
 )
 
-// New creates a new Loader.
-func New(c *parsectx.Context) *Loader {
-	return &Loader{
-		c:       c,
-		parsed:  make(map[string]*parseResult),
-		modules: make(map[string]*Module),
-	}
-}
-
-// A Loader provides lazy loading of package information.
-type Loader struct {
-	c *parsectx.Context
-
-	// parsed is a cache of parse results, guarded by parsedMu.
-	parsedMu sync.Mutex
-	parsed   map[string]*parseResult
-
-	// modules contains the modules we've loaded, guarded by modulesMu.
-	modulesMu sync.Mutex
-	modules   map[string]*Module
-}
+// File pkgparse implements parsing of packages.
 
 // parseResult is the result from attempting to parse a package.
 type parseResult struct {
@@ -53,68 +29,19 @@ type parseResult struct {
 
 // loadPkgSpec is the specification for how to load a package.
 type loadPkgSpec struct {
-	// m is the module containing the package.
-	m *Module
+	// cause is the source position that caused the load.
+	// It's used to generate useful error messages.
+	cause token.Pos
 
-	// dir is the directory containing the package
-	dir string
+	// path is the package path.
+	path paths.Pkg
 
-	// importPath is the package's import path.
-	importPath string
+	// dir is the directory containing the package.
+	dir paths.FS
 
 	// filePaths are the file paths to parse.
 	// They may be relative or absolute.
-	filePaths []string
-}
-
-// parsePkg parses a single package.
-// It returns (nil, false) if the directory contains no Go files.
-func (l *Loader) parsePkg(s loadPkgSpec) (pkg *Package, ok bool) {
-	tr := l.c.Trace("pkginfo.parsePkg", "spec", s)
-	defer tr.Done("result", pkg, "ok", ok)
-
-	key := fmt.Sprintf("%s:%s", s.m.key(), s.importPath)
-
-	// Do we have the result cached already?
-	l.parsedMu.Lock()
-	result, wasCached := l.parsed[key]
-	if !wasCached {
-		// Not cached; store a new entry so other goroutines will wait for us.
-		result = &parseResult{done: make(chan struct{})}
-		l.parsed[key] = result
-		defer close(result.done)
-	}
-	l.parsedMu.Unlock()
-
-	if wasCached {
-		// We have a cached package. Wait for parsing to complete.
-		select {
-		case <-result.done:
-			if result.bailout {
-				// re-bailout
-				l.c.Errs.Bailout()
-			}
-			return result.pkg, result.ok
-
-		case <-l.c.Ctx.Done():
-			// The context was cancelled first. Bail out.
-			l.c.Errs.Bailout()
-			return nil, false
-		}
-	}
-
-	// Not cached. Do the parsing.
-	// Catch any bailout since this runs in a separate goroutine.
-	defer func() {
-		if _, caught := perr.CatchBailout(recover()); caught {
-			result.bailout = true
-			// re-bailout
-			l.c.Errs.Bailout()
-		}
-	}()
-
-	result.pkg, result.ok = l.doParsePkg(s)
-	return result.pkg, result.ok
+	filePaths []paths.FS
 }
 
 // doParsePkg parses a single package in the given directory.
@@ -141,7 +68,7 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 			// We're good
 		} else {
 			names := strings.Join(pkgNames[:n-1], ", ") + " and " + pkgNames[n-1]
-			l.c.Errs.AddPosition(token.Position{Filename: s.dir}, fmt.Sprintf("found multiple packages: %s", names))
+			l.c.Errs.Addf(s.cause, fmt.Sprintf("found multiple package names in package %s: %s", s.path, names))
 		}
 	} else if n == 0 {
 		// No Go files; ignore directory
@@ -150,10 +77,9 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 
 	p := pkgs[0]
 	pkg := &Package{
-		Module:     s.m,
 		AST:        p,
 		Name:       p.Name,
-		ImportPath: s.importPath,
+		ImportPath: s.path,
 		Files:      files,
 		Imports:    make(map[string]bool),
 	}
@@ -181,11 +107,13 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 	}
 
 	type fileInfo struct {
-		path     string
+		path     paths.FS
+		ioPath   string
 		baseName string
 	}
-	infos := fns.Map(s.filePaths, func(path string) fileInfo {
-		return fileInfo{path: path, baseName: filepath.Base(path)}
+	infos := fns.Map(s.filePaths, func(p paths.FS) fileInfo {
+		io := p.ToIO()
+		return fileInfo{path: p, ioPath: io, baseName: filepath.Base(io)}
 	})
 
 	// Ensure deterministic parsing order.
@@ -218,25 +146,26 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 		if !shouldParseFile(d) {
 			continue
 		}
-		contents, err := os.ReadFile(d.path)
+		// Check if this file should be part of the build
+		matched, err := l.buildCtx.MatchFile(s.dir, d.baseName)
 		if err != nil {
-			l.c.Errs.AddForFile(err, d.path)
+			l.c.Errs.AddForFile(err, d.ioPath)
+			continue
+		} else if !matched {
 			continue
 		}
 
-		// Check if this file should be part of the build
-		matched, err := s.m.buildCtx().MatchFile(s.dir, d.baseName)
+		reader, err := os.Open(d.ioPath)
 		if err != nil {
-			l.c.Errs.AddForFile(err, d.path)
-			continue
-		} else if !matched {
+			l.c.Errs.AddForFile(err, d.ioPath)
 			continue
 		}
 
 		// Parse the package and imports only so code can consult that.
 		// We parse the full AST on-demand later.
 		mode := goparser.ParseComments | goparser.ImportsOnly
-		astFile, err := goparser.ParseFile(l.c.FS, d.path, contents, mode)
+		astFile, err := goparser.ParseFile(l.c.FS, d.ioPath, reader, mode)
+		_ = reader.Close()
 		if err != nil {
 			l.c.Errs.AddStd(err)
 			continue
@@ -253,15 +182,14 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			pkgs = append(pkgs, pkg)
 		}
 
-		pkg.Files[d.path] = astFile
+		pkg.Files[d.ioPath] = astFile
 
 		isTestFile := strings.HasSuffix(d.baseName, "_test.go") || strings.HasSuffix(pkgName, "_test")
 		files = append(files, &File{
 			Name:     d.baseName,
-			Path:     d.path,
+			FSPath:   d.path,
 			Pkg:      nil, // will be set later
 			Imports:  getFileImports(astFile),
-			Contents: contents,
 			TestFile: isTestFile,
 
 			initialAST: astFile,
@@ -279,56 +207,6 @@ func getFileImports(f *ast.File) map[string]bool {
 		}
 	}
 	return imports
-}
-
-// walkFunc is the callback called by walkDirs to process a directory.
-// dir is the path to the current directory; relPath is the (slash-separated)
-// relative path from the original root dir.
-type walkFunc func(dir, relPath string, files []fs.DirEntry) error
-
-// walkDirs is like filepath.Walk but it calls walkFn once for each directory and not for individual files.
-// It also reports both the full path and the path relative to the given root dir.
-// It does not allow skipping directories in any way; any error returned from walkFn aborts the walk.
-func walkDirs(root string, walkFn walkFunc) error {
-	return walkDir(root, ".", walkFn)
-}
-
-// walkDir processes a single directory and recurses.
-// dir is the current directory path, and rel is the relative path from the original root.
-// rel is always in slash form, while dir uses the OS-native filepath separator.
-func walkDir(dir, rel string, walkFn walkFunc) error {
-	if ignored(dir) {
-		return nil
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-
-	// Split the files and dirs
-	files := make([]fs.DirEntry, 0, len(entries))
-	var dirs []fs.DirEntry
-	for _, entry := range entries {
-		if entry.IsDir() {
-			dirs = append(dirs, entry)
-		} else {
-			files = append(files, entry)
-		}
-	}
-
-	if err := walkFn(dir, rel, files); err != nil {
-		return err
-	}
-
-	for _, d := range dirs {
-		dir2 := filepath.Join(dir, d.Name())
-		rel2 := path.Join(rel, d.Name())
-		if err := walkDir(dir2, rel2, walkFn); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // ignored returns true if a given directory should be ignored for parsing.

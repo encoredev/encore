@@ -1,4 +1,4 @@
-package pkginfo
+package pkgload
 
 import (
 	"testing"
