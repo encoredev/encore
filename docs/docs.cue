@@ -133,6 +133,7 @@ sections: [
 			{title: "Integrate with GitHub", segment: "github"},
 			{title: "Migrate an existing backend to Encore", segment: "migrate-to-encore"},
 			{title: "Migrate away from Encore", segment: "migrate-away"},
+			{title: "Build with cgo", segment: "cgo"},
 		]
 	},
 	{
