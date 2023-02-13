@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -35,6 +36,7 @@ func (x *Exporter) Shutdown(_ context.Context) {}
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
 	data := x.getMetricData(now, collected)
+	data = append(data, sysMetrics(now)...)
 	proto, err := proto.Marshal(&prompb.WriteRequest{Timeseries: data})
 	if err != nil {
 		return fmt.Errorf("unable to marshal metrics into Protobuf: %v", err)
@@ -153,6 +155,33 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	return data
+}
+
+func sysMetrics(now time.Time) []*prompb.TimeSeries {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return []*prompb.TimeSeries{
+		{
+			Labels: []*prompb.Label{{
+				Name:  "__name__",
+				Value: "memory_usage_bytes",
+			}},
+			Samples: []*prompb.Sample{{
+				Value:     float64(memStats.Alloc),
+				Timestamp: FromTime(now),
+			}},
+		},
+		{
+			Labels: []*prompb.Label{{
+				Name:  "__name__",
+				Value: "num_go_routines",
+			}},
+			Samples: []*prompb.Sample{{
+				Value:     float64(runtime.NumGoroutine()),
+				Timestamp: FromTime(now),
+			}},
+		},
+	}
 }
 
 // FromTime returns a new millisecond timestamp from a time.

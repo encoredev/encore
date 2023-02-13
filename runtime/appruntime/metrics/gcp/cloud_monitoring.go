@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
@@ -63,6 +64,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	endTime := time.Now()
 
 	data := x.getMetricData(newCounterStart, endTime, collected)
+	data = append(data, x.sysMetrics(endTime)...)
 	if len(data) == 0 {
 		return nil
 	}
@@ -295,6 +297,40 @@ func uint64Val(val uint64) *monitoringpb.TypedValue {
 	return &monitoringpb.TypedValue{
 		Value: &monitoringpb.TypedValue_Int64Value{
 			Int64Value: int64(val),
+		},
+	}
+}
+
+func (x *Exporter) sysMetrics(now time.Time) []*monitoringpb.TimeSeries {
+	monitoredResource := &monitoredrespb.MonitoredResource{
+		Type:   x.cfg.MonitoredResourceType,
+		Labels: x.cfg.MonitoredResourceLabels,
+	}
+
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return []*monitoringpb.TimeSeries{
+		{
+			MetricKind: metricpb.MetricDescriptor_GAUGE,
+			Metric: &metricpb.Metric{
+				Type: "custom.googleapis.com/memory_usage_bytes",
+			},
+			Resource: monitoredResource,
+			Points: []*monitoringpb.Point{{
+				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
+				Value:    uint64Val(memStats.Alloc),
+			}},
+		},
+		{
+			MetricKind: metricpb.MetricDescriptor_GAUGE,
+			Metric: &metricpb.Metric{
+				Type: "custom.googleapis.com/num_go_routines",
+			},
+			Resource: monitoredResource,
+			Points: []*monitoringpb.Point{{
+				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
+				Value:    int64Val(int64(runtime.NumGoroutine())),
+			}},
 		},
 	}
 }

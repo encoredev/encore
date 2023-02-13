@@ -5,6 +5,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
@@ -42,6 +43,7 @@ func (x *Exporter) Shutdown(force context.Context) {
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
 	data := x.getMetricData(now, collected)
+	data = append(data, sysMetrics(now)...)
 	_, err := x.getClient().PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
 		MetricData: data,
 		Namespace:  aws.String(x.cfg.Namespace),
@@ -155,4 +157,21 @@ func (x *Exporter) getClient() *cloudwatch.Client {
 		x.client = cl
 	}
 	return x.client
+}
+
+func sysMetrics(now time.Time) []types.MetricDatum {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return []types.MetricDatum{
+		{
+			MetricName: aws.String("memory_usage_bytes"),
+			Timestamp:  aws.Time(now),
+			Value:      aws.Float64(float64(memStats.Alloc)),
+		},
+		{
+			MetricName: aws.String("num_go_routines"),
+			Timestamp:  aws.Time(now),
+			Value:      aws.Float64(float64(runtime.NumGoroutine())),
+		},
+	}
 }
