@@ -329,6 +329,16 @@ func (s *Service) Delete(ctx context.Context, siteID int) error {
 }
 ```
 
+🥐 Restart `encore run` to cause the `site` database to be created, and then call the `site.Add` endpoint:
+
+```shell
+$ curl -X POST 'http://localhost:4000/site' -d '{"url": "https://encore.dev"}'
+{
+  "id": 1,
+  "url": "https://encore.dev"
+}
+```
+
 ## 4. Record uptime checks
 
 In order to notify when a website goes down, or comes back up, we need to track the previous state it was in.
@@ -386,7 +396,7 @@ func Check(ctx context.Context, siteID int) error {
 }
 ```
 
-🥐 Restart `encore run` to cause the new database to be created, and then call the new endpoint:
+🥐 Restart `encore run` to cause the `monitor` database to be created, and then call the new `monitor.Check` endpoint:
 
 ```shell
 $ curl -X POST 'http://localhost:4000/check/1'
@@ -399,8 +409,8 @@ $ encore db shell monitor
 psql (14.4, server 14.2)
 Type "help" for help.
 
-monitor=> SELECT * FROM checks; 
- id | site_id | up |          checked_at           
+monitor=> SELECT * FROM checks;
+ id | site_id | up |          checked_at
 ----+---------+----+-------------------------------
   1 |       1 | t  | 2022-10-21 09:58:30.674265+00
 ```
@@ -484,7 +494,7 @@ not treated as an error.)
 🥐 Now that we have a `CheckAll` endpoint, define a [cron job](https://encore.dev/docs/primitives/cron-jobs) to automatically call it every 5 minutes:
 
 ```go
--- site/check.go --
+-- monitor/check.go --
 import "encore.dev/cron"
 
 // Check all tracked sites every 5 minutes.
@@ -646,7 +656,7 @@ func Notify(ctx context.Context, p *NotifyParams) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, "POST", secrets.webhookURL, bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", secrets.SlackWebhookURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return err
 	}
