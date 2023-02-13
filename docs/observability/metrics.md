@@ -4,6 +4,14 @@ seodesc: See how you can monitor your backend application using Encore.
 title: Metrics
 ---
 
+<Callout type="info">
+
+Metrics are currently available for environments on Encore Cloud and Google Cloud Platform
+created on or after January 11. Support for older environments and additional cloud providers
+are launching in the next few weeks.
+
+</Callout>
+
 Having easy access to useful metrics is a critical part of application observability.
 
 Encore solves this by providing automatic dashboards of all the common application-level
