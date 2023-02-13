@@ -47,7 +47,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 		Namespace:  aws.String(x.cfg.Namespace),
 	})
 	if err != nil {
-		return fmt.Errorf("unable to send metrics to GCP Cloud Monitoring: %v", err)
+		return fmt.Errorf("unable to send metrics to AWS CloudWatch: %v", err)
 	}
 	return nil
 }
@@ -86,34 +86,50 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 		switch vals := m.Val.(type) {
 		case []float64:
 			if svcNum > 0 {
-				doAdd(vals[0], m.Info.Name(), dims, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(vals[0], m.Info.Name(), dims, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(val, m.Info.Name(), dims, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(val, m.Info.Name(), dims, uint16(i))
+					}
 				}
 			}
 		case []int64:
 			if svcNum > 0 {
-				doAdd(float64(vals[0]), m.Info.Name(), dims, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(float64(vals[0]), m.Info.Name(), dims, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(float64(val), m.Info.Name(), dims, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(float64(val), m.Info.Name(), dims, uint16(i))
+					}
 				}
 			}
 		case []uint64:
 			if svcNum > 0 {
-				doAdd(float64(vals[0]), m.Info.Name(), dims, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(float64(vals[0]), m.Info.Name(), dims, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(float64(val), m.Info.Name(), dims, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(float64(val), m.Info.Name(), dims, uint16(i))
+					}
 				}
 			}
 		case []time.Duration:
 			if svcNum > 0 {
-				doAdd(float64(vals[0]/time.Second), m.Info.Name(), dims, svcNum-1)
+				if m.Valid[0].Load() {
+					doAdd(float64(vals[0]/time.Second), m.Info.Name(), dims, svcNum-1)
+				}
 			} else {
 				for i, val := range vals {
-					doAdd(float64(val/time.Second), m.Info.Name(), dims, uint16(i))
+					if m.Valid[i].Load() {
+						doAdd(float64(val/time.Second), m.Info.Name(), dims, uint16(i))
+					}
 				}
 			}
 		case []*nativehist.Histogram:
