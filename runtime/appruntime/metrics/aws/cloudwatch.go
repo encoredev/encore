@@ -5,7 +5,6 @@ package aws
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metrics/system"
 	"encore.dev/internal/nativehist"
 	"encore.dev/metrics"
 )
@@ -43,7 +43,7 @@ func (x *Exporter) Shutdown(force context.Context) {
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
 	data := x.getMetricData(now, collected)
-	data = append(data, sysMetrics(now)...)
+	data = append(data, getSysMetrics(now)...)
 	_, err := x.getClient().PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
 		MetricData: data,
 		Namespace:  aws.String(x.cfg.Namespace),
@@ -159,19 +159,18 @@ func (x *Exporter) getClient() *cloudwatch.Client {
 	return x.client
 }
 
-func sysMetrics(now time.Time) []types.MetricDatum {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+func getSysMetrics(now time.Time) []types.MetricDatum {
+	sysMetrics := system.ReadSysMetrics()
 	return []types.MetricDatum{
 		{
 			MetricName: aws.String("memory_usage_bytes"),
 			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(memStats.Alloc)),
+			Value:      aws.Float64(float64(sysMetrics.MemoryUsageBytes)),
 		},
 		{
 			MetricName: aws.String("num_go_routines"),
 			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(runtime.NumGoroutine())),
+			Value:      aws.Float64(float64(sysMetrics.NumGoRoutines)),
 		},
 	}
 }

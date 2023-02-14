@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"runtime"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -14,6 +13,7 @@ import (
 
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/metrics/prometheus/prompb"
+	"encore.dev/appruntime/metrics/system"
 	"encore.dev/metrics"
 )
 
@@ -36,7 +36,7 @@ func (x *Exporter) Shutdown(_ context.Context) {}
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
 	data := x.getMetricData(now, collected)
-	data = append(data, sysMetrics(now)...)
+	data = append(data, getSysMetrics(now)...)
 	proto, err := proto.Marshal(&prompb.WriteRequest{Timeseries: data})
 	if err != nil {
 		return fmt.Errorf("unable to marshal metrics into Protobuf: %v", err)
@@ -157,9 +157,8 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	return data
 }
 
-func sysMetrics(now time.Time) []*prompb.TimeSeries {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+func getSysMetrics(now time.Time) []*prompb.TimeSeries {
+	sysMetrics := system.ReadSysMetrics()
 	return []*prompb.TimeSeries{
 		{
 			Labels: []*prompb.Label{{
@@ -167,7 +166,7 @@ func sysMetrics(now time.Time) []*prompb.TimeSeries {
 				Value: "memory_usage_bytes",
 			}},
 			Samples: []*prompb.Sample{{
-				Value:     float64(memStats.Alloc),
+				Value:     float64(sysMetrics.MemoryUsageBytes),
 				Timestamp: FromTime(now),
 			}},
 		},
@@ -177,7 +176,7 @@ func sysMetrics(now time.Time) []*prompb.TimeSeries {
 				Value: "num_go_routines",
 			}},
 			Samples: []*prompb.Sample{{
-				Value:     float64(runtime.NumGoroutine()),
+				Value:     float64(sysMetrics.NumGoRoutines),
 				Timestamp: FromTime(now),
 			}},
 		},

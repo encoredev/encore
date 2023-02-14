@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"runtime"
 	"sync"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metrics/system"
 	"encore.dev/internal/nativehist"
 	"encore.dev/metrics"
 )
@@ -64,7 +64,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	endTime := time.Now()
 
 	data := x.getMetricData(newCounterStart, endTime, collected)
-	data = append(data, x.sysMetrics(endTime)...)
+	data = append(data, x.getSysMetrics(endTime)...)
 	if len(data) == 0 {
 		return nil
 	}
@@ -301,14 +301,12 @@ func uint64Val(val uint64) *monitoringpb.TypedValue {
 	}
 }
 
-func (x *Exporter) sysMetrics(now time.Time) []*monitoringpb.TimeSeries {
+func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 	monitoredResource := &monitoredrespb.MonitoredResource{
 		Type:   x.cfg.MonitoredResourceType,
 		Labels: x.cfg.MonitoredResourceLabels,
 	}
-
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+	sysMetrics := system.ReadSysMetrics()
 	return []*monitoringpb.TimeSeries{
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
@@ -318,7 +316,7 @@ func (x *Exporter) sysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    uint64Val(memStats.Alloc),
+				Value:    uint64Val(sysMetrics.MemoryUsageBytes),
 			}},
 		},
 		{
@@ -329,7 +327,7 @@ func (x *Exporter) sysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    int64Val(int64(runtime.NumGoroutine())),
+				Value:    int64Val(int64(sysMetrics.NumGoRoutines)),
 			}},
 		},
 	}
