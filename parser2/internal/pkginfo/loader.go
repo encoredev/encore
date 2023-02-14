@@ -1,4 +1,4 @@
-package pkgload
+package pkginfo
 
 import (
 	"go/build"
