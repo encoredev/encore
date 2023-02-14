@@ -5,7 +5,6 @@ import (
 	"go/token"
 	"time"
 
-	qt "github.com/frankban/quicktest"
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
@@ -35,9 +34,6 @@ type Context struct {
 
 	// Errs contains encountered errors.
 	Errs *perr.List
-
-	// c is the test runner. It is nil when not running tests.
-	c *qt.C
 }
 
 // BuildInfo represents the information needed to parse and build an Encore application.
@@ -63,11 +59,6 @@ func (c *Context) Trace(op string, kvs ...any) *TraceLogger {
 	// If we're not tracing, do nothing.
 	if c.Log.GetLevel() > zerolog.TraceLevel {
 		return nil
-	}
-
-	// If we're running tests, mark this function as a testing helper.
-	if c.c != nil {
-		c.c.Helper()
 	}
 
 	log := c.Log.With().Str("op", op).Str("op_id", "op_"+xid.New().String()).Logger()

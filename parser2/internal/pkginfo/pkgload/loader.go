@@ -3,9 +3,11 @@ package pkgload
 import (
 	"go/build"
 	"go/token"
+	"os"
 	"sync"
 
 	"golang.org/x/exp/slices"
+	"golang.org/x/tools/go/packages"
 
 	"encr.dev/parser2/internal/parsectx"
 	"encr.dev/parser2/internal/paths"
@@ -28,8 +30,9 @@ type Loader struct {
 	c *parsectx.Context
 
 	// initialized by init.
-	mainModule *Module
-	buildCtx   *build.Context
+	mainModule     *Module
+	buildCtx       *build.Context
+	packagesConfig *packages.Config
 
 	// modules contains loaded module information.
 	modulesMu sync.Mutex
@@ -42,22 +45,45 @@ type Loader struct {
 
 func (l *Loader) init() {
 	// Resolve the main module.
-	m := l.loadModuleFromDisk(l.c.MainModuleDir)
+	l.mainModule = l.loadModuleFromDisk(l.c.MainModuleDir)
 
-	i := l.c.Build
+	b := l.c.Build
 	d := &build.Default
 	l.buildCtx = &build.Context{
-		GOARCH: i.GOARCH,
-		GOOS:   i.GOOS,
-		GOROOT: i.GOROOT,
+		GOARCH: b.GOARCH,
+		GOOS:   b.GOOS,
+		GOROOT: b.GOROOT,
 
 		Dir:         l.c.MainModuleDir.ToIO(),
-		CgoEnabled:  i.CgoEnabled,
+		CgoEnabled:  b.CgoEnabled,
 		UseAllFiles: false,
 		Compiler:    d.Compiler,
-		BuildTags:   append(slices.Clone(d.BuildTags), i.BuildTags...),
+		BuildTags:   append(slices.Clone(d.BuildTags), b.BuildTags...),
 		ToolTags:    slices.Clone(d.ToolTags),
 		ReleaseTags: slices.Clone(d.ReleaseTags),
+	}
+
+	// Set up the go/packages configuration for resolving modules.
+	cgoEnabled := "0"
+	if b.CgoEnabled {
+		cgoEnabled = "1"
+	}
+	l.packagesConfig = &packages.Config{
+		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedModule,
+		Context: l.c.Ctx,
+		Dir:     l.c.MainModuleDir.ToIO(),
+		Env: append(os.Environ(),
+			"GOOS="+b.GOOS,
+			"GOARCH="+b.GOARCH,
+			"GOROOT="+b.GOROOT,
+			"CGO_ENABLED="+cgoEnabled,
+		),
+		Fset:    l.c.FS,
+		Tests:   l.c.ParseTests,
+		Overlay: nil,
+		Logf: func(format string, args ...any) {
+			l.c.Log.Debug().Str("component", "pkgload").Msgf("go/packages: "+format, args...)
+		},
 	}
 }
 
@@ -109,18 +135,23 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 	// Not cached. Do the parsing.
 	// Catch any bailout since this runs in a separate goroutine.
 	defer func() {
-		if _, caught := perr.CatchBailout(recover()); caught {
+		if l, caught := perr.CatchBailout(recover()); caught {
 			result.bailout = true
-			// re-bailout
-			l.c.Errs.Bailout()
+			l.Bailout() // re-bailout
 		}
 	}()
 
-	targetModule, found := l.mainModule.moduleForPkgPath(pkgPath)
-	if !found {
-
+	module := l.resolveModuleForPkg(cause, pkgPath)
+	relPath, ok := module.Path.RelativePathToPkg(pkgPath)
+	if !ok {
+		l.c.Errs.Addf(cause, "package %q not found belonging to any module", pkgPath)
+		return nil, false
 	}
 
-	result.pkg, result.ok = l.doParsePkg(s)
+	result.pkg, result.ok = l.doParsePkg(loadPkgSpec{
+		cause: cause,
+		path:  pkgPath,
+		dir:   module.RootDir.Join(relPath),
+	})
 	return result.pkg, result.ok
 }

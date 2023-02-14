@@ -63,7 +63,8 @@ type File struct {
 
 // Contents returns the full file contents.
 func (f *File) Contents() []byte {
-	f.contentsOnce.Do(func() {
+	o := &f.contentsOnce
+	o.Do(func() {
 		ioPath := f.FSPath.ToIO()
 		data, err := os.ReadFile(ioPath)
 		f.l.c.Errs.AssertFile(err, ioPath)

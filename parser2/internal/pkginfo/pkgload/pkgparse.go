@@ -5,16 +5,14 @@ import (
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
-	"golang.org/x/exp/slices"
-
 	"encr.dev/parser2/internal/paths"
-	"encr.dev/pkg/fns"
 )
 
 // File pkgparse implements parsing of packages.
@@ -38,10 +36,6 @@ type loadPkgSpec struct {
 
 	// dir is the directory containing the package.
 	dir paths.FS
-
-	// filePaths are the file paths to parse.
-	// They may be relative or absolute.
-	filePaths []paths.FS
 }
 
 // doParsePkg parses a single package in the given directory.
@@ -102,27 +96,14 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 
 // parseAST is like go/parser.ParseDir but it constructs *File objects instead.
 func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
-	if len(s.filePaths) == 0 {
+	dir := s.dir.ToIO()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		l.c.Errs.Addf(s.cause, "parse package %q: %v", s.path, err)
 		return nil, nil
 	}
-
-	type fileInfo struct {
-		path     paths.FS
-		ioPath   string
-		baseName string
-	}
-	infos := fns.Map(s.filePaths, func(p paths.FS) fileInfo {
-		io := p.ToIO()
-		return fileInfo{path: p, ioPath: io, baseName: filepath.Base(io)}
-	})
-
-	// Ensure deterministic parsing order.
-	slices.SortFunc(infos, func(a, b fileInfo) bool {
-		return a.baseName < b.baseName
-	})
-
-	shouldParseFile := func(info fileInfo) bool {
-		name := info.baseName
+	shouldParseFile := func(info fs.DirEntry) bool {
+		name := info.Name()
 		switch {
 		// Don't parse encore.gen.go files, since they're not intended to be checked in.
 		// We've had several issues where things work locally but not in CI/CD because
@@ -138,16 +119,29 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 		}
 	}
 
+	type fileInfo struct {
+		path     paths.FS
+		ioPath   string
+		baseName string
+	}
+
+	infos := make([]fileInfo, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() && shouldParseFile(e) {
+			baseName := e.Name()
+			ioPath := filepath.Join(dir, baseName)
+			path := s.dir.Join(baseName)
+			infos = append(infos, fileInfo{path: path, ioPath: ioPath, baseName: baseName})
+		}
+	}
+
 	var pkgs []*ast.Package
 	var files []*File
 	seenPkgs := make(map[string]*ast.Package) // package name -> pkg
 
 	for _, d := range infos {
-		if !shouldParseFile(d) {
-			continue
-		}
 		// Check if this file should be part of the build
-		matched, err := l.buildCtx.MatchFile(s.dir, d.baseName)
+		matched, err := l.buildCtx.MatchFile(dir, d.baseName)
 		if err != nil {
 			l.c.Errs.AddForFile(err, d.ioPath)
 			continue
@@ -186,6 +180,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 
 		isTestFile := strings.HasSuffix(d.baseName, "_test.go") || strings.HasSuffix(pkgName, "_test")
 		files = append(files, &File{
+			l:        l,
 			Name:     d.baseName,
 			FSPath:   d.path,
 			Pkg:      nil, // will be set later

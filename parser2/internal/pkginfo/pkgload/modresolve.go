@@ -2,10 +2,12 @@ package pkgload
 
 import (
 	"fmt"
+	"go/token"
 	"os"
 
 	"golang.org/x/exp/slices"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/go/packages"
 
 	"encr.dev/parser2/internal/paths"
 )
@@ -95,6 +97,66 @@ func findModule(sortedMods []paths.Mod, pkg paths.Pkg) (modPath paths.Mod, found
 	} else {
 		return "", false
 	}
+}
+
+// resolveModuleForPkg resolves information about the module that contains a package.
+func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result *Module) {
+	tr := l.c.Trace("pkgload.resolveModuleForPkg", "pkgPath", pkgPath)
+	defer tr.Done("result", result)
+
+	// Which module does this package belong to?
+	modPath, found := l.mainModule.moduleForPkgPath(pkgPath)
+	if !found {
+		l.c.Errs.Addf(cause, "package %q not found belonging to any module", pkgPath)
+		l.c.Errs.Bailout()
+		return nil // unreachable
+	}
+
+	// Is the module already cached?
+	l.modulesMu.Lock()
+	cached, ok := l.modules[modPath]
+	l.modulesMu.Unlock()
+	if ok {
+		tr.Emit("found cached module")
+		return cached
+	}
+
+	pkgs, err := packages.Load(l.packagesConfig, "pattern="+string(pkgPath))
+	tr.Emit("loaded packages", "pkgs", pkgs, "err", err)
+	l.c.Errs.AssertStd(err)
+
+	var pkg *packages.Package
+	for _, candidate := range pkgs {
+		if candidate.PkgPath == string(pkgPath) {
+			pkg = candidate
+			break
+		}
+	}
+	if pkg == nil {
+		l.c.Errs.Fatalf(cause, "cannot find package %q", pkgPath)
+	} else if len(pkg.Errors) > 0 {
+		for _, err := range pkg.Errors {
+			l.c.Errs.AddStd(err)
+		}
+		l.c.Errs.Bailout()
+	} else if len(pkg.GoFiles) == 0 {
+		l.c.Errs.Fatalf(cause, "package %q has no Go files", pkgPath)
+	}
+
+	// Load the module from disk. We have some of the information
+	// present in pkg.Module already, but not all of it.
+	rootPath := l.c.MainModuleDir.New(pkg.Module.Dir)
+	result = l.loadModuleFromDisk(rootPath)
+
+	// Add the module to the cache.
+	l.modulesMu.Lock()
+	defer l.modulesMu.Unlock()
+	l.modules[modPath] = result
+	return result
+}
+
+func addGoPackagesError(e packages.Error) {
+
 }
 
 /*

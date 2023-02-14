@@ -167,6 +167,27 @@ func (m Mod) LexicallyContains(p Pkg) bool {
 	return ms == ps || strings.HasPrefix(ps, ms+"/")
 }
 
+// RelativePathToPkg returns the relative path from the module to the package.
+// If the package is not contained within the module it reports "", false.
+func (m Mod) RelativePathToPkg(p Pkg) (relative string, ok bool) {
+	m.checkValid()
+	p.checkValid()
+	if !m.LexicallyContains(p) {
+		return "", false
+	}
+
+	// The module path is a prefix of the package path.
+	// Remove the module path and the leading slash.
+	if m == stdModule {
+		return string(p), true
+	}
+	suffix, ok := strings.CutPrefix(string(p), string(m))
+	if !ok {
+		return "", false
+	}
+	return suffix, true
+}
+
 func (m Mod) checkValid() {
 	if m == "" {
 		panic("invalid Module path")

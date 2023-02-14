@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"go/scanner"
 	"go/token"
+	"strconv"
 	"strings"
 	"sync"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // NewList constructs a new list.
@@ -70,17 +73,10 @@ func (l *List) AddStd(err error) {
 		return
 	}
 
-	if err, ok := err.(*scanner.Error); ok {
-		l.add(&Error{
-			Pos: err.Pos,
-			Msg: err.Msg,
-		})
-		return
-	}
-
 	switch err := err.(type) {
 	case *scanner.Error:
 		l.add(&Error{Pos: err.Pos, Msg: err.Msg})
+
 	case scanner.ErrorList:
 		for _, e := range err {
 			l.add(&Error{
@@ -88,6 +84,25 @@ func (l *List) AddStd(err error) {
 				Msg: e.Msg,
 			})
 		}
+
+	case packages.Error:
+		// Parse the parts of the Pos string into pos.
+		var pos token.Position
+		switch p := strings.SplitN(err.Pos, ":", 3); len(p) {
+		case 3:
+			pos.Column, _ = strconv.Atoi(p[2])
+			fallthrough
+		case 2:
+			pos.Line, _ = strconv.Atoi(p[1])
+			fallthrough
+		case 1:
+			if p[0] != "" && p[0] != "-" {
+				pos.Filename = p[0]
+			}
+		}
+
+		l.add(&Error{Pos: pos, Msg: err.Msg})
+
 	default:
 		l.add(&Error{Msg: err.Error()})
 	}
@@ -196,6 +211,10 @@ func (l *List) Bailout() {
 }
 
 type bailout struct{ l *List }
+
+func (b bailout) GoString() string {
+	return fmt.Sprintf("perr.bailout: %s", b.l.FormatErrors())
+}
 
 // CatchBailout catches a bailout panic and reports whether there was one.
 // If true it also returns the error list that caused the bailout.
