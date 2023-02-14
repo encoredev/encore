@@ -163,14 +163,14 @@ func getSysMetrics(now time.Time) []types.MetricDatum {
 	sysMetrics := system.ReadSysMetrics()
 	return []types.MetricDatum{
 		{
-			MetricName: aws.String("memory_usage_bytes"),
+			MetricName: aws.String(system.MetricNameMemUsageBytes),
 			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics.MemoryUsageBytes)),
+			Value:      aws.Float64(float64(sysMetrics[system.MetricNameMemUsageBytes])),
 		},
 		{
-			MetricName: aws.String("num_go_routines"),
+			MetricName: aws.String(system.MetricNameNumGoroutines),
 			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics.NumGoRoutines)),
+			Value:      aws.Float64(float64(sysMetrics[system.MetricNameNumGoroutines])),
 		},
 	}
 }

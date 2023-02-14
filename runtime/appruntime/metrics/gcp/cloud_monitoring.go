@@ -311,23 +311,23 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type: "custom.googleapis.com/memory_usage_bytes",
+				Type: "custom.googleapis.com/" + system.MetricNameMemUsageBytes,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    uint64Val(sysMetrics.MemoryUsageBytes),
+				Value:    uint64Val(sysMetrics[system.MetricNameMemUsageBytes]),
 			}},
 		},
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type: "custom.googleapis.com/num_go_routines",
+				Type: "custom.googleapis.com/" + system.MetricNameNumGoroutines,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    int64Val(int64(sysMetrics.NumGoRoutines)),
+				Value:    uint64Val(sysMetrics[system.MetricNameNumGoroutines]),
 			}},
 		},
 	}

@@ -163,20 +163,20 @@ func getSysMetrics(now time.Time) []*prompb.TimeSeries {
 		{
 			Labels: []*prompb.Label{{
 				Name:  "__name__",
-				Value: "memory_usage_bytes",
+				Value: system.MetricNameMemUsageBytes,
 			}},
 			Samples: []*prompb.Sample{{
-				Value:     float64(sysMetrics.MemoryUsageBytes),
+				Value:     float64(sysMetrics[system.MetricNameMemUsageBytes]),
 				Timestamp: FromTime(now),
 			}},
 		},
 		{
 			Labels: []*prompb.Label{{
 				Name:  "__name__",
-				Value: "num_go_routines",
+				Value: system.MetricNameNumGoroutines,
 			}},
 			Samples: []*prompb.Sample{{
-				Value:     float64(sysMetrics.NumGoRoutines),
+				Value:     float64(sysMetrics[system.MetricNameNumGoroutines]),
 				Timestamp: FromTime(now),
 			}},
 		},

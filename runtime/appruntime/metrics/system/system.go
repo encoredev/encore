@@ -4,16 +4,16 @@ import (
 	"runtime"
 )
 
-type SysMetrics struct {
-	MemoryUsageBytes uint64
-	NumGoRoutines    int
-}
+const (
+	MetricNameMemUsageBytes = "e_memory_usage_bytes"
+	MetricNameNumGoroutines = "e_num_goroutines"
+)
 
-func ReadSysMetrics() SysMetrics {
+func ReadSysMetrics() map[string]uint64 {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	return SysMetrics{
-		MemoryUsageBytes: memStats.Alloc,
-		NumGoRoutines:    runtime.NumGoroutine(),
+	return map[string]uint64{
+		MetricNameMemUsageBytes: memStats.Alloc,
+		MetricNameNumGoroutines: uint64(runtime.NumGoroutine()),
 	}
 }
