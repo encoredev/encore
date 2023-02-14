@@ -17,10 +17,11 @@ import (
 	"encore.dev/metrics"
 )
 
-func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, rootLogger zerolog.Logger) *Exporter {
+func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, instanceID string, rootLogger zerolog.Logger) *Exporter {
 	return &Exporter{
 		svcs:       svcs,
 		cfg:        cfg,
+		instanceID: instanceID,
 		rootLogger: rootLogger,
 	}
 }
@@ -28,6 +29,7 @@ func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, rootLogger ze
 type Exporter struct {
 	svcs       []string
 	cfg        *config.PrometheusRemoteWriteProvider
+	instanceID string
 	rootLogger zerolog.Logger
 }
 
@@ -36,7 +38,7 @@ func (x *Exporter) Shutdown(_ context.Context) {}
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
 	data := x.getMetricData(now, collected)
-	data = append(data, getSysMetrics(now)...)
+	data = append(data, x.getSysMetrics(now)...)
 	proto, err := proto.Marshal(&prompb.WriteRequest{Timeseries: data})
 	if err != nil {
 		return fmt.Errorf("unable to marshal metrics into Protobuf: %v", err)
@@ -65,7 +67,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	data := make([]*prompb.TimeSeries, 0, len(collected))
 
 	doAdd := func(val float64, metricName string, baseLabels []*prompb.Label, svcIdx uint16) {
-		labels := make([]*prompb.Label, len(baseLabels)+2)
+		labels := make([]*prompb.Label, len(baseLabels)+3)
 		copy(labels, baseLabels)
 		labels[len(baseLabels)] = &prompb.Label{
 			Name:  "__name__",
@@ -74,6 +76,10 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 		labels[len(baseLabels)+1] = &prompb.Label{
 			Name:  "service",
 			Value: x.svcs[svcIdx],
+		}
+		labels[len(baseLabels)+2] = &prompb.Label{
+			Name:  "instance_id",
+			Value: x.instanceID,
 		}
 		data = append(data, &prompb.TimeSeries{
 			Labels: labels,
@@ -157,24 +163,36 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	return data
 }
 
-func getSysMetrics(now time.Time) []*prompb.TimeSeries {
+func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
 	sysMetrics := system.ReadSysMetrics()
 	return []*prompb.TimeSeries{
 		{
-			Labels: []*prompb.Label{{
-				Name:  "__name__",
-				Value: system.MetricNameMemUsageBytes,
-			}},
+			Labels: []*prompb.Label{
+				{
+					Name:  "__name__",
+					Value: system.MetricNameMemUsageBytes,
+				},
+				{
+					Name:  "instance_id",
+					Value: x.instanceID,
+				},
+			},
 			Samples: []*prompb.Sample{{
 				Value:     float64(sysMetrics[system.MetricNameMemUsageBytes]),
 				Timestamp: FromTime(now),
 			}},
 		},
 		{
-			Labels: []*prompb.Label{{
-				Name:  "__name__",
-				Value: system.MetricNameNumGoroutines,
-			}},
+			Labels: []*prompb.Label{
+				{
+					Name:  "__name__",
+					Value: system.MetricNameNumGoroutines,
+				},
+				{
+					Name:  "instance_id",
+					Value: x.instanceID,
+				},
+			},
 			Samples: []*prompb.Sample{{
 				Value:     float64(sysMetrics[system.MetricNameNumGoroutines]),
 				Timestamp: FromTime(now),

@@ -20,10 +20,11 @@ import (
 	"encore.dev/metrics"
 )
 
-func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, rootLogger zerolog.Logger) *Exporter {
+func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, instanceID string, rootLogger zerolog.Logger) *Exporter {
 	return &Exporter{
 		svcs:       svcs,
 		cfg:        cfg,
+		instanceID: instanceID,
 		rootLogger: rootLogger,
 	}
 }
@@ -31,6 +32,7 @@ func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, rootLogger zer
 type Exporter struct {
 	svcs       []string
 	cfg        *config.AWSCloudWatchMetricsProvider
+	instanceID string
 	rootLogger zerolog.Logger
 
 	clientMu sync.Mutex
@@ -43,7 +45,7 @@ func (x *Exporter) Shutdown(force context.Context) {
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
 	data := x.getMetricData(now, collected)
-	data = append(data, getSysMetrics(now)...)
+	data = append(data, x.getSysMetrics(now)...)
 	_, err := x.getClient().PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
 		MetricData: data,
 		Namespace:  aws.String(x.cfg.Namespace),
@@ -58,11 +60,15 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	data := make([]types.MetricDatum, 0, len(collected))
 
 	doAdd := func(val float64, metricName string, baseDims []types.Dimension, svcIdx uint16) {
-		dims := make([]types.Dimension, len(baseDims)+1)
+		dims := make([]types.Dimension, len(baseDims)+2)
 		copy(dims, baseDims)
 		dims[len(baseDims)] = types.Dimension{
 			Name:  aws.String("service"),
 			Value: aws.String(x.svcs[svcIdx]),
+		}
+		dims[len(baseDims)+1] = types.Dimension{
+			Name:  aws.String("instance_id"),
+			Value: aws.String(x.instanceID),
 		}
 		data = append(data, types.MetricDatum{
 			MetricName: aws.String(metricName),
@@ -159,18 +165,26 @@ func (x *Exporter) getClient() *cloudwatch.Client {
 	return x.client
 }
 
-func getSysMetrics(now time.Time) []types.MetricDatum {
+func (x *Exporter) getSysMetrics(now time.Time) []types.MetricDatum {
 	sysMetrics := system.ReadSysMetrics()
 	return []types.MetricDatum{
 		{
 			MetricName: aws.String(system.MetricNameMemUsageBytes),
 			Timestamp:  aws.Time(now),
 			Value:      aws.Float64(float64(sysMetrics[system.MetricNameMemUsageBytes])),
+			Dimensions: []types.Dimension{{
+				Name:  aws.String("instance_id"),
+				Value: aws.String(x.instanceID),
+			}},
 		},
 		{
 			MetricName: aws.String(system.MetricNameNumGoroutines),
 			Timestamp:  aws.Time(now),
 			Value:      aws.Float64(float64(sysMetrics[system.MetricNameNumGoroutines])),
+			Dimensions: []types.Dimension{{
+				Name:  aws.String("instance_id"),
+				Value: aws.String(x.instanceID),
+			}},
 		},
 	}
 }

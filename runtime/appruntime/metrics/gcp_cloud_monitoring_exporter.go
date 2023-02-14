@@ -15,7 +15,7 @@ func init() {
 			return cfg.CloudMonitoring != nil
 		},
 		newExporter: func(mgr *Manager) exporter {
-			cloudRunInstanceID, err := metadata.InstanceID(mgr.cfg.Runtime)
+			instanceID, err := metadata.InstanceID(mgr.cfg.Runtime)
 			if err != nil {
 				mgr.rootLogger.Err(err).Msg("unable to initialize metrics exporter: error getting instance ID")
 				return nil
@@ -27,7 +27,7 @@ func init() {
 				mgr.rootLogger.Err(err).Msg("unable to initialize metrics exporter: missing node_id")
 				return nil
 			}
-			metricsCfg.CloudMonitoring.MonitoredResourceLabels["node_id"] = nodeID + "-" + cloudRunInstanceID
+			metricsCfg.CloudMonitoring.MonitoredResourceLabels["node_id"] = nodeID + "-" + instanceID
 			return gcp.New(mgr.cfg.Static.BundledServices, metricsCfg.CloudMonitoring, mgr.rootLogger)
 		},
 	})
