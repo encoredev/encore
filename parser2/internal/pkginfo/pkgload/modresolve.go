@@ -33,7 +33,7 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
 
 	m = &Module{
 		RootDir: rootDir,
-		Path:    paths.ModPath(modFile.Module.Mod.Path),
+		Path:    paths.MustModPath(modFile.Module.Mod.Path),
 		Version: modFile.Module.Mod.Version,
 		file:    modFile,
 	}
@@ -48,10 +48,10 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
 		if !paths.ValidModPath(depModPath) {
 			continue
 		}
-		if m.Path.LexicallyContains(paths.PkgPath(depModPath)) {
-			m.sortedNestedDeps = append(m.sortedNestedDeps, paths.ModPath(depModPath))
+		if m.Path.LexicallyContains(paths.MustPkgPath(depModPath)) {
+			m.sortedNestedDeps = append(m.sortedNestedDeps, paths.MustModPath(depModPath))
 		} else {
-			m.sortedOtherDeps = append(m.sortedOtherDeps, paths.ModPath(depModPath))
+			m.sortedOtherDeps = append(m.sortedOtherDeps, paths.MustModPath(depModPath))
 		}
 	}
 	slices.Sort(m.sortedNestedDeps)
@@ -60,10 +60,19 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
 	return m
 }
 
+var stdModule = paths.StdlibMod()
+
 // moduleForPkgPath resolves the module path that contains
 // the given import path, based on the module information.
 // It consults the module path and the module's require directives.
-func (m *Module) moduleForPkgPath(pkgPath paths.Pkg) (modPath paths.Mod, found bool) {
+func (l *Loader) moduleForPkgPath(pkgPath paths.Pkg) (modPath paths.Mod, found bool) {
+	// We resolve all packages by consulting the versions
+	// in the main module, since only the main module's dependencies
+	// track exactly which versions are used (due to MVS).
+	m := l.mainModule
+
+	// Fast path: first check if it's contained in the main module,
+	// since that's what we scan the most frequently.
 	if m.Path.LexicallyContains(pkgPath) {
 		// The package is rooted within this module.
 		// It's possible it's a nested module.
@@ -74,7 +83,20 @@ func (m *Module) moduleForPkgPath(pkgPath paths.Pkg) (modPath paths.Mod, found b
 		return m.Path, true
 	}
 
-	return findModule(m.sortedOtherDeps, pkgPath)
+	// Otherwise fall back to all the other dependencies.
+	if modPath, found = findModule(m.sortedOtherDeps, pkgPath); found {
+		return modPath, true
+	}
+
+	// We couldn't find it in any module the main module depends on.
+	// See if it belongs to the standard library.
+	if stdModule.LexicallyContains(pkgPath) {
+		// The package is rooted within the standard library.
+		return stdModule, true
+	}
+
+	// Couldn't find it. Give up.
+	return "", false
 }
 
 // findModule finds the module that contains pkg given a
@@ -105,7 +127,7 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 	defer tr.Done("result", result)
 
 	// Which module does this package belong to?
-	modPath, found := l.mainModule.moduleForPkgPath(pkgPath)
+	modPath, found := l.moduleForPkgPath(pkgPath)
 	if !found {
 		l.c.Errs.Addf(cause, "package %q not found belonging to any module", pkgPath)
 		l.c.Errs.Bailout()
@@ -145,18 +167,29 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 
 	// Load the module from disk. We have some of the information
 	// present in pkg.Module already, but not all of it.
-	rootPath := l.c.MainModuleDir.New(pkg.Module.Dir)
-	result = l.loadModuleFromDisk(rootPath)
+	if modPath == stdModule {
+		// If this is the standard library go/packages doesn't return
+		// a Module object. Instead look it up from our GOROOT.
+		goroot := l.c.MainModuleDir.New(l.c.Build.GOROOT)
+		rootPath := goroot.Join("src")
+
+		// Construct a synthetic Module object for the standard library.
+		result = &Module{
+			l:       l,
+			RootDir: rootPath,
+			Path:    "std",
+			Version: "",
+		}
+	} else {
+		rootPath := l.c.MainModuleDir.New(pkg.Module.Dir)
+		result = l.loadModuleFromDisk(rootPath)
+	}
 
 	// Add the module to the cache.
 	l.modulesMu.Lock()
 	defer l.modulesMu.Unlock()
 	l.modules[modPath] = result
 	return result
-}
-
-func addGoPackagesError(e packages.Error) {
-
 }
 
 /*
@@ -193,7 +226,7 @@ func (m *Module) ParsePkgPath(importPath string) *Package {
 
 	var found *packages.Package
 	for _, pkg := range pkgs {
-		if pkg.PkgPath == importPath {
+		if pkg.MustPkgPath == importPath {
 			found = pkg
 			break
 		}
@@ -210,7 +243,7 @@ func (m *Module) ParsePkgPath(importPath string) *Package {
 	result, ok := m.l.parsePkg(loadPkgSpec{
 		m:          pkgMod,
 		dir:        filepath.Dir(found.GoFiles[0]),
-		importPath: found.PkgPath,
+		importPath: found.MustPkgPath,
 		filePaths:  found.GoFiles,
 	})
 	if !ok {

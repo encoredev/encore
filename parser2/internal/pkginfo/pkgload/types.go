@@ -40,6 +40,17 @@ type Package struct {
 	ImportPath paths.Pkg
 	Files      []*File
 	Imports    map[string]bool // union of all imports from files
+
+	namesOnce  sync.Once
+	namesCache *PkgNames
+}
+
+// Names returns the computed package-level names.
+func (p *Package) Names() *PkgNames {
+	p.namesOnce.Do(func() {
+		p.namesCache = resolvePkgNames(p)
+	})
+	return p.namesCache
 }
 
 type File struct {
@@ -59,12 +70,21 @@ type File struct {
 	cachedAST      *ast.File
 	contentsOnce   sync.Once
 	cachedContents []byte
+	namesOnce      sync.Once
+	namesCache     *FileNames
+}
+
+// Names returns the computed file-level names.
+func (f *File) Names() *FileNames {
+	f.namesOnce.Do(func() {
+		f.namesCache = resolveFileNames(f)
+	})
+	return f.namesCache
 }
 
 // Contents returns the full file contents.
 func (f *File) Contents() []byte {
-	o := &f.contentsOnce
-	o.Do(func() {
+	f.contentsOnce.Do(func() {
 		ioPath := f.FSPath.ToIO()
 		data, err := os.ReadFile(ioPath)
 		f.l.c.Errs.AssertFile(err, ioPath)

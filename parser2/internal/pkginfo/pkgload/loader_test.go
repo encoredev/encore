@@ -30,7 +30,7 @@ module example.com
 		pkg, ok := l.LoadPkg(token.NoPos, "example.com/foo")
 		c.Assert(ok, qt.Equals, true)
 		c.Check(pkg.Name, qt.Equals, "pkgname")
-		c.Check(pkg.ImportPath, qt.Equals, paths.PkgPath("example.com/foo"))
+		c.Check(pkg.ImportPath, qt.Equals, paths.MustPkgPath("example.com/foo"))
 		c.Check(pkg.Doc, qt.Equals, "Package doc\n")
 
 		c.Assert(pkg.Files, qt.HasLen, 1)

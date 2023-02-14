@@ -1,6 +1,7 @@
 package paths
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -90,7 +91,16 @@ func ValidPkgPath(p string) bool {
 	return p != ""
 }
 
-func PkgPath(p string) Pkg {
+// PkgPath returns a new Pkg path for p. If p is not a valid
+// package path it reports "", false.
+func PkgPath(p string) (Pkg, bool) {
+	if !ValidPkgPath(p) {
+		return "", false
+	}
+	return Pkg(p), true
+}
+
+func MustPkgPath(p string) Pkg {
 	if !ValidPkgPath(p) {
 		panic("invalid Package path")
 	}
@@ -100,6 +110,15 @@ func PkgPath(p string) Pkg {
 // Pkg represents a package path within a module.
 // It is always slash-separated.
 type Pkg string
+
+// JoinSlash joins the path with the given elems, according to path.Join.
+// The elems are expected to be slash-separated, not filesystem-separated.
+// Use filesystem.ToSlash() to convert filesystem paths to slash-separated paths.
+func (p Pkg) JoinSlash(elem ...string) Pkg {
+	p.checkValid()
+	elem = append([]string{string(p)}, elem...)
+	return Pkg(path.Join(elem...)) // Join cleans the result
+}
 
 func (p Pkg) checkValid() {
 	if p == "" {
@@ -118,8 +137,8 @@ func ValidModPath(p string) bool {
 	return p != ""
 }
 
-// ModPath returns a new Mod path for p.
-func ModPath(p string) Mod {
+// MustModPath returns a new Mod path for p.
+func MustModPath(p string) Mod {
 	if !ValidModPath(p) {
 		panic("invalid Module path")
 	}
@@ -161,6 +180,7 @@ func (m Mod) LexicallyContains(p Pkg) bool {
 			// Reserved; guaranteed not to be part of std
 			return false
 		}
+		return true
 	}
 
 	// We can treat the module path as a package path for this purpose.
@@ -192,4 +212,9 @@ func (m Mod) checkValid() {
 	if m == "" {
 		panic("invalid Module path")
 	}
+}
+
+// IsStdlib reports whether m represents the standard library.
+func (m Mod) IsStdlib() bool {
+	return m == stdModule
 }

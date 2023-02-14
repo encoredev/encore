@@ -1,28 +1,19 @@
-package pkginfo
+package pkgload
 
 import (
 	"fmt"
 	"go/ast"
 	"go/build"
 	"go/token"
-	pathpkg "path"
 	"strconv"
 	"strings"
 
 	"encr.dev/parser2/internal/parsectx"
-	"encr.dev/parser2/internal/pkginfo/pkgload"
+	"encr.dev/parser2/internal/paths"
 )
 
-// Names returns the package-level names in the package.
-func (pkg *Package) Names() *PkgNames {
-	pkg.pkgNamesOnce.Do(func() {
-		pkg.cachedPkgNames = pkg.l.resolvePkgNames(pkg)
-	})
-	return pkg.cachedPkgNames
-}
-
 // resolvePkgNames resolves package-level names for the given package.
-func (l *pkgload.Loader) resolvePkgNames(pkg *Package) *PkgNames {
+func resolvePkgNames(pkg *Package) *PkgNames {
 	decls := make(map[string]*PkgDeclInfo)
 	scope := newScope(nil)
 
@@ -102,7 +93,7 @@ func (l *pkgload.Loader) resolvePkgNames(pkg *Package) *PkgNames {
 
 // fileNameResolver resolves file-local names within a package.
 type fileNameResolver struct {
-	l   *pkgload.Loader
+	l   *Loader
 	f   *File
 	pkg *Package
 	tr  *parsectx.TraceLogger
@@ -114,15 +105,15 @@ type fileNameResolver struct {
 	scope *scope
 }
 
-func (f *File) resolveFileNames() *FileNames {
-	tr := f.l.c.Trace("pkginfo.resolveFileNames", "file", f.Path)
+func resolveFileNames(f *File) *FileNames {
+	tr := f.l.c.Trace("pkgload.resolveFileNames", "pkg", f.Pkg.ImportPath, "file", f.Name)
 	defer tr.Done()
 	r := &fileNameResolver{
 		l:  f.l,
 		f:  f,
 		tr: tr,
 		res: &FileNames{
-			nameToPath: make(map[string]string),
+			nameToPath: make(map[string]paths.Pkg),
 			idents:     make(map[*ast.Ident]*IdentInfo),
 		},
 		scope: f.Pkg.Names().pkgScope,
@@ -150,7 +141,8 @@ func (f *File) resolveFileNames() *FileNames {
 			r.funcDecl(decl)
 		}
 	}
-	return nil
+
+	return r.res
 }
 
 // processImports finds the file-local names of imports we care about.
@@ -163,30 +155,40 @@ func (r *fileNameResolver) processImports() {
 		}
 		for _, spec := range gd.Specs {
 			is := spec.(*ast.ImportSpec)
-			path, err := strconv.Unquote(is.Path.Value)
+			pos := is.Path.Pos()
+
+			strPath, err := strconv.Unquote(is.Path.Value)
 			if err != nil {
-				r.l.c.Errs.Addf(is.Path.Pos(), "invalid import path %s", is.Path.Value)
+				r.l.c.Errs.Addf(pos, "invalid import path %s", is.Path.Value)
 				continue
 			}
 
-			if build.IsLocalImport(path) {
-				path = pathpkg.Join(r.pkg.ImportPath, path)
+			var dstPkgPath paths.Pkg
+			if build.IsLocalImport(strPath) {
+				dstPkgPath = r.pkg.ImportPath.JoinSlash(strPath)
+			} else {
+				dstPkgPath, ok = paths.PkgPath(strPath)
+				if !ok {
+					r.l.c.Errs.Addf(pos, "invalid import path %q", strPath)
+					continue
+				}
 			}
 
-			pkg := r.f.Pkg.Module.ParsePkgPath(path)
+			pkg := r.l.MustLoadPkg(pos, dstPkgPath)
 			localName := pkg.Name
 			if is.Name != nil {
 				if is.Name.Name == "." {
 					// TODO(andre) handle this
-					r.l.c.Errs.Fatalf(is.Name.Pos(), "dot imports are currently unsupported by Encore's static analysis")
+					r.l.c.Errs.Fatalf(pos, "dot imports are currently unsupported by Encore's static analysis")
+					continue
 				}
 				localName = is.Name.Name
 			}
 			if p2 := r.res.nameToPath[localName]; p2 != "" {
-				r.l.c.Errs.Addf(is.Path.Pos(), "name %s already declared (import of package %s)", localName, p2)
+				r.l.c.Errs.Addf(pos, "name %s already declared (import of package %s)", localName, p2)
 				continue
 			}
-			r.res.nameToPath[localName] = path
+			r.res.nameToPath[localName] = dstPkgPath
 		}
 	}
 }
@@ -577,16 +579,16 @@ type PkgNames struct {
 
 // FileNames contains name resolution results for a single file.
 type FileNames struct {
-	nameToPath map[string]string         // local name -> path
+	nameToPath map[string]paths.Pkg      // local name -> path
 	idents     map[*ast.Ident]*IdentInfo // ident -> resolved
 	calls      []*ast.CallExpr
 }
 
 // IdentInfo provides metadata for a single identifier.
 type IdentInfo struct {
-	Package    bool   // package symbol
-	Local      bool   // locally defined symbol
-	ImportPath string // non-zero indicates it resolves to the package with the given import path
+	Package    bool      // package symbol
+	Local      bool      // locally defined symbol
+	ImportPath paths.Pkg // non-zero indicates it resolves to the package with the given import path
 }
 
 // scope maps names to information about them.
