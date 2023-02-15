@@ -46,11 +46,16 @@ func runApp(appRoot, wd string) {
 	}()
 
 	// Determine listen addr.
-	// If --listen is given with a port, use that directly and ignore --port.
 	var listenAddr string
-	if _, _, err := net.SplitHostPort(listen); err == nil {
+
+	if listen == "" {
+		// If we have no listen address at all, listen on all interfaces.
+		listenAddr = fmt.Sprintf(":%d", port)
+	} else if _, _, err := net.SplitHostPort(listen); err == nil {
+		// If --listen is given with a port, use that directly and ignore --port.
 		listenAddr = listen
 	} else {
+		// Otherwise use --listen as the host and --port as the port.
 		listenAddr = fmt.Sprintf("%s:%d", listen, port)
 	}
 
@@ -98,6 +103,6 @@ func init() {
 	runCmd.Flags().BoolVar(&tunnel, "tunnel", false, "Create a tunnel to your machine for others to test against")
 	runCmd.Flags().BoolVar(&debug, "debug", false, "Compile for debugging (disables some optimizations)")
 	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
-	runCmd.Flags().StringVar(&listen, "listen", "localhost", "Address to listen on (for example \"0.0.0.0:4000\")")
+	runCmd.Flags().StringVar(&listen, "listen", "", "Address to listen on (for example \"0.0.0.0:4000\")")
 	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
 }
