@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	gcemetadata "cloud.google.com/go/compute/metadata"
@@ -84,6 +85,7 @@ func cloudRunContainerMetadata(logger zerolog.Logger) (*ContainerMetadata, error
 	if !ok {
 		logger.Warn().Str("env_var", "K_REVISION").Msg("env variable unset")
 	}
+	revision = strings.TrimPrefix(revision, service+"-")
 
 	instanceID, err := gcemetadata.InstanceID()
 	if err != nil {
