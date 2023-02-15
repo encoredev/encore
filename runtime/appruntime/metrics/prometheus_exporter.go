@@ -13,13 +13,13 @@ func init() {
 			return cfg.Prometheus != nil
 		},
 		newExporter: func(m *Manager) exporter {
-			instanceID, err := metadata.InstanceID(m.cfg.Runtime)
+			containerMetadata, err := metadata.GetContainerMetadata(m.cfg.Runtime, m.rootLogger)
 			if err != nil {
-				m.rootLogger.Err(err).Msg("unable to initialize metrics exporter: error getting instance ID")
+				m.rootLogger.Err(err).Msg("unable to initialize metrics exporter: error getting container metadata")
 				return nil
 			}
 
-			return prometheus.New(m.cfg.Static.BundledServices, m.cfg.Runtime.Metrics.Prometheus, instanceID, m.rootLogger)
+			return prometheus.New(m.cfg.Static.BundledServices, m.cfg.Runtime.Metrics.Prometheus, containerMetadata, m.rootLogger)
 		},
 	})
 }

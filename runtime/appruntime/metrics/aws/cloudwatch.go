@@ -15,25 +15,26 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metadata"
 	"encore.dev/appruntime/metrics/system"
 	"encore.dev/internal/nativehist"
 	"encore.dev/metrics"
 )
 
-func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, instanceID string, rootLogger zerolog.Logger) *Exporter {
+func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
 	return &Exporter{
-		svcs:       svcs,
-		cfg:        cfg,
-		instanceID: instanceID,
-		rootLogger: rootLogger,
+		svcs:              svcs,
+		cfg:               cfg,
+		containerMetadata: meta,
+		rootLogger:        rootLogger,
 	}
 }
 
 type Exporter struct {
-	svcs       []string
-	cfg        *config.AWSCloudWatchMetricsProvider
-	instanceID string
-	rootLogger zerolog.Logger
+	svcs              []string
+	cfg               *config.AWSCloudWatchMetricsProvider
+	containerMetadata *metadata.ContainerMetadata
+	rootLogger        zerolog.Logger
 
 	clientMu sync.Mutex
 	client   *cloudwatch.Client
@@ -60,22 +61,13 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	data := make([]types.MetricDatum, 0, len(collected))
 
 	doAdd := func(val float64, metricName string, baseDims []types.Dimension, svcIdx uint16) {
-		dims := make([]types.Dimension, len(baseDims)+2)
+		containerMetadataDims := containerMetadataDimensions(x.containerMetadata)
+		dims := make([]types.Dimension, 0, len(baseDims)+len(containerMetadataDims)+1)
 		copy(dims, baseDims)
-		dims[len(baseDims)] = types.Dimension{
+		dims = append(dims, append(containerMetadataDims, types.Dimension{
 			Name:  aws.String("service"),
 			Value: aws.String(x.svcs[svcIdx]),
-		}
-		dims[len(baseDims)+1] = types.Dimension{
-			Name:  aws.String("instance_id"),
-			Value: aws.String(x.instanceID),
-		}
-		data = append(data, types.MetricDatum{
-			MetricName: aws.String(metricName),
-			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(val),
-			Dimensions: dims,
-		})
+		})...)
 	}
 
 	for _, m := range collected {
@@ -167,24 +159,36 @@ func (x *Exporter) getClient() *cloudwatch.Client {
 
 func (x *Exporter) getSysMetrics(now time.Time) []types.MetricDatum {
 	sysMetrics := system.ReadSysMetrics()
+	containerMetadataDims := containerMetadataDimensions(x.containerMetadata)
 	return []types.MetricDatum{
 		{
 			MetricName: aws.String(system.MetricNameMemUsageBytes),
 			Timestamp:  aws.Time(now),
 			Value:      aws.Float64(float64(sysMetrics[system.MetricNameMemUsageBytes])),
-			Dimensions: []types.Dimension{{
-				Name:  aws.String("instance_id"),
-				Value: aws.String(x.instanceID),
-			}},
+			Dimensions: containerMetadataDims,
 		},
 		{
 			MetricName: aws.String(system.MetricNameNumGoroutines),
 			Timestamp:  aws.Time(now),
 			Value:      aws.Float64(float64(sysMetrics[system.MetricNameNumGoroutines])),
-			Dimensions: []types.Dimension{{
-				Name:  aws.String("instance_id"),
-				Value: aws.String(x.instanceID),
-			}},
+			Dimensions: containerMetadataDims,
+		},
+	}
+}
+
+func containerMetadataDimensions(meta *metadata.ContainerMetadata) []types.Dimension {
+	return []types.Dimension{
+		{
+			Name:  aws.String("service_id"),
+			Value: aws.String(meta.ServiceID),
+		},
+		{
+			Name:  aws.String("revision_id"),
+			Value: aws.String(meta.RevisionID),
+		},
+		{
+			Name:  aws.String("instance_id"),
+			Value: aws.String(meta.InstanceID),
 		},
 	}
 }

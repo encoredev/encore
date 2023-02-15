@@ -15,13 +15,13 @@ func init() {
 			return cfg.CloudWatch != nil
 		},
 		newExporter: func(m *Manager) exporter {
-			instanceID, err := metadata.InstanceID(m.cfg.Runtime)
+			containerMetadata, err := metadata.GetContainerMetadata(m.cfg.Runtime, m.rootLogger)
 			if err != nil {
-				m.rootLogger.Err(err).Msg("unable to initialize metrics exporter: error getting instance ID")
+				m.rootLogger.Err(err).Msg("unable to initialize metrics exporter: error getting container metadata")
 				return nil
 			}
 
-			return aws.New(m.cfg.Static.BundledServices, m.cfg.Runtime.Metrics.CloudWatch, instanceID, m.rootLogger)
+			return aws.New(m.cfg.Static.BundledServices, m.cfg.Runtime.Metrics.CloudWatch, containerMetadata, m.rootLogger)
 		},
 	})
 }

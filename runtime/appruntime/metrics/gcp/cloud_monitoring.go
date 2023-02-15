@@ -17,16 +17,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metadata"
 	"encore.dev/appruntime/metrics/system"
 	"encore.dev/internal/nativehist"
 	"encore.dev/metrics"
 )
 
-func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerolog.Logger) *Exporter {
+func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
 	return &Exporter{
-		svcs:       svcs,
-		cfg:        cfg,
-		rootLogger: rootLogger,
+		svcs:              svcs,
+		cfg:               cfg,
+		containerMetadata: meta,
+		rootLogger:        rootLogger,
 
 		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
 
@@ -35,9 +37,10 @@ func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerol
 }
 
 type Exporter struct {
-	svcs       []string
-	cfg        *config.GCPCloudMonitoringProvider
-	rootLogger zerolog.Logger
+	svcs              []string
+	cfg               *config.GCPCloudMonitoringProvider
+	containerMetadata *metadata.ContainerMetadata
+	rootLogger        zerolog.Logger
 
 	clientMu sync.Mutex
 	client   *monitoring.MetricClient
@@ -128,8 +131,12 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		metricType = "custom.googleapis.com/" + cloudMetricName
 
 		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
-			labels := make(map[string]string, len(baseLabels)+1)
+			containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
+			labels := make(map[string]string, len(baseLabels)+len(containerMetadataLabels)+1)
 			for k, v := range baseLabels {
+				labels[k] = v
+			}
+			for k, v := range containerMetadataLabels {
 				labels[k] = v
 			}
 			labels["service"] = x.svcs[svcIdx]
@@ -306,12 +313,14 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 		Type:   x.cfg.MonitoredResourceType,
 		Labels: x.cfg.MonitoredResourceLabels,
 	}
+	containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
 	sysMetrics := system.ReadSysMetrics()
 	return []*monitoringpb.TimeSeries{
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type: "custom.googleapis.com/" + system.MetricNameMemUsageBytes,
+				Type:   "custom.googleapis.com/" + system.MetricNameMemUsageBytes,
+				Labels: containerMetadataLabels,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
@@ -322,7 +331,8 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type: "custom.googleapis.com/" + system.MetricNameNumGoroutines,
+				Type:   "custom.googleapis.com/" + system.MetricNameNumGoroutines,
+				Labels: containerMetadataLabels,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
@@ -330,5 +340,13 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 				Value:    uint64Val(sysMetrics[system.MetricNameNumGoroutines]),
 			}},
 		},
+	}
+}
+
+func containerMetadataLabels(meta *metadata.ContainerMetadata) map[string]string {
+	return map[string]string{
+		"service_id":  meta.ServiceID,
+		"revision_id": meta.RevisionID,
+		"instance_id": meta.InstanceID,
 	}
 }
