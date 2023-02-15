@@ -32,7 +32,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// ListenAddr should always be passed but guard against old clients.
 	listenAddr := req.ListenAddr
 	if listenAddr == "" {
-		listenAddr = "localhost:4000"
+		listenAddr = ":4000"
 	}
 	ln, err := net.Listen("tcp", listenAddr)
 	if err != nil {
@@ -95,11 +95,19 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	// Hold the stream mutex so we can set up the stream map
 	// before output starts.
 	s.mu.Lock()
+
+	// If the listen addr contains no interface, render it as "localhost:port"
+	// instead of just ":port".
+	displayListenAddr := req.ListenAddr
+	if strings.HasPrefix(listenAddr, ":") {
+		displayListenAddr = "localhost" + req.ListenAddr
+	}
+
 	run, err := s.mgr.Start(ctx, run.StartParams{
 		App:        app,
 		WorkingDir: req.WorkingDir,
 		Listener:   ln,
-		ListenAddr: req.ListenAddr,
+		ListenAddr: displayListenAddr,
 		Watch:      req.Watch,
 		Environ:    req.Environ,
 		OpsTracker: ops,
