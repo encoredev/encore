@@ -584,6 +584,13 @@ type FileNames struct {
 	calls      []*ast.CallExpr
 }
 
+// ResolvePkgPath resolves the package path a given identifier name
+// resolves to.
+func (f *FileNames) ResolvePkgPath(name string) (pkgPath paths.Pkg, ok bool) {
+	pkgPath, ok = f.nameToPath[name]
+	return pkgPath, ok
+}
+
 // IdentInfo provides metadata for a single identifier.
 type IdentInfo struct {
 	Package    bool      // package symbol

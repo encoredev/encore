@@ -3,6 +3,7 @@ package pkginfo
 import (
 	"go/ast"
 	goparser "go/parser"
+	"go/token"
 	"os"
 	"sync"
 
@@ -61,17 +62,22 @@ type File struct {
 	Imports  map[string]bool // imports in the file, keyed by import path
 	TestFile bool            // whether the file is a test file
 
+	startPos, endPos uint64
+
 	// initialAST is the AST for the initial parse that only includes
 	// package docs and imports.
 	initialAST *ast.File
 
 	// Filled in lazily; each one guarded by a sync.Once.
-	astCacheOnce   sync.Once
-	cachedAST      *ast.File
+	astCacheOnce sync.Once
+	cachedAST    *ast.File
+	cachedToken  *token.File
+
 	contentsOnce   sync.Once
 	cachedContents []byte
-	namesOnce      sync.Once
-	namesCache     *FileNames
+
+	namesOnce  sync.Once
+	namesCache *FileNames
 }
 
 // Names returns the computed file-level names.
@@ -99,6 +105,14 @@ func (f *File) AST() *ast.File {
 		astFile, err := goparser.ParseFile(f.l.c.FS, f.FSPath.ToIO(), f.Contents(), goparser.ParseComments)
 		f.l.c.Errs.AssertStd(err)
 		f.cachedAST = astFile
+		f.cachedToken = f.l.c.FS.File(astFile.Pos())
 	})
 	return f.cachedAST
+}
+
+func (f *File) Token() *token.File {
+	// Ensure f.cachedToken is set.
+	_ = f.AST()
+
+	return f.cachedToken
 }

@@ -108,6 +108,11 @@ func (l *List) AddStd(err error) {
 	}
 }
 
+func (l *List) Fatal(pos token.Pos, msg string) {
+	l.Add(pos, msg)
+	l.Bailout()
+}
+
 func (l *List) Fatalf(pos token.Pos, format string, args ...any) {
 	l.Addf(pos, format, args...)
 	l.Bailout()
@@ -146,6 +151,7 @@ func (l *List) AssertFile(err error, filename string) {
 	l.AssertPosition(err, token.Position{Filename: filename})
 }
 
+// Len returns the number of errors reported.
 func (l *List) Len() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -155,6 +161,13 @@ func (l *List) Len() int {
 		n++
 	}
 	return n
+}
+
+// At returns the i'th error. i must be 0 <= i < l.Len().
+func (l *List) At(i int) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.errs[i]
 }
 
 func (l *List) add(e *Error) {

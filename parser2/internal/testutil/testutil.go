@@ -77,6 +77,25 @@ func (c *Context) FailTestOnBailout() {
 	}
 }
 
+// DeferExpectError is a defer function that expects errors to be present.
+// Each argument is matched with the corresponding error.
+// If the number of errors differs from the number of matches the test fails.
+func (c *Context) DeferExpectError(matches ...string) {
+	// Ignore any bailout; we'll check the list directly.
+	perr.CatchBailout(recover())
+
+	l := c.Errs
+	n := l.Len()
+	if len(matches) != n {
+		c.TestC.Fatalf("expected %d errors, got %d: %s", len(matches), n, l.FormatErrors())
+	}
+
+	for i := 0; i < n; i++ {
+		err := l.At(i)
+		c.TestC.Check(err, qt.ErrorMatches, matches[i])
+	}
+}
+
 // GoModTidy runs "go mod tidy" on the main module.
 func (c *Context) GoModTidy() {
 	cmd := exec.Command("go", "mod", "tidy")

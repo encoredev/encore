@@ -92,7 +92,7 @@ func (l *Loader) init() {
 func (l *Loader) MustLoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package) {
 	pkg, ok := l.LoadPkg(cause, pkgPath)
 	if !ok {
-		l.c.Errs.Addf(cause, "no buildable Go files in package %q", pkgPath)
+		l.c.Errs.Addf(cause, "could not find package %q", pkgPath)
 		l.c.Errs.Bailout()
 	}
 	return pkg
@@ -144,7 +144,6 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 	module := l.resolveModuleForPkg(cause, pkgPath)
 	relPath, ok := module.Path.RelativePathToPkg(pkgPath)
 	if !ok {
-		l.c.Errs.Addf(cause, "package %q not found belonging to any module", pkgPath)
 		return nil, false
 	}
 
