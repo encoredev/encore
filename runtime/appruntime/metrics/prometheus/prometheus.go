@@ -89,7 +89,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
-		labels := make([]*prompb.Label, 0, len(x.containerMetadataLabels)+len(m.Labels))
+		labels := make([]*prompb.Label, len(x.containerMetadataLabels))
 		copy(labels, x.containerMetadataLabels)
 		for _, label := range m.Labels {
 			labels = append(labels, &prompb.Label{
