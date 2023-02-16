@@ -13,5 +13,4 @@ These are the metrics all Encore apps export to metric providers:
   human-readable HTTP status code (e.g. `ok`, `not_found`).
 - `e_sys_memory_heap_objects_bytes` measures the memory occupied by live objects and dead objects that have not yet been
   marked free by the garbage collector.
-- `e_sys_memory_os_stacks_bytes` measures the stack memory allocated by the underlying operating system.
 - `e_sys_sched_goroutines` measures the number of live goroutines.
