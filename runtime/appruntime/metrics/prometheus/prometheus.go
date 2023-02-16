@@ -165,25 +165,35 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 
 func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
 	containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
-	sysMetrics := system.ReadSysMetrics()
+	sysMetrics := system.ReadSysMetrics(x.rootLogger)
 	return []*prompb.TimeSeries{
 		{
 			Labels: append(containerMetadataLabels, &prompb.Label{
 				Name:  "__name__",
-				Value: system.MetricNameMemUsageBytes,
+				Value: system.MetricNameHeapObjectsBytes,
 			}),
 			Samples: []*prompb.Sample{{
-				Value:     float64(sysMetrics[system.MetricNameMemUsageBytes]),
+				Value:     float64(sysMetrics[system.MetricNameHeapObjectsBytes]),
 				Timestamp: FromTime(now),
 			}},
 		},
 		{
 			Labels: append(containerMetadataLabels, &prompb.Label{
 				Name:  "__name__",
-				Value: system.MetricNameNumGoroutines,
+				Value: system.MetricNameOSStacksBytes,
 			}),
 			Samples: []*prompb.Sample{{
-				Value:     float64(sysMetrics[system.MetricNameNumGoroutines]),
+				Value:     float64(sysMetrics[system.MetricNameOSStacksBytes]),
+				Timestamp: FromTime(now),
+			}},
+		},
+		{
+			Labels: append(containerMetadataLabels, &prompb.Label{
+				Name:  "__name__",
+				Value: system.MetricNameGoroutines,
+			}),
+			Samples: []*prompb.Sample{{
+				Value:     float64(sysMetrics[system.MetricNameGoroutines]),
 				Timestamp: FromTime(now),
 			}},
 		},

@@ -314,30 +314,42 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 		Labels: x.cfg.MonitoredResourceLabels,
 	}
 	containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
-	sysMetrics := system.ReadSysMetrics()
+	sysMetrics := system.ReadSysMetrics(x.rootLogger)
 	return []*monitoringpb.TimeSeries{
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + system.MetricNameMemUsageBytes,
+				Type:   "custom.googleapis.com/" + system.MetricNameHeapObjectsBytes,
 				Labels: containerMetadataLabels,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    uint64Val(sysMetrics[system.MetricNameMemUsageBytes]),
+				Value:    uint64Val(sysMetrics[system.MetricNameHeapObjectsBytes]),
 			}},
 		},
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + system.MetricNameNumGoroutines,
+				Type:   "custom.googleapis.com/" + system.MetricNameOSStacksBytes,
 				Labels: containerMetadataLabels,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    uint64Val(sysMetrics[system.MetricNameNumGoroutines]),
+				Value:    uint64Val(sysMetrics[system.MetricNameOSStacksBytes]),
+			}},
+		},
+		{
+			MetricKind: metricpb.MetricDescriptor_GAUGE,
+			Metric: &metricpb.Metric{
+				Type:   "custom.googleapis.com/" + system.MetricNameGoroutines,
+				Labels: containerMetadataLabels,
+			},
+			Resource: monitoredResource,
+			Points: []*monitoringpb.Point{{
+				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
+				Value:    uint64Val(sysMetrics[system.MetricNameGoroutines]),
 			}},
 		},
 	}

@@ -158,19 +158,25 @@ func (x *Exporter) getClient() *cloudwatch.Client {
 }
 
 func (x *Exporter) getSysMetrics(now time.Time) []types.MetricDatum {
-	sysMetrics := system.ReadSysMetrics()
+	sysMetrics := system.ReadSysMetrics(x.rootLogger)
 	containerMetadataDims := containerMetadataDimensions(x.containerMetadata)
 	return []types.MetricDatum{
 		{
-			MetricName: aws.String(system.MetricNameMemUsageBytes),
+			MetricName: aws.String(system.MetricNameHeapObjectsBytes),
 			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics[system.MetricNameMemUsageBytes])),
+			Value:      aws.Float64(float64(sysMetrics[system.MetricNameHeapObjectsBytes])),
 			Dimensions: containerMetadataDims,
 		},
 		{
-			MetricName: aws.String(system.MetricNameNumGoroutines),
+			MetricName: aws.String(system.MetricNameOSStacksBytes),
 			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics[system.MetricNameNumGoroutines])),
+			Value:      aws.Float64(float64(sysMetrics[system.MetricNameOSStacksBytes])),
+			Dimensions: containerMetadataDims,
+		},
+		{
+			MetricName: aws.String(system.MetricNameGoroutines),
+			Timestamp:  aws.Time(now),
+			Value:      aws.Float64(float64(sysMetrics[system.MetricNameGoroutines])),
 			Dimensions: containerMetadataDims,
 		},
 	}
