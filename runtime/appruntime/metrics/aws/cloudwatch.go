@@ -68,6 +68,12 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 			Name:  aws.String("service"),
 			Value: aws.String(x.svcs[svcIdx]),
 		})...)
+		data = append(data, types.MetricDatum{
+			MetricName: aws.String(metricName),
+			Timestamp:  aws.Time(now),
+			Value:      aws.Float64(val),
+			Dimensions: dims,
+		})
 	}
 
 	for _, m := range collected {
