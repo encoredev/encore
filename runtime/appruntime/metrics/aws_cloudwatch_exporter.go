@@ -15,7 +15,7 @@ func init() {
 			return cfg.CloudWatch != nil
 		},
 		newExporter: func(m *Manager) exporter {
-			containerMetadata, err := metadata.GetContainerMetadata(m.cfg.Runtime, m.rootLogger)
+			containerMetadata, err := metadata.GetContainerMetadata(m.cfg.Runtime)
 			if err != nil {
 				m.rootLogger.Err(err).Msg("unable to initialize metrics exporter: error getting container metadata")
 				return nil

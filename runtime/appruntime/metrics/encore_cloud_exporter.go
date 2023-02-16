@@ -15,7 +15,7 @@ func init() {
 			return cfg.EncoreCloud != nil
 		},
 		newExporter: func(mgr *Manager) exporter {
-			containerMetadata, err := metadata.GetContainerMetadata(mgr.cfg.Runtime, mgr.rootLogger)
+			containerMetadata, err := metadata.GetContainerMetadata(mgr.cfg.Runtime)
 			if err != nil {
 				mgr.rootLogger.Err(err).Msg("unable to initialize metrics exporter: error getting container metadata")
 				return nil
