@@ -19,19 +19,24 @@ import (
 )
 
 func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
+	// Precompute container metadata labels.
 	return &Exporter{
-		svcs:              svcs,
-		cfg:               cfg,
-		containerMetadata: meta,
-		rootLogger:        rootLogger,
+		svcs: svcs,
+		cfg:  cfg,
+		containerMetadataLabels: []*prompb.Label{
+			{Name: "service_id", Value: meta.ServiceID},
+			{Name: "revision_id", Value: meta.RevisionID},
+			{Name: "instance_id", Value: meta.InstanceID},
+		},
+		rootLogger: rootLogger,
 	}
 }
 
 type Exporter struct {
-	svcs              []string
-	cfg               *config.PrometheusRemoteWriteProvider
-	containerMetadata *metadata.ContainerMetadata
-	rootLogger        zerolog.Logger
+	svcs                    []string
+	cfg                     *config.PrometheusRemoteWriteProvider
+	containerMetadataLabels []*prompb.Label
+	rootLogger              zerolog.Logger
 }
 
 func (x *Exporter) Shutdown(_ context.Context) {}
@@ -68,19 +73,10 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	data := make([]*prompb.TimeSeries, 0, len(collected))
 
 	doAdd := func(val float64, metricName string, baseLabels []*prompb.Label, svcIdx uint16) {
-		containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
-		labels := make([]*prompb.Label, len(baseLabels)+len(containerMetadataLabels)+2)
+		labels := make([]*prompb.Label, len(baseLabels)+2)
 		copy(labels, baseLabels)
-		labels = append(labels, append(containerMetadataLabels,
-			&prompb.Label{
-				Name:  "__name__",
-				Value: metricName,
-			},
-			&prompb.Label{
-				Name:  "service",
-				Value: x.svcs[svcIdx],
-			},
-		)...)
+		labels[len(baseLabels)] = &prompb.Label{Name: "__name__", Value: metricName}
+		labels[len(baseLabels)+1] = &prompb.Label{Name: "service", Value: x.svcs[svcIdx]}
 		data = append(data, &prompb.TimeSeries{
 			Labels: labels,
 			Samples: []*prompb.Sample{
@@ -93,15 +89,13 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
-		var labels []*prompb.Label
-		if n := len(m.Labels); n > 0 {
-			labels = make([]*prompb.Label, 0, n)
-			for _, label := range m.Labels {
-				labels = append(labels, &prompb.Label{
-					Name:  label.Key,
-					Value: label.Value,
-				})
-			}
+		labels := make([]*prompb.Label, 0, len(x.containerMetadataLabels)+len(m.Labels))
+		copy(labels, x.containerMetadataLabels)
+		for _, label := range m.Labels {
+			labels = append(labels, &prompb.Label{
+				Name:  label.Key,
+				Value: label.Value,
+			})
 		}
 
 		svcNum := m.Info.SvcNum()
@@ -164,55 +158,31 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 }
 
 func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
-	containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
+	addMetricNameLabel := func(metricName string) []*prompb.Label {
+		labels := make([]*prompb.Label, 0, len(x.containerMetadataLabels)+1)
+		copy(labels, x.containerMetadataLabels)
+		labels[len(x.containerMetadataLabels)] = &prompb.Label{
+			Name:  "__name__",
+			Value: metricName,
+		}
+		return labels
+	}
+
 	sysMetrics := system.ReadSysMetrics(x.rootLogger)
 	return []*prompb.TimeSeries{
 		{
-			Labels: append(containerMetadataLabels, &prompb.Label{
-				Name:  "__name__",
-				Value: system.MetricNameHeapObjectsBytes,
-			}),
+			Labels: addMetricNameLabel(system.MetricNameHeapObjectsBytes),
 			Samples: []*prompb.Sample{{
 				Value:     float64(sysMetrics[system.MetricNameHeapObjectsBytes]),
 				Timestamp: FromTime(now),
 			}},
 		},
 		{
-			Labels: append(containerMetadataLabels, &prompb.Label{
-				Name:  "__name__",
-				Value: system.MetricNameOSStacksBytes,
-			}),
-			Samples: []*prompb.Sample{{
-				Value:     float64(sysMetrics[system.MetricNameOSStacksBytes]),
-				Timestamp: FromTime(now),
-			}},
-		},
-		{
-			Labels: append(containerMetadataLabels, &prompb.Label{
-				Name:  "__name__",
-				Value: system.MetricNameGoroutines,
-			}),
+			Labels: addMetricNameLabel(system.MetricNameGoroutines),
 			Samples: []*prompb.Sample{{
 				Value:     float64(sysMetrics[system.MetricNameGoroutines]),
 				Timestamp: FromTime(now),
 			}},
-		},
-	}
-}
-
-func containerMetadataLabels(meta *metadata.ContainerMetadata) []*prompb.Label {
-	return []*prompb.Label{
-		{
-			Name:  "service_id",
-			Value: meta.ServiceID,
-		},
-		{
-			Name:  "revision_id",
-			Value: meta.RevisionID,
-		},
-		{
-			Name:  "instance_id",
-			Value: meta.InstanceID,
 		},
 	}
 }

@@ -24,11 +24,16 @@ import (
 )
 
 func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
+	// Precompute container metadata labels.
 	return &Exporter{
-		svcs:              svcs,
-		cfg:               cfg,
-		containerMetadata: meta,
-		rootLogger:        rootLogger,
+		svcs: svcs,
+		cfg:  cfg,
+		containerMetadataLabels: map[string]string{
+			"service_id":  meta.ServiceID,
+			"revision_id": meta.RevisionID,
+			"instance_id": meta.InstanceID,
+		},
+		rootLogger: rootLogger,
 
 		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
 
@@ -37,10 +42,10 @@ func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, meta *metadata.C
 }
 
 type Exporter struct {
-	svcs              []string
-	cfg               *config.GCPCloudMonitoringProvider
-	containerMetadata *metadata.ContainerMetadata
-	rootLogger        zerolog.Logger
+	svcs                    []string
+	cfg                     *config.GCPCloudMonitoringProvider
+	containerMetadataLabels map[string]string
+	rootLogger              zerolog.Logger
 
 	clientMu sync.Mutex
 	client   *monitoring.MetricClient
@@ -93,12 +98,12 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 
 	data := make([]*monitoringpb.TimeSeries, 0, len(collected))
 	for _, m := range collected {
-		var baseLabels map[string]string
-		if len(m.Labels) > 0 {
-			baseLabels = make(map[string]string, len(m.Labels))
-			for _, v := range m.Labels {
-				baseLabels[v.Key] = v.Value
-			}
+		baseLabels := make(map[string]string, len(x.containerMetadataLabels)+len(m.Labels))
+		for k, v := range x.containerMetadataLabels {
+			baseLabels[k] = v
+		}
+		for _, v := range m.Labels {
+			baseLabels[v.Key] = v.Value
 		}
 
 		var kind metricpb.MetricDescriptor_MetricKind
@@ -131,12 +136,8 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		metricType = "custom.googleapis.com/" + cloudMetricName
 
 		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
-			containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
-			labels := make(map[string]string, len(baseLabels)+len(containerMetadataLabels)+1)
+			labels := make(map[string]string, len(baseLabels)+1)
 			for k, v := range baseLabels {
-				labels[k] = v
-			}
-			for k, v := range containerMetadataLabels {
 				labels[k] = v
 			}
 			labels["service"] = x.svcs[svcIdx]
@@ -264,19 +265,6 @@ func (x *Exporter) getPoint(newCounterStart, endTime *timestamppb.Timestamp, m *
 	return point, kind
 }
 
-func (x *Exporter) getClient() *monitoring.MetricClient {
-	x.clientMu.Lock()
-	defer x.clientMu.Unlock()
-	if x.client == nil {
-		cl, err := monitoring.NewMetricClient(context.Background())
-		if err != nil {
-			panic(fmt.Sprintf("failed to create metrics client: %s", err))
-		}
-		x.client = cl
-	}
-	return x.client
-}
-
 func floatVal(val float64) *monitoringpb.TypedValue {
 	return &monitoringpb.TypedValue{
 		Value: &monitoringpb.TypedValue_DoubleValue{
@@ -313,14 +301,13 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 		Type:   x.cfg.MonitoredResourceType,
 		Labels: x.cfg.MonitoredResourceLabels,
 	}
-	containerMetadataLabels := containerMetadataLabels(x.containerMetadata)
 	sysMetrics := system.ReadSysMetrics(x.rootLogger)
 	return []*monitoringpb.TimeSeries{
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
 				Type:   "custom.googleapis.com/" + system.MetricNameHeapObjectsBytes,
-				Labels: containerMetadataLabels,
+				Labels: x.containerMetadataLabels,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
@@ -331,20 +318,8 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 		{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + system.MetricNameOSStacksBytes,
-				Labels: containerMetadataLabels,
-			},
-			Resource: monitoredResource,
-			Points: []*monitoringpb.Point{{
-				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    uint64Val(sysMetrics[system.MetricNameOSStacksBytes]),
-			}},
-		},
-		{
-			MetricKind: metricpb.MetricDescriptor_GAUGE,
-			Metric: &metricpb.Metric{
 				Type:   "custom.googleapis.com/" + system.MetricNameGoroutines,
-				Labels: containerMetadataLabels,
+				Labels: x.containerMetadataLabels,
 			},
 			Resource: monitoredResource,
 			Points: []*monitoringpb.Point{{
@@ -355,10 +330,15 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 	}
 }
 
-func containerMetadataLabels(meta *metadata.ContainerMetadata) map[string]string {
-	return map[string]string{
-		"service_id":  meta.ServiceID,
-		"revision_id": meta.RevisionID,
-		"instance_id": meta.InstanceID,
+func (x *Exporter) getClient() *monitoring.MetricClient {
+	x.clientMu.Lock()
+	defer x.clientMu.Unlock()
+	if x.client == nil {
+		cl, err := monitoring.NewMetricClient(context.Background())
+		if err != nil {
+			panic(fmt.Sprintf("failed to create metrics client: %s", err))
+		}
+		x.client = cl
 	}
+	return x.client
 }

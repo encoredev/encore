@@ -30,5 +30,5 @@ func GetContainerMetadata(cfg *config.Runtime) (*ContainerMetadata, error) {
 			return collector.collect()
 		}
 	}
-	panic(fmt.Sprintf("no metadata collector found for environment cloud '%s'", cfg.EnvCloud))
+	return nil, fmt.Errorf("no metadata collector found for environment cloud '%s'", cfg.EnvCloud)
 }

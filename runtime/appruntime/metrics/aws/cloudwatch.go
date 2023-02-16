@@ -22,19 +22,24 @@ import (
 )
 
 func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
+	// Precompute container metadata dimensions.
 	return &Exporter{
-		svcs:              svcs,
-		cfg:               cfg,
-		containerMetadata: meta,
-		rootLogger:        rootLogger,
+		svcs: svcs,
+		cfg:  cfg,
+		containerMetadataDims: []types.Dimension{
+			{Name: aws.String("service_id"), Value: aws.String(meta.ServiceID)},
+			{Name: aws.String("revision_id"), Value: aws.String(meta.RevisionID)},
+			{Name: aws.String("instance_id"), Value: aws.String(meta.InstanceID)},
+		},
+		rootLogger: rootLogger,
 	}
 }
 
 type Exporter struct {
-	svcs              []string
-	cfg               *config.AWSCloudWatchMetricsProvider
-	containerMetadata *metadata.ContainerMetadata
-	rootLogger        zerolog.Logger
+	svcs                  []string
+	cfg                   *config.AWSCloudWatchMetricsProvider
+	containerMetadataDims []types.Dimension
+	rootLogger            zerolog.Logger
 
 	clientMu sync.Mutex
 	client   *cloudwatch.Client
@@ -61,13 +66,12 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	data := make([]types.MetricDatum, 0, len(collected))
 
 	doAdd := func(val float64, metricName string, baseDims []types.Dimension, svcIdx uint16) {
-		containerMetadataDims := containerMetadataDimensions(x.containerMetadata)
-		dims := make([]types.Dimension, 0, len(baseDims)+len(containerMetadataDims)+1)
+		dims := make([]types.Dimension, 0, len(baseDims)+1)
 		copy(dims, baseDims)
-		dims = append(dims, append(containerMetadataDims, types.Dimension{
+		dims[len(baseDims)] = types.Dimension{
 			Name:  aws.String("service"),
 			Value: aws.String(x.svcs[svcIdx]),
-		})...)
+		}
 		data = append(data, types.MetricDatum{
 			MetricName: aws.String(metricName),
 			Timestamp:  aws.Time(now),
@@ -77,15 +81,13 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
-		var dims []types.Dimension
-		if n := len(m.Labels); n > 0 {
-			dims = make([]types.Dimension, 0, n)
-			for _, label := range m.Labels {
-				dims = append(dims, types.Dimension{
-					Name:  aws.String(label.Key),
-					Value: aws.String(label.Value),
-				})
-			}
+		dims := make([]types.Dimension, 0, len(x.containerMetadataDims)+len(m.Labels))
+		copy(dims, x.containerMetadataDims)
+		for _, label := range m.Labels {
+			dims = append(dims, types.Dimension{
+				Name:  aws.String(label.Key),
+				Value: aws.String(label.Value),
+			})
 		}
 
 		svcNum := m.Info.SvcNum()
@@ -149,6 +151,24 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	return data
 }
 
+func (x *Exporter) getSysMetrics(now time.Time) []types.MetricDatum {
+	sysMetrics := system.ReadSysMetrics(x.rootLogger)
+	return []types.MetricDatum{
+		{
+			MetricName: aws.String(system.MetricNameHeapObjectsBytes),
+			Timestamp:  aws.Time(now),
+			Value:      aws.Float64(float64(sysMetrics[system.MetricNameHeapObjectsBytes])),
+			Dimensions: x.containerMetadataDims,
+		},
+		{
+			MetricName: aws.String(system.MetricNameGoroutines),
+			Timestamp:  aws.Time(now),
+			Value:      aws.Float64(float64(sysMetrics[system.MetricNameGoroutines])),
+			Dimensions: x.containerMetadataDims,
+		},
+	}
+}
+
 func (x *Exporter) getClient() *cloudwatch.Client {
 	x.clientMu.Lock()
 	defer x.clientMu.Unlock()
@@ -161,46 +181,4 @@ func (x *Exporter) getClient() *cloudwatch.Client {
 		x.client = cl
 	}
 	return x.client
-}
-
-func (x *Exporter) getSysMetrics(now time.Time) []types.MetricDatum {
-	sysMetrics := system.ReadSysMetrics(x.rootLogger)
-	containerMetadataDims := containerMetadataDimensions(x.containerMetadata)
-	return []types.MetricDatum{
-		{
-			MetricName: aws.String(system.MetricNameHeapObjectsBytes),
-			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics[system.MetricNameHeapObjectsBytes])),
-			Dimensions: containerMetadataDims,
-		},
-		{
-			MetricName: aws.String(system.MetricNameOSStacksBytes),
-			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics[system.MetricNameOSStacksBytes])),
-			Dimensions: containerMetadataDims,
-		},
-		{
-			MetricName: aws.String(system.MetricNameGoroutines),
-			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics[system.MetricNameGoroutines])),
-			Dimensions: containerMetadataDims,
-		},
-	}
-}
-
-func containerMetadataDimensions(meta *metadata.ContainerMetadata) []types.Dimension {
-	return []types.Dimension{
-		{
-			Name:  aws.String("service_id"),
-			Value: aws.String(meta.ServiceID),
-		},
-		{
-			Name:  aws.String("revision_id"),
-			Value: aws.String(meta.RevisionID),
-		},
-		{
-			Name:  aws.String("instance_id"),
-			Value: aws.String(meta.InstanceID),
-		},
-	}
 }
