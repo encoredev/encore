@@ -66,7 +66,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	data := make([]types.MetricDatum, 0, len(collected))
 
 	doAdd := func(val float64, metricName string, baseDims []types.Dimension, svcIdx uint16) {
-		dims := make([]types.Dimension, 0, len(baseDims)+1)
+		dims := make([]types.Dimension, len(baseDims)+1)
 		copy(dims, baseDims)
 		dims[len(baseDims)] = types.Dimension{
 			Name:  aws.String("service"),

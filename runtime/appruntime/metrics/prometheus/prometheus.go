@@ -159,7 +159,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 
 func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
 	addMetricNameLabel := func(metricName string) []*prompb.Label {
-		labels := make([]*prompb.Label, 0, len(x.containerMetadataLabels)+1)
+		labels := make([]*prompb.Label, len(x.containerMetadataLabels)+1)
 		copy(labels, x.containerMetadataLabels)
 		labels[len(x.containerMetadataLabels)] = &prompb.Label{
 			Name:  "__name__",
