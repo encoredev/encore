@@ -81,7 +81,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
-		dims := make([]types.Dimension, 0, len(x.containerMetadataDims)+len(m.Labels))
+		dims := make([]types.Dimension, len(x.containerMetadataDims))
 		copy(dims, x.containerMetadataDims)
 		for _, label := range m.Labels {
 			dims = append(dims, types.Dimension{
