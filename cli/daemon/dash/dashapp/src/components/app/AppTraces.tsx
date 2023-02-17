@@ -108,7 +108,7 @@ export default class AppTraces extends React.Component<Props, State> {
                       <p className="text-gray-800 flex-1 truncate text-base font-medium">
                         {icon("h-4 w-4 inline-block mr-2", type)}
                         <a
-                          className="cursor-pointer brandient-5 link-brandient"
+                          className="cursor-pointer link-brandient"
                           onClick={() => this.setState({ selected: tr })}
                         >
                           <span>{endpoint}</span>
@@ -207,22 +207,22 @@ const TraceView: FC<TraceViewProps> = (props) => {
                   </>
                 )}
                 {tr.root?.ext_request_id && (
-                    <>
-                      <tr className="text-left font-normal">
-                        <th className="text-gray-400 pr-2 text-left text-sm font-light">External Request ID</th>
-                        <td className="font-mono">
-                          {tr.root.ext_request_id}
-                        </td>
-                      </tr>
-                    </>
+                  <>
+                    <tr className="text-left font-normal">
+                      <th className="text-gray-400 pr-2 text-left text-sm font-light">
+                        External Request ID
+                      </th>
+                      <td className="font-mono">{tr.root.ext_request_id}</td>
+                    </tr>
+                  </>
                 )}
                 {tr.root?.ext_correlation_id && (
                   <>
                     <tr className="text-left font-normal">
-                      <th className="text-gray-400 pr-2 text-left text-sm font-light">External Correlation ID</th>
-                      <td className="font-mono">
-                        {tr.root.ext_correlation_id}
-                      </td>
+                      <th className="text-gray-400 pr-2 text-left text-sm font-light">
+                        External Correlation ID
+                      </th>
+                      <td className="font-mono">{tr.root.ext_correlation_id}</td>
                     </tr>
                   </>
                 )}

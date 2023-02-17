@@ -6,6 +6,26 @@ export type Icon =
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace icons {
+  export const collapseAll: Icon = (cls, title) => (
+    <svg className={cls} fill="currentColor" viewBox="0 0 24 24">
+      {renderTitle(title)}
+      <path
+        strokeLinecap="round"
+        d="m16.698.125 1.724 1.724L9.5 10.775.577 1.849 2.301.125 9.5 7.327 16.698.125ZM2.301 23.874.578 22.151 9.5 13.225l8.922 8.926-1.724 1.723L9.5 16.673 2.3 23.873Z"
+      />
+    </svg>
+  );
+
+  export const expandAll: Icon = (cls, title) => (
+    <svg className={cls} fill="currentColor" viewBox="0 0 24 24">
+      {renderTitle(title)}
+      <path
+        strokeLinecap="round"
+        d="M2.302 10.775.578 9.052 9.5.126l8.923 8.926-1.724 1.723L9.5 3.574l-7.198 7.201ZM16.7 13.226l1.724 1.723-8.922 8.926L.58 14.949l1.724-1.723 7.198 7.201 7.199-7.201Z"
+      />
+    </svg>
+  );
+
   export const arrowRight: Icon = (cls, title) => (
     <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 35.7 16">
       {renderTitle(title)}
