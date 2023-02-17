@@ -75,7 +75,7 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 		Name:       p.Name,
 		ImportPath: s.path,
 		Files:      files,
-		Imports:    make(map[string]bool),
+		Imports:    make(map[paths.Pkg]bool),
 	}
 
 	for _, f := range files {
@@ -194,11 +194,13 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 	return pkgs, files
 }
 
-func getFileImports(f *ast.File) map[string]bool {
-	imports := make(map[string]bool)
+func getFileImports(f *ast.File) map[paths.Pkg]bool {
+	imports := make(map[paths.Pkg]bool)
 	for _, s := range f.Imports {
 		if importPath, err := strconv.Unquote(s.Path.Value); err == nil {
-			imports[importPath] = true
+			if p, ok := paths.PkgPath(importPath); ok {
+				imports[p] = true
+			}
 		}
 	}
 	return imports

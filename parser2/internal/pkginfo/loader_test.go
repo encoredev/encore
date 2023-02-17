@@ -166,7 +166,7 @@ require rsc.io/hello v1.0.0
 		c.Check(f.Name, qt.Equals, "hello.go")
 		c.Check(f.TestFile, qt.IsFalse)
 		c.Check(f.FSPath.ToIO(), qt.Matches, `.*/mod/rsc\.io/hello@v1\.0\.0/hello.go`)
-		c.Check(f.Imports, qt.DeepEquals, map[string]bool{
+		c.Check(f.Imports, qt.DeepEquals, map[paths.Pkg]bool{
 			"fmt":          true,
 			"rsc.io/quote": true,
 		})

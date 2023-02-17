@@ -50,12 +50,12 @@ require (
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	golang.org/x/crypto v0.1.0
 	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326
-	golang.org/x/mod v0.6.0
+	golang.org/x/mod v0.8.0
 	golang.org/x/oauth2 v0.1.0
 	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.2.0
-	golang.org/x/text v0.4.0
-	golang.org/x/tools v0.2.0
+	golang.org/x/sys v0.5.0
+	golang.org/x/text v0.7.0
+	golang.org/x/tools v0.6.0
 	google.golang.org/genproto v0.0.0-20221109142239-94d6d90a7d66
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
@@ -125,8 +125,8 @@ require (
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	golang.org/x/net v0.1.0 // indirect
-	golang.org/x/term v0.1.0 // indirect
+	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

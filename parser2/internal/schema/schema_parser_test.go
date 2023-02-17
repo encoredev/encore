@@ -42,7 +42,7 @@ func TestParser_ParseType(t *testing.T) {
 		{
 			name: "decl",
 			typ:  "foo\n\ntype foo int",
-			want: NamedType{Decl: &Decl{
+			want: NamedType{Decl: &TypeDecl{
 				Name: "foo",
 				Type: BuiltinType{Kind: Int},
 				Pkg:  &pkginfo.Package{ImportPath: "example.com"},
@@ -52,9 +52,9 @@ func TestParser_ParseType(t *testing.T) {
 			name: "decl_with_type_params",
 			typ:  "foo[int]\n\ntype foo[T any] T",
 			want: NamedType{
-				Decl: (func() *Decl {
-					d := new(Decl)
-					*d = Decl{
+				Decl: (func() *TypeDecl {
+					d := new(TypeDecl)
+					*d = TypeDecl{
 						Name: "foo",
 						Pkg:  &pkginfo.Package{ImportPath: "example.com"},
 						Type: TypeParamRefType{
@@ -98,17 +98,17 @@ func TestParser_ParseType(t *testing.T) {
 			name:    "external_stdlib_type",
 			imports: []string{"database/sql"},
 			typ:     "sql.NullString",
-			want: NamedType{Decl: &Decl{
+			want: NamedType{Decl: &TypeDecl{
 				Name: "NullString",
 				Pkg:  &pkginfo.Package{ImportPath: "database/sql"},
 				Type: StructType{
 					Fields: []*StructField{
 						{
-							Name: "String",
+							Name: Some("String"),
 							Type: BuiltinType{Kind: String},
 						},
 						{
-							Name: "Valid",
+							Name: Some("Valid"),
 							Type: BuiltinType{Kind: Bool},
 						},
 					},
@@ -119,7 +119,9 @@ func TestParser_ParseType(t *testing.T) {
 			name: "map",
 			typ:  "map[struct{A int}]struct{}",
 			want: MapType{
-				Key:   StructType{Fields: []*StructField{{Name: "A", Type: BuiltinType{Kind: Int}}}},
+				Key: StructType{Fields: []*StructField{
+					{Name: Some("A"), Type: BuiltinType{Kind: Int}},
+				}},
 				Value: StructType{},
 			},
 		},
@@ -151,22 +153,22 @@ func TestParser_ParseType(t *testing.T) {
 			name: "multi_generic",
 			typ:  "foo[int, string]\n\ntype foo[T any, U any] struct{A T; B U}",
 			want: NamedType{
-				Decl: (func() *Decl {
-					d := new(Decl)
-					*d = Decl{
+				Decl: (func() *TypeDecl {
+					d := new(TypeDecl)
+					*d = TypeDecl{
 						Name: "foo",
 						Pkg:  &pkginfo.Package{ImportPath: "example.com"},
 						Type: StructType{
 							Fields: []*StructField{
 								{
-									Name: "A",
+									Name: Some("A"),
 									Type: TypeParamRefType{
 										Index: 0,
 										Decl:  d,
 									},
 								},
 								{
-									Name: "B",
+									Name: Some("B"),
 									Type: TypeParamRefType{
 										Index: 1,
 										Decl:  d,
@@ -233,6 +235,140 @@ var x ` + test.typ + `
 			f := pkg.Files[0]
 			typeExpr := pkg.Names().PkgDecls["x"].Spec.(*ast.ValueSpec).Type
 			got := p.ParseType(f, typeExpr)
+
+			if len(test.wantErrs) == 0 {
+				// Check for equality, ignoring all the AST nodes and pkginfo types.
+				cmpEqual := qt.CmpEquals(
+					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
+					cmpopts.IgnoreTypes(&pkginfo.File{}),
+					cmpopts.EquateEmpty(),
+					cmpopts.IgnoreUnexported(StructField{}),
+					cmp.Comparer(func(a, b *pkginfo.Package) bool {
+						return a.ImportPath == b.ImportPath
+					}),
+				)
+				c.Assert(got, cmpEqual, test.want)
+			}
+		})
+	}
+}
+
+func TestParser_ParseFuncDecl(t *testing.T) {
+	type testCase struct {
+		name     string
+		imports  []string
+		decl     string
+		want     *FuncDecl
+		wantErrs []string
+	}
+	tests := []testCase{
+		{
+			name: "simple",
+			decl: "func x() {}",
+			want: &FuncDecl{
+				Name: "x",
+				Recv: nil,
+				Type: &FuncType{
+					Params:  nil,
+					Results: nil,
+				},
+			},
+		},
+		{
+			name: "recv",
+			decl: "type Foo[A, B any] struct{}\nfunc (f *Foo[A, B]) x() {}",
+			want: &FuncDecl{
+				Name: "x",
+				Recv: (func() *Receiver {
+					FooDecl := &TypeDecl{
+						Pkg:        &pkginfo.Package{ImportPath: "example.com"},
+						Name:       "Foo",
+						Type:       StructType{},
+						TypeParams: []DeclTypeParam{{Name: "A"}, {Name: "B"}},
+					}
+
+					return &Receiver{
+						Name: Some("f"),
+						Decl: FooDecl,
+						Type: PointerType{
+							Elem: NamedType{
+								Decl: FooDecl,
+								TypeArgs: []Type{
+									TypeParamRefType{
+										Decl:  FooDecl,
+										Index: 0,
+									},
+									TypeParamRefType{
+										Decl:  FooDecl,
+										Index: 1,
+									},
+								},
+							},
+						},
+					}
+				})(),
+				Type: &FuncType{
+					Params:  nil,
+					Results: nil,
+				},
+			},
+		},
+	}
+
+	// testArchive renders the txtar archive to use for a given test.
+	testArchive := func(test testCase) *txtar.Archive {
+		imports := ""
+		if len(test.imports) > 0 {
+			imports = "import (\n"
+			for _, imp := range test.imports {
+				imports += "\t" + strconv.Quote(imp) + "\n"
+			}
+			imports += ")\n"
+		}
+
+		return testutil.ParseTxtar(`
+-- go.mod --
+module example.com
+require encore.dev v1.13.4
+-- code.go --
+package foo
+` + imports + `
+
+` + test.decl + `
+`)
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := qt.New(t)
+			a := testArchive(test)
+			tc := testutil.NewContext(c, false, a)
+			tc.GoModDownload()
+
+			l := pkginfo.New(tc.Context)
+			p := NewParser(tc.Context, l)
+
+			if len(test.wantErrs) > 0 {
+				defer tc.DeferExpectError(test.wantErrs...)
+			} else {
+				tc.FailTestOnErrors()
+				defer tc.FailTestOnBailout()
+			}
+
+			pkg := l.MustLoadPkg(token.NoPos, "example.com")
+
+			// Find the first func decl.
+			var fd *ast.FuncDecl
+			f := pkg.Files[0]
+			for _, decl := range f.AST().Decls {
+				if f, ok := decl.(*ast.FuncDecl); ok {
+					fd = f
+					break
+				}
+			}
+			c.Assert(fd, qt.IsNotNil)
+
+			got := p.ParseFuncDecl(f, fd)
 
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.

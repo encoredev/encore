@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"encr.dev/parser2/internal/paths"
 )
@@ -40,10 +41,13 @@ type Package struct {
 	Doc        string
 	ImportPath paths.Pkg
 	Files      []*File
-	Imports    map[string]bool // union of all imports from files
+	Imports    map[paths.Pkg]bool // union of all imports from files
 
 	namesOnce  sync.Once
 	namesCache *PkgNames
+
+	inspectorOnce  sync.Once
+	inspectorCache *inspector.Inspector
 }
 
 // Names returns the computed package-level names.
@@ -54,13 +58,31 @@ func (p *Package) Names() *PkgNames {
 	return p.namesCache
 }
 
+// ASTInspector returns an AST inspector that's optimized for
+func (p *Package) ASTInspector() *inspector.Inspector {
+	p.inspectorOnce.Do(func() {
+		tr := p.l.c.Trace("ASTInspector", "pkg", p.ImportPath)
+		defer tr.Done()
+
+		// TODO we could make this concurrent in the future,
+		// if the speedup is worth it.
+		asts := make([]*ast.File, len(p.Files))
+		for i, f := range p.Files {
+			asts[i] = f.AST()
+		}
+		p.inspectorCache = inspector.New(asts)
+	})
+
+	return p.inspectorCache
+}
+
 type File struct {
-	l        *Loader         // the loader that created it.
-	Name     string          // file name ("foo.go")
-	Pkg      *Package        // package it belongs to
-	FSPath   paths.FS        // where the file lives on disk
-	Imports  map[string]bool // imports in the file, keyed by import path
-	TestFile bool            // whether the file is a test file
+	l        *Loader            // the loader that created it.
+	Name     string             // file name ("foo.go")
+	Pkg      *Package           // package it belongs to
+	FSPath   paths.FS           // where the file lives on disk
+	Imports  map[paths.Pkg]bool // imports in the file, keyed by import path
+	TestFile bool               // whether the file is a test file
 
 	startPos, endPos uint64
 

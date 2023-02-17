@@ -35,9 +35,9 @@ func resolvePkgNames(pkg *Package) *PkgNames {
 						Name: d.Name.Name,
 						File: f,
 						Pos:  d.Name.Pos(),
+						Doc:  d.Doc.Text(),
 						Type: token.FUNC,
 						Func: d,
-						Doc:  d.Doc.Text(),
 					}
 				}
 
@@ -61,23 +61,25 @@ func resolvePkgNames(pkg *Package) *PkgNames {
 						for _, name := range spec.Names {
 							scope.Insert(name.Name, &IdentInfo{Package: true})
 							decls[name.Name] = &PkgDeclInfo{
-								Name: name.Name,
-								File: f,
-								Pos:  name.Pos(),
-								Type: d.Tok,
-								Spec: spec,
-								Doc:  doc,
+								Name:    name.Name,
+								File:    f,
+								Pos:     name.Pos(),
+								Doc:     doc,
+								Type:    d.Tok,
+								Spec:    spec,
+								GenDecl: d,
 							}
 						}
 					case *ast.TypeSpec:
 						scope.Insert(spec.Name.Name, &IdentInfo{Package: true})
 						decls[spec.Name.Name] = &PkgDeclInfo{
-							Name: spec.Name.Name,
-							File: f,
-							Pos:  spec.Name.Pos(),
-							Type: d.Tok,
-							Spec: spec,
-							Doc:  doc,
+							Name:    spec.Name.Name,
+							File:    f,
+							Pos:     spec.Name.Pos(),
+							Doc:     doc,
+							Type:    d.Tok,
+							GenDecl: d,
+							Spec:    spec,
 						}
 					}
 				}
@@ -560,16 +562,30 @@ type PkgDeclInfo struct {
 	Name string
 	File *File
 	Pos  token.Pos
-	Type token.Token   // CONST, TYPE, VAR, FUNC
-	Func *ast.FuncDecl // for Type == FUNC
-	Spec ast.Spec      // for other types
 	Doc  string
+
+	// Type describes what type of declaration this is.
+	// It's one of CONST, TYPE, VAR, or FUNC.
+	Type token.Token
+
+	// Spec is the spec for this declaration and GenDecl the declaration block
+	// it belongs to. They are set only when Type != FUNC.
+	Spec    ast.Spec
+	GenDecl *ast.GenDecl
+
+	// Func is the function declaration, if Type == FUNC.
+	Func *ast.FuncDecl // for Type == FUNC
+	// Recv is the receiver type, if Type == FUNC and the function is a method.
+	Recv *PkgDeclInfo
 }
 
 // PkgNames contains name information that's package-global.
 type PkgNames struct {
 	// PkgDecls contains package-level declarations, keyed by name.
 	PkgDecls map[string]*PkgDeclInfo
+
+	// Funcs are all the func declarations.
+	Funcs []*PkgDeclInfo
 
 	// pkgScope tracks the scope information for the package scope.
 	// It's stored to avoid having to recompute it when querying

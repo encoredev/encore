@@ -20,7 +20,7 @@ func NewParser(c *parsectx.Context, l *pkginfo.Loader) *Parser {
 	return &Parser{
 		c:     c,
 		l:     l,
-		decls: make(map[declKey]*Decl),
+		decls: make(map[declKey]Decl),
 	}
 }
 
@@ -30,7 +30,7 @@ type Parser struct {
 	l *pkginfo.Loader
 
 	declsMu sync.Mutex
-	decls   map[declKey]*Decl // pkg/path.Name -> decl
+	decls   map[declKey]Decl // pkg/path.Name -> decl
 }
 
 // ParseType parses the schema from a type expression.
@@ -40,7 +40,7 @@ func (p *Parser) ParseType(file *pkginfo.File, expr ast.Expr) Type {
 }
 
 // newTypeResolver is a helper function to create a new typeResolver.
-func (p *Parser) newTypeResolver(decl *Decl, typeParamsInScope map[string]int) *typeResolver {
+func (p *Parser) newTypeResolver(decl Decl, typeParamsInScope map[string]int) *typeResolver {
 	return &typeResolver{
 		p:                 p,
 		errs:              p.c.Errs,
@@ -57,7 +57,7 @@ type typeResolver struct {
 
 	// decl is the declaration being parsed, if any.
 	// It's nil if the type expression isn't attached to a declaration.
-	decl *Decl
+	decl Decl
 
 	// typeParamsInScope contains the in-scope type parameters
 	// as part of the declaration being processed.
@@ -92,7 +92,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 
 			// Local type name or universe scope
 			if d, ok := pkgNames.PkgDecls[expr.Name]; ok && d.Type == token.TYPE {
-				decl := r.p.ParseDecl(d)
+				decl := r.p.ParseTypeDecl(d)
 				return NamedType{
 					AST:  expr,
 					Decl: decl,
@@ -131,7 +131,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				// Otherwise, load the external package and resolve the type.
 				otherPkg := r.p.l.MustLoadPkg(pkgName.Pos(), pkgPath)
 				if d, ok := otherPkg.Names().PkgDecls[expr.Sel.Name]; ok && d.Type == token.TYPE {
-					decl := r.p.ParseDecl(d)
+					decl := r.p.ParseTypeDecl(d)
 					return NamedType{AST: expr, Decl: decl}
 				}
 			}
@@ -152,7 +152,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				for _, name := range field.Names {
 					st.Fields = append(st.Fields, &StructField{
 						AST:  field,
-						Name: name.Name,
+						Name: Some(name.Name),
 						Type: typ,
 					})
 				}
@@ -203,7 +203,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 			r.errs.Add(expr.Pos(), "cannot use channel types in Encore schema definitions")
 
 		case *ast.FuncType:
-			r.errs.Add(expr.Pos(), "cannot use function types in Encore schema definitions")
+			return r.parseFuncType(file, expr)
 
 		case *ast.IndexExpr:
 			// Generic type application with a single type, like "Foo[int]"
@@ -224,6 +224,50 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 	return typ
 }
 
+// parseFuncType parses an *ast.FuncType into a *FuncType.
+func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) *FuncType {
+	res := &FuncType{
+		AST:     ft,
+		Params:  make([]Param, 0, ft.Params.NumFields()),
+		Results: make([]Param, 0, ft.Results.NumFields()),
+	}
+
+	// iters describes how to iterate over the parameters and results.
+	iters := []struct {
+		fields *ast.FieldList
+		dst    *[]Param
+	}{
+		{ft.Params, &res.Params},
+		{ft.Results, &res.Results},
+	}
+
+	// Loop over all the fields and parse the types.
+	for _, it := range iters {
+		for _, field := range it.fields.List {
+			typ := r.parseType(file, field.Type)
+			// If we have any names it means they all have names.
+			if len(field.Names) > 0 {
+				for _, name := range field.Names {
+					*it.dst = append(*it.dst, Param{
+						AST:  field,
+						Name: Some(name.Name),
+						Type: typ,
+					})
+				}
+			} else {
+				// Otherwise we have a type-only parameter.
+				*it.dst = append(*it.dst, Param{
+					AST:  field,
+					Name: None[string](),
+					Type: typ,
+				})
+			}
+		}
+	}
+
+	return res
+}
+
 func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo.File, expr ast.Expr, typeArgs []ast.Expr) Type {
 	// TODO determine if it's correct to pass along the typeArgs here.
 	// It was done in the old parser.
@@ -232,8 +276,6 @@ func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo.File, expr ast.Expr
 		r.errs.Addf(expr.Pos(), "cannot use type arguments with non-named type %s", types.ExprString(baseType.ASTExpr()))
 		return baseType
 	}
-
-	// TODO(andre) handle config types here
 
 	named := baseType.(NamedType)
 	decl := named.Decl
@@ -255,60 +297,41 @@ const (
 	authImportPath paths.Pkg = "encore.dev/beta/auth"
 )
 
-// ParseDecl parses the type from a package declaration.
-func (p *Parser) ParseDecl(d *pkginfo.PkgDeclInfo) *Decl {
-	pkg := d.File.Pkg
-	// Have we already parsed this?
-	key := declKey{pkg: pkg.ImportPath, name: d.Name}
-	p.declsMu.Lock()
-	decl, ok := p.decls[key]
-	p.declsMu.Unlock()
-	if ok {
-		return decl
+// parseRecv parses a receiver AST into a Receiver.
+func (p *Parser) parseRecv(f *pkginfo.File, fields *ast.FieldList) *Receiver {
+	if fields.NumFields() != 1 {
+		p.c.Errs.Fatal(fields.Pos(), "expected exactly one receiver")
+		return nil
 	}
 
-	// We haven't parsed this yet; do so now.
-	// Allocate a decl immediately so that we can properly handle
-	// recursive types by short-circuiting above the second time we get here.
-	spec, ok := d.Spec.(*ast.TypeSpec)
-	if !ok {
-		p.c.Errs.Fatal(d.Spec.Pos(), "unable to get TypeSpec from PkgDecl spec")
+	// To properly parse the receiver in the presence of type parameters,
+	// we first need to resolve what the named type is that the receiver is attached to
+	// WITHOUT the type parameters. Then we can construct a typeResolver
+	// with the correct decl context.
+	field := fields.List[0]
+	recvIdent := p.resolveReceiverIdent(field.Type)
+	pkgDecl := f.Pkg.Names().PkgDecls[recvIdent.Name]
+	if pkgDecl == nil {
+		p.c.Errs.Fatalf(recvIdent.Pos(), "unknown identifier %s", recvIdent.Name)
+	}
+	decl := p.ParseTypeDecl(pkgDecl)
+
+	// Now that we have the declaration we can create a type resolver that
+	// uses the type declaration's type parameters, and use that to resolve
+	// the receiver type.
+	typeParamsInScope, _ := computeDeclTypeParams(decl.AST.TypeParams)
+	tr := p.newTypeResolver(decl, typeParamsInScope)
+
+	recv := &Receiver{
+		AST:  fields,
+		Decl: decl,
+		Type: tr.parseType(f, field.Type),
+	}
+	if len(field.Names) > 0 {
+		recv.Name = Some(field.Names[0].Name)
 	}
 
-	decl = &Decl{
-		Name:       d.Name,
-		Pkg:        pkg,
-		TypeParams: nil,
-		// Type is set below
-	}
-	p.declsMu.Lock()
-	p.decls[key] = decl
-	p.declsMu.Unlock()
-
-	// If this is a parameterized declaration, get the type parameters
-	var typeParamsInScope map[string]int
-	if spec.TypeParams != nil {
-		numParams := spec.TypeParams.NumFields()
-		decl.TypeParams = make([]DeclTypeParam, 0, numParams)
-		typeParamsInScope = make(map[string]int, numParams)
-
-		paramIdx := 0
-		for _, typeParam := range spec.TypeParams.List {
-			for _, name := range typeParam.Names {
-				decl.TypeParams = append(decl.TypeParams, DeclTypeParam{
-					AST:  typeParam,
-					Name: name.Name,
-				})
-				typeParamsInScope[name.Name] = paramIdx
-				paramIdx++
-			}
-		}
-	}
-
-	r := p.newTypeResolver(decl, typeParamsInScope)
-	decl.Type = r.parseType(d.File, spec.Type)
-
-	return decl
+	return recv
 }
 
 // parseEncoreBuiltin returns the builtin kind for the given package path and name.
@@ -349,8 +372,27 @@ var builtinTypes = map[string]BuiltinKind{
 	"rune":       Uint32,
 }
 
-// declKey is a unique key for the given declaration.
-type declKey struct {
-	pkg  paths.Pkg
-	name string
+// resolveReceiverIdent resolves the identifier for the receiver of a method.
+// It recurses through *ast.StarExpr, *ast.IndexExpr and *ast.IndexListExpr
+// to handle pointer/non-pointer as well as methods on generic types.
+func (p *Parser) resolveReceiverIdent(expr ast.Expr) *ast.Ident {
+	orig := expr // keep track of original for error messages
+	for i := 0; i < 10; i++ {
+		switch x := expr.(type) {
+		case *ast.Ident:
+			// We're done
+			return x
+
+		case *ast.StarExpr:
+			expr = x.X
+		case *ast.IndexExpr:
+			expr = x.X
+		case *ast.IndexListExpr:
+			expr = x.X
+		default:
+			p.c.Errs.Addf(orig.Pos(), "invalid receiver expression: %s (invalid type %T)", types.ExprString(orig), x)
+		}
+	}
+	p.c.Errs.Fatalf(orig.Pos(), "invalid receiver expression: %s (recursion limit reached)", types.ExprString(orig))
+	return nil // unreachable
 }
