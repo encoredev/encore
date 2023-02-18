@@ -24,20 +24,27 @@ type Parser struct {
 // ParseResult describes the results of parsing a given package.
 type ParseResult struct {
 	RPCs           []*RPC
+	AuthHandlers   []*AuthHandler
+	Middleware     []*Middleware
 	ServiceStructs []*ServiceStruct
 }
 
 func (p *Parser) Parse(pkg *pkginfo.Package) ParseResult {
 	var res ParseResult
-
 	for _, file := range pkg.Files {
 		for _, decl := range file.AST().Decls {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
 				dir, doc := p.parseDirectives(decl.Doc)
 				switch dir := dir.(type) {
+
+				// Parse the various directives operating on functions.
 				case *rpcDirective:
 					res.RPCs = append(res.RPCs, p.parseRPC(file, decl, dir, doc))
+				case *authHandlerDirective:
+					res.AuthHandlers = append(res.AuthHandlers, p.parseAuthHandler(file, decl, dir, doc))
+				case *middlewareDirective:
+					res.Middleware = append(res.Middleware, p.parseMiddleware(file, decl, dir, doc))
 
 				case nil:
 					// do nothing
