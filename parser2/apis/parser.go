@@ -2,6 +2,7 @@ package apis
 
 import (
 	"go/ast"
+	"go/token"
 
 	"encr.dev/parser2/internal/parsectx"
 	"encr.dev/parser2/internal/pkginfo"
@@ -22,26 +23,43 @@ type Parser struct {
 
 // ParseResult describes the results of parsing a given package.
 type ParseResult struct {
-	RPCs []*RPC
+	RPCs           []*RPC
+	ServiceStructs []*ServiceStruct
 }
 
 func (p *Parser) Parse(pkg *pkginfo.Package) ParseResult {
 	var res ParseResult
 
-	for _, f := range pkg.Files {
-		for _, decl := range f.AST().Decls {
-			fd, ok := decl.(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
+	for _, file := range pkg.Files {
+		for _, decl := range file.AST().Decls {
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				dir, doc := p.parseDirectives(decl.Doc)
+				switch dir := dir.(type) {
+				case *rpcDirective:
+					res.RPCs = append(res.RPCs, p.parseRPC(file, decl, dir, doc))
 
-			dir, doc := p.parseDirectives(fd.Doc)
-			switch dir := dir.(type) {
-			case nil:
-				continue
+				case nil:
+					// do nothing
+				default:
+					p.c.Errs.Addf(decl.Pos(), "unexpected directive type %T on function declaration", dir)
+				}
 
-			case *rpcDirective:
-				res.RPCs = append(res.RPCs, p.parseRPC(f, fd, dir, doc))
+			case *ast.GenDecl:
+				if decl.Tok != token.TYPE {
+					continue
+				}
+
+				dir, doc := p.parseDirectives(decl.Doc)
+				switch dir := dir.(type) {
+				case *serviceDirective:
+					res.ServiceStructs = append(res.ServiceStructs, p.parseServiceStruct(file, decl, dir, doc))
+
+				case nil:
+					// do nothing
+				default:
+					p.c.Errs.Addf(decl.Pos(), "unexpected directive type %T on type declaration", dir)
+				}
 			}
 		}
 	}

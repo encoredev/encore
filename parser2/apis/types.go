@@ -8,19 +8,6 @@ import (
 	"encr.dev/parser2/internal/schema"
 )
 
-// ServiceStruct describes a dependency injection struct a particular service defines.
-type ServiceStruct struct {
-	Name string
-	File *pkginfo.File // where the struct is defined
-	Doc  string
-	Decl *ast.TypeSpec
-
-	// Init is the function for initializing this group.
-	// It is nil if there is no initialization function.
-	Init     *ast.FuncDecl
-	InitFile *pkginfo.File // where the init func is declared
-}
-
 type AuthHandler struct {
 	Name   string
 	Doc    string
