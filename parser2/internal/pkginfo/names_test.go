@@ -50,7 +50,7 @@ var _ = quote.Hello()
 		pkg := l.MustLoadPkg(token.NoPos, "rsc.io/quote")
 
 		c.Assert(pkg.Names().PkgDecls, qt.CmpEquals(
-			cmpopts.IgnoreFields(PkgDeclInfo{}, "File", "Pos", "Func", "Spec", "Doc"),
+			cmpopts.IgnoreFields(PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
 		), map[string]*PkgDeclInfo{
 			"Glass": {Name: "Glass", Type: token.FUNC},
 			"Go":    {Name: "Go", Type: token.FUNC},
@@ -80,7 +80,7 @@ var _ = quote.HelloV3()
 		pkg := l.MustLoadPkg(token.NoPos, "rsc.io/quote/v3")
 
 		c.Assert(pkg.Names().PkgDecls, qt.CmpEquals(
-			cmpopts.IgnoreFields(PkgDeclInfo{}, "File", "Pos", "Func", "Spec", "Doc"),
+			cmpopts.IgnoreFields(PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
 		), map[string]*PkgDeclInfo{
 			"HelloV3": {Name: "HelloV3", Type: token.FUNC},
 			"GlassV3": {Name: "GlassV3", Type: token.FUNC},

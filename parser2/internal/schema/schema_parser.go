@@ -13,6 +13,7 @@ import (
 	"encr.dev/parser2/internal/paths"
 	"encr.dev/parser2/internal/perr"
 	"encr.dev/parser2/internal/pkginfo"
+	"encr.dev/pkg/option"
 )
 
 // NewParser constructs a new schema parser.
@@ -90,13 +91,9 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				}
 			}
 
-			// Local type name or universe scope
+			// Local type name
 			if d, ok := pkgNames.PkgDecls[expr.Name]; ok && d.Type == token.TYPE {
-				decl := r.p.ParseTypeDecl(d)
-				return NamedType{
-					AST:  expr,
-					Decl: decl,
-				}
+				return newNamedType(r.p, expr, d)
 			}
 
 			// Finally check if it's a built-in type
@@ -131,8 +128,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				// Otherwise, load the external package and resolve the type.
 				otherPkg := r.p.l.MustLoadPkg(pkgName.Pos(), pkgPath)
 				if d, ok := otherPkg.Names().PkgDecls[expr.Sel.Name]; ok && d.Type == token.TYPE {
-					decl := r.p.ParseTypeDecl(d)
-					return NamedType{AST: expr, Decl: decl}
+					return newNamedType(r.p, expr, d)
 				}
 			}
 			r.errs.Addf(expr.Pos(), "%s is not a type", types.ExprString(expr))
@@ -152,7 +148,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				for _, name := range field.Names {
 					st.Fields = append(st.Fields, &StructField{
 						AST:  field,
-						Name: Some(name.Name),
+						Name: option.Some(name.Name),
 						Type: typ,
 					})
 				}
@@ -197,7 +193,8 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 			return result
 
 		case *ast.InterfaceType:
-			r.errs.Add(expr.Pos(), "cannot use interface types in Encore schema definitions")
+			// TODO(andre) Actually parse information about the interface.
+			return InterfaceType{AST: expr}
 
 		case *ast.ChanType:
 			r.errs.Add(expr.Pos(), "cannot use channel types in Encore schema definitions")
@@ -225,8 +222,8 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 }
 
 // parseFuncType parses an *ast.FuncType into a *FuncType.
-func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) *FuncType {
-	res := &FuncType{
+func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) FuncType {
+	res := FuncType{
 		AST:     ft,
 		Params:  make([]Param, 0, ft.Params.NumFields()),
 		Results: make([]Param, 0, ft.Results.NumFields()),
@@ -243,6 +240,11 @@ func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) *Func
 
 	// Loop over all the fields and parse the types.
 	for _, it := range iters {
+		// The fields are nil if the function has no parameters or results.
+		if it.fields == nil {
+			continue
+		}
+
 		for _, field := range it.fields.List {
 			typ := r.parseType(file, field.Type)
 			// If we have any names it means they all have names.
@@ -250,7 +252,7 @@ func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) *Func
 				for _, name := range field.Names {
 					*it.dst = append(*it.dst, Param{
 						AST:  field,
-						Name: Some(name.Name),
+						Name: option.Some(name.Name),
 						Type: typ,
 					})
 				}
@@ -258,7 +260,7 @@ func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) *Func
 				// Otherwise we have a type-only parameter.
 				*it.dst = append(*it.dst, Param{
 					AST:  field,
-					Name: None[string](),
+					Name: option.None[string](),
 					Type: typ,
 				})
 			}
@@ -269,8 +271,6 @@ func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) *Func
 }
 
 func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo.File, expr ast.Expr, typeArgs []ast.Expr) Type {
-	// TODO determine if it's correct to pass along the typeArgs here.
-	// It was done in the old parser.
 	baseType := r.parseType(file, expr)
 	if baseType.Family() != Named {
 		r.errs.Addf(expr.Pos(), "cannot use type arguments with non-named type %s", types.ExprString(baseType.ASTExpr()))
@@ -278,7 +278,7 @@ func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo.File, expr ast.Expr
 	}
 
 	named := baseType.(NamedType)
-	decl := named.Decl
+	decl := named.Decl()
 	if len(decl.TypeParams) != len(typeArgs) {
 		r.errs.Addf(expr.Pos(), "expected %d type parameters, got %d for reference to %s",
 			len(decl.TypeParams), len(typeArgs), decl.Name)
@@ -328,7 +328,7 @@ func (p *Parser) parseRecv(f *pkginfo.File, fields *ast.FieldList) *Receiver {
 		Type: tr.parseType(f, field.Type),
 	}
 	if len(field.Names) > 0 {
-		recv.Name = Some(field.Names[0].Name)
+		recv.Name = option.Some(field.Names[0].Name)
 	}
 
 	return recv
@@ -370,6 +370,7 @@ var builtinTypes = map[string]BuiltinKind{
 	"string":     String,
 	"byte":       Uint8,
 	"rune":       Uint32,
+	"error":      Error,
 }
 
 // resolveReceiverIdent resolves the identifier for the receiver of a method.
@@ -395,4 +396,16 @@ func (p *Parser) resolveReceiverIdent(expr ast.Expr) *ast.Ident {
 	}
 	p.c.Errs.Fatalf(orig.Pos(), "invalid receiver expression: %s (recursion limit reached)", types.ExprString(orig))
 	return nil // unreachable
+}
+
+// newNamedType is a helper to construct a lazy-loaded NamedType.
+func newNamedType(p *Parser, expr ast.Expr, info *pkginfo.PkgDeclInfo) NamedType {
+	return NamedType{
+		AST:      expr,
+		DeclInfo: info,
+		decl: &lazyDecl{
+			p:    p,
+			info: info,
+		},
+	}
 }

@@ -5,6 +5,7 @@ import (
 
 	"encr.dev/parser2/internal/paths"
 	"encr.dev/parser2/internal/pkginfo"
+	"encr.dev/pkg/option"
 )
 
 // Decl is the common interface for different kinds of declarations.
@@ -54,10 +55,10 @@ type DeclTypeParam struct {
 type FuncDecl struct {
 	AST *ast.FuncDecl
 
-	File *pkginfo.File // the file declaring the type
-	Name string        // the name of the function
-	Recv *Receiver     // nil if not a method
-	Type *FuncType     // signature
+	File *pkginfo.File            // the file declaring the type
+	Name string                   // the name of the function
+	Recv option.Option[*Receiver] // none if not a method
+	Type FuncType                 // signature
 
 	// TypeParams are any type parameters on this declaration.
 	// (note: instantiated types used within this declaration would not be captured here)
@@ -70,7 +71,7 @@ type Receiver struct {
 	AST *ast.FieldList
 	// Name is the name of the receiver (e.g. "a" in "func (a *Foo) Bar()").
 	// It's None if the receiver is unnamed (e.g. "func (*Foo) Bar()").
-	Name Optional[string]
+	Name option.Option[string]
 
 	// Type is the type of the receiver.
 	// It's either a NamedType or a NamedType wrapped in a PointerType.
@@ -141,10 +142,11 @@ func (p *Parser) ParseFuncDecl(file *pkginfo.File, fd *ast.FuncDecl) *FuncDecl {
 	key := declKey{pkg: file.Pkg.ImportPath, name: fd.Name.Name}
 
 	// Is there a receiver? If so we need to add that to the cache key.
-	var recv *Receiver
+	var recv option.Option[*Receiver]
 	if fd.Recv != nil {
-		recv = p.parseRecv(file, fd.Recv)
-		key.recvName = recv.Decl.Name
+		r := p.parseRecv(file, fd.Recv)
+		key.recvName = r.Decl.Name
+		recv = option.Some(r)
 	}
 
 	p.declsMu.Lock()
@@ -176,10 +178,10 @@ func (p *Parser) ParseFuncDecl(file *pkginfo.File, fd *ast.FuncDecl) *FuncDecl {
 
 	// If this is a parameterized declaration, get the type parameters.
 	// If the function is a method, get the type parameters from the receiver's type declaration.
-	// Otherwise use the ones on the function, if any.
+	// Otherwise, use the ones on the function, if any.
 	var typeParamsInScope map[string]int
-	if recv != nil {
-		typeParamsInScope, decl.TypeParams = computeDeclTypeParams(recv.Decl.AST.TypeParams)
+	if recv.IsPresent() {
+		typeParamsInScope, decl.TypeParams = computeDeclTypeParams(recv.Value.Decl.AST.TypeParams)
 	} else {
 		typeParamsInScope, decl.TypeParams = computeDeclTypeParams(fd.Type.TypeParams)
 	}

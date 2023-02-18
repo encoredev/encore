@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"go/ast"
 	"go/build"
 	"go/token"
 	"os/exec"
@@ -72,6 +73,7 @@ func (c *Context) FailTestOnErrors() {
 // FailTestOnBailout is a defer function that fails the test if a bailout
 // was triggered. It must be called as "defer c.FailTestOnBailout()".
 func (c *Context) FailTestOnBailout() {
+	c.TestC.Helper()
 	if l, caught := perr.CatchBailout(recover()); caught {
 		c.TestC.Fatalf("bailout: %s", l.FormatErrors())
 	}
@@ -132,4 +134,16 @@ func writeTxtar(c *qt.C, a *txtar.Archive) (dir string) {
 	err := txtar.Write(a, dir)
 	c.Assert(err, qt.IsNil)
 	return dir
+}
+
+// FindNodes finds all nodes of the type T in the given AST.
+func FindNodes[T ast.Node](root ast.Node) []T {
+	var results []T
+	ast.Inspect(root, func(n ast.Node) bool {
+		if t, ok := n.(T); ok {
+			results = append(results, t)
+		}
+		return true
+	})
+	return results
 }

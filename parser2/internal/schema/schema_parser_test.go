@@ -13,6 +13,7 @@ import (
 
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/testutil"
+	"encr.dev/pkg/option"
 )
 
 func TestParser_ParseType(t *testing.T) {
@@ -95,6 +96,11 @@ func TestParser_ParseType(t *testing.T) {
 			want:    BuiltinType{Kind: JSON},
 		},
 		{
+			name: "builtin_error",
+			typ:  "error",
+			want: BuiltinType{Kind: Error},
+		},
+		{
 			name:    "external_stdlib_type",
 			imports: []string{"database/sql"},
 			typ:     "sql.NullString",
@@ -104,11 +110,11 @@ func TestParser_ParseType(t *testing.T) {
 				Type: StructType{
 					Fields: []*StructField{
 						{
-							Name: Some("String"),
+							Name: option.Some("String"),
 							Type: BuiltinType{Kind: String},
 						},
 						{
-							Name: Some("Valid"),
+							Name: option.Some("Valid"),
 							Type: BuiltinType{Kind: Bool},
 						},
 					},
@@ -120,7 +126,7 @@ func TestParser_ParseType(t *testing.T) {
 			typ:  "map[struct{A int}]struct{}",
 			want: MapType{
 				Key: StructType{Fields: []*StructField{
-					{Name: Some("A"), Type: BuiltinType{Kind: Int}},
+					{Name: option.Some("A"), Type: BuiltinType{Kind: Int}},
 				}},
 				Value: StructType{},
 			},
@@ -161,14 +167,14 @@ func TestParser_ParseType(t *testing.T) {
 						Type: StructType{
 							Fields: []*StructField{
 								{
-									Name: Some("A"),
+									Name: option.Some("A"),
 									Type: TypeParamRefType{
 										Index: 0,
 										Decl:  d,
 									},
 								},
 								{
-									Name: Some("B"),
+									Name: option.Some("B"),
 									Type: TypeParamRefType{
 										Index: 1,
 										Decl:  d,
@@ -267,8 +273,8 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 			decl: "func x() {}",
 			want: &FuncDecl{
 				Name: "x",
-				Recv: nil,
-				Type: &FuncType{
+				Recv: option.None[*Receiver](),
+				Type: FuncType{
 					Params:  nil,
 					Results: nil,
 				},
@@ -279,7 +285,7 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 			decl: "type Foo[A, B any] struct{}\nfunc (f *Foo[A, B]) x() {}",
 			want: &FuncDecl{
 				Name: "x",
-				Recv: (func() *Receiver {
+				Recv: option.Some((func() *Receiver {
 					FooDecl := &TypeDecl{
 						Pkg:        &pkginfo.Package{ImportPath: "example.com"},
 						Name:       "Foo",
@@ -288,7 +294,7 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 					}
 
 					return &Receiver{
-						Name: Some("f"),
+						Name: option.Some("f"),
 						Decl: FooDecl,
 						Type: PointerType{
 							Elem: NamedType{
@@ -306,8 +312,8 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 							},
 						},
 					}
-				})(),
-				Type: &FuncType{
+				})()),
+				Type: FuncType{
 					Params:  nil,
 					Results: nil,
 				},

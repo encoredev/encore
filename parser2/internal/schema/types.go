@@ -1,17 +1,17 @@
 package schema
 
 import (
-	"fmt"
 	"go/ast"
 	"sync"
 
-	"github.com/cockroachdb/errors"
+	"encr.dev/parser2/internal/pkginfo"
+	"encr.dev/pkg/option"
 )
 
 type TypeFamily int
 
 const (
-	Invalid TypeFamily = iota
+	Unknown TypeFamily = iota
 	Named
 	Struct
 	Map
@@ -19,6 +19,7 @@ const (
 	Builtin
 	Pointer
 	Func
+	Interface
 	TypeParamRef
 )
 
@@ -30,11 +31,36 @@ type Type interface {
 type NamedType struct {
 	AST ast.Expr // *ast.Ident or *ast.SelectorExpr
 
-	// Decl is the declaration this type refers to.
-	Decl *TypeDecl
+	// DeclInfo is the declaration info for the declaration
+	// this refers to.
+	DeclInfo *pkginfo.PkgDeclInfo
 
 	// TypeArgs are the type arguments used to instantiate this named type.
 	TypeArgs []Type
+
+	// decl lazy-initializes the type declaration.
+	// It's a pointer since it's stateful via sync.Once.
+	decl *lazyDecl
+}
+
+// lazyDecl is a lazily-initialized type decl.
+type lazyDecl struct {
+	p    *Parser
+	info *pkginfo.PkgDeclInfo
+
+	once sync.Once
+	decl *TypeDecl
+}
+
+func (t NamedType) Decl() *TypeDecl {
+	return t.decl.Decl()
+}
+
+func (d *lazyDecl) Decl() *TypeDecl {
+	d.once.Do(func() {
+		d.decl = d.p.ParseTypeDecl(d.info)
+	})
+	return d.decl
 }
 
 type StructType struct {
@@ -48,7 +74,7 @@ type StructField struct {
 	// in cases with multiple names, like "Foo, Bar int".
 	AST *ast.Field
 
-	Name Optional[string] // field name, or None if anonymous
+	Name option.Option[string] // field name, or None if anonymous
 	Type Type
 
 	docOnce   sync.Once
@@ -105,10 +131,14 @@ type FuncType struct {
 	Results []Param
 }
 
+type InterfaceType struct {
+	AST *ast.InterfaceType
+}
+
 // Param represents a parameter or result field.
 type Param struct {
 	AST  *ast.Field
-	Name Optional[string] // parameter name, or None if a type-only parameter.
+	Name option.Option[string] // parameter name, or None if a type-only parameter.
 	Type Type
 }
 
@@ -125,8 +155,10 @@ type TypeParamRefType struct {
 type BuiltinKind int
 
 const (
-	Any BuiltinKind = iota
+	Invalid BuiltinKind = iota
+	Any
 	Bool
+
 	Int
 	Int8
 	Int16
@@ -137,6 +169,7 @@ const (
 	Uint16
 	Uint32
 	Uint64
+
 	Float32
 	Float64
 	String
@@ -148,6 +181,7 @@ const (
 	UUID
 	JSON
 	UserID
+	Error // builtin "error" type, for convenience
 
 	// unsupported is a special value used
 	// to indicate the particular builtin is known,
@@ -161,6 +195,8 @@ var _ Type = MapType{}
 var _ Type = ListType{}
 var _ Type = PointerType{}
 var _ Type = BuiltinType{}
+var _ Type = FuncType{}
+var _ Type = InterfaceType{}
 var _ Type = TypeParamRefType{}
 
 func (NamedType) Family() TypeFamily        { return Named }
@@ -170,6 +206,7 @@ func (ListType) Family() TypeFamily         { return List }
 func (PointerType) Family() TypeFamily      { return Pointer }
 func (BuiltinType) Family() TypeFamily      { return Builtin }
 func (FuncType) Family() TypeFamily         { return Func }
+func (InterfaceType) Family() TypeFamily    { return Interface }
 func (TypeParamRefType) Family() TypeFamily { return TypeParamRef }
 
 func (t NamedType) ASTExpr() ast.Expr        { return t.AST }
@@ -179,77 +216,5 @@ func (t ListType) ASTExpr() ast.Expr         { return t.AST }
 func (t PointerType) ASTExpr() ast.Expr      { return t.AST }
 func (t BuiltinType) ASTExpr() ast.Expr      { return t.AST }
 func (t FuncType) ASTExpr() ast.Expr         { return t.AST }
+func (t InterfaceType) ASTExpr() ast.Expr    { return t.AST }
 func (t TypeParamRefType) ASTExpr() ast.Expr { return t.AST }
-
-type Optional[T any] struct {
-	Value   T
-	Present bool
-}
-
-func (o *Optional[T]) Clear() {
-	var zero T
-	o.Value = zero
-	o.Present = false
-}
-
-func (o Optional[T]) String() string {
-	if o.Present {
-		return fmt.Sprintf("%v", o.Value)
-	}
-	return "None"
-}
-
-func (o Optional[T]) GetOrDefault(def T) T {
-	if o.Present {
-		return o.Value
-	}
-	return def
-}
-
-func (o Optional[T]) MustGet() (rtn T) {
-	if o.Present {
-		return o.Value
-	}
-	panic(errors.Newf("Optional value is not set: %T", rtn))
-}
-
-func (o Optional[T]) IsPresent() bool {
-	return o.Present
-}
-
-func (o Optional[T]) Get() any {
-	return o.Value
-}
-
-// AsOptional returns an Optional where a zero value T is considered None
-// and any other value is considered Some
-//
-// i.e.
-//
-//	AsOptional(nil) == None()
-//	AsOptional(0) == None()
-//	AsOptional(false) == None()
-//	AsOptional("") == None()
-//	AsOptional(&MyStruct{}) == Some(&MyStruct{})
-//	AsOptional(1) == Some(1)
-//	AsOptional(true) == Some(true)
-func AsOptional[T comparable](v T) Optional[T] {
-	var zero T
-	if v == zero {
-		return None[T]()
-	}
-	return Some[T](v)
-}
-
-// Some returns an Optional with the given value and present set to true
-//
-// This means Some(nil) is a valid present Optional
-// and Some(nil) != None()
-func Some[T any](v T) Optional[T] {
-	return Optional[T]{Value: v, Present: true}
-}
-
-// None returns an Optional with no value set
-func None[T any]() Optional[T] {
-	return Optional[T]{Present: false}
-}

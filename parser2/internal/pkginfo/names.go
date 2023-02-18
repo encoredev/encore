@@ -353,6 +353,9 @@ func (r *fileNameResolver) stmt(stmt ast.Stmt) {
 
 func (r *fileNameResolver) expr(expr ast.Expr) {
 	switch expr := expr.(type) {
+	case nil:
+		// do nothing
+
 	case *ast.Ident:
 		r.ident(expr)
 
