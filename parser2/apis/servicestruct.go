@@ -6,6 +6,7 @@ import (
 
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
+	"encr.dev/parser2/internal/schema/schemautil"
 	"encr.dev/pkg/option"
 )
 
@@ -19,7 +20,7 @@ type ServiceStruct struct {
 	Init option.Option[*schema.FuncDecl]
 }
 
-// parseServiceStruct parses the pkg for any declared encore:service structs.
+// parseServiceStruct parses the auth handler in the provided type declaration.
 func (p *Parser) parseServiceStruct(file *pkginfo.File, gd *ast.GenDecl, dir *serviceDirective, doc string) *ServiceStruct {
 	// We only support encore:service directives directly on the type declaration,
 	// not on a group of type declarations.
@@ -70,10 +71,10 @@ func (p *Parser) validateServiceStruct(ss *ServiceStruct) {
 		if len(initFunc.Type.Results) != 2 {
 			// Wrong number of returns
 			p.c.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
-		} else if result, n := schema.Deref(initFunc.Type.Results[0].Type); n != 1 || !schema.IsNamed(result, ss.Decl.Pkg.ImportPath, ss.Decl.Name) {
+		} else if result, n := schemautil.Deref(initFunc.Type.Results[0].Type); n != 1 || !schemautil.IsNamed(result, ss.Decl.Pkg.ImportPath, ss.Decl.Name) {
 			// First type is not *T
 			p.c.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
-		} else if !schema.IsBuiltinKind(initFunc.Type.Results[1].Type, schema.Error) {
+		} else if !schemautil.IsBuiltinKind(initFunc.Type.Results[1].Type, schema.Error) {
 			// Second type is not builtin error.
 			p.c.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
 		}

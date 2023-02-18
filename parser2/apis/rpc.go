@@ -8,6 +8,7 @@ import (
 	"encr.dev/parser2/apis/selector"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
+	"encr.dev/parser2/internal/schema/schemautil"
 	"encr.dev/pkg/option"
 )
 
@@ -115,7 +116,7 @@ func (p *Parser) initTypedRPC(rpc *RPC) {
 
 	// First type should always be context.Context
 	ctxParam := sig.Params[0]
-	if !schema.IsNamed(ctxParam.Type, "context", "Context") {
+	if !schemautil.IsNamed(ctxParam.Type, "context", "Context") {
 		p.c.Errs.Add(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
 		return
 	}
@@ -169,7 +170,7 @@ func (p *Parser) initTypedRPC(rpc *RPC) {
 	}
 
 	// Make sure the last return is of type error.
-	if err := sig.Results[numResults-1]; !schema.IsBuiltinKind(err.Type, schema.Error) {
+	if err := sig.Results[numResults-1]; !schemautil.IsBuiltinKind(err.Type, schema.Error) {
 		p.c.Errs.Add(err.AST.Pos(), "last result is not of type error"+sigHint)
 		return
 	}
@@ -194,10 +195,10 @@ func (p *Parser) validateRawRPC(rpc *RPC) {
 	}
 
 	// Ensure signature is func(http.ResponseWriter, *http.Request).
-	if !schema.IsNamed(params[0].Type, "net/http", "ResponseWriter") {
+	if !schemautil.IsNamed(params[0].Type, "net/http", "ResponseWriter") {
 		p.c.Errs.Add(params[0].AST.Pos(), "first parameter must be http.ResponseWriter"+sigHint)
 	}
-	if deref, n := schema.Deref(params[1].Type); n != 1 || !schema.IsNamed(deref, "net/http", "Request") {
+	if deref, n := schemautil.Deref(params[1].Type); n != 1 || !schemautil.IsNamed(deref, "net/http", "Request") {
 		p.c.Errs.Add(params[1].AST.Pos(), "second parameter must be *http.Request"+sigHint)
 	}
 }

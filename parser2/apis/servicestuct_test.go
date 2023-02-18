@@ -168,7 +168,7 @@ package foo
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
 					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(schema.StructField{}),
+					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),

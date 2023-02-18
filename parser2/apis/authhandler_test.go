@@ -11,111 +11,77 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/parser2/apis/apipaths"
-	"encr.dev/parser2/apis/selector"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
+	. "encr.dev/parser2/internal/schema/schematest"
 	"encr.dev/parser2/internal/testutil"
 )
 
-func TestParseRPC(t *testing.T) {
+func TestParseAuthHandler(t *testing.T) {
 	type testCase struct {
 		name     string
 		imports  []string
 		def      string
-		want     *RPC
+		want     *AuthHandler
 		wantErrs []string
 	}
+
+	ctxParam := Param(Named(TypeInfo("Context")))
+	uidResult := Param(Builtin(schema.UserID))
+
 	tests := []testCase{
 		{
-			name: "basic",
+			name: "basic_legacy",
 			def: `
-// Foo does things.
-//encore:api public
-func Foo(ctx context.Context) error {}
+//encore:authhandler
+func Foo(ctx context.Context, token string) (auth.UID, error) {}
 `,
-			want: &RPC{
-				Name:   "Foo",
-				Doc:    "Foo does things.\n",
-				Access: Public,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo.Foo", ValueType: schema.String},
-				}},
-				HTTPMethods: []string{"GET", "POST"},
+			want: &AuthHandler{
+				Decl: &schema.FuncDecl{
+					Name: "Foo",
+					Type: schema.FuncType{
+						Params: []schema.Param{
+							ctxParam,
+							Param(String()),
+						},
+						Results: []schema.Param{
+							uidResult,
+							Param(Error()),
+						},
+					},
+				},
+				Param: String(),
 			},
 		},
 		{
-			name: "with_fields",
+			name: "struct_params",
 			def: `
-//encore:api private path=/foo method=PUT tag:some-tag
-func Foo(ctx context.Context) error {}
+type Params struct{}
+//encore:authhandler
+func Foo(ctx context.Context, p *Params) (auth.UID, error) {}
 `,
-			want: &RPC{
-				Name:   "Foo",
-				Doc:    "",
-				Access: Private,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo", ValueType: schema.String},
-				}},
-				HTTPMethods: []string{"PUT"},
-				Tags:        selector.Set{{Type: selector.Tag, Value: "some-tag"}},
-			},
-		},
-		{
-			name: "with_string_param",
-			def: `
-//encore:api auth path=/:key
-func Foo(ctx context.Context, key string) error {}
-`,
-			want: &RPC{
-				Name:   "Foo",
-				Doc:    "",
-				Access: Auth,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Param, Value: "key", ValueType: schema.String},
-				}},
-				HTTPMethods: []string{"GET", "POST"},
-			},
-		},
-		{
-			name: "with_int_param",
-			def: `
-//encore:api auth path=/:key
-func Foo(ctx context.Context, key int) error {}
-`,
-			want: &RPC{
-				Name:   "Foo",
-				Doc:    "",
-				Access: Auth,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Param, Value: "key", ValueType: schema.Int},
-				}},
-				HTTPMethods: []string{"GET", "POST"},
-			},
-		},
-		{
-			name:    "raw",
-			imports: []string{"net/http"},
-			def: `
-//encore:api public raw path=/raw
-func Raw(w http.ResponseWriter, req *http.Request) {}
-`,
-			want: &RPC{
-				Name:   "Raw",
-				Doc:    "",
-				Access: Public,
-				Raw:    true,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "raw", ValueType: schema.String},
-				}},
-				HTTPMethods: []string{"*"},
+			want: &AuthHandler{
+				Decl: &schema.FuncDecl{
+					Name: "Foo",
+					Type: schema.FuncType{
+						Params: []schema.Param{
+							ctxParam,
+							Param(Ptr(Named(TypeInfo("Params")))),
+						},
+						Results: []schema.Param{
+							uidResult,
+							Param(Error()),
+						},
+					},
+				},
+				Param: Ptr(Named(TypeInfo("Params"))),
 			},
 		},
 	}
 
 	// testArchive renders the txtar archive to use for a given test.
 	testArchive := func(test testCase) *txtar.Archive {
-		importList := append([]string{"context"}, test.imports...)
+		importList := append([]string{"context", "encore.dev/beta/auth"}, test.imports...)
 		imports := ""
 		if len(importList) > 0 {
 			imports = "import (\n"
@@ -161,10 +127,10 @@ package foo
 
 			// Parse the directive from the func declaration.
 			dir, doc := p.parseDirectives(fd.Doc)
-			rpcDir, ok := dir.(*rpcDirective)
+			authDir, ok := dir.(*authHandlerDirective)
 			c.Assert(ok, qt.IsTrue)
 
-			got := p.parseRPC(f, fd, rpcDir, doc)
+			got := p.parseAuthHandler(f, fd, authDir, doc)
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(
