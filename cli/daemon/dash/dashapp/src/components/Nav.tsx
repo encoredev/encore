@@ -1,11 +1,14 @@
-import React, { FunctionComponent, useEffect, useState } from "react";
+import React, { FunctionComponent, useEffect, useRef, useState } from "react";
 import { Link, matchPath, useLocation, useParams } from "react-router-dom";
 import { useConn } from "~lib/ctx";
 import logo from "../logo.svg";
 import wordmark from "../wordmark.svg";
+import JSONRPCConn from "~lib/client/jsonrpc";
+import { icons } from "~c/icons";
 
 interface NavProps {
   withoutLinks?: boolean;
+  conn?: JSONRPCConn;
 }
 
 const menuItems: {
@@ -25,6 +28,48 @@ const Nav: FunctionComponent<NavProps> = (props) => {
   const { appID } = useParams<{ appID: string }>();
   const [menuOpen, setMenuOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
+  const [isAppRunning, setIsAppRunning] = useState<boolean>(true);
+  const hasBeenRunning = useRef<boolean>(false);
+
+  useEffect(() => {
+    let timeoutRef: number;
+    const getAppStatus = () => {
+      if (props.conn) {
+        props.conn.request("status", { appID }).then((status: any) => {
+          if (status.running) {
+            // if the app is not currently running and has not been running before disconnecting
+            // then we want to reload the page to populate the components with data. But if the app
+            // has been running before disconnecting then we want to keep the users state and not reload
+            if (!isAppRunning && !hasBeenRunning.current) window.location.reload();
+            hasBeenRunning.current = true;
+          }
+          setIsAppRunning(status.running);
+          timeoutRef = setTimeout(getAppStatus, 2000);
+        });
+      }
+    };
+    getAppStatus();
+    return () => {
+      clearTimeout(timeoutRef);
+    };
+  }, [isAppRunning]);
+
+  useEffect(() => {
+    const { conn } = props;
+    const onClose = () => setIsReconnecting(true);
+    const onReconnect = () => setIsReconnecting(false);
+    if (conn) {
+      conn.on("close", onClose);
+      conn.on("reconnect", onReconnect);
+    }
+    return () => {
+      if (conn) {
+        conn.off("close", onClose);
+        conn.off("reconnect", onReconnect);
+      }
+    };
+  }, []);
 
   return (
     <nav className="bg-black">
@@ -210,6 +255,33 @@ const Nav: FunctionComponent<NavProps> = (props) => {
                 );
               }
             })}
+          </div>
+        </div>
+      )}
+      {isReconnecting && (
+        <div className="prose prose-invert !w-full !max-w-full bg-red p-3 text-center text-white">
+          <span className="flex w-full items-center justify-center">
+            Disconnected from Encore Daemon. Attempting to reconnect{" "}
+            {icons.loading("ml-3 h-4 w-4", "#EEEEEE", "transparent", 2)}
+          </span>
+        </div>
+      )}
+      {!isAppRunning && (
+        <div className="prose prose-invert !w-full !max-w-full bg-codeblue p-3 text-center text-white">
+          <div className="flex w-full flex-col items-center justify-center">
+            <div className="flex items-center space-x-3">
+              <span>
+                Attempting to reconnect to <span className="font-semibold">{appID}</span>
+              </span>
+              {icons.loading("h-4 w-4", "#EEEEEE", "transparent", 2)}
+            </div>
+            <div className="flex justify-center">
+              <span>
+                Make sure the app is running by executing{" "}
+                <code className="border-white">encore run</code> in your terminal from the projects
+                root directory
+              </span>
+            </div>
           </div>
         </div>
       )}
