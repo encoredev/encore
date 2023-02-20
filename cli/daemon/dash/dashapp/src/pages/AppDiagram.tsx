@@ -1,6 +1,5 @@
 import React, { FunctionComponent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import Nav from "~c/Nav";
 import { useConn } from "~lib/ctx";
 import { NotificationMsg } from "~lib/client/jsonrpc";
 import { ProcessReload } from "~lib/client/client";
@@ -33,12 +32,7 @@ const Diagram: FunctionComponent = () => {
   }, []);
 
   return (
-    <>
-      <Nav />
-      <div className="h-full-minus-nav w-full">
-        {metaData && <FlowDiagram metaData={metaData} />}
-      </div>
-    </>
+    <div className="h-full-minus-nav w-full">{metaData && <FlowDiagram metaData={metaData} />}</div>
   );
 };
 
