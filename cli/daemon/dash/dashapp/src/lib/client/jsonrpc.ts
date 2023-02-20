@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import * as protocol from "json-rpc-protocol";
+import ReconnectingWebSocket from "reconnecting-websocket";
 
 function makeAsync<T>(fn: (msg: Message) => T): (msg: Message) => Promise<T> {
   return function (msg) {
@@ -43,16 +44,24 @@ export type Message = RequestMsg | ResponseMsg | NotificationMsg | ErrorMsg;
 
 export default class JSONRPCConn extends EventEmitter {
   _peer: Peer;
-  _ws: WebSocket;
+  _ws: ReconnectingWebSocket;
 
-  constructor(ws: WebSocket) {
+  constructor(ws: ReconnectingWebSocket) {
     super();
     this._ws = ws;
     this._peer = new Peer(
       (msg) => ws.send(msg),
       (msg) => this.emit("notification", msg)
     );
-    ws.onmessage = (event) => this._peer.processMsg(event.data);
+    ws.addEventListener("message", (event) => {
+      this._peer.processMsg(event.data);
+    });
+    ws.addEventListener("close", () => {
+      this.emit("close", "connection closed");
+    });
+    ws.addEventListener("open", () => {
+      this.emit("reconnect", "reconnected");
+    });
   }
 
   async request<T>(method: string, params?: any): Promise<T> {
