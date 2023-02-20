@@ -12,22 +12,31 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metadata"
 	"encore.dev/appruntime/metrics/prometheus/prompb"
+	"encore.dev/appruntime/metrics/system"
 	"encore.dev/metrics"
 )
 
-func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, rootLogger zerolog.Logger) *Exporter {
+func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
+	// Precompute container metadata labels.
 	return &Exporter{
-		svcs:       svcs,
-		cfg:        cfg,
+		svcs: svcs,
+		cfg:  cfg,
+		containerMetadataLabels: []*prompb.Label{
+			{Name: "service_id", Value: meta.ServiceID},
+			{Name: "revision_id", Value: meta.RevisionID},
+			{Name: "instance_id", Value: meta.InstanceID},
+		},
 		rootLogger: rootLogger,
 	}
 }
 
 type Exporter struct {
-	svcs       []string
-	cfg        *config.PrometheusRemoteWriteProvider
-	rootLogger zerolog.Logger
+	svcs                    []string
+	cfg                     *config.PrometheusRemoteWriteProvider
+	containerMetadataLabels []*prompb.Label
+	rootLogger              zerolog.Logger
 }
 
 func (x *Exporter) Shutdown(_ context.Context) {}
@@ -35,6 +44,7 @@ func (x *Exporter) Shutdown(_ context.Context) {}
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()
 	data := x.getMetricData(now, collected)
+	data = append(data, x.getSysMetrics(now)...)
 	proto, err := proto.Marshal(&prompb.WriteRequest{Timeseries: data})
 	if err != nil {
 		return fmt.Errorf("unable to marshal metrics into Protobuf: %v", err)
@@ -65,14 +75,8 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	doAdd := func(val float64, metricName string, baseLabels []*prompb.Label, svcIdx uint16) {
 		labels := make([]*prompb.Label, len(baseLabels)+2)
 		copy(labels, baseLabels)
-		labels[len(baseLabels)] = &prompb.Label{
-			Name:  "__name__",
-			Value: metricName,
-		}
-		labels[len(baseLabels)+1] = &prompb.Label{
-			Name:  "service",
-			Value: x.svcs[svcIdx],
-		}
+		labels[len(baseLabels)] = &prompb.Label{Name: "__name__", Value: metricName}
+		labels[len(baseLabels)+1] = &prompb.Label{Name: "service", Value: x.svcs[svcIdx]}
 		data = append(data, &prompb.TimeSeries{
 			Labels: labels,
 			Samples: []*prompb.Sample{
@@ -85,15 +89,13 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
-		var labels []*prompb.Label
-		if n := len(m.Labels); n > 0 {
-			labels = make([]*prompb.Label, 0, n)
-			for _, label := range m.Labels {
-				labels = append(labels, &prompb.Label{
-					Name:  label.Key,
-					Value: label.Value,
-				})
-			}
+		labels := make([]*prompb.Label, len(x.containerMetadataLabels))
+		copy(labels, x.containerMetadataLabels)
+		for _, label := range m.Labels {
+			labels = append(labels, &prompb.Label{
+				Name:  label.Key,
+				Value: label.Value,
+			})
 		}
 
 		svcNum := m.Info.SvcNum()
@@ -153,6 +155,36 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	return data
+}
+
+func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
+	addMetricNameLabel := func(metricName string) []*prompb.Label {
+		labels := make([]*prompb.Label, len(x.containerMetadataLabels)+1)
+		copy(labels, x.containerMetadataLabels)
+		labels[len(x.containerMetadataLabels)] = &prompb.Label{
+			Name:  "__name__",
+			Value: metricName,
+		}
+		return labels
+	}
+
+	sysMetrics := system.ReadSysMetrics(x.rootLogger)
+	return []*prompb.TimeSeries{
+		{
+			Labels: addMetricNameLabel(system.MetricNameHeapObjectsBytes),
+			Samples: []*prompb.Sample{{
+				Value:     float64(sysMetrics[system.MetricNameHeapObjectsBytes]),
+				Timestamp: FromTime(now),
+			}},
+		},
+		{
+			Labels: addMetricNameLabel(system.MetricNameGoroutines),
+			Samples: []*prompb.Sample{{
+				Value:     float64(sysMetrics[system.MetricNameGoroutines]),
+				Timestamp: FromTime(now),
+			}},
+		},
+	}
 }
 
 // FromTime returns a new millisecond timestamp from a time.

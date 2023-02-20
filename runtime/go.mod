@@ -3,6 +3,7 @@ module encore.dev
 go 1.18
 
 require (
+	cloud.google.com/go/compute/metadata v0.2.1
 	cloud.google.com/go/monitoring v1.9.0
 	cloud.google.com/go/pubsub v1.25.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.1.3
@@ -37,7 +38,6 @@ require (
 require (
 	cloud.google.com/go v0.105.0 // indirect
 	cloud.google.com/go/compute v1.12.1 // indirect
-	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	cloud.google.com/go/iam v0.7.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.1 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.7.0 // indirect
