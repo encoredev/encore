@@ -297,16 +297,20 @@ func uint64Val(val uint64) *monitoringpb.TypedValue {
 }
 
 func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
+	var output []*monitoringpb.TimeSeries
 	monitoredResource := &monitoredrespb.MonitoredResource{
 		Type:   x.cfg.MonitoredResourceType,
 		Labels: x.cfg.MonitoredResourceLabels,
 	}
 	sysMetrics := system.ReadSysMetrics(x.rootLogger)
-	return []*monitoringpb.TimeSeries{
-		{
+
+	if cloudMetricName, ok := x.metricNames[system.MetricNameHeapObjectsBytes]; !ok {
+		x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", system.MetricNameHeapObjectsBytes)
+	} else {
+		output = append(output, &monitoringpb.TimeSeries{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + system.MetricNameHeapObjectsBytes,
+				Type:   "custom.googleapis.com/" + cloudMetricName,
 				Labels: x.containerMetadataLabels,
 			},
 			Resource: monitoredResource,
@@ -314,11 +318,16 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
 				Value:    uint64Val(sysMetrics[system.MetricNameHeapObjectsBytes]),
 			}},
-		},
-		{
+		})
+	}
+
+	if cloudMetricName, ok := x.metricNames[system.MetricNameGoroutines]; !ok {
+		x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", system.MetricNameGoroutines)
+	} else {
+		output = append(output, &monitoringpb.TimeSeries{
 			MetricKind: metricpb.MetricDescriptor_GAUGE,
 			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + system.MetricNameGoroutines,
+				Type:   "custom.googleapis.com/" + cloudMetricName,
 				Labels: x.containerMetadataLabels,
 			},
 			Resource: monitoredResource,
@@ -326,8 +335,10 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
 				Value:    uint64Val(sysMetrics[system.MetricNameGoroutines]),
 			}},
-		},
+		})
 	}
+
+	return output
 }
 
 func (x *Exporter) getClient() *monitoring.MetricClient {
