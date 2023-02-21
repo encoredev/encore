@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/parser2/internal/paths"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
 	"encr.dev/parser2/internal/testutil"
@@ -25,6 +26,7 @@ func TestParseServiceStruct(t *testing.T) {
 		want     *ServiceStruct
 		wantErrs []string
 	}
+	file := fileForPkg("foo", "example.com")
 	tests := []testCase{
 		{
 			name: "basic",
@@ -34,7 +36,7 @@ type Foo struct {}
 `,
 			want: &ServiceStruct{
 				Decl: &schema.TypeDecl{
-					Pkg:        &pkginfo.Package{ImportPath: "example.com"},
+					File:       file,
 					Name:       "Foo",
 					Type:       schema.StructType{},
 					TypeParams: nil,
@@ -50,7 +52,7 @@ func initFoo() (*Foo, error) {}
 `,
 			want: &ServiceStruct{
 				Decl: &schema.TypeDecl{
-					Pkg:        &pkginfo.Package{ImportPath: "example.com"},
+					File:       file,
 					Name:       "Foo",
 					Type:       schema.StructType{},
 					TypeParams: nil,
@@ -177,4 +179,11 @@ package foo
 			}
 		})
 	}
+}
+
+func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo.File {
+	return &pkginfo.File{Pkg: &pkginfo.Package{
+		Name:       pkgName,
+		ImportPath: pkgPath,
+	}}
 }

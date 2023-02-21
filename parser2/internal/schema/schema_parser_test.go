@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/parser2/internal/paths"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/testutil"
 	"encr.dev/pkg/option"
@@ -24,6 +25,8 @@ func TestParser_ParseType(t *testing.T) {
 		want     Type
 		wantErrs []string
 	}
+
+	file := fileForPkg("foo", "example.com")
 	tests := []testCase{
 		{
 			name: "builtin_int",
@@ -43,21 +46,21 @@ func TestParser_ParseType(t *testing.T) {
 		{
 			name: "decl",
 			typ:  "foo\n\ntype foo int",
-			want: NamedType{Decl: &TypeDecl{
+			want: namedTypeWithDecl(&TypeDecl{
 				Name: "foo",
 				Type: BuiltinType{Kind: Int},
-				Pkg:  &pkginfo.Package{ImportPath: "example.com"},
-			}},
+				File: file,
+			}),
 		},
 		{
 			name: "decl_with_type_params",
 			typ:  "foo[int]\n\ntype foo[T any] T",
-			want: NamedType{
-				Decl: (func() *TypeDecl {
+			want: namedTypeWithDecl(
+				(func() *TypeDecl {
 					d := new(TypeDecl)
 					*d = TypeDecl{
 						Name: "foo",
-						Pkg:  &pkginfo.Package{ImportPath: "example.com"},
+						File: file,
 						Type: TypeParamRefType{
 							Index: 0,
 							Decl:  d,
@@ -68,8 +71,8 @@ func TestParser_ParseType(t *testing.T) {
 					}
 					return d
 				})(),
-				TypeArgs: []Type{BuiltinType{Kind: Int}},
-			},
+				BuiltinType{Kind: Int},
+			),
 		},
 		{
 			name:    "builtin_encore_uuid",
@@ -104,11 +107,11 @@ func TestParser_ParseType(t *testing.T) {
 			name:    "external_stdlib_type",
 			imports: []string{"database/sql"},
 			typ:     "sql.NullString",
-			want: NamedType{Decl: &TypeDecl{
+			want: namedTypeWithDecl(&TypeDecl{
 				Name: "NullString",
-				Pkg:  &pkginfo.Package{ImportPath: "database/sql"},
+				File: fileForPkg("sql", "database/sql"),
 				Type: StructType{
-					Fields: []*StructField{
+					Fields: []StructField{
 						{
 							Name: option.Some("String"),
 							Type: BuiltinType{Kind: String},
@@ -119,13 +122,13 @@ func TestParser_ParseType(t *testing.T) {
 						},
 					},
 				},
-			}},
+			}),
 		},
 		{
 			name: "map",
 			typ:  "map[struct{A int}]struct{}",
 			want: MapType{
-				Key: StructType{Fields: []*StructField{
+				Key: StructType{Fields: []StructField{
 					{Name: option.Some("A"), Type: BuiltinType{Kind: Int}},
 				}},
 				Value: StructType{},
@@ -158,14 +161,14 @@ func TestParser_ParseType(t *testing.T) {
 		{
 			name: "multi_generic",
 			typ:  "foo[int, string]\n\ntype foo[T any, U any] struct{A T; B U}",
-			want: NamedType{
-				Decl: (func() *TypeDecl {
+			want: namedTypeWithDecl(
+				(func() *TypeDecl {
 					d := new(TypeDecl)
 					*d = TypeDecl{
 						Name: "foo",
-						Pkg:  &pkginfo.Package{ImportPath: "example.com"},
+						File: file,
 						Type: StructType{
-							Fields: []*StructField{
+							Fields: []StructField{
 								{
 									Name: option.Some("A"),
 									Type: TypeParamRefType{
@@ -189,11 +192,9 @@ func TestParser_ParseType(t *testing.T) {
 					}
 					return d
 				})(),
-				TypeArgs: []Type{
-					BuiltinType{Kind: Int},
-					BuiltinType{Kind: String},
-				},
-			},
+				BuiltinType{Kind: Int},
+				BuiltinType{Kind: String},
+			),
 		},
 	}
 
@@ -244,7 +245,8 @@ var x ` + test.typ + `
 
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
-				cmpEqual := qt.CmpEquals(
+				var options []cmp.Option
+				options = []cmp.Option{
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
 					cmpopts.IgnoreTypes(&pkginfo.File{}),
 					cmpopts.EquateEmpty(),
@@ -252,8 +254,12 @@ var x ` + test.typ + `
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
-				)
-				c.Assert(got, cmpEqual, test.want)
+					cmp.Comparer(func(a, b NamedType) bool {
+						return cmp.Equal(a.Decl(), b.Decl(), options...) && cmp.Equal(a.TypeArgs, b.TypeArgs, options...)
+					}),
+				}
+
+				c.Assert(got, qt.CmpEquals(options...), test.want)
 			}
 		})
 	}
@@ -267,6 +273,7 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 		want     *FuncDecl
 		wantErrs []string
 	}
+	file := fileForPkg("foo", "example.com")
 	tests := []testCase{
 		{
 			name: "simple",
@@ -285,9 +292,10 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 			decl: "type Foo[A, B any] struct{}\nfunc (f *Foo[A, B]) x() {}",
 			want: &FuncDecl{
 				Name: "x",
+				File: file,
 				Recv: option.Some((func() *Receiver {
 					FooDecl := &TypeDecl{
-						Pkg:        &pkginfo.Package{ImportPath: "example.com"},
+						File:       file,
 						Name:       "Foo",
 						Type:       StructType{},
 						TypeParams: []DeclTypeParam{{Name: "A"}, {Name: "B"}},
@@ -297,19 +305,16 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 						Name: option.Some("f"),
 						Decl: FooDecl,
 						Type: PointerType{
-							Elem: NamedType{
-								Decl: FooDecl,
-								TypeArgs: []Type{
-									TypeParamRefType{
-										Decl:  FooDecl,
-										Index: 0,
-									},
-									TypeParamRefType{
-										Decl:  FooDecl,
-										Index: 1,
-									},
+							Elem: namedTypeWithDecl(FooDecl,
+								TypeParamRefType{
+									Decl:  FooDecl,
+									Index: 0,
 								},
-							},
+								TypeParamRefType{
+									Decl:  FooDecl,
+									Index: 1,
+								},
+							),
 						},
 					}
 				})()),
@@ -378,7 +383,8 @@ package foo
 
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
-				cmpEqual := qt.CmpEquals(
+				var options []cmp.Option
+				options = []cmp.Option{
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
 					cmpopts.IgnoreTypes(&pkginfo.File{}),
 					cmpopts.EquateEmpty(),
@@ -386,9 +392,40 @@ package foo
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
-				)
-				c.Assert(got, cmpEqual, test.want)
+					cmp.Comparer(func(a, b NamedType) bool {
+						return cmp.Equal(a.Decl(), b.Decl(), options...) && cmp.Equal(a.TypeArgs, b.TypeArgs, options...)
+					}),
+				}
+
+				c.Assert(got, qt.CmpEquals(options...), test.want)
 			}
 		})
 	}
+}
+
+func namedTypeWithDecl(decl *TypeDecl, typeArgs ...Type) NamedType {
+	lazy := &lazyDecl{}
+	lazy.once.Do(func() {}) // mark the lazy.once as used
+	lazy.decl = decl
+
+	return NamedType{
+		AST:      nil,
+		TypeArgs: typeArgs,
+		// Approximate the PkgDeclInfo
+		DeclInfo: &pkginfo.PkgDeclInfo{
+			Name: decl.Name,
+			File: decl.File,
+			Pos:  token.NoPos,
+			Type: token.TYPE,
+			Spec: decl.AST,
+		},
+		decl: lazy,
+	}
+}
+
+func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo.File {
+	return &pkginfo.File{Pkg: &pkginfo.Package{
+		Name:       pkgName,
+		ImportPath: pkgPath,
+	}}
 }

@@ -24,7 +24,7 @@ type AuthHandler struct {
 
 	// AuthData is the custom auth data type the app specifies
 	// as part of the returns from the auth handler, if any.
-	AuthData option.Option[*schema.TypeDecl]
+	AuthData option.Option[*schema.TypeDeclRef]
 }
 
 // parseAuthHandler parses the auth handler in the provided declaration.
@@ -90,10 +90,10 @@ func (p *Parser) parseAuthHandler(file *pkginfo.File, fd *ast.FuncDecl, dir *aut
 
 	// If we have three results, the second one must be a pointer to a named struct.
 	if numResults > 2 {
-		if decl, ok := schemautil.ResolveNamedStruct(sig.Results[1].Type, true); !ok {
+		if ref, ok := schemautil.ResolveNamedStruct(sig.Results[1].Type, true); !ok {
 			p.c.Errs.Add(sig.Results[1].AST.Pos(), "second result must be a pointer to a named struct"+sigHint)
 		} else {
-			ah.AuthData = option.Some(decl)
+			ah.AuthData = option.Some(ref)
 		}
 	}
 

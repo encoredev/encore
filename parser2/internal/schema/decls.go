@@ -14,6 +14,9 @@ type Decl interface {
 	// ASTNode returns the AST node that this declaration represents.
 	// It's a *ast.FuncDecl or *ast.TypeSpec.
 	ASTNode() ast.Node
+	// String returns the shorthand name for this declaration,
+	// in the form "pkgname.DeclName".
+	String() string
 }
 
 // DeclKind represents different kinds of declarations.
@@ -31,9 +34,9 @@ type TypeDecl struct {
 	// AST is the AST node that this declaration represents.
 	AST *ast.TypeSpec
 
-	Pkg  *pkginfo.Package // the package declaring the type
-	Name string           // name of the type declaration
-	Type Type             // the declaration's underlying type
+	File *pkginfo.File // the file declaring the type
+	Name string        // name of the type declaration
+	Type Type          // the declaration's underlying type
 
 	// TypeParams are any type parameters on this declaration.
 	// (note: instantiated types used within this declaration would not be captured here)
@@ -83,9 +86,11 @@ type Receiver struct {
 
 func (*TypeDecl) Kind() DeclKind      { return DeclType }
 func (d *TypeDecl) ASTNode() ast.Node { return d.AST }
+func (d *TypeDecl) String() string    { return d.File.Pkg.Name + "." + d.Name }
 
 func (*FuncDecl) Kind() DeclKind      { return DeclFunc }
 func (d *FuncDecl) ASTNode() ast.Node { return d.AST }
+func (d *FuncDecl) String() string    { return d.File.Pkg.Name + "." + d.Name }
 
 // ParseTypeDecl parses the type from a package declaration.
 // It errors if the declaration is not a type.
@@ -117,7 +122,7 @@ func (p *Parser) ParseTypeDecl(d *pkginfo.PkgDeclInfo) *TypeDecl {
 	decl := &TypeDecl{
 		AST:        spec,
 		Name:       d.Name,
-		Pkg:        pkg,
+		File:       d.File,
 		TypeParams: nil,
 		// Type is set below
 	}
@@ -181,7 +186,9 @@ func (p *Parser) ParseFuncDecl(file *pkginfo.File, fd *ast.FuncDecl) *FuncDecl {
 	// Otherwise, use the ones on the function, if any.
 	var typeParamsInScope map[string]int
 	if recv.IsPresent() {
-		typeParamsInScope, decl.TypeParams = computeDeclTypeParams(recv.Value.Decl.AST.TypeParams)
+		// Type params on the receiver do not become type params on the func declaration,
+		// so we use "_" to ignore that value, unlike in the "else" case below.
+		typeParamsInScope, _ = computeDeclTypeParams(recv.Value.Decl.AST.TypeParams)
 	} else {
 		typeParamsInScope, decl.TypeParams = computeDeclTypeParams(fd.Type.TypeParams)
 	}

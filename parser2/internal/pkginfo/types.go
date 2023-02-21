@@ -5,6 +5,7 @@ import (
 	goparser "go/parser"
 	"go/token"
 	"os"
+	"path"
 	"sync"
 
 	"golang.org/x/mod/modfile"
@@ -45,9 +46,6 @@ type Package struct {
 
 	namesOnce  sync.Once
 	namesCache *PkgNames
-
-	inspectorOnce  sync.Once
-	inspectorCache *inspector.Inspector
 }
 
 // Names returns the computed package-level names.
@@ -56,24 +54,6 @@ func (p *Package) Names() *PkgNames {
 		p.namesCache = resolvePkgNames(p)
 	})
 	return p.namesCache
-}
-
-// ASTInspector returns an AST inspector that's optimized for
-func (p *Package) ASTInspector() *inspector.Inspector {
-	p.inspectorOnce.Do(func() {
-		tr := p.l.c.Trace("ASTInspector", "pkg", p.ImportPath)
-		defer tr.Done()
-
-		// TODO we could make this concurrent in the future,
-		// if the speedup is worth it.
-		asts := make([]*ast.File, len(p.Files))
-		for i, f := range p.Files {
-			asts[i] = f.AST()
-		}
-		p.inspectorCache = inspector.New(asts)
-	})
-
-	return p.inspectorCache
 }
 
 type File struct {
@@ -100,6 +80,9 @@ type File struct {
 
 	namesOnce  sync.Once
 	namesCache *FileNames
+
+	inspectorOnce  sync.Once
+	inspectorCache *inspector.Inspector
 }
 
 // Names returns the computed file-level names.
@@ -137,4 +120,30 @@ func (f *File) Token() *token.File {
 	_ = f.AST()
 
 	return f.cachedToken
+}
+
+// ASTInspector returns an AST inspector that's optimized for finding
+// nodes of particular types. See [inspector.Inspector] for more information.
+func (f *File) ASTInspector() *inspector.Inspector {
+	f.inspectorOnce.Do(func() {
+		tr := f.l.c.Trace("ASTInspector", "pkg", f.Pkg.ImportPath, "file", f.Name)
+		defer tr.Done()
+
+		f.inspectorCache = inspector.New([]*ast.File{f.AST()})
+	})
+
+	return f.inspectorCache
+}
+
+// A QualifiedName is the combination of a package path and a package-level name.
+// It can be used to uniquely reference a package-level declaration.
+type QualifiedName struct {
+	PkgPath paths.Pkg
+	Name    string
+}
+
+// NaiveDisplayName returns the name as "pkgname.Name" by assuming
+// the package name is equal to the last path component.
+func (q QualifiedName) NaiveDisplayName() string {
+	return path.Base(string(q.PkgPath)) + "." + q.Name
 }

@@ -115,6 +115,7 @@ func resolveFileNames(f *File) *FileNames {
 		f:  f,
 		tr: tr,
 		res: &FileNames{
+			file:       f,
 			nameToPath: make(map[string]paths.Pkg),
 			idents:     make(map[*ast.Ident]*IdentInfo),
 		},
@@ -598,6 +599,7 @@ type PkgNames struct {
 
 // FileNames contains name resolution results for a single file.
 type FileNames struct {
+	file       *File                     // file it belongs to
 	nameToPath map[string]paths.Pkg      // local name -> path
 	idents     map[*ast.Ident]*IdentInfo // ident -> resolved
 	calls      []*ast.CallExpr
@@ -608,6 +610,30 @@ type FileNames struct {
 func (f *FileNames) ResolvePkgPath(name string) (pkgPath paths.Pkg, ok bool) {
 	pkgPath, ok = f.nameToPath[name]
 	return pkgPath, ok
+}
+
+// ResolvePkgLevelRef resolves the node to the package-level reference it refers to.
+// Expr must be either *ast.Ident or *ast.SelectorExpr.
+// If it doesn't refer to a package-level reference it returns ok == false.
+func (f *FileNames) ResolvePkgLevelRef(expr ast.Expr) (name QualifiedName, ok bool) {
+	// Resolve the identifier
+	switch node := expr.(type) {
+	case *ast.Ident:
+		// If it's an ident, then we're looking for something which resolves to a package-level object defined
+		// in the same package as the ident is located in.
+		if name := f.idents[node]; name != nil && name.Package {
+			return QualifiedName{f.file.Pkg.ImportPath, node.Name}, true
+		}
+	case *ast.SelectorExpr:
+		// If it's a selector, then we're looking for something which has been imported from another package
+		if pkgName, ok := node.X.(*ast.Ident); ok {
+			if resolvedIdent := f.idents[pkgName]; resolvedIdent != nil && resolvedIdent.ImportPath != "" {
+				return QualifiedName{resolvedIdent.ImportPath, node.Sel.Name}, true
+			}
+		}
+	}
+
+	return QualifiedName{}, false
 }
 
 // IdentInfo provides metadata for a single identifier.

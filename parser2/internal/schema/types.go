@@ -65,7 +65,7 @@ func (d *lazyDecl) Decl() *TypeDecl {
 
 type StructType struct {
 	AST    *ast.StructType
-	Fields []*StructField
+	Fields []StructField
 }
 
 type StructField struct {
@@ -76,9 +76,7 @@ type StructField struct {
 
 	Name option.Option[string] // field name, or None if anonymous
 	Type Type
-
-	docOnce   sync.Once
-	cachedDoc string
+	Doc  string
 }
 
 func (f *StructField) IsAnonymous() bool {
@@ -87,20 +85,6 @@ func (f *StructField) IsAnonymous() bool {
 
 func (f *StructField) IsExported() bool {
 	return f.IsAnonymous() || ast.IsExported(f.Name.Value)
-}
-
-// Doc returns the doc comment for the field, if any.
-func (f *StructField) Doc() string {
-	f.docOnce.Do(func() {
-		// Use the documentation block above the field by default,
-		// however if that is blank, then use the line comment instead
-		docBlock := f.AST.Doc
-		if docBlock == nil || docBlock.Text() == "" {
-			docBlock = f.AST.Comment
-		}
-		f.cachedDoc = docBlock.Text()
-	})
-	return f.cachedDoc
 }
 
 type MapType struct {
@@ -149,8 +133,6 @@ type TypeParamRefType struct {
 	Decl  Decl // the declaration this type parameter is defined on
 	Index int  // Index into the type parameter slice on the declaration
 }
-
-// TODO(andre) Config Values
 
 type BuiltinKind int
 
@@ -218,3 +200,11 @@ func (t BuiltinType) ASTExpr() ast.Expr      { return t.AST }
 func (t FuncType) ASTExpr() ast.Expr         { return t.AST }
 func (t InterfaceType) ASTExpr() ast.Expr    { return t.AST }
 func (t TypeParamRefType) ASTExpr() ast.Expr { return t.AST }
+
+// TypeDeclRef is a reference to a type declaration, through zero or more pointers
+// and possibly with type arguments.
+type TypeDeclRef struct {
+	Decl     *TypeDecl
+	TypeArgs []Type
+	Pointers int
+}

@@ -136,7 +136,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 		case *ast.StructType:
 			st := StructType{
 				AST:    expr,
-				Fields: make([]*StructField, 0, expr.Fields.NumFields()),
+				Fields: make([]StructField, 0, expr.Fields.NumFields()),
 			}
 
 			for _, field := range expr.Fields.List {
@@ -146,7 +146,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				}
 
 				for _, name := range field.Names {
-					st.Fields = append(st.Fields, &StructField{
+					st.Fields = append(st.Fields, StructField{
 						AST:  field,
 						Name: option.Some(name.Name),
 						Type: typ,
