@@ -1,4 +1,4 @@
-package apis
+package servicestruct
 
 import (
 	"go/ast"
@@ -146,7 +146,6 @@ package foo
 
 			l := pkginfo.New(tc.Context)
 			schemaParser := schema.NewParser(tc.Context, l)
-			p := NewParser(tc.Context, schemaParser)
 
 			if len(test.wantErrs) > 0 {
 				defer tc.DeferExpectError(test.wantErrs...)
@@ -165,7 +164,16 @@ package foo
 			dir, ok := dirs.Get("service")
 			c.Assert(ok, qt.IsTrue)
 
-			got := p.parseServiceStruct(f, gd, dir, doc)
+			pd := ParseData{
+				Errs:   tc.Errs,
+				Schema: schemaParser,
+				File:   f,
+				Decl:   gd,
+				Dir:    dir,
+				Doc:    doc,
+			}
+
+			got := Parse(pd)
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(

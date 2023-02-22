@@ -4,9 +4,11 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/parser2/apis/authhandler"
 	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/apis/middleware"
 	"encr.dev/parser2/apis/rpc"
+	"encr.dev/parser2/apis/servicestruct"
 	"encr.dev/parser2/internal/parsectx"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
@@ -27,9 +29,9 @@ type Parser struct {
 // ParseResult describes the results of parsing a given package.
 type ParseResult struct {
 	RPCs           []*rpc.RPC
-	AuthHandlers   []*AuthHandler
+	AuthHandlers   []*authhandler.AuthHandler
 	Middleware     []*middleware.Middleware
-	ServiceStructs []*ServiceStruct
+	ServiceStructs []*servicestruct.ServiceStruct
 }
 
 func (p *Parser) Parse(pkg *pkginfo.Package) ParseResult {

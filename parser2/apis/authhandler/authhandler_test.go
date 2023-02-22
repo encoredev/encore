@@ -1,4 +1,4 @@
-package apis
+package authhandler
 
 import (
 	"go/ast"
@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
 	. "encr.dev/parser2/internal/schema/schematest"
@@ -112,7 +113,6 @@ package foo
 
 			l := pkginfo.New(tc.Context)
 			schemaParser := schema.NewParser(tc.Context, l)
-			p := NewParser(tc.Context, schemaParser)
 
 			if len(test.wantErrs) > 0 {
 				defer tc.DeferExpectError(test.wantErrs...)
@@ -126,7 +126,22 @@ package foo
 			fd := testutil.FindNodes[*ast.FuncDecl](f.AST())[0]
 
 			// Parse the directive from the func declaration.
-			got := p.parseAuthHandler(f, fd, fd.Doc.Text())
+			dirs, doc, err := directive.Parse(fd.Doc)
+			c.Assert(err, qt.IsNil)
+			dir, ok := dirs.Get("authhandler")
+			c.Assert(ok, qt.IsTrue)
+
+			pd := ParseData{
+				Errs:   tc.Errs,
+				Schema: schemaParser,
+				File:   f,
+				Func:   fd,
+				Dir:    dir,
+				Doc:    doc,
+			}
+
+			got := Parse(pd)
+
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(

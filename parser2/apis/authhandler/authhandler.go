@@ -1,8 +1,10 @@
-package apis
+package authhandler
 
 import (
 	"go/ast"
 
+	"encr.dev/parser2/apis/directive"
+	"encr.dev/parser2/internal/perr"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
 	"encr.dev/parser2/internal/schema/schemautil"
@@ -27,13 +29,23 @@ type AuthHandler struct {
 	AuthData option.Option[*schema.TypeDeclRef]
 }
 
-// parseAuthHandler parses the auth handler in the provided declaration.
-func (p *Parser) parseAuthHandler(file *pkginfo.File, fd *ast.FuncDecl, doc string) *AuthHandler {
-	decl := p.schema.ParseFuncDecl(file, fd)
+type ParseData struct {
+	Errs   *perr.List
+	Schema *schema.Parser
+
+	File *pkginfo.File
+	Func *ast.FuncDecl
+	Dir  directive.Directive
+	Doc  string
+}
+
+// Parse parses the auth handler in the provided declaration.
+func Parse(d ParseData) *AuthHandler {
+	decl := d.Schema.ParseFuncDecl(d.File, d.Func)
 
 	ah := &AuthHandler{
 		Decl: decl,
-		Doc:  doc,
+		Doc:  d.Doc,
 		Recv: decl.Recv,
 	}
 
@@ -51,24 +63,24 @@ func (p *Parser) parseAuthHandler(file *pkginfo.File, fd *ast.FuncDecl, doc stri
 
 	// Validate the input
 	if numParams < 2 {
-		p.c.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too few parameters)"+sigHint)
+		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too few parameters)"+sigHint)
 		return ah
 	} else if numParams > 2 {
-		p.c.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too many parameters)"+sigHint)
+		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too many parameters)"+sigHint)
 	}
 
 	numResults := len(sig.Results)
 	if numResults < 2 {
-		p.c.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too few results)"+sigHint)
+		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too few results)"+sigHint)
 		return ah
 	} else if numResults > 3 {
-		p.c.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too many results)"+sigHint)
+		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too many results)"+sigHint)
 	}
 
 	// First param should always be context.Context
 	ctxParam := sig.Params[0]
 	if !schemautil.IsNamed(ctxParam.Type, "context", "Context") {
-		p.c.Errs.Add(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
+		d.Errs.Add(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
 	}
 
 	ah.Param = sig.Params[1].Type
@@ -79,19 +91,19 @@ func (p *Parser) parseAuthHandler(file *pkginfo.File, fd *ast.FuncDecl, doc stri
 		if schemautil.IsBuiltinKind(param, schema.String) {
 			// All good
 		} else if _, ok := schemautil.ResolveNamedStruct(param, true); !ok {
-			p.c.Errs.Add(param.ASTExpr().Pos(), "second parameter must be a string, or a pointer to a named struct"+sigHint)
+			d.Errs.Add(param.ASTExpr().Pos(), "second parameter must be a string, or a pointer to a named struct"+sigHint)
 		}
 	}
 
 	// First result must be auth.UID
 	if uid := sig.Results[0]; !schemautil.IsBuiltinKind(uid.Type, schema.UserID) {
-		p.c.Errs.Add(uid.AST.Pos(), "first result must be of type auth.UID"+sigHint)
+		d.Errs.Add(uid.AST.Pos(), "first result must be of type auth.UID"+sigHint)
 	}
 
 	// If we have three results, the second one must be a pointer to a named struct.
 	if numResults > 2 {
 		if ref, ok := schemautil.ResolveNamedStruct(sig.Results[1].Type, true); !ok {
-			p.c.Errs.Add(sig.Results[1].AST.Pos(), "second result must be a pointer to a named struct"+sigHint)
+			d.Errs.Add(sig.Results[1].AST.Pos(), "second result must be a pointer to a named struct"+sigHint)
 		} else {
 			ah.AuthData = option.Some(ref)
 		}
