@@ -190,7 +190,7 @@ func (b *builder) writePackageHandlers(pkg *est.Package) error {
 
 	b.addOverlay(filepath.Join(pkg.Dir, name), filePath)
 
-	f, err := b.codegen.PackageResources(pkg)
+	f, err := b.codegen.Infra(pkg)
 	if err != nil {
 		return err
 	}

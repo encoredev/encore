@@ -147,6 +147,12 @@ calls to config.Load[T]().
 */
 
 
+// generated infra types for package otherservice
+package otherservice
+
+import _ "encore.dev/appruntime/app/appinit"
+
+
 // generated types for service svc
 package svc
 
@@ -160,7 +166,6 @@ import (
 	__service "encore.dev/appruntime/service"
 	errs "encore.dev/beta/errs"
 	uuid "encore.dev/types/uuid"
-	"fmt"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
 	"net/url"
@@ -1482,10 +1487,6 @@ func EncoreInternal_CallTwo(ctx context.Context, params *FooParams) error {
 	return nil
 }
 
-func EncoreInternal_stringsKeyMapper(key int) string {
-	return fmt.Sprintf("foo/%v", key)
-}
-
 type EncoreInternal_AuthHandlerAuthParams = AuthParams
 
 var EncoreInternal_AuthHandlerAuthHandler = &__api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
@@ -1729,6 +1730,19 @@ func encoreInternalTypeConfigUnmarshaler_Optional[T any](_T_unmarshaler config.U
 		})
 		return
 	}
+}
+
+
+// generated infra types for package svc
+package svc
+
+import (
+	_ "encore.dev/appruntime/app/appinit"
+	"fmt"
+)
+
+func EncoreInternal_stringsKeyMapper(key int) string {
+	return fmt.Sprintf("foo/%v", key)
 }
 // etype package
 package etype
