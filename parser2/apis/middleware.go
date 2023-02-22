@@ -1,10 +1,12 @@
 package apis
 
 import (
+	"fmt"
 	"go/ast"
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/apis/selector"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
@@ -28,15 +30,44 @@ type Middleware struct {
 }
 
 // parseMiddleware parses the auth handler in the provided declaration.
-func (p *Parser) parseMiddleware(file *pkginfo.File, fd *ast.FuncDecl, dir *middlewareDirective, doc string) *Middleware {
+func (p *Parser) parseMiddleware(file *pkginfo.File, fd *ast.FuncDecl, dir directive.Directive, doc string) *Middleware {
 	decl := p.schema.ParseFuncDecl(file, fd)
 
 	mw := &Middleware{
 		Decl:   decl,
 		Doc:    doc,
 		Recv:   decl.Recv,
-		Global: dir.Global,
-		Target: dir.Target,
+		Global: dir.HasOption("global"),
+	}
+	err := directive.Validate(dir, directive.ValidateSpec{
+		AllowedOptions: []string{"global"},
+		AllowedFields:  []string{"target"},
+		ValidateOption: nil,
+		ValidateField: func(f directive.Field) (err error) {
+			switch f.Key {
+			case "target":
+				parts := f.List()
+				for _, p := range parts {
+					sel, err := selector.Parse(p)
+					if err != nil {
+						return fmt.Errorf("invalid selector format %q: %v", p, err)
+					}
+
+					switch sel.Type {
+					case selector.Tag, selector.All:
+					default:
+						return fmt.Errorf("middleware target only supports tags as selectors (got '%s')", sel.Type)
+					}
+					mw.Target.Add(sel)
+				}
+			}
+			return err
+		},
+		ValidateTag: nil,
+	})
+	if err != nil {
+		p.c.Errs.Addf(dir.AST.Pos(), "invalid encore:middleware directive: %v", err)
+		return mw
 	}
 
 	const sigHint = `

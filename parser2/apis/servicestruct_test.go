@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/internal/paths"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
@@ -159,11 +160,12 @@ package foo
 			gd := testutil.FindNodes[*ast.GenDecl](f.AST())[1]
 
 			// Parse the directive from the func declaration.
-			dir, doc := p.parseDirectives(gd.Doc)
-			svcDir, ok := dir.(*serviceDirective)
+			dirs, doc, err := directive.Parse(gd.Doc)
+			c.Assert(err, qt.IsNil)
+			dir, ok := dirs.Get("service")
 			c.Assert(ok, qt.IsTrue)
 
-			got := p.parseServiceStruct(f, gd, svcDir, doc)
+			got := p.parseServiceStruct(f, gd, dir, doc)
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(

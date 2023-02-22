@@ -28,7 +28,7 @@ type AuthHandler struct {
 }
 
 // parseAuthHandler parses the auth handler in the provided declaration.
-func (p *Parser) parseAuthHandler(file *pkginfo.File, fd *ast.FuncDecl, dir *authHandlerDirective, doc string) *AuthHandler {
+func (p *Parser) parseAuthHandler(file *pkginfo.File, fd *ast.FuncDecl, doc string) *AuthHandler {
 	decl := p.schema.ParseFuncDecl(file, fd)
 
 	ah := &AuthHandler{

@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/apis/selector"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
@@ -106,7 +107,7 @@ package foo
 
 			// Parse the directive from the func declaration.
 			dir, doc := p.parseDirectives(fd.Doc)
-			mwDir, ok := dir.(*middlewareDirective)
+			mwDir, ok := dir.(*directive.middlewareDirective)
 			c.Assert(ok, qt.IsTrue)
 
 			got := p.parseMiddleware(f, fd, mwDir, doc)

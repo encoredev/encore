@@ -1,11 +1,17 @@
-package apis
+package rpc
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/parser2/apis/apipaths"
+	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/apis/selector"
+	"encr.dev/parser2/internal/perr"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
 	"encr.dev/parser2/internal/schema/schemautil"
@@ -36,37 +42,46 @@ type RPC struct {
 	Recv        option.Option[*schema.Receiver] // None if not a method
 }
 
-func (p *Parser) parseRPC(file *pkginfo.File, fd *ast.FuncDecl, dir *rpcDirective, doc string) *RPC {
-	path := dir.Path
+type ParseData struct {
+	Errs   *perr.List
+	Schema *schema.Parser
+
+	File *pkginfo.File
+	Func *ast.FuncDecl
+	Dir  directive.Directive
+	Doc  string
+}
+
+// Parse parses an RPC endpoint. It may return nil on errors.
+func Parse(d ParseData) *RPC {
+	rpc, err := validateDirective(d.Dir)
+	if err != nil {
+		d.Errs.Addf(d.Dir.AST.Pos(), "invalid encore:%s directive: %v", d.Dir.Name, err)
+		return nil
+	}
 
 	// If there was no path, default to "pkg.Decl".
-	if path == nil {
-		path = &apipaths.Path{
-			Pos: dir.TokenPos,
+	if rpc.Path.Segments == nil {
+		rpc.Path = apipaths.Path{
+			Pos: d.Dir.AST.Pos(),
 			Segments: []apipaths.Segment{{
 				Type:      apipaths.Literal,
-				Value:     file.Pkg.Name + "." + fd.Name.Name,
+				Value:     d.File.Pkg.Name + "." + d.Func.Name.Name,
 				ValueType: schema.String,
 			}},
 		}
 	}
 
-	decl := p.schema.ParseFuncDecl(file, fd)
+	decl := d.Schema.ParseFuncDecl(d.File, d.Func)
 
-	rpc := &RPC{
-		Name:        fd.Name.Name,
-		Doc:         doc,
-		Access:      dir.Access,
-		Raw:         dir.Raw,
-		Decl:        decl,
-		File:        file,
-		Path:        *path,
-		HTTPMethods: dir.Method,
-		Tags:        dir.Tags,
-		Recv:        decl.Recv,
-	}
+	rpc.Name = d.Func.Name.Name
+	rpc.Doc = d.Doc
+	rpc.Decl = decl
+	rpc.File = d.File
+	rpc.Recv = decl.Recv
 
 	// If we didn't get any HTTP methods, set a reasonable default.
+	// TODO(andre) Replace this with the RPC encoding.
 	if len(rpc.HTTPMethods) == 0 {
 		if rpc.Raw {
 			rpc.HTTPMethods = []string{"*"}
@@ -84,15 +99,15 @@ func (p *Parser) parseRPC(file *pkginfo.File, fd *ast.FuncDecl, dir *rpcDirectiv
 
 	// Validate the RPC.
 	if rpc.Raw {
-		p.validateRawRPC(rpc)
+		validateRawRPC(d.Errs, rpc)
 	} else {
-		p.initTypedRPC(rpc)
+		initTypedRPC(d.Errs, rpc)
 	}
 
 	return rpc
 }
 
-func (p *Parser) initTypedRPC(rpc *RPC) {
+func initTypedRPC(errs *perr.List, rpc *RPC) {
 	const sigHint = `
 	hint: valid signatures are:
 	- func(context.Context) error
@@ -104,20 +119,20 @@ func (p *Parser) initTypedRPC(rpc *RPC) {
 	sig := decl.Type
 	numParams := len(sig.Params)
 	if numParams == 0 {
-		p.c.Errs.Add(sig.AST.Pos(), "invalid API signature (too few parameters)"+sigHint)
+		errs.Add(sig.AST.Pos(), "invalid API signature (too few parameters)"+sigHint)
 		return
 	}
 
 	numResults := len(sig.Results)
 	if numResults == 0 {
-		p.c.Errs.Add(sig.AST.Pos(), "invalid API signature (too few results)"+sigHint)
+		errs.Add(sig.AST.Pos(), "invalid API signature (too few results)"+sigHint)
 		return
 	}
 
 	// First type should always be context.Context
 	ctxParam := sig.Params[0]
 	if !schemautil.IsNamed(ctxParam.Type, "context", "Context") {
-		p.c.Errs.Add(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
+		errs.Add(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
 		return
 	}
 
@@ -136,14 +151,14 @@ func (p *Parser) initTypedRPC(rpc *RPC) {
 		// Is it a path parameter?
 		if i < len(pathParams) {
 			seg := pathParams[i]
-			b := p.validatePathParam(param, seg)
+			b := validatePathParam(errs, param, seg)
 			pathParams[seenParams].ValueType = b
 			seenParams++
 		} else {
 			// Otherwise it must be a payload parameter
 			payloadIdx := i - len(pathParams)
 			if payloadIdx > 0 {
-				p.c.Errs.Add(param.AST.Pos(), "APIs cannot have multiple payload parameters")
+				errs.Add(param.AST.Pos(), "APIs cannot have multiple payload parameters")
 				continue
 			}
 			rpc.Request = param.Type
@@ -155,7 +170,7 @@ func (p *Parser) initTypedRPC(rpc *RPC) {
 		for i := seenParams; i < len(pathParams); i++ {
 			missing = append(missing, pathParams[i].Value)
 		}
-		p.c.Errs.Addf(sig.AST.Pos(), "invalid API signature: expected function parameters named '%s' to match API path params",
+		errs.Addf(sig.AST.Pos(), "invalid API signature: expected function parameters named '%s' to match API path params",
 			strings.Join(missing, "', '"))
 	}
 
@@ -164,19 +179,19 @@ func (p *Parser) initTypedRPC(rpc *RPC) {
 		result := sig.Results[0]
 		rpc.Response = result.Type
 		if numResults > 2 {
-			p.c.Errs.Add(sig.Results[2].AST.Pos(), "API signature cannot contain more than two results"+sigHint)
+			errs.Add(sig.Results[2].AST.Pos(), "API signature cannot contain more than two results"+sigHint)
 			return
 		}
 	}
 
 	// Make sure the last return is of type error.
 	if err := sig.Results[numResults-1]; !schemautil.IsBuiltinKind(err.Type, schema.Error) {
-		p.c.Errs.Add(err.AST.Pos(), "last result is not of type error"+sigHint)
+		errs.Add(err.AST.Pos(), "last result is not of type error"+sigHint)
 		return
 	}
 }
 
-func (p *Parser) validateRawRPC(rpc *RPC) {
+func validateRawRPC(errs *perr.List, rpc *RPC) {
 	const sigHint = `
 	hint: signature must be func(http.ResponseWriter, *http.Request)`
 
@@ -184,31 +199,31 @@ func (p *Parser) validateRawRPC(rpc *RPC) {
 	sig := decl.Type
 	params := sig.Params
 	if len(params) < 2 {
-		p.c.Errs.Add(sig.AST.Pos(), "invalid API signature (too few parameters)"+sigHint)
+		errs.Add(sig.AST.Pos(), "invalid API signature (too few parameters)"+sigHint)
 		return
 	} else if len(params) > 2 {
-		p.c.Errs.Add(params[2].AST.Pos(), "invalid API signature (too many parameters)"+sigHint)
+		errs.Add(params[2].AST.Pos(), "invalid API signature (too many parameters)"+sigHint)
 		return
 	} else if len(sig.Results) > 0 {
-		p.c.Errs.Addf(sig.Results[0].AST.Pos(), "invalid API signature (too many results)"+sigHint)
+		errs.Addf(sig.Results[0].AST.Pos(), "invalid API signature (too many results)"+sigHint)
 		return
 	}
 
 	// Ensure signature is func(http.ResponseWriter, *http.Request).
 	if !schemautil.IsNamed(params[0].Type, "net/http", "ResponseWriter") {
-		p.c.Errs.Add(params[0].AST.Pos(), "first parameter must be http.ResponseWriter"+sigHint)
+		errs.Add(params[0].AST.Pos(), "first parameter must be http.ResponseWriter"+sigHint)
 	}
 	if deref, n := schemautil.Deref(params[1].Type); n != 1 || !schemautil.IsNamed(deref, "net/http", "Request") {
-		p.c.Errs.Add(params[1].AST.Pos(), "second parameter must be *http.Request"+sigHint)
+		errs.Add(params[1].AST.Pos(), "second parameter must be *http.Request"+sigHint)
 	}
 }
 
 // validatePathParam validates that the given func parameter is compatible with the given path segment.
 // It checks that the names match and that the func parameter is of a permissible type.
 // It returns the func parameter's builtin kind.
-func (p *Parser) validatePathParam(param schema.Param, seg *apipaths.Segment) schema.BuiltinKind {
+func validatePathParam(errs *perr.List, param schema.Param, seg *apipaths.Segment) schema.BuiltinKind {
 	if param.Name.Value != seg.Value {
-		p.c.Errs.Addf(param.AST.Pos(), "unexpected parameter name '%s', expected '%s' (to match path parameter '%s')",
+		errs.Addf(param.AST.Pos(), "unexpected parameter name '%s', expected '%s' (to match path parameter '%s')",
 			param.Name.Value, seg.Value, seg.String())
 	}
 
@@ -217,7 +232,7 @@ func (p *Parser) validatePathParam(param schema.Param, seg *apipaths.Segment) sc
 
 	// Wildcard path parameters must be strings.
 	if seg.Type == apipaths.Wildcard && b != schema.String {
-		p.c.Errs.Addf(param.AST.Pos(), "wildcard path parameter '%s' must be a string", param.Name)
+		errs.Addf(param.AST.Pos(), "wildcard path parameter '%s' must be a string", param.Name)
 	}
 
 	switch b {
@@ -227,7 +242,74 @@ func (p *Parser) validatePathParam(param schema.Param, seg *apipaths.Segment) sc
 		schema.UUID:
 		return b
 	default:
-		p.c.Errs.Addf(param.AST.Pos(), "path parameter '%s' must be a string, bool, integer, or encore.dev/types/uuid.UUID", param.Name)
+		errs.Addf(param.AST.Pos(), "path parameter '%s' must be a string, bool, integer, or encore.dev/types/uuid.UUID", param.Name)
 		return schema.Invalid
 	}
+}
+
+// validateDirective validates the given encore:api directive
+// and returns an RPC with the respective fields set.
+func validateDirective(dir directive.Directive) (*RPC, error) {
+	rpc := &RPC{
+		Raw: dir.HasOption("raw"),
+	}
+
+	accessOptions := []string{"public", "private", "auth"}
+	err := directive.Validate(dir, directive.ValidateSpec{
+		AllowedOptions: append([]string{"raw"}, accessOptions...),
+		AllowedFields:  []string{"path", "method"},
+
+		ValidateOption: func(opt string) error {
+			// If this is an access option, check for duplicates.
+			if slices.Contains(accessOptions, opt) {
+				if rpc.Access != "" {
+					return fmt.Errorf("duplicate access options: %s and %s", rpc.Access, opt)
+				}
+				rpc.Access = AccessType(opt)
+			}
+
+			return nil
+		},
+		ValidateField: func(f directive.Field) (err error) {
+			switch f.Key {
+			case "path":
+				rpc.Path, err = apipaths.Parse(dir.AST.Pos(), f.Value)
+
+			case "method":
+				rpc.HTTPMethods = f.List()
+				for _, m := range rpc.HTTPMethods {
+					for _, c := range m {
+						if !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') {
+							return fmt.Errorf("invalid API method: %q", m)
+						} else if !(c >= 'A' && c <= 'Z') {
+							return errors.New("methods must be ALLCAPS")
+						}
+					}
+				}
+			}
+			return err
+		},
+		ValidateTag: func(tag string) error {
+			sel, err := selector.Parse(tag)
+			if err != nil {
+				return err
+			}
+			rpc.Tags.Add(sel)
+			return nil
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("invalid encore:api directive: %v", err)
+	}
+
+	// Access defaults to private if not provided.
+	if rpc.Access == "" {
+		rpc.Access = Private
+	}
+	if rpc.Access == Private && rpc.Raw {
+		// We don't support private raw APIs for now.
+		return nil, fmt.Errorf("invalid encore:api directive: private APIs cannot be declared raw")
+	}
+
+	return rpc, nil
 }

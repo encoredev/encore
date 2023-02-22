@@ -126,11 +126,7 @@ package foo
 			fd := testutil.FindNodes[*ast.FuncDecl](f.AST())[0]
 
 			// Parse the directive from the func declaration.
-			dir, doc := p.parseDirectives(fd.Doc)
-			authDir, ok := dir.(*authHandlerDirective)
-			c.Assert(ok, qt.IsTrue)
-
-			got := p.parseAuthHandler(f, fd, authDir, doc)
+			got := p.parseAuthHandler(f, fd, fd.Doc.Text())
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(

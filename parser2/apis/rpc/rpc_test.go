@@ -1,4 +1,4 @@
-package apis
+package rpc
 
 import (
 	"go/ast"
@@ -12,6 +12,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/parser2/apis/apipaths"
+	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/apis/selector"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
@@ -146,7 +147,6 @@ package foo
 
 			l := pkginfo.New(tc.Context)
 			schemaParser := schema.NewParser(tc.Context, l)
-			p := NewParser(tc.Context, schemaParser)
 
 			if len(test.wantErrs) > 0 {
 				defer tc.DeferExpectError(test.wantErrs...)
@@ -160,11 +160,20 @@ package foo
 			fd := testutil.FindNodes[*ast.FuncDecl](f.AST())[0]
 
 			// Parse the directive from the func declaration.
-			dir, doc := p.parseDirectives(fd.Doc)
-			rpcDir, ok := dir.(*rpcDirective)
+			dirs, doc, err := directive.Parse(fd.Doc)
+			c.Assert(err, qt.IsNil)
+			dir, ok := dirs.Get("api")
 			c.Assert(ok, qt.IsTrue)
 
-			got := p.parseRPC(f, fd, rpcDir, doc)
+			pd := ParseData{
+				Errs:   tc.Errs,
+				Schema: schemaParser,
+				File:   f,
+				Func:   fd,
+				Dir:    dir,
+				Doc:    doc,
+			}
+			got := Parse(pd)
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(

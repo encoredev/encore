@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/parser2/apis/directive"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
 	"encr.dev/parser2/internal/schema/schemautil"
@@ -21,11 +22,20 @@ type ServiceStruct struct {
 }
 
 // parseServiceStruct parses the auth handler in the provided type declaration.
-func (p *Parser) parseServiceStruct(file *pkginfo.File, gd *ast.GenDecl, dir *serviceDirective, doc string) *ServiceStruct {
+func (p *Parser) parseServiceStruct(file *pkginfo.File, gd *ast.GenDecl, dir directive.Directive, doc string) *ServiceStruct {
+	// Validate the directive.
+	if len(dir.Tags) > 0 {
+		p.c.Errs.Add(dir.AST.Pos(), "invalid encore:service directive: tags are unsupported")
+	} else if len(dir.Fields) > 0 {
+		p.c.Errs.Addf(dir.AST.Pos(), "invalid encore:service directive: unsupported field %q", dir.Fields[0].Key)
+	} else if len(dir.Options) > 0 {
+		p.c.Errs.Addf(dir.AST.Pos(), "invalid encore:service directive: unsupported option %q", dir.Options[0])
+	}
+
 	// We only support encore:service directives directly on the type declaration,
 	// not on a group of type declarations.
 	if len(gd.Specs) != 1 {
-		p.c.Errs.Add(dir.Pos(), "invalid encore directive location (expected on declaration, not group)")
+		p.c.Errs.Add(dir.AST.Pos(), "invalid encore:service directive location (expected on declaration, not group)")
 		if len(gd.Specs) == 0 {
 			// We can't continue without at least one spec.
 			p.c.Errs.Bailout()
