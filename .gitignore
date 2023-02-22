@@ -17,6 +17,7 @@ cli/daemon/dash/dashapp/public/assets/fonts/*/**
 # JetBrains
 .idea
 .fleet
+.run
 
 # MacOS
 .DS_Store
