@@ -240,6 +240,12 @@ to be unmarshalled into the correct types. They are not intended to be used dire
 are automatically updated by Encore whenever you change the data types used within your
 calls to config.Load[T]().
 */
+
+
+// generated infra types for package svc
+package svc
+
+import _ "encore.dev/appruntime/app/appinit"
 // etype package
 package etype
 

@@ -1,0 +1,30 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"encore.dev/metrics"
+)
+
+
+type Labels struct {
+	String string
+	Int int
+	Bool bool
+}
+
+var (
+	Counter   = metrics.NewCounter[uint64]("counter", metrics.CounterConfig{})
+	Gauge   = metrics.NewGauge[uint64]("gauge", metrics.CounterConfig{})
+	CounterGroup   = metrics.NewCounterGroup[Labels, uint64]("counter_group", metrics.CounterConfig{})
+	GaugeGroup = metrics.NewGaugeGroup[Labels, float64]("gauge_group", metrics.CounterConfig{})
+)
+
+//encore:api public
+func Dummy(ctx context.Context) error {
+	return nil
+}
