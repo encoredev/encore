@@ -173,6 +173,7 @@ package foo
 				Dir:    dir,
 				Doc:    doc,
 			}
+
 			got := Parse(pd)
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.

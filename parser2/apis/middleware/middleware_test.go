@@ -1,4 +1,4 @@
-package apis
+package middleware
 
 import (
 	"go/ast"
@@ -92,7 +92,6 @@ package foo
 
 			l := pkginfo.New(tc.Context)
 			schemaParser := schema.NewParser(tc.Context, l)
-			p := NewParser(tc.Context, schemaParser)
 
 			if len(test.wantErrs) > 0 {
 				defer tc.DeferExpectError(test.wantErrs...)
@@ -106,11 +105,21 @@ package foo
 			fd := testutil.FindNodes[*ast.FuncDecl](f.AST())[0]
 
 			// Parse the directive from the func declaration.
-			dir, doc := p.parseDirectives(fd.Doc)
-			mwDir, ok := dir.(*directive.middlewareDirective)
+			dirs, doc, err := directive.Parse(fd.Doc)
+			c.Assert(err, qt.IsNil)
+			dir, ok := dirs.Get("middleware")
 			c.Assert(ok, qt.IsTrue)
 
-			got := p.parseMiddleware(f, fd, mwDir, doc)
+			pd := ParseData{
+				Errs:   tc.Errs,
+				Schema: schemaParser,
+				File:   f,
+				Func:   fd,
+				Dir:    dir,
+				Doc:    doc,
+			}
+
+			got := Parse(pd)
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(

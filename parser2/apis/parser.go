@@ -5,6 +5,7 @@ import (
 	"go/token"
 
 	"encr.dev/parser2/apis/directive"
+	"encr.dev/parser2/apis/middleware"
 	"encr.dev/parser2/apis/rpc"
 	"encr.dev/parser2/internal/parsectx"
 	"encr.dev/parser2/internal/pkginfo"
@@ -27,7 +28,7 @@ type Parser struct {
 type ParseResult struct {
 	RPCs           []*rpc.RPC
 	AuthHandlers   []*AuthHandler
-	Middleware     []*Middleware
+	Middleware     []*middleware.Middleware
 	ServiceStructs []*ServiceStruct
 }
 
