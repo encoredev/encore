@@ -291,6 +291,7 @@ type Metrics struct {
 	CloudWatch         *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
 	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
 	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
+	JSONBased          *JSONBasedMetricsProvider      `json:"json_based,omitempty"`
 }
 
 type GCPCloudMonitoringProvider struct {
@@ -321,3 +322,6 @@ type PrometheusRemoteWriteProvider struct {
 }
 
 type LogsBasedMetricsProvider struct{}
+
+type JSONBasedMetricsProvider struct {
+}

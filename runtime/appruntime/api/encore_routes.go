@@ -6,6 +6,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
+	"encore.dev/appruntime/config"
+	json_based_metrics "encore.dev/appruntime/metrics/json_based"
 	"encore.dev/beta/errs"
 )
 
@@ -19,6 +21,7 @@ func (s *Server) RegisterPubsubSubscriptionHandler(subscriptionID string, handle
 func (s *Server) registerEncoreRoutes() {
 	s.encore.HandlerFunc(wildcardMethod, "/healthz", s.handleHealthz)
 	s.encore.Handle("POST", "/pubsub/push/:subscription_id", s.handlePubsubPush)
+	s.encore.Handle("GET", "/metrics", s.handleMetrics)
 }
 
 // handleHealthz returns the current health and deployment details of the running Encore application
@@ -70,4 +73,33 @@ func (s *Server) handlePubsubPush(w http.ResponseWriter, req *http.Request, ps h
 		s.rt.Logger().Err(err).Str("subscription_id", subscriptionID).Msg("error while handling PubSub push request")
 	}
 	errs.HTTPError(w, err)
+}
+
+// handleMetrics returns the currently tracked metrics of the running Encore application
+func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
+	if !jsonBasedMetricsEnabled(s.cfg) {
+		err := errs.B().Code(errs.NotFound).Err()
+		s.rt.Logger().Err(err).Msg("JSON-based metrics are not enabled for this environment")
+		errs.HTTPError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	exporter := json_based_metrics.New([]string{}, s.cfg.Runtime.Metrics.JSONBased, *s.rt.Logger())
+	collectMetrics := s.registry.Collect()
+	data := exporter.GetMetricData(collectMetrics)
+	bytes, _ := json.Marshal(data)
+	_, _ = w.Write(bytes)
+}
+
+func jsonBasedMetricsEnabled(cfg *config.Config) bool {
+	if cfg.Runtime != nil {
+		if cfg.Runtime.Metrics != nil {
+			if cfg.Runtime.Metrics.JSONBased != nil {
+				return true
+			}
+		}
+	}
+	return false
 }

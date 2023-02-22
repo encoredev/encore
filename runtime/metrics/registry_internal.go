@@ -68,6 +68,21 @@ func (r *Registry) Collect() []CollectedMetric {
 
 type MetricType int
 
+// Converts MetricType enum values into their common English names
+func (mt MetricType) Name() string {
+	switch mt {
+	case CounterType:
+		return "Counter"
+	case GaugeType:
+		return "Gauge"
+	case HistogramType:
+		return "Historgram"
+	default:
+		return "Unknown"
+	}
+
+}
+
 const (
 	CounterType MetricType = iota
 	GaugeType

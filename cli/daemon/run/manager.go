@@ -276,6 +276,10 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 		return nil, errors.Wrap(err, "failed to get global CORS")
 	}
 
+	metricsConfig := &config.Metrics{
+		JSONBased: &config.JSONBasedMetricsProvider{},
+	}
+
 	return &config.Runtime{
 		AppID:           p.ConfigAppID,
 		AppSlug:         p.App.PlatformID(),
@@ -305,5 +309,6 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 			ExtraAllowedHeaders:            globalCORS.AllowHeaders,
 			AllowPrivateNetworkAccess:      true,
 		},
+		Metrics: metricsConfig,
 	}, nil
 }

@@ -69,6 +69,7 @@ type Server struct {
 	rt             *reqtrack.RequestTracker
 	pc             *platform.Client // if nil, requests are not authenticated against platform
 	encoreMgr      *encore.Manager
+	registry       *metrics.Registry
 	requestsTotal  *metrics.CounterGroup[requestsTotalLabels, uint64]
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
@@ -127,6 +128,7 @@ func NewServer(
 		pc:             pc,
 		rt:             rt,
 		encoreMgr:      encoreMgr,
+		registry:       reg,
 		requestsTotal:  requestsTotal,
 		clock:          clock,
 		rootLogger:     rootLogger,
