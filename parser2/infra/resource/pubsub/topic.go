@@ -6,7 +6,7 @@ import (
 	"encr.dev/parser2/infra/internal/literals"
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
 	"encr.dev/parser2/internal/schema/schemautil"
@@ -27,14 +27,14 @@ type Topic struct {
 	MessageType       *schema.TypeDeclRef // The message type of the pub sub topic
 }
 
-func (t *Topic) Kind() resources.Kind { return resources.PubSubTopic }
+func (t *Topic) Kind() resource.Kind { return resource.PubSubTopic }
 
-var TopicParser = &resources.Parser{
+var TopicParser = &resource.Parser{
 	Name:      "PubSub Topic",
 	DependsOn: nil,
 
 	RequiredImports: []string{"encore.dev/pubsub"},
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{Name: "NewTopic", PkgPath: "encore.dev/pubsub"}
 
 		spec := &parseutil.ResourceCreationSpec{
@@ -44,17 +44,22 @@ var TopicParser = &resources.Parser{
 			Parse:       parsePubSubTopic,
 		}
 
+		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
+			if r != nil {
+				resources = append(resources, r)
+			}
 		})
+		return resources
 	},
 }
 
-func parsePubSubTopic(d parseutil.ParseData) resources.Resource {
+func parsePubSubTopic(d parseutil.ParseData) resource.Resource {
 	if len(d.Call.Args) != 2 {
 		d.Pass.Errs.Add(d.Call.Pos(), "pubsub.NewTopic expects 2 arguments")
 		return nil

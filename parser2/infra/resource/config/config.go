@@ -5,7 +5,7 @@ import (
 
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema/schemautil"
 )
@@ -14,14 +14,14 @@ import (
 type Config struct {
 }
 
-func (*Config) Kind() resources.Kind { return resources.Config }
+func (*Config) Kind() resource.Kind { return resource.Config }
 
-var ConfigParser = &resources.Parser{
+var ConfigParser = &resource.Parser{
 	Name:      "Config",
 	DependsOn: nil,
 
 	RequiredImports: []string{"encore.dev/config"},
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/config", Name: "Load"}
 
 		spec := &parseutil.ResourceCreationSpec{
@@ -30,17 +30,22 @@ var ConfigParser = &resources.Parser{
 			MaxTypeArgs: 1,
 			Parse:       parseLoad,
 		}
+		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
+			if r != nil {
+				resources = append(resources, r)
+			}
 		})
+		return resources
 	},
 }
 
-func parseLoad(d parseutil.ParseData) resources.Resource {
+func parseLoad(d parseutil.ParseData) resource.Resource {
 	errs := d.Pass.Errs
 
 	if len(d.Call.Args) > 0 {

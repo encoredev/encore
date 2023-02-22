@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/schema"
 	"encr.dev/parser2/internal/schema/schemautil"
 )
@@ -14,17 +14,17 @@ type Secrets struct {
 	Keys []string // Secret keys to load
 }
 
-func (*Secrets) Kind() resources.Kind { return resources.Secrets }
+func (*Secrets) Kind() resource.Kind { return resource.Secrets }
 
-var SecretsParser = &resources.Parser{
+var SecretsParser = &resource.Parser{
 	Name:      "Secrets",
 	DependsOn: nil,
 
 	RequiredImports: nil, // applies to all packages
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		secrets := p.Pkg.Names().PkgDecls["secrets"]
 		if secrets == nil || secrets.Type != token.VAR {
-			return // nothing to do
+			return nil // nothing to do
 		}
 
 		// Note: we can't use schema.ParseTypeDecl since this is not a type declaration.
@@ -32,19 +32,19 @@ var SecretsParser = &resources.Parser{
 		spec := secrets.Spec.(*ast.ValueSpec)
 		if spec.Type == nil {
 			p.Errs.Add(spec.Pos(), "secrets variable must be a struct")
-			return
+			return nil
 		} else if len(spec.Names) != 1 {
 			p.Errs.Add(spec.Pos(), "secrets variable must be declared separately")
-			return
+			return nil
 		} else if len(spec.Values) != 0 {
 			p.Errs.Add(spec.Pos(), "secrets variable must not be given a value")
-			return
+			return nil
 		}
 
 		st, ok := p.SchemaParser.ParseType(secrets.File, spec.Type).(schema.StructType)
 		if !ok {
 			p.Errs.Add(spec.Pos(), "secrets variable must be a struct")
-			return
+			return nil
 		}
 
 		res := &Secrets{}
@@ -60,6 +60,6 @@ var SecretsParser = &resources.Parser{
 			res.Keys = append(res.Keys, f.Name.MustGet())
 		}
 
-		// TODO(andre) record the resource
+		return []resource.Resource{res}
 	},
 }

@@ -7,7 +7,7 @@ import (
 	"encr.dev/parser2/infra/internal/literals"
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/pkginfo"
 )
 
@@ -17,14 +17,14 @@ type Cluster struct {
 	EvictionPolicy string
 }
 
-func (t *Cluster) Kind() resources.Kind { return resources.CacheCluster }
+func (t *Cluster) Kind() resource.Kind { return resource.CacheCluster }
 
-var ClusterParser = &resources.Parser{
+var ClusterParser = &resource.Parser{
 	Name:      "Cache Cluster",
 	DependsOn: nil,
 
 	RequiredImports: []string{"encore.dev/storage/cache"},
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/storage/cache", Name: "NewCluster"}
 
 		spec := &parseutil.ResourceCreationSpec{
@@ -34,17 +34,22 @@ var ClusterParser = &resources.Parser{
 			Parse:       parseCluster,
 		}
 
+		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
+			if r != nil {
+				resources = append(resources, r)
+			}
 		})
+		return resources
 	},
 }
 
-func parseCluster(d parseutil.ParseData) resources.Resource {
+func parseCluster(d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
 		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 2 arguments", displayName)

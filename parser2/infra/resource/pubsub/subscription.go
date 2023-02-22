@@ -7,7 +7,7 @@ import (
 	"encr.dev/parser2/infra/internal/literals"
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/pkginfo"
 )
 
@@ -17,14 +17,14 @@ type Subscription struct {
 	Doc   string // The documentation on the pub sub subscription
 }
 
-func (t *Subscription) Kind() resources.Kind { return resources.PubSubSubscription }
+func (t *Subscription) Kind() resource.Kind { return resource.PubSubSubscription }
 
-var SubscriptionParser = &resources.Parser{
+var SubscriptionParser = &resource.Parser{
 	Name:      "PubSub Subscription",
-	DependsOn: []*resources.Parser{TopicParser},
+	DependsOn: []*resource.Parser{TopicParser},
 
 	RequiredImports: []string{"encore.dev/pubsub"},
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{Name: "NewSubscription", PkgPath: "encore.dev/pubsub"}
 
 		spec := &parseutil.ResourceCreationSpec{
@@ -34,17 +34,22 @@ var SubscriptionParser = &resources.Parser{
 			Parse:       parsePubSubSubscription,
 		}
 
+		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
+			if r != nil {
+				resources = append(resources, r)
+			}
 		})
+		return resources
 	},
 }
 
-func parsePubSubSubscription(d parseutil.ParseData) resources.Resource {
+func parsePubSubSubscription(d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 3 {
 		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 3 arguments", displayName)

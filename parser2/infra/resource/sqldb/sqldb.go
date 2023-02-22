@@ -7,7 +7,7 @@ import (
 	"encr.dev/parser2/infra/internal/literals"
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/pkginfo"
 )
 
@@ -16,14 +16,14 @@ type Database struct {
 	Doc  string
 }
 
-func (d *Database) Kind() resources.Kind { return resources.SQLDatabase }
+func (d *Database) Kind() resource.Kind { return resource.SQLDatabase }
 
-var DatabaseParser = &resources.Parser{
+var DatabaseParser = &resource.Parser{
 	Name:      "SQL Database",
 	DependsOn: nil,
 
 	RequiredImports: []string{"encore.dev/storage/sqldb"},
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{Name: "Named", PkgPath: "encore.dev/storage/sqldb"}
 
 		spec := &parseutil.ResourceCreationSpec{
@@ -31,17 +31,23 @@ var DatabaseParser = &resources.Parser{
 			Parse:       parseNamedSQLDB,
 		}
 
+		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
+			if r != nil {
+				resources = append(resources, r)
+			}
 		})
+		// TODO(andre) this is not really a resource declaration at all
+		return resources
 	},
 }
 
-func parseNamedSQLDB(d parseutil.ParseData) resources.Resource {
+func parseNamedSQLDB(d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 1 {
 		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 1 argument", displayName)

@@ -1,4 +1,4 @@
-package resources
+package resource
 
 import (
 	"encr.dev/parser2/internal/parsectx"
@@ -12,7 +12,7 @@ type Parser struct {
 
 	RequiredImports []string
 
-	Run func(*Pass)
+	Run func(*Pass) []Resource
 }
 
 type Pass struct {

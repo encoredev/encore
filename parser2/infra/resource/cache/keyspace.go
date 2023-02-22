@@ -9,7 +9,7 @@ import (
 	"encr.dev/parser2/infra/internal/literals"
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
 	"encr.dev/parser2/internal/schema/schemautil"
@@ -29,14 +29,14 @@ type Keyspace struct {
 	ConfigLiteral *ast.CompositeLit
 }
 
-func (t *Keyspace) Kind() resources.Kind { return resources.CacheKeyspace }
+func (t *Keyspace) Kind() resource.Kind { return resource.CacheKeyspace }
 
-var KeyspaceParser = &resources.Parser{
+var KeyspaceParser = &resource.Parser{
 	Name:      "Cache Keyspace",
-	DependsOn: []*resources.Parser{ClusterParser},
+	DependsOn: []*resource.Parser{ClusterParser},
 
 	RequiredImports: []string{"encore.dev/storage/cache"},
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		var (
 			names []pkginfo.QualifiedName
 			specs = make(map[pkginfo.QualifiedName]*parseutil.ResourceCreationSpec)
@@ -53,21 +53,26 @@ var KeyspaceParser = &resources.Parser{
 				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
-				Parse: func(d parseutil.ParseData) resources.Resource {
+				Parse: func(d parseutil.ParseData) resource.Resource {
 					return parseKeyspace(c, d)
 				},
 			}
 			specs[name] = spec
 		}
 
+		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, names, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
 			spec := specs[name]
-			parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
+			if r != nil {
+				resources = append(resources, r)
+			}
 		})
+		return resources
 	},
 }
 
@@ -102,7 +107,7 @@ var keyspaceConstructors = []cacheKeyspaceConstructor{
 	{"NewStructKeyspace", structValue, nil},
 }
 
-func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resources.Resource {
+func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.Resource {
 	errs := d.Pass.Errs
 	constructorName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {

@@ -4,7 +4,7 @@ import (
 	"go/ast"
 
 	"encr.dev/parser2/infra/internal/locations"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/paths"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"
@@ -92,7 +92,7 @@ func hasRequiredImports(imports map[paths.Pkg]bool, required []paths.Pkg) bool {
 }
 
 type ParseData struct {
-	Pass         *resources.Pass
+	Pass         *resource.Pass
 	ResourceFunc pkginfo.QualifiedName
 	File         *pkginfo.File
 
@@ -109,7 +109,7 @@ type ResourceCreationSpec struct {
 	AllowedLocs locations.Filter
 	MinTypeArgs int
 	MaxTypeArgs int
-	Parse       func(ParseData) resources.Resource
+	Parse       func(ParseData) resource.Resource
 }
 
 type ReferenceData struct {
@@ -118,7 +118,7 @@ type ReferenceData struct {
 	ResourceFunc pkginfo.QualifiedName
 }
 
-func ParseResourceCreation(p *resources.Pass, spec *ResourceCreationSpec, data ReferenceData) {
+func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data ReferenceData) resource.Resource {
 	selIdx := len(data.Stack) - 1
 	constructor := data.ResourceFunc
 
@@ -127,7 +127,7 @@ func ParseResourceCreation(p *resources.Pass, spec *ResourceCreationSpec, data R
 	if !spec.AllowedLocs.Allowed(loc) {
 		// TODO make error nicer
 		p.Errs.Add(data.Stack[selIdx].Pos(), "pubsub topic must be declared at the top level")
-		return
+		return nil
 	}
 
 	// Verify the structure of the reference.
@@ -140,7 +140,7 @@ func ParseResourceCreation(p *resources.Pass, spec *ResourceCreationSpec, data R
 		if typeArgsIdx < 0 {
 			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires type arguments, but none were found",
 				constructor.NaiveDisplayName())
-			return
+			return nil
 		}
 		args := resolveTypeArgs(data.Stack[typeArgsIdx])
 		if len(args) < spec.MinTypeArgs {
@@ -150,7 +150,7 @@ func ParseResourceCreation(p *resources.Pass, spec *ResourceCreationSpec, data R
 			}
 			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires%s %d type argument(s), but got %d",
 				constructor.NaiveDisplayName(), qualifier, spec.MinTypeArgs, len(args))
-			return
+			return nil
 		} else if len(args) > spec.MaxTypeArgs {
 			qualifier := " at most"
 			if spec.MinTypeArgs == spec.MaxTypeArgs {
@@ -172,16 +172,16 @@ func ParseResourceCreation(p *resources.Pass, spec *ResourceCreationSpec, data R
 	if callIdx < 0 {
 		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be referenced without being called",
 			constructor.NaiveDisplayName())
-		return
+		return nil
 	}
 	call, ok := data.Stack[callIdx].(*ast.CallExpr)
 	if !ok {
 		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be referenced without being called",
 			constructor.NaiveDisplayName())
-		return
+		return nil
 	}
 
-	spec.Parse(ParseData{
+	return spec.Parse(ParseData{
 		Pass:         p,
 		File:         data.File,
 		Stack:        data.Stack,

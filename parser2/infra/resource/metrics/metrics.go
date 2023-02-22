@@ -11,7 +11,7 @@ import (
 	"encr.dev/parser2/infra/internal/literals"
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
-	"encr.dev/parser2/infra/resources"
+	"encr.dev/parser2/infra/resource"
 	"encr.dev/parser2/internal/pkginfo"
 )
 
@@ -20,7 +20,7 @@ type Metric struct {
 	Doc  string // The documentation on the pub sub topic
 }
 
-func (m *Metric) Kind() resources.Kind { return resources.Metric }
+func (m *Metric) Kind() resource.Kind { return resource.Metric }
 
 // metricConstructor describes a particular metric constructor function.
 type metricConstructor struct {
@@ -38,12 +38,12 @@ var metricConstructors = []metricConstructor{
 	{"NewGaugeGroup", "GaugeConfig", parseGaugeConfig, true, meta.Metric_GAUGE},
 }
 
-var MetricParser = &resources.Parser{
+var MetricParser = &resource.Parser{
 	Name:      "Metric",
 	DependsOn: nil,
 
 	RequiredImports: []string{"encore.dev/metrics"},
-	Run: func(p *resources.Pass) {
+	Run: func(p *resource.Pass) []resource.Resource {
 		var (
 			names []pkginfo.QualifiedName
 			specs = make(map[pkginfo.QualifiedName]*parseutil.ResourceCreationSpec)
@@ -60,25 +60,30 @@ var MetricParser = &resources.Parser{
 				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
-				Parse: func(d parseutil.ParseData) resources.Resource {
+				Parse: func(d parseutil.ParseData) resource.Resource {
 					return parseMetric(c, d)
 				},
 			}
 			specs[name] = spec
 		}
 
+		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, names, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
 			spec := specs[name]
-			parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
+			if r != nil {
+				resources = append(resources, r)
+			}
 		})
+		return resources
 	},
 }
 
-func parseMetric(c metricConstructor, d parseutil.ParseData) resources.Resource {
+func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
 		d.Pass.Errs.Addf(d.Call.Pos(), "%s requires two arguments: the metric name and the metric configuration",
