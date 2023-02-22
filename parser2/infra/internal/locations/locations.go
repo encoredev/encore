@@ -10,7 +10,7 @@ import (
 // Location represents a bitwise flag of locations
 type Location int
 
-//go:generate stringer -type=Location
+//go:generate stringer -type=Location -output locations_string.go
 
 // This list is ordered from most outer possible location, to most inner location
 const (

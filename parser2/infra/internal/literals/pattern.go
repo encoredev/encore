@@ -66,15 +66,19 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 	}
 
 	// If the field is required and isn't set, return an error.
-	isSet := literal.IsSet(fieldPath)
-	if required && !isSet {
-		errs.Addf(literal.Pos(fieldPath), "missing required field: %s", fieldPath)
-		return
+	if isSet := literal.IsSet(fieldPath); !isSet {
+		if required {
+			errs.Addf(literal.Pos(fieldPath), "missing required field: %s", fieldPath)
+			return
+		} else {
+			// Nothing to do
+			return
+		}
 	}
 
 	// If the field is not dynamic and we don't allow dynamic fields, return an error.
 	isDynamic := !literal.IsConstant(fieldPath)
-	if isSet && isDynamic && !dynamicOK {
+	if isDynamic && !dynamicOK {
 		errs.Addf(literal.Pos(fieldPath), "field %s must be a constant literal", fieldPath)
 		return
 	} else if isDynamic {
