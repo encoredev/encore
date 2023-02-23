@@ -99,10 +99,7 @@ type ParseData struct {
 	Stack    []ast.Node
 	Call     *ast.CallExpr
 	TypeArgs []schema.Type
-
-	// TODO(andre) implement these
-	Doc     string
-	VarDecl *ast.GenDecl
+	Doc      string
 }
 
 type ResourceCreationSpec struct {
@@ -121,14 +118,6 @@ type ReferenceData struct {
 func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data ReferenceData) resource.Resource {
 	selIdx := len(data.Stack) - 1
 	constructor := data.ResourceFunc
-
-	// Classify the location the current node is contained in (meaning stack[:len(stack)-1]).
-	loc := locations.Classify(data.Stack[:selIdx-1])
-	if !spec.AllowedLocs.Allowed(loc) {
-		// TODO make error nicer
-		p.Errs.Add(data.Stack[selIdx].Pos(), "pubsub topic must be declared at the top level")
-		return nil
-	}
 
 	// Verify the structure of the reference.
 
@@ -167,17 +156,22 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 	// Make sure the reference is called
 	callIdx := selIdx - 1
 	if hasTypeArgs {
+		// If there are type arguments there's an intermediary IndexExpr or IndexListExpr node.
 		callIdx--
-	}
-	if callIdx < 0 {
-		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be referenced without being called",
-			constructor.NaiveDisplayName())
-		return nil
 	}
 	call, ok := data.Stack[callIdx].(*ast.CallExpr)
 	if !ok {
 		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be referenced without being called",
 			constructor.NaiveDisplayName())
+		return nil
+	}
+
+	// Classify the location the current node is contained in (meaning stack[:len(stack)-1]).
+	loc := locations.Classify(data.Stack[:callIdx-1])
+	if !spec.AllowedLocs.Allowed(loc) {
+		// TODO make error nicer
+		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be called here: must be called from %s",
+			constructor.NaiveDisplayName(), spec.AllowedLocs.Describe())
 		return nil
 	}
 
@@ -187,6 +181,7 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 		Stack:        data.Stack,
 		Call:         call,
 		TypeArgs:     typeArgs,
+		Doc:          resolveResourceDoc(data.Stack),
 		ResourceFunc: data.ResourceFunc,
 	})
 }
@@ -200,4 +195,76 @@ func resolveTypeArgs(node ast.Node) []ast.Expr {
 		return n.Indices
 	}
 	return nil
+}
+
+// resolvedAssignedVar resolves the identifier the resource is being assigned to,
+// as well as the doc comment associated with it.
+// If no identifier can be found it reports nil.
+func resolveAssignedVar(stack []ast.Node) (id *ast.Ident) {
+	for i := len(stack) - 1; i >= 0; i-- {
+		vs, ok := stack[i].(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+
+		// We have found the value spec. Now determine which of the values
+		// that contains the resource we're processing.
+		if (i + 1) >= len(stack) {
+			// We're at the top of the stack already, so there's no
+			// resource here. That should never happen.
+			panic("internal error: resource not found in stack")
+		}
+
+		for n := 0; i < len(vs.Names); n++ {
+			if len(vs.Values) > n && vs.Values[n] == stack[i+1] {
+				// We've found the value that contains the resource.
+				id = vs.Names[n]
+			}
+		}
+		return id
+	}
+	return nil
+}
+
+func resolveResourceDoc(stack []ast.Node) (doc string) {
+	getDoc := func(candidates ...*ast.CommentGroup) string {
+		for _, cg := range candidates {
+			if t := cg.Text(); t != "" {
+				return t
+			}
+		}
+		return ""
+	}
+
+	for i := len(stack) - 1; i >= 0; i-- {
+		switch node := stack[i].(type) {
+		case *ast.Field:
+			if cmt := getDoc(node.Doc, node.Comment); cmt != "" {
+				return cmt
+			}
+		case *ast.ValueSpec:
+			if cmt := getDoc(node.Doc, node.Comment); cmt != "" {
+				return cmt
+			}
+
+		case *ast.GenDecl:
+			if cmt := getDoc(node.Doc); cmt != "" {
+				return cmt
+			}
+
+		case *ast.Comment:
+			if node == nil {
+				return ""
+			}
+			return node.Text
+
+		case *ast.CommentGroup:
+			return getDoc(node)
+
+		case *ast.BlockStmt, *ast.StructType, *ast.InterfaceType, *ast.FuncType:
+			return ""
+		}
+	}
+
+	return ""
 }

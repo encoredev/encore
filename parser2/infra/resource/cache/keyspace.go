@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"strings"
 
-	"encr.dev/parser/paths"
 	"encr.dev/parser2/infra/internal/literals"
 	"encr.dev/parser2/infra/internal/locations"
 	"encr.dev/parser2/infra/internal/parseutil"
@@ -16,13 +15,11 @@ import (
 )
 
 type Keyspace struct {
-	Name           string // The unique name of the cache cluster
-	Doc            string // The documentation on the cluster
-	EvictionPolicy string
+	Doc string // The documentation on the keyspace
 
 	KeyType   schema.Type
 	ValueType schema.Type
-	Path      *paths.Path // TODO(andre) Change to our own type
+	Path      *KeyspacePath
 
 	// The struct literal for the config. Used to inject additional configuration
 	// at compile-time.
@@ -49,13 +46,17 @@ var KeyspaceParser = &resource.Parser{
 			if c.ValueKind != implicitValue {
 				numTypeArgs = 2
 			}
+
+			c := c // capture for closure
+			parseFn := func(d parseutil.ParseData) resource.Resource {
+				return parseKeyspace(c, d)
+			}
+
 			spec := &parseutil.ResourceCreationSpec{
 				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
-				Parse: func(d parseutil.ParseData) resource.Resource {
-					return parseKeyspace(c, d)
-				},
+				Parse:       parseFn,
 			}
 			specs[name] = spec
 		}
@@ -115,13 +116,6 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 		return nil
 	}
 
-	clusterName := parseutil.ParseResourceName(errs, constructorName, "cache keyspace name",
-		d.Call.Args[0], parseutil.KebabName, "")
-	if clusterName == "" {
-		// we already reported the error inside ParseResourceName
-		return nil
-	}
-
 	// TODO(andre) Resolve cluster name
 
 	cfgLit, ok := literals.ParseStruct(errs, d.File, "cache.KeyspaceConfig", d.Call.Args[1])
@@ -145,7 +139,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 		return nil
 	}
 
-	path, err := paths.Parse(patternPos, config.KeyPattern, paths.CacheKeyspace)
+	path, err := ParseKeyspacePath(patternPos, config.KeyPattern)
 	if err != nil {
 		errs.Addf(patternPos, "cache.KeyspaceConfig got an invalid keyspace pattern: %v", err)
 		return nil
@@ -178,7 +172,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 
 		seenPathSegments := make(map[string]bool)
 		for _, seg := range path.Segments {
-			if seg.Type == paths.Literal {
+			if seg.Type == Literal {
 				continue
 			}
 			name := seg.Value
@@ -259,9 +253,9 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 	}
 
 	return &Keyspace{
-		Name:          clusterName,
 		Doc:           d.Doc,
 		ConfigLiteral: cfgLit.Lit(),
+		Path:          path,
 		KeyType:       keyType,
 		ValueType:     valueType,
 	}

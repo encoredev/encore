@@ -21,6 +21,10 @@ func Named(info *pkginfo.PkgDeclInfo) schema.Type {
 	return schema.NamedType{DeclInfo: info}
 }
 
+func Slice(elem schema.Type) schema.Type {
+	return schema.ListType{Elem: elem}
+}
+
 func TypeInfo(name string) *pkginfo.PkgDeclInfo {
 	return &pkginfo.PkgDeclInfo{
 		Name: name,
@@ -34,6 +38,14 @@ func Param(typ schema.Type) schema.Param {
 
 func String() schema.Type {
 	return Builtin(schema.String)
+}
+
+func Bool() schema.Type {
+	return Builtin(schema.Bool)
+}
+
+func Int() schema.Type {
+	return Builtin(schema.Int)
 }
 
 func Error() schema.Type {
