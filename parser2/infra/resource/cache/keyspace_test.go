@@ -9,6 +9,7 @@ import (
 )
 
 func TestParseKeyspace(t *testing.T) {
+	// TODO(andre) Add cache cluster references
 	tests := []resourcetest.Case[*Keyspace]{
 		{
 			Name: "basic",

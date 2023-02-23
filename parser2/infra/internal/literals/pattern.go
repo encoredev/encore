@@ -99,7 +99,7 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 			errs.Addf(literal.Pos(fieldPath), "field %s must be a string literal", fieldPath)
 		}
 
-	case reflect.Int, reflect.Uint:
+	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
 		if val.Kind() == constant.Int {
 			n, _ := constant.Int64Val(val)
 			field.SetInt(n)

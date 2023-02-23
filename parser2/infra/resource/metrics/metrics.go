@@ -56,13 +56,17 @@ var MetricParser = &resource.Parser{
 			if c.HasLabels {
 				numTypeArgs = 2
 			}
+
+			c := c // capture for closure
+			parseFn := func(d parseutil.ParseData) resource.Resource {
+				return parseMetric(c, d)
+			}
+
 			spec := &parseutil.ResourceCreationSpec{
 				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
-				Parse: func(d parseutil.ParseData) resource.Resource {
-					return parseMetric(c, d)
-				},
+				Parse:       parseFn,
 			}
 			specs[name] = spec
 		}
@@ -100,7 +104,11 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 	}
 
 	// Validate the metric value type.
-	if d.TypeArgs[0].Family() != schema.Builtin {
+	valueType := d.TypeArgs[0]
+	if c.HasLabels {
+		valueType = d.TypeArgs[1]
+	}
+	if valueType.Family() != schema.Builtin {
 		d.Pass.Errs.Add(d.Call.Pos(), "metric value type must be a builtin type")
 		return nil
 	}
@@ -109,6 +117,8 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 		Name: metricName,
 		Doc:  d.Doc,
 	}
+
+	// TODO(andre) Validate the label type
 
 	// Parse and validate the metric configuration.
 	cfgLit, ok := literals.ParseStruct(d.Pass.Errs, d.File, "metrics.MetricConfig", d.Call.Args[1])

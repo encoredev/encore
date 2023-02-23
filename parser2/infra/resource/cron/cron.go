@@ -33,8 +33,8 @@ var JobParser = &resource.Parser{
 
 		spec := &parseutil.ResourceCreationSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
-			MinTypeArgs: 1,
-			MaxTypeArgs: 1,
+			MinTypeArgs: 0,
+			MaxTypeArgs: 0,
 			Parse:       parseCronJob,
 		}
 
