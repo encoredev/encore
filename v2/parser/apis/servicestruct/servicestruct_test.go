@@ -1,0 +1,199 @@
+package servicestruct
+
+import (
+	"go/ast"
+	"go/token"
+	"strconv"
+	"testing"
+
+	qt "github.com/frankban/quicktest"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/rogpeppe/go-internal/txtar"
+
+	"encr.dev/pkg/option"
+	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/internal/paths"
+	pkginfo2 "encr.dev/v2/parser/internal/pkginfo"
+	schema2 "encr.dev/v2/parser/internal/schema"
+	"encr.dev/v2/parser/internal/testutil"
+)
+
+func TestParseServiceStruct(t *testing.T) {
+	type testCase struct {
+		name     string
+		imports  []string
+		def      string
+		want     *ServiceStruct
+		wantErrs []string
+	}
+	file := fileForPkg("foo", "example.com")
+	tests := []testCase{
+		{
+			name: "basic",
+			def: `
+//encore:service
+type Foo struct {}
+`,
+			want: &ServiceStruct{
+				Decl: &schema2.TypeDecl{
+					File:       file,
+					Name:       "Foo",
+					Type:       schema2.StructType{},
+					TypeParams: nil,
+				},
+			},
+		},
+		{
+			name: "with_init_func",
+			def: `
+//encore:service
+type Foo struct {}
+func initFoo() (*Foo, error) {}
+`,
+			want: &ServiceStruct{
+				Decl: &schema2.TypeDecl{
+					File:       file,
+					Name:       "Foo",
+					Type:       schema2.StructType{},
+					TypeParams: nil,
+				},
+				Init: option.Some(&schema2.FuncDecl{
+					Name: "initFoo",
+					Type: schema2.FuncType{
+						Results: []schema2.Param{
+							{Type: schema2.PointerType{Elem: schema2.NamedType{
+								DeclInfo: &pkginfo2.PkgDeclInfo{
+									Name: "Foo",
+									Type: token.TYPE,
+								},
+							}}},
+							{Type: schema2.BuiltinType{Kind: schema2.Error}},
+						},
+					},
+				}),
+			},
+		},
+		{
+			name: "error_init_no_service",
+			def: `
+//encore:service
+type Foo struct {}
+func initFoo() error {}
+`,
+			wantErrs: []string{`.*service init function must return \(\*Foo, error\)`},
+		},
+		{
+			name: "error_init_no_pointer",
+			def: `
+//encore:service
+type Foo struct {}
+func initFoo() (Foo, error) {}
+`,
+			wantErrs: []string{`.*service init function must return \(\*Foo, error\)`},
+		},
+		{
+			name: "error_init_shadow_error",
+			def: `
+//encore:service
+type Foo struct {}
+func initFoo() (*Foo, error) {}
+type error int
+`,
+			wantErrs: []string{`.*service init function must return \(\*Foo, error\)`},
+		},
+		{
+			name: "error_init_bad_params",
+			def: `
+//encore:service
+type Foo struct {}
+func initFoo(int) (*Foo, error) {}
+`,
+			wantErrs: []string{`.*service init function cannot have parameters`},
+		},
+	}
+
+	// testArchive renders the txtar archive to use for a given test.
+	testArchive := func(test testCase) *txtar.Archive {
+		importList := append([]string{"context"}, test.imports...)
+		imports := ""
+		if len(importList) > 0 {
+			imports = "import (\n"
+			for _, imp := range importList {
+				imports += "\t" + strconv.Quote(imp) + "\n"
+			}
+			imports += ")\n"
+		}
+
+		return testutil.ParseTxtar(`
+-- go.mod --
+module example.com
+require encore.dev v1.13.4
+-- code.go --
+package foo
+` + imports + `
+
+` + test.def + `
+`)
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := qt.New(t)
+			a := testArchive(test)
+			tc := testutil.NewContext(c, false, a)
+			tc.GoModDownload()
+
+			l := pkginfo2.New(tc.Context)
+			schemaParser := schema2.NewParser(tc.Context, l)
+
+			if len(test.wantErrs) > 0 {
+				defer tc.DeferExpectError(test.wantErrs...)
+			} else {
+				tc.FailTestOnErrors()
+				defer tc.FailTestOnBailout()
+			}
+
+			pkg := l.MustLoadPkg(token.NoPos, "example.com")
+			f := pkg.Files[0]
+			gd := testutil.FindNodes[*ast.GenDecl](f.AST())[1]
+
+			// Parse the directive from the func declaration.
+			dirs, doc, err := directive.Parse(gd.Doc)
+			c.Assert(err, qt.IsNil)
+			dir, ok := dirs.Get("service")
+			c.Assert(ok, qt.IsTrue)
+
+			pd := ParseData{
+				Errs:   tc.Errs,
+				Schema: schemaParser,
+				File:   f,
+				Decl:   gd,
+				Dir:    dir,
+				Doc:    doc,
+			}
+
+			got := Parse(pd)
+			if len(test.wantErrs) == 0 {
+				// Check for equality, ignoring all the AST nodes and pkginfo types.
+				cmpEqual := qt.CmpEquals(
+					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
+					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo2.File{}, &pkginfo2.Package{}, token.Pos(0)),
+					cmpopts.EquateEmpty(),
+					cmpopts.IgnoreUnexported(schema2.StructField{}, schema2.NamedType{}),
+					cmp.Comparer(func(a, b *pkginfo2.Package) bool {
+						return a.ImportPath == b.ImportPath
+					}),
+				)
+				c.Assert(got, cmpEqual, test.want)
+			}
+		})
+	}
+}
+
+func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo2.File {
+	return &pkginfo2.File{Pkg: &pkginfo2.Package{
+		Name:       pkgName,
+		ImportPath: pkgPath,
+	}}
+}
