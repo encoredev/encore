@@ -12,11 +12,11 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/pkg/option"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/pkginfo"
+	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser/apis/directive"
-	"encr.dev/v2/parser/internal/paths"
-	pkginfo2 "encr.dev/v2/parser/internal/pkginfo"
-	schema2 "encr.dev/v2/parser/internal/schema"
-	"encr.dev/v2/parser/internal/testutil"
 )
 
 func TestParseServiceStruct(t *testing.T) {
@@ -63,7 +63,7 @@ func initFoo() (*Foo, error) {}
 					Type: schema2.FuncType{
 						Results: []schema2.Param{
 							{Type: schema2.PointerType{Elem: schema2.NamedType{
-								DeclInfo: &pkginfo2.PkgDeclInfo{
+								DeclInfo: &pkginfo.PkgDeclInfo{
 									Name: "Foo",
 									Type: token.TYPE,
 								},
@@ -144,7 +144,7 @@ package foo
 			tc := testutil.NewContext(c, false, a)
 			tc.GoModDownload()
 
-			l := pkginfo2.New(tc.Context)
+			l := pkginfo.New(tc.Context)
 			schemaParser := schema2.NewParser(tc.Context, l)
 
 			if len(test.wantErrs) > 0 {
@@ -178,10 +178,10 @@ package foo
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo2.File{}, &pkginfo2.Package{}, token.Pos(0)),
+					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
 					cmpopts.IgnoreUnexported(schema2.StructField{}, schema2.NamedType{}),
-					cmp.Comparer(func(a, b *pkginfo2.Package) bool {
+					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
 				)
@@ -191,8 +191,8 @@ package foo
 	}
 }
 
-func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo2.File {
-	return &pkginfo2.File{Pkg: &pkginfo2.Package{
+func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo.File {
+	return &pkginfo.File{Pkg: &pkginfo.Package{
 		Name:       pkgName,
 		ImportPath: pkgPath,
 	}}

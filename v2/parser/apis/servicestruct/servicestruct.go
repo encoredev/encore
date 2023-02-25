@@ -5,11 +5,11 @@ import (
 	"go/token"
 
 	"encr.dev/pkg/option"
+	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
+	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/directive"
-	"encr.dev/v2/parser/internal/perr"
-	"encr.dev/v2/parser/internal/pkginfo"
-	schema2 "encr.dev/v2/parser/internal/schema"
-	"encr.dev/v2/parser/internal/schema/schemautil"
 )
 
 // ServiceStruct describes a dependency injection struct for a service.

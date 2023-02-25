@@ -8,7 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/exp/maps"
 
-	"encr.dev/v2/parser/internal/testutil"
+	"encr.dev/v2/internal/testutil"
 )
 
 func TestNames(t *testing.T) {

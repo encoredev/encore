@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"encr.dev/v2/parser/internal/schema"
+	"encr.dev/v2/internal/schema"
 )
 
 // Path represents a parsed path.

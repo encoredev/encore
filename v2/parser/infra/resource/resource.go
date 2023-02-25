@@ -1,9 +1,9 @@
 package resource
 
 import (
-	"encr.dev/v2/parser/internal/parsectx"
-	"encr.dev/v2/parser/internal/pkginfo"
-	"encr.dev/v2/parser/internal/schema"
+	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 )
 
 type Parser struct {

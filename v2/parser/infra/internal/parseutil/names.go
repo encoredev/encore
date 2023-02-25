@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/parser/infra/internal/literals"
-	"encr.dev/v2/parser/internal/perr"
 )
 
 const resourceNameMaxLength int = 63

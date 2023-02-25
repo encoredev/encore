@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/perr"
-	"encr.dev/v2/parser/internal/pkginfo"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 )
 
 var noOpCasts = map[paths.Pkg][]string{

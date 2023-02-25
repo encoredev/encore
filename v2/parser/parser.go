@@ -10,12 +10,12 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/pkg/experiments"
+	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis"
-	"encr.dev/v2/parser/internal/parsectx"
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/perr"
-	pkginfo2 "encr.dev/v2/parser/internal/pkginfo"
-	"encr.dev/v2/parser/internal/schema"
 )
 
 // Config represents the configuration options for parsing.
@@ -59,7 +59,7 @@ func NewParser(cfg *Config) *Parser {
 }
 
 func NewParserFromCtx(c *parsectx.Context) *Parser {
-	loader := pkginfo2.New(c)
+	loader := pkginfo.New(c)
 	schemaParser := schema.NewParser(c, loader)
 	apiParser := apis.NewParser(c, schemaParser)
 	return &Parser{
@@ -71,7 +71,7 @@ func NewParserFromCtx(c *parsectx.Context) *Parser {
 
 type Parser struct {
 	c         *parsectx.Context
-	loader    *pkginfo2.Loader
+	loader    *pkginfo.Loader
 	apiParser *apis.Parser
 }
 
@@ -82,7 +82,7 @@ func (p *Parser) Parse() {
 // collectPackages parses all the packages in subdirectories of the root directory.
 // It calls process for each package. Multiple goroutines may call process
 // concurrently.
-func (p *Parser) collectPackages(process func(pkg *pkginfo2.Package)) {
+func (p *Parser) collectPackages(process func(pkg *pkginfo.Package)) {
 	// Resolve the module path for the main module.
 	modFilePath := p.c.MainModuleDir.Join("go.mod")
 	modPath, err := resolveModulePath(modFilePath)
@@ -101,7 +101,7 @@ func (p *Parser) collectPackages(process func(pkg *pkginfo2.Package)) {
 }
 
 // processPkg processes a single package.
-func (p *Parser) processPkg(pkg *pkginfo2.Package) {
+func (p *Parser) processPkg(pkg *pkginfo.Package) {
 	res := p.apiParser.Parse(pkg)
 	p.c.Log.Info().Msgf("package %s: -> %+v", pkg.ImportPath, res)
 }

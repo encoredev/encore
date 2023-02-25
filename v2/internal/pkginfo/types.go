@@ -11,7 +11,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"encr.dev/v2/parser/internal/paths"
+	"encr.dev/v2/internal/paths"
 )
 
 // Module describes a Go module.

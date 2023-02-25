@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"encr.dev/v2/parser/internal/parsectx"
-	"encr.dev/v2/parser/internal/paths"
+	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/paths"
 )
 
 // resolvePkgNames resolves package-level names for the given package.

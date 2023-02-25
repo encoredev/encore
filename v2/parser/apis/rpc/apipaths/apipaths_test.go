@@ -5,7 +5,7 @@ import (
 
 	qt "github.com/frankban/quicktest"
 
-	"encr.dev/v2/parser/internal/schema"
+	"encr.dev/v2/internal/schema"
 )
 
 func TestParseURL(t *testing.T) {

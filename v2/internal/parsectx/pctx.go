@@ -8,8 +8,8 @@ import (
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/perr"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
 )
 
 // Context holds all the context for parsing.

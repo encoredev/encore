@@ -7,12 +7,12 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/option"
+	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
+	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/selector"
-	"encr.dev/v2/parser/internal/perr"
-	"encr.dev/v2/parser/internal/pkginfo"
-	schema2 "encr.dev/v2/parser/internal/schema"
-	"encr.dev/v2/parser/internal/schema/schemautil"
 )
 
 // Middleware describes an Encore middleware.

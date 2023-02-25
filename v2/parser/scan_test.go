@@ -9,7 +9,7 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"encr.dev/v2/parser/internal/paths"
+	"encr.dev/v2/internal/paths"
 )
 
 func TestWalkDirs(t *testing.T) {

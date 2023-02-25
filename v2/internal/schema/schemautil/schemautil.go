@@ -3,8 +3,8 @@ package schemautil
 import (
 	"fmt"
 
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/schema"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/schema"
 )
 
 // IsNamed reports whether a given type is a named type with the given

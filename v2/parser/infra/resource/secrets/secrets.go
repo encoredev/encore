@@ -4,9 +4,9 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/internal/schema"
-	"encr.dev/v2/parser/internal/schema/schemautil"
 )
 
 // Secrets represents a secrets struct.

@@ -5,13 +5,13 @@ import (
 	"go/ast"
 	"strings"
 
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema/schemautil"
 	literals2 "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/internal/pkginfo"
-	"encr.dev/v2/parser/internal/schema"
-	"encr.dev/v2/parser/internal/schema/schemautil"
 )
 
 type Keyspace struct {

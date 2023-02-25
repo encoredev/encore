@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"encr.dev/pkg/option"
-	"encr.dev/v2/parser/internal/pkginfo"
+	"encr.dev/v2/internal/pkginfo"
 )
 
 type TypeFamily int

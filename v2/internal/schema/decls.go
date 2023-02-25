@@ -4,8 +4,8 @@ import (
 	"go/ast"
 
 	"encr.dev/pkg/option"
-	"encr.dev/v2/parser/internal/paths"
-	pkginfo2 "encr.dev/v2/parser/internal/pkginfo"
+	"encr.dev/v2/internal/paths"
+	pkginfo2 "encr.dev/v2/internal/pkginfo"
 )
 
 // Decl is the common interface for different kinds of declarations.

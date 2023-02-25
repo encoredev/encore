@@ -2,12 +2,12 @@ package metrics
 
 import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 	literals2 "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil2 "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/internal/pkginfo"
-	"encr.dev/v2/parser/internal/schema"
 )
 
 import (

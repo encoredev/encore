@@ -10,10 +10,10 @@ import (
 	"sync"
 
 	"encr.dev/pkg/option"
-	"encr.dev/v2/parser/internal/parsectx"
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/perr"
-	pkginfo2 "encr.dev/v2/parser/internal/pkginfo"
+	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
+	pkginfo2 "encr.dev/v2/internal/pkginfo"
 )
 
 // NewParser constructs a new schema parser.

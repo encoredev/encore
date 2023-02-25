@@ -7,9 +7,9 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/perr"
-	"encr.dev/v2/parser/internal/testutil"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/testutil"
 )
 
 func TestLoader(t *testing.T) {

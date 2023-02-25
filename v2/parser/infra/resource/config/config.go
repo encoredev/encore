@@ -3,11 +3,11 @@ package config
 import (
 	"go/ast"
 
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/internal/pkginfo"
-	"encr.dev/v2/parser/internal/schema/schemautil"
 )
 
 // Config represents a config load statement.

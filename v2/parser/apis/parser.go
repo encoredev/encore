@@ -4,14 +4,14 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/rpc"
 	"encr.dev/v2/parser/apis/servicestruct"
-	"encr.dev/v2/parser/internal/parsectx"
-	"encr.dev/v2/parser/internal/pkginfo"
-	"encr.dev/v2/parser/internal/schema"
 )
 
 func NewParser(c *parsectx.Context, schema *schema.Parser) *Parser {

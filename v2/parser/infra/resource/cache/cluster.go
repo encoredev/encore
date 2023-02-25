@@ -4,11 +4,11 @@ import (
 	"go/ast"
 
 	"encore.dev/storage/cache"
+	"encr.dev/v2/internal/pkginfo"
 	literals2 "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil2 "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/internal/pkginfo"
 )
 
 type Cluster struct {

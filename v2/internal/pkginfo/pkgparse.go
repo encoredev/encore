@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"encr.dev/v2/parser/internal/paths"
+	"encr.dev/v2/internal/paths"
 )
 
 // File pkgparse implements parsing of packages.

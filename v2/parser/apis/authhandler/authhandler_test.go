@@ -11,11 +11,10 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/v2/internal/pkginfo"
+	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser/apis/directive"
-	pkginfo2 "encr.dev/v2/parser/internal/pkginfo"
-	schema2 "encr.dev/v2/parser/internal/schema"
-	. "encr.dev/v2/parser/internal/schema/schematest"
-	"encr.dev/v2/parser/internal/testutil"
 )
 
 func TestParseAuthHandler(t *testing.T) {
@@ -111,7 +110,7 @@ package foo
 			tc := testutil.NewContext(c, false, a)
 			tc.GoModDownload()
 
-			l := pkginfo2.New(tc.Context)
+			l := pkginfo.New(tc.Context)
 			schemaParser := schema2.NewParser(tc.Context, l)
 
 			if len(test.wantErrs) > 0 {
@@ -146,10 +145,10 @@ package foo
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo2.File{}, &pkginfo2.Package{}, token.Pos(0)),
+					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
 					cmpopts.IgnoreUnexported(schema2.StructField{}, schema2.NamedType{}),
-					cmp.Comparer(func(a, b *pkginfo2.Package) bool {
+					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
 				)

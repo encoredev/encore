@@ -12,9 +12,9 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
-	"encr.dev/v2/parser/internal/parsectx"
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/perr"
+	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
 )
 
 type Context struct {

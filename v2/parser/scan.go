@@ -8,17 +8,17 @@ import (
 	"strings"
 	"sync"
 
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/perr"
-	pkginfo2 "encr.dev/v2/parser/internal/pkginfo"
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 )
 
 // scanPackages scans and parses the Go packages for all subdirectories in the root.
-func scanPackages(quit chan struct{}, errs *perr.List, l *pkginfo2.Loader, root paths.FS, basePkgPath paths.Pkg) <-chan *pkginfo2.Package {
+func scanPackages(quit chan struct{}, errs *perr.List, l *pkginfo.Loader, root paths.FS, basePkgPath paths.Pkg) <-chan *pkginfo.Package {
 	// a worker accepts work in the form of package paths to parse
 	// and sends the parsed results back on the results channel.
 	// It calls wg.Done() when it's done.
-	worker := func(wg *sync.WaitGroup, work <-chan paths.Pkg, results chan<- *pkginfo2.Package) {
+	worker := func(wg *sync.WaitGroup, work <-chan paths.Pkg, results chan<- *pkginfo.Package) {
 		defer wg.Done()
 		for pkgPath := range work {
 			if pkg, ok := l.LoadPkg(token.NoPos, pkgPath); ok {
@@ -52,7 +52,7 @@ func scanPackages(quit chan struct{}, errs *perr.List, l *pkginfo2.Loader, root 
 	if numWorkers < 4 {
 		numWorkers = 4
 	}
-	results := make(chan *pkginfo2.Package, numWorkers)
+	results := make(chan *pkginfo.Package, numWorkers)
 	var activeWorkers sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
 		activeWorkers.Add(1)

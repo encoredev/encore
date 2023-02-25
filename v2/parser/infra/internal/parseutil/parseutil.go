@@ -3,11 +3,11 @@ package parseutil
 import (
 	"go/ast"
 
+	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/internal/paths"
-	"encr.dev/v2/parser/internal/pkginfo"
-	"encr.dev/v2/parser/internal/schema"
 )
 
 // FindPkgNameRefs finds all references in the given package that references
