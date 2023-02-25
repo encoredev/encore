@@ -40,6 +40,20 @@ func (fs FS) ToIO() string {
 	}
 }
 
+// ToDisplay returns the path in a form suitable for displaying
+// to the user.
+func (fs FS) ToDisplay() string {
+	fs.checkValid()
+	if filepath.IsAbs(fs.path) {
+		// It's an absolute path. If we can make it relative and
+		// the result is a local path, then do so.
+		if rel, err := filepath.Rel(fs.wd, fs.path); err == nil && filepath.IsLocal(rel) {
+			return rel
+		}
+	}
+	return fs.path
+}
+
 // Resolve returns a new FS path to the given path.
 // Relative paths are resolved relative to the current path.
 func (fs FS) Resolve(p string) FS {

@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/parser2/apis/apipaths"
 	"encr.dev/parser2/apis/directive"
+	"encr.dev/parser2/apis/rpc/apipaths"
 	"encr.dev/parser2/apis/selector"
 	"encr.dev/parser2/internal/perr"
 	"encr.dev/parser2/internal/pkginfo"
@@ -48,7 +48,7 @@ type ParseData struct {
 
 	File *pkginfo.File
 	Func *ast.FuncDecl
-	Dir  directive.Directive
+	Dir  *directive.Directive
 	Doc  string
 }
 
@@ -249,7 +249,7 @@ func validatePathParam(errs *perr.List, param schema.Param, seg *apipaths.Segmen
 
 // validateDirective validates the given encore:api directive
 // and returns an RPC with the respective fields set.
-func validateDirective(dir directive.Directive) (*RPC, error) {
+func validateDirective(dir *directive.Directive) (*RPC, error) {
 	rpc := &RPC{
 		Raw: dir.HasOption("raw"),
 	}

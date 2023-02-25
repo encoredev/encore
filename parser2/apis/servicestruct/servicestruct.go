@@ -28,7 +28,7 @@ type ParseData struct {
 
 	File *pkginfo.File
 	Decl *ast.GenDecl
-	Dir  directive.Directive
+	Dir  *directive.Directive
 	Doc  string
 }
 

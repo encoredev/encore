@@ -11,8 +11,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/parser2/apis/apipaths"
 	"encr.dev/parser2/apis/directive"
+	"encr.dev/parser2/apis/rpc/apipaths"
 	"encr.dev/parser2/apis/selector"
 	"encr.dev/parser2/internal/pkginfo"
 	"encr.dev/parser2/internal/schema"

@@ -198,8 +198,8 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 func (m *Module) ParseRelPath(rp RelPath) (pkg *Package, exists bool) {
 	dir := filepath.Join(m.rootDir, rp.toFilePath())
 	importPath := path.Join(m.Path, string(rp))
-	entries, err := os.ReadDir(dir)
-	m.l.c.Errs.AssertFile(err, dir)
+	entries, bailout := os.ReadDir(dir)
+	m.l.c.Errs.AssertFile(bailout, dir)
 
 	s := loadPkgSpec{
 		m:          m,
@@ -220,9 +220,9 @@ func (m *Module) ParsePkgPath(importPath string) *Package {
 	defer tr.Done()
 
 	cfg := m.pkgsConfig()
-	pkgs, err := packages.Load(cfg, "pattern="+importPath)
-	tr.Emit("loaded packages", "pkgs", pkgs, "err", err)
-	m.l.c.Errs.AssertStd(err)
+	pkgs, bailout := packages.Load(cfg, "pattern="+importPath)
+	tr.Emit("loaded packages", "pkgs", pkgs, "bailout", bailout)
+	m.l.c.Errs.AssertStd(bailout)
 
 	var found *packages.Package
 	for _, pkg := range pkgs {

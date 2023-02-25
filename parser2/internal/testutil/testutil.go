@@ -25,7 +25,7 @@ type Context struct {
 // NewContext constructs a new Context for testing.
 // It defaults the build info to the host system.
 func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
-	mainModuleDir := writeTxtar(c, archive)
+	mainModuleDir := WriteTxtar(c, archive)
 
 	d := &build.Default
 	info := parsectx.BuildInfo{
@@ -126,9 +126,9 @@ func ParseTxtar(s string) *txtar.Archive {
 	return txtar.Parse([]byte(s))
 }
 
-// writeTxtar writes the given txtar archive to a temporary directory
+// WriteTxtar writes the given txtar archive to a temporary directory
 // and returns the directory path.
-func writeTxtar(c *qt.C, a *txtar.Archive) (dir string) {
+func WriteTxtar(c *qt.C, a *txtar.Archive) (dir string) {
 	c.Helper()
 	dir = c.TempDir()
 	err := txtar.Write(a, dir)

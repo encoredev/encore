@@ -29,7 +29,7 @@ type Context struct {
 	// FS holds the fileset used for parsing.
 	FS *token.FileSet
 
-	// ParseTests reports whether to parse test files.
+	// ParseTests controls whether to parse test files.
 	ParseTests bool
 
 	// Errs contains encountered errors.

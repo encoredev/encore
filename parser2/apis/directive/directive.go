@@ -9,20 +9,6 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// List is a list of parsed directives.
-type List []Directive
-
-// Get returns the first directive with the given name, if any.
-// If the directive doesn't exist it reports ok == false.
-func (l List) Get(name string) (d Directive, ok bool) {
-	for _, d := range l {
-		if d.Name == name {
-			return d, true
-		}
-	}
-	return Directive{}, false
-}
-
 // Directive represents a parsed "encore:" directive.
 type Directive struct {
 	AST *ast.CommentGroup // the comment group containing the directive
@@ -100,7 +86,7 @@ func (d Directive) GetList(name string) []string {
 // Parse parses the encore:foo directives in cg.
 // It returns the parsed directives, if any, and the
 // remaining doc text after stripping the directive lines.
-func Parse(cg *ast.CommentGroup) (list List, doc string, err error) {
+func Parse(cg *ast.CommentGroup) (dir *Directive, doc string, err error) {
 	if cg == nil {
 		return nil, cg.Text(), nil
 	}
@@ -113,6 +99,7 @@ func Parse(cg *ast.CommentGroup) (list List, doc string, err error) {
 	// if we don't find any directives.
 
 	// Standard syntax
+	var dirs []*Directive
 	for _, c := range cg.List {
 		const prefix = "//encore:"
 		if strings.HasPrefix(c.Text, prefix) {
@@ -121,12 +108,14 @@ func Parse(cg *ast.CommentGroup) (list List, doc string, err error) {
 				return nil, "", err
 			}
 			dir.AST = cg
-			list = append(list, dir)
+			dirs = append(dirs, &dir)
 		}
 	}
-	if len(list) > 0 {
+	if len(dirs) == 1 {
 		doc := cg.Text() // skips directives for us
-		return list, doc, nil
+		return dirs[1], doc, nil
+	} else if len(dirs) > 1 {
+		return nil, "", fmt.Errorf("multiple encore directives for same declaration")
 	}
 
 	// Legacy syntax
@@ -141,17 +130,19 @@ func Parse(cg *ast.CommentGroup) (list List, doc string, err error) {
 				return nil, "", err
 			}
 			dir.AST = cg
-			list = append(list, dir)
+			dirs = append(dirs, &dir)
 			continue
 		}
 		docLines = append(docLines, line)
 	}
 
-	if len(list) == 0 {
+	if len(dirs) == 0 {
 		return nil, cg.Text(), nil
+	} else if len(dirs) > 1 {
+		return nil, "", fmt.Errorf("multiple encore directives for same declaration")
 	}
 	doc = strings.TrimSpace(strings.Join(docLines, "\n"))
-	return list, doc, nil
+	return dirs[0], doc, nil
 }
 
 var (
@@ -237,7 +228,7 @@ type ValidateSpec struct {
 }
 
 // Validate checks that the directive is valid according to spec.
-func Validate(d Directive, spec ValidateSpec) error {
+func Validate(d *Directive, spec ValidateSpec) error {
 	// Check the options.
 	for _, o := range d.Options {
 		if !slices.Contains(spec.AllowedOptions, o) {

@@ -205,16 +205,3 @@ func getFileImports(f *ast.File) map[paths.Pkg]bool {
 	}
 	return imports
 }
-
-// ignored returns true if a given directory should be ignored for parsing.
-func ignored(dir string) bool {
-	name := filepath.Base(filepath.Clean(dir))
-	if strings.EqualFold(name, "node_modules") {
-		return true
-	}
-	// Don't watch hidden folders like `.git` or `.idea`.
-	if len(name) > 1 && name[0] == '.' {
-		return true
-	}
-	return false
-}

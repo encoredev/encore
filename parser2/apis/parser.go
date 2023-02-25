@@ -40,37 +40,85 @@ func (p *Parser) Parse(pkg *pkginfo.Package) ParseResult {
 		for _, decl := range file.AST().Decls {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
-				dir, doc := p.parseDirectives(decl.Doc)
-				switch dir := dir.(type) {
+				if decl.Doc == nil {
+					continue
+				}
 
-				// Parse the various directives operating on functions.
-				case *directive.rpcDirective:
-					res.RPCs = append(res.RPCs, p.parseRPC(file, decl, dir, doc))
-				case *directive.authHandlerDirective:
-					res.AuthHandlers = append(res.AuthHandlers, p.parseAuthHandler(file, decl, dir, doc))
-				case *directive.middlewareDirective:
-					res.Middleware = append(res.Middleware, p.parseMiddleware(file, decl, dir, doc))
+				dir, doc, err := directive.Parse(decl.Doc)
+				if err != nil {
+					p.c.Errs.Add(decl.Doc.Pos(), err.Error())
+					continue
+				} else if dir == nil {
+					continue
+				}
 
-				case nil:
-					// do nothing
+				switch dir.Name {
+				case "api":
+					r := rpc.Parse(rpc.ParseData{
+						Errs:   p.c.Errs,
+						Schema: p.schema,
+						File:   file,
+						Func:   decl,
+						Dir:    dir,
+						Doc:    doc,
+					})
+					res.RPCs = append(res.RPCs, r)
+
+				case "authhandler":
+					r := authhandler.Parse(authhandler.ParseData{
+						Errs:   p.c.Errs,
+						Schema: p.schema,
+						File:   file,
+						Func:   decl,
+						Dir:    dir,
+						Doc:    doc,
+					})
+					res.AuthHandlers = append(res.AuthHandlers, r)
+
+				case "middleware":
+					r := middleware.Parse(middleware.ParseData{
+						Errs:   p.c.Errs,
+						Schema: p.schema,
+						File:   file,
+						Func:   decl,
+						Dir:    dir,
+						Doc:    doc,
+					})
+					res.Middleware = append(res.Middleware, r)
+
 				default:
-					p.c.Errs.Addf(decl.Pos(), "unexpected directive type %T on function declaration", dir)
+					p.c.Errs.Addf(decl.Pos(), "unexpected directive %q on function declaration", dir.Name)
 				}
 
 			case *ast.GenDecl:
 				if decl.Tok != token.TYPE {
 					continue
+				} else if decl.Doc == nil {
+					continue
 				}
 
-				dir, doc := p.parseDirectives(decl.Doc)
-				switch dir := dir.(type) {
-				case *directive.serviceDirective:
-					res.ServiceStructs = append(res.ServiceStructs, p.parseServiceStruct(file, decl, dir, doc))
+				dir, doc, err := directive.Parse(decl.Doc)
+				if err != nil {
+					p.c.Errs.Add(decl.Doc.Pos(), err.Error())
+					continue
+				} else if dir == nil {
+					continue
+				}
 
-				case nil:
-					// do nothing
+				switch dir.Name {
+				case "service":
+					r := servicestruct.Parse(servicestruct.ParseData{
+						Errs:   p.c.Errs,
+						Schema: p.schema,
+						File:   file,
+						Decl:   decl,
+						Dir:    dir,
+						Doc:    doc,
+					})
+					res.ServiceStructs = append(res.ServiceStructs, r)
+
 				default:
-					p.c.Errs.Addf(decl.Pos(), "unexpected directive type %T on type declaration", dir)
+					p.c.Errs.Addf(decl.Pos(), "unexpected directive %q on function declaration", dir.Name)
 				}
 			}
 		}

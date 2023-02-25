@@ -120,24 +120,21 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 		select {
 		case <-result.done:
 			if result.bailout {
-				// re-bailout
-				l.c.Errs.Bailout()
+				return nil, false
 			}
 			return result.pkg, result.ok
 
 		case <-l.c.Ctx.Done():
-			// The context was cancelled first. Bail out.
-			l.c.Errs.Bailout()
+			// The context was cancelled first.
 			return nil, false
 		}
 	}
 
 	// Not cached. Do the parsing.
-	// Catch any bailout since this runs in a separate goroutine.
+	// Catch any err since this runs in a separate goroutine.
 	defer func() {
-		if l, caught := perr.CatchBailout(recover()); caught {
+		if _, caught := perr.CatchBailout(recover()); caught {
 			result.bailout = true
-			l.Bailout() // re-bailout
 		}
 	}()
 
