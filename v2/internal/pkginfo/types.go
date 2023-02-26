@@ -64,8 +64,6 @@ type File struct {
 	Imports  map[paths.Pkg]bool // imports in the file, keyed by import path
 	TestFile bool               // whether the file is a test file
 
-	startPos, endPos uint64
-
 	// initialAST is the AST for the initial parse that only includes
 	// package docs and imports.
 	initialAST *ast.File

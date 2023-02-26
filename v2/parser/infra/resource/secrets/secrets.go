@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/infra/resource"
@@ -11,7 +12,15 @@ import (
 
 // Secrets represents a secrets struct.
 type Secrets struct {
-	Keys []string // Secret keys to load
+	File *pkginfo.File // Where the secrets struct is declared
+	Keys []string      // Secret keys to load
+
+	// Spec is the value spec that defines the 'secrets' variable.
+	Spec *ast.ValueSpec
+}
+
+type SecretKey struct {
+	Name string
 }
 
 func (*Secrets) Kind() resource.Kind { return resource.Secrets }
@@ -47,7 +56,11 @@ var SecretsParser = &resource.Parser{
 			return nil
 		}
 
-		res := &Secrets{}
+		res := &Secrets{
+			File: secrets.File,
+			Spec: spec,
+		}
+
 		for _, f := range st.Fields {
 			if f.IsAnonymous() {
 				p.Errs.Add(f.AST.Pos(), "secrets: anonymous fields are not allowed")

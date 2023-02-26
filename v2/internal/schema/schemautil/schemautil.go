@@ -30,6 +30,25 @@ func IsBuiltinKind(t schema.Type, kinds ...schema.BuiltinKind) bool {
 	return false
 }
 
+var Signed = []schema.BuiltinKind{
+	schema.Int,
+	schema.Int8,
+	schema.Int16,
+	schema.Int32,
+	schema.Int64,
+}
+
+var Unsigned = []schema.BuiltinKind{
+	schema.Uint,
+	schema.Uint8,
+	schema.Uint16,
+	schema.Uint32,
+	schema.Uint64,
+}
+
+// Integers is a list of all integer builtin kinds.
+var Integers = append(append([]schema.BuiltinKind{}, Signed...), Unsigned...)
+
 // Deref dereferences a type until it is not a pointer type.
 // It returns the number of pointer dereferences required.
 func Deref(t schema.Type) (schema.Type, int) {

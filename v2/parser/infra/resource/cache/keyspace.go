@@ -15,7 +15,9 @@ import (
 )
 
 type Keyspace struct {
-	Doc string // The documentation on the keyspace
+	Ident *ast.Ident    // The package-level identifier the keyspace is bound to.
+	Doc   string        // The documentation on the keyspace
+	File  *pkginfo.File // File the keyspace is declared in.
 
 	KeyType   schema.Type
 	ValueType schema.Type
@@ -192,6 +194,8 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 			ref, ok := schemautil.ResolveNamedStruct(keyType, false)
 			if !ok {
 				errs.Addf(keyPos, "%s has invalid key type parameter: must be a basic type or a named struct type", constructorName)
+			} else if ref.Pointers > 0 {
+				errs.Addf(keyPos, "%s has invalid key type parameter: must not be a pointer type", constructorName)
 			} else {
 				// Validate the struct fields.
 				st := schemautil.ConcretizeWithTypeArgs(ref.Decl.Type, ref.TypeArgs).(schema.StructType)
@@ -253,7 +257,9 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 	}
 
 	return &Keyspace{
+		Ident:         d.Ident,
 		Doc:           d.Doc,
+		File:          d.File,
 		ConfigLiteral: cfgLit.Lit(),
 		Path:          path,
 		KeyType:       keyType,

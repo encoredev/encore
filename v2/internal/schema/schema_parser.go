@@ -147,12 +147,14 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 					r.errs.Add(field.Pos(), "cannot use anonymous fields in Encore struct types")
 				}
 
-				var tags *structtag.Tags
+				// Parse the struct tags, if any.
+				var tags structtag.Tags
 				if field.Tag != nil {
-					var err error
-					tags, err = structtag.Parse(field.Tag.Value)
+					t, err := structtag.Parse(field.Tag.Value)
 					if err != nil {
 						r.errs.Addf(field.Tag.Pos(), "invalid struct tag: %v", err.Error())
+					} else {
+						tags = *t
 					}
 				}
 
@@ -161,7 +163,7 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 						AST:  field,
 						Name: option.Some(name.Name),
 						Type: typ,
-						Tags: option.AsOptional(tags),
+						Tag:  tags,
 					})
 				}
 			}

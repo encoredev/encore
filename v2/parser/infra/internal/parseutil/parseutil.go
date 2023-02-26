@@ -97,6 +97,7 @@ type ParseData struct {
 	File         *pkginfo.File
 
 	Stack    []ast.Node
+	Ident    *ast.Ident
 	Call     *ast.CallExpr
 	TypeArgs []schema.Type
 	Doc      string
@@ -116,10 +117,18 @@ type ReferenceData struct {
 }
 
 func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data ReferenceData) resource.Resource {
+
 	selIdx := len(data.Stack) - 1
 	constructor := data.ResourceFunc
 
 	// Verify the structure of the reference.
+
+	ident := resolveAssignedVar(data.Stack)
+	if ident == nil {
+		p.Errs.Addf(data.Stack[0].Pos(), "the %s return value must be assigned to a variable",
+			constructor.NaiveDisplayName())
+		return nil
+	}
 
 	// If we have any type arguments it will be in the parent of the selector.
 	var typeArgs []schema.Type
@@ -169,7 +178,6 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 	// Classify the location the current node is contained in (meaning stack[:len(stack)-1]).
 	loc := locations.Classify(data.Stack[:callIdx-1])
 	if !spec.AllowedLocs.Allowed(loc) {
-		// TODO make error nicer
 		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be called here: must be called from %s",
 			constructor.NaiveDisplayName(), spec.AllowedLocs.Describe())
 		return nil
@@ -179,6 +187,7 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 		Pass:         p,
 		File:         data.File,
 		Stack:        data.Stack,
+		Ident:        ident,
 		Call:         call,
 		TypeArgs:     typeArgs,
 		Doc:          resolveResourceDoc(data.Stack),
