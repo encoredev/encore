@@ -15,8 +15,8 @@ import (
 )
 
 type Metric struct {
-	Name string // The unique name of the pub sub topic
-	Doc  string // The documentation on the pub sub topic
+	Name string // The unique name of the metric
+	Doc  string // The documentation on the metric
 }
 
 func (m *Metric) Kind() resource.Kind { return resource.Metric }

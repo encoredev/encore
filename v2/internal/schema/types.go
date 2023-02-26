@@ -4,6 +4,8 @@ import (
 	"go/ast"
 	"sync"
 
+	"github.com/fatih/structtag"
+
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/pkginfo"
 )
@@ -77,6 +79,7 @@ type StructField struct {
 	Name option.Option[string] // field name, or None if anonymous
 	Type Type
 	Doc  string
+	Tags option.Option[*structtag.Tags]
 }
 
 func (f *StructField) IsAnonymous() bool {

@@ -125,6 +125,11 @@ func MustPkgPath(p string) Pkg {
 // It is always slash-separated.
 type Pkg string
 
+// String returns the string representation of p.
+func (p Pkg) String() string {
+	return string(p)
+}
+
 // JoinSlash joins the path with the given elems, according to path.Join.
 // The elems are expected to be slash-separated, not filesystem-separated.
 // Use filesystem.ToSlash() to convert filesystem paths to slash-separated paths.

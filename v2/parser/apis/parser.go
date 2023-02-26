@@ -7,10 +7,10 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/middleware"
-	"encr.dev/v2/parser/apis/rpc"
 	"encr.dev/v2/parser/apis/servicestruct"
 )
 
@@ -28,7 +28,7 @@ type Parser struct {
 
 // ParseResult describes the results of parsing a given package.
 type ParseResult struct {
-	RPCs           []*rpc.RPC
+	RPCs           []*api.API
 	AuthHandlers   []*authhandler.AuthHandler
 	Middleware     []*middleware.Middleware
 	ServiceStructs []*servicestruct.ServiceStruct
@@ -54,7 +54,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) ParseResult {
 
 				switch dir.Name {
 				case "api":
-					r := rpc.Parse(rpc.ParseData{
+					r := api.Parse(api.ParseData{
 						Errs:   p.c.Errs,
 						Schema: p.schema,
 						File:   file,

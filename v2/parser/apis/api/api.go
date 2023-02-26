@@ -1,4 +1,4 @@
-package rpc
+package api
 
 import (
 	"errors"
@@ -13,8 +13,8 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	schema2 "encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/directive"
-	"encr.dev/v2/parser/apis/rpc/apipaths"
 	"encr.dev/v2/parser/apis/selector"
 )
 
@@ -27,7 +27,7 @@ const (
 	Auth AccessType = "auth"
 )
 
-type RPC struct {
+type API struct {
 	Name        string
 	Doc         string
 	File        *pkginfo.File
@@ -52,8 +52,8 @@ type ParseData struct {
 	Doc  string
 }
 
-// Parse parses an RPC endpoint. It may return nil on errors.
-func Parse(d ParseData) *RPC {
+// Parse parses an API endpoint. It may return nil on errors.
+func Parse(d ParseData) *API {
 	rpc, err := validateDirective(d.Dir)
 	if err != nil {
 		d.Errs.Addf(d.Dir.AST.Pos(), "invalid encore:%s directive: %v", d.Dir.Name, err)
@@ -81,14 +81,14 @@ func Parse(d ParseData) *RPC {
 	rpc.Recv = decl.Recv
 
 	// If we didn't get any HTTP methods, set a reasonable default.
-	// TODO(andre) Replace this with the RPC encoding.
+	// TODO(andre) Replace this with the API encoding.
 	if len(rpc.HTTPMethods) == 0 {
 		if rpc.Raw {
 			rpc.HTTPMethods = []string{"*"}
 		} else {
 			// For non-raw endpoints, if there's a request payload
 			// default to POST-only.
-			// TODO(andre) base this on the RPC encoding!
+			// TODO(andre) base this on the API encoding!
 			if rpc.Request != nil {
 				rpc.HTTPMethods = []string{"POST"}
 			} else {
@@ -97,7 +97,7 @@ func Parse(d ParseData) *RPC {
 		}
 	}
 
-	// Validate the RPC.
+	// Validate the API.
 	if rpc.Raw {
 		validateRawRPC(d.Errs, rpc)
 	} else {
@@ -107,7 +107,7 @@ func Parse(d ParseData) *RPC {
 	return rpc
 }
 
-func initTypedRPC(errs *perr.List, rpc *RPC) {
+func initTypedRPC(errs *perr.List, rpc *API) {
 	const sigHint = `
 	hint: valid signatures are:
 	- func(context.Context) error
@@ -191,7 +191,7 @@ func initTypedRPC(errs *perr.List, rpc *RPC) {
 	}
 }
 
-func validateRawRPC(errs *perr.List, rpc *RPC) {
+func validateRawRPC(errs *perr.List, rpc *API) {
 	const sigHint = `
 	hint: signature must be func(http.ResponseWriter, *http.Request)`
 
@@ -248,9 +248,9 @@ func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segme
 }
 
 // validateDirective validates the given encore:api directive
-// and returns an RPC with the respective fields set.
-func validateDirective(dir *directive.Directive) (*RPC, error) {
-	rpc := &RPC{
+// and returns an API with the respective fields set.
+func validateDirective(dir *directive.Directive) (*API, error) {
+	rpc := &API{
 		Raw: dir.HasOption("raw"),
 	}
 

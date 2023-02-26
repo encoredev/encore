@@ -1,4 +1,4 @@
-package rpc
+package api
 
 import (
 	"go/ast"
@@ -14,8 +14,8 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	schema2 "encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/directive"
-	"encr.dev/v2/parser/apis/rpc/apipaths"
 	"encr.dev/v2/parser/apis/selector"
 )
 
@@ -24,7 +24,7 @@ func TestParseRPC(t *testing.T) {
 		name     string
 		imports  []string
 		def      string
-		want     *RPC
+		want     *API
 		wantErrs []string
 	}
 	tests := []testCase{
@@ -35,7 +35,7 @@ func TestParseRPC(t *testing.T) {
 //encore:api public
 func Foo(ctx context.Context) error {}
 `,
-			want: &RPC{
+			want: &API{
 				Name:   "Foo",
 				Doc:    "Foo does things.\n",
 				Access: Public,
@@ -51,7 +51,7 @@ func Foo(ctx context.Context) error {}
 //encore:api private path=/foo method=PUT tag:some-tag
 func Foo(ctx context.Context) error {}
 `,
-			want: &RPC{
+			want: &API{
 				Name:   "Foo",
 				Doc:    "",
 				Access: Private,
@@ -68,7 +68,7 @@ func Foo(ctx context.Context) error {}
 //encore:api auth path=/:key
 func Foo(ctx context.Context, key string) error {}
 `,
-			want: &RPC{
+			want: &API{
 				Name:   "Foo",
 				Doc:    "",
 				Access: Auth,
@@ -84,7 +84,7 @@ func Foo(ctx context.Context, key string) error {}
 //encore:api auth path=/:key
 func Foo(ctx context.Context, key int) error {}
 `,
-			want: &RPC{
+			want: &API{
 				Name:   "Foo",
 				Doc:    "",
 				Access: Auth,
@@ -101,7 +101,7 @@ func Foo(ctx context.Context, key int) error {}
 //encore:api public raw path=/raw
 func Raw(w http.ResponseWriter, req *http.Request) {}
 `,
-			want: &RPC{
+			want: &API{
 				Name:   "Raw",
 				Doc:    "",
 				Access: Public,
@@ -160,11 +160,8 @@ package foo
 			fd := testutil.FindNodes[*ast.FuncDecl](f.AST())[0]
 
 			// Parse the directive from the func declaration.
-			dirs, doc, err := directive.Parse(fd.Doc)
+			dir, doc, err := directive.Parse(fd.Doc)
 			c.Assert(err, qt.IsNil)
-			dir, ok := dirs.Get("api")
-			c.Assert(ok, qt.IsTrue)
-
 			pd := ParseData{
 				Errs:   tc.Errs,
 				Schema: schemaParser,

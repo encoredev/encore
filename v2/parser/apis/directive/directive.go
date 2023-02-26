@@ -113,7 +113,7 @@ func Parse(cg *ast.CommentGroup) (dir *Directive, doc string, err error) {
 	}
 	if len(dirs) == 1 {
 		doc := cg.Text() // skips directives for us
-		return dirs[1], doc, nil
+		return dirs[0], doc, nil
 	} else if len(dirs) > 1 {
 		return nil, "", fmt.Errorf("multiple encore directives for same declaration")
 	}

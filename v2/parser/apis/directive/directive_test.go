@@ -1,7 +1,6 @@
 package directive
 
 import (
-	"go/token"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -9,8 +8,6 @@ import (
 )
 
 func TestParseDirective(t *testing.T) {
-	const staticPos = token.Pos(0)
-
 	testcases := []struct {
 		desc     string
 		line     string

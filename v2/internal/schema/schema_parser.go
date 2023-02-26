@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/fatih/structtag"
+
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
@@ -145,11 +147,21 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 					r.errs.Add(field.Pos(), "cannot use anonymous fields in Encore struct types")
 				}
 
+				var tags *structtag.Tags
+				if field.Tag != nil {
+					var err error
+					tags, err = structtag.Parse(field.Tag.Value)
+					if err != nil {
+						r.errs.Addf(field.Tag.Pos(), "invalid struct tag: %v", err.Error())
+					}
+				}
+
 				for _, name := range field.Names {
 					st.Fields = append(st.Fields, StructField{
 						AST:  field,
 						Name: option.Some(name.Name),
 						Type: typ,
+						Tags: option.AsOptional(tags),
 					})
 				}
 			}
