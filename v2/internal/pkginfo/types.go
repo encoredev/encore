@@ -41,6 +41,7 @@ type Package struct {
 	Name       string
 	Doc        string
 	ImportPath paths.Pkg
+	FSPath     paths.FS
 	Files      []*File
 	Imports    map[paths.Pkg]bool // union of all imports from files
 

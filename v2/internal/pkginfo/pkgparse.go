@@ -74,6 +74,7 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 		AST:        p,
 		Name:       p.Name,
 		ImportPath: s.path,
+		FSPath:     s.dir,
 		Files:      files,
 		Imports:    make(map[paths.Pkg]bool),
 	}

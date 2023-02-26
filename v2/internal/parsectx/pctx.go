@@ -44,6 +44,12 @@ type BuildInfo struct {
 
 	BuildTags  []string // additional build tags to set
 	CgoEnabled bool
+
+	// StaticLink enables static linking of C libraries.
+	StaticLink bool
+
+	// Debug enables compiling in debug mode.
+	Debug bool
 }
 
 // Trace traces the execution of a function.
