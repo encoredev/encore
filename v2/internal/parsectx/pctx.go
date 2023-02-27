@@ -38,9 +38,11 @@ type Context struct {
 
 // BuildInfo represents the information needed to parse and build an Encore application.
 type BuildInfo struct {
-	GOARCH string // target architecture
-	GOOS   string // target operating system
-	GOROOT string // GOROOT to use
+	GOARCH string   // target architecture
+	GOOS   string   // target operating system
+	GOROOT paths.FS // GOROOT to use
+
+	EncoreRuntime paths.FS // Encore runtime to use
 
 	BuildTags  []string // additional build tags to set
 	CgoEnabled bool

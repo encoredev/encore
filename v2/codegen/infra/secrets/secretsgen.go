@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	. "github.com/dave/jennifer/jen"
-
 	"encr.dev/v2/codegen/internal/gen"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/resource/secrets"

@@ -12,91 +12,60 @@ import (
 func RootedFSPath(wd, p string) FS {
 	if wd == "" {
 		panic("paths: empty wd")
+	} else if !filepath.IsAbs(wd) {
+		panic("paths: wd is relative")
 	}
 
-	return FS{
-		wd:   filepath.Clean(wd),
-		path: filepath.Clean(p),
+	if filepath.IsAbs(p) {
+		return FS(filepath.Clean(p))
+	} else {
+		return FS(filepath.Join(wd, p))
 	}
 }
 
 // FS represents a filesystem path.
-type FS struct {
-	// wd is the working dir from which paths should be reported relative to.
-	wd string
-
-	// path is the path in question, in the native filesystem representation.
-	// If it's relative it's relative to wd.
-	path string
-}
+type FS string
 
 // ToIO returns the path for use in IO operations.
 func (fs FS) ToIO() string {
 	fs.checkValid()
-	if filepath.IsAbs(fs.path) {
-		return fs.path
-	} else {
-		return filepath.Join(fs.wd, fs.path)
-	}
+	return string(fs)
 }
 
 // ToDisplay returns the path in a form suitable for displaying
 // to the user.
 func (fs FS) ToDisplay() string {
 	fs.checkValid()
-	if filepath.IsAbs(fs.path) {
-		// It's an absolute path. If we can make it relative and
-		// the result is a local path, then do so.
-		if rel, err := filepath.Rel(fs.wd, fs.path); err == nil && filepath.IsLocal(rel) {
-			return rel
-		}
-	}
-	return fs.path
+	return string(fs)
 }
 
 // Resolve returns a new FS path to the given path.
-// Relative paths are resolved relative to the current path.
+// If p is absolute it returns p directly,
+// otherwise it returns the path joined with the current path.
 func (fs FS) Resolve(p string) FS {
 	fs.checkValid()
-	p = filepath.Clean(p)
 	if filepath.IsAbs(p) {
-		return FS{
-			wd:   fs.wd,
-			path: p,
-		}
-	} else {
-		// Resolve relative to the current path
-		return FS{
-			wd:   fs.wd,
-			path: filepath.Join(fs.path, p),
-		}
+		return FS(filepath.Clean(p))
 	}
-}
-
-// New returns a new FS path to the given path, relative to wd.
-// It ignores the current path but preserves the working dir.
-func (fs FS) New(p string) FS {
-	fs.checkValid()
-	p = filepath.Clean(p)
-	return FS{
-		wd:   fs.wd,
-		path: p,
-	}
+	return FS(filepath.Join(string(fs), p))
 }
 
 // Join joins the path with the given elems, according to filepath.Join.
 func (fs FS) Join(elem ...string) FS {
 	fs.checkValid()
-	elem = append([]string{fs.path}, elem...)
-	return FS{
-		wd:   fs.wd,
-		path: filepath.Join(elem...), // Join cleans the result
-	}
+	parts := append([]string{string(fs)}, elem...)
+	return FS(filepath.Join(parts...))
+}
+
+// Base returns the filepath.Base of the path.
+func (fs FS) Base() string {
+	fs.checkValid()
+	return filepath.Base(string(fs))
 }
 
 func (fs FS) checkValid() {
-	if fs.wd == "" {
-		panic("invalid FS path")
+	if fs == "" {
+		panic("empty FS path")
 	}
 }
 

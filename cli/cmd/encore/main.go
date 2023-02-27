@@ -18,6 +18,7 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	daemonpb "encr.dev/proto/encore/daemon"
+	"encr.dev/v2/cmd/build"
 
 	// Register commands
 	_ "encr.dev/cli/cmd/encore/app"
@@ -28,6 +29,9 @@ import (
 var rootCmd = root.Cmd
 
 func main() {
+	// TODO(andre) Hack
+	rootCmd.AddCommand(build.Cmd)
+
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	if err := root.Cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

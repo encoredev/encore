@@ -170,7 +170,7 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 	if modPath == stdModule {
 		// If this is the standard library go/packages doesn't return
 		// a Module object. Instead look it up from our GOROOT.
-		goroot := l.c.MainModuleDir.New(l.c.Build.GOROOT)
+		goroot := l.c.Build.GOROOT
 		rootPath := goroot.Join("src")
 
 		// Construct a synthetic Module object for the standard library.
@@ -181,7 +181,7 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 			Version: "",
 		}
 	} else {
-		rootPath := l.c.MainModuleDir.New(pkg.Module.Dir)
+		rootPath := paths.RootedFSPath(pkg.Module.Dir, ".")
 		result = l.loadModuleFromDisk(rootPath)
 	}
 

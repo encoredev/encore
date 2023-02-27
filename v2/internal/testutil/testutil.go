@@ -31,7 +31,7 @@ func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
 	info := parsectx.BuildInfo{
 		GOARCH:     d.GOARCH,
 		GOOS:       d.GOOS,
-		GOROOT:     d.GOROOT,
+		GOROOT:     paths.RootedFSPath(d.GOROOT, d.GOROOT),
 		BuildTags:  nil,
 		CgoEnabled: true,
 	}

@@ -52,7 +52,7 @@ func (l *Loader) init() {
 	l.buildCtx = &build.Context{
 		GOARCH: b.GOARCH,
 		GOOS:   b.GOOS,
-		GOROOT: b.GOROOT,
+		GOROOT: b.GOROOT.ToIO(),
 
 		Dir:         l.c.MainModuleDir.ToIO(),
 		CgoEnabled:  b.CgoEnabled,
@@ -75,7 +75,7 @@ func (l *Loader) init() {
 		Env: append(os.Environ(),
 			"GOOS="+b.GOOS,
 			"GOARCH="+b.GOARCH,
-			"GOROOT="+b.GOROOT,
+			"GOROOT="+b.GOROOT.ToIO(),
 			"CGO_ENABLED="+cgoEnabled,
 		),
 		Fset:    l.c.FS,
