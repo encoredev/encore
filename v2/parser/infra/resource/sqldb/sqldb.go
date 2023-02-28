@@ -12,11 +12,13 @@ import (
 )
 
 type Database struct {
+	File *pkginfo.File
 	Name string // The database name
 	Doc  string
 }
 
-func (d *Database) Kind() resource.Kind { return resource.SQLDatabase }
+func (d *Database) Kind() resource.Kind       { return resource.SQLDatabase }
+func (d *Database) DeclaredIn() *pkginfo.File { return d.File }
 
 var DatabaseParser = &resource.Parser{
 	Name:      "SQL Database",
@@ -65,6 +67,7 @@ func parseNamedSQLDB(d parseutil.ParseData) resource.Resource {
 	}
 
 	return &Database{
+		File: d.File,
 		Name: dbName,
 		Doc:  d.Doc,
 	}

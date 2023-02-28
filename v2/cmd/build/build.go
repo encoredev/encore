@@ -9,10 +9,12 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
+	"encr.dev/v2/codegen/infragen"
 	"encr.dev/v2/compiler/build"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	perr2 "encr.dev/v2/internal/perr"
+	parser2 "encr.dev/v2/parser"
 )
 
 var Cmd = &cobra.Command{
@@ -32,15 +34,16 @@ var Cmd = &cobra.Command{
 			Ctx: ctx,
 			Log: zerolog.New(zerolog.NewConsoleWriter()),
 			Build: parsectx.BuildInfo{
-				GOARCH: runtime.GOARCH,
-				GOOS:   runtime.GOOS,
-				GOROOT: paths.RootedFSPath(runtime.GOROOT(), "."),
+				GOARCH:     runtime.GOARCH,
+				GOOS:       runtime.GOOS,
+				BuildTags:  nil,
+				CgoEnabled: false,
+				StaticLink: false,
+				Debug:      false,
+
 				// TODO(andre) hack
+				GOROOT:        paths.RootedFSPath(os.Getenv("ENCORE_GOROOT"), "."),
 				EncoreRuntime: paths.RootedFSPath(os.Getenv("ENCORE_RUNTIME_PATH"), "."),
-				BuildTags:     nil,
-				CgoEnabled:    false,
-				StaticLink:    false,
-				Debug:         false,
 			},
 			MainModuleDir: paths.RootedFSPath(wd, "."),
 			FS:            fs,
@@ -48,15 +51,21 @@ var Cmd = &cobra.Command{
 			Errs:          errs,
 		}
 
-		res := build.Build(&build.Config{
+		parser := parser2.NewParser(pc)
+		parserResult := parser.Parse()
+		infragen := infragen.New(pc)
+
+		overlays := infragen.Generate(parserResult.Resources)
+
+		buildResult := build.Build(&build.Config{
 			Ctx:        pc,
-			Overlays:   nil, // TODO add
+			Overlays:   overlays,
 			MainPkg:    paths.MustPkgPath(args[0]),
 			KeepOutput: true,
 		})
 		if errs.Len() > 0 {
 			pc.Log.Fatal().Msg(errs.FormatErrors())
 		}
-		pc.Log.Info().Msgf("got result %+v", *res)
+		pc.Log.Info().Msgf("got result %+v", *buildResult)
 	},
 }

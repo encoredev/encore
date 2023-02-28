@@ -23,7 +23,7 @@ package bar
 `)
 	tc := testutil.NewContext(c, false, a)
 	tc.FailTestOnErrors()
-	parser := NewParserFromCtx(tc.Context)
+	parser := NewParser(tc.Context)
 
 	var got []*pkginfo.Package
 	parser.collectPackages(func(pkg *pkginfo.Package) {

@@ -1,37 +1,43 @@
 package gen
 
 import (
+	"io"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
 
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 )
 
-type fileKey struct {
-	pkgPath paths.Pkg
-	suffix  string
-}
-
-func (g *Generator) File(pkg *pkginfo.Package, suffix string) *File {
-	key := fileKey{pkg.ImportPath, suffix}
-	if f, ok := g.files[key]; ok {
-		return f
-	}
-	f := &File{
+func newFile(pkg *pkginfo.Package, suffix string) *File {
+	return &File{
 		Pkg:    pkg,
 		suffix: suffix,
 	}
-	g.files[key] = f
-	return f
 }
 
 // File represents a generated file for a specific package.
 type File struct {
-	Pkg    *pkginfo.Package // the
+	Pkg    *pkginfo.Package // the package the file belongs to
 	suffix string           // the file name suffix. "metrics" for "encore_internal__metrics.go".
 	decls  []Decl
+}
+
+// Name returns the computed file name.
+func (f *File) Name() string {
+	return "encore_internal__" + f.suffix + ".go"
+}
+
+// Render renders the file to the given writer.
+func (f *File) Render(w io.Writer) error {
+	jenFile := jen.NewFilePathName(f.Pkg.ImportPath.String(), f.Pkg.Name)
+	for i, d := range f.decls {
+		if i > 0 {
+			jenFile.Line()
+		}
+		jenFile.Add(d.Code())
+	}
+	return jenFile.Render(w)
 }
 
 type Decl interface {

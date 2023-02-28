@@ -1,3 +1,5 @@
+// Package build supports building and testing Encore applications
+// with codegen and rewrite overlays.
 package build
 
 import (
@@ -15,6 +17,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
+	"encr.dev/v2/internal/overlay"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
@@ -26,7 +29,7 @@ type Config struct {
 
 	// Overlays describes the code generation overlays to apply,
 	// in the form of rewritten files or generated files.
-	Overlays []OverlayFile
+	Overlays []overlay.File
 
 	// MainPkg is the main package to build.
 	MainPkg paths.Pkg
@@ -68,7 +71,7 @@ type builder struct {
 	errs *perr.List
 
 	// o is the overlay to use
-	o *overlay
+	o *overlays
 
 	// workdir is the temporary workdir for the build.
 	workdir paths.FS
@@ -296,8 +299,8 @@ func isGo118Plus(f *modfile.File) bool {
 	return major > 1 || (major == 1 && minor >= 18)
 }
 
-func newOverlay(errs *perr.List, workdir paths.FS) *overlay {
-	return &overlay{
+func newOverlay(errs *perr.List, workdir paths.FS) *overlays {
+	return &overlays{
 		errs:      errs,
 		workdir:   workdir,
 		seenNames: make(map[string]bool),
@@ -307,7 +310,7 @@ func newOverlay(errs *perr.List, workdir paths.FS) *overlay {
 
 // overlay tracks a set of overlaid files, for feeding to
 // 'go build -overlay'.
-type overlay struct {
+type overlays struct {
 	errs *perr.List
 
 	// workdir is the work directory to write files to.
@@ -322,7 +325,7 @@ type overlay struct {
 	overlay map[paths.FS]paths.FS
 }
 
-func (o *overlay) Add(src paths.FS, baseName string, contents []byte) {
+func (o *overlays) Add(src paths.FS, baseName string, contents []byte) {
 	if _, exists := o.overlay[src]; exists {
 		panic(fmt.Sprintf("duplicate overlay of %s", src.ToIO()))
 	}
@@ -346,7 +349,7 @@ func (o *overlay) Add(src paths.FS, baseName string, contents []byte) {
 	}
 }
 
-func (o *overlay) Data() []byte {
+func (o *overlays) Data() []byte {
 	replace := make(map[string]string, len(o.overlay))
 	for k, v := range o.overlay {
 		replace[k.ToIO()] = v.ToIO()

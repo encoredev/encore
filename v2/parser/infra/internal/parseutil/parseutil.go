@@ -125,15 +125,17 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 
 	ident := resolveAssignedVar(data.Stack)
 	if ident == nil {
-		p.Errs.Addf(data.Stack[0].Pos(), "the %s return value must be assigned to a variable",
+		p.Errs.Addf(data.Stack[selIdx].Pos(), "the %s return value must be assigned to a variable",
 			constructor.NaiveDisplayName())
 		return nil
 	}
 
+	// Do we have any type arguments?
+	maybeHasTypeArgs := spec.MaxTypeArgs > 0
+
 	// If we have any type arguments it will be in the parent of the selector.
 	var typeArgs []schema.Type
-	hasTypeArgs := spec.MinTypeArgs > 0 || spec.MaxTypeArgs > 0
-	if hasTypeArgs {
+	if maybeHasTypeArgs {
 		typeArgsIdx := selIdx - 1
 		if typeArgsIdx < 0 {
 			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires type arguments, but none were found",
@@ -164,7 +166,7 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 
 	// Make sure the reference is called
 	callIdx := selIdx - 1
-	if hasTypeArgs {
+	if len(typeArgs) > 0 {
 		// If there are type arguments there's an intermediary IndexExpr or IndexListExpr node.
 		callIdx--
 	}
@@ -224,7 +226,7 @@ func resolveAssignedVar(stack []ast.Node) (id *ast.Ident) {
 			panic("internal error: resource not found in stack")
 		}
 
-		for n := 0; i < len(vs.Names); n++ {
+		for n := 0; n < len(vs.Names); n++ {
 			if len(vs.Values) > n && vs.Values[n] == stack[i+1] {
 				// We've found the value that contains the resource.
 				id = vs.Names[n]

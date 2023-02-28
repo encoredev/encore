@@ -1,4 +1,4 @@
-package metricsgen
+package cachegen
 
 import (
 	"fmt"

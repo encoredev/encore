@@ -39,4 +39,5 @@ const (
 
 type Resource interface {
 	Kind() Kind
+	DeclaredIn() *pkginfo.File
 }

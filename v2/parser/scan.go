@@ -74,11 +74,10 @@ type walkFunc func(pkgPath paths.Pkg)
 // calling walkFn for each directory that contains a go package
 // (as indicated by the presence of any .go files).
 func walkGoPackages(root paths.FS, basePkgPath paths.Pkg, walkFn walkFunc) error {
-	var scratch [100]string
-	return walkDir(root.ToIO(), basePkgPath, walkFn, scratch[:0])
+	return walkDir(root.ToIO(), basePkgPath, walkFn)
 }
 
-func walkDir(dir string, pkgPath paths.Pkg, walkFn walkFunc, scratchDir []string) error {
+func walkDir(dir string, pkgPath paths.Pkg, walkFn walkFunc) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
@@ -86,13 +85,14 @@ func walkDir(dir string, pkgPath paths.Pkg, walkFn walkFunc, scratchDir []string
 
 	// Iterate through the entries and keep track of any directories
 	// we come across as well as whether there are any Go files.
+	var subdirs []string
 	foundGoFile := false
 	for _, e := range entries {
 		name := e.Name()
 		if ignored(name) {
 			continue
 		} else if e.IsDir() {
-			scratchDir = append(scratchDir, name)
+			subdirs = append(subdirs, name)
 		} else if !foundGoFile {
 			// Only compute if we haven't already found a .go file
 			foundGoFile = strings.HasSuffix(name, ".go")
@@ -102,10 +102,10 @@ func walkDir(dir string, pkgPath paths.Pkg, walkFn walkFunc, scratchDir []string
 	if foundGoFile {
 		walkFn(pkgPath)
 	}
-	for _, d := range scratchDir {
+	for _, d := range subdirs {
 		subDir := filepath.Join(dir, d)
 		subPkg := pkgPath.JoinSlash(d)
-		if err := walkDir(subDir, subPkg, walkFn, scratchDir[:0]); err != nil {
+		if err := walkDir(subDir, subPkg, walkFn); err != nil {
 			return err
 		}
 	}

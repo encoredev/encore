@@ -12,12 +12,14 @@ import (
 )
 
 type Subscription struct {
+	File  *pkginfo.File
 	Topic *Topic
 	Name  string // The unique name of the pub sub subscription
 	Doc   string // The documentation on the pub sub subscription
 }
 
-func (t *Subscription) Kind() resource.Kind { return resource.PubSubSubscription }
+func (s *Subscription) Kind() resource.Kind       { return resource.PubSubSubscription }
+func (s *Subscription) DeclaredIn() *pkginfo.File { return s.File }
 
 var SubscriptionParser = &resource.Parser{
 	Name:      "PubSub Subscription",
@@ -92,6 +94,7 @@ func parsePubSubSubscription(d parseutil2.ParseData) resource.Resource {
 
 	// TODO(andre) fill in this
 	return &Subscription{
+		File: d.File,
 		Name: subscriptionName,
 		Doc:  d.Doc,
 	}

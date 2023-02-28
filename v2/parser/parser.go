@@ -1,82 +1,52 @@
 package parser
 
 import (
-	"context"
 	"fmt"
-	"go/token"
 	"os"
 
-	"github.com/rs/zerolog"
 	"golang.org/x/mod/modfile"
 
-	"encr.dev/pkg/experiments"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
-	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis"
+	"encr.dev/v2/parser/infra"
+	"encr.dev/v2/parser/infra/resource"
 )
 
-// Config represents the configuration options for parsing.
-type Config struct {
-	// Ctx provides cancellation.
-	Ctx context.Context
-
-	// Log is the configured logger.
-	Log zerolog.Logger
-
-	// Build controls what files to build.
-	Build parsectx.BuildInfo
-
-	// Errs is the error list to use.
-	Errs *perr.List
-
-	// Experiments are the experiments to enable.
-	Experiments *experiments.Set
-
-	// RootDir is the root directory to parse.
-	RootDir string
-
-	// ParseTests controls whether to parse test files.
-	ParseTests bool
-}
-
-func NewParser(cfg *Config) *Parser {
-	// Currently we assume the go.mod file is in the root directory.
-	mainModuleDir := paths.RootedFSPath(cfg.RootDir, ".")
-
-	c := &parsectx.Context{
-		Ctx:           cfg.Ctx,
-		Log:           cfg.Log,
-		Build:         cfg.Build,
-		MainModuleDir: mainModuleDir,
-		FS:            token.NewFileSet(),
-		ParseTests:    cfg.ParseTests,
-		Errs:          cfg.Errs,
-	}
-	return NewParserFromCtx(c)
-}
-
-func NewParserFromCtx(c *parsectx.Context) *Parser {
+func NewParser(c *parsectx.Context) *Parser {
 	loader := pkginfo.New(c)
 	schemaParser := schema.NewParser(c, loader)
 	apiParser := apis.NewParser(c, schemaParser)
+	infraParser := infra.NewParser(c, schemaParser)
 	return &Parser{
-		c:         c,
-		loader:    loader,
-		apiParser: apiParser,
+		c:           c,
+		loader:      loader,
+		apiParser:   apiParser,
+		infraParser: infraParser,
 	}
 }
 
 type Parser struct {
-	c         *parsectx.Context
-	loader    *pkginfo.Loader
-	apiParser *apis.Parser
+	c           *parsectx.Context
+	loader      *pkginfo.Loader
+	apiParser   *apis.Parser
+	infraParser *infra.Parser
 }
 
-func (p *Parser) Parse() {
-	p.collectPackages(p.processPkg)
+type Result struct {
+	Resources []resource.Resource
+}
+
+func (p *Parser) Parse() Result {
+	var allResources []resource.Resource
+	p.collectPackages(func(pkg *pkginfo.Package) {
+		//res := p.apiParser.Parse(pkg)
+		res := p.infraParser.Parse(pkg)
+		allResources = append(allResources, res.Resources...)
+	})
+	return Result{Resources: allResources}
 }
 
 // collectPackages parses all the packages in subdirectories of the root directory.
@@ -98,12 +68,6 @@ func (p *Parser) collectPackages(process func(pkg *pkginfo.Package)) {
 	for pkg := range pkgCh {
 		process(pkg)
 	}
-}
-
-// processPkg processes a single package.
-func (p *Parser) processPkg(pkg *pkginfo.Package) {
-	res := p.apiParser.Parse(pkg)
-	p.c.Log.Info().Msgf("package %s: -> %+v", pkg.ImportPath, res)
 }
 
 // resolveModulePath resolves the main module's module path

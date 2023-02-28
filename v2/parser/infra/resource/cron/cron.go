@@ -15,13 +15,15 @@ import (
 )
 
 type Job struct {
+	File     *pkginfo.File
 	Name     string // The unique name of the cron job
 	Doc      string // The documentation on the cron job
 	Title    string // cron job title
 	Schedule string
 }
 
-func (t *Job) Kind() resource.Kind { return resource.CronJob }
+func (j *Job) Kind() resource.Kind       { return resource.CronJob }
+func (j *Job) DeclaredIn() *pkginfo.File { return j.File }
 
 var JobParser = &resource.Parser{
 	Name:      "Cron Job",
@@ -89,6 +91,7 @@ func parseCronJob(d parseutil2.ParseData) resource.Resource {
 	config := literals2.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 
 	job := &Job{
+		File:  d.File,
 		Name:  jobName,
 		Doc:   d.Doc,
 		Title: config.Title,

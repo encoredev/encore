@@ -15,9 +15,11 @@ type Cluster struct {
 	Name           string // The unique name of the cache cluster
 	Doc            string // The documentation on the cluster
 	EvictionPolicy string
+	File           *pkginfo.File
 }
 
-func (t *Cluster) Kind() resource.Kind { return resource.CacheCluster }
+func (c *Cluster) Kind() resource.Kind       { return resource.CacheCluster }
+func (c *Cluster) DeclaredIn() *pkginfo.File { return c.File }
 
 var ClusterParser = &resource.Parser{
 	Name:      "Cache Cluster",
@@ -92,5 +94,6 @@ func parseCluster(d parseutil2.ParseData) resource.Resource {
 		Name:           clusterName,
 		Doc:            d.Doc,
 		EvictionPolicy: config.EvictionPolicy,
+		File:           d.File,
 	}
 }

@@ -28,7 +28,8 @@ type Keyspace struct {
 	ConfigLiteral *ast.CompositeLit
 }
 
-func (t *Keyspace) Kind() resource.Kind { return resource.CacheKeyspace }
+func (k *Keyspace) Kind() resource.Kind       { return resource.CacheKeyspace }
+func (k *Keyspace) DeclaredIn() *pkginfo.File { return k.File }
 
 var KeyspaceParser = &resource.Parser{
 	Name:      "Cache Keyspace",

@@ -23,7 +23,8 @@ type SecretKey struct {
 	Name string
 }
 
-func (*Secrets) Kind() resource.Kind { return resource.Secrets }
+func (*Secrets) Kind() resource.Kind         { return resource.Secrets }
+func (s *Secrets) DeclaredIn() *pkginfo.File { return s.File }
 
 var SecretsParser = &resource.Parser{
 	Name:      "Secrets",

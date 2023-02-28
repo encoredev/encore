@@ -12,9 +12,11 @@ import (
 
 // Config represents a config load statement.
 type Config struct {
+	File *pkginfo.File
 }
 
-func (*Config) Kind() resource.Kind { return resource.Config }
+func (*Config) Kind() resource.Kind         { return resource.Config }
+func (c *Config) DeclaredIn() *pkginfo.File { return c.File }
 
 var ConfigParser = &resource.Parser{
 	Name:      "Config",
@@ -61,5 +63,5 @@ func parseLoad(d parseutil.ParseData) resource.Resource {
 	}
 	_ = ref
 
-	return &Config{}
+	return &Config{File: d.File}
 }

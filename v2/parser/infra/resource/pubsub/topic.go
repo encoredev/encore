@@ -20,6 +20,7 @@ const (
 )
 
 type Topic struct {
+	File              *pkginfo.File
 	Name              string              // The unique name of the pub sub topic
 	Doc               string              // The documentation on the pub sub topic
 	DeliveryGuarantee DeliveryGuarantee   // What guarantees does the pub sub topic have?
@@ -27,7 +28,8 @@ type Topic struct {
 	MessageType       *schema.TypeDeclRef // The message type of the pub sub topic
 }
 
-func (t *Topic) Kind() resource.Kind { return resource.PubSubTopic }
+func (t *Topic) Kind() resource.Kind       { return resource.PubSubTopic }
+func (t *Topic) DeclaredIn() *pkginfo.File { return t.File }
 
 var TopicParser = &resource.Parser{
 	Name:      "PubSub Topic",
@@ -110,6 +112,7 @@ func parsePubSubTopic(d parseutil2.ParseData) resource.Resource {
 	}
 
 	return &Topic{
+		File:              d.File,
 		Name:              topicName,
 		Doc:               d.Doc,
 		DeliveryGuarantee: AtLeastOnce,

@@ -34,7 +34,8 @@ type Metric struct {
 	ConfigLiteral *ast.CompositeLit
 }
 
-func (m *Metric) Kind() resource.Kind { return resource.Metric }
+func (m *Metric) Kind() resource.Kind       { return resource.Metric }
+func (m *Metric) DeclaredIn() *pkginfo.File { return m.File }
 
 // metricConstructor describes a particular metric constructor function.
 type metricConstructor struct {
