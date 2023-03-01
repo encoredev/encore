@@ -46,6 +46,22 @@ func TestOptions(t *testing.T) {
 			nocredsBadOrigins:  []string{},
 		},
 		{
+			name: "allowed_glob_creds",
+			cfg: config.CORS{
+				AllowOriginsWithCredentials: []string{"https://*.example.com", "wss://ok1-*.example.com", "https://*-ok2.example.com"},
+			},
+			credsGoodOrigins: []string{"https://foo.example.com", "wss://ok1-foo.example.com", "https://foo-ok2.example.com"},
+			credsBadOrigins: []string{
+				"http://foo.example.com",   // Wrong scheme
+				"htts://.example.com",      // No subdomain
+				"ws://ok1-foo.example.com", // Wrong scheme
+				".example.com",             // No scheme
+				"https://evil.com",         // bad domain
+			},
+			nocredsGoodOrigins: []string{},
+			nocredsBadOrigins:  []string{},
+		},
+		{
 			name: "allowed_nocreds",
 			cfg: config.CORS{
 				AllowOriginsWithoutCredentials: []string{"localhost", "ok.org"},
@@ -190,12 +206,12 @@ func TestOptions(t *testing.T) {
 			checkOrigins(t, c, false, false, tt.nocredsBadOrigins)
 
 			// Only good headers should always be ok
-			checkHeaders(t, c, tt.goodHeaders, true)
+			checkHeaders(t, c, tt.goodHeaders, nil, true)
 
 			// Make sure all the bad headers are invalid, one by one
 			for _, vad := range tt.badHeaders {
 				headers := append(tt.goodHeaders, vad)
-				checkHeaders(t, c, headers, false)
+				checkHeaders(t, c, headers, nil, false)
 			}
 		})
 	}
