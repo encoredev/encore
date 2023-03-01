@@ -5,6 +5,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	gometrics "runtime/metrics"
 	"sync"
 	"time"
 
@@ -153,20 +154,27 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 
 func (x *Exporter) getSysMetrics(now time.Time) []types.MetricDatum {
 	sysMetrics := system.ReadSysMetrics(x.rootLogger)
-	return []types.MetricDatum{
-		{
-			MetricName: aws.String(system.MetricNameHeapObjectsBytes),
+	output := make([]types.MetricDatum, 0, len(sysMetrics))
+	for _, sysMetric := range sysMetrics {
+		var val *float64
+		switch sysMetric.Sample.Value.Kind() {
+		case gometrics.KindUint64:
+			val = aws.Float64(float64(sysMetric.Sample.Value.Uint64()))
+		case gometrics.KindFloat64:
+			val = aws.Float64(sysMetric.Sample.Value.Float64())
+		default:
+			x.rootLogger.Warn().Str("metric_name", sysMetric.Sample.Name).Msg("internal: unexpected metric kind")
+			continue
+		}
+
+		output = append(output, types.MetricDatum{
+			MetricName: aws.String(sysMetric.EncoreName),
 			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics[system.MetricNameHeapObjectsBytes])),
+			Value:      val,
 			Dimensions: x.containerMetadataDims,
-		},
-		{
-			MetricName: aws.String(system.MetricNameGoroutines),
-			Timestamp:  aws.Time(now),
-			Value:      aws.Float64(float64(sysMetrics[system.MetricNameGoroutines])),
-			Dimensions: x.containerMetadataDims,
-		},
+		})
 	}
+	return output
 }
 
 func (x *Exporter) getClient() *cloudwatch.Client {

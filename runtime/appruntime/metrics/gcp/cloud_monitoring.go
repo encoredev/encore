@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	gometrics "runtime/metrics"
 	"sync"
 	"time"
 
@@ -35,7 +36,8 @@ func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, meta *metadata.C
 		},
 		rootLogger: rootLogger,
 
-		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
+		firstSeenCounter:    make(map[uint64]*timestamppb.Timestamp),
+		firstSeenCounterSys: make(map[string]*timestamppb.Timestamp),
 
 		metricNames: cfg.MetricNames,
 	}
@@ -50,7 +52,8 @@ type Exporter struct {
 	clientMu sync.Mutex
 	client   *monitoring.MetricClient
 
-	firstSeenCounter map[uint64]*timestamppb.Timestamp
+	firstSeenCounter    map[uint64]*timestamppb.Timestamp
+	firstSeenCounterSys map[string]*timestamppb.Timestamp
 
 	dummyStart, dummyEnd time.Time
 
@@ -297,47 +300,69 @@ func uint64Val(val uint64) *monitoringpb.TypedValue {
 }
 
 func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
-	var output []*monitoringpb.TimeSeries
 	monitoredResource := &monitoredrespb.MonitoredResource{
 		Type:   x.cfg.MonitoredResourceType,
 		Labels: x.cfg.MonitoredResourceLabels,
 	}
 	sysMetrics := system.ReadSysMetrics(x.rootLogger)
+	output := make([]*monitoringpb.TimeSeries, 0, len(sysMetrics))
+	for _, sysMetric := range sysMetrics {
+		cloudMetricName, ok := x.metricNames[sysMetric.EncoreName]
+		if !ok {
+			x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", sysMetric.EncoreName)
+			continue
+		}
 
-	if cloudMetricName, ok := x.metricNames[system.MetricNameHeapObjectsBytes]; !ok {
-		x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", system.MetricNameHeapObjectsBytes)
-	} else {
-		output = append(output, &monitoringpb.TimeSeries{
-			MetricKind: metricpb.MetricDescriptor_GAUGE,
-			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + cloudMetricName,
-				Labels: x.containerMetadataLabels,
-			},
-			Resource: monitoredResource,
-			Points: []*monitoringpb.Point{{
-				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    uint64Val(sysMetrics[system.MetricNameHeapObjectsBytes]),
-			}},
-		})
+		interval := &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)}
+		var metricKind metricpb.MetricDescriptor_MetricKind
+		switch sysMetric.Kind {
+		case system.MetricKindCounter:
+			metricKind = metricpb.MetricDescriptor_CUMULATIVE
+			startTime := x.firstSeenCounterSys[sysMetric.EncoreName]
+			if startTime == nil {
+				startTime = timestamppb.New(now.Add(-time.Microsecond))
+				x.firstSeenCounterSys[sysMetric.EncoreName] = startTime
+			}
+			interval.StartTime = startTime
+		case system.MetricKindGauge:
+			metricKind = metricpb.MetricDescriptor_GAUGE
+		default:
+			x.rootLogger.Error().Str("metric_name", sysMetric.EncoreName).Msg("encore: internal error: unexpected system metric kind")
+			continue
+		}
+
+		switch sysMetric.Sample.Value.Kind() {
+		case gometrics.KindUint64:
+			output = append(output, &monitoringpb.TimeSeries{
+				MetricKind: metricKind,
+				Metric: &metricpb.Metric{
+					Type:   "custom.googleapis.com/" + cloudMetricName,
+					Labels: x.containerMetadataLabels,
+				},
+				Resource: monitoredResource,
+				Points: []*monitoringpb.Point{{
+					Interval: interval,
+					Value:    uint64Val(sysMetric.Sample.Value.Uint64()),
+				}},
+			})
+		case gometrics.KindFloat64:
+			output = append(output, &monitoringpb.TimeSeries{
+				MetricKind: metricKind,
+				Metric: &metricpb.Metric{
+					Type:   "custom.googleapis.com/" + cloudMetricName,
+					Labels: x.containerMetadataLabels,
+				},
+				Resource: monitoredResource,
+				Points: []*monitoringpb.Point{{
+					Interval: interval,
+					Value:    floatVal(sysMetric.Sample.Value.Float64()),
+				}},
+			})
+		default:
+			x.rootLogger.Warn().Str("metric_name", sysMetric.Sample.Name).Msg("internal: unexpected metric kind")
+			continue
+		}
 	}
-
-	if cloudMetricName, ok := x.metricNames[system.MetricNameGoroutines]; !ok {
-		x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", system.MetricNameGoroutines)
-	} else {
-		output = append(output, &monitoringpb.TimeSeries{
-			MetricKind: metricpb.MetricDescriptor_GAUGE,
-			Metric: &metricpb.Metric{
-				Type:   "custom.googleapis.com/" + cloudMetricName,
-				Labels: x.containerMetadataLabels,
-			},
-			Resource: monitoredResource,
-			Points: []*monitoringpb.Point{{
-				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
-				Value:    uint64Val(sysMetrics[system.MetricNameGoroutines]),
-			}},
-		})
-	}
-
 	return output
 }
 

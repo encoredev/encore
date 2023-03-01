@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	gometrics "runtime/metrics"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -169,22 +170,28 @@ func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
 	}
 
 	sysMetrics := system.ReadSysMetrics(x.rootLogger)
-	return []*prompb.TimeSeries{
-		{
-			Labels: addMetricNameLabel(system.MetricNameHeapObjectsBytes),
+	output := make([]*prompb.TimeSeries, 0, len(sysMetrics))
+	for _, sysMetric := range sysMetrics {
+		var val float64
+		switch sysMetric.Sample.Value.Kind() {
+		case gometrics.KindUint64:
+			val = float64(sysMetric.Sample.Value.Uint64())
+		case gometrics.KindFloat64:
+			val = sysMetric.Sample.Value.Float64()
+		default:
+			x.rootLogger.Warn().Str("metric_name", sysMetric.Sample.Name).Msg("internal: unexpected metric kind")
+			continue
+		}
+
+		output = append(output, &prompb.TimeSeries{
+			Labels: addMetricNameLabel(sysMetric.EncoreName),
 			Samples: []*prompb.Sample{{
-				Value:     float64(sysMetrics[system.MetricNameHeapObjectsBytes]),
+				Value:     val,
 				Timestamp: FromTime(now),
 			}},
-		},
-		{
-			Labels: addMetricNameLabel(system.MetricNameGoroutines),
-			Samples: []*prompb.Sample{{
-				Value:     float64(sysMetrics[system.MetricNameGoroutines]),
-				Timestamp: FromTime(now),
-			}},
-		},
+		})
 	}
+	return output
 }
 
 // FromTime returns a new millisecond timestamp from a time.

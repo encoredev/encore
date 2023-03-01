@@ -6,44 +6,68 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// These are the metrics exposed by Go we currently track. Once we update our
-// fork to Go 1.20, we should add:
-//
-// - /cpu/classes/gc/pause:cpu-seconds
-// - /cpu/classes/idle:cpu-seconds
-// - /cpu/classes/total:cpu-seconds
-// - /sync/mutex/wait/total:seconds
+type MetricKind int
+
 const (
+	MetricKindCounter MetricKind = iota
+	MetricKindGauge
+
 	MetricNameHeapObjectsBytes = "e_sys_memory_heap_objects_bytes"
 	MetricNameGoroutines       = "e_sys_sched_goroutines"
+	MetricNameTotalCPUSeconds  = "e_sys_cpu_total_cpuseconds"
 
 	goMetricHeapObjectsBytes = "/memory/classes/heap/objects:bytes"
 	goMetricGoroutines       = "/sched/goroutines:goroutines"
+	goMetricTotalCPUSeconds  = "/cpu/classes/total:cpu-seconds"
 )
 
-var encoreMetricNames = map[string]string{
-	goMetricHeapObjectsBytes: MetricNameHeapObjectsBytes,
-	goMetricGoroutines:       MetricNameGoroutines,
+type metadata struct {
+	name string
+	kind MetricKind
 }
 
-func ReadSysMetrics(logger zerolog.Logger) map[string]uint64 {
+var encoreMetricMetadata = map[string]metadata{
+	goMetricHeapObjectsBytes: {
+		name: MetricNameHeapObjectsBytes,
+		kind: MetricKindGauge,
+	},
+	goMetricGoroutines: {
+		name: MetricNameGoroutines,
+		kind: MetricKindGauge,
+	},
+	goMetricTotalCPUSeconds: {
+		name: MetricNameTotalCPUSeconds,
+		kind: MetricKindCounter,
+	},
+}
+
+type SysMetric struct {
+	Sample     metrics.Sample
+	EncoreName string
+	Kind       MetricKind
+}
+
+func ReadSysMetrics(logger zerolog.Logger) []*SysMetric {
 	samples := []metrics.Sample{
 		{Name: goMetricHeapObjectsBytes},
 		{Name: goMetricGoroutines},
+		{Name: goMetricTotalCPUSeconds},
 	}
 	metrics.Read(samples)
 
-	output := make(map[string]uint64, len(samples))
+	output := make([]*SysMetric, 0, len(samples))
 	for _, sample := range samples {
-		switch sample.Value.Kind() {
-		case metrics.KindUint64:
-			output[encoreMetricNames[sample.Name]] = sample.Value.Uint64()
-		case metrics.KindBad:
+		if sample.Value.Kind() == metrics.KindBad {
 			// This means the metric is unsupported. It's expected to happen very rarely
 			// possibly due to a large change in a particular Go implementation.
 			logger.Warn().Str("metric", sample.Name).Msg("metric no longer supported")
-		default:
-			logger.Warn().Str("metric", sample.Name).Msg("unexpected metric kind")
+		} else {
+			meta := encoreMetricMetadata[sample.Name]
+			output = append(output, &SysMetric{
+				Sample:     sample,
+				EncoreName: meta.name,
+				Kind:       meta.kind,
+			})
 		}
 	}
 	return output
