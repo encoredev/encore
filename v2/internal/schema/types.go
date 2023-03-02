@@ -139,6 +139,8 @@ type TypeParamRefType struct {
 
 type BuiltinKind int
 
+//go:generate stringer -type=BuiltinKind -output=types_string.go
+
 const (
 	Invalid BuiltinKind = iota
 	Any

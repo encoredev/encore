@@ -4,22 +4,27 @@ import (
 	"go/ast"
 
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
-// Config represents a config load statement.
-type Config struct {
+// Load represents a config load statement.
+type Load struct {
 	File *pkginfo.File
+
+	// Type is the type of the config struct being loaded.
+	// It's guaranteed to be a (possibly pointer to a) named struct type.
+	Type schema.Type
 }
 
-func (*Config) Kind() resource.Kind         { return resource.Config }
-func (c *Config) DeclaredIn() *pkginfo.File { return c.File }
+func (*Load) Kind() resource.Kind         { return resource.ConfigLoad }
+func (c *Load) DeclaredIn() *pkginfo.File { return c.File }
 
-var ConfigParser = &resource.Parser{
-	Name:      "Config",
+var LoadParser = &resource.Parser{
+	Name:      "ConfigLoad",
 	DependsOn: nil,
 
 	RequiredImports: []string{"encore.dev/config"},
@@ -63,5 +68,5 @@ func parseLoad(d parseutil.ParseData) resource.Resource {
 	}
 	_ = ref
 
-	return &Config{File: d.File}
+	return &Load{File: d.File, Type: d.TypeArgs[0]}
 }

@@ -10,8 +10,10 @@ import (
 )
 
 func newFile(pkg *pkginfo.Package, suffix string) *File {
+	jenFile := jen.NewFilePathName(pkg.ImportPath.String(), pkg.Name)
 	return &File{
 		Pkg:    pkg,
+		Jen:    jenFile,
 		suffix: suffix,
 	}
 }
@@ -19,6 +21,7 @@ func newFile(pkg *pkginfo.Package, suffix string) *File {
 // File represents a generated file for a specific package.
 type File struct {
 	Pkg    *pkginfo.Package // the package the file belongs to
+	Jen    *jen.File        // the jen file we're generating
 	suffix string           // the file name suffix. "metrics" for "encore_internal__metrics.go".
 	decls  []Decl
 }
@@ -30,14 +33,13 @@ func (f *File) Name() string {
 
 // Render renders the file to the given writer.
 func (f *File) Render(w io.Writer) error {
-	jenFile := jen.NewFilePathName(f.Pkg.ImportPath.String(), f.Pkg.Name)
 	for i, d := range f.decls {
 		if i > 0 {
-			jenFile.Line()
+			f.Jen.Line()
 		}
-		jenFile.Add(d.Code())
+		f.Jen.Add(d.Code())
 	}
-	return jenFile.Render(w)
+	return f.Jen.Render(w)
 }
 
 type Decl interface {

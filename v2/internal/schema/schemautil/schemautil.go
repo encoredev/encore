@@ -2,6 +2,7 @@ package schemautil
 
 import (
 	"fmt"
+	"reflect"
 
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/schema"
@@ -159,4 +160,78 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 	default:
 		panic(fmt.Sprintf("unknown type %T", typ))
 	}
+}
+
+type pkgDeclKey struct {
+	pkg  paths.Pkg
+	name string
+}
+
+// Walk performs a depth-first walk of all schema nodes starting at node, calling visitor for each type.
+//
+// If visitor returns false, the walk is aborted.
+func Walk(root schema.Type, visitor func(node schema.Type) bool) {
+	declChain := make([]pkgDeclKey, 0, 10)
+	walk(root, visitor, declChain)
+}
+
+func walk(node schema.Type, visitor func(typ schema.Type) bool, declChain []pkgDeclKey) bool {
+	// Check the visitor against the node type
+	if !visitor(node) {
+		return false
+	}
+
+	switch node := node.(type) {
+	case schema.NamedType:
+		for _, typ := range node.TypeArgs {
+			if !walk(typ, visitor, declChain) {
+				return false
+			}
+		}
+
+		// Have we already visited this decl?
+		declKey := pkgDeclKey{pkg: node.DeclInfo.File.Pkg.ImportPath, name: node.DeclInfo.Name}
+		for i := len(declChain) - 1; i >= 0; i-- {
+			if declChain[i] == declKey {
+				return true // keep going elsewhere
+			}
+		}
+		declChain = append(declChain, declKey)
+
+		return walk(node.Decl().Type, visitor, declChain)
+	case schema.StructType:
+		for _, field := range node.Fields {
+			if !walk(field.Type, visitor, declChain) {
+				return false
+			}
+		}
+	case schema.MapType:
+		if !walk(node.Key, visitor, declChain) {
+			return false
+		}
+		return walk(node.Value, visitor, declChain)
+	case schema.ListType:
+		return walk(node.Elem, visitor, declChain)
+	case schema.BuiltinType:
+		return true // keep going elsewhere
+	case schema.PointerType:
+		return walk(node.Elem, visitor, declChain)
+	case schema.FuncType:
+		for _, part := range [...][]schema.Param{node.Params, node.Results} {
+			for _, p := range part {
+				if !walk(p.Type, visitor, declChain) {
+					return false
+				}
+			}
+		}
+		return true
+	case schema.InterfaceType:
+		return true
+	case schema.TypeParamRefType:
+		return true
+	default:
+		panic(fmt.Sprintf("unsupported node type encountered during walk: %+v", reflect.TypeOf(node)))
+	}
+
+	return true
 }

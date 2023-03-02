@@ -33,7 +33,7 @@ const (
 	CronJob
 	CacheCluster
 	CacheKeyspace
-	Config
+	ConfigLoad
 	Secrets
 )
 

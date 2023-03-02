@@ -35,7 +35,7 @@ type ParseResult struct {
 var allParsers = []*resource.Parser{
 	cache.ClusterParser,
 	cache.KeyspaceParser,
-	config.ConfigParser,
+	config.LoadParser,
 	cron.JobParser,
 	metrics.MetricParser,
 	pubsub.TopicParser,

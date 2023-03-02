@@ -17,6 +17,8 @@ type Decl interface {
 	// String returns the shorthand name for this declaration,
 	// in the form "pkgname.DeclName".
 	String() string
+	// TypeParameters are the type parameters on this declaration.
+	TypeParameters() []DeclTypeParam
 }
 
 // DeclKind represents different kinds of declarations.
@@ -84,13 +86,15 @@ type Receiver struct {
 	Decl *TypeDecl
 }
 
-func (*TypeDecl) Kind() DeclKind      { return DeclType }
-func (d *TypeDecl) ASTNode() ast.Node { return d.AST }
-func (d *TypeDecl) String() string    { return d.File.Pkg.Name + "." + d.Name }
+func (*TypeDecl) Kind() DeclKind                    { return DeclType }
+func (d *TypeDecl) ASTNode() ast.Node               { return d.AST }
+func (d *TypeDecl) String() string                  { return d.File.Pkg.Name + "." + d.Name }
+func (d *TypeDecl) TypeParameters() []DeclTypeParam { return d.TypeParams }
 
-func (*FuncDecl) Kind() DeclKind      { return DeclFunc }
-func (d *FuncDecl) ASTNode() ast.Node { return d.AST }
-func (d *FuncDecl) String() string    { return d.File.Pkg.Name + "." + d.Name }
+func (*FuncDecl) Kind() DeclKind                    { return DeclFunc }
+func (d *FuncDecl) ASTNode() ast.Node               { return d.AST }
+func (d *FuncDecl) String() string                  { return d.File.Pkg.Name + "." + d.Name }
+func (d *FuncDecl) TypeParameters() []DeclTypeParam { return d.TypeParams }
 
 // ParseTypeDecl parses the type from a package declaration.
 // It errors if the declaration is not a type.
