@@ -74,5 +74,14 @@ func (g *Generator) Overlays() []overlay.File {
 			Contents: contents,
 		})
 	}
+
+	for f, rw := range g.rewrites {
+		source := f.Pkg.FSPath.Join(f.Name)
+		of = append(of, overlay.File{
+			Source:   source,
+			Contents: rw.Data(),
+		})
+	}
+
 	return of
 }

@@ -18,6 +18,9 @@ type Load struct {
 	// Type is the type of the config struct being loaded.
 	// It's guaranteed to be a (possibly pointer to a) named struct type.
 	Type schema.Type
+
+	// FuncCall is the AST node that represents the config.Load expression.
+	FuncCall *ast.CallExpr
 }
 
 func (*Load) Kind() resource.Kind         { return resource.ConfigLoad }
@@ -68,5 +71,5 @@ func parseLoad(d parseutil.ParseData) resource.Resource {
 	}
 	_ = ref
 
-	return &Load{File: d.File, Type: d.TypeArgs[0]}
+	return &Load{File: d.File, Type: d.TypeArgs[0], FuncCall: d.Call}
 }

@@ -1,7 +1,9 @@
 package configgen
 
 import (
+	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
@@ -57,6 +59,18 @@ calls to config.Load[T]().`)
 			gen.Errs.Addf(decl.AST.Pos(), "failed to generate config unmarshaler for %s: %v", decl.Name, err)
 		}
 	}
+
+	// Rewrite load functions to inject marshallers
+	for _, load := range loads {
+		rw := gen.Rewrite(load.File)
+		var buf bytes.Buffer
+		buf.WriteString(strconv.Quote("SERVICE")) // TODO(andre) used to be service name
+		buf.WriteString(", ")
+		buf.WriteString(ConfigUnmarshalFuncName(load.Type))
+		ep := gen.FS.Position(load.FuncCall.Rparen)
+		_, _ = fmt.Fprintf(&buf, "/*line :%d:%d*/", ep.Line, ep.Column)
+		rw.Replace(load.FuncCall.Lparen+1, load.FuncCall.Rparen, buf.Bytes())
+	}
 }
 
 type configUnmarshalersBuilder struct {
@@ -76,7 +90,10 @@ func (cb *configUnmarshalersBuilder) FindAllDecls(loads []*config.Load) []*schem
 		schemautil.Walk(load.Type, func(node schema.Type) bool {
 			switch n := node.(type) {
 			case schema.NamedType:
-				typesToWrite[n.Decl()] = struct{}{}
+				// Ignore config.Foo types
+				if n.DeclInfo.File.Pkg.ImportPath != "encore.dev/config" {
+					typesToWrite[n.Decl()] = struct{}{}
+				}
 			}
 			return true
 		})
@@ -167,6 +184,19 @@ func (cb *configUnmarshalersBuilder) WriteTypeUnmarshaler(decl *schema.TypeDecl)
 func (cb *configUnmarshalersBuilder) readType(typ schema.Type, pathElement Code) (reader Code, rtnTyp *Statement) {
 	switch t := typ.(type) {
 	case schema.NamedType:
+		if t.DeclInfo.File.Pkg.ImportPath == "encore.dev/config" {
+			// The config type is the dynamic values which can be changed at runtime
+			// by unit tests
+			if underlying, isList := cb.resolveValueType(t); isList {
+				code, _ := cb.readType(schema.ListType{Elem: underlying}, pathElement)
+				_, returnType := cb.readType(underlying, pathElement)
+				return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Values").Types(returnType)
+			} else {
+				code, returnType := cb.readType(underlying, pathElement)
+				return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Value").Types(returnType)
+			}
+		}
+
 		funcRef, returnType := cb.typeUnmarshalerFunc(typ)
 
 		return funcRef.Call(
@@ -248,18 +278,6 @@ func (cb *configUnmarshalersBuilder) readType(typ schema.Type, pathElement Code)
 			Return(Op("&").Id("obj")),
 		).Call(), Op("*").Add(returnType)
 
-	//case *schema.Type_Config:
-	//	// The config type is the dynamic values which can be changed at runtime
-	//	// by unit tests
-	//	if t.Config.IsValuesList {
-	//		code, _ := cb.readType(t.Config.Elem, pathElement)
-	//		_, returnType := cb.readType(t.Config.Elem.GetList().Elem, pathElement)
-	//		return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Values").Types(returnType)
-	//	} else {
-	//		code, returnType := cb.readType(t.Config.Elem, pathElement)
-	//		return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Value").Types(returnType)
-	//	}
-
 	case schema.TypeParamRefType:
 		typeParam := t.Decl.TypeParameters()[t.Index]
 		funcName := cb.typeParamUnmarshalerName(typeParam)
@@ -312,6 +330,42 @@ func (cb *configUnmarshalersBuilder) readStruct(f *Group, struc schema.StructTyp
 	))
 
 	return Struct(fieldTypes...)
+}
+
+// resolveValueType resolves a config.Value[T] or config.Values[T] (or one of their aliases, like config.Bool)
+// to the underlying type T.
+func (cb *configUnmarshalersBuilder) resolveValueType(t schema.NamedType) (underlying schema.Type, isList bool) {
+	if t.DeclInfo.Name == "Values" {
+		if len(t.TypeArgs) == 0 {
+			// Invalid use of config.Values[T]
+			cb.errs.Add(t.AST.Pos(), "invalid use of config.Values[T]: no type arguments provided")
+			return schema.BuiltinType{Kind: schema.Invalid}, true
+		}
+
+		return t.TypeArgs[0], true
+	} else if t.DeclInfo.Name == "Value" {
+		if len(t.TypeArgs) == 0 {
+			// Invalid use of config.Value[T]
+			cb.errs.Add(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
+			return schema.BuiltinType{Kind: schema.Invalid}, false
+		}
+		return t.TypeArgs[0], false
+	} else {
+		// Use of some helper type alias, like config.Bool
+		decl := t.Decl()
+		if named, ok := decl.Type.(schema.NamedType); ok && named.DeclInfo.Name == "Value" {
+			if len(named.TypeArgs) == 0 {
+				// Invalid use of config.Value[T]
+				cb.errs.Add(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
+				return schema.BuiltinType{Kind: schema.Invalid}, false
+			}
+			return named.TypeArgs[0], false
+		} else {
+			// Invalid use of config.Value[T]
+			cb.errs.Addf(t.AST.Pos(), "unrecognized config type: %s", t.DeclInfo.Name)
+			return schema.BuiltinType{Kind: schema.Invalid}, false
+		}
+	}
 }
 
 // typeUnmarshalerFunc returns a `f` function which can be used to read the given value of `typ` and the type
@@ -455,6 +509,7 @@ func ConfigUnmarshalFuncName(typ schema.Type) string {
 		"[", "_",
 		"]", "_",
 		",", "_",
+		".", "_",
 		" ", "",
 		"\t", "",
 		"\n", "",

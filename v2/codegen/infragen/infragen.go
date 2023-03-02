@@ -3,6 +3,7 @@ package infragen
 import (
 	"encr.dev/pkg/fns"
 	"encr.dev/v2/codegen/infragen/cachegen"
+	"encr.dev/v2/codegen/infragen/configgen"
 	"encr.dev/v2/codegen/infragen/metricsgen"
 	secretsgen "encr.dev/v2/codegen/infragen/secrets"
 	"encr.dev/v2/codegen/internal/gen"
@@ -11,6 +12,7 @@ import (
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/parser/infra/resource"
 	"encr.dev/v2/parser/infra/resource/cache"
+	"encr.dev/v2/parser/infra/resource/config"
 	"encr.dev/v2/parser/infra/resource/metrics"
 	"encr.dev/v2/parser/infra/resource/secrets"
 )
@@ -50,6 +52,10 @@ func (g *Generator) Generate(resources []resource.Resource) []overlay.File {
 		case resource.Secrets:
 			secretsgen.Gen(gg, pkg, fns.Map(resources, func(r resource.Resource) *secrets.Secrets {
 				return r.(*secrets.Secrets)
+			}))
+		case resource.ConfigLoad:
+			configgen.Gen(gg, pkg, fns.Map(resources, func(r resource.Resource) *config.Load {
+				return r.(*config.Load)
 			}))
 		}
 	}

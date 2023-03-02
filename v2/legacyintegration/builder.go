@@ -29,17 +29,20 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 		Ctx: ctx,
 		Log: zerolog.New(zerolog.NewConsoleWriter()),
 		Build: parsectx.BuildInfo{
-			GOARCH: runtime.GOARCH,
-			GOOS:   runtime.GOOS,
-			// TODO(andre) Do we need all this?
-			BuildTags:     []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-			CgoEnabled:    false,
-			StaticLink:    false,
-			Debug:         false,
+			GOARCH:        runtime.GOARCH,
+			GOOS:          runtime.GOOS,
 			GOROOT:        paths.RootedFSPath(env.EncoreGoRoot(), "."),
 			EncoreRuntime: paths.RootedFSPath(env.EncoreRuntimePath(), "."),
+
+			// TODO(andre) make these configurable?
+			CgoEnabled: false,
+			StaticLink: false,
+			Debug:      false,
+
+			// TODO(andre) Do we need all this still?
+			BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 		},
-		MainModuleDir: paths.RootedFSPath(p.WorkingDir, "."),
+		MainModuleDir: paths.RootedFSPath(p.App.Root(), p.WorkingDir),
 		FS:            fs,
 		ParseTests:    p.ParseTests,
 		Errs:          errs,
