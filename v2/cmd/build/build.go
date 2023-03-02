@@ -53,8 +53,8 @@ var Cmd = &cobra.Command{
 
 		parser := parser2.NewParser(pc)
 		parserResult := parser.Parse()
-		infragen := infragen.New(pc)
 
+		infragen := infragen.New(pc)
 		overlays := infragen.Generate(parserResult.Resources)
 
 		buildResult := build.Build(&build.Config{
