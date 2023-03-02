@@ -2,15 +2,12 @@ package compiler
 
 import (
 	"fmt"
-	"go/ast"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/compiler/internal/rewrite"
 	"encr.dev/parser/est"
 	"encr.dev/pkg/eerror"
 )
@@ -22,10 +19,6 @@ const (
 )
 
 func (b *builder) writeMainPkg() error {
-	if b.disableAPI {
-		return b.rewriteExistingMainPkg()
-	}
-
 	defer b.trace("write main package")()
 	// Write the file to disk
 	dir := filepath.Join(b.workdir, encorePkgDir, mainPkgName)
@@ -50,84 +43,6 @@ func (b *builder) writeMainPkg() error {
 		return err
 	}
 	return f.Render(file)
-}
-
-func (b *builder) rewriteExistingMainPkg() error {
-	defer b.trace("rewrite existing main package")()
-
-	// TODO(andre) Need to make the actual main package path configurable.
-
-	// Find the existing main package.
-	var mainPkg *est.Package
-	//mainPkgPath := b.cfg.ExecScript.ScriptMainPkg
-	for _, pkg := range b.res.App.Packages {
-		if pkg.Name == "main" {
-			mainPkg = pkg
-			break
-		}
-	}
-	if mainPkg == nil {
-		return fmt.Errorf("unable to find main package")
-	}
-
-	// Write the file to disk
-	dir := filepath.Join(b.workdir, mainPkg.RelPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-	mainPath := filepath.Join(dir, "encore_internal__main.go")
-	file, err := os.Create(mainPath)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err2 := file.Close(); err == nil {
-			err = err2
-		}
-	}()
-
-	b.addOverlay(filepath.Join(b.appRoot, mainPkg.RelPath, "exec_main.go"), mainPath)
-
-	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, mainPkg.ImportPath, "", false)
-	if err != nil {
-		return err
-	}
-
-	if err := f.Render(file); err != nil {
-		return err
-	}
-
-	// Find the main function
-	var (
-		mainFunc *ast.FuncDecl
-		mainFile *est.File
-	)
-FileLoop:
-	for _, f := range mainPkg.Files {
-		for _, d := range f.AST.Decls {
-			if fd, ok := d.(*ast.FuncDecl); ok && fd.Name.Name == "main" {
-				mainFile, mainFunc = f, fd
-				break FileLoop
-			}
-		}
-	}
-	if mainFunc == nil {
-		return fmt.Errorf("unable to find main function in %s", mainPkg.RelPath)
-	}
-
-	rw := rewrite.New(mainFile.Contents, mainFile.Token.Base())
-	decl := mainFile.AST.Decls[0]
-	ln := b.res.FileSet.Position(decl.Pos())
-	rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_app %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
-	rw.Insert(mainFunc.Body.Lbrace+1, []byte("__encore_app.AppStart();"))
-
-	name := filepath.Base(mainFile.Path)
-	dst := filepath.Join(dir, name)
-	if err := os.WriteFile(dst, mainFile.Contents, 0644); err != nil {
-		return err
-	}
-	b.addOverlay(mainFile.Path, dst)
-	return nil
 }
 
 func (b *builder) writeEtypePkg() error {
@@ -158,10 +73,6 @@ func (b *builder) writeEtypePkg() error {
 }
 
 func (b *builder) serviceCodegen() error {
-	if b.disableAPI {
-		return nil
-	}
-
 	defer b.trace("write service codegen")()
 	for _, svc := range b.res.App.Services {
 		if err := b.writeServiceHandlers(svc); err != nil {

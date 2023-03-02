@@ -21,9 +21,8 @@ const (
 	// Metrics is an experiment to enable metrics.
 	Metrics Name = "metrics"
 
-	// NoAPI is an experiment to disable Encore's API parsing
-	// and allow full control over the main function.
-	NoAPI Name = "no-api"
+	// V2 enables the new parser and compiler.
+	V2 Name = "v2"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -31,7 +30,7 @@ func (x Name) Valid() bool {
 	switch x {
 	case LocalSecretsOverride,
 		Metrics,
-		NoAPI:
+		V2:
 		return true
 	default:
 		return false

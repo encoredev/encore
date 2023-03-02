@@ -132,12 +132,11 @@ func Build(appRoot string, cfg *Config) (*Result, error) {
 	}
 
 	b := &builder{
-		cfg:        cfg,
-		appRoot:    appRoot,
-		log:        cfg.Log,
-		configs:    make(map[string]string),
-		lastOpID:   optracker.NoOperationID,
-		disableAPI: experiments.NoAPI.Enabled(cfg.Experiments),
+		cfg:      cfg,
+		appRoot:  appRoot,
+		log:      cfg.Log,
+		configs:  make(map[string]string),
+		lastOpID: optracker.NoOperationID,
 	}
 	return b.Build()
 }
@@ -149,8 +148,6 @@ type builder struct {
 	forTesting bool
 	log        zerolog.Logger
 	traceStart time.Time // for tracing durations
-
-	disableAPI bool
 
 	workdir string
 	modfile *modfile.File
@@ -402,10 +399,8 @@ func (b *builder) writePackages() error {
 	}
 
 	for _, svc := range b.res.App.Services {
-		if !b.disableAPI {
-			if err := b.generateServiceSetup(svc); err != nil {
-				return err
-			}
+		if err := b.generateServiceSetup(svc); err != nil {
+			return err
 		}
 
 		if err := b.generateCueFiles(svc); err != nil {
@@ -449,22 +444,6 @@ func (b *builder) buildMain() error {
 	}
 
 	mainPkgPath := fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName)
-
-	if b.disableAPI {
-		// Find the existing main package.
-		var mainPkg *est.Package
-		//mainPkgPath := b.cfg.ExecScript.ScriptMainPkg
-		for _, pkg := range b.res.App.Packages {
-			if pkg.Name == "main" {
-				mainPkg = pkg
-				break
-			}
-		}
-		if mainPkg == nil {
-			return fmt.Errorf("unable to find main package")
-		}
-		mainPkgPath = "./" + mainPkg.RelPath
-	}
 
 	args = append(args, mainPkgPath)
 	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
