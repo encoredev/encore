@@ -77,7 +77,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
-	if err := rs.StartRequiredServices(jobs, parse); err != nil {
+	if err := rs.StartRequiredServices(jobs, parse.Meta); err != nil {
 		return err
 	}
 

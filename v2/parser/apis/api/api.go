@@ -34,7 +34,7 @@ type API struct {
 	Decl        *schema2.FuncDecl
 	Access      AccessType
 	Raw         bool
-	Path        apipaths.Path
+	Path        *apipaths.Path
 	HTTPMethods []string
 	Request     schema2.Type // request data; nil for Raw RPCs
 	Response    schema2.Type // response data; nil for Raw RPCs
@@ -61,8 +61,8 @@ func Parse(d ParseData) *API {
 	}
 
 	// If there was no path, default to "pkg.Decl".
-	if rpc.Path.Segments == nil {
-		rpc.Path = apipaths.Path{
+	if rpc.Path == nil {
+		rpc.Path = &apipaths.Path{
 			Pos: d.Dir.AST.Pos(),
 			Segments: []apipaths.Segment{{
 				Type:      apipaths.Literal,

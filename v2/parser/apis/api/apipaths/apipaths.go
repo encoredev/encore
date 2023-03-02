@@ -77,17 +77,17 @@ const (
 )
 
 // Parse parses a slash-separated path into path segments.
-func Parse(pos token.Pos, path string) (Path, error) {
+func Parse(pos token.Pos, path string) (*Path, error) {
 	if path == "" {
-		return Path{}, errors.New("empty path")
+		return nil, errors.New("empty path")
 	} else if path[0] != '/' {
-		return Path{}, errors.New("path must begin with '/'")
+		return nil, errors.New("path must begin with '/'")
 	}
 
 	if _, err := url.ParseRequestURI(path); err != nil {
-		return Path{}, fmt.Errorf("invalid path: %v", errors.Unwrap(err))
+		return nil, fmt.Errorf("invalid path: %v", errors.Unwrap(err))
 	} else if idx := strings.IndexByte(path, '?'); idx != -1 {
-		return Path{}, fmt.Errorf("path cannot contain '?'")
+		return nil, fmt.Errorf("path cannot contain '?'")
 	}
 
 	var segs []Segment
@@ -98,7 +98,7 @@ func Parse(pos token.Pos, path string) (Path, error) {
 		var val string
 		switch idx := strings.IndexByte(path, '/'); idx {
 		case 0:
-			return Path{}, fmt.Errorf("path cannot contain double slash")
+			return nil, fmt.Errorf("path cannot contain double slash")
 		case -1:
 			val = path
 			path = ""
@@ -123,26 +123,26 @@ func Parse(pos token.Pos, path string) (Path, error) {
 		switch s.Type {
 		case Literal:
 			if s.Value == "" {
-				return Path{}, fmt.Errorf("path cannot contain trailing slash")
+				return nil, fmt.Errorf("path cannot contain trailing slash")
 			}
 		case Param:
 			if s.Value == "" {
-				return Path{}, fmt.Errorf("path parameter must have a name")
+				return nil, fmt.Errorf("path parameter must have a name")
 			} else if !token.IsIdentifier(s.Value) {
-				return Path{}, fmt.Errorf("path parameter must be a valid Go identifier name")
+				return nil, fmt.Errorf("path parameter must be a valid Go identifier name")
 			}
 		case Wildcard:
 			if s.Value == "" {
-				return Path{}, fmt.Errorf("wildcard parameter must have a name")
+				return nil, fmt.Errorf("wildcard parameter must have a name")
 			} else if !token.IsIdentifier(s.Value) {
-				return Path{}, fmt.Errorf("wildcard parameter must be a valid Go identifier name")
+				return nil, fmt.Errorf("wildcard parameter must be a valid Go identifier name")
 			} else if len(segs) > (i + 1) {
-				return Path{}, fmt.Errorf("wildcard parameter must be the last path segment")
+				return nil, fmt.Errorf("wildcard parameter must be the last path segment")
 			}
 		}
 	}
 
-	return Path{Pos: pos, Segments: segs}, nil
+	return &Path{Pos: pos, Segments: segs}, nil
 }
 
 func (p *Path) ToProto() *meta.Path {

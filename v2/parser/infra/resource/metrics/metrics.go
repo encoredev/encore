@@ -1,8 +1,9 @@
 package metrics
 
 import (
+	"go/ast"
+
 	"encr.dev/pkg/option"
-	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
@@ -12,13 +13,17 @@ import (
 	"encr.dev/v2/parser/infra/resource"
 )
 
-import (
-	"go/ast"
+type MetricType int
+
+const (
+	Counter MetricType = iota
+	Gauge
 )
 
 type Metric struct {
-	Name string // The unique name of the metric
-	Doc  string // The documentation on the metric
+	Name string     // The unique name of the metric
+	Doc  string     // The documentation on the metric
+	Type MetricType // the type of metric it is
 
 	// File is the file the metric is declared in.
 	File *pkginfo.File
@@ -43,14 +48,14 @@ type metricConstructor struct {
 	ConfigName  string
 	ConfigParse configParseFunc
 	HasLabels   bool
-	MetricKind  meta.Metric_MetricKind
+	Type        MetricType
 }
 
 var metricConstructors = []metricConstructor{
-	{"NewCounter", "CounterConfig", parseCounterConfig, false, meta.Metric_COUNTER},
-	{"NewCounterGroup", "CounterConfig", parseCounterConfig, true, meta.Metric_COUNTER},
-	{"NewGauge", "GaugeConfig", parseGaugeConfig, false, meta.Metric_GAUGE},
-	{"NewGaugeGroup", "GaugeConfig", parseGaugeConfig, true, meta.Metric_GAUGE},
+	{"NewCounter", "CounterConfig", parseCounterConfig, false, Counter},
+	{"NewCounterGroup", "CounterConfig", parseCounterConfig, true, Counter},
+	{"NewGauge", "GaugeConfig", parseGaugeConfig, false, Gauge},
+	{"NewGaugeGroup", "GaugeConfig", parseGaugeConfig, true, Gauge},
 }
 
 var MetricParser = &resource.Parser{
@@ -159,6 +164,7 @@ func parseMetric(c metricConstructor, d parseutil2.ParseData) resource.Resource 
 	m := &Metric{
 		Name:      metricName,
 		Doc:       d.Doc,
+		Type:      c.Type,
 		File:      d.File,
 		ValueType: valueType.(schema.BuiltinType),
 		LabelType: labelType,

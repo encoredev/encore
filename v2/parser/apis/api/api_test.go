@@ -39,7 +39,7 @@ func Foo(ctx context.Context) error {}
 				Name:   "Foo",
 				Doc:    "Foo does things.\n",
 				Access: Public,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
+				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Literal, Value: "foo.Foo", ValueType: schema2.String},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
@@ -55,7 +55,7 @@ func Foo(ctx context.Context) error {}
 				Name:   "Foo",
 				Doc:    "",
 				Access: Private,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
+				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Literal, Value: "foo", ValueType: schema2.String},
 				}},
 				HTTPMethods: []string{"PUT"},
@@ -72,7 +72,7 @@ func Foo(ctx context.Context, key string) error {}
 				Name:   "Foo",
 				Doc:    "",
 				Access: Auth,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
+				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Param, Value: "key", ValueType: schema2.String},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
@@ -88,7 +88,7 @@ func Foo(ctx context.Context, key int) error {}
 				Name:   "Foo",
 				Doc:    "",
 				Access: Auth,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
+				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Param, Value: "key", ValueType: schema2.Int},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
@@ -106,7 +106,7 @@ func Raw(w http.ResponseWriter, req *http.Request) {}
 				Doc:    "",
 				Access: Public,
 				Raw:    true,
-				Path: apipaths.Path{Segments: []apipaths.Segment{
+				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Literal, Value: "raw", ValueType: schema2.String},
 				}},
 				HTTPMethods: []string{"*"},

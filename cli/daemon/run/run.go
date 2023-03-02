@@ -31,14 +31,11 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/xos"
-	"encr.dev/compiler"
-	"encr.dev/internal/env"
+	"encr.dev/internal/builder"
 	"encr.dev/internal/optracker"
-	"encr.dev/internal/version"
-	"encr.dev/parser"
-	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/legacyintegration"
 )
 
 // Run represents a running Encore application.
@@ -48,6 +45,7 @@ type Run struct {
 	ListenAddr      string // the address the app is listening on
 	ResourceServers *ResourceServices
 
+	builder builder.Impl
 	log     zerolog.Logger
 	Mgr     *Manager
 	params  *StartParams
@@ -226,16 +224,6 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	return nil
 }
 
-// parseApp parses the app and returns the parse result.
-func (r *Run) parseApp() (*parser.Result, error) {
-	return r.Mgr.parseApp(parseAppParams{
-		App:        r.App,
-		Environ:    r.params.Environ,
-		WorkingDir: r.params.WorkingDir,
-		ParseTests: false,
-	})
-}
-
 // buildAndStart builds the app, starts the proc, and cleans up
 // the build dir when it exits.
 // The proc exits when ctx is canceled.
@@ -252,7 +240,25 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	start := time.Now()
 	parseOp := tracker.Add("Building Encore application graph", start)
 	topoOp := tracker.Add("Analyzing service topology", start)
-	parse, err := r.parseApp()
+
+	expSet, err := r.App.Experiments(r.params.Environ)
+	if err != nil {
+		return err
+	}
+
+	if r.builder == nil {
+		r.builder = legacyBuilderImpl{}
+		if experiments.V2.Enabled(expSet) {
+			r.builder = legacyintegration.BuilderImpl{}
+		}
+	}
+
+	parse, err := r.builder.Parse(builder.ParseParams{
+		App:         r.App,
+		Experiments: expSet,
+		WorkingDir:  r.params.WorkingDir,
+		ParseTests:  false,
+	})
 	if err != nil {
 		tracker.Fail(parseOp, err)
 		return err
@@ -260,39 +266,20 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
-	expSet, err := r.App.Experiments(r.params.Environ)
-	if err != nil {
+	if err := r.ResourceServers.StartRequiredServices(jobs, parse.Meta); err != nil {
 		return err
 	}
 
-	if err := r.ResourceServers.StartRequiredServices(jobs, parse); err != nil {
-		return err
-	}
-
-	var build *compiler.Result
+	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
-		//goland:noinspection HttpUrlsUsage
-		cfg := &compiler.Config{
-			Revision:              parse.Meta.AppRevision,
-			UncommittedChanges:    parse.Meta.UncommittedChanges,
-			WorkingDir:            r.params.WorkingDir,
-			CgoEnabled:            true,
-			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-			EncoreRuntimePath:     env.EncoreRuntimePath(),
-			EncoreGoRoot:          env.EncoreGoRoot(),
-			Experiments:           expSet,
-			Meta: &cueutil.Meta{
-				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
-				EnvName:    "local",
-				EnvType:    cueutil.EnvType_Development,
-				CloudType:  cueutil.CloudType_Local,
-			},
-			Parse:     parse,
-			BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-			OpTracker: tracker,
-		}
-
-		build, err = compiler.Build(r.App.Root(), cfg)
+		build, err = r.builder.Compile(builder.CompileParams{
+			App:         r.App,
+			Parse:       parse,
+			OpTracker:   tracker,
+			Experiments: expSet,
+			WorkingDir:  r.params.WorkingDir,
+			ListenAddr:  r.ListenAddr,
+		})
 		if err != nil {
 			return fmt.Errorf("compile error:\n%v", err)
 		}
@@ -325,7 +312,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
-		Meta:           build.Parse.Meta,
+		Meta:           parse.Meta,
 		Logger:         r.Mgr,
 		RuntimePort:    r.Mgr.RuntimePort,
 		DBProxyPort:    r.Mgr.DBProxyPort,
