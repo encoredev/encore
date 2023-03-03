@@ -27,7 +27,7 @@ const (
 	Auth AccessType = "auth"
 )
 
-type API struct {
+type Endpoint struct {
 	Name        string
 	Doc         string
 	File        *pkginfo.File
@@ -36,8 +36,8 @@ type API struct {
 	Raw         bool
 	Path        *apipaths.Path
 	HTTPMethods []string
-	Request     schema2.Type // request data; nil for Raw RPCs
-	Response    schema2.Type // response data; nil for Raw RPCs
+	Request     schema2.Type // request data; nil for Raw Endpoints
+	Response    schema2.Type // response data; nil for Raw Endpoints
 	Tags        selector.Set
 	Recv        option.Option[*schema2.Receiver] // None if not a method
 }
@@ -53,7 +53,7 @@ type ParseData struct {
 }
 
 // Parse parses an API endpoint. It may return nil on errors.
-func Parse(d ParseData) *API {
+func Parse(d ParseData) *Endpoint {
 	rpc, err := validateDirective(d.Dir)
 	if err != nil {
 		d.Errs.Addf(d.Dir.AST.Pos(), "invalid encore:%s directive: %v", d.Dir.Name, err)
@@ -107,7 +107,7 @@ func Parse(d ParseData) *API {
 	return rpc
 }
 
-func initTypedRPC(errs *perr.List, rpc *API) {
+func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 	const sigHint = `
 	hint: valid signatures are:
 	- func(context.Context) error
@@ -115,17 +115,17 @@ func initTypedRPC(errs *perr.List, rpc *API) {
 	- func(context.Context, *RequestData) error
 	- func(context.Context, *RequestType) (*ResponseData, error)`
 
-	decl := rpc.Decl
+	decl := endpoint.Decl
 	sig := decl.Type
 	numParams := len(sig.Params)
 	if numParams == 0 {
-		errs.Add(sig.AST.Pos(), "invalid API signature (too few parameters)"+sigHint)
+		errs.Add(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
 		return
 	}
 
 	numResults := len(sig.Results)
 	if numResults == 0 {
-		errs.Add(sig.AST.Pos(), "invalid API signature (too few results)"+sigHint)
+		errs.Add(sig.AST.Pos(), "invalid Endpoint signature (too few results)"+sigHint)
 		return
 	}
 
@@ -138,8 +138,8 @@ func initTypedRPC(errs *perr.List, rpc *API) {
 
 	// For each path parameter, expect a parameter to match it
 	var pathParams []*apipaths.Segment
-	for i := 0; i < len(rpc.Path.Segments); i++ {
-		if s := &rpc.Path.Segments[i]; s.Type != apipaths.Literal {
+	for i := 0; i < len(endpoint.Path.Segments); i++ {
+		if s := &endpoint.Path.Segments[i]; s.Type != apipaths.Literal {
 			pathParams = append(pathParams, s)
 		}
 	}
@@ -161,7 +161,7 @@ func initTypedRPC(errs *perr.List, rpc *API) {
 				errs.Add(param.AST.Pos(), "APIs cannot have multiple payload parameters")
 				continue
 			}
-			rpc.Request = param.Type
+			endpoint.Request = param.Type
 		}
 	}
 
@@ -170,16 +170,16 @@ func initTypedRPC(errs *perr.List, rpc *API) {
 		for i := seenParams; i < len(pathParams); i++ {
 			missing = append(missing, pathParams[i].Value)
 		}
-		errs.Addf(sig.AST.Pos(), "invalid API signature: expected function parameters named '%s' to match API path params",
+		errs.Addf(sig.AST.Pos(), "invalid Endpoint signature: expected function parameters named '%s' to match Endpoint path params",
 			strings.Join(missing, "', '"))
 	}
 
 	// First return value must be *T or *pkg.T
 	if numResults >= 2 {
 		result := sig.Results[0]
-		rpc.Response = result.Type
+		endpoint.Response = result.Type
 		if numResults > 2 {
-			errs.Add(sig.Results[2].AST.Pos(), "API signature cannot contain more than two results"+sigHint)
+			errs.Add(sig.Results[2].AST.Pos(), "Endpoint signature cannot contain more than two results"+sigHint)
 			return
 		}
 	}
@@ -191,21 +191,21 @@ func initTypedRPC(errs *perr.List, rpc *API) {
 	}
 }
 
-func validateRawRPC(errs *perr.List, rpc *API) {
+func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
 	const sigHint = `
 	hint: signature must be func(http.ResponseWriter, *http.Request)`
 
-	decl := rpc.Decl
+	decl := endpoint.Decl
 	sig := decl.Type
 	params := sig.Params
 	if len(params) < 2 {
-		errs.Add(sig.AST.Pos(), "invalid API signature (too few parameters)"+sigHint)
+		errs.Add(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
 		return
 	} else if len(params) > 2 {
-		errs.Add(params[2].AST.Pos(), "invalid API signature (too many parameters)"+sigHint)
+		errs.Add(params[2].AST.Pos(), "invalid Endpoint signature (too many parameters)"+sigHint)
 		return
 	} else if len(sig.Results) > 0 {
-		errs.Addf(sig.Results[0].AST.Pos(), "invalid API signature (too many results)"+sigHint)
+		errs.Addf(sig.Results[0].AST.Pos(), "invalid Endpoint signature (too many results)"+sigHint)
 		return
 	}
 
@@ -249,8 +249,8 @@ func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segme
 
 // validateDirective validates the given encore:api directive
 // and returns an API with the respective fields set.
-func validateDirective(dir *directive.Directive) (*API, error) {
-	rpc := &API{
+func validateDirective(dir *directive.Directive) (*Endpoint, error) {
+	endpoint := &Endpoint{
 		Raw: dir.HasOption("raw"),
 	}
 
@@ -262,10 +262,10 @@ func validateDirective(dir *directive.Directive) (*API, error) {
 		ValidateOption: func(opt string) error {
 			// If this is an access option, check for duplicates.
 			if slices.Contains(accessOptions, opt) {
-				if rpc.Access != "" {
-					return fmt.Errorf("duplicate access options: %s and %s", rpc.Access, opt)
+				if endpoint.Access != "" {
+					return fmt.Errorf("duplicate access options: %s and %s", endpoint.Access, opt)
 				}
-				rpc.Access = AccessType(opt)
+				endpoint.Access = AccessType(opt)
 			}
 
 			return nil
@@ -273,14 +273,14 @@ func validateDirective(dir *directive.Directive) (*API, error) {
 		ValidateField: func(f directive.Field) (err error) {
 			switch f.Key {
 			case "path":
-				rpc.Path, err = apipaths.Parse(dir.AST.Pos(), f.Value)
+				endpoint.Path, err = apipaths.Parse(dir.AST.Pos(), f.Value)
 
 			case "method":
-				rpc.HTTPMethods = f.List()
-				for _, m := range rpc.HTTPMethods {
+				endpoint.HTTPMethods = f.List()
+				for _, m := range endpoint.HTTPMethods {
 					for _, c := range m {
 						if !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') {
-							return fmt.Errorf("invalid API method: %q", m)
+							return fmt.Errorf("invalid Endpoint method: %q", m)
 						} else if !(c >= 'A' && c <= 'Z') {
 							return errors.New("methods must be ALLCAPS")
 						}
@@ -294,7 +294,7 @@ func validateDirective(dir *directive.Directive) (*API, error) {
 			if err != nil {
 				return err
 			}
-			rpc.Tags.Add(sel)
+			endpoint.Tags.Add(sel)
 			return nil
 		},
 	})
@@ -303,13 +303,13 @@ func validateDirective(dir *directive.Directive) (*API, error) {
 	}
 
 	// Access defaults to private if not provided.
-	if rpc.Access == "" {
-		rpc.Access = Private
+	if endpoint.Access == "" {
+		endpoint.Access = Private
 	}
-	if rpc.Access == Private && rpc.Raw {
+	if endpoint.Access == Private && endpoint.Raw {
 		// We don't support private raw APIs for now.
 		return nil, fmt.Errorf("invalid encore:api directive: private APIs cannot be declared raw")
 	}
 
-	return rpc, nil
+	return endpoint, nil
 }

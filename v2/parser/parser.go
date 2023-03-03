@@ -36,17 +36,20 @@ type Parser struct {
 }
 
 type Result struct {
+	API       []*apis.ParseResult
 	Resources []resource.Resource
 }
 
 func (p *Parser) Parse() Result {
-	var allResources []resource.Resource
+	var result Result
 	p.collectPackages(func(pkg *pkginfo.Package) {
-		//res := p.apiParser.Parse(pkg)
-		res := p.infraParser.Parse(pkg)
-		allResources = append(allResources, res.Resources...)
+		apiRes := p.apiParser.Parse(pkg)
+		result.API = append(result.API, apiRes)
+
+		infraRes := p.infraParser.Parse(pkg)
+		result.Resources = append(result.Resources, infraRes.Resources...)
 	})
-	return Result{Resources: allResources}
+	return result
 }
 
 // collectPackages parses all the packages in subdirectories of the root directory.

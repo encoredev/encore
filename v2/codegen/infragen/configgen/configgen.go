@@ -24,7 +24,7 @@ func Gen(gen *gen.Generator, pkg *pkginfo.Package, loads []*config.Load) {
 
 	builder := &configUnmarshalersBuilder{
 		errs:         gen.Errs,
-		gg:           gen.Util,
+		gu:           gen.Util,
 		f:            f.Jen,
 		unmarshalers: make([]*Statement, 0),
 	}
@@ -66,7 +66,7 @@ calls to config.Load[T]().`)
 		var buf bytes.Buffer
 		buf.WriteString(strconv.Quote("SERVICE")) // TODO(andre) used to be service name
 		buf.WriteString(", ")
-		buf.WriteString(ConfigUnmarshalFuncName(load.Type))
+		buf.WriteString(ConfigUnmarshalFuncName(gen.Util, load.Type))
 		ep := gen.FS.Position(load.FuncCall.Rparen)
 		_, _ = fmt.Fprintf(&buf, "/*line :%d:%d*/", ep.Line, ep.Column)
 		rw.Replace(load.FuncCall.Lparen+1, load.FuncCall.Rparen, buf.Bytes())
@@ -75,7 +75,7 @@ calls to config.Load[T]().`)
 
 type configUnmarshalersBuilder struct {
 	errs *perr.List
-	gg   *genutil.Generator
+	gu   *genutil.Generator
 	f    *File
 
 	unmarshalers []*Statement
@@ -228,7 +228,7 @@ func (cb *configUnmarshalersBuilder) readType(typ schema.Type, pathElement Code)
 					// Note because _all_ keys in JSON objects are strings, we use
 					// the etype unmarshaler to unmarshal the key to the underlying datatype
 					f.Comment("Decode the map key from the JSON string to the underlying type it needs to be")
-					u := cb.gg.NewTypeUnmarshaller("keyDecoder")
+					u := cb.gu.NewTypeUnmarshaller("keyDecoder")
 					f.Add(u.Init())
 					builtin, ok := t.Key.(schema.BuiltinType)
 					if !ok {
@@ -463,7 +463,7 @@ func (cb *configUnmarshalersBuilder) readBuiltin(builtin schema.BuiltinKind) (re
 		}
 
 		return Func().Params().Params(Id("rtn").Add(rtnTyp)).BlockFunc(func(g *Group) {
-			u := cb.gg.NewTypeUnmarshaller("decoder")
+			u := cb.gu.NewTypeUnmarshaller("decoder")
 			g.Add(u.Init())
 			g.Id("rtn").Op("=").Add(u.UnmarshalBuiltin(
 				builtin,
@@ -491,7 +491,7 @@ func (cb *configUnmarshalersBuilder) typeParamUnmarshalerName(param schema.DeclT
 // type arguments passed to the given type
 func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ schema.Type) {
 	funcBody, _ := cb.typeUnmarshalerFunc(typ)
-	funcName := ConfigUnmarshalFuncName(typ)
+	funcName := ConfigUnmarshalFuncName(cb.gu, typ)
 
 	cb.unmarshalers = append(cb.unmarshalers, Id(funcName).Op("=").Add(funcBody))
 }
@@ -502,8 +502,8 @@ func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ schema.Typ
 // - `int` -> `encoreInternal_LoadConfig_int`
 // - `ConfigType` -> `encoreInternal_LoadConfig_ConfigType`
 // - `ConfigType[int, string]` -> `encoreInternal_LoadConfig_ConfigType_int_string_`
-func ConfigUnmarshalFuncName(typ schema.Type) string {
-	typeAsString := schemautil.TypeToString(typ)
+func ConfigUnmarshalFuncName(gu *genutil.Generator, typ schema.Type) string {
+	typeAsString := gu.TypeToString(typ)
 	typeAsString = strings.NewReplacer(
 		"*", "ptr_",
 		"[", "_",

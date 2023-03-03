@@ -18,6 +18,12 @@ func IsNamed(t schema.Type, pkg paths.Pkg, name string) bool {
 	return false
 }
 
+// IsPointer reports whether t is a pointer type.
+func IsPointer(t schema.Type) bool {
+	_, ok := t.(schema.PointerType)
+	return ok
+}
+
 // IsBuiltinKind reports whether the given type is a builtin
 // of one of the given kinds.
 func IsBuiltinKind(t schema.Type, kinds ...schema.BuiltinKind) bool {

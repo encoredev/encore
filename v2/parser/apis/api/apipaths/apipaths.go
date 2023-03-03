@@ -46,6 +46,17 @@ func (p *Path) NumParams() int {
 	return n
 }
 
+// Params returns the segments that are not literals.
+func (p *Path) Params() []Segment {
+	var params []Segment
+	for _, s := range p.Segments {
+		if s.Type != Literal {
+			params = append(params, s)
+		}
+	}
+	return params
+}
+
 // Segment represents a parsed path segment.
 type Segment struct {
 	Type      SegmentType

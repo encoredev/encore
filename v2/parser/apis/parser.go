@@ -28,14 +28,15 @@ type Parser struct {
 
 // ParseResult describes the results of parsing a given package.
 type ParseResult struct {
-	RPCs           []*api.API
+	Pkg            *pkginfo.Package // the package the results are for
+	Endpoints      []*api.Endpoint
 	AuthHandlers   []*authhandler.AuthHandler
 	Middleware     []*middleware.Middleware
 	ServiceStructs []*servicestruct.ServiceStruct
 }
 
-func (p *Parser) Parse(pkg *pkginfo.Package) ParseResult {
-	var res ParseResult
+func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
+	res := &ParseResult{Pkg: pkg}
 	for _, file := range pkg.Files {
 		for _, decl := range file.AST().Decls {
 			switch decl := decl.(type) {
@@ -62,7 +63,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) ParseResult {
 						Dir:    dir,
 						Doc:    doc,
 					})
-					res.RPCs = append(res.RPCs, r)
+					res.Endpoints = append(res.Endpoints, r)
 
 				case "authhandler":
 					r := authhandler.Parse(authhandler.ParseData{

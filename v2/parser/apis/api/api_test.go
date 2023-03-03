@@ -24,7 +24,7 @@ func TestParseRPC(t *testing.T) {
 		name     string
 		imports  []string
 		def      string
-		want     *API
+		want     *Endpoint
 		wantErrs []string
 	}
 	tests := []testCase{
@@ -35,7 +35,7 @@ func TestParseRPC(t *testing.T) {
 //encore:api public
 func Foo(ctx context.Context) error {}
 `,
-			want: &API{
+			want: &Endpoint{
 				Name:   "Foo",
 				Doc:    "Foo does things.\n",
 				Access: Public,
@@ -51,7 +51,7 @@ func Foo(ctx context.Context) error {}
 //encore:api private path=/foo method=PUT tag:some-tag
 func Foo(ctx context.Context) error {}
 `,
-			want: &API{
+			want: &Endpoint{
 				Name:   "Foo",
 				Doc:    "",
 				Access: Private,
@@ -68,7 +68,7 @@ func Foo(ctx context.Context) error {}
 //encore:api auth path=/:key
 func Foo(ctx context.Context, key string) error {}
 `,
-			want: &API{
+			want: &Endpoint{
 				Name:   "Foo",
 				Doc:    "",
 				Access: Auth,
@@ -84,7 +84,7 @@ func Foo(ctx context.Context, key string) error {}
 //encore:api auth path=/:key
 func Foo(ctx context.Context, key int) error {}
 `,
-			want: &API{
+			want: &Endpoint{
 				Name:   "Foo",
 				Doc:    "",
 				Access: Auth,
@@ -101,7 +101,7 @@ func Foo(ctx context.Context, key int) error {}
 //encore:api public raw path=/raw
 func Raw(w http.ResponseWriter, req *http.Request) {}
 `,
-			want: &API{
+			want: &Endpoint{
 				Name:   "Raw",
 				Doc:    "",
 				Access: Public,

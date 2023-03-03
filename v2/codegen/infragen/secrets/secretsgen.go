@@ -20,7 +20,7 @@ func Gen(gen *gen.Generator, pkg *pkginfo.Package, secrets []*secrets.Secrets) {
 			// Add an import of the runtime package to be able to load secrets.
 			decl := file.AST().Decls[0]
 			ln := gen.FS.Position(decl.Pos())
-			rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_app %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
+			rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_secrets %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/secrets"), ln.Line, ln.Column)))
 			addedImport[secret.File] = true
 		}
 
@@ -29,7 +29,7 @@ func Gen(gen *gen.Generator, pkg *pkginfo.Package, secrets []*secrets.Secrets) {
 		var buf bytes.Buffer
 		buf.WriteString("{\n")
 		for _, key := range secret.Keys {
-			fmt.Fprintf(&buf, "\t%s: __encore_app.LoadSecret(%s),\n", key, strconv.Quote(key))
+			fmt.Fprintf(&buf, "\t%s: __encore_secrets.Load(%s),\n", key, strconv.Quote(key))
 		}
 		ep := gen.FS.Position(spec.End())
 		fmt.Fprintf(&buf, "}/*line :%d:%d*/", ep.Line, ep.Column)

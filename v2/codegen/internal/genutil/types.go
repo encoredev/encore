@@ -1,6 +1,11 @@
 package genutil
 
 import (
+	"fmt"
+	gotoken "go/token"
+	"reflect"
+	"strings"
+
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/fns"
@@ -27,17 +32,21 @@ func (g *Generator) Type(typ schema.Type) *Statement {
 	case schema.MapType:
 		return Map(g.Type(typ.Key)).Add(g.Type(typ.Value))
 	case schema.ListType:
-		return Index().Add(g.Type(typ.Elem))
+		elem := g.Type(typ.Elem)
+		if typ.Len != -1 {
+			return Index(Lit(typ.Len)).Add(elem)
+		}
+		return Index().Add(elem)
 	case schema.PointerType:
 		return Op("*").Add(g.Type(typ.Elem))
 	case schema.BuiltinType:
-		return g.builtin(typ)
+		return g.Builtin(typ.AST.Pos(), typ.Kind)
 	case schema.InterfaceType:
 		g.Errs.Add(typ.AST.Pos(), "unexpected interface type")
 		return Any()
 	case schema.TypeParamRefType:
-		g.Errs.Add(typ.AST.Pos(), "unexpected type parameter reference")
-		return Any()
+		typeParam := typ.Decl.TypeParameters()[typ.Index]
+		return Id(typeParam.Name)
 	default:
 		g.Errs.Addf(typ.ASTExpr().Pos(), "unexpected schema type %T", typ)
 		return Any()
@@ -61,7 +70,13 @@ func (g *Generator) struct_(st schema.StructType) *Statement {
 	fields := make([]Code, len(st.Fields))
 
 	for i, field := range st.Fields {
-		statement := Id(field.Name.GetOrDefault("")).Add(g.Type(field.Type))
+		var f *Statement
+		typExpr := g.Type(field.Type)
+		if field.IsAnonymous() {
+			f = typExpr
+		} else {
+			f = Id(field.Name.MustGet()).Add(typExpr)
+		}
 
 		// Add field tags
 		if field.Tag.Len() > 0 {
@@ -69,19 +84,21 @@ func (g *Generator) struct_(st schema.StructType) *Statement {
 			for _, tag := range field.Tag.Tags() {
 				tagMap[tag.Key] = tag.Value()
 			}
-			statement = statement.Tag(tagMap)
+			f = f.Tag(tagMap)
 		}
 
 		// Add doc comment
-		statement = statement.Comment(field.Doc)
-		fields[i] = statement
+		if doc := strings.TrimSpace(field.Doc); doc != "" {
+			f = f.Comment(doc)
+		}
+		fields[i] = f
 	}
 
 	return Struct(fields...)
 }
 
-func (g *Generator) builtin(typ schema.BuiltinType) *Statement {
-	switch typ.Kind {
+func (g *Generator) Builtin(pos gotoken.Pos, kind schema.BuiltinKind) *Statement {
+	switch kind {
 	case schema.Any:
 		return Any()
 	case schema.Bool:
@@ -126,12 +143,80 @@ func (g *Generator) builtin(typ schema.BuiltinType) *Statement {
 	case schema.Error:
 		return Error()
 	default:
-		g.Errs.Addf(typ.AST.Pos(), "unsupported builtin kind: %v", typ.Kind)
+		g.Errs.Addf(pos, "unsupported builtin kind: %v", kind)
 		return Id("unsupported")
 	}
+}
+
+// TypeToString converts a schema.Type to a string.
+func (g *Generator) TypeToString(typ schema.Type) string {
+	// We wrap the type before rendering in "var _ {type}" so Jen correctly formats,
+	// then we strip the "var _" part.
+	return fmt.Sprintf("%#v", Var().Id("_").Add(g.Type(typ)))[6:]
 }
 
 // Q returns a qualified name (using [jen.Qual]) for the given info.
 func Q(info *pkginfo.PkgDeclInfo) *Statement {
 	return Qual(info.File.Pkg.ImportPath.String(), info.Name)
+}
+
+func (g *Generator) GoToJen(pos gotoken.Pos, val any) *Statement {
+	return g.goToJen(pos, reflect.ValueOf(val))
+}
+
+func (g *Generator) goToJen(pos gotoken.Pos, val reflect.Value) *Statement {
+	switch val.Kind() {
+	case reflect.Bool:
+		return Lit(val.Bool())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return Lit(val.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return Lit(val.Uint())
+	case reflect.Float32, reflect.Float64:
+		return Lit(val.Float())
+	case reflect.String:
+		return Lit(val.String())
+	case reflect.Slice, reflect.Array:
+		return g.goTypeToJen(pos, val.Type()).ValuesFunc(func(group *Group) {
+			for i := 0; i < val.Len(); i++ {
+				group.Add(g.goToJen(pos, val.Index(i)))
+			}
+		})
+	case reflect.Map:
+		return g.goTypeToJen(pos, val.Type()).ValuesFunc(func(group *Group) {
+			iter := val.MapRange()
+			for iter.Next() {
+				group.Add(g.goToJen(pos, iter.Key())).Op(":").Add(g.goToJen(pos, iter.Value()))
+			}
+		})
+	default:
+		g.Errs.Addf(pos, "unsupported type: %T", val.Interface())
+		return Null()
+	}
+}
+
+func (g *Generator) goTypeToJen(pos gotoken.Pos, typ reflect.Type) *Statement {
+	switch typ.Kind() {
+	case reflect.Bool:
+		return Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return Uint()
+	case reflect.Float32, reflect.Float64:
+		return Float32()
+	case reflect.String:
+		return String()
+	case reflect.Slice:
+		return Index().Add(g.goTypeToJen(pos, typ.Elem()))
+	case reflect.Pointer:
+		return Op("*").Add(g.goTypeToJen(pos, typ.Elem()))
+	case reflect.Array:
+		return Index(Lit(typ.Len())).Add(g.goTypeToJen(pos, typ.Elem()))
+	case reflect.Map:
+		return Map(g.goTypeToJen(pos, typ.Key())).Add(g.goTypeToJen(pos, typ.Elem()))
+	default:
+		g.Errs.Addf(pos, "unsupported Go type in codegen: %v", typ)
+		return Null()
+	}
 }

@@ -1,10 +1,8 @@
 package app
 
 import (
-	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +16,7 @@ import (
 	rtmetrics "encore.dev/appruntime/metrics"
 	"encore.dev/appruntime/platform"
 	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/secrets"
 	"encore.dev/appruntime/service"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/appruntime/trace"
@@ -43,6 +42,7 @@ type App struct {
 	shutdown   *shutdownTracker
 
 	encore          *encore.Manager
+	secrets         *secrets.Manager
 	auth            *auth.Manager
 	rlog            *rlog.Manager
 	sqldb           *sqldb.Manager
@@ -101,6 +101,7 @@ func New(p *NewParams) *App {
 	service := service.NewManager(rt)
 
 	ts := testsupport.NewManager(cfg, rt, rootLogger)
+	secrets := secrets.NewManager(cfg)
 	auth := auth.NewManager(rt)
 	rlog := rlog.NewManager(rt)
 	sqldb := sqldb.NewManager(cfg, rt)
@@ -112,8 +113,8 @@ func New(p *NewParams) *App {
 	app := &App{
 		cfg: cfg, rt: rt, json: json, rootLogger: rootLogger,
 		api: apiSrv, service: service, ts: ts, shutdown: shutdown,
-		encore: encore, auth: auth, rlog: rlog, sqldb: sqldb, pubsub: pubsub,
-		cache: cache, config: appCfg, et: etMgr, metrics: metrics,
+		encore: encore, secrets: secrets, auth: auth, rlog: rlog, sqldb: sqldb,
+		pubsub: pubsub, cache: cache, config: appCfg, et: etMgr, metrics: metrics,
 		metricsRegistry: metricsRegistry,
 	}
 
@@ -154,32 +155,6 @@ func (app *App) Start() {
 	app.RegisterShutdown(app.metrics.Shutdown)
 
 	go app.metrics.BeginCollection()
-}
-
-func (app *App) GetSecret(key string) string {
-	if val, ok := app.cfg.Secrets[key]; ok {
-		return val
-	}
-
-	// For anything but local development, a missing secret is a fatal error.
-	if app.cfg.Runtime.EnvCloud != "local" {
-		fmt.Fprintln(os.Stderr, "encore: could not find secret", key)
-		os.Exit(2)
-		panic("unreachable")
-	}
-
-	app.missingSecrets = append(app.missingSecrets, key)
-	app.logMissingSecrets.Do(func() {
-		// Wait one second before logging all the missing secrets.
-		go func() {
-			time.Sleep(1 * time.Second)
-			fmt.Fprintln(os.Stderr, "\n\033[31mwarning: secrets not defined:", strings.Join(app.missingSecrets, ", "), "\033[0m")
-			fmt.Fprintln(os.Stderr, "\033[2mnote: undefined secrets are left empty for local development only.")
-			fmt.Fprint(os.Stderr, "see https://encore.dev/docs/primitives/secrets for more information\033[0m\n\n")
-		}()
-	})
-
-	return ""
 }
 
 func jsonAPI(cfg *runtimeCfg.Config) jsoniter.API {
