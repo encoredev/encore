@@ -291,6 +291,7 @@ type Metrics struct {
 	CloudWatch         *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
 	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
 	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
+	Datadog            *DatadogProvider               `json:"datadog,omitempty"`
 }
 
 type GCPCloudMonitoringProvider struct {
@@ -318,6 +319,11 @@ type AWSCloudWatchMetricsProvider struct {
 type PrometheusRemoteWriteProvider struct {
 	// The URL of the endpoint to send samples to.
 	RemoteWriteURL string
+}
+
+type DatadogProvider struct {
+	Site   string
+	APIKey string
 }
 
 type LogsBasedMetricsProvider struct{}
