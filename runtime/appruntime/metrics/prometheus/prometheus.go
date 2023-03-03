@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"runtime"
 	gometrics "runtime/metrics"
 	"time"
 
@@ -181,6 +182,10 @@ func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
 		default:
 			x.rootLogger.Warn().Str("metric_name", sysMetric.Sample.Name).Msg("internal: unexpected metric kind")
 			continue
+		}
+
+		if sysMetric.EncoreName == system.MetricNameTotalCPUSeconds {
+			val /= float64(runtime.NumCPU())
 		}
 
 		output = append(output, &prompb.TimeSeries{

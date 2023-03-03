@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	gometrics "runtime/metrics"
 	"sync"
 	"time"
@@ -346,6 +347,11 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 				}},
 			})
 		case gometrics.KindFloat64:
+			val := sysMetric.Sample.Value.Float64()
+			if sysMetric.EncoreName == system.MetricNameTotalCPUSeconds {
+				val /= float64(runtime.NumCPU())
+			}
+
 			output = append(output, &monitoringpb.TimeSeries{
 				MetricKind: metricKind,
 				Metric: &metricpb.Metric{
@@ -355,7 +361,7 @@ func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
 				Resource: monitoredResource,
 				Points: []*monitoringpb.Point{{
 					Interval: interval,
-					Value:    floatVal(sysMetric.Sample.Value.Float64()),
+					Value:    floatVal(val),
 				}},
 			})
 		default:

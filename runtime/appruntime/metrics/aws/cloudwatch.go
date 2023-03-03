@@ -5,6 +5,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"runtime"
 	gometrics "runtime/metrics"
 	"sync"
 	"time"
@@ -165,6 +166,10 @@ func (x *Exporter) getSysMetrics(now time.Time) []types.MetricDatum {
 		default:
 			x.rootLogger.Warn().Str("metric_name", sysMetric.Sample.Name).Msg("internal: unexpected metric kind")
 			continue
+		}
+
+		if sysMetric.EncoreName == system.MetricNameTotalCPUSeconds {
+			*val /= float64(runtime.NumCPU())
 		}
 
 		output = append(output, types.MetricDatum{
