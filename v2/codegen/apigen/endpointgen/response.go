@@ -12,7 +12,7 @@ import (
 
 // responseDesc describes the generated response type.
 type responseDesc struct {
-	gu *genutil.Generator
+	gu *genutil.Helper
 	ep *api.Endpoint
 }
 

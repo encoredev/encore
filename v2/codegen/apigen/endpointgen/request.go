@@ -20,7 +20,7 @@ const jsonIterPkg = "github.com/json-iterator/go"
 // requestDesc describes the generated request type that contains the combined
 // request data + path parameters for the request.
 type requestDesc struct {
-	gu *genutil.Generator
+	gu *genutil.Helper
 	ep *api.Endpoint
 }
 

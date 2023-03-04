@@ -8,7 +8,7 @@ import (
 )
 
 type handlerDesc struct {
-	gu *genutil.Generator
+	gu *genutil.Helper
 	ep *api.Endpoint
 
 	req  *requestDesc

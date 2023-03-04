@@ -14,16 +14,16 @@ import (
 	"encr.dev/v2/internal/schema"
 )
 
-func NewGenerator(errs *perr.List) *Generator {
-	return &Generator{Errs: errs}
+func NewHelper(errs *perr.List) *Helper {
+	return &Helper{Errs: errs}
 }
 
-type Generator struct {
+type Helper struct {
 	Errs *perr.List
 }
 
 // Type generates a Go type from a schema type.
-func (g *Generator) Type(typ schema.Type) *Statement {
+func (g *Helper) Type(typ schema.Type) *Statement {
 	switch typ := typ.(type) {
 	case schema.NamedType:
 		return g.named(typ)
@@ -53,7 +53,7 @@ func (g *Generator) Type(typ schema.Type) *Statement {
 	}
 }
 
-func (g *Generator) named(named schema.NamedType) *Statement {
+func (g *Helper) named(named schema.NamedType) *Statement {
 	st := Q(named.DeclInfo)
 
 	if len(named.TypeArgs) > 0 {
@@ -66,7 +66,7 @@ func (g *Generator) named(named schema.NamedType) *Statement {
 	return st
 }
 
-func (g *Generator) struct_(st schema.StructType) *Statement {
+func (g *Helper) struct_(st schema.StructType) *Statement {
 	fields := make([]Code, len(st.Fields))
 
 	for i, field := range st.Fields {
@@ -97,7 +97,7 @@ func (g *Generator) struct_(st schema.StructType) *Statement {
 	return Struct(fields...)
 }
 
-func (g *Generator) Builtin(pos gotoken.Pos, kind schema.BuiltinKind) *Statement {
+func (g *Helper) Builtin(pos gotoken.Pos, kind schema.BuiltinKind) *Statement {
 	switch kind {
 	case schema.Any:
 		return Any()
@@ -149,7 +149,7 @@ func (g *Generator) Builtin(pos gotoken.Pos, kind schema.BuiltinKind) *Statement
 }
 
 // TypeToString converts a schema.Type to a string.
-func (g *Generator) TypeToString(typ schema.Type) string {
+func (g *Helper) TypeToString(typ schema.Type) string {
 	// We wrap the type before rendering in "var _ {type}" so Jen correctly formats,
 	// then we strip the "var _" part.
 	return fmt.Sprintf("%#v", Var().Id("_").Add(g.Type(typ)))[6:]
@@ -160,11 +160,11 @@ func Q(info *pkginfo.PkgDeclInfo) *Statement {
 	return Qual(info.File.Pkg.ImportPath.String(), info.Name)
 }
 
-func (g *Generator) GoToJen(pos gotoken.Pos, val any) *Statement {
+func (g *Helper) GoToJen(pos gotoken.Pos, val any) *Statement {
 	return g.goToJen(pos, reflect.ValueOf(val))
 }
 
-func (g *Generator) goToJen(pos gotoken.Pos, val reflect.Value) *Statement {
+func (g *Helper) goToJen(pos gotoken.Pos, val reflect.Value) *Statement {
 	switch val.Kind() {
 	// All the types supported by jen.Lit can be passed directly.
 	case reflect.Bool, reflect.String,
@@ -194,7 +194,7 @@ func (g *Generator) goToJen(pos gotoken.Pos, val reflect.Value) *Statement {
 	}
 }
 
-func (g *Generator) goTypeToJen(pos gotoken.Pos, typ reflect.Type) *Statement {
+func (g *Helper) goTypeToJen(pos gotoken.Pos, typ reflect.Type) *Statement {
 	switch typ.Kind() {
 	case reflect.Bool:
 		return Bool()
@@ -222,7 +222,7 @@ func (g *Generator) goTypeToJen(pos gotoken.Pos, typ reflect.Type) *Statement {
 
 // Zero returns a jen expression representing the zero value
 // for the given type. If the type is nil it returns "nil".
-func (g *Generator) Zero(typ schema.Type) *Statement {
+func (g *Helper) Zero(typ schema.Type) *Statement {
 	isNillable := func(typ schema.Type) bool {
 		switch typ.(type) {
 		case nil, schema.PointerType, schema.ListType, schema.MapType, schema.FuncType, schema.InterfaceType:
@@ -250,7 +250,7 @@ func (g *Generator) Zero(typ schema.Type) *Statement {
 //
 // Certain types like function types and interfaces return "nil"
 // as there is no canonical way to initialize them to a non-zero value.
-func (g *Generator) Initialize(typ schema.Type) *Statement {
+func (g *Helper) Initialize(typ schema.Type) *Statement {
 	switch typ := typ.(type) {
 	case schema.PointerType:
 		return New(g.Type(typ.Elem))

@@ -75,7 +75,7 @@ calls to config.Load[T]().`)
 
 type configUnmarshalersBuilder struct {
 	errs *perr.List
-	gu   *genutil.Generator
+	gu   *genutil.Helper
 	f    *File
 
 	unmarshalers []*Statement
@@ -502,7 +502,7 @@ func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ schema.Typ
 // - `int` -> `encoreInternal_LoadConfig_int`
 // - `ConfigType` -> `encoreInternal_LoadConfig_ConfigType`
 // - `ConfigType[int, string]` -> `encoreInternal_LoadConfig_ConfigType_int_string_`
-func ConfigUnmarshalFuncName(gu *genutil.Generator, typ schema.Type) string {
+func ConfigUnmarshalFuncName(gu *genutil.Helper, typ schema.Type) string {
 	typeAsString := gu.TypeToString(typ)
 	typeAsString = strings.NewReplacer(
 		"*", "ptr_",

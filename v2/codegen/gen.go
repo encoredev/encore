@@ -15,7 +15,7 @@ import (
 
 type Generator struct {
 	*parsectx.Context
-	Util     *genutil.Generator
+	Util     *genutil.Helper
 	rewrites map[*pkginfo.File]*rewrite.Rewriter
 	files    map[fileKey]*File
 }
@@ -23,7 +23,7 @@ type Generator struct {
 func New(c *parsectx.Context) *Generator {
 	return &Generator{
 		Context:  c,
-		Util:     genutil.NewGenerator(c.Errs),
+		Util:     genutil.NewHelper(c.Errs),
 		rewrites: make(map[*pkginfo.File]*rewrite.Rewriter),
 		files:    make(map[fileKey]*File),
 	}

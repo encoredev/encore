@@ -33,7 +33,7 @@ type TypeUnmarshaller struct {
 	unmarshallerExpr *Statement
 }
 
-func (g *Generator) NewTypeUnmarshaller(objName string) *TypeUnmarshaller {
+func (g *Helper) NewTypeUnmarshaller(objName string) *TypeUnmarshaller {
 	expr := Id(objName)
 	return &TypeUnmarshaller{errs: g.Errs, unmarshallerExpr: expr}
 }
