@@ -6,6 +6,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
@@ -65,6 +66,7 @@ func (d *requestDesc) DecodeRequest() *Statement {
 		dec := d.gu.NewTypeUnmarshaller("dec")
 		g.Add(dec.Init())
 		d.renderPathDecoding(g, dec)
+		d.renderRequestDecoding(g, dec)
 
 		g.If(Err().Op(":=").Add(dec.Err()), Err().Op("!=").Nil()).Block(
 			Return(Nil(), Nil(), Err()),
@@ -205,7 +207,7 @@ func (d *requestDesc) renderRequestDecoding(g *Group, dec *genutil.TypeUnmarshal
 	// while other methods are parsed by reading the body and unmarshalling it as JSON.
 	// If the same endpoint supports both, handle it with a switch.
 	reqs := apienc.DescribeRequest(d.gu.Errs, d.ep.Request, d.ep.HTTPMethods...)
-	g.Add(Switch(Id("m").Op(":=").Id("req").Dot("Method"), Id("m")).BlockFunc(
+	g.Add(Switch(Id("m").Op(":=").Add(d.httpReqExpr()).Dot("Method"), Id("m")).BlockFunc(
 		func(g *Group) {
 			for _, r := range reqs {
 				g.CaseFunc(func(g *Group) {
@@ -222,40 +224,9 @@ func (d *requestDesc) renderRequestDecoding(g *Group, dec *genutil.TypeUnmarshal
 }
 
 func (d *requestDesc) decodeRequestParameters(g *Group, dec *genutil.TypeUnmarshaller, req *apienc.RequestEncoding) {
-	d.decodeHeaders(g, dec, req.HeaderParameters)
-	d.decodeQueryString(g, dec, req.QueryParameters)
+	apigenutil.DecodeHeaders(g, d.httpReqExpr(), Id("params"), dec, req.HeaderParameters)
+	apigenutil.DecodeQuery(g, d.httpReqExpr(), Id("params"), dec, req.QueryParameters)
 	d.decodeBody(g, dec, req.BodyParameters)
-}
-
-func (d *requestDesc) decodeHeaders(g *Group, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
-	if len(params) == 0 {
-		return
-	}
-	g.Comment("Decode headers")
-	g.Id("h").Op(":=").Id("req").Dot("Header")
-	for _, f := range params {
-		singleValExpr := Id("h").Dot("Get").Call(Lit(f.WireName))
-		listValExpr := Id("h").Dot("Values").Call(Lit(f.WireName))
-		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.SrcName, singleValExpr, listValExpr, false)
-		g.Id("params").Dot(f.SrcName).Op("=").Add(decodeExpr)
-	}
-	g.Line()
-}
-
-func (d *requestDesc) decodeQueryString(g *Group, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
-	if len(params) == 0 {
-		return
-	}
-	g.Comment("Decode query string")
-	g.Id("qs").Op(":=").Id("req").Dot("URL").Dot("Query").Call()
-
-	for _, f := range params {
-		singleValExpr := Id("qs").Dot("Get").Call(Lit(f.WireName))
-		listValExpr := Id("qs").Index(Lit(f.WireName))
-		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.SrcName, singleValExpr, listValExpr, false)
-		g.Id("params").Dot(f.SrcName).Op("=").Add(decodeExpr)
-	}
-	g.Line()
 }
 
 func (d *requestDesc) decodeBody(g *Group, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {

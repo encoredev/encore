@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"encr.dev/v2/codegen/internal/gen"
+	"encr.dev/v2/codegen"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/resource/secrets"
 )
 
-func Gen(gen *gen.Generator, pkg *pkginfo.Package, secrets []*secrets.Secrets) {
+func Gen(gen *codegen.Generator, pkg *pkginfo.Package, secrets []*secrets.Secrets) {
 	addedImport := make(map[*pkginfo.File]bool)
 	for _, secret := range secrets {
 		file := secret.File

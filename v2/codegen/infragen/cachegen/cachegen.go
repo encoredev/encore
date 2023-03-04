@@ -6,7 +6,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"encr.dev/v2/codegen/internal/gen"
+	"encr.dev/v2/codegen"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -14,14 +14,14 @@ import (
 	"encr.dev/v2/parser/infra/resource/cache"
 )
 
-func GenKeyspace(gen *gen.Generator, pkg *pkginfo.Package, keyspaces []*cache.Keyspace) {
+func GenKeyspace(gen *codegen.Generator, pkg *pkginfo.Package, keyspaces []*cache.Keyspace) {
 	f := gen.File(pkg, "cache")
 	for _, ks := range keyspaces {
 		genKeyspaceMappers(gen, f, ks)
 	}
 }
 
-func genKeyspaceMappers(gen *gen.Generator, f *gen.File, ks *cache.Keyspace) {
+func genKeyspaceMappers(gen *codegen.Generator, f *codegen.File, ks *cache.Keyspace) {
 	// Construct the key mapper function.
 	mapper := f.FuncDecl("keyMapper", ks.Ident.Name)
 

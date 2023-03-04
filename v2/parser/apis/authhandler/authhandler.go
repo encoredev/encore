@@ -15,6 +15,7 @@ import (
 type AuthHandler struct {
 	Decl *schema2.FuncDecl
 	Doc  string
+	Name string // the name of the auth handler.
 
 	// Param is the auth parameters.
 	// It's either a builtin string for token-based authentication,
@@ -45,6 +46,7 @@ func Parse(d ParseData) *AuthHandler {
 
 	ah := &AuthHandler{
 		Decl: decl,
+		Name: decl.Name,
 		Doc:  d.Doc,
 		Recv: decl.Recv,
 	}

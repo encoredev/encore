@@ -6,7 +6,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/idents"
-	"encr.dev/v2/codegen/internal/gen"
+	"encr.dev/v2/codegen"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -14,14 +14,14 @@ import (
 	"encr.dev/v2/parser/infra/resource/metrics"
 )
 
-func Gen(gen *gen.Generator, pkg *pkginfo.Package, metrics []*metrics.Metric) {
+func Gen(gen *codegen.Generator, pkg *pkginfo.Package, metrics []*metrics.Metric) {
 	f := gen.File(pkg, "metrics")
 	for _, m := range metrics {
 		genLabelMapper(gen, f, m)
 	}
 }
 
-func genLabelMapper(gen *gen.Generator, f *gen.File, m *metrics.Metric) {
+func genLabelMapper(gen *codegen.Generator, f *codegen.File, m *metrics.Metric) {
 	// If there is no label type there's nothing to do.
 	if !m.LabelType.IsPresent() {
 		return

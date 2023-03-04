@@ -18,9 +18,10 @@ import (
 type WireLoc string
 
 const (
-	Header WireLoc = "header" // Parameter is placed in the HTTP header
-	Query  WireLoc = "query"  // Parameter is placed in the query string
-	Body   WireLoc = "body"   // Parameter is placed in the body
+	Undefined WireLoc = "undefined" // Parameter location is undefined
+	Header    WireLoc = "header"    // Parameter is placed in the HTTP header
+	Query     WireLoc = "query"     // Parameter is placed in the query string
+	Body      WireLoc = "body"      // Parameter is placed in the body
 )
 
 var (
@@ -53,6 +54,12 @@ var requestTags = map[string]tagDescription{
 var responseTags = map[string]tagDescription{
 	"header": HeaderTag,
 	"json":   JSONTag,
+}
+
+// authTags is a description of tags used for auth
+var authTags = map[string]tagDescription{
+	"query":  QueryTag,
+	"header": HeaderTag,
 }
 
 // tagDescription is used to map struct field tags to param locations
@@ -286,6 +293,53 @@ func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...
 		return reqs[i].HTTPMethods[0] < reqs[j].HTTPMethods[0]
 	})
 	return reqs
+}
+
+// AuthEncoding expresses how a response should be encoded on the wire.
+type AuthEncoding struct {
+	// LegacyTokenFormat specifies whether the auth encoding uses the legacy format of
+	// "just give us a token as a string". If true, the other parameters are all empty.
+	LegacyTokenFormat bool
+
+	// Contains metadata about how to marshal an HTTP parameter
+	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
+	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
+}
+
+// DescribeAuth generates a ParameterEncoding per field of the auth struct and returns it as
+// the AuthEncoding. If authSchema is nil it returns nil.
+func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
+	if authSchema == nil {
+		return nil
+	}
+
+	// Do we have a legacy, string-based handler?
+	if builtin, ok := authSchema.(schema.BuiltinType); ok {
+		if builtin.Kind != schema.String {
+			errs.Addf(builtin.AST.Pos(), "unsupported auth parameter type: %v", builtin.Kind)
+		}
+		return &AuthEncoding{LegacyTokenFormat: true}
+	}
+
+	st, ok := getConcreteNamedStruct(authSchema)
+	if !ok {
+		errs.Addf(authSchema.ASTExpr().Pos(), "API auth type must be a named struct")
+		return nil
+	}
+
+	fields, err := describeParams(&encodingHints{Undefined, authTags}, st)
+	if err != nil {
+		errs.Addf(authSchema.ASTExpr().Pos(), "API auth type is invalid: %v", err)
+		return nil
+	}
+	if locationDiff := keyDiff(fields, Header, Query); len(locationDiff) > 0 {
+		errs.Addf(authSchema.ASTExpr().Pos(), "auth must only contain query and header parameters. Found: %v", locationDiff)
+		return nil
+	}
+	return &AuthEncoding{
+		QueryParameters:  fields[Query],
+		HeaderParameters: fields[Header],
+	}
 }
 
 // describeParams calls describeParam() for each field in the payload struct

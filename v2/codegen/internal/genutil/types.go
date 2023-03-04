@@ -166,16 +166,15 @@ func (g *Generator) GoToJen(pos gotoken.Pos, val any) *Statement {
 
 func (g *Generator) goToJen(pos gotoken.Pos, val reflect.Value) *Statement {
 	switch val.Kind() {
-	case reflect.Bool:
-		return Lit(val.Bool())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return Lit(val.Int())
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return Lit(val.Uint())
-	case reflect.Float32, reflect.Float64:
-		return Lit(val.Float())
-	case reflect.String:
-		return Lit(val.String())
+	// All the types supported by jen.Lit can be passed directly.
+	case reflect.Bool, reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64,
+		reflect.Complex64, reflect.Complex128,
+		reflect.Uintptr:
+		return Lit(val.Interface())
+
 	case reflect.Slice, reflect.Array:
 		return g.goTypeToJen(pos, val.Type()).ValuesFunc(func(group *Group) {
 			for i := 0; i < val.Len(); i++ {
@@ -243,4 +242,25 @@ func (g *Generator) Zero(typ schema.Type) *Statement {
 	}
 	// Otherwise return Foo{}.
 	return g.Type(typ).Values()
+}
+
+// Initialize returns a jen expression for initializing
+// the given type. If the type is a pointer type it returns new(Foo),
+// and make(Foo) for slices and maps.
+//
+// Certain types like function types and interfaces return "nil"
+// as there is no canonical way to initialize them to a non-zero value.
+func (g *Generator) Initialize(typ schema.Type) *Statement {
+	switch typ := typ.(type) {
+	case schema.PointerType:
+		return New(g.Type(typ.Elem))
+	case schema.ListType:
+		return g.Type(typ).Values()
+	case schema.MapType:
+		return Make(g.Type(typ))
+	case schema.BuiltinType:
+		return g.Zero(typ)
+	default:
+		return Nil()
+	}
 }

@@ -10,6 +10,8 @@ import (
 
 	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
+	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/apigen"
 	"encr.dev/v2/codegen/infragen"
 	"encr.dev/v2/compiler/build"
 	"encr.dev/v2/internal/parsectx"
@@ -68,8 +70,10 @@ type parseData struct {
 
 func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult, err error) {
 	pd := p.Parse.Data.(*parseData)
-	infraGen := infragen.New(pd.pc)
-	overlays := infraGen.Generate(pd.res.Resources)
+
+	gg := codegen.New(pd.pc)
+	infragen.Process(gg, pd.res.Resources)
+	apigen.Process(gg, pd.res.API)
 
 	defer func() {
 		if l, ok := perr2.CatchBailout(recover()); ok {
@@ -80,7 +84,7 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 
 	buildResult := build.Build(&build.Config{
 		Ctx:        pd.pc,
-		Overlays:   overlays,
+		Overlays:   gg.Overlays(),
 		MainPkg:    pd.mainPkg,
 		KeepOutput: false,
 	})

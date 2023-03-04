@@ -10,7 +10,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/eerror"
-	"encr.dev/v2/codegen/internal/gen"
+	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
@@ -19,7 +19,7 @@ import (
 	"encr.dev/v2/parser/infra/resource/config"
 )
 
-func Gen(gen *gen.Generator, pkg *pkginfo.Package, loads []*config.Load) {
+func Gen(gen *codegen.Generator, pkg *pkginfo.Package, loads []*config.Load) {
 	f := gen.File(pkg, "config_unmarshal")
 
 	builder := &configUnmarshalersBuilder{

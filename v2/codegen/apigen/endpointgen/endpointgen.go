@@ -6,20 +6,20 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"encr.dev/v2/codegen/internal/gen"
+	"encr.dev/v2/codegen"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
 )
 
-func Gen(gen *gen.Generator, pkg *pkginfo.Package, endpoints []*api.Endpoint) {
+func Gen(gen *codegen.Generator, pkg *pkginfo.Package, endpoints []*api.Endpoint) {
 	f := gen.File(pkg, "api")
 	for _, ep := range endpoints {
 		genAPIDesc(gen, f, ep)
 	}
 }
 
-func genAPIDesc(gen *gen.Generator, f *gen.File, ep *api.Endpoint) {
+func genAPIDesc(gen *codegen.Generator, f *codegen.File, ep *api.Endpoint) {
 	gu := gen.Util
 	desc := f.VarDecl("APIDesc", ep.Name)
 	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
@@ -47,10 +47,10 @@ func genAPIDesc(gen *gen.Generator, f *gen.File, ep *api.Endpoint) {
 	pos := ep.Decl.AST.Pos()
 	desc.Value(Op("&").Add(apiQ("Desc")).Types(
 		reqDesc.Type(),
-		apiQ("Void"), // TODO(andre) fix
+		respDesc.Type(),
 	).Values(Dict{
 		Id("Service"):        Lit("SERVICE"), // TODO
-		Id("ServiceNum"):     Lit(0),         // TODO
+		Id("SvcNum"):         Lit(0),         // TODO
 		Id("Endpoint"):       Lit(ep.Name),
 		Id("Methods"):        gu.GoToJen(pos, methods),
 		Id("Raw"):            Lit(ep.Raw),

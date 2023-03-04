@@ -56,6 +56,12 @@ func (u *TypeUnmarshaller) HasError() *Statement {
 	return u.unmarshallerExpr.Clone().Dot("Error").Op("!=").Nil()
 }
 
+// NumNonEmptyValues returns an integer expression that reports
+// the number of non-empty values the unmarshaller has processed.
+func (u *TypeUnmarshaller) NumNonEmptyValues() *Statement {
+	return u.unmarshallerExpr.Clone().Dot("NonEmptyValues")
+}
+
 func (u *TypeUnmarshaller) UnmarshalBuiltin(kind schema.BuiltinKind, fieldName string, value *Statement, required bool) *Statement {
 	return Qual("encore.dev/appruntime/etype", "UnmarshalOne").Call(
 		u.unmarshallerExpr.Clone(),

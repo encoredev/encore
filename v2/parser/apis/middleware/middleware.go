@@ -19,6 +19,7 @@ import (
 type Middleware struct {
 	Decl *schema2.FuncDecl
 	Doc  string
+	File *pkginfo.File // file it's declared in
 
 	// Global specifies whether the middleware is global or service-local.
 	Global bool
@@ -47,6 +48,7 @@ func Parse(d ParseData) *Middleware {
 	mw := &Middleware{
 		Decl:   decl,
 		Doc:    d.Doc,
+		File:   d.File,
 		Recv:   decl.Recv,
 		Global: d.Dir.HasOption("global"),
 	}
