@@ -73,7 +73,10 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 
 	gg := codegen.New(pd.pc)
 	infragen.Process(gg, pd.res.Resources)
-	apigen.Process(gg, pd.res.API)
+
+	if pd.res.Framework.IsPresent() {
+		apigen.Process(gg, pd.res.Framework.MustGet())
+	}
 
 	defer func() {
 		if l, ok := perr2.CatchBailout(recover()); ok {

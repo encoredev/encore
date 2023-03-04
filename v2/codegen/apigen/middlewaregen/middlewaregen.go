@@ -8,10 +8,17 @@ import (
 	"encr.dev/v2/parser/apis/middleware"
 )
 
-func Gen(gen *codegen.Generator, pkg *pkginfo.Package, mws []*middleware.Middleware) {
-	f := gen.File(pkg, "middleware")
+func Gen(gen *codegen.Generator, mws []*middleware.Middleware) {
+	pkgMap := make(map[*pkginfo.Package][]*middleware.Middleware)
 	for _, mw := range mws {
-		genMiddleware(gen, f, mw)
+		pkgMap[mw.File.Pkg] = append(pkgMap[mw.File.Pkg], mw)
+	}
+
+	for pkg, mws := range pkgMap {
+		f := gen.File(pkg, "middleware")
+		for _, mw := range mws {
+			genMiddleware(gen, f, mw)
+		}
 	}
 }
 

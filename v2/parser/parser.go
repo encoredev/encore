@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
@@ -35,20 +36,18 @@ type Parser struct {
 	infraParser *infra.Parser
 }
 
-type Result struct {
-	API       []*apis.ParseResult
-	Resources []resource.Resource
-}
-
 func (p *Parser) Parse() Result {
 	var result Result
+	builder := apiframework.NewBuilder(p.c.Errs)
 	p.collectPackages(func(pkg *pkginfo.Package) {
 		apiRes := p.apiParser.Parse(pkg)
-		result.API = append(result.API, apiRes)
+		builder.AddResult(apiRes)
 
 		infraRes := p.infraParser.Parse(pkg)
 		result.Resources = append(result.Resources, infraRes.Resources...)
 	})
+
+	result.Framework = option.Some(builder.Build())
 	return result
 }
 
@@ -88,4 +87,12 @@ func resolveModulePath(goModPath paths.FS) (paths.Mod, error) {
 		return "", fmt.Errorf("invalid module path %q", modFile.Module.Mod.Path)
 	}
 	return paths.MustModPath(modFile.Module.Mod.Path), nil
+}
+
+type Result struct {
+	Resources []resource.Resource
+
+	// Framework describes the Encore Framework application,
+	// if that is in use.
+	Framework option.Option[*apiframework.Desc]
 }

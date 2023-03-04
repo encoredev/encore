@@ -5,20 +5,13 @@ import (
 
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/apigenutil"
-	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/authhandler"
 )
 
-func Gen(gen *codegen.Generator, pkg *pkginfo.Package, handlers []*authhandler.AuthHandler) {
-	f := gen.File(pkg, "authhandler")
-	for _, h := range handlers {
-		genAuthHandler(gen, f, h)
-	}
-}
-
-func genAuthHandler(gen *codegen.Generator, f *codegen.File, ah *authhandler.AuthHandler) {
+func Gen(gen *codegen.Generator, ah *authhandler.AuthHandler) {
+	f := gen.File(ah.Decl.File.Pkg, "authhandler")
 	enc := apienc.DescribeAuth(gen.Errs, ah.Param)
 	gu := gen.Util
 	desc := f.VarDecl("AuthDesc", ah.Name)

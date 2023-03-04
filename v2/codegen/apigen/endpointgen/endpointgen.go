@@ -7,19 +7,19 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/v2/codegen"
-	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
+	"encr.dev/v2/parser/apis/apiframework"
 )
 
-func Gen(gen *codegen.Generator, pkg *pkginfo.Package, endpoints []*api.Endpoint) {
-	f := gen.File(pkg, "api")
-	for _, ep := range endpoints {
-		genAPIDesc(gen, f, ep)
+func Gen(gen *codegen.Generator, svc *apiframework.Service) {
+	f := gen.File(svc.RootPkg, "api")
+	for _, ep := range svc.Endpoints {
+		genAPIDesc(gen, f, svc, ep)
 	}
 }
 
-func genAPIDesc(gen *codegen.Generator, f *codegen.File, ep *api.Endpoint) {
+func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *apiframework.Service, ep *api.Endpoint) {
 	gu := gen.Util
 	desc := f.VarDecl("APIDesc", ep.Name)
 	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
@@ -49,8 +49,8 @@ func genAPIDesc(gen *codegen.Generator, f *codegen.File, ep *api.Endpoint) {
 		reqDesc.Type(),
 		respDesc.Type(),
 	).Values(Dict{
-		Id("Service"):        Lit("SERVICE"), // TODO
-		Id("SvcNum"):         Lit(0),         // TODO
+		Id("Service"):        Lit(svc.Name),
+		Id("SvcNum"):         Lit(svc.Num),
 		Id("Endpoint"):       Lit(ep.Name),
 		Id("Methods"):        gu.GoToJen(pos, methods),
 		Id("Raw"):            Lit(ep.Raw),
