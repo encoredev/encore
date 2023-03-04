@@ -13,6 +13,7 @@ type JSONSerializer struct {
 	writtenFields int
 }
 
+// SerializeJSONFunc is used by generated code to serialize JSON.
 func SerializeJSONFunc(cfg jsoniter.API, fn func(serializer *JSONSerializer)) ([]byte, error) {
 	s := &JSONSerializer{}
 	s.buffer = new(bytes.Buffer)

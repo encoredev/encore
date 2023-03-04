@@ -220,3 +220,27 @@ func (g *Generator) goTypeToJen(pos gotoken.Pos, typ reflect.Type) *Statement {
 		return Null()
 	}
 }
+
+// Zero returns a jen expression representing the zero value
+// for the given type. If the type is nil it returns "nil".
+func (g *Generator) Zero(typ schema.Type) *Statement {
+	isNillable := func(typ schema.Type) bool {
+		switch typ.(type) {
+		case nil, schema.PointerType, schema.ListType, schema.MapType, schema.FuncType, schema.InterfaceType:
+			return true
+		default:
+			return false
+		}
+	}
+
+	if isNillable(typ) {
+		return Nil()
+	} else if named, ok := typ.(schema.NamedType); ok {
+		// If the type is a named type, we need to inspect the underlying type.
+		if isNillable(named.Decl().Type) {
+			return Nil()
+		}
+	}
+	// Otherwise return Foo{}.
+	return g.Type(typ).Values()
+}

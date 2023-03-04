@@ -22,7 +22,9 @@ func Gen(gen *gen.Generator, pkg *pkginfo.Package, endpoints []*api.Endpoint) {
 func genAPIDesc(gen *gen.Generator, f *gen.File, ep *api.Endpoint) {
 	gu := gen.Util
 	desc := f.VarDecl("APIDesc", ep.Name)
-	reqDesc := &requestDesc{ep: ep}
+	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
+	respDesc := &responseDesc{gu: gen.Util, ep: ep}
+	handler := &handlerDesc{gu: gen.Util, ep: ep, req: reqDesc, resp: respDesc}
 
 	methods := ep.HTTPMethods
 	if len(methods) == 1 && methods[0] == "*" {
@@ -57,10 +59,15 @@ func genAPIDesc(gen *gen.Generator, f *gen.File, ep *api.Endpoint) {
 		Id("PathParamNames"): pathParamNames(ep.Path),
 		Id("Access"):         access,
 
-		Id("DecodeReq"):      reqDesc.Decode(),
+		Id("DecodeReq"):      reqDesc.DecodeRequest(),
 		Id("CloneReq"):       reqDesc.Clone(),
 		Id("ReqPath"):        reqDesc.ReqPath(),
 		Id("ReqUserPayload"): reqDesc.UserPayload(),
+
+		Id("AppHandler"): handler.Typed(),
+		Id("RawHandler"): handler.Raw(),
+		Id("EncodeResp"): respDesc.EncodeResponse(),
+		Id("CloneResp"):  respDesc.Clone(),
 	}))
 }
 

@@ -44,7 +44,7 @@ func (d *requestDesc) TypeDecl() *Statement {
 	})
 }
 
-func (d *requestDesc) Decode() *Statement {
+func (d *requestDesc) DecodeRequest() *Statement {
 	return Func().Params(
 		d.httpReqExpr().Op("*").Qual("net/http", "Request"),
 		d.pathParamsName().Add(apiQ("UnnamedParams")),
@@ -74,6 +74,19 @@ func (d *requestDesc) Decode() *Statement {
 
 		g.Return(d.reqDataExpr(), d.pathParamsName(), Nil())
 	})
+}
+
+// HandlerArgs returns the list of arguments to pass to the handler.
+func (d *requestDesc) HandlerArgs() []Code {
+	numPathParams := d.ep.Path.NumParams()
+	args := make([]Code, 0, 1+numPathParams)
+	for i := 0; i < numPathParams; i++ {
+		args = append(args, d.reqDataPathParamExpr(i))
+	}
+	if d.ep.Request != nil {
+		args = append(args, d.reqDataPayloadExpr())
+	}
+	return args
 }
 
 // renderPathDecoding renders the code to decode the path parameters.
