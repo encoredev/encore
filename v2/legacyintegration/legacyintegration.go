@@ -16,9 +16,9 @@ import (
 	"encr.dev/v2/compiler/build"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
-	perr2 "encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/legacyintegration/legacymeta"
-	parser2 "encr.dev/v2/parser"
+	"encr.dev/v2/parser"
 )
 
 type BuilderImpl struct{}
@@ -26,7 +26,7 @@ type BuilderImpl struct{}
 func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 	ctx := context.Background()
 	fs := token.NewFileSet()
-	errs := perr2.NewList(ctx, fs)
+	errs := perr.NewList(ctx, fs)
 	pc := &parsectx.Context{
 		Ctx: ctx,
 		Log: zerolog.New(zerolog.NewConsoleWriter()),
@@ -50,7 +50,7 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 		Errs:          errs,
 	}
 
-	parser := parser2.NewParser(pc)
+	parser := parser.NewParser(pc)
 	parserResult := parser.Parse()
 	return &builder.ParseResult{
 		Meta: legacymeta.Gen(pc.Errs, parserResult, p.App.PlatformOrLocalID()),
@@ -64,7 +64,7 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 
 type parseData struct {
 	pc      *parsectx.Context
-	res     parser2.Result
+	res     parser.Result
 	mainPkg paths.Pkg
 }
 
@@ -72,14 +72,14 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 	pd := p.Parse.Data.(*parseData)
 
 	gg := codegen.New(pd.pc)
-	infragen.Process(gg, pd.res.Resources)
+	infragen.Process(gg, pd.res.InfraResources)
 
 	if pd.res.Framework.IsPresent() {
 		apigen.Process(gg, pd.res.Framework.MustGet())
 	}
 
 	defer func() {
-		if l, ok := perr2.CatchBailout(recover()); ok {
+		if l, ok := perr.CatchBailout(recover()); ok {
 			res = nil
 			err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
 		}

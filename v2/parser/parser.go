@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"golang.org/x/mod/modfile"
 
@@ -12,6 +13,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis"
+	"encr.dev/v2/parser/apis/apiframework"
 	"encr.dev/v2/parser/infra"
 	"encr.dev/v2/parser/infra/resource"
 )
@@ -37,18 +39,28 @@ type Parser struct {
 }
 
 func (p *Parser) Parse() Result {
-	var result Result
-	builder := apiframework.NewBuilder(p.c.Errs)
+	// TODO(andre) only instantiate this if the project is using the API Framework.
+	var (
+		mu sync.Mutex
+
+		allResources []resource.Resource
+		builder      = apiframework.NewBuilder(p.c.Errs)
+	)
+
 	p.collectPackages(func(pkg *pkginfo.Package) {
 		apiRes := p.apiParser.Parse(pkg)
-		builder.AddResult(apiRes)
+		resources := p.infraParser.Parse(pkg)
 
-		infraRes := p.infraParser.Parse(pkg)
-		result.Resources = append(result.Resources, infraRes.Resources...)
+		mu.Lock()
+		builder.AddResult(apiRes)
+		allResources = append(allResources, resources...)
+		mu.Unlock()
 	})
 
-	result.Framework = option.Some(builder.Build())
-	return result
+	return Result{
+		Framework:      option.Some(builder.Build()),
+		InfraResources: allResources,
+	}
 }
 
 // collectPackages parses all the packages in subdirectories of the root directory.
@@ -90,9 +102,9 @@ func resolveModulePath(goModPath paths.FS) (paths.Mod, error) {
 }
 
 type Result struct {
-	Resources []resource.Resource
+	InfraResources []resource.Resource
 
 	// Framework describes the Encore Framework application,
 	// if that is in use.
-	Framework option.Option[*apiframework.Desc]
+	Framework option.Option[*apiframework.AppDesc]
 }

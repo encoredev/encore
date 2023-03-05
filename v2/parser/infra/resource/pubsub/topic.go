@@ -3,12 +3,13 @@ package pubsub
 import (
 	"go/ast"
 
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	literals2 "encr.dev/v2/parser/infra/internal/literals"
+	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
-	parseutil2 "encr.dev/v2/parser/infra/internal/parseutil"
+	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -35,11 +36,11 @@ var TopicParser = &resource.Parser{
 	Name:      "PubSub Topic",
 	DependsOn: nil,
 
-	RequiredImports: []string{"encore.dev/pubsub"},
+	RequiredImports: []paths.Pkg{"encore.dev/pubsub"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{Name: "NewTopic", PkgPath: "encore.dev/pubsub"}
 
-		spec := &parseutil2.ResourceCreationSpec{
+		spec := &parseutil.ResourceCreationSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 1,
 			MaxTypeArgs: 1,
@@ -47,8 +48,8 @@ var TopicParser = &resource.Parser{
 		}
 
 		var resources []resource.Resource
-		parseutil2.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			r := parseutil2.ParseResourceCreation(p, spec, parseutil2.ReferenceData{
+		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
@@ -61,14 +62,14 @@ var TopicParser = &resource.Parser{
 	},
 }
 
-func parsePubSubTopic(d parseutil2.ParseData) resource.Resource {
+func parsePubSubTopic(d parseutil.ParseData) resource.Resource {
 	if len(d.Call.Args) != 2 {
 		d.Pass.Errs.Add(d.Call.Pos(), "pubsub.NewTopic expects 2 arguments")
 		return nil
 	}
 
-	topicName := parseutil2.ParseResourceName(d.Pass.Errs, "pubsub.NewTopic", "topic name",
-		d.Call.Args[0], parseutil2.KebabName, "")
+	topicName := parseutil.ParseResourceName(d.Pass.Errs, "pubsub.NewTopic", "topic name",
+		d.Call.Args[0], parseutil.KebabName, "")
 	if topicName == "" {
 		// we already reported the error inside ParseResourceName
 		return nil
@@ -80,7 +81,7 @@ func parsePubSubTopic(d parseutil2.ParseData) resource.Resource {
 		return nil
 	}
 
-	cfgLit, ok := literals2.ParseStruct(d.Pass.Errs, d.File, "pubsub.TopicConfig", d.Call.Args[1])
+	cfgLit, ok := literals.ParseStruct(d.Pass.Errs, d.File, "pubsub.TopicConfig", d.Call.Args[1])
 	if !ok {
 		return nil // error reported by ParseStruct
 	}
@@ -90,7 +91,7 @@ func parsePubSubTopic(d parseutil2.ParseData) resource.Resource {
 		DeliveryGuarantee int    `literal:",required"`
 		OrderingKey       string `literal:",optional"`
 	}
-	config := literals2.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 
 	// Get the ordering key
 	if config.OrderingKey != "" {

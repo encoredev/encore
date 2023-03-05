@@ -3,6 +3,7 @@ package config
 import (
 	"go/ast"
 
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
@@ -30,7 +31,7 @@ var LoadParser = &resource.Parser{
 	Name:      "ConfigLoad",
 	DependsOn: nil,
 
-	RequiredImports: []string{"encore.dev/config"},
+	RequiredImports: []paths.Pkg{"encore.dev/config"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/config", Name: "Load"}
 

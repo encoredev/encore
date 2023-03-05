@@ -4,12 +4,13 @@ import (
 	"go/ast"
 
 	"encr.dev/pkg/option"
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	literals2 "encr.dev/v2/parser/infra/internal/literals"
+	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
-	parseutil2 "encr.dev/v2/parser/infra/internal/parseutil"
+	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -62,11 +63,11 @@ var MetricParser = &resource.Parser{
 	Name:      "Metric",
 	DependsOn: nil,
 
-	RequiredImports: []string{"encore.dev/metrics"},
+	RequiredImports: []paths.Pkg{"encore.dev/metrics"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		var (
 			names []pkginfo.QualifiedName
-			specs = make(map[pkginfo.QualifiedName]*parseutil2.ResourceCreationSpec)
+			specs = make(map[pkginfo.QualifiedName]*parseutil.ResourceCreationSpec)
 		)
 		for _, c := range metricConstructors {
 			name := pkginfo.QualifiedName{PkgPath: "encore.dev/metrics", Name: c.FuncName}
@@ -78,11 +79,11 @@ var MetricParser = &resource.Parser{
 			}
 
 			c := c // capture for closure
-			parseFn := func(d parseutil2.ParseData) resource.Resource {
+			parseFn := func(d parseutil.ParseData) resource.Resource {
 				return parseMetric(c, d)
 			}
 
-			spec := &parseutil2.ResourceCreationSpec{
+			spec := &parseutil.ResourceCreationSpec{
 				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
@@ -92,9 +93,9 @@ var MetricParser = &resource.Parser{
 		}
 
 		var resources []resource.Resource
-		parseutil2.FindPkgNameRefs(p.Pkg, names, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
+		parseutil.FindPkgNameRefs(p.Pkg, names, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
 			spec := specs[name]
-			r := parseutil2.ParseResourceCreation(p, spec, parseutil2.ReferenceData{
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
@@ -107,7 +108,7 @@ var MetricParser = &resource.Parser{
 	},
 }
 
-func parseMetric(c metricConstructor, d parseutil2.ParseData) resource.Resource {
+func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	errs := d.Pass.Errs
 	if len(d.Call.Args) != 2 {
@@ -117,8 +118,8 @@ func parseMetric(c metricConstructor, d parseutil2.ParseData) resource.Resource 
 	}
 
 	// Validate the metric name.
-	metricName := parseutil2.ParseResourceName(errs, displayName, "metric name",
-		d.Call.Args[0], parseutil2.SnakeName, "e_")
+	metricName := parseutil.ParseResourceName(errs, displayName, "metric name",
+		d.Call.Args[0], parseutil.SnakeName, "e_")
 	if metricName == "" {
 		// we already reported the error inside ParseResourceName
 		return nil
@@ -171,7 +172,7 @@ func parseMetric(c metricConstructor, d parseutil2.ParseData) resource.Resource 
 	}
 
 	// Parse and validate the metric configuration.
-	cfgLit, ok := literals2.ParseStruct(errs, d.File, "metrics.MetricConfig", d.Call.Args[1])
+	cfgLit, ok := literals.ParseStruct(errs, d.File, "metrics.MetricConfig", d.Call.Args[1])
 	if !ok {
 		return nil // error reported by ParseStruct
 	}
@@ -180,18 +181,18 @@ func parseMetric(c metricConstructor, d parseutil2.ParseData) resource.Resource 
 	return m
 }
 
-type configParseFunc func(c metricConstructor, d parseutil2.ParseData, cfgLit *literals2.Struct, dst *Metric)
+type configParseFunc func(c metricConstructor, d parseutil.ParseData, cfgLit *literals.Struct, dst *Metric)
 
-func parseCounterConfig(c metricConstructor, d parseutil2.ParseData, cfgLit *literals2.Struct, dst *Metric) {
+func parseCounterConfig(c metricConstructor, d parseutil.ParseData, cfgLit *literals.Struct, dst *Metric) {
 	// We don't have any actual configuration yet.
 	// Parse anyway to make sure we don't have any fields we don't expect.
 	type decodedConfig struct{}
-	_ = literals2.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	_ = literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 }
 
-func parseGaugeConfig(c metricConstructor, d parseutil2.ParseData, cfgLit *literals2.Struct, dst *Metric) {
+func parseGaugeConfig(c metricConstructor, d parseutil.ParseData, cfgLit *literals.Struct, dst *Metric) {
 	// We don't have any actual configuration yet.
 	// Parse anyway to make sure we don't have any fields we don't expect.
 	type decodedConfig struct{}
-	_ = literals2.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	_ = literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 }

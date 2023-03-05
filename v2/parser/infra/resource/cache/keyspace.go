@@ -5,10 +5,11 @@ import (
 	"go/ast"
 	"strings"
 
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	literals2 "encr.dev/v2/parser/infra/internal/literals"
+	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
@@ -32,10 +33,9 @@ func (k *Keyspace) Kind() resource.Kind       { return resource.CacheKeyspace }
 func (k *Keyspace) DeclaredIn() *pkginfo.File { return k.File }
 
 var KeyspaceParser = &resource.Parser{
-	Name:      "Cache Keyspace",
-	DependsOn: []*resource.Parser{ClusterParser},
+	Name: "Cache Keyspace",
 
-	RequiredImports: []string{"encore.dev/storage/cache"},
+	RequiredImports: []paths.Pkg{"encore.dev/storage/cache"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		var (
 			names []pkginfo.QualifiedName
@@ -121,7 +121,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 
 	// TODO(andre) Resolve cluster name
 
-	cfgLit, ok := literals2.ParseStruct(errs, d.File, "cache.KeyspaceConfig", d.Call.Args[1])
+	cfgLit, ok := literals.ParseStruct(errs, d.File, "cache.KeyspaceConfig", d.Call.Args[1])
 	if !ok {
 		return nil // error reported by ParseStruct
 	}
@@ -134,7 +134,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 		KeyPattern    string   `literal:",required"`
 		DefaultExpiry ast.Expr `literal:",optional,dynamic"`
 	}
-	config := literals2.Decode[decodedConfig](errs, cfgLit)
+	config := literals.Decode[decodedConfig](errs, cfgLit)
 
 	const reservedPrefix = "__encore"
 	if strings.HasPrefix(config.KeyPattern, reservedPrefix) {

@@ -7,10 +7,11 @@ import (
 
 	cronparser "github.com/robfig/cron/v3"
 
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
-	literals2 "encr.dev/v2/parser/infra/internal/literals"
+	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
-	parseutil2 "encr.dev/v2/parser/infra/internal/parseutil"
+	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -29,11 +30,11 @@ var JobParser = &resource.Parser{
 	Name:      "Cron Job",
 	DependsOn: nil,
 
-	RequiredImports: []string{"encore.dev/cron"},
+	RequiredImports: []paths.Pkg{"encore.dev/cron"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/cron", Name: "NewJob"}
 
-		spec := &parseutil2.ResourceCreationSpec{
+		spec := &parseutil.ResourceCreationSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 0,
 			MaxTypeArgs: 0,
@@ -41,8 +42,8 @@ var JobParser = &resource.Parser{
 		}
 
 		var resources []resource.Resource
-		parseutil2.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			r := parseutil2.ParseResourceCreation(p, spec, parseutil2.ReferenceData{
+		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
@@ -62,21 +63,21 @@ const (
 
 var cronjobParser = cronparser.NewParser(cronparser.Minute | cronparser.Hour | cronparser.Dom | cronparser.Month | cronparser.Dow)
 
-func parseCronJob(d parseutil2.ParseData) resource.Resource {
+func parseCronJob(d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
 		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 2 arguments", displayName)
 		return nil
 	}
 
-	jobName := parseutil2.ParseResourceName(d.Pass.Errs, displayName, "cron job name",
-		d.Call.Args[0], parseutil2.KebabName, "")
+	jobName := parseutil.ParseResourceName(d.Pass.Errs, displayName, "cron job name",
+		d.Call.Args[0], parseutil.KebabName, "")
 	if jobName == "" {
 		// we already reported the error inside ParseResourceName
 		return nil
 	}
 
-	cfgLit, ok := literals2.ParseStruct(d.Pass.Errs, d.File, "cron.JobConfig", d.Call.Args[1])
+	cfgLit, ok := literals.ParseStruct(d.Pass.Errs, d.File, "cron.JobConfig", d.Call.Args[1])
 	if !ok {
 		return nil // error reported by ParseStruct
 	}
@@ -88,7 +89,7 @@ func parseCronJob(d parseutil2.ParseData) resource.Resource {
 		Every    int64    `literal:",optional"`
 		Schedule string   `literal:",optional"`
 	}
-	config := literals2.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 
 	job := &Job{
 		File:  d.File,

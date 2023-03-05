@@ -4,10 +4,11 @@ import (
 	"go/ast"
 
 	"encore.dev/storage/cache"
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
-	literals2 "encr.dev/v2/parser/infra/internal/literals"
+	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
-	parseutil2 "encr.dev/v2/parser/infra/internal/parseutil"
+	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -25,11 +26,11 @@ var ClusterParser = &resource.Parser{
 	Name:      "Cache Cluster",
 	DependsOn: nil,
 
-	RequiredImports: []string{"encore.dev/storage/cache"},
+	RequiredImports: []paths.Pkg{"encore.dev/storage/cache"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/storage/cache", Name: "NewCluster"}
 
-		spec := &parseutil2.ResourceCreationSpec{
+		spec := &parseutil.ResourceCreationSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 0,
 			MaxTypeArgs: 0,
@@ -37,8 +38,8 @@ var ClusterParser = &resource.Parser{
 		}
 
 		var resources []resource.Resource
-		parseutil2.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			r := parseutil2.ParseResourceCreation(p, spec, parseutil2.ReferenceData{
+		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
@@ -51,21 +52,21 @@ var ClusterParser = &resource.Parser{
 	},
 }
 
-func parseCluster(d parseutil2.ParseData) resource.Resource {
+func parseCluster(d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
 		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 2 arguments", displayName)
 		return nil
 	}
 
-	clusterName := parseutil2.ParseResourceName(d.Pass.Errs, displayName, "cache cluster name",
-		d.Call.Args[0], parseutil2.KebabName, "")
+	clusterName := parseutil.ParseResourceName(d.Pass.Errs, displayName, "cache cluster name",
+		d.Call.Args[0], parseutil.KebabName, "")
 	if clusterName == "" {
 		// we already reported the error inside ParseResourceName
 		return nil
 	}
 
-	cfgLit, ok := literals2.ParseStruct(d.Pass.Errs, d.File, "cache.ClusterConfig", d.Call.Args[1])
+	cfgLit, ok := literals.ParseStruct(d.Pass.Errs, d.File, "cache.ClusterConfig", d.Call.Args[1])
 	if !ok {
 		return nil // error reported by ParseStruct
 	}
@@ -75,7 +76,7 @@ func parseCluster(d parseutil2.ParseData) resource.Resource {
 		EvictionPolicy string   `literal:",optional"`
 		DefaultExpiry  ast.Expr `literal:",optional,dynamic"`
 	}
-	config := literals2.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 
 	if config.EvictionPolicy == "" {
 		config.EvictionPolicy = string(cache.AllKeysLRU)

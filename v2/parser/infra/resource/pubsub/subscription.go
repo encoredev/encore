@@ -4,16 +4,17 @@ import (
 	"go/ast"
 	"time"
 
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
-	literals2 "encr.dev/v2/parser/infra/internal/literals"
+	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
-	parseutil2 "encr.dev/v2/parser/infra/internal/parseutil"
+	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
 type Subscription struct {
 	File  *pkginfo.File
-	Topic *Topic
+	Topic pkginfo.QualifiedName
 	Name  string // The unique name of the pub sub subscription
 	Doc   string // The documentation on the pub sub subscription
 }
@@ -22,14 +23,13 @@ func (s *Subscription) Kind() resource.Kind       { return resource.PubSubSubscr
 func (s *Subscription) DeclaredIn() *pkginfo.File { return s.File }
 
 var SubscriptionParser = &resource.Parser{
-	Name:      "PubSub Subscription",
-	DependsOn: []*resource.Parser{TopicParser},
+	Name: "PubSub Subscription",
 
-	RequiredImports: []string{"encore.dev/pubsub"},
+	RequiredImports: []paths.Pkg{"encore.dev/pubsub"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{Name: "NewSubscription", PkgPath: "encore.dev/pubsub"}
 
-		spec := &parseutil2.ResourceCreationSpec{
+		spec := &parseutil.ResourceCreationSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 0,
 			MaxTypeArgs: 1,
@@ -37,8 +37,8 @@ var SubscriptionParser = &resource.Parser{
 		}
 
 		var resources []resource.Resource
-		parseutil2.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			r := parseutil2.ParseResourceCreation(p, spec, parseutil2.ReferenceData{
+		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
+			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
@@ -51,15 +51,22 @@ var SubscriptionParser = &resource.Parser{
 	},
 }
 
-func parsePubSubSubscription(d parseutil2.ParseData) resource.Resource {
+func parsePubSubSubscription(d parseutil.ParseData) resource.Resource {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 3 {
 		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 3 arguments", displayName)
 		return nil
 	}
 
-	subscriptionName := parseutil2.ParseResourceName(d.Pass.Errs, displayName, "subscription name",
-		d.Call.Args[1], parseutil2.KebabName, "")
+	topicExpr := d.Call.Args[0]
+	topicObj, ok := d.File.Names().ResolvePkgLevelRef(topicExpr)
+	if !ok {
+		d.Pass.Errs.Addf(topicExpr.Pos(), "could not resolve topic to a package-level variable")
+		return nil
+	}
+
+	subscriptionName := parseutil.ParseResourceName(d.Pass.Errs, displayName, "subscription name",
+		d.Call.Args[1], parseutil.KebabName, "")
 	if subscriptionName == "" {
 		// we already reported the error inside ParseResourceName
 		return nil
@@ -67,7 +74,7 @@ func parsePubSubSubscription(d parseutil2.ParseData) resource.Resource {
 
 	// Parse the literal struct representing the subscription configuration
 	// so we can extract the reference to the handler function
-	cfgLit, ok := literals2.ParseStruct(d.Pass.Errs, d.File, "pubsub.SubscriptionConfig", d.Call.Args[2])
+	cfgLit, ok := literals.ParseStruct(d.Pass.Errs, d.File, "pubsub.SubscriptionConfig", d.Call.Args[2])
 	if !ok {
 		return nil // error reported by ParseStruct
 	}
@@ -85,7 +92,7 @@ func parsePubSubSubscription(d parseutil2.ParseData) resource.Resource {
 		} `literal:",optional"`
 	}
 
-	cfg := literals2.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	cfg := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 	_ = cfg
 
 	// TODO(andre) validate value ranges
@@ -94,8 +101,9 @@ func parsePubSubSubscription(d parseutil2.ParseData) resource.Resource {
 
 	// TODO(andre) fill in this
 	return &Subscription{
-		File: d.File,
-		Name: subscriptionName,
-		Doc:  d.Doc,
+		File:  d.File,
+		Name:  subscriptionName,
+		Doc:   d.Doc,
+		Topic: topicObj,
 	}
 }

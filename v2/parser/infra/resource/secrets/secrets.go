@@ -27,10 +27,9 @@ func (*Secrets) Kind() resource.Kind         { return resource.Secrets }
 func (s *Secrets) DeclaredIn() *pkginfo.File { return s.File }
 
 var SecretsParser = &resource.Parser{
-	Name:      "Secrets",
-	DependsOn: nil,
+	Name:            "Secrets",
+	RequiredImports: resource.RunAlways,
 
-	RequiredImports: nil, // applies to all packages
 	Run: func(p *resource.Pass) []resource.Resource {
 		secrets := p.Pkg.Names().PkgDecls["secrets"]
 		if secrets == nil || secrets.Type != token.VAR {

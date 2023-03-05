@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"reflect"
 
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
@@ -24,7 +25,7 @@ var DatabaseParser = &resource.Parser{
 	Name:      "SQL Database",
 	DependsOn: nil,
 
-	RequiredImports: []string{"encore.dev/storage/sqldb"},
+	RequiredImports: []paths.Pkg{"encore.dev/storage/sqldb"},
 	Run: func(p *resource.Pass) []resource.Resource {
 		name := pkginfo.QualifiedName{Name: "Named", PkgPath: "encore.dev/storage/sqldb"}
 
