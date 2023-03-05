@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"reflect"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/internal/literals"
@@ -13,17 +14,22 @@ import (
 )
 
 type Database struct {
-	File *pkginfo.File
-	Name string // The database name
-	Doc  string
+	AST   *ast.CallExpr
+	File  *pkginfo.File
+	Ident *ast.Ident // The identifier of the database
+	Name  string     // The database name
+	Doc   string
 }
 
 func (d *Database) Kind() resource.Kind       { return resource.SQLDatabase }
 func (d *Database) DeclaredIn() *pkginfo.File { return d.File }
+func (d *Database) ASTExpr() ast.Expr         { return d.AST }
+func (d *Database) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(d.File, d.Ident)
+}
 
 var DatabaseParser = &resource.Parser{
-	Name:      "SQL Database",
-	DependsOn: nil,
+	Name: "SQL Database",
 
 	RequiredImports: []paths.Pkg{"encore.dev/storage/sqldb"},
 	Run: func(p *resource.Pass) []resource.Resource {
@@ -68,8 +74,10 @@ func parseNamedSQLDB(d parseutil.ParseData) resource.Resource {
 	}
 
 	return &Database{
-		File: d.File,
-		Name: dbName,
-		Doc:  d.Doc,
+		AST:   d.Call,
+		File:  d.File,
+		Ident: d.Ident,
+		Name:  dbName,
+		Doc:   d.Doc,
 	}
 }

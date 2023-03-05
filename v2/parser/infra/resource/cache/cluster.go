@@ -4,6 +4,7 @@ import (
 	"go/ast"
 
 	"encore.dev/storage/cache"
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	literals "encr.dev/v2/parser/infra/internal/literals"
@@ -13,18 +14,23 @@ import (
 )
 
 type Cluster struct {
-	Name           string // The unique name of the cache cluster
-	Doc            string // The documentation on the cluster
+	AST            *ast.CallExpr
+	Name           string     // The unique name of the cache cluster
+	Ident          *ast.Ident // The identifier of the cache cluster
+	Doc            string     // The documentation on the cluster
 	EvictionPolicy string
 	File           *pkginfo.File
 }
 
 func (c *Cluster) Kind() resource.Kind       { return resource.CacheCluster }
 func (c *Cluster) DeclaredIn() *pkginfo.File { return c.File }
+func (c *Cluster) ASTExpr() ast.Expr         { return c.AST }
+func (c *Cluster) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(c.File, c.Ident)
+}
 
 var ClusterParser = &resource.Parser{
-	Name:      "Cache Cluster",
-	DependsOn: nil,
+	Name: "Cache Cluster",
 
 	RequiredImports: []paths.Pkg{"encore.dev/storage/cache"},
 	Run: func(p *resource.Pass) []resource.Resource {
@@ -92,7 +98,9 @@ func parseCluster(d parseutil.ParseData) resource.Resource {
 	}
 
 	return &Cluster{
+		AST:            d.Call,
 		Name:           clusterName,
+		Ident:          d.Ident,
 		Doc:            d.Doc,
 		EvictionPolicy: config.EvictionPolicy,
 		File:           d.File,

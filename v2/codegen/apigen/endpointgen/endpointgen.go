@@ -21,10 +21,12 @@ func Gen(gen *codegen.Generator, svc *apiframework.Service) {
 
 func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *apiframework.Service, ep *api.Endpoint) {
 	gu := gen.Util
-	desc := f.VarDecl("APIDesc", ep.Name)
 	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
 	respDesc := &responseDesc{gu: gen.Util, ep: ep}
 	handler := &handlerDesc{gu: gen.Util, ep: ep, req: reqDesc, resp: respDesc}
+
+	f.Add(reqDesc.TypeDecl())
+	f.Add(respDesc.TypeDecl())
 
 	methods := ep.HTTPMethods
 	if len(methods) == 1 && methods[0] == "*" {
@@ -45,6 +47,7 @@ func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *apiframework.Servi
 	}
 
 	pos := ep.Decl.AST.Pos()
+	desc := f.VarDecl("APIDesc", ep.Name)
 	desc.Value(Op("&").Add(apiQ("Desc")).Types(
 		reqDesc.Type(),
 		respDesc.Type(),

@@ -3,6 +3,7 @@ package parseutil
 import (
 	"go/ast"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -278,4 +279,15 @@ func resolveResourceDoc(stack []ast.Node) (doc string) {
 	}
 
 	return ""
+}
+
+// BoundTo is a helper function for implementing (resource.Resource).BoundTo.
+func BoundTo(f *pkginfo.File, id *ast.Ident) option.Option[pkginfo.QualifiedName] {
+	if id.Name == "_" {
+		return option.None[pkginfo.QualifiedName]()
+	}
+	return option.Some(pkginfo.QualifiedName{
+		PkgPath: f.Pkg.ImportPath,
+		Name:    id.Name,
+	})
 }

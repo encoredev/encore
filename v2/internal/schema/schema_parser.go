@@ -150,7 +150,8 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 				// Parse the struct tags, if any.
 				var tags structtag.Tags
 				if field.Tag != nil {
-					t, err := structtag.Parse(field.Tag.Value)
+					val, _ := strconv.Unquote(field.Tag.Value)
+					t, err := structtag.Parse(val)
 					if err != nil {
 						r.errs.Addf(field.Tag.Pos(), "invalid struct tag: %v", err.Error())
 					} else {

@@ -40,3 +40,18 @@ func (p *Parser) Parse(pkg *pkginfo.Package) []resource.Resource {
 	}
 	return allResources
 }
+
+func (p *Parser) ComputeResult(all []resource.Resource) *ParseResult {
+	return &ParseResult{
+		resources: all,
+	}
+}
+
+// ParseResult is the combined, validated result of parsing all packages in a project.
+type ParseResult struct {
+	resources []resource.Resource
+}
+
+func (r *ParseResult) AllResources() []resource.Resource {
+	return r.resources
+}

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"strings"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -16,6 +17,7 @@ import (
 )
 
 type Keyspace struct {
+	AST     *ast.CallExpr
 	Ident   *ast.Ident    // The package-level identifier the keyspace is bound to.
 	Doc     string        // The documentation on the keyspace
 	File    *pkginfo.File // File the keyspace is declared in.
@@ -32,6 +34,10 @@ type Keyspace struct {
 
 func (k *Keyspace) Kind() resource.Kind       { return resource.CacheKeyspace }
 func (k *Keyspace) DeclaredIn() *pkginfo.File { return k.File }
+func (k *Keyspace) ASTExpr() ast.Expr         { return k.AST }
+func (k *Keyspace) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(k.File, k.Ident)
+}
 
 var KeyspaceParser = &resource.Parser{
 	Name: "Cache Keyspace",
@@ -264,6 +270,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 	}
 
 	return &Keyspace{
+		AST:           d.Call,
 		Ident:         d.Ident,
 		Doc:           d.Doc,
 		File:          d.File,

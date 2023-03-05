@@ -4,16 +4,20 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
 // Secrets represents a secrets struct.
 type Secrets struct {
-	File *pkginfo.File // Where the secrets struct is declared
-	Keys []string      // Secret keys to load
+	AST   *ast.StructType
+	File  *pkginfo.File // Where the secrets struct is declared
+	Ident *ast.Ident    // The identifier of the secrets struct
+	Keys  []string      // Secret keys to load
 
 	// Spec is the value spec that defines the 'secrets' variable.
 	Spec *ast.ValueSpec
@@ -25,6 +29,10 @@ type SecretKey struct {
 
 func (*Secrets) Kind() resource.Kind         { return resource.Secrets }
 func (s *Secrets) DeclaredIn() *pkginfo.File { return s.File }
+func (s *Secrets) ASTExpr() ast.Expr         { return s.AST }
+func (s *Secrets) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(s.File, s.Ident)
+}
 
 var SecretsParser = &resource.Parser{
 	Name:            "Secrets",
@@ -57,8 +65,10 @@ var SecretsParser = &resource.Parser{
 		}
 
 		res := &Secrets{
-			File: secrets.File,
-			Spec: spec,
+			AST:   spec.Type.(*ast.StructType),
+			File:  secrets.File,
+			Spec:  spec,
+			Ident: spec.Names[0],
 		}
 
 		for _, f := range st.Fields {

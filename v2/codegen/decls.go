@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -23,12 +24,19 @@ type File struct {
 	Pkg    *pkginfo.Package // the package the file belongs to
 	Jen    *jen.File        // the jen file we're generating
 	suffix string           // the file name suffix. "metrics" for "encore_internal__metrics.go".
-	decls  []Decl
+	decls  []any            // ordered list of Decl or jen.Code
 }
 
 // Name returns the computed file name.
 func (f *File) Name() string {
 	return "encore_internal__" + f.suffix + ".go"
+}
+
+// Add adds a declaration to the file.
+func (f *File) Add(code jen.Code) {
+	if code != nil {
+		f.decls = append(f.decls, code)
+	}
 }
 
 // Render renders the file to the given writer.
@@ -37,7 +45,15 @@ func (f *File) Render(w io.Writer) error {
 		if i > 0 {
 			f.Jen.Line()
 		}
-		f.Jen.Add(d.Code())
+
+		switch d := d.(type) {
+		case Decl:
+			f.Jen.Add(d.Code())
+		case jen.Code:
+			f.Jen.Add(d)
+		default:
+			panic(fmt.Sprintf("internal error: unknown decl type: %T", d))
+		}
 	}
 	return f.Jen.Render(w)
 }

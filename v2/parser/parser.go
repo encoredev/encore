@@ -44,7 +44,7 @@ func (p *Parser) Parse() Result {
 		mu sync.Mutex
 
 		allResources []resource.Resource
-		builder      = apiframework.NewBuilder(p.c.Errs)
+		builder      = apiframework.NewBuilder(p.c)
 	)
 
 	p.collectPackages(func(pkg *pkginfo.Package) {
@@ -58,8 +58,8 @@ func (p *Parser) Parse() Result {
 	})
 
 	return Result{
-		Framework:      option.Some(builder.Build()),
-		InfraResources: allResources,
+		Framework: option.Some(builder.Build()),
+		Infra:     p.infraParser.ComputeResult(allResources),
 	}
 }
 
@@ -102,7 +102,7 @@ func resolveModulePath(goModPath paths.FS) (paths.Mod, error) {
 }
 
 type Result struct {
-	InfraResources []resource.Resource
+	Infra *infra.ParseResult
 
 	// Framework describes the Encore Framework application,
 	// if that is in use.

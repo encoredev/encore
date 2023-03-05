@@ -3,6 +3,7 @@ package config
 import (
 	"go/ast"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -14,7 +15,9 @@ import (
 
 // Load represents a config load statement.
 type Load struct {
-	File *pkginfo.File
+	AST   *ast.CallExpr
+	File  *pkginfo.File
+	Ident *ast.Ident // The identifier of the load statement
 
 	// Type is the type of the config struct being loaded.
 	// It's guaranteed to be a (possibly pointer to a) named struct type.
@@ -25,11 +28,14 @@ type Load struct {
 }
 
 func (*Load) Kind() resource.Kind         { return resource.ConfigLoad }
-func (c *Load) DeclaredIn() *pkginfo.File { return c.File }
+func (l *Load) DeclaredIn() *pkginfo.File { return l.File }
+func (l *Load) ASTExpr() ast.Expr         { return l.AST }
+func (l *Load) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(l.File, l.Ident)
+}
 
 var LoadParser = &resource.Parser{
-	Name:      "ConfigLoad",
-	DependsOn: nil,
+	Name: "ConfigLoad",
 
 	RequiredImports: []paths.Pkg{"encore.dev/config"},
 	Run: func(p *resource.Pass) []resource.Resource {
@@ -72,5 +78,11 @@ func parseLoad(d parseutil.ParseData) resource.Resource {
 	}
 	_ = ref
 
-	return &Load{File: d.File, Type: d.TypeArgs[0], FuncCall: d.Call}
+	return &Load{
+		AST:      d.Call,
+		File:     d.File,
+		Ident:    d.Ident,
+		Type:     d.TypeArgs[0],
+		FuncCall: d.Call,
+	}
 }

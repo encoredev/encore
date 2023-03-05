@@ -1,7 +1,14 @@
 package apiframework
 
 import (
+	"sort"
+	"strings"
+
+	"golang.org/x/exp/slices"
+
 	"encr.dev/pkg/option"
+	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/apis"
@@ -14,6 +21,8 @@ import (
 
 // AppDesc describes an Encore Framework-based application.
 type AppDesc struct {
+	errs *perr.List
+
 	Services   []*Service
 	Middleware []*middleware.Middleware
 
@@ -41,12 +50,13 @@ type Service struct {
 }
 
 // NewBuilder creates a new Builder.
-func NewBuilder(errs *perr.List) *Builder {
-	return &Builder{errs: errs}
+func NewBuilder(pc *parsectx.Context) *Builder {
+	return &Builder{pc: pc, errs: pc.Errs}
 }
 
 // Builder is used to build an application description.
 type Builder struct {
+	pc      *parsectx.Context
 	errs    *perr.List
 	results []*apis.ParseResult
 }
@@ -58,6 +68,82 @@ func (b *Builder) AddResult(res *apis.ParseResult) {
 
 // Build computes the application description.
 func (b *Builder) Build() *AppDesc {
-	// TODO
-	return nil
+	d := &AppDesc{
+		errs: b.errs,
+	}
+
+	setAuthHandler := func(ah *authhandler.AuthHandler) {
+		if d.AuthHandler.IsPresent() {
+			b.errs.Addf(ah.Decl.AST.Pos(), "multiple auth handlers defined (previous definition at %s)",
+				b.pc.FS.Position(d.AuthHandler.MustGet().Decl.AST.Pos()))
+		} else {
+			d.AuthHandler = option.Some(ah)
+		}
+	}
+
+	for _, res := range b.results {
+		d.Middleware = append(d.Middleware, res.Middleware...)
+		for _, ah := range res.AuthHandlers {
+			setAuthHandler(ah)
+		}
+		if len(res.Endpoints) > 0 {
+			// TODO(andre) This does not handle service creation
+			// from a Pub/Sub subscription (or service struct definition).
+			svc := &Service{
+				Service: &service.Service{
+					Name:   res.Pkg.Name,
+					FSRoot: res.Pkg.FSPath,
+				},
+				RootPkg:   res.Pkg,
+				Endpoints: res.Endpoints,
+			}
+			d.Services = append(d.Services, svc)
+		}
+	}
+
+	// Sort the services by import path so it's easier to find
+	// a service by package path, to make the output deterministic,
+	// and to aid validation.
+	slices.SortFunc(d.Services, func(a, b *Service) bool {
+		return a.RootPkg.ImportPath < b.RootPkg.ImportPath
+	})
+
+	// Validate services are not children of one another
+	for i, svc := range d.Services {
+		// If the service is in a subdirectory of another service that's an error.
+		for j := i - 1; j >= 0; j-- {
+			thisPath := svc.RootPkg.ImportPath.String()
+			otherSvc := d.Services[j]
+			otherPath := otherSvc.RootPkg.ImportPath.String()
+			if strings.HasPrefix(thisPath, otherPath+"/") {
+				b.errs.Addf(svc.RootPkg.AST.Pos(), "service %q cannot be in a subdirectory of service %q",
+					svc.Name, otherSvc.Name)
+			}
+		}
+	}
+
+	return d
+}
+
+// ServiceForPkg returns the service a given package belongs to, if any.
+func (d *AppDesc) ServiceForPkg(path paths.Pkg) (*Service, bool) {
+	idx := sort.Search(len(d.Services), func(i int) bool {
+		return d.Services[i].RootPkg.ImportPath >= path
+	})
+
+	// Do we have an exact match?
+	if idx < len(d.Services) && d.Services[idx].RootPkg.ImportPath == path {
+		return d.Services[idx], true
+	}
+
+	// Is this package contained within the preceding service?
+	if idx > 0 {
+		prev := d.Services[idx-1]
+		prevPath := prev.RootPkg.ImportPath.String()
+		if strings.HasPrefix(path.String(), prevPath+"/") {
+			return prev, true
+		}
+	}
+
+	return nil, false
 }

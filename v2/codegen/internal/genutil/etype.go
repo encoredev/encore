@@ -99,7 +99,7 @@ func (u *TypeUnmarshaller) UnmarshalSingleOrList(typ schema.Type, fieldName stri
 
 // ReadBody returns an expression to read the full request body into a []byte.
 func (u *TypeUnmarshaller) ReadBody(bodyExpr *Statement) *Statement {
-	return u.unmarshallerExpr.Clone().Id("ReadBody").Call(bodyExpr.Clone())
+	return u.unmarshallerExpr.Clone().Dot("ReadBody").Call(bodyExpr.Clone())
 }
 
 // ParseJSON returns an expression to parse json.
@@ -107,7 +107,7 @@ func (u *TypeUnmarshaller) ReadBody(bodyExpr *Statement) *Statement {
 // The dstExpr must be a pointer value.
 // The field name is only used for error reporting.
 func (u *TypeUnmarshaller) ParseJSON(fieldName string, iteratorExpr *Statement, dstExpr *Statement) *Statement {
-	return u.unmarshallerExpr.Clone().Id("ParseJSON").Call(Lit(fieldName), iteratorExpr, dstExpr)
+	return u.unmarshallerExpr.Clone().Dot("ParseJSON").Call(Lit(fieldName), iteratorExpr, dstExpr)
 }
 
 // builtinToName returns the string name of the builtin.

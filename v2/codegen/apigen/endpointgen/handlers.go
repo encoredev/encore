@@ -53,7 +53,9 @@ func (h *handlerDesc) Typed() *Statement {
 			}
 		}).Op(":=").Add(fnExpr).CallFunc(func(g *Group) {
 			g.Id("ctx")
-			g.Add(h.req.HandlerArgs()...)
+			for _, arg := range h.req.HandlerArgs() {
+				g.Add(arg)
+			}
 		})
 		g.If(Err().Op("!=").Nil()).Block(Return(h.resp.zero(), Err()))
 

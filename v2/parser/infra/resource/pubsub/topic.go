@@ -3,6 +3,7 @@ package pubsub
 import (
 	"go/ast"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -21,7 +22,9 @@ const (
 )
 
 type Topic struct {
+	AST               *ast.CallExpr
 	File              *pkginfo.File
+	Ident             *ast.Ident          // The identifier of the pub sub topic
 	Name              string              // The unique name of the pub sub topic
 	Doc               string              // The documentation on the pub sub topic
 	DeliveryGuarantee DeliveryGuarantee   // What guarantees does the pub sub topic have?
@@ -31,10 +34,13 @@ type Topic struct {
 
 func (t *Topic) Kind() resource.Kind       { return resource.PubSubTopic }
 func (t *Topic) DeclaredIn() *pkginfo.File { return t.File }
+func (t *Topic) ASTExpr() ast.Expr         { return t.AST }
+func (t *Topic) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(t.File, t.Ident)
+}
 
 var TopicParser = &resource.Parser{
-	Name:      "PubSub Topic",
-	DependsOn: nil,
+	Name: "PubSub Topic",
 
 	RequiredImports: []paths.Pkg{"encore.dev/pubsub"},
 	Run: func(p *resource.Pass) []resource.Resource {
@@ -113,7 +119,9 @@ func parsePubSubTopic(d parseutil.ParseData) resource.Resource {
 	}
 
 	return &Topic{
+		AST:               d.Call,
 		File:              d.File,
+		Ident:             d.Ident,
 		Name:              topicName,
 		Doc:               d.Doc,
 		DeliveryGuarantee: AtLeastOnce,

@@ -2,6 +2,7 @@ package legacyintegration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/token"
 	"runtime"
@@ -52,8 +53,14 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 
 	parser := parser.NewParser(pc)
 	parserResult := parser.Parse()
+	meta := legacymeta.Gen(pc.Errs, parserResult)
+
+	if pc.Errs.Len() > 0 {
+		return nil, errors.New(pc.Errs.FormatErrors())
+	}
+
 	return &builder.ParseResult{
-		Meta: legacymeta.Gen(pc.Errs, parserResult, p.App.PlatformOrLocalID()),
+		Meta: meta,
 		Data: &parseData{
 			pc:      pc,
 			res:     parserResult,
@@ -72,7 +79,7 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 	pd := p.Parse.Data.(*parseData)
 
 	gg := codegen.New(pd.pc)
-	infragen.Process(gg, pd.res.InfraResources)
+	infragen.Process(gg, pd.res.Infra)
 
 	if pd.res.Framework.IsPresent() {
 		apigen.Process(gg, pd.res.Framework.MustGet())

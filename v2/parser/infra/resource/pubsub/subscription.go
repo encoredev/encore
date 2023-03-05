@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"time"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/internal/literals"
@@ -13,14 +14,20 @@ import (
 )
 
 type Subscription struct {
+	AST   *ast.CallExpr
 	File  *pkginfo.File
+	Ident *ast.Ident // The identifier of the pub sub subscription
+	Name  string     // The unique name of the pub sub subscription
+	Doc   string     // The documentation on the pub sub subscription
 	Topic pkginfo.QualifiedName
-	Name  string // The unique name of the pub sub subscription
-	Doc   string // The documentation on the pub sub subscription
 }
 
 func (s *Subscription) Kind() resource.Kind       { return resource.PubSubSubscription }
 func (s *Subscription) DeclaredIn() *pkginfo.File { return s.File }
+func (s *Subscription) ASTExpr() ast.Expr         { return s.AST }
+func (s *Subscription) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(s.File, s.Ident)
+}
 
 var SubscriptionParser = &resource.Parser{
 	Name: "PubSub Subscription",
@@ -101,7 +108,9 @@ func parsePubSubSubscription(d parseutil.ParseData) resource.Resource {
 
 	// TODO(andre) fill in this
 	return &Subscription{
+		AST:   d.Call,
 		File:  d.File,
+		Ident: d.Ident,
 		Name:  subscriptionName,
 		Doc:   d.Doc,
 		Topic: topicObj,

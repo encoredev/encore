@@ -6,33 +6,33 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/directive"
 )
 
 // AuthHandler describes an Encore authentication handler.
 type AuthHandler struct {
-	Decl *schema2.FuncDecl
+	Decl *schema.FuncDecl
 	Doc  string
 	Name string // the name of the auth handler.
 
 	// Param is the auth parameters.
 	// It's either a builtin string for token-based authentication,
 	// or a named struct type for complex auth parameters.
-	Param schema2.Type
+	Param schema.Type
 
 	// Recv is the type the auth handler is defined as a method on, if any.
-	Recv option.Option[*schema2.Receiver]
+	Recv option.Option[*schema.Receiver]
 
 	// AuthData is the custom auth data type the app specifies
 	// as part of the returns from the auth handler, if any.
-	AuthData option.Option[*schema2.TypeDeclRef]
+	AuthData option.Option[*schema.TypeDeclRef]
 }
 
 type ParseData struct {
 	Errs   *perr.List
-	Schema *schema2.Parser
+	Schema *schema.Parser
 
 	File *pkginfo.File
 	Func *ast.FuncDecl
@@ -90,7 +90,7 @@ func Parse(d ParseData) *AuthHandler {
 	// Second param should be string, or a pointer to a named struct
 	{
 		param := ah.Param
-		if schemautil.IsBuiltinKind(param, schema2.String) {
+		if schemautil.IsBuiltinKind(param, schema.String) {
 			// All good
 		} else if _, ok := schemautil.ResolveNamedStruct(param, true); !ok {
 			d.Errs.Add(param.ASTExpr().Pos(), "second parameter must be a string, or a pointer to a named struct"+sigHint)
@@ -98,7 +98,7 @@ func Parse(d ParseData) *AuthHandler {
 	}
 
 	// First result must be auth.UID
-	if uid := sig.Results[0]; !schemautil.IsBuiltinKind(uid.Type, schema2.UserID) {
+	if uid := sig.Results[0]; !schemautil.IsBuiltinKind(uid.Type, schema.UserID) {
 		d.Errs.Add(uid.AST.Pos(), "first result must be of type auth.UID"+sigHint)
 	}
 

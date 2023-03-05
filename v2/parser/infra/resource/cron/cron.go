@@ -7,6 +7,7 @@ import (
 
 	cronparser "github.com/robfig/cron/v3"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	literals "encr.dev/v2/parser/infra/internal/literals"
@@ -16,19 +17,24 @@ import (
 )
 
 type Job struct {
+	AST      *ast.CallExpr
 	File     *pkginfo.File
-	Name     string // The unique name of the cron job
-	Doc      string // The documentation on the cron job
-	Title    string // cron job title
+	Ident    *ast.Ident // The identifier of the cron job
+	Name     string     // The unique name of the cron job
+	Doc      string     // The documentation on the cron job
+	Title    string     // cron job title
 	Schedule string
 }
 
 func (j *Job) Kind() resource.Kind       { return resource.CronJob }
 func (j *Job) DeclaredIn() *pkginfo.File { return j.File }
+func (j *Job) ASTExpr() ast.Expr         { return j.AST }
+func (j *Job) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(j.File, j.Ident)
+}
 
 var JobParser = &resource.Parser{
-	Name:      "Cron Job",
-	DependsOn: nil,
+	Name: "Cron Job",
 
 	RequiredImports: []paths.Pkg{"encore.dev/cron"},
 	Run: func(p *resource.Pass) []resource.Resource {
@@ -92,7 +98,9 @@ func parseCronJob(d parseutil.ParseData) resource.Resource {
 	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 
 	job := &Job{
+		AST:   d.Call,
 		File:  d.File,
+		Ident: d.Ident,
 		Name:  jobName,
 		Doc:   d.Doc,
 		Title: config.Title,

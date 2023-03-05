@@ -22,9 +22,12 @@ const (
 )
 
 type Metric struct {
+	AST  *ast.CallExpr
 	Name string     // The unique name of the metric
 	Doc  string     // The documentation on the metric
 	Type MetricType // the type of metric it is
+
+	Ident *ast.Ident // The identifier of the metric
 
 	// File is the file the metric is declared in.
 	File *pkginfo.File
@@ -42,6 +45,10 @@ type Metric struct {
 
 func (m *Metric) Kind() resource.Kind       { return resource.Metric }
 func (m *Metric) DeclaredIn() *pkginfo.File { return m.File }
+func (m *Metric) ASTExpr() ast.Expr         { return m.AST }
+func (m *Metric) BoundTo() option.Option[pkginfo.QualifiedName] {
+	return parseutil.BoundTo(m.File, m.Ident)
+}
 
 // metricConstructor describes a particular metric constructor function.
 type metricConstructor struct {
@@ -60,8 +67,7 @@ var metricConstructors = []metricConstructor{
 }
 
 var MetricParser = &resource.Parser{
-	Name:      "Metric",
-	DependsOn: nil,
+	Name: "Metric",
 
 	RequiredImports: []paths.Pkg{"encore.dev/metrics"},
 	Run: func(p *resource.Pass) []resource.Resource {
@@ -163,9 +169,11 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 	}
 
 	m := &Metric{
+		AST:       d.Call,
 		Name:      metricName,
 		Doc:       d.Doc,
 		Type:      c.Type,
+		Ident:     d.Ident,
 		File:      d.File,
 		ValueType: valueType.(schema.BuiltinType),
 		LabelType: labelType,

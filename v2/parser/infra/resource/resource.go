@@ -1,6 +1,9 @@
 package resource
 
 import (
+	"go/ast"
+
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
@@ -41,9 +44,12 @@ const (
 type Resource interface {
 	Kind() Kind
 	DeclaredIn() *pkginfo.File
-}
 
-type Reference struct {
-	Kind Kind
-	Name string
+	// ASTExpr is the expression that defines the resource.
+	ASTExpr() ast.Expr
+
+	// BoundTo reports the package-level qualified name
+	// the resource is bound to. It's None if the resource
+	// is not bound to a variable (through "var _ = ...").
+	BoundTo() option.Option[pkginfo.QualifiedName]
 }
