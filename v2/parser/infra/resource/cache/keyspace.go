@@ -16,9 +16,10 @@ import (
 )
 
 type Keyspace struct {
-	Ident *ast.Ident    // The package-level identifier the keyspace is bound to.
-	Doc   string        // The documentation on the keyspace
-	File  *pkginfo.File // File the keyspace is declared in.
+	Ident   *ast.Ident    // The package-level identifier the keyspace is bound to.
+	Doc     string        // The documentation on the keyspace
+	File    *pkginfo.File // File the keyspace is declared in.
+	Cluster pkginfo.QualifiedName
 
 	KeyType   schema.Type
 	ValueType schema.Type
@@ -120,6 +121,11 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 	}
 
 	// TODO(andre) Resolve cluster name
+	clusterRef, ok := d.File.Names().ResolvePkgLevelRef(d.Call.Args[0])
+	if !ok {
+		errs.Add(d.Call.Args[0].Pos(), "could not resolve cache cluster: must refer to a package-level variable")
+		return nil
+	}
 
 	cfgLit, ok := literals.ParseStruct(errs, d.File, "cache.KeyspaceConfig", d.Call.Args[1])
 	if !ok {
@@ -261,6 +267,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 		Ident:         d.Ident,
 		Doc:           d.Doc,
 		File:          d.File,
+		Cluster:       clusterRef,
 		ConfigLiteral: cfgLit.Lit(),
 		Path:          path,
 		KeyType:       keyType,

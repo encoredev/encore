@@ -6,7 +6,7 @@ import (
 	"encr.dev/v2/codegen/infragen/cachegen"
 	"encr.dev/v2/codegen/infragen/configgen"
 	"encr.dev/v2/codegen/infragen/metricsgen"
-	secretsgen "encr.dev/v2/codegen/infragen/secrets"
+	"encr.dev/v2/codegen/infragen/secretsgen"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/parser/infra/resource"
 	"encr.dev/v2/parser/infra/resource/cache"
