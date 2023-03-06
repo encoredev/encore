@@ -1,22 +1,22 @@
 import { APIMeta, CronJob } from "~c/api/api";
+import { ElkExtendedEdge, ElkNode, ElkPoint } from "elkjs/lib/elk-api";
 
-export const OUTSIDE_FACING_NODE_ID = ":outside-facing:";
+// Can not show infra graph right now in local dev dash but having this so that we can copy and paste Flow changes
+// between the repos
+export type GetInfraResourcesQuery = any;
 
-export interface Coordinates {
-  x: number;
-  y: number;
-}
-
-export interface EdgeData {
-  source: string;
-  target: string;
+export interface EdgeData extends ElkExtendedEdge {
   type: "rpc" | "subscription" | "publish" | "database";
 }
 
-interface BaseNode {
-  id: string;
-  label: string;
-  type: "service" | "topic";
+export interface PositionedEdge extends EdgeData {
+  points: ElkPoint[];
+}
+
+interface BaseNode extends ElkNode {
+  type: "service" | "topic" | "infra";
+  children?: NodeData[];
+  edges?: EdgeData[];
 }
 
 export interface ServiceNode extends BaseNode {
@@ -30,36 +30,12 @@ export interface TopicNode extends BaseNode {
   type: "topic";
 }
 
-export type NodeData = ServiceNode | TopicNode;
-
-export type PositionedNode<T = ServiceNode | TopicNode> = T &
-  Coordinates & {
-    width: number;
-    height: number;
-  };
-
-export type PositionedEdge = EdgeData & {
-  id: string;
-  points: Coordinates[];
-  label?: Coordinates & { text: string };
-};
-
-export interface GraphData {
-  edges: PositionedEdge[];
-  nodes: PositionedNode[];
-  width?: number;
-  height?: number;
+export interface InfraNode extends BaseNode {
+  type: "infra";
+  typename: GetInfraResourcesQuery["app"]["env"]["infraResources"][0]["__typename"];
 }
 
-export interface GraphLayoutOptions {
-  getNodeWidth: (node: NodeData) => number;
-  getNodeHeight: (node: NodeData) => number;
-  drawOutsideDependencyToNode?: (node: NodeData) => boolean;
-}
-
-export interface GetGraphLayoutData {
-  (nodes: NodeData[], edges: EdgeData[], options: GraphLayoutOptions): Promise<GraphData>;
-}
+export type NodeData = ServiceNode | TopicNode | InfraNode;
 
 const serviceID = (svcName: string) => {
   return `service:${svcName}`;
@@ -90,25 +66,54 @@ const getServiceToPackageMap = (metaData: APIMeta) => {
   return map;
 };
 
-export const getNodesFromMetaData = (metaData: APIMeta) => {
+const getServiceNodeWidth = (label: string) => {
+  const serviceNodeMinWidth = 220;
+  return Math.max(serviceNodeMinWidth, label.length * 12);
+};
+
+const getServiceNodeHeight = (hasDatabase: boolean, cronJobs: number) => {
+  const serviceNodeMinHeight = 57;
+  let height = serviceNodeMinHeight;
+  if (hasDatabase) height += 29;
+  if (cronJobs) height += 29;
+  return height;
+};
+
+const getTopicNodeWidth = (label: string) => {
+  const minWidth = 50;
+  const maxWidth = 300;
+  return Math.min(Math.max(minWidth, label.length * 9 + 60), maxWidth);
+};
+
+const getTopicNodeHeight = () => {
+  const topicNodeMinHeight = 40;
+  return topicNodeMinHeight;
+};
+
+export const getNodesFromMetaData = (metaData: APIMeta, nodesToShow: string[] = []) => {
   const nodes: NodeData[] = [];
   const svcMap = getServiceToPackageMap(metaData);
 
   // Services
   metaData.svcs.forEach((svc) => {
-    // clone cron jobs array
-    const cronJobs = metaData.cron_jobs.map((cronJob) => Object.assign({}, cronJob));
+    const cronJobs = metaData.cron_jobs
+      // clone cron jobs array
+      .map((cronJob) => Object.assign({}, cronJob))
+      .filter((cronJob) => {
+        const pkgsForSvc = svcMap.get(svc.name);
+        return pkgsForSvc && pkgsForSvc.includes(cronJob.endpoint.pkg);
+      });
+    const hasDatabase = svc.databases.some((dbName) => dbName === svc.name);
 
     nodes.push({
       id: serviceID(svc.name),
-      label: svc.name,
+      labels: [{ text: svc.name }],
       type: "service",
       service_name: svc.name,
-      has_database: svc.databases.some((dbName) => dbName === svc.name),
-      cron_jobs: cronJobs.filter((cronJob) => {
-        const pkgsForSvc = svcMap.get(svc.name);
-        return pkgsForSvc && pkgsForSvc.includes(cronJob.endpoint.pkg);
-      }),
+      has_database: hasDatabase,
+      cron_jobs: cronJobs,
+      width: getServiceNodeWidth(svc.name),
+      height: getServiceNodeHeight(hasDatabase, cronJobs.length),
     });
   });
 
@@ -116,16 +121,25 @@ export const getNodesFromMetaData = (metaData: APIMeta) => {
   metaData.pubsub_topics.forEach((topic) => {
     nodes.push({
       id: topicID(topic.name),
-      label: topic.name,
+      labels: [{ text: topic.name }],
       type: "topic",
+      ports: [{ id: topicID(topic.name) + ":port" }],
+      width: getTopicNodeWidth(topic.name),
+      height: getTopicNodeHeight(),
     });
   });
 
-  return nodes;
+  return nodesToShow.length
+    ? nodes.filter(
+        (node) =>
+          nodesToShow.find((n) => n === node.id) ||
+          (!!node.ports?.length && !!nodesToShow?.includes(node.ports[0].id))
+      )
+    : nodes;
 };
 
-export const getEdgesFromMetaData = (metaData: APIMeta) => {
-  const edges: Omit<EdgeData, "points">[] = [];
+export const getEdgesFromMetaData = (metaData: APIMeta, targetNodeID?: string) => {
+  const edges: EdgeData[] = [];
   const pkgMap = getPackageToServiceMap(metaData);
 
   // Service RPC calls
@@ -136,10 +150,14 @@ export const getEdgesFromMetaData = (metaData: APIMeta) => {
     pkg.rpc_calls.forEach((call) => {
       const serviceName = pkgMap.get(call.pkg);
       if (serviceName && serviceName !== selfSvc) {
+        const source = serviceID(selfSvc);
+        const target = serviceID(serviceName);
+        const type = "rpc";
         edges.push({
-          source: serviceID(selfSvc),
-          target: serviceID(serviceName),
-          type: "rpc",
+          id: `${source}-${target}:${type}`,
+          sources: [source],
+          targets: [target],
+          type,
         });
       }
     });
@@ -149,10 +167,14 @@ export const getEdgesFromMetaData = (metaData: APIMeta) => {
   metaData.svcs.forEach((svc) => {
     const dbUses = svc.databases.filter((dbName) => dbName !== svc.name);
     dbUses.forEach((dbName) => {
+      const source = serviceID(svc.name);
+      const target = serviceID(dbName); // DB name === svc name
+      const type = "database";
       edges.push({
-        source: serviceID(svc.name),
-        target: serviceID(dbName), // DB name === svc name
-        type: "database",
+        id: `${source}-${target}:${type}`,
+        sources: [source],
+        targets: [target],
+        type,
       });
     });
   });
@@ -160,20 +182,135 @@ export const getEdgesFromMetaData = (metaData: APIMeta) => {
   // Pub/Sub
   metaData.pubsub_topics.forEach((topic) => {
     topic.subscriptions.forEach((sub) => {
+      const source = topicID(topic.name);
+      const target = serviceID(sub.service_name);
+      const type = "subscription";
       edges.push({
-        source: topicID(topic.name),
-        target: serviceID(sub.service_name),
-        type: "subscription",
+        id: `${source}-${target}:${type}`,
+        sources: [source],
+        targets: [target],
+        type,
       });
     });
     topic.publishers.forEach((pub) => {
+      const source = serviceID(pub.service_name);
+      const target = topicID(topic.name);
+      const type = "publish";
       edges.push({
-        source: serviceID(pub.service_name),
-        target: topicID(topic.name),
-        type: "publish",
+        id: `${source}-${target}:${type}`,
+        sources: [source],
+        targets: [target + ":port"],
+        type,
       });
     });
   });
 
-  return edges;
+  return targetNodeID
+    ? edges.filter((edge) => {
+        const edgeConnections = [...edge.sources, ...edge.targets];
+        return (
+          edgeConnections.includes(targetNodeID) || edgeConnections.includes(targetNodeID + ":port")
+        );
+      })
+    : edges;
+};
+
+export const getNodesFromInfraData = (infraData: GetInfraResourcesQuery): NodeData[] => {
+  const { infraResources } = infraData.app.env;
+  const usedResourcesIDs = new Set<string>();
+  // for excludedGroups we want to exclude all children of that parent group type
+  const excludedGroups = ["*encoreplatform.EncorePlatform"];
+  const excludedTypes = [
+    "*gcp.APIAccess",
+    "*gcp.IAMBinding",
+    "*gcp.IAM",
+    "*gcp.CloudRunToCloudRunLink",
+    "*gcp.GoogleManagedServiceAccount",
+    "*gcp.ServiceAccount",
+    "*gcp.Service",
+    "*gcp.RedisKeyspace",
+    "*resource.RuntimeConfig",
+    "*resource.ServiceConfig",
+    "*resource.Model",
+    "*gcp.Organization",
+    "*gcp.Secrets",
+    "*gcp.Secret",
+    "*gcp.DockerImage",
+    "*resource.AppSecrets",
+    "*grafana.Metric",
+    "*gcp.CloudRunToGrafanaCloudLink",
+    "*gcp.CloudRunToTopicLink",
+    "*gcp.TopicToCloudRunLink",
+    "*gcp.CloudRunToRedisLink",
+    "*gcp.CloudRunToCloudSQLLink",
+    "*gcp.SQLServerUser",
+    "*gcp.SQLSslCert",
+    "*gcp.VPCPeeringRange",
+    "*resource.AppConfig",
+    "*grafana.Cloud",
+    "*encoreplatform.CronJob",
+    "*encoreplatform.DefaultRoute",
+    ...excludedGroups,
+  ];
+
+  // const getEdgeData = (source: string, target: string): (ElkExtendedEdge & EdgeData)[] => {
+  //   const resource = infraResources.find((el) => el.data.id === target);
+  //   if (resource && !exclude.includes(resource.data.type)) {
+  //     return [
+  //       {
+  //         id: `${source}-${target}`,
+  //         sources: [source],
+  //         targets: [target],
+  //         type: "rpc",
+  //       },
+  //     ];
+  //   }
+  //   return [];
+  // };
+
+  const isPartOfExcludedGroup = (resourceID: string | null | undefined): boolean => {
+    if (!resourceID) return false;
+    const r = infraResources.find((el: any) => el.data.id === resourceID)!;
+    if (!r) return false;
+    return excludedGroups.includes(r.data.type) || isPartOfExcludedGroup(r.data.parent);
+  };
+
+  const getNodeData = (resourceID: string): NodeData[] => {
+    if (!usedResourcesIDs.has(resourceID)) {
+      const resource = infraResources.find((el: any) => el.data.id === resourceID)!;
+      usedResourcesIDs.add(resourceID);
+      if (!excludedTypes.includes(resource.data.type) && !isPartOfExcludedGroup(resourceID)) {
+        const labelType = resource.data.label || resource.data.type || resource.__typename;
+        let labelName: string | null | undefined = "";
+        if (
+          resource.__typename == "PubSubTopic" ||
+          resource.__typename == "PubSubSubscription" ||
+          resource.__typename == "CacheCluster" ||
+          resource.__typename == "SQLDatabase"
+        ) {
+          labelName = resource.encoreName;
+        }
+        if (resource.__typename == "GCPCloudRun") labelName = resource.name;
+        const label = labelName ? `${labelType} - ${labelName}` : labelType;
+        // const edges = resource.data.dependencies.flatMap((depID) => getEdgeData(resourceID, depID));
+        return [
+          {
+            id: resourceID,
+            type: "infra",
+            typename: resource.__typename,
+            edges: [],
+            children: resource.data.children.flatMap(getNodeData),
+            labels: [{ text: label }],
+            width: label.length * 10 + 40,
+            height: 40,
+          },
+        ];
+      }
+    }
+    return [];
+  };
+
+  return infraResources.flatMap((resource: any) => {
+    return getNodeData(resource.data.id);
+  });
 };

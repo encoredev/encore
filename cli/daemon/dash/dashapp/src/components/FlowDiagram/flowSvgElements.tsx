@@ -2,7 +2,8 @@ import * as React from "react";
 import { PropsWithChildren, SVGProps, useEffect, useState } from "react";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import { Coordinates, EdgeData, PositionedEdge, PositionedNode, ServiceNode } from "./flow-utils";
+import { EdgeData, InfraNode, PositionedEdge, ServiceNode, TopicNode } from "./flow-utils";
+import { ElkPoint } from "elkjs/lib/elk-api";
 
 const OFF_WHITE_COLOR = "#EEEEE1";
 const SOFT_BLACK_COLOR = "#111111";
@@ -15,25 +16,37 @@ export const ServiceSVG = ({
   endpoints,
   isActive,
   onClick,
+  shouldAnimateReposition,
   onMouseEnter,
   onMouseLeave,
 }: {
-  node: PositionedNode<ServiceNode>;
+  node: ServiceNode;
   isActive: boolean;
+  shouldAnimateReposition: boolean;
   endpoints: { public: number; auth: number; private: number };
   onClick: (event: any) => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) => {
   const { public: publicEndpoints, auth: authEndpoints, private: privateEndpoints } = endpoints;
+  const [shouldAnimate, setShouldAnimate] = useState<boolean>(false);
+
+  useEffect(() => {
+    setShouldAnimate(false);
+    const timeout = setTimeout(() => {
+      setShouldAnimate(shouldAnimateReposition);
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [shouldAnimateReposition]);
+
   return (
     <Group
       top={node.y}
       left={node.x}
       key={node.id}
       data-testid={`node-${node.id}`}
-      className={`node group ${getActiveClass(isActive)}`}
-      // onClick={onClick}
+      className={`node group ${getActiveClass(isActive)} ${shouldAnimate ? "" : "no-animate"}`}
+      onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -41,15 +54,15 @@ export const ServiceSVG = ({
       <rect width={node.width} height={node.height} fill={SOFT_BLACK_COLOR} />
 
       <foreignObject
-        className="transform duration-100 ease-in-out group-hover:-translate-x-1 group-hover:-translate-y-1"
+        className="transform duration-100 ease-in-out group-hover:-translate-x-1 group-hover:-translate-y-1 cursor-pointer"
         width={node.width}
         height={node.height}
       >
         <div
-          className="flex h-full w-full flex-col justify-between border-2 px-2 py-2"
+          className="h-full w-full border-2 flex flex-col justify-between px-2 py-2"
           style={{ background: OFF_WHITE_COLOR, borderColor: SOFT_BLACK_COLOR }}
         >
-          <p className="font-mono font-semibold">{node.label}</p>
+          <p className="font-mono font-semibold">{!!node.labels?.length && node.labels[0].text}</p>
           <ServiceInfoRow
             data-testid="service-endpoints"
             icon={<EndpointIconSVG />}
@@ -78,7 +91,7 @@ export const ServiceSVG = ({
               icon={<CronJobsIconSVG />}
               text={
                 node.cron_jobs.length === 1 ? (
-                  <span className="overflow-hidden overflow-ellipsis whitespace-nowrap">
+                  <span className="whitespace-nowrap overflow-hidden overflow-ellipsis">
                     {node.cron_jobs[0].title}
                   </span>
                 ) : (
@@ -102,9 +115,9 @@ const ServiceInfoRow = (
 ) => {
   const { icon, text, ...attr } = props;
   return (
-    <div className="flex w-full flex-row pt-1" {...attr}>
+    <div className="w-full flex flex-row pt-1" {...attr}>
       <div className="pr-1">{props.icon}</div>
-      <div className="flex w-[calc(100%-1.2rem)] items-center text-xs">{props.text}</div>
+      <div className="flex items-center text-xs w-[calc(100%-1.2rem)]">{props.text}</div>
     </div>
   );
 };
@@ -115,10 +128,64 @@ export const TopicSVG = ({
   onClick,
   onMouseEnter,
   onMouseLeave,
+  shouldAnimateReposition,
 }: {
-  node: PositionedNode;
+  node: TopicNode;
   isActive: boolean;
+  shouldAnimateReposition: boolean;
   onClick: (event: any) => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) => {
+  const [shouldAnimate, setShouldAnimate] = useState<boolean>(false);
+
+  useEffect(() => {
+    setShouldAnimate(false);
+    const timeout = setTimeout(() => {
+      setShouldAnimate(shouldAnimateReposition);
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [shouldAnimateReposition]);
+
+  return (
+    <Group
+      top={node.y}
+      left={node.x}
+      key={node.id}
+      className={`node ${getActiveClass(isActive)} ${shouldAnimate ? "" : "no-animate"}`}
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <foreignObject width={node.width} height={node.height} className="topic cursor-pointer">
+        <div
+          className="flex h-full w-full items-center text-center justify-center px-2"
+          style={{ background: SOFT_BLACK_COLOR }}
+        >
+          {/*<PubSubIconSVG />*/}
+          <p
+            className={`pl-1 font-mono leading-4 ${
+              (node.width || 0) >= 250 ? "text-sm" : "text-base"
+            }`}
+            style={{ color: OFF_WHITE_COLOR }}
+          >
+            {!!node.labels?.length && node.labels[0].text}
+          </p>
+        </div>
+      </foreignObject>
+    </Group>
+  );
+};
+
+export const InfraSVG = ({
+  node,
+  isActive,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: PropsWithChildren & {
+  node: InfraNode;
+  isActive: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) => {
@@ -128,70 +195,94 @@ export const TopicSVG = ({
       left={node.x}
       key={node.id}
       className={`node ${getActiveClass(isActive)}`}
-      // onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      // onClick={() => console.log("click!")}
+      // onMouseEnter={onMouseEnter}
+      // onMouseLeave={onMouseLeave}
     >
-      <foreignObject width={node.width} height={node.height} className="topic">
+      <foreignObject width={node.width} height={node.height}>
         <div
-          className="flex h-full w-full items-center justify-center px-2"
-          style={{ background: SOFT_BLACK_COLOR }}
-        >
-          {/*<PubSubIconSVG />*/}
-          <p className="pl-1 font-mono" style={{ color: OFF_WHITE_COLOR }}>
-            {node.label}
-          </p>
-        </div>
+          data-testid={node.id}
+          className="flex border-2 h-full w-full items-center justify-center"
+          style={{ borderColor: SOFT_BLACK_COLOR }}
+        />
       </foreignObject>
+      {node.labels?.map((label) => (
+        <foreignObject
+          x={label.x ? label.x + 4 : node.x}
+          y={label.y ? label.y + 5 : node.y}
+          width={node.width}
+          height={20}
+        >
+          <p className="font-mono">{label.text}</p>
+        </foreignObject>
+      ))}
+      {children}
+      {/*{(node.edges ?? []).map((edge) => {*/}
+      {/*  return (*/}
+      {/*    <Group key={edge.id} className="edge-group">*/}
+      {/*      <EdgeSVG*/}
+      {/*        edge={getCoordinatePointsForEdge(edge)}*/}
+      {/*        isActive={true}*/}
+      {/*        isInitialRender={true}*/}
+      {/*      />*/}
+      {/*    </Group>*/}
+      {/*  );*/}
+      {/*})}*/}
     </Group>
   );
 };
 
 export const EdgeSVG = ({
   edge,
-  activeNodeId,
   isInitialRender,
+  isActive,
 }: {
   edge: PositionedEdge;
-  activeNodeId: string | null;
+  isActive: boolean;
   isInitialRender: boolean;
 }) => {
   // we want to add edges directly if it's the initial render
-  const [points, setPoints] = useState<Coordinates[]>(isInitialRender ? edge.points : []);
+  const [points, setPoints] = useState<ElkPoint[]>(isInitialRender ? edge.points : []);
   useEffect(() => {
     if (JSON.stringify(edge.points) !== JSON.stringify(points)) {
       setPoints([]);
       // give some time for nodes to animate before adding back edge
       setTimeout(() => {
         setPoints(edge.points);
-      }, 1000);
+        // }, 1000);
+      }, 10);
     }
   }, [edge.points]);
   const shouldAnimate = edge.type === "publish" || edge.type === "subscription";
-  const isActive = activeNodeId === null || activeNodeId === edge.source;
   return (
-    <LinePath
-      // curve={curveCardinal.tension(0.8)}
-      data={points}
-      className={`edge pointer-events-none ${getActiveClass(isActive)} ${
-        shouldAnimate && "animate-message"
-      }`}
-      x={(d) => d.x}
-      y={(d) => d.y}
-      stroke={SOFT_BLACK_COLOR}
-      strokeWidth={2}
-      markerEnd="url(#encore-arrow)"
-    />
+    <>
+      {shouldAnimate && (
+        <LinePath
+          data={points}
+          className={`edge pointer-events-none ${isActive ? "opacity-100" : "opacity-0"}`}
+          x={(d) => d.x}
+          y={(d) => d.y}
+          stroke={OFF_WHITE_COLOR}
+          strokeWidth={2.5}
+          markerEnd="url(#encore-arrow)"
+        />
+      )}
+      <LinePath
+        data={points}
+        className={`edge pointer-events-none ${getActiveClass(isActive)} ${
+          shouldAnimate && "animate-message"
+        }`}
+        x={(d) => d.x}
+        y={(d) => d.y}
+        stroke={SOFT_BLACK_COLOR}
+        strokeWidth={2}
+        markerEnd="url(#encore-arrow)"
+      />
+    </>
   );
 };
 
-export const EdgeLabelSVG = ({
-  edge,
-  activeNodeId,
-}: {
-  edge: PositionedEdge;
-  activeNodeId: string | null;
-}) => {
+export const EdgeLabelSVG = ({ edge, isActive }: { edge: PositionedEdge; isActive: boolean }) => {
   const isArrowPointingUp = (() => {
     const startY = edge.points[0].y;
     const endY = edge.points[edge.points.length - 1].y;
@@ -205,24 +296,22 @@ export const EdgeLabelSVG = ({
   };
   const getText = (data: PositionedEdge) => {
     if (edge.type === "database") return callTypeTextMap[edge.type];
-    return `${edge.label!.text} ${callTypeTextMap[edge.type]}`;
+    return `${edge.labels![0].text} ${callTypeTextMap[edge.type]}`;
   };
 
-  if (!edge.label) return null;
+  if (!edge.labels?.length) return null;
 
   return (
     <foreignObject
       width={80}
       height={25}
-      x={edge.label.x - 60}
-      y={edge.label.y - (isArrowPointingUp ? 5 : 20)}
-      className={`label pointer-events-none ${
-        activeNodeId === edge.source ? "opacity-100" : "opacity-0"
-      }`}
+      x={edge.labels[0].x! - 60}
+      y={edge.labels[0].y! - (isArrowPointingUp ? 5 : 20)}
+      className={`label pointer-events-none ${isActive ? "opacity-100" : "opacity-0"}`}
     >
       <div className="flex h-full items-center justify-center">
         <p
-          className="border-gray-700 inline-block rounded border px-1 text-xs"
+          className="inline-block rounded border border-gray-700 px-1 text-xs"
           style={{ background: SOFT_BLACK_COLOR, color: OFF_WHITE_COLOR }}
         >
           {getText(edge)}

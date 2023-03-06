@@ -1,61 +1,91 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import {
   getEdgesFromMetaData,
+  GetInfraResourcesQuery,
+  getNodesFromInfraData,
   getNodesFromMetaData,
-  GraphData,
-  GraphLayoutOptions,
+  InfraNode,
   NodeData,
-  PositionedNode,
   ServiceNode,
 } from "./flow-utils";
-import { ProvidedZoom } from "@visx/zoom/lib/types";
-import { getElkGraphLayoutData } from "./algorithms/elk-algo";
+import {
+  getCoordinatePointsForEdge,
+  getElkAppGraphLayoutData,
+  getElkInfraGraphLayoutData,
+} from "./algorithms/elk-algo";
 import { Group } from "@visx/group";
-import { Zoom } from "@visx/zoom";
-import { EdgeLabelSVG, EdgeSVG, EncoreArrowHeadSVG, ServiceSVG, TopicSVG } from "./flowSvgElements";
+import {
+  EdgeLabelSVG,
+  EdgeSVG,
+  EncoreArrowHeadSVG,
+  InfraSVG,
+  ServiceSVG,
+  TopicSVG,
+} from "./flowSvgElements";
 import { ParentSize } from "@visx/responsive";
+import { APIMeta } from "~c/api/api";
 import useDownloadDiagram from "~c/FlowDiagram/useDownloadDiagram";
 import Button from "~c/Button";
 import { icons } from "~c/icons";
-import { APIMeta } from "~c/api/api";
+import panzoom, { PanZoom } from "panzoom";
+import { ArrowSmallLeftIcon } from "@heroicons/react/24/outline";
 
-class LayoutOptions implements GraphLayoutOptions {
-  serviceNodeMinWidth = 220;
-  topicNodeMinWidth = 50;
-  serviceNodeMinHeight = 57;
-  topicNodeMinHeight = 40;
-
-  getNodeWidth(nodeData: NodeData) {
-    const labelLen = nodeData.label.length;
-    if (nodeData.type === "topic") {
-      return Math.max(this.topicNodeMinWidth, labelLen * 9 + 60);
+const getAppLayoutData = (
+  metaData: APIMeta,
+  nodeID?: string,
+  nodesIDs?: string[]
+): Promise<NodeData> => {
+  return getElkAppGraphLayoutData(
+    getNodesFromMetaData(metaData, nodesIDs),
+    getEdgesFromMetaData(metaData, nodeID),
+    {
+      "elk.direction": nodeID ? "DOWN" : "RIGHT",
     }
-    return Math.max(this.serviceNodeMinWidth, labelLen * 12);
-  }
+  );
+};
 
-  getNodeHeight(nodeData: NodeData) {
-    let height = this.serviceNodeMinHeight;
-    if (nodeData.type === "topic") return this.topicNodeMinHeight;
-    if (nodeData.has_database) height += 29;
-    if (nodeData.cron_jobs.length) height += 29;
-    return height;
-  }
+function usePanzoom() {
+  const panZoomRef = useRef<PanZoom | null>(null);
+  const ref = React.useCallback((element: SVGSVGElement | null) => {
+    if (!element) return;
+    panZoomRef.current = panzoom(element, {
+      smoothScroll: false,
+      maxZoom: 5,
+      minZoom: 0.2,
+    });
+
+    return () => panZoomRef.current?.dispose();
+  }, []);
+
+  return {
+    ref,
+    panZoomRef,
+  };
 }
 
 interface Props {
-  metaData: APIMeta;
+  metaData?: APIMeta;
+  infraData?: GetInfraResourcesQuery;
+  serviceDetailedView?: string;
+  onChangeServiceDetailedView?: (serviceName?: string) => void;
 }
 
-export const FlowDiagram: FC<Props> = ({ metaData }) => {
-  const [graphLayoutData, setGraphLayoutData] = useState<GraphData>();
-  const [activeNode, setActiveNode] = useState<PositionedNode | null>(null);
-  const [activeDescendants, setActiveDescendants] = useState<string[] | null>(null);
+export const FlowDiagram: FC<Props> = ({
+  metaData,
+  infraData,
+  serviceDetailedView,
+  onChangeServiceDetailedView,
+}) => {
+  const [completeNodeData, setCompleteNodeData] = useState<NodeData>();
+  const [displayNodeData, setDisplayNodeData] = useState<NodeData>();
+  const [hoveringNode, setHoveringNode] = useState<NodeData | null>(null);
+  const [activeDependencies, setActiveDependencies] = useState<string[] | null>(null);
+  const [detailedViewNode, setDetailedViewNode] = useState<NodeData | null>(null);
   const [isInitialRender, setIsInitialRender] = useState<boolean>(true);
   const [isLoadingScreenshot, setIsLoadingScreenshot] = useState<boolean>(false);
   const screenshotRef = useRef<HTMLDivElement>(null);
   const downloadDiagram = useDownloadDiagram(screenshotRef);
-  const graphWidth = graphLayoutData?.width ?? 1600;
-  const graphHeight = graphLayoutData?.height ?? 800;
+  const { ref: zoomRef, panZoomRef } = usePanzoom();
 
   const onDownloadScreenshot = () => {
     setIsLoadingScreenshot(true);
@@ -66,8 +96,9 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
       setIsLoadingScreenshot(false);
     }, 50);
   };
+
   const getNumberOfEndpoints = (node: ServiceNode) => {
-    const svc = metaData.svcs.find((s) => s.name === node.service_name);
+    const svc = metaData?.svcs.find((s) => s.name === node.service_name);
     const endpoints = { public: 0, auth: 0, private: 0 };
     svc?.rpcs.forEach((rpc) => {
       if (rpc.access_type === "PUBLIC") endpoints.public++;
@@ -76,46 +107,113 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
     });
     return endpoints;
   };
-  const getDescendantNodes = (node: NodeData) => {
-    return graphLayoutData!.edges.filter((e) => e.source === node.id).map((e) => e.target);
+
+  const getOutboundDependencies = (node: NodeData): string[] => {
+    return (completeNodeData!.edges ?? [])
+      .filter((e) => e.sources[0] === node.id)
+      .flatMap((e) => e.targets);
   };
-  const isNodeActive = (node: NodeData) =>
-    activeNode === null || activeNode.id === node.id || !!activeDescendants?.includes(node.id);
-  const onNodeClick = (zoom: ProvidedZoom<SVGSVGElement>, node: PositionedNode) => {
-    const centerPoint = { x: graphWidth / 2, y: graphHeight / 2 };
-    const inverseCentroid = zoom.applyInverseToPoint(centerPoint);
-    zoom.translate({
-      translateX: inverseCentroid.x - node.x,
-      translateY: inverseCentroid.y - node.y,
-    });
+
+  const getInboundDependencies = (node: NodeData): string[] => {
+    return (completeNodeData!.edges ?? [])
+      .filter((e) => {
+        return (
+          e.targets[0] === node.id || (!!node.ports?.length && e.targets[0] === node.ports[0].id)
+        );
+      })
+      .flatMap((e) => e.sources);
   };
-  const onNodeMouseEnter = (node: PositionedNode) => {
-    setActiveNode(node);
-    setActiveDescendants(getDescendantNodes(node));
+
+  const isNodeActive = (node: NodeData) => {
+    if (hoveringNode === null || hoveringNode.id === node.id) return true;
+    if (detailedViewNode) return true;
+    return (
+      !!activeDependencies?.includes(node.id) ||
+      // check if active dependencies includes port
+      (!!node.ports?.length && !!activeDependencies?.includes(node.ports[0].id))
+    );
   };
+
+  const onNodeClick = (node: NodeData) => {
+    setDetailedViewNode(node);
+    if (node.type === "service" && onChangeServiceDetailedView) {
+      onChangeServiceDetailedView(node.service_name);
+    }
+  };
+  getOutboundDependencies;
+  const onNodeMouseEnter = (node: NodeData) => {
+    setHoveringNode(node);
+    setActiveDependencies(getOutboundDependencies(node));
+  };
+
   const onNodeMouseLeave = () => {
-    setActiveNode(null);
-    setActiveDescendants(null);
+    setHoveringNode(null);
+    setActiveDependencies(null);
+  };
+
+  const getInfraNodeElement = (node: InfraNode) => {
+    return (
+      <InfraSVG
+        key={node.id}
+        node={node}
+        isActive={isNodeActive(node)}
+        onMouseEnter={onNodeMouseEnter.bind(null, node)}
+        onMouseLeave={onNodeMouseLeave.bind(null)}
+      >
+        {!!node.children?.length &&
+          node.children.flatMap((n) => getInfraNodeElement(n as InfraNode))}
+      </InfraSVG>
+    );
   };
 
   useEffect(() => {
     if (metaData) {
-      getElkGraphLayoutData(
-        getNodesFromMetaData(metaData),
-        getEdgesFromMetaData(metaData),
-        new LayoutOptions()
-      ).then(setGraphLayoutData);
+      getAppLayoutData(metaData).then((data) => {
+        setCompleteNodeData(data);
+        setDisplayNodeData(data);
+      });
     }
-  }, [metaData]);
+    if (infraData) {
+      getElkInfraGraphLayoutData(getNodesFromInfraData(infraData)).then((data) => {
+        setCompleteNodeData(data);
+        setDisplayNodeData(data);
+      });
+    }
+  }, [metaData, infraData]);
 
-  if (!graphLayoutData) return null;
+  useEffect(() => {
+    const serviceNode = completeNodeData?.children?.find((node) => {
+      if (node.type === "service" && serviceDetailedView) {
+        return node.service_name === serviceDetailedView;
+      }
+    });
+    setDetailedViewNode(serviceNode ?? null);
+  }, [serviceDetailedView, completeNodeData]);
+
+  useEffect(() => {
+    const nodeIDs: string[] = [];
+    if (detailedViewNode) {
+      nodeIDs.push(
+        detailedViewNode.id,
+        ...getOutboundDependencies(detailedViewNode),
+        ...getInboundDependencies(detailedViewNode)
+      );
+    }
+    if (metaData) {
+      getAppLayoutData(metaData, detailedViewNode?.id, nodeIDs).then((data) => {
+        setDisplayNodeData(data);
+      });
+    }
+  }, [detailedViewNode, metaData]);
+
+  if (!displayNodeData) return null;
 
   return (
     <div
       className="relative flex h-full w-full flex-col items-center justify-center"
       style={{ background: "#EEEEE1" }}
     >
-      {!graphLayoutData.nodes.length ? (
+      {!displayNodeData.children?.length ? (
         <div>
           <p>Add an service to your app and it will show up here</p>
         </div>
@@ -127,130 +225,126 @@ export const FlowDiagram: FC<Props> = ({ metaData }) => {
                 setIsInitialRender(false);
               }
             }, [parent]);
+
+            useEffect(() => {
+              const scaleX = parent.width / displayNodeData.width!;
+              const scaleY = parent.height / displayNodeData.height!;
+              let scale = scaleY > scaleX ? scaleX : scaleY;
+              scale = Math.min(scale, 1.5) * 0.9;
+
+              panZoomRef.current?.zoomAbs(0, 0, scale);
+              panZoomRef.current?.moveTo(
+                parent.width / 2 - (displayNodeData.width! * scale) / 2,
+                parent.height / 2 - (displayNodeData.height! * scale) / 2
+              );
+            }, [parent.width, parent.height, displayNodeData.width, displayNodeData.height]);
+
             if (!parent.width || !parent.height) return null;
 
-            const scaleX = parent.width / graphLayoutData.width!;
-            const scaleY = parent.height / graphLayoutData.height!;
-            let scale = scaleY > scaleX ? scaleX : scaleY;
-            scale = Math.min(scale, 1.5) * 0.8;
-
             return (
-              <Zoom<SVGSVGElement>
-                width={parent.width}
-                height={parent.height}
-                scaleXMin={0.1}
-                scaleXMax={4}
-                scaleYMin={0.1}
-                scaleYMax={4}
-                initialTransformMatrix={{
-                  scaleX: scale,
-                  scaleY: scale,
-                  translateX: parent.width / 2 - (graphLayoutData.width! * scale) / 2,
-                  translateY: parent.height / 2 - (graphLayoutData.height! * scale) / 2,
-                  skewX: 0,
-                  skewY: 0,
-                }}
-                pinchDelta={(event) => {
-                  const factor = event.direction[0] > 0 ? 1.02 : 0.98;
-                  return { scaleX: factor, scaleY: factor };
-                }}
-                wheelDelta={(event) => {
-                  const factor = event.deltaY < 0 ? 1.05 : 0.95;
-                  return { scaleX: factor, scaleY: factor };
-                }}
-              >
-                {(zoom) => (
-                  <div className="relative" ref={screenshotRef}>
-                    <svg id="flow-diagram" width={parent.width} height={parent.height}>
-                      <defs>
-                        <EncoreArrowHeadSVG id="encore-arrow" fill="#333" />
-                      </defs>
+              <div className="relative h-full w-full overflow-hidden" ref={screenshotRef}>
+                <svg
+                  id="flow-diagram"
+                  width={displayNodeData.width}
+                  height={displayNodeData.height}
+                  ref={zoomRef}
+                >
+                  <defs>
+                    <EncoreArrowHeadSVG id="encore-arrow" fill="#333" />
+                  </defs>
 
-                      {/* Background */}
-                      <rect
-                        fill="#EEEEE1"
-                        width={parent.width}
-                        height={parent.height}
-                        onTouchStart={zoom.dragStart}
-                        onTouchMove={zoom.dragMove}
-                        onTouchEnd={zoom.dragEnd}
-                        onMouseDown={zoom.dragStart}
-                        onMouseMove={zoom.dragMove}
-                        onMouseUp={zoom.dragEnd}
-                        onMouseLeave={() => {
-                          if (zoom.isDragging) zoom.dragEnd();
-                        }}
-                        style={{
-                          cursor: zoom.isDragging ? "grabbing" : "grab",
-                          touchAction: "none",
-                        }}
-                        ref={zoom.containerRef as any}
-                      />
-
-                      {/* Drawable area */}
-                      <Group transform={zoom.toString()} className="select-none">
-                        {graphLayoutData.edges.map((edge) => (
-                          <Group key={edge.id} className="edge-group">
-                            <EdgeSVG
-                              edge={edge}
-                              activeNodeId={activeNode?.id || null}
-                              isInitialRender={isInitialRender}
-                            />
-                            <EdgeLabelSVG edge={edge} activeNodeId={activeNode?.id || null} />
-                          </Group>
-                        ))}
-                        {graphLayoutData.nodes.map((node) => {
-                          if (node.type === "service")
-                            return (
-                              <ServiceSVG
-                                key={node.id}
-                                node={node}
-                                isActive={isNodeActive(node)}
-                                endpoints={getNumberOfEndpoints(node)}
-                                onClick={onNodeClick.bind(null, zoom, node)}
-                                onMouseEnter={onNodeMouseEnter.bind(null, node)}
-                                onMouseLeave={onNodeMouseLeave.bind(null)}
-                              />
-                            );
-                          if (node.type === "topic") {
-                            return (
-                              <TopicSVG
-                                key={node.id}
-                                node={node}
-                                isActive={isNodeActive(node)}
-                                onClick={onNodeClick.bind(null, zoom, node)}
-                                onMouseEnter={onNodeMouseEnter.bind(null, node)}
-                                onMouseLeave={onNodeMouseLeave.bind(null)}
-                              />
-                            );
+                  {/* Drawable area */}
+                  <Group className="select-none">
+                    {(displayNodeData.edges ?? []).map((edge) => (
+                      <Group key={edge.id} className="edge-group">
+                        <EdgeSVG
+                          edge={getCoordinatePointsForEdge(edge)}
+                          isInitialRender={isInitialRender}
+                          isActive={
+                            detailedViewNode
+                              ? true
+                              : hoveringNode === null || hoveringNode?.id === edge.sources[0]
                           }
-                        })}
+                        />
                       </Group>
-                    </svg>
-                  </div>
-                )}
-              </Zoom>
+                    ))}
+                    {(displayNodeData.children ?? []).map((node) => {
+                      if (node.type === "service") {
+                        return (
+                          <ServiceSVG
+                            key={node.id}
+                            node={node}
+                            shouldAnimateReposition={!detailedViewNode}
+                            isActive={isNodeActive(node)}
+                            endpoints={getNumberOfEndpoints(node)}
+                            onClick={onNodeClick.bind(null, node)}
+                            onMouseEnter={onNodeMouseEnter.bind(null, node)}
+                            onMouseLeave={onNodeMouseLeave.bind(null)}
+                          />
+                        );
+                      }
+                      if (node.type === "topic") {
+                        return (
+                          <TopicSVG
+                            key={node.id}
+                            node={node}
+                            shouldAnimateReposition={!detailedViewNode}
+                            isActive={isNodeActive(node)}
+                            onClick={onNodeClick.bind(null, node)}
+                            onMouseEnter={onNodeMouseEnter.bind(null, node)}
+                            onMouseLeave={onNodeMouseLeave.bind(null)}
+                          />
+                        );
+                      }
+                      if (node.type === "infra") {
+                        return getInfraNodeElement(node);
+                      }
+                    })}
+
+                    {(displayNodeData.edges ?? []).map((edge) => (
+                      <Group key={edge.id} className="edge-label-group">
+                        <EdgeLabelSVG
+                          edge={getCoordinatePointsForEdge(edge)}
+                          isActive={
+                            detailedViewNode?.id === edge.sources[0] ||
+                            hoveringNode?.id === edge.sources[0]
+                          }
+                        />
+                      </Group>
+                    ))}
+                  </Group>
+                </svg>
+              </div>
             );
           }}
         </ParentSize>
       )}
+      {detailedViewNode && (
+        <div className="absolute left-2 top-2">
+          <Button
+            kind="primary"
+            onClick={() => {
+              setDetailedViewNode(null);
+              if (onChangeServiceDetailedView) {
+                onChangeServiceDetailedView(undefined);
+              }
+            }}
+          >
+            <ArrowSmallLeftIcon className="mr-2 h-4 w-4" />
+            <p>View full application</p>
+          </Button>
+        </div>
+      )}
+
       <div className="absolute right-2 top-2">
         <Button kind="primary" onClick={onDownloadScreenshot}>
-          {isLoadingScreenshot
-            ? icons.loading("h-6 w-6", "#EEEEE1", "transparent", 4)
-            : icons.camera("h-6 w-6")}
+          {isLoadingScreenshot ? (
+            icons.loading("h-6 w-6", "#EEEEE1", "transparent", 4)
+          ) : (
+            <p>Share</p>
+          )}
         </Button>
       </div>
-      <a target="_blank" href="https://encoredev.slack.com/app_redirect?channel=CQFNUESN9">
-        <p
-          className="absolute left-2 bottom-2 p-2 text-sm font-semibold"
-          style={{ background: "#EEEEE1" }}
-        >
-          Want to see more?
-          <br />
-          <span className="font-normal underline">Please share your feedback and ideas</span>
-        </p>
-      </a>
     </div>
   );
 };

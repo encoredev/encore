@@ -1,12 +1,18 @@
 import React from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { PositionedEdge, PositionedNode } from "./flow-utils";
+import * as FlowUtils from "./flow-utils";
 import * as ElkGraphLayoutData from "./algorithms/elk-algo";
 import { FlowDiagram } from "./FlowDiagram";
 
 jest.mock("./algorithms/elk-algo", () => ({
   __esModule: true,
   ...jest.requireActual("./algorithms/elk-algo"),
+  getCoordinatePointsForEdge: (edge: FlowUtils.EdgeData) => ({ ...edge, points: [{ x: 0, y: 0 }] }),
+}));
+
+jest.mock("./flow-utils", () => ({
+  __esModule: true,
+  ...jest.requireActual("./flow-utils"),
 }));
 
 jest.mock("@visx/responsive", () => ({
@@ -18,9 +24,18 @@ jest.mock("@visx/responsive", () => ({
   },
 }));
 
+jest.mock("panzoom", () => ({
+  __esModule: true,
+  ...jest.requireActual("./algorithms/elk-algo"),
+  default: () => ({
+    zoomAbs: () => ({}),
+    moveTo: () => ({}),
+  }),
+}));
+
 const setMockLayoutData = (
-  nodes: Partial<PositionedNode>[],
-  edges: Partial<PositionedEdge> & { text: string }[] = []
+  nodes: Partial<FlowUtils.NodeData>[],
+  edges: Partial<FlowUtils.EdgeData>[] = []
 ) => {
   const mockCoordinates = { x: 0, y: 0 };
   const mockSize = {
@@ -29,7 +44,7 @@ const setMockLayoutData = (
   };
   const mockNodes = nodes.map((node) => {
     return {
-      id: node.label,
+      id: node.labels![0].text,
       type: node.type || "service",
       ...mockSize,
       ...mockCoordinates,
@@ -39,18 +54,15 @@ const setMockLayoutData = (
   const mockEdges = edges.map((edge) => {
     return {
       id: (Math.random() + 1).toString(36).substring(7),
-      label: {
-        text: edge.text,
-        ...mockCoordinates,
-      },
-      points: [mockCoordinates],
       ...edge,
     };
   });
 
   jest
-    .spyOn(ElkGraphLayoutData, "getElkGraphLayoutData")
-    .mockImplementationOnce(() => Promise.resolve({ nodes: mockNodes, edges: mockEdges }) as any);
+    .spyOn(ElkGraphLayoutData, "getElkAppGraphLayoutData")
+    .mockImplementationOnce(
+      () => Promise.resolve({ children: mockNodes, edges: mockEdges }) as any
+    );
 };
 
 const getMetaDataMock = (metaData: any = {}) => {
@@ -68,10 +80,10 @@ describe("FlowDiagram", () => {
   it("should render services and topics", async () => {
     setMockLayoutData([
       {
-        label: "service-1",
+        labels: [{ text: "service-1" }],
       },
       {
-        label: "topic-1",
+        labels: [{ text: "topic-1" }],
         type: "topic",
       },
     ]);
@@ -87,18 +99,18 @@ describe("FlowDiagram", () => {
     setMockLayoutData(
       [
         {
-          label: "service-1",
+          labels: [{ text: "service-1" }],
         },
         {
-          label: "service-2",
+          labels: [{ text: "service-2" }],
         },
       ],
       [
         {
           type: "rpc",
-          source: "service-1",
-          target: "service-2",
-          text: "3",
+          sources: ["service-1"],
+          targets: ["service-2"],
+          labels: [{ text: "3" }],
         },
       ]
     );
@@ -115,21 +127,21 @@ describe("FlowDiagram", () => {
     setMockLayoutData(
       [
         {
-          label: "service-1",
+          labels: [{ text: "service-1" }],
         },
         {
-          label: "service-2",
+          labels: [{ text: "service-2" }],
         },
         {
-          label: "service-3",
+          labels: [{ text: "service-3" }],
         },
       ],
       [
         {
           type: "rpc",
-          source: "service-1",
-          target: "service-2",
-          text: "1",
+          sources: ["service-1"],
+          targets: ["service-2"],
+          labels: [{ text: "1" }],
         },
       ]
     );
@@ -137,13 +149,110 @@ describe("FlowDiagram", () => {
 
     await waitFor(() => {
       fireEvent.mouseEnter(screen.getByTestId("node-service-1"));
+    });
 
-      // should now be visible
-      const label = container.querySelector(".edge-group")!.querySelector(".label");
-      expect(label!.classList).toContain("opacity-100");
+    // should now be visible
+    const label = container.querySelector(".edge-label-group")!.querySelector(".label");
+    expect(label!.classList).toContain("opacity-100");
 
-      // should be dimmed
-      expect(screen.getByTestId("node-service-3").classList).toContain("opacity-10");
+    // should be dimmed
+    expect(screen.getByTestId("node-service-3").classList).toContain("opacity-10");
+  });
+
+  it("should show detailed view of service if props is specified", async () => {
+    const getElkAppGraphLayoutDataSpy = jest.spyOn(ElkGraphLayoutData, "getElkAppGraphLayoutData");
+    const getNodesFromMetaDataSpy = jest.spyOn(FlowUtils, "getNodesFromMetaData");
+    const getEdgesFromMetaDataSpy = jest.spyOn(FlowUtils, "getEdgesFromMetaData");
+    setMockLayoutData(
+      [
+        {
+          labels: [{ text: "service-1" }],
+          service_name: "service-1",
+        },
+        {
+          labels: [{ text: "service-2" }],
+          service_name: "service-2",
+        },
+        {
+          labels: [{ text: "service-3" }],
+          service_name: "service-3",
+        },
+      ],
+      [
+        {
+          type: "rpc",
+          sources: ["service-1"],
+          targets: ["service-2"],
+          labels: [{ text: "1" }],
+        },
+      ]
+    );
+    render(
+      <FlowDiagram
+        metaData={getMetaDataMock()}
+        serviceDetailedView="service-1"
+        onChangeServiceDetailedView={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getNodesFromMetaDataSpy).toHaveBeenLastCalledWith(getMetaDataMock(), [
+        "service-1",
+        "service-2",
+      ]);
+      expect(getEdgesFromMetaDataSpy).toHaveBeenLastCalledWith(getMetaDataMock(), "service-1");
+      expect(getElkAppGraphLayoutDataSpy).toHaveBeenLastCalledWith([], [], {
+        "elk.direction": "DOWN",
+      });
+    });
+  });
+
+  it("should show detailed view of service when clicking on a service", async () => {
+    const getElkAppGraphLayoutDataSpy = jest.spyOn(ElkGraphLayoutData, "getElkAppGraphLayoutData");
+    const getNodesFromMetaDataSpy = jest.spyOn(FlowUtils, "getNodesFromMetaData");
+    const getEdgesFromMetaDataSpy = jest.spyOn(FlowUtils, "getEdgesFromMetaData");
+    const onChangeServiceDetailedView = jest.fn();
+    setMockLayoutData(
+      [
+        {
+          labels: [{ text: "service-1" }],
+          service_name: "service-1",
+        },
+        {
+          labels: [{ text: "service-2" }],
+          service_name: "service-2",
+        },
+        {
+          labels: [{ text: "service-3" }],
+          service_name: "service-3",
+        },
+      ],
+      [
+        {
+          type: "rpc",
+          sources: ["service-1"],
+          targets: ["service-2"],
+          labels: [{ text: "1" }],
+        },
+      ]
+    );
+    render(
+      <FlowDiagram
+        metaData={getMetaDataMock()}
+        onChangeServiceDetailedView={onChangeServiceDetailedView}
+      />
+    );
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByTestId("node-service-1"));
+    });
+
+    await waitFor(() => {
+      expect(getNodesFromMetaDataSpy).toBeCalledWith(getMetaDataMock(), ["service-1", "service-2"]);
+      expect(getEdgesFromMetaDataSpy).toBeCalledWith(getMetaDataMock(), "service-1");
+      expect(getElkAppGraphLayoutDataSpy).toBeCalledWith([], [], {
+        "elk.direction": "DOWN",
+      });
     });
   });
 
@@ -155,7 +264,7 @@ describe("FlowDiagram", () => {
     it("should show database", async () => {
       setMockLayoutData([
         {
-          label: "service-1",
+          labels: [{ text: "service-1" }],
           has_database: true,
         },
       ]);
@@ -199,11 +308,11 @@ describe("FlowDiagram", () => {
     it("should show cron jobs", async () => {
       setMockLayoutData([
         {
-          label: "service-1",
+          labels: [{ text: "service-1" }],
           cron_jobs: [{ title: "cron-job-title" }] as any,
         },
         {
-          label: "service-2",
+          labels: [{ text: "service-2" }],
           cron_jobs: [{ title: "cron-job-1" }, { title: "cron-job-2" }] as any,
         },
       ]);
