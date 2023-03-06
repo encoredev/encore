@@ -1,4 +1,4 @@
-import { getEdgesFromMetaData, getNodesFromMetaData } from "./flow-utils";
+import { getEdgesFromMetaData, getNodesFromMetaData, NodeData } from "./flow-utils";
 
 const emptyMetaData = {
   cron_jobs: [],
@@ -29,11 +29,13 @@ describe("Graph Utils", () => {
       expect(nodes[0]).toEqual({
         type: "service",
         id: "service:service-1",
-        label: "service-1",
-        service_name: "service-1",
+        labels: [{ text: "service-1" }],
+        name: "service-1",
         has_database: false,
         cron_jobs: [],
-      });
+        height: 57,
+        width: 220,
+      } as NodeData);
     });
 
     it("should get topics from meta data", () => {
@@ -51,8 +53,42 @@ describe("Graph Utils", () => {
       expect(nodes[0]).toEqual({
         id: "topic:topic-1",
         type: "topic",
-        label: "topic-1",
-      });
+        name: "topic-1",
+        labels: [{ text: "topic-1" }],
+        ports: [
+          {
+            id: "topic:topic-1:port",
+          },
+        ],
+        height: 40,
+        width: 123,
+      } as NodeData);
+    });
+
+    it("should only return matching nodes if nodeID array is supplied", () => {
+      const nodes = getNodesFromMetaData(
+        {
+          ...emptyMetaData,
+          svcs: [
+            {
+              name: "service-1",
+              databases: [],
+            },
+            {
+              name: "service-2",
+              databases: [],
+            },
+          ],
+          pubsub_topics: [
+            {
+              name: "topic-1",
+            },
+          ],
+        },
+        ["service:service-1", "topic:topic-1:port"]
+      );
+
+      expect(nodes).toHaveLength(2);
     });
 
     it("should add database to service", () => {
@@ -148,13 +184,15 @@ describe("Graph Utils", () => {
 
       expect(edges).toHaveLength(2);
       expect(edges[0]).toEqual({
-        source: "service:service-1",
-        target: "service:service-2",
+        id: "service:service-1-service:service-2:rpc",
+        sources: ["service:service-1"],
+        targets: ["service:service-2"],
         type: "rpc",
       });
       expect(edges[1]).toEqual({
-        source: "service:service-2",
-        target: "service:service-3",
+        id: "service:service-2-service:service-3:rpc",
+        sources: ["service:service-2"],
+        targets: ["service:service-3"],
         type: "rpc",
       });
     });
@@ -178,8 +216,9 @@ describe("Graph Utils", () => {
 
       expect(edges).toHaveLength(1);
       expect(edges[0]).toEqual({
-        source: "service:service-1",
-        target: "service:service-2",
+        id: "service:service-1-service:service-2:database",
+        sources: ["service:service-1"],
+        targets: ["service:service-2"],
         type: "database",
       });
     });
@@ -198,13 +237,57 @@ describe("Graph Utils", () => {
 
       expect(edges).toHaveLength(2);
       expect(edges[0]).toEqual({
-        source: "topic:topic-1",
-        target: "service:service-1",
+        id: "topic:topic-1-service:service-1:subscription",
+        sources: ["topic:topic-1"],
+        targets: ["service:service-1"],
         type: "subscription",
       });
       expect(edges[1]).toEqual({
-        source: "service:service-2",
-        target: "topic:topic-1",
+        id: "service:service-2-topic:topic-1:publish",
+        sources: ["service:service-2"],
+        targets: ["topic:topic-1:port"],
+        type: "publish",
+      });
+    });
+
+    it("should return edges connected to node if targetNodeID is supplied", () => {
+      const edges = getEdgesFromMetaData(
+        {
+          ...emptyMetaData,
+          pkgs: [
+            {
+              service_name: "service-1",
+              rel_path: "service-1",
+              rpc_calls: [{ pkg: "path/service-2" }],
+            },
+            {
+              service_name: "service-2",
+              rel_path: "path/service-2",
+              rpc_calls: [],
+            },
+          ],
+          pubsub_topics: [
+            {
+              name: "topic-1",
+              subscriptions: [{ service_name: "service-1" }],
+              publishers: [{ service_name: "service-2" }],
+            },
+          ],
+        },
+        "service:service-2"
+      );
+
+      expect(edges).toHaveLength(2);
+      expect(edges[0]).toEqual({
+        id: "service:service-1-service:service-2:rpc",
+        sources: ["service:service-1"],
+        targets: ["service:service-2"],
+        type: "rpc",
+      });
+      expect(edges[1]).toEqual({
+        id: "service:service-2-topic:topic-1:publish",
+        sources: ["service:service-2"],
+        targets: ["topic:topic-1:port"],
         type: "publish",
       });
     });

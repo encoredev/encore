@@ -10,6 +10,7 @@ const Diagram: FunctionComponent = () => {
   const conn = useConn();
   const { appID } = useParams<{ appID: string }>();
   const [metaData, setMetaData] = useState<APIMeta>();
+  const [detailedViewNode, setDetailedViewNode] = useState<string>();
 
   useEffect(() => {
     conn.request("status", { appID }).then((status: any) => {
@@ -32,7 +33,15 @@ const Diagram: FunctionComponent = () => {
   }, []);
 
   return (
-    <div className="h-full-minus-nav w-full">{metaData && <FlowDiagram metaData={metaData} />}</div>
+    <div className="h-full-minus-nav w-full">
+      {metaData && (
+        <FlowDiagram
+          metaData={metaData}
+          detailedViewNode={detailedViewNode}
+          onChangeDetailedViewNode={setDetailedViewNode}
+        />
+      )}
+    </div>
   );
 };
 
