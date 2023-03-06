@@ -1,0 +1,93 @@
+-- basic.go --
+package basic
+
+import "context"
+
+type Params struct {
+    String string
+    Int int
+}
+
+//encore:api public
+func Foo(ctx context.Context) (*Params, error) { return nil, nil }
+
+-- want:encore_internal__api.go --
+package basic
+
+import (
+	"context"
+	api "encore.dev/appruntime/api"
+	serde "encore.dev/appruntime/serde"
+	go1 "github.com/json-iterator/go"
+	"net/http"
+)
+
+type EncoreInternal_FooReq struct{}
+
+type EncoreInternal_FooResp struct {
+	Payload *Params
+}
+
+var EncoreInternal_api_APIDesc_Foo = &api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
+	Access: api.Public,
+	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
+		resp, err := Foo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &EncoreInternal_FooResp{Payload: resp}, nil
+	},
+	CloneReq: func(r *EncoreInternal_FooReq) (*EncoreInternal_FooReq, error) {
+		var clone *EncoreInternal_FooReq
+		bytes, err := go1.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = go1.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	CloneResp: func(r *EncoreInternal_FooResp) (*EncoreInternal_FooResp, error) {
+		var clone *EncoreInternal_FooResp
+		bytes, err := go1.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = go1.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	DecodeReq: func(httpReq *http.Request, ps api.UnnamedParams, json go1.API) (reqData *EncoreInternal_FooReq, pathParams api.UnnamedParams, err error) {
+		reqData = new(EncoreInternal_FooReq)
+		return reqData, nil, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json go1.API, resp *EncoreInternal_FooResp) (err error) {
+		respData := []byte("null\n")
+		if resp != nil {
+			// Encode JSON body
+			respData, err = serde.SerializeJSONFunc(json, func(ser *serde.JSONSerializer) {
+				ser.WriteField("String", resp.Payload.String, false)
+				ser.WriteField("Int", resp.Payload.Int, false)
+			})
+			if err != nil {
+				return err
+			}
+			respData = append(respData, '\n')
+		}
+
+		// Write response
+		w.Write(respData)
+		return nil
+	},
+	Endpoint:       "Foo",
+	Methods:        []string{"GET", "POST"},
+	Path:           "/basic.Foo",
+	PathParamNames: nil,
+	Raw:            false,
+	RawHandler:     nil,
+	RawPath:        "/basic.Foo",
+	ReqPath: func(reqData *EncoreInternal_FooReq) (string, api.UnnamedParams, error) {
+		return "/basic.Foo", nil, nil
+	},
+	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
+		return nil
+	},
+	Service: "basic",
+	SvcNum:  0,
+}

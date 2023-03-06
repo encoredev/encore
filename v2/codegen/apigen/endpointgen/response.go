@@ -63,7 +63,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/appruntime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/appruntime/serde", "JSONSerializer")).BlockFunc(
 					func(g *Group) {
 						for _, f := range resp.BodyParameters {
-							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
+							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(d.respDataPayloadName()).Dot(f.SrcName), Lit(f.OmitEmpty)))
 						}
 					}))
 				g.If(Err().Op("!=").Nil()).Block(
@@ -77,7 +77,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.Id("headers").Op("=").Map(String()).Index().String().Values(DictFunc(func(dict Dict) {
 					for _, f := range resp.HeaderParameters {
 						if builtin, ok := f.Type.(schema.BuiltinType); ok {
-							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(f.SrcName))
+							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(d.respDataPayloadName()).Dot(f.SrcName))
 							dict[Lit(f.WireName)] = encExpr
 						} else {
 							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
@@ -129,9 +129,10 @@ func (d *responseDesc) respDataPayloadExpr() *Statement {
 }
 
 // zero returns an expression representing the zero value
-// of the response type. If there is no response type it returns "nil".
+// of the response type.
 func (d *responseDesc) zero() *Statement {
-	return d.gu.Zero(d.ep.Response)
+	// This is always nil because we always use a pointer type.
+	return Nil()
 }
 
 // Clone returns the function literal to clone the request.
