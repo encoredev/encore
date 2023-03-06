@@ -9,15 +9,17 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/metadata"
 	"encore.dev/appruntime/metrics/system"
 	"encore.dev/metrics"
 )
 
-func New(svcs []string, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
+func New(svcs []string, cfg *config.DatadogProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
 	// Precompute container metadata labels.
 	return &Exporter{
 		svcs: svcs,
+		cfg:  cfg,
 		containerMetadataLabels: []string{
 			"service_id:" + meta.ServiceID,
 			"revision_id:" + meta.RevisionID,
@@ -29,6 +31,7 @@ func New(svcs []string, meta *metadata.ContainerMetadata, rootLogger zerolog.Log
 
 type Exporter struct {
 	svcs                    []string
+	cfg                     *config.DatadogProvider
 	containerMetadataLabels []string
 	rootLogger              zerolog.Logger
 }
@@ -41,7 +44,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	data = append(data, x.getSysMetrics(now)...)
 	body := datadogV2.MetricPayload{Series: data}
 
-	ctx = datadog.NewDefaultContext(ctx)
+	ctx = x.newContext(ctx)
 	configuration := datadog.NewConfiguration()
 	apiClient := datadog.NewAPIClient(configuration)
 	api := datadogV2.NewMetricsApi(apiClient)
@@ -167,4 +170,18 @@ func (x *Exporter) getSysMetrics(now time.Time) []datadogV2.MetricSeries {
 			Type: datadogV2.METRICINTAKETYPE_GAUGE.Ptr(),
 		},
 	}
+}
+
+func (x *Exporter) newContext(parent context.Context) context.Context {
+	return context.WithValue(
+		context.WithValue(
+			parent,
+			datadog.ContextServerVariables,
+			map[string]string{"site": x.cfg.Site},
+		),
+		datadog.ContextAPIKeys,
+		map[string]datadog.APIKey{
+			"apiKeyAuth": {Key: x.cfg.APIKey},
+		},
+	)
 }
