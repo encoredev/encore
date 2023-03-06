@@ -5,10 +5,10 @@ import (
 	gotoken "go/token"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/app"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/infra/resource"
@@ -20,14 +20,14 @@ import (
 
 type builder struct {
 	errs *perr.List
-	res  parser.Result
+	app  *app.Desc
 	md   *meta.Data // metadata being generated
 }
 
-func Gen(errs *perr.List, res parser.Result) *meta.Data {
+func Compute(errs *perr.List, appDesc *app.Desc) *meta.Data {
 	b := &builder{
 		errs: errs,
-		res:  res,
+		app:  appDesc,
 	}
 	return b.Build()
 }
@@ -36,7 +36,6 @@ func (b *builder) Build() *meta.Data {
 	// TODO(andre) We assume the framework is used for now.
 	// When we add support for not using the framework we'll need
 	// to handle this differently.
-	app := b.res.Framework.MustGet()
 
 	b.md = &meta.Data{
 		ModulePath:  "example.com", // TODO
@@ -44,7 +43,7 @@ func (b *builder) Build() *meta.Data {
 	}
 	md := b.md
 
-	for _, svc := range app.Services {
+	for _, svc := range b.app.Services {
 		out := &meta.Service{
 			Name: svc.Name,
 			// TODO all of this stuff
@@ -56,7 +55,7 @@ func (b *builder) Build() *meta.Data {
 		}
 		md.Svcs = append(md.Svcs, out)
 
-		for _, ep := range svc.Endpoints {
+		for _, ep := range svc.Framework.MustGet().Endpoints {
 			rpc := &meta.RPC{
 				Name:           ep.Name,
 				Doc:            ep.Doc,
@@ -98,7 +97,7 @@ func (b *builder) Build() *meta.Data {
 		clusterMap = make(map[pkginfo.QualifiedName]*meta.CacheCluster)
 	)
 
-	for _, r := range b.res.Infra.AllResources() {
+	for _, r := range b.app.InfraResources {
 		switch r := r.(type) {
 		case *cron.Job:
 			md.CronJobs = append(md.CronJobs, &meta.CronJob{
@@ -147,7 +146,7 @@ func (b *builder) Build() *meta.Data {
 
 		case *metrics.Metric:
 			var svcName *string
-			if svc, ok := app.ServiceForPkg(r.File.Pkg.ImportPath); ok {
+			if svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath); ok {
 				svcName = &svc.Name
 			}
 
@@ -185,7 +184,7 @@ func (b *builder) Build() *meta.Data {
 				continue
 			}
 
-			svc, ok := app.ServiceForPkg(r.File.Pkg.ImportPath)
+			svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath)
 			if !ok {
 				b.errs.Addf(r.ASTExpr().Pos(), "pubsub subscription %q must be defined within a service",
 					r.Name)
@@ -209,7 +208,7 @@ func (b *builder) Build() *meta.Data {
 				continue
 			}
 
-			svc, ok := app.ServiceForPkg(r.File.Pkg.ImportPath)
+			svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath)
 			if !ok {
 				b.errs.Addf(r.ASTExpr().Pos(), "cache keyspace must be defined within a service")
 				continue

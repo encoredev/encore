@@ -8,7 +8,6 @@ import (
 	"encr.dev/v2/codegen/infragen/metricsgen"
 	"encr.dev/v2/codegen/infragen/secretsgen"
 	"encr.dev/v2/internal/paths"
-	"encr.dev/v2/parser/infra"
 	"encr.dev/v2/parser/infra/resource"
 	"encr.dev/v2/parser/infra/resource/cache"
 	"encr.dev/v2/parser/infra/resource/config"
@@ -16,13 +15,13 @@ import (
 	"encr.dev/v2/parser/infra/resource/secrets"
 )
 
-func Process(gg *codegen.Generator, res *infra.ParseResult) {
+func Process(gg *codegen.Generator, resources []resource.Resource) {
 	type groupKey struct {
 		pkg  paths.Pkg
 		kind resource.Kind
 	}
 	groups := make(map[groupKey][]resource.Resource)
-	for _, r := range res.AllResources() {
+	for _, r := range resources {
 		key := groupKey{r.DeclaredIn().Pkg.ImportPath, r.Kind()}
 		groups[key] = append(groups[key], r)
 	}

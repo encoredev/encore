@@ -11,6 +11,7 @@ import (
 
 	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
+	"encr.dev/v2/app"
 	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen"
@@ -53,8 +54,8 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 
 	parser := parser.NewParser(pc)
 	parserResult := parser.Parse()
-
-	meta := legacymeta.Gen(pc.Errs, parserResult)
+	appDesc := app.ValidateAndDescribe(pc, parserResult)
+	meta := legacymeta.Compute(pc.Errs, appDesc)
 
 	if pc.Errs.Len() > 0 {
 		return nil, errors.New(pc.Errs.FormatErrors())
@@ -64,7 +65,7 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 		Meta: meta,
 		Data: &parseData{
 			pc:      pc,
-			res:     parserResult,
+			appDesc: appDesc,
 			mainPkg: paths.Pkg("./cmd/main"), // TODO
 		},
 	}, nil
@@ -72,7 +73,7 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 
 type parseData struct {
 	pc      *parsectx.Context
-	res     parser.Result
+	appDesc *app.Desc
 	mainPkg paths.Pkg
 }
 
@@ -80,10 +81,8 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 	pd := p.Parse.Data.(*parseData)
 
 	gg := codegen.New(pd.pc)
-	infragen.Process(gg, pd.res.Infra)
-	if pd.res.Framework.IsPresent() {
-		apigen.Process(gg, pd.res.Framework.MustGet())
-	}
+	infragen.Process(gg, pd.appDesc.InfraResources)
+	apigen.Process(gg, pd.appDesc)
 
 	defer func() {
 		if l, ok := perr.CatchBailout(recover()); ok {

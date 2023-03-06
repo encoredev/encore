@@ -7,7 +7,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/option"
-	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
@@ -24,7 +23,6 @@ type Desc struct {
 
 	Services       []*Service
 	InfraResources []resource.Resource
-	LegacyMeta     *meta.Data
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
