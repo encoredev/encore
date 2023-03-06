@@ -2,8 +2,8 @@
    - Hovering a node (some nodes then become inactive)
    - Replacing nodes (can happen if you add new services/connections)
 */
-#flow-diagram .node, #flow-diagram .edge, #flow-diagram .label {
-  transition: opacity 100ms, transform 1s ease-in-out;
+#flow-diagram .node:not(.no-animate), #flow-diagram .edge, #flow-diagram .label {
+  transition: transform 1s ease-in-out;
 }
 
 /* Animation for topic edges */
