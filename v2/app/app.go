@@ -1,17 +1,26 @@
 package app
 
 import (
+	"sort"
+	"strings"
+
+	"golang.org/x/exp/slices"
+
 	"encr.dev/pkg/option"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/infra/resource"
 )
 
 // Desc describes an Encore application.
 type Desc struct {
+	errs *perr.List
+
 	Services       []*Service
 	InfraResources []resource.Resource
 	LegacyMeta     *meta.Data
@@ -37,33 +46,26 @@ type Service struct {
 
 // ValidateAndDescribe validates the application and computes the
 // application description.
-func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) {
-
-}
-
-/*
-// AddResult adds a parse result for a specific package.
-func (b *Builder) AddResult(res *apis.ParseResult) {
-	b.results = append(b.results, res)
-}
-
-// Build computes the application description.
-func (b *Builder) Build() *AppDesc {
-	d := &AppDesc{
-		errs: b.errs,
+func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
+	d := &Desc{
+		errs: pc.Errs,
 	}
 
+	fw := &apiframework.AppDesc{}
+
 	setAuthHandler := func(ah *authhandler.AuthHandler) {
-		if d.AuthHandler.IsPresent() {
-			b.errs.Addf(ah.Decl.AST.Pos(), "multiple auth handlers defined (previous definition at %s)",
-				b.pc.FS.Position(d.AuthHandler.MustGet().Decl.AST.Pos()))
+		if fw.AuthHandler.IsPresent() {
+			pc.Errs.Addf(ah.Decl.AST.Pos(), "multiple auth handlers defined (previous definition at %s)",
+				pc.FS.Position(fw.AuthHandler.MustGet().Decl.AST.Pos()))
 		} else {
-			d.AuthHandler = option.Some(ah)
+			fw.AuthHandler = option.Some(ah)
 		}
 	}
 
-	for _, res := range b.results {
-		d.Middleware = append(d.Middleware, res.Middleware...)
+	for _, res := range result.APIs {
+		// TODO handle middleware, auth handlers
+		//fw.Middleware = append(d.Middleware, res.Middleware...)
+
 		for _, ah := range res.AuthHandlers {
 			setAuthHandler(ah)
 		}
@@ -71,12 +73,12 @@ func (b *Builder) Build() *AppDesc {
 			// TODO(andre) This does not handle service creation
 			// from a Pub/Sub subscription (or service struct definition).
 			svc := &Service{
-				Service: &service.Service{
-					Name:   res.Pkg.Name,
-					FSRoot: res.Pkg.FSPath,
-				},
-				RootPkg:   res.Pkg,
-				Endpoints: res.Endpoints,
+				Name:   res.Pkg.Name,
+				FSRoot: res.Pkg.FSPath,
+				Framework: option.Some(&apiframework.ServiceDesc{
+					RootPkg:   res.Pkg,
+					Endpoints: res.Endpoints,
+				}),
 			}
 			d.Services = append(d.Services, svc)
 		}
@@ -86,19 +88,20 @@ func (b *Builder) Build() *AppDesc {
 	// a service by package path, to make the output deterministic,
 	// and to aid validation.
 	slices.SortFunc(d.Services, func(a, b *Service) bool {
-		return a.RootPkg.ImportPath < b.RootPkg.ImportPath
+		return a.Framework.MustGet().RootPkg.ImportPath < b.Framework.MustGet().RootPkg.ImportPath
 	})
 
 	// Validate services are not children of one another
 	for i, svc := range d.Services {
+		thisSvc := svc.Framework.MustGet()
 		// If the service is in a subdirectory of another service that's an error.
 		for j := i - 1; j >= 0; j-- {
-			thisPath := svc.RootPkg.ImportPath.String()
-			otherSvc := d.Services[j]
+			thisPath := thisSvc.RootPkg.ImportPath.String()
+			otherSvc := d.Services[j].Framework.MustGet()
 			otherPath := otherSvc.RootPkg.ImportPath.String()
 			if strings.HasPrefix(thisPath, otherPath+"/") {
-				b.errs.Addf(svc.RootPkg.AST.Pos(), "service %q cannot be in a subdirectory of service %q",
-					svc.Name, otherSvc.Name)
+				pc.Errs.Addf(thisSvc.RootPkg.AST.Pos(), "service %q cannot be in a subdirectory of service %q",
+					svc.Name, d.Services[j].Name)
 			}
 		}
 	}
@@ -106,21 +109,22 @@ func (b *Builder) Build() *AppDesc {
 	return d
 }
 
-// ServiceForPkg returns the service a given package belongs to, if any.
-func (d *AppDesc) ServiceForPkg(path paths.Pkg) (*Service, bool) {
+// FrameworkServiceForPkg returns the service a given package belongs to, if any.
+// It only considers framework services.
+func (d *Desc) FrameworkServiceForPkg(path paths.Pkg) (*Service, bool) {
 	idx := sort.Search(len(d.Services), func(i int) bool {
-		return d.Services[i].RootPkg.ImportPath >= path
+		return d.Services[i].Framework.MustGet().RootPkg.ImportPath >= path
 	})
 
 	// Do we have an exact match?
-	if idx < len(d.Services) && d.Services[idx].RootPkg.ImportPath == path {
+	if idx < len(d.Services) && d.Services[idx].Framework.MustGet().RootPkg.ImportPath == path {
 		return d.Services[idx], true
 	}
 
 	// Is this package contained within the preceding service?
 	if idx > 0 {
 		prev := d.Services[idx-1]
-		prevPath := prev.RootPkg.ImportPath.String()
+		prevPath := prev.Framework.MustGet().RootPkg.ImportPath.String()
 		if strings.HasPrefix(path.String(), prevPath+"/") {
 			return prev, true
 		}
@@ -128,5 +132,3 @@ func (d *AppDesc) ServiceForPkg(path paths.Pkg) (*Service, bool) {
 
 	return nil, false
 }
-
-*/

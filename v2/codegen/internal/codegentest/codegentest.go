@@ -1,18 +1,15 @@
 package codegentest
 
 import (
-	"go/ast"
-	"go/token"
+	"path/filepath"
+	"strconv"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser"
 )
@@ -25,13 +22,26 @@ type Case struct {
 	WantErrs []string
 }
 
-func Run(t *testing.T, tests []Case, cmpOpts ...cmp.Option) {
+func Run(t *testing.T, tests []Case, fn func(*codegen.Generator, *app.Desc)) {
 	// testArchive renders the txtar archive to use for a given test.
 	testArchive := func(test Case) *txtar.Archive {
+		imports := ""
+		if len(test.Imports) > 0 {
+			imports = "import (\n"
+			for _, imp := range test.Imports {
+				imports += "\t" + strconv.Quote(imp) + "\n"
+			}
+			imports += ")\n"
+		}
+
 		return testutil.ParseTxtar(`
 -- go.mod --
 module example.com
 require encore.dev v1.13.4
+-- code.go --
+package foo
+` + imports + `
+
 ` + test.Code + `
 `)
 	}
@@ -53,21 +63,21 @@ require encore.dev v1.13.4
 			p := parser.NewParser(tc.Context)
 			parserResult := p.Parse()
 			gen := codegen.New(tc.Context)
+			appDesc := app.ValidateAndDescribe(tc.Context, parserResult)
+
+			// Run the codegen
+			fn(gen, appDesc)
 
 			if len(test.WantErrs) == 0 {
-				c.Assert(got, qt.HasLen, 1)
-
-				// Check for equality, ignoring all the AST nodes and pkginfo types.
-				opts := append([]cmp.Option{
-					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
-					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}),
-					cmp.Comparer(func(a, b *pkginfo.Package) bool {
-						return a.ImportPath == b.ImportPath
-					}),
-				}, cmpOpts...)
-				c.Assert(got[0], qt.CmpEquals(opts...), test.Want)
+				// Construct the map of generated code.
+				overlays := gen.Overlays()
+				got := make(map[string]string, len(overlays))
+				for _, o := range overlays {
+					key, err := filepath.Rel(tc.MainModuleDir.ToIO(), o.Source.ToIO())
+					c.Assert(err, qt.IsNil)
+					got[key] = string(o.Contents)
+				}
+				c.Assert(got, qt.DeepEquals, test.Want)
 			}
 		})
 	}
