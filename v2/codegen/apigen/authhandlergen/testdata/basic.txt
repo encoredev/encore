@@ -1,0 +1,44 @@
+-- basic.go --
+package basic
+
+import ("context"; "encore.dev/beta/auth")
+
+//encore:authhandler
+func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
+    return "", nil
+}
+-- want:encore_internal__authhandler.go --
+package basic
+
+import (
+	"context"
+	api "encore.dev/appruntime/api"
+	model "encore.dev/appruntime/model"
+	errs "encore.dev/beta/errs"
+	"net/http"
+	"strings"
+)
+
+var EncoreInternal_authhandler_AuthDesc_AuthHandler = &api.AuthHandlerDesc[string]{
+	AuthHandler: func(ctx context.Context, params string) (info model.AuthInfo, err error) {
+		info.UID, err = AuthHandler(ctx, params)
+		return info, err
+	},
+	DecodeAuth: func(httpReq *http.Request) (params string, err error) {
+		if auth := httpReq.Header.Get("Authorization"); auth != "" {
+			for _, prefix := range [...]string{"Bearer ", "Token "} {
+				if strings.HasPrefix(auth, prefix) {
+					if params = auth[len(prefix):]; params != "" {
+						return params, nil
+					}
+				}
+			}
+		}
+		return "", errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err()
+	},
+	DefLoc:      0,
+	Endpoint:    "AuthHandler",
+	HasAuthData: false,
+	Service:     "SERVICE",
+	SvcNum:      0,
+}

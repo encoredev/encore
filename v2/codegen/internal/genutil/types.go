@@ -239,7 +239,10 @@ func (g *Helper) Zero(typ schema.Type) *Statement {
 		if isNillable(named.Decl().Type) {
 			return Nil()
 		}
+	} else if builtin, ok := typ.(schema.BuiltinType); ok {
+		return g.builtinZero(builtin)
 	}
+
 	// Otherwise return Foo{}.
 	return g.Type(typ).Values()
 }
@@ -262,5 +265,34 @@ func (g *Helper) Initialize(typ schema.Type) *Statement {
 		return g.Zero(typ)
 	default:
 		return Nil()
+	}
+}
+
+func (g *Helper) builtinZero(builtin schema.BuiltinType) *Statement {
+	switch builtin.Kind {
+	case schema.Bool:
+		return False()
+	case schema.Int, schema.Int8, schema.Int16, schema.Int32, schema.Int64,
+		schema.Uint, schema.Uint8, schema.Uint16, schema.Uint32, schema.Uint64:
+		return Lit(0)
+	case schema.Float32, schema.Float64:
+		return Lit(0.0)
+	case schema.String:
+		return Lit("")
+	case schema.Bytes:
+		return Index().Byte().Values()
+	case schema.Time:
+		return Qual("time", "Time").Values()
+	case schema.UUID:
+		return Qual("encore.dev/types/uuid", "UUID").Values()
+	case schema.JSON:
+		return Parens(Qual("json", "RawMessage")).Call(Nil())
+	case schema.UserID:
+		return Qual("encore.dev/beta/auth", "UID").Call(Lit(""))
+	case schema.Error:
+		return Parens(Id("error")).Call(nil)
+	default:
+		g.Errs.Addf(builtin.ASTExpr().Pos(), "unsupported builtin type: %v", builtin.Kind)
+		return Null()
 	}
 }
