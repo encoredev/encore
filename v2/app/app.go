@@ -14,6 +14,7 @@ import (
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/authhandler"
+	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -52,6 +53,7 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	}
 
 	fw := &apiframework.AppDesc{}
+	d.Framework = option.Some(fw)
 
 	setAuthHandler := func(ah *authhandler.AuthHandler) {
 		if fw.AuthHandler.IsPresent() {
@@ -63,8 +65,15 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	}
 
 	for _, res := range result.APIs {
-		// TODO handle middleware, auth handlers
-		//fw.Middleware = append(d.Middleware, res.Middleware...)
+		var svcMiddleware []*middleware.Middleware
+		for _, mw := range res.Middleware {
+			if mw.Global {
+				fw.GlobalMiddleware = append(fw.GlobalMiddleware, mw)
+			} else {
+				// TODO(andre) Validate that the middleware is within a service.
+				svcMiddleware = append(svcMiddleware, mw)
+			}
+		}
 
 		for _, ah := range res.AuthHandlers {
 			setAuthHandler(ah)
@@ -76,8 +85,9 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 				Name:   res.Pkg.Name,
 				FSRoot: res.Pkg.FSPath,
 				Framework: option.Some(&apiframework.ServiceDesc{
-					RootPkg:   res.Pkg,
-					Endpoints: res.Endpoints,
+					RootPkg:    res.Pkg,
+					Endpoints:  res.Endpoints,
+					Middleware: svcMiddleware,
 				}),
 			}
 			d.Services = append(d.Services, svc)

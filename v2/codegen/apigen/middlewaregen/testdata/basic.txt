@@ -1,0 +1,25 @@
+-- basic.go --
+package basic
+
+import ("context"; "encore.dev/middleware")
+
+//encore:middleware target=all
+func Middleware(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
+}
+
+// Note: we need an API endpoint to be able to define service-specific middleware
+//encore:api
+func API(context.Context) error { return nil }
+-- want:encore_internal__middleware.go --
+package basic
+
+import api "encore.dev/appruntime/api"
+
+var EncoreInternal_middleware_middleware_Middleware = &api.Middleware{
+	DefLoc:  0,
+	Global:  false,
+	Invoke:  Middleware,
+	Name:    "Middleware",
+	PkgName: "basic",
+}
