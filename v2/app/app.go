@@ -14,6 +14,7 @@ import (
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -62,6 +63,15 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 		}
 	}
 
+	setServiceStruct := func(fw *apiframework.ServiceDesc, ss *servicestruct.ServiceStruct) {
+		if fw.ServiceStruct.IsPresent() {
+			pc.Errs.Addf(ss.Decl.AST.Pos(), "multiple service structs handlers defined (previous definition at %s)",
+				pc.FS.Position(fw.ServiceStruct.MustGet().Decl.AST.Pos()))
+		} else {
+			fw.ServiceStruct = option.Some(ss)
+		}
+	}
+
 	for _, res := range result.APIs {
 		var svcMiddleware []*middleware.Middleware
 		for _, mw := range res.Middleware {
@@ -79,15 +89,25 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 		if len(res.Endpoints) > 0 {
 			// TODO(andre) This does not handle service creation
 			// from a Pub/Sub subscription (or service struct definition).
-			svc := &Service{
-				Name:   res.Pkg.Name,
-				FSRoot: res.Pkg.FSPath,
-				Framework: option.Some(&apiframework.ServiceDesc{
-					RootPkg:    res.Pkg,
-					Endpoints:  res.Endpoints,
-					Middleware: svcMiddleware,
-				}),
+
+			fw := &apiframework.ServiceDesc{
+				RootPkg:    res.Pkg,
+				Endpoints:  res.Endpoints,
+				Middleware: svcMiddleware,
 			}
+
+			svc := &Service{
+				Name:      res.Pkg.Name,
+				FSRoot:    res.Pkg.FSPath,
+				Framework: option.Some(fw),
+			}
+
+			// TODO validate the service struct is only
+			// defined within a service package and not elsewhere.
+			for _, ss := range res.ServiceStructs {
+				setServiceStruct(fw, ss)
+			}
+
 			d.Services = append(d.Services, svc)
 		}
 	}
