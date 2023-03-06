@@ -35,7 +35,7 @@ import (
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"encr.dev/v2/legacyintegration"
+	"encr.dev/v2/legacybuild"
 )
 
 // Run represents a running Encore application.
@@ -249,7 +249,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	if r.builder == nil {
 		r.builder = legacyBuilderImpl{}
 		if experiments.V2.Enabled(expSet) {
-			r.builder = legacyintegration.BuilderImpl{}
+			r.builder = legacybuild.BuilderImpl{}
 		}
 	}
 

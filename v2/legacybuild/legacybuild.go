@@ -1,4 +1,4 @@
-package legacyintegration
+package legacybuild
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
+	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen"
 	"encr.dev/v2/codegen/infragen"
@@ -18,7 +19,6 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/legacyintegration/legacymeta"
 	"encr.dev/v2/parser"
 )
 
@@ -53,6 +53,7 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 
 	parser := parser.NewParser(pc)
 	parserResult := parser.Parse()
+
 	meta := legacymeta.Gen(pc.Errs, parserResult)
 
 	if pc.Errs.Len() > 0 {
@@ -80,7 +81,6 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 
 	gg := codegen.New(pd.pc)
 	infragen.Process(gg, pd.res.Infra)
-
 	if pd.res.Framework.IsPresent() {
 		apigen.Process(gg, pd.res.Framework.MustGet())
 	}

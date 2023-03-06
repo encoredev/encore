@@ -41,6 +41,11 @@ func (p *Parser) Parse(pkg *pkginfo.Package) []resource.Resource {
 	return allResources
 }
 
+// ComputeResult computes the application-wide result of parsing all infrastructure
+// and validating it.
+//
+// Note: in the future this should operate on metadata and not the in-memory infra resources,
+// to better work with an application split across multiple repositories.
 func (p *Parser) ComputeResult(all []resource.Resource) *ParseResult {
 	return &ParseResult{
 		resources: all,

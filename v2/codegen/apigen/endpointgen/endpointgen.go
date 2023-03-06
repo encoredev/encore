@@ -6,10 +6,10 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
-	"encr.dev/v2/parser/apis/apiframework"
 )
 
 func Gen(gen *codegen.Generator, svc *apiframework.Service) {

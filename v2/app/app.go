@@ -1,66 +1,47 @@
-package apiframework
+package app
 
 import (
-	"sort"
-	"strings"
-
-	"golang.org/x/exp/slices"
-
 	"encr.dev/pkg/option"
+	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/parser/apis"
-	"encr.dev/v2/parser/apis/api"
-	"encr.dev/v2/parser/apis/authhandler"
-	"encr.dev/v2/parser/apis/middleware"
-	"encr.dev/v2/parser/apis/servicestruct"
-	"encr.dev/v2/parser/service"
+	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/infra/resource"
 )
 
-// AppDesc describes an Encore Framework-based application.
-type AppDesc struct {
-	errs *perr.List
+// Desc describes an Encore application.
+type Desc struct {
+	Services       []*Service
+	InfraResources []resource.Resource
+	LegacyMeta     *meta.Data
 
-	Services   []*Service
-	Middleware []*middleware.Middleware
-
-	// AuthHandler defines the application's auth handler, if any.
-	AuthHandler option.Option[*authhandler.AuthHandler]
+	// Framework describes API Framework-specific application-global data.
+	Framework option.Option[*apiframework.AppDesc]
 }
 
-// Service is an Encore Framework-based service.
-//
-// For code that deals with general services, use *service.Service instead of this type.
+// Service describes an Encore service.
 type Service struct {
-	*service.Service
+	// Name is the name of the service.
+	Name string
 
-	// Num is the service number in the application.
-	Num int
+	// FSRoot is the root directory of the service.
+	FSRoot paths.FS
 
-	// RootPkg is the root package of the service.
-	RootPkg *pkginfo.Package
+	// Framework contains API Framework-specific data for this service.
+	Framework option.Option[*apiframework.ServiceDesc]
 
-	// Endpoints are the endpoints defined in this service.
-	Endpoints []*api.Endpoint
-
-	// ServiceStruct defines the service's service struct, if any.
-	ServiceStruct option.Option[*servicestruct.ServiceStruct]
+	// InfraUsage describes the infra resources the service accesses and how.
+	InfraUsage []any // type TBD
 }
 
-// NewBuilder creates a new Builder.
-func NewBuilder(pc *parsectx.Context) *Builder {
-	return &Builder{pc: pc, errs: pc.Errs}
+// ValidateAndDescribe validates the application and computes the
+// application description.
+func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) {
+
 }
 
-// Builder is used to build an application description.
-type Builder struct {
-	pc      *parsectx.Context
-	errs    *perr.List
-	results []*apis.ParseResult
-}
-
+/*
 // AddResult adds a parse result for a specific package.
 func (b *Builder) AddResult(res *apis.ParseResult) {
 	b.results = append(b.results, res)
@@ -147,3 +128,5 @@ func (d *AppDesc) ServiceForPkg(path paths.Pkg) (*Service, bool) {
 
 	return nil, false
 }
+
+*/
