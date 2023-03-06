@@ -152,7 +152,7 @@ func (b *metricLabelMapperBuilder) writeLabelMapper() {
 	labelsType := b.schemaTypeToGoType(b.m.LabelsType)
 	fn := Func().Id(b.MetricLabelMapperName(b.m)).Params(
 		Id("key").Add(labelsType),
-	).String().Block(
+	).Index().Qual("encore.dev/metrics", "KeyValue").Block(
 		Return(Index().Qual("encore.dev/metrics", "KeyValue").ValuesFunc(func(g *Group) {
 			formatFieldValue := func(f *schema.Field) Code {
 				val := Id("key").Dot(f.Name)

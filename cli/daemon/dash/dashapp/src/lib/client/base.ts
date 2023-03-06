@@ -1,5 +1,6 @@
 import JSONRPCConn from "./jsonrpc";
 import { ResponseError } from "./errs";
+import ReconnectingWebSocket from "reconnecting-websocket";
 
 const DEV = import.meta.env.DEV;
 
@@ -22,15 +23,16 @@ export default class BaseClient {
     }
   }
 
-  ws(path: string): Promise<WebSocket> {
+  ws(path: string): Promise<ReconnectingWebSocket> {
     const base = this.base;
-    return new Promise<WebSocket>(function (resolve, reject) {
-      let ws = new WebSocket(`ws://${base}${path}`);
-      ws.onopen = function () {
+    return new Promise<ReconnectingWebSocket>(function (resolve, reject) {
+      let ws = new ReconnectingWebSocket(`ws://${base}${path}`);
+      ws.addEventListener("open", () => {
         ws.onerror = null;
         resolve(ws);
-      };
-      ws.onerror = function (err: any) {
+      });
+
+      ws.addEventListener("error", (err: any) => {
         if (DEV) {
           reject(
             new Error(
@@ -39,7 +41,7 @@ export default class BaseClient {
           );
         }
         reject(new ResponseError(path, "network", null, err));
-      };
+      });
     });
   }
 

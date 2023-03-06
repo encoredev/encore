@@ -289,10 +289,7 @@ func (b *rpcBuilder) renderDecodeReq() *Statement {
 				// Parsing requests for HTTP methods without a body (GET, HEAD, DELETE) are handled by parsing the query string,
 				// while other methods are parsed by reading the body and unmarshalling it as JSON.
 				// If the same endpoint supports both, handle it with a switch.
-				reqs, err := encoding.DescribeRequest(b.res.Meta, b.rpc.Request.Type, nil, b.rpc.HTTPMethods...)
-				if err != nil {
-					b.errors.Addf(b.rpc.Func.Pos(), "failed to describe request: %v", err.Error())
-				}
+				reqs := b.reqEncoding(b.rpc)
 				g.Line()
 				if b.rpc.Request.IsPointer() {
 					field := b.reqType.AddField(payload, "Params", b.typeName(b.rpc.Request, false), schema.Builtin_ANY)
@@ -418,14 +415,10 @@ func (b *rpcBuilder) renderEncodeResp() *Statement {
 		Id("json").Qual("github.com/json-iterator/go", "API"),
 		Id("resp").Add(b.RespType()),
 	).Params(Err().Error()).BlockFunc(func(g *Group) {
-		if b.rpc.Response == nil {
+		resp := b.respEncoding(b.rpc)
+		if resp == nil {
 			g.Return(Nil())
 			return
-		}
-
-		resp, err := encoding.DescribeResponse(b.res.Meta, b.rpc.Response.Type, nil)
-		if err != nil {
-			b.errors.Addf(b.rpc.Func.Pos(), "failed to describe response: %v", err.Error())
 		}
 
 		if len(resp.BodyParameters) > 0 {

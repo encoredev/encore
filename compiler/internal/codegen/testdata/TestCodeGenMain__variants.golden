@@ -7,6 +7,7 @@ import (
 	__api "encore.dev/appruntime/api"
 	__appinit "encore.dev/appruntime/app/appinit"
 	__config "encore.dev/appruntime/config"
+	__service "encore.dev/appruntime/service"
 	errs "encore.dev/beta/errs"
 	middleware "encore.dev/middleware"
 	"reflect"
@@ -22,10 +23,11 @@ func loadApp() *__appinit.LoadData {
 			Revision:    "",
 			Uncommitted: false,
 		},
-		AuthData:        reflect.TypeOf((*svc.AuthData)(nil)),
-		BundledServices: []string{"otherservice", "svc"},
-		CORSHeaders:     []string{"One", "Three", "Two"},
-		EncoreCompiler:  "test",
+		AuthData:          reflect.TypeOf((*svc.AuthData)(nil)),
+		BundledServices:   []string{"otherservice", "svc"},
+		CORSAllowHeaders:  nil,
+		CORSExposeHeaders: []string{"X-Header", "X-Toplevel"},
+		EncoreCompiler:    "test",
 		PubsubTopics: map[string]*__config.StaticPubsubTopic{"test-topic": {Subscriptions: map[string]*__config.StaticPubsubSubscription{"subscription-name": {
 			Service:  "otherservice",
 			TraceIdx: 1,
@@ -56,6 +58,10 @@ func loadApp() *__appinit.LoadData {
 		},
 		{
 			Handler:    svc.EncoreInternal_FourHandler,
+			Middleware: nil,
+		},
+		{
+			Handler:    svc.EncoreInternal_NestedHeadersHandler,
 			Middleware: nil,
 		},
 		{
@@ -91,9 +97,13 @@ func loadApp() *__appinit.LoadData {
 			Middleware: nil,
 		},
 	}
+	svcInit := []__service.Initializer{
+		svc.EncoreInternal_ServiceService,
+	}
 	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: svc.EncoreInternal_AuthHandlerAuthHandler,
+		ServiceInit: svcInit,
 		StaticCfg:   static,
 	}
 }
@@ -103,7 +113,7 @@ func main() {
 }
 
 var EncoreInternal_svcMyMiddleware = &__api.Middleware{
-	DefLoc: 40,
+	DefLoc: 42,
 	Global: false,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := svc.EncoreInternal_ServiceService.Get()
@@ -137,6 +147,12 @@ calls to config.Load[T]().
 */
 
 
+// generated infra types for package otherservice
+package otherservice
+
+import _ "encore.dev/appruntime/app/appinit"
+
+
 // generated types for service svc
 package svc
 
@@ -150,7 +166,6 @@ import (
 	__service "encore.dev/appruntime/service"
 	errs "encore.dev/beta/errs"
 	uuid "encore.dev/types/uuid"
-	"fmt"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
 	"net/url"
@@ -161,7 +176,7 @@ var EncoreInternal_ServiceService = &__service.Decl[Service]{
 	Service:     "svc",
 	Name:        "Service",
 	Setup:       initService,
-	SetupDefLoc: 38,
+	SetupDefLoc: 40,
 }
 
 type EncoreInternal_CronOneReq struct{}
@@ -177,7 +192,7 @@ var EncoreInternal_CronOneHandler = &__api.Desc[*EncoreInternal_CronOneReq, Enco
 	Path:           "/cron",
 	RawPath:        "/cron",
 	PathParamNames: nil,
-	DefLoc:         24,
+	DefLoc:         25,
 	Access:         __api.Private,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_CronOneReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_CronOneReq{}
@@ -233,7 +248,7 @@ var EncoreInternal_DIHandler = &__api.Desc[*EncoreInternal_DIReq, EncoreInternal
 	Path:           "/di",
 	RawPath:        "/di",
 	PathParamNames: nil,
-	DefLoc:         25,
+	DefLoc:         26,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_DIReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_DIReq{}
@@ -293,7 +308,7 @@ var EncoreInternal_DIRawHandler = &__api.Desc[*EncoreInternal_DIRawReq, EncoreIn
 	Path:           "/di/raw",
 	RawPath:        "/di/raw",
 	PathParamNames: nil,
-	DefLoc:         26,
+	DefLoc:         27,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_DIRawReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_DIRawReq{}
@@ -343,7 +358,7 @@ var EncoreInternal_EightHandler = &__api.Desc[*EncoreInternal_EightReq, *EncoreI
 	Path:           "/eight/:bar/:baz",
 	RawPath:        "/eight/:0/:1",
 	PathParamNames: []string{"bar", "baz"},
-	DefLoc:         27,
+	DefLoc:         28,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_EightReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_EightReq{}
@@ -452,7 +467,7 @@ var EncoreInternal_FiveHandler = &__api.Desc[*EncoreInternal_FiveReq, EncoreInte
 	Path:           "/five/:id/:key",
 	RawPath:        "/five/:0/:1",
 	PathParamNames: []string{"id", "key"},
-	DefLoc:         28,
+	DefLoc:         29,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FiveReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_FiveReq{}
@@ -561,7 +576,7 @@ var EncoreInternal_FourHandler = &__api.Desc[*EncoreInternal_FourReq, EncoreInte
 	Path:           "/four/*baz",
 	RawPath:        "/four/*0",
 	PathParamNames: []string{"baz"},
-	DefLoc:         29,
+	DefLoc:         30,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FourReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_FourReq{}
@@ -627,6 +642,100 @@ func EncoreInternal_CallFour(ctx context.Context, baz string) error {
 	return nil
 }
 
+type EncoreInternal_NestedHeadersReq struct{}
+
+type EncoreInternal_NestedHeadersResp = NestedHeadersResponse
+
+var EncoreInternal_NestedHeadersHandler = &__api.Desc[*EncoreInternal_NestedHeadersReq, *EncoreInternal_NestedHeadersResp]{
+	Service:        "svc",
+	SvcNum:         2,
+	Endpoint:       "NestedHeaders",
+	Methods:        []string{"GET", "POST"},
+	Raw:            false,
+	Path:           "/nested-headers",
+	RawPath:        "/nested-headers",
+	PathParamNames: nil,
+	DefLoc:         31,
+	Access:         __api.Public,
+	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_NestedHeadersReq, pathParams __api.UnnamedParams, err error) {
+		reqData = &EncoreInternal_NestedHeadersReq{}
+		return reqData, nil, nil
+	},
+	CloneReq: func(p *EncoreInternal_NestedHeadersReq) (*EncoreInternal_NestedHeadersReq, error) {
+		var clone EncoreInternal_NestedHeadersReq
+		bytes, err := jsoniter.ConfigDefault.Marshal(p)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return &clone, err
+	},
+	ReqPath: func(p *EncoreInternal_NestedHeadersReq) (string, __api.UnnamedParams, error) {
+
+		return "/nested-headers", nil, nil
+	},
+	ReqUserPayload: func(p *EncoreInternal_NestedHeadersReq) any {
+		return nil
+	},
+	AppHandler: func(ctx context.Context, req *EncoreInternal_NestedHeadersReq) (*EncoreInternal_NestedHeadersResp, error) {
+		resp, err := NestedHeaders(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+	},
+	RawHandler: nil,
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *EncoreInternal_NestedHeadersResp) (err error) {
+		respData := []byte("null\n")
+		var headers map[string][]string
+		if resp != nil {
+			// Encode JSON body
+			respData, err = __serde.SerializeJSONFunc(json, func(ser *__serde.JSONSerializer) {
+				ser.WriteField("Complex", resp.Complex, false)
+			})
+			if err != nil {
+				return err
+			}
+			respData = append(respData, '\n')
+
+			// Encode headers
+			headerEncoder := &etype.Marshaller{}
+			headers = map[string][]string{"x-toplevel": {headerEncoder.FromString(resp.TopLevelHeader)}}
+			if headerEncoder.LastError != nil {
+				return headerEncoder.LastError
+			}
+
+		}
+
+		// Write response
+		for k, vs := range headers {
+			for _, v := range vs {
+				w.Header().Add(k, v)
+			}
+		}
+		w.Write(respData)
+		return nil
+	},
+	CloneResp: func(resp *EncoreInternal_NestedHeadersResp) (*EncoreInternal_NestedHeadersResp, error) {
+		if resp == nil {
+			return nil, nil
+		}
+		var clone EncoreInternal_NestedHeadersResp
+		bytes, err := jsoniter.ConfigDefault.Marshal(resp)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return &clone, err
+	},
+}
+
+func EncoreInternal_CallNestedHeaders(ctx context.Context) (*NestedHeadersResponse, error) {
+	resp, err := EncoreInternal_NestedHeadersHandler.Call(__api.NewCallContext(ctx), &EncoreInternal_NestedHeadersReq{})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 type EncoreInternal_NineReq struct {
 	Bar string
 	Baz string
@@ -643,7 +752,7 @@ var EncoreInternal_NineHandler = &__api.Desc[*EncoreInternal_NineReq, *EncoreInt
 	Path:           "/nine/:bar/:baz",
 	RawPath:        "/nine/:0/:1",
 	PathParamNames: []string{"bar", "baz"},
-	DefLoc:         30,
+	DefLoc:         32,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_NineReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_NineReq{}
@@ -762,7 +871,7 @@ var EncoreInternal_OneHandler = &__api.Desc[*EncoreInternal_OneReq, EncoreIntern
 	Path:           "/svc.One",
 	RawPath:        "/svc.One",
 	PathParamNames: nil,
-	DefLoc:         31,
+	DefLoc:         33,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_OneReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_OneReq{}
@@ -820,7 +929,7 @@ var EncoreInternal_QueryHandler = &__api.Desc[*EncoreInternal_QueryReq, *EncoreI
 	Path:           "/query",
 	RawPath:        "/query",
 	PathParamNames: nil,
-	DefLoc:         32,
+	DefLoc:         34,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_QueryReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_QueryReq{}
@@ -960,7 +1069,7 @@ var EncoreInternal_SevenHandler = &__api.Desc[*EncoreInternal_SevenReq, EncoreIn
 	Path:           "/foo/:bar/:baz",
 	RawPath:        "/foo/:0/:1",
 	PathParamNames: []string{"bar", "baz"},
-	DefLoc:         33,
+	DefLoc:         35,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_SevenReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_SevenReq{}
@@ -1024,7 +1133,7 @@ var EncoreInternal_SixHandler = &__api.Desc[*EncoreInternal_SixReq, EncoreIntern
 	Path:           "/six/:id/*key",
 	RawPath:        "/six/:0/*1",
 	PathParamNames: []string{"id", "key"},
-	DefLoc:         34,
+	DefLoc:         36,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_SixReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_SixReq{}
@@ -1139,7 +1248,7 @@ var EncoreInternal_TenHandler = &__api.Desc[*EncoreInternal_TenReq, *EncoreInter
 	Path:           "/ten",
 	RawPath:        "/ten",
 	PathParamNames: nil,
-	DefLoc:         35,
+	DefLoc:         37,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_TenReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_TenReq{}
@@ -1227,7 +1336,7 @@ var EncoreInternal_ThreeHandler = &__api.Desc[*EncoreInternal_ThreeReq, EncoreIn
 	Path:           "/three/:id",
 	RawPath:        "/three/:0",
 	PathParamNames: []string{"id"},
-	DefLoc:         36,
+	DefLoc:         38,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_ThreeReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_ThreeReq{}
@@ -1304,7 +1413,7 @@ var EncoreInternal_TwoHandler = &__api.Desc[*EncoreInternal_TwoReq, EncoreIntern
 	Path:           "/svc.Two",
 	RawPath:        "/svc.Two",
 	PathParamNames: nil,
-	DefLoc:         37,
+	DefLoc:         39,
 	Access:         __api.Public,
 	DecodeReq: func(req *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_TwoReq, pathParams __api.UnnamedParams, err error) {
 		reqData = &EncoreInternal_TwoReq{}
@@ -1378,17 +1487,13 @@ func EncoreInternal_CallTwo(ctx context.Context, params *FooParams) error {
 	return nil
 }
 
-func EncoreInternal_stringsKeyMapper(key int) string {
-	return fmt.Sprintf("foo/%v", key)
-}
-
 type EncoreInternal_AuthHandlerAuthParams = AuthParams
 
 var EncoreInternal_AuthHandlerAuthHandler = &__api.AuthHandlerDesc[*EncoreInternal_AuthHandlerAuthParams]{
 	Service:     "svc",
 	SvcNum:      2,
 	Endpoint:    "AuthHandler",
-	DefLoc:      39,
+	DefLoc:      41,
 	HasAuthData: true,
 	DecodeAuth: func(req *http.Request) (params *EncoreInternal_AuthHandlerAuthParams, err error) {
 		params = &EncoreInternal_AuthHandlerAuthParams{}
@@ -1625,6 +1730,19 @@ func encoreInternalTypeConfigUnmarshaler_Optional[T any](_T_unmarshaler config.U
 		})
 		return
 	}
+}
+
+
+// generated infra types for package svc
+package svc
+
+import (
+	_ "encore.dev/appruntime/app/appinit"
+	"fmt"
+)
+
+func EncoreInternal_stringsKeyMapper(key int) string {
+	return fmt.Sprintf("foo/%v", key)
 }
 // etype package
 package etype

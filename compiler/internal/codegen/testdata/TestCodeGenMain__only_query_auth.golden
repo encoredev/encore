@@ -6,6 +6,7 @@ import (
 	__api "encore.dev/appruntime/api"
 	__appinit "encore.dev/appruntime/app/appinit"
 	__config "encore.dev/appruntime/config"
+	__service "encore.dev/appruntime/service"
 	"reflect"
 	_ "unsafe"
 )
@@ -19,13 +20,14 @@ func loadApp() *__appinit.LoadData {
 			Revision:    "",
 			Uncommitted: false,
 		},
-		AuthData:        reflect.TypeOf((*svc.AuthData)(nil)),
-		BundledServices: []string{"svc"},
-		CORSHeaders:     nil,
-		EncoreCompiler:  "test",
-		PubsubTopics:    map[string]*__config.StaticPubsubTopic{},
-		TestService:     "",
-		Testing:         false,
+		AuthData:          reflect.TypeOf((*svc.AuthData)(nil)),
+		BundledServices:   []string{"svc"},
+		CORSAllowHeaders:  nil,
+		CORSExposeHeaders: nil,
+		EncoreCompiler:    "test",
+		PubsubTopics:      map[string]*__config.StaticPubsubTopic{},
+		TestService:       "",
+		Testing:           false,
 	}
 	handlers := []__api.HandlerRegistration{
 		{
@@ -33,9 +35,11 @@ func loadApp() *__appinit.LoadData {
 			Middleware: nil,
 		},
 	}
+	svcInit := []__service.Initializer{}
 	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: svc.EncoreInternal_AuthHandlerAuthHandler,
+		ServiceInit: svcInit,
 		StaticCfg:   static,
 	}
 }
@@ -236,6 +240,12 @@ to be unmarshalled into the correct types. They are not intended to be used dire
 are automatically updated by Encore whenever you change the data types used within your
 calls to config.Load[T]().
 */
+
+
+// generated infra types for package svc
+package svc
+
+import _ "encore.dev/appruntime/app/appinit"
 // etype package
 package etype
 

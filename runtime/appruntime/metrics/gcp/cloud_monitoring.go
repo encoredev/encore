@@ -17,14 +17,22 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/metadata"
+	"encore.dev/appruntime/metrics/system"
 	"encore.dev/internal/nativehist"
 	"encore.dev/metrics"
 )
 
-func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerolog.Logger) *Exporter {
+func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
+	// Precompute container metadata labels.
 	return &Exporter{
-		svcs:       svcs,
-		cfg:        cfg,
+		svcs: svcs,
+		cfg:  cfg,
+		containerMetadataLabels: map[string]string{
+			"service_id":  meta.ServiceID,
+			"revision_id": meta.RevisionID,
+			"instance_id": meta.InstanceID,
+		},
 		rootLogger: rootLogger,
 
 		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
@@ -34,9 +42,10 @@ func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, rootLogger zerol
 }
 
 type Exporter struct {
-	svcs       []string
-	cfg        *config.GCPCloudMonitoringProvider
-	rootLogger zerolog.Logger
+	svcs                    []string
+	cfg                     *config.GCPCloudMonitoringProvider
+	containerMetadataLabels map[string]string
+	rootLogger              zerolog.Logger
 
 	clientMu sync.Mutex
 	client   *monitoring.MetricClient
@@ -63,6 +72,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	endTime := time.Now()
 
 	data := x.getMetricData(newCounterStart, endTime, collected)
+	data = append(data, x.getSysMetrics(endTime)...)
 	if len(data) == 0 {
 		return nil
 	}
@@ -88,12 +98,12 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 
 	data := make([]*monitoringpb.TimeSeries, 0, len(collected))
 	for _, m := range collected {
-		var baseLabels map[string]string
-		if len(m.Labels) > 0 {
-			baseLabels = make(map[string]string, len(m.Labels))
-			for _, v := range m.Labels {
-				baseLabels[v.Key] = v.Value
-			}
+		baseLabels := make(map[string]string, len(x.containerMetadataLabels)+len(m.Labels))
+		for k, v := range x.containerMetadataLabels {
+			baseLabels[k] = v
+		}
+		for _, v := range m.Labels {
+			baseLabels[v.Key] = v.Value
 		}
 
 		var kind metricpb.MetricDescriptor_MetricKind
@@ -255,19 +265,6 @@ func (x *Exporter) getPoint(newCounterStart, endTime *timestamppb.Timestamp, m *
 	return point, kind
 }
 
-func (x *Exporter) getClient() *monitoring.MetricClient {
-	x.clientMu.Lock()
-	defer x.clientMu.Unlock()
-	if x.client == nil {
-		cl, err := monitoring.NewMetricClient(context.Background())
-		if err != nil {
-			panic(fmt.Sprintf("failed to create metrics client: %s", err))
-		}
-		x.client = cl
-	}
-	return x.client
-}
-
 func floatVal(val float64) *monitoringpb.TypedValue {
 	return &monitoringpb.TypedValue{
 		Value: &monitoringpb.TypedValue_DoubleValue{
@@ -297,4 +294,62 @@ func uint64Val(val uint64) *monitoringpb.TypedValue {
 			Int64Value: int64(val),
 		},
 	}
+}
+
+func (x *Exporter) getSysMetrics(now time.Time) []*monitoringpb.TimeSeries {
+	var output []*monitoringpb.TimeSeries
+	monitoredResource := &monitoredrespb.MonitoredResource{
+		Type:   x.cfg.MonitoredResourceType,
+		Labels: x.cfg.MonitoredResourceLabels,
+	}
+	sysMetrics := system.ReadSysMetrics(x.rootLogger)
+
+	if cloudMetricName, ok := x.metricNames[system.MetricNameHeapObjectsBytes]; !ok {
+		x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", system.MetricNameHeapObjectsBytes)
+	} else {
+		output = append(output, &monitoringpb.TimeSeries{
+			MetricKind: metricpb.MetricDescriptor_GAUGE,
+			Metric: &metricpb.Metric{
+				Type:   "custom.googleapis.com/" + cloudMetricName,
+				Labels: x.containerMetadataLabels,
+			},
+			Resource: monitoredResource,
+			Points: []*monitoringpb.Point{{
+				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
+				Value:    uint64Val(sysMetrics[system.MetricNameHeapObjectsBytes]),
+			}},
+		})
+	}
+
+	if cloudMetricName, ok := x.metricNames[system.MetricNameGoroutines]; !ok {
+		x.rootLogger.Error().Msgf("encore: internal error: metric %s not found in config", system.MetricNameGoroutines)
+	} else {
+		output = append(output, &monitoringpb.TimeSeries{
+			MetricKind: metricpb.MetricDescriptor_GAUGE,
+			Metric: &metricpb.Metric{
+				Type:   "custom.googleapis.com/" + cloudMetricName,
+				Labels: x.containerMetadataLabels,
+			},
+			Resource: monitoredResource,
+			Points: []*monitoringpb.Point{{
+				Interval: &monitoringpb.TimeInterval{EndTime: timestamppb.New(now)},
+				Value:    uint64Val(sysMetrics[system.MetricNameGoroutines]),
+			}},
+		})
+	}
+
+	return output
+}
+
+func (x *Exporter) getClient() *monitoring.MetricClient {
+	x.clientMu.Lock()
+	defer x.clientMu.Unlock()
+	if x.client == nil {
+		cl, err := monitoring.NewMetricClient(context.Background())
+		if err != nil {
+			panic(fmt.Sprintf("failed to create metrics client: %s", err))
+		}
+		x.client = cl
+	}
+	return x.client
 }

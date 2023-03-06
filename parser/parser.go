@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
@@ -313,30 +314,15 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPat
 		numWorkers = 4
 	}
 
+	type result struct {
+		pkg *est.Package
+		err error
+	}
+
 	work := make(chan dirToParse, 100)
-	pkgCh := make(chan *est.Package, numWorkers)
-	errCh := make(chan error, numWorkers)
-	quit := make(chan struct{})
-	workerDone := make(chan struct{}, numWorkers)
+	results := make(chan result, numWorkers)
 
-	worker := func() {
-		defer func() { workerDone <- struct{}{} }()
-		for d := range work {
-			pkg, err := parsePkg(d.dir, d.relPath, d.files)
-			if err != nil {
-				errCh <- err
-				return
-			}
-			if pkg != nil {
-				pkgCh <- pkg
-			}
-		}
-	}
-
-	for i := 0; i < numWorkers; i++ {
-		go worker()
-	}
-
+	// Enqueue all the directories to parse
 	go func() {
 		err := walkDirs(rootDir, func(dir, relPath string, files []fs.DirEntry) error {
 			work <- dirToParse{dir: dir, relPath: relPath, files: files}
@@ -344,27 +330,46 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPat
 		})
 		close(work) // no more work
 		if err != nil {
-			errCh <- err
+			results <- result{err: err}
 		}
 	}()
 
-	defer close(quit)
-	numWorkersDone := 0
-	for numWorkersDone < numWorkers {
-		select {
-		case pkg := <-pkgCh:
-			pkgs = append(pkgs, pkg)
-		case err := <-errCh:
+	// Start the workers
+	var activeWorkers sync.WaitGroup
+	worker := func() {
+		defer activeWorkers.Done()
+		for d := range work {
+			pkg, err := parsePkg(d.dir, d.relPath, d.files)
+			results <- result{pkg: pkg, err: err}
+			if err != nil {
+				return
+			}
+		}
+	}
+	for i := 0; i < numWorkers; i++ {
+		activeWorkers.Add(1)
+		go worker()
+	}
+
+	// When all the workers are done, close the results channel
+	go func() {
+		defer close(results)
+		activeWorkers.Wait()
+	}()
+
+	// Collect the results
+	for result := range results {
+		switch {
+		case result.pkg != nil:
+			pkgs = append(pkgs, result.pkg)
+		case result.err != nil:
 			// If the error is an error list, it means we have a parsing error.
 			// Keep going in that case.
-			if el, ok := err.(scanner.ErrorList); ok {
+			if el, ok := result.err.(scanner.ErrorList); ok {
 				errors = append(errors, el...)
 			} else {
-				return nil, err
+				return nil, result.err
 			}
-
-		case <-workerDone:
-			numWorkersDone++
 		}
 	}
 

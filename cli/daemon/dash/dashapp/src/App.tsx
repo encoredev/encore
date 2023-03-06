@@ -1,13 +1,21 @@
 import React, { FC, useEffect, useState } from "react";
-import { BrowserRouter as Router, Navigate, Route, Routes, useParams } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useParams,
+} from "react-router-dom";
 import Client from "~lib/client/client";
 import JSONRPCConn from "~lib/client/jsonrpc";
 import AppList from "~p/AppList";
 import AppHome from "~p/AppHome";
-import { ConnContext } from "~lib/ctx";
+import { ConnContext, useConn } from "~lib/ctx";
 import AppAPI from "~p/AppAPI";
 import AppDiagram from "~p/AppDiagram";
 import { SnippetContent, SnippetPage } from "~p/SnippetPage";
+import Nav from "~c/Nav";
 
 function App() {
   const [conn, setConn] = useState<JSONRPCConn | undefined>(undefined);
@@ -40,7 +48,7 @@ function App() {
         <Routes>
           <Route path="/" element={<AppList />} />
 
-          <Route path="/:appID">
+          <Route path="/:appID" element={<AppWrapper />}>
             <Route index element={<Redirect to="requests" />} />
 
             <Route path="requests" element={<AppHome />} />
@@ -64,4 +72,14 @@ export default App;
 const Redirect: FC<{ to: string }> = ({ to }) => {
   const params = useParams<{ appID: string }>();
   return <Navigate to={`/${params.appID}/${to}`} replace />;
+};
+
+const AppWrapper: FC = () => {
+  const conn = useConn();
+  return (
+    <>
+      <Nav conn={conn} />
+      <Outlet />
+    </>
+  );
 };

@@ -5,6 +5,7 @@ import React, {
   FC,
   FunctionComponent,
   PropsWithChildren,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -29,6 +30,7 @@ import {
 import { idxColor, latencyStr } from "./util";
 import { copyToClipboard } from "~lib/clipboard";
 import { ClipboardDocumentCheckIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
+import { CircularPropsPassedThroughJSONTree } from "react-json-tree/lib/types/types";
 
 interface Props {
   trace: Trace;
@@ -37,6 +39,7 @@ interface Props {
 }
 
 const SpanDetail: FunctionComponent<Props> = (props) => {
+  const [expandLogs, setExpandLogs] = useState<boolean>(false);
   const req = props.req;
   const tr = props.trace;
   const defLoc = props.trace.locations[req.def_loc];
@@ -149,11 +152,21 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
           <NewRequestInfo req={req} trace={tr} onStackTrace={props.onStackTrace} />
 
           {logs.length > 0 && (
-            <div className="mt-6" ref={logsRef}>
-              <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
-                Logs
-              </h4>
-              <CodeBox>{logs.map((log, i) => renderLog(tr, log, i, props.onStackTrace))}</CodeBox>
+            <div className="mt-6">
+              <div className="flex items-baseline justify-between">
+                <h4 className="mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
+                  Logs
+                </h4>
+                <span
+                  className="flex cursor-pointer select-none items-center text-xs normal-case underline"
+                  onClick={() => setExpandLogs(!expandLogs)}
+                >
+                  {expandLogs ? icons.collapseAll("h-4 w-4") : icons.expandAll("h-4 w-4")}
+                </span>
+              </div>
+              <CodeBox className="overflow-auto">
+                {logs.map((log, i) => renderLogWithJSON(tr, log, i, expandLogs))}
+              </CodeBox>
             </div>
           )}
         </div>
@@ -230,7 +243,9 @@ const NewRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) 
           Message
         </h4>
         {req.request_payload ? (
-          <PayloadViewer payload={req.request_payload} />
+          <CodeBox>
+            <PayloadViewer payload={req.request_payload} />
+          </CodeBox>
         ) : (
           <div className="text-gray-700 text-sm">No message data.</div>
         )}
@@ -374,8 +389,17 @@ const RequestURL: FC<{ method: string; path: string }> = (props) => {
   );
 };
 
-const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
-  const decoded = decodeBase64(payload);
+const PayloadViewer: FC<{
+  payload: Base64EncodedBytes | string;
+  hideRoot?: boolean;
+  shouldExpandNode?: CircularPropsPassedThroughJSONTree["shouldExpandNode"];
+}> = ({ payload, hideRoot, shouldExpandNode }) => {
+  let decoded = "";
+  try {
+    decoded = decodeBase64(payload);
+  } catch (e) {
+    decoded = payload;
+  }
   let jsonObj: any = undefined;
   try {
     jsonObj = JSON.parse(decoded);
@@ -406,15 +430,16 @@ const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
   return jsonObj !== undefined ? (
     <div className="json-tree whitespace-normal [&_svg]:inline-block [&_.data-key]:align-top">
       <JSONTree
+        hideRoot={!!hideRoot}
         data={jsonObj}
-        shouldExpandNode={() => true}
+        shouldExpandNode={shouldExpandNode ? shouldExpandNode : () => true}
         valueRenderer={(raw, value) => {
           if (typeof value === "string") {
             return <StringValueRenderer str={value} collapseStringsAfterLength={100} />;
           }
           return raw;
         }}
-        labelRenderer={(keyPath, nodeType, expanded, expandable) => {
+        labelRenderer={(keyPath) => {
           if (keyPath.length === 1 && keyPath[0] === "root") return "";
           return <span>{keyPath[0]}:</span>;
         }}
@@ -428,6 +453,7 @@ const PayloadViewer: FC<{ payload: Base64EncodedBytes }> = ({ payload }) => {
             className: "nested-node",
             style: {
               ...style,
+              paddingLeft: "2px",
             },
           }),
         }}
@@ -1260,59 +1286,42 @@ const renderPayload = (data: Base64EncodedBytes) => {
   );
 };
 
-const renderLog = (tr: Trace, log: LogMessage, key: any, onStackTrace: (s: Stack) => void) => {
+const renderLogWithJSON = (tr: Trace, log: LogMessage, key: any, expandFields: boolean) => {
   let dt = timeToDate(tr.date)!;
   const ms = (log.time - tr.start_time) / 1000;
   dt = dt.plus(Duration.fromMillis(ms));
 
-  const render = (v: any) => {
-    if (v !== null) {
-      return JSON.stringify(v);
-    }
-    return v;
-  };
+  const payload = useMemo<string>(() => {
+    const obj: Record<string, any> = {};
+    log.fields.forEach((logField, index) => (obj[logField.key] = logField.value));
+    return JSON.stringify(obj);
+  }, [log.fields]);
 
   return (
-    <div key={key} className="flex items-center gap-x-1.5">
-      <button className="-ml-2 -mr-1 focus:outline-none" onClick={() => onStackTrace(log.stack)}>
-        {icons.stackTrace("m-1 h-4 w-auto")}
-      </button>
-      <span className="text-lightgray">{dt.toFormat("HH:mm:ss.SSS")}</span>
+    <div key={key} className="mb-5 last:mb-0">
+      <span className="text-lightgray">{dt.toFormat("HH:mm:ss.SSS")} </span>
       {log.level === "TRACE" ? (
-        <span className="text-lightgray">TRC</span>
+        <span className="text-lightgray">TRC </span>
       ) : log.level === "DEBUG" ? (
-        <span className="text-lightgray">DBG</span>
+        <span className="text-lightgray">DBG </span>
       ) : log.level === "INFO" ? (
-        <span className="text-codeblue">INF</span>
+        <span className="text-codeblue">INF </span>
       ) : log.level === "WARN" ? (
-        <span className="text-codeorange">WRN</span>
+        <span className="text-codeorange">WRN </span>
       ) : (
-        <span className="text-red">ERR</span>
+        <span className="text-red">ERR </span>
       )}
       {log.msg}
-      {log.fields.map((f, i) => (
-        <span key={i} className="inline-flex items-center">
-          {f.stack ? (
-            <>
-              <button
-                className="text-red-800 hover:text-red-600 focus:outline-none"
-                onClick={() => onStackTrace(f.stack!)}
-              >
-                {icons.stackTrace("h-4 w-auto")}
-              </button>
-              <span className="text-red">{f.key}</span>
-              <span className="text-lightgray text-opacity-50">=</span>
-              <span className="text-red">{render(f.value)}</span>
-            </>
-          ) : (
-            <>
-              <span className="text-codeblue">{f.key}</span>
-              <span className="text-lightgray text-opacity-50">=</span>
-              {render(f.value)}
-            </>
-          )}
-        </span>
-      ))}
+      <PayloadViewer
+        hideRoot
+        payload={payload}
+        shouldExpandNode={(keyPath, data, level) => {
+          if (expandFields) return true;
+          // collapse first level objects by default to get an overview of the payload
+          if (level === 1 && typeof data === "object") return false;
+          return true;
+        }}
+      />
     </div>
   );
 };

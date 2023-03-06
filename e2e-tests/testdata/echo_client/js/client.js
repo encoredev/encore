@@ -36,7 +36,6 @@ export default class Client {
         this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
-        this.flakey_di = new flakey_di.ServiceClient(base)
         this.middleware = new middleware.ServiceClient(base)
         this.test = new test.ServiceClient(base)
         this.validation = new validation.ServiceClient(base)
@@ -283,22 +282,6 @@ class EndtoendServiceClient {
 
 export const endtoend = {
     ServiceClient: EndtoendServiceClient
-}
-
-class Flakey_diServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async Flakey() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/di/flakey`)
-        return await resp.json()
-    }
-}
-
-export const flakey_di = {
-    ServiceClient: Flakey_diServiceClient
 }
 
 class MiddlewareServiceClient {

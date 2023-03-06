@@ -146,6 +146,29 @@ func TestCodeGenMain(t *testing.T) {
 				} else if err != nil {
 					c.Fatalf("got config unmarshalers error: \n%s", err.Error())
 				}
+
+				for _, pkg := range svc.Pkgs {
+					f, err := bld.Infra(pkg)
+					if err != nil {
+						c.Fatalf("got infra error: \n%s", err.Error())
+					}
+					if f != nil {
+						var buf bytes.Buffer
+						fmt.Fprintf(&buf, "\n\n// generated infra types for package %s\n", pkg.Name)
+						err = f.Render(&buf)
+						if err != nil {
+							c.Fatalf("got render error: \n%s", err.Error())
+						}
+						c.Assert(err, qt.IsNil)
+						code := buf.Bytes()
+						fs := token.NewFileSet()
+						_, err = goparser.ParseFile(fs, c.Name()+".go", code, goparser.AllErrors)
+						if err != nil {
+							c.Fatalf("got parse error: \n%s\ncode:\n%s", err.Error(), code)
+						}
+						combined.Write(code)
+					}
+				}
 			}
 
 			// Etype package

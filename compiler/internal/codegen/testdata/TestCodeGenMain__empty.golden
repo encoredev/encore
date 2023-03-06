@@ -5,6 +5,7 @@ import (
 	__api "encore.dev/appruntime/api"
 	__appinit "encore.dev/appruntime/app/appinit"
 	__config "encore.dev/appruntime/config"
+	__service "encore.dev/appruntime/service"
 	_ "unsafe"
 )
 
@@ -17,18 +18,21 @@ func loadApp() *__appinit.LoadData {
 			Revision:    "",
 			Uncommitted: false,
 		},
-		AuthData:        nil,
-		BundledServices: []string{},
-		CORSHeaders:     nil,
-		EncoreCompiler:  "test",
-		PubsubTopics:    map[string]*__config.StaticPubsubTopic{},
-		TestService:     "",
-		Testing:         false,
+		AuthData:          nil,
+		BundledServices:   []string{},
+		CORSAllowHeaders:  nil,
+		CORSExposeHeaders: nil,
+		EncoreCompiler:    "test",
+		PubsubTopics:      map[string]*__config.StaticPubsubTopic{},
+		TestService:       "",
+		Testing:           false,
 	}
 	handlers := []__api.HandlerRegistration{}
+	svcInit := []__service.Initializer{}
 	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: nil,
+		ServiceInit: svcInit,
 		StaticCfg:   static,
 	}
 }
