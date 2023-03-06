@@ -1,0 +1,55 @@
+-- code.go --
+package code
+
+import ("context"; "encore.dev/beta/auth")
+
+type MyAuthParams struct {
+	ClientID string `header:"X-Client-ID"`
+	APIKey   string `query:"key"`
+}
+
+//encore:authhandler
+func AuthHandler(ctx context.Context, p *MyAuthParams) (auth.UID, error) {
+    return "", nil
+}
+-- want:encore_internal__authhandler.go --
+package code
+
+import (
+	"context"
+	__api "encore.dev/appruntime/api"
+	__etype "encore.dev/appruntime/etype"
+	__model "encore.dev/appruntime/model"
+	errs "encore.dev/beta/errs"
+	"net/http"
+)
+
+var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*MyAuthParams]{
+	AuthHandler: func(ctx context.Context, params *MyAuthParams) (info __model.AuthInfo, err error) {
+		info.UID, err = AuthHandler(ctx, params)
+		return info, err
+	},
+	DecodeAuth: func(httpReq *http.Request) (params *MyAuthParams, err error) {
+		params = new(MyAuthParams)
+		dec := new(__etype.Unmarshaller)
+		// Decode headers
+		h := httpReq.Header
+		params.ClientID = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "ClientID", h.Get("x-client-id"), false)
+
+		// Decode query string
+		qs := httpReq.URL.Query()
+		params.APIKey = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "APIKey", qs.Get("key"), false)
+
+		if dec.NonEmptyValues == 0 {
+			return nil, errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
+		} else if err := dec.Error; err != nil {
+			return nil, errs.B().Code(errs.InvalidArgument).Msgf("invalid auth param: %v", err).Err()
+		}
+		return params, nil
+	},
+	DefLoc:      0,
+	Endpoint:    "AuthHandler",
+	HasAuthData: false,
+	Service:     "SERVICE",
+	SvcNum:      0,
+}

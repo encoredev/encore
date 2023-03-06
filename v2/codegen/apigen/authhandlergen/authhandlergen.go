@@ -68,6 +68,7 @@ func renderDecodeAuth(gen *codegen.Generator, f *codegen.File, ah *authhandler.A
 		}
 
 		dec := gu.NewTypeUnmarshaller("dec")
+		g.Add(dec.Init())
 		apigenutil.DecodeHeaders(g, Id("httpReq"), Id("params"), dec, enc.HeaderParameters)
 		apigenutil.DecodeQuery(g, Id("httpReq"), Id("params"), dec, enc.QueryParameters)
 
