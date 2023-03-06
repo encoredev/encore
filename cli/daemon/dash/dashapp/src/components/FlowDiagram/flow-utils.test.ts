@@ -30,7 +30,7 @@ describe("Graph Utils", () => {
         type: "service",
         id: "service:service-1",
         labels: [{ text: "service-1" }],
-        service_name: "service-1",
+        name: "service-1",
         has_database: false,
         cron_jobs: [],
         height: 57,
@@ -53,6 +53,7 @@ describe("Graph Utils", () => {
       expect(nodes[0]).toEqual({
         id: "topic:topic-1",
         type: "topic",
+        name: "topic-1",
         labels: [{ text: "topic-1" }],
         ports: [
           {

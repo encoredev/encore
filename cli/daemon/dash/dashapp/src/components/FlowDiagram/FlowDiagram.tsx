@@ -66,26 +66,30 @@ function usePanzoom() {
 interface Props {
   metaData?: APIMeta;
   infraData?: GetInfraResourcesQuery;
-  serviceDetailedView?: string;
-  onChangeServiceDetailedView?: (serviceName?: string) => void;
+  detailedViewNode?: string;
+  onChangeDetailedViewNode: (serviceName?: string) => void;
 }
 
 export const FlowDiagram: FC<Props> = ({
   metaData,
   infraData,
-  serviceDetailedView,
-  onChangeServiceDetailedView,
+  detailedViewNode,
+  onChangeDetailedViewNode,
 }) => {
   const [completeNodeData, setCompleteNodeData] = useState<NodeData>();
   const [displayNodeData, setDisplayNodeData] = useState<NodeData>();
   const [hoveringNode, setHoveringNode] = useState<NodeData | null>(null);
   const [activeDependencies, setActiveDependencies] = useState<string[] | null>(null);
-  const [detailedViewNode, setDetailedViewNode] = useState<NodeData | null>(null);
   const [isInitialRender, setIsInitialRender] = useState<boolean>(true);
   const [isLoadingScreenshot, setIsLoadingScreenshot] = useState<boolean>(false);
   const screenshotRef = useRef<HTMLDivElement>(null);
   const downloadDiagram = useDownloadDiagram(screenshotRef);
   const { ref: zoomRef, panZoomRef } = usePanzoom();
+  const detailedViewNodeID = completeNodeData?.children?.find((node) => {
+    if ((node.type === "service" || node.type === "topic") && detailedViewNode) {
+      return node.name === detailedViewNode;
+    }
+  })?.id;
 
   const onDownloadScreenshot = () => {
     setIsLoadingScreenshot(true);
@@ -98,7 +102,7 @@ export const FlowDiagram: FC<Props> = ({
   };
 
   const getNumberOfEndpoints = (node: ServiceNode) => {
-    const svc = metaData?.svcs.find((s) => s.name === node.service_name);
+    const svc = metaData?.svcs.find((s) => s.name === node.name);
     const endpoints = { public: 0, auth: 0, private: 0 };
     svc?.rpcs.forEach((rpc) => {
       if (rpc.access_type === "PUBLIC") endpoints.public++;
@@ -135,9 +139,8 @@ export const FlowDiagram: FC<Props> = ({
   };
 
   const onNodeClick = (node: NodeData) => {
-    setDetailedViewNode(node);
-    if (node.type === "service" && onChangeServiceDetailedView) {
-      onChangeServiceDetailedView(node.service_name);
+    if (node.type === "service" || node.type === "topic") {
+      onChangeDetailedViewNode(node.name);
     }
   };
   getOutboundDependencies;
@@ -170,7 +173,9 @@ export const FlowDiagram: FC<Props> = ({
     if (metaData) {
       getAppLayoutData(metaData).then((data) => {
         setCompleteNodeData(data);
-        setDisplayNodeData(data);
+        if (!detailedViewNode) {
+          setDisplayNodeData(data);
+        }
       });
     }
     if (infraData) {
@@ -183,28 +188,25 @@ export const FlowDiagram: FC<Props> = ({
 
   useEffect(() => {
     const serviceNode = completeNodeData?.children?.find((node) => {
-      if (node.type === "service" && serviceDetailedView) {
-        return node.service_name === serviceDetailedView;
+      if ((node.type === "service" || node.type === "topic") && detailedViewNode) {
+        return node.name === detailedViewNode;
       }
     });
-    setDetailedViewNode(serviceNode ?? null);
-  }, [serviceDetailedView, completeNodeData]);
 
-  useEffect(() => {
     const nodeIDs: string[] = [];
-    if (detailedViewNode) {
+    if (serviceNode) {
       nodeIDs.push(
-        detailedViewNode.id,
-        ...getOutboundDependencies(detailedViewNode),
-        ...getInboundDependencies(detailedViewNode)
+        serviceNode.id,
+        ...getOutboundDependencies(serviceNode),
+        ...getInboundDependencies(serviceNode)
       );
     }
     if (metaData) {
-      getAppLayoutData(metaData, detailedViewNode?.id, nodeIDs).then((data) => {
+      getAppLayoutData(metaData, serviceNode?.id, nodeIDs).then((data) => {
         setDisplayNodeData(data);
       });
     }
-  }, [detailedViewNode, metaData]);
+  }, [detailedViewNode, completeNodeData]);
 
   if (!displayNodeData) return null;
 
@@ -306,7 +308,7 @@ export const FlowDiagram: FC<Props> = ({
                         <EdgeLabelSVG
                           edge={getCoordinatePointsForEdge(edge)}
                           isActive={
-                            detailedViewNode?.id === edge.sources[0] ||
+                            detailedViewNodeID === edge.sources[0] ||
                             hoveringNode?.id === edge.sources[0]
                           }
                         />
@@ -324,10 +326,7 @@ export const FlowDiagram: FC<Props> = ({
           <Button
             kind="primary"
             onClick={() => {
-              setDetailedViewNode(null);
-              if (onChangeServiceDetailedView) {
-                onChangeServiceDetailedView(undefined);
-              }
+              onChangeDetailedViewNode(undefined);
             }}
           >
             <ArrowSmallLeftIcon className="mr-2 h-4 w-4" />

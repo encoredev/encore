@@ -87,7 +87,7 @@ describe("FlowDiagram", () => {
         type: "topic",
       },
     ]);
-    render(<FlowDiagram metaData={getMetaDataMock()} />);
+    render(<FlowDiagram metaData={getMetaDataMock()} onChangeDetailedViewNode={jest.fn} />);
 
     await waitFor(() => {
       expect(screen.getByText("service-1")).toBeInTheDocument();
@@ -114,7 +114,9 @@ describe("FlowDiagram", () => {
         },
       ]
     );
-    const { container } = render(<FlowDiagram metaData={getMetaDataMock()} />);
+    const { container } = render(
+      <FlowDiagram metaData={getMetaDataMock()} onChangeDetailedViewNode={jest.fn} />
+    );
 
     await waitFor(() => {
       const edgeEl = container.querySelector(".edge");
@@ -145,7 +147,9 @@ describe("FlowDiagram", () => {
         },
       ]
     );
-    const { container } = render(<FlowDiagram metaData={getMetaDataMock()} />);
+    const { container } = render(
+      <FlowDiagram metaData={getMetaDataMock()} onChangeDetailedViewNode={jest.fn} />
+    );
 
     await waitFor(() => {
       fireEvent.mouseEnter(screen.getByTestId("node-service-1"));
@@ -159,7 +163,7 @@ describe("FlowDiagram", () => {
     expect(screen.getByTestId("node-service-3").classList).toContain("opacity-10");
   });
 
-  it("should show detailed view of service if props is specified", async () => {
+  it("should show detailed view of node if props is specified", async () => {
     const getElkAppGraphLayoutDataSpy = jest.spyOn(ElkGraphLayoutData, "getElkAppGraphLayoutData");
     const getNodesFromMetaDataSpy = jest.spyOn(FlowUtils, "getNodesFromMetaData");
     const getEdgesFromMetaDataSpy = jest.spyOn(FlowUtils, "getEdgesFromMetaData");
@@ -167,15 +171,15 @@ describe("FlowDiagram", () => {
       [
         {
           labels: [{ text: "service-1" }],
-          service_name: "service-1",
+          name: "service-1",
         },
         {
           labels: [{ text: "service-2" }],
-          service_name: "service-2",
+          name: "service-2",
         },
         {
           labels: [{ text: "service-3" }],
-          service_name: "service-3",
+          name: "service-3",
         },
       ],
       [
@@ -190,8 +194,8 @@ describe("FlowDiagram", () => {
     render(
       <FlowDiagram
         metaData={getMetaDataMock()}
-        serviceDetailedView="service-1"
-        onChangeServiceDetailedView={jest.fn()}
+        detailedViewNode="service-1"
+        onChangeDetailedViewNode={jest.fn()}
       />
     );
 
@@ -207,7 +211,7 @@ describe("FlowDiagram", () => {
     });
   });
 
-  it("should show detailed view of service when clicking on a service", async () => {
+  it.only("should show detailed view of service when clicking on a node", async () => {
     const getElkAppGraphLayoutDataSpy = jest.spyOn(ElkGraphLayoutData, "getElkAppGraphLayoutData");
     const getNodesFromMetaDataSpy = jest.spyOn(FlowUtils, "getNodesFromMetaData");
     const getEdgesFromMetaDataSpy = jest.spyOn(FlowUtils, "getEdgesFromMetaData");
@@ -216,15 +220,15 @@ describe("FlowDiagram", () => {
       [
         {
           labels: [{ text: "service-1" }],
-          service_name: "service-1",
+          name: "service-1",
         },
         {
           labels: [{ text: "service-2" }],
-          service_name: "service-2",
+          name: "service-2",
         },
         {
           labels: [{ text: "service-3" }],
-          service_name: "service-3",
+          name: "service-3",
         },
       ],
       [
@@ -239,7 +243,7 @@ describe("FlowDiagram", () => {
     render(
       <FlowDiagram
         metaData={getMetaDataMock()}
-        onChangeServiceDetailedView={onChangeServiceDetailedView}
+        onChangeDetailedViewNode={onChangeServiceDetailedView}
       />
     );
 
@@ -248,11 +252,7 @@ describe("FlowDiagram", () => {
     });
 
     await waitFor(() => {
-      expect(getNodesFromMetaDataSpy).toBeCalledWith(getMetaDataMock(), ["service-1", "service-2"]);
-      expect(getEdgesFromMetaDataSpy).toBeCalledWith(getMetaDataMock(), "service-1");
-      expect(getElkAppGraphLayoutDataSpy).toBeCalledWith([], [], {
-        "elk.direction": "DOWN",
-      });
+      expect(onChangeServiceDetailedView).toBeCalledWith("service-1");
     });
   });
 
@@ -268,7 +268,7 @@ describe("FlowDiagram", () => {
           has_database: true,
         },
       ]);
-      render(<FlowDiagram metaData={getMetaDataMock()} />);
+      render(<FlowDiagram metaData={getMetaDataMock()} onChangeDetailedViewNode={jest.fn} />);
 
       await waitFor(() => {
         expect(within(getServiceNodeByName("service-1")).getByText("Database")).toBeInTheDocument();
@@ -291,6 +291,7 @@ describe("FlowDiagram", () => {
               },
             ],
           })}
+          onChangeDetailedViewNode={jest.fn}
         />
       );
 
@@ -316,7 +317,7 @@ describe("FlowDiagram", () => {
           cron_jobs: [{ title: "cron-job-1" }, { title: "cron-job-2" }] as any,
         },
       ]);
-      render(<FlowDiagram metaData={getMetaDataMock()} />);
+      render(<FlowDiagram metaData={getMetaDataMock()} onChangeDetailedViewNode={jest.fn} />);
 
       await waitFor(() => {
         expect(

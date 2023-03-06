@@ -21,13 +21,14 @@ interface BaseNode extends ElkNode {
 
 export interface ServiceNode extends BaseNode {
   type: "service";
-  service_name: string;
+  name: string;
   has_database: boolean;
   cron_jobs: CronJob[];
 }
 
 export interface TopicNode extends BaseNode {
   type: "topic";
+  name: string;
 }
 
 export interface InfraNode extends BaseNode {
@@ -109,7 +110,7 @@ export const getNodesFromMetaData = (metaData: APIMeta, nodesToShow: string[] = 
       id: serviceID(svc.name),
       labels: [{ text: svc.name }],
       type: "service",
-      service_name: svc.name,
+      name: svc.name,
       has_database: hasDatabase,
       cron_jobs: cronJobs,
       width: getServiceNodeWidth(svc.name),
@@ -121,6 +122,7 @@ export const getNodesFromMetaData = (metaData: APIMeta, nodesToShow: string[] = 
   metaData.pubsub_topics.forEach((topic) => {
     nodes.push({
       id: topicID(topic.name),
+      name: topic.name,
       labels: [{ text: topic.name }],
       type: "topic",
       ports: [{ id: topicID(topic.name) + ":port" }],
