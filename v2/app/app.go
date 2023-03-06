@@ -48,7 +48,8 @@ type Service struct {
 // application description.
 func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	d := &Desc{
-		errs: pc.Errs,
+		errs:           pc.Errs,
+		InfraResources: result.InfraResources,
 	}
 
 	fw := &apiframework.AppDesc{}

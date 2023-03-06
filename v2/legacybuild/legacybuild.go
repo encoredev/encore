@@ -81,7 +81,7 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 	pd := p.Parse.Data.(*parseData)
 
 	gg := codegen.New(pd.pc)
-	infragen.Process(gg, pd.appDesc.InfraResources)
+	infragen.Process(gg, pd.appDesc)
 	apigen.Process(gg, pd.appDesc)
 
 	defer func() {

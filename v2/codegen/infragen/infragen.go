@@ -2,6 +2,7 @@ package infragen
 
 import (
 	"encr.dev/pkg/fns"
+	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/infragen/cachegen"
 	"encr.dev/v2/codegen/infragen/configgen"
@@ -15,13 +16,13 @@ import (
 	"encr.dev/v2/parser/infra/resource/secrets"
 )
 
-func Process(gg *codegen.Generator, resources []resource.Resource) {
+func Process(gg *codegen.Generator, appDesc *app.Desc) {
 	type groupKey struct {
 		pkg  paths.Pkg
 		kind resource.Kind
 	}
 	groups := make(map[groupKey][]resource.Resource)
-	for _, r := range resources {
+	for _, r := range appDesc.InfraResources {
 		key := groupKey{r.DeclaredIn().Pkg.ImportPath, r.Kind()}
 		groups[key] = append(groups[key], r)
 	}
@@ -42,7 +43,13 @@ func Process(gg *codegen.Generator, resources []resource.Resource) {
 				return r.(*secrets.Secrets)
 			}))
 		case resource.ConfigLoad:
-			configgen.Gen(gg, pkg, fns.Map(resources, func(r resource.Resource) *config.Load {
+			svc, ok := appDesc.FrameworkServiceForPkg(pkg.ImportPath)
+			if !ok {
+				gg.Errs.Addf(resources[0].ASTExpr().Pos(), "config loads must be declared in a service package")
+				continue
+			}
+
+			configgen.Gen(gg, svc, pkg, fns.Map(resources, func(r resource.Resource) *config.Load {
 				return r.(*config.Load)
 			}))
 		}

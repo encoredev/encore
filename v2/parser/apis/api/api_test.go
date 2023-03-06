@@ -81,7 +81,7 @@ func Foo(ctx context.Context, key string) error {}
 		{
 			name: "with_int_param",
 			def: `
-//encore:api auth path=/:key
+//encore:api auth path=/foo/:key
 func Foo(ctx context.Context, key int) error {}
 `,
 			want: &Endpoint{
@@ -89,6 +89,7 @@ func Foo(ctx context.Context, key int) error {}
 				Doc:    "",
 				Access: Auth,
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
+					{Type: apipaths.Literal, Value: "foo", ValueType: schema2.String},
 					{Type: apipaths.Param, Value: "key", ValueType: schema2.Int},
 				}},
 				HTTPMethods: []string{"GET", "POST"},

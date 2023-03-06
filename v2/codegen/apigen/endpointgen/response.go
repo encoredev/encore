@@ -78,7 +78,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 					for _, f := range resp.HeaderParameters {
 						if builtin, ok := f.Type.(schema.BuiltinType); ok {
 							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(d.respDataPayloadName()).Dot(f.SrcName))
-							dict[Lit(f.WireName)] = encExpr
+							dict[Lit(f.WireName)] = Index().String().Values(encExpr)
 						} else {
 							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
 						}

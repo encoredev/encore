@@ -37,10 +37,8 @@ func (d *requestDesc) TypeDecl() *Statement {
 		if d.ep.Request != nil {
 			g.Id(d.reqDataPayloadName()).Add(d.gu.Type(d.ep.Request))
 		}
-		for i, seg := range d.ep.Path.Segments {
-			if seg.Type != apipaths.Literal {
-				g.Id(d.pathParamFieldName(i)).Add(d.gu.Builtin(d.ep.Decl.AST.Pos(), seg.ValueType))
-			}
+		for i, seg := range d.ep.Path.Params() {
+			g.Id(d.pathParamFieldName(i)).Add(d.gu.Builtin(d.ep.Decl.AST.Pos(), seg.ValueType))
 		}
 	})
 }

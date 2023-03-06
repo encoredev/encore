@@ -10,6 +10,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/eerror"
+	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internal/perr"
@@ -19,7 +20,7 @@ import (
 	"encr.dev/v2/parser/infra/resource/config"
 )
 
-func Gen(gen *codegen.Generator, pkg *pkginfo.Package, loads []*config.Load) {
+func Gen(gen *codegen.Generator, svc *app.Service, pkg *pkginfo.Package, loads []*config.Load) {
 	f := gen.File(pkg, "config_unmarshal")
 
 	builder := &configUnmarshalersBuilder{
@@ -64,7 +65,7 @@ calls to config.Load[T]().`)
 	for _, load := range loads {
 		rw := gen.Rewrite(load.File)
 		var buf bytes.Buffer
-		buf.WriteString(strconv.Quote("SERVICE")) // TODO(andre) used to be service name
+		buf.WriteString(strconv.Quote(svc.Name)) // TODO(andre) used to be service name
 		buf.WriteString(", ")
 		buf.WriteString(ConfigUnmarshalFuncName(gen.Util, load.Type))
 		ep := gen.FS.Position(load.FuncCall.Rparen)
