@@ -12,15 +12,15 @@ package basic
 
 import (
 	"context"
-	api "encore.dev/appruntime/api"
-	model "encore.dev/appruntime/model"
+	__api "encore.dev/appruntime/api"
+	__model "encore.dev/appruntime/model"
 	errs "encore.dev/beta/errs"
 	"net/http"
 	"strings"
 )
 
-var EncoreInternal_authhandler_AuthDesc_AuthHandler = &api.AuthHandlerDesc[string]{
-	AuthHandler: func(ctx context.Context, params string) (info model.AuthInfo, err error) {
+var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[string]{
+	AuthHandler: func(ctx context.Context, params string) (info __model.AuthInfo, err error) {
 		info.UID, err = AuthHandler(ctx, params)
 		return info, err
 	},

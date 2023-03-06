@@ -16,9 +16,9 @@ package basic
 
 import (
 	"context"
-	api "encore.dev/appruntime/api"
-	etype "encore.dev/appruntime/etype"
-	go1 "github.com/json-iterator/go"
+	__api "encore.dev/appruntime/api"
+	__etype "encore.dev/appruntime/etype"
+	jsoniter "github.com/json-iterator/go"
 	"net/http"
 	"strings"
 )
@@ -29,8 +29,8 @@ type EncoreInternal_FooReq struct {
 
 type EncoreInternal_FooResp struct{}
 
-var EncoreInternal_api_APIDesc_Foo = &api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
-	Access: api.Public,
+var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
+	Access: __api.Public,
 	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
 		err := Foo(ctx, reqData.Payload)
 		if err != nil {
@@ -40,38 +40,38 @@ var EncoreInternal_api_APIDesc_Foo = &api.Desc[*EncoreInternal_FooReq, *EncoreIn
 	},
 	CloneReq: func(r *EncoreInternal_FooReq) (*EncoreInternal_FooReq, error) {
 		var clone *EncoreInternal_FooReq
-		bytes, err := go1.ConfigDefault.Marshal(r)
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
 		if err == nil {
-			err = go1.ConfigDefault.Unmarshal(bytes, &clone)
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
 		}
 		return clone, err
 	},
 	CloneResp: func(r *EncoreInternal_FooResp) (*EncoreInternal_FooResp, error) {
 		var clone *EncoreInternal_FooResp
-		bytes, err := go1.ConfigDefault.Marshal(r)
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
 		if err == nil {
-			err = go1.ConfigDefault.Unmarshal(bytes, &clone)
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
 		}
 		return clone, err
 	},
-	DecodeReq: func(httpReq *http.Request, ps api.UnnamedParams, json go1.API) (reqData *EncoreInternal_FooReq, pathParams api.UnnamedParams, err error) {
+	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
 		reqData = new(EncoreInternal_FooReq)
-		dec := new(etype.Unmarshaller)
+		dec := new(__etype.Unmarshaller)
 		params := new(Params)
 		reqData.Payload = params
 		switch m := httpReq.Method; m {
 		case "GET":
 			// Decode query string
 			qs := httpReq.URL.Query()
-			params.String = etype.UnmarshalOne(dec, etype.UnmarshalString, "String", qs.Get("string"), false)
-			params.Int = etype.UnmarshalOne(dec, etype.UnmarshalInt, "Int", qs.Get("int"), false)
+			params.String = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "String", qs.Get("string"), false)
+			params.Int = __etype.UnmarshalOne(dec, __etype.UnmarshalInt, "Int", qs.Get("int"), false)
 
 		case "POST":
 			// Decode request body
 			payload := dec.ReadBody(httpReq.Body)
-			iter := go1.ParseBytes(json, payload)
+			iter := jsoniter.ParseBytes(json, payload)
 
-			for iter.ReadObjectCB(func(_ *go1.Iterator, key string) bool {
+			for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
 				switch strings.ToLower(key) {
 				case "string":
 					dec.ParseJSON("String", iter, &params.String)
@@ -92,7 +92,7 @@ var EncoreInternal_api_APIDesc_Foo = &api.Desc[*EncoreInternal_FooReq, *EncoreIn
 		}
 		return reqData, ps, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json go1.API, resp *EncoreInternal_FooResp) (err error) {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *EncoreInternal_FooResp) (err error) {
 		return nil
 	},
 	Endpoint:       "Foo",
@@ -102,7 +102,7 @@ var EncoreInternal_api_APIDesc_Foo = &api.Desc[*EncoreInternal_FooReq, *EncoreIn
 	Raw:            false,
 	RawHandler:     nil,
 	RawPath:        "/basic.Foo",
-	ReqPath: func(reqData *EncoreInternal_FooReq) (string, api.UnnamedParams, error) {
+	ReqPath: func(reqData *EncoreInternal_FooReq) (string, __api.UnnamedParams, error) {
 		return "/basic.Foo", nil, nil
 	},
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
