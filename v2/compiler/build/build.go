@@ -4,8 +4,6 @@ package build
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
 	"go/token"
 	"os"
 	"os/exec"
@@ -38,16 +36,6 @@ type Config struct {
 	KeepOutput bool
 }
 
-// OverlayFile describes a file to generate or rewrite.
-type OverlayFile struct {
-	// Source is where on the filesystem the original file (in the case of a rewrite)
-	// or where the generated file should be overlaid into.
-	Source paths.FS
-
-	// Contents are the file contents of the overlaid file.
-	Contents []byte
-}
-
 type Result struct {
 	Dir paths.FS
 	Exe paths.FS
@@ -70,8 +58,8 @@ type builder struct {
 	// errs is the error list to use.
 	errs *perr.List
 
-	// o is the overlay to use
-	o *overlays
+	// overlays are the additional overlay files to apply.
+	overlays []overlay.File
 
 	// workdir is the temporary workdir for the build.
 	workdir paths.FS
@@ -82,8 +70,15 @@ func (b *builder) Build() *Result {
 	if err != nil {
 		b.errs.AddStd(err)
 	}
-	b.workdir = paths.RootedFSPath(workdir, workdir)
-	b.o = newOverlay(b.errs, b.workdir)
+	// NOTE(andre): There appears to be a bug in go's handling of overlays
+	// when the source or destination is a symlink.
+	// I haven't dug into the root cause exactly, but it causes weird issues
+	// with tests since macOS's /var/tmp is a symlink to /private/var/tmp.
+	if d, err := filepath.EvalSymlinks(workdir); err == nil {
+		workdir = d
+	}
+
+	b.workdir = paths.RootedFSPath(workdir, ".")
 
 	defer func() {
 		// If we have a bailout or any errors, delete the workdir.
@@ -102,7 +97,6 @@ func (b *builder) Build() *Result {
 	for _, fn := range []func(){
 		b.writeModFile,
 		b.writeSumFile,
-		b.applyRewrites,
 		b.buildMain,
 	} {
 		fn()
@@ -157,8 +151,11 @@ func (b *builder) writeModFile() {
 	}
 	mergeModfiles(mainMod, runtimeModfile)
 
-	modBytes := modfile.Format(mainMod.Syntax)
-	b.o.Add(b.cfg.Ctx.MainModuleDir.Join("go.mod"), "go.mod", modBytes)
+	data := modfile.Format(mainMod.Syntax)
+	if err := os.WriteFile(b.gomodPath().ToIO(), data, 0o644); err != nil {
+		b.errs.Addf(token.NoPos, "unable to write go.mod: %v", err)
+		return
+	}
 }
 
 func (b *builder) writeSumFile() {
@@ -176,21 +173,20 @@ func (b *builder) writeSumFile() {
 		appSum = append(appSum, '\n')
 	}
 	data := append(appSum, runtimeSum...)
-	b.o.Add(b.cfg.Ctx.MainModuleDir.Join("go.sum"), "go.sum", data)
-}
 
-func (b *builder) applyRewrites() {
-	for _, f := range b.cfg.Overlays {
-		io := f.Source.ToIO()
-		baseName := filepath.Base(filepath.Dir(io)) + "__" + filepath.Base(io)
-		b.o.Add(f.Source, baseName, f.Contents)
+	if err := os.WriteFile(b.gosumPath().ToIO(), data, 0o644); err != nil {
+		b.errs.Addf(token.NoPos, "unable to write go.sum: %v", err)
+		return
 	}
 }
 
+func (b *builder) gomodPath() paths.FS { return b.workdir.Join("go.mod") }
+func (b *builder) gosumPath() paths.FS { return b.workdir.Join("go.sum") }
+
 func (b *builder) buildMain() {
-	overlayData := b.o.Data()
-	overlayPath := b.workdir.Join("overlay.json").ToIO()
-	if err := os.WriteFile(overlayPath, overlayData, 0644); err != nil {
+	overlayFiles := append(b.overlays, b.cfg.Overlays...)
+	overlayPath, err := overlay.Write(b.workdir, overlayFiles)
+	if err != nil {
 		b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
 		return
 	}
@@ -200,7 +196,8 @@ func (b *builder) buildMain() {
 	args := []string{
 		"build",
 		"-tags=" + strings.Join(tags, ","),
-		"-overlay=" + overlayPath,
+		"-overlay=" + overlayPath.ToIO(),
+		"-modfile=" + b.gomodPath().ToIO(),
 		"-mod=mod",
 		"-o=" + b.binaryPath().ToIO(),
 	}
@@ -223,6 +220,7 @@ func (b *builder) buildMain() {
 	cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
 
 	env := []string{
+		"GO111MODULE=on",
 		"GOROOT=" + goroot.ToIO(),
 	}
 
@@ -237,7 +235,8 @@ func (b *builder) buildMain() {
 	}
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Dir = b.cfg.Ctx.MainModuleDir.ToIO()
-	if out, err := cmd.CombinedOutput(); err != nil {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
 		if len(out) == 0 {
 			out = []byte(err.Error())
 		}
@@ -297,63 +296,4 @@ func isGo118Plus(f *modfile.File) bool {
 	major, _ := strconv.Atoi(m[1])
 	minor, _ := strconv.Atoi(m[2])
 	return major > 1 || (major == 1 && minor >= 18)
-}
-
-func newOverlay(errs *perr.List, workdir paths.FS) *overlays {
-	return &overlays{
-		errs:      errs,
-		workdir:   workdir,
-		seenNames: make(map[string]bool),
-		overlay:   make(map[paths.FS]paths.FS),
-	}
-}
-
-// overlay tracks a set of overlaid files, for feeding to
-// 'go build -overlay'.
-type overlays struct {
-	errs *perr.List
-
-	// workdir is the work directory to write files to.
-	workdir paths.FS
-
-	// seenNames is a set of the base names written to workdir.
-	seenNames map[string]bool
-
-	// overlays are the overlay files to use.
-	// The keys are the names in the original packages to replace,
-	// and the values are where the overlaid files live (in the workdir).
-	overlay map[paths.FS]paths.FS
-}
-
-func (o *overlays) Add(src paths.FS, baseName string, contents []byte) {
-	if _, exists := o.overlay[src]; exists {
-		panic(fmt.Sprintf("duplicate overlay of %s", src.ToIO()))
-	}
-
-	// Get the base name without the extension
-	ext := filepath.Ext(baseName)
-	nameWithoutExt := strings.TrimSuffix(baseName, ext)
-
-	// Keep generating names until we get one that doesn't conflict.
-	candidate := baseName
-	for i := 1; o.seenNames[candidate]; i++ {
-		candidate = fmt.Sprintf("%s_%d%s", nameWithoutExt, i, ext)
-	}
-	o.seenNames[candidate] = true
-
-	dst := o.workdir.Join(candidate)
-
-	o.overlay[src] = dst
-	if err := os.WriteFile(dst.ToIO(), contents, 0644); err != nil {
-		o.errs.Addf(token.NoPos, "write overlay file: %v", err)
-	}
-}
-
-func (o *overlays) Data() []byte {
-	replace := make(map[string]string, len(o.overlay))
-	for k, v := range o.overlay {
-		replace[k.ToIO()] = v.ToIO()
-	}
-	data, _ := json.Marshal(map[string]any{"Replace": replace})
-	return data
 }

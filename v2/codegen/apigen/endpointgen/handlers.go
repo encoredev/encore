@@ -23,7 +23,7 @@ func (h *handlerDesc) Typed() *Statement {
 
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
-		Id("req").Add(h.req.Type()),
+		h.req.reqDataExpr().Add(h.req.Type()),
 	).Params(h.resp.Type(), Error()).BlockFunc(func(g *Group) {
 		// fnExpr is the expression for the function we want to call,
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.

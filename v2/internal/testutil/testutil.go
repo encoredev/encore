@@ -7,11 +7,13 @@ import (
 	"go/build"
 	"go/token"
 	"os/exec"
+	"path/filepath"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
+	"encr.dev/internal/env"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
@@ -29,11 +31,12 @@ func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
 
 	d := &build.Default
 	info := parsectx.BuildInfo{
-		GOARCH:     d.GOARCH,
-		GOOS:       d.GOOS,
-		GOROOT:     paths.RootedFSPath(d.GOROOT, d.GOROOT),
-		BuildTags:  nil,
-		CgoEnabled: true,
+		GOARCH:        d.GOARCH,
+		GOOS:          d.GOOS,
+		GOROOT:        paths.RootedFSPath(d.GOROOT, "."),
+		BuildTags:     nil,
+		CgoEnabled:    true,
+		EncoreRuntime: paths.RootedFSPath(env.EncoreRuntimePath(), "."),
 	}
 
 	fset := token.NewFileSet()
@@ -131,6 +134,15 @@ func ParseTxtar(s string) *txtar.Archive {
 func WriteTxtar(c *qt.C, a *txtar.Archive) (dir string) {
 	c.Helper()
 	dir = c.TempDir()
+
+	// NOTE(andre): There appears to be a bug in go's handling of overlays
+	// when the source or destination is a symlink.
+	// I haven't dug into the root cause exactly, but it causes weird issues
+	// with tests since macOS's /var/tmp is a symlink to /private/var/tmp.
+	if d, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = d
+	}
+
 	err := txtar.Write(a, dir)
 	c.Assert(err, qt.IsNil)
 	return dir

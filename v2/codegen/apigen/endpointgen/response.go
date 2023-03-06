@@ -145,6 +145,6 @@ func (d *responseDesc) Clone() *Statement {
 		g.If(Err().Op("==").Nil()).Block(
 			Err().Op("=").Qual(jsonIterPkg, "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
 		)
-		g.Return(Op("&").Id("clone"), Err())
+		g.Return(Id("clone"), Err())
 	})
 }

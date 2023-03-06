@@ -197,7 +197,7 @@ func (d *requestDesc) renderRequestDecoding(g *Group, dec *genutil.TypeUnmarshal
 	}
 
 	if schemautil.IsPointer(d.ep.Request) {
-		g.Id("params").Op(":=").New(d.gu.Type(d.ep.Request))
+		g.Id("params").Op(":=").Add(d.gu.Initialize(d.ep.Request))
 		g.Add(d.reqDataPayloadExpr()).Op("=").Id("params")
 	} else {
 		g.Id("params").Op(":=").Op("&").Add(d.reqDataPayloadExpr())
@@ -265,7 +265,7 @@ func (d *requestDesc) Clone() *Statement {
 		g.If(Err().Op("==").Nil()).Block(
 			Err().Op("=").Qual(jsonIterPkg, "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
 		)
-		g.Return(Op("&").Id("clone"), Err())
+		g.Return(Id("clone"), Err())
 	})
 }
 
