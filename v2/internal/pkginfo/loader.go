@@ -87,6 +87,11 @@ func (l *Loader) init() {
 	}
 }
 
+// MainModule returns the parsed main module.
+func (l *Loader) MainModule() *Module {
+	return l.mainModule
+}
+
 // MustLoadPkg loads a package.
 // If the package contains no Go files, it bails out.
 func (l *Loader) MustLoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package) {

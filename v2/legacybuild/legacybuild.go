@@ -20,6 +20,7 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
 )
 
@@ -56,6 +57,7 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 	parserResult := parser.Parse()
 	appDesc := app.ValidateAndDescribe(pc, parserResult)
 	meta := legacymeta.Compute(pc.Errs, appDesc)
+	mainModule := parser.MainModule()
 
 	if pc.Errs.Len() > 0 {
 		return nil, errors.New(pc.Errs.FormatErrors())
@@ -64,17 +66,19 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 	return &builder.ParseResult{
 		Meta: meta,
 		Data: &parseData{
-			pc:      pc,
-			appDesc: appDesc,
-			mainPkg: paths.Pkg("./cmd/main"), // TODO
+			pc:         pc,
+			appDesc:    appDesc,
+			mainPkg:    paths.Pkg("./__encore/main"), // TODO
+			mainModule: mainModule,
 		},
 	}, nil
 }
 
 type parseData struct {
-	pc      *parsectx.Context
-	appDesc *app.Desc
-	mainPkg paths.Pkg
+	pc         *parsectx.Context
+	appDesc    *app.Desc
+	mainPkg    paths.Pkg
+	mainModule *pkginfo.Module
 }
 
 func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult, err error) {
@@ -82,7 +86,7 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 
 	gg := codegen.New(pd.pc)
 	infragen.Process(gg, pd.appDesc)
-	apigen.Process(gg, pd.appDesc)
+	apigen.Process(gg, pd.appDesc, pd.mainModule)
 
 	defer func() {
 		if l, ok := perr.CatchBailout(recover()); ok {

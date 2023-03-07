@@ -36,6 +36,10 @@ type Parser struct {
 	infraParser *infra.Parser
 }
 
+func (p *Parser) MainModule() *pkginfo.Module {
+	return p.loader.MainModule()
+}
+
 type Result struct {
 	APIs           []*apis.ParseResult
 	InfraResources []resource.Resource

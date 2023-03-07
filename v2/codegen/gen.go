@@ -2,6 +2,8 @@ package codegen
 
 import (
 	"bytes"
+	"fmt"
+	"go/token"
 
 	"golang.org/x/exp/slices"
 
@@ -53,16 +55,27 @@ func (g *Generator) File(pkg *pkginfo.Package, suffix string) *File {
 	return f
 }
 
+func (g *Generator) InjectFile(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, suffix string) *File {
+	key := fileKey{pkgPath, suffix}
+	if f, ok := g.files[key]; ok {
+		return f
+	}
+	f := newFileForPath(pkgPath, pkgName, pkgDir, suffix)
+	g.files[key] = f
+	return f
+}
+
 func (g *Generator) Overlays() []overlay.File {
 	var of []overlay.File
 
 	var buf bytes.Buffer
 	for _, f := range g.files {
-		source := f.Pkg.FSPath.Join(f.Name())
+		source := f.dir.Join(f.name())
 
 		buf.Reset()
 		if err := f.Render(&buf); err != nil {
-			g.Errs.Addf(f.Pkg.AST.Pos(), "failed to render codegen: %v", err)
+			pp := token.Position{Filename: source.ToIO()}
+			g.Errs.AddPosition(pp, fmt.Sprintf("failed to render codegen: %v", err))
 			continue
 		}
 

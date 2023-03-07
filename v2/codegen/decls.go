@@ -7,6 +7,8 @@ import (
 
 	"github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/fns"
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 )
 
@@ -29,29 +31,50 @@ var importNames = map[string]string{
 }
 
 func newFile(pkg *pkginfo.Package, suffix string) *File {
-	jenFile := jen.NewFilePathName(pkg.ImportPath.String(), pkg.Name)
+	return newFileForPath(pkg.ImportPath, pkg.Name, pkg.FSPath, suffix)
+}
+
+func newFileForPath(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, suffix string) *File {
+	jenFile := jen.NewFilePathName(pkgPath.String(), pkgName)
+
+	// Ensure the runtime is initialized before all generated code.
+	jenFile.Anon("encore.dev/appruntime/app/appinit")
 
 	for pkgPath, alias := range importNames {
 		jenFile.ImportAlias(pkgPath, alias)
 	}
 
 	return &File{
-		Pkg:    pkg,
-		Jen:    jenFile,
-		suffix: suffix,
+		Jen:     jenFile,
+		dir:     pkgDir,
+		pkgPath: pkgPath,
+		suffix:  suffix,
 	}
 }
 
 // File represents a generated file for a specific package.
 type File struct {
-	Pkg    *pkginfo.Package // the package the file belongs to
-	Jen    *jen.File        // the jen file we're generating
-	suffix string           // the file name suffix. "metrics" for "encore_internal__metrics.go".
-	decls  []any            // ordered list of Decl or jen.Code
+	Jen *jen.File // the jen file we're generating
+
+	// dir is the filesystem directory where the file should exist
+	// within the application source tree. It need not match
+	// any existing physical directory in the case of overlays.
+	dir paths.FS
+
+	pkgPath paths.Pkg // the package the file belongs to
+	suffix  string    // the file name suffix. "metrics" for "encore_internal__metrics.go".
+	decls   []any     // ordered list of Decl or jen.Code
 }
 
-// Name returns the computed file name.
-func (f *File) Name() string {
+// ImportAnon adds an anonymous ("_"-prefixed) import of the given packages.
+func (f *File) ImportAnon(pkgs ...paths.Pkg) {
+	f.Jen.Anon(fns.Map(pkgs, func(pkg paths.Pkg) string {
+		return pkg.String()
+	})...)
+}
+
+// name returns the computed file name.
+func (f *File) name() string {
 	return "encore_internal__" + f.suffix + ".go"
 }
 
@@ -141,7 +164,7 @@ func (d *FuncDecl) Name() string {
 
 // Qual returns the qualified name of the declaration.
 func (d *FuncDecl) Qual() *jen.Statement {
-	return jen.Qual(d.File.Pkg.ImportPath.String(), d.Name())
+	return jen.Qual(d.File.pkgPath.String(), d.Name())
 }
 
 // Code returns the generated code.
@@ -220,5 +243,5 @@ func (d *VarDecl) Name() string {
 }
 
 func (d *VarDecl) Qual() *jen.Statement {
-	return jen.Qual(d.File.Pkg.ImportPath.String(), d.Name())
+	return jen.Qual(d.File.pkgPath.String(), d.Name())
 }

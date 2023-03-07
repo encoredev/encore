@@ -56,7 +56,7 @@ func (m *Manager) getComputedCUE(serviceName string) ([]byte, error) {
 	// Fetch the raw JSON config for this service
 	envVar := os.Getenv(envName(serviceName))
 	if envVar == "" {
-		return nil, fmt.Errorf("configuration for service `%s` not found, expected it in envriomental variable %s", serviceName, envName(serviceName))
+		return nil, fmt.Errorf("configuration for service `%s` not found, expected it in environmental variable %s", serviceName, envName(serviceName))
 	}
 	cfgBytes, err := base64.RawURLEncoding.DecodeString(envVar)
 	if err != nil {

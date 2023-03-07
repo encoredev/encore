@@ -13,6 +13,7 @@ import (
 	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/infra/resource"
 	"encr.dev/v2/parser/infra/resource/cache"
+	"encr.dev/v2/parser/infra/resource/config"
 	"encr.dev/v2/parser/infra/resource/cron"
 	"encr.dev/v2/parser/infra/resource/metrics"
 	"encr.dev/v2/parser/infra/resource/pubsub"
@@ -43,6 +44,7 @@ func (b *builder) Build() *meta.Data {
 	}
 	md := b.md
 
+	svcByName := make(map[string]*meta.Service, len(b.app.Services))
 	for _, svc := range b.app.Services {
 		out := &meta.Service{
 			Name: svc.Name,
@@ -53,6 +55,7 @@ func (b *builder) Build() *meta.Data {
 			Databases:  nil,
 			HasConfig:  false,
 		}
+		svcByName[svc.Name] = out
 		md.Svcs = append(md.Svcs, out)
 
 		for _, ep := range svc.Framework.MustGet().Endpoints {
@@ -167,6 +170,13 @@ func (b *builder) Build() *meta.Data {
 			}
 
 			md.Metrics = append(md.Metrics, m)
+
+		case *config.Load:
+			if svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath); ok {
+				if metaSvc, ok := svcByName[svc.Name]; ok {
+					metaSvc.HasConfig = true
+				}
+			}
 
 		case *pubsub.Subscription, *cache.Keyspace:
 			dependent = append(dependent, r)

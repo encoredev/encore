@@ -56,10 +56,4 @@ func init() {
 	})
 }
 
-// LoadSecret loads the secret with the given key.
-// If it is not defined it logs a fatal error and exits the process.
-func LoadSecret(key string) string {
-	return singleton.GetSecret(key)
-}
-
 var missingSecrets []string

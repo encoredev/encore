@@ -5,10 +5,12 @@ import (
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/authhandlergen"
 	"encr.dev/v2/codegen/apigen/endpointgen"
+	"encr.dev/v2/codegen/apigen/maingen"
 	"encr.dev/v2/codegen/apigen/middlewaregen"
+	"encr.dev/v2/internal/pkginfo"
 )
 
-func Process(gg *codegen.Generator, desc *app.Desc) {
+func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) {
 	fw := desc.Framework.MustGet()
 	for _, svc := range desc.Services {
 		endpointgen.Gen(gg, svc)
@@ -21,4 +23,6 @@ func Process(gg *codegen.Generator, desc *app.Desc) {
 	if fw.AuthHandler.IsPresent() {
 		authhandlergen.Gen(gg, fw.AuthHandler.MustGet())
 	}
+
+	maingen.Gen(gg, desc, mainModule)
 }

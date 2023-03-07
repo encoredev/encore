@@ -1,0 +1,45 @@
+-- code.go --
+package code
+
+import "context"
+
+//encore:api
+func Foo(ctx context.Context) error { return nil }
+-- want:__encore/main/encore_internal__main.go --
+package main
+
+import (
+	__appinit "encore.dev/appruntime/app/appinit"
+	__config "encore.dev/appruntime/config"
+	_ "example.com"
+	_ "unsafe"
+)
+
+// loadApp loads the Encore app runtime.
+//
+//go:linkname loadApp encore.dev/appruntime/app/appinit.load
+func loadApp() *__appinit.LoadData {
+	static := &__config.Static{
+		AppCommit: __config.CommitInfo{
+			Revision:    "",
+			Uncommitted: "",
+		},
+		AuthData:          nil,
+		BundledServices:   nil,
+		CORSAllowHeaders:  nil,
+		CORSExposeHeaders: nil,
+		EncoreCompiler:    "",
+		PubsubTopics:      nil,
+		TestService:       "",
+		Testing:           false,
+	}
+	return &__appinit.LoadData{
+		APIHandlers: nil,
+		AuthHandler: nil,
+		ServiceInit: nil,
+		StaticCfg:   static,
+	}
+}
+func main() {
+	__appinit.AppMain()
+}
