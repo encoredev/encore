@@ -33,6 +33,7 @@ import (
 	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/builder"
 	"encr.dev/internal/optracker"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/legacybuild"
@@ -279,6 +280,12 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			Experiments: expSet,
 			WorkingDir:  r.params.WorkingDir,
 			ListenAddr:  r.ListenAddr,
+			CueMeta: &cueutil.Meta{
+				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
+				EnvName:    "local",
+				EnvType:    cueutil.EnvType_Development,
+				CloudType:  cueutil.CloudType_Local,
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("compile error:\n%v", err)
@@ -427,6 +434,8 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	}
 	cmd.Env = envs
 	p.cmd = cmd
+
+	r.log.Info().RawJSON("config", runtimeJSON).Msgf("computed runtime config")
 
 	// Proxy stdout and stderr to the given app logger, if any.
 	if l := params.Logger; l != nil {

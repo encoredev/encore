@@ -5,12 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"io/fs"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/rs/zerolog"
 
 	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
+	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/promise"
+	"encr.dev/pkg/vfs"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen"
@@ -22,6 +28,7 @@ import (
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/infra/resource"
 )
 
 type BuilderImpl struct{}
@@ -95,6 +102,10 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 		}
 	}()
 
+	configProm := promise.New(func() (configResult, error) {
+		return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
+	})
+
 	buildResult := build.Build(&build.Config{
 		Ctx:        pd.pc,
 		Overlays:   gg.Overlays(),
@@ -104,9 +115,84 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 	if pd.pc.Errs.Len() > 0 {
 		return nil, fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
 	}
+
+	config, err := configProm.Get(pd.pc.Ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &builder.CompileResult{
-		Dir:     buildResult.Dir.ToIO(),
-		Exe:     buildResult.Exe.ToIO(),
-		Configs: nil, // TODO
+		Dir:         buildResult.Dir.ToIO(),
+		Exe:         buildResult.Exe.ToIO(),
+		Configs:     config.configs,
+		ConfigFiles: config.files,
 	}, nil
+}
+
+type configResult struct {
+	configs map[string]string
+	files   fs.FS
+}
+
+func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module, cueMeta *cueutil.Meta) configResult {
+	files := pickupConfigFiles(errs, mainModule)
+
+	// TODO this is technically different from the "app root"
+	// but it's close enough for now.
+	appRoot := mainModule.RootDir.ToIO()
+
+	// TODO this is a hack until we have proper resource usage tracking
+	serviceUsesConfig := make(map[string]bool, len(desc.Services))
+	for _, r := range desc.InfraResources {
+		if r.Kind() == resource.ConfigLoad {
+			if svc, ok := desc.FrameworkServiceForPkg(r.DeclaredIn().Pkg.ImportPath); ok {
+				serviceUsesConfig[svc.Name] = true
+			}
+		}
+	}
+
+	configs := make(map[string]string, len(desc.Services))
+	for _, svc := range desc.Services {
+		if !serviceUsesConfig[svc.Name] {
+			continue
+		}
+
+		rel, err := filepath.Rel(appRoot, svc.FSRoot.ToIO())
+		if err != nil {
+			errs.Addf(token.NoPos, "unable to compute relative path for service config: %v", err)
+			continue
+		}
+		cfg, err := cueutil.LoadFromFS(files, rel, cueMeta)
+		if err != nil {
+			errs.Addf(token.NoPos, "unable to load service config: %v", err)
+			continue
+		}
+		cfgData, err := cfg.MarshalJSON()
+		if err != nil {
+			errs.Addf(token.NoPos, "unable to marshal service config: %v", err)
+			continue
+		}
+		configs[svc.Name] = string(cfgData)
+	}
+	return configResult{configs, files}
+}
+
+func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
+	// Create a virtual filesystem for the config files
+	configFiles, err := vfs.FromDir(mainModule.RootDir.ToIO(), func(path string, info fs.DirEntry) bool {
+		// any CUE files
+		if filepath.Ext(path) == ".cue" {
+			return true
+		}
+
+		// Pickup any files within a CUE module folder (either at the root of the app or in a subfolder)
+		if strings.Contains(path, "/cue.mod/") || strings.HasPrefix(path, "cue.mod/") {
+			return true
+		}
+		return false
+	})
+	if err != nil {
+		errs.AssertStd(fmt.Errorf("unable to package configuration files: %w", err))
+	}
+	return configFiles
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"strings"
+	"sync"
 
 	"golang.org/x/exp/slices"
 
@@ -13,6 +14,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	schema2 "encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/selector"
@@ -28,6 +30,8 @@ const (
 )
 
 type Endpoint struct {
+	errs *perr.List
+
 	Name        string
 	Doc         string
 	File        *pkginfo.File
@@ -40,6 +44,26 @@ type Endpoint struct {
 	Response    schema2.Type // response data; nil for Raw Endpoints
 	Tags        selector.Set
 	Recv        option.Option[*schema2.Receiver] // None if not a method
+
+	reqEncOnce  sync.Once
+	reqEncoding []*apienc.RequestEncoding
+
+	respEncOnce  sync.Once
+	respEncoding *apienc.ResponseEncoding
+}
+
+func (ep *Endpoint) RequestEncoding() []*apienc.RequestEncoding {
+	ep.reqEncOnce.Do(func() {
+		ep.reqEncoding = apienc.DescribeRequest(ep.errs, ep.Request, ep.HTTPMethods...)
+	})
+	return ep.reqEncoding
+}
+
+func (ep *Endpoint) ResponseEncoding() *apienc.ResponseEncoding {
+	ep.respEncOnce.Do(func() {
+		ep.respEncoding = apienc.DescribeResponse(ep.errs, ep.Response)
+	})
+	return ep.respEncoding
 }
 
 type ParseData struct {
@@ -59,6 +83,7 @@ func Parse(d ParseData) *Endpoint {
 		d.Errs.Addf(d.Dir.AST.Pos(), "invalid encore:%s directive: %v", d.Dir.Name, err)
 		return nil
 	}
+	rpc.errs = d.Errs
 
 	// If there was no path, default to "pkg.Decl".
 	if rpc.Path == nil {

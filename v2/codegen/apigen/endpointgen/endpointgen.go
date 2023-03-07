@@ -13,15 +13,17 @@ import (
 	"encr.dev/v2/parser/apis/api/apipaths"
 )
 
-func Gen(gen *codegen.Generator, svc *app.Service) {
+func Gen(gen *codegen.Generator, svc *app.Service) map[*api.Endpoint]*codegen.VarDecl {
+	epMap := make(map[*api.Endpoint]*codegen.VarDecl)
 	fw := svc.Framework.MustGet()
 	f := gen.File(fw.RootPkg, "api")
 	for _, ep := range fw.Endpoints {
-		genAPIDesc(gen, f, svc, fw, ep)
+		epMap[ep] = genAPIDesc(gen, f, svc, fw, ep)
 	}
+	return epMap
 }
 
-func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, fw *apiframework.ServiceDesc, ep *api.Endpoint) {
+func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, fw *apiframework.ServiceDesc, ep *api.Endpoint) *codegen.VarDecl {
 	gu := gen.Util
 	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
 	respDesc := &responseDesc{gu: gen.Util, ep: ep}
@@ -74,6 +76,8 @@ func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, fw *a
 		Id("EncodeResp"): respDesc.EncodeResponse(),
 		Id("CloneResp"):  respDesc.Clone(),
 	}))
+
+	return desc
 }
 
 func apiQ(name string) *Statement {

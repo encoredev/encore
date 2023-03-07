@@ -12,7 +12,6 @@ import (
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
-	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
 )
 
@@ -63,15 +62,10 @@ func (legacyBuilderImpl) Compile(p builder.CompileParams) (*builder.CompileResul
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		Experiments:           p.Experiments,
-		Meta: &cueutil.Meta{
-			APIBaseURL: fmt.Sprintf("http://%s", p.ListenAddr),
-			EnvName:    "local",
-			EnvType:    cueutil.EnvType_Development,
-			CloudType:  cueutil.CloudType_Local,
-		},
-		Parse:     p.Parse.Data.(*parser.Result),
-		BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-		OpTracker: p.OpTracker,
+		Meta:                  p.CueMeta,
+		Parse:                 p.Parse.Data.(*parser.Result),
+		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+		OpTracker:             p.OpTracker,
 	}
 
 	build, err := compiler.Build(p.App.Root(), cfg)

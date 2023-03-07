@@ -12,21 +12,75 @@ import (
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/apis/selector"
 	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/infra/resource"
 )
 
 // Desc describes an Encore application.
 type Desc struct {
-	errs *perr.List
+	Errs *perr.List
 
 	Services       []*Service
 	InfraResources []resource.Resource
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
+}
+
+// MatchingMiddleware reports which middleware applies to the given RPC,
+// and the order they apply in.
+func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
+	tags := make(map[string]bool, len(ep.Tags))
+	for _, tag := range ep.Tags {
+		tags[tag.Value] = true
+	}
+
+	match := func(s selector.Selector) bool {
+		switch s.Type {
+		case selector.Tag:
+			return tags[s.Value]
+		case selector.All:
+			return true
+		default:
+			return false
+		}
+	}
+
+	var matches []*middleware.Middleware
+
+	// Ensure middleware ordering is preserved.
+
+	// First add global middleware.
+	if d.Framework.IsPresent() {
+		for _, mw := range d.Framework.MustGet().GlobalMiddleware {
+			if mw.Global {
+				for _, s := range mw.Target {
+					if match(s) {
+						matches = append(matches, mw)
+					}
+				}
+			}
+		}
+	}
+
+	// Then add service-specific middleware.
+	if svc, ok := d.FrameworkServiceForPkg(ep.File.Pkg.ImportPath); ok {
+		if svc.Framework.IsPresent() {
+			for _, mw := range svc.Framework.MustGet().Middleware {
+				for _, s := range mw.Target {
+					if match(s) {
+						matches = append(matches, mw)
+					}
+				}
+			}
+		}
+	}
+
+	return matches
 }
 
 // Service describes an Encore service.
@@ -48,7 +102,7 @@ type Service struct {
 // application description.
 func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	d := &Desc{
-		errs:           pc.Errs,
+		Errs:           pc.Errs,
 		InfraResources: result.InfraResources,
 	}
 

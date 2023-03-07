@@ -10,7 +10,7 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 )
 
-func Gen(gen *codegen.Generator, ah *authhandler.AuthHandler) {
+func Gen(gen *codegen.Generator, ah *authhandler.AuthHandler) *codegen.VarDecl {
 	f := gen.File(ah.Decl.File.Pkg, "authhandler")
 	enc := apienc.DescribeAuth(gen.Errs, ah.Param)
 	gu := gen.Util
@@ -28,6 +28,8 @@ func Gen(gen *codegen.Generator, ah *authhandler.AuthHandler) {
 		Id("DecodeAuth"):  renderDecodeAuth(gen, f, ah, enc),
 		Id("AuthHandler"): renderAuthHandler(gen, f, ah, enc),
 	}))
+
+	return desc
 }
 
 func apiQ(name string) *Statement {

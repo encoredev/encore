@@ -1,8 +1,11 @@
 package builder
 
 import (
+	"io/fs"
+
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
+	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -32,10 +35,12 @@ type CompileParams struct {
 	Experiments *experiments.Set
 	WorkingDir  string
 	ListenAddr  string
+	CueMeta     *cueutil.Meta
 }
 
 type CompileResult struct {
-	Dir     string
-	Exe     string
-	Configs map[string]string
+	Dir         string
+	Exe         string
+	Configs     map[string]string
+	ConfigFiles fs.FS
 }

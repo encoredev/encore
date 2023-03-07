@@ -11,7 +11,6 @@ import (
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/apis/api"
 )
 
 // WireLoc is the location of a parameter in the HTTP request/response.
@@ -142,46 +141,6 @@ type ParameterEncoding struct {
 	Doc string `json:"doc"`
 	// Type is the field's type description.
 	Type schema.Type `json:"type"`
-}
-
-// DescribeAPI expresses how to encode an API's request and response objects for the wire.
-func DescribeAPI(errs *perr.List, endpoint *api.Endpoint) *APIEncoding {
-	encoding := &APIEncoding{
-		DefaultMethod: defaultClientHTTPMethod(endpoint.HTTPMethods...),
-	}
-
-	encoding.RequestEncoding = DescribeRequest(errs, endpoint.Request, endpoint.HTTPMethods...)
-	encoding.ResponseEncoding = DescribeResponse(errs, endpoint.Response)
-
-	if encoding.RequestEncoding != nil {
-		// Setup the default request encoding
-		defaultEncoding := encoding.RequestEncodingForMethod(encoding.DefaultMethod)
-		encoding.DefaultRequestEncoding = &RequestEncoding{
-			HTTPMethods:      []string{encoding.DefaultMethod},
-			HeaderParameters: defaultEncoding.HeaderParameters,
-			BodyParameters:   defaultEncoding.BodyParameters,
-			QueryParameters:  defaultEncoding.QueryParameters,
-		}
-	}
-
-	return encoding
-}
-
-// defaultClientHTTPMethod works out the default HTTP method a client should use for a given RPC.
-// When possible we will default to POST either when no method has been specified on the API or when
-// then is a selection of methods and POST is one of them. If POST is not allowed as a method then
-// we will use the first specified method.
-func defaultClientHTTPMethod(httpMethods ...string) string {
-	if httpMethods[0] == "*" {
-		return "POST"
-	}
-
-	for _, httpMethod := range httpMethods {
-		if httpMethod == "POST" {
-			return "POST"
-		}
-	}
-	return httpMethods[0]
 }
 
 // DescribeResponse generates a ParameterEncoding per field of the response struct and returns it as
