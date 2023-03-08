@@ -6,9 +6,6 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/parser/infra/internal/locations"
-	"encr.dev/v2/parser/infra/resource"
 )
 
 // FindPkgNameRefs finds all references in the given package that references
@@ -92,112 +89,6 @@ func hasRequiredImports(imports map[paths.Pkg]bool, required []paths.Pkg) bool {
 	return true
 }
 
-type ParseData struct {
-	Pass         *resource.Pass
-	ResourceFunc pkginfo.QualifiedName
-	File         *pkginfo.File
-
-	Stack    []ast.Node
-	Ident    *ast.Ident
-	Call     *ast.CallExpr
-	TypeArgs []schema.Type
-	Doc      string
-}
-
-type ResourceCreationSpec struct {
-	AllowedLocs locations.Filter
-	MinTypeArgs int
-	MaxTypeArgs int
-	Parse       func(ParseData) resource.Resource
-}
-
-type ReferenceData struct {
-	File         *pkginfo.File
-	Stack        []ast.Node
-	ResourceFunc pkginfo.QualifiedName
-}
-
-func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data ReferenceData) resource.Resource {
-
-	selIdx := len(data.Stack) - 1
-	constructor := data.ResourceFunc
-
-	// Verify the structure of the reference.
-
-	ident := resolveAssignedVar(data.Stack)
-	if ident.Empty() {
-		p.Errs.Addf(data.Stack[selIdx].Pos(), "the %s return value must be assigned to a variable",
-			constructor.NaiveDisplayName())
-		return nil
-	}
-
-	// Do we have any type arguments?
-	maybeHasTypeArgs := spec.MaxTypeArgs > 0
-
-	// If we have any type arguments it will be in the parent of the selector.
-	var typeArgs []schema.Type
-	if maybeHasTypeArgs {
-		typeArgsIdx := selIdx - 1
-		if typeArgsIdx < 0 {
-			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires type arguments, but none were found",
-				constructor.NaiveDisplayName())
-			return nil
-		}
-		args := resolveTypeArgs(data.Stack[typeArgsIdx])
-		if len(args) < spec.MinTypeArgs {
-			qualifier := " at least"
-			if spec.MinTypeArgs == spec.MaxTypeArgs {
-				qualifier = ""
-			}
-			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires%s %d type argument(s), but got %d",
-				constructor.NaiveDisplayName(), qualifier, spec.MinTypeArgs, len(args))
-			return nil
-		} else if len(args) > spec.MaxTypeArgs {
-			qualifier := " at most"
-			if spec.MinTypeArgs == spec.MaxTypeArgs {
-				qualifier = ""
-			}
-			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires%s %d type argument(s), but got %d",
-				constructor.NaiveDisplayName(), qualifier, spec.MaxTypeArgs, len(args))
-		}
-		for _, arg := range args {
-			typeArgs = append(typeArgs, p.SchemaParser.ParseType(data.File, arg))
-		}
-	}
-
-	// Make sure the reference is called
-	callIdx := selIdx - 1
-	if len(typeArgs) > 0 {
-		// If there are type arguments there's an intermediary IndexExpr or IndexListExpr node.
-		callIdx--
-	}
-	call, ok := data.Stack[callIdx].(*ast.CallExpr)
-	if !ok {
-		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be referenced without being called",
-			constructor.NaiveDisplayName())
-		return nil
-	}
-
-	// Classify the location the current node is contained in (meaning stack[:len(stack)-1]).
-	loc := locations.Classify(data.Stack[:callIdx-1])
-	if !spec.AllowedLocs.Allowed(loc) {
-		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be called here: must be called from %s",
-			constructor.NaiveDisplayName(), spec.AllowedLocs.Describe())
-		return nil
-	}
-
-	return spec.Parse(ParseData{
-		Pass:         p,
-		File:         data.File,
-		Stack:        data.Stack,
-		Ident:        ident.MustGet(),
-		Call:         call,
-		TypeArgs:     typeArgs,
-		Doc:          resolveResourceDoc(data.Stack),
-		ResourceFunc: data.ResourceFunc,
-	})
-}
-
 // resolveTypeArgs resolves the type argument expressions for the given node.
 func resolveTypeArgs(node ast.Node) []ast.Expr {
 	switch n := node.(type) {
@@ -279,15 +170,4 @@ func resolveResourceDoc(stack []ast.Node) (doc string) {
 	}
 
 	return ""
-}
-
-// BoundTo is a helper function for implementing (resource.Resource).BoundTo.
-func BoundTo(f *pkginfo.File, id *ast.Ident) option.Option[pkginfo.QualifiedName] {
-	if id.Name == "_" {
-		return option.None[pkginfo.QualifiedName]()
-	}
-	return option.Some(pkginfo.QualifiedName{
-		PkgPath: f.Pkg.ImportPath,
-		Name:    id.Name,
-	})
 }

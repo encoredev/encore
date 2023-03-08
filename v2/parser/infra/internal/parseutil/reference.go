@@ -31,6 +31,12 @@ type ReferenceInfo struct {
 	Ident option.Option[*ast.Ident]
 }
 
+type ReferenceData struct {
+	File         *pkginfo.File
+	Stack        []ast.Node
+	ResourceFunc pkginfo.QualifiedName
+}
+
 func ParseReference(p *resource.Pass, spec *ReferenceSpec, data ReferenceData) {
 	selIdx := len(data.Stack) - 1
 	constructor := data.ResourceFunc
