@@ -11,6 +11,7 @@ import (
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app/apiframework"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	schema2 "encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
@@ -48,9 +49,13 @@ func TestValidation(t *testing.T) {
 				stderr := ts.Value("stderr").(*bytes.Buffer)
 				defer func() {
 					if err := recover(); err != nil {
-						// We convert to an srcerrors error so that we can capture the stack
-						e := srcerrors.UnhandledPanic(err)
-						ts.Fatalf("panic: %v", e)
+						if l, ok := perr.IsBailout(err); ok {
+							ts.Fatalf("bailout: %v", l.FormatErrors())
+						} else {
+							// We convert to an srcerrors error so that we can capture the stack
+							e := srcerrors.UnhandledPanic(err)
+							ts.Fatalf("panic: %v", e)
+						}
 					}
 					ts.Logf("stdout: %s", stdout.String())
 					ts.Logf("stderr: %s", stderr.String())

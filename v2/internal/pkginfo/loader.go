@@ -140,6 +140,8 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 	defer func() {
 		if _, caught := perr.CatchBailout(recover()); caught {
 			result.bailout = true
+			pkg = nil
+			ok = false
 		}
 	}()
 

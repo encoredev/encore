@@ -29,8 +29,6 @@ type Context struct {
 // NewContext constructs a new Context for testing.
 // It defaults the build info to the host system.
 func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
-	errinsrc.ColoursInErrors(false) // disable colours in errors for tests
-
 	mainModuleDir := WriteTxtar(c, archive)
 
 	return newContextForFSPath(c, mainModuleDir, parseTests)
@@ -40,14 +38,12 @@ func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
 //
 // Your testscript test should call this [TestScriptSetupFunc] in the TestScript.Setup function.
 func NewContextForTestScript(ts *testscript.TestScript, parseTests bool) *Context {
-	errinsrc.ColoursInErrors(false) // disable colours in errors for tests
-
 	c := GetTestC(ts)
 	workdir := ts.Value("wd").(string)
 
 	// Write the go.mod file for the testscript as we don't expect each test to do this
 	additional := ParseTxtar(`-- go.mod --
-module example.com
+module test
 
 go 1.20
 
@@ -87,6 +83,9 @@ func GetTestC(ts *testscript.TestScript) *qt.C {
 }
 
 func newContextForFSPath(c *qt.C, mainModuleDir string, parseTests bool) *Context {
+	errinsrc.ColoursInErrors(false) // disable colours in errors for tests
+	errinsrc.IncludeStackByDefault = true
+
 	ctx, cancel := context.WithCancelCause(context.Background())
 	c.Cleanup(func() {
 		cancel(fmt.Errorf("test %s aborted", c.Name()))
