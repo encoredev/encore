@@ -1,11 +1,19 @@
 package app
 
 import (
+	"os"
+	"testing"
+
 	qt "github.com/frankban/quicktest"
+	"github.com/rogpeppe/go-internal/testscript"
 
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser"
 )
+
+func TestMain(m *testing.M) {
+	os.Exit(testscript.RunMain(m, nil))
+}
 
 // Parse will take the given archiveContent and parse it into a testutil.Context and parser.Result.
 //

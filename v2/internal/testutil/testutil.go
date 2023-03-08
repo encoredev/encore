@@ -8,12 +8,13 @@ import (
 	"go/token"
 	"os/exec"
 	"path/filepath"
+	"testing"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
-	"encr.dev/internal/env"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
@@ -32,6 +33,65 @@ func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
 
 	mainModuleDir := WriteTxtar(c, archive)
 
+	return newContextForFSPath(c, mainModuleDir, parseTests)
+}
+
+// NewContextForTestScript constructs a new Context for testing when using testscript
+//
+// Your testscript test should call this [TestScriptSetupFunc] in the TestScript.Setup function.
+func NewContextForTestScript(ts *testscript.TestScript, parseTests bool) *Context {
+	errinsrc.ColoursInErrors(false) // disable colours in errors for tests
+
+	c := GetTestC(ts)
+	workdir := ts.Value("wd").(string)
+
+	// Write the go.mod file for the testscript as we don't expect each test to do this
+	additional := ParseTxtar(`-- go.mod --
+module example.com
+
+go 1.20
+
+require encore.dev v1.13.4`)
+	ts.Check(txtar.Write(additional, workdir))
+
+	return newContextForFSPath(c, workdir, parseTests)
+}
+
+// TestScriptSetupFunc is a testscript setup function which sets up the testscript environment for
+// testing with testutil.
+func TestScriptSetupFunc(env *testscript.Env) error {
+	env.Values["TESTUTIL_SCRIPT_SETUP"] = true
+	env.Values["wd"] = env.WorkDir
+
+	tb, ok := env.T().(testing.TB)
+	if !ok {
+		env.T().Fatal("testscript's T did not implement testing.TB as expected")
+	}
+	env.Values["c"] = qt.New(tb)
+
+	return nil
+}
+
+// GetTestC returns the *qt.C for the current testscript test.
+//
+// This should only be called from within a testscript test which has had [TestScriptSetupFunc] called
+// during the TestScript.Setup function.
+func GetTestC(ts *testscript.TestScript) *qt.C {
+	if value := ts.Value("TESTUTIL_SCRIPT_SETUP"); value != nil {
+		if b, ok := value.(bool); !ok || !b {
+			ts.Fatalf("testutil.TestScriptSetupFunc was not called in the TestScript.Setup function")
+		}
+	}
+
+	return ts.Value("c").(*qt.C)
+}
+
+func newContextForFSPath(c *qt.C, mainModuleDir string, parseTests bool) *Context {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	c.Cleanup(func() {
+		cancel(fmt.Errorf("test %s aborted", c.Name()))
+	})
+
 	d := &build.Default
 	info := parsectx.BuildInfo{
 		GOARCH:        d.GOARCH,
@@ -39,15 +99,10 @@ func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
 		GOROOT:        paths.RootedFSPath(d.GOROOT, "."),
 		BuildTags:     nil,
 		CgoEnabled:    true,
-		EncoreRuntime: paths.RootedFSPath(env.EncoreRuntimePath(), "."),
+		EncoreRuntime: paths.RootedFSPath(RuntimeDir, "."),
 	}
 
 	fset := token.NewFileSet()
-	ctx, cancel := context.WithCancelCause(context.Background())
-	c.Cleanup(func() {
-		cancel(fmt.Errorf("test %s aborted", c.Name()))
-	})
-
 	parseCtx := &parsectx.Context{
 		Log:           zerolog.New(zerolog.NewConsoleWriter(zerolog.ConsoleTestWriter(c))),
 		MainModuleDir: paths.RootedFSPath(mainModuleDir, mainModuleDir),
