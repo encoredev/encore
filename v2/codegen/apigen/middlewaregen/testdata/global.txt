@@ -10,7 +10,10 @@ func Middleware(req middleware.Request, next middleware.Next) middleware.Respons
 -- want:encore_internal__middleware.go --
 package global
 
-import __api "encore.dev/appruntime/api"
+import (
+	__api "encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
+)
 
 var EncoreInternal_middleware_middleware_Middleware = &__api.Middleware{
 	DefLoc:  0,

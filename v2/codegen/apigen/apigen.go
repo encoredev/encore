@@ -30,17 +30,18 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 
 	if fw, ok := desc.Framework.Get(); ok {
 		for _, svc := range desc.Services {
+
 			var svcStruct option.Option[*codegen.VarDecl]
 
 			if svcDesc, ok := svc.Framework.Get(); ok {
-				mws := middlewaregen.Gen(gg, svcDesc.Middleware)
-				maps.Copy(gp.Middleware, mws)
-
 				if ss, ok := svcDesc.ServiceStruct.Get(); ok {
 					decl := servicestructgen.Gen(gg, svc, ss)
 					gp.ServiceStructs[svc] = decl
 					svcStruct = option.Some(decl)
 				}
+
+				mws := middlewaregen.Gen(gg, svcDesc.Middleware)
+				maps.Copy(gp.Middleware, mws)
 			}
 
 			eps := endpointgen.Gen(gg, svc, svcStruct)
