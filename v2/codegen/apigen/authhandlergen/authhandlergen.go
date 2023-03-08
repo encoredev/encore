@@ -3,6 +3,7 @@ package authhandlergen
 import (
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/internal/schema/schemautil"
@@ -10,18 +11,27 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 )
 
-func Gen(gen *codegen.Generator, ah *authhandler.AuthHandler) *codegen.VarDecl {
+func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler) *codegen.VarDecl {
 	f := gen.File(ah.Decl.File.Pkg, "authhandler")
 	enc := apienc.DescribeAuth(gen.Errs, ah.Param)
 	gu := gen.Util
 	desc := f.VarDecl("AuthDesc", ah.Name)
 
+	svcName := "UNKNOWN"
+	svcNum := 0
+	if svc, ok := appDesc.ServiceForPath(ah.Decl.File.FSPath); ok {
+		svcName = svc.Name
+		if fw, ok := svc.Framework.Get(); ok {
+			svcNum = fw.Num
+		}
+	}
+
 	desc.Value(Op("&").Add(apiQ("AuthHandlerDesc")).Types(
 		gu.Type(ah.Param),
 	).Values(Dict{
-		Id("Service"): Lit("SERVICE"), // TODO
-		Id("SvcNum"):  Lit(0),         // TODO
-		Id("DefLoc"):  Lit(0),         // TODO
+		Id("Service"): Lit(svcName),
+		Id("SvcNum"):  Lit(svcNum),
+		Id("DefLoc"):  Lit(0), // TODO
 
 		Id("Endpoint"):    Lit(ah.Name),
 		Id("HasAuthData"): Lit(ah.AuthData.Present()),

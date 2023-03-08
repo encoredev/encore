@@ -3,13 +3,16 @@ package endpointgen
 import (
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/option"
+	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/parser/apis/api"
 )
 
 type handlerDesc struct {
-	gu *genutil.Helper
-	ep *api.Endpoint
+	gu        *genutil.Helper
+	ep        *api.Endpoint
+	svcStruct option.Option[*codegen.VarDecl]
 
 	req  *requestDesc
 	resp *responseDesc
@@ -29,21 +32,16 @@ func (h *handlerDesc) Typed() *Statement {
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.
 		var fnExpr *Statement
 
-		// TODO(andre) support service structs
-		fnExpr = Id(ep.Name)
-
-		//// If we have a service struct, initialize it first.
-		//group := ep.SvcStruct
-		//if group != nil {
-		//	ss := ep.Svc.Struct
-		//	g.List(Id("svc"), Id("initErr")).Op(":=").Id(h.serviceStructName(ss)).Dot("Get").Call()
-		//	g.If(Id("initErr").Op("!=").Nil()).Block(
-		//		Return(h.RespZeroValue(), Id("initErr")),
-		//	)
-		//	fnExpr = Id("svc").Dot(h.ep.Name)
-		//} else {
-		//	fnExpr = Id(h.ep.Name)
-		//}
+		// If we have a service struct, initialize it first.
+		if ss, ok := h.svcStruct.Get(); ok {
+			g.List(Id("svc"), Id("initErr")).Op(":=").Add(ss.Qual()).Dot("Get").Call()
+			g.If(Id("initErr").Op("!=").Nil()).Block(
+				Return(h.resp.zero(), Id("initErr")),
+			)
+			fnExpr = Id("svc").Dot(ep.Name)
+		} else {
+			fnExpr = Id(ep.Name)
+		}
 
 		g.Do(func(s *Statement) {
 			if ep.Response != nil {

@@ -5,6 +5,8 @@ import (
 	"sort"
 
 	. "github.com/dave/jennifer/jen"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
@@ -27,9 +29,18 @@ type GenParams struct {
 	Desc       *app.Desc
 	MainModule *pkginfo.Module
 
-	APIHandlers map[*api.Endpoint]*codegen.VarDecl
-	AuthHandler option.Option[*codegen.VarDecl]
-	Middleware  map[*middleware.Middleware]*codegen.VarDecl
+	// CompilerVersion is the version of the compiler to embed in the generated code.
+	CompilerVersion string
+	// AppRevision is the revision of the app to embed in the generated code.
+	AppRevision string
+	// AppUncommitted tracks whether there were uncommitted changes in the app
+	// at the time of build.
+	AppUncommitted bool
+
+	APIHandlers    map[*api.Endpoint]*codegen.VarDecl
+	AuthHandler    option.Option[*codegen.VarDecl]
+	Middleware     map[*middleware.Middleware]*codegen.VarDecl
+	ServiceStructs map[*app.Service]*codegen.VarDecl
 }
 
 func Gen(p GenParams) {
@@ -66,10 +77,10 @@ func Gen(p GenParams) {
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
 		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
 			Id("AuthData"):       authDataType(gen.Util, appDesc),
-			Id("EncoreCompiler"): Lit(""), // TODO
+			Id("EncoreCompiler"): Lit(p.CompilerVersion),
 			Id("AppCommit"): Qual("encore.dev/appruntime/config", "CommitInfo").Values(Dict{
-				Id("Revision"):    Lit(""),    // TODO
-				Id("Uncommitted"): Lit(false), // TODO
+				Id("Revision"):    Lit(p.AppRevision),
+				Id("Uncommitted"): Lit(p.AppUncommitted),
 			}),
 			Id("CORSAllowHeaders"):  allowHeaders,
 			Id("CORSExposeHeaders"): exposeHeaders,
@@ -84,7 +95,7 @@ func Gen(p GenParams) {
 		g.Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
 			Id("StaticCfg"):   Id("static"),
 			Id("APIHandlers"): Id("handlers"),
-			Id("ServiceInit"): Nil(), // TODO
+			Id("ServiceInit"): serviceInitConfig(p.ServiceStructs),
 			Id("AuthHandler"): authHandler,
 		}))
 	})
@@ -246,4 +257,23 @@ func authDataType(gu *genutil.Helper, desc *app.Desc) *Statement {
 	return option.Map(authData, func(ref *schema.TypeDeclRef) *Statement {
 		return Qual("reflect", "TypeOf").Call(gu.Zero(ref.ToType()))
 	}).GetOrElse(Nil())
+}
+
+func serviceInitConfig(svcStructs map[*app.Service]*codegen.VarDecl) *Statement {
+	// Get the map keys and sort them for deterministic output.
+	svcs := maps.Keys(svcStructs)
+	slices.SortFunc(svcs, func(a, b *app.Service) bool {
+		return a.Name < b.Name
+	})
+
+	return Index().Qual("encore.dev/appruntime/service", "Initializer").CustomFunc(Options{
+		Open:      "{",
+		Close:     "}",
+		Separator: ",",
+		Multi:     true,
+	}, func(g *Group) {
+		for _, svc := range svcs {
+			g.Add(svcStructs[svc].Qual())
+		}
+	})
 }

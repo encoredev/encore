@@ -1,58 +1,15 @@
--- code.go --
-package code
+-- basic.go --
+package basic
 
 import "context"
 
-//encore:api
-func Foo(ctx context.Context) error { return nil }
--- want:__encore/main/encore_internal__main.go --
-package main
+//encore:service
+type Service struct{}
 
-import (
-	__api "encore.dev/appruntime/api"
-	__appinit "encore.dev/appruntime/app/appinit"
-	__config "encore.dev/appruntime/config"
-	__service "encore.dev/appruntime/service"
-	examplecom "example.com"
-	_ "unsafe"
-)
-
-// loadApp loads the Encore app runtime.
-//
-//go:linkname loadApp encore.dev/appruntime/app/appinit.load
-func loadApp() *__appinit.LoadData {
-	static := &__config.Static{
-		AppCommit: __config.CommitInfo{
-			Revision:    "",
-			Uncommitted: false,
-		},
-		AuthData:          nil,
-		BundledServices:   []string{"code"},
-		CORSAllowHeaders:  nil,
-		CORSExposeHeaders: nil,
-		EncoreCompiler:    "",
-		PubsubTopics:      map[string]*__config.StaticPubsubTopic{},
-		TestService:       "",
-		Testing:           false,
-	}
-	handlers := []__api.HandlerRegistration{
-		{
-			Handler:    examplecom.EncoreInternal_api_APIDesc_Foo,
-			Middleware: nil,
-		},
-	}
-	return &__appinit.LoadData{
-		APIHandlers: handlers,
-		AuthHandler: nil,
-		ServiceInit: []__service.Initializer{},
-		StaticCfg:   static,
-	}
-}
-func main() {
-	__appinit.AppMain()
-}
+//encore:api public
+func (s *Service) Foo(ctx context.Context) error { return nil }
 -- want:encore_internal__api.go --
-package code
+package basic
 
 import (
 	"context"
@@ -67,9 +24,13 @@ type EncoreInternal_FooReq struct{}
 type EncoreInternal_FooResp struct{}
 
 var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
-	Access: __api.Private,
+	Access: __api.Public,
 	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
-		err := Foo(ctx)
+		svc, initErr := EncoreInternal_svcstruct_svcstruct_Service.Get()
+		if initErr != nil {
+			return nil, initErr
+		}
+		err := svc.Foo(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -100,17 +61,31 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 	},
 	Endpoint:       "Foo",
 	Methods:        []string{"GET", "POST"},
-	Path:           "/code.Foo",
+	Path:           "/basic.Foo",
 	PathParamNames: nil,
 	Raw:            false,
 	RawHandler:     nil,
-	RawPath:        "/code.Foo",
+	RawPath:        "/basic.Foo",
 	ReqPath: func(reqData *EncoreInternal_FooReq) (string, __api.UnnamedParams, error) {
-		return "/code.Foo", nil, nil
+		return "/basic.Foo", nil, nil
 	},
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
 	},
-	Service: "code",
+	Service: "basic",
 	SvcNum:  0,
+}
+-- want:encore_internal__svcstruct.go --
+package basic
+
+import (
+	_ "encore.dev/appruntime/app/appinit"
+	__service "encore.dev/appruntime/service"
+)
+
+var EncoreInternal_svcstruct_svcstruct_Service = &__service.Decl[Service]{
+	Name:        "Service",
+	Service:     "basic",
+	Setup:       nil,
+	SetupDefLoc: 0,
 }

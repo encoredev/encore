@@ -66,6 +66,10 @@ func (o Option[T]) OrElse(alternative T) Option[T] {
 	return Some(alternative)
 }
 
+func (o Option[T]) Get() (T, bool) {
+	return o.value, o.present
+}
+
 // GetOrElse returns the value if present, otherwise returns the alternative value
 func (o Option[T]) GetOrElse(alternative T) T {
 	if o.present {

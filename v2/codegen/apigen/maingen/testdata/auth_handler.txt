@@ -20,6 +20,7 @@ import (
 	__api "encore.dev/appruntime/api"
 	__appinit "encore.dev/appruntime/app/appinit"
 	__config "encore.dev/appruntime/config"
+	__service "encore.dev/appruntime/service"
 	examplecom "example.com"
 	"reflect"
 	_ "unsafe"
@@ -52,7 +53,7 @@ func loadApp() *__appinit.LoadData {
 	return &__appinit.LoadData{
 		APIHandlers: handlers,
 		AuthHandler: examplecom.EncoreInternal_authhandler_AuthDesc_AuthHandler,
-		ServiceInit: nil,
+		ServiceInit: []__service.Initializer{},
 		StaticCfg:   static,
 	}
 }
@@ -155,6 +156,6 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[str
 	DefLoc:      0,
 	Endpoint:    "AuthHandler",
 	HasAuthData: true,
-	Service:     "SERVICE",
+	Service:     "code",
 	SvcNum:      0,
 }

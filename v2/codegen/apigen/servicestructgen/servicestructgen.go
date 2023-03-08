@@ -10,13 +10,13 @@ import (
 	"encr.dev/v2/parser/apis/servicestruct"
 )
 
-func Gen(gen *codegen.Generator, svc *app.Service, s *servicestruct.ServiceStruct) {
+func Gen(gen *codegen.Generator, svc *app.Service, s *servicestruct.ServiceStruct) *codegen.VarDecl {
 	initFuncName := option.Map(s.Init, func(init *schema.FuncDecl) *Statement {
 		return Id(init.Name)
 	}).GetOrElse(Nil())
 
 	f := gen.File(s.Decl.File.Pkg, "svcstruct")
-	f.VarDecl("svcstruct", s.Decl.Name).Value(Op("&").Qual("encore.dev/appruntime/service", "Decl").Types(
+	decl := f.VarDecl("svcstruct", s.Decl.Name).Value(Op("&").Qual("encore.dev/appruntime/service", "Decl").Types(
 		Id(s.Decl.Name),
 	).Values(Dict{
 		Id("Service"):     Lit(svc.Name),
@@ -24,4 +24,5 @@ func Gen(gen *codegen.Generator, svc *app.Service, s *servicestruct.ServiceStruc
 		Id("Setup"):       initFuncName,
 		Id("SetupDefLoc"): Lit(0), // TODO
 	}))
+	return decl
 }

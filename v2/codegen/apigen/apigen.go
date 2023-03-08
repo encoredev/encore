@@ -5,12 +5,12 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
-	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/authhandlergen"
 	"encr.dev/v2/codegen/apigen/endpointgen"
 	"encr.dev/v2/codegen/apigen/maingen"
 	"encr.dev/v2/codegen/apigen/middlewaregen"
+	"encr.dev/v2/codegen/apigen/servicestructgen"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
@@ -19,32 +19,41 @@ import (
 
 func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) {
 	gp := maingen.GenParams{
-		Gen:         gg,
-		Desc:        desc,
-		MainModule:  mainModule,
-		APIHandlers: make(map[*api.Endpoint]*codegen.VarDecl),
-		Middleware:  make(map[*middleware.Middleware]*codegen.VarDecl),
-		AuthHandler: option.None[*codegen.VarDecl](),
+		Gen:            gg,
+		Desc:           desc,
+		MainModule:     mainModule,
+		APIHandlers:    make(map[*api.Endpoint]*codegen.VarDecl),
+		Middleware:     make(map[*middleware.Middleware]*codegen.VarDecl),
+		AuthHandler:    option.None[*codegen.VarDecl](),
+		ServiceStructs: make(map[*app.Service]*codegen.VarDecl),
 	}
 
-	desc.Framework.ForAll(func(fw *apiframework.AppDesc) {
+	if fw, ok := desc.Framework.Get(); ok {
 		for _, svc := range desc.Services {
-			eps := endpointgen.Gen(gg, svc)
-			maps.Copy(gp.APIHandlers, eps)
+			var svcStruct option.Option[*codegen.VarDecl]
 
-			svc.Framework.ForAll(func(svcDesc *apiframework.ServiceDesc) {
+			if svcDesc, ok := svc.Framework.Get(); ok {
 				mws := middlewaregen.Gen(gg, svcDesc.Middleware)
 				maps.Copy(gp.Middleware, mws)
-			})
+
+				if ss, ok := svcDesc.ServiceStruct.Get(); ok {
+					decl := servicestructgen.Gen(gg, svc, ss)
+					gp.ServiceStructs[svc] = decl
+					svcStruct = option.Some(decl)
+				}
+			}
+
+			eps := endpointgen.Gen(gg, svc, svcStruct)
+			maps.Copy(gp.APIHandlers, eps)
 		}
 
 		mws := middlewaregen.Gen(gg, fw.GlobalMiddleware)
 		maps.Copy(gp.Middleware, mws)
 
 		gp.AuthHandler = option.Map(fw.AuthHandler, func(ah *authhandler.AuthHandler) *codegen.VarDecl {
-			return authhandlergen.Gen(gg, ah)
+			return authhandlergen.Gen(gg, desc, ah)
 		})
-	})
+	}
 
 	maingen.Gen(gp)
 }

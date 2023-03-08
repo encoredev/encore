@@ -12,6 +12,7 @@ package basic
 import (
 	"context"
 	__api "encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
 )

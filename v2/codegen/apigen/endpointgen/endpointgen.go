@@ -6,6 +6,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
@@ -13,22 +14,28 @@ import (
 	"encr.dev/v2/parser/apis/api/apipaths"
 )
 
-func Gen(gen *codegen.Generator, svc *app.Service) map[*api.Endpoint]*codegen.VarDecl {
+func Gen(gen *codegen.Generator, svc *app.Service, svcStruct option.Option[*codegen.VarDecl]) map[*api.Endpoint]*codegen.VarDecl {
 	epMap := make(map[*api.Endpoint]*codegen.VarDecl)
 	svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
 		f := gen.File(fw.RootPkg, "api")
 		for _, ep := range fw.Endpoints {
-			epMap[ep] = genAPIDesc(gen, f, svc, fw, ep)
+			epMap[ep] = genAPIDesc(gen, f, svc, svcStruct, fw, ep)
 		}
 	})
 	return epMap
 }
 
-func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, fw *apiframework.ServiceDesc, ep *api.Endpoint) *codegen.VarDecl {
+func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, svcStruct option.Option[*codegen.VarDecl], fw *apiframework.ServiceDesc, ep *api.Endpoint) *codegen.VarDecl {
 	gu := gen.Util
 	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
 	respDesc := &responseDesc{gu: gen.Util, ep: ep}
-	handler := &handlerDesc{gu: gen.Util, ep: ep, req: reqDesc, resp: respDesc}
+	handler := &handlerDesc{
+		gu:        gen.Util,
+		ep:        ep,
+		svcStruct: svcStruct,
+		req:       reqDesc,
+		resp:      respDesc,
+	}
 
 	f.Add(reqDesc.TypeDecl())
 	f.Add(respDesc.TypeDecl())

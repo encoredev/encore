@@ -11,7 +11,7 @@ import (
 func TestCodegen(t *testing.T) {
 	fn := func(gen *codegen.Generator, desc *app.Desc) {
 		ah := desc.Framework.MustGet().AuthHandler.MustGet()
-		Gen(gen, ah)
+		Gen(gen, desc, ah)
 	}
 
 	codegentest.Run(t, fn)
