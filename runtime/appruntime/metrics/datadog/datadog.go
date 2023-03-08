@@ -80,7 +80,8 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 			copy(labels, baseLabels)
 			labels[len(baseLabels)] = "service:" + x.svcs[svcIdx]
 			data = append(data, datadogV2.MetricSeries{
-				Metric: metricName,
+				Interval: datadog.PtrInt64(0),
+				Metric:   metricName,
 				Points: []datadogV2.MetricPoint{{
 					Timestamp: datadog.PtrInt64(now.Unix()),
 					Value:     datadog.PtrFloat64(val),
