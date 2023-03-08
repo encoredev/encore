@@ -47,7 +47,15 @@ module test
 
 go 1.20
 
-require encore.dev v1.13.4`)
+require encore.dev v1.13.4
+-- fakesvcfortest/test.go --
+// this service only exists to suppress the "no services found error"
+package fakesvcfortest
+
+import "context"
+
+//encore:api public
+func TestFunc(ctx context.Context) error { return nil }`)
 	ts.Check(txtar.Write(additional, workdir))
 
 	return newContextForFSPath(c, workdir, parseTests)

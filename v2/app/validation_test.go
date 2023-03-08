@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
+	"cuelang.org/go/pkg/regexp"
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"encr.dev/pkg/errinsrc/srcerrors"
@@ -88,21 +88,35 @@ func TestValidation(t *testing.T) {
 
 				// Now writeto stdout the description of the parsed app
 				for _, svc := range desc.Services {
-					printf("svc %s dbs=%s", svc.Name, "") // FIXME: bring databases in
+					if svc.Name != "fakesvcfortest" {
+						printf("svc %s dbs=%s", svc.Name, "") // FIXME: bring databases in
+					}
 				}
 
 				for _, svc := range desc.Services {
+					if svc.Name == "fakesvcfortest" {
+						// this service only exists to suppress the "no services found error"
+						continue
+					}
+
 					svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
 
 						for _, rpc := range fw.Endpoints {
+							if rpc == nil {
+								ts.Fatalf("rpc is nil")
+							}
 							recvName := option.Map(rpc.Recv, func(recv *schema2.Receiver) string {
 								switch t := recv.Type.(type) {
 								case *schema2.NamedType:
 									return "*" + t.Decl().Name
+								case schema2.NamedType:
+									return "*" + t.Decl().Name
 								case *schema2.PointerType:
 									return "*" + t.Elem.(*schema2.NamedType).Decl().Name
+								case schema2.PointerType:
+									return "*" + t.Elem.(schema2.NamedType).Decl().Name
 								default:
-									panic("a reciver should only be a named type or pointer type")
+									panic(fmt.Sprintf("a reciver should only be a named type or pointer type: got %T", t))
 								}
 							}).GetOrElse("")
 
@@ -169,31 +183,31 @@ func TestValidation(t *testing.T) {
 			// The "output" command checks that the output into stdout that we've collected
 			// contains the given regex
 			"output": func(ts *testscript.TestScript, neg bool, args []string) {
-				c := testutil.GetTestC(ts)
-
-				matcher := qt.Contains
-				if neg {
-					matcher = qt.Not(matcher)
+				stdout := ts.Value("stdout").(*bytes.Buffer)
+				m, err := regexp.Match(args[0], stdout.String())
+				if err != nil {
+					ts.Fatalf("invalid pattern: %v", err)
 				}
-
-				c.Assert(
-					ts.Value("stdout").(*bytes.Buffer).String(), matcher, args[0],
-				)
+				if !m && !neg {
+					ts.Fatalf("output does not match %q", args[0])
+				} else if m && neg {
+					ts.Fatalf("output unexpectedly matches %q", args[0])
+				}
 			},
 
 			// The "err" command checks that the output into stderr that we've collected
 			// contains the given regex
 			"err": func(ts *testscript.TestScript, neg bool, args []string) {
-				c := testutil.GetTestC(ts)
-
-				matcher := qt.Contains
-				if neg {
-					matcher = qt.Not(matcher)
+				stderr := ts.Value("stderr").(*bytes.Buffer)
+				m, err := regexp.Match(args[0], stderr.String())
+				if err != nil {
+					ts.Fatalf("invalid pattern: %v", err)
 				}
-
-				c.Assert(
-					ts.Value("stderr").(*bytes.Buffer).String(), matcher, args[0],
-				)
+				if !m && !neg {
+					ts.Fatalf("stderr does not match %q", args[0])
+				} else if m && neg {
+					ts.Fatalf("stderr unexpectedly matches %q", args[0])
+				}
 			},
 		},
 	})

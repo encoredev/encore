@@ -105,8 +105,6 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	// with the parse results.
 	framework := configureAPIFramework(pc, services, result.APIs)
 
-	// TODO: validate infra resources
-
 	return &Desc{
 		Errs:           pc.Errs,
 		Services:       services,
