@@ -424,3 +424,17 @@ func newNamedType(p *Parser, expr ast.Expr, info *pkginfo2.PkgDeclInfo) NamedTyp
 		},
 	}
 }
+
+// newEagerNamedType is a helper to construct an eagerly loaded NamedType.
+func newEagerNamedType(expr ast.Expr, typeArgs []Type, decl *TypeDecl) NamedType {
+	lazy := &lazyDecl{}
+	lazy.once.Do(func() {}) // mark the lazy.once as used
+	lazy.decl = decl
+
+	return NamedType{
+		AST:      expr,
+		DeclInfo: decl.Info,
+		TypeArgs: typeArgs,
+		decl:     lazy,
+	}
+}

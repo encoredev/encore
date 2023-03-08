@@ -213,3 +213,11 @@ type TypeDeclRef struct {
 	TypeArgs []Type
 	Pointers int
 }
+
+func (r *TypeDeclRef) ToType() Type {
+	var typ Type = newEagerNamedType(r.Decl.Type.ASTExpr(), r.TypeArgs, r.Decl)
+	for i := 0; i < r.Pointers; i++ {
+		typ = PointerType{Elem: typ}
+	}
+	return typ
+}

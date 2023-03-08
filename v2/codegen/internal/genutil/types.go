@@ -12,6 +12,7 @@ import (
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema/schemautil"
 )
 
 func NewHelper(errs *perr.List) *Helper {
@@ -232,13 +233,19 @@ func (g *Helper) Zero(typ schema.Type) *Statement {
 		}
 	}
 
-	if isNillable(typ) {
-		return Nil()
-	} else if named, ok := typ.(schema.NamedType); ok {
-		// If the type is a named type, we need to inspect the underlying type.
-		if isNillable(named.Decl().Type) {
-			return Nil()
+	typ, numPointers := schemautil.Deref(typ)
+
+	if named, ok := typ.(schema.NamedType); ok {
+		// If the underlying type is nillable or we have dereferenced pointers,
+		// return (*Foo)(nil).
+		if numPointers > 0 || isNillable(named.Decl().Type) {
+			// Return (*Foo)(nil) if the underlying type is nillable.
+			ops := strings.Repeat("*", numPointers)
+			return Parens(Op(ops).Add(Q(named.DeclInfo))).Call(Nil())
 		}
+	}
+	if numPointers > 0 || isNillable(typ) {
+		return Nil()
 	} else if builtin, ok := typ.(schema.BuiltinType); ok {
 		return g.builtinZero(builtin)
 	}

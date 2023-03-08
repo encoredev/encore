@@ -10,6 +10,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/apis/api"
@@ -62,7 +63,7 @@ func Gen(p GenParams) {
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
 		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
-			Id("AuthData"):       Nil(),   // TODO
+			Id("AuthData"):       authDataType(gen.Util, appDesc),
 			Id("EncoreCompiler"): Lit(""), // TODO
 			Id("AppCommit"): Qual("encore.dev/appruntime/config", "CommitInfo").Values(Dict{
 				Id("Revision"):    Lit(""),    // TODO
@@ -237,4 +238,15 @@ func computeHandlerRegistrationConfig(appDesc *app.Desc, epMap map[*api.Endpoint
 			}
 		}
 	})
+}
+
+func authDataType(gu *genutil.Helper, desc *app.Desc) *Statement {
+	if fw, ok := desc.Framework.Get(); ok {
+		if ah, ok := fw.AuthHandler.Get(); ok {
+			if data, ok := ah.AuthData.Get(); ok {
+				return Qual("reflect", "TypeOf").Call(gu.Zero(data.ToType()))
+			}
+		}
+	}
+	return Nil()
 }

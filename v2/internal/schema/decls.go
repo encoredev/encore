@@ -36,9 +36,10 @@ type TypeDecl struct {
 	// AST is the AST node that this declaration represents.
 	AST *ast.TypeSpec
 
-	File *pkginfo2.File // the file declaring the type
-	Name string         // name of the type declaration
-	Type Type           // the declaration's underlying type
+	Info *pkginfo2.PkgDeclInfo // the underlying declaration info
+	File *pkginfo2.File        // the file declaring the type
+	Name string                // name of the type declaration
+	Type Type                  // the declaration's underlying type
 
 	// TypeParams are any type parameters on this declaration.
 	// (note: instantiated types used within this declaration would not be captured here)
@@ -127,6 +128,7 @@ func (p *Parser) ParseTypeDecl(d *pkginfo2.PkgDeclInfo) *TypeDecl {
 		AST:        spec,
 		Name:       d.Name,
 		File:       d.File,
+		Info:       d,
 		TypeParams: nil,
 		// Type is set below
 	}

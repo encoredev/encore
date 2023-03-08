@@ -42,8 +42,8 @@ func (o Option[T]) IsPresent() bool {
 	return o.Present
 }
 
-func (o Option[T]) Get() any {
-	return o.Value
+func (o Option[T]) Get() (T, bool) {
+	return o.Value, o.Present
 }
 
 // AsOptional returns an Option where a zero value T is considered None
