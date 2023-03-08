@@ -35,8 +35,14 @@ type ParseResult struct {
 	ServiceStructs []*servicestruct.ServiceStruct
 }
 
+// Parse parses the given package for use of the API framework and returns
+// the [ParseResult] describing the results if there's usage of the API framework
+//
+// If the package does not use the API framework, Parse returns nil.
 func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 	res := &ParseResult{Pkg: pkg}
+	apiFrameworkUsed := false
+
 	for _, file := range pkg.Files {
 		for _, decl := range file.AST().Decls {
 			switch decl := decl.(type) {
@@ -64,6 +70,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Doc:    doc,
 					})
 					res.Endpoints = append(res.Endpoints, r)
+					apiFrameworkUsed = true
 
 				case "authhandler":
 					r := authhandler.Parse(authhandler.ParseData{
@@ -75,6 +82,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Doc:    doc,
 					})
 					res.AuthHandlers = append(res.AuthHandlers, r)
+					apiFrameworkUsed = true
 
 				case "middleware":
 					r := middleware.Parse(middleware.ParseData{
@@ -86,6 +94,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Doc:    doc,
 					})
 					res.Middleware = append(res.Middleware, r)
+					apiFrameworkUsed = true
 
 				default:
 					p.c.Errs.Addf(decl.Pos(), "unexpected directive %q on function declaration", dir.Name)
@@ -117,12 +126,17 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Doc:    doc,
 					})
 					res.ServiceStructs = append(res.ServiceStructs, r)
+					apiFrameworkUsed = true
 
 				default:
 					p.c.Errs.Addf(decl.Pos(), "unexpected directive %q on function declaration", dir.Name)
 				}
 			}
 		}
+	}
+
+	if !apiFrameworkUsed {
+		return nil
 	}
 
 	return res

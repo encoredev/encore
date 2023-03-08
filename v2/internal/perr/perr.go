@@ -3,14 +3,20 @@ package perr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/scanner"
 	"go/token"
-	"strconv"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
+
+	"encr.dev/pkg/errinsrc"
+	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/errlist"
+	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 // NewList constructs a new list.
@@ -28,15 +34,12 @@ type List struct {
 	fset *token.FileSet
 
 	mu   sync.Mutex
-	errs []*Error
+	errs errinsrc.List
 }
 
 // Add adds an error at the given pos.
 func (l *List) Add(pos token.Pos, msg string) {
-	l.add(&Error{
-		Pos: l.fset.Position(pos),
-		Msg: msg,
-	})
+	l.add(srcerrors.GenericError(l.fset.Position(pos), msg))
 }
 
 // Addf is equivalent to l.Add(pos, fmt.Sprintf(format, args...))
@@ -46,10 +49,7 @@ func (l *List) Addf(pos token.Pos, format string, args ...any) {
 
 // AddPosition adds an error at the given token.Position.
 func (l *List) AddPosition(pos token.Position, msg string) {
-	l.add(&Error{
-		Pos: pos,
-		Msg: msg,
-	})
+	l.add(srcerrors.GenericError(pos, msg))
 }
 
 // AddForFile adds an error for a given filename.
@@ -74,38 +74,36 @@ func (l *List) AddStd(err error) {
 	}
 
 	switch err := err.(type) {
+	case *errinsrc.ErrInSrc:
+		l.add(err)
+
+	case errinsrc.ErrorList:
+		for _, e := range err.ErrorList() {
+			l.add(e)
+		}
+
 	case *scanner.Error:
-		l.add(&Error{Pos: err.Pos, Msg: err.Msg})
+		l.add(srcerrors.GenericGoParserError(err))
 
 	case scanner.ErrorList:
 		for _, e := range err {
-			l.add(&Error{
-				Pos: e.Pos,
-				Msg: e.Msg,
-			})
+			l.add(srcerrors.GenericGoParserError(e))
 		}
 
 	case packages.Error:
-		// Parse the parts of the Pos string into pos.
-		var pos token.Position
-		switch p := strings.SplitN(err.Pos, ":", 3); len(p) {
-		case 3:
-			pos.Column, _ = strconv.Atoi(p[2])
-			fallthrough
-		case 2:
-			pos.Line, _ = strconv.Atoi(p[1])
-			fallthrough
-		case 1:
-			if p[0] != "" && p[0] != "-" {
-				pos.Filename = p[0]
-			}
-		}
-
-		l.add(&Error{Pos: pos, Msg: err.Msg})
+		l.add(srcerrors.GenericGoPackageError(err))
 
 	default:
-		l.add(&Error{Msg: err.Error()})
+		l.add(srcerrors.StandardLibraryError(err))
 	}
+}
+
+// AddSrcErr adds an error
+func (l *List) AddSrcErr(err *errinsrc.ErrInSrc) {
+	if err == nil {
+		return
+	}
+	l.add(err)
 }
 
 func (l *List) Fatal(pos token.Pos, msg string) {
@@ -125,6 +123,13 @@ func (l *List) Assert(err error, pos token.Pos) {
 func (l *List) AssertStd(err error) {
 	if err != nil {
 		l.AddStd(err)
+		l.Bailout()
+	}
+}
+
+func (l *List) AssertSrcErr(err *errinsrc.ErrInSrc) {
+	if err != nil {
+		l.AddSrcErr(err)
 		l.Bailout()
 	}
 }
@@ -170,7 +175,11 @@ func (l *List) At(i int) error {
 	return l.errs[i]
 }
 
-func (l *List) add(e *Error) {
+func (l *List) FS() *token.FileSet {
+	return l.fset
+}
+
+func (l *List) add(e *errinsrc.ErrInSrc) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.errs = append(l.errs, e)
@@ -193,6 +202,61 @@ func (l *List) FormatErrors() string {
 	return b.String()
 }
 
+// MakeRelative rewrites the errors by making filenames within the
+// app root relative to the relwd (which must be a relative path
+// within the root).
+func (l *List) MakeRelative(root, relwd string) {
+	wdroot := filepath.Join(root, relwd)
+	for _, e := range l.errs {
+		for _, loc := range e.Params.Locations {
+			if loc.File != nil {
+				fn := loc.File.RelPath
+				if strings.HasPrefix(fn, root) {
+					if rel, err := filepath.Rel(wdroot, fn); err == nil {
+						loc.File.RelPath = rel
+					}
+				}
+			}
+		}
+	}
+}
+
+// SendToStream sends a GRPC command with this
+// full errlist
+//
+// If l is nil or empty, it sends a nil command
+// allowing the client to know that there are no
+// longer an error present
+func (l *List) SendToStream(stream interface {
+	Send(*daemonpb.CommandMessage) error
+}) error {
+	var bytes []byte
+	if l != nil && len(l.errs) > 0 {
+		// TODO: For now we use the older errlist format in JSON to preserve
+		// backward compatibility with the daemon while it could receive
+		// errors from v1 or v2.
+		//
+		// Once we remove v1, we can remove this shim
+		errList := errlist.New(l.fset)
+		errList.List = l.errs
+
+		var err error
+		bytes, err = json.Marshal(errList)
+		if err != nil {
+			panic("unable to marshal error list")
+		}
+	}
+	return stream.Send(
+		&daemonpb.CommandMessage{
+			Msg: &daemonpb.CommandMessage_Errors{
+				Errors: &daemonpb.CommandDisplayErrors{
+					Errinsrc: bytes,
+				},
+			},
+		},
+	)
+}
+
 // BailoutOnErrors calls fn and bailouts if fn reports any errors.
 func (l *List) BailoutOnErrors(fn func()) {
 	n := l.Len()
@@ -200,23 +264,6 @@ func (l *List) BailoutOnErrors(fn func()) {
 	if l.Len() > n {
 		l.Bailout()
 	}
-}
-
-// An Error represents an error encountered during parsing.
-// The position Pos, if valid, points to the beginning of
-// the offending token, and the error condition is described
-// by Msg.
-type Error struct {
-	Pos token.Position
-	Msg string
-}
-
-// Error implements the error interface.
-func (e Error) Error() string {
-	if e.Pos.Filename != "" || e.Pos.IsValid() {
-		return e.Pos.String() + ": " + e.Msg
-	}
-	return e.Msg
 }
 
 func (l *List) Bailout() {

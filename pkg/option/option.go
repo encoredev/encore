@@ -6,44 +6,13 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
+// Option is a type that represents a value that may or may not be present
+//
+// It is different a normal value as it can distinguish between a zero value and a missing value
+// even on pointer types
 type Option[T any] struct {
-	Value   T
-	Present bool
-}
-
-func (o *Option[T]) Clear() {
-	var zero T
-	o.Value = zero
-	o.Present = false
-}
-
-func (o Option[T]) String() string {
-	if o.Present {
-		return fmt.Sprintf("%v", o.Value)
-	}
-	return "None"
-}
-
-func (o Option[T]) GetOrDefault(def T) T {
-	if o.Present {
-		return o.Value
-	}
-	return def
-}
-
-func (o Option[T]) MustGet() (rtn T) {
-	if o.Present {
-		return o.Value
-	}
-	panic(errors.Newf("Option value is not set: %T", rtn))
-}
-
-func (o Option[T]) IsPresent() bool {
-	return o.Present
-}
-
-func (o Option[T]) Get() (T, bool) {
-	return o.Value, o.Present
+	value   T
+	present bool
 }
 
 // AsOptional returns an Option where a zero value T is considered None
@@ -71,10 +40,75 @@ func AsOptional[T comparable](v T) Option[T] {
 // This means Some(nil) is a valid present Option
 // and Some(nil) != None()
 func Some[T any](v T) Option[T] {
-	return Option[T]{Value: v, Present: true}
+	return Option[T]{value: v, present: true}
 }
 
 // None returns an Option with no value set
 func None[T any]() Option[T] {
-	return Option[T]{Present: false}
+	return Option[T]{present: false}
+}
+
+// Present returns true if the Option has a value set
+func (o Option[T]) Present() bool {
+	return o.present
+}
+
+// Empty returns true if the Option has no value set
+func (o Option[T]) Empty() bool {
+	return !o.present
+}
+
+// OrElse returns an Option with the value if present, otherwise returns the alternative value
+func (o Option[T]) OrElse(alternative T) Option[T] {
+	if o.present {
+		return o
+	}
+	return Some(alternative)
+}
+
+// GetOrElse returns the value if present, otherwise returns the alternative value
+func (o Option[T]) GetOrElse(alternative T) T {
+	if o.present {
+		return o.value
+	}
+	return alternative
+}
+
+// MustGet returns the value if present, otherwise panics
+func (o Option[T]) MustGet() (rtn T) {
+	if o.present {
+		return o.value
+	}
+	panic(errors.Newf("Option value is not set: %T", rtn))
+}
+
+// ForAll calls the given function with the value if present
+func (o Option[T]) ForAll(f func(v T)) {
+	if o.present {
+		f(o.value)
+	}
+}
+
+// ForEach returns true if the Option is empty or the given predicate returns true on the value
+func (o Option[T]) ForEach(predicate func(v T) bool) bool {
+	if o.present {
+		return predicate(o.value)
+	}
+	return true
+}
+
+// Contains returns true if the Option is present and the given predicate returns true on the value
+// otherwise returns false
+func (o Option[T]) Contains(predicate func(v T) bool) bool {
+	if o.present {
+		return predicate(o.value)
+	}
+	return false
+}
+
+func (o Option[T]) String() string {
+	if o.present {
+		return fmt.Sprintf("%v", o.value)
+	}
+	return "None"
 }

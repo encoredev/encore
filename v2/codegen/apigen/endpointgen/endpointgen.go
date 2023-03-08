@@ -15,11 +15,12 @@ import (
 
 func Gen(gen *codegen.Generator, svc *app.Service) map[*api.Endpoint]*codegen.VarDecl {
 	epMap := make(map[*api.Endpoint]*codegen.VarDecl)
-	fw := svc.Framework.MustGet()
-	f := gen.File(fw.RootPkg, "api")
-	for _, ep := range fw.Endpoints {
-		epMap[ep] = genAPIDesc(gen, f, svc, fw, ep)
-	}
+	svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
+		f := gen.File(fw.RootPkg, "api")
+		for _, ep := range fw.Endpoints {
+			epMap[ep] = genAPIDesc(gen, f, svc, fw, ep)
+		}
+	})
 	return epMap
 }
 

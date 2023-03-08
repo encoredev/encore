@@ -83,11 +83,11 @@ type StructField struct {
 }
 
 func (f *StructField) IsAnonymous() bool {
-	return !f.Name.IsPresent()
+	return f.Name.Empty()
 }
 
 func (f *StructField) IsExported() bool {
-	return f.IsAnonymous() || ast.IsExported(f.Name.Value)
+	return f.IsAnonymous() || f.Name.Contains(ast.IsExported)
 }
 
 type MapType struct {

@@ -75,8 +75,7 @@ func validateServiceStruct(d ParseData, ss *ServiceStruct) {
 		d.Errs.Add(ss.Decl.AST.Pos(), "encore:service types cannot be defined as generic types")
 	}
 
-	if ss.Init.IsPresent() {
-		initFunc := ss.Init.MustGet()
+	ss.Init.ForAll(func(initFunc *schema2.FuncDecl) {
 		if len(initFunc.TypeParams) > 0 {
 			d.Errs.Add(initFunc.AST.Pos(), "service init function cannot be defined as generic functions")
 		}
@@ -95,5 +94,5 @@ func validateServiceStruct(d ParseData, ss *ServiceStruct) {
 			// Second type is not builtin error.
 			d.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
 		}
-	}
+	})
 }

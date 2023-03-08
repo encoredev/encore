@@ -247,9 +247,9 @@ func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
 // It checks that the names match and that the func parameter is of a permissible type.
 // It returns the func parameter's builtin kind.
 func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segment) schema2.BuiltinKind {
-	if param.Name.Value != seg.Value {
+	if !option.Contains(param.Name, seg.Value) {
 		errs.Addf(param.AST.Pos(), "unexpected parameter name '%s', expected '%s' (to match path parameter '%s')",
-			param.Name.Value, seg.Value, seg.String())
+			param.Name, seg.Value, seg.String())
 	}
 
 	builtin, _ := param.Type.(schema2.BuiltinType)

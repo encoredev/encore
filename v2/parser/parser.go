@@ -41,10 +41,17 @@ func (p *Parser) MainModule() *pkginfo.Module {
 }
 
 type Result struct {
-	APIs           []*apis.ParseResult
+	// APIs is a list of [apis.ParseResult] by package that uses the Encore API Framework.
+	// that was found during the parse. If a package does not use the API Framework, it won't
+	// be included in the list.
+	APIs []*apis.ParseResult
+
+	// InfraResources is a list of [resource.Resource]
 	InfraResources []resource.Resource
 }
 
+// Parse parses the given application for uses of the Encore API Framework
+// and the Encore infrastructure SDK.
 func (p *Parser) Parse() Result {
 	var (
 		mu           sync.Mutex
@@ -56,8 +63,15 @@ func (p *Parser) Parse() Result {
 		apiRes := p.apiParser.Parse(pkg)
 		resources := p.infraParser.Parse(pkg)
 
+		if apiRes == nil && len(resources) == 0 {
+			// early escape to avoid locking
+			return
+		}
+
 		mu.Lock()
-		apiResults = append(apiResults, apiRes)
+		if apiRes != nil {
+			apiResults = append(apiResults, apiRes)
+		}
 		allResources = append(allResources, resources...)
 		mu.Unlock()
 	})

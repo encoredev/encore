@@ -23,7 +23,7 @@ func Gen(gen *codegen.Generator, pkg *pkginfo.Package, metrics []*metrics.Metric
 
 func genLabelMapper(gen *codegen.Generator, f *codegen.File, m *metrics.Metric) {
 	// If there is no label type there's nothing to do.
-	if !m.LabelType.IsPresent() {
+	if m.LabelType.Empty() {
 		return
 	}
 	labelType := m.LabelType.MustGet()

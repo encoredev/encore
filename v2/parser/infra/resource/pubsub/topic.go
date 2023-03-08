@@ -105,14 +105,14 @@ func parsePubSubTopic(d parseutil.ParseData) resource.Resource {
 		if str, ok := messageType.Decl.Type.(schema.StructType); ok {
 			found := false
 			for _, field := range str.Fields {
-				if field.Name.Value == config.OrderingKey {
+				if option.Contains(field.Name, config.OrderingKey) {
 					found = true
 					break
 				}
 			}
 
 			if !found || !ast.IsExported(config.OrderingKey) {
-				//p.errInSrc(srcerrors.PubSubOrderingKeyMustBeExported(p.fset, cfgLit.Expr("OrderingKey")))
+				// p.errInSrc(srcerrors.PubSubOrderingKeyMustBeExported(p.fset, cfgLit.Expr("OrderingKey")))
 				d.Pass.Errs.Addf(cfgLit.Pos("OrderingKey"), "Ordering Key must refer to an exported field in the message type")
 			}
 		}

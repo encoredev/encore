@@ -9,12 +9,15 @@ import (
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
+	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/resource/pubsub"
 )
@@ -43,18 +46,17 @@ func Gen(p GenParams) {
 	// Services may not have API handlers as they could be purely operating on PubSub subscriptions
 	// so without this anonymous package import, that service might not be initialized.
 	for _, svc := range appDesc.Services {
-		if svc.Framework.IsPresent() {
-			rootPkg := svc.Framework.MustGet().RootPkg
+		svc.Framework.ForAll(func(svcDesc *apiframework.ServiceDesc) {
+			rootPkg := svcDesc.RootPkg
 			if rootPkg.ImportPath != mainPkgPath {
 				f.Anon(rootPkg.ImportPath.String())
 			}
-		}
+		})
 	}
 
-	authHandler := Nil()
-	if p.AuthHandler.IsPresent() {
-		authHandler = p.AuthHandler.MustGet().Qual()
-	}
+	authHandler := option.
+		Map(p.AuthHandler, func(ah *codegen.VarDecl) *Statement { return ah.Qual() }).
+		GetOrElse(Nil())
 
 	allowHeaders, exposeHeaders := computeCORSHeaders(appDesc)
 
@@ -110,17 +112,17 @@ func pubsubTopics(appDesc *app.Desc) *Statement {
 
 		for _, topic := range topics {
 			subs := DictFunc(func(d Dict) {
-				if qn := topic.BoundTo(); qn.IsPresent() {
-					for _, sub := range subsByTopic[qn.MustGet()] {
+				topic.BoundTo().ForAll(func(qn pkginfo.QualifiedName) {
+					for _, sub := range subsByTopic[qn] {
 						// TODO we should have a better way of knowing which service a subscription belongs to
-						if svc, ok := appDesc.FrameworkServiceForPkg(sub.File.Pkg.ImportPath); ok {
+						if svc, ok := appDesc.ServiceForPath(sub.File.Pkg.FSPath); ok {
 							d[Lit(sub.Name)] = Values(Dict{
 								Id("Service"):  Lit(svc.Name),
 								Id("TraceIdx"): Lit(0), // TODO node id
 							})
 						}
 					}
-				}
+				})
 			})
 
 			d[Lit(topic.Name)] = Values(Dict{
@@ -176,18 +178,17 @@ func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Stateme
 		res.seenHeader = make(map[string]bool)
 
 		for _, svc := range appDesc.Services {
-			if !svc.Framework.IsPresent() {
-				continue
-			}
-			for _, ep := range svc.Framework.MustGet().Endpoints {
-				for _, param := range res.computeHeaders(ep) {
-					name := http.CanonicalHeaderKey(param.WireName)
-					if !res.seenHeader[name] {
-						res.seenHeader[name] = true
-						res.headers = append(res.headers, name)
+			svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
+				for _, ep := range fw.Endpoints {
+					for _, param := range res.computeHeaders(ep) {
+						name := http.CanonicalHeaderKey(param.WireName)
+						if !res.seenHeader[name] {
+							res.seenHeader[name] = true
+							res.headers = append(res.headers, name)
+						}
 					}
 				}
-			}
+			})
 		}
 		// Sort the headers so that the generated code is deterministic.
 		sort.Strings(res.headers)
@@ -215,38 +216,34 @@ func computeHandlerRegistrationConfig(appDesc *app.Desc, epMap map[*api.Endpoint
 		Multi:     true,
 	}, func(g *Group) {
 		for _, svc := range appDesc.Services {
-			if !svc.Framework.IsPresent() {
-				continue
-			}
-			fw := svc.Framework.MustGet()
-			for _, ep := range fw.Endpoints {
-				// Compute middleware for this service.
-				rpcMW := appDesc.MatchingMiddleware(ep)
-				mwExpr := Nil()
-				if len(rpcMW) > 0 {
-					mwExpr = Index().Op("*").Qual("encore.dev/appruntime/api", "Middleware").ValuesFunc(func(g *Group) {
-						for _, mw := range rpcMW {
-							g.Add(mwMap[mw].Qual())
-						}
+			svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
+				for _, ep := range fw.Endpoints {
+					// Compute middleware for this service.
+					rpcMW := appDesc.MatchingMiddleware(ep)
+					mwExpr := Nil()
+					if len(rpcMW) > 0 {
+						mwExpr = Index().Op("*").Qual("encore.dev/appruntime/api", "Middleware").ValuesFunc(func(g *Group) {
+							for _, mw := range rpcMW {
+								g.Add(mwMap[mw].Qual())
+							}
+						})
+					}
+
+					g.Values(Dict{
+						Id("Handler"):    epMap[ep].Qual(),
+						Id("Middleware"): mwExpr,
 					})
 				}
-
-				g.Values(Dict{
-					Id("Handler"):    epMap[ep].Qual(),
-					Id("Middleware"): mwExpr,
-				})
-			}
+			})
 		}
 	})
 }
 
 func authDataType(gu *genutil.Helper, desc *app.Desc) *Statement {
-	if fw, ok := desc.Framework.Get(); ok {
-		if ah, ok := fw.AuthHandler.Get(); ok {
-			if data, ok := ah.AuthData.Get(); ok {
-				return Qual("reflect", "TypeOf").Call(gu.Zero(data.ToType()))
-			}
-		}
-	}
-	return Nil()
+	authHandler := option.FlatMap(desc.Framework, func(fw *apiframework.AppDesc) option.Option[*authhandler.AuthHandler] { return fw.AuthHandler })
+	authData := option.FlatMap(authHandler, func(ah *authhandler.AuthHandler) option.Option[*schema.TypeDeclRef] { return ah.AuthData })
+
+	return option.Map(authData, func(ref *schema.TypeDeclRef) *Statement {
+		return Qual("reflect", "TypeOf").Call(gu.Zero(ref.ToType()))
+	}).GetOrElse(Nil())
 }

@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
+	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/v2/internal/overlay"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
@@ -240,8 +242,7 @@ func (b *builder) buildMain() {
 		if len(out) == 0 {
 			out = []byte(err.Error())
 		}
-		// TODO(andre) return this as a better error
-		b.errs.Addf(token.NoPos, "unable to build main package: %s", out)
+		out = convertCompileErrors(b.errs, out, b.workdir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO())
 	}
 }
 
@@ -283,6 +284,91 @@ func (b *builder) exe() string {
 
 func (b *builder) binaryPath() paths.FS {
 	return b.workdir.Join(binaryName + b.exe())
+}
+
+// convertCompileErrors goes through the errors and converts basic compiler errors into
+// ErrInSrc errors, which are more useful for the user.
+func convertCompileErrors(errList *perr.List, out []byte, workdir, appRoot, relwd string) []byte {
+	wdroot := filepath.Join(appRoot, relwd)
+	lines := bytes.Split(out, []byte{'\n'})
+	prefix := append([]byte(workdir), '/')
+	modified := false
+
+	output := make([][]byte, 0)
+
+	for _, line := range lines {
+		if !bytes.HasPrefix(line, prefix) {
+			output = append(output, line)
+			continue
+		}
+		idx := bytes.IndexByte(line, ':')
+		if idx == -1 || idx < len(prefix) {
+			output = append(output, line)
+			continue
+		}
+
+		filename := line[:idx]
+		appPath := filepath.Join(appRoot, string(filename[len(prefix):]))
+		if _, err := filepath.Rel(wdroot, appPath); err == nil {
+			parts := strings.SplitN(string(line), ":", 4)
+			if len(parts) != 4 {
+				output = append(output, line)
+				continue
+			}
+
+			lineNumber, err := strconv.Atoi(parts[1])
+			if err != nil {
+				output = append(output, line)
+				continue
+			}
+
+			colNumber, err := strconv.Atoi(parts[2])
+			if err != nil {
+				output = append(output, line)
+				continue
+			}
+
+			modified = true
+			errList.AddStd(srcerrors.GenericGoCompilerError(changeToAppRootFile(parts[0], workdir, appRoot), lineNumber, colNumber, parts[3]))
+		} else {
+			output = append(output, line)
+		}
+	}
+
+	if !modified {
+		return out
+	}
+
+	// Append the err list for both the workDir and the appRoot
+	// as files might be coming from either of them
+	errList.MakeRelative(workdir, relwd)
+	errList.MakeRelative(appRoot, relwd)
+	output = append(output)
+
+	return bytes.Join(output, []byte{'\n'})
+}
+
+// changeToAppRootFile will return the compiledFile path inside the appRoot directory
+// if that file exists within the app root. Otherwise it will return the original
+// compiledFile path.
+//
+// This means when we display compiler errors to the user, we will show them their
+// original rewritten code, where line numbers and column numbers will align with
+// their own code.
+//
+// However for generated files which don't exist in their own folders, we will
+// still be able to render the source causing the issue
+func changeToAppRootFile(compiledFile string, workDirectory, appRoot string) string {
+	if strings.HasPrefix(compiledFile, workDirectory) {
+		fileInOriginalSrc := strings.TrimPrefix(compiledFile, workDirectory)
+		fileInOriginalSrc = path.Join(appRoot, fileInOriginalSrc)
+
+		if _, err := os.Stat(fileInOriginalSrc); err == nil {
+			return fileInOriginalSrc
+		}
+	}
+
+	return compiledFile
 }
 
 func isGo118Plus(f *modfile.File) bool {

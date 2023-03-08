@@ -24,7 +24,7 @@ func Gen(gen *codegen.Generator, ah *authhandler.AuthHandler) *codegen.VarDecl {
 		Id("DefLoc"):  Lit(0),         // TODO
 
 		Id("Endpoint"):    Lit(ah.Name),
-		Id("HasAuthData"): Lit(ah.AuthData.IsPresent()),
+		Id("HasAuthData"): Lit(ah.AuthData.Present()),
 		Id("DecodeAuth"):  renderDecodeAuth(gen, f, ah, enc),
 		Id("AuthHandler"): renderAuthHandler(gen, f, ah, enc),
 	}))
@@ -95,20 +95,20 @@ func renderAuthHandler(gen *codegen.Generator, f *codegen.File, ah *authhandler.
 
 		// TODO(andre) Implement support for service structs
 		// If we have a service struct, initialize it first.
-		//group := b.ah.SvcStruct
-		//if group != nil {
+		// group := b.ah.SvcStruct
+		// if group != nil {
 		//	ss := b.ah.Svc.Struct
 		//	g.List(Id("svc"), Id("initErr")).Op(":=").Qual(b.ah.Svc.Root.ImportPath, b.serviceStructName(ss)).Dot("Get").Call()
 		//	g.If(Id("initErr").Op("!=").Nil()).Block(
 		//		Return(Id("info"), Id("initErr")),
 		//	)
 		//	fnExpr = Id("svc").Dot(b.ah.Name)
-		//} else {
+		// } else {
 		//	fnExpr = Qual(b.ah.Svc.Root.ImportPath, b.ah.Name)
-		//}
+		// }
 		fnExpr = Qual(ah.Decl.File.Pkg.ImportPath.String(), ah.Name)
 
-		threeParams := ah.AuthData.IsPresent()
+		threeParams := ah.AuthData.Present()
 		g.ListFunc(func(g *Group) {
 			g.Id("info").Dot("UID")
 			if threeParams {

@@ -191,10 +191,10 @@ func (p *Parser) ParseFuncDecl(file *pkginfo2.File, fd *ast.FuncDecl) *FuncDecl 
 	// If the function is a method, get the type parameters from the receiver's type declaration.
 	// Otherwise, use the ones on the function, if any.
 	var typeParamsInScope map[string]int
-	if recv.IsPresent() {
+	if recv.Present() {
 		// Type params on the receiver do not become type params on the func declaration,
 		// so we use "_" to ignore that value, unlike in the "else" case below.
-		typeParamsInScope, _ = computeDeclTypeParams(recv.Value.Decl.AST.TypeParams)
+		typeParamsInScope, _ = computeDeclTypeParams(recv.MustGet().Decl.AST.TypeParams)
 	} else {
 		typeParamsInScope, decl.TypeParams = computeDeclTypeParams(fd.Type.TypeParams)
 	}

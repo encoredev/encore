@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encr.dev/internal/env"
+	"encr.dev/pkg/errinsrc"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
@@ -27,6 +28,8 @@ type Context struct {
 // NewContext constructs a new Context for testing.
 // It defaults the build info to the host system.
 func NewContext(c *qt.C, parseTests bool, archive *txtar.Archive) *Context {
+	errinsrc.ColoursInErrors(false) // disable colours in errors for tests
+
 	mainModuleDir := WriteTxtar(c, archive)
 
 	d := &build.Default
@@ -97,7 +100,7 @@ func (c *Context) DeferExpectError(matches ...string) {
 
 	for i := 0; i < n; i++ {
 		err := l.At(i)
-		c.TestC.Check(err, qt.ErrorMatches, matches[i])
+		c.TestC.Check(err.Error(), qt.Contains, matches[i])
 	}
 }
 

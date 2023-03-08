@@ -6,6 +6,7 @@ import (
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/app"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -58,36 +59,38 @@ func (b *builder) Build() *meta.Data {
 		svcByName[svc.Name] = out
 		md.Svcs = append(md.Svcs, out)
 
-		for _, ep := range svc.Framework.MustGet().Endpoints {
-			rpc := &meta.RPC{
-				Name:           ep.Name,
-				Doc:            ep.Doc,
-				ServiceName:    svc.Name,
-				RequestSchema:  b.schemaType(ep.Request),
-				ResponseSchema: b.schemaType(ep.Response),
-				Proto:          meta.RPC_REGULAR,
-				Loc:            nil, // TODO
-				Path:           b.apiPath(ep.Decl.AST.Pos(), ep.Path),
-				HttpMethods:    ep.HTTPMethods,
-				Tags:           ep.Tags.ToProto(),
-			}
-			if ep.Raw {
-				rpc.Proto = meta.RPC_RAW
-			}
+		svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
+			for _, ep := range fw.Endpoints {
+				rpc := &meta.RPC{
+					Name:           ep.Name,
+					Doc:            ep.Doc,
+					ServiceName:    svc.Name,
+					RequestSchema:  b.schemaType(ep.Request),
+					ResponseSchema: b.schemaType(ep.Response),
+					Proto:          meta.RPC_REGULAR,
+					Loc:            nil, // TODO
+					Path:           b.apiPath(ep.Decl.AST.Pos(), ep.Path),
+					HttpMethods:    ep.HTTPMethods,
+					Tags:           ep.Tags.ToProto(),
+				}
+				if ep.Raw {
+					rpc.Proto = meta.RPC_RAW
+				}
 
-			switch ep.Access {
-			case api.Public:
-				rpc.AccessType = meta.RPC_PUBLIC
-			case api.Private:
-				rpc.AccessType = meta.RPC_PRIVATE
-			case api.Auth:
-				rpc.AccessType = meta.RPC_AUTH
-			default:
-				b.errs.Addf(ep.Decl.AST.Pos(), "internal error: unknown API access type %v", ep.Access)
-			}
+				switch ep.Access {
+				case api.Public:
+					rpc.AccessType = meta.RPC_PUBLIC
+				case api.Private:
+					rpc.AccessType = meta.RPC_PRIVATE
+				case api.Auth:
+					rpc.AccessType = meta.RPC_AUTH
+				default:
+					b.errs.Addf(ep.Decl.AST.Pos(), "internal error: unknown API access type %v", ep.Access)
+				}
 
-			out.Rpcs = append(out.Rpcs, rpc)
-		}
+				out.Rpcs = append(out.Rpcs, rpc)
+			}
+		})
 	}
 
 	// Keep track of state needed for dependent resources.
@@ -130,9 +133,9 @@ func (b *builder) Build() *meta.Data {
 				panic(fmt.Sprintf("unknown delivery guarantee %v", r.DeliveryGuarantee))
 			}
 
-			if qn := r.BoundTo(); qn.IsPresent() {
-				topicMap[qn.MustGet()] = topic
-			}
+			r.BoundTo().ForAll(func(qn pkginfo.QualifiedName) {
+				topicMap[qn] = topic
+			})
 			md.PubsubTopics = append(md.PubsubTopics, topic)
 
 		case *cache.Cluster:
@@ -142,14 +145,14 @@ func (b *builder) Build() *meta.Data {
 				Keyspaces:      nil,
 				EvictionPolicy: r.EvictionPolicy,
 			}
-			if qn := r.BoundTo(); qn.IsPresent() {
-				clusterMap[qn.MustGet()] = cluster
-			}
+			r.BoundTo().ForAll(func(qn pkginfo.QualifiedName) {
+				clusterMap[qn] = cluster
+			})
 			md.CacheClusters = append(md.CacheClusters, cluster)
 
 		case *metrics.Metric:
 			var svcName *string
-			if svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath); ok {
+			if svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath); ok {
 				svcName = &svc.Name
 			}
 
@@ -172,7 +175,7 @@ func (b *builder) Build() *meta.Data {
 			md.Metrics = append(md.Metrics, m)
 
 		case *config.Load:
-			if svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath); ok {
+			if svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath); ok {
 				if metaSvc, ok := svcByName[svc.Name]; ok {
 					metaSvc.HasConfig = true
 				}
@@ -194,7 +197,7 @@ func (b *builder) Build() *meta.Data {
 				continue
 			}
 
-			svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath)
+			svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath)
 			if !ok {
 				b.errs.Addf(r.ASTExpr().Pos(), "pubsub subscription %q must be defined within a service",
 					r.Name)
@@ -204,7 +207,7 @@ func (b *builder) Build() *meta.Data {
 			topic.Subscriptions = append(topic.Subscriptions, &meta.PubSubTopic_Subscription{
 				Name:        r.Name,
 				ServiceName: svc.Name,
-				//TODO(andre) Fill these in
+				// TODO(andre) Fill these in
 				AckDeadline:      0,
 				MessageRetention: 0,
 				RetryPolicy:      nil,
@@ -218,7 +221,7 @@ func (b *builder) Build() *meta.Data {
 				continue
 			}
 
-			svc, ok := b.app.FrameworkServiceForPkg(r.File.Pkg.ImportPath)
+			svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath)
 			if !ok {
 				b.errs.Addf(r.ASTExpr().Pos(), "cache keyspace must be defined within a service")
 				continue

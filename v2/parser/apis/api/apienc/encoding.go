@@ -342,13 +342,13 @@ func IgnoreField(field schema.StructField) bool {
 //
 // It returns nil, nil if the field is not to be encoded.
 func describeParam(encodingHints *encodingHints, field schema.StructField) (*ParameterEncoding, error) {
-	if !field.Name.IsPresent() {
+	if field.Name.Empty() {
 		// TODO(andre) We don't yet support encoding anonymous fields.
 		return nil, errors.New("anonymous fields in top-level request/response types are not supported")
 	}
-	srcName := field.Name.Value
+	srcName := field.Name.MustGet()
 
-	defaultWireName := formatName(encodingHints.defaultLocation, field.Name.Value)
+	defaultWireName := formatName(encodingHints.defaultLocation, srcName)
 	param := ParameterEncoding{
 		OmitEmpty: false,
 		SrcName:   srcName,

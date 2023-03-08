@@ -43,7 +43,7 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 				return r.(*secrets.Secrets)
 			}))
 		case resource.ConfigLoad:
-			svc, ok := appDesc.FrameworkServiceForPkg(pkg.ImportPath)
+			svc, ok := appDesc.ServiceForPath(pkg.FSPath)
 			if !ok {
 				gg.Errs.Addf(resources[0].ASTExpr().Pos(), "config loads must be declared in a service package")
 				continue

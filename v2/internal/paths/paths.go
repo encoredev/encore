@@ -24,6 +24,8 @@ func RootedFSPath(wd, p string) FS {
 }
 
 // FS represents a filesystem path.
+//
+// It is an absolute path, and is always in the OS-specific format.
 type FS string
 
 // ToIO returns the path for use in IO operations.
@@ -61,6 +63,28 @@ func (fs FS) Join(elem ...string) FS {
 func (fs FS) Base() string {
 	fs.checkValid()
 	return filepath.Base(string(fs))
+}
+
+// Dir returns the filepath.Dir of the path.
+func (fs FS) Dir() FS {
+	fs.checkValid()
+	return FS(filepath.Dir(string(fs)))
+}
+
+// HasPrefix reports whether fs is a descendant of other
+// or is equal to other. (i.e. it is the given path or a subdirectory of it)
+func (fs FS) HasPrefix(other FS) bool {
+	fs.checkValid()
+	other.checkValid()
+
+	// Note: we use filepath.Rel instead of strings.HasPrefix with filepath.Abs
+	// because that wouldn't work on case-insensitive filesystems.
+	rel, err := filepath.Rel(string(other), string(fs))
+	if err != nil {
+		return false
+	}
+
+	return filepath.IsLocal(rel)
 }
 
 func (fs FS) checkValid() {
