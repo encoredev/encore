@@ -29,7 +29,7 @@ func Run[R resource.Resource](t *testing.T, parser *resource.Parser, tests []Cas
 	// testArchive renders the txtar archive to use for a given test.
 	testArchive := func(test Case[R]) *txtar.Archive {
 		importList := []string{"context"}
-		for _, imp := range parser.RequiredImports {
+		for _, imp := range parser.InterestingImports {
 			importList = append(importList, imp.String())
 		}
 		importList = append(importList, test.Imports...)
@@ -78,7 +78,8 @@ package foo
 				SchemaParser: schemaParser,
 				Pkg:          pkg,
 			}
-			got := parser.Run(pass)
+			parser.Run(pass)
+			got := pass.Resources()
 
 			if len(test.WantErrs) == 0 {
 				c.Assert(got, qt.HasLen, 1)

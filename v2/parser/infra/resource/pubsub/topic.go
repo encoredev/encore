@@ -24,7 +24,6 @@ const (
 type Topic struct {
 	AST               *ast.CallExpr
 	File              *pkginfo.File
-	Ident             *ast.Ident          // The identifier of the pub sub topic
 	Name              string              // The unique name of the pub sub topic
 	Doc               string              // The documentation on the pub sub topic
 	DeliveryGuarantee DeliveryGuarantee   // What guarantees does the pub sub topic have?
@@ -33,63 +32,56 @@ type Topic struct {
 }
 
 func (t *Topic) Kind() resource.Kind       { return resource.PubSubTopic }
-func (t *Topic) DeclaredIn() *pkginfo.File { return t.File }
+func (t *Topic) Package() *pkginfo.Package { return t.File.Pkg }
 func (t *Topic) ASTExpr() ast.Expr         { return t.AST }
-func (t *Topic) BoundTo() option.Option[pkginfo.QualifiedName] {
-	return parseutil.BoundTo(t.File, t.Ident)
-}
+func (t *Topic) ResourceName() string      { return t.Name }
 
 var TopicParser = &resource.Parser{
 	Name: "PubSub Topic",
 
-	RequiredImports: []paths.Pkg{"encore.dev/pubsub"},
-	Run: func(p *resource.Pass) []resource.Resource {
+	InterestingImports: []paths.Pkg{"encore.dev/pubsub"},
+	Run: func(p *resource.Pass) {
 		name := pkginfo.QualifiedName{Name: "NewTopic", PkgPath: "encore.dev/pubsub"}
 
-		spec := &parseutil.ResourceCreationSpec{
+		spec := &parseutil.ReferenceSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 1,
 			MaxTypeArgs: 1,
 			Parse:       parsePubSubTopic,
 		}
 
-		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			parseutil.ParseReference(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
-			if r != nil {
-				resources = append(resources, r)
-			}
 		})
-		return resources
 	},
 }
 
-func parsePubSubTopic(d parseutil.ParseData) resource.Resource {
+func parsePubSubTopic(d parseutil.ReferenceInfo) {
 	if len(d.Call.Args) != 2 {
 		d.Pass.Errs.Add(d.Call.Pos(), "pubsub.NewTopic expects 2 arguments")
-		return nil
+		return
 	}
 
 	topicName := parseutil.ParseResourceName(d.Pass.Errs, "pubsub.NewTopic", "topic name",
 		d.Call.Args[0], parseutil.KebabName, "")
 	if topicName == "" {
 		// we already reported the error inside ParseResourceName
-		return nil
+		return
 	}
 
 	messageType, ok := schemautil.ResolveNamedStruct(d.TypeArgs[0], false)
 	if !ok {
 		d.Pass.Errs.Add(d.Call.Pos(), "pubsub.NewTopic message type expects a named struct type as its type argument")
-		return nil
+		return
 	}
 
 	cfgLit, ok := literals.ParseStruct(d.Pass.Errs, d.File, "pubsub.TopicConfig", d.Call.Args[1])
 	if !ok {
-		return nil // error reported by ParseStruct
+		return // error reported by ParseStruct
 	}
 
 	// Decode the config
@@ -118,14 +110,17 @@ func parsePubSubTopic(d parseutil.ParseData) resource.Resource {
 		}
 	}
 
-	return &Topic{
+	topic := &Topic{
 		AST:               d.Call,
 		File:              d.File,
-		Ident:             d.Ident,
 		Name:              topicName,
 		Doc:               d.Doc,
 		DeliveryGuarantee: AtLeastOnce,
 		OrderingKey:       config.OrderingKey,
 		MessageType:       messageType,
+	}
+	d.Pass.RegisterResource(topic)
+	if id, ok := d.Ident.Get(); ok {
+		d.Pass.AddBind(id, topic)
 	}
 }

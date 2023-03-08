@@ -133,9 +133,9 @@ func (b *builder) Build() *meta.Data {
 				panic(fmt.Sprintf("unknown delivery guarantee %v", r.DeliveryGuarantee))
 			}
 
-			r.BoundTo().ForAll(func(qn pkginfo.QualifiedName) {
-				topicMap[qn] = topic
-			})
+			for _, b := range b.app.Binds(r) {
+				topicMap[b.QualifiedName()] = topic
+			}
 			md.PubsubTopics = append(md.PubsubTopics, topic)
 
 		case *cache.Cluster:
@@ -145,9 +145,9 @@ func (b *builder) Build() *meta.Data {
 				Keyspaces:      nil,
 				EvictionPolicy: r.EvictionPolicy,
 			}
-			r.BoundTo().ForAll(func(qn pkginfo.QualifiedName) {
-				clusterMap[qn] = cluster
-			})
+			for _, b := range b.app.Binds(r) {
+				clusterMap[b.QualifiedName()] = cluster
+			}
 			md.CacheClusters = append(md.CacheClusters, cluster)
 
 		case *metrics.Metric:

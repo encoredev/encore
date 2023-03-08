@@ -40,7 +40,7 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 					svcStruct = option.Some(decl)
 				}
 
-				mws := middlewaregen.Gen(gg, svcDesc.Middleware)
+				mws := middlewaregen.Gen(gg, svcDesc.Middleware, svcStruct)
 				maps.Copy(gp.Middleware, mws)
 			}
 
@@ -48,7 +48,7 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 			maps.Copy(gp.APIHandlers, eps)
 		}
 
-		mws := middlewaregen.Gen(gg, fw.GlobalMiddleware)
+		mws := middlewaregen.Gen(gg, fw.GlobalMiddleware, option.None[*codegen.VarDecl]())
 		maps.Copy(gp.Middleware, mws)
 
 		gp.AuthHandler = option.Map(fw.AuthHandler, func(ah *authhandler.AuthHandler) *codegen.VarDecl {

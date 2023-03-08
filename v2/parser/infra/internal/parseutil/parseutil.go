@@ -125,7 +125,7 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 	// Verify the structure of the reference.
 
 	ident := resolveAssignedVar(data.Stack)
-	if ident == nil {
+	if ident.Empty() {
 		p.Errs.Addf(data.Stack[selIdx].Pos(), "the %s return value must be assigned to a variable",
 			constructor.NaiveDisplayName())
 		return nil
@@ -190,7 +190,7 @@ func ParseResourceCreation(p *resource.Pass, spec *ResourceCreationSpec, data Re
 		Pass:         p,
 		File:         data.File,
 		Stack:        data.Stack,
-		Ident:        ident,
+		Ident:        ident.MustGet(),
 		Call:         call,
 		TypeArgs:     typeArgs,
 		Doc:          resolveResourceDoc(data.Stack),
@@ -211,8 +211,8 @@ func resolveTypeArgs(node ast.Node) []ast.Expr {
 
 // resolvedAssignedVar resolves the identifier the resource is being assigned to,
 // as well as the doc comment associated with it.
-// If no identifier can be found it reports nil.
-func resolveAssignedVar(stack []ast.Node) (id *ast.Ident) {
+// If no identifier can be found it reports None.
+func resolveAssignedVar(stack []ast.Node) option.Option[*ast.Ident] {
 	for i := len(stack) - 1; i >= 0; i-- {
 		vs, ok := stack[i].(*ast.ValueSpec)
 		if !ok {
@@ -230,12 +230,12 @@ func resolveAssignedVar(stack []ast.Node) (id *ast.Ident) {
 		for n := 0; n < len(vs.Names); n++ {
 			if len(vs.Values) > n && vs.Values[n] == stack[i+1] {
 				// We've found the value that contains the resource.
-				id = vs.Names[n]
+				return option.AsOptional(vs.Names[n])
 			}
 		}
-		return id
+		break
 	}
-	return nil
+	return option.None[*ast.Ident]()
 }
 
 func resolveResourceDoc(stack []ast.Node) (doc string) {

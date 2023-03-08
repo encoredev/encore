@@ -123,7 +123,8 @@ func pubsubTopics(appDesc *app.Desc) *Statement {
 
 		for _, topic := range topics {
 			subs := DictFunc(func(d Dict) {
-				topic.BoundTo().ForAll(func(qn pkginfo.QualifiedName) {
+				for _, b := range appDesc.Binds(topic) {
+					qn := b.QualifiedName()
 					for _, sub := range subsByTopic[qn] {
 						// TODO we should have a better way of knowing which service a subscription belongs to
 						if svc, ok := appDesc.ServiceForPath(sub.File.Pkg.FSPath); ok {
@@ -133,7 +134,7 @@ func pubsubTopics(appDesc *app.Desc) *Statement {
 							})
 						}
 					}
-				})
+				}
 			})
 
 			d[Lit(topic.Name)] = Values(Dict{

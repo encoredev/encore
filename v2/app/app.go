@@ -22,8 +22,15 @@ type Desc struct {
 	Services       []*Service
 	InfraResources []resource.Resource
 
+	binds map[resource.Resource][]resource.Bind
+
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
+}
+
+// Binds returns the set of binds the given resource has.
+func (d *Desc) Binds(r resource.Resource) []resource.Bind {
+	return d.binds[r]
 }
 
 // MatchingMiddleware reports which middleware applies to the given RPC,
@@ -105,11 +112,14 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	// with the parse results.
 	framework := configureAPIFramework(pc, services, result.APIs)
 
+	binds := computeInfraBindMap(pc.Errs, result.InfraResources, result.InfraBinds)
+
 	return &Desc{
 		Errs:           pc.Errs,
 		Services:       services,
 		Framework:      framework,
 		InfraResources: result.InfraResources,
+		binds:          binds,
 	}
 }
 

@@ -4,11 +4,9 @@ import (
 	"go/ast"
 	"go/token"
 
-	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -28,20 +26,17 @@ type SecretKey struct {
 }
 
 func (*Secrets) Kind() resource.Kind         { return resource.Secrets }
-func (s *Secrets) DeclaredIn() *pkginfo.File { return s.File }
+func (s *Secrets) Package() *pkginfo.Package { return s.File.Pkg }
 func (s *Secrets) ASTExpr() ast.Expr         { return s.AST }
-func (s *Secrets) BoundTo() option.Option[pkginfo.QualifiedName] {
-	return parseutil.BoundTo(s.File, s.Ident)
-}
 
 var SecretsParser = &resource.Parser{
-	Name:            "Secrets",
-	RequiredImports: resource.RunAlways,
+	Name:               "Secrets",
+	InterestingImports: resource.RunAlways,
 
-	Run: func(p *resource.Pass) []resource.Resource {
+	Run: func(p *resource.Pass) {
 		secrets := p.Pkg.Names().PkgDecls["secrets"]
 		if secrets == nil || secrets.Type != token.VAR {
-			return nil // nothing to do
+			return // nothing to do
 		}
 
 		// Note: we can't use schema.ParseTypeDecl since this is not a type declaration.
@@ -49,19 +44,19 @@ var SecretsParser = &resource.Parser{
 		spec := secrets.Spec.(*ast.ValueSpec)
 		if spec.Type == nil {
 			p.Errs.Add(spec.Pos(), "secrets variable must be a struct")
-			return nil
+			return
 		} else if len(spec.Names) != 1 {
 			p.Errs.Add(spec.Pos(), "secrets variable must be declared separately")
-			return nil
+			return
 		} else if len(spec.Values) != 0 {
 			p.Errs.Add(spec.Pos(), "secrets variable must not be given a value")
-			return nil
+			return
 		}
 
 		st, ok := p.SchemaParser.ParseType(secrets.File, spec.Type).(schema.StructType)
 		if !ok {
 			p.Errs.Add(spec.Pos(), "secrets variable must be a struct")
-			return nil
+			return
 		}
 
 		res := &Secrets{
@@ -83,6 +78,7 @@ var SecretsParser = &resource.Parser{
 			res.Keys = append(res.Keys, f.Name.MustGet())
 		}
 
-		return []resource.Resource{res}
+		p.RegisterResource(res)
+		p.AddBind(res.Ident, res)
 	},
 }

@@ -132,9 +132,9 @@ func TestValidation(t *testing.T) {
 				for _, res := range desc.InfraResources {
 					switch res := res.(type) {
 					case *pubsub.Topic:
-						res.BoundTo().ForAll(func(boundTo pkginfo.QualifiedName) {
-							topicsByName[boundTo] = res
-						})
+						for _, b := range desc.Binds(res) {
+							topicsByName[b.QualifiedName()] = res
+						}
 					}
 				}
 

@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"strings"
 
-	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -18,7 +17,6 @@ import (
 
 type Keyspace struct {
 	AST     *ast.CallExpr
-	Ident   *ast.Ident    // The package-level identifier the keyspace is bound to.
 	Doc     string        // The documentation on the keyspace
 	File    *pkginfo.File // File the keyspace is declared in.
 	Cluster pkginfo.QualifiedName
@@ -33,20 +31,17 @@ type Keyspace struct {
 }
 
 func (k *Keyspace) Kind() resource.Kind       { return resource.CacheKeyspace }
-func (k *Keyspace) DeclaredIn() *pkginfo.File { return k.File }
+func (k *Keyspace) Package() *pkginfo.Package { return k.File.Pkg }
 func (k *Keyspace) ASTExpr() ast.Expr         { return k.AST }
-func (k *Keyspace) BoundTo() option.Option[pkginfo.QualifiedName] {
-	return parseutil.BoundTo(k.File, k.Ident)
-}
 
 var KeyspaceParser = &resource.Parser{
 	Name: "Cache Keyspace",
 
-	RequiredImports: []paths.Pkg{"encore.dev/storage/cache"},
-	Run: func(p *resource.Pass) []resource.Resource {
+	InterestingImports: []paths.Pkg{"encore.dev/storage/cache"},
+	Run: func(p *resource.Pass) {
 		var (
 			names []pkginfo.QualifiedName
-			specs = make(map[pkginfo.QualifiedName]*parseutil.ResourceCreationSpec)
+			specs = make(map[pkginfo.QualifiedName]*parseutil.ReferenceSpec)
 		)
 		for _, c := range keyspaceConstructors {
 			name := pkginfo.QualifiedName{PkgPath: "encore.dev/storage/cache", Name: c.FuncName}
@@ -58,11 +53,11 @@ var KeyspaceParser = &resource.Parser{
 			}
 
 			c := c // capture for closure
-			parseFn := func(d parseutil.ParseData) resource.Resource {
-				return parseKeyspace(c, d)
+			parseFn := func(d parseutil.ReferenceInfo) {
+				parseKeyspace(c, d)
 			}
 
-			spec := &parseutil.ResourceCreationSpec{
+			spec := &parseutil.ReferenceSpec{
 				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
@@ -71,19 +66,14 @@ var KeyspaceParser = &resource.Parser{
 			specs[name] = spec
 		}
 
-		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, names, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
 			spec := specs[name]
-			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			parseutil.ParseReference(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
-			if r != nil {
-				resources = append(resources, r)
-			}
 		})
-		return resources
 	},
 }
 
@@ -118,24 +108,24 @@ var keyspaceConstructors = []cacheKeyspaceConstructor{
 	{"NewStructKeyspace", structValue, nil},
 }
 
-func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.Resource {
+func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 	errs := d.Pass.Errs
 	constructorName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
 		errs.Addf(d.Call.Pos(), "%s expects 2 arguments", constructorName)
-		return nil
+		return
 	}
 
 	// TODO(andre) Resolve cluster name
 	clusterRef, ok := d.File.Names().ResolvePkgLevelRef(d.Call.Args[0])
 	if !ok {
 		errs.Add(d.Call.Args[0].Pos(), "could not resolve cache cluster: must refer to a package-level variable")
-		return nil
+		return
 	}
 
 	cfgLit, ok := literals.ParseStruct(errs, d.File, "cache.KeyspaceConfig", d.Call.Args[1])
 	if !ok {
-		return nil // error reported by ParseStruct
+		return // error reported by ParseStruct
 	}
 
 	keyPos := d.TypeArgs[0].ASTExpr().Pos()
@@ -151,13 +141,13 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 	const reservedPrefix = "__encore"
 	if strings.HasPrefix(config.KeyPattern, reservedPrefix) {
 		errs.Addf(patternPos, "invalid KeyPattern: use of reserved prefix %q", reservedPrefix)
-		return nil
+		return
 	}
 
 	path, err := ParseKeyspacePath(patternPos, config.KeyPattern)
 	if err != nil {
 		errs.Addf(patternPos, "cache.KeyspaceConfig got an invalid keyspace pattern: %v", err)
-		return nil
+		return
 	}
 
 	// Get key and value types.
@@ -269,9 +259,8 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 		}
 	}
 
-	return &Keyspace{
+	ks := &Keyspace{
 		AST:           d.Call,
-		Ident:         d.Ident,
 		Doc:           d.Doc,
 		File:          d.File,
 		Cluster:       clusterRef,
@@ -279,5 +268,10 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ParseData) resource.R
 		Path:          path,
 		KeyType:       keyType,
 		ValueType:     valueType,
+	}
+
+	d.Pass.RegisterResource(ks)
+	if id, ok := d.Ident.Get(); ok {
+		d.Pass.AddBind(id, ks)
 	}
 }

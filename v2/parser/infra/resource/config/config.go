@@ -3,7 +3,6 @@ package config
 import (
 	"go/ast"
 
-	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -15,9 +14,8 @@ import (
 
 // Load represents a config load statement.
 type Load struct {
-	AST   *ast.CallExpr
-	File  *pkginfo.File
-	Ident *ast.Ident // The identifier of the load statement
+	AST  *ast.CallExpr
+	File *pkginfo.File
 
 	// Type is the type of the config struct being loaded.
 	// It's guaranteed to be a (possibly pointer to a) named struct type.
@@ -28,61 +26,57 @@ type Load struct {
 }
 
 func (*Load) Kind() resource.Kind         { return resource.ConfigLoad }
-func (l *Load) DeclaredIn() *pkginfo.File { return l.File }
+func (l *Load) Package() *pkginfo.Package { return l.File.Pkg }
 func (l *Load) ASTExpr() ast.Expr         { return l.AST }
-func (l *Load) BoundTo() option.Option[pkginfo.QualifiedName] {
-	return parseutil.BoundTo(l.File, l.Ident)
-}
 
 var LoadParser = &resource.Parser{
 	Name: "ConfigLoad",
 
-	RequiredImports: []paths.Pkg{"encore.dev/config"},
-	Run: func(p *resource.Pass) []resource.Resource {
+	InterestingImports: []paths.Pkg{"encore.dev/config"},
+	Run: func(p *resource.Pass) {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/config", Name: "Load"}
 
-		spec := &parseutil.ResourceCreationSpec{
+		spec := &parseutil.ReferenceSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 1,
 			MaxTypeArgs: 1,
 			Parse:       parseLoad,
 		}
-		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
-			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			parseutil.ParseReference(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
-			if r != nil {
-				resources = append(resources, r)
-			}
 		})
-		return resources
 	},
 }
 
-func parseLoad(d parseutil.ParseData) resource.Resource {
+func parseLoad(d parseutil.ReferenceInfo) {
 	errs := d.Pass.Errs
 
 	if len(d.Call.Args) > 0 {
 		errs.Add(d.Call.Pos(), "config.Load expects no arguments")
-		return nil
+		return
 	}
 
 	// Resolve the named struct used for the config type
 	ref, ok := schemautil.ResolveNamedStruct(d.TypeArgs[0], false)
 	if !ok {
 		errs.Add(d.TypeArgs[0].ASTExpr().Pos(), "config.Load expects a named struct type as its type argument")
-		return nil
+		return
 	}
 	_ = ref
 
-	return &Load{
+	load := &Load{
 		AST:      d.Call,
 		File:     d.File,
-		Ident:    d.Ident,
 		Type:     d.TypeArgs[0],
 		FuncCall: d.Call,
+	}
+
+	d.Pass.RegisterResource(load)
+	if id, ok := d.Ident.Get(); ok {
+		d.Pass.AddBind(id, load)
 	}
 }

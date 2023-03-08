@@ -12,7 +12,10 @@ func API(context.Context) error { return nil }
 -- want:encore_internal__svcstruct.go --
 package basic
 
-import __service "encore.dev/appruntime/service"
+import (
+	_ "encore.dev/appruntime/app/appinit"
+	__service "encore.dev/appruntime/service"
+)
 
 var EncoreInternal_svcstruct_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",

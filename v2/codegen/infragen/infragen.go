@@ -23,12 +23,12 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 	}
 	groups := make(map[groupKey][]resource.Resource)
 	for _, r := range appDesc.InfraResources {
-		key := groupKey{r.DeclaredIn().Pkg.ImportPath, r.Kind()}
+		key := groupKey{r.Package().ImportPath, r.Kind()}
 		groups[key] = append(groups[key], r)
 	}
 
 	for key, resources := range groups {
-		pkg := resources[0].DeclaredIn().Pkg
+		pkg := resources[0].Package()
 		switch key.kind {
 		case resource.CacheKeyspace:
 			cachegen.GenKeyspace(gg, pkg, fns.Map(resources, func(r resource.Resource) *cache.Keyspace {
@@ -45,7 +45,7 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 		case resource.ConfigLoad:
 			svc, ok := appDesc.ServiceForPath(pkg.FSPath)
 			if !ok {
-				gg.Errs.Addf(resources[0].ASTExpr().Pos(), "config loads must be declared in a service package")
+				gg.Errs.Addf(resources[0].(*config.Load).AST.Pos(), "config loads must be declared in a service package")
 				continue
 			}
 

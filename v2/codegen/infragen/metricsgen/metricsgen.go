@@ -100,7 +100,7 @@ func fieldToString(errs *perr.List, field schema.StructField, val Code) Code {
 		return Qual("strconv", "FormatUint").Call(val, Lit(10))
 
 	default:
-		errs.Addf(field.AST.Pos(), "invalid metric label field: must be string, bool, or integer type",
+		errs.Addf(field.AST.Pos(), "invalid metric label field %s: must be string, bool, or integer type",
 			fieldName)
 		return Null()
 	}

@@ -22,23 +22,21 @@ type Parser struct {
 }
 
 // Parse parses all the infra resources defined in the given package.
-func (p *Parser) Parse(pkg *pkginfo.Package) []resource.Resource {
+func (p *Parser) Parse(pkg *pkginfo.Package) ([]resource.Resource, []resource.Bind) {
 	interested := p.reg.InterestedParsers(pkg)
 	if len(interested) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	var allResources []resource.Resource
 	pass := &resource.Pass{
 		Context:      p.c,
 		SchemaParser: p.schema,
 		Pkg:          pkg,
 	}
 	for _, p := range interested {
-		res := p.Run(pass)
-		allResources = append(allResources, res...)
+		p.Run(pass)
 	}
-	return allResources
+	return pass.Resources(), pass.Binds()
 }
 
 // ComputeResult computes the application-wide result of parsing all infrastructure

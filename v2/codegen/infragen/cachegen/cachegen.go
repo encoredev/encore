@@ -2,6 +2,7 @@ package cachegen
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
@@ -16,14 +17,15 @@ import (
 
 func GenKeyspace(gen *codegen.Generator, pkg *pkginfo.Package, keyspaces []*cache.Keyspace) {
 	f := gen.File(pkg, "cache")
-	for _, ks := range keyspaces {
-		genKeyspaceMappers(gen, f, ks)
+	for idx, ks := range keyspaces {
+		genKeyspaceMappers(gen, f, ks, idx)
 	}
 }
 
-func genKeyspaceMappers(gen *codegen.Generator, f *codegen.File, ks *cache.Keyspace) {
-	// Construct the key mapper function.
-	mapper := f.FuncDecl("keyMapper", ks.Ident.Name)
+func genKeyspaceMappers(gen *codegen.Generator, f *codegen.File, ks *cache.Keyspace, idx int) {
+	// Construct the key mapper function. We use the index since keyspaces
+	// do not have resource names.
+	mapper := f.FuncDecl("keyMapper", strconv.Itoa(idx))
 
 	const input = "in"
 	mapper.Params(Id(input).Add(gen.Util.Type(ks.KeyType)))

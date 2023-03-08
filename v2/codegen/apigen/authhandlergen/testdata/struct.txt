@@ -18,6 +18,7 @@ package code
 import (
 	"context"
 	__api "encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
 	__etype "encore.dev/appruntime/etype"
 	__model "encore.dev/appruntime/model"
 	errs "encore.dev/beta/errs"
@@ -41,15 +42,15 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 		params.APIKey = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "APIKey", qs.Get("key"), false)
 
 		if dec.NonEmptyValues == 0 {
-			return nil, errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
+			return (*MyAuthParams)(nil), errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
 		} else if err := dec.Error; err != nil {
-			return nil, errs.B().Code(errs.InvalidArgument).Msgf("invalid auth param: %v", err).Err()
+			return (*MyAuthParams)(nil), errs.B().Code(errs.InvalidArgument).Msgf("invalid auth param: %v", err).Err()
 		}
 		return params, nil
 	},
 	DefLoc:      0,
 	Endpoint:    "AuthHandler",
 	HasAuthData: false,
-	Service:     "SERVICE",
+	Service:     "UNKNOWN",
 	SvcNum:      0,
 }

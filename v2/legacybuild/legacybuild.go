@@ -145,7 +145,7 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 	serviceUsesConfig := make(map[string]bool, len(desc.Services))
 	for _, r := range desc.InfraResources {
 		if r.Kind() == resource.ConfigLoad {
-			if svc, ok := desc.ServiceForPath(r.DeclaredIn().Pkg.FSPath); ok {
+			if svc, ok := desc.ServiceForPath(r.Package().FSPath); ok {
 				serviceUsesConfig[svc.Name] = true
 			}
 		}

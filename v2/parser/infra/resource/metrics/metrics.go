@@ -27,8 +27,6 @@ type Metric struct {
 	Doc  string     // The documentation on the metric
 	Type MetricType // the type of metric it is
 
-	Ident *ast.Ident // The identifier of the metric
-
 	// File is the file the metric is declared in.
 	File *pkginfo.File
 
@@ -44,11 +42,9 @@ type Metric struct {
 }
 
 func (m *Metric) Kind() resource.Kind       { return resource.Metric }
-func (m *Metric) DeclaredIn() *pkginfo.File { return m.File }
+func (m *Metric) Package() *pkginfo.Package { return m.File.Pkg }
 func (m *Metric) ASTExpr() ast.Expr         { return m.AST }
-func (m *Metric) BoundTo() option.Option[pkginfo.QualifiedName] {
-	return parseutil.BoundTo(m.File, m.Ident)
-}
+func (m *Metric) ResourceName() string      { return m.Name }
 
 // metricConstructor describes a particular metric constructor function.
 type metricConstructor struct {
@@ -69,11 +65,11 @@ var metricConstructors = []metricConstructor{
 var MetricParser = &resource.Parser{
 	Name: "Metric",
 
-	RequiredImports: []paths.Pkg{"encore.dev/metrics"},
-	Run: func(p *resource.Pass) []resource.Resource {
+	InterestingImports: []paths.Pkg{"encore.dev/metrics"},
+	Run: func(p *resource.Pass) {
 		var (
 			names []pkginfo.QualifiedName
-			specs = make(map[pkginfo.QualifiedName]*parseutil.ResourceCreationSpec)
+			specs = make(map[pkginfo.QualifiedName]*parseutil.ReferenceSpec)
 		)
 		for _, c := range metricConstructors {
 			name := pkginfo.QualifiedName{PkgPath: "encore.dev/metrics", Name: c.FuncName}
@@ -85,11 +81,11 @@ var MetricParser = &resource.Parser{
 			}
 
 			c := c // capture for closure
-			parseFn := func(d parseutil.ParseData) resource.Resource {
-				return parseMetric(c, d)
+			parseFn := func(d parseutil.ReferenceInfo) {
+				parseMetric(c, d)
 			}
 
-			spec := &parseutil.ResourceCreationSpec{
+			spec := &parseutil.ReferenceSpec{
 				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
@@ -98,29 +94,24 @@ var MetricParser = &resource.Parser{
 			specs[name] = spec
 		}
 
-		var resources []resource.Resource
 		parseutil.FindPkgNameRefs(p.Pkg, names, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
 			spec := specs[name]
-			r := parseutil.ParseResourceCreation(p, spec, parseutil.ReferenceData{
+			parseutil.ParseReference(p, spec, parseutil.ReferenceData{
 				File:         file,
 				Stack:        stack,
 				ResourceFunc: name,
 			})
-			if r != nil {
-				resources = append(resources, r)
-			}
 		})
-		return resources
 	},
 }
 
-func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
+func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	errs := d.Pass.Errs
 	if len(d.Call.Args) != 2 {
 		errs.Addf(d.Call.Pos(), "%s requires two arguments: the metric name and the metric configuration",
 			displayName)
-		return nil
+		return
 	}
 
 	// Validate the metric name.
@@ -128,7 +119,7 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 		d.Call.Args[0], parseutil.SnakeName, "e_")
 	if metricName == "" {
 		// we already reported the error inside ParseResourceName
-		return nil
+		return
 	}
 
 	// Validate the metric value type.
@@ -138,7 +129,7 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 	}
 	if valueType.Family() != schema.Builtin {
 		errs.Add(d.Call.Pos(), "metric value type must be a builtin type")
-		return nil
+		return
 	}
 
 	var labelType option.Option[schema.Type]
@@ -148,10 +139,10 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 		declRef, ok := schemautil.ResolveNamedStruct(typeArg, false)
 		if !ok {
 			errs.Add(typeArg.ASTExpr().Pos(), "invalid metric label type: must be a named struct")
-			return nil
+			return
 		} else if declRef.Pointers > 0 {
 			errs.Add(typeArg.ASTExpr().Pos(), "invalid metric label type: must not be a pointer type")
-			return nil
+			return
 		}
 
 		// Make sure all the fields are builtin types.
@@ -173,7 +164,6 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 		Name:      metricName,
 		Doc:       d.Doc,
 		Type:      c.Type,
-		Ident:     d.Ident,
 		File:      d.File,
 		ValueType: valueType.(schema.BuiltinType),
 		LabelType: labelType,
@@ -182,23 +172,27 @@ func parseMetric(c metricConstructor, d parseutil.ParseData) resource.Resource {
 	// Parse and validate the metric configuration.
 	cfgLit, ok := literals.ParseStruct(errs, d.File, "metrics.MetricConfig", d.Call.Args[1])
 	if !ok {
-		return nil // error reported by ParseStruct
+		return // error reported by ParseStruct
 	}
 	c.ConfigParse(c, d, cfgLit, m)
 	m.ConfigLiteral = cfgLit.Lit()
-	return m
+
+	d.Pass.RegisterResource(m)
+	if id, ok := d.Ident.Get(); ok {
+		d.Pass.AddBind(id, m)
+	}
 }
 
-type configParseFunc func(c metricConstructor, d parseutil.ParseData, cfgLit *literals.Struct, dst *Metric)
+type configParseFunc func(c metricConstructor, d parseutil.ReferenceInfo, cfgLit *literals.Struct, dst *Metric)
 
-func parseCounterConfig(c metricConstructor, d parseutil.ParseData, cfgLit *literals.Struct, dst *Metric) {
+func parseCounterConfig(c metricConstructor, d parseutil.ReferenceInfo, cfgLit *literals.Struct, dst *Metric) {
 	// We don't have any actual configuration yet.
 	// Parse anyway to make sure we don't have any fields we don't expect.
 	type decodedConfig struct{}
 	_ = literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 }
 
-func parseGaugeConfig(c metricConstructor, d parseutil.ParseData, cfgLit *literals.Struct, dst *Metric) {
+func parseGaugeConfig(c metricConstructor, d parseutil.ReferenceInfo, cfgLit *literals.Struct, dst *Metric) {
 	// We don't have any actual configuration yet.
 	// Parse anyway to make sure we don't have any fields we don't expect.
 	type decodedConfig struct{}
