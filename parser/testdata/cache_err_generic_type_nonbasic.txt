@@ -1,4 +1,5 @@
 ! parse
+expectError 'The field Foo is invalid: must be a basic type'
 err 'has invalid key type parameter: struct field Foo is not a basic type'
 
 -- svc/svc.go --

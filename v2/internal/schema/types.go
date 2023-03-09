@@ -28,6 +28,7 @@ const (
 type Type interface {
 	Family() TypeFamily
 	ASTExpr() ast.Expr
+	String() string // Resolve to a string representation of the type.
 }
 
 type NamedType struct {
@@ -205,6 +206,29 @@ func (t BuiltinType) ASTExpr() ast.Expr      { return t.AST }
 func (t FuncType) ASTExpr() ast.Expr         { return t.AST }
 func (t InterfaceType) ASTExpr() ast.Expr    { return t.AST }
 func (t TypeParamRefType) ASTExpr() ast.Expr { return t.AST }
+
+func (t NamedType) String() string {
+	name := t.DeclInfo.Name
+	if t.TypeArgs != nil {
+		name += "["
+		for i, arg := range t.TypeArgs {
+			if i > 0 {
+				name += ", "
+			}
+			name += arg.String()
+		}
+		name += "]"
+	}
+	return name
+}
+func (t StructType) String() string       { return "struct" }
+func (t MapType) String() string          { return "map[" + t.Key.String() + "]" + t.Value.String() }
+func (t ListType) String() string         { return "[]" + t.Elem.String() }
+func (t PointerType) String() string      { return "*" + t.Elem.String() }
+func (t BuiltinType) String() string      { return t.AST.(*ast.Ident).Name }
+func (t FuncType) String() string         { return "function" }
+func (t InterfaceType) String() string    { return "interface" }
+func (t TypeParamRefType) String() string { return t.AST.Name }
 
 // TypeDeclRef is a reference to a type declaration, through zero or more pointers
 // and possibly with type arguments.

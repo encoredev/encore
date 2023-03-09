@@ -219,11 +219,11 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 
 		case *ast.IndexExpr:
 			// Generic type application with a single type, like "Foo[int]"
-			return r.resolveTypeWithTypeArgs(file, expr.X, []ast.Expr{expr.Index})
+			return r.resolveTypeWithTypeArgs(file, expr, expr.X, []ast.Expr{expr.Index})
 
 		case *ast.IndexListExpr:
 			// Same as IndexExpr, but with multiple types, like "Foo[int, string]"
-			return r.resolveTypeWithTypeArgs(file, expr.X, expr.Indices)
+			return r.resolveTypeWithTypeArgs(file, expr, expr.X, expr.Indices)
 
 		default:
 			r.errs.Addf(expr.Pos(), "%s is not a supported type; got %+v",
@@ -285,7 +285,7 @@ func (r *typeResolver) parseFuncType(file *pkginfo2.File, ft *ast.FuncType) Func
 	return res
 }
 
-func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo2.File, expr ast.Expr, typeArgs []ast.Expr) Type {
+func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo2.File, indexExpr, expr ast.Expr, typeArgs []ast.Expr) Type {
 	baseType := r.parseType(file, expr)
 	if baseType.Family() != Named {
 		r.errs.Addf(expr.Pos(), "cannot use type arguments with non-named type %s", types.ExprString(baseType.ASTExpr()))
@@ -293,6 +293,7 @@ func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo2.File, expr ast.Exp
 	}
 
 	named := baseType.(NamedType)
+	named.AST = indexExpr // Use the index expression as the AST for the named type as we've resolved the type arguments.
 	decl := named.Decl()
 	if len(decl.TypeParams) != len(typeArgs) {
 		r.errs.Addf(expr.Pos(), "expected %d type parameters, got %d for reference to %s",

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"strings"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
@@ -112,14 +113,14 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 	errs := d.Pass.Errs
 	constructorName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
-		errs.Addf(d.Call.Pos(), "%s expects 2 arguments", constructorName)
+		errs.Add(errExpectsTwoArgs(constructorName, len(d.Call.Args)).AtGoNode(d.Call))
 		return
 	}
 
 	// TODO(andre) Resolve cluster name
 	clusterRef, ok := d.File.Names().ResolvePkgLevelRef(d.Call.Args[0])
 	if !ok {
-		errs.AddPos(d.Call.Args[0].Pos(), "could not resolve cache cluster: must refer to a package-level variable")
+		errs.Add(errCouldNotResolveCacheCluster.AtGoNode(d.Call.Args[0]))
 		return
 	}
 
@@ -128,7 +129,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 		return // error reported by ParseStruct
 	}
 
-	keyPos := d.TypeArgs[0].ASTExpr().Pos()
+	keyNode := d.TypeArgs[0].ASTExpr()
 	patternPos := cfgLit.Pos("KeyPattern")
 
 	// Decode the config
@@ -140,13 +141,13 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 
 	const reservedPrefix = "__encore"
 	if strings.HasPrefix(config.KeyPattern, reservedPrefix) {
-		errs.Addf(patternPos, "invalid KeyPattern: use of reserved prefix %q", reservedPrefix)
+		errs.Add(errPrefixReserved.AtGoPos(patternPos, patternPos))
 		return
 	}
 
 	path, err := ParseKeyspacePath(patternPos, config.KeyPattern)
 	if err != nil {
-		errs.Addf(patternPos, "cache.KeyspaceConfig got an invalid keyspace pattern: %v", err)
+		errs.Add(errInvalidKeyspacePattern.Wrapping(err).AtGoPos(patternPos, patternPos))
 		return
 	}
 
@@ -184,21 +185,21 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 			seenPathSegments[name] = false
 
 			if keyIsBuiltin && name != "key" {
-				errs.Addf(patternPos, "KeyPattern parameter must be named ':key' for basic (non-struct) key types")
+				errs.Add(errKeyPatternMustBeNamedKey.AtGoPos(patternPos, patternPos))
 			}
 		}
 
 		// It should either be a builtin type or a (possibly pointer to a) named struct.
 		if keyIsBuiltin {
 			if err := validateBuiltin(builtinKey.Kind); err != nil {
-				errs.Addf(keyPos, "%s has invalid key type parameter: %v", constructorName, err)
+				errs.Add(errInvalidKeyTypeParameter(constructorName, err.Error()).AtGoNode(keyNode))
 			}
 		} else {
 			ref, ok := schemautil.ResolveNamedStruct(keyType, false)
 			if !ok {
-				errs.Addf(keyPos, "%s has invalid key type parameter: must be a basic type or a named struct type", constructorName)
+				errs.Add(errInvalidKeyTypeParameter(constructorName, "must be a basic type or a named struct type").AtGoNode(keyNode))
 			} else if ref.Pointers > 0 {
-				errs.Addf(keyPos, "%s has invalid key type parameter: must not be a pointer type", constructorName)
+				errs.Add(errInvalidKeyTypeParameter(constructorName, "must not be a pointer type").AtGoNode(keyNode))
 			} else {
 				// Validate the struct fields.
 				st := schemautil.ConcretizeWithTypeArgs(ref.Decl.Type, ref.TypeArgs).(schema.StructType)
@@ -206,39 +207,35 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 				// Validate struct fields
 				for _, f := range st.Fields {
 					if f.IsAnonymous() {
-						errs.Addf(keyPos, "key type %s is invalid: contains anonymous fields",
-							ref.Decl)
+						errs.Add(errKeyContainsAnonymousFields.AtGoNode(f.AST))
 						continue
 					} else if !f.IsExported() {
-						errs.Addf(keyPos, "key type %s has invalid field: field %q is unexported",
-							ref.Decl, f.Name)
+						errs.Add(errKeyContainsUnexportedFields.AtGoNode(f.AST))
 						continue
 					}
 
 					fieldName := f.Name.MustGet() // guaranteed by f.IsAnonymous check above
 					if _, exists := seenPathSegments[fieldName]; !exists {
-						errs.Addf(patternPos, "invalid use of key type %s: field %s not used in KeyPattern",
-							ref.Decl, fieldName)
+						errs.Add(errFieldNotUsedInKeyPattern(fieldName).AtGoNode(f.AST).AtGoPos(patternPos, patternPos))
 					} else {
 						seenPathSegments[fieldName] = true
 					}
 
 					if builtin, ok := f.Type.(schema.BuiltinType); ok {
 						if err := validateBuiltin(builtin.Kind); err != nil {
-							errs.Addf(keyPos, "%s: key type %s is invalid: struct field %s: %v",
-								constructorName, ref.Decl, fieldName, err)
+							errs.Add(errFieldIsInvalid(fieldName, err.Error()).AtGoNode(f.AST))
 						}
 					} else {
-						errs.Addf(keyPos, "%s: key type %s is invalid: struct field %s: not a basic type",
-							constructorName, ref.Decl, fieldName)
+						errs.Add(errFieldIsInvalid(fieldName, "must be a basic type").
+							AtGoNode(f.AST, errors.AsError(fmt.Sprintf("found %s", f.Type))).
+							AtGoNode(keyNode, errors.AsHelp("instantiated here")))
 					}
 				}
 
 				// Ensure all path segments are valid field names
 				for fieldName, seen := range seenPathSegments {
 					if !seen {
-						errs.Addf(patternPos, "%s: invalid KeyPattern: field %s does not exist in key type %s",
-							constructorName, fieldName, ref.Decl)
+						errs.Add(errFieldDoesntExist(fieldName, ref.Decl).AtGoPos(patternPos, patternPos).AtGoNode(ref.Decl.AST.Name))
 					}
 				}
 			}
@@ -249,13 +246,10 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 	// to be represented as 'any' constraints. Basic type constructors enforce that the value type
 	// through the Go type system and don't need to be verified again.
 	if c.ValueKind == structValue {
-		valuePos := d.TypeArgs[1].ASTExpr().Pos()
 		if ref, ok := schemautil.ResolveNamedStruct(valueType, false); !ok {
-			errs.Addf(valuePos, "%s has invalid value type parameter: must be a named struct type",
-				constructorName)
+			errs.Add(errMustBeANamedStructType.AtGoNode(d.TypeArgs[1].ASTExpr()))
 		} else if ref.Pointers > 0 {
-			errs.Addf(valuePos, "%s has invalid value type parameter: must not be a pointer type",
-				constructorName)
+			errs.Add(errStructMustNotBePointer.AtGoNode(d.TypeArgs[1].ASTExpr()))
 		}
 	}
 

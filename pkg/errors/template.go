@@ -3,6 +3,7 @@ package errors
 import (
 	goAst "go/ast"
 	goToken "go/token"
+	"strings"
 )
 
 // Template represents a template for a new error.
@@ -38,7 +39,13 @@ func WithDetails(details string) TemplateOption {
 }
 
 // Wrapping wraps the given error with the template.
+//
+// It will append the given error to the summary of the template
+// as well as setting the cause of the template to the given error.
 func (t Template) Wrapping(err error) Template {
+	t.Summary += "\n\n" + err.Error()
+	t.Summary = strings.TrimSpace(t.Summary)
+
 	t.Cause = err
 	return t
 }

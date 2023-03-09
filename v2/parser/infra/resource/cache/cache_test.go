@@ -38,7 +38,7 @@ var x = cache.NewCluster("name", cache.ClusterConfig{EvictionPolicy: cache.Volat
 // Cluster docs
 var x = cache.NewCluster("name", cache.ClusterConfig{EvictionPolicy: "x"})
 `,
-			WantErrs: []string{`.*invalid "EvictionPolicy" value: "x"`},
+			WantErrs: []string{`.*Invalid Cache Eviction Policy.*`},
 		},
 		{
 			Name: "with_invalid_eviction_policy",
@@ -46,7 +46,7 @@ var x = cache.NewCluster("name", cache.ClusterConfig{EvictionPolicy: "x"})
 // Cluster docs
 var x = cache.NewCluster("name", cache.ClusterConfig{EvictionPolicy: cache.NonExisting})
 `,
-			WantErrs: []string{`.*field EvictionPolicy must be a constant literal`},
+			WantErrs: []string{`.*field EvictionPolicy must be a constant literal.*`},
 		},
 	}
 

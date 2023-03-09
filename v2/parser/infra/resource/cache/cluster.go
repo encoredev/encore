@@ -52,7 +52,7 @@ var ClusterParser = &resource.Parser{
 func parseCluster(d parseutil.ReferenceInfo) {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
-		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 2 arguments", displayName)
+		d.Pass.Errs.Add(errExpectsTwoArgs(displayName).AtGoNode(d.Call))
 		return
 	}
 
@@ -84,7 +84,7 @@ func parseCluster(d parseutil.ReferenceInfo) {
 		cache.VolatileLFU, cache.VolatileTTL, cache.VolatileRandom, cache.NoEviction:
 		// all good
 	default:
-		d.Pass.Errs.Addf(d.Call.Args[1].Pos(), "invalid \"EvictionPolicy\" value: %q", config.EvictionPolicy)
+		d.Pass.Errs.Add(errInvalidEvictionPolicy.AtGoNode(d.Call.Args[1]))
 		return
 	}
 
