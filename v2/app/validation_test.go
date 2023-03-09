@@ -129,16 +129,16 @@ func TestValidation(t *testing.T) {
 
 				// First find all the bindings for each topic
 				topicsByName := make(map[pkginfo.QualifiedName]*pubsub.Topic)
-				for _, res := range desc.InfraResources {
+				for _, res := range desc.Infra.Resources() {
 					switch res := res.(type) {
 					case *pubsub.Topic:
-						for _, b := range desc.Binds(res) {
+						for _, b := range desc.Infra.Binds(res) {
 							topicsByName[b.QualifiedName()] = res
 						}
 					}
 				}
 
-				for _, res := range desc.InfraResources {
+				for _, res := range desc.Infra.Resources() {
 					switch res := res.(type) {
 					case *config.Load:
 						svc, found := desc.ServiceForPath(res.File.FSPath)

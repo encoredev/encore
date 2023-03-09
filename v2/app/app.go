@@ -5,6 +5,7 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app/apiframework"
+	"encr.dev/v2/app/appinfra"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
@@ -12,25 +13,17 @@ import (
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/selector"
-	"encr.dev/v2/parser/infra/resource"
 )
 
 // Desc describes an Encore application.
 type Desc struct {
 	Errs *perr.List
 
-	Services       []*Service
-	InfraResources []resource.Resource
-
-	binds map[resource.Resource][]resource.Bind
+	Services []*Service
+	Infra    *appinfra.Desc
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
-}
-
-// Binds returns the set of binds the given resource has.
-func (d *Desc) Binds(r resource.Resource) []resource.Bind {
-	return d.binds[r]
 }
 
 // MatchingMiddleware reports which middleware applies to the given RPC,
@@ -112,14 +105,11 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	// with the parse results.
 	framework := configureAPIFramework(pc, services, result.APIs)
 
-	binds := computeInfraBindMap(pc.Errs, result.InfraResources, result.InfraBinds)
-
 	return &Desc{
-		Errs:           pc.Errs,
-		Services:       services,
-		Framework:      framework,
-		InfraResources: result.InfraResources,
-		binds:          binds,
+		Errs:      pc.Errs,
+		Services:  services,
+		Framework: framework,
+		Infra:     appinfra.ComputeDesc(pc.Errs, result.InfraResources, result.InfraBinds),
 	}
 }
 

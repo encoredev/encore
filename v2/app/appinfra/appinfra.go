@@ -1,12 +1,39 @@
-package app
+package appinfra
+
+import (
+	"encr.dev/v2/internal/perr"
+)
 
 import (
 	"fmt"
 	"strings"
 
-	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/parser/infra/resource"
 )
+
+// ComputeDesc computes the infrastructure description
+// given a list of resources and binds.
+func ComputeDesc(errs *perr.List, resources []resource.Resource, binds []resource.Bind) *Desc {
+	return &Desc{
+		resources: resources,
+		binds:     binds,
+		bindMap:   computeInfraBindMap(errs, resources, binds),
+	}
+}
+
+type Desc struct {
+	resources []resource.Resource
+	binds     []resource.Bind
+	bindMap   map[resource.Resource][]resource.Bind
+}
+
+func (s *Desc) Resources() []resource.Resource {
+	return s.resources
+}
+
+func (s *Desc) Binds(resource resource.Resource) []resource.Bind {
+	return s.bindMap[resource]
+}
 
 func computeInfraBindMap(errs *perr.List, resources []resource.Resource, binds []resource.Bind) map[resource.Resource][]resource.Bind {
 	result := make(map[resource.Resource][]resource.Bind, len(resources))

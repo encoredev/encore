@@ -22,7 +22,7 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 		kind resource.Kind
 	}
 	groups := make(map[groupKey][]resource.Resource)
-	for _, r := range appDesc.InfraResources {
+	for _, r := range appDesc.Infra.Resources() {
 		key := groupKey{r.Package().ImportPath, r.Kind()}
 		groups[key] = append(groups[key], r)
 	}
