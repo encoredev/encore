@@ -3,6 +3,7 @@ package authhandler
 import (
 	"go/ast"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
@@ -51,38 +52,31 @@ func Parse(d ParseData) *AuthHandler {
 		Recv: decl.Recv,
 	}
 
-	const sigHint = `
-	hint: valid signatures are:
-	- func(ctx context.Context, p *Params) (auth.UID, error)
-	- func(ctx context.Context, p *Params) (auth.UID, *UserData, error)
-	- func(ctx context.Context, token string) (auth.UID, error)
-	- func(ctx context.Context, token string) (auth.UID, *UserData, error)
-
-	note: *Params and *UserData are custom data types you define`
-
 	sig := decl.Type
 	numParams := len(sig.Params)
 
 	// Validate the input
-	if numParams < 2 {
-		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too few parameters)"+sigHint)
-		return ah
-	} else if numParams > 2 {
-		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too many parameters)"+sigHint)
+	if numParams != 2 {
+		d.Errs.Add(errInvalidNumberParameters(numParams).AtGoNode(sig.AST.Params))
+
+		if numParams < 2 {
+			return ah
+		}
 	}
 
 	numResults := len(sig.Results)
-	if numResults < 2 {
-		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too few results)"+sigHint)
-		return ah
-	} else if numResults > 3 {
-		d.Errs.Add(sig.AST.Pos(), "invalid auth handler signature (too many results)"+sigHint)
+	if numResults < 2 || numResults > 3 {
+		d.Errs.Add(errInvalidNumberResults(numResults).AtGoNode(sig.AST.Results))
+
+		if numParams < 2 {
+			return ah
+		}
 	}
 
 	// First param should always be context.Context
 	ctxParam := sig.Params[0]
 	if !schemautil.IsNamed(ctxParam.Type, "context", "Context") {
-		d.Errs.Add(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
+		d.Errs.Add(errInvalidFirstParameter.AtGoNode(ctxParam.AST))
 	}
 
 	ah.Param = sig.Params[1].Type
@@ -92,24 +86,64 @@ func Parse(d ParseData) *AuthHandler {
 		param := ah.Param
 		if schemautil.IsBuiltinKind(param, schema.String) {
 			// All good
-		} else if _, ok := schemautil.ResolveNamedStruct(param, true); !ok {
-			d.Errs.Add(param.ASTExpr().Pos(), "second parameter must be a string, or a pointer to a named struct"+sigHint)
+		} else if ref, ok := schemautil.ResolveNamedStruct(param, true); !ok {
+			d.Errs.Add(errInvalidSecondParameter.AtGoNode(param.ASTExpr()))
+		} else {
+			validateStructFields(d.Errs, ref.Decl.Type.(schema.StructType))
 		}
 	}
 
 	// First result must be auth.UID
 	if uid := sig.Results[0]; !schemautil.IsBuiltinKind(uid.Type, schema.UserID) {
-		d.Errs.Add(uid.AST.Pos(), "first result must be of type auth.UID"+sigHint)
+		d.Errs.Add(errInvalidFirstResult.AtGoNode(uid.AST.Type))
 	}
 
 	// If we have three results, the second one must be a pointer to a named struct.
 	if numResults > 2 {
 		if ref, ok := schemautil.ResolveNamedStruct(sig.Results[1].Type, true); !ok {
-			d.Errs.Add(sig.Results[1].AST.Pos(), "second result must be a pointer to a named struct"+sigHint)
+			d.Errs.Add(errInvalidSecondResult.AtGoNode(sig.Results[1].AST.Type))
 		} else {
 			ah.AuthData = option.Some(ref)
 		}
 	}
 
 	return ah
+}
+
+// validateStructFields checks that the struct fields have the correct tags.
+// and all fields are either a header or query string
+func validateStructFields(errs *perr.List, ref schema.StructType) {
+	fieldErr := errInvalidFieldTags
+
+nextField:
+	for _, field := range ref.Fields {
+		// No tags, then we tell them they need to specify it
+		if field.Tag.Len() == 0 {
+			fieldErr = fieldErr.AtGoNode(field.AST, errors.AsError("you must specify a \"header\" or \"query\" tag for this field"))
+			continue
+		}
+
+		// Check each tag to see if we have a header or query tag
+		for _, tagKey := range field.Tag.Keys() {
+			errMsg := ""
+
+			tag, err := field.Tag.Get(tagKey)
+			if err == nil {
+				switch tagKey {
+				case "header", "query", "qs":
+					if tag.Name != "" && tag.Name != "-" {
+						continue nextField
+					} else {
+						errMsg = "you must specify a name for this field"
+					}
+				}
+			}
+
+			fieldErr = fieldErr.AtGoNode(field.AST.Tag, errors.AsError(errMsg))
+		}
+	}
+
+	if len(fieldErr.Locations) > 0 {
+		errs.Add(fieldErr)
+	}
 }

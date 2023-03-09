@@ -30,10 +30,10 @@ func genLabelMapper(gen *codegen.Generator, f *codegen.File, m *metrics.Metric) 
 
 	declRef, ok := schemautil.ResolveNamedStruct(labelType, false)
 	if !ok {
-		gen.Errs.Add(labelType.ASTExpr().Pos(), "invalid metric label type: must be a named struct")
+		gen.Errs.AddPos(labelType.ASTExpr().Pos(), "invalid metric label type: must be a named struct")
 		return
 	} else if declRef.Pointers > 0 {
-		gen.Errs.Add(labelType.ASTExpr().Pos(), "invalid metric label type: must not be a pointer type")
+		gen.Errs.AddPos(labelType.ASTExpr().Pos(), "invalid metric label type: must not be a pointer type")
 		return
 	}
 	concrete := schemautil.ConcretizeWithTypeArgs(declRef.Decl.Type, declRef.TypeArgs).(schema.StructType)
@@ -48,7 +48,7 @@ func genLabelMapper(gen *codegen.Generator, f *codegen.File, m *metrics.Metric) 
 		Return(Index().Qual("encore.dev/metrics", "KeyValue").ValuesFunc(func(g *Group) {
 			for _, f := range concrete.Fields {
 				if f.IsAnonymous() {
-					gen.Errs.Add(f.AST.Pos(), "anonymous fields are not supported in metric labels")
+					gen.Errs.AddPos(f.AST.Pos(), "anonymous fields are not supported in metric labels")
 					continue
 				}
 

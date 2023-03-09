@@ -105,8 +105,8 @@ func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn con
 	defer func() {
 		if r := recover(); r != nil {
 			// Recover the panic
-			//err := srcerrors.UnhandledPanic(r)
-			//errinsrc.AddHintFromGo(err, p.fset, value, "panic occurred processing this expression")
+			// err := srcerrors.UnhandledPanic(r)
+			// errinsrc.AddHintFromGo(err, p.fset, value, "panic occurred processing this expression")
 			rtn = constant.MakeUnknown()
 			errs.Addf(value.Pos(), "panic occurred processing expression %s: %s", types.ExprString(value), debug.Stack())
 		}
@@ -158,7 +158,7 @@ func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn con
 		case token.QUO:
 			// constant.BinaryOp panics when dividing by zero
 			if floatValue, _ := constant.Float64Val(constant.ToFloat(rhs)); floatValue <= 0.000000001 && floatValue >= -0.000000001 {
-				errs.Add(value.Pos(), "cannot divide by zero")
+				errs.AddPos(value.Pos(), "cannot divide by zero")
 				return constant.MakeUnknown()
 			}
 
@@ -169,7 +169,7 @@ func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn con
 		case token.SHL, token.SHR:
 			shiftValue, ok := constant.Uint64Val(constant.ToInt(rhs))
 			if !ok {
-				errs.Add(value.Pos(), "shift count must be an unsigned integer")
+				errs.AddPos(value.Pos(), "shift count must be an unsigned integer")
 			}
 			return constant.Shift(lhs, value.Op, uint(shiftValue))
 

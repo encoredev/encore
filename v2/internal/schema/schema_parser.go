@@ -144,7 +144,7 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 			for _, field := range expr.Fields.List {
 				typ := r.parseType(file, field.Type)
 				if len(field.Names) == 0 {
-					r.errs.Add(field.Pos(), "cannot use anonymous fields in Encore struct types")
+					r.errs.AddPos(field.Pos(), "cannot use anonymous fields in Encore struct types")
 				}
 
 				// Parse the struct tags, if any.
@@ -212,7 +212,7 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 			return InterfaceType{AST: expr}
 
 		case *ast.ChanType:
-			r.errs.Add(expr.Pos(), "cannot use channel types in Encore schema definitions")
+			r.errs.AddPos(expr.Pos(), "cannot use channel types in Encore schema definitions")
 
 		case *ast.FuncType:
 			return r.parseFuncType(file, expr)

@@ -144,20 +144,20 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 	sig := decl.Type
 	numParams := len(sig.Params)
 	if numParams == 0 {
-		errs.Add(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
+		errs.AddPos(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
 		return
 	}
 
 	numResults := len(sig.Results)
 	if numResults == 0 {
-		errs.Add(sig.AST.Pos(), "invalid Endpoint signature (too few results)"+sigHint)
+		errs.AddPos(sig.AST.Pos(), "invalid Endpoint signature (too few results)"+sigHint)
 		return
 	}
 
 	// First type should always be context.Context
 	ctxParam := sig.Params[0]
 	if !schemautil.IsNamed(ctxParam.Type, "context", "Context") {
-		errs.Add(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
+		errs.AddPos(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
 		return
 	}
 
@@ -183,7 +183,7 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 			// Otherwise it must be a payload parameter
 			payloadIdx := i - len(pathParams)
 			if payloadIdx > 0 {
-				errs.Add(param.AST.Pos(), "APIs cannot have multiple payload parameters")
+				errs.AddPos(param.AST.Pos(), "APIs cannot have multiple payload parameters")
 				continue
 			}
 			endpoint.Request = param.Type
@@ -204,14 +204,14 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 		result := sig.Results[0]
 		endpoint.Response = result.Type
 		if numResults > 2 {
-			errs.Add(sig.Results[2].AST.Pos(), "Endpoint signature cannot contain more than two results"+sigHint)
+			errs.AddPos(sig.Results[2].AST.Pos(), "Endpoint signature cannot contain more than two results"+sigHint)
 			return
 		}
 	}
 
 	// Make sure the last return is of type error.
 	if err := sig.Results[numResults-1]; !schemautil.IsBuiltinKind(err.Type, schema2.Error) {
-		errs.Add(err.AST.Pos(), "last result is not of type error"+sigHint)
+		errs.AddPos(err.AST.Pos(), "last result is not of type error"+sigHint)
 		return
 	}
 }
@@ -224,10 +224,10 @@ func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
 	sig := decl.Type
 	params := sig.Params
 	if len(params) < 2 {
-		errs.Add(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
+		errs.AddPos(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
 		return
 	} else if len(params) > 2 {
-		errs.Add(params[2].AST.Pos(), "invalid Endpoint signature (too many parameters)"+sigHint)
+		errs.AddPos(params[2].AST.Pos(), "invalid Endpoint signature (too many parameters)"+sigHint)
 		return
 	} else if len(sig.Results) > 0 {
 		errs.Addf(sig.Results[0].AST.Pos(), "invalid Endpoint signature (too many results)"+sigHint)
@@ -236,10 +236,10 @@ func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
 
 	// Ensure signature is func(http.ResponseWriter, *http.Request).
 	if !schemautil.IsNamed(params[0].Type, "net/http", "ResponseWriter") {
-		errs.Add(params[0].AST.Pos(), "first parameter must be http.ResponseWriter"+sigHint)
+		errs.AddPos(params[0].AST.Pos(), "first parameter must be http.ResponseWriter"+sigHint)
 	}
 	if deref, n := schemautil.Deref(params[1].Type); n != 1 || !schemautil.IsNamed(deref, "net/http", "Request") {
-		errs.Add(params[1].AST.Pos(), "second parameter must be *http.Request"+sigHint)
+		errs.AddPos(params[1].AST.Pos(), "second parameter must be *http.Request"+sigHint)
 	}
 }
 

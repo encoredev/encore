@@ -16,6 +16,7 @@ import (
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/errors"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -37,14 +38,19 @@ type List struct {
 	errs errinsrc.List
 }
 
+// Add adds a templated error
+func (l *List) Add(template errors.Template) {
+	l.add(errinsrc.FromTemplate(template, l.fset))
+}
+
 // Add adds an error at the given pos.
-func (l *List) Add(pos token.Pos, msg string) {
+func (l *List) AddPos(pos token.Pos, msg string) {
 	l.add(srcerrors.GenericError(l.fset.Position(pos), msg))
 }
 
 // Addf is equivalent to l.Add(pos, fmt.Sprintf(format, args...))
 func (l *List) Addf(pos token.Pos, format string, args ...any) {
-	l.Add(pos, fmt.Sprintf(format, args...))
+	l.AddPos(pos, fmt.Sprintf(format, args...))
 }
 
 // AddPosition adds an error at the given token.Position.
@@ -107,7 +113,7 @@ func (l *List) AddSrcErr(err *errinsrc.ErrInSrc) {
 }
 
 func (l *List) Fatal(pos token.Pos, msg string) {
-	l.Add(pos, msg)
+	l.AddPos(pos, msg)
 	l.Bailout()
 }
 

@@ -119,7 +119,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 	// TODO(andre) Resolve cluster name
 	clusterRef, ok := d.File.Names().ResolvePkgLevelRef(d.Call.Args[0])
 	if !ok {
-		errs.Add(d.Call.Args[0].Pos(), "could not resolve cache cluster: must refer to a package-level variable")
+		errs.AddPos(d.Call.Args[0].Pos(), "could not resolve cache cluster: must refer to a package-level variable")
 		return
 	}
 

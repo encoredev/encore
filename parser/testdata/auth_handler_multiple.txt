@@ -1,4 +1,6 @@
 ! parse
+
+expectError 'Multiple auth handlers were found in the application. Encore only allows one auth handler to be defined per application.'
 err 'cannot declare multiple auth handlers'
 
 -- svc/svc.go --

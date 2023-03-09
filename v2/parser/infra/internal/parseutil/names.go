@@ -43,23 +43,23 @@ var SnakeName = resourceNameSpec{
 func ParseResourceName(errs *perr.List, resourceType string, paramName string, node ast.Expr, nameSpec resourceNameSpec, reservedPrefix string) string {
 	name, ok := literals.ParseString(node)
 	if !ok {
-		//errs.errInSrc(srcerrors.ResourceNameNotStringLiteral(p.fset, node, resourceType, paramName))
-		errs.Add(node.Pos(), "resource name must be a string literal")
+		// errs.errInSrc(srcerrors.ResourceNameNotStringLiteral(p.fset, node, resourceType, paramName))
+		errs.AddPos(node.Pos(), "resource name must be a string literal")
 		return ""
 	}
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > resourceNameMaxLength {
-		//p.errInSrc(srcerrors.ResourceNameWrongLength(p.fset, node, resourceType, paramName, name))
-		errs.Add(node.Pos(), "resource name too long (must be at most 63 characters)")
+		// p.errInSrc(srcerrors.ResourceNameWrongLength(p.fset, node, resourceType, paramName, name))
+		errs.AddPos(node.Pos(), "resource name too long (must be at most 63 characters)")
 		return ""
 	}
 
 	if !nameSpec.regexp.MatchString(name) {
-		//p.errInSrc(nameSpec.invalidNameErr(p.fset, node, resourceType, paramName, name))
+		// p.errInSrc(nameSpec.invalidNameErr(p.fset, node, resourceType, paramName, name))
 		return ""
 	} else if reservedPrefix != "" && strings.HasPrefix(name, reservedPrefix) {
-		//p.errInSrc(nameSpec.reservedErr(p.fset, node, resourceType, paramName, name, reservedPrefix))
-		errs.Add(node.Pos(), "resource name is reserved")
+		// p.errInSrc(nameSpec.reservedErr(p.fset, node, resourceType, paramName, name, reservedPrefix))
+		errs.AddPos(node.Pos(), "resource name is reserved")
 		return ""
 	}
 

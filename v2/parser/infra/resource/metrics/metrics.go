@@ -128,7 +128,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		valueType = d.TypeArgs[1]
 	}
 	if valueType.Family() != schema.Builtin {
-		errs.Add(d.Call.Pos(), "metric value type must be a builtin type")
+		errs.AddPos(d.Call.Pos(), "metric value type must be a builtin type")
 		return
 	}
 
@@ -138,10 +138,10 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		typeArg := d.TypeArgs[0]
 		declRef, ok := schemautil.ResolveNamedStruct(typeArg, false)
 		if !ok {
-			errs.Add(typeArg.ASTExpr().Pos(), "invalid metric label type: must be a named struct")
+			errs.AddPos(typeArg.ASTExpr().Pos(), "invalid metric label type: must be a named struct")
 			return
 		} else if declRef.Pointers > 0 {
-			errs.Add(typeArg.ASTExpr().Pos(), "invalid metric label type: must not be a pointer type")
+			errs.AddPos(typeArg.ASTExpr().Pos(), "invalid metric label type: must not be a pointer type")
 			return
 		}
 
@@ -150,7 +150,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		validKinds := append([]schema.BuiltinKind{schema.Bool, schema.String}, schemautil.Integers...)
 		for _, f := range concrete.Fields {
 			if f.IsAnonymous() {
-				errs.Add(f.AST.Pos(), "anonymous fields are not supported in metric labels")
+				errs.AddPos(f.AST.Pos(), "anonymous fields are not supported in metric labels")
 			} else if !schemautil.IsBuiltinKind(f.Type, validKinds...) {
 				errs.Addf(f.AST.Pos(), "invalid metric label field %s: must be string, bool, or integer type",
 					f.Name.MustGet())

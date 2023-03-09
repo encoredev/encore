@@ -42,7 +42,7 @@ func Parse(d ParseData) *ServiceStruct {
 	// We only support encore:service directives directly on the type declaration,
 	// not on a group of type declarations.
 	if len(d.Decl.Specs) != 1 {
-		d.Errs.Add(d.Dir.AST.Pos(), "invalid encore:service directive location (expected on declaration, not group)")
+		d.Errs.AddPos(d.Dir.AST.Pos(), "invalid encore:service directive location (expected on declaration, not group)")
 		if len(d.Decl.Specs) == 0 {
 			// We can't continue without at least one spec.
 			d.Errs.Bailout()
@@ -72,15 +72,15 @@ func Parse(d ParseData) *ServiceStruct {
 // has the correct structure.
 func validateServiceStruct(d ParseData, ss *ServiceStruct) {
 	if len(ss.Decl.TypeParams) > 0 {
-		d.Errs.Add(ss.Decl.AST.Pos(), "encore:service types cannot be defined as generic types")
+		d.Errs.AddPos(ss.Decl.AST.Pos(), "encore:service types cannot be defined as generic types")
 	}
 
 	ss.Init.ForAll(func(initFunc *schema2.FuncDecl) {
 		if len(initFunc.TypeParams) > 0 {
-			d.Errs.Add(initFunc.AST.Pos(), "service init function cannot be defined as generic functions")
+			d.Errs.AddPos(initFunc.AST.Pos(), "service init function cannot be defined as generic functions")
 		}
 		if len(initFunc.Type.Params) > 0 {
-			d.Errs.Add(initFunc.AST.Pos(), "service init function cannot have parameters")
+			d.Errs.AddPos(initFunc.AST.Pos(), "service init function cannot have parameters")
 		}
 
 		// Ensure the return type is (*T, error) where T is the service struct.

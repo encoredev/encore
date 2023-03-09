@@ -40,7 +40,7 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, apiPackage
 				pc.Errs.AddSrcErr(
 					srcerrors.MultipleAuthHandlersFound(
 						pc.Errs.FS(),
-						fw.AuthHandler.MustGet().Decl.AST, ah.Decl.AST,
+						fw.AuthHandler.MustGet().Decl.AST.Type, ah.Decl.AST.Type,
 					),
 				)
 			}

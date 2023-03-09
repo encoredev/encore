@@ -217,6 +217,9 @@ func TestCompile(t *testing.T) {
 					ts.Fatalf("stderr unexpectedly matches %q", args[0])
 				}
 			},
+			"expectError": func(ts *testscript.TestScript, neg bool, args []string) {
+				// no-op, this is just for use in the v2 parser
+			},
 		},
 	})
 }

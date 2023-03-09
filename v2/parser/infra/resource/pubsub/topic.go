@@ -62,7 +62,7 @@ var TopicParser = &resource.Parser{
 
 func parsePubSubTopic(d parseutil.ReferenceInfo) {
 	if len(d.Call.Args) != 2 {
-		d.Pass.Errs.Add(d.Call.Pos(), "pubsub.NewTopic expects 2 arguments")
+		d.Pass.Errs.AddPos(d.Call.Pos(), "pubsub.NewTopic expects 2 arguments")
 		return
 	}
 
@@ -75,7 +75,7 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 
 	messageType, ok := schemautil.ResolveNamedStruct(d.TypeArgs[0], false)
 	if !ok {
-		d.Pass.Errs.Add(d.Call.Pos(), "pubsub.NewTopic message type expects a named struct type as its type argument")
+		d.Pass.Errs.AddPos(d.Call.Pos(), "pubsub.NewTopic message type expects a named struct type as its type argument")
 		return
 	}
 

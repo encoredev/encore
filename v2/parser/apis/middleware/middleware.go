@@ -92,28 +92,28 @@ func Parse(d ParseData) *Middleware {
 
 	// Validate the input
 	if numParams < 2 {
-		d.Errs.Add(sig.AST.Pos(), "invalid middleware signature (too few parameters)"+sigHint)
+		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too few parameters)"+sigHint)
 		return mw
 	} else if numParams > 2 {
-		d.Errs.Add(sig.AST.Pos(), "invalid middleware signature (too many parameters)"+sigHint)
+		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too many parameters)"+sigHint)
 	}
 
 	numResults := len(sig.Results)
 	if numResults < 1 {
-		d.Errs.Add(sig.AST.Pos(), "invalid middleware signature (too few results)"+sigHint)
+		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too few results)"+sigHint)
 		return mw
 	} else if numResults > 1 {
-		d.Errs.Add(sig.AST.Pos(), "invalid middleware signature (too many results)"+sigHint)
+		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too many results)"+sigHint)
 	}
 
 	if !schemautil.IsNamed(sig.Params[0].Type, "encore.dev/middleware", "Request") {
-		d.Errs.Add(sig.Params[0].AST.Pos(), "first parameter type must be middleware.Request"+sigHint)
+		d.Errs.AddPos(sig.Params[0].AST.Pos(), "first parameter type must be middleware.Request"+sigHint)
 	}
 	if !schemautil.IsNamed(sig.Params[1].Type, "encore.dev/middleware", "Next") {
-		d.Errs.Add(sig.Params[0].AST.Pos(), "second parameter type must be middleware.Next"+sigHint)
+		d.Errs.AddPos(sig.Params[0].AST.Pos(), "second parameter type must be middleware.Next"+sigHint)
 	}
 	if !schemautil.IsNamed(sig.Results[0].Type, "encore.dev/middleware", "Response") {
-		d.Errs.Add(sig.Params[0].AST.Pos(), "return type must be middleware.Response"+sigHint)
+		d.Errs.AddPos(sig.Params[0].AST.Pos(), "return type must be middleware.Response"+sigHint)
 	}
 
 	return mw

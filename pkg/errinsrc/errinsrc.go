@@ -2,9 +2,12 @@ package errinsrc
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	encerrors "encr.dev/pkg/errors"
 
 	. "encr.dev/pkg/errinsrc/internal"
 )
@@ -45,6 +48,53 @@ func New(params ErrParams, alwaysIncludeStack bool) *ErrInSrc {
 		Params: params,
 		Stack:  stack,
 	}
+}
+
+// FromTemplate returns a new ErrInSrc using the [errs.Template] as a template
+func FromTemplate(template encerrors.Template, fileset *token.FileSet) *ErrInSrc {
+	// Setup the parameters
+	params := ErrParams{
+		Code:    template.Code,
+		Title:   template.Title,
+		Summary: template.Summary,
+		Detail:  template.Detail,
+		Cause:   template.Cause,
+	}
+
+	// Read the locations
+	for _, loc := range template.Locations {
+		var location *SrcLocation
+		switch loc.Kind {
+		case encerrors.LocFile:
+			params.Summary += "\n\nIn file: " + loc.Filepath
+			continue
+		case encerrors.LocGoNode:
+			location = FromGoASTNode(fileset, loc.GoNode)
+		case encerrors.LocGoPos:
+			location = FromGoTokenPos(fileset, loc.GoStartPos, loc.GoEndPos)
+		case encerrors.LocGoPositions:
+			location = FromGoTokenPositions(loc.GoStartPosition, loc.GoEndPosition)
+		default:
+			panic(fmt.Sprintf("unknown location kind: %v", loc.Kind))
+		}
+
+		switch loc.LocType {
+		case encerrors.LocError:
+			location.Type = LocError
+		case encerrors.LocWarning:
+			location.Type = LocWarning
+		case encerrors.LocHelp:
+			location.Type = LocHelp
+		default:
+			panic(fmt.Sprintf("unknown location type: %v", loc.LocType))
+		}
+
+		location.Text = loc.Text
+		params.Locations = append(params.Locations, location)
+	}
+
+	// Create the error
+	return New(params, template.AlwaysIncludeStack)
 }
 
 // TerminalWidth is the width of the terminal in columns that we're rendering to.

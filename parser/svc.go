@@ -601,7 +601,7 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 
 	case *schema.Type_Builtin:
 		if typ.Builtin != schema.Builtin_STRING {
-			p.errf(authInfo.Type.Pos(), "second parameter must be of type string or a named type")
+			p.errf(authInfo.Type.Pos(), "second parameter must be of type string, or a pointer to a named struct")
 		}
 	}
 	h.Params = paramType

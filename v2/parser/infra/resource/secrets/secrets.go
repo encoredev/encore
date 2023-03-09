@@ -43,19 +43,19 @@ var SecretsParser = &resource.Parser{
 		// Resolve the type expression manually instead.
 		spec := secrets.Spec.(*ast.ValueSpec)
 		if spec.Type == nil {
-			p.Errs.Add(spec.Pos(), "secrets variable must be a struct")
+			p.Errs.AddPos(spec.Pos(), "secrets variable must be a struct")
 			return
 		} else if len(spec.Names) != 1 {
-			p.Errs.Add(spec.Pos(), "secrets variable must be declared separately")
+			p.Errs.AddPos(spec.Pos(), "secrets variable must be declared separately")
 			return
 		} else if len(spec.Values) != 0 {
-			p.Errs.Add(spec.Pos(), "secrets variable must not be given a value")
+			p.Errs.AddPos(spec.Pos(), "secrets variable must not be given a value")
 			return
 		}
 
 		st, ok := p.SchemaParser.ParseType(secrets.File, spec.Type).(schema.StructType)
 		if !ok {
-			p.Errs.Add(spec.Pos(), "secrets variable must be a struct")
+			p.Errs.AddPos(spec.Pos(), "secrets variable must be a struct")
 			return
 		}
 
@@ -68,7 +68,7 @@ var SecretsParser = &resource.Parser{
 
 		for _, f := range st.Fields {
 			if f.IsAnonymous() {
-				p.Errs.Add(f.AST.Pos(), "secrets: anonymous fields are not allowed")
+				p.Errs.AddPos(f.AST.Pos(), "secrets: anonymous fields are not allowed")
 				continue
 			}
 			if !schemautil.IsBuiltinKind(f.Type, schema.String) {

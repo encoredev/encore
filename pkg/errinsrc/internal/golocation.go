@@ -31,6 +31,12 @@ func FromGoASTNode(fileset *token.FileSet, node ast.Node) *SrcLocation {
 	return FromGoTokenPositions(start, end)
 }
 
+func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) *SrcLocation {
+	startPos := fileset.Position(start)
+	endPos := fileset.Position(end)
+	return FromGoTokenPositions(startPos, endPos)
+}
+
 // FromGoTokenPositions returns a SrcLocation from two Go token positions.
 // They can be the same position or different positions. However, they must
 // be locations within the same file.

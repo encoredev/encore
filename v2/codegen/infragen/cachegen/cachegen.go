@@ -90,17 +90,17 @@ func getStructFields(errs *perr.List, keyType schema.Type) (structFields map[str
 	structFields = make(map[string]schema.BuiltinKind)
 	ref, ok := schemautil.ResolveNamedStruct(keyType, false)
 	if !ok {
-		errs.Add(keyType.ASTExpr().Pos(), "invalid cache key type: must be a named struct")
+		errs.AddPos(keyType.ASTExpr().Pos(), "invalid cache key type: must be a named struct")
 		return nil, false
 	} else if ref.Pointers > 0 {
-		errs.Add(keyType.ASTExpr().Pos(), "invalid cache key type: must not be a pointer type")
+		errs.AddPos(keyType.ASTExpr().Pos(), "invalid cache key type: must not be a pointer type")
 		return nil, false
 	}
 	st := schemautil.ConcretizeWithTypeArgs(ref.Decl.Type, ref.TypeArgs).(schema.StructType)
 
 	for _, f := range st.Fields {
 		if f.IsAnonymous() {
-			errs.Add(f.AST.Pos(), "anonymous fields are not supported in cache keys")
+			errs.AddPos(f.AST.Pos(), "anonymous fields are not supported in cache keys")
 			continue
 		} else if f.Type.Family() != schema.Builtin {
 			errs.Addf(f.AST.Pos(), "invalid cache key field %s: must be builtin",

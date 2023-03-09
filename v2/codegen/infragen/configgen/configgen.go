@@ -339,7 +339,7 @@ func (cb *configUnmarshalersBuilder) resolveValueType(t schema.NamedType) (under
 	if t.DeclInfo.Name == "Values" {
 		if len(t.TypeArgs) == 0 {
 			// Invalid use of config.Values[T]
-			cb.errs.Add(t.AST.Pos(), "invalid use of config.Values[T]: no type arguments provided")
+			cb.errs.AddPos(t.AST.Pos(), "invalid use of config.Values[T]: no type arguments provided")
 			return schema.BuiltinType{Kind: schema.Invalid}, true
 		}
 
@@ -347,7 +347,7 @@ func (cb *configUnmarshalersBuilder) resolveValueType(t schema.NamedType) (under
 	} else if t.DeclInfo.Name == "Value" {
 		if len(t.TypeArgs) == 0 {
 			// Invalid use of config.Value[T]
-			cb.errs.Add(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
+			cb.errs.AddPos(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
 			return schema.BuiltinType{Kind: schema.Invalid}, false
 		}
 		return t.TypeArgs[0], false
@@ -357,7 +357,7 @@ func (cb *configUnmarshalersBuilder) resolveValueType(t schema.NamedType) (under
 		if named, ok := decl.Type.(schema.NamedType); ok && named.DeclInfo.Name == "Value" {
 			if len(named.TypeArgs) == 0 {
 				// Invalid use of config.Value[T]
-				cb.errs.Add(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
+				cb.errs.AddPos(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
 				return schema.BuiltinType{Kind: schema.Invalid}, false
 			}
 			return named.TypeArgs[0], false

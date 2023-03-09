@@ -43,7 +43,7 @@ func (g *Helper) Type(typ schema.Type) *Statement {
 	case schema.BuiltinType:
 		return g.Builtin(typ.AST.Pos(), typ.Kind)
 	case schema.InterfaceType:
-		g.Errs.Add(typ.AST.Pos(), "unexpected interface type")
+		g.Errs.AddPos(typ.AST.Pos(), "unexpected interface type")
 		return Any()
 	case schema.TypeParamRefType:
 		typeParam := typ.Decl.TypeParameters()[typ.Index]
