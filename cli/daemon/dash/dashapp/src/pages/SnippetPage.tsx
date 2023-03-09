@@ -68,7 +68,7 @@ export const SnippetPage: FunctionComponent = () => {
                         <Link key={section.slug} to={section.slug} className="group relative block">
                           <OverviewCard
                             heading={section.heading}
-                            description="Learn about what problems Encore solves and the philosophy behind it."
+                            description={section.overviewText}
                             icon={section.icon}
                           />
                         </Link>
