@@ -4,6 +4,8 @@ import (
 	"encr.dev/pkg/errors"
 )
 
+const authLink = "For more information on auth handlers and how to define them, see https://encore.dev/docs/develop/auth"
+
 var (
 	errRange = errors.Range(
 		"authhandler",
@@ -15,7 +17,7 @@ var (
 
 note: *Params and *UserData are custom data types you define
 
-For more information checkout https://encore.dev/docs/develop/auth`,
+`+authLink,
 
 		errors.WithRangeSize(20),
 	)
@@ -35,7 +37,7 @@ For more information checkout https://encore.dev/docs/develop/auth`,
 		"The first parameter must be a context.Context.",
 	)
 
-	errInvalidSecondParameter = errRange.New(
+	ErrInvalidAuthSchemaType = errRange.New(
 		"Invalid auth handler Signature",
 		"The second parameter must be a string or a pointer to a named struct.",
 	)
@@ -50,9 +52,17 @@ For more information checkout https://encore.dev/docs/develop/auth`,
 		"The second result must be a pointer to a named struct.",
 	)
 
-	errInvalidFieldTags = errRange.New(
+	ErrInvalidFieldTags = errRange.New(
 		"Invalid auth payload",
 		"All fields used within an auth payload must originate from either an HTTP header or a query parameter.",
-		errors.WithDetails("You can specify them for each field using the struct tags, for example with `header:\"X-My-Header\"` or `query:\"my-query\"`.\n\nFor more information checkout https://encore.dev/docs/develop/auth"),
+		errors.WithDetails(
+			"You can specify them for each field using the struct tags, for example with `header:\"X-My-Header\"` or `query:\"my-query\"`.\n\n"+
+				authLink,
+		),
+	)
+
+	ErrMultipleAuthHandlers = errRange.New(
+		"Multiple auth handlers found",
+		"Multiple auth handlers were found in the application. Encore only allows one auth handler to be defined per application.",
 	)
 )

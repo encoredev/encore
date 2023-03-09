@@ -25,7 +25,8 @@ import (
 
 func TestValidation(t *testing.T) {
 	type testCfg struct {
-		ignoreErrCommand bool
+		ignoreErrCommand    bool
+		ignoreOutputCommand bool
 	}
 	t.Parallel()
 	testscript.Run(t, testscript.Params{
@@ -185,9 +186,34 @@ func TestValidation(t *testing.T) {
 				// }
 			},
 
+			// expectOut is a command that checks the stdout output contains the
+			// given regex.
+			//
+			// It unique to the v2 parser as that has different handling of types, as such
+			// if it is used in a testscript, we ignore any following calls to "output"
+			"expectOut": func(ts *testscript.TestScript, neg bool, args []string) {
+				ts.Value("cfg").(*testCfg).ignoreOutputCommand = true
+
+				stdout := ts.Value("stdout").(*bytes.Buffer)
+				m, err := regexp.Match(args[0], stdout.String())
+				if err != nil {
+					ts.Fatalf("invalid pattern: %v", err)
+				}
+				if !m && !neg {
+					ts.Fatalf("output does not match %q", args[0])
+				} else if m && neg {
+					ts.Fatalf("output unexpectedly matches %q", args[0])
+				}
+			},
+
 			// The "output" command checks that the output into stdout that we've collected
 			// contains the given regex
 			"output": func(ts *testscript.TestScript, neg bool, args []string) {
+				if ts.Value("cfg").(*testCfg).ignoreOutputCommand {
+					// "expectOut" was called, so we ignore this command
+					return
+				}
+
 				stdout := ts.Value("stdout").(*bytes.Buffer)
 				m, err := regexp.Match(args[0], stdout.String())
 				if err != nil {

@@ -220,6 +220,9 @@ func TestCompile(t *testing.T) {
 			"expectError": func(ts *testscript.TestScript, neg bool, args []string) {
 				// no-op, this is just for use in the v2 parser
 			},
+			"expectOut": func(ts *testscript.TestScript, neg bool, args []string) {
+				// no-op, this is just for use in the v2 parser
+			},
 		},
 	})
 }

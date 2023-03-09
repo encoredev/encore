@@ -56,14 +56,14 @@ func parseLoad(d parseutil.ReferenceInfo) {
 	errs := d.Pass.Errs
 
 	if len(d.Call.Args) > 0 {
-		errs.AddPos(d.Call.Pos(), "config.Load expects no arguments")
+		errs.Add(errInvalidLoad.AtGoNode(d.Call))
 		return
 	}
 
 	// Resolve the named struct used for the config type
 	ref, ok := schemautil.ResolveNamedStruct(d.TypeArgs[0], false)
 	if !ok {
-		errs.AddPos(d.TypeArgs[0].ASTExpr().Pos(), "config.Load expects a named struct type as its type argument")
+		errs.Add(errInvalidConfigType.AtGoNode(d.TypeArgs[0].ASTExpr()))
 		return
 	}
 	_ = ref

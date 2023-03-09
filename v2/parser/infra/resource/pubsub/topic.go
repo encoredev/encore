@@ -1,8 +1,10 @@
 package pubsub
 
 import (
+	"fmt"
 	"go/ast"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
@@ -61,8 +63,10 @@ var TopicParser = &resource.Parser{
 }
 
 func parsePubSubTopic(d parseutil.ReferenceInfo) {
+	errs := d.Pass.Errs
+
 	if len(d.Call.Args) != 2 {
-		d.Pass.Errs.AddPos(d.Call.Pos(), "pubsub.NewTopic expects 2 arguments")
+		errs.Add(errNewTopicArgCount(len(d.Call.Args)).AtGoNode(d.Call))
 		return
 	}
 
@@ -75,7 +79,7 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 
 	messageType, ok := schemautil.ResolveNamedStruct(d.TypeArgs[0], false)
 	if !ok {
-		d.Pass.Errs.AddPos(d.Call.Pos(), "pubsub.NewTopic message type expects a named struct type as its type argument")
+		errs.Add(errInvalidMessageType.AtGoNode(d.TypeArgs[0].ASTExpr(), errors.AsError(fmt.Sprintf("got %s", parseutil.NodeType(d.TypeArgs[0].ASTExpr())))))
 		return
 	}
 
@@ -95,17 +99,19 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 	if config.OrderingKey != "" {
 		// Make sure the OrderingKey value exists in the struct.
 		if str, ok := messageType.Decl.Type.(schema.StructType); ok {
-			found := false
+			var foundField ast.Node
 			for _, field := range str.Fields {
 				if option.Contains(field.Name, config.OrderingKey) {
-					found = true
+					foundField = field.AST
 					break
 				}
 			}
 
-			if !found || !ast.IsExported(config.OrderingKey) {
-				// p.errInSrc(srcerrors.PubSubOrderingKeyMustBeExported(p.fset, cfgLit.Expr("OrderingKey")))
-				d.Pass.Errs.Addf(cfgLit.Pos("OrderingKey"), "Ordering Key must refer to an exported field in the message type")
+			if foundField == nil || !ast.IsExported(config.OrderingKey) {
+				if foundField == nil {
+					foundField = cfgLit.Expr("OrderingKey")
+				}
+				errs.Add(errOrderingKeyNotExported.AtGoNode(foundField))
 			}
 		}
 	}

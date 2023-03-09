@@ -1,5 +1,6 @@
 # Verify calls to config.Load are called
 parse
+expectOut 'config svc Config\[int\]'
 output 'config svc named:{type_arguments:{builtin:INT}}'
 
 -- libraries/shared/shared.go --

@@ -1,15 +1,18 @@
 package servicestruct
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	schema2 "encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/internal/utils"
 )
 
 // ServiceStruct describes a dependency injection struct for a service.
@@ -36,13 +39,13 @@ type ParseData struct {
 func Parse(d ParseData) *ServiceStruct {
 	// We don't allow anything on the directive besides "encore:service".
 	if err := directive.Validate(d.Dir, directive.ValidateSpec{}); err != nil {
-		d.Errs.Addf(d.Dir.AST.Pos(), "invalid encore:service directive: %v", err)
+		d.Errs.Add(errInvalidDirective.AtGoNode(d.Dir.AST).Wrapping(err))
 	}
 
 	// We only support encore:service directives directly on the type declaration,
 	// not on a group of type declarations.
 	if len(d.Decl.Specs) != 1 {
-		d.Errs.AddPos(d.Dir.AST.Pos(), "invalid encore:service directive location (expected on declaration, not group)")
+		d.Errs.Add(errInvalidDirectivePlacement.AtGoNode(d.Dir.AST))
 		if len(d.Decl.Specs) == 0 {
 			// We can't continue without at least one spec.
 			d.Errs.Bailout()
@@ -72,27 +75,38 @@ func Parse(d ParseData) *ServiceStruct {
 // has the correct structure.
 func validateServiceStruct(d ParseData, ss *ServiceStruct) {
 	if len(ss.Decl.TypeParams) > 0 {
-		d.Errs.AddPos(ss.Decl.AST.Pos(), "encore:service types cannot be defined as generic types")
+		d.Errs.Add(errServiceStructMustNotBeGeneric.AtGoNode(ss.Decl.TypeParams[0].AST))
 	}
 
 	ss.Init.ForAll(func(initFunc *schema2.FuncDecl) {
 		if len(initFunc.TypeParams) > 0 {
-			d.Errs.AddPos(initFunc.AST.Pos(), "service init function cannot be defined as generic functions")
+			d.Errs.Add(errServiceInitCannotBeGeneric.AtGoNode(initFunc.TypeParams[0].AST))
 		}
 		if len(initFunc.Type.Params) > 0 {
-			d.Errs.AddPos(initFunc.AST.Pos(), "service init function cannot have parameters")
+			d.Errs.Add(errServiceInitCannotHaveParams.AtGoNode(initFunc.Type.Params[0].AST))
 		}
 
 		// Ensure the return type is (*T, error) where T is the service struct.
 		if len(initFunc.Type.Results) != 2 {
 			// Wrong number of returns
-			d.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
+			d.Errs.Add(errServiceInitInvalidReturnType(ss.Decl.Name).AtGoNode(initFunc.AST))
 		} else if result, n := schemautil.Deref(initFunc.Type.Results[0].Type); n != 1 || !schemautil.IsNamed(result, ss.Decl.File.Pkg.ImportPath, ss.Decl.Name) {
 			// First type is not *T
+			d.Errs.Add(
+				errServiceInitInvalidReturnType(ss.Decl.Name).
+					AtGoNode(initFunc.AST, errors.AsError(
+						fmt.Sprintf("got %s", utils.PrettyPrint(initFunc.Type.Results[0].Type.ASTExpr())),
+					)),
+			)
 			d.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
 		} else if !schemautil.IsBuiltinKind(initFunc.Type.Results[1].Type, schema2.Error) {
 			// Second type is not builtin error.
-			d.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
+			d.Errs.Add(
+				errServiceInitInvalidReturnType(ss.Decl.Name).
+					AtGoNode(initFunc.AST, errors.AsError(
+						fmt.Sprintf("got %s", utils.PrettyPrint(initFunc.Type.Results[1].Type.ASTExpr())),
+					)),
+			)
 		}
 	})
 }

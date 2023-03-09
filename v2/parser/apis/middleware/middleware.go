@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
@@ -13,6 +14,7 @@ import (
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/selector"
+	"encr.dev/v2/parser/internal/utils"
 )
 
 // Middleware describes an Encore middleware.
@@ -79,41 +81,46 @@ func Parse(d ParseData) *Middleware {
 		ValidateTag: nil,
 	})
 	if err != nil {
-		d.Errs.Addf(d.Dir.AST.Pos(), "invalid encore:middleware directive: %v", err)
+		d.Errs.Add(errInvalidDirective.Wrapping(err).AtGoNode(d.Dir.AST))
 		return mw
 	}
-
-	const sigHint = `
-	hint: middleware must have the signature:
-	func(req middleware.Request, next middleware.Next) middleware.Response`
 
 	sig := decl.Type
 	numParams := len(sig.Params)
 
 	// Validate the input
 	if numParams < 2 {
-		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too few parameters)"+sigHint)
+		d.Errs.Add(errWrongNumberParams(numParams).AtGoNode(sig.AST.Params))
 		return mw
 	} else if numParams > 2 {
-		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too many parameters)"+sigHint)
+		d.Errs.Add(errWrongNumberParams(numParams).AtGoNode(sig.AST.Params))
 	}
 
 	numResults := len(sig.Results)
 	if numResults < 1 {
-		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too few results)"+sigHint)
+		d.Errs.Add(errWrongNumberResults(numResults).AtGoNode(sig.AST.Results))
 		return mw
 	} else if numResults > 1 {
-		d.Errs.AddPos(sig.AST.Pos(), "invalid middleware signature (too many results)"+sigHint)
+		d.Errs.Add(errWrongNumberResults(numResults).AtGoNode(sig.AST.Results))
 	}
 
 	if !schemautil.IsNamed(sig.Params[0].Type, "encore.dev/middleware", "Request") {
-		d.Errs.AddPos(sig.Params[0].AST.Pos(), "first parameter type must be middleware.Request"+sigHint)
+		d.Errs.Add(
+			errInvalidFirstParam.
+				AtGoNode(sig.Params[0].AST, errors.AsError(fmt.Sprintf("got %s", utils.PrettyPrint(sig.Params[0].Type.ASTExpr())))),
+		)
 	}
 	if !schemautil.IsNamed(sig.Params[1].Type, "encore.dev/middleware", "Next") {
-		d.Errs.AddPos(sig.Params[0].AST.Pos(), "second parameter type must be middleware.Next"+sigHint)
+		d.Errs.Add(
+			errInvalidSecondParam.
+				AtGoNode(sig.Params[1].AST, errors.AsError(fmt.Sprintf("got %s", utils.PrettyPrint(sig.Params[1].Type.ASTExpr())))),
+		)
 	}
 	if !schemautil.IsNamed(sig.Results[0].Type, "encore.dev/middleware", "Response") {
-		d.Errs.AddPos(sig.Params[0].AST.Pos(), "return type must be middleware.Response"+sigHint)
+		d.Errs.Add(
+			errInvalidReturnType.
+				AtGoNode(sig.Results[0].AST, errors.AsError(fmt.Sprintf("got %s", utils.PrettyPrint(sig.Results[0].Type.ASTExpr())))),
+		)
 	}
 
 	return mw

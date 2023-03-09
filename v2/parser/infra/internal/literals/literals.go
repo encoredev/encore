@@ -39,7 +39,7 @@ func ParseString(node ast.Node) (string, bool) {
 func ParseStruct(errs *perr.List, file *pkginfo.File, expectedType string, node ast.Expr) (lit *Struct, ok bool) {
 	cl, ok := node.(*ast.CompositeLit)
 	if !ok {
-		errs.Addf(node.Pos(), "expected a literal instance of %s, got %s", expectedType, prettyPrint(node))
+		errs.Addf(node.Pos(), "expected a literal instance of %s, got %s", expectedType, PrettyPrint(node))
 		return nil, false
 	}
 
@@ -432,23 +432,23 @@ func (l *Struct) Str(fieldName string, defaultValue string) string {
 	}
 }
 
-func prettyPrint(node ast.Expr) string {
+func PrettyPrint(node ast.Expr) string {
 	switch node := node.(type) {
 	case *ast.Ident:
 		return node.Name
 
 	case *ast.SelectorExpr:
-		return fmt.Sprintf("%s.%s", prettyPrint(node.X), node.Sel.Name)
+		return fmt.Sprintf("%s.%s", PrettyPrint(node.X), node.Sel.Name)
 
 	case *ast.IndexExpr:
-		return fmt.Sprintf("%s[%s]", prettyPrint(node.X), prettyPrint(node.Index))
+		return fmt.Sprintf("%s[%s]", PrettyPrint(node.X), PrettyPrint(node.Index))
 
 	case *ast.IndexListExpr:
 		indices := make([]string, 0, len(node.Indices))
 		for _, n := range node.Indices {
-			indices = append(indices, prettyPrint(n))
+			indices = append(indices, PrettyPrint(n))
 		}
-		return fmt.Sprintf("%s[%s]", prettyPrint(node.X), strings.Join(indices, ", "))
+		return fmt.Sprintf("%s[%s]", PrettyPrint(node.X), strings.Join(indices, ", "))
 
 	case *ast.FuncLit:
 		return "a function literal"

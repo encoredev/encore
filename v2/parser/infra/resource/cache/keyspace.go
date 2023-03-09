@@ -130,7 +130,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 	}
 
 	keyNode := d.TypeArgs[0].ASTExpr()
-	patternPos := cfgLit.Pos("KeyPattern")
+	patternNode := cfgLit.Expr("KeyPattern")
 
 	// Decode the config
 	type decodedConfig struct {
@@ -141,13 +141,13 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 
 	const reservedPrefix = "__encore"
 	if strings.HasPrefix(config.KeyPattern, reservedPrefix) {
-		errs.Add(errPrefixReserved.AtGoPos(patternPos, patternPos))
+		errs.Add(errPrefixReserved.AtGoNode(patternNode))
 		return
 	}
 
-	path, err := ParseKeyspacePath(patternPos, config.KeyPattern)
+	path, err := ParseKeyspacePath(cfgLit.Pos("KeyPattern"), config.KeyPattern)
 	if err != nil {
-		errs.Add(errInvalidKeyspacePattern.Wrapping(err).AtGoPos(patternPos, patternPos))
+		errs.Add(errInvalidKeyspacePattern.Wrapping(err).AtGoNode(patternNode))
 		return
 	}
 
@@ -185,7 +185,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 			seenPathSegments[name] = false
 
 			if keyIsBuiltin && name != "key" {
-				errs.Add(errKeyPatternMustBeNamedKey.AtGoPos(patternPos, patternPos))
+				errs.Add(errKeyPatternMustBeNamedKey.AtGoNode(patternNode))
 			}
 		}
 
@@ -216,7 +216,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 
 					fieldName := f.Name.MustGet() // guaranteed by f.IsAnonymous check above
 					if _, exists := seenPathSegments[fieldName]; !exists {
-						errs.Add(errFieldNotUsedInKeyPattern(fieldName).AtGoNode(f.AST).AtGoPos(patternPos, patternPos))
+						errs.Add(errFieldNotUsedInKeyPattern(fieldName).AtGoNode(f.AST).AtGoNode(patternNode))
 					} else {
 						seenPathSegments[fieldName] = true
 					}
@@ -235,7 +235,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 				// Ensure all path segments are valid field names
 				for fieldName, seen := range seenPathSegments {
 					if !seen {
-						errs.Add(errFieldDoesntExist(fieldName, ref.Decl).AtGoPos(patternPos, patternPos).AtGoNode(ref.Decl.AST.Name))
+						errs.Add(errFieldDoesntExist(fieldName, ref.Decl).AtGoNode(patternNode).AtGoNode(ref.Decl.AST.Name))
 					}
 				}
 			}

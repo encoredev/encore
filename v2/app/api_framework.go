@@ -1,14 +1,14 @@
 package app
 
 import (
-	"fmt"
-
-	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/parser/apis"
+	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/apis/servicestruct"
 )
 
 func configureAPIFramework(pc *parsectx.Context, services []*Service, apiPackages []*apis.ParseResult) option.Option[*apiframework.AppDesc] {
@@ -37,11 +37,10 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, apiPackage
 			if fw.AuthHandler.Empty() {
 				fw.AuthHandler = option.Some(ah)
 			} else {
-				pc.Errs.AddSrcErr(
-					srcerrors.MultipleAuthHandlersFound(
-						pc.Errs.FS(),
-						fw.AuthHandler.MustGet().Decl.AST.Type, ah.Decl.AST.Type,
-					),
+				pc.Errs.Add(
+					authhandler.ErrMultipleAuthHandlers.
+						AtGoNode(fw.AuthHandler.MustGet().Decl.AST.Type, errors.AsError("first auth handler defined here")).
+						AtGoNode(ah.Decl.AST.Type, errors.AsError("second auth handler defined here")),
 				)
 			}
 		}
@@ -59,9 +58,7 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, apiPackage
 				}
 			}
 			if service == nil {
-				pc.Errs.AddStd(
-					srcerrors.StandardLibraryError(fmt.Errorf("service not found for API framework package %s", pkg.Pkg.Name)),
-				)
+				pc.Errs.Add(errNoServiceFound(pkg.Pkg.Name))
 				continue
 			}
 
@@ -78,12 +75,10 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, apiPackage
 				if svcDesc.ServiceStruct.Empty() {
 					svcDesc.ServiceStruct = option.Some(serviceStruct)
 				} else {
-					pc.Errs.AddSrcErr(
-						srcerrors.MultipleServiceStructsFound(
-							pc.Errs.FS(),
-							service.Name,
-							svcDesc.ServiceStruct.MustGet().Decl.AST, serviceStruct.Decl.AST,
-						),
+					pc.Errs.Add(
+						servicestruct.ErrDuplicateServiceStructs.
+							AtGoNode(svcDesc.ServiceStruct.MustGet().Decl.AST, errors.AsError("first service struct defined here")).
+							AtGoNode(serviceStruct.Decl.AST, errors.AsError("second service struct defined here")),
 					)
 				}
 			}

@@ -87,7 +87,7 @@ func Parse(d ParseData) *AuthHandler {
 		if schemautil.IsBuiltinKind(param, schema.String) {
 			// All good
 		} else if ref, ok := schemautil.ResolveNamedStruct(param, true); !ok {
-			d.Errs.Add(errInvalidSecondParameter.AtGoNode(param.ASTExpr()))
+			d.Errs.Add(ErrInvalidAuthSchemaType.AtGoNode(param.ASTExpr()))
 		} else {
 			validateStructFields(d.Errs, ref.Decl.Type.(schema.StructType))
 		}
@@ -113,7 +113,7 @@ func Parse(d ParseData) *AuthHandler {
 // validateStructFields checks that the struct fields have the correct tags.
 // and all fields are either a header or query string
 func validateStructFields(errs *perr.List, ref schema.StructType) {
-	fieldErr := errInvalidFieldTags
+	fieldErr := ErrInvalidFieldTags
 
 nextField:
 	for _, field := range ref.Fields {

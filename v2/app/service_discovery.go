@@ -3,7 +3,6 @@ package app
 import (
 	"golang.org/x/exp/slices"
 
-	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
@@ -71,28 +70,24 @@ func discoverServices(pc *parsectx.Context, result parser.Result) []*Service {
 	})
 
 	// Finally, let's validate our services so we can report errors
-	//if len(services) == 0 {
+	// FIXME: we should put this back in as otherwise we need to specify
+	//        the expected behaviour for an Encore app with no services!
+	// if len(services) == 0 {
 	//	pc.Errs.AddStd(srcerrors.NoServicesFound())
-	//}
+	// }
 
 	// Finally, let's validate our services
 	for i, s := range services {
 		for j := i + 1; j < len(services); j++ {
 			// we need to check both directions of nesting as we only loop over one direction
 			if s.FSRoot.HasPrefix(services[j].FSRoot) {
-				pc.Errs.AddStd(
-					srcerrors.ServiceContainedWithinAnotherService(services[j].Name, s.Name),
-				)
+				pc.Errs.Add(errServiceContainedWitinAnother(s.Name, services[j].Name))
 			} else if services[j].FSRoot.HasPrefix(s.FSRoot) {
-				pc.Errs.AddStd(
-					srcerrors.ServiceContainedWithinAnotherService(s.Name, services[j].Name),
-				)
+				pc.Errs.Add(errServiceContainedWitinAnother(services[j].Name, s.Name))
 			}
 
 			if s.Name == services[j].Name {
-				pc.Errs.AddStd(
-					srcerrors.ServicesWithSameName(s.Name, s.FSRoot.ToIO(), services[j].FSRoot.ToIO()),
-				)
+				pc.Errs.Add(errDuplicateServiceNames(s.Name).InFile(s.FSRoot.ToIO()).InFile(services[j].FSRoot.ToIO()))
 			}
 		}
 	}

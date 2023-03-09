@@ -1,12 +1,16 @@
 package secrets
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/parser/infra/internal/literals"
+	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/infra/resource"
 )
 
@@ -43,19 +47,19 @@ var SecretsParser = &resource.Parser{
 		// Resolve the type expression manually instead.
 		spec := secrets.Spec.(*ast.ValueSpec)
 		if spec.Type == nil {
-			p.Errs.AddPos(spec.Pos(), "secrets variable must be a struct")
+			p.Errs.Add(errSecretsMustBeStruct.AtGoNode(spec, errors.AsError(fmt.Sprintf("got %s", parseutil.NodeType(spec)))))
 			return
 		} else if len(spec.Names) != 1 {
-			p.Errs.AddPos(spec.Pos(), "secrets variable must be declared separately")
+			p.Errs.Add(errSecretsDefinedSeperately.AtGoNode(spec))
 			return
 		} else if len(spec.Values) != 0 {
-			p.Errs.AddPos(spec.Pos(), "secrets variable must not be given a value")
+			p.Errs.Add(errSecretsGivenValue.AtGoNode(spec.Values[0]))
 			return
 		}
 
 		st, ok := p.SchemaParser.ParseType(secrets.File, spec.Type).(schema.StructType)
 		if !ok {
-			p.Errs.AddPos(spec.Pos(), "secrets variable must be a struct")
+			p.Errs.Add(errSecretsMustBeStruct.AtGoNode(spec, errors.AsError(fmt.Sprintf("got %s", parseutil.NodeType(spec)))))
 			return
 		}
 
@@ -68,11 +72,11 @@ var SecretsParser = &resource.Parser{
 
 		for _, f := range st.Fields {
 			if f.IsAnonymous() {
-				p.Errs.AddPos(f.AST.Pos(), "secrets: anonymous fields are not allowed")
+				p.Errs.Add(errAnonymousFields.AtGoNode(f.AST))
 				continue
 			}
 			if !schemautil.IsBuiltinKind(f.Type, schema.String) {
-				p.Errs.Addf(f.AST.Pos(), "secrets: field %s is not of type string", f.Name.MustGet())
+				p.Errs.Add(errSecretsMustBeString.AtGoNode(f.AST.Type, errors.AsError(fmt.Sprintf("got %s", literals.PrettyPrint(f.Type.ASTExpr())))))
 				continue
 			}
 			res.Keys = append(res.Keys, f.Name.MustGet())

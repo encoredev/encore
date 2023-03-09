@@ -7,6 +7,7 @@ import (
 
 	cronparser "github.com/robfig/cron/v3"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	literals "encr.dev/v2/parser/infra/internal/literals"
@@ -63,7 +64,7 @@ var cronjobParser = cronparser.NewParser(cronparser.Minute | cronparser.Hour | c
 func parseCronJob(d parseutil.ReferenceInfo) {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 2 {
-		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 2 arguments", displayName)
+		d.Pass.Errs.Add(errExpects2Arguments(len(d.Call.Args)).AtGoNode(d.Call))
 		return
 	}
 
@@ -102,33 +103,36 @@ func parseCronJob(d parseutil.ReferenceInfo) {
 	// Parse the schedule
 	switch {
 	case config.Every != 0 && config.Schedule != "":
-		d.Pass.Errs.Addf(cfgLit.Pos("Every"), "cron execution schedule was set twice, once in Every and one in Schedule, at least one must be set but not both")
+		d.Pass.Errs.Add(errScheduleSetTwice.AtGoNode(cfgLit.Expr("Schedule")).AtGoNode(cfgLit.Expr("Every")))
 		return
 	case config.Schedule != "":
 		_, err := cronjobParser.Parse(config.Schedule)
 		if err != nil {
-			d.Pass.Errs.Addf(cfgLit.Pos("Schedule"), "Schedule must be a valid cron expression: %s", err)
+			d.Pass.Errs.Add(errInvalidSchedule.Wrapping(err).AtGoNode(cfgLit.Expr("Schedule")))
 			return
 		}
 		job.Schedule = fmt.Sprintf("schedule:%s", config.Schedule)
 	case config.Every != 0:
 		if rem := config.Every % minute; rem != 0 {
-			d.Pass.Errs.Addf(cfgLit.Pos("Every"), "Every: must be an integer number of minutes, got %d", config.Every)
+			d.Pass.Errs.Add(errEveryMustBeInteger(config.Every).AtGoNode(cfgLit.Expr("Every")))
 			return
 		}
 
 		minutes := config.Every / minute
 		if minutes < 1 {
-			d.Pass.Errs.Addf(cfgLit.Pos("Every"), "Every: duration must be one minute or greater, got %d", minutes)
+			d.Pass.Errs.Add(errEveryMustBeOneOrGreater(config.Every).AtGoNode(cfgLit.Expr("Every")))
 			return
 		} else if minutes > 24*60 {
-			d.Pass.Errs.Addf(cfgLit.Pos("Every"), "Every: duration must not be greater than 24 hours (1440 minutes), got %d", minutes)
+			d.Pass.Errs.Add(errEveryMustBeLessThan24Hours(minutes).AtGoNode(cfgLit.Expr("Every")))
 			return
 		} else if suggestion, ok := isCronIntervalAllowed(int(minutes)); !ok {
 			suggestionStr := formatMinutes(suggestion)
 			minutesStr := formatMinutes(int(minutes))
-			d.Pass.Errs.Addf(cfgLit.Pos("Every"), "Every: 24 hour time range (from 00:00 to 23:59) "+
-				"needs to be evenly divided by the interval value (%s), try setting it to (%s)", minutesStr, suggestionStr)
+
+			d.Pass.Errs.Add(
+				errEveryMustBeMultipleOfMinute(minutesStr).
+					AtGoNode(cfgLit.Expr("Every"), errors.AsHelp(fmt.Sprintf("try setting it to %s", suggestionStr))),
+			)
 			return
 		}
 		job.Schedule = fmt.Sprintf("every:%d", minutes)

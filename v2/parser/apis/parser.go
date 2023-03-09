@@ -53,7 +53,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 
 				dir, doc, err := directive.Parse(decl.Doc)
 				if err != nil {
-					p.c.Errs.AddPos(decl.Doc.Pos(), err.Error())
+					p.c.Errs.Add(errInvalidDirective.AtGoNode(decl.Doc).Wrapping(err))
 					continue
 				} else if dir == nil {
 					continue
@@ -97,7 +97,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 					apiFrameworkUsed = true
 
 				default:
-					p.c.Errs.Addf(decl.Pos(), "unexpected directive %q on function declaration", dir.Name)
+					p.c.Errs.Add(errUnexpectedDirective(dir.Name).AtGoNode(decl))
 				}
 
 			case *ast.GenDecl:
@@ -109,7 +109,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 
 				dir, doc, err := directive.Parse(decl.Doc)
 				if err != nil {
-					p.c.Errs.AddPos(decl.Doc.Pos(), err.Error())
+					p.c.Errs.Add(errInvalidDirective.AtGoNode(decl.Doc).Wrapping(err))
 					continue
 				} else if dir == nil {
 					continue
@@ -129,7 +129,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 					apiFrameworkUsed = true
 
 				default:
-					p.c.Errs.Addf(decl.Pos(), "unexpected directive %q on function declaration", dir.Name)
+					p.c.Errs.Add(errUnexpectedDirective(dir.Name).AtGoNode(decl))
 				}
 			}
 		}

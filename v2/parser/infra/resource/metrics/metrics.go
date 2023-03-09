@@ -1,8 +1,10 @@
 package metrics
 
 import (
+	"fmt"
 	"go/ast"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
@@ -109,8 +111,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 	displayName := d.ResourceFunc.NaiveDisplayName()
 	errs := d.Pass.Errs
 	if len(d.Call.Args) != 2 {
-		errs.Addf(d.Call.Pos(), "%s requires two arguments: the metric name and the metric configuration",
-			displayName)
+		errs.Add(errInvalidArgCount(displayName, len(d.Call.Args)).AtGoNode(d.Call))
 		return
 	}
 
@@ -128,7 +129,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		valueType = d.TypeArgs[1]
 	}
 	if valueType.Family() != schema.Builtin {
-		errs.AddPos(d.Call.Pos(), "metric value type must be a builtin type")
+		errs.Add(errInvalidMetricType.AtGoNode(valueType.ASTExpr()))
 		return
 	}
 
@@ -138,10 +139,10 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		typeArg := d.TypeArgs[0]
 		declRef, ok := schemautil.ResolveNamedStruct(typeArg, false)
 		if !ok {
-			errs.AddPos(typeArg.ASTExpr().Pos(), "invalid metric label type: must be a named struct")
+			errs.Add(errInvalidLabelType.AtGoNode(typeArg.ASTExpr()))
 			return
 		} else if declRef.Pointers > 0 {
-			errs.AddPos(typeArg.ASTExpr().Pos(), "invalid metric label type: must not be a pointer type")
+			errs.Add(errLabelNoPointer.AtGoNode(typeArg.ASTExpr()))
 			return
 		}
 
@@ -150,10 +151,9 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		validKinds := append([]schema.BuiltinKind{schema.Bool, schema.String}, schemautil.Integers...)
 		for _, f := range concrete.Fields {
 			if f.IsAnonymous() {
-				errs.AddPos(f.AST.Pos(), "anonymous fields are not supported in metric labels")
+				errs.Add(errLabelNoAnonymous.AtGoNode(f.AST))
 			} else if !schemautil.IsBuiltinKind(f.Type, validKinds...) {
-				errs.Addf(f.AST.Pos(), "invalid metric label field %s: must be string, bool, or integer type",
-					f.Name.MustGet())
+				errs.Add(errLabelInvalidType.AtGoNode(f.AST.Type, errors.AsError(fmt.Sprintf("got %s", literals.PrettyPrint(f.AST.Type)))))
 			}
 		}
 		labelType = option.Some(typeArg)

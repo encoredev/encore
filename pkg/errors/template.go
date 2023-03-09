@@ -38,6 +38,36 @@ func WithDetails(details string) TemplateOption {
 	}
 }
 
+// PrependDetails will setup a template so it prepends the given details to the
+// range default
+func PrependDetails(details string) TemplateOption {
+	return func(template *Template) {
+		if template.Detail != "" {
+			details = details + "\n\n" + template.Detail
+		}
+		template.Detail = details
+	}
+}
+
+// MarkAsInternalError will setup a template so it is reported as an internal error.
+//
+// This means that the error will be reported to the user as an internal error
+// with a link to the Encore issue tracker and will include a stack trace.
+func MarkAsInternalError() TemplateOption {
+	return func(template *Template) {
+		template.AlwaysIncludeStack = true
+		template.Title = "Internal Error: " + template.Title
+		template.Detail = "This is a bug in Encore and should not have occurred. Please report this issue to the " +
+			"Encore team either on Github at https://github.com/encoredev/encore/issues/new and include this error."
+	}
+}
+
+// WithDetails will replace the details of the template with the given details
+func (t Template) WithDetails(details string) Template {
+	t.Detail = details
+	return t
+}
+
 // Wrapping wraps the given error with the template.
 //
 // It will append the given error to the summary of the template

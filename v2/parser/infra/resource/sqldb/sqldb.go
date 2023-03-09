@@ -39,7 +39,7 @@ var DatabaseParser = &resource.Parser{
 		migrationDir := p.Pkg.FSPath.Join("migrations")
 		migrations, err := parseMigrations(p.Pkg, migrationDir)
 		if err != nil {
-			p.Errs.Addf(p.Pkg.AST.Pos(), "unable to parse database migrations: %v", err)
+			p.Errs.Add(errUnableToParseMigrations.Wrapping(err))
 			return
 		} else if len(migrations) == 0 {
 			return

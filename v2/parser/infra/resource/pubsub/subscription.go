@@ -51,15 +51,16 @@ var SubscriptionParser = &resource.Parser{
 
 func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 	displayName := d.ResourceFunc.NaiveDisplayName()
+	errs := d.Pass.Errs
 	if len(d.Call.Args) != 3 {
-		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 3 arguments", displayName)
+		errs.Add(errNewSubscriptionArgCount(len(d.Call.Args)).AtGoNode(d.Call))
 		return
 	}
 
 	topicExpr := d.Call.Args[0]
 	topicObj, ok := d.File.Names().ResolvePkgLevelRef(topicExpr)
 	if !ok {
-		d.Pass.Errs.Addf(topicExpr.Pos(), "could not resolve topic to a package-level variable")
+		errs.Add(errSubscriptionTopicNotResource.AtGoNode(topicExpr))
 		return
 	}
 

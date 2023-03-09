@@ -1,16 +1,18 @@
 package apienc
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
-	"github.com/cockroachdb/errors"
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/idents"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/parser/apis/authhandler"
 )
 
 // WireLoc is the location of a parameter in the HTTP request/response.
@@ -152,18 +154,25 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 
 	responseStruct, ok := getConcreteNamedStruct(responseSchema)
 	if !ok {
-		errs.Addf(responseSchema.ASTExpr().Pos(), "API response type must be a named struct")
+		errs.Add(errResponseMustBeNamedStruct.AtGoNode(responseSchema.ASTExpr()))
 		return &ResponseEncoding{}
 	}
 
-	fields, err := describeParams(&encodingHints{Body, responseTags}, responseStruct)
-	if err != nil {
-		errs.Addf(responseSchema.ASTExpr().Pos(), "API response type is invalid: %v", err)
+	fields, ok := describeParams(errs, &encodingHints{Body, responseTags}, responseStruct)
+	if !ok {
+		// describeParams already added the error to errs
 		return &ResponseEncoding{}
 	}
 
 	if keys := keyDiff(fields, Header, Body); len(keys) > 0 {
-		errs.Addf(responseSchema.ASTExpr().Pos(), "API response must only contain body and header parameters, found %v", keys)
+		err := errResponseTypeMustOnlyBeBodyOrHeaders.AtGoNode(responseSchema.ASTExpr())
+
+		for _, k := range keys {
+			for _, field := range fields[k] {
+				err = err.AtGoNode(field.Type.ASTExpr(), errors.AsError(fmt.Sprintf("found %s", field.Location)))
+			}
+		}
+		errs.Add(err)
 		return &ResponseEncoding{}
 	}
 
@@ -183,7 +192,7 @@ func getConcreteNamedStruct(typ schema.Type) (st schema.StructType, ok bool) {
 
 // keyDiff returns the diff between src.keys and keys
 func keyDiff[T comparable, V any](src map[T]V, keys ...T) (diff []T) {
-	for k, _ := range src {
+	for k := range src {
 		if !slices.Contains(keys, k) {
 			diff = append(diff, k)
 		}
@@ -221,7 +230,7 @@ func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...
 
 	st, ok := getConcreteNamedStruct(requestSchema)
 	if !ok {
-		errs.Addf(requestSchema.ASTExpr().Pos(), "API request type must be a named struct")
+		errs.Add(errRequestMustBeNamedStruct.AtGoNode(requestSchema.ASTExpr()))
 		return nil
 	}
 
@@ -229,14 +238,21 @@ func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...
 	for location, methods := range methodsByDefaultLocation {
 		var fields map[WireLoc][]*ParameterEncoding
 
-		fields, err := describeParams(&encodingHints{location, requestTags}, st)
-		if err != nil {
-			errs.Addf(requestSchema.ASTExpr().Pos(), "API request type is invalid: %v", err)
+		fields, ok := describeParams(errs, &encodingHints{location, requestTags}, st)
+		if !ok {
+			// report error in describeParams
 			return nil
 		}
 
 		if keys := keyDiff(fields, Query, Header, Body); len(keys) > 0 {
-			errs.Addf(requestSchema.ASTExpr().Pos(), "API response must only contain query, body, and header parameters, found %v", keys)
+			err := errRequestInvalidLocation.AtGoNode(requestSchema.ASTExpr())
+
+			for _, k := range keys {
+				for _, field := range fields[k] {
+					err = err.AtGoNode(field.Type.ASTExpr(), errors.AsError(fmt.Sprintf("found %s", field.Location)))
+				}
+			}
+			errs.Add(err)
 			return nil
 		}
 		reqs = append(reqs, &RequestEncoding{
@@ -275,24 +291,31 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 	// Do we have a legacy, string-based handler?
 	if builtin, ok := authSchema.(schema.BuiltinType); ok {
 		if builtin.Kind != schema.String {
-			errs.Addf(builtin.AST.Pos(), "unsupported auth parameter type: %v", builtin.Kind)
+			errs.Add(authhandler.ErrInvalidAuthSchemaType.AtGoNode(builtin.ASTExpr()))
 		}
 		return &AuthEncoding{LegacyTokenFormat: true}
 	}
 
 	st, ok := getConcreteNamedStruct(authSchema)
 	if !ok {
-		errs.Addf(authSchema.ASTExpr().Pos(), "API auth type must be a named struct")
+		errs.Add(authhandler.ErrInvalidAuthSchemaType.AtGoNode(authSchema.ASTExpr()))
 		return nil
 	}
 
-	fields, err := describeParams(&encodingHints{Undefined, authTags}, st)
-	if err != nil {
-		errs.Addf(authSchema.ASTExpr().Pos(), "API auth type is invalid: %v", err)
+	fields, ok := describeParams(errs, &encodingHints{Undefined, authTags}, st)
+	if !ok {
+		// reported by describeParams
 		return nil
 	}
 	if locationDiff := keyDiff(fields, Header, Query); len(locationDiff) > 0 {
-		errs.Addf(authSchema.ASTExpr().Pos(), "auth must only contain query and header parameters. Found: %v", locationDiff)
+		err := authhandler.ErrInvalidFieldTags.AtGoNode(authSchema.ASTExpr())
+
+		for _, k := range locationDiff {
+			for _, field := range fields[k] {
+				err = err.AtGoNode(field.Type.ASTExpr(), errors.AsError(fmt.Sprintf("found %s", field.Location)))
+			}
+		}
+		errs.Add(err)
 		return nil
 	}
 	return &AuthEncoding{
@@ -302,19 +325,19 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 }
 
 // describeParams calls describeParam() for each field in the payload struct
-func describeParams(encodingHints *encodingHints, payload schema.StructType) (fields map[WireLoc][]*ParameterEncoding, err error) {
+func describeParams(errs *perr.List, encodingHints *encodingHints, payload schema.StructType) (fields map[WireLoc][]*ParameterEncoding, ok bool) {
 	paramByLocation := make(map[WireLoc][]*ParameterEncoding)
 	for _, f := range payload.Fields {
-		f, err := describeParam(encodingHints, f)
-		if err != nil {
-			return nil, err
+		f, ok := describeParam(errs, encodingHints, f)
+		if !ok {
+			return nil, false
 		}
 
 		if f != nil {
 			paramByLocation[f.Location] = append(paramByLocation[f.Location], f)
 		}
 	}
-	return paramByLocation, nil
+	return paramByLocation, true
 }
 
 // formatName formats a parameter name with the default formatting for the location (e.g. snakecase for query)
@@ -341,10 +364,11 @@ func IgnoreField(field schema.StructField) bool {
 // (e.g. qs, query, header) should be encoded in HTTP (name and location).
 //
 // It returns nil, nil if the field is not to be encoded.
-func describeParam(encodingHints *encodingHints, field schema.StructField) (*ParameterEncoding, error) {
+func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.StructField) (*ParameterEncoding, bool) {
 	if field.Name.Empty() {
 		// TODO(andre) We don't yet support encoding anonymous fields.
-		return nil, errors.New("anonymous fields in top-level request/response types are not supported")
+		errs.Add(errAnonymousFields.AtGoNode(field.AST))
+		return nil, false
 	}
 	srcName := field.Name.MustGet()
 
@@ -370,7 +394,8 @@ func describeParam(encodingHints *encodingHints, field schema.StructField) (*Par
 		if tagHint.overrideDefault {
 			if usedOverrideTag != "" {
 				// There is only allowed to be a single override.
-				return nil, errors.Newf("tag conflict: %s cannot be combined with %s", usedOverrideTag, tag.Key)
+				errs.Add(errTagConflict(usedOverrideTag, tag.Key).AtGoNode(field.AST.Tag))
+				return nil, false
 			}
 			location = tagHint.location
 			usedOverrideTag = tag.Key
@@ -384,7 +409,7 @@ func describeParam(encodingHints *encodingHints, field schema.StructField) (*Par
 			// Determine if this tag actually has a name. If not, use the existing name.
 			if tag.Name == "-" {
 				// This field is to be ignored.
-				return nil, nil
+				return nil, true
 			}
 			if tag.Name != "" {
 				if tagHint.wireFormatter != nil {
@@ -398,5 +423,5 @@ func describeParam(encodingHints *encodingHints, field schema.StructField) (*Par
 	}
 
 	param.Location = location
-	return &param, nil
+	return &param, true
 }

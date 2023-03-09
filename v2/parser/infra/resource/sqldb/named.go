@@ -1,9 +1,10 @@
 package sqldb
 
 import (
+	"fmt"
 	"go/ast"
-	"reflect"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/internal/literals"
@@ -35,20 +36,24 @@ var NamedParser = &resource.Parser{
 }
 
 func parseNamedSQLDB(d parseutil.ReferenceInfo) {
-	displayName := d.ResourceFunc.NaiveDisplayName()
 	if len(d.Call.Args) != 1 {
-		d.Pass.Errs.Addf(d.Call.Pos(), "%s expects 1 argument", displayName)
+		d.Pass.Errs.Add(errNamedRequiresDatabaseName(len(d.Call.Args)).AtGoNode(d.Call))
 		return
 	}
 
 	dbName, ok := literals.ParseString(d.Call.Args[0])
 	if !ok {
-		d.Pass.Errs.Addf(d.Call.Args[0].Pos(), "sqldb.Named requires the first argument to be a string literal, was given a %v.", reflect.TypeOf(d.Call.Args[0]))
+		d.Pass.Errs.Add(
+			errNamedRequiresDatabaseNameString.
+				AtGoNode(d.Call.Args[0], errors.AsError(fmt.Sprintf("got %v", parseutil.NodeType(d.Call.Args[0])))),
+		)
 		return
 	}
 
 	if len(dbName) <= 0 {
-		d.Pass.Errs.Addf(d.Call.Args[0].Pos(), "sqldb.Named requires the first argument to be a string literal, was given an empty string.")
+		d.Pass.Errs.Add(
+			errNamedRequiresDatabaseNameString.AtGoNode(d.Call.Args[0], errors.AsError("got an empty string")),
+		)
 	}
 
 	if id, ok := d.Ident.Get(); ok {

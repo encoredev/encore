@@ -53,8 +53,7 @@ func ParseReference(p *resource.Pass, spec *ReferenceSpec, data ReferenceData) {
 	if maybeHasTypeArgs {
 		typeArgsIdx := selIdx - 1
 		if typeArgsIdx < 0 {
-			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires type arguments, but none were found",
-				constructor.NaiveDisplayName())
+			p.Errs.Add(errRequiresTypeArgumentsNoneFound(constructor.NaiveDisplayName()).AtGoNode(data.Stack[selIdx]))
 			return
 		}
 		args := resolveTypeArgs(data.Stack[typeArgsIdx])
@@ -63,16 +62,15 @@ func ParseReference(p *resource.Pass, spec *ReferenceSpec, data ReferenceData) {
 			if spec.MinTypeArgs == spec.MaxTypeArgs {
 				qualifier = ""
 			}
-			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires%s %d type argument(s), but got %d",
-				constructor.NaiveDisplayName(), qualifier, spec.MinTypeArgs, len(args))
+
+			p.Errs.Add(errWrongNumberOfTypeArguments(constructor.NaiveDisplayName(), qualifier, spec.MinTypeArgs, len(args)).AtGoNode(data.Stack[selIdx]))
 			return
 		} else if len(args) > spec.MaxTypeArgs {
 			qualifier := " at most"
 			if spec.MinTypeArgs == spec.MaxTypeArgs {
 				qualifier = ""
 			}
-			p.Errs.Addf(data.Stack[selIdx].Pos(), "%s requires%s %d type argument(s), but got %d",
-				constructor.NaiveDisplayName(), qualifier, spec.MaxTypeArgs, len(args))
+			p.Errs.Add(errWrongNumberOfTypeArguments(constructor.NaiveDisplayName(), qualifier, spec.MaxTypeArgs, len(args)).AtGoNode(data.Stack[selIdx]))
 		}
 		for _, arg := range args {
 			typeArgs = append(typeArgs, p.SchemaParser.ParseType(data.File, arg))
@@ -87,16 +85,14 @@ func ParseReference(p *resource.Pass, spec *ReferenceSpec, data ReferenceData) {
 	}
 	call, ok := data.Stack[callIdx].(*ast.CallExpr)
 	if !ok {
-		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be referenced without being called",
-			constructor.NaiveDisplayName())
+		p.Errs.Add(errCannotBeReferencedWithoutBeingCalled(constructor.NaiveDisplayName()).AtGoNode(data.Stack[selIdx]))
 		return
 	}
 
 	// Classify the location the current node is contained in (meaning stack[:len(stack)-1]).
 	loc := locations.Classify(data.Stack[:callIdx-1])
 	if !spec.AllowedLocs.Allowed(loc) {
-		p.Errs.Addf(data.Stack[selIdx].Pos(), "%s cannot be called here: must be called from %s",
-			constructor.NaiveDisplayName(), spec.AllowedLocs.Describe())
+		p.Errs.Add(errCannotBeCalledHere(constructor.NaiveDisplayName(), spec.AllowedLocs.Describe()).AtGoNode(data.Stack[selIdx]))
 		return
 	}
 
