@@ -13,6 +13,7 @@ import Code from "~c/snippets/Code";
 export interface SnippetSection {
   slug: string;
   heading: string;
+  overviewText: string;
   description?: JSX.Element | string;
   icon: typeof CircleStackIcon;
   subSections: {
@@ -36,6 +37,7 @@ const docLink = (path: string) => {
 const apiSection: SnippetSection = {
   slug: "api",
   heading: "APIs",
+  overviewText: "Define and call APIs.",
   description: (
     <>
       Encore lets you define APIs as regular Go functions with an annotation. API calls are made as
@@ -144,6 +146,7 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 const databaseSection: SnippetSection = {
   slug: "database",
   heading: "Databases",
+  overviewText: "Create SQL databases. Insert and read data.",
   description: (
     <>
       Here are some code snippets for using SQL databases with Encore.{" "}
@@ -294,6 +297,7 @@ return items, nil
 const cronJobsSection: SnippetSection = {
   slug: "cron",
   heading: "Cron Jobs",
+  overviewText: "Create Cron Jobs by schedule or cron expression.",
   icon: ClockIcon,
   description: (
     <>
@@ -353,6 +357,7 @@ var _ = cron.NewJob("accounting-sync", cron.JobConfig{
 const pubSubSection: SnippetSection = {
   slug: "pubsub",
   heading: "Pub/Sub",
+  overviewText: "Define topics/subscribers and customize retry behaviour.",
   description: (
     <>
       PubSub lets you build systems that communicate by broadcasting events asynchronously.{" "}
@@ -453,6 +458,7 @@ var _ = pubsub.NewSubscription(TopicName, "subscription-name",
 const cacheSection: SnippetSection = {
   slug: "cache",
   heading: "Cache",
+  overviewText: "Define cache clusters and use keyspaces.",
   description: (
     <>
       Here are some snippets for using Encore's cache functionality.{" "}
@@ -566,6 +572,7 @@ var MyKeyspace = cache.NewListKeyspace[int, string](cluster, cache.KeyspaceConfi
 const secretsSection: SnippetSection = {
   slug: "secrets",
   heading: "Secrets",
+  overviewText: "Setting and using secrets.",
   description: (
     <>
       Here are some snippets for using Encore's secrets management functionality.{" "}
@@ -623,6 +630,7 @@ var secrets struct {
 const configSection: SnippetSection = {
   slug: "config",
   heading: "Configuration",
+  overviewText: "Define config schemas and write config values.",
   description: (
     <>
       Here are some snippets for using Encore's config functionality.{" "}
