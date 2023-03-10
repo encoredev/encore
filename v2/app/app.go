@@ -9,6 +9,7 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
@@ -21,6 +22,11 @@ type Desc struct {
 
 	Services []*Service
 	Infra    *appinfra.Desc
+
+	// Packages are the packages that are contained within
+	// the application. It does not list packages that have been
+	// parsed but belong to dependencies.
+	Packages []*pkginfo.Package
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
@@ -107,9 +113,10 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 
 	return &Desc{
 		Errs:      pc.Errs,
+		Packages:  result.Packages,
 		Services:  services,
 		Framework: framework,
-		Infra:     appinfra.ComputeDesc(pc.Errs, result.InfraResources, result.InfraBinds),
+		Infra:     appinfra.ComputeDesc(pc.Errs, result.Packages, result.InfraResources, result.InfraBinds),
 	}
 }
 

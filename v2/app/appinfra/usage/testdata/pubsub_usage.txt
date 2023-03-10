@@ -1,0 +1,29 @@
+-- svc/svc.go --
+package svc
+
+import "encore.dev/pubsub"
+
+type Message struct{}
+
+var Topic = pubsub.NewTopic[*Message]("foo", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+var Sub = pubsub.NewSubscription(Topic, "bar", // use svc.Topic other
+    pubsub.SubscriptionConfig{
+        Handler: func(m *Message) error {
+            return nil
+        },
+    },
+)
+
+func init() {
+    Topic.Foo() // use svc.Topic call Foo
+}
+
+-- usage/usage.go --
+package usage
+import "example.com/svc"
+
+var x = svc.Topic.Publish(svc.Message{}) // use svc.Topic call Publish
+var y = Topic.Publish(svc.Message{})

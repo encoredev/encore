@@ -1,7 +1,9 @@
 package appinfra
 
 import (
+	"encr.dev/v2/app/appinfra/usage"
 	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 )
 
 import (
@@ -13,11 +15,12 @@ import (
 
 // ComputeDesc computes the infrastructure description
 // given a list of resources and binds.
-func ComputeDesc(errs *perr.List, resources []resource.Resource, binds []resource.Bind) *Desc {
+func ComputeDesc(errs *perr.List, appPkgs []*pkginfo.Package, resources []resource.Resource, binds []resource.Bind) *Desc {
 	return &Desc{
 		resources: resources,
 		binds:     binds,
 		bindMap:   computeInfraBindMap(errs, resources, binds),
+		usage:     usage.Parse(appPkgs, binds),
 	}
 }
 
@@ -25,6 +28,7 @@ type Desc struct {
 	resources []resource.Resource
 	binds     []resource.Bind
 	bindMap   map[resource.Resource][]resource.Bind
+	usage     []usage.Usage
 }
 
 func (s *Desc) Resources() []resource.Resource {
@@ -65,7 +69,7 @@ func computeInfraBindMap(errs *perr.List, resources []resource.Resource, binds [
 			// which we don't support today (the construction of byPath above only handles
 			// the case of single-segment resource paths).
 			// Since we don't support that today, this is fine for now.
-			errs.Addf(b.PackageName.Pos(), "internal compiler error: unknown resource (path %q)", key)
+			errs.Addf(b.BoundName.Pos(), "internal compiler error: unknown resource (path %q)", key)
 		}
 	}
 

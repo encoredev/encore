@@ -46,6 +46,11 @@ type Result struct {
 	// be included in the list.
 	APIs []*apis.ParseResult
 
+	// Packages are the packages that are contained within
+	// the application. It does not list packages that have been
+	// parsed but belong to dependencies.
+	Packages []*pkginfo.Package
+
 	InfraResources []resource.Resource
 	InfraBinds     []resource.Bind
 }
@@ -55,6 +60,7 @@ type Result struct {
 func (p *Parser) Parse() Result {
 	var (
 		mu           sync.Mutex
+		appPkgs      []*pkginfo.Package
 		allResources []resource.Resource
 		allBinds     []resource.Bind
 		apiResults   []*apis.ParseResult
@@ -64,21 +70,18 @@ func (p *Parser) Parse() Result {
 		apiRes := p.apiParser.Parse(pkg)
 		resources, binds := p.infraParser.Parse(pkg)
 
-		if apiRes == nil && len(resources) == 0 && len(binds) == 0 {
-			// early escape to avoid locking
-			return
-		}
-
 		mu.Lock()
+		appPkgs = append(appPkgs, pkg)
+		allResources = append(allResources, resources...)
+		allBinds = append(allBinds, binds...)
 		if apiRes != nil {
 			apiResults = append(apiResults, apiRes)
 		}
-		allResources = append(allResources, resources...)
-		allBinds = append(allBinds, binds...)
 		mu.Unlock()
 	})
 
 	return Result{
+		Packages:       appPkgs,
 		InfraResources: allResources,
 		InfraBinds:     allBinds,
 		APIs:           apiResults,

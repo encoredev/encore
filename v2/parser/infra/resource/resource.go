@@ -47,9 +47,9 @@ func (p *Pass) AddBind(boundName *ast.Ident, resource Resource) {
 	}
 
 	p.binds = append(p.binds, Bind{
-		Resource:    ResourceOrPath{Resource: resource},
-		Package:     p.Pkg,
-		PackageName: boundName,
+		Resource:  ResourceOrPath{Resource: resource},
+		Package:   p.Pkg,
+		BoundName: boundName,
 	})
 }
 
@@ -61,9 +61,9 @@ func (p *Pass) AddPathBind(boundName *ast.Ident, path Path) {
 	}
 
 	p.binds = append(p.binds, Bind{
-		Resource:    ResourceOrPath{Path: path},
-		Package:     p.Pkg,
-		PackageName: boundName,
+		Resource:  ResourceOrPath{Path: path},
+		Package:   p.Pkg,
+		BoundName: boundName,
 	})
 }
 
@@ -114,14 +114,14 @@ type Bind struct {
 	// Package is the package the alias is declared in.
 	Package *pkginfo.Package
 
-	// PackageName is the package-level identifier the bind is declared with.
-	PackageName *ast.Ident
+	// BoundName is the package-level identifier the bind is declared with.
+	BoundName *ast.Ident
 }
 
-func (b *Bind) QualifiedName() pkginfo.QualifiedName {
+func (b Bind) QualifiedName() pkginfo.QualifiedName {
 	return pkginfo.QualifiedName{
 		PkgPath: b.Package.ImportPath,
-		Name:    b.PackageName.Name,
+		Name:    b.BoundName.Name,
 	}
 }
 
