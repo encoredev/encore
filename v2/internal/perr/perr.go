@@ -104,14 +104,6 @@ func (l *List) AddStd(err error) {
 	}
 }
 
-// AddSrcErr adds an error
-func (l *List) AddSrcErr(err *errinsrc.ErrInSrc) {
-	if err == nil {
-		return
-	}
-	l.add(err)
-}
-
 func (l *List) Fatal(pos token.Pos, msg string) {
 	l.AddPos(pos, msg)
 	l.Bailout()
@@ -129,13 +121,6 @@ func (l *List) Assert(err error, pos token.Pos) {
 func (l *List) AssertStd(err error) {
 	if err != nil {
 		l.AddStd(err)
-		l.Bailout()
-	}
-}
-
-func (l *List) AssertSrcErr(err *errinsrc.ErrInSrc) {
-	if err != nil {
-		l.AddSrcErr(err)
 		l.Bailout()
 	}
 }

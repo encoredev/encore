@@ -78,6 +78,10 @@ func FromTemplate(template encerrors.Template, fileset *token.FileSet) *ErrInSrc
 			panic(fmt.Sprintf("unknown location kind: %v", loc.Kind))
 		}
 
+		if location == nil {
+			continue
+		}
+
 		switch loc.LocType {
 		case encerrors.LocError:
 			location.Type = LocError
@@ -90,6 +94,7 @@ func FromTemplate(template encerrors.Template, fileset *token.FileSet) *ErrInSrc
 		}
 
 		location.Text = loc.Text
+
 		params.Locations = append(params.Locations, location)
 	}
 

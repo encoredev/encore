@@ -72,7 +72,7 @@ func TestParseDirective(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			c := qt.New(t)
-			dir, err := parseOne(tc.line)
+			dir, err := parseOne(tc.line, 0)
 			if tc.wantErr != "" {
 				c.Assert(err, qt.ErrorMatches, tc.wantErr)
 			} else {

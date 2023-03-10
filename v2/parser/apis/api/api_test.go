@@ -161,8 +161,8 @@ package foo
 			fd := testutil.FindNodes[*ast.FuncDecl](f.AST())[0]
 
 			// Parse the directive from the func declaration.
-			dir, doc, err := directive.Parse(fd.Doc)
-			c.Assert(err, qt.IsNil)
+			dir, doc, ok := directive.Parse(tc.Errs, fd.Doc)
+			c.Assert(ok, qt.IsTrue, qt.Commentf("directive not found in %s", fd.Name.Name))
 			pd := ParseData{
 				Errs:   tc.Errs,
 				Schema: schemaParser,

@@ -14,9 +14,14 @@ var (
 		errors.WithRangeSize(20),
 	)
 
-	errInvalidDirective = errRange.New(
-		"Invalid middleware directive",
-		"",
+	errInvalidSelectorFormat = errRange.Newf(
+		"Invalid middleware selector",
+		"Invalid selector format %q.",
+	)
+
+	errInvalidSelectorType = errRange.Newf(
+		"Invalid middleware selector",
+		"Middleware target only supports tags a selectors (got '%s').",
 	)
 
 	errWrongNumberParams = errRange.Newf(

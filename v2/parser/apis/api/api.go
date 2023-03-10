@@ -1,14 +1,13 @@
 package api
 
 import (
-	"errors"
-	"fmt"
 	"go/ast"
 	"strings"
 	"sync"
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
@@ -78,9 +77,8 @@ type ParseData struct {
 
 // Parse parses an API endpoint. It may return nil on errors.
 func Parse(d ParseData) *Endpoint {
-	rpc, err := validateDirective(d.Dir)
-	if err != nil {
-		d.Errs.Addf(d.Dir.AST.Pos(), "invalid encore:%s directive: %v", d.Dir.Name, err)
+	rpc, ok := validateDirective(d.Errs, d.Dir)
+	if !ok {
 		return nil
 	}
 	rpc.errs = d.Errs
@@ -88,7 +86,7 @@ func Parse(d ParseData) *Endpoint {
 	// If there was no path, default to "pkg.Decl".
 	if rpc.Path == nil {
 		rpc.Path = &apipaths.Path{
-			Pos: d.Dir.AST.Pos(),
+			StartPos: d.Dir.AST.Pos(),
 			Segments: []apipaths.Segment{{
 				Type:      apipaths.Literal,
 				Value:     d.File.Pkg.Name + "." + d.Func.Name.Name,
@@ -274,57 +272,72 @@ func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segme
 
 // validateDirective validates the given encore:api directive
 // and returns an API with the respective fields set.
-func validateDirective(dir *directive.Directive) (*Endpoint, error) {
+func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bool) {
 	endpoint := &Endpoint{
 		Raw: dir.HasOption("raw"),
 	}
 
+	var accessField directive.Field
+	var rawTag directive.Field
+
 	accessOptions := []string{"public", "private", "auth"}
-	err := directive.Validate(dir, directive.ValidateSpec{
+	ok := directive.Validate(errs, dir, directive.ValidateSpec{
 		AllowedOptions: append([]string{"raw"}, accessOptions...),
 		AllowedFields:  []string{"path", "method"},
 
-		ValidateOption: func(opt string) error {
+		ValidateOption: func(errs *perr.List, opt directive.Field) (ok bool) {
 			// If this is an access option, check for duplicates.
-			if slices.Contains(accessOptions, opt) {
+			if slices.Contains(accessOptions, opt.Value) {
 				if endpoint.Access != "" {
-					return fmt.Errorf("duplicate access options: %s and %s", endpoint.Access, opt)
+					errs.Add(errDuplicateAccessOptions(endpoint.Access, opt.Value, strings.Join(accessOptions, ", ")).AtGoNode(opt).AtGoNode(accessField))
+					return false
 				}
-				endpoint.Access = AccessType(opt)
+				accessField = opt
+				endpoint.Access = AccessType(opt.Value)
 			}
 
-			return nil
+			if opt.Value == "raw" {
+				rawTag = opt
+			}
+
+			return true
 		},
-		ValidateField: func(f directive.Field) (err error) {
+		ValidateField: func(errs *perr.List, f directive.Field) (ok bool) {
 			switch f.Key {
 			case "path":
-				endpoint.Path, err = apipaths.Parse(dir.AST.Pos(), f.Value)
+				endpoint.Path, ok = apipaths.Parse(errs, dir.AST.Pos(), f.Value)
+				if !ok {
+					return false
+				}
 
 			case "method":
 				endpoint.HTTPMethods = f.List()
 				for _, m := range endpoint.HTTPMethods {
 					for _, c := range m {
 						if !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') {
-							return fmt.Errorf("invalid Endpoint method: %q", m)
+							errs.Add(errInvalidEndpointMethod(m).AtGoNode(f))
+							return false
 						} else if !(c >= 'A' && c <= 'Z') {
-							return errors.New("methods must be ALLCAPS")
+							errs.Add(errEndpointMethodMustBeAllCaps.AtGoNode(f))
+							return false
 						}
 					}
 				}
 			}
-			return err
+			return true
 		},
-		ValidateTag: func(tag string) error {
-			sel, err := selector.Parse(tag)
+		ValidateTag: func(errs *perr.List, tag directive.Field) (ok bool) {
+			sel, err := selector.Parse(tag.Value)
 			if err != nil {
-				return err
+				errs.Add(errInvalidEndpointTag.Wrapping(err).AtGoNode(tag))
+				return false
 			}
 			endpoint.Tags.Add(sel)
-			return nil
+			return true
 		},
 	})
-	if err != nil {
-		return nil, fmt.Errorf("invalid encore:api directive: %v", err)
+	if !ok {
+		return nil, false
 	}
 
 	// Access defaults to private if not provided.
@@ -333,8 +346,9 @@ func validateDirective(dir *directive.Directive) (*Endpoint, error) {
 	}
 	if endpoint.Access == Private && endpoint.Raw {
 		// We don't support private raw APIs for now.
-		return nil, fmt.Errorf("invalid encore:api directive: private APIs cannot be declared raw")
+		errs.Add(errRawEndpointCantBePrivate.AtGoNode(rawTag, errors.AsError("declared as raw here")).AtGoNode(accessField, errors.AsError("set as private here")))
+		return nil, false
 	}
 
-	return endpoint, nil
+	return endpoint, true
 }

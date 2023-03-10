@@ -51,9 +51,8 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 					continue
 				}
 
-				dir, doc, err := directive.Parse(decl.Doc)
-				if err != nil {
-					p.c.Errs.Add(errInvalidDirective.AtGoNode(decl.Doc).Wrapping(err))
+				dir, doc, ok := directive.Parse(p.c.Errs, decl.Doc)
+				if !ok {
 					continue
 				} else if dir == nil {
 					continue
@@ -107,9 +106,8 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 					continue
 				}
 
-				dir, doc, err := directive.Parse(decl.Doc)
-				if err != nil {
-					p.c.Errs.Add(errInvalidDirective.AtGoNode(decl.Doc).Wrapping(err))
+				dir, doc, ok := directive.Parse(p.c.Errs, decl.Doc)
+				if !ok {
 					continue
 				} else if dir == nil {
 					continue

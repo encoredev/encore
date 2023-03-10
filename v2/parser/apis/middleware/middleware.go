@@ -54,34 +54,35 @@ func Parse(d ParseData) *Middleware {
 		Recv:   decl.Recv,
 		Global: d.Dir.HasOption("global"),
 	}
-	err := directive.Validate(d.Dir, directive.ValidateSpec{
+	ok := directive.Validate(d.Errs, d.Dir, directive.ValidateSpec{
 		AllowedOptions: []string{"global"},
 		AllowedFields:  []string{"target"},
 		ValidateOption: nil,
-		ValidateField: func(f directive.Field) (err error) {
+		ValidateField: func(errs *perr.List, f directive.Field) (ok bool) {
 			switch f.Key {
 			case "target":
 				parts := f.List()
 				for _, p := range parts {
 					sel, err := selector.Parse(p)
 					if err != nil {
-						return fmt.Errorf("invalid selector format %q: %v", p, err)
+						errs.Add(errInvalidSelectorFormat(p).Wrapping(err).AtGoNode(f))
+						return false
 					}
 
 					switch sel.Type {
 					case selector.Tag, selector.All:
 					default:
-						return fmt.Errorf("middleware target only supports tags as selectors (got '%s')", sel.Type)
+						errs.Add(errInvalidSelectorType(sel.Type).AtGoNode(f))
+						return false
 					}
 					mw.Target.Add(sel)
 				}
 			}
-			return err
+			return true
 		},
 		ValidateTag: nil,
 	})
-	if err != nil {
-		d.Errs.Add(errInvalidDirective.Wrapping(err).AtGoNode(d.Dir.AST))
+	if !ok {
 		return mw
 	}
 

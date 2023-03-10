@@ -1,0 +1,81 @@
+package apipaths
+
+import (
+	"encr.dev/pkg/errors"
+)
+
+var (
+	errRange = errors.Range(
+		"apipaths",
+		"API paths must be not be empty and always start with a '/'. You cannot define paths that conflict "+
+			"with each other, including static and parameterized paths. For example `/blog/:id` would conflict with `/:username`.\n\n"+
+			"For more information about configuring API paths, see https://encore.dev/docs/primitives/services-and-apis#rest-apis",
+
+		errors.WithRangeSize(20),
+	)
+
+	errEmptyPath = errRange.New(
+		"Invalid API Path",
+		"API paths must not be empty.",
+	)
+
+	errInvalidPathPrefix = errRange.New(
+		"Invalid API Path",
+		"API paths must always start with a '/'.",
+	)
+
+	errInvalidPathURI = errRange.New(
+		"Invalid API Path",
+		"API paths must be valid URIs. There was an error parsing the path.",
+	)
+
+	errPathContainedQuery = errRange.New(
+		"Invalid API Path",
+		"API paths must not contain the '?' character.",
+	)
+
+	errEmptySegment = errRange.New(
+		"Invalid API Path",
+		"API paths cannot contain an empty segment, i.e. a double slash ('//').",
+	)
+
+	errTrailingSlash = errRange.New(
+		"Invalid API Path",
+		"API paths cannot end with a trailing slash ('/').",
+	)
+
+	errParameterMissingName = errRange.New(
+		"Invalid API Path",
+		"API path parameters must have a name. For example, `/:id` is valid, but `/:` is not.",
+	)
+
+	errInvalidParamIdentifier = errRange.New(
+		"Invalid API Path",
+		"API path parameters must be valid Go identifiers.",
+	)
+
+	errWildcardNotLastSegment = errRange.New(
+		"Invalid API Path",
+		"API path wildcards must be the last segment in the path.",
+	)
+
+	errDuplicatePath = errRange.New(
+		"API Path Conflict",
+		"Duplicate API paths found.",
+	)
+
+	errConflictingParameterizedPath = errRange.Newf(
+		"API Path Conflict",
+		"The parameter `:%s` conflicts with the path `%s`.",
+	)
+
+	errConflictingWildcardPath = errRange.Newf(
+		"API Path Conflict",
+		"The wildcard `*%s` conflicts with the path `%s`.",
+	)
+
+	errConflictingLiteralPath = errRange.Newf(
+		"API Path Conflict",
+		"The path segment `%s` conflicts with the path `%s`.",
+	)
+)

@@ -159,9 +159,7 @@ package foo
 			gd := testutil.FindNodes[*ast.GenDecl](f.AST())[1]
 
 			// Parse the directive from the func declaration.
-			dirs, doc, err := directive.Parse(gd.Doc)
-			c.Assert(err, qt.IsNil)
-			dir, ok := dirs.Get("service")
+			dir, doc, ok := directive.Parse(tc.Errs, gd.Doc)
 			c.Assert(ok, qt.IsTrue)
 
 			pd := ParseData{

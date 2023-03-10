@@ -1,6 +1,7 @@
 # Verify that one cannot use internal and raw RPCs
 
 ! parse
+expectError 'Private APIs cannot be declared as raw endpoints.'
 err 'private APIs cannot be declared raw'
 
 -- svc/svc.go --

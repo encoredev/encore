@@ -1,27 +1,60 @@
 package directive
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"regexp"
 	"strings"
 
 	"golang.org/x/exp/slices"
+
+	"encr.dev/pkg/errors"
+	"encr.dev/pkg/idents"
+	"encr.dev/v2/internal/perr"
 )
 
 // Directive represents a parsed "encore:" directive.
 type Directive struct {
 	AST *ast.CommentGroup // the comment group containing the directive
 
-	Name    string   // "foo" in "encore:foo"
-	Options []string // options that are enabled ("public" and "raw" in "encore:api public raw path=/foo")
-	Fields  []Field  // key-value pairs ({"path": "/foo"} in "encore:api public raw path=/foo")
-	Tags    []string // tag names ("tag:foo" in "encore:api public tag:foo")
+	Name    string  // "foo" in "encore:foo"
+	Options []Field // options that are enabled ("public" and "raw" in "encore:api public raw path=/foo")
+	Fields  []Field // key-value pairs ({"path": "/foo"} in "encore:api public raw path=/foo")
+	Tags    []Field // tag names ("tag:foo" in "encore:api public tag:foo")
+
+	start   token.Pos // start position of the directive
+	nameEnd token.Pos
+	end     token.Pos // end position of the directive
+}
+
+var _ ast.Node = (*Directive)(nil)
+
+func (d Directive) Pos() token.Pos {
+	return d.start
+}
+
+func (d Directive) End() token.Pos {
+	return d.end
 }
 
 type Field struct {
 	Key   string
 	Value string
+
+	start token.Pos // position of the key
+	end   token.Pos // position of the end value
+}
+
+var _ ast.Node = (*Field)(nil)
+
+func (f Field) Pos() token.Pos {
+	return f.start
+}
+
+func (f Field) End() token.Pos {
+	return f.end
 }
 
 // List returns the field value as a list, split by commas.
@@ -36,7 +69,7 @@ func (d Directive) String() string {
 	b.WriteString(d.Name)
 	for _, o := range d.Options {
 		b.WriteByte(' ')
-		b.WriteString(o)
+		b.WriteString(o.Value)
 	}
 	for _, f := range d.Fields {
 		b.WriteByte(' ')
@@ -46,7 +79,7 @@ func (d Directive) String() string {
 	}
 	for _, t := range d.Tags {
 		b.WriteByte(' ')
-		b.WriteString(t)
+		b.WriteString(t.Value)
 	}
 	return b.String()
 }
@@ -54,7 +87,7 @@ func (d Directive) String() string {
 // HasOption reports whether the directive contains the given option.
 func (d Directive) HasOption(name string) bool {
 	for _, o := range d.Options {
-		if o == name {
+		if o.Value == name {
 			return true
 		}
 	}
@@ -86,9 +119,9 @@ func (d Directive) GetList(name string) []string {
 // Parse parses the encore:foo directives in cg.
 // It returns the parsed directives, if any, and the
 // remaining doc text after stripping the directive lines.
-func Parse(cg *ast.CommentGroup) (dir *Directive, doc string, err error) {
+func Parse(errs *perr.List, cg *ast.CommentGroup) (dir *Directive, doc string, ok bool) {
 	if cg == nil {
-		return nil, cg.Text(), nil
+		return nil, "", true
 	}
 
 	// Go has standardized on directives in the form "//[a-z0-9]+:[a-z0-9+]".
@@ -103,9 +136,9 @@ func Parse(cg *ast.CommentGroup) (dir *Directive, doc string, err error) {
 	for _, c := range cg.List {
 		const prefix = "//encore:"
 		if strings.HasPrefix(c.Text, prefix) {
-			dir, err := parseOne(c.Text[len(prefix):])
-			if err != nil {
-				return nil, "", err
+			dir, ok := parseOne(errs, c.Pos()+2, c.Text[len(prefix):])
+			if !ok {
+				return nil, "", false
 			}
 			dir.AST = cg
 			dirs = append(dirs, &dir)
@@ -113,9 +146,14 @@ func Parse(cg *ast.CommentGroup) (dir *Directive, doc string, err error) {
 	}
 	if len(dirs) == 1 {
 		doc := cg.Text() // skips directives for us
-		return dirs[0], doc, nil
+		return dirs[0], doc, true
 	} else if len(dirs) > 1 {
-		return nil, "", fmt.Errorf("multiple encore directives for same declaration")
+		err := errMultipleDirectives
+		for _, dir := range dirs {
+			err = err.AtGoNode(dir)
+		}
+		errs.Add(err)
+		return nil, "", false
 	}
 
 	// Legacy syntax
@@ -125,9 +163,20 @@ func Parse(cg *ast.CommentGroup) (dir *Directive, doc string, err error) {
 	for _, line := range lines {
 		const prefix = "encore:"
 		if strings.HasPrefix(line, prefix) {
-			dir, err := parseOne(line[len(prefix):])
-			if err != nil {
-				return nil, "", err
+			pos := cg.Pos()
+
+			// Find the position of the directive.
+			for _, c := range cg.List {
+				idx := bytes.Index([]byte(c.Text), []byte(line))
+				if idx >= 0 {
+					pos += c.Pos() + token.Pos(idx)
+					break
+				}
+			}
+
+			dir, ok := parseOne(errs, pos, line[len(prefix):])
+			if !ok {
+				return nil, "", false
 			}
 			dir.AST = cg
 			dirs = append(dirs, &dir)
@@ -137,12 +186,17 @@ func Parse(cg *ast.CommentGroup) (dir *Directive, doc string, err error) {
 	}
 
 	if len(dirs) == 0 {
-		return nil, cg.Text(), nil
+		return nil, cg.Text(), true
 	} else if len(dirs) > 1 {
-		return nil, "", fmt.Errorf("multiple encore directives for same declaration")
+		err := errMultipleDirectives
+		for _, dir := range dirs {
+			err = err.AtGoNode(dir)
+		}
+		errs.Add(err)
+		return nil, "", false
 	}
 	doc = strings.TrimSpace(strings.Join(docLines, "\n"))
-	return dirs[0], doc, nil
+	return dirs[0], doc, true
 }
 
 var (
@@ -154,60 +208,72 @@ var (
 
 // parseOne parses a single Directive from line.
 // It does not set Directive.AST.
-func parseOne(line string) (d Directive, err error) {
-	fields := strings.Fields(line)
+func parseOne(errs *perr.List, pos token.Pos, line string) (d Directive, ok bool) {
+	fields := fields(pos+7, line) // +7 for "encore:"
 	if len(fields) == 0 {
-		return Directive{}, fmt.Errorf("invalid encore directive: missing directive name")
+		errs.Add(errMissingDirectiveName.AtGoPos(pos, pos+7+token.Pos(len([]byte(line)))))
+		return Directive{}, false
 	}
 
-	// Annotate any errors we return.
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("invalid encore:%s directive: %v", fields[0], err)
-		}
-	}()
-
 	// seen tracks fields already seen, to detect duplicates.
-	seen := make(map[string]bool, len(fields))
+	seen := make(map[string]Field, len(fields))
 
-	d.Name = fields[0]
+	d.Name = fields[0].Value
+	d.start = pos
+	d.nameEnd = pos + token.Pos(len([]byte(d.Name)))
+	d.end = pos + token.Pos(len([]byte(line)))
+
 	for _, f := range fields[1:] {
 		// seenKey is the key to use for detecting duplicates.
 		// Default it to the field itself.
-		seenKey := f
+		seenKey := f.Value
 
-		if strings.HasPrefix(f, "tag:") {
-			if seen[seenKey] {
-				return Directive{}, fmt.Errorf("duplicate tag %q", seenKey)
-			} else if !tagRe.MatchString(f[len("tag:"):]) {
-				return Directive{}, fmt.Errorf("invalid tag %q", f)
+		if strings.HasPrefix(f.Value, "tag:") {
+			tag := f.Value[len("tag:"):]
+
+			if other, found := seen[seenKey]; found {
+				errs.Add(errDuplicateTag(seenKey).AtGoNode(other).AtGoNode(f))
+				return Directive{}, false
+			} else if !tagRe.MatchString(tag) {
+				errs.Add(errInvalidTag(tag).
+					AtGoPos(f.start+4, f.end, errors.AsError(
+						fmt.Sprintf("try %q?", idents.GenerateSuggestion(tag, idents.KebabCase)),
+					)))
+				return Directive{}, false
 			}
 
 			d.Tags = append(d.Tags, f)
-		} else if key, value, ok := strings.Cut(f, "="); ok {
+		} else if key, value, ok := strings.Cut(f.Value, "="); ok {
 			seenKey = key
+			f.Key = key
+			f.Value = value
 
 			if value == "" {
-				return Directive{}, fmt.Errorf("field %q has no value", seenKey)
+				errs.Add(errFieldHasNoValue.AtGoNode(f))
+				return Directive{}, false
 			} else if !nameRe.MatchString(key) {
-				return Directive{}, fmt.Errorf("invalid field %q", key)
-			} else if seen[seenKey] {
-				return Directive{}, fmt.Errorf("duplicate field %q", seenKey)
+				errs.Add(errInvalidFieldName(key).AtGoPos(f.start, f.start+token.Pos(len([]byte(key)))))
+				return Directive{}, false
+			} else if other, found := seen[seenKey]; found {
+				errs.Add(errDuplicateField(seenKey).AtGoNode(f).AtGoNode(other))
+				return Directive{}, false
 			}
-			d.Fields = append(d.Fields, Field{Key: key, Value: value})
+			d.Fields = append(d.Fields, f)
 		} else {
-			if !nameRe.MatchString(f) {
-				return Directive{}, fmt.Errorf("invalid option %q", f)
-			} else if seen[seenKey] {
-				return Directive{}, fmt.Errorf("duplicate option %q", seenKey)
+			if !nameRe.MatchString(f.Value) {
+				errs.Add(errInvalidOptionName(f.Value).AtGoNode(f))
+				return Directive{}, false
+			} else if other, found := seen[seenKey]; found {
+				errs.Add(errDuplicateOption(seenKey).AtGoNode(f).AtGoNode(other))
+				return Directive{}, false
 			}
 			d.Options = append(d.Options, f)
 		}
 
-		seen[seenKey] = true
+		seen[seenKey] = f
 	}
 
-	return d, nil
+	return d, true
 }
 
 type ValidateSpec struct {
@@ -217,46 +283,48 @@ type ValidateSpec struct {
 	AllowedFields  []string
 
 	// ValidateOption, if non-nil, is called for each option in the directive.
-	ValidateOption func(string) error
+	ValidateOption func(*perr.List, Field) (ok bool)
 
 	// ValidateField, if non-nil, is called for each field in the directive.
-	ValidateField func(Field) error
+	ValidateField func(*perr.List, Field) (ok bool)
 
 	// ValidateTag, if non-nil, is called for each tag in the directive.
 	// It is called with the whole tag, including the "tag:" prefix.
-	ValidateTag func(string) error
+	ValidateTag func(*perr.List, Field) (ok bool)
 }
 
 // Validate checks that the directive is valid according to spec.
-func Validate(d *Directive, spec ValidateSpec) error {
+func Validate(errs *perr.List, d *Directive, spec ValidateSpec) (ok bool) {
 	// Check the options.
 	for _, o := range d.Options {
-		if !slices.Contains(spec.AllowedOptions, o) {
-			return fmt.Errorf("unknown option %q", o)
+		if !slices.Contains(spec.AllowedOptions, o.Value) {
+			errs.Add(errUnknownOption(o.Value, strings.Join(spec.AllowedOptions, ", ")).AtGoNode(o))
+			return false
 		}
 		if spec.ValidateOption != nil {
-			if err := spec.ValidateOption(o); err != nil {
-				return fmt.Errorf("invalid option %q: %v", o, err)
+			if !spec.ValidateOption(errs, o) {
+				return false
 			}
 		}
 	}
 
 	for _, f := range d.Fields {
 		if !slices.Contains(spec.AllowedFields, f.Key) {
-			return fmt.Errorf("unknown field %q", f.Key)
+			errs.Add(errUnknownField(f.Key, strings.Join(spec.AllowedFields, ", ")).AtGoNode(f))
+			return false
 		}
 		if spec.ValidateField != nil {
-			if err := spec.ValidateField(f); err != nil {
-				return fmt.Errorf("invalid field %q: %v", f.Key, err)
+			if !spec.ValidateField(errs, f) {
+				return false
 			}
 		}
 	}
 	for _, t := range d.Tags {
 		if spec.ValidateTag != nil {
-			if err := spec.ValidateTag(t); err != nil {
-				return fmt.Errorf("invalid tag %q: %v", t, err)
+			if !spec.ValidateTag(errs, t) {
+				return false
 			}
 		}
 	}
-	return nil
+	return true
 }

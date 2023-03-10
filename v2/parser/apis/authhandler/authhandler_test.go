@@ -125,9 +125,7 @@ package foo
 			fd := testutil.FindNodes[*ast.FuncDecl](f.AST())[0]
 
 			// Parse the directive from the func declaration.
-			dirs, doc, err := directive.Parse(fd.Doc)
-			c.Assert(err, qt.IsNil)
-			dir, ok := dirs.Get("authhandler")
+			dir, doc, ok := directive.Parse(tc.Errs, fd.Doc)
 			c.Assert(ok, qt.IsTrue)
 
 			pd := ParseData{

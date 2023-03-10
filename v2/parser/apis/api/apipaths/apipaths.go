@@ -2,20 +2,34 @@
 package apipaths
 
 import (
-	"errors"
 	"fmt"
+	"go/ast"
 	"go/token"
 	"net/url"
 	"strings"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/schema"
 )
 
 // Path represents a parsed path.
 type Path struct {
-	Pos      token.Pos
+	StartPos token.Pos
 	Segments []Segment
+}
+
+var _ ast.Node = (*Path)(nil)
+
+func (p *Path) Pos() token.Pos {
+	return p.StartPos
+}
+
+func (p *Path) End() token.Pos {
+	if len(p.Segments) > 0 {
+		return p.Segments[len(p.Segments)-1].End()
+	}
+	return p.StartPos
 }
 
 // String returns the path's string representation.
@@ -62,7 +76,11 @@ type Segment struct {
 	Type      SegmentType
 	Value     string // literal if Type == Literal; name of parameter otherwise
 	ValueType schema.BuiltinKind
+	StartPos  token.Pos
+	EndPos    token.Pos
 }
+
+var _ ast.Node = Segment{}
 
 func (s *Segment) String() string {
 	switch s.Type {
@@ -73,6 +91,14 @@ func (s *Segment) String() string {
 	default:
 		return s.Value
 	}
+}
+
+func (s Segment) Pos() token.Pos {
+	return s.StartPos
+}
+
+func (s Segment) End() token.Pos {
+	return s.EndPos
 }
 
 // SegmentType represents the different types of path segments recognized by the parser.
@@ -88,28 +114,41 @@ const (
 )
 
 // Parse parses a slash-separated path into path segments.
-func Parse(pos token.Pos, path string) (*Path, error) {
+//
+// strPos is the position of where the path string was found in the source code.
+func Parse(errs *perr.List, startPos token.Pos, path string) (parsedPath *Path, ok bool) {
+	endPos := token.Pos(len([]byte(path))) + startPos
+
 	if path == "" {
-		return nil, errors.New("empty path")
+		errs.Add(errEmptyPath.AtGoPos(startPos, endPos))
+		return nil, false
 	} else if path[0] != '/' {
-		return nil, errors.New("path must begin with '/'")
+		errs.Add(errInvalidPathPrefix.AtGoPos(startPos, endPos))
+		return nil, false
 	}
 
 	if _, err := url.ParseRequestURI(path); err != nil {
-		return nil, fmt.Errorf("invalid path: %v", errors.Unwrap(err))
+		errs.Add(errInvalidPathURI.AtGoPos(startPos, endPos).Wrapping(err))
+		return nil, false
 	} else if idx := strings.IndexByte(path, '?'); idx != -1 {
-		return nil, fmt.Errorf("path cannot contain '?'")
+		errs.Add(errPathContainedQuery.AtGoPos(startPos, endPos))
+		return nil, false
 	}
 
 	var segs []Segment
+	segStart := startPos
 	for path != "" {
 		path = path[1:] // drop leading '/'
+		segStart++
 
 		// Find the next path segment
 		var val string
-		switch idx := strings.IndexByte(path, '/'); idx {
+		idx := strings.IndexByte(path, '/')
+		segEnd := segStart
+		switch idx {
 		case 0:
-			return nil, fmt.Errorf("path cannot contain double slash")
+			errs.Add(errEmptySegment.AtGoPos(segStart-1, segStart))
+			return nil, false
 		case -1:
 			val = path
 			path = ""
@@ -117,6 +156,7 @@ func Parse(pos token.Pos, path string) (*Path, error) {
 			val = path[:idx]
 			path = path[idx:]
 		}
+		segEnd += token.Pos(len([]byte(val))) - 1
 
 		segType := Literal
 		if val != "" && val[0] == ':' {
@@ -126,7 +166,11 @@ func Parse(pos token.Pos, path string) (*Path, error) {
 			segType = Wildcard
 			val = val[1:]
 		}
-		segs = append(segs, Segment{Type: segType, Value: val, ValueType: schema.String})
+		segs = append(segs, Segment{
+			Type: segType, Value: val, ValueType: schema.String,
+			StartPos: segStart, EndPos: segEnd,
+		})
+		segStart = segEnd + 1
 	}
 
 	// Validate the segments
@@ -134,26 +178,34 @@ func Parse(pos token.Pos, path string) (*Path, error) {
 		switch s.Type {
 		case Literal:
 			if s.Value == "" {
-				return nil, fmt.Errorf("path cannot contain trailing slash")
+				errs.Add(errTrailingSlash.AtGoNode(s))
+				return nil, false
 			}
 		case Param:
-			if s.Value == "" {
-				return nil, fmt.Errorf("path parameter must have a name")
-			} else if !token.IsIdentifier(s.Value) {
-				return nil, fmt.Errorf("path parameter must be a valid Go identifier name")
+			switch {
+			case s.Value == "":
+				errs.Add(errParameterMissingName.AtGoNode(s))
+				return nil, false
+			case !token.IsIdentifier(s.Value):
+				errs.Add(errInvalidParamIdentifier.AtGoNode(s))
+				return nil, false
 			}
 		case Wildcard:
-			if s.Value == "" {
-				return nil, fmt.Errorf("wildcard parameter must have a name")
-			} else if !token.IsIdentifier(s.Value) {
-				return nil, fmt.Errorf("wildcard parameter must be a valid Go identifier name")
-			} else if len(segs) > (i + 1) {
-				return nil, fmt.Errorf("wildcard parameter must be the last path segment")
+			switch {
+			case s.Value == "":
+				errs.Add(errParameterMissingName.AtGoNode(s))
+				return nil, false
+			case !token.IsIdentifier(s.Value):
+				errs.Add(errInvalidParamIdentifier.AtGoNode(s))
+				return nil, false
+			case len(segs) > (i + 1):
+				errs.Add(errWildcardNotLastSegment.AtGoNode(s))
+				return nil, false
 			}
 		}
 	}
 
-	return &Path{Pos: pos, Segments: segs}, nil
+	return &Path{StartPos: startPos, Segments: segs}, true
 }
 
 func (p *Path) ToProto() *meta.Path {
@@ -218,8 +270,7 @@ type Set struct {
 }
 
 // Add adds a path to the set of paths.
-// Errors are always of type *ConflictError.
-func (s *Set) Add(method string, path *Path) error {
+func (s *Set) Add(errs *perr.List, method string, path *Path) (ok bool) {
 	if s.methods == nil {
 		s.methods = make(map[string]*node)
 	}
@@ -249,9 +300,9 @@ CandidateLoop:
 		}
 
 		for _, seg := range path.Segments {
-			next, err := s.match(path, seg, curr)
-			if err != nil {
-				return err
+			next, ok := s.match(errs, path, seg, curr)
+			if !ok {
+				return false
 			} else if next != nil {
 				curr = next
 			} else {
@@ -265,50 +316,72 @@ CandidateLoop:
 		}
 
 		if curr.p != nil {
-			return s.conflictErr(path, curr, "duplicate path")
+			errs.Add(errDuplicatePath.AtGoNode(path).AtGoNode(curr.p))
+			return false
 		} else if m == method {
 			curr.p = path
 		}
 	}
 
-	return nil
+	return true
 }
 
-func (s *Set) match(path *Path, seg Segment, curr *node) (next *node, err error) {
+func (s *Set) match(errs *perr.List, path *Path, seg Segment, curr *node) (next *node, ok bool) {
 	for _, ch := range curr.children {
 		switch ch.s.Type {
 		case Wildcard:
 			switch seg.Type {
 			case Param:
-				return nil, s.conflictErr(path, ch, "cannot combine parameter ':%s' with path '%s'", seg.Value, ch.findPath())
+				errs.Add(errConflictingParameterizedPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			case Wildcard:
-				return nil, s.conflictErr(path, ch, "cannot combine wildcard '*%s' with path '%s'", seg.Value, ch.findPath())
+				errs.Add(errConflictingWildcardPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			case Literal:
-				return nil, s.conflictErr(path, ch, "cannot combine segment '%s' with path '%s'", seg.Value, ch.findPath())
+				errs.Add(errConflictingLiteralPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			}
 		case Param:
 			switch seg.Type {
 			case Param:
-				return ch, nil
+				return ch, true
 			case Wildcard:
-				return nil, s.conflictErr(path, ch, "cannot combine wildcard '*%s' with path '%s'", seg.Value, ch.findPath())
+				errs.Add(errConflictingWildcardPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			case Literal:
-				return nil, s.conflictErr(path, ch, "cannot combine path segment '%s' with path '%s'", seg.Value, ch.findPath())
+				errs.Add(errConflictingLiteralPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			}
 		case Literal:
 			switch seg.Type {
 			case Wildcard:
-				return nil, s.conflictErr(path, ch, "cannot combine wildcard '*%s' with path '%s'", seg.Value, ch.findPath())
+				errs.Add(errConflictingWildcardPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			case Param:
-				return nil, s.conflictErr(path, ch, "cannot combine parameter ':%s' with path '%s'", seg.Value, ch.findPath())
+				errs.Add(errConflictingLiteralPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			case Literal:
 				if seg.Value == ch.s.Value {
-					return ch, nil
+					return ch, true
 				}
 			}
 		}
 	}
-	return nil, nil
+	return nil, true
 }
 
 // ConflictError represents a conflict between two paths.

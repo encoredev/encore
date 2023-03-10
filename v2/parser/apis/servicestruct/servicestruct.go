@@ -38,9 +38,7 @@ type ParseData struct {
 // Parse parses the service struct in the provided type declaration.
 func Parse(d ParseData) *ServiceStruct {
 	// We don't allow anything on the directive besides "encore:service".
-	if err := directive.Validate(d.Dir, directive.ValidateSpec{}); err != nil {
-		d.Errs.Add(errInvalidDirective.AtGoNode(d.Dir.AST).Wrapping(err))
-	}
+	directive.Validate(d.Errs, d.Dir, directive.ValidateSpec{})
 
 	// We only support encore:service directives directly on the type declaration,
 	// not on a group of type declarations.
