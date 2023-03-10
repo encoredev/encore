@@ -165,7 +165,9 @@ const SpanDetail: FunctionComponent<Props> = (props) => {
                 </span>
               </div>
               <CodeBox className="overflow-auto">
-                {logs.map((log, i) => renderLogWithJSON(tr, log, i, expandLogs))}
+                {logs.map((log, i) => (
+                  <LogWithJSON key={tr.id} log={log} tr={tr} expandFields={expandLogs} />
+                ))}
               </CodeBox>
             </div>
           )}
@@ -1286,7 +1288,11 @@ const renderPayload = (data: Base64EncodedBytes) => {
   );
 };
 
-const renderLogWithJSON = (tr: Trace, log: LogMessage, key: any, expandFields: boolean) => {
+const LogWithJSON: FC<{ tr: Trace; log: LogMessage; expandFields: boolean }> = ({
+  tr,
+  log,
+  expandFields,
+}) => {
   let dt = timeToDate(tr.date)!;
   const ms = (log.time - tr.start_time) / 1000;
   dt = dt.plus(Duration.fromMillis(ms));
@@ -1298,7 +1304,7 @@ const renderLogWithJSON = (tr: Trace, log: LogMessage, key: any, expandFields: b
   }, [log.fields]);
 
   return (
-    <div key={key} className="mb-5 last:mb-0">
+    <div className="mb-5 last:mb-0">
       <span className="text-lightgray">{dt.toFormat("HH:mm:ss.SSS")} </span>
       {log.level === "TRACE" ? (
         <span className="text-lightgray">TRC </span>
