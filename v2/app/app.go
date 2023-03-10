@@ -116,7 +116,7 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 		Packages:  result.Packages,
 		Services:  services,
 		Framework: framework,
-		Infra:     appinfra.ComputeDesc(pc.Errs, result.Packages, result.InfraResources, result.InfraBinds),
+		Infra:     appinfra.ComputeDesc(pc.Errs, result),
 	}
 }
 

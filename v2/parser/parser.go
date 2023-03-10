@@ -14,6 +14,7 @@ import (
 	"encr.dev/v2/parser/apis"
 	"encr.dev/v2/parser/infra"
 	"encr.dev/v2/parser/infra/resource"
+	"encr.dev/v2/parser/infra/usage"
 )
 
 func NewParser(c *parsectx.Context) *Parser {
@@ -53,6 +54,7 @@ type Result struct {
 
 	InfraResources []resource.Resource
 	InfraBinds     []resource.Bind
+	InfraUsage     []usage.Usage
 }
 
 // Parse parses the given application for uses of the Encore API Framework
@@ -80,10 +82,13 @@ func (p *Parser) Parse() Result {
 		mu.Unlock()
 	})
 
+	infraUsage := usage.Parse(appPkgs, allBinds)
+
 	return Result{
 		Packages:       appPkgs,
 		InfraResources: allResources,
 		InfraBinds:     allBinds,
+		InfraUsage:     infraUsage,
 		APIs:           apiResults,
 	}
 }

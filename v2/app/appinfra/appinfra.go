@@ -1,9 +1,10 @@
 package appinfra
 
 import (
-	"encr.dev/v2/app/appinfra/usage"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/infra/usage"
 )
 
 import (
@@ -15,12 +16,14 @@ import (
 
 // ComputeDesc computes the infrastructure description
 // given a list of resources and binds.
-func ComputeDesc(errs *perr.List, appPkgs []*pkginfo.Package, resources []resource.Resource, binds []resource.Bind) *Desc {
+func ComputeDesc(errs *perr.List, result parser.Result) *Desc {
+	bindMap := computeBindMap(errs, result.InfraResources, result.InfraBinds)
+	usageMap := computeUsageMap(result.InfraResources, result.InfraUsage, bindMap)
 	return &Desc{
-		resources: resources,
-		binds:     binds,
-		bindMap:   computeInfraBindMap(errs, resources, binds),
-		usage:     usage.Parse(appPkgs, binds),
+		resources: result.InfraResources,
+		binds:     result.InfraBinds,
+		bindMap:   bindMap,
+		usageMap:  usageMap,
 	}
 }
 
@@ -28,7 +31,7 @@ type Desc struct {
 	resources []resource.Resource
 	binds     []resource.Bind
 	bindMap   map[resource.Resource][]resource.Bind
-	usage     []usage.Usage
+	usageMap  map[resource.Resource][]usage.Usage
 }
 
 func (s *Desc) Resources() []resource.Resource {
@@ -39,7 +42,11 @@ func (s *Desc) Binds(resource resource.Resource) []resource.Bind {
 	return s.bindMap[resource]
 }
 
-func computeInfraBindMap(errs *perr.List, resources []resource.Resource, binds []resource.Bind) map[resource.Resource][]resource.Bind {
+func (s *Desc) Usages(resource resource.Resource) []usage.Usage {
+	return s.usageMap[resource]
+}
+
+func computeBindMap(errs *perr.List, resources []resource.Resource, binds []resource.Bind) map[resource.Resource][]resource.Bind {
 	result := make(map[resource.Resource][]resource.Bind, len(resources))
 	byPath := make(map[string]resource.Resource, len(resources))
 
@@ -73,6 +80,23 @@ func computeInfraBindMap(errs *perr.List, resources []resource.Resource, binds [
 		}
 	}
 
+	return result
+}
+
+func computeUsageMap(resources []resource.Resource, usages []usage.Usage, bindMap map[resource.Resource][]resource.Bind) map[resource.Resource][]usage.Usage {
+	resourcesByBindName := make(map[pkginfo.QualifiedName]resource.Resource, len(resources))
+	for r, binds := range bindMap {
+		for _, bind := range binds {
+			resourcesByBindName[bind.QualifiedName()] = r
+		}
+	}
+
+	result := make(map[resource.Resource][]usage.Usage, len(resources))
+	for _, u := range usages {
+		if r, ok := resourcesByBindName[u.ResourceBind().QualifiedName()]; ok {
+			result[r] = append(result[r], u)
+		}
+	}
 	return result
 }
 
