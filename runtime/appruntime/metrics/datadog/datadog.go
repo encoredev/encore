@@ -16,10 +16,15 @@ import (
 )
 
 func New(svcs []string, cfg *config.DatadogProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
+	configuration := datadog.NewConfiguration()
+	apiClient := datadog.NewAPIClient(configuration)
+	api := datadogV2.NewMetricsApi(apiClient)
+
 	// Precompute container metadata labels.
 	return &Exporter{
-		svcs: svcs,
-		cfg:  cfg,
+		client: api,
+		svcs:   svcs,
+		cfg:    cfg,
 		containerMetadataLabels: []string{
 			"service_id:" + meta.ServiceID,
 			"revision_id:" + meta.RevisionID,
@@ -30,6 +35,7 @@ func New(svcs []string, cfg *config.DatadogProvider, meta *metadata.ContainerMet
 }
 
 type Exporter struct {
+	client                  *datadogV2.MetricsApi
 	svcs                    []string
 	cfg                     *config.DatadogProvider
 	containerMetadataLabels []string
@@ -45,10 +51,7 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	body := datadogV2.MetricPayload{Series: data}
 
 	ctx = x.newContext(ctx)
-	configuration := datadog.NewConfiguration()
-	apiClient := datadog.NewAPIClient(configuration)
-	api := datadogV2.NewMetricsApi(apiClient)
-	_, _, err := api.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
+	_, _, err := x.client.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
 	if err != nil {
 		return fmt.Errorf("unable to send metrics to Datadog: %v", err)
 	}
