@@ -1,12 +1,13 @@
 package selector
 
 import (
-	"errors"
-	"fmt"
+	"go/ast"
+	"go/token"
 	"regexp"
 	"strings"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/internal/perr"
 )
 
 type Type string
@@ -41,14 +42,15 @@ func (s Selector) ToProto() *meta.Selector {
 	return pb
 }
 
-func Parse(s string) (Selector, error) {
+func Parse(errs *perr.List, node ast.Node, s string) (Selector, bool) {
 	if s == "all" {
-		return Selector{Type: All, Value: ""}, nil
+		return Selector{Type: All, Value: ""}, true
 	}
 
 	typ, val, ok := strings.Cut(s, ":")
 	if !ok {
-		return Selector{}, errors.New("missing selector type")
+		errs.Add(errMissingSelectorType.AtGoNode(node))
+		return Selector{}, false
 	}
 
 	sel := Selector{Type: Type(typ), Value: val}
@@ -58,14 +60,16 @@ func Parse(s string) (Selector, error) {
 	case Tag:
 		re = tagRegexp
 	default:
-		return Selector{}, fmt.Errorf("unknown selector type %q", typ)
+		errs.Add(errUnknownSelectorType(typ).AtGoPos(node.Pos(), node.Pos()+token.Pos(len(typ))))
+		return Selector{}, false
 	}
 
 	if !re.MatchString(val) {
-		return Selector{}, errors.New("invalid value")
+		errs.Add(errInvalidSelectorValue(val).AtGoPos(node.Pos()+token.Pos(len(typ)+1), node.End()))
+		return Selector{}, false
 	}
 
-	return sel, nil
+	return sel, true
 }
 
 var (

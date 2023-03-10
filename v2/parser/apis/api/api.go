@@ -131,31 +131,24 @@ func Parse(d ParseData) *Endpoint {
 }
 
 func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
-	const sigHint = `
-	hint: valid signatures are:
-	- func(context.Context) error
-	- func(context.Context) (*ResponseData, error)
-	- func(context.Context, *RequestData) error
-	- func(context.Context, *RequestType) (*ResponseData, error)`
-
 	decl := endpoint.Decl
 	sig := decl.Type
 	numParams := len(sig.Params)
 	if numParams == 0 {
-		errs.AddPos(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
+		errs.Add(errWrongNumberParams(numParams).AtGoNode(sig.AST.Params))
 		return
 	}
 
 	numResults := len(sig.Results)
-	if numResults == 0 {
-		errs.AddPos(sig.AST.Pos(), "invalid Endpoint signature (too few results)"+sigHint)
+	if numResults == 0 || numResults > 2 {
+		errs.Add(errWrongNumberResults(numResults).AtGoNode(sig.AST.Results))
 		return
 	}
 
 	// First type should always be context.Context
 	ctxParam := sig.Params[0]
 	if !schemautil.IsNamed(ctxParam.Type, "context", "Context") {
-		errs.AddPos(ctxParam.AST.Pos(), "first parameter must be of type context.Context"+sigHint)
+		errs.Add(errInvalidFirstParam.AtGoNode(ctxParam.AST))
 		return
 	}
 
@@ -181,7 +174,7 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 			// Otherwise it must be a payload parameter
 			payloadIdx := i - len(pathParams)
 			if payloadIdx > 0 {
-				errs.AddPos(param.AST.Pos(), "APIs cannot have multiple payload parameters")
+				errs.Add(errMultiplePayloads.AtGoNode(param.AST))
 				continue
 			}
 			endpoint.Request = param.Type
@@ -193,51 +186,42 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 		for i := seenParams; i < len(pathParams); i++ {
 			missing = append(missing, pathParams[i].Value)
 		}
-		errs.Addf(sig.AST.Pos(), "invalid Endpoint signature: expected function parameters named '%s' to match Endpoint path params",
-			strings.Join(missing, "', '"))
+		errs.Add(errInvalidPathParams(strings.Join(missing, "', '")).AtGoNode(sig.AST.Params))
 	}
 
 	// First return value must be *T or *pkg.T
 	if numResults >= 2 {
 		result := sig.Results[0]
 		endpoint.Response = result.Type
-		if numResults > 2 {
-			errs.AddPos(sig.Results[2].AST.Pos(), "Endpoint signature cannot contain more than two results"+sigHint)
-			return
-		}
 	}
 
 	// Make sure the last return is of type error.
 	if err := sig.Results[numResults-1]; !schemautil.IsBuiltinKind(err.Type, schema2.Error) {
-		errs.AddPos(err.AST.Pos(), "last result is not of type error"+sigHint)
+		errs.Add(errLastResultMustBeError.AtGoNode(err.AST))
 		return
 	}
 }
 
 func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
-	const sigHint = `
-	hint: signature must be func(http.ResponseWriter, *http.Request)`
-
 	decl := endpoint.Decl
 	sig := decl.Type
 	params := sig.Params
 	if len(params) < 2 {
-		errs.AddPos(sig.AST.Pos(), "invalid Endpoint signature (too few parameters)"+sigHint)
+		errs.Add(errInvalidRawParams(len(params)).AtGoNode(sig.AST.Params))
 		return
 	} else if len(params) > 2 {
-		errs.AddPos(params[2].AST.Pos(), "invalid Endpoint signature (too many parameters)"+sigHint)
-		return
+		errs.Add(errInvalidRawParams(len(params)).AtGoNode(sig.AST.Params))
 	} else if len(sig.Results) > 0 {
-		errs.Addf(sig.Results[0].AST.Pos(), "invalid Endpoint signature (too many results)"+sigHint)
+		errs.Add(errInvalidRawResults(len(sig.Results)).AtGoNode(sig.AST.Results))
 		return
 	}
 
 	// Ensure signature is func(http.ResponseWriter, *http.Request).
 	if !schemautil.IsNamed(params[0].Type, "net/http", "ResponseWriter") {
-		errs.AddPos(params[0].AST.Pos(), "first parameter must be http.ResponseWriter"+sigHint)
+		errs.Add(errRawNotResponeWriter.AtGoNode(params[0].AST))
 	}
 	if deref, n := schemautil.Deref(params[1].Type); n != 1 || !schemautil.IsNamed(deref, "net/http", "Request") {
-		errs.AddPos(params[1].AST.Pos(), "second parameter must be *http.Request"+sigHint)
+		errs.Add(errRawNotRequest.AtGoNode(params[1].AST))
 	}
 }
 
@@ -246,8 +230,7 @@ func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
 // It returns the func parameter's builtin kind.
 func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segment) schema2.BuiltinKind {
 	if !option.Contains(param.Name, seg.Value) {
-		errs.Addf(param.AST.Pos(), "unexpected parameter name '%s', expected '%s' (to match path parameter '%s')",
-			param.Name, seg.Value, seg.String())
+		errs.Add(errUnexpectedParameterName(param.Name, seg.Value, seg.String()).AtGoNode(seg).AtGoNode(param.AST))
 	}
 
 	builtin, _ := param.Type.(schema2.BuiltinType)
@@ -255,7 +238,7 @@ func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segme
 
 	// Wildcard path parameters must be strings.
 	if seg.Type == apipaths.Wildcard && b != schema2.String {
-		errs.Addf(param.AST.Pos(), "wildcard path parameter '%s' must be a string", param.Name)
+		errs.Add(errWildcardMustBeString(param.Name).AtGoNode(seg).AtGoNode(param.AST))
 	}
 
 	switch b {
@@ -265,7 +248,7 @@ func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segme
 		schema2.UUID:
 		return b
 	default:
-		errs.Addf(param.AST.Pos(), "path parameter '%s' must be a string, bool, integer, or encore.dev/types/uuid.UUID", param.Name)
+		errs.Add(errInvalidPathParamType(param.Name).AtGoNode(seg).AtGoNode(param.AST))
 		return schema2.Invalid
 	}
 }
@@ -327,9 +310,8 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 			return true
 		},
 		ValidateTag: func(errs *perr.List, tag directive.Field) (ok bool) {
-			sel, err := selector.Parse(tag.Value)
-			if err != nil {
-				errs.Add(errInvalidEndpointTag.Wrapping(err).AtGoNode(tag))
+			sel, ok := selector.Parse(errs, tag, tag.Value)
+			if !ok {
 				return false
 			}
 			endpoint.Tags.Add(sel)

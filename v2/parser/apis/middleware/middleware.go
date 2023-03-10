@@ -63,9 +63,8 @@ func Parse(d ParseData) *Middleware {
 			case "target":
 				parts := f.List()
 				for _, p := range parts {
-					sel, err := selector.Parse(p)
-					if err != nil {
-						errs.Add(errInvalidSelectorFormat(p).Wrapping(err).AtGoNode(f))
+					sel, ok := selector.Parse(errs, f, p)
+					if !ok {
 						return false
 					}
 

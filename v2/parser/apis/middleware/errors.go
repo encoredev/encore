@@ -14,11 +14,6 @@ var (
 		errors.WithRangeSize(20),
 	)
 
-	errInvalidSelectorFormat = errRange.Newf(
-		"Invalid middleware selector",
-		"Invalid selector format %q.",
-	)
-
 	errInvalidSelectorType = errRange.Newf(
 		"Invalid middleware selector",
 		"Middleware target only supports tags a selectors (got '%s').",
