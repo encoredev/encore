@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"encore.dev/appruntime/config"
@@ -280,4 +281,33 @@ func Driver[T SupportedDrivers](db *Database) T {
 // Currently only [*pgxpool.Pool] is supported.
 type SupportedDrivers interface {
 	*pgxpool.Pool
+}
+
+// DriverConn provides access to the underlying driver connection given a stdlib
+// *sql.Conn connection. The driverConn must not be used outside of f, and conn
+// must be a *sql.Conn originating from sqldb.Database or this function panics.
+//
+//	conn, _ := db.Stdlib().Conn(ctx) // Checkout a connection from the pool
+//	sqldb.DriverConn(conn, func(driverConn *pgx.Conn) error) error {
+//	  // do stuff with *pgx.Conn
+//	}
+//
+// This is defined as a generic function to allow compile-time type checking
+// that the Encore application is expecting a driver that is supported.
+//
+// At some point in the future where Encore adds support for a different
+// database driver this will be made with backwards compatibility in mind,
+// providing ample notice and time to migrate in an opt-in fashion.
+func DriverConn[T SupportedDriverConns](conn *sql.Conn, f func(driverConn T) error) error {
+	return conn.Raw(func(c any) error {
+		parentConn := (c).(wrappedConn).parent
+		rawConn := (parentConn).(*stdlibdriver.Conn).Conn()
+		return f(rawConn)
+	})
+}
+
+// SupportedDriverConns is a type list of all supported database drivers
+// connections. Currently only [*pgx.Conn] is supported.
+type SupportedDriverConns interface {
+	*pgx.Conn
 }
