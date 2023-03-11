@@ -1,15 +1,11 @@
 package parser
 
 import (
-	"fmt"
-	"os"
 	"sync"
 
-	"golang.org/x/mod/modfile"
-
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/scan"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis"
 	"encr.dev/v2/parser/infra"
@@ -42,19 +38,18 @@ func (p *Parser) MainModule() *pkginfo.Module {
 }
 
 type Result struct {
-	// APIs is a list of [apis.ParseResult] by package that uses the Encore API Framework
-	// that was found during the parse. If a package does not use the API Framework, it won't
-	// be included in the list.
-	APIs []*apis.ParseResult
-
 	// Packages are the packages that are contained within
 	// the application. It does not list packages that have been
 	// parsed but belong to dependencies.
 	Packages []*pkginfo.Package
 
-	InfraResources []resource.Resource
-	InfraBinds     []resource.Bind
-	InfraUsage     []usage.Usage
+	// APIs is a list of [apis.ParseResult] by package that uses the Encore API Framework
+	// that was found during the parse. If a package does not use the API Framework, it won't
+	// be included in the list.
+	APIs []*apis.ParseResult
+
+	// Infra describes the parsed infrastructure.
+	Infra *infra.Desc
 }
 
 // Parse parses the given application for uses of the Encore API Framework
@@ -68,7 +63,7 @@ func (p *Parser) Parse() Result {
 		apiResults   []*apis.ParseResult
 	)
 
-	p.collectPackages(func(pkg *pkginfo.Package) {
+	scan.ProcessModule(p.c.Errs, p.loader, p.c.MainModuleDir, func(pkg *pkginfo.Package) {
 		apiRes := p.apiParser.Parse(pkg)
 		resources, binds := p.infraParser.Parse(pkg)
 
@@ -83,50 +78,11 @@ func (p *Parser) Parse() Result {
 	})
 
 	infraUsage := usage.Parse(appPkgs, allBinds)
+	infraDesc := infra.ComputeDesc(p.c.Errs, allResources, allBinds, infraUsage)
 
 	return Result{
-		Packages:       appPkgs,
-		InfraResources: allResources,
-		InfraBinds:     allBinds,
-		InfraUsage:     infraUsage,
-		APIs:           apiResults,
+		Packages: appPkgs,
+		APIs:     apiResults,
+		Infra:    infraDesc,
 	}
-}
-
-// collectPackages parses all the packages in subdirectories of the root directory.
-// It calls process for each package. Multiple goroutines may call process
-// concurrently.
-func (p *Parser) collectPackages(process func(pkg *pkginfo.Package)) {
-	// Resolve the module path for the main module.
-	modFilePath := p.c.MainModuleDir.Join("go.mod")
-	modPath, err := resolveModulePath(modFilePath)
-	if err != nil {
-		p.c.Errs.AddForFile(err, modFilePath.ToIO())
-		return
-	}
-
-	quit := make(chan struct{})
-	defer close(quit)
-	pkgCh := scanPackages(quit, p.c.Errs, p.loader, p.c.MainModuleDir, paths.Pkg(modPath))
-
-	for pkg := range pkgCh {
-		process(pkg)
-	}
-}
-
-// resolveModulePath resolves the main module's module path
-// by reading the go.mod file at goModPath.
-func resolveModulePath(goModPath paths.FS) (paths.Mod, error) {
-	data, err := os.ReadFile(goModPath.ToIO())
-	if err != nil {
-		return "", err
-	}
-	modFile, err := modfile.Parse(goModPath.ToDisplay(), data, nil)
-	if err != nil {
-		return "", err
-	}
-	if !paths.ValidModPath(modFile.Module.Mod.Path) {
-		return "", fmt.Errorf("invalid module path %q", modFile.Module.Mod.Path)
-	}
-	return paths.MustModPath(modFile.Module.Mod.Path), nil
 }

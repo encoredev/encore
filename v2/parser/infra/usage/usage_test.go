@@ -1,4 +1,4 @@
-package usage
+package usage_test
 
 import (
 	"flag"
@@ -16,8 +16,12 @@ import (
 
 	"encr.dev/pkg/fns"
 	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/scan"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
-	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/infra"
+	"encr.dev/v2/parser/infra/usage"
 )
 
 var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
@@ -30,6 +34,7 @@ func TestParse(t *testing.T) {
 		c.Run(test.name, func(c *qt.C) {
 			tc := testutil.NewContext(c, false, test.input)
 			tc.FailTestOnErrors()
+			defer tc.FailTestOnBailout()
 
 			// Create a go.mod file in the main module directory if it doesn't already exist.
 			modPath := tc.MainModuleDir.Join("go.mod").ToIO()
@@ -45,11 +50,16 @@ func TestParse(t *testing.T) {
 			tc.GoModTidy()
 			tc.GoModDownload()
 
-			p := parser.NewParser(tc.Context)
-			res := p.Parse()
-			usages := Parse(res.Packages, res.InfraBinds)
+			loader := pkginfo.New(tc.Context)
+			schemaParser := schema.NewParser(tc.Context, loader)
+			infraParser := infra.NewParser(tc.Context, schemaParser)
 
-			got := fns.Map(usages, func(u Usage) usageDesc { return usageToDesc(tc.Context, u) })
+			var pkgs testutil.PackageList
+			scan.ProcessModule(tc.Errs, loader, tc.MainModuleDir, pkgs.Collector())
+			_, binds := infraParser.ParseMulti(pkgs)
+			usages := usage.Parse(pkgs, binds)
+
+			got := fns.Map(usages, func(u usage.Usage) usageDesc { return usageToDesc(tc.Context, u) })
 			want := test.wants
 
 			// Sort the slices to be able to compare them.
@@ -139,7 +149,7 @@ func parseTestCase(c *qt.C, file string) *testCase {
 	return tc
 }
 
-func usageToDesc(pc *parsectx.Context, u Usage) usageDesc {
+func usageToDesc(pc *parsectx.Context, u usage.Usage) usageDesc {
 	pos := pc.FS.Position(u.ASTExpr().Pos())
 	filename := pos.Filename
 	if rel, err := filepath.Rel(pc.MainModuleDir.ToIO(), pos.Filename); err == nil {
@@ -150,6 +160,6 @@ func usageToDesc(pc *parsectx.Context, u Usage) usageDesc {
 		Filename:  filename,
 		Line:      pos.Line,
 		Resource:  u.ResourceBind().QualifiedName().NaiveDisplayName(),
-		Operation: u.operationDesc(),
+		Operation: u.DescriptionForTest(),
 	}
 }

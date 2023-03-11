@@ -1,4 +1,4 @@
-package pkginfo
+package pkginfo_test
 
 import (
 	"go/token"
@@ -8,7 +8,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/v2/internal/paths"
-	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/testutil"
 )
 
@@ -25,7 +25,7 @@ module example.com
 
 		tc := testutil.NewContext(c, false, a)
 		tc.FailTestOnErrors()
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 
 		pkg, ok := l.LoadPkg(token.NoPos, "example.com/foo")
 		c.Assert(ok, qt.Equals, true)
@@ -54,7 +54,7 @@ module example.com
 
 		tc := testutil.NewContext(c, true, a)
 		tc.FailTestOnErrors()
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 
 		pkg, ok := l.LoadPkg(token.NoPos, "example.com/foo")
 		c.Assert(ok, qt.Equals, true)
@@ -82,7 +82,7 @@ module example.com
 
 		tc := testutil.NewContext(c, true, a)
 		tc.FailTestOnErrors()
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 
 		pkg, ok := l.LoadPkg(token.NoPos, "example.com/foo")
 		c.Assert(ok, qt.Equals, true)
@@ -111,7 +111,7 @@ module example.com
 		tc := testutil.NewContext(c, false, a)
 		tc.FailTestOnErrors()
 
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 
 		pkg, ok := l.LoadPkg(token.NoPos, "example.com/foo")
 		c.Assert(ok, qt.Equals, true)
@@ -133,16 +133,10 @@ module example.com
 	`)
 
 		tc := testutil.NewContext(c, false, a)
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 
-		defer func() {
-			l, caught := perr.CatchBailout(recover())
-			if !caught {
-				c.Fatal("expected bailout")
-			}
-			out := l.FormatErrors()
-			c.Assert(out, qt.Matches, `.*foo/foo\.go:1:1: expected 'package', found asdf\n`)
-		}()
+		defer tc.DeferExpectError(`expected 'package', found asdf`)
+
 		l.LoadPkg(token.NoPos, "example.com/foo")
 	})
 
@@ -154,7 +148,7 @@ module example.com
 require rsc.io/hello v1.0.0
 `)
 		tc := testutil.NewContext(c, false, a)
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 		defer tc.FailTestOnBailout()
 		tc.GoModDownload()
 		pkg := l.MustLoadPkg(token.NoPos, "rsc.io/hello")

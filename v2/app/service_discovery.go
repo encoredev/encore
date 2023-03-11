@@ -51,7 +51,7 @@ func discoverServices(pc *parsectx.Context, result parser.Result) []*Service {
 		}
 	}
 
-	for _, res := range result.InfraResources {
+	for _, res := range result.Infra.Resources() {
 		if res.Kind() == resource.PubSubSubscription {
 			pkg := res.Package()
 			sd.possibleServiceRoot(pkg.Name, pkg.FSPath, false)

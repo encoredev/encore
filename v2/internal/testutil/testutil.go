@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -19,6 +20,7 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 )
 
 type Context struct {
@@ -223,4 +225,19 @@ func FindNodes[T ast.Node](root ast.Node) []T {
 		return true
 	})
 	return results
+}
+
+// A PackageList is a list of packages that knows how to
+// collect itself, by passing (*PackageList).Collector() to
+// the scan.ProcessModule function. It's primarily a helper function
+// for testing purposes.
+type PackageList []*pkginfo.Package
+
+func (l *PackageList) Collector() func(pkg *pkginfo.Package) {
+	var mu sync.Mutex
+	return func(pkg *pkginfo.Package) {
+		mu.Lock()
+		*l = append(*l, pkg)
+		mu.Unlock()
+	}
 }

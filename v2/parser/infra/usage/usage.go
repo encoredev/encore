@@ -13,7 +13,9 @@ import (
 type Usage interface {
 	ResourceBind() resource.Bind
 	ASTExpr() ast.Expr
-	operationDesc() string
+
+	// DescriptionForTest describes the usage for testing purposes.
+	DescriptionForTest() string
 }
 
 // MethodCall describes a resource usage via a method call.
@@ -26,7 +28,7 @@ type MethodCall struct {
 
 func (m *MethodCall) ASTExpr() ast.Expr           { return m.Call }
 func (m *MethodCall) ResourceBind() resource.Bind { return m.Bind }
-func (m *MethodCall) operationDesc() string       { return fmt.Sprintf("call %s", m.Method) }
+func (m *MethodCall) DescriptionForTest() string  { return fmt.Sprintf("call %s", m.Method) }
 
 // FieldAccess describes a resource usage via a field access.
 type FieldAccess struct {
@@ -37,7 +39,7 @@ type FieldAccess struct {
 
 func (m *FieldAccess) ASTExpr() ast.Expr           { return m.Expr }
 func (m *FieldAccess) ResourceBind() resource.Bind { return m.Bind }
-func (m *FieldAccess) operationDesc() string       { return fmt.Sprintf("field %s", m.Field) }
+func (m *FieldAccess) DescriptionForTest() string  { return fmt.Sprintf("field %s", m.Field) }
 
 // Other describes any other resource usage.
 type Other struct {
@@ -47,7 +49,7 @@ type Other struct {
 
 func (o *Other) ASTExpr() ast.Expr           { return o.Expr }
 func (o *Other) ResourceBind() resource.Bind { return o.Bind }
-func (o *Other) operationDesc() string       { return "other" }
+func (o *Other) DescriptionForTest() string  { return "other" }
 
 func Parse(pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
 	p := &usageParser{

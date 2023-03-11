@@ -5,7 +5,6 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app/apiframework"
-	"encr.dev/v2/app/appinfra"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
@@ -14,6 +13,7 @@ import (
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/selector"
+	"encr.dev/v2/parser/infra"
 )
 
 // Desc describes an Encore application.
@@ -21,7 +21,7 @@ type Desc struct {
 	Errs *perr.List
 
 	Services []*Service
-	Infra    *appinfra.Desc
+	Infra    *infra.Desc
 
 	// Packages are the packages that are contained within
 	// the application. It does not list packages that have been
@@ -116,7 +116,7 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 		Packages:  result.Packages,
 		Services:  services,
 		Framework: framework,
-		Infra:     appinfra.ComputeDesc(pc.Errs, result),
+		Infra:     result.Infra,
 	}
 }
 

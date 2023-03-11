@@ -1,4 +1,4 @@
-package pkginfo
+package pkginfo_test
 
 import (
 	"go/token"
@@ -6,8 +6,8 @@ import (
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"golang.org/x/exp/maps"
 
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/testutil"
 )
 
@@ -24,11 +24,10 @@ module example.com
 
 		tc := testutil.NewContext(c, false, a)
 		tc.FailTestOnErrors()
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 
 		pkg := l.MustLoadPkg(token.NoPos, "example.com/foo")
 		c.Assert(pkg.Names().PkgDecls, qt.HasLen, 0)
-		c.Assert(pkg.Files[0].Names().nameToPath, qt.HasLen, 0)
 	})
 
 	t.Run("external_module", func(t *testing.T) {
@@ -46,19 +45,21 @@ var _ = quote.Hello()
 		defer tc.FailTestOnBailout()
 		tc.GoModTidy()
 
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 		pkg := l.MustLoadPkg(token.NoPos, "rsc.io/quote")
 
 		c.Assert(pkg.Names().PkgDecls, qt.CmpEquals(
-			cmpopts.IgnoreFields(PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
-		), map[string]*PkgDeclInfo{
+			cmpopts.IgnoreFields(pkginfo.PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
+		), map[string]*pkginfo.PkgDeclInfo{
 			"Glass": {Name: "Glass", Type: token.FUNC},
 			"Go":    {Name: "Go", Type: token.FUNC},
 			"Hello": {Name: "Hello", Type: token.FUNC},
 			"Opt":   {Name: "Opt", Type: token.FUNC},
 		})
 
-		c.Assert(maps.Keys(pkg.Files[0].Names().nameToPath), qt.CmpEquals(), []string{"sampler"})
+		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath("sampler")
+		c.Assert(ok, qt.IsTrue)
+		c.Assert(gotPath, qt.Equals, "rsc.io/quote/sampler")
 	})
 
 	t.Run("external_module_major_version", func(t *testing.T) {
@@ -76,18 +77,20 @@ var _ = quote.HelloV3()
 		defer tc.FailTestOnBailout()
 		tc.GoModTidy()
 
-		l := New(tc.Context)
+		l := pkginfo.New(tc.Context)
 		pkg := l.MustLoadPkg(token.NoPos, "rsc.io/quote/v3")
 
 		c.Assert(pkg.Names().PkgDecls, qt.CmpEquals(
-			cmpopts.IgnoreFields(PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
-		), map[string]*PkgDeclInfo{
+			cmpopts.IgnoreFields(pkginfo.PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
+		), map[string]*pkginfo.PkgDeclInfo{
 			"HelloV3": {Name: "HelloV3", Type: token.FUNC},
 			"GlassV3": {Name: "GlassV3", Type: token.FUNC},
 			"GoV3":    {Name: "GoV3", Type: token.FUNC},
 			"OptV3":   {Name: "OptV3", Type: token.FUNC},
 		})
 
-		c.Assert(maps.Keys(pkg.Files[0].Names().nameToPath), qt.CmpEquals(), []string{"sampler"})
+		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath("sampler")
+		c.Assert(ok, qt.IsTrue)
+		c.Assert(gotPath, qt.Equals, "rsc.io/quote/v3/sampler")
 	})
 }

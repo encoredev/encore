@@ -39,6 +39,19 @@ func (p *Parser) Parse(pkg *pkginfo.Package) ([]resource.Resource, []resource.Bi
 	return pass.Resources(), pass.Binds()
 }
 
+// ParseMulti is a helper function to parse a list of packages.
+// It simply calls Parse on each package and combines the results.
+func (p *Parser) ParseMulti(pkgs []*pkginfo.Package) ([]resource.Resource, []resource.Bind) {
+	var allResources []resource.Resource
+	var allBinds []resource.Bind
+	for _, pkg := range pkgs {
+		resources, binds := p.Parse(pkg)
+		allResources = append(allResources, resources...)
+		allBinds = append(allBinds, binds...)
+	}
+	return allResources, allBinds
+}
+
 // ComputeResult computes the application-wide result of parsing all infrastructure
 // and validating it.
 //

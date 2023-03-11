@@ -1,4 +1,4 @@
-package parser
+package scan
 
 import (
 	"go/token"
@@ -13,8 +13,8 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 )
 
-// scanPackages scans and parses the Go packages for all subdirectories in the root.
-func scanPackages(quit chan struct{}, errs *perr.List, l *pkginfo.Loader, root paths.FS, basePkgPath paths.Pkg) <-chan *pkginfo.Package {
+// Packages scans and parses the Go packages for all subdirectories in the root.
+func Packages(quit chan struct{}, errs *perr.List, l *pkginfo.Loader, root paths.FS, basePkgPath paths.Pkg) <-chan *pkginfo.Package {
 	// a worker accepts work in the form of package paths to parse
 	// and sends the parsed results back on the results channel.
 	// It calls wg.Done() when it's done.
