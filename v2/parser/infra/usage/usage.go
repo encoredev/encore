@@ -5,6 +5,7 @@ import (
 	"go/ast"
 
 	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/resource"
 )
@@ -58,7 +59,7 @@ func (o *Other) ASTExpr() ast.Expr           { return o.Expr }
 func (o *Other) ResourceBind() resource.Bind { return o.Bind }
 func (o *Other) DescriptionForTest() string  { return "other" }
 
-func Parse(pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
+func Parse(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
 	p := &usageParser{
 		bindsPerPkg: make(map[paths.Pkg][]resource.Bind, len(binds)),
 		bindNames:   make(map[pkginfo.QualifiedName]resource.Bind, len(binds)),
@@ -76,6 +77,10 @@ func Parse(pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
 	for _, pkg := range pkgs {
 		usages = append(usages, p.scanUsage(pkg)...)
 	}
+
+	// Compute implicit usage of sqldb resources.
+	usages = append(usages, computeImplicitSQLDBUsage(errs, pkgs, binds)...)
+
 	return usages
 }
 

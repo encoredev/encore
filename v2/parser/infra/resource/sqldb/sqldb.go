@@ -52,6 +52,7 @@ var DatabaseParser = &resource.Parser{
 			Migrations:   migrations,
 		}
 		p.RegisterResource(res)
+		p.AddImplicitBind(res)
 	},
 }
 

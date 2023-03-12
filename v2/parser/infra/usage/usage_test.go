@@ -57,7 +57,7 @@ func TestParse(t *testing.T) {
 			var pkgs testutil.PackageList
 			scan.ProcessModule(tc.Errs, loader, tc.MainModuleDir, pkgs.Collector())
 			_, binds := infraParser.ParseMulti(pkgs)
-			usages := usage.Parse(pkgs, binds)
+			usages := usage.Parse(tc.Errs, pkgs, binds)
 
 			got := fns.Map(usages, func(u usage.Usage) usageDesc { return usageToDesc(tc.Context, u) })
 			want := test.wants
@@ -159,7 +159,7 @@ func usageToDesc(pc *parsectx.Context, u usage.Usage) usageDesc {
 	return usageDesc{
 		Filename:  filename,
 		Line:      pos.Line,
-		Resource:  u.ResourceBind().QualifiedName().NaiveDisplayName(),
+		Resource:  u.ResourceBind().DescriptionForTest(),
 		Operation: u.DescriptionForTest(),
 	}
 }

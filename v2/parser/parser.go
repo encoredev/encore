@@ -77,7 +77,7 @@ func (p *Parser) Parse() Result {
 		mu.Unlock()
 	})
 
-	infraUsage := usage.Parse(appPkgs, allBinds)
+	infraUsage := usage.Parse(p.c.Errs, appPkgs, allBinds)
 	infraDesc := infra.ComputeDesc(p.c.Errs, appPkgs, allResources, allBinds, infraUsage)
 
 	return Result{
