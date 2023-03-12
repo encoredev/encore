@@ -289,6 +289,8 @@ func (l *Struct) IsSet(fieldName string) bool {
 		} else {
 			return false
 		}
+	} else if _, found := l.childStructs[fieldName]; found {
+		return true
 	}
 
 	_, found = l.allFields[fieldName]
@@ -304,10 +306,17 @@ func (l *Struct) IsConstant(fieldName string) bool {
 		} else {
 			return false
 		}
+	} else if child, found := l.childStructs[fieldName]; found {
+		return child.FullyConstant()
 	}
 
 	_, found = l.constantFields[fieldName]
 	return found
+}
+
+func (l *Struct) ChildStruct(fieldName string) (st *Struct, ok bool) {
+	st, ok = l.childStructs[fieldName]
+	return
 }
 
 // Pos returns the position of the field in the source code

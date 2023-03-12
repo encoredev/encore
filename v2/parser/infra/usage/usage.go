@@ -13,6 +13,7 @@ import (
 type Usage interface {
 	ResourceBind() resource.Bind
 	ASTExpr() ast.Expr
+	DeclaredIn() *pkginfo.File
 
 	// DescriptionForTest describes the usage for testing purposes.
 	DescriptionForTest() string
@@ -20,33 +21,39 @@ type Usage interface {
 
 // MethodCall describes a resource usage via a method call.
 type MethodCall struct {
+	File   *pkginfo.File
 	Bind   resource.Bind
 	Call   *ast.CallExpr
 	Method string
 	Args   []ast.Expr
 }
 
+func (m *MethodCall) DeclaredIn() *pkginfo.File   { return m.File }
 func (m *MethodCall) ASTExpr() ast.Expr           { return m.Call }
 func (m *MethodCall) ResourceBind() resource.Bind { return m.Bind }
 func (m *MethodCall) DescriptionForTest() string  { return fmt.Sprintf("call %s", m.Method) }
 
 // FieldAccess describes a resource usage via a field access.
 type FieldAccess struct {
+	File  *pkginfo.File
 	Bind  resource.Bind
 	Expr  *ast.SelectorExpr
 	Field string
 }
 
-func (m *FieldAccess) ASTExpr() ast.Expr           { return m.Expr }
-func (m *FieldAccess) ResourceBind() resource.Bind { return m.Bind }
-func (m *FieldAccess) DescriptionForTest() string  { return fmt.Sprintf("field %s", m.Field) }
+func (f *FieldAccess) DeclaredIn() *pkginfo.File   { return f.File }
+func (f *FieldAccess) ASTExpr() ast.Expr           { return f.Expr }
+func (f *FieldAccess) ResourceBind() resource.Bind { return f.Bind }
+func (f *FieldAccess) DescriptionForTest() string  { return fmt.Sprintf("field %s", f.Field) }
 
 // Other describes any other resource usage.
 type Other struct {
+	File *pkginfo.File
 	Bind resource.Bind
 	Expr ast.Expr
 }
 
+func (o *Other) DeclaredIn() *pkginfo.File   { return o.File }
 func (o *Other) ASTExpr() ast.Expr           { return o.Expr }
 func (o *Other) ResourceBind() resource.Bind { return o.Bind }
 func (o *Other) DescriptionForTest() string  { return "other" }
@@ -114,7 +121,7 @@ func (p *usageParser) scanUsage(pkg *pkginfo.Package) (usages []Usage) {
 				if bind, ok := p.bindNames[qn]; ok {
 					// Make sure this is not the actual bind definition, to avoid reporting spurious usages.
 					if !p.isBind(pkg, expr, bind) {
-						if u := p.classifyUsage(bind, stack); u != nil {
+						if u := p.classifyUsage(f, bind, stack); u != nil {
 							usages = append(usages, u)
 						}
 					}
@@ -176,7 +183,7 @@ func (p *usageParser) isBind(pkg *pkginfo.Package, expr ast.Expr, bind resource.
 	return false
 }
 
-func (p *usageParser) classifyUsage(bind resource.Bind, stack []ast.Node) Usage {
+func (p *usageParser) classifyUsage(file *pkginfo.File, bind resource.Bind, stack []ast.Node) Usage {
 	idx := len(stack) - 1
 
 	if idx >= 1 {
@@ -186,6 +193,7 @@ func (p *usageParser) classifyUsage(bind resource.Bind, stack []ast.Node) Usage 
 			if idx >= 2 {
 				if call, ok := stack[idx-2].(*ast.CallExpr); ok {
 					return &MethodCall{
+						File:   file,
 						Bind:   bind,
 						Call:   call,
 						Method: sel.Sel.Name,
@@ -196,6 +204,7 @@ func (p *usageParser) classifyUsage(bind resource.Bind, stack []ast.Node) Usage 
 
 			// Otherwise it's a field access
 			return &FieldAccess{
+				File:  file,
 				Bind:  bind,
 				Expr:  sel,
 				Field: sel.Sel.Name,
@@ -212,6 +221,7 @@ func (p *usageParser) classifyUsage(bind resource.Bind, stack []ast.Node) Usage 
 	}
 
 	return &Other{
+		File: file,
 		Bind: bind,
 		Expr: enclosing,
 	}

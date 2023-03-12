@@ -21,6 +21,7 @@ import (
 	"encr.dev/v2/parser/infra/resource/cron"
 	"encr.dev/v2/parser/infra/resource/metrics"
 	"encr.dev/v2/parser/infra/resource/pubsub"
+	"encr.dev/v2/parser/infra/usage"
 )
 
 func TestValidation(t *testing.T) {
@@ -156,34 +157,31 @@ func TestValidation(t *testing.T) {
 						printf("cronJob %s title=%q", res.Name, res.Title)
 					case *pubsub.Topic:
 						printf("pubsubTopic %s", res.Name)
+
+						for _, u := range desc.Infra.Usages(res) {
+							if mc, ok := u.(*usage.MethodCall); ok && mc.Method == "Publish" {
+								if svc, found := desc.ServiceForPath(mc.File.FSPath); found {
+									printf("pubsubPublisher %s %s\n", res.Name, svc.Name)
+								} else {
+									// TODO handle PubSub publishing from within global middleware
+									ts.Fatalf("PubSub publishing outside of service NOT IMPLEMENTED")
+								}
+							}
+						}
 					case *pubsub.Subscription:
-					// svc, found := desc.ServiceForPath(res.File.FSPath)
-					// if !found {
-					// 	ts.Fatalf("could not find service for path %s", res.File.FSPath)
-					// }
-					// TODO: implement this at the parser as we don't currently take the config
-					// printf("pubsubSubscriber %s %s %s %d %d %d %d %d", topicsByName[res.Topic].Name, res.Name, svc.Name, res.AckDeadline, res.MessageRetention, res.MaxRetries, res.MinRetryBackoff, res.MaxRetryBackoff)
+						svc, found := desc.ServiceForPath(res.File.FSPath)
+						if !found {
+							ts.Fatalf("could not find service for path %s", res.File.FSPath)
+						}
+						printf("pubsubSubscriber %s %s %s %d %d %d %d %d",
+							topicsByName[res.Topic].Name, res.Name, svc.Name, res.Cfg.AckDeadline,
+							res.Cfg.MessageRetention, res.Cfg.MaxRetries, res.Cfg.MinRetryBackoff,
+							res.Cfg.MaxRetryBackoff)
 					case *metrics.Metric:
 						// TODO: implement this at the parser as we don't currently take the metric kind or labels in the same way
 						// printf("metric %s %s %s %s\n", res.Name, res.ValueType, res.Kind, res.Labels)
 					}
 				}
-
-				// TODO: when we have infra usage tracking
-				// for _, res := range desc.InfraUsages {
-				// 	switch res := res.(type) {
-				// 	case *pubsub.Publisher:
-				// 		fmt.Fprintf(stdout, "pubsubTopic %s\n", topic.Name)
-				//
-				// 		for _, pub := range topic.Publishers {
-				// 			if pub.Service != nil {
-				// 				fmt.Fprintf(stdout, "pubsubPublisher %s %s\n", topic.Name, pub.Service.Name)
-				// 			}
-				// 			if pub.GlobalMiddleware != nil {
-				// 				fmt.Fprintf(stdout, "pubsubPublisher middlware %s %s\n", topic.Name, pub.GlobalMiddleware.Name)
-				// 			}
-				// 		}					}
-				// }
 			},
 
 			// expectOut is a command that checks the stdout output contains the

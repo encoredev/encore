@@ -18,19 +18,12 @@ func Decode[T any](errs *perr.List, literal *Struct) T {
 		panic("literals.Decode: type argument must be a struct")
 	}
 
-	decodedFields := make(map[string]bool)
-
 	dst = dst.Elem()
-	for i := 0; i < dst.NumField(); i++ {
-		fieldType := dst.Type().Field(i)
-		if fieldType.Anonymous {
-			panic("literals.Decode: anonymous fields not supported")
-		} else if !ast.IsExported(fieldType.Name) {
-			panic("literals.Decode: non-exported fields not supported")
-		}
+	fieldPaths := decodeStruct(errs, literal, dst)
 
-		fieldPath := decodeField(errs, literal, fieldType, dst.Field(i))
-		decodedFields[fieldPath] = true
+	decodedFields := make(map[string]bool)
+	for _, fp := range fieldPaths {
+		decodedFields[fp] = true
 	}
 
 	// Make sure all the fields we care about have been decoded and nothing else.
@@ -43,11 +36,27 @@ func Decode[T any](errs *perr.List, literal *Struct) T {
 	return decodeTo
 }
 
+func decodeStruct(errs *perr.List, literal *Struct, dst reflect.Value) (fieldPaths []string) {
+	for i := 0; i < dst.NumField(); i++ {
+		fieldType := dst.Type().Field(i)
+		if fieldType.Anonymous {
+			panic("literals.Decode: anonymous fields not supported")
+		} else if !ast.IsExported(fieldType.Name) {
+			panic("literals.Decode: non-exported fields not supported")
+		}
+
+		paths := decodeField(errs, literal, fieldType, dst.Field(i))
+		fieldPaths = append(fieldPaths, paths...)
+	}
+	return fieldPaths
+}
+
 // decodeField decodes a single constant literal field.
 // It reports the field path it decoded.
-func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField, field reflect.Value) (fieldPath string) {
+func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField, field reflect.Value) (fieldPaths []string) {
 	// Determine the path we want to find the field at
-	fieldPath = fieldType.Name
+	fieldPath := fieldType.Name
+
 	required := false
 	dynamicOK := false
 	zeroValueOK := false
@@ -64,6 +73,8 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 		dynamicOK = tagOpts.HasOption("dynamic")
 		zeroValueOK = tagOpts.HasOption("zero-ok")
 	}
+
+	fieldPaths = []string{fieldPath}
 
 	// If the field is required and isn't set, return an error.
 	if isSet := literal.IsSet(fieldPath); !isSet {
@@ -114,6 +125,18 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 			errs.Addf(literal.Pos(fieldPath), "field %s must be a boolean literal", fieldPath)
 		}
 
+	case reflect.Struct:
+		child, ok := literal.ChildStruct(fieldPath)
+		if !ok {
+			errs.Addf(literal.Pos(fieldPath), "field %s must be a struct literal", fieldPath)
+			return
+		}
+		childPaths := decodeStruct(errs, child, field)
+		for _, p := range childPaths {
+			fieldPaths = append(fieldPaths, fieldPath+"."+p)
+		}
+		return fieldPaths
+
 	default:
 		panic(fmt.Sprintf("literals.Decode: unsupported field type: %s", fieldType.Type.Kind()))
 	}
@@ -123,5 +146,5 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 		errs.Addf(literal.Pos(fieldPath), "field %s must not be the zero value", fieldPath)
 	}
 
-	return
+	return fieldPaths
 }

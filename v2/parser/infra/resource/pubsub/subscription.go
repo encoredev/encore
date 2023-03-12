@@ -18,6 +18,15 @@ type Subscription struct {
 	Name  string // The unique name of the pub sub subscription
 	Doc   string // The documentation on the pub sub subscription
 	Topic pkginfo.QualifiedName
+	Cfg   SubscriptionConfig
+}
+
+type SubscriptionConfig struct {
+	AckDeadline      time.Duration
+	MessageRetention time.Duration
+	MinRetryBackoff  time.Duration
+	MaxRetryBackoff  time.Duration
+	MaxRetries       int
 }
 
 func (s *Subscription) Kind() resource.Kind       { return resource.PubSubSubscription }
@@ -82,21 +91,46 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		Handler ast.Expr `literal:",dynamic,required"`
 
 		// Optional configuration
-		AckDeadline      time.Duration `literal:",optional"`
-		MessageRetention time.Duration `literal:",optional"`
+		AckDeadline      time.Duration `literal:",optional" default:"30*time.Second"`
+		MessageRetention time.Duration `literal:",optional" default:"7*24*time.Hour"`
 		RetryPolicy      struct {
-			MinRetryBackoff time.Duration `literal:"MinBackoff,optional"`
-			MaxRetryBackoff time.Duration `literal:"MaxBackoff,optional"`
-			MaxRetries      int           `literal:"MaxRetries,optional"`
+			MinRetryBackoff time.Duration `literal:"MinBackoff,optional" default:"10*time.Second"`
+			MaxRetryBackoff time.Duration `literal:"MaxBackoff,optional" default:"10*time.Minute"`
+			MaxRetries      int           `literal:"MaxRetries,optional" default:"100"`
 		} `literal:",optional"`
 	}
 
 	cfg := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
-	_ = cfg
+
+	// Set defaults
+	if cfg.AckDeadline == 0 {
+		cfg.AckDeadline = 30 * time.Second
+	}
+	if cfg.MessageRetention == 0 {
+		cfg.MessageRetention = 7 * 24 * time.Hour
+	}
+	if cfg.RetryPolicy.MinRetryBackoff == 0 {
+		cfg.RetryPolicy.MinRetryBackoff = 10 * time.Second
+	}
+	if cfg.RetryPolicy.MaxRetryBackoff == 0 {
+		cfg.RetryPolicy.MaxRetryBackoff = 10 * time.Minute
+	}
+	if cfg.RetryPolicy.MaxRetries == 0 {
+		cfg.RetryPolicy.MaxRetries = 100
+	}
 
 	// TODO(andre) validate value ranges
 
 	// TODO(andre) Handle pubsub attribute parsing
+
+	// TODO(andre) handle default values, validate ranges
+	subCfg := SubscriptionConfig{
+		AckDeadline:      cfg.AckDeadline,
+		MessageRetention: cfg.MessageRetention,
+		MinRetryBackoff:  cfg.RetryPolicy.MinRetryBackoff,
+		MaxRetryBackoff:  cfg.RetryPolicy.MaxRetryBackoff,
+		MaxRetries:       cfg.RetryPolicy.MaxRetries,
+	}
 
 	// TODO(andre) fill in this
 	sub := &Subscription{
@@ -105,6 +139,7 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		Name:  subscriptionName,
 		Doc:   d.Doc,
 		Topic: topicObj,
+		Cfg:   subCfg,
 	}
 	d.Pass.RegisterResource(sub)
 	if id, ok := d.Ident.Get(); ok {
