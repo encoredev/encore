@@ -11,7 +11,7 @@ import (
 
 // Usage describes an infrastructure usage being used.
 type Usage interface {
-	ResourceBind() resource.Bind
+	ResourceBind() *resource.Bind
 	ASTExpr() ast.Expr
 	DeclaredIn() *pkginfo.File
 
@@ -22,46 +22,46 @@ type Usage interface {
 // MethodCall describes a resource usage via a method call.
 type MethodCall struct {
 	File   *pkginfo.File
-	Bind   resource.Bind
+	Bind   *resource.Bind
 	Call   *ast.CallExpr
 	Method string
 	Args   []ast.Expr
 }
 
-func (m *MethodCall) DeclaredIn() *pkginfo.File   { return m.File }
-func (m *MethodCall) ASTExpr() ast.Expr           { return m.Call }
-func (m *MethodCall) ResourceBind() resource.Bind { return m.Bind }
-func (m *MethodCall) DescriptionForTest() string  { return fmt.Sprintf("call %s", m.Method) }
+func (m *MethodCall) DeclaredIn() *pkginfo.File    { return m.File }
+func (m *MethodCall) ASTExpr() ast.Expr            { return m.Call }
+func (m *MethodCall) ResourceBind() *resource.Bind { return m.Bind }
+func (m *MethodCall) DescriptionForTest() string   { return fmt.Sprintf("call %s", m.Method) }
 
 // FieldAccess describes a resource usage via a field access.
 type FieldAccess struct {
 	File  *pkginfo.File
-	Bind  resource.Bind
+	Bind  *resource.Bind
 	Expr  *ast.SelectorExpr
 	Field string
 }
 
-func (f *FieldAccess) DeclaredIn() *pkginfo.File   { return f.File }
-func (f *FieldAccess) ASTExpr() ast.Expr           { return f.Expr }
-func (f *FieldAccess) ResourceBind() resource.Bind { return f.Bind }
-func (f *FieldAccess) DescriptionForTest() string  { return fmt.Sprintf("field %s", f.Field) }
+func (f *FieldAccess) DeclaredIn() *pkginfo.File    { return f.File }
+func (f *FieldAccess) ASTExpr() ast.Expr            { return f.Expr }
+func (f *FieldAccess) ResourceBind() *resource.Bind { return f.Bind }
+func (f *FieldAccess) DescriptionForTest() string   { return fmt.Sprintf("field %s", f.Field) }
 
 // Other describes any other resource usage.
 type Other struct {
 	File *pkginfo.File
-	Bind resource.Bind
+	Bind *resource.Bind
 	Expr ast.Expr
 }
 
-func (o *Other) DeclaredIn() *pkginfo.File   { return o.File }
-func (o *Other) ASTExpr() ast.Expr           { return o.Expr }
-func (o *Other) ResourceBind() resource.Bind { return o.Bind }
-func (o *Other) DescriptionForTest() string  { return "other" }
+func (o *Other) DeclaredIn() *pkginfo.File    { return o.File }
+func (o *Other) ASTExpr() ast.Expr            { return o.Expr }
+func (o *Other) ResourceBind() *resource.Bind { return o.Bind }
+func (o *Other) DescriptionForTest() string   { return "other" }
 
-func Parse(pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
+func Parse(pkgs []*pkginfo.Package, binds []*resource.Bind) []Usage {
 	p := &usageParser{
-		bindsPerPkg: make(map[paths.Pkg][]resource.Bind, len(binds)),
-		bindNames:   make(map[pkginfo.QualifiedName]resource.Bind, len(binds)),
+		bindsPerPkg: make(map[paths.Pkg][]*resource.Bind, len(binds)),
+		bindNames:   make(map[pkginfo.QualifiedName]*resource.Bind, len(binds)),
 	}
 	for _, b := range binds {
 		pkg := b.Package
@@ -77,8 +77,8 @@ func Parse(pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
 }
 
 type usageParser struct {
-	bindsPerPkg map[paths.Pkg][]resource.Bind
-	bindNames   map[pkginfo.QualifiedName]resource.Bind
+	bindsPerPkg map[paths.Pkg][]*resource.Bind
+	bindNames   map[pkginfo.QualifiedName]*resource.Bind
 }
 
 func (p *usageParser) scanUsage(pkg *pkginfo.Package) (usages []Usage) {
@@ -138,7 +138,7 @@ func (p *usageParser) scanUsage(pkg *pkginfo.Package) (usages []Usage) {
 // and which files to scan.
 // The 'external' binds are those that are imported from other packages,
 // and 'internal' binds are those that are defined in the same package.
-func (p *usageParser) bindsToScanFor(pkg *pkginfo.Package) (external, internal []resource.Bind, files []*pkginfo.File) {
+func (p *usageParser) bindsToScanFor(pkg *pkginfo.Package) (external, internal []*resource.Bind, files []*pkginfo.File) {
 	internal = p.bindsPerPkg[pkg.ImportPath]
 
 	if len(internal) > 0 {
@@ -169,7 +169,7 @@ func (p *usageParser) bindsToScanFor(pkg *pkginfo.Package) (external, internal [
 	return
 }
 
-func (p *usageParser) isBind(pkg *pkginfo.Package, expr ast.Expr, bind resource.Bind) bool {
+func (p *usageParser) isBind(pkg *pkginfo.Package, expr ast.Expr, bind *resource.Bind) bool {
 	if pkg.ImportPath != bind.Package.ImportPath {
 		return false
 	}
@@ -183,7 +183,7 @@ func (p *usageParser) isBind(pkg *pkginfo.Package, expr ast.Expr, bind resource.
 	return false
 }
 
-func (p *usageParser) classifyUsage(file *pkginfo.File, bind resource.Bind, stack []ast.Node) Usage {
+func (p *usageParser) classifyUsage(file *pkginfo.File, bind *resource.Bind, stack []ast.Node) Usage {
 	idx := len(stack) - 1
 
 	if idx >= 1 {

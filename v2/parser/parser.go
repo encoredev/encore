@@ -59,7 +59,7 @@ func (p *Parser) Parse() Result {
 		mu           sync.Mutex
 		appPkgs      []*pkginfo.Package
 		allResources []resource.Resource
-		allBinds     []resource.Bind
+		allBinds     []*resource.Bind
 		apiResults   []*apis.ParseResult
 	)
 
@@ -78,7 +78,7 @@ func (p *Parser) Parse() Result {
 	})
 
 	infraUsage := usage.Parse(appPkgs, allBinds)
-	infraDesc := infra.ComputeDesc(p.c.Errs, allResources, allBinds, infraUsage)
+	infraDesc := infra.ComputeDesc(p.c.Errs, appPkgs, allResources, allBinds, infraUsage)
 
 	return Result{
 		Packages: appPkgs,

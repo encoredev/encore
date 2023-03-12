@@ -1,4 +1,5 @@
 ! parse
+expectError 'unknown identifier Serviice'
 err 'undefined type: Serviice'
 
 -- svc/svc.go --

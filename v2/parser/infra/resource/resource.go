@@ -34,7 +34,7 @@ type Pass struct {
 	Pkg *pkginfo.Package
 
 	resources []Resource
-	binds     []Bind
+	binds     []*Bind
 }
 
 func (p *Pass) RegisterResource(resource Resource) {
@@ -46,7 +46,7 @@ func (p *Pass) AddBind(boundName *ast.Ident, resource Resource) {
 		return
 	}
 
-	p.binds = append(p.binds, Bind{
+	p.binds = append(p.binds, &Bind{
 		Resource:  ResourceOrPath{Resource: resource},
 		Package:   p.Pkg,
 		BoundName: boundName,
@@ -60,7 +60,7 @@ func (p *Pass) AddPathBind(boundName *ast.Ident, path Path) {
 		return
 	}
 
-	p.binds = append(p.binds, Bind{
+	p.binds = append(p.binds, &Bind{
 		Resource:  ResourceOrPath{Path: path},
 		Package:   p.Pkg,
 		BoundName: boundName,
@@ -71,7 +71,7 @@ func (p *Pass) Resources() []Resource {
 	return p.resources
 }
 
-func (p *Pass) Binds() []Bind {
+func (p *Pass) Binds() []*Bind {
 	return p.binds
 }
 
@@ -118,7 +118,7 @@ type Bind struct {
 	BoundName *ast.Ident
 }
 
-func (b Bind) QualifiedName() pkginfo.QualifiedName {
+func (b *Bind) QualifiedName() pkginfo.QualifiedName {
 	return pkginfo.QualifiedName{
 		PkgPath: b.Package.ImportPath,
 		Name:    b.BoundName.Name,
