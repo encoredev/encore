@@ -59,7 +59,7 @@ func (p *Parser) Parse() Result {
 		mu           sync.Mutex
 		appPkgs      []*pkginfo.Package
 		allResources []resource.Resource
-		allBinds     []*resource.Bind
+		allBinds     []resource.Bind
 		apiResults   []*apis.ParseResult
 	)
 

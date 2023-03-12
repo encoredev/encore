@@ -12,38 +12,48 @@ import (
 
 // ComputeDesc computes the infrastructure description
 // given a list of resources and binds.
-func ComputeDesc(errs *perr.List, appPkgs []*pkginfo.Package, resources []resource.Resource, binds []*resource.Bind, usage []usage.Usage) *Desc {
-	bindMap := computeBindMap(errs, resources, binds)
+func ComputeDesc(errs *perr.List, appPkgs []*pkginfo.Package, resources []resource.Resource, binds []resource.Bind, usage []usage.Usage) *Desc {
+	bindMap, pkgDeclBinds := computeBindMap(errs, resources, binds)
 	usageMap := computeUsageMap(resources, usage, bindMap)
 	return &Desc{
-		resources: resources,
-		binds:     binds,
-		bindMap:   bindMap,
-		usageMap:  usageMap,
+		resources:    resources,
+		binds:        binds,
+		bindMap:      bindMap,
+		pkgDeclBinds: pkgDeclBinds,
+		usageMap:     usageMap,
 	}
 }
 
 type Desc struct {
 	resources []resource.Resource
-	binds     []*resource.Bind
-	bindMap   map[resource.Resource][]*resource.Bind
-	usageMap  map[resource.Resource][]usage.Usage
+
+	binds []resource.Bind
+
+	bindMap      map[resource.Resource][]resource.Bind
+	pkgDeclBinds map[resource.Resource][]*resource.PkgDeclBind
+	usageMap     map[resource.Resource][]usage.Usage
 }
 
 func (s *Desc) Resources() []resource.Resource {
 	return s.resources
 }
 
-func (s *Desc) Binds(resource resource.Resource) []*resource.Bind {
+func (s *Desc) Binds(resource resource.Resource) []resource.Bind {
 	return s.bindMap[resource]
+}
+
+func (s *Desc) PkgDeclBinds(resource resource.Resource) []*resource.PkgDeclBind {
+	return s.pkgDeclBinds[resource]
 }
 
 func (s *Desc) Usages(resource resource.Resource) []usage.Usage {
 	return s.usageMap[resource]
 }
 
-func computeBindMap(errs *perr.List, resources []resource.Resource, binds []*resource.Bind) map[resource.Resource][]*resource.Bind {
-	result := make(map[resource.Resource][]*resource.Bind, len(resources))
+func computeBindMap(errs *perr.List, resources []resource.Resource, binds []resource.Bind) (map[resource.Resource][]resource.Bind, map[resource.Resource][]*resource.PkgDeclBind) {
+	allBinds := make(map[resource.Resource][]resource.Bind, len(resources))
+	pkgDeclBinds := make(map[resource.Resource][]*resource.PkgDeclBind, len(resources))
+
 	byPath := make(map[string]resource.Resource, len(resources))
 
 	for _, r := range resources {
@@ -54,17 +64,25 @@ func computeBindMap(errs *perr.List, resources []resource.Resource, binds []*res
 		}
 	}
 
+	addBind := func(r resource.Resource, b resource.Bind) {
+		allBinds[r] = append(allBinds[r], b)
+		if pkgDecl, ok := b.(*resource.PkgDeclBind); ok {
+			pkgDeclBinds[r] = append(pkgDeclBinds[r], pkgDecl)
+		}
+	}
+
 	for _, b := range binds {
 		// Do we have a specific resource reference?
-		if r := b.Resource.Resource; r != nil {
-			result[r] = append(result[r], b)
+		ref := b.ResourceRef()
+		if r := ref.Resource; r != nil {
+			addBind(r, b)
 			continue
 		}
 
 		// Otherwise figure out the resource from the bind path.
-		key := pathKey(b.Resource.Path)
+		key := pathKey(ref.Path)
 		if r, ok := byPath[key]; ok {
-			result[r] = append(result[r], b)
+			addBind(r, b)
 		} else {
 			// NOTE(andre): We could end up here in the future when we support
 			// named references to PubSub subscriptions, since those would
@@ -72,27 +90,40 @@ func computeBindMap(errs *perr.List, resources []resource.Resource, binds []*res
 			// which we don't support today (the construction of byPath above only handles
 			// the case of single-segment resource paths).
 			// Since we don't support that today, this is fine for now.
-			errs.Addf(b.BoundName.Pos(), "internal compiler error: unknown resource (path %q)", key)
+			errs.Addf(b.Pos(), "internal compiler error: unknown resource (path %q)", key)
 		}
 	}
 
-	return result
+	return allBinds, pkgDeclBinds
 }
 
-func computeUsageMap(resources []resource.Resource, usages []usage.Usage, bindMap map[resource.Resource][]*resource.Bind) map[resource.Resource][]usage.Usage {
+func computeUsageMap(resources []resource.Resource, usages []usage.Usage, bindMap map[resource.Resource][]resource.Bind) map[resource.Resource][]usage.Usage {
 	resourcesByBindName := make(map[pkginfo.QualifiedName]resource.Resource, len(resources))
 	for r, binds := range bindMap {
 		for _, bind := range binds {
-			resourcesByBindName[bind.QualifiedName()] = r
+			if pkgDecl, ok := bind.(*resource.PkgDeclBind); ok {
+				resourcesByBindName[pkgDecl.QualifiedName()] = r
+			}
 		}
 	}
 
 	result := make(map[resource.Resource][]usage.Usage, len(resources))
 	for _, u := range usages {
-		if r, ok := resourcesByBindName[u.ResourceBind().QualifiedName()]; ok {
+		bind := u.ResourceBind()
+		ref := bind.ResourceRef()
+		if r := ref.Resource; r != nil {
 			result[r] = append(result[r], u)
+		} else if pkgDecl, ok := bind.(*resource.PkgDeclBind); ok {
+			if r, ok := resourcesByBindName[pkgDecl.QualifiedName()]; ok {
+				result[r] = append(result[r], u)
+			} else {
+				panic("internal compiler error: resource reference not found: " + pkgDecl.QualifiedName().NaiveDisplayName())
+			}
+		} else {
+			panic("internal compiler error: invalid resource reference")
 		}
 	}
+
 	return result
 }
 

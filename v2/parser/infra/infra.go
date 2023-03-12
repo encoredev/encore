@@ -22,7 +22,7 @@ type Parser struct {
 }
 
 // Parse parses all the infra resources defined in the given package.
-func (p *Parser) Parse(pkg *pkginfo.Package) ([]resource.Resource, []*resource.Bind) {
+func (p *Parser) Parse(pkg *pkginfo.Package) ([]resource.Resource, []resource.Bind) {
 	interested := p.reg.InterestedParsers(pkg)
 	if len(interested) == 0 {
 		return nil, nil
@@ -41,9 +41,9 @@ func (p *Parser) Parse(pkg *pkginfo.Package) ([]resource.Resource, []*resource.B
 
 // ParseMulti is a helper function to parse a list of packages.
 // It simply calls Parse on each package and combines the results.
-func (p *Parser) ParseMulti(pkgs []*pkginfo.Package) ([]resource.Resource, []*resource.Bind) {
+func (p *Parser) ParseMulti(pkgs []*pkginfo.Package) ([]resource.Resource, []resource.Bind) {
 	var allResources []resource.Resource
-	var allBinds []*resource.Bind
+	var allBinds []resource.Bind
 	for _, pkg := range pkgs {
 		resources, binds := p.Parse(pkg)
 		allResources = append(allResources, resources...)

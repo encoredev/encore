@@ -1,8 +1,6 @@
 package resource
 
 import (
-	"go/ast"
-
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
@@ -34,44 +32,18 @@ type Pass struct {
 	Pkg *pkginfo.Package
 
 	resources []Resource
-	binds     []*Bind
+	binds     []Bind
 }
 
 func (p *Pass) RegisterResource(resource Resource) {
 	p.resources = append(p.resources, resource)
 }
 
-func (p *Pass) AddBind(boundName *ast.Ident, resource Resource) {
-	if boundName.Name == "_" {
-		return
-	}
-
-	p.binds = append(p.binds, &Bind{
-		Resource:  ResourceOrPath{Resource: resource},
-		Package:   p.Pkg,
-		BoundName: boundName,
-	})
-}
-
-func (p *Pass) AddPathBind(boundName *ast.Ident, path Path) {
-	if len(path) == 0 {
-		panic("AddPathBind: empty path")
-	} else if boundName.Name == "_" {
-		return
-	}
-
-	p.binds = append(p.binds, &Bind{
-		Resource:  ResourceOrPath{Path: path},
-		Package:   p.Pkg,
-		BoundName: boundName,
-	})
-}
-
 func (p *Pass) Resources() []Resource {
 	return p.resources
 }
 
-func (p *Pass) Binds() []*Bind {
+func (p *Pass) Binds() []Bind {
 	return p.binds
 }
 
@@ -105,37 +77,4 @@ type Named interface {
 
 	// ResourceName is the name of the resource.
 	ResourceName() string
-}
-
-type Bind struct {
-	// Resource is the resource this alias references.
-	Resource ResourceOrPath
-
-	// Package is the package the alias is declared in.
-	Package *pkginfo.Package
-
-	// BoundName is the package-level identifier the bind is declared with.
-	BoundName *ast.Ident
-}
-
-func (b *Bind) QualifiedName() pkginfo.QualifiedName {
-	return pkginfo.QualifiedName{
-		PkgPath: b.Package.ImportPath,
-		Name:    b.BoundName.Name,
-	}
-}
-
-// ResourceOrPath is a reference to a particular resource,
-// either referencing the resource object directly
-// or through a path.
-type ResourceOrPath struct {
-	Resource Resource
-	Path     Path
-}
-
-type Path []PathEntry
-
-type PathEntry struct {
-	Kind Kind
-	Name string
 }

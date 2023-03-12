@@ -123,7 +123,7 @@ func pubsubTopics(appDesc *app.Desc) *Statement {
 
 		for _, topic := range topics {
 			subs := DictFunc(func(d Dict) {
-				for _, b := range appDesc.Infra.Binds(topic) {
+				for _, b := range appDesc.Infra.PkgDeclBinds(topic) {
 					qn := b.QualifiedName()
 					for _, sub := range subsByTopic[qn] {
 						// TODO we should have a better way of knowing which service a subscription belongs to
