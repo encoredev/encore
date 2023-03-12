@@ -1,4 +1,5 @@
 ! parse
+expectError 'pubsub.NewTopic cannot be referenced without being called.'
 err 'pubsub.NewTopic can only be called as a function to create a new instance and not referenced'
 
 -- svc/svc.go --

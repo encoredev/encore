@@ -1,4 +1,5 @@
 ! parse
+expectError 'missing required field: Handler'
 err 'pubsub.NewSubscription requires the configuration field named "Handler" to populated with the'
 
 -- svc/svc.go --
@@ -6,9 +7,6 @@ package svc
 
 import (
     "context"
-
-    "test/shared"
-    "test/svc/domain"
 
     "encore.dev/pubsub"
 )
@@ -27,6 +25,6 @@ func DoStuff(ctx context.Context) error {
     return BasicTopic.Publish(ctx, &MessageType{Name: "foo"})
 }
 
-func Subscriber(ctx context.Context, msg *shared.MessageType) error {
+func Subscriber(ctx context.Context, msg *MessageType) error {
     return nil
 }
