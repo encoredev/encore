@@ -21,7 +21,7 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser/infra"
-	"encr.dev/v2/parser/infra/usage"
+	"encr.dev/v2/parser/resource/usage"
 )
 
 var goldenUpdate = flag.Bool("golden-update", false, "update golden files")

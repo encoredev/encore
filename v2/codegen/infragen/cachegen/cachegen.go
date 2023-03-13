@@ -12,7 +12,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/infra/resource/cache"
+	"encr.dev/v2/parser/infra/cache"
 )
 
 func GenKeyspace(gen *codegen.Generator, pkg *pkginfo.Package, keyspaces []*cache.Keyspace) {

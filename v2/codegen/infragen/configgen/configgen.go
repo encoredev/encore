@@ -17,7 +17,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/infra/resource/config"
+	"encr.dev/v2/parser/infra/config"
 )
 
 func Gen(gen *codegen.Generator, svc *app.Service, pkg *pkginfo.Package, loads []*config.Load) {

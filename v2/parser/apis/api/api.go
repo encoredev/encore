@@ -12,7 +12,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/api/apipaths"
@@ -35,16 +35,16 @@ type Endpoint struct {
 	Name        string
 	Doc         string
 	File        *pkginfo.File
-	Decl        *schema2.FuncDecl
+	Decl        *schema.FuncDecl
 	Access      AccessType
 	AccessField option.Option[directive.Field]
 	Raw         bool
 	Path        *apipaths.Path
 	HTTPMethods []string
-	Request     schema2.Type // request data; nil for Raw Endpoints
-	Response    schema2.Type // response data; nil for Raw Endpoints
+	Request     schema.Type // request data; nil for Raw Endpoints
+	Response    schema.Type // response data; nil for Raw Endpoints
 	Tags        selector.Set
-	Recv        option.Option[*schema2.Receiver] // None if not a method
+	Recv        option.Option[*schema.Receiver] // None if not a method
 
 	reqEncOnce  sync.Once
 	reqEncoding []*apienc.RequestEncoding
@@ -69,7 +69,7 @@ func (ep *Endpoint) ResponseEncoding() *apienc.ResponseEncoding {
 
 type ParseData struct {
 	Errs   *perr.List
-	Schema *schema2.Parser
+	Schema *schema.Parser
 
 	File *pkginfo.File
 	Func *ast.FuncDecl
@@ -92,7 +92,7 @@ func Parse(d ParseData) *Endpoint {
 			Segments: []apipaths.Segment{{
 				Type:      apipaths.Literal,
 				Value:     d.File.Pkg.Name + "." + d.Func.Name.Name,
-				ValueType: schema2.String,
+				ValueType: schema.String,
 				StartPos:  d.Func.Name.Pos(),
 				EndPos:    d.Func.Name.End(),
 			}},
@@ -211,7 +211,7 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 	}
 
 	// Make sure the last return is of type error.
-	if err := sig.Results[numResults-1]; !schemautil.IsBuiltinKind(err.Type, schema2.Error) {
+	if err := sig.Results[numResults-1]; !schemautil.IsBuiltinKind(err.Type, schema.Error) {
 		errs.Add(errLastResultMustBeError.AtGoNode(err.AST))
 		return
 	}
@@ -243,28 +243,28 @@ func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
 // validatePathParam validates that the given func parameter is compatible with the given path segment.
 // It checks that the names match and that the func parameter is of a permissible type.
 // It returns the func parameter's builtin kind.
-func validatePathParam(errs *perr.List, param schema2.Param, seg *apipaths.Segment) schema2.BuiltinKind {
+func validatePathParam(errs *perr.List, param schema.Param, seg *apipaths.Segment) schema.BuiltinKind {
 	if !option.Contains(param.Name, seg.Value) {
 		errs.Add(errUnexpectedParameterName(param.Name, seg.Value, seg.String()).AtGoNode(seg).AtGoNode(param.AST))
 	}
 
-	builtin, _ := param.Type.(schema2.BuiltinType)
+	builtin, _ := param.Type.(schema.BuiltinType)
 	b := builtin.Kind
 
 	// Wildcard path parameters must be strings.
-	if seg.Type == apipaths.Wildcard && b != schema2.String {
+	if seg.Type == apipaths.Wildcard && b != schema.String {
 		errs.Add(errWildcardMustBeString(param.Name).AtGoNode(seg).AtGoNode(param.AST))
 	}
 
 	switch b {
-	case schema2.String, schema2.Bool,
-		schema2.Int, schema2.Int8, schema2.Int16, schema2.Int32, schema2.Int64,
-		schema2.Uint, schema2.Uint8, schema2.Uint16, schema2.Uint32, schema2.Uint64,
-		schema2.UUID:
+	case schema.String, schema.Bool,
+		schema.Int, schema.Int8, schema.Int16, schema.Int32, schema.Int64,
+		schema.Uint, schema.Uint8, schema.Uint16, schema.Uint32, schema.Uint64,
+		schema.UUID:
 		return b
 	default:
 		errs.Add(errInvalidPathParamType(param.Name).AtGoNode(seg).AtGoNode(param.AST))
-		return schema2.Invalid
+		return schema.Invalid
 	}
 }
 

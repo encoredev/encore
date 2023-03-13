@@ -9,11 +9,11 @@ import (
 	"encr.dev/v2/codegen/infragen/metricsgen"
 	"encr.dev/v2/codegen/infragen/secretsgen"
 	"encr.dev/v2/internal/paths"
-	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/infra/resource/cache"
-	"encr.dev/v2/parser/infra/resource/config"
-	"encr.dev/v2/parser/infra/resource/metrics"
-	"encr.dev/v2/parser/infra/resource/secrets"
+	"encr.dev/v2/parser/infra/cache"
+	"encr.dev/v2/parser/infra/config"
+	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/secrets"
+	"encr.dev/v2/parser/resource"
 )
 
 func Process(gg *codegen.Generator, appDesc *app.Desc) {

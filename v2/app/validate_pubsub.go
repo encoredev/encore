@@ -4,7 +4,7 @@ import (
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/parser/infra/resource/pubsub"
+	"encr.dev/v2/parser/infra/pubsub"
 )
 
 func (d *Desc) validatePubSub(pc *parsectx.Context) {

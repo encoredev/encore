@@ -14,7 +14,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser/apis/directive"
 )
@@ -36,10 +36,10 @@ func TestParseServiceStruct(t *testing.T) {
 type Foo struct {}
 `,
 			want: &ServiceStruct{
-				Decl: &schema2.TypeDecl{
+				Decl: &schema.TypeDecl{
 					File:       file,
 					Name:       "Foo",
-					Type:       schema2.StructType{},
+					Type:       schema.StructType{},
 					TypeParams: nil,
 				},
 			},
@@ -52,23 +52,23 @@ type Foo struct {}
 func initFoo() (*Foo, error) {}
 `,
 			want: &ServiceStruct{
-				Decl: &schema2.TypeDecl{
+				Decl: &schema.TypeDecl{
 					File:       file,
 					Name:       "Foo",
-					Type:       schema2.StructType{},
+					Type:       schema.StructType{},
 					TypeParams: nil,
 				},
-				Init: option.Some(&schema2.FuncDecl{
+				Init: option.Some(&schema.FuncDecl{
 					Name: "initFoo",
-					Type: schema2.FuncType{
-						Results: []schema2.Param{
-							{Type: schema2.PointerType{Elem: schema2.NamedType{
+					Type: schema.FuncType{
+						Results: []schema.Param{
+							{Type: schema.PointerType{Elem: schema.NamedType{
 								DeclInfo: &pkginfo.PkgDeclInfo{
 									Name: "Foo",
 									Type: token.TYPE,
 								},
 							}}},
-							{Type: schema2.BuiltinType{Kind: schema2.Error}},
+							{Type: schema.BuiltinType{Kind: schema.Error}},
 						},
 					},
 				}),
@@ -145,7 +145,7 @@ package foo
 			tc.GoModDownload()
 
 			l := pkginfo.New(tc.Context)
-			schemaParser := schema2.NewParser(tc.Context, l)
+			schemaParser := schema.NewParser(tc.Context, l)
 
 			if len(test.wantErrs) > 0 {
 				defer tc.DeferExpectError(test.wantErrs...)
@@ -176,9 +176,9 @@ package foo
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
+					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(schema2.StructField{}, schema2.NamedType{}),
+					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),

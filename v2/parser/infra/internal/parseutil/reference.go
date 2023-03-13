@@ -7,7 +7,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/infra/internal/locations"
-	"encr.dev/v2/parser/infra/resource"
+	"encr.dev/v2/parser/resource"
 )
 
 type ReferenceSpec struct {

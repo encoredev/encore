@@ -12,7 +12,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/directive"
@@ -40,7 +40,7 @@ func Foo(ctx context.Context) error {}
 				Doc:    "Foo does things.\n",
 				Access: Public,
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo.Foo", ValueType: schema2.String},
+					{Type: apipaths.Literal, Value: "foo.Foo", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
 			},
@@ -56,7 +56,7 @@ func Foo(ctx context.Context) error {}
 				Doc:    "",
 				Access: Private,
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo", ValueType: schema2.String},
+					{Type: apipaths.Literal, Value: "foo", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"PUT"},
 				Tags:        selector.Set{{Type: selector.Tag, Value: "some-tag"}},
@@ -73,7 +73,7 @@ func Foo(ctx context.Context, key string) error {}
 				Doc:    "",
 				Access: Auth,
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Param, Value: "key", ValueType: schema2.String},
+					{Type: apipaths.Param, Value: "key", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
 			},
@@ -89,8 +89,8 @@ func Foo(ctx context.Context, key int) error {}
 				Doc:    "",
 				Access: Auth,
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo", ValueType: schema2.String},
-					{Type: apipaths.Param, Value: "key", ValueType: schema2.Int},
+					{Type: apipaths.Literal, Value: "foo", ValueType: schema.String},
+					{Type: apipaths.Param, Value: "key", ValueType: schema.Int},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
 			},
@@ -108,7 +108,7 @@ func Raw(w http.ResponseWriter, req *http.Request) {}
 				Access: Public,
 				Raw:    true,
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "raw", ValueType: schema2.String},
+					{Type: apipaths.Literal, Value: "raw", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"*"},
 			},
@@ -147,7 +147,7 @@ package foo
 			tc.GoModDownload()
 
 			l := pkginfo.New(tc.Context)
-			schemaParser := schema2.NewParser(tc.Context, l)
+			schemaParser := schema.NewParser(tc.Context, l)
 
 			if len(test.wantErrs) > 0 {
 				defer tc.DeferExpectError(test.wantErrs...)
@@ -177,9 +177,9 @@ package foo
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
+					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(schema2.StructField{}, schema2.NamedType{}),
+					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),

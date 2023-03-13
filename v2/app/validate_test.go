@@ -18,14 +18,14 @@ import (
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser"
-	"encr.dev/v2/parser/infra/resource/config"
-	"encr.dev/v2/parser/infra/resource/cron"
-	"encr.dev/v2/parser/infra/resource/metrics"
-	"encr.dev/v2/parser/infra/resource/pubsub"
-	"encr.dev/v2/parser/infra/usage"
+	"encr.dev/v2/parser/infra/config"
+	"encr.dev/v2/parser/infra/cron"
+	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/pubsub"
+	"encr.dev/v2/parser/resource/usage"
 )
 
 var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
@@ -132,16 +132,16 @@ func TestValidation(t *testing.T) {
 							if rpc == nil {
 								ts.Fatalf("rpc is nil")
 							}
-							recvName := option.Map(rpc.Recv, func(recv *schema2.Receiver) string {
+							recvName := option.Map(rpc.Recv, func(recv *schema.Receiver) string {
 								switch t := recv.Type.(type) {
-								case *schema2.NamedType:
+								case *schema.NamedType:
 									return "*" + t.Decl().Name
-								case schema2.NamedType:
+								case schema.NamedType:
 									return "*" + t.Decl().Name
-								case *schema2.PointerType:
-									return "*" + t.Elem.(*schema2.NamedType).Decl().Name
-								case schema2.PointerType:
-									return "*" + t.Elem.(schema2.NamedType).Decl().Name
+								case *schema.PointerType:
+									return "*" + t.Elem.(*schema.NamedType).Decl().Name
+								case schema.PointerType:
+									return "*" + t.Elem.(schema.NamedType).Decl().Name
 								default:
 									panic(fmt.Sprintf("a reciver should only be a named type or pointer type: got %T", t))
 								}

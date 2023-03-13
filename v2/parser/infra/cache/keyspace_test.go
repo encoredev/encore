@@ -5,7 +5,7 @@ import (
 
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schematest"
-	"encr.dev/v2/parser/infra/resource/resourcetest"
+	"encr.dev/v2/parser/resource/resourcetest"
 )
 
 func TestParseKeyspace(t *testing.T) {

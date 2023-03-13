@@ -9,8 +9,8 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis"
 	"encr.dev/v2/parser/infra"
-	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/infra/usage"
+	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/usage"
 )
 
 func NewParser(c *parsectx.Context) *Parser {

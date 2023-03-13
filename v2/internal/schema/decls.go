@@ -5,7 +5,7 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
-	pkginfo2 "encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/pkginfo"
 )
 
 // Decl is the common interface for different kinds of declarations.
@@ -36,10 +36,10 @@ type TypeDecl struct {
 	// AST is the AST node that this declaration represents.
 	AST *ast.TypeSpec
 
-	Info *pkginfo2.PkgDeclInfo // the underlying declaration info
-	File *pkginfo2.File        // the file declaring the type
-	Name string                // name of the type declaration
-	Type Type                  // the declaration's underlying type
+	Info *pkginfo.PkgDeclInfo // the underlying declaration info
+	File *pkginfo.File        // the file declaring the type
+	Name string               // name of the type declaration
+	Type Type                 // the declaration's underlying type
 
 	// TypeParams are any type parameters on this declaration.
 	// (note: instantiated types used within this declaration would not be captured here)
@@ -61,7 +61,7 @@ type DeclTypeParam struct {
 type FuncDecl struct {
 	AST *ast.FuncDecl
 
-	File *pkginfo2.File           // the file declaring the type
+	File *pkginfo.File            // the file declaring the type
 	Name string                   // the name of the function
 	Recv option.Option[*Receiver] // none if not a method
 	Type FuncType                 // signature
@@ -99,7 +99,7 @@ func (d *FuncDecl) TypeParameters() []DeclTypeParam { return d.TypeParams }
 
 // ParseTypeDecl parses the type from a package declaration.
 // It errors if the declaration is not a type.
-func (p *Parser) ParseTypeDecl(d *pkginfo2.PkgDeclInfo) *TypeDecl {
+func (p *Parser) ParseTypeDecl(d *pkginfo.PkgDeclInfo) *TypeDecl {
 	pkg := d.File.Pkg
 
 	// Have we already parsed this?
@@ -148,7 +148,7 @@ func (p *Parser) ParseTypeDecl(d *pkginfo2.PkgDeclInfo) *TypeDecl {
 
 // ParseFuncDecl parses the func from a package declaration.
 // It errors if the type is not a func declaration.
-func (p *Parser) ParseFuncDecl(file *pkginfo2.File, fd *ast.FuncDecl) (*FuncDecl, bool) {
+func (p *Parser) ParseFuncDecl(file *pkginfo.File, fd *ast.FuncDecl) (*FuncDecl, bool) {
 	// Have we already parsed this?
 	key := declKey{pkg: file.Pkg.ImportPath, name: fd.Name.Name}
 

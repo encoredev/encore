@@ -7,7 +7,7 @@ import (
 
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/parser/infra/resource/secrets"
+	"encr.dev/v2/parser/infra/secrets"
 )
 
 func Gen(gen *codegen.Generator, pkg *pkginfo.Package, secrets []*secrets.Secrets) {

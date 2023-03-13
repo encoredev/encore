@@ -12,12 +12,12 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
-	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/infra/resource/cache"
-	"encr.dev/v2/parser/infra/resource/config"
-	"encr.dev/v2/parser/infra/resource/cron"
-	"encr.dev/v2/parser/infra/resource/metrics"
-	"encr.dev/v2/parser/infra/resource/pubsub"
+	"encr.dev/v2/parser/infra/cache"
+	"encr.dev/v2/parser/infra/config"
+	"encr.dev/v2/parser/infra/cron"
+	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/pubsub"
+	"encr.dev/v2/parser/resource"
 )
 
 type builder struct {

@@ -10,7 +10,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/selector"
@@ -19,7 +19,7 @@ import (
 
 // Middleware describes an Encore middleware.
 type Middleware struct {
-	Decl *schema2.FuncDecl
+	Decl *schema.FuncDecl
 	Doc  string
 	File *pkginfo.File // file it's declared in
 
@@ -30,12 +30,12 @@ type Middleware struct {
 	Target selector.Set
 
 	// Recv is the type the middleware is defined as a method on, if any.
-	Recv option.Option[*schema2.Receiver]
+	Recv option.Option[*schema.Receiver]
 }
 
 type ParseData struct {
 	Errs   *perr.List
-	Schema *schema2.Parser
+	Schema *schema.Parser
 
 	File *pkginfo.File
 	Func *ast.FuncDecl

@@ -7,7 +7,7 @@ import (
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/parser"
-	"encr.dev/v2/parser/infra/resource"
+	"encr.dev/v2/parser/resource"
 )
 
 // discoverServices discovers the services in the whole application.

@@ -13,7 +13,7 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
-	pkginfo2 "encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/testutil"
 )
 
@@ -228,7 +228,7 @@ var x ` + test.typ + `
 			tc := testutil.NewContext(c, false, a)
 			tc.GoModDownload()
 
-			l := pkginfo2.New(tc.Context)
+			l := pkginfo.New(tc.Context)
 			p := NewParser(tc.Context, l)
 
 			if len(test.wantErrs) > 0 {
@@ -248,10 +248,10 @@ var x ` + test.typ + `
 				var options []cmp.Option
 				options = []cmp.Option{
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&pkginfo2.File{}),
+					cmpopts.IgnoreTypes(&pkginfo.File{}),
 					cmpopts.EquateEmpty(),
 					cmpopts.IgnoreUnexported(StructField{}),
-					cmp.Comparer(func(a, b *pkginfo2.Package) bool {
+					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
 					cmp.Comparer(func(a, b NamedType) bool {
@@ -356,7 +356,7 @@ package foo
 			tc := testutil.NewContext(c, false, a)
 			tc.GoModDownload()
 
-			l := pkginfo2.New(tc.Context)
+			l := pkginfo.New(tc.Context)
 			p := NewParser(tc.Context, l)
 
 			if len(test.wantErrs) > 0 {
@@ -379,17 +379,17 @@ package foo
 			}
 			c.Assert(fd, qt.IsNotNil)
 
-			got := p.ParseFuncDecl(f, fd)
+			got, ok := p.ParseFuncDecl(f, fd)
 
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				var options []cmp.Option
 				options = []cmp.Option{
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&pkginfo2.File{}),
+					cmpopts.IgnoreTypes(&pkginfo.File{}),
 					cmpopts.EquateEmpty(),
 					cmpopts.IgnoreUnexported(StructField{}),
-					cmp.Comparer(func(a, b *pkginfo2.Package) bool {
+					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
 					cmp.Comparer(func(a, b NamedType) bool {
@@ -412,7 +412,7 @@ func namedTypeWithDecl(decl *TypeDecl, typeArgs ...Type) NamedType {
 		AST:      nil,
 		TypeArgs: typeArgs,
 		// Approximate the PkgDeclInfo
-		DeclInfo: &pkginfo2.PkgDeclInfo{
+		DeclInfo: &pkginfo.PkgDeclInfo{
 			Name: decl.Name,
 			File: decl.File,
 			Pos:  token.NoPos,
@@ -423,8 +423,8 @@ func namedTypeWithDecl(decl *TypeDecl, typeArgs ...Type) NamedType {
 	}
 }
 
-func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo2.File {
-	return &pkginfo2.File{Pkg: &pkginfo2.Package{
+func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo.File {
+	return &pkginfo.File{Pkg: &pkginfo.Package{
 		Name:       pkgName,
 		ImportPath: pkgPath,
 	}}

@@ -6,7 +6,7 @@ import (
 	"go/ast"
 
 	"encr.dev/v2/internal/paths"
-	"encr.dev/v2/parser/infra/resource"
+	"encr.dev/v2/parser/resource"
 )
 
 const sqldbPkg paths.Pkg = "encore.dev/storage/sqldb"

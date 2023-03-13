@@ -6,8 +6,8 @@ import (
 
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/infra/usage"
+	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/usage"
 )
 
 // ComputeDesc computes the infrastructure description

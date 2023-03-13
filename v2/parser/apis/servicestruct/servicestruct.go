@@ -9,7 +9,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/internal/utils"
@@ -17,17 +17,17 @@ import (
 
 // ServiceStruct describes a dependency injection struct for a service.
 type ServiceStruct struct {
-	Decl *schema2.TypeDecl // decl is the type declaration
+	Decl *schema.TypeDecl // decl is the type declaration
 	Doc  string
 
 	// Init is the function for initializing this group.
 	// It is nil if there is no initialization function.
-	Init option.Option[*schema2.FuncDecl]
+	Init option.Option[*schema.FuncDecl]
 }
 
 type ParseData struct {
 	Errs   *perr.List
-	Schema *schema2.Parser
+	Schema *schema.Parser
 
 	File *pkginfo.File
 	Decl *ast.GenDecl
@@ -79,7 +79,7 @@ func validateServiceStruct(d ParseData, ss *ServiceStruct) {
 		d.Errs.Add(errServiceStructMustNotBeGeneric.AtGoNode(ss.Decl.TypeParams[0].AST))
 	}
 
-	ss.Init.ForAll(func(initFunc *schema2.FuncDecl) {
+	ss.Init.ForAll(func(initFunc *schema.FuncDecl) {
 		if len(initFunc.TypeParams) > 0 {
 			d.Errs.Add(errServiceInitCannotBeGeneric.AtGoNode(initFunc.TypeParams[0].AST))
 		}
@@ -99,7 +99,7 @@ func validateServiceStruct(d ParseData, ss *ServiceStruct) {
 						fmt.Sprintf("got %s", utils.PrettyPrint(initFunc.Type.Results[0].Type.ASTExpr())),
 					)),
 			)
-		} else if !schemautil.IsBuiltinKind(initFunc.Type.Results[1].Type, schema2.Error) {
+		} else if !schemautil.IsBuiltinKind(initFunc.Type.Results[1].Type, schema.Error) {
 			// Second type is not builtin error.
 			d.Errs.Add(
 				errServiceInitInvalidReturnType(ss.Decl.Name).

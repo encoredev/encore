@@ -12,9 +12,9 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/v2/internal/pkginfo"
-	schema2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
-	"encr.dev/v2/parser/infra/resource"
+	"encr.dev/v2/parser/resource"
 )
 
 type Case[R resource.Resource] struct {
@@ -63,7 +63,7 @@ package foo
 			tc.GoModDownload()
 
 			l := pkginfo.New(tc.Context)
-			schemaParser := schema2.NewParser(tc.Context, l)
+			schemaParser := schema.NewParser(tc.Context, l)
 
 			if len(test.WantErrs) > 0 {
 				defer tc.DeferExpectError(test.WantErrs...)
@@ -87,9 +87,9 @@ package foo
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				opts := append([]cmp.Option{
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
-					cmpopts.IgnoreTypes(&schema2.FuncDecl{}, &schema2.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
+					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(schema2.StructField{}, schema2.NamedType{}),
+					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),

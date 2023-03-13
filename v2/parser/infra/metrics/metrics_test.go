@@ -3,7 +3,7 @@ package metrics
 import (
 	"testing"
 
-	"encr.dev/v2/parser/infra/resource/resourcetest"
+	"encr.dev/v2/parser/resource/resourcetest"
 )
 
 func TestParseMetrics(t *testing.T) {

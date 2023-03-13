@@ -9,8 +9,8 @@ import (
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/parser/infra/resource"
-	"encr.dev/v2/parser/infra/resource/sqldb"
+	"encr.dev/v2/parser/infra/sqldb"
+	"encr.dev/v2/parser/resource"
 )
 
 // computeImplicitSQLDBUsage computes the implicit usage of SQLDB resources via package-level

@@ -21,7 +21,7 @@ import (
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
-	"encr.dev/v2/parser/infra/resource/pubsub"
+	"encr.dev/v2/parser/infra/pubsub"
 )
 
 type GenParams struct {

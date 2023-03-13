@@ -20,7 +20,6 @@ import (
 
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
-	perr2 "encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/testutil"
 )
 

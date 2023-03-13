@@ -15,11 +15,11 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
-	pkginfo2 "encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/pkginfo"
 )
 
 // NewParser constructs a new schema parser.
-func NewParser(c *parsectx.Context, l *pkginfo2.Loader) *Parser {
+func NewParser(c *parsectx.Context, l *pkginfo.Loader) *Parser {
 	return &Parser{
 		c:     c,
 		l:     l,
@@ -30,14 +30,14 @@ func NewParser(c *parsectx.Context, l *pkginfo2.Loader) *Parser {
 // Parser parses Go types into Encore's schema format.
 type Parser struct {
 	c *parsectx.Context
-	l *pkginfo2.Loader
+	l *pkginfo.Loader
 
 	declsMu sync.Mutex
 	decls   map[declKey]Decl // pkg/path.Name -> decl
 }
 
 // ParseType parses the schema from a type expression.
-func (p *Parser) ParseType(file *pkginfo2.File, expr ast.Expr) Type {
+func (p *Parser) ParseType(file *pkginfo.File, expr ast.Expr) Type {
 	r := p.newTypeResolver(nil, nil)
 	return r.parseType(file, expr)
 }
@@ -71,7 +71,7 @@ type typeResolver struct {
 	typeParamsInScope map[string]int
 }
 
-func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
+func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 	typ := func() Type {
 		switch expr := expr.(type) {
 		case *ast.StarExpr:
@@ -237,7 +237,7 @@ func (r *typeResolver) parseType(file *pkginfo2.File, expr ast.Expr) Type {
 }
 
 // parseFuncType parses an *ast.FuncType into a *FuncType.
-func (r *typeResolver) parseFuncType(file *pkginfo2.File, ft *ast.FuncType) FuncType {
+func (r *typeResolver) parseFuncType(file *pkginfo.File, ft *ast.FuncType) FuncType {
 	res := FuncType{
 		AST:     ft,
 		Params:  make([]Param, 0, ft.Params.NumFields()),
@@ -285,7 +285,7 @@ func (r *typeResolver) parseFuncType(file *pkginfo2.File, ft *ast.FuncType) Func
 	return res
 }
 
-func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo2.File, indexExpr, expr ast.Expr, typeArgs []ast.Expr) Type {
+func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo.File, indexExpr, expr ast.Expr, typeArgs []ast.Expr) Type {
 	baseType := r.parseType(file, expr)
 	if baseType.Family() != Named {
 		r.errs.Addf(expr.Pos(), "cannot use type arguments with non-named type %s", types.ExprString(baseType.ASTExpr()))
@@ -314,7 +314,7 @@ const (
 )
 
 // parseRecv parses a receiver AST into a Receiver.
-func (p *Parser) parseRecv(f *pkginfo2.File, fields *ast.FieldList) (*Receiver, bool) {
+func (p *Parser) parseRecv(f *pkginfo.File, fields *ast.FieldList) (*Receiver, bool) {
 	if fields.NumFields() != 1 {
 		p.c.Errs.Add(errExpectedOnReciever(fields.NumFields()).AtGoNode(fields))
 		return nil, false
@@ -416,7 +416,7 @@ func (p *Parser) resolveReceiverIdent(expr ast.Expr) *ast.Ident {
 }
 
 // newNamedType is a helper to construct a lazy-loaded NamedType.
-func newNamedType(p *Parser, expr ast.Expr, info *pkginfo2.PkgDeclInfo) NamedType {
+func newNamedType(p *Parser, expr ast.Expr, info *pkginfo.PkgDeclInfo) NamedType {
 	return NamedType{
 		AST:      expr,
 		DeclInfo: info,

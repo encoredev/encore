@@ -13,7 +13,7 @@ import (
 	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
-	"encr.dev/v2/parser/infra/resource"
+	"encr.dev/v2/parser/resource"
 )
 
 type Keyspace struct {

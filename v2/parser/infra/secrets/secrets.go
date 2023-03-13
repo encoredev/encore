@@ -11,7 +11,7 @@ import (
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/parseutil"
-	"encr.dev/v2/parser/infra/resource"
+	"encr.dev/v2/parser/resource"
 )
 
 // Secrets represents a secrets struct.

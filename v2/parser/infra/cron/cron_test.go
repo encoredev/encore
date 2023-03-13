@@ -3,7 +3,7 @@ package cron
 import (
 	"testing"
 
-	"encr.dev/v2/parser/infra/resource/resourcetest"
+	"encr.dev/v2/parser/resource/resourcetest"
 )
 
 func TestParseJob(t *testing.T) {
