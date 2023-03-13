@@ -148,14 +148,17 @@ func (p *Parser) ParseTypeDecl(d *pkginfo2.PkgDeclInfo) *TypeDecl {
 
 // ParseFuncDecl parses the func from a package declaration.
 // It errors if the type is not a func declaration.
-func (p *Parser) ParseFuncDecl(file *pkginfo2.File, fd *ast.FuncDecl) *FuncDecl {
+func (p *Parser) ParseFuncDecl(file *pkginfo2.File, fd *ast.FuncDecl) (*FuncDecl, bool) {
 	// Have we already parsed this?
 	key := declKey{pkg: file.Pkg.ImportPath, name: fd.Name.Name}
 
 	// Is there a receiver? If so we need to add that to the cache key.
 	var recv option.Option[*Receiver]
 	if fd.Recv != nil {
-		r := p.parseRecv(file, fd.Recv)
+		r, ok := p.parseRecv(file, fd.Recv)
+		if !ok {
+			return nil, false
+		}
 		key.recvName = r.Decl.Name
 		recv = option.Some(r)
 	}
@@ -166,9 +169,10 @@ func (p *Parser) ParseFuncDecl(file *pkginfo2.File, fd *ast.FuncDecl) *FuncDecl 
 
 	if ok {
 		if fd, ok := cached.(*FuncDecl); ok {
-			return fd
+			return fd, true
 		} else {
-			p.c.Errs.Fatalf(fd.AST.Pos(), "decl %s is not a FuncDecl", fd.Name)
+			p.c.Errs.Add(errDeclIsntFunction(fd.Name).AtGoNode(fd.AST))
+			return nil, false
 		}
 	}
 
@@ -202,7 +206,7 @@ func (p *Parser) ParseFuncDecl(file *pkginfo2.File, fd *ast.FuncDecl) *FuncDecl 
 	// Resolve the function type.
 	r := p.newTypeResolver(decl, typeParamsInScope)
 	decl.Type = r.parseFuncType(file, fd.Type)
-	return decl
+	return decl, true
 }
 
 // computeDeclTypeParams computes the type parameter placeholders for a declaration.

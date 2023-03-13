@@ -93,7 +93,7 @@ func build(workdir string, pkgPath paths.Pkg, overlays []OverlayFile) *Result {
 	errs := perr2.NewList(ctx, fs)
 	pc := &parsectx.Context{
 		Ctx: ctx,
-		Log: zerolog.New(zerolog.NewConsoleWriter()),
+		Log: zerolog.New(zerolog.NewConsoleWriter()).Level(zerolog.InfoLevel),
 		Build: parsectx.BuildInfo{
 			GOARCH: runtime.GOARCH,
 			GOOS:   runtime.GOOS,

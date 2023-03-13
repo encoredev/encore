@@ -168,7 +168,7 @@ func Parse(errs *perr.List, startPos token.Pos, path string) (parsedPath *Path, 
 		}
 		segs = append(segs, Segment{
 			Type: segType, Value: val, ValueType: schema.String,
-			StartPos: segStart, EndPos: segEnd,
+			StartPos: segStart - 1, EndPos: segEnd,
 		})
 		segStart = segEnd + 1
 	}

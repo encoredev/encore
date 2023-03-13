@@ -100,6 +100,16 @@ func (s SrcLocations) GroupByFile() []SrcLocations {
 
 	var nonOverlappingLocations []*locationGroup
 
+	inlineOnSameLine := func(a, b *SrcLocation) bool {
+		return a.Start.Line == a.End.Line &&
+			b.Start.Line == b.End.Line &&
+			a.Start.Line == b.Start.Line &&
+			a.Text == "" && b.Text == "" && // Don't inline if there is text as we don't support rendering this yet
+			((a.Start.Col > b.End.Col) ||
+				(a.End.Col < b.Start.Col))
+
+	}
+
 	// Add locations to groups on the same file without overlaps
 nextOriginalLoc:
 	for _, loc := range s {
@@ -108,7 +118,8 @@ nextOriginalLoc:
 			if grp.fileName == loc.File.FullPath {
 				for _, other := range grp.locations {
 					if other.Start.Line > loc.End.Line ||
-						other.End.Line < loc.Start.Line {
+						other.End.Line < loc.Start.Line ||
+						inlineOnSameLine(other, loc) {
 						grp.locations = append(grp.locations, loc)
 						continue nextOriginalLoc
 					}

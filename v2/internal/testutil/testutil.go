@@ -113,7 +113,7 @@ func newContextForFSPath(c *qt.C, mainModuleDir string, parseTests bool) *Contex
 
 	fset := token.NewFileSet()
 	parseCtx := &parsectx.Context{
-		Log:           zerolog.New(zerolog.NewConsoleWriter(zerolog.ConsoleTestWriter(c))),
+		Log:           zerolog.New(zerolog.NewConsoleWriter(zerolog.ConsoleTestWriter(c))).Level(zerolog.InfoLevel),
 		MainModuleDir: paths.RootedFSPath(mainModuleDir, mainModuleDir),
 		Ctx:           ctx,
 		Build:         info,

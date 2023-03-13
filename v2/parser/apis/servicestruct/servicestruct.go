@@ -62,7 +62,10 @@ func Parse(d ParseData) *ServiceStruct {
 	// Find the init function for this service struct, if any.
 	initFunc := d.File.Pkg.Names().PkgDecls["init"+ss.Decl.Name]
 	if initFunc != nil && initFunc.Type == token.FUNC {
-		ss.Init = option.Some(d.Schema.ParseFuncDecl(initFunc.File, initFunc.Func))
+		init, ok := d.Schema.ParseFuncDecl(initFunc.File, initFunc.Func)
+		if ok {
+			ss.Init = option.Some(init)
+		}
 	}
 
 	validateServiceStruct(d, ss)

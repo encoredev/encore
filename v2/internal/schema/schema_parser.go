@@ -314,10 +314,10 @@ const (
 )
 
 // parseRecv parses a receiver AST into a Receiver.
-func (p *Parser) parseRecv(f *pkginfo2.File, fields *ast.FieldList) *Receiver {
+func (p *Parser) parseRecv(f *pkginfo2.File, fields *ast.FieldList) (*Receiver, bool) {
 	if fields.NumFields() != 1 {
-		p.c.Errs.Fatal(fields.Pos(), "expected exactly one receiver")
-		return nil
+		p.c.Errs.Add(errExpectedOnReciever(fields.NumFields()).AtGoNode(fields))
+		return nil, false
 	}
 
 	// To properly parse the receiver in the presence of type parameters,
@@ -328,7 +328,8 @@ func (p *Parser) parseRecv(f *pkginfo2.File, fields *ast.FieldList) *Receiver {
 	recvIdent := p.resolveReceiverIdent(field.Type)
 	pkgDecl := f.Pkg.Names().PkgDecls[recvIdent.Name]
 	if pkgDecl == nil {
-		p.c.Errs.Fatalf(recvIdent.Pos(), "unknown identifier %s", recvIdent.Name)
+		p.c.Errs.Add(errUnknownIdentifier(recvIdent.Name).AtGoNode(recvIdent))
+		return nil, false
 	}
 	decl := p.ParseTypeDecl(pkgDecl)
 
@@ -347,7 +348,7 @@ func (p *Parser) parseRecv(f *pkginfo2.File, fields *ast.FieldList) *Receiver {
 		recv.Name = option.Some(field.Names[0].Name)
 	}
 
-	return recv
+	return recv, true
 }
 
 // parseEncoreBuiltin returns the builtin kind for the given package path and name.

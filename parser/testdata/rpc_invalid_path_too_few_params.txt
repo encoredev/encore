@@ -1,4 +1,5 @@
 ! parse
+expectError 'Expected function parameters named ''foo'', ''bar'' to match Endpoint path params.'
 err 'invalid API signature: expected function parameters named ''foo'', ''bar'' to match API path params'
 
 -- svc/svc.go --

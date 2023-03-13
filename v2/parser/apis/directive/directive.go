@@ -220,8 +220,8 @@ func parseOne(errs *perr.List, pos token.Pos, line string) (d Directive, ok bool
 
 	d.Name = fields[0].Value
 	d.start = pos
-	d.nameEnd = pos + token.Pos(len([]byte(d.Name)))
-	d.end = pos + token.Pos(len([]byte(line)))
+	d.nameEnd = pos + 7 + token.Pos(len([]byte(d.Name)))
+	d.end = pos + +7 + token.Pos(len([]byte(line)))
 
 	for _, f := range fields[1:] {
 		// seenKey is the key to use for detecting duplicates.

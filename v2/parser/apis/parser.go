@@ -68,7 +68,9 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Dir:    dir,
 						Doc:    doc,
 					})
-					res.Endpoints = append(res.Endpoints, r)
+					if r != nil {
+						res.Endpoints = append(res.Endpoints, r)
+					}
 					apiFrameworkUsed = true
 
 				case "authhandler":
@@ -80,7 +82,9 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Dir:    dir,
 						Doc:    doc,
 					})
-					res.AuthHandlers = append(res.AuthHandlers, r)
+					if r != nil {
+						res.AuthHandlers = append(res.AuthHandlers, r)
+					}
 					apiFrameworkUsed = true
 
 				case "middleware":
@@ -92,7 +96,9 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Dir:    dir,
 						Doc:    doc,
 					})
-					res.Middleware = append(res.Middleware, r)
+					if r != nil {
+						res.Middleware = append(res.Middleware, r)
+					}
 					apiFrameworkUsed = true
 
 				default:
@@ -123,7 +129,9 @@ func (p *Parser) Parse(pkg *pkginfo.Package) *ParseResult {
 						Dir:    dir,
 						Doc:    doc,
 					})
-					res.ServiceStructs = append(res.ServiceStructs, r)
+					if r != nil {
+						res.ServiceStructs = append(res.ServiceStructs, r)
+					}
 					apiFrameworkUsed = true
 
 				default:

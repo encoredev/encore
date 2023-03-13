@@ -2,6 +2,7 @@ package api
 
 import (
 	"go/ast"
+	"go/token"
 	"strings"
 	"sync"
 
@@ -95,7 +96,10 @@ func Parse(d ParseData) *Endpoint {
 		}
 	}
 
-	decl := d.Schema.ParseFuncDecl(d.File, d.Func)
+	decl, ok := d.Schema.ParseFuncDecl(d.File, d.Func)
+	if !ok {
+		return nil
+	}
 
 	rpc.Name = d.Func.Name.Name
 	rpc.Doc = d.Doc
@@ -183,10 +187,18 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 
 	if seenParams < len(pathParams) {
 		var missing []string
+		var missingParams []*apipaths.Segment
 		for i := seenParams; i < len(pathParams); i++ {
 			missing = append(missing, pathParams[i].Value)
+			missingParams = append(missingParams, pathParams[i])
 		}
-		errs.Add(errInvalidPathParams(strings.Join(missing, "', '")).AtGoNode(sig.AST.Params))
+
+		err := errInvalidPathParams(strings.Join(missing, "', '")).AtGoNode(sig.AST.Params)
+		for _, p := range missingParams {
+			err = err.AtGoNode(p)
+		}
+
+		errs.Add(err)
 	}
 
 	// First return value must be *T or *pkg.T
@@ -288,7 +300,7 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 		ValidateField: func(errs *perr.List, f directive.Field) (ok bool) {
 			switch f.Key {
 			case "path":
-				endpoint.Path, ok = apipaths.Parse(errs, dir.AST.Pos(), f.Value)
+				endpoint.Path, ok = apipaths.Parse(errs, f.End()-token.Pos(len([]byte(f.Value))-1), f.Value)
 				if !ok {
 					return false
 				}

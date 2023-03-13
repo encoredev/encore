@@ -71,6 +71,7 @@ func renderSrc(builder *strings.Builder, causes SrcLocations) {
 	bBuffer := new(bytes.Buffer)
 	bBuffer.Write(causes[0].File.Contents)
 	sc := bufio.NewScanner(bBuffer)
+linePrintLoop:
 	for sc.Scan() {
 		currentLine++
 
@@ -140,97 +141,119 @@ func renderSrc(builder *strings.Builder, causes SrcLocations) {
 			}
 		}
 
-		errorRendered := false
-		if currentCause.Start.Line < currentCause.End.Line {
-			// If a multiline error then render the currentCause.Start() and currentCause.End() pointers
-			color := aurora.BrightRed
-			switch currentCause.Type {
-			case LocWarning:
-				color = aurora.BrightYellow
-			case LocHelp:
-				color = aurora.BrightBlue
-			}
-			switch currentLine {
-			case currentCause.Start.Line:
-				if currentCause.Start.Col > 1 {
-					charCount := calcNumberCharactersForColumnNumber(sc.Text(), currentCause.Start.Col)
+		errorRendered := true
+		colOffset := 0
+		for errorRendered {
+			errorRendered = false
 
-					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%s%c", strings.Repeat(" ", charCount+3), set.UpArrow)).String())
-					builder.WriteString("\n")
-
-					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftTop, strings.Repeat(string(set.HorizontalBar), charCount+2), set.RightBottom)).String())
-					builder.WriteString("\n")
+			if currentCause.Start.Line < currentCause.End.Line {
+				// If a multiline error then render the currentCause.Start() and currentCause.End() pointers
+				color := aurora.BrightRed
+				switch currentCause.Type {
+				case LocWarning:
+					color = aurora.BrightYellow
+				case LocHelp:
+					color = aurora.BrightBlue
 				}
-			case currentCause.End.Line:
-				if currentCause.End.Col > 1 {
-					charCount := calcNumberCharactersForColumnNumber(sc.Text(), currentCause.End.Col)
+				switch currentLine {
+				case currentCause.Start.Line:
+					if currentCause.Start.Col > 1 {
+						charCount := calcNumberCharactersForColumnNumber(sc.Text(), currentCause.Start.Col)
 
-					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.VerticalBar, strings.Repeat(" ", charCount+2), set.UpArrow)).String())
-					builder.WriteString("\n")
+						lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
+						builder.WriteString(color(fmt.Sprintf("%s%c", strings.Repeat(" ", charCount+3), set.UpArrow)).String())
+						builder.WriteString("\n")
 
-					lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
-					builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftCross, strings.Repeat(string(set.HorizontalBar), charCount+2), set.RightBottom)).String())
-					builder.WriteString("\n")
+						lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
+						builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftTop, strings.Repeat(string(set.HorizontalBar), charCount+2), set.RightBottom)).String())
+						builder.WriteString("\n")
+					}
+				case currentCause.End.Line:
+					if currentCause.End.Col > 1 {
+						charCount := calcNumberCharactersForColumnNumber(sc.Text(), currentCause.End.Col)
+
+						lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
+						builder.WriteString(color(fmt.Sprintf("%c%s%c", set.VerticalBar, strings.Repeat(" ", charCount+2), set.UpArrow)).String())
+						builder.WriteString("\n")
+
+						lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
+						builder.WriteString(color(fmt.Sprintf("%c%s%c", set.LeftCross, strings.Repeat(string(set.HorizontalBar), charCount+2), set.RightBottom)).String())
+						builder.WriteString("\n")
+					}
+
+					// And on the final line also render the error message
+					renderErrorText(builder, 0, numDigitsInLineNumbers, "", 2, currentCause.Type, currentCause.Text, nil, true, true)
+					errorRendered = true
+				}
+			} else if currentLine == currentCause.End.Line {
+				var startCol, endCol int
+				startCol = currentCause.Start.Col
+				endCol = currentCause.End.Col
+
+				// Try and guess the atom where the error is
+				// if the currentCause.Start()/currentCause.End() point is the same position
+				if endCol <= startCol {
+					endCol = guessEndColumn(sc.Text(), startCol)
 				}
 
-				// And on the final line also render the error message
-				renderErrorText(builder, 0, numDigitsInLineNumbers, "", 2, currentCause.Type, currentCause.Text, nil)
-				errorRendered = true
-			}
-		} else if currentLine == currentCause.End.Line {
-			var startCol, endCol int
-			startCol = currentCause.Start.Col
-			endCol = currentCause.End.Col
+				// Work out how long the indicator is
+				indicatorLength := endCol - startCol
+				if indicatorLength <= 1 {
+					indicatorLength = 1
+				}
 
-			// Try and guess the atom where the error is
-			// if the currentCause.Start()/currentCause.End() point is the same position
-			if endCol <= startCol {
-				endCol = guessEndColumn(sc.Text(), startCol)
-			}
+				// Create out the error lines
+				errorLines := []string{""}
+				errorTextStart := indicatorLength + 1
 
-			// Work out how long the indicator is
-			indicatorLength := endCol - startCol
-			if indicatorLength <= 1 {
-				indicatorLength = 1
-			}
-
-			// Create out the error lines
-			errorLines := []string{""}
-			errorTextStart := indicatorLength + 1
-
-			if indicatorLength >= 2 {
-				half := float64(indicatorLength-1) / 2
-				errorTextStart = int(math.Floor(half)) + 2
-				if currentCause.Text != "" {
-					errorLines[0] = fmt.Sprintf(
-						"%s%c%s",
-						strings.Repeat(string(set.HorizontalBar), int(math.Floor(half))),
-						set.MiddleTop,
-						strings.Repeat(string(set.HorizontalBar), int(math.Ceil(half))),
-					)
+				if indicatorLength >= 2 {
+					half := float64(indicatorLength-1) / 2
+					errorTextStart = int(math.Floor(half)) + 2
+					if currentCause.Text != "" {
+						errorLines[0] = fmt.Sprintf(
+							"%s%c%s",
+							strings.Repeat(string(set.HorizontalBar), int(math.Floor(half))),
+							set.MiddleTop,
+							strings.Repeat(string(set.HorizontalBar), int(math.Ceil(half))),
+						)
+					} else {
+						errorLines[0] = strings.Repeat(string(set.HorizontalBar), indicatorLength)
+					}
 				} else {
-					errorLines[0] = strings.Repeat(string(set.HorizontalBar), indicatorLength)
+					errorLines[0] = string(set.UpArrow)
 				}
-			} else {
-				errorLines[0] = string(set.UpArrow)
+
+				renderNewLine := true
+				if currentCause.Text == "" {
+					if idx+1 < len(causes) {
+						nextCause := causes[idx+1]
+						if nextCause.Start.Line == currentLine && nextCause.End.Line == currentLine {
+							renderNewLine = false
+						}
+					}
+				}
+
+				renderGutter := colOffset == 0
+
+				renderErrorText(builder, startCol-colOffset, numDigitsInLineNumbers, sc.Text(), errorTextStart, currentCause.Type, currentCause.Text, errorLines, renderNewLine, renderGutter)
+				errorRendered = true
+				colOffset = endCol
 			}
 
-			renderErrorText(builder, startCol, numDigitsInLineNumbers, sc.Text(), errorTextStart, currentCause.Type, currentCause.Text, errorLines)
-			errorRendered = true
-		}
-
-		if errorRendered {
-			idx = idx + 1
-			if idx < len(causes) {
-				currentCause = causes[idx]
+			if errorRendered {
+				idx = idx + 1
+				if idx < len(causes) {
+					currentCause = causes[idx]
+				} else {
+					// stop looking for errors on this line
+					break
+				}
 			}
-		}
 
-		if currentLine > lastEnd.Line+linesAfterError {
-			break
+			if currentLine > lastEnd.Line+linesAfterError {
+				// stop printing al errors
+				break linePrintLoop
+			}
 		}
 	}
 
@@ -289,7 +312,7 @@ func calcNumberCharactersForColumnNumber(line string, col int) int {
 	return count
 }
 
-func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumbers int, srcLine string, errorTextStart int, typ LocationType, text string, errorLines []string) {
+func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumbers int, srcLine string, errorTextStart int, typ LocationType, text string, errorLines []string, renderNewLine bool, renderGutter bool) {
 	if text != "" {
 		lines := splitTextOnWords(text, errorTextStart)
 		for i, line := range lines {
@@ -316,7 +339,9 @@ func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumb
 
 	// Now write the error lines
 	for _, line := range errorLines {
-		lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
+		if renderGutter {
+			lineNumberSpacer(builder, numDigitsInLineNumbers, set.VerticalGap)
+		}
 		builder.WriteString(prefixWhitespace)
 
 		switch typ {
@@ -328,7 +353,9 @@ func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumb
 			builder.WriteString(aurora.BrightBlue(line).String())
 		}
 
-		builder.WriteString("\n")
+		if renderNewLine || len(errorLines) > 1 {
+			builder.WriteString("\n")
+		}
 	}
 }
 

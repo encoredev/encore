@@ -42,8 +42,12 @@ type ParseData struct {
 }
 
 // Parse parses the auth handler in the provided declaration.
+// It may return nil on errors.
 func Parse(d ParseData) *AuthHandler {
-	decl := d.Schema.ParseFuncDecl(d.File, d.Func)
+	decl, ok := d.Schema.ParseFuncDecl(d.File, d.Func)
+	if !ok {
+		return nil
+	}
 
 	ah := &AuthHandler{
 		Decl: decl,

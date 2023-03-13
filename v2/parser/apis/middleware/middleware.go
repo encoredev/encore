@@ -44,8 +44,12 @@ type ParseData struct {
 }
 
 // Parse parses the middleware in the provided declaration.
+// It may return nil on errors.
 func Parse(d ParseData) *Middleware {
-	decl := d.Schema.ParseFuncDecl(d.File, d.Func)
+	decl, ok := d.Schema.ParseFuncDecl(d.File, d.Func)
+	if !ok {
+		return nil
+	}
 
 	mw := &Middleware{
 		Decl:   decl,
@@ -54,7 +58,7 @@ func Parse(d ParseData) *Middleware {
 		Recv:   decl.Recv,
 		Global: d.Dir.HasOption("global"),
 	}
-	ok := directive.Validate(d.Errs, d.Dir, directive.ValidateSpec{
+	ok = directive.Validate(d.Errs, d.Dir, directive.ValidateSpec{
 		AllowedOptions: []string{"global"},
 		AllowedFields:  []string{"target"},
 		ValidateOption: nil,
