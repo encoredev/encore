@@ -18,4 +18,5 @@ type SomeOtherType struct {}
 
 //encore:api public
 func (s *SomeOtherType) Str(ctx context.Context, p *Params) error { return nil }
+
 -- want: errors --

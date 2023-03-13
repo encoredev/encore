@@ -17,6 +17,7 @@ func SomeAPI(ctx context.Context) error {
     topic := pubsub.NewTopic[MyMessage]("basic-topic")
     topic.Publish(ctx, &MyMessage{})
 }
+
 -- want: errors --
 
 ── Invalid call ───────────────────────────────────────────────────────────────────────────[E9999]──

@@ -23,4 +23,5 @@ import (
 func Foo() {
     _ = svc.MyAuth
 }
+
 -- want: errors --

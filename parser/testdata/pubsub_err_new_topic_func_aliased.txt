@@ -15,6 +15,7 @@ type MyMessage struct {}
 var creator = pubsub.NewTopic[MyMessage]
 
 var topic = creator("my-topic")
+
 -- want: errors --
 
 ── Invalid reference ──────────────────────────────────────────────────────────────────────[E9999]──

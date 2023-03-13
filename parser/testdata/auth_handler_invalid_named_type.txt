@@ -13,6 +13,7 @@ type Params int
 
 //encore:authhandler
 func MyAuth(ctx context.Context, p Params) (auth.UID, error) { return "", nil }
+
 -- want: errors --
 
 ── Invalid auth handler Signature ─────────────────────────────────────────────────────────[E9999]──
@@ -25,6 +26,7 @@ The second parameter must be a string or a pointer to a named struct.
  10 │ //encore:authhandler
  11 │ func MyAuth(ctx context.Context, p Params) (auth.UID, error) { return "", nil }
     ⋮                                    ──────
+ 12 │
 ────╯
 
 hint: valid signatures are:

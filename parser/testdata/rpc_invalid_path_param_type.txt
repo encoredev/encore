@@ -13,6 +13,7 @@ type Struct struct{}
 
 //encore:api public path=/str/:p
 func Str(ctx context.Context, p *Struct) error { return nil }
+
 -- want: errors --
 
 ── Invalid API Function ───────────────────────────────────────────────────────────────────[E9999]──
@@ -27,6 +28,7 @@ Path parameter "p" must be a string, bool, integer, or encore.dev/types/uuid.UUI
     ⋮                               ──
  11 │ func Str(ctx context.Context, p *Struct) error { return nil }
     ⋮                               ─────────
+ 12 │
 ────╯
 
 hint: valid signatures are:

@@ -22,6 +22,7 @@ var (
 func DoStuff(ctx context.Context) error {
     return BasicTopic.Publish(ctx, &MessageType{Name: "foo"})
 }
+
 -- want: errors --
 
 ── Invalid resource name ──────────────────────────────────────────────────────────────────[E9999]──

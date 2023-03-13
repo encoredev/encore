@@ -27,6 +27,7 @@ func DoStuff(ctx context.Context) error {
 func Subscriber(ctx context.Context, msg *MessageType) error {
     return nil
 }
+
 -- want: errors --
 
 ── Invalid Argument ───────────────────────────────────────────────────────────────────────[E9999]──

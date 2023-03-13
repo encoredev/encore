@@ -25,6 +25,7 @@ var keyspace = cache.NewStringKeyspace[Key](cluster, cache.KeyspaceConfig{
 func Foo(context.Context) error {
     return nil
 }
+
 -- want: errors --
 
 ── Invalid Cache Key Type ─────────────────────────────────────────────────────────────────[E9999]──

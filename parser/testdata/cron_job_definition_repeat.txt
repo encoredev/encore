@@ -46,4 +46,5 @@ func Cron(ctx context.Context) (*Response, error) {
 type Response struct {
 	Message string
 }
+
 -- want: errors --

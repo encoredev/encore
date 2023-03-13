@@ -29,4 +29,5 @@ func Foo(ctx context.Context) error {
     f()
     return nil
 }
+
 -- want: errors --

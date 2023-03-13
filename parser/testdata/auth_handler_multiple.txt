@@ -14,6 +14,7 @@ func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", ni
 
 //encore:authhandler
 func MyAuth2(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+
 -- want: errors --
 
 ── Multiple auth handlers found ───────────────────────────────────────────────────────────[E9999]──
@@ -33,6 +34,7 @@ defined per application.
  12 │ func MyAuth2(ctx context.Context, token string) (auth.UID, error) { return "", nil }
     ⋮  ────────────────────────────────┬────────────────────────────────
     ⋮                                  ╰─ second auth handler defined here
+ 13 │
 ────╯
 
 hint: valid signatures are:

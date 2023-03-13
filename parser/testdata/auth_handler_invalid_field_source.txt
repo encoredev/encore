@@ -19,6 +19,7 @@ type Params struct {
 
 //encore:authhandler
 func MyAuth(ctx context.Context, p *Params) (auth.UID, error) { return "", nil }
+
 -- want: errors --
 
 ── Invalid auth payload ───────────────────────────────────────────────────────────────────[E9999]──

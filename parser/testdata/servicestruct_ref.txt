@@ -27,4 +27,5 @@ import (
 func Bar(ctx context.Context) error { return nil }
 
 func Foo(s *svc.Service) {}
+
 -- want: errors --
