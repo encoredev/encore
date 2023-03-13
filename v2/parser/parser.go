@@ -100,8 +100,11 @@ func computeResult(errs *perr.List, appPackages []*pkginfo.Package, resources []
 	d := &Result{
 		appPackages: appPackages,
 		resources:   resources,
-		resMap:      make(map[resource.Resource]*resourceMeta),
-		byType:      make(map[reflect.Type][]resource.Resource),
+		allBinds:    binds,
+		allUsages:   usages,
+
+		resMap: make(map[resource.Resource]*resourceMeta),
+		byType: make(map[reflect.Type][]resource.Resource),
 	}
 	d.initResources()
 	d.initBinds(errs, binds)
@@ -120,8 +123,11 @@ func Resources[R resource.Resource](res *Result) []R {
 type Result struct {
 	appPackages []*pkginfo.Package
 	resources   []resource.Resource
-	resMap      map[resource.Resource]*resourceMeta
-	byType      map[reflect.Type][]resource.Resource
+	allBinds    []resource.Bind
+	allUsages   []usage.Usage
+
+	resMap map[resource.Resource]*resourceMeta
+	byType map[reflect.Type][]resource.Resource
 }
 
 func (d *Result) AppPackages() []*pkginfo.Package {
@@ -130,6 +136,14 @@ func (d *Result) AppPackages() []*pkginfo.Package {
 
 func (d *Result) Resources() []resource.Resource {
 	return d.resources
+}
+
+func (d *Result) AllBinds() []resource.Bind {
+	return d.allBinds
+}
+
+func (d *Result) AllUsages() []usage.Usage {
+	return d.allUsages
 }
 
 func (d *Result) Binds(res resource.Resource) []resource.Bind {

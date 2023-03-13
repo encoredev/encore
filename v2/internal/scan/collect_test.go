@@ -1,4 +1,4 @@
-package parser
+package scan
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ import (
 	"encr.dev/v2/internal/testutil"
 )
 
-func TestParsePackages(t *testing.T) {
+func TestProcessModule(t *testing.T) {
 	c := qt.New(t)
 	a := testutil.ParseTxtar(`
 -- go.mod --
@@ -23,12 +23,10 @@ package bar
 `)
 	tc := testutil.NewContext(c, false, a)
 	tc.FailTestOnErrors()
-	parser := NewParser(tc.Context)
+	loader := pkginfo.New(tc.Context)
 
-	var got []*pkginfo.Package
-	parser.collectPackages(func(pkg *pkginfo.Package) {
-		got = append(got, pkg)
-	})
+	var got testutil.PackageList
+	ProcessModule(tc.Errs, loader, tc.MainModuleDir, got.Collector())
 	c.Assert(got, qt.HasLen, 2)
 
 	// Sort the packages by import path since collectPackages processes

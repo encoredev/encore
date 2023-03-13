@@ -16,11 +16,8 @@ import (
 
 	"encr.dev/pkg/fns"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/scan"
-	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
-	"encr.dev/v2/parser/infra"
+	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/resource/usage"
 )
 
@@ -50,16 +47,12 @@ func TestParse(t *testing.T) {
 			tc.GoModTidy()
 			tc.GoModDownload()
 
-			loader := pkginfo.New(tc.Context)
-			schemaParser := schema.NewParser(tc.Context, loader)
-			infraParser := infra.NewParser(tc.Context, schemaParser)
+			p := parser.NewParser(tc.Context)
+			res := p.Parse()
 
-			var pkgs testutil.PackageList
-			scan.ProcessModule(tc.Errs, loader, tc.MainModuleDir, pkgs.Collector())
-			_, binds := infraParser.ParseMulti(pkgs)
-			usages := usage.Parse(tc.Errs, pkgs, binds)
-
-			got := fns.Map(usages, func(u usage.Usage) usageDesc { return usageToDesc(tc.Context, u) })
+			got := fns.Map(res.AllUsages(), func(u usage.Usage) usageDesc {
+				return usageToDesc(tc.Context, u)
+			})
 			want := test.wants
 
 			// Sort the slices to be able to compare them.
