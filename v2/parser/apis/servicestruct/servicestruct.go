@@ -99,7 +99,6 @@ func validateServiceStruct(d ParseData, ss *ServiceStruct) {
 						fmt.Sprintf("got %s", utils.PrettyPrint(initFunc.Type.Results[0].Type.ASTExpr())),
 					)),
 			)
-			d.Errs.Addf(initFunc.AST.Pos(), "service init function must return (*%s, error)", ss.Decl.Name)
 		} else if !schemautil.IsBuiltinKind(initFunc.Type.Results[1].Type, schema2.Error) {
 			// Second type is not builtin error.
 			d.Errs.Add(
