@@ -63,36 +63,3 @@ type PathEntry struct {
 	Kind Kind
 	Name string
 }
-
-func (p *Pass) AddBind(boundName *ast.Ident, resource Resource) {
-	if boundName.Name == "_" {
-		return
-	}
-
-	p.binds = append(p.binds, &PkgDeclBind{
-		Resource:  ResourceOrPath{Resource: resource},
-		Pkg:       p.Pkg,
-		BoundName: boundName,
-	})
-}
-
-func (p *Pass) AddPathBind(boundName *ast.Ident, path Path) {
-	if len(path) == 0 {
-		panic("AddPathBind: empty path")
-	} else if boundName.Name == "_" {
-		return
-	}
-
-	p.binds = append(p.binds, &PkgDeclBind{
-		Resource:  ResourceOrPath{Path: path},
-		Pkg:       p.Pkg,
-		BoundName: boundName,
-	})
-}
-
-func (p *Pass) AddImplicitBind(resource Resource) {
-	p.binds = append(p.binds, &ImplicitBind{
-		Resource: ResourceOrPath{Resource: resource},
-		Pkg:      p.Pkg,
-	})
-}

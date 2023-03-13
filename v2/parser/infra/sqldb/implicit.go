@@ -7,15 +7,16 @@ import (
 
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 const sqldbPkg paths.Pkg = "encore.dev/storage/sqldb"
 
-var ImplicitBindParser = &resource.Parser{
+var ImplicitBindParser = &resourceparser.Parser{
 	Name: "Implicit SQLDB binds",
 
 	InterestingImports: []paths.Pkg{sqldbPkg},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		defer func() {
 			if r := recover(); r != nil {
 				if _, isBailout := r.(bailout); isBailout {

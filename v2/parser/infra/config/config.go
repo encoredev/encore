@@ -10,6 +10,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 // Load represents a config load statement.
@@ -29,11 +30,11 @@ func (*Load) Kind() resource.Kind         { return resource.ConfigLoad }
 func (l *Load) Package() *pkginfo.Package { return l.File.Pkg }
 func (l *Load) ASTExpr() ast.Expr         { return l.AST }
 
-var LoadParser = &resource.Parser{
+var LoadParser = &resourceparser.Parser{
 	Name: "ConfigLoad",
 
 	InterestingImports: []paths.Pkg{"encore.dev/config"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/config", Name: "Load"}
 
 		spec := &parseutil.ReferenceSpec{

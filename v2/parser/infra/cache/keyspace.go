@@ -14,6 +14,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type Keyspace struct {
@@ -35,11 +36,11 @@ func (k *Keyspace) Kind() resource.Kind       { return resource.CacheKeyspace }
 func (k *Keyspace) Package() *pkginfo.Package { return k.File.Pkg }
 func (k *Keyspace) ASTExpr() ast.Expr         { return k.AST }
 
-var KeyspaceParser = &resource.Parser{
+var KeyspaceParser = &resourceparser.Parser{
 	Name: "Cache Keyspace",
 
 	InterestingImports: []paths.Pkg{"encore.dev/storage/cache"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		var (
 			names []pkginfo.QualifiedName
 			specs = make(map[pkginfo.QualifiedName]*parseutil.ReferenceSpec)

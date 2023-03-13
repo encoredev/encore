@@ -5,20 +5,21 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 func NewParser(c *parsectx.Context, schema *schema.Parser) *Parser {
 	return &Parser{
 		c:      c,
 		schema: schema,
-		reg:    newParserRegistry(allParsers),
+		reg:    resourceparser.NewRegistry(allParsers),
 	}
 }
 
 type Parser struct {
 	c      *parsectx.Context
 	schema *schema.Parser
-	reg    *parserRegistry
+	reg    *resourceparser.Registry
 }
 
 // Parse parses all the infra resources defined in the given package.
@@ -28,7 +29,7 @@ func (p *Parser) Parse(pkg *pkginfo.Package) ([]resource.Resource, []resource.Bi
 		return nil, nil
 	}
 
-	pass := &resource.Pass{
+	pass := &resourceparser.Pass{
 		Context:      p.c,
 		SchemaParser: p.schema,
 		Pkg:          pkg,

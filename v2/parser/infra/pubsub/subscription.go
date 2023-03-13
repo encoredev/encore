@@ -10,6 +10,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type Subscription struct {
@@ -34,11 +35,11 @@ func (s *Subscription) Package() *pkginfo.Package { return s.File.Pkg }
 func (s *Subscription) ASTExpr() ast.Expr         { return s.AST }
 func (s *Subscription) ResourceName() string      { return s.Name }
 
-var SubscriptionParser = &resource.Parser{
+var SubscriptionParser = &resourceparser.Parser{
 	Name: "PubSub Subscription",
 
 	InterestingImports: []paths.Pkg{"encore.dev/pubsub"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		name := pkginfo.QualifiedName{Name: "NewSubscription", PkgPath: "encore.dev/pubsub"}
 
 		spec := &parseutil.ReferenceSpec{

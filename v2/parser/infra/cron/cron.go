@@ -14,6 +14,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type Job struct {
@@ -30,11 +31,11 @@ func (j *Job) Package() *pkginfo.Package { return j.File.Pkg }
 func (j *Job) ASTExpr() ast.Expr         { return j.AST }
 func (j *Job) ResourceName() string      { return j.Name }
 
-var JobParser = &resource.Parser{
+var JobParser = &resourceparser.Parser{
 	Name: "Cron Job",
 
 	InterestingImports: []paths.Pkg{"encore.dev/cron"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/cron", Name: "NewJob"}
 
 		spec := &parseutil.ReferenceSpec{

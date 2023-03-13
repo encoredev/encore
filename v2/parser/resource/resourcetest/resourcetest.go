@@ -15,6 +15,7 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type Case[R resource.Resource] struct {
@@ -25,7 +26,7 @@ type Case[R resource.Resource] struct {
 	WantErrs []string
 }
 
-func Run[R resource.Resource](t *testing.T, parser *resource.Parser, tests []Case[R], cmpOpts ...cmp.Option) {
+func Run[R resource.Resource](t *testing.T, parser *resourceparser.Parser, tests []Case[R], cmpOpts ...cmp.Option) {
 	// testArchive renders the txtar archive to use for a given test.
 	testArchive := func(test Case[R]) *txtar.Archive {
 		importList := []string{"context"}
@@ -73,7 +74,7 @@ package foo
 			}
 
 			pkg := l.MustLoadPkg(token.NoPos, "example.com")
-			pass := &resource.Pass{
+			pass := &resourceparser.Pass{
 				Context:      tc.Context,
 				SchemaParser: schemaParser,
 				Pkg:          pkg,

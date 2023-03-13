@@ -380,6 +380,7 @@ package foo
 			c.Assert(fd, qt.IsNotNil)
 
 			got, ok := p.ParseFuncDecl(f, fd)
+			c.Assert(ok, qt.IsTrue)
 
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.

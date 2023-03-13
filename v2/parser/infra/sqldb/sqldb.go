@@ -12,6 +12,7 @@ import (
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type Database struct {
@@ -31,11 +32,11 @@ type MigrationFile struct {
 	Description string
 }
 
-var DatabaseParser = &resource.Parser{
+var DatabaseParser = &resourceparser.Parser{
 	Name: "SQL Database",
 
 	InterestingSubdirs: []string{"migrations"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		migrationDir := p.Pkg.FSPath.Join("migrations")
 		migrations, err := parseMigrations(p.Pkg, migrationDir)
 		if err != nil {

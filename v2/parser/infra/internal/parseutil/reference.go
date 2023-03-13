@@ -7,7 +7,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/infra/internal/locations"
-	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type ReferenceSpec struct {
@@ -18,7 +18,7 @@ type ReferenceSpec struct {
 }
 
 type ReferenceInfo struct {
-	Pass         *resource.Pass
+	Pass         *resourceparser.Pass
 	ResourceFunc pkginfo.QualifiedName
 	File         *pkginfo.File
 
@@ -37,7 +37,7 @@ type ReferenceData struct {
 	ResourceFunc pkginfo.QualifiedName
 }
 
-func ParseReference(p *resource.Pass, spec *ReferenceSpec, data ReferenceData) {
+func ParseReference(p *resourceparser.Pass, spec *ReferenceSpec, data ReferenceData) {
 	selIdx := len(data.Stack) - 1
 	constructor := data.ResourceFunc
 

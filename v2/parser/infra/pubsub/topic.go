@@ -15,6 +15,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type DeliveryGuarantee int
@@ -39,11 +40,11 @@ func (t *Topic) Package() *pkginfo.Package { return t.File.Pkg }
 func (t *Topic) ASTExpr() ast.Expr         { return t.AST }
 func (t *Topic) ResourceName() string      { return t.Name }
 
-var TopicParser = &resource.Parser{
+var TopicParser = &resourceparser.Parser{
 	Name: "PubSub Topic",
 
 	InterestingImports: []paths.Pkg{"encore.dev/pubsub"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		name := pkginfo.QualifiedName{Name: "NewTopic", PkgPath: "encore.dev/pubsub"}
 
 		spec := &parseutil.ReferenceSpec{

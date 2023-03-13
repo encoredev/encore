@@ -12,6 +12,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 // Secrets represents a secrets struct.
@@ -33,11 +34,11 @@ func (*Secrets) Kind() resource.Kind         { return resource.Secrets }
 func (s *Secrets) Package() *pkginfo.Package { return s.File.Pkg }
 func (s *Secrets) ASTExpr() ast.Expr         { return s.AST }
 
-var SecretsParser = &resource.Parser{
+var SecretsParser = &resourceparser.Parser{
 	Name:               "Secrets",
-	InterestingImports: resource.RunAlways,
+	InterestingImports: resourceparser.RunAlways,
 
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		secrets := p.Pkg.Names().PkgDecls["secrets"]
 		if secrets == nil || secrets.Type != token.VAR {
 			return // nothing to do

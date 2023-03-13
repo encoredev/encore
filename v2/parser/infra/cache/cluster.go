@@ -10,6 +10,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type Cluster struct {
@@ -25,11 +26,11 @@ func (c *Cluster) Package() *pkginfo.Package { return c.File.Pkg }
 func (c *Cluster) ASTExpr() ast.Expr         { return c.AST }
 func (c *Cluster) ResourceName() string      { return c.Name }
 
-var ClusterParser = &resource.Parser{
+var ClusterParser = &resourceparser.Parser{
 	Name: "Cache Cluster",
 
 	InterestingImports: []paths.Pkg{"encore.dev/storage/cache"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/storage/cache", Name: "NewCluster"}
 
 		spec := &parseutil.ReferenceSpec{

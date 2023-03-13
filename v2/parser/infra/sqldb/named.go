@@ -11,13 +11,14 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
-var NamedParser = &resource.Parser{
+var NamedParser = &resourceparser.Parser{
 	Name: "Named SQL Database",
 
 	InterestingImports: []paths.Pkg{"encore.dev/storage/sqldb"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		name := pkginfo.QualifiedName{Name: "Named", PkgPath: "encore.dev/storage/sqldb"}
 
 		spec := &parseutil.ReferenceSpec{

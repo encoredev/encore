@@ -14,6 +14,7 @@ import (
 	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/resourceparser"
 )
 
 type MetricType int
@@ -64,11 +65,11 @@ var metricConstructors = []metricConstructor{
 	{"NewGaugeGroup", "GaugeConfig", parseGaugeConfig, true, Gauge},
 }
 
-var MetricParser = &resource.Parser{
+var MetricParser = &resourceparser.Parser{
 	Name: "Metric",
 
 	InterestingImports: []paths.Pkg{"encore.dev/metrics"},
-	Run: func(p *resource.Pass) {
+	Run: func(p *resourceparser.Pass) {
 		var (
 			names []pkginfo.QualifiedName
 			specs = make(map[pkginfo.QualifiedName]*parseutil.ReferenceSpec)
