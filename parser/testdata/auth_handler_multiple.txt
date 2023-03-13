@@ -16,7 +16,7 @@ func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", ni
 func MyAuth2(ctx context.Context, token string) (auth.UID, error) { return "", nil }
 -- want: errors --
 
-── Multiple auth handlers found ───────────────────────────────────────────────────────────[E1037]──
+── Multiple auth handlers found ───────────────────────────────────────────────────────────[E9999]──
 
 Multiple auth handlers were found in the application. Encore only allows one auth handler to be
 defined per application.

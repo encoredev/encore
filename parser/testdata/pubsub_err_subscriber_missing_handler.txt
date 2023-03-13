@@ -29,9 +29,9 @@ func Subscriber(ctx context.Context, msg *MessageType) error {
 }
 -- want: errors --
 
-── Error ──────────────────────────────────────────────────────────────────────────────────[E0003]──
+── Invalid Argument ───────────────────────────────────────────────────────────────────────[E9999]──
 
-missing required field: Handler
+Missing required field `Handler`
 
     ╭─[ svc/svc.go:15:66 ]
     │

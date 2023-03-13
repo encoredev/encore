@@ -32,7 +32,7 @@ type Response struct {
 }
 -- want: errors --
 
-── Invalid call ───────────────────────────────────────────────────────────────────────────[E1293]──
+── Invalid call ───────────────────────────────────────────────────────────────────────────[E9999]──
 
 cron.NewJob cannot be called here. It must be called from a package level variable.
 

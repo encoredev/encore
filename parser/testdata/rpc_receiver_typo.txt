@@ -18,7 +18,7 @@ type Params struct{}
 func (s *Serviice) Str(ctx context.Context, p *Params) error { return nil }
 -- want: errors --
 
-── Unknown identifier ─────────────────────────────────────────────────────────────────────[E1001]──
+── Unknown identifier ─────────────────────────────────────────────────────────────────────[E9999]──
 
 Unknown identifier `Serviice`
 

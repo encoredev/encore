@@ -21,7 +21,7 @@ type Params struct {
 func MyAuth(ctx context.Context, p *Params) (auth.UID, error) { return "", nil }
 -- want: errors --
 
-── Invalid auth payload ───────────────────────────────────────────────────────────────────[E1036]──
+── Invalid auth payload ───────────────────────────────────────────────────────────────────[E9999]──
 
 All fields used within an auth payload must originate from either an HTTP header or a query
 parameter.

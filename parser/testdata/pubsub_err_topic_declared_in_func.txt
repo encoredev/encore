@@ -19,7 +19,7 @@ func SomeAPI(ctx context.Context) error {
 }
 -- want: errors --
 
-── Invalid call ───────────────────────────────────────────────────────────────────────────[E1293]──
+── Invalid call ───────────────────────────────────────────────────────────────────────────[E9999]──
 
 pubsub.NewTopic cannot be called here. It must be called from a package level variable.
 

@@ -114,8 +114,9 @@ func (l *List) Fatalf(pos token.Pos, format string, args ...any) {
 	l.Bailout()
 }
 
-func (l *List) Assert(err error, pos token.Pos) {
-	l.AssertPosition(err, l.fset.Position(pos))
+func (l *List) Assert(template errors.Template) {
+	l.Add(template)
+	l.Bailout()
 }
 
 func (l *List) AssertStd(err error) {

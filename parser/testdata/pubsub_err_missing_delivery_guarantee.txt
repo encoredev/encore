@@ -29,9 +29,9 @@ func Subscriber(ctx context.Context, msg *MessageType) error {
 }
 -- want: errors --
 
-── Error ──────────────────────────────────────────────────────────────────────────────────[E0003]──
+── Invalid Argument ───────────────────────────────────────────────────────────────────────[E9999]──
 
-missing required field: DeliveryGuarantee
+Missing required field `DeliveryGuarantee`
 
     ╭─[ svc/svc.go:14:63 ]
     │

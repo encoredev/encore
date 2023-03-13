@@ -26,7 +26,7 @@ func Foo(context.Context) error {
 }
 -- want: errors --
 
-── Invalid Cache Key Type ─────────────────────────────────────────────────────────────────[E1419]──
+── Invalid Cache Key Type ─────────────────────────────────────────────────────────────────[E9999]──
 
 The field Foo is invalid: must be a basic type
 

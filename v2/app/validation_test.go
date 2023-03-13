@@ -266,9 +266,14 @@ func assertGoldenErrors(ts *testscript.TestScript, errs *perr.List, sourceDir st
 	errs.MakeRelative(ts.Getenv("WORK"), "")
 	for i := 0; i < errs.Len(); i++ {
 		err := *errs.At(i) // Copy the error so we can modify it
+
 		// Remove the stack for the error, as it will change whenever the parser
 		// changes, and that's not what we're testing for
 		err.Stack = nil
+
+		// Remove the code for the error, as it will change whenever the parser
+		// has new errors introduced
+		err.Params.Code = 9999
 
 		if i != 0 {
 			b.WriteString("\n\n")

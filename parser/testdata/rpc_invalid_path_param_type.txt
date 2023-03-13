@@ -15,7 +15,7 @@ type Struct struct{}
 func Str(ctx context.Context, p *Struct) error { return nil }
 -- want: errors --
 
-── Invalid API Function ───────────────────────────────────────────────────────────────────[E1116]──
+── Invalid API Function ───────────────────────────────────────────────────────────────────[E9999]──
 
 Path parameter "p" must be a string, bool, integer, or encore.dev/types/uuid.UUID.
 

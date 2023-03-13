@@ -29,7 +29,7 @@ func Subscriber(ctx context.Context, msg *MessageType) error {
 }
 -- want: errors --
 
-── Invalid resource name ──────────────────────────────────────────────────────────────────[E1296]──
+── Invalid resource name ──────────────────────────────────────────────────────────────────[E9999]──
 
 The pubsub.NewSubscription subscription name must be defined in "kebab-case".
 

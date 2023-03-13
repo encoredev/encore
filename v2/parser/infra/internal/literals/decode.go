@@ -1,7 +1,6 @@
 package literals
 
 import (
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"reflect"
@@ -15,7 +14,7 @@ func Decode[T any](errs *perr.List, literal *Struct) T {
 	var decodeTo T
 	dst := reflect.ValueOf(&decodeTo)
 	if dst.Elem().Kind() != reflect.Struct {
-		panic("literals.Decode: type argument must be a struct")
+		errs.Assert(errArgumentMustBeStruct.AtGoNode(literal.ast))
 	}
 
 	dst = dst.Elem()
@@ -29,7 +28,7 @@ func Decode[T any](errs *perr.List, literal *Struct) T {
 	// Make sure all the fields we care about have been decoded and nothing else.
 	for _, f := range literal.FieldPaths() {
 		if !decodedFields[f] {
-			errs.Addf(literal.Pos(f), "unexpected field: %s", f)
+			errs.Add(errUnexpectedField.AtGoNode(literal.Expr(f)))
 		}
 	}
 
@@ -40,9 +39,9 @@ func decodeStruct(errs *perr.List, literal *Struct, dst reflect.Value) (fieldPat
 	for i := 0; i < dst.NumField(); i++ {
 		fieldType := dst.Type().Field(i)
 		if fieldType.Anonymous {
-			panic("literals.Decode: anonymous fields not supported")
+			errs.Assert(errAnonymousFieldsNotSupported)
 		} else if !ast.IsExported(fieldType.Name) {
-			panic("literals.Decode: non-exported fields not supported")
+			errs.Assert(errUnexportedFieldsNotSupported)
 		}
 
 		paths := decodeField(errs, literal, fieldType, dst.Field(i))
@@ -63,7 +62,7 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 
 	tag, err := structtag.Parse(string(fieldType.Tag))
 	if err != nil {
-		panic(fmt.Sprintf("literals.Decode: invalid tag on field %s: %v", fieldType.Name, err))
+		errs.Assert(errInvalidTag.AtGoNode(literal.Expr(fieldPath)).Wrapping(err))
 	}
 	if tagOpts, err := tag.Get("literal"); err == nil {
 		if tagOpts.Name != "" {
@@ -79,7 +78,8 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 	// If the field is required and isn't set, return an error.
 	if isSet := literal.IsSet(fieldPath); !isSet {
 		if required {
-			errs.Addf(literal.Pos(fieldPath), "missing required field: %s", fieldPath)
+			pos := literal.Pos(fieldPath)
+			errs.Add(errMissingRequiredField(fieldPath).AtGoPos(pos, pos))
 			return
 		} else {
 			// Nothing to do
@@ -90,12 +90,12 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 	// If the field is not dynamic and we don't allow dynamic fields, return an error.
 	isDynamic := !literal.IsConstant(fieldPath)
 	if isDynamic && !dynamicOK {
-		errs.Addf(literal.Pos(fieldPath), "field %s must be a constant literal", fieldPath)
+		errs.Add(errIsntConstant(fieldPath).AtGoNode(literal.Expr(fieldPath)))
 		return
 	} else if isDynamic {
 		// Make sure the type is Expr.
 		if field.Type().PkgPath() != "go/ast" || field.Type().Name() != "Expr" {
-			panic(fmt.Sprintf("literals.Decode: dynamic field %s must be of type ast.Expr", fieldType.Name))
+			errs.Assert(errDyanmicFieldNotExpr.AtGoNode(literal.Expr(fieldPath)))
 		}
 		field.Set(reflect.ValueOf(literal.Expr(fieldPath)))
 		return
@@ -107,7 +107,7 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 		if val.Kind() == constant.String {
 			field.SetString(constant.StringVal(val))
 		} else {
-			errs.Addf(literal.Pos(fieldPath), "field %s must be a string literal", fieldPath)
+			errs.Add(errWrongDynamicType(fieldPath, "string").AtGoNode(literal.Expr(fieldPath)))
 		}
 
 	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
@@ -115,20 +115,20 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 			n, _ := constant.Int64Val(val)
 			field.SetInt(n)
 		} else {
-			errs.Addf(literal.Pos(fieldPath), "field %s must be an integer literal", fieldPath)
+			errs.Add(errWrongDynamicType(fieldPath, "integer").AtGoNode(literal.Expr(fieldPath)))
 		}
 
 	case reflect.Bool:
 		if val.Kind() == constant.Bool {
 			field.SetBool(constant.BoolVal(val))
 		} else {
-			errs.Addf(literal.Pos(fieldPath), "field %s must be a boolean literal", fieldPath)
+			errs.Add(errWrongDynamicType(fieldPath, "boolean").AtGoNode(literal.Expr(fieldPath)))
 		}
 
 	case reflect.Struct:
 		child, ok := literal.ChildStruct(fieldPath)
 		if !ok {
-			errs.Addf(literal.Pos(fieldPath), "field %s must be a struct literal", fieldPath)
+			errs.Add(errWrongDynamicType(fieldPath, "inline struct").AtGoNode(literal.Expr(fieldPath)))
 			return
 		}
 		childPaths := decodeStruct(errs, child, field)
@@ -138,12 +138,12 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 		return fieldPaths
 
 	default:
-		panic(fmt.Sprintf("literals.Decode: unsupported field type: %s", fieldType.Type.Kind()))
+		errs.Assert(errUnsupportedType(fieldType.Type.Kind()).AtGoNode(literal.Expr(fieldPath)))
 	}
 
 	// Now that we've set the value, if the field is required make sure it's not the zero value.
 	if required && !zeroValueOK && field.IsZero() {
-		errs.Addf(literal.Pos(fieldPath), "field %s must not be the zero value", fieldPath)
+		errs.Add(errZeroValue(fieldPath).AtGoNode(literal.Expr(fieldPath)))
 	}
 
 	return fieldPaths

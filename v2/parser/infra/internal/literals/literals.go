@@ -6,9 +6,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
-	"go/types"
 	"reflect"
-	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -39,7 +37,7 @@ func ParseString(node ast.Node) (string, bool) {
 func ParseStruct(errs *perr.List, file *pkginfo.File, expectedType string, node ast.Expr) (lit *Struct, ok bool) {
 	cl, ok := node.(*ast.CompositeLit)
 	if !ok {
-		errs.Addf(node.Pos(), "expected a literal instance of %s, got %s", expectedType, PrettyPrint(node))
+		errs.Add(errNotLiteral(expectedType, PrettyPrint(node)).AtGoNode(node))
 		return nil, false
 	}
 
@@ -57,11 +55,11 @@ elemLoop:
 		case *ast.KeyValueExpr:
 			ident, ok := elem.Key.(*ast.Ident)
 			if !ok {
-				errs.Addf(elem.Key.Pos(), "Expected a key to be an identifier, got a %v", reflect.TypeOf(elem.Key))
+				errs.Add(errExpectedKeyToBeIdentifier(reflect.TypeOf(elem.Key)).AtGoNode(elem.Key))
 				continue elemLoop
 			}
 			if ident == nil {
-				errs.Addf(elem.Key.Pos(), "Expected a key to be an identifier, got a nil")
+				errs.Add(errExpectedKeyToBeIdentifier("nil").AtGoNode(elem.Key))
 				continue elemLoop
 			}
 
@@ -94,7 +92,7 @@ elemLoop:
 				}
 			}
 		default:
-			errs.Addf(elem.Pos(), "Expected a key-value pair, got a %v", reflect.TypeOf(elem))
+			errs.Add(errExpectedKeyPair(reflect.TypeOf(elem)).AtGoNode(elem))
 		}
 	}
 
@@ -104,11 +102,8 @@ elemLoop:
 func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn constant.Value) {
 	defer func() {
 		if r := recover(); r != nil {
-			// Recover the panic
-			// err := srcerrors.UnhandledPanic(r)
-			// errinsrc.AddHintFromGo(err, p.fset, value, "panic occurred processing this expression")
 			rtn = constant.MakeUnknown()
-			errs.Addf(value.Pos(), "panic occurred processing expression %s: %s", types.ExprString(value), debug.Stack())
+			errs.Add(errPanicParsingExpression(r).AtGoNode(value))
 		}
 	}()
 
@@ -130,7 +125,7 @@ func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn con
 	case *ast.BasicLit:
 		v, err := basicLit(value)
 		if err != nil {
-			errs.Addf(value.Pos(), "Unable to parse the basic literal: %v", err)
+			errs.Add(errUnableToParseLiteral.Wrapping(err).AtGoNode(value))
 			return constant.MakeUnknown()
 		} else {
 			return v
@@ -158,7 +153,7 @@ func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn con
 		case token.QUO:
 			// constant.BinaryOp panics when dividing by zero
 			if floatValue, _ := constant.Float64Val(constant.ToFloat(rhs)); floatValue <= 0.000000001 && floatValue >= -0.000000001 {
-				errs.AddPos(value.Pos(), "cannot divide by zero")
+				errs.Add(errDivideByZero.AtGoNode(value))
 				return constant.MakeUnknown()
 			}
 
@@ -169,12 +164,12 @@ func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn con
 		case token.SHL, token.SHR:
 			shiftValue, ok := constant.Uint64Val(constant.ToInt(rhs))
 			if !ok {
-				errs.AddPos(value.Pos(), "shift count must be an unsigned integer")
+				errs.Add(errInvalidShift.AtGoNode(value))
 			}
 			return constant.Shift(lhs, value.Op, uint(shiftValue))
 
 		default:
-			errs.Addf(value.Pos(), "%s is an unsupported operation here", value.Op)
+			errs.Add(errUnsupportedOperation(value.Op).AtGoNode(value))
 			return constant.MakeUnknown()
 		}
 
@@ -202,7 +197,7 @@ func ParseConstant(errs *perr.List, file *pkginfo.File, value ast.Expr) (rtn con
 		return ParseConstant(errs, file, value.X)
 
 	default:
-		errs.Addf(value.Pos(), "Unable to parse constant value, unknown data type: %v", reflect.TypeOf(value))
+		errs.Add(errUnsupportedType(reflect.TypeOf(value).Kind()).AtGoNode(value))
 		return constant.MakeUnknown()
 	}
 }

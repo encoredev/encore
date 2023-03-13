@@ -13,7 +13,7 @@ func API(w http.ResponseWriter, req *http.Request) { }
 
 -- want: errors --
 
-── Invalid API Directive ──────────────────────────────────────────────────────────────────[E1103]──
+── Invalid API Directive ──────────────────────────────────────────────────────────────────[E9999]──
 
 Private APIs cannot be declared as raw endpoints.
 

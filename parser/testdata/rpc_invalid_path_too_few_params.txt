@@ -13,7 +13,7 @@ import (
 func Str(ctx context.Context) error { return nil }
 -- want: errors --
 
-── Invalid API Function ───────────────────────────────────────────────────────────────────[E1108]──
+── Invalid API Function ───────────────────────────────────────────────────────────────────[E9999]──
 
 Expected function parameters named 'foo', 'bar' to match Endpoint path params.
 

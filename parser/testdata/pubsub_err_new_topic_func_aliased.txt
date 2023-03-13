@@ -17,7 +17,7 @@ var creator = pubsub.NewTopic[MyMessage]
 var topic = creator("my-topic")
 -- want: errors --
 
-── Invalid reference ──────────────────────────────────────────────────────────────────────[E1292]──
+── Invalid reference ──────────────────────────────────────────────────────────────────────[E9999]──
 
 pubsub.NewTopic cannot be referenced without being called.
 

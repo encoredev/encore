@@ -13,7 +13,7 @@ import (
 func Str(ctx context.Context, bar string) error { return nil }
 -- want: errors --
 
-── Invalid API Function ───────────────────────────────────────────────────────────────────[E1114]──
+── Invalid API Function ───────────────────────────────────────────────────────────────────[E9999]──
 
 Unexpected parameter name "bar" expected "foo" (to match path parameter ":foo").
 

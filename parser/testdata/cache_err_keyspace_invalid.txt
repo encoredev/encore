@@ -27,7 +27,7 @@ func Foo(context.Context) error {
 }
 -- want: errors --
 
-── Invalid Cache Key Type ─────────────────────────────────────────────────────────────────[E1418]──
+── Invalid Cache Key Type ─────────────────────────────────────────────────────────────────[E9999]──
 
 Invalid use of the key type, the field Bar was not used in the KeyPattern
 

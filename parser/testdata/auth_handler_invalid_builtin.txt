@@ -13,7 +13,7 @@ import (
 func MyAuth(ctx context.Context, p int) (auth.UID, error) { return "", nil }
 -- want: errors --
 
-── Invalid auth handler Signature ─────────────────────────────────────────────────────────[E1033]──
+── Invalid auth handler Signature ─────────────────────────────────────────────────────────[E9999]──
 
 The second parameter must be a string or a pointer to a named struct.
 

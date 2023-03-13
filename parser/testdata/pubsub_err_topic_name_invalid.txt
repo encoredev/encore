@@ -24,7 +24,7 @@ func DoStuff(ctx context.Context) error {
 }
 -- want: errors --
 
-── Invalid resource name ──────────────────────────────────────────────────────────────────[E1296]──
+── Invalid resource name ──────────────────────────────────────────────────────────────────[E9999]──
 
 The pubsub.NewTopic topic name must be defined in "kebab-case".
 
