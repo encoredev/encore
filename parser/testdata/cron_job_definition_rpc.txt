@@ -28,3 +28,18 @@ func Cron(ctx context.Context) (*Response, error) {
 type Response struct {
 	Message string
 }
+-- want: errors --
+
+── Invalid call ───────────────────────────────────────────────────────────────────────────[E1293]──
+
+cron.NewJob cannot be called here. It must be called from a package level variable.
+
+    ╭─[ svc/svc.go:14:13 ]
+    │
+ 12 │     // A cron job to send out emails to newsletter subscribers.
+ 13 │     // On two lines.
+ 14 │     var _ = cron.NewJob("cronfoo", cron.JobConfig{
+    ⋮             ───────────
+ 15 │         Title:    "Cron Foo Bar",
+ 16 │         Schedule: "* * * * 5",
+────╯

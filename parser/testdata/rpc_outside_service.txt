@@ -25,3 +25,4 @@ import (
 func Foo(ctx context.Context) error {
     return one.One(ctx)
 }
+-- want: errors --

@@ -160,7 +160,7 @@ func (l *List) Len() int {
 }
 
 // At returns the i'th error. i must be 0 <= i < l.Len().
-func (l *List) At(i int) error {
+func (l *List) At(i int) *errinsrc.ErrInSrc {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.errs[i]

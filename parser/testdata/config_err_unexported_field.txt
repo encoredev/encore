@@ -26,3 +26,4 @@ var Cfg = config.Load[Config]()
 func Subscriber1(ctx context.Context) error {
     return nil
 }
+-- want: errors --

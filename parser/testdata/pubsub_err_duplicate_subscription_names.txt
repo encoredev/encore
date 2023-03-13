@@ -60,3 +60,4 @@ var _ = pubsub.NewSubscription(
 func DoStuff(ctx context.Context) error {
     shared.BasicTopic.Publish(ctx, &shared.MessageType{Name: "foo"})
 }
+-- want: errors --

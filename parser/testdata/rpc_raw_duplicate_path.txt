@@ -13,3 +13,4 @@ func Foo(w http.ResponseWriter, req *http.Request) { }
 
 //encore:api public raw
 func Bar(w http.ResponseWriter, req *http.Request) { }
+-- want: errors --

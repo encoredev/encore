@@ -32,3 +32,4 @@ package shared
 func Subscriber(ctx context.Context, msg *shared.MessageType) error {
     return nil
 }
+-- want: errors --

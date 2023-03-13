@@ -28,3 +28,18 @@ func DoStuff(ctx context.Context) error {
 func Subscriber(ctx context.Context, msg *MessageType) error {
     return nil
 }
+-- want: errors --
+
+── Error ──────────────────────────────────────────────────────────────────────────────────[E0003]──
+
+missing required field: Handler
+
+    ╭─[ svc/svc.go:15:66 ]
+    │
+ 13 │ var (
+ 14 │     BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+ 15 │     _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig{})
+    ⋮                                                                  ───────────────────────────
+ 16 │ )
+ 17 │
+────╯

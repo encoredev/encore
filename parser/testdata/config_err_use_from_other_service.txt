@@ -36,3 +36,4 @@ func init() {
         // do something
     }
 }
+-- want: errors --

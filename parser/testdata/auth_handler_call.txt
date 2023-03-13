@@ -27,3 +27,4 @@ import (
 func Foo() {
     svc.MyAuth(context.Background(), "foo")
 }
+-- want: errors --

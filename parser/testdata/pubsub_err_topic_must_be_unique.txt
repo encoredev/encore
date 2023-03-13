@@ -29,3 +29,4 @@ type MessageType struct {
 }
 
 var AnotherTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+-- want: errors --

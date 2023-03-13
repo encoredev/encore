@@ -17,3 +17,4 @@ func NonRaw(ctx context.Context) error {
     API(nil, nil)
     return nil
 }
+-- want: errors --

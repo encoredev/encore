@@ -2,11 +2,15 @@ package app
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
+	"os"
 	goregexp "regexp"
+	"strings"
 	"testing"
 
 	"cuelang.org/go/pkg/regexp"
+	"github.com/pkg/diff"
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"encr.dev/pkg/errinsrc/srcerrors"
@@ -24,14 +28,25 @@ import (
 	"encr.dev/v2/parser/infra/usage"
 )
 
+var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
+
 func TestValidation(t *testing.T) {
 	type testCfg struct {
 		ignoreErrCommand    bool
 		ignoreOutputCommand bool
 	}
 	t.Parallel()
+
+	update := false
+	if goldenUpdate != nil && *goldenUpdate {
+		update = true
+	}
+
+	sourceDir := "../../parser/testdata"
+
 	testscript.Run(t, testscript.Params{
-		Dir: "../../parser/testdata",
+		Dir:           sourceDir,
+		UpdateScripts: update,
 		Setup: func(env *testscript.Env) error {
 			if err := testutil.TestScriptSetupFunc(env); err != nil {
 				return err
@@ -64,6 +79,7 @@ func TestValidation(t *testing.T) {
 							ts.Fatalf("panic: %v", e)
 						}
 					}
+
 					ts.Logf("stdout: %s", stdout.String())
 					ts.Logf("stderr: %s", stderr.String())
 				}()
@@ -79,6 +95,11 @@ func TestValidation(t *testing.T) {
 
 				// ValidateAndDescribe the testscript
 				desc := ValidateAndDescribe(tc.Context, parseResult)
+
+				// If we're expecting parse errors, assert that we have them
+				if neg {
+					assertGoldenErrors(ts, tc.Errs, sourceDir, update)
+				}
 
 				// If we have errors, and we didn't expect them, fail the test
 				// If we have no errors, and we expected them, fail the test
@@ -270,4 +291,71 @@ func TestValidation(t *testing.T) {
 			},
 		},
 	})
+}
+
+func assertGoldenErrors(ts *testscript.TestScript, errs *perr.List, sourceDir string, updateGoldenFiles bool) {
+	// Read the want: errors file
+	// allow for it not to exist
+	wantFile := ts.MkAbs("want: errors")
+	data, err := os.ReadFile(wantFile)
+	var wantErrors string
+	if err == nil {
+		wantErrors = string(data)
+	}
+
+	// Build up the "got errors string"
+	var b strings.Builder
+	errs.MakeRelative(ts.Getenv("WORK"), "")
+	for i := 0; i < errs.Len(); i++ {
+		err := *errs.At(i) // Copy the error so we can modify it
+		// Remove the stack for the error, as it will change whenever the parser
+		// changes, and that's not what we're testing for
+		err.Stack = nil
+
+		if i != 0 {
+			b.WriteString("\n\n")
+		}
+
+		b.WriteString(err.Error())
+	}
+	gotErrors := b.String()
+
+	// Remove all trailing whitespace for every line
+	gotErrors = goregexp.MustCompile(`(?m)[ \t]+$`).ReplaceAllString(gotErrors, "")
+
+	// Ensure there is a single trailing newline
+	gotErrors = strings.TrimSpace(gotErrors)
+	if gotErrors != "" {
+		gotErrors = "\n" + gotErrors + "\n"
+	}
+
+	// The two errors are the same, so we can return
+	if wantErrors == gotErrors {
+		return
+	}
+
+	// If we're updating the golden files, then write the new file
+	// and don't fail the test
+	if updateGoldenFiles {
+		testutil.UpdateArchiveFile(ts, sourceDir, "want: errors", gotErrors)
+		return
+	}
+
+	// pkg/diff is quadratic at the moment.
+	// If the product of the number of lines in the inputs is too large,
+	// don't call pkg.Diff at all as it might take tons of memory or time.
+	// We found one million to be reasonable for an average laptop.
+	const maxLineDiff = 1_000_000
+	if strings.Count(wantErrors, "\n")*strings.Count(gotErrors, "\n") > maxLineDiff {
+		ts.Fatalf("errors differ (two large to diff)")
+		return
+	}
+
+	var sb strings.Builder
+	if err := diff.Text("want: errors", "got: errors", wantErrors, gotErrors, &sb); err != nil {
+		ts.Check(err)
+	}
+
+	ts.Logf("%s", sb.String())
+	ts.Fatalf("wanted errors differ from the actual errors")
 }

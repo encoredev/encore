@@ -8,3 +8,4 @@ import "context"
 
 //encore:api auth
 func API(ctx context.Context) error { return nil }
+-- want: errors --

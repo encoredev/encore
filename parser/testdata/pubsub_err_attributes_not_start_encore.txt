@@ -14,3 +14,4 @@ type MessageType struct {
 }
 
 var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+-- want: errors --
