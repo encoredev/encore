@@ -69,7 +69,7 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 	topicExpr := d.Call.Args[0]
 	topicObj, ok := d.File.Names().ResolvePkgLevelRef(topicExpr)
 	if !ok {
-		errs.Add(errSubscriptionTopicNotResource.AtGoNode(topicExpr))
+		errs.Add(ErrSubscriptionTopicNotResource.AtGoNode(topicExpr))
 		return
 	}
 

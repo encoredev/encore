@@ -11,4 +11,7 @@ func (d *Desc) validate(pc *parsectx.Context) {
 		d.validateAuthHandlers(pc, fw)
 		d.validateAPIs(pc, fw)
 	}
+
+	// Validate infrastructure
+	d.validatePubSub(pc)
 }

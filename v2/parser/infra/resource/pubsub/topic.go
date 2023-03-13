@@ -3,6 +3,7 @@ package pubsub
 import (
 	"fmt"
 	"go/ast"
+	"strings"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
@@ -114,6 +115,27 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 				errs.Add(errOrderingKeyNotExported.AtGoNode(foundField))
 			}
 		}
+	}
+
+	// Validate the message attributes are not using the reserved prefix
+	if str, ok := messageType.Decl.Type.(schema.StructType); ok {
+		for _, field := range str.Fields {
+			for _, tagKey := range field.Tag.Keys() {
+				tag, err := field.Tag.Get(tagKey)
+				if err == nil {
+					switch tagKey {
+					case "pubsub-attr":
+						if strings.HasPrefix(tag.Name, "encore") {
+							errs.Add(errInvalidAttrPrefix.
+								AtGoNode(field.AST.Tag).
+								AtGoNode(d.TypeArgs[0].ASTExpr(), errors.AsHelp("used as a message type in this topic")))
+						}
+					}
+				}
+			}
+		}
+	} else {
+		panic("not a struct")
 	}
 
 	topic := &Topic{

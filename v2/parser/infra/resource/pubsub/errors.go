@@ -45,9 +45,26 @@ var (
 		errors.PrependDetails(pubsubNewSubscriptionHelp),
 	)
 
-	errSubscriptionTopicNotResource = errRange.New(
+	ErrSubscriptionTopicNotResource = errRange.New(
 		"Invalid call to pubsub.NewSubscription",
 		"pubsub.NewSubscription requires the first argument to be a resource of type pubsub.Topic.",
 		errors.PrependDetails(pubsubNewSubscriptionHelp),
+	)
+
+	errInvalidAttrPrefix = errRange.New(
+		"Invalid attribute prefix",
+		"PubSub message attributes must not be prefixed with \"encore\".",
+	)
+
+	ErrTopicNameNotUnique = errRange.New(
+		"Duplicate PubSub topic name",
+		"A PubSub topic name must be unique within a service.",
+
+		errors.PrependDetails("If you wish to reuse the same topic, then you can export the original Topic object import it here."),
+	)
+
+	ErrSubscriptionNameNotUnique = errRange.New(
+		"Duplicate PubSub subscription on topic",
+		"Subscription names on topics must be unique.",
 	)
 )

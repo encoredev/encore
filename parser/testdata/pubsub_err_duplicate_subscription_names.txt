@@ -62,3 +62,31 @@ func DoStuff(ctx context.Context) error {
 }
 
 -- want: errors --
+
+── Duplicate PubSub subscription on topic ─────────────────────────────────────────────────[E9999]──
+
+Subscription names on topics must be unique.
+
+    ╭─[ foo/code.go:13:5 ]
+    │
+ 11 │ var _ = pubsub.NewSubscription(
+ 12 │     shared.BasicTopic,
+ 13 │     "same-name",
+    ⋮     ─────┬─────
+    ⋮          ╰─ duplicated here
+ 14 │     pubsub.SusbcriptionConfig { Handler: func(ctx context.Context, msg *shared.MessageType) error {
+ 15 │         return nil
+────╯
+
+    ╭─[ svc/svc.go:13:51 ]
+    │
+ 11 │
+ 12 │ var (
+ 13 │     _ = pubsub.NewSubscription(shared.BasicTopic, "same-name", pubsub.SusbcriptionConfig { Handler: Subscriber1 })
+    ⋮                                                   ─────┬─────
+    ⋮                                                        ╰─ originally defined here
+ 14 │ )
+ 15 │
+────╯
+
+For more information on PubSub, see https://encore.dev/docs/primitives/pubsub
