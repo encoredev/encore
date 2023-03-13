@@ -78,6 +78,9 @@ type CORS struct {
 	// that include credentials. If a request is made from an Origin in this list
 	// Encore responds with Access-Control-Allow-Origin: <Origin>.
 	// If DisableCredentials is true this field is not used.
+	//
+	// The URLs in this list may include wildcards (e.g. "https://*.example.com"
+	// or "https://*-myapp.example.com").
 	AllowOriginsWithCredentials []string `json:"allow_origins_with_credentials,omitempty"`
 
 	// AllowOriginsWithoutCredentials specifies the allowed origins for requests
@@ -291,6 +294,7 @@ type Metrics struct {
 	CloudWatch         *AWSCloudWatchMetricsProvider  `json:"aws_cloud_watch,omitempty"`
 	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
 	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
+	Datadog            *DatadogProvider               `json:"datadog,omitempty"`
 }
 
 type GCPCloudMonitoringProvider struct {
@@ -318,6 +322,11 @@ type AWSCloudWatchMetricsProvider struct {
 type PrometheusRemoteWriteProvider struct {
 	// The URL of the endpoint to send samples to.
 	RemoteWriteURL string
+}
+
+type DatadogProvider struct {
+	Site   string
+	APIKey string
 }
 
 type LogsBasedMetricsProvider struct{}

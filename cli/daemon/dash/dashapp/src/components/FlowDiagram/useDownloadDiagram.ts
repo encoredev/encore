@@ -51,9 +51,7 @@ const watermarkCanvas = (canvas: HTMLCanvasElement): Promise<HTMLCanvasElement> 
         </g>
         </svg>
       `;
-    const svgBlob = new Blob([encoreLockupLogoSvg], {
-        type: "image/svg+xml;charset=utf-8",
-      }),
+    const svgBlob = new Blob([encoreLockupLogoSvg], { type: "image/svg+xml;charset=utf-8" }),
       domURL = self.URL || self.webkitURL || self,
       url = domURL.createObjectURL(svgBlob),
       img = new Image();
