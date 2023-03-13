@@ -1,5 +1,4 @@
 ! parse
-expectError 'Unexpected parameter name "bar" expected "foo"'
 err 'unexpected parameter name ''bar'', expected ''foo'' \(to match path parameter '':foo''\)'
 
 -- svc/svc.go --

@@ -1,5 +1,5 @@
 ! parse
-err 'The second parameter must be a string or a pointer to a named struct.'
+err 'second parameter must be of type string, or a pointer to a named struct'
 
 -- svc/svc.go --
 package svc

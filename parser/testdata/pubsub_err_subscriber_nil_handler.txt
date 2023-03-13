@@ -1,5 +1,4 @@
 ! parse
-expectError 'missing required field: Handler'
 err 'pubsub.NewSubscription requires the configuration field named "Handler" to populated with the'
 
 -- svc/svc.go --

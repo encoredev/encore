@@ -1,5 +1,4 @@
 ! parse
-expectError 'Path parameter "p" must be a string, bool, integer, or encore.dev/types/uuid.UUID.'
 err 'path parameter ''p'' must be a string, .+'
 
 -- svc/svc.go --

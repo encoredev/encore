@@ -1,5 +1,4 @@
 ! parse
-expectError 'missing required field: DeliveryGuarantee'
 err 'pubsub.NewTopic requires the configuration field named "DeliveryGuarantee" to be explicitly set.'
 
 -- svc/svc.go --

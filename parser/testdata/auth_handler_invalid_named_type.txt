@@ -1,5 +1,4 @@
 ! parse
-expectError 'The second parameter must be a string or a pointer to a named struct.'
 err 'Params must be a struct type'
 
 -- svc/svc.go --

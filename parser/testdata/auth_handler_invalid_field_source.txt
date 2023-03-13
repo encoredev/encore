@@ -1,5 +1,4 @@
 ! parse
-expectError 'All fields used within an auth payload must originate from either an HTTP header or a query parameter.'
 err 'all struct fields used in auth handler parameter Params must'
 err 'for the field\(s\): Foo, Bar'
 

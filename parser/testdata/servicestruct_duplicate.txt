@@ -1,5 +1,4 @@
 ! parse
-expectError 'Multiple service structs were found in the same service. Encore only allows one service struct to be defined per service.'
 err 'duplicate encore:service directive'
 
 -- svc/svc.go --

@@ -1,5 +1,4 @@
 ! parse
-expectError 'The pubsub.NewSubscription subscription name must be defined in "kebab-case"'
 err 'The pubsub.NewSubscription must be subscription name be defined in "kebab-case"'
 
 -- svc/svc.go --

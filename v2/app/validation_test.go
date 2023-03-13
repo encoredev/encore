@@ -32,7 +32,6 @@ var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
 
 func TestValidation(t *testing.T) {
 	type testCfg struct {
-		ignoreErrCommand    bool
 		ignoreOutputCommand bool
 	}
 	t.Parallel()
@@ -245,50 +244,9 @@ func TestValidation(t *testing.T) {
 				}
 			},
 
-			// expectError is a command that checks the stderr output contains the
-			// given regex.
-			//
-			// This function will also convert all whitespaces into a single space
-			// this is to allow for tests to be written in a more readable way without
-			// having to worry about the word wrapping of the error messages.
-			//
-			// It unique to the v2 parser as that has different error handling, as such
-			// if it is used in a testscript, we ignore any following calls to "err"
-			"expectError": func(ts *testscript.TestScript, neg bool, args []string) {
-				ts.Value("cfg").(*testCfg).ignoreErrCommand = true
-
-				stderr := ts.Value("stderr").(*bytes.Buffer)
-				output := goregexp.MustCompile(`\s+`).ReplaceAllString(stderr.String(), " ")
-				m, err := regexp.Match(args[0], output)
-				if err != nil {
-					ts.Fatalf("invalid pattern: %v", err)
-				}
-				if !m && !neg {
-					ts.Fatalf("stderr does not match %q", args[0])
-				} else if m && neg {
-					ts.Fatalf("stderr unexpectedly matches %q", args[0])
-				}
-			},
-
-			// The "err" command checks that the output into stderr that we've collected
-			// contains the given regex
-			"err": func(ts *testscript.TestScript, neg bool, args []string) {
-				if ts.Value("cfg").(*testCfg).ignoreErrCommand {
-					// "expectError" was called, so we ignore this command
-					return
-				}
-
-				stderr := ts.Value("stderr").(*bytes.Buffer)
-				m, err := regexp.Match(args[0], stderr.String())
-				if err != nil {
-					ts.Fatalf("invalid pattern: %v", err)
-				}
-				if !m && !neg {
-					ts.Fatalf("stderr does not match %q", args[0])
-				} else if m && neg {
-					ts.Fatalf("stderr unexpectedly matches %q", args[0])
-				}
-			},
+			// The "Err" command is a no-op in the v2 parser, as we used expected errors
+			// inside the test files to assert the full error message
+			"err": func(ts *testscript.TestScript, neg bool, args []string) {},
 		},
 	})
 }

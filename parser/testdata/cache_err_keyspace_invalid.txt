@@ -1,5 +1,4 @@
 ! parse
-expectError 'the field Bar was not used in the KeyPattern'
 err 'field Bar not used in KeyPattern'
 
 -- svc/svc.go --

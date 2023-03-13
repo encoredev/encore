@@ -1,5 +1,4 @@
 ! parse
-expectError 'pubsub.NewTopic cannot be called here. It must be called from a package level variable.'
 err 'A pubsub topic cannot be declared here, they can only be declared in a package level variable.'
 
 -- svc/svc.go --
