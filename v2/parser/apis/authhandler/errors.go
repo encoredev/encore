@@ -55,6 +55,7 @@ note: *Params and *UserData are custom data types you define
 	ErrInvalidFieldTags = errRange.New(
 		"Invalid auth payload",
 		"All fields used within an auth payload must originate from either an HTTP header or a query parameter.",
+
 		errors.WithDetails(
 			"You can specify them for each field using the struct tags, for example with `header:\"X-My-Header\"` or `query:\"my-query\"`.\n\n"+
 				authLink,
@@ -64,5 +65,15 @@ note: *Params and *UserData are custom data types you define
 	ErrMultipleAuthHandlers = errRange.New(
 		"Multiple auth handlers found",
 		"Multiple auth handlers were found in the application. Encore only allows one auth handler to be defined per application.",
+	)
+
+	ErrNoAuthHandlerDefined = errRange.New(
+		"No Auth Handler Defined",
+		"An auth handler must be defined to use the auth directive on an API.",
+
+		errors.WithDetails(
+			"You can specify them for each field using the struct tags, for example with `header:\"X-My-Header\"` or `query:\"my-query\"`.\n\n"+
+				authLink,
+		),
 	)
 )

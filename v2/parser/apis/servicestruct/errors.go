@@ -12,12 +12,6 @@ var (
 		errors.WithRangeSize(20),
 	)
 
-	errInvalidDirective = errRange.New(
-		"Invalid encore:service directive",
-		"invalid encore:service directive.",
-		errors.MarkAsInternalError(),
-	)
-
 	errInvalidDirectivePlacement = errRange.New(
 		"Invalid encore:service directive",
 		"encore:service directives must be placed on the declaration of a struct, not a group.",
@@ -46,5 +40,10 @@ var (
 	ErrDuplicateServiceStructs = errRange.New(
 		"Multiple service structs found",
 		"Multiple service structs were found in the same service. Encore only allows one service struct to be defined per service.",
+	)
+
+	ErrReceiverNotAServiceStruct = errRange.New(
+		"Invalid service struct for API",
+		"API endpoints defined as receiver functions must be defined on a service struct.",
 	)
 )

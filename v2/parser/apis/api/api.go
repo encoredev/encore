@@ -37,6 +37,7 @@ type Endpoint struct {
 	File        *pkginfo.File
 	Decl        *schema2.FuncDecl
 	Access      AccessType
+	AccessField option.Option[directive.Field]
 	Raw         bool
 	Path        *apipaths.Path
 	HTTPMethods []string
@@ -87,11 +88,13 @@ func Parse(d ParseData) *Endpoint {
 	// If there was no path, default to "pkg.Decl".
 	if rpc.Path == nil {
 		rpc.Path = &apipaths.Path{
-			StartPos: d.Dir.AST.Pos(),
+			StartPos: d.Func.Name.Pos(),
 			Segments: []apipaths.Segment{{
 				Type:      apipaths.Literal,
 				Value:     d.File.Pkg.Name + "." + d.Func.Name.Name,
 				ValueType: schema2.String,
+				StartPos:  d.Func.Name.Pos(),
+				EndPos:    d.Func.Name.End(),
 			}},
 		}
 	}
@@ -289,6 +292,7 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 				}
 				accessField = opt
 				endpoint.Access = AccessType(opt.Value)
+				endpoint.AccessField = option.Some(opt)
 			}
 
 			if opt.Value == "raw" {

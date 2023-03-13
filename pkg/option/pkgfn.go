@@ -23,3 +23,19 @@ func FlatMap[T, R any](option Option[T], f func(T) Option[R]) Option[R] {
 	}
 	return None[R]()
 }
+
+// Fold returns the result of f applied to the value if present, otherwise returns the defaultValue
+func Fold[T, R any](option Option[T], defaultValue R, f func(T) R) R {
+	if option.present {
+		return f(option.value)
+	}
+	return defaultValue
+}
+
+// FoldLeft applies the binary operator f to the value if present, otherwise returns the zero value
+func FoldLeft[T, R any](option Option[T], zero R, f func(accum R, value T) R) R {
+	if option.present {
+		return f(zero, option.value)
+	}
+	return zero
+}

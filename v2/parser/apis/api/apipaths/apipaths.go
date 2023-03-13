@@ -269,6 +269,12 @@ type Set struct {
 	methods map[string]*node
 }
 
+func NewSet() *Set {
+	return &Set{
+		methods: make(map[string]*node),
+	}
+}
+
 // Add adds a path to the set of paths.
 func (s *Set) Add(errs *perr.List, method string, path *Path) (ok bool) {
 	if s.methods == nil {
@@ -384,17 +390,6 @@ func (s *Set) match(errs *perr.List, path *Path, seg Segment, curr *node) (next 
 	return nil, true
 }
 
-// ConflictError represents a conflict between two paths.
-type ConflictError struct {
-	Path    *Path
-	Other   *Path
-	Context string
-}
-
-func (e *ConflictError) Error() string {
-	return fmt.Sprintf("path conflict: %s and %s: %s", e.Path, e.Other, e.Context)
-}
-
 type node struct {
 	s        Segment
 	children []*node
@@ -406,9 +401,4 @@ func (n *node) findPath() *Path {
 		n = n.children[0]
 	}
 	return n.p
-}
-
-func (s *Set) conflictErr(path *Path, node *node, format string, args ...interface{}) error {
-	other := node.findPath()
-	return &ConflictError{Path: path, Other: other, Context: fmt.Sprintf(format, args...)}
 }

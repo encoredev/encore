@@ -111,13 +111,18 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 	// with the parse results.
 	framework := configureAPIFramework(pc, services, result.APIs)
 
-	return &Desc{
+	desc := &Desc{
 		Errs:      pc.Errs,
 		Packages:  result.Packages,
 		Services:  services,
 		Framework: framework,
 		Infra:     result.Infra,
 	}
+
+	// Run the application-level validations against the application description.
+	desc.validate(pc)
+
+	return desc
 }
 
 // ServiceForPath returns the service a given folder path belongs to, if any.

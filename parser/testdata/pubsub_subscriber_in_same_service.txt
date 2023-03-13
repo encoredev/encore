@@ -9,8 +9,6 @@ package svc
 import (
     "context"
 
-    "test/svc/domain"
-
     "encore.dev/pubsub"
 )
 
