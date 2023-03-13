@@ -13,8 +13,9 @@ import (
 
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
+	. "encr.dev/v2/internal/schema/schematest"
 	"encr.dev/v2/internal/testutil"
-	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/selector"
 )
 

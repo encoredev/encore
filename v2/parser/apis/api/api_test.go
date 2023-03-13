@@ -15,7 +15,7 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser/apis/api/apipaths"
-	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/selector"
 )
 

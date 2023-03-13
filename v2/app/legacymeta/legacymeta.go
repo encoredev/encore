@@ -103,7 +103,7 @@ func (b *builder) Build() *meta.Data {
 		clusterMap = make(map[pkginfo.QualifiedName]*meta.CacheCluster)
 	)
 
-	for _, r := range b.app.Infra.Resources() {
+	for _, r := range b.app.Parse.Resources() {
 		switch r := r.(type) {
 		case *cron.Job:
 			md.CronJobs = append(md.CronJobs, &meta.CronJob{
@@ -133,7 +133,7 @@ func (b *builder) Build() *meta.Data {
 				panic(fmt.Sprintf("unknown delivery guarantee %v", r.DeliveryGuarantee))
 			}
 
-			for _, b := range b.app.Infra.PkgDeclBinds(r) {
+			for _, b := range b.app.Parse.PkgDeclBinds(r) {
 				topicMap[b.QualifiedName()] = topic
 			}
 			md.PubsubTopics = append(md.PubsubTopics, topic)
@@ -145,7 +145,7 @@ func (b *builder) Build() *meta.Data {
 				Keyspaces:      nil,
 				EvictionPolicy: r.EvictionPolicy,
 			}
-			for _, b := range b.app.Infra.PkgDeclBinds(r) {
+			for _, b := range b.app.Parse.PkgDeclBinds(r) {
 				clusterMap[b.QualifiedName()] = cluster
 			}
 			md.CacheClusters = append(md.CacheClusters, cluster)

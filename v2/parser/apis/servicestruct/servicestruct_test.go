@@ -16,7 +16,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
-	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/apis/internal/directive"
 )
 
 func TestParseServiceStruct(t *testing.T) {

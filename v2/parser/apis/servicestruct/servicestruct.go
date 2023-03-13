@@ -11,8 +11,9 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/internal/utils"
+	"encr.dev/v2/parser/resource"
 )
 
 // ServiceStruct describes a dependency injection struct for a service.
@@ -24,6 +25,9 @@ type ServiceStruct struct {
 	// It is nil if there is no initialization function.
 	Init option.Option[*schema.FuncDecl]
 }
+
+func (ss *ServiceStruct) Kind() resource.Kind       { return resource.ServiceStruct }
+func (ss *ServiceStruct) Package() *pkginfo.Package { return ss.Decl.File.Pkg }
 
 type ParseData struct {
 	Errs   *perr.List

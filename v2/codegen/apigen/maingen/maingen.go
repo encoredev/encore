@@ -112,7 +112,7 @@ func pubsubTopics(appDesc *app.Desc) *Statement {
 			topics      []*pubsub.Topic
 			subsByTopic = make(map[pkginfo.QualifiedName][]*pubsub.Subscription)
 		)
-		for _, r := range appDesc.Infra.Resources() {
+		for _, r := range appDesc.Parse.Resources() {
 			switch r := r.(type) {
 			case *pubsub.Topic:
 				topics = append(topics, r)
@@ -123,7 +123,7 @@ func pubsubTopics(appDesc *app.Desc) *Statement {
 
 		for _, topic := range topics {
 			subs := DictFunc(func(d Dict) {
-				for _, b := range appDesc.Infra.PkgDeclBinds(topic) {
+				for _, b := range appDesc.Parse.PkgDeclBinds(topic) {
 					qn := b.QualifiedName()
 					for _, sub := range subsByTopic[qn] {
 						// TODO we should have a better way of knowing which service a subscription belongs to

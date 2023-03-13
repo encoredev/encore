@@ -10,11 +10,6 @@ var (
 		"",
 	)
 
-	errInvalidDirective = errRange.New(
-		"Invalid directive",
-		"",
-	)
-
 	errUnexpectedDirective = errRange.Newf(
 		"Invalid directive",
 		"Unexpected directive %q on function declaration.",

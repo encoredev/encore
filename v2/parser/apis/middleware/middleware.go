@@ -12,9 +12,10 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/selector"
 	"encr.dev/v2/parser/internal/utils"
+	"encr.dev/v2/parser/resource"
 )
 
 // Middleware describes an Encore middleware.
@@ -32,6 +33,9 @@ type Middleware struct {
 	// Recv is the type the middleware is defined as a method on, if any.
 	Recv option.Option[*schema.Receiver]
 }
+
+func (mw *Middleware) Kind() resource.Kind       { return resource.Middleware }
+func (mw *Middleware) Package() *pkginfo.Package { return mw.File.Pkg }
 
 type ParseData struct {
 	Errs   *perr.List

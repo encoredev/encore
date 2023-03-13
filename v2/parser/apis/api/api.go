@@ -16,8 +16,9 @@ import (
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/api/apipaths"
-	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/selector"
+	"encr.dev/v2/parser/resource"
 )
 
 type AccessType string
@@ -52,6 +53,9 @@ type Endpoint struct {
 	respEncOnce  sync.Once
 	respEncoding *apienc.ResponseEncoding
 }
+
+func (ep *Endpoint) Kind() resource.Kind       { return resource.APIEndpoint }
+func (ep *Endpoint) Package() *pkginfo.Package { return ep.File.Pkg }
 
 func (ep *Endpoint) RequestEncoding() []*apienc.RequestEncoding {
 	ep.reqEncOnce.Do(func() {

@@ -8,25 +8,18 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/selector"
-	"encr.dev/v2/parser/infra"
 )
 
 // Desc describes an Encore application.
 type Desc struct {
 	Errs *perr.List
 
+	Parse    *parser.Result
 	Services []*Service
-	Infra    *infra.Desc
-
-	// Packages are the packages that are contained within
-	// the application. It does not list packages that have been
-	// parsed but belong to dependencies.
-	Packages []*pkginfo.Package
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
@@ -101,7 +94,7 @@ type Service struct {
 
 // ValidateAndDescribe validates the application and computes the
 // application description.
-func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
+func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 	defer pc.Trace("app.ValidateAndDescribe").Done()
 
 	// First we want to discover the service layout
@@ -109,14 +102,13 @@ func ValidateAndDescribe(pc *parsectx.Context, result parser.Result) *Desc {
 
 	// Now we can configure the API framework by combining the service information
 	// with the parse results.
-	framework := configureAPIFramework(pc, services, result.APIs)
+	framework := configureAPIFramework(pc, services, result)
 
 	desc := &Desc{
 		Errs:      pc.Errs,
-		Packages:  result.Packages,
+		Parse:     result,
 		Services:  services,
 		Framework: framework,
-		Infra:     result.Infra,
 	}
 
 	// Run the application-level validations against the application description.

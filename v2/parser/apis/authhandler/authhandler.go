@@ -9,7 +9,8 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/apis/directive"
+	"encr.dev/v2/parser/apis/internal/directive"
+	"encr.dev/v2/parser/resource"
 )
 
 // AuthHandler describes an Encore authentication handler.
@@ -30,6 +31,9 @@ type AuthHandler struct {
 	// as part of the returns from the auth handler, if any.
 	AuthData option.Option[*schema.TypeDeclRef]
 }
+
+func (ah *AuthHandler) Kind() resource.Kind       { return resource.AuthHandler }
+func (ah *AuthHandler) Package() *pkginfo.Package { return ah.Decl.File.Pkg }
 
 type ParseData struct {
 	Errs   *perr.List

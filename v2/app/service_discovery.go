@@ -6,6 +6,7 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/resource"
 )
@@ -31,7 +32,7 @@ import (
 // This does not setup the service framework data.
 //
 // The returned slice is sorted by service name.
-func discoverServices(pc *parsectx.Context, result parser.Result) []*Service {
+func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 	defer pc.Trace("app.discoverServices").Done()
 
 	sd := &serviceDiscovery{
@@ -39,22 +40,14 @@ func discoverServices(pc *parsectx.Context, result parser.Result) []*Service {
 		strongRoot: make(map[paths.FS]struct{}),
 	}
 
-	// We can loop over all packages from the API result in one pass
-	// as service roots get marked as strong roots
-	for _, pkg := range result.APIs {
-		if len(pkg.ServiceStructs) > 0 {
-			sd.possibleServiceRoot(pkg.Pkg.Name, pkg.Pkg.FSPath, true)
-		}
-
-		if len(pkg.Endpoints) > 0 {
-			sd.possibleServiceRoot(pkg.Pkg.Name, pkg.Pkg.FSPath, false)
-		}
-	}
-
-	for _, res := range result.Infra.Resources() {
-		if res.Kind() == resource.PubSubSubscription {
-			pkg := res.Package()
-			sd.possibleServiceRoot(pkg.Name, pkg.FSPath, false)
+	for _, r := range result.Resources() {
+		switch r.Kind() {
+		case resource.ServiceStruct:
+			sd.possibleServiceRoot(r.Package(), true)
+		case resource.APIEndpoint:
+			sd.possibleServiceRoot(r.Package(), false)
+		case resource.PubSubSubscription:
+			sd.possibleServiceRoot(r.Package(), false)
 		}
 	}
 
@@ -109,7 +102,10 @@ type serviceDiscovery struct {
 //
 // If any existing services are descendants of the new service, they are removed from the list, unless
 // the previous service was marked as a strong root.
-func (sd *serviceDiscovery) possibleServiceRoot(name string, root paths.FS, strong bool) {
+func (sd *serviceDiscovery) possibleServiceRoot(pkg *pkginfo.Package, strong bool) {
+	name := pkg.Name
+	root := pkg.FSPath
+
 	if strong {
 		// Always mark the root as a strong root, even if it is already marked as a service.
 		sd.strongRoot[root] = struct{}{}

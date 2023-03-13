@@ -17,7 +17,7 @@ func (d *Desc) validatePubSub(pc *parsectx.Context) {
 
 	var subs []*pubsub.Subscription
 
-	for _, res := range d.Infra.Resources() {
+	for _, res := range d.Parse.Resources() {
 		switch res := res.(type) {
 		case *pubsub.Topic:
 			if existing, ok := topics[res.Name]; ok {
@@ -31,7 +31,7 @@ func (d *Desc) validatePubSub(pc *parsectx.Context) {
 					subs:     make(map[string]*pubsub.Subscription),
 				}
 
-				for _, bind := range d.Infra.PkgDeclBinds(res) {
+				for _, bind := range d.Parse.PkgDeclBinds(res) {
 					topicsByBinding[bind.QualifiedName()] = res.Name
 				}
 			}

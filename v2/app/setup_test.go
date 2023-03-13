@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 // Parse will take the given archiveContent and parse it into a testutil.Context and parser.Result.
 //
 // If the parser errors, the test will immediately fail.
-func Parse(c *qt.C, archiveContent string) (*testutil.Context, parser.Result) {
+func Parse(c *qt.C, archiveContent string) (*testutil.Context, *parser.Result) {
 
 	archive := testutil.ParseTxtar(`
 -- go.mod --

@@ -5,86 +5,103 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/parser/apis"
+	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/servicestruct"
 )
 
-func configureAPIFramework(pc *parsectx.Context, services []*Service, apiPackages []*apis.ParseResult) option.Option[*apiframework.AppDesc] {
-	if len(apiPackages) == 0 {
+func configureAPIFramework(pc *parsectx.Context, services []*Service, res *parser.Result) option.Option[*apiframework.AppDesc] {
+	var (
+		endpoints      = parser.Resources[*api.Endpoint](res)
+		middlewares    = parser.Resources[*middleware.Middleware](res)
+		authHandlers   = parser.Resources[*authhandler.AuthHandler](res)
+		serviceStructs = parser.Resources[*servicestruct.ServiceStruct](res)
+	)
+
+	if len(endpoints) == 0 && len(middlewares) == 0 && len(authHandlers) == 0 && len(serviceStructs) == 0 {
 		return option.None[*apiframework.AppDesc]()
 	}
 
 	fw := &apiframework.AppDesc{}
 
-	for _, pkg := range apiPackages {
-		// First handle global API framework usage
-		// i.e. auth handlers and middleware which apply across all services
+	// First handle global API framework usage
+	// i.e. auth handlers and middleware which apply across all services
 
-		// Add the middleware
-		var svcMiddleware []*middleware.Middleware
-		for _, mw := range pkg.Middleware {
-			if mw.Global {
-				fw.GlobalMiddleware = append(fw.GlobalMiddleware, mw)
-			} else {
-				svcMiddleware = append(svcMiddleware, mw)
+	// Add the middleware
+	var svcMiddleware []*middleware.Middleware
+	for _, mw := range middlewares {
+		if mw.Global {
+			fw.GlobalMiddleware = append(fw.GlobalMiddleware, mw)
+		} else {
+			svcMiddleware = append(svcMiddleware, mw)
+		}
+	}
+
+	// Add the app's auth handler
+	for _, ah := range authHandlers {
+		if fw.AuthHandler.Empty() {
+			fw.AuthHandler = option.Some(ah)
+		} else {
+			pc.Errs.Add(
+				authhandler.ErrMultipleAuthHandlers.
+					AtGoNode(fw.AuthHandler.MustGet().Decl.AST.Type, errors.AsError("first auth handler defined here")).
+					AtGoNode(ah.Decl.AST.Type, errors.AsError("second auth handler defined here")),
+			)
+		}
+	}
+
+	modifySvcDesc := func(pkg *pkginfo.Package, fn func(svc *Service, desc *apiframework.ServiceDesc)) {
+		for i, svc := range services {
+			if pkg.FSPath.HasPrefix(svc.FSRoot) {
+				// We've found the service. Initialize the framework service description
+				// if necessary, and then call fn.
+				desc, ok := svc.Framework.Get()
+				if !ok {
+					desc = &apiframework.ServiceDesc{
+						Num:     i,
+						RootPkg: pkg,
+					}
+					svc.Framework = option.Some(desc)
+				}
+				fn(svc, desc)
+				return
 			}
 		}
 
-		// Add the app's auth handler
-		for _, ah := range pkg.AuthHandlers {
-			if fw.AuthHandler.Empty() {
-				fw.AuthHandler = option.Some(ah)
+		// We couldn't find the service. Add an error and don't call fn.
+		pc.Errs.Add(errNoServiceFound(pkg.ImportPath))
+	}
+
+	for _, ep := range endpoints {
+		modifySvcDesc(ep.Package(), func(svc *Service, desc *apiframework.ServiceDesc) {
+			desc.Endpoints = append(desc.Endpoints, ep)
+		})
+	}
+
+	for _, mw := range middlewares {
+		if !mw.Global {
+			// Per-service middleware.
+			modifySvcDesc(mw.Package(), func(svc *Service, desc *apiframework.ServiceDesc) {
+				desc.Middleware = append(desc.Middleware, mw)
+			})
+		}
+	}
+
+	for _, ss := range serviceStructs {
+		modifySvcDesc(ss.Package(), func(svc *Service, desc *apiframework.ServiceDesc) {
+			if desc.ServiceStruct.Empty() {
+				desc.ServiceStruct = option.Some(ss)
 			} else {
 				pc.Errs.Add(
-					authhandler.ErrMultipleAuthHandlers.
-						AtGoNode(fw.AuthHandler.MustGet().Decl.AST.Type, errors.AsError("first auth handler defined here")).
-						AtGoNode(ah.Decl.AST.Type, errors.AsError("second auth handler defined here")),
+					servicestruct.ErrDuplicateServiceStructs.
+						AtGoNode(desc.ServiceStruct.MustGet().Decl.AST, errors.AsError("first service struct defined here")).
+						AtGoNode(ss.Decl.AST, errors.AsError("second service struct defined here")),
 				)
 			}
-		}
-
-		// Handle service specific API framework usage
-		if len(pkg.Endpoints) > 0 || len(pkg.ServiceStructs) > 0 || len(svcMiddleware) > 0 {
-			// Find the service that this API package belongs to
-			var service *Service
-			var svcIdx int
-			for i, svc := range services {
-				if pkg.Pkg.FSPath.HasPrefix(svc.FSRoot) {
-					service = svc
-					svcIdx = i
-					break
-				}
-			}
-			if service == nil {
-				pc.Errs.Add(errNoServiceFound(pkg.Pkg.Name))
-				continue
-			}
-
-			svcDesc := service.Framework.GetOrElse(&apiframework.ServiceDesc{
-				Num:     svcIdx,
-				RootPkg: pkg.Pkg,
-			})
-
-			svcDesc.Middleware = append(svcDesc.Middleware, svcMiddleware...)
-			svcDesc.Endpoints = append(svcDesc.Endpoints, pkg.Endpoints...)
-
-			// We only allow one service struct per service, however the parser might have found multiple
-			for _, serviceStruct := range pkg.ServiceStructs {
-				if svcDesc.ServiceStruct.Empty() {
-					svcDesc.ServiceStruct = option.Some(serviceStruct)
-				} else {
-					pc.Errs.Add(
-						servicestruct.ErrDuplicateServiceStructs.
-							AtGoNode(svcDesc.ServiceStruct.MustGet().Decl.AST, errors.AsError("first service struct defined here")).
-							AtGoNode(serviceStruct.Decl.AST, errors.AsError("second service struct defined here")),
-					)
-				}
-			}
-
-			service.Framework = option.Some(svcDesc)
-		}
+		})
 	}
 
 	return option.Some(fw)

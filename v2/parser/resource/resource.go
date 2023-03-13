@@ -19,6 +19,11 @@ const (
 	CacheKeyspace
 	ConfigLoad
 	Secrets
+
+	APIEndpoint
+	AuthHandler
+	Middleware
+	ServiceStruct
 )
 
 type Resource interface {
