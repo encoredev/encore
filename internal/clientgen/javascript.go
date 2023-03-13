@@ -82,6 +82,11 @@ func (js *javascript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 
 	js.WriteString("// " + doNotEditHeader() + "\n\n")
 
+	js.WriteString("// Disable eslint, jshint, and jslint for this file.\n")
+	js.WriteString("/* eslint-disable */\n")
+	js.WriteString("/* jshint ignore:start */\n")
+	js.WriteString("/*jslint-disable*/\n")
+
 	seenNs := make(map[string]bool)
 	js.writeClient()
 	for _, svc := range md.Svcs {
@@ -378,7 +383,7 @@ func (js *javascript) nonReservedId(id string) string {
 	case "params", "headers", "query", "body", "resp", "rtn":
 		return "_" + id
 
-	//Javascript keywords
+	// Javascript keywords
 	// Based on https://www.w3schools.com/js/js_reserved.asp
 	case "abstract", "arguments", "async", "await", "boolean", "break", "byte", "case", "catch", "char",
 		"class", "const", "continue", "debugger", "default", "delete", "do", "double", "else",
@@ -506,7 +511,6 @@ class BaseClient {`)
 
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
-        // eslint-disable-next-line prefer-const
         let { query, ...rest } = params ?? {}
         const init = {
             ...rest,

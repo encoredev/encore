@@ -82,8 +82,10 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	}
 
 	ts.WriteString("// " + doNotEditHeader() + "\n\n")
-	ts.WriteString("/* eslint-disable @typescript-eslint/no-namespace */\n")
-	ts.WriteString("/* eslint-disable @typescript-eslint/no-explicit-any */\n")
+	ts.WriteString("// Disable eslint, jshint, and jslint for this file.\n")
+	ts.WriteString("/* eslint-disable */\n")
+	ts.WriteString("/* jshint ignore:start */\n")
+	ts.WriteString("/*jslint-disable*/\n")
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
@@ -717,7 +719,6 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        // eslint-disable-next-line prefer-const
         let { query, ...rest } = params ?? {}
         const init = {
             ...rest,
