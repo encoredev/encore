@@ -6,13 +6,14 @@ import (
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/servicestruct"
 )
 
-func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc) {
+func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, result *parser.Result) {
 
 	apiPaths := apipaths.NewSet()
 
@@ -55,6 +56,24 @@ func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc) {
 							)),
 					)
 				}
+			}
+
+			if ep.Raw {
+				for _, rawUsage := range result.Usages(ep) {
+					pc.Errs.Add(
+						api.ErrRawEndpointsCannotBeCalled.
+							AtGoNode(rawUsage, errors.AsError("used here")).
+							AtGoNode(ep.Decl.AST.Name, errors.AsHelp("defined here")),
+					)
+				}
+			}
+
+			for _, invalidUsage := range d.ResourceUsageOutsideServices[ep] {
+				pc.Errs.Add(
+					api.ErrAPICalledOutsideService.
+						AtGoNode(invalidUsage, errors.AsError("called here")).
+						AtGoNode(ep.Decl.AST.Name, errors.AsHelp("defined here")),
+				)
 			}
 		}
 	}

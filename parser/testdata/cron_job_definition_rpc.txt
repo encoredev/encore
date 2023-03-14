@@ -43,3 +43,22 @@ cron.NewJob cannot be called here. It must be called from a package level variab
  15 │         Title:    "Cron Foo Bar",
  16 │         Schedule: "* * * * 5",
 ────╯
+
+
+
+
+── Invalid API Usage ──────────────────────────────────────────────────────────────────────[E9999]──
+
+APIs can not be referenced without being called.
+
+    ╭─[ svc/svc.go:17:19 ]
+    │
+ 15 │         Title:    "Cron Foo Bar",
+ 16 │         Schedule: "* * * * 5",
+ 17 │         Endpoint: Cron,
+    ⋮                   ────
+ 18 │     })
+ 19 │     return &Response{Message: msg}, nil
+────╯
+
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis

@@ -10,7 +10,7 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 	// Validate the framework
 	if fw, ok := d.Framework.Get(); ok {
 		d.validateAuthHandlers(pc, fw)
-		d.validateAPIs(pc, fw)
+		d.validateAPIs(pc, fw, result)
 	}
 
 	// Validate infrastructure

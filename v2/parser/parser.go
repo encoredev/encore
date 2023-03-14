@@ -8,6 +8,7 @@ import (
 	"encr.dev/v2/internal/scan"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis"
+	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/infra/cache"
 	"encr.dev/v2/parser/infra/config"
@@ -99,6 +100,7 @@ func newUsageResolver() *usage.Resolver {
 	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
 
 	// API Framework
+	usage.RegisterUsageResolver[*api.Endpoint](r, api.ResolveEndpointUsage)
 	usage.RegisterUsageResolver[*authhandler.AuthHandler](r, authhandler.ResolveAuthHandlerUsage)
 	return r
 }

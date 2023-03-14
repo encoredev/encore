@@ -76,6 +76,14 @@ func (d *Result) Usages(res resource.Resource) []usage.Usage {
 	return d.rd(res).usages
 }
 
+func (d *Result) AllUsages() []usage.Usage {
+	var all []usage.Usage
+	for _, res := range d.resources {
+		all = append(all, d.Usages(res)...)
+	}
+	return all
+}
+
 func (d *Result) rd(res resource.Resource) *resourceMeta {
 	m := d.resMap[res]
 	if m == nil {

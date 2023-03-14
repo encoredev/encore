@@ -63,20 +63,28 @@ func DoStuff(ctx context.Context) error {
 
 -- want: errors --
 
-── Duplicate PubSub subscription on topic ─────────────────────────────────────────────────[E9999]──
+── Invalid API Usage ──────────────────────────────────────────────────────────────────────[E9999]──
 
-Subscription names on topics must be unique.
+APIs can not be referenced without being called.
 
-    ╭─[ svc/svc.go:13:51 ]
+    ╭─[ svc/svc.go:13:101 ]
     │
  11 │
  12 │ var (
  13 │     _ = pubsub.NewSubscription(shared.BasicTopic, "same-name", pubsub.SusbcriptionConfig { Handler: Subscriber1 })
-    ⋮                                                   ─────┬─────
-    ⋮                                                        ╰─ duplicated here
+    ⋮                                                                                                     ───────────
  14 │ )
  15 │
 ────╯
+
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis
+
+
+
+
+── Duplicate PubSub subscription on topic ─────────────────────────────────────────────────[E9999]──
+
+Subscription names on topics must be unique.
 
     ╭─[ foo/code.go:13:5 ]
     │
@@ -84,9 +92,20 @@ Subscription names on topics must be unique.
  12 │     shared.BasicTopic,
  13 │     "same-name",
     ⋮     ─────┬─────
-    ⋮          ╰─ originally defined here
+    ⋮          ╰─ duplicated here
  14 │     pubsub.SusbcriptionConfig { Handler: func(ctx context.Context, msg *shared.MessageType) error {
  15 │         return nil
+────╯
+
+    ╭─[ svc/svc.go:13:51 ]
+    │
+ 11 │
+ 12 │ var (
+ 13 │     _ = pubsub.NewSubscription(shared.BasicTopic, "same-name", pubsub.SusbcriptionConfig { Handler: Subscriber1 })
+    ⋮                                                   ─────┬─────
+    ⋮                                                        ╰─ originally defined here
+ 14 │ )
+ 15 │
 ────╯
 
 For more information on PubSub, see https://encore.dev/docs/primitives/pubsub

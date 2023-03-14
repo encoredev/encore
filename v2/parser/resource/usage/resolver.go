@@ -2,6 +2,7 @@ package usage
 
 import (
 	"go/ast"
+	"go/token"
 	"reflect"
 
 	"encr.dev/pkg/option"
@@ -12,6 +13,8 @@ import (
 
 // Usage describes an infrastructure usage being used.
 type Usage interface {
+	ast.Node
+
 	usage() // marker method
 	ResourceBind() resource.Bind
 	ASTExpr() ast.Expr
@@ -21,12 +24,14 @@ type Usage interface {
 type Base struct {
 	File *pkginfo.File
 	Bind resource.Bind
-	Expr ast.Expr
+	Expr Expr
 }
 
 func (b *Base) DeclaredIn() *pkginfo.File   { return b.File }
-func (b *Base) ASTExpr() ast.Expr           { return b.Expr }
+func (b *Base) ASTExpr() ast.Expr           { return b.Expr.ASTExpr() }
 func (b *Base) ResourceBind() resource.Bind { return b.Bind }
+func (b *Base) Pos() token.Pos              { return b.Expr.Pos() }
+func (b *Base) End() token.Pos              { return b.Expr.End() }
 
 func (b *Base) usage() {}
 

@@ -49,6 +49,44 @@ type Response struct {
 
 -- want: errors --
 
+── Invalid API Usage ──────────────────────────────────────────────────────────────────────[E9999]──
+
+APIs can not be referenced without being called.
+
+    ╭─[ svc/svc.go:25:12 ]
+    │
+ 23 │     Title:    "Cron Food Bar",
+ 24 │     Schedule: "* * * * 5",
+ 25 │     Endpoint: Cron,
+    ⋮               ────
+ 26 │ }), "barfoo"
+ 27 │
+────╯
+
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis
+
+
+
+
+── Invalid API Usage ──────────────────────────────────────────────────────────────────────[E9999]──
+
+APIs can not be referenced without being called.
+
+    ╭─[ svc/svc.go:32:12 ]
+    │
+ 30 │     Title:    "Cron Foo Bar Bazz",
+ 31 │     Schedule: "* * * * 4",
+ 32 │     Endpoint: Cron,
+    ⋮               ────
+ 33 │ })
+ 34 │
+────╯
+
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis
+
+
+
+
 ── Duplicate Cron Jobs ────────────────────────────────────────────────────────────────────[E9999]──
 
 Multiple cron jobs with the same name were found. Cronjob names must be unique.

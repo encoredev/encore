@@ -12,6 +12,8 @@ import (
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/selector"
+	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/usage"
 )
 
 // Desc describes an Encore application.
@@ -23,6 +25,9 @@ type Desc struct {
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
+
+	// ResourceUsageOutsideServices describes resources that are used outside of a service.
+	ResourceUsageOutsideServices map[resource.Resource][]usage.Usage
 }
 
 // MatchingMiddleware reports which middleware applies to the given RPC,
@@ -77,21 +82,6 @@ func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
 	return matches
 }
 
-// Service describes an Encore service.
-type Service struct {
-	// Name is the name of the service.
-	Name string
-
-	// FSRoot is the root directory of the service.
-	FSRoot paths.FS
-
-	// Framework contains API Framework-specific data for this service.
-	Framework option.Option[*apiframework.ServiceDesc]
-
-	// InfraUsage describes the infra resources the service accesses and how.
-	InfraUsage []any // type TBD
-}
-
 // ValidateAndDescribe validates the application and computes the
 // application description.
 func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
@@ -105,11 +95,15 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 	framework := configureAPIFramework(pc, services, result)
 
 	desc := &Desc{
-		Errs:      pc.Errs,
-		Parse:     result,
-		Services:  services,
-		Framework: framework,
+		Errs:                         pc.Errs,
+		Parse:                        result,
+		Services:                     services,
+		Framework:                    framework,
+		ResourceUsageOutsideServices: make(map[resource.Resource][]usage.Usage),
 	}
+
+	// Find each services infra usage.
+	desc.locateResourceUsage(result)
 
 	// Run the application-level validations against the application description.
 	desc.validate(pc, result)

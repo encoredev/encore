@@ -19,7 +19,7 @@ func ResolveTopicUsage(errs *perr.List, expr usage.Expr, topic *Topic) usage.Usa
 				Base: usage.Base{
 					File: expr.File,
 					Bind: expr.Bind,
-					Expr: expr.Call,
+					Expr: expr,
 				},
 			}
 		}

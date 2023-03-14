@@ -8,6 +8,8 @@ const rawHint = `hint: signature must be func(http.ResponseWriter, *http.Request
 
 For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis#raw-endpoints`
 
+const baseHint = "For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis"
+
 var (
 	errRange = errors.Range(
 		"api",
@@ -112,5 +114,24 @@ For more information on how to use APIs, see https://encore.dev/docs/primitives/
 	errInvalidPathParamType = errRange.Newf(
 		"Invalid API Function",
 		"Path parameter %q must be a string, bool, integer, or encore.dev/types/uuid.UUID.",
+	)
+
+	errInvalidEndpointUsage = errRange.New(
+		"Invalid API Usage",
+		"APIs can not be referenced without being called.",
+
+		errors.WithDetails(baseHint),
+	)
+
+	ErrAPICalledOutsideService = errRange.New(
+		"Invalid API call",
+		"APIs can only be called from within a service, the current call site is outside any services within the application.",
+
+		errors.WithDetails(baseHint),
+	)
+
+	ErrRawEndpointsCannotBeCalled = errRange.New(
+		"Invalid API call",
+		"Raw APIs cannot be called from within an Encore application.",
 	)
 )

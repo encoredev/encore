@@ -9,6 +9,7 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/resource"
+	"encr.dev/v2/parser/resource/usage"
 )
 
 // discoverServices discovers the services in the whole application.
@@ -140,7 +141,8 @@ func (sd *serviceDiscovery) possibleServiceRoot(pkg *pkginfo.Package, strong boo
 	// If we get here, the new service is not a descendant of any existing services.
 	// We can add it to the list of services.
 	sd.services[root] = &Service{
-		Name:   name,
-		FSRoot: root,
+		Name:          name,
+		FSRoot:        root,
+		ResourceUsage: make(map[resource.Resource][]usage.Usage),
 	}
 }
