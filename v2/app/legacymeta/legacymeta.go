@@ -4,6 +4,8 @@ import (
 	"fmt"
 	gotoken "go/token"
 
+	"golang.org/x/exp/slices"
+
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
@@ -121,8 +123,27 @@ func (b *builder) Build() *meta.Data {
 				MessageType:   b.typeDeclRef(r.MessageType),
 				OrderingKey:   r.OrderingKey,
 				Publishers:    nil, // TODO
-				Subscriptions: nil, // TODO
+				Subscriptions: nil, // filled in later
 			}
+
+			// Find all the publishers
+			for _, u := range b.app.Parse.Usages(r) {
+				if _, ok := u.(*pubsub.PublishUsage); ok {
+					if svc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath); ok {
+						topic.Publishers = append(topic.Publishers, &meta.PubSubTopic_Publisher{
+							ServiceName: svc.Name,
+						})
+					}
+				}
+			}
+
+			// Remove duplicates
+			slices.SortFunc(topic.Publishers, func(a, b *meta.PubSubTopic_Publisher) bool {
+				return a.ServiceName < b.ServiceName
+			})
+			topic.Publishers = slices.CompactFunc(topic.Publishers, func(a, b *meta.PubSubTopic_Publisher) bool {
+				return a.ServiceName == b.ServiceName
+			})
 
 			switch r.DeliveryGuarantee {
 			case pubsub.ExactlyOnce:
@@ -205,12 +226,15 @@ func (b *builder) Build() *meta.Data {
 			}
 
 			topic.Subscriptions = append(topic.Subscriptions, &meta.PubSubTopic_Subscription{
-				Name:        r.Name,
-				ServiceName: svc.Name,
-				// TODO(andre) Fill these in
-				AckDeadline:      0,
-				MessageRetention: 0,
-				RetryPolicy:      nil,
+				Name:             r.Name,
+				ServiceName:      svc.Name,
+				AckDeadline:      r.Cfg.AckDeadline.Nanoseconds(),
+				MessageRetention: r.Cfg.MessageRetention.Nanoseconds(),
+				RetryPolicy: &meta.PubSubTopic_RetryPolicy{
+					MinBackoff: r.Cfg.MinRetryBackoff.Nanoseconds(),
+					MaxBackoff: r.Cfg.MaxRetryBackoff.Nanoseconds(),
+					MaxRetries: int64(r.Cfg.MaxRetries),
+				},
 			})
 
 		case *cache.Keyspace:
