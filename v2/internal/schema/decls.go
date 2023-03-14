@@ -11,6 +11,12 @@ import (
 // Decl is the common interface for different kinds of declarations.
 type Decl interface {
 	Kind() DeclKind
+
+	DeclaredIn() *pkginfo.File
+	// PkgName reports the name if this is a package-level declaration.
+	// Otherwise it reports None.
+	PkgName() option.Option[string]
+
 	// ASTNode returns the AST node that this declaration represents.
 	// It's a *ast.FuncDecl or *ast.TypeSpec.
 	ASTNode() ast.Node
@@ -88,14 +94,23 @@ type Receiver struct {
 }
 
 func (*TypeDecl) Kind() DeclKind                    { return DeclType }
+func (d *TypeDecl) DeclaredIn() *pkginfo.File       { return d.File }
 func (d *TypeDecl) ASTNode() ast.Node               { return d.AST }
 func (d *TypeDecl) String() string                  { return d.File.Pkg.Name + "." + d.Name }
 func (d *TypeDecl) TypeParameters() []DeclTypeParam { return d.TypeParams }
+func (d *TypeDecl) PkgName() option.Option[string]  { return option.Some(d.Name) }
 
 func (*FuncDecl) Kind() DeclKind                    { return DeclFunc }
+func (d *FuncDecl) DeclaredIn() *pkginfo.File       { return d.File }
 func (d *FuncDecl) ASTNode() ast.Node               { return d.AST }
 func (d *FuncDecl) String() string                  { return d.File.Pkg.Name + "." + d.Name }
 func (d *FuncDecl) TypeParameters() []DeclTypeParam { return d.TypeParams }
+func (d *FuncDecl) PkgName() option.Option[string] {
+	if d.Recv.Empty() {
+		return option.Some(d.Name)
+	}
+	return option.None[string]()
+}
 
 // ParseTypeDecl parses the type from a package declaration.
 // It errors if the declaration is not a type.

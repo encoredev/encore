@@ -26,12 +26,15 @@ type builder struct {
 	errs *perr.List
 	app  *app.Desc
 	md   *meta.Data // metadata being generated
+
+	decls map[declKey]uint32
 }
 
 func Compute(errs *perr.List, appDesc *app.Desc) *meta.Data {
 	b := &builder{
-		errs: errs,
-		app:  appDesc,
+		errs:  errs,
+		app:   appDesc,
+		decls: make(map[declKey]uint32),
 	}
 	return b.Build()
 }
