@@ -48,3 +48,25 @@ type Response struct {
 }
 
 -- want: errors --
+
+── Duplicate Cron Jobs ────────────────────────────────────────────────────────────────────[E9999]──
+
+Multiple cron jobs with the same name were found. Cronjob names must be unique.
+
+    ╭─[ svc/svc.go:22:25 ]
+    │
+ 20 │     that includes a code snippet.
+ 21 │ */
+ 22 │ var _, bd = cron.NewJob("cronfood", cron.JobConfig{
+    ⋮                         ──────────
+    ·
+    ·
+ 27 │
+ 28 │ // A cron job to send out push notiifications to new subscribers.
+ 29 │ var _ = cron.NewJob("cronfood", cron.JobConfig{
+    ⋮                     ──────────
+ 30 │     Title:    "Cron Foo Bar Bazz",
+ 31 │     Schedule: "* * * * 4",
+────╯
+
+For more information, see https://encore.dev/docs/primitives/cron-jobs

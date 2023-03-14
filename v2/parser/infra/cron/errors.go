@@ -46,4 +46,9 @@ var (
 		"Invalid call to cron.NewJob",
 		"Every 24 hour time range (from 00:00 to 23:59) needs to be evenly divided by the interval value (%s).",
 	)
+
+	ErrDuplicateNames = errRange.New(
+		"Duplicate Cron Jobs",
+		"Multiple cron jobs with the same name were found. Cronjob names must be unique.",
+	)
 )

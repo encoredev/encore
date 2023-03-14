@@ -112,7 +112,7 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 	}
 
 	// Run the application-level validations against the application description.
-	desc.validate(pc)
+	desc.validate(pc, result)
 
 	return desc
 }

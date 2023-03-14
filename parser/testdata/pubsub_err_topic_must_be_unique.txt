@@ -36,24 +36,24 @@ var AnotherTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig
 
 A PubSub topic name must be unique within a service.
 
-    ╭─[ shared/topics.go:11:48 ]
-    │
-  9 │ }
- 10 │
- 11 │ var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
-    ⋮                                                ─────┬─────
-    ⋮                                                     ╰─ duplicated here
- 12 │
-────╯
-
     ╭─[ svc/svc.go:13:50 ]
     │
  11 │ }
  12 │
  13 │ var AnotherTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
     ⋮                                                  ─────┬─────
-    ⋮                                                       ╰─ originally defined here
+    ⋮                                                       ╰─ duplicated here
  14 │
+────╯
+
+    ╭─[ shared/topics.go:11:48 ]
+    │
+  9 │ }
+ 10 │
+ 11 │ var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+    ⋮                                                ─────┬─────
+    ⋮                                                     ╰─ originally defined here
+ 12 │
 ────╯
 
 If you wish to reuse the same topic, then you can export the original Topic object import it here.
