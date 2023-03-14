@@ -50,7 +50,7 @@ func TestParse(t *testing.T) {
 			p := parser.NewParser(tc.Context)
 			res := p.Parse()
 
-			got := fns.Map(res.AllUsages(), func(u usage.Usage) usageDesc {
+			got := fns.Map(res.AllUsageExprs(), func(u usage.Expr) usageDesc {
 				return usageToDesc(tc.Context, u)
 			})
 			want := test.wants
@@ -142,7 +142,7 @@ func parseTestCase(c *qt.C, file string) *testCase {
 	return tc
 }
 
-func usageToDesc(pc *parsectx.Context, u usage.Usage) usageDesc {
+func usageToDesc(pc *parsectx.Context, u usage.Expr) usageDesc {
 	pos := pc.FS.Position(u.ASTExpr().Pos())
 	filename := pos.Filename
 	if rel, err := filepath.Rel(pc.MainModuleDir.ToIO(), pos.Filename); err == nil {

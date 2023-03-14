@@ -79,6 +79,15 @@ func None[T any]() Option[T] {
 	return Option[T]{present: false}
 }
 
+// CommaOk is a helper function to convert a comma ok idiom into an Option.
+// If ok is true it returns Some(v), otherwise it returns None.
+func CommaOk[T any](v T, ok bool) Option[T] {
+	if ok {
+		return Some[T](v)
+	}
+	return None[T]()
+}
+
 // Present returns true if the Option has a value set
 func (o Option[T]) Present() bool {
 	return o.present

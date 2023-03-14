@@ -624,6 +624,14 @@ func (f *FileNames) ResolvePkgPath(name string) (pkgPath paths.Pkg, ok bool) {
 // Expr must be either *ast.Ident or *ast.SelectorExpr.
 // If it doesn't refer to a package-level reference it returns ok == false.
 func (f *FileNames) ResolvePkgLevelRef(expr ast.Expr) (name QualifiedName, ok bool) {
+	// Unwrap type arguments
+	switch x := expr.(type) {
+	case *ast.IndexExpr:
+		expr = x.X
+	case *ast.IndexListExpr:
+		expr = x.X
+	}
+
 	// Resolve the identifier
 	switch node := expr.(type) {
 	case *ast.Ident:

@@ -25,7 +25,6 @@ import (
 	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/pubsub"
-	"encr.dev/v2/parser/resource/usage"
 )
 
 var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
@@ -179,8 +178,8 @@ func TestValidation(t *testing.T) {
 						printf("pubsubTopic %s", res.Name)
 
 						for _, u := range desc.Parse.Usages(res) {
-							if mc, ok := u.(*usage.MethodCall); ok && mc.Method == "Publish" {
-								if svc, found := desc.ServiceForPath(mc.File.FSPath); found {
+							if pub, ok := u.(*pubsub.PublishUsage); ok {
+								if svc, found := desc.ServiceForPath(pub.File.FSPath); found {
 									printf("pubsubPublisher %s %s\n", res.Name, svc.Name)
 								} else {
 									// TODO handle PubSub publishing from within global middleware
@@ -188,6 +187,7 @@ func TestValidation(t *testing.T) {
 								}
 							}
 						}
+
 					case *pubsub.Subscription:
 						svc, found := desc.ServiceForPath(res.File.FSPath)
 						if !found {

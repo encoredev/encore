@@ -9,7 +9,7 @@ var Topic = pubsub.NewTopic[*Message]("foo", pubsub.TopicConfig{
     DeliveryGuarantee: pubsub.AtLeastOnce,
 })
 
-var Sub = pubsub.NewSubscription(Topic, "bar", // use svc.Topic other
+var Sub = pubsub.NewSubscription(Topic, "bar", // use svc.Topic fn pubsub.NewSubscription arg 0
     pubsub.SubscriptionConfig{
         Handler: func(m *Message) error {
             return nil

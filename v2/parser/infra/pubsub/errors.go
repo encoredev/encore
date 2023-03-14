@@ -13,6 +13,8 @@ const (
 		"\tpubsub.NewSubscription(myTopic, \"subscription-name\", pubsub.SubscriptionConfig[MyMessage]{\n" +
 		"\t\tHandler: func(ctx context.Context, event MyMessage) error { return nil },\n" +
 		"\t})"
+
+	pubsubTopicUsageHelp = "The topic can only be referenced by calling methods on it, or to pass it to pubsub.NewSubscription or et.Topic."
 )
 
 var (
@@ -37,6 +39,12 @@ var (
 		"Invalid PubSub topic config",
 		"The configuration field named \"OrderingKey\" must be a one of the exported fields on the message type.",
 		errors.PrependDetails(pubsubNewTopicHelp),
+	)
+
+	errInvalidTopicUsage = errRange.New(
+		"Invalid reference to pubsub.Topic",
+		"A reference to pubsub.Topic is not permissible here.",
+		errors.PrependDetails(pubsubTopicUsageHelp),
 	)
 
 	errNewSubscriptionArgCount = errRange.Newf(

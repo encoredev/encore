@@ -4,19 +4,22 @@ import (
 	"fmt"
 	"go/ast"
 
+	"golang.org/x/exp/slices"
+
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/resource"
 )
 
-// Usage describes an infrastructure usage being used.
-type Usage interface {
+type Expr interface {
 	ResourceBind() resource.Bind
 	ASTExpr() ast.Expr
 	DeclaredIn() *pkginfo.File
 
-	// DescriptionForTest describes the usage for testing purposes.
+	// DescriptionForTest describes the expression for testing purposes.
 	DescriptionForTest() string
 }
 
@@ -47,6 +50,31 @@ func (f *FieldAccess) ASTExpr() ast.Expr           { return f.Expr }
 func (f *FieldAccess) ResourceBind() resource.Bind { return f.Bind }
 func (f *FieldAccess) DescriptionForTest() string  { return fmt.Sprintf("field %s", f.Field) }
 
+// FuncArg describes a resource being used as a function argument.
+type FuncArg struct {
+	File *pkginfo.File
+	Bind resource.Bind
+	Call *ast.CallExpr
+
+	// ArgIdx is the function argument index that represents
+	// the resource bind, starting at 0.
+	ArgIdx int
+
+	// PkgFunc is the package-level function that's being called.
+	// It's None if the function is not a package-level function.
+	PkgFunc option.Option[pkginfo.QualifiedName]
+}
+
+func (f *FuncArg) DeclaredIn() *pkginfo.File   { return f.File }
+func (f *FuncArg) ASTExpr() ast.Expr           { return f.Call }
+func (f *FuncArg) ResourceBind() resource.Bind { return f.Bind }
+func (f *FuncArg) DescriptionForTest() string {
+	if fn, ok := f.PkgFunc.Get(); ok {
+		return fmt.Sprintf("fn %s arg %d", fn.NaiveDisplayName(), f.ArgIdx)
+	}
+	return fmt.Sprintf("arg %d", f.ArgIdx)
+}
+
 // Other describes any other resource usage.
 type Other struct {
 	File *pkginfo.File
@@ -59,7 +87,7 @@ func (o *Other) ASTExpr() ast.Expr           { return o.Expr }
 func (o *Other) ResourceBind() resource.Bind { return o.Bind }
 func (o *Other) DescriptionForTest() string  { return "other" }
 
-func Parse(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
+func ParseExprs(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Expr {
 	p := &usageParser{
 		bindsPerPkg: make(map[paths.Pkg][]resource.Bind, len(binds)),
 		bindNames:   make(map[pkginfo.QualifiedName]resource.Bind, len(binds)),
@@ -73,7 +101,7 @@ func Parse(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Us
 		}
 	}
 
-	var usages []Usage
+	var usages []Expr
 	for _, pkg := range pkgs {
 		usages = append(usages, p.scanUsage(pkg)...)
 	}
@@ -85,11 +113,12 @@ func Parse(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Us
 }
 
 type usageParser struct {
+	schema      *schema.Parser
 	bindsPerPkg map[paths.Pkg][]resource.Bind
 	bindNames   map[pkginfo.QualifiedName]resource.Bind
 }
 
-func (p *usageParser) scanUsage(pkg *pkginfo.Package) (usages []Usage) {
+func (p *usageParser) scanUsage(pkg *pkginfo.Package) (usages []Expr) {
 	external, internal, files := p.bindsToScanFor(pkg)
 
 	haveExternal := len(external) > 0
@@ -129,7 +158,7 @@ func (p *usageParser) scanUsage(pkg *pkginfo.Package) (usages []Usage) {
 				if bind, ok := p.bindNames[qn]; ok {
 					// Make sure this is not the actual bind definition, to avoid reporting spurious usages.
 					if !p.isBind(pkg, expr, bind) {
-						if u := p.classifyUsage(f, bind, stack); u != nil {
+						if u := p.classifyExpr(f, bind, stack); u != nil {
 							usages = append(usages, u)
 						}
 					}
@@ -197,11 +226,12 @@ func (p *usageParser) isBind(pkg *pkginfo.Package, expr ast.Expr, bind resource.
 	return false
 }
 
-func (p *usageParser) classifyUsage(file *pkginfo.File, bind resource.Bind, stack []ast.Node) Usage {
+func (p *usageParser) classifyExpr(file *pkginfo.File, bind resource.Bind, stack []ast.Node) Expr {
 	idx := len(stack) - 1
 
 	if idx >= 1 {
 		if sel, ok := stack[idx-1].(*ast.SelectorExpr); ok {
+			// bind.SomeField or bind.SomeMethod()
 
 			// Check if this is a method call
 			if idx >= 2 {
@@ -222,6 +252,21 @@ func (p *usageParser) classifyUsage(file *pkginfo.File, bind resource.Bind, stac
 				Bind:  bind,
 				Expr:  sel,
 				Field: sel.Sel.Name,
+			}
+		}
+
+		// Is this bind being referenced in a function call argument?
+		if call, ok := stack[idx-1].(*ast.CallExpr); ok {
+			// Find which argument this is.
+			if argIdx := slices.Index(call.Args, stack[idx].(ast.Expr)); argIdx >= 0 {
+				pkgFunc := option.CommaOk(file.Names().ResolvePkgLevelRef(call.Fun))
+				return &FuncArg{
+					File:    file,
+					Bind:    bind,
+					Call:    call,
+					PkgFunc: pkgFunc,
+					ArgIdx:  argIdx,
+				}
 			}
 		}
 	}

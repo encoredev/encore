@@ -163,3 +163,8 @@ type QualifiedName struct {
 func (q QualifiedName) NaiveDisplayName() string {
 	return path.Base(string(q.PkgPath)) + "." + q.Name
 }
+
+// Q is a helper function to construct a QualifiedName.
+func Q(pkgPath paths.Pkg, name string) QualifiedName {
+	return QualifiedName{PkgPath: pkgPath, Name: name}
+}

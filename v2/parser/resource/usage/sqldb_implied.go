@@ -15,7 +15,7 @@ import (
 
 // computeImplicitSQLDBUsage computes the implicit usage of SQLDB resources via package-level
 // sqldb.{Query,QueryRow,Exec,etc} calls.
-func computeImplicitSQLDBUsage(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Usage {
+func computeImplicitSQLDBUsage(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Expr {
 	// Compute the list of package paths that define SQLDB implicit binds.
 	type sqldbBind struct {
 		Pkg  paths.Pkg
@@ -57,7 +57,7 @@ func computeImplicitSQLDBUsage(errs *perr.List, pkgs []*pkginfo.Package, binds [
 
 	const sqldbPkg paths.Pkg = "encore.dev/storage/sqldb"
 
-	var usages []Usage
+	var usages []Expr
 	for _, pkg := range pkgs {
 		if !pkg.Imports[sqldbPkg] {
 			continue
@@ -102,7 +102,7 @@ func computeImplicitSQLDBUsage(errs *perr.List, pkgs []*pkginfo.Package, binds [
 	return usages
 }
 
-func classifySQLDBUsage(file *pkginfo.File, bind resource.Bind, sel *ast.SelectorExpr, stack []ast.Node) Usage {
+func classifySQLDBUsage(file *pkginfo.File, bind resource.Bind, sel *ast.SelectorExpr, stack []ast.Node) Expr {
 	idx := len(stack) - 1
 	if idx >= 1 {
 		if call, ok := stack[idx-1].(*ast.CallExpr); ok {

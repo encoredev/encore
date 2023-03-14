@@ -7,9 +7,6 @@ import (
 )
 
 func Test_discoverServices(t *testing.T) {
-	c := qt.New(t)
-	c.Parallel()
-
 	tests := []struct {
 		name         string
 		txtar        string
@@ -180,8 +177,9 @@ func initBar() (*Bar, error) { return nil, nil }
 	}
 	for _, tt := range tests {
 		tt := tt
-		c.Run(tt.name, func(c *qt.C) {
-			c.Parallel()
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			c := qt.New(t)
 
 			ctx, result := Parse(c, tt.txtar)
 
