@@ -20,8 +20,9 @@ func computeResult(errs *perr.List, ur *usage.Resolver, appPackages []*pkginfo.P
 		allBinds:      binds,
 		allUsageExprs: usageExprs,
 
-		resMap: make(map[resource.Resource]*resourceMeta),
-		byType: make(map[reflect.Type][]resource.Resource),
+		resMap:         make(map[resource.Resource]*resourceMeta),
+		byType:         make(map[reflect.Type][]resource.Resource),
+		bindToResource: make(map[resource.Bind]resource.Resource, len(binds)),
 	}
 
 	d.initResources()
@@ -44,8 +45,9 @@ type Result struct {
 	allBinds      []resource.Bind
 	allUsageExprs []usage.Expr
 
-	resMap map[resource.Resource]*resourceMeta
-	byType map[reflect.Type][]resource.Resource
+	resMap         map[resource.Resource]*resourceMeta
+	byType         map[reflect.Type][]resource.Resource
+	bindToResource map[resource.Bind]resource.Resource
 }
 
 func (d *Result) AppPackages() []*pkginfo.Package {
@@ -62,6 +64,10 @@ func (d *Result) AllBinds() []resource.Bind {
 
 func (d *Result) AllUsageExprs() []usage.Expr {
 	return d.allUsageExprs
+}
+
+func (d *Result) ResourceForBind(b resource.Bind) resource.Resource {
+	return d.bindToResource[b]
 }
 
 func (d *Result) Binds(res resource.Resource) []resource.Bind {
@@ -129,18 +135,23 @@ func (d *Result) initBinds(errs *perr.List, binds []resource.Bind) {
 		}
 	}
 
+	addBind := func(r resource.Resource, b resource.Bind) {
+		d.rd(r).addBind(b)
+		d.bindToResource[b] = r
+	}
+
 	for _, b := range binds {
 		// Do we have a specific resource reference?
 		ref := b.ResourceRef()
 		if r := ref.Resource; r != nil {
-			d.rd(r).addBind(b)
+			addBind(r, b)
 			continue
 		}
 
 		// Otherwise figure out the resource from the bind path.
 		key := pathKey(ref.Path)
 		if r, ok := byPath[key]; ok {
-			d.rd(r).addBind(b)
+			addBind(r, b)
 		} else {
 			// NOTE(andre): We could end up here in the future when we support
 			// named references to PubSub subscriptions, since those would

@@ -15,6 +15,12 @@ import (
 	"encr.dev/v2/parser/resource"
 )
 
+// ResolveData is the data being passed to usage resolver functions.
+type ResolveData struct {
+	Errs *perr.List
+	Expr Expr
+}
+
 type Expr interface {
 	// Node allows use to use the expression in error messages
 	// where the Pos/End is used to point directly at the resource

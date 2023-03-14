@@ -16,6 +16,7 @@ type handlerDesc struct {
 
 	req  *requestDesc
 	resp *responseDesc
+	desc *codegen.VarDecl
 }
 
 func (h *handlerDesc) Typed() *Statement {

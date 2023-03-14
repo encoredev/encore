@@ -11,30 +11,27 @@ func (d *Desc) locateResourceUsage(result *parser.Result) {
 	allUsages := result.AllUsages()
 
 	for _, use := range allUsages {
-		ref := use.ResourceBind().ResourceRef()
-		if ref.Resource == nil {
-			continue
-		}
+		res := result.ResourceForBind(use.ResourceBind())
 
 		svc, found := d.ServiceForPath(use.DeclaredIn().Pkg.FSPath)
 		if found {
 			// If we found the service, then we know the resource is used within the service.
-			resUsages, found := svc.ResourceUsage[ref.Resource]
+			resUsages, found := svc.ResourceUsage[res]
 			if !found {
 				resUsages = make([]usage.Usage, 0, 1)
-				svc.ResourceUsage[ref.Resource] = resUsages
+				svc.ResourceUsage[res] = resUsages
 			}
 
-			svc.ResourceUsage[ref.Resource] = append(resUsages, use)
+			svc.ResourceUsage[res] = append(resUsages, use)
 		} else {
 			// Otherwise, the resource is used outside of a service.
-			resUsages, found := d.ResourceUsageOutsideServices[ref.Resource]
+			resUsages, found := d.ResourceUsageOutsideServices[res]
 			if !found {
 				resUsages = make([]usage.Usage, 0, 1)
-				d.ResourceUsageOutsideServices[ref.Resource] = resUsages
+				d.ResourceUsageOutsideServices[res] = resUsages
 			}
 
-			d.ResourceUsageOutsideServices[ref.Resource] = append(resUsages, use)
+			d.ResourceUsageOutsideServices[res] = append(resUsages, use)
 		}
 	}
 }

@@ -49,6 +49,7 @@ func (p *Pass) Resources() []resource.Resource {
 func (p *Pass) Binds() []resource.Bind {
 	return p.binds
 }
+
 func (p *Pass) AddBind(boundName *ast.Ident, res resource.Resource) {
 	if boundName.Name == "_" {
 		return

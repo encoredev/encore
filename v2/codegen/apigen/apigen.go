@@ -32,7 +32,6 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 		for _, svc := range desc.Services {
 
 			var svcStruct option.Option[*codegen.VarDecl]
-
 			if svcDesc, ok := svc.Framework.Get(); ok {
 				if ss, ok := svcDesc.ServiceStruct.Get(); ok {
 					decl := servicestructgen.Gen(gg, svc, ss)

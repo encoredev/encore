@@ -1,36 +1,37 @@
 package api
 
 import (
-	"encr.dev/v2/internal/perr"
+	"go/ast"
+
 	"encr.dev/v2/parser/resource/usage"
 )
 
 type CallUsage struct {
 	usage.Base
+
+	// Endpoint is the endpoint being called.
+	Endpoint *Endpoint
+
+	// Call is the function call expression.
+	Call *ast.CallExpr
 }
 
-func ResolveEndpointUsage(errs *perr.List, expr usage.Expr, endpoint *Endpoint) usage.Usage {
-	switch expr := expr.(type) {
-	case *usage.MethodCall:
+func ResolveEndpointUsage(data usage.ResolveData, ep *Endpoint) usage.Usage {
+	if fc, ok := data.Expr.(*usage.FuncCall); ok {
 		return &CallUsage{
 			Base: usage.Base{
-				File: expr.File,
-				Bind: expr.Bind,
-				Expr: expr,
+				File: fc.File,
+				Bind: fc.Bind,
+				Expr: fc,
 			},
-		}
-
-	case *usage.FuncCall:
-		return &CallUsage{
-			Base: usage.Base{
-				File: expr.File,
-				Bind: expr.Bind,
-				Expr: expr,
-			},
+			Endpoint: ep,
+			Call:     fc.Call,
 		}
 	}
 
-	errs.Add(errInvalidEndpointUsage.AtGoNode(expr))
+	// Check if the resource is referenced in a permissible location.
+	// Walk the stack to find the
 
+	data.Errs.Add(errInvalidEndpointUsage.AtGoNode(data.Expr))
 	return nil
 }

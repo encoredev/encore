@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/dave/jennifer/jen"
+	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/v2/internal/paths"
@@ -108,6 +109,22 @@ type Decl interface {
 	Name() string
 	Qual() *jen.Statement
 	Code() *jen.Statement
+}
+
+func (f *File) HasDecl(nameParts ...string) bool {
+	for _, decl := range f.decls {
+		switch decl := decl.(type) {
+		case *FuncDecl:
+			if slices.Equal(decl.nameParts, nameParts) {
+				return true
+			}
+		case *VarDecl:
+			if slices.Equal(decl.nameParts, nameParts) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (f *File) FuncDecl(nameParts ...string) *FuncDecl {

@@ -133,7 +133,6 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		MaxRetries:       cfg.RetryPolicy.MaxRetries,
 	}
 
-	// TODO(andre) fill in this
 	sub := &Subscription{
 		AST:   d.Call,
 		File:  d.File,

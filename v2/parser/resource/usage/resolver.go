@@ -36,7 +36,7 @@ func (b *Base) End() token.Pos              { return b.Expr.End() }
 func (b *Base) usage() {}
 
 type Resolver struct {
-	resolvers map[reflect.Type]func(*perr.List, Expr, resource.Resource) Usage
+	resolvers map[reflect.Type]func(ResolveData, resource.Resource) Usage
 }
 
 func (r *Resolver) Resolve(errs *perr.List, expr Expr, res resource.Resource) option.Option[Usage] {
@@ -44,16 +44,20 @@ func (r *Resolver) Resolve(errs *perr.List, expr Expr, res resource.Resource) op
 	if !ok {
 		return option.None[Usage]()
 	}
-	return option.AsOptional(fn(errs, expr, res))
+	data := ResolveData{
+		Errs: errs,
+		Expr: expr,
+	}
+	return option.AsOptional(fn(data, res))
 }
 
 func NewResolver() *Resolver {
 	return &Resolver{
-		resolvers: make(map[reflect.Type]func(*perr.List, Expr, resource.Resource) Usage),
+		resolvers: make(map[reflect.Type]func(ResolveData, resource.Resource) Usage),
 	}
 }
 
-func RegisterUsageResolver[Res resource.Resource](r *Resolver, fn func(*perr.List, Expr, Res) Usage) {
+func RegisterUsageResolver[Res resource.Resource](r *Resolver, fn func(ResolveData, Res) Usage) {
 	var zero Res
 	typ := reflect.TypeOf(zero)
 
@@ -61,7 +65,7 @@ func RegisterUsageResolver[Res resource.Resource](r *Resolver, fn func(*perr.Lis
 		panic("usage resolver already registered for type " + typ.String())
 	}
 
-	r.resolvers[typ] = func(errs *perr.List, expr Expr, res resource.Resource) Usage {
-		return fn(errs, expr, res.(Res))
+	r.resolvers[typ] = func(data ResolveData, res resource.Resource) Usage {
+		return fn(data, res.(Res))
 	}
 }

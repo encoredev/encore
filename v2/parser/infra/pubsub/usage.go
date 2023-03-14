@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/resource/usage"
 )
@@ -11,8 +10,8 @@ type PublishUsage struct {
 	usage.Base
 }
 
-func ResolveTopicUsage(errs *perr.List, expr usage.Expr, topic *Topic) usage.Usage {
-	switch expr := expr.(type) {
+func ResolveTopicUsage(data usage.ResolveData, topic *Topic) usage.Usage {
+	switch expr := data.Expr.(type) {
 	case *usage.MethodCall:
 		if expr.Method == "Publish" {
 			return &PublishUsage{
@@ -35,6 +34,6 @@ func ResolveTopicUsage(errs *perr.List, expr usage.Expr, topic *Topic) usage.Usa
 		}
 	}
 
-	errs.Add(errInvalidTopicUsage.AtGoNode(expr))
+	data.Errs.Add(errInvalidTopicUsage.AtGoNode(data.Expr))
 	return nil
 }

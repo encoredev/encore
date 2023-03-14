@@ -3,6 +3,7 @@ package rewrite
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/token"
 )
 
@@ -26,6 +27,10 @@ func (r *Rewriter) Replace(start, end token.Pos, data []byte) {
 	si, so := r.seg(start)
 	ei, eo := r.seg(end)
 	r.replace(si, so, ei, eo, data)
+}
+
+func (r *Rewriter) ReplaceNode(node ast.Node, data []byte) {
+	r.Replace(node.Pos(), node.End(), data)
 }
 
 func (r *Rewriter) Insert(start token.Pos, data []byte) {

@@ -16,16 +16,20 @@ import (
 
 func Gen(gen *codegen.Generator, svc *app.Service, svcStruct option.Option[*codegen.VarDecl]) map[*api.Endpoint]*codegen.VarDecl {
 	epMap := make(map[*api.Endpoint]*codegen.VarDecl)
-	svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
+	if fw, ok := svc.Framework.Get(); ok {
 		f := gen.File(fw.RootPkg, "api")
 		for _, ep := range fw.Endpoints {
-			epMap[ep] = genAPIDesc(gen, f, svc, svcStruct, fw, ep)
+			handler := genAPIDesc(gen, f, svc, svcStruct, fw, ep)
+			rewriteAPICalls(gen, svc, ep, handler)
+
+			epMap[ep] = handler.desc
 		}
-	})
+	}
+
 	return epMap
 }
 
-func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, svcStruct option.Option[*codegen.VarDecl], fw *apiframework.ServiceDesc, ep *api.Endpoint) *codegen.VarDecl {
+func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, svcStruct option.Option[*codegen.VarDecl], fw *apiframework.ServiceDesc, ep *api.Endpoint) *handlerDesc {
 	gu := gen.Util
 	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
 	respDesc := &responseDesc{gu: gen.Util, ep: ep}
@@ -85,7 +89,8 @@ func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, svcSt
 		Id("CloneResp"):  respDesc.Clone(),
 	}))
 
-	return desc
+	handler.desc = desc
+	return handler
 }
 
 func apiQ(name string) *Statement {

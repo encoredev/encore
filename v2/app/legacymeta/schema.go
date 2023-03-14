@@ -61,6 +61,9 @@ func (b *builder) builtinType(typ schemav2.BuiltinType) schema.Builtin {
 
 func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 	switch typ := typ.(type) {
+	case nil:
+		return nil
+
 	case schemav2.BuiltinType:
 		return &schema.Type{Typ: &schema.Type_Builtin{
 			Builtin: b.builtinType(typ),

@@ -187,11 +187,16 @@ func (r *fileNameResolver) processImports() {
 				}
 				localName = is.Name.Name
 			}
-			if p2 := r.res.nameToPath[localName]; p2 != "" {
-				r.l.c.Errs.Addf(pos, "name %s already declared (import of package %s)", localName, p2)
-				continue
+
+			// Add the name as long as it's not "_".
+			if localName != "_" {
+				if p2 := r.res.nameToPath[localName]; p2 != "" {
+					r.l.c.Errs.Addf(pos, "name %s already declared (import of package %s)", localName, p2)
+					continue
+				}
+				r.res.nameToPath[localName] = dstPkgPath
 			}
-			r.res.nameToPath[localName] = dstPkgPath
+
 		}
 	}
 }
