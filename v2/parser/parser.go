@@ -8,6 +8,7 @@ import (
 	"encr.dev/v2/internal/scan"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis"
+	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/infra/cache"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/cron"
@@ -94,6 +95,10 @@ var allParsers = []*resourceparser.Parser{
 
 func newUsageResolver() *usage.Resolver {
 	r := usage.NewResolver()
+	// Infrastructure SDK
 	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
+
+	// API Framework
+	usage.RegisterUsageResolver[*authhandler.AuthHandler](r, authhandler.ResolveAuthHandlerUsage)
 	return r
 }

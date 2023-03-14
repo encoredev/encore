@@ -25,3 +25,31 @@ func Foo() {
 }
 
 -- want: errors --
+
+── Invalid auth handler usage ─────────────────────────────────────────────────────────────[E9999]──
+
+Auth handlers can only be called, but not referenced.
+
+    ╭─[ svc2/svc2.go:9:9 ]
+    │
+  7 │
+  8 │ func Foo() {
+  9 │     _ = svc.MyAuth
+    ⋮         ────┬─────
+    ⋮             ╰─ referenced here
+ 10 │ }
+ 11 │
+────╯
+
+    ╭─[ svc/svc.go:9:6 ]
+    │
+  7 │
+  8 │ //encore:authhandler
+  9 │ func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+    ⋮      ──┬───
+    ⋮        ╰─ auth handler defined here
+ 10 │
+────╯
+
+For more information on auth handlers and how to define them, see
+https://encore.dev/docs/develop/auth

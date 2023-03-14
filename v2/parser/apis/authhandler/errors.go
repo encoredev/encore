@@ -52,6 +52,18 @@ note: *Params and *UserData are custom data types you define
 		"The second result must be a pointer to a named struct.",
 	)
 
+	errCannotCallFromAnotherPackage = errRange.New(
+		"Invalid auth handler usage",
+		"You can not directly call an auth handler from another package.",
+		errors.WithDetails(authLink),
+	)
+
+	errInvalidReference = errRange.New(
+		"Invalid auth handler usage",
+		"Auth handlers can only be called, but not referenced.",
+		errors.WithDetails(authLink),
+	)
+
 	ErrInvalidFieldTags = errRange.New(
 		"Invalid auth payload",
 		"All fields used within an auth payload must originate from either an HTTP header or a query parameter.",

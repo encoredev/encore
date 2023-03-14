@@ -10,6 +10,8 @@ type Kind int
 
 const (
 	Unknown Kind = iota
+
+	// Infrastructure SDK Resources
 	PubSubTopic
 	PubSubSubscription
 	SQLDatabase
@@ -20,6 +22,7 @@ const (
 	ConfigLoad
 	Secrets
 
+	// API Framework Resources
 	APIEndpoint
 	AuthHandler
 	Middleware

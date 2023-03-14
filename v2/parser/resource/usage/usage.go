@@ -3,6 +3,7 @@ package usage
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 
 	"golang.org/x/exp/slices"
 
@@ -15,6 +16,11 @@ import (
 )
 
 type Expr interface {
+	// Node allows use to use the expression in error messages
+	// where the Pos/End is used to point directly at the resource
+	// bind being used, rather than the overall expression.
+	ast.Node
+
 	ResourceBind() resource.Bind
 	ASTExpr() ast.Expr
 	DeclaredIn() *pkginfo.File
@@ -22,6 +28,21 @@ type Expr interface {
 	// DescriptionForTest describes the expression for testing purposes.
 	DescriptionForTest() string
 }
+
+// FuncCall describes a resource being called as a function.
+type FuncCall struct {
+	File *pkginfo.File
+	Bind resource.Bind
+	Call *ast.CallExpr
+	Args []ast.Expr
+}
+
+func (f *FuncCall) DeclaredIn() *pkginfo.File   { return f.File }
+func (f *FuncCall) ASTExpr() ast.Expr           { return f.Call }
+func (f *FuncCall) ResourceBind() resource.Bind { return f.Bind }
+func (f *FuncCall) DescriptionForTest() string  { return "called" }
+func (f *FuncCall) Pos() token.Pos              { return f.Call.Fun.Pos() }
+func (f *FuncCall) End() token.Pos              { return f.Call.Fun.End() }
 
 // MethodCall describes a resource usage via a method call.
 type MethodCall struct {
@@ -36,6 +57,8 @@ func (m *MethodCall) DeclaredIn() *pkginfo.File   { return m.File }
 func (m *MethodCall) ASTExpr() ast.Expr           { return m.Call }
 func (m *MethodCall) ResourceBind() resource.Bind { return m.Bind }
 func (m *MethodCall) DescriptionForTest() string  { return fmt.Sprintf("call %s", m.Method) }
+func (m *MethodCall) Pos() token.Pos              { return m.Call.Fun.Pos() }
+func (m *MethodCall) End() token.Pos              { return m.Call.Fun.End() }
 
 // FieldAccess describes a resource usage via a field access.
 type FieldAccess struct {
@@ -49,6 +72,8 @@ func (f *FieldAccess) DeclaredIn() *pkginfo.File   { return f.File }
 func (f *FieldAccess) ASTExpr() ast.Expr           { return f.Expr }
 func (f *FieldAccess) ResourceBind() resource.Bind { return f.Bind }
 func (f *FieldAccess) DescriptionForTest() string  { return fmt.Sprintf("field %s", f.Field) }
+func (f *FieldAccess) Pos() token.Pos              { return f.Expr.Sel.Pos() }
+func (f *FieldAccess) End() token.Pos              { return f.Expr.Sel.End() }
 
 // FuncArg describes a resource being used as a function argument.
 type FuncArg struct {
@@ -74,18 +99,23 @@ func (f *FuncArg) DescriptionForTest() string {
 	}
 	return fmt.Sprintf("arg %d", f.ArgIdx)
 }
+func (f *FuncArg) Pos() token.Pos { return f.Call.Args[f.ArgIdx].Pos() }
+func (f *FuncArg) End() token.Pos { return f.Call.Args[f.ArgIdx].End() }
 
 // Other describes any other resource usage.
 type Other struct {
-	File *pkginfo.File
-	Bind resource.Bind
-	Expr ast.Expr
+	File    *pkginfo.File
+	Bind    resource.Bind
+	Expr    ast.Expr
+	BindRef ast.Node
 }
 
 func (o *Other) DeclaredIn() *pkginfo.File   { return o.File }
 func (o *Other) ASTExpr() ast.Expr           { return o.Expr }
 func (o *Other) ResourceBind() resource.Bind { return o.Bind }
 func (o *Other) DescriptionForTest() string  { return "other" }
+func (o *Other) Pos() token.Pos              { return o.BindRef.Pos() }
+func (o *Other) End() token.Pos              { return o.BindRef.End() }
 
 func ParseExprs(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Expr {
 	p := &usageParser{
@@ -257,6 +287,16 @@ func (p *usageParser) classifyExpr(file *pkginfo.File, bind resource.Bind, stack
 
 		// Is this bind being referenced in a function call argument?
 		if call, ok := stack[idx-1].(*ast.CallExpr); ok {
+
+			if call.Fun == stack[idx] {
+				return &FuncCall{
+					File: file,
+					Bind: bind,
+					Call: call,
+					Args: call.Args,
+				}
+			}
+
 			// Find which argument this is.
 			if argIdx := slices.Index(call.Args, stack[idx].(ast.Expr)); argIdx >= 0 {
 				pkgFunc := option.CommaOk(file.Names().ResolvePkgLevelRef(call.Fun))
@@ -280,8 +320,9 @@ func (p *usageParser) classifyExpr(file *pkginfo.File, bind resource.Bind, stack
 	}
 
 	return &Other{
-		File: file,
-		Bind: bind,
-		Expr: enclosing,
+		File:    file,
+		Bind:    bind,
+		Expr:    enclosing,
+		BindRef: stack[idx],
 	}
 }

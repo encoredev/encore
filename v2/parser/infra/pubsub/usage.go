@@ -32,12 +32,9 @@ func ResolveTopicUsage(errs *perr.List, expr usage.Expr, topic *Topic) usage.Usa
 		case option.Contains(expr.PkgFunc, pkginfo.Q("encore.dev/et", "Topic")):
 			// Allowed usage
 			return nil
-		default:
-			errs.Add(errInvalidTopicUsage.AtGoNode(expr.Call.Args[expr.ArgIdx]))
-			return nil
 		}
 	}
 
-	errs.Add(errInvalidTopicUsage.AtGoNode(expr.ASTExpr()))
+	errs.Add(errInvalidTopicUsage.AtGoNode(expr))
 	return nil
 }
