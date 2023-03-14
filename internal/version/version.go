@@ -115,11 +115,7 @@ func Compare(againstVersion string) int {
 		that, _ := strconv.Atoi(strings.TrimPrefix(againstVersion, "nightly-"))
 		return this - that
 	case DevBuild:
-		if Version == againstVersion {
-			return 0
-		} else {
-			return 1 // For dev builds, a change is always newer
-		}
+		return 0 // always same version
 	default:
 		return 0 // never newer if we can't test
 	}
