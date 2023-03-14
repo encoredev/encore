@@ -1,6 +1,7 @@
 package pkginfo
 
 import (
+	"fmt"
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
@@ -49,6 +50,10 @@ type Package struct {
 	namesCache *PkgNames
 }
 
+func (p *Package) GoString() string {
+	return fmt.Sprintf("&pkginfo.Package{ImportPath: %q, Name: %q}", p.ImportPath, p.Name)
+}
+
 // Names returns the computed package-level names.
 func (p *Package) Names() *PkgNames {
 	p.namesOnce.Do(func() {
@@ -82,6 +87,18 @@ type File struct {
 
 	inspectorOnce  sync.Once
 	inspectorCache *inspector.Inspector
+}
+
+func (f *File) GoString() string {
+	if f == nil {
+		return "(*pkginfo.File)(nil)"
+	}
+
+	pkgPath := "(UNKNOWN)"
+	if f.Pkg != nil {
+		pkgPath = f.Pkg.ImportPath.String()
+	}
+	return fmt.Sprintf("&pkginfo.File{Pkg: %q, Name: %q}", pkgPath, f.Name)
 }
 
 // Names returns the computed file-level names.

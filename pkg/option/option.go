@@ -2,6 +2,7 @@ package option
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/cockroachdb/errors"
 )
@@ -13,6 +14,36 @@ import (
 type Option[T any] struct {
 	value   T
 	present bool
+}
+
+// Equal reports whether two fields are equal.
+// It's implemented for testing purposes.
+func (o Option[T]) Equal(other Option[T]) bool {
+	if !o.present && !other.present {
+		return true
+	} else if o.present != other.present {
+		return false
+	}
+
+	val := reflect.ValueOf(o.value)
+
+	// If there is an Equal method, call it.
+	// We have to use reflection because Go doesn't support type assertions
+	// like o.value.(equaler[T]).
+	if equal := val.MethodByName("Equal"); equal.IsValid() {
+		// Make sure it looks like the right shape.
+		if equal.Kind() == reflect.Func && equal.Type().NumIn() == 1 {
+			result := equal.Call([]reflect.Value{reflect.ValueOf(other.value)})
+			return result[0].Bool()
+		}
+	}
+
+	// Make sure the types are comparable since we don't enforce
+	// that on the type constraint.
+	if val.Comparable() {
+		return val.Equal(reflect.ValueOf(other.value))
+	}
+	return false
 }
 
 // AsOptional returns an Option where a zero value T is considered None

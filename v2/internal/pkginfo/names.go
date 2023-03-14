@@ -597,12 +597,20 @@ type PkgNames struct {
 	pkgScope *scope
 }
 
+func (n *PkgNames) GoString() string {
+	return "&pkginfo.PkgNames{...}"
+}
+
 // FileNames contains name resolution results for a single file.
 type FileNames struct {
 	file       *File                     // file it belongs to
 	nameToPath map[string]paths.Pkg      // local name -> path
 	idents     map[*ast.Ident]*IdentInfo // ident -> resolved
 	calls      []*ast.CallExpr
+}
+
+func (n *FileNames) GoString() string {
+	return "&pkginfo.FileNames{...}"
 }
 
 // ResolvePkgPath resolves the package path a given identifier name

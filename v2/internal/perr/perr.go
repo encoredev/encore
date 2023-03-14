@@ -194,6 +194,10 @@ func (l *List) FormatErrors() string {
 	return b.String()
 }
 
+func (l *List) GoString() string {
+	return "&perr.List{...}"
+}
+
 // MakeRelative rewrites the errors by making filenames within the
 // app root relative to the relwd (which must be a relative path
 // within the root).

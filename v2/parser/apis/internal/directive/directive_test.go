@@ -1,10 +1,15 @@
 package directive
 
 import (
+	"context"
+	"go/token"
+	"regexp"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"encr.dev/v2/internal/perr"
 )
 
 func TestParseDirective(t *testing.T) {
@@ -19,7 +24,7 @@ func TestParseDirective(t *testing.T) {
 			line: "api public",
 			expected: Directive{
 				Name:    "api",
-				Options: []string{"public"},
+				Options: []Field{{Value: "public"}},
 			},
 		},
 		{
@@ -27,7 +32,7 @@ func TestParseDirective(t *testing.T) {
 			line: "api public method=FOO",
 			expected: Directive{
 				Name:    "api",
-				Options: []string{"public"},
+				Options: []Field{{Value: "public"}},
 				Fields:  []Field{{Key: "method", Value: "FOO"}},
 			},
 		},
@@ -36,7 +41,7 @@ func TestParseDirective(t *testing.T) {
 			line: "api public raw method=GET,POST",
 			expected: Directive{
 				Name:    "api",
-				Options: []string{"public", "raw"},
+				Options: []Field{{Value: "public"}, {Value: "raw"}},
 				Fields:  []Field{{Key: "method", Value: "GET,POST"}},
 			},
 		},
@@ -45,15 +50,15 @@ func TestParseDirective(t *testing.T) {
 			line: "api public tag:foo method=FOO raw tag:bar",
 			expected: Directive{
 				Name:    "api",
-				Options: []string{"public", "raw"},
+				Options: []Field{{Value: "public"}, {Value: "raw"}},
 				Fields:  []Field{{Key: "method", Value: "FOO"}},
-				Tags:    []string{"tag:foo", "tag:bar"},
+				Tags:    []Field{{Value: "tag:foo"}, {Value: "tag:bar"}},
 			},
 		},
 		{
 			desc:    "api with duplicate tag",
 			line:    "api public tag:foo tag:foo",
-			wantErr: "invalid encore:api directive: duplicate tag \"tag:foo\"",
+			wantErr: `(?m)The tag "tag:foo" is already defined on this declaration\.`,
 		},
 		{
 			desc: "middleware",
@@ -66,18 +71,29 @@ func TestParseDirective(t *testing.T) {
 		{
 			desc:    "middleware empty target",
 			line:    "middleware target=",
-			wantErr: `invalid encore:middleware directive: field "target" has no value`,
+			wantErr: `(?m)Directive fields must have a value\.`,
 		},
 	}
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			c := qt.New(t)
-			dir, err := parseOne(tc.line, 0)
+			fs := token.NewFileSet()
+			errs := perr.NewList(context.Background(), fs)
+			dir, ok := parseOne(errs, 0, tc.line)
 			if tc.wantErr != "" {
-				c.Assert(err, qt.ErrorMatches, tc.wantErr)
+				re := regexp.MustCompile(tc.wantErr)
+				if errStr := errs.FormatErrors(); !re.MatchString(errStr) {
+					c.Fatalf("error did not match regexp %s: %s", tc.wantErr, errStr)
+				}
 			} else {
-				c.Assert(err, qt.IsNil)
-				c.Assert(dir, qt.CmpEquals(cmpopts.EquateEmpty()), tc.expected)
+				c.Assert(ok, qt.IsTrue)
+
+				cmp := qt.CmpEquals(
+					cmpopts.EquateEmpty(),
+					cmpopts.IgnoreUnexported(Field{}),
+					cmpopts.IgnoreUnexported(Directive{}),
+				)
+				c.Assert(dir, cmp, tc.expected)
 			}
 		})
 	}

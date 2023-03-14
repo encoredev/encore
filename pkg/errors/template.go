@@ -101,7 +101,7 @@ func (t Template) InFile(filepath string, options ...LocationOption) Template {
 		return t
 	}
 
-	return t.atLocation(SrcLocation{Kind: LocGoNode, Filepath: filepath}, options)
+	return t.atLocation(SrcLocation{Kind: LocFile, Filepath: filepath}, options)
 }
 
 // AtGoNode adds the given Go node to the template. If the node is nil, nothing happens.

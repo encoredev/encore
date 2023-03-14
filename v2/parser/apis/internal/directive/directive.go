@@ -47,6 +47,12 @@ type Field struct {
 	end   token.Pos // position of the end value
 }
 
+// Equal reports whether two fields are equal.
+// It's implemented for testing purposes.
+func (f Field) Equal(other Field) bool {
+	return f.Key == other.Key && f.Value == other.Value
+}
+
 var _ ast.Node = (*Field)(nil)
 
 func (f Field) Pos() token.Pos {

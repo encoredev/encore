@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strings"
@@ -52,6 +53,13 @@ type Endpoint struct {
 
 	respEncOnce  sync.Once
 	respEncoding *apienc.ResponseEncoding
+}
+
+func (ep *Endpoint) GoString() string {
+	if ep == nil {
+		return "(*api.Endpoint)(nil)"
+	}
+	return fmt.Sprintf("&api.Endpoint{Name: %q}", ep.Name)
 }
 
 func (ep *Endpoint) Kind() resource.Kind       { return resource.APIEndpoint }

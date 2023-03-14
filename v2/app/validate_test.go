@@ -156,16 +156,16 @@ func TestValidation(t *testing.T) {
 
 				// First find all the bindings for each topic
 				topicsByName := make(map[pkginfo.QualifiedName]*pubsub.Topic)
-				for _, res := range desc.Infra.Resources() {
+				for _, res := range desc.Parse.Resources() {
 					switch res := res.(type) {
 					case *pubsub.Topic:
-						for _, b := range desc.Infra.PkgDeclBinds(res) {
+						for _, b := range desc.Parse.PkgDeclBinds(res) {
 							topicsByName[b.QualifiedName()] = res
 						}
 					}
 				}
 
-				for _, res := range desc.Infra.Resources() {
+				for _, res := range desc.Parse.Resources() {
 					switch res := res.(type) {
 					case *config.Load:
 						svc, found := desc.ServiceForPath(res.File.FSPath)
@@ -178,7 +178,7 @@ func TestValidation(t *testing.T) {
 					case *pubsub.Topic:
 						printf("pubsubTopic %s", res.Name)
 
-						for _, u := range desc.Infra.Usages(res) {
+						for _, u := range desc.Parse.Usages(res) {
 							if mc, ok := u.(*usage.MethodCall); ok && mc.Method == "Publish" {
 								if svc, found := desc.ServiceForPath(mc.File.FSPath); found {
 									printf("pubsubPublisher %s %s\n", res.Name, svc.Name)

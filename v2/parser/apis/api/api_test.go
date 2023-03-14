@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
@@ -36,9 +37,10 @@ func TestParseRPC(t *testing.T) {
 func Foo(ctx context.Context) error {}
 `,
 			want: &Endpoint{
-				Name:   "Foo",
-				Doc:    "Foo does things.\n",
-				Access: Public,
+				Name:        "Foo",
+				Doc:         "Foo does things.\n",
+				Access:      Public,
+				AccessField: option.Some(directive.Field{Value: "public"}),
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Literal, Value: "foo.Foo", ValueType: schema.String},
 				}},
@@ -52,9 +54,10 @@ func Foo(ctx context.Context) error {}
 func Foo(ctx context.Context) error {}
 `,
 			want: &Endpoint{
-				Name:   "Foo",
-				Doc:    "",
-				Access: Private,
+				Name:        "Foo",
+				Doc:         "",
+				Access:      Private,
+				AccessField: option.Some(directive.Field{Value: "private"}),
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Literal, Value: "foo", ValueType: schema.String},
 				}},
@@ -69,9 +72,10 @@ func Foo(ctx context.Context) error {}
 func Foo(ctx context.Context, key string) error {}
 `,
 			want: &Endpoint{
-				Name:   "Foo",
-				Doc:    "",
-				Access: Auth,
+				Name:        "Foo",
+				Doc:         "",
+				Access:      Auth,
+				AccessField: option.Some(directive.Field{Value: "auth"}),
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Param, Value: "key", ValueType: schema.String},
 				}},
@@ -85,9 +89,10 @@ func Foo(ctx context.Context, key string) error {}
 func Foo(ctx context.Context, key int) error {}
 `,
 			want: &Endpoint{
-				Name:   "Foo",
-				Doc:    "",
-				Access: Auth,
+				Name:        "Foo",
+				Doc:         "",
+				Access:      Auth,
+				AccessField: option.Some(directive.Field{Value: "auth"}),
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Literal, Value: "foo", ValueType: schema.String},
 					{Type: apipaths.Param, Value: "key", ValueType: schema.Int},
@@ -103,10 +108,11 @@ func Foo(ctx context.Context, key int) error {}
 func Raw(w http.ResponseWriter, req *http.Request) {}
 `,
 			want: &Endpoint{
-				Name:   "Raw",
-				Doc:    "",
-				Access: Public,
-				Raw:    true,
+				Name:        "Raw",
+				Doc:         "",
+				Access:      Public,
+				AccessField: option.Some(directive.Field{Value: "public"}),
+				Raw:         true,
 				Path: &apipaths.Path{Segments: []apipaths.Segment{
 					{Type: apipaths.Literal, Value: "raw", ValueType: schema.String},
 				}},
@@ -179,7 +185,7 @@ package foo
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
 					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}),
+					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}, Endpoint{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
