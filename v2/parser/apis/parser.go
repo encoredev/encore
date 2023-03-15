@@ -45,9 +45,13 @@ var Parser = &resourceparser.Parser{
 
 						if ep != nil {
 							p.RegisterResource(ep)
-							if ep.Recv.Empty() {
-								p.AddBind(ep.Decl.AST.Name, ep)
-							}
+							// We unconditionally register a package-level bind here,
+							// even if the endpoint is defined on a service struct.
+							//
+							// This is the case because we generate a package-level
+							// wrapper function that forwards to the service struct
+							// method in that case.
+							p.AddBind(ep.Decl.AST.Name, ep)
 						}
 
 					case "authhandler":

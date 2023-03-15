@@ -7,6 +7,7 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/servicestructgen"
+	"encr.dev/v2/codegen/apigen/userfacinggen"
 	"encr.dev/v2/codegen/internal/codegentest"
 )
 
@@ -18,7 +19,10 @@ func TestCodegen(t *testing.T) {
 			if ss, ok := fw.ServiceStruct.Get(); ok {
 				decl := servicestructgen.Gen(gen, svc, ss)
 				svcStruct = option.Some(decl)
+
 			}
+
+			userfacinggen.Gen(gen, svc, svcStruct, true)
 		}
 		Gen(gen, desc.Parse, svc, svcStruct)
 	}
