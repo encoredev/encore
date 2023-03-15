@@ -11,6 +11,7 @@ import (
 	"encr.dev/v2/codegen/apigen/maingen"
 	"encr.dev/v2/codegen/apigen/middlewaregen"
 	"encr.dev/v2/codegen/apigen/servicestructgen"
+	"encr.dev/v2/codegen/apigen/userfacinggen"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
@@ -45,6 +46,9 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 
 			eps := endpointgen.Gen(gg, desc.Parse, svc, svcStruct)
 			maps.Copy(gp.APIHandlers, eps)
+
+			// Generate user-facing code with the implementation in place.
+			userfacinggen.Gen(gg, svc, svcStruct, true)
 		}
 
 		mws := middlewaregen.Gen(gg, fw.GlobalMiddleware, option.None[*codegen.VarDecl]())

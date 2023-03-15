@@ -28,7 +28,7 @@ var EncoreInternal_middleware_middleware_Middleware = &__api.Middleware{
 	DefLoc: 0,
 	Global: false,
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
-		svc, err := EncoreInternal_svcstruct_svcstruct_Service.Get()
+		svc, err := EncoreInternal_svcstruct_Service.Get()
 		if err != nil {
 			return middleware.Response{
 				Err:        err,
@@ -48,7 +48,7 @@ import (
 	__service "encore.dev/appruntime/service"
 )
 
-var EncoreInternal_svcstruct_svcstruct_Service = &__service.Decl[Service]{
+var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
 	Service:     "code",
 	Setup:       nil,

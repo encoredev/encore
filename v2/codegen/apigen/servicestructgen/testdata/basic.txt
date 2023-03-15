@@ -17,7 +17,7 @@ import (
 	__service "encore.dev/appruntime/service"
 )
 
-var EncoreInternal_svcstruct_svcstruct_Service = &__service.Decl[Service]{
+var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
 	Service:     "basic",
 	Setup:       nil,

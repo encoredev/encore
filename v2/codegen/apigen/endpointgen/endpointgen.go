@@ -25,6 +25,7 @@ func Gen(gen *codegen.Generator, parse *parser.Result, svc *app.Service, svcStru
 
 			epMap[ep] = handler.desc
 		}
+
 	}
 
 	return epMap
