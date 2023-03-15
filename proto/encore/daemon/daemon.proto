@@ -122,9 +122,13 @@ message ExportRequest {
   // if true.
   bool cgo_enabled = 4;
 
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 5;
+
   oneof format {
     // docker specifies to export the app as a docker image.
-    DockerExportParams docker = 5;
+    DockerExportParams docker = 6;
   }
 }
 

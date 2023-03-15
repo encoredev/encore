@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -22,13 +21,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/rs/zerolog"
 
-	"encr.dev/compiler"
-	"encr.dev/internal/env"
-	"encr.dev/internal/version"
-	"encr.dev/pkg/appfile"
+	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/internal/builders"
+	"encr.dev/internal/builder"
 	"encr.dev/pkg/cueutil"
-	"encr.dev/pkg/experiments"
-	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -37,49 +33,56 @@ const (
 )
 
 // Docker exports the app as a docker image.
-func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger) (success bool, err error) {
+func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest, log zerolog.Logger) (success bool, err error) {
 	params := req.GetDocker()
 	if params == nil {
 		return false, errors.Newf("unsupported format: %T", req.Format)
 	}
 
-	exp, err := appfile.Experiments(req.AppRoot)
+	expSet, err := app.Experiments(req.Environ)
 	if err != nil {
-		return false, errors.Wrap(err, "check experimental features")
+		return false, errors.Wrap(err, "get experimental features")
 	}
 
-	expSet, err := experiments.NewSet(exp, nil)
-	if err != nil {
-		return false, errors.Wrap(err, "get experiments")
+	buildInfo := builder.BuildInfo{
+		BuildTags:  []string{"timetzdata"},
+		CgoEnabled: req.CgoEnabled,
+		StaticLink: true,
+		Debug:      false,
+		GOOS:       req.Goos,
+		GOARCH:     req.Goarch,
+		KeepOutput: false,
 	}
 
-	vcsRevision := vcs.GetRevision(req.AppRoot)
+	bld := builders.Resolve(expSet)
+	parse, err := bld.Parse(builder.ParseParams{
+		Build:       buildInfo,
+		App:         app,
+		Experiments: expSet,
+		WorkingDir:  ".",
+		ParseTests:  false,
+	})
+	if err != nil {
+		return false, err
+	}
 
-	cfg := &compiler.Config{
-		Revision:              vcsRevision.Revision,
-		UncommittedChanges:    vcsRevision.Uncommitted,
-		WorkingDir:            ".",
-		CgoEnabled:            false,
-		BuildTags:             []string{"timetzdata"},
-		StaticLink:            true,
-		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-		EncoreRuntimePath:     env.EncoreRuntimePath(),
-		EncoreGoRoot:          env.EncoreGoRoot(),
-		GOOS:                  req.Goos,
-		GOARCH:                req.Goarch,
-		KeepOutput:            false,
-		Experiments:           expSet,
-		Meta: &cueutil.Meta{
+	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)
+	result, err := bld.Compile(builder.CompileParams{
+		Build:       buildInfo,
+		App:         app,
+		Parse:       parse,
+		OpTracker:   nil, // TODO
+		Experiments: expSet,
+		WorkingDir:  ".",
+		CueMeta: &cueutil.Meta{
 			// Dummy data to satisfy config validation.
 			APIBaseURL: "http://localhost:0",
 			EnvName:    "encore-eject",
 			EnvType:    cueutil.EnvType_Development,
 			CloudType:  cueutil.CloudType_Local,
 		},
-	}
+	})
 
-	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)
-	result, err := compiler.Build(req.AppRoot, cfg)
 	if result != nil && result.Dir != "" {
 		defer os.RemoveAll(result.Dir)
 	}
@@ -126,7 +129,7 @@ func Docker(ctx context.Context, req *daemonpb.ExportRequest, log zerolog.Logger
 }
 
 // buildDockerImage builds a docker image.
-func buildDockerImage(ctx context.Context, log zerolog.Logger, req *daemonpb.ExportRequest, res *compiler.Result) (v1.Image, error) {
+func buildDockerImage(ctx context.Context, log zerolog.Logger, req *daemonpb.ExportRequest, res *builder.CompileResult) (v1.Image, error) {
 	baseImg, err := resolveBaseImage(ctx, log, req.GetDocker())
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve base image")
@@ -224,7 +227,7 @@ func resolveBaseImage(ctx context.Context, log zerolog.Logger, p *daemonpb.Docke
 	return img, nil
 }
 
-func buildImageFilesystem(ctx context.Context, res *compiler.Result) (opener tarball.Opener, err error) {
+func buildImageFilesystem(ctx context.Context, res *builder.CompileResult) (opener tarball.Opener, err error) {
 	tarFile, err := os.CreateTemp("", "docker-img")
 	if err != nil {
 		return nil, errors.Wrap(err, "mktemp")

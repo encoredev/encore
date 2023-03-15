@@ -10,7 +10,19 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
+var LocalBuildTags = []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"}
+
+type BuildInfo struct {
+	BuildTags    []string
+	CgoEnabled   bool
+	StaticLink   bool
+	Debug        bool
+	GOOS, GOARCH string
+	KeepOutput   bool
+}
+
 type ParseParams struct {
+	Build         BuildInfo
 	App           *apps.Instance
 	Experiments   *experiments.Set
 	WorkingDir    string
@@ -29,6 +41,7 @@ type ParseResult struct {
 }
 
 type CompileParams struct {
+	Build       BuildInfo
 	App         *apps.Instance
 	Parse       *ParseResult
 	OpTracker   *optracker.OpTracker

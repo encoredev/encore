@@ -3,8 +3,10 @@ package run
 import (
 	"context"
 	"os"
+	"runtime"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/internal/builders"
 	"encr.dev/internal/builder"
 	"encr.dev/pkg/cueutil"
 )
@@ -39,8 +41,19 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 
 	// TODO: We should check that all secret keys are defined as well.
 
-	bld := getBuilder(expSet)
+	buildInfo := builder.BuildInfo{
+		BuildTags:  builder.LocalBuildTags,
+		CgoEnabled: true,
+		StaticLink: true,
+		Debug:      false,
+		GOOS:       runtime.GOOS,
+		GOARCH:     runtime.GOARCH,
+		KeepOutput: p.CodegenDebug,
+	}
+
+	bld := builders.Resolve(expSet)
 	parse, err := bld.Parse(builder.ParseParams{
+		Build:       buildInfo,
 		App:         p.App,
 		Experiments: expSet,
 		WorkingDir:  p.WorkingDir,
@@ -51,6 +64,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 	}
 
 	result, err := bld.Compile(builder.CompileParams{
+		Build:       buildInfo,
 		App:         p.App,
 		Parse:       parse,
 		OpTracker:   nil, // TODO

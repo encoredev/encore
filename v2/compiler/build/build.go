@@ -216,6 +216,11 @@ func (b *builder) buildMain() {
 		args = append(args, "-ldflags", ldflags)
 	}
 
+	if b.cfg.Ctx.Build.Debug {
+		// Disable inlining for better debugging.
+		args = append(args, `-gcflags "all=-N -l"`)
+	}
+
 	args = append(args, b.cfg.MainPkg.String())
 
 	goroot := build.GOROOT

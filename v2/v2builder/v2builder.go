@@ -1,4 +1,4 @@
-package legacybuild
+package v2builder
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -41,18 +40,15 @@ func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 		Ctx: ctx,
 		Log: zerolog.New(zerolog.NewConsoleWriter()),
 		Build: parsectx.BuildInfo{
-			GOARCH:        runtime.GOARCH,
-			GOOS:          runtime.GOOS,
 			GOROOT:        paths.RootedFSPath(env.EncoreGoRoot(), "."),
 			EncoreRuntime: paths.RootedFSPath(env.EncoreRuntimePath(), "."),
 
-			// TODO(andre) make these configurable?
-			CgoEnabled: false,
-			StaticLink: false,
-			Debug:      false,
-
-			// TODO(andre) Do we need all this still?
-			BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
+			GOARCH:     p.Build.GOARCH,
+			GOOS:       p.Build.GOOS,
+			CgoEnabled: p.Build.CgoEnabled,
+			StaticLink: p.Build.StaticLink,
+			Debug:      p.Build.Debug,
+			BuildTags:  p.Build.BuildTags,
 		},
 		MainModuleDir: paths.RootedFSPath(p.App.Root(), p.WorkingDir),
 		FS:            fs,
@@ -109,7 +105,7 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 		Ctx:        pd.pc,
 		Overlays:   gg.Overlays(),
 		MainPkg:    pd.mainPkg,
-		KeepOutput: false,
+		KeepOutput: p.Build.KeepOutput,
 	})
 
 	res = &builder.CompileResult{

@@ -1,4 +1,4 @@
-package run
+package builders
 
 import (
 	"fmt"
@@ -12,8 +12,18 @@ import (
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
+	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/vcs"
+	"encr.dev/v2/v2builder"
 )
+
+func Resolve(expSet *experiments.Set) builder.Impl {
+	if experiments.V2.Enabled(expSet) {
+		return v2builder.BuilderImpl{}
+	} else {
+		return legacyBuilderImpl{}
+	}
+}
 
 type legacyBuilderImpl struct{}
 
@@ -57,15 +67,21 @@ func (legacyBuilderImpl) Compile(p builder.CompileParams) (*builder.CompileResul
 		Revision:              p.Parse.Meta.AppRevision,
 		UncommittedChanges:    p.Parse.Meta.UncommittedChanges,
 		WorkingDir:            p.WorkingDir,
-		CgoEnabled:            true,
 		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
 		EncoreRuntimePath:     env.EncoreRuntimePath(),
 		EncoreGoRoot:          env.EncoreGoRoot(),
 		Experiments:           p.Experiments,
 		Meta:                  p.CueMeta,
 		Parse:                 p.Parse.Data.(*parser.Result),
-		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
 		OpTracker:             p.OpTracker,
+
+		Debug:      p.Build.Debug,
+		KeepOutput: p.Build.KeepOutput,
+		BuildTags:  p.Build.BuildTags,
+		CgoEnabled: p.Build.CgoEnabled,
+		StaticLink: p.Build.StaticLink,
+		GOOS:       p.Build.GOOS,
+		GOARCH:     p.Build.GOARCH,
 	}
 
 	build, err := compiler.Build(p.App.Root(), cfg)

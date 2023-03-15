@@ -111,6 +111,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		Watch:      req.Watch,
 		Environ:    req.Environ,
 		OpsTracker: ops,
+		Debug:      req.Debug,
 	})
 	if err != nil {
 		s.mu.Unlock()

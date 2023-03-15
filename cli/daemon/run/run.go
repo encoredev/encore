@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -25,6 +26,7 @@ import (
 
 	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/internal/builders"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
@@ -36,7 +38,6 @@ import (
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"encr.dev/v2/legacybuild"
 )
 
 // Run represents a running Encore application.
@@ -79,6 +80,9 @@ type StartParams struct {
 
 	// The Ops tracker being used for this run
 	OpsTracker *optracker.OpTracker
+
+	// Debug specifies to compile the application for debugging.
+	Debug bool
 }
 
 // Start starts the application.
@@ -248,10 +252,21 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	}
 
 	if r.builder == nil {
-		r.builder = getBuilder(expSet)
+		r.builder = builders.Resolve(expSet)
+	}
+
+	buildInfo := builder.BuildInfo{
+		BuildTags:  builder.LocalBuildTags,
+		CgoEnabled: true,
+		StaticLink: true,
+		Debug:      r.params.Debug,
+		GOOS:       runtime.GOOS,
+		GOARCH:     runtime.GOARCH,
+		KeepOutput: false,
 	}
 
 	parse, err := r.builder.Parse(builder.ParseParams{
+		Build:       buildInfo,
 		App:         r.App,
 		Experiments: expSet,
 		WorkingDir:  r.params.WorkingDir,
@@ -271,6 +286,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
 		build, err = r.builder.Compile(builder.CompileParams{
+			Build:       buildInfo,
 			App:         r.App,
 			Parse:       parse,
 			OpTracker:   tracker,
@@ -694,12 +710,4 @@ func genAuthKey() config.EncoreAuthKey {
 		panic("cannot generate random data: " + err.Error())
 	}
 	return config.EncoreAuthKey{KeyID: kid, Data: b[:]}
-}
-
-func getBuilder(expSet *experiments.Set) builder.Impl {
-	if experiments.V2.Enabled(expSet) {
-		return legacybuild.BuilderImpl{}
-	} else {
-		return legacyBuilderImpl{}
-	}
 }
