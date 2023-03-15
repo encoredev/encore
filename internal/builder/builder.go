@@ -34,7 +34,6 @@ type CompileParams struct {
 	OpTracker   *optracker.OpTracker
 	Experiments *experiments.Set
 	WorkingDir  string
-	ListenAddr  string
 	CueMeta     *cueutil.Meta
 }
 

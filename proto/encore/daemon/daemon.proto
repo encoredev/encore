@@ -102,6 +102,11 @@ message CheckRequest {
   string working_dir = 2;
   // codegen_debug, if true, dumps the generated code and prints where it is located.
   bool codegen_debug = 3;
+  // parse_tests, if true, exercises test parsing and codegen as well.
+  bool parse_tests = 4;
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 5;
 }
 
 message ExportRequest {

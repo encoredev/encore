@@ -97,7 +97,6 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 
 	defer func() {
 		if l, ok := perr.CatchBailout(recover()); ok {
-			res = nil
 			err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
 		}
 	}()
@@ -112,21 +111,23 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 		MainPkg:    pd.mainPkg,
 		KeepOutput: false,
 	})
+
+	res = &builder.CompileResult{
+		Dir: buildResult.Dir.ToIO(),
+		Exe: buildResult.Exe.ToIO(),
+	}
 	if pd.pc.Errs.Len() > 0 {
-		return nil, fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
+		return res, fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
 	}
 
 	config, err := configProm.Get(pd.pc.Ctx)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
+	res.Configs = config.configs
+	res.ConfigFiles = config.files
 
-	return &builder.CompileResult{
-		Dir:         buildResult.Dir.ToIO(),
-		Exe:         buildResult.Exe.ToIO(),
-		Configs:     config.configs,
-		ConfigFiles: config.files,
-	}, nil
+	return res, nil
 }
 
 type configResult struct {

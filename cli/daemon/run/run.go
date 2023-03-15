@@ -248,10 +248,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	}
 
 	if r.builder == nil {
-		r.builder = legacyBuilderImpl{}
-		if experiments.V2.Enabled(expSet) {
-			r.builder = legacybuild.BuilderImpl{}
-		}
+		r.builder = getBuilder(expSet)
 	}
 
 	parse, err := r.builder.Parse(builder.ParseParams{
@@ -279,7 +276,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			OpTracker:   tracker,
 			Experiments: expSet,
 			WorkingDir:  r.params.WorkingDir,
-			ListenAddr:  r.ListenAddr,
 			CueMeta: &cueutil.Meta{
 				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
 				EnvName:    "local",
@@ -698,4 +694,12 @@ func genAuthKey() config.EncoreAuthKey {
 		panic("cannot generate random data: " + err.Error())
 	}
 	return config.EncoreAuthKey{KeyID: kid, Data: b[:]}
+}
+
+func getBuilder(expSet *experiments.Set) builder.Impl {
+	if experiments.V2.Enabled(expSet) {
+		return legacybuild.BuilderImpl{}
+	} else {
+		return legacyBuilderImpl{}
+	}
 }
