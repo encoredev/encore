@@ -26,7 +26,7 @@ type EncoreInternal_FooResp struct{}
 var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
 	Access: __api.Public,
 	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
-		svc, initErr := EncoreInternal_svcstruct_svcstruct_Service.Get()
+		svc, initErr := EncoreInternal_svcstruct_Service.Get()
 		if initErr != nil {
 			return nil, initErr
 		}
@@ -83,7 +83,7 @@ import (
 	__service "encore.dev/appruntime/service"
 )
 
-var EncoreInternal_svcstruct_svcstruct_Service = &__service.Decl[Service]{
+var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
 	Service:     "basic",
 	Setup:       nil,

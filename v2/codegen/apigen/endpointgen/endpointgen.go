@@ -10,17 +10,18 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
 )
 
-func Gen(gen *codegen.Generator, svc *app.Service, svcStruct option.Option[*codegen.VarDecl]) map[*api.Endpoint]*codegen.VarDecl {
+func Gen(gen *codegen.Generator, parse *parser.Result, svc *app.Service, svcStruct option.Option[*codegen.VarDecl]) map[*api.Endpoint]*codegen.VarDecl {
 	epMap := make(map[*api.Endpoint]*codegen.VarDecl)
 	if fw, ok := svc.Framework.Get(); ok {
 		f := gen.File(fw.RootPkg, "api")
 		for _, ep := range fw.Endpoints {
 			handler := genAPIDesc(gen, f, svc, svcStruct, fw, ep)
-			rewriteAPICalls(gen, svc, ep, handler)
+			rewriteAPICalls(gen, parse, svc, ep, handler)
 
 			epMap[ep] = handler.desc
 		}

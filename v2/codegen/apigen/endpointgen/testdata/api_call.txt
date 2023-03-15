@@ -1,0 +1,166 @@
+-- svca/svca.go --
+package svca
+
+import "context"
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:api public
+func Bar(ctx context.Context) error { return Foo(ctx) }
+-- svcb/svcb.go --
+package svcb
+
+import ("context"; "example.com/svca")
+
+//encore:api public
+func Baz(ctx context.Context) error { return svca.Foo(ctx) }
+-- want:svca/encore_internal__api.go --
+package svca
+
+import (
+	"context"
+	__api "encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
+	jsoniter "github.com/json-iterator/go"
+	"net/http"
+)
+
+type EncoreInternal_FooReq struct{}
+
+type EncoreInternal_FooResp struct{}
+
+var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
+	Access: __api.Public,
+	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
+		err := Foo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	},
+	CloneReq: func(r *EncoreInternal_FooReq) (*EncoreInternal_FooReq, error) {
+		var clone *EncoreInternal_FooReq
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	CloneResp: func(r *EncoreInternal_FooResp) (*EncoreInternal_FooResp, error) {
+		var clone *EncoreInternal_FooResp
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
+		reqData = new(EncoreInternal_FooReq)
+		return reqData, nil, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *EncoreInternal_FooResp) (err error) {
+		return nil
+	},
+	Endpoint:       "Foo",
+	Methods:        []string{"GET", "POST"},
+	Path:           "/svca.Foo",
+	PathParamNames: nil,
+	Raw:            false,
+	RawHandler:     nil,
+	RawPath:        "/svca.Foo",
+	ReqPath: func(reqData *EncoreInternal_FooReq) (string, __api.UnnamedParams, error) {
+		return "/svca.Foo", nil, nil
+	},
+	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
+		return nil
+	},
+	Service: "svca",
+	SvcNum:  0,
+}
+
+type EncoreInternal_BarReq struct{}
+
+type EncoreInternal_BarResp struct{}
+
+var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, *EncoreInternal_BarResp]{
+	Access: __api.Public,
+	AppHandler: func(ctx context.Context, reqData *EncoreInternal_BarReq) (*EncoreInternal_BarResp, error) {
+		err := Bar(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	},
+	CloneReq: func(r *EncoreInternal_BarReq) (*EncoreInternal_BarReq, error) {
+		var clone *EncoreInternal_BarReq
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	CloneResp: func(r *EncoreInternal_BarResp) (*EncoreInternal_BarResp, error) {
+		var clone *EncoreInternal_BarResp
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_BarReq, pathParams __api.UnnamedParams, err error) {
+		reqData = new(EncoreInternal_BarReq)
+		return reqData, nil, nil
+	},
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *EncoreInternal_BarResp) (err error) {
+		return nil
+	},
+	Endpoint:       "Bar",
+	Methods:        []string{"GET", "POST"},
+	Path:           "/svca.Bar",
+	PathParamNames: nil,
+	Raw:            false,
+	RawHandler:     nil,
+	RawPath:        "/svca.Bar",
+	ReqPath: func(reqData *EncoreInternal_BarReq) (string, __api.UnnamedParams, error) {
+		return "/svca.Bar", nil, nil
+	},
+	ReqUserPayload: func(reqData *EncoreInternal_BarReq) any {
+		return nil
+	},
+	Service: "svca",
+	SvcNum:  0,
+}
+-- want:svca/encore_internal__apicalls.go --
+package svca
+
+import (
+	"context"
+	__api "encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
+)
+
+func EncoreInternal_apicalls_Foo(ctx context.Context) error {
+	_, err := EncoreInternal_api_APIDesc_Foo.Call(__api.NewCallContext(ctx), &EncoreInternal_FooReq{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+-- want:svca/svca.go --
+package svca
+
+import "context"
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:api public
+func Bar(ctx context.Context) error { return EncoreInternal_apicalls_Foo(ctx) }
+-- want:svcb/svcb.go --
+package svcb
+
+import ("context"; "example.com/svca")
+
+//encore:api public
+func Baz(ctx context.Context) error { return svca.EncoreInternal_apicalls_Foo(ctx) }

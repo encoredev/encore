@@ -43,7 +43,7 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 				maps.Copy(gp.Middleware, mws)
 			}
 
-			eps := endpointgen.Gen(gg, svc, svcStruct)
+			eps := endpointgen.Gen(gg, desc.Parse, svc, svcStruct)
 			maps.Copy(gp.APIHandlers, eps)
 		}
 

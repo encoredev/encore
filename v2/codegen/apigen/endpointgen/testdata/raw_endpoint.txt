@@ -1,0 +1,135 @@
+-- code.go --
+package code
+import "net/http"
+
+//encore:api public raw
+func Foo(w http.ResponseWriter, req *http.Request) {}
+
+//encore:service
+type Service struct{}
+
+//encore:api public raw
+func (s *Service) Bar(w http.ResponseWriter, req *http.Request) {}
+-- want:encore_internal__api.go --
+package code
+
+import (
+	__api "encore.dev/appruntime/api"
+	_ "encore.dev/appruntime/app/appinit"
+	errs "encore.dev/beta/errs"
+	jsoniter "github.com/json-iterator/go"
+	"net/http"
+)
+
+type EncoreInternal_FooReq struct{}
+
+type EncoreInternal_FooResp struct{}
+
+var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
+	Access:     __api.Public,
+	AppHandler: nil,
+	CloneReq: func(r *EncoreInternal_FooReq) (*EncoreInternal_FooReq, error) {
+		var clone *EncoreInternal_FooReq
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	CloneResp: func(r *EncoreInternal_FooResp) (*EncoreInternal_FooResp, error) {
+		var clone *EncoreInternal_FooResp
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
+		reqData = new(EncoreInternal_FooReq)
+		return reqData, nil, nil
+	},
+	EncodeResp:     nil,
+	Endpoint:       "Foo",
+	Methods:        []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
+	Path:           "/code.Foo",
+	PathParamNames: nil,
+	Raw:            true,
+	RawHandler: func(w http.ResponseWriter, req *http.Request) {
+		Foo(w, req)
+	},
+	RawPath: "/code.Foo",
+	ReqPath: func(reqData *EncoreInternal_FooReq) (string, __api.UnnamedParams, error) {
+		return "/code.Foo", nil, nil
+	},
+	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
+		return nil
+	},
+	Service: "code",
+	SvcNum:  0,
+}
+
+type EncoreInternal_BarReq struct{}
+
+type EncoreInternal_BarResp struct{}
+
+var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, *EncoreInternal_BarResp]{
+	Access:     __api.Public,
+	AppHandler: nil,
+	CloneReq: func(r *EncoreInternal_BarReq) (*EncoreInternal_BarReq, error) {
+		var clone *EncoreInternal_BarReq
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	CloneResp: func(r *EncoreInternal_BarResp) (*EncoreInternal_BarResp, error) {
+		var clone *EncoreInternal_BarResp
+		bytes, err := jsoniter.ConfigDefault.Marshal(r)
+		if err == nil {
+			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
+		}
+		return clone, err
+	},
+	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_BarReq, pathParams __api.UnnamedParams, err error) {
+		reqData = new(EncoreInternal_BarReq)
+		return reqData, nil, nil
+	},
+	EncodeResp:     nil,
+	Endpoint:       "Bar",
+	Methods:        []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"},
+	Path:           "/code.Bar",
+	PathParamNames: nil,
+	Raw:            true,
+	RawHandler: func(w http.ResponseWriter, req *http.Request) {
+		svc, initErr := EncoreInternal_svcstruct_Service.Get()
+		if initErr != nil {
+			errs.HTTPErrorWithCode(w, initErr, 0)
+			return
+		}
+		svc.Bar(w, req)
+	},
+	RawPath: "/code.Bar",
+	ReqPath: func(reqData *EncoreInternal_BarReq) (string, __api.UnnamedParams, error) {
+		return "/code.Bar", nil, nil
+	},
+	ReqUserPayload: func(reqData *EncoreInternal_BarReq) any {
+		return nil
+	},
+	Service: "code",
+	SvcNum:  0,
+}
+-- want:encore_internal__svcstruct.go --
+package code
+
+import (
+	_ "encore.dev/appruntime/app/appinit"
+	__service "encore.dev/appruntime/service"
+)
+
+var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
+	Name:        "Service",
+	Service:     "code",
+	Setup:       nil,
+	SetupDefLoc: 0,
+}

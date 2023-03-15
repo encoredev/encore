@@ -16,7 +16,7 @@ func Gen(gen *codegen.Generator, svc *app.Service, s *servicestruct.ServiceStruc
 	}).GetOrElse(Nil())
 
 	f := gen.File(s.Decl.File.Pkg, "svcstruct")
-	decl := f.VarDecl("svcstruct", s.Decl.Name).Value(Op("&").Qual("encore.dev/appruntime/service", "Decl").Types(
+	decl := f.VarDecl(s.Decl.Name).Value(Op("&").Qual("encore.dev/appruntime/service", "Decl").Types(
 		Id(s.Decl.Name),
 	).Values(Dict{
 		Id("Service"):     Lit(svc.Name),

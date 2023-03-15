@@ -34,7 +34,7 @@ func (h *handlerDesc) Typed() *Statement {
 		var fnExpr *Statement
 
 		// If we have a service struct, initialize it first.
-		if ss, ok := h.svcStruct.Get(); ok {
+		if ss, ok := h.svcStruct.Get(); ok && ep.Recv.Present() {
 			g.List(Id("svc"), Id("initErr")).Op(":=").Add(ss.Qual()).Dot("Get").Call()
 			g.If(Id("initErr").Op("!=").Nil()).Block(
 				Return(h.resp.zero(), Id("initErr")),
@@ -82,22 +82,17 @@ func (h *handlerDesc) Raw() *Statement {
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.
 		var fnExpr *Statement
 
-		// TODO(andre) support service structs
-		fnExpr = Id(ep.Name)
-
-		//// If we have a service struct, initialize it first.
-		//group := ep.SvcStruct
-		//if group != nil {
-		//	ss := ep.Svc.Struct
-		//	g.List(Id("svc"), Id("initErr")).Op(":=").Id(h.serviceStructName(ss)).Dot("Get").Call()
-		//	g.If(Id("initErr").Op("!=").Nil()).Block(
-		//		Qual("encore.dev/beta/errs", "HTTPErrorWithCode").Call(Id("w"), Id("initErr"), Lit(0)),
-		//		Return(),
-		//	)
-		//	fnExpr = Id("svc").Dot(h.rpc.Name)
-		//} else {
-		//	fnExpr = Id(h.rpc.Name)
-		//}
+		// If we have a service struct, initialize it first.
+		if ss, ok := h.svcStruct.Get(); ok && ep.Recv.Present() {
+			g.List(Id("svc"), Id("initErr")).Op(":=").Add(ss.Qual()).Dot("Get").Call()
+			g.If(Id("initErr").Op("!=").Nil()).Block(
+				Qual("encore.dev/beta/errs", "HTTPErrorWithCode").Call(Id("w"), Id("initErr"), Lit(0)),
+				Return(),
+			)
+			fnExpr = Id("svc").Dot(ep.Name)
+		} else {
+			fnExpr = Id(ep.Name)
+		}
 
 		g.Add(fnExpr).Call(Id("w"), Id("req"))
 	})

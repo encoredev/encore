@@ -67,10 +67,6 @@ func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation
 		end = convertSingleGoPositionToRange(start.Filename, bytes, start)
 	}
 
-	if !start.IsValid() || !end.IsValid() {
-		return nil
-	}
-
 	return &SrcLocation{
 		File: &File{
 			RelPath:  start.Filename,

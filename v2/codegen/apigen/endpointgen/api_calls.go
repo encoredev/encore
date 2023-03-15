@@ -2,20 +2,25 @@ package endpointgen
 
 import (
 	"go/ast"
-	"net/rpc"
 
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 )
 
-func rewriteAPICalls(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, desc *handlerDesc) {
-	fd := genCallWrapper(gen, svc, ep, desc)
+func rewriteAPICalls(gen *codegen.Generator, parse *parser.Result, svc *app.Service, ep *api.Endpoint, desc *handlerDesc) {
+	var fd *codegen.FuncDecl
 
-	for _, u := range svc.ResourceUsage[ep] {
+	for _, u := range parse.Usages(ep) {
 		if call, ok := u.(*api.CallUsage); ok {
+			// Generate the wrapper the first time it's needed.
+			if fd == nil {
+				fd = genCallWrapper(gen, svc, ep, desc)
+			}
+
 			rw := gen.Rewrite(call.File)
 			if sel, ok := call.Call.Fun.(*ast.SelectorExpr); ok {
 				rw.ReplaceNode(sel.Sel, []byte(fd.Name()))
@@ -30,7 +35,7 @@ func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, 
 	gu := gen.Util
 	fw := svc.Framework.MustGet()
 	f := gen.File(fw.RootPkg, "apicalls")
-	fd := f.FuncDecl("call", ep.Name)
+	fd := f.FuncDecl(ep.Name)
 
 	type param struct {
 		name string
@@ -54,7 +59,7 @@ func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, 
 
 	// Generate results
 	if ep.Response != nil {
-		fd.Results(Id("resp").Add(gu.Type(ep.Response)))
+		fd.Results(gu.Type(ep.Response))
 	}
 	fd.Results(Error())
 
@@ -69,25 +74,21 @@ func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, 
 			g.Err()
 		}).Op(":=").Id(handler.desc.Name()).Dot("Call").CallFunc(func(g *Group) {
 			g.Add(apiQ("NewCallContext")).Call(Id("ctx"))
-			g.Op("&").Id(handler.req.TypeName()).ValuesFunc(func(g *Group) {
-				for _, f := range b.reqType.fields {
-					g.Id(f.paramName())
+			g.Op("&").Id(handler.req.TypeName()).Values(DictFunc(func(d Dict) {
+				for _, p := range params {
+					d[Id(p.name)] = Id(p.name)
 				}
-			})
+			}))
 		})
 		g.If(Err().Op("!=").Nil()).BlockFunc(func(g *Group) {
 			if ep.Response != nil {
-				if rpc.Response.IsPtr {
-					g.Return(Nil(), Err())
-				} else {
-					g.Return(b.namedType(b.f, rpc.Response).Values(), Err())
-				}
+				g.Return(gu.Zero(ep.Response), Err())
 			} else {
 				g.Return(Err())
 			}
 		})
-		if rpc.Response != nil {
-			g.Return(Id("resp"), Nil())
+		if ep.Response != nil {
+			g.Return(Id("resp").Dot(handler.resp.respDataPayloadName()), Nil())
 		} else {
 			g.Return(Nil())
 		}

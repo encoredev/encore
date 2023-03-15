@@ -197,7 +197,7 @@ func (d *FuncDecl) Code() *jen.Statement {
 		s = s.Params(d.results...)
 	}
 	if d.body != nil {
-		s = s.Block(d.body)
+		s = s.Add(d.body)
 	} else {
 		s = s.Block()
 	}
