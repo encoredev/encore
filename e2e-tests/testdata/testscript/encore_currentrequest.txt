@@ -3,12 +3,12 @@ publish topic '{"Data": "test"}'
 checklog '{"topic": "topic", "subscription": "sub", "type": "pubsub-message", "msg": {"Service": "svc", "Topic": "topic", "Subscription": "sub", "ID": "1", "DeliveryAttempt": 1}, "message": "pubsub event"}'
 
 # Authenticated requests should return the execution id
-call GET X-Encore-Cron-Execution=foo /svc.Cron ''
-checkresp '{"IdempotencyKey": "foo"}'
+call GET X-Encore-Cron-Execution=foo /svc.CurrentRequest ''
+checkresp '{"Path": "/svc.CurrentRequest", "IdempotencyKey": "foo"}'
 
 # Unauthenticated requests should return the empty string
-call GET X-Encore-Cron-Execution=foo /svc.Cron '' no-platform-auth
-checkresp '{"IdempotencyKey": ""}'
+call GET X-Encore-Cron-Execution=foo /svc.CurrentRequest '' no-platform-auth
+checkresp '{"Path": "/svc.CurrentRequest", "IdempotencyKey": ""}'
 
 
 -- svc/svc.go --
@@ -29,14 +29,18 @@ type Event struct {
     Data string
 }
 
-type CronData struct {
+type RequestData struct {
+    Path string
     IdempotencyKey string
 }
 
 //encore:api public
-func Cron(ctx context.Context) (*CronData, error) {
+func CurrentRequest(ctx context.Context) (*RequestData, error) {
     req := encore.CurrentRequest()
-    return &CronData{IdempotencyKey: req.CronIdempotencyKey}, nil
+    return &RequestData{
+        Path: req.Path,
+        IdempotencyKey: req.CronIdempotencyKey,
+    }, nil
 }
 
 var topic = pubsub.NewTopic[*Event]("topic", pubsub.TopicConfig{
