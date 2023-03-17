@@ -21,6 +21,7 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/testutil"
 	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
@@ -182,8 +183,15 @@ func TestValidation(t *testing.T) {
 								if svc, found := desc.ServiceForPath(pub.File.FSPath); found {
 									printf("pubsubPublisher %s %s\n", res.Name, svc.Name)
 								} else {
-									// TODO handle PubSub publishing from within global middleware
-									ts.Fatalf("PubSub publishing outside of service NOT IMPLEMENTED")
+									if res2, ok := parseResult.ResourceConstructorContaining(u).Get(); ok {
+										switch res2 := res2.(type) {
+										case *middleware.Middleware:
+											if res2.Global {
+												printf("pubsubPublisher middlware %s %s\n", res.Name, res2.Decl.Name)
+											}
+										}
+									}
+
 								}
 							}
 						}

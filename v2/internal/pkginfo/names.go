@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 )
@@ -600,6 +601,13 @@ type PkgNames struct {
 	// It's stored to avoid having to recompute it when querying
 	// for individual files' file-level name information.
 	pkgScope *scope
+}
+
+func (n *PkgNames) FuncDecl(name string) option.Option[*ast.FuncDecl] {
+	if fn, ok := n.PkgDecls[name]; ok && fn.Type == token.FUNC {
+		return option.Some(fn.Func)
+	}
+	return option.None[*ast.FuncDecl]()
 }
 
 func (n *PkgNames) GoString() string {

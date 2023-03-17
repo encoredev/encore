@@ -8,6 +8,7 @@ import (
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/posmap"
@@ -57,6 +58,16 @@ type Result struct {
 
 func (d *Result) AppPackages() []*pkginfo.Package {
 	return d.appPackages
+}
+
+func (d *Result) PackageAt(path paths.Pkg) option.Option[*pkginfo.Package] {
+	for _, pkg := range d.appPackages {
+		if pkg.ImportPath == path {
+			return option.Some(pkg)
+		}
+	}
+
+	return option.None[*pkginfo.Package]()
 }
 
 func (d *Result) Resources() []resource.Resource {

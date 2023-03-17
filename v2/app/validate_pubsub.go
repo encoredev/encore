@@ -1,7 +1,10 @@
 package app
 
 import (
+	"go/ast"
+
 	"encr.dev/pkg/errors"
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
@@ -59,6 +62,11 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 			topic.subs[sub.Name] = sub
 		}
 
+		subService, ok := d.ServiceForPath(sub.File.FSPath)
+		if !ok {
+			pc.Errs.Add(pubsub.ErrUnableToIdentifyServicesInvolved.AtGoNode(sub, errors.AsError("unable to identify service for subscription")))
+		}
+
 		// Verify the handler is ok
 		handlerIsAPIEndpoint := false
 		if handlerUsage, ok := result.UsageFromNode(sub.Handler).Get(); ok {
@@ -68,11 +76,6 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 				endpointService, ok := d.ServiceForPath(ep.File.FSPath)
 				if !ok {
 					pc.Errs.Add(pubsub.ErrUnableToIdentifyServicesInvolved.AtGoNode(ep, errors.AsError("unable to identify service for endpoint")))
-				}
-
-				subService, ok := d.ServiceForPath(sub.File.FSPath)
-				if !ok {
-					pc.Errs.Add(pubsub.ErrUnableToIdentifyServicesInvolved.AtGoNode(sub, errors.AsError("unable to identify service for subscription")))
 				}
 
 				if endpointService != subService {
@@ -88,6 +91,38 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 		}
 
 		if !handlerIsAPIEndpoint {
+			qn, ok := sub.File.Names().ResolvePkgLevelRef(sub.Handler)
+			if ok {
+				if pkg, ok := result.PackageAt(qn.PkgPath).Get(); ok {
+					funcName := option.Map(pkg.Names().FuncDecl(qn.Name), func(f *ast.FuncDecl) *ast.Ident {
+						return f.Name
+					}).GetOrElse(nil)
+
+					if svc, ok := d.ServiceForPath(pkg.FSPath); ok {
+						if svc != subService {
+							pc.Errs.Add(
+								pubsub.ErrSubscriptionHandlerNotDefinedInSameService.
+									AtGoNode(sub.Handler, errors.AsError("handler specified here")).
+									AtGoNode(funcName, errors.AsHelp("handler function defined here")),
+							)
+						}
+					} else {
+						pc.Errs.Add(
+							pubsub.ErrSubscriptionHandlerNotDefinedInSameService.
+								AtGoNode(sub.Handler, errors.AsError("handler specified here")).
+								AtGoNode(funcName, errors.AsHelp("handler function defined here")),
+						)
+					}
+				} else {
+					pc.Errs.Add(
+						pubsub.ErrUnableToIdentifyServicesInvolved.
+							AtGoNode(sub.Handler, errors.AsError("unable to identify package for this reference")),
+					)
+				}
+			} else {
+				// this is ok, because it means we're not dealing with an ident or selector - thus
+				// it can't be a valid funciton reference and the normal Go compiler will pick this up
+			}
 
 		}
 	}
