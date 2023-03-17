@@ -4,7 +4,9 @@ import (
 	"go/ast"
 	"go/token"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
@@ -42,7 +44,7 @@ var LoadParser = &resourceparser.Parser{
 
 		spec := &parseutil.ReferenceSpec{
 			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
-			MinTypeArgs: 1,
+			MinTypeArgs: 0,
 			MaxTypeArgs: 1,
 			Parse:       parseLoad,
 		}
@@ -64,13 +66,16 @@ func parseLoad(d parseutil.ReferenceInfo) {
 		return
 	}
 
+	if len(d.TypeArgs) != 1 {
+		errs.Add(errInvalidConfigType.AtGoNode(d.Call))
+	}
+
 	// Resolve the named struct used for the config type
 	ref, ok := schemautil.ResolveNamedStruct(d.TypeArgs[0], false)
 	if !ok {
 		errs.Add(errInvalidConfigType.AtGoNode(d.TypeArgs[0].ASTExpr()))
 		return
 	}
-	_ = ref
 
 	load := &Load{
 		AST:      d.Call,
@@ -79,8 +84,66 @@ func parseLoad(d parseutil.ReferenceInfo) {
 		FuncCall: d.Call,
 	}
 
+	concrete := schemautil.ConcretizeWithTypeArgs(ref.ToType(), ref.TypeArgs).(schema.NamedType)
+	walkCfgToVerify(d.Pass.Errs, load, concrete, false)
+
 	d.Pass.RegisterResource(load)
 	if id, ok := d.Ident.Get(); ok {
 		d.Pass.AddBind(id, load)
+	}
+}
+
+func walkCfgToVerify(errs *perr.List, load *Load, decl schema.Type, insideConfigValue bool) {
+	switch decl := decl.(type) {
+	case schema.BuiltinType:
+		// no-op ok
+	case schema.NamedType:
+		if decl.DeclInfo.File.Pkg.ImportPath == "encore.dev/config" {
+			if insideConfigValue {
+				errs.Add(errNestedValueUsage.
+					AtGoNode(decl.ASTExpr(), errors.AsError("cannot use config.Value inside a config.Value")).
+					AtGoNode(load, errors.AsHelp("config loaded here")),
+				)
+			}
+
+			switch decl.DeclInfo.Name {
+			case "Value", "Values":
+				// Value / Values are magic wrappers that are used to indicate a realtime
+				// config update
+				if len(decl.TypeArgs) > 0 {
+					walkCfgToVerify(errs, load, decl.TypeArgs[0], true)
+
+					// return so we don't verify the standard type
+					return
+				}
+			}
+		} else {
+			insideConfigValue = false
+		}
+
+		walkCfgToVerify(errs, load, decl.Decl().Type, insideConfigValue)
+	case schema.PointerType:
+		walkCfgToVerify(errs, load, decl.Elem, false)
+	case schema.StructType:
+		for _, field := range decl.Fields {
+			if !field.IsExported() {
+				errs.Add(errUnexportedField.
+					AtGoNode(field.AST).
+					AtGoNode(load, errors.AsHelp("config loaded here")),
+				)
+			} else if field.IsAnonymous() {
+				errs.Add(errAnonymousField.
+					AtGoNode(field.AST).
+					AtGoNode(load, errors.AsHelp("config loaded here")),
+				)
+			} else {
+				walkCfgToVerify(errs, load, field.Type, false)
+			}
+		}
+	default:
+		errs.Add(errInvalidConfigTypeUsed.
+			AtGoNode(decl.ASTExpr(), errors.AsError("unsupported type")).
+			AtGoNode(load, errors.AsHelp("config loaded here")),
+		)
 	}
 }

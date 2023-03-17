@@ -119,7 +119,7 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 		if typ.Index < len(typeArgs) {
 			return typeArgs[typ.Index]
 		} else {
-			return typ
+			panic(fmt.Sprintf("missing type argument for type parameter %d", typ.Index))
 		}
 
 	case schema.BuiltinType:
@@ -149,7 +149,11 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 		for i, arg := range clone.TypeArgs {
 			clone.TypeArgs[i] = concretize(arg, typeArgs)
 		}
-		return clone
+
+		decl := *clone.Decl() // copy
+		decl.Type = concretize(decl.Type, clone.TypeArgs)
+
+		return clone.WithDecl(&decl)
 	case schema.FuncType:
 		clone := typ // copy
 		for i, p := range clone.Params {

@@ -127,6 +127,7 @@ func newUsageResolver() *usage.Resolver {
 	r := usage.NewResolver()
 	// Infrastructure SDK
 	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
+	usage.RegisterUsageResolver[*config.Load](r, config.ResolveConfigUsage)
 
 	// API Framework
 	usage.RegisterUsageResolver[*api.Endpoint](r, api.ResolveEndpointUsage)

@@ -78,8 +78,8 @@ func (f *FieldAccess) DeclaredIn() *pkginfo.File   { return f.File }
 func (f *FieldAccess) ASTExpr() ast.Expr           { return f.Expr }
 func (f *FieldAccess) ResourceBind() resource.Bind { return f.Bind }
 func (f *FieldAccess) DescriptionForTest() string  { return fmt.Sprintf("field %s", f.Field) }
-func (f *FieldAccess) Pos() token.Pos              { return f.Expr.Sel.Pos() }
-func (f *FieldAccess) End() token.Pos              { return f.Expr.Sel.End() }
+func (f *FieldAccess) Pos() token.Pos              { return f.Expr.Pos() }
+func (f *FieldAccess) End() token.Pos              { return f.Expr.End() }
 
 // FuncArg describes a resource being used as a function argument.
 type FuncArg struct {

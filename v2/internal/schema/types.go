@@ -59,6 +59,10 @@ func (t NamedType) Decl() *TypeDecl {
 	return t.decl.Decl()
 }
 
+func (t NamedType) WithDecl(decl *TypeDecl) NamedType {
+	return newEagerNamedType(t.AST, t.TypeArgs, decl)
+}
+
 func (d *lazyDecl) Decl() *TypeDecl {
 	d.once.Do(func() {
 		d.decl = d.p.ParseTypeDecl(d.info)
