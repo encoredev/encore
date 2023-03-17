@@ -113,7 +113,7 @@ type Other struct {
 	File    *pkginfo.File
 	Bind    resource.Bind
 	Expr    ast.Expr
-	BindRef ast.Node
+	BindRef ast.Expr
 }
 
 func (o *Other) DeclaredIn() *pkginfo.File   { return o.File }
@@ -329,6 +329,6 @@ func (p *usageParser) classifyExpr(file *pkginfo.File, bind resource.Bind, stack
 		File:    file,
 		Bind:    bind,
 		Expr:    enclosing,
-		BindRef: stack[idx],
+		BindRef: stack[idx].(ast.Expr), // guaranteed to be an expr by the caller.
 	}
 }

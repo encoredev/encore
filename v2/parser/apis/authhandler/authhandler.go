@@ -2,6 +2,7 @@ package authhandler
 
 import (
 	"go/ast"
+	"go/token"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
@@ -34,6 +35,8 @@ type AuthHandler struct {
 
 func (ah *AuthHandler) Kind() resource.Kind       { return resource.AuthHandler }
 func (ah *AuthHandler) Package() *pkginfo.Package { return ah.Decl.File.Pkg }
+func (ah *AuthHandler) Pos() token.Pos            { return ah.Decl.AST.Pos() }
+func (ah *AuthHandler) End() token.Pos            { return ah.Decl.AST.End() }
 
 type ParseData struct {
 	Errs   *perr.List

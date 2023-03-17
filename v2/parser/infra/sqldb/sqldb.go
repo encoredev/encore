@@ -2,6 +2,7 @@ package sqldb
 
 import (
 	"fmt"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,6 +26,8 @@ type Database struct {
 func (d *Database) Kind() resource.Kind       { return resource.SQLDatabase }
 func (d *Database) Package() *pkginfo.Package { return d.Pkg }
 func (d *Database) ResourceName() string      { return d.Name }
+func (d *Database) Pos() token.Pos            { return token.NoPos }
+func (d *Database) End() token.Pos            { return token.NoPos }
 
 type MigrationFile struct {
 	Filename    string

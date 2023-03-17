@@ -2,6 +2,7 @@ package config
 
 import (
 	"go/ast"
+	"go/token"
 
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
@@ -29,6 +30,8 @@ type Load struct {
 func (*Load) Kind() resource.Kind         { return resource.ConfigLoad }
 func (l *Load) Package() *pkginfo.Package { return l.File.Pkg }
 func (l *Load) ASTExpr() ast.Expr         { return l.AST }
+func (l *Load) Pos() token.Pos            { return l.AST.Pos() }
+func (l *Load) End() token.Pos            { return l.AST.End() }
 
 var LoadParser = &resourceparser.Parser{
 	Name: "ConfigLoad",

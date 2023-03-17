@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
@@ -48,6 +49,8 @@ func (m *Metric) Kind() resource.Kind       { return resource.Metric }
 func (m *Metric) Package() *pkginfo.Package { return m.File.Pkg }
 func (m *Metric) ASTExpr() ast.Expr         { return m.AST }
 func (m *Metric) ResourceName() string      { return m.Name }
+func (m *Metric) Pos() token.Pos            { return m.AST.Pos() }
+func (m *Metric) End() token.Pos            { return m.AST.End() }
 
 // metricConstructor describes a particular metric constructor function.
 type metricConstructor struct {

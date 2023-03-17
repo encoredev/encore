@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"go/ast"
+	"go/token"
 	"time"
 
 	"encr.dev/v2/internal/paths"
@@ -14,12 +15,13 @@ import (
 )
 
 type Subscription struct {
-	AST   *ast.CallExpr
-	File  *pkginfo.File
-	Name  string // The unique name of the pub sub subscription
-	Doc   string // The documentation on the pub sub subscription
-	Topic pkginfo.QualifiedName
-	Cfg   SubscriptionConfig
+	AST     *ast.CallExpr
+	File    *pkginfo.File
+	Name    string // The unique name of the pub sub subscription
+	Doc     string // The documentation on the pub sub subscription
+	Topic   pkginfo.QualifiedName
+	Cfg     SubscriptionConfig
+	Handler ast.Expr // The reference to the handler function
 }
 
 type SubscriptionConfig struct {
@@ -34,6 +36,8 @@ func (s *Subscription) Kind() resource.Kind       { return resource.PubSubSubscr
 func (s *Subscription) Package() *pkginfo.Package { return s.File.Pkg }
 func (s *Subscription) ASTExpr() ast.Expr         { return s.AST }
 func (s *Subscription) ResourceName() string      { return s.Name }
+func (s *Subscription) Pos() token.Pos            { return s.AST.Pos() }
+func (s *Subscription) End() token.Pos            { return s.AST.End() }
 
 var SubscriptionParser = &resourceparser.Parser{
 	Name: "PubSub Subscription",
@@ -134,12 +138,13 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 	}
 
 	sub := &Subscription{
-		AST:   d.Call,
-		File:  d.File,
-		Name:  subscriptionName,
-		Doc:   d.Doc,
-		Topic: topicObj,
-		Cfg:   subCfg,
+		AST:     d.Call,
+		File:    d.File,
+		Name:    subscriptionName,
+		Doc:     d.Doc,
+		Topic:   topicObj,
+		Cfg:     subCfg,
+		Handler: cfg.Handler,
 	}
 	d.Pass.RegisterResource(sub)
 	if id, ok := d.Ident.Get(); ok {

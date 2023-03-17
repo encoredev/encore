@@ -7,12 +7,17 @@ import (
 	"encr.dev/pkg/option"
 )
 
+func Build[NodeLike ast.Node](nodes ...NodeLike) Map[NodeLike] {
+	return (&Builder[NodeLike]{}).Add(nodes...).Build()
+}
+
 type Builder[NodeLike ast.Node] struct {
 	nodes []NodeLike
 }
 
-func (b *Builder[NodeLike]) Add(nodes ...NodeLike) {
+func (b *Builder[NodeLike]) Add(nodes ...NodeLike) *Builder[NodeLike] {
 	b.nodes = append(b.nodes, nodes...)
+	return b
 }
 
 func (b *Builder[NodeLike]) Build() Map[NodeLike] {

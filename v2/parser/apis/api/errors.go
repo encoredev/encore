@@ -116,9 +116,9 @@ For more information on how to use APIs, see https://encore.dev/docs/primitives/
 		"Path parameter %q must be a string, bool, integer, or encore.dev/types/uuid.UUID.",
 	)
 
-	errInvalidEndpointUsage = errRange.New(
+	ErrInvalidEndpointUsage = errRange.New(
 		"Invalid API Usage",
-		"APIs can not be referenced without being called.",
+		"APIs can not be referenced without being called, unless they are used as a cron job endpoint, or a PubSub subscription handler.",
 
 		errors.WithDetails(baseHint),
 	)

@@ -3,6 +3,7 @@ package cron
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"sort"
 
 	cronparser "github.com/robfig/cron/v3"
@@ -24,12 +25,15 @@ type Job struct {
 	Doc      string // The documentation on the cron job
 	Title    string // cron job title
 	Schedule string
+	Endpoint ast.Expr // The Endpoint reference
 }
 
 func (j *Job) Kind() resource.Kind       { return resource.CronJob }
 func (j *Job) Package() *pkginfo.Package { return j.File.Pkg }
 func (j *Job) ASTExpr() ast.Expr         { return j.AST }
 func (j *Job) ResourceName() string      { return j.Name }
+func (j *Job) Pos() token.Pos            { return j.AST.Pos() }
+func (j *Job) End() token.Pos            { return j.AST.End() }
 
 var JobParser = &resourceparser.Parser{
 	Name: "Cron Job",
@@ -91,11 +95,12 @@ func parseCronJob(d parseutil.ReferenceInfo) {
 	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 
 	job := &Job{
-		AST:   d.Call,
-		File:  d.File,
-		Name:  jobName,
-		Doc:   d.Doc,
-		Title: config.Title,
+		AST:      d.Call,
+		File:     d.File,
+		Name:     jobName,
+		Doc:      d.Doc,
+		Title:    config.Title,
+		Endpoint: config.Endpoint,
 	}
 	if job.Title == "" {
 		job.Title = jobName

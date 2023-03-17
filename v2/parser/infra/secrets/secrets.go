@@ -33,6 +33,8 @@ type SecretKey struct {
 func (*Secrets) Kind() resource.Kind         { return resource.Secrets }
 func (s *Secrets) Package() *pkginfo.Package { return s.File.Pkg }
 func (s *Secrets) ASTExpr() ast.Expr         { return s.AST }
+func (s *Secrets) Pos() token.Pos            { return s.AST.Pos() }
+func (s *Secrets) End() token.Pos            { return s.AST.End() }
 
 var SecretsParser = &resourceparser.Parser{
 	Name:               "Secrets",

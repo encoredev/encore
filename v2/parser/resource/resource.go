@@ -1,6 +1,8 @@
 package resource
 
 import (
+	"go/ast"
+
 	"encr.dev/v2/internal/pkginfo"
 )
 
@@ -30,6 +32,10 @@ const (
 )
 
 type Resource interface {
+	// Node is embedded so we can use the resource in a [posmap.Map].
+	// The position should be the position of the resource declaration.
+	ast.Node
+
 	// Kind is the kind of resource this is.
 	Kind() Kind
 

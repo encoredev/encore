@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 
 	"golang.org/x/exp/slices"
 
@@ -36,6 +37,8 @@ type Middleware struct {
 
 func (mw *Middleware) Kind() resource.Kind       { return resource.Middleware }
 func (mw *Middleware) Package() *pkginfo.Package { return mw.File.Pkg }
+func (mw *Middleware) Pos() token.Pos            { return mw.Decl.AST.Pos() }
+func (mw *Middleware) End() token.Pos            { return mw.Decl.AST.End() }
 
 type ParseData struct {
 	Errs   *perr.List

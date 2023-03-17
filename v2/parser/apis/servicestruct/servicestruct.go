@@ -28,6 +28,8 @@ type ServiceStruct struct {
 
 func (ss *ServiceStruct) Kind() resource.Kind       { return resource.ServiceStruct }
 func (ss *ServiceStruct) Package() *pkginfo.Package { return ss.Decl.File.Pkg }
+func (ss *ServiceStruct) Pos() token.Pos            { return ss.Decl.AST.Pos() }
+func (ss *ServiceStruct) End() token.Pos            { return ss.Decl.AST.End() }
 
 type ParseData struct {
 	Errs   *perr.List

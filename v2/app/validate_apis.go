@@ -11,6 +11,9 @@ import (
 	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/servicestruct"
+	"encr.dev/v2/parser/infra/cron"
+	"encr.dev/v2/parser/infra/pubsub"
+	"encr.dev/v2/parser/resource"
 )
 
 func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, result *parser.Result) {
@@ -68,12 +71,39 @@ func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, resu
 				}
 			}
 
+			// Check for usages outside of services
 			for _, invalidUsage := range d.ResourceUsageOutsideServices[ep] {
 				pc.Errs.Add(
 					api.ErrAPICalledOutsideService.
 						AtGoNode(invalidUsage, errors.AsError("called here")).
 						AtGoNode(ep.Decl.AST.Name, errors.AsHelp("defined here")),
 				)
+			}
+
+			// Check for invalid references
+			for _, usage := range result.Usages(ep) {
+				switch usage := usage.(type) {
+				case *api.ReferenceUsage:
+					// API's can only be referenced
+					isValid := result.ResourceConstructorContaining(usage).Contains(func(res resource.Resource) bool {
+						switch res := res.(type) {
+						case *pubsub.Subscription:
+							return res.Handler == usage.Ref
+						case *cron.Job:
+							return res.Endpoint == usage.Ref
+						default:
+							return false
+						}
+					})
+
+					if !isValid {
+						pc.Errs.Add(
+							api.ErrInvalidEndpointUsage.
+								AtGoNode(usage, errors.AsError("used here")).
+								AtGoNode(ep.Decl.AST.Name, errors.AsHelp("defined here")),
+						)
+					}
+				}
 			}
 		}
 	}

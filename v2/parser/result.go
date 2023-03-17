@@ -2,12 +2,15 @@ package parser
 
 import (
 	"fmt"
+	"go/ast"
 	"reflect"
 	"strings"
 
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/posmap"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"
 )
@@ -48,6 +51,7 @@ type Result struct {
 	resMap         map[resource.Resource]*resourceMeta
 	byType         map[reflect.Type][]resource.Resource
 	bindToResource map[resource.Bind]resource.Resource
+	resByPos       posmap.Map[resource.Resource]
 }
 
 func (d *Result) AppPackages() []*pkginfo.Package {
@@ -90,6 +94,10 @@ func (d *Result) AllUsages() []usage.Usage {
 	return all
 }
 
+func (d *Result) ResourceConstructorContaining(node ast.Node) option.Option[resource.Resource] {
+	return d.resByPos.Containing(node)
+}
+
 func (d *Result) rd(res resource.Resource) *resourceMeta {
 	m := d.resMap[res]
 	if m == nil {
@@ -118,6 +126,8 @@ func (m *resourceMeta) addUsage(u usage.Usage) {
 }
 
 func (d *Result) initResources() {
+	d.resByPos = posmap.Build(d.resources...)
+
 	for _, res := range d.resources {
 		typ := reflect.TypeOf(res)
 		d.byType[typ] = append(d.byType[typ], res)

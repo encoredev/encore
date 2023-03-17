@@ -2,6 +2,7 @@ package cache
 
 import (
 	"go/ast"
+	"go/token"
 
 	"encore.dev/storage/cache"
 	"encr.dev/v2/internal/paths"
@@ -25,6 +26,8 @@ func (c *Cluster) Kind() resource.Kind       { return resource.CacheCluster }
 func (c *Cluster) Package() *pkginfo.Package { return c.File.Pkg }
 func (c *Cluster) ASTExpr() ast.Expr         { return c.AST }
 func (c *Cluster) ResourceName() string      { return c.Name }
+func (c *Cluster) Pos() token.Pos            { return c.AST.Pos() }
+func (c *Cluster) End() token.Pos            { return c.AST.End() }
 
 var ClusterParser = &resourceparser.Parser{
 	Name: "Cache Cluster",

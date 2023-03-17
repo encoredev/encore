@@ -3,6 +3,7 @@ package pubsub
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strings"
 
 	"encr.dev/pkg/errors"
@@ -39,6 +40,8 @@ func (t *Topic) Kind() resource.Kind       { return resource.PubSubTopic }
 func (t *Topic) Package() *pkginfo.Package { return t.File.Pkg }
 func (t *Topic) ASTExpr() ast.Expr         { return t.AST }
 func (t *Topic) ResourceName() string      { return t.Name }
+func (t *Topic) Pos() token.Pos            { return t.AST.Pos() }
+func (t *Topic) End() token.Pos            { return t.AST.End() }
 
 var TopicParser = &resourceparser.Parser{
 	Name: "PubSub Topic",

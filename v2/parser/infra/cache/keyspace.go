@@ -3,6 +3,7 @@ package cache
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strings"
 
 	"encr.dev/pkg/errors"
@@ -35,6 +36,8 @@ type Keyspace struct {
 func (k *Keyspace) Kind() resource.Kind       { return resource.CacheKeyspace }
 func (k *Keyspace) Package() *pkginfo.Package { return k.File.Pkg }
 func (k *Keyspace) ASTExpr() ast.Expr         { return k.AST }
+func (k *Keyspace) Pos() token.Pos            { return k.AST.Pos() }
+func (k *Keyspace) End() token.Pos            { return k.AST.End() }
 
 var KeyspaceParser = &resourceparser.Parser{
 	Name: "Cache Keyspace",
