@@ -53,7 +53,7 @@ const Nav: FunctionComponent<NavProps> = (props) => {
     return () => {
       clearTimeout(timeoutRef);
     };
-  }, [isAppRunning]);
+  }, [isAppRunning, appID]);
 
   useEffect(() => {
     const { conn } = props;
