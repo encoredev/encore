@@ -75,4 +75,16 @@ var (
 		"Duplicate PubSub subscription on topic",
 		"Subscription names on topics must be unique.",
 	)
+
+	ErrUnableToIdentifyServicesInvolved = errRange.New(
+		"Unable to identify services involved",
+		"Unable to identify services involved in the PubSub subscription.",
+		errors.MarkAsInternalError(),
+	)
+
+	ErrSubscriptionHandlerNotDefinedInSameService = errRange.New(
+		"Invalid PubSub subscription handler",
+		"The handler for the subscription must be defined in the same service as the call to pubsub.NewSubscription.",
+		errors.PrependDetails(pubsubNewSubscriptionHelp),
+	)
 )

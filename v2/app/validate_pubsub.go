@@ -4,10 +4,12 @@ import (
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/infra/pubsub"
 )
 
-func (d *Desc) validatePubSub(pc *parsectx.Context) {
+func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 	type topic struct {
 		resource *pubsub.Topic
 		subs     map[string]*pubsub.Subscription
@@ -57,5 +59,36 @@ func (d *Desc) validatePubSub(pc *parsectx.Context) {
 			topic.subs[sub.Name] = sub
 		}
 
+		// Verify the handler is ok
+		handlerIsAPIEndpoint := false
+		if handlerUsage, ok := result.UsageFromNode(sub.Handler).Get(); ok {
+			if endpointUsage, ok := handlerUsage.(*api.ReferenceUsage); ok {
+				ep := endpointUsage.Endpoint
+
+				endpointService, ok := d.ServiceForPath(ep.File.FSPath)
+				if !ok {
+					pc.Errs.Add(pubsub.ErrUnableToIdentifyServicesInvolved.AtGoNode(ep, errors.AsError("unable to identify service for endpoint")))
+				}
+
+				subService, ok := d.ServiceForPath(sub.File.FSPath)
+				if !ok {
+					pc.Errs.Add(pubsub.ErrUnableToIdentifyServicesInvolved.AtGoNode(sub, errors.AsError("unable to identify service for subscription")))
+				}
+
+				if endpointService != subService {
+					pc.Errs.Add(
+						pubsub.ErrSubscriptionHandlerNotDefinedInSameService.
+							AtGoNode(sub.Handler, errors.AsError("handler specified here")).
+							AtGoNode(ep.Decl.AST.Name, errors.AsHelp("endpoint defined here")),
+					)
+				}
+
+				handlerIsAPIEndpoint = true
+			}
+		}
+
+		if !handlerIsAPIEndpoint {
+
+		}
 	}
 }

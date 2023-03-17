@@ -52,6 +52,7 @@ type Result struct {
 	byType         map[reflect.Type][]resource.Resource
 	bindToResource map[resource.Bind]resource.Resource
 	resByPos       posmap.Map[resource.Resource]
+	usageByPos     posmap.Map[usage.Usage]
 }
 
 func (d *Result) AppPackages() []*pkginfo.Package {
@@ -96,6 +97,10 @@ func (d *Result) AllUsages() []usage.Usage {
 
 func (d *Result) ResourceConstructorContaining(node ast.Node) option.Option[resource.Resource] {
 	return d.resByPos.Containing(node)
+}
+
+func (d *Result) UsageFromNode(node ast.Node) option.Option[usage.Usage] {
+	return d.usageByPos.Containing(node)
 }
 
 func (d *Result) rd(res resource.Resource) *resourceMeta {
@@ -182,9 +187,12 @@ func (d *Result) initUsages(errs *perr.List, ur *usage.Resolver, usageExprs []us
 		}
 	}
 
+	var allUsages []usage.Usage
+
 	processUsage := func(r resource.Resource, expr usage.Expr) {
 		if u, ok := ur.Resolve(errs, expr, r).Get(); ok {
 			d.rd(r).addUsage(u)
+			allUsages = append(allUsages, u)
 		}
 	}
 
@@ -204,6 +212,8 @@ func (d *Result) initUsages(errs *perr.List, ur *usage.Resolver, usageExprs []us
 			errs.Addf(u.ASTExpr().Pos(), "internal compiler error: invalid resource bind: %T", bind)
 		}
 	}
+
+	d.usageByPos = posmap.Build[usage.Usage](allUsages...)
 }
 
 func pathKey(path resource.Path) string {

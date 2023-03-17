@@ -137,6 +137,10 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		MaxRetries:       cfg.RetryPolicy.MaxRetries,
 	}
 
+	if cfg.Handler == nil {
+		return
+	}
+
 	sub := &Subscription{
 		AST:     d.Call,
 		File:    d.File,

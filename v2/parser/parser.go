@@ -3,6 +3,8 @@ package parser
 import (
 	"sync"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/scan"
@@ -75,7 +77,34 @@ func (p *Parser) Parse() *Result {
 		mu.Unlock()
 	})
 
+	// Sort resources by package and position so the array is stable between runs
+	// as we process modules in parallel we can't rely on the order of the
+	// resources being stable coming into this function.
+	slices.SortFunc(resources, func(a, b resource.Resource) bool {
+		if a.Package() != b.Package() {
+			return a.Package().FSPath < b.Package().FSPath
+		}
+
+		return a.Pos() < b.Pos()
+	})
+
+	// Then sort the binds binds
+	slices.SortFunc(binds, func(a, b resource.Bind) bool {
+		if a.Package() != b.Package() {
+			return a.Package().FSPath < b.Package().FSPath
+		}
+
+		return a.Pos() < b.Pos()
+	})
+
+	// Finally, sort the packages
+	slices.SortFunc(pkgs, func(a, b *pkginfo.Package) bool {
+		return a.FSPath < b.FSPath
+	})
+
+	// Because we've ordered pkgs and binds, usageExprs will be stable
 	usageExprs := usage.ParseExprs(p.c.Errs, pkgs, binds)
+
 	return computeResult(p.c.Errs, p.usageResolver, pkgs, resources, binds, usageExprs)
 }
 

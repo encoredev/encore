@@ -15,5 +15,5 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 
 	// Validate infrastructure
 	d.validateCrons(pc, result)
-	d.validatePubSub(pc)
+	d.validatePubSub(pc, result)
 }

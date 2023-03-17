@@ -66,5 +66,12 @@ func (m Map[NodeLike]) Containing(node ast.Node) option.Option[NodeLike] {
 		}
 	}
 
+	if len(m.nodes) > 0 {
+		candidate := m.nodes[0]
+		if candidate.Pos() <= node.Pos() && candidate.End() >= node.End() {
+			return option.Some(candidate)
+		}
+	}
+
 	return option.None[NodeLike]()
 }
