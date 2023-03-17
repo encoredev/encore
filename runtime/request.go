@@ -158,6 +158,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 		result.Endpoint = desc.Endpoint
 		result.Payload = data.TypedPayload
 
+		result.Path = data.Path
 		result.PathParams = make(PathParams, len(data.PathParams))
 		for i, param := range data.PathParams {
 			result.PathParams[i].Name = param.Name
