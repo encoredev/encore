@@ -144,7 +144,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 		// Check if this file should be part of the build
 		matched, err := l.buildCtx.MatchFile(dir, d.baseName)
 		if err != nil {
-			l.c.Errs.AddForFile(err, d.ioPath)
+			l.c.Errs.Add(errMatchingFile.InFile(d.ioPath).Wrapping(err))
 			continue
 		} else if !matched {
 			continue
@@ -152,7 +152,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 
 		reader, err := os.Open(d.ioPath)
 		if err != nil {
-			l.c.Errs.AddForFile(err, d.ioPath)
+			l.c.Errs.Add(errReadingFile.InFile(d.ioPath).Wrapping(err))
 			continue
 		}
 

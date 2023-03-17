@@ -114,7 +114,9 @@ func (f *File) Contents() []byte {
 	f.contentsOnce.Do(func() {
 		ioPath := f.FSPath.ToIO()
 		data, err := os.ReadFile(ioPath)
-		f.l.c.Errs.AssertFile(err, ioPath)
+		if err != nil {
+			f.l.c.Errs.Assert(errReadingFile.InFile(ioPath).Wrapping(err))
+		}
 		f.cachedContents = data
 	})
 	return f.cachedContents

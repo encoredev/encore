@@ -53,25 +53,6 @@ func (l *List) Addf(pos token.Pos, format string, args ...any) {
 	l.AddPos(pos, fmt.Sprintf(format, args...))
 }
 
-// AddPosition adds an error at the given token.Position.
-func (l *List) AddPosition(pos token.Position, msg string) {
-	l.add(srcerrors.GenericError(pos, msg))
-}
-
-// AddForFile adds an error for a given filename.
-// If the error is an std error (scanner.ErrorList or *scanner.Error)
-// that file information is used instead.
-func (l *List) AddForFile(err error, filename string) {
-	switch err.(type) {
-	case nil:
-		// do nothing
-	case *scanner.Error, scanner.ErrorList:
-		l.AddStd(err)
-	default:
-		l.AddPosition(token.Position{Filename: filename}, err.Error())
-	}
-}
-
 // AddStd adds an error from the stdlib packages that uses
 // scanner.ErrorList or *scanner.Error under the hood.
 func (l *List) AddStd(err error) {
@@ -124,28 +105,6 @@ func (l *List) AssertStd(err error) {
 		l.AddStd(err)
 		l.Bailout()
 	}
-}
-
-func (l *List) AssertPosition(err error, pos token.Position) {
-	switch err := err.(type) {
-	case nil:
-		// do nothing
-	case *scanner.Error:
-		l.AddStd(err)
-		l.Bailout()
-	case scanner.ErrorList:
-		if err.Len() > 0 {
-			l.AddStd(err)
-			l.Bailout()
-		}
-	default:
-		l.AddPosition(pos, err.Error())
-		l.Bailout()
-	}
-}
-
-func (l *List) AssertFile(err error, filename string) {
-	l.AssertPosition(err, token.Position{Filename: filename})
 }
 
 // Len returns the number of errors reported.

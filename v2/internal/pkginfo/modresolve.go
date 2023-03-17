@@ -1,7 +1,6 @@
 package pkginfo
 
 import (
-	"fmt"
 	"go/token"
 	"os"
 
@@ -24,11 +23,15 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
 	// Load the go.mod file from disk and validate it.
 	gomodFilePath := rootDir.Join("go.mod").ToIO()
 	data, err := os.ReadFile(gomodFilePath)
-	l.c.Errs.AssertFile(err, gomodFilePath)
+	if err != nil {
+		l.c.Errs.Assert(errReadingGoMod.Wrapping(err).InFile(gomodFilePath))
+	}
 	modFile, err := modfile.Parse(gomodFilePath, data, nil)
-	l.c.Errs.AssertFile(err, gomodFilePath)
+	if err != nil {
+		l.c.Errs.Assert(errReadingGoMod.Wrapping(err).InFile(gomodFilePath))
+	}
 	if !paths.ValidModPath(modFile.Module.Mod.Path) {
-		l.c.Errs.AssertFile(fmt.Errorf("invalid module path: %q", modFile.Module.Mod.Path), gomodFilePath)
+		l.c.Errs.Assert(errInvalidModulePath(modFile.Module.Mod.Path).InFile(gomodFilePath))
 	}
 
 	m = &Module{
@@ -44,7 +47,7 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
 	for _, dep := range modFile.Require {
 		depModPath := dep.Mod.Path
 		// ignore invalid module paths. We could raise an error,
-		//but the build step catches dependency issues anyway.
+		// but the build step catches dependency issues anyway.
 		if !paths.ValidModPath(depModPath) {
 			continue
 		}

@@ -67,6 +67,13 @@ func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation
 		end = convertSingleGoPositionToRange(start.Filename, bytes, start)
 	}
 
+	// If either position is invalid, return nil
+	// as that means we're not dealing with a Go Token Position
+	if !start.IsValid() || !end.IsValid() {
+		log.Warn().Str("start", start.String()).Str("end", end.String()).Msg("Invalid Go token position")
+		return nil
+	}
+
 	return &SrcLocation{
 		File: &File{
 			RelPath:  start.Filename,

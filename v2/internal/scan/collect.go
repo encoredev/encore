@@ -19,7 +19,7 @@ func ProcessModule(errs *perr.List, loader *pkginfo.Loader, moduleRoot paths.FS,
 	modFilePath := moduleRoot.Join("go.mod")
 	modPath, err := resolveModulePath(modFilePath)
 	if err != nil {
-		errs.AddForFile(err, modFilePath.ToIO())
+		errs.Add(errResolvingModulePath.InFile(modFilePath.ToIO()).Wrapping(err))
 		return
 	}
 

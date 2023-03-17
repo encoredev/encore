@@ -3,7 +3,6 @@ package usage
 import (
 	"go/ast"
 	"go/token"
-	"reflect"
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
@@ -36,11 +35,11 @@ func (b *Base) End() token.Pos              { return b.Expr.End() }
 func (b *Base) usage() {}
 
 type Resolver struct {
-	resolvers map[reflect.Type]func(ResolveData, resource.Resource) Usage
+	resolvers map[resource.Kind]func(ResolveData, resource.Resource) Usage
 }
 
 func (r *Resolver) Resolve(errs *perr.List, expr Expr, res resource.Resource) option.Option[Usage] {
-	fn, ok := r.resolvers[reflect.TypeOf(res)]
+	fn, ok := r.resolvers[res.Kind()]
 	if !ok {
 		return option.None[Usage]()
 	}
@@ -53,19 +52,18 @@ func (r *Resolver) Resolve(errs *perr.List, expr Expr, res resource.Resource) op
 
 func NewResolver() *Resolver {
 	return &Resolver{
-		resolvers: make(map[reflect.Type]func(ResolveData, resource.Resource) Usage),
+		resolvers: make(map[resource.Kind]func(ResolveData, resource.Resource) Usage),
 	}
 }
 
 func RegisterUsageResolver[Res resource.Resource](r *Resolver, fn func(ResolveData, Res) Usage) {
 	var zero Res
-	typ := reflect.TypeOf(zero)
 
-	if r.resolvers[typ] != nil {
-		panic("usage resolver already registered for type " + typ.String())
+	if r.resolvers[zero.Kind()] != nil {
+		panic("usage resolver already registered for type " + zero.Kind().String())
 	}
 
-	r.resolvers[typ] = func(data ResolveData, res resource.Resource) Usage {
+	r.resolvers[zero.Kind()] = func(data ResolveData, res resource.Resource) Usage {
 		return fn(data, res.(Res))
 	}
 }
