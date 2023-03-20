@@ -84,7 +84,7 @@ func parseLoad(d parseutil.ReferenceInfo) {
 		FuncCall: d.Call,
 	}
 
-	concrete := schemautil.ConcretizeWithTypeArgs(ref.ToType(), ref.TypeArgs).(schema.NamedType)
+	concrete := schemautil.ConcretizeWithTypeArgs(ref.ToType(), ref.TypeArgs)
 	walkCfgToVerify(d.Pass.Errs, load, concrete, false)
 
 	d.Pass.RegisterResource(load)
@@ -123,6 +123,8 @@ func walkCfgToVerify(errs *perr.List, load *Load, decl schema.Type, insideConfig
 
 		walkCfgToVerify(errs, load, decl.Decl().Type, insideConfigValue)
 	case schema.PointerType:
+		walkCfgToVerify(errs, load, decl.Elem, false)
+	case schema.ListType:
 		walkCfgToVerify(errs, load, decl.Elem, false)
 	case schema.StructType:
 		for _, field := range decl.Fields {

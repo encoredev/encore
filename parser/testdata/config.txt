@@ -13,6 +13,8 @@ import (
 type LibraryConfig struct {
     Name    config.String
     Enabled config.Bool
+    ValueList config.Value[[]int]
+    List []int
 }
 
 -- svc/svc.go --
@@ -30,6 +32,8 @@ type Config[T any] struct {
     Library    shared.LibraryConfig
     OtherValue config.Value[T]
     NameList   config.Values[string]
+    ValueList config.Value[[]T]
+    List []T
 }
 
 var cfg = config.Load[Config[int]]()
