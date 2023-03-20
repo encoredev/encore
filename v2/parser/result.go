@@ -29,6 +29,7 @@ func computeResult(errs *perr.List, mainModule *pkginfo.Module, ur *usage.Resolv
 		byType:         make(map[reflect.Type][]resource.Resource),
 		bindToResource: make(map[resource.Bind]resource.Resource, len(binds)),
 		qnToBind:       make(map[pkginfo.QualifiedName]resource.Bind, len(binds)),
+		usageByPkg:     make(map[paths.Pkg][]usage.Usage),
 	}
 
 	d.initResources()
@@ -58,6 +59,7 @@ type Result struct {
 	qnToBind       map[pkginfo.QualifiedName]resource.Bind
 	resByPos       posmap.Map[resource.Resource]
 	usageByPos     posmap.Map[usage.Usage]
+	usageByPkg     map[paths.Pkg][]usage.Usage
 }
 
 func (d *Result) MainModule() *pkginfo.Module {
@@ -128,6 +130,10 @@ func (d *Result) ResourceConstructorContaining(node ast.Node) option.Option[reso
 
 func (d *Result) UsageFromNode(node ast.Node) option.Option[usage.Usage] {
 	return d.usageByPos.Containing(node)
+}
+
+func (d *Result) UsagesInPkg(pkgPath paths.Pkg) []usage.Usage {
+	return d.usageByPkg[pkgPath]
 }
 
 func (d *Result) rd(res resource.Resource) *resourceMeta {
@@ -223,6 +229,9 @@ func (d *Result) initUsages(errs *perr.List, ur *usage.Resolver, usageExprs []us
 		if u, ok := ur.Resolve(errs, expr, r).Get(); ok {
 			d.rd(r).addUsage(u)
 			allUsages = append(allUsages, u)
+
+			pkgPath := u.DeclaredIn().Pkg.ImportPath
+			d.usageByPkg[pkgPath] = append(d.usageByPkg[pkgPath], u)
 		}
 	}
 

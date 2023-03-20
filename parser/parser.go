@@ -262,17 +262,8 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPat
 		p := ps[pkgNames[0]]
 		var doc string
 		for _, astFile := range p.Files {
-			// HACK: getting package comments is not at all easy
-			// because of the quirks of go/ast. This seems to work.
-			cm := ast.NewCommentMap(fset, astFile, astFile.Comments)
-			for _, cg := range cm[astFile] {
-				if text := strings.TrimSpace(cg.Text()); text != "" {
-					doc = text
-				}
-				break
-			}
-			if doc != "" {
-				break
+			if doc == "" && astFile.Doc != nil {
+				doc = astFile.Doc.Text()
 			}
 		}
 

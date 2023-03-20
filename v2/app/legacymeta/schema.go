@@ -86,7 +86,10 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 			if f.IsAnonymous() {
 				continue // not supported by meta
 			}
-			fields = append(fields, b.structField(f))
+			field := b.structField(f)
+			if f.IsExported() { // to match legacy meta behavior
+				fields = append(fields, field)
+			}
 		}
 
 		return &schema.Type{Typ: &schema.Type_Struct{

@@ -57,41 +57,33 @@ func main() {
 
 	baseOpts := []cmp.Option{
 		protocmp.Transform(),
-		protocmp.IgnoreFields(&schemav1.Decl{}, "loc", "id"),
-		protocmp.IgnoreFields(&schemav1.Named{}, "id"),
-		protocmp.IgnoreFields(&metav1.AuthHandler{}, "loc"),
-		protocmp.IgnoreFields(&metav1.RPC{}, "loc"),
-		protocmp.IgnoreFields(&metav1.Package{}, "trace_nodes"),
-		protocmp.SortRepeatedFields((*metav1.Service)(nil), "rpcs"),
-		protocmp.FilterField((*metav1.Service)(nil), "rpcs", protocmp.SortRepeated(func(a, b *schemav1.Decl) bool {
-			return a.Name < b.Name
-		})),
-		protocmp.FilterField((*metav1.Data)(nil), "decls", protocmp.SortRepeated(func(a, b *schemav1.Decl) bool {
+		protocmp.IgnoreFields((*schemav1.Decl)(nil), "loc", "id"),
+		protocmp.IgnoreFields((*schemav1.Named)(nil), "id"),
+		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "loc"),
+		protocmp.IgnoreFields((*metav1.RPC)(nil), "loc"),
+		protocmp.IgnoreFields((*metav1.Package)(nil), "trace_nodes"),
+		protocmp.IgnoreFields((*metav1.Middleware)(nil), "loc"),
+		protocmp.SortRepeated(func(a, b *schemav1.Decl) bool {
 			if a.Name != b.Name {
 				return a.Name < b.Name
 			}
 			return a.String() < b.String()
-		})),
-		protocmp.FilterField((*metav1.Data)(nil), "pkgs", protocmp.SortRepeated(func(a, b *metav1.Package) bool {
+		}),
+		protocmp.SortRepeated(func(a, b *metav1.Package) bool {
 			return a.RelPath < b.RelPath
-		})),
+		}),
+		protocmp.SortRepeated(func(a, b *metav1.Service) bool {
+			return a.RelPath < b.RelPath
+		}),
+		protocmp.SortRepeated(func(a, b *metav1.RPC) bool {
+			return a.ServiceName+"."+a.Name < b.ServiceName+"."+b.Name
+		}),
 	}
 
-	ignorePointerComparer := cmp.Comparer(func(a, b *schemav1.Type) bool {
-		if ptr := a.GetPointer(); ptr != nil {
-			a = ptr.Base
-		}
-		if ptr := b.GetPointer(); ptr != nil {
-			b = ptr.Base
-		}
-		return cmp.Equal(a, b, baseOpts...)
-	})
-
 	allOpts := append(slices.Clone(baseOpts),
-		protocmp.FilterField((*metav1.PubSubTopic)(nil), "message_type", ignorePointerComparer),
-		protocmp.FilterField((*metav1.AuthHandler)(nil), "params", ignorePointerComparer),
-		protocmp.FilterField((*metav1.RPC)(nil), "request_schema", ignorePointerComparer),
-		protocmp.FilterField((*metav1.RPC)(nil), "response_schema", ignorePointerComparer),
+		protocmp.IgnoreFields((*metav1.PubSubTopic)(nil), "message_type"),
+		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "params"),
+		protocmp.IgnoreFields(&metav1.RPC{}, "request_schema", "response_schema"),
 	)
 
 	diff := ansiDiff(v1Parse.Meta, v2Parse.Meta, allOpts...)

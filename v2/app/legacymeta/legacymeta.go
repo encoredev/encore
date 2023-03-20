@@ -15,11 +15,14 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
+	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/pubsub"
+	"encr.dev/v2/parser/infra/secrets"
+	"encr.dev/v2/parser/infra/sqldb"
 	"encr.dev/v2/parser/resource"
 )
 
@@ -64,10 +67,6 @@ func (b *builder) Build() *meta.Data {
 	for _, svc := range b.app.Services {
 		out := &meta.Service{
 			Name: svc.Name,
-			// TODO all of this stuff
-			Rpcs:       nil,
-			Migrations: nil,
-			Databases:  nil,
 		}
 		svcByName[svc.Name] = out
 		md.Svcs = append(md.Svcs, out)
@@ -104,10 +103,32 @@ func (b *builder) Build() *meta.Data {
 
 				out.Rpcs = append(out.Rpcs, rpc)
 			}
+
+			// Do we have a database associated with the service?
+			for res := range svc.ResourceUsage {
+				switch res := res.(type) {
+				case *sqldb.Database:
+					out.Databases = append(out.Databases, res.Name)
+					// If the database name is the same as the service,
+					// it's the database defined by said service.
+					if res.Name == svc.Name {
+						for _, mig := range res.Migrations {
+							out.Migrations = append(out.Migrations, &meta.DBMigration{
+								Filename:    mig.Filename,
+								Number:      int32(mig.Number),
+								Description: mig.Description,
+							})
+						}
+					}
+				}
+			}
+
 		}
 	}
 
-	for _, pkg := range b.app.Parse.AppPackages() {
+	appPackages := b.app.Parse.AppPackages()
+	pkgByPath := make(map[paths.Pkg]*meta.Package, len(appPackages))
+	for _, pkg := range appPackages {
 		metaPkg := &meta.Package{
 			RelPath:     relPath(pkg.ImportPath),
 			Name:        pkg.Name,
@@ -117,10 +138,41 @@ func (b *builder) Build() *meta.Data {
 			RpcCalls:    nil,
 			TraceNodes:  nil,
 		}
-		md.Pkgs = append(md.Pkgs, metaPkg)
+		pkgByPath[pkg.ImportPath] = metaPkg
 
 		if svc, ok := b.app.ServiceForPath(pkg.FSPath); ok {
 			metaPkg.ServiceName = svc.Name
+		}
+
+		// Don't add main packages to the list of packages.
+		// Still track it in the map since other resources
+		// may depend on the package being known.
+		if pkg.Name != "main" {
+			md.Pkgs = append(md.Pkgs, metaPkg)
+		}
+
+		seenRPCCalls := make(map[pkginfo.QualifiedName]bool)
+		addRPCCall := func(ep *api.Endpoint) {
+			pkg := ep.Package()
+			qn := pkginfo.Q(pkg.ImportPath, ep.Name)
+			if !seenRPCCalls[qn] {
+				seenRPCCalls[qn] = true
+				metaPkg.RpcCalls = append(metaPkg.RpcCalls, &meta.QualifiedName{
+					Pkg:  relPath(pkg.ImportPath),
+					Name: ep.Name,
+				})
+			}
+		}
+
+		for _, u := range b.app.Parse.UsagesInPkg(pkg.ImportPath) {
+			switch u := u.(type) {
+			case *api.CallUsage:
+				addRPCCall(u.Endpoint)
+			case *api.ReferenceUsage:
+				// NOTE: The legacy meta does not distinguish between calls and references,
+				// and adds both to the list of RPC calls. Replicate this behavior.
+				addRPCCall(u.Endpoint)
+			}
 		}
 	}
 
@@ -134,16 +186,26 @@ func (b *builder) Build() *meta.Data {
 		clusterMap = make(map[pkginfo.QualifiedName]*meta.CacheCluster)
 	)
 
+	selectorLookup := computeSelectorLookup(b.app)
 	for _, r := range b.app.Parse.Resources() {
 		switch r := r.(type) {
 		case *crons.Job:
-			md.CronJobs = append(md.CronJobs, &meta.CronJob{
+			cj := &meta.CronJob{
 				Id:       r.Name,
 				Title:    r.Title,
 				Doc:      r.Doc,
 				Schedule: r.Schedule,
-				Endpoint: nil, // TODO
-			})
+				Endpoint: nil,
+			}
+			md.CronJobs = append(md.CronJobs, cj)
+			if ep, ok := b.app.Parse.ResourceForQN(r.Endpoint).Get(); ok {
+				cj.Endpoint = &meta.QualifiedName{
+					Pkg:  relPath(ep.Package().ImportPath),
+					Name: ep.(*api.Endpoint).Name,
+				}
+			} else {
+				b.errs.Addf(r.EndpointAST.Pos(), "could not find endpoint %q", r.Endpoint)
+			}
 
 		case *authhandler.AuthHandler:
 			ah := &meta.AuthHandler{
@@ -165,27 +227,44 @@ func (b *builder) Build() *meta.Data {
 				Doc:           r.Doc,
 				MessageType:   b.typeDeclRef(r.MessageType),
 				OrderingKey:   r.OrderingKey,
-				Publishers:    nil, // TODO
+				Publishers:    nil,
 				Subscriptions: nil, // filled in later
+			}
+
+			seenPublishers := make(map[string]bool)
+			addPublisher := func(svcName string) {
+				if !seenPublishers[svcName] {
+					seenPublishers[svcName] = true
+					topic.Publishers = append(topic.Publishers, &meta.PubSubTopic_Publisher{
+						ServiceName: svcName,
+					})
+				}
 			}
 
 			// Find all the publishers
 			for _, u := range b.app.Parse.Usages(r) {
 				if _, ok := u.(*pubsub.PublishUsage); ok {
 					if svc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath); ok {
-						topic.Publishers = append(topic.Publishers, &meta.PubSubTopic_Publisher{
-							ServiceName: svc.Name,
-						})
+						// Is the publish call within a service? If so add that service as the publisher.
+						addPublisher(svc.Name)
+					} else if res2, ok := b.app.Parse.ResourceConstructorContaining(u).Get(); ok {
+						// Otherwise, is the publish call within a global middleware?
+						// If so add all services that that middleware applies to.
+						switch res2 := res2.(type) {
+						case *middleware.Middleware:
+							if res2.Global {
+								for _, svc := range selectorLookup.GetServices(res2.Target) {
+									addPublisher(svc.Name)
+								}
+							}
+						}
 					}
 				}
 			}
 
-			// Remove duplicates
+			// Sort the publishers
 			slices.SortFunc(topic.Publishers, func(a, b *meta.PubSubTopic_Publisher) bool {
 				return a.ServiceName < b.ServiceName
-			})
-			topic.Publishers = slices.CompactFunc(topic.Publishers, func(a, b *meta.PubSubTopic_Publisher) bool {
-				return a.ServiceName == b.ServiceName
 			})
 
 			switch r.DeliveryGuarantee {
@@ -246,6 +325,31 @@ func (b *builder) Build() *meta.Data {
 			}
 			// Register the types.
 			b.schemaType(r.Type)
+
+		case *secrets.Secrets:
+			pkg, ok := pkgByPath[r.Package().ImportPath]
+			if !ok {
+				b.errs.Addf(r.ASTExpr().Pos(), "could not find package %q", r.Package().ImportPath)
+				continue
+			}
+			pkg.Secrets = append(pkg.Secrets, r.Keys...)
+
+		case *middleware.Middleware:
+			mw := &meta.Middleware{
+				Name: &meta.QualifiedName{
+					Pkg:  relPath(r.Package().ImportPath),
+					Name: r.Decl.Name,
+				},
+				Doc:         r.Doc,
+				Loc:         nil,
+				Global:      r.Global,
+				ServiceName: nil,
+				Target:      r.Target.ToProto(),
+			}
+			md.Middleware = append(md.Middleware, mw)
+			if svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath); ok {
+				mw.ServiceName = &svc.Name
+			}
 
 		case *pubsub.Subscription, *caches.Keyspace:
 			dependent = append(dependent, r)

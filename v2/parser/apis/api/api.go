@@ -124,6 +124,13 @@ func Parse(d ParseData) *Endpoint {
 	rpc.File = d.File
 	rpc.Recv = decl.Recv
 
+	// Validate the API.
+	if rpc.Raw {
+		initRawRPC(d.Errs, rpc)
+	} else {
+		initTypedRPC(d.Errs, rpc)
+	}
+
 	// If we didn't get any HTTP methods, set a reasonable default.
 	// TODO(andre) Replace this with the API encoding.
 	if len(rpc.HTTPMethods) == 0 {
@@ -139,13 +146,6 @@ func Parse(d ParseData) *Endpoint {
 				rpc.HTTPMethods = []string{"GET", "POST"}
 			}
 		}
-	}
-
-	// Validate the API.
-	if rpc.Raw {
-		validateRawRPC(d.Errs, rpc)
-	} else {
-		initTypedRPC(d.Errs, rpc)
 	}
 
 	return rpc
@@ -231,7 +231,7 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 	}
 }
 
-func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
+func initRawRPC(errs *perr.List, endpoint *Endpoint) {
 	decl := endpoint.Decl
 	sig := decl.Type
 	params := sig.Params
