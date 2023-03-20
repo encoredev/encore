@@ -11,7 +11,7 @@ import (
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/servicestruct"
-	"encr.dev/v2/parser/infra/cron"
+	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/resource"
 )
@@ -89,8 +89,8 @@ func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, resu
 						switch res := res.(type) {
 						case *pubsub.Subscription:
 							return res.Handler == usage.Ref
-						case *cron.Job:
-							return res.Endpoint == usage.Ref
+						case *crons.Job:
+							return res.EndpointAST == usage.Ref
 						default:
 							return false
 						}

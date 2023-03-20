@@ -17,7 +17,6 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
-	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/resource"
@@ -136,7 +135,7 @@ func (b *builder) Build() *meta.Data {
 
 	for _, r := range b.app.Parse.Resources() {
 		switch r := r.(type) {
-		case *cron.Job:
+		case *crons.Job:
 			md.CronJobs = append(md.CronJobs, &meta.CronJob{
 				Id:       r.Name,
 				Title:    r.Title,

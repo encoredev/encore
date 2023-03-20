@@ -1,4 +1,4 @@
-package cron
+package crons
 
 import (
 	"testing"

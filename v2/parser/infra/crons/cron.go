@@ -1,4 +1,4 @@
-package cron
+package crons
 
 import (
 	"fmt"
@@ -25,7 +25,9 @@ type Job struct {
 	Doc      string // The documentation on the cron job
 	Title    string // cron job title
 	Schedule string
-	Endpoint ast.Expr // The Endpoint reference
+
+	Endpoint    pkginfo.QualifiedName // The Endpoint reference
+	EndpointAST ast.Node
 }
 
 func (j *Job) Kind() resource.Kind       { return resource.CronJob }
@@ -94,13 +96,23 @@ func parseCronJob(d parseutil.ReferenceInfo) {
 	}
 	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
 
+	// Resolve the endpoint
+	endpoint, ok := d.File.Names().ResolvePkgLevelRef(config.Endpoint)
+	if !ok {
+		d.Pass.Errs.Add(
+			errUnableToResolveEndpoint.AtGoNode(config.Endpoint),
+		)
+		return
+	}
+
 	job := &Job{
-		AST:      d.Call,
-		File:     d.File,
-		Name:     jobName,
-		Doc:      d.Doc,
-		Title:    config.Title,
-		Endpoint: config.Endpoint,
+		AST:         d.Call,
+		File:        d.File,
+		Name:        jobName,
+		Doc:         d.Doc,
+		Title:       config.Title,
+		Endpoint:    endpoint,
+		EndpointAST: config.Endpoint,
 	}
 	if job.Title == "" {
 		job.Title = jobName

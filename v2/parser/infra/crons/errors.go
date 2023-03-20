@@ -1,4 +1,4 @@
-package cron
+package crons
 
 import (
 	"encr.dev/pkg/errors"
@@ -50,5 +50,15 @@ var (
 	ErrDuplicateNames = errRange.New(
 		"Duplicate Cron Jobs",
 		"Multiple cron jobs with the same name were found. Cronjob names must be unique.",
+	)
+
+	errUnableToResolveEndpoint = errRange.New(
+		"Invalid call to cron.NewJob",
+		"Unable to resolve endpoint to a package level name. Is it defined?",
+	)
+
+	ErrEndpointNotAnAPI = errRange.New(
+		"Invalid call to cron.NewJob",
+		"Endpoint does not reference an Encore API",
 	)
 )

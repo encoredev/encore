@@ -11,7 +11,12 @@ func (d *Desc) locateResourceUsage(result *parser.Result) {
 	allUsages := result.AllUsages()
 
 	for _, use := range allUsages {
-		res := result.ResourceForBind(use.ResourceBind())
+		res, ok := result.ResourceForBind(use.ResourceBind()).Get()
+		if !ok {
+			d.Errs.Assert(
+				errUsageWithoutResource.AtGoNode(use),
+			)
+		}
 
 		svc, found := d.ServiceForPath(use.DeclaredIn().Pkg.FSPath)
 		if found {

@@ -28,6 +28,7 @@ func computeResult(errs *perr.List, mainModule *pkginfo.Module, ur *usage.Resolv
 		resMap:         make(map[resource.Resource]*resourceMeta),
 		byType:         make(map[reflect.Type][]resource.Resource),
 		bindToResource: make(map[resource.Bind]resource.Resource, len(binds)),
+		qnToResource:   make(map[pkginfo.QualifiedName]resource.Resource, len(resources)),
 	}
 
 	d.initResources()
@@ -54,6 +55,7 @@ type Result struct {
 	resMap         map[resource.Resource]*resourceMeta
 	byType         map[reflect.Type][]resource.Resource
 	bindToResource map[resource.Bind]resource.Resource
+	qnToResource   map[pkginfo.QualifiedName]resource.Resource
 	resByPos       posmap.Map[resource.Resource]
 	usageByPos     posmap.Map[usage.Usage]
 }
@@ -88,8 +90,12 @@ func (d *Result) AllUsageExprs() []usage.Expr {
 	return d.allUsageExprs
 }
 
-func (d *Result) ResourceForBind(b resource.Bind) resource.Resource {
-	return d.bindToResource[b]
+func (d *Result) ResourceForBind(b resource.Bind) option.Option[resource.Resource] {
+	return option.AsOptional(d.bindToResource[b])
+}
+
+func (d *Result) ResourceForQN(qn pkginfo.QualifiedName) option.Option[resource.Resource] {
+	return option.AsOptional(d.qnToResource[qn])
 }
 
 func (d *Result) Binds(res resource.Resource) []resource.Bind {
@@ -170,6 +176,9 @@ func (d *Result) initBinds(errs *perr.List, binds []resource.Bind) {
 	addBind := func(r resource.Resource, b resource.Bind) {
 		d.rd(r).addBind(b)
 		d.bindToResource[b] = r
+		if pkgBind, ok := b.(*resource.PkgDeclBind); ok && pkgBind != nil {
+			d.qnToResource[pkgBind.QualifiedName()] = r
+		}
 	}
 
 	for _, b := range binds {

@@ -15,7 +15,7 @@ import (
 	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
-	"encr.dev/v2/parser/infra/cron"
+	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
@@ -118,7 +118,7 @@ var allParsers = []*resourceparser.Parser{
 	caches.ClusterParser,
 	caches.KeyspaceParser,
 	config.LoadParser,
-	cron.JobParser,
+	crons.JobParser,
 	metrics.MetricParser,
 	pubsub.TopicParser,
 	pubsub.SubscriptionParser,

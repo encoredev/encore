@@ -24,7 +24,7 @@ import (
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/config"
-	"encr.dev/v2/parser/infra/cron"
+	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/sqldb"
@@ -182,7 +182,7 @@ func TestValidation(t *testing.T) {
 							ts.Fatalf("could not find service for path %s", res.File.FSPath)
 						}
 						printf("config %s %s", svc.Name, res.Type)
-					case *cron.Job:
+					case *crons.Job:
 						printf("cronJob %s title=%q", res.Name, res.Title)
 					case *sqldb.Database:
 						for _, b := range desc.Parse.PkgDeclBinds(res) {
