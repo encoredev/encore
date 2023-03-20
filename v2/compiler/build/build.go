@@ -4,6 +4,7 @@ package build
 
 import (
 	"bytes"
+	"fmt"
 	"go/token"
 	"os"
 	"os/exec"
@@ -248,6 +249,10 @@ func (b *builder) buildMain() {
 			out = []byte(err.Error())
 		}
 		out = convertCompileErrors(b.errs, out, b.workdir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO())
+		if len(out) > 0 {
+			// TODO make this nicer
+			b.errs.AddStd(fmt.Errorf("compilation failure: %s", out))
+		}
 	}
 }
 

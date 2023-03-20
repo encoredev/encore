@@ -49,7 +49,7 @@ func Gen(p GenParams) {
 	mainPkgDir := p.MainModule.RootDir.Join("__encore", "main")
 	mainPkgPath := paths.Pkg(p.MainModule.Path).JoinSlash("__encore", "main")
 
-	file := gen.InjectFile(mainPkgPath, "main", mainPkgDir, "main")
+	file := gen.InjectFile(mainPkgPath, "main", mainPkgDir, "main.go", "main")
 
 	f := file.Jen
 

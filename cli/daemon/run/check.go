@@ -44,7 +44,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 	buildInfo := builder.BuildInfo{
 		BuildTags:  builder.LocalBuildTags,
 		CgoEnabled: true,
-		StaticLink: true,
+		StaticLink: false,
 		Debug:      false,
 		GOOS:       runtime.GOOS,
 		GOARCH:     runtime.GOARCH,

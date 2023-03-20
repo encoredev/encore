@@ -70,7 +70,7 @@ func (b *builder) ExecScript() (res *Result, err error) {
 		Exe: filepath.Join(b.workdir, binaryName+b.exe()),
 	}
 	defer func() {
-		if err != nil && !b.cfg.KeepOutput {
+		if err != nil && !b.cfg.KeepOutputOnFailure {
 			os.RemoveAll(b.workdir)
 		}
 	}()

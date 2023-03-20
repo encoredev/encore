@@ -10,7 +10,7 @@ var (
 
 	errRender = errRange.Newf(
 		"Failed to render codegen",
-		"Expected exactly 1 receiver, got %d.",
+		"Generated code could not be parsed.",
 		errors.MarkAsInternalError(),
 	)
 )

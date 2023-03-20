@@ -75,13 +75,13 @@ func (legacyBuilderImpl) Compile(p builder.CompileParams) (*builder.CompileResul
 		Parse:                 p.Parse.Data.(*parser.Result),
 		OpTracker:             p.OpTracker,
 
-		Debug:      p.Build.Debug,
-		KeepOutput: p.Build.KeepOutput,
-		BuildTags:  p.Build.BuildTags,
-		CgoEnabled: p.Build.CgoEnabled,
-		StaticLink: p.Build.StaticLink,
-		GOOS:       p.Build.GOOS,
-		GOARCH:     p.Build.GOARCH,
+		Debug:               p.Build.Debug,
+		KeepOutputOnFailure: p.Build.KeepOutput,
+		BuildTags:           p.Build.BuildTags,
+		CgoEnabled:          p.Build.CgoEnabled,
+		StaticLink:          p.Build.StaticLink,
+		GOOS:                p.Build.GOOS,
+		GOARCH:              p.Build.GOARCH,
 	}
 
 	build, err := compiler.Build(p.App.Root(), cfg)

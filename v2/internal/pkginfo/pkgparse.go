@@ -148,6 +148,8 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			continue
 		} else if !matched {
 			continue
+		} else if strings.EqualFold(d.baseName, "encore.gen.go") {
+			continue
 		}
 
 		reader, err := os.Open(d.ioPath)

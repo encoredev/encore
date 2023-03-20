@@ -31,11 +31,11 @@ var importNames = map[string]string{
 	"encore.dev/types/uuid":             "uuid",
 }
 
-func newFile(pkg *pkginfo.Package, suffix string) *File {
-	return newFileForPath(pkg.ImportPath, pkg.Name, pkg.FSPath, suffix)
+func newFile(pkg *pkginfo.Package, baseName, shortName string) *File {
+	return newFileForPath(pkg.ImportPath, pkg.Name, pkg.FSPath, baseName, shortName)
 }
 
-func newFileForPath(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, suffix string) *File {
+func newFileForPath(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, baseName, shortName string) *File {
 	jenFile := jen.NewFilePathName(pkgPath.String(), pkgName)
 
 	// Ensure the runtime is initialized before all generated code.
@@ -46,10 +46,11 @@ func newFileForPath(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, suffix s
 	}
 
 	return &File{
-		Jen:     jenFile,
-		dir:     pkgDir,
-		pkgPath: pkgPath,
-		suffix:  suffix,
+		Jen:       jenFile,
+		dir:       pkgDir,
+		pkgPath:   pkgPath,
+		baseName:  baseName,
+		shortName: shortName,
 	}
 }
 
@@ -62,9 +63,14 @@ type File struct {
 	// any existing physical directory in the case of overlays.
 	dir paths.FS
 
-	pkgPath paths.Pkg // the package the file belongs to
-	suffix  string    // the file name suffix. "metrics" for "encore_internal__metrics.go".
-	decls   []any     // ordered list of Decl or jen.Code
+	pkgPath  paths.Pkg // the package the file belongs to
+	baseName string    // the file's base name
+	// shortName is the short version of the base name, for generated files.
+	// For example if the base name is "encore_internal__metrics.go",
+	// shortName is "metrics".
+	shortName string
+
+	decls []any // ordered list of Decl or jen.Code
 }
 
 // ImportAnon adds an anonymous ("_"-prefixed) import of the given packages.
@@ -76,7 +82,7 @@ func (f *File) ImportAnon(pkgs ...paths.Pkg) {
 
 // name returns the computed file name.
 func (f *File) name() string {
-	return "encore_internal__" + f.suffix + ".go"
+	return f.baseName
 }
 
 // Add adds a declaration to the file.
@@ -157,7 +163,7 @@ type FuncDecl struct {
 
 	// nameParts are the suffix parts of the generated name.
 	// For example, if the parts are ["foo", "bar"] and the
-	// file suffix is "metrics", the generated declaration name
+	// file shortName is "metrics", the generated declaration name
 	// is "EncoreInternal_metrics_foo_bar".
 	nameParts []string
 
@@ -176,7 +182,7 @@ type FuncDecl struct {
 
 // Name returns the package-level name of the declaration.
 func (d *FuncDecl) Name() string {
-	return "EncoreInternal_" + d.File.suffix + "_" + strings.Join(d.nameParts, "_")
+	return "EncoreInternal_" + d.File.shortName + "_" + strings.Join(d.nameParts, "_")
 }
 
 // Qual returns the qualified name of the declaration.
@@ -239,7 +245,7 @@ type VarDecl struct {
 
 	// nameParts are the suffix parts of the generated name.
 	// For example, if the parts are ["foo", "bar"] and the
-	// file suffix is "metrics", the generated declaration name
+	// file shortName is "metrics", the generated declaration name
 	// is "EncoreInternal_metrics_foo_bar".
 	nameParts []string
 
@@ -256,7 +262,7 @@ func (d *VarDecl) Code() *jen.Statement {
 }
 
 func (d *VarDecl) Name() string {
-	return "EncoreInternal_" + d.File.suffix + "_" + strings.Join(d.nameParts, "_")
+	return "EncoreInternal_" + d.File.shortName + "_" + strings.Join(d.nameParts, "_")
 }
 
 func (d *VarDecl) Qual() *jen.Statement {

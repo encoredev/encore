@@ -258,7 +258,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	buildInfo := builder.BuildInfo{
 		BuildTags:  builder.LocalBuildTags,
 		CgoEnabled: true,
-		StaticLink: true,
+		StaticLink: false,
 		Debug:      r.params.Debug,
 		GOOS:       runtime.GOOS,
 		GOARCH:     runtime.GOARCH,

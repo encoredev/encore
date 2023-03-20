@@ -104,6 +104,9 @@ func streamCommandOutput(stream commandOutputStream, converter outputConverter) 
 						_, _ = os.Stderr.Write(line)
 					}
 				}
+				if err := scanner.Err(); err != nil {
+					fmt.Fprintln(os.Stderr, "failed to read output:", err)
+				}
 			}()
 		}
 	}

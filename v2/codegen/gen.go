@@ -39,26 +39,27 @@ func (g *Generator) Rewrite(file *pkginfo.File) *rewrite.Rewriter {
 }
 
 type fileKey struct {
-	pkgPath paths.Pkg
-	suffix  string
+	pkgPath  paths.Pkg
+	baseName string
 }
 
-func (g *Generator) File(pkg *pkginfo.Package, suffix string) *File {
-	key := fileKey{pkg.ImportPath, suffix}
+func (g *Generator) File(pkg *pkginfo.Package, shortName string) *File {
+	baseName := "encore_internal__" + shortName + ".go"
+	key := fileKey{pkg.ImportPath, baseName}
 	if f, ok := g.files[key]; ok {
 		return f
 	}
-	f := newFile(pkg, suffix)
+	f := newFile(pkg, baseName, shortName)
 	g.files[key] = f
 	return f
 }
 
-func (g *Generator) InjectFile(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, suffix string) *File {
-	key := fileKey{pkgPath, suffix}
+func (g *Generator) InjectFile(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, baseName, shortName string) *File {
+	key := fileKey{pkgPath, baseName}
 	if f, ok := g.files[key]; ok {
 		return f
 	}
-	f := newFileForPath(pkgPath, pkgName, pkgDir, suffix)
+	f := newFileForPath(pkgPath, pkgName, pkgDir, baseName, shortName)
 	g.files[key] = f
 	return f
 }

@@ -88,8 +88,9 @@ type Config struct {
 	// and use the information provided.
 	Parse *parser.Result
 
-	// KeepOutput keeps the temporary build directory from being deleted in the case of failure.
-	KeepOutput bool
+	// KeepOutputOnFailure keeps the temporary build directory from being deleted in the case of failure.
+	// On success the output is always kept.
+	KeepOutputOnFailure bool
 
 	// OpTracker is an option tracker to output the progress to the UI
 	OpTracker *optracker.OpTracker
@@ -194,7 +195,7 @@ func (b *builder) Build() (res *Result, err error) {
 		Exe: filepath.Join(b.workdir, binaryName+b.exe()),
 	}
 	defer func() {
-		if err != nil && !b.cfg.KeepOutput {
+		if err != nil && !b.cfg.KeepOutputOnFailure {
 			os.RemoveAll(b.workdir)
 		}
 	}()
