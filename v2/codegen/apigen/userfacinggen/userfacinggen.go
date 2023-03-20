@@ -118,7 +118,7 @@ func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, svcStruc
 					if ep.Raw {
 						g.Nil()
 					} else if ep.Response != nil {
-						gu.Zero(ep.Response)
+						g.Add(gu.Zero(ep.Response))
 					}
 					g.Err()
 				}))
