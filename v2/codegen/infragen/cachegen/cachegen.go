@@ -12,17 +12,16 @@ import (
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
-	"encr.dev/v2/parser/infra/cache"
 )
 
-func GenKeyspace(gen *codegen.Generator, pkg *pkginfo.Package, keyspaces []*cache.Keyspace) {
+func GenKeyspace(gen *codegen.Generator, pkg *pkginfo.Package, keyspaces []*caches.Keyspace) {
 	f := gen.File(pkg, "cache")
 	for idx, ks := range keyspaces {
 		genKeyspaceMappers(gen, f, ks, idx)
 	}
 }
 
-func genKeyspaceMappers(gen *codegen.Generator, f *codegen.File, ks *cache.Keyspace, idx int) {
+func genKeyspaceMappers(gen *codegen.Generator, f *codegen.File, ks *caches.Keyspace, idx int) {
 	// Construct the key mapper function. We use the index since keyspaces
 	// do not have resource names.
 	mapper := f.FuncDecl("keyMapper", strconv.Itoa(idx))
@@ -39,7 +38,7 @@ func genKeyspaceMappers(gen *codegen.Generator, f *codegen.File, ks *cache.Keysp
 
 const input = "in"
 
-func computePathExpression(errs *perr.List, ks *cache.Keyspace) *Statement {
+func computePathExpression(errs *perr.List, ks *caches.Keyspace) *Statement {
 	structFields, isBuiltin := getStructFields(errs, ks.KeyType)
 	var (
 		pathLit strings.Builder
@@ -49,7 +48,7 @@ func computePathExpression(errs *perr.List, ks *cache.Keyspace) *Statement {
 		if i > 0 {
 			pathLit.WriteString("/")
 		}
-		if seg.Type == cache.Literal {
+		if seg.Type == caches.Literal {
 			pathLit.WriteString(seg.Value)
 			continue
 		}

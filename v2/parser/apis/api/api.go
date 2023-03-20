@@ -13,10 +13,10 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/api/apienc"
-	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/selector"
 	"encr.dev/v2/parser/resource"
@@ -41,7 +41,7 @@ type Endpoint struct {
 	Access      AccessType
 	AccessField option.Option[directive.Field]
 	Raw         bool
-	Path        *apipaths.Path
+	Path        *resourcepaths.Path
 	HTTPMethods []string
 	Request     schema.Type // request data; nil for Raw Endpoints
 	Response    schema.Type // response data; nil for Raw Endpoints
@@ -101,10 +101,10 @@ func Parse(d ParseData) *Endpoint {
 
 	// If there was no path, default to "pkg.Decl".
 	if rpc.Path == nil {
-		rpc.Path = &apipaths.Path{
+		rpc.Path = &resourcepaths.Path{
 			StartPos: d.Func.Name.Pos(),
-			Segments: []apipaths.Segment{{
-				Type:      apipaths.Literal,
+			Segments: []resourcepaths.Segment{{
+				Type:      resourcepaths.Literal,
 				Value:     d.File.Pkg.Name + "." + d.Func.Name.Name,
 				ValueType: schema.String,
 				StartPos:  d.Func.Name.Pos(),
@@ -174,9 +174,9 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 	}
 
 	// For each path parameter, expect a parameter to match it
-	var pathParams []*apipaths.Segment
+	var pathParams []*resourcepaths.Segment
 	for i := 0; i < len(endpoint.Path.Segments); i++ {
-		if s := &endpoint.Path.Segments[i]; s.Type != apipaths.Literal {
+		if s := &endpoint.Path.Segments[i]; s.Type != resourcepaths.Literal {
 			pathParams = append(pathParams, s)
 		}
 	}
@@ -204,7 +204,7 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 
 	if seenParams < len(pathParams) {
 		var missing []string
-		var missingParams []*apipaths.Segment
+		var missingParams []*resourcepaths.Segment
 		for i := seenParams; i < len(pathParams); i++ {
 			missing = append(missing, pathParams[i].Value)
 			missingParams = append(missingParams, pathParams[i])
@@ -257,7 +257,7 @@ func validateRawRPC(errs *perr.List, endpoint *Endpoint) {
 // validatePathParam validates that the given func parameter is compatible with the given path segment.
 // It checks that the names match and that the func parameter is of a permissible type.
 // It returns the func parameter's builtin kind.
-func validatePathParam(errs *perr.List, param schema.Param, seg *apipaths.Segment) schema.BuiltinKind {
+func validatePathParam(errs *perr.List, param schema.Param, seg *resourcepaths.Segment) schema.BuiltinKind {
 	if !option.Contains(param.Name, seg.Value) {
 		errs.Add(errUnexpectedParameterName(param.Name, seg.Value, seg.String()).AtGoNode(seg).AtGoNode(param.AST))
 	}
@@ -266,7 +266,7 @@ func validatePathParam(errs *perr.List, param schema.Param, seg *apipaths.Segmen
 	b := builtin.Kind
 
 	// Wildcard path parameters must be strings.
-	if seg.Type == apipaths.Wildcard && b != schema.String {
+	if seg.Type == resourcepaths.Wildcard && b != schema.String {
 		errs.Add(errWildcardMustBeString(param.Name).AtGoNode(seg).AtGoNode(param.AST))
 	}
 
@@ -318,7 +318,15 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 		ValidateField: func(errs *perr.List, f directive.Field) (ok bool) {
 			switch f.Key {
 			case "path":
-				endpoint.Path, ok = apipaths.Parse(errs, f.End()-token.Pos(len([]byte(f.Value))-1), f.Value)
+				endpoint.Path, ok = resourcepaths.Parse(
+					errs,
+					f.End()-token.Pos(len([]byte(f.Value))-1),
+					f.Value,
+					resourcepaths.Options{
+						AllowWildcard: true,
+						PrefixSlash:   true,
+					},
+				)
 				if !ok {
 					return false
 				}

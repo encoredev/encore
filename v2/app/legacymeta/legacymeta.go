@@ -14,7 +14,6 @@ import (
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
-	"encr.dev/v2/parser/infra/cache"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
@@ -162,7 +161,7 @@ func (b *builder) Build() *meta.Data {
 			}
 			md.PubsubTopics = append(md.PubsubTopics, topic)
 
-		case *cache.Cluster:
+		case *caches.Cluster:
 			cluster := &meta.CacheCluster{
 				Name:           r.Name,
 				Doc:            r.Doc,
@@ -205,7 +204,7 @@ func (b *builder) Build() *meta.Data {
 				}
 			}
 
-		case *pubsub.Subscription, *cache.Keyspace:
+		case *pubsub.Subscription, *caches.Keyspace:
 			dependent = append(dependent, r)
 		}
 	}
@@ -240,7 +239,7 @@ func (b *builder) Build() *meta.Data {
 				},
 			})
 
-		case *cache.Keyspace:
+		case *caches.Keyspace:
 			cluster, ok := clusterMap[r.Cluster]
 			if !ok {
 				b.errs.Addf(r.ASTExpr().Pos(), "cluster %q not found",
@@ -321,7 +320,7 @@ func (b *builder) apiPath(pos gotoken.Pos, path *apipaths.Path) *meta.Path {
 	return res
 }
 
-func (b *builder) keyspacePath(path *cache.KeyspacePath) *meta.Path {
+func (b *builder) keyspacePath(path *caches.KeyspacePath) *meta.Path {
 	res := &meta.Path{
 		Type: meta.Path_CACHE_KEYSPACE,
 	}
@@ -331,9 +330,9 @@ func (b *builder) keyspacePath(path *cache.KeyspacePath) *meta.Path {
 		}
 
 		switch p.Type {
-		case cache.Literal:
+		case caches.Literal:
 			seg.Type = meta.PathSegment_LITERAL
-		case cache.Param:
+		case caches.Param:
 			seg.Type = meta.PathSegment_PARAM
 		}
 

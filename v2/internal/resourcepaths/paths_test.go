@@ -1,4 +1,4 @@
-package apipaths
+package resourcepaths
 
 import (
 	"context"
@@ -25,25 +25,28 @@ func TestParseURL(t *testing.T) {
 		Want []Segment
 		Err  string
 	}{
-		{"foo", nil, "API paths must always start with a '/'"},
+		{"foo", nil, "Paths must always start with a '/'"},
 		{"/foo", []Segment{{Literal, "foo", str, 1, 3}}, ""},
-		{"/foo/", nil, "API paths cannot end with a trailing slash ('/')"},
+		{"/foo/", nil, "Paths cannot end with a trailing slash ('/')"},
 		{"/foo/bar", []Segment{{Literal, "foo", str, 1, 3}, {Literal, "bar", str, 5, 7}}, ""},
-		{"/foo//bar", nil, "API paths cannot contain an empty segment, i.e. a double slash ('//')."},
+		{"/foo//bar", nil, "Paths cannot contain an empty segment, i.e. a double slash ('//')."},
 		{"/:foo/*bar", []Segment{{Param, "foo", str, 1, 4}, {Wildcard, "bar", str, 6, 9}}, ""},
-		{"/:foo/*", nil, "API path parameters must have a name."},
-		{"/:foo/*/bar", nil, "API path parameters must have a name."},
-		{"/:foo/*bar/baz", nil, "API path wildcards must be the last segment in the path."},
-		{"/:foo/*;", nil, "API path parameters must be valid Go identifiers."},
-		{"/:;", nil, "API path parameters must be valid Go identifiers."},
+		{"/:foo/*", nil, "Path parameters must have a name."},
+		{"/:foo/*/bar", nil, "Path parameters must have a name."},
+		{"/:foo/*bar/baz", nil, "Path wildcards must be the last segment in the path."},
+		{"/:foo/*;", nil, "Path parameters must be valid Go identifiers."},
+		{"/:;", nil, "Path parameters must be valid Go identifiers."},
 		{"/\u0000", nil, "invalid control character in URL"},
-		{"/foo?bar=baz", nil, `API paths must not contain the '?' character.`},
+		{"/foo?bar=baz", nil, `Paths must not contain the '?' character.`},
 	}
 
 	for _, test := range tests {
 		c.Run(test.Path, func(c *qt.C) {
 			errs := perr.NewList(context.Background(), token.NewFileSet())
-			p, ok := Parse(errs, 0, test.Path)
+			p, ok := Parse(errs, 0, test.Path, Options{
+				AllowWildcard: true,
+				PrefixSlash:   true,
+			})
 			if !ok {
 				c.Assert(errs.FormatErrors(), qt.Contains, test.Err)
 			} else if test.Err != "" {
@@ -65,15 +68,15 @@ func TestAdd(t *testing.T) {
 		Err    string
 	}{
 		{"POST", "/foo", ``},
-		{"POST", "/foo", `Duplicate API paths found.`},
+		{"POST", "/foo", `Duplicate Paths found.`},
 		{"GET", "/foo", ``},
-		{"*", "/foo", `Duplicate API paths found.`},
+		{"*", "/foo", `Duplicate Paths found.`},
 		{"*", "/bar", ``},
-		{"PATCH", "/bar", `Duplicate API paths found.`},
+		{"PATCH", "/bar", `Duplicate Paths found.`},
 		{"POST", "/foo/bar", ``},
 		{"POST", "/foo/:bar", "The path segment `bar` conflicts with the path `/foo/bar`"},
 		{"POST", "/moo/:bar", ``},
-		{"POST", "/moo/:baz", `Duplicate API paths found.`},
+		{"POST", "/moo/:baz", `Duplicate Paths found.`},
 		{"POST", "/moo/:baz/test", ``},
 		{"POST", "/moo/:baa/*wild", "The wildcard `*wild` conflicts with the path `/moo/:baz/test`."},
 		{"GET", "/moo/:baa/*wild", ``},
@@ -85,7 +88,10 @@ func TestAdd(t *testing.T) {
 
 	for _, test := range paths {
 		errs := perr.NewList(context.Background(), token.NewFileSet())
-		p, ok := Parse(errs, 0, test.Path)
+		p, ok := Parse(errs, 0, test.Path, Options{
+			AllowWildcard: true,
+			PrefixSlash:   true,
+		})
 		c.Assert(ok, qt.IsTrue)
 		ok = set.Add(errs, test.Method, p)
 		if test.Err != "" {

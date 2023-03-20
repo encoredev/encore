@@ -6,9 +6,9 @@ import (
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
-	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/infra/cron"
@@ -18,7 +18,7 @@ import (
 
 func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, result *parser.Result) {
 
-	apiPaths := apipaths.NewSet()
+	apiPaths := resourcepaths.NewSet()
 
 	for _, svc := range d.Services {
 		fwSvc, ok := svc.Framework.Get()

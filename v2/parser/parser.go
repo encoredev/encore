@@ -13,7 +13,7 @@ import (
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/servicestruct"
-	"encr.dev/v2/parser/infra/cache"
+	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
@@ -115,8 +115,8 @@ func (p *Parser) Parse() *Result {
 // allParsers are all the resource parsers we support.
 var allParsers = []*resourceparser.Parser{
 	apis.Parser,
-	cache.ClusterParser,
-	cache.KeyspaceParser,
+	caches.ClusterParser,
+	caches.KeyspaceParser,
 	config.LoadParser,
 	cron.JobParser,
 	metrics.MetricParser,
@@ -130,8 +130,9 @@ var allParsers = []*resourceparser.Parser{
 func newUsageResolver() *usage.Resolver {
 	r := usage.NewResolver()
 	// Infrastructure SDK
-	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
+	usage.RegisterUsageResolver[*caches.Keyspace](r, caches.ResolveKeyspaceUsage)
 	usage.RegisterUsageResolver[*config.Load](r, config.ResolveConfigUsage)
+	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
 	usage.RegisterUsageResolver[*sqldb.Database](r, sqldb.ResolveDatabaseUsage)
 
 	// API Framework

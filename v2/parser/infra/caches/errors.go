@@ -1,4 +1,4 @@
-package cache
+package caches
 
 import (
 	"encr.dev/pkg/errors"
@@ -8,11 +8,13 @@ var (
 	errRange = errors.Range(
 		"cache",
 		`For more information see https://encore.dev/docs/primitives/caching`,
+
+		errors.WithRangeSize(25),
 	)
 
 	errExpectsTwoArgs = errRange.Newf("Invalid cache construction", "%s expects two arguments, got %d.)")
 
-	errCouldNotResolveCacheCluster = errRange.New(
+	ErrCouldNotResolveCacheCluster = errRange.New(
 		"Invalid Cache Keyspace Construction",
 		`Could not resolve the cache cluster: must refer to a package-level variable.`,
 	)
@@ -20,11 +22,6 @@ var (
 	errPrefixReserved = errRange.New(
 		"Invalid Cache Key Pattern",
 		"The prefix `__encore` is reserved for internal use by Encore.",
-	)
-
-	errInvalidKeyspacePattern = errRange.New(
-		"Invalid Cache Key Pattern",
-		"Got an invalid keyspace pattern.",
 	)
 
 	errKeyPatternMustBeNamedKey = errRange.New(
@@ -75,5 +72,20 @@ var (
 	errInvalidEvictionPolicy = errRange.New(
 		"Invalid Cache Eviction Policy",
 		"Must be one of of the constants defined in the cache package.",
+	)
+
+	ErrDuplicateCacheCluster = errRange.New(
+		"Duplicate Cache Cluster",
+		"Cache clusters must have unique names.",
+	)
+
+	ErrKeyspaceNotInService = errRange.New(
+		"Invalid Cache Keyspace",
+		"Cache keyspaces must be defined within a service.",
+	)
+
+	ErrKeyspaceUsedInOtherService = errRange.New(
+		"Invalid Cache Keyspace Usage",
+		"Cache keyspaces must be used within the same service they are defined in.",
 	)
 )

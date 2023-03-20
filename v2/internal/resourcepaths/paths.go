@@ -1,5 +1,5 @@
-// Package apipaths parses API paths.
-package apipaths
+// Package resourcepaths parses API and other resource paths.
+package resourcepaths
 
 import (
 	"fmt"
@@ -113,21 +113,37 @@ const (
 	Wildcard
 )
 
+type Options struct {
+	// AllowWildcard indicates whether the parser should allow wildcard segments.
+	AllowWildcard bool
+
+	// PrefixSlash indicates whether the parser should require a leading slash
+	// or require that it's not present
+	PrefixSlash bool
+}
+
 // Parse parses a slash-separated path into path segments.
 //
 // strPos is the position of where the path string was found in the source code.
-func Parse(errs *perr.List, startPos token.Pos, path string) (parsedPath *Path, ok bool) {
+func Parse(errs *perr.List, startPos token.Pos, path string, options Options) (parsedPath *Path, ok bool) {
 	endPos := token.Pos(len([]byte(path))) + startPos
 
 	if path == "" {
 		errs.Add(errEmptyPath.AtGoPos(startPos, endPos))
 		return nil, false
-	} else if path[0] != '/' {
+	} else if path[0] != '/' && options.PrefixSlash {
+		errs.Add(errInvalidPathMissingPrefix.AtGoPos(startPos, endPos))
+		return nil, false
+	} else if path[0] == '/' && !options.PrefixSlash {
 		errs.Add(errInvalidPathPrefix.AtGoPos(startPos, endPos))
 		return nil, false
 	}
 
-	if _, err := url.ParseRequestURI(path); err != nil {
+	urlPath := path
+	if !options.PrefixSlash {
+		urlPath = "/" + urlPath
+	}
+	if _, err := url.ParseRequestURI(urlPath); err != nil {
 		errs.Add(errInvalidPathURI.AtGoPos(startPos, endPos).Wrapping(err))
 		return nil, false
 	} else if idx := strings.IndexByte(path, '?'); idx != -1 {
@@ -138,8 +154,10 @@ func Parse(errs *perr.List, startPos token.Pos, path string) (parsedPath *Path, 
 	var segs []Segment
 	segStart := startPos
 	for path != "" {
-		path = path[1:] // drop leading '/'
-		segStart++
+		if options.PrefixSlash || len(segs) > 0 {
+			path = path[1:] // drop leading '/'
+			segStart++
+		}
 
 		// Find the next path segment
 		var val string
@@ -162,7 +180,7 @@ func Parse(errs *perr.List, startPos token.Pos, path string) (parsedPath *Path, 
 		if val != "" && val[0] == ':' {
 			segType = Param
 			val = val[1:]
-		} else if val != "" && val[0] == '*' {
+		} else if val != "" && val[0] == '*' && options.AllowWildcard {
 			segType = Wildcard
 			val = val[1:]
 		}

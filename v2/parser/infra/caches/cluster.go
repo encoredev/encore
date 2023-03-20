@@ -1,4 +1,4 @@
-package cache
+package caches
 
 import (
 	"go/ast"

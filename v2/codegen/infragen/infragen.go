@@ -9,7 +9,6 @@ import (
 	"encr.dev/v2/codegen/infragen/metricsgen"
 	"encr.dev/v2/codegen/infragen/secretsgen"
 	"encr.dev/v2/internal/paths"
-	"encr.dev/v2/parser/infra/cache"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/secrets"
@@ -31,8 +30,8 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 		pkg := resources[0].Package()
 		switch key.kind {
 		case resource.CacheKeyspace:
-			cachegen.GenKeyspace(gg, pkg, fns.Map(resources, func(r resource.Resource) *cache.Keyspace {
-				return r.(*cache.Keyspace)
+			cachegen.GenKeyspace(gg, pkg, fns.Map(resources, func(r resource.Resource) *caches.Keyspace {
+				return r.(*caches.Keyspace)
 			}))
 		case resource.Metric:
 			metricsgen.Gen(gg, pkg, fns.Map(resources, func(r resource.Resource) *metrics.Metric {

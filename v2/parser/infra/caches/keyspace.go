@@ -1,4 +1,4 @@
-package cache
+package caches
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	literals "encr.dev/v2/parser/infra/internal/literals"
@@ -26,7 +27,7 @@ type Keyspace struct {
 
 	KeyType   schema.Type
 	ValueType schema.Type
-	Path      *KeyspacePath
+	Path      *resourcepaths.Path
 
 	// The struct literal for the config. Used to inject additional configuration
 	// at compile-time.
@@ -121,10 +122,9 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 		return
 	}
 
-	// TODO(andre) Resolve cluster name
 	clusterRef, ok := d.File.Names().ResolvePkgLevelRef(d.Call.Args[0])
 	if !ok {
-		errs.Add(errCouldNotResolveCacheCluster.AtGoNode(d.Call.Args[0]))
+		errs.Add(ErrCouldNotResolveCacheCluster.AtGoNode(d.Call.Args[0]))
 		return
 	}
 
@@ -149,9 +149,16 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 		return
 	}
 
-	path, err := ParseKeyspacePath(cfgLit.Pos("KeyPattern"), config.KeyPattern)
-	if err != nil {
-		errs.Add(errInvalidKeyspacePattern.Wrapping(err).AtGoNode(patternNode))
+	path, ok := resourcepaths.Parse(
+		errs,
+		cfgLit.Pos("KeyPattern")+1, // + 1 to offset the opening \"
+		config.KeyPattern,
+		resourcepaths.Options{
+			AllowWildcard: false,
+			PrefixSlash:   false,
+		},
+	)
+	if !ok {
 		return
 	}
 
@@ -180,16 +187,16 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 
 		builtinKey, keyIsBuiltin := keyType.(schema.BuiltinType)
 
-		seenPathSegments := make(map[string]bool)
+		unusedSegments := make(map[string]resourcepaths.Segment)
 		for _, seg := range path.Segments {
-			if seg.Type == Literal {
+			if seg.Type == resourcepaths.Literal {
 				continue
 			}
 			name := seg.Value
-			seenPathSegments[name] = false
+			unusedSegments[name] = seg
 
 			if keyIsBuiltin && name != "key" {
-				errs.Add(errKeyPatternMustBeNamedKey.AtGoNode(patternNode))
+				errs.Add(errKeyPatternMustBeNamedKey.AtGoNode(seg))
 			}
 		}
 
@@ -219,10 +226,10 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 					}
 
 					fieldName := f.Name.MustGet() // guaranteed by f.IsAnonymous check above
-					if _, exists := seenPathSegments[fieldName]; !exists {
+					if _, exists := unusedSegments[fieldName]; !exists {
 						errs.Add(errFieldNotUsedInKeyPattern(fieldName).AtGoNode(f.AST).AtGoNode(patternNode))
 					} else {
-						seenPathSegments[fieldName] = true
+						delete(unusedSegments, fieldName)
 					}
 
 					if builtin, ok := f.Type.(schema.BuiltinType); ok {
@@ -237,10 +244,8 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 				}
 
 				// Ensure all path segments are valid field names
-				for fieldName, seen := range seenPathSegments {
-					if !seen {
-						errs.Add(errFieldDoesntExist(fieldName, ref.Decl).AtGoNode(patternNode).AtGoNode(ref.Decl.AST.Name))
-					}
+				for fieldName, segment := range unusedSegments {
+					errs.Add(errFieldDoesntExist(fieldName, ref.Decl).AtGoNode(segment).AtGoNode(ref.Decl.AST.Name))
 				}
 			}
 		}
