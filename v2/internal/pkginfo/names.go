@@ -48,8 +48,14 @@ func resolvePkgNames(pkg *Package) *PkgNames {
 					switch spec := spec.(type) {
 					case *ast.ValueSpec:
 						doc = spec.Doc.Text()
+						if doc == "" {
+							doc = spec.Comment.Text()
+						}
 					case *ast.TypeSpec:
 						doc = spec.Doc.Text()
+						if doc == "" {
+							doc = spec.Comment.Text()
+						}
 					}
 					if doc == "" && len(d.Specs) == 1 {
 						doc = d.Doc.Text()

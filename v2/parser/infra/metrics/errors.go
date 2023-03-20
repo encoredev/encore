@@ -40,4 +40,9 @@ var (
 		"Invalid metric label type",
 		"Invalid metric label field: must be string, bool, or integer type.",
 	)
+
+	errLabelReservedName = errRange.New(
+		"Invalid metric label name",
+		"Metric labels cannot be named 'service' as this is reserved by Encore.",
+	)
 )

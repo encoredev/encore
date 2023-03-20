@@ -18,11 +18,15 @@ func _() {
 	_ = x[CacheKeyspace-7]
 	_ = x[ConfigLoad-8]
 	_ = x[Secrets-9]
+	_ = x[APIEndpoint-10]
+	_ = x[AuthHandler-11]
+	_ = x[Middleware-12]
+	_ = x[ServiceStruct-13]
 }
 
-const _Kind_name = "UnknownPubSubTopicPubSubSubscriptionSQLDatabaseMetricCronJobCacheClusterCacheKeyspaceConfigLoadSecrets"
+const _Kind_name = "UnknownPubSubTopicPubSubSubscriptionSQLDatabaseMetricCronJobCacheClusterCacheKeyspaceConfigLoadSecretsAPIEndpointAuthHandlerMiddlewareServiceStruct"
 
-var _Kind_index = [...]uint8{0, 7, 18, 36, 47, 53, 60, 72, 85, 95, 102}
+var _Kind_index = [...]uint8{0, 7, 18, 36, 47, 53, 60, 72, 85, 95, 102, 113, 124, 134, 147}
 
 func (i Kind) String() string {
 	if i < 0 || i >= Kind(len(_Kind_index)-1) {

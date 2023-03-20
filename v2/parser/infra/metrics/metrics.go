@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 
 	"encr.dev/pkg/errors"
+	"encr.dev/pkg/idents"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
@@ -17,6 +19,8 @@ import (
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
 )
+
+//go:generate stringer -type=MetricType -output=metrics_string.go
 
 type MetricType int
 
@@ -38,6 +42,9 @@ type Metric struct {
 	// if the metric is a group.
 	LabelType option.Option[schema.Type]
 
+	// Labels is the list of parsed labels.
+	Labels []Label
+
 	ValueType schema.BuiltinType
 
 	// The struct literal for the config. Used to inject additional configuration
@@ -51,6 +58,16 @@ func (m *Metric) ASTExpr() ast.Expr         { return m.AST }
 func (m *Metric) ResourceName() string      { return m.Name }
 func (m *Metric) Pos() token.Pos            { return m.AST.Pos() }
 func (m *Metric) End() token.Pos            { return m.AST.End() }
+
+type Label struct {
+	Key  string
+	Type schema.Type
+	Doc  string
+}
+
+func (l Label) String() string {
+	return fmt.Sprintf("%s %s %s", l.Key, strings.ToUpper(l.Type.String()), l.Doc)
+}
 
 // metricConstructor describes a particular metric constructor function.
 type metricConstructor struct {
@@ -138,6 +155,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 	}
 
 	var labelType option.Option[schema.Type]
+	var labelFields []Label
 	if c.HasLabels {
 		// Make sure it's a named struct, without pointers.
 		typeArg := d.TypeArgs[0]
@@ -158,6 +176,18 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 				errs.Add(errLabelNoAnonymous.AtGoNode(f.AST))
 			} else if !schemautil.IsBuiltinKind(f.Type, validKinds...) {
 				errs.Add(errLabelInvalidType.AtGoNode(f.AST.Type, errors.AsError(fmt.Sprintf("got %s", literals.PrettyPrint(f.AST.Type)))))
+			} else {
+				// Validate the label
+				label := idents.Convert(f.Name.MustGet(), idents.SnakeCase)
+				if label == "service" {
+					errs.Add(errLabelReservedName.AtGoNode(f.AST.Names[0]))
+				}
+
+				labelFields = append(labelFields, Label{
+					Key:  label,
+					Type: f.Type,
+					Doc:  f.Doc,
+				})
 			}
 		}
 		labelType = option.Some(typeArg)
@@ -171,6 +201,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		File:      d.File,
 		ValueType: valueType.(schema.BuiltinType),
 		LabelType: labelType,
+		Labels:    labelFields,
 	}
 
 	// Parse and validate the metric configuration.

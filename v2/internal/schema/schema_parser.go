@@ -159,12 +159,18 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 					}
 				}
 
+				docs := field.Doc.Text()
+				if docs == "" {
+					docs = field.Comment.Text()
+				}
+
 				for _, name := range field.Names {
 					st.Fields = append(st.Fields, StructField{
 						AST:  field,
 						Name: option.Some(name.Name),
 						Type: typ,
 						Tag:  tags,
+						Doc:  docs,
 					})
 				}
 			}

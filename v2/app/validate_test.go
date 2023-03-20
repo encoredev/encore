@@ -206,8 +206,7 @@ func TestValidation(t *testing.T) {
 							res.Cfg.MessageRetention, res.Cfg.MaxRetries, res.Cfg.MinRetryBackoff,
 							res.Cfg.MaxRetryBackoff)
 					case *metrics.Metric:
-						// TODO: implement this at the parser as we don't currently take the metric kind or labels in the same way
-						// printf("metric %s %s %s %s\n", res.Name, res.ValueType, res.Kind, res.Labels)
+						printf("metric %s %s %s %s", res.Name, strings.ToUpper(res.ValueType.String()), strings.ToUpper(res.Type.String()), res.Labels)
 					}
 				}
 			},
