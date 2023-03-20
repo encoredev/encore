@@ -8,12 +8,14 @@ import (
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/app"
-	"encr.dev/v2/app/apiframework"
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apipaths"
+	"encr.dev/v2/parser/apis/authhandler"
+	"encr.dev/v2/parser/infra/cache"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
@@ -44,26 +46,34 @@ func (b *builder) Build() *meta.Data {
 	// to handle this differently.
 
 	b.md = &meta.Data{
-		ModulePath:  "example.com", // TODO
-		AppRevision: "123",         // TODO
+		ModulePath:         string(b.app.MainModule.Path),
+		AppRevision:        b.app.BuildInfo.Revision,
+		UncommittedChanges: b.app.BuildInfo.UncommittedChanges,
 	}
 	md := b.md
+
+	relPath := func(pkg paths.Pkg) string {
+		rel, ok := b.app.MainModule.Path.RelativePathToPkg(pkg)
+		if !ok {
+			panic("cannot compute relative path to package outside main module: " + pkg.String())
+		}
+		return rel
+	}
 
 	svcByName := make(map[string]*meta.Service, len(b.app.Services))
 	for _, svc := range b.app.Services {
 		out := &meta.Service{
 			Name: svc.Name,
 			// TODO all of this stuff
-			RelPath:    ".",
 			Rpcs:       nil,
 			Migrations: nil,
 			Databases:  nil,
-			HasConfig:  false,
 		}
 		svcByName[svc.Name] = out
 		md.Svcs = append(md.Svcs, out)
 
-		svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
+		if fw, ok := svc.Framework.Get(); ok {
+			out.RelPath = relPath(fw.RootPkg.ImportPath)
 			for _, ep := range fw.Endpoints {
 				rpc := &meta.RPC{
 					Name:           ep.Name,
@@ -94,7 +104,24 @@ func (b *builder) Build() *meta.Data {
 
 				out.Rpcs = append(out.Rpcs, rpc)
 			}
-		})
+		}
+	}
+
+	for _, pkg := range b.app.Parse.AppPackages() {
+		metaPkg := &meta.Package{
+			RelPath:     relPath(pkg.ImportPath),
+			Name:        pkg.Name,
+			Doc:         pkg.Doc,
+			ServiceName: "",
+			Secrets:     nil,
+			RpcCalls:    nil,
+			TraceNodes:  nil,
+		}
+		md.Pkgs = append(md.Pkgs, metaPkg)
+
+		if svc, ok := b.app.ServiceForPath(pkg.FSPath); ok {
+			metaPkg.ServiceName = svc.Name
+		}
 	}
 
 	// Keep track of state needed for dependent resources.
@@ -117,6 +144,20 @@ func (b *builder) Build() *meta.Data {
 				Schedule: r.Schedule,
 				Endpoint: nil, // TODO
 			})
+
+		case *authhandler.AuthHandler:
+			ah := &meta.AuthHandler{
+				Name:    r.Name,
+				Doc:     r.Doc,
+				PkgPath: r.Package().ImportPath.String(),
+				PkgName: r.Package().Name,
+				Loc:     nil,
+				Params:  b.schemaType(r.Param),
+			}
+			if data, ok := r.AuthData.Get(); ok {
+				ah.AuthData = b.typeDeclRef(data)
+			}
+			md.AuthHandler = ah
 
 		case *pubsub.Topic:
 			topic := &meta.PubSubTopic{
@@ -203,6 +244,8 @@ func (b *builder) Build() *meta.Data {
 					metaSvc.HasConfig = true
 				}
 			}
+			// Register the types.
+			b.schemaType(r.Type)
 
 		case *pubsub.Subscription, *caches.Keyspace:
 			dependent = append(dependent, r)

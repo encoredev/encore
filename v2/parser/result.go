@@ -17,8 +17,9 @@ import (
 )
 
 // computeResult computes the combined resource description.
-func computeResult(errs *perr.List, ur *usage.Resolver, appPackages []*pkginfo.Package, resources []resource.Resource, binds []resource.Bind, usageExprs []usage.Expr) *Result {
+func computeResult(errs *perr.List, mainModule *pkginfo.Module, ur *usage.Resolver, appPackages []*pkginfo.Package, resources []resource.Resource, binds []resource.Bind, usageExprs []usage.Expr) *Result {
 	d := &Result{
+		mainModule:    mainModule,
 		appPackages:   appPackages,
 		resources:     resources,
 		allBinds:      binds,
@@ -44,6 +45,7 @@ func Resources[R resource.Resource](res *Result) []R {
 }
 
 type Result struct {
+	mainModule    *pkginfo.Module
 	appPackages   []*pkginfo.Package
 	resources     []resource.Resource
 	allBinds      []resource.Bind
@@ -54,6 +56,10 @@ type Result struct {
 	bindToResource map[resource.Bind]resource.Resource
 	resByPos       posmap.Map[resource.Resource]
 	usageByPos     posmap.Map[usage.Usage]
+}
+
+func (d *Result) MainModule() *pkginfo.Module {
+	return d.mainModule
 }
 
 func (d *Result) AppPackages() []*pkginfo.Package {

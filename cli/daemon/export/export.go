@@ -25,6 +25,7 @@ import (
 	"encr.dev/internal/builder"
 	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -44,14 +45,17 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		return false, errors.Wrap(err, "get experimental features")
 	}
 
+	vcsRevision := vcs.GetRevision(app.Root())
 	buildInfo := builder.BuildInfo{
-		BuildTags:  []string{"timetzdata"},
-		CgoEnabled: req.CgoEnabled,
-		StaticLink: true,
-		Debug:      false,
-		GOOS:       req.Goos,
-		GOARCH:     req.Goarch,
-		KeepOutput: false,
+		BuildTags:          []string{"timetzdata"},
+		CgoEnabled:         req.CgoEnabled,
+		StaticLink:         true,
+		Debug:              false,
+		GOOS:               req.Goos,
+		GOARCH:             req.Goarch,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
 	bld := builderimpl.Resolve(expSet)

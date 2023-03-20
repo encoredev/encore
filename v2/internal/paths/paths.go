@@ -213,7 +213,13 @@ func (m Mod) RelativePathToPkg(p Pkg) (relative string, ok bool) {
 	if m == stdModule {
 		return string(p), true
 	}
-	suffix, ok := strings.CutPrefix(string(p), string(m))
+
+	// Is the package path the same as the module path?
+	if string(p) == string(m) {
+		return ".", true
+	}
+
+	suffix, ok := strings.CutPrefix(string(p), string(m)+"/")
 	if !ok {
 		return "", false
 	}

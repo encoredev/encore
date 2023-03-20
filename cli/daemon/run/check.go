@@ -9,6 +9,7 @@ import (
 	"encr.dev/internal/builder"
 	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/vcs"
 )
 
 type CheckParams struct {
@@ -41,14 +42,17 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 
 	// TODO: We should check that all secret keys are defined as well.
 
+	vcsRevision := vcs.GetRevision(p.App.Root())
 	buildInfo := builder.BuildInfo{
-		BuildTags:  builder.LocalBuildTags,
-		CgoEnabled: true,
-		StaticLink: false,
-		Debug:      false,
-		GOOS:       runtime.GOOS,
-		GOARCH:     runtime.GOARCH,
-		KeepOutput: p.CodegenDebug,
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              false,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         p.CodegenDebug,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
 	bld := builderimpl.Resolve(expSet)

@@ -109,7 +109,7 @@ func (p *Parser) Parse() *Result {
 	// Add the implicit sqldb usages.
 	usageExprs = append(usageExprs, sqldb.ComputeImplicitUsage(p.c.Errs, pkgs, binds)...)
 
-	return computeResult(p.c.Errs, p.usageResolver, pkgs, resources, binds, usageExprs)
+	return computeResult(p.c.Errs, p.MainModule(), p.usageResolver, pkgs, resources, binds, usageExprs)
 }
 
 // allParsers are all the resource parsers we support.

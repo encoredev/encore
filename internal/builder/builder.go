@@ -13,12 +13,14 @@ import (
 var LocalBuildTags = []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"}
 
 type BuildInfo struct {
-	BuildTags    []string
-	CgoEnabled   bool
-	StaticLink   bool
-	Debug        bool
-	GOOS, GOARCH string
-	KeepOutput   bool
+	BuildTags          []string
+	CgoEnabled         bool
+	StaticLink         bool
+	Debug              bool
+	GOOS, GOARCH       string
+	KeepOutput         bool
+	Revision           string
+	UncommittedChanges bool
 }
 
 type ParseParams struct {

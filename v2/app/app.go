@@ -8,6 +8,7 @@ import (
 	"encr.dev/v2/internal/parsectx"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
@@ -20,8 +21,10 @@ import (
 type Desc struct {
 	Errs *perr.List
 
-	Parse    *parser.Result
-	Services []*Service
+	BuildInfo  parsectx.BuildInfo
+	MainModule *pkginfo.Module
+	Parse      *parser.Result
+	Services   []*Service
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
@@ -96,6 +99,8 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 
 	desc := &Desc{
 		Errs:                         pc.Errs,
+		BuildInfo:                    pc.Build,
+		MainModule:                   result.MainModule(),
 		Parse:                        result,
 		Services:                     services,
 		Framework:                    framework,

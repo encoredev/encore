@@ -13,7 +13,6 @@ import (
 	"encr.dev/internal/version"
 	"encr.dev/parser"
 	"encr.dev/pkg/experiments"
-	"encr.dev/pkg/vcs"
 	"encr.dev/v2/v2builder"
 )
 
@@ -38,13 +37,11 @@ func (Legacy) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 		return nil, err
 	}
 
-	vcsRevision := vcs.GetRevision(p.App.Root())
-
 	cfg := &parser.Config{
 		AppRoot:                  p.App.Root(),
 		Experiments:              p.Experiments,
-		AppRevision:              vcsRevision.Revision,
-		AppHasUncommittedChanges: vcsRevision.Uncommitted,
+		AppRevision:              p.Build.Revision,
+		AppHasUncommittedChanges: p.Build.UncommittedChanges,
 		ModulePath:               mod.Module.Mod.Path,
 		WorkingDir:               p.WorkingDir,
 		ParseTests:               p.ParseTests,

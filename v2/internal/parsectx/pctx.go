@@ -52,6 +52,13 @@ type BuildInfo struct {
 
 	// Debug enables compiling in debug mode.
 	Debug bool
+
+	// Revision specifies the revision of the build.
+	Revision string
+
+	// UncommittedChanges, if true, specifies there are uncommitted changes
+	// part of the build .
+	UncommittedChanges bool
 }
 
 // Trace traces the execution of a function.

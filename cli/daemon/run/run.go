@@ -37,6 +37,7 @@ import (
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
+	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -255,14 +256,17 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		r.builder = builderimpl.Resolve(expSet)
 	}
 
+	vcsRevision := vcs.GetRevision(r.App.Root())
 	buildInfo := builder.BuildInfo{
-		BuildTags:  builder.LocalBuildTags,
-		CgoEnabled: true,
-		StaticLink: false,
-		Debug:      r.params.Debug,
-		GOOS:       runtime.GOOS,
-		GOARCH:     runtime.GOARCH,
-		KeepOutput: false,
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              r.params.Debug,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
 	parse, err := r.builder.Parse(builder.ParseParams{

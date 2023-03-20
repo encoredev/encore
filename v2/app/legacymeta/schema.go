@@ -70,6 +70,9 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 		}}
 
 	case schemav2.NamedType:
+		if typ.DeclInfo.File.Pkg.ImportPath == "encore.dev/config" {
+			return b.configValue(typ)
+		}
 		return &schema.Type{Typ: &schema.Type_Named{
 			Named: &schema.Named{
 				Id:            b.decl(typ.Decl()),
@@ -141,6 +144,14 @@ func (b *builder) structField(f schemav2.StructField) *schema.Field {
 		Tags:            nil,
 	}
 
+	for _, tag := range f.Tag.Tags() {
+		field.Tags = append(field.Tags, &schema.Tag{
+			Key:     tag.Key,
+			Name:    tag.Name,
+			Options: tag.Options,
+		})
+	}
+
 	if enc, _ := f.Tag.Get("encore"); enc != nil {
 		ops := append([]string{enc.Name}, enc.Options...)
 		for _, o := range ops {
@@ -167,6 +178,28 @@ func (b *builder) structField(f schemav2.StructField) *schema.Field {
 	}
 
 	return field
+}
+
+func (b *builder) configValue(typ schemav2.NamedType) *schema.Type {
+	switch typ.DeclInfo.Name {
+	case "Value", "Values":
+		isList := typ.DeclInfo.Name == "Values"
+		return &schema.Type{Typ: &schema.Type_Config{
+			Config: &schema.ConfigValue{
+				Elem:         b.schemaType(typ.TypeArgs[0]),
+				IsValuesList: isList,
+			},
+		}}
+
+	default:
+		// Should be a named config type, like "type String = Value[string]".
+		if named, ok := typ.Decl().Type.(schemav2.NamedType); ok {
+			return b.configValue(named)
+		} else {
+			b.errs.Addf(typ.ASTExpr().Pos(), "unsupported config type %q", typ.DeclInfo.Name)
+			return nil
+		}
+	}
 }
 
 func (b *builder) schemaTypes(typs ...schemav2.Type) []*schema.Type {
@@ -232,5 +265,5 @@ func (b *builder) declKey(pkgPath paths.Pkg, pkgName string) uint32 {
 }
 
 func (b *builder) typeDeclRef(typ *schemav2.TypeDeclRef) *schema.Type {
-	return nil // TODO
+	return b.schemaType(typ.ToType())
 }
