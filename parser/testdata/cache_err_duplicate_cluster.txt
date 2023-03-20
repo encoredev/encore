@@ -33,4 +33,6 @@ Cache clusters must have unique names.
  12 │ //encore:api public
 ────╯
 
+I you wish to reuse the same cluster, export the original cache.Cluster object and reuse it here.
+
 For more information see https://encore.dev/docs/primitives/caching

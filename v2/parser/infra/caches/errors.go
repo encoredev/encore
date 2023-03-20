@@ -77,6 +77,8 @@ var (
 	ErrDuplicateCacheCluster = errRange.New(
 		"Duplicate Cache Cluster",
 		"Cache clusters must have unique names.",
+
+		errors.PrependDetails("I you wish to reuse the same cluster, export the original cache.Cluster object and reuse it here."),
 	)
 
 	ErrKeyspaceNotInService = errRange.New(
