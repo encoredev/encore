@@ -22,8 +22,8 @@ import (
 	"github.com/rs/zerolog"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/internal/builders"
 	"encr.dev/internal/builder"
+	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -54,7 +54,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		KeepOutput: false,
 	}
 
-	bld := builders.Resolve(expSet)
+	bld := builderimpl.Resolve(expSet)
 	parse, err := bld.Parse(builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,

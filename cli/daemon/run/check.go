@@ -6,8 +6,8 @@ import (
 	"runtime"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/internal/builders"
 	"encr.dev/internal/builder"
+	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 )
 
@@ -51,7 +51,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		KeepOutput: p.CodegenDebug,
 	}
 
-	bld := builders.Resolve(expSet)
+	bld := builderimpl.Resolve(expSet)
 	parse, err := bld.Parse(builder.ParseParams{
 		Build:       buildInfo,
 		App:         p.App,

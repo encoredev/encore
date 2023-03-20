@@ -1,4 +1,4 @@
-package builders
+package builderimpl
 
 import (
 	"fmt"
@@ -21,13 +21,13 @@ func Resolve(expSet *experiments.Set) builder.Impl {
 	if experiments.V2.Enabled(expSet) {
 		return v2builder.BuilderImpl{}
 	} else {
-		return legacyBuilderImpl{}
+		return Legacy{}
 	}
 }
 
-type legacyBuilderImpl struct{}
+type Legacy struct{}
 
-func (legacyBuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
+func (Legacy) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 	modPath := filepath.Join(p.App.Root(), "go.mod")
 	modData, err := os.ReadFile(modPath)
 	if err != nil {
@@ -61,7 +61,7 @@ func (legacyBuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, err
 	}, nil
 }
 
-func (legacyBuilderImpl) Compile(p builder.CompileParams) (*builder.CompileResult, error) {
+func (Legacy) Compile(p builder.CompileParams) (*builder.CompileResult, error) {
 	//goland:noinspection HttpUrlsUsage
 	cfg := &compiler.Config{
 		Revision:              p.Parse.Meta.AppRevision,

@@ -26,7 +26,6 @@ import (
 
 	"encore.dev/appruntime/config"
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/internal/builders"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
@@ -34,6 +33,7 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/builder"
+	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
@@ -252,7 +252,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	}
 
 	if r.builder == nil {
-		r.builder = builders.Resolve(expSet)
+		r.builder = builderimpl.Resolve(expSet)
 	}
 
 	buildInfo := builder.BuildInfo{
