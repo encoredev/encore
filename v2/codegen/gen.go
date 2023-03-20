@@ -2,8 +2,6 @@ package codegen
 
 import (
 	"bytes"
-	"fmt"
-	"go/token"
 
 	"golang.org/x/exp/slices"
 
@@ -74,8 +72,7 @@ func (g *Generator) Overlays() []overlay.File {
 
 		buf.Reset()
 		if err := f.Render(&buf); err != nil {
-			pp := token.Position{Filename: source.ToIO()}
-			g.Errs.AddPosition(pp, fmt.Sprintf("failed to render codegen: %v", err))
+			g.Errs.Add(errRender().InFile(source.ToIO()).Wrapping(err))
 			continue
 		}
 
