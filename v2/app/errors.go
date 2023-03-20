@@ -30,10 +30,4 @@ var (
 		"No service was found for package %q.",
 		errors.MarkAsInternalError(),
 	)
-
-	errUsageWithoutResource = errRange.New(
-		"Usage without resource",
-		"An internal error occurred while parsing the app. Please report this issue to the Encore team.",
-		errors.MarkAsInternalError(),
-	)
 )
