@@ -11,6 +11,7 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 	if fw, ok := d.Framework.Get(); ok {
 		d.validateAuthHandlers(pc, fw)
 		d.validateAPIs(pc, fw, result)
+		d.validateServiceStructs(pc, result)
 	}
 
 	// Validate infrastructure

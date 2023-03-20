@@ -12,6 +12,7 @@ import (
 	"encr.dev/v2/parser/apis"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
+	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/infra/cache"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/cron"
@@ -132,5 +133,6 @@ func newUsageResolver() *usage.Resolver {
 	// API Framework
 	usage.RegisterUsageResolver[*api.Endpoint](r, api.ResolveEndpointUsage)
 	usage.RegisterUsageResolver[*authhandler.AuthHandler](r, authhandler.ResolveAuthHandlerUsage)
+	usage.RegisterUsageResolver[*servicestruct.ServiceStruct](r, servicestruct.ResolveServiceStructUsage)
 	return r
 }

@@ -46,4 +46,9 @@ var (
 		"Invalid service struct for API",
 		"API endpoints defined as receiver functions must be defined on a service struct.",
 	)
+
+	ErrServiceStructReferencedInAnotherService = errRange.New(
+		"Service struct referenced in another service",
+		"Service structs cannot be referenced in other services. They can only be referenced in the service that defines them.",
+	)
 )
