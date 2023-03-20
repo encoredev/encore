@@ -17,6 +17,7 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
+	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/resource"
