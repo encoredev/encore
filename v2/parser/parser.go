@@ -106,6 +106,9 @@ func (p *Parser) Parse() *Result {
 	// Because we've ordered pkgs and binds, usageExprs will be stable
 	usageExprs := usage.ParseExprs(p.c.Errs, pkgs, binds)
 
+	// Add the implicit sqldb usages.
+	usageExprs = append(usageExprs, sqldb.ComputeImplicitUsage(p.c.Errs, pkgs, binds)...)
+
 	return computeResult(p.c.Errs, p.usageResolver, pkgs, resources, binds, usageExprs)
 }
 
@@ -129,6 +132,7 @@ func newUsageResolver() *usage.Resolver {
 	// Infrastructure SDK
 	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
 	usage.RegisterUsageResolver[*config.Load](r, config.ResolveConfigUsage)
+	usage.RegisterUsageResolver[*sqldb.Database](r, sqldb.ResolveDatabaseUsage)
 
 	// API Framework
 	usage.RegisterUsageResolver[*api.Endpoint](r, api.ResolveEndpointUsage)

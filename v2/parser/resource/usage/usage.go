@@ -142,9 +142,6 @@ func ParseExprs(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind)
 		usages = append(usages, p.scanUsage(pkg)...)
 	}
 
-	// Compute implicit usage of sqldb resources.
-	usages = append(usages, computeImplicitSQLDBUsage(errs, pkgs, binds)...)
-
 	return usages
 }
 

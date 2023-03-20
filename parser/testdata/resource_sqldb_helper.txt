@@ -1,6 +1,7 @@
 parse
-output 'resource SQLDBResource svc.Moo db=moo'
+output 'resource SQLDBResource svc.Moo db=svc'
 
+-- svc/migrations/1_dummy.up.sql --
 -- svc/svc.go --
 package svc
 
@@ -11,7 +12,7 @@ import (
     "encore.dev/storage/sqldb"
 )
 
-var Moo = sqldb.Named("moo")
+var Moo = sqldb.Named("svc")
 
 //encore:api public
 func Foo(ctx context.Context) error {

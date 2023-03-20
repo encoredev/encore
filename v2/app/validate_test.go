@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	goregexp "regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -26,6 +27,7 @@ import (
 	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/pubsub"
+	"encr.dev/v2/parser/infra/sqldb"
 )
 
 var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
@@ -116,7 +118,14 @@ func TestValidation(t *testing.T) {
 				// Now writeto stdout the description of the parsed app
 				for _, svc := range desc.Services {
 					if svc.Name != "fakesvcfortest" {
-						printf("svc %s dbs=%s", svc.Name, "") // FIXME: bring databases in
+						var dbNames []string
+						for res := range svc.ResourceUsage {
+							if db, ok := res.(*sqldb.Database); ok {
+								dbNames = append(dbNames, db.Name)
+							}
+						}
+						sort.Strings(dbNames)
+						printf("svc %s dbs=%s", svc.Name, strings.Join(dbNames, ","))
 					}
 				}
 
@@ -175,6 +184,11 @@ func TestValidation(t *testing.T) {
 						printf("config %s %s", svc.Name, res.Type)
 					case *cron.Job:
 						printf("cronJob %s title=%q", res.Name, res.Title)
+					case *sqldb.Database:
+						for _, b := range desc.Parse.PkgDeclBinds(res) {
+							printf("resource SQLDBResource %s.%s db=%s",
+								b.Pkg.Name, b.BoundName.Name, res.Name)
+						}
 					case *pubsub.Topic:
 						printf("pubsubTopic %s", res.Name)
 
