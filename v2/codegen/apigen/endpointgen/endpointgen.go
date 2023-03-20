@@ -10,9 +10,9 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
-	"encr.dev/v2/parser/apis/api/apipaths"
 )
 
 func Gen(gen *codegen.Generator, parse *parser.Result, svc *app.Service, svcStruct option.Option[*codegen.VarDecl]) map[*api.Endpoint]*codegen.VarDecl {
@@ -102,20 +102,20 @@ func apiQ(name string) *Statement {
 // rawPath creates a raw path representation, replacing path parameters
 // with their indices to ensure all httprouter paths use consistent path param names,
 // since otherwise httprouter reports path conflicts.
-func rawPath(path *apipaths.Path) string {
+func rawPath(path *resourcepaths.Path) string {
 	var b strings.Builder
 	nParam := 0
 	for _, s := range path.Segments {
 		b.WriteByte('/')
 
 		switch s.Type {
-		case apipaths.Literal:
+		case resourcepaths.Literal:
 			b.WriteString(s.Value)
 			continue
 
-		case apipaths.Param:
+		case resourcepaths.Param:
 			b.WriteByte(':')
-		case apipaths.Wildcard:
+		case resourcepaths.Wildcard:
 			b.WriteByte('*')
 		}
 		b.WriteString(strconv.Itoa(nParam))
@@ -126,18 +126,13 @@ func rawPath(path *apipaths.Path) string {
 
 // pathParamNames yields a []string literal containing the names
 // of the path parameters, in order.
-func pathParamNames(path *apipaths.Path) Code {
-	n := 0
-	expr := Index().String().ValuesFunc(func(g *Group) {
-		for _, s := range path.Segments {
-			if s.Type != apipaths.Literal {
-				n++
-				g.Lit(s.Value)
-			}
+func pathParamNames(path *resourcepaths.Path) Code {
+	if path.NumParams() == 0 {
+		return Nil()
+	}
+	return Index().String().ValuesFunc(func(g *Group) {
+		for _, s := range path.Params() {
+			g.Lit(s.Value)
 		}
 	})
-	if n > 0 {
-		return expr
-	}
-	return Nil()
 }

@@ -3,16 +3,16 @@ package userfacinggen
 import (
 	"strings"
 
+	. "github.com/dave/jennifer/jen"
+
 	"encr.dev/pkg/namealloc"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/parser/apis/api"
-	"encr.dev/v2/parser/apis/api/apipaths"
-
-	. "github.com/dave/jennifer/jen"
 )
 
 // Gen generates the encore.gen.go file containing user-facing
@@ -78,7 +78,7 @@ func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, svcStruc
 		for _, p := range ep.Path.Params() {
 			typ := gu.Builtin(p.Pos(), p.ValueType)
 			// Wrap wildcards as a slice of values
-			if p.Type == apipaths.Wildcard {
+			if p.Type == resourcepaths.Wildcard {
 				typ = Index().Add(typ)
 			}
 			g.Id(alloc(p.Value, true)).Add(typ)

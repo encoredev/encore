@@ -8,11 +8,11 @@ import (
 
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
-	"encr.dev/v2/parser/apis/api/apipaths"
 )
 
 const jsonIterPkg = "github.com/json-iterator/go"
@@ -96,17 +96,17 @@ func (d *requestDesc) HandlerArgs() []Code {
 // which is accessed via the `reqDescExpr` parameter.
 func (d *requestDesc) renderPathDecoding(g *Group, dec *genutil.TypeUnmarshaller) {
 	// Collect all the non-literal path segments, and keep track of the wildcard segment, if any.
-	segs := make([]apipaths.Segment, 0, len(d.ep.Path.Segments))
+	segs := make([]resourcepaths.Segment, 0, len(d.ep.Path.Segments))
 	seenWildcard := false
 	wildcardIdx := 0
 	for _, s := range d.ep.Path.Segments {
-		if s.Type != apipaths.Literal {
+		if s.Type != resourcepaths.Literal {
 			segs = append(segs, s)
 		}
 		if !seenWildcard {
-			if s.Type == apipaths.Wildcard {
+			if s.Type == resourcepaths.Wildcard {
 				seenWildcard = true
-			} else if s.Type == apipaths.Param {
+			} else if s.Type == resourcepaths.Param {
 				wildcardIdx++
 			}
 		}
@@ -295,7 +295,7 @@ func (d *requestDesc) ReqPath() *Statement {
 		}, func(g *Group) {
 			idx := 0
 			for _, seg := range d.ep.Path.Segments {
-				if seg.Type == apipaths.Literal {
+				if seg.Type == resourcepaths.Literal {
 					g.Lit("/" + seg.Value)
 				} else {
 					g.Lit("/")

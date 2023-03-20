@@ -10,8 +10,10 @@ import (
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/parser/infra/caches"
 )
 
 func GenKeyspace(gen *codegen.Generator, pkg *pkginfo.Package, keyspaces []*caches.Keyspace) {
@@ -48,7 +50,7 @@ func computePathExpression(errs *perr.List, ks *caches.Keyspace) *Statement {
 		if i > 0 {
 			pathLit.WriteString("/")
 		}
-		if seg.Type == caches.Literal {
+		if seg.Type == resourcepaths.Literal {
 			pathLit.WriteString(seg.Value)
 			continue
 		}

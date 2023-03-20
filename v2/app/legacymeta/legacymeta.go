@@ -11,11 +11,11 @@ import (
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/internal/schema"
 	"encr.dev/v2/parser/apis/api"
-	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/authhandler"
-	"encr.dev/v2/parser/infra/cache"
+	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/cron"
 	"encr.dev/v2/parser/infra/metrics"
@@ -309,7 +309,7 @@ func (b *builder) Build() *meta.Data {
 	return md
 }
 
-func (b *builder) apiPath(pos gotoken.Pos, path *apipaths.Path) *meta.Path {
+func (b *builder) apiPath(pos gotoken.Pos, path *resourcepaths.Path) *meta.Path {
 	res := &meta.Path{
 		Type: meta.Path_URL,
 	}
@@ -350,11 +350,11 @@ func (b *builder) apiPath(pos gotoken.Pos, path *apipaths.Path) *meta.Path {
 		}
 
 		switch p.Type {
-		case apipaths.Literal:
+		case resourcepaths.Literal:
 			seg.Type = meta.PathSegment_LITERAL
-		case apipaths.Param:
+		case resourcepaths.Param:
 			seg.Type = meta.PathSegment_PARAM
-		case apipaths.Wildcard:
+		case resourcepaths.Wildcard:
 			seg.Type = meta.PathSegment_WILDCARD
 		}
 
@@ -363,7 +363,7 @@ func (b *builder) apiPath(pos gotoken.Pos, path *apipaths.Path) *meta.Path {
 	return res
 }
 
-func (b *builder) keyspacePath(path *caches.KeyspacePath) *meta.Path {
+func (b *builder) keyspacePath(path *resourcepaths.Path) *meta.Path {
 	res := &meta.Path{
 		Type: meta.Path_CACHE_KEYSPACE,
 	}
@@ -373,9 +373,9 @@ func (b *builder) keyspacePath(path *caches.KeyspacePath) *meta.Path {
 		}
 
 		switch p.Type {
-		case caches.Literal:
+		case resourcepaths.Literal:
 			seg.Type = meta.PathSegment_LITERAL
-		case caches.Param:
+		case resourcepaths.Param:
 			seg.Type = meta.PathSegment_PARAM
 		}
 

@@ -9,6 +9,7 @@ import (
 	"encr.dev/v2/codegen/infragen/metricsgen"
 	"encr.dev/v2/codegen/infragen/secretsgen"
 	"encr.dev/v2/internal/paths"
+	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/metrics"
 	"encr.dev/v2/parser/infra/secrets"
