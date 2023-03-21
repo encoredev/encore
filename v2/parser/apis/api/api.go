@@ -348,7 +348,7 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 			return true
 		},
 		ValidateTag: func(errs *perr.List, tag directive.Field) (ok bool) {
-			sel, ok := selector.Parse(errs, tag, tag.Value)
+			sel, ok := selector.Parse(errs, tag.Pos(), tag.Value)
 			if !ok {
 				return false
 			}

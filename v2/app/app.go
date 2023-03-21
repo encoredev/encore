@@ -12,7 +12,6 @@ import (
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
-	"encr.dev/v2/parser/apis/selector"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"
 )
@@ -36,22 +35,6 @@ type Desc struct {
 // MatchingMiddleware reports which middleware applies to the given RPC,
 // and the order they apply in.
 func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
-	tags := make(map[string]bool, len(ep.Tags))
-	for _, tag := range ep.Tags {
-		tags[tag.Value] = true
-	}
-
-	match := func(s selector.Selector) bool {
-		switch s.Type {
-		case selector.Tag:
-			return tags[s.Value]
-		case selector.All:
-			return true
-		default:
-			return false
-		}
-	}
-
 	var matches []*middleware.Middleware
 
 	// Ensure middleware ordering is preserved.
@@ -59,12 +42,8 @@ func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
 	// First add global middleware.
 	d.Framework.ForAll(func(fw *apiframework.AppDesc) {
 		for _, mw := range fw.GlobalMiddleware {
-			if mw.Global {
-				for _, s := range mw.Target {
-					if match(s) {
-						matches = append(matches, mw)
-					}
-				}
+			if mw.Target.ContainsAny(ep.Tags) {
+				matches = append(matches, mw)
 			}
 		}
 	})
@@ -73,10 +52,8 @@ func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
 	if svc, ok := d.ServiceForPath(ep.File.Pkg.FSPath); ok {
 		svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
 			for _, mw := range fw.Middleware {
-				for _, s := range mw.Target {
-					if match(s) {
-						matches = append(matches, mw)
-					}
+				if mw.Target.ContainsAny(ep.Tags) {
+					matches = append(matches, mw)
 				}
 			}
 		})

@@ -1,0 +1,83 @@
+! parse
+
+-- svc/svc.go --
+package svc
+
+import "context"
+
+
+//encore:api public tag:bar
+func API(ctx context.Context) error { return nil }
+
+-- svc/mw/mw.go --
+package mw
+
+import "encore.dev/middleware"
+
+//encore:middleware target=tag:foo
+func TaggedInSvc(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
+}
+
+//encore:middleware target=all
+func AllInSvc(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
+}
+
+
+-- lib/globalmw/globalmw.go --
+package globalmw
+
+import "encore.dev/middleware"
+
+//encore:middleware global target=tag:foo
+func TaggedInSvc(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
+}
+
+//encore:middleware global target=all
+func AllInSvc(req middleware.Request, next middleware.Next) middleware.Response {
+    return next(req)
+}
+-- want: errors --
+
+── Invalid middleware target ──────────────────────────────────────────────────────────────[E9999]──
+
+There are not matching targets in service "svc".
+
+   ╭─[ svc/mw/mw.go:5:28 ]
+   │
+ 3 │ import "encore.dev/middleware"
+ 4 │
+ 5 │ //encore:middleware target=tag:foo
+   ⋮                            ───────
+ 6 │ func TaggedInSvc(req middleware.Request, next middleware.Next) middleware.Response {
+ 7 │     return next(req)
+───╯
+
+hint: middleware must have the signature:
+	func(req middleware.Request, next middleware.Next) middleware.Response
+
+For more information on how to use middleware, see https://encore.dev/docs/develop/middleware
+
+
+
+
+── Invalid middleware target ──────────────────────────────────────────────────────────────[E9999]──
+
+There are not matching targets in the application.
+
+   ╭─[ lib/globalmw/globalmw.go:5:35 ]
+   │
+ 3 │ import "encore.dev/middleware"
+ 4 │
+ 5 │ //encore:middleware global target=tag:foo
+   ⋮                                   ───────
+ 6 │ func TaggedInSvc(req middleware.Request, next middleware.Next) middleware.Response {
+ 7 │     return next(req)
+───╯
+
+hint: middleware must have the signature:
+	func(req middleware.Request, next middleware.Next) middleware.Response
+
+For more information on how to use middleware, see https://encore.dev/docs/develop/middleware

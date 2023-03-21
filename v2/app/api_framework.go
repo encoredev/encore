@@ -53,7 +53,7 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, res *parse
 		}
 	}
 
-	modifySvcDesc := func(pkg *pkginfo.Package, fn func(svc *Service, desc *apiframework.ServiceDesc)) {
+	modifySvcDesc := func(pkg *pkginfo.Package, errTemplate *errors.Template, fn func(svc *Service, desc *apiframework.ServiceDesc)) {
 		for i, svc := range services {
 			if pkg.FSPath.HasPrefix(svc.FSRoot) {
 				// We've found the service. Initialize the framework service description
@@ -72,26 +72,32 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, res *parse
 		}
 
 		// We couldn't find the service. Add an error and don't call fn.
-		pc.Errs.Add(errNoServiceFound(pkg.ImportPath))
+		if errTemplate != nil {
+			pc.Errs.Add(*errTemplate)
+		} else {
+			pc.Errs.Add(errNoServiceFound(pkg.ImportPath))
+		}
 	}
 
 	for _, ep := range endpoints {
-		modifySvcDesc(ep.Package(), func(svc *Service, desc *apiframework.ServiceDesc) {
+		modifySvcDesc(ep.Package(), nil, func(svc *Service, desc *apiframework.ServiceDesc) {
 			desc.Endpoints = append(desc.Endpoints, ep)
 		})
 	}
 
 	for _, mw := range middlewares {
 		if !mw.Global {
+			missingErr := middleware.ErrSvcMiddlewareNotInService.AtGoNode(mw.Decl.AST.Name)
+
 			// Per-service middleware.
-			modifySvcDesc(mw.Package(), func(svc *Service, desc *apiframework.ServiceDesc) {
+			modifySvcDesc(mw.Package(), &missingErr, func(svc *Service, desc *apiframework.ServiceDesc) {
 				desc.Middleware = append(desc.Middleware, mw)
 			})
 		}
 	}
 
 	for _, ss := range serviceStructs {
-		modifySvcDesc(ss.Package(), func(svc *Service, desc *apiframework.ServiceDesc) {
+		modifySvcDesc(ss.Package(), nil, func(svc *Service, desc *apiframework.ServiceDesc) {
 			if desc.ServiceStruct.Empty() {
 				desc.ServiceStruct = option.Some(ss)
 			} else {

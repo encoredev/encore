@@ -43,4 +43,24 @@ var (
 		"Invalid middleware function",
 		"The return type of a middleware function must be middleware.Response.",
 	)
+
+	ErrInvalidTargetForService = errRange.Newf(
+		"Invalid middleware target",
+		"There are not matching targets in service %q.",
+	)
+
+	ErrInvalidTargetForApp = errRange.New(
+		"Invalid middleware target",
+		"There are not matching targets in the application.",
+	)
+
+	ErrSvcMiddlewareNotInService = errRange.New(
+		"Invalid middleware function",
+		"Middleware must be defined in a service unless it is marked as being global.",
+	)
+
+	ErrGlobalMiddlewareDefinedInService = errRange.New(
+		"Invalid middleware function",
+		"Global middleware cannot be defined in a service.",
+	)
 )

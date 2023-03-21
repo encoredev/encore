@@ -74,7 +74,7 @@ func Parse(d ParseData) *Middleware {
 			case "target":
 				parts := f.List()
 				for _, p := range parts {
-					sel, ok := selector.Parse(errs, f, p)
+					sel, ok := selector.Parse(errs, f.Pos()+7, p) // + 7 for "target="
 					if !ok {
 						return false
 					}
