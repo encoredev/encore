@@ -76,14 +76,14 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 		ImportPath: s.path,
 		FSPath:     s.dir,
 		Files:      files,
-		Imports:    make(map[paths.Pkg]bool),
+		Imports:    make(map[paths.Pkg]ast.Node),
 	}
 
 	for _, f := range files {
 		f.Pkg = pkg
 		// Fill in imports.
-		for importPath := range f.Imports {
-			pkg.Imports[importPath] = true
+		for importPath, pointer := range f.Imports {
+			pkg.Imports[importPath] = pointer
 		}
 
 		// Fill in package docs.
@@ -197,12 +197,12 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 	return pkgs, files
 }
 
-func getFileImports(f *ast.File) map[paths.Pkg]bool {
-	imports := make(map[paths.Pkg]bool)
+func getFileImports(f *ast.File) map[paths.Pkg]ast.Node {
+	imports := make(map[paths.Pkg]ast.Node)
 	for _, s := range f.Imports {
 		if importPath, err := strconv.Unquote(s.Path.Value); err == nil {
 			if p, ok := paths.PkgPath(importPath); ok {
-				imports[p] = true
+				imports[p] = s
 			}
 		}
 	}

@@ -80,9 +80,9 @@ func computeRequiredImports(funcs []pkginfo.QualifiedName) []paths.Pkg {
 
 // hasRequiredImports reports whether the given imports set
 // contains all the required imports.
-func hasRequiredImports(imports map[paths.Pkg]bool, required []paths.Pkg) bool {
+func hasRequiredImports(imports map[paths.Pkg]ast.Node, required []paths.Pkg) bool {
 	for _, pkg := range required {
-		if !imports[pkg] {
+		if _, found := imports[pkg]; !found {
 			return false
 		}
 	}

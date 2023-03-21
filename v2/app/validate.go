@@ -1,7 +1,9 @@
 package app
 
 import (
+	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
@@ -47,5 +49,17 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 		}
 	}
 
-	// TODO: validate that the ET package is only used within test files
+	// Validate nothing is accessing an et package if it isn't a test file
+	etPkg := paths.Pkg("encore.dev/et")
+	for _, pkg := range result.AppPackages() {
+		for _, file := range pkg.Files {
+			if !file.TestFile {
+				for importPath, importSpec := range file.Imports {
+					if etPkg.LexicallyContains(importPath) {
+						pc.Errs.Add(errETPackageUsedOutsideOfTestFile.AtGoNode(importSpec, errors.AsError("imported here")))
+					}
+				}
+			}
+		}
+	}
 }

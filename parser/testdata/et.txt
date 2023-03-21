@@ -1,0 +1,27 @@
+parse
+err 'cannot reference auth handler svc.MyAuth from another package'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+)
+
+//encore:api public
+func Foo(context.Context) error { return nil }
+
+
+-- svc/svc_test.go --
+package svc
+
+import (
+    "context"
+    "testing"
+
+    "encore.dev/et"
+)
+
+func TestFoo(t *testing.T) {
+    et.AuthHandler(MyAuth)
+}

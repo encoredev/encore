@@ -59,11 +59,11 @@ func ComputeImplicitUsage(errs *perr.List, pkgs []*pkginfo.Package, binds []reso
 
 	var usages []usage.Expr
 	for _, pkg := range pkgs {
-		if !pkg.Imports[sqldbPkg] {
+		if _, found := pkg.Imports[sqldbPkg]; !found {
 			continue
 		}
 		for _, file := range pkg.Files {
-			if !file.Imports[sqldbPkg] {
+			if _, found := file.Imports[sqldbPkg]; !found {
 				continue
 			}
 

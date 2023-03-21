@@ -46,7 +46,7 @@ type Package struct {
 	ImportPath paths.Pkg
 	FSPath     paths.FS
 	Files      []*File
-	Imports    map[paths.Pkg]bool // union of all imports from files
+	Imports    map[paths.Pkg]ast.Node // union of all imports from files
 
 	namesOnce  sync.Once
 	namesCache *PkgNames
@@ -65,12 +65,12 @@ func (p *Package) Names() *PkgNames {
 }
 
 type File struct {
-	l        *Loader            // the loader that created it.
-	Name     string             // file name ("foo.go")
-	Pkg      *Package           // package it belongs to
-	FSPath   paths.FS           // where the file lives on disk
-	Imports  map[paths.Pkg]bool // imports in the file, keyed by import path
-	TestFile bool               // whether the file is a test file
+	l        *Loader                // the loader that created it.
+	Name     string                 // file name ("foo.go")
+	Pkg      *Package               // package it belongs to
+	FSPath   paths.FS               // where the file lives on disk
+	Imports  map[paths.Pkg]ast.Node // imports in the file, keyed by import path pointed at the import spec
+	TestFile bool                   // whether the file is a test file
 
 	// initialAST is the AST for the initial parse that only includes
 	// package docs and imports.
