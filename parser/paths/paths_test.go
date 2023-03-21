@@ -17,6 +17,7 @@ func TestParseURL(t *testing.T) {
 		Want []Segment
 		Err  string
 	}{
+		{"/", []Segment{{Literal, "", str}}, ""},
 		{"foo", nil, "path must begin with '/'"},
 		{"/foo", []Segment{{Literal, "foo", str}}, ""},
 		{"/foo/", nil, "path cannot contain trailing slash"},
@@ -94,6 +95,8 @@ func TestAdd(t *testing.T) {
 	}{
 		{"POST", "/foo", ``},
 		{"POST", "/foo", `.+ /foo and /foo: duplicate path`},
+		{"POST", "/", ``},
+		{"POST", "/", `.+ / and /: duplicate path`},
 		{"GET", "/foo", ``},
 		{"*", "/foo", `.+ /foo and /foo: duplicate path`},
 		{"*", "/bar", ``},

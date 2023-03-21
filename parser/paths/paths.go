@@ -105,7 +105,8 @@ func (t Type) SupportsWildcards() bool {
 }
 
 // Parse parses a slash-separated path into path segments.
-func Parse(pos token.Pos, path string, typ Type) (*Path, error) {
+func Parse(pos token.Pos, initialPath string, typ Type) (*Path, error) {
+	path := initialPath
 	leadingSlash := typ.LeadingSlash()
 	if path == "" {
 		return nil, errors.New("empty path")
@@ -158,7 +159,7 @@ func Parse(pos token.Pos, path string, typ Type) (*Path, error) {
 	for i, s := range segs {
 		switch s.Type {
 		case Literal:
-			if s.Value == "" {
+			if s.Value == "" && initialPath != "/" {
 				return nil, fmt.Errorf("path cannot contain trailing slash")
 			}
 		case Param:
