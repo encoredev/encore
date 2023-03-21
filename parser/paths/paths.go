@@ -107,25 +107,28 @@ func (t Type) SupportsWildcards() bool {
 // Parse parses a slash-separated path into path segments.
 func Parse(pos token.Pos, initialPath string, typ Type) (*Path, error) {
 	path := initialPath
-	leadingSlash := typ.LeadingSlash()
 	if path == "" {
 		return nil, errors.New("empty path")
-	} else if leadingSlash && path[0] != '/' {
-		return nil, errors.New("path must begin with '/'")
-	} else if !leadingSlash && path[0] == '/' {
-		return nil, errors.New("path must not begin with '/'")
 	}
 
 	switch typ {
 	case URL:
+		if path[0] != '/' {
+			return nil, errors.New("path must begin with '/'")
+		}
 		if _, err := url.ParseRequestURI(path); err != nil {
 			return nil, fmt.Errorf("invalid path: %v", errors.Unwrap(err))
 		} else if idx := strings.IndexByte(path, '?'); idx != -1 {
 			return nil, fmt.Errorf("path cannot contain '?'")
 		}
+	case CacheKeyspace:
+		if path[0] == '/' {
+			return nil, errors.New("path must not begin with '/'")
+		}
 	}
 
 	var segs []Segment
+	leadingSlash := typ.LeadingSlash()
 	for path != "" {
 		if leadingSlash || len(segs) > 0 {
 			path = path[1:] // drop leading '/'
