@@ -11,15 +11,15 @@ import (
 
 // selectorLookup is a helper cache for looking up services and RPC's by selector
 type selectorLookup struct {
-	services  map[selector.Selector]map[*app.Service]struct{}
-	endpoints map[selector.Selector]map[*api.Endpoint]struct{}
+	services  map[selector.Key]map[*app.Service]struct{}
+	endpoints map[selector.Key]map[*api.Endpoint]struct{}
 }
 
 // computeSelectorLookup creates a selector lookup from this application
 func computeSelectorLookup(appDesc *app.Desc) *selectorLookup {
 	s := &selectorLookup{
-		services:  make(map[selector.Selector]map[*app.Service]struct{}),
-		endpoints: make(map[selector.Selector]map[*api.Endpoint]struct{}),
+		services:  make(map[selector.Key]map[*app.Service]struct{}),
+		endpoints: make(map[selector.Key]map[*api.Endpoint]struct{}),
 	}
 
 	// Record all RPCs
@@ -43,21 +43,22 @@ func computeSelectorLookup(appDesc *app.Desc) *selectorLookup {
 
 // recordRPC tracks both the RPC for the selector, but also the service the RPC is in
 func (sm *selectorLookup) recordEndpoint(s selector.Selector, ep *api.Endpoint, svc *app.Service) {
-	if sm.endpoints[s] == nil {
-		sm.endpoints[s] = make(map[*api.Endpoint]struct{})
+	key := s.Key()
+	if sm.endpoints[key] == nil {
+		sm.endpoints[key] = make(map[*api.Endpoint]struct{})
 	}
-	sm.endpoints[s][ep] = struct{}{}
+	sm.endpoints[key][ep] = struct{}{}
 
-	if sm.services[s] == nil {
-		sm.services[s] = make(map[*app.Service]struct{})
+	if sm.services[key] == nil {
+		sm.services[key] = make(map[*app.Service]struct{})
 	}
-	sm.services[s][svc] = struct{}{}
+	sm.services[key][svc] = struct{}{}
 }
 
 // GetEndpoints returns all the rpcs which match any of the given selectors
 func (sm *selectorLookup) GetEndpoints(targets selector.Set) (rtn []*api.Endpoint) {
 	targets.ForEach(func(s selector.Selector) {
-		if rpcs, found := sm.endpoints[s]; found {
+		if rpcs, found := sm.endpoints[s.Key()]; found {
 			for rpc := range rpcs {
 				rtn = append(rtn, rpc)
 			}
@@ -69,7 +70,7 @@ func (sm *selectorLookup) GetEndpoints(targets selector.Set) (rtn []*api.Endpoin
 // GetServices returns all services which match any of the given selectors
 func (sm *selectorLookup) GetServices(targets selector.Set) (rtn []*app.Service) {
 	targets.ForEach(func(s selector.Selector) {
-		if services, found := sm.services[s]; found {
+		if services, found := sm.services[s.Key()]; found {
 			for svc := range services {
 				rtn = append(rtn, svc)
 			}

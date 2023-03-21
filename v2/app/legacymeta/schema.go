@@ -2,6 +2,7 @@ package legacymeta
 
 import (
 	"fmt"
+	"go/ast"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/idents"
@@ -135,6 +136,18 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 	return nil
 }
 
+// schemaTypeUnwrapPointer returns the schema type for the given type,
+// but unwraps the initial pointer if it is one.
+// This is used for backwards compatibility with the legacy metadata,
+// where certain types where returned without the leading pointer
+// (most usages of *est.Param).
+func (b *builder) schemaTypeUnwrapPointer(typ schemav2.Type) *schema.Type {
+	if ptr, ok := typ.(schemav2.PointerType); ok {
+		return b.schemaType(ptr.Elem)
+	}
+	return b.schemaType(typ)
+}
+
 func (b *builder) structField(f schemav2.StructField) *schema.Field {
 	field := &schema.Field{
 		Typ:             b.schemaType(f.Type),
@@ -227,16 +240,12 @@ func (b *builder) decl(decl schemav2.Decl) uint32 {
 	}
 
 	// Do we already have this declaration added?
-	k := declKey{pkgPath: decl.DeclaredIn().Pkg.ImportPath, pkgName: pkgName}
+	file := decl.DeclaredIn()
+	pkg := file.Pkg
+	k := declKey{pkgPath: pkg.ImportPath, pkgName: pkgName}
 	if n, ok := b.decls[k]; ok {
 		return n
 	}
-
-	// Compute the underlying type.
-	// Do it here since we don't want to recurse in-between
-	// allocating a declaration index and appending it
-	// to the list.
-	underlyingType := b.schemaType(typeDecl.Type)
 
 	// Otherwise add it.
 	declIdx := uint32(len(b.md.Decls))
@@ -246,16 +255,39 @@ func (b *builder) decl(decl schemav2.Decl) uint32 {
 		return &schema.TypeParameter{Name: p.Name}
 	})
 
-	b.md.Decls = append(b.md.Decls, &schema.Decl{
+	// Allocate the object and add it to the list
+	// without the underlying type. We'll add the
+	// underlying type afterwards to properly handle
+	// recursive and mutually recursive types.
+	d := &schema.Decl{
 		Id:         declIdx,
 		Name:       pkgName,
-		Type:       underlyingType,
+		Type:       nil, // computed below
 		TypeParams: typeParams,
 		Doc:        typeDecl.Info.Doc,
-		Loc:        nil, // TODO?
-	})
+		Loc:        b.schemaLoc(file, decl.ASTNode()),
+	}
+	b.md.Decls = append(b.md.Decls, d)
+
+	d.Type = b.schemaType(typeDecl.Type)
 
 	return declIdx
+}
+
+func (b *builder) schemaLoc(f *pkginfo.File, node ast.Node) *schema.Loc {
+	tokenFile := f.Token()
+	sPos, ePos := tokenFile.Position(node.Pos()), tokenFile.Position(node.Pos())
+	return &schema.Loc{
+		PkgName:      f.Pkg.Name,
+		PkgPath:      string(f.Pkg.ImportPath),
+		Filename:     f.Name,
+		StartPos:     int32(tokenFile.Offset(node.Pos())),
+		EndPos:       int32(tokenFile.Offset(node.End())),
+		SrcLineStart: int32(sPos.Line),
+		SrcLineEnd:   int32(ePos.Line),
+		SrcColStart:  int32(sPos.Column),
+		SrcColEnd:    int32(ePos.Column),
+	}
 }
 
 type declKey struct {
@@ -276,4 +308,8 @@ func (b *builder) declKey(pkgPath paths.Pkg, pkgName string) uint32 {
 
 func (b *builder) typeDeclRef(typ *schemav2.TypeDeclRef) *schema.Type {
 	return b.schemaType(typ.ToType())
+}
+
+func (b *builder) typeDeclRefUnwrapPointer(typ *schemav2.TypeDeclRef) *schema.Type {
+	return b.schemaTypeUnwrapPointer(typ.ToType())
 }

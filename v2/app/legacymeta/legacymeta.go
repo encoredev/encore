@@ -56,14 +56,6 @@ func (b *builder) Build() *meta.Data {
 	}
 	md := b.md
 
-	relPath := func(pkg paths.Pkg) string {
-		rel, ok := b.app.MainModule.Path.RelativePathToPkg(pkg)
-		if !ok {
-			panic("cannot compute relative path to package outside main module: " + pkg.String())
-		}
-		return rel
-	}
-
 	svcByName := make(map[string]*meta.Service, len(b.app.Services))
 	for _, svc := range b.app.Services {
 		out := &meta.Service{
@@ -73,16 +65,16 @@ func (b *builder) Build() *meta.Data {
 		md.Svcs = append(md.Svcs, out)
 
 		if fw, ok := svc.Framework.Get(); ok {
-			out.RelPath = relPath(fw.RootPkg.ImportPath)
+			out.RelPath = b.relPath(fw.RootPkg.ImportPath)
 			for _, ep := range fw.Endpoints {
 				rpc := &meta.RPC{
 					Name:           ep.Name,
 					Doc:            ep.Doc,
 					ServiceName:    svc.Name,
-					RequestSchema:  b.schemaType(ep.Request),
-					ResponseSchema: b.schemaType(ep.Response),
+					RequestSchema:  b.schemaTypeUnwrapPointer(ep.Request),
+					ResponseSchema: b.schemaTypeUnwrapPointer(ep.Response),
 					Proto:          meta.RPC_REGULAR,
-					Loc:            nil, // TODO
+					Loc:            b.schemaLoc(ep.Decl.File, ep.Decl.AST),
 					Path:           b.apiPath(ep.Decl.AST.Pos(), ep.Path),
 					HttpMethods:    ep.HTTPMethods,
 					Tags:           ep.Tags.ToProto(),
@@ -131,7 +123,7 @@ func (b *builder) Build() *meta.Data {
 	pkgByPath := make(map[paths.Pkg]*meta.Package, len(appPackages))
 	for _, pkg := range appPackages {
 		metaPkg := &meta.Package{
-			RelPath:     relPath(pkg.ImportPath),
+			RelPath:     b.relPath(pkg.ImportPath),
 			Name:        pkg.Name,
 			Doc:         pkg.Doc,
 			ServiceName: "",
@@ -159,7 +151,7 @@ func (b *builder) Build() *meta.Data {
 			if !seenRPCCalls[qn] {
 				seenRPCCalls[qn] = true
 				metaPkg.RpcCalls = append(metaPkg.RpcCalls, &meta.QualifiedName{
-					Pkg:  relPath(pkg.ImportPath),
+					Pkg:  b.relPath(pkg.ImportPath),
 					Name: ep.Name,
 				})
 			}
@@ -201,7 +193,7 @@ func (b *builder) Build() *meta.Data {
 			md.CronJobs = append(md.CronJobs, cj)
 			if ep, ok := b.app.Parse.ResourceForQN(r.Endpoint).Get(); ok {
 				cj.Endpoint = &meta.QualifiedName{
-					Pkg:  relPath(ep.Package().ImportPath),
+					Pkg:  b.relPath(ep.Package().ImportPath),
 					Name: ep.(*api.Endpoint).Name,
 				}
 			} else {
@@ -214,11 +206,11 @@ func (b *builder) Build() *meta.Data {
 				Doc:     r.Doc,
 				PkgPath: r.Package().ImportPath.String(),
 				PkgName: r.Package().Name,
-				Loc:     nil,
+				Loc:     b.schemaLoc(r.Decl.File, r.Decl.AST),
 				Params:  b.schemaType(r.Param),
 			}
 			if data, ok := r.AuthData.Get(); ok {
-				ah.AuthData = b.typeDeclRef(data)
+				ah.AuthData = b.typeDeclRefUnwrapPointer(data)
 			}
 			md.AuthHandler = ah
 
@@ -226,7 +218,7 @@ func (b *builder) Build() *meta.Data {
 			topic := &meta.PubSubTopic{
 				Name:          r.Name,
 				Doc:           r.Doc,
-				MessageType:   b.typeDeclRef(r.MessageType),
+				MessageType:   b.typeDeclRefUnwrapPointer(r.MessageType),
 				OrderingKey:   r.OrderingKey,
 				Publishers:    nil,
 				Subscriptions: nil, // filled in later
@@ -244,7 +236,8 @@ func (b *builder) Build() *meta.Data {
 
 			// Find all the publishers
 			for _, u := range b.app.Parse.Usages(r) {
-				if _, ok := u.(*pubsub.PublishUsage); ok {
+				if u, ok := u.(*pubsub.PublishUsage); ok {
+					_ = u
 					if svc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath); ok {
 						// Is the publish call within a service? If so add that service as the publisher.
 						addPublisher(svc.Name)
@@ -351,11 +344,11 @@ func (b *builder) Build() *meta.Data {
 		case *middleware.Middleware:
 			mw := &meta.Middleware{
 				Name: &meta.QualifiedName{
-					Pkg:  relPath(r.Package().ImportPath),
+					Pkg:  b.relPath(r.Package().ImportPath),
 					Name: r.Decl.Name,
 				},
 				Doc:         r.Doc,
-				Loc:         nil,
+				Loc:         b.schemaLoc(r.Decl.File, r.Decl.AST),
 				Global:      r.Global,
 				ServiceName: nil,
 				Target:      r.Target.ToProto(),
@@ -500,4 +493,12 @@ func (b *builder) keyspacePath(path *resourcepaths.Path) *meta.Path {
 		res.Segments = append(res.Segments, seg)
 	}
 	return res
+}
+
+func (b *builder) relPath(pkg paths.Pkg) string {
+	rel, ok := b.app.MainModule.Path.RelativePathToPkg(pkg)
+	if !ok {
+		panic("cannot compute relative path to package outside main module: " + pkg.String())
+	}
+	return rel
 }

@@ -21,10 +21,22 @@ const (
 )
 
 type Selector struct {
-	Type     Type
-	Value    string
+	// Ensure this type is not comparable,
+	// since it contains position information.
+	_ [0]func()
+
+	Type  Type
+	Value string
+
 	startPos token.Pos
 	endPos   token.Pos
+}
+
+// Key is a suitable key for a [Selector],
+// since selectors are not otherwise comparable.
+type Key struct {
+	Type  Type
+	Value string
 }
 
 var _ ast.Node = Selector{}
@@ -44,11 +56,16 @@ func (s Selector) String() string {
 	return string(s.Type) + ":" + s.Value
 }
 
+// Key returns a Key for s.
+func (s Selector) Key() Key {
+	return Key{Type: s.Type, Value: s.Value}
+}
+
 // Equals reports whether s and o are equal on type and value.
 //
 // It does not compare the start and end positions.
 func (s Selector) Equals(o Selector) bool {
-	return s.Type == o.Type && s.Value == o.Value
+	return s.Key() == o.Key()
 }
 
 func (s Selector) ToProto() *meta.Selector {

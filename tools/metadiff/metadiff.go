@@ -72,17 +72,11 @@ func main() {
 			return a.ServiceName+"."+a.Name < b.ServiceName+"."+b.Name
 		}),
 
-		protocmp.IgnoreFields((*schemav1.Decl)(nil), "loc", "id"),
+		protocmp.IgnoreFields((*schemav1.Loc)(nil), "src_col_start", "src_col_end", "start_pos"),
+		protocmp.IgnoreFields((*schemav1.Decl)(nil), "id"),
 		protocmp.IgnoreFields((*schemav1.Named)(nil), "id"),
 		protocmp.IgnoreFields((*schemav1.TypeParameterRef)(nil), "decl_id"),
-		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "loc"),
-		protocmp.IgnoreFields((*metav1.RPC)(nil), "loc"),
 		protocmp.IgnoreFields((*metav1.Package)(nil), "trace_nodes"),
-		protocmp.IgnoreFields((*metav1.Middleware)(nil), "loc"),
-		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "auth_data"),
-		protocmp.IgnoreFields((*metav1.PubSubTopic)(nil), "message_type"),
-		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "params"),
-		protocmp.IgnoreFields(&metav1.RPC{}, "request_schema", "response_schema"),
 	}
 
 	diff := ansiDiff(v1Parse.Meta, v2Parse.Meta, opts...)
