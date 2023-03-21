@@ -60,6 +60,11 @@ func (p *Parser) Parse() *Result {
 	)
 
 	scan.ProcessModule(p.c.Errs, p.loader, p.c.MainModuleDir, func(pkg *pkginfo.Package) {
+		// TODO(andre) Ignore main packages for now
+		if pkg.Name == "main" {
+			return
+		}
+
 		pass := &resourceparser.Pass{
 			Context:      p.c,
 			SchemaParser: p.schemaParser,

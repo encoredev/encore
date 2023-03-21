@@ -3,6 +3,7 @@ package authhandlergen
 import (
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/apigenutil"
@@ -11,7 +12,7 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 )
 
-func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler) *codegen.VarDecl {
+func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler, svcStruct option.Option[*codegen.VarDecl]) *codegen.VarDecl {
 	f := gen.File(ah.Decl.File.Pkg, "authhandler")
 	enc := apienc.DescribeAuth(gen.Errs, ah.Param)
 	gu := gen.Util
@@ -36,7 +37,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler)
 		Id("Endpoint"):    Lit(ah.Name),
 		Id("HasAuthData"): Lit(ah.AuthData.Present()),
 		Id("DecodeAuth"):  renderDecodeAuth(gen, f, ah, enc),
-		Id("AuthHandler"): renderAuthHandler(gen, f, ah, enc),
+		Id("AuthHandler"): renderAuthHandler(gen, ah, svcStruct),
 	}))
 
 	return desc
@@ -93,7 +94,7 @@ func renderDecodeAuth(gen *codegen.Generator, f *codegen.File, ah *authhandler.A
 	})
 }
 
-func renderAuthHandler(gen *codegen.Generator, f *codegen.File, ah *authhandler.AuthHandler, enc *apienc.AuthEncoding) *Statement {
+func renderAuthHandler(gen *codegen.Generator, ah *authhandler.AuthHandler, svcStruct option.Option[*codegen.VarDecl]) *Statement {
 	gu := gen.Util
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
@@ -103,20 +104,15 @@ func renderAuthHandler(gen *codegen.Generator, f *codegen.File, ah *authhandler.
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.
 		var fnExpr *Statement
 
-		// TODO(andre) Implement support for service structs
-		// If we have a service struct, initialize it first.
-		// group := b.ah.SvcStruct
-		// if group != nil {
-		//	ss := b.ah.Svc.Struct
-		//	g.List(Id("svc"), Id("initErr")).Op(":=").Qual(b.ah.Svc.Root.ImportPath, b.serviceStructName(ss)).Dot("Get").Call()
-		//	g.If(Id("initErr").Op("!=").Nil()).Block(
-		//		Return(Id("info"), Id("initErr")),
-		//	)
-		//	fnExpr = Id("svc").Dot(b.ah.Name)
-		// } else {
-		//	fnExpr = Qual(b.ah.Svc.Root.ImportPath, b.ah.Name)
-		// }
-		fnExpr = Qual(ah.Decl.File.Pkg.ImportPath.String(), ah.Name)
+		if ss, ok := svcStruct.Get(); ok && ah.Recv.Present() {
+			g.List(Id("svc"), Id("initErr")).Op(":=").Add(ss.Qual()).Dot("Get").Call()
+			g.If(Id("initErr").Op("!=").Nil()).Block(
+				Return(Id("info"), Id("initErr")),
+			)
+			fnExpr = Id("svc").Dot(ah.Name)
+		} else {
+			fnExpr = Qual(ah.Decl.File.Pkg.ImportPath.String(), ah.Name)
+		}
 
 		threeParams := ah.AuthData.Present()
 		g.ListFunc(func(g *Group) {

@@ -30,9 +30,9 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 	}
 
 	if fw, ok := desc.Framework.Get(); ok {
-		for _, svc := range desc.Services {
+		var svcStruct option.Option[*codegen.VarDecl]
 
-			var svcStruct option.Option[*codegen.VarDecl]
+		for _, svc := range desc.Services {
 			if svcDesc, ok := svc.Framework.Get(); ok {
 				if ss, ok := svcDesc.ServiceStruct.Get(); ok {
 					decl := servicestructgen.Gen(gg, svc, ss)
@@ -51,12 +51,12 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 			userfacinggen.Gen(gg, svc, svcStruct, true)
 		}
 
+		gp.AuthHandler = option.Map(fw.AuthHandler, func(ah *authhandler.AuthHandler) *codegen.VarDecl {
+			return authhandlergen.Gen(gg, desc, ah, svcStruct)
+		})
+
 		mws := middlewaregen.Gen(gg, fw.GlobalMiddleware, option.None[*codegen.VarDecl]())
 		maps.Copy(gp.Middleware, mws)
-
-		gp.AuthHandler = option.Map(fw.AuthHandler, func(ah *authhandler.AuthHandler) *codegen.VarDecl {
-			return authhandlergen.Gen(gg, desc, ah)
-		})
 	}
 
 	maingen.Gen(gp)

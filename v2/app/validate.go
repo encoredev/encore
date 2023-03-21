@@ -8,6 +8,7 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/pubsub"
+	"encr.dev/v2/parser/infra/secrets"
 )
 
 // validate checks that the application is in a valid state across all services and compilation units.
@@ -39,6 +40,9 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 			continue
 		case *authhandler.AuthHandler:
 			// AuthHandlers are also allowed to be declared outside of service code as it's shared code between all services
+			continue
+		case *secrets.Secrets:
+			// Secrets are allowed anywhere
 			continue
 
 		default:
