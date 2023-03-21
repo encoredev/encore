@@ -12,6 +12,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 )
 
@@ -24,7 +25,8 @@ type Module struct {
 	Version string    // module version
 
 	// file is the parsed modfile.
-	file *modfile.File
+	// It's None if the module predates Go Modules.
+	file option.Option[*modfile.File]
 
 	// sortedNestedDeps and sortedOtherDeps contain lists of
 	// this module's dependencies, categorized into nested dependencies

@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"encr.dev/cli/daemon/apps"
@@ -55,14 +54,8 @@ func main() {
 	v1Parse := must(v1Builder.Parse(parseParams))
 	v2Parse := must(v2Builder.Parse(parseParams))
 
-	baseOpts := []cmp.Option{
+	opts := []cmp.Option{
 		protocmp.Transform(),
-		protocmp.IgnoreFields((*schemav1.Decl)(nil), "loc", "id"),
-		protocmp.IgnoreFields((*schemav1.Named)(nil), "id"),
-		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "loc"),
-		protocmp.IgnoreFields((*metav1.RPC)(nil), "loc"),
-		protocmp.IgnoreFields((*metav1.Package)(nil), "trace_nodes"),
-		protocmp.IgnoreFields((*metav1.Middleware)(nil), "loc"),
 		protocmp.SortRepeated(func(a, b *schemav1.Decl) bool {
 			if a.Name != b.Name {
 				return a.Name < b.Name
@@ -78,15 +71,20 @@ func main() {
 		protocmp.SortRepeated(func(a, b *metav1.RPC) bool {
 			return a.ServiceName+"."+a.Name < b.ServiceName+"."+b.Name
 		}),
-	}
 
-	allOpts := append(slices.Clone(baseOpts),
+		protocmp.IgnoreFields((*schemav1.Decl)(nil), "loc", "id"),
+		protocmp.IgnoreFields((*schemav1.Named)(nil), "id"),
+		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "loc"),
+		protocmp.IgnoreFields((*metav1.RPC)(nil), "loc"),
+		protocmp.IgnoreFields((*metav1.Package)(nil), "trace_nodes"),
+		protocmp.IgnoreFields((*metav1.Middleware)(nil), "loc"),
+		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "auth_data"),
 		protocmp.IgnoreFields((*metav1.PubSubTopic)(nil), "message_type"),
 		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "params"),
 		protocmp.IgnoreFields(&metav1.RPC{}, "request_schema", "response_schema"),
-	)
+	}
 
-	diff := ansiDiff(v1Parse.Meta, v2Parse.Meta, allOpts...)
+	diff := ansiDiff(v1Parse.Meta, v2Parse.Meta, opts...)
 	if diff == "" {
 		fmt.Println("identical metadata")
 	} else {

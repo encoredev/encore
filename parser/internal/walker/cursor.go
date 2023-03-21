@@ -3,7 +3,6 @@ package walker
 import (
 	"go/ast"
 	"go/token"
-	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 
@@ -51,19 +50,7 @@ func (c *Cursor) Location() (loc locations.Location) {
 // comment would no longer be valid (such as a FuncType, StructType, InterfaceType or BlockStmt).
 func (c *Cursor) DocComment() string {
 	groupToString := func(node *ast.CommentGroup) string {
-		if node == nil {
-			return ""
-		}
-
-		var str strings.Builder
-		for i, comment := range node.List {
-			if i > 0 {
-				str.WriteString("\n")
-			}
-
-			str.WriteString(comment.Text)
-		}
-		return str.String()
+		return node.Text()
 	}
 
 	for _, node := range c.parents {

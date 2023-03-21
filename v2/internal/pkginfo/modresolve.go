@@ -1,13 +1,16 @@
 package pkginfo
 
 import (
+	"errors"
 	"go/token"
+	"io/fs"
 	"os"
 
 	"golang.org/x/exp/slices"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/paths"
 )
 
@@ -16,7 +19,7 @@ import (
 
 // loadModuleFromDisk loads the module information from the given directory.
 // It does not consult the module cache; use resolveModule for that.
-func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
+func (l *Loader) loadModuleFromDisk(rootDir paths.FS, fallbackModPath paths.Mod) (m *Module) {
 	tr := l.c.Trace("pkgload.loadModuleFromDisk", "dir", rootDir)
 	defer tr.Done("result", m)
 
@@ -24,6 +27,15 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
 	gomodFilePath := rootDir.Join("go.mod").ToIO()
 	data, err := os.ReadFile(gomodFilePath)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) && fallbackModPath != "" {
+			// The dependency predates Go Modules. Simulate an empty module.
+			return &Module{
+				RootDir: rootDir,
+				Path:    fallbackModPath,
+				Version: "v0.0.0-00010101000000-000000000000",
+			}
+		}
+
 		l.c.Errs.Assert(errReadingGoMod.Wrapping(err).InFile(gomodFilePath))
 	}
 	modFile, err := modfile.Parse(gomodFilePath, data, nil)
@@ -38,7 +50,7 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS) (m *Module) {
 		RootDir: rootDir,
 		Path:    paths.MustModPath(modFile.Module.Mod.Path),
 		Version: modFile.Module.Mod.Version,
-		file:    modFile,
+		file:    option.Some(modFile),
 	}
 
 	// Parse the dependencies.
@@ -185,7 +197,7 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 		}
 	} else {
 		rootPath := paths.RootedFSPath(pkg.Module.Dir, ".")
-		result = l.loadModuleFromDisk(rootPath)
+		result = l.loadModuleFromDisk(rootPath, modPath)
 	}
 
 	// Add the module to the cache.

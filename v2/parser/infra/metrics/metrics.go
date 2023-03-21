@@ -61,7 +61,7 @@ func (m *Metric) End() token.Pos            { return m.AST.End() }
 
 type Label struct {
 	Key  string
-	Type schema.Type
+	Type schema.BuiltinType
 	Doc  string
 }
 
@@ -185,7 +185,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 
 				labelFields = append(labelFields, Label{
 					Key:  label,
-					Type: f.Type,
+					Type: f.Type.(schema.BuiltinType),
 					Doc:  f.Doc,
 				})
 			}

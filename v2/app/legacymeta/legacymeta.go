@@ -3,6 +3,7 @@ package legacymeta
 import (
 	"fmt"
 	gotoken "go/token"
+	"sort"
 
 	"golang.org/x/exp/slices"
 
@@ -304,8 +305,20 @@ func (b *builder) Build() *meta.Data {
 				ValueType:   b.builtinType(r.ValueType),
 				Doc:         r.Doc,
 				ServiceName: svcName,
-				Labels:      nil, // TODO
 			}
+			for _, label := range r.Labels {
+				m.Labels = append(m.Labels, &meta.Metric_Label{
+					Key:  label.Key,
+					Doc:  label.Doc,
+					Type: b.builtinType(label.Type),
+				})
+			}
+
+			if typ, ok := r.LabelType.Get(); ok {
+				// Register any declarations
+				b.schemaType(typ)
+			}
+
 			switch r.Type {
 			case metrics.Counter:
 				m.Kind = meta.Metric_COUNTER
@@ -333,6 +346,7 @@ func (b *builder) Build() *meta.Data {
 				continue
 			}
 			pkg.Secrets = append(pkg.Secrets, r.Keys...)
+			sort.Strings(pkg.Secrets)
 
 		case *middleware.Middleware:
 			mw := &meta.Middleware{

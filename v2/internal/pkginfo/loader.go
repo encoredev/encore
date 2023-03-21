@@ -45,7 +45,9 @@ type Loader struct {
 
 func (l *Loader) init() {
 	// Resolve the main module.
-	l.mainModule = l.loadModuleFromDisk(l.c.MainModuleDir)
+	l.mainModule = l.loadModuleFromDisk(l.c.MainModuleDir, "")
+	// Manually cache the main module.
+	l.modules[l.mainModule.Path] = l.mainModule
 
 	b := l.c.Build
 	d := &build.Default
