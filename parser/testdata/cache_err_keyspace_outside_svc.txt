@@ -49,3 +49,23 @@ Cache keyspaces must be defined within a service.
 ────╯
 
 For more information see https://encore.dev/docs/primitives/caching
+
+
+
+
+── Resource defined outside of service ────────────────────────────────────────────────────[E9999]──
+
+Resources can only be defined within a service.
+
+    ╭─[ lib/lib.go:14:16 ]
+    │
+ 12 │     }
+ 13 │
+ 14 │     var keyspace = cache.NewStringKeyspace[Key[string]](svc.Cluster, cache.KeyspaceConfig{
+    ⋮                    ▲
+    ⋮ ╭──────────────────╯
+ 15 │ │       KeyPattern: "foo/:Foo",
+ 16 │ │   })
+    ⋮ │    ▲
+    ⋮ ├────╯
+────╯

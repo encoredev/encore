@@ -33,9 +33,9 @@ func computeSelectorLookup(appDesc *app.Desc) *selectorLookup {
 		s.recordEndpoint(selector.Selector{Type: selector.All}, ep, svc)
 
 		// Track against any defined tags
-		for _, tag := range ep.Tags {
-			s.recordEndpoint(tag, ep, svc)
-		}
+		ep.Tags.ForEach(func(sel selector.Selector) {
+			s.recordEndpoint(sel, ep, svc)
+		})
 	}
 
 	return s
@@ -56,24 +56,24 @@ func (sm *selectorLookup) recordEndpoint(s selector.Selector, ep *api.Endpoint, 
 
 // GetEndpoints returns all the rpcs which match any of the given selectors
 func (sm *selectorLookup) GetEndpoints(targets selector.Set) (rtn []*api.Endpoint) {
-	for _, s := range targets {
+	targets.ForEach(func(s selector.Selector) {
 		if rpcs, found := sm.endpoints[s]; found {
 			for rpc := range rpcs {
 				rtn = append(rtn, rpc)
 			}
 		}
-	}
+	})
 	return
 }
 
 // GetServices returns all services which match any of the given selectors
 func (sm *selectorLookup) GetServices(targets selector.Set) (rtn []*app.Service) {
-	for _, s := range targets {
+	targets.ForEach(func(s selector.Selector) {
 		if services, found := sm.services[s]; found {
 			for svc := range services {
 				rtn = append(rtn, svc)
 			}
 		}
-	}
+	})
 	return
 }

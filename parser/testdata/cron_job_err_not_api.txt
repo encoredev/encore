@@ -37,3 +37,26 @@ Endpoint does not reference an Encore API
 ────╯
 
 For more information, see https://encore.dev/docs/primitives/cron-jobs
+
+
+
+
+── Resource defined outside of service ────────────────────────────────────────────────────[E9999]──
+
+Resources can only be defined within a service.
+
+    ╭─[ svc/svc.go:10:9 ]
+    │
+  8 │     )
+  9 │
+ 10 │     var _ = cron.NewJob("my-job", cron.JobConfig{
+    ⋮             ▲
+    ⋮ ╭───────────╯
+ 11 │ │       Schedule: "* * * * 5",
+ 12 │ │       Endpoint: CronFunc,
+ 13 │ │   })
+    ⋮ │    ▲
+    ⋮ ├────╯
+ 14 │
+ 15 │
+────╯

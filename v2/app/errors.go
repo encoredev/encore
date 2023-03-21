@@ -30,4 +30,9 @@ var (
 		"No service was found for package %q.",
 		errors.MarkAsInternalError(),
 	)
+
+	errResourceDefinedOutsideOfService = errRange.New(
+		"Resource defined outside of service",
+		"Resources can only be defined within a service.",
+	)
 )
