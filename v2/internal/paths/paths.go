@@ -138,6 +138,16 @@ func (p Pkg) checkValid() {
 	}
 }
 
+// LexicallyContains reports whether the given package path contains the package path p
+// as a "sub-package".
+func (p Pkg) LexicallyContains(other Pkg) bool {
+	p.checkValid()
+	if other == "" {
+		return false
+	}
+	return p == other || strings.HasPrefix(string(other), string(p)+"/")
+}
+
 const stdModule = "std"
 
 // Mod represents a module path.

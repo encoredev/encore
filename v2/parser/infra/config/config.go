@@ -126,6 +126,9 @@ func walkCfgToVerify(errs *perr.List, load *Load, decl schema.Type, insideConfig
 		walkCfgToVerify(errs, load, decl.Elem, false)
 	case schema.ListType:
 		walkCfgToVerify(errs, load, decl.Elem, false)
+	case schema.MapType:
+		walkCfgToVerify(errs, load, decl.Key, false)
+		walkCfgToVerify(errs, load, decl.Value, false)
 	case schema.StructType:
 		for _, field := range decl.Fields {
 			if !field.IsExported() {

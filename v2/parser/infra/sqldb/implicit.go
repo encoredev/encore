@@ -47,12 +47,12 @@ func ComputeImplicitUsage(errs *perr.List, pkgs []*pkginfo.Package, binds []reso
 		i := sort.Search(len(sqldbBinds), func(i int) bool {
 			return sqldbBinds[i].Pkg >= pkg
 		})
-		if i >= len(sqldbBinds) {
-			return nil, false
-		} else if sqldbBinds[i].Pkg != pkg {
-			return nil, false
+		if i < len(sqldbBinds) && sqldbBinds[i].Pkg == pkg {
+			return sqldbBinds[i].Bind, true
+		} else if i > 0 && sqldbBinds[i-1].Pkg.LexicallyContains(pkg) {
+			return sqldbBinds[i-1].Bind, true
 		}
-		return sqldbBinds[i].Bind, true
+		return nil, false
 	}
 
 	const sqldbPkg paths.Pkg = "encore.dev/storage/sqldb"

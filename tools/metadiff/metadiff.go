@@ -74,6 +74,7 @@ func main() {
 
 		protocmp.IgnoreFields((*schemav1.Decl)(nil), "loc", "id"),
 		protocmp.IgnoreFields((*schemav1.Named)(nil), "id"),
+		protocmp.IgnoreFields((*schemav1.TypeParameterRef)(nil), "decl_id"),
 		protocmp.IgnoreFields((*metav1.AuthHandler)(nil), "loc"),
 		protocmp.IgnoreFields((*metav1.RPC)(nil), "loc"),
 		protocmp.IgnoreFields((*metav1.Package)(nil), "trace_nodes"),
