@@ -87,4 +87,29 @@ var (
 		"The handler for the subscription must be defined in the same service as the call to pubsub.NewSubscription.",
 		errors.PrependDetails(pubsubNewSubscriptionHelp),
 	)
+
+	errSubscriptionAckDeadlineTooShort = errRange.New(
+		"Invalid PubSub subscription config",
+		"The ack deadline must be at least 1 second.",
+	)
+
+	errSubscriptionMessageRetentionTooShort = errRange.New(
+		"Invalid PubSub subscription config",
+		"The message retention must be at least 1 minute.",
+	)
+
+	errSubscriptionMinRetryBackoffTooShort = errRange.New(
+		"Invalid PubSub subscription config",
+		"The min backoff for retries must be at least 1 second.",
+	)
+
+	errSubscriptionMaxRetryBackoffTooShort = errRange.New(
+		"Invalid PubSub subscription config",
+		"The max backoff for retries must be at least 1 second.",
+	)
+
+	errSubscriptionMaxRetriesTooSmall = errRange.New(
+		"Invalid PubSub subscription config",
+		"The max number of retries must be a positive number or the constants `pubsub.InfiniteRetries` or `pubsub.NoRetries`.",
+	)
 )

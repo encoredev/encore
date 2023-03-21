@@ -53,7 +53,7 @@ var x = pubsub.SubscriptionConfig{
 		} `literal:",optional"`
 	}
 
-	cfg := Decode[decodedConfig](tc.Errs, cfgLit)
+	cfg := Decode[decodedConfig](tc.Errs, cfgLit, nil)
 
 	c.Assert(cfg, qt.DeepEquals, decodedConfig{
 		AckDeadline:      45 * time.Second,

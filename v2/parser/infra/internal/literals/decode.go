@@ -10,15 +10,20 @@ import (
 	"encr.dev/v2/internal/perr"
 )
 
-func Decode[T any](errs *perr.List, literal *Struct) T {
+func Decode[T any](errs *perr.List, literal *Struct, defaultValues *T) T {
 	var decodeTo T
 	dst := reflect.ValueOf(&decodeTo)
 	if dst.Elem().Kind() != reflect.Struct {
 		errs.Assert(errArgumentMustBeStruct.AtGoNode(literal.ast))
 	}
-
 	dst = dst.Elem()
-	fieldPaths := decodeStruct(errs, literal, dst)
+
+	var defaultValue reflect.Value
+	if defaultValues != nil {
+		defaultValue = reflect.ValueOf(defaultValues).Elem()
+	}
+
+	fieldPaths := decodeStruct(errs, literal, dst, defaultValue)
 
 	decodedFields := make(map[string]bool)
 	for _, fp := range fieldPaths {
@@ -35,7 +40,7 @@ func Decode[T any](errs *perr.List, literal *Struct) T {
 	return decodeTo
 }
 
-func decodeStruct(errs *perr.List, literal *Struct, dst reflect.Value) (fieldPaths []string) {
+func decodeStruct(errs *perr.List, literal *Struct, dst reflect.Value, defaultValues reflect.Value) (fieldPaths []string) {
 	for i := 0; i < dst.NumField(); i++ {
 		fieldType := dst.Type().Field(i)
 		if fieldType.Anonymous {
@@ -44,7 +49,12 @@ func decodeStruct(errs *perr.List, literal *Struct, dst reflect.Value) (fieldPat
 			errs.Assert(errUnexportedFieldsNotSupported)
 		}
 
-		paths := decodeField(errs, literal, fieldType, dst.Field(i))
+		var fieldDefault reflect.Value
+		if defaultValues.IsValid() {
+			fieldDefault = defaultValues.Field(i)
+		}
+
+		paths := decodeField(errs, literal, fieldType, dst.Field(i), fieldDefault)
 		fieldPaths = append(fieldPaths, paths...)
 	}
 	return fieldPaths
@@ -52,13 +62,14 @@ func decodeStruct(errs *perr.List, literal *Struct, dst reflect.Value) (fieldPat
 
 // decodeField decodes a single constant literal field.
 // It reports the field path it decoded.
-func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField, field reflect.Value) (fieldPaths []string) {
+func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField, field reflect.Value, defaultField reflect.Value) (fieldPaths []string) {
 	// Determine the path we want to find the field at
 	fieldPath := fieldType.Name
 
 	required := false
 	dynamicOK := false
 	zeroValueOK := false
+	useDefaultValue := false
 
 	tag, err := structtag.Parse(string(fieldType.Tag))
 	if err != nil {
@@ -71,6 +82,7 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 		required = !tagOpts.HasOption("optional")
 		dynamicOK = tagOpts.HasOption("dynamic")
 		zeroValueOK = tagOpts.HasOption("zero-ok")
+		useDefaultValue = tagOpts.HasOption("default")
 	}
 
 	fieldPaths = []string{fieldPath}
@@ -82,6 +94,10 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 			errs.Add(errMissingRequiredField(fieldPath).AtGoPos(pos, pos))
 			return
 		} else {
+			if useDefaultValue && defaultField.IsValid() {
+				// If the field is optional and we have a default value, use it.
+				field.Set(defaultField)
+			}
 			// Nothing to do
 			return
 		}
@@ -131,7 +147,7 @@ func decodeField(errs *perr.List, literal *Struct, fieldType reflect.StructField
 			errs.Add(errWrongDynamicType(fieldPath, "inline struct").AtGoNode(literal.Expr(fieldPath)))
 			return
 		}
-		childPaths := decodeStruct(errs, child, field)
+		childPaths := decodeStruct(errs, child, field, defaultField)
 		for _, p := range childPaths {
 			fieldPaths = append(fieldPaths, fieldPath+"."+p)
 		}

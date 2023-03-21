@@ -141,7 +141,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 		KeyPattern    string   `literal:",required"`
 		DefaultExpiry ast.Expr `literal:",optional,dynamic"`
 	}
-	config := literals.Decode[decodedConfig](errs, cfgLit)
+	config := literals.Decode[decodedConfig](errs, cfgLit, nil)
 
 	const reservedPrefix = "__encore"
 	if strings.HasPrefix(config.KeyPattern, reservedPrefix) {

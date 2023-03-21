@@ -74,14 +74,13 @@ func parseCluster(d parseutil.ReferenceInfo) {
 
 	// Decode the config
 	type decodedConfig struct {
-		EvictionPolicy string   `literal:",optional"`
+		EvictionPolicy string   `literal:",optional,default"`
 		DefaultExpiry  ast.Expr `literal:",optional,dynamic"`
 	}
-	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
-
-	if config.EvictionPolicy == "" {
-		config.EvictionPolicy = string(cache.AllKeysLRU)
+	defaultValues := decodedConfig{
+		EvictionPolicy: string(cache.AllKeysLRU),
 	}
+	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, &defaultValues)
 
 	switch cache.EvictionPolicy(config.EvictionPolicy) {
 	case cache.AllKeysLRU, cache.AllKeysLFU, cache.AllKeysRandom, cache.VolatileLRU,

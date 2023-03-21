@@ -98,7 +98,7 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 		DeliveryGuarantee int    `literal:",required"`
 		OrderingKey       string `literal:",optional"`
 	}
-	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
 
 	// Get the ordering key
 	if config.OrderingKey != "" {

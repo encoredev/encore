@@ -224,12 +224,12 @@ func parseCounterConfig(c metricConstructor, d parseutil.ReferenceInfo, cfgLit *
 	// We don't have any actual configuration yet.
 	// Parse anyway to make sure we don't have any fields we don't expect.
 	type decodedConfig struct{}
-	_ = literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	_ = literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
 }
 
 func parseGaugeConfig(c metricConstructor, d parseutil.ReferenceInfo, cfgLit *literals.Struct, dst *Metric) {
 	// We don't have any actual configuration yet.
 	// Parse anyway to make sure we don't have any fields we don't expect.
 	type decodedConfig struct{}
-	_ = literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	_ = literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
 }

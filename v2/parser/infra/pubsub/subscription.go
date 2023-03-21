@@ -1,10 +1,12 @@
 package pubsub
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"time"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/infra/internal/literals"
@@ -92,43 +94,52 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		return // error reported by ParseStruct
 	}
 
+	type retryConfig struct {
+		MinRetryBackoff time.Duration `literal:"MinBackoff,optional,default"`
+		MaxRetryBackoff time.Duration `literal:"MaxBackoff,optional,default"`
+		MaxRetries      int           `literal:"MaxRetries,optional,default"`
+	}
 	type decodedConfig struct {
 		Handler ast.Expr `literal:",dynamic,required"`
 
 		// Optional configuration
-		AckDeadline      time.Duration `literal:",optional" default:"30*time.Second"`
-		MessageRetention time.Duration `literal:",optional" default:"7*24*time.Hour"`
-		RetryPolicy      struct {
-			MinRetryBackoff time.Duration `literal:"MinBackoff,optional" default:"10*time.Second"`
-			MaxRetryBackoff time.Duration `literal:"MaxBackoff,optional" default:"10*time.Minute"`
-			MaxRetries      int           `literal:"MaxRetries,optional" default:"100"`
-		} `literal:",optional"`
+		AckDeadline      time.Duration `literal:",optional,default"`
+		MessageRetention time.Duration `literal:",optional,default"`
+		RetryPolicy      retryConfig   `literal:",optional,default"`
+	}
+	defaults := decodedConfig{
+		AckDeadline:      30 * time.Second,
+		MessageRetention: 7 * 24 * time.Hour,
+		RetryPolicy: retryConfig{
+			MinRetryBackoff: 10 * time.Second,
+			MaxRetryBackoff: 10 * time.Minute,
+			MaxRetries:      100,
+		},
 	}
 
-	cfg := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	cfg := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, &defaults)
 
-	// Set defaults
-	if cfg.AckDeadline == 0 {
-		cfg.AckDeadline = 30 * time.Second
-	}
-	if cfg.MessageRetention == 0 {
-		cfg.MessageRetention = 7 * 24 * time.Hour
-	}
-	if cfg.RetryPolicy.MinRetryBackoff == 0 {
-		cfg.RetryPolicy.MinRetryBackoff = 10 * time.Second
-	}
-	if cfg.RetryPolicy.MaxRetryBackoff == 0 {
-		cfg.RetryPolicy.MaxRetryBackoff = 10 * time.Minute
-	}
-	if cfg.RetryPolicy.MaxRetries == 0 {
-		cfg.RetryPolicy.MaxRetries = 100
+	// Verify we have a config which is in-range of acceptable values
+	if cfg.AckDeadline < 1*time.Second {
+		errs.Add(errSubscriptionAckDeadlineTooShort.AtGoNode(cfgLit.Expr("AckDeadline"), errors.AsError(fmt.Sprintf("got %s", cfg.AckDeadline))))
 	}
 
-	// TODO(andre) validate value ranges
+	if cfg.MessageRetention < 1*time.Minute {
+		errs.Add(errSubscriptionMessageRetentionTooShort.AtGoNode(cfgLit.Expr("MessageRetention"), errors.AsError(fmt.Sprintf("got %s", cfg.MessageRetention))))
+	}
 
-	// TODO(andre) Handle pubsub attribute parsing
+	if cfg.RetryPolicy.MinRetryBackoff < 1*time.Second {
+		errs.Add(errSubscriptionMinRetryBackoffTooShort.AtGoNode(cfgLit.Expr("RetryPolicy.MinBackoff"), errors.AsError(fmt.Sprintf("got %s", cfg.RetryPolicy.MinRetryBackoff))))
+	}
 
-	// TODO(andre) handle default values, validate ranges
+	if cfg.RetryPolicy.MaxRetryBackoff < 1*time.Second {
+		errs.Add(errSubscriptionMaxRetryBackoffTooShort.AtGoNode(cfgLit.Expr("RetryPolicy.MaxBackoff"), errors.AsError(fmt.Sprintf("got %s", cfg.RetryPolicy.MaxRetryBackoff))))
+	}
+
+	if cfg.RetryPolicy.MaxRetries < -2 {
+		errs.Add(errSubscriptionMaxRetriesTooSmall.AtGoNode(cfgLit.Expr("RetryPolicy.MaxRetries"), errors.AsError(fmt.Sprintf("got %d", cfg.RetryPolicy.MaxRetries))))
+	}
+
 	subCfg := SubscriptionConfig{
 		AckDeadline:      cfg.AckDeadline,
 		MessageRetention: cfg.MessageRetention,

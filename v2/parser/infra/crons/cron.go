@@ -94,7 +94,7 @@ func parseCronJob(d parseutil.ReferenceInfo) {
 		Every    int64    `literal:",optional"`
 		Schedule string   `literal:",optional"`
 	}
-	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit)
+	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
 
 	// Resolve the endpoint
 	endpoint, ok := d.File.Names().ResolvePkgLevelRef(config.Endpoint)

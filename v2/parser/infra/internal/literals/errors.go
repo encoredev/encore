@@ -118,4 +118,10 @@ var (
 		"Invalid Argument",
 		"%s is an unsupported operation here.",
 	)
+
+	errDefaultTagNotSupported = errRange.New(
+		"Invalid Argument",
+		"Default tags are not supported.",
+		errors.MarkAsInternalError(),
+	)
 )
