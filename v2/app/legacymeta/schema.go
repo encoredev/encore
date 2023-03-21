@@ -231,6 +231,13 @@ func (b *builder) decl(decl schemav2.Decl) uint32 {
 	if n, ok := b.decls[k]; ok {
 		return n
 	}
+
+	// Compute the underlying type.
+	// Do it here since we don't want to recurse in-between
+	// allocating a declaration index and appending it
+	// to the list.
+	underlyingType := b.schemaType(typeDecl.Type)
+
 	// Otherwise add it.
 	declIdx := uint32(len(b.md.Decls))
 	b.decls[k] = declIdx
@@ -242,7 +249,7 @@ func (b *builder) decl(decl schemav2.Decl) uint32 {
 	b.md.Decls = append(b.md.Decls, &schema.Decl{
 		Id:         declIdx,
 		Name:       pkgName,
-		Type:       b.schemaType(typeDecl.Type),
+		Type:       underlyingType,
 		TypeParams: typeParams,
 		Doc:        typeDecl.Info.Doc,
 		Loc:        nil, // TODO?
