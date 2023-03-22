@@ -27,7 +27,7 @@ func Resolve(expSet *experiments.Set) builder.Impl {
 
 type Legacy struct{}
 
-func (Legacy) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
+func (Legacy) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
 	modPath := filepath.Join(p.App.Root(), "go.mod")
 	modData, err := os.ReadFile(modPath)
 	if err != nil {
@@ -59,7 +59,7 @@ func (Legacy) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 	}, nil
 }
 
-func (l Legacy) Compile(p builder.CompileParams) (*builder.CompileResult, error) {
+func (l Legacy) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
 	cfg := l.compilerConfig(p)
 	build, err := compiler.Build(p.App.Root(), cfg)
 	if err != nil {

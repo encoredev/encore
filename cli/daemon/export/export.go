@@ -59,7 +59,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	bld := builderimpl.Resolve(expSet)
-	parse, err := bld.Parse(builder.ParseParams{
+	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,
 		Experiments: expSet,
@@ -71,7 +71,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)
-	result, err := bld.Compile(builder.CompileParams{
+	result, err := bld.Compile(ctx, builder.CompileParams{
 		Build:       buildInfo,
 		App:         app,
 		Parse:       parse,

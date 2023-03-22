@@ -76,6 +76,10 @@ message RunRequest {
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 7;
+
+  // trace_file, if set specifies a trace file to write trace information
+  // about the parse and compilation process to.
+  optional string trace_file = 8;
 }
 
 message TestRequest {
@@ -85,6 +89,10 @@ message TestRequest {
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 4;
+
+  // trace_file, if set specifies a trace file to write trace information
+  // about the parse and compilation process to.
+  optional string trace_file = 5;
 }
 
 message ExecScriptRequest {

@@ -2,7 +2,10 @@ package parsectx
 
 import (
 	"context"
+	"fmt"
 	"go/token"
+	"runtime/trace"
+	"strings"
 	"time"
 
 	"github.com/rs/xid"
@@ -72,33 +75,55 @@ type BuildInfo struct {
 //	defer tr.Done()
 func (c *Context) Trace(op string, kvs ...any) *TraceLogger {
 	// If we're not tracing, do nothing.
-	if c.Log.GetLevel() > zerolog.TraceLevel {
+	if c.Log.GetLevel() > zerolog.TraceLevel && !trace.IsEnabled() {
 		return nil
 	}
+
+	taskCtx, task := trace.NewTask(c.Ctx, op)
 
 	log := c.Log.With().Str("op", op).Str("op_id", "op_"+xid.New().String()).Logger()
 	log.Trace().Caller(1).Fields(kvs).Msg("start")
 	now := time.Now()
-	return &TraceLogger{log: log, start: now, prev: now}
+	return &TraceLogger{taskCtx: taskCtx, task: task, log: log, start: now, prev: now}
 }
 
 type TraceLogger struct {
-	log   zerolog.Logger
-	start time.Time
-	prev  time.Time
+	taskCtx context.Context
+	task    *trace.Task
+	log     zerolog.Logger
+	start   time.Time
+	prev    time.Time
 }
 
 func (t *TraceLogger) Done(kvs ...any) {
 	if t == nil {
 		return
 	}
-	t.Emit("done", kvs...)
+	t.emit("done", kvs)
+	t.task.End()
 }
 
 func (t *TraceLogger) Emit(msg string, kvs ...any) {
 	if t == nil {
 		return
 	}
+	t.emit(msg, kvs)
+
+	// Write to the trace log if tracing is enabled.
+	if trace.IsEnabled() {
+		var logMsg strings.Builder
+		logMsg.WriteString(msg)
+		for i := 0; i < len(kvs)/2; i++ {
+			key := kvs[2*i]
+			value := kvs[2*i+1]
+			fmt.Fprintf(&logMsg, " %v=%v", key, value)
+		}
+
+		trace.Log(t.taskCtx, "", logMsg.String())
+	}
+}
+
+func (t *TraceLogger) emit(msg string, kvs []any) {
 	now := time.Now()
 	t.prev = now
 	t.log.Trace().

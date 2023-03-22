@@ -48,6 +48,12 @@ func (l *Loader) init() {
 	l.mainModule = l.loadModuleFromDisk(l.c.MainModuleDir, "")
 	// Manually cache the main module.
 	l.modules[l.mainModule.Path] = l.mainModule
+	l.modules["encore.dev"] = &Module{
+		l:       l,
+		RootDir: l.c.Build.EncoreRuntime,
+		Path:    "encore.dev",
+		Version: "v1.0.0",
+	}
 
 	b := l.c.Build
 	d := &build.Default
@@ -108,9 +114,6 @@ func (l *Loader) MustLoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package) 
 // LoadPkg loads a package.
 // If the package contains no Go files to build, it returns (nil, false).
 func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok bool) {
-	tr := l.c.Trace("pkgload.LoadPkg", "pkgPath", pkgPath)
-	defer tr.Done("result", pkg, "ok", ok)
-
 	// Do we have the result cached already?
 	l.parsedMu.Lock()
 	result, wasCached := l.parsed[pkgPath]

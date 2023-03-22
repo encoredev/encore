@@ -132,7 +132,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
-	parse, err := bld.Parse(builder.ParseParams{
+	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         params.App,
 		Experiments: expSet,

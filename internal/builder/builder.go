@@ -70,7 +70,7 @@ type TestParams struct {
 }
 
 type Impl interface {
-	Parse(ParseParams) (*ParseResult, error)
-	Compile(CompileParams) (*CompileResult, error)
+	Parse(context.Context, ParseParams) (*ParseResult, error)
+	Compile(context.Context, CompileParams) (*CompileResult, error)
 	Test(context.Context, TestParams) error
 }

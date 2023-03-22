@@ -4,6 +4,7 @@ package build
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go/token"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
+	"encr.dev/internal/etrace"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/v2/internal/overlay"
 	"encr.dev/v2/internal/parsectx"
@@ -73,8 +75,9 @@ func Build(cfg *Config) *Result {
 	return b.Build()
 }
 
-func Test(cfg *TestConfig) {
+func Test(ctx context.Context, cfg *TestConfig) {
 	b := &builder{
+		ctx:     ctx,
 		cfg:     &cfg.Config,
 		testCfg: cfg,
 		errs:    cfg.Ctx.Errs,
@@ -84,6 +87,7 @@ func Test(cfg *TestConfig) {
 
 type builder struct {
 	// inputs
+	ctx     context.Context
 	cfg     *Config
 	testCfg *TestConfig
 
@@ -181,223 +185,231 @@ func (b *builder) Test() {
 }
 
 func (b *builder) writeModFile() {
-	newPath := b.cfg.Ctx.Build.EncoreRuntime.ToIO()
-	oldPath := "encore.dev"
+	etrace.Sync0(b.ctx, "", "writeModFile", func(ctx context.Context) {
+		newPath := b.cfg.Ctx.Build.EncoreRuntime.ToIO()
+		oldPath := "encore.dev"
 
-	modData, err := os.ReadFile(b.cfg.Ctx.MainModuleDir.Join("go.mod").ToIO())
-	if err != nil {
-		b.errs.Addf(token.NoPos, "unable to read go.mod: %v", err)
-		return
-	}
-	mainMod, err := modfile.Parse("go.mod", modData, nil)
-	if err != nil {
-		b.errs.Addf(token.NoPos, "unable to parse go.mod: %v", err)
-		return
-	}
+		modData, err := os.ReadFile(b.cfg.Ctx.MainModuleDir.Join("go.mod").ToIO())
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to read go.mod: %v", err)
+			return
+		}
+		mainMod, err := modfile.Parse("go.mod", modData, nil)
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to parse go.mod: %v", err)
+			return
+		}
 
-	// Make sure there's a dependency on encore.dev so it can be replaced.
-	if err := mainMod.AddRequire("encore.dev", "v0.0.0"); err != nil {
-		b.errs.Addf(token.NoPos, "unable to add 'require encore.dev' directive to go.mod: %v", err)
-		return
-	}
-	if err := mainMod.AddReplace(oldPath, "", newPath, ""); err != nil {
-		b.errs.Addf(token.NoPos, "unable to add 'replace encore.dev' directive to go.mod: %v", err)
-		return
-	}
+		// Make sure there's a dependency on encore.dev so it can be replaced.
+		if err := mainMod.AddRequire("encore.dev", "v0.0.0"); err != nil {
+			b.errs.Addf(token.NoPos, "unable to add 'require encore.dev' directive to go.mod: %v", err)
+			return
+		}
+		if err := mainMod.AddReplace(oldPath, "", newPath, ""); err != nil {
+			b.errs.Addf(token.NoPos, "unable to add 'replace encore.dev' directive to go.mod: %v", err)
+			return
+		}
 
-	// We require Go 1.18+ now that we use generics in code gen.
-	if !isGo118Plus(mainMod) {
-		_ = mainMod.AddGoStmt("1.18")
-	}
-	mainMod.Cleanup()
+		// We require Go 1.18+ now that we use generics in code gen.
+		if !isGo118Plus(mainMod) {
+			_ = mainMod.AddGoStmt("1.18")
+		}
+		mainMod.Cleanup()
 
-	runtimeModData, err := os.ReadFile(filepath.Join(newPath, "go.mod"))
-	if err != nil {
-		b.errs.Addf(token.NoPos, "unable to read encore runtime's go.mod: %v", err)
-		return
-	}
-	runtimeModfile, err := modfile.Parse("encore-runtime/go.mod", runtimeModData, nil)
-	if err != nil {
-		b.errs.Addf(token.NoPos, "unable to parse encore runtime's go.mod: %v", err)
-		return
-	}
-	mergeModfiles(mainMod, runtimeModfile)
+		runtimeModData, err := os.ReadFile(filepath.Join(newPath, "go.mod"))
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to read encore runtime's go.mod: %v", err)
+			return
+		}
+		runtimeModfile, err := modfile.Parse("encore-runtime/go.mod", runtimeModData, nil)
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to parse encore runtime's go.mod: %v", err)
+			return
+		}
+		mergeModfiles(mainMod, runtimeModfile)
 
-	data := modfile.Format(mainMod.Syntax)
-	if err := os.WriteFile(b.gomodPath().ToIO(), data, 0o644); err != nil {
-		b.errs.Addf(token.NoPos, "unable to write go.mod: %v", err)
-		return
-	}
+		data := modfile.Format(mainMod.Syntax)
+		if err := os.WriteFile(b.gomodPath().ToIO(), data, 0o644); err != nil {
+			b.errs.Addf(token.NoPos, "unable to write go.mod: %v", err)
+			return
+		}
+	})
 }
 
 func (b *builder) writeSumFile() {
-	appSum, err := os.ReadFile(b.cfg.Ctx.MainModuleDir.Join("go.sum").ToIO())
-	if err != nil && !os.IsNotExist(err) {
-		b.errs.Addf(token.NoPos, "unable to parse go.sum: %v", err)
-		return
-	}
-	runtimeSum, err := os.ReadFile(b.cfg.Ctx.Build.EncoreRuntime.Join("go.sum").ToIO())
-	if err != nil {
-		b.errs.Addf(token.NoPos, "unable to parse encore runtime's go.sum: %v", err)
-		return
-	}
-	if !bytes.HasSuffix(appSum, []byte{'\n'}) {
-		appSum = append(appSum, '\n')
-	}
-	data := append(appSum, runtimeSum...)
+	etrace.Sync0(b.ctx, "", "writeSumFile", func(ctx context.Context) {
+		appSum, err := os.ReadFile(b.cfg.Ctx.MainModuleDir.Join("go.sum").ToIO())
+		if err != nil && !os.IsNotExist(err) {
+			b.errs.Addf(token.NoPos, "unable to parse go.sum: %v", err)
+			return
+		}
+		runtimeSum, err := os.ReadFile(b.cfg.Ctx.Build.EncoreRuntime.Join("go.sum").ToIO())
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to parse encore runtime's go.sum: %v", err)
+			return
+		}
+		if !bytes.HasSuffix(appSum, []byte{'\n'}) {
+			appSum = append(appSum, '\n')
+		}
+		data := append(appSum, runtimeSum...)
 
-	if err := os.WriteFile(b.gosumPath().ToIO(), data, 0o644); err != nil {
-		b.errs.Addf(token.NoPos, "unable to write go.sum: %v", err)
-		return
-	}
+		if err := os.WriteFile(b.gosumPath().ToIO(), data, 0o644); err != nil {
+			b.errs.Addf(token.NoPos, "unable to write go.sum: %v", err)
+			return
+		}
+	})
 }
 
 func (b *builder) gomodPath() paths.FS { return b.workdir.Join("go.mod") }
 func (b *builder) gosumPath() paths.FS { return b.workdir.Join("go.sum") }
 
 func (b *builder) buildMain() {
-	overlayFiles := append(b.overlays, b.cfg.Overlays...)
-	overlayPath, err := overlay.Write(b.workdir, overlayFiles)
-	if err != nil {
-		b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
-		return
-	}
-
-	build := b.cfg.Ctx.Build
-	tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
-	args := []string{
-		"build",
-		"-tags=" + strings.Join(tags, ","),
-		"-overlay=" + overlayPath.ToIO(),
-		"-modfile=" + b.gomodPath().ToIO(),
-		"-mod=mod",
-		"-o=" + b.binaryPath().ToIO(),
-	}
-
-	if b.cfg.Ctx.Build.StaticLink {
-		var ldflags string
-
-		// Enable external linking if we use cgo.
-		if b.cfg.Ctx.Build.CgoEnabled {
-			ldflags = "-linkmode external "
+	etrace.Sync0(b.ctx, "", "buildMain", func(ctx context.Context) {
+		overlayFiles := append(b.overlays, b.cfg.Overlays...)
+		overlayPath, err := overlay.Write(b.workdir, overlayFiles)
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
+			return
 		}
 
-		ldflags += `-extldflags "-static"`
-		args = append(args, "-ldflags", ldflags)
-	}
-
-	if b.cfg.Ctx.Build.Debug {
-		// Disable inlining for better debugging.
-		args = append(args, `-gcflags "all=-N -l"`)
-	}
-
-	args = append(args, b.cfg.MainPkg.String())
-
-	goroot := build.GOROOT
-	cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
-
-	// Copy the env before we add additional env vars
-	// to avoid accidentally sharing the same backing array.
-	env := make([]string, len(b.cfg.Env))
-	copy(env, b.cfg.Env)
-
-	env = append(env,
-		"GO111MODULE=on",
-		"GOROOT="+goroot.ToIO(),
-	)
-	if goos := build.GOOS; goos != "" {
-		env = append(env, "GOOS="+goos)
-	}
-	if goarch := build.GOARCH; goarch != "" {
-		env = append(env, "GOARCH="+goarch)
-	}
-	if !build.CgoEnabled {
-		env = append(env, "CGO_ENABLED=0")
-	}
-	cmd.Env = append(os.Environ(), env...)
-	cmd.Dir = b.cfg.Ctx.MainModuleDir.ToIO()
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		if len(out) == 0 {
-			out = []byte(err.Error())
+		build := b.cfg.Ctx.Build
+		tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
+		args := []string{
+			"build",
+			"-tags=" + strings.Join(tags, ","),
+			"-overlay=" + overlayPath.ToIO(),
+			"-modfile=" + b.gomodPath().ToIO(),
+			"-mod=mod",
+			"-o=" + b.binaryPath().ToIO(),
 		}
-		out = convertCompileErrors(b.errs, out, b.workdir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO())
-		if len(out) > 0 {
-			// TODO make this nicer
-			b.errs.AddStd(fmt.Errorf("compilation failure: %s", out))
+
+		if b.cfg.Ctx.Build.StaticLink {
+			var ldflags string
+
+			// Enable external linking if we use cgo.
+			if b.cfg.Ctx.Build.CgoEnabled {
+				ldflags = "-linkmode external "
+			}
+
+			ldflags += `-extldflags "-static"`
+			args = append(args, "-ldflags", ldflags)
 		}
-	}
+
+		if b.cfg.Ctx.Build.Debug {
+			// Disable inlining for better debugging.
+			args = append(args, `-gcflags "all=-N -l"`)
+		}
+
+		args = append(args, b.cfg.MainPkg.String())
+
+		goroot := build.GOROOT
+		cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
+
+		// Copy the env before we add additional env vars
+		// to avoid accidentally sharing the same backing array.
+		env := make([]string, len(b.cfg.Env))
+		copy(env, b.cfg.Env)
+
+		env = append(env,
+			"GO111MODULE=on",
+			"GOROOT="+goroot.ToIO(),
+		)
+		if goos := build.GOOS; goos != "" {
+			env = append(env, "GOOS="+goos)
+		}
+		if goarch := build.GOARCH; goarch != "" {
+			env = append(env, "GOARCH="+goarch)
+		}
+		if !build.CgoEnabled {
+			env = append(env, "CGO_ENABLED=0")
+		}
+		cmd.Env = append(os.Environ(), env...)
+		cmd.Dir = b.cfg.Ctx.MainModuleDir.ToIO()
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			if len(out) == 0 {
+				out = []byte(err.Error())
+			}
+			out = convertCompileErrors(b.errs, out, b.workdir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO())
+			if len(out) > 0 {
+				// TODO make this nicer
+				b.errs.AddStd(fmt.Errorf("compilation failure: %s", out))
+			}
+		}
+	})
 }
 
 func (b *builder) runTests() {
-	overlayFiles := append(b.overlays, b.cfg.Overlays...)
-	overlayPath, err := overlay.Write(b.workdir, overlayFiles)
-	if err != nil {
-		b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
-		return
-	}
-
-	build := b.cfg.Ctx.Build
-	tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
-	args := []string{
-		"test",
-		"-tags=" + strings.Join(tags, ","),
-		"-overlay=" + overlayPath.ToIO(),
-		"-modfile=" + b.gomodPath().ToIO(),
-		"-mod=mod",
-		"-vet=off",
-	}
-
-	if b.cfg.Ctx.Build.StaticLink {
-		var ldflags string
-
-		// Enable external linking if we use cgo.
-		if b.cfg.Ctx.Build.CgoEnabled {
-			ldflags = "-linkmode external "
+	etrace.Sync0(b.ctx, "", "runTests", func(ctx context.Context) {
+		overlayFiles := append(b.overlays, b.cfg.Overlays...)
+		overlayPath, err := overlay.Write(b.workdir, overlayFiles)
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
+			return
 		}
 
-		ldflags += `-extldflags "-static"`
-		args = append(args, "-ldflags", ldflags)
-	}
+		build := b.cfg.Ctx.Build
+		tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
+		args := []string{
+			"test",
+			"-tags=" + strings.Join(tags, ","),
+			"-overlay=" + overlayPath.ToIO(),
+			"-modfile=" + b.gomodPath().ToIO(),
+			"-mod=mod",
+			"-vet=off",
+		}
 
-	if b.cfg.Ctx.Build.Debug {
-		// Disable inlining for better debugging.
-		args = append(args, `-gcflags "all=-N -l"`)
-	}
+		if b.cfg.Ctx.Build.StaticLink {
+			var ldflags string
 
-	args = append(args, b.testCfg.Args...)
+			// Enable external linking if we use cgo.
+			if b.cfg.Ctx.Build.CgoEnabled {
+				ldflags = "-linkmode external "
+			}
 
-	goroot := build.GOROOT
-	cmd := exec.CommandContext(b.cfg.Ctx.Ctx, goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
+			ldflags += `-extldflags "-static"`
+			args = append(args, "-ldflags", ldflags)
+		}
 
-	// Copy the env before we add additional env vars
-	// to avoid accidentally sharing the same backing array.
-	env := make([]string, len(b.cfg.Env))
-	copy(env, b.cfg.Env)
+		if b.cfg.Ctx.Build.Debug {
+			// Disable inlining for better debugging.
+			args = append(args, `-gcflags "all=-N -l"`)
+		}
 
-	env = append(env,
-		"GO111MODULE=on",
-		"GOROOT="+goroot.ToIO(),
-	)
-	if goos := build.GOOS; goos != "" {
-		env = append(env, "GOOS="+goos)
-	}
-	if goarch := build.GOARCH; goarch != "" {
-		env = append(env, "GOARCH="+goarch)
-	}
-	if !build.CgoEnabled {
-		env = append(env, "CGO_ENABLED=0")
-	}
-	cmd.Env = append(os.Environ(), env...)
-	cmd.Dir = b.testCfg.WorkingDir.ToIO()
-	cmd.Stdout = b.testCfg.Stdout
-	cmd.Stderr = b.testCfg.Stderr
+		args = append(args, b.testCfg.Args...)
 
-	err = cmd.Run()
-	if err != nil {
-		// TODO make this nicer
-		b.errs.AddStd(fmt.Errorf("test failure: %v", err))
-	}
+		goroot := build.GOROOT
+		cmd := exec.CommandContext(b.cfg.Ctx.Ctx, goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
+
+		// Copy the env before we add additional env vars
+		// to avoid accidentally sharing the same backing array.
+		env := make([]string, len(b.cfg.Env))
+		copy(env, b.cfg.Env)
+
+		env = append(env,
+			"GO111MODULE=on",
+			"GOROOT="+goroot.ToIO(),
+		)
+		if goos := build.GOOS; goos != "" {
+			env = append(env, "GOOS="+goos)
+		}
+		if goarch := build.GOARCH; goarch != "" {
+			env = append(env, "GOARCH="+goarch)
+		}
+		if !build.CgoEnabled {
+			env = append(env, "CGO_ENABLED=0")
+		}
+		cmd.Env = append(os.Environ(), env...)
+		cmd.Dir = b.testCfg.WorkingDir.ToIO()
+		cmd.Stdout = b.testCfg.Stdout
+		cmd.Stderr = b.testCfg.Stderr
+
+		err = cmd.Run()
+		if err != nil {
+			// TODO make this nicer
+			b.errs.AddStd(fmt.Errorf("test failure: %v", err))
+		}
+	})
 }
 
 // mergeModFiles merges two modfiles, adding the require statements from the latter to the former.

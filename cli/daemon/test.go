@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -14,11 +15,20 @@ import (
 
 // Test runs tests.
 func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServer) error {
+	ctx := stream.Context()
 	slog := &streamLog{stream: stream, buffered: false}
+	stderr := slog.Stderr(false)
 	sendErr := func(err error) {
-		slog.Stderr(false).Write([]byte(err.Error() + "\n"))
+		stderr.Write([]byte(err.Error() + "\n"))
 		streamExit(stream, 1)
 	}
+
+	ctx, tracer, err := s.beginTracing(ctx, req.AppRoot, req.WorkingDir, req.TraceFile)
+	if err != nil {
+		sendErr(err)
+		return nil
+	}
+	defer tracer.Close()
 
 	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
@@ -29,6 +39,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	secrets := s.sm.Load(app)
 
 	// Parse the app to figure out what infrastructure is needed.
+	// TODO(andre) remove this
 	parse, err := s.parseApp(app.Root(), req.WorkingDir, true /* parse tests */)
 	if err != nil {
 		sendErr(err)
@@ -56,7 +67,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		}()
 	}
 
-	testCtx, cancel := context.WithCancel(stream.Context())
+	testCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	testResults := make(chan error, 1)
@@ -68,10 +79,11 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 				case error:
 					err = recovered
 				default:
-					err = fmt.Errorf("%v", recovered)
+					err = fmt.Errorf("%+v", recovered)
 				}
-				log.Err(err).Msg("panic during test run")
-				testResults <- fmt.Errorf("panic occured within Encore during test run: %v\n", recovered)
+				stack := debug.Stack()
+				log.Err(err).Msgf("panic during test run:\n%s", stack)
+				testResults <- fmt.Errorf("panic occured within Encore during test run: %v\n%s\n", recovered, stack)
 			}
 		}()
 

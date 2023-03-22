@@ -56,7 +56,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 	}
 
 	bld := builderimpl.Resolve(expSet)
-	parse, err := bld.Parse(builder.ParseParams{
+	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         p.App,
 		Experiments: expSet,
@@ -67,7 +67,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		return "", err
 	}
 
-	result, err := bld.Compile(builder.CompileParams{
+	result, err := bld.Compile(ctx, builder.CompileParams{
 		Build:       buildInfo,
 		App:         p.App,
 		Parse:       parse,

@@ -29,6 +29,14 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		})
 	}
 
+	ctx, tracer, err := s.beginTracing(ctx, req.AppRoot, req.WorkingDir, req.TraceFile)
+	if err != nil {
+		fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to begin tracing: %v"), err))
+		sendExit(1)
+		return nil
+	}
+	defer tracer.Close()
+
 	// ListenAddr should always be passed but guard against old clients.
 	listenAddr := req.ListenAddr
 	if listenAddr == "" {

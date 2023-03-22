@@ -15,6 +15,7 @@ import (
 
 	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
+	"encr.dev/internal/etrace"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/promise"
@@ -35,51 +36,57 @@ import (
 
 type BuilderImpl struct{}
 
-func (BuilderImpl) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
-	ctx := context.Background()
-	fs := token.NewFileSet()
-	errs := perr.NewList(ctx, fs)
-	pc := &parsectx.Context{
-		Ctx: ctx,
-		Log: zerolog.New(zerolog.NewConsoleWriter()),
-		Build: parsectx.BuildInfo{
-			GOROOT:        paths.RootedFSPath(env.EncoreGoRoot(), "."),
-			EncoreRuntime: paths.RootedFSPath(env.EncoreRuntimePath(), "."),
+func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
+	return etrace.Sync2(ctx, "", "v2builder.Parse", func(ctx context.Context) (res *builder.ParseResult, err error) {
+		defer func() {
+			if l, ok := perr.CatchBailout(recover()); ok {
+				err = fmt.Errorf("parse error: %s\n", l.FormatErrors())
+			}
+		}()
+		fs := token.NewFileSet()
+		errs := perr.NewList(ctx, fs)
+		pc := &parsectx.Context{
+			Ctx: ctx,
+			Log: zerolog.New(zerolog.NewConsoleWriter()),
+			Build: parsectx.BuildInfo{
+				GOROOT:        paths.RootedFSPath(env.EncoreGoRoot(), "."),
+				EncoreRuntime: paths.RootedFSPath(env.EncoreRuntimePath(), "."),
 
-			GOARCH:             p.Build.GOARCH,
-			GOOS:               p.Build.GOOS,
-			CgoEnabled:         p.Build.CgoEnabled,
-			StaticLink:         p.Build.StaticLink,
-			Debug:              p.Build.Debug,
-			BuildTags:          p.Build.BuildTags,
-			Revision:           p.Build.Revision,
-			UncommittedChanges: p.Build.UncommittedChanges,
-		},
-		MainModuleDir: paths.RootedFSPath(p.App.Root(), p.WorkingDir),
-		FS:            fs,
-		ParseTests:    p.ParseTests,
-		Errs:          errs,
-	}
+				GOARCH:             p.Build.GOARCH,
+				GOOS:               p.Build.GOOS,
+				CgoEnabled:         p.Build.CgoEnabled,
+				StaticLink:         p.Build.StaticLink,
+				Debug:              p.Build.Debug,
+				BuildTags:          p.Build.BuildTags,
+				Revision:           p.Build.Revision,
+				UncommittedChanges: p.Build.UncommittedChanges,
+			},
+			MainModuleDir: paths.RootedFSPath(p.App.Root(), "."),
+			FS:            fs,
+			ParseTests:    p.ParseTests,
+			Errs:          errs,
+		}
 
-	parser := parser.NewParser(pc)
-	parserResult := parser.Parse()
-	appDesc := app.ValidateAndDescribe(pc, parserResult)
-	meta := legacymeta.Compute(pc.Errs, appDesc)
-	mainModule := parser.MainModule()
+		parser := parser.NewParser(pc)
+		parserResult := parser.Parse()
+		appDesc := app.ValidateAndDescribe(pc, parserResult)
+		meta := legacymeta.Compute(pc.Errs, appDesc)
+		mainModule := parser.MainModule()
 
-	if pc.Errs.Len() > 0 {
-		return nil, errors.New(pc.Errs.FormatErrors())
-	}
+		if pc.Errs.Len() > 0 {
+			return nil, errors.New(pc.Errs.FormatErrors())
+		}
 
-	return &builder.ParseResult{
-		Meta: meta,
-		Data: &parseData{
-			pc:         pc,
-			appDesc:    appDesc,
-			mainPkg:    paths.Pkg("./__encore/main"), // TODO
-			mainModule: mainModule,
-		},
-	}, nil
+		return &builder.ParseResult{
+			Meta: meta,
+			Data: &parseData{
+				pc:         pc,
+				appDesc:    appDesc,
+				mainPkg:    paths.Pkg("./__encore/main"), // TODO
+				mainModule: mainModule,
+			},
+		}, nil
+	})
 }
 
 type parseData struct {
@@ -89,103 +96,117 @@ type parseData struct {
 	mainModule *pkginfo.Module
 }
 
-func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult, err error) {
-	pd := p.Parse.Data.(*parseData)
+func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
+	return etrace.Sync2(ctx, "", "v2builder.Compile", func(ctx context.Context) (res *builder.CompileResult, err error) {
+		defer func() {
+			if l, ok := perr.CatchBailout(recover()); ok {
+				err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
+			}
+		}()
 
-	gg := codegen.New(pd.pc)
-	infragen.Process(gg, pd.appDesc)
-	apigen.Process(gg, pd.appDesc, pd.mainModule, option.None[codegen.TestConfig]())
+		pd := p.Parse.Data.(*parseData)
 
-	defer func() {
-		if l, ok := perr.CatchBailout(recover()); ok {
-			err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
-		}
-	}()
+		gg := codegen.New(pd.pc)
+		infragen.Process(gg, pd.appDesc)
+		apigen.Process(gg, pd.appDesc, pd.mainModule, option.None[codegen.TestConfig]())
 
-	configProm := promise.New(func() (configResult, error) {
-		return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
-	})
+		defer func() {
+			if l, ok := perr.CatchBailout(recover()); ok {
+				err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
+			}
+		}()
 
-	buildResult := build.Build(&build.Config{
-		Ctx:        pd.pc,
-		Overlays:   gg.Overlays(),
-		MainPkg:    pd.mainPkg,
-		KeepOutput: p.Build.KeepOutput,
-	})
+		configProm := promise.New(func() (configResult, error) {
+			return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
+		})
 
-	res = &builder.CompileResult{
-		Dir: buildResult.Dir.ToIO(),
-		Exe: buildResult.Exe.ToIO(),
-	}
-	if pd.pc.Errs.Len() > 0 {
-		return res, fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
-	}
-
-	config, err := configProm.Get(pd.pc.Ctx)
-	if err != nil {
-		return res, err
-	}
-	res.Configs = config.configs
-	res.ConfigFiles = config.files
-
-	return res, nil
-}
-
-func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) (err error) {
-	pd := p.Compile.Parse.Data.(*parseData)
-
-	configProm := promise.New(func() (configResult, error) {
-		return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta), nil
-	})
-
-	testCfg := codegen.TestConfig{}
-	for _, pkg := range pd.appDesc.Parse.AppPackages() {
-		isTestFile := func(f *pkginfo.File) bool { return f.TestFile }
-		hasTestFiles := slices.IndexFunc(pkg.Files, isTestFile) != -1
-		if hasTestFiles {
-			testCfg.Packages = append(testCfg.Packages, pkg)
-		}
-	}
-
-	gg := codegen.New(pd.pc)
-	infragen.Process(gg, pd.appDesc)
-	apigen.Process(gg, pd.appDesc, pd.mainModule, option.Some(testCfg))
-
-	defer func() {
-		if l, ok := perr.CatchBailout(recover()); ok {
-			err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
-		}
-	}()
-
-	configs, err := configProm.Get(pd.pc.Ctx)
-	if err != nil {
-		return err
-	}
-
-	envs := make([]string, 0, len(p.Env)+len(configs.configs))
-	envs = append(envs, p.Env...)
-	for serviceName, cfgString := range configs.configs {
-		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
-	}
-
-	build.Test(&build.TestConfig{
-		Config: build.Config{
+		buildResult := build.Build(&build.Config{
 			Ctx:        pd.pc,
 			Overlays:   gg.Overlays(),
 			MainPkg:    pd.mainPkg,
-			KeepOutput: false,
-			Env:        envs,
-		},
-		Args:       p.Args,
-		Stdout:     p.Stdout,
-		Stderr:     p.Stderr,
-		WorkingDir: paths.RootedFSPath(p.Compile.App.Root(), p.Compile.WorkingDir),
-	})
+			KeepOutput: p.Build.KeepOutput,
+		})
 
-	if pd.pc.Errs.Len() > 0 {
-		return fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
-	}
-	return nil
+		res = &builder.CompileResult{
+			Dir: buildResult.Dir.ToIO(),
+			Exe: buildResult.Exe.ToIO(),
+		}
+		if pd.pc.Errs.Len() > 0 {
+			return res, fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
+		}
+
+		config, err := configProm.Get(pd.pc.Ctx)
+		if err != nil {
+			return res, err
+		}
+		res.Configs = config.configs
+		res.ConfigFiles = config.files
+
+		return res, nil
+	})
+}
+
+func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
+	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
+		defer func() {
+			if l, ok := perr.CatchBailout(recover()); ok {
+				err = fmt.Errorf("test failure: %s\n", l.FormatErrors())
+			}
+		}()
+
+		pd := p.Compile.Parse.Data.(*parseData)
+
+		configProm := promise.New(func() (configResult, error) {
+			result := etrace.Async1(ctx, "", "computeConfigs", func(ctx context.Context) configResult {
+				return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta)
+			})
+			return result, nil
+		})
+
+		gg := codegen.New(pd.pc)
+		etrace.Sync0(ctx, "", "codegen", func(ctx context.Context) {
+			testCfg := codegen.TestConfig{}
+			for _, pkg := range pd.appDesc.Parse.AppPackages() {
+				isTestFile := func(f *pkginfo.File) bool { return f.TestFile }
+				hasTestFiles := slices.IndexFunc(pkg.Files, isTestFile) != -1
+				if hasTestFiles {
+					testCfg.Packages = append(testCfg.Packages, pkg)
+				}
+			}
+
+			infragen.Process(gg, pd.appDesc)
+			apigen.Process(gg, pd.appDesc, pd.mainModule, option.Some(testCfg))
+		})
+
+		configs, err := configProm.Get(pd.pc.Ctx)
+		if err != nil {
+			return err
+		}
+
+		envs := make([]string, 0, len(p.Env)+len(configs.configs))
+		envs = append(envs, p.Env...)
+		for serviceName, cfgString := range configs.configs {
+			envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+		}
+
+		build.Test(ctx, &build.TestConfig{
+			Config: build.Config{
+				Ctx:        pd.pc,
+				Overlays:   gg.Overlays(),
+				KeepOutput: false,
+				Env:        envs,
+			},
+			Args:       p.Args,
+			Stdout:     p.Stdout,
+			Stderr:     p.Stderr,
+			WorkingDir: paths.RootedFSPath(p.Compile.App.Root(), p.Compile.WorkingDir),
+		})
+
+		if pd.pc.Errs.Len() > 0 {
+			return fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
+		}
+		return nil
+	})
 }
 
 type configResult struct {

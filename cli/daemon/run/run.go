@@ -269,7 +269,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
-	parse, err := r.builder.Parse(builder.ParseParams{
+	parse, err := r.builder.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         r.App,
 		Experiments: expSet,
@@ -289,7 +289,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
-		build, err = r.builder.Compile(builder.CompileParams{
+		build, err = r.builder.Compile(ctx, builder.CompileParams{
 			Build:       buildInfo,
 			App:         r.App,
 			Parse:       parse,

@@ -180,3 +180,11 @@ func fatal(args ...interface{}) {
 func fatalf(format string, args ...interface{}) {
 	cmdutil.Fatalf(format, args...)
 }
+
+func nonZeroPtr[T comparable](v T) *T {
+	var zero T
+	if v == zero {
+		return nil
+	}
+	return &v
+}
