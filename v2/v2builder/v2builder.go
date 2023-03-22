@@ -2,6 +2,7 @@ package v2builder
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"go/token"
@@ -10,10 +11,12 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
+	"golang.org/x/exp/slices"
 
 	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vfs"
 	"encr.dev/v2/app"
@@ -91,7 +94,7 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 
 	gg := codegen.New(pd.pc)
 	infragen.Process(gg, pd.appDesc)
-	apigen.Process(gg, pd.appDesc, pd.mainModule)
+	apigen.Process(gg, pd.appDesc, pd.mainModule, option.None[codegen.TestConfig]())
 
 	defer func() {
 		if l, ok := perr.CatchBailout(recover()); ok {
@@ -126,6 +129,63 @@ func (BuilderImpl) Compile(p builder.CompileParams) (res *builder.CompileResult,
 	res.ConfigFiles = config.files
 
 	return res, nil
+}
+
+func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) (err error) {
+	pd := p.Compile.Parse.Data.(*parseData)
+
+	configProm := promise.New(func() (configResult, error) {
+		return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta), nil
+	})
+
+	testCfg := codegen.TestConfig{}
+	for _, pkg := range pd.appDesc.Parse.AppPackages() {
+		isTestFile := func(f *pkginfo.File) bool { return f.TestFile }
+		hasTestFiles := slices.IndexFunc(pkg.Files, isTestFile) != -1
+		if hasTestFiles {
+			testCfg.Packages = append(testCfg.Packages, pkg)
+		}
+	}
+
+	gg := codegen.New(pd.pc)
+	infragen.Process(gg, pd.appDesc)
+	apigen.Process(gg, pd.appDesc, pd.mainModule, option.Some(testCfg))
+
+	defer func() {
+		if l, ok := perr.CatchBailout(recover()); ok {
+			err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
+		}
+	}()
+
+	configs, err := configProm.Get(pd.pc.Ctx)
+	if err != nil {
+		return err
+	}
+
+	envs := make([]string, 0, len(p.Env)+len(configs.configs))
+	envs = append(envs, p.Env...)
+	for serviceName, cfgString := range configs.configs {
+		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+	}
+
+	build.Test(&build.TestConfig{
+		Config: build.Config{
+			Ctx:        pd.pc,
+			Overlays:   gg.Overlays(),
+			MainPkg:    pd.mainPkg,
+			KeepOutput: false,
+			Env:        envs,
+		},
+		Args:       p.Args,
+		Stdout:     p.Stdout,
+		Stderr:     p.Stderr,
+		WorkingDir: paths.RootedFSPath(p.Compile.App.Root(), p.Compile.WorkingDir),
+	})
+
+	if pd.pc.Errs.Len() > 0 {
+		return fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
+	}
+	return nil
 }
 
 type configResult struct {

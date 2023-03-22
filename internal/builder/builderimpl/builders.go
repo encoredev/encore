@@ -1,6 +1,7 @@
 package builderimpl
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -58,9 +59,22 @@ func (Legacy) Parse(p builder.ParseParams) (*builder.ParseResult, error) {
 	}, nil
 }
 
-func (Legacy) Compile(p builder.CompileParams) (*builder.CompileResult, error) {
+func (l Legacy) Compile(p builder.CompileParams) (*builder.CompileResult, error) {
+	cfg := l.compilerConfig(p)
+	build, err := compiler.Build(p.App.Root(), cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &builder.CompileResult{
+		Dir:     build.Dir,
+		Exe:     build.Exe,
+		Configs: build.Configs,
+	}, nil
+}
+
+func (Legacy) compilerConfig(p builder.CompileParams) *compiler.Config {
 	//goland:noinspection HttpUrlsUsage
-	cfg := &compiler.Config{
+	return &compiler.Config{
 		Revision:              p.Parse.Meta.AppRevision,
 		UncommittedChanges:    p.Parse.Meta.UncommittedChanges,
 		WorkingDir:            p.WorkingDir,
@@ -80,14 +94,15 @@ func (Legacy) Compile(p builder.CompileParams) (*builder.CompileResult, error) {
 		GOOS:                p.Build.GOOS,
 		GOARCH:              p.Build.GOARCH,
 	}
+}
 
-	build, err := compiler.Build(p.App.Root(), cfg)
-	if err != nil {
-		return nil, err
+func (l Legacy) Test(ctx context.Context, p builder.TestParams) error {
+	cfg := l.compilerConfig(p.Compile)
+	cfg.Test = &compiler.TestConfig{
+		Env:    p.Env,
+		Args:   p.Args,
+		Stdout: p.Stdout,
+		Stderr: p.Stderr,
 	}
-	return &builder.CompileResult{
-		Dir:     build.Dir,
-		Exe:     build.Exe,
-		Configs: build.Configs,
-	}, nil
+	return compiler.Test(ctx, p.Compile.App.Root(), cfg)
 }

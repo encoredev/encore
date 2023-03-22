@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"context"
+	"io"
 	"io/fs"
 
 	"encr.dev/cli/daemon/apps"
@@ -32,11 +34,6 @@ type ParseParams struct {
 	ScriptMainPkg string
 }
 
-type Impl interface {
-	Parse(ParseParams) (*ParseResult, error)
-	Compile(CompileParams) (*CompileResult, error)
-}
-
 type ParseResult struct {
 	Meta *meta.Data
 	Data any
@@ -57,4 +54,23 @@ type CompileResult struct {
 	Exe         string
 	Configs     map[string]string
 	ConfigFiles fs.FS
+}
+
+type TestParams struct {
+	Compile CompileParams
+
+	// Env sets environment variables for "go test".
+	Env []string
+
+	// Args sets extra arguments for "go test".
+	Args []string
+
+	// Stdout and Stderr are where to redirect "go test" output.
+	Stdout, Stderr io.Writer
+}
+
+type Impl interface {
+	Parse(ParseParams) (*ParseResult, error)
+	Compile(CompileParams) (*CompileResult, error)
+	Test(context.Context, TestParams) error
 }

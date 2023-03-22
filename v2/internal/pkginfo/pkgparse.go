@@ -8,10 +8,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
+	"encr.dev/pkg/fns"
 	"encr.dev/v2/internal/paths"
 )
 
@@ -53,11 +55,11 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 	if n := len(pkgs); n > 1 {
 		// Make sure the extra packages are just "_test" packages.
 		// Pull out the package names.
-		var pkgNames []string
-		for _, pkg := range pkgs {
-			pkgNames = append(pkgNames, pkg.Name)
-		}
-		sort.Strings(pkgNames)
+
+		slices.SortFunc(pkgs, func(a, b *ast.Package) bool {
+			return a.Name < b.Name
+		})
+		pkgNames := fns.Map(pkgs, func(pkg *ast.Package) string { return pkg.Name })
 		if n == 2 && pkgNames[1] == pkgNames[0]+"_test" {
 			// We're good
 		} else {

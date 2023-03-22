@@ -18,7 +18,7 @@ import (
 	"encr.dev/v2/parser/apis/middleware"
 )
 
-func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) {
+func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module, testConfig option.Option[codegen.TestConfig]) {
 	gp := maingen.GenParams{
 		Gen:            gg,
 		Desc:           desc,
@@ -27,6 +27,7 @@ func Process(gg *codegen.Generator, desc *app.Desc, mainModule *pkginfo.Module) 
 		Middleware:     make(map[*middleware.Middleware]*codegen.VarDecl),
 		AuthHandler:    option.None[*codegen.VarDecl](),
 		ServiceStructs: make(map[*app.Service]*codegen.VarDecl),
+		Test:           testConfig,
 	}
 
 	if fw, ok := desc.Framework.Get(); ok {
