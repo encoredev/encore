@@ -91,7 +91,6 @@ func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) err
 	e := &Error{Code: code, Message: msg, underlying: err}
 	if ee, ok := err.(*Error); ok {
 		e.Details = ee.Details
-		e.Code = ee.Code
 		e.Meta = mergeMeta(ee.Meta, metaPairs)
 		e.stack = ee.stack
 	} else {
