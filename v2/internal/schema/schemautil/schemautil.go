@@ -1,10 +1,15 @@
 package schemautil
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"fmt"
+	"go/types"
 	"reflect"
+	"strconv"
 
 	"encr.dev/internal/paths"
+	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/schema"
 )
 
@@ -244,4 +249,147 @@ func walk(node schema.Type, visitor func(typ schema.Type) bool, declChain []pkgD
 	}
 
 	return true
+}
+
+type TypeHash [32]byte
+
+// Hash produces a hash of the given type.
+// Identical types return identical hashes.
+func Hash(typ schema.Type) TypeHash {
+	var buf bytes.Buffer
+	hashType(&buf, typ)
+	return sha256.Sum256(buf.Bytes())
+}
+
+func hashType(buf *bytes.Buffer, t schema.Type) {
+	switch t := t.(type) {
+	case schema.NamedType:
+		buf.WriteString("named:")
+		buf.WriteString(t.DeclInfo.File.Pkg.ImportPath.String())
+		buf.WriteString(t.DeclInfo.Name)
+		if len(t.TypeArgs) > 0 {
+			buf.WriteString("[")
+			for i, arg := range t.TypeArgs {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				hashType(buf, arg)
+			}
+			buf.WriteString("]")
+		}
+
+	case schema.StructType:
+		buf.WriteString("struct{")
+		for _, f := range t.Fields {
+			if name, ok := f.Name.Get(); ok {
+				buf.WriteString(name)
+				hashType(buf, f.Type)
+				buf.WriteString(";")
+			}
+		}
+		buf.WriteString("}")
+
+	case schema.MapType:
+		buf.WriteString("map[")
+		hashType(buf, t.Key)
+		buf.WriteString("]")
+		hashType(buf, t.Value)
+
+	case schema.ListType:
+		if t.Len >= 0 {
+			fmt.Fprintf(buf, "[%d]", t.Len)
+		} else {
+			buf.WriteString("[]")
+		}
+		hashType(buf, t.Elem)
+
+	case schema.PointerType:
+		buf.WriteString("*")
+		hashType(buf, t.Elem)
+
+	case schema.FuncType:
+		buf.WriteString("func(")
+		for i, p := range t.Params {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			hashType(buf, p.Type)
+		}
+		buf.WriteString(")")
+
+		if len(t.Results) > 0 {
+			buf.WriteString(" (")
+			for i, p := range t.Results {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				hashType(buf, p.Type)
+			}
+			buf.WriteString(")")
+		}
+
+	case schema.InterfaceType:
+		// We don't track interface methods yet, so outsource
+		// this to go/types for now.
+		types.WriteExpr(buf, t.AST)
+
+	case schema.BuiltinType:
+		buf.WriteString(t.String())
+
+	case schema.TypeParamRefType:
+		buf.WriteString("typeparamref:")
+		buf.WriteString(t.Decl.DeclaredIn().Pkg.ImportPath.String())
+		buf.WriteString(".")
+		if name, ok := t.Decl.PkgName().Get(); ok {
+			buf.WriteString(name)
+		} else {
+			buf.WriteString("anon")
+		}
+		buf.WriteString("#")
+		buf.WriteString(strconv.Itoa(t.Index))
+
+	default:
+		panic(fmt.Sprintf("unknown type %T", t))
+	}
+}
+
+// UnwrapConfigType unwraps a config.Value[T] or config.Values[T] type to T or []T respectively.
+// If the type is not a config.Value[T] or config.Values[T] type, it returns the type unchanged.
+// If there are any errors encountered they are reported to errs.
+func UnwrapConfigType(errs *perr.List, t schema.NamedType) (typ schema.Type, isList, isConfig bool) {
+	if t.DeclInfo.File.Pkg.ImportPath != "encore.dev/config" {
+		return t, false, false
+	}
+
+	if t.DeclInfo.Name == "Values" {
+		if len(t.TypeArgs) == 0 {
+			// Invalid use of config.Values[T]
+			errs.AddPos(t.AST.Pos(), "invalid use of config.Values[T]: no type arguments provided")
+			return schema.BuiltinType{Kind: schema.Invalid}, true, true
+		}
+
+		return t.TypeArgs[0], true, true
+	} else if t.DeclInfo.Name == "Value" {
+		if len(t.TypeArgs) == 0 {
+			// Invalid use of config.Value[T]
+			errs.AddPos(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
+			return schema.BuiltinType{Kind: schema.Invalid}, false, true
+		}
+		return t.TypeArgs[0], false, true
+	} else {
+		// Use of some helper type alias, like config.Bool
+		decl := t.Decl()
+		if named, ok := decl.Type.(schema.NamedType); ok && named.DeclInfo.Name == "Value" {
+			if len(named.TypeArgs) == 0 {
+				// Invalid use of config.Value[T]
+				errs.AddPos(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
+				return schema.BuiltinType{Kind: schema.Invalid}, false, true
+			}
+			return named.TypeArgs[0], false, true
+		} else {
+			// Invalid use of config.Value[T]
+			errs.Addf(t.AST.Pos(), "unrecognized config type: %s", t.DeclInfo.Name)
+			return schema.BuiltinType{Kind: schema.Invalid}, false, true
+		}
+	}
 }

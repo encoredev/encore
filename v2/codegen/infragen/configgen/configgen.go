@@ -185,10 +185,8 @@ func (cb *configUnmarshalersBuilder) WriteTypeUnmarshaler(decl *schema.TypeDecl)
 func (cb *configUnmarshalersBuilder) readType(typ schema.Type, pathElement Code) (reader Code, rtnTyp *Statement) {
 	switch t := typ.(type) {
 	case schema.NamedType:
-		if t.DeclInfo.File.Pkg.ImportPath == "encore.dev/config" {
-			// The config type is the dynamic values which can be changed at runtime
-			// by unit tests
-			if underlying, isList := cb.resolveValueType(t); isList {
+		if underlying, isList, isConfig := schemautil.UnwrapConfigType(cb.errs, t); isConfig {
+			if isList {
 				code, _ := cb.readType(schema.ListType{Elem: underlying}, pathElement)
 				_, returnType := cb.readType(underlying, pathElement)
 				return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Values").Types(returnType)
@@ -331,42 +329,6 @@ func (cb *configUnmarshalersBuilder) readStruct(f *Group, struc schema.StructTyp
 	))
 
 	return Struct(fieldTypes...)
-}
-
-// resolveValueType resolves a config.Value[T] or config.Values[T] (or one of their aliases, like config.Bool)
-// to the underlying type T.
-func (cb *configUnmarshalersBuilder) resolveValueType(t schema.NamedType) (underlying schema.Type, isList bool) {
-	if t.DeclInfo.Name == "Values" {
-		if len(t.TypeArgs) == 0 {
-			// Invalid use of config.Values[T]
-			cb.errs.AddPos(t.AST.Pos(), "invalid use of config.Values[T]: no type arguments provided")
-			return schema.BuiltinType{Kind: schema.Invalid}, true
-		}
-
-		return t.TypeArgs[0], true
-	} else if t.DeclInfo.Name == "Value" {
-		if len(t.TypeArgs) == 0 {
-			// Invalid use of config.Value[T]
-			cb.errs.AddPos(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
-			return schema.BuiltinType{Kind: schema.Invalid}, false
-		}
-		return t.TypeArgs[0], false
-	} else {
-		// Use of some helper type alias, like config.Bool
-		decl := t.Decl()
-		if named, ok := decl.Type.(schema.NamedType); ok && named.DeclInfo.Name == "Value" {
-			if len(named.TypeArgs) == 0 {
-				// Invalid use of config.Value[T]
-				cb.errs.AddPos(t.AST.Pos(), "invalid use of config.Value[T]: no type arguments provided")
-				return schema.BuiltinType{Kind: schema.Invalid}, false
-			}
-			return named.TypeArgs[0], false
-		} else {
-			// Invalid use of config.Value[T]
-			cb.errs.Addf(t.AST.Pos(), "unrecognized config type: %s", t.DeclInfo.Name)
-			return schema.BuiltinType{Kind: schema.Invalid}, false
-		}
-	}
 }
 
 // typeUnmarshalerFunc returns a `f` function which can be used to read the given value of `typ` and the type
