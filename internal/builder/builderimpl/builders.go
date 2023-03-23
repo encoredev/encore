@@ -106,3 +106,7 @@ func (l Legacy) Test(ctx context.Context, p builder.TestParams) error {
 	}
 	return compiler.Test(ctx, p.Compile.App.Root(), cfg)
 }
+
+func (l Legacy) ExecScript(ctx context.Context, p builder.ExecScriptParams) error {
+	return nil
+}

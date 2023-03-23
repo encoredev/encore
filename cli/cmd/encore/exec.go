@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/cmd/encore/root"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -43,6 +44,7 @@ func execScript(appRoot, relWD string, args []string) {
 		ScriptRelPath: scriptPath,
 		ScriptArgs:    scriptArgs,
 		Environ:       os.Environ(),
+		TraceFile:     root.TraceFile,
 	})
 	if err != nil {
 		fatal(err)

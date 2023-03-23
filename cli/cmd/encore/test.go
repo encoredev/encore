@@ -21,14 +21,17 @@ var testCmd = &cobra.Command{
 
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		var traceFile string
+		var (
+			traceFile string
+			debug     bool
+		)
 		// Support specific args but otherwise let all args be passed on to "go test"
 		for i := 0; i < len(args); i++ {
 			arg := args[i]
 			if arg == "-h" || arg == "--help" {
 				cmd.Help()
 				return
-			} else if strings.HasPrefix(arg, "--trace") {
+			} else if arg == "--trace" || strings.HasPrefix(arg, "--trace=") {
 				// Drop this argument always.
 				args = slices.Delete(args, i, i+1)
 				i--
@@ -45,15 +48,19 @@ var testCmd = &cobra.Command{
 						i--
 					}
 				}
+			} else if arg == "--debug" {
+				debug = true
+				args = slices.Delete(args, i, i+1)
+				i--
 			}
 		}
 
 		appRoot, relPath := determineAppRoot()
-		runTests(appRoot, relPath, args, traceFile)
+		runTests(appRoot, relPath, args, debug, traceFile)
 	},
 }
 
-func runTests(appRoot, testDir string, args []string, traceFile string) {
+func runTests(appRoot, testDir string, args []string, debug bool, traceFile string) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -74,6 +81,7 @@ func runTests(appRoot, testDir string, args []string, traceFile string) {
 		AppRoot:    appRoot,
 		WorkingDir: testDir,
 		Args:       args,
+		Debug:      debug,
 		Environ:    os.Environ(),
 		TraceFile:  nonZeroPtr(traceFile),
 	})

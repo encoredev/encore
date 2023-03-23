@@ -69,8 +69,23 @@ type TestParams struct {
 	Stdout, Stderr io.Writer
 }
 
+type ExecScriptParams struct {
+	Compile CompileParams
+
+	// ScriptRelPath is the path to the script to execute,
+	// relative to Compile.WorkingDir.
+	ScriptRelPath string
+
+	// Args are the arguments to pass to the script.
+	Args []string
+
+	// Env sets additional environment variables for the script.
+	Env []string
+}
+
 type Impl interface {
 	Parse(context.Context, ParseParams) (*ParseResult, error)
 	Compile(context.Context, CompileParams) (*CompileResult, error)
 	Test(context.Context, TestParams) error
+	ExecScript(context.Context, ExecScriptParams) error
 }

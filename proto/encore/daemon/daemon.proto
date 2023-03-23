@@ -90,9 +90,12 @@ message TestRequest {
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 4;
 
+  // debug, if true, compiles the app with flags that improve the debugging experience.
+  bool debug = 5;
+
   // trace_file, if set specifies a trace file to write trace information
   // about the parse and compilation process to.
-  optional string trace_file = 5;
+  optional string trace_file = 6;
 }
 
 message ExecScriptRequest {
@@ -103,6 +106,10 @@ message ExecScriptRequest {
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 5;
+
+  // trace_file, if set specifies a trace file to write trace information
+  // about the parse and compilation process to.
+  optional string trace_file = 6;
 }
 
 message CheckRequest {
