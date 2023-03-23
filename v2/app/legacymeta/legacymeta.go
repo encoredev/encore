@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/internal/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/app"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/resourcepaths"
@@ -500,5 +500,5 @@ func (b *builder) relPath(pkg paths.Pkg) string {
 	if !ok {
 		panic("cannot compute relative path to package outside main module: " + pkg.String())
 	}
-	return rel
+	return rel.String()
 }

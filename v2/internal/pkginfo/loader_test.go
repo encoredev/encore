@@ -7,7 +7,7 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/testutil"
 )

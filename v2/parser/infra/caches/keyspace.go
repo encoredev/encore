@@ -6,8 +6,8 @@ import (
 	"go/token"
 	"strings"
 
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/errors"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/resourcepaths"
 	"encr.dev/v2/internal/schema"

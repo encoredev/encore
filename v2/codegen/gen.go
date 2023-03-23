@@ -5,11 +5,11 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/internal/paths"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/codegen/internal/rewrite"
 	"encr.dev/v2/internal/overlay"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 )
 

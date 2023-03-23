@@ -9,8 +9,8 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/packages"
 
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 )
 
@@ -159,7 +159,7 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 	result.pkg, result.ok = l.doParsePkg(loadPkgSpec{
 		cause: cause,
 		path:  pkgPath,
-		dir:   module.RootDir.Join(relPath),
+		dir:   module.RootDir.Join(relPath.ToIO()),
 	})
 	return result.pkg, result.ok
 }

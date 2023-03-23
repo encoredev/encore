@@ -280,7 +280,7 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPat
 
 		// Ignore main packages (they're scripts) unless we're executing that very main package
 		// as an exec script.
-		if pkg.Name == "main" && pkg.RelPath != mainPkgRelPath {
+		if pkg.Name == "main" && pkg.ImportPath != mainPkgRelPath {
 			return nil, nil
 		}
 

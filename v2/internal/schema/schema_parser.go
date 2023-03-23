@@ -11,9 +11,9 @@ import (
 
 	"github.com/fatih/structtag"
 
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 )

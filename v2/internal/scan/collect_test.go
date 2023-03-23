@@ -6,7 +6,7 @@ import (
 	qt "github.com/frankban/quicktest"
 	"golang.org/x/exp/slices"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/internal/testutil"
 )

@@ -110,7 +110,7 @@ func (b *builder) writeExecMain() error {
 	var mainPkg *est.Package
 	mainPkgPath := b.cfg.ExecScript.ScriptMainPkg
 	for _, pkg := range b.res.App.Packages {
-		if pkg.RelPath == mainPkgPath {
+		if pkg.ImportPath == mainPkgPath {
 			mainPkg = pkg
 			break
 		}
@@ -196,6 +196,7 @@ func (b *builder) buildExecScript() error {
 		"-modfile=" + filepath.Join(b.workdir, "go.mod"),
 		"-mod=mod",
 		"-o=" + binName,
+		b.cfg.ExecScript.ScriptMainPkg,
 	}
 
 	if b.cfg.StaticLink {
@@ -220,7 +221,7 @@ func (b *builder) buildExecScript() error {
 		env = append(env, "CGO_ENABLED=0")
 	}
 	cmd.Env = append(os.Environ(), env...)
-	cmd.Dir = filepath.Join(b.appRoot, b.cfg.ExecScript.ScriptMainPkg)
+	cmd.Dir = filepath.Join(b.appRoot, b.cfg.WorkingDir)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		if len(out) == 0 {
 			out = []byte(err.Error())

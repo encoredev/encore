@@ -1,9 +1,9 @@
 package app
 
 import (
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app/apiframework"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"

@@ -60,9 +60,11 @@ func (p *Parser) Parse() *Result {
 	)
 
 	scan.ProcessModule(p.c.Errs, p.loader, p.c.MainModuleDir, func(pkg *pkginfo.Package) {
-		// TODO(andre) Ignore main packages for now
 		if pkg.Name == "main" {
-			return
+			// Ignore main packages that aren't the main package we're building, if any.
+			if mainPkg, ok := p.c.Build.MainPkg.Get(); !ok || pkg.ImportPath != mainPkg {
+				return
+			}
 		}
 
 		pass := &resourceparser.Pass{

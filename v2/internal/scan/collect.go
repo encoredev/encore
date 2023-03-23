@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 )

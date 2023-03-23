@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"go/ast"
 
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/pkginfo"
 	schemav2 "encr.dev/v2/internal/schema"
 )

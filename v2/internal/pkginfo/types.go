@@ -12,8 +12,8 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/paths"
 )
 
 // Module describes a Go module.
@@ -36,6 +36,16 @@ type Module struct {
 	// to determine the right module to query for a given import path.
 	sortedNestedDeps []paths.Mod
 	sortedOtherDeps  []paths.Mod
+}
+
+// FSPathToPkg computes the filesystem path to the given package.
+// The package must lexically live within the given module,
+// otherwise it reports ok == false.
+func (m *Module) FSPathToPkg(pkgPath paths.Pkg) (path paths.FS, ok bool) {
+	if rel, ok := m.Path.RelativePathToPkg(pkgPath); ok {
+		return m.RootDir.Join(rel.ToIO()), true
+	}
+	return "", false
 }
 
 type Package struct {

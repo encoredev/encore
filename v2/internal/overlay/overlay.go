@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 )
 
 // File describes a file to generate or rewrite.

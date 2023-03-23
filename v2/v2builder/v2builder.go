@@ -16,6 +16,7 @@ import (
 	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
 	"encr.dev/internal/etrace"
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/promise"
@@ -27,7 +28,6 @@ import (
 	"encr.dev/v2/codegen/infragen"
 	"encr.dev/v2/compiler/build"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 	"encr.dev/v2/parser"
@@ -60,6 +60,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 				BuildTags:          p.Build.BuildTags,
 				Revision:           p.Build.Revision,
 				UncommittedChanges: p.Build.UncommittedChanges,
+				MainPkg:            p.Build.MainPkg,
 			},
 			MainModuleDir: paths.RootedFSPath(p.App.Root(), "."),
 			FS:            fs,
@@ -82,7 +83,6 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 			Data: &parseData{
 				pc:         pc,
 				appDesc:    appDesc,
-				mainPkg:    paths.Pkg("./__encore/main"), // TODO
 				mainModule: mainModule,
 			},
 		}, nil
@@ -92,7 +92,6 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 type parseData struct {
 	pc         *parsectx.Context
 	appDesc    *app.Desc
-	mainPkg    paths.Pkg
 	mainModule *pkginfo.Module
 }
 
@@ -108,7 +107,12 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 
 		gg := codegen.New(pd.pc)
 		infragen.Process(gg, pd.appDesc)
-		apigen.Process(gg, pd.appDesc, pd.mainModule, option.None[codegen.TestConfig]())
+		apigen.Process(apigen.Params{
+			Gen:               gg,
+			Desc:              pd.appDesc,
+			MainModule:        pd.mainModule,
+			ExecScriptMainPkg: p.Build.MainPkg,
+		})
 
 		defer func() {
 			if l, ok := perr.CatchBailout(recover()); ok {
@@ -120,10 +124,10 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 			return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
 		})
 
-		buildResult := build.Build(&build.Config{
+		buildResult := build.Build(ctx, &build.Config{
 			Ctx:        pd.pc,
 			Overlays:   gg.Overlays(),
-			MainPkg:    pd.mainPkg,
+			MainPkg:    paths.Pkg(p.Build.MainPkg.GetOrElse("./__encore/main")),
 			KeepOutput: p.Build.KeepOutput,
 		})
 
@@ -175,7 +179,12 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 			}
 
 			infragen.Process(gg, pd.appDesc)
-			apigen.Process(gg, pd.appDesc, pd.mainModule, option.Some(testCfg))
+			apigen.Process(apigen.Params{
+				Gen:        gg,
+				Desc:       pd.appDesc,
+				MainModule: pd.mainModule,
+				Test:       option.Some(testCfg),
+			})
 		})
 
 		configs, err := configProm.Get(pd.pc.Ctx)

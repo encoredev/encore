@@ -101,7 +101,11 @@ message TestRequest {
 message ExecScriptRequest {
   string app_root = 1;
   string working_dir = 2;
-  string script_rel_path = 3;
+
+  // command_rel_path is the slash-separated relative path to the command to run,
+  // from the app root.
+  string command_rel_path = 3;
+
   repeated string script_args = 4;
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().

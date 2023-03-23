@@ -18,9 +18,9 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/overlay"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/testutil"
 )
@@ -113,7 +113,7 @@ func build(workdir string, pkgPath paths.Pkg, overlays []overlay.File) *Result {
 		MainModuleDir: wd,
 	}
 
-	res := Build(&Config{
+	res := Build(ctx, &Config{
 		Ctx:        pc,
 		Overlays:   overlays,
 		MainPkg:    pkgPath,

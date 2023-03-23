@@ -142,7 +142,7 @@ func updateGoldenFiles(c *qt.C, tc *testCase, got map[string]string) {
 }
 
 func goBuild(tc *testutil.Context, overlays []overlay.File) {
-	build.Build(&build.Config{
+	build.Build(tc.Context.Ctx, &build.Config{
 		Ctx:      tc.Context,
 		Overlays: overlays,
 		MainPkg:  "./...",

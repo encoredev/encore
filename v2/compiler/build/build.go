@@ -20,10 +20,10 @@ import (
 	"golang.org/x/mod/semver"
 
 	"encr.dev/internal/etrace"
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/v2/internal/overlay"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/internal/perr"
 )
 
@@ -67,8 +67,9 @@ type Result struct {
 	Exe paths.FS
 }
 
-func Build(cfg *Config) *Result {
+func Build(ctx context.Context, cfg *Config) *Result {
 	b := &builder{
+		ctx:  ctx,
 		cfg:  cfg,
 		errs: cfg.Ctx.Errs,
 	}

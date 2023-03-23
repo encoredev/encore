@@ -11,7 +11,8 @@ import (
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internal/perr"
 )
 
@@ -62,6 +63,10 @@ type BuildInfo struct {
 	// UncommittedChanges, if true, specifies there are uncommitted changes
 	// part of the build .
 	UncommittedChanges bool
+
+	// MainPkg is the existing main package to use, if any.
+	// If None a main package is generated.
+	MainPkg option.Option[paths.Pkg]
 }
 
 // Trace traces the execution of a function.

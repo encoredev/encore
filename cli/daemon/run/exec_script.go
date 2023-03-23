@@ -17,6 +17,7 @@ import (
 	"encr.dev/internal/builder"
 	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/vcs"
@@ -27,9 +28,8 @@ type ExecScriptParams struct {
 	// App is the app to execute the script for.
 	App *apps.Instance
 
-	// ScriptRelPath is the path holding the command, from the app root.
-	// It's either a directory or a files.
-	ScriptRelPath string
+	// MainPkg is the package path to the command to execute.
+	MainPkg paths.Pkg
 
 	// ScriptArgs are the arguments to pass to the script binary.
 	ScriptArgs []string
@@ -78,6 +78,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+		MainPkg:            option.Some(p.MainPkg),
 	}
 
 	parse, err := bld.Parse(ctx, builder.ParseParams{
@@ -127,7 +128,6 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 				EnvType:    cueutil.EnvType_Development,
 				CloudType:  cueutil.CloudType_Local,
 			},
-			ExecScriptRelPath: option.Some(p.ScriptRelPath),
 		})
 		if err != nil {
 			return fmt.Errorf("compile error:\n%v", err)

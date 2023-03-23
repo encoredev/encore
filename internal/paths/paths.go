@@ -4,6 +4,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"encr.dev/pkg/fns"
 )
 
 // RootedFSPath returns a new FS path.
@@ -126,10 +128,12 @@ func (p Pkg) String() string {
 // JoinSlash joins the path with the given elems, according to path.Join.
 // The elems are expected to be slash-separated, not filesystem-separated.
 // Use filesystem.ToSlash() to convert filesystem paths to slash-separated paths.
-func (p Pkg) JoinSlash(elem ...string) Pkg {
+func (p Pkg) JoinSlash(elem ...RelSlash) Pkg {
 	p.checkValid()
-	elem = append([]string{string(p)}, elem...)
-	return Pkg(path.Join(elem...)) // Join cleans the result
+	strs := make([]string, len(elem)+1)
+	strs[0] = string(p)
+	copy(strs[1:], fns.Map(elem, RelSlash.String))
+	return Pkg(path.Join(strs...)) // Join cleans the result
 }
 
 func (p Pkg) checkValid() {
@@ -211,7 +215,7 @@ func (m Mod) LexicallyContains(p Pkg) bool {
 
 // RelativePathToPkg returns the relative path from the module to the package.
 // If the package is not contained within the module it reports "", false.
-func (m Mod) RelativePathToPkg(p Pkg) (relative string, ok bool) {
+func (m Mod) RelativePathToPkg(p Pkg) (relative RelSlash, ok bool) {
 	m.checkValid()
 	p.checkValid()
 	if !m.LexicallyContains(p) {
@@ -221,7 +225,7 @@ func (m Mod) RelativePathToPkg(p Pkg) (relative string, ok bool) {
 	// The module path is a prefix of the package path.
 	// Remove the module path and the leading slash.
 	if m == stdModule {
-		return string(p), true
+		return RelSlash(p), true
 	}
 
 	// Is the package path the same as the module path?
@@ -233,7 +237,7 @@ func (m Mod) RelativePathToPkg(p Pkg) (relative string, ok bool) {
 	if !ok {
 		return "", false
 	}
-	return suffix, true
+	return RelSlash(suffix), true
 }
 
 func (m Mod) checkValid() {
@@ -245,4 +249,17 @@ func (m Mod) checkValid() {
 // IsStdlib reports whether m represents the standard library.
 func (m Mod) IsStdlib() bool {
 	return m == stdModule
+}
+
+// RelSlash is a relative path that is always slash-separated.
+type RelSlash string
+
+// ToIO converts the slash-separated path to a filesystem path
+// using filepath.FromSlash.
+func (p RelSlash) ToIO() string {
+	return filepath.FromSlash(string(p))
+}
+
+func (p RelSlash) String() string {
+	return string(p)
 }

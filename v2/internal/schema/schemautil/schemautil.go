@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/schema"
 )
 

@@ -3,7 +3,6 @@ package maingen_test
 import (
 	"testing"
 
-	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen"
@@ -15,7 +14,12 @@ func TestCodegen(t *testing.T) {
 	fn := func(gen *codegen.Generator, desc *app.Desc) {
 		loader := pkginfo.New(gen.Context)
 		mainModule := loader.MainModule()
-		apigen.Process(gen, desc, mainModule, option.None[codegen.TestConfig]())
+		params := apigen.Params{
+			Gen:        gen,
+			Desc:       desc,
+			MainModule: mainModule,
+		}
+		apigen.Process(params)
 	}
 
 	codegentest.Run(t, fn)

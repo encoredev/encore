@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 )

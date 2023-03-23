@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 	"encr.dev/v2/internal/perr"
 	"encr.dev/v2/internal/pkginfo"
 )
@@ -104,7 +104,7 @@ func walkDir(dir string, pkgPath paths.Pkg, walkFn walkFunc) error {
 	}
 	for _, d := range subdirs {
 		subDir := filepath.Join(dir, d)
-		subPkg := pkgPath.JoinSlash(d)
+		subPkg := pkgPath.JoinSlash(paths.RelSlash(d))
 		if err := walkDir(subDir, subPkg, walkFn); err != nil {
 			return err
 		}

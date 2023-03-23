@@ -2,11 +2,15 @@ package daemon
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/paths"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -33,6 +37,20 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 		return nil
 	}
 
+	modPath := filepath.Join(app.Root(), "go.mod")
+	modData, err := os.ReadFile(modPath)
+	if err != nil {
+		sendErr(err)
+		return nil
+	}
+	mod, err := modfile.Parse(modPath, modData, nil)
+	if err != nil {
+		sendErr(err)
+		return nil
+	}
+
+	commandPkg := paths.Pkg(mod.Module.Mod.Path).JoinSlash(paths.RelSlash(req.CommandRelPath))
+
 	ops := optracker.New(stderr, stream)
 
 	testResults := make(chan error, 1)
@@ -51,14 +69,14 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 	}()
 
 	p := run.ExecScriptParams{
-		App:           app,
-		WorkingDir:    req.WorkingDir,
-		Environ:       req.Environ,
-		ScriptRelPath: req.ScriptRelPath,
-		ScriptArgs:    req.ScriptArgs,
-		Stdout:        slog.Stdout(false),
-		Stderr:        slog.Stderr(false),
-		OpTracker:     ops,
+		App:        app,
+		WorkingDir: req.WorkingDir,
+		Environ:    req.Environ,
+		MainPkg:    commandPkg,
+		ScriptArgs: req.ScriptArgs,
+		Stdout:     slog.Stdout(false),
+		Stderr:     slog.Stderr(false),
+		OpTracker:  ops,
 	}
 	if err := s.mgr.ExecScript(stream.Context(), p); err != nil {
 		sendErr(err)

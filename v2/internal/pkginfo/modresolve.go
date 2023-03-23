@@ -10,8 +10,8 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/paths"
 )
 
 // File modresolve contains tools for resolving an import path

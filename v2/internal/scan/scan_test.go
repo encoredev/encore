@@ -9,7 +9,7 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"encr.dev/v2/internal/paths"
+	"encr.dev/internal/paths"
 )
 
 func TestWalkDirs(t *testing.T) {
@@ -67,7 +67,7 @@ func TestWalkDirs(t *testing.T) {
 		wantPkgs := strings.Fields(test.Pkgs)
 		want := make([]paths.Pkg, len(wantPkgs))
 		for i, p := range wantPkgs {
-			want[i] = basePkgPath.JoinSlash(p)
+			want[i] = basePkgPath.JoinSlash(paths.RelSlash(p))
 		}
 		c.Assert(got, qt.CmpEquals(cmpopts.EquateEmpty()), want, qt.Commentf("tree: %s", test.Tree))
 	}

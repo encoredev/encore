@@ -46,7 +46,7 @@ func (Legacy) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseR
 		ModulePath:               mod.Module.Mod.Path,
 		WorkingDir:               p.WorkingDir,
 		ParseTests:               p.ParseTests,
-		ScriptMainPkg:            p.ScriptMainPkg,
+		ScriptMainPkg:            p.Build.MainPkg.GetOrElse("").String(),
 	}
 
 	res, err := parser.Parse(cfg)
@@ -105,9 +105,9 @@ func (Legacy) compilerConfig(p builder.CompileParams) *compiler.Config {
 		GOARCH:              p.Build.GOARCH,
 	}
 
-	if relPath, ok := p.ExecScriptRelPath.Get(); ok {
+	if relPath, ok := p.Build.MainPkg.Get(); ok {
 		cfg.ExecScript = &compiler.ExecScriptConfig{
-			ScriptMainPkg: relPath,
+			ScriptMainPkg: relPath.String(),
 		}
 	}
 
@@ -123,8 +123,4 @@ func (l Legacy) Test(ctx context.Context, p builder.TestParams) error {
 		Stderr: p.Stderr,
 	}
 	return compiler.Test(ctx, p.Compile.App.Root(), cfg)
-}
-
-func (l Legacy) CompileExecScript(ctx context.Context, p builder.ExecScriptParams) error {
-	return nil
 }

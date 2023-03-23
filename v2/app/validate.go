@@ -1,9 +1,9 @@
 package app
 
 import (
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/paths"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"

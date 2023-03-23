@@ -7,6 +7,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/paths"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/option"
@@ -24,15 +25,17 @@ type BuildInfo struct {
 	KeepOutput         bool
 	Revision           string
 	UncommittedChanges bool
+
+	// MainPkg is the path to the existing main package to use, if any.
+	MainPkg option.Option[paths.Pkg]
 }
 
 type ParseParams struct {
-	Build         BuildInfo
-	App           *apps.Instance
-	Experiments   *experiments.Set
-	WorkingDir    string
-	ParseTests    bool
-	ScriptMainPkg string
+	Build       BuildInfo
+	App         *apps.Instance
+	Experiments *experiments.Set
+	WorkingDir  string
+	ParseTests  bool
 }
 
 type ParseResult struct {
@@ -48,10 +51,6 @@ type CompileParams struct {
 	Experiments *experiments.Set
 	WorkingDir  string
 	CueMeta     *cueutil.Meta
-
-	// ExecScriptRelPath is the path to the exec script to build,
-	// relative to WorkingDir.
-	ExecScriptRelPath option.Option[string]
 }
 
 type CompileResult struct {
@@ -72,14 +71,6 @@ type TestParams struct {
 
 	// Stdout and Stderr are where to redirect "go test" output.
 	Stdout, Stderr io.Writer
-}
-
-type ExecScriptParams struct {
-	Compile CompileParams
-
-	// ScriptRelPath is the path to the script to build,
-	// relative to Compile.WorkingDir.
-	ScriptRelPath string
 }
 
 type Impl interface {
