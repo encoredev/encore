@@ -209,10 +209,6 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 	})
 }
 
-func (BuilderImpl) ExecScript(ctx context.Context, p builder.ExecScriptParams) error {
-	return nil
-}
-
 type configResult struct {
 	configs map[string]string
 	files   fs.FS

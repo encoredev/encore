@@ -61,10 +61,20 @@ func (Legacy) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseR
 
 func (l Legacy) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
 	cfg := l.compilerConfig(p)
-	build, err := compiler.Build(p.App.Root(), cfg)
+
+	var (
+		build *compiler.Result
+		err   error
+	)
+	if cfg.ExecScript != nil {
+		build, err = compiler.ExecScript(p.App.Root(), cfg)
+	} else {
+		build, err = compiler.Build(p.App.Root(), cfg)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	return &builder.CompileResult{
 		Dir:     build.Dir,
 		Exe:     build.Exe,
@@ -74,7 +84,7 @@ func (l Legacy) Compile(ctx context.Context, p builder.CompileParams) (*builder.
 
 func (Legacy) compilerConfig(p builder.CompileParams) *compiler.Config {
 	//goland:noinspection HttpUrlsUsage
-	return &compiler.Config{
+	cfg := &compiler.Config{
 		Revision:              p.Parse.Meta.AppRevision,
 		UncommittedChanges:    p.Parse.Meta.UncommittedChanges,
 		WorkingDir:            p.WorkingDir,
@@ -94,6 +104,14 @@ func (Legacy) compilerConfig(p builder.CompileParams) *compiler.Config {
 		GOOS:                p.Build.GOOS,
 		GOARCH:              p.Build.GOARCH,
 	}
+
+	if relPath, ok := p.ExecScriptRelPath.Get(); ok {
+		cfg.ExecScript = &compiler.ExecScriptConfig{
+			ScriptMainPkg: relPath,
+		}
+	}
+
+	return cfg
 }
 
 func (l Legacy) Test(ctx context.Context, p builder.TestParams) error {
@@ -107,6 +125,6 @@ func (l Legacy) Test(ctx context.Context, p builder.TestParams) error {
 	return compiler.Test(ctx, p.Compile.App.Root(), cfg)
 }
 
-func (l Legacy) ExecScript(ctx context.Context, p builder.ExecScriptParams) error {
+func (l Legacy) CompileExecScript(ctx context.Context, p builder.ExecScriptParams) error {
 	return nil
 }

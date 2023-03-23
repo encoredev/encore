@@ -9,15 +9,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/compiler"
-	"encr.dev/internal/env"
+	"encr.dev/internal/builder"
+	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/internal/optracker"
-	"encr.dev/internal/version"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/option"
+	"encr.dev/pkg/vcs"
 )
 
 // ExecScriptParams groups the parameters for the ExecScript method.
@@ -63,12 +65,27 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	start := time.Now()
 	parseOp := tracker.Add("Building Encore application graph", start)
 	topoOp := tracker.Add("Analyzing service topology", start)
-	parse, err := mgr.parseApp(parseAppParams{
-		App:           p.App,
-		Environ:       p.Environ,
-		WorkingDir:    p.WorkingDir,
-		ParseTests:    false,
-		ScriptMainPkg: p.ScriptRelPath,
+
+	bld := builderimpl.Resolve(expSet)
+	vcsRevision := vcs.GetRevision(p.App.Root())
+	buildInfo := builder.BuildInfo{
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              false,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
+	}
+
+	parse, err := bld.Parse(ctx, builder.ParseParams{
+		Build:       buildInfo,
+		App:         p.App,
+		Experiments: expSet,
+		WorkingDir:  p.WorkingDir,
+		ParseTests:  false,
 	})
 	if err != nil {
 		tracker.Fail(parseOp, err)
@@ -95,31 +112,23 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 
 	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
-	var build *compiler.Result
+	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
-		cfg := &compiler.Config{
-			Parse:                 parse,
-			Revision:              parse.Meta.AppRevision,
-			UncommittedChanges:    parse.Meta.UncommittedChanges,
-			WorkingDir:            p.WorkingDir,
-			CgoEnabled:            true,
-			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-			EncoreRuntimePath:     env.EncoreRuntimePath(),
-			EncoreGoRoot:          env.EncoreGoRoot(),
-			BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-			Experiments:           expSet,
-			OpTracker:             tracker,
-			Meta: &cueutil.Meta{
+		build, err = bld.Compile(ctx, builder.CompileParams{
+			Build:       buildInfo,
+			App:         p.App,
+			Parse:       parse,
+			OpTracker:   tracker,
+			Experiments: expSet,
+			WorkingDir:  p.WorkingDir,
+			CueMeta: &cueutil.Meta{
 				APIBaseURL: apiBaseURL,
 				EnvName:    "local",
 				EnvType:    cueutil.EnvType_Development,
 				CloudType:  cueutil.CloudType_Local,
 			},
-			ExecScript: &compiler.ExecScriptConfig{
-				ScriptMainPkg: p.ScriptRelPath,
-			},
-		}
-		build, err = compiler.ExecScript(p.App.Root(), cfg)
+			ExecScriptRelPath: option.Some(p.ScriptRelPath),
+		})
 		if err != nil {
 			return fmt.Errorf("compile error:\n%v", err)
 		}

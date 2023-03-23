@@ -9,6 +9,7 @@ import (
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
+	"encr.dev/pkg/option"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -47,6 +48,10 @@ type CompileParams struct {
 	Experiments *experiments.Set
 	WorkingDir  string
 	CueMeta     *cueutil.Meta
+
+	// ExecScriptRelPath is the path to the exec script to build,
+	// relative to WorkingDir.
+	ExecScriptRelPath option.Option[string]
 }
 
 type CompileResult struct {
@@ -72,20 +77,13 @@ type TestParams struct {
 type ExecScriptParams struct {
 	Compile CompileParams
 
-	// ScriptRelPath is the path to the script to execute,
+	// ScriptRelPath is the path to the script to build,
 	// relative to Compile.WorkingDir.
 	ScriptRelPath string
-
-	// Args are the arguments to pass to the script.
-	Args []string
-
-	// Env sets additional environment variables for the script.
-	Env []string
 }
 
 type Impl interface {
 	Parse(context.Context, ParseParams) (*ParseResult, error)
 	Compile(context.Context, CompileParams) (*CompileResult, error)
 	Test(context.Context, TestParams) error
-	ExecScript(context.Context, ExecScriptParams) error
 }
