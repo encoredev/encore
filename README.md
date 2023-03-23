@@ -20,7 +20,6 @@ Start building today and unlock your creative potential, free from cloud complex
 ## How Encore works
 ![Encore overview](https://user-images.githubusercontent.com/78424526/227249272-4a752639-9c8c-4a6f-8970-13849120a18e.png)
 
-
 Most backend applications use a small set of common building blocks: services, APIs, databases, queues, caches, and cron jobs. The real complexity lies in provisioning and managing the underlying infrastructure, and the endless boilerplate that's required to tie it all together in your application.
 
 Encore simplifies backend development by providing an infrastructure SDK that lets you declare and use these common building blocks as objects directly in your code.
