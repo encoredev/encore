@@ -11,9 +11,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
 )

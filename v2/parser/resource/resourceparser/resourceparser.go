@@ -4,9 +4,9 @@ import (
 	"go/ast"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/resource"
 )
 

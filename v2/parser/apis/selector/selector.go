@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internals/perr"
 )
 
 type Type string

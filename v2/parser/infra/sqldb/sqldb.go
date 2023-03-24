@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
 )

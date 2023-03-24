@@ -7,7 +7,7 @@ import (
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen"
 	"encr.dev/v2/codegen/internal/codegentest"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 func TestCodegen(t *testing.T) {

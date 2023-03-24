@@ -4,8 +4,8 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/v2/codegen/internal/genutil"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
 )

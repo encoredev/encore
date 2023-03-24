@@ -5,7 +5,7 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 // FindPkgNameRefs finds all references in the given package that references

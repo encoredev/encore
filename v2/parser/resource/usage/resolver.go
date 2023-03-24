@@ -5,8 +5,8 @@ import (
 	"go/token"
 
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/resource"
 )
 

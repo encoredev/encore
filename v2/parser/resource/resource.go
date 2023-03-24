@@ -3,7 +3,7 @@ package resource
 import (
 	"go/ast"
 
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 //go:generate stringer -type=Kind -output=resource_string.go

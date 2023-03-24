@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 // Packages scans and parses the Go packages for all subdirectories in the root.

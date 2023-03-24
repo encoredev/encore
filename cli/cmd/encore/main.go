@@ -20,6 +20,7 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 	// Register commands
 	_ "encr.dev/cli/cmd/encore/app"
+	_ "encr.dev/cli/cmd/encore/bits"
 	_ "encr.dev/cli/cmd/encore/secrets"
 )
 

@@ -7,7 +7,7 @@ import (
 	"github.com/fatih/structtag"
 
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 type TypeFamily int

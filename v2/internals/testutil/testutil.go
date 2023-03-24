@@ -18,9 +18,9 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/errinsrc"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 type Context struct {

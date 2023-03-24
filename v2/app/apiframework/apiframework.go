@@ -2,7 +2,7 @@ package apiframework
 
 import (
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"

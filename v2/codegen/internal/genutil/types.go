@@ -9,10 +9,10 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/fns"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 )
 
 func NewHelper(errs *perr.List) *Helper {

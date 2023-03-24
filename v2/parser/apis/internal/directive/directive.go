@@ -12,7 +12,7 @@ import (
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/idents"
-	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internals/perr"
 )
 
 // Directive represents a parsed "encore:" directive.

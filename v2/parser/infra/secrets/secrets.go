@@ -6,9 +6,9 @@ import (
 	"go/token"
 
 	"encr.dev/pkg/errors"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"

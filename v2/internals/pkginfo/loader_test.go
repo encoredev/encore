@@ -8,8 +8,8 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/testutil"
 )
 
 func TestLoader(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/fns"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 var importNames = map[string]string{

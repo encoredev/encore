@@ -2,7 +2,7 @@ package app
 
 import (
 	"encr.dev/pkg/errors"
-	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/infra/config"
 )

@@ -5,10 +5,10 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/scan"
-	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/scan"
+	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/apis"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"

@@ -6,8 +6,8 @@ import (
 
 	"cuelang.org/go/cue/ast"
 
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 )
 
 // definitionGenerator is used to count the number of types a specific named type

@@ -6,7 +6,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
-	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/apis/servicestruct"
 )
 

@@ -8,8 +8,8 @@ import (
 	qt "github.com/frankban/quicktest"
 
 	"encr.dev/pkg/errinsrc"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/schema"
 )
 
 func init() {

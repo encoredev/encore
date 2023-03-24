@@ -8,8 +8,8 @@ import (
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/idents"
 	schema "encr.dev/proto/encore/parser/schema/v1"
-	"encr.dev/v2/internal/pkginfo"
-	schemav2 "encr.dev/v2/internal/schema"
+	"encr.dev/v2/internals/pkginfo"
+	schemav2 "encr.dev/v2/internals/schema"
 )
 
 func (b *builder) builtinType(typ schemav2.BuiltinType) schema.Builtin {

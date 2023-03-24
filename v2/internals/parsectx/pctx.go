@@ -13,7 +13,7 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internals/perr"
 )
 
 // Context holds all the context for parsing.

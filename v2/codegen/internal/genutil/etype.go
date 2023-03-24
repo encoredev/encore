@@ -3,8 +3,8 @@ package genutil
 import (
 	. "github.com/dave/jennifer/jen"
 
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/schema"
 )
 
 // MarshalBuiltin generates the code to marshal a builtin type.

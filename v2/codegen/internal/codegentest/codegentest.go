@@ -16,8 +16,8 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/compiler/build"
-	"encr.dev/v2/internal/overlay"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/overlay"
+	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser"
 )
 

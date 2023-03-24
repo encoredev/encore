@@ -5,8 +5,8 @@ import (
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/infra/pubsub"

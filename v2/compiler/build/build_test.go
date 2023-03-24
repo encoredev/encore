@@ -19,10 +19,10 @@ import (
 	"github.com/rs/zerolog"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/overlay"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/overlay"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/testutil"
 )
 
 func TestMain(m *testing.M) {

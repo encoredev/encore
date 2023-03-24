@@ -7,7 +7,7 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/apigenutil"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/authhandler"
 )

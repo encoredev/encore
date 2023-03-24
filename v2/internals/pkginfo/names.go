@@ -10,7 +10,7 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internals/parsectx"
 )
 
 // resolvePkgNames resolves package-level names for the given package.

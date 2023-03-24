@@ -5,7 +5,7 @@ import (
 
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/app/apiframework"
-	"encr.dev/v2/internal/parsectx"
+	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/selector"
 )

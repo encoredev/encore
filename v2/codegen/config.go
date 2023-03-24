@@ -1,7 +1,7 @@
 package codegen
 
 import (
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 // TestConfig describes common configuration for code generation

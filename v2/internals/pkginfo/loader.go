@@ -10,8 +10,8 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/perr"
 )
 
 // New creates a new Loader.

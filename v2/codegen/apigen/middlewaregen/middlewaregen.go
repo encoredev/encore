@@ -5,7 +5,7 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/codegen"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/apis/middleware"
 )
 

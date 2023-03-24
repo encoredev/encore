@@ -9,9 +9,9 @@ import (
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/idents"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/authhandler"
 )
 

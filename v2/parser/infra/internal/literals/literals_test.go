@@ -11,8 +11,8 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/testutil"
 )
 
 func TestParseConstantValue(t *testing.T) {

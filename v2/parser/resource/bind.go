@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 type Bind interface {

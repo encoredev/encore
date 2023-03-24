@@ -7,8 +7,8 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/testutil"
 )
 
 func TestNames(t *testing.T) {

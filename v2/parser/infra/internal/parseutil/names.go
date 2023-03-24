@@ -10,7 +10,7 @@ import (
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/idents"
-	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/parser/infra/internal/literals"
 )
 

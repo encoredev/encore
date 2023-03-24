@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 var noOpCasts = map[paths.Pkg][]string{

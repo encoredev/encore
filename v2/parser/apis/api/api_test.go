@@ -12,9 +12,9 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/selector"

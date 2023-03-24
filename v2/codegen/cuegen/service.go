@@ -10,9 +10,9 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/v2/app"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 )
 
 // service represents the single generated file we will create for a service

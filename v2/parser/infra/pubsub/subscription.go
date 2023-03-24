@@ -8,7 +8,7 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/errors"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"

@@ -5,8 +5,8 @@ import (
 
 	"encr.dev/pkg/errors"
 	"encr.dev/v2/app/apiframework"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/resourcepaths"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"

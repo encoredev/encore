@@ -7,8 +7,8 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/testutil"
 )
 
 func TestProcessModule(t *testing.T) {

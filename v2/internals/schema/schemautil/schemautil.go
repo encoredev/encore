@@ -9,8 +9,8 @@ import (
 	"strconv"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/schema"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/schema"
 )
 
 // IsNamed reports whether a given type is a named type with the given

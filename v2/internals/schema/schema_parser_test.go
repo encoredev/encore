@@ -13,8 +13,8 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/testutil"
 )
 
 func TestParser_ParseType(t *testing.T) {

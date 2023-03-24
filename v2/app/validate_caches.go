@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"encr.dev/pkg/errors"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/resourcepaths"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/infra/caches"
 )

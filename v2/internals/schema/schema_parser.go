@@ -13,9 +13,9 @@ import (
 
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 )
 
 // NewParser constructs a new schema parser.

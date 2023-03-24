@@ -10,7 +10,7 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
-	"encr.dev/v2/internal/resourcepaths"
+	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 )

@@ -12,7 +12,7 @@ import (
 
 	"encr.dev/pkg/golden"
 	"encr.dev/v2/app"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser"
 )
 

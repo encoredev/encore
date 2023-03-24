@@ -6,7 +6,7 @@ import (
 
 	"encore.dev/storage/cache"
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil "encr.dev/v2/parser/infra/internal/parseutil"

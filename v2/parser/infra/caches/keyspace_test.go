@@ -3,8 +3,8 @@ package caches
 import (
 	"testing"
 
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schematest"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schematest"
 	"encr.dev/v2/parser/resource/resourcetest"
 )
 

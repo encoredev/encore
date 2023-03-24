@@ -13,10 +13,10 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
-	"encr.dev/v2/internal/schema"
-	"encr.dev/v2/internal/schema/schemautil"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/infra/config"
 )
 

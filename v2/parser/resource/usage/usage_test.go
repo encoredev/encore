@@ -15,8 +15,8 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
-	"encr.dev/v2/internal/parsectx"
-	"encr.dev/v2/internal/testutil"
+	"encr.dev/v2/internals/parsectx"
+	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/resource/usage"
 )

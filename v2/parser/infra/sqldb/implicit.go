@@ -7,8 +7,8 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/internal/paths"
-	"encr.dev/v2/internal/perr"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"
 )

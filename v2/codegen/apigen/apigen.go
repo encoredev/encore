@@ -13,7 +13,7 @@ import (
 	"encr.dev/v2/codegen/apigen/middlewaregen"
 	"encr.dev/v2/codegen/apigen/servicestructgen"
 	"encr.dev/v2/codegen/apigen/userfacinggen"
-	"encr.dev/v2/internal/pkginfo"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"

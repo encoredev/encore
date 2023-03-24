@@ -7,7 +7,7 @@ import (
 
 	"github.com/fatih/structtag"
 
-	"encr.dev/v2/internal/perr"
+	"encr.dev/v2/internals/perr"
 )
 
 func Decode[T any](errs *perr.List, literal *Struct, defaultValues *T) T {
