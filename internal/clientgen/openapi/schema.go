@@ -8,6 +8,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"encr.dev/parser/encoding"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
@@ -245,4 +246,33 @@ func (g *Generator) typeToDefinitionName(typ *schema.Type) string {
 	}
 
 	return ""
+}
+
+func (g *Generator) pathParamType(typ meta.PathSegment_ParamType) *openapi3.Schema {
+	switch typ {
+	case meta.PathSegment_BOOL:
+		return openapi3.NewBoolSchema()
+	case meta.PathSegment_INT8:
+		return openapi3.NewInt32Schema().WithMin(math.MinInt8).WithMax(math.MaxInt8)
+	case meta.PathSegment_INT16:
+		return openapi3.NewInt32Schema().WithMin(math.MinInt16).WithMax(math.MaxInt16)
+	case meta.PathSegment_INT32:
+		return openapi3.NewInt32Schema().WithMin(math.MinInt32).WithMax(math.MaxInt32)
+	case meta.PathSegment_INT64, meta.PathSegment_INT:
+		return openapi3.NewInt64Schema()
+	case meta.PathSegment_UINT8:
+		return openapi3.NewInt32Schema().WithMin(0).WithMax(math.MaxUint8)
+	case meta.PathSegment_UINT16:
+		return openapi3.NewInt32Schema().WithMin(0).WithMax(math.MaxUint16)
+	case meta.PathSegment_UINT32:
+		return openapi3.NewInt64Schema().WithMin(0).WithMax(math.MaxUint32)
+	case meta.PathSegment_UINT64, meta.PathSegment_UINT:
+		return openapi3.NewInt64Schema().WithMin(0)
+	case meta.PathSegment_STRING:
+		return openapi3.NewStringSchema()
+	case meta.PathSegment_UUID:
+		return openapi3.NewUUIDSchema()
+	default:
+		panic("unknown path param type")
+	}
 }

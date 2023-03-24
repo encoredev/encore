@@ -1,6 +1,8 @@
 package openapi
 
 import (
+	"bytes"
+	"fmt"
 	"go/doc/comment"
 	"strings"
 
@@ -24,27 +26,42 @@ const (
 	LatestVersion GenVersion = Experimental - 1
 )
 
-// TODO spec.{Info,Servers,Security}
-
 type Generator struct {
+	ver       GenVersion
 	spec      *openapi3.T
 	md        *meta.Data
 	seenDecls map[string]uint32
 }
 
-func New(md *meta.Data, version GenVersion) (*Generator, error) {
-	if version > LatestVersion {
-		return nil, errors.Errorf("unknown openapi generator version %d", version)
-	}
-
+func New(version GenVersion) *Generator {
 	return &Generator{
-		spec:      newSpec(),
-		md:        md,
+		ver:       version,
 		seenDecls: make(map[string]uint32),
-	}, nil
+	}
 }
 
-func (g *Generator) Generate(buf)
+func (g *Generator) Version() int {
+	return int(g.ver)
+}
+
+func (g *Generator) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) error {
+	g.md = md
+	g.spec = newSpec(appSlug)
+
+	for _, svc := range md.Svcs {
+		if err := g.addService(svc); err != nil {
+			return err
+		}
+	}
+
+	out, err := g.spec.MarshalJSON()
+	if err != nil {
+		return errors.Wrap(err, "marshal openapi spec")
+	}
+	buf.Write(out)
+
+	return nil
+}
 
 func (g *Generator) addService(svc *meta.Service) error {
 	for _, rpc := range svc.Rpcs {
@@ -64,11 +81,11 @@ func (g *Generator) addRPC(rpc *meta.RPC) error {
 	}
 
 	for _, reqEnc := range encodings.RequestEncoding {
-		op, err := g.newOperationForEncoding(rpc, reqEnc, encodings.ResponseEncoding)
-		if err != nil {
-			return errors.Wrapf(err, "create operation for rpc %s.%s", rpc.ServiceName, rpc.Name)
-		}
 		for _, m := range reqEnc.HTTPMethods {
+			op, err := g.newOperationForEncoding(rpc, m, reqEnc, encodings.ResponseEncoding)
+			if err != nil {
+				return errors.Wrapf(err, "create operation for rpc %s.%s", rpc.ServiceName, rpc.Name)
+			}
 			item.SetOperation(m, op)
 		}
 	}
@@ -87,12 +104,12 @@ func (g *Generator) getOrCreatePath(rpc *meta.RPC) *openapi3.PathItem {
 	return item
 }
 
-func (g *Generator) newOperationForEncoding(rpc *meta.RPC, reqEnc *encoding.RequestEncoding, respEnc *encoding.ResponseEncoding) (*openapi3.Operation, error) {
+func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc *encoding.RequestEncoding, respEnc *encoding.ResponseEncoding) (*openapi3.Operation, error) {
 	summary, desc := splitDoc(rpc.Doc)
 	op := &openapi3.Operation{
 		Summary:     summary,
 		Description: desc,
-		OperationID: rpc.ServiceName + "." + rpc.Name,
+		OperationID: method + ":" + rpc.ServiceName + "." + rpc.Name,
 		Responses:   make(openapi3.Responses),
 	}
 
@@ -112,8 +129,8 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, reqEnc *encoding.Requ
 				AllowEmptyValue: true,
 				AllowReserved:   false,
 				Deprecated:      false,
-				Required:        false,
-				Schema:          nil, // TODO
+				Required:        true,
+				Schema:          g.pathParamType(seg.ValueType).NewRef(),
 				Example:         nil,
 				Examples:        nil,
 				Content:         nil,
@@ -177,36 +194,41 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, reqEnc *encoding.Requ
 	// Encode the response
 	{
 		resp := &openapi3.Response{
-			Headers: make(openapi3.Headers),
-			Links:   nil,
-		}
-		for _, param := range respEnc.HeaderParameters {
-			resp.Headers[param.Name] = &openapi3.HeaderRef{
-				Value: &openapi3.Header{Parameter: openapi3.Parameter{
-					Name:            param.WireFormat,
-					Description:     markdownDoc(param.Doc),
-					Style:           openapi3.SerializationSimple,
-					Explode:         ptr(true),
-					AllowEmptyValue: true,
-					AllowReserved:   false,
-					Deprecated:      false,
-					Required:        false,
-					Schema:          g.schemaType(param.Type),
-					Example:         nil,
-					Examples:        nil,
-					Content:         nil,
-				}},
-			}
+			Headers:     make(openapi3.Headers),
+			Links:       nil,
+			Description: ptr("Success response"),
 		}
 
-		if len(respEnc.BodyParameters) > 0 {
-			resp.Content = g.bodyContent(respEnc.BodyParameters)
+		if respEnc != nil {
+			for _, param := range respEnc.HeaderParameters {
+				resp.Headers[param.WireFormat] = &openapi3.HeaderRef{
+					Value: &openapi3.Header{Parameter: openapi3.Parameter{
+						Description:     markdownDoc(param.Doc),
+						Style:           openapi3.SerializationSimple,
+						Explode:         ptr(true),
+						AllowEmptyValue: true,
+						AllowReserved:   false,
+						Deprecated:      false,
+						Required:        false,
+						Schema:          g.schemaType(param.Type),
+						Example:         nil,
+						Examples:        nil,
+						Content:         nil,
+					}},
+				}
+			}
+
+			if len(respEnc.BodyParameters) > 0 {
+				resp.Content = g.bodyContent(respEnc.BodyParameters)
+			}
 		}
 
 		op.Responses["200"] = &openapi3.ResponseRef{
 			Value: resp,
 		}
-		// TODO error response
+		op.Responses["default"] = &openapi3.ResponseRef{
+			Ref: "#/components/responses/APIError",
+		}
 	}
 
 	return op, nil
@@ -256,7 +278,7 @@ func ptr[T any](t T) *T {
 	return &t
 }
 
-func newSpec() *openapi3.T {
+func newSpec(appSlug string) *openapi3.T {
 	t := &openapi3.T{
 		Components: &openapi3.Components{
 			RequestBodies:   make(map[string]*openapi3.RequestBodyRef),
@@ -265,7 +287,7 @@ func newSpec() *openapi3.T {
 			Schemas:         make(map[string]*openapi3.SchemaRef),
 		},
 		Info: &openapi3.Info{
-			Title:       "Encore API",
+			Title:       fmt.Sprintf("API for %s", appSlug),
 			Description: "Generated by encore",
 			Version:     "1",
 			Extensions: map[string]any{
@@ -287,40 +309,39 @@ func newSpec() *openapi3.T {
 			Description: "Encore local dev environment",
 		},
 	)
-	t.Components.Responses["EncoreAPIError"] = &openapi3.ResponseRef{
+
+	t.Components.Responses["APIError"] = &openapi3.ResponseRef{
 		Value: &openapi3.Response{
 			Content: openapi3.Content{
 				"application/json": &openapi3.MediaType{
 					Schema: &openapi3.SchemaRef{
 						Value: &openapi3.Schema{
 							Type:  openapi3.TypeObject,
-							Title: "EncoreAPIError",
+							Title: "APIError",
+							ExternalDocs: &openapi3.ExternalDocs{
+								URL: "https://pkg.go.dev/encore.dev/beta/errs#Error",
+							},
 							Properties: map[string]*openapi3.SchemaRef{
-								"Id": {
-									Value: &openapi3.Schema{
-										Description: "Error ID",
-										Type:        openapi3.TypeString,
-									},
-								},
-								"Code": {
+								"code": {
 									Value: &openapi3.Schema{
 										Description: "Error code",
-										Example:     500,
+										Example:     "not_found",
+										Type:        openapi3.TypeString,
+										ExternalDocs: &openapi3.ExternalDocs{
+											URL: "https://pkg.go.dev/encore.dev/beta/errs#ErrCode",
+										},
+									},
+								},
+								"message": {
+									Value: &openapi3.Schema{
+										Description: "Error message",
 										Type:        openapi3.TypeString,
 									},
 								},
-								"Detail": {
+								"details": {
 									Value: &openapi3.Schema{
-										Description: "Error detail",
-										Example:     "service not found",
-										Type:        openapi3.TypeString,
-									},
-								},
-								"Status": {
-									Value: &openapi3.Schema{
-										Description: "Error status message",
-										Example:     "Internal Server Error",
-										Type:        openapi3.TypeString,
+										Description: "Error details",
+										Type:        openapi3.TypeObject,
 									},
 								},
 							},
@@ -328,7 +349,9 @@ func newSpec() *openapi3.T {
 					},
 				},
 			},
-			Description: ptr("Error from the Micro API"),
+			Description: ptr("Error response"),
 		},
 	}
+
+	return t
 }

@@ -38,6 +38,7 @@ Supported language codes are:
   typescript: A TypeScript client using the Fetch API
   javascript: A JavaScript client using the Fetch API
   go: A Go client using net/http"
+  openapi: An OpenAPI specification
 `,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -117,11 +118,12 @@ which may require the user-facing wrapper code to be manually generated.`,
 	genCmd.AddCommand(genClientCmd)
 	genCmd.AddCommand(genWrappersCmd)
 
-	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\", \"javascript\", and \"go\" are supported)")
+	genClientCmd.Flags().StringVarP(&lang, "lang", "l", "", "The language to generate code for (\"typescript\", \"javascript\", \"go\", and \"openapi\" are supported)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("lang", cmdutil.AutoCompleteFromStaticList(
 		"typescript\tA TypeScript client using the in-browser Fetch API",
 		"javascript\tA JavaScript client using the in-browser Fetch API",
 		"go\tA Go client using net/http",
+		"openapi\tAn OpenAPI specification",
 	))
 
 	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
