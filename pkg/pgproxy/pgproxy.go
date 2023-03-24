@@ -411,7 +411,11 @@ StartupMessageLoop:
 			log.Debug().Msg("startup completed")
 			return backend, startup, nil
 		case *pgproto3.GSSEncRequest:
-			return nil, nil, fmt.Errorf("pgproxy: GSSAPI encryption not supported")
+			// We got a GSSAPI encryption request but we don't support it.
+			if _, err := client.Write([]byte{'N'}); err != nil {
+				return nil, nil, err
+			}
+			continue StartupMessageLoop
 		}
 	}
 }
