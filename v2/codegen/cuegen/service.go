@@ -31,16 +31,25 @@ type serviceFile struct {
 
 // countNamedUsagesAndCollectImports counts the number of times a named type is used in the service
 func (s *serviceFile) countNamedUsagesAndCollectImports(typ schema.Type) {
-	schemautil.Walk(typ, func(typ schema.Type) bool {
+	var processType func(typ schema.Type)
+	processType = func(typ schema.Type) {
 		switch typ := typ.(type) {
 		case schema.NamedType:
-			s.typeUsage.Inc(typ)
+			if unwrapped, wasConfig := unwrapConfig(s.errs, typ); wasConfig {
+				processType(unwrapped)
+			} else {
+				s.typeUsage.Inc(typ)
+			}
 
 		case schema.BuiltinType:
 			if typ.Kind == schema.Time {
 				s.neededImports["time"] = "time"
 			}
 		}
+	}
+
+	schemautil.Walk(typ, func(typ schema.Type) bool {
+		processType(typ)
 		return true
 	})
 }
@@ -169,8 +178,7 @@ func (s *serviceFile) generateCue() {
 
 	// Write any declarations we've used multiple times to the file
 	for _, named := range s.typeUsage.NamesWithCountsOver(1) {
-		concrete := schemautil.ConcretizeGenericType(named)
-
+		concrete := schemautil.ConcretizeWithTypeArgs(named.Decl().Type, named.TypeArgs)
 		defIdent := s.typeUsage.CueIdent(named)
 		fieldType := s.toCueType(concrete)
 
@@ -262,23 +270,23 @@ func (s *serviceFile) structToFields(st schema.StructType) []structField {
 func (s *serviceFile) toCueType(unknownType schema.Type) ast.Expr {
 	switch typ := unknownType.(type) {
 	case schema.NamedType:
-		if underlying, _, isConfig := schemautil.UnwrapConfigType(s.errs, typ); isConfig {
+		if underlying, wasConfig := unwrapConfig(s.errs, typ); wasConfig {
 			return s.toCueType(underlying)
 		}
 
 		usageCount := s.typeUsage.Count(typ)
 		if usageCount <= 1 {
 			// inline the type if it's only used once
-			concrete := schemautil.ConcretizeGenericType(typ)
+			concrete := schemautil.ConcretizeWithTypeArgs(typ.Decl().Type, typ.TypeArgs)
 			return s.toCueType(concrete)
 		} else {
 			return s.typeUsage.CueIdent(typ)
 		}
 	case schema.StructType:
 		fields := s.structToFields(typ)
-		fieldsInterface := make([]interface{}, len(fields))
+		fieldsInterface := make([]any, len(fields))
 		for i, field := range fields {
-			fieldsInterface[i] = field
+			fieldsInterface[i] = field.CUE
 		}
 
 		return ast.NewStruct(fieldsInterface...)
@@ -438,4 +446,16 @@ func createTaggedDefinition(name string, tagName string, comment string, value a
 	})
 
 	return field
+}
+
+func unwrapConfig(errs *perr.List, typ schema.Type) (unwrapped schema.Type, wasConfig bool) {
+	if named, ok := typ.(schema.NamedType); ok {
+		if underlying, isList, isConfig := schemautil.UnwrapConfigType(errs, named); isConfig {
+			if isList {
+				underlying = schema.ListType{Elem: underlying}
+			}
+			return underlying, true
+		}
+	}
+	return typ, false
 }

@@ -52,28 +52,36 @@ func (p *Pass) Binds() []resource.Bind {
 
 func (p *Pass) AddBind(boundName *ast.Ident, res resource.Resource) {
 	if boundName.Name == "_" {
-		return
+		p.binds = append(p.binds, &resource.AnonymousBind{
+			Resource: resource.ResourceOrPath{Resource: res},
+			Pkg:      p.Pkg,
+		})
+	} else {
+		p.binds = append(p.binds, &resource.PkgDeclBind{
+			Resource:  resource.ResourceOrPath{Resource: res},
+			Pkg:       p.Pkg,
+			BoundName: boundName,
+		})
 	}
-
-	p.binds = append(p.binds, &resource.PkgDeclBind{
-		Resource:  resource.ResourceOrPath{Resource: res},
-		Pkg:       p.Pkg,
-		BoundName: boundName,
-	})
 }
 
 func (p *Pass) AddPathBind(boundName *ast.Ident, path resource.Path) {
 	if len(path) == 0 {
 		panic("AddPathBind: empty path")
-	} else if boundName.Name == "_" {
-		return
 	}
 
-	p.binds = append(p.binds, &resource.PkgDeclBind{
-		Resource:  resource.ResourceOrPath{Path: path},
-		Pkg:       p.Pkg,
-		BoundName: boundName,
-	})
+	if boundName.Name == "_" {
+		p.binds = append(p.binds, &resource.AnonymousBind{
+			Resource: resource.ResourceOrPath{Path: path},
+			Pkg:      p.Pkg,
+		})
+	} else {
+		p.binds = append(p.binds, &resource.PkgDeclBind{
+			Resource:  resource.ResourceOrPath{Path: path},
+			Pkg:       p.Pkg,
+			BoundName: boundName,
+		})
+	}
 }
 
 func (p *Pass) AddImplicitBind(res resource.Resource) {

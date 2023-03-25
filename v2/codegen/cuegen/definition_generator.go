@@ -1,10 +1,13 @@
 package cuegen
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
 	"cuelang.org/go/cue/ast"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
@@ -44,6 +47,7 @@ func (n *definitionGenerator) hash(named schema.NamedType) schemautil.TypeHash {
 	if _, ok := n.seenTypes[hash]; ok {
 		return hash
 	}
+	n.seenTypes[hash] = named
 
 	// Create a unique name for this definition
 	defaultName := n.typeToDefinitionName(named)
@@ -74,11 +78,19 @@ func (n *definitionGenerator) Count(named schema.NamedType) int {
 
 func (n *definitionGenerator) NamesWithCountsOver(x int) []schema.NamedType {
 	rtn := make([]schema.NamedType, 0, len(n.seenTypes))
-	for hash, typ := range n.seenTypes {
+
+	// Get the keys in sorted order for deterministic output
+	keys := maps.Keys(n.seenTypes)
+	slices.SortFunc(keys, func(a, b schemautil.TypeHash) bool {
+		return bytes.Compare(a[:], b[:]) < 0
+	})
+
+	for _, hash := range keys {
 		if n.counts[hash] > x {
-			rtn = append(rtn, typ)
+			rtn = append(rtn, n.seenTypes[hash])
 		}
 	}
+
 	return rtn
 }
 

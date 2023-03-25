@@ -20,6 +20,9 @@ type Service struct {
 	// Framework contains API Framework-specific data for this service.
 	Framework option.Option[*apiframework.ServiceDesc]
 
+	// ResourceBinds describes the infra resources bound within the service.
+	ResourceBinds map[resource.Resource][]resource.Bind
+
 	// ResourceUsage describes the infra resources the service accesses and how.
 	ResourceUsage map[resource.Resource][]usage.Usage
 }

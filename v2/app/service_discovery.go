@@ -143,6 +143,7 @@ func (sd *serviceDiscovery) possibleServiceRoot(pkg *pkginfo.Package, strong boo
 	sd.services[root] = &Service{
 		Name:          name,
 		FSRoot:        root,
+		ResourceBinds: make(map[resource.Resource][]resource.Bind),
 		ResourceUsage: make(map[resource.Resource][]usage.Usage),
 	}
 }

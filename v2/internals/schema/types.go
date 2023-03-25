@@ -2,6 +2,7 @@ package schema
 
 import (
 	"go/ast"
+	"go/types"
 	"sync"
 
 	"github.com/fatih/structtag"
@@ -229,7 +230,7 @@ func (t StructType) String() string       { return "struct" }
 func (t MapType) String() string          { return "map[" + t.Key.String() + "]" + t.Value.String() }
 func (t ListType) String() string         { return "[]" + t.Elem.String() }
 func (t PointerType) String() string      { return "*" + t.Elem.String() }
-func (t BuiltinType) String() string      { return t.AST.(*ast.Ident).Name }
+func (t BuiltinType) String() string      { return types.ExprString(t.AST) }
 func (t FuncType) String() string         { return "function" }
 func (t InterfaceType) String() string    { return "interface" }
 func (t TypeParamRefType) String() string { return t.AST.Name }

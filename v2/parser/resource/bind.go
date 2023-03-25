@@ -38,6 +38,18 @@ func (b *PkgDeclBind) QualifiedName() pkginfo.QualifiedName {
 	}
 }
 
+// An AnonymousBind is similar to PkgDeclBind in that it's a package declaration,
+// but unlike PkgDeclBind it's bound to an "_" identifier so that it has no name.
+type AnonymousBind struct {
+	Resource ResourceOrPath
+	Pkg      *pkginfo.Package
+}
+
+func (b *AnonymousBind) Pos() token.Pos              { return b.Pkg.AST.Pos() }
+func (b *AnonymousBind) ResourceRef() ResourceOrPath { return b.Resource }
+func (b *AnonymousBind) Package() *pkginfo.Package   { return b.Pkg }
+func (b *AnonymousBind) DescriptionForTest() string  { return "anonymous" }
+
 // An ImplicitBind is a bind that implicitly binds to a package and its subpackages.
 type ImplicitBind struct {
 	Resource ResourceOrPath

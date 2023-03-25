@@ -5,6 +5,20 @@ import (
 	"encr.dev/v2/parser/resource/usage"
 )
 
+// locateResourceBinds finds all resource binds and assigns them to the appropriate service.
+func (d *Desc) locateResourceBinds(result *parser.Result) {
+	allBinds := result.AllBinds()
+
+	for _, bind := range allBinds {
+		res := result.ResourceForBind(bind)
+		svc, found := d.ServiceForPath(bind.Package().FSPath)
+		if found {
+			// If we found the service, then we know the resource is used within the service.
+			svc.ResourceBinds[res] = append(svc.ResourceBinds[res], bind)
+		}
+	}
+}
+
 // locateResourceUsage finds all resource usages and assigns them to the appropriate service.
 // If a resource is used outside of a service, it is assigned to the top-level app description.
 func (d *Desc) locateResourceUsage(result *parser.Result) {

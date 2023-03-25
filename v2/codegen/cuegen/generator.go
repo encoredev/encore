@@ -5,6 +5,7 @@ import (
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/token"
+	"golang.org/x/exp/slices"
 
 	"encr.dev/v2/app"
 	"encr.dev/v2/parser/infra/config"
@@ -26,7 +27,7 @@ func NewGenerator(desc *app.Desc) *Generator {
 // within the service.
 func (g *Generator) UserFacing(svc *app.Service) ([]byte, error) {
 	var loads []*config.Load
-	for res := range svc.ResourceUsage {
+	for res := range svc.ResourceBinds {
 		if cfg, ok := res.(*config.Load); ok {
 			loads = append(loads, cfg)
 		}
@@ -34,6 +35,21 @@ func (g *Generator) UserFacing(svc *app.Service) ([]byte, error) {
 	if len(loads) == 0 {
 		return nil, nil
 	}
+
+	// Sort the loads so we iterate over them in a deterministic order.
+	slices.SortFunc(loads, func(a, b *config.Load) bool {
+		// Sort by package path, then file name, then position.
+		// We can't sort by position first because we're not guaranteed
+		// files are added to the *token.FileSet in the same order since
+		// we're parsing files concurrently.
+		if a.File.Pkg.ImportPath != b.File.Pkg.ImportPath {
+			return a.File.Pkg.ImportPath < b.File.Pkg.ImportPath
+		} else if a.File.Name != b.File.Name {
+			return a.File.Name < b.File.Name
+		} else {
+			return a.Pos() < b.Pos()
+		}
+	})
 
 	// Create a base file
 	service := &serviceFile{

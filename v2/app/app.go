@@ -84,7 +84,8 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 		ResourceUsageOutsideServices: make(map[resource.Resource][]usage.Usage),
 	}
 
-	// Find each services infra usage.
+	// Find each services infra binds and usage.
+	desc.locateResourceBinds(result)
 	desc.locateResourceUsage(result)
 
 	// Run the application-level validations against the application description.
