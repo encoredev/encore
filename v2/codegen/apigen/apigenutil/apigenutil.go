@@ -18,7 +18,7 @@ func DecodeHeaders(g *Group, httpReqExpr, paramExpr *Statement, dec *genutil.Typ
 	for _, f := range params {
 		singleValExpr := Id("h").Dot("Get").Call(Lit(f.WireName))
 		listValExpr := Id("h").Dot("Values").Call(Lit(f.WireName))
-		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.SrcName, singleValExpr, listValExpr, false)
+		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.WireName, singleValExpr, listValExpr, false)
 		g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
 	}
 	g.Line()
@@ -35,7 +35,7 @@ func DecodeQuery(g *Group, httpReqExpr, paramExpr *Statement, dec *genutil.TypeU
 	for _, f := range params {
 		singleValExpr := Id("qs").Dot("Get").Call(Lit(f.WireName))
 		listValExpr := Id("qs").Index(Lit(f.WireName))
-		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.SrcName, singleValExpr, listValExpr, false)
+		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.WireName, singleValExpr, listValExpr, false)
 		g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
 	}
 	g.Line()

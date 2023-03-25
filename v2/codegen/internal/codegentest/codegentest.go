@@ -146,5 +146,6 @@ func goBuild(tc *testutil.Context, overlays []overlay.File) {
 		Ctx:      tc.Context,
 		Overlays: overlays,
 		MainPkg:  "./...",
+		NoBinary: true,
 	})
 }

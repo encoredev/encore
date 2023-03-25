@@ -19,7 +19,6 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/internal/builder"
 	"encr.dev/internal/builder/builderimpl"
-	"encr.dev/parser"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
 )
@@ -35,10 +34,6 @@ type TestParams struct {
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
 	WorkingDir string
-
-	// Parse is the parse result for the initial run of the app.
-	// It must be set.
-	Parse *parser.Result
 
 	// Secrets are the secrets to use.
 	Secrets *secret.LoadResult
@@ -67,6 +62,32 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 	secrets := secretData.Values
 
+	bld := builderimpl.Resolve(expSet)
+
+	vcsRevision := vcs.GetRevision(params.App.Root())
+	buildInfo := builder.BuildInfo{
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              false,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
+	}
+
+	parse, err := bld.Parse(ctx, builder.ParseParams{
+		Build:       buildInfo,
+		App:         params.App,
+		Experiments: expSet,
+		WorkingDir:  params.WorkingDir,
+		ParseTests:  true,
+	})
+	if err != nil {
+		return err
+	}
+
 	var (
 		sqlServers []*config.SQLServer
 		sqlDBs     []*config.SQLDatabase
@@ -76,7 +97,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 			Host: "localhost:" + strconv.Itoa(mgr.DBProxyPort),
 		}
 		sqlServers = append(sqlServers, srv)
-		for _, svc := range params.Parse.Meta.Svcs {
+		for _, svc := range parse.Meta.Svcs {
 			if len(svc.Migrations) > 0 {
 				sqlDBs = append(sqlDBs, &config.SQLDatabase{
 					ServerID:     0,
@@ -112,32 +133,6 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		SQLDatabases:  sqlDBs,
 		SQLServers:    sqlServers,
 		AuthKeys:      []config.EncoreAuthKey{genAuthKey()},
-	})
-	if err != nil {
-		return err
-	}
-
-	bld := builderimpl.Resolve(expSet)
-
-	vcsRevision := vcs.GetRevision(params.App.Root())
-	buildInfo := builder.BuildInfo{
-		BuildTags:          builder.LocalBuildTags,
-		CgoEnabled:         true,
-		StaticLink:         false,
-		Debug:              false,
-		GOOS:               runtime.GOOS,
-		GOARCH:             runtime.GOARCH,
-		KeepOutput:         false,
-		Revision:           vcsRevision.Revision,
-		UncommittedChanges: vcsRevision.Uncommitted,
-	}
-
-	parse, err := bld.Parse(ctx, builder.ParseParams{
-		Build:       buildInfo,
-		App:         params.App,
-		Experiments: expSet,
-		WorkingDir:  params.WorkingDir,
-		ParseTests:  true,
 	})
 	if err != nil {
 		return err

@@ -97,6 +97,11 @@ func (b *builder) Build() *meta.Data {
 				out.Rpcs = append(out.Rpcs, rpc)
 			}
 
+			// Sort the RPCs for deterministic output.
+			slices.SortFunc(out.Rpcs, func(a, b *meta.RPC) bool {
+				return a.Name < b.Name
+			})
+
 			// Do we have a database associated with the service?
 			for res := range svc.ResourceUsage {
 				switch res := res.(type) {
@@ -207,7 +212,7 @@ func (b *builder) Build() *meta.Data {
 				PkgPath: r.Package().ImportPath.String(),
 				PkgName: r.Package().Name,
 				Loc:     b.schemaLoc(r.Decl.File, r.Decl.AST),
-				Params:  b.schemaType(r.Param),
+				Params:  b.schemaTypeUnwrapPointer(r.Param),
 			}
 			if data, ok := r.AuthData.Get(); ok {
 				ah.AuthData = b.typeDeclRefUnwrapPointer(data)

@@ -328,6 +328,10 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 func describeParams(errs *perr.List, encodingHints *encodingHints, payload schema.StructType) (fields map[WireLoc][]*ParameterEncoding, ok bool) {
 	paramByLocation := make(map[WireLoc][]*ParameterEncoding)
 	for _, f := range payload.Fields {
+		if !f.IsExported() {
+			continue
+		}
+
 		f, ok := describeParam(errs, encodingHints, f)
 		if !ok {
 			return nil, false

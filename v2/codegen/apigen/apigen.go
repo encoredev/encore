@@ -39,8 +39,10 @@ func Process(p Params) {
 
 		APIHandlers:    make(map[*api.Endpoint]*codegen.VarDecl),
 		Middleware:     make(map[*middleware.Middleware]*codegen.VarDecl),
-		AuthHandler:    option.None[*codegen.VarDecl](),
 		ServiceStructs: make(map[*app.Service]*codegen.VarDecl),
+
+		// Set below
+		AuthHandler: option.None[*codegen.VarDecl](),
 	}
 
 	if fw, ok := p.Desc.Framework.Get(); ok {

@@ -35,14 +35,20 @@ type Config struct {
 	// in the form of rewritten files or generated files.
 	Overlays []overlay.File
 
-	// MainPkg is the main package to build.
-	MainPkg paths.Pkg
-
 	// KeepOutput keeps the temporary build directory from being deleted in the case of failure.
 	KeepOutput bool
 
 	// Env are additional environment variables to set.
 	Env []string
+
+	// MainPkg is the main package to build.
+	MainPkg paths.Pkg
+
+	// NoBinary specifies that no binary should be built.
+	// It's used if MainPkg specifies multiple packages,
+	// which for example is the case when checking for compilation errors
+	// without building a binary (such as during tests).
+	NoBinary bool
 }
 
 type TestConfig struct {
@@ -281,7 +287,10 @@ func (b *builder) buildMain() {
 			"-overlay=" + overlayPath.ToIO(),
 			"-modfile=" + b.gomodPath().ToIO(),
 			"-mod=mod",
-			"-o=" + b.binaryPath().ToIO(),
+		}
+
+		if !b.cfg.NoBinary {
+			args = append(args, "-o="+b.binaryPath().ToIO())
 		}
 
 		if b.cfg.Ctx.Build.StaticLink {

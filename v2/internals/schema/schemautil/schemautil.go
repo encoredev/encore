@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strconv"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/internal/paths"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/schema"
@@ -150,17 +152,24 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 		}
 		return result
 	case schema.NamedType:
-		clone := typ // copy
+		// Clone the named type. Clone the slice so we don't overwrite the original.
+		clone := typ
+		clone.TypeArgs = slices.Clone(typ.TypeArgs)
+
 		for i, arg := range clone.TypeArgs {
 			clone.TypeArgs[i] = concretize(arg, typeArgs)
 		}
 
-		decl := *clone.Decl() // copy
+		decl := clone.Decl().Clone() // clone the type declaration
 		decl.Type = concretize(decl.Type, clone.TypeArgs)
 
-		return clone.WithDecl(&decl)
+		return clone.WithDecl(decl)
 	case schema.FuncType:
+		// Clone the function type. Clone the slices so we don't overwrite the original.
 		clone := typ // copy
+		clone.Params = slices.Clone(typ.Params)
+		clone.Results = slices.Clone(typ.Results)
+
 		for i, p := range clone.Params {
 			clone.Params[i].Type = concretize(p.Type, typeArgs)
 		}

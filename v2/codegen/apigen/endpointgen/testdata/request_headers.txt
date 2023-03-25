@@ -27,16 +27,16 @@ type EncoreInternal_FooReq struct {
 	Payload *Params
 }
 
-type EncoreInternal_FooResp struct{}
+type EncoreInternal_FooResp = __api.Void
 
-var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
+var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreInternal_FooResp]{
 	Access: __api.Public,
-	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
+	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (EncoreInternal_FooResp, error) {
 		err := Foo(ctx, reqData.Payload)
 		if err != nil {
-			return nil, err
+			return __api.Void{}, err
 		}
-		return nil, nil
+		return __api.Void{}, nil
 	},
 	CloneReq: func(r *EncoreInternal_FooReq) (*EncoreInternal_FooReq, error) {
 		var clone *EncoreInternal_FooReq
@@ -46,8 +46,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 		}
 		return clone, err
 	},
-	CloneResp: func(r *EncoreInternal_FooResp) (*EncoreInternal_FooResp, error) {
-		var clone *EncoreInternal_FooResp
+	CloneResp: func(r EncoreInternal_FooResp) (EncoreInternal_FooResp, error) {
+		var clone EncoreInternal_FooResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(r)
 		if err == nil {
 			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
@@ -60,11 +60,6 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 		params := new(Params)
 		reqData.Payload = params
 		switch m := httpReq.Method; m {
-		case "GET":
-			// Decode headers
-			h := httpReq.Header
-			params.Foo = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "Foo", h.Get("x-foo"), false)
-
 		case "POST":
 			// Decode headers
 			h := httpReq.Header
@@ -78,11 +73,11 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 		}
 		return reqData, ps, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *EncoreInternal_FooResp) (err error) {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},
 	Endpoint:       "Foo",
-	Methods:        []string{"GET", "POST"},
+	Methods:        []string{"POST"},
 	Path:           "/code.Foo",
 	PathParamNames: nil,
 	Raw:            false,

@@ -67,8 +67,21 @@ type NonBasicResponse struct {
 // TestEndToEndWithApp tests that (*app).startProc correctly starts Encore processes
 // for sending requests.
 func TestEndToEndWithApp(t *testing.T) {
+	doTestEndToEndWithApp(t, nil)
+}
+
+func TestEndToEndWithAppV2(t *testing.T) {
+	doTestEndToEndWithApp(t, []string{"ENCORE_EXPERIMENT=v2"})
+}
+
+func doTestEndToEndWithApp(t *testing.T, env []string) {
 	c := qt.New(t)
-	app := RunApp(c, "./testdata/echo", nil, nil)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	appRoot := filepath.Join(wd, "testdata", "echo")
+	app := RunApp(c, appRoot, nil, env)
 	run := app.Run
 
 	// Use golden to test that the generated clients are as expected for the echo test app
@@ -517,19 +530,27 @@ func TestEndToEndWithApp(t *testing.T) {
 // the given ctx is cancelled.
 func TestProcClosedOnCtxCancel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-	app := apps.NewInstance("/", "local_id", "platform_id")
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	appRoot := filepath.Join(wd, "testdata", "echo")
+
+	app := apps.NewInstance(appRoot, "local_id", "platform_id")
+
 	mgr := &Manager{}
 	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceServers: NewResourceServices(app, nil)}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	build := testBuild(c, "./testdata/echo")
+	parse, build := testBuild(c, appRoot, os.Environ())
 	p, err := run.StartProc(&StartProcParams{
 		Ctx:         ctx,
 		BuildDir:    build.Dir,
 		BinPath:     build.Exe,
-		Meta:        build.Parse.Meta,
+		Meta:        parse.Meta,
 		RuntimePort: 0,
 		DBProxyPort: 0,
 		Logger:      testRunLogger{t},

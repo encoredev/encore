@@ -8,7 +8,8 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
+	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,11 +20,11 @@ import (
 	"encr.dev/cli/daemon/redis"
 	. "encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
-	"encr.dev/compiler"
-	"encr.dev/internal/env"
-	"encr.dev/parser"
+	"encr.dev/internal/builder"
+	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
+	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -62,10 +63,10 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Cleanup(cancel)
 
-	build := testBuild(c, appRoot)
+	parse, build := testBuild(c, appRoot, env)
 
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
-	err = run.ResourceServers.StartRequiredServices(jobs, build.Parse)
+	err = run.ResourceServers.StartRequiredServices(jobs, parse.Meta)
 	assertNil(err)
 	c.Cleanup(rs.StopAll)
 
@@ -88,7 +89,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
-		Meta:           build.Parse.Meta,
+		Meta:           parse.Meta,
 		RuntimePort:    0,
 		DBProxyPort:    0,
 		Logger:         logger,
@@ -114,7 +115,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	return &RunAppData{
 		Addr:   ln.Addr().String(),
 		Run:    run,
-		Meta:   build.Parse.Meta,
+		Meta:   parse.Meta,
 		NSQ:    rs.GetPubSub(),
 		Redis:  rs.GetRedis(),
 		Env:    env,
@@ -123,12 +124,6 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 }
 
 func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []string) error {
-	assertNil := func(err error) {
-		if err != nil {
-			c.Fatal(err)
-		}
-	}
-
 	mgr := &Manager{
 		Secret:     secret.New(),
 		ClusterMgr: nil,
@@ -137,23 +132,11 @@ func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Cleanup(cancel)
 
-	cfg := &parser.Config{
-		AppRoot:                  appRoot,
-		AppRevision:              "",
-		AppHasUncommittedChanges: false,
-		ModulePath:               "test",
-		WorkingDir:               ".",
-		ParseTests:               true,
-	}
-	parse, err := parser.Parse(cfg)
-	assertNil(err)
-
 	app := apps.NewInstance(appRoot, "slug", "")
-	err = mgr.Test(ctx, TestParams{
+	err := mgr.Test(ctx, TestParams{
 		App:          app,
 		SQLDBCluster: nil,
 		WorkingDir:   ".",
-		Parse:        parse,
 		Args:         []string{"./..."},
 		Environ:      environ,
 		Stdout:       stdout,
@@ -203,39 +186,81 @@ func proxyTcp(ctx context.Context, ln net.Listener, client *yamux.Session) {
 
 // testBuild is a helper that compiles the app situated at appRoot
 // and cleans up the build dir during test cleanup.
-func testBuild(t testing.TB, appRoot string) *compiler.Result {
-	// Generate use facing code
-	err := compiler.GenUserFacing(appRoot)
-
-	expSet, err := experiments.NewSet(nil, nil)
+func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult, *builder.CompileResult) {
+	expSet, err := experiments.NewSet(nil, env)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Then compile the app
-	wd, err := os.Getwd()
+	bld := builderimpl.Resolve(expSet)
+	ctx := context.Background()
+
+	app := apps.NewInstance(appRoot, t.Name(), "")
+
+	vcsRevision := vcs.GetRevision(app.Root())
+	buildInfo := builder.BuildInfo{
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              false,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
+	}
+
+	parse, err := bld.Parse(ctx, builder.ParseParams{
+		Build:       buildInfo,
+		App:         app,
+		Experiments: expSet,
+		WorkingDir:  ".",
+		ParseTests:  false,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtimePath := filepath.Join(wd, "../runtime")
-	build, err := compiler.Build(appRoot, &compiler.Config{
-		EncoreRuntimePath: runtimePath,
-		EncoreGoRoot:      env.EncoreGoRoot(),
-		Meta: &cueutil.Meta{
+
+	err = bld.GenUserFacing(ctx, builder.GenUserFacingParams{
+		App:   app,
+		Parse: parse,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	build, err := bld.Compile(ctx, builder.CompileParams{
+		Build:       buildInfo,
+		App:         app,
+		Parse:       parse,
+		OpTracker:   nil,
+		Experiments: expSet,
+		WorkingDir:  ".",
+		CueMeta: &cueutil.Meta{
 			APIBaseURL: "http://what?",
 			EnvName:    "end_to_end_test",
 			EnvType:    cueutil.EnvType_Development,
 			CloudType:  cueutil.CloudType_Local,
 		},
-		BuildTags:   []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-		Experiments: expSet,
 	})
+
 	if err != nil {
-		fmt.Println(err.Error())
-		t.FailNow()
+		t.Fatal(err)
 	}
+
 	t.Cleanup(func() {
 		os.RemoveAll(build.Dir)
 	})
-	return build
+	return parse, build
+}
+
+func runGoModTidy(dir string) error {
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GO111MODULE=on")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("go mod tidy failed: %s", out)
+	}
+	return nil
 }

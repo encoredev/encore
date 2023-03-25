@@ -8,7 +8,6 @@ import (
 
 func New(data []byte, base int) *Rewriter {
 	return &Rewriter{
-		base: 0,
 		segs: []segment{{
 			data:  data,
 			start: base,
@@ -18,7 +17,6 @@ func New(data []byte, base int) *Rewriter {
 }
 
 type Rewriter struct {
-	base int
 	segs []segment
 }
 

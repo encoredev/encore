@@ -3,6 +3,8 @@ package schema
 import (
 	"go/ast"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internals/pkginfo"
@@ -50,6 +52,17 @@ type TypeDecl struct {
 	// TypeParams are any type parameters on this declaration.
 	// (note: instantiated types used within this declaration would not be captured here)
 	TypeParams []DeclTypeParam
+}
+
+func (d *TypeDecl) Clone() *TypeDecl {
+	return &TypeDecl{
+		AST:        d.AST,
+		Info:       d.Info,
+		File:       d.File,
+		Name:       d.Name,
+		Type:       d.Type,
+		TypeParams: slices.Clone(d.TypeParams),
+	}
 }
 
 // DeclTypeParam represents a type parameter on a declaration.

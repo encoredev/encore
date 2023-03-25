@@ -241,7 +241,7 @@ func (g *Helper) Zero(typ schema.Type) *Statement {
 		if numPointers > 0 || isNillable(named.Decl().Type) {
 			// Return (*Foo)(nil) if the underlying type is nillable.
 			ops := strings.Repeat("*", numPointers)
-			return Parens(Op(ops).Add(Q(named.DeclInfo))).Call(Nil())
+			return Parens(Op(ops).Add(g.Type(named))).Call(Nil())
 		}
 	}
 	if numPointers > 0 || isNillable(typ) {

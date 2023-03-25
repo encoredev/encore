@@ -21,13 +21,15 @@ func (d *responseDesc) TypeName() string {
 }
 
 func (d *responseDesc) Type() *Statement {
-	return Op("*").Id(d.TypeName())
+	return Id(d.TypeName())
 }
 
 func (d *responseDesc) TypeDecl() *Statement {
-	return Type().Id(d.TypeName()).StructFunc(func(g *Group) {
+	return Type().Id(d.TypeName()).Op("=").Do(func(s *Statement) {
 		if d.ep.Response != nil {
-			g.Id(d.respDataPayloadName()).Add(d.gu.Type(d.ep.Response))
+			s.Add(d.gu.Type(d.ep.Response))
+		} else {
+			s.Add(apiQ("Void"))
 		}
 	})
 }
@@ -63,7 +65,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/appruntime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/appruntime/serde", "JSONSerializer")).BlockFunc(
 					func(g *Group) {
 						for _, f := range resp.BodyParameters {
-							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(d.respDataPayloadName()).Dot(f.SrcName), Lit(f.OmitEmpty)))
+							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
 						}
 					}))
 				g.If(Err().Op("!=").Nil()).Block(
@@ -77,7 +79,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.Id("headers").Op("=").Map(String()).Index().String().Values(DictFunc(func(dict Dict) {
 					for _, f := range resp.HeaderParameters {
 						if builtin, ok := f.Type.(schema.BuiltinType); ok {
-							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(d.respDataPayloadName()).Dot(f.SrcName))
+							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(f.SrcName))
 							dict[Lit(f.WireName)] = Index().String().Values(encExpr)
 						} else {
 							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
@@ -117,22 +119,20 @@ func (d *responseDesc) respDataExpr() *Statement {
 	return Id("respData")
 }
 
-// respDataPayloadName returns the name of the payload field in the respData struct.
-func (d *responseDesc) respDataPayloadName() string {
-	return "Payload"
-}
-
 // respDataPayloadExpr returns an expression for accessing the payload
 // in the reqData variable.
 func (d *responseDesc) respDataPayloadExpr() *Statement {
-	return d.respDataExpr().Dot(d.respDataPayloadName())
+	return d.respDataExpr()
 }
 
 // zero returns an expression representing the zero value
 // of the response type.
 func (d *responseDesc) zero() *Statement {
-	// This is always nil because we always use a pointer type.
-	return Nil()
+	if d.ep.Response != nil {
+		return d.gu.Zero(d.ep.Response)
+	} else {
+		return apiQ("Void").Values()
+	}
 }
 
 // Clone returns the function literal to clone the request.

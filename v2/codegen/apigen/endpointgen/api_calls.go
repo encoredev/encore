@@ -88,7 +88,7 @@ func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, 
 			}
 		})
 		if ep.Response != nil {
-			g.Return(Id("resp").Dot(handler.resp.respDataPayloadName()), Nil())
+			g.Return(Id("resp"), Nil())
 		} else {
 			g.Return(Nil())
 		}

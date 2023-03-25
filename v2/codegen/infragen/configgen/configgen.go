@@ -192,7 +192,8 @@ func (cb *configUnmarshalersBuilder) readType(typ schema.Type, pathElement Code)
 				return Qual("encore.dev/config", "CreateValueList").Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Values").Types(returnType)
 			} else {
 				code, returnType := cb.readType(underlying, pathElement)
-				return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Value").Types(returnType)
+				return Qual("encore.dev/config", "CreateValue").Types(returnType).Call(
+					code, Append(Id("path"), pathElement)), Qual("encore.dev/config", "Value").Types(returnType)
 			}
 		}
 
@@ -339,6 +340,14 @@ func (cb *configUnmarshalersBuilder) readStruct(f *Group, struc schema.StructTyp
 func (cb *configUnmarshalersBuilder) typeUnmarshalerFunc(typ schema.Type) (f *Statement, returnType *Statement) {
 	switch t := typ.(type) {
 	case schema.NamedType:
+		// Treat the config type as its underlying type
+		if underlying, isList, isConfig := schemautil.UnwrapConfigType(cb.errs, t); isConfig {
+			if isList {
+				underlying = schema.ListType{Elem: underlying}
+			}
+			return cb.typeUnmarshalerFunc(underlying)
+		}
+
 		name, returnType := cb.typeUnmarshalerName(t.Decl())
 
 		if len(t.TypeArgs) == 0 {
@@ -438,7 +447,7 @@ func (cb *configUnmarshalersBuilder) readBuiltin(builtin schema.BuiltinKind) (re
 				Panic(Qual("fmt", "Sprintf").Call(Lit("unable to decode the config: %v"), Err())),
 			)
 			g.Return()
-		}), rtnTyp
+		}).Call(), rtnTyp
 	default:
 		panic(fmt.Sprintf("unsupported builtin type: %v", builtin))
 	}

@@ -59,9 +59,7 @@ func (h *handlerDesc) Typed() *Statement {
 		g.If(Err().Op("!=").Nil()).Block(Return(h.resp.zero(), Err()))
 
 		if ep.Response != nil {
-			g.Return(Op("&").Id(h.resp.TypeName()).Values(Dict{
-				Id(h.resp.respDataPayloadName()): Id("resp"),
-			}), Nil())
+			g.Return(Id("resp"), Nil())
 		} else {
 			g.Return(h.resp.zero(), Nil())
 		}

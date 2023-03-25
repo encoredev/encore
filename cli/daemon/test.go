@@ -39,7 +39,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 	secrets := s.sm.Load(app)
 
 	// Parse the app to figure out what infrastructure is needed.
-	// TODO(andre) remove this
+	// TODO(andre) remove this, we're parsing things twice
 	parse, err := s.parseApp(app.Root(), req.WorkingDir, true /* parse tests */)
 	if err != nil {
 		sendErr(err)
@@ -93,7 +93,6 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 			WorkingDir:   req.WorkingDir,
 			Environ:      req.Environ,
 			Args:         req.Args,
-			Parse:        parse,
 			Secrets:      secrets,
 			Stdout:       slog.Stdout(false),
 			Stderr:       slog.Stderr(false),

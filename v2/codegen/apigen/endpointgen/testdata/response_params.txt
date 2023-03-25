@@ -25,18 +25,16 @@ import (
 
 type EncoreInternal_FooReq struct{}
 
-type EncoreInternal_FooResp struct {
-	Payload *Params
-}
+type EncoreInternal_FooResp = *Params
 
-var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
+var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreInternal_FooResp]{
 	Access: __api.Public,
-	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
+	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (EncoreInternal_FooResp, error) {
 		resp, err := Foo(ctx)
 		if err != nil {
-			return nil, err
+			return (*Params)(nil), err
 		}
-		return &EncoreInternal_FooResp{Payload: resp}, nil
+		return resp, nil
 	},
 	CloneReq: func(r *EncoreInternal_FooReq) (*EncoreInternal_FooReq, error) {
 		var clone *EncoreInternal_FooReq
@@ -46,8 +44,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 		}
 		return clone, err
 	},
-	CloneResp: func(r *EncoreInternal_FooResp) (*EncoreInternal_FooResp, error) {
-		var clone *EncoreInternal_FooResp
+	CloneResp: func(r EncoreInternal_FooResp) (EncoreInternal_FooResp, error) {
+		var clone EncoreInternal_FooResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(r)
 		if err == nil {
 			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
@@ -58,13 +56,13 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 		reqData = new(EncoreInternal_FooReq)
 		return reqData, nil, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *EncoreInternal_FooResp) (err error) {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		respData := []byte("null\n")
 		if resp != nil {
 			// Encode JSON body
 			respData, err = __serde.SerializeJSONFunc(json, func(ser *__serde.JSONSerializer) {
-				ser.WriteField("String", resp.Payload.String, false)
-				ser.WriteField("Int", resp.Payload.Int, false)
+				ser.WriteField("String", resp.String, false)
+				ser.WriteField("Int", resp.Int, false)
 			})
 			if err != nil {
 				return err
