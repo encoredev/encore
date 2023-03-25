@@ -73,8 +73,14 @@ type TestParams struct {
 	Stdout, Stderr io.Writer
 }
 
+type GenUserFacingParams struct {
+	App   *apps.Instance
+	Parse *ParseResult
+}
+
 type Impl interface {
 	Parse(context.Context, ParseParams) (*ParseResult, error)
 	Compile(context.Context, CompileParams) (*CompileResult, error)
 	Test(context.Context, TestParams) error
+	GenUserFacing(context.Context, GenUserFacingParams) error
 }

@@ -1,15 +1,17 @@
 package v2builder
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
 
@@ -25,6 +27,8 @@ import (
 	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen"
+	"encr.dev/v2/codegen/apigen/userfacinggen"
+	"encr.dev/v2/codegen/cuegen"
 	"encr.dev/v2/codegen/infragen"
 	"encr.dev/v2/compiler/build"
 	"encr.dev/v2/internals/parsectx"
@@ -284,4 +288,68 @@ func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
 		errs.AssertStd(fmt.Errorf("unable to package configuration files: %w", err))
 	}
 	return configFiles
+}
+
+func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingParams) error {
+	return etrace.Sync1(ctx, "", "v2builder.GenUserFacing", func(ctx context.Context) (err error) {
+		defer func() {
+			if l, ok := perr.CatchBailout(recover()); ok {
+				err = fmt.Errorf("codegen error: %s\n", l.FormatErrors())
+			}
+		}()
+
+		pd := p.Parse.Data.(*parseData)
+		errs := pd.pc.Errs
+		gg := codegen.New(pd.pc)
+		cueGen := cuegen.NewGenerator(pd.appDesc)
+
+		var buf bytes.Buffer
+		for _, svc := range pd.appDesc.Services {
+			// Generate the user-facing Go code.
+			{
+				// Service structs are not needed if there is no implementation to be generated
+				svcStruct := option.None[*codegen.VarDecl]()
+				if f, ok := userfacinggen.Gen(gg, svc, svcStruct, false).Get(); ok {
+					buf.Reset()
+					if err := f.Render(&buf); err != nil {
+						errs.Addf(token.NoPos, "unable to render userfacing go code: %v", err)
+						continue
+					}
+					dst := svc.FSRoot.Join("encore.gen.go")
+					i.writeOrDeleteFile(errs, buf.Bytes(), dst)
+				}
+			}
+
+			// Generate the user-facing CUE code.
+			{
+				data, err := cueGen.UserFacing(svc)
+				if err != nil {
+					errs.AddStd(err)
+					continue
+				}
+				dst := svc.FSRoot.Join("encore.gen.cue")
+				i.writeOrDeleteFile(errs, data, dst)
+			}
+		}
+
+		if errs.Len() > 0 {
+			return errors.New(errs.FormatErrors())
+		}
+
+		return nil
+	})
+}
+
+// writeOrDeleteFile writes the given data to dst. If data is empty, it will
+// instead delete the file at dst.
+func (i BuilderImpl) writeOrDeleteFile(errs *perr.List, data []byte, dst paths.FS) {
+	if len(data) == 0 {
+		// No need for any generated code. Try to remove the existing file
+		// if it's there as it's no longer needed.
+		_ = os.Remove(dst.ToIO())
+	} else {
+		if err := os.WriteFile(dst.ToIO(), data, 0644); err != nil {
+			errs.AddStd(err)
+		}
+	}
 }

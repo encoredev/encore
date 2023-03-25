@@ -43,12 +43,17 @@ func UnhandledPanic(recovered any) error {
 // It should not be returned by any errors caused by Encore's own parser as they
 // should have specific errors listed below
 func GenericGoParserError(err *scanner.Error) *errinsrc.ErrInSrc {
+	locs := SrcLocations{}
+	if pos := FromGoTokenPositions(err.Pos, err.Pos); pos != nil {
+		locs = SrcLocations{pos}
+	}
+
 	return errinsrc.New(ErrParams{
 		Code:      2,
 		Title:     "Parse Error in Go Source",
 		Summary:   err.Msg,
 		Cause:     err,
-		Locations: SrcLocations{FromGoTokenPositions(err.Pos, err.Pos)},
+		Locations: locs,
 	}, false)
 }
 

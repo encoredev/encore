@@ -3,6 +3,7 @@ package daemon
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,13 +15,12 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/run"
-	"encr.dev/compiler"
 	"encr.dev/pkg/watcher"
 )
 
 func (s *Server) watchApps() {
 	s.apps.RegisterAppListener(func(i *apps.Instance) {
-		s.regenerateUserCode(i)
+		s.regenerateUserCode(context.Background(), i)
 		if err := s.updateGitIgnore(i); err != nil {
 			log.Error().Err(err).Msg("unable to update app gitignore")
 		}
@@ -46,14 +46,14 @@ func (s *Server) onWatchEvent(i *apps.Instance, events []watcher.Event) {
 	}
 	s.appDebounceMu.Unlock()
 
-	deb(func() { s.regenerateUserCode(i) })
+	deb(func() { s.regenerateUserCode(context.Background(), i) })
 }
 
-func (s *Server) regenerateUserCode(i *apps.Instance) {
-	if err := compiler.GenUserFacing(i.Root()); err != nil {
-		log.Error().Err(err).Str("app", i.PlatformOrLocalID()).Msg("failed to regenerate app")
+func (s *Server) regenerateUserCode(ctx context.Context, app *apps.Instance) {
+	if err := s.genUserFacing(ctx, app); err != nil {
+		log.Error().Err(err).Str("app", app.PlatformOrLocalID()).Msg("failed to regenerate app")
 	} else {
-		log.Info().Str("app", i.PlatformOrLocalID()).Msg("successfully generated user code")
+		log.Info().Str("app", app.PlatformOrLocalID()).Msg("successfully generated user code")
 	}
 }
 

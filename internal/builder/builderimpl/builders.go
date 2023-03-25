@@ -124,3 +124,7 @@ func (l Legacy) Test(ctx context.Context, p builder.TestParams) error {
 	}
 	return compiler.Test(ctx, p.Compile.App.Root(), cfg)
 }
+
+func (l Legacy) GenUserFacing(ctx context.Context, p builder.GenUserFacingParams) error {
+	return compiler.GenUserFacing(p.App.Root(), p.Parse.Data.(*parser.Result))
+}
