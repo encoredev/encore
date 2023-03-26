@@ -139,7 +139,6 @@ func Parse(d ParseData) *Endpoint {
 		} else {
 			// For non-raw endpoints, if there's a request payload
 			// default to POST-only.
-			// TODO(andre) base this on the API encoding!
 			if rpc.Request != nil {
 				rpc.HTTPMethods = []string{"POST"}
 			} else {

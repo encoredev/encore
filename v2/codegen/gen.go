@@ -6,6 +6,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/internal/paths"
+	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/codegen/internal/rewrite"
 	"encr.dev/v2/internals/overlay"
@@ -15,17 +16,20 @@ import (
 
 type Generator struct {
 	*parsectx.Context
-	Util     *genutil.Helper
-	rewrites map[*pkginfo.File]*rewrite.Rewriter
-	files    map[fileKey]*File
+
+	Util       *genutil.Helper
+	TraceNodes *legacymeta.TraceNodes
+	rewrites   map[*pkginfo.File]*rewrite.Rewriter
+	files      map[fileKey]*File
 }
 
-func New(c *parsectx.Context) *Generator {
+func New(c *parsectx.Context, traceNodes *legacymeta.TraceNodes) *Generator {
 	return &Generator{
-		Context:  c,
-		Util:     genutil.NewHelper(c.Errs),
-		rewrites: make(map[*pkginfo.File]*rewrite.Rewriter),
-		files:    make(map[fileKey]*File),
+		Context:    c,
+		Util:       genutil.NewHelper(c.Errs),
+		TraceNodes: traceNodes,
+		rewrites:   make(map[*pkginfo.File]*rewrite.Rewriter),
+		files:      make(map[fileKey]*File),
 	}
 }
 

@@ -77,6 +77,7 @@ func genAPIDesc(gen *codegen.Generator, f *codegen.File, svc *app.Service, svcSt
 		Id("Raw"):            Lit(ep.Raw),
 		Id("Path"):           Lit(ep.Path.String()),
 		Id("RawPath"):        Lit(rawPath(ep.Path)),
+		Id("DefLoc"):         Lit(gen.TraceNodes.Endpoint(ep)),
 		Id("PathParamNames"): pathParamNames(ep.Path),
 		Id("Access"):         access,
 

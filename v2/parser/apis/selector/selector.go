@@ -120,6 +120,14 @@ var (
 
 type Set struct{ vals []Selector }
 
+func NewSet(sels ...Selector) Set {
+	var s Set
+	for _, sel := range sels {
+		s.Add(sel)
+	}
+	return s
+}
+
 // Add adds a selector to the set. It reports whether the selector was added,
 // meaning it reports false iff the set already contained that selector.
 //

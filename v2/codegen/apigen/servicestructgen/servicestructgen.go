@@ -22,7 +22,7 @@ func Gen(gen *codegen.Generator, svc *app.Service, s *servicestruct.ServiceStruc
 		Id("Service"):     Lit(svc.Name),
 		Id("Name"):        Lit(s.Decl.Name),
 		Id("Setup"):       initFuncName,
-		Id("SetupDefLoc"): Lit(0), // TODO
+		Id("SetupDefLoc"): Lit(gen.TraceNodes.SvcStruct(s)),
 	}))
 	return decl
 }

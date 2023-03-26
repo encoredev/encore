@@ -17,6 +17,7 @@ import (
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/crons"
@@ -33,15 +34,20 @@ type builder struct {
 	md   *meta.Data // metadata being generated
 
 	decls map[declKey]uint32
+	nodes *TraceNodes
 }
 
-func Compute(errs *perr.List, appDesc *app.Desc) *meta.Data {
+func Compute(errs *perr.List, appDesc *app.Desc) (*meta.Data, *TraceNodes) {
 	b := &builder{
 		errs:  errs,
 		app:   appDesc,
 		decls: make(map[declKey]uint32),
 	}
-	return b.Build()
+	b.nodes = newTraceNodes(b)
+
+	md := b.Build()
+
+	return md, b.nodes
 }
 
 func (b *builder) Build() *meta.Data {
@@ -95,6 +101,7 @@ func (b *builder) Build() *meta.Data {
 				}
 
 				out.Rpcs = append(out.Rpcs, rpc)
+				b.nodes.addEndpoint(ep, svc.Name)
 			}
 
 			// Sort the RPCs for deterministic output.
@@ -218,6 +225,10 @@ func (b *builder) Build() *meta.Data {
 				ah.AuthData = b.typeDeclRefUnwrapPointer(data)
 			}
 			md.AuthHandler = ah
+
+			if svc, ok := b.app.ServiceForPath(r.Decl.File.FSPath); ok {
+				b.nodes.addAuthHandler(r, svc.Name)
+			}
 
 		case *pubsub.Topic:
 			topic := &meta.PubSubTopic{
@@ -363,6 +374,13 @@ func (b *builder) Build() *meta.Data {
 				mw.ServiceName = &svc.Name
 			}
 
+			b.nodes.addMiddleware(r)
+
+		case *servicestruct.ServiceStruct:
+			if svc, ok := b.app.ServiceForPath(r.Decl.File.FSPath); ok {
+				b.nodes.addServiceStruct(r, svc.Name)
+			}
+
 		case *pubsub.Subscription, *caches.Keyspace:
 			dependent = append(dependent, r)
 		}
@@ -398,6 +416,8 @@ func (b *builder) Build() *meta.Data {
 				},
 			})
 
+			b.nodes.addSub(r, svc.Name, topic.Name)
+
 		case *caches.Keyspace:
 			cluster, ok := clusterMap[r.Cluster]
 			if !ok {
@@ -420,6 +440,11 @@ func (b *builder) Build() *meta.Data {
 				Doc:         r.Doc,
 			})
 		}
+	}
+
+	// Add the allocated trace nodes to each package.
+	for pkgPath, pkg := range pkgByPath {
+		pkg.TraceNodes = b.nodes.forPkg(pkgPath)
 	}
 
 	return md

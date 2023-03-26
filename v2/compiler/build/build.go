@@ -342,7 +342,7 @@ func (b *builder) buildMain() {
 			}
 			out = convertCompileErrors(b.errs, out, b.workdir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO())
 			if len(out) > 0 {
-				// TODO make this nicer
+				// HACK(andre): Make this nicer
 				b.errs.AddStd(fmt.Errorf("compilation failure: %s", out))
 			}
 		}
@@ -416,7 +416,7 @@ func (b *builder) runTests() {
 
 		err = cmd.Run()
 		if err != nil {
-			// TODO make this nicer
+			// HACK(andre): Make this nicer
 			b.errs.AddStd(fmt.Errorf("test failure: %v", err))
 		}
 	})

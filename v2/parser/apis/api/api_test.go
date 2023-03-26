@@ -13,9 +13,9 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/testutil"
-	"encr.dev/v2/parser/apis/api/apipaths"
 	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/selector"
 )
@@ -41,8 +41,8 @@ func Foo(ctx context.Context) error {}
 				Doc:         "Foo does things.\n",
 				Access:      Public,
 				AccessField: option.Some(directive.Field{Value: "public"}),
-				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo.Foo", ValueType: schema.String},
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Literal, Value: "foo.Foo", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
 			},
@@ -58,11 +58,11 @@ func Foo(ctx context.Context) error {}
 				Doc:         "",
 				Access:      Private,
 				AccessField: option.Some(directive.Field{Value: "private"}),
-				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo", ValueType: schema.String},
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Literal, Value: "foo", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"PUT"},
-				Tags:        selector.Set{{Type: selector.Tag, Value: "some-tag"}},
+				Tags:        selector.NewSet(selector.Selector{Type: selector.Tag, Value: "some-tag"}),
 			},
 		},
 		{
@@ -76,8 +76,8 @@ func Foo(ctx context.Context, key string) error {}
 				Doc:         "",
 				Access:      Auth,
 				AccessField: option.Some(directive.Field{Value: "auth"}),
-				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Param, Value: "key", ValueType: schema.String},
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Param, Value: "key", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
 			},
@@ -93,9 +93,9 @@ func Foo(ctx context.Context, key int) error {}
 				Doc:         "",
 				Access:      Auth,
 				AccessField: option.Some(directive.Field{Value: "auth"}),
-				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "foo", ValueType: schema.String},
-					{Type: apipaths.Param, Value: "key", ValueType: schema.Int},
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Literal, Value: "foo", ValueType: schema.String},
+					{Type: resourcepaths.Param, Value: "key", ValueType: schema.Int},
 				}},
 				HTTPMethods: []string{"GET", "POST"},
 			},
@@ -113,8 +113,8 @@ func Raw(w http.ResponseWriter, req *http.Request) {}
 				Access:      Public,
 				AccessField: option.Some(directive.Field{Value: "public"}),
 				Raw:         true,
-				Path: &apipaths.Path{Segments: []apipaths.Segment{
-					{Type: apipaths.Literal, Value: "raw", ValueType: schema.String},
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Literal, Value: "raw", ValueType: schema.String},
 				}},
 				HTTPMethods: []string{"*"},
 			},

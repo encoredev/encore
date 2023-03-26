@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -51,8 +52,9 @@ func main() {
 	// Hide verbose logging
 	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 
-	v1Parse := must(v1Builder.Parse(parseParams))
-	v2Parse := must(v2Builder.Parse(parseParams))
+	ctx := context.Background()
+	v1Parse := must(v1Builder.Parse(ctx, parseParams))
+	v2Parse := must(v2Builder.Parse(ctx, parseParams))
 
 	opts := []cmp.Option{
 		protocmp.Transform(),

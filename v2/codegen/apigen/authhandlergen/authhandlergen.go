@@ -32,7 +32,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler,
 	).Values(Dict{
 		Id("Service"): Lit(svcName),
 		Id("SvcNum"):  Lit(svcNum),
-		Id("DefLoc"):  Lit(0), // TODO
+		Id("DefLoc"):  Lit(gen.TraceNodes.AuthHandler()),
 
 		Id("Endpoint"):    Lit(ah.Name),
 		Id("HasAuthData"): Lit(ah.AuthData.Present()),

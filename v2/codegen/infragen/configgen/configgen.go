@@ -65,7 +65,7 @@ calls to config.Load[T]().`)
 	for _, load := range loads {
 		rw := gen.Rewrite(load.File)
 		var buf bytes.Buffer
-		buf.WriteString(strconv.Quote(svc.Name)) // TODO(andre) used to be service name
+		buf.WriteString(strconv.Quote(svc.Name))
 		buf.WriteString(", ")
 		buf.WriteString(ConfigUnmarshalFuncName(gen.Util, load.Type))
 		ep := gen.FS.Position(load.FuncCall.Rparen)

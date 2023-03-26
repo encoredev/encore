@@ -75,7 +75,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		parser := parser.NewParser(pc)
 		parserResult := parser.Parse()
 		appDesc := app.ValidateAndDescribe(pc, parserResult)
-		meta := legacymeta.Compute(pc.Errs, appDesc)
+		meta, traceNodes := legacymeta.Compute(pc.Errs, appDesc)
 		mainModule := parser.MainModule()
 
 		if pc.Errs.Len() > 0 {
@@ -88,6 +88,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 				pc:         pc,
 				appDesc:    appDesc,
 				mainModule: mainModule,
+				traceNodes: traceNodes,
 			},
 		}, nil
 	})
@@ -97,6 +98,7 @@ type parseData struct {
 	pc         *parsectx.Context
 	appDesc    *app.Desc
 	mainModule *pkginfo.Module
+	traceNodes *legacymeta.TraceNodes
 }
 
 func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
@@ -109,7 +111,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 
 		pd := p.Parse.Data.(*parseData)
 
-		gg := codegen.New(pd.pc)
+		gg := codegen.New(pd.pc, pd.traceNodes)
 		infragen.Process(gg, pd.appDesc)
 		apigen.Process(apigen.Params{
 			Gen:               gg,
@@ -171,7 +173,7 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 			return result, nil
 		})
 
-		gg := codegen.New(pd.pc)
+		gg := codegen.New(pd.pc, pd.traceNodes)
 		etrace.Sync0(ctx, "", "codegen", func(ctx context.Context) {
 			testCfg := codegen.TestConfig{}
 			for _, pkg := range pd.appDesc.Parse.AppPackages() {
@@ -300,7 +302,7 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 
 		pd := p.Parse.Data.(*parseData)
 		errs := pd.pc.Errs
-		gg := codegen.New(pd.pc)
+		gg := codegen.New(pd.pc, pd.traceNodes)
 		cueGen := cuegen.NewGenerator(pd.appDesc)
 
 		var buf bytes.Buffer

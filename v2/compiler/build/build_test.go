@@ -100,7 +100,7 @@ func build(workdir string, pkgPath paths.Pkg, overlays []overlay.File) *Result {
 			GOARCH: runtime.GOARCH,
 			GOOS:   runtime.GOOS,
 			GOROOT: paths.RootedFSPath(runtime.GOROOT(), "."),
-			// TODO(andre) hack
+			// HACK(andre): Make this nicer
 			EncoreRuntime: wd.Join("encore-runtime"),
 			BuildTags:     nil,
 			CgoEnabled:    false,

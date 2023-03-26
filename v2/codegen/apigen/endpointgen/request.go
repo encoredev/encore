@@ -70,8 +70,6 @@ func (d *requestDesc) DecodeRequest() *Statement {
 			Return(Nil(), Nil(), Err()),
 		)
 
-		// TODO error check
-
 		g.Return(d.reqDataExpr(), d.pathParamsName(), Nil())
 	})
 }

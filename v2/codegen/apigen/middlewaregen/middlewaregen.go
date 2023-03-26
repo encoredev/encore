@@ -20,14 +20,14 @@ func Gen(gen *codegen.Generator, mws []*middleware.Middleware, svcStruct option.
 	for pkg, mws := range pkgMap {
 		f := gen.File(pkg, "middleware")
 		for _, mw := range mws {
-			mwMap[mw] = genMiddleware(f, mw, svcStruct)
+			mwMap[mw] = genMiddleware(gen, f, mw, svcStruct)
 		}
 	}
 
 	return mwMap
 }
 
-func genMiddleware(f *codegen.File, mw *middleware.Middleware, svcStruct option.Option[*codegen.VarDecl]) *codegen.VarDecl {
+func genMiddleware(gen *codegen.Generator, f *codegen.File, mw *middleware.Middleware, svcStruct option.Option[*codegen.VarDecl]) *codegen.VarDecl {
 	invoke := Qual(mw.File.Pkg.ImportPath.String(), mw.Decl.Name)
 	if !mw.Global && mw.Recv.Present() && svcStruct.Present() {
 		invoke = Func().Params(
@@ -49,7 +49,7 @@ func genMiddleware(f *codegen.File, mw *middleware.Middleware, svcStruct option.
 		Id("PkgName"): Lit(mw.File.Pkg.Name),
 		Id("Name"):    Lit(mw.Decl.Name),
 		Id("Global"):  Lit(mw.Global),
-		Id("DefLoc"):  Lit(0), // TODO
+		Id("DefLoc"):  Lit(gen.TraceNodes.Middleware(mw)),
 		Id("Invoke"):  invoke,
 	}))
 }

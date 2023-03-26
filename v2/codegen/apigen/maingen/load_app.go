@@ -52,7 +52,7 @@ func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
 			}),
 			Id("CORSAllowHeaders"):  allowHeaders,
 			Id("CORSExposeHeaders"): exposeHeaders,
-			Id("PubsubTopics"):      pubsubTopics(p.Desc),
+			Id("PubsubTopics"):      pubsubTopics(p.Gen, p.Desc),
 			Id("Testing"):           Lit(test.Present()),
 			Id("TestService"):       Lit(testService),
 			Id("BundledServices"):   bundledServices(p.Desc),
@@ -71,7 +71,7 @@ func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
 	})
 }
 
-func pubsubTopics(appDesc *app.Desc) *Statement {
+func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) *Statement {
 	return Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubTopic").Values(DictFunc(func(d Dict) {
 		// Get all the topics and subscriptions
 		var (
@@ -92,11 +92,12 @@ func pubsubTopics(appDesc *app.Desc) *Statement {
 				for _, b := range appDesc.Parse.PkgDeclBinds(topic) {
 					qn := b.QualifiedName()
 					for _, sub := range subsByTopic[qn] {
-						// TODO we should have a better way of knowing which service a subscription belongs to
+						// HACK: we should have a better way of knowing which service a subscription belongs to
 						if svc, ok := appDesc.ServiceForPath(sub.File.Pkg.FSPath); ok {
+
 							d[Lit(sub.Name)] = Values(Dict{
 								Id("Service"):  Lit(svc.Name),
-								Id("TraceIdx"): Lit(0), // TODO node id
+								Id("TraceIdx"): Lit(gen.TraceNodes.Sub(sub)),
 							})
 						}
 					}
