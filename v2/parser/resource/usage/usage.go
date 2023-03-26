@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"encr.dev/internal/paths"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
@@ -87,6 +88,9 @@ type FuncArg struct {
 	Bind resource.Bind
 	Call *ast.CallExpr
 
+	// TypeArgs are the type arguments to the function being called, if any.
+	TypeArgs []schema.Type
+
 	// ArgIdx is the function argument index that represents
 	// the resource bind, starting at 0.
 	ArgIdx int
@@ -123,8 +127,9 @@ func (o *Other) DescriptionForTest() string  { return "other" }
 func (o *Other) Pos() token.Pos              { return o.BindRef.Pos() }
 func (o *Other) End() token.Pos              { return o.BindRef.End() }
 
-func ParseExprs(errs *perr.List, pkgs []*pkginfo.Package, binds []resource.Bind) []Expr {
+func ParseExprs(schema *schema.Parser, pkgs []*pkginfo.Package, binds []resource.Bind) []Expr {
 	p := &usageParser{
+		schema:      schema,
 		bindsPerPkg: make(map[paths.Pkg][]resource.Bind, len(binds)),
 		bindNames:   make(map[pkginfo.QualifiedName]resource.Bind, len(binds)),
 	}
@@ -304,11 +309,12 @@ func (p *usageParser) classifyExpr(file *pkginfo.File, bind resource.Bind, stack
 			if argIdx := slices.Index(call.Args, stack[idx].(ast.Expr)); argIdx >= 0 {
 				pkgFunc := option.CommaOk(file.Names().ResolvePkgLevelRef(call.Fun))
 				return &FuncArg{
-					File:    file,
-					Bind:    bind,
-					Call:    call,
-					PkgFunc: pkgFunc,
-					ArgIdx:  argIdx,
+					File:     file,
+					Bind:     bind,
+					Call:     call,
+					TypeArgs: p.parseTypeArgs(file, call),
+					PkgFunc:  pkgFunc,
+					ArgIdx:   argIdx,
 				}
 			}
 		}
@@ -328,4 +334,20 @@ func (p *usageParser) classifyExpr(file *pkginfo.File, bind resource.Bind, stack
 		Expr:    enclosing,
 		BindRef: stack[idx].(ast.Expr), // guaranteed to be an expr by the caller.
 	}
+}
+
+func (p *usageParser) parseTypeArgs(file *pkginfo.File, call *ast.CallExpr) []schema.Type {
+	var args []ast.Expr
+	switch fun := call.Fun.(type) {
+	case *ast.IndexExpr:
+		args = []ast.Expr{fun.Index}
+	case *ast.IndexListExpr:
+		args = fun.Indices
+	default:
+		return nil
+	}
+
+	return fns.Map(args, func(arg ast.Expr) schema.Type {
+		return p.schema.ParseType(file, arg)
+	})
 }

@@ -111,7 +111,7 @@ func (p *Parser) Parse() *Result {
 	})
 
 	// Because we've ordered pkgs and binds, usageExprs will be stable
-	usageExprs := usage.ParseExprs(p.c.Errs, pkgs, binds)
+	usageExprs := usage.ParseExprs(p.schemaParser, pkgs, binds)
 
 	// Add the implicit sqldb usages.
 	usageExprs = append(usageExprs, sqldb.ComputeImplicitUsage(p.c.Errs, pkgs, binds)...)

@@ -3,6 +3,7 @@ package caches
 import (
 	"testing"
 
+	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schematest"
 	"encr.dev/v2/parser/resource/resourcetest"
@@ -23,9 +24,9 @@ var x = cache.NewStringKeyspace[string](cluster, cache.KeyspaceConfig{
 				Doc:       "Keyspace docs\n",
 				KeyType:   schematest.String(),
 				ValueType: schematest.String(),
-				Path: &KeyspacePath{
-					Segments: []Segment{
-						{Type: Param, Value: "key"},
+				Path: &resourcepaths.Path{
+					Segments: []resourcepaths.Segment{
+						{Type: resourcepaths.Param, Value: "key"},
 					},
 				},
 			},
@@ -40,9 +41,9 @@ var x = cache.NewIntKeyspace[int64](cluster, cache.KeyspaceConfig{
 			Want: &Keyspace{
 				KeyType:   schematest.Builtin(schema.Int64),
 				ValueType: schematest.Builtin(schema.Int64),
-				Path: &KeyspacePath{
-					Segments: []Segment{
-						{Type: Literal, Value: "int"},
+				Path: &resourcepaths.Path{
+					Segments: []resourcepaths.Segment{
+						{Type: resourcepaths.Param, Value: "int"},
 					},
 				},
 			},
@@ -56,9 +57,9 @@ var x = cache.NewFloatKeyspace[string](cluster, cache.KeyspaceConfig{
 			Want: &Keyspace{
 				KeyType:   schematest.String(),
 				ValueType: schematest.Builtin(schema.Float64),
-				Path: &KeyspacePath{
-					Segments: []Segment{
-						{Type: Literal, Value: "float"},
+				Path: &resourcepaths.Path{
+					Segments: []resourcepaths.Segment{
+						{Type: resourcepaths.Literal, Value: "float"},
 					},
 				},
 			},
@@ -73,9 +74,9 @@ var x = cache.NewListKeyspace[string, bool](cluster, cache.KeyspaceConfig{
 			Want: &Keyspace{
 				KeyType:   schematest.String(),
 				ValueType: schematest.Bool(),
-				Path: &KeyspacePath{
-					Segments: []Segment{
-						{Type: Literal, Value: "list"},
+				Path: &resourcepaths.Path{
+					Segments: []resourcepaths.Segment{
+						{Type: resourcepaths.Literal, Value: "list"},
 					},
 				},
 			},
@@ -90,9 +91,9 @@ var x = cache.NewSetKeyspace[string, bool](cluster, cache.KeyspaceConfig{
 			Want: &Keyspace{
 				KeyType:   schematest.String(),
 				ValueType: schematest.Bool(),
-				Path: &KeyspacePath{
-					Segments: []Segment{
-						{Type: Literal, Value: "set"},
+				Path: &resourcepaths.Path{
+					Segments: []resourcepaths.Segment{
+						{Type: resourcepaths.Literal, Value: "set"},
 					},
 				},
 			},
@@ -110,9 +111,9 @@ var x = cache.NewStructKeyspace[string, Foo](cluster, cache.KeyspaceConfig{
 			Want: &Keyspace{
 				KeyType:   schematest.String(),
 				ValueType: schematest.Named(schematest.TypeInfo("Foo")),
-				Path: &KeyspacePath{
-					Segments: []Segment{
-						{Type: Literal, Value: "struct"},
+				Path: &resourcepaths.Path{
+					Segments: []resourcepaths.Segment{
+						{Type: resourcepaths.Literal, Value: "struct"},
 					},
 				},
 			},

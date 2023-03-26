@@ -112,4 +112,19 @@ var (
 		"Invalid PubSub subscription config",
 		"The max number of retries must be a positive number or the constants `pubsub.InfiniteRetries` or `pubsub.NoRetries`.",
 	)
+
+	errTopicRefNoTypeArgs = errRange.New(
+		"Invalid call to pubsub.TopicRef",
+		"A type argument indicating the requested permissions must be provided.",
+	)
+
+	errTopicRefInvalidPerms = errRange.New(
+		"Unrecognized permissions in call to pubsub.TopicRef",
+		"The only supported permission is currently pubsub.Publisher[MyMessage].",
+	)
+
+	ErrTopicRefOutsideService = errRange.New(
+		"Call to pubsub.TopicRef outside service",
+		"pubsub.TopicRef can only be called from within a service.",
+	)
 )

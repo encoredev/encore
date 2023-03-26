@@ -40,6 +40,19 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 					topicsByBinding[bind.QualifiedName()] = res.Name
 				}
 			}
+
+			// Make sure any TopicRef calls are within a service.
+			for _, use := range d.Parse.Usages(res) {
+				if _, ok := use.(*pubsub.RefUsage); ok {
+					errTxt := "used here"
+					if _, ok := d.ServiceForPath(use.DeclaredIn().FSPath); !ok {
+						pc.Errs.Add(pubsub.ErrTopicRefOutsideService.
+							AtGoNode(use, errors.AsError(errTxt)),
+						)
+					}
+				}
+			}
+
 		case *pubsub.Subscription:
 			subs = append(subs, res)
 		}
@@ -121,7 +134,7 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 				}
 			} else {
 				// this is ok, because it means we're not dealing with an ident or selector - thus
-				// it can't be a valid funciton reference and the normal Go compiler will pick this up
+				// it can't be a valid function reference and the normal Go compiler will pick this up
 			}
 
 		}
