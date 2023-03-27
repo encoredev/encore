@@ -159,7 +159,14 @@ func Classify(stack []ast.Node) (loc Location) {
 			}
 
 		case *ast.CallExpr:
-			loc |= FuncCall
+			// HACK(andre): We don't properly track location when
+			// chaining method calls like sqldb.Named("foo").Stdlib().
+			//
+			// For now just ignore this case since we weren't tracking this
+			// use case properly in the old parser either.
+			if idx < len(stack)-1 && stack[idx+1] != n.Fun {
+				loc |= FuncCall
+			}
 
 		case *ast.FuncDecl:
 			loc |= Function
