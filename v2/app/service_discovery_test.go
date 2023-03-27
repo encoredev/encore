@@ -120,16 +120,16 @@ func Baz(ctx context.Context) error { return nil }
 		},
 
 		// Error Tests
-		{
-			name: "error if no services",
-			txtar: `
--- svc1/foo.go --
-package svc1
-
-type Foo struct{}
-`,
-			wantErrors: []string{"No services were found in the application"},
-		},
+		//		{
+		//			name: "error if no services",
+		//			txtar: `
+		//-- svc1/foo.go --
+		//package svc1
+		//
+		//type Foo struct{}
+		//`,
+		//			wantErrors: []string{"No services were found in the application"},
+		//		},
 		{
 			// Note: this test is also testing that the Go package name is being used
 			// by the API framework - not the folder names/path

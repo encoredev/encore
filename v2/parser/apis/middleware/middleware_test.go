@@ -51,10 +51,10 @@ func Foo(req middleware.Request, next middleware.Next) middleware.Response {}
 						Results: mwResults,
 					},
 				},
-				Target: selector.Set{{
+				Target: selector.NewSet(selector.Selector{
 					Type:  selector.Tag,
 					Value: "foo",
-				}},
+				}),
 			},
 		},
 	}

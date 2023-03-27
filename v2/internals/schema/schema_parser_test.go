@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/fatih/structtag"
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -31,7 +32,7 @@ func TestParser_ParseType(t *testing.T) {
 		{
 			name: "builtin_int",
 			typ:  "int",
-			want: BuiltinType{Kind: Int},
+			want: BuiltinType{Kind: Int, AST: ast.NewIdent("int")},
 		},
 		{
 			name:     "unsupported_builtin",
@@ -41,14 +42,14 @@ func TestParser_ParseType(t *testing.T) {
 		{
 			name: "pointer",
 			typ:  "*string",
-			want: PointerType{Elem: BuiltinType{Kind: String}},
+			want: PointerType{Elem: BuiltinType{Kind: String, AST: ast.NewIdent("string")}},
 		},
 		{
 			name: "decl",
 			typ:  "foo\n\ntype foo int",
 			want: namedTypeWithDecl(&TypeDecl{
 				Name: "foo",
-				Type: BuiltinType{Kind: Int},
+				Type: BuiltinType{Kind: Int, AST: ast.NewIdent("int")},
 				File: file,
 			}),
 		},
@@ -62,6 +63,7 @@ func TestParser_ParseType(t *testing.T) {
 						Name: "foo",
 						File: file,
 						Type: TypeParamRefType{
+							AST:   ast.NewIdent("T"),
 							Index: 0,
 							Decl:  d,
 						},
@@ -71,37 +73,37 @@ func TestParser_ParseType(t *testing.T) {
 					}
 					return d
 				})(),
-				BuiltinType{Kind: Int},
+				BuiltinType{Kind: Int, AST: ast.NewIdent("int")},
 			),
 		},
 		{
 			name:    "builtin_encore_uuid",
 			imports: []string{"encore.dev/types/uuid"},
 			typ:     "uuid.UUID",
-			want:    BuiltinType{Kind: UUID},
+			want:    BuiltinType{Kind: UUID, AST: ast.NewIdent("uuid.UUID")},
 		},
 		{
 			name:    "builtin_encore_userid",
 			imports: []string{"encore.dev/beta/auth"},
 			typ:     "auth.UID",
-			want:    BuiltinType{Kind: UserID},
+			want:    BuiltinType{Kind: UserID, AST: ast.NewIdent("auth.UID")},
 		},
 		{
 			name:    "builtin_time",
 			imports: []string{"time"},
 			typ:     "time.Time",
-			want:    BuiltinType{Kind: Time},
+			want:    BuiltinType{Kind: Time, AST: ast.NewIdent("time.Time")},
 		},
 		{
 			name:    "builtin_json",
 			imports: []string{"encoding/json"},
 			typ:     "json.RawMessage",
-			want:    BuiltinType{Kind: JSON},
+			want:    BuiltinType{Kind: JSON, AST: ast.NewIdent("json.RawMessage")},
 		},
 		{
 			name: "builtin_error",
 			typ:  "error",
-			want: BuiltinType{Kind: Error},
+			want: BuiltinType{Kind: Error, AST: ast.NewIdent("error")},
 		},
 		{
 			name:    "external_stdlib_type",
@@ -138,7 +140,7 @@ func TestParser_ParseType(t *testing.T) {
 			name: "slice",
 			typ:  "[]bool",
 			want: ListType{
-				Elem: BuiltinType{Kind: Bool},
+				Elem: BuiltinType{Kind: Bool, AST: ast.NewIdent("bool")},
 				Len:  -1,
 			},
 		},
@@ -146,7 +148,7 @@ func TestParser_ParseType(t *testing.T) {
 			name: "array",
 			typ:  "[3]bool",
 			want: ListType{
-				Elem: BuiltinType{Kind: Bool},
+				Elem: BuiltinType{Kind: Bool, AST: ast.NewIdent("bool")},
 				Len:  3,
 			},
 		},
@@ -154,7 +156,7 @@ func TestParser_ParseType(t *testing.T) {
 			name: "array_unknown_const",
 			typ:  "[someConst]bool\nconst someConst = 3",
 			want: ListType{
-				Elem: BuiltinType{Kind: Bool},
+				Elem: BuiltinType{Kind: Bool, AST: ast.NewIdent("bool")},
 				Len:  -1, // unknown
 			},
 		},
@@ -172,6 +174,7 @@ func TestParser_ParseType(t *testing.T) {
 								{
 									Name: option.Some("A"),
 									Type: TypeParamRefType{
+										AST:   ast.NewIdent("A"),
 										Index: 0,
 										Decl:  d,
 									},
@@ -179,6 +182,7 @@ func TestParser_ParseType(t *testing.T) {
 								{
 									Name: option.Some("B"),
 									Type: TypeParamRefType{
+										AST:   ast.NewIdent("B"),
 										Index: 1,
 										Decl:  d,
 									},
@@ -192,8 +196,8 @@ func TestParser_ParseType(t *testing.T) {
 					}
 					return d
 				})(),
-				BuiltinType{Kind: Int},
-				BuiltinType{Kind: String},
+				BuiltinType{Kind: Int, AST: ast.NewIdent("int")},
+				BuiltinType{Kind: String, AST: ast.NewIdent("string")},
 			),
 		},
 	}
@@ -250,7 +254,7 @@ var x ` + test.typ + `
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
 					cmpopts.IgnoreTypes(&pkginfo.File{}),
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(StructField{}),
+					cmpopts.IgnoreUnexported(StructField{}, structtag.Tags{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
@@ -259,7 +263,7 @@ var x ` + test.typ + `
 					}),
 				}
 
-				c.Assert(got, qt.CmpEquals(options...), test.want)
+				c.Assert(got.String(), qt.CmpEquals(options...), test.want.String())
 			}
 		})
 	}
@@ -280,6 +284,7 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 			decl: "func x() {}",
 			want: &FuncDecl{
 				Name: "x",
+				File: fileForPkg("foo", "example.com"),
 				Recv: option.None[*Receiver](),
 				Type: FuncType{
 					Params:  nil,
@@ -398,7 +403,7 @@ package foo
 					}),
 				}
 
-				c.Assert(got, qt.CmpEquals(options...), test.want)
+				c.Assert(got.String(), qt.CmpEquals(options...), test.want.String())
 			}
 		})
 	}

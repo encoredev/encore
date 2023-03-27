@@ -25,5 +25,5 @@ var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
 	Service:     "basic",
 	Setup:       initService,
-	SetupDefLoc: 0,
+	SetupDefLoc: int32(0),
 }

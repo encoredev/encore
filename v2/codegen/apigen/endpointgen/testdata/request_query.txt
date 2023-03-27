@@ -63,7 +63,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		case "POST":
 			// Decode query string
 			qs := httpReq.URL.Query()
-			params.Foo = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "Foo", qs.Get("foo"), false)
+			params.Foo = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "foo", qs.Get("foo"), false)
 
 		default:
 			panic("HTTP method is not supported")
@@ -73,6 +73,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		}
 		return reqData, ps, nil
 	},
+	DefLoc: int32(0),
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},

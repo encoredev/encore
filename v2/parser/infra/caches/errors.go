@@ -71,7 +71,7 @@ var (
 
 	errInvalidEvictionPolicy = errRange.New(
 		"Invalid Cache Eviction Policy",
-		"Must be one of of the constants defined in the cache package.",
+		"Must be one of the constants defined in the cache package.",
 	)
 
 	ErrDuplicateCacheCluster = errRange.New(

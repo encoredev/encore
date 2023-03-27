@@ -85,6 +85,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		reqData = new(EncoreInternal_FooReq)
 		return reqData, nil, nil
 	},
+	DefLoc: int32(0),
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},
@@ -132,7 +133,7 @@ var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
 	Service:     "svca",
 	Setup:       nil,
-	SetupDefLoc: 0,
+	SetupDefLoc: int32(0),
 }
 -- want:svcb/svcb.go --
 package svcb

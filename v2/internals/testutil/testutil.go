@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"testing"
 
@@ -164,7 +165,10 @@ func (c *Context) DeferExpectError(matches ...string) {
 
 	for i := 0; i < n; i++ {
 		err := l.At(i)
-		c.TestC.Check(err.Error(), qt.Contains, matches[i])
+		re := regexp.MustCompile(matches[i])
+		errMsg := err.Error()
+		c.TestC.Check(re.MatchString(errMsg), qt.IsTrue, qt.Commentf("err %v does not match regexp %q",
+			errMsg, matches[i]))
 	}
 }
 

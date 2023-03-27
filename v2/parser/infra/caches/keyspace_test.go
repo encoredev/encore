@@ -10,11 +10,12 @@ import (
 )
 
 func TestParseKeyspace(t *testing.T) {
-	// TODO(andre) Add cache cluster references
 	tests := []resourcetest.Case[*Keyspace]{
 		{
 			Name: "basic",
 			Code: `
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
 // Keyspace docs
 var x = cache.NewStringKeyspace[string](cluster, cache.KeyspaceConfig{
 	KeyPattern: ":key",
@@ -34,6 +35,8 @@ var x = cache.NewStringKeyspace[string](cluster, cache.KeyspaceConfig{
 		{
 			Name: "int",
 			Code: `
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
 var x = cache.NewIntKeyspace[int64](cluster, cache.KeyspaceConfig{
 		KeyPattern: "int",
 	})
@@ -50,6 +53,8 @@ var x = cache.NewIntKeyspace[int64](cluster, cache.KeyspaceConfig{
 		}, {
 			Name: "float",
 			Code: `
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
 var x = cache.NewFloatKeyspace[string](cluster, cache.KeyspaceConfig{
 	KeyPattern: "float",
 })
@@ -67,6 +72,8 @@ var x = cache.NewFloatKeyspace[string](cluster, cache.KeyspaceConfig{
 		{
 			Name: "list",
 			Code: `
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
 var x = cache.NewListKeyspace[string, bool](cluster, cache.KeyspaceConfig{
 	KeyPattern: "list",
 })
@@ -84,6 +91,8 @@ var x = cache.NewListKeyspace[string, bool](cluster, cache.KeyspaceConfig{
 		{
 			Name: "set",
 			Code: `
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
 var x = cache.NewSetKeyspace[string, bool](cluster, cache.KeyspaceConfig{
 	KeyPattern: "set",
 })
@@ -104,6 +113,9 @@ var x = cache.NewSetKeyspace[string, bool](cluster, cache.KeyspaceConfig{
 type Foo struct {
 	Bar string
 }
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
 var x = cache.NewStructKeyspace[string, Foo](cluster, cache.KeyspaceConfig{
 	KeyPattern: "struct",
 })

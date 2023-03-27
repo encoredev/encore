@@ -50,6 +50,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		reqData = new(EncoreInternal_FooReq)
 		return reqData, nil, nil
 	},
+	DefLoc: int32(0),
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},

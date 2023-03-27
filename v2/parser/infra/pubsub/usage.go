@@ -34,6 +34,8 @@ func ResolveTopicUsage(data usage.ResolveData, topic *Topic) usage.Usage {
 					Expr: expr,
 				},
 			}
+		} else {
+			return nil
 		}
 
 	case *usage.FuncArg:

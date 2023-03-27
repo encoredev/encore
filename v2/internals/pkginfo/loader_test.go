@@ -6,6 +6,7 @@ import (
 
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
+	"golang.org/x/exp/maps"
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
@@ -160,10 +161,7 @@ require rsc.io/hello v1.0.0
 		c.Check(f.Name, qt.Equals, "hello.go")
 		c.Check(f.TestFile, qt.IsFalse)
 		c.Check(f.FSPath.ToIO(), qt.Matches, `.*/mod/rsc\.io/hello@v1\.0\.0/hello.go`)
-		c.Check(f.Imports, qt.DeepEquals, map[paths.Pkg]bool{
-			"fmt":          true,
-			"rsc.io/quote": true,
-		})
+		c.Check(maps.Keys(f.Imports), qt.ContentEquals, []paths.Pkg{"fmt", "rsc.io/quote"})
 		c.Check(string(pkg.Files[0].Contents()), qt.Contains, "fmt.Println(quote.Hello())")
 	})
 }

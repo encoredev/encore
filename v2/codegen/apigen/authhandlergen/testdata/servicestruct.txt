@@ -44,7 +44,7 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[str
 		}
 		return "", errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err()
 	},
-	DefLoc:      0,
+	DefLoc:      int32(0),
 	Endpoint:    "AuthHandler",
 	HasAuthData: false,
 	Service:     "code",
@@ -62,5 +62,5 @@ var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
 	Service:     "code",
 	Setup:       nil,
-	SetupDefLoc: 0,
+	SetupDefLoc: int32(0),
 }

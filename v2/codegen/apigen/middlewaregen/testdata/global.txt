@@ -16,7 +16,7 @@ import (
 )
 
 var EncoreInternal_middleware_middleware_Middleware = &__api.Middleware{
-	DefLoc:  0,
+	DefLoc:  int32(0),
 	Global:  true,
 	Invoke:  Middleware,
 	Name:    "Middleware",

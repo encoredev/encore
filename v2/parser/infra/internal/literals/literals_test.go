@@ -72,7 +72,7 @@ func TestParseConstantValue(t *testing.T) {
 		// stack traces from the parser in the error message.
 		{
 			Expr: "2.3 / 0",
-			Err:  `(?s).+cannot divide by zero.*`,
+			Err:  `(?s).+Cannot divide by zero.*`,
 		},
 	}
 

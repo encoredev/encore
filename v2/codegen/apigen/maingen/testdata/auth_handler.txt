@@ -13,7 +13,7 @@ func AuthHandler(context.Context, string) (auth.UID, *MyAuthData, error) {
     return "", nil, nil
 }
 
--- want:__encore/main/encore_internal__main.go --
+-- want:__encore/main/main.go --
 package main
 
 import (
@@ -73,16 +73,16 @@ import (
 
 type EncoreInternal_FooReq struct{}
 
-type EncoreInternal_FooResp struct{}
+type EncoreInternal_FooResp = __api.Void
 
-var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *EncoreInternal_FooResp]{
+var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreInternal_FooResp]{
 	Access: __api.Private,
-	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (*EncoreInternal_FooResp, error) {
+	AppHandler: func(ctx context.Context, reqData *EncoreInternal_FooReq) (EncoreInternal_FooResp, error) {
 		err := Foo(ctx)
 		if err != nil {
-			return nil, err
+			return __api.Void{}, err
 		}
-		return nil, nil
+		return __api.Void{}, nil
 	},
 	CloneReq: func(r *EncoreInternal_FooReq) (*EncoreInternal_FooReq, error) {
 		var clone *EncoreInternal_FooReq
@@ -92,8 +92,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 		}
 		return clone, err
 	},
-	CloneResp: func(r *EncoreInternal_FooResp) (*EncoreInternal_FooResp, error) {
-		var clone *EncoreInternal_FooResp
+	CloneResp: func(r EncoreInternal_FooResp) (EncoreInternal_FooResp, error) {
+		var clone EncoreInternal_FooResp
 		bytes, err := jsoniter.ConfigDefault.Marshal(r)
 		if err == nil {
 			err = jsoniter.ConfigDefault.Unmarshal(bytes, &clone)
@@ -104,7 +104,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, *Encore
 		reqData = new(EncoreInternal_FooReq)
 		return reqData, nil, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *EncoreInternal_FooResp) (err error) {
+	DefLoc: int32(0),
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},
 	Endpoint:       "Foo",
@@ -153,7 +154,7 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[str
 		}
 		return "", errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err()
 	},
-	DefLoc:      0,
+	DefLoc:      int32(0),
 	Endpoint:    "AuthHandler",
 	HasAuthData: true,
 	Service:     "code",

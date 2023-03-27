@@ -46,7 +46,10 @@ var x = cache.NewCluster("name", cache.ClusterConfig{EvictionPolicy: "x"})
 // Cluster docs
 var x = cache.NewCluster("name", cache.ClusterConfig{EvictionPolicy: cache.NonExisting})
 `,
-			WantErrs: []string{`.*field EvictionPolicy must be a constant literal.*`},
+			WantErrs: []string{
+				".*Field `EvictionPolicy` must be a constant literal.*",
+				"Must be one of the constants defined in the cache package",
+			},
 		},
 	}
 

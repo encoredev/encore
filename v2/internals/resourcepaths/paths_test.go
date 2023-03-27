@@ -26,11 +26,11 @@ func TestParseURL(t *testing.T) {
 		Err  string
 	}{
 		{"foo", nil, "Paths must always start with a '/'"},
-		{"/foo", []Segment{{Literal, "foo", str, 1, 3}}, ""},
+		{"/foo", []Segment{{Literal, "foo", str, 0, 3}}, ""},
 		{"/foo/", nil, "Paths cannot end with a trailing slash ('/')"},
-		{"/foo/bar", []Segment{{Literal, "foo", str, 1, 3}, {Literal, "bar", str, 5, 7}}, ""},
+		{"/foo/bar", []Segment{{Literal, "foo", str, 0, 3}, {Literal, "bar", str, 4, 7}}, ""},
 		{"/foo//bar", nil, "Paths cannot contain an empty segment, i.e. a double slash ('//')."},
-		{"/:foo/*bar", []Segment{{Param, "foo", str, 1, 4}, {Wildcard, "bar", str, 6, 9}}, ""},
+		{"/:foo/*bar", []Segment{{Param, "foo", str, 0, 4}, {Wildcard, "bar", str, 5, 9}}, ""},
 		{"/:foo/*", nil, "Path parameters must have a name."},
 		{"/:foo/*/bar", nil, "Path parameters must have a name."},
 		{"/:foo/*bar/baz", nil, "Path wildcards must be the last segment in the path."},

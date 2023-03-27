@@ -7,6 +7,7 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/testutil"
 )
@@ -49,7 +50,7 @@ var _ = quote.Hello()
 		pkg := l.MustLoadPkg(token.NoPos, "rsc.io/quote")
 
 		c.Assert(pkg.Names().PkgDecls, qt.CmpEquals(
-			cmpopts.IgnoreFields(pkginfo.PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
+			cmpopts.IgnoreFields(pkginfo.PkgDeclInfo{}, "File", "Func", "Pos", "GenDecl", "Spec", "Doc"),
 		), map[string]*pkginfo.PkgDeclInfo{
 			"Glass": {Name: "Glass", Type: token.FUNC},
 			"Go":    {Name: "Go", Type: token.FUNC},
@@ -59,7 +60,7 @@ var _ = quote.Hello()
 
 		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath("sampler")
 		c.Assert(ok, qt.IsTrue)
-		c.Assert(gotPath, qt.Equals, "rsc.io/quote/sampler")
+		c.Assert(gotPath, qt.Equals, paths.Pkg("rsc.io/sampler"))
 	})
 
 	t.Run("external_module_major_version", func(t *testing.T) {
@@ -81,7 +82,7 @@ var _ = quote.HelloV3()
 		pkg := l.MustLoadPkg(token.NoPos, "rsc.io/quote/v3")
 
 		c.Assert(pkg.Names().PkgDecls, qt.CmpEquals(
-			cmpopts.IgnoreFields(pkginfo.PkgDeclInfo{}, "File", "Pos", "Decl", "Spec", "Doc"),
+			cmpopts.IgnoreFields(pkginfo.PkgDeclInfo{}, "File", "Func", "Pos", "GenDecl", "Spec", "Doc"),
 		), map[string]*pkginfo.PkgDeclInfo{
 			"HelloV3": {Name: "HelloV3", Type: token.FUNC},
 			"GlassV3": {Name: "GlassV3", Type: token.FUNC},
@@ -91,6 +92,6 @@ var _ = quote.HelloV3()
 
 		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath("sampler")
 		c.Assert(ok, qt.IsTrue)
-		c.Assert(gotPath, qt.Equals, "rsc.io/quote/v3/sampler")
+		c.Assert(gotPath, qt.Equals, paths.Pkg("rsc.io/sampler"))
 	})
 }

@@ -81,7 +81,7 @@ func initFoo() (*Foo, error) {}
 type Foo struct {}
 func initFoo() error {}
 `,
-			wantErrs: []string{`.*service init function must return \(\*Foo, error\)`},
+			wantErrs: []string{`.*Service init functions must return \(\*Foo, error\)`},
 		},
 		{
 			name: "error_init_no_pointer",
@@ -90,7 +90,7 @@ func initFoo() error {}
 type Foo struct {}
 func initFoo() (Foo, error) {}
 `,
-			wantErrs: []string{`.*service init function must return \(\*Foo, error\)`},
+			wantErrs: []string{`.*Service init functions must return \(\*Foo, error\)`},
 		},
 		{
 			name: "error_init_shadow_error",
@@ -100,7 +100,7 @@ type Foo struct {}
 func initFoo() (*Foo, error) {}
 type error int
 `,
-			wantErrs: []string{`.*service init function must return \(\*Foo, error\)`},
+			wantErrs: []string{`.*Service init functions must return \(\*Foo, error\)`},
 		},
 		{
 			name: "error_init_bad_params",
@@ -109,7 +109,7 @@ type error int
 type Foo struct {}
 func initFoo(int) (*Foo, error) {}
 `,
-			wantErrs: []string{`.*service init function cannot have parameters`},
+			wantErrs: []string{`.*Service init functions cannot have parameters`},
 		},
 	}
 

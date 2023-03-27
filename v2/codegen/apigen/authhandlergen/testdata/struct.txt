@@ -35,11 +35,11 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 		dec := new(__etype.Unmarshaller)
 		// Decode headers
 		h := httpReq.Header
-		params.ClientID = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "ClientID", h.Get("x-client-id"), false)
+		params.ClientID = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "x-client-id", h.Get("x-client-id"), false)
 
 		// Decode query string
 		qs := httpReq.URL.Query()
-		params.APIKey = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "APIKey", qs.Get("key"), false)
+		params.APIKey = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "key", qs.Get("key"), false)
 
 		if dec.NonEmptyValues == 0 {
 			return (*MyAuthParams)(nil), errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()
@@ -48,7 +48,7 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 		}
 		return params, nil
 	},
-	DefLoc:      0,
+	DefLoc:      int32(0),
 	Endpoint:    "AuthHandler",
 	HasAuthData: false,
 	Service:     "UNKNOWN",
