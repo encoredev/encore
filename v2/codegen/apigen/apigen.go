@@ -54,14 +54,17 @@ func Process(p Params) {
 	}
 
 	if fw, ok := p.Desc.Framework.Get(); ok {
-		var svcStruct option.Option[*codegen.VarDecl]
+
+		svcStructBySvc := make(map[string]*codegen.VarDecl)
 
 		for _, svc := range p.Desc.Services {
+			var svcStruct option.Option[*codegen.VarDecl]
 			if svcDesc, ok := svc.Framework.Get(); ok {
 				if ss, ok := svcDesc.ServiceStruct.Get(); ok {
 					decl := servicestructgen.Gen(p.Gen, svc, ss)
 					gp.ServiceStructs[svc] = decl
 					svcStruct = option.Some(decl)
+					svcStructBySvc[svc.Name] = decl
 				}
 
 				mws := middlewaregen.Gen(p.Gen, svcDesc.Middleware, svcStruct)
@@ -76,6 +79,10 @@ func Process(p Params) {
 		}
 
 		gp.AuthHandler = option.Map(fw.AuthHandler, func(ah *authhandler.AuthHandler) *codegen.VarDecl {
+			var svcStruct option.Option[*codegen.VarDecl]
+			if svc, ok := p.Desc.ServiceForPath(ah.Decl.File.FSPath); ok {
+				svcStruct = option.AsOptional(svcStructBySvc[svc.Name])
+			}
 			return authhandlergen.Gen(p.Gen, p.Desc, ah, svcStruct)
 		})
 
