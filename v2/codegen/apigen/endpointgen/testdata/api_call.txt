@@ -21,7 +21,6 @@ package svca
 import (
 	"context"
 	__api "encore.dev/appruntime/api"
-	_ "encore.dev/appruntime/app/appinit"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
 )
@@ -139,7 +138,6 @@ package svca
 import (
 	"context"
 	__api "encore.dev/appruntime/api"
-	_ "encore.dev/appruntime/app/appinit"
 )
 
 func EncoreInternal_apicalls_Foo(ctx context.Context) error {
@@ -152,7 +150,8 @@ func EncoreInternal_apicalls_Foo(ctx context.Context) error {
 -- want:svca/svca.go --
 package svca
 
-import "context"
+import _ "encore.dev/appruntime/app/appinit"
+/*line :3:1*/import "context"
 
 //encore:api public
 func Foo(ctx context.Context) error { return nil }
@@ -162,7 +161,8 @@ func Bar(ctx context.Context) error { return EncoreInternal_apicalls_Foo(ctx) }
 -- want:svcb/svcb.go --
 package svcb
 
-import ("context"; "example.com/svca")
+import _ "encore.dev/appruntime/app/appinit"
+/*line :3:1*/import ("context"; "example.com/svca")
 
 //encore:api public
 func Baz(ctx context.Context) error { return svca.EncoreInternal_apicalls_Foo(ctx) }

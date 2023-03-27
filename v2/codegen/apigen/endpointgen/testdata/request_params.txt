@@ -11,13 +11,26 @@ type Params struct {
 //encore:api public
 func Foo(ctx context.Context, p *Params) error { return nil }
 
+-- want:basic.go --
+package basic
+
+import _ "encore.dev/appruntime/app/appinit"
+/*line :3:1*/import "context"
+
+type Params struct {
+    String string
+    Int int
+}
+
+//encore:api public
+func Foo(ctx context.Context, p *Params) error { return nil }
+
 -- want:encore_internal__api.go --
 package basic
 
 import (
 	"context"
 	__api "encore.dev/appruntime/api"
-	_ "encore.dev/appruntime/app/appinit"
 	__etype "encore.dev/appruntime/etype"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"

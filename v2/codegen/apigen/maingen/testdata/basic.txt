@@ -51,13 +51,20 @@ func loadApp() *__appinit.LoadData {
 func main() {
 	__appinit.AppMain()
 }
+-- want:code.go --
+package code
+
+import _ "encore.dev/appruntime/app/appinit"
+/*line :3:1*/import "context"
+
+//encore:api
+func Foo(ctx context.Context) error { return nil }
 -- want:encore_internal__api.go --
 package code
 
 import (
 	"context"
 	__api "encore.dev/appruntime/api"
-	_ "encore.dev/appruntime/app/appinit"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
 )

@@ -38,9 +38,6 @@ func newFile(pkg *pkginfo.Package, baseName, shortName string) *File {
 func newFileForPath(pkgPath paths.Pkg, pkgName string, pkgDir paths.FS, baseName, shortName string) *File {
 	jenFile := jen.NewFilePathName(pkgPath.String(), pkgName)
 
-	// Ensure the runtime is initialized before all generated code.
-	jenFile.Anon("encore.dev/appruntime/app/appinit")
-
 	for pkgPath, alias := range importNames {
 		jenFile.ImportAlias(pkgPath, alias)
 	}

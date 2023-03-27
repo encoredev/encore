@@ -2,6 +2,9 @@ package codegen
 
 import (
 	"bytes"
+	"fmt"
+	"go/token"
+	"strconv"
 
 	"golang.org/x/exp/slices"
 
@@ -17,23 +20,26 @@ import (
 type Generator struct {
 	*parsectx.Context
 
-	Util       *genutil.Helper
-	TraceNodes *legacymeta.TraceNodes
-	rewrites   map[*pkginfo.File]*rewrite.Rewriter
-	files      map[fileKey]*File
+	Util         *genutil.Helper
+	TraceNodes   *legacymeta.TraceNodes
+	rewrites     map[*pkginfo.File]*rewrite.Rewriter
+	files        map[fileKey]*File
+	addedAppInit map[paths.Pkg]bool
 }
 
 func New(c *parsectx.Context, traceNodes *legacymeta.TraceNodes) *Generator {
 	return &Generator{
-		Context:    c,
-		Util:       genutil.NewHelper(c.Errs),
-		TraceNodes: traceNodes,
-		rewrites:   make(map[*pkginfo.File]*rewrite.Rewriter),
-		files:      make(map[fileKey]*File),
+		Context:      c,
+		Util:         genutil.NewHelper(c.Errs),
+		TraceNodes:   traceNodes,
+		rewrites:     make(map[*pkginfo.File]*rewrite.Rewriter),
+		files:        make(map[fileKey]*File),
+		addedAppInit: make(map[paths.Pkg]bool),
 	}
 }
 
 func (g *Generator) Rewrite(file *pkginfo.File) *rewrite.Rewriter {
+	g.InsertAppInit(file.Pkg)
 	if r, ok := g.rewrites[file]; ok {
 		return r
 	}
@@ -48,6 +54,7 @@ type fileKey struct {
 }
 
 func (g *Generator) File(pkg *pkginfo.Package, shortName string) *File {
+	g.InsertAppInit(pkg)
 	baseName := "encore_internal__" + shortName + ".go"
 	key := fileKey{pkg.ImportPath, baseName}
 	if f, ok := g.files[key]; ok {
@@ -99,4 +106,36 @@ func (g *Generator) Overlays() []overlay.File {
 	}
 
 	return of
+}
+
+// InsertAppInit inserts an import to appinit in the given package.
+func (g *Generator) InsertAppInit(pkg *pkginfo.Package) {
+	if g.addedAppInit[pkg.ImportPath] {
+		return
+	}
+	g.addedAppInit[pkg.ImportPath] = true
+
+	// Find the first non-test file if any; otherwise fall back to the first file.
+	var file *pkginfo.File
+	for _, f := range pkg.Files {
+		if f.TestFile {
+			file = f
+			break
+		}
+	}
+	if file == nil {
+		file = pkg.Files[0]
+	}
+
+	rw := g.Rewrite(file)
+	a := file.AST()
+	var insertPos token.Pos
+	if len(a.Decls) > 0 {
+		insertPos = a.Decls[0].Pos()
+	} else {
+		insertPos = a.Name.End()
+	}
+	ln := g.FS.Position(insertPos)
+	rw.Insert(insertPos, []byte(fmt.Sprintf("import _ %s\n/*line :%d:%d*/",
+		strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
 }
