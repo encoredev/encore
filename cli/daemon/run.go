@@ -123,6 +123,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	})
 	if err != nil {
 		s.mu.Unlock()
+		fmt.Fprintln(stderr, err)
 		sendExit(1)
 		return nil
 	}
