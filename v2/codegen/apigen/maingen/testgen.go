@@ -24,6 +24,9 @@ func genTestConfigs(p GenParams, test codegen.TestConfig) {
 		f.Anon("encore.dev/appruntime/testsupport")
 		f.Anon("encore.dev/appruntime/app/appinit")
 
-		genLoadApp(p, f, option.Some(testParams{ServiceName: serviceName}))
+		genLoadApp(p, f, option.Some(testParams{
+			ServiceName: serviceName,
+			EnvsToEmbed: test.EnvsToEmbed,
+		}))
 	}
 }

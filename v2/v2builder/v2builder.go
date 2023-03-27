@@ -169,7 +169,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 	})
 }
 
-func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
+func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
 		defer func() {
 			if l, ok := perr.CatchBailout(recover()); ok {
@@ -179,18 +179,13 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 
 		pd := p.Compile.Parse.Data.(*parseData)
 
-		configProm := promise.New(func() (res configResult, err error) {
-			defer func() {
-				if l, ok := perr.CatchBailout(recover()); ok {
-					err = l.AsError()
-				}
-			}()
+		configs := computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta)
 
-			result := etrace.Async1(ctx, "", "computeConfigs", func(ctx context.Context) configResult {
-				return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta)
-			})
-			return result, nil
-		})
+		envs := make([]string, 0, len(p.Env)+len(configs.configs))
+		envs = append(envs, p.Env...)
+		for serviceName, cfgString := range configs.configs {
+			envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+		}
 
 		gg := codegen.New(pd.pc, pd.traceNodes)
 		etrace.Sync0(ctx, "", "codegen", func(ctx context.Context) {
@@ -202,6 +197,7 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 					testCfg.Packages = append(testCfg.Packages, pkg)
 				}
 			}
+			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p, envs)
 
 			infragen.Process(gg, pd.appDesc)
 			apigen.Process(apigen.Params{
@@ -214,21 +210,6 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 				Test:            option.Some(testCfg),
 			})
 		})
-
-		configs, err := configProm.Get(pd.pc.Ctx)
-		if err != nil {
-			return err
-		}
-		// Then check if the config generation caused an error
-		if pd.pc.Errs.Len() > 0 {
-			return pd.pc.Errs.AsError()
-		}
-
-		envs := make([]string, 0, len(p.Env)+len(configs.configs))
-		envs = append(envs, p.Env...)
-		for serviceName, cfgString := range configs.configs {
-			envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
-		}
 
 		build.Test(ctx, &build.TestConfig{
 			Config: build.Config{
@@ -248,6 +229,22 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 		}
 		return nil
 	})
+}
+
+// testEnvVars takes a list of env vars and filters them down to the ones
+// that should be embedded within the test binary.
+func (i BuilderImpl) testEnvVarsToEmbed(p builder.TestParams, envs []string) []string {
+	if !slices.Contains(p.Args, "-c") {
+		return nil
+	}
+
+	var toEmbed []string
+	for _, e := range envs {
+		if strings.HasPrefix(e, "ENCORE_") {
+			toEmbed = append(toEmbed, e)
+		}
+	}
+	return toEmbed
 }
 
 type configResult struct {

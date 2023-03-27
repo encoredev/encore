@@ -3,6 +3,7 @@ package maingen
 import (
 	"net/http"
 	"sort"
+	"strings"
 
 	. "github.com/dave/jennifer/jen"
 	"golang.org/x/exp/maps"
@@ -25,6 +26,7 @@ import (
 
 type testParams struct {
 	ServiceName string // empty if not within a service
+	EnvsToEmbed []string
 }
 
 func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
@@ -35,15 +37,18 @@ func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
 	allowHeaders, exposeHeaders := computeCORSHeaders(p.Desc)
 
 	testService := ""
+
+	var envsToEmbed []string
 	if test, ok := test.Get(); ok {
 		testService = test.ServiceName
+		envsToEmbed = test.EnvsToEmbed
 	}
 
 	f.Anon("unsafe") // for go:linkname
 	f.Comment("loadApp loads the Encore app runtime.")
 	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
 	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
-		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(Dict{
+		staticCfg := Dict{
 			Id("AuthData"):       authDataType(p.Gen.Util, p.Desc),
 			Id("EncoreCompiler"): Lit(p.CompilerVersion),
 			Id("AppCommit"): Qual("encore.dev/appruntime/config", "CommitInfo").Values(Dict{
@@ -56,9 +61,17 @@ func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
 			Id("Testing"):           Lit(test.Present()),
 			Id("TestService"):       Lit(testService),
 			Id("BundledServices"):   bundledServices(p.Desc),
+		}
 
-			// TODO(andre) support TestAsExternalBinary and embedded envs
-		})
+		if len(envsToEmbed) > 0 {
+			staticCfg[Id("TestAsExternalBinary")] = True()
+			for _, env := range envsToEmbed {
+				key, value, _ := strings.Cut(env, "=")
+				g.Qual("os", "Setenv").Call(Lit(key), Lit(value))
+			}
+		}
+
+		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(staticCfg)
 
 		g.Id("handlers").Op(":=").Add(computeHandlerRegistrationConfig(p.Desc, p.APIHandlers, p.Middleware))
 
