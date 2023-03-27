@@ -3,8 +3,8 @@ package apigen
 import (
 	"golang.org/x/exp/maps"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/authhandlergen"
@@ -24,6 +24,10 @@ type Params struct {
 	Desc       *app.Desc
 	MainModule *pkginfo.Module
 
+	CompilerVersion string
+	AppRevision     string
+	AppUncommitted  bool
+
 	Test option.Option[codegen.TestConfig]
 
 	ExecScriptMainPkg option.Option[paths.Pkg]
@@ -36,6 +40,10 @@ func Process(p Params) {
 		MainModule:        p.MainModule,
 		Test:              p.Test,
 		ExecScriptMainPkg: p.ExecScriptMainPkg,
+
+		CompilerVersion: p.CompilerVersion,
+		AppRevision:     p.AppRevision,
+		AppUncommitted:  p.AppUncommitted,
 
 		APIHandlers:    make(map[*api.Endpoint]*codegen.VarDecl),
 		Middleware:     make(map[*middleware.Middleware]*codegen.VarDecl),

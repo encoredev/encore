@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/internal/builder"
-	"encr.dev/internal/builder/builderimpl"
 	"encr.dev/internal/optracker"
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/pkg/vcs"
 )
 

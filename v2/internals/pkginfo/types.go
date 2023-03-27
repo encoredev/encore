@@ -12,8 +12,8 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 )
 
 // Module describes a Go module.
@@ -45,6 +45,7 @@ func (m *Module) FSPathToPkg(pkgPath paths.Pkg) (path paths.FS, ok bool) {
 	if rel, ok := m.Path.RelativePathToPkg(pkgPath); ok {
 		return m.RootDir.Join(rel.ToIO()), true
 	}
+
 	return "", false
 }
 

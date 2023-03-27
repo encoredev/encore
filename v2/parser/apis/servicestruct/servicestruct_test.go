@@ -11,8 +11,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/testutil"

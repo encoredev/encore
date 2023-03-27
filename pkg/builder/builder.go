@@ -5,12 +5,14 @@ import (
 	"io"
 	"io/fs"
 
+	"github.com/rs/zerolog"
+
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -28,6 +30,14 @@ type BuildInfo struct {
 
 	// MainPkg is the path to the existing main package to use, if any.
 	MainPkg option.Option[paths.Pkg]
+
+	// Overrides to explicitly set the GoRoot and EncoreRuntime paths.
+	// if not set, they will be inferred from the current executable.
+	GoRoot        option.Option[paths.FS]
+	EncoreRuntime option.Option[paths.FS]
+
+	// Logger allows a custom logger to be used by the various phases of the builder.
+	Logger option.Option[zerolog.Logger]
 }
 
 type ParseParams struct {
@@ -51,6 +61,9 @@ type CompileParams struct {
 	Experiments *experiments.Set
 	WorkingDir  string
 	CueMeta     *cueutil.Meta
+
+	// Override to explicitly allow the Encore version to be set.
+	EncoreVersion option.Option[string]
 }
 
 type CompileResult struct {

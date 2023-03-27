@@ -13,8 +13,8 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/internal/builder"
-	"encr.dev/internal/builder/builderimpl"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/vcs"
 	metav1 "encr.dev/proto/encore/parser/meta/v1"
 	schemav1 "encr.dev/proto/encore/parser/schema/v1"

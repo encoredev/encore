@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/posmap"

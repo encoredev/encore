@@ -7,8 +7,8 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/internal/builder"
-	"encr.dev/internal/builder/builderimpl"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )

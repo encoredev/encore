@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/paths"
 )
 
 // File pkgparse implements parsing of packages.

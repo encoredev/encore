@@ -8,8 +8,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/github"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"

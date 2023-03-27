@@ -38,6 +38,16 @@ type List struct {
 	errs errinsrc.List
 }
 
+// AsError returns this list an error if there are
+// errors in the list, otherwise it returns nil.
+func (l *List) AsError() error {
+	if l.Len() == 0 {
+		return nil
+	}
+
+	return &ListAsErr{list: l}
+}
+
 // Add adds a templated error
 func (l *List) Add(template errors.Template) {
 	l.add(errinsrc.FromTemplate(template, l.fset))

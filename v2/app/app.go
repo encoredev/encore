@@ -3,8 +3,8 @@ package app
 import (
 	"sort"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"

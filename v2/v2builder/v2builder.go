@@ -11,16 +11,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
 
-	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
 	"encr.dev/internal/etrace"
-	"encr.dev/internal/paths"
+	"encr.dev/internal/version"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vfs"
 	"encr.dev/v2/app"
@@ -44,17 +44,21 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 	return etrace.Sync2(ctx, "", "v2builder.Parse", func(ctx context.Context) (res *builder.ParseResult, err error) {
 		defer func() {
 			if l, ok := perr.CatchBailout(recover()); ok {
-				err = fmt.Errorf("parse error: %s\n", l.FormatErrors())
+				err = l.AsError()
 			}
 		}()
 		fs := token.NewFileSet()
 		errs := perr.NewList(ctx, fs)
 		pc := &parsectx.Context{
 			Ctx: ctx,
-			Log: zerolog.New(zerolog.NewConsoleWriter()),
+			Log: p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
 			Build: parsectx.BuildInfo{
-				GOROOT:        paths.RootedFSPath(env.EncoreGoRoot(), "."),
-				EncoreRuntime: paths.RootedFSPath(env.EncoreRuntimePath(), "."),
+				GOROOT: p.Build.GoRoot.GetOrElse(
+					paths.RootedFSPath(env.EncoreGoRoot(), "."),
+				),
+				EncoreRuntime: p.Build.EncoreRuntime.GetOrElse(
+					paths.RootedFSPath(env.EncoreRuntimePath(), "."),
+				),
 
 				GOARCH:             p.Build.GOARCH,
 				GOOS:               p.Build.GOOS,
@@ -79,7 +83,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		mainModule := parser.MainModule()
 
 		if pc.Errs.Len() > 0 {
-			return nil, errors.New(pc.Errs.FormatErrors())
+			return nil, pc.Errs.AsError()
 		}
 
 		return &builder.ParseResult{
@@ -105,7 +109,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 	return etrace.Sync2(ctx, "", "v2builder.Compile", func(ctx context.Context) (res *builder.CompileResult, err error) {
 		defer func() {
 			if l, ok := perr.CatchBailout(recover()); ok {
-				err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
+				err = l.AsError()
 			}
 		}()
 
@@ -117,16 +121,19 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 			Gen:               gg,
 			Desc:              pd.appDesc,
 			MainModule:        pd.mainModule,
+			CompilerVersion:   p.EncoreVersion.GetOrElse(fmt.Sprintf("EncoreCLI/%s", version.Version)),
+			AppRevision:       p.Build.Revision,
+			AppUncommitted:    p.Build.UncommittedChanges,
 			ExecScriptMainPkg: p.Build.MainPkg,
 		})
 
-		defer func() {
-			if l, ok := perr.CatchBailout(recover()); ok {
-				err = fmt.Errorf("compile error: %s\n", l.FormatErrors())
-			}
-		}()
+		configProm := promise.New(func() (res configResult, err error) {
+			defer func() {
+				if l, ok := perr.CatchBailout(recover()); ok {
+					err = l.AsError()
+				}
+			}()
 
-		configProm := promise.New(func() (configResult, error) {
 			return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
 		})
 
@@ -141,8 +148,9 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 			Dir: buildResult.Dir.ToIO(),
 			Exe: buildResult.Exe.ToIO(),
 		}
+		// Check if the compile result caused errors and if it did return
 		if pd.pc.Errs.Len() > 0 {
-			return res, fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
+			return res, pd.pc.Errs.AsError()
 		}
 
 		config, err := configProm.Get(pd.pc.Ctx)
@@ -152,6 +160,11 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 		res.Configs = config.configs
 		res.ConfigFiles = config.files
 
+		// Then check if the config generation caused an error
+		if pd.pc.Errs.Len() > 0 {
+			return res, pd.pc.Errs.AsError()
+		}
+
 		return res, nil
 	})
 }
@@ -160,13 +173,19 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
 		defer func() {
 			if l, ok := perr.CatchBailout(recover()); ok {
-				err = fmt.Errorf("test failure: %s\n", l.FormatErrors())
+				err = l.AsError()
 			}
 		}()
 
 		pd := p.Compile.Parse.Data.(*parseData)
 
-		configProm := promise.New(func() (configResult, error) {
+		configProm := promise.New(func() (res configResult, err error) {
+			defer func() {
+				if l, ok := perr.CatchBailout(recover()); ok {
+					err = l.AsError()
+				}
+			}()
+
 			result := etrace.Async1(ctx, "", "computeConfigs", func(ctx context.Context) configResult {
 				return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta)
 			})
@@ -186,16 +205,23 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 
 			infragen.Process(gg, pd.appDesc)
 			apigen.Process(apigen.Params{
-				Gen:        gg,
-				Desc:       pd.appDesc,
-				MainModule: pd.mainModule,
-				Test:       option.Some(testCfg),
+				Gen:             gg,
+				Desc:            pd.appDesc,
+				MainModule:      pd.mainModule,
+				CompilerVersion: p.Compile.EncoreVersion.GetOrElse(fmt.Sprintf("EncoreCLI/%s", version.Version)),
+				AppRevision:     p.Compile.Build.Revision,
+				AppUncommitted:  p.Compile.Build.UncommittedChanges,
+				Test:            option.Some(testCfg),
 			})
 		})
 
 		configs, err := configProm.Get(pd.pc.Ctx)
 		if err != nil {
 			return err
+		}
+		// Then check if the config generation caused an error
+		if pd.pc.Errs.Len() > 0 {
+			return pd.pc.Errs.AsError()
 		}
 
 		envs := make([]string, 0, len(p.Env)+len(configs.configs))
@@ -218,7 +244,7 @@ func (BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 		})
 
 		if pd.pc.Errs.Len() > 0 {
-			return fmt.Errorf("compile error: %s\n", pd.pc.Errs.FormatErrors())
+			return pd.pc.Errs.AsError()
 		}
 		return nil
 	})
@@ -296,7 +322,7 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 	return etrace.Sync1(ctx, "", "v2builder.GenUserFacing", func(ctx context.Context) (err error) {
 		defer func() {
 			if l, ok := perr.CatchBailout(recover()); ok {
-				err = fmt.Errorf("codegen error: %s\n", l.FormatErrors())
+				err = l.AsError()
 			}
 		}()
 
@@ -335,7 +361,7 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 		}
 
 		if errs.Len() > 0 {
-			return errors.New(errs.FormatErrors())
+			return errs.AsError()
 		}
 
 		return nil

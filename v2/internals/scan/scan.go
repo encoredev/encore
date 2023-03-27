@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 )

@@ -18,7 +18,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/overlay"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"

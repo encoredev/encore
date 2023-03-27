@@ -6,14 +6,17 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/mod/modfile"
 
 	"encr.dev/compiler"
-	"encr.dev/internal/builder"
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
 	"encr.dev/parser"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/experiments"
+	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/v2builder"
 )
 
@@ -83,18 +86,18 @@ func (l Legacy) Compile(ctx context.Context, p builder.CompileParams) (*builder.
 }
 
 func (Legacy) compilerConfig(p builder.CompileParams) *compiler.Config {
-	//goland:noinspection HttpUrlsUsage
 	cfg := &compiler.Config{
 		Revision:              p.Parse.Meta.AppRevision,
 		UncommittedChanges:    p.Parse.Meta.UncommittedChanges,
 		WorkingDir:            p.WorkingDir,
-		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-		EncoreRuntimePath:     env.EncoreRuntimePath(),
-		EncoreGoRoot:          env.EncoreGoRoot(),
+		EncoreCompilerVersion: p.EncoreVersion.GetOrElse(fmt.Sprintf("EncoreCLI/%s", version.Version)),
+		EncoreRuntimePath:     option.Map(p.Build.EncoreRuntime, paths.FS.ToIO).GetOrElse(env.EncoreRuntimePath()),
+		EncoreGoRoot:          option.Map(p.Build.GoRoot, paths.FS.ToIO).GetOrElse(env.EncoreGoRoot()),
 		Experiments:           p.Experiments,
 		Meta:                  p.CueMeta,
 		Parse:                 p.Parse.Data.(*parser.Result),
 		OpTracker:             p.OpTracker,
+		Log:                   p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
 
 		Debug:               p.Build.Debug,
 		KeepOutputOnFailure: p.Build.KeepOutput,

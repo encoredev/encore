@@ -20,8 +20,8 @@ import (
 	"golang.org/x/mod/semver"
 
 	"encr.dev/internal/etrace"
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/overlay"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"

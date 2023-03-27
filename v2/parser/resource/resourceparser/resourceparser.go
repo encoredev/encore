@@ -3,7 +3,7 @@ package resourceparser
 import (
 	"go/ast"
 
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"

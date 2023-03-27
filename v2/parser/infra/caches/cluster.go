@@ -5,7 +5,7 @@ import (
 	"go/token"
 
 	"encore.dev/storage/cache"
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	literals "encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/locations"

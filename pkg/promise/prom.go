@@ -37,8 +37,11 @@ func New[T any](fn func() (T, error)) *Value[T] {
 		done: make(chan struct{}),
 	}
 	go func() {
-		val.val, val.err = fn()
-		close(val.done)
+		func() {
+			// If we panic, we want to mark the promise as done
+			defer close(val.done)
+			val.val, val.err = fn()
+		}()
 
 		if val.err == nil {
 			val.onResolve.MarkDoneAndProcess(val.val)

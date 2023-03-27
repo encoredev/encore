@@ -4,8 +4,8 @@ import (
 	"go/ast"
 	"go/token"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/errors"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"

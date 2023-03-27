@@ -5,8 +5,8 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 )
 

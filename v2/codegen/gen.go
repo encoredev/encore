@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/codegen/internal/rewrite"

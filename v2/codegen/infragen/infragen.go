@@ -1,8 +1,8 @@
 package infragen
 
 import (
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/infragen/cachegen"

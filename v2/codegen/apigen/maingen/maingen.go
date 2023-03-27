@@ -5,8 +5,8 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"

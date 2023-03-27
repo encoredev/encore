@@ -3,8 +3,8 @@ package parseutil
 import (
 	"go/ast"
 
-	"encr.dev/internal/paths"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 )
 

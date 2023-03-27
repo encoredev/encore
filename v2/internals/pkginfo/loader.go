@@ -9,7 +9,7 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/packages"
 
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"
 )

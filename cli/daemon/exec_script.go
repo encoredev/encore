@@ -10,7 +10,7 @@ import (
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
-	"encr.dev/internal/paths"
+	"encr.dev/pkg/paths"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 

@@ -17,8 +17,8 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/internal/builder"
-	"encr.dev/internal/builder/builderimpl"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/vcs"
 )
