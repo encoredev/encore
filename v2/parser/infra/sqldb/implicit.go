@@ -83,14 +83,10 @@ func ComputeImplicitUsage(errs *perr.List, pkgs []*pkginfo.Package, binds []reso
 
 				switch qn.Name {
 				case "Exec", "ExecTx", "QueryRow", "QueryRowTx", "Query", "QueryTx", "Begin":
-					bind, ok := findBind(file.Pkg.ImportPath)
-					if !ok {
-						errs.Addf(sel.Pos(), "cannot call sqldb.%s outside of a service with a database defined",
-							qn.Name)
-						return true
-					}
-					if u := classifySQLDBUsage(file, bind, sel, stack); u != nil {
-						usages = append(usages, u)
+					if bind, ok := findBind(file.Pkg.ImportPath); ok {
+						if u := classifySQLDBUsage(file, bind, sel, stack); u != nil {
+							usages = append(usages, u)
+						}
 					}
 				}
 
