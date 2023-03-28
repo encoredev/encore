@@ -91,13 +91,16 @@ func (Legacy) compilerConfig(p builder.CompileParams) *compiler.Config {
 		UncommittedChanges:    p.Parse.Meta.UncommittedChanges,
 		WorkingDir:            p.WorkingDir,
 		EncoreCompilerVersion: p.EncoreVersion.GetOrElse(fmt.Sprintf("EncoreCLI/%s", version.Version)),
-		EncoreRuntimePath:     option.Map(p.Build.EncoreRuntime, paths.FS.ToIO).GetOrElse(env.EncoreRuntimePath()),
-		EncoreGoRoot:          option.Map(p.Build.GoRoot, paths.FS.ToIO).GetOrElse(env.EncoreGoRoot()),
-		Experiments:           p.Experiments,
-		Meta:                  p.CueMeta,
-		Parse:                 p.Parse.Data.(*parser.Result),
-		OpTracker:             p.OpTracker,
-		Log:                   p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
+		// We use GetOrElseF here because GoRoot / Runtime path will panic
+		// if they are not set, but we don't want to panic if the option
+		// is set.
+		EncoreRuntimePath: option.Map(p.Build.EncoreRuntime, paths.FS.ToIO).GetOrElseF(func() string { return env.EncoreRuntimePath() }),
+		EncoreGoRoot:      option.Map(p.Build.GoRoot, paths.FS.ToIO).GetOrElseF(func() string { return env.EncoreGoRoot() }),
+		Experiments:       p.Experiments,
+		Meta:              p.CueMeta,
+		Parse:             p.Parse.Data.(*parser.Result),
+		OpTracker:         p.OpTracker,
+		Log:               p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
 
 		Debug:               p.Build.Debug,
 		KeepOutputOnFailure: p.Build.KeepOutput,

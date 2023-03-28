@@ -53,12 +53,15 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 			Ctx: ctx,
 			Log: p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
 			Build: parsectx.BuildInfo{
-				GOROOT: p.Build.GoRoot.GetOrElse(
-					paths.RootedFSPath(env.EncoreGoRoot(), "."),
-				),
-				EncoreRuntime: p.Build.EncoreRuntime.GetOrElse(
-					paths.RootedFSPath(env.EncoreRuntimePath(), "."),
-				),
+				// We use GetOrElseF here because GoRoot / Runtime path will panic
+				// if they are not set, but we don't want to panic if the option
+				// is set.
+				GOROOT: p.Build.GoRoot.GetOrElseF(func() paths.FS {
+					return paths.RootedFSPath(env.EncoreGoRoot(), ".")
+				}),
+				EncoreRuntime: p.Build.EncoreRuntime.GetOrElseF(func() paths.FS {
+					return paths.RootedFSPath(env.EncoreRuntimePath(), ".")
+				}),
 
 				GOARCH:             p.Build.GOARCH,
 				GOOS:               p.Build.GOOS,
@@ -108,7 +111,7 @@ type parseData struct {
 func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Compile", func(ctx context.Context) (res *builder.CompileResult, err error) {
 		defer func() {
-			if l, ok := perr.CatchBailout(recover()); ok {
+			if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
 				err = l.AsError()
 			}
 		}()
@@ -129,7 +132,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 
 		configProm := promise.New(func() (res configResult, err error) {
 			defer func() {
-				if l, ok := perr.CatchBailout(recover()); ok {
+				if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
 					err = l.AsError()
 				}
 			}()

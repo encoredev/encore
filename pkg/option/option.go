@@ -119,6 +119,14 @@ func (o Option[T]) GetOrElse(alternative T) T {
 	return alternative
 }
 
+// GetOrElseF returns the value if present, otherwise returns the alternative value
+func (o Option[T]) GetOrElseF(alternative func() T) T {
+	if o.present {
+		return o.value
+	}
+	return alternative()
+}
+
 // MustGet returns the value if present, otherwise panics
 func (o Option[T]) MustGet() (rtn T) {
 	if o.present {
