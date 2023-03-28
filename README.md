@@ -18,7 +18,7 @@ Start building today and unlock your creative potential, free from cloud complex
 </br></br>
 
 ## How Encore works
-![Encore overview](https://user-images.githubusercontent.com/78424526/227249272-4a752639-9c8c-4a6f-8970-13849120a18e.png)
+![Encore Overview](https://user-images.githubusercontent.com/78424526/228284568-c1bbd16c-d71d-4178-bf74-cbcf1b450182.png)
 
 Most backend applications use a small set of common building blocks: services, APIs, databases, queues, caches, and cron jobs. The real complexity lies in provisioning and managing the underlying infrastructure, and the endless boilerplate that's required to tie it all together in your application.
 
@@ -54,6 +54,8 @@ This completely removes the need for infrastructure configuration files, increas
 - **[Intelligent architecture diagrams](https://encore.dev/docs/develop/encore-flow):** Visualise your application in real-time with automated and interactive architecture diagrams.
 
 - **[Distributed Tracing](https://encore.dev/docs/observability/tracing):** Your application is automatically instrumented to capture information about API calls, goroutines, HTTP requests, database queries, and more.
+
+- **[Metrics](https://encore.dev/docs/observability/metrics):** Encore comes with built-in metrics and dashboards, and provides simple integrations with your favorite observability tools.
   
 - **[Secrets management](https://encore.dev/docs/develop/secrets):** Securely store and use secrets, and API keys, without doing any work. Define secrets in your code, like any other variable, and Encore takes care of the rest.
 
@@ -119,29 +121,29 @@ Here's how you can contribute:
 
 https://user-images.githubusercontent.com/78424526/196938940-9b132373-2b31-41fe-8ca7-aaa3be7b8537.mp4
 
-### Automatic interactive architecture diagrams
+### Real-time Architecture Diagrams
 
 https://user-images.githubusercontent.com/78424526/205659569-54e79592-0485-4031-9cfa-159f58c11d46.mp4
 
 ### Built-in CI/CD & Infrastructure Provisioning
 
-https://user-images.githubusercontent.com/78424526/169317801-7711b7a2-080d-4da5-bba4-7b8d4104dd68.mp4
+<img src="https://user-images.githubusercontent.com/78424526/228289297-cbcd6b79-1392-44e7-9fd7-38c50f940ae8.png" alt="CI/CD and infra provisioning" width="80%">
+
+### Cloud Infrastructure Tracking
+
+<img src="https://user-images.githubusercontent.com/78424526/228287624-faf122c2-8fa1-4b9c-b6ea-db8009df82d7.png" alt="cloud infrastructure resources" width="80%">
 
 ### Distributed Tracing
 
 https://user-images.githubusercontent.com/78424526/169817256-f3e63f6f-9dd3-4b5a-b72d-be71eef977ed.mp4
 
-### Simple Cloud Environments
+### Built-in Metrics
 
-<img src="https://user-images.githubusercontent.com/78424526/169320417-f2d51755-cab5-40d8-a97f-ad1106746a3c.png" alt="Simple Cloud Environments" width="90%">
+https://user-images.githubusercontent.com/78424526/228285771-ce288337-1a1b-4c0a-8e26-d7753b28574a.mp4
 
 ### Automated API Documentation
 
-<img src="https://user-images.githubusercontent.com/78424526/169325592-105b7540-5ad7-4433-a624-7437c0d4c8d7.png" alt="Automated API Documentation" width="90%">
-
-### Built-in Cron Jobs
-
-<img src="https://user-images.githubusercontent.com/78424526/169318004-e2a0cfdc-6610-44b3-8c83-e6751344c575.png" alt="Native Cron Jobs" width="90%">
+<img src="https://user-images.githubusercontent.com/78424526/169325592-105b7540-5ad7-4433-a624-7437c0d4c8d7.png" alt="Automated API Documentation" width="80%">
 
 ## Frequently Asked Questions (FAQ)
 
