@@ -30,9 +30,10 @@ func Subscriber(ctx context.Context, msg *MessageType) error {
 
 -- want: errors --
 
-── Invalid Argument ───────────────────────────────────────────────────────────────────────[E9999]──
+── Invalid PubSub topic config ────────────────────────────────────────────────────────────[E9999]──
 
-Missing required field `DeliveryGuarantee`
+The configuration field named "DeliveryGuarantee" must be set to pubsub.AtLeastOnce or
+pubsub.ExactlyOnce.
 
     ╭─[ svc/svc.go:14:63 ]
     │
@@ -43,3 +44,5 @@ Missing required field `DeliveryGuarantee`
  15 │     _ = pubsub.NewSubscription(BasicTopic, "basic-subscription", pubsub.SusbcriptionConfig { Handler: Subscriber })
  16 │ )
 ────╯
+
+For more information on PubSub, see https://encore.dev/docs/primitives/pubsub

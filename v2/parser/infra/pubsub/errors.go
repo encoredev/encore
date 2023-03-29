@@ -35,6 +35,11 @@ var (
 		errors.PrependDetails(pubsubNewTopicHelp),
 	)
 
+	errInvalidDeliveryGuarantee = errRange.New(
+		"Invalid PubSub topic config",
+		"The configuration field named \"DeliveryGuarantee\" must be set to pubsub.AtLeastOnce or pubsub.ExactlyOnce.",
+	)
+
 	errOrderingKeyNotExported = errRange.New(
 		"Invalid PubSub topic config",
 		"The configuration field named \"OrderingKey\" must be a one of the exported fields on the message type.",

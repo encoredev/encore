@@ -95,7 +95,7 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 
 	// Decode the config
 	type decodedConfig struct {
-		DeliveryGuarantee int    `literal:",required"`
+		DeliveryGuarantee int    `literal:",optional"` // optional rather than required because we check for a zero value below
 		OrderingKey       string `literal:",optional"`
 	}
 	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
@@ -119,6 +119,12 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 				errs.Add(errOrderingKeyNotExported.AtGoNode(foundField))
 			}
 		}
+	}
+
+	deliveryGuarantee := DeliveryGuarantee(config.DeliveryGuarantee) - 1 // The runtime variables are 1 indexed so we can detect a zero value
+	if deliveryGuarantee != AtLeastOnce && deliveryGuarantee != ExactlyOnce {
+		pos := cfgLit.Pos("DeliveryGuarantee")
+		errs.Add(errInvalidDeliveryGuarantee.AtGoPos(pos, pos))
 	}
 
 	// Validate the message attributes are not using the reserved prefix
@@ -147,7 +153,7 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 		File:              d.File,
 		Name:              topicName,
 		Doc:               d.Doc,
-		DeliveryGuarantee: AtLeastOnce,
+		DeliveryGuarantee: deliveryGuarantee,
 		OrderingKey:       config.OrderingKey,
 		MessageType:       messageType,
 	}

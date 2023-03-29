@@ -20,7 +20,7 @@ type MessageType struct {
 
 var (
     BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
-    AnotherTopic = pubsub.NewTopic[*MessageType]("another-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+    AnotherTopic = pubsub.NewTopic[*MessageType]("another-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.ExactlyOnce })
 )
 
 -- svc/svc.go --
