@@ -28,10 +28,12 @@ jobs:
     - id: go-cache-paths
       run: |
         echo "::set-output name=go-build::$(go env GOCACHE)"
-        echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+        echo "::set-output name=go-mod::$(go env GOMODCACHE)"      
 
     - name: Install encore-go
-      run: curl --fail -L -o encore-go.tar.gz https://github.com/encoredev/go/releases/download/encore-go1.20.2/linux_x86-64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
+      run: |
+        URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \")
+        curl --fail -L -o encore-go.tar.gz $URL && tar -C . -xzf ./encore-go.tar.gz
 
     - name: Go Build Cache
       uses: actions/cache@v3
