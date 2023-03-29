@@ -8,6 +8,7 @@ import (
 	"encore.dev/appruntime/config"
 	"encore.dev/appruntime/model"
 	"encore.dev/beta/errs"
+	"encore.dev/internal/limiter"
 	"encore.dev/pubsub/internal/test"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
@@ -20,17 +21,19 @@ import (
 //
 // See NewTopic for more information on how to declare a Topic.
 type Topic[T any] struct {
-	mgr      *Manager
-	topicCfg *config.PubsubTopic
-	topic    types.TopicImplementation
+	mgr            *Manager
+	topicCfg       *config.PubsubTopic
+	topic          types.TopicImplementation
+	publishLimiter limiter.Limiter
 }
 
 func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	if mgr.cfg.Static.Testing {
 		return &Topic[T]{
-			mgr:      mgr,
-			topicCfg: &config.PubsubTopic{EncoreName: name},
-			topic:    test.NewTopic[T](mgr.ts, name),
+			mgr:            mgr,
+			topicCfg:       &config.PubsubTopic{EncoreName: name},
+			topic:          test.NewTopic[T](mgr.ts, name),
+			publishLimiter: limiter.New(nil), // Create a no-op limiter
 		}
 	}
 
@@ -47,7 +50,12 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	for _, p := range mgr.providers {
 		if p.Matches(provider) {
 			impl := p.NewTopic(provider, topic)
-			return &Topic[T]{mgr: mgr, topicCfg: topic, topic: impl}
+			return &Topic[T]{
+				mgr:            mgr,
+				topicCfg:       topic,
+				topic:          impl,
+				publishLimiter: limiter.New(topic.Limiter),
+			}
 		}
 		tried = append(tried, p.ProviderName())
 	}
@@ -103,8 +111,11 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 		curr.Trace.PublishStart(t.topicCfg.EncoreName, data, curr.Req.SpanID, curr.Goctr, publishTraceID, 2)
 	}
 
-	// Publish to the clouds topic
-	id, err = t.topic.PublishMessage(ctx, attrs, data)
+	// Publish once the rate limiter allows it
+	if err = t.publishLimiter.Wait(ctx); err == nil {
+		// Publish to the clouds topic
+		id, err = t.topic.PublishMessage(ctx, attrs, data)
+	}
 
 	// End the trace span
 	if curr.Req != nil && curr.Trace != nil {
