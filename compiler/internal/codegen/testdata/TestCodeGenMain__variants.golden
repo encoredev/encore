@@ -108,10 +108,6 @@ func loadApp() *__appinit.LoadData {
 	}
 }
 
-func main() {
-	__appinit.AppMain()
-}
-
 var EncoreInternal_svcMyMiddleware = &__api.Middleware{
 	DefLoc: 42,
 	Global: false,
@@ -127,6 +123,10 @@ var EncoreInternal_svcMyMiddleware = &__api.Middleware{
 	},
 	Name:    "MyMiddleware",
 	PkgName: "svc",
+}
+
+func main() {
+	__appinit.AppMain()
 }
 
 

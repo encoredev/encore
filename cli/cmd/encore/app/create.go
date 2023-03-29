@@ -102,10 +102,10 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		fmt.Println()
 
 		if err != nil {
-			return fmt.Errorf("failed to download template %s: %v", ex.Name, err)
+			return fmt.Errorf("failed to download template %s: %v", ex.Name(), err)
 		}
 		gray := color.New(color.Faint)
-		gray.Printf("Downloaded template %s.\n", ex.Name)
+		gray.Printf("Downloaded template %s.\n", ex.Name())
 	} else {
 		// Set up files that we need when we don't have an example
 		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {

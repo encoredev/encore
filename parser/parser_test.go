@@ -193,6 +193,9 @@ func TestCompile(t *testing.T) {
 					}
 				}
 			},
+			"parse2": func(ts *testscript.TestScript, neg bool, args []string) {
+				// no-op: only the v2 parser is supported for this test
+			},
 			"output": func(ts *testscript.TestScript, neg bool, args []string) {
 				stdout := ts.Value("output").(*bytes.Buffer)
 				m, err := regexp.Match(args[0], stdout.String())

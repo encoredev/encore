@@ -1,5 +1,5 @@
 ! build
-stderr 'database not found: foo'
+stderr 'The database foo was not found'
 
 -- go.mod --
 module test

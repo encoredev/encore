@@ -824,6 +824,15 @@ func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
 // validateMiddleware validates the middleware and sorts them in file and line order,
 // to ensure that middleware runs in the order they were defined.
 func (p *parser) validateMiddleware() {
+	// Apply a fix for if middleware was parsed in a candidate service, which was then
+	// merged into a parent service.
+	for _, mw := range p.middleware {
+		if !mw.Global && mw.Svc != mw.Pkg.Service && mw.Pkg.Service != nil {
+			mw.Pkg.Service.Middleware = append(mw.Pkg.Service.Middleware, mw)
+			mw.Svc = mw.Pkg.Service
+		}
+	}
+
 	// Find which tags are used so we can error for unknown tags
 	type svcTag struct{ svc, tag string }
 	globalTags := make(map[string]bool)

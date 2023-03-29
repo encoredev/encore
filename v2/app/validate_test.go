@@ -64,166 +64,8 @@ func TestValidation(t *testing.T) {
 			// use like:
 			//  - `parse`
 			//  - `! parse` (if you want to check that there are errors)
-			"parse": func(ts *testscript.TestScript, neg bool, args []string) {
-				stdout := ts.Value("stdout").(*bytes.Buffer)
-				printf := func(format string, args ...interface{}) {
-					stdout.WriteString(fmt.Sprintf(format, args...) + "\n")
-				}
-				stderr := ts.Value("stderr").(*bytes.Buffer)
-				defer func() {
-					if err := recover(); err != nil {
-						if l, ok := perr.IsBailout(err); ok {
-							ts.Fatalf("bailout: %v", l.FormatErrors())
-						} else {
-							// We convert to an srcerrors error so that we can capture the stack
-							e := srcerrors.UnhandledPanic(err)
-							ts.Fatalf("panic: %v", e)
-						}
-					}
-
-					ts.Logf("stdout: %s", stdout.String())
-					ts.Logf("stderr: %s", stderr.String())
-				}()
-
-				// Setup the parse context
-				tc := testutil.NewContextForTestScript(ts, false)
-				tc.GoModTidy()
-				tc.GoModDownload()
-				p := parser.NewParser(tc.Context)
-
-				// Parse the testscript
-				parseResult := p.Parse()
-
-				// ValidateAndDescribe the testscript
-				desc := ValidateAndDescribe(tc.Context, parseResult)
-
-				// If we're expecting parse errors, assert that we have them
-				if neg {
-					assertGoldenErrors(ts, tc.Errs, sourceDir, update)
-				}
-
-				// If we have errors, and we didn't expect them, fail the test
-				// If we have no errors, and we expected them, fail the test
-				// Otherwise write any errors to stderr so they can be asserted on
-				if tc.Errs.Len() > 0 {
-					if !neg {
-						ts.Fatalf("unexpected errors: %s", tc.Errs.FormatErrors())
-					}
-
-					stderr.WriteString(tc.Errs.FormatErrors())
-				} else if tc.Errs.Len() == 0 && neg {
-					ts.Fatalf("expected errors, but none found")
-				}
-
-				// Now writeto stdout the description of the parsed app
-				for _, svc := range desc.Services {
-					if svc.Name != "fakesvcfortest" {
-						var dbNames []string
-						for res := range svc.ResourceUsage {
-							if db, ok := res.(*sqldb.Database); ok {
-								dbNames = append(dbNames, db.Name)
-							}
-						}
-						sort.Strings(dbNames)
-						printf("svc %s dbs=%s", svc.Name, strings.Join(dbNames, ","))
-					}
-				}
-
-				for _, svc := range desc.Services {
-					if svc.Name == "fakesvcfortest" {
-						// this service only exists to suppress the "no services found error"
-						continue
-					}
-
-					svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
-
-						for _, rpc := range fw.Endpoints {
-							if rpc == nil {
-								ts.Fatalf("rpc is nil")
-							}
-							recvName := option.Map(rpc.Recv, func(recv *schema.Receiver) string {
-								switch t := recv.Type.(type) {
-								case *schema.NamedType:
-									return "*" + t.Decl().Name
-								case schema.NamedType:
-									return "*" + t.Decl().Name
-								case *schema.PointerType:
-									return "*" + t.Elem.(*schema.NamedType).Decl().Name
-								case schema.PointerType:
-									return "*" + t.Elem.(schema.NamedType).Decl().Name
-								default:
-									panic(fmt.Sprintf("a reciver should only be a named type or pointer type: got %T", t))
-								}
-							}).GetOrElse("")
-
-							printf("rpc %s.%s access=%v raw=%v path=%v recv=%v",
-								svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, recvName,
-							)
-						}
-					})
-				}
-
-				// First find all the bindings for each topic
-				topicsByName := make(map[pkginfo.QualifiedName]*pubsub.Topic)
-				for _, res := range desc.Parse.Resources() {
-					switch res := res.(type) {
-					case *pubsub.Topic:
-						for _, b := range desc.Parse.PkgDeclBinds(res) {
-							topicsByName[b.QualifiedName()] = res
-						}
-					}
-				}
-
-				for _, res := range desc.Parse.Resources() {
-					switch res := res.(type) {
-					case *config.Load:
-						svc, found := desc.ServiceForPath(res.File.FSPath)
-						if !found {
-							ts.Fatalf("could not find service for path %s", res.File.FSPath)
-						}
-						printf("config %s %s", svc.Name, res.Type)
-					case *crons.Job:
-						printf("cronJob %s title=%q", res.Name, res.Title)
-					case *sqldb.Database:
-						for _, b := range desc.Parse.PkgDeclBinds(res) {
-							printf("resource SQLDBResource %s.%s db=%s",
-								b.Pkg.Name, b.BoundName.Name, res.Name)
-						}
-					case *pubsub.Topic:
-						printf("pubsubTopic %s", res.Name)
-
-						for _, u := range desc.Parse.Usages(res) {
-							if pub, ok := u.(*pubsub.PublishUsage); ok {
-								if svc, found := desc.ServiceForPath(pub.File.FSPath); found {
-									printf("pubsubPublisher %s %s\n", res.Name, svc.Name)
-								} else {
-									if res2, ok := parseResult.ResourceConstructorContaining(u).Get(); ok {
-										switch res2 := res2.(type) {
-										case *middleware.Middleware:
-											if res2.Global {
-												printf("pubsubPublisher middlware %s %s\n", res.Name, res2.Decl.Name)
-											}
-										}
-									}
-
-								}
-							}
-						}
-
-					case *pubsub.Subscription:
-						svc, found := desc.ServiceForPath(res.File.FSPath)
-						if !found {
-							ts.Fatalf("could not find service for path %s", res.File.FSPath)
-						}
-						printf("pubsubSubscriber %s %s %s %d %d %d %d %d",
-							topicsByName[res.Topic].Name, res.Name, svc.Name, res.Cfg.AckDeadline,
-							res.Cfg.MessageRetention, res.Cfg.MaxRetries, res.Cfg.MinRetryBackoff,
-							res.Cfg.MaxRetryBackoff)
-					case *metrics.Metric:
-						printf("metric %s %s %s %s", res.Name, strings.ToUpper(res.ValueType.String()), strings.ToUpper(res.Type.String()), res.Labels)
-					}
-				}
-			},
+			"parse":  parse,
+			"parse2": parse,
 
 			// expectOut is a command that checks the stdout output contains the
 			// given regex.
@@ -270,6 +112,173 @@ func TestValidation(t *testing.T) {
 			"err": func(ts *testscript.TestScript, neg bool, args []string) {},
 		},
 	})
+}
+
+func parse(ts *testscript.TestScript, neg bool, args []string) {
+	update := false
+	if goldenUpdate != nil && *goldenUpdate {
+		update = true
+	}
+	sourceDir := "../../parser/testdata"
+
+	stdout := ts.Value("stdout").(*bytes.Buffer)
+	printf := func(format string, args ...interface{}) {
+		stdout.WriteString(fmt.Sprintf(format, args...) + "\n")
+	}
+	stderr := ts.Value("stderr").(*bytes.Buffer)
+	defer func() {
+		if err := recover(); err != nil {
+			if l, ok := perr.IsBailout(err); ok {
+				ts.Fatalf("bailout: %v", l.FormatErrors())
+			} else {
+				// We convert to an srcerrors error so that we can capture the stack
+				e := srcerrors.UnhandledPanic(err)
+				ts.Fatalf("panic: %v", e)
+			}
+		}
+
+		ts.Logf("stdout: %s", stdout.String())
+		ts.Logf("stderr: %s", stderr.String())
+	}()
+
+	// Setup the parse context
+	tc := testutil.NewContextForTestScript(ts, false)
+	tc.GoModTidy()
+	tc.GoModDownload()
+	p := parser.NewParser(tc.Context)
+
+	// Parse the testscript
+	parseResult := p.Parse()
+
+	// ValidateAndDescribe the testscript
+	desc := ValidateAndDescribe(tc.Context, parseResult)
+
+	// If we're expecting parse errors, assert that we have them
+	if neg {
+		assertGoldenErrors(ts, tc.Errs, sourceDir, update)
+	}
+
+	// If we have errors, and we didn't expect them, fail the test
+	// If we have no errors, and we expected them, fail the test
+	// Otherwise write any errors to stderr so they can be asserted on
+	if tc.Errs.Len() > 0 {
+		if !neg {
+			ts.Fatalf("unexpected errors: %s", tc.Errs.FormatErrors())
+		}
+
+		stderr.WriteString(tc.Errs.FormatErrors())
+	} else if tc.Errs.Len() == 0 && neg {
+		ts.Fatalf("expected errors, but none found")
+	}
+
+	// Now writeto stdout the description of the parsed app
+	for _, svc := range desc.Services {
+		if svc.Name != "fakesvcfortest" {
+			var dbNames []string
+			for res := range svc.ResourceUsage {
+				if db, ok := res.(*sqldb.Database); ok {
+					dbNames = append(dbNames, db.Name)
+				}
+			}
+			sort.Strings(dbNames)
+			printf("svc %s dbs=%s", svc.Name, strings.Join(dbNames, ","))
+		}
+	}
+
+	for _, svc := range desc.Services {
+		if svc.Name == "fakesvcfortest" {
+			// this service only exists to suppress the "no services found error"
+			continue
+		}
+
+		svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
+
+			for _, rpc := range fw.Endpoints {
+				if rpc == nil {
+					ts.Fatalf("rpc is nil")
+				}
+				recvName := option.Map(rpc.Recv, func(recv *schema.Receiver) string {
+					switch t := recv.Type.(type) {
+					case *schema.NamedType:
+						return "*" + t.Decl().Name
+					case schema.NamedType:
+						return "*" + t.Decl().Name
+					case *schema.PointerType:
+						return "*" + t.Elem.(*schema.NamedType).Decl().Name
+					case schema.PointerType:
+						return "*" + t.Elem.(schema.NamedType).Decl().Name
+					default:
+						panic(fmt.Sprintf("a reciver should only be a named type or pointer type: got %T", t))
+					}
+				}).GetOrElse("")
+
+				printf("rpc %s.%s access=%v raw=%v path=%v recv=%v",
+					svc.Name, rpc.Name, rpc.Access, rpc.Raw, rpc.Path, recvName,
+				)
+			}
+		})
+	}
+
+	// First find all the bindings for each topic
+	topicsByName := make(map[pkginfo.QualifiedName]*pubsub.Topic)
+	for _, res := range desc.Parse.Resources() {
+		switch res := res.(type) {
+		case *pubsub.Topic:
+			for _, b := range desc.Parse.PkgDeclBinds(res) {
+				topicsByName[b.QualifiedName()] = res
+			}
+		}
+	}
+
+	for _, res := range desc.Parse.Resources() {
+		switch res := res.(type) {
+		case *config.Load:
+			svc, found := desc.ServiceForPath(res.File.FSPath)
+			if !found {
+				ts.Fatalf("could not find service for path %s", res.File.FSPath)
+			}
+			printf("config %s %s", svc.Name, res.Type)
+		case *crons.Job:
+			printf("cronJob %s title=%q", res.Name, res.Title)
+		case *sqldb.Database:
+			for _, b := range desc.Parse.PkgDeclBinds(res) {
+				printf("resource SQLDBResource %s.%s db=%s",
+					b.Pkg.Name, b.BoundName.Name, res.Name)
+			}
+		case *pubsub.Topic:
+			printf("pubsubTopic %s", res.Name)
+
+			for _, u := range desc.Parse.Usages(res) {
+				if pub, ok := u.(*pubsub.PublishUsage); ok {
+					if svc, found := desc.ServiceForPath(pub.File.FSPath); found {
+						printf("pubsubPublisher %s %s\n", res.Name, svc.Name)
+					} else {
+						if res2, ok := parseResult.ResourceConstructorContaining(u).Get(); ok {
+							switch res2 := res2.(type) {
+							case *middleware.Middleware:
+								if res2.Global {
+									printf("pubsubPublisher middlware %s %s\n", res.Name, res2.Decl.Name)
+								}
+							}
+						}
+
+					}
+				}
+			}
+
+		case *pubsub.Subscription:
+			svc, found := desc.ServiceForPath(res.File.FSPath)
+			if !found {
+				ts.Fatalf("could not find service for path %s", res.File.FSPath)
+			}
+			printf("pubsubSubscriber %s %s %s %d %d %d %d %d",
+				topicsByName[res.Topic].Name, res.Name, svc.Name, res.Cfg.AckDeadline,
+				res.Cfg.MessageRetention, res.Cfg.MaxRetries, res.Cfg.MinRetryBackoff,
+				res.Cfg.MaxRetryBackoff)
+		case *metrics.Metric:
+			printf("metric %s %s %s %s", res.Name, strings.ToUpper(res.ValueType.String()), strings.ToUpper(res.Type.String()), res.Labels)
+		}
+	}
 }
 
 func assertGoldenErrors(ts *testscript.TestScript, errs *perr.List, sourceDir string, updateGoldenFiles bool) {

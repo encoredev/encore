@@ -31,7 +31,7 @@ jobs:
         echo "::set-output name=go-mod::$(go env GOMODCACHE)"
 
     - name: Install encore-go
-      run: curl --fail -L -o encore-go.tar.gz https://github.com/encoredev/go/releases/download/encore-go1.19.2/linux_x86-64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
+      run: curl --fail -L -o encore-go.tar.gz https://github.com/encoredev/go/releases/download/encore-go1.20.2/linux_x86-64.tar.gz && tar -C . -xzf ./encore-go.tar.gz
 
     - name: Go Build Cache
       uses: actions/cache@v3
@@ -53,22 +53,32 @@ jobs:
 
     # If we're not running on a schedule, we only want to run tests on changed code
     - name: Run tests on changed code
-      run: cd encr.dev && go test -short ./...
+      run: cd encr.dev && go test -short -tags=dev_build ./...
       if: github.event.schedule != '30 2 * * *'
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
+        ENCORE_RUNTIME_PATH: ${{ github.workspace }}/encr.dev/runtime
 
     # Each night we want to run all tests multiple times to catch any flaky tests
     # We will shuffle the order in which tests are run and run them 25 times looking
     # for failures. We will also fail fast so that we don't waste time running tests
     # that are already failing.
     - name: Run all tests multiple times
-      run:  cd encr.dev && go test -v --count=25 -failfast -shuffle=on ./...
+      run:  cd encr.dev && go test -v --count=25 -failfast -shuffle=on -tags=dev_build ./...
       if:   github.event.schedule == '30 2 * * *'
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
+        ENCORE_RUNTIME_PATH: ${{ github.workspace }}/encr.dev/runtime
 
     - name: Build for Windows
       run: cd encr.dev && go build ./...
       env:
         GOOS: windows
+
+    - name: Report Nightly Failure
+      uses: ravsamhq/notify-slack-action@v2
+      if: ${{ failure() && github.event.schedule == '30 2 * * *' }}
+      with:
+        status: ${{ job.status }} # required
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
