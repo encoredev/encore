@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/watcher"
 )
 
@@ -19,7 +18,7 @@ func (mgr *Manager) watch(run *Run) error {
 
 		mgr.RunStdout(run, []byte("Changes detected, recompiling...\n"))
 		if err := run.Reload(); err != nil {
-			if errList := errlist.Convert(err); errList != nil {
+			if errList := asErrorList(err); errList != nil {
 				mgr.RunError(run, errList)
 			} else {
 				errStr := err.Error()

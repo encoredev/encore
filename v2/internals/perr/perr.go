@@ -155,10 +155,10 @@ func (l *List) FormatErrors() string {
 
 	var b strings.Builder
 	for _, err := range l.errs {
-		fmt.Fprintf(&b, "%v\n", err)
+		fmt.Fprintf(&b, "%s\n", err.Error())
 	}
 	if err := l.ctx.Err(); err != nil {
-		fmt.Fprintf(&b, "%v\n", err)
+		fmt.Fprintf(&b, "%s\n", err.Error())
 	}
 	return b.String()
 }

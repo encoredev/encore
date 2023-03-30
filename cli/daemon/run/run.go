@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -120,6 +121,9 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	mgr.mu.Unlock()
 
 	if err := run.start(params.Listener, params.OpsTracker); err != nil {
+		if errList := asErrorList(err); errList != nil {
+			return nil, errList
+		}
 		return nil, err
 	}
 
@@ -304,7 +308,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("compile error:\n%v", err)
+			return errors.Wrap(err, "compile error")
 		}
 		return nil
 	})

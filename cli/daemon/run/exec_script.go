@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
+
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
@@ -130,7 +132,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("compile error:\n%v", err)
+			return errors.Wrap(err, "compile error on exec")
 		}
 		return nil
 	})

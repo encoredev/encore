@@ -122,11 +122,12 @@ func (e *Error) MarshalZerologObject(evt *zerolog.Event) {
 // BottomStackTraceFrom returns the deepest stack trace from the given error
 func BottomStackTraceFrom(err error) (rtn errors.StackTrace) {
 	count := 0
+
 	for err != nil && count < 100 {
 		count++
 
 		// If we're an error set our return data
-		if e, ok := err.(*Error); ok {
+		if e, ok := err.(interface{ StackTrace() errors.StackTrace }); ok {
 			rtn = e.StackTrace()
 		}
 
@@ -134,6 +135,14 @@ func BottomStackTraceFrom(err error) (rtn errors.StackTrace) {
 		switch typed := err.(type) {
 		case interface{ Unwrap() error }:
 			err = typed.Unwrap()
+
+		case interface{ Unwrap() []error }:
+			errs := typed.Unwrap()
+			if len(errs) > 0 {
+				err = errs[0]
+			} else {
+				err = nil
+			}
 
 		case interface{ Cause() error }:
 			err = typed.Cause()

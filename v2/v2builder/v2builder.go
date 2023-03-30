@@ -280,19 +280,20 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 
 		rel, err := filepath.Rel(appRoot, svc.FSRoot.ToIO())
 		if err != nil {
-			errs.Addf(token.NoPos, "unable to compute relative path for service config: %v", err)
+			errs.AddStd(err)
 			continue
 		}
 		cfg, err := cueutil.LoadFromFS(files, rel, cueMeta)
 		if err != nil {
-			errs.Addf(token.NoPos, "unable to load service config: %v", err)
+			errs.AddStd(err)
 			continue
 		}
 		cfgData, err := cfg.MarshalJSON()
 		if err != nil {
-			errs.Addf(token.NoPos, "unable to marshal service config: %v", err)
+			errs.AddStd(err)
 			continue
 		}
+
 		configs[svc.Name] = string(cfgData)
 	}
 	return configResult{configs, files}

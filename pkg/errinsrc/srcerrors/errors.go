@@ -118,7 +118,7 @@ func StandardLibraryError(err error) *errinsrc.ErrInSrc {
 		Title:   "Error",
 		Summary: err.Error(),
 		Cause:   err,
-	}, false)
+	}, true)
 }
 
 // GenericError is a place holder for errors reported through perr.Add or perr.Addf
