@@ -138,9 +138,6 @@ func findModule(sortedMods []paths.Mod, pkg paths.Pkg) (modPath paths.Mod, found
 
 // resolveModuleForPkg resolves information about the module that contains a package.
 func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result *Module) {
-	tr := l.c.Trace("pkgload.resolveModuleForPkg", "pkgPath", pkgPath)
-	defer tr.Done("result", result)
-
 	// Which module does this package belong to?
 	modPath, found := l.moduleForPkgPath(pkgPath)
 	if !found {
@@ -154,12 +151,13 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 	cached, ok := l.modules[modPath]
 	l.modulesMu.Unlock()
 	if ok {
-		tr.Emit("found cached module")
 		return cached
 	}
 
+	tr := l.c.Trace("resolve module for package", "pkgPath", pkgPath)
+	defer tr.Done("result", result)
+
 	pkgs, err := packages.Load(l.packagesConfig, "pattern="+string(pkgPath))
-	tr.Emit("loaded packages", "pkgs", pkgs, "err", err)
 	l.c.Errs.AssertStd(err)
 
 	var pkg *packages.Package

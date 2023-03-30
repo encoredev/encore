@@ -116,7 +116,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 
 			// pkg.T
 			if pkgName, ok := expr.X.(*ast.Ident); ok {
-				pkgPath, ok := fileNames.ResolvePkgPath(pkgName.Name)
+				pkgPath, ok := fileNames.ResolvePkgPath(pkgName.Pos(), pkgName.Name)
 				if !ok {
 					r.errs.Addf(expr.X.Pos(), "unknown package: %s", pkgName.Name)
 					return nil

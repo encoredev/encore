@@ -58,7 +58,7 @@ var _ = quote.Hello()
 			"Opt":   {Name: "Opt", Type: token.FUNC},
 		})
 
-		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath("sampler")
+		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath(token.NoPos, "sampler")
 		c.Assert(ok, qt.IsTrue)
 		c.Assert(gotPath, qt.Equals, paths.Pkg("rsc.io/sampler"))
 	})
@@ -90,7 +90,7 @@ var _ = quote.HelloV3()
 			"OptV3":   {Name: "OptV3", Type: token.FUNC},
 		})
 
-		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath("sampler")
+		gotPath, ok := pkg.Files[0].Names().ResolvePkgPath(token.NoPos, "sampler")
 		c.Assert(ok, qt.IsTrue)
 		c.Assert(gotPath, qt.Equals, paths.Pkg("rsc.io/sampler"))
 	})

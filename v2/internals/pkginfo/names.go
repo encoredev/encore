@@ -5,9 +5,15 @@ import (
 	"go/ast"
 	"go/build"
 	"go/token"
+	"path"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/agnivade/levenshtein"
+
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
@@ -31,7 +37,7 @@ func resolvePkgNames(pkg *Package) *PkgNames {
 				isServiceStructAPI := d.Recv != nil && isEncoreAPI(d)
 
 				if d.Recv == nil || isServiceStructAPI {
-					scope.Insert(d.Name.Name, &IdentInfo{Package: true})
+					scope.Insert(d.Name.Name, pkgObject)
 					decls[d.Name.Name] = &PkgDeclInfo{
 						Name: d.Name.Name,
 						File: f,
@@ -66,7 +72,7 @@ func resolvePkgNames(pkg *Package) *PkgNames {
 						// Skip, file-level
 					case *ast.ValueSpec:
 						for _, name := range spec.Names {
-							scope.Insert(name.Name, &IdentInfo{Package: true})
+							scope.Insert(name.Name, pkgObject)
 							decls[name.Name] = &PkgDeclInfo{
 								Name:    name.Name,
 								File:    f,
@@ -78,7 +84,7 @@ func resolvePkgNames(pkg *Package) *PkgNames {
 							}
 						}
 					case *ast.TypeSpec:
-						scope.Insert(spec.Name.Name, &IdentInfo{Package: true})
+						scope.Insert(spec.Name.Name, pkgObject)
 						decls[spec.Name.Name] = &PkgDeclInfo{
 							Name:    spec.Name.Name,
 							File:    f,
@@ -122,9 +128,10 @@ func resolveFileNames(f *File) *FileNames {
 		f:  f,
 		tr: tr,
 		res: &FileNames{
-			file:       f,
-			nameToPath: make(map[string]paths.Pkg),
-			idents:     make(map[*ast.Ident]*IdentInfo),
+			loader:           f.l,
+			file:             f,
+			idents:           make(map[*ast.Ident]identKind),
+			knownImportNames: make(map[string]*importedPkg),
 		},
 		scope: f.Pkg.Names().pkgScope,
 	}
@@ -184,8 +191,8 @@ func (r *fileNameResolver) processImports() {
 				}
 			}
 
-			pkg := r.l.MustLoadPkg(pos, dstPkgPath)
-			localName := pkg.Name
+			// Do we have a local name?
+			localName := ""
 			if is.Name != nil {
 				if is.Name.Name == "." {
 					// TODO(andre) handle this
@@ -195,17 +202,38 @@ func (r *fileNameResolver) processImports() {
 				localName = is.Name.Name
 			}
 
-			// Add the name as long as it's not "_".
+			// Track this import as long as the local name is not "_".
 			if localName != "_" {
-				if p2 := r.res.nameToPath[localName]; p2 != "" {
-					r.l.c.Errs.Addf(pos, "name %s already declared (import of package %s)", localName, p2)
-					continue
+				// localName is generally "" if the package was imported without
+				// giving it an explicit alias (like `import foo "path/to/foo"`).
+				// If that's the case, attempt to classify the package name.
+				if localName == "" {
+					localName = r.resolveKnownPkgName(dstPkgPath)
 				}
-				r.res.nameToPath[localName] = dstPkgPath
+
+				r.res.imports = append(r.res.imports, &importedPkg{
+					importPath:      dstPkgPath,
+					lastPathSegment: path.Base(dstPkgPath.String()),
+					localName:       localName,
+				})
 			}
 
 		}
 	}
+}
+
+// resolveKnownPkgName returns the known package name for the given import path, if any.
+// It uses the fact that the encore.dev module and the standard library guarantee
+// that the last path segment is the package name.
+//
+// If the name is not known it reports "".
+func (r *fileNameResolver) resolveKnownPkgName(pkgPath paths.Pkg) (name string) {
+	stdlib := paths.StdlibMod()
+	encoreRuntime := r.l.runtimeModule.Path
+	if stdlib.LexicallyContains(pkgPath) || encoreRuntime.LexicallyContains(pkgPath) {
+		return path.Base(pkgPath.String())
+	}
+	return ""
 }
 
 func (r *fileNameResolver) funcDecl(fd *ast.FuncDecl) {
@@ -225,19 +253,19 @@ func (r *fileNameResolver) funcDecl(fd *ast.FuncDecl) {
 	if fd.Recv != nil {
 		for _, field := range fd.Recv.List {
 			for _, name := range field.Names {
-				r.scope.Insert(name.Name, &IdentInfo{Local: true})
+				r.scope.Insert(name.Name, localObject)
 			}
 		}
 	}
 	for _, field := range fd.Type.Params.List {
 		for _, name := range field.Names {
-			r.scope.Insert(name.Name, &IdentInfo{Local: true})
+			r.scope.Insert(name.Name, localObject)
 		}
 	}
 	if fd.Type.Results != nil {
 		for _, field := range fd.Type.Results.List {
 			for _, name := range field.Names {
-				r.scope.Insert(name.Name, &IdentInfo{Local: true})
+				r.scope.Insert(name.Name, localObject)
 			}
 		}
 	}
@@ -256,7 +284,7 @@ func (r *fileNameResolver) stmt(stmt ast.Stmt) {
 		r.exprList(stmt.Rhs)
 		for _, lhs := range stmt.Lhs {
 			if id, ok := lhs.(*ast.Ident); ok && stmt.Tok == token.DEFINE {
-				r.define(id, &IdentInfo{Local: true})
+				r.define(id, localObject)
 			}
 		}
 
@@ -273,11 +301,11 @@ func (r *fileNameResolver) stmt(stmt ast.Stmt) {
 				r.exprList(spec.Values)
 				r.expr(spec.Type)
 				for _, name := range spec.Names {
-					r.define(name, &IdentInfo{Local: true})
+					r.define(name, localObject)
 				}
 			case *ast.TypeSpec:
 				r.expr(spec.Type)
-				r.define(spec.Name, &IdentInfo{Local: true})
+				r.define(spec.Name, localObject)
 			}
 		}
 
@@ -391,13 +419,13 @@ func (r *fileNameResolver) expr(expr ast.Expr) {
 
 		for _, field := range expr.Type.Params.List {
 			for _, name := range field.Names {
-				r.define(name, &IdentInfo{Local: true})
+				r.define(name, localObject)
 			}
 		}
 		if expr.Type.Results != nil {
 			for _, field := range expr.Type.Results.List {
 				for _, name := range field.Names {
-					r.define(name, &IdentInfo{Local: true})
+					r.define(name, localObject)
 				}
 			}
 		}
@@ -440,7 +468,6 @@ func (r *fileNameResolver) expr(expr ast.Expr) {
 		r.expr(expr.Type)
 
 	case *ast.CallExpr:
-		r.res.calls = append(r.res.calls, expr)
 		r.expr(expr.Fun)
 		r.exprList(expr.Args)
 
@@ -527,18 +554,16 @@ func (r *fileNameResolver) exprList(exprs []ast.Expr) {
 func (r *fileNameResolver) ident(id *ast.Ident) {
 	// Map this ident. If the name is already in scope, use that definition.
 	// Otherwise check if it's an imported name.
-	if obj := r.scope.LookupParent(id.Name); obj != nil {
-		r.res.idents[id] = obj
-	} else if path := r.res.nameToPath[id.Name]; path != "" {
-		r.res.idents[id] = &IdentInfo{
-			ImportPath: path,
-		}
+	if kind := r.scope.LookupParent(id.Name); kind != none {
+		r.res.idents[id] = kind
+	} else {
+		r.res.idents[id] = importName
 	}
 }
 
-func (r *fileNameResolver) define(id *ast.Ident, name *IdentInfo) {
-	r.res.idents[id] = name
-	r.scope.Insert(id.Name, name)
+func (r *fileNameResolver) define(id *ast.Ident, kind identKind) {
+	r.res.idents[id] = kind
+	r.scope.Insert(id.Name, kind)
 }
 
 func (r *fileNameResolver) openScope() {
@@ -622,10 +647,26 @@ func (n *PkgNames) GoString() string {
 
 // FileNames contains name resolution results for a single file.
 type FileNames struct {
-	file       *File                     // file it belongs to
-	nameToPath map[string]paths.Pkg      // local name -> path
-	idents     map[*ast.Ident]*IdentInfo // ident -> resolved
-	calls      []*ast.CallExpr
+	loader *Loader // the loader this file comes from
+
+	// file is the file the names belong to.
+	file *File
+
+	// idents maps identifiers in the file to information about them.
+	idents map[*ast.Ident]identKind
+
+	imports []*importedPkg
+
+	// knownImportNames tracks the resolved import names for this file.
+	knownImportNamesMu sync.Mutex
+	knownImportNames   map[string]*importedPkg
+
+	//// localNameToPkg maps local names to the package they refer to.
+	//localNameToPkg map[string]*importedPkg
+	//
+	//
+	//// nameToPath contains resolved local name -> import
+	//nameToPath map[string]paths.Pkg // local name -> path
 }
 
 func (n *FileNames) GoString() string {
@@ -634,9 +675,8 @@ func (n *FileNames) GoString() string {
 
 // ResolvePkgPath resolves the package path a given identifier name
 // resolves to.
-func (f *FileNames) ResolvePkgPath(name string) (pkgPath paths.Pkg, ok bool) {
-	pkgPath, ok = f.nameToPath[name]
-	return pkgPath, ok
+func (f *FileNames) ResolvePkgPath(cause token.Pos, name string) (pkgPath paths.Pkg, ok bool) {
+	return f.resolveImportPath(cause, name)
 }
 
 // ResolvePkgLevelRef resolves the node to the package-level reference it refers to.
@@ -656,14 +696,16 @@ func (f *FileNames) ResolvePkgLevelRef(expr ast.Expr) (name QualifiedName, ok bo
 	case *ast.Ident:
 		// If it's an ident, then we're looking for something which resolves to a package-level object defined
 		// in the same package as the ident is located in.
-		if name := f.idents[node]; name != nil && name.Package {
+		if f.idents[node] == pkgObject {
 			return QualifiedName{f.file.Pkg.ImportPath, node.Name}, true
 		}
 	case *ast.SelectorExpr:
 		// If it's a selector, then we're looking for something which has been imported from another package
 		if pkgName, ok := node.X.(*ast.Ident); ok {
-			if resolvedIdent := f.idents[pkgName]; resolvedIdent != nil && resolvedIdent.ImportPath != "" {
-				return QualifiedName{resolvedIdent.ImportPath, node.Sel.Name}, true
+			if f.idents[pkgName] == importName {
+				if importPath, ok := f.resolveImportPath(expr.Pos(), pkgName.Name); ok {
+					return QualifiedName{importPath, node.Sel.Name}, true
+				}
 			}
 		}
 	}
@@ -671,22 +713,142 @@ func (f *FileNames) ResolvePkgLevelRef(expr ast.Expr) (name QualifiedName, ok bo
 	return QualifiedName{}, false
 }
 
-// IdentInfo provides metadata for a single identifier.
-type IdentInfo struct {
-	Package    bool      // package symbol
-	Local      bool      // locally defined symbol
-	ImportPath paths.Pkg // non-zero indicates it resolves to the package with the given import path
+func (f *FileNames) resolveImportPath(cause token.Pos, identName string) (pkgPath paths.Pkg, ok bool) {
+	// Do we already have this name resolved?
+	f.knownImportNamesMu.Lock()
+	pkg := f.knownImportNames[identName]
+	f.knownImportNamesMu.Unlock()
+	if pkg != nil {
+		return pkg.importPath, true
+	}
+
+	// Otherwise, resolve it. We do this by looking at the imported packages
+	// and determine which one is most likely to be the one we're looking for.
+
+	resolvePkg := func() *importedPkg {
+		// First look for an explicit import alias.
+		for _, pkg := range f.imports {
+			if pkg.localName == identName {
+				return pkg
+			}
+		}
+
+		// Use heuristics to guess the package.
+
+		// Bucket the packages into a group of exact matches
+		// and everything else.
+		var (
+			exactMatches []*importedPkg
+			otherPkgs    = make([]*importedPkg, 0, len(f.imports))
+		)
+		for _, pkg := range f.imports {
+			// If there is an explicit local name, ignore the package
+			// since we've already checked those above.
+			if pkg.localName != "" {
+				continue
+			}
+
+			if pkg.lastPathSegment == identName {
+				exactMatches = append(exactMatches, pkg)
+			} else {
+				otherPkgs = append(otherPkgs, pkg)
+			}
+		}
+
+		processGroup := func(pkgs []*importedPkg) *importedPkg {
+			for _, pkg := range pkgs {
+				// Load the package to determine if it has the name we're looking for.
+				pkg.loadOnce.Do(func() {
+					pkg.loadedPkg = f.loader.MustLoadPkg(cause, pkg.importPath)
+				})
+
+				if pkg.loadedPkg.Name == identName {
+					// We've found the package we're looking for.
+					return pkg
+				}
+			}
+			return nil
+		}
+
+		// Check the exact matches first.
+		if pkg := processGroup(exactMatches); pkg != nil {
+			return pkg
+		}
+
+		// If not, check the remaining packages. Sort them
+		// by levenshtein distance to start with the likeliest
+		// candidates first.
+		distances := fns.Map(otherPkgs, func(pkg *importedPkg) int {
+			return levenshtein.ComputeDistance(pkg.lastPathSegment, identName)
+		})
+		sort.Slice(otherPkgs, func(i, j int) bool {
+			return distances[i] < distances[j]
+		})
+		return processGroup(otherPkgs)
+	}
+
+	if pkg := resolvePkg(); pkg != nil {
+		f.knownImportNamesMu.Lock()
+		f.knownImportNames[identName] = pkg
+		f.knownImportNamesMu.Unlock()
+		return pkg.importPath, true
+	}
+
+	return "", false
+}
+
+type identKind string
+
+const (
+	// none is a none identKind.
+	none identKind = ""
+
+	// pkgObject is used for identifiers pointing to package-level
+	// objects in the same package as the identifier.
+	pkgObject identKind = "pkgObject"
+
+	// localObject is used for identifiers pointing to
+	// function-local objects.
+	localObject identKind = "localObject"
+
+	// importName is used for identifiers pointing to
+	// an imported package.
+	importName identKind = "importName"
+)
+
+// importedPkg represents a package that has been imported
+// in a file.
+//
+// Since the local name is the package name, which can
+// be different from the last element of the import path, we
+// can't know for sure which package it refers to until
+// we've parsed that package.
+type importedPkg struct {
+	importPath paths.Pkg
+
+	// lastPathSegment is the last segment of the import path.
+	// It's used as a heuristic to guess which package to
+	// parse first.
+	lastPathSegment string
+
+	// localName is the name of the package in the file.
+	localName string
+
+	// loadedPkg is the loaded package, if any.
+	// It must be accessed using the sync.Once.
+	loadOnce  sync.Once
+	loadedPkg *Package
 }
 
 // scope maps names to information about them.
 type scope struct {
-	names  map[string]*IdentInfo
+	names  map[string]identKind
 	parent *scope
 }
 
 func newScope(parent *scope) *scope {
 	return &scope{
-		names:  make(map[string]*IdentInfo),
+		names:  make(map[string]identKind),
 		parent: parent,
 	}
 }
@@ -695,21 +857,21 @@ func (s *scope) Pop() *scope {
 	return s.parent
 }
 
-func (s *scope) Insert(name string, r *IdentInfo) {
+func (s *scope) Insert(name string, kind identKind) {
 	if name != "_" {
-		s.names[name] = r
+		s.names[name] = kind
 	}
 }
 
-func (s *scope) Lookup(name string) *IdentInfo {
+func (s *scope) Lookup(name string) identKind {
 	return s.names[name]
 }
 
-func (s *scope) LookupParent(name string) *IdentInfo {
-	if r := s.names[name]; r != nil {
-		return r
+func (s *scope) LookupParent(name string) identKind {
+	if kind := s.names[name]; kind != none {
+		return kind
 	} else if s.parent != nil {
 		return s.parent.LookupParent(name)
 	}
-	return nil
+	return none
 }
