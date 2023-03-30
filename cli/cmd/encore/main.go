@@ -18,9 +18,9 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	daemonpb "encr.dev/proto/encore/daemon"
-
 	// Register commands
 	_ "encr.dev/cli/cmd/encore/app"
+	_ "encr.dev/cli/cmd/encore/bits"
 	_ "encr.dev/cli/cmd/encore/secrets"
 )
 
@@ -105,6 +105,9 @@ func streamCommandOutput(stream commandOutputStream, converter outputConverter) 
 						_, _ = os.Stderr.Write(line)
 					}
 				}
+				if err := scanner.Err(); err != nil {
+					fmt.Fprintln(os.Stderr, "failed to read output:", err)
+				}
 			}()
 		}
 	}
@@ -177,4 +180,12 @@ func fatal(args ...interface{}) {
 
 func fatalf(format string, args ...interface{}) {
 	cmdutil.Fatalf(format, args...)
+}
+
+func nonZeroPtr[T comparable](v T) *T {
+	var zero T
+	if v == zero {
+		return nil
+	}
+	return &v
 }

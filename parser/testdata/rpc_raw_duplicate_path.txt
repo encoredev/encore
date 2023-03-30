@@ -13,3 +13,34 @@ func Foo(w http.ResponseWriter, req *http.Request) { }
 
 //encore:api public raw
 func Bar(w http.ResponseWriter, req *http.Request) { }
+
+-- want: errors --
+
+── Path Conflict ──────────────────────────────────────────────────────────────────────────[E9999]──
+
+The path segment `foo` conflicts with the path `/fakesvcfortest.TestFunc`.
+
+    ╭─[ fakesvcfortest/test.go:7:6 ]
+    │
+  5 │
+  6 │ //encore:api public
+  7 │ func TestFunc(ctx context.Context) error { return nil }
+    ⋮      ────────
+────╯
+
+   ╭─[ svc/svc.go:5:31 ]
+   │
+ 3 │ import "net/http"
+ 4 │
+ 5 │ //encore:api public raw path=/:foo
+   ⋮                               ────
+ 6 │ func Foo(w http.ResponseWriter, req *http.Request) { }
+ 7 │
+───╯
+
+Paths must be not be empty and always start with a '/'. You cannot define paths that conflict with
+each other, including static and parameterized paths. For example `/blog/:id` would conflict with
+`/:username`.
+
+For more information about configuring Paths, see
+https://encore.dev/docs/primitives/services-and-apis#rest-apis

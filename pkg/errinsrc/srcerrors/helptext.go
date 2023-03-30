@@ -27,9 +27,13 @@ const (
 		"\t\tHandler: func(ctx context.Context, event MyMessage) error { return nil },\n" +
 		"\t})"
 
-	pubsubHelp = "For more information on PubSub, see https://encore.dev/docs/develop/pubsub"
+	pubsubHelp = "For more information on PubSub, see https://encore.dev/docs/primitives/pubsub"
 
 	metricsHelp = "For more information on metrics, see https://encore.dev/docs/observability/metrics"
+
+	serviceHelp = "For more information on services and how to define them, see https://encore.dev/docs/primitives/services-and-apis"
+
+	authHelp = "For more information on auth handlers and how to define them, see https://encore.dev/docs/develop/auth"
 )
 
 func resourceNameHelpKebabCase(resourceName string, paramName string) string {

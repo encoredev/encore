@@ -12,6 +12,7 @@ var constants = map[string]map[string]any{
 		"NoRetries":       -2,
 		"InfiniteRetries": -1,
 		"AtLeastOnce":     1,
+		"ExactlyOnce":     2,
 	},
 	"encore.dev/cron": {
 		"Minute": 60,

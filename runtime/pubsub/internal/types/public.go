@@ -54,7 +54,7 @@ const (
 
 	// ExactlyOnce guarantees that a message for a subscription is delivered to
 	// a consumer exactly once
-	// ExactlyOnce // - ExactlyOnce is currently not supported.
+	ExactlyOnce
 )
 
 // TopicConfig is used when creating a Topic

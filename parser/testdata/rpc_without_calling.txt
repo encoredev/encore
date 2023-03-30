@@ -29,3 +29,34 @@ func Foo(ctx context.Context) error {
     f()
     return nil
 }
+
+-- want: errors --
+
+── Invalid API Usage ──────────────────────────────────────────────────────────────────────[E9999]──
+
+APIs can not be referenced without being called, unless they are used as a cron job endpoint, or a
+PubSub subscription handler.
+
+    ╭─[ two/two.go:11:10 ]
+    │
+  9 │ //encore:api public
+ 10 │ func Foo(ctx context.Context) error {
+ 11 │     f := one.One
+    ⋮          ───┬───
+    ⋮             ╰─ used here
+ 12 │     f()
+ 13 │     return nil
+────╯
+
+    ╭─[ one/one.go:8:6 ]
+    │
+  6 │
+  7 │ //encore:api public
+  8 │ func One(ctx context.Context) error {
+    ⋮      ─┬─
+    ⋮       ╰─ defined here
+  9 │     return nil
+ 10 │ }
+────╯
+
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis

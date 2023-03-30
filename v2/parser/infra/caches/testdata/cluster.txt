@@ -1,0 +1,18 @@
+parse cache
+
+-- cluster.go --
+package test
+
+import "encore.dev/storage/cache"
+
+var a = cache.NewCluster( // res CacheCluster: {"Name": "foo", "EvictionPolicy": "allkeys-lru"}
+    "foo", cache.ClusterConfig{
+        EvictionPolicy: cache.AllKeysLRU,
+    },
+)
+
+var b = cache.NewCluster( // ERR invalid "EvictionPolicy" value: "x"
+    "foo", cache.ClusterConfig{
+        EvictionPolicy: "x",
+    },
+)

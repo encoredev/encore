@@ -28,7 +28,22 @@ func FromGoASTNode(fileset *token.FileSet, node ast.Node) *SrcLocation {
 		end = fileset.Position(node.Rparen + 1)
 	}
 
+	if !start.IsValid() || !end.IsValid() {
+		return nil
+	}
+
 	return FromGoTokenPositions(start, end)
+}
+
+func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) *SrcLocation {
+	startPos := fileset.Position(start)
+	endPos := fileset.Position(end)
+
+	if !startPos.IsValid() || !endPos.IsValid() {
+		return nil
+	}
+
+	return FromGoTokenPositions(startPos, endPos)
 }
 
 // FromGoTokenPositions returns a SrcLocation from two Go token positions.
@@ -50,6 +65,13 @@ func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation
 	// Attempt to convert a single start/end position into a range
 	if start == end {
 		end = convertSingleGoPositionToRange(start.Filename, bytes, start)
+	}
+
+	// If either position is invalid, return nil
+	// as that means we're not dealing with a Go Token Position
+	if !start.IsValid() || !end.IsValid() {
+		log.Warn().Str("start", start.String()).Str("end", end.String()).Msg("Invalid Go token position")
+		return nil
 	}
 
 	return &SrcLocation{

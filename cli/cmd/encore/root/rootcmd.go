@@ -8,7 +8,14 @@ import (
 	"encr.dev/pkg/errlist"
 )
 
-var verbosity int
+var (
+	verbosity int
+	traceFile string
+
+	// TraceFile is the file to write trace logs to.
+	// If nil (the default), trace logs are not written.
+	TraceFile *string
+)
 
 var Cmd = &cobra.Command{
 	Use:           "encore",
@@ -18,6 +25,10 @@ var Cmd = &cobra.Command{
 		HiddenDefaultCmd: true, // Hide the "completion" command from help (used for generating auto-completions for the shell)
 	},
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if traceFile != "" {
+			TraceFile = &traceFile
+		}
+
 		level := zerolog.InfoLevel
 		if verbosity == 1 {
 			level = zerolog.DebugLevel
@@ -34,4 +45,5 @@ var Cmd = &cobra.Command{
 
 func init() {
 	Cmd.PersistentFlags().CountVarP(&verbosity, "verbose", "v", "verbose output")
+	Cmd.PersistentFlags().StringVar(&traceFile, "trace", "", "file to write execution trace data to")
 }

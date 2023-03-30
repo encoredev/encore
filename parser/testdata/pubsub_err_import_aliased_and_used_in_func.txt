@@ -17,3 +17,19 @@ func SomeAPI(ctx context.Context) error {
     topic := pb.NewTopic[MyMessage]("basic-topic")
     topic.Publish(ctx, &MyMessage{})
 }
+
+-- want: errors --
+
+── Invalid call ───────────────────────────────────────────────────────────────────────────[E9999]──
+
+pubsub.NewTopic cannot be called here. It must be called from a package level variable.
+
+    ╭─[ svc/svc.go:13:14 ]
+    │
+ 11 │ //encore:api
+ 12 │ func SomeAPI(ctx context.Context) error {
+ 13 │     topic := pb.NewTopic[MyMessage]("basic-topic")
+    ⋮              ───────────
+ 14 │     topic.Publish(ctx, &MyMessage{})
+ 15 │ }
+────╯

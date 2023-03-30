@@ -16,8 +16,8 @@ import (
 	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
-	"encr.dev/parser"
 	"encr.dev/parser/est"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // ResourceServices represent the set of servers/services we have started up
@@ -58,16 +58,16 @@ type ResourceServer interface {
 
 // StartRequiredServices will start the required services for the current application
 // if they are not already running based on the given parse result
-func (rs *ResourceServices) StartRequiredServices(a *AsyncBuildJobs, parse *parser.Result) error {
-	if sqldb.IsUsed(parse.Meta) && rs.GetSQLCluster() == nil {
-		a.Go("Creating PostgreSQL database cluster", true, 300*time.Millisecond, rs.StartSQLCluster(a, parse))
+func (rs *ResourceServices) StartRequiredServices(a *AsyncBuildJobs, md *meta.Data) error {
+	if sqldb.IsUsed(md) && rs.GetSQLCluster() == nil {
+		a.Go("Creating PostgreSQL database cluster", true, 300*time.Millisecond, rs.StartSQLCluster(a, md))
 	}
 
-	if pubsub.IsUsed(parse.Meta) && rs.GetPubSub() == nil {
+	if pubsub.IsUsed(md) && rs.GetPubSub() == nil {
 		a.Go("Starting PubSub daemon", true, 250*time.Millisecond, rs.StartPubSub)
 	}
 
-	if redis.IsUsed(parse.Meta) && rs.GetRedis() == nil {
+	if redis.IsUsed(md) && rs.GetRedis() == nil {
 		a.Go("Starting Redis server", true, 250*time.Millisecond, rs.StartRedis)
 	}
 
@@ -124,7 +124,7 @@ func (rs *ResourceServices) GetRedis() *redis.Server {
 	return nil
 }
 
-func (rs *ResourceServices) StartSQLCluster(a *AsyncBuildJobs, parse *parser.Result) func(ctx context.Context) error {
+func (rs *ResourceServices) StartSQLCluster(a *AsyncBuildJobs, md *meta.Data) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 		// This can be the case in tests.
 		if rs.sqlMgr == nil {
@@ -165,7 +165,7 @@ func (rs *ResourceServices) StartSQLCluster(a *AsyncBuildJobs, parse *parser.Res
 
 		// Set up the database asynchronously since it can take a while.
 		a.Go("Running database migrations", true, 250*time.Millisecond, func(ctx context.Context) error {
-			err := cluster.SetupAndMigrate(ctx, rs.app.Root(), parse.Meta)
+			err := cluster.SetupAndMigrate(ctx, rs.app.Root(), md)
 			if err != nil {
 				rs.log.Error().Err(err).Msg("failed to setup db")
 				return err

@@ -1,0 +1,18 @@
+run example.com
+cmp stderr expected_output
+
+-- main.go --
+package main
+func main() {
+    println("Hello, world!")
+}
+-- overlay:main.go --
+package main
+func main() {
+    println("Hello, rewritten world!")
+}
+-- go.mod --
+module example.com
+
+-- expected_output --
+Hello, rewritten world!

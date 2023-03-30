@@ -1,0 +1,13 @@
+run example.com
+cmp stderr expected_output
+
+-- main.go --
+package main
+func main() {
+    println("Hello, world!")
+}
+-- go.mod --
+module example.com
+
+-- expected_output --
+Hello, world!

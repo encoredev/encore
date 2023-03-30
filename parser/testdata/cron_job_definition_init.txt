@@ -30,3 +30,47 @@ func Cron(ctx context.Context) (*Response, error) {
 type Response struct {
 	Message string
 }
+
+-- want: errors --
+
+── Invalid call ───────────────────────────────────────────────────────────────────────────[E9999]──
+
+cron.NewJob cannot be called here. It must be called from a package level variable.
+
+    ╭─[ svc/svc.go:12:13 ]
+    │
+ 10 │     // A cron job to send out emails to newsletter subscribers.
+ 11 │     // On two lines.
+ 12 │     var _ = cron.NewJob("cronfoo", cron.JobConfig{
+    ⋮             ───────────
+ 13 │         Title:    "Cron Foo Bar",
+ 14 │         Schedule: "* * * * 5",
+────╯
+
+
+
+
+── Invalid API Usage ──────────────────────────────────────────────────────────────────────[E9999]──
+
+APIs can not be referenced without being called, unless they are used as a cron job endpoint, or a
+PubSub subscription handler.
+
+    ╭─[ svc/svc.go:15:19 ]
+    │
+ 13 │         Title:    "Cron Foo Bar",
+ 14 │         Schedule: "* * * * 5",
+ 15 │         Endpoint: Cron,
+    ⋮                   ─┬──
+    ⋮                    ╰─ used here
+    ·
+    ·
+ 18 │
+ 19 │ //encore:api public path=/cron
+ 20 │ func Cron(ctx context.Context) (*Response, error) {
+    ⋮      ─┬──
+    ⋮       ╰─ defined here
+ 21 │     msg := "Hello, Cron!"
+ 22 │     return &Response{Message: msg}, nil
+────╯
+
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis

@@ -76,6 +76,10 @@ message RunRequest {
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 7;
+
+  // trace_file, if set specifies a trace file to write trace information
+  // about the parse and compilation process to.
+  optional string trace_file = 8;
 }
 
 message TestRequest {
@@ -85,16 +89,31 @@ message TestRequest {
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 4;
+
+  // debug, if true, compiles the app with flags that improve the debugging experience.
+  bool debug = 5;
+
+  // trace_file, if set specifies a trace file to write trace information
+  // about the parse and compilation process to.
+  optional string trace_file = 6;
 }
 
 message ExecScriptRequest {
   string app_root = 1;
   string working_dir = 2;
-  string script_rel_path = 3;
+
+  // command_rel_path is the slash-separated relative path to the command to run,
+  // from the app root.
+  string command_rel_path = 3;
+
   repeated string script_args = 4;
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 5;
+
+  // trace_file, if set specifies a trace file to write trace information
+  // about the parse and compilation process to.
+  optional string trace_file = 6;
 }
 
 message CheckRequest {
@@ -102,6 +121,11 @@ message CheckRequest {
   string working_dir = 2;
   // codegen_debug, if true, dumps the generated code and prints where it is located.
   bool codegen_debug = 3;
+  // parse_tests, if true, exercises test parsing and codegen as well.
+  bool parse_tests = 4;
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 5;
 }
 
 message ExportRequest {
@@ -117,9 +141,13 @@ message ExportRequest {
   // if true.
   bool cgo_enabled = 4;
 
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 5;
+
   oneof format {
     // docker specifies to export the app as a docker image.
-    DockerExportParams docker = 5;
+    DockerExportParams docker = 6;
   }
 }
 

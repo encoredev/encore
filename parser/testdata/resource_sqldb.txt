@@ -1,9 +1,10 @@
 parse
-output 'svc svc dbs=moo'
-output 'resource SQLDBResource svc.Moo db=moo'
+output 'svc myservice dbs=myservice'
+output 'resource SQLDBResource myservice.Moo db=myservice'
 
--- svc/svc.go --
-package svc
+-- myservice/migrations/1_foo.up.sql --
+-- myservice/myservice.go --
+package myservice
 
 import (
     "context"
@@ -11,20 +12,20 @@ import (
     "encore.dev/storage/sqldb"
 )
 
-var Moo = sqldb.Named("moo")
+var Moo = sqldb.Named("myservice")
 
 //encore:api public
 func Foo(ctx context.Context) error {
     return nil
 }
--- svc/pkg/pkg.go --
+-- myservice/pkg/pkg.go --
 package pkg
 
 import (
     "context"
-    "test/svc"
+    "test/myservice"
 )
 
 func Foo() {
-    _ = svc.Moo.Baz()
+    _ = myservice.Moo.Baz()
 }

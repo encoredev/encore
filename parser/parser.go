@@ -262,17 +262,8 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPat
 		p := ps[pkgNames[0]]
 		var doc string
 		for _, astFile := range p.Files {
-			// HACK: getting package comments is not at all easy
-			// because of the quirks of go/ast. This seems to work.
-			cm := ast.NewCommentMap(fset, astFile, astFile.Comments)
-			for _, cg := range cm[astFile] {
-				if text := strings.TrimSpace(cg.Text()); text != "" {
-					doc = text
-				}
-				break
-			}
-			if doc != "" {
-				break
+			if doc == "" && astFile.Doc != nil {
+				doc = astFile.Doc.Text()
 			}
 		}
 
@@ -289,7 +280,7 @@ func collectPackages(fset *token.FileSet, rootDir, rootImportPath, mainPkgRelPat
 
 		// Ignore main packages (they're scripts) unless we're executing that very main package
 		// as an exec script.
-		if pkg.Name == "main" && pkg.RelPath != mainPkgRelPath {
+		if pkg.Name == "main" && pkg.ImportPath != mainPkgRelPath {
 			return nil, nil
 		}
 
@@ -833,6 +824,15 @@ func (p *parser) resolveRPCRef(file *est.File, expr ast.Expr) (*est.RPC, bool) {
 // validateMiddleware validates the middleware and sorts them in file and line order,
 // to ensure that middleware runs in the order they were defined.
 func (p *parser) validateMiddleware() {
+	// Apply a fix for if middleware was parsed in a candidate service, which was then
+	// merged into a parent service.
+	for _, mw := range p.middleware {
+		if !mw.Global && mw.Svc != mw.Pkg.Service && mw.Pkg.Service != nil {
+			mw.Pkg.Service.Middleware = append(mw.Pkg.Service.Middleware, mw)
+			mw.Svc = mw.Pkg.Service
+		}
+	}
+
 	// Find which tags are used so we can error for unknown tags
 	type svcTag struct{ svc, tag string }
 	globalTags := make(map[string]bool)

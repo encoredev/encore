@@ -24,7 +24,6 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
-	"encr.dev/compiler"
 	"encr.dev/internal/clientgen"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/errlist"
@@ -118,14 +117,6 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	return &daemonpb.GenClientResponse{Code: code}, nil
-}
-
-// GenWrappers generates Encore wrappers.
-func (s *Server) GenWrappers(ctx context.Context, params *daemonpb.GenWrappersRequest) (*daemonpb.GenWrappersResponse, error) {
-	if err := compiler.GenUserFacing(params.AppRoot); err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to generate wrappers: %v", err)
-	}
-	return &daemonpb.GenWrappersResponse{}, nil
 }
 
 func (s *Server) SecretsRefresh(ctx context.Context, req *daemonpb.SecretsRefreshRequest) (*daemonpb.SecretsRefreshResponse, error) {

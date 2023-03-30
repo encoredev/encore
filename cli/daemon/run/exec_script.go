@@ -9,15 +9,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
+
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/compiler"
-	"encr.dev/internal/env"
 	"encr.dev/internal/optracker"
-	"encr.dev/internal/version"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
+	"encr.dev/pkg/vcs"
 )
 
 // ExecScriptParams groups the parameters for the ExecScript method.
@@ -25,9 +30,8 @@ type ExecScriptParams struct {
 	// App is the app to execute the script for.
 	App *apps.Instance
 
-	// ScriptRelPath is the path holding the command, from the app root.
-	// It's either a directory or a files.
-	ScriptRelPath string
+	// MainPkg is the package path to the command to execute.
+	MainPkg paths.Pkg
 
 	// ScriptArgs are the arguments to pass to the script binary.
 	ScriptArgs []string
@@ -63,12 +67,28 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	start := time.Now()
 	parseOp := tracker.Add("Building Encore application graph", start)
 	topoOp := tracker.Add("Analyzing service topology", start)
-	parse, err := mgr.parseApp(parseAppParams{
-		App:           p.App,
-		Environ:       p.Environ,
-		WorkingDir:    p.WorkingDir,
-		ParseTests:    false,
-		ScriptMainPkg: p.ScriptRelPath,
+
+	bld := builderimpl.Resolve(expSet)
+	vcsRevision := vcs.GetRevision(p.App.Root())
+	buildInfo := builder.BuildInfo{
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              false,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
+		MainPkg:            option.Some(p.MainPkg),
+	}
+
+	parse, err := bld.Parse(ctx, builder.ParseParams{
+		Build:       buildInfo,
+		App:         p.App,
+		Experiments: expSet,
+		WorkingDir:  p.WorkingDir,
+		ParseTests:  false,
 	})
 	if err != nil {
 		tracker.Fail(parseOp, err)
@@ -77,7 +97,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
-	if err := rs.StartRequiredServices(jobs, parse); err != nil {
+	if err := rs.StartRequiredServices(jobs, parse.Meta); err != nil {
 		return err
 	}
 
@@ -95,33 +115,24 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 
 	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
-	var build *compiler.Result
+	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
-		cfg := &compiler.Config{
-			Parse:                 parse,
-			Revision:              parse.Meta.AppRevision,
-			UncommittedChanges:    parse.Meta.UncommittedChanges,
-			WorkingDir:            p.WorkingDir,
-			CgoEnabled:            true,
-			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-			EncoreRuntimePath:     env.EncoreRuntimePath(),
-			EncoreGoRoot:          env.EncoreGoRoot(),
-			BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-			Experiments:           expSet,
-			OpTracker:             tracker,
-			Meta: &cueutil.Meta{
+		build, err = bld.Compile(ctx, builder.CompileParams{
+			Build:       buildInfo,
+			App:         p.App,
+			Parse:       parse,
+			OpTracker:   tracker,
+			Experiments: expSet,
+			WorkingDir:  p.WorkingDir,
+			CueMeta: &cueutil.Meta{
 				APIBaseURL: apiBaseURL,
 				EnvName:    "local",
 				EnvType:    cueutil.EnvType_Development,
 				CloudType:  cueutil.CloudType_Local,
 			},
-			ExecScript: &compiler.ExecScriptConfig{
-				ScriptMainPkg: p.ScriptRelPath,
-			},
-		}
-		build, err = compiler.ExecScript(p.App.Root(), cfg)
+		})
 		if err != nil {
-			return fmt.Errorf("compile error:\n%v", err)
+			return errors.Wrap(err, "compile error on exec")
 		}
 		return nil
 	})

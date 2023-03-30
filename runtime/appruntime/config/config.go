@@ -162,10 +162,11 @@ type AWSPubsubProvider struct {
 }
 
 type PubsubTopic struct {
-	EncoreName   string `json:"encore_name"`   // the Encore name for the pubsub topic
-	ProviderID   int    `json:"provider_id"`   // The index into (*Runtime).PubsubProviders.
-	ProviderName string `json:"provider_name"` // the name for the pubsub topic as defined by the provider
-	OrderingKey  string `json:"ordering_key"`  // the ordering key for the pubsub topic (blank if not ordered)
+	EncoreName   string   `json:"encore_name"`       // the Encore name for the pubsub topic
+	ProviderID   int      `json:"provider_id"`       // The index into (*Runtime).PubsubProviders.
+	ProviderName string   `json:"provider_name"`     // the name for the pubsub topic as defined by the provider
+	OrderingKey  string   `json:"ordering_key"`      // the ordering key for the pubsub topic (blank if not ordered)
+	Limiter      *Limiter `json:"limiter,omitempty"` // the rate limiter for the topic
 
 	// Subscriptions contains the subscriptions to this topic,
 	// keyed by the Encore name.
@@ -330,3 +331,16 @@ type DatadogProvider struct {
 }
 
 type LogsBasedMetricsProvider struct{}
+
+// Limiter represents a rate limiter that can be used for certain types of operations
+//
+// The fields are mutually exclusive, which ever is not nil is the limiter that will be used,
+// if all are nil, then no limit is enforced.
+type Limiter struct {
+	TokenBucket *TokenBucketLimiter `json:"token_bucket"` // A token bucket limiter
+}
+
+type TokenBucketLimiter struct {
+	PerSecondRate float64 `json:"rate"` // The rate at which to allow requests to pass through.
+	BucketSize    int     `json:"size"` // The size of the token bucket (starts full)
+}

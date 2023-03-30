@@ -38,7 +38,7 @@ func (b *builder) writeMainPkg() error {
 
 	b.addOverlay(filepath.Join(b.appRoot, encorePkgDir, mainPkgName, "main.go"), mainPath)
 
-	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, "", "")
+	f, err := b.codegen.Main(b.cfg.EncoreCompilerVersion, "", "", true)
 	if err != nil {
 		return err
 	}
@@ -72,21 +72,56 @@ func (b *builder) writeEtypePkg() error {
 	return f.Render(file)
 }
 
-func (b *builder) writeHandlers() error {
-	defer b.trace("write handlers")()
+func (b *builder) serviceCodegen() error {
+	defer b.trace("write service codegen")()
 	for _, svc := range b.res.App.Services {
 		if err := b.writeServiceHandlers(svc); err != nil {
 			return fmt.Errorf("write handlers for svc %s: %v", svc.Name, err)
 		}
 	}
 
+	return nil
+}
+
+func (b *builder) infraCodegen() error {
+	defer b.trace("write infra codegen")()
+
 	for _, pkg := range b.res.App.Packages {
-		if err := b.writePackageHandlers(pkg); err != nil {
+		if err := b.writeInfraCodegen(pkg); err != nil {
 			return fmt.Errorf("write handlers for pkg %s: %v", pkg.RelPath, err)
 		}
 	}
 
 	return nil
+}
+
+func (b *builder) writeInfraCodegen(pkg *est.Package) error {
+	f, err := b.codegen.Infra(pkg)
+	if err != nil {
+		return err
+	} else if f == nil {
+		return nil
+	}
+	// Write the file to disk
+	dir := filepath.Join(b.workdir, filepath.FromSlash(pkg.RelPath))
+	name := "encore_internal__infra.go"
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	filePath := filepath.Join(dir, name)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err2 := file.Close(); err == nil {
+			err = err2
+		}
+	}()
+
+	b.addOverlay(filepath.Join(pkg.Dir, name), filePath)
+	return f.Render(file)
 }
 
 func (b *builder) writeServiceHandlers(svc *est.Service) error {
@@ -155,45 +190,6 @@ func (b *builder) writeServiceConfigUnmarshalers(svc *est.Service) error {
 		return err
 	}
 
-	return f.Render(file)
-}
-
-func (b *builder) writePackageHandlers(pkg *est.Package) error {
-	hasResources := false
-	for _, file := range pkg.Files {
-		if len(file.References) > 0 {
-			hasResources = true
-			break
-		}
-	}
-	if !hasResources {
-		return nil
-	}
-
-	// Write the file to disk
-	dir := filepath.Join(b.workdir, filepath.FromSlash(pkg.RelPath))
-	name := "encore_internal__package.go"
-
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-	filePath := filepath.Join(dir, name)
-	file, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err2 := file.Close(); err == nil {
-			err = err2
-		}
-	}()
-
-	b.addOverlay(filepath.Join(pkg.Dir, name), filePath)
-
-	f, err := b.codegen.Infra(pkg)
-	if err != nil {
-		return err
-	}
 	return f.Render(file)
 }
 

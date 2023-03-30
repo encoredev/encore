@@ -1,5 +1,6 @@
 # Verify calls to config.Load are called
 parse
+expectOut 'config svc Config\[int\]'
 output 'config svc named:{type_arguments:{builtin:INT}}'
 
 -- libraries/shared/shared.go --
@@ -12,6 +13,8 @@ import (
 type LibraryConfig struct {
     Name    config.String
     Enabled config.Bool
+    ValueList config.Value[[]int]
+    List []int
 }
 
 -- svc/svc.go --
@@ -29,6 +32,8 @@ type Config[T any] struct {
     Library    shared.LibraryConfig
     OtherValue config.Value[T]
     NameList   config.Values[string]
+    ValueList config.Value[[]T]
+    List []T
 }
 
 var cfg = config.Load[Config[int]]()

@@ -1,0 +1,259 @@
+-- generics.go --
+package generics
+
+import (
+    "context"
+    "encore.dev/config"
+)
+
+type CfgType[T any] struct {
+	ReadOnlyMode config.Bool
+	PublicKey    config.Bytes
+	AdminUsers   config.Values[string]
+
+	SubConfig config.Value[struct {
+		SubKey *SubCfgType[T]
+	}]
+
+	Currencies map[string]struct {
+		Name    config.String
+		Code    config.String
+		Aliases config.Values[string]
+	}
+
+	AnotherList config.Values[struct {
+		Name config.String
+	}]
+}
+
+type SubCfgType[T any] struct {
+	MaxCount T
+}
+
+var cfg = config.Load[*CfgType[uint]]()
+
+type ConfigResponse struct {
+	ReadOnlyMode bool
+	PublicKey    []byte
+	SubKeyCount  uint
+	AdminUsers   []string
+}
+
+// There must be an API endopint to use config.Load.
+//encore:api public
+func Dummy(context.Context) error { return nil }
+-- want:encore_internal__config_unmarshal.go --
+package generics
+
+import (
+	__etype "encore.dev/appruntime/etype"
+	config "encore.dev/config"
+	"fmt"
+	jsoniter "github.com/json-iterator/go"
+)
+
+/*
+These functions are automatically generated and maintained by Encore to allow config values
+to be unmarshalled into the correct types. They are not intended to be used directly. They
+are automatically updated by Encore whenever you change the data types used within your
+calls to config.Load[T]().
+*/
+
+// Concrete unmarshalers for all config.Load calls, including those using generic types.
+// These instances are used directly by calls to `config.Load[T]()`.
+var (
+	encoreInternalConfigUnmarshaler_ptr_examplecom_CfgType_uint_ = func(itr *jsoniter.Iterator, path []string) *CfgType[uint] {
+		return func() *CfgType[uint] {
+			// If the value is null, we return nil
+			if itr.ReadNil() {
+				return nil
+			}
+
+			// Otherwise we unmarshal the value and return a pointer to it
+			obj := encoreInternalTypeConfigUnmarshaler_CfgType[uint](func(itr *jsoniter.Iterator, path []string) uint {
+				return itr.ReadUint()
+			})(itr, append(path))
+			return &obj
+		}()
+	}
+)
+
+// encoreInternalTypeConfigUnmarshaler_CfgType will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_CfgType[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[CfgType[T]]) {
+	return func(itr *jsoniter.Iterator, path []string) (obj CfgType[T]) {
+		itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+			switch field {
+			case "ReadOnlyMode":
+				obj.ReadOnlyMode = config.CreateValue[bool](itr.ReadBool(), append(path, "ReadOnlyMode"))
+			case "PublicKey":
+				obj.PublicKey = config.CreateValue[[]byte](func() (rtn []byte) {
+					decoder := new(__etype.Unmarshaller)
+					rtn = __etype.UnmarshalOne(decoder, __etype.UnmarshalBytes, "value", itr.ReadString(), true)
+					if err := decoder.Error; err != nil {
+						panic(fmt.Sprintf("unable to decode the config: %v", err))
+					}
+					return
+				}(), append(path, "PublicKey"))
+			case "AdminUsers":
+				obj.AdminUsers = config.CreateValueList(config.ReadArray[string](itr, func(itr *jsoniter.Iterator, idx int) string {
+					return itr.ReadString()
+				}), append(path, "AdminUsers"))
+			case "SubConfig":
+				obj.SubConfig = config.CreateValue[struct {
+					SubKey *SubCfgType[T]
+				}](func() (obj struct {
+					SubKey *SubCfgType[T]
+				}) {
+					itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+						switch field {
+						case "SubKey":
+							obj.SubKey = func() *SubCfgType[T] {
+								// If the value is null, we return nil
+								if itr.ReadNil() {
+									return nil
+								}
+
+								// Otherwise we unmarshal the value and return a pointer to it
+								obj := encoreInternalTypeConfigUnmarshaler_SubCfgType[T](func(itr *jsoniter.Iterator, path []string) T {
+									return _T_unmarshaler(itr, append(path))
+								})(itr, append(path, "SubKey"))
+								return &obj
+							}()
+						default:
+							itr.Skip()
+						}
+						return true
+					})
+					return
+				}(), append(path, "SubConfig"))
+			case "Currencies":
+				obj.Currencies = config.ReadMap[string, struct {
+					Name    config.Value[string]
+					Code    config.Value[string]
+					Aliases config.Values[string]
+				}](itr, func(itr *jsoniter.Iterator, keyAsString string) (string, struct {
+					Name    config.Value[string]
+					Code    config.Value[string]
+					Aliases config.Values[string]
+				}) {
+					// Decode the map key from the JSON string to the underlying type it needs to be
+					keyDecoder := new(__etype.Unmarshaller)
+					key := __etype.UnmarshalOne(keyDecoder, __etype.UnmarshalString, "keyAsString", keyAsString, true)
+					if err := keyDecoder.Error; err != nil {
+						panic(fmt.Sprintf("unable to decode the config: %v", err))
+					}
+					return key, func() (obj struct {
+						Name    config.Value[string]
+						Code    config.Value[string]
+						Aliases config.Values[string]
+					}) {
+						itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+							switch field {
+							case "Name":
+								obj.Name = config.CreateValue[string](itr.ReadString(), append(path, "Name"))
+							case "Code":
+								obj.Code = config.CreateValue[string](itr.ReadString(), append(path, "Code"))
+							case "Aliases":
+								obj.Aliases = config.CreateValueList(config.ReadArray[string](itr, func(itr *jsoniter.Iterator, idx int) string {
+									return itr.ReadString()
+								}), append(path, "Aliases"))
+							default:
+								itr.Skip()
+							}
+							return true
+						})
+						return
+					}()
+				})
+			case "AnotherList":
+				obj.AnotherList = config.CreateValueList(config.ReadArray[struct {
+					Name config.Value[string]
+				}](itr, func(itr *jsoniter.Iterator, idx int) struct {
+					Name config.Value[string]
+				} {
+					return func() (obj struct {
+						Name config.Value[string]
+					}) {
+						itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+							switch field {
+							case "Name":
+								obj.Name = config.CreateValue[string](itr.ReadString(), append(path, "Name"))
+							default:
+								itr.Skip()
+							}
+							return true
+						})
+						return
+					}()
+				}), append(path, "AnotherList"))
+			default:
+				itr.Skip()
+			}
+			return true
+		})
+		return
+	}
+}
+
+// encoreInternalTypeConfigUnmarshaler_SubCfgType will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_SubCfgType[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[SubCfgType[T]]) {
+	return func(itr *jsoniter.Iterator, path []string) (obj SubCfgType[T]) {
+		itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+			switch field {
+			case "MaxCount":
+				obj.MaxCount = _T_unmarshaler(itr, append(path, "MaxCount"))
+			default:
+				itr.Skip()
+			}
+			return true
+		})
+		return
+	}
+}
+-- want:generics.go --
+package generics
+
+import _ "encore.dev/appruntime/app/appinit"
+/*line :3:1*/import (
+    "context"
+    "encore.dev/config"
+)
+
+type CfgType[T any] struct {
+	ReadOnlyMode config.Bool
+	PublicKey    config.Bytes
+	AdminUsers   config.Values[string]
+
+	SubConfig config.Value[struct {
+		SubKey *SubCfgType[T]
+	}]
+
+	Currencies map[string]struct {
+		Name    config.String
+		Code    config.String
+		Aliases config.Values[string]
+	}
+
+	AnotherList config.Values[struct {
+		Name config.String
+	}]
+}
+
+type SubCfgType[T any] struct {
+	MaxCount T
+}
+
+var cfg = config.Load[*CfgType[uint]]("generics", encoreInternalConfigUnmarshaler_ptr_examplecom_CfgType_uint_/*line :32:39*/)
+
+type ConfigResponse struct {
+	ReadOnlyMode bool
+	PublicKey    []byte
+	SubKeyCount  uint
+	AdminUsers   []string
+}
+
+// There must be an API endopint to use config.Load.
+//encore:api public
+func Dummy(context.Context) error { return nil }

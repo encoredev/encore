@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"encr.dev/internal/clientgen/openapi"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -21,6 +22,7 @@ const (
 	LangTypeScript Lang = "typescript"
 	LangJavascript Lang = "javascript"
 	LangGo         Lang = "go"
+	LangOpenAPI    Lang = "openapi"
 )
 
 type generator interface {
@@ -62,6 +64,8 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 		gen = &javascript{generatorVersion: javascriptGenLatestVersion}
 	case LangGo:
 		gen = &golang{generatorVersion: goGenLatestVersion}
+	case LangOpenAPI:
+		gen = openapi.New(openapi.LatestVersion)
 	default:
 		return nil, ErrUnknownLang
 	}
@@ -82,6 +86,8 @@ func GetLang(lang string) (Lang, error) {
 		return LangJavascript, nil
 	case "go", "golang":
 		return LangGo, nil
+	case "openapi", "swagger", "oas":
+		return LangOpenAPI, nil
 	default:
 		return LangUnknown, ErrUnknownLang
 	}

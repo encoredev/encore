@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -20,20 +21,46 @@ var testCmd = &cobra.Command{
 
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Support --help but otherwise let all args be passed on to "go test"
-		for _, arg := range args {
+		var (
+			traceFile string
+			debug     bool
+		)
+		// Support specific args but otherwise let all args be passed on to "go test"
+		for i := 0; i < len(args); i++ {
+			arg := args[i]
 			if arg == "-h" || arg == "--help" {
 				cmd.Help()
 				return
+			} else if arg == "--trace" || strings.HasPrefix(arg, "--trace=") {
+				// Drop this argument always.
+				args = slices.Delete(args, i, i+1)
+				i--
+
+				// We either have '--trace=file' or '--trace file'.
+				// Handle both.
+				if _, value, ok := strings.Cut(arg, "="); ok {
+					traceFile = value
+				} else {
+					// Make sure there is a next argument.
+					if i < len(args) {
+						traceFile = args[i]
+						args = slices.Delete(args, i, i+1)
+						i--
+					}
+				}
+			} else if arg == "--debug" {
+				debug = true
+				args = slices.Delete(args, i, i+1)
+				i--
 			}
 		}
 
 		appRoot, relPath := determineAppRoot()
-		runTests(appRoot, relPath, args)
+		runTests(appRoot, relPath, args, debug, traceFile)
 	},
 }
 
-func runTests(appRoot, testDir string, args []string) {
+func runTests(appRoot, testDir string, args []string, debug bool, traceFile string) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -49,11 +76,14 @@ func runTests(appRoot, testDir string, args []string) {
 	}
 
 	daemon := setupDaemon(ctx)
+
 	stream, err := daemon.Test(ctx, &daemonpb.TestRequest{
 		AppRoot:    appRoot,
 		WorkingDir: testDir,
 		Args:       args,
+		Debug:      debug,
 		Environ:    os.Environ(),
+		TraceFile:  nonZeroPtr(traceFile),
 	})
 	if err != nil {
 		fatal(err)

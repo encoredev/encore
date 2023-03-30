@@ -70,4 +70,10 @@ const (
 	AtLeastOnce = types.AtLeastOnce
 )
 
+//publicapigen:drop
+const (
+	// TODO(domblack): remove this once ExactlyOnce is released
+	ExactlyOnce = types.ExactlyOnce
+)
+
 type TopicConfig = types.TopicConfig

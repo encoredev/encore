@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	codegenDebug bool
+	codegenDebug    bool
+	checkParseTests bool
 )
 
 var checkCmd = &cobra.Command{
@@ -29,6 +30,7 @@ var checkCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(checkCmd)
 	checkCmd.Flags().BoolVar(&codegenDebug, "codegen-debug", false, "Dump generated code (for debugging Encore's code generation)")
+	checkCmd.Flags().BoolVar(&checkParseTests, "tests", false, "Parse tests as well")
 }
 
 func runChecks(appRoot, relPath string) {
@@ -46,10 +48,12 @@ func runChecks(appRoot, relPath string) {
 		AppRoot:      appRoot,
 		WorkingDir:   relPath,
 		CodegenDebug: codegenDebug,
+		ParseTests:   checkParseTests,
+		Environ:      os.Environ(),
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)
 	}
-	os.Exit(streamCommandOutput(stream, convertJSONLogs()))
+	os.Exit(streamCommandOutput(stream, nil))
 }

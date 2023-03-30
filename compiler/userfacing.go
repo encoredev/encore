@@ -5,15 +5,19 @@ import (
 	"os"
 	"path/filepath"
 
+	"encr.dev/parser"
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errinsrc/srcerrors"
 )
 
 // GenUserFacing generates user-facing application code.
-func GenUserFacing(appRoot string) error {
+func GenUserFacing(appRoot string, res *parser.Result) error {
 	b := &builder{
-		cfg:     &Config{},
+		cfg: &Config{
+			Parse: res,
+		},
 		appRoot: appRoot,
+		res:     res,
 	}
 	return b.GenUserFacing()
 }

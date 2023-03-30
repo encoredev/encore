@@ -1,0 +1,23 @@
+run example.com
+cmp stderr expected_output
+
+-- main.go --
+package main
+func main() {
+}
+-- overlay:main.go --
+package main
+func main() {
+    OverlayPrint() // defined in overlay
+}
+-- overlay:print.go --
+package main
+import ("fmt"; "os")
+func OverlayPrint() {
+    fmt.Fprintln(os.Stderr, "Hello, overlay world!")
+}
+-- go.mod --
+module example.com
+
+-- expected_output --
+Hello, overlay world!

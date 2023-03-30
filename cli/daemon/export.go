@@ -12,8 +12,15 @@ func (s *Server) Export(req *daemonpb.ExportRequest, stream daemonpb.Daemon_Expo
 	slog := &streamLog{stream: stream, buffered: false}
 	log := newStreamLogger(slog)
 
+	app, err := s.apps.Track(req.AppRoot)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to resolve app")
+		streamExit(stream, 1)
+		return nil
+	}
+
 	exitCode := 0
-	success, err := export.Docker(stream.Context(), req, log)
+	success, err := export.Docker(stream.Context(), app, req, log)
 	if err != nil {
 		exitCode = 1
 		if list, ok := err.(scanner.ErrorList); ok {

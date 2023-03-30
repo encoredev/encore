@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
+	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/onboarding"
 	"encr.dev/pkg/ansi"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -68,6 +69,7 @@ func runApp(appRoot, wd string) {
 		WorkingDir: wd,
 		ListenAddr: listenAddr,
 		Environ:    os.Environ(),
+		TraceFile:  root.TraceFile,
 	})
 	if err != nil {
 		fatal(err)

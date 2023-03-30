@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -16,11 +17,10 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/compiler"
-	"encr.dev/internal/env"
-	"encr.dev/internal/version"
-	"encr.dev/parser"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/vcs"
 )
 
 // TestParams groups the parameters for the Test method.
@@ -34,10 +34,6 @@ type TestParams struct {
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
 	WorkingDir string
-
-	// Parse is the parse result for the initial run of the app.
-	// It must be set.
-	Parse *parser.Result
 
 	// Secrets are the secrets to use.
 	Secrets *secret.LoadResult
@@ -66,6 +62,32 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 	secrets := secretData.Values
 
+	bld := builderimpl.Resolve(expSet)
+
+	vcsRevision := vcs.GetRevision(params.App.Root())
+	buildInfo := builder.BuildInfo{
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              false,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
+	}
+
+	parse, err := bld.Parse(ctx, builder.ParseParams{
+		Build:       buildInfo,
+		App:         params.App,
+		Experiments: expSet,
+		WorkingDir:  params.WorkingDir,
+		ParseTests:  true,
+	})
+	if err != nil {
+		return err
+	}
+
 	var (
 		sqlServers []*config.SQLServer
 		sqlDBs     []*config.SQLDatabase
@@ -75,7 +97,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 			Host: "localhost:" + strconv.Itoa(mgr.DBProxyPort),
 		}
 		sqlServers = append(sqlServers, srv)
-		for _, svc := range params.Parse.Meta.Svcs {
+		for _, svc := range parse.Meta.Svcs {
 			if len(svc.Migrations) > 0 {
 				sqlDBs = append(sqlDBs, &config.SQLDatabase{
 					ServerID:     0,
@@ -116,32 +138,27 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
-	cfg := &compiler.Config{
-		Parse:                 params.Parse,
-		Revision:              params.Parse.Meta.AppRevision,
-		UncommittedChanges:    params.Parse.Meta.UncommittedChanges,
-		WorkingDir:            params.WorkingDir,
-		CgoEnabled:            true,
-		EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-		EncoreRuntimePath:     env.EncoreRuntimePath(),
-		EncoreGoRoot:          env.EncoreGoRoot(),
-		BuildTags:             []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-		Experiments:           expSet,
-		Meta: &cueutil.Meta{
-			APIBaseURL: apiBaseURL,
-			EnvName:    "local",
-			EnvType:    cueutil.EnvType_Test,
-			CloudType:  cueutil.CloudType_Local,
+	return bld.Test(ctx, builder.TestParams{
+		Compile: builder.CompileParams{
+			Build:       buildInfo,
+			App:         params.App,
+			Parse:       parse,
+			OpTracker:   nil,
+			Experiments: expSet,
+			WorkingDir:  params.WorkingDir,
+			CueMeta: &cueutil.Meta{
+				APIBaseURL: apiBaseURL,
+				EnvName:    "local",
+				EnvType:    cueutil.EnvType_Test,
+				CloudType:  cueutil.CloudType_Local,
+			},
 		},
-		Test: &compiler.TestConfig{
-			Env: append(params.Environ,
-				"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
-				"ENCORE_APP_SECRETS="+encodeSecretsEnv(secrets),
-			),
-			Args:   params.Args,
-			Stdout: params.Stdout,
-			Stderr: params.Stderr,
-		},
-	}
-	return compiler.Test(ctx, params.App.Root(), cfg)
+		Env: append(params.Environ,
+			"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
+			"ENCORE_APP_SECRETS="+encodeSecretsEnv(secrets),
+		),
+		Args:   params.Args,
+		Stdout: params.Stdout,
+		Stderr: params.Stderr,
+	})
 }

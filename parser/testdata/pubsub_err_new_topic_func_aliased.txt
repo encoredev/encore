@@ -15,3 +15,19 @@ type MyMessage struct {}
 var creator = pubsub.NewTopic[MyMessage]
 
 var topic = creator("my-topic")
+
+-- want: errors --
+
+── Invalid reference ──────────────────────────────────────────────────────────────────────[E9999]──
+
+pubsub.NewTopic cannot be referenced without being called.
+
+    ╭─[ svc/svc.go:11:15 ]
+    │
+  9 │ type MyMessage struct {}
+ 10 │
+ 11 │ var creator = pubsub.NewTopic[MyMessage]
+    ⋮               ───────────────
+ 12 │
+ 13 │ var topic = creator("my-topic")
+────╯

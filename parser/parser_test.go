@@ -193,6 +193,9 @@ func TestCompile(t *testing.T) {
 					}
 				}
 			},
+			"parse2": func(ts *testscript.TestScript, neg bool, args []string) {
+				// no-op: only the v2 parser is supported for this test
+			},
 			"output": func(ts *testscript.TestScript, neg bool, args []string) {
 				stdout := ts.Value("output").(*bytes.Buffer)
 				m, err := regexp.Match(args[0], stdout.String())
@@ -216,6 +219,9 @@ func TestCompile(t *testing.T) {
 				} else if m && neg {
 					ts.Fatalf("stderr unexpectedly matches %q", args[0])
 				}
+			},
+			"expectOut": func(ts *testscript.TestScript, neg bool, args []string) {
+				// no-op, this is just for use in the v2 parser
 			},
 		},
 	})
