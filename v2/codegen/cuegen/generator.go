@@ -1,6 +1,8 @@
 package cuegen
 
 import (
+	"bytes"
+
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/format"
@@ -94,9 +96,14 @@ func (g *Generator) UserFacing(svc *app.Service) ([]byte, error) {
 	}
 
 	// Format the AST into a set of bytes we can write
-	return format.Node(
+	b, err := format.Node(
 		service.file,
 		format.Simplify(),
 		format.UseSpaces(4),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes.TrimSpace(b), nil
 }

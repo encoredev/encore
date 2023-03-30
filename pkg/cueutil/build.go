@@ -46,6 +46,11 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, er
 		return cue.Value{}, eerror.Wrap(err, "config", "unable to list all config files for service", map[string]any{"path": serviceRelPath})
 	}
 
+	// If there are no config files, return an empty value
+	if len(configFilesForService) == 0 {
+		return cue.Value{}, nil
+	}
+
 	// Tell CUE to load all the files
 	loaderCfg := &load.Config{
 		Dir:   tmpPath,
@@ -93,6 +98,17 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, er
 // allFilesUnder returns all files under the given path in the given filesystem.
 func allFilesUnder(filesys fs.FS, path string) ([]string, error) {
 	var files []string
+
+	// Check if the path exists
+	// and if it doesn't that means there zero CUE files for this service
+	// this can happen when a Config struct has zero fields
+	if _, err := fs.Stat(filesys, path); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
 	err := fs.WalkDir(filesys, path, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
