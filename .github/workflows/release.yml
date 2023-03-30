@@ -44,9 +44,9 @@ jobs:
         path: encr.dev
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.20
+        go-version: '1.20'
 
     - name: Set up Zig
       uses: goto-bus-stop/setup-zig@v1
@@ -60,11 +60,11 @@ jobs:
     - name: Install encore-go
       run: curl --fail -o encore-go.tar.gz -L https://github.com/encoredev/go/releases/download/${{ github.event.inputs.encorego_version }}/${{ matrix.release_key }}.tar.gz && tar -C ${{ github.workspace }} -xzf ./encore-go.tar.gz
 
-#    - name: Go Mod Cache
-#      uses: actions/cache@v3
-#      with:
-#        path: ${{ steps.go-cache-paths.outputs.go-mod }}
-#        key: ${{ matrix.goos }}-${{ matrix.goarch }}-go-mod-${{ hashFiles('**/go.sum') }}
+    - name: Go Mod Cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-mod }}
+        key: ${{ matrix.goos }}-${{ matrix.goarch }}-go-mod-${{ hashFiles('**/go.sum') }}
 
     - name: Build
       run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=${{ matrix.goos }} -goarch=${{ matrix.goarch }} -encore-go="../encore-go"
