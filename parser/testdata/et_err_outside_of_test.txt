@@ -1,0 +1,29 @@
+! parse
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/et"
+)
+
+//encore:api public
+func Foo(context.Context) error { return nil }
+-- want: errors --
+
+── Invalid use of encore.dev/et ───────────────────────────────────────────────────────────[E9999]──
+
+Encore's test packages can only be used inside tests and cannot otherwise be imported.
+
+   ╭─[ svc/svc.go:6:5 ]
+   │
+ 4 │     "context"
+ 5 │
+ 6 │     "encore.dev/et"
+   ⋮     ───────┬───────
+   ⋮            ╰─ imported here
+ 7 │ )
+ 8 │
+───╯

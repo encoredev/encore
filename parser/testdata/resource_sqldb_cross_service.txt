@@ -30,3 +30,35 @@ func Bar(ctx context.Context) error {
     _ = svca.Moo.Query()
     return nil
 }
+-- want: errors --
+
+── Error ──────────────────────────────────────────────────────────────────────────────────[E9999]──
+
+internal compiler error: unknown resource (path "SQLDatabase:moo")
+
+    ╭─[ svca/svca.go:9:5 ]
+    │
+  7 │ )
+  8 │
+  9 │ var Moo = sqldb.Named("moo")
+    ⋮     ────────────────────────
+ 10 │
+ 11 │ //encore:api public
+────╯
+
+
+
+
+── Error ──────────────────────────────────────────────────────────────────────────────────[E9999]──
+
+internal compiler error: resource reference not found: svca.Moo
+
+    ╭─[ svcb/svcb.go:11:9 ]
+    │
+  9 │ //encore:api public
+ 10 │ func Bar(ctx context.Context) error {
+ 11 │     _ = svca.Moo.Query()
+    ⋮         ────────────────
+ 12 │     return nil
+ 13 │ }
+────╯

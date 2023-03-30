@@ -48,8 +48,8 @@ func TestAgainst(t testing.TB, goldenFileName string, output string) {
 		if err != nil {
 			t.Fatalf("read golden: %v", err)
 		}
-		if diff := cmp.Diff(output, string(expect)); diff != "" {
-			t.Fatalf("bad output:\n%s", diff)
+		if diff := cmp.Diff(string(expect), output); diff != "" {
+			t.Fatalf("bad output (-want +got):\n%s", diff)
 		}
 	}
 }

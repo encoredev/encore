@@ -20,13 +20,17 @@ const (
 
 	// Metrics is an experiment to enable metrics.
 	Metrics Name = "metrics"
+
+	// V2 enables the new parser and compiler.
+	V2 Name = "v2"
 )
 
 // Valid reports whether the given name is a known experiment.
 func (x Name) Valid() bool {
 	switch x {
 	case LocalSecretsOverride,
-		Metrics:
+		Metrics,
+		V2:
 		return true
 	default:
 		return false

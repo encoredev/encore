@@ -1,0 +1,41 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+    "time"
+
+	"encore.dev/config"
+	"encore.dev/types/uuid"
+)
+
+// Generic option which can be disbaled
+type DisablableOption[T any] struct {
+    Option   T
+    Disabled bool // True if this is disabled
+}
+
+type List[T any] []T
+
+// A nice generic map
+type Map[K any, V any] map[K]V
+
+type Config struct {
+    HTTP    DisablableOption[uint16] // The options for the HTTP server
+    Another DisablableOption[uint64]
+    TCP     DisablableOption[uint16] // The options for the TCP server
+    GRPC    DisablableOption[uint64] // The options for the GRPC server
+    List1   List[string]             // A list of strings
+    List2   List[string]
+    List3   List[int]
+    Map1    Map[string, string]
+    Map2    Map[int, string]
+    Map3    Map[string, string]
+}
+
+var _ = config.Load[*Config]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}

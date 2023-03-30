@@ -32,6 +32,7 @@ func GetStack() []*StackFrame {
 	// which are the top frames (as these would only be related to the creation of the error)
 	for strings.Contains(frame.File, "errinsrc") ||
 		strings.Contains(frame.File, "errlist") ||
+		strings.Contains(frame.File, "perr") ||
 		strings.HasSuffix(frame.File, "errs.go") {
 		if !more {
 			return nil

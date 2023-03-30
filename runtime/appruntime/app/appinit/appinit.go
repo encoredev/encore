@@ -19,6 +19,12 @@ func AppMain() {
 	}
 }
 
+// AppStart starts the Encore Application and doesn't block.
+func AppStart() {
+	singleton.ReconfigureZerologFormat()
+	singleton.Start()
+}
+
 // singleton is the instance of the Encore app.
 var singleton *app.App
 
@@ -48,12 +54,6 @@ func init() {
 		ServiceInit: data.ServiceInit,
 		AuthHandler: data.AuthHandler,
 	})
-}
-
-// LoadSecret loads the secret with the given key.
-// If it is not defined it logs a fatal error and exits the process.
-func LoadSecret(key string) string {
-	return singleton.GetSecret(key)
 }
 
 var missingSecrets []string

@@ -44,9 +44,9 @@ jobs:
         path: encr.dev
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.19
+        go-version: '1.20'
 
     - name: Set up Zig
       uses: goto-bus-stop/setup-zig@v1
@@ -55,7 +55,7 @@ jobs:
 
     - id: go-cache-paths
       run: |
-        echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+        echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
     - name: Install encore-go
       run: curl --fail -o encore-go.tar.gz -L https://github.com/encoredev/go/releases/download/${{ github.event.inputs.encorego_version }}/${{ matrix.release_key }}.tar.gz && tar -C ${{ github.workspace }} -xzf ./encore-go.tar.gz

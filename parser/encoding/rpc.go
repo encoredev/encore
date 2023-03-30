@@ -254,7 +254,7 @@ func DescribeService(meta *meta.Data, svc *meta.Service) *ServiceEncoding {
 	for i, r := range svc.Rpcs {
 		rpc, err := DescribeRPC(meta, r, nil)
 		if err != nil {
-			panic("invalid rpc")
+			panic(fmt.Sprintf("invalid rpc: %v", err))
 		}
 		service.RPCs[i] = rpc
 	}

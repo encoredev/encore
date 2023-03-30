@@ -67,7 +67,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 				var buf bytes.Buffer
 				buf.WriteString("{\n")
 				for _, secret := range pkg.Secrets {
-					fmt.Fprintf(&buf, "\t%s: __encore_app.LoadSecret(%s),\n", secret, strconv.Quote(secret))
+					fmt.Fprintf(&buf, "\t%s: __encore_secrets.Load(%s),\n", secret, strconv.Quote(secret))
 				}
 				ep := fset.Position(spec.End())
 				fmt.Fprintf(&buf, "}/*line :%d:%d*/", ep.Line, ep.Column)
@@ -77,7 +77,7 @@ func (b *builder) rewritePkg(pkg *est.Package, targetDir string) error {
 
 				decl := file.AST.Decls[0]
 				ln := fset.Position(decl.Pos())
-				rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_app %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
+				rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_secrets %s\n/*line :%d:%d*/", strconv.Quote("encore.dev/appruntime/secrets"), ln.Line, ln.Column)))
 				return true
 
 			case est.CronJobNode:

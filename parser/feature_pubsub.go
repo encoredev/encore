@@ -104,7 +104,7 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		return nil
 	}
 	deliveryGuarantee := cfg.Int64("DeliveryGuarantee", 0)
-	if deliveryGuarantee != 1 {
+	if deliveryGuarantee != 1 && deliveryGuarantee != 2 {
 		p.errInSrc(srcerrors.PubSubTopicConfigInvalidField(p.fset, "DeliveryGuarantee", "`pubsub.AtLeastOnce`", cfg.Expr("DeliveryGuarantee")))
 		return nil
 	}
@@ -140,7 +140,7 @@ func (p *parser) parsePubSubTopic(file *est.File, cursor *walker.Cursor, ident *
 		Name:              topicName,
 		NameAST:           callExpr.Args[0],
 		Doc:               cursor.DocComment(),
-		DeliveryGuarantee: est.AtLeastOnce,
+		DeliveryGuarantee: est.PubSubGuarantee(deliveryGuarantee - 1), // The runtime is 1 indexed
 		OrderingKey:       orderingKey,
 		DeclFile:          file,
 		DeclCall:          callExpr,

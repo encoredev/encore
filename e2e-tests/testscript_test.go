@@ -26,6 +26,14 @@ import (
 var headerRe = regexp.MustCompile(`^([A-Z][A-Za-z0-9-]*)=([^ ]*)$`)
 
 func TestRun(t *testing.T) {
+	doRun(t, nil)
+}
+
+func TestRunV2(t *testing.T) {
+	doRun(t, []string{"v2"})
+}
+
+func doRun(t *testing.T, experiments []string) {
 	runtimePath := os.Getenv("ENCORE_RUNTIME_PATH")
 	goroot := os.Getenv("ENCORE_GOROOT")
 	if testing.Short() {
@@ -41,10 +49,15 @@ func TestRun(t *testing.T) {
 		Setup: func(e *ts.Env) error {
 			e.Setenv("ENCORE_RUNTIME_PATH", runtimePath)
 			e.Setenv("ENCORE_GOROOT", goroot)
+			e.Setenv("ENCORE_EXPERIMENT", strings.Join(experiments, ","))
 			e.Setenv("HOME", home)
 			e.Setenv("GOFLAGS", "-modcacherw")
-			gomod := []byte("module test\n\nrequire encore.dev v1.9.4")
+			gomod := []byte("module test\n\nrequire encore.dev v1.13.4")
 			if err := os.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755); err != nil {
+				return err
+			}
+
+			if err := runGoModTidy(e.WorkDir); err != nil {
 				return err
 			}
 
@@ -61,7 +74,8 @@ func TestRun(t *testing.T) {
 			},
 			"test": func(ts *ts.TestScript, neg bool, args []string) {
 				log := &testscriptLogger{ts: ts}
-				err := RunTests(getTB(ts), getWorkdir(ts), &log.stdout, &log.stderr, nil)
+				exp := ts.Getenv("ENCORE_EXPERIMENT")
+				err := RunTests(getTB(ts), getWorkdir(ts), &log.stdout, &log.stderr, []string{"ENCORE_EXPERIMENT=" + exp})
 				os.Stdout.Write(log.stdout.Bytes())
 				os.Stderr.Write(log.stderr.Bytes())
 				if !neg && err != nil {

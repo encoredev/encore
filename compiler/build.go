@@ -88,8 +88,9 @@ type Config struct {
 	// and use the information provided.
 	Parse *parser.Result
 
-	// KeepOutput keeps the temporary build directory from being deleted in the case of failure.
-	KeepOutput bool
+	// KeepOutputOnFailure keeps the temporary build directory from being deleted in the case of failure.
+	// On success the output is always kept.
+	KeepOutputOnFailure bool
 
 	// OpTracker is an option tracker to output the progress to the UI
 	OpTracker *optracker.OpTracker
@@ -194,7 +195,7 @@ func (b *builder) Build() (res *Result, err error) {
 		Exe: filepath.Join(b.workdir, binaryName+b.exe()),
 	}
 	defer func() {
-		if err != nil && !b.cfg.KeepOutput {
+		if err != nil && !b.cfg.KeepOutputOnFailure {
 			os.RemoveAll(b.workdir)
 		}
 	}()
@@ -209,7 +210,8 @@ func (b *builder) Build() (res *Result, err error) {
 		b.writeModFile,
 		b.writeSumFile,
 		b.writePackages,
-		b.writeHandlers,
+		b.infraCodegen,
+		b.serviceCodegen,
 		b.writeMainPkg,
 		b.writeEtypePkg,
 		b.writeConfigUnmarshallers,
@@ -442,7 +444,9 @@ func (b *builder) buildMain() error {
 		args = append(args, "-ldflags", ldflags)
 	}
 
-	args = append(args, fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName))
+	mainPkgPath := fmt.Sprintf("./%s/%s", encorePkgDir, mainPkgName)
+
+	args = append(args, mainPkgPath)
 	cmd := exec.Command(filepath.Join(b.cfg.EncoreGoRoot, "bin", "go"+b.exe()), args...)
 	env := []string{
 		"GO111MODULE=on",

@@ -14,11 +14,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -31,13 +33,12 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/xos"
-	"encr.dev/compiler"
-	"encr.dev/internal/env"
 	"encr.dev/internal/optracker"
-	"encr.dev/internal/version"
-	"encr.dev/parser"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/experiments"
+	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -48,6 +49,7 @@ type Run struct {
 	ListenAddr      string // the address the app is listening on
 	ResourceServers *ResourceServices
 
+	builder builder.Impl
 	log     zerolog.Logger
 	Mgr     *Manager
 	params  *StartParams
@@ -80,6 +82,9 @@ type StartParams struct {
 
 	// The Ops tracker being used for this run
 	OpsTracker *optracker.OpTracker
+
+	// Debug specifies to compile the application for debugging.
+	Debug bool
 }
 
 // Start starts the application.
@@ -116,6 +121,9 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	mgr.mu.Unlock()
 
 	if err := run.start(params.Listener, params.OpsTracker); err != nil {
+		if errList := asErrorList(err); errList != nil {
+			return nil, errList
+		}
 		return nil, err
 	}
 
@@ -226,16 +234,6 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	return nil
 }
 
-// parseApp parses the app and returns the parse result.
-func (r *Run) parseApp() (*parser.Result, error) {
-	return r.Mgr.parseApp(parseAppParams{
-		App:        r.App,
-		Environ:    r.params.Environ,
-		WorkingDir: r.params.WorkingDir,
-		ParseTests: false,
-	})
-}
-
 // buildAndStart builds the app, starts the proc, and cleans up
 // the build dir when it exits.
 // The proc exits when ctx is canceled.
@@ -252,7 +250,36 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	start := time.Now()
 	parseOp := tracker.Add("Building Encore application graph", start)
 	topoOp := tracker.Add("Analyzing service topology", start)
-	parse, err := r.parseApp()
+
+	expSet, err := r.App.Experiments(r.params.Environ)
+	if err != nil {
+		return err
+	}
+
+	if r.builder == nil {
+		r.builder = builderimpl.Resolve(expSet)
+	}
+
+	vcsRevision := vcs.GetRevision(r.App.Root())
+	buildInfo := builder.BuildInfo{
+		BuildTags:          builder.LocalBuildTags,
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              r.params.Debug,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           vcsRevision.Revision,
+		UncommittedChanges: vcsRevision.Uncommitted,
+	}
+
+	parse, err := r.builder.Parse(ctx, builder.ParseParams{
+		Build:       buildInfo,
+		App:         r.App,
+		Experiments: expSet,
+		WorkingDir:  r.params.WorkingDir,
+		ParseTests:  false,
+	})
 	if err != nil {
 		tracker.Fail(parseOp, err)
 		return err
@@ -260,41 +287,28 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
-	expSet, err := r.App.Experiments(r.params.Environ)
-	if err != nil {
+	if err := r.ResourceServers.StartRequiredServices(jobs, parse.Meta); err != nil {
 		return err
 	}
 
-	if err := r.ResourceServers.StartRequiredServices(jobs, parse); err != nil {
-		return err
-	}
-
-	var build *compiler.Result
+	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
-		//goland:noinspection HttpUrlsUsage
-		cfg := &compiler.Config{
-			Revision:              parse.Meta.AppRevision,
-			UncommittedChanges:    parse.Meta.UncommittedChanges,
-			WorkingDir:            r.params.WorkingDir,
-			CgoEnabled:            true,
-			EncoreCompilerVersion: fmt.Sprintf("EncoreCLI/%s", version.Version),
-			EncoreRuntimePath:     env.EncoreRuntimePath(),
-			EncoreGoRoot:          env.EncoreGoRoot(),
-			Experiments:           expSet,
-			Meta: &cueutil.Meta{
+		build, err = r.builder.Compile(ctx, builder.CompileParams{
+			Build:       buildInfo,
+			App:         r.App,
+			Parse:       parse,
+			OpTracker:   tracker,
+			Experiments: expSet,
+			WorkingDir:  r.params.WorkingDir,
+			CueMeta: &cueutil.Meta{
 				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
 				EnvName:    "local",
 				EnvType:    cueutil.EnvType_Development,
 				CloudType:  cueutil.CloudType_Local,
 			},
-			Parse:     parse,
-			BuildTags: []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"},
-			OpTracker: tracker,
-		}
-
-		build, err = compiler.Build(r.App.Root(), cfg)
+		})
 		if err != nil {
-			return fmt.Errorf("compile error:\n%v", err)
+			return errors.Wrap(err, "compile error")
 		}
 		return nil
 	})
@@ -325,7 +339,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
-		Meta:           build.Parse.Meta,
+		Meta:           parse.Meta,
 		Logger:         r.Mgr,
 		RuntimePort:    r.Mgr.RuntimePort,
 		DBProxyPort:    r.Mgr.DBProxyPort,
@@ -440,6 +454,8 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	}
 	cmd.Env = envs
 	p.cmd = cmd
+
+	r.log.Info().RawJSON("config", runtimeJSON).Msgf("computed runtime config")
 
 	// Proxy stdout and stderr to the given app logger, if any.
 	if l := params.Logger; l != nil {

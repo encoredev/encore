@@ -11,3 +11,18 @@ import (
 )
 
 var Moo = sqldb.Named("moo")
+
+-- want: errors --
+
+── Error ──────────────────────────────────────────────────────────────────────────────────[E9999]──
+
+internal compiler error: unknown resource (path "SQLDatabase:moo")
+
+    ╭─[ pkg/pkg.go:9:5 ]
+    │
+  7 │ )
+  8 │
+  9 │ var Moo = sqldb.Named("moo")
+    ⋮     ────────────────────────
+ 10 │
+────╯

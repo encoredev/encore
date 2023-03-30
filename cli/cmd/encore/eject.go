@@ -75,6 +75,7 @@ func dockerEject(p ejectParams) {
 		CgoEnabled: p.CgoEnabled,
 		Goos:       p.Goos,
 		Goarch:     p.Goarch,
+		Environ:    os.Environ(),
 		Format: &daemonpb.ExportRequest_Docker{
 			Docker: params,
 		},

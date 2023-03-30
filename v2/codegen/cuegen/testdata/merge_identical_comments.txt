@@ -1,0 +1,69 @@
+-- svc/a.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+	"encore.dev/types/uuid"
+)
+
+type AsConfig struct {
+    // Multiline test
+    // comment to deduplicate.
+    Foo config.String
+}
+
+var _ = config.Load[*AsConfig]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}
+
+-- svc/b.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type BsConfig struct{
+    Foo config.String // Some extra comment
+}
+
+var _ = config.Load[BsConfig]()
+
+-- svc/c.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type CsConfig struct{
+    // Multiline test
+    // comment to deduplicate.
+    Foo config.String
+}
+
+var _ = config.Load[CsConfig]()
+
+-- svc/d.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type DsConfig struct{
+    Foo config.String // Some extra comment
+}
+
+var _ = config.Load[DsConfig]()

@@ -1,0 +1,29 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+    "time"
+
+	"encore.dev/config"
+	"encore.dev/types/uuid"
+)
+
+type ServerOption struct {
+    Option   int64
+    Disabled bool `json:",omitempty"` // True if this is disabled
+}
+
+type Config struct {
+    HTTP    ServerOption
+    Another ServerOption `json:"a_n_o_t_h_e_r"`
+    TCP     ServerOption `json:",omitempty"`
+    GRPC    ServerOption `json:",omitempty"`
+}
+
+var _ = config.Load[*Config]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}

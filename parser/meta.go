@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"encr.dev/parser/est"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errinsrc/srcerrors"
@@ -137,8 +139,20 @@ func parsePubsubTopic(topic *est.PubSubTopic, selectors *est.SelectorLookup) *me
 				panic("impossible publish without a service or middleware reference")
 			}
 		}
+
+		// Sort the publishers
+		slices.SortFunc(rtn, func(a, b *meta.PubSubTopic_Publisher) bool {
+			return a.ServiceName < b.ServiceName
+		})
+
+		// Remove duplicates
+		rtn = slices.CompactFunc(rtn, func(a, b *meta.PubSubTopic_Publisher) bool {
+			return a.ServiceName == b.ServiceName
+		})
+
 		return rtn
 	}
+
 	parseSubscribers := func(subs ...*est.PubSubSubscriber) (rtn []*meta.PubSubTopic_Subscription) {
 		for _, s := range subs {
 			rtn = append(rtn, &meta.PubSubTopic_Subscription{
@@ -351,7 +365,7 @@ func parseMigrations(appRoot, relPath string) ([]*meta.DBMigration, error) {
 func parseAuthHandler(h *est.AuthHandler) *meta.AuthHandler {
 	pb := &meta.AuthHandler{
 		Name:    h.Name,
-		Doc:     h.Name,
+		Doc:     h.Doc,
 		PkgPath: h.Svc.Root.ImportPath,
 		PkgName: h.Svc.Root.Name,
 		Loc:     parseLoc(h.File, h.Func),

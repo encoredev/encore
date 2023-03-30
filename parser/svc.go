@@ -223,7 +223,7 @@ func (p *parser) parseFuncs(pkg *est.Package, svc *est.Service) (isService bool)
 				}
 				if !mw.Global {
 					mw.Svc = svc
-					mw.SvcStruct = p.resolveServiceStruct("middleware receiver", svc, fd, f)
+					mw.SvcStruct = p.resolveServiceStruct("middleware receiver", svc, fd)
 					svc.Middleware = append(svc.Middleware, mw)
 				}
 				p.middleware = append(p.middleware, mw)
@@ -389,7 +389,7 @@ func (p *parser) initServiceStruct(ss *est.ServiceStruct) {
 
 // resolveServiceStruct resolves the service struct a receiver type refers to.
 // It returns nil, nil if the func declaration has no receiver.
-func (p *parser) resolveServiceStruct(parameterType string, svc *est.Service, fd *ast.FuncDecl, file *est.File) *est.ServiceStruct {
+func (p *parser) resolveServiceStruct(parameterType string, svc *est.Service, fd *ast.FuncDecl) *est.ServiceStruct {
 	recv := fd.Recv
 	if recv == nil {
 		return nil
@@ -428,7 +428,7 @@ func (p *parser) addToServiceStruct(rpc *est.RPC) {
 		return
 	}
 
-	if ss := p.resolveServiceStruct("api receiver", rpc.Svc, rpc.Func, rpc.File); ss != nil {
+	if ss := p.resolveServiceStruct("api receiver", rpc.Svc, rpc.Func); ss != nil {
 		ss.RPCs = append(ss.RPCs, rpc)
 		rpc.SvcStruct = ss
 	}
@@ -601,7 +601,7 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 
 	case *schema.Type_Builtin:
 		if typ.Builtin != schema.Builtin_STRING {
-			p.errf(authInfo.Type.Pos(), "second parameter must be of type string or a named type")
+			p.errf(authInfo.Type.Pos(), "second parameter must be of type string, or a pointer to a named struct")
 		}
 	}
 	h.Params = paramType
@@ -634,8 +634,7 @@ func (p *parser) parseAuthHandler(h *est.AuthHandler) {
 		return
 	}
 
-	h.SvcStruct = p.resolveServiceStruct("auth handler receiver",
-		h.Svc, h.Func, h.File)
+	h.SvcStruct = p.resolveServiceStruct("auth handler receiver", h.Svc, h.Func)
 }
 
 func (p *parser) resolveParameter(parameterType string, pkg *est.Package, file *est.File, expr ast.Expr, derefPointers bool) *est.Param {

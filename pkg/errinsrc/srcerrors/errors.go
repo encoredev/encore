@@ -5,7 +5,10 @@ import (
 	"go/ast"
 	"go/scanner"
 	"go/token"
+	"strconv"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 
 	"encr.dev/pkg/errinsrc"
 	. "encr.dev/pkg/errinsrc/internal"
@@ -40,12 +43,50 @@ func UnhandledPanic(recovered any) error {
 // It should not be returned by any errors caused by Encore's own parser as they
 // should have specific errors listed below
 func GenericGoParserError(err *scanner.Error) *errinsrc.ErrInSrc {
+	locs := SrcLocations{}
+	if pos := FromGoTokenPositions(err.Pos, err.Pos); pos != nil {
+		locs = SrcLocations{pos}
+	}
+
 	return errinsrc.New(ErrParams{
 		Code:      2,
 		Title:     "Parse Error in Go Source",
 		Summary:   err.Msg,
 		Cause:     err,
-		Locations: SrcLocations{FromGoTokenPositions(err.Pos, err.Pos)},
+		Locations: locs,
+	}, false)
+}
+
+// GenericGoPackageError reports an error was that was reported from the Go package loader.
+// It should not be returned by any errors caused by Encore's own parser as they
+// should have specific errors listed below
+func GenericGoPackageError(err packages.Error) *errinsrc.ErrInSrc {
+	var locations SrcLocations
+
+	// Extract the position from the error
+	var pos token.Position
+	switch p := strings.SplitN(err.Pos, ":", 3); len(p) {
+	case 3:
+		pos.Column, _ = strconv.Atoi(p[2])
+		fallthrough
+	case 2:
+		pos.Line, _ = strconv.Atoi(p[1])
+		fallthrough
+	case 1:
+		if p[0] != "" && p[0] != "-" {
+			pos.Filename = p[0]
+		}
+	}
+	if pos.Filename != "" && pos.Line > 0 {
+		locations = SrcLocations{FromGoTokenPositions(pos, pos)}
+	}
+
+	return errinsrc.New(ErrParams{
+		Code:      3,
+		Title:     "Go Package Error",
+		Summary:   err.Msg,
+		Cause:     err,
+		Locations: locations,
 	}, false)
 }
 
@@ -65,6 +106,28 @@ func GenericGoCompilerError(fileName string, lineNumber int, column int, error s
 		Title:     "Go Compilation Error",
 		Summary:   strings.TrimSpace(error),
 		Locations: SrcLocations{FromGoTokenPositions(errLocation, errLocation)},
+	}, false)
+}
+
+// StandardLibraryError is an error that is not caused by Encore, but is
+// returned by a standard library function. We wrap it in an ErrInSrc so that
+// we can still possibly provide a source location.
+func StandardLibraryError(err error) *errinsrc.ErrInSrc {
+	return errinsrc.New(ErrParams{
+		Code:    3,
+		Title:   "Error",
+		Summary: err.Error(),
+		Cause:   err,
+	}, true)
+}
+
+// GenericError is a place holder for errors reported through perr.Add or perr.Addf
+func GenericError(pos token.Position, msg string) *errinsrc.ErrInSrc {
+	return errinsrc.New(ErrParams{
+		Code:      3,
+		Title:     "Error",
+		Summary:   msg,
+		Locations: SrcLocations{FromGoTokenPositions(pos, pos)},
 	}, false)
 }
 
@@ -583,5 +646,71 @@ func MetricReferencedInOtherService(fileset *token.FileSet, reference ast.Node, 
 		Summary:   "A metric defined within a service can only be referenced from within that same service.",
 		Detail:    metricsHelp,
 		Locations: SrcLocations{refLoc, definedLoc},
+	}, false)
+}
+
+func NoServicesFound() error {
+	return errinsrc.New(ErrParams{
+		Code:    43,
+		Title:   "No services found",
+		Summary: "No services were found in the application.",
+		Detail:  serviceHelp,
+	}, false)
+}
+
+func ServiceContainedWithinAnotherService(outerName string, innerName string) error {
+	return errinsrc.New(ErrParams{
+		Code:  44,
+		Title: "Service contained within another service",
+		Summary: fmt.Sprintf(
+			"The service %s was found within the service %s. Encore does not allow services to be nested",
+			innerName, outerName,
+		),
+		Detail: serviceHelp,
+	}, false)
+}
+
+func ServicesWithSameName(name string, firstLocation string, secondLocation string) error {
+	return errinsrc.New(ErrParams{
+		Code:  45,
+		Title: "Duplicate service name",
+		Summary: fmt.Sprintf(
+			"Two services were found with the same name \"%s\", services must have unique names. The services where found:\n\t%s\n\t%s",
+			name,
+			firstLocation,
+			secondLocation,
+		),
+		Detail: serviceHelp,
+	}, false)
+}
+
+func MultipleServiceStructsFound(fileset *token.FileSet, serviceName string, initialNode ast.Node, secondNode ast.Node) *errinsrc.ErrInSrc {
+	return errinsrc.New(ErrParams{
+		Code:  46,
+		Title: "Multiple service structs found",
+		Summary: fmt.Sprintf(
+			"Multiple service structs were found in service \"%s\". Encore only allows one service struct to be defined per service.",
+			serviceName,
+		),
+		Detail: serviceHelp,
+		Locations: SrcLocations{
+			FromGoASTNodeWithTypeAndText(fileset, initialNode, LocError, "first service struct found here"),
+			FromGoASTNodeWithTypeAndText(fileset, secondNode, LocError, "second service struct found here"),
+		},
+	}, false)
+}
+
+func MultipleAuthHandlersFound(fileset *token.FileSet, initialNode ast.Node, secondNode ast.Node) *errinsrc.ErrInSrc {
+	return errinsrc.New(ErrParams{
+		Code:  47,
+		Title: "Multiple auth handlers found",
+		Summary: fmt.Sprintf(
+			"Multiple auth handlers were found in the application. Encore only allows one auth handler to be defined per application.",
+		),
+		Detail: authHelp,
+		Locations: SrcLocations{
+			FromGoASTNodeWithTypeAndText(fileset, initialNode, LocError, "first auth handler found here"),
+			FromGoASTNodeWithTypeAndText(fileset, secondNode, LocError, "second auth handler found here"),
+		},
 	}, false)
 }

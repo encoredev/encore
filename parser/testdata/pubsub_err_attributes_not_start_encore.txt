@@ -14,3 +14,25 @@ type MessageType struct {
 }
 
 var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+
+-- want: errors --
+
+── Invalid attribute prefix ───────────────────────────────────────────────────────────────[E9999]──
+
+PubSub message attributes must not be prefixed with "encore".
+
+    ╭─[ shared/topics.go:8:17 ]
+    │
+  6 │
+  7 │ type MessageType struct {
+  8 │     Name string `pubsub-attr:"encorename"`
+    ⋮                 ──────────────────────────
+  9 │ }
+ 10 │
+ 11 │ var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+    ⋮                                  ─────┬──────
+    ⋮                                       ╰─ used as a message type in this topic
+ 12 │
+────╯
+
+For more information on PubSub, see https://encore.dev/docs/primitives/pubsub

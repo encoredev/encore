@@ -1,0 +1,59 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+	"encore.dev/types/uuid"
+
+	"encore.app/svc/utils"
+	"encore.app/svc/helpers"
+)
+
+type Config struct {
+    A helpers.ExtraConfig
+    B utils.ExtraConfig
+    C helpers.ExtraConfig
+    D utils.ExtraConfig
+    E helpers.SingleUse
+}
+
+var _ = config.Load[*Config]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}
+
+-- svc/utils/config.go --
+package utils
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type ExtraConfig struct{
+    Foo config.String
+    Bar config.Int
+}
+
+-- svc/helpers/config.go --
+package helpers
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type ExtraConfig struct{
+    Foo config.String
+    Baz config.Value[[]byte]
+}
+
+type SingleUse struct {
+    Lock bool
+}

@@ -1,20 +1,14 @@
 package app
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -29,6 +23,7 @@ import (
 	"encr.dev/cli/internal/platform"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
+	"encr.dev/pkg/github"
 )
 
 var createAppTemplate string
@@ -79,7 +74,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	}
 
 	// Parse template information, if provided.
-	var ex *repoInfo
+	var ex *github.Tree
 	if template != "" {
 		var err error
 		ex, err = parseTemplate(ctx, template)
@@ -100,17 +95,17 @@ func createApp(ctx context.Context, name, template string) (err error) {
 
 	if ex != nil {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Prefix = fmt.Sprintf("Downloading template %s ", ex.Name)
+		s.Prefix = fmt.Sprintf("Downloading template %s ", ex.Name())
 		s.Start()
-		err := downloadAndExtractTemplate(ctx, name, *ex)
+		err := github.ExtractTree(ctx, ex, name)
 		s.Stop()
 		fmt.Println()
 
 		if err != nil {
-			return fmt.Errorf("failed to download template %s: %v", ex.Name, err)
+			return fmt.Errorf("failed to download template %s: %v", ex.Name(), err)
 		}
 		gray := color.New(color.Faint)
-		gray.Printf("Downloaded template %s.\n", ex.Name)
+		gray.Printf("Downloaded template %s.\n", ex.Name())
 	} else {
 		// Set up files that we need when we don't have an example
 		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
@@ -263,159 +258,13 @@ func createAppOnServer(name string, cfg exampleConfig) (*platform.App, error) {
 	return platform.CreateApp(ctx, params)
 }
 
-type repoInfo struct {
-	Owner  string
-	Repo   string
-	Branch string
-	Path   string // subdirectory to copy ("." for whole project)
-	Name   string // example name
-}
-
-func parseTemplate(ctx context.Context, tmpl string) (*repoInfo, error) {
-	switch {
-	case strings.HasPrefix(tmpl, "http"):
-		// Already an URL; do nothing
-	case strings.HasPrefix(tmpl, "github.com"):
-		// Assume a URL without the scheme
-		tmpl = "https://" + tmpl
-	default:
-		// Simple template name
+func parseTemplate(ctx context.Context, tmpl string) (*github.Tree, error) {
+	// If the template does not contain a colon or a dot, it's definitely
+	// not a github.com URL. Assume it's a simple template name.
+	if !strings.Contains(tmpl, ":") && !strings.Contains(tmpl, ".") {
 		tmpl = "https://github.com/encoredev/examples/tree/main/" + tmpl
 	}
-
-	u, err := url.Parse(tmpl)
-	if err != nil {
-		return nil, fmt.Errorf("invalid template: %v", err)
-	}
-	if u.Host != "github.com" {
-		return nil, fmt.Errorf("template must be hosted on GitHub, not %s", u.Host)
-	}
-	// Path must be one of:
-	// "/owner/repo"
-	// "/owner/repo/tree/<branch>"
-	// "/owner/repo/tree/<branch>/path"
-	parts := strings.SplitN(u.Path, "/", 6)
-	switch {
-	case len(parts) == 3: // "/owner/repo"
-		owner, repo := parts[1], parts[2]
-		// Check the default branch
-		var resp struct {
-			DefaultBranch string `json:"default_branch"`
-		}
-		url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-		if err != nil {
-			return nil, err
-		} else if err := slurpJSON(req, &resp); err != nil {
-			return nil, err
-		}
-		return &repoInfo{
-			Owner:  owner,
-			Repo:   repo,
-			Branch: resp.DefaultBranch,
-			Path:   ".",
-			Name:   repo,
-		}, nil
-	case len(parts) >= 5: // "/owner/repo"
-		owner, repo, t, branch := parts[1], parts[2], parts[3], parts[4]
-		p := "."
-		name := repo
-		if len(parts) == 6 {
-			p = parts[5]
-			name = path.Base(p)
-		}
-		if t != "tree" {
-			return nil, fmt.Errorf("unsupported template url: %s", tmpl)
-		}
-		return &repoInfo{
-			Owner:  owner,
-			Repo:   repo,
-			Branch: branch,
-			Path:   p,
-			Name:   name,
-		}, nil
-	default:
-		return nil, fmt.Errorf("unsupported template url: %s", tmpl)
-	}
-}
-
-func downloadAndExtractTemplate(ctx context.Context, dst string, info repoInfo) error {
-	url := fmt.Sprintf("https://codeload.github.com/%s/%s/tar.gz/%s", info.Owner, info.Repo, info.Branch)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("GET %s: got non-200 response: %s", url, resp.Status)
-	}
-	gz, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return fmt.Errorf("could not read gzip response: %v", err)
-	}
-	defer gz.Close()
-	tr := tar.NewReader(gz)
-
-	prefix := path.Join(info.Repo+"-"+info.Branch, info.Path)
-	prefix += "/"
-	files := 0
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			if files == 0 {
-				return fmt.Errorf("could not find template")
-			}
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("reading repo data: %v", err)
-		}
-		if hdr.FileInfo().IsDir() {
-			continue
-		}
-		if p := path.Clean(hdr.Name); strings.HasPrefix(p, prefix) {
-			files++
-			p = p[len(prefix):]
-			filePath := filepath.Join(dst, filepath.FromSlash(p))
-			if err := createFile(tr, filePath); err != nil {
-				return fmt.Errorf("create %s: %v", p, err)
-			}
-		}
-	}
-}
-
-func createFile(src io.Reader, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(f, src)
-	if err2 := f.Close(); err == nil {
-		err = err2
-	}
-	return err
-}
-
-func slurpJSON(req *http.Request, respData interface{}) error {
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("got non-200 response: %s: %s", resp.Status, body)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(respData); err != nil {
-		return fmt.Errorf("could not decode response: %v", err)
-	}
-	return nil
+	return github.ParseTree(ctx, tmpl)
 }
 
 // initGitRepo initializes the git repo.

@@ -36,3 +36,34 @@ func init() {
         // do something
     }
 }
+
+-- want: errors --
+
+── Cross service config use ───────────────────────────────────────────────────────────────[E9999]──
+
+A config instance can only be referenced from within the service that the call to
+`config.Load[T]()` was made in.
+
+    ╭─[ libraries/foo/foo.go:8:8 ]
+    │
+  6 │
+  7 │ func init() {
+  8 │     if svc.Cfg.FooEnabled {
+    ⋮        ────────┬─────────
+    ⋮                ╰─ used here
+  9 │         // do something
+ 10 │     }
+────╯
+
+    ╭─[ svc/svc.go:13:11 ]
+    │
+ 11 │ }
+ 12 │
+ 13 │ var Cfg = config.Load[Config]()
+    ⋮           ──────────┬──────────
+    ⋮                     ╰─ defined here
+ 14 │
+ 15 │
+────╯
+
+For more information on configuration, see https://encore.dev/docs/develop/config

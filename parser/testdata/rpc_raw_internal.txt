@@ -10,3 +10,29 @@ import "net/http"
 
 //encore:api raw
 func API(w http.ResponseWriter, req *http.Request) { }
+
+-- want: errors --
+
+── Invalid API Directive ──────────────────────────────────────────────────────────────────[E9999]──
+
+Private APIs cannot be declared as raw endpoints.
+
+   ╭─[ svc/svc.go:5:14 ]
+   │
+ 3 │ import "net/http"
+ 4 │
+ 5 │ //encore:api raw
+   ⋮              ─┬─
+   ⋮               ╰─ declared as raw here
+ 6 │ func API(w http.ResponseWriter, req *http.Request) { }
+ 7 │
+───╯
+
+hint: valid signatures are:
+	- func(context.Context) error
+	- func(context.Context) (*ResponseData, error)
+	- func(context.Context, *RequestData) error
+	- func(context.Context, *RequestType) (*ResponseData, error)
+
+For more information on how to use APIs, see
+https://encore.dev/docs/primitives/services-and-apis#defining-apis

@@ -26,3 +26,29 @@ var Cfg = config.Load[Config]()
 func Subscriber1(ctx context.Context) error {
     return nil
 }
+
+-- want: errors --
+
+── Invalid config type ────────────────────────────────────────────────────────────────────[E9999]──
+
+Field is not exported and is in a datatype which is used by a call to `config.Load[T]()`.
+Unexported fields cannot be initialised by Encore, thus are not allowed in this context.
+
+    ╭─[ svc/svc.go:10:5 ]
+    │
+  8 │
+  9 │ type SubType struct {
+ 10 │     subField string
+    ⋮     ───────────────
+    ·
+    ·
+ 16 │ }
+ 17 │
+ 18 │ var Cfg = config.Load[Config]()
+    ⋮           ──────────┬──────────
+    ⋮                     ╰─ config loaded here
+ 19 │
+ 20 │
+────╯
+
+For more information on configuration, see https://encore.dev/docs/develop/config

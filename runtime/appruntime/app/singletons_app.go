@@ -5,6 +5,7 @@ package app
 import (
 	encore "encore.dev"
 	"encore.dev/appruntime/api"
+	"encore.dev/appruntime/secrets"
 	"encore.dev/appruntime/service"
 	"encore.dev/appruntime/testsupport"
 	"encore.dev/beta/auth"
@@ -22,6 +23,7 @@ func initSingletonsForEncoreApp(a *App) {
 	service.Singleton = a.service
 	testsupport.Singleton = a.ts
 	encore.Singleton = a.encore
+	secrets.Singleton = a.secrets
 	auth.Singleton = a.auth
 	rlog.Singleton = a.rlog
 	sqldb.Singleton = a.sqldb
