@@ -81,6 +81,23 @@ var _ = pubsub.NewSubscription[Msg](T, "sub", pubsub.SubscriptionConfig[Msg]{
 			wantServices: []string{"svc1"},
 		},
 		{
+			name: "services defined by auth handler",
+			txtar: `
+-- svc1/foo.go --
+package svc1
+
+import (
+ 	"context"
+
+	"encore.dev/beta/auth"
+)
+
+//encore:authhandler
+func MyAuthHandler(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+`,
+			wantServices: []string{"svc1"},
+		},
+		{
 			name: "services with nested packages with API's and pubsub subscriptions",
 			txtar: `
 -- svc1/foo.go --

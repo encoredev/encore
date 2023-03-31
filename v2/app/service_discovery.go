@@ -49,6 +49,8 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 			sd.possibleServiceRoot(r.Package(), false)
 		case resource.PubSubSubscription:
 			sd.possibleServiceRoot(r.Package(), false)
+		case resource.AuthHandler:
+			sd.possibleServiceRoot(r.Package(), false)
 		}
 	}
 
