@@ -33,8 +33,9 @@ func Describe(ctx context.Context, dir string) (desc *app.Desc, err error) {
 		Ctx: ctx,
 		Log: zerolog.Logger{},
 		Build: parsectx.BuildInfo{
-			GOARCH: runtime.GOARCH,
-			GOOS:   runtime.GOOS,
+			Experiments: nil,
+			GOARCH:      runtime.GOARCH,
+			GOOS:        runtime.GOOS,
 		},
 		MainModuleDir: paths.RootedFSPath(dir, "."),
 		FS:            fs,
