@@ -17,17 +17,15 @@ import (
 
 // Gen generates the encore.gen.go file containing user-facing
 // generated code. If nothing needs to be generated it returns nil.
-func Gen(gen *codegen.Generator, svc *app.Service, svcStruct option.Option[*codegen.VarDecl], withImpl bool) option.Option[*codegen.File] {
-	if svcStruct, ok := svcStruct.Get(); ok {
-		if fw, ok := svc.Framework.Get(); ok {
-			f := genUserFacing(gen, fw, svcStruct, withImpl)
-			return option.Some(f)
-		}
+func Gen(gen *codegen.Generator, svc *app.Service, withSvcStructImpl option.Option[*codegen.VarDecl]) option.Option[*codegen.File] {
+	if fw, ok := svc.Framework.Get(); ok {
+		f := genUserFacing(gen, fw, withSvcStructImpl)
+		return option.Some(f)
 	}
 	return option.None[*codegen.File]()
 }
 
-func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, svcStruct *codegen.VarDecl, withImpl bool) *codegen.File {
+func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, withImpl option.Option[*codegen.VarDecl]) *codegen.File {
 	f := gen.InjectFile(svc.RootPkg.ImportPath, svc.RootPkg.Name, svc.RootPkg.FSPath,
 		"encore.gen.go", "encoregen")
 
@@ -42,14 +40,14 @@ func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, svcStr
 		if ep.Recv.Empty() {
 			continue
 		}
-		genEndpoint(gen.Util, f, ep, svcStruct, withImpl)
+		genEndpoint(gen.Util, f, ep, withImpl)
 		f.Jen.Line()
 	}
 
 	return f
 }
 
-func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, svcStruct *codegen.VarDecl, withImpl bool) {
+func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, withImpl option.Option[*codegen.VarDecl]) {
 	if ep.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(ep.Doc), "\n") {
 			f.Jen.Comment(line)
@@ -91,7 +89,7 @@ func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, svcStruc
 			g.Id(paramName).Add(gu.Type(req))
 		}
 	}).Do(func(s *Statement) {
-		if withImpl {
+		if withImpl.Present() {
 			if ep.Raw {
 				s.Params(Op("*").Qual("net/http", "Response"), Error())
 			} else if resp := ep.Response; resp != nil {
@@ -109,7 +107,7 @@ func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, svcStruc
 			}
 		}
 	}).BlockFunc(func(g *Group) {
-		if withImpl {
+		if svcStruct, ok := withImpl.Get(); ok {
 			if ep.Raw {
 				g.Return(Nil(), Qual("errors", "New").Call(Lit("encore: calling raw endpoints is not yet supported")))
 			} else {

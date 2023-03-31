@@ -75,7 +75,7 @@ func Process(p Params) {
 			maps.Copy(gp.APIHandlers, eps)
 
 			// Generate user-facing code with the implementation in place.
-			userfacinggen.Gen(p.Gen, svc, svcStruct, true)
+			userfacinggen.Gen(p.Gen, svc, svcStruct)
 		}
 
 		gp.AuthHandler = option.Map(fw.AuthHandler, func(ah *authhandler.AuthHandler) *codegen.VarDecl {

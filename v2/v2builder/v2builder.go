@@ -24,11 +24,9 @@ import (
 	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vfs"
 	"encr.dev/v2/app"
-	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen"
-	"encr.dev/v2/codegen/apigen/servicestructgen"
 	"encr.dev/v2/codegen/apigen/userfacinggen"
 	"encr.dev/v2/codegen/cuegen"
 	"encr.dev/v2/codegen/infragen"
@@ -37,7 +35,6 @@ import (
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser"
-	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/resource"
 )
 
@@ -340,13 +337,9 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 			// Generate the user-facing Go code.
 			{
 				// Service structs are not needed if there is no implementation to be generated
-				svcStruct := option.FlatMap(svc.Framework, func(fw *apiframework.ServiceDesc) option.Option[*codegen.VarDecl] {
-					return option.Map(fw.ServiceStruct, func(ss *servicestruct.ServiceStruct) *codegen.VarDecl {
-						return servicestructgen.Gen(gg, svc, ss)
-					})
-				})
+				svcStruct := option.None[*codegen.VarDecl]()
 
-				if f, ok := userfacinggen.Gen(gg, svc, svcStruct, false).Get(); ok {
+				if f, ok := userfacinggen.Gen(gg, svc, svcStruct).Get(); ok {
 					buf.Reset()
 					if err := f.Render(&buf); err != nil {
 						errs.Addf(token.NoPos, "unable to render userfacing go code: %v", err)
