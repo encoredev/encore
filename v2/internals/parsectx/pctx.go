@@ -11,6 +11,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
+	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
@@ -50,6 +51,9 @@ type BuildInfo struct {
 
 	BuildTags  []string // additional build tags to set
 	CgoEnabled bool
+
+	// Experiments are the enabled experiments.
+	Experiments *experiments.Set
 
 	// StaticLink enables static linking of C libraries.
 	StaticLink bool

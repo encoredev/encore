@@ -59,6 +59,7 @@ func (b *builder) Build() *meta.Data {
 		ModulePath:         string(b.app.MainModule.Path),
 		AppRevision:        b.app.BuildInfo.Revision,
 		UncommittedChanges: b.app.BuildInfo.UncommittedChanges,
+		Experiments:        b.app.BuildInfo.Experiments.StringList(),
 	}
 	md := b.md
 
@@ -110,7 +111,10 @@ func (b *builder) Build() *meta.Data {
 			})
 
 			// Do we have a database associated with the service?
-			for res := range svc.ResourceUsage {
+			// Note: we use the binds because it's possible to have an
+			// implicit bind that's not actually used. This is to ensure
+			// compatibility with the v1 parser.
+			for res := range svc.ResourceBinds {
 				switch res := res.(type) {
 				case *sqldb.Database:
 					out.Databases = append(out.Databases, res.Name)

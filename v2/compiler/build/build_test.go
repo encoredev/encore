@@ -97,9 +97,10 @@ func build(workdir string, pkgPath paths.Pkg, overlays []overlay.File) *Result {
 		Ctx: ctx,
 		Log: zerolog.New(zerolog.NewConsoleWriter()).Level(zerolog.InfoLevel),
 		Build: parsectx.BuildInfo{
-			GOARCH: runtime.GOARCH,
-			GOOS:   runtime.GOOS,
-			GOROOT: paths.RootedFSPath(runtime.GOROOT(), "."),
+			Experiments: nil,
+			GOARCH:      runtime.GOARCH,
+			GOOS:        runtime.GOOS,
+			GOROOT:      paths.RootedFSPath(runtime.GOROOT(), "."),
 			// HACK(andre): Make this nicer
 			EncoreRuntime: wd.Join("encore-runtime"),
 			BuildTags:     nil,
