@@ -144,7 +144,8 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 			for _, field := range expr.Fields.List {
 				typ := r.parseType(file, field.Type)
 				if len(field.Names) == 0 {
-					r.errs.AddPos(field.Pos(), "cannot use anonymous fields in Encore struct types")
+					//r.errs.AddPos(field.Pos(), "cannot use anonymous fields in Encore struct types")
+					continue
 				}
 
 				// Parse the struct tags, if any.
