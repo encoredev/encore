@@ -79,9 +79,10 @@ func (l Legacy) Compile(ctx context.Context, p builder.CompileParams) (*builder.
 	}
 
 	return &builder.CompileResult{
-		Dir:     build.Dir,
-		Exe:     build.Exe,
-		Configs: build.Configs,
+		Dir:         build.Dir,
+		Exe:         build.Exe,
+		Configs:     build.Configs,
+		ConfigFiles: build.ConfigFiles,
 	}, nil
 }
 
