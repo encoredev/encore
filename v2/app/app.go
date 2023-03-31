@@ -1,8 +1,6 @@
 package app
 
 import (
-	"sort"
-
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/apiframework"
@@ -96,22 +94,10 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 
 // ServiceForPath returns the service a given folder path belongs to, if any.
 func (d *Desc) ServiceForPath(path paths.FS) (*Service, bool) {
-	idx := sort.Search(len(d.Services), func(i int) bool {
-		return d.Services[i].FSRoot.ToIO() > path.ToIO()
-	})
-
-	// Is the path contained within the service at idx?
-	if idx < len(d.Services) && path.HasPrefix(d.Services[idx].FSRoot) {
-		return d.Services[idx], true
-	}
-
-	// Is this path contained within the preceding service?
-	if idx > 0 {
-		prev := d.Services[idx-1]
-		if path.HasPrefix(prev.FSRoot) {
-			return prev, true
+	for _, svc := range d.Services {
+		if path.HasPrefix(svc.FSRoot) {
+			return svc, true
 		}
 	}
-
 	return nil, false
 }
