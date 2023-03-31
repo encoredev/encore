@@ -28,6 +28,11 @@ func main() {
 	v1Builder := builderimpl.Legacy{}
 	v2Builder := v2builder.BuilderImpl{}
 
+	expSet, err := app.Experiments(os.Environ())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	vcsRevision := vcs.GetRevision(app.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,
@@ -44,7 +49,7 @@ func main() {
 	parseParams := builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,
-		Experiments: nil,
+		Experiments: expSet,
 		WorkingDir:  ".",
 		ParseTests:  false,
 	}

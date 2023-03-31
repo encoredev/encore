@@ -53,6 +53,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 			Ctx: ctx,
 			Log: p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
 			Build: parsectx.BuildInfo{
+				Experiments: p.Experiments,
 				// We use GetOrElseF here because GoRoot / Runtime path will panic
 				// if they are not set, but we don't want to panic if the option
 				// is set.

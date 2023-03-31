@@ -4,7 +4,10 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+
+	"encr.dev/pkg/fns"
 )
 
 const envName = "ENCORE_EXPERIMENT"
@@ -53,12 +56,17 @@ type Set struct {
 }
 
 func (s *Set) List() []Name {
-	var ret []Name
-	for k := range s.experiments {
-		ret = append(ret, k)
+	if s == nil {
+		return nil
 	}
-	slices.Sort(ret)
-	return ret
+	names := maps.Keys(s.experiments)
+	slices.Sort(names)
+	return names
+}
+
+func (s *Set) StringList() []string {
+	names := s.List()
+	return fns.Map(names, func(n Name) string { return string(n) })
 }
 
 // NewSet creates an experiment set which represents the enabled experiments

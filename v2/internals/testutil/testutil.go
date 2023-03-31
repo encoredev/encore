@@ -104,6 +104,7 @@ func newContextForFSPath(c *qt.C, mainModuleDir string, parseTests bool) *Contex
 
 	d := &build.Default
 	info := parsectx.BuildInfo{
+		Experiments:   nil,
 		GOARCH:        d.GOARCH,
 		GOOS:          d.GOOS,
 		GOROOT:        paths.RootedFSPath(d.GOROOT, "."),
