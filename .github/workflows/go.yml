@@ -23,9 +23,9 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version-file: 'go.mod'
+        go-version-file: 'encr.dev/go.mod'
         check-latest: true
-        cache-dependency-path: 'go.sum'
+        cache-dependency-path: 'encr.dev/go.sum'
 
     - name: Install encore-go
       run: |
