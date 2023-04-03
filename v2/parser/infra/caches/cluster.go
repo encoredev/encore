@@ -8,7 +8,6 @@ import (
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	literals "encr.dev/v2/parser/infra/internal/literals"
-	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
@@ -37,7 +36,6 @@ var ClusterParser = &resourceparser.Parser{
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/storage/cache", Name: "NewCluster"}
 
 		spec := &parseutil.ReferenceSpec{
-			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 0,
 			MaxTypeArgs: 0,
 			Parse:       parseCluster,

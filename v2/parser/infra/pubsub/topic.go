@@ -13,7 +13,6 @@ import (
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	literals "encr.dev/v2/parser/infra/internal/literals"
-	"encr.dev/v2/parser/infra/internal/locations"
 	parseutil "encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
@@ -51,7 +50,6 @@ var TopicParser = &resourceparser.Parser{
 		name := pkginfo.QualifiedName{Name: "NewTopic", PkgPath: "encore.dev/pubsub"}
 
 		spec := &parseutil.ReferenceSpec{
-			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 1,
 			MaxTypeArgs: 1,
 			Parse:       parsePubSubTopic,
