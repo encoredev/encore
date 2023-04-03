@@ -53,7 +53,7 @@ jobs:
     - name: Set up Zig
       uses: goto-bus-stop/setup-zig@v1
       with:
-        version: 0.9.1
+        version: 0.10.1
 
     - name: Install encore-go
       run: curl --fail -o encore-go.tar.gz -L https://github.com/encoredev/go/releases/download/${{ github.event.inputs.encorego_version }}/${{ matrix.release_key }}.tar.gz && tar -C ${{ github.workspace }} -xzf ./encore-go.tar.gz
