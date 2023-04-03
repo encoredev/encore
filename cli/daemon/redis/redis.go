@@ -81,12 +81,18 @@ func (s *Server) doCleanup() {
 // down to 100 persisted keys, as a simple way to bound
 // the max memory usage.
 func (s *Server) clearKeys() {
+	const max = 100
 	keys := s.mini.Keys()
-	for len(keys) > 100 {
-		id := rand.Intn(len(keys))
-		if keys[id] != "" {
-			s.mini.Del(keys[id])
-			keys[id] = "" // mark it as deleted
+	if n := len(keys); n > max {
+		toDelete := n - max
+		deleted := 0
+		for deleted < toDelete {
+			id := rand.Intn(len(keys))
+			if keys[id] != "" {
+				s.mini.Del(keys[id])
+				keys[id] = "" // mark it as deleted
+				deleted++
+			}
 		}
 	}
 }
