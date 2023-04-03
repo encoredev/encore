@@ -16,7 +16,7 @@ var (
 
 	ErrCouldNotResolveCacheCluster = errRange.New(
 		"Invalid Cache Keyspace Construction",
-		`Could not resolve the cache cluster: must refer to a package-level variable.`,
+		`Could not resolve the cache cluster: must refer to a package level variable.`,
 	)
 
 	errPrefixReserved = errRange.New(

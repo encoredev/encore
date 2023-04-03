@@ -10,7 +10,6 @@ import (
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/infra/internal/literals"
-	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
@@ -49,7 +48,6 @@ var SubscriptionParser = &resourceparser.Parser{
 		name := pkginfo.QualifiedName{Name: "NewSubscription", PkgPath: "encore.dev/pubsub"}
 
 		spec := &parseutil.ReferenceSpec{
-			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 0,
 			MaxTypeArgs: 1,
 			Parse:       parsePubSubSubscription,

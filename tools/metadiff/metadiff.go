@@ -84,6 +84,10 @@ func main() {
 		protocmp.IgnoreFields((*schemav1.Named)(nil), "id"),
 		protocmp.IgnoreFields((*schemav1.TypeParameterRef)(nil), "decl_id"),
 		protocmp.IgnoreFields((*metav1.Package)(nil), "trace_nodes"),
+		protocmp.FilterField((*schemav1.Field)(nil), "raw_tag", cmp.Comparer(func(a, b string) bool {
+			// Remove duplicate spaces before comparing.
+			return strings.Join(strings.Fields(a), " ") == strings.Join(strings.Fields(b), " ")
+		})),
 	}
 
 	diff := ansiDiff(v1Parse.Meta, v2Parse.Meta, opts...)

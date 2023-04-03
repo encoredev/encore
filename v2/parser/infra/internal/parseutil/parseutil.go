@@ -3,7 +3,6 @@ package parseutil
 import (
 	"go/ast"
 
-	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 )
@@ -98,35 +97,6 @@ func resolveTypeArgs(node ast.Node) []ast.Expr {
 		return n.Indices
 	}
 	return nil
-}
-
-// resolvedAssignedVar resolves the identifier the resource is being assigned to,
-// as well as the doc comment associated with it.
-// If no identifier can be found it reports None.
-func resolveAssignedVar(stack []ast.Node) option.Option[*ast.Ident] {
-	for i := len(stack) - 1; i >= 0; i-- {
-		vs, ok := stack[i].(*ast.ValueSpec)
-		if !ok {
-			continue
-		}
-
-		// We have found the value spec. Now determine which of the values
-		// that contains the resource we're processing.
-		if (i + 1) >= len(stack) {
-			// We're at the top of the stack already, so there's no
-			// resource here. That should never happen.
-			panic("internal error: resource not found in stack")
-		}
-
-		for n := 0; n < len(vs.Names); n++ {
-			if len(vs.Values) > n && vs.Values[n] == stack[i+1] {
-				// We've found the value that contains the resource.
-				return option.AsOptional(vs.Names[n])
-			}
-		}
-		break
-	}
-	return option.None[*ast.Ident]()
 }
 
 func resolveResourceDoc(stack []ast.Node) (doc string) {
