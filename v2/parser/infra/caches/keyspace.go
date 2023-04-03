@@ -13,7 +13,6 @@ import (
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	literals "encr.dev/v2/parser/infra/internal/literals"
-	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
@@ -64,7 +63,6 @@ var KeyspaceParser = &resourceparser.Parser{
 			}
 
 			spec := &parseutil.ReferenceSpec{
-				AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 				MinTypeArgs: numTypeArgs,
 				MaxTypeArgs: numTypeArgs,
 				Parse:       parseFn,

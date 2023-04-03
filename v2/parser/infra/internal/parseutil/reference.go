@@ -11,7 +11,6 @@ import (
 )
 
 type ReferenceSpec struct {
-	AllowedLocs locations.Filter
 	MinTypeArgs int
 	MaxTypeArgs int
 	Parse       func(ReferenceInfo)
@@ -40,10 +39,6 @@ type ReferenceData struct {
 func ParseReference(p *resourceparser.Pass, spec *ReferenceSpec, data ReferenceData) {
 	selIdx := len(data.Stack) - 1
 	constructor := data.ResourceFunc
-
-	// Verify the structure of the reference.
-
-	ident := resolveAssignedVar(data.Stack)
 
 	// Do we have any type arguments?
 	maybeHasTypeArgs := spec.MaxTypeArgs > 0
@@ -89,10 +84,18 @@ func ParseReference(p *resourceparser.Pass, spec *ReferenceSpec, data ReferenceD
 		return
 	}
 
-	// Classify the location the current node is contained in (meaning stack[:len(stack)-1]).
-	loc := locations.Classify(data.Stack[:callIdx-1])
-	if !spec.AllowedLocs.Allowed(loc) {
-		p.Errs.Add(errCannotBeCalledHere(constructor.NaiveDisplayName(), spec.AllowedLocs.Describe()).AtGoNode(data.Stack[selIdx]))
+	// Classify the location of the current node
+	cls := locations.Classify(data.Stack[:callIdx+1])
+
+	var pkgIdent *ast.Ident
+	switch cls := cls.(type) {
+	case locations.PkgVar:
+		pkgIdent = cls.Ident
+	case locations.OtherPkgExpr:
+		// Allowed; not assigned to a variable
+	default:
+		// Everything else is disallowed
+		p.Errs.Add(errCannotBeCalledHere(constructor.NaiveDisplayName(), "a package level variable").AtGoNode(data.Stack[selIdx]))
 		return
 	}
 
@@ -100,7 +103,7 @@ func ParseReference(p *resourceparser.Pass, spec *ReferenceSpec, data ReferenceD
 		Pass:         p,
 		File:         data.File,
 		Stack:        data.Stack,
-		Ident:        ident,
+		Ident:        option.AsOptional(pkgIdent),
 		Call:         call,
 		TypeArgs:     typeArgs,
 		Doc:          resolveResourceDoc(data.Stack),

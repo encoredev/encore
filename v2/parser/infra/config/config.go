@@ -10,7 +10,6 @@ import (
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
-	"encr.dev/v2/parser/infra/internal/locations"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
@@ -43,7 +42,6 @@ var LoadParser = &resourceparser.Parser{
 		name := pkginfo.QualifiedName{PkgPath: "encore.dev/config", Name: "Load"}
 
 		spec := &parseutil.ReferenceSpec{
-			AllowedLocs: locations.AllowedIn(locations.Variable).ButNotIn(locations.Function, locations.FuncCall),
 			MinTypeArgs: 0,
 			MaxTypeArgs: 1,
 			Parse:       parseLoad,
