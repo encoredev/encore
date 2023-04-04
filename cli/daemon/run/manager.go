@@ -303,6 +303,7 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 			},
 			AllowOriginsWithoutCredentials: []string{"*"},
 			ExtraAllowedHeaders:            globalCORS.AllowHeaders,
+			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
 			AllowPrivateNetworkAccess:      true,
 		},
 	}, nil
