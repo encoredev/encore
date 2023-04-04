@@ -10,6 +10,7 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 	"encr.dev/v2/internals/pkginfo"
 	schemav2 "encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 )
 
 func (b *builder) builtinType(typ schemav2.BuiltinType) schema.Builtin {
@@ -108,6 +109,14 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 		}}
 
 	case schemav2.ListType:
+		// An array of bytes (like [16]byte for a UUID) is not represented
+		// as the builtin BYTES in the schemav2 parser, but the legacy metadata does.
+		if typ.Len >= 0 && schemautil.IsBuiltinKind(typ.Elem, schemav2.Uint8) {
+			return &schema.Type{Typ: &schema.Type_Builtin{
+				Builtin: schema.Builtin_BYTES,
+			}}
+		}
+
 		return &schema.Type{Typ: &schema.Type_List{
 			List: &schema.List{
 				Elem: b.schemaType(typ.Elem),
@@ -201,7 +210,7 @@ func (b *builder) configValue(typ schemav2.NamedType) *schema.Type {
 	case "Value", "Values":
 		isList := typ.DeclInfo.Name == "Values"
 		elem := b.schemaType(typ.TypeArgs[0])
-	
+
 		if isList {
 			elem = &schema.Type{Typ: &schema.Type_List{
 				List: &schema.List{
