@@ -23,16 +23,28 @@ import (
 
 func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
 	// Precompute container metadata dimensions.
-	return &Exporter{
-		svcs: svcs,
-		cfg:  cfg,
-		containerMetadataDims: []types.Dimension{
-			{Name: aws.String("service_id"), Value: aws.String(meta.ServiceID)},
-			{Name: aws.String("revision_id"), Value: aws.String(meta.RevisionID)},
-			{Name: aws.String("instance_id"), Value: aws.String(meta.InstanceID)},
-		},
+	exporter := &Exporter{
+		svcs:       svcs,
+		cfg:        cfg,
 		rootLogger: rootLogger,
 	}
+
+	// Add all non-empty dims. AWS does not support empty values.
+	dims := []struct{ Name, Value string }{
+		{Name: "service_id", Value: meta.ServiceID},
+		{Name: "revision_id", Value: meta.RevisionID},
+		{Name: "instance_id", Value: meta.InstanceID},
+	}
+	for _, dim := range dims {
+		if dim.Value != "" {
+			exporter.containerMetadataDims = append(exporter.containerMetadataDims, types.Dimension{
+				Name:  aws.String(dim.Name),
+				Value: aws.String(dim.Value),
+			})
+		}
+	}
+
+	return exporter
 }
 
 type Exporter struct {
@@ -81,9 +93,13 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
-		dims := make([]types.Dimension, len(x.containerMetadataDims))
+		dims := make([]types.Dimension, len(x.containerMetadataDims), len(x.containerMetadataDims)+len(m.Labels))
 		copy(dims, x.containerMetadataDims)
 		for _, label := range m.Labels {
+			if label.Value == "" {
+				x.rootLogger.Warn().Str("label", label.Key).Msg("metrics: aws cloudwatch does not support empty label values, skipping")
+				continue
+			}
 			dims = append(dims, types.Dimension{
 				Name:  aws.String(label.Key),
 				Value: aws.String(label.Value),
