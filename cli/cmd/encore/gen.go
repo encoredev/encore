@@ -38,7 +38,7 @@ Supported language codes are:
   typescript: A TypeScript client using the Fetch API
   javascript: A JavaScript client using the Fetch API
   go: A Go client using net/http"
-  openapi: An OpenAPI specification
+  openapi: An OpenAPI specification (EXPERIMENTAL)
 `,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
