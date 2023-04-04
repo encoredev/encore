@@ -49,6 +49,26 @@ type CORS struct {
 	//
 	// If the list contains "*", then all headers are allowed.
 	AllowHeaders []string `json:"allow_headers"`
+
+	// ExposeHeaders allows an app to specify additional headers that should be
+	// exposed from the app, beyond the default set always recognized by Encore.
+	//
+	// If the list contains "*", then all headers are exposed.
+	ExposeHeaders []string `json:"expose_headers"`
+
+	// AllowOriginsWithoutCredentials specifies the allowed origins for requests
+	// that don't include credentials. If nil it defaults to allowing all domains
+	// (equivalent to []string{"*"}).
+	AllowOriginsWithoutCredentials []string `json:"allow_origins_without_credentials,omitempty"`
+
+	// AllowOriginsWithCredentials specifies the allowed origins for requests
+	// that include credentials. If a request is made from an Origin in this list
+	// Encore responds with Access-Control-Allow-Origin: <Origin>.
+	// If DisableCredentials is true this field is not used.
+	//
+	// The URLs in this list may include wildcards (e.g. "https://*.example.com"
+	// or "https://*-myapp.example.com").
+	AllowOriginsWithCredentials []string `json:"allow_origins_with_credentials,omitempty"`
 }
 
 // Parse parses the app file data into a File.
