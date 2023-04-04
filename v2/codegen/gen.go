@@ -129,13 +129,18 @@ func (g *Generator) InsertAppInit(pkg *pkginfo.Package) {
 
 	rw := g.Rewrite(file)
 	a := file.AST()
+
+	// Compute where to insert the import.
 	var insertPos token.Pos
+	var leadingNewline = ""
 	if len(a.Decls) > 0 {
 		insertPos = a.Decls[0].Pos()
 	} else {
 		insertPos = a.Name.End()
+		leadingNewline = "\n"
 	}
+
 	ln := g.FS.Position(insertPos)
-	rw.Insert(insertPos, []byte(fmt.Sprintf("import _ %s\n/*line :%d:%d*/",
-		strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
+	rw.Insert(insertPos, []byte(fmt.Sprintf("%simport _ %s\n/*line :%d:%d*/",
+		leadingNewline, strconv.Quote("encore.dev/appruntime/app/appinit"), ln.Line, ln.Column)))
 }
