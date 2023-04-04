@@ -118,7 +118,7 @@ func (g *Generator) InsertAppInit(pkg *pkginfo.Package) {
 	// Find the first non-test file if any; otherwise fall back to the first file.
 	var file *pkginfo.File
 	for _, f := range pkg.Files {
-		if f.TestFile {
+		if !f.TestFile {
 			file = f
 			break
 		}
