@@ -200,9 +200,19 @@ func (b *builder) configValue(typ schemav2.NamedType) *schema.Type {
 	switch typ.DeclInfo.Name {
 	case "Value", "Values":
 		isList := typ.DeclInfo.Name == "Values"
+		elem := b.schemaType(typ.TypeArgs[0])
+	
+		if isList {
+			elem = &schema.Type{Typ: &schema.Type_List{
+				List: &schema.List{
+					Elem: elem,
+				},
+			}}
+		}
+
 		return &schema.Type{Typ: &schema.Type_Config{
 			Config: &schema.ConfigValue{
-				Elem:         b.schemaType(typ.TypeArgs[0]),
+				Elem:         elem,
 				IsValuesList: isList,
 			},
 		}}
