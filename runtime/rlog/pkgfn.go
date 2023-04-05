@@ -2,8 +2,10 @@
 
 package rlog
 
+import "encore.dev/appruntime/shared/reqtrack"
+
 //publicapigen:drop
-var Singleton *Manager
+var Singleton = NewManager(reqtrack.Singleton)
 
 // Debug logs a debug-level message.
 // The variadic key-value pairs are treated as they are in With.

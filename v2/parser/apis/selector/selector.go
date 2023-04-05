@@ -120,7 +120,9 @@ var (
 	tagRegexp = regexp.MustCompile(`^[a-z]([-_a-z0-9]*[a-z0-9])?$`)
 )
 
-type Set struct{ vals []Selector }
+type Set struct {
+	vals []Selector
+}
 
 func NewSet(sels ...Selector) Set {
 	var s Set
@@ -135,7 +137,11 @@ func NewSet(sels ...Selector) Set {
 //
 // Add ensures that the set is sorted.
 func (s *Set) Add(sel Selector) (added bool) {
-	idx := sort.Search(len(s.vals), func(i int) bool { return (s.vals)[i].Value >= sel.Value })
+	idx := sort.Search(len(s.vals), func(i int) bool {
+		v := &s.vals[i]
+		return v.Type >= sel.Type && v.Value >= sel.Value
+	})
+
 	if idx < len(s.vals) && (s.vals)[idx].Equals(sel) {
 		return false
 	}
@@ -166,7 +172,10 @@ func (s *Set) Merge(other Set) {
 
 // Contains reports whether the set contains the given selector.
 func (s *Set) Contains(sel Selector) bool {
-	idx := sort.Search(len(s.vals), func(i int) bool { return (s.vals)[i].Value >= sel.Value })
+	idx := sort.Search(len(s.vals), func(i int) bool {
+		v := &s.vals[i]
+		return v.Type >= sel.Type && v.Value >= sel.Value
+	})
 	return idx < len(s.vals) && (s.vals)[idx].Equals(sel)
 }
 
@@ -182,11 +191,24 @@ func (s *Set) ContainsAny(other Set) bool {
 
 	i, j := 0, 0
 	for i < len(s.vals) && j < len(other.vals) {
-		if s.vals[i].Equals(other.vals[j]) {
+		iv, jv := &s.vals[i], &other.vals[j]
+
+		switch {
+		case iv.Type == All:
 			return true
-		} else if s.vals[i].Value < other.vals[j].Value {
+
+		case iv.Type == jv.Type:
+			if s.vals[i].Equals(other.vals[j]) {
+				return true
+			} else if iv.Value < jv.Value {
+				i++
+			} else {
+				j++
+			}
+
+		case iv.Type < jv.Type:
 			i++
-		} else {
+		case iv.Type > jv.Type:
 			j++
 		}
 	}

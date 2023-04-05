@@ -1,11 +1,8 @@
-//go:build encore_app
-
 package et
 
-import "encore.dev/beta/auth"
-
-//publicapigen:drop
-var Singleton *Manager // injected on app init
+import (
+	"encore.dev/beta/auth"
+)
 
 // OverrideAuthInfo overrides the auth information for the current request.
 // Subsequent calls to auth.UserID and auth.Data() within the same request

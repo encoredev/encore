@@ -151,7 +151,7 @@ func (b *authHandlerBuilder) renderAuthHandler() *Statement {
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
 		Id("params").Add(b.ParamsType()),
-	).Params(Id("info").Qual("encore.dev/appruntime/model", "AuthInfo"), Err().Error()).BlockFunc(func(g *Group) {
+	).Params(Id("info").Qual("encore.dev/appruntime/exported/model", "AuthInfo"), Err().Error()).BlockFunc(func(g *Group) {
 		// fnExpr is the expression for the function we want to call,
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.
 		var fnExpr *Statement

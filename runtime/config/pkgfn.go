@@ -6,10 +6,15 @@
 // For more information about configuration see https://encore.dev/docs/develop/config.
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"encore.dev/appruntime/shared/jsonapi"
+	"encore.dev/appruntime/shared/reqtrack"
+)
 
 //publicapigen:drop
-var Singleton *Manager
+var Singleton = NewManager(reqtrack.Singleton, jsonapi.Default)
 
 // Load returns the fully loaded configuration for this service.
 //

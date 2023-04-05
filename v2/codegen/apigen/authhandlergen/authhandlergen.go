@@ -40,11 +40,30 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler,
 		Id("AuthHandler"): renderAuthHandler(gen, ah, svcStruct),
 	}))
 
+	f.Add(Func().Id("init").Params().Block(
+		Qual("encore.dev/appruntime/apisdk/api", "RegisterAuthHandler").Call(
+			desc.Qual(),
+		),
+	))
+
+	if authData, ok := ah.AuthData.Get(); ok {
+		snippet := Qual("encore.dev/appruntime/apisdk/api", "RegisterAuthDataType").
+			Types(gu.Type(authData.ToType())).Call()
+
+		if dstPkg := authData.Decl.File.Pkg; dstPkg.ImportPath == ah.Decl.File.Pkg.ImportPath {
+			// It's in the same package as the auth handler; add it to the file we're already generating.
+			f.Add(Func().Id("init").Params().Block(snippet))
+		} else {
+			// It's a different package; inject a new file.
+			gen.File(dstPkg, "authdata").Add(Func().Id("init").Params().Block(snippet))
+		}
+	}
+
 	return desc
 }
 
 func apiQ(name string) *Statement {
-	return Qual("encore.dev/appruntime/api", name)
+	return Qual("encore.dev/appruntime/apisdk/api", name)
 }
 
 func renderDecodeAuth(gen *codegen.Generator, f *codegen.File, ah *authhandler.AuthHandler, enc *apienc.AuthEncoding) *Statement {
@@ -99,7 +118,7 @@ func renderAuthHandler(gen *codegen.Generator, ah *authhandler.AuthHandler, svcS
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
 		Id("params").Add(gu.Type(ah.Param)),
-	).Params(Id("info").Qual("encore.dev/appruntime/model", "AuthInfo"), Err().Error()).BlockFunc(func(g *Group) {
+	).Params(Id("info").Qual("encore.dev/appruntime/exported/model", "AuthInfo"), Err().Error()).BlockFunc(func(g *Group) {
 		// fnExpr is the expression for the function we want to call,
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.
 		var fnExpr *Statement

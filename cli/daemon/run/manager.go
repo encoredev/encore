@@ -14,7 +14,7 @@ import (
 	"golang.org/x/mod/modfile"
 
 	encore "encore.dev"
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"

@@ -7,8 +7,8 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/model"
-	"encore.dev/appruntime/trace"
+	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/trace"
 	"encore.dev/beta/errs"
 )
 

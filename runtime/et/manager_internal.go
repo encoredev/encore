@@ -1,17 +1,17 @@
 package et
 
 import (
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/reqtrack"
 )
 
 //publicapigen:drop
 type Manager struct {
-	cfg *config.Config
-	rt  *reqtrack.RequestTracker
+	static *config.Static
+	rt     *reqtrack.RequestTracker
 }
 
 //publicapigen:drop
-func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
-	return &Manager{cfg, rt}
+func NewManager(static *config.Static, rt *reqtrack.RequestTracker) *Manager {
+	return &Manager{static, rt}
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/rs/zerolog/log"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 )
 
 const (
@@ -27,22 +27,20 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 		t.Skip("AWS_SECRET_ACCESS_KEY is not set")
 	}
 
-	cfg := &config.Config{
-		Runtime: &config.Runtime{
-			PubsubProviders: []*config.PubsubProvider{
-				{AWS: &config.AWSPubsubProvider{}},
-			},
-			PubsubTopics: map[string]*config.PubsubTopic{
-				"test-topic": {
-					EncoreName:   "test-topic",
-					ProviderID:   0,
-					ProviderName: testTopicARN,
-					OrderingKey:  "",
-					Subscriptions: map[string]*config.PubsubSubscription{
-						"test-subscription": {
-							EncoreName:   "test-subscription",
-							ProviderName: testQueueURL,
-						},
+	runtime := &config.Runtime{
+		PubsubProviders: []*config.PubsubProvider{
+			{AWS: &config.AWSPubsubProvider{}},
+		},
+		PubsubTopics: map[string]*config.PubsubTopic{
+			"test-topic": {
+				EncoreName:   "test-topic",
+				ProviderID:   0,
+				ProviderName: testTopicARN,
+				OrderingKey:  "",
+				Subscriptions: map[string]*config.PubsubSubscription{
+					"test-subscription": {
+						EncoreName:   "test-subscription",
+						ProviderName: testQueueURL,
 					},
 				},
 			},
@@ -50,9 +48,9 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	mgr := NewManager(ctx, cfg)
+	mgr := NewManager(ctx)
 
-	topic := mgr.NewTopic(cfg.Runtime.PubsubProviders[0], cfg.Runtime.PubsubTopics["test-topic"])
+	topic := mgr.NewTopic(runtime.PubsubProviders[0], runtime.PubsubTopics["test-topic"])
 
 	// Purge the queue of any messages from previous failed tests
 	_, err := mgr.getSQSClient(ctx).PurgeQueue(ctx, &sqs.PurgeQueueInput{
@@ -65,7 +63,7 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 	// Subscribe to the queue
 	msgChan := make(chan string)
 	var sentMessageID string
-	topic.Subscribe(&log.Logger, time.Second, nil, cfg.Runtime.PubsubTopics["test-topic"].Subscriptions["test-subscription"], func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) error {
+	topic.Subscribe(&log.Logger, time.Second, nil, runtime.PubsubTopics["test-topic"].Subscriptions["test-subscription"], func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) error {
 		if attrs["attr-1"] != "foo" {
 			t.Errorf("expected attr-1 to be foo, got %s", attrs["attr-1"])
 		}

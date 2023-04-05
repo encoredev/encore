@@ -6,7 +6,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 )
 
 // getClient returns a singleton azure servicebus client for the given project or panics if it cannot be created.

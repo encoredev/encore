@@ -11,8 +11,8 @@ import (
 	"github.com/nsqio/go-nsq"
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
@@ -20,12 +20,11 @@ import (
 
 type Manager struct {
 	ctx context.Context
-	cfg *config.Config
 	rt  *reqtrack.RequestTracker
 }
 
-func NewManager(ctx context.Context, cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
-	return &Manager{ctx, cfg, rt}
+func NewManager(ctx context.Context, rt *reqtrack.RequestTracker) *Manager {
+	return &Manager{ctx, rt}
 }
 
 // topic is the nsq implementation of pubsub.Topic. It exposes methods to publish

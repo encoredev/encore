@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	trace2 "encore.dev/appruntime/trace"
+	trace2 "encore.dev/appruntime/exported/trace"
 	"encr.dev/cli/daemon/engine/trace"
 	"encr.dev/cli/daemon/run"
 )

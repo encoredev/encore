@@ -49,7 +49,7 @@ func doRun(t *testing.T, experiments []string) {
 		Setup: func(e *ts.Env) error {
 			e.Setenv("ENCORE_RUNTIME_PATH", runtimePath)
 			e.Setenv("ENCORE_GOROOT", goroot)
-			e.Setenv("ENCORE_EXPERIMENT", strings.Join(experiments, ","))
+			e.Setenv("EXTRA_EXPERIMENTS", strings.Join(experiments, ","))
 			e.Setenv("HOME", home)
 			e.Setenv("GOFLAGS", "-modcacherw")
 			gomod := []byte("module test\n\nrequire encore.dev v1.13.4")
@@ -68,6 +68,13 @@ func doRun(t *testing.T, experiments []string) {
 			"run": func(ts *ts.TestScript, neg bool, args []string) {
 				log := &testscriptLogger{ts: ts}
 				exp := ts.Getenv("ENCORE_EXPERIMENT")
+				if extra := ts.Getenv("EXTRA_EXPERIMENTS"); extra != "" {
+					if exp != "" {
+						exp += ","
+					}
+					exp += extra
+				}
+
 				app := RunApp(getTB(ts), getWorkdir(ts), log, []string{"ENCORE_EXPERIMENT=" + exp})
 				setVal(ts, "app", app)
 				setVal(ts, "log", log)
@@ -75,6 +82,13 @@ func doRun(t *testing.T, experiments []string) {
 			"test": func(ts *ts.TestScript, neg bool, args []string) {
 				log := &testscriptLogger{ts: ts}
 				exp := ts.Getenv("ENCORE_EXPERIMENT")
+				if extra := ts.Getenv("EXTRA_EXPERIMENTS"); extra != "" {
+					if exp != "" {
+						exp += ","
+					}
+					exp += extra
+				}
+
 				err := RunTests(getTB(ts), getWorkdir(ts), &log.stdout, &log.stderr, []string{"ENCORE_EXPERIMENT=" + exp})
 				os.Stdout.Write(log.stdout.Bytes())
 				os.Stderr.Write(log.stderr.Bytes())

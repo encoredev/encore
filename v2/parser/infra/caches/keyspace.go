@@ -12,7 +12,7 @@ import (
 	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
-	literals "encr.dev/v2/parser/infra/internal/literals"
+	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"

@@ -5,11 +5,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"encore.dev/appruntime/reqtrack"
-	"encore.dev/internal/nativehist"
+	"encore.dev/appruntime/shared/nativehist"
+	"encore.dev/appruntime/shared/reqtrack"
 )
-
-var Singleton *Registry
 
 type Registry struct {
 	rt       *reqtrack.RequestTracker
@@ -18,8 +16,8 @@ type Registry struct {
 	registry sync.Map // map[registryKey]*timeseries
 }
 
-func NewRegistry(rt *reqtrack.RequestTracker, numServicesInBinary uint16) *Registry {
-	return &Registry{rt: rt, numSvcs: numServicesInBinary}
+func NewRegistry(rt *reqtrack.RequestTracker, numServicesInBinary int) *Registry {
+	return &Registry{rt: rt, numSvcs: uint16(numServicesInBinary)}
 }
 
 func (r *Registry) Collect() []CollectedMetric {

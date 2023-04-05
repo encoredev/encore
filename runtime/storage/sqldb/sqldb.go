@@ -10,9 +10,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"encore.dev/appruntime/trace"
+	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/exported/trace"
 	"encore.dev/beta/errs"
-	"encore.dev/internal/stack"
 )
 
 // ErrNoRows is an error reported by Scan when QueryRow doesn't return a row.

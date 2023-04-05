@@ -60,6 +60,20 @@ func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
 	return matches
 }
 
+// MatchingGlobalMiddleware reports which global middleware applies to the given RPC,
+// and the order they apply in.
+func (d *Desc) MatchingGlobalMiddleware(ep *api.Endpoint) []*middleware.Middleware {
+	var matches []*middleware.Middleware
+	d.Framework.ForAll(func(fw *apiframework.AppDesc) {
+		for _, mw := range fw.GlobalMiddleware {
+			if mw.Target.ContainsAny(ep.Tags) {
+				matches = append(matches, mw)
+			}
+		}
+	})
+	return matches
+}
+
 // ValidateAndDescribe validates the application and computes the
 // application description.
 func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {

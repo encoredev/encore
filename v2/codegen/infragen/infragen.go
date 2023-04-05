@@ -27,10 +27,6 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 		groups[key] = append(groups[key], r)
 	}
 
-	for _, b := range appDesc.Parse.AllBinds() {
-		gg.InsertAppInit(b.Package())
-	}
-
 	for key, resources := range groups {
 		pkg := resources[0].Package()
 		switch key.kind {

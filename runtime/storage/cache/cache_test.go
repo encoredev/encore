@@ -8,8 +8,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/reqtrack"
 )
 
 func newTestCluster(t *testing.T) (*Cluster, *miniredis.Miniredis) {
@@ -18,10 +18,10 @@ func newTestCluster(t *testing.T) (*Cluster, *miniredis.Miniredis) {
 
 	rt := reqtrack.New(zerolog.New(os.Stdout), nil, nil)
 	mgr := &Manager{
-		cfg: &config.Config{Static: &config.Static{
+		static: &config.Static{
 			// We're testing the "production mode" of the cache, not the test mode.
 			Testing: false,
-		}},
+		},
 		rt: rt,
 	}
 	cluster := &Cluster{

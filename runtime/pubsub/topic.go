@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync/atomic"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/limiter"
 	"encore.dev/pubsub/internal/test"
@@ -28,7 +28,7 @@ type Topic[T any] struct {
 }
 
 func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
-	if mgr.cfg.Static.Testing {
+	if mgr.static.Testing {
 		return &Topic[T]{
 			mgr:            mgr,
 			topicCfg:       &config.PubsubTopic{EncoreName: name},
@@ -38,13 +38,13 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	}
 
 	// Look up the topic configuration
-	topic, ok := mgr.cfg.Runtime.PubsubTopics[name]
+	topic, ok := mgr.runtime.PubsubTopics[name]
 	if !ok {
 		mgr.rootLogger.Fatal().Msgf("unregistered/unknown topic: %v", name)
 	}
 
 	// Look up the server config
-	provider := mgr.cfg.Runtime.PubsubProviders[topic.ProviderID]
+	provider := mgr.runtime.PubsubProviders[topic.ProviderID]
 
 	tried := make([]string, 0, len(mgr.providers))
 	for _, p := range mgr.providers {

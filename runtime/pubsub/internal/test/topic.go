@@ -10,8 +10,8 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/testsupport"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
 )

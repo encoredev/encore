@@ -45,11 +45,20 @@ func genMiddleware(gen *codegen.Generator, f *codegen.File, mw *middleware.Middl
 		})
 	}
 
-	return f.VarDecl("middleware", mw.Decl.Name).Value(Op("&").Qual("encore.dev/appruntime/api", "Middleware").Values(Dict{
+	decl := f.VarDecl("middleware", mw.Decl.Name).Value(Op("&").Qual("encore.dev/appruntime/apisdk/api", "Middleware").Values(Dict{
+		Id("ID"):      Lit(mw.ID()),
 		Id("PkgName"): Lit(mw.File.Pkg.Name),
 		Id("Name"):    Lit(mw.Decl.Name),
 		Id("Global"):  Lit(mw.Global),
 		Id("DefLoc"):  Lit(gen.TraceNodes.Middleware(mw)),
 		Id("Invoke"):  invoke,
 	}))
+
+	if mw.Global {
+		f.Jen.Func().Id("init").Params().Block(
+			Qual("encore.dev/appruntime/apisdk/api", "RegisterGlobalMiddleware").Call(decl.Qual()),
+		)
+	}
+
+	return decl
 }

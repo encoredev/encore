@@ -4,47 +4,47 @@ import (
 	"net/url"
 	"time"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
-	"encore.dev/internal/cloud"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/cloud"
+	"encore.dev/appruntime/shared/reqtrack"
 )
 
 //publicapigen:drop
 type Manager struct {
-	cfg        *config.Config
+	static     *config.Static
+	runtime    *config.Runtime
 	rt         *reqtrack.RequestTracker
 	apiBaseURL *url.URL
 }
 
 //publicapigen:drop
-func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
-	baseURL, err := url.Parse(cfg.Runtime.APIBaseURL)
+func NewManager(static *config.Static, rtConf *config.Runtime, rt *reqtrack.RequestTracker) *Manager {
+	baseURL, err := url.Parse(rtConf.APIBaseURL)
 	if err != nil {
 		panic("invalid APIBaseURL: " + err.Error())
 	}
-	return &Manager{cfg, rt, baseURL}
+	return &Manager{static, rtConf, rt, baseURL}
 }
 
 // Meta returns metadata about the running application.
 //
 // Meta will never return nil.
 func (mgr *Manager) Meta() *AppMetadata {
-	cfg := mgr.cfg
 	return &AppMetadata{
-		AppID:      cfg.Runtime.AppSlug,
+		AppID:      mgr.runtime.AppSlug,
 		APIBaseURL: *mgr.apiBaseURL,
 		Environment: EnvironmentMeta{
-			Name:  cfg.Runtime.EnvName,
-			Type:  EnvironmentType(cfg.Runtime.EnvType),
-			Cloud: CloudProvider(cfg.Runtime.EnvCloud),
+			Name:  mgr.runtime.EnvName,
+			Type:  EnvironmentType(mgr.runtime.EnvType),
+			Cloud: CloudProvider(mgr.runtime.EnvCloud),
 		},
 		Build: BuildMeta{
-			Revision:           cfg.Static.AppCommit.Revision,
-			UncommittedChanges: cfg.Static.AppCommit.Uncommitted,
+			Revision:           mgr.static.AppCommit.Revision,
+			UncommittedChanges: mgr.static.AppCommit.Uncommitted,
 		},
 		Deploy: DeployMeta{
-			ID:   cfg.Runtime.DeployID,
-			Time: cfg.Runtime.DeployedAt,
+			ID:   mgr.runtime.DeployID,
+			Time: mgr.runtime.DeployedAt,
 		},
 	}
 }
