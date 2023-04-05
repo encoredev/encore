@@ -1,0 +1,36 @@
+test
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/pubsub"
+)
+
+type Msg struct{Message string}
+
+var Topic = pubsub.NewTopic[Msg]("topic", pubsub.TopicConfig{DeliveryGuarantee: pubsub.AtLeastOnce})
+
+//encore:api
+func Dummy(context.Context) error { return nil }
+
+-- svc/svc_test.go --
+package svc
+
+import (
+    "context"
+    "testing"
+    "encore.dev/et"
+    "encore.dev/pubsub"
+)
+
+func TestRefPublish(t *testing.T) {
+    ref := pubsub.TopicRef[pubsub.Publisher[Msg]](Topic)
+    ref.Publish(context.Background(), Msg{Message: "test"})
+
+    msgs := et.Topic(Topic).PublishedMessages()
+    if len(msgs) != 1 || msgs[0].Message != "test" {
+        t.Fatalf("got %v, want %v", msgs, []Msg{{Message: "test"}})
+    }
+}
