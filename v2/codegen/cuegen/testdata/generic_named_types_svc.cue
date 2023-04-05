@@ -41,6 +41,14 @@ package svc
 }
 #Config
 
+#List_string: [...string]
+
+// Generic option which can be disbaled
+#DisablableOption_uint64: {
+	Option:   uint64
+	Disabled: bool // True if this is disabled
+}
+
 // Generic option which can be disbaled
 #DisablableOption_uint16: {
 	Option:   uint16
@@ -50,12 +58,4 @@ package svc
 // A nice generic map
 #Map_string_string: {
 	[string]: string
-}
-
-#List_string: [...string]
-
-// Generic option which can be disbaled
-#DisablableOption_uint64: {
-	Option:   uint64
-	Disabled: bool // True if this is disabled
 }
