@@ -126,6 +126,13 @@ type FuncType struct {
 
 type InterfaceType struct {
 	AST *ast.InterfaceType
+
+	// EmbeddedIfaces are the interfaces this interface embeds.
+	EmbeddedIfaces []Type
+
+	// TODO change these out for more useful information.
+	TypeLists []ast.Expr
+	Methods   []*ast.Field
 }
 
 // Param represents a parameter or result field.

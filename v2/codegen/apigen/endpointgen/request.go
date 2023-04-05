@@ -74,6 +74,35 @@ func (d *requestDesc) DecodeRequest() *Statement {
 	})
 }
 
+func (d *requestDesc) EncodeRequest() *Statement {
+	return Func().Params(
+		d.reqDataExpr().Add(d.Type()),
+		Id("json").Qual(jsonIterPkg, "API"),
+	).Params(
+		d.httpReqExpr().Op("*").Qual("net/http", "Request"),
+		Err().Error(),
+	).BlockFunc(func(g *Group) {
+		g.Add(d.reqDataExpr()).Op("=").New(Id(d.TypeName()))
+
+		if d.ep.Path.NumParams() == 0 && d.ep.Request == nil {
+			// Nothing to do; return an empty struct
+			g.Return(d.reqDataExpr(), Nil(), Nil())
+			return
+		}
+
+		dec := d.gu.NewTypeUnmarshaller("dec")
+		g.Add(dec.Init())
+		d.renderPathDecoding(g, dec)
+		d.renderRequestDecoding(g, dec)
+
+		g.If(Err().Op(":=").Add(dec.Err()), Err().Op("!=").Nil()).Block(
+			Return(Nil(), Nil(), Err()),
+		)
+
+		g.Return(d.reqDataExpr(), d.pathParamsName(), Nil())
+	})
+}
+
 // HandlerArgs returns the list of arguments to pass to the handler.
 func (d *requestDesc) HandlerArgs() []Code {
 	numPathParams := d.ep.Path.NumParams()
