@@ -16,9 +16,10 @@ import (
 )
 
 type GenParams struct {
-	Gen        *codegen.Generator
-	Desc       *app.Desc
-	MainModule *pkginfo.Module
+	Gen           *codegen.Generator
+	Desc          *app.Desc
+	MainModule    *pkginfo.Module
+	RuntimeModule *pkginfo.Module
 
 	// CompilerVersion is the version of the compiler to embed in the generated code.
 	CompilerVersion string
@@ -61,17 +62,28 @@ func genMain(p GenParams) {
 	// Services may not have API handlers as they could be purely operating on PubSub subscriptions
 	// so without this anonymous package import, that service might not be initialized.
 	for _, svc := range p.Desc.Services {
-		svc.Framework.ForAll(func(svcDesc *apiframework.ServiceDesc) {
-			rootPkg := svcDesc.RootPkg
+		if fw, ok := svc.Framework.Get(); ok {
+			rootPkg := fw.RootPkg
 			if rootPkg.ImportPath != mainPkgPath {
 				f.Anon(rootPkg.ImportPath.String())
 			}
-		})
+		}
+	}
+	// Make sure auth handlers and global middleware are imported as well so they get registered.
+	if fw, ok := p.Desc.Framework.Get(); ok {
+		if ah, ok := fw.AuthHandler.Get(); ok {
+			f.Anon(ah.Decl.File.Pkg.ImportPath.String())
+		}
+
+		for _, mw := range fw.GlobalMiddleware {
+			f.Anon(mw.Decl.File.Pkg.ImportPath.String())
+		}
 	}
 
-	genLoadApp(p, f, option.None[testParams]())
+	genLoadApp(p, option.None[testParams]())
+
 	f.Func().Id("main").Params().Block(
-		Qual("encore.dev/appruntime/app/appinit", "AppMain").Call(),
+		Qual("encore.dev/appruntime/apisdk/app/appinit", "AppMain").Call(),
 	)
 }
 
@@ -98,5 +110,15 @@ func genExecScriptMain(p GenParams, mainPkgPath paths.Pkg) {
 		})
 	}
 
-	genLoadApp(p, f, option.None[testParams]())
+	// Make sure auth handlers and global middleware are imported as well so they get registered.
+	if fw, ok := p.Desc.Framework.Get(); ok {
+		if ah, ok := fw.AuthHandler.Get(); ok {
+			f.Anon(ah.Decl.File.Pkg.ImportPath.String())
+		}
+		for _, mw := range fw.GlobalMiddleware {
+			f.Anon(mw.Decl.File.Pkg.ImportPath.String())
+		}
+	}
+
+	genLoadApp(p, option.None[testParams]())
 }

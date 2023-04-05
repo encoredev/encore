@@ -3,7 +3,7 @@ package metrics
 import (
 	"math"
 
-	"encore.dev/internal/nativehist"
+	"encore.dev/appruntime/shared/nativehist"
 )
 
 // HistogramConfig configures a histogram.

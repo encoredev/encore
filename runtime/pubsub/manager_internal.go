@@ -2,25 +2,26 @@ package pubsub
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"sync/atomic"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
-	"encore.dev/appruntime/testsupport"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/testsupport"
+	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/types"
 )
 
 type Manager struct {
 	ctx        context.Context
 	cancelCtx  func()
-	cfg        *config.Config
+	static     *config.Static
+	runtime    *config.Runtime
 	rt         *reqtrack.RequestTracker
-	apiSrv     *api.Server
 	ts         *testsupport.Manager
 	rootLogger zerolog.Logger
 	json       jsoniter.API
@@ -28,16 +29,18 @@ type Manager struct {
 
 	publishCounter uint64
 	outstanding    *outstandingMessageTracker
+	pushHandlers   map[types.SubscriptionID]types.PushEndpointHandler
 }
 
-func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport.Manager, server *api.Server, rootLogger zerolog.Logger, json jsoniter.API) *Manager {
+func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker,
+	ts *testsupport.Manager, rootLogger zerolog.Logger, json jsoniter.API) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	mgr := &Manager{
 		ctx:         ctx,
 		cancelCtx:   cancel,
-		cfg:         cfg,
+		static:      static,
+		runtime:     runtime,
 		rt:          rt,
-		apiSrv:      server,
 		ts:          ts,
 		rootLogger:  rootLogger,
 		json:        json,
@@ -128,4 +131,28 @@ var providerRegistry []func(*Manager) provider
 
 func registerProvider(p func(mgr *Manager) provider) {
 	providerRegistry = append(providerRegistry, p)
+}
+
+var _ types.PushEndpointRegistry = (*Manager)(nil)
+
+func (mgr *Manager) RegisterPushSubscriptionHandler(id types.SubscriptionID, handler types.PushEndpointHandler) {
+	mgr.pushHandlers[id] = handler
+}
+
+// HandlePubSubPush is an HTTP handler that accepts PubSub push HTTP requests
+// and routes them to the appropriate push handler.
+func (mgr *Manager) HandlePubSubPush(w http.ResponseWriter, req *http.Request, subscriptionID string) {
+	handler, found := mgr.pushHandlers[types.SubscriptionID(subscriptionID)]
+	if !found {
+		err := errs.B().Code(errs.NotFound).Msg("unknown pubsub subscription").Err()
+		mgr.rootLogger.Err(err).Str("subscription_id", subscriptionID).Msg("invalid PubSub push request")
+		errs.HTTPError(w, err)
+		return
+	}
+
+	err := handler(req)
+	if err != nil {
+		mgr.rootLogger.Err(err).Str("subscription_id", subscriptionID).Msg("error while handling PubSub push request")
+	}
+	errs.HTTPError(w, err)
 }

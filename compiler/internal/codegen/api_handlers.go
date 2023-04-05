@@ -22,16 +22,16 @@ var importNames = map[string]string{
 	"github.com/json-iterator/go":         "jsoniter",
 	"github.com/julienschmidt/httprouter": "httprouter",
 
-	"encore.dev/appruntime/api":         "__api",
-	"encore.dev/appruntime/app":         "__app",
-	"encore.dev/appruntime/app/appinit": "__appinit",
-	"encore.dev/appruntime/config":      "__config",
-	"encore.dev/appruntime/model":       "__model",
-	"encore.dev/appruntime/serde":       "__serde",
-	"encore.dev/appruntime/service":     "__service",
-	"encore.dev/beta/errs":              "errs",
-	"encore.dev/storage/sqldb":          "sqldb",
-	"encore.dev/types/uuid":             "uuid",
+	"encore.dev/appruntime/api":            "__api",
+	"encore.dev/appruntime/app":            "__app",
+	"encore.dev/appruntime/app/appinit":    "__appinit",
+	"encore.dev/appruntime/config":         "__config",
+	"encore.dev/appruntime/exported/model": "__model",
+	"encore.dev/appruntime/serde":          "__serde",
+	"encore.dev/appruntime/service":        "__service",
+	"encore.dev/beta/errs":                 "errs",
+	"encore.dev/storage/sqldb":             "sqldb",
+	"encore.dev/types/uuid":                "uuid",
 }
 
 func (b *Builder) registerImports(f *File, fromPkgPath string) {

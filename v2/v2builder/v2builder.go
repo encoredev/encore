@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
@@ -85,6 +86,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		appDesc := app.ValidateAndDescribe(pc, parserResult)
 		meta, traceNodes := legacymeta.Compute(pc.Errs, appDesc)
 		mainModule := parser.MainModule()
+		runtimeModule := parser.RuntimeModule()
 
 		if pc.Errs.Len() > 0 {
 			return nil, pc.Errs.AsError()
@@ -93,20 +95,22 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		return &builder.ParseResult{
 			Meta: meta,
 			Data: &parseData{
-				pc:         pc,
-				appDesc:    appDesc,
-				mainModule: mainModule,
-				traceNodes: traceNodes,
+				pc:            pc,
+				appDesc:       appDesc,
+				mainModule:    mainModule,
+				runtimeModule: runtimeModule,
+				traceNodes:    traceNodes,
 			},
 		}, nil
 	})
 }
 
 type parseData struct {
-	pc         *parsectx.Context
-	appDesc    *app.Desc
-	mainModule *pkginfo.Module
-	traceNodes *legacymeta.TraceNodes
+	pc            *parsectx.Context
+	appDesc       *app.Desc
+	mainModule    *pkginfo.Module
+	runtimeModule *pkginfo.Module
+	traceNodes    *legacymeta.TraceNodes
 }
 
 func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
@@ -119,17 +123,26 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 
 		pd := p.Parse.Data.(*parseData)
 
+		codegenOp := p.OpTracker.Add("Generating boilerplate code", time.Now())
+
 		gg := codegen.New(pd.pc, pd.traceNodes)
 		infragen.Process(gg, pd.appDesc)
 		apigen.Process(apigen.Params{
 			Gen:               gg,
 			Desc:              pd.appDesc,
 			MainModule:        pd.mainModule,
+			RuntimeModule:     pd.runtimeModule,
 			CompilerVersion:   p.EncoreVersion.GetOrElse(fmt.Sprintf("EncoreCLI/%s", version.Version)),
 			AppRevision:       p.Build.Revision,
 			AppUncommitted:    p.Build.UncommittedChanges,
 			ExecScriptMainPkg: p.Build.MainPkg,
 		})
+
+		if pd.pc.Errs.Len() > 0 {
+			p.OpTracker.Fail(codegenOp, pd.pc.Errs.AsError())
+			return res, pd.pc.Errs.AsError()
+		}
+		p.OpTracker.Done(codegenOp, 450*time.Millisecond)
 
 		configProm := promise.New(func() (res configResult, err error) {
 			defer func() {
@@ -141,6 +154,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 			return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
 		})
 
+		compileOp := p.OpTracker.Add("Compiling application source code", time.Now())
 		buildResult := build.Build(ctx, &build.Config{
 			Ctx:        pd.pc,
 			Overlays:   gg.Overlays(),
@@ -154,8 +168,10 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 		}
 		// Check if the compile result caused errors and if it did return
 		if pd.pc.Errs.Len() > 0 {
+			p.OpTracker.Fail(compileOp, pd.pc.Errs.AsError())
 			return res, pd.pc.Errs.AsError()
 		}
+		p.OpTracker.Done(compileOp, 450*time.Millisecond)
 
 		config, err := configProm.Get(pd.pc.Ctx)
 		if err != nil {
@@ -208,6 +224,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 				Gen:             gg,
 				Desc:            pd.appDesc,
 				MainModule:      pd.mainModule,
+				RuntimeModule:   pd.runtimeModule,
 				CompilerVersion: p.Compile.EncoreVersion.GetOrElse(fmt.Sprintf("EncoreCLI/%s", version.Version)),
 				AppRevision:     p.Compile.Build.Revision,
 				AppUncommitted:  p.Compile.Build.UncommittedChanges,

@@ -8,9 +8,9 @@ import (
 
 	"google.golang.org/api/idtoken"
 
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/beta/errs"
+	"encore.dev/internal/platformauth"
 	"encore.dev/pubsub/internal/types"
 )
 
@@ -27,12 +27,12 @@ type pushPayload struct {
 }
 
 func (mgr *Manager) registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
-	mgr.server.RegisterPubsubSubscriptionHandler(
-		subscriptionConfig.ID,
+	mgr.pushRegistry.RegisterPushSubscriptionHandler(
+		types.SubscriptionID(subscriptionConfig.ID),
 		func(req *http.Request) error {
 			// If the request has not come from the Encore platform it must have
 			// a valid JWT set by Google.
-			if !api.IsEncorePlatformRequest(req.Context()) {
+			if !platformauth.IsEncorePlatformRequest(req.Context()) {
 				if err := mgr.validateGoogleJWT(req, subscriptionConfig.GCP.PushServiceAccount); err != nil {
 					return errs.Wrap(err, "unable to validate JWT")
 				}
@@ -62,7 +62,7 @@ func (mgr *Manager) validateGoogleJWT(req *http.Request, serviceAccountEmail str
 	}
 
 	// Validate it
-	jwt, err := idtoken.Validate(req.Context(), token, mgr.cfg.Runtime.AppID+"-"+mgr.cfg.Runtime.EnvID)
+	jwt, err := idtoken.Validate(req.Context(), token, mgr.runtime.AppID+"-"+mgr.runtime.EnvID)
 	if err != nil {
 		return errs.B().Code(errs.InvalidArgument).Msg("unable to validate authorization").Err()
 	}

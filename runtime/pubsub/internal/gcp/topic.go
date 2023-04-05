@@ -9,22 +9,21 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
 )
 
 type Manager struct {
-	ctx    context.Context
-	cfg    *config.Config
-	server *api.Server
+	ctx          context.Context
+	runtime      *config.Runtime
+	pushRegistry types.PushEndpointRegistry
 
 	clientOnce sync.Once
 	_client    *pubsub.Client // access via getClient()
 }
 
-func NewManager(ctx context.Context, cfg *config.Config, server *api.Server) *Manager {
-	return &Manager{ctx: ctx, cfg: cfg, server: server}
+func NewManager(ctx context.Context, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
+	return &Manager{ctx: ctx, runtime: runtime, pushRegistry: pushRegistry}
 }
 
 type topic struct {

@@ -11,7 +11,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 
-	"encore.dev/internal/stack"
+	"encore.dev/appruntime/exported/stack"
 )
 
 var json = jsoniter.Config{

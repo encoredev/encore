@@ -31,6 +31,7 @@ type Loader struct {
 
 	// initialized by init.
 	mainModule     *Module
+	runtimeModule  *Module
 	buildCtx       *build.Context
 	packagesConfig *packages.Config
 
@@ -48,12 +49,15 @@ func (l *Loader) init() {
 	l.mainModule = l.loadModuleFromDisk(l.c.MainModuleDir, "")
 	// Manually cache the main module.
 	l.modules[l.mainModule.Path] = l.mainModule
-	l.modules["encore.dev"] = &Module{
+
+	// Resolve the encore.dev runtime module.
+	l.runtimeModule = &Module{
 		l:       l,
 		RootDir: l.c.Build.EncoreRuntime,
 		Path:    "encore.dev",
 		Version: "v1.0.0",
 	}
+	l.modules["encore.dev"] = l.runtimeModule
 
 	b := l.c.Build
 	d := &build.Default
@@ -98,6 +102,11 @@ func (l *Loader) init() {
 // MainModule returns the parsed main module.
 func (l *Loader) MainModule() *Module {
 	return l.mainModule
+}
+
+// RuntimeModule returns the parsed runtime module.
+func (l *Loader) RuntimeModule() *Module {
+	return l.runtimeModule
 }
 
 // MustLoadPkg loads a package.

@@ -6,8 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"encore.dev/appruntime/trace"
-	"encore.dev/internal/stack"
+	"encore.dev/appruntime/exported/stack"
+	trace2 "encore.dev/appruntime/exported/trace"
 )
 
 type pgxTracer struct {
@@ -29,7 +29,7 @@ func markTraced(ctx context.Context) context.Context {
 }
 
 type queryValue struct {
-	trace trace.Logger
+	trace trace2.Logger
 	qid   uint64
 }
 
@@ -42,7 +42,7 @@ func (t *pgxTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pg
 
 	curr := t.mgr.rt.Current()
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
+		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
 			Query:   data.SQL,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,

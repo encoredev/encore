@@ -15,9 +15,10 @@ func TestCodegen(t *testing.T) {
 		loader := pkginfo.New(gen.Context)
 		mainModule := loader.MainModule()
 		params := apigen.Params{
-			Gen:        gen,
-			Desc:       desc,
-			MainModule: mainModule,
+			Gen:           gen,
+			Desc:          desc,
+			MainModule:    mainModule,
+			RuntimeModule: loader.MainModule(),
 		}
 		apigen.Process(params)
 	}

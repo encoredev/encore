@@ -6,26 +6,25 @@ import (
 )
 
 func genTestConfigs(p GenParams, test codegen.TestConfig) {
-	// TEST
-	//for _, pkg := range p.Desc.Parse.AppPackages() {
-	//	//hasTestFile := func(f *pkginfo.File) bool { return f.TestFile }
-	//	file := p.Gen.InjectFile(pkg.ImportPath, pkg.Name+"_test", pkg.FSPath, "encore_internal__dummy_test.go", "dummy")
-	//	f := file.Jen
-	//	f.Anon("encore.dev/appruntime/testsupport")
-	//}
-
 	for _, pkg := range test.Packages {
-		file := p.Gen.InjectFile(pkg.ImportPath+"!test", pkg.Name+"_test", pkg.FSPath, "encore_internal__testmain_test.go", "testmain")
-		f := file.Jen
-		var serviceName string
-		if svc, ok := p.Desc.ServiceForPath(pkg.FSPath); ok {
-			serviceName = svc.Name
-		}
-		f.Anon("encore.dev/appruntime/testsupport")
+		// HACK(andre) Ensure we always import the testsupport package in every test binary,
+		// since the "testing" package depends on it for the testing runtime hooks.
+		p.Gen.InsertTestSupport(pkg)
 
-		genLoadApp(p, f, option.Some(testParams{
-			ServiceName: serviceName,
-			EnvsToEmbed: test.EnvsToEmbed,
-		}))
+		//	f := p.Gen.InjectFile(pkg.ImportPath+"!test", pkg.Name+"_test", pkg.FSPath, "encore_internal__test.go", "encoretest")
+		//	f.ImportAnon("encore.dev/appruntime/shared/testsupport")
+		//
+		//	if fw, ok := p.Desc.Framework.Get(); ok {
+		//		if ah, ok := fw.AuthHandler.Get(); ok {
+		//			f.ImportAnon(ah.Decl.File.Pkg.ImportPath)
+		//		}
+		//		for _, mw := range fw.GlobalMiddleware {
+		//			f.ImportAnon(mw.File.Pkg.ImportPath)
+		//		}
+		//	}
 	}
+
+	genLoadApp(p, option.Some(testParams{
+		EnvsToEmbed: test.EnvsToEmbed,
+	}))
 }

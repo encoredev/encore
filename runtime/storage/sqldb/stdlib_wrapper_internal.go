@@ -36,8 +36,8 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"encore.dev/appruntime/trace"
-	"encore.dev/internal/stack"
+	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/exported/trace"
 )
 
 type middleware interface {

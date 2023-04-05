@@ -25,7 +25,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/pubsub"

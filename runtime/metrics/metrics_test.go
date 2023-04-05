@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/model"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/shared/reqtrack"
 )
 
 func TestCounter(t *testing.T) {

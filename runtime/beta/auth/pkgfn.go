@@ -2,8 +2,10 @@
 
 package auth
 
+import "encore.dev/appruntime/shared/reqtrack"
+
 //publicapigen:drop
-var Singleton *Manager // injected on app init
+var Singleton = NewManager(reqtrack.Singleton)
 
 // UserID reports the uid of the user making the request.
 // The second result is true if there is a user and false
@@ -18,9 +20,8 @@ func UserID() (UID, bool) {
 //
 // Expected usage is to immediately cast it to the registered auth data type:
 //
-//   usr, ok := auth.Data().(*user.Data)
-//   if !ok { /* ... */ }
-//
+//	usr, ok := auth.Data().(*user.Data)
+//	if !ok { /* ... */ }
 func Data() any {
 	return Singleton.Data()
 }

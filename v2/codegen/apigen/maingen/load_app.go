@@ -6,52 +6,46 @@ import (
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
-	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internals/pkginfo"
-	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
-	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/pubsub"
 )
 
 type testParams struct {
-	ServiceName string // empty if not within a service
 	EnvsToEmbed []string
 }
 
-func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
-	authHandler := option.
-		Map(p.AuthHandler, func(ah *codegen.VarDecl) *Statement { return ah.Qual() }).
-		GetOrElse(Nil())
+func genLoadApp(p GenParams, test option.Option[testParams]) {
+	var (
+		rtconfDir  = p.RuntimeModule.RootDir.Join("appruntime", "shared", "appconf")
+		rtconfPkg  = paths.Pkg("encore.dev/appruntime/shared/appconf")
+		rtconfName = "appconf"
+	)
+
+	file := p.Gen.InjectFile(rtconfPkg, rtconfName, rtconfDir, "staticcfg.go", "staticcfg")
+	f := file.Jen
 
 	allowHeaders, exposeHeaders := computeCORSHeaders(p.Desc)
 
-	testService := ""
-
 	var envsToEmbed []string
 	if test, ok := test.Get(); ok {
-		testService = test.ServiceName
 		envsToEmbed = test.EnvsToEmbed
 	}
 
-	f.Anon("unsafe") // for go:linkname
-	f.Comment("loadApp loads the Encore app runtime.")
-	f.Comment("//go:linkname loadApp encore.dev/appruntime/app/appinit.load")
-	f.Func().Id("loadApp").Params().Op("*").Qual("encore.dev/appruntime/app/appinit", "LoadData").BlockFunc(func(g *Group) {
+	f.Func().Id("init").Params().BlockFunc(func(g *Group) {
 		staticCfg := Dict{
-			Id("AuthData"):       authDataType(p.Gen.Util, p.Desc),
+			//Id("AuthData"):       authDataType(p.Gen.Util, p.Desc),
 			Id("EncoreCompiler"): Lit(p.CompilerVersion),
-			Id("AppCommit"): Qual("encore.dev/appruntime/config", "CommitInfo").Values(Dict{
+			Id("AppCommit"): Qual("encore.dev/appruntime/exported/config", "CommitInfo").Values(Dict{
 				Id("Revision"):    Lit(p.AppRevision),
 				Id("Uncommitted"): Lit(p.AppUncommitted),
 			}),
@@ -59,7 +53,7 @@ func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
 			Id("CORSExposeHeaders"): exposeHeaders,
 			Id("PubsubTopics"):      pubsubTopics(p.Gen, p.Desc),
 			Id("Testing"):           Lit(test.Present()),
-			Id("TestService"):       Lit(testService),
+			Id("TestServiceMap"):    testServiceMap(p.Desc),
 			Id("BundledServices"):   bundledServices(p.Desc),
 		}
 
@@ -67,25 +61,25 @@ func genLoadApp(p GenParams, f *File, test option.Option[testParams]) {
 			staticCfg[Id("TestAsExternalBinary")] = True()
 			for _, env := range envsToEmbed {
 				key, value, _ := strings.Cut(env, "=")
-				g.Qual("os", "Setenv").Call(Lit(key), Lit(value))
+				g.Qual("encore.dev/appruntime/shared/encoreenv", "Set").Call(Lit(key), Lit(value))
 			}
 		}
 
-		g.Id("static").Op(":=").Op("&").Qual("encore.dev/appruntime/config", "Static").Values(staticCfg)
+		g.Id("Static").Op("=").Op("&").Qual("encore.dev/appruntime/exported/config", "Static").Values(staticCfg)
 
-		g.Id("handlers").Op(":=").Add(computeHandlerRegistrationConfig(p.Desc, p.APIHandlers, p.Middleware))
-
-		g.Return(Op("&").Qual("encore.dev/appruntime/app/appinit", "LoadData").Values(Dict{
-			Id("StaticCfg"):   Id("static"),
-			Id("APIHandlers"): Id("handlers"),
-			Id("ServiceInit"): serviceInitConfig(p.ServiceStructs),
-			Id("AuthHandler"): authHandler,
-		}))
+		//g.Id("handlers").Op(":=").Add(computeHandlerRegistrationConfig(p.Desc, p.APIHandlers, p.Middleware))
+		//
+		//g.Return(Op("&").Qual("encore.dev/appruntime/apisdk/app/appinit", "LoadData").Values(Dict{
+		//	Id("StaticCfg"):   Id("static"),
+		//	Id("APIHandlers"): Id("handlers"),
+		//	Id("ServiceInit"): serviceInitConfig(p.ServiceStructs),
+		//	Id("AuthHandler"): authHandler,
+		//}))
 	})
 }
 
 func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) *Statement {
-	return Map(String()).Op("*").Qual("encore.dev/appruntime/config", "StaticPubsubTopic").Values(DictFunc(func(d Dict) {
+	return Map(String()).Op("*").Qual("encore.dev/appruntime/exported/config", "StaticPubsubTopic").Values(DictFunc(func(d Dict) {
 		// Get all the topics and subscriptions
 		var (
 			topics      []*pubsub.Topic
@@ -119,7 +113,7 @@ func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) *Statement {
 
 			d[Lit(topic.Name)] = Values(Dict{
 				Id("Subscriptions"): Map(String()).Op("*").Qual(
-					"encore.dev/appruntime/config", "StaticPubsubSubscription").Values(subs),
+					"encore.dev/appruntime/exported/config", "StaticPubsubSubscription").Values(subs),
 			})
 		}
 	}))
@@ -137,6 +131,14 @@ func bundledServices(appDesc *app.Desc) *Statement {
 			g.Lit(name)
 		}
 	})
+}
+
+func testServiceMap(appDesc *app.Desc) *Statement {
+	return Map(String()).String().Values(DictFunc(func(d Dict) {
+		for _, svc := range appDesc.Services {
+			d[Lit(svc.Name)] = Lit(svc.FSRoot.ToIO())
+		}
+	}))
 }
 
 func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Statement) {
@@ -201,7 +203,7 @@ func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Stateme
 }
 
 func computeHandlerRegistrationConfig(appDesc *app.Desc, epMap map[*api.Endpoint]*codegen.VarDecl, mwMap map[*middleware.Middleware]*codegen.VarDecl) *Statement {
-	return Index().Qual("encore.dev/appruntime/api", "HandlerRegistration").CustomFunc(Options{
+	return Index().Qual("encore.dev/appruntime/apisdk/api", "HandlerRegistration").CustomFunc(Options{
 		Open:      "{",
 		Close:     "}",
 		Separator: ",",
@@ -214,7 +216,7 @@ func computeHandlerRegistrationConfig(appDesc *app.Desc, epMap map[*api.Endpoint
 					rpcMW := appDesc.MatchingMiddleware(ep)
 					mwExpr := Nil()
 					if len(rpcMW) > 0 {
-						mwExpr = Index().Op("*").Qual("encore.dev/appruntime/api", "Middleware").ValuesFunc(func(g *Group) {
+						mwExpr = Index().Op("*").Qual("encore.dev/appruntime/apisdk/api", "Middleware").ValuesFunc(func(g *Group) {
 							for _, mw := range rpcMW {
 								g.Add(mwMap[mw].Qual())
 							}
@@ -227,34 +229,6 @@ func computeHandlerRegistrationConfig(appDesc *app.Desc, epMap map[*api.Endpoint
 					})
 				}
 			})
-		}
-	})
-}
-
-func authDataType(gu *genutil.Helper, desc *app.Desc) *Statement {
-	authHandler := option.FlatMap(desc.Framework, func(fw *apiframework.AppDesc) option.Option[*authhandler.AuthHandler] { return fw.AuthHandler })
-	authData := option.FlatMap(authHandler, func(ah *authhandler.AuthHandler) option.Option[*schema.TypeDeclRef] { return ah.AuthData })
-
-	return option.Map(authData, func(ref *schema.TypeDeclRef) *Statement {
-		return Qual("reflect", "TypeOf").Call(gu.Zero(ref.ToType()))
-	}).GetOrElse(Nil())
-}
-
-func serviceInitConfig(svcStructs map[*app.Service]*codegen.VarDecl) *Statement {
-	// Get the map keys and sort them for deterministic output.
-	svcs := maps.Keys(svcStructs)
-	slices.SortFunc(svcs, func(a, b *app.Service) bool {
-		return a.Name < b.Name
-	})
-
-	return Index().Qual("encore.dev/appruntime/service", "Initializer").CustomFunc(Options{
-		Open:      "{",
-		Close:     "}",
-		Separator: ",",
-		Multi:     true,
-	}, func(g *Group) {
-		for _, svc := range svcs {
-			g.Add(svcStructs[svc].Qual())
 		}
 	})
 }

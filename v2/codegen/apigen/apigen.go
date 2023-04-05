@@ -20,9 +20,10 @@ import (
 )
 
 type Params struct {
-	Gen        *codegen.Generator
-	Desc       *app.Desc
-	MainModule *pkginfo.Module
+	Gen           *codegen.Generator
+	Desc          *app.Desc
+	MainModule    *pkginfo.Module
+	RuntimeModule *pkginfo.Module
 
 	CompilerVersion string
 	AppRevision     string
@@ -38,6 +39,7 @@ func Process(p Params) {
 		Gen:               p.Gen,
 		Desc:              p.Desc,
 		MainModule:        p.MainModule,
+		RuntimeModule:     p.RuntimeModule,
 		Test:              p.Test,
 		ExecScriptMainPkg: p.ExecScriptMainPkg,
 
@@ -59,6 +61,8 @@ func Process(p Params) {
 
 		for _, svc := range p.Desc.Services {
 			var svcStruct option.Option[*codegen.VarDecl]
+
+			var svcMiddleware map[*middleware.Middleware]*codegen.VarDecl
 			if svcDesc, ok := svc.Framework.Get(); ok {
 				if ss, ok := svcDesc.ServiceStruct.Get(); ok {
 					decl := servicestructgen.Gen(p.Gen, svc, ss)
@@ -67,11 +71,11 @@ func Process(p Params) {
 					svcStructBySvc[svc.Name] = decl
 				}
 
-				mws := middlewaregen.Gen(p.Gen, svcDesc.Middleware, svcStruct)
-				maps.Copy(gp.Middleware, mws)
+				svcMiddleware = middlewaregen.Gen(p.Gen, svcDesc.Middleware, svcStruct)
+				maps.Copy(gp.Middleware, svcMiddleware)
 			}
 
-			eps := endpointgen.Gen(p.Gen, p.Desc.Parse, svc, svcStruct)
+			eps := endpointgen.Gen(p.Gen, p.Desc, svc, svcStruct, svcMiddleware)
 			maps.Copy(gp.APIHandlers, eps)
 
 			// Generate user-facing code with the implementation in place.
