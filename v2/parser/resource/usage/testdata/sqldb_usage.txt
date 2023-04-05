@@ -2,6 +2,7 @@
 -- svc/svc.go --
 package svc
 
+import "context"
 import "encore.dev/storage/sqldb"
 
 var DB = sqldb.Named("svc")
@@ -14,6 +15,9 @@ func init() {
     1 + DB // use svc.DB other
     x = DB // use svc.DB other
 }
+
+//encore:api public
+func Dummy(context.Context) error { return nil }
 
 -- usage/usage.go --
 package usage

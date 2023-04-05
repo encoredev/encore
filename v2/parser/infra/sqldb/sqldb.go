@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"bytes"
 	"fmt"
 	"go/token"
 	"os"
@@ -43,9 +44,22 @@ var DatabaseParser = &resourceparser.Parser{
 		migrationDir := p.Pkg.FSPath.Join("migrations")
 		migrations, err := parseMigrations(p.Pkg, migrationDir)
 		if err != nil {
+			// HACK(andre): We should only look for migration directories inside services,
+			// but when this code runs we don't yet know what services exist.
+			// For now, use some heuristics to guess if this is a service and otherwise ignore it.
+			if !pkgIsLikelyService(p.Pkg) {
+				return
+			}
+
 			p.Errs.Add(errUnableToParseMigrations.Wrapping(err))
 			return
 		} else if len(migrations) == 0 {
+			return
+		}
+
+		// HACK(andre): We also need to do the check here, otherwise we get
+		// spurious databases that are defined outside of services.
+		if !pkgIsLikelyService(p.Pkg) {
 			return
 		}
 
@@ -110,4 +124,29 @@ func parseMigrations(pkg *pkginfo.Package, migrationDir paths.FS) ([]MigrationFi
 		}
 	}
 	return migrations, nil
+}
+
+func pkgIsLikelyService(pkg *pkginfo.Package) bool {
+	isLikelyService := func(file *pkginfo.File) bool {
+		contents := file.Contents()
+		switch {
+		case bytes.Contains(contents, []byte("encore:api")):
+			return true
+		case bytes.Contains(contents, []byte("pubsub.NewSubscription")):
+			return true
+		case bytes.Contains(contents, []byte("encore:authhandler")):
+			return true
+		case bytes.Contains(contents, []byte("encore:service")):
+			return true
+		default:
+			return false
+		}
+	}
+
+	for _, file := range pkg.Files {
+		if isLikelyService(file) {
+			return true
+		}
+	}
+	return false
 }
