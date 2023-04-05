@@ -256,8 +256,8 @@ func (b *builder) Build() *meta.Data {
 
 			// Find all the publishers
 			for _, u := range b.app.Parse.Usages(r) {
-				if u, ok := u.(*pubsub.PublishUsage); ok {
-					_ = u
+				switch u := u.(type) {
+				case *pubsub.PublishUsage:
 					if svc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath); ok {
 						// Is the publish call within a service? If so add that service as the publisher.
 						addPublisher(svc.Name)
@@ -271,6 +271,14 @@ func (b *builder) Build() *meta.Data {
 									addPublisher(svc.Name)
 								}
 							}
+						}
+					}
+
+				case *pubsub.RefUsage:
+					if u.HasPerm(pubsub.PublishPerm) {
+						if svc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath); ok {
+							// Is the publish call within a service? If so add that service as the publisher.
+							addPublisher(svc.Name)
 						}
 					}
 				}

@@ -215,8 +215,30 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 			return result
 
 		case *ast.InterfaceType:
-			// TODO(andre) Actually parse information about the interface.
-			return InterfaceType{AST: expr}
+			// TODO(andre) Parse more complete information about the interface.
+			typ := InterfaceType{AST: expr}
+
+			if expr.Methods != nil {
+				for _, field := range expr.Methods.List {
+					switch {
+					case len(field.Names) > 0:
+						typ.Methods = append(typ.Methods, field)
+					case field.Type == nil:
+						// shouldn't happen but let's be defensive
+					default:
+						// type switch or embedded interface
+						switch field.Type.(type) {
+						case *ast.BinaryExpr, *ast.UnaryExpr:
+							typ.TypeLists = append(typ.TypeLists, field.Type)
+						default:
+							t := r.parseType(file, field.Type)
+							typ.EmbeddedIfaces = append(typ.EmbeddedIfaces, t)
+						}
+					}
+				}
+			}
+
+			return typ
 
 		case *ast.ChanType:
 			r.errs.AddPos(expr.Pos(), "cannot use channel types in Encore schema definitions")
