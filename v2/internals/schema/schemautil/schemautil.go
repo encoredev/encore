@@ -108,17 +108,23 @@ func ResolveNamedStruct(t schema.Type, requirePointer bool) (ref *schema.TypeDec
 // To be more robust in the presence of typing errors it supports partial application,
 // where the number of type arguments may be different than the number of type parameters on the decl.
 func ConcretizeGenericType(typ schema.Type) schema.Type {
-	return concretize(typ, nil)
+	return concretize(typ, nil, nil)
 }
 
 // ConcretizeWithTypeArgs is like ConcretizeGenericType but operates with
 // a list of type arguments. It is used when the type arguments are known
 // separately from the type itself, such as when using *schema.TypeDeclRef.
 func ConcretizeWithTypeArgs(typ schema.Type, typeArgs []schema.Type) schema.Type {
-	return concretize(typ, typeArgs)
+	return concretize(typ, typeArgs, nil)
 }
 
-func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
+func concretize(typ schema.Type, typeArgs []schema.Type, seenDecls map[TypeHash]*schema.TypeDecl) schema.Type {
+	// seenDecls is used to avoid infinite recursion
+	// for mutually recursive types.
+	if seenDecls == nil {
+		seenDecls = make(map[TypeHash]*schema.TypeDecl)
+	}
+
 	switch typ := typ.(type) {
 	case schema.TypeParamRefType:
 		// We have a reference to a type parameter.
@@ -132,14 +138,14 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 	case schema.BuiltinType:
 		return typ
 	case schema.PointerType:
-		return schema.PointerType{AST: typ.AST, Elem: concretize(typ.Elem, typeArgs)}
+		return schema.PointerType{AST: typ.AST, Elem: concretize(typ.Elem, typeArgs, seenDecls)}
 	case schema.ListType:
-		return schema.ListType{AST: typ.AST, Elem: concretize(typ.Elem, typeArgs), Len: typ.Len}
+		return schema.ListType{AST: typ.AST, Elem: concretize(typ.Elem, typeArgs, seenDecls), Len: typ.Len}
 	case schema.MapType:
 		return schema.MapType{
 			AST:   typ.AST,
-			Key:   concretize(typ.Key, typeArgs),
-			Value: concretize(typ.Value, typeArgs),
+			Key:   concretize(typ.Key, typeArgs, seenDecls),
+			Value: concretize(typ.Value, typeArgs, seenDecls),
 		}
 	case schema.StructType:
 		result := schema.StructType{
@@ -148,7 +154,7 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 		}
 		for i, f := range typ.Fields {
 			result.Fields[i] = f // copy
-			result.Fields[i].Type = concretize(f.Type, typeArgs)
+			result.Fields[i].Type = concretize(f.Type, typeArgs, seenDecls)
 		}
 		return result
 	case schema.NamedType:
@@ -157,13 +163,23 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 		clone.TypeArgs = slices.Clone(typ.TypeArgs)
 
 		for i, arg := range clone.TypeArgs {
-			clone.TypeArgs[i] = concretize(arg, typeArgs)
+			clone.TypeArgs[i] = concretize(arg, typeArgs, seenDecls)
 		}
 
-		decl := clone.Decl().Clone() // clone the type declaration
-		decl.Type = concretize(decl.Type, clone.TypeArgs)
+		// If we've already seen this declaration, don't clone it to avoid
+		// infinite recursion.
+		hash := Hash(typ)
+		if decl, ok := seenDecls[hash]; ok {
+			return clone.WithDecl(decl)
+		}
 
+		decl := clone.Decl().Clone()
+
+		// Clone and concretize the declaration.
+		seenDecls[hash] = decl
+		decl.Type = concretize(decl.Type, clone.TypeArgs, seenDecls)
 		return clone.WithDecl(decl)
+
 	case schema.FuncType:
 		// Clone the function type. Clone the slices so we don't overwrite the original.
 		clone := typ // copy
@@ -171,10 +187,10 @@ func concretize(typ schema.Type, typeArgs []schema.Type) schema.Type {
 		clone.Results = slices.Clone(typ.Results)
 
 		for i, p := range clone.Params {
-			clone.Params[i].Type = concretize(p.Type, typeArgs)
+			clone.Params[i].Type = concretize(p.Type, typeArgs, seenDecls)
 		}
 		for i, p := range clone.Results {
-			clone.Results[i].Type = concretize(p.Type, typeArgs)
+			clone.Results[i].Type = concretize(p.Type, typeArgs, seenDecls)
 		}
 		return clone
 	case schema.InterfaceType:
@@ -275,6 +291,7 @@ func hashType(buf *bytes.Buffer, t schema.Type) {
 	case schema.NamedType:
 		buf.WriteString("named:")
 		buf.WriteString(t.DeclInfo.File.Pkg.ImportPath.String())
+		buf.WriteString(".")
 		buf.WriteString(t.DeclInfo.Name)
 		if len(t.TypeArgs) > 0 {
 			buf.WriteString("[")
