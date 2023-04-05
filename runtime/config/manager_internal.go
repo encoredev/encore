@@ -3,15 +3,15 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	jsoniter "github.com/json-iterator/go"
 
-	"encore.dev/appruntime/model"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/shared/encoreenv"
+	"encore.dev/appruntime/shared/reqtrack"
 )
 
 type ValueID uint64
@@ -54,7 +54,7 @@ func (m *Manager) getComputedCUE(serviceName string) ([]byte, error) {
 	}
 
 	// Fetch the raw JSON config for this service
-	envVar := os.Getenv(envName(serviceName))
+	envVar := encoreenv.Get(envName(serviceName))
 	if envVar == "" {
 		return nil, fmt.Errorf("configuration for service `%s` not found, expected it in environmental variable %s", serviceName, envName(serviceName))
 	}

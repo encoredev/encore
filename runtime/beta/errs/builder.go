@@ -3,7 +3,7 @@ package errs
 import (
 	"fmt"
 
-	"encore.dev/internal/stack"
+	"encore.dev/appruntime/exported/stack"
 )
 
 // A Builder allows for gradual construction of an error.

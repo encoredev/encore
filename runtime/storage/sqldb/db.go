@@ -14,9 +14,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/trace"
-	"encore.dev/internal/stack"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/exported/trace"
 	"encore.dev/storage/sqldb/internal/stdlibdriver"
 )
 

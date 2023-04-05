@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"time"
 
-	"encore.dev/appruntime/model"
+	"encore.dev/appruntime/exported/model"
 )
 
 var applicationStartTime = time.Now()

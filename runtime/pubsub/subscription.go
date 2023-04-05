@@ -6,9 +6,8 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/model"
-	"encore.dev/appruntime/trace"
+	"encore.dev/appruntime/exported/config"
+	model2 "encore.dev/appruntime/exported/model"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/utils"
 )
@@ -97,14 +96,14 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		Str("subscription", name).
 		Logger()
 
-	tracingEnabled := trace.Enabled(mgr.cfg)
+	tracingEnabled := mgr.rt.TracingEnabled()
 
 	// Subscribe to the topic
 	topic.topic.Subscribe(&log, subscriptionCfg.AckDeadline, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
 		mgr.outstanding.Inc()
 		defer mgr.outstanding.Dec()
 
-		if !mgr.cfg.Static.Testing {
+		if !mgr.static.Testing {
 			// Under test we're already inside an operation
 			mgr.rt.BeginOperation()
 			defer mgr.rt.FinishOperation()
@@ -118,23 +117,23 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 
 		logCtx := log.With()
 
-		traceID, err := model.GenTraceID()
+		traceID, err := model2.GenTraceID()
 		if err != nil {
 			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate trace id")
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate trace id").Err()
-		} else if traceID != (model.TraceID{}) {
+		} else if traceID != (model2.TraceID{}) {
 			logCtx = logCtx.Str("trace_id", traceID.String())
 		}
 
-		spanID, err := model.GenSpanID()
+		spanID, err := model2.GenSpanID()
 		if err != nil {
 			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate span id")
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate span id").Err()
 		}
 
-		var parentTraceID model.TraceID
+		var parentTraceID model2.TraceID
 		if parentTraceIDStr := attrs[parentTraceIDAttribute]; parentTraceIDStr != "" {
-			parentTraceID, err = model.ParseTraceID(parentTraceIDStr)
+			parentTraceID, err = model2.ParseTraceID(parentTraceIDStr)
 			if err != nil {
 				log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to parse parent trace id")
 			}
@@ -144,18 +143,18 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		extCorrelationID := attrs[extCorrelationIDAttribute]
 		if extCorrelationID != "" {
 			logCtx = logCtx.Str("x_correlation_id", extCorrelationID)
-		} else if parentTraceID != (model.TraceID{}) {
+		} else if parentTraceID != (model2.TraceID{}) {
 			logCtx = logCtx.Str("x_correlation_id", parentTraceID.String())
 		}
 		// Start the request tracing span
-		req := &model.Request{
-			Type:             model.PubSubMessage,
+		req := &model2.Request{
+			Type:             model2.PubSubMessage,
 			TraceID:          traceID,
 			SpanID:           spanID,
 			ParentTraceID:    parentTraceID,
 			ExtCorrelationID: extCorrelationID,
 			Start:            time.Now(),
-			MsgData: &model.PubSubMsgData{
+			MsgData: &model2.PubSubMsgData{
 				Service:        staticCfg.Service,
 				Topic:          topic.topicCfg.EncoreName,
 				Subscription:   subscription.EncoreName,
@@ -191,7 +190,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		err = panicCatchWrapper(ctx, msg)
 
 		if curr.Trace != nil {
-			resp := &model.Response{
+			resp := &model2.Response{
 				Err:        err,
 				HTTPStatus: errs.HTTPStatus(err),
 			}
@@ -202,7 +201,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		return err
 	})
 
-	if !mgr.cfg.Static.Testing {
+	if !mgr.static.Testing {
 		// Log the subscription registration - unless we're in unit tests
 		log.Info().Msg("registered subscription")
 	}
@@ -211,10 +210,10 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 }
 
 func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscription, *config.StaticPubsubSubscription) {
-	if t.mgr.cfg.Static.Testing {
+	if t.mgr.static.Testing {
 		// No subscriptions occur in testing
 		return &config.PubsubSubscription{EncoreName: name}, &config.StaticPubsubSubscription{
-			Service: t.mgr.cfg.Static.TestService,
+			Service: t.mgr.ts.TestService(),
 		}
 	}
 
@@ -224,7 +223,7 @@ func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscriptio
 		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
 	}
 
-	staticCfg, ok := t.mgr.cfg.Static.PubsubTopics[t.topicCfg.EncoreName].Subscriptions[name]
+	staticCfg, ok := t.mgr.static.PubsubTopics[t.topicCfg.EncoreName].Subscriptions[name]
 	if !ok {
 		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
 	}

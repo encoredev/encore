@@ -18,17 +18,16 @@ var importNames = map[string]string{
 	"github.com/json-iterator/go":         "jsoniter",
 	"github.com/julienschmidt/httprouter": "httprouter",
 
-	"encore.dev/appruntime/api":         "__api",
-	"encore.dev/appruntime/app":         "__app",
-	"encore.dev/appruntime/app/appinit": "__appinit",
-	"encore.dev/appruntime/config":      "__config",
-	"encore.dev/appruntime/etype":       "__etype",
-	"encore.dev/appruntime/model":       "__model",
-	"encore.dev/appruntime/serde":       "__serde",
-	"encore.dev/appruntime/service":     "__service",
-	"encore.dev/beta/errs":              "errs",
-	"encore.dev/storage/sqldb":          "sqldb",
-	"encore.dev/types/uuid":             "uuid",
+	"encore.dev/appruntime/apisdk/api":      "__api",
+	"encore.dev/appruntime/apisdk/app":      "__app",
+	"encore.dev/appruntime/infrasdk/config": "__config",
+	"encore.dev/appruntime/shared/etype":    "__etype",
+	"encore.dev/appruntime/exported/model":  "__model",
+	"encore.dev/appruntime/shared/serde":    "__serde",
+	"encore.dev/appruntime/apisdk/service":  "__service",
+	"encore.dev/beta/errs":                  "errs",
+	"encore.dev/storage/sqldb":              "sqldb",
+	"encore.dev/types/uuid":                 "uuid",
 }
 
 func newFile(pkg *pkginfo.Package, baseName, shortName string) *File {

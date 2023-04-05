@@ -2,8 +2,13 @@
 
 package encore
 
+import (
+	"encore.dev/appruntime/shared/appconf"
+	"encore.dev/appruntime/shared/reqtrack"
+)
+
 //publicapigen:drop
-var Singleton *Manager
+var Singleton = NewManager(appconf.Static, appconf.Runtime, reqtrack.Singleton)
 
 // Meta returns metadata about the running application.
 //

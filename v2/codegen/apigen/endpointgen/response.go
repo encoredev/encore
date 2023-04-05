@@ -62,12 +62,16 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		responseEncoder := CustomFunc(Options{Separator: "\n"}, func(g *Group) {
 			if len(resp.BodyParameters) > 0 {
 				g.Comment("Encode JSON body")
-				g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/appruntime/serde", "SerializeJSONFunc").Call(Id("json"), Func().Params(Id("ser").Op("*").Qual("encore.dev/appruntime/serde", "JSONSerializer")).BlockFunc(
-					func(g *Group) {
-						for _, f := range resp.BodyParameters {
-							g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
-						}
-					}))
+				g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/appruntime/shared/serde", "SerializeJSONFunc").Call(
+					Id("json"),
+					Func().Params(
+						Id("ser").Op("*").Qual("encore.dev/appruntime/shared/serde", "JSONSerializer"),
+					).BlockFunc(
+						func(g *Group) {
+							for _, f := range resp.BodyParameters {
+								g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
+							}
+						}))
 				g.If(Err().Op("!=").Nil()).Block(
 					Return(Err()),
 				)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 )
 
 // RawSubscriptionCallback represents a unified callback structure allowing us to create a standardised callback for each implementation

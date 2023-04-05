@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 )
 
 // ServeHTTP implements http.Handler by forwarding the request to the currently running process.

@@ -18,14 +18,10 @@ func Gen(gen *codegen.Generator, pkg *pkginfo.Package, secrets []*secrets.Secret
 
 		if !addedImport[file] {
 			// Add an import of the runtime package to be able to load secrets.
-			//
-			// We also import appinit to ensure the runtime is initialized before
-			// we try to load secrets.
-			// NOTE(andre): We should make the secrets package instead initialize itself.
 			decl := file.AST().Decls[0]
 			ln := gen.FS.Position(decl.Pos())
-			rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_secrets %s; import _ %s\n/*line :%d:%d*/",
-				strconv.Quote("encore.dev/appruntime/secrets"), strconv.Quote("encore.dev/appruntime/app/appinit"),
+			rw.Insert(decl.Pos(), []byte(fmt.Sprintf("import __encore_secrets %s;/*line :%d:%d*/",
+				strconv.Quote("encore.dev/appruntime/infrasdk/secrets"),
 				ln.Line, ln.Column)))
 			addedImport[secret.File] = true
 		}

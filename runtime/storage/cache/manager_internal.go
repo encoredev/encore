@@ -17,20 +17,21 @@ import (
 	"github.com/go-redis/redis/v8"
 	jsoniter "github.com/json-iterator/go"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
-	"encore.dev/appruntime/runtimeutil/syncutil"
-	"encore.dev/appruntime/testsupport"
-	"encore.dev/appruntime/trace"
-	"encore.dev/internal/stack"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/syncutil"
+	"encore.dev/appruntime/shared/testsupport"
 )
 
 // Manager manages cache clients.
 type Manager struct {
-	cfg  *config.Config
-	rt   *reqtrack.RequestTracker
-	ts   *testsupport.Manager
-	json jsoniter.API
+	static  *config.Static
+	runtime *config.Runtime
+	rt      *reqtrack.RequestTracker
+	ts      *testsupport.Manager
+	json    jsoniter.API
 
 	initTestSrv syncutil.Once
 	testSrv     *miniredis.Miniredis
@@ -39,9 +40,10 @@ type Manager struct {
 	clients  map[string]*redis.Client
 }
 
-func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker, ts *testsupport.Manager, json jsoniter.API) *Manager {
+func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, ts *testsupport.Manager, json jsoniter.API) *Manager {
 	return &Manager{
-		cfg:     cfg,
+		static:  static,
+		runtime: runtime,
 		rt:      rt,
 		ts:      ts,
 		json:    json,
@@ -67,7 +69,7 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 	}
 
 	// Are we in a test or running in Encore Cloud? If so, use the redismock library.
-	if mgr.cfg.Static.Testing || mgr.runningInEncoreCloud() {
+	if mgr.static.Testing || mgr.runningInEncoreCloud() {
 		cl, err := mgr.newMiniredisClient()
 		if err != nil {
 			panic(fmt.Sprintf("cache: unable to start redis mock: %v", err))
@@ -76,7 +78,7 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 		return cl
 	}
 
-	for _, rdb := range mgr.cfg.Runtime.RedisDatabases {
+	for _, rdb := range mgr.runtime.RedisDatabases {
 		if rdb.EncoreName == clusterName {
 			cl, err := mgr.newClient(rdb)
 			if err != nil {
@@ -91,14 +93,14 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 }
 
 func (mgr *Manager) runningInEncoreCloud() bool {
-	if mgr.cfg != nil && mgr.cfg.Runtime.EnvCloud == "encore" {
+	if mgr.runtime != nil && mgr.runtime.EnvCloud == "encore" {
 		return true
 	}
 	return false
 }
 
 func (mgr *Manager) newClient(rdb *config.RedisDatabase) (*redis.Client, error) {
-	srv := mgr.cfg.Runtime.RedisServers[rdb.ServerID]
+	srv := mgr.runtime.RedisServers[rdb.ServerID]
 	opts := &redis.Options{
 		Network:      "tcp",
 		Addr:         srv.Host,
@@ -181,7 +183,7 @@ func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig,
 	toRedis func(V) (any, error),
 ) *client[K, V] {
 	keyMapper := cfg.EncoreInternal_KeyMapper.(func(K) string)
-	if mgr := cluster.mgr; mgr.cfg.Static.Testing {
+	if mgr := cluster.mgr; mgr.static.Testing {
 		// If we're running tests, map keys to a test-specific key.
 		orig := keyMapper
 		keyMapper = func(k K) string {

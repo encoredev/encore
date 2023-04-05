@@ -10,8 +10,8 @@ import (
 // MarshalBuiltin generates the code to marshal a builtin type.
 // The resulting code if an expression of type string.
 func MarshalBuiltin(kind schema.BuiltinKind, value *Statement) Code {
-	return Qual("encore.dev/appruntime/etype", "MarshalOne").Call(
-		Qual("encore.dev/appruntime/etype", "Marshal"+builtinToName(kind)),
+	return Qual("encore.dev/appruntime/shared/etype", "MarshalOne").Call(
+		Qual("encore.dev/appruntime/shared/etype", "Marshal"+builtinToName(kind)),
 		value.Clone(),
 	)
 }
@@ -19,8 +19,8 @@ func MarshalBuiltin(kind schema.BuiltinKind, value *Statement) Code {
 // MarshalBuiltinList generates the code to marshal a list of builtins.
 // The resulting code is an expression of type []string.
 func MarshalBuiltinList(kind schema.BuiltinKind, value *Statement) Code {
-	return Qual("encore.dev/appruntime/etype", "MarshalList").Call(
-		Qual("encore.dev/appruntime/etype", "Marshal"+builtinToName(kind)),
+	return Qual("encore.dev/appruntime/shared/etype", "MarshalList").Call(
+		Qual("encore.dev/appruntime/shared/etype", "Marshal"+builtinToName(kind)),
 		value.Clone(),
 	)
 }
@@ -41,11 +41,11 @@ func (g *Helper) NewTypeUnmarshaller(objName string) *TypeUnmarshaller {
 // UnmarshallerTypeName returns a type expression for the etype.Unmarshaller type
 // in the runtime, in the form "*etype.Unmarshaller".
 func UnmarshallerTypeName() *Statement {
-	return Op("*").Qual("encore.dev/appruntime/etype", "Unmarshaller")
+	return Op("*").Qual("encore.dev/appruntime/shared/etype", "Unmarshaller")
 }
 
 func (u *TypeUnmarshaller) Init() *Statement {
-	return u.unmarshallerExpr.Clone().Op(":=").New(Qual("encore.dev/appruntime/etype", "Unmarshaller"))
+	return u.unmarshallerExpr.Clone().Op(":=").New(Qual("encore.dev/appruntime/shared/etype", "Unmarshaller"))
 }
 
 func (u *TypeUnmarshaller) Err() *Statement {
@@ -63,9 +63,9 @@ func (u *TypeUnmarshaller) NumNonEmptyValues() *Statement {
 }
 
 func (u *TypeUnmarshaller) UnmarshalBuiltin(kind schema.BuiltinKind, fieldName string, value *Statement, required bool) *Statement {
-	return Qual("encore.dev/appruntime/etype", "UnmarshalOne").Call(
+	return Qual("encore.dev/appruntime/shared/etype", "UnmarshalOne").Call(
 		u.unmarshallerExpr.Clone(),
-		Qual("encore.dev/appruntime/etype", "Unmarshal"+builtinToName(kind)),
+		Qual("encore.dev/appruntime/shared/etype", "Unmarshal"+builtinToName(kind)),
 		Lit(fieldName),
 		value.Clone(),
 		Lit(required),
@@ -74,9 +74,9 @@ func (u *TypeUnmarshaller) UnmarshalBuiltin(kind schema.BuiltinKind, fieldName s
 
 // UnmarshalBuiltinList unmarshals a list of builtins.
 func (u *TypeUnmarshaller) UnmarshalBuiltinList(kind schema.BuiltinKind, fieldName string, value *Statement, required bool) *Statement {
-	return Qual("encore.dev/appruntime/etype", "UnmarshalList").Call(
+	return Qual("encore.dev/appruntime/shared/etype", "UnmarshalList").Call(
 		u.unmarshallerExpr.Clone(),
-		Qual("encore.dev/appruntime/etype", "Unmarshal"+builtinToName(kind)),
+		Qual("encore.dev/appruntime/shared/etype", "Unmarshal"+builtinToName(kind)),
 		Lit(fieldName),
 		value.Clone(),
 		Lit(required),

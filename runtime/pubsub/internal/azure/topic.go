@@ -11,7 +11,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
 	"encore.dev/types/uuid"
@@ -22,14 +22,13 @@ const TargetSubAttribute = "encore-target-sub"
 
 type Manager struct {
 	ctx context.Context
-	cfg *config.Config
 
 	clientMu sync.RWMutex
 	_clients map[string]*azservicebus.Client // access via getClient()
 }
 
-func NewManager(ctx context.Context, cfg *config.Config) *Manager {
-	return &Manager{ctx: ctx, cfg: cfg, _clients: map[string]*azservicebus.Client{}}
+func NewManager(ctx context.Context) *Manager {
+	return &Manager{ctx: ctx, _clients: map[string]*azservicebus.Client{}}
 }
 
 func (mgr *Manager) ProviderName() string { return "azure" }

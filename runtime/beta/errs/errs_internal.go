@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 
-	"encore.dev/internal/stack"
+	"encore.dev/appruntime/exported/stack"
 )
 
 var statusToCode = map[int]ErrCode{

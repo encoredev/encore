@@ -6,7 +6,7 @@ import (
 	"testing"
 	_ "unsafe" // for go:linkname
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 )
 
 func TestDBConf(t *testing.T) {

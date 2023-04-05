@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 )
 
 // Limiter is an interface for rate limiting requests.

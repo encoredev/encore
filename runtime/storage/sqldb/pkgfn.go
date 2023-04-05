@@ -4,6 +4,10 @@ package sqldb
 
 import (
 	"context"
+
+	"encore.dev/appruntime/shared/appconf"
+	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/testsupport"
 )
 
 // Exec executes a query without returning any rows.
@@ -77,6 +81,7 @@ func QueryRowTx(tx *Tx, ctx context.Context, query string, args ...interface{}) 
 }
 
 // constStr is a string that can only be provided as a constant.
+//
 //publicapigen:keep
 type constStr string
 
@@ -88,7 +93,7 @@ func Named(name constStr) *Database {
 }
 
 //publicapigen:drop
-var Singleton *Manager
+var Singleton = NewManager(appconf.Runtime, reqtrack.Singleton, testsupport.Singleton)
 
 func getCurrentDB() *Database {
 	return Singleton.GetCurrentDB()

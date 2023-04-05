@@ -6,9 +6,9 @@ package auth
 import (
 	"context"
 
-	"encore.dev/appruntime/api"
-	"encore.dev/appruntime/model"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/apisdk/api"
+	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/shared/reqtrack"
 )
 
 // UID is a unique identifier representing a user (a user id).

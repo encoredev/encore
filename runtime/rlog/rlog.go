@@ -11,10 +11,10 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/reqtrack"
-	"encore.dev/appruntime/trace"
+	"encore.dev/appruntime/exported/stack"
+	trace2 "encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/beta/errs"
-	"encore.dev/internal/stack"
 	"encore.dev/types/uuid"
 )
 
@@ -136,12 +136,12 @@ func (ctx Ctx) With(keysAndValues ...any) Ctx {
 }
 
 func (l *Manager) doLog(level logLevel, ev *zerolog.Event, msg string, ctxFields, logFields []any) {
-	var tb *trace.Buffer
+	var tb *trace2.Buffer
 	curr := l.rt.Current()
 	numFields := len(ctxFields)/2 + len(logFields)/2
 
 	if curr.Req != nil && curr.Trace != nil {
-		t := trace.NewBuffer(16 + 8 + len(msg) + 4 + numFields*50)
+		t := trace2.NewBuffer(16 + 8 + len(msg) + 4 + numFields*50)
 		tb = &t
 		tb.Bytes(curr.Req.SpanID[:])
 		tb.UVarint(uint64(curr.Goctr))
@@ -173,7 +173,7 @@ func (l *Manager) doLog(level logLevel, ev *zerolog.Event, msg string, ctxFields
 
 	if curr.Trace != nil {
 		tb.Stack(stack.Build(3))
-		curr.Trace.Add(trace.LogMessage, tb.Buf())
+		curr.Trace.Add(trace2.LogMessage, tb.Buf())
 	}
 }
 
@@ -299,7 +299,7 @@ const (
 	float64Type byte = 11
 )
 
-func addTraceBufEntry(tb *trace.Buffer, key string, val any) {
+func addTraceBufEntry(tb *trace2.Buffer, key string, val any) {
 	switch val := val.(type) {
 	case error:
 		tb.Byte(errType)

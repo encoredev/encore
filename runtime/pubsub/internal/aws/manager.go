@@ -10,13 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
 )
 
 type Manager struct {
 	ctx context.Context
-	cfg *config.Config
 
 	cfgOnce   sync.Once
 	awsCfg    aws.Config
@@ -24,8 +23,8 @@ type Manager struct {
 	sqsClient *sqs.Client
 }
 
-func NewManager(ctx context.Context, cfg *config.Config) *Manager {
-	return &Manager{ctx: ctx, cfg: cfg}
+func NewManager(ctx context.Context) *Manager {
+	return &Manager{ctx: ctx}
 }
 
 func (mgr *Manager) ProviderName() string { return "aws" }

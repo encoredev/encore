@@ -35,6 +35,11 @@ type Middleware struct {
 	Recv option.Option[*schema.Receiver]
 }
 
+// ID returns a unique id for this specific middleware.
+func (mw *Middleware) ID() string {
+	return mw.Decl.File.Pkg.ImportPath.String() + "." + mw.Decl.Name
+}
+
 func (mw *Middleware) Kind() resource.Kind       { return resource.Middleware }
 func (mw *Middleware) Package() *pkginfo.Package { return mw.File.Pkg }
 func (mw *Middleware) Pos() token.Pos            { return mw.Decl.AST.Pos() }

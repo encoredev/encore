@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"encore.dev/appruntime/trace"
+	"encore.dev/appruntime/exported/trace"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/pkg/eerror"

@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"encore.dev/appruntime/config"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
 )

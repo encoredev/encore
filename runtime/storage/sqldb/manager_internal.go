@@ -6,14 +6,16 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"encore.dev/appruntime/config"
-	"encore.dev/appruntime/reqtrack"
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/testsupport"
 )
 
 // Manager manages database connections.
 type Manager struct {
-	rt  *reqtrack.RequestTracker
-	cfg *config.Config
+	runtime *config.Runtime
+	rt      *reqtrack.RequestTracker
+	ts      *testsupport.Manager
 
 	mu  sync.RWMutex
 	dbs map[string]*Database
@@ -23,11 +25,12 @@ type Manager struct {
 	queryCtr uint64
 }
 
-func NewManager(cfg *config.Config, rt *reqtrack.RequestTracker) *Manager {
+func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, ts *testsupport.Manager) *Manager {
 	return &Manager{
-		rt:  rt,
-		cfg: cfg,
-		dbs: make(map[string]*Database),
+		runtime: runtime,
+		rt:      rt,
+		ts:      ts,
+		dbs:     make(map[string]*Database),
 	}
 }
 
@@ -36,7 +39,7 @@ func (mgr *Manager) GetCurrentDB() *Database {
 	var dbName string
 	if curr := mgr.rt.Current(); curr.Req != nil {
 		dbName = curr.Req.Service()
-	} else if testSvc := mgr.cfg.Static.TestService; testSvc != "" {
+	} else if testSvc := mgr.ts.TestService(); testSvc != "" {
 		dbName = testSvc
 	} else {
 		panic("sqldb: no current request")
@@ -71,7 +74,7 @@ func (mgr *Manager) GetDB(dbName string) *Database {
 // Each time it's called it returns a new pool.
 func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
 	var db *config.SQLDatabase
-	for _, d := range mgr.cfg.Runtime.SQLDatabases {
+	for _, d := range mgr.runtime.SQLDatabases {
 		if d.EncoreName == dbName {
 			db = d
 			break
@@ -81,7 +84,7 @@ func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
 		panic("sqldb: unknown database: " + dbName)
 	}
 
-	srv := mgr.cfg.Runtime.SQLServers[db.ServerID]
+	srv := mgr.runtime.SQLServers[db.ServerID]
 	cfg, err := dbConf(srv, db)
 	if err != nil {
 		panic("sqldb: " + err.Error())
