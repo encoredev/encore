@@ -65,7 +65,7 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 
 	i, err := setupFn()
 	if err != nil {
-		mgr.rt.Logger().Error().Err(err).Str("service", decl.Name).Msg("service initialization failed")
+		mgr.rt.Logger().Error().Err(err).Str("service", decl.Service).Msg("service initialization failed")
 		return errs.B().Code(errs.Internal).Msg("service initialization failed").Err()
 	}
 	decl.instance = i
