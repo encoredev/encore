@@ -182,7 +182,7 @@ func (app *App) ReconfigureZerologFormat() {
 	// mapCloudFieldNamesToExpected in cli/cmd/encore/logs.go
 	// as that reverses this for log streaming
 	switch app.cfg.Runtime.EnvCloud {
-	case cloud.GCP:
+	case cloud.GCP, cloud.Encore:
 		zerolog.LevelFieldName = "severity"
 		zerolog.TimestampFieldName = "timestamp"
 		zerolog.TimeFieldFormat = time.RFC3339Nano
