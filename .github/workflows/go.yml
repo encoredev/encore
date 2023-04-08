@@ -51,7 +51,7 @@ jobs:
     # for failures. We will also fail fast so that we don't waste time running tests
     # that are already failing.
     - name: Run all tests multiple times
-      run:  cd encr.dev && go test -v --count=5 -failfast -shuffle=on -tags=dev_build ./...
+      run:  cd encr.dev && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build ./...
       if:   github.event.schedule == '30 2 * * *'
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
