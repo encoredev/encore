@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	model2 "encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/beta/errs"
 )
@@ -94,7 +94,7 @@ func (te EventType) String() string {
 	}
 }
 
-func (l *Log) BeginRequest(req *model2.Request, goid uint32) {
+func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 	tb := NewBuffer(1 + 8 + 8 + 8 + 8 + 8 + 8 + 64)
 	tb.Byte(byte(req.Type))
 	tb.Now()
@@ -106,7 +106,7 @@ func (l *Log) BeginRequest(req *model2.Request, goid uint32) {
 	tb.UVarint(uint64(req.DefLoc)) // endpoint expr idx
 
 	switch req.Type {
-	case model2.RPCCall:
+	case model.RPCCall:
 		data := req.RPCData
 		desc := data.Desc
 		tb.Bool(desc.Raw)
@@ -129,14 +129,14 @@ func (l *Log) BeginRequest(req *model2.Request, goid uint32) {
 			tb.ByteString(data.NonRawPayload)
 		}
 
-	case model2.AuthHandler:
+	case model.AuthHandler:
 		data := req.RPCData
 		desc := data.Desc
 		tb.String(desc.Service)
 		tb.String(desc.Endpoint)
 		tb.ByteString(data.NonRawPayload)
 
-	case model2.PubSubMessage:
+	case model.PubSubMessage:
 		data := req.MsgData
 		tb.String(data.Service)
 		tb.String(data.Topic)
@@ -150,7 +150,7 @@ func (l *Log) BeginRequest(req *model2.Request, goid uint32) {
 	l.Add(RequestStart, tb.Buf())
 }
 
-func (l *Log) FinishRequest(req *model2.Request, resp *model2.Response) {
+func (l *Log) FinishRequest(req *model.Request, resp *model.Response) {
 	tb := NewBuffer(64)
 	tb.Byte(byte(req.Type))
 	tb.Bytes(req.SpanID[:])
@@ -161,7 +161,7 @@ func (l *Log) FinishRequest(req *model2.Request, resp *model2.Response) {
 	}
 
 	switch req.Type {
-	case model2.RPCCall:
+	case model.RPCCall:
 		isRaw := req.RPCData.Desc.Raw
 		tb.Bool(isRaw)
 		if isRaw {
@@ -169,17 +169,17 @@ func (l *Log) FinishRequest(req *model2.Request, resp *model2.Response) {
 		} else {
 			tb.ByteString(resp.Payload)
 		}
-	case model2.AuthHandler:
+	case model.AuthHandler:
 		tb.String(string(resp.AuthUID))
 		tb.ByteString(resp.Payload)
-	case model2.PubSubMessage:
+	case model.PubSubMessage:
 		tb.ByteString(resp.Payload)
 	}
 
 	l.Add(RequestEnd, tb.Buf())
 }
 
-func (l *Log) BeginCall(call *model2.APICall, goid uint32) {
+func (l *Log) BeginCall(call *model.APICall, goid uint32) {
 	tb := NewBuffer(8 + 4 + 4 + 4)
 	tb.UVarint(call.ID)
 	tb.Bytes(call.Source.SpanID[:])
@@ -191,7 +191,7 @@ func (l *Log) BeginCall(call *model2.APICall, goid uint32) {
 	l.Add(CallStart, tb.Buf())
 }
 
-func (l *Log) FinishCall(call *model2.APICall, err error) {
+func (l *Log) FinishCall(call *model.APICall, err error) {
 	tb := NewBuffer(8 + 4 + 4 + 4)
 	tb.UVarint(call.ID)
 	if err != nil {
@@ -206,7 +206,7 @@ func (l *Log) FinishCall(call *model2.APICall, err error) {
 	l.Add(CallEnd, tb.Buf())
 }
 
-func (l *Log) BeginAuth(call *model2.AuthCall, goid uint32) {
+func (l *Log) BeginAuth(call *model.AuthCall, goid uint32) {
 	tb := NewBuffer(8 + 4 + 4 + 4)
 	tb.UVarint(call.ID)
 	tb.Bytes(call.SpanID[:])
@@ -215,7 +215,7 @@ func (l *Log) BeginAuth(call *model2.AuthCall, goid uint32) {
 	l.Add(AuthStart, tb.Buf())
 }
 
-func (l *Log) FinishAuth(call *model2.AuthCall, uid model2.UID, err error) {
+func (l *Log) FinishAuth(call *model.AuthCall, uid model.UID, err error) {
 	tb := NewBuffer(64)
 	tb.UVarint(call.ID)
 	tb.String(string(uid))
@@ -235,7 +235,7 @@ func (l *Log) FinishAuth(call *model2.AuthCall, uid model2.UID, err error) {
 
 type DBQueryStartParams struct {
 	Query   string
-	SpanID  model2.SpanID
+	SpanID  model.SpanID
 	Goid    uint32
 	QueryID uint64
 	TxID    uint64
@@ -265,7 +265,7 @@ func (l *Log) DBQueryEnd(queryID uint64, err error) {
 }
 
 type DBTxStartParams struct {
-	SpanID model2.SpanID
+	SpanID model.SpanID
 	Goid   uint32
 	TxID   uint64
 	Stack  stack.Stack
@@ -281,7 +281,7 @@ func (l *Log) DBTxStart(p DBTxStartParams) {
 }
 
 type DBTxEndParams struct {
-	SpanID model2.SpanID
+	SpanID model.SpanID
 	Goid   uint32
 	TxID   uint64
 	Commit bool
@@ -308,7 +308,7 @@ func (l *Log) DBTxEnd(p DBTxEndParams) {
 	l.Add(TxEnd, tb.Buf())
 }
 
-func (l *Log) PublishStart(topic string, msg []byte, spanID model2.SpanID, goid uint32, publishID uint64, skipFrames int) {
+func (l *Log) PublishStart(topic string, msg []byte, spanID model.SpanID, goid uint32, publishID uint64, skipFrames int) {
 	var tb Buffer
 	tb.UVarint(publishID)
 	tb.Bytes(spanID[:])
@@ -327,7 +327,7 @@ func (l *Log) PublishEnd(publishID uint64, messageID string, err error) {
 	l.Add(PublishEnd, tb.Buf())
 }
 
-func (l *Log) GoStart(spanID model2.SpanID, goctr uint32) {
+func (l *Log) GoStart(spanID model.SpanID, goctr uint32) {
 	l.Add(GoStart, []byte{
 		spanID[0],
 		spanID[1],
@@ -344,7 +344,7 @@ func (l *Log) GoStart(spanID model2.SpanID, goctr uint32) {
 	})
 }
 
-func (l *Log) GoClear(spanID model2.SpanID, goctr uint32) {
+func (l *Log) GoClear(spanID model.SpanID, goctr uint32) {
 	l.Add(GoClear, []byte{
 		spanID[0],
 		spanID[1],
@@ -361,7 +361,7 @@ func (l *Log) GoClear(spanID model2.SpanID, goctr uint32) {
 	})
 }
 
-func (l *Log) GoEnd(spanID model2.SpanID, goctr uint32) {
+func (l *Log) GoEnd(spanID model.SpanID, goctr uint32) {
 	l.Add(GoEnd, []byte{
 		spanID[0],
 		spanID[1],
@@ -380,7 +380,7 @@ func (l *Log) GoEnd(spanID model2.SpanID, goctr uint32) {
 
 type ServiceInitStartParams struct {
 	InitCtr uint64
-	SpanID  model2.SpanID
+	SpanID  model.SpanID
 	Goctr   uint32
 	DefLoc  int32
 	Service string
@@ -412,7 +412,7 @@ type CacheOpStartParams struct {
 	IsWrite   bool
 	Keys      []string
 	Inputs    [][]byte
-	SpanID    model2.SpanID
+	SpanID    model.SpanID
 	Goid      uint32
 	OpID      uint64
 	Stack     stack.Stack
@@ -481,7 +481,7 @@ const (
 )
 
 type BodyStreamParams struct {
-	SpanID model2.SpanID
+	SpanID model.SpanID
 
 	// IsResponse specifies whether the stream was a response body
 	// or a request body.

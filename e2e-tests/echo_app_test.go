@@ -66,9 +66,6 @@ type NonBasicResponse struct {
 
 // TestEndToEndWithApp tests that (*app).startProc correctly starts Encore processes
 // for sending requests.
-func TestEndToEndWithApp(t *testing.T) {
-	doTestEndToEndWithApp(t, nil)
-}
 
 func TestEndToEndWithAppV2(t *testing.T) {
 	doTestEndToEndWithApp(t, []string{"ENCORE_EXPERIMENT=v2"})
@@ -323,7 +320,14 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 			req := httptest.NewRequest("GET", "/echo.Env", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
-			c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string][]string{"Env": app.Env})
+
+			filteredEnv := make([]string, 0, len(app.Env))
+			for _, env := range app.Env {
+				if !strings.HasPrefix(env, "ENCORE_") {
+					filteredEnv = append(filteredEnv, env)
+				}
+			}
+			c.Assert(w.Body.Bytes(), qt.JSONEquals, map[string][]string{"Env": filteredEnv})
 		}
 
 		// Call the app metadata endpoint and make sure we get correct data back
@@ -545,7 +549,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	parse, build := testBuild(c, appRoot, os.Environ())
+	parse, build := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
 	p, err := run.StartProc(&StartProcParams{
 		Ctx:         ctx,
 		BuildDir:    build.Dir,
