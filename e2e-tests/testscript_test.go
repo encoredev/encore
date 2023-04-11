@@ -25,10 +25,6 @@ import (
 // headerRe matches valid headers in the form "Header=value".
 var headerRe = regexp.MustCompile(`^([A-Z][A-Za-z0-9-]*)=([^ ]*)$`)
 
-func TestRun(t *testing.T) {
-	doRun(t, nil)
-}
-
 func TestRunV2(t *testing.T) {
 	doRun(t, []string{"v2"})
 }

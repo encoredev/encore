@@ -52,7 +52,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		errs := perr.NewList(ctx, fs)
 		pc := &parsectx.Context{
 			Ctx: ctx,
-			Log: p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
+			Log: p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())).Level(zerolog.InfoLevel),
 			Build: parsectx.BuildInfo{
 				Experiments: p.Experiments,
 				// We use GetOrElseF here because GoRoot / Runtime path will panic

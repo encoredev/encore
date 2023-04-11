@@ -97,7 +97,7 @@ func (Legacy) compilerConfig(p builder.CompileParams) *compiler.Config {
 		Meta:              p.CueMeta,
 		Parse:             p.Parse.Data.(*parser.Result),
 		OpTracker:         p.OpTracker,
-		Log:               p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())),
+		Log:               p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())).Level(zerolog.InfoLevel),
 
 		Debug:               p.Build.Debug,
 		KeepOutputOnFailure: p.Build.KeepOutput,
