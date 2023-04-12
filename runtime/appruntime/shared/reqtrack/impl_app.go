@@ -27,10 +27,12 @@ func (appImpl) set(val *encoreG) {
 }
 
 // getEncoreG gets the encore data for the current g, or nil.
+//
 //go:linkname getEncoreG runtime.getEncoreG
 func getEncoreG() *encoreG
 
 // setEncoreG sets the encore data for the current g to val.
+//
 //go:linkname setEncoreG runtime.setEncoreG
 func setEncoreG(val *encoreG)
 
