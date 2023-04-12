@@ -36,15 +36,16 @@ func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.Req
 	ts *testsupport.Manager, rootLogger zerolog.Logger, json jsoniter.API) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	mgr := &Manager{
-		ctx:         ctx,
-		cancelCtx:   cancel,
-		static:      static,
-		runtime:     runtime,
-		rt:          rt,
-		ts:          ts,
-		rootLogger:  rootLogger,
-		json:        json,
-		outstanding: newOutstandingMessageTracker(),
+		ctx:          ctx,
+		cancelCtx:    cancel,
+		static:       static,
+		runtime:      runtime,
+		rt:           rt,
+		ts:           ts,
+		rootLogger:   rootLogger,
+		json:         json,
+		outstanding:  newOutstandingMessageTracker(),
+		pushHandlers: make(map[types.SubscriptionID]types.PushEndpointHandler),
 	}
 
 	for _, p := range providerRegistry {
