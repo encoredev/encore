@@ -19,23 +19,23 @@ package pubsub
 //
 // Example:
 //
-//     import "encore.dev/pubsub"
+//	 import "encore.dev/pubsub"
 //
-//     type MyEvent struct {
-//       Foo string
-//     }
+//	 type MyEvent struct {
+//	   Foo string
+//	 }
 //
-//     var MyTopic = pubsub.NewTopic[*MyEvent]("my-topic", pubsub.TopicConfig{
-//       DeliveryGuarantee: pubsub.AtLeastOnce,
-//     })
+//	 var MyTopic = pubsub.NewTopic[*MyEvent]("my-topic", pubsub.TopicConfig{
+//	   DeliveryGuarantee: pubsub.AtLeastOnce,
+//	 })
 //
-//    //encore:api public
-//    func DoFoo(ctx context.Context) error {
-//      msgID, err := MyTopic.Publish(ctx, &MyEvent{Foo: "bar"})
-//      if err != nil { return err }
-//      rlog.Info("foo published", "message_id", msgID)
-//      return nil
-//    }
+//	//encore:api public
+//	func DoFoo(ctx context.Context) error {
+//	  msgID, err := MyTopic.Publish(ctx, &MyEvent{Foo: "bar"})
+//	  if err != nil { return err }
+//	  rlog.Info("foo published", "message_id", msgID)
+//	  return nil
+//	}
 func NewTopic[T any](name string, cfg TopicConfig) *Topic[T] {
 	return newTopic[T](Singleton, name, cfg)
 }
