@@ -26,6 +26,9 @@ const (
 
 	// V2 enables the new parser and compiler.
 	V2 Name = "v2"
+
+	// BetaRuntime enables the beta runtime.
+	BetaRuntime Name = "beta-runtime"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -33,7 +36,8 @@ func (x Name) Valid() bool {
 	switch x {
 	case LocalSecretsOverride,
 		Metrics,
-		V2:
+		V2,
+		BetaRuntime:
 		return true
 	default:
 		return false
