@@ -7,6 +7,9 @@ import (
 	"encore.dev/appruntime/apisdk/service"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/shared/shutdown"
+
+	// Initialize the metric subsystem
+	_ "encore.dev/appruntime/infrasdk/metrics"
 )
 
 type App struct {
