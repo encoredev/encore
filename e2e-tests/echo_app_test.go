@@ -66,9 +66,8 @@ type NonBasicResponse struct {
 
 // TestEndToEndWithApp tests that (*app).startProc correctly starts Encore processes
 // for sending requests.
-
-func TestEndToEndWithAppV2(t *testing.T) {
-	doTestEndToEndWithApp(t, []string{"ENCORE_EXPERIMENT=v2"})
+func TestEndToEndWithApp(t *testing.T) {
+	doTestEndToEndWithApp(t, nil)
 }
 
 func doTestEndToEndWithApp(t *testing.T, env []string) {
