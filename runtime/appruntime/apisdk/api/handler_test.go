@@ -24,10 +24,12 @@ import (
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/trace"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/appruntime/shared/traceprovider"
 	"encore.dev/appruntime/shared/traceprovider/mock_trace"
 	"encore.dev/beta/errs"
 	usermetrics "encore.dev/metrics"
+	"encore.dev/pubsub"
 )
 
 type mockReq struct {
@@ -372,7 +374,7 @@ func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, 
 	if mockTraces {
 		tf = mock_trace.NewMockFactory(traceMock)
 	} else {
-		tf = traceprovider.DefaultFactory
+		tf = &traceprovider.DefaultFactory{}
 	}
 
 	static := &config.Static{}
@@ -383,7 +385,9 @@ func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, 
 	metricsRegistry := usermetrics.NewRegistry(rt, len(static.BundledServices))
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	encoreMgr := encore.NewManager(static, runtime, rt)
-	server := api.NewServer(static, runtime, rt, nil, encoreMgr, logger, metricsRegistry, json, klock)
+	tsMgr := testsupport.NewManager(static, rt, logger)
+	pubsubMgr := pubsub.NewManager(static, runtime, rt, tsMgr, logger, json)
+	server := api.NewServer(static, runtime, rt, nil, encoreMgr, pubsubMgr, logger, metricsRegistry, json, klock)
 	return server, traceMock, metricsRegistry
 }
 
