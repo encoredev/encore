@@ -21,11 +21,7 @@ import (
 )
 
 func Resolve(expSet *experiments.Set) builder.Impl {
-	if experiments.V2.Enabled(expSet) {
-		return v2builder.BuilderImpl{}
-	} else {
-		return Legacy{}
-	}
+	return v2builder.BuilderImpl{}
 }
 
 type Legacy struct{}
