@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/internals/perr"
 )
@@ -173,6 +175,11 @@ func (s *Set) Contains(sel Selector) bool {
 // It compares in linear time O(N) where N is the number of selectors in the
 // larger set. It is faster than calling Contains for each selector in other.
 func (s *Set) ContainsAny(other Set) bool {
+	// If this set contains the "all" selector it always matches.
+	if slices.IndexFunc(s.vals, func(sel Selector) bool { return sel.Type == All }) != -1 {
+		return true
+	}
+
 	i, j := 0, 0
 	for i < len(s.vals) && j < len(other.vals) {
 		if s.vals[i].Equals(other.vals[j]) {
