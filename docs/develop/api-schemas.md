@@ -160,9 +160,15 @@ as API keys or personally identifiable information (PII).
 
 For those use cases Encore supports marking a field as sensitive using the struct tag `encore:"sensitive"`.
 Encore's tracing system will automatically redact fields tagged as sensitive. This works for both individual
-values as well as nested fields. 
+values as well as nested fields.
 
 Note that inputs to [auth handlers](/docs/develop/auth) are automatically marked as sensitive and are always redacted.
+
+<Callout type="info">
+
+The `encore:"sensitive"` tag is ignored for local development environments to make development and debugging with the Development Dashboard easier.
+
+</Callout>
 
 ## Example
 
