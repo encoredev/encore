@@ -74,5 +74,5 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 	Endpoint:    "AuthHandler",
 	HasAuthData: true,
 	Service:     "code",
-	SvcNum:      0,
+	SvcNum:      1,
 }

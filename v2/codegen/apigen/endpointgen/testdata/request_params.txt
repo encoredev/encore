@@ -126,5 +126,5 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return reqData.Payload
 	},
 	Service: "basic",
-	SvcNum:  0,
+	SvcNum:  1,
 }

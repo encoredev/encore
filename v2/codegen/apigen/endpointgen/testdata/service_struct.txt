@@ -102,7 +102,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return nil
 	},
 	Service: "basic",
-	SvcNum:  0,
+	SvcNum:  1,
 }
 -- want:encore_internal__svcstruct.go --
 package basic
