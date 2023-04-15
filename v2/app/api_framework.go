@@ -63,7 +63,7 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, res *parse
 				desc, ok := svc.Framework.Get()
 				if !ok {
 					desc = &apiframework.ServiceDesc{
-						Num:     i,
+						Num:     i + 1,
 						RootPkg: pkg,
 					}
 					svc.Framework = option.Some(desc)

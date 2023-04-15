@@ -43,14 +43,17 @@ func isVoid[T any]() bool {
 
 // Desc is a description of an API handler.
 type Desc[Req, Resp any] struct {
+	// SvcNum is the 1-based index into the list of services.
+	SvcNum uint16
+
 	// Service and Endpoint name the API this description is for.
 	Service  string
-	SvcNum   uint16
 	Endpoint string
-	Methods  []string
-	Path     string
-	RawPath  string
-	DefLoc   int32
+
+	Methods []string
+	Path    string
+	RawPath string
+	DefLoc  int32
 
 	// PathParamNames are the names of the path params, in order.
 	PathParamNames []string

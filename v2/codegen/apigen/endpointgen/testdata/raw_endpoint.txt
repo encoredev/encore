@@ -96,7 +96,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return nil
 	},
 	Service: "code",
-	SvcNum:  0,
+	SvcNum:  1,
 }
 
 type EncoreInternal_BarReq struct{}
@@ -149,7 +149,7 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 		return nil
 	},
 	Service: "code",
-	SvcNum:  0,
+	SvcNum:  1,
 }
 -- want:encore_internal__svcstruct.go --
 package code
