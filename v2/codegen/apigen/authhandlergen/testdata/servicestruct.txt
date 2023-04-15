@@ -60,7 +60,7 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[str
 	Endpoint:    "AuthHandler",
 	HasAuthData: false,
 	Service:     "code",
-	SvcNum:      0,
+	SvcNum:      1,
 }
 -- want:encore_internal__svcstruct.go --
 package code

@@ -84,7 +84,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return nil
 	},
 	Service: "svca",
-	SvcNum:  0,
+	SvcNum:  1,
 }
 
 type EncoreInternal_BarReq struct{}
@@ -138,7 +138,7 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 		return nil
 	},
 	Service: "svca",
-	SvcNum:  0,
+	SvcNum:  1,
 }
 -- want:svca/encore_internal__apicalls.go --
 package svca
