@@ -157,9 +157,9 @@ func doRun(t *testing.T, experiments []string) {
 				os.Stdout.Write(respBody)
 
 				if w.Code != http.StatusOK && !neg {
-					ts.Fatalf("unexpected status code: %v", w.Code)
+					ts.Fatalf("unexpected status code: %v: %s", w.Code, respBody)
 				} else if w.Code == http.StatusOK && neg {
-					ts.Fatalf("unexpected status code: %v", w.Code)
+					ts.Fatalf("unexpected status code: %v: %s", w.Code, respBody)
 				}
 				app.Values["call_resp"] = respBody
 			},

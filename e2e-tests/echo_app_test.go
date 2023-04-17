@@ -18,6 +18,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	. "encr.dev/cli/daemon/run"
+	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/internal/clientgen"
 	"encr.dev/pkg/golden"
 )
@@ -543,7 +544,8 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	app := apps.NewInstance(appRoot, "local_id", "platform_id")
 
 	mgr := &Manager{}
-	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceServers: NewResourceServices(app, nil)}
+	rm := infra.NewResourceManager(app, nil, false)
+	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
