@@ -19,6 +19,7 @@ import (
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	. "encr.dev/cli/daemon/run"
+	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	. "encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
@@ -53,12 +54,12 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	app := apps.NewInstance(appRoot, "slug", "")
 	mgr := &Manager{}
-	rs := NewResourceServices(app, mgr.ClusterMgr /* currently nil */)
+	rm := infra.NewResourceManager(app, mgr.ClusterMgr /* currently nil */, false)
 	run := &Run{
 		ID:              GenID(),
 		ListenAddr:      ln.Addr().String(),
 		App:             app,
-		ResourceServers: rs,
+		ResourceManager: rm,
 		Mgr:             mgr,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,9 +68,8 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	parse, build := testBuild(c, appRoot, env)
 
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
-	err = run.ResourceServers.StartRequiredServices(jobs, parse.Meta)
-	assertNil(err)
-	c.Cleanup(rs.StopAll)
+	run.ResourceManager.StartRequiredServices(jobs, parse.Meta)
+	c.Cleanup(rm.StopAll)
 
 	assertNil(jobs.Wait())
 
@@ -95,9 +95,6 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		DBProxyPort:    0,
 		Logger:         logger,
 		Environ:        env,
-		SQLDBCluster:   rs.GetSQLCluster(),
-		NSQDaemon:      rs.GetPubSub(),
-		Redis:          rs.GetRedis(),
 		ServiceConfigs: build.Configs,
 		Experiments:    expSet,
 		Secrets:        secretData.Values,
@@ -117,8 +114,8 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		Addr:   ln.Addr().String(),
 		Run:    run,
 		Meta:   parse.Meta,
-		NSQ:    rs.GetPubSub(),
-		Redis:  rs.GetRedis(),
+		NSQ:    rm.GetPubSub(),
+		Redis:  rm.GetRedis(),
 		Env:    env,
 		Values: make(map[string]any),
 	}
@@ -135,13 +132,12 @@ func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []
 
 	app := apps.NewInstance(appRoot, "slug", "")
 	err := mgr.Test(ctx, TestParams{
-		App:          app,
-		SQLDBCluster: nil,
-		WorkingDir:   ".",
-		Args:         []string{"./..."},
-		Environ:      environ,
-		Stdout:       stdout,
-		Stderr:       stderr,
+		App:        app,
+		WorkingDir: ".",
+		Args:       []string{"./..."},
+		Environ:    environ,
+		Stdout:     stdout,
+		Stderr:     stderr,
 	})
 	return err
 }
