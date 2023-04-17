@@ -38,6 +38,9 @@ func TestParseURL(t *testing.T) {
 		{"/:;", nil, "Path parameters must be valid Go identifiers."},
 		{"/\u0000", nil, "invalid control character in URL"},
 		{"/foo?bar=baz", nil, `Paths must not contain the '?' character.`},
+		{"/foo/!fallback", []Segment{
+			{Literal, "foo", str, 0, 3},
+			{Fallback, "fallback", str, 4, 13}}, ""},
 	}
 
 	for _, test := range tests {
@@ -45,6 +48,7 @@ func TestParseURL(t *testing.T) {
 			errs := perr.NewList(context.Background(), token.NewFileSet())
 			p, ok := Parse(errs, 0, test.Path, Options{
 				AllowWildcard: true,
+				AllowFallback: true,
 				PrefixSlash:   true,
 			})
 			if !ok {
@@ -82,6 +86,9 @@ func TestAdd(t *testing.T) {
 		{"GET", "/moo/:baa/*wild", ``},
 		{"POST", "/test/*wild", ``},
 		{"POST", "/test/*card", "The wildcard `*card` conflicts with the path `/test/*wild`."},
+		{"POST", "/test/!fallback", ""},
+		{"GET", "/test/!fallback", ""},
+		{"POST", "/test/!fallback", "The fallback `!fallback` conflicts with the path `/test/!fallback`."},
 	}
 
 	set := &Set{}
@@ -90,6 +97,7 @@ func TestAdd(t *testing.T) {
 		errs := perr.NewList(context.Background(), token.NewFileSet())
 		p, ok := Parse(errs, 0, test.Path, Options{
 			AllowWildcard: true,
+			AllowFallback: true,
 			PrefixSlash:   true,
 		})
 		c.Assert(ok, qt.IsTrue)
@@ -98,7 +106,7 @@ func TestAdd(t *testing.T) {
 			c.Assert(errs.FormatErrors(), qt.Contains, test.Err, qt.Commentf("%s %s", test.Method, test.Path))
 			c.Assert(ok, qt.IsFalse)
 		} else {
-			c.Assert(errs.Len(), qt.Equals, 0, qt.Commentf("%s %s", test.Method, test.Path))
+			c.Assert(errs.Len(), qt.Equals, 0, qt.Commentf("%s %s: %v", test.Method, test.Path, errs.AsError()))
 			c.Assert(ok, qt.IsTrue)
 		}
 	}

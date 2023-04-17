@@ -76,6 +76,30 @@ func GetBlogPost(ctx context.Context, id int, path string) (*BlogPost, error) {
 }
 ```
 
+### Fallback paths
+
+Encore supports defining fallback routes that will be called if no other endpoint matches the request,
+using the syntax `path=/!fallback`.
+
+This is often useful when migrating an existing backend service over to Encore, as it allows you to gradually
+migrate endpoints over to Encore while routing the remaining endpoints to the existing HTTP router using
+a raw endpoint with a fallback route.
+
+For example:
+
+```go
+//encore:service
+type Service struct {
+	oldRouter *gin.Engine // existing HTTP router
+}
+
+// Route all requests to the existing HTTP router if no other endpoint matches.
+//encore:api public raw path=/!fallback
+func (s *Service) Fallback(w http.ResponseWriter, req *http.Request) {
+    s.oldRouter.ServeHTTP(w, req)
+}
+```
+
 ## Headers
 
 Headers are defined by the `header` field tag, which can be used in both request and response data types. The tag name is used to translate between the struct field and http headers.

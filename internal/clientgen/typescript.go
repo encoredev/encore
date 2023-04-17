@@ -224,7 +224,7 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 				default:
 					panic(fmt.Sprintf("unhandled PathSegment type %s", s.ValueType))
 				}
-				if s.Type == meta.PathSegment_WILDCARD {
+				if s.Type == meta.PathSegment_WILDCARD || s.Type == meta.PathSegment_FALLBACK {
 					ts.WriteString("[]")
 					rpcPath.WriteString("${" + ts.nonReservedId(s.Value) + ".map(encodeURIComponent).join(\"/\")}")
 				} else {

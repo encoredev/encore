@@ -43,6 +43,8 @@ func (p *Path) String() string {
 			b.WriteByte(':')
 		case Wildcard:
 			b.WriteByte('*')
+		case Fallback:
+			b.WriteByte('!')
 		}
 		b.WriteString(s.Value)
 	}
@@ -71,6 +73,16 @@ func (p *Path) Params() []Segment {
 	return params
 }
 
+// HasFallback is true if the path contains a fallback segment.
+func (p *Path) HasFallback() bool {
+	for _, s := range p.Segments {
+		if s.Type == Fallback {
+			return true
+		}
+	}
+	return false
+}
+
 // Segment represents a parsed path segment.
 type Segment struct {
 	Type      SegmentType
@@ -88,6 +100,8 @@ func (s *Segment) String() string {
 		return ":" + s.Value
 	case Wildcard:
 		return "*" + s.Value
+	case Fallback:
+		return "!" + s.Value
 	default:
 		return s.Value
 	}
@@ -111,11 +125,17 @@ const (
 	Param
 	// Wildcard represents zero or more path segments of any value.
 	Wildcard
+	// Fallback represents zero or more path segments of any value
+	// that are lower priority than any other path.
+	Fallback
 )
 
 type Options struct {
 	// AllowWildcard indicates whether the parser should allow wildcard segments.
 	AllowWildcard bool
+
+	// AllowFallback indicates whether the parser should allow fallback segments.
+	AllowFallback bool
 
 	// PrefixSlash indicates whether the parser should require a leading slash
 	// or require that it's not present
@@ -183,6 +203,9 @@ func Parse(errs *perr.List, startPos token.Pos, path string, options Options) (p
 		} else if val != "" && val[0] == '*' && options.AllowWildcard {
 			segType = Wildcard
 			val = val[1:]
+		} else if val != "" && val[0] == '!' && options.AllowFallback {
+			segType = Fallback
+			val = val[1:]
 		}
 		segs = append(segs, Segment{
 			Type: segType, Value: val, ValueType: schema.String,
@@ -220,6 +243,18 @@ func Parse(errs *perr.List, startPos token.Pos, path string, options Options) (p
 				errs.Add(errWildcardNotLastSegment.AtGoNode(s))
 				return nil, false
 			}
+		case Fallback:
+			switch {
+			case s.Value == "":
+				errs.Add(errParameterMissingName.AtGoNode(s))
+				return nil, false
+			case !token.IsIdentifier(s.Value):
+				errs.Add(errInvalidParamIdentifier.AtGoNode(s))
+				return nil, false
+			case len(segs) > (i + 1):
+				errs.Add(errFallbackNotLastSegment.AtGoNode(s))
+				return nil, false
+			}
 		}
 	}
 
@@ -239,6 +274,8 @@ func (p *Path) ToProto() *meta.Path {
 			s.Type = meta.PathSegment_PARAM
 		case Wildcard:
 			s.Type = meta.PathSegment_WILDCARD
+		case Fallback:
+			s.Type = meta.PathSegment_FALLBACK
 		default:
 			panic(fmt.Sprintf("unhandled path segment type %v", seg.Type))
 		}
@@ -402,6 +439,14 @@ func (s *Set) match(errs *perr.List, path *Path, seg Segment, curr *node) (next 
 				if seg.Value == ch.s.Value {
 					return ch, true
 				}
+			}
+		case Fallback:
+			switch seg.Type {
+			case Fallback:
+				errs.Add(errConflictingFallbackPath(seg.Value, ch.findPath()).
+					AtGoNode(path).
+					AtGoNode(ch.findPath()))
+				return nil, false
 			}
 		}
 	}

@@ -153,6 +153,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 		config.KeyPattern,
 		resourcepaths.Options{
 			AllowWildcard: false,
+			AllowFallback: false,
 			PrefixSlash:   false,
 		},
 	)

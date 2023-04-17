@@ -681,6 +681,8 @@ class CurlDialect extends TextBasedDialect {
               return ":" + s.value;
             case PathSegment_SegmentType.WILDCARD:
               return "*" + s.value;
+            case PathSegment_SegmentType.FALLBACK:
+              return "!" + s.value;
             default:
               return s.value;
           }

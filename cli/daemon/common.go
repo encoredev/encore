@@ -165,7 +165,7 @@ func genCurlCommand(run *run.Run, md *meta.Data, rpc *meta.RPC) string {
 			v = "foo"
 		case meta.PathSegment_LITERAL:
 			v = seg.Value
-		case meta.PathSegment_WILDCARD:
+		case meta.PathSegment_WILDCARD, meta.PathSegment_FALLBACK:
 			v = "foo"
 		case meta.PathSegment_PARAM:
 			switch seg.ValueType {

@@ -65,6 +65,10 @@ type Desc[Req, Resp any] struct {
 	// If raw is true, RawHandler is set and AppHandler and EncodeResp are nil.
 	Raw bool
 
+	// If Fallback is true, the handler is a fallback handler
+	// for when other routes don't match.
+	Fallback bool
+
 	DecodeReq      func(*http.Request, UnnamedParams, jsoniter.API) (Req, UnnamedParams, error)
 	CloneReq       func(Req) (Req, error)
 	ReqPath        func(Req) (path string, params UnnamedParams, err error)
@@ -94,6 +98,7 @@ func (d *Desc[Req, Resp]) EndpointName() string   { return d.Endpoint }
 func (d *Desc[Req, Resp]) HTTPMethods() []string  { return d.Methods }
 func (d *Desc[Req, Resp]) SemanticPath() string   { return d.Path }
 func (d *Desc[Req, Resp]) HTTPRouterPath() string { return d.RawPath }
+func (d *Desc[Req, Resp]) IsFallback() bool       { return d.Fallback }
 
 func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 	if d.Raw {
