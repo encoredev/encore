@@ -131,7 +131,8 @@ func (d *requestDesc) renderPathDecoding(g *Group, dec *genutil.TypeUnmarshaller
 			segs = append(segs, s)
 		}
 		if !seenWildcard {
-			if s.Type == resourcepaths.Wildcard {
+			// Fallback is also considered a wildcard for these purposes.
+			if s.Type == resourcepaths.Wildcard || s.Type == resourcepaths.Fallback {
 				seenWildcard = true
 			} else if s.Type == resourcepaths.Param {
 				wildcardIdx++

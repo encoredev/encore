@@ -265,7 +265,7 @@ func validatePathParam(errs *perr.List, param schema.Param, seg *resourcepaths.S
 	b := builtin.Kind
 
 	// Wildcard path parameters must be strings.
-	if seg.Type == resourcepaths.Wildcard && b != schema.String {
+	if b != schema.String && (seg.Type == resourcepaths.Wildcard || seg.Type == resourcepaths.Fallback) {
 		errs.Add(errWildcardMustBeString(param.Name).AtGoNode(seg).AtGoNode(param.AST))
 	}
 
@@ -323,6 +323,7 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 					f.Value,
 					resourcepaths.Options{
 						AllowWildcard: true,
+						AllowFallback: true,
 						PrefixSlash:   true,
 					},
 				)

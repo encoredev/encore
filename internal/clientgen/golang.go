@@ -413,7 +413,7 @@ func (g *golang) rpcParams(rpc *meta.RPC) Code {
 				typ = Uint()
 			}
 
-			if segment.Type == meta.PathSegment_WILDCARD {
+			if segment.Type == meta.PathSegment_WILDCARD || segment.Type == meta.PathSegment_FALLBACK {
 				typ = Index().Add(typ)
 			}
 
@@ -885,7 +885,7 @@ func (g *golang) createApiPath(rpc *meta.RPC, withQueryString bool) (urlPath *St
 			case meta.PathSegment_STRING, meta.PathSegment_UUID:
 				url.WriteString("%s")
 
-				if segment.Type == meta.PathSegment_WILDCARD {
+				if segment.Type == meta.PathSegment_WILDCARD || segment.Type == meta.PathSegment_FALLBACK {
 					g.seenSlicePath = true
 					paramID = Id("pathEscapeSlice").Call(paramID)
 				} else {

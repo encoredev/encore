@@ -178,7 +178,7 @@ func (js *javascript) writeService(svc *meta.Service) error {
 				}
 
 				js.WriteString(js.nonReservedId(s.Value))
-				if s.Type == meta.PathSegment_WILDCARD {
+				if s.Type == meta.PathSegment_WILDCARD || s.Type == meta.PathSegment_FALLBACK {
 					rpcPath.WriteString("${" + js.nonReservedId(s.Value) + ".map(encodeURIComponent).join(\"/\")}")
 				} else {
 					rpcPath.WriteString("${encodeURIComponent(" + js.nonReservedId(s.Value) + ")}")

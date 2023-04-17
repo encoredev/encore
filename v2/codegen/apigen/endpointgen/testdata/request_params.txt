@@ -103,6 +103,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return nil
 	},
 	Endpoint:            "Foo",
+	Fallback:            false,
 	GlobalMiddlewareIDs: []string{},
 	Methods:             []string{"POST"},
 	Path:                "/basic.Foo",

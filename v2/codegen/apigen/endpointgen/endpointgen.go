@@ -82,6 +82,7 @@ func genAPIDesc(
 		Id("Endpoint"):       Lit(ep.Name),
 		Id("Methods"):        gu.GoToJen(pos, methods),
 		Id("Raw"):            Lit(ep.Raw),
+		Id("Fallback"):       Lit(ep.Path.HasFallback()),
 		Id("Path"):           Lit(ep.Path.String()),
 		Id("RawPath"):        Lit(rawPath(ep.Path)),
 		Id("DefLoc"):         Lit(gen.TraceNodes.Endpoint(ep)),
@@ -156,6 +157,9 @@ func rawPath(path *resourcepaths.Path) string {
 		case resourcepaths.Param:
 			b.WriteByte(':')
 		case resourcepaths.Wildcard:
+			b.WriteByte('*')
+		case resourcepaths.Fallback:
+			// Fallback paths map to a wildcard route in httprouter terms.
 			b.WriteByte('*')
 		}
 		b.WriteString(strconv.Itoa(nParam))

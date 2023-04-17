@@ -509,6 +509,8 @@ func (b *builder) apiPath(pos gotoken.Pos, path *resourcepaths.Path) *meta.Path 
 			seg.Type = meta.PathSegment_PARAM
 		case resourcepaths.Wildcard:
 			seg.Type = meta.PathSegment_WILDCARD
+		case resourcepaths.Fallback:
+			seg.Type = meta.PathSegment_FALLBACK
 		}
 
 		res.Segments = append(res.Segments, seg)

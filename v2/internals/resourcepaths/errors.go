@@ -64,6 +64,11 @@ var (
 		"Path wildcards must be the last segment in the path.",
 	)
 
+	errFallbackNotLastSegment = errRange.New(
+		"Invalid Path",
+		"Path fallbacks must be the last segment in the path.",
+	)
+
 	errDuplicatePath = errRange.New(
 		"Path Conflict",
 		"Duplicate Paths found.",
@@ -82,5 +87,10 @@ var (
 	errConflictingLiteralPath = errRange.Newf(
 		"Path Conflict",
 		"The path segment `%s` conflicts with the path `%s`.",
+	)
+
+	errConflictingFallbackPath = errRange.Newf(
+		"Path Conflict",
+		"The fallback `!%s` conflicts with the path `%s`.",
 	)
 )

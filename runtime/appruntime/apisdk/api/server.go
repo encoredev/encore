@@ -15,7 +15,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/apisdk/cors"
 	"encore.dev/appruntime/exported/config"
-	model2 "encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/beta/errs"
@@ -37,8 +37,8 @@ type execContext struct {
 	server  *Server
 	ctx     context.Context
 	ps      UnnamedParams
-	traceID model2.TraceID
-	auth    model2.AuthInfo
+	traceID model.TraceID
+	auth    model.AuthInfo
 }
 
 type IncomingContext struct {
@@ -58,6 +58,7 @@ type Handler interface {
 	SemanticPath() string
 	HTTPRouterPath() string
 	HTTPMethods() []string
+	IsFallback() bool
 	Handle(c IncomingContext)
 }
 
@@ -84,10 +85,12 @@ type Server struct {
 	globalMiddleware   map[string]*Middleware
 	registeredHandlers []Handler
 
-	public  *httprouter.Router
-	private *httprouter.Router
-	encore  *httprouter.Router
-	httpsrv *http.Server
+	public          *httprouter.Router
+	publicFallback  *httprouter.Router
+	private         *httprouter.Router
+	privateFallback *httprouter.Router
+	encore          *httprouter.Router
+	httpsrv         *http.Server
 
 	callCtr uint64
 
@@ -115,20 +118,13 @@ func NewServer(
 		},
 	})
 
-	public := httprouter.New()
-	public.HandleOPTIONS = false
-	public.RedirectFixedPath = false
-	public.RedirectTrailingSlash = false
-
-	private := httprouter.New()
-	private.HandleOPTIONS = false
-	private.RedirectFixedPath = false
-	private.RedirectTrailingSlash = false
-
-	encore := httprouter.New()
-	encore.HandleOPTIONS = false
-	encore.RedirectFixedPath = false
-	encore.RedirectTrailingSlash = false
+	newRouter := func() *httprouter.Router {
+		router := httprouter.New()
+		router.HandleOPTIONS = false
+		router.RedirectFixedPath = false
+		router.RedirectTrailingSlash = false
+		return router
+	}
 
 	s := &Server{
 		static:         static,
@@ -143,9 +139,11 @@ func NewServer(
 		json:           json,
 		tracingEnabled: rt.TracingEnabled(),
 
-		public:  public,
-		private: private,
-		encore:  encore,
+		public:          newRouter(),
+		publicFallback:  newRouter(),
+		private:         newRouter(),
+		privateFallback: newRouter(),
+		encore:          newRouter(),
 	}
 
 	// Configure CORS
@@ -191,7 +189,7 @@ func (s *Server) registerEndpoint(h Handler) {
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			params := toUnnamedParams(ps)
-			traceID, _ := model2.GenTraceID()
+			traceID, _ := model.GenTraceID()
 			traceIDStr := traceID.String()
 
 			// Echo the X-Request-ID back to the caller if present,
@@ -220,13 +218,20 @@ func (s *Server) registerEndpoint(h Handler) {
 			// Always send the trace id back.
 			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
 
-			s.processRequest(h, s.NewIncomingContext(w, req, params, traceID, model2.AuthInfo{}))
+			s.processRequest(h, s.NewIncomingContext(w, req, params, traceID, model.AuthInfo{}))
 		}
 
 		routerPath := h.HTTPRouterPath()
-		s.private.Handle(m, routerPath, adapter)
+
+		// Decide which routers to use.
+		private, public := s.private, s.public
+		if h.IsFallback() {
+			private, public = s.privateFallback, s.publicFallback
+		}
+
+		private.Handle(m, routerPath, adapter)
 		if access := h.AccessType(); access == Public || access == RequiresAuth {
-			s.public.Handle(m, routerPath, adapter)
+			public.Handle(m, routerPath, adapter)
 		}
 	}
 }
@@ -268,7 +273,7 @@ func (s *Server) Shutdown(force context.Context) {
 
 func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	// Select a router based on access
-	r := s.public
+	router, fallbackRouter := s.public, s.publicFallback
 
 	// The Encore platform is authorised to call private APIs directly, thus if we have this header set,
 	// and authenticate it, then we can switch over to the private router which contains all APIs not just
@@ -280,7 +285,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 		if ok, err := s.pc.ValidatePlatformRequest(req, sig); err == nil && ok {
 			// Successfully authenticated
 			req = req.WithContext(platformauth.WithEncorePlatformSealOfApproval(req.Context()))
-			r = s.private
+			router, fallbackRouter = s.private, s.privateFallback
 		} else if err != nil {
 			http.Error(w, "could not authenticate request", http.StatusBadGateway)
 			return
@@ -300,25 +305,40 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	// Switch to the Encore internal router if we are on the Encore internal path
 	const internalPrefix = "/__encore"
 	if strings.HasPrefix(path, internalPrefix+"/") {
-		r = s.encore
+		router, fallbackRouter = s.encore, nil
 		path = path[len(internalPrefix):] // keep leading slash
 	}
 
-	h, p, _ := r.Lookup(req.Method, path)
-	if h == nil {
-		h, p, _ = r.Lookup(wildcardMethod, path)
+	findRoute := func(r *httprouter.Router) (h httprouter.Handle, p httprouter.Params, handledTSR bool) {
+		h, p, _ = r.Lookup(req.Method, path)
+		if h == nil {
+			h, p, _ = r.Lookup(wildcardMethod, path)
+		}
+
+		if h == nil {
+			// If we still couldn't find a handler, check if there is one
+			// with a trailing slash redirect.
+			if handleTrailingSlashRedirect(r, w, req, path) {
+				return nil, nil, true
+			}
+		}
+
+		return h, p, false
 	}
 
-	if h == nil {
-		// If we still couldn't find a handler, check if there is one
-		// with a trailing slash redirect.
-		if handleTrailingSlashRedirect(r, w, req, path) {
-			return
-		}
+	// Find the route. Try first with the chosen router and otherwise check the fallback router.
+	h, p, handled := findRoute(router)
+	if !handled && h == nil && fallbackRouter != nil {
+		h, p, handled = findRoute(fallbackRouter)
+	}
+
+	// If the router already handled the request via a trailing-slash redirect, we're done.
+	if handled {
+		return
 	}
 
 	if h != nil {
-		// Found an endpoint
+		// Found an endpoint.
 		h(w, req, p)
 		return
 	}
@@ -338,11 +358,11 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	}
 }
 
-func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, trID model2.TraceID, auth model2.AuthInfo) execContext {
+func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) execContext {
 	return execContext{s, ctx, ps, trID, auth}
 }
 
-func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, trID model2.TraceID, auth model2.AuthInfo) IncomingContext {
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) IncomingContext {
 	ec := s.newExecContext(req.Context(), ps, trID, auth)
 	return IncomingContext{ec, w, req, nil}
 }

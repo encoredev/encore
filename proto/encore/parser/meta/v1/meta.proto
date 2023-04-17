@@ -218,6 +218,7 @@ message PathSegment {
     LITERAL = 0;
     PARAM = 1;
     WILDCARD = 2;
+    FALLBACK = 3;
   }
 
   enum ParamType {
