@@ -75,6 +75,7 @@ type Server struct {
 	encoreMgr      *encore.Manager
 	pubsubMgr      *pubsub.Manager
 	requestsTotal  *metrics.CounterGroup[requestsTotalLabels, uint64]
+	httpClient     *http.Client
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
@@ -134,6 +135,7 @@ func NewServer(
 		encoreMgr:      encoreMgr,
 		pubsubMgr:      pubsubMgr,
 		requestsTotal:  requestsTotal,
+		httpClient:     &http.Client{},
 		clock:          clock,
 		rootLogger:     rootLogger,
 		json:           json,

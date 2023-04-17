@@ -99,6 +99,9 @@ func genAPIDesc(
 		Id("EncodeResp"): respDesc.EncodeResponse(),
 		Id("CloneResp"):  respDesc.Clone(),
 
+		Id("EncodeExternalReq"):  reqDesc.EncodeExternalReq(),
+		Id("DecodeExternalResp"): respDesc.DecodeExternalResp(),
+
 		Id("ServiceMiddleware"):   serviceMiddleware(ep, fw, svcMiddleware),
 		Id("GlobalMiddlewareIDs"): globalMiddleware(appDesc, ep),
 	}))

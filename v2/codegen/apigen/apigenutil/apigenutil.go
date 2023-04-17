@@ -1,6 +1,8 @@
 package apigenutil
 
 import (
+	"strings"
+
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/v2/codegen/internal/genutil"
@@ -13,28 +15,29 @@ import (
 
 // DecodeHeaders generates code for decoding HTTP headers from the http request
 // given by httpReqExpr and storing the result into the params given by paramsExpr.
-func DecodeHeaders(g *Group, httpReqExpr, paramExpr *Statement, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
+func DecodeHeaders(g *Group, httpHeaderExpr, paramExpr *Statement, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
 	if len(params) == 0 {
 		return
 	}
+
 	g.Comment("Decode headers")
-	g.Id("h").Op(":=").Add(httpReqExpr.Clone()).Dot("Header")
+	g.Id("h").Op(":=").Add(httpHeaderExpr)
 	for _, f := range params {
 		singleValExpr := Id("h").Dot("Get").Call(Lit(f.WireName))
 		listValExpr := Id("h").Dot("Values").Call(Lit(f.WireName))
 		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.WireName, singleValExpr, listValExpr, false)
-		g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
+		g.Add(paramExpr.Clone().Dot(f.SrcName).Op("=").Add(decodeExpr))
 	}
 	g.Line()
 }
 
 // DecodeQuery is like DecodeHeaders but for query strings.
-func DecodeQuery(g *Group, httpReqExpr, paramExpr *Statement, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
+func DecodeQuery(g *Group, urlValuesExpr, paramExpr *Statement, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
 	if len(params) == 0 {
 		return
 	}
 	g.Comment("Decode query string")
-	g.Id("qs").Op(":=").Add(httpReqExpr.Clone()).Dot("URL").Dot("Query").Call()
+	g.Id("qs").Op(":=").Add(urlValuesExpr)
 
 	for _, f := range params {
 		singleValExpr := Id("qs").Dot("Get").Call(Lit(f.WireName))
@@ -68,6 +71,109 @@ func DecodeCookie(errs *perr.List, g *Group, httpReqExpr, paramExpr *Statement, 
 			}
 		})
 	}
+	g.Line()
+}
+
+const jsonIterPkg = "github.com/json-iterator/go"
+
+// DecodeBody decodes an io.Reader request body into the given parameters.
+func DecodeBody(g *Group, ioReaderExpr *Statement, paramsExpr *Statement, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
+	if len(params) == 0 {
+		return
+	}
+
+	g.Comment("Decode request body")
+	g.Id("payload").Op(":=").Add(dec.ReadBody(ioReaderExpr))
+	g.Id("iter").Op(":=").Qual(jsonIterPkg, "ParseBytes").Call(Id("json"), Id("payload"))
+	g.Line()
+
+	g.For(Id("iter").Dot("ReadObjectCB").Call(
+		Func().Params(Id("_").Op("*").Qual(jsonIterPkg, "Iterator"), Id("key").String()).Bool().Block(
+			Switch(Qual("strings", "ToLower").Call(Id("key"))).BlockFunc(func(g *Group) {
+				for _, f := range params {
+					g.Case(Lit(strings.ToLower(f.WireName))).Block(
+						dec.ParseJSON(f.SrcName, Id("iter"), Op("&").Add(paramsExpr.Clone()).Dot(f.SrcName)),
+					)
+				}
+				g.Default().Block(Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
+			}),
+			Return(True()),
+		)).Block(),
+	)
+	g.Line()
+}
+
+// EncodeHeaders generates code for encoding HTTP headers into a http.Header map.
+func EncodeHeaders(errs *perr.List, g *Group, httpHeaderExpr, paramExpr *Statement, params []*apienc.ParameterEncoding) {
+	if len(params) == 0 {
+		return
+	}
+	g.Comment("Encode headers")
+	g.Add(httpHeaderExpr.Clone().Op("=").Make(Qual("net/http", "Header"), Lit(len(params))))
+
+	for _, f := range params {
+		kind, isList, ok := schemautil.IsBuiltinOrList(f.Type)
+		if !ok {
+			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to string", f.Type)
+			continue
+		}
+
+		if isList {
+			strVals := genutil.MarshalBuiltinList(kind, paramExpr.Clone().Dot(f.SrcName))
+			g.Add(httpHeaderExpr.Clone()).Index(
+				Qual("net/textproto", "CanonicalMIMEHeaderKey").Call(Lit(f.WireName)),
+			).Op("=").Add(strVals)
+		} else {
+			strVal := genutil.MarshalBuiltin(kind, paramExpr.Clone().Dot(f.SrcName))
+			g.Add(httpHeaderExpr.Clone().Dot("Set").Call(Lit(f.WireName), strVal))
+		}
+	}
+	g.Line()
+}
+
+// EncodeQuery generates code for encoding URL query values into a url.Values map.
+func EncodeQuery(errs *perr.List, g *Group, urlValuesExpr, paramExpr *Statement, params []*apienc.ParameterEncoding) {
+	if len(params) == 0 {
+		return
+	}
+
+	g.Comment("Encode query string")
+	g.Add(urlValuesExpr.Clone().Op("=").Make(Qual("net/url", "Values"), Lit(len(params))))
+
+	for _, f := range params {
+		kind, isList, ok := schemautil.IsBuiltinOrList(f.Type)
+		if !ok {
+			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to string", f.Type)
+			continue
+		}
+
+		if isList {
+			strVals := genutil.MarshalBuiltinList(kind, paramExpr.Clone().Dot(f.SrcName))
+			g.Add(urlValuesExpr.Clone()).Index(Lit(f.WireName)).Op("=").Add(strVals)
+		} else {
+			strVal := genutil.MarshalBuiltin(kind, paramExpr.Clone().Dot(f.SrcName))
+			g.Add(urlValuesExpr.Clone().Dot("Set").Call(Lit(f.WireName), strVal))
+		}
+	}
+	g.Line()
+}
+
+// EncodeBody encodes a request body into the given *jsoniter.Stream.
+func EncodeBody(g *Group, streamExpr, paramExpr *Statement, params []*apienc.ParameterEncoding) {
+	if len(params) == 0 {
+		return
+	}
+
+	g.Comment("Encode request body")
+	g.Add(streamExpr.Clone().Dot("WriteObjectStart").Call())
+	for i, p := range params {
+		if i > 0 {
+			g.Add(streamExpr.Clone().Dot("WriteMore").Call())
+		}
+		g.Add(streamExpr.Clone().Dot("WriteObjectField").Call(Lit(p.WireName)))
+		g.Add(streamExpr.Clone().Dot("WriteVal").Call(paramExpr.Clone().Dot(p.SrcName)))
+	}
+	g.Add(streamExpr.Clone().Dot("WriteObjectEnd").Call())
 	g.Line()
 }
 

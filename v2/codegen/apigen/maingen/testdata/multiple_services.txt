@@ -63,6 +63,7 @@ import (
 	__api "encore.dev/appruntime/apisdk/api"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
+	"net/url"
 )
 
 func init() {
@@ -98,11 +99,18 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 		}
 		return clone, err
 	},
+	DecodeExternalResp: func(httpResp *http.Response, json jsoniter.API) (resp EncoreInternal_BarResp, err error) {
+		return __api.Void{}, nil
+	},
 	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_BarReq, pathParams __api.UnnamedParams, err error) {
 		reqData = new(EncoreInternal_BarReq)
 		return reqData, nil, nil
 	},
-	DefLoc: int32(0),
+	DefLoc: uint32(0x0),
+	EncodeExternalReq: func(reqData *EncoreInternal_BarReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
+		reqData = new(EncoreInternal_BarReq)
+		return nil, nil, nil
+	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_BarResp) (err error) {
 		return nil
 	},
@@ -141,6 +149,7 @@ import (
 	__api "encore.dev/appruntime/apisdk/api"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
+	"net/url"
 )
 
 func init() {
@@ -176,11 +185,18 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		}
 		return clone, err
 	},
+	DecodeExternalResp: func(httpResp *http.Response, json jsoniter.API) (resp EncoreInternal_FooResp, err error) {
+		return __api.Void{}, nil
+	},
 	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
 		reqData = new(EncoreInternal_FooReq)
 		return reqData, nil, nil
 	},
-	DefLoc: int32(0),
+	DefLoc: uint32(0x0),
+	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
+		reqData = new(EncoreInternal_FooReq)
+		return nil, nil, nil
+	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},

@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"sync"
@@ -79,6 +81,13 @@ type Desc[Req, Resp any] struct {
 
 	EncodeResp func(http.ResponseWriter, jsoniter.API, Resp) error
 	CloneResp  func(Resp) (Resp, error)
+
+	// EncodeExternalReq encodes a request, writing the payload to the stream
+	// and headers and query strings to the returned maps.
+	EncodeExternalReq func(Req, *jsoniter.Stream) (http.Header, url.Values, error)
+
+	// DecodeExternalResp decodes the response, reading the payload into the response object.
+	DecodeExternalResp func(*http.Response, jsoniter.API) (Resp, error)
 
 	// GlobalMiddlewareIDs is the ordered list of global middleware IDs
 	// to invoke before calling the API handler.
@@ -368,6 +377,10 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
+	return d.externalCall(c, req)
+}
+
+func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {
 	// TODO: we don't currently support service-to-service calls of raw endpoints.
 	// To fix this we need to improve our request serialization and DI support to
 	// separate the signature for outgoing calls versus handlers.
@@ -472,6 +485,85 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 	if respErr != nil {
 		c.server.rootLogger.Err(respErr).Msg("call failed")
 	}
+	c.server.finishCall(call, respErr)
+	return
+}
+
+func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, respErr error) {
+	// TODO: we don't currently support service-to-service calls of raw endpoints.
+	// To fix this we need to improve our request serialization and DI support to
+	// separate the signature for outgoing calls versus handlers.
+	if d.Raw {
+		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: cannot call raw endpoints in service-to-service calls").Err()
+		return
+	}
+
+	path, _, err := d.ReqPath(req)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to compute request path")
+		respErr = errs.Convert(err)
+		return
+	}
+
+	// Default to GET if there are no methods available (or it's a wildcard)
+	httpMethod := "GET"
+	if len(d.Methods) > 0 && d.Methods[0] != "*" {
+		httpMethod = d.Methods[0]
+	}
+
+	// Encode the request payloaad
+	var buf bytes.Buffer
+	stream := c.server.json.BorrowStream(&buf)
+	header, queryString, err := d.EncodeExternalReq(req, stream)
+	if err2 := stream.Flush(); err == nil {
+		err = err2
+	}
+	c.server.json.ReturnStream(stream)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to marshal request")
+		respErr = errs.Convert(err)
+		return
+	}
+
+	reqURL := c.server.runtime.APIBaseURL + path
+	if len(queryString) > 0 {
+		reqURL += "?" + queryString.Encode()
+	}
+	httpReq, err := http.NewRequestWithContext(c.ctx, httpMethod, reqURL, &buf)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to create HTTP request")
+		respErr = errs.Convert(err)
+		return
+	}
+	for key, val := range header {
+		httpReq.Header[key] = val
+	}
+
+	call, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to begin call")
+		respErr = errs.Convert(err)
+		return
+	}
+
+	respData, respErr = (func() (resp Resp, err error) {
+		httpResp, err := c.server.httpClient.Do(httpReq)
+		if err != nil {
+			return resp, err
+		}
+		defer httpResp.Body.Close()
+		if httpResp.StatusCode >= 400 {
+			// TODO parse error response
+			return resp, errs.B().Code(errs.Internal).Msg("request failed").Err()
+		}
+
+		return d.DecodeExternalResp(httpResp, c.server.json)
+	})()
+
+	if respErr != nil {
+		c.server.rootLogger.Err(respErr).Msg("call failed")
+	}
+
 	c.server.finishCall(call, respErr)
 	return
 }
