@@ -1,6 +1,7 @@
 package metascrub
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"strings"
@@ -10,9 +11,11 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
-	"encr.dev/parser"
+	"encr.dev/cli/daemon/apps"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/scrub"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/v2builder"
 )
 
 func TestScrub(t *testing.T) {
@@ -163,12 +166,16 @@ func testParse(c *qt.C, code string) *meta.Data {
 	err := txtar.Write(ar, root)
 	c.Assert(err, qt.IsNil)
 
-	cfg := &parser.Config{
-		AppRoot:    root,
-		ModulePath: "test",
-		WorkingDir: ".",
-	}
-	p, err := parser.Parse(cfg)
+	bld := v2builder.BuilderImpl{}
+	ctx := context.Background()
+
+	res, err := bld.Parse(ctx, builder.ParseParams{
+		Build:       builder.DefaultBuildInfo(),
+		App:         apps.NewInstance(root, "test", ""),
+		Experiments: nil,
+		WorkingDir:  ".",
+		ParseTests:  false,
+	})
 	c.Assert(err, qt.IsNil)
-	return p.Meta
+	return res.Meta
 }

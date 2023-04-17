@@ -1,4 +1,4 @@
-package run
+package optracker
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-
-	"encr.dev/internal/optracker"
 )
 
 type AsyncBuildJobs struct {
@@ -16,12 +14,16 @@ type AsyncBuildJobs struct {
 	m          sync.Mutex
 	wait       sync.WaitGroup
 	firstError error
-	tracker    *optracker.OpTracker
+	tracker    *OpTracker
 	start      time.Time
 	appID      string
 }
 
-func NewAsyncBuildJobs(ctx context.Context, appID string, tracker *optracker.OpTracker) *AsyncBuildJobs {
+func (a *AsyncBuildJobs) Tracker() *OpTracker {
+	return a.tracker
+}
+
+func NewAsyncBuildJobs(ctx context.Context, appID string, tracker *OpTracker) *AsyncBuildJobs {
 	ctx, cancelCtx := context.WithCancel(ctx)
 
 	return &AsyncBuildJobs{
@@ -36,7 +38,7 @@ func NewAsyncBuildJobs(ctx context.Context, appID string, tracker *optracker.OpT
 func (a *AsyncBuildJobs) Go(description string, track bool, minDuration time.Duration, f func(ctx context.Context) error) {
 	a.wait.Add(1)
 
-	trackerID := optracker.NoOperationID
+	trackerID := NoOperationID
 	if track && a.tracker != nil {
 		trackerID = a.tracker.Add(description, a.start)
 	}

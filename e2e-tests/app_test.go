@@ -20,6 +20,7 @@ import (
 	"encr.dev/cli/daemon/redis"
 	. "encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
+	. "encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
