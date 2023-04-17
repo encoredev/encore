@@ -4,22 +4,16 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/logrusorgru/aurora/v3"
-	"golang.org/x/mod/modfile"
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/onboarding"
-	"encr.dev/parser"
-	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/errlist"
-	"encr.dev/pkg/experiments"
-	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -62,41 +56,6 @@ func (s *Server) OnError(r *run.Run, err *errlist.List) {
 	if ok {
 		slog.Error(err)
 	}
-}
-
-// parseApp parses the app.
-func (s *Server) parseApp(appRoot, workingDir string, parseTests bool) (*parser.Result, error) {
-	modPath := filepath.Join(appRoot, "go.mod")
-	modData, err := os.ReadFile(modPath)
-	if err != nil {
-		return nil, err
-	}
-	mod, err := modfile.Parse(modPath, modData, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	exp, err := appfile.Experiments(appRoot)
-	if err != nil {
-		return nil, err
-	}
-	expSet, err := experiments.NewSet(exp, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	vcsRevision := vcs.GetRevision(appRoot)
-
-	cfg := &parser.Config{
-		AppRoot:                  appRoot,
-		Experiments:              expSet,
-		AppRevision:              vcsRevision.Revision,
-		AppHasUncommittedChanges: vcsRevision.Uncommitted,
-		ModulePath:               mod.Module.Mod.Path,
-		WorkingDir:               workingDir,
-		ParseTests:               parseTests,
-	}
-	return parser.Parse(cfg)
 }
 
 func showFirstRunExperience(run *run.Run, md *meta.Data, stdout io.Writer) {

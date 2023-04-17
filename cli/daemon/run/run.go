@@ -28,10 +28,8 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/sym"
-	"encr.dev/cli/daemon/pubsub"
-	"encr.dev/cli/daemon/redis"
+	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
-	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
@@ -47,7 +45,7 @@ type Run struct {
 	ID              string // unique ID for this instance of the running app
 	App             *apps.Instance
 	ListenAddr      string // the address the app is listening on
-	ResourceServers *ResourceServices
+	ResourceManager *infra.ResourceManager
 
 	builder builder.Impl
 	log     zerolog.Logger
@@ -93,7 +91,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
-		ResourceServers: NewResourceServices(params.App, mgr.ClusterMgr),
+		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, false),
 		ListenAddr:      params.ListenAddr,
 
 		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
@@ -107,7 +105,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	defer func(r *Run) {
 		// Stop all the resource servers if we exit due to an error
 		if err != nil {
-			r.ResourceServers.StopAll()
+			r.ResourceManager.StopAll()
 		}
 	}(run)
 
@@ -243,7 +241,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		return err
 	}
 
-	jobs := NewAsyncBuildJobs(ctx, r.App.PlatformOrLocalID(), tracker)
+	jobs := optracker.NewAsyncBuildJobs(ctx, r.App.PlatformOrLocalID(), tracker)
 
 	// Parse the app source code
 	// Parse the app to figure out what infrastructure is needed.
@@ -287,9 +285,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
-	if err := r.ResourceServers.StartRequiredServices(jobs, parse.Meta); err != nil {
-		return err
-	}
+	r.ResourceManager.StartRequiredServices(jobs, parse.Meta)
 
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
@@ -343,9 +339,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		Logger:         r.Mgr,
 		RuntimePort:    r.Mgr.RuntimePort,
 		DBProxyPort:    r.Mgr.DBProxyPort,
-		SQLDBCluster:   r.ResourceServers.GetSQLCluster(),
-		NSQDaemon:      r.ResourceServers.GetPubSub(),
-		Redis:          r.ResourceServers.GetRedis(),
 		Secrets:        secrets,
 		ServiceConfigs: build.Configs,
 		Environ:        r.params.Environ,
@@ -403,9 +396,6 @@ type StartProcParams struct {
 	ServiceConfigs map[string]string
 	RuntimePort    int
 	DBProxyPort    int
-	SQLDBCluster   *sqldb.Cluster    // nil means no cluster
-	NSQDaemon      *pubsub.NSQDaemon // nil means no pubsub
-	Redis          *redis.Server     // nil means no redis
 	Logger         RunLogger
 	Environ        []string
 	Experiments    *experiments.Set
@@ -431,7 +421,7 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 
 	runtimeCfg, err := r.Mgr.generateConfig(generateConfigParams{
 		App:         r.App,
-		RS:          r.ResourceServers,
+		RM:          r.ResourceManager,
 		Meta:        params.Meta,
 		ForTests:    false,
 		AuthKey:     authKey,

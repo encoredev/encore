@@ -127,7 +127,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		sendExit(1)
 		return nil
 	}
-	defer run.ResourceServers.StopAll()
+	defer run.ResourceManager.StopAll()
 	s.streams[run.ID] = slog
 	s.mu.Unlock()
 
@@ -180,9 +180,8 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		case <-run.Done():
 			return
 		case <-time.After(5 * time.Second):
-			parse, err := s.parseApp(req.AppRoot, req.WorkingDir, false)
-			if err == nil {
-				showFirstRunExperience(run, parse.Meta, stderr)
+			if proc := run.Proc(); proc != nil {
+				showFirstRunExperience(run, proc.Meta, stderr)
 			}
 		}
 	}()

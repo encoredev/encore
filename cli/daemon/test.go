@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"time"
 
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/run"
-	"encr.dev/cli/daemon/sqldb"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -38,35 +36,6 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 
 	secrets := s.sm.Load(app)
 
-	// Parse the app to figure out what infrastructure is needed.
-	// TODO(andre) remove this, we're parsing things twice
-	parse, err := s.parseApp(app.Root(), req.WorkingDir, true /* parse tests */)
-	if err != nil {
-		sendErr(err)
-		return nil
-	}
-
-	// Set up the database asynchronously since it can take a while.
-	dbSetupErr := make(chan error, 1)
-
-	var cluster *sqldb.Cluster
-	if sqldb.IsUsed(parse.Meta) {
-		setupCtx, setupCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		cluster = s.cm.Create(setupCtx, &sqldb.CreateParams{
-			ClusterID: sqldb.GetClusterID(app, sqldb.Test),
-			Memfs:     true,
-		})
-
-		go func() {
-			defer setupCancel()
-			if _, err := cluster.Start(setupCtx); err != nil {
-				dbSetupErr <- err
-			} else if err := cluster.Recreate(setupCtx, req.AppRoot, nil, parse.Meta); err != nil {
-				dbSetupErr <- err
-			}
-		}()
-	}
-
 	testCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -88,28 +57,21 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		}()
 
 		tp := run.TestParams{
-			App:          app,
-			SQLDBCluster: cluster,
-			WorkingDir:   req.WorkingDir,
-			Environ:      req.Environ,
-			Args:         req.Args,
-			Secrets:      secrets,
-			Stdout:       slog.Stdout(false),
-			Stderr:       slog.Stderr(false),
+			App:        app,
+			WorkingDir: req.WorkingDir,
+			Environ:    req.Environ,
+			Args:       req.Args,
+			Secrets:    secrets,
+			Stdout:     slog.Stdout(false),
+			Stderr:     slog.Stderr(false),
 		}
 		testResults <- s.mgr.Test(testCtx, tp)
 	}()
 
-	select {
-	case err := <-dbSetupErr:
+	if err := <-testResults; err != nil {
 		sendErr(err)
-		return nil
-	case err := <-testResults:
-		if err != nil {
-			sendErr(err)
-		} else {
-			streamExit(stream, 0)
-		}
-		return nil
+	} else {
+		streamExit(stream, 0)
 	}
+	return nil
 }

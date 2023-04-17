@@ -26,6 +26,8 @@ import (
 	"encr.dev/cli/internal/update"
 	"encr.dev/internal/clientgen"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/builder"
+	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/errlist"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -88,11 +90,24 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		}
 
 		// Get the app metadata
-		result, err := s.parseApp(app.Root(), ".", false)
+		expSet, err := app.Experiments(nil)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "failed to parse app experiments: %v", err)
+		}
+
+		// Parse the app to figure out what infrastructure is needed.
+		bld := builderimpl.Resolve(expSet)
+		parse, err := bld.Parse(ctx, builder.ParseParams{
+			Build:       builder.DefaultBuildInfo(),
+			App:         app,
+			Experiments: expSet,
+			WorkingDir:  ".",
+			ParseTests:  false,
+		})
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to parse app metadata: %v", err)
 		}
-		md = result.Meta
+		md = parse.Meta
 	} else {
 		envName := params.EnvName
 		if envName == "" {
