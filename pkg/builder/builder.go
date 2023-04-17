@@ -4,8 +4,10 @@ import (
 	"context"
 	"io"
 	"io/fs"
+	"runtime"
 
 	"github.com/rs/zerolog"
+	"golang.org/x/exp/slices"
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
@@ -38,6 +40,22 @@ type BuildInfo struct {
 
 	// Logger allows a custom logger to be used by the various phases of the builder.
 	Logger option.Option[zerolog.Logger]
+}
+
+// DefaultBuildInfo returns a BuildInfo with default values.
+// It can be modified afterwards.
+func DefaultBuildInfo() BuildInfo {
+	return BuildInfo{
+		BuildTags:          slices.Clone(LocalBuildTags),
+		CgoEnabled:         true,
+		StaticLink:         false,
+		Debug:              false,
+		GOOS:               runtime.GOOS,
+		GOARCH:             runtime.GOARCH,
+		KeepOutput:         false,
+		Revision:           "",
+		UncommittedChanges: false,
+	}
 }
 
 type ParseParams struct {

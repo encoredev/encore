@@ -42,7 +42,7 @@ type OperationID int
 const NoOperationID OperationID = -1
 
 // AllDone marks all ops as done.
-// This function is safe to call on a Nil OpTracker and will no-op in that case
+// This function is safe to call on a Nil OpTracker.
 func (t *OpTracker) AllDone() {
 	if t == nil {
 		return

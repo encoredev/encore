@@ -4,6 +4,7 @@
 package clientgen
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,8 +13,10 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
 
-	"encr.dev/parser"
+	"encr.dev/cli/daemon/apps"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/golden"
+	"encr.dev/v2/v2builder"
 )
 
 func TestMain(m *testing.M) {
@@ -30,6 +33,9 @@ func TestClientCodeGeneration(t *testing.T) {
 	}
 	c.Assert(err, qt.IsNil)
 
+	ctx := context.Background()
+	bld := v2builder.BuilderImpl{}
+
 	for _, path := range tests {
 		path := path
 		c.Run("expected"+strings.TrimPrefix(strings.TrimSuffix(filepath.Base(path), ".go"), "input"), func(c *qt.C) {
@@ -40,9 +46,12 @@ func TestClientCodeGeneration(t *testing.T) {
 			err = txtar.Write(ar, base)
 			c.Assert(err, qt.IsNil)
 
-			res, err := parser.Parse(&parser.Config{
-				AppRoot:    base,
-				ModulePath: "app",
+			res, err := bld.Parse(ctx, builder.ParseParams{
+				Build:       builder.DefaultBuildInfo(),
+				App:         apps.NewInstance(base, "app", ""),
+				Experiments: nil,
+				WorkingDir:  ".",
+				ParseTests:  false,
 			})
 			c.Assert(err, qt.IsNil)
 

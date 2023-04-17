@@ -7,16 +7,11 @@ import (
 	"fmt"
 	"io"
 	"runtime"
-	"strconv"
-	"time"
 
-	"github.com/rs/xid"
-
-	encore "encore.dev"
-	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
-	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -27,9 +22,6 @@ import (
 type TestParams struct {
 	// App is the app to test.
 	App *apps.Instance
-
-	// SQLDBCluster is the SQLDB cluster to use, if any.
-	SQLDBCluster *sqldb.Cluster
 
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
@@ -88,55 +80,31 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
-	var (
-		sqlServers []*config.SQLServer
-		sqlDBs     []*config.SQLDatabase
-	)
-	if params.SQLDBCluster != nil {
-		srv := &config.SQLServer{
-			Host: "localhost:" + strconv.Itoa(mgr.DBProxyPort),
-		}
-		sqlServers = append(sqlServers, srv)
-		for _, svc := range parse.Meta.Svcs {
-			if len(svc.Migrations) > 0 {
-				sqlDBs = append(sqlDBs, &config.SQLDatabase{
-					ServerID:     0,
-					EncoreName:   svc.Name,
-					DatabaseName: svc.Name,
-					User:         "encore",
-					Password:     params.SQLDBCluster.Password,
-				})
-			}
-		}
-
-		// Configure max connections based on 96 connections
-		// divided evenly among the databases
-		maxConns := 96 / len(sqlDBs)
-		for _, db := range sqlDBs {
-			db.MaxConnections = maxConns
-		}
-	}
-
+	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, true)
 	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
-	runtimeJSON, err := json.Marshal(&config.Runtime{
-		AppID:         "test",
-		AppSlug:       params.App.PlatformID(),
-		APIBaseURL:    apiBaseURL,
-		DeployID:      fmt.Sprintf("clitest_%s", xid.New()),
-		DeployedAt:    time.Now(),
-		EnvID:         "test",
-		EnvName:       "local",
-		EnvCloud:      string(encore.CloudLocal),
-		EnvType:       string(encore.EnvTest),
-		TraceEndpoint: "http://localhost:" + strconv.Itoa(mgr.RuntimePort) + "/trace",
-		SQLDatabases:  sqlDBs,
-		SQLServers:    sqlServers,
-		AuthKeys:      []config.EncoreAuthKey{genAuthKey()},
+	jobs := optracker.NewAsyncBuildJobs(ctx, params.App.PlatformOrLocalID(), nil)
+	rm.StartRequiredServices(jobs, parse.Meta)
+
+	// Note: jobs.Wait must be called before generateConfig.
+	if err := jobs.Wait(); err != nil {
+		return err
+	}
+
+	runtimeCfg, err := mgr.generateConfig(generateConfigParams{
+		App:         params.App,
+		RM:          rm,
+		Meta:        parse.Meta,
+		ForTests:    true,
+		AuthKey:     genAuthKey(),
+		APIBaseURL:  apiBaseURL,
+		ConfigAppID: "test",
+		ConfigEnvID: "test",
 	})
 	if err != nil {
 		return err
 	}
+	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
 	return bld.Test(ctx, builder.TestParams{
 		Compile: builder.CompileParams{

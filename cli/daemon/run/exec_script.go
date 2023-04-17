@@ -16,6 +16,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -57,11 +58,11 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return err
 	}
 
-	rs := NewResourceServices(p.App, mgr.ClusterMgr)
-	defer rs.StopAll()
+	rm := infra.NewResourceManager(p.App, mgr.ClusterMgr, false)
+	defer rm.StopAll()
 
 	tracker := p.OpTracker
-	jobs := NewAsyncBuildJobs(ctx, p.App.PlatformOrLocalID(), tracker)
+	jobs := optracker.NewAsyncBuildJobs(ctx, p.App.PlatformOrLocalID(), tracker)
 
 	// Parse the app to figure out what infrastructure is needed.
 	start := time.Now()
@@ -97,9 +98,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
-	if err := rs.StartRequiredServices(jobs, parse.Meta); err != nil {
-		return err
-	}
+	rm.StartRequiredServices(jobs, parse.Meta)
 
 	var secrets map[string]string
 	if usesSecrets(parse.Meta) {
@@ -148,7 +147,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 
 	runtimeCfg, err := mgr.generateConfig(generateConfigParams{
 		App:         p.App,
-		RS:          rs,
+		RM:          rm,
 		Meta:        parse.Meta,
 		ForTests:    false,
 		AuthKey:     genAuthKey(),
