@@ -75,8 +75,8 @@ func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, withImpl
 		g.Id(ctxName).Qual("context", "Context")
 		for _, p := range ep.Path.Params() {
 			typ := gu.Builtin(p.Pos(), p.ValueType)
-			// Wrap wildcards as a slice of values
-			if p.Type == resourcepaths.Wildcard {
+			// Wrap wildcards and fallbacks as a slice of values
+			if p.Type == resourcepaths.Wildcard || p.Type == resourcepaths.Fallback {
 				typ = Index().Add(typ)
 			}
 			g.Id(alloc(p.Value, true)).Add(typ)

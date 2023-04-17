@@ -260,6 +260,7 @@ export enum PathSegment_SegmentType {
   LITERAL = "LITERAL",
   PARAM = "PARAM",
   WILDCARD = "WILDCARD",
+  FALLBACK = "FALLBACK",
   UNRECOGNIZED = "UNRECOGNIZED",
 }
 

@@ -21,16 +21,11 @@ func (r *Run) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	endpoint := strings.TrimLeft(req.URL.Path, "/")
 	if endpoint == "" {
 		// If this appears to be a browser, serve a redirect to the dashboard.
-		// Otherwise, give a helpful error message for terminals and such.
 		dashURL := fmt.Sprintf("http://localhost:%d/%s", r.Mgr.DashPort, r.App.PlatformOrLocalID())
 		if ua := req.Header.Get("User-Agent"); strings.Contains(ua, "Gecko") {
 			http.Redirect(w, req, dashURL, http.StatusFound)
 			return
 		}
-
-		http.Error(w, "No endpoint given. Make API calls to /service.Endpoint instead."+
-			"Visit the browser dashboard at: "+dashURL, http.StatusBadRequest)
-		return
 	}
 
 	proc := r.proc.Load().(*Proc)

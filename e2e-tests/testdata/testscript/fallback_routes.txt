@@ -1,0 +1,33 @@
+run
+call GET /v1/regular ''
+checkresp '{"Message":"Hello, Encore world!"}'
+call GET /v1/regular/foo ''
+checkresp '{"fallback": true}'
+call POST /v1/regular ''
+checkresp '{"fallback": true}'
+call GET /v2/regular ''
+checkresp '{"fallback": true}'
+call GET / ''
+checkresp '{"fallback": true}'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "net/http"
+)
+
+//encore:api public raw path=/!fallback
+func Fallback(w http.ResponseWriter, req *http.Request) {
+    w.Write([]byte(`{"fallback": true}`))
+}
+
+type Response struct {
+    Message string
+}
+
+//encore:api public method=GET path=/v1/regular
+func Regular(ctx context.Context) (*Response, error) {
+    return &Response{Message: "Hello, Encore world!"}, nil
+}
