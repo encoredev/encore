@@ -23,6 +23,7 @@ const (
 	Header    ParameterLocation = "header"    // Parameter is placed in the HTTP header
 	Query     ParameterLocation = "query"     // Parameter is placed in the query string
 	Body      ParameterLocation = "body"      // Parameter is placed in the body
+	Cookie    ParameterLocation = "cookie"    // Parameter is placed in cookies
 )
 
 var (
@@ -41,12 +42,18 @@ var (
 		omitEmptyOption: "omitempty",
 		overrideDefault: false,
 	}
+	CookieTag = tagDescription{
+		location:        Cookie,
+		omitEmptyOption: "omitempty",
+		overrideDefault: true,
+	}
 )
 
 // authTags is a description of tags used for auth
 var authTags = map[string]tagDescription{
 	"query":  QueryTag,
 	"header": HeaderTag,
+	"cookie": CookieTag,
 }
 
 // requestTags is a description of tags used for requests
@@ -129,17 +136,18 @@ type AuthEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
+	CookieParameters []*ParameterEncoding `json:"cookie_parameters"`
 }
 
 // ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
 func (e *AuthEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
-	return toEncodingMap(srcNameKey, e.HeaderParameters, e.QueryParameters)
+	return toEncodingMap(srcNameKey, e.HeaderParameters, e.QueryParameters, e.CookieParameters)
 }
 
 // ParameterEncodingMapByName returns the parameter encodings as a map, keyed by Name.
 // Conflicts result in an undefined encoding getting set.
 func (e *AuthEncoding) ParameterEncodingMapByName() map[string][]*ParameterEncoding {
-	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.QueryParameters)
+	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.QueryParameters, e.CookieParameters)
 }
 
 // ResponseEncoding expresses how a response should be encoded on the wire
@@ -235,7 +243,7 @@ func DescribeAPI(meta *meta.Data) *APIEncoding {
 	var err error
 	api.Authorization, err = DescribeAuth(meta, meta.AuthHandler.Params, nil)
 	if err != nil {
-		panic(fmt.Sprintf("Invalid auth definition: %s", meta.AuthHandler.Name))
+		panic(fmt.Sprintf("Invalid auth definition: %s: %v", meta.AuthHandler.Name, err))
 	}
 	return api
 }
@@ -512,12 +520,13 @@ func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Opti
 	if err != nil {
 		return nil, err
 	}
-	if locationDiff := keyDiff(fields, Header, Query); len(locationDiff) > 0 {
-		return nil, errors.Newf("auth must only contain query and header parameters. Found: %v", locationDiff)
+	if locationDiff := keyDiff(fields, Header, Query, Cookie); len(locationDiff) > 0 {
+		return nil, errors.Newf("auth must only contain query, header, and cookie parameters. Found: %v", locationDiff)
 	}
 	return &AuthEncoding{
 		QueryParameters:  fields[Query],
 		HeaderParameters: fields[Header],
+		CookieParameters: fields[Cookie],
 	}, nil
 }
 

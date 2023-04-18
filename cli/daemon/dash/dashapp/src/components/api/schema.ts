@@ -16,6 +16,7 @@ export enum FieldLocation {
   Body = "JSON Payload",
   Header = "HTTP Header",
   Query = "Query String",
+  Cookie = "Cookies",
   UnusedField = "hidden",
 }
 
@@ -67,6 +68,13 @@ export function fieldNameAndLocation(
 
         return [tag.name, FieldLocation.Header];
 
+      case "cookie":
+        if (tag.name === "-") {
+          return ["-", FieldLocation.UnusedField];
+        }
+
+        return [tag.name, FieldLocation.Cookie];
+
       case "json":
         if (tag.name === "-") {
           return ["-", FieldLocation.UnusedField];
@@ -91,6 +99,8 @@ export function locationDescription(name: string, location: FieldLocation): stri
       return `"${name}" is sent as a HTTP Header`;
     case FieldLocation.Query:
       return `"${name}" is sent as a query string parameter`;
+    case FieldLocation.Cookie:
+      return `"${name}" is sent as a cookie`;
     default:
       return "";
   }
@@ -105,6 +115,7 @@ export function splitFieldsByLocation(
     [FieldLocation.Body]: [],
     [FieldLocation.Query]: [],
     [FieldLocation.Header]: [],
+    [FieldLocation.Cookie]: [],
     [FieldLocation.UnusedField]: [],
   };
 

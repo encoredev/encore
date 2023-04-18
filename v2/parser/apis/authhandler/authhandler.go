@@ -130,7 +130,7 @@ nextField:
 	for _, field := range ref.Fields {
 		// No tags, then we tell them they need to specify it
 		if field.Tag.Len() == 0 {
-			fieldErr = fieldErr.AtGoNode(field.AST, errors.AsError("you must specify a \"header\" or \"query\" tag for this field"))
+			fieldErr = fieldErr.AtGoNode(field.AST, errors.AsError("you must specify a \"header\", \"query\", or \"cookie\" tag for this field"))
 			continue
 		}
 
@@ -141,7 +141,7 @@ nextField:
 			tag, err := field.Tag.Get(tagKey)
 			if err == nil {
 				switch tagKey {
-				case "header", "query", "qs":
+				case "header", "query", "qs", "cookie":
 					if tag.Name != "" && tag.Name != "-" {
 						continue nextField
 					} else {
