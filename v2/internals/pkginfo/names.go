@@ -620,6 +620,10 @@ type PkgDeclInfo struct {
 	Recv *PkgDeclInfo
 }
 
+func (i *PkgDeclInfo) QualifiedName() QualifiedName {
+	return Q(i.File.Pkg.ImportPath, i.Name)
+}
+
 // PkgNames contains name information that's package-global.
 type PkgNames struct {
 	// PkgDecls contains package-level declarations, keyed by name.

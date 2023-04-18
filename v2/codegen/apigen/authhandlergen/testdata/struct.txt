@@ -1,11 +1,14 @@
 -- code.go --
 package code
 
-import ("context"; "encore.dev/beta/auth")
+import ("context"; "net/http"; "encore.dev/beta/auth")
 
 type MyAuthParams struct {
 	ClientID string `header:"X-Client-ID"`
 	APIKey   string `query:"key"`
+	SessionToken string `cookie:"session_token"`
+	OtherCookie *http.Cookie `cookie:"other_cookie"`
+	IntCookie int `cookie:"int_cookie"`
 }
 
 //encore:authhandler
@@ -39,6 +42,18 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 		// Decode query string
 		qs := httpReq.URL.Query()
 		params.APIKey = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "key", qs.Get("key"), false)
+
+		// Decode cookies
+		if c, _ := httpReq.Cookie("session_token"); c != nil {
+			params.SessionToken = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "session_token", c.Value, false)
+		}
+		if c, _ := httpReq.Cookie("other_cookie"); c != nil {
+			params.OtherCookie = c
+			dec.IncNonEmpty()
+		}
+		if c, _ := httpReq.Cookie("int_cookie"); c != nil {
+			params.IntCookie = __etype.UnmarshalOne(dec, __etype.UnmarshalInt, "int_cookie", c.Value, false)
+		}
 
 		if dec.NonEmptyValues == 0 {
 			return (*MyAuthParams)(nil), errs.B().Code(errs.Unauthenticated).Msg("missing auth param").Err()

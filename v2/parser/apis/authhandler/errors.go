@@ -66,10 +66,10 @@ note: *Params and *UserData are custom data types you define
 
 	ErrInvalidFieldTags = errRange.New(
 		"Invalid auth payload",
-		"All fields used within an auth payload must originate from either an HTTP header or a query parameter.",
+		"All fields used within an auth payload must originate from either an HTTP header, a query parameter, or a cookie.",
 
 		errors.WithDetails(
-			"You can specify them for each field using the struct tags, for example with `header:\"X-My-Header\"` or `query:\"my-query\"`.\n\n"+
+			"You can specify them for each field using the struct tags, for example with `header:\"X-My-Header\"`, `query:\"my-query\", or `cookie:\"my-cookie\"`.\n\n"+
 				authLink,
 		),
 	)
