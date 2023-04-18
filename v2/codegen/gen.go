@@ -120,6 +120,6 @@ func (g *Generator) InsertTestSupport(pkg *pkginfo.Package) {
 
 	insertPos := a.Name.End()
 	ln := g.FS.Position(insertPos)
-	rw.Insert(insertPos, []byte(fmt.Sprintf(";import _ %s;/*line :%d:%d*/",
+	rw.Insert(insertPos, []byte(fmt.Sprintf("\nimport _ %s;/*line :%d:%d*/",
 		strconv.Quote("encore.dev/appruntime/shared/testsupport"), ln.Line, ln.Column)))
 }
