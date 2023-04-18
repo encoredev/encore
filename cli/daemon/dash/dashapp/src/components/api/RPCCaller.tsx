@@ -125,7 +125,7 @@ const RPCCaller: FC<Props> = ({ md, apiEncoding, svc, rpc, conn, appID, addr }) 
     render.asResponse = false;
     render.typeArgumentStack.push(named.type_arguments);
     const structType = md.decls[named.id].type.struct!;
-    const [queryString, headers, js] = render.structBits(structType, false, true);
+    const [queryString, headers, cookies, js] = render.structBits(structType, false, true);
 
     const bits: string[] = ["{\n"];
     let previousSection = false;
@@ -139,6 +139,14 @@ const RPCCaller: FC<Props> = ({ md, apiEncoding, svc, rpc, conn, appID, addr }) 
       }
 
       bits.push("    // Query string", queryString);
+      previousSection = true;
+    }
+    if (cookies) {
+      if (previousSection) {
+        bits.push(",\n\n");
+      }
+
+      bits.push("    // Cookies", cookies);
       previousSection = true;
     }
     if (js) {

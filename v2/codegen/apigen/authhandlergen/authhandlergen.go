@@ -103,6 +103,7 @@ func renderDecodeAuth(gen *codegen.Generator, f *codegen.File, ah *authhandler.A
 		g.Add(dec.Init())
 		apigenutil.DecodeHeaders(g, Id("httpReq"), Id("params"), dec, enc.HeaderParameters)
 		apigenutil.DecodeQuery(g, Id("httpReq"), Id("params"), dec, enc.QueryParameters)
+		apigenutil.DecodeCookie(gen.Errs, g, Id("httpReq"), Id("params"), dec, enc.CookieParameters)
 
 		g.If(dec.NumNonEmptyValues().Op("==").Lit(0)).Block(
 			Return(gu.Zero(ah.Param), apigenutil.BuildErr("Unauthenticated", "missing auth param")),

@@ -438,7 +438,7 @@ export class JSONDialect extends TextBasedDialect {
     t: StructType,
     asGoStruct: boolean,
     queryParamsAsObject?: boolean
-  ): [string, string, string] {
+  ): [string, string, string, string] {
     const writeObj = (fields: DescribedField[]): string => {
       const oldBuf = this.buf;
       this.buf = [];
@@ -462,10 +462,40 @@ export class JSONDialect extends TextBasedDialect {
       return toReturn;
     };
 
+    // writeCookies is like writeObj but if the field is
+    // a *http.Cookie it renders as a string instead.
+    const writeCookies = (fields: DescribedField[]): string => {
+      const oldBuf = this.buf;
+      this.buf = [];
+
+      this.level++;
+      for (let i = 0; i < fields.length; i++) {
+        const f = fields[i];
+        this.writeln();
+        this.indent();
+        this.write(`"${asGoStruct ? f.SrcName : f.name}": `);
+        if (f.typ.builtin) {
+          this.writeType(f.typ);
+        } else {
+          this.write('""');
+        }
+        if (i < fields.length - 1) {
+          this.write(",");
+        }
+      }
+      this.level--;
+      this.indent();
+
+      const toReturn = this.buf.join("");
+      this.buf = oldBuf;
+      return toReturn;
+    };
+
     const fields = splitFieldsByLocation(t, this.method, this.asResponse);
 
     let query = "";
     let headers = "";
+    let cookies = "";
     let json = "";
 
     if (fields[FieldLocation.Query].length > 0) {
@@ -507,16 +537,20 @@ export class JSONDialect extends TextBasedDialect {
       headers = writeObj(fields[FieldLocation.Header]);
     }
 
+    if (fields[FieldLocation.Cookie].length > 0) {
+      cookies = writeCookies(fields[FieldLocation.Cookie]);
+    }
+
     if (fields[FieldLocation.Body].length > 0) {
       json = writeObj(fields[FieldLocation.Body]);
     }
 
-    return [query, headers, json];
+    return [query, headers, cookies, json];
   }
 
   protected renderStruct(t: StructType, topLevel?: boolean) {
     if (topLevel) {
-      const [query, headers, json] = this.structBits(t, false);
+      const [query, headers, cookies, json] = this.structBits(t, false);
 
       let previousSection = false;
       if (query) {
@@ -530,6 +564,15 @@ export class JSONDialect extends TextBasedDialect {
         }
 
         this.write("// HTTP Headers\n{", headers, "\n}");
+        previousSection = true;
+      }
+
+      if (cookies) {
+        if (previousSection) {
+          this.write("\n\n");
+        }
+
+        this.write("// Cookies\n{", cookies, "\n}");
         previousSection = true;
       }
 
@@ -585,8 +628,6 @@ export class JSONDialect extends TextBasedDialect {
   protected renderList(t: ListType) {
     this.write("[");
     this.writeType(t.elem, false, false);
-    this.write(", ");
-    this.writeType(t.elem, false, true);
     this.write("]");
   }
 
@@ -611,7 +652,7 @@ export class JSONDialect extends TextBasedDialect {
       case Builtin.ANY:
         return write("<any data>");
       case Builtin.BOOL:
-        return write(alt ? "false" : "true");
+        return write("false");
       case Builtin.INT:
       case Builtin.INT8:
       case Builtin.INT16:
@@ -622,20 +663,20 @@ export class JSONDialect extends TextBasedDialect {
       case Builtin.UINT16:
       case Builtin.UINT32:
       case Builtin.UINT64:
-        return write(alt ? "2" : "1");
+        return write("0");
       case Builtin.FLOAT32:
       case Builtin.FLOAT64:
-        return write(alt ? "42.9" : "2.3");
+        return write("0.0");
       case Builtin.STRING:
-        return write(alt ? '"another string"' : '"some string"');
+        return write('""');
       case Builtin.BYTES:
-        return write('"YmFzZTY0Cg=="'); // base64
+        return write('"" /* base64 */');
       case Builtin.TIME:
         return write('"2009-11-10T23:00:00Z"');
       case Builtin.UUID:
         return write('"7d42f515-3517-4e76-be13-30880443546f"');
       case Builtin.JSON:
-        return write('{"some json data": true}');
+        return write("{}");
       case Builtin.USER_ID:
         return write('"userID"');
       case Builtin.UNRECOGNIZED:
@@ -701,7 +742,7 @@ class CurlDialect extends TextBasedDialect {
       render.method = this.method;
       render.asResponse = false;
       render.typeArgumentStack = this.typeArgumentStack;
-      const [queryString, headers, js] = render.structBits(struct, true);
+      const [queryString, headers, cookies, js] = render.structBits(struct, true);
 
       let bits: string[] = ["{\n"];
       let previousSection = false;
@@ -715,6 +756,14 @@ class CurlDialect extends TextBasedDialect {
         }
 
         bits.push("    // Query string", queryString);
+        previousSection = true;
+      }
+      if (cookies) {
+        if (previousSection) {
+          bits.push(",\n\n");
+        }
+
+        bits.push("    // Cookies", cookies);
         previousSection = true;
       }
       if (js) {

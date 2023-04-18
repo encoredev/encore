@@ -23,6 +23,7 @@ const (
 	Header    WireLoc = "header"    // Parameter is placed in the HTTP header
 	Query     WireLoc = "query"     // Parameter is placed in the query string
 	Body      WireLoc = "body"      // Parameter is placed in the body
+	Cookie    WireLoc = "cookie"    // Parameter is placed in cookies
 )
 
 var (
@@ -40,6 +41,11 @@ var (
 		location:        Body,
 		omitEmptyOption: "omitempty",
 		overrideDefault: false,
+	}
+	CookieTag = tagDescription{
+		location:        Cookie,
+		omitEmptyOption: "omitempty",
+		overrideDefault: true,
 	}
 )
 
@@ -61,6 +67,7 @@ var responseTags = map[string]tagDescription{
 var authTags = map[string]tagDescription{
 	"query":  QueryTag,
 	"header": HeaderTag,
+	"cookie": CookieTag,
 }
 
 // tagDescription is used to map struct field tags to param locations
@@ -279,6 +286,7 @@ type AuthEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
+	CookieParameters []*ParameterEncoding `json:"cookie_parameters"`
 }
 
 // DescribeAuth generates a ParameterEncoding per field of the auth struct and returns it as
@@ -307,7 +315,7 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 		// reported by describeParams
 		return nil
 	}
-	if locationDiff := keyDiff(fields, Header, Query); len(locationDiff) > 0 {
+	if locationDiff := keyDiff(fields, Header, Query, Cookie); len(locationDiff) > 0 {
 		err := authhandler.ErrInvalidFieldTags.AtGoNode(authSchema.ASTExpr())
 
 		for _, k := range locationDiff {
@@ -321,6 +329,7 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 	return &AuthEncoding{
 		QueryParameters:  fields[Query],
 		HeaderParameters: fields[Header],
+		CookieParameters: fields[Cookie],
 	}
 }
 

@@ -62,6 +62,12 @@ func (u *TypeUnmarshaller) NumNonEmptyValues() *Statement {
 	return u.unmarshallerExpr.Clone().Dot("NonEmptyValues")
 }
 
+// IncNonEmpty returns a statement to increment the number of
+// non-empty values the unmarshaller has processed.
+func (u *TypeUnmarshaller) IncNonEmpty() *Statement {
+	return u.unmarshallerExpr.Clone().Dot("IncNonEmpty").Call()
+}
+
 func (u *TypeUnmarshaller) UnmarshalBuiltin(kind schema.BuiltinKind, fieldName string, value *Statement, required bool) *Statement {
 	return Qual("encore.dev/appruntime/shared/etype", "UnmarshalOne").Call(
 		u.unmarshallerExpr.Clone(),

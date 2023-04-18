@@ -12,6 +12,7 @@ import (
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"
 )
 
@@ -98,6 +99,23 @@ func ResolveNamedStruct(t schema.Type, requirePointer bool) (ref *schema.TypeDec
 				TypeArgs: named.TypeArgs,
 			}, true
 		}
+	}
+	return nil, false
+}
+
+// DerefNamedInfo returns what package declaration a given named type references, if any.
+//
+// It always requires at most one pointer dereference, and if
+// requirePointer is true it must be exactly one pointer dereference.
+//
+// If the type is not a named type or otherwise doesn't match the requirements, it returns (nil, false).
+func DerefNamedInfo(t schema.Type, requirePointer bool) (info *pkginfo.PkgDeclInfo, ok bool) {
+	t, derefs := Deref(t)
+	if derefs > 1 || (requirePointer && derefs == 0) {
+		return nil, false
+	}
+	if named, ok := t.(schema.NamedType); ok {
+		return named.DeclInfo, true
 	}
 	return nil, false
 }

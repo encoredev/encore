@@ -46,6 +46,13 @@ func UnmarshalList[T any](u *Unmarshaller, fn ElemUnmarshaller[T], field string,
 	return list
 }
 
+// IncNonEmpty increments the number of non-empty values this decoder has decoded.
+// It's useful when decoding something that doesn't go through the unmarshaller
+// but still was present, so that code that checks NonEmptyValues is correct.
+func (u *Unmarshaller) IncNonEmpty() {
+	u.NonEmptyValues++
+}
+
 // Unmarshaller is used to serialize request data into strings and deserialize response data from strings
 type Unmarshaller struct {
 	Error          error // The last error that occurred

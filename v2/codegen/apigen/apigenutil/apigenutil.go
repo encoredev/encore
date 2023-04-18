@@ -4,6 +4,10 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/v2/codegen/internal/genutil"
+	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/api/apienc"
 )
 
@@ -37,6 +41,32 @@ func DecodeQuery(g *Group, httpReqExpr, paramExpr *Statement, dec *genutil.TypeU
 		listValExpr := Id("qs").Index(Lit(f.WireName))
 		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.WireName, singleValExpr, listValExpr, false)
 		g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
+	}
+	g.Line()
+}
+
+// DecodeCookie is like DecodeHeaders but for cookies.
+func DecodeCookie(errs *perr.List, g *Group, httpReqExpr, paramExpr *Statement, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
+	if len(params) == 0 {
+		return
+	}
+	g.Comment("Decode cookies")
+
+	cookieType := pkginfo.Q("net/http", "Cookie")
+
+	for _, f := range params {
+		g.If(List(Id("c"), Id("_")).Op(":=").Add(httpReqExpr.Clone()).Dot("Cookie").Call(Lit(f.WireName)).Op(";").Id("c").Op("!=").Nil()).BlockFunc(func(g *Group) {
+			// Cookies can either be a builtin or a *http.Cookie.
+			if builtin, ok := f.Type.(schema.BuiltinType); ok {
+				decodeExpr := dec.UnmarshalBuiltin(builtin.Kind, f.WireName, Id("c").Dot("Value"), false)
+				g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
+			} else if info, ok := schemautil.DerefNamedInfo(f.Type, true); ok && info.QualifiedName() == cookieType {
+				g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Id("c")
+				g.Add(dec.IncNonEmpty())
+			} else {
+				errs.Addf(f.Type.ASTExpr().Pos(), "cannot unmarshal cookie into field of type %s", f.Type)
+			}
+		})
 	}
 	g.Line()
 }

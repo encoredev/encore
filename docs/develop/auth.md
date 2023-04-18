@@ -24,9 +24,9 @@ auth handler determines the token is valid.
 
 Encore applications can designate a special function to handle authentication,
 by defining a function and annotating it with `//encore:authhandler`. This annotation
-tells Encore to run the function whenever an incoming API call contains an authentication token.
+tells Encore to run the function whenever an incoming API call contains authentication data.
 
-The auth handler is responsible for validating the incoming authentication token
+The auth handler is responsible for validating the incoming authentication data
 and returning an `auth.UID` (a string type representing a **user id**). The `auth.UID`
 can be whatever you wish, but in practice it usually maps directly to the primary key
 stored in a user table (either defined in the Encore service or in an external service like Firebase or Okta).
@@ -69,6 +69,48 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
     // for example by calling Firebase Auth.
 }
 ```
+
+## Accepting structured auth information
+
+In the examples above the function accepts a `Bearer` token as a string argument.
+In that case Encore parses the `Authorization` HTTP header and passes the token to the auth handler.
+
+In cases where you have different or more complex authorization requirements, you can instead specify
+a data structure that specifies one or more fields to be parsed from the HTTP request. For example:
+
+```go
+type MyAuthParams struct {
+	// SessionCookie is set to the value of the "session" cookie.
+	// If the cookie is not set it's nil.
+	SessionCookie *http.Cookie `cookie:"session"`
+	
+	// ClientID is the unique id of the client, sourced from the URL query string.
+	ClientID string `query:"client_id"`
+	
+	// Authorization is the raw value of the "Authorization" header
+	// without any parsing.
+	Authorization string `header:"Authorization"`
+}
+
+//encore:authhandler
+func AuthHandler(ctx context.Context, p *MyAuthParams) (auth.UID, error) {
+    // ...
+}
+```
+
+This example tells Encore that the application accepts authentication information via
+the `session` cookie, the `client_id` query string parameter, and the `Authorization` header.
+These fields are automatically filled in when the auth handler is called (if present in the request).
+
+You can of course combine auth params like this with custom user data (see the section above).
+
+<Callout type="info">
+
+Cookies are generally only used by browsers and are automatically added to requests made by browsers.
+As a result Encore does not include cookie fields in generated clients' authentication payloads
+or in the [local development dashboard](/docs/observability/dev-dash).
+
+</Callout>
 
 ## Handling auth errors
 

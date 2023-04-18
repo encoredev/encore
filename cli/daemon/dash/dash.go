@@ -403,6 +403,9 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 	for k, v := range reqSpec.Header {
 		req.Header[k] = v
 	}
+	for _, c := range reqSpec.Cookies {
+		req.AddCookie(c)
+	}
 	return req, nil
 }
 
@@ -482,6 +485,9 @@ type httpRequestSpec struct {
 
 	// Query are the query string fields to set.
 	Query url.Values
+
+	// Cookies are the cookies to send.
+	Cookies []*http.Cookie
 }
 
 func newHTTPRequestSpec() *httpRequestSpec {
@@ -548,6 +554,17 @@ func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string][]*
 						req.Header.Add(param.WireFormat, v.String())
 					default:
 						return fmt.Errorf("unsupported value type for query string: %T", v)
+					}
+
+				case encoding.Cookie:
+					switch v := val.Value.(type) {
+					case hujson.Literal:
+						req.Cookies = append(req.Cookies, &http.Cookie{
+							Name:  param.WireFormat,
+							Value: v.String(),
+						})
+					default:
+						return fmt.Errorf("unsupported value type for cookie: %T", v)
 					}
 
 				default:
