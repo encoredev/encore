@@ -9,22 +9,14 @@ type Service struct {
 
 //encore:api
 func API(context.Context) error { return nil }
--- want:basic.go --
-package basic
-
-import _ "encore.dev/appruntime/app/appinit"
-/*line :3:1*/import "context"
-
-//encore:service
-type Service struct {
-}
-
-//encore:api
-func API(context.Context) error { return nil }
 -- want:encore_internal__svcstruct.go --
 package basic
 
-import __service "encore.dev/appruntime/service"
+import __service "encore.dev/appruntime/apisdk/service"
+
+func init() {
+	__service.Register(EncoreInternal_svcstruct_Service)
+}
 
 var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",

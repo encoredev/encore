@@ -46,7 +46,7 @@ func Dummy(context.Context) error { return nil }
 package generics
 
 import (
-	__etype "encore.dev/appruntime/etype"
+	__etype "encore.dev/appruntime/shared/etype"
 	config "encore.dev/config"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
@@ -215,8 +215,7 @@ func encoreInternalTypeConfigUnmarshaler_SubCfgType[T any](_T_unmarshaler config
 -- want:generics.go --
 package generics
 
-import _ "encore.dev/appruntime/app/appinit"
-/*line :3:1*/import (
+import (
     "context"
     "encore.dev/config"
 )

@@ -24,7 +24,7 @@ func TestCodegen(t *testing.T) {
 
 			userfacinggen.Gen(gen, svc, svcStruct)
 		}
-		Gen(gen, desc.Parse, svc, svcStruct)
+		Gen(gen, desc, svc, svcStruct, nil)
 	}
 	codegentest.Run(t, fn)
 }

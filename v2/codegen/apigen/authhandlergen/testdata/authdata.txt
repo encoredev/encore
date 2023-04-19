@@ -16,33 +16,14 @@ type MyAuthData struct {
 func AuthHandler(ctx context.Context, p *MyAuthParams) (auth.UID, *MyAuthData, error) {
     return "", nil, nil
 }
--- want:code.go --
-package code
-
-import _ "encore.dev/appruntime/app/appinit"
-/*line :3:1*/import ("context"; "encore.dev/beta/auth")
-
-type MyAuthParams struct {
-	ClientID string `header:"X-Client-ID"`
-	APIKey   string `query:"key"`
-}
-
-type MyAuthData struct {
-    Username string
-}
-
-//encore:authhandler
-func AuthHandler(ctx context.Context, p *MyAuthParams) (auth.UID, *MyAuthData, error) {
-    return "", nil, nil
-}
 -- want:encore_internal__authhandler.go --
 package code
 
 import (
 	"context"
-	__api "encore.dev/appruntime/api"
-	__etype "encore.dev/appruntime/etype"
-	__model "encore.dev/appruntime/model"
+	__api "encore.dev/appruntime/apisdk/api"
+	__model "encore.dev/appruntime/exported/model"
+	__etype "encore.dev/appruntime/shared/etype"
 	errs "encore.dev/beta/errs"
 	"net/http"
 )
@@ -75,4 +56,12 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 	HasAuthData: true,
 	Service:     "code",
 	SvcNum:      1,
+}
+
+func init() {
+	__api.RegisterAuthHandler(EncoreInternal_authhandler_AuthDesc_AuthHandler)
+}
+
+func init() {
+	__api.RegisterAuthDataType[*MyAuthData]()
 }

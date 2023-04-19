@@ -16,7 +16,6 @@ import (
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
-	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/pubsub"
 )
 
@@ -136,7 +135,11 @@ func bundledServices(appDesc *app.Desc) *Statement {
 func testServiceMap(appDesc *app.Desc) *Statement {
 	return Map(String()).String().Values(DictFunc(func(d Dict) {
 		for _, svc := range appDesc.Services {
-			d[Lit(svc.Name)] = Lit(svc.FSRoot.ToIO())
+			path := svc.FSRoot.ToIO()
+			if GenerateForInternalPackageTests {
+				path = "testing_path:" + svc.Name
+			}
+			d[Lit(svc.Name)] = Lit(path)
 		}
 	}))
 }
@@ -202,33 +205,7 @@ func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Stateme
 	return allow.out, expose.out
 }
 
-func computeHandlerRegistrationConfig(appDesc *app.Desc, epMap map[*api.Endpoint]*codegen.VarDecl, mwMap map[*middleware.Middleware]*codegen.VarDecl) *Statement {
-	return Index().Qual("encore.dev/appruntime/apisdk/api", "HandlerRegistration").CustomFunc(Options{
-		Open:      "{",
-		Close:     "}",
-		Separator: ",",
-		Multi:     true,
-	}, func(g *Group) {
-		for _, svc := range appDesc.Services {
-			svc.Framework.ForAll(func(fw *apiframework.ServiceDesc) {
-				for _, ep := range fw.Endpoints {
-					// Compute middleware for this service.
-					rpcMW := appDesc.MatchingMiddleware(ep)
-					mwExpr := Nil()
-					if len(rpcMW) > 0 {
-						mwExpr = Index().Op("*").Qual("encore.dev/appruntime/apisdk/api", "Middleware").ValuesFunc(func(g *Group) {
-							for _, mw := range rpcMW {
-								g.Add(mwMap[mw].Qual())
-							}
-						})
-					}
-
-					g.Values(Dict{
-						Id("Handler"):    epMap[ep].Qual(),
-						Id("Middleware"): mwExpr,
-					})
-				}
-			})
-		}
-	})
-}
+// GenerateForInternalPackageTests is set to true
+// when we're running the maingen package tests, to generate code without
+// temporary directories in the file paths (for reproducibility).
+var GenerateForInternalPackageTests = false

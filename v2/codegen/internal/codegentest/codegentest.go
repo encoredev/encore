@@ -65,8 +65,22 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 			overlays := gen.Overlays()
 			got := make(map[string]string, len(overlays))
 			for _, o := range overlays {
-				key, err := filepath.Rel(tc.MainModuleDir.ToIO(), o.Source.ToIO())
-				c.Assert(err, qt.IsNil)
+				// Try to compute a reasonable display path for the file.
+				// If it's local within the main module, use that.
+				// Otherwise check if it's within the runtime module,
+				// and finally fall back to the absolute path.
+				key := o.Source.ToIO()
+
+				mainRel, err := filepath.Rel(tc.MainModuleDir.ToIO(), o.Source.ToIO())
+				if err == nil && filepath.IsLocal(mainRel) {
+					key = mainRel
+				} else {
+					runtimeRel, err := filepath.Rel(tc.Build.EncoreRuntime.ToIO(), o.Source.ToIO())
+					if err == nil && filepath.IsLocal(runtimeRel) {
+						key = runtimeRel
+					}
+				}
+
 				got[key] = string(o.Contents)
 			}
 

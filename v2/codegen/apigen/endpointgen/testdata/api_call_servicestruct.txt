@@ -39,10 +39,14 @@ package svca
 
 import (
 	"context"
-	__api "encore.dev/appruntime/api"
+	__api "encore.dev/appruntime/apisdk/api"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
 )
+
+func init() {
+	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo)
+}
 
 type EncoreInternal_FooReq struct{}
 
@@ -85,28 +89,30 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},
-	Endpoint:       "Foo",
-	Methods:        []string{"GET", "POST"},
-	Path:           "/svca.Foo",
-	PathParamNames: nil,
-	Raw:            false,
-	RawHandler:     nil,
-	RawPath:        "/svca.Foo",
+	Endpoint:            "Foo",
+	GlobalMiddlewareIDs: []string{},
+	Methods:             []string{"GET", "POST"},
+	Path:                "/svca.Foo",
+	PathParamNames:      nil,
+	Raw:                 false,
+	RawHandler:          nil,
+	RawPath:             "/svca.Foo",
 	ReqPath: func(reqData *EncoreInternal_FooReq) (string, __api.UnnamedParams, error) {
 		return "/svca.Foo", nil, nil
 	},
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
 	},
-	Service: "svca",
-	SvcNum:  1,
+	Service:           "svca",
+	ServiceMiddleware: []*__api.Middleware{},
+	SvcNum:            1,
 }
 -- want:svca/encore_internal__apicalls.go --
 package svca
 
 import (
 	"context"
-	__api "encore.dev/appruntime/api"
+	__api "encore.dev/appruntime/apisdk/api"
 )
 
 func EncoreInternal_apicalls_Foo(ctx context.Context) error {
@@ -119,7 +125,11 @@ func EncoreInternal_apicalls_Foo(ctx context.Context) error {
 -- want:svca/encore_internal__svcstruct.go --
 package svca
 
-import __service "encore.dev/appruntime/service"
+import __service "encore.dev/appruntime/apisdk/service"
+
+func init() {
+	__service.Register(EncoreInternal_svcstruct_Service)
+}
 
 var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
@@ -127,23 +137,10 @@ var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Setup:       nil,
 	SetupDefLoc: int32(0),
 }
--- want:svca/svca.go --
-package svca
-
-import _ "encore.dev/appruntime/app/appinit"
-/*line :3:1*/import "context"
-
-//encore:service
-type Service struct{}
-
-//encore:api public
-func (s *Service) Foo(context.Context) error { return nil }
-
 -- want:svcb/svcb.go --
 package svcb
 
-import _ "encore.dev/appruntime/app/appinit"
-/*line :3:1*/import ("context"; "example.com/svca")
+import ("context"; "example.com/svca")
 
 //encore:api public
 func Baz(ctx context.Context) error { return svca.EncoreInternal_apicalls_Foo(ctx) }
