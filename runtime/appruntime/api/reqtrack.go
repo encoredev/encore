@@ -143,7 +143,7 @@ func (s *Server) finishRequest(resp *model.Response) {
 			req.Logger.Error().Err(resp.Err).Msg("auth handler failed")
 		default:
 			e := errs.Convert(resp.Err).(*errs.Error)
-			ev := req.Logger.Error()
+			ev := req.Logger.Info()
 			for k, v := range e.Meta {
 				ev = ev.Interface(k, v)
 			}
