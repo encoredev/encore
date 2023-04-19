@@ -161,7 +161,7 @@ import (
 	"encore.app/__encore/etype"
 	__api "encore.dev/appruntime/api"
 	_ "encore.dev/appruntime/app/appinit"
-	__model "encore.dev/appruntime/model"
+	__model "encore.dev/appruntime/exported/model"
 	__serde "encore.dev/appruntime/serde"
 	__service "encore.dev/appruntime/service"
 	errs "encore.dev/beta/errs"

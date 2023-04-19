@@ -14,28 +14,11 @@ func (s *Service) Middleware(req middleware.Request, next middleware.Next) middl
 // Note: we need an API endpoint to be able to define service-specific middleware
 //encore:api
 func (s *Service) API(context.Context) error { return nil }
--- want:code.go --
-package code
-
-import _ "encore.dev/appruntime/app/appinit"
-/*line :3:1*/import ("context"; "encore.dev/middleware")
-
-//encore:service
-type Service struct{}
-
-//encore:middleware target=all
-func (s *Service) Middleware(req middleware.Request, next middleware.Next) middleware.Response {
-    return next(req)
-}
-
-// Note: we need an API endpoint to be able to define service-specific middleware
-//encore:api
-func (s *Service) API(context.Context) error { return nil }
 -- want:encore_internal__middleware.go --
 package code
 
 import (
-	__api "encore.dev/appruntime/api"
+	__api "encore.dev/appruntime/apisdk/api"
 	errs "encore.dev/beta/errs"
 	middleware "encore.dev/middleware"
 )
@@ -43,6 +26,7 @@ import (
 var EncoreInternal_middleware_middleware_Middleware = &__api.Middleware{
 	DefLoc: int32(0),
 	Global: false,
+	ID:     "example.com.Middleware",
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
 		svc, err := EncoreInternal_svcstruct_Service.Get()
 		if err != nil {
@@ -59,7 +43,11 @@ var EncoreInternal_middleware_middleware_Middleware = &__api.Middleware{
 -- want:encore_internal__svcstruct.go --
 package code
 
-import __service "encore.dev/appruntime/service"
+import __service "encore.dev/appruntime/apisdk/service"
+
+func init() {
+	__service.Register(EncoreInternal_svcstruct_Service)
+}
 
 var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",

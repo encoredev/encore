@@ -7,23 +7,13 @@ import ("context"; "encore.dev/beta/auth")
 func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
     return "", nil
 }
--- want:basic.go --
-package basic
-
-import _ "encore.dev/appruntime/app/appinit"
-/*line :3:1*/import ("context"; "encore.dev/beta/auth")
-
-//encore:authhandler
-func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
-    return "", nil
-}
 -- want:encore_internal__authhandler.go --
 package basic
 
 import (
 	"context"
-	__api "encore.dev/appruntime/api"
-	__model "encore.dev/appruntime/model"
+	__api "encore.dev/appruntime/apisdk/api"
+	__model "encore.dev/appruntime/exported/model"
 	errs "encore.dev/beta/errs"
 	"net/http"
 	"strings"
@@ -51,4 +41,8 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[str
 	HasAuthData: false,
 	Service:     "basic",
 	SvcNum:      1,
+}
+
+func init() {
+	__api.RegisterAuthHandler(EncoreInternal_authhandler_AuthDesc_AuthHandler)
 }
