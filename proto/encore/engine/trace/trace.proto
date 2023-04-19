@@ -25,6 +25,7 @@ message Request {
   repeated Event events = 12;
   Type type = 14;
   StackTrace err_stack = 15; // null if unavailable
+  StackTrace panic_stack = 34; // null if unavailable
 
   // abs_start_time is the absolute unix timestamp
   // (in nanosecond resolution) of when the request started.

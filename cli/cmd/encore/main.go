@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"sync"
 
+	"github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/tools/go/packages"
@@ -148,6 +150,13 @@ func convertJSONLogs() outputConverter {
 	logLineBuffer := bytes.NewBuffer(make([]byte, 0, 1024))
 	cout := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
 		w.Out = logLineBuffer
+		w.FieldsExclude = []string{"stack"}
+		w.FormatExtra = func(vals map[string]any, buf *bytes.Buffer) error {
+			if stack, ok := vals["stack"]; ok {
+				return formatStack(stack, buf)
+			}
+			return nil
+		}
 	})
 
 	return func(line []byte) []byte {
@@ -187,4 +196,24 @@ func nonZeroPtr[T comparable](v T) *T {
 		return nil
 	}
 	return &v
+}
+
+func formatStack(val any, buf *bytes.Buffer) error {
+	var frames []struct {
+		File string
+		Line int
+		Func string
+	}
+
+	if jsonRepr, err := json.Marshal(val); err != nil {
+		return err
+	} else if err := json.Unmarshal(jsonRepr, &frames); err != nil {
+		return err
+	}
+	for _, f := range frames {
+		fmt.Fprintf(buf, "\n    %s\n        %s",
+			f.Func,
+			aurora.Gray(12, fmt.Sprintf("%s:%d", f.File, f.Line)))
+	}
+	return nil
 }

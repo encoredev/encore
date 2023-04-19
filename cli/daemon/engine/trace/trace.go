@@ -478,6 +478,9 @@ func (tp *traceParser) requestEnd(ts uint64) error {
 			req.Err = errMsg
 
 			req.ErrStack = tp.stack(filterNone)
+			if tp.version >= 13 {
+				req.PanicStack = tp.formattedStack()
+			}
 		}
 
 		switch typ {
@@ -1207,6 +1210,25 @@ PCLoop:
 			})
 		}
 	}
+	return tr
+}
+
+func (tp *traceParser) formattedStack() *tracepb.StackTrace {
+	n := int(tp.Byte())
+	tr := &tracepb.StackTrace{}
+	if n == 0 {
+		return tr
+	}
+
+	tr.Frames = make([]*tracepb.StackFrame, 0, n)
+	for i := 0; i < n; i++ {
+		tr.Frames = append(tr.Frames, &tracepb.StackFrame{
+			Filename: tp.String(),
+			Line:     int32(tp.UVarint()),
+			Func:     tp.String(),
+		})
+	}
+
 	return tr
 }
 

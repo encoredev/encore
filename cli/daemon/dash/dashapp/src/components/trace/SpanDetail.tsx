@@ -194,7 +194,10 @@ const NewRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) 
         <h4 className="text-gray-300 mb-2 font-sans text-xs font-semibold uppercase leading-3 tracking-wider">
           Error
         </h4>
-        <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+        <CodeBox error>
+          {decodeBase64(req.err)}
+          {req.panic_stack && <RenderStack stack={req.panic_stack} />}
+        </CodeBox>
       </div>
     ) : (
       <>
@@ -260,7 +263,10 @@ const NewRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) 
               {icons.stackTrace("m-1 h-4 w-auto")}
             </button>
           </h4>
-          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+          <CodeBox error>
+            {decodeBase64(req.err)}
+            {req.panic_stack && <RenderStack stack={req.panic_stack} />}
+          </CodeBox>
         </div>
       ) : undefined}
     </>
@@ -289,7 +295,10 @@ const NewRequestInfo: FC<{ req: Request; trace: Trace; onStackTrace: (s: Stack) 
               {icons.stackTrace("m-1 h-4 w-auto")}
             </button>
           </h4>
-          <CodeBox error>{decodeBase64(req.err)}</CodeBox>
+          <CodeBox error>
+            {decodeBase64(req.err)}
+            {req.panic_stack && <RenderStack stack={req.panic_stack} />}
+          </CodeBox>
         </div>
       ) : (
         <div className="mt-4">
@@ -430,7 +439,7 @@ const PayloadViewer: FC<{
   };
 
   return jsonObj !== undefined ? (
-    <div className="json-tree whitespace-normal [&_svg]:inline-block [&_.data-key]:align-top">
+    <div className="json-tree whitespace-normal [&_.data-key]:align-top [&_svg]:inline-block">
       <JSONTree
         hideRoot={!!hideRoot}
         data={jsonObj}
@@ -653,7 +662,7 @@ const GoroutineDetail: FunctionComponent<{
                 <div
                   key={i}
                   data-testid={clsid}
-                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  className={`span absolute inset-y-0 bg-[var(--base-color)] hover:bg-[var(--hover-color)]`}
                   onMouseEnter={(e) => setHover(e, ev)}
                   onMouseLeave={(e) => setHover(e, null)}
                   style={
@@ -679,7 +688,7 @@ const GoroutineDetail: FunctionComponent<{
               return (
                 <div
                   key={i}
-                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  className={`span absolute inset-y-0 bg-[var(--base-color)] hover:bg-[var(--hover-color)]`}
                   onMouseEnter={(e) => setHover(e, ev)}
                   onMouseLeave={(e) => setHover(e, null)}
                   style={
@@ -700,7 +709,7 @@ const GoroutineDetail: FunctionComponent<{
               return (
                 <div
                   key={i}
-                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  className={`span absolute inset-y-0 bg-[var(--base-color)] hover:bg-[var(--hover-color)]`}
                   onMouseEnter={(e) => setHover(e, ev)}
                   onMouseLeave={(e) => setHover(e, null)}
                   style={
@@ -721,7 +730,7 @@ const GoroutineDetail: FunctionComponent<{
               return (
                 <div
                   key={i}
-                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  className={`span absolute inset-y-0 bg-[var(--base-color)] hover:bg-[var(--hover-color)]`}
                   onMouseEnter={(e) => setHover(e, ev)}
                   onMouseLeave={(e) => setHover(e, null)}
                   style={
@@ -742,7 +751,7 @@ const GoroutineDetail: FunctionComponent<{
               return (
                 <div
                   key={i}
-                  className={`span bg-[var(--base-color)] hover:bg-[var(--hover-color)] absolute inset-y-0`}
+                  className={`span absolute inset-y-0 bg-[var(--base-color)] hover:bg-[var(--hover-color)]`}
                   onMouseEnter={(e) => setHover(e, ev)}
                   onMouseLeave={(e) => setHover(e, null)}
                   style={
@@ -1359,5 +1368,36 @@ const CodeBox: FC<PropsWithChildren<{ className?: string; error?: boolean }>> = 
     >
       {props.children}
     </pre>
+  );
+};
+
+const RenderStack: FC<{ stack: Stack }> = ({ stack }) => {
+  if (stack.frames.length === 0) {
+    return null;
+  }
+
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <>
+      <button
+        className="flex items-center text-white text-opacity-50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {(expanded ? icons.chevronDown : icons.chevronRight)("h-2 w-2")} Stack trace
+      </button>
+
+      {expanded &&
+        stack.frames.map((frame, i) => (
+          <div key={i} className="pl-8 text-xs">
+            <div className="text-white">
+              {frame.short_file}.{frame.func}
+            </div>
+            <div className="text-white text-opacity-50">
+              {"    "}
+              {frame.short_file}:{frame.line}
+            </div>
+          </div>
+        ))}
+    </>
   );
 };
