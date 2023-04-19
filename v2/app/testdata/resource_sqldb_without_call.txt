@@ -1,0 +1,30 @@
+parse
+
+-- svc/migrations/1_dummy.up.sql --
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("svc")
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    return nil
+}
+-- svc/pkg/pkg.go --
+package pkg
+
+import (
+    "context"
+    "test/svc"
+)
+
+func Foo() {
+    _ = svc.Moo
+    _ = svc.Moo.Query
+}

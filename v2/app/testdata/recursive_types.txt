@@ -1,0 +1,33 @@
+parse
+-- foo.go --
+package foo
+
+import "context"
+
+// We must reference these types in an RPC parameter to actually validate them.
+type Params struct {
+    A *SelfRecursive
+    B *MutuallyRecursive
+    C *Generic[Generic]
+}
+
+//encore:api public
+func Dummy(ctx context.Context, p *Params) error {
+    return nil
+}
+
+type SelfRecursive struct {
+    A *SelfRecursive
+}
+
+type MutuallyRecursive struct {
+    Other *Other
+}
+
+type Other struct {
+    Original *MutuallyRecursive
+}
+
+type Generic[T any] struct {
+    Val *T
+}

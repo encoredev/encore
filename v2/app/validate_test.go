@@ -43,7 +43,7 @@ func TestValidation(t *testing.T) {
 		update = true
 	}
 
-	sourceDir := "../../parser/testdata"
+	sourceDir := "testdata"
 
 	testscript.Run(t, testscript.Params{
 		Dir:           sourceDir,
@@ -119,7 +119,7 @@ func parse(ts *testscript.TestScript, neg bool, args []string) {
 	if goldenUpdate != nil && *goldenUpdate {
 		update = true
 	}
-	sourceDir := "../../parser/testdata"
+	sourceDir := "testdata"
 
 	stdout := ts.Value("stdout").(*bytes.Buffer)
 	printf := func(format string, args ...interface{}) {

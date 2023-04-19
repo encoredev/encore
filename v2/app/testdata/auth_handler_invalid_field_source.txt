@@ -1,0 +1,49 @@
+! parse
+err 'all struct fields used in auth handler parameter Params must'
+err 'for the field\(s\): Foo, Bar'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type Params struct {
+    Authorization string `header:"Authorization"`
+    Foo string
+    ClientID string `query:"client_id"`
+    Bar int
+}
+
+//encore:authhandler
+func MyAuth(ctx context.Context, p *Params) (auth.UID, error) { return "", nil }
+
+-- want: errors --
+
+── Invalid auth payload ───────────────────────────────────────────────────────────────────[E9999]──
+
+All fields used within an auth payload must originate from either an HTTP header, a query
+parameter, or a cookie.
+
+    ╭─[ svc/svc.go:10:5 ]
+    │
+  8 │ type Params struct {
+  9 │     Authorization string `header:"Authorization"`
+ 10 │     Foo string
+    ⋮     ────┬─────
+    ⋮         ╰─ you must specify a "header", "query", or "cookie" tag for this field
+ 11 │     ClientID string `query:"client_id"`
+ 12 │     Bar int
+    ⋮     ───┬───
+    ⋮        ╰─ you must specify a "header", "query", or "cookie" tag for this field
+ 13 │ }
+ 14 │
+────╯
+
+You can specify them for each field using the struct tags, for example with `header:"X-My-Header"`,
+`query:"my-query", or `cookie:"my-cookie"`.
+
+For more information on auth handlers and how to define them, see
+https://encore.dev/docs/develop/auth

@@ -1,0 +1,41 @@
+! parse
+err 'Params must be a struct type'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+type Params int
+
+//encore:authhandler
+func MyAuth(ctx context.Context, p Params) (auth.UID, error) { return "", nil }
+
+-- want: errors --
+
+── Invalid auth handler Signature ─────────────────────────────────────────────────────────[E9999]──
+
+The second parameter must be a string or a pointer to a named struct.
+
+    ╭─[ svc/svc.go:11:36 ]
+    │
+  9 │
+ 10 │ //encore:authhandler
+ 11 │ func MyAuth(ctx context.Context, p Params) (auth.UID, error) { return "", nil }
+    ⋮                                    ──────
+ 12 │
+────╯
+
+hint: valid signatures are:
+	- func(ctx context.Context, p *Params) (auth.UID, error)
+	- func(ctx context.Context, p *Params) (auth.UID, *UserData, error)
+	- func(ctx context.Context, token string) (auth.UID, error)
+	- func(ctx context.Context, token string) (auth.UID, *UserData, error)
+
+note: *Params and *UserData are custom data types you define
+
+For more information on auth handlers and how to define them, see
+https://encore.dev/docs/develop/auth

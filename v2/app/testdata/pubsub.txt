@@ -1,0 +1,109 @@
+# Verify that pub sub is parsed
+parse
+output 'pubsubTopic basic-topic'
+output 'pubsubTopic another-topic'
+output 'pubsubPublisher basic-topic foo'
+output 'pubsubSubscriber basic-topic basic-subscription svc 45000000000 396000000000000 3 8000000000 1920000000000'
+output 'pubsubSubscriber basic-topic another-subscription svc 30000000000 604800000000000 100 10000000000 600000000000'
+output 'pubsubSubscriber basic-topic a-third-subscription foo 1000000000 119999999000 47 14399999998000 17999999997000'
+
+-- shared/topics.go --
+package shared
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+    AnotherTopic = pubsub.NewTopic[*MessageType]("another-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.ExactlyOnce })
+)
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "time"
+
+    "encore.dev/pubsub"
+
+    "test/shared"
+    "test/svc/domain"
+)
+
+
+var (
+    _ = pubsub.NewSubscription(shared.BasicTopic, "basic-subscription",
+        pubsub.SubscriptionConfig {
+            Handler: Subscriber1,
+            AckDeadline: 45 * time.Second,
+            MessageRetention: 5 * time.Hour * 24 + -10 * time.Hour,
+            RetryPolicy: &pubsub.RetryPolicy{
+                MaxRetries: 3,
+                MinBackoff: 8 * time.Second,
+                MaxBackoff: 32 * time.Minute,
+            },
+        },
+    )
+
+    _ = pubsub.NewSubscription(shared.BasicTopic, "another-subscription",
+        pubsub.SubscriptionConfig { Handler: domain.SubscriptionCode },
+    )
+)
+
+// encore:api
+func Subscriber1(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
+
+-- svc/domain/code.go --
+package domain
+
+import (
+    "context"
+
+    "test/shared"
+)
+
+func SubscriptionCode(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
+
+-- foo/code.go --
+package foo
+
+import (
+    "context"
+    "time"
+
+    "encore.dev/pubsub"
+
+    "test/shared"
+)
+
+var _ = pubsub.NewSubscription(
+    shared.BasicTopic,
+    "a-third-subscription",
+    pubsub.SubscriptionConfig {
+        Handler: func(ctx context.Context, msg *shared.MessageType) error {
+          return nil
+      },
+      AckDeadline: 1 * time.Second,
+      MessageRetention: 2 * time.Minute + -1 * time.Microsecond,
+      RetryPolicy: &pubsub.RetryPolicy{
+          MaxRetries: -3 + 10 * 5,
+          MinBackoff: 4 * time.Hour + -2 * time.Microsecond,
+          MaxBackoff: 5 * time.Hour + -3 * time.Microsecond,
+      },
+    },
+)
+
+// encore:api
+func DoStuff(ctx context.Context) error {
+    shared.BasicTopic.Publish(ctx, &shared.MessageType{Name: "foo"})
+}

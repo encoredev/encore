@@ -1,0 +1,33 @@
+parse
+output 'resource SQLDBResource svc.Moo db=svc'
+
+-- svc/migrations/1_dummy.up.sql --
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "test/pkg"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("svc")
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    pkg.Foo(Moo)
+    return nil
+}
+-- pkg/pkg.go --
+package pkg
+
+import (
+    "context"
+    
+    "encore.dev/storage/sqldb"
+)
+
+func Foo(db *sqldb.Database) {
+    _ = db.Query
+}

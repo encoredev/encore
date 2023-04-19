@@ -1,0 +1,25 @@
+parse
+output 'metric counter UINT64 COUNTER \[\]'
+output 'metric counter_with_labels UINT64 COUNTER \[label STRING Label doc string.\n\]'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/metrics"
+)
+
+var Counter = metrics.NewCounter[uint64]("counter", metrics.CounterConfig{})
+
+type Labels struct {
+	Label string // Label doc string.
+}
+
+var CounterWithLabels = metrics.NewCounterGroup[Labels, uint64]("counter_with_labels", metrics.CounterConfig{})
+
+//encore:api public
+func Foo(context.Context) error {
+	return nil
+}

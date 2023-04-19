@@ -1,0 +1,22 @@
+parse
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/cache"
+)
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+var keyspace = cache.NewStringKeyspace[string](cluster, cache.KeyspaceConfig{
+    KeyPattern: "foo/:key",
+    DefaultExpiry: cache.ExpireIn(10 * time.Second),
+})
+
+//encore:api public
+func Foo(context.Context) error {
+    return nil
+}
