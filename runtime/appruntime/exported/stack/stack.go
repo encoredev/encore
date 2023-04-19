@@ -64,6 +64,31 @@ func Print(s Stack) {
 	}
 }
 
+type FormattedFrame struct {
+	File string
+	Line int
+	Func string
+}
+
+func Format(s Stack) []FormattedFrame {
+	var frames []FormattedFrame
+	cf := runtime.CallersFrames(s.Frames)
+	i := 0
+	for {
+		f, more := cf.Next()
+		frames = append(frames, FormattedFrame{
+			File: f.File,
+			Line: f.Line,
+			Func: f.Function,
+		})
+		if !more {
+			break
+		}
+		i++
+	}
+	return frames
+}
+
 var (
 	stopMu  sync.RWMutex
 	stopPCs = make(map[uintptr]bool)

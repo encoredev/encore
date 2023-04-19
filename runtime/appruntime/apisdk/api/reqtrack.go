@@ -8,6 +8,7 @@ import (
 	"time"
 
 	model2 "encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/stack"
 	"encore.dev/appruntime/exported/trace"
 	"encore.dev/beta/errs"
 )
@@ -143,9 +144,22 @@ func (s *Server) finishRequest(resp *model2.Response) {
 		default:
 			e := errs.Convert(resp.Err).(*errs.Error)
 			ev := req.Logger.Error()
+
+			var panicStack *stack.Stack
 			for k, v := range e.Meta {
+				if k == "panic_stack" {
+					if st, ok := v.(stack.Stack); ok {
+						panicStack = &st
+					}
+					continue
+				}
 				ev = ev.Interface(k, v)
 			}
+
+			if panicStack != nil {
+				ev = ev.Interface("stack", stack.Format(*panicStack))
+			}
+
 			ev.Str("error", e.ErrorMessage()).Str("code", e.Code.String()).Msg("request failed")
 		}
 	}

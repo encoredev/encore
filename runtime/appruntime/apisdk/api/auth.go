@@ -9,6 +9,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/stack"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 )
@@ -69,7 +70,9 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 		}
 		defer func() {
 			if err2 := recover(); err2 != nil {
-				authErr = errs.B().Code(errs.Internal).Msgf("auth handler panicked: %v", err2).Err()
+				panicStack := stack.Build(0)
+				authErr = errs.B().Code(errs.Internal).Meta("panic_stack", panicStack).Msgf(
+					"auth handler panicked: %v", err2).Err()
 				c.server.finishRequest(newErrResp(authErr, 0))
 			}
 		}()

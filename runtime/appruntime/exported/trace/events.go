@@ -158,6 +158,12 @@ func (l *Log) FinishRequest(req *model.Request, resp *model.Response) {
 	tb.Err(resp.Err)
 	if resp.Err != nil {
 		tb.Stack(errs.Stack(resp.Err))
+
+		if panicStack, ok := errs.Meta(resp.Err)["panic_stack"].(stack.Stack); ok {
+			tb.FormattedStack(panicStack)
+		} else {
+			tb.FormattedStack(stack.Stack{})
+		}
 	}
 
 	switch req.Type {

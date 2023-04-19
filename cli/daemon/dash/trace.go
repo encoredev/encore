@@ -77,10 +77,11 @@ type Request struct {
 	Inputs  [][]byte `json:"inputs"`
 	Outputs [][]byte `json:"outputs"` // Deprecated: same as above
 
-	Err      []byte     `json:"err"`
-	ErrStack *Stack     `json:"err_stack"`
-	Events   []Event    `json:"events"`
-	Children []*Request `json:"children"`
+	Err        []byte     `json:"err"`
+	ErrStack   *Stack     `json:"err_stack"`
+	PanicStack *Stack     `json:"panic_stack"`
+	Events     []Event    `json:"events"`
+	Children   []*Request `json:"children"`
 }
 
 type Goroutine struct {
@@ -387,12 +388,13 @@ func (tp *traceParser) parseReq(req *tracepb.Request) (*Request, error) {
 		ExtRequestID:     req.ExternalRequestId,
 		ExtCorrelationID: req.ExternalCorrelationId,
 
-		Inputs:   inputs,
-		Outputs:  outputs,
-		Err:      nullBytes(req.Err),
-		Events:   []Event{},    // prevent marshalling as null
-		Children: []*Request{}, // prevent marshalling as null
-		ErrStack: tp.maybeStack(req.ErrStack),
+		Inputs:     inputs,
+		Outputs:    outputs,
+		Err:        nullBytes(req.Err),
+		Events:     []Event{},    // prevent marshalling as null
+		Children:   []*Request{}, // prevent marshalling as null
+		ErrStack:   tp.maybeStack(req.ErrStack),
+		PanicStack: tp.maybeStack(req.PanicStack),
 	}
 	if req.PublishTime > 0 {
 		r.Published = &req.PublishTime
