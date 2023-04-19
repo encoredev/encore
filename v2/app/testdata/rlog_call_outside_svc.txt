@@ -1,0 +1,25 @@
+parse
+
+-- foo/foo.go --
+package foo
+
+import "encore.dev/rlog"
+
+func Log() {
+    rlog.Info("test")
+}
+
+-- bar/bar.go --
+package bar
+
+import (
+    "context"
+
+    "test/foo"
+)
+
+//encore:api public
+func CallFoo(ctx context.Context) error {
+    foo.Log()
+    return nil
+}

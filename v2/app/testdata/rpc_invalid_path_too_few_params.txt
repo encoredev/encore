@@ -1,0 +1,39 @@
+! parse
+err 'invalid API signature: expected function parameters named ''foo'', ''bar'' to match API path params'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+//encore:api public path=/str/:foo/:bar
+func Str(ctx context.Context) error { return nil }
+
+-- want: errors --
+
+── Invalid API Function ───────────────────────────────────────────────────────────────────[E9999]──
+
+Expected function parameters named 'foo', 'bar' to match Endpoint path params.
+
+    ╭─[ svc/svc.go:8:31 ]
+    │
+  6 │ )
+  7 │
+  8 │ //encore:api public path=/str/:foo/:bar
+    ⋮                               ──── ────
+  9 │ func Str(ctx context.Context) error { return nil }
+    ⋮         ─────────────────────
+ 10 │
+────╯
+
+hint: valid signatures are:
+	- func(context.Context) error
+	- func(context.Context) (*ResponseData, error)
+	- func(context.Context, *RequestData) error
+	- func(context.Context, *RequestType) (*ResponseData, error)
+
+For more information on how to use APIs, see
+https://encore.dev/docs/primitives/services-and-apis#defining-apis

@@ -1,0 +1,41 @@
+! parse
+err 'path parameter ''p'' must be a string, .+'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+type Struct struct{}
+
+//encore:api public path=/str/:p
+func Str(ctx context.Context, p *Struct) error { return nil }
+
+-- want: errors --
+
+── Invalid API Function ───────────────────────────────────────────────────────────────────[E9999]──
+
+Path parameter "p" must be a string, bool, integer, or encore.dev/types/uuid.UUID.
+
+    ╭─[ svc/svc.go:10:31 ]
+    │
+  8 │ type Struct struct{}
+  9 │
+ 10 │ //encore:api public path=/str/:p
+    ⋮                               ──
+ 11 │ func Str(ctx context.Context, p *Struct) error { return nil }
+    ⋮                               ─────────
+ 12 │
+────╯
+
+hint: valid signatures are:
+	- func(context.Context) error
+	- func(context.Context) (*ResponseData, error)
+	- func(context.Context, *RequestData) error
+	- func(context.Context, *RequestType) (*ResponseData, error)
+
+For more information on how to use APIs, see
+https://encore.dev/docs/primitives/services-and-apis#defining-apis

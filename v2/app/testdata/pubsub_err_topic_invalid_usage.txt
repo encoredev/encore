@@ -1,0 +1,40 @@
+# Verify that pub sub is parsed
+! parse2
+
+-- svc/svc.go --
+package svc
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+
+func SomeFunc(t *pubsub.Topic[*MessageType]) {}
+
+func init() {
+    SomeFunc(BasicTopic)
+}
+-- want: errors --
+
+── Invalid reference to pubsub.Topic ──────────────────────────────────────────────────────[E9999]──
+
+A reference to pubsub.Topic is not permissible here.
+
+    ╭─[ svc/svc.go:16:14 ]
+    │
+ 14 │
+ 15 │ func init() {
+ 16 │     SomeFunc(BasicTopic)
+    ⋮              ──────────
+ 17 │ }
+────╯
+
+The topic can only be referenced by calling methods on it, or to pass it to pubsub.NewSubscription
+or et.Topic.
+
+For more information on PubSub, see https://encore.dev/docs/primitives/pubsub

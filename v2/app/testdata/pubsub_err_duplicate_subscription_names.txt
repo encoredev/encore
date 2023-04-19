@@ -1,0 +1,92 @@
+! parse
+err 'Subscriptions names on topics must be unique.'
+
+-- shared/topics.go --
+package shared
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    Name string
+}
+
+var (
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic-topic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+)
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+
+    "test/shared"
+)
+
+
+var (
+    _ = pubsub.NewSubscription(shared.BasicTopic, "same-name", pubsub.SusbcriptionConfig { Handler: Subscriber1 })
+)
+
+// encore:api
+func Subscriber1(ctx context.Context, msg *shared.MessageType) error {
+    return nil
+}
+
+-- foo/code.go --
+package foo
+
+import (
+    "context"
+
+    "encore.dev/pubsub"
+
+    "test/shared"
+)
+
+var _ = pubsub.NewSubscription(
+    shared.BasicTopic,
+    "same-name",
+    pubsub.SusbcriptionConfig { Handler: func(ctx context.Context, msg *shared.MessageType) error {
+        return nil
+    }},
+)
+
+// encore:api
+func DoStuff(ctx context.Context) error {
+    shared.BasicTopic.Publish(ctx, &shared.MessageType{Name: "foo"})
+}
+
+-- want: errors --
+
+── Duplicate PubSub subscription on topic ─────────────────────────────────────────────────[E9999]──
+
+Subscription names on topics must be unique.
+
+    ╭─[ svc/svc.go:13:51 ]
+    │
+ 11 │
+ 12 │ var (
+ 13 │     _ = pubsub.NewSubscription(shared.BasicTopic, "same-name", pubsub.SusbcriptionConfig { Handler: Subscriber1 })
+    ⋮                                                   ─────┬─────
+    ⋮                                                        ╰─ duplicated here
+ 14 │ )
+ 15 │
+────╯
+
+    ╭─[ foo/code.go:13:5 ]
+    │
+ 11 │ var _ = pubsub.NewSubscription(
+ 12 │     shared.BasicTopic,
+ 13 │     "same-name",
+    ⋮     ─────┬─────
+    ⋮          ╰─ originally defined here
+ 14 │     pubsub.SusbcriptionConfig { Handler: func(ctx context.Context, msg *shared.MessageType) error {
+ 15 │         return nil
+────╯
+
+For more information on PubSub, see https://encore.dev/docs/primitives/pubsub

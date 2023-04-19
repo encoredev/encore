@@ -1,0 +1,12 @@
+parse
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+//encore:authhandler
+func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", nil }

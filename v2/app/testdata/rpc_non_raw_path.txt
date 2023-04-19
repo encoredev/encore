@@ -1,0 +1,9 @@
+parse
+
+-- svc/svc.go --
+package svc
+
+import "context"
+
+//encore:api public path=/foo/bar
+func API(ctx context.Context) error { return nil }

@@ -1,0 +1,51 @@
+! parse
+err 'field Bar not used in KeyPattern'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/cache"
+)
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+type Key struct {
+    ID int
+    Bar string
+}
+
+var keyspace = cache.NewStringKeyspace[Key](cluster, cache.KeyspaceConfig{
+    KeyPattern: "foo/:ID",
+})
+
+//encore:api public
+func Foo(context.Context) error {
+    return nil
+}
+
+-- want: errors --
+
+── Invalid Cache Key Type ─────────────────────────────────────────────────────────────────[E9999]──
+
+Invalid use of the key type, the field Bar was not used in the KeyPattern
+
+    ╭─[ svc/svc.go:13:5 ]
+    │
+ 11 │ type Key struct {
+ 12 │     ID int
+ 13 │     Bar string
+    ⋮     ──────────
+    ·
+    ·
+ 15 │
+ 16 │ var keyspace = cache.NewStringKeyspace[Key](cluster, cache.KeyspaceConfig{
+ 17 │     KeyPattern: "foo/:ID",
+    ⋮                 ─────────
+ 18 │ })
+ 19 │
+────╯
+
+For more information see https://encore.dev/docs/primitives/caching
