@@ -55,6 +55,7 @@ export interface Request {
 
   err: Base64EncodedBytes | null;
   err_stack: Stack | null;
+  panic_stack: Stack | null;
   events: Event[];
   children: Request[];
 }

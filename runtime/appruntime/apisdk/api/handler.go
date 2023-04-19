@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"reflect"
-	"runtime/debug"
 	"strconv"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 
 	encore "encore.dev"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/stack"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 	"encore.dev/middleware"
@@ -258,9 +258,9 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 			defer func() {
 				// Catch middleware panic
 				if e := recover(); e != nil {
-					stack := debug.Stack()
-					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", string(stack)).Msgf("panic executing middleware %s.%s: %v\n%s",
-						mw.PkgName, mw.Name, e, stack).Err()
+					panicStack := stack.Build(0)
+					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", panicStack).Msgf("panic executing middleware %s.%s: %v",
+						mw.PkgName, mw.Name, e).Err()
 					resp.HTTPStatus = 500
 				}
 			}()
@@ -270,8 +270,9 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 			defer func() {
 				// Catch handler panic
 				if e := recover(); e != nil {
-					stack := debug.Stack()
-					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", string(stack)).Msgf("panic handling request: %v\n%s", e, stack).Err()
+					panicStack := stack.Build(0)
+					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", panicStack).Msgf(
+						"panic handling request: %v", e).Err()
 					resp.HTTPStatus = 500
 				}
 			}()

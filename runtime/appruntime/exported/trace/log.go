@@ -217,7 +217,9 @@ func (tb *Buffer) Float64(f float64) {
 func (tb *Buffer) Stack(s stack.Stack) {
 	n := len(s.Frames)
 	if n > 0xFF {
-		panic("stack too large") // should never happen; it's capped at 100
+		// Should never happen (the runtime caps it at 100),
+		// but be defensive about it.
+		n = 0xFF
 	}
 	tb.Byte(byte(n))
 	if n == 0 {
@@ -225,11 +227,32 @@ func (tb *Buffer) Stack(s stack.Stack) {
 	}
 
 	var prev int64 = 0
-	for _, pc := range s.Frames {
+	for _, pc := range s.Frames[:n] {
 		p := int64(pc - s.Off)
 		diff := p - prev
 		tb.Varint(diff)
 		prev = p
+	}
+}
+
+func (tb *Buffer) FormattedStack(s stack.Stack) {
+	frames := stack.Format(s)
+	n := len(frames)
+	if n > 0xFF {
+		// Should never happen (the runtime caps it at 100),
+		// but be defensive about it.
+		n = 0xFF
+	}
+
+	tb.Byte(byte(n))
+	if n == 0 {
+		return
+	}
+
+	for _, f := range frames[:n] {
+		tb.String(f.File)
+		tb.UVarint(uint64(f.Line))
+		tb.String(f.Func)
 	}
 }
 
