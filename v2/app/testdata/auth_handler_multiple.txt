@@ -1,0 +1,49 @@
+! parse
+err 'cannot declare multiple auth handlers'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/beta/auth"
+)
+
+//encore:authhandler
+func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+
+//encore:authhandler
+func MyAuth2(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+
+-- want: errors --
+
+── Multiple auth handlers found ───────────────────────────────────────────────────────────[E9999]──
+
+Multiple auth handlers were found in the application. Encore only allows one auth handler to be
+defined per application.
+
+    ╭─[ svc/svc.go:9:1 ]
+    │
+  7 │
+  8 │ //encore:authhandler
+  9 │ func MyAuth(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+    ⋮  ───────────────────────────────┬────────────────────────────────
+    ⋮                                 ╰─ first auth handler defined here
+ 10 │
+ 11 │ //encore:authhandler
+ 12 │ func MyAuth2(ctx context.Context, token string) (auth.UID, error) { return "", nil }
+    ⋮  ────────────────────────────────┬────────────────────────────────
+    ⋮                                  ╰─ second auth handler defined here
+ 13 │
+────╯
+
+hint: valid signatures are:
+	- func(ctx context.Context, p *Params) (auth.UID, error)
+	- func(ctx context.Context, p *Params) (auth.UID, *UserData, error)
+	- func(ctx context.Context, token string) (auth.UID, error)
+	- func(ctx context.Context, token string) (auth.UID, *UserData, error)
+
+note: *Params and *UserData are custom data types you define
+
+For more information on auth handlers and how to define them, see
+https://encore.dev/docs/develop/auth

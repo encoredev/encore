@@ -1,0 +1,58 @@
+! parse
+err 'cannot reference API one.One outside of a service'
+
+-- one/one.go --
+package one
+
+import (
+    "context"
+)
+
+//encore:api public
+func One(ctx context.Context) error {
+    return nil
+}
+
+-- two/two.go --
+package two
+
+import (
+    "context"
+
+    "test/one"
+)
+
+func Foo(ctx context.Context) error {
+    return one.One(ctx)
+}
+
+-- want: errors --
+
+── Invalid API call ───────────────────────────────────────────────────────────────────────[E9999]──
+
+APIs can only be called from within a service, the current call site is outside any services within
+the application.
+
+    ╭─[ two/two.go:10:12 ]
+    │
+  8 │
+  9 │ func Foo(ctx context.Context) error {
+ 10 │     return one.One(ctx)
+    ⋮            ───┬───
+    ⋮               ╰─ called here
+ 11 │ }
+ 12 │
+────╯
+
+    ╭─[ one/one.go:8:6 ]
+    │
+  6 │
+  7 │ //encore:api public
+  8 │ func One(ctx context.Context) error {
+    ⋮      ─┬─
+    ⋮       ╰─ defined here
+  9 │     return nil
+ 10 │ }
+────╯
+
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis

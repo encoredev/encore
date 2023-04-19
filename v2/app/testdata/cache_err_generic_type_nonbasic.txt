@@ -1,0 +1,50 @@
+! parse
+err 'has invalid key type parameter: struct field Foo is not a basic type'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/cache"
+)
+
+var cluster = cache.NewCluster("cluster", cache.ClusterConfig{})
+
+type Key[T any] struct {
+    Foo T
+}
+
+var keyspace = cache.NewStringKeyspace[Key[Key[string]]](cluster, cache.KeyspaceConfig{
+    KeyPattern: "foo/:Foo",
+})
+
+//encore:api public
+func Foo(context.Context) error {
+    return nil
+}
+
+-- want: errors --
+
+── Invalid Cache Key Type ─────────────────────────────────────────────────────────────────[E9999]──
+
+The field Foo is invalid: must be a basic type
+
+    ╭─[ svc/svc.go:12:5 ]
+    │
+ 10 │
+ 11 │ type Key[T any] struct {
+ 12 │     Foo T
+    ⋮     ──┬──
+    ⋮       ╰─ found Key[string]
+ 13 │ }
+ 14 │
+ 15 │ var keyspace = cache.NewStringKeyspace[Key[Key[string]]](cluster, cache.KeyspaceConfig{
+    ⋮                                        ───────┬────────
+    ⋮                                               ╰─ instantiated here
+ 16 │     KeyPattern: "foo/:Foo",
+ 17 │ })
+────╯
+
+For more information see https://encore.dev/docs/primitives/caching

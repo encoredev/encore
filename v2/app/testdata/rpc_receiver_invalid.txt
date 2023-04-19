@@ -1,0 +1,46 @@
+! parse
+err 'type SomeOtherType is not defined as an encore:service struct'
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+//encore:service
+type Service struct {}
+
+type Params struct{}
+
+type SomeOtherType struct {}
+
+//encore:api public
+func (s *SomeOtherType) Str(ctx context.Context, p *Params) error { return nil }
+
+-- want: errors --
+
+── Invalid service struct for API ─────────────────────────────────────────────────────────[E9999]──
+
+API endpoints defined as receiver functions must be defined on a service struct.
+
+    ╭─[ svc/svc.go:9:6 ]
+    │
+  7 │
+  8 │ //encore:service
+  9 │ type Service struct {}
+    ⋮      ───┬───
+    ⋮         ╰─ this is the service struct for this service
+    ·
+    ·
+ 14 │
+ 15 │ //encore:api public
+ 16 │ func (s *SomeOtherType) Str(ctx context.Context, p *Params) error { return nil }
+    ⋮      ────────┬─────────
+    ⋮              ╰─ try changing this to `*Service`
+ 17 │
+────╯
+
+For more information on service structs, see
+https://encore.dev/docs/primitives/services-and-apis#service-structs
