@@ -45,7 +45,7 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 			for _, use := range d.Parse.Usages(res) {
 				if _, ok := use.(*pubsub.RefUsage); ok {
 					errTxt := "used here"
-					if _, ok := d.ServiceForPath(use.DeclaredIn().FSPath); !ok {
+					if _, ok := d.ServiceForPath(use.DeclaredIn().FSPath); !ok && !use.DeclaredIn().TestFile {
 						pc.Errs.Add(pubsub.ErrTopicRefOutsideService.
 							AtGoNode(use, errors.AsError(errTxt)),
 						)
