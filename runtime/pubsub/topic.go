@@ -21,6 +21,7 @@ import (
 //
 // See NewTopic for more information on how to declare a Topic.
 type Topic[T any] struct {
+	cfg            TopicConfig
 	mgr            *Manager
 	topicCfg       *config.PubsubTopic
 	topic          types.TopicImplementation
@@ -30,6 +31,7 @@ type Topic[T any] struct {
 func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	if mgr.static.Testing {
 		return &Topic[T]{
+			cfg:            cfg,
 			mgr:            mgr,
 			topicCfg:       &config.PubsubTopic{EncoreName: name},
 			topic:          test.NewTopic[T](mgr.ts, name),
@@ -63,6 +65,24 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	mgr.rootLogger.Fatal().Msgf("unsupported PubSub provider for server[%d], tried: %v",
 		topic.ProviderID, tried)
 	panic("unreachable")
+}
+
+// TopicMeta contains metadata about a topic.
+// The fields should not be modified by the caller.
+// Additional fields may be added in the future.
+type TopicMeta struct {
+	// Name is the name of the topic, as provided in the constructor to NewTopic.
+	Name string
+	// Config is the topic's configuration.
+	Config TopicConfig
+}
+
+// Meta returns metadata about the topic.
+func (t *Topic[T]) Meta() TopicMeta {
+	return TopicMeta{
+		Name:   t.topicCfg.EncoreName,
+		Config: t.cfg,
+	}
 }
 
 // Publish will publish a message to the topic and returns a unique message ID for the message.
