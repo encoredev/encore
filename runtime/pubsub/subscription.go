@@ -14,7 +14,10 @@ import (
 
 // Subscription represents a subscription to a Topic.
 type Subscription[T any] struct {
-	mgr *Manager
+	topic *Topic[T]
+	name  string
+	cfg   SubscriptionConfig[T]
+	mgr   *Manager
 }
 
 // NewSubscription is used to declare a Subscription to a topic. The passed in handler will be called
@@ -52,30 +55,30 @@ type Subscription[T any] struct {
 //	  rlog.Info("received foo")
 //	  return nil
 //	}
-func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg SubscriptionConfig[T]) *Subscription[T] {
+func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig[T]) *Subscription[T] {
 	if topic.topicCfg == nil || topic.topic == nil || topic.mgr == nil {
 		panic("pubsub topic was not created using pubsub.NewTopic")
 	}
 	mgr := topic.mgr
 
 	// Set default config values for missing values
-	if subscriptionCfg.RetryPolicy == nil {
-		subscriptionCfg.RetryPolicy = &RetryPolicy{
+	if cfg.RetryPolicy == nil {
+		cfg.RetryPolicy = &RetryPolicy{
 			MaxRetries: 100,
 		}
 	}
-	if subscriptionCfg.RetryPolicy.MinBackoff < 0 {
+	if cfg.RetryPolicy.MinBackoff < 0 {
 		panic("MinRetryDelay cannot be negative")
 	}
-	if subscriptionCfg.RetryPolicy.MaxBackoff < 0 {
+	if cfg.RetryPolicy.MaxBackoff < 0 {
 		panic("MaxRetryDelay cannot be negative")
 	}
-	subscriptionCfg.RetryPolicy.MinBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MinBackoff, 10*time.Second)
-	subscriptionCfg.RetryPolicy.MaxBackoff = utils.WithDefaultValue(subscriptionCfg.RetryPolicy.MaxBackoff, 10*time.Minute)
+	cfg.RetryPolicy.MinBackoff = utils.WithDefaultValue(cfg.RetryPolicy.MinBackoff, 10*time.Second)
+	cfg.RetryPolicy.MaxBackoff = utils.WithDefaultValue(cfg.RetryPolicy.MaxBackoff, 10*time.Minute)
 
-	if subscriptionCfg.AckDeadline == 0 {
-		subscriptionCfg.AckDeadline = 30 * time.Second
-	} else if subscriptionCfg.AckDeadline < 0 {
+	if cfg.AckDeadline == 0 {
+		cfg.AckDeadline = 30 * time.Second
+	} else if cfg.AckDeadline < 0 {
 		panic("AckDeadline cannot be negative")
 	}
 
@@ -87,7 +90,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 			}
 		}()
 
-		return subscriptionCfg.Handler(ctx, msg)
+		return cfg.Handler(ctx, msg)
 	}
 
 	log := mgr.rootLogger.With().
@@ -99,7 +102,7 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 	tracingEnabled := mgr.rt.TracingEnabled()
 
 	// Subscribe to the topic
-	topic.topic.Subscribe(&log, subscriptionCfg.AckDeadline, subscriptionCfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
+	topic.topic.Subscribe(&log, cfg.AckDeadline, cfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
 		mgr.outstanding.Inc()
 		defer mgr.outstanding.Dec()
 
@@ -206,7 +209,36 @@ func NewSubscription[T any](topic *Topic[T], name string, subscriptionCfg Subscr
 		log.Info().Msg("registered subscription")
 	}
 
-	return &Subscription[T]{mgr: mgr}
+	return &Subscription[T]{topic: topic, name: name, cfg: cfg, mgr: mgr}
+}
+
+// SubscriptionMeta contains metadata about a subscription.
+// The fields should not be modified by the caller.
+// Additional fields may be added in the future.
+type SubscriptionMeta[T any] struct {
+	// Name is the name of the subscription, as provided in the constructor to NewSubscription.
+	Name string
+
+	// Config is the subscriptions's configuration.
+	Config SubscriptionConfig[T]
+
+	// Topic provides metadata about the topic it subscribes to.
+	Topic TopicMeta
+}
+
+// Meta returns metadata about the topic.
+func (t *Subscription[T]) Meta() SubscriptionMeta[T] {
+	return SubscriptionMeta[T]{
+		Name:   t.name,
+		Config: t.cfg,
+		Topic:  t.topic.Meta(),
+	}
+}
+
+// Config returns the subscription's configuration.
+// It must not be modified by the caller.
+func (s *Subscription[T]) Config() SubscriptionConfig[T] {
+	return s.cfg
 }
 
 func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscription, *config.StaticPubsubSubscription) {
