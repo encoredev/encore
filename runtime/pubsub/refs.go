@@ -5,7 +5,7 @@ import "context"
 // TopicPerms is the type constraint for all permission-declaring
 // interfaces that can be used with TopicRef.
 type TopicPerms[T any] interface {
-	topicRef() T
+	Meta() TopicMeta
 }
 
 // Publisher is the interface for publishing messages to a topic.
@@ -21,8 +21,11 @@ type TopicPerms[T any] interface {
 // passed around freely within the service, without being subject
 // to Encore's static analysis restrictions that apply to MyTopic.
 type Publisher[T any] interface {
+	// Publish publishes a message to the topic.
 	Publish(ctx context.Context, msg T) (id string, err error)
-	topicRef() T
+
+	// Meta returns metadata about the topic.
+	Meta() TopicMeta
 }
 
 // TopicRef returns an interface reference to a topic,
@@ -42,10 +45,9 @@ type Publisher[T any] interface {
 //	var ref = pubsub.TopicRef[pubsub.Publisher[Msg]](MyTopic)
 //	// ref.Publish(...) can now be used to publish messages to MyTopic.
 func TopicRef[P TopicPerms[T], T any](topic *Topic[T]) P {
-	return any(topic).(P)
+	return any(topicRef[T]{Topic: topic}).(P)
 }
 
-func (t *Topic[T]) topicRef() T {
-	var zero T
-	return zero
+type topicRef[T any] struct {
+	*Topic[T]
 }
