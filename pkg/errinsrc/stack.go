@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // StackFrame represents a single frame in a Stack trace
@@ -25,7 +27,51 @@ func GetStack() []*StackFrame {
 		return nil
 	}
 
-	cf := runtime.CallersFrames(ret[:index])
+	return convertFrames(ret[:index])
+}
+
+// bottomStackTraceFrom returns the deepest stack trace from the given error
+func bottomStackTraceFrom(err error) (rtn []*StackFrame) {
+	count := 0
+
+	for err != nil && count < 100 {
+		count++
+
+		// Look for an error which provides a stack trace
+		if e, ok := err.(*ErrInSrc); ok {
+			rtn = e.Stack
+		} else if e, ok := err.(interface{ StackTrace() errors.StackTrace }); ok {
+			frames := e.StackTrace()
+			pcs := make([]uintptr, len(frames))
+			for i, pc := range frames {
+				pcs[i] = uintptr(pc)
+			}
+			rtn = convertFrames(pcs)
+		}
+
+		// Recurse
+		switch typed := err.(type) {
+		case interface{ Unwrap() error }:
+			err = typed.Unwrap()
+
+		case interface{ Unwrap() []error }:
+			errs := typed.Unwrap()
+			if len(errs) > 0 {
+				err = errs[0]
+			} else {
+				err = nil
+			}
+
+		case interface{ Cause() error }:
+			err = typed.Cause()
+		}
+	}
+
+	return
+}
+
+func convertFrames(pcs []uintptr) []*StackFrame {
+	cf := runtime.CallersFrames(pcs)
 	frame, more := cf.Next()
 
 	// Skip over the "errinsrc" or "errlist" package files or any subpackages
@@ -33,6 +79,7 @@ func GetStack() []*StackFrame {
 	for strings.Contains(frame.File, "errinsrc") ||
 		strings.Contains(frame.File, "errlist") ||
 		strings.Contains(frame.File, "perr") ||
+		strings.Contains(frame.File, "eerror") ||
 		strings.HasSuffix(frame.File, "errs.go") {
 		if !more {
 			return nil

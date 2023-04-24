@@ -2,6 +2,7 @@ package errinsrc
 
 import (
 	"fmt"
+	"go/ast"
 	"go/token"
 	"strings"
 
@@ -41,7 +42,13 @@ func New(params ErrParams, alwaysIncludeStack bool) *ErrInSrc {
 
 	//goland:noinspection GoBoolExpressions
 	if IncludeStackByDefault || alwaysIncludeStack {
-		stack = GetStack()
+		if params.Cause != nil {
+			stack = bottomStackTraceFrom(params.Cause)
+		}
+
+		if len(stack) == 0 {
+			stack = GetStack()
+		}
 	}
 
 	return &ErrInSrc{
@@ -208,4 +215,9 @@ func (e *ErrInSrc) OnSameLine(other *ErrInSrc) bool {
 		}
 	}
 	return false
+}
+
+// WithGoNode adds a Go AST node to the error
+func (e *ErrInSrc) WithGoNode(fileset *token.FileSet, node ast.Node) {
+	e.Params.Locations = append(e.Params.Locations, FromGoASTNode(fileset, node))
 }

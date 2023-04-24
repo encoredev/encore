@@ -33,6 +33,7 @@ export default class Client {
     public readonly cache: cache.ServiceClient
     public readonly di: di.ServiceClient
     public readonly echo: echo.ServiceClient
+    public readonly emptycfg: emptycfg.ServiceClient
     public readonly endtoend: endtoend.ServiceClient
     public readonly middleware: middleware.ServiceClient
     public readonly test: test.ServiceClient
@@ -50,6 +51,7 @@ export default class Client {
         this.cache = new cache.ServiceClient(base)
         this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
+        this.emptycfg = new emptycfg.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
         this.middleware = new middleware.ServiceClient(base)
         this.test = new test.ServiceClient(base)
@@ -413,6 +415,21 @@ export namespace echo {
          */
         public async Publish(): Promise<void> {
             await this.baseClient.callAPI("POST", `/echo.Publish`)
+        }
+    }
+}
+
+export namespace emptycfg {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async AnAPI(): Promise<void> {
+            await this.baseClient.callAPI("POST", `/emptycfg.AnAPI`)
         }
     }
 }

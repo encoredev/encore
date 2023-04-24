@@ -28,12 +28,12 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.11.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/hashicorp/go-version v1.6.0
 	github.com/hashicorp/yamux v0.1.1
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgproto3/v2 v2.3.1
 	github.com/jackc/pgx/v5 v5.2.1-0.20221221235442-d737852654f5
 	github.com/json-iterator/go v1.1.12
+	github.com/jwalton/go-supportscolor v1.1.0
 	github.com/logrusorgru/aurora/v3 v3.0.0
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/mattn/go-sqlite3 v1.14.15

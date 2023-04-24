@@ -131,28 +131,28 @@ func writeFSToPath(filesys fs.FS, targetPath string) error {
 	// Copy the files into the temporary directory
 	err := fs.WalkDir(filesys, ".", func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return eerror.Wrap(err, "config", "unable to walk VFS", nil)
 		}
 
 		if !info.IsDir() {
 			// Open the source file from our filesystem
 			srcFile, err := filesys.Open(path)
 			if err != nil {
-				return err
+				return eerror.Wrap(err, "config", "unable to open src file", nil)
 			}
 
 			dstFile, err := os.OpenFile(filepath.Join(targetPath, path), os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				return err
+				return eerror.Wrap(err, "config", "unable to open dst file", nil)
 			}
 
 			_, err = io.Copy(dstFile, srcFile)
 			if err != nil {
-				return err
+				return eerror.Wrap(err, "config", "unable to copy file", nil)
 			}
 		} else {
 			if err := os.Mkdir(filepath.Join(targetPath, path), 0755); err != nil && !errors.Is(err, os.ErrExist) {
-				return err
+				return eerror.Wrap(err, "config", "unable to make dir", nil)
 			}
 		}
 
