@@ -3,7 +3,6 @@ package vfs
 import (
 	"errors"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -197,7 +196,7 @@ func (v *VFS) AddFile(path string, bytes []byte, time time.Time) (*fileContents,
 
 // AddDir records a directory into the VFS.
 func (v *VFS) AddDir(dirPath string) *directoryContents {
-	dirParts := strings.Split(dirPath, string(os.PathSeparator))
+	dirParts := strings.Split(dirPath, "/")
 	dir := v.root
 	for _, dirPart := range dirParts {
 		if dirPart == "." || dirPart == "" {

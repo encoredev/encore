@@ -39,6 +39,7 @@ export default class Client {
         this.cache = new cache.ServiceClient(base)
         this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
+        this.emptycfg = new emptycfg.ServiceClient(base)
         this.endtoend = new endtoend.ServiceClient(base)
         this.middleware = new middleware.ServiceClient(base)
         this.test = new test.ServiceClient(base)
@@ -272,6 +273,20 @@ class EchoServiceClient {
 
 export const echo = {
     ServiceClient: EchoServiceClient
+}
+
+class EmptycfgServiceClient {
+    constructor(baseClient) {
+        this.baseClient = baseClient
+    }
+
+    async AnAPI() {
+        await this.baseClient.callAPI("POST", `/emptycfg.AnAPI`)
+    }
+}
+
+export const emptycfg = {
+    ServiceClient: EmptycfgServiceClient
 }
 
 class EndtoendServiceClient {

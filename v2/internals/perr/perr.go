@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/ast"
 	"go/scanner"
 	"go/token"
 	"path/filepath"
@@ -92,6 +93,41 @@ func (l *List) AddStd(err error) {
 
 	default:
 		l.add(srcerrors.StandardLibraryError(err))
+	}
+}
+
+func (l *List) AddStdNode(err error, node ast.Node) {
+	if err == nil {
+		return
+	}
+
+	add := func(err *errinsrc.ErrInSrc) {
+		err.WithGoNode(l.fset, node)
+		l.add(err)
+	}
+
+	switch err := err.(type) {
+	case *errinsrc.ErrInSrc:
+		add(err)
+
+	case errinsrc.ErrorList:
+		for _, e := range err.ErrorList() {
+			add(e)
+		}
+
+	case *scanner.Error:
+		add(srcerrors.GenericGoParserError(err))
+
+	case scanner.ErrorList:
+		for _, e := range err {
+			add(srcerrors.GenericGoParserError(e))
+		}
+
+	case packages.Error:
+		add(srcerrors.GenericGoPackageError(err))
+
+	default:
+		add(srcerrors.StandardLibraryError(err))
 	}
 }
 

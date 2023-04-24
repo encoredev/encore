@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/alecthomas/chroma/quick"
+	"github.com/jwalton/go-supportscolor"
 	auroraPkg "github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog/log"
 
@@ -20,8 +21,12 @@ const endEscape = "\x1b[0m"
 
 const tabSize = 4
 
-var aurora = auroraPkg.NewAurora(true)
-var enableColors = true
+var aurora auroraPkg.Aurora
+var enableColors bool
+
+func init() {
+	ColoursInErrors(supportscolor.Stdout().SupportsColor)
+}
 
 func ColoursInErrors(enabled bool) {
 	enableColors = enabled

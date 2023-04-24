@@ -281,34 +281,35 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 	appRoot := mainModule.RootDir.ToIO()
 
 	// TODO this is a hack until we have proper resource usage tracking
-	serviceUsesConfig := make(map[string]bool, len(desc.Services))
+	serviceUsesConfig := make(map[string]resource.Resource, len(desc.Services))
 	for _, r := range desc.Parse.Resources() {
 		if r.Kind() == resource.ConfigLoad {
 			if svc, ok := desc.ServiceForPath(r.Package().FSPath); ok {
-				serviceUsesConfig[svc.Name] = true
+				serviceUsesConfig[svc.Name] = r
 			}
 		}
 	}
 
 	configs := make(map[string]string, len(desc.Services))
 	for _, svc := range desc.Services {
-		if !serviceUsesConfig[svc.Name] {
+		resourceNode, ok := serviceUsesConfig[svc.Name]
+		if !ok {
 			continue
 		}
 
 		rel, err := filepath.Rel(appRoot, svc.FSRoot.ToIO())
 		if err != nil {
-			errs.AddStd(err)
+			errs.AddStdNode(err, resourceNode)
 			continue
 		}
 		cfg, err := cueutil.LoadFromFS(files, rel, cueMeta)
 		if err != nil {
-			errs.AddStd(err)
+			errs.AddStdNode(err, resourceNode)
 			continue
 		}
 		cfgData, err := cfg.MarshalJSON()
 		if err != nil {
-			errs.AddStd(err)
+			errs.AddStdNode(err, resourceNode)
 			continue
 		}
 
