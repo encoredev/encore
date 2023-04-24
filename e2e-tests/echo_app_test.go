@@ -544,7 +544,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	app := apps.NewInstance(appRoot, "local_id", "platform_id")
 
 	mgr := &Manager{}
-	rm := infra.NewResourceManager(app, nil, false)
+	rm := infra.NewResourceManager(app, nil, nil, false)
 	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())

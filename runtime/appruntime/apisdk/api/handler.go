@@ -470,7 +470,9 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 	}()
 	<-done
 
-	c.server.rootLogger.Err(respErr).Msg("call failed")
+	if respErr != nil {
+		c.server.rootLogger.Err(respErr).Msg("call failed")
+	}
 	c.server.finishCall(call, respErr)
 	return
 }

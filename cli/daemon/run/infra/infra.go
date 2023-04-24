@@ -19,6 +19,7 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/internal/optracker"
+	"encr.dev/pkg/environ"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -35,6 +36,7 @@ const (
 type ResourceManager struct {
 	app      *apps.Instance
 	sqlMgr   *sqldb.ClusterManager
+	environ  environ.Environ
 	log      zerolog.Logger
 	forTests bool
 
@@ -42,10 +44,11 @@ type ResourceManager struct {
 	servers map[Type]Resource
 }
 
-func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, forTests bool) *ResourceManager {
+func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, environ environ.Environ, forTests bool) *ResourceManager {
 	return &ResourceManager{
 		app:      app,
 		sqlMgr:   sqlMgr,
+		environ:  environ,
 		forTests: forTests,
 
 		servers: make(map[Type]Resource),
@@ -223,7 +226,12 @@ func isDockerRunning(ctx context.Context) bool {
 // UpdateConfig updates the given config with infrastructure information.
 // Note that all the requisite services must have started up already,
 // which in practice means that (*optracker.AsyncBuildJobs).Wait must have returned first.
-func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbProxyPort int) {
+func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbProxyPort int) error {
+	useLocalEncoreCloudAPI, err := rm.setTestEncoreCloud(cfg)
+	if err != nil {
+		return err
+	}
+
 	if cluster := rm.GetSQLCluster(); cluster != nil {
 		srv := &config.SQLServer{
 			Host: "localhost:" + strconv.Itoa(dbProxyPort),
@@ -260,12 +268,25 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 		providerID := len(cfg.PubsubProviders)
 		cfg.PubsubProviders = append(cfg.PubsubProviders, provider)
 
+		// If we're testing the Encore Cloud API locally, override from NSQ
+		if useLocalEncoreCloudAPI {
+			cfg.PubsubProviders = append(cfg.PubsubProviders, &config.PubsubProvider{
+				EncoreCloud: &config.EncoreCloudPubsubProvider{},
+			})
+			providerID = 1
+		}
+
 		cfg.PubsubTopics = make(map[string]*config.PubsubTopic)
 		for _, t := range md.PubsubTopics {
+			providerName := t.Name
+			if useLocalEncoreCloudAPI {
+				providerName = "res_0o9ioqnrirflhhm3t720"
+			}
+
 			topicCfg := &config.PubsubTopic{
 				ProviderID:    providerID,
 				EncoreName:    t.Name,
-				ProviderName:  t.Name,
+				ProviderName:  providerName,
 				Subscriptions: make(map[string]*config.PubsubSubscription),
 			}
 
@@ -274,8 +295,13 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 			}
 
 			for _, s := range t.Subscriptions {
+				subscriptionID := t.Name
+				if useLocalEncoreCloudAPI {
+					subscriptionID = "res_0o9ioqnrirflhhm3t730"
+				}
+
 				topicCfg.Subscriptions[s.Name] = &config.PubsubSubscription{
-					ID:           s.Name,
+					ID:           subscriptionID,
 					EncoreName:   s.Name,
 					ProviderName: s.Name,
 				}
@@ -301,4 +327,6 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 			})
 		}
 	}
+
+	return nil
 }

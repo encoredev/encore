@@ -29,7 +29,7 @@ type Manager struct {
 
 	publishCounter uint64
 	outstanding    *outstandingMessageTracker
-	pushHandlers   map[types.SubscriptionID]types.PushEndpointHandler
+	pushHandlers   map[types.SubscriptionID]http.HandlerFunc
 }
 
 func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker,
@@ -45,7 +45,7 @@ func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.Req
 		rootLogger:   rootLogger,
 		json:         json,
 		outstanding:  newOutstandingMessageTracker(),
-		pushHandlers: make(map[types.SubscriptionID]types.PushEndpointHandler),
+		pushHandlers: make(map[types.SubscriptionID]http.HandlerFunc),
 	}
 
 	for _, p := range providerRegistry {
@@ -136,7 +136,7 @@ func registerProvider(p func(mgr *Manager) provider) {
 
 var _ types.PushEndpointRegistry = (*Manager)(nil)
 
-func (mgr *Manager) RegisterPushSubscriptionHandler(id types.SubscriptionID, handler types.PushEndpointHandler) {
+func (mgr *Manager) RegisterPushSubscriptionHandler(id types.SubscriptionID, handler http.HandlerFunc) {
 	mgr.pushHandlers[id] = handler
 }
 
@@ -151,9 +151,5 @@ func (mgr *Manager) HandlePubSubPush(w http.ResponseWriter, req *http.Request, s
 		return
 	}
 
-	err := handler(req)
-	if err != nil {
-		mgr.rootLogger.Err(err).Str("subscription_id", subscriptionID).Msg("error while handling PubSub push request")
-	}
-	errs.HTTPError(w, err)
+	handler(w, req)
 }

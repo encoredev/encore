@@ -19,7 +19,7 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structtag v1.2.0
 	github.com/fmstephe/unsafeutil v1.0.0
-	github.com/frankban/quicktest v1.14.3
+	github.com/frankban/quicktest v1.14.5
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/getkin/kin-openapi v0.115.0
 	github.com/gofrs/uuid v4.3.0+incompatible
@@ -28,7 +28,6 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.11.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/hashicorp/go-version v1.6.0
 	github.com/hashicorp/yamux v0.1.1
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgproto3/v2 v2.3.1
@@ -103,7 +102,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/compress v1.15.11 // indirect
-	github.com/kr/pretty v0.3.0 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
