@@ -22,6 +22,7 @@ type Client struct {
 	Cache      CacheClient
 	Di         DiClient
 	Echo       EchoClient
+	Emptycfg   EmptycfgClient
 	Endtoend   EndtoendClient
 	Middleware MiddlewareClient
 	Test       TestClient
@@ -73,6 +74,7 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 		Cache:      &cacheClient{base},
 		Di:         &diClient{base},
 		Echo:       &echoClient{base},
+		Emptycfg:   &emptycfgClient{base},
 		Endtoend:   &endtoendClient{base},
 		Middleware: &middlewareClient{base},
 		Test:       &testClient{base},
@@ -620,6 +622,23 @@ func (c *echoClient) Pong(ctx context.Context) (resp EchoData[string, string], e
 // Publish publishes a request on a topic
 func (c *echoClient) Publish(ctx context.Context) error {
 	_, err := callAPI(ctx, c.base, "POST", "/echo.Publish", nil, nil, nil)
+	return err
+}
+
+// EmptycfgClient Provides you access to call public and authenticated APIs on emptycfg. The concrete implementation is emptycfgClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type EmptycfgClient interface {
+	AnAPI(ctx context.Context) error
+}
+
+type emptycfgClient struct {
+	base *baseClient
+}
+
+var _ EmptycfgClient = (*emptycfgClient)(nil)
+
+func (c *emptycfgClient) AnAPI(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/emptycfg.AnAPI", nil, nil, nil)
 	return err
 }
 
