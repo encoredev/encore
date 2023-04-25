@@ -26,6 +26,22 @@ var (
 		"Invalid call to sqldb.Named",
 		"sqldb.Named requires a database name to be passed as a string literal.",
 	)
+	errNewDatabaseArgCount = errRange.Newf(
+		"Invalid sqldb.NewDatabase call",
+		"A call to sqldb.NewDatabase requires 2 arguments: the database name and the config object, got %d arguments.",
+	)
+	errNewDatabaseAbsPath = errRange.New(
+		"Invalid sqldb.NewDatabase call",
+		"The migration path must be a relative path rooted within the package directory, got an absolute path.",
+	)
+	errNewDatabaseNonLocalPath = errRange.New(
+		"Invalid sqldb.NewDatabase call",
+		"The migration path must be a relative path rooted within the package directory, got a non-local path.",
+	)
+	errNewDatabaseMigrationDirNotFound = errRange.New(
+		"Invalid sqldb.NewDatabase call",
+		"The migration directory does not exist.",
+	)
 	errMigrationsNotInMainModule = errRange.New(
 		"Invalid database migration directory",
 		"The migration path must be within the application's main module.",
