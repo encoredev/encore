@@ -26,7 +26,7 @@ type Job struct {
 	Schedule string
 
 	Endpoint    pkginfo.QualifiedName // The Endpoint reference
-	EndpointAST ast.Node
+	EndpointAST ast.Expr
 }
 
 func (j *Job) Kind() resource.Kind       { return resource.CronJob }

@@ -10,6 +10,35 @@ import (
 	"encore.dev/appruntime/shared/testsupport"
 )
 
+// NewDatabase declares a new SQL database.
+//
+// Encore uses static analysis to identify databases and their configuration,
+// so all parameters passed to this function must be constant literals.
+//
+// A call to NewDatabase can only be made when declaring a package level variable. Any
+// calls to this function made outside a package level variable declaration will result
+// in a compiler error.
+//
+// The database name must be unique within the Encore application. Database names must be defined
+// in kebab-case (lowercase alphanumerics and hyphen seperated). Once created and deployed never
+// change the database name, or else a new database will be created.
+func NewDatabase(name string, config DatabaseConfig) *Database {
+	return Singleton.GetDB(name)
+}
+
+// DatabaseConfig specifies configuration for declaring a new database.
+type DatabaseConfig struct {
+	// Migrations is the directory containing the migration files
+	// for this database.
+	//
+	// The path must be slash-separated relative path, and must be rooted within
+	// the package directory (it cannot contain "../").
+	// Valid paths are, for example, "migrations" or "db/migrations".
+	//
+	// Migrations are an ordered sequence of sql files of the format <number>_<description>.up.sql.
+	Migrations string
+}
+
 // Exec executes a query without returning any rows.
 // The args are for any placeholder parameters in the query.
 //

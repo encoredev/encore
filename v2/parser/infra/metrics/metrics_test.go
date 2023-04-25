@@ -3,6 +3,9 @@ package metrics
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"encr.dev/v2/internals/schema/schematest"
 	"encr.dev/v2/parser/resource/resourcetest"
 )
 
@@ -15,8 +18,10 @@ func TestParseMetrics(t *testing.T) {
 var x = metrics.NewCounter[int]("name", metrics.CounterConfig{})
 `,
 			Want: &Metric{
-				Name: "name",
-				Doc:  "Metric docs\n",
+				Name:      "name",
+				Doc:       "Metric docs\n",
+				ValueType: schematest.Int(),
+				Type:      Counter,
 			},
 		},
 		{
@@ -26,8 +31,10 @@ var x = metrics.NewCounter[int]("name", metrics.CounterConfig{})
 var x = metrics.NewGauge[int]("name", metrics.GaugeConfig{})
 `,
 			Want: &Metric{
-				Name: "name",
-				Doc:  "Metric docs\n",
+				Name:      "name",
+				Doc:       "Metric docs\n",
+				Type:      Gauge,
+				ValueType: schematest.Int(),
 			},
 		},
 		{
@@ -41,8 +48,11 @@ type Labels struct {
 }
 `,
 			Want: &Metric{
-				Name: "name",
-				Doc:  "Metric docs\n",
+				Name:      "name",
+				Doc:       "Metric docs\n",
+				Type:      Counter,
+				Labels:    []Label{{Key: "id", Type: schematest.String()}},
+				ValueType: schematest.Int(),
 			},
 		},
 		{
@@ -56,11 +66,14 @@ type Labels struct {
 }
 `,
 			Want: &Metric{
-				Name: "name",
-				Doc:  "Metric docs\n",
+				Name:      "name",
+				Doc:       "Metric docs\n",
+				Labels:    []Label{{Key: "id", Type: schematest.String()}},
+				ValueType: schematest.Int(),
+				Type:      Gauge,
 			},
 		},
 	}
 
-	resourcetest.Run(t, MetricParser, tests)
+	resourcetest.Run(t, MetricParser, tests, cmpopts.IgnoreFields(Metric{}, "LabelType"))
 }

@@ -3,6 +3,7 @@ package resourcetest
 import (
 	"go/ast"
 	"go/token"
+	"os"
 	"strconv"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rogpeppe/go-internal/txtar"
 
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/testutil"
@@ -85,18 +87,37 @@ package foo
 			if len(test.WantErrs) == 0 {
 				c.Assert(got, qt.HasLen, 1)
 
+				lookupMap := map[string]string{
+					"APPROOT": tc.MainModuleDir.ToIO(),
+				}
+
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				opts := append([]cmp.Option{
-					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
+					cmpopts.IgnoreInterfaces(struct{ ast.Expr }{}),
 					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
 					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),
+
+					cmp.Comparer(func(a, b paths.FS) bool {
+						return rewrite(a, lookupMap) == rewrite(b, lookupMap)
+					}),
+					cmp.Comparer(func(a, b *pkginfo.PkgDeclInfo) bool {
+						// HACK(andre) We only check the subset of information that
+						// the test helpers actually set. We should be more careful.
+						return a.Name == b.Name
+					}),
 				}, cmpOpts...)
 				c.Assert(got[0], qt.CmpEquals(opts...), test.Want)
 			}
 		})
 	}
+}
+
+func rewrite[T ~string](val T, lookup map[string]string) T {
+	return T(os.Expand(string(val), func(key string) string {
+		return lookup[key]
+	}))
 }
