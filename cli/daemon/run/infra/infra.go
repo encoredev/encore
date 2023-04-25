@@ -231,16 +231,14 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 		serverID := len(cfg.SQLServers)
 		cfg.SQLServers = append(cfg.SQLServers, srv)
 
-		for _, svc := range md.Svcs {
-			if len(svc.Migrations) > 0 {
-				cfg.SQLDatabases = append(cfg.SQLDatabases, &config.SQLDatabase{
-					ServerID:     serverID,
-					EncoreName:   svc.Name,
-					DatabaseName: svc.Name,
-					User:         "encore",
-					Password:     cluster.Password,
-				})
-			}
+		for _, db := range md.SqlDatabases {
+			cfg.SQLDatabases = append(cfg.SQLDatabases, &config.SQLDatabase{
+				ServerID:     serverID,
+				EncoreName:   db.Name,
+				DatabaseName: db.Name,
+				User:         "encore",
+				Password:     cluster.Password,
+			})
 		}
 
 		// Configure max connections based on 96 connections

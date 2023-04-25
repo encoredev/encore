@@ -21,6 +21,7 @@ message Data {
   repeated CacheCluster   cache_clusters      = 11;
   repeated string         experiments         = 12;
   repeated Metric         metrics             = 13;
+  repeated SQLDatabase    sql_databases       = 14;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -60,12 +61,6 @@ message Selector {
 
   Type type = 1;
   string value = 2;
-}
-
-message DBMigration {
-  string filename    = 1; // filename
-  int32  number      = 2; // migration number
-  string description = 3; // descriptive name
 }
 
 message RPC {
@@ -249,6 +244,22 @@ message CronJob {
   string schedule = 4;
   QualifiedName endpoint = 5;
 }
+
+message SQLDatabase {
+  string name = 1;
+  string doc = 2;
+  // migration_rel_path is the slash-separated path to the migrations,
+  // relative to the main module's root directory.
+  string migration_rel_path = 3;
+  repeated DBMigration migrations = 4;
+}
+
+message DBMigration {
+  string filename    = 1; // filename
+  int32  number      = 2; // migration number
+  string description = 3; // descriptive name
+}
+
 
 message PubSubTopic {
   string                name               = 1; // The pub sub topic name (unique per application)

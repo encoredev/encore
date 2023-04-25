@@ -28,6 +28,7 @@ export interface Data {
   cache_clusters: CacheCluster[];
   experiments: string[];
   metrics: Metric[];
+  sql_databases: SQLDatabase[];
 }
 
 /**
@@ -81,15 +82,6 @@ export enum Selector_Type {
   /** TAG - NOTE: If more types are added, update the (selector.Selector).ToProto method. */
   TAG = "TAG",
   UNRECOGNIZED = "UNRECOGNIZED",
-}
-
-export interface DBMigration {
-  /** filename */
-  filename: string;
-  /** migration number */
-  number: number;
-  /** descriptive name */
-  description: string;
 }
 
 export interface RPC {
@@ -287,6 +279,26 @@ export interface CronJob {
   doc: string;
   schedule: string;
   endpoint: QualifiedName;
+}
+
+export interface SQLDatabase {
+  name: string;
+  doc: string;
+  /**
+   * migration_rel_path is the slash-separated path to the migrations,
+   * relative to the main module's root directory.
+   */
+  migration_rel_path: string;
+  migrations: DBMigration[];
+}
+
+export interface DBMigration {
+  /** filename */
+  filename: string;
+  /** migration number */
+  number: number;
+  /** descriptive name */
+  description: string;
 }
 
 export interface PubSubTopic {

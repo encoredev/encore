@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/resource"
@@ -20,7 +21,9 @@ import (
 type Database struct {
 	Pkg          *pkginfo.Package
 	Name         string // The database name
-	MigrationDir paths.FS
+	Doc          string
+	File         option.Option[*pkginfo.File]
+	MigrationDir paths.MainModuleRelSlash
 	Migrations   []MigrationFile
 }
 
@@ -63,10 +66,17 @@ var DatabaseParser = &resourceparser.Parser{
 			return
 		}
 
+		// Compute the relative path to the migration directory from the main module.
+		relMigrationDir, err := filepath.Rel(p.MainModuleDir.ToIO(), migrationDir.ToIO())
+		if err != nil || !filepath.IsLocal(relMigrationDir) {
+			p.Errs.Add(errMigrationsNotInMainModule)
+			return
+		}
+
 		res := &Database{
 			Pkg:          p.Pkg,
 			Name:         p.Pkg.Name,
-			MigrationDir: migrationDir,
+			MigrationDir: paths.MainModuleRelSlash(filepath.ToSlash(relMigrationDir)),
 			Migrations:   migrations,
 		}
 		p.RegisterResource(res)
