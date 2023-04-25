@@ -13,7 +13,7 @@ func Ptr(elem schema.Type) schema.Type {
 	return schema.PointerType{Elem: elem}
 }
 
-func Builtin(kind schema.BuiltinKind) schema.Type {
+func Builtin(kind schema.BuiltinKind) schema.BuiltinType {
 	return schema.BuiltinType{Kind: kind}
 }
 
@@ -36,18 +36,18 @@ func Param(typ schema.Type) schema.Param {
 	return schema.Param{Type: typ}
 }
 
-func String() schema.Type {
+func String() schema.BuiltinType {
 	return Builtin(schema.String)
 }
 
-func Bool() schema.Type {
+func Bool() schema.BuiltinType {
 	return Builtin(schema.Bool)
 }
 
-func Int() schema.Type {
+func Int() schema.BuiltinType {
 	return Builtin(schema.Int)
 }
 
-func Error() schema.Type {
+func Error() schema.BuiltinType {
 	return Builtin(schema.Error)
 }

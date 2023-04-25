@@ -3,8 +3,10 @@ package sqldb
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/token"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -14,6 +16,8 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/parser/infra/internal/literals"
+	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/resourceparser"
 )
@@ -41,6 +45,100 @@ type MigrationFile struct {
 }
 
 var DatabaseParser = &resourceparser.Parser{
+	Name: "SQL Database",
+
+	InterestingImports: []paths.Pkg{"encore.dev/storage/sqldb"},
+	Run: func(p *resourceparser.Pass) {
+		name := pkginfo.QualifiedName{PkgPath: "encore.dev/storage/sqldb", Name: "NewDatabase"}
+
+		spec := &parseutil.ReferenceSpec{
+			MinTypeArgs: 0,
+			MaxTypeArgs: 0,
+			Parse:       parseDatabase,
+		}
+
+		parseutil.FindPkgNameRefs(p.Pkg, []pkginfo.QualifiedName{name}, func(file *pkginfo.File, name pkginfo.QualifiedName, stack []ast.Node) {
+			parseutil.ParseReference(p, spec, parseutil.ReferenceData{
+				File:         file,
+				Stack:        stack,
+				ResourceFunc: name,
+			})
+		})
+	},
+}
+
+func parseDatabase(d parseutil.ReferenceInfo) {
+	errs := d.Pass.Errs
+
+	if len(d.Call.Args) != 2 {
+		errs.Add(errNewDatabaseArgCount(len(d.Call.Args)).AtGoNode(d.Call))
+		return
+	}
+
+	databaseName := parseutil.ParseResourceName(d.Pass.Errs, "sqldb.NewDatabase", "database name",
+		d.Call.Args[0], parseutil.KebabName, "")
+	if databaseName == "" {
+		// we already reported the error inside ParseResourceName
+		return
+	}
+
+	cfgLit, ok := literals.ParseStruct(d.Pass.Errs, d.File, "sqldb.DatabaseConfig", d.Call.Args[1])
+	if !ok {
+		return // error reported by ParseStruct
+	}
+
+	// Decode the config
+	type decodedConfig struct {
+		Migrations string `literal:",required"`
+	}
+	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
+
+	if path.IsAbs(config.Migrations) {
+		errs.Add(errNewDatabaseAbsPath.AtGoNode(cfgLit.Expr("Migrations")))
+		return
+	}
+	migDir := filepath.FromSlash(config.Migrations)
+	if !filepath.IsLocal(migDir) {
+		errs.Add(errNewDatabaseNonLocalPath.AtGoNode(cfgLit.Expr("Migrations")))
+		return
+	}
+
+	migrationDir := d.Pass.Pkg.FSPath.Join(migDir)
+	if fi, err := os.Stat(migrationDir.ToIO()); os.IsNotExist(err) || (err == nil && !fi.IsDir()) {
+		errs.Add(errNewDatabaseMigrationDirNotFound.AtGoNode(cfgLit.Expr("Migrations")))
+		return
+	} else if err != nil {
+		errs.AddStd(err)
+		return
+	}
+
+	// Compute the relative path to the migration directory from the main module.
+	relMigrationDir, err := filepath.Rel(d.Pass.MainModuleDir.ToIO(), migrationDir.ToIO())
+	if err != nil || !filepath.IsLocal(relMigrationDir) {
+		errs.Add(errMigrationsNotInMainModule)
+		return
+	}
+
+	migrations, err := parseMigrations(d.Pass.Pkg, migrationDir)
+	if err != nil {
+		errs.Add(errUnableToParseMigrations.Wrapping(err))
+		return
+	}
+
+	db := &Database{
+		Pkg:          d.Pass.Pkg,
+		Name:         databaseName,
+		Doc:          d.Doc,
+		MigrationDir: paths.MainModuleRelSlash(filepath.ToSlash(relMigrationDir)),
+		Migrations:   migrations,
+	}
+	d.Pass.RegisterResource(db)
+	if id, ok := d.Ident.Get(); ok {
+		d.Pass.AddBind(d.File, id, db)
+	}
+}
+
+var MigrationParser = &resourceparser.Parser{
 	Name: "SQL Database",
 
 	InterestingSubdirs: []string{"migrations"},

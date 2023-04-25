@@ -3,6 +3,7 @@ package crons
 import (
 	"testing"
 
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/resource/resourcetest"
 )
 
@@ -25,6 +26,7 @@ func MyEndpoint() {}
 				Title:    "title",
 				Doc:      "Job docs\n",
 				Schedule: "every:180",
+				Endpoint: pkginfo.Q("example.com", "MyEndpoint"),
 			},
 		},
 		{
@@ -41,6 +43,7 @@ func MyEndpoint() {}
 				Name:     "name",
 				Title:    "name", // defaults from name if not specified
 				Schedule: "every:180",
+				Endpoint: pkginfo.Q("example.com", "MyEndpoint"),
 			},
 		},
 	}
