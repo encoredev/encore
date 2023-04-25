@@ -13,9 +13,9 @@ import (
 )
 
 type src struct {
-	appRoot    string
-	svcRelPath string
-	migrations []*meta.DBMigration
+	appRoot           string
+	migrationsRelPath string
+	migrations        []*meta.DBMigration
 }
 
 func (src *src) Open(url string) (source.Driver, error) {
@@ -55,7 +55,7 @@ func (src *src) ReadUp(version uint) (r io.ReadCloser, identifier string, err er
 		return nil, "", os.ErrNotExist
 	}
 	m := src.migrations[idx]
-	filepath := filepath.Join(src.appRoot, src.svcRelPath, "migrations", m.Filename)
+	filepath := filepath.Join(src.appRoot, src.migrationsRelPath, m.Filename)
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, "", err

@@ -263,3 +263,17 @@ func (p RelSlash) ToIO() string {
 func (p RelSlash) String() string {
 	return string(p)
 }
+
+// MainModuleRelSlash is like RelSlash, but it's always relative to the application's
+// main module directory.
+type MainModuleRelSlash string
+
+// ToIO converts the slash-separated path to a filesystem path
+// using filepath.FromSlash.
+func (p MainModuleRelSlash) ToIO(mainModDir FS) string {
+	return mainModDir.Join(filepath.FromSlash(string(p))).ToIO()
+}
+
+func (p MainModuleRelSlash) String() string {
+	return string(p)
+}

@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/app"
@@ -121,13 +122,7 @@ func (b *builder) Build() *meta.Data {
 					// If the database name is the same as the service,
 					// it's the database defined by said service.
 					if res.Name == svc.Name {
-						for _, mig := range res.Migrations {
-							out.Migrations = append(out.Migrations, &meta.DBMigration{
-								Filename:    mig.Filename,
-								Number:      int32(mig.Number),
-								Description: mig.Description,
-							})
-						}
+						out.Migrations = fns.Map(res.Migrations, transformMigration)
 					}
 				}
 			}
@@ -233,6 +228,15 @@ func (b *builder) Build() *meta.Data {
 			if svc, ok := b.app.ServiceForPath(r.Decl.File.FSPath); ok {
 				b.nodes.addAuthHandler(r, svc.Name)
 			}
+
+		case *sqldb.Database:
+			db := &meta.SQLDatabase{
+				Name:             r.Name,
+				Doc:              r.Doc,
+				MigrationRelPath: r.MigrationDir.String(),
+				Migrations:       fns.Map(r.Migrations, transformMigration),
+			}
+			md.SqlDatabases = append(md.SqlDatabases, db)
 
 		case *pubsub.Topic:
 			topic := &meta.PubSubTopic{
@@ -516,6 +520,14 @@ func (b *builder) apiPath(pos gotoken.Pos, path *resourcepaths.Path) *meta.Path 
 		res.Segments = append(res.Segments, seg)
 	}
 	return res
+}
+
+func transformMigration(res sqldb.MigrationFile) *meta.DBMigration {
+	return &meta.DBMigration{
+		Filename:    res.Filename,
+		Number:      int32(res.Number),
+		Description: res.Description,
+	}
 }
 
 func (b *builder) keyspacePath(path *resourcepaths.Path) *meta.Path {

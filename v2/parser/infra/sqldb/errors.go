@@ -26,4 +26,8 @@ var (
 		"Invalid call to sqldb.Named",
 		"sqldb.Named requires a database name to be passed as a string literal.",
 	)
+	errMigrationsNotInMainModule = errRange.New(
+		"Invalid database migration directory",
+		"The migration path must be within the application's main module.",
+	)
 )

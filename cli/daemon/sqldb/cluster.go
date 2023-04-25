@@ -185,15 +185,13 @@ func (c *Cluster) initDBs(md *meta.Data, reinit bool) {
 
 	// Create the databases we need in our cluster map.
 	c.mu.Lock()
-	for _, svc := range md.Svcs {
-		if len(svc.Migrations) > 0 {
-			db, ok := c.dbs[svc.Name]
-			if ok && reinit {
-				db.CloseConns()
-			}
-			if !ok || reinit {
-				c.initDB(svc.Name)
-			}
+	for _, dbMeta := range md.SqlDatabases {
+		db, ok := c.dbs[dbMeta.Name]
+		if ok && reinit {
+			db.CloseConns()
+		}
+		if !ok || reinit {
+			c.initDB(dbMeta.Name)
 		}
 	}
 	c.mu.Unlock()
@@ -224,17 +222,13 @@ func (c *Cluster) Setup(ctx context.Context, appRoot string, md *meta.Data) erro
 
 	c.mu.Lock()
 
-	for _, svc := range md.Svcs {
-		if len(svc.Migrations) == 0 {
-			continue
-		}
-
-		svc := svc
-		db, ok := c.dbs[svc.Name]
+	for _, dbMeta := range md.SqlDatabases {
+		dbMeta := dbMeta
+		db, ok := c.dbs[dbMeta.Name]
 		if !ok {
-			db = c.initDB(svc.Name)
+			db = c.initDB(dbMeta.Name)
 		}
-		g.Go(func() error { return db.Setup(ctx, appRoot, svc, false, false) })
+		g.Go(func() error { return db.Setup(ctx, appRoot, dbMeta, false, false) })
 	}
 	c.mu.Unlock()
 	return g.Wait()
@@ -246,17 +240,13 @@ func (c *Cluster) SetupAndMigrate(ctx context.Context, appRoot string, md *meta.
 	g, ctx := errgroup.WithContext(ctx)
 	c.mu.Lock()
 
-	for _, svc := range md.Svcs {
-		if len(svc.Migrations) == 0 {
-			continue
-		}
-
-		svc := svc
-		db, ok := c.dbs[svc.Name]
+	for _, dbMeta := range md.SqlDatabases {
+		dbMeta := dbMeta
+		db, ok := c.dbs[dbMeta.Name]
 		if !ok {
-			db = c.initDB(svc.Name)
+			db = c.initDB(dbMeta.Name)
 		}
-		g.Go(func() error { return db.Setup(ctx, appRoot, svc, true, false) })
+		g.Go(func() error { return db.Setup(ctx, appRoot, dbMeta, true, false) })
 	}
 	c.mu.Unlock()
 	return g.Wait()
@@ -270,28 +260,28 @@ func (c *Cluster) GetDB(name string) (*DB, bool) {
 	return db, ok
 }
 
-// Recreate recreates the databases for the given services.
-// If services is the nil slice it recreates all databases.
-func (c *Cluster) Recreate(ctx context.Context, appRoot string, services []string, md *meta.Data) error {
+// Recreate recreates the databases for the given database names.
+// If databaseNames is the nil slice it recreates all databases.
+func (c *Cluster) Recreate(ctx context.Context, appRoot string, databaseNames []string, md *meta.Data) error {
 	c.log.Debug().Msg("recreating cluster")
 	var filter map[string]bool
-	if services != nil {
+	if databaseNames != nil {
 		filter = make(map[string]bool)
-		for _, svc := range services {
-			filter[svc] = true
+		for _, name := range databaseNames {
+			filter[name] = true
 		}
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
 	c.mu.Lock()
-	for _, svc := range md.Svcs {
-		svc := svc
-		if len(svc.Migrations) > 0 && (filter == nil || filter[svc.Name]) {
-			db, ok := c.dbs[svc.Name]
+	for _, dbMeta := range md.SqlDatabases {
+		dbMeta := dbMeta
+		if filter == nil || filter[dbMeta.Name] {
+			db, ok := c.dbs[dbMeta.Name]
 			if !ok {
-				db = c.initDB(svc.Name)
+				db = c.initDB(dbMeta.Name)
 			}
-			g.Go(func() error { return db.Setup(ctx, appRoot, svc, true, true) })
+			g.Go(func() error { return db.Setup(ctx, appRoot, dbMeta, true, true) })
 		}
 	}
 	c.mu.Unlock()
