@@ -34,10 +34,5 @@ func WaitForConn(ctx context.Context, uri string) error {
 
 // IsUsed reports whether the application uses SQL databases at all.
 func IsUsed(md *meta.Data) bool {
-	for _, svc := range md.Svcs {
-		if len(svc.Migrations) > 0 {
-			return true
-		}
-	}
-	return false
+	return len(md.SqlDatabases) > 0
 }

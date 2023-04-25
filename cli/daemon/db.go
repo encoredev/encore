@@ -70,11 +70,8 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	// We will use the first database name in the app's schema on the returned connection string
 	if req.DbName == "_any_" {
 		req.DbName = ""
-		for _, s := range parse.Meta.Svcs {
-			if len(s.Migrations) > 0 {
-				req.DbName = s.Name
-				break
-			}
+		if len(parse.Meta.SqlDatabases) > 0 {
+			req.DbName = parse.Meta.SqlDatabases[0].Name
 		}
 
 		// If no database has been found, return an error
@@ -280,7 +277,7 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		return nil
 	}
 
-	err = cluster.Recreate(stream.Context(), req.AppRoot, req.Services, parse.Meta)
+	err = cluster.Recreate(stream.Context(), req.AppRoot, req.DatabaseNames, parse.Meta)
 	if err != nil {
 		sendErr(err)
 	}
