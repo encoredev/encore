@@ -27,6 +27,7 @@ func (c *Cluster) ASTExpr() ast.Expr         { return c.AST }
 func (c *Cluster) ResourceName() string      { return c.Name }
 func (c *Cluster) Pos() token.Pos            { return c.AST.Pos() }
 func (c *Cluster) End() token.Pos            { return c.AST.End() }
+func (c *Cluster) SortKey() string           { return c.Name }
 
 var ClusterParser = &resourceparser.Parser{
 	Name: "Cache Cluster",
@@ -99,6 +100,6 @@ func parseCluster(d parseutil.ReferenceInfo) {
 
 	d.Pass.RegisterResource(cluster)
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(id, cluster)
+		d.Pass.AddBind(d.File, id, cluster)
 	}
 }

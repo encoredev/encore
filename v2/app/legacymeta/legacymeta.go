@@ -203,9 +203,10 @@ func (b *builder) Build() *meta.Data {
 			}
 			md.CronJobs = append(md.CronJobs, cj)
 			if ep, ok := b.app.Parse.ResourceForQN(r.Endpoint).Get(); ok {
+				endpoint := ep.(*api.Endpoint)
 				cj.Endpoint = &meta.QualifiedName{
-					Pkg:  b.relPath(ep.Package().ImportPath),
-					Name: ep.(*api.Endpoint).Name,
+					Pkg:  b.relPath(endpoint.File.Pkg.ImportPath),
+					Name: endpoint.Name,
 				}
 			} else {
 				b.errs.Addf(r.EndpointAST.Pos(), "could not find endpoint %q", r.Endpoint)

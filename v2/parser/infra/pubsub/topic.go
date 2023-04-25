@@ -41,6 +41,7 @@ func (t *Topic) ASTExpr() ast.Expr         { return t.AST }
 func (t *Topic) ResourceName() string      { return t.Name }
 func (t *Topic) Pos() token.Pos            { return t.AST.Pos() }
 func (t *Topic) End() token.Pos            { return t.AST.End() }
+func (t *Topic) SortKey() string           { return t.Name }
 
 var TopicParser = &resourceparser.Parser{
 	Name: "PubSub Topic",
@@ -157,6 +158,6 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 	}
 	d.Pass.RegisterResource(topic)
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(id, topic)
+		d.Pass.AddBind(d.File, id, topic)
 	}
 }

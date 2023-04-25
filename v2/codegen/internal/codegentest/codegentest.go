@@ -28,7 +28,7 @@ type Case struct {
 	WantErrs []string
 }
 
-var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
+var goldenUpdate = flag.Bool("golden-update", os.Getenv("GOLDEN_UPDATE") != "", "update golden files")
 
 func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 	flag.Parse()
