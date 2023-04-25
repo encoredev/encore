@@ -243,7 +243,7 @@ func parse(ts *testscript.TestScript, neg bool, args []string) {
 		case *sqldb.Database:
 			for _, b := range desc.Parse.PkgDeclBinds(res) {
 				printf("resource SQLDBResource %s.%s db=%s",
-					b.Pkg.Name, b.BoundName.Name, res.Name)
+					b.File.Pkg.Name, b.BoundName.Name, res.Name)
 			}
 		case *pubsub.Topic:
 			printf("pubsubTopic %s", res.Name)

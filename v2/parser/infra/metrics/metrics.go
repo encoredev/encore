@@ -57,6 +57,7 @@ func (m *Metric) ASTExpr() ast.Expr         { return m.AST }
 func (m *Metric) ResourceName() string      { return m.Name }
 func (m *Metric) Pos() token.Pos            { return m.AST.Pos() }
 func (m *Metric) End() token.Pos            { return m.AST.End() }
+func (m *Metric) SortKey() string           { return m.Name }
 
 type Label struct {
 	Key  string
@@ -212,7 +213,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 
 	d.Pass.RegisterResource(m)
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(id, m)
+		d.Pass.AddBind(d.File, id, m)
 	}
 }
 

@@ -60,20 +60,20 @@ func WithReq(ctx context.Context, p *Data) error {
 	return svc.WithReq(ctx, p)
 }
 
-func WithResp(ctx context.Context) (*Data, error) {
-	svc, err := EncoreInternal_svcstruct_Service.Get()
-	if err != nil {
-		return (*Data)(nil), err
-	}
-	return svc.WithResp(ctx)
-}
-
 func WithReqResp(ctx context.Context, p *Data) (*Data, error) {
 	svc, err := EncoreInternal_svcstruct_Service.Get()
 	if err != nil {
 		return (*Data)(nil), err
 	}
 	return svc.WithReqResp(ctx, p)
+}
+
+func WithResp(ctx context.Context) (*Data, error) {
+	svc, err := EncoreInternal_svcstruct_Service.Get()
+	if err != nil {
+		return (*Data)(nil), err
+	}
+	return svc.WithResp(ctx)
 }
 -- want:encore_internal__svcstruct.go --
 package basic

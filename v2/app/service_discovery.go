@@ -8,6 +8,10 @@ import (
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser"
+	"encr.dev/v2/parser/apis/api"
+	"encr.dev/v2/parser/apis/authhandler"
+	"encr.dev/v2/parser/apis/servicestruct"
+	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"
 )
@@ -42,15 +46,15 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 	}
 
 	for _, r := range result.Resources() {
-		switch r.Kind() {
-		case resource.ServiceStruct:
-			sd.possibleServiceRoot(r.Package(), true)
-		case resource.APIEndpoint:
-			sd.possibleServiceRoot(r.Package(), false)
-		case resource.PubSubSubscription:
-			sd.possibleServiceRoot(r.Package(), false)
-		case resource.AuthHandler:
-			sd.possibleServiceRoot(r.Package(), false)
+		switch r := r.(type) {
+		case *servicestruct.ServiceStruct:
+			sd.possibleServiceRoot(r.Decl.File.Pkg, true)
+		case *api.Endpoint:
+			sd.possibleServiceRoot(r.Decl.File.Pkg, false)
+		case *pubsub.Subscription:
+			sd.possibleServiceRoot(r.File.Pkg, false)
+		case *authhandler.AuthHandler:
+			sd.possibleServiceRoot(r.Decl.File.Pkg, false)
 		}
 	}
 

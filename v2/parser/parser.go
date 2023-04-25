@@ -93,11 +93,7 @@ func (p *Parser) Parse() *Result {
 	// as we process modules in parallel we can't rely on the order of the
 	// resources being stable coming into this function.
 	slices.SortFunc(resources, func(a, b resource.Resource) bool {
-		if a.Package() != b.Package() {
-			return a.Package().FSPath < b.Package().FSPath
-		}
-
-		return a.Pos() < b.Pos()
+		return a.SortKey() < b.SortKey()
 	})
 
 	// Then sort the binds binds

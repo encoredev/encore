@@ -35,6 +35,7 @@ func (j *Job) ASTExpr() ast.Expr         { return j.AST }
 func (j *Job) ResourceName() string      { return j.Name }
 func (j *Job) Pos() token.Pos            { return j.AST.Pos() }
 func (j *Job) End() token.Pos            { return j.AST.End() }
+func (j *Job) SortKey() string           { return j.Name }
 
 var JobParser = &resourceparser.Parser{
 	Name: "Cron Job",
@@ -156,7 +157,7 @@ func parseCronJob(d parseutil.ReferenceInfo) {
 
 	d.Pass.RegisterResource(job)
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(id, job)
+		d.Pass.AddBind(d.File, id, job)
 	}
 }
 
