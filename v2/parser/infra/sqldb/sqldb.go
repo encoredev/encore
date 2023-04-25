@@ -32,6 +32,7 @@ func (d *Database) Package() *pkginfo.Package { return d.Pkg }
 func (d *Database) ResourceName() string      { return d.Name }
 func (d *Database) Pos() token.Pos            { return token.NoPos }
 func (d *Database) End() token.Pos            { return token.NoPos }
+func (d *Database) SortKey() string           { return d.Name }
 
 type MigrationFile struct {
 	Filename    string

@@ -38,6 +38,9 @@ func (k *Keyspace) Package() *pkginfo.Package { return k.File.Pkg }
 func (k *Keyspace) ASTExpr() ast.Expr         { return k.AST }
 func (k *Keyspace) Pos() token.Pos            { return k.AST.Pos() }
 func (k *Keyspace) End() token.Pos            { return k.AST.End() }
+func (k *Keyspace) SortKey() string {
+	return fmt.Sprintf("%s:%s:%d", k.File.Pkg.ImportPath, k.File.Name, k.AST.Pos())
+}
 
 var KeyspaceParser = &resourceparser.Parser{
 	Name: "Cache Keyspace",
@@ -274,6 +277,6 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 
 	d.Pass.RegisterResource(ks)
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(id, ks)
+		d.Pass.AddBind(d.File, id, ks)
 	}
 }

@@ -2,8 +2,6 @@ package resource
 
 import (
 	"go/ast"
-
-	"encr.dev/v2/internals/pkginfo"
 )
 
 //go:generate stringer -type=Kind -output=resource_string.go
@@ -39,8 +37,11 @@ type Resource interface {
 	// Kind is the kind of resource this is.
 	Kind() Kind
 
-	// Package is the package the resource is declared in.
-	Package() *pkginfo.Package
+	// SortKey is a string that can be used to sort resources.
+	// The sort key's value is arbitrary but should provide a
+	// consistent sort order regardless of the parsing order.
+	// The sort key only matters between resources of the same Kind.
+	SortKey() string
 }
 
 type Named interface {

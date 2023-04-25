@@ -93,10 +93,14 @@ func (p *Parser) Parse() *Result {
 	// as we process modules in parallel we can't rely on the order of the
 	// resources being stable coming into this function.
 	slices.SortFunc(resources, func(a, b resource.Resource) bool {
-		if a.Package() != b.Package() {
-			return a.Package().FSPath < b.Package().FSPath
+		p1, p2 := p.c.FS.Position(a.Pos()), p.c.FS.Position(b.Pos())
+		if p1.Filename != p2.Filename {
+			return p1.Filename < p2.Filename
+		} else if p1.Line != p2.Line {
+			return p1.Line < p2.Line
+		} else if p1.Column != p2.Column {
+			return p1.Column < p2.Column
 		}
-
 		return a.Pos() < b.Pos()
 	})
 

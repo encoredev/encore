@@ -50,22 +50,22 @@ func (p *Pass) Binds() []resource.Bind {
 	return p.binds
 }
 
-func (p *Pass) AddBind(boundName *ast.Ident, res resource.Resource) {
+func (p *Pass) AddBind(file *pkginfo.File, boundName *ast.Ident, res resource.Resource) {
 	if boundName.Name == "_" {
 		p.binds = append(p.binds, &resource.AnonymousBind{
 			Resource: resource.ResourceOrPath{Resource: res},
-			Pkg:      p.Pkg,
+			File:     file,
 		})
 	} else {
 		p.binds = append(p.binds, &resource.PkgDeclBind{
 			Resource:  resource.ResourceOrPath{Resource: res},
-			Pkg:       p.Pkg,
+			File:      file,
 			BoundName: boundName,
 		})
 	}
 }
 
-func (p *Pass) AddPathBind(boundName *ast.Ident, path resource.Path) {
+func (p *Pass) AddPathBind(file *pkginfo.File, boundName *ast.Ident, path resource.Path) {
 	if len(path) == 0 {
 		panic("AddPathBind: empty path")
 	}
@@ -73,12 +73,12 @@ func (p *Pass) AddPathBind(boundName *ast.Ident, path resource.Path) {
 	if boundName.Name == "_" {
 		p.binds = append(p.binds, &resource.AnonymousBind{
 			Resource: resource.ResourceOrPath{Path: path},
-			Pkg:      p.Pkg,
+			File:     file,
 		})
 	} else {
 		p.binds = append(p.binds, &resource.PkgDeclBind{
 			Resource:  resource.ResourceOrPath{Path: path},
-			Pkg:       p.Pkg,
+			File:      file,
 			BoundName: boundName,
 		})
 	}

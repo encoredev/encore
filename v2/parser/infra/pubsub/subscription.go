@@ -39,6 +39,9 @@ func (s *Subscription) ASTExpr() ast.Expr         { return s.AST }
 func (s *Subscription) ResourceName() string      { return s.Name }
 func (s *Subscription) Pos() token.Pos            { return s.AST.Pos() }
 func (s *Subscription) End() token.Pos            { return s.AST.End() }
+func (s *Subscription) SortKey() string {
+	return s.Topic.PkgPath.String() + "." + s.Topic.Name + "." + s.Name
+}
 
 var SubscriptionParser = &resourceparser.Parser{
 	Name: "PubSub Subscription",
@@ -161,6 +164,6 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 	}
 	d.Pass.RegisterResource(sub)
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(id, sub)
+		d.Pass.AddBind(d.File, id, sub)
 	}
 }

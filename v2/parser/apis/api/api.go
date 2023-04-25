@@ -66,6 +66,7 @@ func (ep *Endpoint) Kind() resource.Kind       { return resource.APIEndpoint }
 func (ep *Endpoint) Package() *pkginfo.Package { return ep.File.Pkg }
 func (ep *Endpoint) Pos() token.Pos            { return ep.Decl.AST.Pos() }
 func (ep *Endpoint) End() token.Pos            { return ep.Decl.AST.End() }
+func (ep *Endpoint) SortKey() string           { return ep.File.Pkg.ImportPath.String() + "." + ep.Name }
 
 func (ep *Endpoint) RequestEncoding() []*apienc.RequestEncoding {
 	ep.reqEncOnce.Do(func() {

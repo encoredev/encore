@@ -282,9 +282,10 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 
 	// TODO this is a hack until we have proper resource usage tracking
 	serviceUsesConfig := make(map[string]resource.Resource, len(desc.Services))
-	for _, r := range desc.Parse.Resources() {
+	for _, b := range desc.Parse.AllBinds() {
+		r := desc.Parse.ResourceForBind(b)
 		if r.Kind() == resource.ConfigLoad {
-			if svc, ok := desc.ServiceForPath(r.Package().FSPath); ok {
+			if svc, ok := desc.ServiceForPath(b.Package().FSPath); ok {
 				serviceUsesConfig[svc.Name] = r
 			}
 		}
