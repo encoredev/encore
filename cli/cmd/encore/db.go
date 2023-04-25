@@ -27,28 +27,28 @@ var dbCmd = &cobra.Command{
 var resetAll bool
 
 var dbResetCmd = &cobra.Command{
-	Use:   "reset [service-names...]",
-	Short: "Resets the databases for the given services. Use --all to reset all databases.",
+	Use:   "reset [database-names...]",
+	Short: "Resets the databases with the given names. Use --all to reset all databases.",
 
 	Run: func(command *cobra.Command, args []string) {
 		appRoot, _ := determineAppRoot()
-		svcNames := args
+		dbNames := args
 		if resetAll {
-			if len(svcNames) > 0 {
-				fatal("cannot specify both --all and service names")
+			if len(dbNames) > 0 {
+				fatal("cannot specify both --all and database names")
 			}
-			svcNames = nil
+			dbNames = nil
 		} else {
-			if len(svcNames) == 0 {
-				fatal("no service names given")
+			if len(dbNames) == 0 {
+				fatal("no database names given")
 			}
 		}
 
 		ctx := context.Background()
 		daemon := setupDaemon(ctx)
 		stream, err := daemon.DBReset(ctx, &daemonpb.DBResetRequest{
-			AppRoot:  appRoot,
-			Services: svcNames,
+			AppRoot:       appRoot,
+			DatabaseNames: dbNames,
 		})
 		if err != nil {
 			fatal("reset databases: ", err)
@@ -60,7 +60,7 @@ var dbResetCmd = &cobra.Command{
 var dbEnv string
 
 var dbShellCmd = &cobra.Command{
-	Use:   "shell SERVICE_NAME [--env=local]",
+	Use:   "shell DATABASE_NAME [--env=local]",
 	Short: "Connects to the database via psql shell",
 	Long:  "Defaults to connecting to your local environment. Specify --env to connect to another environment.",
 	Args:  cobra.MaximumNArgs(1),
@@ -90,7 +90,7 @@ var dbShellCmd = &cobra.Command{
 			}
 			if dbName == "" {
 				fatal("could not find an Encore service with a database in this directory (or any of the parent directories).\n\n" +
-					"Note: You can specify a service name to connect to it directly using the command 'encore db shell <service-name>'.")
+					"Note: You can specify a service name to connect to it directly using the command 'encore db shell <database-name>'.")
 			}
 		}
 

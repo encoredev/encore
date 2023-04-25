@@ -189,7 +189,7 @@ message DBProxyRequest {
 
 message DBResetRequest {
   string app_root = 1;
-  repeated string services = 2; // services to reset
+  repeated string database_names = 2; // database names to reset
 }
 
 message GenClientRequest {

@@ -43,7 +43,7 @@ func (db *DB) Ready() <-chan struct{} {
 }
 
 // Setup sets up the database, (re)creating it if necessary and running schema migrations.
-func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migrate, recreate bool) (err error) {
+func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase, migrate, recreate bool) (err error) {
 	db.log.Debug().Msg("setting up database")
 	db.setupMu.Lock()
 	defer db.setupMu.Unlock()
@@ -71,7 +71,7 @@ func (db *DB) Setup(ctx context.Context, appRoot string, svc *meta.Service, migr
 		return fmt.Errorf("ensure db roles %s: %v", db.Name, err)
 	}
 	if migrate || recreate || !db.migrated {
-		if err := db.Migrate(ctx, appRoot, svc); err != nil {
+		if err := db.Migrate(ctx, appRoot, dbMeta); err != nil {
 			// Only report an error if we asked to migrate or recreate.
 			// Otherwise we might fail to open a database shell when there
 			// is a migration issue.
@@ -177,7 +177,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 }
 
 // Migrate migrates the database.
-func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (err error) {
+func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase) (err error) {
 	db.log.Debug().Msg("running database migrations")
 	defer func() {
 		if err != nil {
@@ -213,9 +213,9 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, svc *meta.Service) (e
 	}
 
 	s := &src{
-		appRoot:    appRoot,
-		svcRelPath: svc.RelPath,
-		migrations: svc.Migrations,
+		appRoot:           appRoot,
+		migrationsRelPath: dbMeta.MigrationRelPath,
+		migrations:        dbMeta.Migrations,
 	}
 	m, err := migrate.NewWithInstance("src", s, db.Name, instance)
 	if err != nil {
