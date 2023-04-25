@@ -114,7 +114,7 @@ func main() {
 
 		// Pretty print the file and then re-parse it
 		// This repopulates the AST with the comments and formatting
-		formattedFile := convertASTToFormattedSrc(fset, f.ast, f.fileName)
+		formattedFile := convertASTToFormattedSrc(fset, f.ast, f.fileName, nil)
 		formattedAST, err := parser.ParseFile(formattedFset, f.fileName, formattedFile, parser.ParseComments)
 		if err != nil {
 			log.Fatal().Err(err).Str("file", f.fileName).Msg("unable to convert back to an AST")
@@ -136,11 +136,13 @@ func main() {
 			continue
 		}
 
-		out := convertASTToFormattedSrc(formattedFset, formattedAST, f.fileName)
-		if usesPanicWrapper[f.dir] && !writtenPanicWrapper[f.dir] {
-			out = append(out, panicWrapperSnippet...)
+		var extraContents []byte
+		doWritePanicWrapper := usesPanicWrapper[f.dir] && !writtenPanicWrapper[f.dir]
+		if doWritePanicWrapper {
+			extraContents = []byte(panicWrapperSnippet)
 			writtenPanicWrapper[f.dir] = true
 		}
+		out := convertASTToFormattedSrc(formattedFset, formattedAST, f.fileName, extraContents)
 
 		if err := os.WriteFile(outputFile, out, 0644); err != nil {
 			log.Fatal().Err(err).Str("file", f.fileName).Msg("unable to write file")
@@ -158,12 +160,15 @@ func isEmptyFile(f *ast.File) bool {
 	return len(f.Decls) == 0 && f.Doc.Text() == ""
 }
 
-func convertASTToFormattedSrc(fset *token.FileSet, fAST *ast.File, fileName string) []byte {
+func convertASTToFormattedSrc(fset *token.FileSet, fAST *ast.File, fileName string, extraContents []byte) []byte {
 	// Print the AST to a buffer
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, fset, fAST); err != nil {
 		log.Fatal().Err(err).Str("file", fileName).Msg("unable to write ast to file")
 	}
+
+	// Add any extra contents
+	buf.Write(extraContents)
 
 	// Then pass that to goimports to format the imports
 	imports.LocalPrefix = "encore.dev"
@@ -883,7 +888,7 @@ const panicWrapperSnippet = `
 // doPanic is a wrapper around panic to prevent static analysis tools
 // from thinking Encore APIs unconditionally panic.,
 func doPanic(v any) {
-	if true {
+	if os.Getenv("ENCORERUNTIME_NOPANIC") == "" {
 		panic(v)
 	}
 }
