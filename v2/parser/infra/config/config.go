@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -33,6 +34,9 @@ func (l *Load) Package() *pkginfo.Package { return l.File.Pkg }
 func (l *Load) ASTExpr() ast.Expr         { return l.AST }
 func (l *Load) Pos() token.Pos            { return l.AST.Pos() }
 func (l *Load) End() token.Pos            { return l.AST.End() }
+func (l *Load) SortKey() string {
+	return fmt.Sprintf("%s:%s:%d", l.File.Pkg.ImportPath, l.File.Name, l.AST.Pos())
+}
 
 var LoadParser = &resourceparser.Parser{
 	Name: "ConfigLoad",
@@ -87,7 +91,7 @@ func parseLoad(d parseutil.ReferenceInfo) {
 
 	d.Pass.RegisterResource(load)
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(id, load)
+		d.Pass.AddBind(d.File, id, load)
 	}
 }
 

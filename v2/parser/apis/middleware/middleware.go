@@ -44,6 +44,9 @@ func (mw *Middleware) Kind() resource.Kind       { return resource.Middleware }
 func (mw *Middleware) Package() *pkginfo.Package { return mw.File.Pkg }
 func (mw *Middleware) Pos() token.Pos            { return mw.Decl.AST.Pos() }
 func (mw *Middleware) End() token.Pos            { return mw.Decl.AST.End() }
+func (mw *Middleware) SortKey() string {
+	return mw.Decl.File.Pkg.ImportPath.String() + "." + mw.Decl.Name
+}
 
 type ParseData struct {
 	Errs   *perr.List

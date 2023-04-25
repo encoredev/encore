@@ -9,6 +9,7 @@ import (
 	"encr.dev/v2/codegen/infragen/configgen"
 	"encr.dev/v2/codegen/infragen/metricsgen"
 	"encr.dev/v2/codegen/infragen/secretsgen"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/metrics"
@@ -21,14 +22,32 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 		pkg  paths.Pkg
 		kind resource.Kind
 	}
+
 	groups := make(map[groupKey][]resource.Resource)
+	pkgMap := make(map[paths.Pkg]*pkginfo.Package)
 	for _, r := range appDesc.Parse.Resources() {
-		key := groupKey{r.Package().ImportPath, r.Kind()}
+		// Group by package.
+		var pkg *pkginfo.Package
+		switch r := r.(type) {
+		case *caches.Keyspace:
+			pkg = r.File.Pkg
+		case *metrics.Metric:
+			pkg = r.File.Pkg
+		case *secrets.Secrets:
+			pkg = r.File.Pkg
+		case *config.Load:
+			pkg = r.File.Pkg
+		default:
+			continue
+		}
+
+		key := groupKey{pkg: pkg.ImportPath, kind: r.Kind()}
 		groups[key] = append(groups[key], r)
+		pkgMap[pkg.ImportPath] = pkg
 	}
 
 	for key, resources := range groups {
-		pkg := resources[0].Package()
+		pkg := pkgMap[key.pkg]
 		switch key.kind {
 		case resource.CacheKeyspace:
 			cachegen.GenKeyspace(gg, pkg, fns.Map(resources, func(r resource.Resource) *caches.Keyspace {

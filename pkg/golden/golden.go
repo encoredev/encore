@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 // It can be called instead of TestMain if a package wants to do multiple
 // main function handling.
 func Setup() {
-	flag.BoolVar(&update, "golden-update", false, "update golden files")
+	flag.BoolVar(&update, "golden-update", os.Getenv("GOLDEN_UPDATE") != "", "update golden files")
 	flag.Parse()
 	testMainRan = true
 }

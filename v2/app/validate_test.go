@@ -30,7 +30,7 @@ import (
 	"encr.dev/v2/parser/infra/sqldb"
 )
 
-var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
+var goldenUpdate = flag.Bool("golden-update", os.Getenv("GOLDEN_UPDATE") != "", "update golden files")
 
 func TestValidation(t *testing.T) {
 	type testCfg struct {
@@ -243,7 +243,7 @@ func parse(ts *testscript.TestScript, neg bool, args []string) {
 		case *sqldb.Database:
 			for _, b := range desc.Parse.PkgDeclBinds(res) {
 				printf("resource SQLDBResource %s.%s db=%s",
-					b.Pkg.Name, b.BoundName.Name, res.Name)
+					b.File.Pkg.Name, b.BoundName.Name, res.Name)
 			}
 		case *pubsub.Topic:
 			printf("pubsubTopic %s", res.Name)

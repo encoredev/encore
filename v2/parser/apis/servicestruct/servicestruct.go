@@ -30,6 +30,9 @@ func (ss *ServiceStruct) Kind() resource.Kind       { return resource.ServiceStr
 func (ss *ServiceStruct) Package() *pkginfo.Package { return ss.Decl.File.Pkg }
 func (ss *ServiceStruct) Pos() token.Pos            { return ss.Decl.AST.Pos() }
 func (ss *ServiceStruct) End() token.Pos            { return ss.Decl.AST.End() }
+func (ss *ServiceStruct) SortKey() string {
+	return ss.Decl.File.Pkg.ImportPath.String() + "." + ss.Decl.Name
+}
 
 type ParseData struct {
 	Errs   *perr.List

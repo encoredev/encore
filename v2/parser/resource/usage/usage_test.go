@@ -21,7 +21,7 @@ import (
 	"encr.dev/v2/parser/resource/usage"
 )
 
-var goldenUpdate = flag.Bool("golden-update", false, "update golden files")
+var goldenUpdate = flag.Bool("golden-update", os.Getenv("GOLDEN_UPDATE") != "", "update golden files")
 
 func TestParse(t *testing.T) {
 	flag.Parse()

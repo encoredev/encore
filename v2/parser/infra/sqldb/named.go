@@ -58,6 +58,6 @@ func parseNamedSQLDB(d parseutil.ReferenceInfo) {
 	}
 
 	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddPathBind(id, resource.Path{{resource.SQLDatabase, dbName}})
+		d.Pass.AddPathBind(d.File, id, resource.Path{{resource.SQLDatabase, dbName}})
 	}
 }

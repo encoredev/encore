@@ -30,7 +30,8 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 	d.validatePubSub(pc, result)
 
 	// Validate all resources are defined within a service
-	for _, r := range result.Resources() {
+	for _, b := range result.AllBinds() {
+		r := result.ResourceForBind(b)
 		switch r.(type) {
 		case *pubsub.Topic:
 			// We allow pubsub topics to be declared outside of service code
@@ -46,8 +47,15 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 			continue
 
 		default:
-			_, ok := d.ServiceForPath(r.Package().FSPath)
-			if !ok {
+			_, ok := d.ServiceForPath(b.Package().FSPath)
+
+			// It's permitted to declare resources in test files.
+			inTestFile := false
+			if file, ok := b.DeclaredIn().Get(); ok && file.TestFile {
+				inTestFile = true
+			}
+
+			if !ok && !inTestFile {
 				pc.Errs.Add(errResourceDefinedOutsideOfService.AtGoNode(r))
 			}
 		}

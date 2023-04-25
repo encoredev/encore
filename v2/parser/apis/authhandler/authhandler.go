@@ -37,6 +37,7 @@ func (ah *AuthHandler) Kind() resource.Kind       { return resource.AuthHandler 
 func (ah *AuthHandler) Package() *pkginfo.Package { return ah.Decl.File.Pkg }
 func (ah *AuthHandler) Pos() token.Pos            { return ah.Decl.AST.Pos() }
 func (ah *AuthHandler) End() token.Pos            { return ah.Decl.AST.End() }
+func (ah *AuthHandler) SortKey() string           { return ah.Decl.File.Pkg.ImportPath.String() + "." + ah.Name }
 
 type ParseData struct {
 	Errs   *perr.List

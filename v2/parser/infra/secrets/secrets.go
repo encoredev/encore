@@ -35,6 +35,9 @@ func (s *Secrets) Package() *pkginfo.Package { return s.File.Pkg }
 func (s *Secrets) ASTExpr() ast.Expr         { return s.AST }
 func (s *Secrets) Pos() token.Pos            { return s.AST.Pos() }
 func (s *Secrets) End() token.Pos            { return s.AST.End() }
+func (s *Secrets) SortKey() string {
+	return fmt.Sprintf("%s:%s:%d", s.File.Pkg.ImportPath, s.File.Name, s.AST.Pos())
+}
 
 var SecretsParser = &resourceparser.Parser{
 	Name:               "Secrets",
@@ -86,6 +89,6 @@ var SecretsParser = &resourceparser.Parser{
 		}
 
 		p.RegisterResource(res)
-		p.AddBind(res.Ident, res)
+		p.AddBind(res.File, res.Ident, res)
 	},
 }
