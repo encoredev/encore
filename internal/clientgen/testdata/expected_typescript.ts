@@ -113,9 +113,9 @@ export namespace products {
 
         public async Create(params: CreateProductRequest): Promise<Product> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "idempotency-key": params.IdempotencyKey,
-            }
+            })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -229,24 +229,24 @@ export namespace svc {
 
         public async Get(params: GetRequest): Promise<void> {
             // Convert our params into the objects we need for the request
-            const query: Record<string, string | string[]> = {
+            const query = makeRecord<string, string | string[]>({
                 boo: String(params.Baz),
-            }
+            })
 
             await this.baseClient.callAPI("GET", `/svc.Get`, undefined, {query})
         }
 
         public async GetRequestWithAllInputTypes(params: AllInputTypes<number>): Promise<HeaderOnlyStruct> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "x-alice": String(params.A),
-            }
+            })
 
-            const query: Record<string, string | string[]> = {
+            const query = makeRecord<string, string | string[]>({
                 Bob:  params.B.map((v) => String(v)),
                 c:    String(params["Charlies-Bool"]),
                 dave: String(params.Dave),
-            }
+            })
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
@@ -267,7 +267,7 @@ export namespace svc {
 
         public async HeaderOnlyRequest(params: HeaderOnlyStruct): Promise<void> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "x-boolean": String(params.Boolean),
                 "x-bytes":   String(params.Bytes),
                 "x-float":   String(params.Float),
@@ -277,7 +277,7 @@ export namespace svc {
                 "x-time":    String(params.Time),
                 "x-user-id": String(params.UserID),
                 "x-uuid":    String(params.UUID),
-            }
+            })
 
             await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
         }
@@ -288,13 +288,13 @@ export namespace svc {
 
         public async RequestWithAllInputTypes(params: AllInputTypes<string>): Promise<AllInputTypes<number>> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "x-alice": String(params.A),
-            }
+            })
 
-            const query: Record<string, string | string[]> = {
+            const query = makeRecord<string, string | string[]>({
                 Bob: params.B.map((v) => String(v)),
-            }
+            })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -340,6 +340,17 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
         }
     }
     return pairs.join("&")
+}
+
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord<K extends string | number | symbol, V>(record: Record<K, V | undefined>): Record<K, V> {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record as Record<K, V>
 }
 
 

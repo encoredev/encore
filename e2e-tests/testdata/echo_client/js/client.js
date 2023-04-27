@@ -168,10 +168,10 @@ class EchoServiceClient {
      */
     async HeadersEcho(params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "x-int":    String(params.Int),
             "x-string": params.String,
-        }
+        })
 
         // Now make the actual call to the API
         const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, undefined, {headers})
@@ -188,10 +188,10 @@ class EchoServiceClient {
      */
     async MuteEcho(params) {
         // Convert our params into the objects we need for the request
-        const query = {
+        const query = makeRecord({
             key:   params.Key,
             value: params.Value,
-        }
+        })
 
         await this.baseClient.callAPI("GET", `/echo.MuteEcho`, undefined, {query})
     }
@@ -210,15 +210,15 @@ class EchoServiceClient {
      */
     async NonBasicEcho(pathString, pathInt, pathWild, params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "x-header-number": String(params.HeaderNumber),
             "x-header-string": params.HeaderString,
-        }
+        })
 
-        const query = {
+        const query = makeRecord({
             no:     String(params.QueryNumber),
             string: params.QueryString,
-        }
+        })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
         const body = {
@@ -350,7 +350,7 @@ class TestServiceClient {
      */
     async MarshallerTestHandler(params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "x-boolean": String(params.HeaderBoolean),
             "x-bytes":   String(params.HeaderBytes),
             "x-float":   String(params.HeaderFloat),
@@ -360,9 +360,9 @@ class TestServiceClient {
             "x-time":    String(params.HeaderTime),
             "x-user-id": String(params.HeaderUserID),
             "x-uuid":    String(params.HeaderUUID),
-        }
+        })
 
-        const query = {
+        const query = makeRecord({
             boolean:   String(params.QueryBoolean),
             bytes:     String(params.QueryBytes),
             float:     String(params.QueryFloat),
@@ -373,7 +373,7 @@ class TestServiceClient {
             time:      String(params.QueryTime),
             "user-id": String(params.QueryUserID),
             uuid:      String(params.QueryUUID),
-        }
+        })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
         const body = {
@@ -443,13 +443,13 @@ class TestServiceClient {
      */
     async RestStyleAPI(objType, name, params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "some-key": params.HeaderValue,
-        }
+        })
 
-        const query = {
+        const query = makeRecord({
             "Some-Key": params.QueryValue,
-        }
+        })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
         const body = {
@@ -522,6 +522,17 @@ function encodeQuery(parts) {
         }
     }
     return pairs.join("&")
+}
+
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord(record) {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record
 }
 
 // mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
