@@ -91,6 +91,17 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     return pairs.join("&")
 }
 
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord<K, V>(record: Record<K, V | undefined>): Record<K, V> {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record as Record<K, V>
+}
+
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, "method" | "body"> & {
     /** Any headers to be sent with the request */

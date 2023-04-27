@@ -315,10 +315,10 @@ export namespace echo {
          */
         public async HeadersEcho(params: HeadersData): Promise<HeadersData> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "x-int":    String(params.Int),
                 "x-string": params.String,
-            }
+            })
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, undefined, {headers})
@@ -335,10 +335,10 @@ export namespace echo {
          */
         public async MuteEcho(params: Data<string, string>): Promise<void> {
             // Convert our params into the objects we need for the request
-            const query: Record<string, string | string[]> = {
+            const query = makeRecord<string, string | string[]>({
                 key:   params.Key,
                 value: params.Value,
-            }
+            })
 
             await this.baseClient.callAPI("GET", `/echo.MuteEcho`, undefined, {query})
         }
@@ -357,15 +357,15 @@ export namespace echo {
          */
         public async NonBasicEcho(pathString: string, pathInt: number, pathWild: string[], params: NonBasicData): Promise<NonBasicData> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "x-header-number": String(params.HeaderNumber),
                 "x-header-string": params.HeaderString,
-            }
+            })
 
-            const query: Record<string, string | string[]> = {
+            const query = makeRecord<string, string | string[]>({
                 no:     String(params.QueryNumber),
                 string: params.QueryString,
-            }
+            })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -558,7 +558,7 @@ export namespace test {
          */
         public async MarshallerTestHandler(params: MarshallerTest<number>): Promise<MarshallerTest<number>> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "x-boolean": String(params.HeaderBoolean),
                 "x-bytes":   String(params.HeaderBytes),
                 "x-float":   String(params.HeaderFloat),
@@ -568,9 +568,9 @@ export namespace test {
                 "x-time":    String(params.HeaderTime),
                 "x-user-id": String(params.HeaderUserID),
                 "x-uuid":    String(params.HeaderUUID),
-            }
+            })
 
-            const query: Record<string, string | string[]> = {
+            const query = makeRecord<string, string | string[]>({
                 boolean:   String(params.QueryBoolean),
                 bytes:     String(params.QueryBytes),
                 float:     String(params.QueryFloat),
@@ -581,7 +581,7 @@ export namespace test {
                 time:      String(params.QueryTime),
                 "user-id": String(params.QueryUserID),
                 uuid:      String(params.QueryUUID),
-            }
+            })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -651,13 +651,13 @@ export namespace test {
          */
         public async RestStyleAPI(objType: number, name: string, params: RestParams): Promise<RestParams> {
             // Convert our params into the objects we need for the request
-            const headers: Record<string, string> = {
+            const headers = makeRecord<string, string>({
                 "some-key": params.HeaderValue,
-            }
+            })
 
-            const query: Record<string, string | string[]> = {
+            const query = makeRecord<string, string | string[]>({
                 "Some-Key": params.QueryValue,
-            }
+            })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -734,6 +734,17 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
         }
     }
     return pairs.join("&")
+}
+
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord<K, V>(record: Record<K, V | undefined>): Record<K, V> {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record as Record<K, V>
 }
 
 
