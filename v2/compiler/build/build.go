@@ -242,7 +242,7 @@ func (b *builder) buildMain() {
 
 		if b.cfg.Ctx.Build.Debug {
 			// Disable inlining for better debugging.
-			args = append(args, `-gcflags "all=-N -l"`)
+			args = append(args, "-gcflags", "all=-N -l")
 		}
 
 		args = append(args, b.cfg.MainPkg.String())

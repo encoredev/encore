@@ -172,7 +172,11 @@ func (t *OpTracker) refresh() {
 			} else {
 				if errlist := errlist.Convert(o.err); errlist != nil {
 					errlistToSend = errlist
-					msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, errlist.List[0].Title()))
+					if len(errlist.List) > 0 {
+						msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, errlist.List[0].Title()))
+					} else {
+						msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, errlist))
+					}
 				} else {
 					msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, o.err))
 				}
