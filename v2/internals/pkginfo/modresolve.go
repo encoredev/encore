@@ -194,6 +194,9 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 			Version: "",
 		}
 	} else {
+		if pkg.Module == nil || pkg.Module.Dir == "" {
+			l.c.Errs.Fatalf(cause, "package %q has no module information", pkgPath)
+		}
 		rootPath := paths.RootedFSPath(pkg.Module.Dir, ".")
 		result = l.loadModuleFromDisk(rootPath, modPath)
 	}
