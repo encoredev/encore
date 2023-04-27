@@ -315,9 +315,9 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref)
 			}
 
-			w.WriteString("const headers: Record<string, string> = ")
+			w.WriteString("const headers = makeRecord<string, string>(")
 			ts.Values(w, dict)
-			w.WriteString("\n")
+			w.WriteString(")\n\n")
 		}
 
 		// Generate the query string
@@ -337,9 +337,9 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 				}
 			}
 
-			w.WriteString("const query: Record<string, string | string[]> = ")
+			w.WriteString("const query = makeRecord<string, string | string[]>(")
 			ts.Values(w, dict)
-			w.WriteString("\n")
+			w.WriteString(")\n\n")
 		}
 
 		// Generate the body
@@ -358,7 +358,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 				w.WriteString("// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)\nconst body: Record<string, any> = ")
 				ts.Values(w, dict)
-				w.WriteString("\n")
+				w.WriteString("\n\n")
 			}
 		}
 	}
@@ -847,6 +847,17 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     }
     return pairs.join("&")
 }
+
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord<K extends string | number | symbol, V>(record: Record<K, V | undefined>): Record<K, V> {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record as Record<K, V>
+}
 `)
 
 	if ts.seenHeaderResponse {
@@ -1125,7 +1136,7 @@ func (ts *typescript) Values(w *indentWriter, dict map[string]string) {
 			w.WriteStringf("%s: %s%s,\n", ident, strings.Repeat(" ", largestKey-len(ident)), dict[key])
 		}
 	}
-	w.WriteString("}\n")
+	w.WriteString("}")
 }
 
 func (ts *typescript) typeName(identifier string) string {
