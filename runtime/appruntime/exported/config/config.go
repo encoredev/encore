@@ -44,11 +44,30 @@ type Runtime struct {
 	RedisServers    []*RedisServer          `json:"redis_servers,omitempty"`
 	RedisDatabases  []*RedisDatabase        `json:"redis_databases,omitempty"`
 	Metrics         *Metrics                `json:"metrics,omitempty"`
+	Services        []*Service              `json:"services,omitempty"`
+	Gateways        []*Gateway              `json:"gateways,omitempty"`
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
 	// If zero, it shuts down immediately.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
+}
+
+// Gateway defines the configuration of a gateway which should be started
+// for a container
+type Gateway struct {
+	// Name is the name of the gatway
+	Name string `json:"name"`
+	// Host is the hostname of the gateway
+	Host string `json:"host"`
+}
+
+// Service defines the RPC configuration for a dependency service.
+type Service struct {
+	// Name is the name of the service
+	Name string `json:"name"`
+	// URL is the URL of the service
+	URL string `json:"url"`
 }
 
 // UnsafeAllOriginWithCredentials can be used to specify that all origins are
