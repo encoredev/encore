@@ -295,6 +295,27 @@ func CatchBailout(recovered any) (l *List, ok bool) {
 	return nil, false
 }
 
+// CatchBailoutAndPanic is like CatchBailout but also catches other panics.
+// In both types of panics it converts the result to an error.
+//
+// If there is no panic it returns the error provided in the first argument
+// back to the caller. That way, it can usually be used like so
+// (inside a deferred function):
+//
+//	err, _ = perr.CatchBailoutAndPanic(err, recover())
+func CatchBailoutAndPanic(currentErr error, recovered any) (err error, caught bool) {
+	if recovered == nil {
+		return currentErr, false
+	}
+
+	if b, ok := recovered.(bailout); ok {
+		err = b.l.AsError()
+	} else {
+		err = srcerrors.UnhandledPanic(recovered)
+	}
+	return err, true
+}
+
 // IsBailout reports whether a recovered value is a bailout panic.
 // It reports the list that caused the bailout alongside.
 func IsBailout(recovered any) (l *List, ok bool) {
