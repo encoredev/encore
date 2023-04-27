@@ -31,6 +31,16 @@ const (
 	SQLDB  Type = "sqldb"
 )
 
+const (
+	// this ID is used in the Encore Cloud README file as an example
+	// on how to create a topic resource
+	encoreCloudExampleTopicID = "res_0o9ioqnrirflhhm3t720"
+
+	// this ID is used in the Encore Cloud README file as a example
+	// on how to create a subscription on the above topic
+	encoreCloudExampleSubscriptionID = "res_0o9ioqnrirflhhm3t730"
+)
+
 // ResourceManager manages a set of infrastructure resources
 // to support the running Encore application.
 type ResourceManager struct {
@@ -227,7 +237,7 @@ func isDockerRunning(ctx context.Context) bool {
 // Note that all the requisite services must have started up already,
 // which in practice means that (*optracker.AsyncBuildJobs).Wait must have returned first.
 func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbProxyPort int) error {
-	useLocalEncoreCloudAPI, err := rm.setTestEncoreCloud(cfg)
+	useLocalEncoreCloudAPIForTesting, err := rm.setTestEncoreCloud(cfg)
 	if err != nil {
 		return err
 	}
@@ -269,18 +279,18 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 		cfg.PubsubProviders = append(cfg.PubsubProviders, provider)
 
 		// If we're testing the Encore Cloud API locally, override from NSQ
-		if useLocalEncoreCloudAPI {
+		if useLocalEncoreCloudAPIForTesting {
 			cfg.PubsubProviders = append(cfg.PubsubProviders, &config.PubsubProvider{
 				EncoreCloud: &config.EncoreCloudPubsubProvider{},
 			})
-			providerID = 1
+			providerID = len(cfg.PubsubProviders)
 		}
 
 		cfg.PubsubTopics = make(map[string]*config.PubsubTopic)
 		for _, t := range md.PubsubTopics {
 			providerName := t.Name
-			if useLocalEncoreCloudAPI {
-				providerName = "res_0o9ioqnrirflhhm3t720"
+			if useLocalEncoreCloudAPIForTesting {
+				providerName = encoreCloudExampleTopicID
 			}
 
 			topicCfg := &config.PubsubTopic{
@@ -296,8 +306,8 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 
 			for _, s := range t.Subscriptions {
 				subscriptionID := t.Name
-				if useLocalEncoreCloudAPI {
-					subscriptionID = "res_0o9ioqnrirflhhm3t730"
+				if useLocalEncoreCloudAPIForTesting {
+					subscriptionID = encoreCloudExampleSubscriptionID
 				}
 
 				topicCfg.Subscriptions[s.Name] = &config.PubsubSubscription{

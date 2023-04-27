@@ -322,7 +322,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 				return err
 			}
 			secrets = data.Values
-			fmt.Println("secrets", secrets)
 			return nil
 		})
 	}
