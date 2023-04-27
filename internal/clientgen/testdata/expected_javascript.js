@@ -48,9 +48,9 @@ class ProductsServiceClient {
 
     async Create(params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "idempotency-key": params.IdempotencyKey,
-        }
+        })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
         const body = {
@@ -88,24 +88,24 @@ class SvcServiceClient {
 
     async Get(params) {
         // Convert our params into the objects we need for the request
-        const query = {
+        const query = makeRecord({
             boo: String(params.Baz),
-        }
+        })
 
         await this.baseClient.callAPI("GET", `/svc.Get`, undefined, {query})
     }
 
     async GetRequestWithAllInputTypes(params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "x-alice": String(params.A),
-        }
+        })
 
-        const query = {
+        const query = makeRecord({
             Bob:  params.B.map((v) => String(v)),
             c:    String(params["Charlies-Bool"]),
             dave: String(params.Dave),
-        }
+        })
 
         // Now make the actual call to the API
         const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
@@ -126,7 +126,7 @@ class SvcServiceClient {
 
     async HeaderOnlyRequest(params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "x-boolean": String(params.Boolean),
             "x-bytes":   String(params.Bytes),
             "x-float":   String(params.Float),
@@ -136,7 +136,7 @@ class SvcServiceClient {
             "x-time":    String(params.Time),
             "x-user-id": String(params.UserID),
             "x-uuid":    String(params.UUID),
-        }
+        })
 
         await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
     }
@@ -147,13 +147,13 @@ class SvcServiceClient {
 
     async RequestWithAllInputTypes(params) {
         // Convert our params into the objects we need for the request
-        const headers = {
+        const headers = makeRecord({
             "x-alice": String(params.A),
-        }
+        })
 
-        const query = {
+        const query = makeRecord({
             Bob: params.B.map((v) => String(v)),
-        }
+        })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
         const body = {
@@ -199,6 +199,17 @@ function encodeQuery(parts) {
         }
     }
     return pairs.join("&")
+}
+
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord(record) {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record
 }
 
 // mustBeSet will throw an APIError with the Data Loss code if value is null or undefined

@@ -267,9 +267,9 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref)
 			}
 
-			w.WriteString("const headers = ")
+			w.WriteString("const headers = makeRecord(")
 			js.Values(w, dict)
-			w.WriteString("\n")
+			w.WriteString(")\n\n")
 		}
 
 		// Generate the query string
@@ -289,9 +289,9 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 				}
 			}
 
-			w.WriteString("const query = ")
+			w.WriteString("const query = makeRecord(")
 			js.Values(w, dict)
-			w.WriteString("\n")
+			w.WriteString(")\n\n")
 		}
 
 		// Generate the body
@@ -311,7 +311,7 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 
 				w.WriteString("// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)\nconst body = ")
 				js.Values(w, dict)
-				w.WriteString("\n")
+				w.WriteString("\n\n")
 			}
 		}
 	}
@@ -631,6 +631,17 @@ function encodeQuery(parts) {
     }
     return pairs.join("&")
 }
+
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord(record) {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record
+}
 `)
 
 	if js.seenHeaderResponse {
@@ -761,7 +772,7 @@ func (js *javascript) Values(w *indentWriter, dict map[string]string) {
 			w.WriteStringf("%s: %s%s,\n", ident, strings.Repeat(" ", largestKey-len(ident)), dict[key])
 		}
 	}
-	w.WriteString("}\n")
+	w.WriteString("}")
 }
 
 func (js *javascript) typeName(identifier string) string {

@@ -85,6 +85,17 @@ function encodeQuery(parts) {
     return pairs.join("&")
 }
 
+// makeRecord takes a record and strips any undefined values from it,
+// and returns the same record with a narrower type.
+function makeRecord(record) {
+    for (const key in record) {
+        if (record[key] === undefined) {
+            delete record[key]
+        }
+    }
+    return record
+}
+
 
 const boundFetch = fetch.bind(this)
 
