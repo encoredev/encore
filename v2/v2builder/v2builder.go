@@ -44,9 +44,7 @@ type BuilderImpl struct{}
 func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Parse", func(ctx context.Context) (res *builder.ParseResult, err error) {
 		defer func() {
-			if l, ok := perr.CatchBailout(recover()); ok {
-				err = l.AsError()
-			}
+			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
 		fs := token.NewFileSet()
 		errs := perr.NewList(ctx, fs)
@@ -116,9 +114,7 @@ type parseData struct {
 func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Compile", func(ctx context.Context) (res *builder.CompileResult, err error) {
 		defer func() {
-			if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
-				err = l.AsError()
-			}
+			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
 
 		pd := p.Parse.Data.(*parseData)
@@ -192,9 +188,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
 		defer func() {
-			if l, ok := perr.CatchBailout(recover()); ok {
-				err = l.AsError()
-			}
+			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
 
 		pd := p.Compile.Parse.Data.(*parseData)
@@ -342,9 +336,7 @@ func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
 func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.GenUserFacing", func(ctx context.Context) (err error) {
 		defer func() {
-			if l, ok := perr.CatchBailout(recover()); ok {
-				err = l.AsError()
-			}
+			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
 
 		pd := p.Parse.Data.(*parseData)

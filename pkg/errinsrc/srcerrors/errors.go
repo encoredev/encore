@@ -30,8 +30,8 @@ func UnhandledPanic(recovered any) error {
 	// If we get here, it's an unhandled panic / error
 	return errinsrc.New(ErrParams{
 		Code:    1,
-		Title:   "Unhandled Panic",
-		Summary: fmt.Sprintf("A unhandled panic occurred: %v", recovered),
+		Title:   "Internal compiler error",
+		Summary: fmt.Sprintf("An unhandled panic occurred in the Encore compiler: %v", recovered),
 		Detail:  internalErrReportToEncore,
 		Cause:   srcError,
 	}, true)
