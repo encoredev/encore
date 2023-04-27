@@ -3,6 +3,7 @@ package errors
 import (
 	goAst "go/ast"
 	goToken "go/token"
+	"reflect"
 	"strings"
 )
 
@@ -113,6 +114,13 @@ func (t Template) InFile(filepath string, options ...LocationOption) Template {
 //	errMyErrorTemplate.AtGoNode(node, errtmp.AsHelp("this is where it was defined before"))
 func (t Template) AtGoNode(node goAst.Node, options ...LocationOption) Template {
 	if node == nil {
+		return t
+	}
+
+	// In some cases the node may be a "typed nil" which isn't caught by the check above.
+	// Handle that separately, as otherwise we get unexpected panics later when
+	// trying to call .Pos().
+	if v := reflect.ValueOf(node); v.Kind() == reflect.Pointer && v.IsNil() {
 		return t
 	}
 
