@@ -91,7 +91,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
-		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, false),
+		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.Environ, false),
 		ListenAddr:      params.ListenAddr,
 
 		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),

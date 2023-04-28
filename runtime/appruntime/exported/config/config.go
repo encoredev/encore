@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"time"
+
+	"go.encore.dev/platform-sdk/pkg/auth"
 )
 
 type Static struct {
@@ -24,18 +26,19 @@ type Static struct {
 }
 
 type Runtime struct {
-	AppID         string          `json:"app_id"`
-	AppSlug       string          `json:"app_slug"`
-	APIBaseURL    string          `json:"api_base_url"`
-	EnvID         string          `json:"env_id"`
-	EnvName       string          `json:"env_name"`
-	EnvType       string          `json:"env_type"`
-	EnvCloud      string          `json:"env_cloud"`
-	DeployID      string          `json:"deploy_id"` // Overridden by ENCORE_DEPLOY_ID env var if set
-	DeployedAt    time.Time       `json:"deploy_time"`
-	TraceEndpoint string          `json:"trace_endpoint,omitempty"`
-	AuthKeys      []EncoreAuthKey `json:"auth_keys,omitempty"`
-	CORS          *CORS           `json:"cors,omitempty"`
+	AppID          string          `json:"app_id"`
+	AppSlug        string          `json:"app_slug"`
+	APIBaseURL     string          `json:"api_base_url"`
+	EnvID          string          `json:"env_id"`
+	EnvName        string          `json:"env_name"`
+	EnvType        string          `json:"env_type"`
+	EnvCloud       string          `json:"env_cloud"`
+	DeployID       string          `json:"deploy_id"` // Overridden by ENCORE_DEPLOY_ID env var if set
+	DeployedAt     time.Time       `json:"deploy_time"`
+	TraceEndpoint  string          `json:"trace_endpoint,omitempty"`
+	AuthKeys       []EncoreAuthKey `json:"auth_keys,omitempty"`
+	CORS           *CORS           `json:"cors,omitempty"`
+	EncoreCloudAPI *EncoreCloudAPI `json:"ec_api,omitempty"` // If nil, the app is not running in Encore Cloud
 
 	SQLDatabases     []*SQLDatabase          `json:"sql_databases,omitempty"`
 	SQLServers       []*SQLServer            `json:"sql_servers,omitempty"`
@@ -137,6 +140,19 @@ func (r *Runtime) Copy() *Runtime {
 	return &cfg
 }
 
+// EncoreCloudAPI is the configuration for the Encore Cloud API
+// which the runtime uses to communicate with infrastructure
+// services when running on Encore Cloud.
+type EncoreCloudAPI struct {
+	Server string `json:"server"` // The Encore Cloud server we're using
+
+	// The auth keys to use when authenticating with the Encore Cloud API server, either for signing requests or
+	// authenticating requests from the Encore Cloud API server.
+	//
+	// Note: these are not the same as the auth keys used to authenticate requests from Encore's central platform.
+	AuthKeys []auth.Key `json:"auth_keys"`
+}
+
 type EncoreAuthKey struct {
 	KeyID uint32 `json:"kid"`
 	Data  []byte `json:"data"`
@@ -149,10 +165,11 @@ func (eak EncoreAuthKey) Copy() EncoreAuthKey {
 }
 
 type PubsubProvider struct {
-	NSQ   *NSQProvider             `json:"nsq,omitempty"`   // set if the provider is NSQ
-	GCP   *GCPPubsubProvider       `json:"gcp,omitempty"`   // set if the provider is GCP
-	AWS   *AWSPubsubProvider       `json:"aws,omitempty"`   // set if the provider is AWS
-	Azure *AzureServiceBusProvider `json:"azure,omitempty"` // set if the provider is Azure
+	NSQ         *NSQProvider               `json:"nsq,omitempty"`          // set if the provider is NSQ
+	GCP         *GCPPubsubProvider         `json:"gcp,omitempty"`          // set if the provider is GCP
+	AWS         *AWSPubsubProvider         `json:"aws,omitempty"`          // set if the provider is AWS
+	Azure       *AzureServiceBusProvider   `json:"azure,omitempty"`        // set if the provider is Azure
+	EncoreCloud *EncoreCloudPubsubProvider `json:"encore_cloud,omitempty"` // set if the provider is Encore Cloud
 }
 
 type AzureServiceBusProvider struct {
@@ -161,6 +178,8 @@ type AzureServiceBusProvider struct {
 type NSQProvider struct {
 	Host string `json:"host"`
 }
+
+type EncoreCloudPubsubProvider struct{}
 
 // GCPPubsubProvider currently has no specific configuration.
 type GCPPubsubProvider struct {

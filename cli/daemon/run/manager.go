@@ -186,6 +186,8 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 		},
 	}
 
-	p.RM.UpdateConfig(cfg, p.Meta, mgr.DBProxyPort)
+	if err := p.RM.UpdateConfig(cfg, p.Meta, mgr.DBProxyPort); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"google.golang.org/api/idtoken"
 
 	"encore.dev/appruntime/exported/config"
@@ -26,30 +27,38 @@ type pushPayload struct {
 	DeliveryAttempt int    `json:"deliveryAttempt,omitempty"` // Field documented in: https://cloud.google.com/pubsub/docs/handling-failures#track_delivery_attempts
 }
 
-func (mgr *Manager) registerPushEndpoint(subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (mgr *Manager) registerPushEndpoint(logger *zerolog.Logger, subscriptionConfig *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+	handler := func(req *http.Request) error {
+		// If the request has not come from the Encore platform it must have
+		// a valid JWT set by Google.
+		if !platformauth.IsEncorePlatformRequest(req.Context()) {
+			if err := mgr.validateGoogleJWT(req, subscriptionConfig.GCP.PushServiceAccount); err != nil {
+				return errs.Wrap(err, "unable to validate JWT")
+			}
+		}
+
+		// Decode the payload
+		payload := &pushPayload{}
+		if err := json.NewDecoder(req.Body).Decode(payload); err != nil {
+			return errs.WrapCode(err, errs.InvalidArgument, "invalid push payload")
+		}
+
+		// Call the subscription callback
+		return f(
+			req.Context(),
+			payload.Message.MessageID, payload.Message.PublishTime, payload.DeliveryAttempt,
+			payload.Message.Attributes, payload.Message.Data,
+		)
+	}
+
 	mgr.pushRegistry.RegisterPushSubscriptionHandler(
 		types.SubscriptionID(subscriptionConfig.ID),
-		func(req *http.Request) error {
-			// If the request has not come from the Encore platform it must have
-			// a valid JWT set by Google.
-			if !platformauth.IsEncorePlatformRequest(req.Context()) {
-				if err := mgr.validateGoogleJWT(req, subscriptionConfig.GCP.PushServiceAccount); err != nil {
-					return errs.Wrap(err, "unable to validate JWT")
-				}
+		func(w http.ResponseWriter, request *http.Request) {
+			err := handler(request)
+			if err != nil {
+				logger.Err(err).Msg("error while handling PubSub subscription message")
 			}
-
-			// Decode the payload
-			payload := &pushPayload{}
-			if err := json.NewDecoder(req.Body).Decode(payload); err != nil {
-				return errs.WrapCode(err, errs.InvalidArgument, "invalid push payload")
-			}
-
-			// Call the subscription callback
-			return f(
-				req.Context(),
-				payload.Message.MessageID, payload.Message.PublishTime, payload.DeliveryAttempt,
-				payload.Message.Attributes, payload.Message.Data,
-			)
+			errs.HTTPError(w, err)
 		},
 	)
 }

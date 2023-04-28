@@ -80,7 +80,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ time.Duration, _ *types.Retr
 	// If we have a subscription ID, register a push endpoint for it
 	if subCfg.ID != "" {
 		if gcpCfg.PushServiceAccount != "" {
-			t.mgr.registerPushEndpoint(subCfg, f)
+			t.mgr.registerPushEndpoint(logger, subCfg, f)
 		} else if subCfg.PushOnly {
 			panic("push-only subscriptions require a push service account to be configured for the PubSub server config")
 		}

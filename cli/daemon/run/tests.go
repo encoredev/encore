@@ -80,7 +80,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
-	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, true)
+	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, nil, true)
 	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
 	jobs := optracker.NewAsyncBuildJobs(ctx, params.App.PlatformOrLocalID(), nil)
