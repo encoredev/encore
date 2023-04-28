@@ -37,15 +37,15 @@ type Runtime struct {
 	AuthKeys      []EncoreAuthKey `json:"auth_keys,omitempty"`
 	CORS          *CORS           `json:"cors,omitempty"`
 
-	SQLDatabases    []*SQLDatabase          `json:"sql_databases,omitempty"`
-	SQLServers      []*SQLServer            `json:"sql_servers,omitempty"`
-	PubsubProviders []*PubsubProvider       `json:"pubsub_providers,omitempty"`
-	PubsubTopics    map[string]*PubsubTopic `json:"pubsub_topics,omitempty"`
-	RedisServers    []*RedisServer          `json:"redis_servers,omitempty"`
-	RedisDatabases  []*RedisDatabase        `json:"redis_databases,omitempty"`
-	Metrics         *Metrics                `json:"metrics,omitempty"`
-	Services        []*Service              `json:"services,omitempty"`
-	Gateways        []*Gateway              `json:"gateways,omitempty"`
+	SQLDatabases     []*SQLDatabase          `json:"sql_databases,omitempty"`
+	SQLServers       []*SQLServer            `json:"sql_servers,omitempty"`
+	PubsubProviders  []*PubsubProvider       `json:"pubsub_providers,omitempty"`
+	PubsubTopics     map[string]*PubsubTopic `json:"pubsub_topics,omitempty"`
+	RedisServers     []*RedisServer          `json:"redis_servers,omitempty"`
+	RedisDatabases   []*RedisDatabase        `json:"redis_databases,omitempty"`
+	Metrics          *Metrics                `json:"metrics,omitempty"`
+	ServiceDiscovery map[string]Service      `json:"services,omitempty"`
+	Gateways         []Gateway               `json:"gateways,omitempty"` // Gateways defines the gateways which should be served by the container
 
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
@@ -53,8 +53,8 @@ type Runtime struct {
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
 }
 
-// Gateway defines the configuration of a gateway which should be started
-// for a container
+// Gateway defines the configuration of a gateway which should be served
+// by the container
 type Gateway struct {
 	// Name is the name of the gatway
 	Name string `json:"name"`
@@ -62,7 +62,7 @@ type Gateway struct {
 	Host string `json:"host"`
 }
 
-// Service defines the RPC configuration for a dependency service.
+// Service defines the service discovery configuration for a service
 type Service struct {
 	// Name is the name of the service
 	Name string `json:"name"`
