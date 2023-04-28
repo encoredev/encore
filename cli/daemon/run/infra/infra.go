@@ -280,10 +280,10 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 
 		// If we're testing the Encore Cloud API locally, override from NSQ
 		if useLocalEncoreCloudAPIForTesting {
+			providerID = len(cfg.PubsubProviders)
 			cfg.PubsubProviders = append(cfg.PubsubProviders, &config.PubsubProvider{
 				EncoreCloud: &config.EncoreCloudPubsubProvider{},
 			})
-			providerID = len(cfg.PubsubProviders)
 		}
 
 		cfg.PubsubTopics = make(map[string]*config.PubsubTopic)

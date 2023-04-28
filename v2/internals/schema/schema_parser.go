@@ -71,6 +71,9 @@ type typeResolver struct {
 	typeParamsInScope map[string]int
 }
 
+// parseType parses a type expression and returns it.
+//
+// This function will never return nil as it will Bailout upon any error.
 func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 	typ := func() Type {
 		switch expr := expr.(type) {
@@ -119,7 +122,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				pkgPath, ok := fileNames.ResolvePkgPath(pkgName.Pos(), pkgName.Name)
 				if !ok {
 					r.errs.Addf(expr.X.Pos(), "unknown package: %s", pkgName.Name)
-					return nil
+					r.errs.Bailout()
 				}
 
 				// Do we have a supported builtin?
@@ -144,7 +147,7 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 			for _, field := range expr.Fields.List {
 				typ := r.parseType(file, field.Type)
 				if len(field.Names) == 0 {
-					//r.errs.AddPos(field.Pos(), "cannot use anonymous fields in Encore struct types")
+					// r.errs.AddPos(field.Pos(), "cannot use anonymous fields in Encore struct types")
 					continue
 				}
 

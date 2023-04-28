@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"time"
+
+	"go.encore.dev/platform-sdk/pkg/auth"
 )
 
 type Static struct {
@@ -129,7 +131,7 @@ type EncoreCloudAPI struct {
 	// authenticating requests from the Encore Cloud API server.
 	//
 	// Note: these are not the same as the auth keys used to authenticate requests from Encore's central platform.
-	AuthKeys []EncoreAuthKey `json:"auth_keys"`
+	AuthKeys []auth.Key `json:"auth_keys"`
 }
 
 type EncoreAuthKey struct {
