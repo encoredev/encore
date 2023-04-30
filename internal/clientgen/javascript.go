@@ -12,6 +12,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/pkg/idents"
 
 	"encr.dev/internal/version"
@@ -67,13 +68,13 @@ func (js *javascript) Version() int {
 	return int(js.generatorVersion)
 }
 
-func (js *javascript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
+func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 	defer js.handleBailout(&err)
 
-	js.Buffer = buf
-	js.md = md
-	js.appSlug = appSlug
-	js.typs = getNamedTypes(md)
+	js.Buffer = p.Buf
+	js.md = p.Meta
+	js.appSlug = p.AppSlug
+	js.typs = getNamedTypes(p.Meta, p.Services)
 
 	if js.md.AuthHandler != nil {
 		js.hasAuth = true
@@ -88,15 +89,15 @@ func (js *javascript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	js.WriteString("/*jslint-disable*/\n")
 
 	seenNs := make(map[string]bool)
-	js.writeClient()
-	for _, svc := range md.Svcs {
-		if err := js.writeService(svc); err != nil {
+	js.writeClient(p.Services)
+	for _, svc := range p.Meta.Svcs {
+		if err := js.writeService(svc, p.Services); err != nil {
 			return err
 		}
 		seenNs[svc.Name] = true
 	}
 	js.writeExtraTypes()
-	if err := js.writeBaseClient(appSlug); err != nil {
+	if err := js.writeBaseClient(p.AppSlug); err != nil {
 		return err
 	}
 	js.writeCustomErrorType()
@@ -104,21 +105,15 @@ func (js *javascript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	return nil
 }
 
-func (js *javascript) writeService(svc *meta.Service) error {
+func (js *javascript) writeService(svc *meta.Service, set clientgentypes.ServiceSet) error {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
-	publicRPC := hasPublicRPC(svc)
-	decls := js.typs.Decls(svc.Name)
-	if !publicRPC && len(decls) == 0 {
+	isIncluded := hasPublicRPC(svc) && set.Has(svc.Name)
+	if !isIncluded {
 		return nil
 	}
 
 	ns := svc.Name
-
-	if !publicRPC {
-		return nil
-	}
-
 	numIndent := 0
 	indent := func() {
 		js.WriteString(strings.Repeat("    ", numIndent))
@@ -399,7 +394,7 @@ func (js *javascript) nonReservedId(id string) string {
 	}
 }
 
-func (js *javascript) writeClient() {
+func (js *javascript) writeClient(set clientgentypes.ServiceSet) {
 	w := js.newIdentWriter(0)
 	w.WriteString(`
 /**
@@ -457,7 +452,7 @@ if (typeof options === "string") {
 
 			w.WriteString("const base = new BaseClient(target, options ?? {})\n")
 			for _, svc := range js.md.Svcs {
-				if hasPublicRPC(svc) {
+				if hasPublicRPC(svc) && set.Has(svc.Name) {
 					w.WriteStringf("this.%s = new %s.ServiceClient(base)\n", js.memberName(svc.Name), js.typeName(svc.Name))
 				}
 			}

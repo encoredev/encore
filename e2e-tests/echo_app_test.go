@@ -87,7 +87,7 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 		clientgen.LangTypeScript: "ts/client.ts",
 		clientgen.LangJavascript: "js/client.js",
 	} {
-		client, err := clientgen.Client(lang, "slug", app.Meta)
+		client, err := clientgen.Client(lang, "slug", app.Meta, nil)
 		if err != nil {
 			fmt.Println(err.Error())
 			c.FailNow()
