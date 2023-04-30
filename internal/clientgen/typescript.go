@@ -11,6 +11,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 
+	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/idents"
@@ -67,13 +68,13 @@ func (ts *typescript) Version() int {
 	return int(ts.generatorVersion)
 }
 
-func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
+func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	defer ts.handleBailout(&err)
 
-	ts.Buffer = buf
-	ts.md = md
-	ts.appSlug = appSlug
-	ts.typs = getNamedTypes(md)
+	ts.Buffer = p.Buf
+	ts.md = p.Meta
+	ts.appSlug = p.AppSlug
+	ts.typs = getNamedTypes(p.Meta, p.Services)
 
 	if ts.md.AuthHandler != nil {
 		ts.hasAuth = true
@@ -89,9 +90,9 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
-	ts.writeClient()
-	for _, svc := range md.Svcs {
-		if err := ts.writeService(svc); err != nil {
+	ts.writeClient(p.Services)
+	for _, svc := range p.Meta.Svcs {
+		if err := ts.writeService(svc, p.Services); err != nil {
 			return err
 		}
 		seenNs[svc.Name] = true
@@ -102,7 +103,7 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 		}
 	}
 	ts.writeExtraTypes()
-	if err := ts.writeBaseClient(appSlug); err != nil {
+	if err := ts.writeBaseClient(p.AppSlug); err != nil {
 		return err
 	}
 	ts.writeCustomErrorType()
@@ -110,12 +111,12 @@ func (ts *typescript) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data)
 	return nil
 }
 
-func (ts *typescript) writeService(svc *meta.Service) error {
+func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet) error {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
-	publicRPC := hasPublicRPC(svc)
+	isIncluded := hasPublicRPC(svc) && p.Has(svc.Name)
 	decls := ts.typs.Decls(svc.Name)
-	if !publicRPC && len(decls) == 0 {
+	if !isIncluded && len(decls) == 0 {
 		return nil
 	}
 
@@ -132,7 +133,7 @@ func (ts *typescript) writeService(svc *meta.Service) error {
 		ts.writeDeclDef(ns, d)
 	}
 
-	if !publicRPC {
+	if !isIncluded {
 		ts.WriteString("}\n\n")
 		return nil
 	}
@@ -507,7 +508,7 @@ func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
 	ts.WriteString("\n")
 }
 
-func (ts *typescript) writeClient() {
+func (ts *typescript) writeClient(set clientgentypes.ServiceSet) {
 	w := ts.newIdentWriter(0)
 	w.WriteString(`
 /**
@@ -541,7 +542,7 @@ export default class Client {
 		w := w.Indent()
 
 		for _, svc := range ts.md.Svcs {
-			if hasPublicRPC(svc) {
+			if hasPublicRPC(svc) && set.Has(svc.Name) {
 				w.WriteStringf("public readonly %s: %s.ServiceClient\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
 			}
 		}
@@ -592,7 +593,7 @@ if (typeof options === "string") {
 
 			w.WriteString("const base = new BaseClient(target, options ?? {})\n")
 			for _, svc := range ts.md.Svcs {
-				if hasPublicRPC(svc) {
+				if hasPublicRPC(svc) && set.Has(svc.Name) {
 					w.WriteStringf("this.%s = new %s.ServiceClient(base)\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
 				}
 			}

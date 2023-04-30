@@ -1,4 +1,4 @@
-// Package codegen generates code for use with Encore apps.
+// Package clientgen generates code for use with Encore apps.
 package clientgen
 
 import (
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/internal/clientgen/openapi"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -26,7 +27,7 @@ const (
 )
 
 type generator interface {
-	Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) error
+	Generate(p clientgentypes.GenerateParams) error
 	Version() int // The version of the generator.
 }
 
@@ -49,7 +50,9 @@ func Detect(path string) (lang Lang, ok bool) {
 }
 
 // Client generates an API client based on the given app metadata.
-func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
+// ServiceNames are the services to include in the output.
+// If it's nil, all services are included.
+func Client(lang Lang, appSlug string, md *meta.Data, serviceNames []string) (code []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = srcerrors.UnhandledPanic(e)
@@ -71,7 +74,20 @@ func Client(lang Lang, appSlug string, md *meta.Data) (code []byte, err error) {
 	}
 
 	var buf bytes.Buffer
-	if err := gen.Generate(&buf, appSlug, md); err != nil {
+	params := clientgentypes.GenerateParams{
+		Buf:     &buf,
+		AppSlug: appSlug,
+		Meta:    md,
+	}
+	if serviceNames == nil {
+		serviceNames = make([]string, 0, len(md.Svcs))
+		for _, svc := range md.Svcs {
+			serviceNames = append(serviceNames, svc.Name)
+		}
+	}
+	params.Services = clientgentypes.NewServiceSet(serviceNames...)
+
+	if err := gen.Generate(params); err != nil {
 		return nil, fmt.Errorf("genclient.Generate %s %s: %v", lang, appSlug, err)
 	}
 	return buf.Bytes(), nil

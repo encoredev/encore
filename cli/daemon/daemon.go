@@ -14,6 +14,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -127,7 +128,11 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	}
 
 	lang := clientgen.Lang(params.Lang)
-	code, err := clientgen.Client(lang, params.AppId, md)
+	serviceNames := params.Services
+	if slices.Contains(serviceNames, "*") {
+		serviceNames = nil
+	}
+	code, err := clientgen.Client(lang, params.AppId, md, serviceNames)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

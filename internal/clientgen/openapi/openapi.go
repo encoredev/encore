@@ -1,7 +1,6 @@
 package openapi
 
 import (
-	"bytes"
 	"fmt"
 	"go/doc/comment"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/getkin/kin-openapi/openapi3"
 
+	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/parser/encoding"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -44,13 +44,15 @@ func (g *Generator) Version() int {
 	return int(g.ver)
 }
 
-func (g *Generator) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) error {
-	g.md = md
-	g.spec = newSpec(appSlug)
+func (g *Generator) Generate(p clientgentypes.GenerateParams) error {
+	g.md = p.Meta
+	g.spec = newSpec(p.AppSlug)
 
-	for _, svc := range md.Svcs {
-		if err := g.addService(svc); err != nil {
-			return err
+	for _, svc := range p.Meta.Svcs {
+		if p.Services.Has(svc.Name) {
+			if err := g.addService(svc); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -58,7 +60,7 @@ func (g *Generator) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) e
 	if err != nil {
 		return errors.Wrap(err, "marshal openapi spec")
 	}
-	buf.Write(out)
+	p.Buf.Write(out)
 
 	return nil
 }
