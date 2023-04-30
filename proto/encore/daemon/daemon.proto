@@ -195,6 +195,10 @@ message GenClientRequest {
   string env_name = 2;
   string lang = 3;
   string filepath = 4;
+
+  // Services to include in the output.
+  // If the string "*" is present all services are included.
+  repeated string services = 5;
 }
 
 message GenClientResponse {

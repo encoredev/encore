@@ -21,13 +21,14 @@ func init() {
 	rootCmd.AddCommand(genCmd)
 
 	var (
-		output  string
-		lang    string
-		envName string
+		output          string
+		lang            string
+		envName         string
+		genServiceNames []string
 	)
 
 	genClientCmd := &cobra.Command{
-		Use:   "client <app-id> [--env=prod]",
+		Use:   "client [<app-id>] [--env=<name>] [--services=foo,bar]",
 		Short: "Generates an API client for your app",
 		Long: `Generates an API client for your app.
 
@@ -39,13 +40,23 @@ Supported language codes are:
   javascript: A JavaScript client using the Fetch API
   go: A Go client using net/http"
   openapi: An OpenAPI specification (EXPERIMENTAL)
+
+By default all services with a non-private API endpoint are included.
+To further narrow down the services to generate, use the '--services' flag.
 `,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if output == "" && lang == "" {
 				fatal("specify at least one of --output or --lang.")
 			}
-			appID := args[0]
+
+			// Determine the app id, either from the argument or from the current directory.
+			var appID string
+			if len(args) == 0 {
+				appID = cmdutil.AppSlug()
+			} else {
+				appID = args[0]
+			}
 
 			if lang == "" {
 				var ok bool
@@ -67,10 +78,15 @@ Supported language codes are:
 			defer cancel()
 
 			daemon := setupDaemon(ctx)
+
+			if genServiceNames == nil {
+				genServiceNames = []string{"*"}
+			}
 			resp, err := daemon.GenClient(ctx, &daemonpb.GenClientRequest{
-				AppId:   appID,
-				EnvName: envName,
-				Lang:    lang,
+				AppId:    appID,
+				EnvName:  envName,
+				Lang:     lang,
+				Services: genServiceNames,
 			})
 			if err != nil {
 				fatal(err)
@@ -131,4 +147,6 @@ which may require the user-facing wrapper code to be manually generated.`,
 
 	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("env", cmdutil.AutoCompleteEnvSlug)
+
+	genClientCmd.Flags().StringSliceVarP(&genServiceNames, "services", "s", nil, "The names of the services to include in the output")
 }

@@ -5,11 +5,12 @@ import (
 	"reflect"
 	"sort"
 
+	"encr.dev/internal/clientgen/clientgentypes"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
-func getNamedTypes(md *meta.Data) *typeRegistry {
+func getNamedTypes(md *meta.Data, set clientgentypes.ServiceSet) *typeRegistry {
 	r := &typeRegistry{
 		md:         md,
 		namespaces: make(map[string][]*schema.Decl),
@@ -17,6 +18,9 @@ func getNamedTypes(md *meta.Data) *typeRegistry {
 		declRefs:   make(map[uint32]map[uint32]bool),
 	}
 	for _, svc := range md.Svcs {
+		if !set.Has(svc.Name) {
+			continue
+		}
 		for _, rpc := range svc.Rpcs {
 			if rpc.AccessType != meta.RPC_PRIVATE {
 				r.Visit(rpc.RequestSchema)

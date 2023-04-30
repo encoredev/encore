@@ -27,16 +27,22 @@ If you ship the generated client to end customers, keep in mind that old clients
 
 <br />
 
-# Generating Clients
+## Usage
 
-To generate a client, download the [Encore CLI](/docs/install#install-the-encore-cli) and run
+To generate a client, use the `encore gen client` command. It generates a type-safe client using the most recent API metadata
+running in a particular environment for the given Encore application. For example:
+
 ```shell
-$ encore gen client <app-id> --lang=<lang>
+# Generate a TypeScript client for calling the hello-a8bc application based on the primary environment
+encore gen client hello-a8bc --output=./client.ts
+
+# Generate a Go client for the hello-a8bc application based on the locally running code
+encore gen client hello-a8bc --output=./client.go --env=local
 ```
 
-**Environment Selection**
+### Environment Selection
 
-By default, this command will generate the client for the version of the application currently deployed on the primary [environment](/docs/deploy/environments)
+By default, `encore gen client` generates the client for the version of the application currently deployed on the primary [environment](/docs/deploy/environments)
 of your application. You can change this using the `--env` flag and specifying the environment name.
 
 If you want to generate the client for the version of your application you have local running, then you can use the
@@ -49,8 +55,18 @@ and marshalling logic will be based on whatever is present and running in that e
 
 </Callout>
 
+### Service filtering
 
-**Output Mode**
+By default `encore gen client` outputs code for all services with at least one publicly accessible (or authenticated) API.
+You can narrow down this set of services by specifying the `--services` (or `-s`) flag. It takes a comma-separated list
+of service names.
+
+For example, to generate a typescript client for the `email` and `users` services, run:
+```shell
+encore gen client --services=email,users -o client.ts
+```
+
+### Output Mode
 
 By default the client's code will be output to stdout, allowing you to pipe it into your clipboard, or another tool. However,
 using `--output` you can specify a file location to write the client to. If output is specified, you do not need to specify
@@ -70,7 +86,7 @@ project to update the client to match the code running in your staging environme
 }
 ```
 
-# Using the Client
+## Using the Client
 
 The generated client has all the data structures required as parameters or returned as response values as needed by any
 of the public or authenticated API's of your Encore application. Each service is exposed as object on the client, with
@@ -79,7 +95,7 @@ each public or authenticated API exposed as a function on those objects.
 For instance, if you had a service called `email` with a function `Send`, on the generated client you would call this
 using; `client.email.Send(...)`.
 
-## Creating an instance
+### Creating an instance
 
 When constructing a client, you need to pass a `BaseURL` as the first parameter; this is the URL at which the API can
 be accessed. The client provides two helpers:
@@ -113,7 +129,7 @@ In Go this can be configured using the `WithHTTPClient` option. You are required
 this can be configured using the `fetcher` option and must conform to the same prototype as the browsers inbuilt [fetch
 API](https://developer.mozilla.org/en-US/docs/Web/API/fetch).
 
-## Structured Errors
+### Structured Errors
 
 Errors created or wrapped using Encore's [`errs package`](/docs/develop/errors) will be returned to the client and deserialized
 as an `APIError`, allowing the client to perform adaptive error handling based on the type of error returned. You can perform

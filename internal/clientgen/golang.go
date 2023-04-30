@@ -1,7 +1,6 @@
 package clientgen
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 	"github.com/fatih/structtag"
 
+	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/internal/gocodegen"
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
@@ -42,24 +42,24 @@ type golang struct {
 	seenSlicePath bool
 }
 
-func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err error) {
-	g.md = md
+func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
+	g.md = p.Meta
 	g.enc = gocodegen.NewMarshallingCodeGenerator(gocodegen.UnknownPkgPath, "serde", true)
 
-	namedTypes := getNamedTypes(md)
+	namedTypes := getNamedTypes(p.Meta, p.Services)
 
 	// Create a new client file
 	file := NewFile("client")
 	file.HeaderComment(doNotEditHeader())
 
 	// Generate the parent Client struct
-	g.generateClient(file, appSlug, md.Svcs)
+	g.generateClient(file, p.AppSlug, p.Services)
 
 	// Generate the types and service client structs
-	for _, service := range md.Svcs {
+	for _, service := range p.Meta.Svcs {
 		g.generateTypeDefinitions(file, namedTypes.Decls(service.Name))
 
-		if hasPublicRPC(service) {
+		if hasPublicRPC(service) && p.Services.Has(service.Name) {
 			if err := g.generateServiceClient(file, service); err != nil {
 				return errors.Wrapf(err, "unable to generate service client for service: %s", service)
 			}
@@ -80,7 +80,7 @@ func (g *golang) Generate(buf *bytes.Buffer, appSlug string, md *meta.Data) (err
 	g.enc.WriteToFile(file)
 
 	// Finally, render the client
-	if err := file.Render(buf); err != nil {
+	if err := file.Render(p.Buf); err != nil {
 		return errors.Wrap(err, "unable to generate go client")
 	}
 
@@ -96,12 +96,12 @@ func (g *golang) cleanServiceName(service *meta.Service) string {
 }
 
 // generateClient creates the Client struct, Option type and New function
-func (g *golang) generateClient(file *File, appSlug string, services []*meta.Service) {
+func (g *golang) generateClient(file *File, appSlug string, set clientgentypes.ServiceSet) {
 	// List all services which have public RPCs or types we need
-	fieldDef := make([]Code, 0, len(services))
+	fieldDef := make([]Code, 0, len(set.List()))
 	fieldInit := make(Dict)
-	for _, service := range services {
-		if !hasPublicRPC(service) {
+	for _, service := range g.md.Svcs {
+		if !hasPublicRPC(service) || !set.Has(service.Name) {
 			continue
 		}
 
