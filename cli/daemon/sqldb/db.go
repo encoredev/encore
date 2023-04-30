@@ -19,8 +19,9 @@ import (
 
 // DB represents a single database instance within a cluster.
 type DB struct {
-	Name    string // database name
-	Cluster *Cluster
+	EncoreName string
+	DriverName string
+	Cluster    *Cluster
 
 	// Ctx is canceled when the database is being torn down.
 	Ctx    context.Context
@@ -61,14 +62,14 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 
 	if recreate {
 		if err := db.Drop(ctx); err != nil {
-			return fmt.Errorf("drop db %s: %v", db.Name, err)
+			return fmt.Errorf("drop db %s: %v", db.DriverName, err)
 		}
 	}
 	if err := db.Create(ctx); err != nil {
-		return fmt.Errorf("create db %s: %v", db.Name, err)
+		return fmt.Errorf("create db %s: %v", db.DriverName, err)
 	}
 	if err := db.EnsureRoles(ctx, db.Cluster.Roles...); err != nil {
-		return fmt.Errorf("ensure db roles %s: %v", db.Name, err)
+		return fmt.Errorf("ensure db roles %s: %v", db.DriverName, err)
 	}
 	if migrate || recreate || !db.migrated {
 		if err := db.Migrate(ctx, appRoot, dbMeta); err != nil {
@@ -76,7 +77,7 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 			// Otherwise we might fail to open a database shell when there
 			// is a migration issue.
 			if migrate || recreate {
-				return fmt.Errorf("migrate db %s: %v", db.Name, err)
+				return fmt.Errorf("migrate db %s: %v", db.DriverName, err)
 			}
 		}
 	}
@@ -95,7 +96,7 @@ func (db *DB) Create(ctx context.Context) error {
 
 	// Does it already exist?
 	var dummy int
-	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.Name).Scan(&dummy)
+	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.DriverName).Scan(&dummy)
 	owner, ok := db.Cluster.Roles.First(RoleAdmin, RoleSuperuser)
 	if !ok {
 		return errors.New("unable to find admin or superuser roles")
@@ -104,7 +105,7 @@ func (db *DB) Create(ctx context.Context) error {
 	if err == pgx.ErrNoRows {
 		db.log.Debug().Msg("creating database")
 		// Sanitize names since this query does not support query params
-		dbName := (pgx.Identifier{db.Name}).Sanitize()
+		dbName := (pgx.Identifier{db.DriverName}).Sanitize()
 		ownerName := (pgx.Identifier{owner.Username}).Sanitize()
 		_, err = adm.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s OWNER %s;", dbName, ownerName))
 	}
@@ -123,7 +124,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 	defer adm.Close(context.Background())
 
 	db.log.Debug().Msg("revoking public access")
-	safeDBName := (pgx.Identifier{db.Name}).Sanitize()
+	safeDBName := (pgx.Identifier{db.DriverName}).Sanitize()
 	_, err = adm.Exec(ctx, "REVOKE ALL ON DATABASE "+safeDBName+" FROM public")
 	if err != nil {
 		return fmt.Errorf("revoke public: %v", err)
@@ -153,7 +154,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 			return fmt.Errorf("unknown role type %q", role.Type)
 		}
 
-		db.log.Debug().Str("role", role.Username).Str("db", db.Name).Msg("granting access to role")
+		db.log.Debug().Str("role", role.Username).Str("db", db.DriverName).Msg("granting access to role")
 
 		// We've observed race conditions in Postgres to grant access. Retry a few times.
 		{
@@ -163,7 +164,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 				if err == nil {
 					break
 				}
-				db.log.Debug().Str("role", role.Username).Str("db", db.Name).Err(err).Msg("error granting role, retrying")
+				db.log.Debug().Str("role", role.Username).Str("db", db.DriverName).Err(err).Msg("error granting role, retrying")
 				time.Sleep(250 * time.Millisecond)
 			}
 			if err != nil {
@@ -171,7 +172,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 			}
 		}
 
-		db.log.Debug().Str("role", role.Username).Str("db", db.Name).Msg("successfully granted access")
+		db.log.Debug().Str("role", role.Username).Str("db", db.DriverName).Msg("successfully granted access")
 	}
 	return nil
 }
@@ -199,7 +200,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 	if !ok {
 		return errors.New("unable to find superuser or admin roles")
 	}
-	uri := info.ConnURI(db.Name, admin)
+	uri := info.ConnURI(db.DriverName, admin)
 	db.log.Debug().Str("uri", uri).Msg("running migrations")
 	conn, err := sql.Open("pgx", uri)
 	if err != nil {
@@ -217,7 +218,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 		migrationsRelPath: dbMeta.MigrationRelPath,
 		migrations:        dbMeta.Migrations,
 	}
-	m, err := migrate.NewWithInstance("src", s, db.Name, instance)
+	m, err := migrate.NewWithInstance("src", s, db.DriverName, instance)
 	if err != nil {
 		return err
 	}
@@ -248,7 +249,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 		db.log.Info().Msg("database already up to date")
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("could not migrate database %s: %v", db.Name, err)
+		return fmt.Errorf("could not migrate database %s: %v", db.DriverName, err)
 	}
 	db.log.Info().Msg("migration completed")
 	return nil
@@ -263,12 +264,12 @@ func (db *DB) Drop(ctx context.Context) error {
 	defer adm.Close(context.Background())
 
 	var dummy int
-	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.Name).Scan(&dummy)
+	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.DriverName).Scan(&dummy)
 	if err == nil {
 		// Drop all connections to prevent "database is being accessed by other users" errors.
-		adm.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", db.Name)
+		adm.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", db.DriverName)
 
-		name := (pgx.Identifier{db.Name}).Sanitize() // sanitize database name, to be safe
+		name := (pgx.Identifier{db.DriverName}).Sanitize() // sanitize database name, to be safe
 		_, err = adm.Exec(ctx, fmt.Sprintf("DROP DATABASE %s;", name))
 		db.log.Debug().Err(err).Msgf("dropped database")
 	} else if err == pgx.ErrNoRows {
