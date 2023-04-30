@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	"github.com/rs/zerolog"
+
+	"encr.dev/internal/optracker"
 )
 
 var ErrUnsupported = errors.New("unsupported operation")
@@ -22,6 +24,19 @@ type Driver interface {
 
 	// ClusterStatus reports the current status of a cluster.
 	ClusterStatus(ctx context.Context, id ClusterID) (*ClusterStatus, error)
+
+	// CheckRequirements checks whether all the requirements are met
+	// to use the driver.
+	CheckRequirements(ctx context.Context) error
+
+	// Meta reports driver metadata.
+	Meta() DriverMeta
+}
+
+type DriverMeta struct {
+	// ClusterIsolation reports whether clusters are isolated by the driver.
+	// If false, database names will be prefixed with the cluster id.
+	ClusterIsolation bool
 }
 
 type ConnConfig struct {
@@ -49,6 +64,9 @@ type CreateParams struct {
 	// Memfs, if true, configures the database container to use an
 	// in-memory filesystem as opposed to persisting the database to disk.
 	Memfs bool
+
+	// Tracker allows tracking the progress of the operation.
+	Tracker *optracker.OpTracker
 }
 
 // Status represents the status of a container.

@@ -36,9 +36,14 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 			return nil, fmt.Errorf("check docker image: %v", err)
 		} else if !ok {
 			log.Debug().Msg("PostgreSQL image does not exist, pulling")
+			pullOp := p.Tracker.Add("Pulling PostgreSQL docker image", time.Now())
 			if err := PullImage(context.Background()); err != nil {
 				log.Error().Err(err).Msg("failed to pull PostgreSQL image")
+				p.Tracker.Fail(pullOp, err)
 				return nil, fmt.Errorf("pull docker image: %v", err)
+			} else {
+				p.Tracker.Done(pullOp, 0)
+				log.Info().Msg("successfully pulled sqldb image")
 			}
 		}
 	}
@@ -147,6 +152,15 @@ func (d *Driver) ClusterStatus(ctx context.Context, id sqldb.ClusterID) (*sqldb.
 	return status, err
 }
 
+func (d *Driver) CheckRequirements(ctx context.Context) error {
+	if _, err := exec.LookPath("docker"); err != nil {
+		return errors.New("This application requires docker to run since it uses an SQL database. Install docker first.")
+	} else if !isDockerRunning(ctx) {
+		return errors.New("The docker daemon is not running. Start it first.")
+	}
+	return nil
+}
+
 // clusterStatus reports both the standard ClusterStatus but also the container name we actually resolved to.
 func (d *Driver) clusterStatus(ctx context.Context, id sqldb.ClusterID) (status *sqldb.ClusterStatus, containerName string, err error) {
 	var output []byte
@@ -246,6 +260,10 @@ func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
 	return nil
 }
 
+func (d *Driver) Meta() sqldb.DriverMeta {
+	return sqldb.DriverMeta{ClusterIsolation: true}
+}
+
 // containerName computes the container name candidates for a given clusterID.
 func containerNames(id sqldb.ClusterID) []string {
 	var names []string
@@ -287,3 +305,8 @@ func PullImage(ctx context.Context) error {
 }
 
 const Image = "postgres:14-alpine"
+
+func isDockerRunning(ctx context.Context) bool {
+	err := exec.CommandContext(ctx, "docker", "info").Run()
+	return err == nil
+}

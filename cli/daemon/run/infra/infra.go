@@ -3,12 +3,10 @@ package infra
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -17,7 +15,6 @@ import (
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/environ"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -159,32 +156,17 @@ func (rm *ResourceManager) StartSQLCluster(a *optracker.AsyncBuildJobs, md *meta
 		if rm.forTests {
 			typ = sqldb.Test
 		}
+
+		if err := rm.sqlMgr.Ready(); err != nil {
+			return err
+		}
+
 		cluster := rm.sqlMgr.Create(ctx, &sqldb.CreateParams{
 			ClusterID: sqldb.GetClusterID(rm.app, typ),
 			Memfs:     rm.forTests,
 		})
-		if _, err := exec.LookPath("docker"); err != nil {
-			return errors.New("This application requires docker to run since it uses an SQL database. Install docker first.")
-		} else if !isDockerRunning(ctx) {
-			return errors.New("The docker daemon is not running. Start it first.")
-		}
 
-		log.Debug().Msg("checking if sqldb image exists")
-		if ok, err := docker.ImageExists(ctx); err == nil && !ok {
-			rm.log.Debug().Msg("pulling sqldb image")
-			pullOp := a.Tracker().Add("Pulling PostgreSQL docker image", time.Now())
-			if err := docker.PullImage(ctx); err != nil {
-				rm.log.Error().Err(err).Msg("unable to pull sqldb image")
-				a.Tracker().Fail(pullOp, err)
-			} else {
-				a.Tracker().Done(pullOp, 0)
-				rm.log.Info().Msg("successfully pulled sqldb image")
-			}
-		} else if err != nil {
-			return fmt.Errorf("unable to check if sqldb image exists: %w", err)
-		}
-
-		if _, err := cluster.Start(ctx); err != nil {
+		if _, err := cluster.Start(ctx, a.Tracker()); err != nil {
 			return fmt.Errorf("unable to start sqldb cluster: %w", err)
 		}
 
@@ -226,11 +208,6 @@ func (rm *ResourceManager) GetSQLCluster() *sqldb.Cluster {
 		return cluster.(*sqldb.Cluster)
 	}
 	return nil
-}
-
-func isDockerRunning(ctx context.Context) bool {
-	err := exec.CommandContext(ctx, "docker", "info").Run()
-	return err == nil
 }
 
 // UpdateConfig updates the given config with infrastructure information.
