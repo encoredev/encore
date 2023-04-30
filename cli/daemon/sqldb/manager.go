@@ -50,6 +50,11 @@ func GetClusterID(app *apps.Instance, typ ClusterType) ClusterID {
 	return ClusterID{app, typ}
 }
 
+// Ready reports whether the cluster manager is ready and all requirements are met.
+func (cm *ClusterManager) Ready() error {
+	return cm.driver.CheckRequirements(context.Background())
+}
+
 // Create creates a database cluster but does not start it.
 // If the cluster already exists it is returned.
 // It does not perform any database migrations.

@@ -166,15 +166,11 @@ message DockerExportParams {
   string base_image_tag = 3;
 }
 
-message ResetDBRequest {
-  string app_root = 1;
-  repeated string services = 2; // services to reset
-}
-
 message DBConnectRequest {
   string app_root = 1;
   string db_name = 2;
   string env_name = 3; // optional
+  bool test = 4; // local test cluster
 }
 
 message DBConnectResponse {
@@ -185,11 +181,13 @@ message DBProxyRequest {
   string app_root = 1;
   string env_name = 2; // optional
   int32 port = 3; // optional
+  bool test = 4; // local test cluster
 }
 
 message DBResetRequest {
   string app_root = 1;
   repeated string database_names = 2; // database names to reset
+  bool test = 3; // local test cluster
 }
 
 message GenClientRequest {

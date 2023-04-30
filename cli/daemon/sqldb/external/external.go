@@ -43,6 +43,14 @@ func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
 	return sqldb.ErrUnsupported
 }
 
+func (d *Driver) CheckRequirements(ctx context.Context) error {
+	return nil
+}
+
+func (d *Driver) Meta() sqldb.DriverMeta {
+	return sqldb.DriverMeta{ClusterIsolation: false}
+}
+
 func def(val, orDefault string) string {
 	if val == "" {
 		val = orDefault

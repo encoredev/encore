@@ -92,15 +92,22 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		}
 	}
 
-	clusterID := sqldb.GetClusterID(app, sqldb.Run)
+	clusterType := sqldb.Run
+	passwd := "local"
+	if req.Test {
+		clusterType = sqldb.Test
+		passwd = "test"
+	}
+
+	clusterID := sqldb.GetClusterID(app, clusterType)
 	log := log.With().Interface("cluster", clusterID).Logger()
 	log.Info().Msg("setting up database cluster")
 	cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 		ClusterID: clusterID,
-		Memfs:     false,
+		Memfs:     clusterType == sqldb.Test,
 	})
 	// TODO would be nice to stream this to the CLI
-	if _, err := cluster.Start(ctx); err != nil {
+	if _, err := cluster.Start(ctx, nil); err != nil {
 		log.Error().Err(err).Msg("failed to start db cluster")
 		return nil, err
 	} else if err := cluster.Setup(ctx, req.AppRoot, parse.Meta); err != nil {
@@ -109,8 +116,8 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	}
 	log.Info().Msg("created database cluster")
 
-	dsn := fmt.Sprintf("postgresql://%s:local@localhost:%d/%s?sslmode=disable",
-		app.PlatformOrLocalID(), s.mgr.DBProxyPort, req.DbName)
+	dsn := fmt.Sprintf("postgresql://%s:%s@localhost:%d/%s?sslmode=disable",
+		app.PlatformOrLocalID(), passwd, s.mgr.DBProxyPort, req.DbName)
 	return &daemonpb.DBConnectResponse{Dsn: dsn}, nil
 }
 
@@ -172,12 +179,16 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 			return err
 		}
 
-		clusterID := sqldb.GetClusterID(app, sqldb.Run)
+		clusterType := sqldb.Run
+		if params.Test {
+			clusterType = sqldb.Test
+		}
+		clusterID := sqldb.GetClusterID(app, clusterType)
 		cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 			ClusterID: clusterID,
 			Memfs:     false,
 		})
-		if _, err := cluster.Start(ctx); err != nil {
+		if _, err := cluster.Start(ctx, nil); err != nil {
 			return err
 		} else if err := cluster.Setup(ctx, params.AppRoot, parse.Meta); err != nil {
 			return err
@@ -263,16 +274,20 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		return nil
 	}
 
-	clusterID := sqldb.GetClusterID(app, sqldb.Run)
+	clusterType := sqldb.Run
+	if req.Test {
+		clusterType = sqldb.Test
+	}
+	clusterID := sqldb.GetClusterID(app, clusterType)
 	cluster, ok := s.cm.Get(clusterID)
 	if !ok {
 		cluster = s.cm.Create(stream.Context(), &sqldb.CreateParams{
 			ClusterID: clusterID,
-			Memfs:     false,
+			Memfs:     clusterType == sqldb.Test,
 		})
 	}
 
-	if _, err := cluster.Start(stream.Context()); err != nil {
+	if _, err := cluster.Start(stream.Context(), nil); err != nil {
 		sendErr(err)
 		return nil
 	}

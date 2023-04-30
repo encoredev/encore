@@ -133,11 +133,13 @@ This can happen for many reasons:
 - The existing database schema didn't look like you thought it did, so the database object you tried to change doesn't actually exist
 - ... and so on
 
-If that happens, Encore records that it tried to apply the migration but failed.
-In that case, it's possible that one part of the migration was successfully applied but another part was not.
+If that happens, Encore rolls back the migration and reports an error.
+Once you've fixed the problem, the migration automatically re-runs
+on the next `encore run` (for local development) and next deploy (in cloud environments).
 
-In order to ensure safety, Encore marks the migration as "dirty" and expects you to manually resolve the problem.
-This information is tracked in the `schema_migrations` table:
+### Tracking migrations
+
+Encore tracks which migrations have been applied using a `schema_migrations` table:
 
 ```sql
 database=# \d schema_migrations
@@ -150,7 +152,11 @@ Indexes:
     "schema_migrations_pkey" PRIMARY KEY, btree (version)
 ```
 
-To resolve the problem, you have two options: either revert back to the database schema from the previous migration (roll back), or fix the schema to match the new migration (roll forward).
+When running migrations Encore compares the latest migration in the code base
+with the latest applied migration in the `schema_migrations` table, and runs the
+ones that haven't been applied yet.
+
+If needed, you can also manually roll back or roll forward migrations.
 
 #### Roll back
 
@@ -158,7 +164,7 @@ To roll back to the previous migration:
 
 1. Use `encore db shell <service-name>` to log in to the database
 2. Apply the necessary changes to the schema to revert it back to the previous migration version
-3. Execute the query `UPDATE schema_migrations SET dirty = false, version = version - 1;`
+3. Execute the query `UPDATE schema_migrations SET version = <target version>;`
 
 #### Roll forward
 
@@ -166,7 +172,17 @@ To roll forward to the new migration:
 
 1. Use `encore db shell <service-name>` to log in to the database
 2. Apply the necessary changes to the schema to fix the migration failure and bring the schema up to date with the new migration
-3. Execute the query `UPDATE schema_migrations SET dirty = false;`
+3. Execute the query `UPDATE schema_migrations SET version = <target version>;`
+
+## Integration testing
+
+When running tests Encore automatically creates a test-only database cluster that's optimized for
+running tests quickly with an in-memory filesystem, and wires up the tests to use that cluster.
+This is supported both locally as well as when deploying to the cloud using Encore's CI/CD system.
+
+The test cluster is automatically recreated on every test run.
+To inspect the test databases, use `encore db shell --test <database-name>`.
+The `--test` flag also works with the other database management commands.
 
 ## Troubleshooting
 

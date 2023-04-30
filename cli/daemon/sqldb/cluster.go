@@ -15,6 +15,7 @@ import (
 	"go4.org/syncutil"
 	"golang.org/x/sync/errgroup"
 
+	"encr.dev/internal/optracker"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 
 	// stdlib registers the "pgx" driver to database/sql.
@@ -59,7 +60,7 @@ func (c *Cluster) Ready() <-chan struct{} {
 
 // Start creates the cluster if necessary and starts it.
 // If the cluster is already running it does nothing.
-func (c *Cluster) Start(ctx context.Context) (*ClusterStatus, error) {
+func (c *Cluster) Start(ctx context.Context, tracker *optracker.OpTracker) (*ClusterStatus, error) {
 	var status *ClusterStatus
 	err := c.startOnce.Do(func() (err error) {
 		c.log.Debug().Msg("starting cluster")
@@ -75,6 +76,7 @@ func (c *Cluster) Start(ctx context.Context) (*ClusterStatus, error) {
 		st, err := c.driver.CreateCluster(ctx, &CreateParams{
 			ClusterID: c.ID,
 			Memfs:     c.Memfs,
+			Tracker:   tracker,
 		}, c.log)
 		if err != nil {
 			return err
@@ -199,19 +201,25 @@ func (c *Cluster) initDBs(md *meta.Data, reinit bool) {
 
 // initDB initializes the database for svc and adds it to c.dbs.
 // The cluster mutex must be held.
-func (c *Cluster) initDB(name string) *DB {
+func (c *Cluster) initDB(encoreName string) *DB {
+	driverName := encoreName
+	if !c.driver.Meta().ClusterIsolation {
+		driverName += fmt.Sprintf("-%s-%s", c.ID.App.PlatformOrLocalID(), c.ID.Type)
+	}
+
 	dbCtx, cancel := context.WithCancel(c.Ctx)
 	db := &DB{
-		Name:    name,
-		Cluster: c,
+		DriverName: driverName,
+		EncoreName: encoreName,
+		Cluster:    c,
 
 		Ctx:    dbCtx,
 		cancel: cancel,
 
 		ready: make(chan struct{}),
-		log:   c.log.With().Str("db", name).Logger(),
+		log:   c.log.With().Str("db", encoreName).Logger(),
 	}
-	c.dbs[name] = db
+	c.dbs[encoreName] = db
 	return db
 }
 
@@ -326,7 +334,7 @@ func (c *Cluster) pollStatus() {
 
 // Info reports information about a cluster.
 func (c *Cluster) Info(ctx context.Context) (*ClusterInfo, error) {
-	st, err := c.Start(ctx)
+	st, err := c.Start(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -24,10 +24,13 @@ var dbCmd = &cobra.Command{
 	Short: "Database management commands",
 }
 
-var resetAll bool
+var (
+	resetAll bool
+	testDB   bool
+)
 
 var dbResetCmd = &cobra.Command{
-	Use:   "reset [database-names...]",
+	Use:   "reset <database-names...|--all>",
 	Short: "Resets the databases with the given names. Use --all to reset all databases.",
 
 	Run: func(command *cobra.Command, args []string) {
@@ -49,6 +52,7 @@ var dbResetCmd = &cobra.Command{
 		stream, err := daemon.DBReset(ctx, &daemonpb.DBResetRequest{
 			AppRoot:       appRoot,
 			DatabaseNames: dbNames,
+			Test:          testDB,
 		})
 		if err != nil {
 			fatal("reset databases: ", err)
@@ -60,10 +64,15 @@ var dbResetCmd = &cobra.Command{
 var dbEnv string
 
 var dbShellCmd = &cobra.Command{
-	Use:   "shell DATABASE_NAME [--env=local]",
+	Use:   "shell DATABASE_NAME [--test] [--env=<name>]",
 	Short: "Connects to the database via psql shell",
-	Long:  "Defaults to connecting to your local environment. Specify --env to connect to another environment.",
-	Args:  cobra.MaximumNArgs(1),
+	Long: `Defaults to connecting to your local environment.
+Specify --env to connect to another environment.
+
+Use --test to connect to databases used for integration testing.
+--test implies --env=local.
+`,
+	Args: cobra.MaximumNArgs(1),
 
 	DisableFlagsInUseLine: true,
 	Run: func(command *cobra.Command, args []string) {
@@ -94,10 +103,15 @@ var dbShellCmd = &cobra.Command{
 			}
 		}
 
+		if testDB {
+			dbEnv = "local"
+		}
+
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
 			AppRoot: appRoot,
 			DbName:  dbName,
 			EnvName: dbEnv,
+			Test:    testDB,
 		})
 		if err != nil {
 			fatalf("could not connect to the database for service %s: %v", dbName, err)
@@ -145,8 +159,13 @@ var dbShellCmd = &cobra.Command{
 var dbProxyPort int32
 
 var dbProxyCmd = &cobra.Command{
-	Use:   "proxy [--env=<name>]",
+	Use:   "proxy [--env=<name>] [--test]",
 	Short: "Sets up a proxy tunnel to the database",
+	Long: `Set up a proxy tunnel to a database for use with other tools.
+
+Use --test to connect to databases used for integration testing.
+--test implies --env=local.
+`,
 
 	Run: func(command *cobra.Command, args []string) {
 		appRoot, _ := determineAppRoot()
@@ -159,11 +178,16 @@ var dbProxyCmd = &cobra.Command{
 			cancel()
 		}()
 
+		if testDB {
+			dbEnv = "local"
+		}
+
 		daemon := setupDaemon(ctx)
 		stream, err := daemon.DBProxy(ctx, &daemonpb.DBProxyRequest{
 			AppRoot: appRoot,
 			EnvName: dbEnv,
 			Port:    dbProxyPort,
+			Test:    testDB,
 		})
 		if err != nil {
 			log.Fatal().Err(err).Msg("could not setup db proxy")
@@ -173,7 +197,7 @@ var dbProxyCmd = &cobra.Command{
 }
 
 var dbConnURICmd = &cobra.Command{
-	Use:   "conn-uri [servicename]",
+	Use:   "conn-uri [<db-name>] [--test]",
 	Short: "Outputs the database connection string",
 	Args:  cobra.MaximumNArgs(1),
 
@@ -203,10 +227,15 @@ var dbConnURICmd = &cobra.Command{
 			}
 		}
 
+		if testDB {
+			dbEnv = "local"
+		}
+
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
 			AppRoot: appRoot,
 			DbName:  dbName,
 			EnvName: dbEnv,
+			Test:    testDB,
 		})
 		if err != nil {
 			st, ok := status.FromError(err)
@@ -229,12 +258,15 @@ func init() {
 	dbCmd.AddCommand(dbResetCmd)
 
 	dbShellCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
+	dbShellCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbCmd.AddCommand(dbShellCmd)
 
 	dbProxyCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbProxyCmd.Flags().Int32VarP(&dbProxyPort, "port", "p", 0, "Port to listen on (defaults to a random port)")
+	dbProxyCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbCmd.AddCommand(dbProxyCmd)
 
 	dbConnURICmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
+	dbConnURICmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbCmd.AddCommand(dbConnURICmd)
 }
