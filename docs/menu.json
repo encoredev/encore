@@ -1,0 +1,419 @@
+[
+  {
+    "Path": "",
+    "Title": "Introduction",
+    "Children": [
+      {
+        "Path": "/",
+        "Title": "Welcome",
+        "DocSlug": "index"
+      },
+      {
+        "Path": "/install",
+        "Title": "Installation",
+        "DocSlug": "install"
+      },
+      {
+        "Path": "/introduction",
+        "Title": "What is Encore?",
+        "DocSlug": "introduction",
+        "OldPaths": [
+          "/benefits",
+          "/application-model",
+          "/encore-way"
+        ]
+      },
+      {
+        "Path": "/quick-start",
+        "Title": "Quick Start",
+        "DocSlug": "quick-start",
+        "OldPaths": [
+          "/tutorials/create-app"
+        ]
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Tutorials",
+    "Children": [
+      {
+        "Path": "/tutorials",
+        "Title": "Overview",
+        "DocSlug": "tutorials/index"
+      },
+      {
+        "Path": "/tutorials/uptime",
+        "Title": "Building an Uptime Monitor",
+        "DocSlug": "tutorials/uptime"
+      },
+      {
+        "Path": "/tutorials/rest-api",
+        "Title": "Building a REST API",
+        "DocSlug": "tutorials/rest-api"
+      },
+      {
+        "Path": "/tutorials/slack-bot",
+        "Title": "Building a Slack bot",
+        "DocSlug": "tutorials/slack-bot"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Building Blocks",
+    "Children": [
+      {
+        "Path": "/primitives",
+        "Title": "Overview",
+        "DocSlug": "primitives/index"
+      },
+      {
+        "Path": "/primitives/services-and-apis",
+        "Title": "Services and APIs",
+        "DocSlug": "primitives/services-and-apis",
+        "OldPaths": [
+          "/develop/services-and-apis"
+        ]
+      },
+      {
+        "Path": "/primitives/databases",
+        "Title": "Databases",
+        "DocSlug": "primitives/databases",
+        "OldPaths": [
+          "/develop/databases",
+          "/develop/sql-database"
+        ]
+      },
+      {
+        "Path": "/primitives/cron-jobs",
+        "Title": "Cron Jobs",
+        "DocSlug": "primitives/cron-jobs"
+      },
+      {
+        "Path": "/primitives/pubsub",
+        "Title": "Pub/Sub",
+        "DocSlug": "primitives/pubsub",
+        "OldPaths": [
+          "/develop/pubsub"
+        ]
+      },
+      {
+        "Path": "/primitives/caching",
+        "Title": "Caching",
+        "DocSlug": "primitives/caching",
+        "OldPaths": [
+          "/develop/caching"
+        ]
+      },
+      {
+        "Path": "/primitives/secrets",
+        "Title": "Secrets",
+        "DocSlug": "primitives/secrets",
+        "OldPaths": [
+          "/develop/secrets"
+        ]
+      },
+      {
+        "Path": "/primitives/code-snippets",
+        "Title": "Code Snippets",
+        "DocSlug": "primitives/code-snippets"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Develop",
+    "Children": [
+      {
+        "Path": "/develop/app-structure",
+        "Title": "App Structure",
+        "DocSlug": "develop/app-structure"
+      },
+      {
+        "Path": "/develop/api-schemas",
+        "Title": "API Schemas",
+        "DocSlug": "develop/api-schemas"
+      },
+      {
+        "Path": "/develop/errors",
+        "Title": "API Errors",
+        "DocSlug": "develop/errors"
+      },
+      {
+        "Path": "/develop/auth",
+        "Title": "Authentication",
+        "DocSlug": "develop/auth"
+      },
+      {
+        "Path": "/develop/config",
+        "Title": "Configuration",
+        "DocSlug": "develop/config"
+      },
+      {
+        "Path": "/develop/metadata",
+        "Title": "Metadata",
+        "DocSlug": "develop/metadata"
+      },
+      {
+        "Path": "/develop/auth-keys",
+        "Title": "Auth Keys",
+        "DocSlug": "develop/auth-keys",
+        "OldPaths": [
+          "/configuration/auth-keys"
+        ]
+      },
+      {
+        "Path": "/develop/testing",
+        "Title": "Testing",
+        "DocSlug": "develop/testing"
+      },
+      {
+        "Path": "/develop/middleware",
+        "Title": "Middleware",
+        "DocSlug": "develop/middleware"
+      },
+      {
+        "Path": "/develop/validation",
+        "Title": "Validation",
+        "DocSlug": "develop/validation"
+      },
+      {
+        "Path": "/develop/api-docs",
+        "Title": "Generated API Docs",
+        "DocSlug": "develop/api-docs"
+      },
+      {
+        "Path": "/develop/client-generation",
+        "Title": "Client Generation",
+        "DocSlug": "develop/client-generation"
+      },
+      {
+        "Path": "/develop/cli-reference",
+        "Title": "CLI Reference",
+        "DocSlug": "develop/cli-reference"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Deploy",
+    "Children": [
+      {
+        "Path": "/deploy/infra",
+        "Title": "Infrastructure provisioning",
+        "DocSlug": "deploy/infra",
+        "OldPaths": [
+          "/deploy/scaling",
+          "/concepts/scaling"
+        ]
+      },
+      {
+        "Path": "/deploy/environments",
+        "Title": "Environments",
+        "DocSlug": "deploy/environments"
+      },
+      {
+        "Path": "/deploy/own-cloud",
+        "Title": "Connect your cloud account",
+        "DocSlug": "deploy/own-cloud"
+      },
+      {
+        "Path": "/deploy/custom-domains",
+        "Title": "Custom Domains",
+        "DocSlug": "deploy/custom-domains"
+      },
+      {
+        "Path": "/deploy/security",
+        "Title": "Security",
+        "DocSlug": "deploy/security"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Observability",
+    "Children": [
+      {
+        "Path": "/observability/dev-dash",
+        "Title": "Development Dashboard",
+        "DocSlug": "observability/dev-dash"
+      },
+      {
+        "Path": "/observability/encore-flow",
+        "Title": "Flow Architecture Diagram",
+        "DocSlug": "observability/encore-flow",
+        "OldPaths": [
+          "/develop/encore-flow"
+        ]
+      },
+      {
+        "Path": "/observability/logging",
+        "Title": "Logging",
+        "DocSlug": "observability/logging"
+      },
+      {
+        "Path": "/observability/metrics",
+        "Title": "Metrics",
+        "DocSlug": "observability/metrics",
+        "OldPaths": [
+          "/observability/monitoring"
+        ]
+      },
+      {
+        "Path": "/observability/tracing",
+        "Title": "Distributed Tracing",
+        "DocSlug": "observability/tracing"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Integrations",
+    "Children": [
+      {
+        "Path": "/how-to/cgo",
+        "Title": "Build with cgo",
+        "DocSlug": "how-to/cgo"
+      },
+      {
+        "Path": "/how-to/debug",
+        "Title": "Debug with Delve",
+        "DocSlug": "how-to/debug"
+      },
+      {
+        "Path": "/how-to/change-db-schema",
+        "Title": "Change SQL database schema",
+        "DocSlug": "how-to/change-db-schema"
+      },
+      {
+        "Path": "/how-to/connect-existing-db",
+        "Title": "Connect to an existing database",
+        "DocSlug": "how-to/connect-existing-db"
+      },
+      {
+        "Path": "/how-to/share-db-between-services",
+        "Title": "Share SQL databases between services",
+        "DocSlug": "how-to/share-db-between-services"
+      },
+      {
+        "Path": "/how-to/insert-test-data-db",
+        "Title": "Insert test data in a database",
+        "DocSlug": "how-to/insert-test-data-db"
+      },
+      {
+        "Path": "/how-to/temporal",
+        "Title": "Use Temporal with Encore",
+        "DocSlug": "how-to/temporal"
+      },
+      {
+        "Path": "/how-to/entgo-orm",
+        "Title": "Use the ent ORM for migrations",
+        "DocSlug": "how-to/entgo-orm"
+      },
+      {
+        "Path": "/how-to/webhooks",
+        "Title": "Receive webhooks",
+        "DocSlug": "how-to/webhooks"
+      },
+      {
+        "Path": "/how-to/dependency-injection",
+        "Title": "Use Dependency Injection",
+        "DocSlug": "how-to/dependency-injection"
+      },
+      {
+        "Path": "/how-to/integrate-frontend",
+        "Title": "Integrate with a web frontend",
+        "DocSlug": "how-to/integrate-frontend"
+      },
+      {
+        "Path": "/how-to/firebase-auth",
+        "Title": "Use Firebase Authentication",
+        "DocSlug": "how-to/firebase-auth"
+      },
+      {
+        "Path": "/how-to/github",
+        "Title": "Integrate with GitHub",
+        "DocSlug": "how-to/github"
+      },
+      {
+        "Path": "/how-to/migrate-to-encore",
+        "Title": "Migrate an existing backend to Encore",
+        "DocSlug": "how-to/migrate-to-encore"
+      },
+      {
+        "Path": "/how-to/migrate-away",
+        "Title": "Migrate away from Encore",
+        "DocSlug": "how-to/migrate-away"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Other Topics",
+    "Children": [
+      {
+        "Path": "/other/vs-terraform",
+        "Title": "Encore vs. Terraform / Pulumi",
+        "DocSlug": "other/vs-terraform"
+      },
+      {
+        "Path": "/other/vs-heroku",
+        "Title": "Encore vs. Heroku",
+        "DocSlug": "other/vs-heroku"
+      },
+      {
+        "Path": "/other/vs-supabase",
+        "Title": "Encore vs. Supabase / Firebase",
+        "DocSlug": "other/vs-supabase"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "Community",
+    "Children": [
+      {
+        "Path": "/community",
+        "Title": "Get involved",
+        "DocSlug": "community/index"
+      },
+      {
+        "Path": "/community/contribute",
+        "Title": "Contribute",
+        "DocSlug": "community/contribute"
+      },
+      {
+        "Path": "/community/principles",
+        "Title": "Principles",
+        "DocSlug": "community/principles"
+      },
+      {
+        "Path": "/community/open-source",
+        "Title": "Open Source",
+        "DocSlug": "community/open-source"
+      }
+    ]
+  },
+  {
+    "Path": "",
+    "Title": "About",
+    "Children": [
+      {
+        "Path": "/about/permissions",
+        "Title": "Roles & Permissions",
+        "DocSlug": "about/permissions"
+      },
+      {
+        "Path": "/about/usage",
+        "Title": "Usage limits",
+        "DocSlug": "about/usage"
+      },
+      {
+        "Path": "/about/billing",
+        "Title": "Plans & billing",
+        "DocSlug": "about/billing"
+      }
+    ]
+  }
+]
