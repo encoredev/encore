@@ -1372,7 +1372,8 @@ const CodeBox: FC<PropsWithChildren<{ className?: string; error?: boolean }>> = 
 };
 
 const RenderStack: FC<{ stack: Stack }> = ({ stack }) => {
-  if (stack.frames.length === 0) {
+  const hasFrame = stack.frames.findIndex((f) => f.func || f.full_file) !== -1;
+  if (!hasFrame) {
     return null;
   }
 
