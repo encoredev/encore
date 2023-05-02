@@ -46,7 +46,7 @@ effortlessly with applications built with Encore, including:
 ## 3. Ship with confidence and speed
 
 Instead of spending time setting up complicated build and deployment pipelines,
-provisioning Kubernetes clusters, databases, and more, the Encore Platform takes care
+provisioning Kubernetes clusters, databases, and more; Encore takes care
 of setting it all up for you.
 
 You can either use the built in Encore Cloud and deploy in true serverless fashion, or connect your own cloud account with AWS/Azure/GCP and have Encore deploy there.

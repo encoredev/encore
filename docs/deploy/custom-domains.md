@@ -48,7 +48,7 @@ On the Custom Domains settings page, you can see the various statuses throughout
 
 | Status | Description |
 | - | - |
-| `Pending` | The domain is currently queued to be provisioned by the Encore platform. |
+| `Pending` | The domain is currently queued to be provisioned by Encore. |
 |`Waiting for CNAME` | Encore is waiting for the CNAME to become active and for the SSL certificate to be issued for the domain. |
 | `Configuring Edge Routers` | The SSL certificate has been issued and the Encore edge routers are being configured to route traffic on the domain. |
 | `Active` | The domain is serving traffic to your Encore application. |

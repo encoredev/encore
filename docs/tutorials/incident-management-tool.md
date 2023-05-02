@@ -22,6 +22,9 @@ Or if you'd rather watch a video of this tutorial, you can do that below.
 
 <iframe width="360" height="202" src="https://www.youtube.com/embed/BR_ys_qR2kI?controls=0" title="Building an Incident Management Tool Video Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
+<div className="not-prose my-10">
+   <Editor projectName="incidentManagement" />
+</div>
 
 <Callout type="info">
 
@@ -120,10 +123,10 @@ To get started, we need to create a `users` service with the following resources
 
 With #1, let's design our database schema for a User in our system. For now let's store a first and last name as well as a Slack handle in case we need to notify them about any incidents which may have been assigned to them or acknowledged by them.
 
-🥐 Let's create our migration file in `users/migrations/1_create_users.up.sql`: 
+🥐 Let's create our migration file in `users/migrations/1_create_users.up.sql`:
 
 ```sql
-CREATE TABLE users ( 
+CREATE TABLE users (
     id           BIGSERIAL PRIMARY KEY,
     first_name   VARCHAR(255) NOT NULL,
     last_name    VARCHAR(255) NOT NULL,
@@ -607,7 +610,7 @@ func RowsToIncidents(ctx context.Context, rows *sqldb.Rows) (*Incidents, error) 
 Fantastic! We have an _almost_ working application. The main two things we're missing are:
 
 1. For unacknowledged incidents, we need to post a reminder on Slack every 10 minutes until they have been acknolwedged.
-2. Whenever a user is currently on call, we should assign all previously unassigned incidents to them. 
+2. Whenever a user is currently on call, we should assign all previously unassigned incidents to them.
 
 🥐 To achieve this, we'll need to create two [Cron Jobs](http://localhost:3000/docs/develop/cron-jobs) which thankfully Encore makes incredibly simple. So let's go ahead and create the first one for reminding us every 10 minutes of incidents we haven't acknowledged. Go ahead and add the code below to our `incidents/incidents.go` file:
 
@@ -649,7 +652,7 @@ func RemindUnacknowledgedIncidents(ctx context.Context) error {
 }
 ```
 
-And for our second cronjob, when someone goes on call we need to automatically assign the previously unassigned incidents to them. We don't have a HTTP endpoint for assigning incidents so we need to implement a `PUT /incidents/:id/assign` endpoint. 
+And for our second cronjob, when someone goes on call we need to automatically assign the previously unassigned incidents to them. We don't have a HTTP endpoint for assigning incidents so we need to implement a `PUT /incidents/:id/assign` endpoint.
 
 🥐 So let's also add that endpoint as well as the cronjob code to our `incidents/incidents.go` file:
 

@@ -2,12 +2,17 @@
 seotitle: Create recurring tasks with Encore's Cron Jobs API
 seodesc: Learn how to create periodic and recurring tasks in your backend application using Encore's Cron Jobs API.
 title: Cron Jobs
-subtitle: Create recurring tasks with Encore's Cron Jobs API
+subtitle: Run recurring and scheduled tasks
+infobox: {
+  title: "Cron Jobs",
+  import: "encore.dev/cron",
+  example_link: "/docs/tutorials/uptime"
+}
 ---
 
-Encore provides a built-in Cron Jobs API for when you need to run periodic and recurring tasks.
+When you need to run periodic and recurring tasks, Encore's Infrastructure SDK provides a declarative way of using Cron Jobs.
 
-When a Cron Job is defined, the Encore Platform will call the API of your choice on the schedule you have defined.
+When a Cron Job is defined, Encore will call the API of your choice on the schedule you have defined.
 This means there is no need to maintain any infrastructure, as Encore handles the scheduling, monitoring and execution of Cron Jobs.
 
 ## Defining a Cron Job
@@ -38,10 +43,10 @@ The `"welcome-email"` argument to `cron.NewJob` is a unique ID you give to each 
 If you later refactor the code and move the Cron Job definition to another package,
 we use this ID to keep track that it's the same Cron Job and not a different one.
 
-When this code gets deployed the Encore Platform will automatically register the Cron Job
+When this code gets deployed Encore will automatically register the Cron Job in Encore Cloud
 and begin calling the `SendWelcomeEmail` API every hour.
 
-The Encore Platform provides a convenient user interface for monitoring and debugging
+Encore's Cloud Dashboard provides a convenient user interface for monitoring and debugging
 Cron Job executions across all your environments via the `Cron Jobs` menu item:
 
 ![Cron Jobs UI](/assets/docs/cron.png)

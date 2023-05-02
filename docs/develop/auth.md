@@ -3,6 +3,10 @@ seotitle: Adding authentication to APIs to auth users
 seodesc: Learn how to add authentication to your APIs and make sure you know who's calling your backend APIs.
 title: Authenticating users
 subtitle: Knowing what's what and who's who
+infobox: {
+  title: "Authentication",
+  import: "encore.dev/beta/auth",
+}
 ---
 Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
@@ -108,7 +112,7 @@ You can of course combine auth params like this with custom user data (see the s
 
 Cookies are generally only used by browsers and are automatically added to requests made by browsers.
 As a result Encore does not include cookie fields in generated clients' authentication payloads
-or in the [local development dashboard](/docs/observability/dev-dash).
+or in the [Local Development Dashboard](/docs/observability/dev-dash).
 
 </Callout>
 

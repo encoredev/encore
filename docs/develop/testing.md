@@ -3,6 +3,10 @@ seotitle: Automated testing for your backend application
 seodesc: Learn how create automated tests for your microservices backend application, and run them automatically on deploy using Go and Encore.
 title: Automated testing
 subtitle: Confidence at speed
+infobox: {
+  title: "Testing",
+  import: "encore.dev/et",
+}
 ---
 
 Go comes with excellent built-in support for automated tests.

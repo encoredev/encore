@@ -3,6 +3,10 @@ seotitle: API Errors – Types, Wrappers, and Codes
 seodesc: See how to return structured error information from your APIs using Encore's errs package, and how to build precise error messages for complex business logic.
 title: API Errors
 subtitle: Returning structured error information from your APIs
+infobox: {
+  title: "API Errors",
+  import: "encore.dev/beta/errs",
+}
 ---
 
 Encore supports returning structured error information from your APIs using the [encore.dev/beta/errs](https://pkg.go.dev/encore.dev/beta/errs) package.

@@ -2,108 +2,83 @@
 seotitle: Introduction to Encore – the backend development platform
 seodesc: Learn how Encore works and how it helps backend developers build cloud based backend applications with a flow state developer experience.
 title: What is Encore?
-subtitle: Escape cloud complexity and put the fun back into backend development
+subtitle: A Development Platform for cloud backend applications
 ---
 
-Cloud services enable scalable systems but have poor developer experience. Much of our time is spent on repetitive work that doesn't add anything unique to our applications. Encore is designed to solve this problem and restore the joy and creativity of programming.
+Cloud services enable us to build highly scalable applications, but offer a poor developer experience. They force us to deal with a lot of complexity and commonly introduce repetitive work that steals time away from the real goal of building your product. Launching a new app, migrating to the cloud, or breaking apart a monolith into microservices, can therefore be a daunting task.
 
-## Encore is an end-to-end development platform for cloud backend applications
+Encore is designed to solve this problem, restoring creativity for developers and productivity for teams.
 
-Encore is a special-purpose tool for backend development. Similar to how game engines help game developers, it integrates the development process for backend developers.
+Encore gives you a complete toolset for application development, cloud infrastructure management, and production monitoring, all while eliminating the need for many repetitive manual tasks.
 
-<img src="/assets/docs/platformoverview.png" title="Platform Overview" className="noshadow"/>
+## Simplified workflow with Encore's Infrastructure SDK
 
-### 1. Remove cloud complexity with the Encore Framework
+<img className="w-full h-auto noshadow" src="/assets/docs/encore_overview.png" title="Encore Overview" />
 
-Encore lets you write regular Go code, but uses [annotations to avoid common distributed systems boilerplate](/docs/primitives/services-and-apis). It also provides [cloud-agnostic APIs](/docs/primitives/overview) to declare infrastructure directly in application code, eliminating the need for infrastructure configuration files.
+Encore's functionality is based on a [declarative Infrastructure SDK](/docs/primitives/overview) which lets you define resources like services, databases, and queues, as logical objects within your application code. When you run your app, Encore parses your code and automatically sets up the corresponding infrastructure, seamlessly adapting to local, preview, and cloud environments. This removes the need to manage specific services or configurations during development. _No more messing around with Docker Compose!_
 
-This simplifies the process of building microservices applications, making it as straightforward as building a monolith.
+For production, select the cloud provider you want and [connect your cloud account](/docs/deploy/own-cloud). At deployment Encore automatically provisions your [infrastructure](/docs/deploy/infra) using pre-built solutions for popular and battle-tested cloud services on AWS or GCP, such as Cloud Run, Fargate, Kubernetes (coming soon), CloudSQL, RDS, PubSub, Redis, Cron Jobs, and more.
 
-### 2. Platform with tools for shorter feedback loops
+This means you can focus on product development and avoid dealing with Terraform or other manual infrastructure configuration. This approach also lets you modify and swap out your infrastructure over time, without needing to make code changes or manually update infrastructure config files.
 
-By providing built-in tools to simplify common development and DevOps use-cases, Encore helps speed up your development process. Through static analysis of your application code, all tools work out-of-the-box without any configuration or setup.
+## Built-in tools for development and operations
 
-Shorten development feedback loops with tools like:
+Our goal is that with Encore, you can focus your engineering effort on your product and leave the platform work to Encore.
 
--   [Interactive architecture diagrams](/docs/develop/encore-flow)
--   [Preview environments](/docs/how-to/github)
--   [Distributed tracing](/docs/observability/tracing)
--   [Secrets management](/docs/develop/secrets)
--   [Generated API documentation](/docs/develop/api-docs)
+For this reason, Encore provides a complete toolset for both developers and DevOps out-of-the-box, including [logging](/docs/observability/logging), [metrics](/docs/observability/metrics), [distributed tracing](/docs/observability/tracing), generated [architecture diagrams](/docs/observability/encore-flow) and [API documentation](/docs/develop/api-docs), [frontend clients](/docs/develop/client-generation), and more.
 
-### 3. Deploy to your own cloud account
+This is a powerful resource for teams that want to avoid investing engineering time in building out *yet another developer platform*. For teams that already have tools in place, Encore provides third-party integrations with common tools like GitHub, Grafana, Datadog, and more.
 
-When you deploy with Encore, it builds and tests your application and automatically provisions the required [cloud infrastructure](/docs/deploy/infra) using best-practices for each cloud provider (AWS, GCP, Azure).
+## Why choose Encore?
 
-It does this by parsing the application code and [creating a model of how it works](#meet-the-encore-application-model), then generating boilerplate code and provisioning infrastructure based on the use of the provided [cloud-agnostic APIs](/docs/primitives/overview).
-
--   Run `git push encore` to build, test, provision necessary infrastructure, and deploy.
--   Free built-in hosting on Encore Cloud for development and hobby use. (See [usage limits](/docs/about/usage))
-
-## Demo video
-
-Press play to see how you can use Encore to build a backend service and deploy it to the cloud in 5 minutes.
-
-<iframe width="360" height="202" src="https://www.youtube.com/embed/IwplIbwJtD0?controls=0" title="Encore Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+- **Faster Development**: Encore streamlines the development process with its infrastructure SDK, clear abstractions, and built-in development tools, enabling you to build and deploy applications more quickly.
+- **Reduced Costs**: Encore's infrastructure management minimizes wasteful cloud expenses and reduces DevOps workload, allowing you to work more efficiently.
+- **Scalability & Performance**: Encore simplifies building microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
+- **Control & Standardization**: Built-in tools like automated architecture diagrams, infrastructure tracking, and approval workflows make it easy for teams and leaders to get an overview of the entire application.
+- **Security & Compliance**: Encore helps ensure your application is secure and compliant by enforcing standards and provisioning infrastructure according to best practises for each cloud provider.
 
 ## Common use cases
 
-Encore is designed to give teams a productive and less complex experience when solving most backend use cases. There are many developers using Encore to build things like:
+Encore is designed to give teams a productive and less complex experience when solving most backend use cases. Many teams use Encore to build things like:
 
--   CRUD backends and REST APIs.
--   Microservices backends for advanced web and mobile apps.
--   Highly performant APIs providing advanced business logic to 3rd parties.
--   Services powering new features, in applications with existing backend systems.
+-   High-performance B2B Platforms
+-   Fintech & Consumer apps
+-   Global E-commerce marketplaces
+-   Microservices backends for SaaS applications and mobile apps
 -   And much more...
 
-## One workflow from prototype to production
+## Getting started
 
-Encore is designed for large-scale software engineering, informed by our team's decades-long experience from places like Google and Spotify.
+1. [Sign up and install the Encore CLI](https://encore.dev/signup)
+2. [Follow a tutorial and start building](https://encore.dev/docs/tutorials/)
+3. [Book a 1:1](https://encore.dev/book) or [join Slack](https://encore.dev/slack) to discuss your use case or how to begin adopting Encore
+4. Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up to date
+5. Explore the Documentation to learn about Encore's features
 
-Encore lets developers to express cloud infrastructure as logical statements in application code, which become self-provisioning using the Encore platform. This means Encore applications can scale according to evolving requirements without needing to change application code.
+_...or keep reading to learn more about how Encore works._
 
-This allows for rapid prototyping and development using cheap local and cloud infrastructure, while also allowing the application to handle increased scale as it moves to production and beyond.
+## Meet the Encore application model
 
-## The trade-off is standardization
+Encore works by using static analysis to understand your application. This is a fancy term for parsing and analyzing the code you write and creating a graph of how your application works. This graph closely represents your mental model of your system: boxes and arrows, representing systems and services that communicate with other systems, pass data and connect to infrastructure. We call it the Encore Application Model.
 
-The reason we normally have to write boilerplate, and manually provision cloud services, is that the tools we use have no idea what we're trying to do. So it's up to the developer to do all the work.
+Because Encore's Infrastructure SDK, parser, and compiler, are all designed together, Encore can ensure 100% accuracy when creating the application model. Any deviation is caught as a compilation error.
 
-Encore is designed to understand what you're building, in order to deliver capabilities like [real-time architecture diagrams](/docs/observability/encore-flow) and automatic infrastructure provisioning. It achieves this understanding by being opinionated about certain aspects of development, such as having a standardized way of expressing APIs, defining services, and declaring infrastructure.
+Using this model, Encore can provide tools to solve problems that normally would be up to the developer to do manually. From creating architecture diagrams and API documentation to provisioning cloud infrastructure.
 
-This approach gives developers the freedom to focus on solving new problems, instead of re-solving common problems over and over again.
+We're continuously expanding on Encore's capabilities and are building a new generation of developer tools that are enabled by Encore's understanding of your application.
 
-### Congratulations – you don't have to decide!
+The infrastructure SDK, parser, and compiler that enable this are all [Open Source](https://github.com/encoredev/encore).
+
+<img src="/assets/docs/flow-diagram.png" title="Encore Application Model" className="mx-auto md:max-w-lg"/>
+
+## Standardization brings clarity
 
 Developers make dozens of decisions when creating a backend application. Deciding how to structure the codebase, defining API schemas, picking underlying infrastructure, etc. The decisions often come down to personal preferences, not technical rationale. This creates a huge problem in the form of fragmentation! When every stack looks different, all tools have to be general purpose.
 
-When you adopt Encore, many of these stylistic decisions are already made for you. Encore's framework ensures your application follows modern best practices. And when you run your application, Encore's Open Source parser and compiler checks that you're sticking to the framework. This means you're free to focus your energy on what really matters: writing your application's business logic.
+When you adopt Encore, many of these stylistic decisions are already made for you. Encore's Infrastructure SDK ensures your application follows modern best practices. And when you run your application, Encore's Open Source parser and compiler check that you're sticking to the standard. This means you're free to focus your energy on what matters: writing your application's business logic.
 
-### Built ground up for Go, and only Go
+## Built ground up for Go
 
 Encore is deeply integrated with the [Go](https://golang.org/) programming language. This is not to say Encore is only for Go developers! Most backend developers will get incredible value from using Encore, and learning Go should not stop anyone from trying Encore.
 
 Really, why is picking a programming language seen as the most important decision in a new project? When you set out to build a new backend, there are often very few rational arguments for why one language is better than another. The only real difference is personal taste.
-
-## Meet the Encore Application Model
-
-Encore uses static analysis to understand your application. This is a fancy term for parsing and analyzing the code you write and creating a graph of how your application works. This graph closely represents your own mental model about your system: boxes and arrows, representing systems and services that communicate with other systems, pass data and connect to infrastructure. We call it the Encore Application Model.
-
-Because Encore's framework, parser, and compiler, are all designed together, Encore is able to ensure 100% accuracy when creating the application model. Any deviation from the framework is caught as a compilation error.
-
-Using the model Encore is able to provide tools to solve problems that normally would be up to the developer to do manually, from creating architecture diagrams and API documentation, to provisioning cloud infrastructure.
-
-We're continuously expanding on Encore's capabilities and are building a new generation of developer tools that are enabled by Encore's understanding of your application.
-
-The framework, parser, and compiler that enable this are all [Open Source](https://github.com/encoredev/encore).
-
-<img src="/assets/docs/flow-diagram.png" title="Encore Application Model" className="mx-auto md:max-w-lg"/>
-
-## Where to go from here
-
-You made it to the end of the page – we hope you are as excited as we are about making backend development fun again!
-
-Next, we recommend following the [Quick Start Guide](/docs/quick-start). It gives you a taste of the Encore workflow and takes only around 5-10 minutes to complete, depending on your familiarity with Go.
-
-After completing the guide, why not browse through the docs in your own areas of interest, or join [Slack](https://encore.dev/slack) to ask any questions you might have?
-
-Finally, we recommend you follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up to date.

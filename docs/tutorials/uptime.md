@@ -15,6 +15,9 @@ The final result looks like this:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/frontend.png" title="Frontend" />
 
+<div className="not-prose my-10">
+   <Editor projectName="uptime" />
+</div>
 
 ## 1. Create your Encore application
 

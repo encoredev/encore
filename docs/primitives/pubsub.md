@@ -1,46 +1,44 @@
 ---
 seotitle: Using PubSub in your backend application
 seodesc: Learn how you can use PubSub as an asynchronous message queue in your backend application, a great approach for decoupling services for better reliability.
-title: PubSub
+title: Pub/Sub
 subtitle: Decoupling services and building asynchronous systems
+infobox: {
+  title: "Pub/Sub Messaging",
+  import: "encore.dev/pubsub",
+  example_link: "/docs/tutorials/uptime"
+}
 ---
 
-Publishers & Subscribers (PubSub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness.
+Publishers & Subscribers (Pub/Sub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness.
 
-Encore's built-in PubSub API lets you use PubSub in a cloud-agnostic declarative fashion. At deployment, Encore will automatically [provision the required infrastructure](/docs/deploy/infra).
+Encore's Infrastructure SDK lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
 
 ## Creating a Topic
 
-The core of PubSub is the **Topic**, a named channel on which you publish events.
+The core of Pub/Sub is the **Topic**, a named channel on which you publish events.
 Topics must be declared as package level variables, and cannot be created inside functions.
 Regardless of where you create a topic, it can be published to from any service, and subscribed to from any service.
 
 When creating a topic, it must be given an event type, a unique name, and a configuration to define its behaviour. See the complete specification in the [package documentation](https://pkg.go.dev/encore.dev/pubsub#NewTopic).
 
-<Callout type="info">
-
-The topic configuration allows you to define the delivery guarantee of the topic.
-Currently only `pubsub.AtLeastOnce` is supported, yet it must be
-defined in the topic configuration to ensure forward compatibility.
-
-</Callout>
-
-Here's an example of how you create a topic:
+For example, to create a topic with events about user signups:
 
 ```go
 package user
 
 import "encore.dev/pubsub"
 
-type SignupEvent struct { UserID int }
-var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig {
+type SignupEvent struct{ UserID int }
+
+var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig{
     DeliveryGuarantee: pubsub.AtLeastOnce,
 })
 ```
 
 ### At-least-once delivery
 
-This topic behaviour configuration ensures that for each subscription to a topic, events will be delivered _at least once_.
+This topic behavior configuration ensures that for each subscription to a topic, events will be delivered _at least once_.
 
 This means that if the topic believes the event was not processed, it will attempt to deliver the message again.
 **Therefore, all subscription handlers should be [idempotent](https://en.wikipedia.org/wiki/Idempotence#Computer_science_meaning).** This helps ensure that if the handler is called two or more times, from the outside there's no difference compared to calling it once.
@@ -48,50 +46,58 @@ This means that if the topic believes the event was not processed, it will attem
 This can be achieved using a database to track if you have already performed the action that the event is meant to trigger,
 or ensuring that the action being performed is also idempotent in nature.
 
-## Publishing an Event (Pub)
+## Publishing events
 
-To publish an **Event**, we simply call `Publish` on the topic with the event.
+To publish an **Event**, call `Publish` on the topic passing in the event object (which is the type specified in the `pubsub.NewTopic[Type]` constructor).
 
-Here's an example of how you publish an event:
+For example:
 
 ```go
-package user
-
-import (
-    "encore.dev/storage/sqldb"
-    "encore.dev/pubsub"
-)
-
-//encore:api public
-func Register(ctx context.Context, params *RegistrationParams) error {
-    tx, err := sqldb.Begin(ctx) // start a database transaction
-    defer tx.Rollback() // rollback the transaction if we don't commit it
-
-    ... process registration ...
-
-    // publish the event
-    if _, err := Signups.Publish(ctx, &SignupEvent{UserID: id}); err != nil {
-        return err
-    }
-    // at this point we know the any subscribers will receive the event at some point
-    // in the future.
-
-    // then commit the transaction, this way if the publishing of the event fails
-    // the user isn't created, however if it succeeds then we can return OK now
-    // and let the other processes handle the event asynchronously without risking
-    // the user being created without the event being published.
-    if err := tx.Commit(); err != nil {
-        return err
-    }
-
-    return nil
+messageID, err := Signups.Publish(ctx, &SignupEvent{UserID: id})
+if err != nil {
+    return err
 }
+
+// If we get here the event has been successfully published,
+// and all registered subscribers will receive the event.
+
+// The messageID variable contains the unique id of the message,
+// which is also provided to the subscribers when processing the event.
 ```
 
-If you want to publish to the topic from another service, import the topic package variable (`Signups` in this example)
-and call publish on it from there.
+By defining the `Signups` topic variable as an exported variable
+you can also publish to the topic from other services in the same way.
 
-## Subscribing to Events (Sub)
+### Using topic references
+
+Encore uses static analysis to determine which services are publishing messages
+to what topics. That information is used to provision infrastructure correctly,
+render architecture diagrams, and configure IAM permissions.
+
+This means that `*pubsub.Topic` variables can't be passed around however you'd like,
+as it makes static analysis impossible in many cases. To work around these restrictions
+Encore allows you to get a reference to a topic that can be passed around any way you want.
+
+It looks like this (using the `Signups` topic above):
+
+```go
+signupRef := pubsub.TopicRef[pubsub.Publisher[*SignupEvent]](Signups)
+
+// signupRef is of type pubsub.Publisher[*SignupEvent], which allows publishing.
+```
+
+The difference between a **TopicRef** and a **Topic** is that topic references need to pre-declare
+what permissions are needed. Encore then assumes that all the permissions you declare are used.
+
+For example, if you declare a **TopicRef** with the `pubsub.Publisher` permission (as seen above)
+Encore assumes that the service will publish messages to the topic and provisions the infrastructure
+to support that.
+
+Note that a **TopicRef** must be declared _within a service_, but the reference itself
+can be freely passed around to library code, be dependency injected into [service structs](/docs/how-to/dependency-injection),
+and so on.
+
+## Subscribing to Events
 
 To **Subscribe** to events, you create a Subscription as a package level variable by calling the
 [`pubsub.NewSubscription`](https://pkg.go.dev/encore.dev/pubsub#NewSubscription) function.
@@ -114,12 +120,12 @@ import (
 
 var _ = pubsub.NewSubscription(
     user.Signups, "send-welcome-email",
-    pubsub.SubscriptionConfig[*SignupEvent] {
+    pubsub.SubscriptionConfig[*SignupEvent]{
         Handler: SendWelcomeEmail,
     },
 )
 func SendWelcomeEmail(ctx context.Context, event *SignupEvent) error {
-    ... send email ...
+    // send email...
     return nil
 }
 ```
@@ -146,9 +152,9 @@ If a subscription function returns an error, the event being processed will be r
 the event will be placed into a dead-letter queue (DLQ) for that subscriber. This allows the subscription to continue
 processing events until the bug which caused the event to fail can be fixed. Once fixed, the messages on the dead-letter queue can be manually released to be processed again by the subscriber.
 
-## Testing PubSub
+## Testing Pub/Sub
 
-Encore uses a special testing implementation of PubSub topics. When running tests, topics are aware of which test
+Encore uses a special testing implementation of Pub/Sub topics. When running tests, topics are aware of which test
 is running. This gives you the following guarantees:
 - Your subscriptions will not be triggered by events published. This allows you to test the behaviour of publishers independently of side effects caused by subscribers.
 - Message ID's generated on publish are deterministic (based on the order of publishing), thus your assertions can make use of that fact.
@@ -180,12 +186,12 @@ func Test_Register(t *testing.T) {
 }
 ```
 
-## The benefits of PubSub
+## The benefits of Pub/Sub
 
-PubSub is a powerful building block in a backend application. It can be used to improve app reliability by reducing the blast radius of faulty components and bottlenecks. It can also be used to increase the speed of response to the user, and even helps reduce cognitive overhead for developers by inverting the dependencies between services.
+Pub/Sub is a powerful building block in a backend application. It can be used to improve app reliability by reducing the blast radius of faulty components and bottlenecks. It can also be used to increase the speed of response to the user, and even helps reduce cognitive overhead for developers by inverting the dependencies between services.
 
-For those not familiar with PubSub, lets take a look at an example API in a user registration service.
-The behavior we want to implement is that upon registration, we send a welcome email to the user and create a record of the signup in our analytics system. Now let's see how we could implement this only using APIs, compared to how a PubSub implementation might look.
+For those not familiar with Pub/Sub, lets take a look at an example API in a user registration service.
+The behavior we want to implement is that upon registration, we send a welcome email to the user and create a record of the signup in our analytics system. Now let's see how we could implement this only using APIs, compared to how a Pub/Sub implementation might look.
 
 ### An API only approach
 
@@ -221,11 +227,11 @@ Another downside to this approach is if our data warehouse is currently broken a
 report errors whenever anybody tries to signup! Given analytics is purely internal and doesn't impact users, why should
 the analytics system being down impact user signup?
 
-### A PubSub approach
+### A Pub/Sub approach
 
 A more ideal solution would be if we could decouple the behaviour of emailing the user and recording our analytics, such that
 the user service only has to record the user in its own database and let the user know they are registered - without worrying
-about the downstream impacts. Thankfully, this is exactly what [PubSub topics](https://pkg.go.dev/encore.dev/pubsub#Topic) allow us to do.
+about the downstream impacts. Thankfully, this is exactly what [Pub/Sub topics](https://pkg.go.dev/encore.dev/pubsub#Topic) allow us to do.
 
 <div className="grid grid-cols-3 mobile:grid-cols-1 grid-flow-row">
 

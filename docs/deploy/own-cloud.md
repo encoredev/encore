@@ -24,15 +24,14 @@ within Encore, you need to manually remove the infrastructure that was created b
 
 Encore provides a GCP Service Account for each Encore application, letting you grant Encore access to provision all the necessary infrastructure directly in your own GCP Organization account.
 
-To find your app's Service Account email and configure GCP deployments, head over to the Cloud Deploy page by going to
-**[the Encore web platform](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Cloud Deploy**.
+To find your app's Service Account email and configure GCP deployments, head over to the Connect Cloud page by going to Encore's **[Cloud Dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 ![Connect GCP account](/assets/docs/connectgcp.png "Connect GCP account")
 
 
 ## Amazon Web Services (AWS)
-To configure your Encore app to deploy to your AWS account, head over to the Cloud Deploy page by going to
-**[the Encore web platform](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Cloud Deploy**.
+To configure your Encore app to deploy to your AWS account, head over to the Connect Cloud page by going to Encore's
+**[Cloud Dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 Follow the instructions to create an IAM Role, and then connect the role with Encore.
 [Learn more in the AWS docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html).
@@ -51,8 +50,8 @@ After connecting your app to AWS, you will be asked to choose which region you w
 
 ## Microsoft Azure
 
-To configure for Azure deployments, head over to the Cloud Deploy page by going to
-**[the Encore web platform](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Cloud Deploy**.
+To configure for Azure deployments, head over to the Connect Cloud page by going to Encore's
+**[Cloud Dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 Start by filling in your Azure Tenant ID, then click on **Connect app to Azure**.
 This will redirect you to Microsoft's Azure portal requesting that you grant permission for

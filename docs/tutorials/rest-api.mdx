@@ -11,9 +11,11 @@ In this tutorial you will create a REST API for a URL Shortener service. In a fe
 * Use PostgreSQL databases
 * Create and run tests
 
-_Let’s get going!_
+This is the end result:
+<div className="not-prose mb-10">
+   <Editor projectName="urlShortener" />
+</div>
 
-  
 <Callout type="info">
 
 To make it easier to follow along, we've laid out a trail of croissants to guide your way.
@@ -23,7 +25,7 @@ Whenever you see a 🥐 it means there's something for you to do.
 
 ## 1. Create a service and endpoint
 
-If you haven't already, create a new application by running `encore app create` and select `Empty app` as the template. 
+If you haven't already, create a new application by running `encore app create` and select `Empty app` as the template.
 
 Now let's create a new `url` service.
 
@@ -175,7 +177,7 @@ psql (13.1, server 11.12)
 Type "help" for help.
 
 url=# select * from url;
-    id    |    original_url     
+    id    |    original_url
 ----------+--------------------
  zr6RmZc4 | https://encore.dev
 (1 row)
@@ -281,7 +283,7 @@ $ git push encore
 ```
 This will trigger a deployment and Encore will build and test your app, provision the necessary infrastructure (including databases), and deploy your app to the cloud.
 
-🥐 Head to the [web platform](https://app.encore.dev) to follow the progress of your deployment.
+🥐 Head to the [Cloud Dashboard](https://app.encore.dev) to follow the progress of your deployment.
 
 *Now you have a fully fledged backend running in the cloud, well done!*
 

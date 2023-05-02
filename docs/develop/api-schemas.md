@@ -76,7 +76,7 @@ func GetBlogPost(ctx context.Context, id int, path string) (*BlogPost, error) {
 }
 ```
 
-### Fallback paths
+### Fallback routes
 
 Encore supports defining fallback routes that will be called if no other endpoint matches the request,
 using the syntax `path=/!fallback`.
@@ -190,7 +190,7 @@ Note that inputs to [auth handlers](/docs/develop/auth) are automatically marked
 
 <Callout type="info">
 
-The `encore:"sensitive"` tag is ignored for local development environments to make development and debugging with the Development Dashboard easier.
+The `encore:"sensitive"` tag is ignored for local development environments to make development and debugging with the Local Development Dashboard easier.
 
 </Callout>
 

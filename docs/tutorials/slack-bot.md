@@ -9,6 +9,11 @@ In this tutorial you will create a Slack bot that brings the greatness of the `c
 
 ![Slack Cowsay](https://encore.dev/assets/docs/cowsay.png "Slack bot")
 
+This is the end result:
+<div className="not-prose mb-10">
+   <Editor projectName="slackBot" />
+</div>
+
 <Callout type="info">
 
 To make it easier to follow along, we've laid out a trail of croissants to guide your way.

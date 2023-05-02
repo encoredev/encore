@@ -1,6 +1,6 @@
 ---
 seotitle: Encore compared to Supabase / Firebase
-seodesc: See how Encore's backend development platform lets you unlock the simplicity of tools like Supabase and Firebase, while maintaining the control and flexibility of building a real backend application.
+seodesc: See how Encore's Backend Development Platform lets you unlock the simplicity of tools like Supabase and Firebase, while maintaining the control and flexibility of building a real backend application.
 title: Encore compared to Supabase / Firebase
 subtitle: Get the simplicity you want, while maintaining control
 ---
@@ -9,7 +9,7 @@ Supabase and Firebase are two popular _Backend as a Service_ providers, that giv
 
 Encore is not a _Backend as a Service_, it's a platform _for_ backend development. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). But since Encore gives you the tools to build and control your own backend application and infrastructure, you don't risk running out of road and having to start over from scratch.
 
-With Encore you build your application using the appropriate infrastructure for your use case. You use the Encore framework's [cloud-agnostic APIs](/docs/primitives/overview) to declare your infrastructure needs as part of your application code, and the Encore Platform [automatically provisions the necessary infrastructure](/docs/deploy/infra). This works the same way in all types of environments (local, preview, cloud) and across all major cloud providers (GCP, AWS, Azure), which means your application is cloud-agnostic by default.
+With Encore you build your application using the appropriate infrastructure for your use case. You use Encore's [Infrastructure SDK](/docs/primitives/overview) to declare your infrastructure needs as part of your application code, and Encore [automatically provisions the necessary infrastructure](/docs/deploy/infra). This works the same way in all types of environments (local, preview, cloud) and across all major cloud providers (GCP, AWS, Azure), which means your application is cloud-agnostic by default.
 
 You can also use any type of cloud infrastructure, as you normally would, even if it's not a built-in [building block](/docs/primitives/overview). The only drawback is that your developer experience will be more conventional, and you will need to manually provision the "unsupported" infrastructure.
 
