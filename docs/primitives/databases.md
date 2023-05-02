@@ -11,9 +11,42 @@ infobox: {
 ---
 
 Encore treats SQL databases as logical resources and natively supports **PostreSQL** databases.
-To start using a database you only need to [define the schema](#defining-a-database-schema) by creating a migration file. Encore takes care of [provisioning the database](/docs/primitives/databases#provisioning-databases), running new schema migrations during deploys, and connecting to it.
 
-## Defining a database schema
+## Creating a database
+
+To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
+Databases must be created from within an [Encore service](/docs/primitives/services-and-apis).
+
+For example:
+
+```
+-- todo/db.go --
+package todo
+
+// Create the todo database and assign it to the "tododb" variable
+var tododb = sqldb.NewDatabase("todo", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
+
+// Then, query the database using db.QueryRow, db.Exec, etc.
+-- todo/migrations/1_create_table.up.sql --
+CREATE TABLE todo_item (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  done BOOLEAN NOT NULL DEFAULT false
+  -- etc...
+);
+```
+
+As seen above, the `sqldb.DatabaseConfig` specifies the directory containing the database migration files,
+which is how you define the database schema.
+See the [Defining the database schema](#defining-the-database-schema) section below for more details.
+
+With this code in place Encore will automatically create the database when starting `encore run` (locally)
+or on the next deployment (in the cloud). Encore automatically injects the appropriate configuration to authenticate
+and connect to the database, so once the application starts up the database is ready to be used.
+
+## Defining the database schema
 
 Database schemas are defined by creating *migration files* in a directory named `migrations`
 within an Encore service package. Each migration file is named `<number>_<name>.up.sql`, where
@@ -52,10 +85,18 @@ CREATE TABLE todo_item (
 );
 ```
 
+### Reusing a database across services
+
+To connect to a database from another service, use `sqldb.Named`:
+
+```go
+var tododb = sqldb.Named("todo")
+```
+
 ## Provisioning databases
 
 Encore automatically provisions databases to match what your application requires.
-When you [define a database schema](#defining-a-database-schema), Encore will provision the database at your next deployment.
+When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
 
 Encore provisions databases in an appropriate way depending on the environment.
 When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
@@ -70,22 +111,41 @@ See exactly what is provisioned for each cloud provider, and each environment ty
 
 ## Inserting data into databases
 
-Once you have defined a database schema, you can start inserting data into the database.
-Import `encore.dev/storage/sqldb` in your service package (or any sub-packages within the service).
-The interface is similar to that of the Go standard library's
-`database/sql` package, learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
+Once you have created the database using `var mydb = sqldb.NewDatabase(...)` you can start inserting data into the database
+by calling methods on the `mydb` variable.
 
-One way of inserting data is with a helper function that uses the package function `sqldb.Exec`. For example, to insert a single todo item using the example schema above, we can use the following helper function `insert`:
+The interface is similar to that of the Go standard library's `database/sql` package.
+Learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
 
-```go
+One way of inserting data is with a helper function that uses the package function `sqldb.Exec`.
+For example, to insert a single todo item using the example schema above, we can use the following helper function `insert`:
+
+```
+-- todo/insert.go --
 // insert inserts a todo item into the database.
 func insert(ctx context.Context, id, title string, done bool) error {
-	_, err := sqldb.Exec(ctx, `
+	_, err := tododb.Exec(ctx, `
 		INSERT INTO todo_item (id, title, done)
 		VALUES ($1, $2, $3)
 	`, id, title, done)
 	return err
 }
+-- todo/db.go --
+package todo
+
+// Create the todo database and assign it to the "tododb" variable
+var tododb = sqldb.NewDatabase("todo", sqldb.DatabaseConfig{
+  Migrations: "./migrations",
+})
+
+// Then, query the database using db.QueryRow, db.Exec, etc.
+-- todo/migrations/1_create_table.up.sql --
+CREATE TABLE todo_item (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  done BOOLEAN NOT NULL DEFAULT false
+  -- etc...
+);
 ```
 
 ## Querying databases
@@ -100,14 +160,14 @@ var item struct {
     Title string
     Done bool
 }
-err := sqldb.QueryRow(ctx, `
+err := tododb.QueryRow(ctx, `
     SELECT id, title, done
     FROM todo_item
     LIMIT 1
 `).Scan(&item.ID, &item.Title, &item.Done)
 ```
 
-If `sqldb.QueryRow` does not find a matching row, it reports an error that can be checked against
+If `QueryRow` does not find a matching row, it reports an error that can be checked against
 by importing the standard library `errors` package and calling `errors.Is(err, sqldb.ErrNoRows)`.
 
 Learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
@@ -139,11 +199,10 @@ This can happen for many reasons:
 - The existing database schema didn't look like you thought it did, so the database object you tried to change doesn't actually exist
 - ... and so on
 
-If that happens, Encore records that it tried to apply the migration but failed.
-In that case, it's possible that one part of the migration was successfully applied but another part was not.
+If that happens, Encore rolls back the migration. If it happens during a cloud deployment, the deployment is aborted.
+Once you fix the problem, re-run `encore run` (locally) or push the updated code (in the cloud) to try again.
 
-In order to ensure safety, Encore marks the migration as "dirty" and expects you to manually resolve the problem.
-This information is tracked in the `schema_migrations` table:
+Encore tracks which migrations have been applied in the `schema_migrations` table:
 
 ```sql
 database=# \d schema_migrations
@@ -156,27 +215,13 @@ Indexes:
     "schema_migrations_pkey" PRIMARY KEY, btree (version)
 ```
 
-To resolve the problem, you have two options: either revert back to the database schema from the previous migration (roll back), or fix the schema to match the new migration (roll forward).
-
-#### Roll back
-
-To roll back to the previous migration:
-
-1. Use `encore db shell <service-name>` to log in to the database
-2. Apply the necessary changes to the schema to revert it back to the previous migration version
-3. Execute the query `UPDATE schema_migrations SET dirty = false, version = version - 1;`
-
-#### Roll forward
-
-To roll forward to the new migration:
-
-1. Use `encore db shell <service-name>` to log in to the database
-2. Apply the necessary changes to the schema to fix the migration failure and bring the schema up to date with the new migration
-3. Execute the query `UPDATE schema_migrations SET dirty = false;`
+The `version` column tracks which migration was last applied. If you wish to skip a migration or re-run a migration,
+change the value in this column. For example, to re-run the last migration, run `UPDATE schema_migrations SET version = version - 1;`.
+*Note that Encore does not use the `dirty` flag by default.*
 
 ## Troubleshooting
 
-#### Application won't run
+### Application won't run
 
 When you run your application locally with `encore run`, Encore will parse and compile your application, and provision the necessary infrastructure including databases. If this fails with a database error, there are a few common causes.
 
