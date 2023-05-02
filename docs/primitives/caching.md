@@ -3,6 +3,10 @@ seotitle: Using caches in your microservices backend application
 seodesc: Learn how to implement caches to optimize response times and reduce cost in your microservices cloud backend.
 title: Caching
 subtitle: Optimize response times and reduce costs by avoiding re-work
+infobox: {
+  title: "Caching",
+  import: "encore.dev/storage/cache",
+}
 ---
 
 A cache is a high-speed storage layer, commonly used in distributed systems to improve user experiences

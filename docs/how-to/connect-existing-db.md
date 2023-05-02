@@ -10,7 +10,7 @@ Encore automatically provision the necessary infrastructure when you create a se
 
 Let's say you have an external database hosted by DigitalOcean that you would like to connect to.
 The simplest approach is to create a dedicated package that lazily instantiates a database connection pool.
-We can store the password using Encore's [secrets support](/docs/develop/secrets) to make it even easier.
+We can store the password using Encore's [secrets manager](/docs/develop/secrets) to make it even easier.
 
 The connection string is something that looks like:
 

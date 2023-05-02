@@ -10,7 +10,6 @@ import "strings"
 	path: string | *strings.Replace("/\(section)/\(segment)", "/index", "", -1)
 	old_paths: [...string] | *null
 	shortcuts: [...string] | *null // URL's which can be used on the root of the website or on docs if it would have been a 404 (i.e. https://encore.dev/topics => https://encore.dev/docs/develop/pubsub)
-	hide_in_menu?: bool
 }
 
 #Section: {
@@ -52,7 +51,7 @@ sections: [
 		title: "Tutorials"
 		segment: "tutorials"
 		docs: [
-			{title: "Tutorials", segment: "index", hide_in_menu: true},
+			{title: "Overview", segment: "index"},
 			{title: "Building an Uptime Monitor", segment: "uptime"},
 			{title: "Building a REST API", segment: "rest-api"},
 			{title: "Building a Slack bot", segment: "slack-bot"},
@@ -118,6 +117,7 @@ sections: [
 		title: "How-to Guides"
 		segment: "how-to"
 		docs: [
+			{title: "Build with cgo", segment: "cgo"},
 			{title: "Debug with Delve", segment: "debug"},
 			{title: "Change SQL database schema", segment: "change-db-schema"},
 			{title: "Connect to an existing database", segment: "connect-existing-db"},
@@ -132,7 +132,6 @@ sections: [
 			{title: "Integrate with GitHub", segment: "github"},
 			{title: "Migrate an existing backend to Encore", segment: "migrate-to-encore"},
 			{title: "Migrate away from Encore", segment: "migrate-away"},
-			{title: "Build with cgo", segment: "cgo"},
 		]
 	},
 	{

@@ -2,8 +2,7 @@
 title: Add a SQL database
 ---
 
-In the previous step you deployed your app to production using the Encore Platform.
-Now you'll learn how to add a SQL database to store some data.
+In the previous step you deployed your app to production. Now you'll learn how to add a SQL database to store some data.
 
 <Callout type="important">
 

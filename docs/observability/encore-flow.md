@@ -35,7 +35,7 @@ the `authentication` service:
 
 ## Real-time updates
 
-Flow is accessible in the [Local Development Dashboard](/docs/observability/dev-dash) and the [web platform](https://app.encore.dev) for cloud environments.
+Flow is accessible in the [Local Development Dashboard](/docs/observability/dev-dash) and the [Cloud Dashboard](https://app.encore.dev) for cloud environments.
 
 When developing locally, Flow will auto update in real-time to reflect your architecture as you
 make code changes. This helps you be mindful of important dependencies and makes it clear if you introduce new ones.

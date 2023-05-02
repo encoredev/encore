@@ -5,21 +5,23 @@ title: Infrastructure provisioning
 subtitle: How Encore provisions infrastructure for your application
 ---
 
-Encore automatically provisions all necessary infrastructure, in all environments and across all major cloud providers, without requiring any application code changes. All you need to do is [connect your cloud account](./own-cloud) and create an environment.
+Encore automatically provisions all necessary infrastructure, in all environments and across all major cloud providers, without requiring application code changes. You simply [connect your cloud account](./own-cloud) and create an environment.
 
-<img src="/assets/docs/infraoverview.png" title="Infrastructure Overview" className="noshadow"/>
+<img src="/assets/docs/encore_overview.png" title="Infrastructure Overview" className="noshadow"/>
 
-This is powered by the Encore framework. It lets you write regular Go code, and use infrastructure primitives (databases, caches, queues, and scheduled jobs) directly in application code through cloud-agnostic APIs.
+This is powered by Encore's [Infrastructure SDK](/docs/primitives/overview), which lets you write regular Go code and declare infrastructure resources (databases, caches, queues, and scheduled jobs) in application code.
 
-This completely removes the need for infrastructure configuration files, and avoids creating cloud-specific dependencies in your application.
+At compile time, Encore creates an [Application Model](/docs/introduction#meet-the-encore-application-model) with a definition of the infrastructure your application requires. Encore then uses this model to provision the infrastructure in both your cloud account, and development and preview environments in Encore Cloud.
 
-At compile time, Encore creates an [Application Model](/docs/introduction#meet-the-encore-application-model) containing a precise definition of the infrastructure your application requires. The Encore Platform uses this model to provision necessary infrastructure in your own cloud account, and development and preview environments in Encore Cloud. 
+The approach removes the need for infrastructure configuration files and avoids creating cloud-specific dependencies in your application.
 
-This end-to-end integration between application code and infrastructure enables Encore to always keep your environments in sync.
+Having an end-to-end integration between application code and infrastructure also enables Encore to keep environments in sync and track cloud infrastructure, giving you an up-to-date view of your infrastructure to avoid unnecessary cloud costs.
+
+<img src="/assets/docs/infratracking.png" title="Infrastructure Tracking"/>
 
 ## Environment types
 
-Encore provisions every type of environment, and ensures they stay in sync.
+By default, Encore provisions infrastructure using contextually appropriate objectives for each environment type. You retain control and configurability of infrastructure in your cloud account, and can access settings via your cloud provider as if you set up the infrastructure manually.
 
 |  | Local | Encore Cloud | GCP / AWS / Azure |
 | - | - | - | - | - | - |
@@ -78,11 +80,11 @@ Encore provisions production infrastructure resources using best-practice guidel
 
 |  | GCP | AWS | Azure |
 | - | - | - | - |
-| **Networking:** | [VPC][gcp-vpc] | [VPC][aws-vpc] | [VPC][azure-vpc] |
-| **Compute:** | [Cloud Run][gcp-cloudrun] | [Fargate ECS][aws-fargate] | [App Service][azure-app-service] & [App Service Plan][azure-app-service-plan] |
-| **SQL Databases:** | [GCP Cloud SQL][gcp-cloudsql] | [Amazon RDS][aws-rds] | [Azure Database][azure-sqldb] |
-| **Pub/Sub:** | [GCP Pub/Sub][gcp-pubsub] | [Amazon SQS][aws-sqs] & [Amazon SNS][aws-sns] | [Azure Service Bus][azure-service-bus] |
-| **Caches:** | [GCP Memorystore (Redis)][gcp-redis] | [Amazon ElastiCache (Redis)][aws-redis] | [Azure Cache (Redis)][azure-redis] |
+| **Networking:** | [VPC](#google-cloud-platform-gcp) | [VPC](#amazon-web-services-aws) | [VPC](#microsoft-azure) |
+| **Compute:** | [Cloud Run](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws) | [App Service](#microsoft-azure) & [App Service Plan](#microsoft-azure) |
+| **SQL Databases:** | [GCP Cloud SQL](#sql-databases) | [Amazon RDS](#sql-databases-1) | [Azure Database](#sql-databases-2) |
+| **Pub/Sub:** | [GCP Pub/Sub](#pubsub) | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1) | [Azure Service Bus](pubsub-2) |
+| **Caches:** | [GCP Memorystore (Redis)](#caching) | [Amazon ElastiCache (Redis)](#caching-1) | [Azure Cache (Redis)](#caching-2) |
 | **Cron Jobs:** | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] |
 | **Secrets:** | [Secret Manager][gcp-secrets] | [AWS Secrets Manager][aws-secrets] | [App Service App][azure-app-service-secrets] |
 
@@ -131,7 +133,7 @@ Additionally, Encore sets up:
 * A 10% memory buffer to better memory fragmentation, and active defragmentation
 
 #### Cron Jobs
-When using [Cron Jobs][encore-cron], Encore's Cloud Platform triggers the execution
+When using [Cron Jobs][encore-cron], Encore Cloud triggers the execution
 of cron jobs by calling the corresponding API using a signed request so the application can verify
 the source of the request as coming from Encore's cron functionality. No infrastructure is
 provisioned for this to work.
@@ -181,7 +183,7 @@ Additionally, Encore sets up:
 * A 10% memory buffer to better memory fragmentation, and active defragmentation
 
 #### Cron Jobs
-When using [Cron Jobs][encore-cron], Encore's Cloud Platform triggers the execution
+When using [Cron Jobs][encore-cron], Encore Cloud triggers the execution
 of cron jobs by calling the corresponding API using a signed request so the application can verify
 the source of the request as coming from Encore's cron functionality. No infrastructure is
 provisioned for this to work.
@@ -231,7 +233,7 @@ Additionally, Encore sets up:
 * An [Azure Private Link][azure-private-link] connection for secure connectivity from the VPC
 
 #### Cron Jobs
-When using [Cron Jobs][encore-cron], Encore's Cloud Platform triggers the execution
+When using [Cron Jobs][encore-cron], Encore Cloud triggers the execution
 of cron jobs by calling the corresponding API using a signed request so the application can verify
 the source of the request as coming from Encore's cron functionality. No infrastructure is
 provisioned for this to work.

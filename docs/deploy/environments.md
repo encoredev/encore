@@ -12,7 +12,7 @@ Environments always stay in sync, as they are created based on the needs of your
 
 ## Creating environments
 
-To create an environment for your app, open your app in the [Encore web platform](https://app.encore.dev) and go to the **Environments** page,
+To create an environment for your app, open your app in the [Cloud Dashboard](https://app.encore.dev) and go to the **Environments** page,
 then click on `Create env` in the top right.
 
 There you can pick a name, and decide if you want a production
@@ -54,7 +54,7 @@ When you [connect your application to GitHub](/docs/how-to/github), Encore will 
 
 Preview Environments are named after the pull request, for example PR #72 creates a preview environment named `pr:72` with the API base url `https://pr72-$APP_ID.encr.app`.
 
-You can also view the environment in the web platform, where the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
+You can also view the environment in the Cloud Dashboard, where the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
 
 See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious about exactly how Preview Environments are provisioned.
 

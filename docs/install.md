@@ -9,7 +9,7 @@ If you are new to Encore, we recommend following the [quick start guide](/docs/q
 
 ## Install the Encore CLI
 To develop locally with Encore, you first need to install the Encore CLI.
-This is what provisions your local development environment, and runs your local development dashboard complete with logs, tracing, and API documentation.
+This is what provisions your local development environment, and runs your Local Development Dashboard complete with logs, tracing, and API documentation.
 
 
 <InstallInstructions />

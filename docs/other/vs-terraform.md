@@ -27,5 +27,5 @@ What's worse is, infrastructure as code does very little to help you cope with e
 
 Encore's _infrastructure from code_ approach means there are no configuration files to maintain, nor any refactoring to do when changing the underlying infrastructure. Your application code is the source of truth for the logical infrastructure requirements!
 
-In practise, you use the Encore framework's [cloud-agnostic APIs](/docs/primitives/overview) to declare your infrastructure needs as part of your application code, and the Encore Platform [automatically provisions the necessary infrastructure](/docs/deploy/infra) in all types of environments and across all major cloud providers.
+In practise, you use Encore's [Infrastructure SDK](/docs/primitives/overview) to declare your infrastructure needs as part of your application code, and Encore [automatically provisions the necessary infrastructure](/docs/deploy/infra) in all types of environments and across all major cloud providers.
 (This means your application is cloud-agnostic by default.)

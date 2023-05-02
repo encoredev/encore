@@ -3,6 +3,10 @@ seotitle: Configuration for environment specific changes
 seodesc: See how you can use configuration to define different behavior in each environment. Making it simpler to develop and test your backend application.
 title: Configuration
 subtitle: Define behavior in specific environments
+infobox: {
+  title: "Configuration",
+  import: "encore.dev/config",
+}
 ---
 
 Configuration files let you define default behavior for your application, and override it for specific environments. This allows you to make changes without affecting deployments in other environments.

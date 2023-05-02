@@ -7,8 +7,7 @@ subtitle: Keeping your application secure by default
 
 Encore's security practices are informed by our team's decades-long experience working with payments, and other sensitive systems, at Spotify, Google, and Monzo.
 
-This expertise has also been used when designing the Encore framework, ensuring that building secure applications
-is more convenient than building insecure ones.
+This expertise has also been used when designing the Encore infrastructure SDK, ensuring that building secure applications is more convenient than building insecure ones.
 
 For example, Encore's [secrets management](/docs/primitives/secrets) gives you
 an incredibly simple way of using secret keys, while at the same time providing

@@ -7,7 +7,7 @@ seodesc: Learn how to migrate your Go backend application to Encore, and unlock 
 
 Encore features like [automatic infrastructure provisioning](/docs/deploy/infra), [distributed tracing](/docs/observability/tracing), [architecture diagrams](/docs/observability/encore-flow), and [API documentation](/docs/develop/api-docs), rely on the [Encore application model](/docs/introduction#meet-the-encore-application-model).
 
-Building your backend using Encore's [API annotations](/docs/primitives/services-and-apis) and [infrastructure declarations](/docs/primitives/overview) is what enables Encore to create the application model. This doesn't mean a complete rewrite is necessary to adopt Encore, and in this guide we look at strategies for both incremental adoption and fully migrating your existing backend to Encore.
+Building your backend using Encore's [API framework](/docs/primitives/services-and-apis) and declarative [Infrastructure SDK](/docs/primitives/overview) is what enables Encore to create the application model. This doesn't mean a complete rewrite is necessary to adopt Encore, and in this guide we look at strategies for both incremental adoption and fully migrating your existing backend to Encore.
 
 ## Get help with adopting Encore
 
@@ -119,6 +119,6 @@ By iteratively making adjustments, you should relatively quickly be able to get 
 
 If you need help or have questions, join us on [Slack](https://encore.dev/slack) or post your questions on the [Community Forums](https://community.encore.dev).
 
-### Incrementally implement the Encore framework
+### Incrementally start using the Encore infrastructure SDK
 
-Once your application is deployed, gradually break out specific endpoints using Encore's [API annotations](/docs/primitives/services-and-apis) and introduce infrastructure declarations using Encore's [cloud-agnostic APIs](/docs/primitives/overview). This will let Encore understand your application and unlock all Encore features.
+Once your application is deployed, gradually break out specific endpoints using Encore's [API framework](/docs/primitives/services-and-apis) and introduce infrastructure declarations using Encore's [Infrastructure SDK](/docs/primitives/overview). This will let Encore understand your application and unlock all Encore features.

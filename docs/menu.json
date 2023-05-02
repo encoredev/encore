@@ -57,6 +57,11 @@
         "Path": "/tutorials/slack-bot",
         "Title": "Building a Slack bot",
         "DocSlug": "tutorials/slack-bot"
+      },
+      {
+        "Path": "/tutorials/incident-management-tool",
+        "Title": "",
+        "DocSlug": "tutorials/incident-management-tool"
       }
     ]
   },
@@ -97,6 +102,13 @@
         "DocSlug": "primitives/pubsub",
         "OldPaths": [
           "/develop/pubsub"
+        ],
+        "Children": [
+          {
+            "Path": "/primitives/pubsub/outbox",
+            "Title": "Transactional outbox",
+            "DocSlug": "primitives/pubsub-outbox"
+          }
         ]
       },
       {
