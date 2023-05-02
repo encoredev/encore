@@ -1,6 +1,6 @@
 ---
-seotitle: Code snippets for using Encore's cloud primitives in your backend application
-seodesc: Learn how to build cloud-agnostic backend applications using Encore's built-in cloud primitives.
+seotitle: Code snippets for using the Infrastructure SDK's building blocks in your backend application
+seodesc: Learn how to build cloud-agnostic backend applications using Encore's Infrastructure SDK.
 title: Code snippets
 subtitle: Shortcuts for building with Encore
 ---

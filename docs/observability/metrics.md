@@ -2,32 +2,28 @@
 seotitle: Monitoring your backend application with custom metrics
 seodesc: See how you can monitor your backend application using Encore.
 title: Metrics
+subtitle: Built-in support for keeping track of key metrics
+infobox: {
+  title: "Metrics",
+  import: "encore.dev/metrics",
+}
 ---
 
-<Callout type="info">
+Having easy access to key metrics is a critical part of application observability.
+Encore solves this by providing automatic dashboards of common application-level
+metrics for each service.
 
-Metrics are currently available for environments on Encore Cloud and Google Cloud Platform
-created on or after January 11. Support for older environments and additional cloud providers
-are launching in the next few weeks.
+Encore also makes it easy to define custom metrics for your application. Once defined, custom metrics are automatically displayed on metrics page in the Cloud Dashboard.
 
-</Callout>
+By default, Encore also exports metrics data to your cloud provider's built-in monitoring service.
 
-Having easy access to useful metrics is a critical part of application observability.
-
-Encore solves this by providing automatic dashboards of all the common application-level
-metrics you need, for each backend service.
-
-Encore also makes it easy to define custom metrics for your application.
-Once defined they automatically show up in the Encore metrics dashboard.
-
-By default, Encore exports metrics data to your cloud provider's built-in monitoring service.
+<img src="/assets/docs/metrics.png" title="Encore's metrics page"/>
 
 ## Defining custom metrics
 
-Encore applications can define custom metrics by importing
-the [`encore.dev/metrics`](https://pkg.go.dev/encore.dev/metrics) package.
+Define custom metrics by importing the [`encore.dev/metrics`](https://pkg.go.dev/encore.dev/metrics) package and
+create a new metric using one of the `metrics.NewCounter` or `metrics.NewGauge` functions.
 
-Then, define a new metric using one of the `metrics.NewCounter` or `metrics.NewGauge` functions.
 For example, to count the number of orders processed:
 
 ```go
@@ -57,9 +53,8 @@ for [Counter](https://pkg.go.dev/encore.dev/metrics#Counter) and [Gauge](https:/
 
 ### Defining labels
 
-Encore's metrics package also provides a type-safe way of attaching labels to metrics.
-
-To do so, create a new struct type representing the labels and then use `metrics.NewCounterGroup`
+Encore's metrics package provides a type-safe way of attaching labels to metrics.
+To define labels, create a struct type representing the labels and then use `metrics.NewCounterGroup`
 or `metrics.NewGaugeGroup`:
 
 ```go
@@ -76,15 +71,35 @@ func process(order *Order) {
 }
 ```
 
-It's important to be aware that each combination of label values creates a unique time series
-that is tracked in memory by Encore and stored by the monitoring system. This means you must
-take care to only use a limited set of values to avoid a combinatorial explosion of time series,
-which can result in both exorbitant costs and poor performance.
+<Callout type="important">
 
-As a guiding principle, for optimal performance keep the number of unique time series to tens or hundreds at most, not
-thousands.
+Each combination of label values creates a unique time series tracked in memory and stored by the monitoring system.
+Using numerous labels can lead to a combinatorial explosion, causing high cloud expenses and degraded performance.
 
-## Integrations with monitoring services
+As a general rule, limit the unique time series to tens or hundreds at most, rather than thousands.
 
-We're working on adding integrations to external services like Grafana Cloud and Datadog. Soon you'll be able to have
-metrics sent to these services instead of your cloud provider's monitoring service.
+</Callout>
+
+## Integrations with third party observability services
+
+To make it easy to use a third party service for monitoring, we're adding direct integrations between Encore and popular observability services. This means you can send your metrics directly to these third party services instead of your cloud provider's monitoring service.
+
+### Grafana Cloud
+
+To send metrics data to Grafana Cloud, you first need to Add a Grafana Cloud Stack to your application.
+
+Open your application on [app.encore.dev](https://app.encore.dev), and click on **Settings** in the main navigation.
+Then select **Grafana Cloud** in the settings menu and click on **Add Stack**.
+
+<img width="60%" src="/assets/docs/grafanastack.png" title="Add a Grafana Stack"/>
+
+Next, open the environment **Overview** for the environment you wish to sent metrics from and click on **Settings**.
+Then in the **Grafana Cloud** section, select your Grafana Cloud Stack from the drop-down and save.
+
+<img width="60%" src="/assets/docs/configstack.png" title="Select Grafana Stack"/>
+
+That's it! After your next deploy, Encore will start sending metrics data to your Grafana Cloud Stack.
+
+### Datadog
+
+Coming soon! Reach out on [Slack](https://encore.dev/slack) if you are interested in learning more.

@@ -2,29 +2,58 @@
 seotitle: Learn how to build Go based backends with these tutorials
 seodesc: Start building Go based backend applications using Encore. Create REST APIs, Slack bots, and more in just a few minutes.
 title: Tutorials
+subtitle: Start building your Go based backend application using Encore
 ---
 
-You can build pretty much any backend application with Encore.
+Check out these tutorials to learn how to build with Encore and find inspiration for what to create.
 
-Check out these tutorials to learn how to build with Encore, get inspiration,
-and free yourself from cloud complexity.
-
-
-<div class="flex flex-col gap-6">
-    <div>
-        <a href="/docs/tutorials/rest-api" class="lead-xsmall">Building a REST API</a><br />
-        <div>Create a REST API for a simple URL Shortener service.</div>
-    </div>
-    <div>
-        <a href="/docs/tutorials/slack-bot" class="lead-xsmall">Building a Slack bot</a><br />
-        <div>Create a Slack bot that brings the greatness of the cowsay utility to Slack!</div>
-    </div>
-    <div>
-        <a href="/docs/tutorials/uptime" class="lead-xsmall">Building an Uptime Monitoring System</a><br />
-        <div>Monitor websites and get alerted when they go down.</div>
-    </div>
-    <div>
-        <a href="/docs/tutorials/incident-management-tool" class="lead-xsmall">Building an Incident Management Tool</a><br />
-        <div>Create an incident management tool to assign and manage incidents.</div>
-    </div>
+<div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
+    <a className="block group relative no-brandient" href="/docs/tutorials/rest-api">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/rest-api/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">URL Shortener</h3>
+                <p className="mt-2">Create a REST API for a simple URL Shortener service.</p>
+            </div>
+        </div>
+    </a>
+    <a className="block group relative no-brandient" href="/docs/tutorials/slack-bot">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/slack-bot/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">Slack Bot</h3>
+                <p className="mt-2">Create a Slack bot that brings the greatness of the cowsay utility to Slack!</p>
+            </div>
+        </div>
+    </a> 
+    <a className="block group relative no-brandient" href="/docs/tutorials/uptime">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/uptime/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">Uptime Monitor</h3>
+                <p className="mt-2">Build a tool to monitor websites and get alerted when they go down.</p>
+            </div>
+        </div>
+    </a>
+    <a className="block group relative no-brandient" href="/docs/tutorials/incident-management-tool">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/incident/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">Incident Management Tool</h3>
+                <p className="mt-2">Create an incident management tool to assign and manage incidents.</p>
+            </div>
+        </div>
+    </a>
 </div>

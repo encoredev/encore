@@ -3,6 +3,10 @@ seotitle: Use structured logging to understand your application
 seodesc: Learn how to use structured logging, a combination of free-form log messages and type-safe key-value pairs, to understand your backend application's behavior.
 title: Logging
 subtitle: Structured logging helps you understand your application
+infobox: {
+  title: "Structured Logging",
+  import: "encore.dev/rlog",
+}
 ---
 
 Encore offers built-in support for Structured Logging, which combines a free-form log message with structured and type-safe key-value pairs. This enables straightforward analysis of what your application is doing, in a way that is easy for a computer to parse, analyze, and index. This makes it simple to quickly filter and search through logs.

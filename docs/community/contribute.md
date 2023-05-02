@@ -1,15 +1,15 @@
 ---
 seotitle: How to contribute to Encore Open Source Project
-seodesc: Learn how to contribute to Encore's Open Source project by submitting pull requests, reporting bugs, or contributing documentation or example projects.
+seodesc: Learn how to contribute to the Encore Open Source project by submitting pull requests, reporting bugs, or contributing documentation or example projects.
 title: Ways to contribute
 subtitle: Guidelines for contributing to Encore
 ---
 
 We’re so excited that you are interested in contributing to Encore! All contributions are welcome, and there are several valuable ways to contribute.
 
-### Open Source Framework
+### Open Source Project
 
-If you want to contribute to the Encore framework Open Source project, you can submit a pull request on [GitHub](https://github.com/encoredev/encore/pulls).
+If you want to contribute to the Encore Open Source project, you can submit a pull request on [GitHub](https://github.com/encoredev/encore/pulls).
 
 ### Report issues
 

@@ -101,5 +101,5 @@ $ curl https://$APP_ID.encoreapi.com/prod/hello/world
 If you see this, you've successfully deployed and made an API call to your very first Encore app in production.
 Nicely done!
 
-There's lots more to see in Encore's cloud platform. Head over to [app.encore.dev](https://app.encore.dev)
+There's lots more to see in Encore's Cloud Dashboard. Head over to [app.encore.dev](https://app.encore.dev)
 and open your app to explore further!
