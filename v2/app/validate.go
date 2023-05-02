@@ -27,6 +27,7 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 	d.validateCaches(pc, result)
 	d.validateConfigs(pc, result)
 	d.validateCrons(pc, result)
+	d.validateDatabases(pc, result)
 	d.validatePubSub(pc, result)
 
 	// Validate all resources are defined within a service
