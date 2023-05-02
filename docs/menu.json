@@ -28,7 +28,8 @@
         "Title": "Quick Start",
         "DocSlug": "quick-start",
         "OldPaths": [
-          "/tutorials/create-app"
+          "/tutorials/create-app",
+          "/concepts/getting-started"
         ]
       }
     ]

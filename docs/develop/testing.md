@@ -33,3 +33,11 @@ This drastically reduces the speed overhead of writing integration tests.
 In general, Encore applications tend to focus more on integration tests
 compared to traditional applications that are heavier on unit tests.
 This is nothing to worry about and is the recommended best practice.
+
+## Test-only infrastructure
+
+Encore allows tests to define infrastructure resources specifically for testing.
+This can be useful for testing library code that interacts with infrastructure.
+
+For example, the [x.encore.dev/pubsub/outbox](https://pkg.go.dev/x.encore.dev/infra/pubsub/outbox) package
+defines a test-only database that is used to do integration testing of the outbox functionality.
