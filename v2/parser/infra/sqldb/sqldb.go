@@ -23,6 +23,7 @@ import (
 )
 
 type Database struct {
+	AST          *ast.CallExpr
 	Pkg          *pkginfo.Package
 	Name         string // The database name
 	Doc          string
@@ -126,6 +127,7 @@ func parseDatabase(d parseutil.ReferenceInfo) {
 	}
 
 	db := &Database{
+		AST:          d.Call,
 		Pkg:          d.Pass.Pkg,
 		Name:         databaseName,
 		Doc:          d.Doc,

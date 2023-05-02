@@ -5,6 +5,11 @@ import (
 )
 
 var (
+	ErrDuplicateNames = errRange.New(
+		"Duplicate Databases",
+		"Multiple databases with the same name were found. Database names must be unique.",
+	)
+
 	errRange = errors.Range(
 		"sqldb",
 		"For more information about how to use databases in Encore, see https://encore.dev/docs/primitives/databases",
