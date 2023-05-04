@@ -37,7 +37,9 @@ Members are active contributors to your applications. They are able to do everyt
   
 ### Viewers
 
-Viewers are "read-only" and are **not** counted as members toward a paid plan.
+Viewers are read-only members. They can view the Cloud Dashboard and run your application locally.
+Viewers are free of charge, but are included in the total member count for determining your plan.
+
 This role is intended for any team members not contributing directly to your Encore application,
 but who still get value from certain access. In a bigger team, this role is often appropriate for e.g. Frontend developers and Product Managers.
 
