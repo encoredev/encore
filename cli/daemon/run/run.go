@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -342,6 +343,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		Secrets:        secrets,
 		ServiceConfigs: build.Configs,
 		Environ:        r.params.Environ,
+		WorkingDir:     r.params.WorkingDir,
 		Experiments:    expSet,
 	})
 	if err != nil {
@@ -398,6 +400,7 @@ type StartProcParams struct {
 	DBProxyPort    int
 	Logger         RunLogger
 	Environ        []string
+	WorkingDir     string
 	Experiments    *experiments.Set
 }
 
@@ -443,6 +446,7 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
 	}
 	cmd.Env = envs
+	cmd.Dir = filepath.Join(r.App.Root(), params.WorkingDir)
 	p.cmd = cmd
 
 	r.log.Info().RawJSON("config", runtimeJSON).Msgf("computed runtime config")
