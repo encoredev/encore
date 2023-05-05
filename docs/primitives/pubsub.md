@@ -38,13 +38,36 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig{
 
 ### At-least-once delivery
 
-This topic behavior configuration ensures that for each subscription to a topic, events will be delivered _at least once_.
+The above example configures the topic to ensure that, for each subscription, events will be delivered _at least once_.
 
 This means that if the topic believes the event was not processed, it will attempt to deliver the message again.
 **Therefore, all subscription handlers should be [idempotent](https://en.wikipedia.org/wiki/Idempotence#Computer_science_meaning).** This helps ensure that if the handler is called two or more times, from the outside there's no difference compared to calling it once.
 
 This can be achieved using a database to track if you have already performed the action that the event is meant to trigger,
 or ensuring that the action being performed is also idempotent in nature.
+
+### Exactly-once delivery
+
+Topics can also be configured to deliver events _exactly once_ by setting the `DeliveryGuarantee` field to
+`pubsub.ExactlyOnce`. This enables stronger guarantees on the infrastructure level to minimize the likelihood of
+message re-delivery.
+
+
+However, there are still some rare circumstances when a message might be redelivered.  For example, if a networking issue
+causes the acknowledgement of successful processing the message to be lost before the cloud provider receives it
+(the [Two Generals' Problem](https://en.wikipedia.org/wiki/Two_Generals%27_Problem)).  As such, if correctness is critical
+under all circumstances, it's still advisable to design your subscription handlers to be idempotent.
+
+By enabling exactly-once delivery on a topic the cloud provider enforces certain throughput limitations:
+- AWS: 300 messages per second for the topic (see [AWS SQS Quotas](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html)).
+- GCP: At least 3,000 messages per second across all topics in the region (can be higher on the region see [GCP PubSub Quotas](https://cloud.google.com/pubsub/quotas#quotas)).
+
+<Callout type="important">
+
+Exactly-once delivery does not perform message deduplication on the publishing side. If  `Publish` is called twice with
+the same message, the message will be delivered twice.
+
+</Callout>
 
 ## Publishing events
 

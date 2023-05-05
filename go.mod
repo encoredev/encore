@@ -48,7 +48,7 @@ require (
 	github.com/rs/zerolog v1.29.1
 	github.com/spf13/cobra v1.6.1
 	github.com/tailscale/hujson v0.0.0-20220630195928-54599719472f
-	go.encore.dev/platform-sdk v0.0.0-20230428112231-2e173f37d8fd
+	go.encore.dev/platform-sdk v1.0.0
 	go.uber.org/goleak v1.1.12
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	golang.org/x/crypto v0.8.0
@@ -56,7 +56,7 @@ require (
 	golang.org/x/mod v0.10.0
 	golang.org/x/oauth2 v0.7.0
 	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.7.0
+	golang.org/x/sys v0.8.0
 	golang.org/x/text v0.9.0
 	golang.org/x/tools v0.8.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
@@ -111,7 +111,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
