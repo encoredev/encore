@@ -39,22 +39,22 @@ func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
 	return cfg.GCP != nil
 }
 
-func (mgr *Manager) NewTopic(_ *config.PubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(_ *config.PubsubProvider, _ types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
 	client := mgr.getClient()
-	gcpTopic := client.TopicInProject(cfg.ProviderName, cfg.GCP.ProjectID)
+	gcpTopic := client.TopicInProject(runtimeCfg.ProviderName, runtimeCfg.GCP.ProjectID)
 
 	// Enable message ordering if we have an ordering key set
-	gcpTopic.EnableMessageOrdering = cfg.OrderingKey != ""
+	gcpTopic.EnableMessageOrdering = runtimeCfg.OrderingKey != ""
 
 	// Check we have permissions to interact with the given topic
 	// (note: the call to Topic() above only creates the object, it doesn't verify that we have permissions to interact with it)
 	_, err := gcpTopic.Config(mgr.ctx)
 	if err != nil {
-		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", cfg.EncoreName, err))
+		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", runtimeCfg.EncoreName, err))
 	}
 
-	return &topic{mgr, client, gcpTopic, cfg}
+	return &topic{mgr, client, gcpTopic, runtimeCfg}
 }
 
 func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {

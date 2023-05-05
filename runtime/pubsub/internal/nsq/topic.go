@@ -45,11 +45,11 @@ func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
 	return cfg.NSQ != nil
 }
 
-func (mgr *Manager) NewTopic(server *config.PubsubProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(providerCfg *config.PubsubProvider, _ types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
 	return &topic{
 		mgr:       mgr,
-		name:      topicCfg.EncoreName,
-		addr:      server.NSQ.Host,
+		name:      runtimeCfg.EncoreName,
+		addr:      providerCfg.NSQ.Host,
 		producer:  nil,
 		consumers: make(map[string]*nsq.Consumer),
 		idSeq:     0,
