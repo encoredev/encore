@@ -51,8 +51,9 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	tried := make([]string, 0, len(mgr.providers))
 	for _, p := range mgr.providers {
 		if p.Matches(provider) {
-			impl := p.NewTopic(provider, topic)
+			impl := p.NewTopic(provider, cfg, topic)
 			return &Topic[T]{
+				cfg:            cfg,
 				mgr:            mgr,
 				topicCfg:       topic,
 				topic:          impl,

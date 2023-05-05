@@ -125,7 +125,7 @@ func (t *outstandingMessageTracker) Done() <-chan struct{} {
 type provider interface {
 	ProviderName() string
 	Matches(providerCfg *config.PubsubProvider) bool
-	NewTopic(providerCfg *config.PubsubProvider, topicCfg *config.PubsubTopic) types.TopicImplementation
+	NewTopic(providerCfg *config.PubsubProvider, staticCfg TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation
 }
 
 var providerRegistry []func(*Manager) provider
