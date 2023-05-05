@@ -70,10 +70,9 @@ const (
 	// As such it's recommended that the subscription handler function is idempotent
 	// and is able to handle duplicate messages.
 	//
-	// ExactlyOnce delivery topics have significantly higher latency for subscriptions
-	// compared to AtLeastOnce subscriptions.
+	// Subscriptions attached to ExactlyOnce topics have higher message delivery latency compared to AtLeastOnce.
 	//
-	// By using ExactlyOnce semantics on a topic, the throughput of will be limited
+	// By using ExactlyOnce semantics on a topic, the throughput will be limited depending on the cloud provider:
 	//
 	// - AWS: 300 messages per second for the topic (see [AWS SQS Quotas]).
 	// - GCP: At least 3,000 messages per second across all topics in the region

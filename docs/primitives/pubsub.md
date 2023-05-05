@@ -38,7 +38,7 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig{
 
 ### At-least-once delivery
 
-The above example configures the topic to ensures that, for each subscription, events will be delivered _at least once_.
+The above example configures the topic to ensure that, for each subscription, events will be delivered _at least once_.
 
 This means that if the topic believes the event was not processed, it will attempt to deliver the message again.
 **Therefore, all subscription handlers should be [idempotent](https://en.wikipedia.org/wiki/Idempotence#Computer_science_meaning).** This helps ensure that if the handler is called two or more times, from the outside there's no difference compared to calling it once.
