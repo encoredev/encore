@@ -47,10 +47,10 @@ type topic struct {
 
 var _ types.TopicImplementation = (*topic)(nil)
 
-func (mgr *Manager) NewTopic(providerCfg *config.PubsubProvider, cfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(providerCfg *config.PubsubProvider, _ types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
 	client := mgr.getClient(providerCfg.Azure)
-	return &topic{mgr: mgr, client: client, topicCfg: cfg}
+	return &topic{mgr: mgr, client: client, topicCfg: runtimeCfg}
 }
 
 func (t *topic) sender() *azservicebus.Sender {

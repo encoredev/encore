@@ -13,6 +13,7 @@ import (
 	snsTypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -22,10 +23,12 @@ import (
 )
 
 type topic struct {
-	ctx       context.Context
-	snsClient *sns.Client
-	sqsClient *sqs.Client
-	cfg       *config.PubsubTopic
+	ctx         context.Context
+	publisherID xid.ID
+	snsClient   *sns.Client
+	sqsClient   *sqs.Client
+	staticCfg   types.TopicConfig
+	runtimeCfg  *config.PubsubTopic
 }
 
 var _ types.TopicImplementation = (*topic)(nil)
@@ -39,11 +42,22 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 		}
 	}
 
-	result, err := t.snsClient.Publish(ctx, &sns.PublishInput{
+	params := &sns.PublishInput{
 		Message:           aws.String(string(data)),
 		MessageAttributes: attributes,
-		TopicArn:          aws.String(t.cfg.ProviderName),
-	})
+		TopicArn:          aws.String(t.runtimeCfg.ProviderName),
+	}
+
+	// For exactly-once delivery on AWS we need to:
+	//
+	// 1. Set a message group ID (as this is a requirement for FIFO queues)
+	// 2. Set a message deduplication ID as this is required to enable exactly-once delivery
+	if t.staticCfg.DeliveryGuarantee == types.ExactlyOnce {
+		params.MessageGroupId = aws.String(fmt.Sprintf("inst_%s", t.publisherID.String()))
+		params.MessageDeduplicationId = aws.String(fmt.Sprintf("msg_%s", xid.New().String()))
+	}
+
+	result, err := t.snsClient.Publish(ctx, params)
 	if err != nil {
 		return "", err
 	}

@@ -43,6 +43,6 @@ func (mgr *Manager) Matches(providerCfg *config.PubsubProvider) bool {
 	return providerCfg.EncoreCloud != nil
 }
 
-func (mgr *Manager) NewTopic(_ *config.PubsubProvider, topicCfg *config.PubsubTopic) types.TopicImplementation {
-	return &topic{mgr, topicCfg}
+func (mgr *Manager) NewTopic(_ *config.PubsubProvider, _ types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
+	return &topic{mgr, runtimeCfg}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/pubsub/internal/types"
 )
 
 const (
@@ -50,7 +51,7 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 	defer cancel()
 	mgr := NewManager(ctx)
 
-	topic := mgr.NewTopic(runtime.PubsubProviders[0], runtime.PubsubTopics["test-topic"])
+	topic := mgr.NewTopic(runtime.PubsubProviders[0], types.TopicConfig{DeliveryGuarantee: types.AtLeastOnce}, runtime.PubsubTopics["test-topic"])
 
 	// Purge the queue of any messages from previous failed tests
 	_, err := mgr.getSQSClient(ctx).PurgeQueue(ctx, &sqs.PurgeQueueInput{
