@@ -49,11 +49,38 @@ type DeliveryGuarantee int
 
 const (
 	// AtLeastOnce guarantees that a message for a subscription is delivered to
-	// a consumer at least once. This is supported by all cloud providers.
+	// a consumer at least once.
+	//
+	// On AWS and GCP there is no limit to the throughput for a topic.
 	AtLeastOnce DeliveryGuarantee = iota + 1
 
 	// ExactlyOnce guarantees that a message for a subscription is delivered to
-	// a consumer exactly once
+	// a consumer exactly once, to the best of the system's ability.
+	//
+	// However, there are edge cases when a message might be redelivered.
+	// For example, if a networking issue causes the acknowledgement of success
+	// processing the message to be lost before the cloud provider receives it.
+	//
+	// It is also important to note that the ExactlyOnce delivery guarantee only
+	// applies to the delivery of the message to the consumer, and not to the
+	// original publishing of the message, such that if a message is published twice,
+	// such as due to an retry within the application logic, it will be delivered twice.
+	// (i.e. ExactlyOnce delivery does not imply message deduplication on publish)
+	//
+	// As such it's recommended that the subscription handler function is idempotent
+	// and is able to handle duplicate messages.
+	//
+	// ExactlyOnce delivery topics have significantly higher latency for subscriptions
+	// compared to AtLeastOnce subscriptions.
+	//
+	// By using ExactlyOnce semantics on a topic, the throughput of will be limited
+	//
+	// - AWS: 300 messages per second for the topic (see [AWS SQS Quotas]).
+	// - GCP: At least 3,000 messages per second across all topics in the region
+	// 		  (can be higher on the region see [GCP PubSub Quotas]).
+	//
+	// [AWS SQS Quotas]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
+	// [GCP PubSub Quotas]: https://cloud.google.com/pubsub/quotas#quotas
 	ExactlyOnce
 )
 
