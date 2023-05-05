@@ -40,16 +40,16 @@ type parsedFile struct {
 }
 
 var (
-	resolvedRepo             = repoDir()
-	gitRef                   = repoCommit()
-	fset                     = token.NewFileSet()
-	formattedFset            = token.NewFileSet()
-	files                    = []*parsedFile{}
-	commentsToAddToFunctions = map[*ast.File]map[string]*ast.CommentGroup{}
-	constants                = map[string]map[string]registeredConstant{}
-	types                    = map[string]map[string]registeredType{}
-	typesToDrop              = map[string]map[string]bool{}
-	usesPanicWrapper         = map[string]bool{} // package dir -> true
+	resolvedRepo        = repoDir()
+	gitRef              = repoCommit()
+	fset                = token.NewFileSet()
+	formattedFset       = token.NewFileSet()
+	files               = []*parsedFile{}
+	commentsToAddToFile = map[*ast.File]map[string]*ast.CommentGroup{}
+	constants           = map[string]map[string]registeredConstant{}
+	types               = map[string]map[string]registeredType{}
+	typesToDrop         = map[string]map[string]bool{}
+	usesPanicWrapper    = map[string]bool{} // package dir -> true
 )
 
 func main() {
@@ -201,6 +201,10 @@ func registerTypes(name string, fAST *ast.File) {
 					if d.Tok == token.CONST {
 						for i, name := range s.Names {
 							if len(s.Values) <= i {
+								if len(s.Values) == 0 && name.IsExported() {
+									log.Debug().Str("const", name.Name).Msg("registering enum const")
+									constants[pkg][name.Name] = registeredConstant{nil, nil, removePosFromCommentGroup(s.Doc)}
+								}
 								break
 							}
 
@@ -317,15 +321,15 @@ func rewriteAST(f *ast.File) (usesPanicWrapper bool, err error) {
 					start = node.Body.Lbrace
 					end = node.Body.Rbrace
 
-					if _, found := commentsToAddToFunctions[f]; !found {
-						commentsToAddToFunctions[f] = map[string]*ast.CommentGroup{}
+					if _, found := commentsToAddToFile[f]; !found {
+						commentsToAddToFile[f] = map[string]*ast.CommentGroup{}
 					}
 
 					startLine := fset.Position(start).Line
 					endLine := fset.Position(end).Line
 					filePath := strings.TrimPrefix(fset.File(node.Pos()).Name(), resolvedRepo)
 
-					commentsToAddToFunctions[f][funcName(node)] = &ast.CommentGroup{
+					commentsToAddToFile[f][funcName(node)] = &ast.CommentGroup{
 						List: []*ast.Comment{
 							{
 								Text: "// Encore will provide an implementation to this function at runtime, we do not expose",
@@ -488,15 +492,26 @@ func rewriteAST(f *ast.File) (usesPanicWrapper bool, err error) {
 									if pkg, ok := selector.X.(*ast.Ident); ok && constants[pkg.Name] != nil {
 										typ, found := constants[pkg.Name][selector.Sel.Name]
 										if found {
-											spec.Values[i] = typ.node
+											if typ.node == nil && typ.typ == nil {
+												spec.Values = nil
+												spec.Type = nil
+											} else {
+												spec.Values[i] = typ.node
 
-											if typ.typ != nil {
-												// Copy the type over
-												spec.Type = typ.typ
+												if typ.typ != nil {
+													// Copy the type over
+													spec.Type = typ.typ
+												}
 											}
 
 											if typ.docs != nil && spec.Doc == nil {
-												spec.Doc = typ.docs // copy the docs over
+												if _, found := commentsToAddToFile[f]; !found {
+													commentsToAddToFile[f] = map[string]*ast.CommentGroup{}
+												}
+
+												// copy the docs over in a later stage
+												// otherwise we'll put the first line of the doc in the wrong place
+												commentsToAddToFile[f][spec.Names[0].Name] = typ.docs
 											}
 										}
 									}
@@ -575,7 +590,7 @@ func rewriteAST(f *ast.File) (usesPanicWrapper bool, err error) {
 }
 
 func writePendingComments(originalFile *ast.File, formattedFile *ast.File) {
-	comments, found := commentsToAddToFunctions[originalFile]
+	comments, found := commentsToAddToFile[originalFile]
 	if !found {
 		return
 	}
@@ -602,6 +617,18 @@ func writePendingComments(originalFile *ast.File, formattedFile *ast.File) {
 				// Position the comment just before the first expression in the body
 				comments.List[0].Slash = panicPos - 1
 				formattedFile.Comments = append(formattedFile.Comments, comments)
+			}
+
+		case *ast.GenDecl:
+			if node.Tok == token.CONST {
+				for _, spec := range node.Specs {
+					name := spec.(*ast.ValueSpec).Names[0]
+					if comments, found := comments[name.Name]; found {
+						file := formattedFset.File(node.Pos())
+						comments.List[0].Slash = file.LineStart(file.Line(name.Pos()))
+						formattedFile.Comments = append(formattedFile.Comments, comments)
+					}
+				}
 			}
 		}
 		return true

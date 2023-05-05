@@ -60,7 +60,8 @@ type SubscriptionConfig[T any] struct {
 type RetryPolicy = types.RetryPolicy
 
 const (
-	NoRetries       = types.NoRetries
+	NoRetries = types.NoRetries
+
 	InfiniteRetries = types.InfiniteRetries
 )
 
@@ -68,11 +69,7 @@ type DeliveryGuarantee = types.DeliveryGuarantee
 
 const (
 	AtLeastOnce = types.AtLeastOnce
-)
 
-//publicapigen:drop
-const (
-	// TODO(domblack): remove this once ExactlyOnce is released
 	ExactlyOnce = types.ExactlyOnce
 )
 
