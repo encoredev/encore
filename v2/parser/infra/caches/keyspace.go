@@ -276,7 +276,5 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 	}
 
 	d.Pass.RegisterResource(ks)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, ks)
-	}
+	d.Pass.AddBind(d.File, d.Ident, ks)
 }

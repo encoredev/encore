@@ -89,6 +89,6 @@ var SecretsParser = &resourceparser.Parser{
 		}
 
 		p.RegisterResource(res)
-		p.AddBind(res.File, res.Ident, res)
+		p.AddNamedBind(res.File, res.Ident, res)
 	},
 }
