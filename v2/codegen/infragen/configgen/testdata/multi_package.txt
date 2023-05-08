@@ -1,0 +1,98 @@
+-- pkg/temporal/temporal.go --
+package temporal
+type ClientOptions struct {
+	HostPort  string
+	Namespace string
+}
+
+-- helloworld.go --
+package helloworld
+
+import (
+    "context"
+    "encore.dev/config"
+
+    "example.com/pkg/temporal"
+)
+
+type Config struct {
+	Temporal config.Value[temporal.ClientOptions]
+}
+
+var cfg = config.Load[Config]()
+
+// There must be an API endpoint to use config.Load.
+//encore:api
+func Dummy(context.Context) error { return nil }
+-- want:encore_internal__config_unmarshal.go --
+package helloworld
+
+import (
+	config "encore.dev/config"
+	temporal "example.com/pkg/temporal"
+	jsoniter "github.com/json-iterator/go"
+)
+
+/*
+These functions are automatically generated and maintained by Encore to allow config values
+to be unmarshalled into the correct types. They are not intended to be used directly. They
+are automatically updated by Encore whenever you change the data types used within your
+calls to config.Load[T]().
+*/
+
+// Concrete unmarshalers for all config.Load calls, including those using generic types.
+// These instances are used directly by calls to `config.Load[T]()`.
+var (
+	encoreInternalConfigUnmarshaler_examplecom_Config = encoreInternalTypeConfigUnmarshaler_helloworld_Config
+)
+
+// encoreInternalTypeConfigUnmarshaler_helloworld_Config will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_helloworld_Config(itr *jsoniter.Iterator, path []string) (obj Config) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Temporal":
+			obj.Temporal = config.CreateValue[temporal.ClientOptions](encoreInternalTypeConfigUnmarshaler_temporal_ClientOptions(itr, append(path, "Temporal")), append(path, "Temporal"))
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_temporal_ClientOptions will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_temporal_ClientOptions(itr *jsoniter.Iterator, path []string) (obj temporal.ClientOptions) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "HostPort":
+			obj.HostPort = itr.ReadString()
+		case "Namespace":
+			obj.Namespace = itr.ReadString()
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+-- want:helloworld.go --
+package helloworld
+
+import (
+    "context"
+    "encore.dev/config"
+
+    "example.com/pkg/temporal"
+)
+
+type Config struct {
+	Temporal config.Value[temporal.ClientOptions]
+}
+
+var cfg = config.Load[Config]("helloworld", encoreInternalConfigUnmarshaler_examplecom_Config/*line :14:31*/)
+
+// There must be an API endpoint to use config.Load.
+//encore:api
+func Dummy(context.Context) error { return nil }

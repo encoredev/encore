@@ -1,0 +1,11 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+)
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}

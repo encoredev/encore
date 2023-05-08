@@ -24,10 +24,12 @@ func Gen(gen *codegen.Generator, svc *app.Service, pkg *pkginfo.Package, loads [
 	f := gen.File(pkg, "config_unmarshal")
 
 	builder := &configUnmarshalersBuilder{
-		errs:         gen.Errs,
-		gu:           gen.Util,
-		f:            f.Jen,
-		unmarshalers: make([]*Statement, 0),
+		errs:           gen.Errs,
+		gu:             gen.Util,
+		f:              f.Jen,
+		seenNames:      make(map[string]int),
+		allocatedNames: make(map[pkginfo.QualifiedName]string),
+		unmarshalers:   make([]*Statement, 0),
 	}
 	f.Jen.ImportAlias("github.com/json-iterator/go", "jsoniter")
 
@@ -79,6 +81,14 @@ type configUnmarshalersBuilder struct {
 	gu   *genutil.Helper
 	f    *File
 
+	// allocatedNames tracks maps type declarations to the allocated name
+	// of the unmarshaller for that type.
+	allocatedNames map[pkginfo.QualifiedName]string
+	// seenNames tracks the number of times a declaration of a given name has been seen,
+	// to avoid duplicates.
+	seenNames map[string]int
+
+	// Generated code
 	unmarshalers []*Statement
 }
 
@@ -129,7 +139,7 @@ func (cb *configUnmarshalersBuilder) WriteTypeUnmarshaler(decl *schema.TypeDecl)
 		unmarshalerName,
 	)
 	f := cb.f.Func().Id(unmarshalerName)
-	rtnType := Id("obj").Id(decl.Name)
+	rtnType := Id("obj").Add(genutil.Q(decl.Info))
 
 	// This is the function body (plus arguments) needed for config.Unmarshaler
 	unmarshalBody := Params(
@@ -384,7 +394,23 @@ func (cb *configUnmarshalersBuilder) typeUnmarshalerFunc(typ schema.Type) (f *St
 // typeUnmarshalerName returns a generated name for the unmarshaler function for the given type and the type that
 // the decl is.
 func (cb *configUnmarshalersBuilder) typeUnmarshalerName(decl *schema.TypeDecl) (reader string, rtnTyp *Statement) {
-	return fmt.Sprintf("encoreInternalTypeConfigUnmarshaler_%s", decl.Name), Id(decl.Name)
+	rtnTyp = genutil.Q(decl.Info)
+
+	// If we've already allocated a name for this type, reuse it.
+	key := decl.Info.QualifiedName()
+	if allocated, ok := cb.allocatedNames[key]; ok {
+		return allocated, rtnTyp
+	}
+
+	// Otherwise allocate a new name.
+	name := fmt.Sprintf("encoreInternalTypeConfigUnmarshaler_%s_%s", decl.File.Pkg.Name, decl.Name)
+	if n := cb.seenNames[name]; n > 0 {
+		name += strconv.Itoa(n + 1)
+	}
+	cb.seenNames[decl.Name]++
+	cb.allocatedNames[key] = name
+
+	return name, rtnTyp
 }
 
 // readBuiltin returns reader code for reading the built in type from `itr` (a `*jsonitor.Iterator`) and the
