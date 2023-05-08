@@ -1,0 +1,218 @@
+-- svc/a.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type AsConfig struct {
+    // Multiline test
+    // comment to deduplicate.
+    Foo config.String
+}
+
+var _ = config.Load[*AsConfig]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}
+
+-- svc/b.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type BsConfig struct{
+    Foo config.String // Some extra comment
+}
+
+var _ = config.Load[BsConfig]()
+
+-- svc/c.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type CsConfig struct{
+    // Multiline test
+    // comment to deduplicate.
+    Foo config.String
+}
+
+var _ = config.Load[CsConfig]()
+
+-- svc/d.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type DsConfig struct{
+    Foo config.String // Some extra comment
+}
+
+var _ = config.Load[DsConfig]()
+-- want:svc/a.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type AsConfig struct {
+    // Multiline test
+    // comment to deduplicate.
+    Foo config.String
+}
+
+var _ = config.Load[*AsConfig]("svc", encoreInternalConfigUnmarshaler_ptr_svc_AsConfig/*line :15:32*/)
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}
+
+-- want:svc/b.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type BsConfig struct{
+    Foo config.String // Some extra comment
+}
+
+var _ = config.Load[BsConfig]("svc", encoreInternalConfigUnmarshaler_svc_BsConfig/*line :11:31*/)
+
+-- want:svc/c.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type CsConfig struct{
+    // Multiline test
+    // comment to deduplicate.
+    Foo config.String
+}
+
+var _ = config.Load[CsConfig]("svc", encoreInternalConfigUnmarshaler_svc_CsConfig/*line :13:31*/)
+
+-- want:svc/d.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type DsConfig struct{
+    Foo config.String // Some extra comment
+}
+
+var _ = config.Load[DsConfig]("svc", encoreInternalConfigUnmarshaler_svc_DsConfig/*line :11:31*/)
+-- want:svc/encore_internal__config_unmarshal.go --
+package svc
+
+import (
+	config "encore.dev/config"
+	jsoniter "github.com/json-iterator/go"
+)
+
+/*
+These functions are automatically generated and maintained by Encore to allow config values
+to be unmarshalled into the correct types. They are not intended to be used directly. They
+are automatically updated by Encore whenever you change the data types used within your
+calls to config.Load[T]().
+*/
+
+// Concrete unmarshalers for all config.Load calls, including those using generic types.
+// These instances are used directly by calls to `config.Load[T]()`.
+var (
+	encoreInternalConfigUnmarshaler_ptr_svc_AsConfig = func(itr *jsoniter.Iterator, path []string) *AsConfig {
+		return func() *AsConfig {
+			// If the value is null, we return nil
+			if itr.ReadNil() {
+				return nil
+			}
+
+			// Otherwise we unmarshal the value and return a pointer to it
+			obj := encoreInternalTypeConfigUnmarshaler_svc_AsConfig(itr, append(path))
+			return &obj
+		}()
+	}
+	encoreInternalConfigUnmarshaler_svc_BsConfig = encoreInternalTypeConfigUnmarshaler_svc_BsConfig
+	encoreInternalConfigUnmarshaler_svc_CsConfig = encoreInternalTypeConfigUnmarshaler_svc_CsConfig
+	encoreInternalConfigUnmarshaler_svc_DsConfig = encoreInternalTypeConfigUnmarshaler_svc_DsConfig
+)
+
+// encoreInternalTypeConfigUnmarshaler_svc_AsConfig will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_svc_AsConfig(itr *jsoniter.Iterator, path []string) (obj AsConfig) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Foo":
+			obj.Foo = config.CreateValue[string](itr.ReadString(), append(path, "Foo"))
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_svc_BsConfig will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_svc_BsConfig(itr *jsoniter.Iterator, path []string) (obj BsConfig) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Foo":
+			obj.Foo = config.CreateValue[string](itr.ReadString(), append(path, "Foo"))
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_svc_CsConfig will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_svc_CsConfig(itr *jsoniter.Iterator, path []string) (obj CsConfig) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Foo":
+			obj.Foo = config.CreateValue[string](itr.ReadString(), append(path, "Foo"))
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_svc_DsConfig will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_svc_DsConfig(itr *jsoniter.Iterator, path []string) (obj DsConfig) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Foo":
+			obj.Foo = config.CreateValue[string](itr.ReadString(), append(path, "Foo"))
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}

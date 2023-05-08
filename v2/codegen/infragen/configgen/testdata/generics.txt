@@ -70,7 +70,7 @@ var (
 			}
 
 			// Otherwise we unmarshal the value and return a pointer to it
-			obj := encoreInternalTypeConfigUnmarshaler_CfgType[uint](func(itr *jsoniter.Iterator, path []string) uint {
+			obj := encoreInternalTypeConfigUnmarshaler_generics_CfgType[uint](func(itr *jsoniter.Iterator, path []string) uint {
 				return itr.ReadUint()
 			})(itr, append(path))
 			return &obj
@@ -78,9 +78,9 @@ var (
 	}
 )
 
-// encoreInternalTypeConfigUnmarshaler_CfgType will unmarshal the JSON representation into the given type, taking account for
+// encoreInternalTypeConfigUnmarshaler_generics_CfgType will unmarshal the JSON representation into the given type, taking account for
 // the `config.Value` dynamic functions.
-func encoreInternalTypeConfigUnmarshaler_CfgType[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[CfgType[T]]) {
+func encoreInternalTypeConfigUnmarshaler_generics_CfgType[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[CfgType[T]]) {
 	return func(itr *jsoniter.Iterator, path []string) (obj CfgType[T]) {
 		itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
 			switch field {
@@ -115,7 +115,7 @@ func encoreInternalTypeConfigUnmarshaler_CfgType[T any](_T_unmarshaler config.Un
 								}
 
 								// Otherwise we unmarshal the value and return a pointer to it
-								obj := encoreInternalTypeConfigUnmarshaler_SubCfgType[T](func(itr *jsoniter.Iterator, path []string) T {
+								obj := encoreInternalTypeConfigUnmarshaler_generics_SubCfgType[T](func(itr *jsoniter.Iterator, path []string) T {
 									return _T_unmarshaler(itr, append(path))
 								})(itr, append(path, "SubKey"))
 								return &obj
@@ -196,9 +196,9 @@ func encoreInternalTypeConfigUnmarshaler_CfgType[T any](_T_unmarshaler config.Un
 	}
 }
 
-// encoreInternalTypeConfigUnmarshaler_SubCfgType will unmarshal the JSON representation into the given type, taking account for
+// encoreInternalTypeConfigUnmarshaler_generics_SubCfgType will unmarshal the JSON representation into the given type, taking account for
 // the `config.Value` dynamic functions.
-func encoreInternalTypeConfigUnmarshaler_SubCfgType[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[SubCfgType[T]]) {
+func encoreInternalTypeConfigUnmarshaler_generics_SubCfgType[T any](_T_unmarshaler config.Unmarshaler[T]) (concreteUnmarshaler config.Unmarshaler[SubCfgType[T]]) {
 	return func(itr *jsoniter.Iterator, path []string) (obj SubCfgType[T]) {
 		itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
 			switch field {

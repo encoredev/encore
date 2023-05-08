@@ -1,0 +1,184 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type Config struct {
+    Name        string    // The users name
+    Port        uint16
+    ReadOnly    bool      // true if we're in read only mode
+}
+
+var _ = config.Load[*Config]()
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}
+
+-- svc/a_file.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type OtherConfig struct{
+    Foo config.String // Foo is great in Otherconfig
+    Bar config.Int
+}
+
+var _ = config.Load[OtherConfig]()
+
+-- svc/z_file.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type ThisConfig struct{
+    Foo config.String // And even better in ThisConfig
+    Baz config.Bool
+}
+
+var _ = config.Load[ThisConfig]()
+-- want:svc/a_file.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type OtherConfig struct{
+    Foo config.String // Foo is great in Otherconfig
+    Bar config.Int
+}
+
+var _ = config.Load[OtherConfig]("svc", encoreInternalConfigUnmarshaler_svc_OtherConfig/*line :12:34*/)
+
+-- want:svc/encore_internal__config_unmarshal.go --
+package svc
+
+import (
+	config "encore.dev/config"
+	jsoniter "github.com/json-iterator/go"
+)
+
+/*
+These functions are automatically generated and maintained by Encore to allow config values
+to be unmarshalled into the correct types. They are not intended to be used directly. They
+are automatically updated by Encore whenever you change the data types used within your
+calls to config.Load[T]().
+*/
+
+// Concrete unmarshalers for all config.Load calls, including those using generic types.
+// These instances are used directly by calls to `config.Load[T]()`.
+var (
+	encoreInternalConfigUnmarshaler_svc_OtherConfig = encoreInternalTypeConfigUnmarshaler_svc_OtherConfig
+	encoreInternalConfigUnmarshaler_ptr_svc_Config  = func(itr *jsoniter.Iterator, path []string) *Config {
+		return func() *Config {
+			// If the value is null, we return nil
+			if itr.ReadNil() {
+				return nil
+			}
+
+			// Otherwise we unmarshal the value and return a pointer to it
+			obj := encoreInternalTypeConfigUnmarshaler_svc_Config(itr, append(path))
+			return &obj
+		}()
+	}
+	encoreInternalConfigUnmarshaler_svc_ThisConfig = encoreInternalTypeConfigUnmarshaler_svc_ThisConfig
+)
+
+// encoreInternalTypeConfigUnmarshaler_svc_Config will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_svc_Config(itr *jsoniter.Iterator, path []string) (obj Config) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Name":
+			obj.Name = itr.ReadString()
+		case "Port":
+			obj.Port = itr.ReadUint16()
+		case "ReadOnly":
+			obj.ReadOnly = itr.ReadBool()
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_svc_OtherConfig will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_svc_OtherConfig(itr *jsoniter.Iterator, path []string) (obj OtherConfig) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Foo":
+			obj.Foo = config.CreateValue[string](itr.ReadString(), append(path, "Foo"))
+		case "Bar":
+			obj.Bar = config.CreateValue[int](itr.ReadInt(), append(path, "Bar"))
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+
+// encoreInternalTypeConfigUnmarshaler_svc_ThisConfig will unmarshal the JSON representation into the given type, taking account for
+// the `config.Value` dynamic functions.
+func encoreInternalTypeConfigUnmarshaler_svc_ThisConfig(itr *jsoniter.Iterator, path []string) (obj ThisConfig) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "Foo":
+			obj.Foo = config.CreateValue[string](itr.ReadString(), append(path, "Foo"))
+		case "Baz":
+			obj.Baz = config.CreateValue[bool](itr.ReadBool(), append(path, "Baz"))
+		default:
+			itr.Skip()
+		}
+		return true
+	})
+	return
+}
+-- want:svc/svc.go --
+package svc
+
+import (
+	"context"
+
+	"encore.dev/config"
+)
+
+type Config struct {
+    Name        string    // The users name
+    Port        uint16
+    ReadOnly    bool      // true if we're in read only mode
+}
+
+var _ = config.Load[*Config]("svc", encoreInternalConfigUnmarshaler_ptr_svc_Config/*line :15:30*/)
+
+//encore:api
+func MyAPI(ctx context.Context) (error) {
+	return nil
+}
+
+-- want:svc/z_file.go --
+package svc
+
+import (
+	"encore.dev/config"
+)
+
+type ThisConfig struct{
+    Foo config.String // And even better in ThisConfig
+    Baz config.Bool
+}
+
+var _ = config.Load[ThisConfig]("svc", encoreInternalConfigUnmarshaler_svc_ThisConfig/*line :12:33*/)
