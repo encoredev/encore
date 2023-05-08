@@ -157,7 +157,5 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 		MessageType:       messageType,
 	}
 	d.Pass.RegisterResource(topic)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, topic)
-	}
+	d.Pass.AddBind(d.File, d.Ident, topic)
 }

@@ -135,9 +135,7 @@ func parseDatabase(d parseutil.ReferenceInfo) {
 		Migrations:   migrations,
 	}
 	d.Pass.RegisterResource(db)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, db)
-	}
+	d.Pass.AddBind(d.File, d.Ident, db)
 }
 
 var MigrationParser = &resourceparser.Parser{

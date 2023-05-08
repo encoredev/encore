@@ -99,7 +99,5 @@ func parseCluster(d parseutil.ReferenceInfo) {
 	}
 
 	d.Pass.RegisterResource(cluster)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, cluster)
-	}
+	d.Pass.AddBind(d.File, d.Ident, cluster)
 }
