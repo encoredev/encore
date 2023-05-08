@@ -51,7 +51,7 @@ var Parser = &resourceparser.Parser{
 							// This is the case because we generate a package-level
 							// wrapper function that forwards to the service struct
 							// method in that case.
-							p.AddBind(file, ep.Decl.AST.Name, ep)
+							p.AddNamedBind(file, ep.Decl.AST.Name, ep)
 						}
 
 					case "authhandler":
@@ -66,7 +66,7 @@ var Parser = &resourceparser.Parser{
 						if ah != nil {
 							p.RegisterResource(ah)
 							if ah.Recv.Empty() {
-								p.AddBind(file, ah.Decl.AST.Name, ah)
+								p.AddNamedBind(file, ah.Decl.AST.Name, ah)
 							}
 						}
 
@@ -83,7 +83,7 @@ var Parser = &resourceparser.Parser{
 						if mw != nil {
 							p.RegisterResource(mw)
 							if mw.Recv.Empty() {
-								p.AddBind(file, mw.Decl.AST.Name, mw)
+								p.AddNamedBind(file, mw.Decl.AST.Name, mw)
 							}
 						}
 
@@ -118,7 +118,7 @@ var Parser = &resourceparser.Parser{
 
 						if ss != nil {
 							p.RegisterResource(ss)
-							p.AddBind(file, ss.Decl.AST.Name, ss)
+							p.AddNamedBind(file, ss.Decl.AST.Name, ss)
 						}
 
 					default:

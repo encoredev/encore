@@ -212,9 +212,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 	m.ConfigLiteral = cfgLit.Lit()
 
 	d.Pass.RegisterResource(m)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, m)
-	}
+	d.Pass.AddBind(d.File, d.Ident, m)
 }
 
 type configParseFunc func(c metricConstructor, d parseutil.ReferenceInfo, cfgLit *literals.Struct, dst *Metric)

@@ -3,6 +3,7 @@ package resourceparser
 import (
 	"go/ast"
 
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
@@ -50,12 +51,17 @@ func (p *Pass) Binds() []resource.Bind {
 	return p.binds
 }
 
-func (p *Pass) AddBind(file *pkginfo.File, boundName *ast.Ident, res resource.Resource) {
+func (p *Pass) AddBind(file *pkginfo.File, boundName option.Option[*ast.Ident], res resource.Resource) {
+	if id, ok := boundName.Get(); ok {
+		p.AddNamedBind(file, id, res)
+	} else {
+		p.AddAnonymousBind(file, res)
+	}
+}
+
+func (p *Pass) AddNamedBind(file *pkginfo.File, boundName *ast.Ident, res resource.Resource) {
 	if boundName.Name == "_" {
-		p.binds = append(p.binds, &resource.AnonymousBind{
-			Resource: resource.ResourceOrPath{Resource: res},
-			File:     file,
-		})
+		p.AddAnonymousBind(file, res)
 	} else {
 		p.binds = append(p.binds, &resource.PkgDeclBind{
 			Resource:  resource.ResourceOrPath{Resource: res},
@@ -63,6 +69,13 @@ func (p *Pass) AddBind(file *pkginfo.File, boundName *ast.Ident, res resource.Re
 			BoundName: boundName,
 		})
 	}
+}
+
+func (p *Pass) AddAnonymousBind(file *pkginfo.File, res resource.Resource) {
+	p.binds = append(p.binds, &resource.AnonymousBind{
+		Resource: resource.ResourceOrPath{Resource: res},
+		File:     file,
+	})
 }
 
 func (p *Pass) AddPathBind(file *pkginfo.File, boundName *ast.Ident, path resource.Path) {

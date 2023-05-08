@@ -163,7 +163,5 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		Handler: cfg.Handler,
 	}
 	d.Pass.RegisterResource(sub)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, sub)
-	}
+	d.Pass.AddBind(d.File, d.Ident, sub)
 }

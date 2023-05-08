@@ -90,9 +90,7 @@ func parseLoad(d parseutil.ReferenceInfo) {
 	walkCfgToVerify(d.Pass.Errs, load, concrete, false)
 
 	d.Pass.RegisterResource(load)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, load)
-	}
+	d.Pass.AddBind(d.File, d.Ident, load)
 }
 
 func walkCfgToVerify(errs *perr.List, load *Load, decl schema.Type, insideConfigValue bool) {

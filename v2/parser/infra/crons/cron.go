@@ -156,9 +156,7 @@ func parseCronJob(d parseutil.ReferenceInfo) {
 	}
 
 	d.Pass.RegisterResource(job)
-	if id, ok := d.Ident.Get(); ok {
-		d.Pass.AddBind(d.File, id, job)
-	}
+	d.Pass.AddBind(d.File, d.Ident, job)
 }
 
 // abs returns the absolute value of x.
