@@ -50,13 +50,20 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 		default:
 			_, ok := d.ServiceForPath(b.Package().FSPath)
 
-			// It's permitted to declare resources in test files.
-			inTestFile := false
-			if file, ok := b.DeclaredIn().Get(); ok && file.TestFile {
-				inTestFile = true
+			// It's permitted to declare resources in test files
+			// or in the main pkg in the case of 'encore alpha exec'.
+			mainPkgPath := d.BuildInfo.MainPkg.GetOrElse("")
+			inTestFile, inMainPkg := false, false
+			if file, ok := b.DeclaredIn().Get(); ok {
+				if file.TestFile {
+					inTestFile = true
+				}
+				if mainPkgPath != "" && mainPkgPath.LexicallyContains(file.Pkg.ImportPath) {
+					inMainPkg = true
+				}
 			}
 
-			if !ok && !inTestFile {
+			if !ok && !inTestFile && !inMainPkg {
 				pc.Errs.Add(errResourceDefinedOutsideOfService.AtGoNode(r))
 			}
 		}
