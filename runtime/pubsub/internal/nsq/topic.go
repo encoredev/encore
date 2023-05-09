@@ -130,7 +130,7 @@ func (l *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, ret
 }
 
 // PublishMessage publishes a message to an nsq Topic
-func (l *topic) PublishMessage(_ context.Context, attrs map[string]string, data []byte) (id string, err error) {
+func (l *topic) PublishMessage(ctx context.Context, orderingKey string, attrs map[string]string, data []byte) (id string, err error) {
 	// instantiate a Producer if there isn;t one already
 	if l.producer == nil {
 		l.m.Lock()

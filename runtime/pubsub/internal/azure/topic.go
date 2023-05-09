@@ -64,7 +64,7 @@ func (t *topic) sender() *azservicebus.Sender {
 	return t._sender
 }
 
-func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {
+func (t *topic) PublishMessage(ctx context.Context, groupingKey string, attrs map[string]string, data []byte) (id string, err error) {
 
 	messageID, err := uuid.NewV4()
 	if err != nil {

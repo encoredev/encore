@@ -56,7 +56,7 @@ type Subscription[T any] struct {
 //	  return nil
 //	}
 func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig[T]) *Subscription[T] {
-	if topic.topicCfg == nil || topic.topic == nil || topic.mgr == nil {
+	if topic.runtimeCfg == nil || topic.topic == nil || topic.mgr == nil {
 		panic("pubsub topic was not created using pubsub.NewTopic")
 	}
 	mgr := topic.mgr
@@ -95,7 +95,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 
 	log := mgr.rootLogger.With().
 		Str("service", staticCfg.Service).
-		Str("topic", topic.topicCfg.EncoreName).
+		Str("topic", topic.runtimeCfg.EncoreName).
 		Str("subscription", name).
 		Logger()
 
@@ -159,7 +159,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 			Start:            time.Now(),
 			MsgData: &model2.PubSubMsgData{
 				Service:        staticCfg.Service,
-				Topic:          topic.topicCfg.EncoreName,
+				Topic:          topic.runtimeCfg.EncoreName,
 				Subscription:   subscription.EncoreName,
 				MessageID:      msgID,
 				Attempt:        deliveryAttempt,
@@ -250,14 +250,14 @@ func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscriptio
 	}
 
 	// Fetch the subscription configuration
-	subscription, ok := t.topicCfg.Subscriptions[name]
+	subscription, ok := t.runtimeCfg.Subscriptions[name]
 	if !ok {
-		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
+		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.runtimeCfg.EncoreName, name)
 	}
 
-	staticCfg, ok := t.mgr.static.PubsubTopics[t.topicCfg.EncoreName].Subscriptions[name]
+	staticCfg, ok := t.mgr.static.PubsubTopics[t.runtimeCfg.EncoreName].Subscriptions[name]
 	if !ok {
-		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.topicCfg.EncoreName, name)
+		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.runtimeCfg.EncoreName, name)
 	}
 
 	return subscription, staticCfg
