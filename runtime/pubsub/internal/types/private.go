@@ -14,6 +14,6 @@ type RawSubscriptionCallback func(ctx context.Context, msgID string, publishTime
 
 // TopicImplementation gives us a private API to implementing topics, which we can change without impacting the public API
 type TopicImplementation interface {
-	PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error)
+	PublishMessage(ctx context.Context, orderingKey string, attrs map[string]string, data []byte) (id string, err error)
 	Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, retryPolicy *RetryPolicy, implCfg *config.PubsubSubscription, f RawSubscriptionCallback)
 }

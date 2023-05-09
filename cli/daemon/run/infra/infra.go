@@ -275,10 +275,6 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 				Subscriptions: make(map[string]*config.PubsubSubscription),
 			}
 
-			if t.OrderingKey != "" {
-				topicCfg.OrderingKey = t.OrderingKey
-			}
-
 			for _, s := range t.Subscriptions {
 				subscriptionID := t.Name
 				if useLocalEncoreCloudAPIForTesting {

@@ -31,7 +31,7 @@ require (
 	github.com/rs/cors v1.8.3-0.20221003140808-fcebdb403f4d
 	github.com/rs/xid v1.4.0
 	github.com/rs/zerolog v1.29.1
-	go.encore.dev/platform-sdk v1.0.0
+	go.encore.dev/platform-sdk v1.1.0
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.119.0
@@ -79,8 +79,8 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.8.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect

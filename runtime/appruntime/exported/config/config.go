@@ -193,7 +193,6 @@ type PubsubTopic struct {
 	EncoreName   string   `json:"encore_name"`       // the Encore name for the pubsub topic
 	ProviderID   int      `json:"provider_id"`       // The index into (*Runtime).PubsubProviders.
 	ProviderName string   `json:"provider_name"`     // the name for the pubsub topic as defined by the provider
-	OrderingKey  string   `json:"ordering_key"`      // the ordering key for the pubsub topic (blank if not ordered)
 	Limiter      *Limiter `json:"limiter,omitempty"` // the rate limiter for the topic
 
 	// Subscriptions contains the subscriptions to this topic,

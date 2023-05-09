@@ -33,7 +33,7 @@ type topic struct {
 
 var _ types.TopicImplementation = (*topic)(nil)
 
-func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {
+func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs map[string]string, data []byte) (id string, err error) {
 	attributes := make(map[string]snsTypes.MessageAttributeValue)
 	for key, value := range attrs {
 		attributes[key] = snsTypes.MessageAttributeValue{
@@ -54,6 +54,12 @@ func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, dat
 	// 2. Set a message deduplication ID as this is required to enable exactly-once delivery
 	if t.staticCfg.DeliveryGuarantee == types.ExactlyOnce {
 		params.MessageGroupId = aws.String(fmt.Sprintf("inst_%s", t.publisherID.String()))
+		params.MessageDeduplicationId = aws.String(fmt.Sprintf("msg_%s", xid.New().String()))
+	}
+
+	// If we have an explicit ordering key, use that as the message group ID and mark the topic as FIFO
+	if orderingKey != "" {
+		params.MessageGroupId = aws.String(orderingKey)
 		params.MessageDeduplicationId = aws.String(fmt.Sprintf("msg_%s", xid.New().String()))
 	}
 

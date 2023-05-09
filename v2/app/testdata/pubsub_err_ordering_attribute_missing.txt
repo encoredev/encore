@@ -1,0 +1,41 @@
+# Verify that pub sub is parsed
+! parse
+
+-- shared/topics.go --
+package shared
+
+import (
+    "encore.dev/pubsub"
+)
+
+type MessageType struct {
+    ID   int64  `pubsub-attr:"msg-id"`
+    Name string `pubsub-attr:"name"`
+}
+
+var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+    OrderingAttribute: "ID",
+})
+
+-- want: errors --
+
+── Invalid PubSub topic config ────────────────────────────────────────────────────────────[E9999]──
+
+The configuration field named "OrderingAttribute" must be a one of the export attributes on the
+message type.
+
+    ╭─[ shared/topics.go:14:24 ]
+    │
+ 12 │ var BasicTopic = pubsub.NewTopic[*MessageType]("same-name", pubsub.TopicConfig{
+ 13 │     DeliveryGuarantee: pubsub.AtLeastOnce,
+ 14 │     OrderingAttribute: "ID",
+    ⋮                        ────
+ 15 │ })
+ 16 │
+────╯
+
+For example `pubsub.NewTopic[MyMessage]("my-topic", pubsub.TopicConfig{ DeliveryGuarantee:
+pubsub.AtLeastOnce })`
+
+For more information on PubSub, see https://encore.dev/docs/primitives/pubsub
