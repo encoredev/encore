@@ -82,7 +82,7 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 	})
 
 	// Publish a message on the queue
-	sentMessageID, err = topic.PublishMessage(context.Background(), map[string]string{"attr-1": "foo"}, []byte("{\"hello\":\"world\"}"))
+	sentMessageID, err = topic.PublishMessage(context.Background(), "", map[string]string{"attr-1": "foo"}, []byte("{\"hello\":\"world\"}"))
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

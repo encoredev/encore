@@ -39,13 +39,13 @@ func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
 	return cfg.GCP != nil
 }
 
-func (mgr *Manager) NewTopic(_ *config.PubsubProvider, _ types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
+func (mgr *Manager) NewTopic(_ *config.PubsubProvider, staticCfg types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
 	client := mgr.getClient()
 	gcpTopic := client.TopicInProject(runtimeCfg.ProviderName, runtimeCfg.GCP.ProjectID)
 
 	// Enable message ordering if we have an ordering key set
-	gcpTopic.EnableMessageOrdering = runtimeCfg.OrderingKey != ""
+	gcpTopic.EnableMessageOrdering = staticCfg.OrderingAttribute != ""
 
 	// Check we have permissions to interact with the given topic
 	// (note: the call to Topic() above only creates the object, it doesn't verify that we have permissions to interact with it)
@@ -57,11 +57,11 @@ func (mgr *Manager) NewTopic(_ *config.PubsubProvider, _ types.TopicConfig, runt
 	return &topic{mgr, client, gcpTopic, runtimeCfg}
 }
 
-func (t *topic) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {
+func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs map[string]string, data []byte) (id string, err error) {
 	gcpMsg := &pubsub.Message{
 		Data:        data,
 		Attributes:  attrs,
-		OrderingKey: t.topicCfg.OrderingKey, // FIXME(domblack): this should be the ordering VALUE not column name
+		OrderingKey: orderingKey,
 	}
 
 	// Attempt to publish the message

@@ -42,7 +42,7 @@ func NewTopic[T any](ts *testsupport.Manager, name string) types.TopicImplementa
 // PublishMessage will record the message against the test instance
 // and if subscribers are enabled for the test instance, it will also trigger
 // those subscribers. (The default behaviour is subscribers are disabled in tests)
-func (t *TestTopic[T]) PublishMessage(ctx context.Context, attrs map[string]string, data []byte) (id string, err error) {
+func (t *TestTopic[T]) PublishMessage(ctx context.Context, orderingKey string, attrs map[string]string, data []byte) (id string, err error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}

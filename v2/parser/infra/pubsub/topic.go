@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"encr.dev/pkg/errors"
-	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"
@@ -31,7 +30,7 @@ type Topic struct {
 	Name              string              // The unique name of the pub sub topic
 	Doc               string              // The documentation on the pub sub topic
 	DeliveryGuarantee DeliveryGuarantee   // What guarantees does the pub sub topic have?
-	OrderingKey       string              // What field in the message type should be used to ensure First-In-First-Out (FIFO) for messages with the same key
+	OrderingAttribute string              // What field in the message type should be used to ensure First-In-First-Out (FIFO) for messages with the same key
 	MessageType       *schema.TypeDeclRef // The message type of the pub sub topic
 }
 
@@ -95,28 +94,28 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 	// Decode the config
 	type decodedConfig struct {
 		DeliveryGuarantee int    `literal:",optional"` // optional rather than required because we check for a zero value below
-		OrderingKey       string `literal:",optional"`
+		OrderingAttribute string `literal:",optional"`
 	}
 	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
 
 	// Get the ordering key
-	if config.OrderingKey != "" {
-		// Make sure the OrderingKey value exists in the struct.
-		if str, ok := messageType.Decl.Type.(schema.StructType); ok {
-			var foundField ast.Node
-			for _, field := range str.Fields {
-				if option.Contains(field.Name, config.OrderingKey) {
-					foundField = field.AST
-					break
-				}
-			}
+	if config.OrderingAttribute != "" {
+		var foundField ast.Node
 
-			if foundField == nil || !ast.IsExported(config.OrderingKey) {
-				if foundField == nil {
-					foundField = cfgLit.Expr("OrderingKey")
-				}
-				errs.Add(errOrderingKeyNotExported.AtGoNode(foundField))
+		// Make sure the OrderingAttribute value exists in the struct.
+		str := messageType.Decl.Type.(schema.StructType)
+		for _, field := range str.Fields {
+			if attr, err := field.Tag.Get("pubsub-attr"); err == nil && attr.Name == config.OrderingAttribute {
+				foundField = field.AST
+				break
 			}
+		}
+
+		if foundField == nil || !ast.IsExported(foundField.(*ast.Field).Names[0].Name) {
+			if foundField == nil {
+				foundField = cfgLit.Expr("OrderingAttribute")
+			}
+			errs.Add(errOrderingKeyNotExported.AtGoNode(foundField))
 		}
 	}
 
@@ -153,7 +152,7 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 		Name:              topicName,
 		Doc:               d.Doc,
 		DeliveryGuarantee: deliveryGuarantee,
-		OrderingKey:       config.OrderingKey,
+		OrderingAttribute: config.OrderingAttribute,
 		MessageType:       messageType,
 	}
 	d.Pass.RegisterResource(topic)

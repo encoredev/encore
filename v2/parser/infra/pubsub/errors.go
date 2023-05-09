@@ -42,7 +42,7 @@ var (
 
 	errOrderingKeyNotExported = errRange.New(
 		"Invalid PubSub topic config",
-		"The configuration field named \"OrderingKey\" must be a one of the exported fields on the message type.",
+		"The configuration field named \"OrderingAttribute\" must be a one of the export attributes on the message type.",
 		errors.PrependDetails(pubsubNewTopicHelp),
 	)
 

@@ -11,16 +11,20 @@ import (
 )
 
 type MessageType struct {
+    UserID int64 `pubsub-attr:"user_id"`
     Name string
 }
 
 var (
-    BasicTopic = pubsub.NewTopic[*MessageType]("basic", pubsub.TopicConfig{ DeliveryGuarantee: pubsub.AtLeastOnce })
+    BasicTopic = pubsub.NewTopic[*MessageType]("basic", pubsub.TopicConfig{
+        DeliveryGuarantee: pubsub.AtLeastOnce,
+        OrderingAttribute: "user_id",
+    })
 )
 
 // encore:api
 func DoStuff(ctx context.Context) error {
-    return BasicTopic.Publish(ctx, &MessageType{Name: "foo"})
+    return BasicTopic.Publish(ctx, &MessageType{UserID: 1, Name: "foo"})
 }
 
 
@@ -38,7 +42,7 @@ import (
 
 //encore:middleware global target=all
 func MiddlewareFunc(req middleware.Request, next middleware.Next) middleware.Response {
-    svc.BasicTopic.Publish(req.Context(), &svc.MessageType{Name: "bar"})
+    svc.BasicTopic.Publish(req.Context(), &svc.MessageType{UserID: 1, Name: "bar"})
 
 	return next(req)
 }

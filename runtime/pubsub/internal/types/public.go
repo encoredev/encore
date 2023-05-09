@@ -90,10 +90,49 @@ type TopicConfig struct {
 	// This field is required.
 	DeliveryGuarantee DeliveryGuarantee
 
-	// OrderingKey is the name of the message attribute used to group
-	// messages and delivery messages with the same OrderingKey value
-	// in the order they were published.
+	// OrderingAttribute is the message attribute to use as a ordering key for
+	// messages and delivery will ensure that messages with the same value will
+	// be delivered in the order they where published.
 	//
-	// If OrderingKey is not set, messages can be delivered in any order.
-	// OrderingKey string - OrderingKey is currently not supported.
+	// If OrderingAttribute is not set, messages can be delivered in any order.
+	//
+	// It is important to note, that in the case of an error being returned by a
+	// subscription handler, the message will be retried before any subsequent
+	// messages for that ordering key are delivered. This means depending on the
+	// retry configuration, a large backlog of messages for a given ordering key
+	// may build up. When using OrderingAttribute, it is recommended to use reason
+	// about your failure modes and set the retry configuration appropriately.
+	//
+	// Once the maximum number of retries has been reached, the message will be
+	// forwarded to the dead letter queue, and the next message for that ordering
+	// key will be delivered.
+	//
+	// To create attributes on a message, use the `pubsub-attr` struct tag:
+	//
+	//	type UserEvent struct {
+	//		UserID string `pubsub-attr:"user-id"`
+	//		Action string
+	//	}
+	//
+	//  var topic = pubsub.NewTopic[UserEvent]("user-events", pubsub.TopicConfig{
+	// 		DeliveryGuarantee: pubsub.AtLeastOnce,
+	//		OrderingAttribute: "user-id", // Messages with the same user-id will be delivered in the order they where published
+	//	})
+	//
+	//  topic.Publish(ctx, &UserEvent{UserID: "1", Action: "login"})  // This message will be delivered before the logout
+	//  topic.Publish(ctx, &UserEvent{UserID: "2", Action: "login"})  // This could be delivered at any time because it has a different user id
+	//  topic.Publish(ctx, &UserEvent{UserID: "1", Action: "logout"}) // This message will be delivered after the first message
+	//
+	// By using OrderingAttribute, the throughput will be limited depending on the cloud provider:
+	//
+	// - AWS: 300 messages per second for the topic (see [AWS SQS Quotas]).
+	// - GCP: 1MB/s for each ordering key (see [GCP PubSub Quotas]).
+	//
+	// Note: OrderingAttribute currently has no effect during local development.
+	//
+	// [AWS SQS Quotas]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
+	// [GCP PubSub Quotas]: https://cloud.google.com/pubsub/quotas#resource_limits
+	//
+	//publicapigen:drop
+	OrderingAttribute string
 }

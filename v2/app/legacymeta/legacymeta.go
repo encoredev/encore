@@ -244,7 +244,7 @@ func (b *builder) Build() *meta.Data {
 				Name:          r.Name,
 				Doc:           r.Doc,
 				MessageType:   b.typeDeclRefUnwrapPointer(r.MessageType),
-				OrderingKey:   r.OrderingKey,
+				OrderingKey:   r.OrderingAttribute,
 				Publishers:    nil,
 				Subscriptions: nil, // filled in later
 			}

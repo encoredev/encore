@@ -48,10 +48,10 @@ require (
 	github.com/rs/zerolog v1.29.1
 	github.com/spf13/cobra v1.6.1
 	github.com/tailscale/hujson v0.0.0-20220630195928-54599719472f
-	go.encore.dev/platform-sdk v1.0.0
+	go.encore.dev/platform-sdk v1.1.0
 	go.uber.org/goleak v1.1.12
 	go4.org v0.0.0-20201209231011-d4a079459e60
-	golang.org/x/crypto v0.8.0
+	golang.org/x/crypto v0.9.0
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
 	golang.org/x/mod v0.10.0
 	golang.org/x/oauth2 v0.7.0
@@ -133,8 +133,8 @@ require (
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/term v0.7.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/term v0.8.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
