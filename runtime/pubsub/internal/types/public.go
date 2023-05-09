@@ -128,7 +128,7 @@ type TopicConfig struct {
 	// - AWS: 300 messages per second for the topic (see [AWS SQS Quotas]).
 	// - GCP: 1MB/s for each ordering key (see [GCP PubSub Quotas]).
 	//
-	// Note: OrderingAttribute is not supported for local development.
+	// Note: OrderingAttribute currently has no effect during local development.
 	//
 	// [AWS SQS Quotas]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
 	// [GCP PubSub Quotas]: https://cloud.google.com/pubsub/quotas#resource_limits
