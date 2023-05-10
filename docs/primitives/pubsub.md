@@ -69,6 +69,77 @@ the same message, the message will be delivered twice.
 
 </Callout>
 
+### Ordered Topics
+
+By default, topics are unordered, meaning that messages can be delivered in any order. This allows for better throughput
+on the topic as messages can be processed in parallel. However in some cases it's important that messages are delivered
+in the order they were published for a given entity, such as a user or shopping cart.
+
+To create an ordered topic, you need to configure the topic's `OrderingAttribute` to match the `pubsub-attr` tag on one
+of the top level fields of the event type. This field will ensure that messages delivered to the same subscriber will
+be delivered in the order of publishing for that specific field value. Messages with a different value on the ordering
+attribute can be delivered in any order.
+
+<Callout type="warning">
+
+By enabling ordered topics, you create a head-of-line blocking problem. This is because subsequent messages for the
+same ordering key will not be delivered until a message is successfully processed or dead-lettered. As such, it's
+strongly recommended to only use ordered topics when absolutely necessary and to ensure that your subscription configuration
+has a sensible retry policy which will dead-letter messages that fail to process within a timeframe that makes sense for
+your use case.
+
+</Callout>
+
+<Toggle label="Example Ordered Topic">
+
+```go
+package example
+
+import (
+	"context"
+    "encore.dev/pubsub"
+)
+
+type CartEvent struct {
+    ShoppingCartID int `pubsub-attr:"cart_id"`
+	Event          string
+}
+
+var CartEvents = pubsub.NewTopic[*CartEvent]("cart-events", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+    OrderingAttribute: "cart_id",
+})
+
+
+func Example(ctx context.Context) error {
+	// The following events will be delivered in order as they all have the same
+	// shopping cart ID
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "item_added"})
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "item_removed"})
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_started"})
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_completed"})
+	
+	// However this event could be delievered at any point as it has a different shopping
+	// cart ID
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 2, Event: "item_added"})
+}
+```
+
+</Toggle>
+
+
+By enabling message ordering on a topic, the cloud provider enforces certain throughput limitations:
+- AWS: 300 messages per second for the topic (see [AWS SQS Quotas](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html)).
+- GCP: 1 MBps for each ordering key (See [GCP PubSub Resource Limits](https://cloud.google.com/pubsub/quotas#resource_limits))
+
+<Callout type="info">
+
+The OrderingAttribute currently has no effect during local development.
+
+</Callout>
+
+
+
 ## Publishing events
 
 To publish an **Event**, call `Publish` on the topic passing in the event object (which is the type specified in the `pubsub.NewTopic[Type]` constructor).
