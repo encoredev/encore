@@ -76,17 +76,18 @@ on the topic as messages can be processed in parallel. However in some cases it'
 in the order they were published for a given entity, such as a user or shopping cart.
 
 To create an ordered topic, you need to configure the topic's `OrderingAttribute` to match the `pubsub-attr` tag on one
-of the top level fields of the event type. This field will ensure that messages delivered to the same subscriber will
-be delivered in the order of publishing for that specific field value. Messages with a different value on the ordering
-attribute can be delivered in any order.
+of the top level fields of the event type. This field ensures that messages delivered to the same subscriber are
+delivered in the order of publishing for that specific field value. Messages with a different value on the ordering
+attribute are delivered in an unspecified order.
 
 <Callout type="warning">
 
-By enabling ordered topics, you create a head-of-line blocking problem. This is because subsequent messages for the
-same ordering key will not be delivered until a message is successfully processed or dead-lettered. As such, it's
-strongly recommended to only use ordered topics when absolutely necessary and to ensure that your subscription configuration
-has a sensible retry policy which will dead-letter messages that fail to process within a timeframe that makes sense for
-your use case.
+With an ordered topic subsequent messages for the same ordering key are not delivered until the earliest
+message (for that ordering key) is successfully processed or dead-lettered. This can lead to a
+[head-of-line blocking](https://en.wikipedia.org/wiki/Head-of-line_blocking) problem,
+and cause unexpected delays in message processing. Make sure you have sufficient logging and alerting in
+place to handle processing issues, and make sure the retry policy on each subscription is configured
+appropriately. In general, use ordered topics with care and consider whether the benefits outweigh these downsides.
 
 </Callout>
 
@@ -97,19 +98,18 @@ package example
 
 import (
 	"context"
-    "encore.dev/pubsub"
+	"encore.dev/pubsub"
 )
 
 type CartEvent struct {
-    ShoppingCartID int `pubsub-attr:"cart_id"`
+	ShoppingCartID int `pubsub-attr:"cart_id"`
 	Event          string
 }
 
 var CartEvents = pubsub.NewTopic[*CartEvent]("cart-events", pubsub.TopicConfig{
-    DeliveryGuarantee: pubsub.AtLeastOnce,
-    OrderingAttribute: "cart_id",
+	DeliveryGuarantee: pubsub.AtLeastOnce,
+	OrderingAttribute: "cart_id",
 })
-
 
 func Example(ctx context.Context) error {
 	// The following events will be delivered in order as they all have the same
@@ -118,7 +118,7 @@ func Example(ctx context.Context) error {
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "item_removed"})
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_started"})
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_completed"})
-	
+
 	// However this event could be delievered at any point as it has a different shopping
 	// cart ID
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 2, Event: "item_added"})
