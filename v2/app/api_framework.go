@@ -56,14 +56,13 @@ func configureAPIFramework(pc *parsectx.Context, services []*Service, res *parse
 	}
 
 	modifySvcDesc := func(pkg *pkginfo.Package, errTemplate *errors.Template, fn func(svc *Service, desc *apiframework.ServiceDesc)) {
-		for i, svc := range services {
+		for _, svc := range services {
 			if pkg.FSPath.HasPrefix(svc.FSRoot) {
 				// We've found the service. Initialize the framework service description
 				// if necessary, and then call fn.
 				desc, ok := svc.Framework.Get()
 				if !ok {
 					desc = &apiframework.ServiceDesc{
-						Num:     i + 1,
 						RootPkg: pkg,
 					}
 					svc.Framework = option.Some(desc)

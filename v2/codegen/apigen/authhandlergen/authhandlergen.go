@@ -22,9 +22,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler,
 	svcNum := 0
 	if svc, ok := appDesc.ServiceForPath(ah.Decl.File.FSPath); ok {
 		svcName = svc.Name
-		if fw, ok := svc.Framework.Get(); ok {
-			svcNum = fw.Num
-		}
+		svcNum = svc.Num
 	}
 
 	desc.Value(Op("&").Add(apiQ("AuthHandlerDesc")).Types(

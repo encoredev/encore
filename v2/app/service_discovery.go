@@ -91,6 +91,15 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 			}
 		}
 	}
+
+	// Sort the services by name and assign the service numbers.
+	slices.SortFunc(services, func(a, b *Service) bool {
+		return a.Name < b.Name
+	})
+	for idx, svc := range services {
+		svc.Num = idx + 1
+	}
+
 	return services
 }
 
