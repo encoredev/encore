@@ -22,9 +22,6 @@ type AppDesc struct {
 //
 // For code that deals with general services, use *service.Service instead of this type.
 type ServiceDesc struct {
-	// Num is the 1-based service number in the application.
-	Num int
-
 	// Middleware are the service-specific middleware
 	Middleware []*middleware.Middleware
 

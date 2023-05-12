@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
+	"golang.org/x/exp/slices"
 
-	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
@@ -119,15 +119,14 @@ func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) *Statement {
 }
 
 func bundledServices(appDesc *app.Desc) *Statement {
-	// Sort the names by service name so the output is deterministic.
-	names := fns.Map(appDesc.Services, func(svc *app.Service) string {
-		return svc.Name
+	// Sort the names by service number since that's what we're indexing by.
+	svcs := slices.Clone(appDesc.Services)
+	slices.SortFunc(svcs, func(a, b *app.Service) bool {
+		return a.Num < b.Num
 	})
-	sort.Strings(names)
-
 	return Index().String().ValuesFunc(func(g *Group) {
-		for _, name := range names {
-			g.Lit(name)
+		for _, svc := range svcs {
+			g.Lit(svc.Name)
 		}
 	})
 }
