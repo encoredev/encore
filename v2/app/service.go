@@ -14,6 +14,9 @@ type Service struct {
 	// Name is the name of the service.
 	Name string
 
+	// Num is the 1-based service number in the application.
+	Num int
+
 	// FSRoot is the root directory of the service.
 	FSRoot paths.FS
 

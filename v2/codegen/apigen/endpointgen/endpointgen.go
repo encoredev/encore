@@ -78,7 +78,7 @@ func genAPIDesc(
 		respDesc.Type(),
 	).Values(Dict{
 		Id("Service"):        Lit(svc.Name),
-		Id("SvcNum"):         Lit(fw.Num),
+		Id("SvcNum"):         Lit(svc.Num),
 		Id("Endpoint"):       Lit(ep.Name),
 		Id("Methods"):        gu.GoToJen(pos, methods),
 		Id("Raw"):            Lit(ep.Raw),
