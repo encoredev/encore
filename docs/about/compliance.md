@@ -13,7 +13,7 @@ We are arranging for an external review of our security measures and thus, we ar
 
 ## SOC 2
 
-SOC is short for "System and Organization Controls" --- it is the de facto industry standard for software security and privacy. During the SOC 2 audit, an external auditor will carry out an extensive review of our processes (e.g. employee onboarding and offboarding, access review, various policies, disaster recovery exercises, software architecture, physical access, etc.) and ensure that they meet the mark.
+SOC is short for "System and Organization Controls" – it is the de facto industry standard for software security and privacy. During the SOC 2 audit, an external auditor will carry out an extensive review of our processes (e.g. employee onboarding and offboarding, access review, various policies, disaster recovery exercises, software architecture, physical access, etc.) and ensure that they meet the mark.
 
 The Type 1 audit is a point-in-time audit where the auditor verifies that the controls are satisfied at a specific point in time. We are planning to proceed to Type 2 afterward which is based on continuous monitoring during time periods of varying lengths.
 
@@ -51,7 +51,7 @@ We have a designated individual (Security Officer) responsible for all aspects o
 
 ### Infrastructure security
 
-Encore's core production infrastructure is hosted on GCP (Google Cloud Platform), an ISO27001/SOC 2 compliant vendor. Auxiliary services are provided by Hetzner, an ISO27001 compliant vendor. Tailscale, a SOC 2 compliant vendor, provider VPN (Virtual Private Network)  services used to provide secure communication between all servers.
+Encore's core production infrastructure is hosted on GCP (Google Cloud Platform), an ISO27001/SOC 2 compliant vendor. Auxiliary services are provided by Hetzner, an ISO27001 compliant vendor. Tailscale, a SOC 2 compliant vendor, provides VPN (Virtual Private Network) services used to secure communication between all servers.
 
 All core data processing is carried out in the US East region (us-east-1), and backups are kept in multiple separate regions in the US. Each region is composed of at least three "availability zones" (AZs) which are isolated locations, designed to take over in case of a catastrophic failure at one location. AZs are separated by a significant distance such that it is unlikely that they are affected by the same issues such as power outages, earthquakes, etc. Physical access to GCP is restricted by GCP's security controls. Furthermore, GCP monitors and immediately responds to power, temperature, fire, water leaks, etc.
 
