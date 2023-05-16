@@ -7,12 +7,12 @@ subtitle: Encore makes strong security the default path
 
 The security practices implemented by Encore are informed by our team's decades-long experience working with banking, payments, and other sensitive systems, at companies like Google, Spotify, and Monzo.
 
-We have designed Encore to make building secure applications an effortless task, rather than an inconvenience, allowing you to focus on functionality rather than laborious security concerns.
+We have designed Encore to make building secure applications an effortless task, rather than an inconvenience, allowing you to focus on functionality instead of laborious security concerns.
 
 For example, Encore's [secrets management](/docs/primitives/secrets) gives you a simple way of using secret keys, while at the same time providing state of the art security behind the scenes.
 
-Furthermore, thanks to Encore's API framework and Infrastructure SDK, Encore understands which specific services that require access to certain resources. It then automatically configures your application based on the principles of least access, ensuring each service only has the minimum necessary permissions.
+Furthermore, thanks to the API framework and Infrastructure SDK, Encore understands which services require access to certain resources and automatically configures your application based on the principle of least access. This ensures each service only has the minimum necessary permissions.
 
-When your application is running, all communication to Encore uses mutual TLSv1.3 connections, and all database access is similarly encrypted with certificate validation and strong security credentials.
+When your application is running, all communication to Encore uses mutual TLSv1.3 connections, and all database access is encrypted with certificate validation and strong security credentials.
 
 For cloud environments, Encore automatically provisions infrastructure using security best practises for each of the supported cloud providers (GCP, AWS). Learn more in the [infrastructure documentation](/docs/deploy/infra).
