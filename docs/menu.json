@@ -238,7 +238,7 @@
       },
       {
         "Path": "/deploy/security",
-        "Title": "Security",
+        "Title": "Application Security",
         "DocSlug": "deploy/security"
       }
     ]
@@ -426,6 +426,11 @@
         "Path": "/about/billing",
         "Title": "Plans & billing",
         "DocSlug": "about/billing"
+      },
+      {
+        "Path": "/about/compliance",
+        "Title": "Compliance & Security",
+        "DocSlug": "about/compliance"
       }
     ]
   }
