@@ -11,6 +11,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type TraceEventID uint64
+
 type RequestType byte
 
 const (
@@ -44,7 +46,8 @@ type Request struct {
 	SpanID           SpanID
 	ParentID         SpanID
 	ParentTraceID    TraceID
-	ExtCorrelationID string // The externally-provided correlation ID, if any.
+	CallerEventID    TraceEventID // the event that triggered this request
+	ExtCorrelationID string       // The externally-provided correlation ID, if any.
 
 	Start  time.Time
 	Logger *zerolog.Logger
@@ -143,6 +146,9 @@ type Response struct {
 	// HTTPStatus is the HTTP status to respond with.
 	HTTPStatus int
 
+	// Duration is how long the request took.
+	Duration time.Duration
+
 	// Err is the error returned from the handler or middleware, or nil.
 	Err error
 
@@ -176,6 +182,12 @@ type APICall struct {
 	Source *Request
 	SpanID SpanID
 	DefLoc int32
+
+	// Service/endpoint being called
+	TargetServiceName  string
+	TargetEndpointName string
+
+	StartEventID TraceEventID
 }
 
 type AuthCall struct {
@@ -190,3 +202,29 @@ type AuthInfo struct {
 	UID      UID
 	UserData any
 }
+
+type LogLevel byte
+
+const (
+	LevelTrace LogLevel = 0 // unused; reserve for future use
+	LevelDebug LogLevel = 1
+	LevelInfo  LogLevel = 2
+	LevelWarn  LogLevel = 3
+	LevelError LogLevel = 4
+)
+
+type LogFieldType byte
+
+const (
+	ErrField      LogFieldType = 1
+	StringField   LogFieldType = 2
+	BoolField     LogFieldType = 3
+	TimeField     LogFieldType = 4
+	DurationField LogFieldType = 5
+	UUIDField     LogFieldType = 6
+	JSONField     LogFieldType = 7
+	IntField      LogFieldType = 8
+	UintField     LogFieldType = 9
+	Float32Field  LogFieldType = 10
+	Float64Field  LogFieldType = 11
+)

@@ -165,3 +165,11 @@ func (o Option[T]) String() string {
 	}
 	return "None"
 }
+
+// PtrOrNil returns the value as a pointer, if present, or nil otherwise.
+func (o Option[T]) PtrOrNil() *T {
+	if o.present {
+		return &o.value
+	}
+	return nil
+}
