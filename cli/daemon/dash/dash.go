@@ -17,21 +17,24 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/tailscale/hujson"
 
-	"encr.dev/cli/daemon/engine/trace"
+	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/errlist"
+	tracepb2 "encr.dev/proto/encore/engine/trace2"
 	v1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type handler struct {
 	rpc jsonrpc2.Conn
 	run *run.Manager
-	tr  *trace.Store
+	tr  trace2.Store
 }
 
 func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
+	reply = makeProtoReplier(reply)
+
 	unmarshal := func(dst interface{}) error {
 		if r.Params() == nil {
 			return fmt.Errorf("missing params")
@@ -61,23 +64,48 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 		return reply(ctx, apps, nil)
 
-	case "list-traces":
+	case "traces/list":
 		var params struct {
 			AppID string
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
 		}
-		traces := h.tr.List(params.AppID)
-		tr := make([]*Trace, len(traces))
-		for i, t := range traces {
-			tt, err := TransformTrace(t)
-			if err != nil {
-				return reply(ctx, nil, err)
-			}
-			tr[i] = tt
+
+		query := &trace2.Query{
+			AppID: params.AppID,
+			// TODO add filters
 		}
-		return reply(ctx, tr, nil)
+		list := []*tracepb2.SpanSummary{} // prevent marshalling as null
+		iter := func(s *tracepb2.SpanSummary) bool {
+			list = append(list, s)
+			return true
+		}
+		err := h.tr.List(ctx, query, iter)
+		if err != nil {
+			log.Error().Err(err).Msg("dash: could not list traces")
+		}
+		return reply(ctx, list, err)
+
+	case "traces/get":
+		var params struct {
+			AppID   string
+			TraceID string
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+
+		events := []*tracepb2.TraceEvent{} // prevent marshalling as null
+		iter := func(ev *tracepb2.TraceEvent) bool {
+			events = append(events, ev)
+			return true
+		}
+		err := h.tr.Get(ctx, params.AppID, params.TraceID, iter)
+		if err != nil {
+			log.Error().Err(err).Msg("dash: could not list trace events")
+		}
+		return reply(ctx, events, err)
 
 	case "status":
 		var params struct {
@@ -215,9 +243,8 @@ func (h *handler) listenNotify(ctx context.Context, ch <-chan *notification) {
 }
 
 func (s *Server) listenTraces() {
-	for tt := range s.traceCh {
-		// Transforming a trace is fairly expensive, so only do it
-		// if somebody is listening.
+	for sp := range s.traceCh {
+		// Only marshal the trace if someone's listening.
 		s.mu.Lock()
 		hasClients := len(s.clients) > 0
 		s.mu.Unlock()
@@ -225,14 +252,15 @@ func (s *Server) listenTraces() {
 			continue
 		}
 
-		tr, err := TransformTrace(tt)
+		data, err := protoEncoder.Marshal(sp)
 		if err != nil {
-			log.Error().Err(err).Msg("dash: could not process trace")
+			log.Error().Err(err).Msg("dash: could not marshal trace")
 			continue
 		}
+
 		s.notify(&notification{
 			Method: "trace/new",
-			Params: tr,
+			Params: json.RawMessage(data),
 		})
 	}
 }
@@ -575,4 +603,16 @@ func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string][]*
 	}
 
 	return nil
+}
+
+// protoReplier is a jsonrpc2.Replier that wraps another replier and serializes
+// any protobuf message with protojson.
+func makeProtoReplier(rep jsonrpc2.Replier) jsonrpc2.Replier {
+	return func(ctx context.Context, result any, err error) error {
+		if err != nil {
+			return rep(ctx, nil, err)
+		}
+		jsonData, err := protoEncoder.Marshal(result)
+		return rep(ctx, json.RawMessage(jsonData), err)
+	}
 }
