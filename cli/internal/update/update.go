@@ -172,7 +172,7 @@ func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
 		// Upgrade via homebrew if we can
 		if wasInstalledViaHomebrew(shell, arg, lv.Channel) {
 			brewManaged = true
-			script = "brew upgrade encore"
+			script = "brew upgrade encore --fetch-head"
 		}
 	}
 
@@ -182,7 +182,7 @@ func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
 	// no-op
 	case version.Nightly:
 		if brewManaged {
-			script = "brew upgrade encore-nightly"
+			script = "brew upgrade encore-nightly --fetch-head"
 		} else {
 			return errors.New("nightly can not be automatically updated without homebrew")
 		}
