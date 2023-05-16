@@ -109,6 +109,9 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 
     /** Any query parameters to be sent with the request */
     query?: Record<string, string | string[]>
+
+    /** indicates whether the user agent should send or receive cookies from the other domain in the case of cross-origin requests. */
+    credentials?: RequestCredentials;
 }
 
 
