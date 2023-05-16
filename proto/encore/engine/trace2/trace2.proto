@@ -1,0 +1,428 @@
+syntax = "proto3";
+
+option go_package = "encr.dev/proto/encore/engine/trace2";
+
+import "google/protobuf/timestamp.proto";
+
+package encore.engine.trace2;
+
+// SpanSummary summarizes a span for display purposes.
+message SpanSummary {
+  string trace_id                      = 1;
+  string span_id                       = 2;
+  SpanType type                        = 3;
+  bool   is_root                       = 4;  // whether it's a root request
+  bool   is_error                      = 5;  // whether the request failed
+  string deployed_commit               = 6;  // the commit hash of the running service
+  google.protobuf.Timestamp started_at = 7;
+  uint64 duration_nanos                = 8;
+  string service_name                  = 9;
+  optional string endpoint_name        = 10;
+  optional string topic_name           = 11;
+  optional string subscription_name    = 12;
+  optional string message_id           = 13;
+
+  enum SpanType {
+    UNKNOWN = 0;
+    REQUEST = 1;
+    AUTH = 2;
+    PUBSUB_MESSAGE = 3;
+  }
+}
+
+message TraceID {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+message EventList {
+  repeated TraceEvent events = 1;
+}
+
+message TraceEvent {
+  TraceID trace_id = 1;
+  uint64 span_id = 2;
+  uint64 event_id = 3;
+  google.protobuf.Timestamp event_time = 4;
+
+  oneof event {
+    SpanStart span_start = 10;
+    SpanEnd span_end = 11;
+    SpanEvent span_event = 12;
+  }
+}
+
+message SpanStart {
+  uint32 goid = 1;
+  optional TraceID parent_trace_id = 2;
+  optional uint64 parent_span_id = 3;
+  optional uint64 caller_event_id  = 4;
+  optional string external_correlation_id = 5;
+  optional uint32 def_loc = 6;
+
+  oneof data {
+    RequestSpanStart request = 10;
+    AuthSpanStart auth = 11;
+    PubsubMessageSpanStart pubsub_message = 12;
+  }
+}
+
+message SpanEnd {
+  uint64 duration_nanos = 1;
+  optional Error error = 2;
+  optional TraceID parent_trace_id = 3;
+  optional uint64 parent_span_id = 4;
+  oneof data {
+    RequestSpanEnd request = 10;
+    AuthSpanEnd auth = 11;
+    PubsubMessageSpanEnd pubsub_message = 12;
+  }
+}
+
+message RequestSpanStart {
+  string service_name = 1;
+  string endpoint_name = 2;
+  string http_method = 3;
+  string path = 4;
+  repeated string path_params = 5;
+  map<string, string> request_headers = 6;
+  optional bytes request_payload = 7;
+  optional string ext_correlation_id = 8;
+  optional string uid = 9;
+}
+
+message RequestSpanEnd {
+  // Repeat service/endpoint name here to make it possible
+  // to consume end events without having to look up the start.
+  string service_name = 1;
+  string endpoint_name = 2;
+
+  uint32 http_status_code = 3;
+  map<string, string> response_headers = 4;
+  optional bytes response_payload = 5;
+}
+
+message AuthSpanStart {
+  string service_name = 1;
+  string endpoint_name = 2;
+  optional bytes auth_payload = 3;
+}
+
+message AuthSpanEnd {
+  // Repeat service/endpoint name here to make it possible
+  // to consume end events without having to look up the start.
+  string service_name = 1;
+  string endpoint_name = 2;
+
+  string uid = 3;
+  optional bytes user_data = 4;
+}
+
+message PubsubMessageSpanStart {
+  string service_name = 1;
+  string topic_name = 2;
+  string subscription_name = 3;
+  string message_id = 4;
+  uint32 attempt = 5;
+  google.protobuf.Timestamp publish_time = 6;
+  optional bytes message_payload = 7;
+}
+
+message PubsubMessageSpanEnd {
+  // Repeat service/topic/subscription name here to make it possible
+  // to consume end events without having to look up the start.
+  string service_name = 1;
+  string topic_name = 2;
+  string subscription_name = 3;
+}
+
+message SpanEvent {
+  uint32 goid = 1;
+  optional uint32 def_loc = 2;
+
+  // correlation_event_id is the other event
+  // this event is correlated with.
+  optional uint64 correlation_event_id = 3;
+
+  oneof data {
+    LogMessage log_message = 10;
+    BodyStream body_stream = 11;
+    RPCCallStart rpc_call_start = 12;
+    RPCCallEnd rpc_call_end = 13;
+    DBTransactionStart db_transaction_start = 14;
+    DBTransactionEnd db_transaction_end = 15;
+    DBQueryStart db_query_start = 16;
+    DBQueryEnd db_query_end = 17;
+    HTTPCallStart http_call_start = 18;
+    HTTPCallEnd http_call_end = 19;
+    PubsubPublishStart pubsub_publish_start = 20;
+    PubsubPublishEnd pubsub_publish_end = 21;
+    CacheCallStart cache_call_start = 22;
+    CacheCallEnd cache_call_end = 23;
+    ServiceInitStart service_init_start = 24;
+    ServiceInitEnd service_init_end = 25;
+  }
+}
+
+message RPCCallStart {
+  string target_service_name = 1;
+  string target_endpoint_name = 2;
+  StackTrace stack = 3;
+}
+
+message RPCCallEnd {
+  optional Error err = 1;
+}
+
+message GoroutineStart {}
+message GoroutineEnd {}
+
+message DBTransactionStart {
+  StackTrace stack = 1;
+}
+
+message DBTransactionEnd {
+  enum CompletionType {
+    ROLLBACK = 0;
+    COMMIT = 1;
+  }
+
+  CompletionType completion = 1;
+  StackTrace stack = 2;
+  optional Error err = 3;
+}
+
+message DBQueryStart {
+  string query = 1;
+  StackTrace stack = 2;
+}
+
+message DBQueryEnd {
+  optional Error err = 1;
+}
+
+message PubsubPublishStart {
+  string topic = 1;
+  bytes message = 2;
+  StackTrace stack = 3;
+}
+
+message PubsubPublishEnd {
+  optional string message_id = 1;
+  optional Error err = 2;
+}
+
+message ServiceInitStart {
+  string service = 1;
+}
+
+message ServiceInitEnd {
+  optional Error err = 1;
+}
+
+message CacheCallStart {
+  string operation = 1;
+  repeated string keys = 2;
+  bool write = 3;
+  StackTrace stack = 4;
+  // TODO include more info (like inputs)
+}
+
+message CacheCallEnd {
+  Result result = 1;
+  optional Error err = 2;
+  // TODO include more info (like outputs)
+
+  enum Result {
+    UNKNOWN = 0;
+    OK = 1;
+    NO_SUCH_KEY = 2;
+    CONFLICT = 3;
+    ERR = 4;
+  }
+}
+
+message BodyStream {
+  bool is_response = 1;
+  bool overflowed = 2;
+  bytes data = 3;
+}
+
+message HTTPCallStart {
+  uint64 correlation_parent_span_id = 1;
+  string method = 2;
+  string url = 3;
+  StackTrace stack = 4;
+
+  // start_nanotime is used to compute timings based on the
+  // nanotime in the HTTP trace events.
+  int64 start_nanotime = 5;
+}
+
+message HTTPCallEnd {
+  // status_code is set if we got a HTTP response.
+  optional uint32 status_code = 1;
+  // err is set otherwise.
+  optional Error err = 2;
+
+  // TODO these should be moved to be asynchronous via a separate event.
+  repeated HTTPTraceEvent trace_events = 3;
+}
+
+enum HTTPTraceEventCode {
+  UNKNOWN = 0;
+  GET_CONN = 1;
+  GOT_CONN = 2;
+  GOT_FIRST_RESPONSE_BYTE = 3;
+  GOT_1XX_RESPONSE = 4;
+  DNS_START = 5;
+  DNS_DONE = 6;
+  CONNECT_START = 7;
+  CONNECT_DONE = 8;
+  TLS_HANDSHAKE_START = 9;
+  TLS_HANDSHAKE_DONE = 10;
+  WROTE_HEADERS = 11;
+  WROTE_REQUEST = 12;
+  WAIT_100_CONTINUE = 13;
+  CLOSED_BODY = 14;
+}
+
+
+message HTTPTraceEvent {
+  int64 nanotime = 1;
+  oneof data {
+    HTTPGetConn get_conn = 2;
+    HTTPGotConn got_conn = 3;
+    HTTPGotFirstResponseByte got_first_response_byte = 4;
+    HTTPGot1xxResponse got_1xx_response = 5;
+    HTTPDNSStart dns_start = 6;
+    HTTPDNSDone dns_done = 7;
+    HTTPConnectStart connect_start = 8;
+    HTTPConnectDone connect_done = 9;
+    HTTPTLSHandshakeStart tls_handshake_start = 10;
+    HTTPTLSHandshakeDone tls_handshake_done = 11;
+    HTTPWroteHeaders wrote_headers = 12;
+    HTTPWroteRequest wrote_request = 13;
+    HTTPWait100Continue wait_100_continue = 14;
+    HTTPClosedBodyData closed_body = 15;
+  }
+}
+
+message HTTPGetConn{
+  string host_port = 1;
+}
+
+message HTTPGotConn {
+  bool reused = 1;
+  bool was_idle = 2;
+  int64 idle_duration_ns = 3;
+}
+
+message HTTPGotFirstResponseByte {
+}
+
+message HTTPGot1xxResponse {
+  int32 code = 1;
+}
+
+message HTTPDNSStart {
+  string host = 1;
+}
+
+message HTTPDNSDone {
+  optional bytes err = 1;
+  repeated DNSAddr addrs = 2;
+}
+
+message DNSAddr {
+  bytes ip = 1;
+}
+
+message HTTPConnectStart {
+  string network = 1;
+  string addr = 2;
+}
+
+message HTTPConnectDone {
+  string network = 1;
+  string addr = 2;
+  bytes err = 3;
+}
+
+message HTTPTLSHandshakeStart {
+}
+
+message HTTPTLSHandshakeDone {
+  optional bytes err = 1;
+  uint32 tls_version = 2;
+  uint32 cipher_suite = 3;
+  string server_name = 4;
+  string negotiated_protocol = 5;
+}
+
+message HTTPWroteHeaders {
+}
+
+message HTTPWroteRequest {
+  optional bytes err = 1;
+}
+
+message HTTPWait100Continue {
+}
+
+message HTTPClosedBodyData {
+  optional bytes err = 1;
+}
+
+message LogMessage {
+  // Note: These values don't match the values used by the binary trace protocol,
+  // as these values are stored in persisted traces and therefore must maintain
+  // backwards compatibility. The binary trace protocol is versioned and doesn't
+  // have the same limitations.
+  enum Level {
+    DEBUG = 0;
+    INFO = 1;
+    ERROR = 2;
+    WARN = 3;
+    TRACE = 4;
+  }
+
+  Level level = 1;
+  string msg = 2;
+  repeated LogField fields = 3;
+  StackTrace stack = 4;
+}
+
+message LogField {
+  string key = 1;
+
+  oneof value {
+    Error error = 2;
+    string str = 3;
+    bool bool = 4;
+    google.protobuf.Timestamp time = 5;
+    int64 dur = 6;
+    bytes uuid = 7;
+    bytes json = 8;
+    int64 int = 9;
+    uint64 uint = 10;
+    float float32 = 11;
+    double float64 = 12;
+  }
+}
+
+message StackTrace {
+  repeated int64 pcs = 1;
+  repeated StackFrame frames = 2;
+}
+
+message StackFrame {
+  string filename = 1;
+  string func = 2;
+  int32 line = 3;
+}
+
+message Error {
+  string msg = 1;
+  optional StackTrace stack = 2;
+}
