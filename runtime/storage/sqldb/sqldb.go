@@ -6,12 +6,12 @@ package sqldb
 import (
 	"context"
 	"database/sql"
-	"sync/atomic"
 
 	"github.com/jackc/pgx/v5"
 
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/beta/errs"
 )
 
@@ -30,9 +30,10 @@ type ExecResult interface {
 //
 // See *database/sql.Tx for additional documentation.
 type Tx struct {
-	mgr  *Manager
-	txid uint64
-	std  pgx.Tx
+	mgr *Manager
+	std pgx.Tx
+
+	startID model.TraceEventID
 }
 
 // Commit commits the given transaction.
@@ -50,13 +51,17 @@ func (tx *Tx) commit() error {
 	err = convertErr(err)
 
 	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBTxEnd(trace.DBTxEndParams{
-			SpanID: curr.Req.SpanID,
-			Goid:   curr.Goctr,
-			TxID:   tx.txid,
-			Commit: true,
-			Err:    err,
-			Stack:  stack.Build(4),
+		curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+				DefLoc:  0,
+			},
+			StartID: tx.startID,
+			Commit:  true,
+			Err:     err,
+			Stack:   stack.Build(4),
 		})
 	}
 
@@ -68,13 +73,17 @@ func (tx *Tx) rollback() error {
 	err = convertErr(err)
 
 	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBTxEnd(trace.DBTxEndParams{
-			SpanID: curr.Req.SpanID,
-			Goid:   curr.Goctr,
-			TxID:   tx.txid,
-			Commit: false,
-			Err:    err,
-			Stack:  stack.Build(4),
+		curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+				DefLoc:  0,
+			},
+			StartID: tx.startID,
+			Commit:  false,
+			Err:     err,
+			Stack:   stack.Build(4),
 		})
 	}
 
@@ -86,50 +95,66 @@ func (tx *Tx) Exec(ctx context.Context, query string, args ...interface{}) (Exec
 }
 
 func (tx *Tx) exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
-	qid := atomic.AddUint64(&tx.mgr.queryCtr, 1)
-
 	curr := tx.mgr.rt.Current()
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    tx.txid,
-			Stack:   stack.Build(4),
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			TxStartID:   tx.startID,
+			Query:       query,
+			Stack:       stack.Build(4),
 		})
 	}
 
 	res, err := tx.std.Exec(markTraced(ctx), query, args...)
 	err = convertErr(err)
 
-	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+	if startEventID > 0 {
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return res, err
 }
 
 func (tx *Tx) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
-	qid := atomic.AddUint64(&tx.mgr.queryCtr, 1)
-
 	curr := tx.mgr.rt.Current()
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    tx.txid,
-			Stack:   stack.Build(4),
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			TxStartID:   tx.startID,
+			Stack:       stack.Build(4),
 		})
 	}
 
 	rows, err := tx.std.Query(markTraced(ctx), query, args...)
 	err = convertErr(err)
 
-	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+	if startEventID > 0 {
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	if err != nil {
@@ -139,17 +164,25 @@ func (tx *Tx) Query(ctx context.Context, query string, args ...interface{}) (*Ro
 }
 
 func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
-	qid := atomic.AddUint64(&tx.mgr.queryCtr, 1)
-
 	curr := tx.mgr.rt.Current()
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    tx.txid,
-			Stack:   stack.Build(4),
+			DefLoc:  0,
+		}
+		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			TxStartID:   tx.startID,
+			Stack:       stack.Build(4),
 		})
 	}
 
@@ -159,8 +192,8 @@ func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *
 	err = convertErr(err)
 	r := &Row{rows: rows, err: err}
 
-	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+	if startEventID > 0 {
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return r

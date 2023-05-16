@@ -9,10 +9,10 @@ import (
 	http "net/http"
 	reflect "reflect"
 
+	model "encore.dev/appruntime/exported/model"
+	stack "encore.dev/appruntime/exported/stack"
+	trace2 "encore.dev/appruntime/exported/trace2"
 	gomock "github.com/golang/mock/gomock"
-
-	model2 "encore.dev/appruntime/exported/model"
-	"encore.dev/appruntime/exported/trace"
 )
 
 // MockLogger is a mock of Logger interface.
@@ -39,105 +39,99 @@ func (m *MockLogger) EXPECT() *MockLoggerMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockLogger) Add(event trace.EventType, data []byte) {
+func (m *MockLogger) Add(arg0 trace2.Event) trace2.EventID {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Add", event, data)
+	ret := m.ctrl.Call(m, "Add", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockLoggerMockRecorder) Add(event, data interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) Add(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockLogger)(nil).Add), event, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockLogger)(nil).Add), arg0)
 }
 
-// BeginAuth mocks base method.
-func (m *MockLogger) BeginAuth(call *model2.AuthCall, goid uint32) {
+// AuthSpanEnd mocks base method.
+func (m *MockLogger) AuthSpanEnd(params trace2.AuthSpanEndParams) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "BeginAuth", call, goid)
+	m.ctrl.Call(m, "AuthSpanEnd", params)
 }
 
-// BeginAuth indicates an expected call of BeginAuth.
-func (mr *MockLoggerMockRecorder) BeginAuth(call, goid interface{}) *gomock.Call {
+// AuthSpanEnd indicates an expected call of AuthSpanEnd.
+func (mr *MockLoggerMockRecorder) AuthSpanEnd(params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginAuth", reflect.TypeOf((*MockLogger)(nil).BeginAuth), call, goid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthSpanEnd", reflect.TypeOf((*MockLogger)(nil).AuthSpanEnd), params)
 }
 
-// BeginCall mocks base method.
-func (m *MockLogger) BeginCall(call *model2.APICall, goid uint32) {
+// AuthSpanStart mocks base method.
+func (m *MockLogger) AuthSpanStart(req *model.Request, goid uint32) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "BeginCall", call, goid)
+	m.ctrl.Call(m, "AuthSpanStart", req, goid)
 }
 
-// BeginCall indicates an expected call of BeginCall.
-func (mr *MockLoggerMockRecorder) BeginCall(call, goid interface{}) *gomock.Call {
+// AuthSpanStart indicates an expected call of AuthSpanStart.
+func (mr *MockLoggerMockRecorder) AuthSpanStart(req, goid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginCall", reflect.TypeOf((*MockLogger)(nil).BeginCall), call, goid)
-}
-
-// BeginRequest mocks base method.
-func (m *MockLogger) BeginRequest(req *model2.Request, goid uint32) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "BeginRequest", req, goid)
-}
-
-// BeginRequest indicates an expected call of BeginRequest.
-func (mr *MockLoggerMockRecorder) BeginRequest(req, goid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginRequest", reflect.TypeOf((*MockLogger)(nil).BeginRequest), req, goid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthSpanStart", reflect.TypeOf((*MockLogger)(nil).AuthSpanStart), req, goid)
 }
 
 // BodyStream mocks base method.
-func (m *MockLogger) BodyStream(p trace.BodyStreamParams) {
+func (m *MockLogger) BodyStream(arg0 trace2.BodyStreamParams) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "BodyStream", p)
+	m.ctrl.Call(m, "BodyStream", arg0)
 }
 
 // BodyStream indicates an expected call of BodyStream.
-func (mr *MockLoggerMockRecorder) BodyStream(p interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) BodyStream(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BodyStream", reflect.TypeOf((*MockLogger)(nil).BodyStream), p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BodyStream", reflect.TypeOf((*MockLogger)(nil).BodyStream), arg0)
 }
 
-// CacheOpEnd mocks base method.
-func (m *MockLogger) CacheOpEnd(p trace.CacheOpEndParams) {
+// CacheCallEnd mocks base method.
+func (m *MockLogger) CacheCallEnd(arg0 trace2.CacheCallEndParams) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CacheOpEnd", p)
+	m.ctrl.Call(m, "CacheCallEnd", arg0)
 }
 
-// CacheOpEnd indicates an expected call of CacheOpEnd.
-func (mr *MockLoggerMockRecorder) CacheOpEnd(p interface{}) *gomock.Call {
+// CacheCallEnd indicates an expected call of CacheCallEnd.
+func (mr *MockLoggerMockRecorder) CacheCallEnd(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CacheOpEnd", reflect.TypeOf((*MockLogger)(nil).CacheOpEnd), p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CacheCallEnd", reflect.TypeOf((*MockLogger)(nil).CacheCallEnd), arg0)
 }
 
-// CacheOpStart mocks base method.
-func (m *MockLogger) CacheOpStart(p trace.CacheOpStartParams) {
+// CacheCallStart mocks base method.
+func (m *MockLogger) CacheCallStart(arg0 trace2.CacheCallStartParams) trace2.EventID {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CacheOpStart", p)
+	ret := m.ctrl.Call(m, "CacheCallStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
 }
 
-// CacheOpStart indicates an expected call of CacheOpStart.
-func (mr *MockLoggerMockRecorder) CacheOpStart(p interface{}) *gomock.Call {
+// CacheCallStart indicates an expected call of CacheCallStart.
+func (mr *MockLoggerMockRecorder) CacheCallStart(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CacheOpStart", reflect.TypeOf((*MockLogger)(nil).CacheOpStart), p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CacheCallStart", reflect.TypeOf((*MockLogger)(nil).CacheCallStart), arg0)
 }
 
 // DBQueryEnd mocks base method.
-func (m *MockLogger) DBQueryEnd(queryID uint64, err error) {
+func (m *MockLogger) DBQueryEnd(arg0 trace2.EventParams, arg1 trace2.EventID, arg2 error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "DBQueryEnd", queryID, err)
+	m.ctrl.Call(m, "DBQueryEnd", arg0, arg1, arg2)
 }
 
 // DBQueryEnd indicates an expected call of DBQueryEnd.
-func (mr *MockLoggerMockRecorder) DBQueryEnd(queryID, err interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) DBQueryEnd(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBQueryEnd", reflect.TypeOf((*MockLogger)(nil).DBQueryEnd), queryID, err)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBQueryEnd", reflect.TypeOf((*MockLogger)(nil).DBQueryEnd), arg0, arg1, arg2)
 }
 
 // DBQueryStart mocks base method.
-func (m *MockLogger) DBQueryStart(p trace.DBQueryStartParams) {
+func (m *MockLogger) DBQueryStart(p trace2.DBQueryStartParams) trace2.EventID {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "DBQueryStart", p)
+	ret := m.ctrl.Call(m, "DBQueryStart", p)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
 }
 
 // DBQueryStart indicates an expected call of DBQueryStart.
@@ -146,64 +140,30 @@ func (mr *MockLoggerMockRecorder) DBQueryStart(p interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBQueryStart", reflect.TypeOf((*MockLogger)(nil).DBQueryStart), p)
 }
 
-// DBTxEnd mocks base method.
-func (m *MockLogger) DBTxEnd(p trace.DBTxEndParams) {
+// DBTransactionEnd mocks base method.
+func (m *MockLogger) DBTransactionEnd(arg0 trace2.DBTransactionEndParams) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "DBTxEnd", p)
+	m.ctrl.Call(m, "DBTransactionEnd", arg0)
 }
 
-// DBTxEnd indicates an expected call of DBTxEnd.
-func (mr *MockLoggerMockRecorder) DBTxEnd(p interface{}) *gomock.Call {
+// DBTransactionEnd indicates an expected call of DBTransactionEnd.
+func (mr *MockLoggerMockRecorder) DBTransactionEnd(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBTxEnd", reflect.TypeOf((*MockLogger)(nil).DBTxEnd), p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBTransactionEnd", reflect.TypeOf((*MockLogger)(nil).DBTransactionEnd), arg0)
 }
 
-// DBTxStart mocks base method.
-func (m *MockLogger) DBTxStart(p trace.DBTxStartParams) {
+// DBTransactionStart mocks base method.
+func (m *MockLogger) DBTransactionStart(arg0 trace2.EventParams, arg1 stack.Stack) trace2.EventID {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "DBTxStart", p)
+	ret := m.ctrl.Call(m, "DBTransactionStart", arg0, arg1)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
 }
 
-// DBTxStart indicates an expected call of DBTxStart.
-func (mr *MockLoggerMockRecorder) DBTxStart(p interface{}) *gomock.Call {
+// DBTransactionStart indicates an expected call of DBTransactionStart.
+func (mr *MockLoggerMockRecorder) DBTransactionStart(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBTxStart", reflect.TypeOf((*MockLogger)(nil).DBTxStart), p)
-}
-
-// FinishAuth mocks base method.
-func (m *MockLogger) FinishAuth(call *model2.AuthCall, uid model2.UID, err error) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "FinishAuth", call, uid, err)
-}
-
-// FinishAuth indicates an expected call of FinishAuth.
-func (mr *MockLoggerMockRecorder) FinishAuth(call, uid, err interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishAuth", reflect.TypeOf((*MockLogger)(nil).FinishAuth), call, uid, err)
-}
-
-// FinishCall mocks base method.
-func (m *MockLogger) FinishCall(call *model2.APICall, err error) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "FinishCall", call, err)
-}
-
-// FinishCall indicates an expected call of FinishCall.
-func (mr *MockLoggerMockRecorder) FinishCall(call, err interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishCall", reflect.TypeOf((*MockLogger)(nil).FinishCall), call, err)
-}
-
-// FinishRequest mocks base method.
-func (m *MockLogger) FinishRequest(req *model2.Request, resp *model2.Response) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "FinishRequest", req, resp)
-}
-
-// FinishRequest indicates an expected call of FinishRequest.
-func (mr *MockLoggerMockRecorder) FinishRequest(req, resp interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishRequest", reflect.TypeOf((*MockLogger)(nil).FinishRequest), req, resp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBTransactionStart", reflect.TypeOf((*MockLogger)(nil).DBTransactionStart), arg0, arg1)
 }
 
 // GetAndClear mocks base method.
@@ -220,44 +180,8 @@ func (mr *MockLoggerMockRecorder) GetAndClear() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAndClear", reflect.TypeOf((*MockLogger)(nil).GetAndClear))
 }
 
-// GoClear mocks base method.
-func (m *MockLogger) GoClear(spanID model2.SpanID, goctr uint32) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "GoClear", spanID, goctr)
-}
-
-// GoClear indicates an expected call of GoClear.
-func (mr *MockLoggerMockRecorder) GoClear(spanID, goctr interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GoClear", reflect.TypeOf((*MockLogger)(nil).GoClear), spanID, goctr)
-}
-
-// GoEnd mocks base method.
-func (m *MockLogger) GoEnd(spanID model2.SpanID, goctr uint32) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "GoEnd", spanID, goctr)
-}
-
-// GoEnd indicates an expected call of GoEnd.
-func (mr *MockLoggerMockRecorder) GoEnd(spanID, goctr interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GoEnd", reflect.TypeOf((*MockLogger)(nil).GoEnd), spanID, goctr)
-}
-
-// GoStart mocks base method.
-func (m *MockLogger) GoStart(spanID model2.SpanID, goctr uint32) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "GoStart", spanID, goctr)
-}
-
-// GoStart indicates an expected call of GoStart.
-func (mr *MockLoggerMockRecorder) GoStart(spanID, goctr interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GoStart", reflect.TypeOf((*MockLogger)(nil).GoStart), spanID, goctr)
-}
-
 // HTTPBeginRoundTrip mocks base method.
-func (m *MockLogger) HTTPBeginRoundTrip(httpReq *http.Request, req *model2.Request, goid uint32) (context.Context, error) {
+func (m *MockLogger) HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid uint32) (context.Context, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HTTPBeginRoundTrip", httpReq, req, goid)
 	ret0, _ := ret[0].(context.Context)
@@ -272,61 +196,151 @@ func (mr *MockLoggerMockRecorder) HTTPBeginRoundTrip(httpReq, req, goid interfac
 }
 
 // HTTPCompleteRoundTrip mocks base method.
-func (m *MockLogger) HTTPCompleteRoundTrip(req *http.Request, resp *http.Response, err error) {
+func (m *MockLogger) HTTPCompleteRoundTrip(req *http.Request, resp *http.Response, goid uint32, err error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "HTTPCompleteRoundTrip", req, resp, err)
+	m.ctrl.Call(m, "HTTPCompleteRoundTrip", req, resp, goid, err)
 }
 
 // HTTPCompleteRoundTrip indicates an expected call of HTTPCompleteRoundTrip.
-func (mr *MockLoggerMockRecorder) HTTPCompleteRoundTrip(req, resp, err interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) HTTPCompleteRoundTrip(req, resp, goid, err interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPCompleteRoundTrip", reflect.TypeOf((*MockLogger)(nil).HTTPCompleteRoundTrip), req, resp, err)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPCompleteRoundTrip", reflect.TypeOf((*MockLogger)(nil).HTTPCompleteRoundTrip), req, resp, goid, err)
 }
 
-// PublishEnd mocks base method.
-func (m *MockLogger) PublishEnd(publishID uint64, messageID string, err error) {
+// LogMessage mocks base method.
+func (m *MockLogger) LogMessage(arg0 trace2.LogMessageParams) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "PublishEnd", publishID, messageID, err)
+	m.ctrl.Call(m, "LogMessage", arg0)
 }
 
-// PublishEnd indicates an expected call of PublishEnd.
-func (mr *MockLoggerMockRecorder) PublishEnd(publishID, messageID, err interface{}) *gomock.Call {
+// LogMessage indicates an expected call of LogMessage.
+func (mr *MockLoggerMockRecorder) LogMessage(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishEnd", reflect.TypeOf((*MockLogger)(nil).PublishEnd), publishID, messageID, err)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogMessage", reflect.TypeOf((*MockLogger)(nil).LogMessage), arg0)
 }
 
-// PublishStart mocks base method.
-func (m *MockLogger) PublishStart(topic string, msg []byte, spanID model2.SpanID, goid uint32, publishID uint64, skipFrames int) {
+// PubsubMessageSpanEnd mocks base method.
+func (m *MockLogger) PubsubMessageSpanEnd(params trace2.PubsubMessageSpanEndParams) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "PublishStart", topic, msg, spanID, goid, publishID, skipFrames)
+	m.ctrl.Call(m, "PubsubMessageSpanEnd", params)
 }
 
-// PublishStart indicates an expected call of PublishStart.
-func (mr *MockLoggerMockRecorder) PublishStart(topic, msg, spanID, goid, publishID, skipFrames interface{}) *gomock.Call {
+// PubsubMessageSpanEnd indicates an expected call of PubsubMessageSpanEnd.
+func (mr *MockLoggerMockRecorder) PubsubMessageSpanEnd(params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishStart", reflect.TypeOf((*MockLogger)(nil).PublishStart), topic, msg, spanID, goid, publishID, skipFrames)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubsubMessageSpanEnd", reflect.TypeOf((*MockLogger)(nil).PubsubMessageSpanEnd), params)
+}
+
+// PubsubMessageSpanStart mocks base method.
+func (m *MockLogger) PubsubMessageSpanStart(req *model.Request, goid uint32) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "PubsubMessageSpanStart", req, goid)
+}
+
+// PubsubMessageSpanStart indicates an expected call of PubsubMessageSpanStart.
+func (mr *MockLoggerMockRecorder) PubsubMessageSpanStart(req, goid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubsubMessageSpanStart", reflect.TypeOf((*MockLogger)(nil).PubsubMessageSpanStart), req, goid)
+}
+
+// PubsubPublishEnd mocks base method.
+func (m *MockLogger) PubsubPublishEnd(arg0 trace2.PubsubPublishEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "PubsubPublishEnd", arg0)
+}
+
+// PubsubPublishEnd indicates an expected call of PubsubPublishEnd.
+func (mr *MockLoggerMockRecorder) PubsubPublishEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubsubPublishEnd", reflect.TypeOf((*MockLogger)(nil).PubsubPublishEnd), arg0)
+}
+
+// PubsubPublishStart mocks base method.
+func (m *MockLogger) PubsubPublishStart(arg0 trace2.PubsubPublishStartParams) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PubsubPublishStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// PubsubPublishStart indicates an expected call of PubsubPublishStart.
+func (mr *MockLoggerMockRecorder) PubsubPublishStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PubsubPublishStart", reflect.TypeOf((*MockLogger)(nil).PubsubPublishStart), arg0)
+}
+
+// RPCCallEnd mocks base method.
+func (m *MockLogger) RPCCallEnd(call *model.APICall, goid uint32, err error) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RPCCallEnd", call, goid, err)
+}
+
+// RPCCallEnd indicates an expected call of RPCCallEnd.
+func (mr *MockLoggerMockRecorder) RPCCallEnd(call, goid, err interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RPCCallEnd", reflect.TypeOf((*MockLogger)(nil).RPCCallEnd), call, goid, err)
+}
+
+// RPCCallStart mocks base method.
+func (m *MockLogger) RPCCallStart(call *model.APICall, goid uint32) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RPCCallStart", call, goid)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// RPCCallStart indicates an expected call of RPCCallStart.
+func (mr *MockLoggerMockRecorder) RPCCallStart(call, goid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RPCCallStart", reflect.TypeOf((*MockLogger)(nil).RPCCallStart), call, goid)
+}
+
+// RequestSpanEnd mocks base method.
+func (m *MockLogger) RequestSpanEnd(params trace2.RequestSpanEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RequestSpanEnd", params)
+}
+
+// RequestSpanEnd indicates an expected call of RequestSpanEnd.
+func (mr *MockLoggerMockRecorder) RequestSpanEnd(params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestSpanEnd", reflect.TypeOf((*MockLogger)(nil).RequestSpanEnd), params)
+}
+
+// RequestSpanStart mocks base method.
+func (m *MockLogger) RequestSpanStart(req *model.Request, goid uint32) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RequestSpanStart", req, goid)
+}
+
+// RequestSpanStart indicates an expected call of RequestSpanStart.
+func (mr *MockLoggerMockRecorder) RequestSpanStart(req, goid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestSpanStart", reflect.TypeOf((*MockLogger)(nil).RequestSpanStart), req, goid)
 }
 
 // ServiceInitEnd mocks base method.
-func (m *MockLogger) ServiceInitEnd(initCtr uint64, err error) {
+func (m *MockLogger) ServiceInitEnd(arg0 trace2.EventParams, arg1 trace2.EventID, arg2 error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ServiceInitEnd", initCtr, err)
+	m.ctrl.Call(m, "ServiceInitEnd", arg0, arg1, arg2)
 }
 
 // ServiceInitEnd indicates an expected call of ServiceInitEnd.
-func (mr *MockLoggerMockRecorder) ServiceInitEnd(initCtr, err interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) ServiceInitEnd(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceInitEnd", reflect.TypeOf((*MockLogger)(nil).ServiceInitEnd), initCtr, err)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceInitEnd", reflect.TypeOf((*MockLogger)(nil).ServiceInitEnd), arg0, arg1, arg2)
 }
 
 // ServiceInitStart mocks base method.
-func (m *MockLogger) ServiceInitStart(p trace.ServiceInitStartParams) {
+func (m *MockLogger) ServiceInitStart(arg0 trace2.ServiceInitStartParams) trace2.EventID {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ServiceInitStart", p)
+	ret := m.ctrl.Call(m, "ServiceInitStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
 }
 
 // ServiceInitStart indicates an expected call of ServiceInitStart.
-func (mr *MockLoggerMockRecorder) ServiceInitStart(p interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) ServiceInitStart(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceInitStart", reflect.TypeOf((*MockLogger)(nil).ServiceInitStart), p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceInitStart", reflect.TypeOf((*MockLogger)(nil).ServiceInitStart), arg0)
 }

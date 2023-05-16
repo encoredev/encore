@@ -1,13 +1,13 @@
 package traceprovider
 
 import (
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 )
 
 type Factory interface {
-	NewLogger() trace.Logger
+	NewLogger() trace2.Logger
 }
 
 type DefaultFactory struct{}
 
-func (*DefaultFactory) NewLogger() trace.Logger { return &trace.Log{} }
+func (*DefaultFactory) NewLogger() trace2.Logger { return &trace2.Log{} }

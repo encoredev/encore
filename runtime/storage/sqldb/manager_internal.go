@@ -19,10 +19,6 @@ type Manager struct {
 
 	mu  sync.RWMutex
 	dbs map[string]*Database
-
-	// Accessed atomically
-	txidCtr  uint64
-	queryCtr uint64
 }
 
 func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, ts *testsupport.Manager) *Manager {

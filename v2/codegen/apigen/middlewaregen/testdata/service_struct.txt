@@ -24,7 +24,7 @@ import (
 )
 
 var EncoreInternal_middleware_middleware_Middleware = &__api.Middleware{
-	DefLoc: int32(0),
+	DefLoc: uint32(0x0),
 	Global: false,
 	ID:     "example.com.Middleware",
 	Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
@@ -53,5 +53,5 @@ var EncoreInternal_svcstruct_Service = &__service.Decl[Service]{
 	Name:        "Service",
 	Service:     "code",
 	Setup:       nil,
-	SetupDefLoc: int32(0),
+	SetupDefLoc: uint32(0x0),
 }

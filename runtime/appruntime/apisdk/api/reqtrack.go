@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	model2 "encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/beta/errs"
 )
 
@@ -22,21 +22,25 @@ func (s *Server) finishOperation() {
 }
 
 type beginRequestParams struct {
-	Type   model2.RequestType
-	DefLoc int32
-	Data   *model2.RPCData
+	Type   model.RequestType
+	DefLoc uint32
+	Data   *model.RPCData
 
 	// TraceID is the trace ID to use.
 	// If it is the zero value it will be copied from the parent request.
-	TraceID model2.TraceID
+	TraceID model.TraceID
 
 	// SpanID is the span ID to use.
 	// If it is the zero value a new span id is generated.
-	SpanID model2.SpanID
+	SpanID model.SpanID
 
 	// ParentTraceID is the correlation ID to use.
 	// It is copied from the parent request if it is empty.
-	ParentTraceID model2.TraceID
+	ParentTraceID model.TraceID
+
+	// CallerEventID is the event ID in the parent span that triggered this request.
+	// It's used to correlate the request with the originating call.
+	CallerEventID model.TraceEventID
 
 	// ExtRequestID specifies the externally-provided request id, if any.
 	// If not empty, it will be recorded as part of the "starting request" log message
@@ -49,21 +53,22 @@ type beginRequestParams struct {
 	ExtCorrelationID string
 }
 
-func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model2.Request, error) {
+func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
 	spanID := p.SpanID
-	if spanID == (model2.SpanID{}) {
-		id, err := model2.GenSpanID()
+	if spanID.IsZero() {
+		id, err := model.GenSpanID()
 		if err != nil {
 			return nil, err
 		}
 		spanID = id
 	}
 
-	req := &model2.Request{
+	req := &model.Request{
 		Type:             p.Type,
 		TraceID:          p.TraceID,
 		SpanID:           spanID,
 		ParentTraceID:    p.ParentTraceID,
+		CallerEventID:    p.CallerEventID,
 		ExtCorrelationID: p.ExtCorrelationID,
 		DefLoc:           p.DefLoc,
 		SvcNum:           p.Data.Desc.SvcNum,
@@ -88,7 +93,14 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	// Begin the request, copying data over from the previous request.
 	s.rt.BeginRequest(req)
 	if curr := s.rt.Current(); curr.Trace != nil {
-		curr.Trace.BeginRequest(req, curr.Goctr)
+		switch req.Type {
+		case model.RPCCall:
+			curr.Trace.RequestSpanStart(req, curr.Goctr)
+		case model.AuthHandler:
+			curr.Trace.AuthSpanStart(req, curr.Goctr)
+		case model.PubSubMessage:
+			curr.Trace.PubsubMessageSpanStart(req, curr.Goctr)
+		}
 	}
 
 	// Now that we have up-to-date information in req (possibly copied from
@@ -103,13 +115,13 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		logCtx = logCtx.Str("test", req.Test.Current.Name())
 	}
 
-	if req.TraceID != (model2.TraceID{}) {
+	if req.TraceID != (model.TraceID{}) {
 		logCtx = logCtx.Str("trace_id", req.TraceID.String())
 	}
 
 	if req.ExtCorrelationID != "" {
 		logCtx = logCtx.Str("x_correlation_id", req.ExtCorrelationID)
-	} else if req.ParentTraceID != (model2.TraceID{}) {
+	} else if req.ParentTraceID != (model.TraceID{}) {
 		logCtx = logCtx.Str("x_correlation_id", req.ParentTraceID.String())
 	}
 
@@ -117,7 +129,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	req.Logger = &reqLogger
 
 	switch req.Type {
-	case model2.AuthHandler:
+	case model.AuthHandler:
 		req.Logger.Info().Msg("running auth handler")
 	default:
 		ev := req.Logger.Info()
@@ -130,7 +142,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	return req, nil
 }
 
-func (s *Server) finishRequest(resp *model2.Response) {
+func (s *Server) finishRequest(resp *model.Response) {
 	curr := s.rt.Current()
 	req := curr.Req
 	if req == nil {
@@ -139,7 +151,7 @@ func (s *Server) finishRequest(resp *model2.Response) {
 
 	if resp.Err != nil {
 		switch req.Type {
-		case model2.AuthHandler:
+		case model.AuthHandler:
 			req.Logger.Error().Err(resp.Err).Msg("auth handler failed")
 		default:
 			e := errs.Convert(resp.Err).(*errs.Error)
@@ -164,25 +176,28 @@ func (s *Server) finishRequest(resp *model2.Response) {
 		}
 	}
 
-	dur := time.Since(req.Start)
+	resp.Duration = time.Since(req.Start)
 	switch req.Type {
-	case model2.AuthHandler:
-		req.Logger.Info().Dur("duration", dur).Msg("auth handler completed")
+	case model.AuthHandler:
+		req.Logger.Info().Dur("duration", resp.Duration).Msg("auth handler completed")
 	default:
 		if resp.HTTPStatus != errs.HTTPStatus(resp.Err) {
 			code := errs.HTTPStatusToCode(resp.HTTPStatus).String()
-			req.Logger.Info().Dur("duration", dur).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
+			req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
 		} else {
 			code := errs.Code(resp.Err).String()
-			req.Logger.Info().Dur("duration", dur).Str("code", code).Msg("request completed")
+			req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Msg("request completed")
 		}
 	}
 
 	if curr.Trace != nil {
 		// Capture the recorded bytes from the request and response body, if any.
 		if len(resp.RawRequestPayload) > 0 {
-			curr.Trace.BodyStream(trace.BodyStreamParams{
-				SpanID:     req.SpanID,
+			curr.Trace.BodyStream(trace2.BodyStreamParams{
+				EventParams: trace2.EventParams{
+					TraceID: req.TraceID,
+					SpanID:  req.SpanID,
+				},
 				IsResponse: false,
 				Overflowed: resp.RawRequestPayloadOverflowed,
 				Data:       resp.RawRequestPayload,
@@ -190,15 +205,38 @@ func (s *Server) finishRequest(resp *model2.Response) {
 		}
 
 		if len(resp.RawResponsePayload) > 0 {
-			curr.Trace.BodyStream(trace.BodyStreamParams{
-				SpanID:     req.SpanID,
+			curr.Trace.BodyStream(trace2.BodyStreamParams{
+				EventParams: trace2.EventParams{
+					TraceID: req.TraceID,
+					SpanID:  req.SpanID,
+				},
 				IsResponse: true,
 				Overflowed: resp.RawResponsePayloadOverflowed,
 				Data:       resp.RawResponsePayload,
 			})
 		}
 
-		curr.Trace.FinishRequest(req, resp)
+		ep := trace2.EventParams{TraceID: req.TraceID, SpanID: req.SpanID}
+		switch req.Type {
+		case model.RPCCall:
+			curr.Trace.RequestSpanEnd(trace2.RequestSpanEndParams{
+				EventParams: ep,
+				Req:         req,
+				Resp:        resp,
+			})
+		case model.AuthHandler:
+			curr.Trace.AuthSpanEnd(trace2.AuthSpanEndParams{
+				EventParams: ep,
+				Req:         req,
+				Resp:        resp,
+			})
+		case model.PubSubMessage:
+			curr.Trace.PubsubMessageSpanEnd(trace2.PubsubMessageSpanEndParams{
+				EventParams: ep,
+				Req:         req,
+				Resp:        resp,
+			})
+		}
 	}
 
 	s.requestsTotal.With(requestsTotalLabels{
@@ -209,7 +247,7 @@ func (s *Server) finishRequest(resp *model2.Response) {
 }
 
 type CallOptions struct {
-	Auth *model2.AuthInfo
+	Auth *model.AuthInfo
 }
 
 type ctxKey string
@@ -229,7 +267,7 @@ func GetCallOptions(ctx context.Context) *CallOptions {
 
 // CheckAuthData checks whether the given auth information is valid
 // based on the configured auth handler's data type.
-func CheckAuthData(uid model2.UID, userData any) error {
+func CheckAuthData(uid model.UID, userData any) error {
 	if uid == "" && userData != nil {
 		return fmt.Errorf("empty uid and non-empty auth data")
 	}
@@ -253,57 +291,51 @@ func CheckAuthData(uid model2.UID, userData any) error {
 	return nil
 }
 
-func (s *Server) beginCall(defLoc int32) (*model2.APICall, error) {
-	spanID, err := model2.GenSpanID()
-	if err != nil {
-		return nil, err
-	}
-
-	callID := atomic.AddUint64(&s.callCtr, 1)
-	call := &model2.APICall{
-		ID:     callID,
-		SpanID: spanID,
-		DefLoc: defLoc,
+func (s *Server) beginCall(serviceName, endpointName string, defLoc uint32) (*model.APICall, error) {
+	call := &model.APICall{
+		TargetServiceName:  serviceName,
+		TargetEndpointName: endpointName,
+		DefLoc:             defLoc,
 	}
 
 	curr := s.rt.Current()
 	call.Source = curr.Req
 
 	if curr.Trace != nil {
-		curr.Trace.BeginCall(call, curr.Goctr)
+		call.StartEventID = curr.Trace.RPCCallStart(call, curr.Goctr)
 	}
 
 	return call, nil
 }
 
-func (s *Server) finishCall(call *model2.APICall, err error) {
-	if curr := s.rt.Current(); curr.Trace != nil {
-		curr.Trace.FinishCall(call, err)
+func (s *Server) finishCall(call *model.APICall, err error) {
+	if curr := s.rt.Current(); curr.Trace != nil && call.StartEventID != 0 {
+		curr.Trace.RPCCallEnd(call, curr.Goctr, err)
 	}
 }
 
-func (s *Server) beginAuth(defLoc int32) (*model2.AuthCall, error) {
-	spanID, err := model2.GenSpanID()
+func (s *Server) beginAuth(defLoc uint32) (*model.AuthCall, error) {
+	spanID, err := model.GenSpanID()
 	if err != nil {
 		return nil, fmt.Errorf("could not generate request id: %v", err)
 	}
 	callID := atomic.AddUint64(&s.callCtr, 1)
 
-	call := &model2.AuthCall{
+	call := &model.AuthCall{
 		ID:     callID,
 		SpanID: spanID,
 		DefLoc: defLoc,
 	}
 
-	if curr := s.rt.Current(); curr.Trace != nil {
-		curr.Trace.BeginAuth(call, curr.Goctr)
-	}
+	//if curr := s.rt.Current(); curr.Trace != nil {
+	//	curr.Trace.BeginAuth(call, curr.Goctr)
+	//}
 
 	return call, nil
 }
 
-func (s *Server) finishAuth(call *model2.AuthCall, uid model2.UID, err error) {
-	if curr := s.rt.Current(); curr.Trace != nil {
-		curr.Trace.FinishAuth(call, uid, err)
-	}
+func (s *Server) finishAuth(call *model.AuthCall, uid model.UID, err error) {
+	//if curr := s.rt.Current(); curr.Trace != nil {
+	//	curr.Trace.FinishAuth(call, uid, err)
+	//}
 }
