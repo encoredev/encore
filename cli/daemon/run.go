@@ -141,7 +141,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf(
 		"http://localhost:%d/%s", s.mgr.DashPort, app.PlatformOrLocalID())))
 	if req.Debug {
-		fmt.Fprintf(stderr, "  Process ID:             %d\n", aurora.Cyan(pid))
+		fmt.Fprintf(stderr, "  Process ID:                 %d\n", aurora.Cyan(pid))
 	}
 	// Log which experiments are enabled, if any
 	if exp := run.Proc().Experiments.List(); len(exp) > 0 {
