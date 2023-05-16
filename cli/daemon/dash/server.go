@@ -14,9 +14,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
-	"encr.dev/cli/daemon/engine/trace"
+	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
+	tracepb2 "encr.dev/proto/encore/engine/trace2"
 )
 
 var upgrader = websocket.Upgrader{
@@ -27,7 +28,7 @@ var upgrader = websocket.Upgrader{
 var assets embed.FS
 
 // NewServer starts a new server and returns it.
-func NewServer(runMgr *run.Manager, tr *trace.Store) *Server {
+func NewServer(runMgr *run.Manager, tr trace2.Store) *Server {
 	assets, err := fs.Sub(assets, "dashapp/dist")
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not get dash assets")
@@ -37,7 +38,7 @@ func NewServer(runMgr *run.Manager, tr *trace.Store) *Server {
 		run:     runMgr,
 		tr:      tr,
 		assets:  assets,
-		traceCh: make(chan *trace.TraceMeta, 10),
+		traceCh: make(chan *tracepb2.SpanSummary, 10),
 		clients: make(map[chan<- *notification]struct{}),
 	}
 
@@ -50,8 +51,8 @@ func NewServer(runMgr *run.Manager, tr *trace.Store) *Server {
 // Server is the http.Handler for serving the developer dashboard.
 type Server struct {
 	run     *run.Manager
-	tr      *trace.Store
-	traceCh chan *trace.TraceMeta
+	tr      trace2.Store
+	traceCh chan *tracepb2.SpanSummary
 	assets  fs.FS
 
 	mu      sync.Mutex

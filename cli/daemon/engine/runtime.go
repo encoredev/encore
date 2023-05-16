@@ -1,26 +1,25 @@
 package runtime
 
 import (
-	"encoding/base64"
+	"bufio"
 	"fmt"
-	"io"
 	"net/http"
-	"time"
+	"strconv"
 
-	"github.com/rs/zerolog/log"
+	"github.com/cockroachdb/errors"
 
-	trace2 "encore.dev/appruntime/exported/trace"
-	"encr.dev/cli/daemon/engine/trace"
+	tracemodel "encore.dev/appruntime/exported/trace2"
+	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
 )
 
 type server struct {
 	runMgr *run.Manager
-	ts     *trace.Store
+	rec    *trace2.Recorder
 }
 
-func NewServer(runMgr *run.Manager, ts *trace.Store) http.Handler {
-	s := &server{runMgr: runMgr, ts: ts}
+func NewServer(runMgr *run.Manager, rec *trace2.Recorder) http.Handler {
+	s := &server{runMgr: runMgr, rec: rec}
 	return s
 }
 
@@ -35,65 +34,49 @@ func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *server) RecordTrace(w http.ResponseWriter, req *http.Request) {
-	pid := req.Header.Get("X-Encore-Env-ID")
-	if pid == "" {
-		http.Error(w, "missing X-Encore-Env-ID header", http.StatusBadRequest)
-		return
-	}
-	traceID, err := parseTraceID(req.Header.Get("X-Encore-Trace-ID"))
+	data, err := s.parseTraceData(req)
 	if err != nil {
-		http.Error(w, "invalid X-Encore-Trace-ID header: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "unable to parse trace header: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	proc := s.runMgr.FindProc(pid)
-	if proc == nil {
-		http.Error(w, "process "+pid+" not running", http.StatusBadRequest)
-		return
-	}
-
-	data, err := io.ReadAll(req.Body)
+	err = s.rec.RecordTrace(data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	reqs, err := trace.Parse(&log.Logger, traceID, data, trace2.CurrentVersion, proc)
-	if err != nil {
-		log.Error().Err(err).Msg("runtime: could not parse trace")
-		http.Error(w, "could not parse trace: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if len(reqs) == 0 {
-		// Probably a 401 Unauthorized; drop it for now
-		// since we can't visualize it nicely
-		return
-	}
-
-	tm := &trace.TraceMeta{
-		ID:   traceID,
-		Reqs: reqs,
-		App:  proc.Run.App,
-		Date: time.Now(),
-		Meta: proc.Meta,
-	}
-
-	err = s.ts.Store(req.Context(), tm)
-	if err != nil {
-		http.Error(w, "could not record trace:"+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "unable to record trace: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
-func parseTraceID(s string) (id trace.ID, err error) {
-	parsedID, err := base64.RawStdEncoding.DecodeString(s)
-	if err != nil {
-		return id, err
+func (s *server) parseTraceData(req *http.Request) (d trace2.RecordData, err error) {
+	// Parse trace version
+	traceVersion := req.Header.Get("X-Encore-Trace-Version")
+	version, err := strconv.Atoi(traceVersion)
+	if err != nil || version <= 0 {
+		return d, fmt.Errorf("bad trace protocol version %q", traceVersion)
 	}
-	if len(parsedID) != len(id) {
-		return id, fmt.Errorf("bad length")
+	d.TraceVersion = tracemodel.Version(version)
+
+	// Look up app id
+	pid := req.Header.Get("X-Encore-Env-ID")
+	if pid == "" {
+		return d, errors.New("missing X-Encore-Env-ID header")
 	}
-	copy(id[:], parsedID)
-	return id, nil
+	proc := s.runMgr.FindProc(pid)
+	if proc == nil {
+		return d, errors.Newf("process %q is not running", pid)
+	}
+	d.Meta = &trace2.Meta{AppID: proc.Run.App.PlatformOrLocalID()}
+
+	// Parse time anchor
+	timeAnchor := req.Header.Get("X-Encore-Trace-TimeAnchor")
+	if timeAnchor == "" {
+		return d, errors.New("missing X-Encore-Trace-TimeAnchor header")
+	}
+
+	if err := d.Anchor.UnmarshalText([]byte(timeAnchor)); err != nil {
+		return d, errors.Wrap(err, "unable to parse X-Encore-Trace-TimeAnchor header")
+	}
+
+	d.Buf = bufio.NewReader(req.Body)
+	return d, nil
 }
