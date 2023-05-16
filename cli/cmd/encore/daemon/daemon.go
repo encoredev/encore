@@ -28,7 +28,8 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/dash"
 	"encr.dev/cli/daemon/engine"
-	"encr.dev/cli/daemon/engine/trace"
+	"encr.dev/cli/daemon/engine/trace2"
+	"encr.dev/cli/daemon/engine/trace2/sqlite"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
@@ -90,7 +91,7 @@ type Daemon struct {
 	Secret     *secret.Manager
 	RunMgr     *run.Manager
 	ClusterMgr *sqldb.ClusterManager
-	Trace      *trace.Store
+	Trace      trace2.Store
 	DashSrv    *dash.Server
 	Server     *daemon.Server
 
@@ -128,7 +129,7 @@ func (d *Daemon) init() {
 	}
 	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps)
 
-	d.Trace = trace.NewStore()
+	d.Trace = sqlite.New(d.EncoreDB)
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
 		RuntimePort: d.Runtime.Port(),
@@ -214,7 +215,8 @@ func (d *Daemon) serveDaemon() {
 
 func (d *Daemon) serveRuntime() {
 	log.Info().Stringer("addr", d.Runtime.Addr()).Msg("serving runtime")
-	srv := runtime.NewServer(d.RunMgr, d.Trace)
+	rec := trace2.NewRecorder(d.Trace)
+	srv := runtime.NewServer(d.RunMgr, rec)
 	d.exit <- http.Serve(d.Runtime, srv)
 }
 
