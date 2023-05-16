@@ -2,12 +2,12 @@ package sqldb
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/jackc/pgx/v5"
 
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
-	trace2 "encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 )
 
 type pgxTracer struct {
@@ -29,8 +29,9 @@ func markTraced(ctx context.Context) context.Context {
 }
 
 type queryValue struct {
-	trace trace2.Logger
-	qid   uint64
+	trace       trace2.Logger
+	eventParams trace2.EventParams
+	startID     model.TraceEventID
 }
 
 func (t *pgxTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
@@ -38,26 +39,31 @@ func (t *pgxTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pg
 		return ctx
 	}
 
-	qid := atomic.AddUint64(&t.mgr.queryCtr, 1)
-
 	curr := t.mgr.rt.Current()
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
-			Query:   data.SQL,
+		eventParams := trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(5),
+			DefLoc:  0,
+		}
+		startID := curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       data.SQL,
+			Stack:       stack.Build(5),
 		})
-		ctx = context.WithValue(ctx, pgxQueryKey, &queryValue{trace: curr.Trace, qid: qid})
+		ctx = context.WithValue(ctx, pgxQueryKey, &queryValue{
+			trace:       curr.Trace,
+			eventParams: eventParams,
+			startID:     startID,
+		})
 	}
 	return ctx
 }
 
 func (t *pgxTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
 	if qv, ok := ctx.Value(pgxQueryKey).(*queryValue); ok {
-		qv.trace.DBQueryEnd(qv.qid, data.Err)
+		qv.trace.DBQueryEnd(qv.eventParams, qv.startID, data.Err)
 	}
 }
 

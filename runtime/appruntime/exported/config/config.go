@@ -237,7 +237,7 @@ type StaticPubsubTopic struct {
 type StaticPubsubSubscription struct {
 	Service  string // the service that subscription is in
 	SvcNum   uint16 // the service number the subscription is in
-	TraceIdx int32  // The trace Idx of the subscription
+	TraceIdx uint32 // The trace Idx of the subscription
 }
 
 type SQLServer struct {

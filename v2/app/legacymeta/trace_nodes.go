@@ -42,35 +42,35 @@ type TraceNodes struct {
 	endpoints   map[*api.Endpoint]*meta.TraceNode
 }
 
-func (n *TraceNodes) AuthHandler() int32 {
+func (n *TraceNodes) AuthHandler() uint32 {
 	if n == nil {
 		return 0
 	}
 	return nodeID(n.authHandler)
 }
 
-func (n *TraceNodes) Middleware(mw *middleware.Middleware) int32 {
+func (n *TraceNodes) Middleware(mw *middleware.Middleware) uint32 {
 	if n == nil {
 		return 0
 	}
 	return nodeID(n.middlewares[mw])
 }
 
-func (n *TraceNodes) Sub(sub *pubsub.Subscription) int32 {
+func (n *TraceNodes) Sub(sub *pubsub.Subscription) uint32 {
 	if n == nil {
 		return 0
 	}
 	return nodeID(n.subs[sub])
 }
 
-func (n *TraceNodes) SvcStruct(svcStruct *servicestruct.ServiceStruct) int32 {
+func (n *TraceNodes) SvcStruct(svcStruct *servicestruct.ServiceStruct) uint32 {
 	if n == nil {
 		return 0
 	}
 	return nodeID(n.svcStructs[svcStruct])
 }
 
-func (n *TraceNodes) Endpoint(ep *api.Endpoint) int32 {
+func (n *TraceNodes) Endpoint(ep *api.Endpoint) uint32 {
 	if n == nil {
 		return 0
 	}
@@ -210,9 +210,9 @@ func (n *TraceNodes) forPkg(pkgPath paths.Pkg) []*meta.TraceNode {
 
 // nodeID returns the trace node id for the given node.
 // If node is nil it returns 0.
-func nodeID(node *meta.TraceNode) int32 {
+func nodeID(node *meta.TraceNode) uint32 {
 	if node == nil {
 		return 0
 	}
-	return node.Id
+	return uint32(node.Id)
 }

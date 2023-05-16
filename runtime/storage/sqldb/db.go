@@ -10,14 +10,14 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/storage/sqldb/internal/stdlibdriver"
 )
 
@@ -151,17 +151,25 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, err
 // See (*database/sql.DB).ExecContext() for additional documentation.
 func (db *Database) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
 	db.init()
-	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
 
 	curr := db.mgr.rt.Current()
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(4),
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			TxStartID:   0,
+			Stack:       stack.Build(4),
 		})
 	}
 
@@ -169,7 +177,7 @@ func (db *Database) Exec(ctx context.Context, query string, args ...interface{})
 	err = convertErr(err)
 
 	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return res, err
@@ -181,17 +189,24 @@ func (db *Database) Exec(ctx context.Context, query string, args ...interface{})
 // See (*database/sql.DB).QueryContext() for additional documentation.
 func (db *Database) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	db.init()
-	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
 
 	curr := db.mgr.rt.Current()
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(4),
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			Stack:       stack.Build(4),
 		})
 	}
 
@@ -199,7 +214,7 @@ func (db *Database) Query(ctx context.Context, query string, args ...interface{}
 	err = convertErr(err)
 
 	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	if err != nil {
@@ -213,17 +228,24 @@ func (db *Database) Query(ctx context.Context, query string, args ...interface{}
 // See (*database/sql.DB).QueryRowContext() for additional documentation.
 func (db *Database) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
 	db.init()
-	qid := atomic.AddUint64(&db.mgr.queryCtr, 1)
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
 
 	curr := db.mgr.rt.Current()
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(4),
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			Stack:       stack.Build(4),
 		})
 	}
 
@@ -232,7 +254,7 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...interfac
 	r := &Row{rows: rows, err: err}
 
 	if curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return r
@@ -248,19 +270,18 @@ func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	txid := atomic.AddUint64(&db.mgr.txidCtr, 1)
 
+	var startID model.TraceEventID
 	curr := db.mgr.rt.Current()
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBTxStart(trace.DBTxStartParams{
-			SpanID: curr.Req.SpanID,
-			Goid:   curr.Goctr,
-			TxID:   txid,
-			Stack:  stack.Build(4),
-		})
+		startID = curr.Trace.DBTransactionStart(trace2.EventParams{
+			TraceID: curr.Req.TraceID,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+		}, stack.Build(4))
 	}
 
-	return &Tx{mgr: db.mgr, txid: txid, std: tx}, nil
+	return &Tx{mgr: db.mgr, std: tx, startID: startID}, nil
 }
 
 // Driver returns the underlying database driver for this database connection pool.
