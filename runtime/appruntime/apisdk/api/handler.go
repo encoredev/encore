@@ -54,7 +54,7 @@ type Desc[Req, Resp any] struct {
 	Methods []string
 	Path    string
 	RawPath string
-	DefLoc  int32
+	DefLoc  uint32
 
 	// PathParamNames are the names of the path params, in order.
 	PathParamNames []string
@@ -390,7 +390,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 		return
 	}
 
-	call, err := c.server.beginCall(d.DefLoc)
+	call, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
@@ -415,8 +415,9 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 		}
 
 		reqObj, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
-			Type:   model.RPCCall,
-			DefLoc: d.DefLoc,
+			Type:          model.RPCCall,
+			DefLoc:        d.DefLoc,
+			CallerEventID: call.StartEventID,
 
 			Data: &model.RPCData{
 				HTTPMethod:    httpMethod,
@@ -429,8 +430,6 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 				FromEncorePlatform: false,
 				RequestHeaders:     nil, // not set right now for internal requests
 			},
-
-			SpanID: call.SpanID,
 		})
 		if beginErr != nil {
 			respErr = errs.B().Cause(beginErr).Code(errs.Internal).Msg("internal error").Err()

@@ -3,11 +3,10 @@ package service
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 
 	"github.com/rs/zerolog"
 
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/syncutil"
 	"encore.dev/beta/errs"
@@ -28,7 +27,7 @@ type Decl[T any] struct {
 
 	// SetupDefLoc is the location of the Setup function.
 	// It is 0 if Setup is nil.
-	SetupDefLoc int32
+	SetupDefLoc uint32
 
 	setupOnce syncutil.Once
 	instance  *T // initialized instance, or nil
@@ -47,15 +46,17 @@ func (g *Decl[T]) InitService() error {
 func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 	curr := mgr.rt.Current()
 	if curr.Trace != nil && curr.Req != nil && decl.SetupDefLoc != 0 {
-		initCtr := atomic.AddUint64(&mgr.initCounter, 1)
-		curr.Trace.ServiceInitStart(trace.ServiceInitStartParams{
-			InitCtr: initCtr,
+		eventParams := trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
-			Goctr:   curr.Goctr,
+			Goid:    curr.Goctr,
 			DefLoc:  decl.SetupDefLoc,
-			Service: decl.Service,
+		}
+		startID := curr.Trace.ServiceInitStart(trace2.ServiceInitStartParams{
+			EventParams: eventParams,
+			Service:     decl.Service,
 		})
-		defer curr.Trace.ServiceInitEnd(initCtr, err)
+		defer curr.Trace.ServiceInitEnd(eventParams, startID, err)
 	}
 
 	setupFn := decl.Setup
@@ -94,8 +95,6 @@ type Manager struct {
 
 	shutdownMu       sync.Mutex
 	shutdownHandlers []shutdowner
-
-	initCounter uint64
 }
 
 func (mgr *Manager) RegisterService(i Initializer) {

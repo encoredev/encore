@@ -17,7 +17,7 @@ package basic
 import __api "encore.dev/appruntime/apisdk/api"
 
 var EncoreInternal_middleware_middleware_Middleware = &__api.Middleware{
-	DefLoc:  int32(0),
+	DefLoc:  uint32(0x0),
 	Global:  false,
 	ID:      "example.com.Middleware",
 	Invoke:  Middleware,

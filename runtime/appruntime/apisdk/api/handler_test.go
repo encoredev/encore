@@ -22,7 +22,7 @@ import (
 	"encore.dev/appruntime/apisdk/api"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/appruntime/shared/traceprovider"
@@ -297,15 +297,14 @@ func TestDescGeneratesTrace(t *testing.T) {
 			)
 
 			traceMock.
-				EXPECT().
-				BeginRequest(gomock.Any(), gomock.Any()).Do(
+				EXPECT().RequestSpanStart(gomock.Any(), gomock.Any()).Do(
 				func(req *model.Request, _ uint32) {
 					beginReq = req
 				}).MaxTimes(1)
 
 			traceMock.
 				EXPECT().
-				FinishRequest(gomock.Any(), gomock.Any()).MaxTimes(1)
+				RequestSpanEnd(gomock.Any(), gomock.Any()).MaxTimes(1)
 
 			handler.Handle(server.NewIncomingContext(w, req, ps, model.TraceID{}, model.AuthInfo{}))
 
@@ -341,14 +340,14 @@ func TestRawEndpointOverflow(t *testing.T) {
 		w.Write([]byte(respBody))
 	})
 
-	var params []trace.BodyStreamParams
+	var params []trace2.BodyStreamParams
 
 	traceMock.EXPECT().BeginRequest(gomock.Any(), gomock.Any()).MaxTimes(1)
 	traceMock.EXPECT().FinishRequest(gomock.Any(), gomock.Any()).MaxTimes(1)
 	traceMock.
 		EXPECT().
 		BodyStream(gomock.Any()).Do(
-		func(p trace.BodyStreamParams) {
+		func(p trace2.BodyStreamParams) {
 			params = append(params, p)
 		}).AnyTimes()
 
@@ -357,9 +356,25 @@ func TestRawEndpointOverflow(t *testing.T) {
 	if len(params) != 2 {
 		t.Fatalf("got %d BodyStream events, want %d", len(params), 2)
 	}
-	want := []trace.BodyStreamParams{
-		{SpanID: params[0].SpanID, IsResponse: false, Overflowed: true, Data: []byte(wantTraceReqData)},
-		{SpanID: params[1].SpanID, IsResponse: true, Overflowed: true, Data: []byte(wantTraceRespData)},
+	want := []trace2.BodyStreamParams{
+		{
+			EventParams: trace2.EventParams{
+				TraceID: params[0].TraceID,
+				SpanID:  params[0].SpanID,
+			},
+			IsResponse: false,
+			Overflowed: true,
+			Data:       []byte(wantTraceReqData),
+		},
+		{
+			EventParams: trace2.EventParams{
+				TraceID: params[0].TraceID,
+				SpanID:  params[0].SpanID,
+			},
+			IsResponse: true,
+			Overflowed: true,
+			Data:       []byte(wantTraceRespData),
+		},
 	}
 	if diff := cmp.Diff(want, params); diff != "" {
 		t.Errorf("BodyStream params mismatch (-want +got):\n%s", diff)

@@ -9,8 +9,8 @@ import (
 
 	"github.com/rs/zerolog"
 
-	model2 "encore.dev/appruntime/exported/model"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/traceprovider"
 )
@@ -44,7 +44,7 @@ func (t *RequestTracker) FinishOperation() {
 	t.finishOp()
 }
 
-func (t *RequestTracker) BeginRequest(req *model2.Request) {
+func (t *RequestTracker) BeginRequest(req *model.Request) {
 	if prev, _, _, _ := t.currentReq(); prev != nil {
 		copyReqInfoFromParent(req, prev)
 		t.clearReq()
@@ -54,7 +54,7 @@ func (t *RequestTracker) BeginRequest(req *model2.Request) {
 
 // copyReqInfoFromParent copies over relevant request from the parent request.
 // If the relevant fields are already set on next they are not copied over.
-func copyReqInfoFromParent(next, prev *model2.Request) {
+func copyReqInfoFromParent(next, prev *model.Request) {
 	if prevData, nextData := prev.RPCData, next.RPCData; prevData != nil && nextData != nil {
 		if nextData.UserID == "" {
 			nextData.UserID = prevData.UserID
@@ -71,13 +71,13 @@ func copyReqInfoFromParent(next, prev *model2.Request) {
 		}
 	}
 
-	if next.TraceID == (model2.TraceID{}) {
+	if next.TraceID.IsZero() {
 		next.TraceID = prev.TraceID
 	}
-	if next.ParentID == (model2.SpanID{}) {
+	if next.ParentID.IsZero() {
 		next.ParentID = prev.SpanID
 	}
-	if next.ParentTraceID == (model2.TraceID{}) {
+	if next.ParentTraceID.IsZero() {
 		next.ParentTraceID = prev.ParentTraceID
 	}
 	if next.ExtCorrelationID == "" {
@@ -96,10 +96,10 @@ func (t *RequestTracker) FinishRequest() {
 }
 
 type Current struct {
-	Req    *model2.Request // can be nil
-	Trace  trace.Logger    // can be nil
-	Goctr  uint32          // zero if Req == nil && Trace == nil
-	SvcNum uint16          // 0 if not in a service
+	Req    *model.Request // can be nil
+	Trace  trace2.Logger  // can be nil
+	Goctr  uint32         // zero if Req == nil && Trace == nil
+	SvcNum uint16         // 0 if not in a service
 }
 
 func (t *RequestTracker) Current() Current {
@@ -118,7 +118,7 @@ func (t *RequestTracker) TracingEnabled() bool {
 	return t.trace != nil
 }
 
-func (t *RequestTracker) sendTrace(tr trace.Logger) {
+func (t *RequestTracker) sendTrace(tr trace2.Logger) {
 	// Do this first so we clear the buffer even if t.platform == nil
 	data := tr.GetAndClear()
 
@@ -129,7 +129,7 @@ func (t *RequestTracker) sendTrace(tr trace.Logger) {
 	}
 
 	go func() {
-		traceID, err := model2.GenTraceID()
+		traceID, err := model.GenTraceID()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "encore: could not generate trace id:", err)
 			return

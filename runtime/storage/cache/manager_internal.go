@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -18,8 +17,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/syncutil"
 	"encore.dev/appruntime/shared/testsupport"
@@ -222,7 +222,6 @@ type client[K, V any] struct {
 	keyMapper func(K) string
 	toRedis   func(V) (any, error)
 	fromRedis func(string) (V, error)
-	traceOpID uint64
 }
 
 func (c *client[K, V]) with(opts []WriteOption) *client[K, V] {
@@ -321,62 +320,60 @@ func (s *client[K, V]) expiryDur() time.Duration {
 }
 
 func (c *client[K, V]) doTrace(op string, write bool, keys ...string) func(error) {
-	opID := c.traceStart(op, write, keys...)
+	eventID := c.traceStart(op, write, keys...)
 	return func(err error) {
-		c.traceEnd(opID, err)
+		c.traceEnd(eventID, err)
 	}
 }
 
-func (c *client[K, V]) traceStart(op string, write bool, keys ...string) (opID uint64) {
+func (c *client[K, V]) traceStart(op string, write bool, keys ...string) (eventID model.TraceEventID) {
 	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil {
-		opID = atomic.AddUint64(&c.traceOpID, 1)
-		if opID == 0 {
-			// We wrapped around. Increment again since we use the zero opID
-			// to indicate that nothing was traced.
-			opID = atomic.AddUint64(&c.traceOpID, 1)
-		}
-
-		curr.Trace.CacheOpStart(trace.CacheOpStartParams{
-			DefLoc:    c.cfg.EncoreInternal_DefLoc,
+		eventID = curr.Trace.CacheCallStart(trace2.CacheCallStartParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+				DefLoc:  c.cfg.EncoreInternal_DefLoc,
+			},
 			Operation: op,
 			IsWrite:   write,
 			Keys:      keys,
-			Inputs:    nil,
-			SpanID:    curr.Req.SpanID,
-			Goid:      curr.Goctr,
-			OpID:      opID,
 			Stack:     stack.Build(3),
 		})
 	}
 
-	return opID
+	return eventID
 }
 
-func (c *client[K, V]) traceEnd(opID uint64, err error, values ...any) {
-	if opID == 0 { // indicates the operation start was not traced
+func (c *client[K, V]) traceEnd(startEventID model.TraceEventID, err error, values ...any) {
+	if startEventID == 0 { // indicates the operation start was not traced
 		return
 	}
 
 	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil {
 		var cacheErr error
-		var res trace.CacheOpResult
+		var res trace2.CacheCallResult
 		switch {
 		case err == nil:
-			res = trace.CacheOK
+			res = trace2.CacheOK
 		case errors.Is(err, Miss):
-			res = trace.CacheNoSuchKey
+			res = trace2.CacheNoSuchKey
 		case errors.Is(err, KeyExists):
-			res = trace.CacheConflict
+			res = trace2.CacheConflict
 		case err != nil:
-			res = trace.CacheErr
+			res = trace2.CacheErr
 			cacheErr = err
 		}
 
-		curr.Trace.CacheOpEnd(trace.CacheOpEndParams{
-			OpID:    opID,
+		curr.Trace.CacheCallEnd(trace2.CacheCallEndParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			StartID: startEventID,
 			Res:     res,
 			Err:     cacheErr,
-			Outputs: nil, // TODO(andre) add
 		})
 	}
 }

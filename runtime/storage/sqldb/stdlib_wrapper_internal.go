@@ -34,10 +34,10 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
-	"sync/atomic"
 
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 )
 
 type middleware interface {
@@ -58,115 +58,146 @@ type interceptor struct {
 var _ middleware = (*interceptor)(nil)
 
 func (i *interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
-	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
-
 	curr := i.mgr.rt.Current()
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(5),
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			Stack:       stack.Build(5),
 		})
 	}
 
 	rows, err := conn.QueryContext(ctx, query, args)
 
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return rows, err
 }
 
 func (i *interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, query string, args []driver.NamedValue) (driver.Result, error) {
-	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
-
 	curr := i.mgr.rt.Current()
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(5),
+			DefLoc:  0,
+		}
+
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			Stack:       stack.Build(5),
 		})
 	}
 
 	res, err := conn.ExecContext(ctx, query, args)
 
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return res, err
 }
 
 func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
-	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
-
 	curr := i.mgr.rt.Current()
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(5),
+			DefLoc:  0,
+		}
+		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			Stack:       stack.Build(5),
 		})
 	}
 
 	rows, err := conn.QueryContext(ctx, args)
 
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return rows, err
 }
 
 func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
-	qid := atomic.AddUint64(&i.mgr.queryCtr, 1)
-
 	curr := i.mgr.rt.Current()
+
+	var (
+		startEventID model.TraceEventID
+		eventParams  trace2.EventParams
+	)
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryStart(trace.DBQueryStartParams{
-			Query:   query,
+		eventParams = trace2.EventParams{
+			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
 			Goid:    curr.Goctr,
-			QueryID: qid,
-			TxID:    0,
-			Stack:   stack.Build(5),
+			DefLoc:  0,
+		}
+		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+			EventParams: eventParams,
+			Query:       query,
+			Stack:       stack.Build(5),
 		})
 	}
 
 	res, err := conn.ExecContext(ctx, args)
 
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBQueryEnd(qid, err)
+		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
 	return res, err
 }
 
 func (i *interceptor) ConnBegin(tx driver.Tx) (driver.Tx, error) {
-	txid := atomic.AddUint64(&i.mgr.txidCtr, 1)
-
 	curr := i.mgr.rt.Current()
+
+	var startEventID model.TraceEventID
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBTxStart(trace.DBTxStartParams{
-			SpanID: curr.Req.SpanID,
-			Goid:   curr.Goctr,
-			TxID:   txid,
-			Stack:  stack.Build(5),
-		})
+		eventParams := trace2.EventParams{
+			TraceID: curr.Req.TraceID,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBTransactionStart(eventParams, stack.Build(5))
 	}
 
-	return stdlibTx{Tx: tx, txid: txid}, nil
+	return stdlibTx{Tx: tx, startID: startEventID}, nil
 }
 
 func (i *interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, opts driver.TxOptions) (driver.Tx, error) {
@@ -174,24 +205,28 @@ func (i *interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, 
 	if err != nil {
 		return nil, err
 	}
-	txid := atomic.AddUint64(&i.mgr.txidCtr, 1)
 
 	curr := i.mgr.rt.Current()
+
+	var startEventID model.TraceEventID
+
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.DBTxStart(trace.DBTxStartParams{
-			SpanID: curr.Req.SpanID,
-			Goid:   curr.Goctr,
-			TxID:   txid,
-			Stack:  stack.Build(5),
-		})
+		eventParams := trace2.EventParams{
+			TraceID: curr.Req.TraceID,
+			SpanID:  curr.Req.SpanID,
+			Goid:    curr.Goctr,
+			DefLoc:  0,
+		}
+		startEventID = curr.Trace.DBTransactionStart(eventParams, stack.Build(5))
 	}
 
-	return stdlibTx{Tx: tx, txid: txid}, nil
+	return stdlibTx{Tx: tx, startID: startEventID}, nil
 }
 
 type stdlibTx struct {
 	driver.Tx
-	txid uint64
+
+	startID model.TraceEventID
 }
 
 func (i *interceptor) TxCommit(ctx context.Context, tx driver.Tx) error {
@@ -200,13 +235,18 @@ func (i *interceptor) TxCommit(ctx context.Context, tx driver.Tx) error {
 	if s, ok := tx.(stdlibTx); ok {
 		curr := i.mgr.rt.Current()
 		if curr.Req != nil && curr.Trace != nil {
-			curr.Trace.DBTxEnd(trace.DBTxEndParams{
-				SpanID: curr.Req.SpanID,
-				Goid:   curr.Goctr,
-				TxID:   s.txid,
-				Commit: true,
-				Err:    err,
-				Stack:  stack.Build(5),
+			eventParams := trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+				DefLoc:  0,
+			}
+			curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
+				EventParams: eventParams,
+				StartID:     s.startID,
+				Commit:      true,
+				Err:         err,
+				Stack:       stack.Build(5),
 			})
 		}
 	}
@@ -220,13 +260,18 @@ func (i *interceptor) TxRollback(ctx context.Context, tx driver.Tx) error {
 	if s, ok := tx.(stdlibTx); ok {
 		curr := i.mgr.rt.Current()
 		if curr.Req != nil && curr.Trace != nil {
-			curr.Trace.DBTxEnd(trace.DBTxEndParams{
-				SpanID: curr.Req.SpanID,
-				Goid:   curr.Goctr,
-				TxID:   s.txid,
-				Commit: false,
-				Err:    err,
-				Stack:  stack.Build(5),
+			eventParams := trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+				DefLoc:  0,
+			}
+			curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
+				EventParams: eventParams,
+				StartID:     s.startID,
+				Commit:      false,
+				Err:         err,
+				Stack:       stack.Build(5),
 			})
 		}
 	}

@@ -5,7 +5,7 @@ import (
 	_ "unsafe" // for go:linkname
 
 	model2 "encore.dev/appruntime/exported/model"
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 )
 
 type reqTrackImpl interface {
@@ -36,7 +36,7 @@ type encoreOp struct {
 	start int64 // start time of trace from nanotime()
 
 	// trace is the trace log; it is nil if the op is not traced.
-	trace trace.Logger
+	trace trace2.Logger
 
 	// refs is the op refcount. It is 1 + number of requests
 	// that reference this op (see doc comment above).
@@ -160,9 +160,9 @@ func (t *RequestTracker) finishReq() {
 	e.req = nil
 }
 
-func (t *RequestTracker) currentReq() (req *model2.Request, tr trace.Logger, goctr uint32, svcNum uint16) {
+func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, goctr uint32, svcNum uint16) {
 	if g := t.impl.get(); g != nil {
-		var tr trace.Logger
+		var tr trace2.Logger
 		if g.op != nil {
 			tr = g.op.trace
 		}
@@ -185,11 +185,7 @@ func (t *RequestTracker) clearReq() {
 	} else if e.req == nil {
 		panic("encore.replaceReq: no current request")
 	}
-	spanID := e.req.spanID
 	e.req = nil
-	if e.op.trace != nil {
-		e.op.trace.GoClear(spanID, e.goctr)
-	}
 }
 
 //go:linkname nanotime runtime.nanotime

@@ -1,7 +1,7 @@
 package mock_trace
 
 import (
-	"encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/traceprovider"
 )
 
@@ -13,6 +13,6 @@ type mockFactory struct {
 	log *MockLogger
 }
 
-func (f *mockFactory) NewLogger() trace.Logger {
+func (f *mockFactory) NewLogger() trace2.Logger {
 	return f.log
 }
