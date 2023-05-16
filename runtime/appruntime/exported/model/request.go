@@ -52,7 +52,7 @@ type Request struct {
 	Start  time.Time
 	Logger *zerolog.Logger
 	Traced bool
-	DefLoc int32
+	DefLoc uint32
 
 	// SvcNum is the 1-based index of the service into the service list.
 	// It's here instead of within RPCData/MsgData/Test for performance.
@@ -181,7 +181,7 @@ type APICall struct {
 	ID     uint64 // call id
 	Source *Request
 	SpanID SpanID
-	DefLoc int32
+	DefLoc uint32
 
 	// Service/endpoint being called
 	TargetServiceName  string
@@ -193,7 +193,7 @@ type APICall struct {
 type AuthCall struct {
 	ID     uint64 // call id
 	SpanID SpanID
-	DefLoc int32
+	DefLoc uint32
 }
 
 type UID string

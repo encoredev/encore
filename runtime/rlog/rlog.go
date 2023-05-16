@@ -5,27 +5,16 @@
 package rlog
 
 import (
-	"encoding/json"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
-	trace2 "encore.dev/appruntime/exported/trace"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/reqtrack"
-	"encore.dev/beta/errs"
 	"encore.dev/types/uuid"
-)
-
-type logLevel byte
-
-const (
-	levelTrace logLevel = 0 // unused; reserve for future use
-	levelDebug logLevel = 1
-	levelInfo  logLevel = 2
-	levelWarn  logLevel = 3
-	levelError logLevel = 4
 )
 
 // InternalKeyPrefix is the prefix of log field keys that are reserved for
@@ -55,22 +44,22 @@ type Ctx struct {
 
 func (l *Manager) Debug(msg string, keysAndValues ...any) {
 	fields := pairs(keysAndValues)
-	l.doLog(levelDebug, l.rt.Logger().Debug(), msg, nil, fields)
+	l.doLog(model.LevelDebug, l.rt.Logger().Debug(), msg, nil, fields)
 }
 
 func (l *Manager) Info(msg string, keysAndValues ...any) {
 	fields := pairs(keysAndValues)
-	l.doLog(levelInfo, l.rt.Logger().Info(), msg, nil, fields)
+	l.doLog(model.LevelInfo, l.rt.Logger().Info(), msg, nil, fields)
 }
 
 func (l *Manager) Warn(msg string, keysAndValues ...any) {
 	fields := pairs(keysAndValues)
-	l.doLog(levelWarn, l.rt.Logger().Warn(), msg, nil, fields)
+	l.doLog(model.LevelWarn, l.rt.Logger().Warn(), msg, nil, fields)
 }
 
 func (l *Manager) Error(msg string, keysAndValues ...any) {
 	fields := pairs(keysAndValues)
-	l.doLog(levelError, l.rt.Logger().Error(), msg, nil, fields)
+	l.doLog(model.LevelError, l.rt.Logger().Error(), msg, nil, fields)
 }
 
 func (l *Manager) With(keysAndValues ...any) Ctx {
@@ -90,7 +79,7 @@ func (l *Manager) With(keysAndValues ...any) Ctx {
 func (ctx Ctx) Debug(msg string, keysAndValues ...any) {
 	l := ctx.ctx.Logger()
 	fields := pairs(keysAndValues)
-	ctx.mgr.doLog(levelDebug, l.Debug(), msg, ctx.fields, fields)
+	ctx.mgr.doLog(model.LevelDebug, l.Debug(), msg, ctx.fields, fields)
 }
 
 // Info logs an info-level message, merging the context from ctx
@@ -99,7 +88,7 @@ func (ctx Ctx) Debug(msg string, keysAndValues ...any) {
 func (ctx Ctx) Info(msg string, keysAndValues ...any) {
 	l := ctx.ctx.Logger()
 	fields := pairs(keysAndValues)
-	ctx.mgr.doLog(levelInfo, l.Info(), msg, ctx.fields, fields)
+	ctx.mgr.doLog(model.LevelInfo, l.Info(), msg, ctx.fields, fields)
 }
 
 // Warn logs a warn-level message, merging the context from ctx
@@ -108,7 +97,7 @@ func (ctx Ctx) Info(msg string, keysAndValues ...any) {
 func (ctx Ctx) Warn(msg string, keysAndValues ...any) {
 	l := ctx.ctx.Logger()
 	fields := pairs(keysAndValues)
-	ctx.mgr.doLog(levelWarn, l.Warn(), msg, ctx.fields, fields)
+	ctx.mgr.doLog(model.LevelWarn, l.Warn(), msg, ctx.fields, fields)
 }
 
 // Error logs an error-level message, merging the context from ctx
@@ -117,7 +106,7 @@ func (ctx Ctx) Warn(msg string, keysAndValues ...any) {
 func (ctx Ctx) Error(msg string, keysAndValues ...any) {
 	l := ctx.ctx.Logger()
 	fields := pairs(keysAndValues)
-	ctx.mgr.doLog(levelError, l.Error(), msg, ctx.fields, fields)
+	ctx.mgr.doLog(model.LevelError, l.Error(), msg, ctx.fields, fields)
 }
 
 // With creates a new logging context that inherits the context
@@ -135,28 +124,32 @@ func (ctx Ctx) With(keysAndValues ...any) Ctx {
 	return Ctx{ctx: c, mgr: ctx.mgr, fields: fields}
 }
 
-func (l *Manager) doLog(level logLevel, ev *zerolog.Event, msg string, ctxFields, logFields []any) {
-	var tb *trace2.Buffer
+func (l *Manager) doLog(level model.LogLevel, ev *zerolog.Event, msg string, ctxFields, logFields []any) {
+	var (
+		tp     trace2.LogMessageParams
+		traced bool
+	)
 	curr := l.rt.Current()
 	numFields := len(ctxFields)/2 + len(logFields)/2
 
 	if curr.Req != nil && curr.Trace != nil {
-		t := trace2.NewBuffer(16 + 8 + len(msg) + 4 + numFields*50)
-		tb = &t
-		tb.Bytes(curr.Req.SpanID[:])
-		tb.UVarint(uint64(curr.Goctr))
-		tb.Byte(byte(level))
-		tb.String(msg)
-		tb.UVarint(uint64(numFields))
-	}
+		traced = true
+		tp = trace2.LogMessageParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Level:  level,
+			Msg:    msg,
+			Stack:  stack.Build(3),
+			Fields: make([]trace2.LogField, 0, numFields),
+		}
 
-	// Add context fields to the trace only, not to the zerolog event,
-	// as they're already part of the zerolog event.
-	if tb != nil {
 		for i := 0; i < len(ctxFields); i += 2 {
 			key := ctxFields[i].(string)
 			val := ctxFields[i+1]
-			addTraceBufEntry(tb, key, val)
+			tp.Fields = append(tp.Fields, trace2.LogField{Key: key, Value: val})
 		}
 	}
 
@@ -164,16 +157,15 @@ func (l *Manager) doLog(level logLevel, ev *zerolog.Event, msg string, ctxFields
 		key := logFields[i].(string)
 		val := logFields[i+1]
 		addEventEntry(ev, key, val)
-		if tb != nil {
-			addTraceBufEntry(tb, key, val)
+		if traced {
+			tp.Fields = append(tp.Fields, trace2.LogField{Key: key, Value: val})
 		}
 	}
 
 	ev.Msg(msg)
 
-	if curr.Trace != nil {
-		tb.Stack(stack.Build(3))
-		curr.Trace.Add(trace2.LogMessage, tb.Buf())
+	if traced {
+		curr.Trace.LogMessage(tp)
 	}
 }
 
@@ -283,113 +275,6 @@ func addContext(ctx zerolog.Context, key string, val any) zerolog.Context {
 
 func reserved(key string) bool {
 	return strings.HasPrefix(key, InternalKeyPrefix)
-}
-
-const (
-	errType     byte = 1
-	strType     byte = 2
-	boolType    byte = 3
-	timeType    byte = 4
-	durType     byte = 5
-	uuidType    byte = 6
-	jsonType    byte = 7
-	intType     byte = 8
-	uintType    byte = 9
-	float32Type byte = 10
-	float64Type byte = 11
-)
-
-func addTraceBufEntry(tb *trace2.Buffer, key string, val any) {
-	switch val := val.(type) {
-	case error:
-		tb.Byte(errType)
-		tb.String(key)
-		tb.Err(val)
-		tb.Stack(errs.Stack(val))
-	case string:
-		tb.Byte(strType)
-		tb.String(key)
-		tb.String(val)
-	case bool:
-		tb.Byte(boolType)
-		tb.String(key)
-		tb.Bool(val)
-	case time.Time:
-		tb.Byte(timeType)
-		tb.String(key)
-		tb.Time(val)
-	case time.Duration:
-		tb.Byte(durType)
-		tb.String(key)
-		tb.Int64(int64(val))
-	case uuid.UUID:
-		tb.Byte(uuidType)
-		tb.String(key)
-		tb.Bytes(val[:])
-
-	default:
-		tb.Byte(jsonType)
-		tb.String(key)
-		data, err := json.Marshal(val)
-		if err != nil {
-			tb.ByteString(nil)
-			tb.Err(err)
-		} else {
-			tb.ByteString(data)
-			tb.Err(nil)
-		}
-
-	case int8:
-		tb.Byte(intType)
-		tb.String(key)
-		tb.Varint(int64(val))
-	case int16:
-		tb.Byte(intType)
-		tb.String(key)
-		tb.Varint(int64(val))
-	case int32:
-		tb.Byte(intType)
-		tb.String(key)
-		tb.Varint(int64(val))
-	case int64:
-		tb.Byte(intType)
-		tb.String(key)
-		tb.Varint(int64(val))
-	case int:
-		tb.Byte(intType)
-		tb.String(key)
-		tb.Varint(int64(val))
-
-	case uint8:
-		tb.Byte(uintType)
-		tb.String(key)
-		tb.UVarint(uint64(val))
-	case uint16:
-		tb.Byte(uintType)
-		tb.String(key)
-		tb.UVarint(uint64(val))
-	case uint32:
-		tb.Byte(uintType)
-		tb.String(key)
-		tb.UVarint(uint64(val))
-	case uint64:
-		tb.Byte(uintType)
-		tb.String(key)
-		tb.UVarint(uint64(val))
-	case uint:
-		tb.Byte(uintType)
-		tb.String(key)
-		tb.UVarint(uint64(val))
-
-	case float32:
-		tb.Byte(float32Type)
-		tb.String(key)
-		tb.Float32(val)
-	case float64:
-		tb.Byte(float64Type)
-		tb.String(key)
-		tb.Float64(val)
-	}
 }
 
 // pairs ensures the key-values are in pairs.

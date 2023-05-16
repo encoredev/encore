@@ -99,7 +99,7 @@ type KeyspaceConfig struct {
 	// EncoreInternal_DefLoc specifies where the keyspace is defined.
 	// It's an internal field set by Encore's compiler.
 	//publicapigen:drop
-	EncoreInternal_DefLoc int32
+	EncoreInternal_DefLoc uint32
 
 	// EncoreInternal_KeyMapper specifies how typed keys are translated
 	// to a string. It's of type any to avoid making KeyspaceConfig
@@ -152,6 +152,7 @@ type expiryOption interface {
 type ExpiryFunc func(now time.Time) time.Time
 
 // option implements WriteOption.
+//
 //publicapigen:keep
 func (ExpiryFunc) writeOption() {}
 
@@ -182,6 +183,7 @@ func ExpireDailyAt(hour, minute, second int, loc *time.Location) ExpiryFunc {
 }
 
 // expiryTime is a type for time constants that are also WriteOptions.
+//
 //publicapigen:keep
 type expiryTime time.Time
 

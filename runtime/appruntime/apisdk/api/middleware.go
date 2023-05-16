@@ -7,7 +7,7 @@ type Middleware struct {
 	PkgName string
 	Name    string
 	Global  bool
-	DefLoc  int32
+	DefLoc  uint32
 	Invoke  middleware.Signature
 }
 

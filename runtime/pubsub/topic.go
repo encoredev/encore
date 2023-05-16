@@ -3,10 +3,11 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
-	"sync/atomic"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/limiter"
 	"encore.dev/pubsub/internal/test"
@@ -142,10 +143,19 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 	}
 
 	// Start the trace span
-	publishTraceID := atomic.AddUint64(&t.mgr.publishCounter, 1)
 	curr := t.mgr.rt.Current()
+	var startEventID trace2.EventID
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.PublishStart(t.runtimeCfg.EncoreName, data, curr.Req.SpanID, curr.Goctr, publishTraceID, 2)
+		startEventID = curr.Trace.PubsubPublishStart(trace2.PubsubPublishStartParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Topic:   t.runtimeCfg.EncoreName,
+			Message: data,
+			Stack:   stack.Build(1),
+		})
 	}
 
 	// Publish once the rate limiter allows it
@@ -156,7 +166,16 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 
 	// End the trace span
 	if curr.Req != nil && curr.Trace != nil {
-		curr.Trace.PublishEnd(publishTraceID, id, err)
+		curr.Trace.PubsubPublishEnd(trace2.PubsubPublishEndParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			StartID:   startEventID,
+			MessageID: id,
+			Err:       err,
+		})
 	}
 
 	if err != nil {

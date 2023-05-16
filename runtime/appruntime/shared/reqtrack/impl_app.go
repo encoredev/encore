@@ -49,22 +49,11 @@ func startEncoreG(src *encoreG) *encoreG {
 		goctr: goctr,
 	}
 
-	// Log an event if we are tracing this
-	if src.req != nil && src.op.trace != nil {
-		spanID := src.req.spanID
-		src.op.trace.GoStart(spanID, goctr)
-	}
-
 	return dst
 }
 
 //go:linkname exitEncoreG runtime.exitEncoreG
-func exitEncoreG(e *encoreG) {
-	if e.req != nil && e.op.trace != nil {
-		spanID := e.req.spanID
-		e.op.trace.GoEnd(spanID, e.goctr)
-	}
-}
+func exitEncoreG(e *encoreG) {}
 
 //go:linkname beginHTTPRoundTrip net/http.encoreBeginRoundTrip
 func beginHTTPRoundTrip(req *http.Request) (context.Context, error) {
@@ -81,6 +70,6 @@ func beginHTTPRoundTrip(req *http.Request) (context.Context, error) {
 //go:linkname finishHTTPRoundTrip net/http.encoreFinishRoundTrip
 func finishHTTPRoundTrip(req *http.Request, resp *http.Response, err error) {
 	if g := getEncoreG(); g != nil && g.req != nil && g.op.trace != nil {
-		g.op.trace.HTTPCompleteRoundTrip(req, resp, err)
+		g.op.trace.HTTPCompleteRoundTrip(req, resp, g.goctr, err)
 	}
 }

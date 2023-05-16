@@ -51,7 +51,7 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 		}
 		return params, nil
 	},
-	DefLoc:      int32(0),
+	DefLoc:      uint32(0x0),
 	Endpoint:    "AuthHandler",
 	HasAuthData: true,
 	Service:     "code",

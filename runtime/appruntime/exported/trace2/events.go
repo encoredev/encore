@@ -94,14 +94,14 @@ type EventParams struct {
 	TraceID model.TraceID
 	SpanID  model.SpanID
 	Goid    uint32
-	DefLoc  int32
+	DefLoc  uint32
 }
 
 type spanStartEventData struct {
 	Goid             uint32
 	ParentTraceID    model.TraceID
 	ParentSpanID     model.SpanID
-	DefLoc           int32
+	DefLoc           uint32
 	CallerEventID    model.TraceEventID
 	ExtCorrelationID string
 

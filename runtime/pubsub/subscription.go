@@ -7,7 +7,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	"encore.dev/appruntime/exported/config"
-	model2 "encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/utils"
 )
@@ -120,23 +121,23 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 
 		logCtx := log.With()
 
-		traceID, err := model2.GenTraceID()
+		traceID, err := model.GenTraceID()
 		if err != nil {
 			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate trace id")
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate trace id").Err()
-		} else if traceID != (model2.TraceID{}) {
+		} else if traceID != (model.TraceID{}) {
 			logCtx = logCtx.Str("trace_id", traceID.String())
 		}
 
-		spanID, err := model2.GenSpanID()
+		spanID, err := model.GenSpanID()
 		if err != nil {
 			log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to generate span id")
 			return errs.B().Code(errs.Internal).Cause(err).Msg("failed to generate span id").Err()
 		}
 
-		var parentTraceID model2.TraceID
+		var parentTraceID model.TraceID
 		if parentTraceIDStr := attrs[parentTraceIDAttribute]; parentTraceIDStr != "" {
-			parentTraceID, err = model2.ParseTraceID(parentTraceIDStr)
+			parentTraceID, err = model.ParseTraceID(parentTraceIDStr)
 			if err != nil {
 				log.Err(err).Str("msg_id", msgID).Int("delivery_attempt", deliveryAttempt).Msg("failed to parse parent trace id")
 			}
@@ -146,18 +147,18 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		extCorrelationID := attrs[extCorrelationIDAttribute]
 		if extCorrelationID != "" {
 			logCtx = logCtx.Str("x_correlation_id", extCorrelationID)
-		} else if parentTraceID != (model2.TraceID{}) {
+		} else if parentTraceID != (model.TraceID{}) {
 			logCtx = logCtx.Str("x_correlation_id", parentTraceID.String())
 		}
 		// Start the request tracing span
-		req := &model2.Request{
-			Type:             model2.PubSubMessage,
+		req := &model.Request{
+			Type:             model.PubSubMessage,
 			TraceID:          traceID,
 			SpanID:           spanID,
 			ParentTraceID:    parentTraceID,
 			ExtCorrelationID: extCorrelationID,
 			Start:            time.Now(),
-			MsgData: &model2.PubSubMsgData{
+			MsgData: &model.PubSubMsgData{
 				Service:        staticCfg.Service,
 				Topic:          topic.runtimeCfg.EncoreName,
 				Subscription:   subscription.EncoreName,
@@ -187,17 +188,25 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		mgr.rt.BeginRequest(req)
 		curr := mgr.rt.Current()
 		if curr.Trace != nil {
-			curr.Trace.BeginRequest(req, curr.Goctr)
+			curr.Trace.PubsubMessageSpanStart(req, curr.Goctr)
 		}
 
 		err = panicCatchWrapper(ctx, msg)
 
 		if curr.Trace != nil {
-			resp := &model2.Response{
+			resp := &model.Response{
+				Duration:   time.Since(req.Start),
 				Err:        err,
 				HTTPStatus: errs.HTTPStatus(err),
 			}
-			curr.Trace.FinishRequest(req, resp)
+			curr.Trace.PubsubMessageSpanEnd(trace2.PubsubMessageSpanEndParams{
+				EventParams: trace2.EventParams{
+					TraceID: req.TraceID,
+					SpanID:  req.SpanID,
+				},
+				Req:  req,
+				Resp: resp,
+			})
 		}
 		mgr.rt.FinishRequest()
 

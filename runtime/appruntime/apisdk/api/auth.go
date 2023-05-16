@@ -19,7 +19,7 @@ type AuthHandlerDesc[Params any] struct {
 	Service     string
 	SvcNum      uint16
 	Endpoint    string
-	DefLoc      int32
+	DefLoc      uint32
 	HasAuthData bool // whether the handler returns custom auth data
 
 	DecodeAuth  func(*http.Request) (Params, error)
