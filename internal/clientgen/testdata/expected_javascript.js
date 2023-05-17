@@ -236,6 +236,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "app-Generated-JS-Client (Encore/devel)",
         }
+        this.credentials = options.credentials || "same-origin";
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -258,11 +259,13 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
+        const credentials = this.credentials;
         let { query, ...rest } = params ?? {}
         const init = {
             ...rest,
             method,
             body: body ?? null,
+            ...(credentials ? { credentials } : {}),
         }
 
         // Merge our headers with any predefined headers

@@ -72,6 +72,9 @@ export interface ClientOptions {
      */
     fetcher?: Fetcher
 
+	/** indicates whether the user agent should send or receive cookies from the other domain in the case of cross-origin requests. */
+	credentials?: RequestCredentials;
+
     /**
      * Allows you to set the auth token to be used for each request
      * either by passing in a static token string or by passing in a function
@@ -158,6 +161,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
+    readonly credentials: RequestCredentials;
     readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
@@ -166,6 +170,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "app-Generated-TS-Client (Encore/devel)",
         }
+        this.credentials = options.credentials || "same-origin";
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -188,11 +193,13 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+        const credentials = this.credentials;
         let { query, ...rest } = params ?? {}
         const init = {
             ...rest,
             method,
             body: body ?? null,
+               ...(credentials ? { credentials } : {}),
         }
 
         // Merge our headers with any predefined headers
