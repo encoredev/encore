@@ -132,7 +132,5 @@ type TopicConfig struct {
 	//
 	// [AWS SQS Quotas]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
 	// [GCP PubSub Quotas]: https://cloud.google.com/pubsub/quotas#resource_limits
-	//
-	//publicapigen:drop
 	OrderingAttribute string
 }
