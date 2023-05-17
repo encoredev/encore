@@ -71,23 +71,21 @@ the same message, the message will be delivered twice.
 
 ### Ordered Topics
 
-By default, topics are unordered, meaning that messages can be delivered in any order. This allows for better throughput
-on the topic as messages can be processed in parallel. However in some cases it's important that messages are delivered
-in the order they were published for a given entity, such as a user or shopping cart.
+Topics are unordered by default, meaning that messages can be delivered in any order. This allows for better throughput on the topic as messages can be processed in parallel. However, in some cases, messages must be delivered in the order they were published for a given entity.
 
-To create an ordered topic, you need to configure the topic's `OrderingAttribute` to match the `pubsub-attr` tag on one
-of the top level fields of the event type. This field ensures that messages delivered to the same subscriber are
-delivered in the order of publishing for that specific field value. Messages with a different value on the ordering
-attribute are delivered in an unspecified order.
+To create an ordered topic, configure the topic's OrderingAttribute to match the pubsub-attr tag on one of the top-level fields of the event type. This field ensures that messages delivered to the same subscriber are delivered in the order of publishing for that specific field value. Messages with a different value on the ordering attribute are delivered in an unspecified order.
 
-<Callout type="warning">
+To maintain topic order, messages with the same ordering key aren't delivered until the earliest message is processed or dead-lettered, potentially causing delays due to [head-of-line blocking](https://en.wikipedia.org/wiki/Head-of-line_blocking). Mitigate processing issues by ensuring robust logging and alerts, and appropriate subscription retry policies.
 
-With an ordered topic subsequent messages for the same ordering key are not delivered until the earliest
-message (for that ordering key) is successfully processed or dead-lettered. This can lead to a
-[head-of-line blocking](https://en.wikipedia.org/wiki/Head-of-line_blocking) problem,
-and cause unexpected delays in message processing. Make sure you have sufficient logging and alerting in
-place to handle processing issues, and make sure the retry policy on each subscription is configured
-appropriately. In general, use ordered topics with care and consider whether the benefits outweigh these downsides.
+#### Throughput limitations
+
+Each cloud provider enforces certain throughput limitations for ordered topics:
+- **AWS:** 300 messages per second for the topic (see [AWS SQS Quotas](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html)).
+- **GCP:** 1 MBps for each ordering key (See [GCP PubSub Resource Limits](https://cloud.google.com/pubsub/quotas#resource_limits))
+
+<Callout type="info">
+
+The OrderingAttribute currently has no effect in local environments.
 
 </Callout>
 
@@ -115,7 +113,6 @@ func Example(ctx context.Context) error {
 	// The following events will be delivered in order as they all have the same
 	// shopping cart ID
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "item_added"})
-	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "item_removed"})
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_started"})
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_completed"})
 
@@ -127,16 +124,6 @@ func Example(ctx context.Context) error {
 
 </Toggle>
 
-
-By enabling message ordering on a topic, the cloud provider enforces certain throughput limitations:
-- AWS: 300 messages per second for the topic (see [AWS SQS Quotas](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html)).
-- GCP: 1 MBps for each ordering key (See [GCP PubSub Resource Limits](https://cloud.google.com/pubsub/quotas#resource_limits))
-
-<Callout type="info">
-
-The OrderingAttribute currently has no effect during local development.
-
-</Callout>
 
 
 
