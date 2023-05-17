@@ -86,7 +86,7 @@ The `OrderingAttribute` currently has no effect in local environments.
 #### Throughput limitations
 
 Each cloud provider enforces certain throughput limitations for ordered topics:
-- **AWS:** 300 messages per second for the topic (see [AWS SQS Quotas](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html)).
+- **AWS:** 300 messages per second for the topic (see [AWS SQS Quotas](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html))
 - **GCP:** 1 MBps for each ordering key (See [GCP Pub/Sub Resource Limits](https://cloud.google.com/pubsub/quotas#resource_limits))
 
 #### Ordered topic example
