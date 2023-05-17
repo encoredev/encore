@@ -89,7 +89,6 @@ The `OrderingAttribute` currently has no effect in local environments.
 
 </Callout>
 
-<Toggle label="Example Ordered Topic">
 
 ```go
 package example
