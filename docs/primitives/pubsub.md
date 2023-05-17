@@ -77,6 +77,12 @@ To create an ordered topic, configure the topic's `OrderingAttribute` to match t
 
 To maintain topic order, messages with the same ordering key aren't delivered until the earliest message is processed or dead-lettered, potentially causing delays due to [head-of-line blocking](https://en.wikipedia.org/wiki/Head-of-line_blocking). Mitigate processing issues by ensuring robust logging and alerts, and appropriate subscription retry policies.
 
+<Callout type="info">
+
+The `OrderingAttribute` currently has no effect in local environments.
+
+</Callout>
+
 #### Throughput limitations
 
 Each cloud provider enforces certain throughput limitations for ordered topics:
