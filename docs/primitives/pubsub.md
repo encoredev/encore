@@ -85,7 +85,7 @@ Each cloud provider enforces certain throughput limitations for ordered topics:
 
 <Callout type="info">
 
-The OrderingAttribute currently has no effect in local environments.
+The `OrderingAttribute` currently has no effect in local environments.
 
 </Callout>
 
