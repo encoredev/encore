@@ -73,7 +73,7 @@ the same message, the message will be delivered twice.
 
 Topics are unordered by default, meaning that messages can be delivered in any order. This allows for better throughput on the topic as messages can be processed in parallel. However, in some cases, messages must be delivered in the order they were published for a given entity.
 
-To create an ordered topic, configure the topic's OrderingAttribute to match the pubsub-attr tag on one of the top-level fields of the event type. This field ensures that messages delivered to the same subscriber are delivered in the order of publishing for that specific field value. Messages with a different value on the ordering attribute are delivered in an unspecified order.
+To create an ordered topic, configure the topic's `OrderingAttribute` to match the `pubsub-attr` tag on one of the top-level fields of the event type. This field ensures that messages delivered to the same subscriber are delivered in the order of publishing for that specific field value. Messages with a different value on the ordering attribute are delivered in an unspecified order.
 
 To maintain topic order, messages with the same ordering key aren't delivered until the earliest message is processed or dead-lettered, potentially causing delays due to [head-of-line blocking](https://en.wikipedia.org/wiki/Head-of-line_blocking). Mitigate processing issues by ensuring robust logging and alerts, and appropriate subscription retry policies.
 
