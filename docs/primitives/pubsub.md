@@ -110,14 +110,12 @@ var CartEvents = pubsub.NewTopic[*CartEvent]("cart-events", pubsub.TopicConfig{
 })
 
 func Example(ctx context.Context) error {
-	// The following events will be delivered in order as they all have the same
-	// shopping cart ID
+	// These are delivered in order as they all have the same shopping cart ID
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "item_added"})
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_started"})
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_completed"})
 
-	// However this event could be delievered at any point as it has a different shopping
-	// cart ID
+	// This event may be delivered at any point as it has a different shopping cart ID
 	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 2, Event: "item_added"})
 }
 ```
