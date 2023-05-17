@@ -121,11 +121,6 @@ func Example(ctx context.Context) error {
 }
 ```
 
-</Toggle>
-
-
-
-
 ## Publishing events
 
 To publish an **Event**, call `Publish` on the topic passing in the event object (which is the type specified in the `pubsub.NewTopic[Type]` constructor).
