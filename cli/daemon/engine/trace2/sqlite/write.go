@@ -24,13 +24,12 @@ func New(db *sql.DB) *Store {
 
 type Store struct {
 	db        *sql.DB
-	listeners []<-chan *tracepbcli.SpanSummary
+	listeners []chan<- *tracepbcli.SpanSummary
 }
 
 var _ trace2.Store = (*Store)(nil)
 
-func (s *Store) Listen(ch <-chan *tracepbcli.SpanSummary) {
-	// TODO implement listening
+func (s *Store) Listen(ch chan<- *tracepbcli.SpanSummary) {
 	s.listeners = append(s.listeners, ch)
 }
 
@@ -138,7 +137,17 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 	return nil
 }
 
-func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *tracepbcli.TraceEvent, end *tracepbcli.SpanEnd) error {
+func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *tracepbcli.TraceEvent, end *tracepbcli.SpanEnd) (err error) {
+	traceID := encodeTraceID(ev.TraceId)
+	spanID := encodeSpanID(ev.SpanId)
+
+	defer func() {
+		if err == nil {
+			// If the span is complete, emit it to listeners.
+			s.emitCompleteSpanToListeners(ctx, meta.AppID, traceID, spanID)
+		}
+	}()
+
 	if req := end.GetRequest(); req != nil {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
@@ -148,7 +157,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
 				duration_nanos = excluded.duration_nanos
-		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
+		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_REQUEST, true,
 			end.Error != nil, end.DurationNanos)
 		if err != nil {
@@ -167,7 +176,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 				is_error = excluded.is_error,
 				duration_nanos = excluded.duration_nanos,
 				user_id = excluded.user_id
-		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
+		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_AUTH, true,
 			end.Error != nil, end.DurationNanos, auth.Uid)
 		if err != nil {
@@ -185,7 +194,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
 				duration_nanos = excluded.duration_nanos
-		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
+		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_PUBSUB_MESSAGE, true,
 			end.Error != nil, end.DurationNanos)
 		if err != nil {
