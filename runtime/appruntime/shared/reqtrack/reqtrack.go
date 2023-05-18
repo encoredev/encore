@@ -71,7 +71,7 @@ func copyReqInfoFromParent(next, prev *model.Request) {
 		}
 	}
 
-	if next.TraceID.IsZero() {
+	if !prev.TraceID.IsZero() {
 		next.TraceID = prev.TraceID
 	}
 	if next.ParentID.IsZero() {
@@ -129,14 +129,9 @@ func (t *RequestTracker) sendTrace(tr trace2.Logger) {
 	}
 
 	go func() {
-		traceID, err := model.GenTraceID()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "encore: could not generate trace id:", err)
-			return
-		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		err = t.platform.SendTrace(ctx, traceID, bytes.NewReader(data))
-		cancel()
+		defer cancel()
+		err := t.platform.SendTrace(ctx, bytes.NewReader(data))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "encore: could not record trace:", err)
 		}

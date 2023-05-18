@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"encore.dev/appruntime/exported/config"
-	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/trace2"
 )
 
@@ -27,7 +26,7 @@ type Client struct {
 	runtime *config.Runtime
 }
 
-func (c *Client) SendTrace(ctx context.Context, id model.TraceID, data io.Reader) error {
+func (c *Client) SendTrace(ctx context.Context, data io.Reader) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", c.runtime.TraceEndpoint, data)
 	if err != nil {
 		return err
@@ -42,7 +41,6 @@ func (c *Client) SendTrace(ctx context.Context, id model.TraceID, data io.Reader
 	req.Header.Set("X-Encore-Env-ID", c.runtime.EnvID)
 	req.Header.Set("X-Encore-Deploy-ID", c.runtime.DeployID)
 	req.Header.Set("X-Encore-App-Commit", c.static.AppCommit.AsRevisionString())
-	req.Header.Set("X-Encore-Trace-ID", base64.RawStdEncoding.EncodeToString(id[:]))
 	req.Header.Set("X-Encore-Trace-Version", strconv.Itoa(int(trace2.CurrentVersion)))
 	req.Header.Set("X-Encore-Trace-TimeAnchor", string(ta))
 	c.addAuthKey(req)
