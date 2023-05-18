@@ -8,6 +8,7 @@ import (
 
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
+	"encore.dev/beta/errs"
 	"encore.dev/types/uuid"
 )
 
@@ -130,6 +131,12 @@ func (l *Log) newSpanEndEvent(data spanEndEventData) EventBuffer {
 	tb := NewEventBuffer(8 + 12 + 8 + data.ExtraSpace)
 	tb.Duration(data.Duration)
 	tb.ErrWithStack(data.Err)
+	if panicStack, ok := errs.Meta(data.Err)["panic_stack"].(stack.Stack); ok {
+		tb.FormattedStack(panicStack)
+	} else {
+		tb.FormattedStack(stack.Stack{})
+	}
+
 	tb.Bytes(data.ParentTraceID[:])
 	tb.Bytes(data.ParentSpanID[:])
 	return tb
