@@ -54,6 +54,15 @@ type beginRequestParams struct {
 }
 
 func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
+	traceID := p.TraceID
+	if traceID.IsZero() {
+		id, err := model.GenTraceID()
+		if err != nil {
+			return nil, err
+		}
+		traceID = id
+	}
+
 	spanID := p.SpanID
 	if spanID.IsZero() {
 		id, err := model.GenSpanID()
@@ -65,7 +74,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 
 	req := &model.Request{
 		Type:             p.Type,
-		TraceID:          p.TraceID,
+		TraceID:          traceID,
 		SpanID:           spanID,
 		ParentTraceID:    p.ParentTraceID,
 		CallerEventID:    p.CallerEventID,
