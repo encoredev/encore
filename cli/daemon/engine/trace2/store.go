@@ -72,5 +72,5 @@ type Store interface {
 	Get(ctx context.Context, appID, traceID string, iter EventIterator) error
 
 	// Listen listens for new spans.
-	Listen(ch <-chan *tracepb2.SpanSummary)
+	Listen(ch chan<- *tracepb2.SpanSummary)
 }
