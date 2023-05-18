@@ -83,7 +83,25 @@ class SvcServiceClient {
      * DummyAPI is a dummy endpoint.
      */
     async DummyAPI(params) {
-        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            baz: params.HeaderBaz,
+            int: params.HeaderInt === undefined ? undefined : String(params.HeaderInt),
+        })
+
+        const query = makeRecord({
+            bar: params.QueryBar,
+            foo: params.QueryFoo === undefined ? undefined : String(params.QueryFoo),
+        })
+
+        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+        const body = {
+            Foo: params.Foo,
+            Raw: params.Raw,
+            boo: params.boo,
+        }
+
+        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
     }
 
     async Get(params) {

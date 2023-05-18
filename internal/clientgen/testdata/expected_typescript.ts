@@ -194,6 +194,10 @@ export namespace svc {
          */
         boo: string
 
+        QueryFoo?: boolean
+        QueryBar?: string
+        HeaderBaz?: string
+        HeaderInt?: number
         /**
          * This is a multiline
          * comment on the raw message!
@@ -227,7 +231,25 @@ export namespace svc {
          * DummyAPI is a dummy endpoint.
          */
         public async DummyAPI(params: Request): Promise<void> {
-            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                baz: params.HeaderBaz,
+                int: params.HeaderInt === undefined ? undefined : String(params.HeaderInt),
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                bar: params.QueryBar,
+                foo: params.QueryFoo === undefined ? undefined : String(params.QueryFoo),
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                Foo: params.Foo,
+                Raw: params.Raw,
+                boo: params.boo,
+            }
+
+            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
         }
 
         public async Get(params: GetRequest): Promise<void> {

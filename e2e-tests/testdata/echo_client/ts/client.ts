@@ -240,6 +240,8 @@ export namespace echo {
         QueryString: string
 
         QueryNumber: number
+        OptQueryNumber?: number
+        OptQueryString?: string
         /**
          * Path Parameters
          */
@@ -367,6 +369,8 @@ export namespace echo {
 
             const query = makeRecord<string, string | string[]>({
                 no:     String(params.QueryNumber),
+                optnum: params.OptQueryNumber === undefined ? undefined : String(params.OptQueryNumber),
+                optstr: params.OptQueryString,
                 string: params.QueryString,
             })
 
