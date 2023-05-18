@@ -217,6 +217,8 @@ class EchoServiceClient {
 
         const query = makeRecord({
             no:     String(params.QueryNumber),
+            optnum: params.OptQueryNumber === undefined ? undefined : String(params.OptQueryNumber),
+            optstr: params.OptQueryString,
             string: params.QueryString,
         })
 

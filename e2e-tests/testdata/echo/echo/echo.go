@@ -58,8 +58,10 @@ type NonBasicData struct {
 	RawStruct    json.RawMessage
 
 	// Query
-	QueryString string `query:"string"`
-	QueryNumber int    `query:"no"`
+	QueryString    string `query:"string"`
+	QueryNumber    int    `query:"no"`
+	OptQueryNumber int    `query:"optnum" encore:"optional"`
+	OptQueryString string `query:"optstr" encore:"optional"`
 
 	// Path Parameters
 	PathString string

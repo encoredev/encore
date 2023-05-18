@@ -313,7 +313,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			dict := make(map[string]string)
 			for _, field := range reqEnc.HeaderParameters {
 				ref := ts.Dot("params", field.SrcName)
-				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref)
+				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 			}
 
 			w.WriteString("const headers = makeRecord<string, string>(")
@@ -329,11 +329,12 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
 					dict[field.WireFormat] = ts.Dot("params", field.SrcName) +
-						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")"
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
 				} else {
 					dict[field.WireFormat] = ts.convertBuiltinToString(
 						field.Type.GetBuiltin(),
 						ts.Dot("params", field.SrcName),
+						field.Optional,
 					)
 				}
 			}
@@ -767,10 +768,10 @@ if (authData) {
 					if list := field.Type.GetList(); list != nil {
 						w.WriteString(
 							ts.Dot("authData", field.SrcName) +
-								".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")",
+								".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
 						)
 					} else {
-						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName)))
+						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
 					}
 					w.WriteString("\n")
 				}
@@ -780,7 +781,7 @@ if (authData) {
 					w.WriteString("init.headers[\"")
 					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
-					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName)))
+					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
 					w.WriteString("\n")
 				}
 			} else {
@@ -917,15 +918,21 @@ func (ts *typescript) builtinType(typ schema.Builtin) string {
 	}
 }
 
-func (ts *typescript) convertBuiltinToString(typ schema.Builtin, val string) string {
+func (ts *typescript) convertBuiltinToString(typ schema.Builtin, val string, isOptional bool) string {
+	var code string
 	switch typ {
 	case schema.Builtin_STRING:
 		return val
 	case schema.Builtin_JSON:
-		return fmt.Sprintf("JSON.stringify(%s)", val)
+		code = fmt.Sprintf("JSON.stringify(%s)", val)
 	default:
-		return fmt.Sprintf("String(%s)", val)
+		code = fmt.Sprintf("String(%s)", val)
 	}
+
+	if isOptional {
+		code = fmt.Sprintf("%s === undefined ? undefined : %s", val, code)
+	}
+	return code
 }
 
 func (ts *typescript) convertStringToBuiltin(typ schema.Builtin, val string) string {
