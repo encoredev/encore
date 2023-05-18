@@ -274,7 +274,9 @@ func (tb *EventBuffer) Duration(dur time.Duration) {
 func (tb *EventBuffer) Stack(s stack.Stack) {
 	n := len(s.Frames)
 	if n > 0xFF {
-		panic("stack too large") // should never happen; it's capped at 100
+		// Should never happen (the runtime caps it at 100),
+		// but be defensive about it.
+		n = 0xFF
 	}
 	tb.Byte(byte(n))
 	if n == 0 {
@@ -287,6 +289,28 @@ func (tb *EventBuffer) Stack(s stack.Stack) {
 		diff := p - prev
 		tb.Varint(diff)
 		prev = p
+	}
+}
+
+// FormattedStack is like Stack but includes the formatted frames.
+func (tb *EventBuffer) FormattedStack(s stack.Stack) {
+	frames := stack.Format(s)
+	n := len(frames)
+	if n > 0xFF {
+		// Should never happen (the runtime caps it at 100),
+		// but be defensive about it.
+		n = 0xFF
+	}
+
+	tb.Byte(byte(n))
+	if n == 0 {
+		return
+	}
+
+	for _, f := range frames[:n] {
+		tb.String(f.File)
+		tb.UVarint(uint64(f.Line))
+		tb.String(f.Func)
 	}
 }
 
