@@ -303,15 +303,17 @@ type EchoNonBasicData struct {
 	AnonStruct   struct {
 		AnonBird string
 	}
-	NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
-	RawStruct   json.RawMessage
-	QueryString string `query:"string"` // Query
-	QueryNumber int    `query:"no"`
-	PathString  string // Path Parameters
-	PathInt     int
-	PathWild    string
-	AuthHeader  string // Auth Parameters
-	AuthQuery   []int
+	NamedStruct    *EchoData[string, float64] `json:"formatted_nest"`
+	RawStruct      json.RawMessage
+	QueryString    string `query:"string"` // Query
+	QueryNumber    int    `query:"no"`
+	OptQueryNumber int    `encore:"optional" query:"optnum"`
+	OptQueryString string `encore:"optional" query:"optstr"`
+	PathString     string // Path Parameters
+	PathInt        int
+	PathWild       string
+	AuthHeader     string // Auth Parameters
+	AuthQuery      []int
 }
 
 // EchoClient Provides you access to call public and authenticated APIs on echo. The concrete implementation is echoClient.
@@ -503,6 +505,8 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 
 	queryString := url.Values{
 		"no":     {reqEncoder.FromInt(params.QueryNumber)},
+		"optnum": {reqEncoder.FromInt(params.OptQueryNumber)},
+		"optstr": {reqEncoder.FromString(params.OptQueryString)},
 		"string": {reqEncoder.FromString(params.QueryString)},
 	}
 
@@ -555,15 +559,17 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 		AnonStruct   struct {
 			AnonBird string
 		} `json:"AnonStruct"`
-		NamedStruct *EchoData[string, float64] `json:"formatted_nest"`
-		RawStruct   json.RawMessage            `json:"RawStruct"`
-		QueryString string                     `json:"QueryString"`
-		QueryNumber int                        `json:"QueryNumber"`
-		PathString  string                     `json:"PathString"`
-		PathInt     int                        `json:"PathInt"`
-		PathWild    string                     `json:"PathWild"`
-		AuthHeader  string                     `json:"AuthHeader"`
-		AuthQuery   []int                      `json:"AuthQuery"`
+		NamedStruct    *EchoData[string, float64] `json:"formatted_nest"`
+		RawStruct      json.RawMessage            `json:"RawStruct"`
+		QueryString    string                     `json:"QueryString"`
+		QueryNumber    int                        `json:"QueryNumber"`
+		OptQueryNumber int                        `json:"OptQueryNumber"`
+		OptQueryString string                     `json:"OptQueryString"`
+		PathString     string                     `json:"PathString"`
+		PathInt        int                        `json:"PathInt"`
+		PathWild       string                     `json:"PathWild"`
+		AuthHeader     string                     `json:"AuthHeader"`
+		AuthQuery      []int                      `json:"AuthQuery"`
 	}{}
 
 	// Now make the actual call to the API
@@ -588,6 +594,8 @@ func (c *echoClient) NonBasicEcho(ctx context.Context, pathString string, pathIn
 	resp.RawStruct = respBody.RawStruct
 	resp.QueryString = respBody.QueryString
 	resp.QueryNumber = respBody.QueryNumber
+	resp.OptQueryNumber = respBody.OptQueryNumber
+	resp.OptQueryString = respBody.OptQueryString
 	resp.PathString = respBody.PathString
 	resp.PathInt = respBody.PathInt
 	resp.PathWild = respBody.PathWild

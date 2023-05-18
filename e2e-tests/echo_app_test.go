@@ -52,8 +52,10 @@ type NonBasicResponse struct {
 	RawStruct    json.RawMessage
 
 	// Query
-	QueryString string
-	QueryNumber int
+	QueryString    string
+	QueryNumber    int
+	OptQueryString string
+	OptQueryNumber int
 
 	// Path
 	PathString string

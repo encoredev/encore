@@ -207,6 +207,8 @@ type ParameterEncoding struct {
 	RawTag string `json:"raw_tag"`
 	// WireFormat is the wire format of the parameter.
 	WireFormat string `json:"wire_format"`
+	// Optional indicates whether the field is optional.
+	Optional bool `json:"optional"`
 }
 
 type Options struct {
@@ -667,6 +669,7 @@ func describeParam(encodingHints *encodingHints, field *schema.Field) (*Paramete
 		Doc:        field.Doc,
 		Type:       field.Typ,
 		RawTag:     field.RawTag,
+		Optional:   field.Optional,
 		WireFormat: name,
 	}
 

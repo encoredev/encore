@@ -212,8 +212,12 @@ type SvcHeaderOnlyStruct struct {
 }
 
 type SvcRequest struct {
-	Foo SvcFoo `encore:"optional"` // Foo is good
-	Baz string `json:"boo"`        // Baz is better
+	Foo       SvcFoo `encore:"optional"` // Foo is good
+	Baz       string `json:"boo"`        // Baz is better
+	QueryFoo  bool   `encore:"optional" query:"foo"`
+	QueryBar  string `encore:"optional" query:"bar"`
+	HeaderBaz string `encore:"optional" header:"baz"`
+	HeaderInt int    `encore:"optional" header:"int"`
 
 	// This is a multiline
 	// comment on the raw message!
@@ -258,7 +262,35 @@ var _ SvcClient = (*svcClient)(nil)
 
 // DummyAPI is a dummy endpoint.
 func (c *svcClient) DummyAPI(ctx context.Context, params SvcRequest) error {
-	_, err := callAPI(ctx, c.base, "POST", "/svc.DummyAPI", nil, params, nil)
+	// Convert our params into the objects we need for the request
+	reqEncoder := &serde{}
+
+	headers := http.Header{
+		"baz": {reqEncoder.FromString(params.HeaderBaz)},
+		"int": {reqEncoder.FromInt(params.HeaderInt)},
+	}
+
+	queryString := url.Values{
+		"bar": {reqEncoder.FromString(params.QueryBar)},
+		"foo": {reqEncoder.FromBool(params.QueryFoo)},
+	}
+
+	if reqEncoder.LastError != nil {
+		return fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
+	}
+
+	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+	body := struct {
+		Foo SvcFoo          `json:"Foo"`
+		Baz string          `json:"boo"`
+		Raw json.RawMessage `json:"Raw"`
+	}{
+		Baz: params.Baz,
+		Foo: params.Foo,
+		Raw: params.Raw,
+	}
+
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/svc.DummyAPI?%s", queryString.Encode()), headers, body, nil)
 	return err
 }
 
@@ -837,6 +869,11 @@ func (e *serde) FromInt(s int) (v string) {
 	return strconv.FormatInt(int64(s), 10)
 }
 
+func (e *serde) FromBool(s bool) (v string) {
+	e.NonEmptyValues++
+	return strconv.FormatBool(s)
+}
+
 func (e *serde) FromTime(s time.Time) (v string) {
 	e.NonEmptyValues++
 	return s.Format(time.RFC3339)
@@ -848,11 +885,6 @@ func (e *serde) FromIntList(s []int) (v []string) {
 		v = append(v, e.FromInt(x))
 	}
 	return v
-}
-
-func (e *serde) FromBool(s bool) (v string) {
-	e.NonEmptyValues++
-	return strconv.FormatBool(s)
 }
 
 func (e *serde) ToBool(field string, s string, required bool) (v bool) {
