@@ -74,7 +74,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 		query := &trace2.Query{
 			AppID: params.AppID,
-			// TODO add filters
+			Limit: 100,
 		}
 		list := []*tracepb2.SpanSummary{} // prevent marshalling as null
 		iter := func(s *tracepb2.SpanSummary) bool {
