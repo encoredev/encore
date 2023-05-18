@@ -70,8 +70,11 @@ message SpanStart {
 message SpanEnd {
   uint64 duration_nanos = 1;
   optional Error error = 2;
-  optional TraceID parent_trace_id = 3;
-  optional uint64 parent_span_id = 4;
+  // panic_stack is the stack trace if the span ended due to a panic
+  optional StackTrace panic_stack = 3;
+  optional TraceID parent_trace_id = 4;
+  optional uint64 parent_span_id = 5;
+
   oneof data {
     RequestSpanEnd request = 10;
     AuthSpanEnd auth = 11;

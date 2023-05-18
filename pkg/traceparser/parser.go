@@ -71,6 +71,7 @@ type spanStartEvent struct {
 type spanEndEvent struct {
 	DurationNanos uint64
 	Err           *tracepb2.Error
+	PanicStack    option.Option[*tracepb2.StackTrace]
 	ParentTraceID option.Option[*tracepb2.TraceID]
 	ParentSpanID  option.Option[uint64]
 }
@@ -152,12 +153,14 @@ func (tp *traceParser) spanEndEvent() spanEndEvent {
 		dur = 0
 	}
 	err := tp.errWithStack()
+	panicStack := tp.formattedStack()
 	parentTraceID := tp.traceID()
 	parentSpanID := tp.Uint64()
 
 	ev := spanEndEvent{
 		DurationNanos: uint64(dur),
 		Err:           err,
+		PanicStack:    option.AsOptional(panicStack),
 		ParentSpanID:  option.AsOptional(parentSpanID),
 	}
 	if !parentTraceID.IsZero() {
@@ -261,6 +264,9 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
 		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
 		Data: &tracepb2.SpanEnd_Request{
 			Request: &tracepb2.RequestSpanEnd{
 				ServiceName:     tp.String(),
@@ -298,6 +304,9 @@ func (tp *traceParser) authSpanEnd() *tracepb2.SpanEnd {
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
 		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
 		Data: &tracepb2.SpanEnd_Auth{
 			Auth: &tracepb2.AuthSpanEnd{
 				ServiceName:  tp.String(),
@@ -338,6 +347,9 @@ func (tp *traceParser) pubsubMessageSpanEnd() *tracepb2.SpanEnd {
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
 		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
 		Data: &tracepb2.SpanEnd_PubsubMessage{
 			PubsubMessage: &tracepb2.PubsubMessageSpanEnd{
 				ServiceName:      tp.String(),
@@ -735,6 +747,27 @@ func (tp *traceParser) stack() *tracepb2.StackTrace {
 		x := prev + diffs[i]
 		prev = x
 		pcs[i] = uint64(x)
+	}
+
+	return tr
+}
+
+func (tp *traceParser) formattedStack() *tracepb2.StackTrace {
+	n := int(tp.Byte())
+	if n == 0 {
+		return nil
+	}
+
+	tr := &tracepb2.StackTrace{
+		Frames: make([]*tracepb2.StackFrame, n),
+	}
+
+	for i := 0; i < n; i++ {
+		tr.Frames[i] = &tracepb2.StackFrame{
+			Filename: tp.String(),
+			Line:     int32(tp.UVarint()),
+			Func:     tp.String(),
+		}
 	}
 
 	return tr

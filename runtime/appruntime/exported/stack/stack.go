@@ -71,6 +71,10 @@ type FormattedFrame struct {
 }
 
 func Format(s Stack) []FormattedFrame {
+	if len(s.Frames) == 0 {
+		return nil
+	}
+
 	var frames []FormattedFrame
 	cf := runtime.CallersFrames(s.Frames)
 	i := 0
