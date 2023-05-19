@@ -34,9 +34,13 @@ type beginRequestParams struct {
 	// If it is the zero value a new span id is generated.
 	SpanID model.SpanID
 
-	// ParentTraceID is the correlation ID to use.
+	// ParentTraceID is the parent trace ID to use for correlation.
 	// It is copied from the parent request if it is empty.
 	ParentTraceID model.TraceID
+
+	// ParentSpanID is the parent's span ID to use for correlation.
+	// It is copied from the parent request if it is empty.
+	ParentSpanID model.SpanID
 
 	// CallerEventID is the event ID in the parent span that triggered this request.
 	// It's used to correlate the request with the originating call.
@@ -76,6 +80,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		Type:             p.Type,
 		TraceID:          traceID,
 		SpanID:           spanID,
+		ParentSpanID:     p.ParentSpanID,
 		ParentTraceID:    p.ParentTraceID,
 		CallerEventID:    p.CallerEventID,
 		ExtCorrelationID: p.ExtCorrelationID,

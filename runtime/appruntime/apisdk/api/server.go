@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
@@ -34,11 +35,13 @@ const (
 
 // execContext contains the data needed for executing a request.
 type execContext struct {
-	server  *Server
-	ctx     context.Context
-	ps      UnnamedParams
-	traceID model.TraceID
-	auth    model.AuthInfo
+	server *Server
+	ctx    context.Context
+	ps     UnnamedParams
+	auth   model.AuthInfo
+
+	traceID      model.TraceID // zero if not tracing
+	parentSpanID model.SpanID  // zero if no parent
 }
 
 type IncomingContext struct {
@@ -191,7 +194,12 @@ func (s *Server) registerEndpoint(h Handler) {
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			params := toUnnamedParams(ps)
-			traceID, _ := model.GenTraceID()
+
+			traceID, parentSpanID, _ := parseTraceParent(req.Header.Get("traceparent"))
+			if traceID.IsZero() {
+				traceID, _ = model.GenTraceID()
+				parentSpanID = model.SpanID{} // no parent span if we have no trace id
+			}
 			traceIDStr := traceID.String()
 
 			// Echo the X-Request-ID back to the caller if present,
@@ -220,7 +228,7 @@ func (s *Server) registerEndpoint(h Handler) {
 			// Always send the trace id back.
 			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
 
-			s.processRequest(h, s.NewIncomingContext(w, req, params, traceID, model.AuthInfo{}))
+			s.processRequest(h, s.NewIncomingContext(w, req, params, model.AuthInfo{}, traceID, parentSpanID))
 		}
 
 		routerPath := h.HTTPRouterPath()
@@ -360,12 +368,12 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	}
 }
 
-func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) execContext {
-	return execContext{s, ctx, ps, trID, auth}
+func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID) execContext {
+	return execContext{s, ctx, ps, auth, trID, parentSpanID}
 }
 
-func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) IncomingContext {
-	ec := s.newExecContext(req.Context(), ps, trID, auth)
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID) IncomingContext {
+	ec := s.newExecContext(req.Context(), ps, auth, trID, parentSpanID)
 	return IncomingContext{ec, w, req, nil}
 }
 
@@ -424,4 +432,45 @@ func handleTrailingSlashRedirect(r *httprouter.Router, w http.ResponseWriter, re
 
 	http.Redirect(w, req, path, code)
 	return true
+}
+
+// parseTraceParent parses the trace and span ids from s, which is assumed
+// to be in the format of the traceparent header (see https://www.w3.org/TR/trace-context/).
+// If it's not a valid traceparent header it returns zero ids and ok == false.
+func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, ok bool) {
+	const (
+		version       = "00"
+		traceIDLen    = 32
+		spanIDLen     = 16
+		traceFlagsLen = 2
+
+		verStart     = 0
+		verEnd       = verStart + len(version)
+		verSep       = verEnd
+		traceIDStart = verSep + 1
+		traceIDEnd   = traceIDStart + traceIDLen
+		traceIDSep   = traceIDEnd
+		spanIDStart  = traceIDSep + 1
+		spanIDEnd    = spanIDStart + spanIDLen
+		spanIDSep    = spanIDEnd
+		flagsStart   = spanIDSep + 1
+		flagsEnd     = flagsStart + traceFlagsLen
+		totalLen     = flagsEnd
+	)
+
+	if len(s) != totalLen || s[verStart:verEnd] != version || s[verSep] != '-' || s[traceIDSep] != '-' || s[spanIDSep] != '-' {
+		return model.TraceID{}, model.SpanID{}, false
+	}
+
+	_, err := hex.Decode(traceID[:], []byte(s[traceIDStart:traceIDEnd]))
+	if err != nil {
+		return model.TraceID{}, model.SpanID{}, false
+	}
+
+	_, err = hex.Decode(spanID[:], []byte(s[spanIDStart:spanIDEnd]))
+	if err != nil {
+		return model.TraceID{}, model.SpanID{}, false
+	}
+
+	return traceID, spanID, true
 }

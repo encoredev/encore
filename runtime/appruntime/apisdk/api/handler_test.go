@@ -181,11 +181,11 @@ func TestDescGeneratesTrace(t *testing.T) {
 			reqBody:    `{"Body": "foo"}`,
 			reqHeaders: http.Header{"Content-Type": []string{"application/json"}},
 			want: &model.Request{
-				Type:     model.RPCCall,
-				SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-				ParentID: model.SpanID{},
-				Start:    klock.Now(),
-				Traced:   true,
+				Type:         model.RPCCall,
+				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+				ParentSpanID: model.SpanID{},
+				Start:        klock.Now(),
+				Traced:       true,
 				RPCData: &model.RPCData{
 					Desc: &model.RPCDesc{
 						Service:      "service",
@@ -210,11 +210,11 @@ func TestDescGeneratesTrace(t *testing.T) {
 			access:  api.Public,
 			reqBody: `invalid json`,
 			want: &model.Request{
-				Type:     model.RPCCall,
-				SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-				ParentID: model.SpanID{},
-				Start:    klock.Now(),
-				Traced:   true,
+				Type:         model.RPCCall,
+				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+				ParentSpanID: model.SpanID{},
+				Start:        klock.Now(),
+				Traced:       true,
 				RPCData: &model.RPCData{
 					Desc: &model.RPCDesc{
 						Service:      "service",
@@ -246,11 +246,11 @@ func TestDescGeneratesTrace(t *testing.T) {
 			reqBody:    `{}`,
 			reqHeaders: http.Header{"Content-Type": []string{"application/json"}},
 			want: &model.Request{
-				Type:     model.RPCCall,
-				SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-				ParentID: model.SpanID{},
-				Start:    klock.Now(),
-				Traced:   true,
+				Type:         model.RPCCall,
+				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+				ParentSpanID: model.SpanID{},
+				Start:        klock.Now(),
+				Traced:       true,
 				RPCData: &model.RPCData{
 					Desc: &model.RPCDesc{
 						Service:      "service",

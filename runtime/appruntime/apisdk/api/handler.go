@@ -3,6 +3,8 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -165,9 +167,10 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	}
 
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
-		Type:    model.RPCCall,
-		DefLoc:  d.DefLoc,
-		TraceID: c.traceID,
+		Type:         model.RPCCall,
+		DefLoc:       d.DefLoc,
+		TraceID:      c.traceID,
+		ParentSpanID: c.parentSpanID,
 
 		Data: &model.RPCData{
 			Desc:               d.rpcDesc(),
@@ -454,7 +457,8 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 			return
 		}
 
-		ec := c.server.newExecContext(c.ctx, params, reqObj.TraceID, model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData})
+		authInfo := model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData}
+		ec := c.server.newExecContext(c.ctx, params, authInfo, reqObj.TraceID, reqObj.SpanID)
 		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
 		})
@@ -505,13 +509,13 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		return
 	}
 
-	// Default to GET if there are no methods available (or it's a wildcard)
-	httpMethod := "GET"
+	// Default to POST if there are no methods available (or it's a wildcard)
+	httpMethod := "POST"
 	if len(d.Methods) > 0 && d.Methods[0] != "*" {
 		httpMethod = d.Methods[0]
 	}
 
-	// Encode the request payloaad
+	// Encode the request payload
 	var buf bytes.Buffer
 	stream := c.server.json.BorrowStream(&buf)
 	header, queryString, err := d.EncodeExternalReq(req, stream)
@@ -545,6 +549,8 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		respErr = errs.Convert(err)
 		return
 	}
+
+	addTraceHeaders(httpReq, call.Source)
 
 	respData, respErr = (func() (resp Resp, err error) {
 		httpResp, err := c.server.httpClient.Do(httpReq)
@@ -652,5 +658,15 @@ func newErrResp(err error, httpStatus int) *model.Response {
 	return &model.Response{
 		HTTPStatus: httpStatus,
 		Err:        err,
+	}
+}
+
+// addTraceHeaders sets the traceparent and tracestate headers on the request.
+func addTraceHeaders(req *http.Request, parent *model.Request) {
+	if parent != nil {
+		traceID := hex.EncodeToString(parent.TraceID[:])
+		spanID := hex.EncodeToString(parent.SpanID[:])
+		req.Header.Set("traceparent", fmt.Sprintf("00-%s-%s-01", traceID, spanID))
+		// TODO set tracestate
 	}
 }

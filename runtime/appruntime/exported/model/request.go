@@ -44,7 +44,7 @@ type Request struct {
 	Type             RequestType
 	TraceID          TraceID
 	SpanID           SpanID
-	ParentID         SpanID
+	ParentSpanID     SpanID
 	ParentTraceID    TraceID
 	CallerEventID    TraceEventID // the event that triggered this request
 	ExtCorrelationID string       // The externally-provided correlation ID, if any.

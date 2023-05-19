@@ -46,13 +46,13 @@ func TestParse(t *testing.T) {
 			Name: "RequestSpanStart",
 			Emit: func(l *trace2.Log) {
 				l.RequestSpanStart(&model.Request{
-					Type:     model.RPCCall,
-					TraceID:  traceID,
-					SpanID:   spanID,
-					ParentID: model.SpanID{},
-					Start:    now,
-					Traced:   true,
-					DefLoc:   defLoc,
+					Type:         model.RPCCall,
+					TraceID:      traceID,
+					SpanID:       spanID,
+					ParentSpanID: model.SpanID{},
+					Start:        now,
+					Traced:       true,
+					DefLoc:       defLoc,
 					RPCData: &model.RPCData{
 						Desc: &model.RPCDesc{
 							Service:  "service",
@@ -138,13 +138,13 @@ func TestParse(t *testing.T) {
 			Name: "AuthSpanStart",
 			Emit: func(l *trace2.Log) {
 				l.AuthSpanStart(&model.Request{
-					Type:     model.AuthHandler,
-					TraceID:  traceID,
-					SpanID:   spanID,
-					ParentID: model.SpanID{},
-					Start:    now,
-					Traced:   true,
-					DefLoc:   defLoc,
+					Type:         model.AuthHandler,
+					TraceID:      traceID,
+					SpanID:       spanID,
+					ParentSpanID: model.SpanID{},
+					Start:        now,
+					Traced:       true,
+					DefLoc:       defLoc,
 					RPCData: &model.RPCData{
 						Desc: &model.RPCDesc{
 							Service:  "service",
@@ -217,13 +217,13 @@ func TestParse(t *testing.T) {
 			Name: "PubsubMessageSpanStart",
 			Emit: func(l *trace2.Log) {
 				l.PubsubMessageSpanStart(&model.Request{
-					Type:     model.PubSubMessage,
-					TraceID:  traceID,
-					SpanID:   spanID,
-					ParentID: model.SpanID{},
-					Start:    now,
-					Traced:   true,
-					DefLoc:   defLoc,
+					Type:         model.PubSubMessage,
+					TraceID:      traceID,
+					SpanID:       spanID,
+					ParentSpanID: model.SpanID{},
+					Start:        now,
+					Traced:       true,
+					DefLoc:       defLoc,
 					MsgData: &model.PubSubMsgData{
 						Service:      "service",
 						Topic:        "topic",

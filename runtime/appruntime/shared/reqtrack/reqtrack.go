@@ -74,8 +74,8 @@ func copyReqInfoFromParent(next, prev *model.Request) {
 	if !prev.TraceID.IsZero() {
 		next.TraceID = prev.TraceID
 	}
-	if next.ParentID.IsZero() {
-		next.ParentID = prev.SpanID
+	if next.ParentSpanID.IsZero() {
+		next.ParentSpanID = prev.SpanID
 	}
 	if next.ParentTraceID.IsZero() {
 		next.ParentTraceID = prev.ParentTraceID

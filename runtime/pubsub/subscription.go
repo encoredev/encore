@@ -179,7 +179,10 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		{
 			prev := mgr.rt.Current()
 			if prevReq := prev.Req; prevReq != nil {
-				req.ParentID = prevReq.ParentID
+				// TODO(andre) is this correct, or should it be prevReq.SpanID?
+				// Maybe it doesn't matter since subscriptions are always root spans anyway.
+				req.ParentSpanID = prevReq.ParentSpanID
+
 				req.Traced = prevReq.Traced
 				req.Test = prevReq.Test
 			}
