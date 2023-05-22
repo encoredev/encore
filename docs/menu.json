@@ -54,6 +54,11 @@
         "DocSlug": "tutorials/rest-api"
       },
       {
+        "Path": "/tutorials/graphql",
+        "Title": "Building a GraphQL API",
+        "DocSlug": "tutorials/graphql"
+      },
+      {
         "Path": "/tutorials/slack-bot",
         "Title": "Building a Slack bot",
         "DocSlug": "tutorials/slack-bot"
