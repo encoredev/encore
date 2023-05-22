@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -20,15 +21,26 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 		limit = 100
 	}
 
+	args := []any{
+		q.AppID, tracepb2.SpanSummary_AUTH, /* ignore auth spans */
+	}
+
+	extraWhereClause := ""
+
+	if q.MessageID != "" {
+		args = append(args, q.MessageID)
+		extraWhereClause += " AND message_id = $" + strconv.Itoa(len(args))
+	}
+
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
 		    trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
 		    topic_name, subscription_name, message_id, is_error, duration_nanos
 		FROM trace_span_index
-		WHERE app_id = ? AND has_response AND is_root AND span_type != ?
+		WHERE app_id = $1 AND has_response AND is_root AND span_type != $2 `+extraWhereClause+`
 		ORDER BY started_at DESC
-		LIMIT ?
-	`, q.AppID, tracepb2.SpanSummary_AUTH /* ignore auth spans */, limit)
+		LIMIT `+strconv.Itoa(limit)+`
+	`, args...)
 	if err != nil {
 		return errors.Wrap(err, "query traces")
 	}

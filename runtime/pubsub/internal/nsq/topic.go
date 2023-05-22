@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/nsqio/go-nsq"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
@@ -36,7 +36,6 @@ type topic struct {
 	m         sync.Mutex
 	producer  *nsq.Producer
 	consumers map[string]*nsq.Consumer
-	idSeq     uint32
 }
 
 func (mgr *Manager) ProviderName() string { return "nsq" }
@@ -52,7 +51,6 @@ func (mgr *Manager) NewTopic(providerCfg *config.PubsubProvider, _ types.TopicCo
 		addr:      providerCfg.NSQ.Host,
 		producer:  nil,
 		consumers: make(map[string]*nsq.Consumer),
-		idSeq:     0,
 	}
 }
 
@@ -147,11 +145,12 @@ func (l *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 			l.producer = producer
 		}
 	}
+
 	// generate a new message ID
-	idx := fmt.Sprint(atomic.AddUint32(&l.idSeq, 1))
+	msgID := xid.New().String()
 
 	// create and publish the message wrapper
-	data, err = json.Marshal(&messageWrapper{ID: idx, Data: data, Attributes: attrs})
+	data, err = json.Marshal(&messageWrapper{ID: msgID, Data: data, Attributes: attrs})
 	if err != nil {
 		return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to marshal message").Err()
 	}
@@ -159,6 +158,5 @@ func (l *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	if err != nil {
 		return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to connect to NSQD").Err()
 	}
-	// return the message id!
-	return idx, nil
+	return msgID, nil
 }
