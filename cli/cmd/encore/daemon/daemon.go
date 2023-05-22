@@ -92,7 +92,6 @@ type Daemon struct {
 	RunMgr     *run.Manager
 	ClusterMgr *sqldb.ClusterManager
 	Trace      trace2.Store
-	DashSrv    *dash.Server
 	Server     *daemon.Server
 
 	dev bool // whether we're in development mode
@@ -138,7 +137,6 @@ func (d *Daemon) init() {
 		Secret:      d.Secret,
 		ClusterMgr:  d.ClusterMgr,
 	}
-	d.DashSrv = dash.NewServer(d.RunMgr, d.Trace)
 
 	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret)
 }
