@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime/debug"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,8 +39,12 @@ func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor) (*tracepb2.TraceEvent, 
 
 	bytesReadAfterHeader := tp.bytesRead
 
-	ev := tp.parseEvent(h)
-	err := tp.Err()
+	ev, err := tp.parseEvent(h)
+	if err != nil {
+		return nil, fmt.Errorf("parse event %v: %v", h.Type, err)
+	}
+
+	err = tp.Err()
 	if err == io.EOF {
 		// If we have an io.EOF and we've read exactly the right amount of bytes,
 		// treat it as a non-error.
@@ -98,8 +103,18 @@ type header struct {
 
 var errUnknownEvent = errors.New("unknown event")
 
-func (tp *traceParser) parseEvent(h header) *tracepb2.TraceEvent {
-	ev := &tracepb2.TraceEvent{
+func (tp *traceParser) parseEvent(h header) (ev *tracepb2.TraceEvent, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if b, ok := r.(bailout); ok {
+				err = b.err
+			} else {
+				err = fmt.Errorf("panic parsing event: %v\n%s", r, debug.Stack())
+			}
+		}
+	}()
+
+	ev = &tracepb2.TraceEvent{
 		TraceId:   h.TraceID,
 		SpanId:    h.SpanID,
 		EventId:   uint64(h.EventID),
@@ -123,7 +138,7 @@ func (tp *traceParser) parseEvent(h header) *tracepb2.TraceEvent {
 		ev.Event = &tracepb2.TraceEvent_SpanEvent{SpanEvent: tp.spanEvent(h.Type)}
 	}
 
-	return ev
+	return ev, nil
 }
 
 func (tp *traceParser) spanStartEvent() spanStartEvent {
@@ -216,8 +231,7 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 	case trace2.BodyStream:
 		ev.Data = &tracepb2.SpanEvent_BodyStream{BodyStream: tp.bodyStream()}
 	default:
-		// TODO bailout
-		panic(fmt.Sprintf("unknown event %x", eventType))
+		tp.bailout(fmt.Errorf("unknown event %v", eventType))
 	}
 
 	return ev
@@ -799,4 +813,12 @@ func (tp *traceParser) spanID() uint64 {
 	var spanID [8]byte
 	tp.Bytes(spanID[:])
 	return bin.Uint64(spanID[:])
+}
+
+type bailout struct {
+	err error
+}
+
+func (tp *traceParser) bailout(err error) {
+	panic(bailout{err: err})
 }
