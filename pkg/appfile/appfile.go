@@ -41,7 +41,7 @@ type File struct {
 }
 
 type CORS struct {
-	// Debug is a flag to enable debug logging for CORS
+	// Debug enables CORS debug logging.
 	Debug bool `json:"debug,omitempty"`
 
 	// AllowHeaders allows an app to specify additional headers that should be
@@ -64,7 +64,6 @@ type CORS struct {
 	// AllowOriginsWithCredentials specifies the allowed origins for requests
 	// that include credentials. If a request is made from an Origin in this list
 	// Encore responds with Access-Control-Allow-Origin: <Origin>.
-	// If DisableCredentials is true this field is not used.
 	//
 	// The URLs in this list may include wildcards (e.g. "https://*.example.com"
 	// or "https://*-myapp.example.com").
