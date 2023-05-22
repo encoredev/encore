@@ -66,17 +66,19 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 	case "traces/list":
 		var params struct {
-			AppID string
+			AppID     string `json:"app_id"`
+			MessageID string `json:"message_id"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
 		}
 
 		query := &trace2.Query{
-			AppID: params.AppID,
-			Limit: 100,
+			AppID:     params.AppID,
+			MessageID: params.MessageID,
+			Limit:     100,
 		}
-		list := []*tracepb2.SpanSummary{} // prevent marshalling as null
+		var list []*tracepb2.SpanSummary
 		iter := func(s *tracepb2.SpanSummary) bool {
 			list = append(list, s)
 			return true
@@ -89,14 +91,14 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 	case "traces/get":
 		var params struct {
-			AppID   string
-			TraceID string
+			AppID   string `json:"app_id"`
+			TraceID string `json:"trace_id"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
 		}
 
-		events := []*tracepb2.TraceEvent{} // prevent marshalling as null
+		var events []*tracepb2.TraceEvent
 		iter := func(ev *tracepb2.TraceEvent) bool {
 			events = append(events, ev)
 			return true
