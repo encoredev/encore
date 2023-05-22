@@ -169,6 +169,11 @@
         "DocSlug": "develop/metadata"
       },
       {
+        "Path": "/develop/cors",
+        "Title": "CORS",
+        "DocSlug": "develop/cors"
+      },
+      {
         "Path": "/develop/auth-keys",
         "Title": "Auth Keys",
         "DocSlug": "develop/auth-keys",
