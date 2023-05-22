@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
-	"path/filepath"
-	"strings"
+	"net/http/httputil"
 	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
+	"encr.dev/cli/daemon/dash/dashproxy"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
@@ -34,7 +34,13 @@ func NewServer(runMgr *run.Manager, tr trace2.Store) *Server {
 		log.Fatal().Err(err).Msg("could not get dash assets")
 	}
 
+	proxy, err := dashproxy.New("https://devdash.encore.dev")
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not create dash proxy")
+	}
+
 	s := &Server{
+		proxy:   proxy,
 		run:     runMgr,
 		tr:      tr,
 		assets:  assets,
@@ -50,6 +56,7 @@ func NewServer(runMgr *run.Manager, tr trace2.Store) *Server {
 
 // Server is the http.Handler for serving the developer dashboard.
 type Server struct {
+	proxy   *httputil.ReverseProxy
 	run     *run.Manager
 	tr      trace2.Store
 	traceCh chan *tracepb2.SpanSummary
@@ -61,21 +68,23 @@ type Server struct {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
-	fs := http.FileServer(http.FS(s.assets))
+	//fs := http.FileServer(http.FS(s.assets))
 	switch {
 	case path == "/__encore":
 		s.WebSocket(w, req)
-	case strings.HasPrefix(path, "/assets/") || path == "/favicon.ico":
-		// We've seen cases where net/http's content type detection gets it wrong
-		// for the bundled javascript files. Work around it by specifying it manually.
-		if filepath.Ext(path) == ".js" {
-			w.Header().Set("Content-Type", "application/javascript")
-		}
-		fs.ServeHTTP(w, req)
 	default:
-		// Serve the index page for all other paths since we use client-side routing.
-		req.URL.Path = "/"
-		fs.ServeHTTP(w, req)
+		s.proxy.ServeHTTP(w, req)
+		//case strings.HasPrefix(path, "/assets/") || path == "/favicon.ico":
+		//	// We've seen cases where net/http's content type detection gets it wrong
+		//	// for the bundled javascript files. Work around it by specifying it manually.
+		//	if filepath.Ext(path) == ".js" {
+		//		w.Header().Set("Content-Type", "application/javascript")
+		//	}
+		//	fs.ServeHTTP(w, req)
+		//default:
+		//	// Serve the index page for all other paths since we use client-side routing.
+		//	req.URL.Path = "/"
+		//	fs.ServeHTTP(w, req)
 	}
 }
 
