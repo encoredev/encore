@@ -120,6 +120,7 @@ import (
     "net/http"
 
     "encore.app/graphql/generated"
+    "encore.dev"
     "github.com/99designs/gqlgen/graphql/handler"
     "github.com/99designs/gqlgen/graphql/playground"
 )
@@ -143,14 +144,19 @@ func (s *Service) Query(w http.ResponseWriter, req *http.Request) {
     s.srv.ServeHTTP(w, req)
 }
 
-//encore:api private raw path=/graphql/playground
+//encore:api public raw path=/graphql/playground
 func (s *Service) Playground(w http.ResponseWriter, req *http.Request) {
+	// Disable playground in production
+	if encore.Meta().Environment.Type == encore.EnvProduction {
+        http.Error(w, "Playground disabled", http.StatusNotFound)
+		return
+    }
+	
     s.playground.ServeHTTP(w, req)
 }
 ```
 
 This creates an Encore service that exposes the `/graphql` and `/graphql/playground` endpoints.
-The playground is a private route so it can be accessed from the browser when developing locally, but not in production.
 
 It also adds a `//go:generate` directive that lets you re-run the gqlgen code generation
 by running `go generate ./graphql`.
@@ -194,7 +200,7 @@ func (r *mutationResolver) Shorten(ctx context.Context, input string) (*url.URL,
 ## 5. Implement resolvers
 
 Now, modify the resolvers to call the `url` service. Since the GraphQL API uses the same types
-(thanks to the `autobind` directive in `gqlgen.yml`)  as the Encore API exposes we can just call the
+(thanks to the `autobind` directive in `gqlgen.yml`) as the Encore API exposes, we can just call the
 endpoints directly. Implement the resolvers in `graphql/url.resolvers.go` like this:
 
 ```go
@@ -248,10 +254,11 @@ And you should get back `https://encore.dev`.
 
 ## Conclusion
 
-We've now built a GraphQL API gateway to our application, that forwards requests to the
+We've now built a GraphQL API gateway that forwards requests to the application's
 underlying Encore services in a type-safe way with minimal boilerplate.
 
-Note that the concepts discussed here are general and can be easily applied to any GraphQL API.
+Note that the concepts discussed here are general and can be easily adapted to any GraphQL schema.
+
 Whenever you make a change to the schema or configuration, re-run `go generate ./graphql` to
 regenerate the GraphQL boilerplate. And for more information on how to use `gqlgen`,
 see the [gqlgen documentation](https://gqlgen.com/).

@@ -170,7 +170,7 @@ can be used to determine if the request has an authenticated user.
 
 ## Overriding auth information
 
-Encore allows overriding the auth information for an outgoing request using the
+Encore supports overriding the auth information for an outgoing request using the
 [`auth.WithContext`](https://pkg.go.dev/encore.dev/beta/auth#WithContext) function.
 This function returns a new context with the auth information set to the specified values.
 

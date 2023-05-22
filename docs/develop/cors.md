@@ -68,12 +68,12 @@ authenticated requests. This is done by setting the `allow_origins_with_credenti
 
 ## Allowed headers and exposed headers
 
-CORS also allows you to specify which headers are allowed to be sent by the client ("allowed headers"), and which headers
-are exposed to scripts running in the browser ("exposed headers").
+CORS also lets you specify which headers are allowed to be sent by the client ("allowed headers"),
+and which headers are exposed to scripts running in the browser ("exposed headers").
 
-By default Encore automatically configures these headers based on its static analysis. That is, if your API
-defines a response type that contains a header Encore automatically adds that header to the list of exposed headers,
-and similarly for allowed headers in request types.
+Encore automatically configures headers by parsing your program using static analysis.
+If your API defines a request or response type that contains a header field, Encore automatically adds the header to
+the list of exposed and allowed headers in request types respectively.
 
 To add additional headers to these lists, you can set the `allow_headers` and `expose_headers` keys (see above).
 This can be useful when your application relies on custom headers in e.g. raw endpoints that aren't seen by Encore's
