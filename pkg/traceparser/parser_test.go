@@ -25,7 +25,7 @@ func TestParse(t *testing.T) {
 	now := time.Now()
 	err := errors.New("some-error")
 	goid := uint32(123)
-	defLoc := int32(456)
+	defLoc := uint32(456)
 	udefLoc := uint32(defLoc) // for compat
 	uuidVal := uuid.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
