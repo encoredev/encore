@@ -1,6 +1,7 @@
 package apigenutil
 
 import (
+	"fmt"
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
@@ -108,6 +109,8 @@ func EncodeHeaders(errs *perr.List, g *Group, httpHeaderExpr, paramExpr *Stateme
 	if len(params) == 0 {
 		return
 	}
+
+	g.Line()
 	g.Comment("Encode headers")
 	g.Add(httpHeaderExpr.Clone().Op("=").Make(Qual("net/http", "Header"), Lit(len(params))))
 
@@ -137,6 +140,7 @@ func EncodeQuery(errs *perr.List, g *Group, urlValuesExpr, paramExpr *Statement,
 		return
 	}
 
+	g.Line()
 	g.Comment("Encode query string")
 	g.Add(urlValuesExpr.Clone().Op("=").Make(Qual("net/url", "Values"), Lit(len(params))))
 
@@ -159,19 +163,33 @@ func EncodeQuery(errs *perr.List, g *Group, urlValuesExpr, paramExpr *Statement,
 }
 
 // EncodeBody encodes a request body into the given *jsoniter.Stream.
-func EncodeBody(g *Group, streamExpr, paramExpr *Statement, params []*apienc.ParameterEncoding) {
+func EncodeBody(gu *genutil.Helper, g *Group, streamExpr, paramExpr *Statement, params []*apienc.ParameterEncoding) {
 	if len(params) == 0 {
 		return
 	}
 
+	g.Line()
 	g.Comment("Encode request body")
 	g.Add(streamExpr.Clone().Dot("WriteObjectStart").Call())
+
 	for i, p := range params {
-		if i > 0 {
-			g.Add(streamExpr.Clone().Dot("WriteMore").Call())
+		writeBlock := g
+
+		// If this field is omitted when empty, we need to wrap the write in an if statement.
+		if p.OmitEmpty {
+			g.If(paramExpr.Clone().Dot(p.SrcName).Op("!=").Add(gu.Zero(p.Type)).BlockFunc(func(g *Group) {
+				g.Comment(fmt.Sprintf("%s is set to omitempty, so we need to check if it's empty before writing it", p.SrcName))
+				writeBlock = g
+			}))
 		}
-		g.Add(streamExpr.Clone().Dot("WriteObjectField").Call(Lit(p.WireName)))
-		g.Add(streamExpr.Clone().Dot("WriteVal").Call(paramExpr.Clone().Dot(p.SrcName)))
+
+		writeBlock.Add(streamExpr.Clone().Dot("WriteObjectField").Call(Lit(p.WireName)))
+		writeBlock.Add(streamExpr.Clone().Dot("WriteVal").Call(paramExpr.Clone().Dot(p.SrcName)))
+		if i+1 < len(params) {
+			// If we're not on the last field, write a comma.
+			// we do this within the writeBlock so that we don't write a comma if we're omitting the field.
+			writeBlock.Add(streamExpr.Clone().Dot("WriteMore").Call())
+		}
 	}
 	g.Add(streamExpr.Clone().Dot("WriteObjectEnd").Call())
 	g.Line()

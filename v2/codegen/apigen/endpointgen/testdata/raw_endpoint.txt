@@ -74,7 +74,6 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	},
 	DefLoc: uint32(0x0),
 	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
-		reqData = new(EncoreInternal_FooReq)
 		return nil, nil, nil
 	},
 	EncodeResp:          nil,
@@ -130,7 +129,6 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 	},
 	DefLoc: uint32(0x0),
 	EncodeExternalReq: func(reqData *EncoreInternal_BarReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
-		reqData = new(EncoreInternal_BarReq)
 		return nil, nil, nil
 	},
 	EncodeResp:          nil,

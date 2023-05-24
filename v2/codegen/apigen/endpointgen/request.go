@@ -325,8 +325,6 @@ func (d *requestDesc) EncodeExternalReq() *Statement {
 		d.queryStringExpr().Add(Qual("net/url", "Values")),
 		Err().Error(),
 	).BlockFunc(func(g *Group) {
-		g.Add(d.reqDataExpr()).Op("=").New(Id(d.TypeName()))
-
 		if d.ep.Request == nil {
 			// Nothing to do.
 			g.Return(Nil(), Nil(), Nil())
@@ -334,8 +332,12 @@ func (d *requestDesc) EncodeExternalReq() *Statement {
 		}
 
 		if schemautil.IsPointer(d.ep.Request) {
-			g.Id("params").Op(":=").Add(d.gu.Initialize(d.ep.Request))
-			g.Add(d.reqDataPayloadExpr()).Op("=").Id("params")
+			g.Id("params").Op(":=").Add(d.reqDataPayloadExpr())
+
+			g.If(Id("params").Op("==").Nil()).Block(
+				Comment("If the payload is nil, we need to return an empty request body."),
+				Return(d.httpHeaderExpr(), d.queryStringExpr(), Err()),
+			)
 		} else {
 			g.Id("params").Op(":=").Op("&").Add(d.reqDataPayloadExpr())
 		}
@@ -343,7 +345,7 @@ func (d *requestDesc) EncodeExternalReq() *Statement {
 		enc := d.ep.RequestEncoding()[0]
 		apigenutil.EncodeHeaders(d.gu.Errs, g, d.httpHeaderExpr(), Id("params"), enc.HeaderParameters)
 		apigenutil.EncodeQuery(d.gu.Errs, g, d.queryStringExpr(), Id("params"), enc.QueryParameters)
-		apigenutil.EncodeBody(g, d.jsonStream(), Id("params"), enc.BodyParameters)
+		apigenutil.EncodeBody(d.gu, g, d.jsonStream(), Id("params"), enc.BodyParameters)
 
 		g.Return(d.httpHeaderExpr(), d.queryStringExpr(), Err())
 	})
