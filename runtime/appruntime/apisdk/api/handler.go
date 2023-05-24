@@ -14,6 +14,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	encore "encore.dev"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/beta/errs"
@@ -502,6 +503,18 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		return
 	}
 
+	// Lookup the service
+	service, found := c.server.runtime.ServiceDiscovery[d.Service]
+	if !found {
+		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: unable to discover service host").Err()
+		return
+	}
+	if service.Protocol != config.Http {
+		// For now we only support HTTP services
+		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: unsupported service protocol").Err()
+		return
+	}
+
 	path, _, err := d.ReqPath(req)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to compute request path")
@@ -529,7 +542,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		return
 	}
 
-	reqURL := c.server.runtime.APIBaseURL + path
+	reqURL := service.URL + path
 	if len(queryString) > 0 {
 		reqURL += "?" + queryString.Encode()
 	}

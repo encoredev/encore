@@ -69,9 +69,20 @@ type Gateway struct {
 type Service struct {
 	// Name is the name of the service
 	Name string `json:"name"`
-	// URL is the URL of the service
+	// URL is the base URL of the service (including protocol and port)
 	URL string `json:"url"`
+	// Protocol is the protocol that the service talks
+	Protocol SvcProtocol `json:"protocol"`
 }
+
+type SvcProtocol uint8
+
+const (
+	Http SvcProtocol = iota
+	ProtoJson
+	ProtoBinary
+	GRPC
+)
 
 // UnsafeAllOriginWithCredentials can be used to specify that all origins are
 // allowed to call this API with credentials. It is unsafe and misuse can lead
