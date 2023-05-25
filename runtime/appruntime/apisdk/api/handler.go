@@ -382,7 +382,11 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
-	return d.externalCall(c, req)
+	if c.server.runtime.ExperimentUseExternalCalls {
+		return d.externalCall(c, req)
+	} else {
+		return d.internalCall(c, req)
+	}
 }
 
 func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {

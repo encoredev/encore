@@ -140,6 +140,8 @@ type generateConfigParams struct {
 
 	ConfigAppID string
 	ConfigEnvID string
+
+	ExternalCalls bool
 }
 
 // generateServiceDiscoveryMap generates a map of service names to
@@ -207,7 +209,8 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
 			AllowPrivateNetworkAccess:      true,
 		},
-		ServiceDiscovery: serviceDiscovery,
+		ServiceDiscovery:           serviceDiscovery,
+		ExperimentUseExternalCalls: p.ExternalCalls,
 	}
 
 	if err := p.RM.UpdateConfig(cfg, p.Meta, mgr.DBProxyPort); err != nil {

@@ -29,6 +29,10 @@ const (
 
 	// BetaRuntime enables the beta runtime.
 	BetaRuntime Name = "beta-runtime"
+
+	// ExternalCalls forces all RPC calls to be made externally (over HTTP/GRPC).
+	// instead of routing them internally (via the runtime).
+	ExternalCalls Name = "external-calls"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -37,7 +41,8 @@ func (x Name) Valid() bool {
 	case LocalSecretsOverride,
 		Metrics,
 		V2,
-		BetaRuntime:
+		BetaRuntime,
+		ExternalCalls:
 		return true
 	default:
 		return false

@@ -54,6 +54,11 @@ type Runtime struct {
 	// meaning connections are closed even if outstanding requests are still in flight.
 	// If zero, it shuts down immediately.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
+
+	// ExperimentUseExternalCalls is a flag that indicates whether the app should
+	// use external calls for all RPCs. This is a temporary flag that is only
+	// for testing purposes and will be removed in the future.
+	ExperimentUseExternalCalls bool `json:"experiment_use_external_calls,omitempty"`
 }
 
 // Gateway defines the configuration of a gateway which should be served
