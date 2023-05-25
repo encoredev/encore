@@ -168,10 +168,11 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	}
 
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
-		Type:         model.RPCCall,
-		DefLoc:       d.DefLoc,
-		TraceID:      c.traceID,
-		ParentSpanID: c.parentSpanID,
+		Type:          model.RPCCall,
+		DefLoc:        d.DefLoc,
+		TraceID:       c.traceID,
+		ParentSpanID:  c.parentSpanID,
+		CallerEventID: c.parentEventID,
 
 		Data: &model.RPCData{
 			Desc:               d.rpcDesc(),
@@ -459,7 +460,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 		}
 
 		authInfo := model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData}
-		ec := c.server.newExecContext(c.ctx, params, authInfo, reqObj.TraceID, reqObj.SpanID)
+		ec := c.server.newExecContext(c.ctx, params, authInfo, reqObj.TraceID, reqObj.SpanID, reqObj.CallerEventID)
 		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
 		})
@@ -563,7 +564,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		return
 	}
 
-	addTraceHeaders(httpReq, call.Source)
+	addTraceHeaders(httpReq, call)
 
 	respData, respErr = (func() (resp Resp, err error) {
 		httpResp, err := c.server.httpClient.Do(httpReq)
@@ -675,11 +676,22 @@ func newErrResp(err error, httpStatus int) *model.Response {
 }
 
 // addTraceHeaders sets the traceparent and tracestate headers on the request.
-func addTraceHeaders(req *http.Request, parent *model.Request) {
-	if parent != nil {
-		traceID := hex.EncodeToString(parent.TraceID[:])
-		spanID := hex.EncodeToString(parent.SpanID[:])
+func addTraceHeaders(req *http.Request, parent *model.APICall) {
+	if parent != nil && parent.Source != nil {
+		// Encode Encore's trace ID and span ID as the traceparent header
+		traceID := hex.EncodeToString(parent.Source.TraceID[:])
+		spanID := hex.EncodeToString(parent.Source.SpanID[:])
 		req.Header.Set("traceparent", fmt.Sprintf("00-%s-%s-01", traceID, spanID))
-		// TODO set tracestate
+
+		// Because Encore does not count an RPC call as a span, but rather a set of events within a span
+		// we also need to pass the event ID which started the RPC call in the tracestate header
+		eventID := strconv.FormatUint(uint64(parent.StartEventID), 36)
+		req.Header.Set("tracestate", fmt.Sprintf("%s=%s", eventTraceStateKey, eventID))
+
+		// Pass the correlation ID to the downstream service.
+		// However, we do _not_ pass the X-Request-ID down, as it is not meant to be propagated through request chains
+		if parent.Source.ExtCorrelationID != "" {
+			req.Header.Set("X-Correlation-ID", parent.Source.ExtCorrelationID)
+		}
 	}
 }

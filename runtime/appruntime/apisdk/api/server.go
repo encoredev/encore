@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/benbjohnson/clock"
@@ -33,6 +34,12 @@ const (
 	Private      Access = "private"
 )
 
+const (
+	// eventTraceStateKey is the key used to store the event ID in the trace state passed between instances
+	// It is encoded as a base36 string of the underlying uint64.
+	eventTraceStateKey = "encore/event-id"
+)
+
 // execContext contains the data needed for executing a request.
 type execContext struct {
 	server *Server
@@ -40,8 +47,9 @@ type execContext struct {
 	ps     UnnamedParams
 	auth   model.AuthInfo
 
-	traceID      model.TraceID // zero if not tracing
-	parentSpanID model.SpanID  // zero if no parent
+	traceID       model.TraceID      // zero if not tracing
+	parentSpanID  model.SpanID       // zero if no parent
+	parentEventID model.TraceEventID // zero if no parent
 }
 
 type IncomingContext struct {
@@ -196,6 +204,7 @@ func (s *Server) registerEndpoint(h Handler) {
 			params := toUnnamedParams(ps)
 
 			traceID, parentSpanID, _ := parseTraceParent(req.Header.Get("traceparent"))
+			parentEventID, _ := parseTraceState(req.Header.Values("tracestate"))
 			if traceID.IsZero() {
 				traceID, _ = model.GenTraceID()
 				parentSpanID = model.SpanID{} // no parent span if we have no trace id
@@ -228,7 +237,7 @@ func (s *Server) registerEndpoint(h Handler) {
 			// Always send the trace id back.
 			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
 
-			s.processRequest(h, s.NewIncomingContext(w, req, params, model.AuthInfo{}, traceID, parentSpanID))
+			s.processRequest(h, s.NewIncomingContext(w, req, params, model.AuthInfo{}, traceID, parentSpanID, parentEventID))
 		}
 
 		routerPath := h.HTTPRouterPath()
@@ -368,12 +377,12 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	}
 }
 
-func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID) execContext {
-	return execContext{s, ctx, ps, auth, trID, parentSpanID}
+func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID, parentEventID model.TraceEventID) execContext {
+	return execContext{s, ctx, ps, auth, trID, parentSpanID, parentEventID}
 }
 
-func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID) IncomingContext {
-	ec := s.newExecContext(req.Context(), ps, auth, trID, parentSpanID)
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID, parentEventID model.TraceEventID) IncomingContext {
+	ec := s.newExecContext(req.Context(), ps, auth, trID, parentSpanID, parentEventID)
 	return IncomingContext{ec, w, req, nil}
 }
 
@@ -473,4 +482,31 @@ func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, ok 
 	}
 
 	return traceID, spanID, true
+}
+
+// parseTraceState parses the trace event id from the tracestate header (see https://www.w3.org/TR/trace-context/).
+// If no valid Encore event ID can be parsed it returns zero and ok == false.
+//
+// Note the spec allows for multiple `tracestate` headers to be sent, so we need to check all of them.
+func parseTraceState(headerValues []string) (eventID model.TraceEventID, ok bool) {
+	for _, thisHeader := range headerValues {
+		theseFields := strings.Split(thisHeader, ",")
+		for _, field := range theseFields {
+			parts := strings.Split(field, "=")
+			if len(parts) != 2 {
+				continue
+			}
+
+			if parts[0] == eventTraceStateKey {
+				eventID, err := strconv.ParseUint(parts[1], 36, 64)
+				if err != nil {
+					return 0, false
+				}
+
+				return model.TraceEventID(eventID), true
+			}
+		}
+	}
+
+	return 0, false
 }

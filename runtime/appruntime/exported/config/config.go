@@ -59,7 +59,7 @@ type Runtime struct {
 // Gateway defines the configuration of a gateway which should be served
 // by the container
 type Gateway struct {
-	// Name is the name of the gatway
+	// Name is the name of the gateway
 	Name string `json:"name"`
 	// Host is the hostname of the gateway
 	Host string `json:"host"`
