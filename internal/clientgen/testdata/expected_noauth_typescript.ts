@@ -56,8 +56,8 @@ export interface ClientOptions {
      */
     fetcher?: Fetcher
 
-	/** indicates whether the user agent should send or receive cookies from the other domain in the case of cross-origin requests. */
-	credentials?: RequestCredentials;
+    /** Default RequestInit to be used for the client */
+    requestInit?: RequestInit & { headers?: Record<string, string> };
 }
 
 export namespace svc {
@@ -112,9 +112,6 @@ type CallParameters = Omit<RequestInit, "method" | "body"> & {
 
     /** Any query parameters to be sent with the request */
     query?: Record<string, string | string[]>
-
-    /** indicates whether the user agent should send or receive cookies from the other domain in the case of cross-origin requests. */
-    credentials?: RequestCredentials;
 }
 
 
@@ -127,7 +124,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
-    readonly credentials: RequestCredentials;
+    readonly requestInit: RequestInit & { headers?: Record<string, string> }
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -135,7 +132,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "app-Generated-TS-Client (Encore/devel)",
         }
-        this.credentials = options.credentials || "same-origin";
+        this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -147,13 +144,12 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        const credentials = this.credentials;
         let { query, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
-               ...(credentials ? { credentials } : {}),
         }
 
         // Merge our headers with any predefined headers
