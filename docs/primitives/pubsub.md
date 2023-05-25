@@ -69,6 +69,57 @@ the same message, the message will be delivered twice.
 
 </Callout>
 
+### Ordered Topics
+
+Topics are unordered by default, meaning that messages can be delivered in any order. This allows for better throughput on the topic as messages can be processed in parallel. However, in some cases, messages must be delivered in the order they were published for a given entity.
+
+To create an ordered topic, configure the topic's `OrderingAttribute` to match the `pubsub-attr` tag on one of the top-level fields of the event type. This field ensures that messages delivered to the same subscriber are delivered in the order of publishing for that specific field value. Messages with a different value on the ordering attribute are delivered in an unspecified order.
+
+To maintain topic order, messages with the same ordering key aren't delivered until the earliest message is processed or dead-lettered, potentially causing delays due to [head-of-line blocking](https://en.wikipedia.org/wiki/Head-of-line_blocking). Mitigate processing issues by ensuring robust logging and alerts, and appropriate subscription retry policies.
+
+<Callout type="info">
+
+The `OrderingAttribute` currently has no effect in local environments.
+
+</Callout>
+
+#### Throughput limitations
+
+Each cloud provider enforces certain throughput limitations for ordered topics:
+- **AWS:** 300 messages per second for the topic (see [AWS SQS Quotas](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html))
+- **GCP:** 1 MBps for each ordering key (See [GCP Pub/Sub Resource Limits](https://cloud.google.com/pubsub/quotas#resource_limits))
+
+#### Ordered topic example
+
+```go
+package example
+
+import (
+	"context"
+	"encore.dev/pubsub"
+)
+
+type CartEvent struct {
+	ShoppingCartID int `pubsub-attr:"cart_id"`
+	Event          string
+}
+
+var CartEvents = pubsub.NewTopic[*CartEvent]("cart-events", pubsub.TopicConfig{
+	DeliveryGuarantee: pubsub.AtLeastOnce,
+	OrderingAttribute: "cart_id",
+})
+
+func Example(ctx context.Context) error {
+	// These are delivered in order as they all have the same shopping cart ID
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "item_added"})
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_started"})
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 1, Event: "checkout_completed"})
+
+	// This event may be delivered at any point as it has a different shopping cart ID
+	CartEvents.Publish(ctx, &CartEvent{ShoppingCartID: 2, Event: "item_added"})
+}
+```
+
 ## Publishing events
 
 To publish an **Event**, call `Publish` on the topic passing in the event object (which is the type specified in the `pubsub.NewTopic[Type]` constructor).

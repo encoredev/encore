@@ -54,6 +54,11 @@
         "DocSlug": "tutorials/rest-api"
       },
       {
+        "Path": "/tutorials/graphql",
+        "Title": "Building a GraphQL API",
+        "DocSlug": "tutorials/graphql"
+      },
+      {
         "Path": "/tutorials/slack-bot",
         "Title": "Building a Slack bot",
         "DocSlug": "tutorials/slack-bot"
@@ -169,6 +174,11 @@
         "DocSlug": "develop/metadata"
       },
       {
+        "Path": "/develop/cors",
+        "Title": "CORS",
+        "DocSlug": "develop/cors"
+      },
+      {
         "Path": "/develop/auth-keys",
         "Title": "Auth Keys",
         "DocSlug": "develop/auth-keys",
@@ -238,7 +248,7 @@
       },
       {
         "Path": "/deploy/security",
-        "Title": "Security",
+        "Title": "Application Security",
         "DocSlug": "deploy/security"
       }
     ]
@@ -426,6 +436,11 @@
         "Path": "/about/billing",
         "Title": "Plans & billing",
         "DocSlug": "about/billing"
+      },
+      {
+        "Path": "/about/compliance",
+        "Title": "Compliance & Security",
+        "DocSlug": "about/compliance"
       }
     ]
   }

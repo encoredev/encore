@@ -167,3 +167,14 @@ Note that the auth handler is invoked for **all** requests that specify an auth 
 which lets users optionally authenticate to public APIs. This can be useful in some
 circumstances to return additional information. The second return value from `auth.UserID()`
 can be used to determine if the request has an authenticated user.
+
+## Overriding auth information
+
+Encore supports overriding the auth information for an outgoing request using the
+[`auth.WithContext`](https://pkg.go.dev/encore.dev/beta/auth#WithContext) function.
+This function returns a new context with the auth information set to the specified values.
+
+Note that this only affects the auth information passed along with the request, and not the
+current request being processed (if any).
+
+This function is often useful when testing APIs that use authentication. For example:

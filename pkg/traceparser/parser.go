@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime/debug"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,8 +39,12 @@ func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor) (*tracepb2.TraceEvent, 
 
 	bytesReadAfterHeader := tp.bytesRead
 
-	ev := tp.parseEvent(h)
-	err := tp.Err()
+	ev, err := tp.parseEvent(h)
+	if err != nil {
+		return nil, fmt.Errorf("parse event %v: %v", h.Type, err)
+	}
+
+	err = tp.Err()
 	if err == io.EOF {
 		// If we have an io.EOF and we've read exactly the right amount of bytes,
 		// treat it as a non-error.
@@ -71,6 +76,7 @@ type spanStartEvent struct {
 type spanEndEvent struct {
 	DurationNanos uint64
 	Err           *tracepb2.Error
+	PanicStack    option.Option[*tracepb2.StackTrace]
 	ParentTraceID option.Option[*tracepb2.TraceID]
 	ParentSpanID  option.Option[uint64]
 }
@@ -97,8 +103,18 @@ type header struct {
 
 var errUnknownEvent = errors.New("unknown event")
 
-func (tp *traceParser) parseEvent(h header) *tracepb2.TraceEvent {
-	ev := &tracepb2.TraceEvent{
+func (tp *traceParser) parseEvent(h header) (ev *tracepb2.TraceEvent, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if b, ok := r.(bailout); ok {
+				err = b.err
+			} else {
+				err = fmt.Errorf("panic parsing event: %v\n%s", r, debug.Stack())
+			}
+		}
+	}()
+
+	ev = &tracepb2.TraceEvent{
 		TraceId:   h.TraceID,
 		SpanId:    h.SpanID,
 		EventId:   uint64(h.EventID),
@@ -122,7 +138,7 @@ func (tp *traceParser) parseEvent(h header) *tracepb2.TraceEvent {
 		ev.Event = &tracepb2.TraceEvent_SpanEvent{SpanEvent: tp.spanEvent(h.Type)}
 	}
 
-	return ev
+	return ev, nil
 }
 
 func (tp *traceParser) spanStartEvent() spanStartEvent {
@@ -152,12 +168,14 @@ func (tp *traceParser) spanEndEvent() spanEndEvent {
 		dur = 0
 	}
 	err := tp.errWithStack()
+	panicStack := tp.formattedStack()
 	parentTraceID := tp.traceID()
 	parentSpanID := tp.Uint64()
 
 	ev := spanEndEvent{
 		DurationNanos: uint64(dur),
 		Err:           err,
+		PanicStack:    option.AsOptional(panicStack),
 		ParentSpanID:  option.AsOptional(parentSpanID),
 	}
 	if !parentTraceID.IsZero() {
@@ -213,8 +231,7 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 	case trace2.BodyStream:
 		ev.Data = &tracepb2.SpanEvent_BodyStream{BodyStream: tp.bodyStream()}
 	default:
-		// TODO bailout
-		panic(fmt.Sprintf("unknown event %x", eventType))
+		tp.bailout(fmt.Errorf("unknown event %v", eventType))
 	}
 
 	return ev
@@ -261,6 +278,9 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
 		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
 		Data: &tracepb2.SpanEnd_Request{
 			Request: &tracepb2.RequestSpanEnd{
 				ServiceName:     tp.String(),
@@ -298,6 +318,9 @@ func (tp *traceParser) authSpanEnd() *tracepb2.SpanEnd {
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
 		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
 		Data: &tracepb2.SpanEnd_Auth{
 			Auth: &tracepb2.AuthSpanEnd{
 				ServiceName:  tp.String(),
@@ -338,6 +361,9 @@ func (tp *traceParser) pubsubMessageSpanEnd() *tracepb2.SpanEnd {
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
 		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
 		Data: &tracepb2.SpanEnd_PubsubMessage{
 			PubsubMessage: &tracepb2.PubsubMessageSpanEnd{
 				ServiceName:      tp.String(),
@@ -740,6 +766,27 @@ func (tp *traceParser) stack() *tracepb2.StackTrace {
 	return tr
 }
 
+func (tp *traceParser) formattedStack() *tracepb2.StackTrace {
+	n := int(tp.Byte())
+	if n == 0 {
+		return nil
+	}
+
+	tr := &tracepb2.StackTrace{
+		Frames: make([]*tracepb2.StackFrame, n),
+	}
+
+	for i := 0; i < n; i++ {
+		tr.Frames[i] = &tracepb2.StackFrame{
+			Filename: tp.String(),
+			Line:     int32(tp.UVarint()),
+			Func:     tp.String(),
+		}
+	}
+
+	return tr
+}
+
 // errWithStack parses an error with stack information.
 func (tp *traceParser) errWithStack() *tracepb2.Error {
 	msg := tp.String()
@@ -766,4 +813,12 @@ func (tp *traceParser) spanID() uint64 {
 	var spanID [8]byte
 	tp.Bytes(spanID[:])
 	return bin.Uint64(spanID[:])
+}
+
+type bailout struct {
+	err error
+}
+
+func (tp *traceParser) bailout(err error) {
+	panic(bailout{err: err})
 }

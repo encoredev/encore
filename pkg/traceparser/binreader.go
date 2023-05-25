@@ -18,28 +18,35 @@ type traceReader struct {
 	buf        *bufio.Reader
 	bytesRead  int
 	timeAnchor int64
+	err        error // any error encountered during reading
+}
+
+func (tr *traceReader) setErr(err error) {
+	if tr.err == nil {
+		tr.err = err
+	}
 }
 
 // Err reports any error encountered during reading.
 func (tr *traceReader) Err() error {
-	// This is the easiest way to access the error stored in bufio.Reader.
-	var buf [0]byte
-	_, err := tr.buf.Read(buf[:])
-	return err
+	return tr.err
 }
 
 func (tr *traceReader) Bytes(b []byte) {
-	n, _ := io.ReadFull(tr.buf, b)
+	n, err := io.ReadFull(tr.buf, b)
 	tr.bytesRead += n
+	tr.setErr(err)
 }
 
 func (tr *traceReader) Skip(n int) {
-	discarded, _ := tr.buf.Discard(n)
+	discarded, err := tr.buf.Discard(n)
 	tr.bytesRead += discarded
+	tr.setErr(err)
 }
 
 func (tr *traceReader) Byte() byte {
 	b, err := tr.buf.ReadByte()
+	tr.setErr(err)
 	if err == nil {
 		tr.bytesRead++
 	}
@@ -118,6 +125,7 @@ func (tr *traceReader) UVarint() uint64 {
 	var u uint64
 	for {
 		b, err := tr.buf.ReadByte()
+		tr.setErr(err)
 		if err != nil {
 			return 0
 		}

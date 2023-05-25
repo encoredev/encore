@@ -4,9 +4,11 @@ import (
 	"go/build"
 	"go/token"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"golang.org/x/exp/slices"
+	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/go/packages"
 
 	"encr.dev/pkg/paths"
@@ -80,6 +82,8 @@ func (l *Loader) init() {
 	if b.CgoEnabled {
 		cgoEnabled = "1"
 	}
+
+	l.handleMissingGo(b)
 	l.packagesConfig = &packages.Config{
 		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedModule,
 		Context: l.c.Ctx,
@@ -89,6 +93,7 @@ func (l *Loader) init() {
 			"GOARCH="+b.GOARCH,
 			"GOROOT="+b.GOROOT.ToIO(),
 			"CGO_ENABLED="+cgoEnabled,
+			"PATH="+b.GOROOT.Join("bin").ToIO()+string(filepath.ListSeparator)+os.Getenv("PATH"),
 		),
 		Fset:    l.c.FS,
 		Tests:   l.c.ParseTests,
@@ -171,4 +176,16 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 		dir:   module.RootDir.Join(relPath.ToIO()),
 	})
 	return result.pkg, result.ok
+}
+
+// handleMissingGo updates the PATH environment variable to use the
+// "go" binary from Encore's GOROOT if the system does not have Go installed.
+// This is necessary because packages.Load invokes "go list" under the hood.
+func (l *Loader) handleMissingGo(b parsectx.BuildInfo) {
+	if _, err := exec.LookPath("go"); err == nil {
+		return
+	}
+	prev := os.Getenv("PATH")
+	updated := b.GOROOT.Join("bin").ToIO() + string(filepath.ListSeparator) + prev
+	os.Setenv("PATH", updated)
 }
