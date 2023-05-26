@@ -111,39 +111,32 @@ Here's how you can contribute:
 - Send a pull request here on GitHub with your contribution.
 
 ## Demo video
+
 <a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">![demo video](https://user-images.githubusercontent.com/78424526/205661341-086c2813-455c-4af4-9517-b0398def6364.gif)</a>
 </br>
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">Open video in YouTube</a>
+<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">Play full video on YouTube</a>
 
 ## Visuals
 
+### Code example
+
+https://github.com/encoredev/encore/assets/78424526/f511b3fe-751f-4bb8-a1da-6c9e0765ac08
+
 ### Local Development Dashboard
 
-https://user-images.githubusercontent.com/78424526/196938940-9b132373-2b31-41fe-8ca7-aaa3be7b8537.mp4
+https://github.com/encoredev/encore/assets/78424526/565ab682-8c39-468e-8d21-c4d648b2dcb2
 
-### Real-time Architecture Diagrams
+### Generated Architecture Diagrams & Service Catalog
 
-https://user-images.githubusercontent.com/78424526/205659569-54e79592-0485-4031-9cfa-159f58c11d46.mp4
+https://github.com/encoredev/encore/assets/78424526/a880ed2d-e9a6-4add-b5a8-a4b44b97587b
 
-### Built-in CI/CD & Infrastructure Provisioning
+### Auto-Provisioning Infrastructure & Multi-cloud Deployments
 
-<img src="https://user-images.githubusercontent.com/78424526/228289297-cbcd6b79-1392-44e7-9fd7-38c50f940ae8.png" alt="CI/CD and infra provisioning" width="80%">
+https://github.com/encoredev/encore/assets/78424526/8116b387-d4d4-4e54-8768-3686ba0245f5
 
-### Cloud Infrastructure Tracking
+### Distributed Tracing & Metrics
 
-<img src="https://user-images.githubusercontent.com/78424526/228287624-faf122c2-8fa1-4b9c-b6ea-db8009df82d7.png" alt="cloud infrastructure resources" width="80%">
-
-### Distributed Tracing
-
-https://user-images.githubusercontent.com/78424526/169817256-f3e63f6f-9dd3-4b5a-b72d-be71eef977ed.mp4
-
-### Built-in Metrics
-
-https://user-images.githubusercontent.com/78424526/228285771-ce288337-1a1b-4c0a-8e26-d7753b28574a.mp4
-
-### Automated API Documentation
-
-<img src="https://user-images.githubusercontent.com/78424526/169325592-105b7540-5ad7-4433-a624-7437c0d4c8d7.png" alt="Automated API Documentation" width="80%">
+https://github.com/encoredev/encore/assets/78424526/35189335-e3d7-4046-bab0-1af0f00d2504
 
 ## Frequently Asked Questions (FAQ)
 
