@@ -113,6 +113,10 @@ type RPCData struct {
 	// FromEncorePlatform specifies whether the request was an
 	// authenticated request from the Encore Platform.
 	FromEncorePlatform bool
+
+	// ServiceToServiceCall is true if the request was a service-to-service call.
+	// otherwise it is false if the request originates from outside the Encore application.
+	ServiceToServiceCall bool
 }
 
 type PubSubMsgData struct {

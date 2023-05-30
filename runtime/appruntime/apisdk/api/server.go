@@ -49,6 +49,8 @@ type execContext struct {
 	traceID       model.TraceID      // zero if not tracing
 	parentSpanID  model.SpanID       // zero if no parent
 	parentEventID model.TraceEventID // zero if no parent
+
+	isEncoreToEncoreCall bool // true if this is an encore-to-encore call
 }
 
 type IncomingContext struct {
@@ -76,6 +78,12 @@ type requestsTotalLabels struct {
 	endpoint string // Endpoint name.
 	code     string // Human-readable HTTP status code.
 }
+
+type metaContextKey string
+
+var (
+	metaContextKeyAuthInfo metaContextKey = "requestMeta"
+)
 
 type Server struct {
 	static         *config.Static
@@ -203,13 +211,7 @@ func (s *Server) registerEndpoint(h Handler) {
 			params := toUnnamedParams(ps)
 
 			// Extract metadata from the request.
-			meta, err := MetaFromRequest(transport.HTTPRequest(req))
-			if err != nil {
-				s.rootLogger.Error().Err(err).Msg("failed to extract metadata from request")
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				return
-			}
-
+			meta := req.Context().Value(metaContextKeyAuthInfo).(CallMeta)
 			if meta.TraceID.IsZero() {
 				meta.TraceID, _ = model.GenTraceID()
 				meta.ParentSpanID = model.SpanID{} // no parent span if we have no trace id
@@ -313,6 +315,19 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Extract the metadata from the request so we can allow access to the private router.
+	// If the metadata is not present, then we assume this is a public request.
+	callMeta, err := MetaFromRequest(transport.HTTPRequest(req))
+	if err != nil {
+		s.rootLogger.Error().Err(err).Msg("failed to extract metadata from request")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	if callMeta.Internal != nil {
+		router, fallbackRouter = s.private, s.privateFallback
+	}
+	req = req.WithContext(context.WithValue(req.Context(), metaContextKeyAuthInfo, callMeta))
+
 	// We use EscapedPath rather than `req.URL.Path` because if the path contains an encoded
 	// forward slash as %2F we don't want the router to treat that as a segment split.
 	//
@@ -378,13 +393,16 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 
 func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, callMeta CallMeta) execContext {
 	var auth model.AuthInfo
+	var isEncoreToEncoreCall bool
 	if callMeta.Internal != nil {
+		isEncoreToEncoreCall = true
+
 		auth = model.AuthInfo{
 			UID:      model.UID(callMeta.Internal.AuthUID),
 			UserData: callMeta.Internal.AuthData,
 		}
 	}
-	return execContext{s, ctx, ps, auth, callMeta.TraceID, callMeta.ParentSpanID, callMeta.ParentEventID}
+	return execContext{s, ctx, ps, auth, callMeta.TraceID, callMeta.ParentSpanID, callMeta.ParentEventID, isEncoreToEncoreCall}
 }
 
 func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, callMeta CallMeta) IncomingContext {

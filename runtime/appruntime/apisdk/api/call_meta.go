@@ -30,7 +30,7 @@ type CallMeta struct {
 // InternalCallMeta is metadata for an RPC call which is being made
 // between two Encore services within the same application.
 type InternalCallMeta struct {
-	SendingService string // The name of the service which is making the call
+	SendingService string // The name of the service which is making the call TODO(domblack): maybe make this struct?
 	AuthUID        string // The UID of the authenticated user
 	AuthData       any    // The data of the authenticated user
 }

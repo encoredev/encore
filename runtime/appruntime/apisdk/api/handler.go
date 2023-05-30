@@ -174,16 +174,17 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		CallerEventID: c.parentEventID,
 
 		Data: &model.RPCData{
-			Desc:               d.rpcDesc(),
-			HTTPMethod:         c.req.Method,
-			Path:               c.req.URL.Path,
-			PathParams:         d.toNamedParams(params),
-			TypedPayload:       payload,
-			NonRawPayload:      nonRawPayload,
-			UserID:             c.auth.UID,
-			AuthData:           c.auth.UserData,
-			RequestHeaders:     c.req.Header,
-			FromEncorePlatform: platformauth.IsEncorePlatformRequest(c.req.Context()),
+			Desc:                 d.rpcDesc(),
+			HTTPMethod:           c.req.Method,
+			Path:                 c.req.URL.Path,
+			PathParams:           d.toNamedParams(params),
+			TypedPayload:         payload,
+			NonRawPayload:        nonRawPayload,
+			UserID:               c.auth.UID,
+			AuthData:             c.auth.UserData,
+			RequestHeaders:       c.req.Header,
+			FromEncorePlatform:   platformauth.IsEncorePlatformRequest(c.req.Context()),
+			ServiceToServiceCall: c.isEncoreToEncoreCall,
 		},
 
 		ExtRequestID:     clampTo64Chars(c.req.Header.Get("X-Request-ID")),
@@ -448,8 +449,9 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 				Desc:          d.rpcDesc(),
 				NonRawPayload: nonRawPayload,
 
-				FromEncorePlatform: false,
-				RequestHeaders:     nil, // not set right now for internal requests
+				FromEncorePlatform:   false,
+				RequestHeaders:       nil, // not set right now for internal requests
+				ServiceToServiceCall: true,
 			},
 		})
 		if beginErr != nil {
