@@ -2,11 +2,9 @@ package api
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/benbjohnson/clock"
@@ -15,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 
 	encore "encore.dev"
+	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/apisdk/cors"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
@@ -203,13 +202,19 @@ func (s *Server) registerEndpoint(h Handler) {
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			params := toUnnamedParams(ps)
 
-			traceID, parentSpanID, _ := parseTraceParent(req.Header.Get("traceparent"))
-			parentEventID, _ := parseTraceState(req.Header.Values("tracestate"))
-			if traceID.IsZero() {
-				traceID, _ = model.GenTraceID()
-				parentSpanID = model.SpanID{} // no parent span if we have no trace id
+			// Extract metadata from the request.
+			meta, err := MetaFromRequest(transport.HTTPRequest(req))
+			if err != nil {
+				s.rootLogger.Error().Err(err).Msg("failed to extract metadata from request")
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
 			}
-			traceIDStr := traceID.String()
+
+			if meta.TraceID.IsZero() {
+				meta.TraceID, _ = model.GenTraceID()
+				meta.ParentSpanID = model.SpanID{} // no parent span if we have no trace id
+			}
+			traceIDStr := meta.TraceID.String()
 
 			// Echo the X-Request-ID back to the caller if present,
 			// otherwise send back the trace id.
@@ -224,20 +229,14 @@ func (s *Server) registerEndpoint(h Handler) {
 			w.Header().Set("X-Request-ID", reqID)
 
 			// Read the correlation ID from the request.
-			correlationID := req.Header.Get("X-Correlation-ID")
-			if len(correlationID) > 64 {
-				// Don't allow arbitrarily long correlation IDs.
-				s.rootLogger.Warn().Int("length", len(reqID)).Msg("X-Correlation-ID was too long and is being truncated to 64 characters")
-				correlationID = correlationID[:64]
-			}
-			if correlationID != "" {
-				w.Header().Set("X-Correlation-ID", correlationID)
+			if meta.CorrelationID != "" {
+				w.Header().Set("X-Correlation-ID", meta.CorrelationID)
 			}
 
 			// Always send the trace id back.
 			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
 
-			s.processRequest(h, s.NewIncomingContext(w, req, params, model.AuthInfo{}, traceID, parentSpanID, parentEventID))
+			s.processRequest(h, s.NewIncomingContext(w, req, params, meta))
 		}
 
 		routerPath := h.HTTPRouterPath()
@@ -377,12 +376,19 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	}
 }
 
-func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID, parentEventID model.TraceEventID) execContext {
-	return execContext{s, ctx, ps, auth, trID, parentSpanID, parentEventID}
+func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, callMeta CallMeta) execContext {
+	var auth model.AuthInfo
+	if callMeta.Internal != nil {
+		auth = model.AuthInfo{
+			UID:      model.UID(callMeta.Internal.AuthUID),
+			UserData: callMeta.Internal.AuthData,
+		}
+	}
+	return execContext{s, ctx, ps, auth, callMeta.TraceID, callMeta.ParentSpanID, callMeta.ParentEventID}
 }
 
-func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, auth model.AuthInfo, trID model.TraceID, parentSpanID model.SpanID, parentEventID model.TraceEventID) IncomingContext {
-	ec := s.newExecContext(req.Context(), ps, auth, trID, parentSpanID, parentEventID)
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, callMeta CallMeta) IncomingContext {
+	ec := s.newExecContext(req.Context(), ps, callMeta)
 	return IncomingContext{ec, w, req, nil}
 }
 
@@ -441,72 +447,4 @@ func handleTrailingSlashRedirect(r *httprouter.Router, w http.ResponseWriter, re
 
 	http.Redirect(w, req, path, code)
 	return true
-}
-
-// parseTraceParent parses the trace and span ids from s, which is assumed
-// to be in the format of the traceparent header (see https://www.w3.org/TR/trace-context/).
-// If it's not a valid traceparent header it returns zero ids and ok == false.
-func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, ok bool) {
-	const (
-		version       = "00"
-		traceIDLen    = 32
-		spanIDLen     = 16
-		traceFlagsLen = 2
-
-		verStart     = 0
-		verEnd       = verStart + len(version)
-		verSep       = verEnd
-		traceIDStart = verSep + 1
-		traceIDEnd   = traceIDStart + traceIDLen
-		traceIDSep   = traceIDEnd
-		spanIDStart  = traceIDSep + 1
-		spanIDEnd    = spanIDStart + spanIDLen
-		spanIDSep    = spanIDEnd
-		flagsStart   = spanIDSep + 1
-		flagsEnd     = flagsStart + traceFlagsLen
-		totalLen     = flagsEnd
-	)
-
-	if len(s) != totalLen || s[verStart:verEnd] != version || s[verSep] != '-' || s[traceIDSep] != '-' || s[spanIDSep] != '-' {
-		return model.TraceID{}, model.SpanID{}, false
-	}
-
-	_, err := hex.Decode(traceID[:], []byte(s[traceIDStart:traceIDEnd]))
-	if err != nil {
-		return model.TraceID{}, model.SpanID{}, false
-	}
-
-	_, err = hex.Decode(spanID[:], []byte(s[spanIDStart:spanIDEnd]))
-	if err != nil {
-		return model.TraceID{}, model.SpanID{}, false
-	}
-
-	return traceID, spanID, true
-}
-
-// parseTraceState parses the trace event id from the tracestate header (see https://www.w3.org/TR/trace-context/).
-// If no valid Encore event ID can be parsed it returns zero and ok == false.
-//
-// Note the spec allows for multiple `tracestate` headers to be sent, so we need to check all of them.
-func parseTraceState(headerValues []string) (eventID model.TraceEventID, ok bool) {
-	for _, thisHeader := range headerValues {
-		theseFields := strings.Split(thisHeader, ",")
-		for _, field := range theseFields {
-			parts := strings.Split(field, "=")
-			if len(parts) != 2 {
-				continue
-			}
-
-			if parts[0] == eventTraceStateKey {
-				eventID, err := strconv.ParseUint(parts[1], 36, 64)
-				if err != nil {
-					return 0, false
-				}
-
-				return model.TraceEventID(eventID), true
-			}
-		}
-	}
-
-	return 0, false
 }

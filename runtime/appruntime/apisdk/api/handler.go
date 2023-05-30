@@ -3,8 +3,6 @@ package api
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
-	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -14,6 +12,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	encore "encore.dev"
+	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
@@ -412,7 +411,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 		return
 	}
 
-	call, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
@@ -436,7 +435,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 			nonRawPayload = marshalParams(c.server.json, userPayload)
 		}
 
-		reqObj, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
+		_, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
 			Type:          model.RPCCall,
 			DefLoc:        d.DefLoc,
 			CallerEventID: call.StartEventID,
@@ -463,8 +462,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 			return
 		}
 
-		authInfo := model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData}
-		ec := c.server.newExecContext(c.ctx, params, authInfo, reqObj.TraceID, reqObj.SpanID, reqObj.CallerEventID)
+		ec := c.server.newExecContext(c.ctx, params, meta)
 		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
 		})
@@ -561,14 +559,13 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		httpReq.Header[key] = val
 	}
 
-	call, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
 		return
 	}
-
-	addTraceHeaders(httpReq, call)
+	meta.AddToRequest(transport.HTTPRequest(httpReq))
 
 	respData, respErr = (func() (resp Resp, err error) {
 		httpResp, err := c.server.httpClient.Do(httpReq)
@@ -676,26 +673,5 @@ func newErrResp(err error, httpStatus int) *model.Response {
 	return &model.Response{
 		HTTPStatus: httpStatus,
 		Err:        err,
-	}
-}
-
-// addTraceHeaders sets the traceparent and tracestate headers on the request.
-func addTraceHeaders(req *http.Request, parent *model.APICall) {
-	if parent != nil && parent.Source != nil {
-		// Encode Encore's trace ID and span ID as the traceparent header
-		traceID := hex.EncodeToString(parent.Source.TraceID[:])
-		spanID := hex.EncodeToString(parent.Source.SpanID[:])
-		req.Header.Set("traceparent", fmt.Sprintf("00-%s-%s-01", traceID, spanID))
-
-		// Because Encore does not count an RPC call as a span, but rather a set of events within a span
-		// we also need to pass the event ID which started the RPC call in the tracestate header
-		eventID := strconv.FormatUint(uint64(parent.StartEventID), 36)
-		req.Header.Set("tracestate", fmt.Sprintf("%s=%s", eventTraceStateKey, eventID))
-
-		// Pass the correlation ID to the downstream service.
-		// However, we do _not_ pass the X-Request-ID down, as it is not meant to be propagated through request chains
-		if parent.Source.ExtCorrelationID != "" {
-			req.Header.Set("X-Correlation-ID", parent.Source.ExtCorrelationID)
-		}
 	}
 }

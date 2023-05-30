@@ -83,7 +83,7 @@ func TestDesc_EndToEnd(t *testing.T) {
 			req := httptest.NewRequest("POST", "/", strings.NewReader(test.reqBody))
 			ps := api.UnnamedParams{"value"}
 			desc := newMockAPIDesc(test.access)
-			desc.Handle(server.NewIncomingContext(w, req, ps, model.TraceID{}, model.AuthInfo{}))
+			desc.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 			if w.Code != test.status {
 				t.Errorf("got code %d, want %d", w.Code, test.status)
 				return
@@ -306,7 +306,7 @@ func TestDescGeneratesTrace(t *testing.T) {
 				EXPECT().
 				RequestSpanEnd(gomock.Any(), gomock.Any()).MaxTimes(1)
 
-			handler.Handle(server.NewIncomingContext(w, req, ps, model.TraceID{}, model.AuthInfo{}))
+			handler.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 
 			if diff := cmp.Diff(test.want, beginReq, opts...); diff != "" {
 				t.Errorf("beginReq mismatch (-want +got):\n%s", diff)
@@ -351,7 +351,7 @@ func TestRawEndpointOverflow(t *testing.T) {
 			params = append(params, p)
 		}).AnyTimes()
 
-	handler.Handle(server.NewIncomingContext(w, req, ps, model.TraceID{}, model.AuthInfo{}))
+	handler.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 
 	if len(params) != 2 {
 		t.Fatalf("got %d BodyStream events, want %d", len(params), 2)

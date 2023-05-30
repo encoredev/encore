@@ -305,7 +305,7 @@ func CheckAuthData(uid model.UID, userData any) error {
 	return nil
 }
 
-func (s *Server) beginCall(serviceName, endpointName string, defLoc uint32) (*model.APICall, error) {
+func (s *Server) beginCall(serviceName, endpointName string, defLoc uint32) (*model.APICall, CallMeta, error) {
 	call := &model.APICall{
 		TargetServiceName:  serviceName,
 		TargetEndpointName: endpointName,
@@ -319,7 +319,7 @@ func (s *Server) beginCall(serviceName, endpointName string, defLoc uint32) (*mo
 		call.StartEventID = curr.Trace.RPCCallStart(call, curr.Goctr)
 	}
 
-	return call, nil
+	return call, metaFromAPICall(call), nil
 }
 
 func (s *Server) finishCall(call *model.APICall, err error) {
@@ -341,15 +341,15 @@ func (s *Server) beginAuth(defLoc uint32) (*model.AuthCall, error) {
 		DefLoc: defLoc,
 	}
 
-	//if curr := s.rt.Current(); curr.Trace != nil {
+	// if curr := s.rt.Current(); curr.Trace != nil {
 	//	curr.Trace.BeginAuth(call, curr.Goctr)
-	//}
+	// }
 
 	return call, nil
 }
 
 func (s *Server) finishAuth(call *model.AuthCall, uid model.UID, err error) {
-	//if curr := s.rt.Current(); curr.Trace != nil {
+	// if curr := s.rt.Current(); curr.Trace != nil {
 	//	curr.Trace.FinishAuth(call, uid, err)
-	//}
+	// }
 }

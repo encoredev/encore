@@ -180,7 +180,7 @@ type Response struct {
 type APICall struct {
 	ID     uint64 // call id
 	Source *Request
-	SpanID SpanID
+	SpanID SpanID // deprecated: this is not used
 	DefLoc uint32
 
 	// Service/endpoint being called
