@@ -71,7 +71,7 @@ export interface ClientOptions {
     fetcher?: Fetcher
 
     /** Default RequestInit to be used for the client */
-    requestInit?: RequestInit & { headers?: Record<string, string> };
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> };
 
     /**
      * Allows you to set the authentication data to be used for each
@@ -766,7 +766,7 @@ function mustBeSet<A>(field: string, value: A | null | undefined): A {
 }
 
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & {
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     /** Any headers to be sent with the request */
     headers?: Record<string, string>;
 
@@ -786,7 +786,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
-    readonly requestInit: RequestInit & { headers?: Record<string, string> }
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
     readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
@@ -818,7 +818,7 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,
@@ -827,7 +827,7 @@ class BaseClient {
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 
         // If authorization data generator is present, call it and add the returned data to the request
         let authData: echo.AuthParams | undefined

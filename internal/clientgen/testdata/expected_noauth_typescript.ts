@@ -57,7 +57,7 @@ export interface ClientOptions {
     fetcher?: Fetcher
 
     /** Default RequestInit to be used for the client */
-    requestInit?: RequestInit & { headers?: Record<string, string> };
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> };
 }
 
 export namespace svc {
@@ -106,7 +106,7 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
 }
 
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & {
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     /** Any headers to be sent with the request */
     headers?: Record<string, string>;
 
@@ -124,7 +124,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
-    readonly requestInit: RequestInit & { headers?: Record<string, string> }
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -144,7 +144,7 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,
@@ -153,7 +153,7 @@ class BaseClient {
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''

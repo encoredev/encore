@@ -615,7 +615,7 @@ export interface ClientOptions {
     fetcher?: Fetcher
 
     /** Default RequestInit to be used for the client */
-    requestInit?: RequestInit & { headers?: Record<string, string> };
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> };
 `)
 
 	if ts.hasAuth {
@@ -654,7 +654,7 @@ func (ts *typescript) writeBaseClient(appSlug string) error {
 
 	ts.WriteString(`
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & {
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     /** Any headers to be sent with the request */
     headers?: Record<string, string>;
 
@@ -682,7 +682,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
-    readonly requestInit: RequestInit & { headers?: Record<string, string> }`)
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }`)
 
 	if ts.hasAuth {
 		ts.WriteString("\n    readonly authGenerator?: AuthDataGenerator")
@@ -725,7 +725,7 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,
@@ -734,7 +734,7 @@ class BaseClient {
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 `)
 	w := ts.newIdentWriter(2)
 

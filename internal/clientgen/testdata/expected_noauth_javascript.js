@@ -102,7 +102,7 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,
@@ -111,7 +111,7 @@ class BaseClient {
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''
