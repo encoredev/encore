@@ -613,6 +613,9 @@ export interface ClientOptions {
      * code on each API request made or response received.
      */
     fetcher?: Fetcher
+
+    /** Default RequestInit to be used for the client */
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
 `)
 
 	if ts.hasAuth {
@@ -651,11 +654,11 @@ func (ts *typescript) writeBaseClient(appSlug string) error {
 
 	ts.WriteString(`
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & {
-    /** Any headers to be sent with the request */
-    headers?: Record<string, string>;
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+    /** Headers to be sent with the request */
+    headers?: Record<string, string>
 
-    /** Any query parameters to be sent with the request */
+    /** Query parameters to be sent with the request */
     query?: Record<string, string | string[]>
 }
 `)
@@ -678,7 +681,8 @@ const boundFetch = fetch.bind(this);
 class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
-    readonly headers: Record<string, string>`)
+    readonly headers: Record<string, string>
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }`)
 
 	if ts.hasAuth {
 		ts.WriteString("\n    readonly authGenerator?: AuthDataGenerator")
@@ -692,6 +696,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "` + userAgent + `",
         }
+        this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -720,15 +725,16 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 `)
 	w := ts.newIdentWriter(2)
 
