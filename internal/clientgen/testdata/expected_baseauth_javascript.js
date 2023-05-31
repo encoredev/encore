@@ -106,6 +106,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "app-Generated-JS-Client (Encore/devel)",
         }
+        this.requestInit = options.requestInit ?? {}
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -128,15 +129,16 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 
         // If authorization data generator is present, call it and add the returned data to the request
         let authData
