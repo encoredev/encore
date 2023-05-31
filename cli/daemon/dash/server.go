@@ -2,10 +2,8 @@ package dash
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"net/http/httputil"
 	"sync"
@@ -17,6 +15,7 @@ import (
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
+	"encr.dev/internal/conf"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 )
 
@@ -24,17 +23,9 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(*http.Request) bool { return true },
 }
 
-//go:embed dashapp/dist/*
-var assets embed.FS
-
 // NewServer starts a new server and returns it.
 func NewServer(runMgr *run.Manager, tr trace2.Store) *Server {
-	assets, err := fs.Sub(assets, "dashapp/dist")
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not get dash assets")
-	}
-
-	proxy, err := dashproxy.New("https://devdash.encore.dev")
+	proxy, err := dashproxy.New(conf.DevDashURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not create dash proxy")
 	}
@@ -43,7 +34,6 @@ func NewServer(runMgr *run.Manager, tr trace2.Store) *Server {
 		proxy:   proxy,
 		run:     runMgr,
 		tr:      tr,
-		assets:  assets,
 		traceCh: make(chan *tracepb2.SpanSummary, 10),
 		clients: make(map[chan<- *notification]struct{}),
 	}
@@ -60,31 +50,17 @@ type Server struct {
 	run     *run.Manager
 	tr      trace2.Store
 	traceCh chan *tracepb2.SpanSummary
-	assets  fs.FS
 
 	mu      sync.Mutex
 	clients map[chan<- *notification]struct{}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Path
-	//fs := http.FileServer(http.FS(s.assets))
-	switch {
-	case path == "/__encore":
+	switch req.URL.Path {
+	case "/__encore":
 		s.WebSocket(w, req)
 	default:
 		s.proxy.ServeHTTP(w, req)
-		//case strings.HasPrefix(path, "/assets/") || path == "/favicon.ico":
-		//	// We've seen cases where net/http's content type detection gets it wrong
-		//	// for the bundled javascript files. Work around it by specifying it manually.
-		//	if filepath.Ext(path) == ".js" {
-		//		w.Header().Set("Content-Type", "application/javascript")
-		//	}
-		//	fs.ServeHTTP(w, req)
-		//default:
-		//	// Serve the index page for all other paths since we use client-side routing.
-		//	req.URL.Path = "/"
-		//	fs.ServeHTTP(w, req)
 	}
 }
 

@@ -13,6 +13,9 @@ import (
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
 	"github.com/peterbourgon/diskv"
+
+	"encr.dev/internal/conf"
+	"encr.dev/internal/version"
 )
 
 func New(targetURL string) (*httputil.ReverseProxy, error) {
@@ -21,17 +24,25 @@ func New(targetURL string) (*httputil.ReverseProxy, error) {
 		return nil, errors.Wrap(err, "parse target url")
 	}
 
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return nil, errors.Wrap(err, "get user cache dir")
-	}
+	// Set the cli_version query parameter.
+	vals := target.Query()
+	vals.Set("cli_version", version.Version)
+	target.RawQuery = vals.Encode()
 
-	cache := diskcache.NewWithDiskv(diskv.New(diskv.Options{
-		BasePath:     filepath.Join(cacheDir, "encore", "dashcache"),
-		CacheSizeMax: 1024 * 1024 * 1024, // 1GiB
-		Compression:  diskv.NewGzipCompression(),
-	}))
-	transport := httpcache.NewTransport(cache)
+	transport := http.DefaultTransport
+	if conf.CacheDevDash {
+		cacheDir, err := os.UserCacheDir()
+		if err != nil {
+			return nil, errors.Wrap(err, "get user cache dir")
+		}
+
+		cache := diskcache.NewWithDiskv(diskv.New(diskv.Options{
+			BasePath:     filepath.Join(cacheDir, "encore", "dashcache"),
+			CacheSizeMax: 1024 * 1024 * 1024, // 1GiB
+			Compression:  diskv.NewGzipCompression(),
+		}))
+		transport = httpcache.NewTransport(cache)
+	}
 
 	proxy := &httputil.ReverseProxy{
 		Transport: transport,
