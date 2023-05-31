@@ -95,7 +95,6 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 	}()
 	<-done
 
-	c.server.finishAuth(call, info.UID, authErr)
 	return info, authErr
 }
 
