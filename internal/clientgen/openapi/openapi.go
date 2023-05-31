@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/doc/comment"
 	"strings"
@@ -60,9 +61,9 @@ func (g *Generator) Generate(p clientgentypes.GenerateParams) error {
 	if err != nil {
 		return errors.Wrap(err, "marshal openapi spec")
 	}
-	p.Buf.Write(out)
 
-	return nil
+	// Pretty-print the JSON output
+	return json.Indent(p.Buf, out, "", "  ")
 }
 
 func (g *Generator) addService(svc *meta.Service) error {
@@ -152,7 +153,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 				AllowEmptyValue: true,
 				AllowReserved:   false,
 				Deprecated:      false,
-				Required:        false,
+				Required:        !param.Optional,
 				Schema:          g.schemaType(param.Type),
 				Example:         nil,
 				Examples:        nil,
@@ -173,7 +174,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 				AllowEmptyValue: true,
 				AllowReserved:   false,
 				Deprecated:      false,
-				Required:        false,
+				Required:        !param.Optional,
 				Schema:          g.schemaType(param.Type),
 				Example:         nil,
 				Examples:        nil,
@@ -211,7 +212,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 						AllowEmptyValue: true,
 						AllowReserved:   false,
 						Deprecated:      false,
-						Required:        false,
+						Required:        !param.Optional,
 						Schema:          g.schemaType(param.Type),
 						Example:         nil,
 						Examples:        nil,
