@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -26,22 +25,6 @@ func (b *Builder) PrepareWorkdir() error {
 		return err
 	} else if err := os.MkdirAll(join(b.dst, "bin"), 0755); err != nil {
 		return err
-	}
-	return nil
-}
-
-func (b *Builder) BuildDashFrontend() error {
-	dir := join("cli", "daemon", "dash", "dashapp")
-	npmInst := exec.Command("npm", "install")
-	npmInst.Dir = dir
-	if out, err := npmInst.CombinedOutput(); err != nil {
-		return fmt.Errorf("npm install failed: %s (%v)", out, err)
-	}
-
-	npmBuild := exec.Command("npm", "run", "build")
-	npmBuild.Dir = dir
-	if out, err := npmBuild.CombinedOutput(); err != nil {
-		return fmt.Errorf("npm run build failed: %s (%v)", out, err)
 	}
 	return nil
 }
@@ -171,7 +154,6 @@ func main() {
 
 	for _, f := range []func() error{
 		b.PrepareWorkdir,
-		b.BuildDashFrontend,
 		b.BuildBinaries,
 		b.CopyEncoreGo,
 		b.CopyRuntime,
@@ -179,11 +161,5 @@ func main() {
 		if err := f(); err != nil {
 			log.Fatalln(err)
 		}
-	}
-}
-
-func mustWriteFile(filename string, perm fs.FileMode, contents string) {
-	if err := os.WriteFile(filename, []byte(contents), perm); err != nil {
-		log.Fatalln(err)
 	}
 }
