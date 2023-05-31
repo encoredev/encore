@@ -56,44 +56,6 @@ Start the daemon with the built binary: `./encore daemon -f`
 
 Note that when you run commands like `encore run` must use the same `encore` binary the daemon is running.
 
-## Developing the Development Dashboard
-
-Encore comes with a development dashboard, located at `cli/daemon/dash/dashapp`.
-It's a client-side React application built with [Vite](https://vitejs.dev/).
-
-To run it from source:
-
-```bash
-cd cli/daemon/dash/dashapp
-npm install
-npm run dev
-```
-
-The dashboard application talks to the Encore daemon, and therefore needs to know its network address.
-Set `ENCORE_DAEMON_DEV=1` before running `encore daemon -f` in order to force Encore to use a fixed port
-for development purposes. The dashboard application assumes this is done when you run Vite in development mode.
-
-### Building the Development Dashboard
-The dashboard is embedded in the encore command and the build artifact needs to be available for the command to compile.
-
-To create the artifact run:
-
-```bash
-cd cli/daemon/dash/dashapp
-npm install
-npm run build
-```
-
-### Testing the Development Dashboard
-Tests are written using [Jest](https://jestjs.io/) and the [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
-
-To run the front-end unit tests:
-
-```bash
-cd cli/daemon/dash/dashapp
-npm test #run all tests 
-npm test -- --watch #re-run tests on file change
-```
 
 ### Testing the Daemon run logic
 The codegen tests in the `internal/clientgen/client_test.go` file uses many auto generated files from the
@@ -112,10 +74,6 @@ The `encore` command line interface. The encore background daemon
 is located at `cli/daemon` and is responsible for managing processes,
 setting up databases and talking with the Encore servers for operations like
 fetching production logs.
-
-### cli/daemon/dash/dashapp
-The Encore development dashboard frontend application. It renders
-the generated API Documentation and API Explorer, traces, logs, and so on.
 
 ### parser
 The Encore Parser statically analyzes Encore apps to build up a model
