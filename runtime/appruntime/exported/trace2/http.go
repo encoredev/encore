@@ -45,6 +45,8 @@ func (l *Log) HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid
 	})
 
 	rt := &httpRoundTrip{
+		TraceID:                 req.TraceID,
+		SpanID:                  req.SpanID,
 		StartID:                 eventID,
 		CorrelationParentSpanID: callCorrelationParentSpanID,
 		log:                     l,
