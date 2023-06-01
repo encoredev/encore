@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	encore "encore.dev"
+	"encore.dev/appruntime/apisdk/api/errmarshalling"
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
@@ -120,7 +122,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 
 	reqData, beginErr := d.begin(c)
 	if beginErr != nil {
-		errs.HTTPError(c.w, beginErr)
+		d.returnError(c, beginErr, 0)
 		return
 	}
 
@@ -131,7 +133,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		// If the endpoint is raw it has already written its response;
 		// don't write another.
 		if !d.Raw {
-			errs.HTTPErrorWithCode(c.w, resp.Err, resp.HTTPStatus)
+			d.returnError(c, resp.Err, resp.HTTPStatus)
 		}
 		return
 	}
@@ -142,6 +144,44 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		resp.Err = d.EncodeResp(c.w, c.server.json, respData)
 	}
 	c.server.finishRequest(resp)
+}
+
+// returnError is a helper function which will return an error to the client when we handle
+// an incoming request.
+//
+// If the requests is an internal service to service request, we will return an error
+// in a full unabridged format, allowing the calling code to unmarshal the error without
+// loss of information.
+//
+// If the request is an external request, we will return a more user friendly error
+// message, which will be more suitable for display to the end user and not include
+// any internal details.
+//
+// If statusCodeToUse is 0, we will use the default status code for the error using
+// the [errs] package.
+func (d *Desc[Req, Resp]) returnError(c IncomingContext, err error, statusCodeToUse int) {
+	if c.isEncoreToEncoreCall {
+		// If this is an internal service to service call, we want to return the full error
+		// we'll add a header to the response to indicate that the error is a full error
+		// and the calling code can use this to determine how to unmarshal the response object.
+		c.w.Header().Set("X-Encore-Full-Error", "1")
+
+		c.w.Header().Set("Content-Type", "application/json")
+		c.w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Write the status code out
+		if statusCodeToUse == 0 {
+			statusCodeToUse = errs.HTTPStatus(err)
+		}
+		c.w.WriteHeader(statusCodeToUse)
+
+		// Use our internal error marshalling package to marshal the error
+		errBytes := errmarshalling.Marshal(err)
+		_, _ = c.w.Write(errBytes)
+
+	} else {
+		errs.HTTPErrorWithCode(c.w, err, statusCodeToUse)
+	}
 }
 
 func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error) {
@@ -574,10 +614,24 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		if err != nil {
 			return resp, err
 		}
-		defer httpResp.Body.Close()
-		if httpResp.StatusCode >= 400 {
-			// TODO parse error response
-			return resp, errs.B().Code(errs.Internal).Msg("request failed").Err()
+		defer func() { _ = httpResp.Body.Close() }()
+
+		if httpResp.StatusCode != http.StatusOK {
+			if httpResp.Header.Get("X-Encore-Full-Error") == "1" {
+				errBytes, err := io.ReadAll(httpResp.Body)
+				if err != nil {
+					return resp, errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
+				}
+
+				respErr, marshallingErr := errmarshalling.Unmarshal(errBytes)
+				if marshallingErr != nil {
+					return resp, errs.B().Code(errs.Internal).Cause(err).Msg("request failed: unable to unmarshal response").Err()
+				}
+
+				return resp, respErr
+			} else {
+				return resp, errs.B().Code(errs.Internal).Msg("request failed: " + httpResp.Header.Get("X-Encore-Full-Error")).Err()
+			}
 		}
 
 		return d.DecodeExternalResp(httpResp, c.server.json)
