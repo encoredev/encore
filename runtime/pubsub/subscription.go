@@ -253,8 +253,10 @@ func (s *Subscription[T]) Config() SubscriptionConfig[T] {
 func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscription, *config.StaticPubsubSubscription) {
 	if t.mgr.static.Testing {
 		// No subscriptions occur in testing
+		svcName, svcNum := t.mgr.ts.TestService()
 		return &config.PubsubSubscription{EncoreName: name}, &config.StaticPubsubSubscription{
-			Service: t.mgr.ts.TestService(),
+			Service: svcName,
+			SvcNum:  svcNum,
 		}
 	}
 
