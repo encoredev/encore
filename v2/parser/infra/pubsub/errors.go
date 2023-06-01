@@ -15,6 +15,8 @@ const (
 		"\t})"
 
 	pubsubTopicUsageHelp = "The topic can only be referenced by calling methods on it, or to pass it to pubsub.NewSubscription or et.Topic."
+
+	pubsubMethodHandlerHelp = "For example `pubsub.MethodHandler(Service.MethodName)` or `pubsub.MethodHandler((*Service).MethodName)`.`"
 )
 
 var (
@@ -131,5 +133,23 @@ var (
 	ErrTopicRefOutsideService = errRange.New(
 		"Call to pubsub.TopicRef outside service",
 		"pubsub.TopicRef can only be called from within a service.",
+	)
+
+	ErrInvalidMethodHandler = errRange.New(
+		"Invalid call to pubsub.MethodHandler",
+		"pubsub.MethodHandler requires the first argument to be a reference to a method on a service struct.",
+		errors.PrependDetails(pubsubMethodHandlerHelp),
+	)
+
+	ErrMethodHandlerTypeNotServiceStruct = errRange.New(
+		"Invalid call to pubsub.MethodHandler",
+		"pubsub.MethodHandler can only reference methods that are defined on service structs.",
+		errors.PrependDetails(pubsubMethodHandlerHelp),
+	)
+
+	ErrMethodHandlerDifferentPackage = errRange.New(
+		"Invalid call to pubsub.MethodHandler",
+		"pubsub.MethodHandler can only reference the service struct defined in the same package as the subscription.",
+		errors.PrependDetails(pubsubMethodHandlerHelp),
 	)
 )

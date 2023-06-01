@@ -1,0 +1,21 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/pubsub"
+)
+
+type Event struct {}
+
+var Topic = pubsub.NewTopic[*Event]("topic", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+var _ = pubsub.NewSubscription(Topic, "subscription",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: func(ctx context.Context, event *Event) error {
+            return nil
+        },
+    },
+)

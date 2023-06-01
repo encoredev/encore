@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -14,7 +15,15 @@ import (
 
 // Initializer is a service initializer.
 type Initializer interface {
+	// ServiceName reports the name of the service.
+	ServiceName() string
+
+	// InitService initializes the service.
 	InitService() error
+
+	// GetDecl returns the service declaration,
+	// initializing it if necessary.
+	GetDecl() (any, error)
 }
 
 type Decl[T any] struct {
@@ -39,8 +48,20 @@ func (g *Decl[T]) Get() (*T, error) {
 	return g.instance, err
 }
 
+// GetDecl returns the API Decl, initializing it if necessary.
+func (g *Decl[T]) GetDecl() (any, error) {
+	if err := g.InitService(); err != nil {
+		return nil, err
+	}
+	return g.instance, nil
+}
+
 func (g *Decl[T]) InitService() error {
 	return g.setupOnce.Do(func() error { return doSetupService(Singleton, g) })
+}
+
+func (g *Decl[T]) ServiceName() string {
+	return g.Service
 }
 
 func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
@@ -67,7 +88,7 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 	i, err := setupFn()
 	if err != nil {
 		mgr.rt.Logger().Error().Err(err).Str("service", decl.Service).Msg("service initialization failed")
-		return errs.B().Code(errs.Internal).Msg("service initialization failed").Err()
+		return errs.B().Code(errs.Internal).Msgf("service %s: initialization failed", decl.Service).Err()
 	}
 	decl.instance = i
 
@@ -85,19 +106,25 @@ type shutdowner interface {
 }
 
 func NewManager(rt *reqtrack.RequestTracker, rootLogger zerolog.Logger) *Manager {
-	return &Manager{rt: rt, rootLogger: rootLogger}
+	return &Manager{rt: rt, rootLogger: rootLogger, svcMap: make(map[string]Initializer)}
 }
 
 type Manager struct {
 	rt         *reqtrack.RequestTracker
 	rootLogger zerolog.Logger
 	svcInit    []Initializer
+	svcMap     map[string]Initializer
 
 	shutdownMu       sync.Mutex
 	shutdownHandlers []shutdowner
 }
 
 func (mgr *Manager) RegisterService(i Initializer) {
+	name := i.ServiceName()
+	if _, ok := mgr.svcMap[name]; ok {
+		panic(fmt.Sprintf("service %s: already registered", name))
+	}
+	mgr.svcMap[name] = i
 	mgr.svcInit = append(mgr.svcInit, i)
 }
 
@@ -120,6 +147,11 @@ func (mgr *Manager) InitializeServices() error {
 	}
 
 	return nil
+}
+
+func (mgr *Manager) GetService(name string) (i Initializer, ok bool) {
+	i, ok = mgr.svcMap[name]
+	return i, ok
 }
 
 func (mgr *Manager) Shutdown(force context.Context) {

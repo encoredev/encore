@@ -1,0 +1,95 @@
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/pubsub"
+)
+
+//encore:service
+type Service struct{}
+
+func (s *Service) PointerMethod(ctx context.Context, event *Event) error {
+    return nil
+}
+
+func (s Service) NonPointerMethod(ctx context.Context, event *Event) error {
+    return nil
+}
+
+type Event struct {}
+
+var Topic = pubsub.NewTopic[*Event]("topic", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+var _ = pubsub.NewSubscription(Topic, "pointer",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: pubsub.MethodHandler((*Service).PointerMethod),
+    },
+)
+
+var _ = pubsub.NewSubscription(Topic, "non-pointer",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: pubsub.MethodHandler(Service.NonPointerMethod),
+    },
+)
+-- want:svc/encore_internal__pubsub.go --
+package svc
+
+import (
+	"context"
+	__service "encore.dev/appruntime/apisdk/service"
+)
+
+func EncoreInternal_pubsub_handler_pointer(ctx context.Context, msg *Event) error {
+	svc, err := __service.Get[*Service]("svc")
+	if err != nil {
+		return err
+	}
+	return svc.PointerMethod(ctx, msg)
+}
+
+func EncoreInternal_pubsub_handler_non_pointer(ctx context.Context, msg *Event) error {
+	svc, err := __service.Get[*Service]("svc")
+	if err != nil {
+		return err
+	}
+	return svc.NonPointerMethod(ctx, msg)
+}
+-- want:svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/pubsub"
+)
+
+//encore:service
+type Service struct{}
+
+func (s *Service) PointerMethod(ctx context.Context, event *Event) error {
+    return nil
+}
+
+func (s Service) NonPointerMethod(ctx context.Context, event *Event) error {
+    return nil
+}
+
+type Event struct {}
+
+var Topic = pubsub.NewTopic[*Event]("topic", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+var _ = pubsub.NewSubscription(Topic, "pointer",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: EncoreInternal_pubsub_handler_pointer,
+    },
+)
+
+var _ = pubsub.NewSubscription(Topic, "non-pointer",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: EncoreInternal_pubsub_handler_non_pointer,
+    },
+)
