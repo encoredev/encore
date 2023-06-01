@@ -35,7 +35,7 @@ func (mgr *Manager) GetCurrentDB() *Database {
 	var dbName string
 	if curr := mgr.rt.Current(); curr.Req != nil {
 		dbName = curr.Req.Service()
-	} else if testSvc := mgr.ts.TestService(); testSvc != "" {
+	} else if testSvc, _ := mgr.ts.TestService(); testSvc != "" {
 		dbName = testSvc
 	} else {
 		panic("sqldb: no current request")

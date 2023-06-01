@@ -103,6 +103,7 @@ func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) *Statement {
 
 							d[Lit(sub.Name)] = Values(Dict{
 								Id("Service"):  Lit(svc.Name),
+								Id("SvcNum"):   Lit(svc.Num),
 								Id("TraceIdx"): Lit(gen.TraceNodes.Sub(sub)),
 							})
 						}
