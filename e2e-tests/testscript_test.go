@@ -201,7 +201,7 @@ func doRun(t *testing.T, experiments []string) {
 							if topic.Depth == 0 {
 								break
 							}
-							ts.Logf("waiting for queue to be processed, depth: %d", topic.Depth)
+							ts.Logf("waiting for %q queue to be processed, depth: %d", topic.TopicName, topic.Depth)
 							time.Sleep(100 * time.Millisecond)
 						}
 					}

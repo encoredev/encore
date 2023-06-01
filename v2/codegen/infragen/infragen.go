@@ -8,11 +8,13 @@ import (
 	"encr.dev/v2/codegen/infragen/cachegen"
 	"encr.dev/v2/codegen/infragen/configgen"
 	"encr.dev/v2/codegen/infragen/metricsgen"
+	"encr.dev/v2/codegen/infragen/pubsubgen"
 	"encr.dev/v2/codegen/infragen/secretsgen"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
 	"encr.dev/v2/parser/resource"
 )
@@ -35,6 +37,8 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 			pkg = r.File.Pkg
 		case *secrets.Secrets:
 			pkg = r.File.Pkg
+		case *pubsub.Subscription:
+			pkg = r.File.Pkg
 		case *config.Load:
 			pkg = r.File.Pkg
 		default:
@@ -56,6 +60,10 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 		case resource.Metric:
 			metricsgen.Gen(gg, pkg, fns.Map(resources, func(r resource.Resource) *metrics.Metric {
 				return r.(*metrics.Metric)
+			}))
+		case resource.PubSubSubscription:
+			pubsubgen.Gen(gg, pkg, appDesc, fns.Map(resources, func(r resource.Resource) *pubsub.Subscription {
+				return r.(*pubsub.Subscription)
 			}))
 		case resource.Secrets:
 			secretsgen.Gen(gg, pkg, fns.Map(resources, func(r resource.Resource) *secrets.Secrets {
