@@ -1,0 +1,52 @@
+run
+publish pointer '{"Data": "test"}'
+publish non-pointer '{"Data": "test"}'
+checklog '{"topic": "pointer", "subscription": "pointer", "event": {"Data": "test"}, "message": "pointer method"}'
+checklog '{"topic": "non-pointer", "subscription": "non-pointer", "event": {"Data": "test"}, "message": "non-pointer method"}'
+
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/rlog"
+    "encore.dev/pubsub"
+)
+
+//encore:service
+type Service struct{}
+
+func (s *Service) PointerMethod(ctx context.Context, event *Event) error {
+    rlog.Info("pointer method", "event", event)
+    return nil
+}
+
+func (s Service) NonPointerMethod(ctx context.Context, event *Event) error {
+    rlog.Info("non-pointer method", "event", event)
+    return nil
+}
+
+type Event struct {
+    Data string
+}
+
+var Pointer = pubsub.NewTopic[*Event]("pointer", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+var NonPointer = pubsub.NewTopic[*Event]("non-pointer", pubsub.TopicConfig{
+    DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+var _ = pubsub.NewSubscription(Pointer, "pointer",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: pubsub.MethodHandler((*Service).PointerMethod),
+    },
+)
+
+var _ = pubsub.NewSubscription(NonPointer, "non-pointer",
+    pubsub.SubscriptionConfig[*Event]{
+        Handler: pubsub.MethodHandler(Service.NonPointerMethod),
+    },
+)

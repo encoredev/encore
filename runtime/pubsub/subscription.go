@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -49,7 +50,7 @@ type Subscription[T any] struct {
 //
 //	var Subscription = pubsub.NewSubscription(MyTopic, "my-subscription", pubsub.SubscriptionConfig[*MyEvent]{
 //	  Handler:     HandleEvent,
-//	  RetryPolicy: &pubsub.RetryPolicy { MaxRetries: 10 },
+//	  RetryPolicy: &pubsub.RetryPolicy{MaxRetries: 10},
 //	})
 //
 //	func HandleEvent(ctx context.Context, event *MyEvent) error {
@@ -277,4 +278,26 @@ func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscriptio
 func marshalParams[Resp any](json jsoniter.API, resp Resp) []byte {
 	data, _ := json.Marshal(resp)
 	return data
+}
+
+// MethodHandler is used to define a subscription Handler that references a service struct method.
+//
+// Example Usage:
+//
+//	//encore:service
+//	type Service struct {}
+//
+//	func (s *Service) Method(ctx context.Context, msg *Event) error { /* ... */ }
+//
+//	var _ = pubsub.NewSubscription(Topic, "subscription-name", pubsub.SubscriptionConfig[*Event]{
+//		Handler: pubsub.MethodHandler((*MyService).MyMethod),
+//		// ...
+//	})
+func MethodHandler[T, SvcStruct any](handler func(s SvcStruct, ctx context.Context, msg T) error) func(ctx context.Context, msg T) error {
+	// The use of MethodHandler acts as a sentinel for the code generator,
+	// which replaces the call with some generated code to initialize the service struct.
+	// As such this function should never be called in practice.
+	return func(ctx context.Context, msg T) error {
+		return fmt.Errorf("pubsub.MethodHandler is not usable in this context")
+	}
 }

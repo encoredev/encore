@@ -118,13 +118,19 @@ func (l *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, ret
 		return nil
 	}))
 
-	// connect the consumer to the NSQD
-	err = consumer.ConnectToNSQD(l.addr)
-	if err != nil {
-		panic(fmt.Sprintf("failed to connect %s to nsqd for topic %s: %v", implCfg.EncoreName, l.name, err))
-	}
 	// add the consumer to the known consumers
 	l.consumers[implCfg.EncoreName] = consumer
+
+	go func() {
+		// Allow the rest of the service to initialize before we connect to NSQD.
+		// This is necessary because NSQD is so fast the receiver can process messages
+		// before all package-level initialization functions have been called.
+		time.Sleep(100 * time.Millisecond)
+		err = consumer.ConnectToNSQD(l.addr)
+		if err != nil {
+			panic(fmt.Sprintf("failed to connect %s to nsqd for topic %s: %v", implCfg.EncoreName, l.name, err))
+		}
+	}()
 }
 
 // PublishMessage publishes a message to an nsq Topic

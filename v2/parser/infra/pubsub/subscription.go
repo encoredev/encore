@@ -6,9 +6,13 @@ import (
 	"go/token"
 	"time"
 
+	"golang.org/x/tools/go/ast/astutil"
+
 	"encr.dev/pkg/errors"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/infra/internal/literals"
 	"encr.dev/v2/parser/infra/internal/parseutil"
 	"encr.dev/v2/parser/resource"
@@ -16,13 +20,26 @@ import (
 )
 
 type Subscription struct {
-	AST     *ast.CallExpr
-	File    *pkginfo.File
-	Name    string // The unique name of the pub sub subscription
-	Doc     string // The documentation on the pub sub subscription
-	Topic   pkginfo.QualifiedName
-	Cfg     SubscriptionConfig
-	Handler ast.Expr // The reference to the handler function
+	AST   *ast.CallExpr
+	File  *pkginfo.File
+	Name  string // The unique name of the pub sub subscription
+	Doc   string // The documentation on the pub sub subscription
+	Topic pkginfo.QualifiedName
+	Cfg   SubscriptionConfig
+
+	// Handler is the AST expression defining the handler function.
+	Handler ast.Expr
+
+	// MethodHandler specifies whether the handler is a method on a service struct.
+	MethodHandler option.Option[MethodHandler]
+}
+
+// MethodHandler is used to describe a handler that references a method on a service struct.
+type MethodHandler struct {
+	// The type declaration the handler is a method on.
+	Decl *pkginfo.PkgDeclInfo
+	// Method is the name of the method.
+	Method string
 }
 
 type SubscriptionConfig struct {
@@ -153,15 +170,64 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		return
 	}
 
+	methodHandler := parseMethodHandler(d, cfg.Handler)
 	sub := &Subscription{
-		AST:     d.Call,
-		File:    d.File,
-		Name:    subscriptionName,
-		Doc:     d.Doc,
-		Topic:   topicObj,
-		Cfg:     subCfg,
-		Handler: cfg.Handler,
+		AST:           d.Call,
+		File:          d.File,
+		Name:          subscriptionName,
+		Doc:           d.Doc,
+		Topic:         topicObj,
+		Cfg:           subCfg,
+		Handler:       cfg.Handler,
+		MethodHandler: methodHandler,
 	}
 	d.Pass.RegisterResource(sub)
 	d.Pass.AddBind(d.File, d.Ident, sub)
+}
+
+// parseMethodHandler parses whether the subscription handler references
+// a method on a type.
+func parseMethodHandler(d parseutil.ReferenceInfo, handler ast.Expr) option.Option[MethodHandler] {
+	var (
+		none   = option.None[MethodHandler]()
+		f      = d.File
+		errs   = d.Pass.Errs
+		parser = d.Pass.SchemaParser
+	)
+
+	// If the handler is a method handler it must be of the form:
+	//  pubsub.MethodHandler(Service.Method) or pubsub.MethodHandler((*Service).Method)
+	call, ok := handler.(*ast.CallExpr)
+	if !ok {
+		return none
+	}
+
+	qn, ok := f.Names().ResolvePkgLevelRef(call.Fun)
+	if !ok || qn.PkgPath != "encore.dev/pubsub" || qn.Name != "MethodHandler" {
+		return none
+	} else if len(call.Args) != 1 {
+		errs.Add(ErrInvalidMethodHandler.AtGoNode(call))
+		return none
+	}
+
+	// The first arg must be in the form (*Service).Method or Service.Method.
+	sel, ok := call.Args[0].(*ast.SelectorExpr)
+	if !ok {
+		errs.Add(ErrInvalidMethodHandler.AtGoNode(call))
+		return none
+	}
+	x := astutil.Unparen(sel.X)
+
+	// Parse the type declaration.
+	typ := parser.ParseType(f, x)
+	decl, ok := schemautil.DerefNamedInfo(typ, false)
+	if !ok {
+		errs.Add(ErrInvalidMethodHandler.AtGoNode(call))
+		return none
+	}
+
+	return option.Some(MethodHandler{
+		Decl:   decl,
+		Method: sel.Sel.Name,
+	})
 }
