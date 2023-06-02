@@ -71,16 +71,18 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 				ok := hasUnsafeWildcardOriginWithCreds || sortedSliceContains(originsCreds, origin)
 				if !ok {
 					// Not an exact match. Check any glob origins.
-					ok = globCreds.Matches(origin) || globWithoutCreds.Matches(origin)
+					ok = globCreds.Matches(origin)
 				}
 				return ok
 			}
 			// Post-condition: request is without credentials
 
-			if hasWildcardOriginWithoutCreds {
-				return true
+			ok := hasWildcardOriginWithoutCreds || sortedSliceContains(originsWithoutCreds, origin)
+			if !ok {
+				// Not an exact match. Check any glob origins.
+				ok = globWithoutCreds.Matches(origin)
 			}
-			return sortedSliceContains(originsWithoutCreds, origin)
+			return ok
 		},
 	}
 }
