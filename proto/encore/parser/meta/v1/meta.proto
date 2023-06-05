@@ -256,7 +256,7 @@ message SQLDatabase {
 
 message DBMigration {
   string filename    = 1; // filename
-  int32  number      = 2; // migration number
+  uint64  number     = 2; // migration number
   string description = 3; // descriptive name
 }
 
