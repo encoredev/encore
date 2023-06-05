@@ -52,6 +52,11 @@ var CacheDevDash = (func() bool {
 	return !strings.Contains(DevDashURL, "localhost")
 })()
 
+// DevDaemon reports whether or not the daemon is running in development mode.
+var DevDaemon = (func() bool {
+	return os.Getenv("ENCORE_DAEMON_DEV") != ""
+})()
+
 // Dir reports the directory where Encore's configuration is stored.
 func Dir() (string, error) {
 	dir := os.Getenv("ENCORE_CONFIG_DIR")

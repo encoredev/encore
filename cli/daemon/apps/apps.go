@@ -14,6 +14,8 @@ import (
 	"go4.org/syncutil"
 
 	"encr.dev/cli/daemon/internal/manifest"
+	"encr.dev/internal/conf"
+	"encr.dev/internal/env"
 	"encr.dev/internal/goldfish"
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/experiments"
@@ -378,6 +380,15 @@ func (i *Instance) beginWatch() error {
 
 		if err := i.watcher.RecursivelyWatch(i.root); err != nil {
 			return errors.Wrap(err, "unable to watch app")
+		}
+
+		// If we're in dev mode, we want to watch the runtime
+		// too, so we can develop changes to the runtime without
+		// needing to restart the application.
+		if conf.DevDaemon {
+			if err := i.watcher.RecursivelyWatch(env.EncoreRuntimePath()); err != nil {
+				return errors.Wrap(err, "unable to watch runtime")
+			}
 		}
 
 		go func() {
