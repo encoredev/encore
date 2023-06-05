@@ -9,13 +9,8 @@ on:
     - cron: '30 2 * * *' # Every night at 2:30am UTC (if you change this schedule, also change the if statement in the test steps)
 
 jobs:
-
-  build:
+  CI:
     runs-on: ubuntu-20.04
-
-    permissions:
-      checks:        write
-      pull-requests: write
 
     steps:
     - uses: actions/checkout@v3
@@ -75,13 +70,17 @@ jobs:
       env:
         GOOS: windows
 
-    - name: Test Summary
-      id: test_summary
-      uses: EnricoMi/publish-unit-test-result-action@v2
-      if: always()
+    # We upload the test results as artifacts so that in PR's
+    # we can use a seperate action to post a comment with the
+    # test results.
+    #
+    # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
+    - name: Upload Test Results
+      if:   always()
+      uses: actions/upload-artifact@v3
       with:
-        files: |
-          encr.dev/**/*-test-report.xml
+        name: Test Results
+        path: encr.dev/**/*-test-report.xml
 
     - name: Report Nightly Failure
       uses: ravsamhq/notify-slack-action@v2
@@ -93,3 +92,15 @@ jobs:
         footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
+
+  # This job is needed for forked repo's
+  # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
+  event_file:
+    name:    "Event File"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: Event File
+          path: ${{ github.event_path }}
