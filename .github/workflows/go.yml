@@ -9,7 +9,8 @@ on:
     - cron: '30 2 * * *' # Every night at 2:30am UTC (if you change this schedule, also change the if statement in the test steps)
 
 jobs:
-  CI:
+  build:
+    name: "Build & Test"
     runs-on: ubuntu-20.04
 
     steps:
@@ -96,7 +97,7 @@ jobs:
   # This job is needed for forked repo's
   # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
   event_file:
-    name:    "Event File"
+    name:    "Upload Event File"
     runs-on: ubuntu-latest
     steps:
       - name: Upload

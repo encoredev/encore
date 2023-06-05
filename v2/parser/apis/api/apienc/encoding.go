@@ -173,7 +173,7 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 
 	// Check for reserved header prefixes
 	for _, field := range fields[Header] {
-		if strings.HasPrefix(field.WireName, "x-encore") {
+		if strings.HasPrefix(strings.ToLower(field.WireName), "x-encore-") {
 			errs.Add(errReservedHeaderPrefix.AtGoNode(field.Type.ASTExpr()))
 		}
 	}
@@ -260,7 +260,7 @@ func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...
 
 		// Check for reserved header prefixes
 		for _, field := range fields[Header] {
-			if strings.HasPrefix(field.WireName, "x-encore") {
+			if strings.HasPrefix(strings.ToLower(field.WireName), "x-encore-") {
 				errs.Add(errReservedHeaderPrefix.AtGoNode(field.Type.ASTExpr()))
 			}
 		}

@@ -607,7 +607,11 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		respErr = errs.Convert(err)
 		return
 	}
-	meta.AddToRequest(transport.HTTPRequest(httpReq))
+	if err := meta.AddToRequest(transport.HTTPRequest(httpReq)); err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to add metadata to request")
+		respErr = errs.Convert(err)
+		return
+	}
 
 	respData, respErr = (func() (resp Resp, err error) {
 		httpResp, err := c.server.httpClient.Do(httpReq)

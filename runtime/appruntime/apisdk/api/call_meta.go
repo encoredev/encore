@@ -10,6 +10,7 @@ import (
 	"encore.dev/appruntime/apisdk/api/svcauth"
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/beta/errs"
 )
 
 // CallMeta is metadata for an RPC call
@@ -62,7 +63,7 @@ func (s *Server) metaFromAPICall(parent *model.APICall) (meta CallMeta) {
 }
 
 // AddToRequest adds the metadata to the given request
-func (meta CallMeta) AddToRequest(req transport.Transport) {
+func (meta CallMeta) AddToRequest(req transport.Transport) error {
 	// Future proofing: if we ever create a breaking change to the transport meta
 	// we can use this version number to indicate which version of the meta we're using
 	req.SetMeta("Version", "1")
@@ -70,9 +71,7 @@ func (meta CallMeta) AddToRequest(req transport.Transport) {
 	// If we're tracing, pass the trace ID, span ID and event ID to the downstream service
 	if !meta.TraceID.IsZero() {
 		// Encode Encore's trace ID and span ID as the traceparent header
-		traceID := hex.EncodeToString(meta.TraceID[:])
-		spanID := hex.EncodeToString(meta.ParentSpanID[:])
-		req.SetMeta(transport.TraceParentKey, fmt.Sprintf("00-%s-%s-01", traceID, spanID))
+		req.SetMeta(transport.TraceParentKey, fmt.Sprintf("00-%x-%x-01", meta.TraceID[:], meta.ParentSpanID[:]))
 
 		// Because Encore does not count an RPC call as a span, but rather a set of events within a span
 		// we also need to pass the event ID which started the RPC call in the tracestate header
@@ -95,9 +94,11 @@ func (meta CallMeta) AddToRequest(req transport.Transport) {
 
 		// If we're making an internal call, sign the request
 		if err := svcauth.Sign(svcauth.Noop, req); err != nil {
-
+			return errs.B().Cause(err).Msg("failed to sign internal call").Err()
 		}
 	}
+
+	return nil
 }
 
 // MetaFromRequest reads the metadata from the given request and returns it

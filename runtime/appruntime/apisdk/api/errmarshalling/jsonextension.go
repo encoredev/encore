@@ -23,7 +23,7 @@ var (
 const (
 	// TypeKey is the key used to identify the type of an error
 	// used to unmarshal the correct error type
-	TypeKey = "$type$"
+	TypeKey = "@type"
 
 	// MessageKey is the key used to identify the message of an error
 	// we use a common name, which allows the fallback unmarshaler to work

@@ -80,13 +80,10 @@ type Service struct {
 	Protocol SvcProtocol `json:"protocol"`
 }
 
-type SvcProtocol uint8
+type SvcProtocol string
 
 const (
-	Http SvcProtocol = iota
-	ProtoJson
-	ProtoBinary
-	GRPC
+	Http SvcProtocol = "http"
 )
 
 // UnsafeAllOriginWithCredentials can be used to specify that all origins are
