@@ -414,10 +414,6 @@ func (s *Server) NewCallContext(ctx context.Context) CallContext {
 	return CallContext{ctx, s}
 }
 
-func NewCallContext(ctx context.Context) CallContext {
-	return Singleton.NewCallContext(ctx)
-}
-
 func toUnnamedParams(ps httprouter.Params) UnnamedParams {
 	params := make(UnnamedParams, len(ps))
 	for i, p := range ps {

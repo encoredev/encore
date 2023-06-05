@@ -182,6 +182,7 @@ func TestDescGeneratesTrace(t *testing.T) {
 			reqHeaders: http.Header{"Content-Type": []string{"application/json"}},
 			want: &model.Request{
 				Type:         model.RPCCall,
+				TraceID:      model.TraceID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
 				ParentSpanID: model.SpanID{},
 				Start:        klock.Now(),
@@ -211,6 +212,7 @@ func TestDescGeneratesTrace(t *testing.T) {
 			reqBody: `invalid json`,
 			want: &model.Request{
 				Type:         model.RPCCall,
+				TraceID:      model.TraceID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
 				ParentSpanID: model.SpanID{},
 				Start:        klock.Now(),
@@ -247,6 +249,7 @@ func TestDescGeneratesTrace(t *testing.T) {
 			reqHeaders: http.Header{"Content-Type": []string{"application/json"}},
 			want: &model.Request{
 				Type:         model.RPCCall,
+				TraceID:      model.TraceID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
 				ParentSpanID: model.SpanID{},
 				Start:        klock.Now(),
@@ -304,7 +307,7 @@ func TestDescGeneratesTrace(t *testing.T) {
 
 			traceMock.
 				EXPECT().
-				RequestSpanEnd(gomock.Any(), gomock.Any()).MaxTimes(1)
+				RequestSpanEnd(gomock.Any()).MaxTimes(1)
 
 			handler.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 
@@ -342,8 +345,16 @@ func TestRawEndpointOverflow(t *testing.T) {
 
 	var params []trace2.BodyStreamParams
 
-	traceMock.EXPECT().BeginRequest(gomock.Any(), gomock.Any()).MaxTimes(1)
-	traceMock.EXPECT().FinishRequest(gomock.Any(), gomock.Any()).MaxTimes(1)
+	traceMock.
+		EXPECT().
+		RequestSpanStart(gomock.Any(), gomock.Any()).
+		MaxTimes(1)
+
+	traceMock.
+		EXPECT().
+		RequestSpanEnd(gomock.Any()).
+		MaxTimes(1)
+
 	traceMock.
 		EXPECT().
 		BodyStream(gomock.Any()).Do(

@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/infrasdk/metadata"
 	"encore.dev/metrics"
 )
 
@@ -38,6 +39,21 @@ func TestGetMetricData(t *testing.T) {
 		MonitoredResourceType:   "resource-type",
 		MonitoredResourceLabels: map[string]string{"key": "value"},
 	}
+
+	meta := &metadata.ContainerMetadata{
+		ServiceID:  "a_cloudrun_instance",
+		RevisionID: "32",
+		InstanceID: "cloudrun_asd24dsc2",
+	}
+
+	addContainerLabels := func(labels map[string]string) map[string]string {
+		labels["service_id"] = meta.ServiceID
+		labels["revision_id"] = meta.RevisionID
+		labels["instance_id"] = meta.InstanceID
+
+		return labels
+	}
+
 	monitoredRes := &monitoredres.MonitoredResource{
 		Type:   "resource-type",
 		Labels: map[string]string{"key": "value"},
@@ -65,7 +81,7 @@ func TestGetMetricData(t *testing.T) {
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
 					Type:   "custom.googleapis.com/test_counter",
-					Labels: map[string]string{"service": "foo"},
+					Labels: addContainerLabels(map[string]string{"service": "foo"}),
 				},
 				Resource:   monitoredRes,
 				MetricKind: metricpb.MetricDescriptor_CUMULATIVE,
@@ -89,7 +105,7 @@ func TestGetMetricData(t *testing.T) {
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
 					Type:   "custom.googleapis.com/test_gauge",
-					Labels: map[string]string{"service": "bar"},
+					Labels: addContainerLabels(map[string]string{"service": "bar"}),
 				},
 				Resource:   monitoredRes,
 				MetricKind: metricpb.MetricDescriptor_GAUGE,
@@ -114,7 +130,7 @@ func TestGetMetricData(t *testing.T) {
 			data: []*monitoringpb.TimeSeries{{
 				Metric: &metricpb.Metric{
 					Type:   "custom.googleapis.com/test_labels",
-					Labels: map[string]string{"service": "foo", "key": "value"},
+					Labels: addContainerLabels(map[string]string{"service": "foo", "key": "value"}),
 				},
 				Resource:   monitoredRes,
 				MetricKind: metricpb.MetricDescriptor_GAUGE,
@@ -141,7 +157,7 @@ func TestGetMetricData(t *testing.T) {
 				{
 					Metric: &metricpb.Metric{
 						Type:   "custom.googleapis.com/test_labels",
-						Labels: map[string]string{"service": "foo", "key": "value"},
+						Labels: addContainerLabels(map[string]string{"service": "foo", "key": "value"}),
 					},
 					Resource:   monitoredRes,
 					MetricKind: metricpb.MetricDescriptor_GAUGE,
@@ -153,7 +169,7 @@ func TestGetMetricData(t *testing.T) {
 				{
 					Metric: &metricpb.Metric{
 						Type:   "custom.googleapis.com/test_labels",
-						Labels: map[string]string{"service": "bar", "key": "value"},
+						Labels: addContainerLabels(map[string]string{"service": "bar", "key": "value"}),
 					},
 					Resource:   monitoredRes,
 					MetricKind: metricpb.MetricDescriptor_GAUGE,
@@ -190,7 +206,7 @@ func TestGetMetricData(t *testing.T) {
 				{
 					Metric: &metricpb.Metric{
 						Type:   "custom.googleapis.com/test_gauges",
-						Labels: map[string]string{"service": "foo", "key": "value"},
+						Labels: addContainerLabels(map[string]string{"service": "foo", "key": "value"}),
 					},
 					Resource:   monitoredRes,
 					MetricKind: metricpb.MetricDescriptor_GAUGE,
@@ -208,7 +224,7 @@ func TestGetMetricData(t *testing.T) {
 			cfg.MetricNames = map[string]string{
 				test.metric.Info.Name(): test.metric.Info.Name(),
 			}
-			x := New(svcs, cfg, zerolog.New(io.Discard))
+			x := New(svcs, cfg, meta, zerolog.New(io.Discard))
 			got := x.getMetricData(newCounterStart, now, []metrics.CollectedMetric{test.metric})
 			if diff := cmp.Diff(got, test.data, protocmp.Transform()); diff != "" {
 				t.Errorf("getMetricData() mismatch (-got +want):\n%s", diff)

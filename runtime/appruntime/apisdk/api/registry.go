@@ -1,3 +1,5 @@
+//go:build encore_app
+
 package api
 
 import "reflect"
@@ -9,8 +11,6 @@ func RegisterEndpoint(handler Handler) {
 func RegisterAuthHandler(handler AuthHandler) {
 	Singleton.setAuthHandler(handler)
 }
-
-var RegisteredAuthDataType reflect.Type
 
 func RegisterAuthDataType[T any]() {
 	var zero T

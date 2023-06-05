@@ -1,3 +1,5 @@
+//go:build encore_app
+
 // Package config provides a simple way to access configuration values for a
 // service using the Load function.
 //

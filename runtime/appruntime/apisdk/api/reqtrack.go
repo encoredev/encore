@@ -255,7 +255,7 @@ func (s *Server) finishRequest(resp *model.Response) {
 
 	s.requestsTotal.With(requestsTotalLabels{
 		endpoint: req.RPCData.Desc.Endpoint,
-		code:     code(resp.Err, resp.HTTPStatus),
+		code:     Code(resp.Err, resp.HTTPStatus),
 	}).Increment()
 	s.rt.FinishRequest()
 }
@@ -278,6 +278,8 @@ func GetCallOptions(ctx context.Context) *CallOptions {
 	}
 	return &CallOptions{}
 }
+
+var RegisteredAuthDataType reflect.Type
 
 // CheckAuthData checks whether the given auth information is valid
 // based on the configured auth handler's data type.
