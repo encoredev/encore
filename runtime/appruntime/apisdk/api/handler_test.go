@@ -83,7 +83,7 @@ func TestDesc_EndToEnd(t *testing.T) {
 			req := httptest.NewRequest("POST", "/", strings.NewReader(test.reqBody))
 			ps := api.UnnamedParams{"value"}
 			desc := newMockAPIDesc(test.access)
-			desc.Handle(server.NewIncomingContext(w, req, ps, model.TraceID{}, model.AuthInfo{}))
+			desc.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 			if w.Code != test.status {
 				t.Errorf("got code %d, want %d", w.Code, test.status)
 				return
@@ -181,11 +181,12 @@ func TestDescGeneratesTrace(t *testing.T) {
 			reqBody:    `{"Body": "foo"}`,
 			reqHeaders: http.Header{"Content-Type": []string{"application/json"}},
 			want: &model.Request{
-				Type:     model.RPCCall,
-				SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-				ParentID: model.SpanID{},
-				Start:    klock.Now(),
-				Traced:   true,
+				Type:         model.RPCCall,
+				TraceID:      model.TraceID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+				ParentSpanID: model.SpanID{},
+				Start:        klock.Now(),
+				Traced:       true,
 				RPCData: &model.RPCData{
 					Desc: &model.RPCDesc{
 						Service:      "service",
@@ -210,11 +211,12 @@ func TestDescGeneratesTrace(t *testing.T) {
 			access:  api.Public,
 			reqBody: `invalid json`,
 			want: &model.Request{
-				Type:     model.RPCCall,
-				SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-				ParentID: model.SpanID{},
-				Start:    klock.Now(),
-				Traced:   true,
+				Type:         model.RPCCall,
+				TraceID:      model.TraceID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+				ParentSpanID: model.SpanID{},
+				Start:        klock.Now(),
+				Traced:       true,
 				RPCData: &model.RPCData{
 					Desc: &model.RPCDesc{
 						Service:      "service",
@@ -246,11 +248,12 @@ func TestDescGeneratesTrace(t *testing.T) {
 			reqBody:    `{}`,
 			reqHeaders: http.Header{"Content-Type": []string{"application/json"}},
 			want: &model.Request{
-				Type:     model.RPCCall,
-				SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-				ParentID: model.SpanID{},
-				Start:    klock.Now(),
-				Traced:   true,
+				Type:         model.RPCCall,
+				TraceID:      model.TraceID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+				ParentSpanID: model.SpanID{},
+				Start:        klock.Now(),
+				Traced:       true,
 				RPCData: &model.RPCData{
 					Desc: &model.RPCDesc{
 						Service:      "service",
@@ -304,9 +307,9 @@ func TestDescGeneratesTrace(t *testing.T) {
 
 			traceMock.
 				EXPECT().
-				RequestSpanEnd(gomock.Any(), gomock.Any()).MaxTimes(1)
+				RequestSpanEnd(gomock.Any()).MaxTimes(1)
 
-			handler.Handle(server.NewIncomingContext(w, req, ps, model.TraceID{}, model.AuthInfo{}))
+			handler.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 
 			if diff := cmp.Diff(test.want, beginReq, opts...); diff != "" {
 				t.Errorf("beginReq mismatch (-want +got):\n%s", diff)
@@ -342,8 +345,16 @@ func TestRawEndpointOverflow(t *testing.T) {
 
 	var params []trace2.BodyStreamParams
 
-	traceMock.EXPECT().BeginRequest(gomock.Any(), gomock.Any()).MaxTimes(1)
-	traceMock.EXPECT().FinishRequest(gomock.Any(), gomock.Any()).MaxTimes(1)
+	traceMock.
+		EXPECT().
+		RequestSpanStart(gomock.Any(), gomock.Any()).
+		MaxTimes(1)
+
+	traceMock.
+		EXPECT().
+		RequestSpanEnd(gomock.Any()).
+		MaxTimes(1)
+
 	traceMock.
 		EXPECT().
 		BodyStream(gomock.Any()).Do(
@@ -351,7 +362,7 @@ func TestRawEndpointOverflow(t *testing.T) {
 			params = append(params, p)
 		}).AnyTimes()
 
-	handler.Handle(server.NewIncomingContext(w, req, ps, model.TraceID{}, model.AuthInfo{}))
+	handler.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 
 	if len(params) != 2 {
 		t.Fatalf("got %d BodyStream events, want %d", len(params), 2)

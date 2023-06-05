@@ -40,11 +40,11 @@ func TestParse(t *testing.T) {
 		parseTest[*model.Request]{
 			name: "basic",
 			val: &model.Request{
-				Type:     model.RPCCall,
-				SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-				ParentID: model.SpanID{},
-				Start:    time.Now(),
-				Traced:   true,
+				Type:         model.RPCCall,
+				SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+				ParentSpanID: model.SpanID{},
+				Start:        time.Now(),
+				Traced:       true,
 				RPCData: &model.RPCData{
 					Desc: &model.RPCDesc{
 						Service:  "service",
@@ -66,11 +66,11 @@ func TestParse(t *testing.T) {
 			name: "raw_err",
 			val: reqResp{
 				Req: &model.Request{
-					Type:     model.RPCCall,
-					SpanID:   model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-					ParentID: model.SpanID{},
-					Start:    time.Now(),
-					Traced:   true,
+					Type:         model.RPCCall,
+					SpanID:       model.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
+					ParentSpanID: model.SpanID{},
+					Start:        time.Now(),
+					Traced:       true,
 					RPCData: &model.RPCData{
 						Desc: &model.RPCDesc{
 							Service:  "service",

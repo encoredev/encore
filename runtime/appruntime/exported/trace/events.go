@@ -101,7 +101,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 	tb.Bytes(req.TraceID[:])
 	tb.Bytes(req.ParentTraceID[:])
 	tb.Bytes(req.SpanID[:])
-	tb.Bytes(req.ParentID[:])
+	tb.Bytes(req.ParentSpanID[:])
 	tb.UVarint(uint64(goid))
 	tb.UVarint(uint64(req.DefLoc)) // endpoint expr idx
 

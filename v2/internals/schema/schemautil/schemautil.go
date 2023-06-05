@@ -45,6 +45,20 @@ func IsBuiltinKind(t schema.Type, kinds ...schema.BuiltinKind) bool {
 	return false
 }
 
+// IsBuiltinOrList reports whether the given type is a builtin,
+// a list of builtins, or neither.
+func IsBuiltinOrList(t schema.Type) (kind schema.BuiltinKind, isList bool, ok bool) {
+	if b, ok := t.(schema.BuiltinType); ok {
+		return b.Kind, false, true
+	}
+	if list, ok := t.(schema.ListType); ok {
+		if b, ok := list.Elem.(schema.BuiltinType); ok {
+			return b.Kind, true, true
+		}
+	}
+	return schema.Invalid, false, false
+}
+
 var Signed = []schema.BuiltinKind{
 	schema.Int,
 	schema.Int8,

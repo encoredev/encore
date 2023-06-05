@@ -6,6 +6,7 @@ import "context"
 type Params struct {
     Foo   string `header:"X-Foo"`
     Ignore string `header:"-"`
+    Strings []string `header:"X-Strings"`
 }
 
 //encore:api public
@@ -28,6 +29,8 @@ import (
 	__etype "encore.dev/appruntime/shared/etype"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
+	"net/textproto"
+	"net/url"
 )
 
 func init() {
@@ -65,6 +68,9 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		}
 		return clone, err
 	},
+	DecodeExternalResp: func(httpResp *http.Response, json jsoniter.API) (resp EncoreInternal_FooResp, err error) {
+		return __api.Void{}, nil
+	},
 	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
 		reqData = new(EncoreInternal_FooReq)
 		dec := new(__etype.Unmarshaller)
@@ -75,6 +81,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			// Decode headers
 			h := httpReq.Header
 			params.Foo = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "x-foo", h.Get("x-foo"), false)
+			params.Strings = __etype.UnmarshalList(dec, __etype.UnmarshalString, "x-strings", h.Values("x-strings"), false)
 
 		default:
 			panic("HTTP method is not supported")
@@ -85,6 +92,20 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return reqData, ps, nil
 	},
 	DefLoc: uint32(0x0),
+	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
+		params := reqData.Payload
+		if params == nil {
+			// If the payload is nil, we need to return an empty request body.
+			return httpHeader, queryString, err
+		}
+
+		// Encode headers
+		httpHeader = make(http.Header, 2)
+		httpHeader.Set("x-foo", __etype.MarshalOne(__etype.MarshalString, params.Foo))
+		httpHeader[textproto.CanonicalMIMEHeaderKey("x-strings")] = __etype.MarshalList(__etype.MarshalString, params.Strings)
+
+		return httpHeader, queryString, err
+	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},

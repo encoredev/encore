@@ -37,7 +37,6 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 				EncoreName:   "test-topic",
 				ProviderID:   0,
 				ProviderName: testTopicARN,
-				OrderingKey:  "",
 				Subscriptions: map[string]*config.PubsubSubscription{
 					"test-subscription": {
 						EncoreName:   "test-subscription",

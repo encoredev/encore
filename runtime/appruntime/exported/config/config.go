@@ -54,12 +54,17 @@ type Runtime struct {
 	// meaning connections are closed even if outstanding requests are still in flight.
 	// If zero, it shuts down immediately.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
+
+	// ExperimentUseExternalCalls is a flag that indicates whether the app should
+	// use external calls for all RPCs. This is a temporary flag that is only
+	// for testing purposes and will be removed in the future.
+	ExperimentUseExternalCalls bool `json:"experiment_use_external_calls,omitempty"`
 }
 
 // Gateway defines the configuration of a gateway which should be served
 // by the container
 type Gateway struct {
-	// Name is the name of the gatway
+	// Name is the name of the gateway
 	Name string `json:"name"`
 	// Host is the hostname of the gateway
 	Host string `json:"host"`
@@ -69,9 +74,17 @@ type Gateway struct {
 type Service struct {
 	// Name is the name of the service
 	Name string `json:"name"`
-	// URL is the URL of the service
+	// URL is the base URL of the service (including protocol and port)
 	URL string `json:"url"`
+	// Protocol is the protocol that the service talks
+	Protocol SvcProtocol `json:"protocol"`
 }
+
+type SvcProtocol string
+
+const (
+	Http SvcProtocol = "http"
+)
 
 // UnsafeAllOriginWithCredentials can be used to specify that all origins are
 // allowed to call this API with credentials. It is unsafe and misuse can lead

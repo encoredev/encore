@@ -49,13 +49,12 @@ func Main() {
 	if err := redirectLogOutput(); err != nil {
 		log.Error().Err(err).Msg("could not setup daemon log file, skipping")
 	}
-	dev := os.Getenv("ENCORE_DAEMON_DEV") != ""
-	if err := runMain(dev); err != nil {
+	if err := runMain(); err != nil {
 		log.Fatal().Err(err).Msg("daemon failed")
 	}
 }
 
-func runMain(dev bool) (err error) {
+func runMain() (err error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
 	defer cancel()
 
@@ -64,7 +63,7 @@ func runMain(dev bool) (err error) {
 	// Sending nil indicates it's time to gracefully exit.
 	exit := make(chan error)
 
-	d := &Daemon{dev: dev, exit: exit}
+	d := &Daemon{dev: conf.DevDaemon, exit: exit}
 	defer handleBailout(&err)
 	defer d.closeAll()
 

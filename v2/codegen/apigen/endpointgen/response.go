@@ -3,6 +3,7 @@ package endpointgen
 import (
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
@@ -32,6 +33,14 @@ func (d *responseDesc) TypeDecl() *Statement {
 			s.Add(apiQ("Void"))
 		}
 	})
+}
+
+func (d *responseDesc) ZeroType() *Statement {
+	if d.ep.Response != nil {
+		return d.gu.Zero(d.ep.Response)
+	} else {
+		return apiQ("Void").Values()
+	}
 }
 
 func (d *responseDesc) EncodeResponse() *Statement {
@@ -110,6 +119,39 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		}
 		g.Id("w").Dot("Write").Call(Id("respData"))
 		g.Return(Nil())
+	})
+}
+
+func (d *responseDesc) DecodeExternalResp() *Statement {
+	if d.ep.Raw {
+		// TODO(andre) support
+		return Nil()
+	}
+
+	return Func().Params(
+		Id("httpResp").Op("*").Qual("net/http", "Response"),
+		Id("json").Qual("github.com/json-iterator/go", "API"),
+	).Params(
+		Id("resp").Add(d.Type()),
+		Err().Error(),
+	).BlockFunc(func(g *Group) {
+		if d.ep.Response == nil {
+			g.Return(d.ZeroType(), Nil())
+			return
+		}
+
+		g.Id("resp").Op("=").Add(d.gu.Initialize(d.ep.Response))
+
+		enc := d.ep.ResponseEncoding()
+		dec := d.gu.NewTypeUnmarshaller("dec")
+		g.Add(dec.Init())
+		apigenutil.DecodeHeaders(g, Id("httpResp").Dot("Header"), Id("resp"), dec, enc.HeaderParameters)
+		apigenutil.DecodeBody(g, Id("httpResp").Dot("Body"), Id("resp"), dec, enc.BodyParameters)
+
+		g.If(Err().Op(":=").Add(dec.Err()), Err().Op("!=").Nil()).Block(
+			Return(d.ZeroType(), Err()),
+		)
+		g.Return(Id("resp"), Nil())
 	})
 }
 

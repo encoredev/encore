@@ -1,22 +1,14 @@
+//go:build encore_app
+
 package config
 
 import (
 	"fmt"
-	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 )
 
 type Unmarshaler[T any] func(itr *jsoniter.Iterator, path []string) T
-
-// envName takes a service name and converts it to an environment variable name in which
-// the service's configuration JSON is stored at runtime
-func envName(serviceName string) string {
-	// normalise the name
-	serviceName = strings.ToUpper(serviceName)
-
-	return fmt.Sprintf("ENCORE_CFG_%s", serviceName)
-}
 
 // CreateValue creates a new Value on the given path with the given value
 func CreateValue[T any](value T, pathToValue ValuePath) Value[T] {

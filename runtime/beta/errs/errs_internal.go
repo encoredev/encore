@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 
+	jsoniter "github.com/json-iterator/go"
+
+	"encore.dev/appruntime/apisdk/api/errmarshalling"
 	"encore.dev/appruntime/exported/stack"
 )
 
@@ -189,4 +192,59 @@ func HTTPErrorWithCode(w http.ResponseWriter, err error, code int) {
 	}
 	w.WriteHeader(code)
 	w.Write(data)
+}
+
+// writeErrorFieldsToInternalStream writes the error fields to the given stream
+// for passing between running Encore services.
+//
+// Note we do not marshal the Details object as we would need to allow
+// for reflection loading of the type by name, which is not safe and could
+// lead to arbitrary code execution.
+func writeErrorFieldsToInternalStream(e *Error, stream *jsoniter.Stream) {
+	stream.WriteObjectField("code")
+	stream.WriteInt(int(e.Code))
+
+	stream.WriteMore()
+	stream.WriteObjectField(errmarshalling.MessageKey)
+	stream.WriteString(e.Message)
+
+	if len(e.Meta) > 0 {
+		if err := errmarshalling.TryWriteValue(stream, "meta", e.Meta); err != nil {
+			// Only report the error in the JSON stream
+			// don't error out the whole marshal as it's critical
+			// that we marshal the error.
+			stream.WriteMore()
+			stream.WriteObjectField("meta_marshal_error")
+			stream.WriteString(err.Error())
+		}
+	}
+
+	if e.underlying != nil {
+		stream.WriteMore()
+		stream.WriteObjectField(errmarshalling.WrappedKey)
+		stream.WriteVal(e.underlying)
+	}
+}
+
+func unmarshalFromInternalIterator(e *Error, itr *jsoniter.Iterator) {
+	itr.ReadObjectCB(func(itr *jsoniter.Iterator, field string) bool {
+		switch field {
+		case "code":
+			e.Code = ErrCode(itr.ReadInt())
+		case errmarshalling.MessageKey:
+			e.Message = itr.ReadString()
+		case "meta":
+			itr.ReadVal(&e.Meta)
+		case errmarshalling.WrappedKey:
+			e.underlying = errmarshalling.UnmarshalError(itr)
+		default:
+			itr.Skip()
+		}
+
+		return true
+	})
+}
+
+func init() {
+	errmarshalling.RegisterErrorMarshaller(writeErrorFieldsToInternalStream, unmarshalFromInternalIterator)
 }

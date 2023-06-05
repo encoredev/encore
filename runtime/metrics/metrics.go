@@ -19,12 +19,6 @@ type CounterConfig struct {
 	EncoreInternal_SvcNum uint16
 }
 
-// NewCounter creates a new counter metric, without any labels.
-// Use NewCounterGroup for metrics with labels.
-func NewCounter[V Value](name string, cfg CounterConfig) *Counter[V] {
-	return newCounterInternal[V](newMetricInfo[V](Singleton, name, CounterType, cfg.EncoreInternal_SvcNum))
-}
-
 func newCounterInternal[V Value](m *metricInfo[V]) *Counter[V] {
 	ts, setup := m.getTS(nil)
 	if !setup {
@@ -58,15 +52,6 @@ func (c *Counter[V]) Add(delta V) {
 	}
 }
 
-// NewCounterGroup creates a new counter group with a set of labels,
-// where each unique combination of labels becomes its own counter.
-//
-// The Labels type must be a named struct, where each field corresponds to
-// a single label. Each field must be of type string.
-func NewCounterGroup[L Labels, V Value](name string, cfg CounterConfig) *CounterGroup[L, V] {
-	return newCounterGroup[L, V](Singleton, name, cfg)
-}
-
 //publicapigen:drop
 func NewCounterGroupInternal[L Labels, V Value](reg *Registry, name string, cfg CounterConfig) *CounterGroup[L, V] {
 	return newCounterGroup[L, V](reg, name, cfg)
@@ -96,6 +81,15 @@ func (c *CounterGroup[L, V]) get(labels L) *timeseries[V] {
 	return ts
 }
 
+func newGauge[V Value](m *metricInfo[V]) *Gauge[V] {
+	ts, setup := m.getTS(nil)
+	if !setup {
+		ts.setup(nil)
+	}
+
+	return &Gauge[V]{metricInfo: m, ts: ts}
+}
+
 // GaugeConfig configures a gauge.
 // It's currently a placeholder as there is not yet any additional configuration.
 type GaugeConfig struct {
@@ -104,21 +98,6 @@ type GaugeConfig struct {
 
 	//publicapigen:drop
 	EncoreInternal_SvcNum uint16
-}
-
-// NewGauge creates a new counter metric, without any labels.
-// Use NewGaugeGroup for metrics with labels.
-func NewGauge[V Value](name string, cfg GaugeConfig) *Gauge[V] {
-	return newGauge[V](newMetricInfo[V](Singleton, name, GaugeType, cfg.EncoreInternal_SvcNum))
-}
-
-func newGauge[V Value](m *metricInfo[V]) *Gauge[V] {
-	ts, setup := m.getTS(nil)
-	if !setup {
-		ts.setup(nil)
-	}
-
-	return &Gauge[V]{metricInfo: m, ts: ts}
 }
 
 type Gauge[V Value] struct {
@@ -138,15 +117,6 @@ func (g *Gauge[V]) Add(val V) {
 		g.add(&g.ts.value[idx], val)
 		g.ts.valid[idx].Store(true)
 	}
-}
-
-// NewGaugeGroup creates a new gauge group with a set of labels,
-// where each unique combination of labels becomes its own gauge.
-//
-// The Labels type must be a named struct, where each field corresponds to
-// a single label. Each field must be of type string.
-func NewGaugeGroup[L Labels, V Value](name string, cfg GaugeConfig) *GaugeGroup[L, V] {
-	return newGaugeGroup[L, V](Singleton, name, cfg)
 }
 
 func newGaugeGroup[L Labels, V Value](mgr *Registry, name string, cfg GaugeConfig) *GaugeGroup[L, V] {

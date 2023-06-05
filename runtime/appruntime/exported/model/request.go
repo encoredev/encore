@@ -44,7 +44,7 @@ type Request struct {
 	Type             RequestType
 	TraceID          TraceID
 	SpanID           SpanID
-	ParentID         SpanID
+	ParentSpanID     SpanID
 	ParentTraceID    TraceID
 	CallerEventID    TraceEventID // the event that triggered this request
 	ExtCorrelationID string       // The externally-provided correlation ID, if any.
@@ -113,6 +113,10 @@ type RPCData struct {
 	// FromEncorePlatform specifies whether the request was an
 	// authenticated request from the Encore Platform.
 	FromEncorePlatform bool
+
+	// ServiceToServiceCall is true if the request was a service-to-service call.
+	// otherwise it is false if the request originates from outside the Encore application.
+	ServiceToServiceCall bool
 }
 
 type PubSubMsgData struct {
@@ -180,7 +184,7 @@ type Response struct {
 type APICall struct {
 	ID     uint64 // call id
 	Source *Request
-	SpanID SpanID
+	SpanID SpanID // deprecated: this is not used
 	DefLoc uint32
 
 	// Service/endpoint being called

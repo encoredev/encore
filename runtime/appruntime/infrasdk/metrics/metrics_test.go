@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"encore.dev/appruntime/apisdk/api"
 	"encore.dev/beta/errs"
 )
 
@@ -49,7 +50,7 @@ func TestCode(t *testing.T) {
 		t.Run(testCase.want, func(t *testing.T) {
 			t.Parallel()
 
-			code := code(testCase.err, testCase.httpStatus)
+			code := api.Code(testCase.err, testCase.httpStatus)
 			if code != testCase.want {
 				t.Errorf("got '%s', want '%s'", code, testCase.want)
 			}

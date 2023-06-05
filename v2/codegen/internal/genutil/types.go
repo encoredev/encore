@@ -243,6 +243,12 @@ func (g *Helper) Zero(typ schema.Type) *Statement {
 			ops := strings.Repeat("*", numPointers)
 			return Parens(Op(ops).Add(g.Type(named))).Call(Nil())
 		}
+
+		// If there are type arguments, return (Foo[X]{}).
+		// as we need to wrap the type in parens.
+		if len(named.TypeArgs) > 0 {
+			return Parens(g.Type(typ).Values())
+		}
 	}
 	if numPointers > 0 || isNillable(typ) {
 		return Nil()
@@ -271,7 +277,7 @@ func (g *Helper) Initialize(typ schema.Type) *Statement {
 	case schema.BuiltinType:
 		return g.Zero(typ)
 	default:
-		return Nil()
+		return g.Zero(typ)
 	}
 }
 

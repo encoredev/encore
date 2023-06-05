@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 
 	encore "encore.dev"
+	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/apisdk/cors"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
@@ -32,13 +33,24 @@ const (
 	Private      Access = "private"
 )
 
+const (
+	// eventTraceStateKey is the key used to store the event ID in the trace state passed between instances
+	// It is encoded as a base36 string of the underlying uint64.
+	eventTraceStateKey = "encore/event-id"
+)
+
 // execContext contains the data needed for executing a request.
 type execContext struct {
-	server  *Server
-	ctx     context.Context
-	ps      UnnamedParams
-	traceID model.TraceID
-	auth    model.AuthInfo
+	server *Server
+	ctx    context.Context
+	ps     UnnamedParams
+	auth   model.AuthInfo
+
+	traceID       model.TraceID      // zero if not tracing
+	parentSpanID  model.SpanID       // zero if no parent
+	parentEventID model.TraceEventID // zero if no parent
+
+	isEncoreToEncoreCall bool // true if this is an encore-to-encore call
 }
 
 type IncomingContext struct {
@@ -67,6 +79,12 @@ type requestsTotalLabels struct {
 	code     string // Human-readable HTTP status code.
 }
 
+type metaContextKey string
+
+var (
+	metaContextKeyAuthInfo metaContextKey = "requestMeta"
+)
+
 type Server struct {
 	static         *config.Static
 	runtime        *config.Runtime
@@ -75,6 +93,7 @@ type Server struct {
 	encoreMgr      *encore.Manager
 	pubsubMgr      *pubsub.Manager
 	requestsTotal  *metrics.CounterGroup[requestsTotalLabels, uint64]
+	httpClient     *http.Client
 	clock          clock.Clock
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
@@ -134,6 +153,7 @@ func NewServer(
 		encoreMgr:      encoreMgr,
 		pubsubMgr:      pubsubMgr,
 		requestsTotal:  requestsTotal,
+		httpClient:     &http.Client{},
 		clock:          clock,
 		rootLogger:     rootLogger,
 		json:           json,
@@ -189,8 +209,14 @@ func (s *Server) registerEndpoint(h Handler) {
 
 		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			params := toUnnamedParams(ps)
-			traceID, _ := model.GenTraceID()
-			traceIDStr := traceID.String()
+
+			// Extract metadata from the request.
+			meta := req.Context().Value(metaContextKeyAuthInfo).(CallMeta)
+			if meta.TraceID.IsZero() {
+				meta.TraceID, _ = model.GenTraceID()
+				meta.ParentSpanID = model.SpanID{} // no parent span if we have no trace id
+			}
+			traceIDStr := meta.TraceID.String()
 
 			// Echo the X-Request-ID back to the caller if present,
 			// otherwise send back the trace id.
@@ -205,20 +231,14 @@ func (s *Server) registerEndpoint(h Handler) {
 			w.Header().Set("X-Request-ID", reqID)
 
 			// Read the correlation ID from the request.
-			correlationID := req.Header.Get("X-Correlation-ID")
-			if len(correlationID) > 64 {
-				// Don't allow arbitrarily long correlation IDs.
-				s.rootLogger.Warn().Int("length", len(reqID)).Msg("X-Correlation-ID was too long and is being truncated to 64 characters")
-				correlationID = correlationID[:64]
-			}
-			if correlationID != "" {
-				w.Header().Set("X-Correlation-ID", correlationID)
+			if meta.CorrelationID != "" {
+				w.Header().Set("X-Correlation-ID", meta.CorrelationID)
 			}
 
 			// Always send the trace id back.
 			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
 
-			s.processRequest(h, s.NewIncomingContext(w, req, params, traceID, model.AuthInfo{}))
+			s.processRequest(h, s.NewIncomingContext(w, req, params, meta))
 		}
 
 		routerPath := h.HTTPRouterPath()
@@ -295,6 +315,19 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Extract the metadata from the request so we can allow access to the private router.
+	// If the metadata is not present, then we assume this is a public request.
+	callMeta, err := MetaFromRequest(transport.HTTPRequest(req))
+	if err != nil {
+		s.rootLogger.Error().Err(err).Msg("failed to extract metadata from request")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	if callMeta.Internal != nil {
+		router, fallbackRouter = s.private, s.privateFallback
+	}
+	req = req.WithContext(context.WithValue(req.Context(), metaContextKeyAuthInfo, callMeta))
+
 	// We use EscapedPath rather than `req.URL.Path` because if the path contains an encoded
 	// forward slash as %2F we don't want the router to treat that as a segment split.
 	//
@@ -358,21 +391,27 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	}
 }
 
-func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) execContext {
-	return execContext{s, ctx, ps, trID, auth}
+func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, callMeta CallMeta) execContext {
+	var auth model.AuthInfo
+	var isEncoreToEncoreCall bool
+	if callMeta.Internal != nil {
+		isEncoreToEncoreCall = true
+
+		auth = model.AuthInfo{
+			UID:      model.UID(callMeta.Internal.AuthUID),
+			UserData: callMeta.Internal.AuthData,
+		}
+	}
+	return execContext{s, ctx, ps, auth, callMeta.TraceID, callMeta.ParentSpanID, callMeta.ParentEventID, isEncoreToEncoreCall}
 }
 
-func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, trID model.TraceID, auth model.AuthInfo) IncomingContext {
-	ec := s.newExecContext(req.Context(), ps, trID, auth)
+func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, callMeta CallMeta) IncomingContext {
+	ec := s.newExecContext(req.Context(), ps, callMeta)
 	return IncomingContext{ec, w, req, nil}
 }
 
 func (s *Server) NewCallContext(ctx context.Context) CallContext {
 	return CallContext{ctx, s}
-}
-
-func NewCallContext(ctx context.Context) CallContext {
-	return Singleton.NewCallContext(ctx)
 }
 
 func toUnnamedParams(ps httprouter.Params) UnnamedParams {

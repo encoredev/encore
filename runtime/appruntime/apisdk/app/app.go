@@ -41,11 +41,19 @@ func (app *App) Run() error {
 
 	app.Start()
 
+	// Begin serving requests.
+	serveCh := make(chan error, 1)
+	go func() {
+		serveCh <- app.api.Serve(ln)
+	}()
+
 	if err := app.service.InitializeServices(); err != nil {
 		app.shutdown.Shutdown()
 		return err
 	}
-	serveErr := app.api.Serve(ln)
+
+	// Wait for the Serve to return before triggering shutdown.
+	serveErr := <-serveCh
 
 	isGraceful := app.shutdown.ShutdownInitiated()
 	app.shutdown.Shutdown()

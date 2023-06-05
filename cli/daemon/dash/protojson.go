@@ -61,7 +61,6 @@ func (codec *messageEncoder) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream)
 
 var protoEncoder = (func() jsoniter.API {
 	enc := jsoniter.Config{}.Froze()
-
 	// Note: the order is important. We don't want the list encoder to process repeated fields in proto
 	// messages, so it must come first so it only applies to non-protobuf slices.
 	enc.RegisterExtension(NewListEncoderExtension())

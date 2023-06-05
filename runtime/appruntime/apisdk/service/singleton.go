@@ -15,6 +15,24 @@ func Register(i Initializer) {
 	Singleton.RegisterService(i)
 }
 
+// Get returns the API Decl, initializing it if necessary.
+func (g *Decl[T]) Get() (*T, error) {
+	err := g.InitService()
+	return g.instance, err
+}
+
+// GetDecl returns the API Decl, initializing it if necessary.
+func (g *Decl[T]) GetDecl() (any, error) {
+	if err := g.InitService(); err != nil {
+		return nil, err
+	}
+	return g.instance, nil
+}
+
+func (g *Decl[T]) InitService() error {
+	return g.setupOnce.Do(func() error { return doSetupService(Singleton, g) })
+}
+
 // Get returns the service initializer with the given name.
 // The declaration is cast to the given type T.
 func Get[T any](name string) (T, error) {
