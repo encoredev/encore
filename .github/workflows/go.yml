@@ -12,6 +12,11 @@ jobs:
 
   build:
     runs-on: ubuntu-20.04
+
+    permissions:
+      checks:        write
+      pull-requests: write
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -72,10 +77,11 @@ jobs:
 
     - name: Test Summary
       id: test_summary
-      uses: test-summary/action@v2
-      with:
-        paths: "encr.dev/**/*-test-report.xml"
+      uses: EnricoMi/publish-unit-test-result-action@v2
       if: always()
+      with:
+        files: |
+          encr.dev/**/*-test-report.xml
 
     - name: Report Nightly Failure
       uses: ravsamhq/notify-slack-action@v2
@@ -83,7 +89,7 @@ jobs:
       with:
         status: ${{ job.status }} # required
         notification_title: "{workflow} has {status_message}"
-        message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}> (${{ steps.test_summary.outputs.passed }}/${{ steps.test_summary.outputs.total }} tests passed)"
+        message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
         footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
