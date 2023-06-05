@@ -1,3 +1,5 @@
+//go:build encore_app
+
 package config
 
 // SetValueForTest changes the value of cfg to newValue within the current test and any subtests.

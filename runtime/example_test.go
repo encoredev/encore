@@ -1,3 +1,5 @@
+//go:build encore_app
+
 package encore_test
 
 import (

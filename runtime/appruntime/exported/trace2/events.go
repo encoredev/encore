@@ -161,7 +161,7 @@ func (l *Log) RequestSpanStart(req *model.Request, goid uint32) {
 	desc := data.Desc
 	tb := l.newSpanStartEvent(spanStartEventData{
 		ParentTraceID:    req.ParentTraceID,
-		ParentSpanID:     req.ParentID,
+		ParentSpanID:     req.ParentSpanID,
 		DefLoc:           req.DefLoc,
 		Goid:             goid,
 		CallerEventID:    req.CallerEventID,
@@ -204,7 +204,7 @@ func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 		Duration:      p.Resp.Duration,
 		Err:           p.Resp.Err,
 		ParentTraceID: p.Req.ParentTraceID,
-		ParentSpanID:  p.Req.ParentID,
+		ParentSpanID:  p.Req.ParentSpanID,
 		ExtraSpace:    len(desc.Service) + len(desc.Endpoint) + 64 + len(p.Resp.Payload),
 	})
 
@@ -228,7 +228,7 @@ func (l *Log) AuthSpanStart(req *model.Request, goid uint32) {
 	desc := data.Desc
 	tb := l.newSpanStartEvent(spanStartEventData{
 		ParentTraceID:    req.ParentTraceID,
-		ParentSpanID:     req.ParentID,
+		ParentSpanID:     req.ParentSpanID,
 		DefLoc:           req.DefLoc,
 		Goid:             goid,
 		CallerEventID:    req.CallerEventID,
@@ -260,7 +260,7 @@ func (l *Log) AuthSpanEnd(p AuthSpanEndParams) {
 		Duration:      p.Resp.Duration,
 		Err:           p.Resp.Err,
 		ParentTraceID: p.Req.ParentTraceID,
-		ParentSpanID:  p.Req.ParentID,
+		ParentSpanID:  p.Req.ParentSpanID,
 		ExtraSpace:    len(desc.Service) + len(desc.Endpoint) + 64 + len(p.Resp.Payload),
 	})
 
@@ -281,7 +281,7 @@ func (l *Log) PubsubMessageSpanStart(req *model.Request, goid uint32) {
 	data := req.MsgData
 	tb := l.newSpanStartEvent(spanStartEventData{
 		ParentTraceID:    req.ParentTraceID,
-		ParentSpanID:     req.ParentID,
+		ParentSpanID:     req.ParentSpanID,
 		DefLoc:           req.DefLoc,
 		Goid:             goid,
 		CallerEventID:    req.CallerEventID,
@@ -317,7 +317,7 @@ func (l *Log) PubsubMessageSpanEnd(p PubsubMessageSpanEndParams) {
 		Duration:      p.Resp.Duration,
 		Err:           p.Resp.Err,
 		ParentTraceID: p.Req.ParentTraceID,
-		ParentSpanID:  p.Req.ParentID,
+		ParentSpanID:  p.Req.ParentSpanID,
 		ExtraSpace:    len(msg.Service) + len(msg.Topic) + len(msg.Subscription) + 4,
 	})
 

@@ -28,6 +28,7 @@ import (
 	__etype "encore.dev/appruntime/shared/etype"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
+	"net/url"
 )
 
 func init() {
@@ -63,11 +64,26 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		}
 		return clone, err
 	},
+	DecodeExternalResp: func(httpResp *http.Response, json jsoniter.API) (resp EncoreInternal_FooResp, err error) {
+		resp = new(Params)
+		dec := new(__etype.Unmarshaller)
+		// Decode headers
+		h := httpResp.Header
+		resp.Foo = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "x-foo", h.Get("x-foo"), false)
+
+		if err := dec.Error; err != nil {
+			return (*Params)(nil), err
+		}
+		return resp, nil
+	},
 	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
 		reqData = new(EncoreInternal_FooReq)
 		return reqData, nil, nil
 	},
 	DefLoc: uint32(0x0),
+	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
+		return nil, nil, nil
+	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		respData := []byte{'\n'}
 		var headers map[string][]string

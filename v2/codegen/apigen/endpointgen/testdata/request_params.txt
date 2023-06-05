@@ -4,7 +4,7 @@ package basic
 import "context"
 
 type Params struct {
-    String string
+    String string `json:",omitempty"`
     Int int
 }
 
@@ -28,6 +28,7 @@ import (
 	__etype "encore.dev/appruntime/shared/etype"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -66,6 +67,9 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		}
 		return clone, err
 	},
+	DecodeExternalResp: func(httpResp *http.Response, json jsoniter.API) (resp EncoreInternal_FooResp, err error) {
+		return __api.Void{}, nil
+	},
 	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
 		reqData = new(EncoreInternal_FooReq)
 		dec := new(__etype.Unmarshaller)
@@ -99,6 +103,27 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return reqData, ps, nil
 	},
 	DefLoc: uint32(0x0),
+	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
+		params := reqData.Payload
+		if params == nil {
+			// If the payload is nil, we need to return an empty request body.
+			return httpHeader, queryString, err
+		}
+
+		// Encode request body
+		stream.WriteObjectStart()
+		if params.String != "" {
+			// String is set to omitempty, so we need to check if it's empty before writing it
+			stream.WriteObjectField("String")
+			stream.WriteVal(params.String)
+			stream.WriteMore()
+		}
+		stream.WriteObjectField("Int")
+		stream.WriteVal(params.Int)
+		stream.WriteObjectEnd()
+
+		return httpHeader, queryString, err
+	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},

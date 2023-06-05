@@ -143,7 +143,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 			TraceID:          req.TraceID.String(),
 			SpanID:           req.SpanID.String(),
 			ParentTraceID:    req.ParentTraceID.String(),
-			ParentSpanID:     req.ParentID.String(),
+			ParentSpanID:     req.ParentSpanID.String(),
 			ExtCorrelationID: req.ExtCorrelationID,
 		}
 	}

@@ -13,7 +13,7 @@ func clampTo64Chars(str string) string {
 	return str
 }
 
-func code(err error, httpStatus int) string {
+func Code(err error, httpStatus int) string {
 	if err != nil {
 		e := errs.Convert(err).(*errs.Error)
 		return e.Code.String()

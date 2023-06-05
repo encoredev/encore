@@ -52,10 +52,11 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 	go func() {
 		defer close(done)
 		_, authErr = c.server.beginRequest(c.req.Context(), &beginRequestParams{
-			TraceID: c.traceID,
-			SpanID:  call.SpanID,
-			DefLoc:  d.DefLoc,
-			Type:    model.AuthHandler,
+			TraceID:      c.traceID,
+			ParentSpanID: c.parentSpanID,
+			SpanID:       call.SpanID,
+			DefLoc:       d.DefLoc,
+			Type:         model.AuthHandler,
 			Data: &model.RPCData{
 				Desc:               d.rpcDesc(),
 				NonRawPayload:      d.marshalParams(c.server.json, param),

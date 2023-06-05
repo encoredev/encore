@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -96,4 +97,13 @@ func (m *Manager) valueMeta(id ValueID, path ValuePath) {
 	m.extraction.ExtractedID = id
 	m.extraction.ExtractedPath = path
 	m.extraction.count++
+}
+
+// envName takes a service name and converts it to an environment variable name in which
+// the service's configuration JSON is stored at runtime
+func envName(serviceName string) string {
+	// normalise the name
+	serviceName = strings.ToUpper(serviceName)
+
+	return fmt.Sprintf("ENCORE_CFG_%s", serviceName)
 }

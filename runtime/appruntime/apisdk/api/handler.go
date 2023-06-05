@@ -1,8 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"sync"
@@ -10,6 +13,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	encore "encore.dev"
+	"encore.dev/appruntime/apisdk/api/errmarshalling"
+	"encore.dev/appruntime/apisdk/api/transport"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/beta/errs"
@@ -80,6 +86,13 @@ type Desc[Req, Resp any] struct {
 	EncodeResp func(http.ResponseWriter, jsoniter.API, Resp) error
 	CloneResp  func(Resp) (Resp, error)
 
+	// EncodeExternalReq encodes a request, writing the payload to the stream
+	// and headers and query strings to the returned maps.
+	EncodeExternalReq func(Req, *jsoniter.Stream) (http.Header, url.Values, error)
+
+	// DecodeExternalResp decodes the response, reading the payload into the response object.
+	DecodeExternalResp func(*http.Response, jsoniter.API) (Resp, error)
+
 	// GlobalMiddlewareIDs is the ordered list of global middleware IDs
 	// to invoke before calling the API handler.
 	GlobalMiddlewareIDs []string
@@ -109,7 +122,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 
 	reqData, beginErr := d.begin(c)
 	if beginErr != nil {
-		errs.HTTPError(c.w, beginErr)
+		d.returnError(c, beginErr, 0)
 		return
 	}
 
@@ -120,7 +133,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		// If the endpoint is raw it has already written its response;
 		// don't write another.
 		if !d.Raw {
-			errs.HTTPErrorWithCode(c.w, resp.Err, resp.HTTPStatus)
+			d.returnError(c, resp.Err, resp.HTTPStatus)
 		}
 		return
 	}
@@ -131,6 +144,44 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		resp.Err = d.EncodeResp(c.w, c.server.json, respData)
 	}
 	c.server.finishRequest(resp)
+}
+
+// returnError is a helper function which will return an error to the client when we handle
+// an incoming request.
+//
+// If the requests is an internal service to service request, we will return an error
+// in a full unabridged format, allowing the calling code to unmarshal the error without
+// loss of information.
+//
+// If the request is an external request, we will return a more user friendly error
+// message, which will be more suitable for display to the end user and not include
+// any internal details.
+//
+// If statusCodeToUse is 0, we will use the default status code for the error using
+// the [errs] package.
+func (d *Desc[Req, Resp]) returnError(c IncomingContext, err error, statusCodeToUse int) {
+	if c.isEncoreToEncoreCall {
+		// If this is an internal service to service call, we want to return the full error
+		// we'll add a header to the response to indicate that the error is a full error
+		// and the calling code can use this to determine how to unmarshal the response object.
+		c.w.Header().Set("X-Encore-Full-Error", "1")
+
+		c.w.Header().Set("Content-Type", "application/json")
+		c.w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Write the status code out
+		if statusCodeToUse == 0 {
+			statusCodeToUse = errs.HTTPStatus(err)
+		}
+		c.w.WriteHeader(statusCodeToUse)
+
+		// Use our internal error marshalling package to marshal the error
+		errBytes := errmarshalling.Marshal(err)
+		_, _ = c.w.Write(errBytes)
+
+	} else {
+		errs.HTTPErrorWithCode(c.w, err, statusCodeToUse)
+	}
 }
 
 func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error) {
@@ -156,21 +207,24 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	}
 
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
-		Type:    model.RPCCall,
-		DefLoc:  d.DefLoc,
-		TraceID: c.traceID,
+		Type:          model.RPCCall,
+		DefLoc:        d.DefLoc,
+		TraceID:       c.traceID,
+		ParentSpanID:  c.parentSpanID,
+		CallerEventID: c.parentEventID,
 
 		Data: &model.RPCData{
-			Desc:               d.rpcDesc(),
-			HTTPMethod:         c.req.Method,
-			Path:               c.req.URL.Path,
-			PathParams:         d.toNamedParams(params),
-			TypedPayload:       payload,
-			NonRawPayload:      nonRawPayload,
-			UserID:             c.auth.UID,
-			AuthData:           c.auth.UserData,
-			RequestHeaders:     c.req.Header,
-			FromEncorePlatform: platformauth.IsEncorePlatformRequest(c.req.Context()),
+			Desc:                 d.rpcDesc(),
+			HTTPMethod:           c.req.Method,
+			Path:                 c.req.URL.Path,
+			PathParams:           d.toNamedParams(params),
+			TypedPayload:         payload,
+			NonRawPayload:        nonRawPayload,
+			UserID:               c.auth.UID,
+			AuthData:             c.auth.UserData,
+			RequestHeaders:       c.req.Header,
+			FromEncorePlatform:   platformauth.IsEncorePlatformRequest(c.req.Context()),
+			ServiceToServiceCall: c.isEncoreToEncoreCall,
 		},
 
 		ExtRequestID:     clampTo64Chars(c.req.Header.Get("X-Request-ID")),
@@ -368,6 +422,14 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
+	if c.server.runtime.ExperimentUseExternalCalls {
+		return d.externalCall(c, req)
+	} else {
+		return d.internalCall(c, req)
+	}
+}
+
+func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {
 	// TODO: we don't currently support service-to-service calls of raw endpoints.
 	// To fix this we need to improve our request serialization and DI support to
 	// separate the signature for outgoing calls versus handlers.
@@ -390,7 +452,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 		return
 	}
 
-	call, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
@@ -414,7 +476,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 			nonRawPayload = marshalParams(c.server.json, userPayload)
 		}
 
-		reqObj, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
+		_, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
 			Type:          model.RPCCall,
 			DefLoc:        d.DefLoc,
 			CallerEventID: call.StartEventID,
@@ -427,8 +489,9 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 				Desc:          d.rpcDesc(),
 				NonRawPayload: nonRawPayload,
 
-				FromEncorePlatform: false,
-				RequestHeaders:     nil, // not set right now for internal requests
+				FromEncorePlatform:   false,
+				RequestHeaders:       nil, // not set right now for internal requests
+				ServiceToServiceCall: true,
 			},
 		})
 		if beginErr != nil {
@@ -441,7 +504,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 			return
 		}
 
-		ec := c.server.newExecContext(c.ctx, params, reqObj.TraceID, model.AuthInfo{reqObj.RPCData.UserID, reqObj.RPCData.AuthData})
+		ec := c.server.newExecContext(c.ctx, params, meta)
 		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
 		})
@@ -472,6 +535,116 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 	if respErr != nil {
 		c.server.rootLogger.Err(respErr).Msg("call failed")
 	}
+	c.server.finishCall(call, respErr)
+	return
+}
+
+func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, respErr error) {
+	// TODO: we don't currently support service-to-service calls of raw endpoints.
+	// To fix this we need to improve our request serialization and DI support to
+	// separate the signature for outgoing calls versus handlers.
+	if d.Raw {
+		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: cannot call raw endpoints in service-to-service calls").Err()
+		return
+	}
+
+	// Lookup the service
+	service, found := c.server.runtime.ServiceDiscovery[d.Service]
+	if !found {
+		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: unable to discover service host").Err()
+		return
+	}
+	if service.Protocol != config.Http {
+		// For now we only support HTTP services
+		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: unsupported service protocol").Err()
+		return
+	}
+
+	path, _, err := d.ReqPath(req)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to compute request path")
+		respErr = errs.Convert(err)
+		return
+	}
+
+	// Default to POST if there are no methods available (or it's a wildcard)
+	httpMethod := "POST"
+	if len(d.Methods) > 0 && d.Methods[0] != "*" {
+		httpMethod = d.Methods[0]
+	}
+
+	// Encode the request payload
+	var buf bytes.Buffer
+	stream := c.server.json.BorrowStream(&buf)
+	header, queryString, err := d.EncodeExternalReq(req, stream)
+	if err2 := stream.Flush(); err == nil {
+		err = err2
+	}
+	c.server.json.ReturnStream(stream)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to marshal request")
+		respErr = errs.Convert(err)
+		return
+	}
+
+	reqURL := service.URL + path
+	if len(queryString) > 0 {
+		reqURL += "?" + queryString.Encode()
+	}
+	httpReq, err := http.NewRequestWithContext(c.ctx, httpMethod, reqURL, &buf)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to create HTTP request")
+		respErr = errs.Convert(err)
+		return
+	}
+	for key, val := range header {
+		httpReq.Header[key] = val
+	}
+
+	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	if err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to begin call")
+		respErr = errs.Convert(err)
+		return
+	}
+	if err := meta.AddToRequest(transport.HTTPRequest(httpReq)); err != nil {
+		c.server.rootLogger.Err(err).Msg("unable to add metadata to request")
+		respErr = errs.Convert(err)
+		return
+	}
+
+	respData, respErr = (func() (resp Resp, err error) {
+		httpResp, err := c.server.httpClient.Do(httpReq)
+		if err != nil {
+			return resp, err
+		}
+		defer func() { _ = httpResp.Body.Close() }()
+
+		if httpResp.StatusCode != http.StatusOK {
+			if httpResp.Header.Get("X-Encore-Full-Error") == "1" {
+				errBytes, err := io.ReadAll(httpResp.Body)
+				if err != nil {
+					return resp, errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
+				}
+
+				respErr, marshallingErr := errmarshalling.Unmarshal(errBytes)
+				if marshallingErr != nil {
+					return resp, errs.B().Code(errs.Internal).Cause(err).Msg("request failed: unable to unmarshal response").Err()
+				}
+
+				return resp, respErr
+			} else {
+				return resp, errs.B().Code(errs.Internal).Msg("request failed: " + httpResp.Header.Get("X-Encore-Full-Error")).Err()
+			}
+		}
+
+		return d.DecodeExternalResp(httpResp, c.server.json)
+	})()
+
+	if respErr != nil {
+		c.server.rootLogger.Err(respErr).Msg("call failed")
+	}
+
 	c.server.finishCall(call, respErr)
 	return
 }

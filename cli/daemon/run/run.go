@@ -423,14 +423,15 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	go p.parseSymTable(params.BinPath)
 
 	runtimeCfg, err := r.Mgr.generateConfig(generateConfigParams{
-		App:         r.App,
-		RM:          r.ResourceManager,
-		Meta:        params.Meta,
-		ForTests:    false,
-		AuthKey:     authKey,
-		APIBaseURL:  "http://" + r.ListenAddr,
-		ConfigAppID: r.ID,
-		ConfigEnvID: p.ID,
+		App:           r.App,
+		RM:            r.ResourceManager,
+		Meta:          params.Meta,
+		ForTests:      false,
+		AuthKey:       authKey,
+		APIBaseURL:    "http://" + r.ListenAddr,
+		ConfigAppID:   r.ID,
+		ConfigEnvID:   p.ID,
+		ExternalCalls: experiments.ExternalCalls.Enabled(params.Experiments),
 	})
 	if err != nil {
 		return nil, err

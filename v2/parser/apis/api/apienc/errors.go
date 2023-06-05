@@ -40,4 +40,9 @@ var (
 		"Invalid request type",
 		"API request must only contain query, body, and header parameters.",
 	)
+
+	errReservedHeaderPrefix = errRange.New(
+		"Use of reserved header prefix",
+		"HTTP headers starting with \"X-Encore\" are reserved for internal use.",
+	)
 )

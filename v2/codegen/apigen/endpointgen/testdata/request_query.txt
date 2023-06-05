@@ -6,6 +6,7 @@ import "context"
 type Params struct {
     Foo   string `query:"foo"`
     Ignore string `query:"-"`
+    Ints []int `query:"ints"`
 }
 
 //encore:api public
@@ -28,6 +29,7 @@ import (
 	__etype "encore.dev/appruntime/shared/etype"
 	jsoniter "github.com/json-iterator/go"
 	"net/http"
+	"net/url"
 )
 
 func init() {
@@ -65,6 +67,9 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		}
 		return clone, err
 	},
+	DecodeExternalResp: func(httpResp *http.Response, json jsoniter.API) (resp EncoreInternal_FooResp, err error) {
+		return __api.Void{}, nil
+	},
 	DecodeReq: func(httpReq *http.Request, ps __api.UnnamedParams, json jsoniter.API) (reqData *EncoreInternal_FooReq, pathParams __api.UnnamedParams, err error) {
 		reqData = new(EncoreInternal_FooReq)
 		dec := new(__etype.Unmarshaller)
@@ -75,6 +80,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			// Decode query string
 			qs := httpReq.URL.Query()
 			params.Foo = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "foo", qs.Get("foo"), false)
+			params.Ints = __etype.UnmarshalList(dec, __etype.UnmarshalInt, "ints", qs["ints"], false)
 
 		default:
 			panic("HTTP method is not supported")
@@ -85,6 +91,20 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return reqData, ps, nil
 	},
 	DefLoc: uint32(0x0),
+	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
+		params := reqData.Payload
+		if params == nil {
+			// If the payload is nil, we need to return an empty request body.
+			return httpHeader, queryString, err
+		}
+
+		// Encode query string
+		queryString = make(url.Values, 2)
+		queryString.Set("foo", __etype.MarshalOne(__etype.MarshalString, params.Foo))
+		queryString["ints"] = __etype.MarshalList(__etype.MarshalInt, params.Ints)
+
+		return httpHeader, queryString, err
+	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
 		return nil
 	},

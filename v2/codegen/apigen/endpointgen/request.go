@@ -2,7 +2,6 @@ package endpointgen
 
 import (
 	"fmt"
-	"strings"
 
 	. "github.com/dave/jennifer/jen"
 
@@ -51,35 +50,6 @@ func (d *requestDesc) DecodeRequest() *Statement {
 	).Params(
 		d.reqDataExpr().Add(d.Type()),
 		Id("pathParams").Add(apiQ("UnnamedParams")),
-		Err().Error(),
-	).BlockFunc(func(g *Group) {
-		g.Add(d.reqDataExpr()).Op("=").New(Id(d.TypeName()))
-
-		if d.ep.Path.NumParams() == 0 && d.ep.Request == nil {
-			// Nothing to do; return an empty struct
-			g.Return(d.reqDataExpr(), Nil(), Nil())
-			return
-		}
-
-		dec := d.gu.NewTypeUnmarshaller("dec")
-		g.Add(dec.Init())
-		d.renderPathDecoding(g, dec)
-		d.renderRequestDecoding(g, dec)
-
-		g.If(Err().Op(":=").Add(dec.Err()), Err().Op("!=").Nil()).Block(
-			Return(Nil(), Nil(), Err()),
-		)
-
-		g.Return(d.reqDataExpr(), d.pathParamsName(), Nil())
-	})
-}
-
-func (d *requestDesc) EncodeRequest() *Statement {
-	return Func().Params(
-		d.reqDataExpr().Add(d.Type()),
-		Id("json").Qual(jsonIterPkg, "API"),
-	).Params(
-		d.httpReqExpr().Op("*").Qual("net/http", "Request"),
 		Err().Error(),
 	).BlockFunc(func(g *Group) {
 		g.Add(d.reqDataExpr()).Op("=").New(Id(d.TypeName()))
@@ -189,6 +159,24 @@ func (d *requestDesc) reqDataPayloadName() string {
 	return "Payload"
 }
 
+// httpHeaderExpr returns an expression to access the HTTP header variable,
+// for request encoding.
+func (d *requestDesc) httpHeaderExpr() *Statement {
+	return Id("httpHeader")
+}
+
+// queryStringExpr returns an expression to access the url.Values query string variable,
+// for request encoding.
+func (d *requestDesc) queryStringExpr() *Statement {
+	return Id("queryString")
+}
+
+// jsonStream returns an expression to access the *jsoniter.Stream variable,
+// for request encoding.
+func (d *requestDesc) jsonStream() *Statement {
+	return Id("stream")
+}
+
 // reqDataPayloadExpr returns an expression for accessing the payload
 // in the reqData variable.
 func (d *requestDesc) reqDataPayloadExpr() *Statement {
@@ -250,34 +238,9 @@ func (d *requestDesc) renderRequestDecoding(g *Group, dec *genutil.TypeUnmarshal
 }
 
 func (d *requestDesc) decodeRequestParameters(g *Group, dec *genutil.TypeUnmarshaller, req *apienc.RequestEncoding) {
-	apigenutil.DecodeHeaders(g, d.httpReqExpr(), Id("params"), dec, req.HeaderParameters)
-	apigenutil.DecodeQuery(g, d.httpReqExpr(), Id("params"), dec, req.QueryParameters)
-	d.decodeBody(g, dec, req.BodyParameters)
-}
-
-func (d *requestDesc) decodeBody(g *Group, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
-	if len(params) == 0 {
-		return
-	}
-	g.Comment("Decode request body")
-	g.Id("payload").Op(":=").Add(dec.ReadBody(d.httpReqExpr().Dot("Body")))
-	g.Id("iter").Op(":=").Qual(jsonIterPkg, "ParseBytes").Call(Id("json"), Id("payload"))
-	g.Line()
-
-	g.For(Id("iter").Dot("ReadObjectCB").Call(
-		Func().Params(Id("_").Op("*").Qual(jsonIterPkg, "Iterator"), Id("key").String()).Bool().Block(
-			Switch(Qual("strings", "ToLower").Call(Id("key"))).BlockFunc(func(g *Group) {
-				for _, f := range params {
-					g.Case(Lit(strings.ToLower(f.WireName))).Block(
-						dec.ParseJSON(f.SrcName, Id("iter"), Op("&").Id("params").Dot(f.SrcName)),
-					)
-				}
-				g.Default().Block(Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
-			}),
-			Return(True()),
-		)).Block(),
-	)
-	g.Line()
+	apigenutil.DecodeHeaders(g, d.httpReqExpr().Dot("Header"), Id("params"), dec, req.HeaderParameters)
+	apigenutil.DecodeQuery(g, d.httpReqExpr().Dot("URL").Dot("Query").Call(), Id("params"), dec, req.QueryParameters)
+	apigenutil.DecodeBody(g, d.httpReqExpr().Dot("Body"), Id("params"), dec, req.BodyParameters)
 }
 
 // Clone returns the function literal to clone the request.
@@ -350,5 +313,40 @@ func (d *requestDesc) UserPayload() *Statement {
 		} else {
 			g.Return(d.reqDataPayloadExpr())
 		}
+	})
+}
+
+func (d *requestDesc) EncodeExternalReq() *Statement {
+	return Func().Params(
+		d.reqDataExpr().Add(d.Type()),
+		d.jsonStream().Add(Op("*").Qual(jsonIterPkg, "Stream")),
+	).Params(
+		d.httpHeaderExpr().Add(Qual("net/http", "Header")),
+		d.queryStringExpr().Add(Qual("net/url", "Values")),
+		Err().Error(),
+	).BlockFunc(func(g *Group) {
+		if d.ep.Request == nil {
+			// Nothing to do.
+			g.Return(Nil(), Nil(), Nil())
+			return
+		}
+
+		if schemautil.IsPointer(d.ep.Request) {
+			g.Id("params").Op(":=").Add(d.reqDataPayloadExpr())
+
+			g.If(Id("params").Op("==").Nil()).Block(
+				Comment("If the payload is nil, we need to return an empty request body."),
+				Return(d.httpHeaderExpr(), d.queryStringExpr(), Err()),
+			)
+		} else {
+			g.Id("params").Op(":=").Op("&").Add(d.reqDataPayloadExpr())
+		}
+
+		enc := d.ep.RequestEncoding()[0]
+		apigenutil.EncodeHeaders(d.gu.Errs, g, d.httpHeaderExpr(), Id("params"), enc.HeaderParameters)
+		apigenutil.EncodeQuery(d.gu.Errs, g, d.queryStringExpr(), Id("params"), enc.QueryParameters)
+		apigenutil.EncodeBody(d.gu, g, d.jsonStream(), Id("params"), enc.BodyParameters)
+
+		g.Return(d.httpHeaderExpr(), d.queryStringExpr(), Err())
 	})
 }

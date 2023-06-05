@@ -171,6 +171,13 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 		return &ResponseEncoding{}
 	}
 
+	// Check for reserved header prefixes
+	for _, field := range fields[Header] {
+		if strings.HasPrefix(strings.ToLower(field.WireName), "x-encore-") {
+			errs.Add(errReservedHeaderPrefix.AtGoNode(field.Type.ASTExpr()))
+		}
+	}
+
 	if keys := keyDiff(fields, Header, Body); len(keys) > 0 {
 		err := errResponseTypeMustOnlyBeBodyOrHeaders.AtGoNode(responseSchema.ASTExpr())
 
@@ -249,6 +256,13 @@ func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...
 		if !ok {
 			// report error in describeParams
 			return nil
+		}
+
+		// Check for reserved header prefixes
+		for _, field := range fields[Header] {
+			if strings.HasPrefix(strings.ToLower(field.WireName), "x-encore-") {
+				errs.Add(errReservedHeaderPrefix.AtGoNode(field.Type.ASTExpr()))
+			}
 		}
 
 		if keys := keyDiff(fields, Query, Header, Body); len(keys) > 0 {

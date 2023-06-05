@@ -140,6 +140,26 @@ type generateConfigParams struct {
 
 	ConfigAppID string
 	ConfigEnvID string
+
+	ExternalCalls bool
+}
+
+// generateServiceDiscoveryMap generates a map of service names to
+// where the Encore daemon is listening to forward to that service binary.
+func (mgr *Manager) generateServiceDiscoveryMap(p generateConfigParams) (map[string]config.Service, error) {
+	services := make(map[string]config.Service)
+
+	// Add all the services from the app
+	for _, svc := range p.Meta.Svcs {
+		services[svc.Name] = config.Service{
+			Name: svc.Name,
+			// For now all services are hosted by the same running instance
+			URL:      p.APIBaseURL,
+			Protocol: config.Http,
+		}
+	}
+
+	return services, nil
 }
 
 func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, error) {
@@ -158,6 +178,11 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 		deployID = "clitest_" + deployID
 	} else {
 		deployID = "run_" + deployID
+	}
+
+	serviceDiscovery, err := mgr.generateServiceDiscoveryMap(p)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate service discovery map")
 	}
 
 	cfg := &config.Runtime{
@@ -184,6 +209,8 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
 			AllowPrivateNetworkAccess:      true,
 		},
+		ServiceDiscovery:           serviceDiscovery,
+		ExperimentUseExternalCalls: p.ExternalCalls,
 	}
 
 	if err := p.RM.UpdateConfig(cfg, p.Meta, mgr.DBProxyPort); err != nil {

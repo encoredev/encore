@@ -42,24 +42,6 @@ type Decl[T any] struct {
 	instance  *T // initialized instance, or nil
 }
 
-// Get returns the API Decl, initializing it if necessary.
-func (g *Decl[T]) Get() (*T, error) {
-	err := g.InitService()
-	return g.instance, err
-}
-
-// GetDecl returns the API Decl, initializing it if necessary.
-func (g *Decl[T]) GetDecl() (any, error) {
-	if err := g.InitService(); err != nil {
-		return nil, err
-	}
-	return g.instance, nil
-}
-
-func (g *Decl[T]) InitService() error {
-	return g.setupOnce.Do(func() error { return doSetupService(Singleton, g) })
-}
-
 func (g *Decl[T]) ServiceName() string {
 	return g.Service
 }
