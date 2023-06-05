@@ -319,7 +319,7 @@ func (s *Server) beginCall(serviceName, endpointName string, defLoc uint32) (*mo
 		call.StartEventID = curr.Trace.RPCCallStart(call, curr.Goctr)
 	}
 
-	return call, metaFromAPICall(call), nil
+	return call, s.metaFromAPICall(call), nil
 }
 
 func (s *Server) finishCall(call *model.APICall, err error) {

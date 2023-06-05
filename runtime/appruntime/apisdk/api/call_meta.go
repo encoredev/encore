@@ -40,12 +40,22 @@ type InternalCallMeta struct {
 //
 // It does this in a transport agnostic way, allowing us to add metadata
 // to any transport request supported by Encore.
-func metaFromAPICall(parent *model.APICall) (meta CallMeta) {
+func (s *Server) metaFromAPICall(parent *model.APICall) (meta CallMeta) {
 	if parent != nil && parent.Source != nil {
 		meta.TraceID = parent.Source.TraceID
 		meta.ParentSpanID = parent.Source.SpanID
 		meta.ParentEventID = parent.StartEventID
 		meta.CorrelationID = parent.Source.ExtCorrelationID
+
+		meta.Internal = &InternalCallMeta{
+			SendingService: s.static.BundledServices[parent.Source.SvcNum-1],
+		}
+	} else {
+		// If there's no parent request, we're probably in the middle of system startup
+		// so we'll just use the first bundled service as the sending service
+		meta.Internal = &InternalCallMeta{
+			SendingService: s.static.BundledServices[0],
+		}
 	}
 
 	return meta
@@ -55,7 +65,7 @@ func metaFromAPICall(parent *model.APICall) (meta CallMeta) {
 func (meta CallMeta) AddToRequest(req transport.Transport) {
 	// Future proofing: if we ever create a breaking change to the transport meta
 	// we can use this version number to indicate which version of the meta we're using
-	req.SetMeta("Meta-Version", "1")
+	req.SetMeta("Version", "1")
 
 	// If we're tracing, pass the trace ID, span ID and event ID to the downstream service
 	if !meta.TraceID.IsZero() {
@@ -79,9 +89,14 @@ func (meta CallMeta) AddToRequest(req transport.Transport) {
 	// If we're making an internal call, add the internal metadata to the request
 	if meta.Internal != nil {
 		// Add a marker to the request to indicate that this is an internal call
-		req.SetMeta("Sending-Service", meta.Internal.SendingService)
+		req.SetMeta("Internal-Call", meta.Internal.SendingService)
 
 		// TODO(domblack): Add the auth UID and data to the request
+
+		// If we're making an internal call, sign the request
+		if err := svcauth.Sign(svcauth.Noop, req); err != nil {
+
+		}
 	}
 }
 
@@ -89,7 +104,7 @@ func (meta CallMeta) AddToRequest(req transport.Transport) {
 func MetaFromRequest(req transport.Transport) (meta CallMeta, err error) {
 	// Read the meta version if set and check it's only version 1
 	// as that's the only version we support
-	if metaVersion, found := req.ReadMeta("Meta-Version"); found && metaVersion != "1" {
+	if metaVersion, found := req.ReadMeta("Version"); found && metaVersion != "1" {
 		return CallMeta{}, errors.New("unknown encore meta version")
 	}
 
