@@ -68,7 +68,7 @@ package mysvc
 	Environment: {
 		Name:  string
 		Type:  "production" | "development" | "ephemeral" | "test"
-		Cloud: "aws" | "azure" | "gcp" | "encore" | "local"
+		Cloud: "aws" | "gcp" | "encore" | "local"
 	}
 }
 
@@ -199,7 +199,7 @@ call to load config. Encore provides the following meta values:
 - **Environment**: A struct containing information about the environment the application is running in.<br />
   &nbsp;&nbsp; **Name**: The name of the environment<br />
   &nbsp;&nbsp; **Type**: One of `production`, `development`, `ephemeral` or `test`.<br />
-  &nbsp;&nbsp; **Cloud**: The cloud the app is running on, which is one of `aws`, `azure`, `gcp`, `encore` or `local`.<br />
+  &nbsp;&nbsp; **Cloud**: The cloud the app is running on, which is one of `aws`, `gcp`, `encore` or `local`.<br />
 
 The following are useful conditionals you can use in your CUE files:
 

@@ -19,20 +19,27 @@ const extCorrelationIDAttribute = "encore_ext_correlation_id"
 // the target cloud. (i.e. ack deadline may be brought within the supported range
 // by the target cloud pubsub implementation).
 type SubscriptionConfig[T any] struct {
-	// The function which will be called to process a message
+	// Handler is the function which will be called to process a message
 	// sent on the topic.
 	//
-	// It is important for this function to block and not return
+	// To reference a method on an [Encore service struct]
+	// you can use the [MethodHandler] function. For example:
+	//
+	//	Handler: pubsub.MethodHandler((*MyService).MyMethod)
+	//
+	// It is important for the Handler function to block and not return
 	// until all processing relating to the message has been completed.
 	//
-	// When this function returns a `nil`, the message will be
+	// When the handler returns a nil error the message will be
 	// acknowledged (acked) from the topic, and should not be redelivered.
 	//
-	// When this function returns an `error`, the message will be
+	// When this function returns a non-nil error the message will be
 	// negatively acknowledged (nacked), which will cause a redelivery
 	// attempt to be made (unless the retry policy's MaxRetries has been reached).
 	//
 	// This field is required.
+	//
+	// [Encore service struct]: https://encore.dev/docs/primitives/services-and-apis#service-structs
 	Handler func(ctx context.Context, msg T) error
 
 	// Filter is a boolean expression using =, !=, IN, &&

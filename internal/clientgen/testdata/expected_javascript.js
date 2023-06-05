@@ -83,7 +83,25 @@ class SvcServiceClient {
      * DummyAPI is a dummy endpoint.
      */
     async DummyAPI(params) {
-        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            baz: params.HeaderBaz,
+            int: params.HeaderInt === undefined ? undefined : String(params.HeaderInt),
+        })
+
+        const query = makeRecord({
+            bar: params.QueryBar,
+            foo: params.QueryFoo === undefined ? undefined : String(params.QueryFoo),
+        })
+
+        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+        const body = {
+            Foo: params.Foo,
+            Raw: params.Raw,
+            boo: params.boo,
+        }
+
+        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
     }
 
     async Get(params) {
@@ -236,6 +254,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "app-Generated-JS-Client (Encore/devel)",
         }
+        this.requestInit = options.requestInit ?? {}
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -258,15 +277,16 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 
         // If authorization data generator is present, call it and add the returned data to the request
         let authData

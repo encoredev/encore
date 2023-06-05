@@ -259,7 +259,7 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 			dict := make(map[string]string)
 			for _, field := range reqEnc.HeaderParameters {
 				ref := js.Dot("params", field.SrcName)
-				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref)
+				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 			}
 
 			w.WriteString("const headers = makeRecord(")
@@ -275,11 +275,12 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
 					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
-						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")"
+						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
 				} else {
 					dict[field.WireFormat] = js.convertBuiltinToString(
 						field.Type.GetBuiltin(),
 						js.Dot("params", field.SrcName),
+						field.Optional,
 					)
 				}
 			}
@@ -478,6 +479,7 @@ class BaseClient {`)
             "Content-Type": "application/json",
             "User-Agent":   "` + userAgent + `",
         }
+        this.requestInit = options.requestInit ?? {}
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -506,15 +508,16 @@ class BaseClient {`)
 
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 `)
 	w := js.newIdentWriter(2)
 
@@ -552,10 +555,10 @@ if (authData) {
 					if list := field.Type.GetList(); list != nil {
 						w.WriteString(
 							js.Dot("authData", field.SrcName) +
-								".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")",
+								".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
 						)
 					} else {
-						w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName)))
+						w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
 					}
 					w.WriteString("\n")
 				}
@@ -565,7 +568,7 @@ if (authData) {
 					w.WriteString("init.headers[\"")
 					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
-					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName)))
+					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
 					w.WriteString("\n")
 				}
 			} else {
@@ -658,15 +661,21 @@ function mustBeSet(field, value) {
 	}
 }
 
-func (js *javascript) convertBuiltinToString(typ schema.Builtin, val string) string {
+func (js *javascript) convertBuiltinToString(typ schema.Builtin, val string, isOptional bool) string {
+	var code string
 	switch typ {
 	case schema.Builtin_STRING:
 		return val
 	case schema.Builtin_JSON:
-		return fmt.Sprintf("JSON.stringify(%s)", val)
+		code = fmt.Sprintf("JSON.stringify(%s)", val)
 	default:
-		return fmt.Sprintf("String(%s)", val)
+		code = fmt.Sprintf("String(%s)", val)
 	}
+
+	if isOptional {
+		code = fmt.Sprintf("%s === undefined ? undefined : %s", val, code)
+	}
+	return code
 }
 
 func (js *javascript) convertStringToBuiltin(typ schema.Builtin, val string) string {

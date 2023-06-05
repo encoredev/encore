@@ -118,6 +118,15 @@ func TestOptions(t *testing.T) {
 			cfg:         config.CORS{},
 			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Static-Test"},
 		},
+		{
+			name: "wildcard_without_creds",
+			cfg: config.CORS{
+				AllowOriginsWithCredentials:    []string{"https://vercel.app"},
+				AllowOriginsWithoutCredentials: []string{"https://*-foo.vercel.app"},
+			},
+			credsBadOrigins:    []string{"https://blah-foo.vercel.app"},
+			nocredsGoodOrigins: []string{"https://blah-foo.vercel.app"},
+		},
 	}
 
 	checkOrigins := func(t *testing.T, c *cors.Cors, creds, good bool, origins []string) {

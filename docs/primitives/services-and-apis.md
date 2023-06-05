@@ -176,8 +176,7 @@ Query parameters are more limited than structured JSON data, and can only consis
 
 ### Raw endpoints
 
-Encore lets you define raw endpoints that operate at a lower abstraction level.
-This gives you access to the underlying HTTP request, which is useful for things like accepting webhooks.
+In case you need to operate at a lower abstraction level, Encore supports defining raw endpoints that let you access the underlying HTTP request. This is often useful for things like accepting webhooks.
 
 To define a raw endpoint, change the `//encore:api` annotation and function signature like so:
 
@@ -193,8 +192,8 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-Like any other Encore API endpoint, once deployed this will be exposed at the URL <br/>
-`https://<env>-<app-id>.encr.app/service.Webhook`.
+Like any other Encore API endpoint, once deployed this will be exposed at the URL: <br/>
+`https://<env>-<app-id>.encr.app/service.Webhook`. Just like regular endpoints, raw endpoints support the use of `:id` and `*wildcard` segments.
 
 Experienced Go developers will have already noted this is just a regular Go HTTP handler.
 (See the <a href="https://pkg.go.dev/net/http#Handler" target="_blank" rel="nofollow">net/http documentation</a> for how Go HTTP handlers work.)

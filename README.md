@@ -49,7 +49,7 @@ This completely removes the need for infrastructure configuration files, increas
 
 - **[Preview environments](https://encore.dev/docs/how-to/github):** Integrate with GitHub to automatically set up each pull request as an ephemeral preview environment.
 
-- **[Deploy to your existing cloud account](https://encore.dev/docs/deploy/infra):** Encore deploys your application to your existing cloud account in AWS/GCP/Azure, using best practices for building secure and scalable distributed systems.
+- **[Deploy to your existing cloud account](https://encore.dev/docs/deploy/infra):** Encore deploys your application to your existing cloud account in AWS or GCP, using best practices for building secure and scalable distributed systems.
  
 - **[Intelligent architecture diagrams](https://encore.dev/docs/develop/encore-flow):** Visualise your application in with automated and interactive architecture diagrams.
 
@@ -111,39 +111,32 @@ Here's how you can contribute:
 - Send a pull request here on GitHub with your contribution.
 
 ## Demo video
+
 <a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">![demo video](https://user-images.githubusercontent.com/78424526/205661341-086c2813-455c-4af4-9517-b0398def6364.gif)</a>
 </br>
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">Open video in YouTube</a>
+<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">Play full video on YouTube</a>
 
 ## Visuals
 
+### Code example
+
+https://github.com/encoredev/encore/assets/78424526/f511b3fe-751f-4bb8-a1da-6c9e0765ac08
+
 ### Local Development Dashboard
 
-https://user-images.githubusercontent.com/78424526/196938940-9b132373-2b31-41fe-8ca7-aaa3be7b8537.mp4
+https://github.com/encoredev/encore/assets/78424526/565ab682-8c39-468e-8d21-c4d648b2dcb2
 
-### Real-time Architecture Diagrams
+### Generated Architecture Diagrams & Service Catalog
 
-https://user-images.githubusercontent.com/78424526/205659569-54e79592-0485-4031-9cfa-159f58c11d46.mp4
+https://github.com/encoredev/encore/assets/78424526/a880ed2d-e9a6-4add-b5a8-a4b44b97587b
 
-### Built-in CI/CD & Infrastructure Provisioning
+### Auto-Provisioning Infrastructure & Multi-cloud Deployments
 
-<img src="https://user-images.githubusercontent.com/78424526/228289297-cbcd6b79-1392-44e7-9fd7-38c50f940ae8.png" alt="CI/CD and infra provisioning" width="80%">
+https://github.com/encoredev/encore/assets/78424526/8116b387-d4d4-4e54-8768-3686ba0245f5
 
-### Cloud Infrastructure Tracking
+### Distributed Tracing & Metrics
 
-<img src="https://user-images.githubusercontent.com/78424526/228287624-faf122c2-8fa1-4b9c-b6ea-db8009df82d7.png" alt="cloud infrastructure resources" width="80%">
-
-### Distributed Tracing
-
-https://user-images.githubusercontent.com/78424526/169817256-f3e63f6f-9dd3-4b5a-b72d-be71eef977ed.mp4
-
-### Built-in Metrics
-
-https://user-images.githubusercontent.com/78424526/228285771-ce288337-1a1b-4c0a-8e26-d7753b28574a.mp4
-
-### Automated API Documentation
-
-<img src="https://user-images.githubusercontent.com/78424526/169325592-105b7540-5ad7-4433-a624-7437c0d4c8d7.png" alt="Automated API Documentation" width="80%">
+https://github.com/encoredev/encore/assets/78424526/35189335-e3d7-4046-bab0-1af0f00d2504
 
 ## Frequently Asked Questions (FAQ)
 
@@ -165,7 +158,7 @@ For teams in mature organizations that want to focus on innovating and building 
 
 Encore is the only tool that understands what you’re building. Encore uses static analysis to deeply understand the application you’re building. This enables a unique developer experience that helps you stay in the flow as you’re building. For instance, you don't need to bother with configuring and managing infrastructure, setting up environments and keeping them in sync, or writing documentation and drafting architecture diagrams. Encore does all of this automatically out of the box.
 
-Unlike many tools that aim to only make cloud deployment easier, Encore is not a cloud hosting provider. With Encore, you can use your cloud account with all the major cloud providers: AWS/Azure/GCP. This means you’re in control of your data and can maintain your trust relationship with your cloud provider. You can also use Encore's development cloud for free, with pretty generous "fair use" limits.
+Unlike many tools that aim to only make cloud deployment easier, Encore is not a cloud hosting provider. With Encore, you can use your cloud account with AWS and GCP. This means you’re in control of your data and can maintain your trust relationship with your cloud provider. You can also use Encore's development cloud for free, with pretty generous "fair use" limits.
 
 ### Why is the Encore SDK integrated with a cloud platform?
 

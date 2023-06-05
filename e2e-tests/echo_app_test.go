@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	qt "github.com/frankban/quicktest"
 	"go.uber.org/goleak"
@@ -52,8 +53,10 @@ type NonBasicResponse struct {
 	RawStruct    json.RawMessage
 
 	// Query
-	QueryString string
-	QueryNumber int
+	QueryString    string
+	QueryNumber    int
+	OptQueryString string
+	OptQueryNumber int
 
 	// Path
 	PathString string
@@ -117,6 +120,10 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 			req := httptest.NewRequest("POST", "/echo.Publish", nil)
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
+
+			// Wait a bit to allow the message to be consumed.
+			time.Sleep(100 * time.Millisecond)
+		
 			stats, err := app.NSQ.Stats()
 			c.Assert(err, qt.IsNil)
 			c.Assert(len(stats.Producers), qt.Equals, 1)

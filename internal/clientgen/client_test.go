@@ -1,6 +1,3 @@
-//go:build go1.18
-// +build go1.18
-
 package clientgen
 
 import (
@@ -67,6 +64,9 @@ func TestClientCodeGeneration(t *testing.T) {
 				if testName != file.Name() && !strings.Contains(testName, "_") {
 					c.Run(testName, func(c *qt.C) {
 						language, ok := Detect(file.Name())
+						if strings.Contains(file.Name(), "openapi") {
+							language, ok = LangOpenAPI, true
+						}
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
 						generatedClient, err := Client(language, "app", res.Meta, nil)

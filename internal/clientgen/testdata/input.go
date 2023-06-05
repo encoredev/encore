@@ -33,7 +33,12 @@ type Request struct {
     Bar string `json:"-"`
     Baz string `json:"boo"`        // Baz is better
 
-    // This is a multiline
+    QueryFoo bool    `query:"foo" encore:"optional"`
+    QueryBar string  `query:"bar" encore:"optional"`
+    HeaderBaz string `header:"baz" encore:"optional"`
+    HeaderInt int    `header:"int" encore:"optional"`
+
+// This is a multiline
     // comment on the raw message!
     Raw json.RawMessage
 }

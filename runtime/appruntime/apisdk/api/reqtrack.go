@@ -341,15 +341,5 @@ func (s *Server) beginAuth(defLoc uint32) (*model.AuthCall, error) {
 		DefLoc: defLoc,
 	}
 
-	// if curr := s.rt.Current(); curr.Trace != nil {
-	//	curr.Trace.BeginAuth(call, curr.Goctr)
-	// }
-
 	return call, nil
-}
-
-func (s *Server) finishAuth(call *model.AuthCall, uid model.UID, err error) {
-	// if curr := s.rt.Current(); curr.Trace != nil {
-	//	curr.Trace.FinishAuth(call, uid, err)
-	// }
 }

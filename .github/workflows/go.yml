@@ -32,9 +32,6 @@ jobs:
         URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \")
         curl --fail -L -o encore-go.tar.gz $URL && tar -C . -xzf ./encore-go.tar.gz
 
-    - name: Build dashapp
-      run: cd encr.dev/cli/daemon/dash/dashapp && npm install && node node_modules/esbuild/install.js && npm test && npm run build
-
     - name: Build
       run: cd encr.dev && go build ./...
 

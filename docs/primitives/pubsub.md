@@ -206,7 +206,32 @@ func SendWelcomeEmail(ctx context.Context, event *SignupEvent) error {
 
 Subscriptions can be in the same service as the topic is declared, or in any other service of your application. Each
 subscription to a single topic receives the events independently of any other subscriptions to the same topic. This means
-that if one subscription is running very slowly, it will grow a backlog of unprocessed events. However, any other subscriptions will still be processing events in real-time as they are published.
+that if one subscription is running very slowly, it will grow a backlog of unprocessed events.
+However, any other subscriptions will still be processing events in real-time as they are published.
+
+### Method-based handlers
+
+When using [service structs](/docs/primitives/services-and-apis#service-structs) for dependency injection
+it's common to want to define the subscription handler as a method on the service struct, to be able to access the
+injected dependencies. The pubsub package provides the `pubsub.MethodHandler` function for this purpose:
+
+```go
+//encore:service
+type Service struct { /* ... */ }
+
+func (s *Service) SendWelcomeEmail(ctx context.Context, event *SignupEvent) error {
+	// ...
+}
+
+var _ = pubsub.NewSubscription(
+  user.Signups, "send-welcome-email",
+  pubsub.SubscriptionConfig[*SignupEvent]{
+    Handler: pubsub.MethodHandler((*Service).SendWelcomeEmail),
+  },
+)
+```
+
+Note that `pubsub.MethodHandler` only allows referencing methods on the service struct type, not any other type.
 
 ### Subscription configuration
 

@@ -38,7 +38,6 @@ if exist .deps\prepared goto :build
 
 :build
 	set GOOS=windows
-	call :build_dashapp || goto :error
 	call :build_plat amd64 x86_64 amd64 || goto :error
 	call :copy_artifacts || goto :error
 
@@ -55,14 +54,6 @@ if exist .deps\prepared goto :build
 	tar -xf %1 %~4 || exit /b 1
 	echo [+] Cleaning up %1
 	del %1 || exit /b 1
-	goto :eof
-
-:build_dashapp
-	cd %ROOT%\cli\daemon\dash\dashapp || exit /b 1
-	echo [+] Building dash app
-	cmd /C npm install || goto :error
-	cmd /C npm run build || goto :error
-	cd %BUILDDIR% || exit /b 1
 	goto :eof
 
 :build_plat

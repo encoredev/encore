@@ -58,6 +58,9 @@ export interface ClientOptions {
      */
     fetcher?: Fetcher
 
+    /** Default RequestInit to be used for the client */
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+
     /**
      * Allows you to set the authentication data to be used for each
      * request either by passing in a static object or by passing in
@@ -191,6 +194,10 @@ export namespace svc {
          */
         boo: string
 
+        QueryFoo?: boolean
+        QueryBar?: string
+        HeaderBaz?: string
+        HeaderInt?: number
         /**
          * This is a multiline
          * comment on the raw message!
@@ -224,7 +231,25 @@ export namespace svc {
          * DummyAPI is a dummy endpoint.
          */
         public async DummyAPI(params: Request): Promise<void> {
-            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                baz: params.HeaderBaz,
+                int: params.HeaderInt === undefined ? undefined : String(params.HeaderInt),
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                bar: params.QueryBar,
+                foo: params.QueryFoo === undefined ? undefined : String(params.QueryFoo),
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                Foo: params.Foo,
+                Raw: params.Raw,
+                boo: params.boo,
+            }
+
+            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
         }
 
         public async Get(params: GetRequest): Promise<void> {
@@ -369,11 +394,11 @@ function mustBeSet<A>(field: string, value: A | null | undefined): A {
 }
 
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & {
-    /** Any headers to be sent with the request */
-    headers?: Record<string, string>;
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+    /** Headers to be sent with the request */
+    headers?: Record<string, string>
 
-    /** Any query parameters to be sent with the request */
+    /** Query parameters to be sent with the request */
     query?: Record<string, string | string[]>
 }
 
@@ -389,6 +414,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
     readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
@@ -397,6 +423,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "app-Generated-TS-Client (Encore/devel)",
         }
+        this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -419,15 +446,16 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 
         // If authorization data generator is present, call it and add the returned data to the request
         let authData: authentication.AuthData | undefined

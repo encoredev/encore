@@ -70,6 +70,9 @@ export interface ClientOptions {
      */
     fetcher?: Fetcher
 
+    /** Default RequestInit to be used for the client */
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+
     /**
      * Allows you to set the authentication data to be used for each
      * request either by passing in a static object or by passing in
@@ -237,6 +240,8 @@ export namespace echo {
         QueryString: string
 
         QueryNumber: number
+        OptQueryNumber?: number
+        OptQueryString?: string
         /**
          * Path Parameters
          */
@@ -364,6 +369,8 @@ export namespace echo {
 
             const query = makeRecord<string, string | string[]>({
                 no:     String(params.QueryNumber),
+                optnum: params.OptQueryNumber === undefined ? undefined : String(params.OptQueryNumber),
+                optstr: params.OptQueryString,
                 string: params.QueryString,
             })
 
@@ -763,11 +770,11 @@ function mustBeSet<A>(field: string, value: A | null | undefined): A {
 }
 
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & {
-    /** Any headers to be sent with the request */
-    headers?: Record<string, string>;
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+    /** Headers to be sent with the request */
+    headers?: Record<string, string>
 
-    /** Any query parameters to be sent with the request */
+    /** Query parameters to be sent with the request */
     query?: Record<string, string | string[]>
 }
 
@@ -783,6 +790,7 @@ class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
     readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
@@ -791,6 +799,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "slug-Generated-TS-Client (Encore/devel)",
         }
+        this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -813,15 +822,16 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 
         // If authorization data generator is present, call it and add the returned data to the request
         let authData: echo.AuthParams | undefined

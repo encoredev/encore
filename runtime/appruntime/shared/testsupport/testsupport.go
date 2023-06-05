@@ -12,6 +12,7 @@ import (
 	_ "unsafe" // for go:linkname
 
 	"github.com/rs/zerolog"
+	"golang.org/x/exp/slices"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
@@ -26,6 +27,7 @@ type Manager struct {
 	wd              string
 	testServiceOnce sync.Once
 	testService     string
+	testServiceNum  uint16
 }
 
 func NewManager(static *config.Static, rt *reqtrack.RequestTracker, rootLogger zerolog.Logger) *Manager {
@@ -49,14 +51,7 @@ func (mgr *Manager) StartTest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := mgr.rootLogger.With().Str("test", t.Name()).Logger()
 
-	svcNum := uint16(0)
-	testService := mgr.TestService()
-	for i, svc := range mgr.static.BundledServices {
-		if svc == testService {
-			svcNum = uint16(i) + 1
-			break
-		}
-	}
+	testService, svcNum := mgr.TestService()
 
 	req := &model.Request{
 		Type:   model.Test,
@@ -147,17 +142,18 @@ func (mgr *Manager) current() *model.TestData {
 	return req.Test
 }
 
-func (mgr *Manager) TestService() string {
+func (mgr *Manager) TestService() (svcName string, svcNum uint16) {
 	mgr.testServiceOnce.Do(func() {
 		for svc, path := range mgr.static.TestServiceMap {
 			if mgr.wd == path || strings.HasPrefix(mgr.wd, path+string(filepath.Separator)) {
 				mgr.testService = svc
+				mgr.testServiceNum = uint16(slices.Index(mgr.static.BundledServices, svc) + 1)
 				break
 			}
 		}
 	})
 
-	return mgr.testService
+	return mgr.testService, mgr.testServiceNum
 }
 
 // RunAsyncCodeInTest allows us to trigger code to run asynchronously in a test

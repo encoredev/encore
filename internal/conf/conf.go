@@ -22,6 +22,7 @@ var ErrNotLoggedIn = errors.New("not logged in: run 'encore auth login' first")
 // `go build -ldflags "-X encr.dev/cli/internal/conf.defaultPlatformURL=https://api.encore.dev"`.
 var (
 	defaultPlatformURL     = "https://api.encore.dev"
+	defaultDevDashURL      = "https://devdash.encore.dev"
 	defaultConfigDirectory = "encore"
 )
 
@@ -36,6 +37,19 @@ var APIBaseURL = (func() string {
 // WSBaseURL is the base URL for communicating with the Encore Platform over WebSocket.
 var WSBaseURL = (func() string {
 	return strings.Replace(APIBaseURL, "http", "ws", -1) // "https" becomes "wss"
+})()
+
+// DevDashURL is the base URL to retrieve the dev dashboard code from.
+var DevDashURL = (func() string {
+	if u := os.Getenv("ENCORE_DEVDASH_URL"); u != "" {
+		return u
+	}
+	return defaultDevDashURL
+})()
+
+// CacheDevDash reports whether or not the dev dash contents should be cached.
+var CacheDevDash = (func() bool {
+	return !strings.Contains(DevDashURL, "localhost")
 })()
 
 // Dir reports the directory where Encore's configuration is stored.

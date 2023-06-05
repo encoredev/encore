@@ -313,7 +313,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			dict := make(map[string]string)
 			for _, field := range reqEnc.HeaderParameters {
 				ref := ts.Dot("params", field.SrcName)
-				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref)
+				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 			}
 
 			w.WriteString("const headers = makeRecord<string, string>(")
@@ -329,11 +329,12 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
 					dict[field.WireFormat] = ts.Dot("params", field.SrcName) +
-						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")"
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
 				} else {
 					dict[field.WireFormat] = ts.convertBuiltinToString(
 						field.Type.GetBuiltin(),
 						ts.Dot("params", field.SrcName),
+						field.Optional,
 					)
 				}
 			}
@@ -613,6 +614,9 @@ export interface ClientOptions {
      * code on each API request made or response received.
      */
     fetcher?: Fetcher
+
+    /** Default RequestInit to be used for the client */
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
 `)
 
 	if ts.hasAuth {
@@ -651,11 +655,11 @@ func (ts *typescript) writeBaseClient(appSlug string) error {
 
 	ts.WriteString(`
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body"> & {
-    /** Any headers to be sent with the request */
-    headers?: Record<string, string>;
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+    /** Headers to be sent with the request */
+    headers?: Record<string, string>
 
-    /** Any query parameters to be sent with the request */
+    /** Query parameters to be sent with the request */
     query?: Record<string, string | string[]>
 }
 `)
@@ -678,7 +682,8 @@ const boundFetch = fetch.bind(this);
 class BaseClient {
     readonly baseURL: string
     readonly fetcher: Fetcher
-    readonly headers: Record<string, string>`)
+    readonly headers: Record<string, string>
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }`)
 
 	if ts.hasAuth {
 		ts.WriteString("\n    readonly authGenerator?: AuthDataGenerator")
@@ -692,6 +697,7 @@ class BaseClient {
             "Content-Type": "application/json",
             "User-Agent":   "` + userAgent + `",
         }
+        this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -720,15 +726,16 @@ class BaseClient {
 
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        let { query, ...rest } = params ?? {}
+        let { query, headers, ...rest } = params ?? {}
         const init = {
+            ...this.requestInit,
             ...rest,
             method,
             body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
-        init.headers = {...this.headers, ...init.headers}
+        init.headers = {...this.headers, ...init.headers, ...headers}
 `)
 	w := ts.newIdentWriter(2)
 
@@ -767,10 +774,10 @@ if (authData) {
 					if list := field.Type.GetList(); list != nil {
 						w.WriteString(
 							ts.Dot("authData", field.SrcName) +
-								".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v") + ")",
+								".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
 						)
 					} else {
-						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName)))
+						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
 					}
 					w.WriteString("\n")
 				}
@@ -780,7 +787,7 @@ if (authData) {
 					w.WriteString("init.headers[\"")
 					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
-					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName)))
+					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
 					w.WriteString("\n")
 				}
 			} else {
@@ -917,15 +924,21 @@ func (ts *typescript) builtinType(typ schema.Builtin) string {
 	}
 }
 
-func (ts *typescript) convertBuiltinToString(typ schema.Builtin, val string) string {
+func (ts *typescript) convertBuiltinToString(typ schema.Builtin, val string, isOptional bool) string {
+	var code string
 	switch typ {
 	case schema.Builtin_STRING:
 		return val
 	case schema.Builtin_JSON:
-		return fmt.Sprintf("JSON.stringify(%s)", val)
+		code = fmt.Sprintf("JSON.stringify(%s)", val)
 	default:
-		return fmt.Sprintf("String(%s)", val)
+		code = fmt.Sprintf("String(%s)", val)
 	}
+
+	if isOptional {
+		code = fmt.Sprintf("%s === undefined ? undefined : %s", val, code)
+	}
+	return code
 }
 
 func (ts *typescript) convertStringToBuiltin(typ schema.Builtin, val string) string {

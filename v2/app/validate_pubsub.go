@@ -5,10 +5,12 @@ import (
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
+	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/infra/pubsub"
 )
 
@@ -19,6 +21,7 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 	}
 	topics := make(map[string]topic)
 	topicsByBinding := make(map[pkginfo.QualifiedName]string)
+	serviceStructs := make(map[paths.Pkg]*servicestruct.ServiceStruct)
 
 	var subs []*pubsub.Subscription
 
@@ -55,6 +58,9 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 
 		case *pubsub.Subscription:
 			subs = append(subs, res)
+
+		case *servicestruct.ServiceStruct:
+			serviceStructs[res.Decl.File.Pkg.ImportPath] = res
 		}
 	}
 
@@ -100,6 +106,22 @@ func (d *Desc) validatePubSub(pc *parsectx.Context, result *parser.Result) {
 				}
 
 				handlerIsAPIEndpoint = true
+			}
+		}
+
+		// Do we have a method handler?
+		if method, ok := sub.MethodHandler.Get(); ok {
+			// Make sure the type is a service struct
+			if _, ok := serviceStructs[method.Decl.File.Pkg.ImportPath]; !ok {
+				pc.Errs.Add(
+					pubsub.ErrMethodHandlerTypeNotServiceStruct.
+						AtGoNode(sub.Handler, errors.AsError("handler specified here")),
+				)
+			} else if method.Decl.File.Pkg.ImportPath != sub.File.Pkg.ImportPath {
+				pc.Errs.Add(
+					pubsub.ErrMethodHandlerDifferentPackage.
+						AtGoNode(sub.Handler, errors.AsError("handler specified here")),
+				)
 			}
 		}
 
