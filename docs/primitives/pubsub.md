@@ -209,6 +209,10 @@ subscription to a single topic receives the events independently of any other su
 that if one subscription is running very slowly, it will grow a backlog of unprocessed events.
 However, any other subscriptions will still be processing events in real-time as they are published.
 
+The `ctx` passed to the handler function is cancelled when the `AckDeadline` for the subscription is reached, this is the
+time when the message is considered to have timed out and can be redelivered to another subscriber. By default if you
+do not specify an `AckDeadline` the default value of 30 seconds is used.
+
 ### Method-based handlers
 
 When using [service structs](/docs/primitives/services-and-apis#service-structs) for dependency injection

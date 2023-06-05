@@ -37,6 +37,9 @@ type SubscriptionConfig[T any] struct {
 	// negatively acknowledged (nacked), which will cause a redelivery
 	// attempt to be made (unless the retry policy's MaxRetries has been reached).
 	//
+	// The ctx passed to the handler will be cancelled when
+	// the AckDeadline passes.
+	//
 	// This field is required.
 	//
 	// [Encore service struct]: https://encore.dev/docs/primitives/services-and-apis#service-structs
