@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang-migrate/migrate/v4/source"
+	"golang.org/x/exp/slices"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -67,6 +68,9 @@ func (src *src) ReadDown(version uint) (r io.ReadCloser, identifier string, err 
 	return nil, "", os.ErrNotExist
 }
 
-func (src) verIdx(version uint, offset int) int {
-	return int(version) - 1 + offset
+func (src *src) verIdx(version uint, offset int) int {
+	idx := slices.IndexFunc(src.migrations, func(m *meta.DBMigration) bool {
+		return m.Number == uint64(version)
+	})
+	return idx + offset
 }

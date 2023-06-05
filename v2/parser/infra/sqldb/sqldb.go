@@ -41,7 +41,7 @@ func (d *Database) SortKey() string           { return d.Name }
 
 type MigrationFile struct {
 	Filename    string
-	Number      int
+	Number      uint64
 	Description string
 }
 
@@ -209,7 +209,11 @@ func parseMigrations(pkg *pkginfo.Package, migrationDir paths.FS) ([]MigrationFi
 			return nil, fmt.Errorf("migration %s/migrations/%s has an invalid name (must be of the format '[123]_[description].[up|down].sql')",
 				pkg.Name, f.Name())
 		}
-		num, _ := strconv.Atoi(match[1])
+		num, err := strconv.ParseUint(match[1], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("migration %s/migrations/%s has an invalid version number %q (must be a positive integer)",
+				pkg.Name, f.Name(), match[1])
+		}
 		if match[3] == "up" {
 			migrations = append(migrations, MigrationFile{
 				Filename:    f.Name(),
@@ -221,17 +225,6 @@ func parseMigrations(pkg *pkginfo.Package, migrationDir paths.FS) ([]MigrationFi
 	sort.Slice(migrations, func(i, j int) bool {
 		return migrations[i].Number < migrations[j].Number
 	})
-	for i := 0; i < len(migrations); i++ {
-		fn := migrations[i].Filename
-		num := migrations[i].Number
-		if num <= 0 {
-			return nil, fmt.Errorf("%s/migrations/%s: invalid migration number %d", pkg.Name, fn, num)
-		} else if num < (i + 1) {
-			return nil, fmt.Errorf("%s/migrations/%s: duplicate migration with number %d", pkg.Name, fn, num)
-		} else if num > (i + 1) {
-			return nil, fmt.Errorf("%s/migrations/%s: missing migration with number %d", pkg.Name, fn, i+1)
-		}
-	}
 	return migrations, nil
 }
 
