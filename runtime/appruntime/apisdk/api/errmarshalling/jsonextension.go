@@ -35,8 +35,6 @@ const (
 	WrappedKey = "wraps"
 )
 
-// FIXME(domblack): RegisterErrorMarshaller for sqldb and cache errors too
-
 // RegisterErrorMarshaller registers a custom marshaller for a specific error type
 //
 // The error type has to be used as a pointer, and must be registered before any

@@ -5,8 +5,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/modern-go/reflect2"
+
 	"encore.dev/appruntime/apisdk/api/errmarshalling"
 	"encore.dev/beta/errs"
+	"encore.dev/storage/cache"
+	"encore.dev/storage/sqldb"
+	"encore.dev/storage/sqldb/sqlerr"
 )
 
 type SomeRandomType struct {
@@ -27,6 +32,22 @@ func TestMarshal(t *testing.T) {
 		{"multiple wrapped errors", fmt.Errorf("outer error: %w", errors.Join(errors.New("inner issue"), errors.New("inner issue 2")))},
 		{"encore errs", errs.B().Code(errs.OutOfRange).Meta("foo", "bar", "x", 123, "y", false).Msg("out of range in foo").Err()},
 		{"encore err wrapped in Go error", fmt.Errorf("outer: %w", errs.B().Code(errs.OutOfRange).Msg("out of range in foo").Err())},
+		{"sqldb error", &sqldb.Error{
+			Code:           sqlerr.NotNullViolation,
+			Severity:       sqlerr.SeverityError,
+			DatabaseCode:   "PG2341",
+			Message:        "Not null happened matey",
+			SchemaName:     "your_database",
+			TableName:      "in_this_table",
+			ColumnName:     "on_this_column",
+			DataTypeName:   "string",
+			ConstraintName: "not_null",
+		}},
+		{"cache operror", &cache.OpError{
+			Operation: "get",
+			RawKey:    "foo",
+			Err:       errors.New("some error"),
+		}},
 	}
 
 	for _, p := range params {
@@ -67,6 +88,16 @@ func roundTrip(t *testing.T, err error) error {
 
 	if unmarshalled.Error() != err.Error() {
 		t.Errorf("Expected error %v, got %v", err, unmarshalled)
+	}
+
+	originalType := reflect2.TypeOf(err)
+	unmarshalledType := reflect2.TypeOf(unmarshalled)
+
+	if originalType.String() != unmarshalledType.String() &&
+		originalType.String() != "*errors.joinError" &&
+		originalType.String() != "*fmt.wrapError" {
+		fmt.Println("Original type:", originalType.Type1().PkgPath())
+		t.Errorf("Expected error type %v, got %v", originalType, unmarshalledType)
 	}
 
 	return unmarshalled
