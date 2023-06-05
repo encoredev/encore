@@ -526,7 +526,7 @@ func (b *builder) apiPath(pos gotoken.Pos, path *resourcepaths.Path) *meta.Path 
 func transformMigration(res sqldb.MigrationFile) *meta.DBMigration {
 	return &meta.DBMigration{
 		Filename:    res.Filename,
-		Number:      int32(res.Number),
+		Number:      uint64(res.Number),
 		Description: res.Description,
 	}
 }
