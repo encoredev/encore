@@ -27,6 +27,9 @@ jobs:
         check-latest: true
         cache-dependency-path: 'encr.dev/go.sum'
 
+    - name: Install go-junit-report
+      run: go install github.com/jstemmer/go-junit-report/v2@latest
+
     - name: Install encore-go
       run: |
         URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \")
@@ -37,14 +40,14 @@ jobs:
 
     # If we're not running on a schedule, we only want to run tests on changed code
     - name: Run tests on changed code on the CLI
-      run: cd encr.dev && go test -short -tags=dev_build ./...
+      run: cd encr.dev && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > cli-test-report.xml
       if: github.event.schedule != '30 2 * * *'
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
         ENCORE_RUNTIME_PATH: ${{ github.workspace }}/encr.dev/runtime
 
     - name: Run tests on changed runtime code
-      run: cd encr.dev/runtime && go test -short -tags=dev_build ./...
+      run: cd encr.dev/runtime && go test -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > runtime-test-report.xml
       if: github.event.schedule != '30 2 * * *'
 
     # Each night we want to run all tests multiple times to catch any flaky tests
@@ -52,14 +55,14 @@ jobs:
     # for failures. We will also fail fast so that we don't waste time running tests
     # that are already failing.
     - name: Run all tests multiple times on the CLI
-      run:  cd encr.dev && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build ./...
+      run:  cd encr.dev && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > cli-test-report.xml
       if:   github.event.schedule == '30 2 * * *'
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
         ENCORE_RUNTIME_PATH: ${{ github.workspace }}/encr.dev/runtime
 
     - name: Run all tests multiple times on the runtime
-      run:  cd encr.dev/runtime && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build ./...
+      run:  cd encr.dev/runtime && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > runtime-test-report.xml
       if:   github.event.schedule == '30 2 * * *'
 
     - name: Build for Windows
@@ -67,13 +70,20 @@ jobs:
       env:
         GOOS: windows
 
+    - name: Test Summary
+      id: test_summary
+      uses: test-summary/action@v2
+      with:
+        paths: "encr.dev/**/*-test-report.xml"
+      if: always()
+
     - name: Report Nightly Failure
       uses: ravsamhq/notify-slack-action@v2
       if: ${{ failure() && github.event.schedule == '30 2 * * *' }}
       with:
         status: ${{ job.status }} # required
         notification_title: "{workflow} has {status_message}"
-        message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+        message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}> (${{ steps.test_summary.outputs.passed }}/${{ steps.test_summary.outputs.total }} tests passed)"
         footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
