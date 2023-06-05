@@ -200,12 +200,13 @@ var cfg = config.Load[*Config]()
 -- greeting/config.cue --
 package greeting
 
-if #Meta.Environment.Cloud == "local" {
-	TemporalServer: "localhost:7233"
-} else {
+TemporalServer: [
+	// These act as individual case statements
+    if #Meta.Environment.Cloud == "local" { "localhost:7233" },
+
     // TODO: configure this to match your own cluster address
-	TemporalServer: "my.cluster.address:7233"
-}
+    "my.cluster.address:7233",
+][0] // Return the first value which matches the condition
 ```
 
 Finally go back to `greeting/greeting.go` and update the `client.Dial` call to look like:
