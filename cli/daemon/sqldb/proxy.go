@@ -200,7 +200,15 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	admin, _ := info.Encore.First(RoleAdmin, RoleSuperuser)
 	startup.Username = admin.Username
 	startup.Password = admin.Password
-	startup.Database = db.DriverName
+	if db == nil {
+		// We don't know about this database, we'll use the requested name
+		// incase it does actually exist within the cluster.
+		//
+		// If it doesn't the cluster will return an SQL error to the client.
+		startup.Database = dbname
+	} else {
+		startup.Database = db.DriverName
+	}
 	fe, err := pgproxy.SetupServer(server, &pgproxy.ServerConfig{
 		TLS:     nil,
 		Startup: startup,
