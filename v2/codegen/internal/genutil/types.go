@@ -225,9 +225,11 @@ func (g *Helper) goTypeToJen(pos gotoken.Pos, typ reflect.Type) *Statement {
 // for the given type. If the type is nil it returns "nil".
 func (g *Helper) Zero(typ schema.Type) *Statement {
 	isNillable := func(typ schema.Type) bool {
-		switch typ.(type) {
-		case nil, schema.PointerType, schema.ListType, schema.MapType, schema.FuncType, schema.InterfaceType:
+		switch typ := typ.(type) {
+		case nil, schema.PointerType, schema.MapType, schema.FuncType, schema.InterfaceType:
 			return true
+		case schema.ListType:
+			return typ.Len == -1 // -1 == slice, anything else is an array
 		default:
 			return false
 		}
