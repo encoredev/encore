@@ -83,7 +83,7 @@ func (g *Generator) Overlays() []overlay.File {
 
 		buf.Reset()
 		if err := f.Render(&buf); err != nil {
-			g.Errs.Add(errRender().InFile(source.ToIO()).Wrapping(err))
+			g.Errs.Add(errRender.InFile(source.ToIO()).Wrapping(err))
 			continue
 		}
 

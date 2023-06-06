@@ -246,11 +246,6 @@ func (g *Helper) Zero(typ schema.Type) *Statement {
 			return Parens(Op(ops).Add(g.Type(named))).Call(Nil())
 		}
 
-		// If there are type arguments, return (Foo[X]{}).
-		// as we need to wrap the type in parens.
-		if len(named.TypeArgs) > 0 {
-			return Parens(g.Type(typ).Values())
-		}
 	}
 	if numPointers > 0 || isNillable(typ) {
 		return Nil()
@@ -258,8 +253,14 @@ func (g *Helper) Zero(typ schema.Type) *Statement {
 		return g.builtinZero(builtin)
 	}
 
-	// Otherwise return Foo{}.
-	return g.Type(typ).Values()
+	// Otherwise return (Foo{}).
+	// We need to wrap the type in parens as both generic types
+	// and other types need brackets around them for the zero value.
+	//
+	// i.e.
+	// 	if val != (Foo{}) { ... }
+	// 	if val != (Foo[Generic]{}) { ... }
+	return Parens(g.Type(typ).Values())
 }
 
 // Initialize returns a jen expression for initializing
@@ -301,7 +302,9 @@ func (g *Helper) builtinZero(builtin schema.BuiltinType) *Statement {
 	case schema.UUID:
 		return Qual("encore.dev/types/uuid", "UUID").Values()
 	case schema.JSON:
-		return Parens(Qual("json", "RawMessage")).Call(Nil())
+		// Zero for JSON is nil, we don't return a typed nil as you can't use them
+		// in if statements.
+		return Nil()
 	case schema.UserID:
 		return Qual("encore.dev/beta/auth", "UID").Call(Lit(""))
 	case schema.Error:

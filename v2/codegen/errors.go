@@ -8,7 +8,7 @@ var (
 		"",
 	)
 
-	errRender = errRange.Newf(
+	errRender = errRange.New(
 		"Failed to render codegen",
 		"Generated code could not be parsed.",
 		errors.MarkAsInternalError(),
