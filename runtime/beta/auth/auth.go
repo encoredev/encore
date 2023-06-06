@@ -5,6 +5,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
 	"encore.dev/appruntime/apisdk/api"
 	"encore.dev/appruntime/exported/model"
@@ -60,8 +61,22 @@ func (mgr *Manager) Data() interface{} {
 // the empty string then data may not be nil. If these requirements are not met,
 // API calls made with these options will not be made and will immediately return
 // a client-side error.
+//
+// Note: this function will panic if the type of the data parameter is not
+// the same type returned by the auth handler. If the auth handler does not
+// return any data, then this value must be nil.
 func WithContext(ctx context.Context, uid UID, data interface{}) context.Context {
-	// FIXME(domblack): Verify that the data is of the same type as the auth handler returns.
+	// If we're being passed a uid and data, make sure the data is valid.
+	if uid != "" || data != nil {
+		err := api.CheckAuthData(uid, data)
+		if err != nil {
+			// This is a shame, we need to perform this check
+			// however we don't support returning an error here, so
+			// we need a panic to prevent breaking changes to existing
+			// peoples code.
+			panic(fmt.Sprintf("unable to set auth.WithContext: %v", err))
+		}
+	}
 
 	opts := *api.GetCallOptions(ctx) // make a copy
 	opts.Auth = &model.AuthInfo{UID: uid, UserData: data}
