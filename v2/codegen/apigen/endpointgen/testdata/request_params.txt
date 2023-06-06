@@ -121,7 +121,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			stream.WriteVal(params.String)
 			stream.WriteMore()
 		}
-		if params.Array != [3]uint8{} {
+		if params.Array != ([3]uint8{}) {
 			// Array is set to omitempty, so we need to check if it's empty before writing it
 			stream.WriteObjectField("Array")
 			stream.WriteVal(params.Array)
