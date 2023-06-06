@@ -281,6 +281,15 @@ func GetCallOptions(ctx context.Context) *CallOptions {
 
 var RegisteredAuthDataType reflect.Type
 
+// newAuthDataObj returns a new instance of the configured auth handler's data type.
+// If no auth handler is configured, nil is returned.
+func newAuthDataObj() any {
+	if RegisteredAuthDataType == nil {
+		return nil
+	}
+	return reflect.New(RegisteredAuthDataType.Elem()).Interface()
+}
+
 // CheckAuthData checks whether the given auth information is valid
 // based on the configured auth handler's data type.
 func CheckAuthData(uid model.UID, userData any) error {
@@ -307,7 +316,7 @@ func CheckAuthData(uid model.UID, userData any) error {
 	return nil
 }
 
-func (s *Server) beginCall(serviceName, endpointName string, defLoc uint32) (*model.APICall, CallMeta, error) {
+func (s *Server) beginCall(ctx context.Context, serviceName, endpointName string, defLoc uint32) (*model.APICall, CallMeta, error) {
 	call := &model.APICall{
 		TargetServiceName:  serviceName,
 		TargetEndpointName: endpointName,
@@ -316,6 +325,20 @@ func (s *Server) beginCall(serviceName, endpointName string, defLoc uint32) (*mo
 
 	curr := s.rt.Current()
 	call.Source = curr.Req
+
+	// Add  auth data to the call, if any
+	if curr.Req != nil && curr.Req.RPCData != nil {
+		call.UserID = curr.Req.RPCData.UserID
+		call.AuthData = curr.Req.RPCData.AuthData
+	}
+
+	// Update request data based on call options, if any
+	if opts, _ := ctx.Value(callOptionsKey).(*CallOptions); opts != nil {
+		if a := opts.Auth; a != nil {
+			call.UserID = a.UID
+			call.AuthData = a.UserData
+		}
+	}
 
 	if curr.Trace != nil {
 		call.StartEventID = curr.Trace.RPCCallStart(call, curr.Goctr)

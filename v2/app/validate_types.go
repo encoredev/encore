@@ -14,7 +14,7 @@ import (
 // according to Encore's requirements.
 //
 // This walks the type recursively and validates the whole thing
-func (d *Desc) validateType(pc *parsectx.Context, usedAt ast.Node, typ schema.Type, isAuthType bool) {
+func (d *Desc) validateType(pc *parsectx.Context, usedAt ast.Node, typ schema.Type) {
 	// Convert generic types to their concrete types
 	typ = schemautil.ConcretizeGenericType(pc.Errs, typ)
 
@@ -29,17 +29,6 @@ func (d *Desc) validateType(pc *parsectx.Context, usedAt ast.Node, typ schema.Ty
 					pc.Errs.Add(
 						apienc.ErrAnonymousFieldsNotSupported.
 							AtGoNode(field.AST, errors.AsError("defined here")).
-							AtGoNode(usedAt, errors.AsHelp("used here")),
-					)
-				} else if isAuthType && !field.IsExported() {
-					// We don't allow unexported fields in auth types
-					// because we need to ensure that the auth type if fully
-					// serializable between services - otherwise we risk a service
-					// misinterpreting an unexported zero value as a valid value.
-					// (i.e "user.banned" is true, but doesn't get marshalled and so becomes false)
-					pc.Errs.Add(
-						apienc.ErrUnexportedFieldsNotSupported.
-							AtGoNode(field.AST.Names[0], errors.AsError("defined here")).
 							AtGoNode(usedAt, errors.AsHelp("used here")),
 					)
 				}

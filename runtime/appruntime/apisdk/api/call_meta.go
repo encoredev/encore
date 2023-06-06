@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"encore.dev/appruntime/apisdk/api/authmarshalling"
 	"encore.dev/appruntime/apisdk/api/svcauth"
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/model"
@@ -50,12 +51,16 @@ func (s *Server) metaFromAPICall(parent *model.APICall) (meta CallMeta) {
 
 		meta.Internal = &InternalCallMeta{
 			SendingService: s.static.BundledServices[parent.Source.SvcNum-1],
+			AuthUID:        string(parent.UserID),
+			AuthData:       parent.AuthData,
 		}
 	} else {
 		// If there's no parent request, we're probably in the middle of system startup
 		// so we'll just use the first bundled service as the sending service
 		meta.Internal = &InternalCallMeta{
 			SendingService: s.static.BundledServices[0],
+			AuthUID:        string(parent.UserID),
+			AuthData:       parent.AuthData,
 		}
 	}
 
@@ -90,7 +95,18 @@ func (meta CallMeta) AddToRequest(req transport.Transport) error {
 		// Add a marker to the request to indicate that this is an internal call
 		req.SetMeta("Internal-Call", meta.Internal.SendingService)
 
-		// TODO(domblack): Add the auth UID and data to the request
+		// Add the auth data
+		if meta.Internal.AuthUID != "" {
+			req.SetMeta("Auth-UID", meta.Internal.AuthUID)
+
+			if meta.Internal.AuthData != nil {
+				authData, err := authmarshalling.Marshal(meta.Internal.AuthData)
+				if err != nil {
+					return errs.B().Cause(err).Msg("failed to marshal auth data").Err()
+				}
+				req.SetMeta("Auth-Data", authData)
+			}
+		}
 
 		// If we're making an internal call, sign the request
 		if err := svcauth.Sign(svcauth.Noop, req); err != nil {
@@ -141,7 +157,18 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 			SendingService: sendingService,
 		}
 
-		// TODO(domblack): Read the auth UID and data from the request
+		// Pull the auth data out of the request
+		if uid, found := req.ReadMeta("Auth-UID"); found && uid != "" {
+			meta.Internal.AuthUID = uid
+
+			if data, found := req.ReadMeta("Auth-Data"); found && data != "" {
+				meta.Internal.AuthData = newAuthDataObj()
+
+				if err := authmarshalling.Unmarshal(data, meta.Internal.AuthData); err != nil {
+					return CallMeta{}, errs.B().Cause(err).Msg("failed to unmarshal auth data").Err()
+				}
+			}
+		}
 	}
 
 	return meta, nil

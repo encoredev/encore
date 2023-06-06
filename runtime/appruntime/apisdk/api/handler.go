@@ -122,7 +122,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 
 	reqData, beginErr := d.begin(c)
 	if beginErr != nil {
-		d.returnError(c, beginErr, 0)
+		returnError(c, beginErr, 0)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		// If the endpoint is raw it has already written its response;
 		// don't write another.
 		if !d.Raw {
-			d.returnError(c, resp.Err, resp.HTTPStatus)
+			returnError(c, resp.Err, resp.HTTPStatus)
 		}
 		return
 	}
@@ -159,7 +159,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 //
 // If statusCodeToUse is 0, we will use the default status code for the error using
 // the [errs] package.
-func (d *Desc[Req, Resp]) returnError(c IncomingContext, err error, statusCodeToUse int) {
+func returnError(c IncomingContext, err error, statusCodeToUse int) {
 	if c.isEncoreToEncoreCall {
 		// If this is an internal service to service call, we want to return the full error
 		// we'll add a header to the response to indicate that the error is a full error
@@ -452,7 +452,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 		return
 	}
 
-	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	call, meta, err := c.server.beginCall(c.ctx, d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
@@ -601,7 +601,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		httpReq.Header[key] = val
 	}
 
-	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	call, meta, err := c.server.beginCall(c.ctx, d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
@@ -634,7 +634,11 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 
 				return resp, respErr
 			} else {
-				return resp, errs.B().Code(errs.Internal).Msg("request failed: " + httpResp.Header.Get("X-Encore-Full-Error")).Err()
+				bodyBytes, err := io.ReadAll(httpResp.Body)
+				if err != nil {
+					return resp, errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
+				}
+				return resp, errs.B().Code(errs.Internal).Msg("request failed: " + string(bodyBytes)).Err()
 			}
 		}
 

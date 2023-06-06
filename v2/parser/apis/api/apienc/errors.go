@@ -60,14 +60,4 @@ var (
 		"Invalid API schema",
 		"Anonymous fields are not supported in API schemas.",
 	)
-
-	ErrUnexportedFieldsNotSupported = errRange.New(
-		"Invalid Auth data schema",
-		"Unexported fields are not supported anywhere within an auth data.",
-		errors.WithDetails(
-			"Encore does not support unexported fields in auth data to ensure that "+
-				"the full data structure is serializable between services. This prevents an unexported "+
-				"zero value from being misinterpreted as a valid value and misinterpreted.",
-		),
-	)
 )
