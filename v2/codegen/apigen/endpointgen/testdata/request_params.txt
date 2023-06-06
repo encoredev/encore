@@ -4,7 +4,8 @@ package basic
 import "context"
 
 type Params struct {
-    String string `json:",omitempty"`
+    String string   `json:",omitempty"`
+    Array  [3]byte  `json:",omitempty"`
     Int int
 }
 
@@ -85,6 +86,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 				switch strings.ToLower(key) {
 				case "string":
 					dec.ParseJSON("String", iter, &params.String)
+				case "array":
+					dec.ParseJSON("Array", iter, &params.Array)
 				case "int":
 					dec.ParseJSON("Int", iter, &params.Int)
 				default:
@@ -116,6 +119,12 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			// String is set to omitempty, so we need to check if it's empty before writing it
 			stream.WriteObjectField("String")
 			stream.WriteVal(params.String)
+			stream.WriteMore()
+		}
+		if params.Array != [3]uint8{} {
+			// Array is set to omitempty, so we need to check if it's empty before writing it
+			stream.WriteObjectField("Array")
+			stream.WriteVal(params.Array)
 			stream.WriteMore()
 		}
 		stream.WriteObjectField("Int")
