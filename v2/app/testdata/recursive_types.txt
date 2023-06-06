@@ -8,7 +8,7 @@ import "context"
 type Params struct {
     A *SelfRecursive
     B *MutuallyRecursive
-    C *Generic[Generic]
+    C *Generic[Generic[MutuallyRecursive]]
 }
 
 //encore:api public

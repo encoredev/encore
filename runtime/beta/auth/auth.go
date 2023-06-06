@@ -61,6 +61,8 @@ func (mgr *Manager) Data() interface{} {
 // API calls made with these options will not be made and will immediately return
 // a client-side error.
 func WithContext(ctx context.Context, uid UID, data interface{}) context.Context {
+	// FIXME(domblack): Verify that the data is of the same type as the auth handler returns.
+
 	opts := *api.GetCallOptions(ctx) // make a copy
 	opts.Auth = &model.AuthInfo{UID: uid, UserData: data}
 	return api.WithCallOptions(ctx, &opts)

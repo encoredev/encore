@@ -60,7 +60,7 @@ func (s *serviceFile) registerTopLevelField(typ schema.Type) {
 		s.errs.Add(errNotNamedStruct.AtGoNode(typ.ASTExpr()))
 		return
 	}
-	concrete := schemautil.ConcretizeWithTypeArgs(st.Decl.Type, st.TypeArgs)
+	concrete := schemautil.ConcretizeWithTypeArgs(s.errs, st.Decl.Type, st.TypeArgs)
 
 	fields := s.structToFields(concrete.(schema.StructType))
 
@@ -178,7 +178,7 @@ func (s *serviceFile) generateCue() {
 
 	// Write any declarations we've used multiple times to the file
 	for _, named := range s.typeUsage.NamesWithCountsOver(1) {
-		concrete := schemautil.ConcretizeWithTypeArgs(named.Decl().Type, named.TypeArgs)
+		concrete := schemautil.ConcretizeWithTypeArgs(s.errs, named.Decl().Type, named.TypeArgs)
 		defIdent := s.typeUsage.CueIdent(named)
 		fieldType := s.toCueType(concrete)
 
@@ -277,7 +277,7 @@ func (s *serviceFile) toCueType(unknownType schema.Type) ast.Expr {
 		usageCount := s.typeUsage.Count(typ)
 		if usageCount <= 1 {
 			// inline the type if it's only used once
-			concrete := schemautil.ConcretizeWithTypeArgs(typ.Decl().Type, typ.TypeArgs)
+			concrete := schemautil.ConcretizeWithTypeArgs(s.errs, typ.Decl().Type, typ.TypeArgs)
 			return s.toCueType(concrete)
 		} else {
 			return s.typeUsage.CueIdent(typ)

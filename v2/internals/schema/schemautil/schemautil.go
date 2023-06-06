@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"go/ast"
 	"go/types"
 	"reflect"
 	"strconv"
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/errors"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
@@ -139,18 +141,18 @@ func DerefNamedInfo(t schema.Type, requirePointer bool) (info *pkginfo.PkgDeclIn
 //
 // To be more robust in the presence of typing errors it supports partial application,
 // where the number of type arguments may be different than the number of type parameters on the decl.
-func ConcretizeGenericType(typ schema.Type) schema.Type {
-	return concretize(typ, nil, nil)
+func ConcretizeGenericType(errs *perr.List, typ schema.Type) schema.Type {
+	return concretize(errs, typ.ASTExpr(), typ, nil, nil)
 }
 
 // ConcretizeWithTypeArgs is like ConcretizeGenericType but operates with
 // a list of type arguments. It is used when the type arguments are known
 // separately from the type itself, such as when using *schema.TypeDeclRef.
-func ConcretizeWithTypeArgs(typ schema.Type, typeArgs []schema.Type) schema.Type {
-	return concretize(typ, typeArgs, nil)
+func ConcretizeWithTypeArgs(errs *perr.List, typ schema.Type, typeArgs []schema.Type) schema.Type {
+	return concretize(errs, typ.ASTExpr(), typ, typeArgs, nil)
 }
 
-func concretize(typ schema.Type, typeArgs []schema.Type, seenDecls map[TypeHash]*schema.TypeDecl) schema.Type {
+func concretize(errs *perr.List, referencedFrom ast.Node, typ schema.Type, typeArgs []schema.Type, seenDecls map[TypeHash]*schema.TypeDecl) schema.Type {
 	// seenDecls is used to avoid infinite recursion
 	// for mutually recursive types.
 	if seenDecls == nil {
@@ -164,20 +166,24 @@ func concretize(typ schema.Type, typeArgs []schema.Type, seenDecls map[TypeHash]
 		if typ.Index < len(typeArgs) {
 			return typeArgs[typ.Index]
 		} else {
-			panic(fmt.Sprintf("missing type argument for type parameter %d", typ.Index))
+			errs.Add(
+				errMissingTypeArg.
+					AtGoNode(typ.AST),
+			)
+			return typ // return the type param ref as a placeholder
 		}
 
 	case schema.BuiltinType:
 		return typ
 	case schema.PointerType:
-		return schema.PointerType{AST: typ.AST, Elem: concretize(typ.Elem, typeArgs, seenDecls)}
+		return schema.PointerType{AST: typ.AST, Elem: concretize(errs, typ.AST, typ.Elem, typeArgs, seenDecls)}
 	case schema.ListType:
-		return schema.ListType{AST: typ.AST, Elem: concretize(typ.Elem, typeArgs, seenDecls), Len: typ.Len}
+		return schema.ListType{AST: typ.AST, Elem: concretize(errs, typ.AST.Elt, typ.Elem, typeArgs, seenDecls), Len: typ.Len}
 	case schema.MapType:
 		return schema.MapType{
 			AST:   typ.AST,
-			Key:   concretize(typ.Key, typeArgs, seenDecls),
-			Value: concretize(typ.Value, typeArgs, seenDecls),
+			Key:   concretize(errs, typ.AST.Key, typ.Key, typeArgs, seenDecls),
+			Value: concretize(errs, typ.AST.Value, typ.Value, typeArgs, seenDecls),
 		}
 	case schema.StructType:
 		result := schema.StructType{
@@ -186,16 +192,27 @@ func concretize(typ schema.Type, typeArgs []schema.Type, seenDecls map[TypeHash]
 		}
 		for i, f := range typ.Fields {
 			result.Fields[i] = f // copy
-			result.Fields[i].Type = concretize(f.Type, typeArgs, seenDecls)
+			result.Fields[i].Type = concretize(errs, f.AST.Type, f.Type, typeArgs, seenDecls)
 		}
 		return result
 	case schema.NamedType:
+		if typParams := typ.Decl().TypeParams; len(typParams) > len(typ.TypeArgs) {
+			numMissing := len(typParams) - len(typ.TypeArgs)
+			idx := len(typParams) - numMissing
+			errs.Add(
+				errMissingTypeArg.
+					AtGoNode(referencedFrom, errors.AsError("missing from here")).
+					AtGoNode(typParams[idx].AST, errors.AsHelp("missing type parameter defined here")),
+			)
+			return typ // return the named type as a placeholder
+		}
+
 		// Clone the named type. Clone the slice so we don't overwrite the original.
 		clone := typ
 		clone.TypeArgs = slices.Clone(typ.TypeArgs)
 
 		for i, arg := range clone.TypeArgs {
-			clone.TypeArgs[i] = concretize(arg, typeArgs, seenDecls)
+			clone.TypeArgs[i] = concretize(errs, typ.AST, arg, typeArgs, seenDecls)
 		}
 
 		// If we've already seen this declaration, don't clone it to avoid
@@ -209,7 +226,7 @@ func concretize(typ schema.Type, typeArgs []schema.Type, seenDecls map[TypeHash]
 
 		// Clone and concretize the declaration.
 		seenDecls[hash] = decl
-		decl.Type = concretize(decl.Type, clone.TypeArgs, seenDecls)
+		decl.Type = concretize(errs, typ.AST, decl.Type, clone.TypeArgs, seenDecls)
 		return clone.WithDecl(decl)
 
 	case schema.FuncType:
@@ -219,10 +236,10 @@ func concretize(typ schema.Type, typeArgs []schema.Type, seenDecls map[TypeHash]
 		clone.Results = slices.Clone(typ.Results)
 
 		for i, p := range clone.Params {
-			clone.Params[i].Type = concretize(p.Type, typeArgs, seenDecls)
+			clone.Params[i].Type = concretize(errs, p.AST.Type, p.Type, typeArgs, seenDecls)
 		}
 		for i, p := range clone.Results {
-			clone.Results[i].Type = concretize(p.Type, typeArgs, seenDecls)
+			clone.Results[i].Type = concretize(errs, p.AST.Type, p.Type, typeArgs, seenDecls)
 		}
 		return clone
 	case schema.InterfaceType:

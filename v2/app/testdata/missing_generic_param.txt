@@ -1,0 +1,42 @@
+# This test makes sure we don't panic when parsing a missing generic type
+! parse
+-- foo.go --
+package foo
+
+import "context"
+
+type Params struct {
+    C *Generic
+}
+
+type Generic[T any] struct {
+    Val *T
+}
+
+//encore:api public
+func Dummy(ctx context.Context, p *Params) error {
+    return nil
+}
+-- want: errors --
+
+── Missing type argument ──────────────────────────────────────────────────────────────────[E9999]──
+
+Missing type argument
+
+    ╭─[ foo.go:6:7 ]
+    │
+  4 │
+  5 │ type Params struct {
+  6 │     C *Generic
+    ⋮       ───┬────
+    ⋮          ╰─ missing from here
+  7 │ }
+  8 │
+  9 │ type Generic[T any] struct {
+    ⋮              ──┬──
+    ⋮                ╰─ missing type parameter defined here
+ 10 │     Val *T
+ 11 │ }
+────╯
+
+For more information, see https://encore.dev/docs/develop/api-schemas

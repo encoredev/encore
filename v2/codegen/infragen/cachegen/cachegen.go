@@ -97,7 +97,7 @@ func getStructFields(errs *perr.List, keyType schema.Type) (structFields map[str
 		errs.AddPos(keyType.ASTExpr().Pos(), "invalid cache key type: must not be a pointer type")
 		return nil, false
 	}
-	st := schemautil.ConcretizeWithTypeArgs(ref.Decl.Type, ref.TypeArgs).(schema.StructType)
+	st := schemautil.ConcretizeWithTypeArgs(errs, ref.Decl.Type, ref.TypeArgs).(schema.StructType)
 
 	for _, f := range st.Fields {
 		if f.IsAnonymous() {
