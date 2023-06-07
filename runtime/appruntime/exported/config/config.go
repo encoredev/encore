@@ -50,6 +50,13 @@ type Runtime struct {
 	ServiceDiscovery map[string]Service      `json:"services,omitempty"`
 	Gateways         []Gateway               `json:"gateways,omitempty"` // Gateways defines the gateways which should be served by the container
 
+	// ServiceAuth defines which authentication method can be used
+	// when talking to this runtime for internal service-to-service
+	// calls.
+	//
+	// An empty slice means that no service-to-service calls can be made
+	ServiceAuth []ServiceAuth `json:"service_auth,omitempty"`
+
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
 	// If zero, it shuts down immediately.
@@ -78,6 +85,10 @@ type Service struct {
 	URL string `json:"url"`
 	// Protocol is the protocol that the service talks
 	Protocol SvcProtocol `json:"protocol"`
+
+	// ServiceAuth is the authentication configuration required for
+	// internal service to service calls being made to this service.
+	ServiceAuth ServiceAuth `json:"service_auth"`
 }
 
 type SvcProtocol string
@@ -85,6 +96,11 @@ type SvcProtocol string
 const (
 	Http SvcProtocol = "http"
 )
+
+type ServiceAuth struct {
+	// Method is the name of the authentication method.
+	Method string `json:"method"`
+}
 
 // UnsafeAllOriginWithCredentials can be used to specify that all origins are
 // allowed to call this API with credentials. It is unsafe and misuse can lead
