@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 
 	encore "encore.dev"
+	"encore.dev/appruntime/apisdk/api/svcauth"
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/apisdk/cors"
 	"encore.dev/appruntime/exported/config"
@@ -109,6 +110,7 @@ type Server struct {
 	private         *httprouter.Router
 	privateFallback *httprouter.Router
 	encore          *httprouter.Router
+	internalAuth    []svcauth.ServiceAuth // auth methods for internal service-to-service calls
 	httpsrv         *http.Server
 
 	callCtr uint64
@@ -145,6 +147,11 @@ func NewServer(
 		return router
 	}
 
+	svcAuth, err := svcauth.LoadMethods(runtime.ServiceAuth)
+	if err != nil {
+		panic(fmt.Errorf("error loading service auth methods: %w", err))
+	}
+
 	s := &Server{
 		static:         static,
 		runtime:        runtime,
@@ -164,6 +171,7 @@ func NewServer(
 		private:         newRouter(),
 		privateFallback: newRouter(),
 		encore:          newRouter(),
+		internalAuth:    svcAuth,
 	}
 
 	// Configure CORS
@@ -317,7 +325,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 
 	// Extract the metadata from the request so we can allow access to the private router.
 	// If the metadata is not present, then we assume this is a public request.
-	callMeta, err := MetaFromRequest(transport.HTTPRequest(req))
+	callMeta, err := s.MetaFromRequest(transport.HTTPRequest(req))
 	if err != nil {
 		s.rootLogger.Error().Err(err).Msg("failed to extract metadata from request")
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

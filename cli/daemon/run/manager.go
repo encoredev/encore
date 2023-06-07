@@ -154,12 +154,23 @@ func (mgr *Manager) generateServiceDiscoveryMap(p generateConfigParams) (map[str
 		services[svc.Name] = config.Service{
 			Name: svc.Name,
 			// For now all services are hosted by the same running instance
-			URL:      p.APIBaseURL,
-			Protocol: config.Http,
+			URL:         p.APIBaseURL,
+			Protocol:    config.Http,
+			ServiceAuth: mgr.getInternalServiceToServiceAuthMethod(),
 		}
 	}
 
 	return services, nil
+}
+
+// getInternalServiceToServiceAuthMethod returns the auth method to use
+// when making service to service calls locally.
+//
+// This currently just returns the noop auth method, but in the future
+// this function will allow us to use environmental variables to configure
+// the auth method and test different auth methods locally.
+func (mgr *Manager) getInternalServiceToServiceAuthMethod() config.ServiceAuth {
+	return config.ServiceAuth{Method: "noop"}
 }
 
 func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, error) {
@@ -209,7 +220,10 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
 			AllowPrivateNetworkAccess:      true,
 		},
-		ServiceDiscovery:           serviceDiscovery,
+		ServiceDiscovery: serviceDiscovery,
+		ServiceAuth: []config.ServiceAuth{
+			mgr.getInternalServiceToServiceAuthMethod(),
+		},
 		ExperimentUseExternalCalls: p.ExternalCalls,
 	}
 
