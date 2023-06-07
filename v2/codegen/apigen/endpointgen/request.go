@@ -342,7 +342,16 @@ func (d *requestDesc) EncodeExternalReq() *Statement {
 			g.Id("params").Op(":=").Op("&").Add(d.reqDataPayloadExpr())
 		}
 
-		enc := d.ep.RequestEncoding()[0]
+		encodings := d.ep.RequestEncoding()
+		if len(encodings) == 0 {
+			// This only happens in the case of an error, which has
+			// then already been reported by RequestEncoding.
+			g.Return(Nil(), Nil(), Nil())
+			return
+		}
+
+		enc := encodings[0]
+
 		apigenutil.EncodeHeaders(d.gu.Errs, g, d.httpHeaderExpr(), Id("params"), enc.HeaderParameters)
 		apigenutil.EncodeQuery(d.gu.Errs, g, d.queryStringExpr(), Id("params"), enc.QueryParameters)
 		apigenutil.EncodeBody(d.gu, g, d.jsonStream(), Id("params"), enc.BodyParameters)
