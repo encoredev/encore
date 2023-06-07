@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"encore.dev/appruntime/apisdk/api/transport"
+	"encore.dev/appruntime/exported/config"
 )
 
 const (
@@ -21,7 +22,7 @@ func Sign(method ServiceAuth, req transport.Transport) error {
 }
 
 // Verify verifies the authenticity of the request using the given authentication methods.
-func Verify(req transport.Transport, loadedAuthMethods ...ServiceAuth) (internalCall bool, err error) {
+func Verify(req transport.Transport, loadedAuthMethods []ServiceAuth) (internalCall bool, err error) {
 	method, found := req.ReadMeta(AuthMethodMetaKey)
 	if !found {
 		// If this is not set, it means that the request is not an internal service to service call.
@@ -38,4 +39,18 @@ func Verify(req transport.Transport, loadedAuthMethods ...ServiceAuth) (internal
 	}
 
 	return false, fmt.Errorf("unknown service to service authentication method: %s", method)
+}
+
+// LoadMethods loads the service to service authentication methods from the given config.
+func LoadMethods(cfg []config.ServiceAuth) (rtn []ServiceAuth, err error) {
+	for _, authCfg := range cfg {
+		switch authCfg.Method {
+		case "noop":
+			rtn = append(rtn, &noop{})
+		default:
+			return nil, fmt.Errorf("unknown service to service authentication method: %s", authCfg.Method)
+		}
+	}
+
+	return rtn, nil
 }

@@ -102,7 +102,7 @@ func (meta CallMeta) AddToRequest(req transport.Transport) error {
 }
 
 // MetaFromRequest reads the metadata from the given request and returns it
-func MetaFromRequest(req transport.Transport) (meta CallMeta, err error) {
+func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err error) {
 	// Read the meta version if set and check it's only version 1
 	// as that's the only version we support
 	if metaVersion, found := req.ReadMeta("Version"); found && metaVersion != "1" {
@@ -129,8 +129,7 @@ func MetaFromRequest(req transport.Transport) (meta CallMeta, err error) {
 
 	// If it was an internal call, read the internal metadata
 	if sendingService, found := req.ReadMeta("Internal-Call"); found {
-		// TODO(domblack): lookup svc auth method(s) from service name
-		isInternalCall, err := svcauth.Verify(req, svcauth.Noop)
+		isInternalCall, err := svcauth.Verify(req, s.internalAuth)
 		if err != nil {
 			return CallMeta{}, fmt.Errorf("failed to verify internal call: %w", err)
 		}
