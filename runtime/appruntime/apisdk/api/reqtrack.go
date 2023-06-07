@@ -279,6 +279,10 @@ func GetCallOptions(ctx context.Context) *CallOptions {
 	return &CallOptions{}
 }
 
+// RegisteredAuthDataType is the reflect type of the auth handler's data type.
+//
+// If no auth handler is configured, this is nil.
+// If an auth handler is configured, this is a pointer to the auth handler's data type.
 var RegisteredAuthDataType reflect.Type
 
 // newAuthDataObj returns a new instance of the configured auth handler's data type.
@@ -344,7 +348,12 @@ func (s *Server) beginCall(ctx context.Context, serviceName, endpointName string
 		call.StartEventID = curr.Trace.RPCCallStart(call, curr.Goctr)
 	}
 
-	return call, s.metaFromAPICall(call), nil
+	meta, err := s.metaFromAPICall(call)
+	if err != nil {
+		return nil, CallMeta{}, err
+	}
+
+	return call, meta, nil
 }
 
 func (s *Server) finishCall(call *model.APICall, err error) {

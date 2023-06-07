@@ -18,6 +18,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/shared/jsonapi"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 	"encore.dev/middleware"
@@ -476,7 +477,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 			nonRawPayload = marshalParams(c.server.json, userPayload)
 		}
 
-		_, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
+		reqModel, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
 			Type:          model.RPCCall,
 			DefLoc:        d.DefLoc,
 			CallerEventID: call.StartEventID,
@@ -494,6 +495,25 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 				ServiceToServiceCall: true,
 			},
 		})
+
+		// Now round-trip any auth data that was set on the request
+		// to emulate what happens in the HTTP case.
+		if reqModel.RPCData.AuthData != nil {
+			jsonBytes, err := jsonapi.Default.Marshal(reqModel.RPCData.AuthData)
+			if err != nil {
+				c.server.rootLogger.Err(err).Msg("unable to marshal auth data")
+				respErr = errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err()
+				return
+			}
+
+			reqModel.RPCData.AuthData = newAuthDataObj()
+			if err := jsonapi.Default.Unmarshal(jsonBytes, reqModel.RPCData.AuthData); err != nil {
+				c.server.rootLogger.Err(err).Msg("unable to unmarshal auth data")
+				respErr = errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err()
+				return
+			}
+		}
+
 		if beginErr != nil {
 			respErr = errs.B().Cause(beginErr).Code(errs.Internal).Msg("internal error").Err()
 			return
