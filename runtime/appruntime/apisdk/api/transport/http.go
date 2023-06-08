@@ -2,6 +2,8 @@ package transport
 
 import (
 	"net/http"
+	"sort"
+	"strings"
 )
 
 // HTTPRequest returns a Transport implementation for the given HTTP request.
@@ -48,4 +50,28 @@ func (h *httpHeaders) ReadMeta(key string) (value string, found bool) {
 func (h *httpHeaders) ReadMetaValues(key string) (values []string, found bool) {
 	values = h.headers.Values(metaKeyToHTTPHeader(key))
 	return values, len(values) > 0
+}
+
+func (h *httpHeaders) ListMetaKeys() []string {
+	rtn := make([]string, 0, len(h.headers))
+
+	// List all keys
+	for key := range h.headers {
+		key := http.CanonicalHeaderKey(key)
+
+		switch {
+		case key == "Traceparent":
+			rtn = append(rtn, TraceParentKey)
+		case key == "Tracestate":
+			rtn = append(rtn, TraceStateKey)
+		case key == "X-Correlation-Id":
+			rtn = append(rtn, CorrelationIDKey)
+		case strings.HasPrefix(key, "X-Encore-Meta-"):
+			rtn = append(rtn, key[14:])
+		}
+	}
+
+	sort.Strings(rtn)
+
+	return rtn
 }

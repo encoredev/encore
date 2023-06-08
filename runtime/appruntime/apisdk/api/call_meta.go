@@ -11,6 +11,7 @@ import (
 
 	"encore.dev/appruntime/apisdk/api/svcauth"
 	"encore.dev/appruntime/apisdk/api/transport"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/beta/errs"
 )
@@ -85,7 +86,7 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 }
 
 // AddToRequest adds the metadata to the given request
-func (meta CallMeta) AddToRequest(req transport.Transport) error {
+func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, req transport.Transport) error {
 	// Future proofing: if we ever create a breaking change to the transport meta
 	// we can use this version number to indicate which version of the meta we're using
 	req.SetMeta("Version", "1")
@@ -126,7 +127,11 @@ func (meta CallMeta) AddToRequest(req transport.Transport) error {
 		}
 
 		// If we're making an internal call, sign the request
-		if err := svcauth.Sign(svcauth.Noop, req); err != nil {
+		targetAuth := server.internalAuth[targetService.ServiceAuth.Method]
+		if targetAuth == nil {
+			return errs.B().Msg("no internal auth method configured to talk with target service").Err()
+		}
+		if err := svcauth.Sign(targetAuth, req); err != nil {
 			return errs.B().Cause(err).Msg("failed to sign internal call").Err()
 		}
 	}

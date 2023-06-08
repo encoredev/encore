@@ -3,6 +3,8 @@ package svcauth
 import (
 	"fmt"
 
+	"github.com/benbjohnson/clock"
+
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
 )
@@ -22,7 +24,7 @@ func Sign(method ServiceAuth, req transport.Transport) error {
 }
 
 // Verify verifies the authenticity of the request using the given authentication methods.
-func Verify(req transport.Transport, loadedAuthMethods []ServiceAuth) (internalCall bool, err error) {
+func Verify(req transport.Transport, loadedAuthMethods map[string]ServiceAuth) (internalCall bool, err error) {
 	method, found := req.ReadMeta(AuthMethodMetaKey)
 	if !found {
 		// If this is not set, it means that the request is not an internal service to service call.
@@ -42,11 +44,15 @@ func Verify(req transport.Transport, loadedAuthMethods []ServiceAuth) (internalC
 }
 
 // LoadMethods loads the service to service authentication methods from the given config.
-func LoadMethods(cfg []config.ServiceAuth) (rtn []ServiceAuth, err error) {
-	for _, authCfg := range cfg {
+func LoadMethods(clock clock.Clock, cfg *config.Runtime) (rtn map[string]ServiceAuth, err error) {
+	rtn = make(map[string]ServiceAuth)
+
+	for _, authCfg := range cfg.ServiceAuth {
 		switch authCfg.Method {
 		case "noop":
-			rtn = append(rtn, &noop{})
+			rtn[authCfg.Method] = &noop{}
+		case "encore-auth":
+			rtn[authCfg.Method] = newEncoreAuth(clock, cfg.AppSlug, cfg.EnvName, cfg.AuthKeys)
 		default:
 			return nil, fmt.Errorf("unknown service to service authentication method: %s", authCfg.Method)
 		}
