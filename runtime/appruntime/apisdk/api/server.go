@@ -17,7 +17,9 @@ import (
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/apisdk/cors"
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/beta/errs"
@@ -99,6 +101,7 @@ type Server struct {
 	rootLogger     zerolog.Logger
 	json           jsoniter.API
 	tracingEnabled bool
+	experiments    *experiments.Set // The set of experiments enabled for this runtime
 
 	authHandler AuthHandler
 
@@ -116,20 +119,10 @@ type Server struct {
 	callCtr uint64
 
 	pubsubSubscriptions map[string]func(r *http.Request) error
+	healthMgr           *health.CheckRegistry
 }
 
-func NewServer(
-	static *config.Static,
-	runtime *config.Runtime,
-	rt *reqtrack.RequestTracker,
-	pc *platform.Client,
-	encoreMgr *encore.Manager,
-	pubsubMgr *pubsub.Manager,
-	rootLogger zerolog.Logger,
-	reg *metrics.Registry,
-	json jsoniter.API,
-	clock clock.Clock,
-) *Server {
+func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, pc *platform.Client, encoreMgr *encore.Manager, pubsubMgr *pubsub.Manager, rootLogger zerolog.Logger, reg *metrics.Registry, healthMgr *health.CheckRegistry, json jsoniter.API, clock clock.Clock) *Server {
 	requestsTotal := metrics.NewCounterGroupInternal[requestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
 		EncoreInternal_LabelMapper: func(labels requestsTotalLabels) []metrics.KeyValue {
 			return []metrics.KeyValue{
@@ -159,12 +152,14 @@ func NewServer(
 		rt:             rt,
 		encoreMgr:      encoreMgr,
 		pubsubMgr:      pubsubMgr,
+		healthMgr:      healthMgr,
 		requestsTotal:  requestsTotal,
 		httpClient:     &http.Client{},
 		clock:          clock,
 		rootLogger:     rootLogger,
 		json:           json,
 		tracingEnabled: rt.TracingEnabled(),
+		experiments:    experiments.NewForRuntime(static, runtime),
 
 		public:          newRouter(),
 		publicFallback:  newRouter(),

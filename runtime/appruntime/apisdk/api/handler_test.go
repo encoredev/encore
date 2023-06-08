@@ -23,6 +23,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/trace2"
+	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/appruntime/shared/traceprovider"
@@ -413,7 +414,8 @@ func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, 
 	encoreMgr := encore.NewManager(static, runtime, rt)
 	tsMgr := testsupport.NewManager(static, rt, logger)
 	pubsubMgr := pubsub.NewManager(static, runtime, rt, tsMgr, logger, json)
-	server := api.NewServer(static, runtime, rt, nil, encoreMgr, pubsubMgr, logger, metricsRegistry, json, klock)
+	healthMgr := health.NewCheckRegistry()
+	server := api.NewServer(static, runtime, rt, nil, encoreMgr, pubsubMgr, logger, metricsRegistry, healthMgr, json, klock)
 	return server, traceMock, metricsRegistry
 }
 

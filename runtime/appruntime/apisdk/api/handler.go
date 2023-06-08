@@ -16,6 +16,7 @@ import (
 	"encore.dev/appruntime/apisdk/api/errmarshalling"
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/appruntime/shared/jsonapi"
@@ -423,7 +424,7 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
-	if c.server.runtime.ExperimentUseExternalCalls {
+	if experiments.ExternalCalls.Enabled(c.server.experiments) {
 		return d.externalCall(c, req)
 	} else {
 		return d.internalCall(c, req)
@@ -498,7 +499,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 
 		// Now round-trip any auth data that was set on the request
 		// to emulate what happens in the HTTP case.
-		if reqModel.RPCData.AuthData != nil {
+		if experiments.AuthDataRoundTrip.Enabled(c.server.experiments) && reqModel.RPCData.AuthData != nil {
 			jsonBytes, err := jsonapi.Default.Marshal(reqModel.RPCData.AuthData)
 			if err != nil {
 				c.server.rootLogger.Err(err).Msg("unable to marshal auth data")

@@ -224,7 +224,7 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 		ServiceAuth: []config.ServiceAuth{
 			mgr.getInternalServiceToServiceAuthMethod(),
 		},
-		ExperimentUseExternalCalls: p.ExternalCalls,
+		EnabledExperiments: nil, // All experiments would be included in the static config here
 	}
 
 	if err := p.RM.UpdateConfig(cfg, p.Meta, mgr.DBProxyPort); err != nil {

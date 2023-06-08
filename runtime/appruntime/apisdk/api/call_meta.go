@@ -20,6 +20,7 @@ var (
 	authJSON = jsoniter.Config{
 		IndentionStep:          0,
 		ValidateJsonRawMessage: true,
+		TagKey:                 "auth-json",
 	}.Froze()
 )
 

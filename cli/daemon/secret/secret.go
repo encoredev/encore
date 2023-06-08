@@ -18,9 +18,9 @@ import (
 	"go4.org/syncutil"
 	"golang.org/x/sync/singleflight"
 
+	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/internal/platform"
-	"encr.dev/pkg/experiments"
 )
 
 // New returns a new manager.

@@ -13,12 +13,12 @@ import (
 	"github.com/rs/zerolog/log"
 	"go4.org/syncutil"
 
+	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/internal/manifest"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
 	"encr.dev/internal/goldfish"
 	"encr.dev/pkg/appfile"
-	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/watcher"
 )
 
@@ -331,7 +331,7 @@ func (i *Instance) Experiments(environ []string) (*experiments.Set, error) {
 		return nil, err
 	}
 
-	return experiments.NewSet(exp, environ)
+	return experiments.NewForCompiler(exp, environ)
 }
 
 // GlobalCORS returns the CORS configuration for the app which

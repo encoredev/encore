@@ -8,6 +8,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 	"golang.org/x/exp/slices"
 
+	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
@@ -42,18 +43,19 @@ func genLoadApp(p GenParams, test option.Option[testParams]) {
 
 	f.Func().Id("init").Params().BlockFunc(func(g *Group) {
 		staticCfg := Dict{
-			//Id("AuthData"):       authDataType(p.Gen.Util, p.Desc),
+			// Id("AuthData"):       authDataType(p.Gen.Util, p.Desc),
 			Id("EncoreCompiler"): Lit(p.CompilerVersion),
 			Id("AppCommit"): Qual("encore.dev/appruntime/exported/config", "CommitInfo").Values(Dict{
 				Id("Revision"):    Lit(p.AppRevision),
 				Id("Uncommitted"): Lit(p.AppUncommitted),
 			}),
-			Id("CORSAllowHeaders"):  allowHeaders,
-			Id("CORSExposeHeaders"): exposeHeaders,
-			Id("PubsubTopics"):      pubsubTopics(p.Gen, p.Desc),
-			Id("Testing"):           Lit(test.Present()),
-			Id("TestServiceMap"):    testServiceMap(p.Desc),
-			Id("BundledServices"):   bundledServices(p.Desc),
+			Id("CORSAllowHeaders"):   allowHeaders,
+			Id("CORSExposeHeaders"):  exposeHeaders,
+			Id("PubsubTopics"):       pubsubTopics(p.Gen, p.Desc),
+			Id("Testing"):            Lit(test.Present()),
+			Id("TestServiceMap"):     testServiceMap(p.Desc),
+			Id("BundledServices"):    bundledServices(p.Desc),
+			Id("EnabledExperiments"): enabledExperiments(p.Gen.Build.Experiments),
 		}
 
 		if len(envsToEmbed) > 0 {
@@ -66,14 +68,14 @@ func genLoadApp(p GenParams, test option.Option[testParams]) {
 
 		g.Id("Static").Op("=").Op("&").Qual("encore.dev/appruntime/exported/config", "Static").Values(staticCfg)
 
-		//g.Id("handlers").Op(":=").Add(computeHandlerRegistrationConfig(p.Desc, p.APIHandlers, p.Middleware))
+		// g.Id("handlers").Op(":=").Add(computeHandlerRegistrationConfig(p.Desc, p.APIHandlers, p.Middleware))
 		//
-		//g.Return(Op("&").Qual("encore.dev/appruntime/apisdk/app/appinit", "LoadData").Values(Dict{
+		// g.Return(Op("&").Qual("encore.dev/appruntime/apisdk/app/appinit", "LoadData").Values(Dict{
 		//	Id("StaticCfg"):   Id("static"),
 		//	Id("APIHandlers"): Id("handlers"),
 		//	Id("ServiceInit"): serviceInitConfig(p.ServiceStructs),
 		//	Id("AuthHandler"): authHandler,
-		//}))
+		// }))
 	})
 }
 
@@ -142,6 +144,16 @@ func testServiceMap(appDesc *app.Desc) *Statement {
 			d[Lit(svc.Name)] = Lit(path)
 		}
 	}))
+}
+
+func enabledExperiments(experiments *experiments.Set) *Statement {
+	list := experiments.StringList()
+
+	return Index().String().ValuesFunc(func(g *Group) {
+		for _, e := range list {
+			g.Lit(e)
+		}
+	})
 }
 
 func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Statement) {
