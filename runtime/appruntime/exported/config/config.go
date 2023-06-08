@@ -66,12 +66,12 @@ type Runtime struct {
 	// If zero, it shuts down immediately.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
 
-	// EnabledExperiments is a list of experiments that are enabled for this app
-	// which impact runtime behaviour and where turned on _after_ compilation.
+	// DynamicExperiments is a list of experiments that are enabled for this app
+	// which impact runtime behaviour, but which were not enabled at compile time.
 	//
 	// Experiments which impact compilation should be handled by the compiler
 	// and added to the static config.
-	EnabledExperiments []string `json:"experiments,omitempty"`
+	DynamicExperiments []string `json:"experiments,omitempty"`
 }
 
 // Gateway defines the configuration of a gateway which should be served

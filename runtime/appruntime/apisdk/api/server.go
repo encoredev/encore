@@ -159,7 +159,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		rootLogger:     rootLogger,
 		json:           json,
 		tracingEnabled: rt.TracingEnabled(),
-		experiments:    experiments.NewForRuntime(static, runtime),
+		experiments:    experiments.FromConfig(static, runtime),
 
 		public:          newRouter(),
 		publicFallback:  newRouter(),

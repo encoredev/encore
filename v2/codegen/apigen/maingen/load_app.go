@@ -149,6 +149,10 @@ func testServiceMap(appDesc *app.Desc) *Statement {
 func enabledExperiments(experiments *experiments.Set) *Statement {
 	list := experiments.StringList()
 
+	if len(list) == 0 {
+		return Nil()
+	}
+
 	return Index().String().ValuesFunc(func(g *Group) {
 		for _, e := range list {
 			g.Lit(e)

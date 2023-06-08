@@ -331,7 +331,7 @@ func (i *Instance) Experiments(environ []string) (*experiments.Set, error) {
 		return nil, err
 	}
 
-	return experiments.NewForCompiler(exp, environ)
+	return experiments.FromAppFileAndEnviron(exp, environ)
 }
 
 // GlobalCORS returns the CORS configuration for the app which

@@ -12,8 +12,8 @@ import (
 // CheckRegistry is a registry of health checks from the API and Infra SDKs
 // and other parts of the runtime.
 type CheckRegistry struct {
-	checks []Check
 	m      sync.Mutex
+	checks []Check
 }
 
 // NewCheckRegistry creates a new CheckRegistry.
@@ -38,11 +38,8 @@ func (c *CheckRegistry) Register(check Check) {
 
 // RegisterFunc registers a new health check from a function with a given name
 //
-// Checks must complete within 5 seconds, otherwise
-// they will be terminated and considered failed.
-//
-// Checks can be called at any time and could have
-// multiple goroutines calling them concurrently.
+// This is a convince wrapper over [CheckRegistry.Register], see that function
+// for more details and expected behavior.
 func (c *CheckRegistry) RegisterFunc(name string, check func(ctx context.Context) error) {
 	c.m.Lock()
 	defer c.m.Unlock()
