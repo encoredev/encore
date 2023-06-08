@@ -71,7 +71,7 @@ type Runtime struct {
 	//
 	// Experiments which impact compilation should be handled by the compiler
 	// and added to the static config.
-	DynamicExperiments []string `json:"experiments,omitempty"`
+	DynamicExperiments []string `json:"dynamic_experiments,omitempty"`
 }
 
 // Gateway defines the configuration of a gateway which should be served

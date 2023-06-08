@@ -12,7 +12,7 @@ import (
 // FromAppFileAndEnviron creates an experiment set which represents the enabled experiments
 // within a particular run of Encore.
 //
-// All errors reported by NewSet are due to unknown experiment names.
+// All errors reported by FromAppFileAndEnviron are due to unknown experiment names.
 // The error type is of type *UnknownExperimentError.
 func FromAppFileAndEnviron(fromAppFile []Name, environ []string) (*Set, error) {
 	const envName = "ENCORE_EXPERIMENT"
