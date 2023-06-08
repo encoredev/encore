@@ -142,24 +142,6 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 		return CallMeta{}, errors.New("unknown encore meta version")
 	}
 
-	// If we where tracing read the trace ID, span ID
-	if traceParent, found := req.ReadMeta(transport.TraceParentKey); found {
-		meta.TraceID, meta.ParentSpanID, _ = parseTraceParent(traceParent)
-
-		if traceState, found := req.ReadMetaValues(transport.TraceStateKey); found {
-			meta.ParentEventID, _ = parseTraceState(traceState)
-		}
-	}
-
-	if correlationID, found := req.ReadMeta(transport.CorrelationIDKey); found {
-		// Don't allow arbitrary correlation IDs to be passed through
-		if len(meta.CorrelationID) > 64 {
-			meta.CorrelationID = correlationID[:64]
-		} else {
-			meta.CorrelationID = correlationID
-		}
-	}
-
 	// If it was an internal call, read the internal metadata
 	if sendingService, found := req.ReadMeta("Internal-Call"); found {
 		isInternalCall, err := svcauth.Verify(req, s.internalAuth)
@@ -185,6 +167,31 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 					return CallMeta{}, errs.B().Cause(err).Msg("failed to unmarshal auth data").Err()
 				}
 			}
+		}
+	}
+
+	// If we where tracing read the trace ID, span ID
+	if traceParent, found := req.ReadMeta(transport.TraceParentKey); found &&
+		// For now we only read the traceparent for interanl-to-internal calls, this is because CloudRun
+		// is adding a traceparent header to all requests, which is causing our trace system to get confused
+		// and think that the initial request is a child of another already traced request
+		//
+		// In the future we should be able to remove this check and read the traceparent header for all requests
+		// to interopt with other tracing systems.
+		meta.Internal != nil {
+		meta.TraceID, meta.ParentSpanID, _ = parseTraceParent(traceParent)
+
+		if traceState, found := req.ReadMetaValues(transport.TraceStateKey); found {
+			meta.ParentEventID, _ = parseTraceState(traceState)
+		}
+	}
+
+	if correlationID, found := req.ReadMeta(transport.CorrelationIDKey); found {
+		// Don't allow arbitrary correlation IDs to be passed through
+		if len(meta.CorrelationID) > 64 {
+			meta.CorrelationID = correlationID[:64]
+		} else {
+			meta.CorrelationID = correlationID
 		}
 	}
 
