@@ -191,6 +191,10 @@ type APICall struct {
 	TargetServiceName  string
 	TargetEndpointName string
 
+	// Auth info for the target endpoint
+	UserID   UID
+	AuthData any
+
 	StartEventID TraceEventID
 }
 

@@ -5,11 +5,12 @@ package service
 import (
 	"fmt"
 
+	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/logging"
 	"encore.dev/appruntime/shared/reqtrack"
 )
 
-var Singleton = NewManager(reqtrack.Singleton, logging.RootLogger)
+var Singleton = NewManager(reqtrack.Singleton, health.Singleton, logging.RootLogger)
 
 func Register(i Initializer) {
 	Singleton.RegisterService(i)

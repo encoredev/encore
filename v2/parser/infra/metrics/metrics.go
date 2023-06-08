@@ -168,7 +168,7 @@ func parseMetric(c metricConstructor, d parseutil.ReferenceInfo) {
 		}
 
 		// Make sure all the fields are builtin types.
-		concrete := schemautil.ConcretizeWithTypeArgs(declRef.Decl.Type, declRef.TypeArgs).(schema.StructType)
+		concrete := schemautil.ConcretizeWithTypeArgs(errs, declRef.Decl.Type, declRef.TypeArgs).(schema.StructType)
 		validKinds := append([]schema.BuiltinKind{schema.Bool, schema.String}, schemautil.Integers...)
 		for _, f := range concrete.Fields {
 			if f.IsAnonymous() {

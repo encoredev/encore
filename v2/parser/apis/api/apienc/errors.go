@@ -45,4 +45,19 @@ var (
 		"Use of reserved header prefix",
 		"HTTP headers starting with \"X-Encore\" are reserved for internal use.",
 	)
+
+	ErrFuncNotSupported = errRange.New(
+		"Invalid API schema",
+		"Functions are not supported in API schemas.",
+	)
+
+	ErrInterfaceNotSupported = errRange.New(
+		"Invalid API schema",
+		"Interfaces are not supported in API schemas.",
+	)
+
+	ErrAnonymousFieldsNotSupported = errRange.New(
+		"Invalid API schema",
+		"Anonymous fields are not supported in API schemas.",
+	)
 )

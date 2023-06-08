@@ -36,7 +36,7 @@ func genLabelMapper(gen *codegen.Generator, f *codegen.File, m *metrics.Metric) 
 		gen.Errs.AddPos(labelType.ASTExpr().Pos(), "invalid metric label type: must not be a pointer type")
 		return
 	}
-	concrete := schemautil.ConcretizeWithTypeArgs(declRef.Decl.Type, declRef.TypeArgs).(schema.StructType)
+	concrete := schemautil.ConcretizeWithTypeArgs(gen.Errs, declRef.Decl.Type, declRef.TypeArgs).(schema.StructType)
 
 	mapper := f.FuncDecl("labelMapper", m.Name)
 

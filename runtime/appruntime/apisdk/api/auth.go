@@ -111,6 +111,18 @@ func (s *Server) runAuthHandler(h Handler, c IncomingContext) (info model.AuthIn
 		return model.AuthInfo{}, true
 	}
 
+	// If this is a service to service call, we use the existing auth info.
+	if c.isEncoreToEncoreCall {
+		if c.auth.UID == "" && requiresAuth {
+			// Unless there isn't some and we need it, in which case we error.
+			err := errs.B().Code(errs.Unauthenticated).Msg("no auth info provided").Err()
+			returnError(c, err, 0)
+			return model.AuthInfo{}, false
+		}
+
+		return c.auth, true
+	}
+
 	var err error
 	info, err = s.authHandler.Authenticate(c)
 	if err != nil {
@@ -119,7 +131,7 @@ func (s *Server) runAuthHandler(h Handler, c IncomingContext) (info model.AuthIn
 		if errs.Code(err) == errs.Unauthenticated && !requiresAuth {
 			return model.AuthInfo{}, true
 		} else {
-			errs.HTTPError(c.w, err)
+			returnError(c, err, 0)
 			return model.AuthInfo{}, false
 		}
 	}

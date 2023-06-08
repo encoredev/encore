@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/trace2"
+	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/syncutil"
 	"encore.dev/beta/errs"
@@ -87,8 +90,13 @@ type shutdowner interface {
 	Shutdown(force context.Context)
 }
 
-func NewManager(rt *reqtrack.RequestTracker, rootLogger zerolog.Logger) *Manager {
-	return &Manager{rt: rt, rootLogger: rootLogger, svcMap: make(map[string]Initializer)}
+func NewManager(rt *reqtrack.RequestTracker, healthChecks *health.CheckRegistry, rootLogger zerolog.Logger) *Manager {
+	mgr := &Manager{rt: rt, rootLogger: rootLogger, svcMap: make(map[string]Initializer), initialisedServices: make(map[string]struct{})}
+
+	// Register with the health check service.
+	healthChecks.Register(mgr)
+
+	return mgr
 }
 
 type Manager struct {
@@ -96,6 +104,9 @@ type Manager struct {
 	rootLogger zerolog.Logger
 	svcInit    []Initializer
 	svcMap     map[string]Initializer
+
+	initialisedMu       sync.RWMutex
+	initialisedServices map[string]struct{}
 
 	shutdownMu       sync.Mutex
 	shutdownHandlers []shutdowner
@@ -118,6 +129,11 @@ func (mgr *Manager) InitializeServices() error {
 		svc := svc
 		go func() {
 			err := svc.InitService()
+			if err == nil {
+				mgr.initialisedMu.Lock()
+				defer mgr.initialisedMu.Unlock()
+				mgr.initialisedServices[svc.ServiceName()] = struct{}{}
+			}
 			results <- err
 		}()
 	}
@@ -129,6 +145,35 @@ func (mgr *Manager) InitializeServices() error {
 	}
 
 	return nil
+}
+
+// HealthCheck returns a failure if any services have not yet been initialized.
+//
+// This allows the health check service to report that the server is not yet
+// ready to serve requests.
+func (mgr *Manager) HealthCheck(ctx context.Context) []health.CheckResult {
+	mgr.initialisedMu.RLock()
+	defer mgr.initialisedMu.RUnlock()
+
+	// If all services have been initialized, return a single check result.
+	if len(mgr.initialisedServices) == len(mgr.svcMap) {
+		return []health.CheckResult{{Name: "services.initialized"}}
+	}
+
+	// Build a list of services that have not been initialized.
+	uninitializedServices := make([]string, 0, len(mgr.svcMap)-len(mgr.initialisedServices))
+	for svc := range mgr.svcMap {
+		if _, ok := mgr.initialisedServices[svc]; !ok {
+			uninitializedServices = append(uninitializedServices, svc)
+		}
+	}
+	sort.Strings(uninitializedServices)
+
+	// Return an error listing the names of each service not yet initialized.
+	return []health.CheckResult{{
+		Name: "services.initialized",
+		Err:  fmt.Errorf("the following services have not returned from their initService functions: %s", strings.Join(uninitializedServices, ", ")),
+	}}
 }
 
 func (mgr *Manager) GetService(name string) (i Initializer, ok bool) {

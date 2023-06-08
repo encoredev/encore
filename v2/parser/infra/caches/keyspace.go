@@ -215,7 +215,7 @@ func parseKeyspace(c cacheKeyspaceConstructor, d parseutil.ReferenceInfo) {
 				errs.Add(errInvalidKeyTypeParameter(constructorName, "must not be a pointer type").AtGoNode(keyNode))
 			} else {
 				// Validate the struct fields.
-				st := schemautil.ConcretizeWithTypeArgs(ref.Decl.Type, ref.TypeArgs).(schema.StructType)
+				st := schemautil.ConcretizeWithTypeArgs(errs, ref.Decl.Type, ref.TypeArgs).(schema.StructType)
 
 				// Validate struct fields
 				for _, f := range st.Fields {

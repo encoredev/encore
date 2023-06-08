@@ -23,6 +23,10 @@ type Static struct {
 
 	// BundledServices are the services bundled in this binary.
 	BundledServices []string
+
+	// EnabledExperiments is a list of experiments that are enabled for this app
+	// which where enabled at compile time.
+	EnabledExperiments []string `json:"experiments,omitempty"`
 }
 
 type Runtime struct {
@@ -62,10 +66,12 @@ type Runtime struct {
 	// If zero, it shuts down immediately.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
 
-	// ExperimentUseExternalCalls is a flag that indicates whether the app should
-	// use external calls for all RPCs. This is a temporary flag that is only
-	// for testing purposes and will be removed in the future.
-	ExperimentUseExternalCalls bool `json:"experiment_use_external_calls,omitempty"`
+	// DynamicExperiments is a list of experiments that are enabled for this app
+	// which impact runtime behaviour, but which were not enabled at compile time.
+	//
+	// Experiments which impact compilation should be handled by the compiler
+	// and added to the static config.
+	DynamicExperiments []string `json:"dynamic_experiments,omitempty"`
 }
 
 // Gateway defines the configuration of a gateway which should be served
