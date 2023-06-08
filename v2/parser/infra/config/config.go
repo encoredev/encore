@@ -86,7 +86,7 @@ func parseLoad(d parseutil.ReferenceInfo) {
 		FuncCall: d.Call,
 	}
 
-	concrete := schemautil.ConcretizeWithTypeArgs(ref.ToType(), ref.TypeArgs)
+	concrete := schemautil.ConcretizeWithTypeArgs(errs, ref.ToType(), ref.TypeArgs)
 	walkCfgToVerify(d.Pass.Errs, load, concrete, false)
 
 	d.Pass.RegisterResource(load)

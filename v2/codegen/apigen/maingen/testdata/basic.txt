@@ -27,13 +27,14 @@ func init() {
 			Revision:    "",
 			Uncommitted: false,
 		},
-		BundledServices:   []string{"code"},
-		CORSAllowHeaders:  nil,
-		CORSExposeHeaders: nil,
-		EncoreCompiler:    "",
-		PubsubTopics:      map[string]*config.StaticPubsubTopic{},
-		TestServiceMap:    map[string]string{"code": "testing_path:code"},
-		Testing:           false,
+		BundledServices:    []string{"code"},
+		CORSAllowHeaders:   nil,
+		CORSExposeHeaders:  nil,
+		EnabledExperiments: nil,
+		EncoreCompiler:     "",
+		PubsubTopics:       map[string]*config.StaticPubsubTopic{},
+		TestServiceMap:     map[string]string{"code": "testing_path:code"},
+		Testing:            false,
 	}
 }
 -- want:encore.gen.go --

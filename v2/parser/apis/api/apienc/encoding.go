@@ -159,7 +159,7 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 		return &ResponseEncoding{}
 	}
 
-	responseStruct, ok := getConcreteNamedStruct(responseSchema)
+	responseStruct, ok := getConcreteNamedStruct(errs, responseSchema)
 	if !ok {
 		errs.Add(errResponseMustBeNamedStruct.AtGoNode(responseSchema.ASTExpr()))
 		return &ResponseEncoding{}
@@ -196,9 +196,9 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 	}
 }
 
-func getConcreteNamedStruct(typ schema.Type) (st schema.StructType, ok bool) {
+func getConcreteNamedStruct(errs *perr.List, typ schema.Type) (st schema.StructType, ok bool) {
 	if res, ok := schemautil.ResolveNamedStruct(typ, false); ok {
-		concrete := schemautil.ConcretizeWithTypeArgs(res.Decl.Type, res.TypeArgs)
+		concrete := schemautil.ConcretizeWithTypeArgs(errs, res.Decl.Type, res.TypeArgs)
 		return concrete.(schema.StructType), true
 	}
 	return schema.StructType{}, false
@@ -242,7 +242,7 @@ func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...
 		return []*RequestEncoding{enc}
 	}
 
-	st, ok := getConcreteNamedStruct(requestSchema)
+	st, ok := getConcreteNamedStruct(errs, requestSchema)
 	if !ok {
 		errs.Add(errRequestMustBeNamedStruct.AtGoNode(requestSchema.ASTExpr()))
 		return nil
@@ -318,7 +318,7 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 		return &AuthEncoding{LegacyTokenFormat: true}
 	}
 
-	st, ok := getConcreteNamedStruct(authSchema)
+	st, ok := getConcreteNamedStruct(errs, authSchema)
 	if !ok {
 		errs.Add(authhandler.ErrInvalidAuthSchemaType.AtGoNode(authSchema.ASTExpr()))
 		return nil

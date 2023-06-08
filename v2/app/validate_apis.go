@@ -69,6 +69,17 @@ func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, resu
 							AtGoNode(ep.Decl.AST.Name, errors.AsHelp("defined here")),
 					)
 				}
+			} else {
+				// If typed endpoint, validate the types of the request and response
+				if ep.Request != nil {
+					// The request is always the first parameter after any path params (and after the ctx)
+					d.validateType(pc, ep.Decl.AST.Type.Params.List[len(ep.Path.Params())+1].Type, ep.Request)
+				}
+
+				if ep.Response != nil {
+					// The response is always the first return value
+					d.validateType(pc, ep.Decl.AST.Type.Results.List[0].Type, ep.Response)
+				}
 			}
 
 			// Check for usages outside of services

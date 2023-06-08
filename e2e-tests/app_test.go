@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/yamux"
 
+	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
@@ -25,7 +26,6 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
-	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -79,7 +79,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		logger = testRunLogger{c}
 	}
 
-	expSet, err := experiments.NewSet(nil, env)
+	expSet, err := experiments.FromAppFileAndEnviron(nil, env)
 	assertNil(err)
 
 	secrets := secret.New()
@@ -184,7 +184,7 @@ func proxyTcp(ctx context.Context, ln net.Listener, client *yamux.Session) {
 // testBuild is a helper that compiles the app situated at appRoot
 // and cleans up the build dir during test cleanup.
 func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult, *builder.CompileResult) {
-	expSet, err := experiments.NewSet(nil, env)
+	expSet, err := experiments.FromAppFileAndEnviron(nil, env)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,11 +1,11 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 
+	"encore.dev/appruntime/shared/jsonapi"
 	"encore.dev/beta/errs"
 )
 
@@ -15,25 +15,55 @@ func (s *Server) registerEncoreRoutes() {
 }
 
 // handleHealthz returns the current health and deployment details of the running Encore application
-func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleHealthz(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
-	bytes, _ := json.Marshal(struct {
+	statusStr := "ok"
+	statusCode := http.StatusOK
+
+	// Run all health checks
+	type checkResult struct {
+		Name   string `json:"name"`
+		Passed bool   `json:"passed"`
+		Error  string `json:"error,omitempty"`
+	}
+	var checkResults []checkResult
+	for _, result := range s.healthMgr.RunAll(req.Context()) {
+		errStr := ""
+		if result.Err != nil {
+			statusStr = "unhealthy"
+			statusCode = http.StatusInternalServerError
+			errStr = result.Err.Error()
+		}
+
+		checkResults = append(checkResults, checkResult{
+			Name:   result.Name,
+			Passed: result.Err == nil,
+			Error:  errStr,
+		})
+	}
+
+	w.WriteHeader(statusCode)
+	bytes, _ := jsonapi.Default.Marshal(struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 		Details any    `json:"details"`
 	}{
-		Code:    "ok",
+		Code:    statusStr,
 		Message: "Your Encore app is up and running!",
 		Details: struct {
-			AppRevision    string `json:"app_revision"`
-			EncoreCompiler string `json:"encore_compiler"`
-			DeployId       string `json:"deploy_id"`
+			AppRevision        string        `json:"app_revision"`
+			EncoreCompiler     string        `json:"encore_compiler"`
+			DeployId           string        `json:"deploy_id"`
+			Checks             []checkResult `json:"checks"`
+			EnabledExperiments []string      `json:"enabled_experiments"`
 		}{
-			AppRevision:    s.static.AppCommit.AsRevisionString(),
-			EncoreCompiler: s.static.EncoreCompiler,
-			DeployId:       s.runtime.DeployID,
+			AppRevision:        s.static.AppCommit.AsRevisionString(),
+			EncoreCompiler:     s.static.EncoreCompiler,
+			DeployId:           s.runtime.DeployID,
+			Checks:             checkResults,
+			EnabledExperiments: s.experiments.StringList(),
 		},
 	})
 	_, _ = w.Write(bytes)

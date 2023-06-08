@@ -35,7 +35,11 @@ func ParseRuntime(config, deployID string) *Runtime {
 		log.Fatalln("encore runtime: fatal error: could not parse api base url from encore runtime config:", err)
 	}
 
-	cfg.DeployID = deployID
+	// If the environment deploy ID is set, use that instead of the one
+	// embedded in the runtime config
+	if deployID != "" {
+		cfg.DeployID = deployID
+	}
 
 	return &cfg
 }

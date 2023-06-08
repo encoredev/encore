@@ -11,7 +11,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 
-	"encr.dev/pkg/experiments"
+	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"

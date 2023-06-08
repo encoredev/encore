@@ -9,10 +9,10 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
 
+	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/cueutil"
-	"encr.dev/pkg/experiments"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"

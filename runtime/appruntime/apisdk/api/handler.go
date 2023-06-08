@@ -16,8 +16,10 @@ import (
 	"encore.dev/appruntime/apisdk/api/errmarshalling"
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/shared/jsonapi"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 	"encore.dev/middleware"
@@ -122,7 +124,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 
 	reqData, beginErr := d.begin(c)
 	if beginErr != nil {
-		d.returnError(c, beginErr, 0)
+		returnError(c, beginErr, 0)
 		return
 	}
 
@@ -133,7 +135,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		// If the endpoint is raw it has already written its response;
 		// don't write another.
 		if !d.Raw {
-			d.returnError(c, resp.Err, resp.HTTPStatus)
+			returnError(c, resp.Err, resp.HTTPStatus)
 		}
 		return
 	}
@@ -159,7 +161,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 //
 // If statusCodeToUse is 0, we will use the default status code for the error using
 // the [errs] package.
-func (d *Desc[Req, Resp]) returnError(c IncomingContext, err error, statusCodeToUse int) {
+func returnError(c IncomingContext, err error, statusCodeToUse int) {
 	if c.isEncoreToEncoreCall {
 		// If this is an internal service to service call, we want to return the full error
 		// we'll add a header to the response to indicate that the error is a full error
@@ -422,7 +424,7 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
-	if c.server.runtime.ExperimentUseExternalCalls {
+	if experiments.ExternalCalls.Enabled(c.server.experiments) {
 		return d.externalCall(c, req)
 	} else {
 		return d.internalCall(c, req)
@@ -452,7 +454,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 		return
 	}
 
-	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	call, meta, err := c.server.beginCall(c.ctx, d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
@@ -476,7 +478,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 			nonRawPayload = marshalParams(c.server.json, userPayload)
 		}
 
-		_, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
+		reqModel, beginErr := c.server.beginRequest(c.ctx, &beginRequestParams{
 			Type:          model.RPCCall,
 			DefLoc:        d.DefLoc,
 			CallerEventID: call.StartEventID,
@@ -494,6 +496,25 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 				ServiceToServiceCall: true,
 			},
 		})
+
+		// Now round-trip any auth data that was set on the request
+		// to emulate what happens in the HTTP case.
+		if experiments.AuthDataRoundTrip.Enabled(c.server.experiments) && reqModel.RPCData.AuthData != nil {
+			jsonBytes, err := jsonapi.Default.Marshal(reqModel.RPCData.AuthData)
+			if err != nil {
+				c.server.rootLogger.Err(err).Msg("unable to marshal auth data")
+				respErr = errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err()
+				return
+			}
+
+			reqModel.RPCData.AuthData = newAuthDataObj()
+			if err := jsonapi.Default.Unmarshal(jsonBytes, reqModel.RPCData.AuthData); err != nil {
+				c.server.rootLogger.Err(err).Msg("unable to unmarshal auth data")
+				respErr = errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err()
+				return
+			}
+		}
+
 		if beginErr != nil {
 			respErr = errs.B().Cause(beginErr).Code(errs.Internal).Msg("internal error").Err()
 			return
@@ -601,7 +622,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		httpReq.Header[key] = val
 	}
 
-	call, meta, err := c.server.beginCall(d.Service, d.Endpoint, d.DefLoc)
+	call, meta, err := c.server.beginCall(c.ctx, d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to begin call")
 		respErr = errs.Convert(err)
@@ -634,7 +655,11 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 
 				return resp, respErr
 			} else {
-				return resp, errs.B().Code(errs.Internal).Msg("request failed: " + httpResp.Header.Get("X-Encore-Full-Error")).Err()
+				bodyBytes, err := io.ReadAll(httpResp.Body)
+				if err != nil {
+					return resp, errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
+				}
+				return resp, errs.B().Code(errs.Internal).Msg("request failed: " + string(bodyBytes)).Err()
 			}
 		}
 

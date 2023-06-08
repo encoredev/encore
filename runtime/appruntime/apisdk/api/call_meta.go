@@ -7,10 +7,21 @@ import (
 	"strconv"
 	"strings"
 
+	jsoniter "github.com/json-iterator/go"
+
 	"encore.dev/appruntime/apisdk/api/svcauth"
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/beta/errs"
+)
+
+var (
+	// authJSON can not be pretty printed, as new lines are not allowed in HTTP headers
+	authJSON = jsoniter.Config{
+		IndentionStep:          0,
+		ValidateJsonRawMessage: true,
+		TagKey:                 "auth-json",
+	}.Froze()
 )
 
 // CallMeta is metadata for an RPC call
@@ -41,25 +52,36 @@ type InternalCallMeta struct {
 //
 // It does this in a transport agnostic way, allowing us to add metadata
 // to any transport request supported by Encore.
-func (s *Server) metaFromAPICall(parent *model.APICall) (meta CallMeta) {
-	if parent != nil && parent.Source != nil {
-		meta.TraceID = parent.Source.TraceID
-		meta.ParentSpanID = parent.Source.SpanID
-		meta.ParentEventID = parent.StartEventID
-		meta.CorrelationID = parent.Source.ExtCorrelationID
+func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error) {
+	// Check the auth data before we marshal
+	// this is because auth.WithContext can set the auth data to any type
+	// and we want to ensure it's the expected type before we marshal it
+	if err := CheckAuthData(call.UserID, call.AuthData); err != nil {
+		return meta, err
+	}
+
+	if call != nil && call.Source != nil {
+		meta.TraceID = call.Source.TraceID
+		meta.ParentSpanID = call.Source.SpanID
+		meta.ParentEventID = call.StartEventID
+		meta.CorrelationID = call.Source.ExtCorrelationID
 
 		meta.Internal = &InternalCallMeta{
-			SendingService: s.static.BundledServices[parent.Source.SvcNum-1],
+			SendingService: s.static.BundledServices[call.Source.SvcNum-1],
+			AuthUID:        string(call.UserID),
+			AuthData:       call.AuthData,
 		}
 	} else {
-		// If there's no parent request, we're probably in the middle of system startup
+		// If there's no call request, we're probably in the middle of system startup
 		// so we'll just use the first bundled service as the sending service
 		meta.Internal = &InternalCallMeta{
 			SendingService: s.static.BundledServices[0],
+			AuthUID:        string(call.UserID),
+			AuthData:       call.AuthData,
 		}
 	}
 
-	return meta
+	return meta, nil
 }
 
 // AddToRequest adds the metadata to the given request
@@ -90,7 +112,18 @@ func (meta CallMeta) AddToRequest(req transport.Transport) error {
 		// Add a marker to the request to indicate that this is an internal call
 		req.SetMeta("Internal-Call", meta.Internal.SendingService)
 
-		// TODO(domblack): Add the auth UID and data to the request
+		// Add the auth data
+		if meta.Internal.AuthUID != "" {
+			req.SetMeta("UserID", meta.Internal.AuthUID)
+
+			if meta.Internal.AuthData != nil {
+				authData, err := authJSON.Marshal(meta.Internal.AuthData)
+				if err != nil {
+					return errs.B().Cause(err).Msg("failed to marshal auth data").Err()
+				}
+				req.SetMeta("AuthData", string(authData))
+			}
+		}
 
 		// If we're making an internal call, sign the request
 		if err := svcauth.Sign(svcauth.Noop, req); err != nil {
@@ -141,7 +174,18 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 			SendingService: sendingService,
 		}
 
-		// TODO(domblack): Read the auth UID and data from the request
+		// Pull the auth data out of the request
+		if uid, found := req.ReadMeta("UserID"); found && uid != "" {
+			meta.Internal.AuthUID = uid
+
+			if data, found := req.ReadMeta("AuthData"); found && data != "" {
+				meta.Internal.AuthData = newAuthDataObj()
+
+				if err := authJSON.Unmarshal([]byte(data), meta.Internal.AuthData); err != nil {
+					return CallMeta{}, errs.B().Cause(err).Msg("failed to unmarshal auth data").Err()
+				}
+			}
+		}
 	}
 
 	return meta, nil
