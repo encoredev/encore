@@ -32,6 +32,11 @@ var (
 		"Service init functions cannot have parameters.",
 	)
 
+	errInvalidGRPCName = errRange.Newf(
+		"Invalid gRPC service name",
+		"The grpc field must be a valid, fully-qualified gRPC service name (got \"%s\").",
+	)
+
 	errServiceInitInvalidReturnType = errRange.Newf(
 		"Invalid service init function",
 		"Service init functions must return (*%s, error).",

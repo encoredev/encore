@@ -5,6 +5,8 @@ import (
 	"go/ast"
 	"go/token"
 
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internals/perr"
@@ -24,6 +26,10 @@ type ServiceStruct struct {
 	// Init is the function for initializing this group.
 	// It is nil if there is no initialization function.
 	Init option.Option[*schema.FuncDecl]
+
+	// GRPCPath is a fully-qualified path to the gRPC service,
+	// e.g. "path.to.my.Service".
+	GRPCPath option.Option[string]
 }
 
 func (ss *ServiceStruct) Kind() resource.Kind       { return resource.ServiceStruct }
@@ -46,9 +52,6 @@ type ParseData struct {
 
 // Parse parses the service struct in the provided type declaration.
 func Parse(d ParseData) *ServiceStruct {
-	// We don't allow anything on the directive besides "encore:service".
-	directive.Validate(d.Errs, d.Dir, directive.ValidateSpec{})
-
 	// We only support encore:service directives directly on the type declaration,
 	// not on a group of type declarations.
 	if len(d.Decl.Specs) != 1 {
@@ -66,6 +69,21 @@ func Parse(d ParseData) *ServiceStruct {
 	ss := &ServiceStruct{
 		Decl: decl,
 		Doc:  d.Doc,
+	}
+
+	ok := directive.Validate(d.Errs, d.Dir, directive.ValidateSpec{
+		AllowedFields: []string{"grpc"},
+		ValidateField: func(errs *perr.List, f directive.Field) (ok bool) {
+			if !protoreflect.FullName(f.Value).IsValid() {
+				errs.Add(errInvalidGRPCName(f.Value).AtGoNode(f))
+				return false
+			}
+			ss.GRPCPath = option.Some(f.Value)
+			return true
+		},
+	})
+	if !ok {
+		return ss
 	}
 
 	// Find the init function for this service struct, if any.

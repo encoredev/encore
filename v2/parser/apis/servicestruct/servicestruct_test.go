@@ -45,6 +45,22 @@ type Foo struct {}
 			},
 		},
 		{
+			name: "with_grpc",
+			def: `
+//encore:service grpc=path.to.grpc.Service
+type Foo struct {}
+`,
+			want: &ServiceStruct{
+				Decl: &schema.TypeDecl{
+					File:       file,
+					Name:       "Foo",
+					Type:       schema.StructType{},
+					TypeParams: nil,
+				},
+				GRPCPath: option.Some("path.to.grpc.Service"),
+			},
+		},
+		{
 			name: "with_init_func",
 			def: `
 //encore:service
@@ -110,6 +126,14 @@ type Foo struct {}
 func initFoo(int) (*Foo, error) {}
 `,
 			wantErrs: []string{`.*Service init functions cannot have parameters`},
+		},
+		{
+			name: "error_invalid_grpc_service",
+			def: `
+//encore:service grpc=/foo
+type Foo struct {}
+`,
+			wantErrs: []string{`.*The grpc field must be a valid.*(got "/foo")`},
 		},
 	}
 
