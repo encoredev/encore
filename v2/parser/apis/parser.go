@@ -107,9 +107,10 @@ var Parser = &resourceparser.Parser{
 
 					switch dir.Name {
 					case "service":
-						ss := servicestruct.Parse(servicestruct.ParseData{
+						ss := servicestruct.Parse(p.Ctx, servicestruct.ParseData{
 							Errs:   p.Errs,
 							Schema: p.SchemaParser,
+							Proto:  p.ProtoParser,
 							File:   file,
 							Decl:   decl,
 							Dir:    dir,

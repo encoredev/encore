@@ -5,8 +5,10 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/protoparse"
 	"encr.dev/v2/internals/scan"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/apis"
@@ -28,10 +30,15 @@ import (
 func NewParser(c *parsectx.Context) *Parser {
 	loader := pkginfo.New(c)
 	schemaParser := schema.NewParser(c, loader)
+	protoParser := protoparse.NewParser(
+		c.Errs,
+		[]paths.FS{c.MainModuleDir.Join("proto")},
+	)
 	return &Parser{
 		c:             c,
 		loader:        loader,
 		schemaParser:  schemaParser,
+		protoParser:   protoParser,
 		registry:      resourceparser.NewRegistry(allParsers),
 		usageResolver: newUsageResolver(),
 	}
@@ -41,6 +48,7 @@ type Parser struct {
 	c             *parsectx.Context
 	loader        *pkginfo.Loader
 	schemaParser  *schema.Parser
+	protoParser   *protoparse.Parser
 	registry      *resourceparser.Registry
 	usageResolver *usage.Resolver
 }

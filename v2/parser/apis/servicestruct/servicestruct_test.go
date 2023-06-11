@@ -14,6 +14,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/protoparse"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser/apis/internal/directive"
@@ -45,10 +46,19 @@ type Foo struct {}
 			},
 		},
 		{
-			name: "with_grpc",
+			name: "with_grpc_pkgpath",
 			def: `
 //encore:service grpc=path.to.grpc.Service
 type Foo struct {}
+-- proto/path/to/grpc.proto --
+syntax = "proto3";
+package path.to.grpc;
+
+service Service {
+	rpc Bar (BarRequest) returns (BarResponse);
+}
+message BarRequest {}
+message BarResponse {}
 `,
 			want: &ServiceStruct{
 				Decl: &schema.TypeDecl{
@@ -57,7 +67,30 @@ type Foo struct {}
 					Type:       schema.StructType{},
 					TypeParams: nil,
 				},
-				GRPCPath: option.Some("path.to.grpc.Service"),
+			},
+		},
+		{
+			name: "with_grpc_filepath",
+			def: `
+//encore:service grpc=path/to/grpc.proto:Service
+type Foo struct {}
+-- proto/path/to/grpc.proto --
+syntax = "proto3";
+package path.to.grpc;
+
+service Service {
+	rpc Bar (BarRequest) returns (BarResponse);
+}
+message BarRequest {}
+message BarResponse {}
+`,
+			want: &ServiceStruct{
+				Decl: &schema.TypeDecl{
+					File:       file,
+					Name:       "Foo",
+					Type:       schema.StructType{},
+					TypeParams: nil,
+				},
 			},
 		},
 		{
@@ -135,6 +168,25 @@ type Foo struct {}
 `,
 			wantErrs: []string{`.*The grpc field must be a valid.*(got "/foo")`},
 		},
+		{
+			name: "error_missing_proto_file",
+			def: `
+//encore:service grpc=foo.Bar
+type Foo struct {}
+`,
+			wantErrs: []string{`.*Unable to parse the protobuf file 'foo.proto'`},
+		},
+		{
+			name: "error_missing_grpc_service",
+			def: `
+//encore:service grpc=foo.Bar
+type Foo struct {}
+-- proto/foo.proto --
+syntax = "proto3";
+package foo;
+`,
+			wantErrs: []string{`.*The gRPC service "Bar" cannot be found in the file "foo.proto"`},
+		},
 	}
 
 	// testArchive renders the txtar archive to use for a given test.
@@ -170,6 +222,9 @@ package foo
 
 			l := pkginfo.New(tc.Context)
 			schemaParser := schema.NewParser(tc.Context, l)
+			protoParser := protoparse.NewParser(tc.Errs, []paths.FS{
+				tc.MainModuleDir.Join("proto"),
+			})
 
 			if len(test.wantErrs) > 0 {
 				defer tc.DeferExpectError(test.wantErrs...)
@@ -188,6 +243,7 @@ package foo
 
 			pd := ParseData{
 				Errs:   tc.Errs,
+				Proto:  protoParser,
 				Schema: schemaParser,
 				File:   f,
 				Decl:   gd,
@@ -195,7 +251,7 @@ package foo
 				Doc:    doc,
 			}
 
-			got := Parse(pd)
+			got := Parse(tc.Ctx, pd)
 			if len(test.wantErrs) == 0 {
 				// Check for equality, ignoring all the AST nodes and pkginfo types.
 				cmpEqual := qt.CmpEquals(

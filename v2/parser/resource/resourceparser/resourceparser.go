@@ -7,6 +7,7 @@ import (
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/protoparse"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/resource"
 )
@@ -32,6 +33,7 @@ var RunAlways = []paths.Pkg{"*"}
 type Pass struct {
 	*parsectx.Context
 	SchemaParser *schema.Parser
+	ProtoParser  *protoparse.Parser
 
 	Pkg *pkginfo.Package
 

@@ -37,6 +37,16 @@ var (
 		"The grpc field must be a valid, fully-qualified gRPC service name (got \"%s\").",
 	)
 
+	errNonLocalGRPCPath = errRange.Newf(
+		"Invalid gRPC file path",
+		"The grpc field must be a relative path from a protobuf include directory (got \"%s\").",
+	)
+
+	errGRPCServiceNotFound = errRange.Newf(
+		"gRPC service not found",
+		"The gRPC service \"%s\" cannot be found in the file \"%s\".",
+	)
+
 	errServiceInitInvalidReturnType = errRange.Newf(
 		"Invalid service init function",
 		"Service init functions must return (*%s, error).",
