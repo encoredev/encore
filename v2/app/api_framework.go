@@ -16,7 +16,7 @@ import (
 
 func configureAPIFramework(pc *parsectx.Context, services []*Service, res *parser.Result) option.Option[*apiframework.AppDesc] {
 	var (
-		endpoints      = parser.Resources[*api.Endpoint](res)
+		endpoints      = parser.Resources[*api.HTTPEndpoint](res)
 		middlewares    = parser.Resources[*middleware.Middleware](res)
 		authHandlers   = parser.Resources[*authhandler.AuthHandler](res)
 		serviceStructs = parser.Resources[*servicestruct.ServiceStruct](res)

@@ -11,7 +11,7 @@ import (
 	"encr.dev/v2/parser/apis/api"
 )
 
-func rewriteAPICalls(gen *codegen.Generator, parse *parser.Result, svc *app.Service, ep *api.Endpoint, desc *handlerDesc) {
+func rewriteAPICalls(gen *codegen.Generator, parse *parser.Result, svc *app.Service, ep *api.HTTPEndpoint, desc *handlerDesc) {
 	var fd *codegen.FuncDecl
 
 	for _, u := range parse.Usages(ep) {
@@ -31,7 +31,7 @@ func rewriteAPICalls(gen *codegen.Generator, parse *parser.Result, svc *app.Serv
 	}
 }
 
-func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, handler *handlerDesc) *codegen.FuncDecl {
+func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.HTTPEndpoint, handler *handlerDesc) *codegen.FuncDecl {
 	gu := gen.Util
 	fw := svc.Framework.MustGet()
 	f := gen.File(fw.RootPkg, "apicalls")

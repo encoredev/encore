@@ -156,7 +156,7 @@ func (b *builder) Build() *meta.Data {
 		}
 
 		seenRPCCalls := make(map[pkginfo.QualifiedName]bool)
-		addRPCCall := func(ep *api.Endpoint) {
+		addRPCCall := func(ep *api.HTTPEndpoint) {
 			pkg := ep.Package()
 			qn := pkginfo.Q(pkg.ImportPath, ep.Name)
 			if !seenRPCCalls[qn] {
@@ -203,7 +203,7 @@ func (b *builder) Build() *meta.Data {
 			}
 			md.CronJobs = append(md.CronJobs, cj)
 			if ep, ok := b.app.Parse.ResourceForQN(r.Endpoint).Get(); ok {
-				endpoint := ep.(*api.Endpoint)
+				endpoint := ep.(*api.HTTPEndpoint)
 				cj.Endpoint = &meta.QualifiedName{
 					Pkg:  b.relPath(endpoint.File.Pkg.ImportPath),
 					Name: endpoint.Name,

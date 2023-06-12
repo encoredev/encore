@@ -162,7 +162,7 @@ func enabledExperiments(experiments *experiments.Set) *Statement {
 
 func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Statement) {
 	// computeRequestHeaders computes the headers that are part of the request for a given RPC.
-	computeRequestHeaders := func(ep *api.Endpoint) []*apienc.ParameterEncoding {
+	computeRequestHeaders := func(ep *api.HTTPEndpoint) []*apienc.ParameterEncoding {
 		var params []*apienc.ParameterEncoding
 		for _, r := range ep.RequestEncoding() {
 			params = append(params, r.HeaderParameters...)
@@ -171,12 +171,12 @@ func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Stateme
 	}
 
 	// computeResponseHeaders computes the headers that are part of the response for a given RPC.
-	computeResponseHeaders := func(ep *api.Endpoint) []*apienc.ParameterEncoding {
+	computeResponseHeaders := func(ep *api.HTTPEndpoint) []*apienc.ParameterEncoding {
 		return ep.ResponseEncoding().HeaderParameters
 	}
 
 	type result struct {
-		computeHeaders func(ep *api.Endpoint) []*apienc.ParameterEncoding
+		computeHeaders func(ep *api.HTTPEndpoint) []*apienc.ParameterEncoding
 		seenHeader     map[string]bool
 		headers        []string
 		out            *Statement

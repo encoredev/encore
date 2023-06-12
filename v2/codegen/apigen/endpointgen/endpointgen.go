@@ -15,8 +15,8 @@ import (
 	"encr.dev/v2/parser/apis/middleware"
 )
 
-func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl], svcMiddleware map[*middleware.Middleware]*codegen.VarDecl) map[*api.Endpoint]*codegen.VarDecl {
-	epMap := make(map[*api.Endpoint]*codegen.VarDecl)
+func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl], svcMiddleware map[*middleware.Middleware]*codegen.VarDecl) map[*api.HTTPEndpoint]*codegen.VarDecl {
+	epMap := make(map[*api.HTTPEndpoint]*codegen.VarDecl)
 
 	if fw, ok := svc.Framework.Get(); ok {
 		f := gen.File(fw.RootPkg, "api")
@@ -37,7 +37,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct 
 
 func genAPIDesc(
 	gen *codegen.Generator, f *codegen.File, appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl],
-	fw *apiframework.ServiceDesc, ep *api.Endpoint, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl,
+	fw *apiframework.ServiceDesc, ep *api.HTTPEndpoint, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl,
 ) *handlerDesc {
 	gu := gen.Util
 	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
@@ -110,7 +110,7 @@ func genAPIDesc(
 	return handler
 }
 
-func serviceMiddleware(ep *api.Endpoint, fw *apiframework.ServiceDesc, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl) *Statement {
+func serviceMiddleware(ep *api.HTTPEndpoint, fw *apiframework.ServiceDesc, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl) *Statement {
 	return Index().Op("*").Add(apiQ("Middleware")).ValuesFunc(func(g *Group) {
 		for _, mw := range fw.Middleware {
 			if mw.Target.ContainsAny(ep.Tags) {
@@ -120,7 +120,7 @@ func serviceMiddleware(ep *api.Endpoint, fw *apiframework.ServiceDesc, svcMiddle
 	})
 }
 
-func globalMiddleware(appDesc *app.Desc, ep *api.Endpoint) *Statement {
+func globalMiddleware(appDesc *app.Desc, ep *api.HTTPEndpoint) *Statement {
 	return Index().String().ValuesFunc(func(g *Group) {
 		for _, mw := range appDesc.MatchingGlobalMiddleware(ep) {
 			g.Add(Lit(mw.ID()))

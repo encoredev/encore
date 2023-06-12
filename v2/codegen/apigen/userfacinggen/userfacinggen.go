@@ -47,7 +47,7 @@ func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, withIm
 	return f
 }
 
-func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, withImpl option.Option[*codegen.VarDecl]) {
+func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.HTTPEndpoint, withImpl option.Option[*codegen.VarDecl]) {
 	if ep.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(ep.Doc), "\n") {
 			f.Jen.Comment(line)

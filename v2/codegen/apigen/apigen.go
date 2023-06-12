@@ -47,7 +47,7 @@ func Process(p Params) {
 		AppRevision:     p.AppRevision,
 		AppUncommitted:  p.AppUncommitted,
 
-		APIHandlers:    make(map[*api.Endpoint]*codegen.VarDecl),
+		APIHandlers:    make(map[*api.HTTPEndpoint]*codegen.VarDecl),
 		Middleware:     make(map[*middleware.Middleware]*codegen.VarDecl),
 		ServiceStructs: make(map[*app.Service]*codegen.VarDecl),
 

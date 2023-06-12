@@ -166,7 +166,7 @@ func newUsageResolver() *usage.Resolver {
 	usage.RegisterUsageResolver[*sqldb.Database](r, sqldb.ResolveDatabaseUsage)
 
 	// API Framework
-	usage.RegisterUsageResolver[*api.Endpoint](r, api.ResolveEndpointUsage)
+	usage.RegisterUsageResolver[*api.HTTPEndpoint](r, api.ResolveEndpointUsage)
 	usage.RegisterUsageResolver[*authhandler.AuthHandler](r, authhandler.ResolveAuthHandlerUsage)
 	usage.RegisterUsageResolver[*servicestruct.ServiceStruct](r, servicestruct.ResolveServiceStructUsage)
 	return r

@@ -49,7 +49,7 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 		switch r := r.(type) {
 		case *servicestruct.ServiceStruct:
 			sd.possibleServiceRoot(r.Decl.File.Pkg, true)
-		case *api.Endpoint:
+		case *api.HTTPEndpoint:
 			sd.possibleServiceRoot(r.Decl.File.Pkg, false)
 		case *pubsub.Subscription:
 			sd.possibleServiceRoot(r.File.Pkg, false)

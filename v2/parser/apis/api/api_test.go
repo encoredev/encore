@@ -25,7 +25,7 @@ func TestParseRPC(t *testing.T) {
 		name     string
 		imports  []string
 		def      string
-		want     *Endpoint
+		want     *HTTPEndpoint
 		wantErrs []string
 	}
 	tests := []testCase{
@@ -36,7 +36,7 @@ func TestParseRPC(t *testing.T) {
 //encore:api public
 func Foo(ctx context.Context) error {}
 `,
-			want: &Endpoint{
+			want: &HTTPEndpoint{
 				Name:        "Foo",
 				Doc:         "Foo does things.\n",
 				Access:      Public,
@@ -53,7 +53,7 @@ func Foo(ctx context.Context) error {}
 //encore:api private path=/foo method=PUT tag:some-tag
 func Foo(ctx context.Context) error {}
 `,
-			want: &Endpoint{
+			want: &HTTPEndpoint{
 				Name:        "Foo",
 				Doc:         "",
 				Access:      Private,
@@ -71,7 +71,7 @@ func Foo(ctx context.Context) error {}
 //encore:api auth path=/:key
 func Foo(ctx context.Context, key string) error {}
 `,
-			want: &Endpoint{
+			want: &HTTPEndpoint{
 				Name:        "Foo",
 				Doc:         "",
 				Access:      Auth,
@@ -88,7 +88,7 @@ func Foo(ctx context.Context, key string) error {}
 //encore:api auth path=/foo/:key
 func Foo(ctx context.Context, key int) error {}
 `,
-			want: &Endpoint{
+			want: &HTTPEndpoint{
 				Name:        "Foo",
 				Doc:         "",
 				Access:      Auth,
@@ -107,7 +107,7 @@ func Foo(ctx context.Context, key int) error {}
 //encore:api public raw path=/raw
 func Raw(w http.ResponseWriter, req *http.Request) {}
 `,
-			want: &Endpoint{
+			want: &HTTPEndpoint{
 				Name:        "Raw",
 				Doc:         "",
 				Access:      Public,
@@ -185,7 +185,7 @@ package foo
 					cmpopts.IgnoreInterfaces(struct{ ast.Node }{}),
 					cmpopts.IgnoreTypes(&schema.FuncDecl{}, &schema.TypeDecl{}, &pkginfo.File{}, &pkginfo.Package{}, token.Pos(0)),
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}, Endpoint{}),
+					cmpopts.IgnoreUnexported(schema.StructField{}, schema.NamedType{}, HTTPEndpoint{}),
 					cmp.Comparer(func(a, b *pkginfo.Package) bool {
 						return a.ImportPath == b.ImportPath
 					}),

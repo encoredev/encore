@@ -14,7 +14,7 @@ import (
 // responseDesc describes the generated response type.
 type responseDesc struct {
 	gu *genutil.Helper
-	ep *api.Endpoint
+	ep *api.HTTPEndpoint
 }
 
 func (d *responseDesc) TypeName() string {

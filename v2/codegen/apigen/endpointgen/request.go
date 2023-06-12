@@ -20,7 +20,7 @@ const jsonIterPkg = "github.com/json-iterator/go"
 // request data + path parameters for the request.
 type requestDesc struct {
 	gu *genutil.Helper
-	ep *api.Endpoint
+	ep *api.HTTPEndpoint
 }
 
 func (d *requestDesc) TypeName() string {

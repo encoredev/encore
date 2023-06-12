@@ -29,7 +29,7 @@ type GenParams struct {
 	// at the time of build.
 	AppUncommitted bool
 
-	APIHandlers    map[*api.Endpoint]*codegen.VarDecl
+	APIHandlers    map[*api.HTTPEndpoint]*codegen.VarDecl
 	AuthHandler    option.Option[*codegen.VarDecl]
 	Middleware     map[*middleware.Middleware]*codegen.VarDecl
 	ServiceStructs map[*app.Service]*codegen.VarDecl

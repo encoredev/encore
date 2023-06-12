@@ -11,7 +11,7 @@ import (
 
 type handlerDesc struct {
 	gu        *genutil.Helper
-	ep        *api.Endpoint
+	ep        *api.HTTPEndpoint
 	svcStruct option.Option[*codegen.VarDecl]
 
 	req  *requestDesc

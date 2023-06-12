@@ -32,7 +32,7 @@ type Desc struct {
 
 // MatchingMiddleware reports which middleware applies to the given RPC,
 // and the order they apply in.
-func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
+func (d *Desc) MatchingMiddleware(ep *api.HTTPEndpoint) []*middleware.Middleware {
 	var matches []*middleware.Middleware
 
 	// Ensure middleware ordering is preserved.
@@ -62,7 +62,7 @@ func (d *Desc) MatchingMiddleware(ep *api.Endpoint) []*middleware.Middleware {
 
 // MatchingGlobalMiddleware reports which global middleware applies to the given RPC,
 // and the order they apply in.
-func (d *Desc) MatchingGlobalMiddleware(ep *api.Endpoint) []*middleware.Middleware {
+func (d *Desc) MatchingGlobalMiddleware(ep *api.HTTPEndpoint) []*middleware.Middleware {
 	var matches []*middleware.Middleware
 	d.Framework.ForAll(func(fw *apiframework.AppDesc) {
 		for _, mw := range fw.GlobalMiddleware {

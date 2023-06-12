@@ -29,7 +29,7 @@ type ServiceDesc struct {
 	RootPkg *pkginfo.Package
 
 	// Endpoints are the endpoints defined in this service.
-	Endpoints []*api.Endpoint
+	Endpoints []*api.HTTPEndpoint
 
 	// ServiceStruct defines the service's service struct, if any.
 	ServiceStruct option.Option[*servicestruct.ServiceStruct]

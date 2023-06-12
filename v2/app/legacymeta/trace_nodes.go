@@ -24,7 +24,7 @@ func newTraceNodes(b *builder) *TraceNodes {
 		middlewares: make(map[*middleware.Middleware]*meta.TraceNode),
 		subs:        make(map[*pubsub.Subscription]*meta.TraceNode),
 		svcStructs:  make(map[*servicestruct.ServiceStruct]*meta.TraceNode),
-		endpoints:   make(map[*api.Endpoint]*meta.TraceNode),
+		endpoints:   make(map[*api.HTTPEndpoint]*meta.TraceNode),
 	}
 }
 
@@ -39,7 +39,7 @@ type TraceNodes struct {
 	middlewares map[*middleware.Middleware]*meta.TraceNode
 	subs        map[*pubsub.Subscription]*meta.TraceNode
 	svcStructs  map[*servicestruct.ServiceStruct]*meta.TraceNode
-	endpoints   map[*api.Endpoint]*meta.TraceNode
+	endpoints   map[*api.HTTPEndpoint]*meta.TraceNode
 }
 
 func (n *TraceNodes) AuthHandler() uint32 {
@@ -70,7 +70,7 @@ func (n *TraceNodes) SvcStruct(svcStruct *servicestruct.ServiceStruct) uint32 {
 	return nodeID(n.svcStructs[svcStruct])
 }
 
-func (n *TraceNodes) Endpoint(ep *api.Endpoint) uint32 {
+func (n *TraceNodes) Endpoint(ep *api.HTTPEndpoint) uint32 {
 	if n == nil {
 		return 0
 	}
@@ -128,7 +128,7 @@ func (n *TraceNodes) addMiddleware(mw *middleware.Middleware) {
 	n.middlewares[mw] = traceNode
 }
 
-func (n *TraceNodes) addEndpoint(ep *api.Endpoint, svcName string) {
+func (n *TraceNodes) addEndpoint(ep *api.HTTPEndpoint, svcName string) {
 	traceNode, context := n.alloc(ep.Decl.File, ep.Decl.AST)
 	traceNode.Context = &meta.TraceNode_RpcDef{
 		RpcDef: &meta.RPCDefNode{

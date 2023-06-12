@@ -12,18 +12,18 @@ import (
 // selectorLookup is a helper cache for looking up services and RPC's by selector
 type selectorLookup struct {
 	services  map[selector.Key]map[*app.Service]struct{}
-	endpoints map[selector.Key]map[*api.Endpoint]struct{}
+	endpoints map[selector.Key]map[*api.HTTPEndpoint]struct{}
 }
 
 // computeSelectorLookup creates a selector lookup from this application
 func computeSelectorLookup(appDesc *app.Desc) *selectorLookup {
 	s := &selectorLookup{
 		services:  make(map[selector.Key]map[*app.Service]struct{}),
-		endpoints: make(map[selector.Key]map[*api.Endpoint]struct{}),
+		endpoints: make(map[selector.Key]map[*api.HTTPEndpoint]struct{}),
 	}
 
 	// Record all RPCs
-	for _, ep := range parser.Resources[*api.Endpoint](appDesc.Parse) {
+	for _, ep := range parser.Resources[*api.HTTPEndpoint](appDesc.Parse) {
 		svc, ok := appDesc.ServiceForPath(ep.File.FSPath)
 		if !ok {
 			panic(fmt.Sprintf("no service found for endpoint %s.%s", ep.File.Pkg.Name, ep.Name))
@@ -42,10 +42,10 @@ func computeSelectorLookup(appDesc *app.Desc) *selectorLookup {
 }
 
 // recordRPC tracks both the RPC for the selector, but also the service the RPC is in
-func (sm *selectorLookup) recordEndpoint(s selector.Selector, ep *api.Endpoint, svc *app.Service) {
+func (sm *selectorLookup) recordEndpoint(s selector.Selector, ep *api.HTTPEndpoint, svc *app.Service) {
 	key := s.Key()
 	if sm.endpoints[key] == nil {
-		sm.endpoints[key] = make(map[*api.Endpoint]struct{})
+		sm.endpoints[key] = make(map[*api.HTTPEndpoint]struct{})
 	}
 	sm.endpoints[key][ep] = struct{}{}
 
@@ -56,7 +56,7 @@ func (sm *selectorLookup) recordEndpoint(s selector.Selector, ep *api.Endpoint, 
 }
 
 // GetEndpoints returns all the rpcs which match any of the given selectors
-func (sm *selectorLookup) GetEndpoints(targets selector.Set) (rtn []*api.Endpoint) {
+func (sm *selectorLookup) GetEndpoints(targets selector.Set) (rtn []*api.HTTPEndpoint) {
 	targets.ForEach(func(s selector.Selector) {
 		if rpcs, found := sm.endpoints[s.Key()]; found {
 			for rpc := range rpcs {
