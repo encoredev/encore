@@ -50,6 +50,13 @@ func DropStackFrame(err error) error {
 	return err
 }
 
+// Stack sets the stack of the new error.
+func (b *Builder) Stack(s stack.Stack) *Builder {
+	b.stack = s
+	b.stackSet = true
+	return b
+}
+
 // RoundTrip copies an error, returning an equivalent error
 // for replicating across RPC boundaries.
 func RoundTrip(err error) error {
@@ -61,6 +68,11 @@ func RoundTrip(err error) error {
 			Message: e.Message,
 			stack:   stack.Build(3), // skip caller of RoundTrip as well
 		}
+
+		// Register the stack type, even though we don't use it here as
+		// we pass "panic_stack" via the meta data and gob will error
+		// if the type hasn't been registered.
+		gob.Register(e2.stack)
 
 		if e.underlying != nil {
 			e2.underlying = errors.New(func() (rtn string) {
