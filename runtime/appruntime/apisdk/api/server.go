@@ -113,7 +113,7 @@ type Server struct {
 	private         *httprouter.Router
 	privateFallback *httprouter.Router
 	encore          *httprouter.Router
-	internalAuth    []svcauth.ServiceAuth // auth methods for internal service-to-service calls
+	internalAuth    map[string]svcauth.ServiceAuth // auth methods for internal service-to-service calls
 	httpsrv         *http.Server
 
 	callCtr uint64
@@ -140,7 +140,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		return router
 	}
 
-	svcAuth, err := svcauth.LoadMethods(runtime.ServiceAuth)
+	svcAuth, err := svcauth.LoadMethods(clock, runtime)
 	if err != nil {
 		panic(fmt.Errorf("error loading service auth methods: %w", err))
 	}

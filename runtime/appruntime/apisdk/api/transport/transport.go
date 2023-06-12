@@ -13,4 +13,13 @@ type Transport interface {
 
 	// ReadMetaValues reads all values for a metadata key off the transport.
 	ReadMetaValues(key string) (values []string, found bool)
+
+	// ListMetaKeys lists all metadata keys on the transport.
+	//
+	// The keys returned will be ordered alphabetically and will
+	// not contain duplicates (i.e. if a key is set multiple times).
+	//
+	// Keys will be normalized, such that they look the same on
+	// both send and receive sides.
+	ListMetaKeys() []string
 }
