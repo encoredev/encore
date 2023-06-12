@@ -6,6 +6,7 @@ import (
 
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
+	"encr.dev/v2/parser/apis/grpcservice"
 	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/servicestruct"
@@ -17,6 +18,8 @@ var Parser = &resourceparser.Parser{
 
 	InterestingImports: resourceparser.RunAlways,
 	Run: func(p *resourceparser.Pass) {
+		var serviceStructs []*servicestruct.ServiceStruct
+
 		for _, file := range p.Pkg.Files {
 			for _, decl := range file.AST().Decls {
 				switch decl := decl.(type) {
@@ -118,6 +121,7 @@ var Parser = &resourceparser.Parser{
 						})
 
 						if ss != nil {
+							serviceStructs = append(serviceStructs, ss)
 							p.RegisterResource(ss)
 							p.AddNamedBind(file, ss.Decl.AST.Name, ss)
 						}
@@ -125,6 +129,24 @@ var Parser = &resourceparser.Parser{
 					default:
 						p.Errs.Add(errUnexpectedDirective(dir.Name).AtGoNode(decl))
 					}
+				}
+			}
+		}
+
+		// For all service structs that include a protobuf service definition,
+		// parse the methods to emit API endpoints.
+		for _, ss := range serviceStructs {
+			if svc, ok := ss.Proto.Get(); ok {
+				eps := grpcservice.ParseEndpoints(grpcservice.ServiceDesc{
+					Errs:   p.Errs,
+					Schema: p.SchemaParser,
+					Proto:  svc,
+					Pkg:    p.Pkg,
+					Decl:   ss.Decl,
+				})
+				for _, ep := range eps {
+					p.RegisterResource(ep)
+					p.AddNamedBind(ep.Decl.File, ep.Decl.AST.Name, ep)
 				}
 			}
 		}

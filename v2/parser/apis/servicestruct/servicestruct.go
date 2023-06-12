@@ -6,6 +6,8 @@ import (
 	"go/ast"
 	"go/token"
 
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internals/perr"
@@ -13,6 +15,7 @@ import (
 	"encr.dev/v2/internals/protoparse"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
+	"encr.dev/v2/parser/apis/grpcservice"
 	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/internal/utils"
 	"encr.dev/v2/parser/resource"
@@ -26,6 +29,9 @@ type ServiceStruct struct {
 	// Init is the function for initializing this group.
 	// It is nil if there is no initialization function.
 	Init option.Option[*schema.FuncDecl]
+
+	// Proto defines the protobuf service descriptor, if any.
+	Proto option.Option[protoreflect.ServiceDescriptor]
 }
 
 func (ss *ServiceStruct) Kind() resource.Kind       { return resource.ServiceStruct }
@@ -71,10 +77,9 @@ func Parse(ctx context.Context, d ParseData) *ServiceStruct {
 	ok := directive.Validate(d.Errs, d.Dir, directive.ValidateSpec{
 		AllowedFields: []string{"grpc"},
 		ValidateField: func(errs *perr.List, f directive.Field) (ok bool) {
-			if !parseGRPCDirective(ctx, errs, d.Proto, f) {
-				return false
-			}
-			return true
+			svc, ok := grpcservice.ParseGRPCDirective(ctx, errs, d.Proto, f)
+			ss.Proto = option.AsOptional(svc)
+			return ok
 		},
 	})
 	if !ok {
