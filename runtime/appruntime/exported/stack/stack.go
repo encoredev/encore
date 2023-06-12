@@ -16,11 +16,38 @@ type Stack struct {
 }
 
 func Build(skip int) Stack {
+	return BuildWithFilters(skip+1, nil)
+}
+
+func BuildWithoutGoRuntime(skip int) Stack {
+	return BuildWithFilters(skip+1, func(pc uintptr) bool {
+		fn := runtime.FuncForPC(pc)
+		if fn == nil {
+			return true
+		}
+		name := fn.Name()
+		return !strings.HasPrefix(name, "runtime.") && !strings.HasPrefix(name, "testing.")
+	})
+}
+
+func BuildWithFilters(skip int, filter func(pcs uintptr) bool) Stack {
 	pcs := make([]uintptr, 101)
 	idx, off := encoreCallers(skip+1, pcs)
 	pcs = pcs[:idx]
 	if idx == 0 {
 		return Stack{}
+	}
+
+	// Apply filters
+	if filter != nil {
+		newPcs := make([]uintptr, 0, len(pcs))
+		for _, pc := range pcs {
+			if filter(pc) {
+				newPcs = append(newPcs, pc)
+			}
+		}
+
+		pcs = newPcs
 	}
 
 	// Go through our PCs and see if we reached a stop PC.

@@ -11,10 +11,12 @@ import (
 //
 // Use Err() to construct the error.
 type Builder struct {
-	code    ErrCode
-	codeSet bool
-	det     ErrDetails
-	detSet  bool
+	code     ErrCode
+	codeSet  bool
+	det      ErrDetails
+	detSet   bool
+	stack    stack.Stack
+	stackSet bool
 
 	msg  string
 	meta []interface{}
@@ -66,6 +68,10 @@ func (b *Builder) Cause(err error) *Builder {
 		if !b.detSet {
 			b.det = e.Details
 		}
+		if !b.stackSet {
+			b.stack = e.stack
+			b.stackSet = true
+		}
 	}
 	return b
 }
@@ -91,7 +97,9 @@ func (b *Builder) Err() error {
 
 	var errMeta Metadata
 	var s stack.Stack
-	if e, ok := b.err.(*Error); ok {
+	if b.stackSet {
+		s = b.stack
+	} else if e, ok := b.err.(*Error); ok {
 		errMeta = e.Meta
 		s = e.stack
 	} else {
