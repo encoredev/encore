@@ -255,6 +255,7 @@ func init() {
 	rootCmd.AddCommand(dbCmd)
 
 	dbResetCmd.Flags().BoolVar(&resetAll, "all", false, "Reset all services in the application")
+	dbResetCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Reset databases in the test cluster instead")
 	dbCmd.AddCommand(dbResetCmd)
 
 	dbShellCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
