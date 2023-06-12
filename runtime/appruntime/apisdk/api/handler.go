@@ -314,8 +314,8 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 			defer func() {
 				// Catch middleware panic
 				if e := recover(); e != nil {
-					panicStack := stack.Build(0)
-					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", panicStack).Msgf("panic executing middleware %s.%s: %v",
+					panicStack := stack.BuildWithoutGoRuntime(2)
+					resp.Err = errs.B().Code(errs.Internal).Stack(panicStack).Meta("panic_stack", panicStack).Msgf("panic executing middleware %s.%s: %v",
 						mw.PkgName, mw.Name, e).Err()
 					resp.HTTPStatus = 500
 				}
@@ -326,8 +326,8 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 			defer func() {
 				// Catch handler panic
 				if e := recover(); e != nil {
-					panicStack := stack.Build(0)
-					resp.Err = errs.B().Code(errs.Internal).Meta("panic_stack", panicStack).Msgf(
+					panicStack := stack.BuildWithoutGoRuntime(2)
+					resp.Err = errs.B().Code(errs.Internal).Stack(panicStack).Meta("panic_stack", panicStack).Msgf(
 						"panic handling request: %v", e).Err()
 					resp.HTTPStatus = 500
 				}
