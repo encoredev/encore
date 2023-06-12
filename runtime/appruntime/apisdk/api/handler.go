@@ -621,6 +621,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 	for key, val := range header {
 		httpReq.Header[key] = val
 	}
+	reqTransport := transport.HTTPRequest(httpReq)
 
 	call, meta, err := c.server.beginCall(c.ctx, d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {
@@ -628,7 +629,8 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		respErr = errs.Convert(err)
 		return
 	}
-	if err := meta.AddToRequest(transport.HTTPRequest(httpReq)); err != nil {
+
+	if err := meta.AddToRequest(c.server, service, reqTransport); err != nil {
 		c.server.rootLogger.Err(err).Msg("unable to add metadata to request")
 		respErr = errs.Convert(err)
 		return

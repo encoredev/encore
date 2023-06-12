@@ -170,7 +170,7 @@ func (mgr *Manager) generateServiceDiscoveryMap(p generateConfigParams) (map[str
 // this function will allow us to use environmental variables to configure
 // the auth method and test different auth methods locally.
 func (mgr *Manager) getInternalServiceToServiceAuthMethod() config.ServiceAuth {
-	return config.ServiceAuth{Method: "noop"}
+	return config.ServiceAuth{Method: "encore-auth"}
 }
 
 func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, error) {
