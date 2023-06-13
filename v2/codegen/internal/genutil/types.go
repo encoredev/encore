@@ -221,6 +221,58 @@ func (g *Helper) goTypeToJen(pos gotoken.Pos, typ reflect.Type) *Statement {
 	}
 }
 
+// IsNotJSONEmpty returns a jen expression evaluating whether expr is not "empty".
+// "Empty" is defined by the encoding/json package as:
+// "false, 0, a nil pointer, a nil interface value, and any empty array, slice, map, or string."
+func (g *Helper) IsNotJSONEmpty(expr *Statement, typ schema.Type) *Statement {
+	// Dereference any named types so we get at the underlying type.
+	for {
+		if named, ok := typ.(schema.NamedType); ok {
+			typ = named.Decl().Type
+		} else {
+			break
+		}
+	}
+
+	switch typ := typ.(type) {
+	case schema.InterfaceType, schema.FuncType, schema.PointerType:
+		return expr.Op("!=").Nil()
+	case schema.MapType:
+		return Len(expr).Op("!=").Lit(0)
+	case schema.ListType:
+		switch {
+		case typ.Len < 0: // slice
+			return Len(expr).Op("!=").Lit(0)
+		case typ.Len == 0:
+			// zero-length array, always empty
+			return False()
+		case typ.Len > 0:
+			// positive-length array, never empty
+			return True()
+		}
+	case schema.BuiltinType:
+		switch typ.Kind {
+		case schema.Any, schema.Error:
+			return expr.Op("!=").Nil()
+		case schema.Bool:
+			return expr
+		case schema.Int, schema.Int8, schema.Int16, schema.Int32, schema.Int64, schema.Uint, schema.Uint8, schema.Uint16, schema.Uint32, schema.Uint64, schema.Float32, schema.Float64:
+			return expr.Op("!=").Lit(0)
+		case schema.String:
+			return expr.Op("!=").Lit("")
+		case schema.Bytes, schema.JSON:
+			return Len(expr).Op("!=").Lit(0)
+		case schema.Time:
+			// Technically not 100% compliant but closer to
+			// the user's intention.
+			return Op("!").Parens(expr.Dot("IsZero").Call())
+		case schema.UserID:
+			return expr.Op("!=").Lit("")
+		}
+	}
+	return True()
+}
+
 // Zero returns a jen expression representing the zero value
 // for the given type. If the type is nil it returns "nil".
 func (g *Helper) Zero(typ schema.Type) *Statement {
