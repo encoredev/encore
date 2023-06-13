@@ -27,7 +27,7 @@ var isLocalTest = (func() bool {
 })()
 
 // remoteScheme is the remote scheme we expect.
-// It's "encore" in generla but "encorelocal" for local development.
+// It's "encore" in general but "encorelocal" for local development.
 var remoteScheme = (func() string {
 	if isLocalTest {
 		return "encorelocal"

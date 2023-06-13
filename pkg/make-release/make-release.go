@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 type Builder struct {
@@ -55,11 +57,16 @@ func (b *Builder) BuildBinaries() error {
 		)
 
 	case b.GOOS == "linux" && b.GOARCH == "arm64":
-		// GitHub Actions doesn't have builders for linux/arm64 so we need to
-		// cross-compile. Unfortunately we need cgo for sqlite so use zig to do so.
+		// Use zig to build sqlite3 with musl.
 		env = append(env,
-			"CC=zig cc -Wl,--no-gc-sections -target aarch64-linux-gnu.2.34",
-			"CXX=zig c++ -Wl,--no-gc-sections -target aarch64-linux-gnu.2.34",
+			"CC=zig cc -Wl,--no-gc-sections -target aarch64-linux-musl",
+			"CXX=zig c++ -Wl,--no-gc-sections -target aarch64-linux-musl",
+		)
+	case b.GOOS == "linux" && b.GOARCH == "amd64":
+		// Use zig to build sqlite3 with musl.
+		env = append(env,
+			"CC=zig cc -Wl,--no-gc-sections -target x86_64-linux-musl",
+			"CXX=zig c++ -Wl,--no-gc-sections -target x86_64-linux-musl",
 		)
 	}
 
@@ -73,7 +80,7 @@ func (b *Builder) BuildBinaries() error {
 		fmt.Sprintf("-ldflags=-X 'encr.dev/internal/version.Version=%s'", version),
 		"-o", join(b.dst, "bin", "encore"),
 		"./cli/cmd/encore")
-	cmd.Env = env
+	cmd.Env = slices.Clone(env)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("go build encore failed: %s (%v)", out, err)
 	}
@@ -81,7 +88,11 @@ func (b *Builder) BuildBinaries() error {
 	cmd = exec.Command("go", "build",
 		"-o", join(b.dst, "bin", "git-remote-encore"),
 		"./cli/cmd/git-remote-encore")
-	cmd.Env = env
+	cmd.Env = append(os.Environ(),
+		"GOOS="+b.GOOS,
+		"GOARCH="+b.GOARCH,
+		"CGO_ENABLED=0",
+	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("go build git-remote-encore failed: %s (%v)", out, err)
 	}
