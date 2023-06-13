@@ -296,11 +296,11 @@ func (g *Helper) builtinZero(builtin schema.BuiltinType) *Statement {
 	case schema.String:
 		return Lit("")
 	case schema.Bytes:
-		return Index().Byte().Values()
+		return Nil()
 	case schema.Time:
-		return Qual("time", "Time").Values()
+		return Parens(Qual("time", "Time").Values())
 	case schema.UUID:
-		return Qual("encore.dev/types/uuid", "UUID").Values()
+		return Parens(Qual("encore.dev/types/uuid", "UUID").Values())
 	case schema.JSON:
 		// Zero for JSON is nil, we don't return a typed nil as you can't use them
 		// in if statements.
