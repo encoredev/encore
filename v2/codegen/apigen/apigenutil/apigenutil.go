@@ -177,10 +177,10 @@ func EncodeBody(gu *genutil.Helper, g *Group, streamExpr, paramExpr *Statement, 
 
 		// If this field is omitted when empty, we need to wrap the write in an if statement.
 		if p.OmitEmpty {
-			g.If(paramExpr.Clone().Dot(p.SrcName).Op("!=").Add(gu.Zero(p.Type)).BlockFunc(func(g *Group) {
+			g.If(gu.IsNotJSONEmpty(paramExpr.Clone().Dot(p.SrcName), p.Type)).BlockFunc(func(g *Group) {
 				g.Comment(fmt.Sprintf("%s is set to omitempty, so we need to check if it's empty before writing it", p.SrcName))
 				writeBlock = g
-			}))
+			})
 		}
 
 		writeBlock.Add(streamExpr.Clone().Dot("WriteObjectField").Call(Lit(p.WireName)))
