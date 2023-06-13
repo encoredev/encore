@@ -7,6 +7,7 @@ import (
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/resourcepaths"
+	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
@@ -73,7 +74,8 @@ func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, resu
 				// If typed endpoint, validate the types of the request and response
 				if ep.Request != nil {
 					// The request is always the first parameter after any path params (and after the ctx)
-					d.validateType(pc, ep.Decl.AST.Type.Params.List[len(ep.Path.Params())+1].Type, ep.Request)
+					field, _ := schemautil.GetArgument(ep.Decl.AST.Type.Params, len(ep.Path.Params())+1)
+					d.validateType(pc, field.Type, ep.Request)
 				}
 
 				if ep.Response != nil {
