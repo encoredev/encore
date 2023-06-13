@@ -10,7 +10,7 @@ infobox: {
 }
 ---
 
-Encore treats SQL databases as logical resources and natively supports **PostreSQL** databases.
+Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
 
 ## Creating a database
 
