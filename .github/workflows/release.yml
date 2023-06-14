@@ -100,7 +100,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Login to Docker Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -115,7 +115,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: encoredotdev/encore
           labels: |
@@ -125,21 +125,20 @@ jobs:
             org.opencontainers.image.description=Encore is the end-to-end Backend Development Platform that lets you escape cloud complexity.
           tags: |
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-            type=ref,event=pr
+            type=semver,pattern={{version}},value=${{ github.event.inputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.inputs.version }}
+            type=semver,pattern={{major}},value=${{ github.event.inputs.version }}
 
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4
         with:
           context: .github/dockerimg
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             RELEASE_VERSION=${{ github.event.inputs.version }}
 
