@@ -125,9 +125,9 @@ jobs:
             org.opencontainers.image.description=Encore is the end-to-end Backend Development Platform that lets you escape cloud complexity.
           tags: |
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-            type=semver,pattern={{version}},value=${{ github.event.inputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.inputs.version }}
-            type=semver,pattern={{major}},value=${{ github.event.inputs.version }}
+            type=semver,pattern={{version}},value=v${{ github.event.inputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ github.event.inputs.version }}
+            type=semver,pattern={{major}},value=v${{ github.event.inputs.version }}
 
       - name: Build and push
         uses: docker/build-push-action@v4
