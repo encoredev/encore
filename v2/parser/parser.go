@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/scan"
@@ -169,17 +170,43 @@ func newUsageResolver() *usage.Resolver {
 // as a result of having an explicit bind (via sqldb.NewDatabase) and an implicit bind (via a "migrations" folder).
 func deduplicateSQLDBResources(resources []resource.Resource, binds []resource.Bind) ([]resource.Resource, []resource.Bind) {
 	bindsPerDB := make(map[string][]resource.Bind)
+	bindsPerMigrationDir := make(map[paths.MainModuleRelSlash][]resource.Bind)
 	for _, b := range binds {
 		// All the binds we're interested in contain a resource and not a path.
 		r := b.ResourceRef().Resource
 		if db, ok := r.(*sqldb.Database); ok {
 			bindsPerDB[db.Name] = append(bindsPerDB[db.Name], b)
+			bindsPerMigrationDir[db.MigrationDir] = append(bindsPerMigrationDir[db.MigrationDir], b)
 		}
 	}
 
 	resourcesToRemove := make(map[resource.Resource]bool)
 	bindsToRemove := make(map[resource.Bind]bool)
 	for _, binds := range bindsPerDB {
+		implicitIdx := slices.IndexFunc(binds, func(b resource.Bind) bool {
+			_, ok := b.(*resource.ImplicitBind)
+			return ok
+		})
+		explicitIdx := slices.IndexFunc(binds, func(b resource.Bind) bool {
+			_, ok := b.(*resource.ImplicitBind)
+			return !ok
+		})
+
+		if implicitIdx >= 0 && explicitIdx >= 0 {
+			// We have both types of binds. Delete the implicit one.
+			implicit := binds[implicitIdx]
+			bindsToRemove[implicit] = true
+
+			// If they refer to different underlying resources, delete the implicit resource.
+			explicit := binds[explicitIdx]
+			if res := implicit.ResourceRef().Resource; res != nil && res != explicit.ResourceRef().Resource {
+				resourcesToRemove[res] = true
+			}
+		}
+	}
+
+	// Now do the same based on migration dir
+	for _, binds := range bindsPerMigrationDir {
 		implicitIdx := slices.IndexFunc(binds, func(b resource.Bind) bool {
 			_, ok := b.(*resource.ImplicitBind)
 			return ok
