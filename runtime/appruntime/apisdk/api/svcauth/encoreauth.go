@@ -135,6 +135,10 @@ func (ea *encoreAuth) buildOpHash(req transport.Transport) (auth.OperationHash, 
 		case AuthMethodMetaKey, ecAuthHashHeader, ecDateHeader:
 			// Skip these headers, as they are part of the auth mechanism itself
 
+		case transport.TraceParentKey, transport.TraceStateKey:
+			// Skip these headers, as they are part of the tracing mechanism and could be changed
+			// by things like load balancers
+
 		default:
 			// Read all values for this key, and sort them
 			values, found := req.ReadMetaValues(key)

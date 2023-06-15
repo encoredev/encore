@@ -55,6 +55,11 @@ type beginRequestParams struct {
 	// If not empty, it will be recorded on each log message with "correlation_id" key.
 	// to facilitate request correlation.
 	ExtCorrelationID string
+
+	// AdditionalLogFields is a map of additional fields to be added to all the log message.
+	// This is mainly used to add the trace identifiers to the log messages
+	// so the clouds logging can correlate the logs with the trace.
+	AdditionalLogFields map[string]string
 }
 
 func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
@@ -137,6 +142,13 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		logCtx = logCtx.Str("x_correlation_id", req.ExtCorrelationID)
 	} else if req.ParentTraceID != (model.TraceID{}) {
 		logCtx = logCtx.Str("x_correlation_id", req.ParentTraceID.String())
+	}
+
+	// Add additional log fields, if any
+	if p.AdditionalLogFields != nil {
+		for k, v := range p.AdditionalLogFields {
+			logCtx = logCtx.Str(k, v)
+		}
 	}
 
 	reqLogger := logCtx.Logger()

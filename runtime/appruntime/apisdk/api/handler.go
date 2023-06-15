@@ -3,6 +3,9 @@ package api
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"encoding/hex"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,6 +14,7 @@ import (
 	"sync"
 
 	jsoniter "github.com/json-iterator/go"
+	"golang.org/x/crypto/sha3"
 
 	encore "encore.dev"
 	"encore.dev/appruntime/apisdk/api/errmarshalling"
@@ -19,6 +23,7 @@ import (
 	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/shared/cloudtrace"
 	"encore.dev/appruntime/shared/jsonapi"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
@@ -122,6 +127,40 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		defer c.capturer.Dispose()
 	}
 
+	// If this is an internal encore-to-encore call, we need to verify the caller is allowed to make this call.
+	if c.isEncoreToEncoreCall {
+		t := transport.HTTPRequest(c.req)
+		targetAPI, _ := t.ReadMeta(calleeMetaName)
+
+		if targetAPI != fmt.Sprintf("%s.%s", d.Service, d.Endpoint) {
+			returnError(c, errs.B().Code(errs.PermissionDenied).Msg("internal call auth did not align with API").Err(), 0)
+			return
+		}
+
+		// If it's not a raw call, we need to verify the payload is correct.
+		if !d.Raw {
+			b, err := io.ReadAll(c.req.Body)
+			if err != nil {
+				returnError(c, errs.B().Cause(err).Code(errs.Internal).Msg("failed to read request body").Err(), 0)
+				return
+			}
+			defer func() { _ = c.req.Body.Close() }()
+
+			hash := sha3.Sum256(b)
+			c.req.Body = io.NopCloser(bytes.NewReader(b))
+			gotHash, _ := t.ReadMeta(bodyHashMetaName)
+			gotHashBytes, err := hex.DecodeString(gotHash)
+			if err != nil {
+				returnError(c, errs.B().Cause(err).Code(errs.Internal).Msg("failed to decode body hash").Err(), 0)
+				return
+			}
+
+			if !hmac.Equal(gotHashBytes, hash[:]) {
+				returnError(c, errs.B().Code(errs.PermissionDenied).Msg("internal call auth did not align with payload").Err(), 0)
+			}
+		}
+	}
+
 	reqData, beginErr := d.begin(c)
 	if beginErr != nil {
 		returnError(c, beginErr, 0)
@@ -212,6 +251,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		Type:          model.RPCCall,
 		DefLoc:        d.DefLoc,
 		TraceID:       c.traceID,
+		SpanID:        c.spanID,
 		ParentSpanID:  c.parentSpanID,
 		CallerEventID: c.parentEventID,
 
@@ -229,8 +269,9 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 			ServiceToServiceCall: c.isEncoreToEncoreCall,
 		},
 
-		ExtRequestID:     clampTo64Chars(c.req.Header.Get("X-Request-ID")),
-		ExtCorrelationID: clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
+		ExtRequestID:        clampTo64Chars(c.req.Header.Get("X-Request-ID")),
+		ExtCorrelationID:    clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
+		AdditionalLogFields: cloudtrace.StructuredLogFields(c.req),
 	})
 	if err != nil {
 		beginErr = errs.B().Code(errs.Internal).Msg("internal error").Err()
@@ -424,8 +465,25 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
-	if experiments.ExternalCalls.Enabled(c.server.experiments) {
-		return d.externalCall(c, req)
+	if !c.server.static.Testing && experiments.ExternalCalls.Enabled(c.server.experiments) {
+		// TODO(domblack): This is a temporarily hack to execute the external code path
+		//                 in the final release, if there is no service discovery for a given service
+		//				   then it is running locally, thus can be called via `d.internalCall`.
+		service, found := c.server.runtime.ServiceDiscovery[d.Service]
+		if !found {
+			if len(c.server.runtime.ServiceAuth) == 0 {
+				return respData, errs.B().Code(errs.Internal).Msgf("no service auth configured for runtime: %s", d.Service).Err()
+			}
+
+			return d.externalCall(c, config.Service{
+				Name:        d.Service,
+				URL:         c.server.runtime.APIBaseURL,
+				Protocol:    config.Http,
+				ServiceAuth: c.server.runtime.ServiceAuth[0],
+			}, req)
+		} else {
+			return d.externalCall(c, service, req)
+		}
 	} else {
 		return d.internalCall(c, req)
 	}
@@ -560,7 +618,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 	return
 }
 
-func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, respErr error) {
+func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, req Req) (respData Resp, respErr error) {
 	// TODO: we don't currently support service-to-service calls of raw endpoints.
 	// To fix this we need to improve our request serialization and DI support to
 	// separate the signature for outgoing calls versus handlers.
@@ -570,11 +628,6 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 	}
 
 	// Lookup the service
-	service, found := c.server.runtime.ServiceDiscovery[d.Service]
-	if !found {
-		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: unable to discover service host").Err()
-		return
-	}
 	if service.Protocol != config.Http {
 		// For now we only support HTTP services
 		respErr = errs.B().Code(errs.Internal).Msg("internal encore error: unsupported service protocol").Err()
@@ -622,6 +675,14 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, req Req) (respData Resp, r
 		httpReq.Header[key] = val
 	}
 	reqTransport := transport.HTTPRequest(httpReq)
+
+	// Set the name of the API we want to call
+	reqTransport.SetMeta(calleeMetaName, fmt.Sprintf("%s.%s", d.Service, d.Endpoint))
+	if !d.Raw {
+		// Compute the hash of the request body if not a raw request
+		hash := sha3.Sum256(buf.Bytes())
+		reqTransport.SetMeta(bodyHashMetaName, hex.EncodeToString(hash[:]))
+	}
 
 	call, meta, err := c.server.beginCall(c.ctx, d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/shared/cloudtrace"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 )
@@ -64,7 +65,8 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 				RequestHeaders:     c.req.Header,
 				FromEncorePlatform: platformauth.IsEncorePlatformRequest(c.req.Context()),
 			},
-			ExtCorrelationID: clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
+			ExtCorrelationID:    clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
+			AdditionalLogFields: cloudtrace.StructuredLogFields(c.req),
 		})
 		if authErr != nil {
 			return

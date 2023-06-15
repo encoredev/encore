@@ -4,7 +4,6 @@ package build
 
 import (
 	"context"
-	"fmt"
 	"go/token"
 	"io"
 	"os"
@@ -149,8 +148,14 @@ func (b *builder) runTests() {
 
 		err = cmd.Run()
 		if err != nil {
-			// HACK(andre): Make this nicer
-			b.errs.AddStd(fmt.Errorf("test failure: %v", err))
+			if err.Error() == "exit status 1" {
+				// This is a standard error code for failed tests.
+				// so we don't need to wrap it.
+				b.errs.Add(ErrTestFailued)
+			} else {
+				// Otherwise we wrap the error.
+				b.errs.Add(ErrTestFailued.Wrapping(err))
+			}
 		}
 	})
 }
