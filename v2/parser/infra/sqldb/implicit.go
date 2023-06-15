@@ -83,10 +83,15 @@ func ComputeImplicitUsage(errs *perr.List, pkgs []*pkginfo.Package, binds []reso
 
 				switch qn.Name {
 				case "Exec", "ExecTx", "QueryRow", "QueryRowTx", "Query", "QueryTx", "Begin":
+					validUsage := false
 					if bind, ok := findBind(file.Pkg.ImportPath); ok {
 						if u := classifySQLDBUsage(file, bind, sel, stack); u != nil {
 							usages = append(usages, u)
+							validUsage = true
 						}
+					}
+					if !validUsage {
+						errs.Add(errInvalidPkgLevelQuery(qn.Name).AtGoNode(sel))
 					}
 				}
 
