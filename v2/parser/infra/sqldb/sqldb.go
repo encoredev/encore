@@ -77,7 +77,7 @@ func parseDatabase(d parseutil.ReferenceInfo) {
 	}
 
 	databaseName := parseutil.ParseResourceName(d.Pass.Errs, "sqldb.NewDatabase", "database name",
-		d.Call.Args[0], parseutil.KebabName, "")
+		d.Call.Args[0], parseutil.SnakeName, "")
 	if databaseName == "" {
 		// we already reported the error inside ParseResourceName
 		return
