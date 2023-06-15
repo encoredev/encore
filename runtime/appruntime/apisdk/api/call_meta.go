@@ -27,9 +27,8 @@ var (
 )
 
 const (
-	callerMetaName   = "Caller"
-	calleeMetaName   = "Callee"
-	bodyHashMetaName = "Body-Hash"
+	callerMetaName = "Caller"
+	calleeMetaName = "Callee"
 )
 
 // CallMeta is metadata for an RPC call
@@ -96,8 +95,6 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 		}
 	}
 
-	// If there's no call request, we're probably in the middle of system startup
-	// so we'll just use the first bundled service as the sending service
 	meta.Internal = &InternalCallMeta{
 		Caller:   caller,
 		AuthUID:  string(call.UserID),
@@ -167,6 +164,10 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 	}
 
 	return nil
+}
+
+func (meta CallMeta) IsServiceToService() bool {
+	return meta.Internal != nil && meta.Internal.Caller != nil
 }
 
 // MetaFromRequest reads the metadata from the given request and returns it

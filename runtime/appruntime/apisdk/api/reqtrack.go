@@ -145,10 +145,8 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	// Add additional log fields, if any
-	if p.AdditionalLogFields != nil {
-		for k, v := range p.AdditionalLogFields {
-			logCtx = logCtx.Str(k, v)
-		}
+	for k, v := range p.AdditionalLogFields {
+		logCtx = logCtx.Str(k, v)
 	}
 
 	reqLogger := logCtx.Logger()

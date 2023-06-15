@@ -151,10 +151,10 @@ func (b *builder) runTests() {
 			if err.Error() == "exit status 1" {
 				// This is a standard error code for failed tests.
 				// so we don't need to wrap it.
-				b.errs.Add(ErrTestFailued)
+				b.errs.Add(ErrTestFailed)
 			} else {
 				// Otherwise we wrap the error.
-				b.errs.Add(ErrTestFailued.Wrapping(err))
+				b.errs.Add(ErrTestFailed.Wrapping(err))
 			}
 		}
 	})

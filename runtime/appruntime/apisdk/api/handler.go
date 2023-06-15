@@ -3,8 +3,6 @@ package api
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +12,6 @@ import (
 	"sync"
 
 	jsoniter "github.com/json-iterator/go"
-	"golang.org/x/crypto/sha3"
 
 	encore "encore.dev"
 	"encore.dev/appruntime/apisdk/api/errmarshalling"
@@ -128,36 +125,13 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 	}
 
 	// If this is an internal encore-to-encore call, we need to verify the caller is allowed to make this call.
-	if c.isEncoreToEncoreCall {
+	if c.callMeta.IsServiceToService() {
 		t := transport.HTTPRequest(c.req)
 		targetAPI, _ := t.ReadMeta(calleeMetaName)
 
 		if targetAPI != fmt.Sprintf("%s.%s", d.Service, d.Endpoint) {
 			returnError(c, errs.B().Code(errs.PermissionDenied).Msg("internal call auth did not align with API").Err(), 0)
 			return
-		}
-
-		// If it's not a raw call, we need to verify the payload is correct.
-		if !d.Raw {
-			b, err := io.ReadAll(c.req.Body)
-			if err != nil {
-				returnError(c, errs.B().Cause(err).Code(errs.Internal).Msg("failed to read request body").Err(), 0)
-				return
-			}
-			defer func() { _ = c.req.Body.Close() }()
-
-			hash := sha3.Sum256(b)
-			c.req.Body = io.NopCloser(bytes.NewReader(b))
-			gotHash, _ := t.ReadMeta(bodyHashMetaName)
-			gotHashBytes, err := hex.DecodeString(gotHash)
-			if err != nil {
-				returnError(c, errs.B().Cause(err).Code(errs.Internal).Msg("failed to decode body hash").Err(), 0)
-				return
-			}
-
-			if !hmac.Equal(gotHashBytes, hash[:]) {
-				returnError(c, errs.B().Code(errs.PermissionDenied).Msg("internal call auth did not align with payload").Err(), 0)
-			}
 		}
 	}
 
@@ -201,7 +175,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 // If statusCodeToUse is 0, we will use the default status code for the error using
 // the [errs] package.
 func returnError(c IncomingContext, err error, statusCodeToUse int) {
-	if c.isEncoreToEncoreCall {
+	if c.callMeta.IsServiceToService() {
 		// If this is an internal service to service call, we want to return the full error
 		// we'll add a header to the response to indicate that the error is a full error
 		// and the calling code can use this to determine how to unmarshal the response object.
@@ -250,10 +224,10 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	_, err := c.server.beginRequest(c.ctx, &beginRequestParams{
 		Type:          model.RPCCall,
 		DefLoc:        d.DefLoc,
-		TraceID:       c.traceID,
-		SpanID:        c.spanID,
-		ParentSpanID:  c.parentSpanID,
-		CallerEventID: c.parentEventID,
+		TraceID:       c.callMeta.TraceID,
+		SpanID:        c.callMeta.SpanID,
+		ParentSpanID:  c.callMeta.ParentSpanID,
+		CallerEventID: c.callMeta.ParentEventID,
 
 		Data: &model.RPCData{
 			Desc:                 d.rpcDesc(),
@@ -266,7 +240,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 			AuthData:             c.auth.UserData,
 			RequestHeaders:       c.req.Header,
 			FromEncorePlatform:   platformauth.IsEncorePlatformRequest(c.req.Context()),
-			ServiceToServiceCall: c.isEncoreToEncoreCall,
+			ServiceToServiceCall: c.callMeta.IsServiceToService(),
 		},
 
 		ExtRequestID:        clampTo64Chars(c.req.Header.Get("X-Request-ID")),
@@ -678,11 +652,6 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 
 	// Set the name of the API we want to call
 	reqTransport.SetMeta(calleeMetaName, fmt.Sprintf("%s.%s", d.Service, d.Endpoint))
-	if !d.Raw {
-		// Compute the hash of the request body if not a raw request
-		hash := sha3.Sum256(buf.Bytes())
-		reqTransport.SetMeta(bodyHashMetaName, hex.EncodeToString(hash[:]))
-	}
 
 	call, meta, err := c.server.beginCall(c.ctx, d.Service, d.Endpoint, d.DefLoc)
 	if err != nil {

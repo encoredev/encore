@@ -7,5 +7,5 @@ import (
 var (
 	errRange = errors.Range("test", "", errors.WithRangeSize(20))
 
-	ErrTestFailued = errRange.New("Test Failure", "One more more tests failed.")
+	ErrTestFailed = errRange.New("Test Failure", "One or more more tests failed.")
 )

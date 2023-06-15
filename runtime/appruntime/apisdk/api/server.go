@@ -56,12 +56,7 @@ type execContext struct {
 	ps     UnnamedParams
 	auth   model.AuthInfo
 
-	traceID       model.TraceID      // zero if not tracing
-	spanID        model.SpanID       // zero if not decided by the cloud
-	parentSpanID  model.SpanID       // zero if no parent (this only gets set for Encore service-to-service calls)
-	parentEventID model.TraceEventID // zero if no parent
-
-	isEncoreToEncoreCall bool // true if this is an encore-to-encore call
+	callMeta CallMeta
 }
 
 type IncomingContext struct {
@@ -417,16 +412,13 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 
 func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, callMeta CallMeta) execContext {
 	var auth model.AuthInfo
-	var isEncoreToEncoreCall bool
 	if callMeta.Internal != nil {
-		isEncoreToEncoreCall = true
-
 		auth = model.AuthInfo{
 			UID:      model.UID(callMeta.Internal.AuthUID),
 			UserData: callMeta.Internal.AuthData,
 		}
 	}
-	return execContext{s, ctx, ps, auth, callMeta.TraceID, callMeta.SpanID, callMeta.ParentSpanID, callMeta.ParentEventID, isEncoreToEncoreCall}
+	return execContext{s, ctx, ps, auth, callMeta}
 }
 
 func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, callMeta CallMeta) IncomingContext {
