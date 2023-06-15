@@ -13,6 +13,7 @@ import (
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/shared/cloud"
 	"encore.dev/beta/errs"
 )
 
@@ -25,11 +26,17 @@ var (
 	}.Froze()
 )
 
+const (
+	callerMetaName = "Caller"
+	calleeMetaName = "Callee"
+)
+
 // CallMeta is metadata for an RPC call
 type CallMeta struct {
 	// Untrusted fields
 	// (i.e. we allow these fields to be passed in from anywhere, including external requests)
 	TraceID       model.TraceID      // The trace ID of the calling request (zero if not tracing)
+	SpanID        model.SpanID       // The span ID of _this_ request if predefined by the caller (zero in most cases)
 	ParentSpanID  model.SpanID       // The span ID of the calling request (zero if there's no parent)
 	ParentEventID model.TraceEventID // The event ID which started the RPC call (zero if there's no parent)
 	CorrelationID string             // The correlation ID of the calling request
@@ -43,9 +50,9 @@ type CallMeta struct {
 // InternalCallMeta is metadata for an RPC call which is being made
 // between two Encore services within the same application.
 type InternalCallMeta struct {
-	SendingService string // The name of the service which is making the call TODO(domblack): maybe make this struct?
-	AuthUID        string // The UID of the authenticated user
-	AuthData       any    // The data of the authenticated user
+	Caller   Caller // The name of the service which is making the call
+	AuthUID  string // The UID of the authenticated user
+	AuthData any    // The data of the authenticated user
 }
 
 // addInternalCallMeta adds internal metadata to the external request
@@ -61,25 +68,37 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 		return meta, err
 	}
 
+	// Default the caller to the current app deployment
+	var caller Caller
+	caller = &AppCaller{s.runtime.DeployID}
+
+	// Trace the source data if we're tracing
 	if call != nil && call.Source != nil {
 		meta.TraceID = call.Source.TraceID
 		meta.ParentSpanID = call.Source.SpanID
 		meta.ParentEventID = call.StartEventID
 		meta.CorrelationID = call.Source.ExtCorrelationID
 
-		meta.Internal = &InternalCallMeta{
-			SendingService: s.static.BundledServices[call.Source.SvcNum-1],
-			AuthUID:        string(call.UserID),
-			AuthData:       call.AuthData,
+		if call.Source.RPCData != nil && call.Source.RPCData.Desc != nil {
+			// If we're processing an API call, let's update the caller
+			caller = &ApiCaller{
+				ServiceName: call.Source.RPCData.Desc.Service,
+				Endpoint:    call.Source.RPCData.Desc.Endpoint,
+			}
+		} else if call.Source.MsgData != nil && call.Source.MsgData.MessageID != "" {
+			// If we're processing a PubSub message, let's update the caller
+			caller = &PubSubCaller{
+				Topic:        call.Source.MsgData.Topic,
+				Subscription: call.Source.MsgData.Subscription,
+				MessageID:    call.Source.MsgData.MessageID,
+			}
 		}
-	} else {
-		// If there's no call request, we're probably in the middle of system startup
-		// so we'll just use the first bundled service as the sending service
-		meta.Internal = &InternalCallMeta{
-			SendingService: s.static.BundledServices[0],
-			AuthUID:        string(call.UserID),
-			AuthData:       call.AuthData,
-		}
+	}
+
+	meta.Internal = &InternalCallMeta{
+		Caller:   caller,
+		AuthUID:  string(call.UserID),
+		AuthData: call.AuthData,
 	}
 
 	return meta, nil
@@ -98,8 +117,16 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 
 		// Because Encore does not count an RPC call as a span, but rather a set of events within a span
 		// we also need to pass the event ID which started the RPC call in the tracestate header
+
 		eventID := strconv.FormatUint(uint64(meta.ParentEventID), 36)
-		req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s", eventTraceStateKey, eventID))
+		if server.runtime.EnvCloud == cloud.GCP || server.runtime.EnvCloud == cloud.Encore {
+			// In GCP they add their own span's into the "trace", which breaks our parent span link
+			// so we need to add the parent span ID to the tracestate header so we can track our own parent span
+			req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%x,%s=%s", eventTraceStateSpanIDKey, meta.ParentSpanID[:], eventTraceStateEventIDKey, eventID))
+		} else {
+			// Otherwise all we need to know is our event ID
+			req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s", eventTraceStateEventIDKey, eventID))
+		}
 	}
 
 	// Pass the correlation ID to the downstream service.
@@ -111,7 +138,7 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 	// If we're making an internal call, add the internal metadata to the request
 	if meta.Internal != nil {
 		// Add a marker to the request to indicate that this is an internal call
-		req.SetMeta("Internal-Call", meta.Internal.SendingService)
+		req.SetMeta(callerMetaName, meta.Internal.Caller.CallerString())
 
 		// Add the auth data
 		if meta.Internal.AuthUID != "" {
@@ -139,6 +166,10 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 	return nil
 }
 
+func (meta CallMeta) IsServiceToService() bool {
+	return meta.Internal != nil && meta.Internal.Caller != nil
+}
+
 // MetaFromRequest reads the metadata from the given request and returns it
 func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err error) {
 	// Read the meta version if set and check it's only version 1
@@ -148,7 +179,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 	}
 
 	// If it was an internal call, read the internal metadata
-	if sendingService, found := req.ReadMeta("Internal-Call"); found {
+	if callerStr, found := req.ReadMeta(callerMetaName); found {
 		isInternalCall, err := svcauth.Verify(req, s.internalAuth)
 		if err != nil {
 			return CallMeta{}, fmt.Errorf("failed to verify internal call: %w", err)
@@ -157,8 +188,13 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 			return CallMeta{}, errors.New("no internal call auth found")
 		}
 
+		caller, err := ParseCallerString(callerStr)
+		if err != nil {
+			return CallMeta{}, fmt.Errorf("failed to parse caller string: %w", err)
+		}
+
 		meta.Internal = &InternalCallMeta{
-			SendingService: sendingService,
+			Caller: caller,
 		}
 
 		// Pull the auth data out of the request
@@ -187,7 +223,17 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 		meta.TraceID, meta.ParentSpanID, _ = parseTraceParent(traceParent)
 
 		if traceState, found := req.ReadMetaValues(transport.TraceStateKey); found {
-			meta.ParentEventID, _ = parseTraceState(traceState)
+			parentEventID, parentSpanID, ok := parseTraceState(traceState)
+			if ok {
+				meta.ParentEventID = parentEventID
+
+				// If we where given a parent span ID, use that instead of the one from the traceparent header
+				// This is because GCP Cloud Run will add it's own spans in before the application code is run
+				// and thus we lose the parent span ID from the traceparent header
+				if !parentSpanID.IsZero() {
+					meta.ParentSpanID = parentSpanID
+				}
+			}
 		}
 	}
 
@@ -248,7 +294,7 @@ func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, ok 
 // If no valid Encore event ID can be parsed it returns zero and ok == false.
 //
 // Note the spec allows for multiple `tracestate` headers to be sent, so we need to check all of them.
-func parseTraceState(headerValues []string) (eventID model.TraceEventID, ok bool) {
+func parseTraceState(headerValues []string) (eventID model.TraceEventID, parentSpanID model.SpanID, ok bool) {
 	for _, thisHeader := range headerValues {
 		theseFields := strings.Split(thisHeader, ",")
 		for _, field := range theseFields {
@@ -257,16 +303,24 @@ func parseTraceState(headerValues []string) (eventID model.TraceEventID, ok bool
 				continue
 			}
 
-			if parts[0] == eventTraceStateKey {
-				eventID, err := strconv.ParseUint(parts[1], 36, 64)
+			switch parts[0] {
+			case eventTraceStateSpanIDKey:
+				spanIDBytes, err := hex.DecodeString(parts[1])
+				if err != nil || len(spanIDBytes) != 8 {
+					return 0, model.SpanID{}, false
+				}
+				copy(parentSpanID[:], spanIDBytes)
+
+			case eventTraceStateEventIDKey:
+				eventIDUint, err := strconv.ParseUint(parts[1], 36, 64)
 				if err != nil {
-					return 0, false
+					return 0, model.SpanID{}, false
 				}
 
-				return model.TraceEventID(eventID), true
+				eventID = model.TraceEventID(eventIDUint)
 			}
 		}
 	}
 
-	return 0, false
+	return eventID, parentSpanID, eventID != 0
 }

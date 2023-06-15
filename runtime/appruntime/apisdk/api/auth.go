@@ -10,6 +10,7 @@ import (
 
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/shared/cloudtrace"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 )
@@ -52,8 +53,8 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 	go func() {
 		defer close(done)
 		_, authErr = c.server.beginRequest(c.req.Context(), &beginRequestParams{
-			TraceID:      c.traceID,
-			ParentSpanID: c.parentSpanID,
+			TraceID:      c.callMeta.TraceID,
+			ParentSpanID: c.callMeta.ParentSpanID,
 			SpanID:       call.SpanID,
 			DefLoc:       d.DefLoc,
 			Type:         model.AuthHandler,
@@ -64,7 +65,8 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 				RequestHeaders:     c.req.Header,
 				FromEncorePlatform: platformauth.IsEncorePlatformRequest(c.req.Context()),
 			},
-			ExtCorrelationID: clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
+			ExtCorrelationID:    clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
+			AdditionalLogFields: cloudtrace.StructuredLogFields(c.req),
 		})
 		if authErr != nil {
 			return
@@ -112,7 +114,7 @@ func (s *Server) runAuthHandler(h Handler, c IncomingContext) (info model.AuthIn
 	}
 
 	// If this is a service to service call, we use the existing auth info.
-	if c.isEncoreToEncoreCall {
+	if c.callMeta.IsServiceToService() {
 		if c.auth.UID == "" && requiresAuth {
 			// Unless there isn't some and we need it, in which case we error.
 			err := errs.B().Code(errs.Unauthenticated).Msg("no auth info provided").Err()
