@@ -1,20 +1,23 @@
 package parser
 
 import (
-	"reflect"
 	"testing"
+
+	qt "github.com/frankban/quicktest"
 
 	"encr.dev/v2/parser/infra/sqldb"
 	"encr.dev/v2/parser/resource"
 )
 
 func Test_deduplicateSQLDBResources(t *testing.T) {
-	fooDB := &sqldb.Database{Name: "foo"}
-	barDB := &sqldb.Database{Name: "bar"}
+	fooDB := &sqldb.Database{Name: "foo", MigrationDir: "./foo/migrations"}
+	barDB := &sqldb.Database{Name: "bar", MigrationDir: "./bar/migrations"}
+	quxDB := &sqldb.Database{Name: "qux", MigrationDir: "./bar/migrations"} // same migrations as bar
 
 	fooImplicitBind := &resource.ImplicitBind{Resource: resource.ResourceOrPath{Resource: fooDB}}
 	fooExplicitBind := &resource.PkgDeclBind{Resource: resource.ResourceOrPath{Resource: fooDB}}
 	barImplicitBind := &resource.ImplicitBind{Resource: resource.ResourceOrPath{Resource: barDB}}
+	quxExplicitBind := &resource.PkgDeclBind{Resource: resource.ResourceOrPath{Resource: quxDB}}
 
 	foo2DB := &sqldb.Database{Name: "foo"}
 	foo2ImplicitBind := &resource.ImplicitBind{Resource: resource.ResourceOrPath{Resource: foo2DB}}
@@ -66,16 +69,20 @@ func Test_deduplicateSQLDBResources(t *testing.T) {
 			wantRes:   []resource.Resource{fooDB},
 			wantBinds: []resource.Bind{fooExplicitBind},
 		},
+		{
+			name:      "deduplicate_different_db",
+			res:       []resource.Resource{barDB, quxDB},
+			binds:     []resource.Bind{barImplicitBind, quxExplicitBind},
+			wantRes:   []resource.Resource{quxDB},
+			wantBinds: []resource.Bind{quxExplicitBind},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			c := qt.New(t)
 			gotRes, gotBinds := deduplicateSQLDBResources(tt.res, tt.binds)
-			if !reflect.DeepEqual(gotRes, tt.wantRes) {
-				t.Errorf("deduplicateSQLDBResources() got resources = %v, want %v", gotRes, tt.wantRes)
-			}
-			if !reflect.DeepEqual(gotBinds, tt.wantBinds) {
-				t.Errorf("deduplicateSQLDBResources() got binds = %v, want %v", gotBinds, tt.wantBinds)
-			}
+			c.Assert(gotRes, qt.DeepEquals, tt.wantRes)
+			c.Assert(gotBinds, qt.DeepEquals, tt.wantBinds)
 		})
 	}
 }

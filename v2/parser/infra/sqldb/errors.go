@@ -51,4 +51,8 @@ var (
 		"Invalid database migration directory",
 		"The migration path must be within the application's main module.",
 	)
+	errInvalidPkgLevelQuery = errRange.Newf(
+		"Invalid use of sqldb package-level function",
+		"The package-level query function sqldb.%s can only be used within Encore services that don't use sqldb.NewDatabase.",
+	)
 )
