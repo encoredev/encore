@@ -59,7 +59,10 @@ func TestWorkConcurrently(t *testing.T) {
 			if toGenerate <= 0 {
 				toGenerate = 2_000 // If we have unlimited concurrency, we need to generate a lot of work
 			}
-			var nextWork int
+			toReturnFromFetcher := make([]int, toGenerate)
+			for i := 0; i < toGenerate; i++ {
+				toReturnFromFetcher[i] = i
+			}
 			type fetchReq struct {
 				toFetch     int
 				numReturned int
@@ -93,7 +96,7 @@ func TestWorkConcurrently(t *testing.T) {
 			// Create the fetcher function
 			fetcher := func(ctx context.Context, toFetch int) ([]int, error) {
 				// No work to fetch return nothing
-				if nextWork >= toGenerate {
+				if len(toReturnFromFetcher) == 0 {
 					return nil, nil
 				}
 
@@ -122,17 +125,21 @@ func TestWorkConcurrently(t *testing.T) {
 					}
 				}
 
-				rtn := make([]int, 0, toFetch)
-				for i := 0; i < toFetch; i++ {
-					rtn = append(rtn, nextWork)
-					nextWork++
+				if toFetch > len(toReturnFromFetcher) {
+					toFetch = len(toReturnFromFetcher)
 				}
+				rtn := make([]int, toFetch)
+				copy(rtn, toReturnFromFetcher[0:toFetch])
+				toReturnFromFetcher = toReturnFromFetcher[toFetch:]
 
 				// If we've generated enough work to fill the workers, cancel the context in a little bit
 				// giving time for the workers to process the work
-				if nextWork >= toGenerate {
+				if len(toReturnFromFetcher) == 0 {
 					go func() {
-						time.Sleep(50 * time.Millisecond)
+						// Wait a little bit to give the workers time to process the work
+						// before cancelling the context as on a slow machine, the workers
+						// might not have started processing the work yet
+						time.Sleep(5 * time.Second)
 						cancel()
 					}()
 				}
@@ -158,6 +165,11 @@ func TestWorkConcurrently(t *testing.T) {
 					return tt.processErr
 				}
 
+				if len(receivedWork) == toGenerate {
+					// If we've received all the work, cancel the context
+					cancel()
+				}
+
 				return nil
 			}
 
@@ -179,7 +191,7 @@ func TestWorkConcurrently(t *testing.T) {
 			}
 
 			// Run assertions on the processed data
-			c.Assert(receivedWork, qt.HasLen, nextWork, qt.Commentf("not all work was received/processed"))
+			c.Assert(receivedWork, qt.HasLen, toGenerate, qt.Commentf("not all work was received/processed"))
 			if tt.concurrency > 0 {
 				c.Assert(maxActiveWorkers <= tt.concurrency, qt.IsTrue, qt.Commentf("max concurrency was not respected; reached %d workers", maxActiveWorkers))
 				c.Assert(maxActiveWorkers == tt.concurrency, qt.IsTrue, qt.Commentf("max concurrency was not reached; only got %d workers at one time", maxActiveWorkers))
