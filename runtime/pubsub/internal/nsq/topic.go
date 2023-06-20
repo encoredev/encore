@@ -82,7 +82,11 @@ func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 	// only log warnings and above from the NSQ library
 	consumer.SetLogger(&LogAdapter{Logger: logger}, nsq.LogLevelWarning)
 
-	if maxConcurrency <= 0 {
+	if maxConcurrency == 0 {
+		maxConcurrency = 1 // FIXME(domblack): This retains the old behaviour, but allows user customisation - in a future release we should remove this
+	}
+
+	if maxConcurrency < 0 {
 		// nsq does not support the concept of unlimited concurrency, so we set it to a high number here
 		// (value of 0 will pause consumption)
 		maxConcurrency = 100

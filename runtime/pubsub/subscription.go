@@ -96,11 +96,6 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		return cfg.Handler(ctx, msg)
 	}
 
-	// Configure the max concurrency
-	if cfg.MaxConcurrency == 0 {
-		cfg.MaxConcurrency = 100
-	}
-
 	log := mgr.rootLogger.With().
 		Str("service", staticCfg.Service).
 		Str("topic", topic.runtimeCfg.EncoreName).

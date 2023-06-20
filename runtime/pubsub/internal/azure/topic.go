@@ -153,6 +153,11 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 	if err != nil {
 		panic(fmt.Sprintf("failed to create pubsub receiver for subscription %s: %s", subCfg.EncoreName, err))
 	}
+
+	if maxConcurrency == 0 {
+		maxConcurrency = 1 // FIXME(domblack): This retains the old behaviour, but allows user customisation - in a future release we should remove this
+	}
+
 	// Start the subscription
 	go func() {
 		for t.mgr.ctx.Err() == nil {

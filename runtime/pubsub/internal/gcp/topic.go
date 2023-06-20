@@ -92,6 +92,10 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		// Create the subscription object (and then check it exists on GCP's side)
 		subscription := t.client.SubscriptionInProject(subCfg.ProviderName, gcpCfg.ProjectID)
 
+		if maxConcurrency == 0 {
+			maxConcurrency = 1000 // FIXME(domblack): This retains the old behaviour, but allows user customisation - in a future release we should remove this
+		}
+
 		// Set the concurrency
 		subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrency
 		subscription.ReceiveSettings.NumGoroutines = utils.Clamp(maxConcurrency, 1, maxConcurrency)

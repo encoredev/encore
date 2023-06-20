@@ -82,6 +82,10 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 
 	ackDeadline = utils.Clamp(ackDeadline, time.Second, 12*time.Hour)
 
+	if maxConcurrency == 0 {
+		maxConcurrency = 1 // FIXME(domblack): This retains the old behaviour, but allows user customisation - in a future release we should remove this
+	}
+
 	go func() {
 		for t.ctx.Err() == nil {
 			err := utils.WorkConcurrently(
