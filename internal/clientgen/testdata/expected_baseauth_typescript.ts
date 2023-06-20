@@ -128,6 +128,7 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
 
 // makeRecord takes a record and strips any undefined values from it,
 // and returns the same record with a narrower type.
+// @ts-ignore - TS ignore because makeRecord is not always used
 function makeRecord<K extends string | number | symbol, V>(record: Record<K, V | undefined>): Record<K, V> {
     for (const key in record) {
         if (record[key] === undefined) {
