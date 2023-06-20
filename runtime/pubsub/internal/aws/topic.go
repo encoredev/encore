@@ -70,7 +70,7 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	return aws.ToString(result.MessageId), nil
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	// Check we have permissions to interact with the given queue
 	// otherwise the first time we will find out is when we try and publish to it
 	_, err := t.sqsClient.GetQueueAttributes(t.ctx, &sqs.GetQueueAttributesInput{
@@ -84,71 +84,81 @@ func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, ret
 
 	go func() {
 		for t.ctx.Err() == nil {
-			resp, err := t.sqsClient.ReceiveMessage(t.ctx, &sqs.ReceiveMessageInput{
-				QueueUrl:              aws.String(implCfg.ProviderName),
-				AttributeNames:        []sqsTypes.QueueAttributeName{"ApproximateReceiveCount"},
-				MaxNumberOfMessages:   1, // We only pull 1 message at a time, as the ackDeadline is per message
-				MessageAttributeNames: []string{"All"},
-				VisibilityTimeout:     int32(ackDeadline.Seconds()),
-				WaitTimeSeconds:       20, // Maximum allowed time
-			})
+			err := utils.WorkConcurrently(
+				t.ctx,
+				maxConcurrency, 10,
+				func(ctx context.Context, maxToFetch int) ([]sqsTypes.Message, error) {
+					resp, err := t.sqsClient.ReceiveMessage(t.ctx, &sqs.ReceiveMessageInput{
+						QueueUrl:              aws.String(implCfg.ProviderName),
+						AttributeNames:        []sqsTypes.QueueAttributeName{"ApproximateReceiveCount"},
+						MaxNumberOfMessages:   int32(maxToFetch),
+						MessageAttributeNames: []string{"All"},
+						VisibilityTimeout:     int32(ackDeadline.Seconds()),
+						WaitTimeSeconds:       20, // Maximum allowed time
+					})
+					if err != nil {
+						return nil, err
+					}
 
+					return resp.Messages, nil
+				},
+				func(ctx context.Context, msg sqsTypes.Message) error {
+					// Parse the message body
+					msgWrapper := &SNSMessageWrapper{}
+					if err := json.Unmarshal([]byte(aws.ToString(msg.Body)), msgWrapper); err != nil {
+						logger.Err(err).Str("sqs_msg_id", aws.ToString(msg.MessageId)).Msg("unable to parse message")
+						return nil
+					}
+
+					// Get the delivery attempt number
+					deliveryAttempt, err := parseInt(msg.Attributes, "ApproximateReceiveCount")
+					if err != nil {
+						logger.Warn().Err(err).Str("msg_id", msgWrapper.MessageId).Msg("unable to parse receive count")
+					}
+
+					// Extract the attributes
+					attributes := make(map[string]string)
+					for key, value := range msgWrapper.MessageAttributes {
+						switch value.Type {
+						case "String":
+							attributes[key] = value.Value
+						default:
+							logger.Warn().Err(err).Str("msg_id", msgWrapper.MessageId).Str("attr_name", key).Str("attr_type", value.Type).Msg("unsupported attribute data type")
+						}
+					}
+
+					// Call the callback, and if there was no error, then we can delete the message
+					msgCtx, cancel := context.WithTimeout(t.ctx, ackDeadline)
+					err = f(msgCtx, msgWrapper.MessageId, msgWrapper.Timestamp, int(deliveryAttempt), attributes, []byte(msgWrapper.Message))
+					cancel()
+					if err != nil {
+						// If there was an error processing the message, apply the backoff policy
+						_, delay := utils.GetDelay(retryPolicy.MaxRetries, retryPolicy.MinBackoff, retryPolicy.MaxBackoff, uint16(deliveryAttempt))
+						_, visibilityChangeErr := t.sqsClient.ChangeMessageVisibility(t.ctx, &sqs.ChangeMessageVisibilityInput{
+							QueueUrl:          aws.String(implCfg.ProviderName),
+							ReceiptHandle:     msg.ReceiptHandle,
+							VisibilityTimeout: int32(utils.Clamp(delay, time.Second, 12*time.Hour).Seconds()),
+						})
+						if visibilityChangeErr != nil {
+							log.Warn().Err(visibilityChangeErr).Str("msg_id", msgWrapper.MessageId).Msg("unable to change message visibility to apply backoff rules")
+						}
+					}
+					if err == nil {
+						_, err = t.sqsClient.DeleteMessage(t.ctx, &sqs.DeleteMessageInput{
+							QueueUrl:      aws.String(implCfg.ProviderName),
+							ReceiptHandle: msg.ReceiptHandle,
+						})
+						if err != nil {
+							logger.Err(err).Str("msg_id", msgWrapper.MessageId).Msg("unable to delete message from SQS queue")
+						}
+					}
+					return nil
+				},
+			)
 			if err != nil && t.ctx.Err() == nil {
 				logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
 				time.Sleep(5 * time.Second)
 				continue
-			}
-
-			for _, msg := range resp.Messages {
-				// Parse the message body
-				msgWrapper := &SNSMessageWrapper{}
-				if err := json.Unmarshal([]byte(aws.ToString(msg.Body)), msgWrapper); err != nil {
-					logger.Err(err).Str("sqs_msg_id", aws.ToString(msg.MessageId)).Msg("unable to parse message")
-					continue
-				}
-
-				// Get the delivery attempt number
-				deliveryAttempt, err := parseInt(msg.Attributes, "ApproximateReceiveCount")
-				if err != nil {
-					logger.Warn().Err(err).Str("msg_id", msgWrapper.MessageId).Msg("unable to parse receive count")
-				}
-
-				// Extract the attributes
-				attributes := make(map[string]string)
-				for key, value := range msgWrapper.MessageAttributes {
-					switch value.Type {
-					case "String":
-						attributes[key] = value.Value
-					default:
-						logger.Warn().Err(err).Str("msg_id", msgWrapper.MessageId).Str("attr_name", key).Str("attr_type", value.Type).Msg("unsupported attribute data type")
-					}
-				}
-
-				// Call the callback, and if there was no error, then we can delete the message
-				msgCtx, cancel := context.WithTimeout(t.ctx, ackDeadline)
-				err = f(msgCtx, msgWrapper.MessageId, msgWrapper.Timestamp, int(deliveryAttempt), attributes, []byte(msgWrapper.Message))
-				cancel()
-				if err != nil {
-					// If there was an error processing the message, apply the backoff policy
-					_, delay := utils.GetDelay(retryPolicy.MaxRetries, retryPolicy.MinBackoff, retryPolicy.MaxBackoff, uint16(deliveryAttempt))
-					_, visibilityChangeErr := t.sqsClient.ChangeMessageVisibility(t.ctx, &sqs.ChangeMessageVisibilityInput{
-						QueueUrl:          aws.String(implCfg.ProviderName),
-						ReceiptHandle:     msg.ReceiptHandle,
-						VisibilityTimeout: int32(utils.Clamp(delay, time.Second, 12*time.Hour).Seconds()),
-					})
-					if visibilityChangeErr != nil {
-						log.Warn().Err(visibilityChangeErr).Str("msg_id", msgWrapper.MessageId).Msg("unable to change message visibility to apply backoff rules")
-					}
-				}
-				if err == nil {
-					_, err = t.sqsClient.DeleteMessage(t.ctx, &sqs.DeleteMessageInput{
-						QueueUrl:      aws.String(implCfg.ProviderName),
-						ReceiptHandle: msg.ReceiptHandle,
-					})
-					if err != nil {
-						logger.Err(err).Str("msg_id", msgWrapper.MessageId).Msg("unable to delete message from SQS queue")
-					}
-				}
 			}
 		}
 	}()

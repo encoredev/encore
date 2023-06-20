@@ -19,7 +19,7 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	return t.mgr.client.PublishToTopic(ctx, t.cfg.ProviderName, orderingKey, attrs, data)
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, _ time.Duration, _ *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if subCfg.ID == "" {
 		panic("encorecloud pubsub subscriptions must have an ID")
 	}

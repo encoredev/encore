@@ -11,6 +11,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
+	"encore.dev/pubsub/internal/utils"
 )
 
 type Manager struct {
@@ -68,7 +69,7 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	return t.gcpTopic.Publish(ctx, gcpMsg).Get(ctx)
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, _ time.Duration, _ *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if subCfg.PushOnly && subCfg.ID == "" {
 		panic("push-only subscriptions must have a subscription ID")
 	}
@@ -90,6 +91,11 @@ func (t *topic) Subscribe(logger *zerolog.Logger, _ time.Duration, _ *types.Retr
 	if !subCfg.PushOnly {
 		// Create the subscription object (and then check it exists on GCP's side)
 		subscription := t.client.SubscriptionInProject(subCfg.ProviderName, gcpCfg.ProjectID)
+
+		// Set the concurrency
+		subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrency
+		subscription.ReceiveSettings.NumGoroutines = utils.Clamp(maxConcurrency, 1, maxConcurrency)
+
 		exists, err := subscription.Exists(t.mgr.ctx)
 		if err != nil {
 			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subCfg.EncoreName, t.topicCfg.EncoreName, err))

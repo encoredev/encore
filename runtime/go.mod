@@ -18,6 +18,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.19.10
 	github.com/benbjohnson/clock v1.3.3
 	github.com/felixge/httpsnoop v1.0.3
+	github.com/frankban/quicktest v1.14.5
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.3
@@ -27,11 +28,13 @@ require (
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/modern-go/reflect2 v1.0.2
 	github.com/nsqio/go-nsq v1.1.0
 	github.com/rs/cors v1.8.3-0.20221003140808-fcebdb403f4d
 	github.com/rs/xid v1.4.0
 	github.com/rs/zerolog v1.29.1
 	go.encore.dev/platform-sdk v1.1.0
+	golang.org/x/crypto v0.9.0
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.119.0
@@ -71,15 +74,16 @@ require (
 	github.com/jackc/puddle/v2 v2.2.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
+	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect

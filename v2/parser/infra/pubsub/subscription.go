@@ -121,11 +121,13 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		Handler ast.Expr `literal:",dynamic,required"`
 
 		// Optional configuration
+		MaxConcurrency   int           `literal:",optional,default"`
 		AckDeadline      time.Duration `literal:",optional,default"`
 		MessageRetention time.Duration `literal:",optional,default"`
 		RetryPolicy      retryConfig   `literal:",optional,default"`
 	}
 	defaults := decodedConfig{
+		MaxConcurrency:   100,
 		AckDeadline:      30 * time.Second,
 		MessageRetention: 7 * 24 * time.Hour,
 		RetryPolicy: retryConfig{

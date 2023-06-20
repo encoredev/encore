@@ -45,6 +45,28 @@ type SubscriptionConfig[T any] struct {
 	// [Encore service struct]: https://encore.dev/docs/primitives/services-and-apis#service-structs
 	Handler func(ctx context.Context, msg T) error
 
+	// MaxConcurrency is the maximum number of messages which will be processed
+	// simultaneously per instance of the service for this subscription.
+	//
+	// Note that this is per instance of the service, so if your service has
+	// scaled to 10 instances and this is set to 10, then 100 messages could be
+	// processed simultaneously.
+	//
+	// If the value is negative, then there will be no limit on the number
+	// of messages processed simultaneously.
+	//
+	// Note: This is not supported by all cloud providers; specifically on GCP
+	// when using Cloud Run instances on an unordered topic the subscription will
+	// be configured as a Push Subscription and will have an adaptive concurrency
+	// See [GCP Push Delivery Rate].
+	//
+	// This setting also has no effect on Encore Cloud environments.
+	//
+	// If not set, it uses a reasonable default based on the cloud provider.
+	//
+	// [GCP Push Delivery Rate]: https://cloud.google.com/pubsub/docs/push#push_delivery_rate
+	MaxConcurrency int
+
 	// Filter is a boolean expression using =, !=, IN, &&
 	// It is used to filter which messages are forwarded from the
 	// topic to a subscription

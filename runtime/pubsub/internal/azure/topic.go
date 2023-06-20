@@ -148,7 +148,7 @@ func (t *topic) processMessage(
 	return err
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, rp *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	receiver, err := t.client.NewReceiverForSubscription(t.topicCfg.ProviderName, subCfg.ProviderName, nil)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create pubsub receiver for subscription %s: %s", subCfg.EncoreName, err))
@@ -156,11 +156,22 @@ func (t *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, rp 
 	// Start the subscription
 	go func() {
 		for t.mgr.ctx.Err() == nil {
-			// Subscribe to the topic to receive messages
-			messages, err := receiver.ReceiveMessages(t.mgr.ctx, 1, nil)
-			if len(messages) > 0 {
-				err = t.processMessage(logger, receiver, ackDeadline, subCfg, messages[0], rp, f)
-			}
+			err := utils.WorkConcurrently(
+				t.mgr.ctx, maxConcurrency, 0,
+				func(ctx context.Context, maxToFetch int) ([]*azservicebus.ReceivedMessage, error) {
+					// Subscribe to the topic to receive messages
+					messages, err := receiver.ReceiveMessages(t.mgr.ctx, maxToFetch, nil)
+					if err != nil {
+						return nil, err
+					}
+
+					return messages, nil
+				},
+				func(ctx context.Context, work *azservicebus.ReceivedMessage) error {
+					return t.processMessage(logger, receiver, ackDeadline, subCfg, work, retryPolicy, f)
+				},
+			)
+
 			// If there was an error and we're not shutting down, log it and then sleep for a bit before trying again
 			if err != nil && t.mgr.ctx.Err() == nil {
 				logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")

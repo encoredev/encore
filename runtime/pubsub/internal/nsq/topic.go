@@ -63,7 +63,7 @@ type messageWrapper struct {
 	Data       json.RawMessage
 }
 
-func (l *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if implCfg.PushOnly {
 		panic("push-only subscriptions are not supported by nsq")
 	}
@@ -81,6 +81,13 @@ func (l *topic) Subscribe(logger *zerolog.Logger, ackDeadline time.Duration, ret
 	}
 	// only log warnings and above from the NSQ library
 	consumer.SetLogger(&LogAdapter{Logger: logger}, nsq.LogLevelWarning)
+
+	if maxConcurrency <= 0 {
+		// nsq does not support the concept of unlimited concurrency, so we set it to a high number here
+		// (value of 0 will pause consumption)
+		maxConcurrency = 100
+	}
+	consumer.ChangeMaxInFlight(maxConcurrency)
 
 	// create a dedicated handler which forwards messages to the encore subscription
 	consumer.AddHandler(nsq.HandlerFunc(func(m *nsq.Message) error {
