@@ -27,7 +27,7 @@ export function PreviewEnv(pr: number | string): BaseURL {
 }
 
 /**
- * Client is an API client for the app Encore application.
+ * Client is an API client for the app Encore application. 
  */
 export default class Client {
     public readonly svc: svc.ServiceClient
@@ -202,7 +202,7 @@ interface APIErrorResponse {
 
 function isAPIErrorResponse(err: any): err is APIErrorResponse {
     return (
-        err !== undefined && err !== null &&
+        err !== undefined && err !== null && 
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -235,7 +235,7 @@ export class APIError extends Error {
     constructor(status: number, response: APIErrorResponse) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-
+        
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -243,14 +243,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-
+        
         // fix the prototype chain
-        if ((Object as any).setPrototypeOf == undefined) {
-            (this as any).__proto__ = APIError.prototype
+        if ((Object as any).setPrototypeOf == undefined) { 
+            (this as any).__proto__ = APIError.prototype 
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-
+        
         // capture a stack trace
         if ((Error as any).captureStackTrace !== undefined) {
             (Error as any).captureStackTrace(this, this.constructor);
