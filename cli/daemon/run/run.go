@@ -120,7 +120,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	mgr.mu.Unlock()
 
 	if err := run.start(params.Listener, params.OpsTracker); err != nil {
-		if errList := asErrorList(err); errList != nil {
+		if errList := AsErrorList(err); errList != nil {
 			return nil, errList
 		}
 		return nil, err

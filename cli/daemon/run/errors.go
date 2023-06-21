@@ -7,7 +7,7 @@ import (
 	"encr.dev/v2/internals/perr"
 )
 
-func asErrorList(err error) *errlist.List {
+func AsErrorList(err error) *errlist.List {
 	if errList := errlist.Convert(err); errList != nil {
 		return errList
 	}
