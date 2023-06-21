@@ -13,7 +13,7 @@ var (
 
 	errAnonymousFields = errRange.New(
 		"Invalid API schema",
-		"Anonymous fields in top-level request/response types are not support.",
+		"Anonymous fields in top-level request/response types are not supported.",
 	)
 
 	errTagConflict = errRange.Newf(
