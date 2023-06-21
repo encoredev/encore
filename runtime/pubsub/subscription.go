@@ -38,25 +38,26 @@ type Subscription[T any] struct {
 //
 // Example:
 //
-//	import "encore.dev/pubsub"
+//		import "encore.dev/pubsub"
 //
-//	type MyEvent struct {
-//	  Foo string
-//	}
+//		type MyEvent struct {
+//		  Foo string
+//		}
 //
-//	var MyTopic = pubsub.NewTopic[*MyEvent]("my-topic", pubsub.TopicConfig{
-//	  DeliveryGuarantee: pubsub.AtLeastOnce,
-//	})
+//		var MyTopic = pubsub.NewTopic[*MyEvent]("my-topic", pubsub.TopicConfig{
+//		  DeliveryGuarantee: pubsub.AtLeastOnce,
+//		})
 //
-//	var Subscription = pubsub.NewSubscription(MyTopic, "my-subscription", pubsub.SubscriptionConfig[*MyEvent]{
-//	  Handler:     HandleEvent,
-//	  RetryPolicy: &pubsub.RetryPolicy{MaxRetries: 10},
-//	})
+//		var Subscription = pubsub.NewSubscription(MyTopic, "my-subscription", pubsub.SubscriptionConfig[*MyEvent]{
+//		  Handler:     HandleEvent,
+//		  RetryPolicy: &pubsub.RetryPolicy{MaxRetries: 10},
+//	      MaxConcurrency: 5,
+//		})
 //
-//	func HandleEvent(ctx context.Context, event *MyEvent) error {
-//	  rlog.Info("received foo")
-//	  return nil
-//	}
+//		func HandleEvent(ctx context.Context, event *MyEvent) error {
+//		  rlog.Info("received foo")
+//		  return nil
+//		}
 func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig[T]) *Subscription[T] {
 	if topic.runtimeCfg == nil || topic.topic == nil || topic.mgr == nil {
 		panic("pubsub topic was not created using pubsub.NewTopic")
@@ -104,7 +105,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 	tracingEnabled := mgr.rt.TracingEnabled()
 
 	// Subscribe to the topic
-	topic.topic.Subscribe(&log, cfg.AckDeadline, cfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
+	topic.topic.Subscribe(&log, cfg.MaxConcurrency, cfg.AckDeadline, cfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
 		mgr.outstanding.Inc()
 		defer mgr.outstanding.Dec()
 
