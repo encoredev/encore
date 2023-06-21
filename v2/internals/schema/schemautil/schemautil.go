@@ -36,8 +36,14 @@ func IsPointer(t schema.Type) bool {
 
 // IsBuiltinKind reports whether the given type is a builtin
 // of one of the given kinds.
+//
+// If no kinds are passed in, it returns true for any builtin.
 func IsBuiltinKind(t schema.Type, kinds ...schema.BuiltinKind) bool {
 	if b, ok := t.(schema.BuiltinType); ok {
+		if len(kinds) == 0 {
+			return true
+		}
+
 		for _, k := range kinds {
 			if b.Kind == k {
 				return true

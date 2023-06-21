@@ -13,7 +13,7 @@ var (
 
 	errAnonymousFields = errRange.New(
 		"Invalid API schema",
-		"Anonymous fields in top-leve request/response types are not support.",
+		"Anonymous fields in top-level request/response types are not support.",
 	)
 
 	errTagConflict = errRange.Newf(
@@ -59,5 +59,23 @@ var (
 	ErrAnonymousFieldsNotSupported = errRange.New(
 		"Invalid API schema",
 		"Anonymous fields are not supported in API schemas.",
+	)
+
+	errInvalidHeaderType = errRange.Newf(
+		"Invalid request type",
+		"API request parameters of type %s are not supported in headers. You can only "+
+			"use built-in types types such as strings, booleans, int, time.Time.",
+
+		errors.WithDetails("See https://encore.dev/docs/develop/api-schemas#supported-types for more information."),
+	)
+
+	errInvalidQueryStringType = errRange.Newf(
+		"Invalid request type",
+		"API request parameters of type %s are not supported in query strings. You can only "+
+			"use built-in types, or slices of built-in types such as strings, booleans, int, time.Time.",
+
+		errors.WithDetails("APIs which are sent as GET, HEAD or DELETE requests are unable to contain JSON bodies, "+
+			"thus all parameters must be sent as query strings or headers. "+
+			"See https://encore.dev/docs/develop/api-schemas#supported-types for more information."),
 	)
 )

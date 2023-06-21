@@ -8,7 +8,7 @@ const rawHint = `hint: signature must be func(http.ResponseWriter, *http.Request
 
 For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis#raw-endpoints`
 
-const baseHint = "For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis"
+const baseHint = "For more information on how to use APIs see https://encore.dev/docs/primitives/services-and-apis"
 
 var (
 	errRange = errors.Range(
