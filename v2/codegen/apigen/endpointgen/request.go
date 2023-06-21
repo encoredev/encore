@@ -220,7 +220,10 @@ func (d *requestDesc) renderRequestDecoding(g *Group, dec *genutil.TypeUnmarshal
 	// Parsing requests for HTTP methods without a body (GET, HEAD, DELETE) are handled by parsing the query string,
 	// while other methods are parsed by reading the body and unmarshalling it as JSON.
 	// If the same endpoint supports both, handle it with a switch.
-	reqs := apienc.DescribeRequest(d.gu.Errs, d.ep.Request, d.ep.HTTPMethods...)
+	reqs := d.ep.RequestEncoding()
+	if d.gu.Errs.Len() > 0 {
+		return
+	}
 	g.Add(Switch(Id("m").Op(":=").Add(d.httpReqExpr()).Dot("Method"), Id("m")).BlockFunc(
 		func(g *Group) {
 			for _, r := range reqs {

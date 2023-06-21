@@ -1,0 +1,50 @@
+! parse
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/uuid"
+)
+
+type Nested struct {
+    Baz string
+}
+
+type Params struct {
+    Foo uuid.UUID
+    Bar *Nested
+}
+
+//encore:api public method=GET
+func Str(ctx context.Context, p *Params) error { return nil }
+
+-- want: errors --
+
+── Invalid request type ───────────────────────────────────────────────────────────────────[E9999]──
+
+API request parameters of type *Nested are not supported in query strings. You can only use
+built-in types, or slices of built-in types such as strings, booleans, int, time.Time.
+
+    ╭─[ svc/svc.go:14:9 ]
+    │
+ 12 │ type Params struct {
+ 13 │     Foo uuid.UUID
+ 14 │     Bar *Nested
+    ⋮         ───┬───
+    ⋮            ╰─ unsupported type
+ 15 │ }
+ 16 │
+ 17 │ //encore:api public method=GET
+    ⋮                     ────┬─────
+    ⋮                         ╰─ you could change this to a POST or PUT request
+ 18 │ func Str(ctx context.Context, p *Params) error { return nil }
+    ⋮                               ────┬────
+    ⋮                                   ╰─ used here
+ 19 │
+────╯
+
+APIs which are sent as GET, HEAD or DELETE requests are unable to contain JSON bodies, thus all
+parameters must be sent as query strings or headers. See
+https://encore.dev/docs/develop/api-schemas#supported-types for more information.

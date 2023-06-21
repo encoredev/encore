@@ -32,7 +32,7 @@ type OpTracker struct {
 	ops         []*slowOp
 	w           io.Writer
 	started     bool
-	quit        bool
+	quit        bool // quit indicates that the tracker has been stopped (this should only be set by AllDone)
 	savedCursor sync.Once
 	stream      OutputStream
 }
@@ -50,6 +50,12 @@ func (t *OpTracker) AllDone() {
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	// If we've already quit, don't do anything
+	if t.quit == true {
+		return
+	}
+
 	now := time.Now()
 	for _, o := range t.ops {
 		if o.done.IsZero() || o.done.After(now) {
@@ -155,7 +161,6 @@ func (t *OpTracker) refresh() {
 		return ops[i].start.Before(ops[j].start)
 	})
 
-	var errlistToSend *errlist.List
 	for _, o := range ops {
 		started := o.start.Before(now)
 		done := !o.done.IsZero() && o.done.Before(now)
@@ -171,7 +176,6 @@ func (t *OpTracker) refresh() {
 				msg = aurora.Yellow(fmt.Sprintf(format+"Canceled", canceled, o.msg))
 			} else {
 				if errlist := errlist.Convert(o.err); errlist != nil {
-					errlistToSend = errlist
 					if len(errlist.List) > 0 {
 						msg = aurora.Red(fmt.Sprintf(format+"Failed: %v", fail, o.msg, errlist.List[0].Title()))
 					} else {
@@ -193,10 +197,6 @@ func (t *OpTracker) refresh() {
 			ansi.ClearLine(ansi.WholeLine),
 			str,
 		)
-	}
-	if errlistToSend != nil {
-		// We sent this after we clear and repaint the screen
-		errlistToSend.SendToStream(t.stream)
 	}
 }
 

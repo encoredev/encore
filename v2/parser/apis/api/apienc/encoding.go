@@ -9,10 +9,12 @@ import (
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/idents"
+	"encr.dev/pkg/option"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/authhandler"
+	"encr.dev/v2/parser/apis/internal/directive"
 )
 
 // WireLoc is the location of a parameter in the HTTP request/response.
@@ -216,7 +218,7 @@ func keyDiff[T comparable, V any](src map[T]V, keys ...T) (diff []T) {
 
 // DescribeRequest groups the provided httpMethods by default WireLoc and returns a RequestEncoding
 // per WireLoc
-func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...string) []*RequestEncoding {
+func DescribeRequest(errs *perr.List, requestAST schema.Param, requestSchema schema.Type, methodsField option.Option[directive.Field], httpMethods ...string) []*RequestEncoding {
 	methodsByDefaultLocation := make(map[WireLoc][]string)
 	for _, m := range httpMethods {
 		switch m {
@@ -258,11 +260,42 @@ func DescribeRequest(errs *perr.List, requestSchema schema.Type, httpMethods ...
 			return nil
 		}
 
-		// Check for reserved header prefixes
+		// Check for reserved header prefixes or invalid data types
 		for _, field := range fields[Header] {
 			if strings.HasPrefix(strings.ToLower(field.WireName), "x-encore-") {
 				errs.Add(errReservedHeaderPrefix.AtGoNode(field.Type.ASTExpr()))
 			}
+
+			if _, _, ok := schemautil.IsBuiltinOrList(field.Type); !ok {
+				errs.Add(
+					errInvalidHeaderType(field.Type.String()).
+						AtGoNode(field.Type.ASTExpr(), errors.AsError("unsupported type")).
+						AtGoNode(requestAST.AST, errors.AsHelp("used here")),
+				)
+			}
+		}
+
+		// Check for invalid datatype in query parameters
+		for _, field := range fields[Query] {
+			if _, _, ok := schemautil.IsBuiltinOrList(field.Type); !ok {
+				err := errInvalidQueryStringType(field.Type.String()).
+					AtGoNode(field.Type.ASTExpr(), errors.AsError("unsupported type")).
+					AtGoNode(requestAST.AST, errors.AsHelp("used here"))
+
+				if field, ok := methodsField.Get(); ok {
+					httpMethod := strings.ToUpper(field.Value)
+					switch httpMethod {
+					case "GET", "HEAD", "DELETE":
+						err = err.AtGoNode(field, errors.AsHelp("you could change this to a POST or PUT request"))
+					}
+				}
+
+				errs.Add(err)
+			}
+		}
+
+		if errs.Len() > 0 {
+			return nil
 		}
 
 		if keys := keyDiff(fields, Query, Header, Body); len(keys) > 0 {

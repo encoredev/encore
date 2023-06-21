@@ -70,4 +70,4 @@ PubSub subscription handler.
  19 │     return &Response{Message: msg}, nil
 ────╯
 
-For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis
+For more information on how to use APIs see https://encore.dev/docs/primitives/services-and-apis

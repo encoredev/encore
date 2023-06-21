@@ -59,4 +59,4 @@ PubSub subscription handler.
  10 │ }
 ────╯
 
-For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis
+For more information on how to use APIs see https://encore.dev/docs/primitives/services-and-apis

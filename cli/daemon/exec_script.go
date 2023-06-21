@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
@@ -20,7 +21,15 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 	slog := &streamLog{stream: stream, buffered: true}
 	stderr := slog.Stderr(false)
 	sendErr := func(err error) {
-		slog.Stderr(false).Write([]byte(err.Error() + "\n"))
+		if err := run.AsErrorList(err); err != nil {
+			_ = err.SendToStream(stream)
+		} else {
+			errStr := err.Error()
+			if !strings.HasSuffix(errStr, "\n") {
+				errStr += "\n"
+			}
+			slog.Stderr(false).Write([]byte(errStr))
+		}
 		streamExit(stream, 1)
 	}
 
@@ -52,6 +61,7 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 	commandPkg := paths.Pkg(mod.Module.Mod.Path).JoinSlash(paths.RelSlash(req.CommandRelPath))
 
 	ops := optracker.New(stderr, stream)
+	defer ops.AllDone() // Kill the tracker when we exit this function
 
 	testResults := make(chan error, 1)
 	defer func() {
