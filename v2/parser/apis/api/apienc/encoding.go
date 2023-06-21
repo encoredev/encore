@@ -266,7 +266,7 @@ func DescribeRequest(errs *perr.List, requestAST schema.Param, requestSchema sch
 				errs.Add(errReservedHeaderPrefix.AtGoNode(field.Type.ASTExpr()))
 			}
 
-			if !schemautil.IsBuiltinKind(field.Type) {
+			if _, _, ok := schemautil.IsBuiltinOrList(field.Type); !ok {
 				errs.Add(
 					errInvalidHeaderType(field.Type.String()).
 						AtGoNode(field.Type.ASTExpr(), errors.AsError("unsupported type")).

@@ -40,3 +40,28 @@ Missing type argument
 ────╯
 
 For more information, see https://encore.dev/docs/develop/api-schemas
+
+
+
+
+── Missing type argument ──────────────────────────────────────────────────────────────────[E9999]──
+
+Missing type argument
+
+    ╭─[ foo.go:6:7 ]
+    │
+  4 │
+  5 │ type Params struct {
+  6 │     C *Generic
+    ⋮       ───┬────
+    ⋮          ╰─ missing from here
+  7 │ }
+  8 │
+  9 │ type Generic[T any] struct {
+    ⋮              ──┬──
+    ⋮                ╰─ missing type parameter defined here
+ 10 │     Val *T
+ 11 │ }
+────╯
+
+For more information, see https://encore.dev/docs/develop/api-schemas

@@ -154,6 +154,12 @@ func Parse(d ParseData) *Endpoint {
 		}
 	}
 
+	// RequestEncoding will validate the request payload.
+	rpc.RequestEncoding()
+
+	// ResponseEncoding will validate the response payload.
+	rpc.ResponseEncoding()
+
 	return rpc
 }
 
