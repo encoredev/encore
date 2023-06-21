@@ -34,19 +34,20 @@ const (
 type Endpoint struct {
 	errs *perr.List
 
-	Name        string
-	Doc         string
-	File        *pkginfo.File
-	Decl        *schema.FuncDecl
-	Access      AccessType
-	AccessField option.Option[directive.Field]
-	Raw         bool
-	Path        *resourcepaths.Path
-	HTTPMethods []string
-	Request     schema.Type // request data; nil for Raw Endpoints
-	Response    schema.Type // response data; nil for Raw Endpoints
-	Tags        selector.Set
-	Recv        option.Option[*schema.Receiver] // None if not a method
+	Name             string
+	Doc              string
+	File             *pkginfo.File
+	Decl             *schema.FuncDecl
+	Access           AccessType
+	AccessField      option.Option[directive.Field]
+	Raw              bool
+	Path             *resourcepaths.Path
+	HTTPMethods      []string
+	HTTPMethodsField option.Option[directive.Field]
+	Request          schema.Type // request data; nil for Raw Endpoints
+	Response         schema.Type // response data; nil for Raw Endpoints
+	Tags             selector.Set
+	Recv             option.Option[*schema.Receiver] // None if not a method
 
 	reqEncOnce  sync.Once
 	reqEncoding []*apienc.RequestEncoding
@@ -69,8 +70,13 @@ func (ep *Endpoint) End() token.Pos            { return ep.Decl.AST.End() }
 func (ep *Endpoint) SortKey() string           { return ep.File.Pkg.ImportPath.String() + "." + ep.Name }
 
 func (ep *Endpoint) RequestEncoding() []*apienc.RequestEncoding {
+	if ep.Request == nil {
+		return nil
+	}
+
 	ep.reqEncOnce.Do(func() {
-		ep.reqEncoding = apienc.DescribeRequest(ep.errs, ep.Request, ep.HTTPMethods...)
+		requestParam := ep.Decl.Type.Params[len(ep.Decl.Type.Params)-1]
+		ep.reqEncoding = apienc.DescribeRequest(ep.errs, requestParam, ep.Request, ep.HTTPMethodsField, ep.HTTPMethods...)
 	})
 	return ep.reqEncoding
 }
@@ -147,6 +153,12 @@ func Parse(d ParseData) *Endpoint {
 			}
 		}
 	}
+
+	// RequestEncoding will validate the request payload.
+	rpc.RequestEncoding()
+
+	// ResponseEncoding will validate the response payload.
+	rpc.ResponseEncoding()
 
 	return rpc
 }
@@ -334,6 +346,7 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 
 			case "method":
 				endpoint.HTTPMethods = f.List()
+				endpoint.HTTPMethodsField = option.Some(f)
 				for _, m := range endpoint.HTTPMethods {
 					for _, c := range m {
 						if !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') {

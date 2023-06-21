@@ -18,7 +18,7 @@ func (mgr *Manager) watch(run *Run) error {
 
 		mgr.RunStdout(run, []byte("Changes detected, recompiling...\n"))
 		if err := run.Reload(); err != nil {
-			if errList := asErrorList(err); errList != nil {
+			if errList := AsErrorList(err); errList != nil {
 				mgr.RunError(run, errList)
 			} else {
 				errStr := err.Error()

@@ -76,6 +76,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	}
 
 	ops := optracker.New(stderr, stream)
+	defer ops.AllDone() // Kill the tracker when we exit this function
 
 	// Check for available update before we start the proc
 	// so the output from the proc doesn't race with our
@@ -111,7 +112,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		displayListenAddr = "localhost" + req.ListenAddr
 	}
 
-	run, err := s.mgr.Start(ctx, run.StartParams{
+	runInstance, err := s.mgr.Start(ctx, run.StartParams{
 		App:        app,
 		WorkingDir: req.WorkingDir,
 		Listener:   ln,
@@ -123,28 +124,36 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	})
 	if err != nil {
 		s.mu.Unlock()
-		fmt.Fprintln(stderr, err)
+		if errList := run.AsErrorList(err); errList != nil {
+			_ = errList.SendToStream(stream)
+		} else {
+			errStr := err.Error()
+			if !strings.HasSuffix(errStr, "\n") {
+				errStr += "\n"
+			}
+			_, _ = stderr.Write([]byte(errStr))
+		}
 		sendExit(1)
 		return nil
 	}
-	defer run.ResourceManager.StopAll()
-	s.streams[run.ID] = slog
+	defer runInstance.ResourceManager.StopAll()
+	s.streams[runInstance.ID] = slog
 	s.mu.Unlock()
 
 	ops.AllDone()
 
 	stderr.Write([]byte("\n"))
-	pid := run.Proc().Pid
+	pid := runInstance.Proc().Pid
 	fmt.Fprintf(stderr, "  Encore development server running!\n\n")
 
-	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+run.ListenAddr))
+	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+runInstance.ListenAddr))
 	fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf(
 		"http://localhost:%d/%s", s.mgr.DashPort, app.PlatformOrLocalID())))
 	if req.Debug {
 		fmt.Fprintf(stderr, "  Process ID:                 %d\n", aurora.Cyan(pid))
 	}
 	// Log which experiments are enabled, if any
-	if exp := run.Proc().Experiments.List(); len(exp) > 0 {
+	if exp := runInstance.Proc().Experiments.List(); len(exp) > 0 {
 		strs := make([]string, len(exp))
 		for i, e := range exp {
 			strs[i] = string(e)
@@ -177,19 +186,19 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	go func() {
 		// Wait a little bit for the app to start
 		select {
-		case <-run.Done():
+		case <-runInstance.Done():
 			return
 		case <-time.After(5 * time.Second):
-			if proc := run.Proc(); proc != nil {
-				showFirstRunExperience(run, proc.Meta, stderr)
+			if proc := runInstance.Proc(); proc != nil {
+				showFirstRunExperience(runInstance, proc.Meta, stderr)
 			}
 		}
 	}()
 
-	<-run.Done() // wait for run to complete
+	<-runInstance.Done() // wait for run to complete
 
 	s.mu.Lock()
-	delete(s.streams, run.ID)
+	delete(s.streams, runInstance.ID)
 	s.mu.Unlock()
 	return nil
 }
