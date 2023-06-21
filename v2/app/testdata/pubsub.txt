@@ -41,6 +41,7 @@ var (
     _ = pubsub.NewSubscription(shared.BasicTopic, "basic-subscription",
         pubsub.SubscriptionConfig {
             Handler: Subscriber1,
+            MaxConcurrency: 25,
             AckDeadline: 45 * time.Second,
             MessageRetention: 5 * time.Hour * 24 + -10 * time.Hour,
             RetryPolicy: &pubsub.RetryPolicy{

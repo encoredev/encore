@@ -63,7 +63,7 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 	// Subscribe to the queue
 	msgChan := make(chan string)
 	var sentMessageID string
-	topic.Subscribe(&log.Logger, time.Second, nil, runtime.PubsubTopics["test-topic"].Subscriptions["test-subscription"], func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) error {
+	topic.Subscribe(&log.Logger, 0, time.Second, nil, runtime.PubsubTopics["test-topic"].Subscriptions["test-subscription"], func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) error {
 		if attrs["attr-1"] != "foo" {
 			t.Errorf("expected attr-1 to be foo, got %s", attrs["attr-1"])
 		}
