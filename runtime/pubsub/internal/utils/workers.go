@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,6 +36,11 @@ type WorkProcessor[Work any] func(ctx context.Context, work Work) error
 //
 // This function will block until an error is returned from either the fetcher or the worker functions or until
 // the context is cancelled.
+//
+// In the event of an error occurring, calls to worker will be allowed to continue in the background until the
+// context is cancelled however, this function will still return immediately with the error. Thus if you immediately call
+// this again you could end up with 2x maxConcurrency workers running at the same time. (1x from the original run who
+// are still processing work and 1x from the new run).
 func WorkConcurrently[Work any](ctx context.Context, maxConcurrency int, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
 	if maxConcurrency == 1 {
 		// If there's no concurrency, we can just do everything synchronously within this goroutine
@@ -81,67 +87,50 @@ func workInSingleRoutine[Work any](ctx context.Context, fetch WorkFetcher[Work],
 }
 
 func workInInfiniteRoutines[Work any](ctx context.Context, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
-	workerCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var firstError error
-	var errMutex sync.Mutex
-	recordError := func(err error) {
-		errMutex.Lock()
-		defer errMutex.Unlock()
-		if firstError == nil {
-			firstError = err
-			cancel()
-		}
-	}
+	fetchCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 
 	if maxBatchSize <= 0 {
 		maxBatchSize = 100
 	}
 
-	for workerCtx.Err() == nil {
-		work, err := fetch(workerCtx, maxBatchSize)
+	for fetchCtx.Err() == nil {
+		work, err := fetch(fetchCtx, maxBatchSize)
 		if err != nil {
-			recordError(err)
+			cancel(err)
 			break
 		}
 
 		for _, w := range work {
 			w := w
 			go func() {
-				if err := worker(workerCtx, w); err != nil {
-					recordError(err)
+				// the worker uses the parent context, such that if we have a fetch error, the existing workers will
+				// continue to run until they finish processing their work
+				if err := worker(ctx, w); err != nil {
+					cancel(err)
 				}
 			}()
 		}
 	}
 
-	// Return the first error that was encountered
-	errMutex.Lock()
-	defer errMutex.Unlock()
-	return firstError
+	// Return the reason for cancellation if it wasn't due to the parent context being cancelled
+	cancelCause := context.Cause(fetchCtx)
+	if errors.Is(cancelCause, context.Canceled) {
+		return nil
+	}
+	return cancelCause
 }
 
 func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
-	workerCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	fetchCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 
 	// workChan is a channel that is used to pass work from the fetcher to the workers
 	workChan := make(chan Work)
+	defer close(workChan) // close the channel when we're done so the workers know to stop
 
 	// workDone is a channel that is used to signal that a worker has finished processing an item
 	workDone := make(chan struct{}, maxConcurrency)
-
-	var firstError error
-	var errMutex sync.Mutex
-	recordError := func(err error) {
-		errMutex.Lock()
-		defer errMutex.Unlock()
-		if firstError == nil {
-			firstError = err
-			cancel()
-		}
-	}
 
 	var inFlight atomic.Int64
 
@@ -152,8 +141,10 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 		defer inFlight.Add(-1)
 		defer func() { workDone <- struct{}{} }()
 
-		if err := worker(workerCtx, work); err != nil {
-			recordError(err)
+		// We use the parent context here, such that if we have a fetch error, the existing workers will
+		// continue to run until they finish processing any work already have started on
+		if err := worker(ctx, work); err != nil {
+			cancel(err)
 		}
 	}
 
@@ -180,9 +171,9 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 			}
 
 			// fetch the work
-			work, err := fetch(workerCtx, toFetch)
+			work, err := fetch(fetchCtx, toFetch)
 			if err != nil {
-				recordError(err)
+				cancel(err)
 				return
 			}
 
@@ -202,10 +193,12 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 		go func() {
 			for {
 				select {
-				case <-workerCtx.Done():
-					return
+				case work, more := <-workChan:
+					if !more {
+						// the workChan has been closed, we can stop
+						return
+					}
 
-				case work := <-workChan:
 					workProcessor(work)
 				}
 			}
@@ -220,7 +213,7 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 fetchLoop:
 	for {
 		select {
-		case <-workerCtx.Done():
+		case <-fetchCtx.Done():
 			// If the context is cancelled, we need to stop fetching work
 			break fetchLoop
 
@@ -239,8 +232,15 @@ fetchLoop:
 		}
 	}
 
-	// Return the first error that was encountered
-	errMutex.Lock()
-	defer errMutex.Unlock()
-	return firstError
+	// Stop the debounce timer if it's running
+	if debounceTimer != nil {
+		debounceTimer.Stop()
+	}
+
+	// Return the reason for cancellation if it wasn't due to the parent context being cancelled
+	cancelCause := context.Cause(fetchCtx)
+	if errors.Is(cancelCause, context.Canceled) {
+		return nil
+	}
+	return cancelCause
 }
