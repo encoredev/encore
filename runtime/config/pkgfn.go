@@ -31,8 +31,14 @@ var Singleton = NewManager(reqtrack.Singleton, jsonapi.Default)
 // referenced from other services.
 func Load[T any](__serviceName string, __unmarshaler Unmarshaler[T]) T {
 	// Get the computed cfg
-	cfgBytes, err := Singleton.getComputedCUE(__serviceName)
+	cfgBytes, found, err := Singleton.getComputedCUE(__serviceName)
 	if err != nil {
+		// If the config is not found, return a zero value
+		if !found {
+			var zero T
+			return zero
+		}
+
 		panic(err.Error())
 	}
 
