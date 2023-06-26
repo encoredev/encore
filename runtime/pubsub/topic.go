@@ -10,6 +10,7 @@ import (
 	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/limiter"
+	"encore.dev/pubsub/internal/noop"
 	"encore.dev/pubsub/internal/test"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
@@ -43,7 +44,15 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	// Look up the topic configuration
 	topic, ok := mgr.runtime.PubsubTopics[name]
 	if !ok {
-		mgr.rootLogger.Fatal().Msgf("unregistered/unknown topic: %v", name)
+		// If we don't have a topic configuration for this topic, it means that the topic was not registered for this instance
+		// thus we should default to the noop implementation.
+		return &Topic[T]{
+			staticCfg:      cfg,
+			mgr:            mgr,
+			runtimeCfg:     &config.PubsubTopic{EncoreName: name},
+			topic:          &noop.Topic{},
+			publishLimiter: limiter.New(nil), // Create a no-op limiter
+		}
 	}
 
 	// Look up the server config

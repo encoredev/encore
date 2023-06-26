@@ -57,10 +57,12 @@ func (mgr *Manager) GetDB(dbName string) *Database {
 	if db, ok := mgr.dbs[dbName]; ok {
 		return db
 	}
+	pool, found := mgr.getPool(dbName)
 	db = &Database{
-		name: dbName,
-		mgr:  mgr,
-		pool: mgr.getPool(dbName),
+		name:   dbName,
+		mgr:    mgr,
+		noopDB: !found,
+		pool:   pool,
 	}
 	mgr.dbs[dbName] = db
 	return db
@@ -68,7 +70,7 @@ func (mgr *Manager) GetDB(dbName string) *Database {
 
 // getPool returns a database connection pool for the given database name.
 // Each time it's called it returns a new pool.
-func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
+func (mgr *Manager) getPool(dbName string) (pool *pgxpool.Pool, found bool) {
 	var db *config.SQLDatabase
 	for _, d := range mgr.runtime.SQLDatabases {
 		if d.EncoreName == dbName {
@@ -77,7 +79,7 @@ func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
 		}
 	}
 	if db == nil {
-		panic("sqldb: unknown database: " + dbName)
+		return nil, false
 	}
 
 	srv := mgr.runtime.SQLServers[db.ServerID]
@@ -87,12 +89,12 @@ func (mgr *Manager) getPool(dbName string) *pgxpool.Pool {
 	}
 
 	cfg.ConnConfig.Tracer = &pgxTracer{mgr: mgr}
-	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
+	pool, err = pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		panic("sqldb: setup db: " + err.Error())
 	}
 
-	return pool
+	return pool, true
 }
 
 func (mgr *Manager) Shutdown(force context.Context) {

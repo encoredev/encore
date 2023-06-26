@@ -49,21 +49,21 @@ func NewManager(rt *reqtrack.RequestTracker, json jsoniter.API) *Manager {
 	}
 }
 
-func (m *Manager) getComputedCUE(serviceName string) ([]byte, error) {
+func (m *Manager) getComputedCUE(serviceName string) (jsonBytes []byte, found bool, err error) {
 	if m == nil {
-		return nil, fmt.Errorf("config subsystem has not been initialized")
+		return nil, true, fmt.Errorf("config subsystem has not been initialized")
 	}
 
 	// Fetch the raw JSON config for this service
 	envVar := encoreenv.Get(envName(serviceName))
 	if envVar == "" {
-		return nil, fmt.Errorf("configuration for service `%s` not found, expected it in environmental variable %s", serviceName, envName(serviceName))
+		return nil, false, fmt.Errorf("configuration for service `%s` not found, expected it in environmental variable %s", serviceName, envName(serviceName))
 	}
 	cfgBytes, err := base64.RawURLEncoding.DecodeString(envVar)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode configuration for service `%s`: %v", serviceName, err)
+		return nil, true, fmt.Errorf("failed to decode configuration for service `%s`: %v", serviceName, err)
 	}
-	return cfgBytes, nil
+	return cfgBytes, true, nil
 }
 
 // nextID returns the next unique ID for a config value to use to be tracked
