@@ -89,7 +89,7 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 		}
 	}
 
-	panic(fmt.Sprintf("cache: unknown cluster %q", clusterName))
+	return newNoopClient()
 }
 
 func (mgr *Manager) runningInEncoreCloud() bool {

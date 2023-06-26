@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -25,6 +26,8 @@ type Database struct {
 	name string
 	mgr  *Manager
 
+	noopDB bool // true if this is a dummy database that does nothing and returns errors for all operations
+
 	initOnce sync.Once
 	pool     *pgxpool.Pool
 	connStr  string
@@ -33,18 +36,37 @@ type Database struct {
 	stdlib     *sql.DB
 }
 
+var errNoopDB = errors.New("sqldb: this service is not configured to use this database. Use sqldb.Named in this service to get a reference and access to the database from this service")
+
 func (db *Database) init() {
+	if db.noopDB {
+		return
+	}
+
 	db.initOnce.Do(func() {
 		if db.pool == nil {
-			db.pool = db.mgr.getPool(db.name)
+			pool, found := db.mgr.getPool(db.name)
+			db.pool, db.noopDB = pool, !found
 		}
-		db.connStr = stdlibdriver.RegisterConnConfig(db.pool.Config().ConnConfig)
+
+		if !db.noopDB {
+			db.connStr = stdlibdriver.RegisterConnConfig(db.pool.Config().ConnConfig)
+		}
 	})
 }
 
 // Stdlib returns a *sql.DB object that is connected to the same db,
 // for use with libraries that expect a *sql.DB.
 func (db *Database) Stdlib() *sql.DB {
+	// If this is a noop database, return a dummy *sql.DB that returns errors for all operations.
+	if db.noopDB {
+		registerNoopDriverOnce.Do(func() {
+			sql.Register(noopDriverName, noopDriver{})
+		})
+
+		return sql.OpenDB(noopConnector{})
+	}
+
 	db.init()
 	registerDriver.Do(func() {
 		stdlibDriver = &wrappedDriver{
@@ -150,6 +172,10 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, err
 //
 // See (*database/sql.DB).ExecContext() for additional documentation.
 func (db *Database) Exec(ctx context.Context, query string, args ...interface{}) (ExecResult, error) {
+	if db.noopDB {
+		return nil, errNoopDB
+	}
+
 	db.init()
 
 	var (
@@ -188,6 +214,10 @@ func (db *Database) Exec(ctx context.Context, query string, args ...interface{})
 //
 // See (*database/sql.DB).QueryContext() for additional documentation.
 func (db *Database) Query(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
+	if db.noopDB {
+		return nil, errNoopDB
+	}
+
 	db.init()
 
 	var (
@@ -227,6 +257,10 @@ func (db *Database) Query(ctx context.Context, query string, args ...interface{}
 //
 // See (*database/sql.DB).QueryRowContext() for additional documentation.
 func (db *Database) QueryRow(ctx context.Context, query string, args ...interface{}) *Row {
+	if db.noopDB {
+		return &Row{err: errNoopDB}
+	}
+
 	db.init()
 
 	var (
@@ -264,6 +298,10 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...interfac
 //
 // See (*database/sql.DB).Begin() for additional documentation.
 func (db *Database) Begin(ctx context.Context) (*Tx, error) {
+	if db.noopDB {
+		return nil, errNoopDB
+	}
+
 	db.init()
 	tx, err := db.pool.Begin(markTraced(ctx))
 	err = convertErr(err)
@@ -295,6 +333,11 @@ func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 // this will be made with backwards compatibility in mind, providing ample notice and
 // time to migrate in an opt-in fashion.
 func Driver[T SupportedDrivers](db *Database) T {
+	if db.noopDB {
+		var zero T
+		return zero
+	}
+
 	return any(db.pool).(T)
 }
 
@@ -321,9 +364,16 @@ type SupportedDrivers interface {
 // providing ample notice and time to migrate in an opt-in fashion.
 func DriverConn[T SupportedDriverConns](conn *sql.Conn, f func(driverConn T) error) error {
 	return conn.Raw(func(c any) error {
-		parentConn := (c).(wrappedConn).parent
-		rawConn := (parentConn).(*stdlibdriver.Conn).Conn()
-		return f(rawConn)
+		switch c := c.(type) {
+		case wrappedConn:
+			parentConn := c.parent
+			rawConn := (parentConn).(*stdlibdriver.Conn).Conn()
+			return f(rawConn)
+		case noopConn:
+			return errNoopDB
+		default:
+			panic(fmt.Sprintf("sqldb.DriverConn: unsupported connection type %T", c))
+		}
 	})
 }
 
