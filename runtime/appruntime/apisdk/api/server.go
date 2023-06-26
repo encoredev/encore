@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/benbjohnson/clock"
@@ -347,12 +348,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	}
 	req = req.WithContext(context.WithValue(req.Context(), metaContextKeyAuthInfo, callMeta))
 
-	// We use EscapedPath rather than `req.URL.Path` because if the path contains an encoded
-	// forward slash as %2F we don't want the router to treat that as a segment split.
-	//
-	// i.e. `/foo%2Fbar/baz` should be routed to `/:a/*b` as a = "foo/bar", b = "baz"
-	// where as if we use req.URL.Path we would get a = "foo", b = "bar/baz` which is incorrect.
-	path := req.URL.EscapedPath()
+	path := determineRequestPath(req.URL)
 
 	// Switch to the Encore internal router if we are on the Encore internal path
 	const internalPrefix = "/__encore"
@@ -477,4 +473,23 @@ func handleTrailingSlashRedirect(r *httprouter.Router, w http.ResponseWriter, re
 
 	http.Redirect(w, req, path, code)
 	return true
+}
+
+// determineRequestPath determines the path to use for routing
+// based on the incoming request URL u.
+func determineRequestPath(u *url.URL) string {
+	// To support use cases like routing "/foo%2Fbar/baz" to "/:a/*b" as a = "foo/bar", b = "baz"
+	// we need to be careful about the escaping.
+	//
+	// The way the net/url package works is a bit subtle, but URL.RawPath is non-empty if and only if
+	// the default encoding of Path differs from the incoming request.
+	// However, we don't want to always use RawPath (or EscapedPath(), in practice) because
+	// it over-escapes: it turns '{foo}' into '%7Bfoo%7D' which we don't want.
+	//
+	// So, use req.URL.Path when possible, and only use EscapedPath() when necessary.
+	path := u.Path
+	if u.RawPath != "" {
+		path = u.EscapedPath()
+	}
+	return path
 }

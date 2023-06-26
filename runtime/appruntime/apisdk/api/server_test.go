@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/julienschmidt/httprouter"
@@ -52,6 +53,32 @@ func Test_handleTrailingSlashRedirect(t *testing.T) {
 			t.Errorf("%s %s: got code=%d, want %d", test.method, test.path, w.Code, test.code)
 		} else if w.Header().Get("Location") != test.dest {
 			t.Errorf("%s %s: got dest=%s, want %s", test.method, test.path, w.Header().Get("Location"), test.dest)
+		}
+	}
+}
+
+func Test_determineRequestPath(t *testing.T) {
+	tests := []struct {
+		path    string
+		rawPath string
+		want    string
+	}{
+		{
+			path:    "/{foo}",
+			rawPath: "",
+			want:    "/{foo}",
+		},
+		{
+			path:    "/foo/bar/baz",
+			rawPath: "/foo/bar%2Fbaz",
+			want:    "/foo/bar%2Fbaz",
+		},
+	}
+	for _, tt := range tests {
+		u := &url.URL{Path: tt.path, RawPath: tt.rawPath}
+		if got := determineRequestPath(u); got != tt.want {
+			t.Errorf("determineRequestPath(&url.URL{Path: %q, RawPath: %q}) = %q, want %q",
+				tt.path, tt.rawPath, got, tt.want)
 		}
 	}
 }
