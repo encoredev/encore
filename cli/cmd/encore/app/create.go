@@ -58,7 +58,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
 		cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
 		fmt.Scanln()
-		if err := auth.DoLogin(); err != nil {
+		if err := auth.DoLogin(auth.AutoFlow); err != nil {
 			cmdutil.Fatal(err)
 		}
 	}
