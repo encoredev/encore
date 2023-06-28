@@ -90,3 +90,11 @@ func determineRoot() (root string, ok bool) {
 	}
 	return "", false
 }
+
+// IsSSH reports whether the current session is an SSH session.
+func IsSSH() bool {
+	if os.Getenv("SSH_TTY") != "" || os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_CLIENT") != "" {
+		return true
+	}
+	return false
+}
