@@ -42,6 +42,17 @@ func Commands() [][]string {
 	return cmds
 }
 
+// CanOpen reports whether it's likely that Open will succeed.
+func CanOpen() bool {
+	cmds := Commands()
+	for _, cmd := range cmds {
+		if _, err := exec.LookPath(cmd[0]); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Open tries to open url in a browser and reports whether it succeeded.
 func Open(url string) bool {
 	for _, args := range Commands() {

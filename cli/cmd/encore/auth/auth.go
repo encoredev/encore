@@ -4,14 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
-	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/login"
 	"encr.dev/internal/conf"
 )
@@ -30,14 +27,14 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := DoLogin(); err != nil {
+			if err := DoLogin(DeviceAuth); err != nil {
 				cmdutil.Fatal(err)
 			}
 		},
 	}
 
 	loginCmd := &cobra.Command{
-		Use:   "login [--auth-key]",
+		Use:   "login [--auth-key=<KEY>]",
 		Short: "Log in to Encore",
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -46,7 +43,7 @@ func init() {
 					cmdutil.Fatal(err)
 				}
 			} else {
-				if err := DoLogin(); err != nil {
+				if err := DoLogin(DeviceAuth); err != nil {
 					cmdutil.Fatal(err)
 				}
 			}
@@ -83,39 +80,34 @@ func init() {
 	root.Cmd.AddCommand(authCmd)
 }
 
-func DoLogin() (err error) {
-	flow, err := login.Begin()
+type Flow int
+
+const (
+	AutoFlow Flow = iota
+	Interactive
+	DeviceAuth
+)
+
+func DoLogin(flow Flow) (err error) {
+	var fn func() (*conf.Config, error)
+	switch flow {
+	case Interactive:
+		fn = login.Interactive
+	case DeviceAuth:
+		fn = login.DeviceAuth
+	default:
+		fn = login.DecideFlow
+	}
+	cfg, err := fn()
 	if err != nil {
 		return err
 	}
 
-	if !browser.Open(flow.URL) {
-		// On Windows we need a proper \r\n newline to ensure the URL detection doesn't extend to the next line.
-		// fmt.Fprintln and family prints just a simple \n, so don't use that.
-		fmt.Fprint(os.Stdout, "Log in to Encore using your browser here: ", flow.URL, cmdutil.Newline)
+	if err := conf.Write(cfg); err != nil {
+		return fmt.Errorf("write credentials: %v", err)
 	}
-
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Prefix = "Waiting for login to complete "
-	s.Start()
-	defer func() {
-		if err != nil {
-			s.Stop()
-		}
-	}()
-
-	select {
-	case cfg := <-flow.LoginCh:
-		if err := conf.Write(cfg); err != nil {
-			return fmt.Errorf("write credentials: %v", err)
-		}
-		s.Stop()
-		fmt.Fprintln(os.Stdout, "Successfully logged in!")
-		return nil
-	case <-time.After(10 * time.Minute):
-		flow.Close()
-		return fmt.Errorf("timed out")
-	}
+	fmt.Fprintln(os.Stdout, "Successfully logged in!")
+	return nil
 }
 
 func DoLogout() {

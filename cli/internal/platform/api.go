@@ -10,7 +10,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
-	"golang.org/x/oauth2"
 
 	metav1 "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -58,48 +57,6 @@ func ListEnvs(ctx context.Context, appSlug string) ([]*Env, error) {
 	var resp []*Env
 	err := call(ctx, "GET", "/apps/"+url.PathEscape(appSlug)+"/envs", nil, &resp, true)
 	return resp, err
-}
-
-type CreateOAuthSessionParams struct {
-	Challenge   string `json:"challenge"`
-	State       string `json:"state"`
-	RedirectURL string `json:"redirect_url"`
-}
-
-func CreateOAuthSession(ctx context.Context, p *CreateOAuthSessionParams) (authURL string, err error) {
-	var resp struct {
-		AuthURL string `json:"auth_url"`
-	}
-	err = call(ctx, "POST", "/login/oauth:create-session", p, &resp, false)
-	return resp.AuthURL, err
-}
-
-type ExchangeOAuthTokenParams struct {
-	Challenge string `json:"challenge"`
-	Code      string `json:"code"`
-}
-
-type OAuthData struct {
-	Token   *oauth2.Token `json:"token"`
-	Actor   string        `json:"actor,omitempty"` // The ID of the user or app that authorized the token.
-	Email   string        `json:"email"`           // empty if logging in as an app
-	AppSlug string        `json:"app_slug"`        // empty if logging in as a user
-}
-
-func ExchangeOAuthToken(ctx context.Context, p *ExchangeOAuthTokenParams) (*OAuthData, error) {
-	var resp OAuthData
-	err := call(ctx, "POST", "/login/oauth:exchange-token", p, &resp, false)
-	return &resp, err
-}
-
-type ExchangeAuthKeyParams struct {
-	AuthKey string `json:"auth_key"`
-}
-
-func ExchangeAuthKey(ctx context.Context, p *ExchangeAuthKeyParams) (*OAuthData, error) {
-	var resp OAuthData
-	err := call(ctx, "POST", "/login/auth-key", p, &resp, false)
-	return &resp, err
 }
 
 type SecretKind string

@@ -143,18 +143,7 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}, au
 	}()
 
 	if resp.StatusCode >= 400 {
-		var respStruct struct {
-			OK    bool
-			Error Error
-			Data  json.RawMessage
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&respStruct); err != nil {
-			return nil, fmt.Errorf("decode response: %v", err)
-		}
-		e := respStruct.Error
-		e.HTTPCode = resp.StatusCode
-		e.HTTPStatus = resp.Status
-		return nil, e
+		return nil, decodeErrorResponse(resp)
 	}
 
 	return resp.Body, nil
@@ -183,6 +172,11 @@ func sendPlatformReq(ctx context.Context, method, path string, reqParams any, au
 	if reqParams != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+
+	return doPlatformReq(req, auth)
+}
+
+func doPlatformReq(req *http.Request, auth bool) (httpResp *http.Response, err error) {
 	// Add a very limited amount of information for diagnostics
 	req.Header.Set("User-Agent", "EncoreCLI/"+version.Version)
 	req.Header.Set("X-Encore-Version", version.Version)
@@ -252,4 +246,19 @@ func wsDial(ctx context.Context, path string, auth bool, extraHeaders map[string
 	}
 
 	return ws, err
+}
+
+func decodeErrorResponse(resp *http.Response) error {
+	var respStruct struct {
+		OK    bool
+		Error Error
+		Data  json.RawMessage
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respStruct); err != nil {
+		return fmt.Errorf("decode response: %v", err)
+	}
+	e := respStruct.Error
+	e.HTTPCode = resp.StatusCode
+	e.HTTPStatus = resp.Status
+	return e
 }
