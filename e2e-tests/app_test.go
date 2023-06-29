@@ -108,7 +108,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	}
 
 	// start proxying TCP requests to the running application
-	go proxyTcp(ctx, ln, p.Client)
+	go proxyTcp(ctx, ln, p.Gateway.Client)
 
 	return &RunAppData{
 		Addr:   ln.Addr().String(),

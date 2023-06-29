@@ -36,9 +36,9 @@ type ProcGroup struct {
 
 	Gateway *Proc // the API gateway process
 
-	procMu       sync.Mutex // protects both AllProcesses and runningProcs
+	procMu       sync.Mutex // protects both allProcesses and runningProcs
 	procCond     sync.Cond  // used to signal a change in runningProcs
-	AllProcesses []*Proc    // all processes in the group
+	allProcesses []*Proc    // all processes in the group
 	runningProcs uint32     // number of running processes
 
 	ctx        context.Context
@@ -53,7 +53,7 @@ type ProcGroup struct {
 	symParsed chan struct{} // closed when sym and symErr are set
 }
 
-// Done returns a channel that is closed when the process has exited.
+// Done returns a channel that is closed when all processes in the group have exited.
 func (pg *ProcGroup) Done() <-chan struct{} {
 	c := make(chan struct{})
 	go func() {
@@ -75,13 +75,15 @@ func (pg *ProcGroup) Done() <-chan struct{} {
 // It can safely be called multiple times.
 func (pg *ProcGroup) Close() {
 	var wg sync.WaitGroup
-	wg.Add(len(pg.AllProcesses))
-	for _, p := range pg.AllProcesses {
+	pg.procMu.Lock()
+	wg.Add(len(pg.allProcesses))
+	for _, p := range pg.allProcesses {
 		go func(p *Proc) {
 			p.Close()
 			wg.Done()
 		}(p)
 	}
+	pg.procMu.Unlock()
 
 	wg.Wait()
 }
@@ -120,7 +122,10 @@ func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets m
 		exit:  make(chan struct{}),
 	}
 	pg.Gateway = p
-	pg.AllProcesses = append(pg.AllProcesses, p)
+
+	pg.procMu.Lock()
+	pg.allProcesses = append(pg.allProcesses, p)
+	pg.procMu.Unlock()
 
 	runtimeCfg, err := pg.Run.Mgr.generateConfig(generateConfigParams{
 		App:           pg.Run.App,
