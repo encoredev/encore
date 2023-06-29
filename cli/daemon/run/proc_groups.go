@@ -138,7 +138,7 @@ func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets m
 	}
 	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
-	cmd := exec.Command(binPath)
+	cmd := exec.CommandContext(pg.ctx, binPath)
 	envs := append([]string{
 		"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
 		"ENCORE_APP_SECRETS=" + encodeSecretsEnv(secrets),
