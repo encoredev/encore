@@ -66,6 +66,15 @@ func AsOptional[T comparable](v T) Option[T] {
 	return Some[T](v)
 }
 
+// FromPointer returns an Option where a nil pointer is considered None
+// and any other value is considered Some, with the value dereferenced.
+func FromPointer[T any](v *T) Option[T] {
+	if v == nil {
+		return None[T]()
+	}
+	return Some[T](*v)
+}
+
 // Some returns an Option with the given value and present set to true
 //
 // This means Some(nil) is a valid present Option
