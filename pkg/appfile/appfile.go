@@ -38,6 +38,10 @@ type File struct {
 
 	// CgoEnabled enables building with cgo.
 	CgoEnabled bool `json:"cgo_enabled,omitempty"`
+
+	// DockerBaseImage changes the docker base image used for building the application
+	// in Encore's CI/CD system. If unspecified it defaults to "scratch".
+	DockerBaseImage string `json:"docker_base_image,omitempty"`
 }
 
 type CORS struct {
