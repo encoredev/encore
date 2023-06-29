@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/hashicorp/yamux"
 
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
@@ -108,7 +107,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	}
 
 	// start proxying TCP requests to the running application
-	go proxyTcp(ctx, ln, p.Gateway.Client)
+	go proxy(ctx, ln, p.Gateway)
 
 	return &RunAppData{
 		Addr:   ln.Addr().String(),
@@ -157,28 +156,16 @@ func (l testRunLogger) RunStderr(r *Run, line []byte) {
 	l.log.Log(string(line))
 }
 
-func proxyTcp(ctx context.Context, ln net.Listener, client *yamux.Session) {
-	for ctx.Err() == nil {
-		conn, err := ln.Accept()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				return
-			}
-
-			fmt.Printf("unable to accept connection: %+v", err)
-			continue
-		}
-
-		clientConn, err := client.Open()
-		if err != nil {
-			fmt.Printf("unable to open connection to running app: %+v", err)
-			_ = conn.Close()
-			continue
-		}
-
-		go io.Copy(conn, clientConn)
-		go io.Copy(clientConn, conn)
+func proxy(ctx context.Context, ln net.Listener, p *Proc) {
+	srv := &http.Server{
+		Handler: http.HandlerFunc(p.ProxyReq),
 	}
+	go func() {
+		<-ctx.Done()
+		srv.Close()
+	}()
+
+	srv.Serve(ln)
 }
 
 // testBuild is a helper that compiles the app situated at appRoot

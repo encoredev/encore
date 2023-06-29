@@ -1,5 +1,3 @@
-//go:build !encore_local
-
 package app
 
 import (

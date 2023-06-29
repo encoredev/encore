@@ -5,22 +5,25 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/internal/sym"
-	"encr.dev/cli/internal/xos"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -115,17 +118,49 @@ func (pg *ProcGroup) SymTable(ctx context.Context) (*sym.Table, error) {
 	}
 }
 
-func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets map[string]string, configs map[string]string) error {
-	p := &Proc{
-		group: pg,
-		log:   pg.log.With().Str("proc", "all-in-one").Logger(),
-		exit:  make(chan struct{}),
+// newProc creates a new process in the group and sets up the required stuff in the struct
+func (pg *ProcGroup) newProc(processName string) (*Proc, error) {
+	port, err := allocatePort()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to allocate port for all-in-one proc")
 	}
-	pg.Gateway = p
+
+	dst := &url.URL{
+		Scheme: "http",
+		Host:   "127.0.0.1:" + strconv.Itoa(port),
+	}
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(dst)
+
+			// Add the auth key unless the test header is set.
+			if r.Out.Header.Get(TestHeaderDisablePlatformAuth) == "" {
+				addAuthKeyToRequest(r.Out, pg.authKey)
+			}
+		},
+	}
+
+	p := &Proc{
+		group:         pg,
+		log:           pg.log.With().Str("proc", processName).Logger(),
+		containerPort: port,
+		httpProxy:     proxy,
+		exit:          make(chan struct{}),
+	}
 
 	pg.procMu.Lock()
 	pg.allProcesses = append(pg.allProcesses, p)
 	pg.procMu.Unlock()
+
+	return p, nil
+}
+
+func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets map[string]string, configs map[string]string) error {
+	p, err := pg.newProc("all-in-one")
+	if err != nil {
+		return err
+	}
+	pg.Gateway = p
 
 	runtimeCfg, err := pg.Run.Mgr.generateConfig(generateConfigParams{
 		App:           pg.Run.App,
@@ -147,6 +182,7 @@ func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets m
 	envs := append([]string{
 		"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
 		"ENCORE_APP_SECRETS=" + encodeSecretsEnv(secrets),
+		"PORT=" + strconv.Itoa(p.containerPort),
 	},
 		environ...,
 	)
@@ -165,40 +201,6 @@ func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets m
 
 	p.cmd = cmd
 
-	// Set up extra file descriptors for communicating requests/responses:
-	// - reqRd is for reading incoming requests (handed over procchild)
-	// - reqWr is for writing incoming requests
-	// - respRd is for reading responses
-	// - respWr is for writing responses (handed over to proc)
-	reqRd, reqWr, err1 := os.Pipe()
-	respRd, respWr, err2 := os.Pipe()
-	defer func() {
-		// Close all the files if we return an error.
-		if err != nil {
-			closeAll(reqRd, reqWr, respRd, respWr)
-		}
-	}()
-	if err := firstErr(err1, err2); err != nil {
-		return errors.Wrap(err, "could not create request & response pipes")
-	} else if err := xos.ArrangeExtraFiles(cmd, reqRd, respWr); err != nil {
-		return errors.Wrap(err, "could not handle over request & response pipes")
-	}
-	p.reqWr = reqWr
-	p.respRd = respRd
-	p.closeOnStart = []io.Closer{reqRd, respWr}
-
-	rwc := &struct {
-		io.ReadCloser
-		io.Writer
-	}{
-		ReadCloser: io.NopCloser(respRd),
-		Writer:     reqWr,
-	}
-	p.Client, err = yamux.Client(rwc, yamux.DefaultConfig())
-	if err != nil {
-		return errors.Wrap(err, "could not initialize connection")
-	}
-
 	return nil
 }
 
@@ -209,14 +211,13 @@ type Proc struct {
 	exit  chan struct{}  // closed when the process has exited
 	cmd   *exec.Cmd      // The command for this specific process
 
-	Started   atomic.Bool    // whether the process has started
-	StartedAt time.Time      // when the process started
-	Pid       int            // the OS process id
-	Client    *yamux.Session // the client connection to the process
+	containerPort int                    // The port the HTTP server of the process should listen on
+	httpProxy     *httputil.ReverseProxy // The reverse proxy for the HTTP server of the process
 
-	reqWr        *os.File
-	respRd       *os.File
-	closeOnStart []io.Closer
+	// The following fields are only valid after Start() has been called.
+	Started   atomic.Bool // whether the process has started
+	StartedAt time.Time   // when the process started
+	Pid       int         // the OS process id
 }
 
 // Start starts the process and returns immediately.
@@ -238,13 +239,9 @@ func (p *Proc) Start() error {
 	p.Pid = p.cmd.Process.Pid
 	p.StartedAt = time.Now()
 
-	// Close the files we handed over to the child.
-	closeAll(p.closeOnStart...)
-
 	// Start watching the process for when it quits.
 	go func() {
 		defer close(p.exit)
-		defer closeAll(p.reqWr, p.respRd)
 
 		// Wait for the process to exit.
 		err := p.cmd.Wait()
@@ -279,7 +276,11 @@ func (p *Proc) Start() error {
 // Close closes the process and waits for it to exit.
 // It is safe to call Close multiple times.
 func (p *Proc) Close() {
-	_ = p.reqWr.Close()
+	if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
+		// If there's an error sending the signal, just kill the process.
+		// This might happen because Interrupt is not supported on Windows.
+		p.Kill()
+	}
 
 	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
@@ -294,9 +295,24 @@ func (p *Proc) Close() {
 	}
 }
 
+// ProxyReq proxies the request to the Encore app.
+func (p *Proc) ProxyReq(w http.ResponseWriter, req *http.Request) {
+	p.httpProxy.ServeHTTP(w, req)
+}
+
 // Kill causes the Process to exit immediately. Kill does not wait until
 // the Process has actually exited. This only kills the Process itself,
 // not any other processes it may have started.
 func (p *Proc) Kill() {
 	_ = p.cmd.Process.Kill()
+}
+
+// allocatePort allocates a random, unused TCP port.
+func allocatePort() (int, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = l.Close() }()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
