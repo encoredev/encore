@@ -143,7 +143,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	ops.AllDone()
 
 	stderr.Write([]byte("\n"))
-	pid := runInstance.Proc().Pid
+	pid := runInstance.ProcGroup().Gateway.Pid
 	fmt.Fprintf(stderr, "  Encore development server running!\n\n")
 
 	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+runInstance.ListenAddr))
@@ -153,7 +153,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		fmt.Fprintf(stderr, "  Process ID:                 %d\n", aurora.Cyan(pid))
 	}
 	// Log which experiments are enabled, if any
-	if exp := runInstance.Proc().Experiments.List(); len(exp) > 0 {
+	if exp := runInstance.ProcGroup().Experiments.List(); len(exp) > 0 {
 		strs := make([]string, len(exp))
 		for i, e := range exp {
 			strs[i] = string(e)
@@ -189,7 +189,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		case <-runInstance.Done():
 			return
 		case <-time.After(5 * time.Second):
-			if proc := runInstance.Proc(); proc != nil {
+			if proc := runInstance.ProcGroup(); proc != nil {
 				showFirstRunExperience(runInstance, proc.Meta, stderr)
 			}
 		}

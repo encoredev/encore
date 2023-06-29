@@ -123,7 +123,7 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 
 			// Wait a bit to allow the message to be consumed.
 			time.Sleep(100 * time.Millisecond)
-		
+
 			stats, err := app.NSQ.Stats()
 			c.Assert(err, qt.IsNil)
 			c.Assert(len(stats.Producers), qt.Equals, 1)
@@ -558,7 +558,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	defer cancel()
 
 	parse, build := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
-	p, err := run.StartProc(&StartProcParams{
+	p, err := run.StartProcGroup(&StartProcGroupParams{
 		Ctx:         ctx,
 		BuildDir:    build.Dir,
 		BinPath:     build.Exe,

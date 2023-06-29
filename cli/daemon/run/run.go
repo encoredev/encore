@@ -6,33 +6,26 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	mathrand "math/rand"
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
-	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -142,15 +135,15 @@ type RunLogger interface {
 	RunStderr(r *Run, line []byte)
 }
 
-// Proc returns the current running process.
+// ProcGroup returns the current running process.
 // It may have already exited.
 // If the proc has not yet started it may return nil.
-func (r *Run) Proc() *Proc {
-	p, _ := r.proc.Load().(*Proc)
+func (r *Run) ProcGroup() *ProcGroup {
+	p, _ := r.proc.Load().(*ProcGroup)
 	return p
 }
 
-func (r *Run) StoreProc(p *Proc) {
+func (r *Run) StoreProc(p *ProcGroup) {
 	r.proc.Store(p)
 }
 
@@ -215,11 +208,11 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	// Monitor the running proc and Close the app when it exits.
 	go func() {
 		for {
-			p := r.proc.Load().(*Proc)
+			p := r.proc.Load().(*ProcGroup)
 			<-p.Done()
 			// p exited, but it could have been a reload.
 			// Check to make sure p is still the active proc.
-			p2 := r.proc.Load().(*Proc)
+			p2 := r.proc.Load().(*ProcGroup)
 			if p2 == p {
 				// We're done.
 				for _, ln := range r.Mgr.listeners {
@@ -332,7 +325,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	}
 
 	startOp := tracker.Add("Starting Encore application", start)
-	newProcess, err := r.StartProc(&StartProcParams{
+	newProcess, err := r.StartProcGroup(&StartProcGroupParams{
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
@@ -357,7 +350,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 	previousProcess := r.proc.Swap(newProcess)
 	if previousProcess != nil {
-		previousProcess.(*Proc).Close()
+		previousProcess.(*ProcGroup).Close()
 	}
 
 	tracker.Done(startOp, 50*time.Millisecond)
@@ -365,31 +358,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	return nil
 }
 
-// Proc represents a running Encore process.
-type Proc struct {
-	ID          string           // unique process id
-	Run         *Run             // the run the process belongs to
-	Pid         int              // the OS process id
-	Meta        *meta.Data       // app metadata snapshot
-	Started     time.Time        // when the process started
-	Experiments *experiments.Set // enabled experiments
-
-	ctx      context.Context
-	log      zerolog.Logger
-	exit     chan struct{} // closed when the process has exited
-	cmd      *exec.Cmd
-	reqWr    *os.File
-	respRd   *os.File
-	buildDir string
-	Client   *yamux.Session
-	authKey  config.EncoreAuthKey
-
-	sym       *sym.Table
-	symErr    error
-	symParsed chan struct{} // closed when sym and symErr are set
-}
-
-type StartProcParams struct {
+type StartProcGroupParams struct {
 	Ctx            context.Context
 	BuildDir       string
 	BinPath        string
@@ -404,186 +373,50 @@ type StartProcParams struct {
 	Experiments    *experiments.Set
 }
 
-// StartProc starts a single actual OS process for app.
-func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
+// StartProcGroup starts a single actual OS process for app.
+func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err error) {
 	pid := GenID()
 	authKey := genAuthKey()
-	p = &Proc{
+	p = &ProcGroup{
 		ID:          pid,
 		Run:         r,
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
 		ctx:         params.Ctx,
-		exit:        make(chan struct{}),
 		buildDir:    params.BuildDir,
+		workingDir:  params.WorkingDir,
+		logger:      params.Logger,
 		log:         r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
 		symParsed:   make(chan struct{}),
 		authKey:     authKey,
 	}
+	p.procCond.L = &p.procMu
 	go p.parseSymTable(params.BinPath)
 
-	runtimeCfg, err := r.Mgr.generateConfig(generateConfigParams{
-		App:           r.App,
-		RM:            r.ResourceManager,
-		Meta:          params.Meta,
-		ForTests:      false,
-		AuthKey:       authKey,
-		APIBaseURL:    "http://" + r.ListenAddr,
-		ConfigAppID:   r.ID,
-		ConfigEnvID:   p.ID,
-		ExternalCalls: experiments.ExternalCalls.Enabled(params.Experiments),
-	})
-	if err != nil {
-		return nil, err
-	}
-	runtimeJSON, _ := json.Marshal(runtimeCfg)
-
-	cmd := exec.Command(params.BinPath)
-	envs := append(params.Environ,
-		"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
-		"ENCORE_APP_SECRETS="+encodeSecretsEnv(params.Secrets),
-	)
-	for serviceName, cfgString := range params.ServiceConfigs {
-		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
-	}
-	cmd.Env = envs
-	cmd.Dir = filepath.Join(r.App.Root(), params.WorkingDir)
-	p.cmd = cmd
-
-	r.log.Info().RawJSON("config", runtimeJSON).Msgf("computed runtime config")
-
-	// Proxy stdout and stderr to the given app logger, if any.
-	if l := params.Logger; l != nil {
-		cmd.Stdout = newLogWriter(r, l.RunStdout)
-		cmd.Stderr = newLogWriter(r, l.RunStderr)
-	}
-
-	// Set up extra file descriptors for communicating requests/responses:
-	// - reqRd is for reading incoming requests (handed over procchild)
-	// - reqWr is for writing incoming requests
-	// - respRd is for reading responses
-	// - respWr is for writing responses (handed over to proc)
-	reqRd, reqWr, err1 := os.Pipe()
-	respRd, respWr, err2 := os.Pipe()
-	defer func() {
-		// Close all the files if we return an error.
-		if err != nil {
-			closeAll(reqRd, reqWr, respRd, respWr)
-		}
-	}()
-	if err := firstErr(err1, err2); err != nil {
-		return nil, err
-	} else if err := xos.ArrangeExtraFiles(cmd, reqRd, respWr); err != nil {
+	if err := p.NewAllInOneProc(params.BinPath, params.Environ, params.Secrets, params.ServiceConfigs); err != nil {
 		return nil, err
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := p.Gateway.Start(); err != nil {
 		return nil, err
 	}
 	p.log.Info().Msg("started process")
 	defer func() {
 		if err != nil {
-			cmd.Process.Kill()
+			p.Gateway.Kill()
 		}
 	}()
-
-	// Close the files we handed over to the child.
-	closeAll(reqRd, respWr)
-
-	rwc := &struct {
-		io.ReadCloser
-		io.Writer
-	}{
-		ReadCloser: io.NopCloser(respRd),
-		Writer:     reqWr,
-	}
-	p.Client, err = yamux.Client(rwc, yamux.DefaultConfig())
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize connection: %v", err)
-	}
-
-	p.reqWr = reqWr
-	p.respRd = respRd
-	p.Pid = cmd.Process.Pid
-	p.Started = time.Now()
 
 	// Monitor the context and Close the process when it is done.
 	go func() {
 		select {
 		case <-params.Ctx.Done():
 			p.Close()
-		case <-p.exit:
+		case <-p.Done():
 		}
 	}()
 
-	go p.waitForExit()
 	return p, nil
-}
-
-// Done returns a channel that is closed when the process has exited.
-func (p *Proc) Done() <-chan struct{} {
-	return p.exit
-}
-
-// Close closes the process and waits for it to shutdown.
-// It can safely be called multiple times.
-func (p *Proc) Close() {
-	p.reqWr.Close()
-	timer := time.NewTimer(10 * time.Second)
-	defer timer.Stop()
-	select {
-	case <-p.exit:
-	case <-timer.C:
-		// The process didn't exit after 10s
-		p.log.Error().Msg("timed out waiting for process to exit; killing")
-		p.cmd.Process.Kill()
-		<-p.exit
-	}
-}
-
-func (p *Proc) waitForExit() {
-	defer close(p.exit)
-	defer closeAll(p.reqWr, p.respRd)
-
-	if err := p.cmd.Wait(); err != nil && p.ctx.Err() == nil {
-		p.log.Error().Err(err).Msg("process exited with error")
-	} else {
-		p.log.Info().Msg("process exited successfully")
-	}
-
-	// Flush the logs in case the output did not end in a newline.
-	for _, w := range [...]io.Writer{p.cmd.Stdout, p.cmd.Stderr} {
-		if w != nil {
-			w.(*logWriter).Flush()
-		}
-	}
-}
-
-// parseSymTable parses the symbol table of the binary at binPath
-// and stores the result in p.sym and p.symErr.
-func (p *Proc) parseSymTable(binPath string) {
-	parse := func() (*sym.Table, error) {
-		f, err := os.Open(binPath)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		return sym.Load(f)
-	}
-
-	defer close(p.symParsed)
-	p.sym, p.symErr = parse()
-}
-
-// SymTable waits for the proc's symbol table to be parsed and then returns it.
-// ctx is used to cancel the wait.
-func (p *Proc) SymTable(ctx context.Context) (*sym.Table, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-p.symParsed:
-		return p.sym, p.symErr
-	}
 }
 
 // closeAll closes all the given closers, skipping ones that are nil.
