@@ -86,7 +86,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	secretData, err := secrets.Load(app).Get(ctx, expSet)
 	assertNil(err)
 
-	p, err := run.StartProc(&StartProcParams{
+	p, err := run.StartProcGroup(&StartProcGroupParams{
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
@@ -108,7 +108,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	}
 
 	// start proxying TCP requests to the running application
-	go proxyTcp(ctx, ln, p.Client)
+	go proxyTcp(ctx, ln, p.Gateway.Client)
 
 	return &RunAppData{
 		Addr:   ln.Addr().String(),
