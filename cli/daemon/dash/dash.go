@@ -121,7 +121,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if run == nil {
 			return reply(ctx, map[string]interface{}{"running": false}, nil)
 		}
-		proc := run.Proc()
+		proc := run.ProcGroup()
 		if proc == nil {
 			return reply(ctx, map[string]interface{}{"running": false}, nil)
 		}
@@ -192,7 +192,7 @@ func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCal
 		log.Error().Str("app_id", p.AppID).Msg("dash: cannot make api call: app not running")
 		return reply(ctx, nil, fmt.Errorf("app not running"))
 	}
-	proc := run.Proc()
+	proc := run.ProcGroup()
 	if proc == nil {
 		log.Error().Str("app_id", p.AppID).Msg("dash: cannot make api call: app not running")
 		return reply(ctx, nil, fmt.Errorf("app not running"))
@@ -272,7 +272,7 @@ var _ run.EventListener = (*Server)(nil)
 // OnStart notifies active websocket clients about the started run.
 func (s *Server) OnStart(r *run.Run) {
 	m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
-	proc := r.Proc()
+	proc := r.ProcGroup()
 	str, err := m.MarshalToString(proc.Meta)
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not marshal app meta")
@@ -295,7 +295,7 @@ func (s *Server) OnStart(r *run.Run) {
 // OnReload notifies active websocket clients about the reloaded run.
 func (s *Server) OnReload(r *run.Run) {
 	m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
-	proc := r.Proc()
+	proc := r.ProcGroup()
 	str, err := m.MarshalToString(proc.Meta)
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not marshal app meta")

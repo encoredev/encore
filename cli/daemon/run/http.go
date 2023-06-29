@@ -28,12 +28,12 @@ func (r *Run) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	proc := r.proc.Load().(*Proc)
+	proc := r.proc.Load().(*ProcGroup)
 	proc.forwardReq(endpoint, w, req)
 }
 
 // forwardReq forwards the request to the Encore app.
-func (p *Proc) forwardReq(endpoint string, w http.ResponseWriter, req *http.Request) {
+func (p *ProcGroup) forwardReq(endpoint string, w http.ResponseWriter, req *http.Request) {
 	// director is a simplified version from httputil.NewSingleHostReverseProxy.
 	director := func(r *http.Request) {
 		r.URL.Scheme = "http"

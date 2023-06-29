@@ -51,11 +51,11 @@ type EventListener interface {
 
 // FindProc finds the proc with the given id.
 // It reports nil if no such proc was found.
-func (mgr *Manager) FindProc(procID string) *Proc {
+func (mgr *Manager) FindProc(procID string) *ProcGroup {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 	for _, run := range mgr.runs {
-		if p := run.Proc(); p != nil && p.ID == procID {
+		if p := run.ProcGroup(); p != nil && p.ID == procID {
 			return p
 		}
 	}

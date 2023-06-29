@@ -86,7 +86,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	secretData, err := secrets.Load(app).Get(ctx, expSet)
 	assertNil(err)
 
-	p, err := run.StartProc(&StartProcParams{
+	p, err := run.StartProcGroup(&StartProcGroupParams{
 		Ctx:            ctx,
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
