@@ -6,23 +6,18 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	mathrand "math/rand"
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -31,7 +26,6 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
-	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -389,109 +383,39 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
 		ctx:         params.Ctx,
-		exit:        make(chan struct{}),
 		buildDir:    params.BuildDir,
+		workingDir:  params.WorkingDir,
+		logger:      params.Logger,
 		log:         r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
 		symParsed:   make(chan struct{}),
 		authKey:     authKey,
 	}
+	p.procCond.L = &p.procMu
 	go p.parseSymTable(params.BinPath)
 
-	runtimeCfg, err := r.Mgr.generateConfig(generateConfigParams{
-		App:           r.App,
-		RM:            r.ResourceManager,
-		Meta:          params.Meta,
-		ForTests:      false,
-		AuthKey:       authKey,
-		APIBaseURL:    "http://" + r.ListenAddr,
-		ConfigAppID:   r.ID,
-		ConfigEnvID:   p.ID,
-		ExternalCalls: experiments.ExternalCalls.Enabled(params.Experiments),
-	})
-	if err != nil {
-		return nil, err
-	}
-	runtimeJSON, _ := json.Marshal(runtimeCfg)
-
-	cmd := exec.Command(params.BinPath)
-	envs := append(params.Environ,
-		"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
-		"ENCORE_APP_SECRETS="+encodeSecretsEnv(params.Secrets),
-	)
-	for serviceName, cfgString := range params.ServiceConfigs {
-		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
-	}
-	cmd.Env = envs
-	cmd.Dir = filepath.Join(r.App.Root(), params.WorkingDir)
-	p.cmd = cmd
-
-	r.log.Info().RawJSON("config", runtimeJSON).Msgf("computed runtime config")
-
-	// Proxy stdout and stderr to the given app logger, if any.
-	if l := params.Logger; l != nil {
-		cmd.Stdout = newLogWriter(r, l.RunStdout)
-		cmd.Stderr = newLogWriter(r, l.RunStderr)
-	}
-
-	// Set up extra file descriptors for communicating requests/responses:
-	// - reqRd is for reading incoming requests (handed over procchild)
-	// - reqWr is for writing incoming requests
-	// - respRd is for reading responses
-	// - respWr is for writing responses (handed over to proc)
-	reqRd, reqWr, err1 := os.Pipe()
-	respRd, respWr, err2 := os.Pipe()
-	defer func() {
-		// Close all the files if we return an error.
-		if err != nil {
-			closeAll(reqRd, reqWr, respRd, respWr)
-		}
-	}()
-	if err := firstErr(err1, err2); err != nil {
-		return nil, err
-	} else if err := xos.ArrangeExtraFiles(cmd, reqRd, respWr); err != nil {
+	if err := p.NewAllInOneProc(params.BinPath, params.Environ, params.Secrets, params.ServiceConfigs); err != nil {
 		return nil, err
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := p.Gateway.Start(); err != nil {
 		return nil, err
 	}
 	p.log.Info().Msg("started process")
 	defer func() {
 		if err != nil {
-			cmd.Process.Kill()
+			p.Gateway.Kill()
 		}
 	}()
-
-	// Close the files we handed over to the child.
-	closeAll(reqRd, respWr)
-
-	rwc := &struct {
-		io.ReadCloser
-		io.Writer
-	}{
-		ReadCloser: io.NopCloser(respRd),
-		Writer:     reqWr,
-	}
-	p.Client, err = yamux.Client(rwc, yamux.DefaultConfig())
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize connection: %v", err)
-	}
-
-	p.reqWr = reqWr
-	p.respRd = respRd
-	p.Pid = cmd.Process.Pid
-	p.Started = time.Now()
 
 	// Monitor the context and Close the process when it is done.
 	go func() {
 		select {
 		case <-params.Ctx.Done():
 			p.Close()
-		case <-p.exit:
+		case <-p.Done():
 		}
 	}()
 
-	go p.waitForExit()
 	return p, nil
 }
 

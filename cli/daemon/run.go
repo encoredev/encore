@@ -143,7 +143,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	ops.AllDone()
 
 	stderr.Write([]byte("\n"))
-	pid := runInstance.ProcGroup().Pid
+	pid := runInstance.ProcGroup().Gateway.Pid
 	fmt.Fprintf(stderr, "  Encore development server running!\n\n")
 
 	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+runInstance.ListenAddr))

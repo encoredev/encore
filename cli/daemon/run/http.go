@@ -33,11 +33,11 @@ func (r *Run) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // forwardReq forwards the request to the Encore app.
-func (p *ProcGroup) forwardReq(endpoint string, w http.ResponseWriter, req *http.Request) {
+func (pg *ProcGroup) forwardReq(endpoint string, w http.ResponseWriter, req *http.Request) {
 	// director is a simplified version from httputil.NewSingleHostReverseProxy.
 	director := func(r *http.Request) {
 		r.URL.Scheme = "http"
-		r.URL.Host = p.Run.ListenAddr
+		r.URL.Host = pg.Run.ListenAddr
 		r.URL.Path = "/" + endpoint
 		r.URL.RawQuery = req.URL.RawQuery
 		if _, ok := r.Header["User-Agent"]; !ok {
@@ -47,7 +47,7 @@ func (p *ProcGroup) forwardReq(endpoint string, w http.ResponseWriter, req *http
 
 		// Add the auth key unless the test header is set.
 		if r.Header.Get(TestHeaderDisablePlatformAuth) == "" {
-			addAuthKeyToRequest(r, p.authKey)
+			addAuthKeyToRequest(r, pg.authKey)
 		}
 	}
 
@@ -57,7 +57,7 @@ func (p *ProcGroup) forwardReq(endpoint string, w http.ResponseWriter, req *http
 	transport := &http.Transport{
 		DisableKeepAlives: true,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return p.Client.Open()
+			return pg.Gateway.Client.Open()
 		},
 	}
 
