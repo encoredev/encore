@@ -58,7 +58,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return err
 	}
 
-	rm := infra.NewResourceManager(p.App, mgr.ClusterMgr, p.Environ, false)
+	rm := infra.NewResourceManager(p.App, mgr.ClusterMgr, p.Environ, mgr.DBProxyPort, false)
 	defer rm.StopAll()
 
 	tracker := p.OpTracker

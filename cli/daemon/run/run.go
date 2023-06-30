@@ -11,9 +11,11 @@ import (
 	mathrand "math/rand"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -30,6 +32,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -85,7 +88,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
-		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.Environ, false),
+		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.Environ, mgr.DBProxyPort, false),
 		ListenAddr:      params.ListenAddr,
 
 		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
@@ -377,9 +380,33 @@ type StartProcGroupParams struct {
 func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err error) {
 	pid := GenID()
 	authKey := genAuthKey()
+
+	procListenAddresses, err := GenerateListenAddresses(params.Meta.Svcs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate listen addresses")
+	}
+
+	listenAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse listen address")
+	}
+
 	p = &ProcGroup{
-		ID:          pid,
-		Run:         r,
+		ID:  pid,
+		Run: r,
+		EnvGenerator: &RuntimeEnvGenerator{
+			App:             r.App,
+			InfraManager:    r.ResourceManager,
+			Meta:            params.Meta,
+			Secrets:         params.Secrets,
+			SvcConfigs:      params.ServiceConfigs,
+			AppID:           option.Some(r.ID),
+			EnvID:           option.Some(pid),
+			TraceEndpoint:   option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
+			AuthKey:         option.Some(authKey),
+			DaemonProxyAddr: option.Some(listenAddr),
+			ListenAddresses: procListenAddresses,
+		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
 		ctx:         params.Ctx,
@@ -389,21 +416,53 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		log:         r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
 		symParsed:   make(chan struct{}),
 		authKey:     authKey,
+		Services:    make(map[string]*Proc),
 	}
 	p.procCond.L = &p.procMu
 	go p.parseSymTable(params.BinPath)
 
-	if err := p.NewAllInOneProc(params.BinPath, params.Environ, params.Secrets, params.ServiceConfigs); err != nil {
-		return nil, err
+	newProcParams := &NewProcParams{
+		BinPath: params.BinPath,
+		Environ: params.Environ,
+		Secrets: params.Secrets,
+		Configs: params.ServiceConfigs,
 	}
 
-	if err := p.Gateway.Start(); err != nil {
+	// If we're testing external calls, start a process for each service.
+	if experiments.ExternalCalls.Enabled(params.Experiments) {
+		// create a process for each service
+		for _, s := range params.Meta.Svcs {
+			if err := p.NewProcForService(
+				s,
+				procListenAddresses.Services[s.Name],
+				newProcParams,
+			); err != nil {
+				return nil, err
+			}
+		}
+
+		// create a process for the gateway
+		if err := p.NewProcForGateway(newProcParams); err != nil {
+			return nil, err
+		}
+	} else {
+		// If we're not testing external calls, we only need a single process
+		// so no need to pass in the listen addresses.
+		procListenAddresses.Services = nil
+
+		// Otherwise we're running everything inside a single process
+		if err := p.NewAllInOneProc(newProcParams); err != nil {
+			return nil, err
+		}
+	}
+
+	// Start the processes of the application
+	if err := p.Start(); err != nil {
 		return nil, err
 	}
-	p.log.Info().Msg("started process")
 	defer func() {
 		if err != nil {
-			p.Gateway.Kill()
+			p.Kill()
 		}
 	}()
 

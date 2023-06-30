@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 
@@ -70,7 +71,21 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 		setupFn = func() (*T, error) { return new(T), nil }
 	}
 
-	i, err := setupFn()
+	var i *T
+
+	// backoff retry for service initialization
+	//
+	// this is to handle the case where a service is dependent on another service during a cold start
+	// of the application, and the dependent service is not yet ready
+	for attempt := 0; attempt < 5; attempt++ {
+		i, err = setupFn()
+		if err == nil {
+			break
+		}
+
+		// sleep
+		time.Sleep((1 << attempt) * 100 * time.Millisecond)
+	}
 	if err != nil {
 		mgr.rt.Logger().Error().Err(err).Str("service", decl.Service).Msg("service initialization failed")
 		return errs.B().Code(errs.Internal).Msgf("service %s: initialization failed", decl.Service).Err()

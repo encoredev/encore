@@ -2,18 +2,14 @@ package run
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,7 +33,10 @@ type ProcGroup struct {
 	Meta        *meta.Data       // app metadata snapshot
 	Experiments *experiments.Set // enabled experiments
 
-	Gateway *Proc // the API gateway process
+	Gateway  *Proc            // the API gateway process
+	Services map[string]*Proc // all the service processes by name
+
+	EnvGenerator *RuntimeEnvGenerator // generates runtime environment variables
 
 	procMu       sync.Mutex // protects both allProcesses and runningProcs
 	procCond     sync.Cond  // used to signal a change in runningProcs
@@ -74,6 +73,18 @@ func (pg *ProcGroup) Done() <-chan struct{} {
 	return c
 }
 
+// Start starts all the processes in the group.
+func (pg *ProcGroup) Start() (err error) {
+	for _, p := range pg.allProcesses {
+		if err = p.Start(); err != nil {
+			p.Kill()
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Close closes the process and waits for it to shutdown.
 // It can safely be called multiple times.
 func (pg *ProcGroup) Close() {
@@ -89,6 +100,17 @@ func (pg *ProcGroup) Close() {
 	pg.procMu.Unlock()
 
 	wg.Wait()
+}
+
+// Kill kills all the processes in the group.
+// It does not wait for them to exit.
+func (pg *ProcGroup) Kill() {
+	pg.procMu.Lock()
+	defer pg.procMu.Unlock()
+
+	for _, p := range pg.allProcesses {
+		p.Kill()
+	}
 }
 
 // parseSymTable parses the symbol table of the binary at binPath
@@ -119,15 +141,10 @@ func (pg *ProcGroup) SymTable(ctx context.Context) (*sym.Table, error) {
 }
 
 // newProc creates a new process in the group and sets up the required stuff in the struct
-func (pg *ProcGroup) newProc(processName string) (*Proc, error) {
-	port, err := allocatePort()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to allocate port for all-in-one proc")
-	}
-
+func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Proc, error) {
 	dst := &url.URL{
 		Scheme: "http",
-		Host:   "127.0.0.1:" + strconv.Itoa(port),
+		Host:   listenAddr.String(),
 	}
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
@@ -143,7 +160,7 @@ func (pg *ProcGroup) newProc(processName string) (*Proc, error) {
 	p := &Proc{
 		group:         pg,
 		log:           pg.log.With().Str("proc", processName).Logger(),
-		containerPort: port,
+		containerPort: int(listenAddr.Port()),
 		httpProxy:     proxy,
 		exit:          make(chan struct{}),
 	}
@@ -155,41 +172,33 @@ func (pg *ProcGroup) newProc(processName string) (*Proc, error) {
 	return p, nil
 }
 
-func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets map[string]string, configs map[string]string) error {
-	p, err := pg.newProc("all-in-one")
+type NewProcParams struct {
+	BinPath string            // The path to the binary to run
+	Environ []string          // The base environment to run the process with
+	Secrets map[string]string // All the secrets for the environment
+	Configs map[string]string // All the service configs for all the services in the environment
+}
+
+func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {
+	ports, err := GenerateListenAddresses(nil)
+	if err != nil {
+		return err
+	}
+
+	p, err := pg.newProc("all-in-one", ports.Gateway)
 	if err != nil {
 		return err
 	}
 	pg.Gateway = p
 
-	runtimeCfg, err := pg.Run.Mgr.generateConfig(generateConfigParams{
-		App:           pg.Run.App,
-		RM:            pg.Run.ResourceManager,
-		Meta:          pg.Meta,
-		ForTests:      false,
-		AuthKey:       pg.authKey,
-		APIBaseURL:    "http://" + pg.Run.ListenAddr,
-		ConfigAppID:   pg.Run.ID,
-		ConfigEnvID:   pg.ID,
-		ExternalCalls: experiments.ExternalCalls.Enabled(pg.Experiments),
-	})
+	// Generate the environmental variables for the process
+	envs, err := pg.EnvGenerator.ForServices(ports.Gateway, pg.Meta.Svcs...)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate runtime config")
+		return errors.Wrap(err, "failed to generate environment variables")
 	}
-	runtimeJSON, _ := json.Marshal(runtimeCfg)
+	envs = append(envs, params.Environ...)
 
-	cmd := exec.CommandContext(pg.ctx, binPath)
-	envs := append([]string{
-		"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
-		"ENCORE_APP_SECRETS=" + encodeSecretsEnv(secrets),
-		"PORT=" + strconv.Itoa(p.containerPort),
-	},
-		environ...,
-	)
-	for serviceName, cfgString := range configs {
-		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
-	}
-
+	cmd := exec.CommandContext(pg.ctx, params.BinPath)
 	cmd.Env = envs
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
 
@@ -202,6 +211,44 @@ func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets m
 	p.cmd = cmd
 
 	return nil
+}
+
+func (pg *ProcGroup) NewProcForService(service *meta.Service, listenAddr netip.AddrPort, params *NewProcParams) error {
+	if !listenAddr.IsValid() {
+		return errors.New("invalid listen address")
+	}
+
+	p, err := pg.newProc(service.Name, listenAddr)
+	if err != nil {
+		return err
+	}
+	pg.Services[service.Name] = p
+
+	// Generate the environmental variables for the process
+	envs, err := pg.EnvGenerator.ForServices(listenAddr, service)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate environment variables")
+	}
+	envs = append(envs, params.Environ...)
+
+	cmd := exec.CommandContext(pg.ctx, params.BinPath)
+	cmd.Env = envs
+	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
+
+	// Proxy stdout and stderr to the given app logger, if any.
+	if l := pg.logger; l != nil {
+		cmd.Stdout = newLogWriter(pg.Run, l.RunStdout)
+		cmd.Stderr = newLogWriter(pg.Run, l.RunStderr)
+	}
+
+	p.cmd = cmd
+
+	return nil
+}
+
+func (pg *ProcGroup) NewProcForGateway(params *NewProcParams) error {
+	// TOOD: implement gateway processes
+	return pg.NewAllInOneProc(params)
 }
 
 // Proc represents a single Encore process running within a [ProcGroup].
@@ -234,6 +281,7 @@ func (p *Proc) Start() error {
 	if err := p.cmd.Start(); err != nil {
 		return errors.Wrap(err, "could not start process")
 	}
+	p.log.Info().Msg("process started")
 	p.group.runningProcs++
 
 	p.Pid = p.cmd.Process.Pid
@@ -305,14 +353,4 @@ func (p *Proc) ProxyReq(w http.ResponseWriter, req *http.Request) {
 // not any other processes it may have started.
 func (p *Proc) Kill() {
 	_ = p.cmd.Process.Kill()
-}
-
-// allocatePort allocates a random, unused TCP port.
-func allocatePort() (int, error) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = l.Close() }()
-	return l.Addr().(*net.TCPAddr).Port, nil
 }

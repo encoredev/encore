@@ -53,7 +53,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	app := apps.NewInstance(appRoot, "slug", "")
 	mgr := &Manager{}
-	rm := infra.NewResourceManager(app, mgr.ClusterMgr, nil, false)
+	rm := infra.NewResourceManager(app, mgr.ClusterMgr, nil, 0, false)
 	run := &Run{
 		ID:              GenID(),
 		ListenAddr:      ln.Addr().String(),

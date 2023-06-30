@@ -440,21 +440,11 @@ type CallContext struct {
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
 	if !c.server.static.Testing && experiments.ExternalCalls.Enabled(c.server.experiments) {
-		// TODO(domblack): This is a temporarily hack to execute the external code path
-		//                 in the final release, if there is no service discovery for a given service
-		//				   then it is running locally, thus can be called via `d.internalCall`.
 		service, found := c.server.runtime.ServiceDiscovery[d.Service]
-		if !found {
-			if len(c.server.runtime.ServiceAuth) == 0 {
-				return respData, errs.B().Code(errs.Internal).Msgf("no service auth configured for runtime: %s", d.Service).Err()
-			}
 
-			return d.externalCall(c, config.Service{
-				Name:        d.Service,
-				URL:         c.server.runtime.APIBaseURL,
-				Protocol:    config.Http,
-				ServiceAuth: c.server.runtime.ServiceAuth[0],
-			}, req)
+		if !found {
+			// FIXME(domblack): In the future add a check to see if we're hosting this service within this instance
+			return d.internalCall(c, req)
 		} else {
 			return d.externalCall(c, service, req)
 		}
@@ -691,7 +681,12 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 				if err != nil {
 					return resp, errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
 				}
-				return resp, errs.B().Code(errs.Internal).Msg("request failed: " + string(bodyBytes)).Err()
+
+				if len(bodyBytes) == 0 {
+					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %d (%s)", httpResp.StatusCode, httpResp.Status).Err()
+				} else {
+					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %d: %s", httpResp.StatusCode, string(bodyBytes)).Err()
+				}
 			}
 		}
 
@@ -699,7 +694,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 	})()
 
 	if respErr != nil {
-		c.server.rootLogger.Err(respErr).Msg("call failed")
+		c.server.rootLogger.Err(respErr).Str("calling", fmt.Sprintf("%s.%s", d.Service, d.Endpoint)).Str("url", reqURL).Msg("call failed")
 	}
 
 	c.server.finishCall(call, respErr)
