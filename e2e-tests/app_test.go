@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
@@ -90,8 +91,6 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
 		Meta:           parse.Meta,
-		RuntimePort:    0,
-		DBProxyPort:    0,
 		Logger:         logger,
 		Environ:        env,
 		ServiceConfigs: build.Configs,
@@ -101,13 +100,12 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	assertNil(err)
 	c.Cleanup(p.Close)
 	run.StoreProc(p)
-
 	for serviceName, config := range build.Configs {
 		env = append(env, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
 	}
 
 	// start proxying TCP requests to the running application
-	go proxy(ctx, ln, p.Gateway)
+	startProxy(ctx, ln, p.Gateway)
 
 	return &RunAppData{
 		Addr:   ln.Addr().String(),
@@ -156,7 +154,7 @@ func (l testRunLogger) RunStderr(r *Run, line []byte) {
 	l.log.Log(string(line))
 }
 
-func proxy(ctx context.Context, ln net.Listener, p *Proc) {
+func startProxy(ctx context.Context, ln net.Listener, p *Proc) {
 	srv := &http.Server{
 		Handler: http.HandlerFunc(p.ProxyReq),
 	}
@@ -165,7 +163,11 @@ func proxy(ctx context.Context, ln net.Listener, p *Proc) {
 		srv.Close()
 	}()
 
-	srv.Serve(ln)
+	go srv.Serve(ln)
+
+	// So we're going to sleep here to give the server a chance to start up.
+	// as otherwise we see the application startup before this proxy is ready
+	time.Sleep(1 * time.Second)
 }
 
 // testBuild is a helper that compiles the app situated at appRoot

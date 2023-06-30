@@ -173,10 +173,8 @@ func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Pr
 }
 
 type NewProcParams struct {
-	BinPath string            // The path to the binary to run
-	Environ []string          // The base environment to run the process with
-	Secrets map[string]string // All the secrets for the environment
-	Configs map[string]string // All the service configs for all the services in the environment
+	BinPath string   // The path to the binary to run
+	Environ []string // The base environment to run the process with
 }
 
 func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {

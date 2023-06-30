@@ -334,8 +334,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		BinPath:        build.Exe,
 		Meta:           parse.Meta,
 		Logger:         r.Mgr,
-		RuntimePort:    r.Mgr.RuntimePort,
-		DBProxyPort:    r.Mgr.DBProxyPort,
 		Secrets:        secrets,
 		ServiceConfigs: build.Configs,
 		Environ:        r.params.Environ,
@@ -368,8 +366,6 @@ type StartProcGroupParams struct {
 	Meta           *meta.Data
 	Secrets        map[string]string
 	ServiceConfigs map[string]string
-	RuntimePort    int
-	DBProxyPort    int
 	Logger         RunLogger
 	Environ        []string
 	WorkingDir     string
@@ -388,7 +384,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 
 	listenAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse listen address")
+		return nil, errors.Wrapf(err, "failed to parse listen address: %s", r.ListenAddr)
 	}
 
 	p = &ProcGroup{
@@ -424,8 +420,6 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	newProcParams := &NewProcParams{
 		BinPath: params.BinPath,
 		Environ: params.Environ,
-		Secrets: params.Secrets,
-		Configs: params.ServiceConfigs,
 	}
 
 	// If we're testing external calls, start a process for each service.

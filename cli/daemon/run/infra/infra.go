@@ -372,7 +372,7 @@ func (rm *ResourceManager) PubSubSubscriptionConfig(_ *meta.PubSubTopic, sub *me
 // RedisConfig returns the Redis server and database configuration for the given database.
 func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisServer, config.RedisDatabase, error) {
 	server := rm.GetRedis()
-	if redis == nil {
+	if server == nil {
 		return config.RedisServer{}, config.RedisDatabase{}, errors.New("no Redis server found")
 	}
 
