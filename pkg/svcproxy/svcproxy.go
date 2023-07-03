@@ -65,9 +65,7 @@ func New(ctx context.Context, logger zerolog.Logger) (*SvcProxy, error) {
 
 // Close stops running the service proxy
 func (p *SvcProxy) Close() {
-	if p.httpServer != nil {
-		_ = p.httpServer.Close()
-	}
+	_ = p.httpServer.Close()
 	_ = p.listener.Close()
 }
 
