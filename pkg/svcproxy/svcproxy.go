@@ -105,10 +105,10 @@ func (p *SvcProxy) createReverseProxy(what, name string, listener netip.AddrPort
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
-		Director: func(request *http.Request) {
-			request.URL.Scheme = "http"
-			request.URL.Host = listener.String()
-			request.URL.Path = strings.TrimPrefix(request.URL.Path, fmt.Sprintf("/%s/%s", what, name))
+		Rewrite: func(request *httputil.ProxyRequest) {
+			request.Out.URL.Scheme = "http"
+			request.Out.URL.Host = listener.String()
+			request.Out.URL.Path = strings.TrimPrefix(request.In.URL.Path, fmt.Sprintf("/%s/%s", what, name))
 		},
 		ErrorLog: logging.NewZeroLogAdapter(p.logger.With().Str(what, name).Logger(), zerolog.ErrorLevel),
 	}
