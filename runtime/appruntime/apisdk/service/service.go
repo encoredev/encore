@@ -70,15 +70,14 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 		setupFn = func() (*T, error) { return new(T), nil }
 	}
 
-	i, err := setupFn()
+	decl.instance, err = setupFn()
 	if err != nil {
 		mgr.rt.Logger().Error().Err(err).Str("service", decl.Service).Msg("service initialization failed")
 		return errs.B().Code(errs.Internal).Msgf("service %s: initialization failed", decl.Service).Err()
 	}
-	decl.instance = i
 
 	// If the API Decl supports graceful shutdown, register that with the server.
-	if gs, ok := any(i).(shutdowner); ok {
+	if gs, ok := any(decl.instance).(shutdowner); ok {
 		mgr.registerShutdownHandler(gs)
 	}
 	return nil

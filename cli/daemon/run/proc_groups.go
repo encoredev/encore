@@ -2,25 +2,24 @@ package run
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httputil"
+	"net/netip"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/internal/sym"
-	"encr.dev/cli/internal/xos"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -34,7 +33,10 @@ type ProcGroup struct {
 	Meta        *meta.Data       // app metadata snapshot
 	Experiments *experiments.Set // enabled experiments
 
-	Gateway *Proc // the API gateway process
+	Gateway  *Proc            // the API gateway process
+	Services map[string]*Proc // all the service processes by name
+
+	EnvGenerator *RuntimeEnvGenerator // generates runtime environment variables
 
 	procMu       sync.Mutex // protects both allProcesses and runningProcs
 	procCond     sync.Cond  // used to signal a change in runningProcs
@@ -71,6 +73,21 @@ func (pg *ProcGroup) Done() <-chan struct{} {
 	return c
 }
 
+// Start starts all the processes in the group.
+func (pg *ProcGroup) Start() (err error) {
+	pg.procMu.Lock()
+	defer pg.procMu.Unlock()
+
+	for _, p := range pg.allProcesses {
+		if err = p.start(); err != nil {
+			p.Kill()
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Close closes the process and waits for it to shutdown.
 // It can safely be called multiple times.
 func (pg *ProcGroup) Close() {
@@ -86,6 +103,17 @@ func (pg *ProcGroup) Close() {
 	pg.procMu.Unlock()
 
 	wg.Wait()
+}
+
+// Kill kills all the processes in the group.
+// It does not wait for them to exit.
+func (pg *ProcGroup) Kill() {
+	pg.procMu.Lock()
+	defer pg.procMu.Unlock()
+
+	for _, p := range pg.allProcesses {
+		p.Kill()
+	}
 }
 
 // parseSymTable parses the symbol table of the binary at binPath
@@ -115,45 +143,63 @@ func (pg *ProcGroup) SymTable(ctx context.Context) (*sym.Table, error) {
 	}
 }
 
-func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets map[string]string, configs map[string]string) error {
-	p := &Proc{
-		group: pg,
-		log:   pg.log.With().Str("proc", "all-in-one").Logger(),
-		exit:  make(chan struct{}),
+// newProc creates a new process in the group and sets up the required stuff in the struct
+func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Proc, error) {
+	dst := &url.URL{
+		Scheme: "http",
+		Host:   listenAddr.String(),
 	}
-	pg.Gateway = p
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(dst)
+
+			// Add the auth key unless the test header is set.
+			if r.Out.Header.Get(TestHeaderDisablePlatformAuth) == "" {
+				addAuthKeyToRequest(r.Out, pg.authKey)
+			}
+		},
+	}
+
+	p := &Proc{
+		group:         pg,
+		log:           pg.log.With().Str("proc", processName).Logger(),
+		containerPort: int(listenAddr.Port()),
+		httpProxy:     proxy,
+		exit:          make(chan struct{}),
+	}
 
 	pg.procMu.Lock()
 	pg.allProcesses = append(pg.allProcesses, p)
 	pg.procMu.Unlock()
 
-	runtimeCfg, err := pg.Run.Mgr.generateConfig(generateConfigParams{
-		App:           pg.Run.App,
-		RM:            pg.Run.ResourceManager,
-		Meta:          pg.Meta,
-		ForTests:      false,
-		AuthKey:       pg.authKey,
-		APIBaseURL:    "http://" + pg.Run.ListenAddr,
-		ConfigAppID:   pg.Run.ID,
-		ConfigEnvID:   pg.ID,
-		ExternalCalls: experiments.ExternalCalls.Enabled(pg.Experiments),
-	})
+	return p, nil
+}
+
+type NewProcParams struct {
+	BinPath string   // The path to the binary to run
+	Environ []string // The base environment to run the process with
+}
+
+func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {
+	ports, err := GenerateListenAddresses(pg.Run.SvcProxy, nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate runtime config")
-	}
-	runtimeJSON, _ := json.Marshal(runtimeCfg)
-
-	cmd := exec.CommandContext(pg.ctx, binPath)
-	envs := append([]string{
-		"ENCORE_RUNTIME_CONFIG=" + base64.RawURLEncoding.EncodeToString(runtimeJSON),
-		"ENCORE_APP_SECRETS=" + encodeSecretsEnv(secrets),
-	},
-		environ...,
-	)
-	for serviceName, cfgString := range configs {
-		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+		return err
 	}
 
+	p, err := pg.newProc("all-in-one", ports.Gateway.ListenAddr)
+	if err != nil {
+		return err
+	}
+	pg.Gateway = p
+
+	// Generate the environmental variables for the process
+	envs, err := pg.EnvGenerator.ForServices(ports.Gateway.ListenAddr, pg.Meta.Svcs...)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate environment variables")
+	}
+	envs = append(envs, params.Environ...)
+
+	cmd := exec.CommandContext(pg.ctx, params.BinPath)
 	cmd.Env = envs
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
 
@@ -165,41 +211,45 @@ func (pg *ProcGroup) NewAllInOneProc(binPath string, environ []string, secrets m
 
 	p.cmd = cmd
 
-	// Set up extra file descriptors for communicating requests/responses:
-	// - reqRd is for reading incoming requests (handed over procchild)
-	// - reqWr is for writing incoming requests
-	// - respRd is for reading responses
-	// - respWr is for writing responses (handed over to proc)
-	reqRd, reqWr, err1 := os.Pipe()
-	respRd, respWr, err2 := os.Pipe()
-	defer func() {
-		// Close all the files if we return an error.
-		if err != nil {
-			closeAll(reqRd, reqWr, respRd, respWr)
-		}
-	}()
-	if err := firstErr(err1, err2); err != nil {
-		return errors.Wrap(err, "could not create request & response pipes")
-	} else if err := xos.ArrangeExtraFiles(cmd, reqRd, respWr); err != nil {
-		return errors.Wrap(err, "could not handle over request & response pipes")
-	}
-	p.reqWr = reqWr
-	p.respRd = respRd
-	p.closeOnStart = []io.Closer{reqRd, respWr}
+	return nil
+}
 
-	rwc := &struct {
-		io.ReadCloser
-		io.Writer
-	}{
-		ReadCloser: io.NopCloser(respRd),
-		Writer:     reqWr,
+func (pg *ProcGroup) NewProcForService(service *meta.Service, listenAddr netip.AddrPort, params *NewProcParams) error {
+	if !listenAddr.IsValid() {
+		return errors.New("invalid listen address")
 	}
-	p.Client, err = yamux.Client(rwc, yamux.DefaultConfig())
+
+	p, err := pg.newProc(service.Name, listenAddr)
 	if err != nil {
-		return errors.Wrap(err, "could not initialize connection")
+		return err
 	}
+	pg.Services[service.Name] = p
+
+	// Generate the environmental variables for the process
+	envs, err := pg.EnvGenerator.ForServices(listenAddr, service)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate environment variables")
+	}
+	envs = append(envs, params.Environ...)
+
+	cmd := exec.CommandContext(pg.ctx, params.BinPath)
+	cmd.Env = envs
+	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
+
+	// Proxy stdout and stderr to the given app logger, if any.
+	if l := pg.logger; l != nil {
+		cmd.Stdout = newLogWriter(pg.Run, l.RunStdout)
+		cmd.Stderr = newLogWriter(pg.Run, l.RunStderr)
+	}
+
+	p.cmd = cmd
 
 	return nil
+}
+
+func (pg *ProcGroup) NewProcForGateway(params *NewProcParams) error {
+	// TOOD: implement gateway processes
+	return pg.NewAllInOneProc(params)
 }
 
 // Proc represents a single Encore process running within a [ProcGroup].
@@ -209,42 +259,45 @@ type Proc struct {
 	exit  chan struct{}  // closed when the process has exited
 	cmd   *exec.Cmd      // The command for this specific process
 
-	Started   atomic.Bool    // whether the process has started
-	StartedAt time.Time      // when the process started
-	Pid       int            // the OS process id
-	Client    *yamux.Session // the client connection to the process
+	containerPort int                    // The port the HTTP server of the process should listen on
+	httpProxy     *httputil.ReverseProxy // The reverse proxy for the HTTP server of the process
 
-	reqWr        *os.File
-	respRd       *os.File
-	closeOnStart []io.Closer
+	// The following fields are only valid after Start() has been called.
+	Started   atomic.Bool // whether the process has started
+	StartedAt time.Time   // when the process started
+	Pid       int         // the OS process id
 }
 
 // Start starts the process and returns immediately.
 //
 // If the process has already been started, this is a no-op.
 func (p *Proc) Start() error {
+	p.group.procMu.Lock()
+	defer p.group.procMu.Unlock()
+
+	return p.start()
+}
+
+// start starts the process and returns immediately
+//
+// It must be called while locked under the p.group.procMu lock.
+func (p *Proc) start() error {
 	if !p.Started.CompareAndSwap(false, true) {
 		return nil
 	}
 
-	p.group.procMu.Lock()
-	defer p.group.procMu.Unlock()
-
 	if err := p.cmd.Start(); err != nil {
 		return errors.Wrap(err, "could not start process")
 	}
+	p.log.Info().Msg("process started")
 	p.group.runningProcs++
 
 	p.Pid = p.cmd.Process.Pid
 	p.StartedAt = time.Now()
 
-	// Close the files we handed over to the child.
-	closeAll(p.closeOnStart...)
-
 	// Start watching the process for when it quits.
 	go func() {
 		defer close(p.exit)
-		defer closeAll(p.reqWr, p.respRd)
 
 		// Wait for the process to exit.
 		err := p.cmd.Wait()
@@ -279,7 +332,11 @@ func (p *Proc) Start() error {
 // Close closes the process and waits for it to exit.
 // It is safe to call Close multiple times.
 func (p *Proc) Close() {
-	_ = p.reqWr.Close()
+	if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
+		// If there's an error sending the signal, just kill the process.
+		// This might happen because Interrupt is not supported on Windows.
+		p.Kill()
+	}
 
 	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
@@ -292,6 +349,11 @@ func (p *Proc) Close() {
 		p.Kill()
 		<-p.exit
 	}
+}
+
+// ProxyReq proxies the request to the Encore app.
+func (p *Proc) ProxyReq(w http.ResponseWriter, req *http.Request) {
+	p.httpProxy.ServeHTTP(w, req)
 }
 
 // Kill causes the Process to exit immediately. Kill does not wait until

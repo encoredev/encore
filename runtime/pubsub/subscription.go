@@ -11,6 +11,7 @@ import (
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/beta/errs"
+	"encore.dev/pubsub/internal/noop"
 	"encore.dev/pubsub/internal/utils"
 )
 
@@ -62,6 +63,12 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 	if topic.runtimeCfg == nil || topic.topic == nil || topic.mgr == nil {
 		panic("pubsub topic was not created using pubsub.NewTopic")
 	}
+
+	if _, isNoop := topic.topic.(*noop.Topic); isNoop {
+		// no-op means no-op!
+		return nil
+	}
+
 	mgr := topic.mgr
 
 	// Set default config values for missing values

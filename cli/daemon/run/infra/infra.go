@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -41,22 +42,24 @@ const (
 // ResourceManager manages a set of infrastructure resources
 // to support the running Encore application.
 type ResourceManager struct {
-	app      *apps.Instance
-	sqlMgr   *sqldb.ClusterManager
-	environ  environ.Environ
-	log      zerolog.Logger
-	forTests bool
+	app         *apps.Instance
+	dbProxyPort int
+	sqlMgr      *sqldb.ClusterManager
+	environ     environ.Environ
+	log         zerolog.Logger
+	forTests    bool
 
 	mutex   sync.Mutex
 	servers map[Type]Resource
 }
 
-func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, environ environ.Environ, forTests bool) *ResourceManager {
+func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
 	return &ResourceManager{
-		app:      app,
-		sqlMgr:   sqlMgr,
-		environ:  environ,
-		forTests: forTests,
+		app:         app,
+		dbProxyPort: dbProxyPort,
+		sqlMgr:      sqlMgr,
+		environ:     environ,
+		forTests:    forTests,
 
 		servers: make(map[Type]Resource),
 		log:     log.With().Str("app_id", app.PlatformOrLocalID()).Logger(),
@@ -310,4 +313,77 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 	}
 
 	return nil
+}
+
+// SQLConfig returns the SQL server and database configuration for the given database.
+func (rm *ResourceManager) SQLConfig(db *meta.SQLDatabase) (config.SQLServer, config.SQLDatabase, error) {
+	cluster := rm.GetSQLCluster()
+	if cluster == nil {
+		return config.SQLServer{}, config.SQLDatabase{}, errors.New("no SQL cluster found")
+	}
+
+	srvCfg := config.SQLServer{
+		Host: "localhost:" + strconv.Itoa(rm.dbProxyPort),
+	}
+
+	dbCfg := config.SQLDatabase{
+		EncoreName:   db.Name,
+		DatabaseName: db.Name,
+		User:         "encore",
+		Password:     cluster.Password,
+	}
+
+	return srvCfg, dbCfg, nil
+}
+
+// PubSubTopicConfig returns the PubSub provider and topic configuration for the given topic.
+func (rm *ResourceManager) PubSubTopicConfig(topic *meta.PubSubTopic) (config.PubsubProvider, config.PubsubTopic, error) {
+	nsq := rm.GetPubSub()
+	if nsq == nil {
+		return config.PubsubProvider{}, config.PubsubTopic{}, errors.New("no PubSub server found")
+	}
+
+	providerCfg := config.PubsubProvider{
+		NSQ: &config.NSQProvider{
+			Host: nsq.Addr(),
+		},
+	}
+
+	topicCfg := config.PubsubTopic{
+		EncoreName:    topic.Name,
+		ProviderName:  topic.Name,
+		Subscriptions: make(map[string]*config.PubsubSubscription),
+	}
+
+	return providerCfg, topicCfg, nil
+}
+
+// PubSubSubscriptionConfig returns the PubSub subscription configuration for the given subscription.
+func (rm *ResourceManager) PubSubSubscriptionConfig(_ *meta.PubSubTopic, sub *meta.PubSubTopic_Subscription) (config.PubsubSubscription, error) {
+	subCfg := config.PubsubSubscription{
+		ID:           sub.Name,
+		EncoreName:   sub.Name,
+		ProviderName: sub.Name,
+	}
+
+	return subCfg, nil
+}
+
+// RedisConfig returns the Redis server and database configuration for the given database.
+func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisServer, config.RedisDatabase, error) {
+	server := rm.GetRedis()
+	if server == nil {
+		return config.RedisServer{}, config.RedisDatabase{}, errors.New("no Redis server found")
+	}
+
+	srvCfg := config.RedisServer{
+		Host: server.Addr(),
+	}
+
+	dbCfg := config.RedisDatabase{
+		EncoreName: redis.Name,
+		KeyPrefix:  redis.Name + "/",
+	}
+
+	return srvCfg, dbCfg, nil
 }

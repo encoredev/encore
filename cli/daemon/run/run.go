@@ -11,9 +11,11 @@ import (
 	mathrand "math/rand"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -30,6 +32,8 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/option"
+	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -39,6 +43,7 @@ type Run struct {
 	ID              string // unique ID for this instance of the running app
 	App             *apps.Instance
 	ListenAddr      string // the address the app is listening on
+	SvcProxy        *svcproxy.SvcProxy
 	ResourceManager *infra.ResourceManager
 
 	builder builder.Impl
@@ -82,24 +87,31 @@ type StartParams struct {
 // Start starts the application.
 // Its lifetime is bounded by ctx.
 func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, err error) {
+	logger := log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger()
+
+	svcProxy, err := svcproxy.New(ctx, logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create service proxy")
+	}
+
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
-		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.Environ, false),
+		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.Environ, mgr.DBProxyPort, false),
 		ListenAddr:      params.ListenAddr,
-
-		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
-		Mgr:     mgr,
-		params:  &params,
-		secrets: mgr.Secret.Load(params.App),
-		ctx:     ctx,
-		exited:  make(chan struct{}),
-		started: make(chan struct{}),
+		SvcProxy:        svcProxy,
+		log:             logger,
+		Mgr:             mgr,
+		params:          &params,
+		secrets:         mgr.Secret.Load(params.App),
+		ctx:             ctx,
+		exited:          make(chan struct{}),
+		started:         make(chan struct{}),
 	}
 	defer func(r *Run) {
 		// Stop all the resource servers if we exit due to an error
 		if err != nil {
-			r.ResourceManager.StopAll()
+			r.Close()
 		}
 	}(run)
 
@@ -126,6 +138,11 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	}
 
 	return run, nil
+}
+
+func (r *Run) Close() {
+	r.SvcProxy.Close()
+	r.ResourceManager.StopAll()
 }
 
 // RunLogger is the interface for listening to run logs.
@@ -331,8 +348,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		BinPath:        build.Exe,
 		Meta:           parse.Meta,
 		Logger:         r.Mgr,
-		RuntimePort:    r.Mgr.RuntimePort,
-		DBProxyPort:    r.Mgr.DBProxyPort,
 		Secrets:        secrets,
 		ServiceConfigs: build.Configs,
 		Environ:        r.params.Environ,
@@ -365,8 +380,6 @@ type StartProcGroupParams struct {
 	Meta           *meta.Data
 	Secrets        map[string]string
 	ServiceConfigs map[string]string
-	RuntimePort    int
-	DBProxyPort    int
 	Logger         RunLogger
 	Environ        []string
 	WorkingDir     string
@@ -377,9 +390,33 @@ type StartProcGroupParams struct {
 func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err error) {
 	pid := GenID()
 	authKey := genAuthKey()
+
+	procListenAddresses, err := GenerateListenAddresses(r.SvcProxy, params.Meta.Svcs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate listen addresses")
+	}
+
+	listenAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse listen address: %s", r.ListenAddr)
+	}
+
 	p = &ProcGroup{
-		ID:          pid,
-		Run:         r,
+		ID:  pid,
+		Run: r,
+		EnvGenerator: &RuntimeEnvGenerator{
+			App:             r.App,
+			InfraManager:    r.ResourceManager,
+			Meta:            params.Meta,
+			Secrets:         params.Secrets,
+			SvcConfigs:      params.ServiceConfigs,
+			AppID:           option.Some(r.ID),
+			EnvID:           option.Some(pid),
+			TraceEndpoint:   option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
+			AuthKey:         option.Some(authKey),
+			DaemonProxyAddr: option.Some(listenAddr),
+			ListenAddresses: procListenAddresses,
+		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
 		ctx:         params.Ctx,
@@ -389,21 +426,51 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		log:         r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
 		symParsed:   make(chan struct{}),
 		authKey:     authKey,
+		Services:    make(map[string]*Proc),
 	}
 	p.procCond.L = &p.procMu
 	go p.parseSymTable(params.BinPath)
 
-	if err := p.NewAllInOneProc(params.BinPath, params.Environ, params.Secrets, params.ServiceConfigs); err != nil {
-		return nil, err
+	newProcParams := &NewProcParams{
+		BinPath: params.BinPath,
+		Environ: params.Environ,
 	}
 
-	if err := p.Gateway.Start(); err != nil {
+	// If we're testing external calls, start a process for each service.
+	if experiments.ExternalCalls.Enabled(params.Experiments) {
+		// create a process for each service
+		for _, s := range params.Meta.Svcs {
+			if err := p.NewProcForService(
+				s,
+				procListenAddresses.Services[s.Name].ListenAddr,
+				newProcParams,
+			); err != nil {
+				return nil, err
+			}
+		}
+
+		// create a process for the gateway
+		if err := p.NewProcForGateway(newProcParams); err != nil {
+			return nil, err
+		}
+	} else {
+		// If we're not testing external calls, we only need a single process
+		// so no need to pass in the listen addresses.
+		procListenAddresses.Services = nil
+
+		// Otherwise we're running everything inside a single process
+		if err := p.NewAllInOneProc(newProcParams); err != nil {
+			return nil, err
+		}
+	}
+
+	// Start the processes of the application
+	if err := p.Start(); err != nil {
 		return nil, err
 	}
-	p.log.Info().Msg("started process")
 	defer func() {
 		if err != nil {
-			p.Gateway.Kill()
+			p.Kill()
 		}
 	}()
 
