@@ -21,10 +21,10 @@ Having an end-to-end integration between application code and infrastructure als
 
 ## Environment types
 
-By default, Encore provisions infrastructure using contextually appropriate objectives for each environment type. You retain control and configurability of infrastructure in your cloud account, and can access settings via your cloud provider as if you set up the infrastructure manually.
+By default, Encore provisions infrastructure using contextually appropriate objectives for each environment type. You retain control over the infrastructure in your cloud account, and can configure it directly both via Encore's Cloud Dashboard and your cloud provider's console. Encore takes care of syncing your changes.
 
 |  | Local | Encore Cloud | GCP / AWS |
-| - | - | - | - | - | - |
+| - | - | - | - |
 | **Environment types:** | Development | Preview, Development | Development, Production |
 | **Objectives:** | Provisioning speed | Provisioning speed, Cost\* | Reliability, Security, Scalability |
 
@@ -44,13 +44,13 @@ Encore provisions infrastructure resources differently for each type of developm
 ### Local Development
 
 For local development Encore provisions a combination of Docker and in-memory infrastructure components.
-[SQL Databases][encore-sqldb] are provisioned using [Docker](https://docker.com). For [Pub/Sub][encore-pubsub]
-and [Caching][encore-caching] the infrastructure is run in-memory. 
+[SQL Databases](/docs/primitives/databases) are provisioned using [Docker](https://docker.com). For [Pub/Sub](/docs/primitives/pubsub)
+and [Caching](/docs/primitives/caching) the infrastructure is run in-memory. 
 
 When running tests, a separate SQL Database cluster is provisioned that is optimized for high performance
 (using an in-memory filesystem and fsync disabled) at the expense of reduced reliability.
 
-To avoid surprises during development, [Cron Jobs][encore-cron] are not triggered in local environments.
+To avoid surprises during development, [Cron Jobs](/docs/primitives/cron-jobs) are not triggered in local environments.
 They can always be triggered manually by calling the API directly from the [development dashboard](/docs/observability/dev-dash).
 
 The application code itself is compiled and run natively on your machine (without Docker).
@@ -71,7 +71,7 @@ It's perfect for development environments and small-scale hobby use.
 It's also a great way to evaluate Encore without having to connect your cloud account.
 
 Encore Cloud is not designed for production use and does not offer reliability guarantees for persistent storage
-like SQL Databases. Other infrastructure primitives like [Pub/Sub][encore-pubsub] and [Caching][encore-caching]
+like SQL Databases. Other infrastructure primitives like [Pub/Sub](/docs/primitives/pubsub) and [Caching](/docs/primitives/caching)
 are provisioned with small-scale use in mind.
 
 ## Production Infrastructure
@@ -92,7 +92,7 @@ Encore provisions production infrastructure resources using best-practice guidel
 
 With Encore you do not define any cloud service specifics in application code. This means, after deploying to your own cloud account, you can safely use your cloud provider's console to modify the provisioned resources according to your application's scaling requirements. See more details below for each cloud provider and infrastructure resource.
 
-In the future, Encore will provide built-in optimization of cloud environments according to your applications real-world behavior.
+In the future, Encore will provide built-in optimization of cloud environments according to your application's real-world behavior.
 
 ### Google Cloud Platform (GCP)
 
@@ -107,7 +107,7 @@ Encore provisions a single GCP Project for each environment, containing a single
 Within the VPC Encore provisions a [Cloud Run][gcp-cloudrun] service to run the application, storing secret values using [Secret Manager][gcp-secrets].
 
 #### SQL Databases
-When using [SQL Databases][encore-sqldb], Encore provisions a single [GCP Cloud SQL][gcp-cloudsql] cluster, and separate databases within that cluster. The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
+When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [GCP Cloud SQL][gcp-cloudsql] cluster, and separate databases within that cluster. The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
 
 The machine type is chosen as the smallest available that supports auto-scaling (1 vCPU / 3.75GiB memory).
 You can freely increase the machine type yourself to handle larger scales.
@@ -119,10 +119,10 @@ Additionally, Encore sets up:
 * High availability mode with automatic failover (via disk replication to multiple zones)
 
 #### Pub/Sub
-When using [Pub/Sub][encore-pubsub], Encore provisions [GCP Pub/Sub][gcp-pubsub] topics and subscriptions. Additionally, Encore automatically creates and configures dead-letter topics.
+When using [Pub/Sub](/docs/primitives/pubsub), Encore provisions [GCP Pub/Sub][gcp-pubsub] topics and subscriptions. Additionally, Encore automatically creates and configures dead-letter topics.
 
 #### Caching
-When using [Caching][encore-caching], Encore provisions [GCP Memorystore for Redis][gcp-redis] clusters.
+When using [Caching](/docs/primitives/caching), Encore provisions [GCP Memorystore for Redis][gcp-redis] clusters.
 
 The machine type is chosen as the smallest available that supports auto-scaling (5GiB memory, with one read replica).
 You can freely change the machine type yourself to handle larger scales.
@@ -133,7 +133,7 @@ Additionally, Encore sets up:
 * A 10% memory buffer to better memory fragmentation, and active defragmentation
 
 #### Cron Jobs
-When using [Cron Jobs][encore-cron], Encore Cloud triggers the execution
+When using [Cron Jobs](/docs/primitives/cron-jobs), Encore Cloud triggers the execution
 of cron jobs by calling the corresponding API using a signed request so the application can verify
 the source of the request as coming from Encore's cron functionality. No infrastructure is
 provisioned for this to work.
@@ -155,7 +155,7 @@ and a whole slew of miscellaneous resources (IAM roles, policies, subnets, secur
 Secrets are stored using [Secrets Manager][aws-secrets].
 
 #### SQL Databases
-When using [SQL Databases][encore-sqldb], Encore provisions a single [Amazon RDS][aws-rds] cluster, and separate databases within that cluster.
+When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [Amazon RDS][aws-rds] cluster, and separate databases within that cluster.
 The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
 
 The instance type is chosen as the smallest available latest-generation type that supports auto-scaling (currently `db.m5.large`, with 2 vCPU / 8GiB memory).
@@ -167,11 +167,11 @@ Additionally, Encore sets up:
 * Dedicated subnets for the database instances, with security group rules to secure them
 
 #### Pub/Sub
-When using [Pub/Sub][encore-pubsub], Encore provisions a combination of [Amazon SQS][aws-sqs] and [Amazon SNS][aws-sns] topics and subscriptions.
+When using [Pub/Sub](/docs/primitives/pubsub), Encore provisions a combination of [Amazon SQS][aws-sqs] and [Amazon SNS][aws-sns] topics and subscriptions.
 Additionally, Encore automatically creates and configures dead-letter topics.
 
 #### Caching
-When using [Caching][encore-caching], Encore provisions [Amazon ElastiCache for Redis][aws-redis] clusters.
+When using [Caching](/docs/primitives/caching), Encore provisions [Amazon ElastiCache for Redis][aws-redis] clusters.
 
 The machine type is chosen as the smallest available that supports auto-scaling (currently `cache.m6g.large`, with one read replica).
 You can freely change the machine type yourself to handle larger scales.
@@ -183,7 +183,7 @@ Additionally, Encore sets up:
 * A 10% memory buffer to better memory fragmentation, and active defragmentation
 
 #### Cron Jobs
-When using [Cron Jobs][encore-cron], Encore Cloud triggers the execution
+When using [Cron Jobs](/docs/primitives/cron-jobs), Encore Cloud triggers the execution
 of cron jobs by calling the corresponding API using a signed request so the application can verify
 the source of the request as coming from Encore's cron functionality. No infrastructure is
 provisioned for this to work.
