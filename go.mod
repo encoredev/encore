@@ -10,6 +10,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/bep/debounce v1.2.1
 	github.com/briandowns/spinner v1.19.0
+	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/charmbracelet/bubbles v0.15.0
 	github.com/charmbracelet/bubbletea v0.23.1
 	github.com/charmbracelet/lipgloss v0.6.0
@@ -28,7 +29,6 @@ require (
 	github.com/google/go-containerregistry v0.11.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
-	github.com/hashicorp/yamux v0.1.1
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgproto3/v2 v2.3.2
 	github.com/jackc/pgx/v5 v5.3.1
@@ -40,6 +40,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/nsqio/go-nsq v1.1.0
 	github.com/nsqio/nsq v1.2.1
+	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/cron/v3 v3.0.1
@@ -126,7 +127,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc1 // indirect
 	github.com/perimeterx/marshmallow v1.1.4 // indirect
-	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20201118171849-f6a6b3f636fc // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/sahilm/fuzzy v0.1.0 // indirect

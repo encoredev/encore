@@ -50,8 +50,9 @@ func runApp(appRoot, wd string) {
 	var listenAddr string
 
 	if listen == "" {
-		// If we have no listen address at all, listen on all interfaces.
-		listenAddr = fmt.Sprintf(":%d", port)
+		// If we have no listen address at all, listen on localhost.
+		// (we do this so MacOS's firewall doesn't ask for permission for the daemon to listen on all interfaces)
+		listenAddr = fmt.Sprintf("127.0.0.1:%d", port)
 	} else if _, _, err := net.SplitHostPort(listen); err == nil {
 		// If --listen is given with a port, use that directly and ignore --port.
 		listenAddr = listen

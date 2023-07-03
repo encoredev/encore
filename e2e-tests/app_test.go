@@ -7,13 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/hashicorp/yamux"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
@@ -26,6 +30,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -52,18 +57,23 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	assertNil(err)
 	c.Cleanup(func() { ln.Close() })
 
+	ctx, cancel := context.WithCancel(context.Background())
+	c.Cleanup(cancel)
+
+	svcProxy, err := svcproxy.New(ctx, log.Logger)
+	assertNil(err)
+
 	app := apps.NewInstance(appRoot, "slug", "")
 	mgr := &Manager{}
-	rm := infra.NewResourceManager(app, mgr.ClusterMgr, nil, false)
+	rm := infra.NewResourceManager(app, mgr.ClusterMgr, nil, 0, false)
 	run := &Run{
 		ID:              GenID(),
 		ListenAddr:      ln.Addr().String(),
+		SvcProxy:        svcProxy,
 		App:             app,
 		ResourceManager: rm,
 		Mgr:             mgr,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	c.Cleanup(cancel)
 
 	parse, build := testBuild(c, appRoot, env)
 
@@ -91,8 +101,6 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		BuildDir:       build.Dir,
 		BinPath:        build.Exe,
 		Meta:           parse.Meta,
-		RuntimePort:    0,
-		DBProxyPort:    0,
 		Logger:         logger,
 		Environ:        env,
 		ServiceConfigs: build.Configs,
@@ -102,13 +110,30 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	assertNil(err)
 	c.Cleanup(p.Close)
 	run.StoreProc(p)
-
 	for serviceName, config := range build.Configs {
 		env = append(env, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
 	}
 
 	// start proxying TCP requests to the running application
-	go proxyTcp(ctx, ln, p.Gateway.Client)
+	startProxy(ctx, ln, p.Gateway)
+
+	// wait for the service to come up
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 10 * time.Second
+	err = backoff.Retry(func() error {
+		w := httptest.NewRecorder()
+		req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://localhost/__encore/healthz"), nil)
+		assertNil(err)
+
+		p.Gateway.ProxyReq(w, req)
+
+		if w.Result().StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected status: %s", w.Result().Status)
+		}
+
+		return nil
+	}, b)
+	assertNil(err)
 
 	return &RunAppData{
 		Addr:   ln.Addr().String(),
@@ -157,28 +182,16 @@ func (l testRunLogger) RunStderr(r *Run, line []byte) {
 	l.log.Log(string(line))
 }
 
-func proxyTcp(ctx context.Context, ln net.Listener, client *yamux.Session) {
-	for ctx.Err() == nil {
-		conn, err := ln.Accept()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				return
-			}
-
-			fmt.Printf("unable to accept connection: %+v", err)
-			continue
-		}
-
-		clientConn, err := client.Open()
-		if err != nil {
-			fmt.Printf("unable to open connection to running app: %+v", err)
-			_ = conn.Close()
-			continue
-		}
-
-		go io.Copy(conn, clientConn)
-		go io.Copy(clientConn, conn)
+func startProxy(ctx context.Context, ln net.Listener, p *Proc) {
+	srv := &http.Server{
+		Handler: http.HandlerFunc(p.ProxyReq),
 	}
+	go func() {
+		<-ctx.Done()
+		srv.Close()
+	}()
+
+	go srv.Serve(ln)
 }
 
 // testBuild is a helper that compiles the app situated at appRoot

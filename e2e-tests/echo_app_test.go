@@ -15,13 +15,16 @@ import (
 	"time"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/rs/zerolog/log"
 	"go.uber.org/goleak"
 
 	"encr.dev/cli/daemon/apps"
 	. "encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/internal/clientgen"
+	. "encr.dev/internal/optracker"
 	"encr.dev/pkg/golden"
+	"encr.dev/pkg/svcproxy"
 )
 
 type Data[K any, V any] struct {
@@ -550,23 +553,31 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 
 	app := apps.NewInstance(appRoot, "local_id", "platform_id")
 
-	mgr := &Manager{}
-	rm := infra.NewResourceManager(app, nil, nil, false)
-	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	svcProxy, err := svcproxy.New(ctx, log.Logger)
+	c.Assert(err, qt.IsNil)
+
+	mgr := &Manager{}
+	rm := infra.NewResourceManager(app, nil, nil, 0, false)
+	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm, ListenAddr: "127.0.0.1:34212", SvcProxy: svcProxy}
+
 	parse, build := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
+	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
+	run.ResourceManager.StartRequiredServices(jobs, parse.Meta)
+	defer run.Close()
+
+	c.Assert(jobs.Wait(), qt.IsNil)
+
 	p, err := run.StartProcGroup(&StartProcGroupParams{
-		Ctx:         ctx,
-		BuildDir:    build.Dir,
-		BinPath:     build.Exe,
-		Meta:        parse.Meta,
-		RuntimePort: 0,
-		DBProxyPort: 0,
-		Logger:      testRunLogger{t},
-		Environ:     os.Environ(),
+		Ctx:      ctx,
+		BuildDir: build.Dir,
+		BinPath:  build.Exe,
+		Meta:     parse.Meta,
+		Logger:   testRunLogger{t},
+		Environ:  os.Environ(),
 	})
 	c.Assert(err, qt.IsNil)
 	cancel()

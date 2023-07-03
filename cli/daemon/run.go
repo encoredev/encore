@@ -136,7 +136,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		sendExit(1)
 		return nil
 	}
-	defer runInstance.ResourceManager.StopAll()
+	defer runInstance.Close()
 	s.streams[runInstance.ID] = slog
 	s.mu.Unlock()
 
