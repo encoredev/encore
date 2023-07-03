@@ -16,6 +16,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/svcproxy"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -121,11 +122,13 @@ func (g *RuntimeEnvGenerator) ForServices(listenAddr netip.AddrPort, services ..
 func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service) (string, error) {
 	g.init()
 
+	daemonProxyURL := option.Map(g.DaemonProxyAddr, func(t netip.AddrPort) string { return fmt.Sprintf("http://%s", t) })
+
 	// Build the base config
 	runtimeCfg := &config.Runtime{
 		AppID:         g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
 		AppSlug:       g.App.PlatformID(),
-		APIBaseURL:    fmt.Sprintf("http://%s", g.DaemonProxyAddr.GetOrElse(g.ListenAddresses.Gateway)),
+		APIBaseURL:    daemonProxyURL.GetOrElse(g.ListenAddresses.Gateway.BaseURL),
 		EnvID:         g.EnvID.GetOrElse("local"),
 		EnvName:       g.EnvName.GetOrElse("local"),
 		EnvType:       string(g.EnvType.GetOrElse(encore.EnvDevelopment)),
@@ -318,10 +321,15 @@ func (g *RuntimeEnvGenerator) init() {
 	})
 }
 
+type SvcNetCfg struct {
+	BaseURL    string         // The base URL that other services should use to connect to this service
+	ListenAddr netip.AddrPort // The address:port that this service should listen on
+}
+
 // ListenAddresses is a list of listen address and port numbers for services to run on
 type ListenAddresses struct {
-	Gateway  netip.AddrPort            // The entrypoint to the application
-	Services map[string]netip.AddrPort // Map from service name to listen address
+	Gateway  SvcNetCfg            // The entrypoint to the application
+	Services map[string]SvcNetCfg // Map from service name to listen address
 }
 
 // GenerateListenAddresses generates a list of port numbers for services to run on
@@ -330,21 +338,29 @@ type ListenAddresses struct {
 // The port numbers will be randomly generated and are guaranteed to be free
 // at the time this function is run (which might not be the cause when the
 // service starts up!)
-func GenerateListenAddresses(serviceList []*meta.Service) (*ListenAddresses, error) {
+func GenerateListenAddresses(proxy *svcproxy.SvcProxy, serviceList []*meta.Service) (*ListenAddresses, error) {
 	gatewayPort, err := freeLocalhostAddress()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find free port for gateway")
 	}
 
 	portListings := &ListenAddresses{
-		Gateway:  gatewayPort,
-		Services: map[string]netip.AddrPort{},
+		Gateway: SvcNetCfg{
+			proxy.RegisterGateway("app", gatewayPort),
+			gatewayPort,
+		},
+		Services: map[string]SvcNetCfg{},
 	}
 
 	for _, service := range serviceList {
-		portListings.Services[service.Name], err = freeLocalhostAddress()
+		listen, err := freeLocalhostAddress()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to find free port for service")
+		}
+
+		portListings.Services[service.Name] = SvcNetCfg{
+			BaseURL:    proxy.RegisterService(service.Name, listen),
+			ListenAddr: listen,
 		}
 	}
 
@@ -358,14 +374,14 @@ func (la *ListenAddresses) GenerateServiceDiscoveryMap(serviceList []*meta.Servi
 
 	// Add all the services from the app
 	for _, svc := range serviceList {
-		listenAddr, found := la.Services[svc.Name]
+		svcCfg, found := la.Services[svc.Name]
 		if !found {
 			return nil, errors.Newf("missing listen address for service %s", svc.Name)
 		}
 
 		services[svc.Name] = config.Service{
 			Name:        svc.Name,
-			URL:         fmt.Sprintf("http://%s", listenAddr),
+			URL:         svcCfg.BaseURL,
 			Protocol:    config.Http,
 			ServiceAuth: config.ServiceAuth{Method: authMethod},
 		}

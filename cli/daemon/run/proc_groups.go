@@ -75,8 +75,11 @@ func (pg *ProcGroup) Done() <-chan struct{} {
 
 // Start starts all the processes in the group.
 func (pg *ProcGroup) Start() (err error) {
+	pg.procMu.Lock()
+	defer pg.procMu.Unlock()
+
 	for _, p := range pg.allProcesses {
-		if err = p.Start(); err != nil {
+		if err = p.start(); err != nil {
 			p.Kill()
 			return err
 		}
@@ -178,19 +181,19 @@ type NewProcParams struct {
 }
 
 func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {
-	ports, err := GenerateListenAddresses(nil)
+	ports, err := GenerateListenAddresses(pg.Run.SvcProxy, nil)
 	if err != nil {
 		return err
 	}
 
-	p, err := pg.newProc("all-in-one", ports.Gateway)
+	p, err := pg.newProc("all-in-one", ports.Gateway.ListenAddr)
 	if err != nil {
 		return err
 	}
 	pg.Gateway = p
 
 	// Generate the environmental variables for the process
-	envs, err := pg.EnvGenerator.ForServices(ports.Gateway, pg.Meta.Svcs...)
+	envs, err := pg.EnvGenerator.ForServices(ports.Gateway.ListenAddr, pg.Meta.Svcs...)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate environment variables")
 	}
@@ -269,12 +272,19 @@ type Proc struct {
 //
 // If the process has already been started, this is a no-op.
 func (p *Proc) Start() error {
+	p.group.procMu.Lock()
+	defer p.group.procMu.Unlock()
+
+	return p.start()
+}
+
+// start starts the process and returns immediately
+//
+// It must be called while locked under the p.group.procMu lock.
+func (p *Proc) start() error {
 	if !p.Started.CompareAndSwap(false, true) {
 		return nil
 	}
-
-	p.group.procMu.Lock()
-	defer p.group.procMu.Unlock()
 
 	if err := p.cmd.Start(); err != nil {
 		return errors.Wrap(err, "could not start process")

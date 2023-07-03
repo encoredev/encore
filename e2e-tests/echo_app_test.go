@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/rs/zerolog/log"
 	"go.uber.org/goleak"
 
 	"encr.dev/cli/daemon/apps"
@@ -24,6 +24,7 @@ import (
 	"encr.dev/internal/clientgen"
 	. "encr.dev/internal/optracker"
 	"encr.dev/pkg/golden"
+	"encr.dev/pkg/svcproxy"
 )
 
 type Data[K any, V any] struct {
@@ -327,7 +328,6 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 		{
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/echo.Env", nil)
-			log.Println("making request")
 			run.ServeHTTP(w, req)
 			c.Assert(w.Code, qt.Equals, 200)
 
@@ -553,17 +553,21 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 
 	app := apps.NewInstance(appRoot, "local_id", "platform_id")
 
-	mgr := &Manager{}
-	rm := infra.NewResourceManager(app, nil, nil, 0, false)
-	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm, ListenAddr: "127.0.0.1:34212"}
 	c := qt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	svcProxy, err := svcproxy.New(ctx, log.Logger)
+	c.Assert(err, qt.IsNil)
+
+	mgr := &Manager{}
+	rm := infra.NewResourceManager(app, nil, nil, 0, false)
+	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm, ListenAddr: "127.0.0.1:34212", SvcProxy: svcProxy}
+
 	parse, build := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
 	run.ResourceManager.StartRequiredServices(jobs, parse.Meta)
-	defer run.ResourceManager.StopAll()
+	defer run.Close()
 
 	c.Assert(jobs.Wait(), qt.IsNil)
 

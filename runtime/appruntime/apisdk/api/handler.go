@@ -683,9 +683,9 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 				}
 
 				if len(bodyBytes) == 0 {
-					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %d (%s)", httpResp.StatusCode, httpResp.Status).Err()
+					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %s", httpResp.Status).Err()
 				} else {
-					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %d: %s", httpResp.StatusCode, string(bodyBytes)).Err()
+					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %s: %s", httpResp.Status, string(bodyBytes)).Err()
 				}
 			}
 		}
@@ -694,7 +694,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 	})()
 
 	if respErr != nil {
-		c.server.rootLogger.Err(respErr).Str("calling", fmt.Sprintf("%s.%s", d.Service, d.Endpoint)).Str("url", reqURL).Msg("call failed")
+		c.server.rootLogger.Err(respErr).Str("target", fmt.Sprintf("%s.%s", d.Service, d.Endpoint)).Str("url", reqURL).Msg("call failed")
 	}
 
 	c.server.finishCall(call, respErr)

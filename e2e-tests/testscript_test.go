@@ -206,8 +206,6 @@ func doRun(t *testing.T, experiments []string) {
 						}
 					}
 				}
-
-				time.Sleep(1 * time.Second)
 			},
 			"checklog": func(ts *ts.TestScript, neg bool, args []string) {
 				if len(args) != 1 {

@@ -33,6 +33,7 @@ import (
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -42,6 +43,7 @@ type Run struct {
 	ID              string // unique ID for this instance of the running app
 	App             *apps.Instance
 	ListenAddr      string // the address the app is listening on
+	SvcProxy        *svcproxy.SvcProxy
 	ResourceManager *infra.ResourceManager
 
 	builder builder.Impl
@@ -85,24 +87,31 @@ type StartParams struct {
 // Start starts the application.
 // Its lifetime is bounded by ctx.
 func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, err error) {
+	logger := log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger()
+
+	svcProxy, err := svcproxy.New(ctx, logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create service proxy")
+	}
+
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
 		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.Environ, mgr.DBProxyPort, false),
 		ListenAddr:      params.ListenAddr,
-
-		log:     log.With().Str("app_id", params.App.PlatformOrLocalID()).Logger(),
-		Mgr:     mgr,
-		params:  &params,
-		secrets: mgr.Secret.Load(params.App),
-		ctx:     ctx,
-		exited:  make(chan struct{}),
-		started: make(chan struct{}),
+		SvcProxy:        svcProxy,
+		log:             logger,
+		Mgr:             mgr,
+		params:          &params,
+		secrets:         mgr.Secret.Load(params.App),
+		ctx:             ctx,
+		exited:          make(chan struct{}),
+		started:         make(chan struct{}),
 	}
 	defer func(r *Run) {
 		// Stop all the resource servers if we exit due to an error
 		if err != nil {
-			r.ResourceManager.StopAll()
+			r.Close()
 		}
 	}(run)
 
@@ -129,6 +138,11 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	}
 
 	return run, nil
+}
+
+func (r *Run) Close() {
+	r.SvcProxy.Close()
+	r.ResourceManager.StopAll()
 }
 
 // RunLogger is the interface for listening to run logs.
@@ -377,7 +391,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	pid := GenID()
 	authKey := genAuthKey()
 
-	procListenAddresses, err := GenerateListenAddresses(params.Meta.Svcs)
+	procListenAddresses, err := GenerateListenAddresses(r.SvcProxy, params.Meta.Svcs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate listen addresses")
 	}
@@ -428,7 +442,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		for _, s := range params.Meta.Svcs {
 			if err := p.NewProcForService(
 				s,
-				procListenAddresses.Services[s.Name],
+				procListenAddresses.Services[s.Name].ListenAddr,
 				newProcParams,
 			); err != nil {
 				return nil, err

@@ -10,6 +10,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/bep/debounce v1.2.1
 	github.com/briandowns/spinner v1.19.0
+	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/charmbracelet/bubbles v0.15.0
 	github.com/charmbracelet/bubbletea v0.23.1
 	github.com/charmbracelet/lipgloss v0.6.0

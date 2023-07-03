@@ -8,12 +8,16 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
@@ -26,6 +30,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -52,18 +57,23 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	assertNil(err)
 	c.Cleanup(func() { ln.Close() })
 
+	ctx, cancel := context.WithCancel(context.Background())
+	c.Cleanup(cancel)
+
+	svcProxy, err := svcproxy.New(ctx, log.Logger)
+	assertNil(err)
+
 	app := apps.NewInstance(appRoot, "slug", "")
 	mgr := &Manager{}
 	rm := infra.NewResourceManager(app, mgr.ClusterMgr, nil, 0, false)
 	run := &Run{
 		ID:              GenID(),
 		ListenAddr:      ln.Addr().String(),
+		SvcProxy:        svcProxy,
 		App:             app,
 		ResourceManager: rm,
 		Mgr:             mgr,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	c.Cleanup(cancel)
 
 	parse, build := testBuild(c, appRoot, env)
 
@@ -106,6 +116,24 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	// start proxying TCP requests to the running application
 	startProxy(ctx, ln, p.Gateway)
+
+	// wait for the service to come up
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 10 * time.Second
+	err = backoff.Retry(func() error {
+		w := httptest.NewRecorder()
+		req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://localhost/__encore/healthz"), nil)
+		assertNil(err)
+
+		p.Gateway.ProxyReq(w, req)
+
+		if w.Result().StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected status: %s", w.Result().Status)
+		}
+
+		return nil
+	}, b)
+	assertNil(err)
 
 	return &RunAppData{
 		Addr:   ln.Addr().String(),
@@ -164,10 +192,6 @@ func startProxy(ctx context.Context, ln net.Listener, p *Proc) {
 	}()
 
 	go srv.Serve(ln)
-
-	// So we're going to sleep here to give the server a chance to start up.
-	// as otherwise we see the application startup before this proxy is ready
-	time.Sleep(1 * time.Second)
 }
 
 // testBuild is a helper that compiles the app situated at appRoot
