@@ -51,8 +51,9 @@ type Runtime struct {
 	RedisServers     []*RedisServer          `json:"redis_servers,omitempty"`
 	RedisDatabases   []*RedisDatabase        `json:"redis_databases,omitempty"`
 	Metrics          *Metrics                `json:"metrics,omitempty"`
-	ServiceDiscovery map[string]Service      `json:"service_discovery,omitempty"`
-	Gateways         []Gateway               `json:"gateways,omitempty"` // Gateways defines the gateways which should be served by the container
+	Gateways         []Gateway               `json:"gateways,omitempty"`          // Gateways defines the gateways which should be served by the container
+	HostedServices   []string                `json:"hosted_services,omitempty"`   // List of services to be hosted within this container (zero length means all services, unless there's a gateway running)
+	ServiceDiscovery map[string]Service      `json:"service_discovery,omitempty"` // ServiceDiscovery lists where all the services are being hosted if not in this container
 
 	// ServiceAuth defines which authentication method can be used
 	// when talking to this runtime for internal service-to-service
