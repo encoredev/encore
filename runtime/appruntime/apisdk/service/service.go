@@ -9,6 +9,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/reqtrack"
@@ -89,8 +90,8 @@ type shutdowner interface {
 	Shutdown(force context.Context)
 }
 
-func NewManager(rt *reqtrack.RequestTracker, healthChecks *health.CheckRegistry, rootLogger zerolog.Logger) *Manager {
-	mgr := &Manager{rt: rt, rootLogger: rootLogger, svcMap: make(map[string]Initializer), initialisedServices: make(map[string]struct{})}
+func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, healthChecks *health.CheckRegistry, rootLogger zerolog.Logger) *Manager {
+	mgr := &Manager{rt: rt, runtime: runtime, rootLogger: rootLogger, svcMap: make(map[string]Initializer), initialisedServices: make(map[string]struct{})}
 
 	// Register with the health check service.
 	healthChecks.Register(mgr)
@@ -99,6 +100,7 @@ func NewManager(rt *reqtrack.RequestTracker, healthChecks *health.CheckRegistry,
 }
 
 type Manager struct {
+	runtime    *config.Runtime
 	rt         *reqtrack.RequestTracker
 	rootLogger zerolog.Logger
 	svcInit    []Initializer
@@ -113,11 +115,30 @@ type Manager struct {
 
 func (mgr *Manager) RegisterService(i Initializer) {
 	name := i.ServiceName()
+	if !mgr.IsHosting(name) {
+		return
+	}
+
 	if _, ok := mgr.svcMap[name]; ok {
 		panic(fmt.Sprintf("service %s: already registered", name))
 	}
 	mgr.svcMap[name] = i
 	mgr.svcInit = append(mgr.svcInit, i)
+}
+
+func (mgr *Manager) IsHosting(serviceName string) bool {
+	// If we're an all-in-one server, we're hosting everything.
+	if len(mgr.runtime.Gateways) == 0 && len(mgr.runtime.HostedServices) == 0 {
+		return true
+	}
+
+	// Otherwise check if we're hosting this
+	for _, svc := range mgr.runtime.HostedServices {
+		if svc == serviceName {
+			return true
+		}
+	}
+	return false
 }
 
 func (mgr *Manager) InitializeServices() error {

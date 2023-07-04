@@ -15,6 +15,7 @@ import (
 
 	encore "encore.dev"
 	"encore.dev/appruntime/exported/config"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/svcproxy"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -34,6 +35,7 @@ type RuntimeEnvGenerator struct {
 	App interface {
 		PlatformID() string
 		PlatformOrLocalID() string
+		GlobalCORS() (appfile.CORS, error)
 	}
 
 	// The infra manager to use
@@ -71,10 +73,29 @@ type RuntimeEnvGenerator struct {
 	authKey    config.EncoreAuthKey
 
 	pkgsBySvc        map[string][]*meta.Package
+	serverlessPkgs   []*meta.Package
 	dbsBySvc         map[string][]*meta.SQLDatabase
 	topicsBySvc      map[string][]*meta.PubSubTopic
 	subsBySvcByTopic map[string]map[string][]*meta.PubSubTopic_Subscription
 	cachesBySvc      map[string][]*meta.CacheCluster
+
+	// Output data
+
+	missingSecrets map[string]struct{}
+}
+
+// ForGateway generates the runtime environmental variables required for the build to
+// startup and run as an API gateway for the given host names
+func (g *RuntimeEnvGenerator) ForGateway(listenAddr netip.AddrPort, hostNames ...string) ([]string, error) {
+	runtimeCfg, err := g.runtimeConfigForGateway(hostNames)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate runtime config")
+	}
+
+	return []string{
+		fmt.Sprintf("%s=%s", runtimeCfgEnvVar, runtimeCfg),
+		fmt.Sprintf("%s=%s", listenEnvVar, listenAddr.String()),
+	}, nil
 }
 
 // ForServices generates the runtime environmental variables required for the build to
@@ -141,6 +162,11 @@ func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service)
 		Metrics:       g.MetricsConfig.GetOrElse(nil),
 		ServiceAuth:   []config.ServiceAuth{{Method: g.ServiceAuthType.GetOrElse("encore-auth")}},
 		PubsubTopics:  make(map[string]*config.PubsubTopic),
+	}
+
+	// Add the list of services we want this container to host
+	for _, svc := range services {
+		runtimeCfg.HostedServices = append(runtimeCfg.HostedServices, svc.Name)
 	}
 
 	// If we're not running an all-in-one service, we need to generate a service discovery map
@@ -236,8 +262,18 @@ func (g *RuntimeEnvGenerator) secretsForServices(services []*meta.Service) (stri
 			for _, secretName := range pkg.Secrets {
 				rtn[secretName], found = g.Secrets[secretName]
 				if !found {
-					return "", errors.Newf("missing secret %s", secretName)
+					g.missingSecrets[secretName] = struct{}{}
 				}
+			}
+		}
+	}
+
+	// Add all secrets in packages that are not within a service
+	for _, pkg := range g.serverlessPkgs {
+		for _, secretName := range pkg.Secrets {
+			rtn[secretName], found = g.Secrets[secretName]
+			if !found {
+				g.missingSecrets[secretName] = struct{}{}
 			}
 		}
 	}
@@ -270,15 +306,83 @@ func (g *RuntimeEnvGenerator) serviceConfigsForServices(services []*meta.Service
 	return rtn, nil
 }
 
+// runtimeConfigForServices generates the runtime config for a built binary to
+// run the given service(s)
+func (g *RuntimeEnvGenerator) runtimeConfigForGateway(hostnames []string) (string, error) {
+	g.init()
+
+	daemonProxyURL := option.Map(g.DaemonProxyAddr, func(t netip.AddrPort) string { return fmt.Sprintf("http://%s", t) })
+
+	globalCORS, err := g.App.GlobalCORS()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to generate global CORS config")
+	}
+
+	// Build the base config
+	runtimeCfg := &config.Runtime{
+		AppID:         g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
+		AppSlug:       g.App.PlatformID(),
+		APIBaseURL:    daemonProxyURL.GetOrElse(g.ListenAddresses.Gateway.BaseURL),
+		EnvID:         g.EnvID.GetOrElse("local"),
+		EnvName:       g.EnvName.GetOrElse("local"),
+		EnvType:       string(g.EnvType.GetOrElse(encore.EnvDevelopment)),
+		EnvCloud:      g.CloudType.GetOrElse(encore.CloudLocal),
+		DeployID:      g.deployID,
+		DeployedAt:    g.deployTime,
+		TraceEndpoint: g.TraceEndpoint.GetOrElse(""),
+		AuthKeys:      []config.EncoreAuthKey{g.authKey},
+		CORS: &config.CORS{
+			Debug: globalCORS.Debug,
+			AllowOriginsWithCredentials: []string{
+				// Allow all origins with credentials for local development;
+				// since it's only running on localhost for development this is safe.
+				config.UnsafeAllOriginWithCredentials,
+			},
+			AllowOriginsWithoutCredentials: []string{"*"},
+			ExtraAllowedHeaders:            globalCORS.AllowHeaders,
+			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
+			AllowPrivateNetworkAccess:      true,
+		},
+		Metrics:      g.MetricsConfig.GetOrElse(nil),
+		ServiceAuth:  []config.ServiceAuth{{Method: g.ServiceAuthType.GetOrElse("encore-auth")}},
+		PubsubTopics: make(map[string]*config.PubsubTopic),
+	}
+
+	// Add the gateways we want to listen for
+	for _, hostname := range hostnames {
+		runtimeCfg.Gateways = append(runtimeCfg.Gateways, config.Gateway{
+			Name: "api", // Right now we only have one API group
+			Host: hostname,
+		})
+	}
+
+	// Add the service discovery map
+	svcDiscovery, err := g.ListenAddresses.GenerateServiceDiscoveryMap(g.Meta.Svcs, g.ServiceAuthType.GetOrElse("encore-auth"))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to generate service discovery map")
+	}
+
+	runtimeCfg.ServiceDiscovery = svcDiscovery
+
+	// Encode the runtime config
+	runtimeCfgBytes, _ := json.Marshal(runtimeCfg)
+	return base64.RawURLEncoding.EncodeToString(runtimeCfgBytes), nil
+}
+
 func (g *RuntimeEnvGenerator) init() {
 	g.initOnce.Do(func() {
 		g.deployID = fmt.Sprintf("run_%s", xid.New().String())
 		g.deployTime = time.Now()
 		g.authKey = g.AuthKey.GetOrElseF(genAuthKey)
+		g.missingSecrets = make(map[string]struct{})
 
 		g.pkgsBySvc = make(map[string][]*meta.Package)
 		for _, pkg := range g.Meta.Pkgs {
-			g.pkgsBySvc[pkg.ServiceName] = append(g.pkgsBySvc[pkg.ServiceName], pkg)
+			if pkg.ServiceName == "" {
+				g.serverlessPkgs = append(g.serverlessPkgs, pkg)
+			} else {
+				g.pkgsBySvc[pkg.ServiceName] = append(g.pkgsBySvc[pkg.ServiceName], pkg)
+			}
 		}
 
 		g.dbsBySvc = make(map[string][]*meta.SQLDatabase)

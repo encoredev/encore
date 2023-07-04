@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -370,6 +371,18 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 
 	tracker.Done(startOp, 50*time.Millisecond)
 
+	go func() {
+		// Wait one second before logging all the missing secrets.
+		time.Sleep(1 * time.Second)
+
+		// Log any warnings.
+		for _, warning := range newProcess.Warnings() {
+			line := "\n" + aurora.Red(fmt.Sprintf("warning: %s", warning.Title)).String() + "\n" +
+				aurora.Gray(16, fmt.Sprintf("note: %s", warning.Help)).String() + "\n\n"
+			r.Mgr.RunStderr(r, []byte(line))
+		}
+	}()
+
 	return nil
 }
 
@@ -450,7 +463,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		}
 
 		// create a process for the gateway
-		if err := p.NewProcForGateway(newProcParams); err != nil {
+		if err := p.NewProcForGateway(procListenAddresses.Gateway.ListenAddr, newProcParams); err != nil {
 			return nil, err
 		}
 	} else {
