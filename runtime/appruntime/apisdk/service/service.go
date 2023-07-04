@@ -114,11 +114,11 @@ type Manager struct {
 }
 
 func (mgr *Manager) RegisterService(i Initializer) {
-	if !mgr.IsHosting(i) {
+	name := i.ServiceName()
+	if !mgr.IsHosting(name) {
 		return
 	}
 
-	name := i.ServiceName()
 	if _, ok := mgr.svcMap[name]; ok {
 		panic(fmt.Sprintf("service %s: already registered", name))
 	}
@@ -126,7 +126,7 @@ func (mgr *Manager) RegisterService(i Initializer) {
 	mgr.svcInit = append(mgr.svcInit, i)
 }
 
-func (mgr *Manager) IsHosting(i Initializer) bool {
+func (mgr *Manager) IsHosting(serviceName string) bool {
 	// If we're an all-in-one server, we're hosting everything.
 	if len(mgr.runtime.Gateways) == 0 && len(mgr.runtime.HostedServices) == 0 {
 		return true
@@ -134,7 +134,7 @@ func (mgr *Manager) IsHosting(i Initializer) bool {
 
 	// Otherwise check if we're hosting this
 	for _, svc := range mgr.runtime.HostedServices {
-		if svc == i.ServiceName() {
+		if svc == serviceName {
 			return true
 		}
 	}
