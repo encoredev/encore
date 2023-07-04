@@ -71,24 +71,26 @@ func (app *App) Start() {
 }
 
 func (app *App) logStartupInfo() {
-	if app.runtime.EnvType == "test" {
+	switch {
+	case app.runtime.EnvType == "test":
 		// Don't log during tests.
-		return
-	}
+	case app.runtime.EnvCloud == "local" && len(app.runtime.Gateways) == 0:
+		// The gateway will log this for us
+	default:
+		// If we have a lot of handlers, don't log each one being registered.
+		handlers := app.api.RegisteredHandlers()
+		logEachRegistration := len(handlers) < 8 // chosen by a fair dice roll
 
-	// If we have a lot of handlers, don't log each one being registered.
-	handlers := app.api.RegisteredHandlers()
-	logEachRegistration := len(handlers) < 8 // chosen by a fair dice roll
-
-	if logEachRegistration {
-		for _, h := range handlers {
-			app.logger.Info().
-				Str("service", h.ServiceName()).
-				Str("endpoint", h.EndpointName()).
-				Str("path", h.SemanticPath()).
-				Msg("registered API endpoint")
+		if logEachRegistration {
+			for _, h := range handlers {
+				app.logger.Info().
+					Str("service", h.ServiceName()).
+					Str("endpoint", h.EndpointName()).
+					Str("path", h.SemanticPath()).
+					Msg("registered API endpoint")
+			}
+		} else {
+			app.logger.Info().Msgf("registered %d API endpoints", len(handlers))
 		}
-	} else {
-		app.logger.Info().Msgf("registered %d API endpoints", len(handlers))
 	}
 }

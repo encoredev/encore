@@ -20,7 +20,6 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
-	"encore.dev/appruntime/shared/cloudtrace"
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
@@ -207,66 +206,34 @@ func (s *Server) RegisteredHandlers() []Handler {
 const wildcardMethod = "__ENCORE_WILDCARD__"
 
 func (s *Server) registerEndpoint(h Handler) {
+	routerPath := h.HTTPRouterPath()
+
+	// Decide which routers to use.
+	private, public := s.private, s.public
+	if h.IsFallback() {
+		private, public = s.privateFallback, s.publicFallback
+	}
+
+	var adapter httprouter.Handle
+
+	switch {
+	case s.IsGateway():
+		adapter = s.createGatewayHandlerAdapter(h)
+
+	case s.IsHostedService(h.ServiceName()):
+		adapter = s.createServiceHandlerAdapter(h)
+
+	default:
+		// not hosted do nothing
+		return
+	}
+
 	s.registeredHandlers = append(s.registeredHandlers, h)
 
+	// Register the adapter
 	for _, m := range h.HTTPMethods() {
 		if m == "*" {
 			m = wildcardMethod
-		}
-
-		adapter := func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-			params := toUnnamedParams(ps)
-
-			// Extract metadata from the request.
-			meta := req.Context().Value(metaContextKeyAuthInfo).(CallMeta)
-
-			// Extract any cloud generated Trace identifiers from the request.
-			// and use them if we don't have any trace information in the metadata already
-			cloudGeneratedTraceIDs := cloudtrace.ExtractCloudTraceIDs(s.rootLogger, req)
-			if meta.TraceID.IsZero() {
-				meta.TraceID = cloudGeneratedTraceIDs.TraceID
-			}
-
-			// SpanID will be zero already, so if our Cloud generated one for us, we should
-			// use it as the SpanID for this request
-			meta.SpanID = cloudGeneratedTraceIDs.SpanID
-
-			// If we still don't have a trace id, generate one.
-			if meta.TraceID.IsZero() {
-				meta.TraceID, _ = model.GenTraceID()
-				meta.ParentSpanID = model.SpanID{} // no parent span if we have no trace id
-			}
-			traceIDStr := meta.TraceID.String()
-
-			// Echo the X-Request-ID back to the caller if present,
-			// otherwise send back the trace id.
-			reqID := req.Header.Get("X-Request-ID")
-			if reqID == "" {
-				reqID = traceIDStr
-			} else if len(reqID) > 64 {
-				// Don't allow arbitrarily long request IDs.
-				s.rootLogger.Warn().Int("length", len(reqID)).Msg("X-Request-ID was too long and is being truncated to 64 characters")
-				reqID = reqID[:64]
-			}
-			w.Header().Set("X-Request-ID", reqID)
-
-			// Read the correlation ID from the request.
-			if meta.CorrelationID != "" {
-				w.Header().Set("X-Correlation-ID", meta.CorrelationID)
-			}
-
-			// Always send the trace id back.
-			w.Header().Set("X-Encore-Trace-ID", traceIDStr)
-
-			s.processRequest(h, s.NewIncomingContext(w, req, params, meta))
-		}
-
-		routerPath := h.HTTPRouterPath()
-
-		// Decide which routers to use.
-		private, public := s.private, s.public
-		if h.IsFallback() {
-			private, public = s.privateFallback, s.publicFallback
 		}
 
 		private.Handle(m, routerPath, adapter)
@@ -303,7 +270,9 @@ func (s *Server) getGlobalMiddleware(ids []string) []*Middleware {
 }
 
 func (s *Server) Serve(ln net.Listener) error {
-	s.rootLogger.Info().Msg("listening for incoming HTTP requests")
+	if s.runtime.EnvCloud != "local" || s.IsGateway() {
+		s.rootLogger.Info().Msg("listening for incoming HTTP requests")
+	}
 	return s.httpsrv.Serve(ln)
 }
 
@@ -319,8 +288,10 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	// and authenticate it, then we can switch over to the private router which contains all APIs not just
 	// the publicly accessible ones.
 	if sig := req.Header.Get("X-Encore-Auth"); sig != "" && s.pc != nil {
-		// Delete the header so it can't be accessed.
-		req.Header.Del("X-Encore-Auth")
+		if !s.IsGateway() {
+			// Delete the header so it can't be accessed.
+			req.Header.Del("X-Encore-Auth")
+		}
 
 		if ok, err := s.pc.ValidatePlatformRequest(req, sig); err == nil && ok {
 			// Successfully authenticated
@@ -392,6 +363,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Endpoint not found
+	s.rootLogger.Trace().Str("path", path).Bool("gateway", s.IsGateway()).Strs("hosting", s.runtime.HostedServices).Interface("headers", req.Header).Msg("endpoint not found")
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 

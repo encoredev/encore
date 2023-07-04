@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -247,9 +249,58 @@ func (pg *ProcGroup) NewProcForService(service *meta.Service, listenAddr netip.A
 	return nil
 }
 
-func (pg *ProcGroup) NewProcForGateway(params *NewProcParams) error {
-	// TOOD: implement gateway processes
-	return pg.NewAllInOneProc(params)
+func (pg *ProcGroup) NewProcForGateway(listenAddr netip.AddrPort, params *NewProcParams) error {
+	if !listenAddr.IsValid() {
+		return errors.New("invalid listen address")
+	}
+
+	p, err := pg.newProc("api-gateway", listenAddr)
+	if err != nil {
+		return err
+	}
+	pg.Gateway = p
+
+	envs, err := pg.EnvGenerator.ForGateway(listenAddr, "localhost", "127.0.0.1")
+	if err != nil {
+		return errors.Wrap(err, "failed to generate environment variables")
+	}
+	envs = append(envs, params.Environ...)
+
+	cmd := exec.CommandContext(pg.ctx, params.BinPath)
+	cmd.Env = envs
+	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
+
+	// Proxy stdout and stderr to the given app logger, if any.
+	if l := pg.logger; l != nil {
+		cmd.Stdout = newLogWriter(pg.Run, l.RunStdout)
+		cmd.Stderr = newLogWriter(pg.Run, l.RunStderr)
+	}
+
+	p.cmd = cmd
+
+	return nil
+}
+
+type warning struct {
+	Title string
+	Help  string
+}
+
+func (pg *ProcGroup) Warnings() (rtn []warning) {
+	if len(pg.EnvGenerator.missingSecrets) > 0 {
+		var missing []string
+		for k := range pg.EnvGenerator.missingSecrets {
+			missing = append(missing, k)
+		}
+		sort.Strings(missing)
+
+		rtn = append(rtn, warning{
+			Title: "secrets not defined: " + strings.Join(missing, ", "),
+			Help:  "undefined secrets are left empty for local development only.\nsee https://encore.dev/docs/primitives/secrets for more information",
+		})
+	}
+
+	return rtn
 }
 
 // Proc represents a single Encore process running within a [ProcGroup].
