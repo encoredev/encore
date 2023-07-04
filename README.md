@@ -47,7 +47,7 @@ This completely removes the need for infrastructure configuration files, increas
 
 - **[Provision environments automatically](https://encore.dev/docs/deploy/environments):** Deploy to unlimited dev/preview/cloud environments without code changes. Encore provisions the necessary infrastructure and ensures environments stay in sync.
 
-- **[Preview environments](https://encore.dev/docs/how-to/github):** Integrate with GitHub to automatically set up each pull request as an ephemeral preview environment.
+- **[Preview environments](https://encore.dev/docs/deploy/preview-environments):** Integrate with GitHub to automatically set up each pull request as an ephemeral preview environment.
 
 - **[Deploy to your existing cloud account](https://encore.dev/docs/deploy/infra):** Encore deploys your application to your existing cloud account in AWS or GCP, using best practices for building secure and scalable distributed systems.
  

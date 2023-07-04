@@ -223,6 +223,11 @@
     "Title": "Deploy",
     "Children": [
       {
+        "Path": "/deploy/deploying",
+        "Title": "Deploying & CI/CD",
+        "DocSlug": "deploy/deploying"
+      },
+      {
         "Path": "/deploy/infra",
         "Title": "Infrastructure provisioning",
         "DocSlug": "deploy/infra",
@@ -235,6 +240,11 @@
         "Path": "/deploy/environments",
         "Title": "Environments",
         "DocSlug": "deploy/environments"
+      },
+      {
+        "Path": "/deploy/preview-environments",
+        "Title": "Preview Environments",
+        "DocSlug": "deploy/preview-environments"
       },
       {
         "Path": "/deploy/own-cloud",
