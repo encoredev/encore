@@ -28,7 +28,7 @@ This is a good way to try out Encore and learn if it's for you. When you've deci
 ## Do I need to pay for hosting?
 
 All plans come with free use of Encore Cloud, subject to [Fair Use limits](/docs/about/usage).
-Encore Cloud is intended for Preview Environments, development, and non-business-critical use.
+Encore Cloud is intended for [Preview Environments](/docs/deploy/preview-environments), development, and non-business-critical use.
 
 For production use or other use cases where database reliability is important, you should always [use your own cloud account](/docs/deploy/own-cloud). When you connect your own cloud account, you will pay for any usage directly to your cloud provider.
 (This means Encore has no incentive to increase your usage, and can instead build tools to help you reduce your cloud bill.)
