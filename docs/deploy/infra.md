@@ -57,7 +57,7 @@ The application code itself is compiled and run natively on your machine (withou
 
 ### Preview Environments
 
-When you've [connected your application to GitHub](/docs/how-to/github), Encore automatically provisions a temporary [Preview Environment](/docs/deploy/environments#preview-environments) for each Pull Request.
+When you've [connected your application to GitHub](/docs/how-to/github), Encore automatically provisions a temporary [Preview Environment](/docs/deploy/preview-environments) for each Pull Request.
 
 Preview Environments are created in Encore Cloud, and are optimized for provisioning speed and cost-effectiveness.
 The Preview Environment is automatically destroyed when the Pull Request is merged or closed.

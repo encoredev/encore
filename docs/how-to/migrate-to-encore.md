@@ -28,7 +28,7 @@ Your Encore application will talk to your existing backend through APIs, and can
 
 The first step in any project is to create an Encore app. If you've not tried Encore before, we recommend starting by following the [Quick Start Guide](/docs/quick-start).
 
-Once you've created you app, [integrate it with your GitHub repository](/docs/how-to/github) and you'll get automatic Preview Environments for every Pull Request.
+Once you've created you app, [integrate it with your GitHub repository](/docs/how-to/github) and you'll get automatic [Preview Environments](/docs/deploy/preview-environments) for every Pull Request.
 
 ### 2. Prototype your new backend system
 
