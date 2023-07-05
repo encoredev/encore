@@ -159,6 +159,12 @@ class SvcServiceClient {
         await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
     }
 
+    async Nested(params) {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/svc.Nested`, JSON.stringify(params))
+        return await resp.json()
+    }
+
     async RESTPath(a, b) {
         await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
     }

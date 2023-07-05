@@ -47,6 +47,14 @@
         },
         "type": "object"
       },
+      "nested.Type": {
+        "properties": {
+          "Message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "products.Product": {
         "properties": {
           "created_at": {
@@ -691,6 +699,45 @@
         ],
         "responses": {
           "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/svc.Nested": {
+      "post": {
+        "operationId": "POST:svc.Nested",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "Nested": {
+                    "$ref": "#/components/schemas/nested.Type"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "Nested": {
+                      "$ref": "#/components/schemas/nested.Type"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Success response"
           },
           "default": {
