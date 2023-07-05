@@ -9,23 +9,6 @@ import (
 	"encore.dev/appruntime/shared/cloudtrace"
 )
 
-// IsHostedService returns true if the given service is hosted by this instance
-// of the Encore application, false otherwise.
-func (s *Server) IsHostedService(serviceName string) bool {
-	// No runtime configured services or gateways means all services are running here
-	if len(s.runtime.HostedServices) == 0 && len(s.runtime.Gateways) == 0 {
-		return true
-	}
-
-	for _, service := range s.runtime.HostedServices {
-		if service == serviceName {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (s *Server) createServiceHandlerAdapter(h Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		params := toUnnamedParams(ps)

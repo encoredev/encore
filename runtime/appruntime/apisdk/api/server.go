@@ -20,6 +20,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/shared/cfgutil"
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
@@ -220,7 +221,7 @@ func (s *Server) registerEndpoint(h Handler) {
 	case s.IsGateway():
 		adapter = s.createGatewayHandlerAdapter(h)
 
-	case s.IsHostedService(h.ServiceName()):
+	case cfgutil.IsHostedService(s.runtime, h.ServiceName()):
 		adapter = s.createServiceHandlerAdapter(h)
 
 	default:
