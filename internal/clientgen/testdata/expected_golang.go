@@ -231,6 +231,10 @@ type SvcTuple[A any, B any] struct {
 	B B
 }
 
+type SvcWithNested struct {
+	Nested *NestedType
+}
+
 type SvcWrappedRequest = SvcWrapper[SvcRequest]
 
 type SvcWrapper[T any] struct {
@@ -245,6 +249,7 @@ type SvcClient interface {
 	Get(ctx context.Context, params SvcGetRequest) error
 	GetRequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[int]) (SvcHeaderOnlyStruct, error)
 	HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyStruct) error
+	Nested(ctx context.Context, params SvcWithNested) (SvcWithNested, error)
 	RESTPath(ctx context.Context, a string, b int) error
 	RequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[string]) (SvcAllInputTypes[float64], error)
 
@@ -377,6 +382,16 @@ func (c *svcClient) HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyS
 	return err
 }
 
+func (c *svcClient) Nested(ctx context.Context, params SvcWithNested) (resp SvcWithNested, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/svc.Nested", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (c *svcClient) RESTPath(ctx context.Context, a string, b int) error {
 	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/path/%s/%d", url.PathEscape(a), b), nil, nil, nil)
 	return err
@@ -471,6 +486,10 @@ func (c *svcClient) Webhook(ctx context.Context, a string, b []string, request *
 	}
 
 	return c.base.Do(request)
+}
+
+type NestedType struct {
+	Message string
 }
 
 // HTTPDoer is an interface which can be used to swap out the default
