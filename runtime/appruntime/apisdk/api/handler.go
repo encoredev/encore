@@ -175,7 +175,7 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 // If statusCodeToUse is 0, we will use the default status code for the error using
 // the [errs] package.
 func returnError(c IncomingContext, err error, statusCodeToUse int) {
-	if c.callMeta.IsServiceToService() {
+	if c.callMeta.PrivateAPIAccess() {
 		// If this is an internal service to service call, we want to return the full error
 		// we'll add a header to the response to indicate that the error is a full error
 		// and the calling code can use this to determine how to unmarshal the response object.
@@ -664,30 +664,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 		defer func() { _ = httpResp.Body.Close() }()
 
 		if httpResp.StatusCode != http.StatusOK {
-			if httpResp.Header.Get("X-Encore-Full-Error") == "1" {
-				errBytes, err := io.ReadAll(httpResp.Body)
-				if err != nil {
-					return resp, errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
-				}
-
-				respErr, marshallingErr := errmarshalling.Unmarshal(errBytes)
-				if marshallingErr != nil {
-					return resp, errs.B().Code(errs.Internal).Cause(err).Msg("request failed: unable to unmarshal response").Err()
-				}
-
-				return resp, respErr
-			} else {
-				bodyBytes, err := io.ReadAll(httpResp.Body)
-				if err != nil {
-					return resp, errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
-				}
-
-				if len(bodyBytes) == 0 {
-					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %s", httpResp.Status).Err()
-				} else {
-					return resp, errs.B().Code(errs.Internal).Msgf("request failed: status %s: %s", httpResp.Status, string(bodyBytes)).Err()
-				}
-			}
+			return resp, unmarshalErrorResponse(httpResp)
 		}
 
 		return d.DecodeExternalResp(httpResp, c.server.json)
@@ -699,6 +676,37 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 
 	c.server.finishCall(call, respErr)
 	return
+}
+
+// unmarshalErrorResponse unmarshals an error response from an HTTP response.
+//
+// If the error sent back from the server was an Encore encoded error, we unmashal that to restore the original
+// error types. Otherwise, we return a internal server generic error.
+func unmarshalErrorResponse(httpResp *http.Response) error {
+	if httpResp.Header.Get("X-Encore-Full-Error") == "1" {
+		errBytes, err := io.ReadAll(httpResp.Body)
+		if err != nil {
+			return errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
+		}
+
+		respErr, marshallingErr := errmarshalling.Unmarshal(errBytes)
+		if marshallingErr != nil {
+			return errs.B().Code(errs.Internal).Cause(err).Msg("request failed: unable to unmarshal response").Err()
+		}
+
+		return respErr
+	} else {
+		bodyBytes, err := io.ReadAll(httpResp.Body)
+		if err != nil {
+			return errs.B().Code(errs.Internal).Msg("request failed: unable to read response").Err()
+		}
+
+		if len(bodyBytes) == 0 {
+			return errs.B().Code(errs.Internal).Msgf("request failed: status %s", httpResp.Status).Err()
+		} else {
+			return errs.B().Code(errs.Internal).Msgf("request failed: status %s: %s", httpResp.Status, string(bodyBytes)).Err()
+		}
+	}
 }
 
 // validate validates the request, and returns a validation error on failure.

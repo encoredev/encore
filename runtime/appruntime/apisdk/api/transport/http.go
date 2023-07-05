@@ -12,7 +12,12 @@ func HTTPRequest(req *http.Request) Transport {
 }
 
 // HTTPResponse returns a Transport implementation for the given HTTP response.
-func HTTPResponse(w http.ResponseWriter) Transport {
+func HTTPResponse(resp *http.Response) Transport {
+	return &httpHeaders{headers: resp.Header}
+}
+
+// HTTPResponseWriter returns a Transport implementation for the given HTTP response.
+func HTTPResponseWriter(w http.ResponseWriter) Transport {
 	return &httpHeaders{headers: w.Header()}
 }
 
