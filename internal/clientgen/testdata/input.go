@@ -90,6 +90,7 @@ package svc
 import (
     "context"
     "net/http"
+    "app/svc/nested"
 )
 
 // DummyAPI is a dummy endpoint.
@@ -131,6 +132,21 @@ func GetRequestWithAllInputTypes(ctx context.Context, req *AllInputTypes[int]) (
 //encore:api public method=GET
 func HeaderOnlyRequest(ctx context.Context, req *HeaderOnlyStruct) error {
     return nil
+}
+
+type WithNested struct {
+    Nested *nested.Type
+}
+
+//encore:api public method=POST
+func Nested(ctx context.Context, req *WithNested) (*WithNested, error) {
+    return nil
+}
+-- svc/nested/nested.go --
+package nested
+
+type Type struct {
+    Message string
 }
 
 -- products/product.go --

@@ -214,6 +214,10 @@ export namespace svc {
         B: B
     }
 
+    export interface WithNested {
+        Nested: nested.Type
+    }
+
     export type WrappedRequest = Wrapper<Request>
 
     export interface Wrapper<T> {
@@ -307,6 +311,12 @@ export namespace svc {
             await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
         }
 
+        public async Nested(params: WithNested): Promise<WithNested> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/svc.Nested`, JSON.stringify(params))
+            return await resp.json() as WithNested
+        }
+
         public async RESTPath(a: string, b: number): Promise<void> {
             await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
         }
@@ -349,6 +359,12 @@ export namespace svc {
         public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
             return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
         }
+    }
+}
+
+export namespace nested {
+    export interface Type {
+        Message: string
     }
 }
 

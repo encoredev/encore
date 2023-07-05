@@ -56,13 +56,21 @@ func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
 	g.generateClient(file, p.AppSlug, p.Services)
 
 	// Generate the types and service client structs
+	seenNs := make(map[string]bool)
 	for _, service := range p.Meta.Svcs {
-		g.generateTypeDefinitions(file, namedTypes.Decls(service.Name))
+		nsName := service.Name
+		g.generateTypeDefinitions(file, namedTypes.Decls(nsName))
+		seenNs[nsName] = true
 
 		if hasPublicRPC(service) && p.Services.Has(service.Name) {
 			if err := g.generateServiceClient(file, service); err != nil {
 				return errors.Wrapf(err, "unable to generate service client for service: %s", service)
 			}
+		}
+	}
+	for _, ns := range namedTypes.Namespaces() {
+		if !seenNs[ns] {
+			g.generateTypeDefinitions(file, namedTypes.Decls(ns))
 		}
 	}
 
