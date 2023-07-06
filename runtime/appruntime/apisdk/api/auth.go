@@ -30,12 +30,21 @@ type AuthHandlerDesc[Params any] struct {
 	cachedRPCDesc *model.RPCDesc
 }
 
+// AuthHandler is an interface that is either implemented by [AuthHandlerDesc[Params]] or [remoteAuthHandler]
+// depending on whether the auth handler is hosted in this container or not.
 type AuthHandler interface {
+	// Authenticate authenticates the request.
+	// If err != nil it should be written back as the response.
 	Authenticate(IncomingContext) (model.AuthInfo, error)
+
+	// HostedByService returns the name of the service that hosts the auth handler.
+	HostedByService() string
+
+	// ParseAuthData parses the auth data from the request and returns nil if successful.
+	// and data is present, otherwise it returns an error.
+	ParseAuthData(c IncomingContext) error
 }
 
-// Authenticate authenticates the request.
-// If err != nil it should be written back as the response.
 func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInfo, error) {
 	param, err := d.DecodeAuth(c.req)
 	var info model.AuthInfo
@@ -99,6 +108,18 @@ func (d *AuthHandlerDesc[Params]) Authenticate(c IncomingContext) (model.AuthInf
 	<-done
 
 	return info, authErr
+}
+
+func (d *AuthHandlerDesc[Params]) HostedByService() string {
+	return d.Service
+}
+
+func (d *AuthHandlerDesc[Params]) ParseAuthData(c IncomingContext) error {
+	_, err := d.DecodeAuth(c.req)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // runAuthHandler runs the auth handler, if provided.

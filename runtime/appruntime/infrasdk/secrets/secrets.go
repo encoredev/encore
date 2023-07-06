@@ -12,6 +12,6 @@ var singleton = NewManager(
 	encoreenv.Get("ENCORE_APP_SECRETS"),
 )
 
-func Load(key string) string {
-	return singleton.Load(key)
+func Load(key string, inService string) string {
+	return singleton.Load(key, inService)
 }

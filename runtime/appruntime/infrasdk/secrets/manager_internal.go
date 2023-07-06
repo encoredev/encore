@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/cfgutil"
 )
 
 type Manager struct {
@@ -20,13 +21,13 @@ func NewManager(cfg *config.Runtime, appSecretsEnv string) *Manager {
 }
 
 // Load loads a secret.
-func (mgr *Manager) Load(key string) string {
+func (mgr *Manager) Load(key string, inService string) string {
 	if val, ok := mgr.secrets[key]; ok {
 		return val
 	}
 
-	// For anything but local development, a missing secret is a fatal error.
-	if mgr.cfg.EnvCloud != "local" {
+	// For anything but local development or a gateway, a missing secret is a fatal error.
+	if mgr.cfg.EnvCloud != "local" && cfgutil.IsHostedService(mgr.cfg, inService) {
 		fmt.Fprintln(os.Stderr, "encore: could not find secret", key)
 		os.Exit(2)
 	}

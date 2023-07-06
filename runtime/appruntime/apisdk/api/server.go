@@ -20,6 +20,8 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/shared/cfgutil"
+	"encore.dev/appruntime/shared/cloudtrace"
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
@@ -84,12 +86,6 @@ type requestsTotalLabels struct {
 	endpoint string // Endpoint name.
 	code     string // Human-readable HTTP status code.
 }
-
-type metaContextKey string
-
-var (
-	metaContextKeyAuthInfo metaContextKey = "requestMeta"
-)
 
 type Server struct {
 	static         *config.Static
@@ -195,7 +191,27 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 // setAuthHandler sets the auth handler to use.
 // If h is nil it means no auth handler is used.
 func (s *Server) setAuthHandler(h AuthHandler) {
-	s.authHandler = h
+	authService := h.HostedByService()
+
+	if !cfgutil.IsHostedService(s.runtime, authService) {
+		service, found := s.runtime.ServiceDiscovery[authService]
+		if !found {
+			panic(fmt.Errorf("service %q not found in service discovery, but needed for the auth handler", authService))
+		}
+
+		authURL := fmt.Sprintf("%s/__encore/auth_handler", service.URL)
+
+		s.authHandler = &remoteAuthHandler{
+			server:         s,
+			hostingService: service,
+			authURL:        authURL,
+			original:       h,
+			logger:         s.rootLogger.With().Str("auth_url", authURL).Logger(),
+			traceLogs:      s.runtime.EnvCloud != "local", // log auth calls in prod containers only
+		}
+	} else {
+		s.authHandler = h
+	}
 }
 
 func (s *Server) RegisteredHandlers() []Handler {
@@ -220,7 +236,7 @@ func (s *Server) registerEndpoint(h Handler) {
 	case s.IsGateway():
 		adapter = s.createGatewayHandlerAdapter(h)
 
-	case s.IsHostedService(h.ServiceName()):
+	case cfgutil.IsHostedService(s.runtime, h.ServiceName()):
 		adapter = s.createServiceHandlerAdapter(h)
 
 	default:
@@ -306,18 +322,16 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Extract the metadata from the request so we can allow access to the private router.
-	// If the metadata is not present, then we assume this is a public request.
-	callMeta, err := s.MetaFromRequest(transport.HTTPRequest(req))
-	if err != nil {
-		s.rootLogger.Error().Err(err).Msg("failed to extract metadata from request")
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	// Extract the call meta from the request
+	req, internalCaller, ok := s.extractCallMeta(w, req)
+	if !ok {
+		// extractCallMeta has already written the response
 		return
 	}
-	if callMeta.Internal != nil {
+	if internalCaller != nil && internalCaller.PrivateAPIAccess() {
+		// If this request is from another service running in this app, allow it access to the private API routes
 		router, fallbackRouter = s.private, s.privateFallback
 	}
-	req = req.WithContext(context.WithValue(req.Context(), metaContextKeyAuthInfo, callMeta))
 
 	path := determineRequestPath(req.URL)
 
@@ -367,15 +381,39 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 
-func (s *Server) processRequest(h Handler, c IncomingContext) {
-	c.server.beginOperation()
-	defer c.server.finishOperation()
-
-	info, proceed := s.runAuthHandler(h, c)
-	if proceed {
-		c.auth = info
-		h.Handle(c)
+func (s *Server) extractCallMeta(w http.ResponseWriter, req *http.Request) (updatedReq *http.Request, internalCaller Caller, ok bool) {
+	// Extract the metadata from the request so we can allow access to the private router.
+	// If the metadata is not present, then we assume this is a public request.
+	meta, err := s.MetaFromRequest(transport.HTTPRequest(req))
+	if err != nil {
+		s.rootLogger.Error().Err(err).Msg("failed to extract metadata from request")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return nil, nil, false
 	}
+
+	// Extract any cloud generated Trace identifiers from the request.
+	// and use them if we don't have any trace information in the metadata already
+	cloudGeneratedTraceIDs := cloudtrace.ExtractCloudTraceIDs(s.rootLogger, req)
+	if meta.TraceID.IsZero() {
+		meta.TraceID = cloudGeneratedTraceIDs.TraceID
+	}
+
+	// SpanID will be zero already, so if our Cloud generated one for us, we should
+	// use it as the SpanID for this request
+	meta.SpanID = cloudGeneratedTraceIDs.SpanID
+
+	// If we still don't have a trace id, generate one.
+	if meta.TraceID.IsZero() {
+		meta.TraceID, _ = model.GenTraceID()
+		meta.ParentSpanID = model.SpanID{} // no parent span if we have no trace id
+	}
+
+	var caller Caller
+	if meta.Internal != nil {
+		caller = meta.Internal.Caller
+	}
+
+	return req.WithContext(SetCallMetaInContext(req.Context(), meta)), caller, true
 }
 
 func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, callMeta CallMeta) execContext {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -29,6 +30,12 @@ var (
 const (
 	callerMetaName = "Caller"
 	calleeMetaName = "Callee"
+)
+
+type metaContextKey string
+
+var (
+	metaContextKeyAuthInfo metaContextKey = "requestMeta"
 )
 
 // CallMeta is metadata for an RPC call
@@ -115,17 +122,18 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 		// Encode Encore's trace ID and span ID as the traceparent header
 		req.SetMeta(transport.TraceParentKey, fmt.Sprintf("00-%x-%x-01", meta.TraceID[:], meta.ParentSpanID[:]))
 
-		// Because Encore does not count an RPC call as a span, but rather a set of events within a span
-		// we also need to pass the event ID which started the RPC call in the tracestate header
-
-		eventID := strconv.FormatUint(uint64(meta.ParentEventID), 36)
-		if server.runtime.EnvCloud == cloud.GCP || server.runtime.EnvCloud == cloud.Encore {
-			// In GCP they add their own span's into the "trace", which breaks our parent span link
-			// so we need to add the parent span ID to the tracestate header so we can track our own parent span
-			req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%x,%s=%s", eventTraceStateSpanIDKey, meta.ParentSpanID[:], eventTraceStateEventIDKey, eventID))
-		} else {
-			// Otherwise all we need to know is our event ID
-			req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s", eventTraceStateEventIDKey, eventID))
+		if !meta.ParentSpanID.IsZero() {
+			// Because Encore does not count an RPC call as a span, but rather a set of events within a span
+			// we also need to pass the event ID which started the RPC call in the tracestate header
+			eventID := strconv.FormatUint(uint64(meta.ParentEventID), 36)
+			if server.runtime.EnvCloud == cloud.GCP || server.runtime.EnvCloud == cloud.Encore {
+				// In GCP they add their own span's into the "trace", which breaks our parent span link
+				// so we need to add the parent span ID to the tracestate header so we can track our own parent span
+				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%x,%s=%s", eventTraceStateSpanIDKey, meta.ParentSpanID[:], eventTraceStateEventIDKey, eventID))
+			} else {
+				// Otherwise all we need to know is our event ID
+				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s", eventTraceStateEventIDKey, eventID))
+			}
 		}
 	}
 
@@ -168,6 +176,10 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 
 func (meta CallMeta) IsServiceToService() bool {
 	return meta.Internal != nil && meta.Internal.Caller != nil
+}
+
+func (meta CallMeta) PrivateAPIAccess() bool {
+	return meta.Internal != nil && meta.Internal.Caller != nil && meta.Internal.Caller.PrivateAPIAccess()
 }
 
 // MetaFromRequest reads the metadata from the given request and returns it
@@ -323,4 +335,12 @@ func parseTraceState(headerValues []string) (eventID model.TraceEventID, parentS
 	}
 
 	return eventID, parentSpanID, eventID != 0
+}
+
+func SetCallMetaInContext(ctx context.Context, meta CallMeta) context.Context {
+	return context.WithValue(ctx, metaContextKeyAuthInfo, meta)
+}
+
+func CallMetaFromContext(ctx context.Context) CallMeta {
+	return ctx.Value(metaContextKeyAuthInfo).(CallMeta)
 }

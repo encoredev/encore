@@ -11,6 +11,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/trace2"
+	"encore.dev/appruntime/shared/cfgutil"
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/syncutil"
@@ -115,7 +116,7 @@ type Manager struct {
 
 func (mgr *Manager) RegisterService(i Initializer) {
 	name := i.ServiceName()
-	if !mgr.IsHosting(name) {
+	if !cfgutil.IsHostedService(mgr.runtime, name) {
 		return
 	}
 
@@ -124,21 +125,6 @@ func (mgr *Manager) RegisterService(i Initializer) {
 	}
 	mgr.svcMap[name] = i
 	mgr.svcInit = append(mgr.svcInit, i)
-}
-
-func (mgr *Manager) IsHosting(serviceName string) bool {
-	// If we're an all-in-one server, we're hosting everything.
-	if len(mgr.runtime.Gateways) == 0 && len(mgr.runtime.HostedServices) == 0 {
-		return true
-	}
-
-	// Otherwise check if we're hosting this
-	for _, svc := range mgr.runtime.HostedServices {
-		if svc == serviceName {
-			return true
-		}
-	}
-	return false
 }
 
 func (mgr *Manager) InitializeServices() error {
