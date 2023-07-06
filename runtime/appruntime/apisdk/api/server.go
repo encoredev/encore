@@ -199,7 +199,7 @@ func (s *Server) setAuthHandler(h AuthHandler) {
 			panic(fmt.Errorf("service %q not found in service discovery, but needed for the auth handler", authService))
 		}
 
-		authURL := fmt.Sprintf("%s/__encore/auth_handler", service.URL)
+		authURL := fmt.Sprintf("%s/__encore/authhandler", service.URL)
 
 		s.authHandler = &remoteAuthHandler{
 			server:         s,
@@ -233,11 +233,11 @@ func (s *Server) registerEndpoint(h Handler) {
 	var adapter httprouter.Handle
 
 	switch {
-	case s.IsGateway():
-		adapter = s.createGatewayHandlerAdapter(h)
-
 	case cfgutil.IsHostedService(s.runtime, h.ServiceName()):
 		adapter = s.createServiceHandlerAdapter(h)
+
+	case s.IsGateway():
+		adapter = s.createGatewayHandlerAdapter(h)
 
 	default:
 		// not hosted do nothing
@@ -304,11 +304,6 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	// and authenticate it, then we can switch over to the private router which contains all APIs not just
 	// the publicly accessible ones.
 	if sig := req.Header.Get("X-Encore-Auth"); sig != "" && s.pc != nil {
-		if !s.IsGateway() {
-			// Delete the header so it can't be accessed.
-			req.Header.Del("X-Encore-Auth")
-		}
-
 		if ok, err := s.pc.ValidatePlatformRequest(req, sig); err == nil && ok {
 			// Successfully authenticated
 			req = req.WithContext(platformauth.WithEncorePlatformSealOfApproval(req.Context()))
@@ -377,7 +372,7 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Endpoint not found
-	s.rootLogger.Trace().Str("path", path).Bool("gateway", s.IsGateway()).Strs("hosting", s.runtime.HostedServices).Interface("headers", req.Header).Msg("endpoint not found")
+	s.rootLogger.Trace().Str("path", path).Bool("gateway", s.IsGateway()).Strs("hosting", s.runtime.HostedServices).Msg("endpoint not found")
 	errs.HTTPError(w, errs.B().Code(errs.NotFound).Msg("endpoint not found").Err())
 }
 
