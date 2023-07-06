@@ -195,7 +195,7 @@ func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {
 	pg.Gateway = p
 
 	// Generate the environmental variables for the process
-	envs, err := pg.EnvGenerator.ForServices(ports.Gateway.ListenAddr, pg.Meta.Svcs...)
+	envs, err := pg.EnvGenerator.ForAllInOne(ports.Gateway.ListenAddr)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate environment variables")
 	}
