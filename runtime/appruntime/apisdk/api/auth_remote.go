@@ -5,6 +5,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
+	"golang.org/x/exp/maps"
 
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
@@ -47,25 +48,17 @@ func (r *remoteAuthHandler) Authenticate(c IncomingContext) (model.AuthInfo, err
 
 	// Copy over any data which might be needed by the auth handler (query string, headers and cookies)
 	authReq.URL.RawQuery = c.req.URL.RawQuery
-	for k, v := range c.req.Header {
-		// Don't copy the platform auth key across
-		if k == "X-Encore-Auth" {
-			continue
-		}
-
-		for _, vv := range v {
-			authReq.Header.Add(k, vv)
-		}
-	}
+	authReq.Header = maps.Clone(c.req.Header)
+	delete(authReq.Header, "X-Encore-Auth") // Don't copy the platform auth key across
 
 	// Add call meta data to the request, so the receiving service can use to allow access to the auth handler
-	// This also passes a shared TraceID to the auth handler, so it and the microservice called after the gateway
+	// This also passes a shared TraceID to the auth handler, so it and the service called after the gateway
 	// can both be traced as part of the same trace.
 	meta := CallMetaFromContext(c.ctx)
 	meta.Internal = &InternalCallMeta{
 		// Note we're acting as a ApiCaller here so we can access the __encore/auth_handler endpoint and
 		// also receive full marshalled errors back from the auth handler (as ApiCaller's are allowed PrivateAPIAccess)
-		Caller: &ApiCaller{ServiceName: "gateway", Endpoint: "__encore/auth_handler"},
+		Caller: &ApiCaller{ServiceName: "gateway", Endpoint: "__encore/authhandler"},
 	}
 	if err := meta.AddToRequest(r.server, r.hostingService, transport.HTTPRequest(authReq)); err != nil {
 		r.logger.Err(err).Msg("unable to add call metadata to auth request")

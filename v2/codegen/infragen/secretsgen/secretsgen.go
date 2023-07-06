@@ -29,14 +29,8 @@ func Gen(gen *codegen.Generator, svc option.Option[*app.Service], pkg *pkginfo.P
 			addedImport[secret.File] = true
 		}
 
-		svcName := strconv.Quote(
-			option.
-				Map(
-					svc,
-					func(svc *app.Service) string { return svc.Name },
-				).
-				GetOrElse(""),
-		)
+		getName := func(svc *app.Service) string { return svc.Name }
+		svcName := strconv.Quote(option.Map(svc, getName).GetOrElse(""))
 
 		// Rewrite the value spec to load the secrets.
 		spec := secret.Spec

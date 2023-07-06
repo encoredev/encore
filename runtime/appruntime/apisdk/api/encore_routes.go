@@ -12,7 +12,7 @@ import (
 func (s *Server) registerEncoreRoutes() {
 	s.encore.HandlerFunc(wildcardMethod, "/healthz", s.handleHealthz)
 	s.encore.Handle("POST", "/pubsub/push/:subscription_id", s.handlePubsubPush)
-	s.encore.Handle("POST", "/auth_handler", s.handleRemoteAuthCall)
+	s.encore.Handle("POST", "/authhandler", s.handleRemoteAuthCall)
 }
 
 // handleHealthz returns the current health and deployment details of the running Encore application
