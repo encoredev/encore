@@ -2,6 +2,7 @@ package infragen
 
 import (
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
@@ -66,7 +67,8 @@ func Process(gg *codegen.Generator, appDesc *app.Desc) {
 				return r.(*pubsub.Subscription)
 			}))
 		case resource.Secrets:
-			secretsgen.Gen(gg, pkg, fns.Map(resources, func(r resource.Resource) *secrets.Secrets {
+			svc, _ := appDesc.ServiceForPath(pkg.FSPath)
+			secretsgen.Gen(gg, option.AsOptional(svc), pkg, fns.Map(resources, func(r resource.Resource) *secrets.Secrets {
 				return r.(*secrets.Secrets)
 			}))
 		case resource.ConfigLoad:

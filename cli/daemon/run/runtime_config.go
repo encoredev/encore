@@ -86,6 +86,8 @@ type RuntimeEnvGenerator struct {
 
 // ForGateway generates the runtime environmental variables required for the build to
 // startup and run as an API gateway for the given host names
+//
+// The gateway will have CORs enabled and respond to CORs requests directly.
 func (g *RuntimeEnvGenerator) ForGateway(listenAddr netip.AddrPort, hostNames ...string) ([]string, error) {
 	runtimeCfg, err := g.runtimeConfigForGateway(hostNames)
 	if err != nil {
@@ -98,11 +100,25 @@ func (g *RuntimeEnvGenerator) ForGateway(listenAddr netip.AddrPort, hostNames ..
 	}, nil
 }
 
+// ForAllInOne generates the runtime environmental variables required for the build to
+// startup and run as an all-in-one service
+//
+// This service will have CORs enabled as is not behind a gateway
+func (g *RuntimeEnvGenerator) ForAllInOne(listenAddr netip.AddrPort) ([]string, error) {
+	return g.forServiceSet(listenAddr, true, g.Meta.Svcs...)
+}
+
 // ForServices generates the runtime environmental variables required for the build to
 // startup and run the given service(s)
+//
+// These services will not have CORs enabled as they should be behind a gateway
 func (g *RuntimeEnvGenerator) ForServices(listenAddr netip.AddrPort, services ...*meta.Service) ([]string, error) {
+	return g.forServiceSet(listenAddr, false, services...)
+}
+
+func (g *RuntimeEnvGenerator) forServiceSet(listenAddr netip.AddrPort, enableCors bool, services ...*meta.Service) ([]string, error) {
 	// Generate all we need for a given service
-	runtimeCfg, err := g.runtimeConfigForServices(services)
+	runtimeCfg, err := g.runtimeConfigForServices(services, enableCors)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate runtime config")
 	}
@@ -140,7 +156,7 @@ func (g *RuntimeEnvGenerator) ForServices(listenAddr netip.AddrPort, services ..
 
 // runtimeConfigForServices generates the runtime config for a built binary to
 // run the given service(s)
-func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service) (string, error) {
+func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service, enableCors bool) (string, error) {
 	g.init()
 
 	daemonProxyURL := option.Map(g.DaemonProxyAddr, func(t netip.AddrPort) string { return fmt.Sprintf("http://%s", t) })
@@ -158,10 +174,29 @@ func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service)
 		DeployedAt:    g.deployTime,
 		TraceEndpoint: g.TraceEndpoint.GetOrElse(""),
 		AuthKeys:      []config.EncoreAuthKey{g.authKey},
-		CORS:          nil, // Services behind a gateway should not have CORS enabled
 		Metrics:       g.MetricsConfig.GetOrElse(nil),
 		ServiceAuth:   []config.ServiceAuth{{Method: g.ServiceAuthType.GetOrElse("encore-auth")}},
 		PubsubTopics:  make(map[string]*config.PubsubTopic),
+	}
+
+	if enableCors {
+		globalCORS, err := g.App.GlobalCORS()
+		if err != nil {
+			return "", errors.Wrap(err, "failed to generate global CORS config")
+		}
+
+		runtimeCfg.CORS = &config.CORS{
+			Debug: globalCORS.Debug,
+			AllowOriginsWithCredentials: []string{
+				// Allow all origins with credentials for local development;
+				// since it's only running on localhost for development this is safe.
+				config.UnsafeAllOriginWithCredentials,
+			},
+			AllowOriginsWithoutCredentials: []string{"*"},
+			ExtraAllowedHeaders:            globalCORS.AllowHeaders,
+			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
+			AllowPrivateNetworkAccess:      true,
+		}
 	}
 
 	// Add the list of services we want this container to host

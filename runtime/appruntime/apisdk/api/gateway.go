@@ -10,6 +10,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/apisdk/api/transport"
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/beta/errs"
 )
 
@@ -36,18 +38,58 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 	// but locally we don't want the overhead of logging every request.
 	logger := s.rootLogger.With().Str("service", service.Name).Str("endpoint", h.EndpointName()).Logger()
 
-	proxy := httputil.NewSingleHostReverseProxy(serviceBaseURL)
-	proxy.ErrorLog = newZeroLogAdapter(logger, zerolog.ErrorLevel)
-	proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
-		logger.Err(err).Msg("error proxying request to service")
-		errs.HTTPError(w, errs.B().Cause(err).Code(errs.Unavailable).Err())
-	}
-
+	proxy := s.createProxyToService(service, h.EndpointName(), serviceBaseURL, logger)
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-		if s.runtime.EnvCloud != "local" {
-			logger.Trace().Msg("proxying request to service")
+		s.beginOperation()
+		defer s.finishOperation()
+
+		meta := CallMetaFromContext(req.Context())
+
+		info, proceed := s.runAuthHandler(h, s.NewIncomingContext(w, req, toUnnamedParams(ps), meta))
+		if proceed {
+			meta.Internal = &InternalCallMeta{
+				Caller: GatewayCaller{
+					ServiceName: h.ServiceName(),
+					Endpoint:    h.EndpointName(),
+				},
+				AuthUID:  string(info.UID),
+				AuthData: info.UserData,
+			}
+			req = req.WithContext(SetCallMetaInContext(req.Context(), meta))
+
+			if s.runtime.EnvCloud != "local" {
+				logger.Trace().Msg("proxying request to service")
+			}
+			proxy.ServeHTTP(w, req)
 		}
-		proxy.ServeHTTP(w, req)
+	}
+}
+
+// createProxyToService creates a httputil.ReverseProxy that proxies requests onto the target service.
+func (s *Server) createProxyToService(service config.Service, endpointName string, serviceBaseURL *url.URL, logger zerolog.Logger) *httputil.ReverseProxy {
+	callee := fmt.Sprintf("%s.%s", service.Name, endpointName)
+
+	return &httputil.ReverseProxy{
+		// Rewrite the inbound request
+		Rewrite: func(req *httputil.ProxyRequest) {
+			req.SetURL(serviceBaseURL)
+			req.Out.Host = req.In.Host
+
+			t := transport.HTTPRequest(req.Out)
+			t.SetMeta(calleeMetaName, callee) // required by the Handler which verifies we wanted to call this endpoint
+
+			meta := CallMetaFromContext(req.In.Context())
+			if err := meta.AddToRequest(s, service, t); err != nil {
+				logger.Err(err).Msg("failed to add call metadata to request")
+			}
+		},
+		// Have the reverse proxy log errors to our logger.
+		ErrorLog: newZeroLogAdapter(logger, zerolog.ErrorLevel),
+		// Handle proxy errors using our error handler output
+		ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
+			logger.Err(err).Msg("error proxying request to service")
+			errs.HTTPError(w, errs.B().Cause(err).Code(errs.Unavailable).Err())
+		},
 	}
 }
 
