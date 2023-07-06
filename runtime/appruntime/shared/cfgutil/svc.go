@@ -17,7 +17,7 @@ func IsHostedService(runtime *config.Runtime, serviceName string) bool {
 
 	// If we're not hosting a gateway and no service name is passed in
 	// then we're checking if we're running any service code
-	if serviceName == "" && len(runtime.Gateways) == 0 {
+	if serviceName == "" && len(runtime.HostedServices) > 0 {
 		return true
 	}
 

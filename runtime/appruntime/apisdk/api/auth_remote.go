@@ -114,7 +114,7 @@ func (s *Server) handleRemoteAuthCall(w http.ResponseWriter, req *http.Request, 
 		return
 	}
 	caller, ok := meta.Internal.Caller.(*ApiCaller)
-	if !ok || caller.ServiceName != "gateway" || caller.Endpoint != "__encore/auth_handler" {
+	if !ok || caller.ServiceName != "gateway" || caller.Endpoint != "__encore/authhandler" {
 		errs.HTTPErrorWithCode(w, errs.B().Code(errs.PermissionDenied).Msg("permission denied").Err(), 0)
 		return
 	}

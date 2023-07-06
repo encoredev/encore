@@ -8,6 +8,9 @@ import (
 
 func (s *Server) createServiceHandlerAdapter(h Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+		// Delete the header so it can't be accessed.
+		req.Header.Del("X-Encore-Auth")
+
 		params := toUnnamedParams(ps)
 
 		// Extract metadata from the request.
