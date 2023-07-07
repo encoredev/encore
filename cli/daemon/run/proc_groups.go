@@ -411,5 +411,7 @@ func (p *Proc) ProxyReq(w http.ResponseWriter, req *http.Request) {
 // the Process has actually exited. This only kills the Process itself,
 // not any other processes it may have started.
 func (p *Proc) Kill() {
-	_ = p.cmd.Process.Kill()
+	if p.cmd != nil && p.cmd.Process != nil {
+		_ = p.cmd.Process.Kill()
+	}
 }
