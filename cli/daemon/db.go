@@ -81,7 +81,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	} else {
 		// Otherwise we need to check the requested service exists
 		databaseExists := false
-		for _, s := range parse.Meta.Svcs {
+		for _, s := range parse.Meta.SqlDatabases {
 			if s.Name == req.DbName {
 				databaseExists = len(s.Migrations) > 0
 				break
