@@ -76,6 +76,10 @@ message RPC {
   repeated string          http_methods    = 10;
   repeated Selector        tags            = 11;
 
+  // sensitive reports whether the whole payload is sensitive.
+  // If true, none of the request/response payload will be traced.
+  bool                     sensitive       = 12;
+
   enum AccessType {
     PRIVATE = 0;
     PUBLIC = 1;

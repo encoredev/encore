@@ -49,6 +49,10 @@ type Endpoint struct {
 	Tags             selector.Set
 	Recv             option.Option[*schema.Receiver] // None if not a method
 
+	// Sensitive indicates whether the endpoint has been tagged as sensitive,
+	// meaning all request/response information will be redacted in traces.
+	Sensitive bool
+
 	reqEncOnce  sync.Once
 	reqEncoding []*apienc.RequestEncoding
 
@@ -306,7 +310,7 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 
 	accessOptions := []string{"public", "private", "auth"}
 	ok := directive.Validate(errs, dir, directive.ValidateSpec{
-		AllowedOptions: append([]string{"raw"}, accessOptions...),
+		AllowedOptions: append([]string{"raw", "sensitive"}, accessOptions...),
 		AllowedFields:  []string{"path", "method"},
 
 		ValidateOption: func(errs *perr.List, opt directive.Field) (ok bool) {
@@ -321,8 +325,11 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 				endpoint.AccessField = option.Some(opt)
 			}
 
-			if opt.Value == "raw" {
+			switch opt.Value {
+			case "raw":
 				rawTag = opt
+			case "sensitive":
+				endpoint.Sensitive = true
 			}
 
 			return true
