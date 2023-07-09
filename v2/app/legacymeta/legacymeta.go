@@ -86,6 +86,7 @@ func (b *builder) Build() *meta.Data {
 					Path:           b.apiPath(ep.Decl.AST.Pos(), ep.Path),
 					HttpMethods:    ep.HTTPMethods,
 					Tags:           ep.Tags.ToProto(),
+					Sensitive:      ep.Sensitive,
 				}
 				if ep.Raw {
 					rpc.Proto = meta.RPC_RAW
