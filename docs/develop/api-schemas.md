@@ -188,11 +188,16 @@ values as well as nested fields.
 
 Note that inputs to [auth handlers](/docs/develop/auth) are automatically marked as sensitive and are always redacted.
 
+Raw endpoints lack a schema, which means there's no way to add a struct tag to mark certain data as sensitive.
+For this reason Encore supports tagging the whole API endpoint as sensitive by adding `sensitive` to the `//encore:api` annotation.
+This will cause the whole request and response payload to be redacted, including all request and response headers.
+
 <Callout type="info">
 
 The `encore:"sensitive"` tag is ignored for local development environments to make development and debugging with the Local Development Dashboard easier.
 
 </Callout>
+
 
 ## Example
 
