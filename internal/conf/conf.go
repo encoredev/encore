@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
-	"go4.org/syncutil"
 	"golang.org/x/oauth2"
+
+	"encr.dev/internal/goldfish"
 )
 
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
@@ -114,7 +116,7 @@ func Logout() error {
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	DefaultTokenSource = &TokenSource{}
+	DefaultTokenSource = NewTokenSource()
 	AuthClient = oauth2.NewClient(nil, DefaultTokenSource)
 	return nil
 }
@@ -161,38 +163,35 @@ func readConf(configDir string) (*Config, error) {
 	return &conf, nil
 }
 
+func NewTokenSource() *TokenSource {
+	ts := &TokenSource{}
+	ts.token = goldfish.New(1*time.Second, ts.readTokenFromConfig)
+	ts.cfg = &oauth2.Config{
+		Endpoint: oauth2.Endpoint{
+			TokenURL: APIBaseURL + "/login/oauth:refresh-token",
+		},
+	}
+	return ts
+}
+
 // TokenSource implements oauth2.TokenSource by looking up the
 // current logged in user's API Token.
-// The zero value is ready to be used.
 type TokenSource struct {
-	setup     syncutil.Once
-	ts        oauth2.TokenSource
-	lastToken string
+	token *goldfish.Cache[*oauth2.Token]
+	cfg   *oauth2.Config
 }
 
 // Token implements oauth2.TokenSource.
 func (ts *TokenSource) Token() (*oauth2.Token, error) {
-	err := ts.setup.Do(func() error {
-		cfg, err := CurrentUser()
-		if errors.Is(err, os.ErrNotExist) {
-			return ErrNotLoggedIn
-		} else if err != nil {
-			return fmt.Errorf("could not get Encore auth token: %v", err)
-		}
-
-		oauth2Cfg := &oauth2.Config{
-			Endpoint: oauth2.Endpoint{
-				TokenURL: APIBaseURL + "/login/oauth:refresh-token",
-			},
-		}
-		ts.lastToken = cfg.AccessToken
-		ts.ts = oauth2Cfg.TokenSource(context.Background(), &cfg.Token)
-		return nil
-	})
+	baseToken, err := ts.token.Get()
 	if err != nil {
 		return nil, err
 	}
-	token, err := ts.ts.Token()
+
+	// Use the built-in token source to simplify the logic of
+	// refreshing the token as necessary.
+	fetch := ts.cfg.TokenSource(context.Background(), baseToken)
+	token, err := fetch.Token()
 	if err != nil {
 		var re *oauth2.RetrieveError
 		if errors.As(err, &re) && re.Response.StatusCode == 422 {
@@ -200,7 +199,7 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 			_ = Logout()
 			return nil, ErrInvalidRefreshToken
 		}
-	} else if ts.lastToken != token.AccessToken {
+	} else if token.AccessToken != baseToken.AccessToken {
 		// The token has changed, so update the config.
 		cfg, err := CurrentUser()
 		if err != nil {
@@ -210,12 +209,23 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 		if err := Write(cfg); err != nil {
 			return nil, err
 		}
-		ts.lastToken = token.AccessToken
 	}
 	return token, err
 }
 
-var DefaultTokenSource = &TokenSource{}
+// readTokenFromConfig reads the oauth token from the config file.
+func (ts *TokenSource) readTokenFromConfig() (*oauth2.Token, error) {
+	cfg, err := CurrentUser()
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, ErrNotLoggedIn
+	} else if err != nil {
+		return nil, fmt.Errorf("could not get Encore auth token: %v", err)
+	}
+
+	return &cfg.Token, nil
+}
+
+var DefaultTokenSource = NewTokenSource()
 
 // AuthClient is an *http.Client that authenticates requests
 // using the logged-in user.

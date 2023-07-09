@@ -72,7 +72,7 @@ func connect(args []string, svc string) error {
 	}
 	appID := uri.Hostname()
 
-	ts := &conf.TokenSource{}
+	ts := conf.NewTokenSource()
 	tok, err := ts.Token()
 	if err != nil {
 		return fmt.Errorf("could not get Encore auth token: %v", err)
