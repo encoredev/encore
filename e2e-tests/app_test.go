@@ -122,7 +122,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	b.MaxElapsedTime = 10 * time.Second
 	err = backoff.Retry(func() error {
 		w := httptest.NewRecorder()
-		req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://localhost/__encore/healthz"), nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost/__encore/healthz", nil)
 		assertNil(err)
 
 		p.Gateway.ProxyReq(w, req)
