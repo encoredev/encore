@@ -17,7 +17,7 @@ Encore gives you a complete toolset for application development, cloud infrastru
 
 Encore's functionality is based on a [declarative Infrastructure SDK](/docs/primitives/overview) which lets you define resources like services, databases, and queues, as logical objects within your application code. When you run your app, Encore parses your code and automatically sets up the corresponding infrastructure, seamlessly adapting to local, preview, and cloud environments. This removes the need to manage specific services or configurations during development. _No more messing around with Docker Compose!_
 
-For production, select the cloud provider you want and [connect your cloud account](/docs/deploy/own-cloud). At deployment Encore automatically provisions your [infrastructure](/docs/deploy/infra) using pre-built solutions for popular and battle-tested cloud services on AWS or GCP, such as Cloud Run, Fargate, Kubernetes (coming soon), CloudSQL, RDS, PubSub, Redis, Cron Jobs, and more.
+For production, select the cloud provider you want and [connect your cloud account](/docs/deploy/own-cloud). At deployment Encore automatically provisions your [infrastructure](/docs/deploy/infra) using pre-built solutions for popular and battle-tested cloud services on AWS or GCP, such as Cloud Run, Fargate, Kubernetes, CloudSQL, RDS, PubSub, Redis, Cron Jobs, and more.
 
 This means you can focus on product development and avoid dealing with Terraform or other manual infrastructure configuration. This approach also lets you modify and swap out your infrastructure over time, without needing to make code changes or manually update infrastructure config files.
 

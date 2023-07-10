@@ -106,7 +106,7 @@ In the future, Encore will provide built-in optimization of cloud environments a
 
 Encore provisions a single GCP Project for each environment, containing a single [Virtual Private Cloud (VPC)][gcp-vpc].
 Within the VPC, Encore provisions a [Cloud Run][gcp-cloudrun] service to run the application, storing secret values using [Secret Manager][gcp-secrets].
-You can also deploy to Kubernetes, in which case Encore will provision a [Google Kubernetes Engine]][gcp-gke] (GKE) cluster, or if you prefer you can import an existing GKE cluster and deploy there.
+You can also deploy to Kubernetes, in which case Encore will provision a [Google Kubernetes Engine][gcp-gke] (GKE) cluster, or if you prefer you can import an existing GKE cluster and deploy there.
 
 #### SQL Databases
 When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [GCP Cloud SQL][gcp-cloudsql] cluster, and separate databases within that cluster. The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
