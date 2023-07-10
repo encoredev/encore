@@ -39,7 +39,7 @@ Encore provisions infrastructure resources differently for each type of developm
 | **SQL Databases:** | Docker | Encore Managed (Kubernetes) | [See production](/docs/deploy/infra#production-infrastructure) |
 | **Pub/Sub:** | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub | [See production](/docs/deploy/infra#production-infrastructure) |
 | **Caches:** | In-memory (Redis) | In-memory (Redis) | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Cron Jobs:** | Disabled | [Encore Managed][encore-cron] | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Cron Jobs:** | Disabled | [Encore Managed](/docs/primitives/cron-jobs) | [See production](/docs/deploy/infra#production-infrastructure) |
 
 ### Local Development
 
@@ -81,16 +81,16 @@ Encore provisions production infrastructure resources using best-practice guidel
 |  | GCP | AWS |
 | - | - | - |
 | **Networking:** | [VPC](#google-cloud-platform-gcp) | [VPC](#amazon-web-services-aws) |
-| **Compute:** | [Cloud Run](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws) |
+| **Compute:** | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws) |
 | **SQL Databases:** | [GCP Cloud SQL](#sql-databases) | [Amazon RDS](#sql-databases-1) |
 | **Pub/Sub:** | [GCP Pub/Sub](#pubsub) | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1) |
 | **Caches:** | [GCP Memorystore (Redis)](#caching) | [Amazon ElastiCache (Redis)](#caching-1) |
-| **Cron Jobs:** | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] | [Encore Managed][encore-cron] |
+| **Cron Jobs:** | [Encore Managed](/docs/primitives/cron-jobs) | [Encore Managed](/docs/primitives/cron-jobs) | [Encore Managed](/docs/primitives/cron-jobs) |
 | **Secrets:** | [Secret Manager][gcp-secrets] | [AWS Secrets Manager][aws-secrets] |
 
 ### Configurability
 
-With Encore you do not define any cloud service specifics in application code. This means, after deploying to your own cloud account, you can safely use your cloud provider's console to modify the provisioned resources according to your application's scaling requirements. See more details below for each cloud provider and infrastructure resource.
+With Encore you do not define any cloud service specifics in the application code. This means, after deploying to your own cloud account, you can safely use your cloud provider's console to modify the provisioned resources according to your application's scaling requirements. See more details below for each cloud provider and infrastructure resource.
 
 In the future, Encore will provide built-in optimization of cloud environments according to your application's real-world behavior.
 
@@ -98,13 +98,15 @@ In the future, Encore will provide built-in optimization of cloud environments a
 
 [gcp-vpc]: https://cloud.google.com/vpc
 [gcp-cloudrun]: https://cloud.google.com/run
+[gcp-gke]: https://cloud.google.com/kubernetes-engine
 [gcp-secrets]: https://cloud.google.com/secret-manager
 [gcp-pubsub]: https://cloud.google.com/pubsub
 [gcp-cloudsql]: https://cloud.google.com/sql
 [gcp-redis]: https://cloud.google.com/memorystore
 
 Encore provisions a single GCP Project for each environment, containing a single [Virtual Private Cloud (VPC)][gcp-vpc].
-Within the VPC Encore provisions a [Cloud Run][gcp-cloudrun] service to run the application, storing secret values using [Secret Manager][gcp-secrets].
+Within the VPC, Encore provisions a [Cloud Run][gcp-cloudrun] service to run the application, storing secret values using [Secret Manager][gcp-secrets].
+You can also deploy to Kubernetes, in which case Encore will provision a [Google Kubernetes Engine]][gcp-gke] (GKE) cluster, or if you prefer you can import an existing GKE cluster and deploy there.
 
 #### SQL Databases
 When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [GCP Cloud SQL][gcp-cloudsql] cluster, and separate databases within that cluster. The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
