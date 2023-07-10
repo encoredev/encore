@@ -3,7 +3,7 @@ package bits
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -29,7 +29,7 @@ func List(ctx context.Context) ([]*Bit, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		slurp, _ := ioutil.ReadAll(resp.Body)
+		slurp, _ := io.ReadAll(resp.Body)
 		return nil, errors.Newf("got status %d: %s", resp.StatusCode, slurp)
 	}
 
@@ -56,7 +56,7 @@ func Get(ctx context.Context, slug string) (*Bit, error) {
 	if resp.StatusCode == 404 {
 		return nil, ErrNotFound
 	} else if resp.StatusCode != 200 {
-		slurp, _ := ioutil.ReadAll(resp.Body)
+		slurp, _ := io.ReadAll(resp.Body)
 		return nil, errors.Newf("got status %d: %s", resp.StatusCode, slurp)
 	}
 
