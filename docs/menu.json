@@ -333,6 +333,11 @@
         "DocSlug": "how-to/temporal"
       },
       {
+        "Path": "/how-to/import-kubernetes-cluster",
+        "Title": "Import an existing Kubernetes cluster",
+        "DocSlug": "how-to/import-kubernetes-cluster"
+      },
+      {
         "Path": "/how-to/change-db-schema",
         "Title": "Change SQL database schema",
         "DocSlug": "how-to/change-db-schema"
