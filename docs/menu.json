@@ -353,6 +353,11 @@
         "DocSlug": "how-to/insert-test-data-db"
       },
       {
+        "Path": "/how-to/atlas-gorm",
+        "Title": "Use Atlas + GORM for database migrations",
+        "DocSlug": "how-to/atlas-gorm"
+      },
+      {
         "Path": "/how-to/entgo-orm",
         "Title": "Use the ent ORM for migrations",
         "DocSlug": "how-to/entgo-orm"
