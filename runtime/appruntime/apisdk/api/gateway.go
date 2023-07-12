@@ -36,7 +36,7 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 
 	// On cloud environments, we want to log the proxying of requests to services
 	// but locally we don't want the overhead of logging every request.
-	logger := s.rootLogger.With().Str("service", service.Name).Str("endpoint", h.EndpointName()).Logger()
+	logger := s.rootLogger.With().Str("service", service.Name).Str("endpoint", h.EndpointName()).Str("base_url", serviceBaseURL.String()).Logger()
 
 	proxy := s.createProxyToService(service, h.EndpointName(), serviceBaseURL, logger)
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -73,7 +73,6 @@ func (s *Server) createProxyToService(service config.Service, endpointName strin
 		// Rewrite the inbound request
 		Rewrite: func(req *httputil.ProxyRequest) {
 			req.SetURL(serviceBaseURL)
-			req.Out.Host = req.In.Host
 
 			t := transport.HTTPRequest(req.Out)
 			t.SetMeta(calleeMetaName, callee) // required by the Handler which verifies we wanted to call this endpoint
