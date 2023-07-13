@@ -4,6 +4,7 @@ package build
 
 import (
 	"context"
+	"fmt"
 	"go/token"
 	"io"
 	"os"
@@ -67,6 +68,10 @@ func (b *builder) Test() {
 			}
 		}
 	}()
+
+	if b.cfg.KeepOutput && workdir != "" {
+		_, _ = fmt.Fprintf(b.testCfg.Stdout, "wrote generated code to: %s\n", workdir)
+	}
 
 	for _, fn := range []func(){
 		b.writeModFile,

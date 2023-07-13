@@ -37,6 +37,10 @@ type TestParams struct {
 	// in the same format as os.Environ().
 	Environ []string
 
+	// CodegenDebug, if true, specifies to keep the output
+	// around for codegen debugging purposes.
+	CodegenDebug bool
+
 	// Stdout and Stderr are where "go test" output should be written.
 	Stdout, Stderr io.Writer
 }
@@ -64,7 +68,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		Debug:              false,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
-		KeepOutput:         false,
+		KeepOutput:         params.CodegenDebug,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}

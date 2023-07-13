@@ -90,12 +90,15 @@ message TestRequest {
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 4;
 
-  // debug, if true, compiles the app with flags that improve the debugging experience.
-  bool debug = 5;
+  // No longer used; debug, if true, compiles the app with flags that improve the debugging experience.
+  reserved 5;
 
   // trace_file, if set specifies a trace file to write trace information
   // about the parse and compilation process to.
   optional string trace_file = 6;
+
+  // codegen_debug, if true, dumps the generated code and prints where it is located.
+  bool codegen_debug = 7;
 }
 
 message ExecScriptRequest {
