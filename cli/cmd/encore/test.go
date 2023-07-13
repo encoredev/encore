@@ -22,8 +22,8 @@ var testCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			traceFile string
-			debug     bool
+			traceFile    string
+			codegenDebug bool
 		)
 		// Support specific args but otherwise let all args be passed on to "go test"
 		for i := 0; i < len(args); i++ {
@@ -48,19 +48,19 @@ var testCmd = &cobra.Command{
 						i--
 					}
 				}
-			} else if arg == "--debug" {
-				debug = true
+			} else if arg == "--codegen-debug" {
+				codegenDebug = true
 				args = slices.Delete(args, i, i+1)
 				i--
 			}
 		}
 
 		appRoot, relPath := determineAppRoot()
-		runTests(appRoot, relPath, args, debug, traceFile)
+		runTests(appRoot, relPath, args, traceFile, codegenDebug)
 	},
 }
 
-func runTests(appRoot, testDir string, args []string, debug bool, traceFile string) {
+func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug bool) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -78,12 +78,12 @@ func runTests(appRoot, testDir string, args []string, debug bool, traceFile stri
 	daemon := setupDaemon(ctx)
 
 	stream, err := daemon.Test(ctx, &daemonpb.TestRequest{
-		AppRoot:    appRoot,
-		WorkingDir: testDir,
-		Args:       args,
-		Debug:      debug,
-		Environ:    os.Environ(),
-		TraceFile:  nonZeroPtr(traceFile),
+		AppRoot:      appRoot,
+		WorkingDir:   testDir,
+		Args:         args,
+		Environ:      os.Environ(),
+		TraceFile:    nonZeroPtr(traceFile),
+		CodegenDebug: codegenDebug,
 	})
 	if err != nil {
 		fatal(err)
@@ -94,6 +94,12 @@ func runTests(appRoot, testDir string, args []string, debug bool, traceFile stri
 func init() {
 	testCmd.DisableFlagParsing = true
 	rootCmd.AddCommand(testCmd)
+
+	// Even though we've disabled flag parsing, we still need to define the flags
+	// so that the help text is correct.
+	testCmd.Flags().Bool("codegen-debug", false, "Dump generated code (for debugging Encore's code generation)")
+	testCmd.Flags().String("trace", "", "Specifies a trace file to write trace information about the parse and compilation process to.")
+
 }
 
 func convertTestEventOutputOnly(converter outputConverter) outputConverter {
