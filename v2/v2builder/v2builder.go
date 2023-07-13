@@ -230,7 +230,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 			Config: build.Config{
 				Ctx:        pd.pc,
 				Overlays:   gg.Overlays(),
-				KeepOutput: false,
+				KeepOutput: p.Compile.Build.KeepOutput,
 				Env:        envs,
 			},
 			Args:       p.Args,

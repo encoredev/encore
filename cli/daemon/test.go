@@ -57,13 +57,14 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		}()
 
 		tp := run.TestParams{
-			App:        app,
-			WorkingDir: req.WorkingDir,
-			Environ:    req.Environ,
-			Args:       req.Args,
-			Secrets:    secrets,
-			Stdout:     slog.Stdout(false),
-			Stderr:     slog.Stderr(false),
+			App:          app,
+			WorkingDir:   req.WorkingDir,
+			Environ:      req.Environ,
+			Args:         req.Args,
+			Secrets:      secrets,
+			CodegenDebug: req.CodegenDebug,
+			Stdout:       slog.Stdout(false),
+			Stderr:       slog.Stderr(false),
 		}
 		testResults <- s.mgr.Test(testCtx, tp)
 	}()
