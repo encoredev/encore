@@ -87,12 +87,28 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error().Interface("panic", r).Msg("panic in subscriber, no longer processing messages")
+			} else {
+				logger.Info().Msg("subscriber stopped due to context cancellation")
+			}
+		}()
+
 		for t.ctx.Err() == nil {
 			err := utils.WorkConcurrently(
 				t.ctx,
 				maxConcurrency, 10,
 				func(ctx context.Context, maxToFetch int) ([]sqsTypes.Message, error) {
-					resp, err := t.sqsClient.ReceiveMessage(t.ctx, &sqs.ReceiveMessageInput{
+					// We should only long poll for 20 seconds, so if this takes more than
+					// 30 seconds we should cancel the context and try again
+					//
+					// We do this incase the ReceiveMessage call gets stuck on the server
+					// and doesn't return
+					ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+					defer cancel()
+
+					resp, err := t.sqsClient.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
 						QueueUrl:              aws.String(implCfg.ProviderName),
 						AttributeNames:        []sqsTypes.QueueAttributeName{"ApproximateReceiveCount"},
 						MaxNumberOfMessages:   int32(maxToFetch),
@@ -132,13 +148,29 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 					}
 
 					// Call the callback, and if there was no error, then we can delete the message
-					msgCtx, cancel := context.WithTimeout(t.ctx, ackDeadline)
+					msgCtx, cancel := context.WithTimeout(ctx, ackDeadline)
+					defer cancel()
 					err = f(msgCtx, msgWrapper.MessageId, msgWrapper.Timestamp, int(deliveryAttempt), attributes, []byte(msgWrapper.Message))
 					cancel()
+
+					// Check if the context has been cancelled, and if so, return the error
+					if ctx.Err() != nil {
+						return ctx.Err()
+					}
+
+					// We want to wait a maximum of 30 seconds for the callback to complete
+					// otherwise we assume it has failed and we should retry
+					//
+					// We do this incase the callback gets stuck and doesn't return
+					ctx, responseCancel := context.WithTimeout(ctx, 30*time.Second)
+					defer responseCancel()
+
 					if err != nil {
+						logger.Err(err).Str("msg_id", msgWrapper.MessageId).Msg("unable to process message")
+
 						// If there was an error processing the message, apply the backoff policy
 						_, delay := utils.GetDelay(retryPolicy.MaxRetries, retryPolicy.MinBackoff, retryPolicy.MaxBackoff, uint16(deliveryAttempt))
-						_, visibilityChangeErr := t.sqsClient.ChangeMessageVisibility(t.ctx, &sqs.ChangeMessageVisibilityInput{
+						_, visibilityChangeErr := t.sqsClient.ChangeMessageVisibility(ctx, &sqs.ChangeMessageVisibilityInput{
 							QueueUrl:          aws.String(implCfg.ProviderName),
 							ReceiptHandle:     msg.ReceiptHandle,
 							VisibilityTimeout: int32(utils.Clamp(delay, time.Second, 12*time.Hour).Seconds()),
@@ -146,9 +178,9 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 						if visibilityChangeErr != nil {
 							log.Warn().Err(visibilityChangeErr).Str("msg_id", msgWrapper.MessageId).Msg("unable to change message visibility to apply backoff rules")
 						}
-					}
-					if err == nil {
-						_, err = t.sqsClient.DeleteMessage(t.ctx, &sqs.DeleteMessageInput{
+					} else {
+						// If the message was processed successfully, delete it from the queue
+						_, err = t.sqsClient.DeleteMessage(ctx, &sqs.DeleteMessageInput{
 							QueueUrl:      aws.String(implCfg.ProviderName),
 							ReceiptHandle: msg.ReceiptHandle,
 						})
@@ -156,9 +188,11 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 							logger.Err(err).Str("msg_id", msgWrapper.MessageId).Msg("unable to delete message from SQS queue")
 						}
 					}
+
 					return nil
 				},
 			)
+
 			if err != nil && t.ctx.Err() == nil {
 				logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
 				time.Sleep(5 * time.Second)

@@ -175,6 +175,9 @@ func TestWorkConcurrently(t *testing.T) {
 
 			err := WorkConcurrently(ctx, tt.concurrency, tt.maxBatchSize, fetcher, processor)
 
+			workMu.Lock()
+			defer workMu.Unlock()
+
 			// Run assertions on the exit conditions
 			c.Assert(timeoutCtx.Err(), qt.IsNil, qt.Commentf("test timed out - not all work was fetched within the timeout"))
 			switch {
@@ -218,5 +221,78 @@ func TestWorkConcurrently(t *testing.T) {
 				c.Assert(req.toFetch >= req.numReturned, qt.IsTrue, qt.Commentf("test function returned too many items"))
 			}
 		})
+	}
+}
+
+func TestWorkConcurrentlyLoad(t *testing.T) {
+	t.Skipped()
+
+	const load = 20_000
+	msg := make([]string, load)
+	for i := 0; i < load; i++ {
+		msg[i] = fmt.Sprintf("msg %d", i)
+	}
+
+	var (
+		mu  sync.Mutex
+		idx int
+
+		wMu sync.Mutex
+		wrk []string
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	var err error
+
+	for ctx.Err() == nil {
+		err = WorkConcurrently(ctx, 25, 10, func(ctx context.Context, maxToFetch int) ([]string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			if idx >= load {
+				return nil, nil
+			}
+
+			toFetch := maxToFetch
+			if toFetch > load-idx {
+				toFetch = load - idx
+			}
+			if toFetch == 0 {
+				return nil, nil
+			}
+
+			rtn := make([]string, toFetch)
+			copy(rtn, msg[idx:idx+toFetch])
+			idx += toFetch
+
+			return rtn, nil
+		}, func(ctx context.Context, work string) error {
+			time.Sleep(100 * time.Millisecond)
+			wMu.Lock()
+			defer wMu.Unlock()
+
+			wrk = append(wrk, work)
+
+			if len(wrk)%250 == 0 {
+				panic("too much work")
+			}
+
+			if len(wrk) == load {
+				cancel()
+			}
+			return nil
+		})
+
+		fmt.Printf("err (worked %d/%d - sent %d): %v\n", len(wrk), load, idx, err)
+	}
+
+	if err != nil {
+		t.Fatalf("err (worked %d/%d - sent %d): %v", len(wrk), load, idx, err)
+	}
+
+	if len(wrk) != load {
+		t.Fatalf("expected %d work items, got %d", load, len(wrk))
 	}
 }

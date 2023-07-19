@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"encore.dev/beta/errs"
 )
 
 const (
@@ -42,19 +44,37 @@ type WorkProcessor[Work any] func(ctx context.Context, work Work) error
 // this again you could end up with 2x maxConcurrency workers running at the same time. (1x from the original run who
 // are still processing work and 1x from the new run).
 func WorkConcurrently[Work any](ctx context.Context, maxConcurrency int, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
+	fetchWithPanicHandling := func(ctx context.Context, maxToFetch int) (work []Work, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = errs.B().Msgf("panic: %v", r).Err()
+			}
+		}()
+		return fetch(ctx, maxToFetch)
+	}
+
+	workWithPanicHandling := func(ctx context.Context, work Work) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = errs.B().Msgf("panic: %v", r).Err()
+			}
+		}()
+		return worker(ctx, work)
+	}
+
 	if maxConcurrency == 1 {
 		// If there's no concurrency, we can just do everything synchronously within this goroutine
 		// This avoids the overhead of creating mutexes being used
-		return workInSingleRoutine(ctx, fetch, worker)
+		return workInSingleRoutine(ctx, fetchWithPanicHandling, workWithPanicHandling)
 
 	} else if maxConcurrency <= 0 {
 		// If there's infinite concurrency, we can just do everything by spawning goroutines
 		// for each work item
-		return workInInfiniteRoutines(ctx, maxBatchSize, fetch, worker)
+		return workInInfiniteRoutines(ctx, maxBatchSize, fetchWithPanicHandling, workWithPanicHandling)
 
 	} else {
 		// Else there's a cap on concurrency, we need to use channels to communicate between the fetcher and the workers
-		return workInWorkPool(ctx, maxConcurrency, maxBatchSize, fetch, worker)
+		return workInWorkPool(ctx, maxConcurrency, maxBatchSize, fetchWithPanicHandling, workWithPanicHandling)
 	}
 }
 
@@ -139,7 +159,12 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 	workProcessor := func(work Work) {
 		inFlight.Add(1)
 		defer inFlight.Add(-1)
-		defer func() { workDone <- struct{}{} }()
+		defer func() {
+			select {
+			case workDone <- struct{}{}:
+			case <-fetchCtx.Done():
+			}
+		}()
 
 		// We use the parent context here, such that if we have a fetch error, the existing workers will
 		// continue to run until they finish processing any work already have started on
@@ -150,14 +175,17 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 
 	// fetchProcessor is a small wrapper around the fetcher function that passes the fetched work to the workers
 	// it will fetch upto maxConcurrency items at a time in batches of maxBatchSize items
-	var lastFetch time.Time
+	var lastFetch atomic.Pointer[time.Time]
+	var epoch time.Time
+	lastFetch.Store(&epoch)
+
 	var debounceTimer *time.Timer
 	var fetchLock sync.Mutex
 	fetchProcessor := func() {
 		// Lock the fetcher so that we don't have multiple fetchers running at the same time
 		fetchLock.Lock()
 		defer fetchLock.Unlock()
-		defer func() { lastFetch = time.Now() }()
+		defer func() { now := time.Now(); lastFetch.Store(&now) }()
 
 		// Work out how many items we need to fetch
 		need := maxConcurrency - int(inFlight.Load())
@@ -179,7 +207,12 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 
 			// Pass work to workers
 			for _, w := range work {
-				workChan <- w
+				select {
+				case workChan <- w:
+					// success, we passed the work to a worker
+				case <-fetchCtx.Done():
+					return
+				}
 			}
 
 			// Update the number of items we need to fetch
@@ -191,16 +224,8 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 	// Start the workers
 	for i := 0; i < maxConcurrency; i++ {
 		go func() {
-			for {
-				select {
-				case work, more := <-workChan:
-					if !more {
-						// the workChan has been closed, we can stop
-						return
-					}
-
-					workProcessor(work)
-				}
+			for work := range workChan {
+				workProcessor(work)
 			}
 		}()
 	}
@@ -210,12 +235,9 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 	workDone <- struct{}{}
 
 	// Start fetching work
-fetchLoop:
-	for {
+	for fetchCtx.Err() == nil {
 		select {
 		case <-fetchCtx.Done():
-			// If the context is cancelled, we need to stop fetching work
-			break fetchLoop
 
 		case <-workDone:
 			if debounceTimer != nil {
@@ -223,7 +245,7 @@ fetchLoop:
 				debounceTimer = nil
 			}
 
-			if time.Since(lastFetch) > maxFetchDebounce {
+			if time.Since(*lastFetch.Load()) > maxFetchDebounce {
 				fetchProcessor()
 			} else {
 				debounceTimer = time.AfterFunc(workFetchDebounce, fetchProcessor)
