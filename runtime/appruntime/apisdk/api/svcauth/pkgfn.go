@@ -44,19 +44,38 @@ func Verify(req transport.Transport, loadedAuthMethods map[string]ServiceAuth) (
 }
 
 // LoadMethods loads the service to service authentication methods from the given config.
-func LoadMethods(clock clock.Clock, cfg *config.Runtime) (rtn map[string]ServiceAuth, err error) {
-	rtn = make(map[string]ServiceAuth)
+func LoadMethods(clock clock.Clock, cfg *config.Runtime) (inbound, outbound map[string]ServiceAuth, err error) {
+	inbound = make(map[string]ServiceAuth)
+	outbound = make(map[string]ServiceAuth)
 
-	for _, authCfg := range cfg.ServiceAuth {
+	load := func(authCfg config.ServiceAuth) (ServiceAuth, error) {
 		switch authCfg.Method {
 		case "noop":
-			rtn[authCfg.Method] = &noop{}
+			return &noop{}, nil
 		case "encore-auth":
-			rtn[authCfg.Method] = newEncoreAuth(clock, cfg.AppSlug, cfg.EnvName, cfg.AuthKeys)
+			return newEncoreAuth(clock, cfg.AppSlug, cfg.EnvName, cfg.AuthKeys), nil
 		default:
 			return nil, fmt.Errorf("unknown service to service authentication method: %s", authCfg.Method)
 		}
 	}
 
-	return rtn, nil
+	// Load all the inbound auth methods.
+	for _, authCfg := range cfg.ServiceAuth {
+		inbound[authCfg.Method], err = load(authCfg)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Load all the outbound auth methods.
+	for _, svc := range cfg.ServiceDiscovery {
+		if _, found := outbound[svc.ServiceAuth.Method]; !found {
+			outbound[svc.ServiceAuth.Method], err = load(svc.ServiceAuth)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
+	return inbound, outbound, nil
 }
