@@ -69,8 +69,8 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
     }
 
     switch data := event.Data.(type) {
-    case *webhooks.RolloutStartedEvent:
-        // ... handle rollout started event
+    case *webhooks.RolloutCreatedEvent:
+        // ... handle rollout created event
     case *webhooks.RolloutCompletedEvent:
         // ... handle rollout completed event
     }
