@@ -112,7 +112,8 @@ type Server struct {
 	private         *httprouter.Router
 	privateFallback *httprouter.Router
 	encore          *httprouter.Router
-	internalAuth    map[string]svcauth.ServiceAuth // auth methods for internal service-to-service calls
+	inboundSvcAuth  map[string]svcauth.ServiceAuth // auth methods used to accept inbound service-to-service calls
+	outboundSvcAuth map[string]svcauth.ServiceAuth // auth methods used to make outbound service-to-service calls
 	httpsrv         *http.Server
 
 	callCtr uint64
@@ -139,7 +140,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		return router
 	}
 
-	svcAuth, err := svcauth.LoadMethods(clock, runtime)
+	inboundSvcAuth, outboundSvcAuth, err := svcauth.LoadMethods(clock, runtime)
 	if err != nil {
 		panic(fmt.Errorf("error loading service auth methods: %w", err))
 	}
@@ -165,7 +166,8 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		private:         newRouter(),
 		privateFallback: newRouter(),
 		encore:          newRouter(),
-		internalAuth:    svcAuth,
+		inboundSvcAuth:  inboundSvcAuth,
+		outboundSvcAuth: outboundSvcAuth,
 	}
 
 	// Configure CORS

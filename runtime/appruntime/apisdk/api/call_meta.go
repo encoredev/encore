@@ -162,7 +162,7 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 		}
 
 		// If we're making an internal call, sign the request
-		targetAuth := server.internalAuth[targetService.ServiceAuth.Method]
+		targetAuth := server.outboundSvcAuth[targetService.ServiceAuth.Method]
 		if targetAuth == nil {
 			return errs.B().Msg("no internal auth method configured to talk with target service").Err()
 		}
@@ -192,7 +192,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 
 	// If it was an internal call, read the internal metadata
 	if callerStr, found := req.ReadMeta(callerMetaName); found {
-		isInternalCall, err := svcauth.Verify(req, s.internalAuth)
+		isInternalCall, err := svcauth.Verify(req, s.inboundSvcAuth)
 		if err != nil {
 			return CallMeta{}, fmt.Errorf("failed to verify internal call: %w", err)
 		}
