@@ -100,12 +100,21 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrency
 		subscription.ReceiveSettings.NumGoroutines = utils.Clamp(maxConcurrency, 1, maxConcurrency)
 
-		exists, err := subscription.Exists(t.mgr.ctxs.Fetch)
-		if err != nil {
-			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subCfg.EncoreName, t.topicCfg.EncoreName, err))
-		}
-		if !exists {
-			panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", subCfg.EncoreName, t.topicCfg.EncoreName))
+		// Double-check that the subscription exists at initialization
+		// to guard against configuration issues.
+		{
+			// Use a separate context to check if the subscription exists,
+			// since this is happening during initialization, and causes a race
+			// with Cloud Run as it tries to determine if the new revision is healthy.
+			existsCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			exists, err := subscription.Exists(existsCtx)
+			if err != nil {
+				panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subCfg.EncoreName, t.topicCfg.EncoreName, err))
+			}
+			if !exists {
+				panic(fmt.Sprintf("pubsub subscription %s for topic %s does not exist in GCP", subCfg.EncoreName, t.topicCfg.EncoreName))
+			}
 		}
 
 		// Start the subscription
