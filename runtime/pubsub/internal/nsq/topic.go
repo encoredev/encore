@@ -19,12 +19,12 @@ import (
 )
 
 type Manager struct {
-	ctx context.Context
-	rt  *reqtrack.RequestTracker
+	ctxs *utils.Contexts
+	rt   *reqtrack.RequestTracker
 }
 
-func NewManager(ctx context.Context, rt *reqtrack.RequestTracker) *Manager {
-	return &Manager{ctx, rt}
+func NewManager(ctxs *utils.Contexts, rt *reqtrack.RequestTracker) *Manager {
+	return &Manager{ctxs, rt}
 }
 
 // topic is the nsq implementation of pubsub.Topic. It exposes methods to publish
@@ -118,7 +118,7 @@ func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		}
 
 		// forward the message to the subscriber
-		msgCtx, cancel := context.WithTimeout(l.mgr.ctx, ackDeadline)
+		msgCtx, cancel := context.WithTimeout(l.mgr.ctxs.Handler, ackDeadline)
 		defer cancel()
 
 		err = f(msgCtx, msg.ID, time.Unix(0, m.Timestamp), int(m.Attempts), msg.Attributes, msg.Data)
@@ -141,6 +141,12 @@ func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		if err != nil {
 			panic(fmt.Sprintf("failed to connect %s to nsqd for topic %s: %v", implCfg.EncoreName, l.name, err))
 		}
+	}()
+
+	// Stop the consumer when the the fetch context is done
+	go func() {
+		<-l.mgr.ctxs.Fetch.Done()
+		consumer.Stop()
 	}()
 }
 

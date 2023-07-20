@@ -62,6 +62,11 @@ type RuntimeEnvGenerator struct {
 	AuthKey         option.Option[config.EncoreAuthKey]   // The auth key to use for service to service calls (if not set generates one on init)
 	MetricsConfig   option.Option[*config.Metrics]        // The metrics config to use (if not set defaults to none)
 
+	// Shutdown Timings
+	GracefulShutdownTime option.Option[time.Duration] // The total time the application is given to shutdown gracefully
+	ShutdownHooksGrace   option.Option[time.Duration] // The duration before GracefulShutdownTime that shutdown hooks are given to complete
+	HandlersGrace        option.Option[time.Duration] // The duration before GracefulShutdownTime that handlers are given to complete
+
 	// Data about this specific run
 	DaemonProxyAddr option.Option[netip.AddrPort] // The address of the daemon proxy (if not set defaults to the gateway address in ListenAddresses)
 	ListenAddresses *ListenAddresses              // The listen addresses for the application
@@ -163,20 +168,21 @@ func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service,
 
 	// Build the base config
 	runtimeCfg := &config.Runtime{
-		AppID:         g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
-		AppSlug:       g.App.PlatformID(),
-		APIBaseURL:    daemonProxyURL.GetOrElse(g.ListenAddresses.Gateway.BaseURL),
-		EnvID:         g.EnvID.GetOrElse("local"),
-		EnvName:       g.EnvName.GetOrElse("local"),
-		EnvType:       string(g.EnvType.GetOrElse(encore.EnvDevelopment)),
-		EnvCloud:      g.CloudType.GetOrElse(encore.CloudLocal),
-		DeployID:      g.deployID,
-		DeployedAt:    g.deployTime,
-		TraceEndpoint: g.TraceEndpoint.GetOrElse(""),
-		AuthKeys:      []config.EncoreAuthKey{g.authKey},
-		Metrics:       g.MetricsConfig.GetOrElse(nil),
-		ServiceAuth:   []config.ServiceAuth{{Method: g.ServiceAuthType.GetOrElse("encore-auth")}},
-		PubsubTopics:  make(map[string]*config.PubsubTopic),
+		AppID:            g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
+		AppSlug:          g.App.PlatformID(),
+		APIBaseURL:       daemonProxyURL.GetOrElse(g.ListenAddresses.Gateway.BaseURL),
+		EnvID:            g.EnvID.GetOrElse("local"),
+		EnvName:          g.EnvName.GetOrElse("local"),
+		EnvType:          string(g.EnvType.GetOrElse(encore.EnvDevelopment)),
+		EnvCloud:         g.CloudType.GetOrElse(encore.CloudLocal),
+		DeployID:         g.deployID,
+		DeployedAt:       g.deployTime,
+		TraceEndpoint:    g.TraceEndpoint.GetOrElse(""),
+		GracefulShutdown: g.baseGracefulShutdown(),
+		AuthKeys:         []config.EncoreAuthKey{g.authKey},
+		Metrics:          g.MetricsConfig.GetOrElse(nil),
+		ServiceAuth:      []config.ServiceAuth{{Method: g.ServiceAuthType.GetOrElse("encore-auth")}},
+		PubsubTopics:     make(map[string]*config.PubsubTopic),
 	}
 
 	if enableCors {
@@ -355,17 +361,18 @@ func (g *RuntimeEnvGenerator) runtimeConfigForGateway(hostnames []string) (strin
 
 	// Build the base config
 	runtimeCfg := &config.Runtime{
-		AppID:         g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
-		AppSlug:       g.App.PlatformID(),
-		APIBaseURL:    daemonProxyURL.GetOrElse(g.ListenAddresses.Gateway.BaseURL),
-		EnvID:         g.EnvID.GetOrElse("local"),
-		EnvName:       g.EnvName.GetOrElse("local"),
-		EnvType:       string(g.EnvType.GetOrElse(encore.EnvDevelopment)),
-		EnvCloud:      g.CloudType.GetOrElse(encore.CloudLocal),
-		DeployID:      g.deployID,
-		DeployedAt:    g.deployTime,
-		TraceEndpoint: g.TraceEndpoint.GetOrElse(""),
-		AuthKeys:      []config.EncoreAuthKey{g.authKey},
+		AppID:            g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
+		AppSlug:          g.App.PlatformID(),
+		APIBaseURL:       daemonProxyURL.GetOrElse(g.ListenAddresses.Gateway.BaseURL),
+		EnvID:            g.EnvID.GetOrElse("local"),
+		EnvName:          g.EnvName.GetOrElse("local"),
+		EnvType:          string(g.EnvType.GetOrElse(encore.EnvDevelopment)),
+		EnvCloud:         g.CloudType.GetOrElse(encore.CloudLocal),
+		DeployID:         g.deployID,
+		DeployedAt:       g.deployTime,
+		TraceEndpoint:    g.TraceEndpoint.GetOrElse(""),
+		GracefulShutdown: g.baseGracefulShutdown(),
+		AuthKeys:         []config.EncoreAuthKey{g.authKey},
 		CORS: &config.CORS{
 			Debug: globalCORS.Debug,
 			AllowOriginsWithCredentials: []string{
@@ -402,6 +409,14 @@ func (g *RuntimeEnvGenerator) runtimeConfigForGateway(hostnames []string) (strin
 	// Encode the runtime config
 	runtimeCfgBytes, _ := json.Marshal(runtimeCfg)
 	return base64.RawURLEncoding.EncodeToString(runtimeCfgBytes), nil
+}
+
+func (g *RuntimeEnvGenerator) baseGracefulShutdown() *config.GracefulShutdownTimings {
+	return &config.GracefulShutdownTimings{
+		Total:         g.GracefulShutdownTime.PtrOrNil(),
+		ShutdownHooks: g.ShutdownHooksGrace.PtrOrNil(),
+		Handlers:      g.HandlersGrace.PtrOrNil(),
+	}
 }
 
 func (g *RuntimeEnvGenerator) init() {

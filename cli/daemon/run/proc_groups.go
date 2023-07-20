@@ -389,7 +389,7 @@ func (p *Proc) Close() {
 		p.Kill()
 	}
 
-	timer := time.NewTimer(10 * time.Second)
+	timer := time.NewTimer(gracefulShutdownTime + (500 * time.Millisecond))
 	defer timer.Stop()
 
 	select {

@@ -8,6 +8,6 @@ import (
 
 func init() {
 	registerProvider(func(mgr *Manager) provider {
-		return nsq.NewManager(mgr.ctx, mgr.rt)
+		return nsq.NewManager(mgr.ctxs, mgr.rt)
 	})
 }

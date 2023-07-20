@@ -6,6 +6,6 @@ import "encore.dev/pubsub/internal/azure"
 
 func init() {
 	registerProvider(func(mgr *Manager) provider {
-		return azure.NewManager(mgr.ctx)
+		return azure.NewManager(mgr.ctxs)
 	})
 }

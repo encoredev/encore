@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"sync"
-	"sync/atomic"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
@@ -14,11 +13,11 @@ import (
 	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/types"
+	"encore.dev/pubsub/internal/utils"
 )
 
 type Manager struct {
-	ctx        context.Context
-	cancelCtx  func()
+	ctxs       *utils.Contexts
 	static     *config.Static
 	runtime    *config.Runtime
 	rt         *reqtrack.RequestTracker
@@ -27,24 +26,22 @@ type Manager struct {
 	json       jsoniter.API
 	providers  []provider
 
-	publishCounter uint64
-	outstanding    *outstandingMessageTracker
-	pushHandlers   map[types.SubscriptionID]http.HandlerFunc
+	publishCounter  uint64
+	pushHandlers    map[types.SubscriptionID]http.HandlerFunc
+	runningFetches  sync.WaitGroup
+	runningHandlers sync.WaitGroup
 }
 
 func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker,
 	ts *testsupport.Manager, rootLogger zerolog.Logger, json jsoniter.API) *Manager {
-	ctx, cancel := context.WithCancel(context.Background())
 	mgr := &Manager{
-		ctx:          ctx,
-		cancelCtx:    cancel,
+		ctxs:         utils.NewContexts(context.Background()),
 		static:       static,
 		runtime:      runtime,
 		rt:           rt,
 		ts:           ts,
 		rootLogger:   rootLogger,
 		json:         json,
-		outstanding:  newOutstandingMessageTracker(),
 		pushHandlers: make(map[types.SubscriptionID]http.HandlerFunc),
 	}
 
@@ -55,71 +52,33 @@ func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.Req
 	return mgr
 }
 
+// Shutdown stops the manager from fetching new messages and processing them.
 func (mgr *Manager) Shutdown(force context.Context) {
-	mgr.cancelCtx()
-	mgr.outstanding.ArmForShutdown()
+	// Stop fetching new events and wait for all running fetches to return
+	mgr.ctxs.StopFetchingNewEvents()
+	mgr.runningFetches.Wait()
+
+	// Now wait for either all handlers to return or the force context to be cancelled
+	waitChan := make(chan struct{})
+	go func() {
+		mgr.runningHandlers.Wait()
+		close(waitChan)
+	}()
 
 	select {
-	case <-mgr.outstanding.Done():
 	case <-force.Done():
+	case <-waitChan:
 	}
+
+	// Then close all connections to the PubSub providers
+	mgr.ctxs.CloseConnections()
 }
 
-// outstandingMessageTracker tracks the number of outstanding messages.
-// Once Shutdown() has been called, the next time the number of outstanding
-// messages reaches zero (or if it's already zero), the Done() channel is closed.
-type outstandingMessageTracker struct {
-	active int64
-
-	closeOnce sync.Once
-	done      chan struct{}
-
-	mu    sync.Mutex
-	armed bool
-}
-
-func newOutstandingMessageTracker() *outstandingMessageTracker {
-	return &outstandingMessageTracker{
-		done: make(chan struct{}),
-	}
-}
-
-func (t *outstandingMessageTracker) Inc() {
-	atomic.AddInt64(&t.active, 1)
-}
-
-func (t *outstandingMessageTracker) Dec() {
-	val := atomic.AddInt64(&t.active, -1)
-	if val < 0 {
-		panic("outstandingMessageTracker: active < 0")
-	}
-	if val == 0 {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-		if t.armed {
-			t.markDone()
-		}
-	}
-}
-
-func (t *outstandingMessageTracker) ArmForShutdown() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.armed = true
-
-	// If we're already at zero, mark it as done right away.
-	if atomic.LoadInt64(&t.active) == 0 {
-		t.markDone()
-	}
-}
-
-// markDone marks the tracker as being done.
-func (t *outstandingMessageTracker) markDone() {
-	t.closeOnce.Do(func() { close(t.done) })
-}
-
-func (t *outstandingMessageTracker) Done() <-chan struct{} {
-	return t.done
+// StopHandlers cancels the context used for running handlers and waits
+// for all running handlers to return.
+func (mgr *Manager) StopHandlers() {
+	mgr.ctxs.CancelHandler()
+	mgr.runningHandlers.Wait()
 }
 
 type provider interface {

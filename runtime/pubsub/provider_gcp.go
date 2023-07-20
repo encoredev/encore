@@ -8,6 +8,6 @@ import (
 
 func init() {
 	registerProvider(func(mgr *Manager) provider {
-		return gcp.NewManager(mgr.ctx, mgr.runtime, mgr)
+		return gcp.NewManager(mgr.ctxs, mgr.runtime, mgr)
 	})
 }

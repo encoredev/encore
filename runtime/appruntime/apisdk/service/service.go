@@ -80,7 +80,7 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 
 	// If the API Decl supports graceful shutdown, register that with the server.
 	if gs, ok := any(decl.instance).(shutdowner); ok {
-		mgr.registerShutdownHandler(gs)
+		mgr.registerShutdownHandler(serviceShutdown{decl.Service, gs})
 	}
 	return nil
 }
@@ -89,6 +89,11 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 // support graceful shutdown.
 type shutdowner interface {
 	Shutdown(force context.Context)
+}
+
+type serviceShutdown struct {
+	name     string
+	instance shutdowner
 }
 
 func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, healthChecks *health.CheckRegistry, rootLogger zerolog.Logger) *Manager {
@@ -111,7 +116,7 @@ type Manager struct {
 	initialisedServices map[string]struct{}
 
 	shutdownMu       sync.Mutex
-	shutdownHandlers []shutdowner
+	shutdownHandlers []serviceShutdown
 }
 
 func (mgr *Manager) RegisterService(i Initializer) {
@@ -188,6 +193,8 @@ func (mgr *Manager) GetService(name string) (i Initializer, ok bool) {
 }
 
 func (mgr *Manager) Shutdown(force context.Context) {
+	doLog := mgr.runtime.EnvCloud != "local"
+
 	mgr.shutdownMu.Lock()
 	handlers := mgr.shutdownHandlers
 	mgr.shutdownMu.Unlock()
@@ -198,14 +205,25 @@ func (mgr *Manager) Shutdown(force context.Context) {
 		h := h
 		go func() {
 			defer wg.Done()
-			h.Shutdown(force)
+
+			if doLog {
+				mgr.rootLogger.Trace().Str("service", h.name).Msg("shutting down service...")
+				defer func() {
+					if r := recover(); r != nil {
+						mgr.rootLogger.Error().Str("service", h.name).Interface("panic", r).Msg("service shutdown panicked")
+					} else {
+						mgr.rootLogger.Trace().Str("service", h.name).Msg("service shutdown complete")
+					}
+				}()
+			}
+			h.instance.Shutdown(force)
 		}()
 	}
 
 	wg.Wait()
 }
 
-func (mgr *Manager) registerShutdownHandler(h shutdowner) {
+func (mgr *Manager) registerShutdownHandler(h serviceShutdown) {
 	mgr.shutdownMu.Lock()
 	defer mgr.shutdownMu.Unlock()
 	mgr.shutdownHandlers = append(mgr.shutdownHandlers, h)

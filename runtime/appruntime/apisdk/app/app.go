@@ -37,7 +37,7 @@ func (app *App) Run() error {
 	if err != nil {
 		return err
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 
 	app.Start()
 
@@ -48,7 +48,7 @@ func (app *App) Run() error {
 	}()
 
 	if err := app.service.InitializeServices(); err != nil {
-		app.shutdown.Shutdown()
+		app.shutdown.Shutdown(nil, err)
 		return err
 	}
 
@@ -56,7 +56,7 @@ func (app *App) Run() error {
 	serveErr := <-serveCh
 
 	isGraceful := app.shutdown.ShutdownInitiated()
-	app.shutdown.Shutdown()
+	app.shutdown.Shutdown(nil, serveErr)
 
 	// If Serve returned due to graceful shutdown, ignore the error from serve.
 	if isGraceful {
@@ -68,6 +68,7 @@ func (app *App) Run() error {
 func (app *App) Start() {
 	app.logStartupInfo()
 	app.shutdown.OnShutdown(app.api.Shutdown)
+	app.shutdown.RegisterHandlerHook(app.api.StopHandlers)
 }
 
 func (app *App) logStartupInfo() {

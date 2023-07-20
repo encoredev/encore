@@ -12,6 +12,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
+	"encore.dev/pubsub/internal/utils"
 )
 
 const (
@@ -47,8 +48,9 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 		},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctxs := utils.NewContexts(ctx)
 	defer cancel()
-	mgr := NewManager(ctx)
+	mgr := NewManager(ctxs)
 
 	topic := mgr.NewTopic(runtime.PubsubProviders[0], types.TopicConfig{DeliveryGuarantee: types.AtLeastOnce}, runtime.PubsubTopics["test-topic"])
 
