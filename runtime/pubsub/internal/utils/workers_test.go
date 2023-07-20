@@ -225,7 +225,7 @@ func TestWorkConcurrently(t *testing.T) {
 }
 
 func TestWorkConcurrentlyLoad(t *testing.T) {
-	t.Skipped()
+	t.Skip()
 
 	const load = 20_000
 	msg := make([]string, load)

@@ -178,14 +178,12 @@ func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
 		handlerCtx, cancelHandler := context.WithTimeout(gracefulCtx, t.handlerTimeout)
 		defer cancelHandler()
 
-		if t.logShutdown {
-			if reasonSignal != nil {
-				t.logger.Warn().Str("signal", reasonSignal.String()).Msg("got shutdown signal, initiating graceful shutdown")
-			} else if reasonError != nil {
-				t.logger.Err(reasonError).Msg("a fatal error occurred, initiating graceful shutdown")
-			} else {
-				t.logger.Info().Msg("initiating graceful shutdown")
-			}
+		if reasonSignal != nil && t.logShutdown {
+			t.logger.Warn().Str("signal", reasonSignal.String()).Msg("got shutdown signal, initiating graceful shutdown")
+		} else if reasonError != nil {
+			t.logger.Err(reasonError).Msg("a fatal error occurred, initiating graceful shutdown")
+		} else if t.logShutdown {
+			t.logger.Info().Msg("initiating graceful shutdown")
 		}
 
 		// Start a goroutine that will forcefully shutdown the process when the graceful context
