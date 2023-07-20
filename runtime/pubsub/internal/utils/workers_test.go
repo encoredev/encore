@@ -173,7 +173,7 @@ func TestWorkConcurrently(t *testing.T) {
 				return nil
 			}
 
-			err := WorkConcurrently(ctx, tt.concurrency, tt.maxBatchSize, fetcher, processor)
+			err := WorkConcurrently(NewContexts(ctx), tt.concurrency, tt.maxBatchSize, fetcher, processor)
 
 			workMu.Lock()
 			defer workMu.Unlock()
@@ -225,7 +225,7 @@ func TestWorkConcurrently(t *testing.T) {
 }
 
 func TestWorkConcurrentlyLoad(t *testing.T) {
-	t.Skipped()
+	t.Skip()
 
 	const load = 20_000
 	msg := make([]string, load)
@@ -247,7 +247,7 @@ func TestWorkConcurrentlyLoad(t *testing.T) {
 	var err error
 
 	for ctx.Err() == nil {
-		err = WorkConcurrently(ctx, 25, 10, func(ctx context.Context, maxToFetch int) ([]string, error) {
+		err = WorkConcurrently(NewContexts(ctx), 25, 10, func(ctx context.Context, maxToFetch int) ([]string, error) {
 			mu.Lock()
 			defer mu.Unlock()
 

@@ -1,23 +1,22 @@
 package encorecloud
 
 import (
-	"context"
-
 	"go.encore.dev/platform-sdk"
 	"go.encore.dev/platform-sdk/encorecloud"
 	"go.encore.dev/platform-sdk/pkg/auth"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
+	"encore.dev/pubsub/internal/utils"
 )
 
 type Manager struct {
-	ctx          context.Context
+	ctxs         *utils.Contexts
 	client       *encorecloud.Client
 	pushRegistry types.PushEndpointRegistry
 }
 
-func NewManager(ctx context.Context, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
+func NewManager(ctxs *utils.Contexts, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
 	// It's possible that the runtime is nil, for example if the app isn't using this manager
 	// so we need to check for that.
 	server := ""
@@ -32,7 +31,7 @@ func NewManager(ctx context.Context, runtime *config.Runtime, pushRegistry types
 		platform.WithAppDetails(runtime.AppSlug, runtime.EnvName),
 		platform.WithAuthKeys(authKeys...),
 	)
-	return &Manager{ctx: ctx, client: sdk.EncoreCloud, pushRegistry: pushRegistry}
+	return &Manager{ctxs: ctxs, client: sdk.EncoreCloud, pushRegistry: pushRegistry}
 }
 
 func (mgr *Manager) ProviderName() string {

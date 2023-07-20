@@ -13,10 +13,11 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/pubsub/internal/types"
+	"encore.dev/pubsub/internal/utils"
 )
 
 type Manager struct {
-	ctx context.Context
+	ctxs *utils.Contexts
 
 	// publisherID is a unique ID for this Encore app instance, used as the Message Group ID
 	// for topics which don't specify a grouping field. This is based on [AWS's recommendation]
@@ -34,8 +35,8 @@ type Manager struct {
 	sqsClient *sqs.Client
 }
 
-func NewManager(ctx context.Context) *Manager {
-	return &Manager{ctx: ctx, publisherID: xid.New()}
+func NewManager(ctxs *utils.Contexts) *Manager {
+	return &Manager{ctxs: ctxs, publisherID: xid.New()}
 }
 
 func (mgr *Manager) ProviderName() string { return "aws" }
@@ -73,17 +74,17 @@ func (mgr *Manager) getSQSClient(ctx context.Context) *sqs.Client {
 }
 
 func (mgr *Manager) NewTopic(_ *config.PubsubProvider, staticCfg types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
-	snsClient := mgr.getSNSClient(mgr.ctx)
-	sqsClient := mgr.getSQSClient(mgr.ctx)
+	snsClient := mgr.getSNSClient(mgr.ctxs.Connection)
+	sqsClient := mgr.getSQSClient(mgr.ctxs.Connection)
 
 	// Check we have permissions to interact with the given topic
 	// otherwise the first time we will find out is when we try and publish to it
-	_, err := snsClient.GetTopicAttributes(mgr.ctx, &sns.GetTopicAttributesInput{
+	_, err := snsClient.GetTopicAttributes(mgr.ctxs.Connection, &sns.GetTopicAttributesInput{
 		TopicArn: aws.String(runtimeCfg.ProviderName),
 	})
 	if err != nil {
 		panic(fmt.Sprintf("unable to verify SNS topic attributes (may be missing IAM role allowing access): %v", err))
 	}
 
-	return &topic{mgr.ctx, mgr.publisherID, snsClient, sqsClient, staticCfg, runtimeCfg}
+	return &topic{mgr.ctxs, mgr.publisherID, snsClient, sqsClient, staticCfg, runtimeCfg}
 }

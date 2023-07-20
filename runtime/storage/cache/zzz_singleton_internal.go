@@ -1,11 +1,10 @@
 //go:build encore_app
 
-package pubsub
+package cache
 
 import (
 	"encore.dev/appruntime/shared/appconf"
 	"encore.dev/appruntime/shared/jsonapi"
-	"encore.dev/appruntime/shared/logging"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/appruntime/shared/testsupport"
@@ -20,10 +19,6 @@ import (
 var Singleton *Manager
 
 func init() {
-	Singleton = NewManager(
-		appconf.Static, appconf.Runtime, reqtrack.Singleton, testsupport.Singleton,
-		logging.RootLogger, jsonapi.Default,
-	)
+	Singleton = NewManager(appconf.Static, appconf.Runtime, reqtrack.Singleton, testsupport.Singleton, jsonapi.Default)
 	shutdown.Singleton.OnShutdown(Singleton.Shutdown)
-	shutdown.Singleton.RegisterHandlerHook(Singleton.StopHandlers)
 }

@@ -65,7 +65,12 @@ type Runtime struct {
 	// ShutdownTimeout is the duration before non-graceful shutdown is initiated,
 	// meaning connections are closed even if outstanding requests are still in flight.
 	// If zero, it shuts down immediately.
+	//
+	// Deprecated: Use GracefulShutdown.Total instead.
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
+
+	// GracefulShutdown defines the timings for the graceful shutdown process.
+	GracefulShutdown *GracefulShutdownTimings `json:"graceful_shutdown,omitempty"`
 
 	// DynamicExperiments is a list of experiments that are enabled for this app
 	// which impact runtime behaviour, but which were not enabled at compile time.
@@ -73,6 +78,37 @@ type Runtime struct {
 	// Experiments which impact compilation should be handled by the compiler
 	// and added to the static config.
 	DynamicExperiments []string `json:"dynamic_experiments,omitempty"`
+}
+
+// GracefulShutdownTimings defines the timings for the graceful shutdown process.
+type GracefulShutdownTimings struct {
+	// Total is how long we allow the total shutdown to take
+	// before we simply kill the process using [os.Exit]
+	//
+	// If not set, it will default to [Runtime.ShutdownTimeout] during
+	// the migration period to this config.
+	//
+	// If [Runtime.ShutdownTimeout] is also not set, it will default to
+	// 500ms.
+	Total *time.Duration `json:"total,omitempty"`
+
+	// ShutdownHooks is how long before [Total] runs out that we cancel
+	// the context that is passed to the shutdown hooks.
+	//
+	// If not set, it will default to 1 second.
+	//
+	// It is expected that ShutdownHooks is a larger value than Handlers.
+	ShutdownHooks *time.Duration `json:"shutdown_hooks,omitempty"`
+
+	// Handlers is how long before [Total] runs out that we cancel
+	// the context that is passed to API and PubSub Subscription handlers.
+	//
+	// If not set, it will default to 1 second.
+	//
+	// For example, if [Total] is 10 seconds and [Handlers] is 2 seconds,
+	// then we will cancel the context passed to handlers 8 seconds after
+	// a graceful shutdown is initiated.
+	Handlers *time.Duration `json:"handlers,omitempty"`
 }
 
 // Gateway defines the configuration of a gateway which should be served

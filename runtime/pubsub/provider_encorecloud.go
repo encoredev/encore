@@ -8,6 +8,6 @@ import (
 
 func init() {
 	registerProvider(func(mgr *Manager) provider {
-		return encorecloud.NewManager(mgr.ctx, mgr.runtime, mgr)
+		return encorecloud.NewManager(mgr.ctxs, mgr.runtime, mgr)
 	})
 }

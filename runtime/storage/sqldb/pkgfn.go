@@ -4,10 +4,6 @@ package sqldb
 
 import (
 	"context"
-
-	"encore.dev/appruntime/shared/appconf"
-	"encore.dev/appruntime/shared/reqtrack"
-	"encore.dev/appruntime/shared/testsupport"
 )
 
 // NewDatabase declares a new SQL database.
@@ -120,9 +116,6 @@ type constStr string
 func Named(name constStr) *Database {
 	return Singleton.GetDB(string(name))
 }
-
-//publicapigen:drop
-var Singleton = NewManager(appconf.Runtime, reqtrack.Singleton, testsupport.Singleton)
 
 func getCurrentDB() *Database {
 	return Singleton.GetCurrentDB()

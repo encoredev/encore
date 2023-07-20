@@ -9,9 +9,15 @@ import (
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/logging"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/shutdown"
 )
 
-var Singleton = NewManager(appconf.Runtime, reqtrack.Singleton, health.Singleton, logging.RootLogger)
+var Singleton *Manager
+
+func init() {
+	Singleton = NewManager(appconf.Runtime, reqtrack.Singleton, health.Singleton, logging.RootLogger)
+	shutdown.Singleton.OnShutdown(Singleton.Shutdown)
+}
 
 func Register(i Initializer) {
 	Singleton.RegisterService(i)
