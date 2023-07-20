@@ -113,8 +113,11 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 
 	// Subscribe to the topic
 	topic.topic.Subscribe(&log, cfg.MaxConcurrency, cfg.AckDeadline, cfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
-		mgr.outstanding.Inc()
-		defer mgr.outstanding.Dec()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		mgr.runningHandlers.Add(1)
+		defer mgr.runningHandlers.Done()
 
 		if !mgr.static.Testing {
 			// Under test we're already inside an operation

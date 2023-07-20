@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/benbjohnson/clock"
 	jsoniter "github.com/json-iterator/go"
@@ -115,6 +116,9 @@ type Server struct {
 	inboundSvcAuth  map[string]svcauth.ServiceAuth // auth methods used to accept inbound service-to-service calls
 	outboundSvcAuth map[string]svcauth.ServiceAuth // auth methods used to make outbound service-to-service calls
 	httpsrv         *http.Server
+	httpCtx         context.Context
+	httpCtxCancel   context.CancelFunc
+	runningHandlers sync.WaitGroup
 
 	callCtr uint64
 
@@ -175,14 +179,47 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 	if runtime.CORS != nil {
 		corsCfg = runtime.CORS
 	}
-	handler := cors.Wrap(
+	corsWrapper := cors.Wrap(
 		corsCfg,
 		static.CORSAllowHeaders,
 		static.CORSExposeHeaders,
 		http.HandlerFunc(s.handler),
 	)
+
+	// This handler is used to track the number of running handlers
+	// on the server so we can wait for them to finish before shutting down
+	//
+	// It must be the first handler in the chain to ensure the runningHandlers
+	// count is always correct
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.httpCtx.Err() != nil {
+			// We are shutting down, return 503 with a retry-after header to tell clients to back off
+			// we shouldn't ever see this as `httpCtx` is only cancelled after the server has already
+			// started shutting down, but this is here as a safety net just in case
+			w.Header().Set("Retry-After", "2")
+			errs.HTTPErrorWithCode(
+				w,
+				errs.B().Code(errs.Unavailable).Msg("server is shutting down").Err(),
+				http.StatusServiceUnavailable,
+			)
+
+			return
+		}
+
+		// Now we can call the next handler in the chain
+		s.runningHandlers.Add(1)
+		defer s.runningHandlers.Done()
+
+		corsWrapper.ServeHTTP(w, r)
+	})
+
+	s.httpCtx, s.httpCtxCancel = context.WithCancel(context.Background())
 	s.httpsrv = &http.Server{
 		Handler: handler,
+		BaseContext: func(_ net.Listener) context.Context {
+			// We set the base context which allows us to cancel it when the server is shutting down
+			return s.httpCtx
+		},
 	}
 
 	s.registerEncoreRoutes()
@@ -294,8 +331,18 @@ func (s *Server) Serve(ln net.Listener) error {
 	return s.httpsrv.Serve(ln)
 }
 
+// Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown(force context.Context) {
 	_ = s.httpsrv.Shutdown(force)
+}
+
+// StopHandlers cancels the context passed to handlers and waits for all the handlers
+// to return.
+//
+// If handlers do not respond to the context being cancelled, this method will block indefinitely.
+func (s *Server) StopHandlers() {
+	s.httpCtxCancel()
+	s.runningHandlers.Wait()
 }
 
 func (s *Server) handler(w http.ResponseWriter, req *http.Request) {

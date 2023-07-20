@@ -21,14 +21,14 @@ const RetryCountAttribute = "encore-retry-count"
 const TargetSubAttribute = "encore-target-sub"
 
 type Manager struct {
-	ctx context.Context
+	ctxs *utils.Contexts
 
 	clientMu sync.RWMutex
 	_clients map[string]*azservicebus.Client // access via getClient()
 }
 
-func NewManager(ctx context.Context) *Manager {
-	return &Manager{ctx: ctx, _clients: map[string]*azservicebus.Client{}}
+func NewManager(ctxs *utils.Contexts) *Manager {
+	return &Manager{ctxs: ctxs, _clients: map[string]*azservicebus.Client{}}
 }
 
 func (mgr *Manager) ProviderName() string { return "azure" }
@@ -104,15 +104,16 @@ func (t *topic) scheduleRetry(subName string, msg *azservicebus.ReceivedMessage,
 		To:                    msg.To,
 	}
 	_, err := t.sender().ScheduleMessages(
-		t.mgr.ctx, []*azservicebus.Message{reMsg}, time.Now().Add(backoff), nil)
+		t.mgr.ctxs.Connection, []*azservicebus.Message{reMsg}, time.Now().Add(backoff), nil)
 	return err
 }
 
 func (t *topic) processMessage(
+	ctx context.Context,
 	logger *zerolog.Logger, receiver *azservicebus.Receiver, ackDeadline time.Duration, subCfg *config.PubsubSubscription,
 	msg *azservicebus.ReceivedMessage, rp *types.RetryPolicy, f types.RawSubscriptionCallback) (err error) {
 
-	ctx, cancel := context.WithTimeout(t.mgr.ctx, ackDeadline)
+	ctx, cancel := context.WithTimeout(ctx, ackDeadline)
 	defer cancel()
 
 	attrs := make(map[string]string, len(msg.ApplicationProperties))
@@ -128,7 +129,7 @@ func (t *topic) processMessage(
 			rp.MaxRetries, rp.MinBackoff, rp.MaxBackoff, uint16(deliveryAttempt))
 		if !shouldRetry {
 			logger.Warn().Msg("deadlettering msg")
-			err = receiver.DeadLetterMessage(t.mgr.ctx, msg, &azservicebus.DeadLetterOptions{
+			err = receiver.DeadLetterMessage(t.mgr.ctxs.Connection, msg, &azservicebus.DeadLetterOptions{
 				ErrorDescription:   to.Ptr(fmt.Sprintf("failed to process message after %v retries", deliveryAttempt)),
 				Reason:             to.Ptr("ExhaustedRetries"),
 				PropertiesToModify: map[string]interface{}{RetryCountAttribute: 0},
@@ -140,7 +141,7 @@ func (t *topic) processMessage(
 	}
 	// if err == nil we have either successfully processed the message or we have scheduled/deadlettered it
 	if err == nil {
-		err = receiver.CompleteMessage(t.mgr.ctx, msg, nil)
+		err = receiver.CompleteMessage(t.mgr.ctxs.Connection, msg, nil)
 		if err != nil {
 			logger.Warn().Err(err).Msg("failed to complete message")
 		}
@@ -160,12 +161,12 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 
 	// Start the subscription
 	go func() {
-		for t.mgr.ctx.Err() == nil {
+		for t.mgr.ctxs.Fetch.Err() == nil {
 			err := utils.WorkConcurrently(
-				t.mgr.ctx, maxConcurrency, 0,
+				t.mgr.ctxs, maxConcurrency, 0,
 				func(ctx context.Context, maxToFetch int) ([]*azservicebus.ReceivedMessage, error) {
 					// Subscribe to the topic to receive messages
-					messages, err := receiver.ReceiveMessages(t.mgr.ctx, maxToFetch, nil)
+					messages, err := receiver.ReceiveMessages(ctx, maxToFetch, nil)
 					if err != nil {
 						return nil, err
 					}
@@ -173,12 +174,12 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 					return messages, nil
 				},
 				func(ctx context.Context, work *azservicebus.ReceivedMessage) error {
-					return t.processMessage(logger, receiver, ackDeadline, subCfg, work, retryPolicy, f)
+					return t.processMessage(ctx, logger, receiver, ackDeadline, subCfg, work, retryPolicy, f)
 				},
 			)
 
 			// If there was an error and we're not shutting down, log it and then sleep for a bit before trying again
-			if err != nil && t.mgr.ctx.Err() == nil {
+			if err != nil && t.mgr.ctxs.Fetch.Err() == nil {
 				logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
 				time.Sleep(5 * time.Second)
 			}

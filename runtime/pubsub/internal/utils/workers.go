@@ -43,7 +43,7 @@ type WorkProcessor[Work any] func(ctx context.Context, work Work) error
 // context is cancelled however, this function will still return immediately with the error. Thus if you immediately call
 // this again you could end up with 2x maxConcurrency workers running at the same time. (1x from the original run who
 // are still processing work and 1x from the new run).
-func WorkConcurrently[Work any](ctx context.Context, maxConcurrency int, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
+func WorkConcurrently[Work any](ctxs *Contexts, maxConcurrency int, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
 	fetchWithPanicHandling := func(ctx context.Context, maxToFetch int) (work []Work, err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -65,28 +65,28 @@ func WorkConcurrently[Work any](ctx context.Context, maxConcurrency int, maxBatc
 	if maxConcurrency == 1 {
 		// If there's no concurrency, we can just do everything synchronously within this goroutine
 		// This avoids the overhead of creating mutexes being used
-		return workInSingleRoutine(ctx, fetchWithPanicHandling, workWithPanicHandling)
+		return workInSingleRoutine(ctxs, fetchWithPanicHandling, workWithPanicHandling)
 
 	} else if maxConcurrency <= 0 {
 		// If there's infinite concurrency, we can just do everything by spawning goroutines
 		// for each work item
-		return workInInfiniteRoutines(ctx, maxBatchSize, fetchWithPanicHandling, workWithPanicHandling)
+		return workInInfiniteRoutines(ctxs, maxBatchSize, fetchWithPanicHandling, workWithPanicHandling)
 
 	} else {
 		// Else there's a cap on concurrency, we need to use channels to communicate between the fetcher and the workers
-		return workInWorkPool(ctx, maxConcurrency, maxBatchSize, fetchWithPanicHandling, workWithPanicHandling)
+		return workInWorkPool(ctxs, maxConcurrency, maxBatchSize, fetchWithPanicHandling, workWithPanicHandling)
 	}
 }
 
-func workInSingleRoutine[Work any](ctx context.Context, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
+func workInSingleRoutine[Work any](ctxs *Contexts, fetch func(ctx context.Context, maxToFetch int) (work []Work, err error), worker func(ctx context.Context, work Work) (err error)) error {
 	for {
 		// check if the context has been cancelled before fetching work
-		if err := ctx.Err(); err != nil {
+		if err := ctxs.Fetch.Err(); err != nil {
 			return nil
 		}
 
 		// fetch 1 item
-		work, err := fetch(ctx, 1)
+		work, err := fetch(ctxs.Fetch, 1)
 		if err != nil {
 			return err
 		}
@@ -94,20 +94,20 @@ func workInSingleRoutine[Work any](ctx context.Context, fetch WorkFetcher[Work],
 		// loop over the items (we might get zero, and a buggy implementation might return more than 1, so a loop is safer)
 		for _, w := range work {
 			// check if the context has been cancelled before processing the work
-			if err := ctx.Err(); err != nil {
+			if err := ctxs.Handler.Err(); err != nil {
 				return nil
 			}
 
 			// process the work
-			if err := worker(ctx, w); err != nil {
+			if err := worker(ctxs.Handler, w); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func workInInfiniteRoutines[Work any](ctx context.Context, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
-	fetchCtx, cancel := context.WithCancelCause(ctx)
+func workInInfiniteRoutines[Work any](ctxs *Contexts, maxBatchSize int, fetch func(ctx context.Context, maxToFetch int) (work []Work, err error), worker func(ctx context.Context, work Work) (err error)) error {
+	fetchCtx, cancel := context.WithCancelCause(ctxs.Fetch)
 	defer cancel(nil)
 
 	if maxBatchSize <= 0 {
@@ -126,7 +126,7 @@ func workInInfiniteRoutines[Work any](ctx context.Context, maxBatchSize int, fet
 			go func() {
 				// the worker uses the parent context, such that if we have a fetch error, the existing workers will
 				// continue to run until they finish processing their work
-				if err := worker(ctx, w); err != nil {
+				if err := worker(ctxs.Handler, w); err != nil {
 					cancel(err)
 				}
 			}()
@@ -141,8 +141,8 @@ func workInInfiniteRoutines[Work any](ctx context.Context, maxBatchSize int, fet
 	return cancelCause
 }
 
-func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchSize int, fetch WorkFetcher[Work], worker WorkProcessor[Work]) error {
-	fetchCtx, cancel := context.WithCancelCause(ctx)
+func workInWorkPool[Work any](ctxs *Contexts, maxConcurrency int, maxBatchSize int, fetch func(ctx context.Context, maxToFetch int) (work []Work, err error), worker func(ctx context.Context, work Work) (err error)) error {
+	fetchCtx, cancel := context.WithCancelCause(ctxs.Fetch)
 	defer cancel(nil)
 
 	// workChan is a channel that is used to pass work from the fetcher to the workers
@@ -168,7 +168,7 @@ func workInWorkPool[Work any](ctx context.Context, maxConcurrency int, maxBatchS
 
 		// We use the parent context here, such that if we have a fetch error, the existing workers will
 		// continue to run until they finish processing any work already have started on
-		if err := worker(ctx, work); err != nil {
+		if err := worker(ctxs.Handler, work); err != nil {
 			cancel(err)
 		}
 	}

@@ -23,7 +23,7 @@ import (
 )
 
 type topic struct {
-	ctx         context.Context
+	ctxs        *utils.Contexts
 	publisherID xid.ID
 	snsClient   *sns.Client
 	sqsClient   *sqs.Client
@@ -73,7 +73,7 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	// Check we have permissions to interact with the given queue
 	// otherwise the first time we will find out is when we try and publish to it
-	_, err := t.sqsClient.GetQueueAttributes(t.ctx, &sqs.GetQueueAttributesInput{
+	_, err := t.sqsClient.GetQueueAttributes(t.ctxs.Fetch, &sqs.GetQueueAttributesInput{
 		QueueUrl: aws.String(implCfg.ProviderName),
 	})
 	if err != nil {
@@ -95,9 +95,9 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 			}
 		}()
 
-		for t.ctx.Err() == nil {
+		for t.ctxs.Fetch.Err() == nil {
 			err := utils.WorkConcurrently(
-				t.ctx,
+				t.ctxs,
 				maxConcurrency, 10,
 				func(ctx context.Context, maxToFetch int) ([]sqsTypes.Message, error) {
 					// We should only long poll for 20 seconds, so if this takes more than
@@ -170,7 +170,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 
 						// If there was an error processing the message, apply the backoff policy
 						_, delay := utils.GetDelay(retryPolicy.MaxRetries, retryPolicy.MinBackoff, retryPolicy.MaxBackoff, uint16(deliveryAttempt))
-						_, visibilityChangeErr := t.sqsClient.ChangeMessageVisibility(ctx, &sqs.ChangeMessageVisibilityInput{
+						_, visibilityChangeErr := t.sqsClient.ChangeMessageVisibility(t.ctxs.Connection, &sqs.ChangeMessageVisibilityInput{
 							QueueUrl:          aws.String(implCfg.ProviderName),
 							ReceiptHandle:     msg.ReceiptHandle,
 							VisibilityTimeout: int32(utils.Clamp(delay, time.Second, 12*time.Hour).Seconds()),
@@ -180,7 +180,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 						}
 					} else {
 						// If the message was processed successfully, delete it from the queue
-						_, err = t.sqsClient.DeleteMessage(ctx, &sqs.DeleteMessageInput{
+						_, err = t.sqsClient.DeleteMessage(t.ctxs.Connection, &sqs.DeleteMessageInput{
 							QueueUrl:      aws.String(implCfg.ProviderName),
 							ReceiptHandle: msg.ReceiptHandle,
 						})
@@ -193,7 +193,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 				},
 			)
 
-			if err != nil && t.ctx.Err() == nil {
+			if err != nil && t.ctxs.Fetch.Err() == nil {
 				logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
 				time.Sleep(5 * time.Second)
 				continue

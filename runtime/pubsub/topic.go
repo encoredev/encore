@@ -103,6 +103,10 @@ func (t *Topic[T]) Meta() TopicMeta {
 // If an error is returned, it is probable that the message failed to be published, however it is possible
 // that the message could still be received by subscriptions to the topic.
 func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+
 	if t.runtimeCfg == nil || t.topic == nil {
 		return "", errs.B().Code(errs.Unimplemented).Msg("pubsub topic was not created using pubsub.NewTopic").Err()
 	}

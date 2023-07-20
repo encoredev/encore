@@ -399,6 +399,8 @@ type StartProcGroupParams struct {
 	Experiments    *experiments.Set
 }
 
+const gracefulShutdownTime = 10 * time.Second
+
 // StartProcGroup starts a single actual OS process for app.
 func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err error) {
 	pid := GenID()
@@ -418,17 +420,20 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		ID:  pid,
 		Run: r,
 		EnvGenerator: &RuntimeEnvGenerator{
-			App:             r.App,
-			InfraManager:    r.ResourceManager,
-			Meta:            params.Meta,
-			Secrets:         params.Secrets,
-			SvcConfigs:      params.ServiceConfigs,
-			AppID:           option.Some(r.ID),
-			EnvID:           option.Some(pid),
-			TraceEndpoint:   option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
-			AuthKey:         option.Some(authKey),
-			DaemonProxyAddr: option.Some(listenAddr),
-			ListenAddresses: procListenAddresses,
+			App:                  r.App,
+			InfraManager:         r.ResourceManager,
+			Meta:                 params.Meta,
+			Secrets:              params.Secrets,
+			SvcConfigs:           params.ServiceConfigs,
+			AppID:                option.Some(r.ID),
+			EnvID:                option.Some(pid),
+			TraceEndpoint:        option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
+			AuthKey:              option.Some(authKey),
+			DaemonProxyAddr:      option.Some(listenAddr),
+			GracefulShutdownTime: option.Some(gracefulShutdownTime),
+			ShutdownHooksGrace:   option.Some(4 * time.Second),
+			HandlersGrace:        option.Some(2 * time.Second),
+			ListenAddresses:      procListenAddresses,
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,

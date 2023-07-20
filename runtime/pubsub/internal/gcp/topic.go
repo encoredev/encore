@@ -15,7 +15,7 @@ import (
 )
 
 type Manager struct {
-	ctx          context.Context
+	ctxs         *utils.Contexts
 	runtime      *config.Runtime
 	pushRegistry types.PushEndpointRegistry
 
@@ -23,8 +23,8 @@ type Manager struct {
 	_client    *pubsub.Client // access via getClient()
 }
 
-func NewManager(ctx context.Context, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
-	return &Manager{ctx: ctx, runtime: runtime, pushRegistry: pushRegistry}
+func NewManager(ctxs *utils.Contexts, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
+	return &Manager{ctxs: ctxs, runtime: runtime, pushRegistry: pushRegistry}
 }
 
 type topic struct {
@@ -50,7 +50,7 @@ func (mgr *Manager) NewTopic(_ *config.PubsubProvider, staticCfg types.TopicConf
 
 	// Check we have permissions to interact with the given topic
 	// (note: the call to Topic() above only creates the object, it doesn't verify that we have permissions to interact with it)
-	_, err := gcpTopic.Config(mgr.ctx)
+	_, err := gcpTopic.Config(mgr.ctxs.Connection)
 	if err != nil {
 		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", runtimeCfg.EncoreName, err))
 	}
@@ -100,7 +100,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrency
 		subscription.ReceiveSettings.NumGoroutines = utils.Clamp(maxConcurrency, 1, maxConcurrency)
 
-		exists, err := subscription.Exists(t.mgr.ctx)
+		exists, err := subscription.Exists(t.mgr.ctxs.Fetch)
 		if err != nil {
 			panic(fmt.Sprintf("pubsub subscription %s for topic %s status call failed: %s", subCfg.EncoreName, t.topicCfg.EncoreName, err))
 		}
@@ -110,23 +110,46 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 
 		// Start the subscription
 		go func() {
-			for t.mgr.ctx.Err() == nil {
+			for t.mgr.ctxs.Fetch.Err() == nil {
 				// Subscribe to the topic to receive messages
-				err := subscription.Receive(t.mgr.ctx, func(ctx context.Context, msg *pubsub.Message) {
+				err := subscription.Receive(t.mgr.ctxs.Fetch, func(_ context.Context, msg *pubsub.Message) {
 					deliveryAttempt := 1
 					if msg.DeliveryAttempt != nil {
 						deliveryAttempt = *msg.DeliveryAttempt
 					}
 
+					// Create a context from the handler context with a deadline of the ackdeadline
+					ctx, cancel := context.WithTimeout(t.mgr.ctxs.Handler, ackDeadline)
+					defer cancel()
+
+					var result *pubsub.AckResult
 					if err := f(ctx, msg.ID, msg.PublishTime, deliveryAttempt, msg.Attributes, msg.Data); err != nil {
-						msg.Nack()
+						result = msg.NackWithResult()
 					} else {
-						msg.Ack()
+						result = msg.AckWithResult()
+					}
+
+					res, err := result.Get(t.mgr.ctxs.Connection)
+					if err != nil {
+						logger.Warn().Err(err).Str("msg_id", msg.ID).Msg("failed to ack/nack message")
+					} else {
+						switch res {
+						case pubsub.AcknowledgeStatusSuccess:
+							return
+						case pubsub.AcknowledgeStatusPermissionDenied:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to permissions")
+						case pubsub.AcknowledgeStatusFailedPrecondition:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to precondition")
+						case pubsub.AcknowledgeStatusInvalidAckID:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to invalid ack ID")
+						default:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to unknown error")
+						}
 					}
 				})
 
 				// If there was an error and we're not shutting down, log it and then sleep for a bit before trying again
-				if err != nil && t.mgr.ctx.Err() == nil {
+				if err != nil && t.mgr.ctxs.Fetch.Err() == nil {
 					logger.Warn().Err(err).Msg("pubsub subscription failed, retrying in 5 seconds")
 					time.Sleep(5 * time.Second)
 				}
