@@ -71,13 +71,20 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 }
 
 func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
-	// Check we have permissions to interact with the given queue
-	// otherwise the first time we will find out is when we try and publish to it
-	_, err := t.sqsClient.GetQueueAttributes(t.ctxs.Fetch, &sqs.GetQueueAttributesInput{
-		QueueUrl: aws.String(implCfg.ProviderName),
-	})
-	if err != nil {
-		panic(fmt.Sprintf("unable to verify SQS queue attributes (may be missing IAM role allowing access): %v", err))
+	// Double-check that the subscription exists at initialization
+	// to guard against configuration issues.
+	{
+		// Use a separate context to check if the subscription exists,
+		// since this is happening during initialization, and causes a race
+		// with as the underlying infrastructure tries to determine if the new revision is healthy.
+		existsCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, err := t.sqsClient.GetQueueAttributes(existsCtx, &sqs.GetQueueAttributesInput{
+			QueueUrl: aws.String(implCfg.ProviderName),
+		})
+		if err != nil {
+			panic(fmt.Sprintf("unable to verify SQS queue attributes (may be missing IAM role allowing access): %v", err))
+		}
 	}
 
 	ackDeadline = utils.Clamp(ackDeadline, time.Second, 12*time.Hour)
