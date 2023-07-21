@@ -50,7 +50,7 @@ var blogDB = sqldb.NewDatabase("blog", sqldb.DatabaseConfig{
 // It is automatically called by Encore on service startup.
 func initService() (*Service, error) {
 	db, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: blogDB,
+		Conn: blogDB.Stdlib(),
 	}))
 	if err != nil {
 		return nil, err
