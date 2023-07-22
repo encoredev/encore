@@ -3,12 +3,15 @@ package utils
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	qt "github.com/frankban/quicktest"
+	"golang.org/x/exp/slices"
 )
 
 func TestWorkConcurrently(t *testing.T) {
@@ -225,74 +228,83 @@ func TestWorkConcurrently(t *testing.T) {
 }
 
 func TestWorkConcurrentlyLoad(t *testing.T) {
-	t.Skip()
-
-	const load = 20_000
-	msg := make([]string, load)
+	const load = 2000
+	allMessages := make([]string, load)
 	for i := 0; i < load; i++ {
-		msg[i] = fmt.Sprintf("msg %d", i)
+		allMessages[i] = fmt.Sprintf("msg %d", i)
 	}
-
-	var (
-		mu  sync.Mutex
-		idx int
-
-		wMu sync.Mutex
-		wrk []string
-	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	var err error
 
+	var (
+		numFetched        atomic.Int64
+		numProcessed      atomic.Int64
+		processedMessages sync.Map
+	)
+
+	const (
+		maxConcurrency = 25
+		maxBatchSize   = 10
+	)
+
 	for ctx.Err() == nil {
-		err = WorkConcurrently(NewContexts(ctx), 25, 10, func(ctx context.Context, maxToFetch int) ([]string, error) {
-			mu.Lock()
-			defer mu.Unlock()
-
-			if idx >= load {
-				return nil, nil
+		err = WorkConcurrently(NewContexts(ctx), maxConcurrency, maxBatchSize, func(ctx context.Context, numToFetch int) ([]string, error) {
+			// Introduce random behavior
+			switch rand.Intn(10) {
+			case 0:
+				panic("random panic")
+			case 1:
+				return nil, fmt.Errorf("random error")
 			}
 
-			toFetch := maxToFetch
-			if toFetch > load-idx {
-				toFetch = load - idx
-			}
-			if toFetch == 0 {
-				return nil, nil
+			// Determine which slice of messages we should fetch
+			end := numFetched.Add(int64(numToFetch))
+			start := end - int64(numToFetch)
+
+			if numToFetch < 0 {
+				panic(fmt.Sprintf("negative numToFetch: %d", numToFetch))
+			} else if numToFetch > maxBatchSize {
+				panic(fmt.Sprintf("numToFetch too large: %d", numToFetch))
 			}
 
-			rtn := make([]string, toFetch)
-			copy(rtn, msg[idx:idx+toFetch])
-			idx += toFetch
+			// Clamp start and end to the bounds of the message slice
+			if start > load {
+				start = load
+			}
+			if end > load {
+				end = load
+			}
 
-			return rtn, nil
+			fetched := slices.Clone(allMessages[start:end])
+
+			// If we didn't find enough items to fetch, decrease the num fetched again.
+			if diff := numToFetch - len(fetched); diff > 0 {
+				numFetched.Add(-int64(diff))
+			}
+
+			return fetched, nil
 		}, func(ctx context.Context, work string) error {
-			time.Sleep(100 * time.Millisecond)
-			wMu.Lock()
-			defer wMu.Unlock()
+			processedMessages.Store(work, true)
 
-			wrk = append(wrk, work)
-
-			if len(wrk)%250 == 0 {
-				panic("too much work")
-			}
-
-			if len(wrk) == load {
+			if numProcessed.Add(1) == load {
 				cancel()
 			}
 			return nil
 		})
 
-		fmt.Printf("err (worked %d/%d - sent %d): %v\n", len(wrk), load, idx, err)
+		fmt.Printf("published %v / consumed %v / target %v / err %v\n",
+			numFetched.Load(), numProcessed.Load(), load, err)
 	}
 
-	if err != nil {
-		t.Fatalf("err (worked %d/%d - sent %d): %v", len(wrk), load, idx, err)
+	if numProcessed.Load() != load {
+		t.Fatalf("expected %d processed items, got %d", load, numProcessed.Load())
 	}
-
-	if len(wrk) != load {
-		t.Fatalf("expected %d work items, got %d", load, len(wrk))
+	for _, msg := range allMessages {
+		if _, ok := processedMessages.Load(msg); !ok {
+			t.Fatalf("message %q was not processed", msg)
+		}
 	}
 }

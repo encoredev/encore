@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"errors"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,6 +16,8 @@ const (
 
 	// What is the maximum amount of time we wait before fetching work items when debouncing
 	maxFetchDebounce = 250 * time.Millisecond
+
+	noWorkDebounce = 500 * time.Millisecond
 )
 
 // WorkFetcher is a function that fetches work from a queue, it should fetch at most maxToFetch items
@@ -141,128 +142,113 @@ func workInInfiniteRoutines[Work any](ctxs *Contexts, maxBatchSize int, fetch fu
 	return cancelCause
 }
 
-func workInWorkPool[Work any](ctxs *Contexts, maxConcurrency int, maxBatchSize int, fetch func(ctx context.Context, maxToFetch int) (work []Work, err error), worker func(ctx context.Context, work Work) (err error)) error {
-	fetchCtx, cancel := context.WithCancelCause(ctxs.Fetch)
-	defer cancel(nil)
+func workInWorkPool[Work any](ctxs *Contexts, maxConcurrency int, maxBatchSize int, doFetch func(ctx context.Context, maxToFetch int) (work []Work, err error), doProcessWork func(ctx context.Context, work Work) (err error)) error {
+	fetchCtx, cancelFetch := context.WithCancelCause(ctxs.Fetch)
+	defer cancelFetch(nil)
 
 	// workChan is a channel that is used to pass work from the fetcher to the workers
 	workChan := make(chan Work)
 	defer close(workChan) // close the channel when we're done so the workers know to stop
 
+	numWorkers := maxConcurrency
+
 	// workDone is a channel that is used to signal that a worker has finished processing an item
-	workDone := make(chan struct{}, maxConcurrency)
+	workDone := make(chan struct{})
 
-	var inFlight atomic.Int64
+	var workItemsBeingProcessed atomic.Int64
 
-	// workProcessor is a small wrapper around the worker function that tracks the number of items being processed
+	// processWorkItem is a small wrapper around the worker function that tracks the number of items being processed
 	// and cancels the context if an error is returned
-	workProcessor := func(work Work) {
-		inFlight.Add(1)
-		defer inFlight.Add(-1)
+	processWorkItem := func(work Work) {
+		workItemsBeingProcessed.Add(1)
+
 		defer func() {
+			// Decrement the number of items being processed.
+			// Note: it's important this happens BEFORE we
+			// try to unblock the fetcher, otherwise we can end up
+			// with a race where we unblock the fetcher but it doesn't
+			// find any work to do and deadlocks.
+			workItemsBeingProcessed.Add(-1)
+
+			// Attempt to unblock the fetcher if they're
+			// waiting for a work item to complete.
 			select {
 			case workDone <- struct{}{}:
-			case <-fetchCtx.Done():
+			default:
 			}
 		}()
 
 		// We use the parent context here, such that if we have a fetch error, the existing workers will
 		// continue to run until they finish processing any work already have started on
-		if err := worker(ctxs.Handler, work); err != nil {
-			cancel(err)
+		if err := doProcessWork(ctxs.Handler, work); err != nil {
+			cancelFetch(err)
 		}
 	}
-
-	// fetchProcessor is a small wrapper around the fetcher function that passes the fetched work to the workers
-	// it will fetch upto maxConcurrency items at a time in batches of maxBatchSize items
-	var lastFetch atomic.Pointer[time.Time]
-	var epoch time.Time
-	lastFetch.Store(&epoch)
-
-	var debounceTimer *time.Timer
-	var fetchLock sync.Mutex
-	fetchProcessor := func() {
-		// Lock the fetcher so that we don't have multiple fetchers running at the same time
-		fetchLock.Lock()
-		defer fetchLock.Unlock()
-		defer func() { now := time.Now(); lastFetch.Store(&now) }()
-
-		// Work out how many items we need to fetch
-		need := maxConcurrency - int(inFlight.Load())
-
-		// Fetch work in batches
-		for need > 0 {
-			// calculate how many items we need to fetch in this batch
-			toFetch := need
-			if maxBatchSize > 0 && toFetch > maxBatchSize {
-				toFetch = maxBatchSize
-			}
-
-			// fetch the work
-			work, err := fetch(fetchCtx, toFetch)
-			if err != nil {
-				cancel(err)
-				return
-			}
-
-			// Pass work to workers
-			for _, w := range work {
-				select {
-				case workChan <- w:
-					// success, we passed the work to a worker
-				case <-fetchCtx.Done():
-					return
-				}
-			}
-
-			// Update the number of items we need to fetch
-			// if nothing was returned, we will immediately loop and try again
-			need -= len(work)
+	worker := func() {
+		for work := range workChan {
+			processWorkItem(work)
 		}
 	}
 
 	// Start the workers
-	for i := 0; i < maxConcurrency; i++ {
-		go func() {
-			for work := range workChan {
-				workProcessor(work)
-			}
-		}()
+	for i := 0; i < numWorkers; i++ {
+		go worker()
 	}
 
-	// Add a dummy item to the workDone channel so that the fetcher will be triggered
-	// for the first time
-	workDone <- struct{}{}
-
 	// Start fetching work
+FetchLoop:
 	for fetchCtx.Err() == nil {
-		select {
-		case <-fetchCtx.Done():
+		// Determine how many items to fetch
+		toFetch := maxConcurrency - int(workItemsBeingProcessed.Load())
+		if maxBatchSize > 0 && toFetch > maxBatchSize {
+			toFetch = maxBatchSize
+		}
 
-		case <-workDone:
-			if debounceTimer != nil {
-				debounceTimer.Stop()
-				debounceTimer = nil
+		if toFetch == 0 {
+			// All our workers are busy, so we can't fetch any more work right now.
+			// Wait until there's more work.
+			select {
+			case <-fetchCtx.Done():
+				// We're done; return.
+				break FetchLoop
+			case <-workDone:
+				// A work item has been completed. Wait for a little bit
+				// before we retry the loop to "debounce" and allow for a few
+				// more work items to complete so we can fetch bigger batches.
+				time.Sleep(workFetchDebounce)
+				continue FetchLoop
 			}
+		}
 
-			if time.Since(*lastFetch.Load()) > maxFetchDebounce {
-				fetchProcessor()
-			} else {
-				debounceTimer = time.AfterFunc(workFetchDebounce, fetchProcessor)
+		// We have some work to fetch.
+		work, err := doFetch(fetchCtx, toFetch)
+		if err != nil {
+			cancelFetch(err)
+			break FetchLoop
+		}
+
+		// If we didn't get any items, sleep before we try again
+		// to avoid hammering the server.
+		if len(work) == 0 {
+			time.Sleep(noWorkDebounce)
+			continue FetchLoop
+		}
+
+		// Pass the work to workers
+		for _, w := range work {
+			select {
+			case workChan <- w:
+				// success, we passed the work to a worker
+			case <-fetchCtx.Done():
+				break FetchLoop
 			}
-
 		}
 	}
 
-	// Stop the debounce timer if it's running
-	if debounceTimer != nil {
-		debounceTimer.Stop()
+	// Return the reason for cancellation, unless it was due to the parent context being cancelled.
+	cause := context.Cause(fetchCtx)
+	if errors.Is(cause, context.Canceled) {
+		cause = nil
 	}
-
-	// Return the reason for cancellation if it wasn't due to the parent context being cancelled
-	cancelCause := context.Cause(fetchCtx)
-	if errors.Is(cancelCause, context.Canceled) {
-		return nil
-	}
-	return cancelCause
+	return cause
 }
