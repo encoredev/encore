@@ -195,6 +195,23 @@ func workInWorkPool[Work any](ctxs *Contexts, maxConcurrency int, maxBatchSize i
 		go worker()
 	}
 
+	// spuriousWakeup is a ticker used to periodically wake the fetcher
+	// even in the absence of any work being completed. This is here
+	// because there's a (theoretical) race condition in the fetcher logic
+	// in cases where all the workers are busy:
+	//
+	//    1. The fetcher detects all workers are busy
+	//    2. Before getting to the select {} statement, all workers complete
+	//       their work, and fail to send on the workDone channel because
+	//       the fetcher isn't yet waiting on it.
+	//    3. The fetcher gets stuck waiting indefinitely for a work item to complete,
+	//       but there is no work being done.
+	//
+	// Guard against this by having a spurious periodic wakeup. In normal circumstances
+	// this won't ever be used.
+	spuriousWakeup := time.NewTicker(1 * time.Second)
+	defer spuriousWakeup.Stop()
+
 	// Start fetching work
 FetchLoop:
 	for fetchCtx.Err() == nil {
@@ -209,13 +226,16 @@ FetchLoop:
 			// Wait until there's more work.
 			select {
 			case <-fetchCtx.Done():
-				// We're done; return.
+				// We're done; stop fetching.
 				break FetchLoop
 			case <-workDone:
 				// A work item has been completed. Wait for a little bit
 				// before we retry the loop to "debounce" and allow for a few
 				// more work items to complete so we can fetch bigger batches.
 				time.Sleep(workFetchDebounce)
+				continue FetchLoop
+			case <-spuriousWakeup.C:
+				// See comment on spuriousWakeup above for motivation.
 				continue FetchLoop
 			}
 		}
