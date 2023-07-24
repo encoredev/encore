@@ -24,10 +24,12 @@ func (d *Desc) validateDatabases(pc *parsectx.Context, result *parser.Result) {
 
 	// Check for usages outside of services
 	for _, db := range dbs {
-		for _, invalidUsage := range d.ResourceUsageOutsideServices[db] {
-			pc.Errs.Add(
-				errResourceUsedOutsideService.AtGoNode(invalidUsage, errors.AsError("used here")),
-			)
+		for _, u := range d.ResourceUsageOutsideServices[db] {
+			if !u.DeclaredIn().TestFile {
+				pc.Errs.Add(
+					errResourceUsedOutsideService.AtGoNode(u, errors.AsError("used here")),
+				)
+			}
 		}
 	}
 }
