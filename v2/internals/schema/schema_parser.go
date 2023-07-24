@@ -112,6 +112,21 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				}
 			}
 
+			switch expr.Name {
+			case "any":
+				return InterfaceType{
+					AST: &ast.InterfaceType{
+						// HACK: Set dummy positions to make the error messages nicer,
+						// pointing at "any" instead of reporting no position whatsoever.
+						Interface: expr.Pos(),
+						Methods: &ast.FieldList{
+							Opening: expr.Pos(),
+							Closing: expr.End() - 1,
+						},
+					},
+				}
+			}
+
 			r.errs.Addf(expr.Pos(), "undefined type: %s", expr.Name)
 
 		case *ast.SelectorExpr:
