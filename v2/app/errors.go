@@ -40,4 +40,9 @@ var (
 		"Invalid use of encore.dev/et",
 		"Encore's test packages can only be used inside tests and cannot otherwise be imported.",
 	)
+	errResourceUsedOutsideService = errRange.New(
+		"Invalid resource usage",
+		"Infrastructure resources can only be referenced within services.",
+		errors.WithDetails("To use infrastructure resources outside services, instead pass a reference to the resource into the library."),
+	)
 )

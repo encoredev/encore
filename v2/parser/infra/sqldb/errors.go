@@ -55,4 +55,8 @@ var (
 		"Invalid use of sqldb package-level function",
 		"The package-level query function sqldb.%s can only be used within Encore services that don't use sqldb.NewDatabase.",
 	)
+	ErrDatabaseNotFound = errRange.Newf(
+		"Unknown sqldb database",
+		"No database named %q was found in the application. Ensure it is created somewhere using sqldb.NewDatabase to be able to reference it.",
+	)
 )
