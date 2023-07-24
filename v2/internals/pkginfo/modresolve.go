@@ -194,10 +194,21 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 			Version: "",
 		}
 	} else {
-		if pkg.Module == nil || pkg.Module.Dir == "" {
+		// Determine where the module is hosted
+		mod := pkg.Module
+		if mod == nil {
 			l.c.Errs.Fatalf(cause, "package %q has no module information", pkgPath)
 		}
-		rootPath := paths.RootedFSPath(pkg.Module.Dir, ".")
+		modDir := mod.Dir
+		if modDir == "" && mod.Replace != nil {
+			modDir = mod.Replace.Dir
+			if modDir == "" {
+				l.c.Errs.Fatalf(cause, "package %q replacement module %q has no directory", pkgPath, mod.Replace.GoMod)
+			}
+		} else if modDir == "" {
+			l.c.Errs.Fatalf(cause, "package %q has no module directory information", pkgPath)
+		}
+		rootPath := paths.RootedFSPath(modDir, ".")
 		result = l.loadModuleFromDisk(rootPath, modPath)
 	}
 
