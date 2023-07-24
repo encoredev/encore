@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"reflect"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/posmap"
+	"encr.dev/v2/parser/infra/sqldb"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"
 )
@@ -204,13 +206,20 @@ func (d *Result) initBinds(errs *perr.List, binds []resource.Bind) {
 		if r, ok := byPath[key]; ok {
 			addBind(r, b)
 		} else {
-			// NOTE(andre): We could end up here in the future when we support
-			// named references to PubSub subscriptions, since those would
-			// involve a two-segment resource path (first the topic and then the subscription),
-			// which we don't support today (the construction of byPath above only handles
-			// the case of single-segment resource paths).
-			// Since we don't support that today, this is fine for now.
-			errs.Addf(b.Pos(), "internal compiler error: unknown resource (path %q)", key)
+			switch {
+			case len(ref.Path) > 0 && ref.Path[0].Kind == resource.SQLDatabase:
+				dbName := ref.Path[0].Name
+				errs.Add(sqldb.ErrDatabaseNotFound(dbName).AtGoPos(b.Pos(), token.NoPos))
+			default:
+
+				// NOTE(andre): We could end up here in the future when we support
+				// named references to PubSub subscriptions, since those would
+				// involve a two-segment resource path (first the topic and then the subscription),
+				// which we don't support today (the construction of byPath above only handles
+				// the case of single-segment resource paths).
+				// Since we don't support that today, this is fine for now.
+				errs.Addf(b.Pos(), "internal compiler error: unknown resource (path %q)", key)
+			}
 		}
 	}
 }

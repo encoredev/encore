@@ -1,4 +1,5 @@
 parse
+output 'svc svc dbs=svc'
 output 'resource SQLDBResource svc.Moo db=svc'
 
 -- svc/migrations/1_dummy.up.sql --

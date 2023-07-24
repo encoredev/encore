@@ -78,12 +78,12 @@ func (p *Pass) AddAnonymousBind(file *pkginfo.File, res resource.Resource) {
 	})
 }
 
-func (p *Pass) AddPathBind(file *pkginfo.File, boundName *ast.Ident, path resource.Path) {
+func (p *Pass) AddPathBind(file *pkginfo.File, boundName option.Option[*ast.Ident], path resource.Path) {
 	if len(path) == 0 {
 		panic("AddPathBind: empty path")
 	}
 
-	if boundName.Name == "_" {
+	if id, ok := boundName.Get(); !ok || id.Name == "_" {
 		p.binds = append(p.binds, &resource.AnonymousBind{
 			Resource: resource.ResourceOrPath{Path: path},
 			File:     file,
@@ -92,7 +92,7 @@ func (p *Pass) AddPathBind(file *pkginfo.File, boundName *ast.Ident, path resour
 		p.binds = append(p.binds, &resource.PkgDeclBind{
 			Resource:  resource.ResourceOrPath{Path: path},
 			File:      file,
-			BoundName: boundName,
+			BoundName: id,
 		})
 	}
 }

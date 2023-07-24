@@ -1,0 +1,48 @@
+! parse
+err 'cannot reference resource svc.Moo outside the service'
+
+-- svc/migrations/1_dummy.up.sql --
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("svc")
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    return nil
+}
+-- pkg/pkg.go --
+package pkg
+
+import (
+    "context"
+    "test/svc"
+)
+
+func Foo() {
+    _ = svc.Moo.Query
+}
+-- want: errors --
+
+── Invalid resource usage ─────────────────────────────────────────────────────────────────[E9999]──
+
+Infrastructure resources can only be referenced within services.
+
+    ╭─[ pkg/pkg.go:9:9 ]
+    │
+  7 │
+  8 │ func Foo() {
+  9 │     _ = svc.Moo.Query
+    ⋮         ──────┬──────
+    ⋮               ╰─ used here
+ 10 │ }
+────╯
+
+To use infrastructure resources outside services, instead pass a reference to the resource into the
+library.
