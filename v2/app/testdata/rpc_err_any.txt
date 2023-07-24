@@ -1,0 +1,38 @@
+! parse
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+)
+
+type Params struct {
+    Foo any
+}
+
+//encore:api public
+func Any(ctx context.Context, p *Params) error { return nil }
+-- want: errors --
+
+── Invalid API schema ─────────────────────────────────────────────────────────────────────[E9999]──
+
+Interfaces are not supported in API schemas.
+
+    ╭─[ svc/svc.go:8:9 ]
+    │
+  6 │
+  7 │ type Params struct {
+  8 │     Foo any
+    ⋮         ─┬─
+    ⋮          ╰─ defined here
+    ·
+    ·
+ 10 │
+ 11 │ //encore:api public
+ 12 │ func Any(ctx context.Context, p *Params) error { return nil }
+    ⋮                                 ───┬───
+    ⋮                                    ╰─ used here
+────╯
+
+For more information on API schemas, see https://encore.dev/docs/develop/api-schemas
