@@ -1,0 +1,27 @@
+! parse
+err 'cannot define SQL Database resource in non-service package'
+
+-- svc/migrations/1_dummy.up.sql --
+-- svc/svc.go --
+package svc
+
+import "context"
+
+//encore:api
+func Foo(ctx context.Context) error { return nil }
+-- pkg/pkg.go --
+package pkg
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("svc")
+
+-- want: errors --
+
+── Resource defined outside of service ────────────────────────────────────────────────────[E9999]──
+
+Resources can only be defined within a service.

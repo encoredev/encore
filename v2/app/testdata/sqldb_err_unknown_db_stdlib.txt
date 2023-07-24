@@ -1,0 +1,26 @@
+! parse
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+
+    "encore.dev/storage/sqldb"
+)
+
+var Moo = sqldb.Named("unknown-db").Stdlib()
+
+//encore:api public
+func Foo(ctx context.Context) error {
+    return nil
+}
+-- want: errors --
+
+── Unknown sqldb database ─────────────────────────────────────────────────────────────────[E9999]──
+
+No database named "unknown-db" was found in the application. Ensure it is created somewhere using
+sqldb.NewDatabase to be able to reference it.
+
+For more information about how to use databases in Encore, see
+https://encore.dev/docs/primitives/databases
