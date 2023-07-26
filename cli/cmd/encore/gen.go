@@ -117,7 +117,7 @@ which may require the user-facing wrapper code to be manually generated.`,
 		Args: cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, _ := determineAppRoot()
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			daemon := setupDaemon(ctx)
 			_, err := daemon.GenWrappers(ctx, &daemonpb.GenWrappersRequest{
