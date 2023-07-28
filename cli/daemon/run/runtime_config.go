@@ -292,6 +292,16 @@ func (g *RuntimeEnvGenerator) secretsForServices(services []*meta.Service) (stri
 
 	// Shortcut if we want it for all services
 	if len(services) == len(g.Meta.Svcs) {
+
+		// Grab all the missing secrets so we can report them.
+		for _, pkg := range g.Meta.Pkgs {
+			for _, key := range pkg.Secrets {
+				if _, found := g.Secrets[key]; !found {
+					g.missingSecrets[key] = struct{}{}
+				}
+			}
+		}
+
 		return encodeSecretsEnv(g.Secrets), nil
 	}
 
