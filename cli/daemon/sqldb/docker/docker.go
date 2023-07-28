@@ -304,7 +304,7 @@ func PullImage(ctx context.Context) error {
 	return cmd.Run()
 }
 
-const Image = "postgres:14-alpine"
+const Image = "encoredotdev/postgres:15"
 
 func isDockerRunning(ctx context.Context) bool {
 	err := exec.CommandContext(ctx, "docker", "info").Run()
