@@ -10,7 +10,7 @@ import (
 func (mgr *Manager) getClient() *pubsub.Client {
 	mgr.clientOnce.Do(func() {
 		// Create a new client
-		cl, err := pubsub.NewClient(mgr.ctxs.Connection, "")
+		cl, err := pubsub.NewClient(mgr.ctxs.Connection, "-")
 		if err != nil {
 			panic(fmt.Sprintf("failed to create pubsub client: %s", err))
 		}
