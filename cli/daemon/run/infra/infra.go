@@ -13,6 +13,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
@@ -45,6 +46,7 @@ type ResourceManager struct {
 	app         *apps.Instance
 	dbProxyPort int
 	sqlMgr      *sqldb.ClusterManager
+	ns          *namespace.Namespace
 	environ     environ.Environ
 	log         zerolog.Logger
 	forTests    bool
@@ -53,11 +55,12 @@ type ResourceManager struct {
 	servers map[Type]Resource
 }
 
-func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
+func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, ns *namespace.Namespace, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
 	return &ResourceManager{
 		app:         app,
 		dbProxyPort: dbProxyPort,
 		sqlMgr:      sqlMgr,
+		ns:          ns,
 		environ:     environ,
 		forTests:    forTests,
 
@@ -165,7 +168,7 @@ func (rm *ResourceManager) StartSQLCluster(a *optracker.AsyncBuildJobs, md *meta
 		}
 
 		cluster := rm.sqlMgr.Create(ctx, &sqldb.CreateParams{
-			ClusterID: sqldb.GetClusterID(rm.app, typ),
+			ClusterID: sqldb.GetClusterID(rm.app, typ, rm.ns),
 			Memfs:     rm.forTests,
 		})
 

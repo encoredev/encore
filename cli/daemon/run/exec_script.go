@@ -16,6 +16,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
@@ -30,6 +31,9 @@ import (
 type ExecScriptParams struct {
 	// App is the app to execute the script for.
 	App *apps.Instance
+
+	// NS is the namespace to use.
+	NS *namespace.Namespace
 
 	// MainPkg is the package path to the command to execute.
 	MainPkg paths.Pkg
@@ -58,7 +62,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return err
 	}
 
-	rm := infra.NewResourceManager(p.App, mgr.ClusterMgr, p.Environ, mgr.DBProxyPort, false)
+	rm := infra.NewResourceManager(p.App, mgr.ClusterMgr, p.NS, p.Environ, mgr.DBProxyPort, false)
 	defer rm.StopAll()
 
 	tracker := p.OpTracker

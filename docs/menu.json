@@ -179,14 +179,6 @@
         "DocSlug": "develop/cors"
       },
       {
-        "Path": "/develop/auth-keys",
-        "Title": "Auth Keys",
-        "DocSlug": "develop/auth-keys",
-        "OldPaths": [
-          "/configuration/auth-keys"
-        ]
-      },
-      {
         "Path": "/develop/testing",
         "Title": "Testing",
         "DocSlug": "develop/testing"
@@ -210,6 +202,19 @@
         "Path": "/develop/client-generation",
         "Title": "Client Generation",
         "DocSlug": "develop/client-generation"
+      },
+      {
+        "Path": "/develop/infra-namespaces",
+        "Title": "Infra Namespaces",
+        "DocSlug": "develop/infra-namespaces"
+      },
+      {
+        "Path": "/develop/auth-keys",
+        "Title": "Auth Keys",
+        "DocSlug": "develop/auth-keys",
+        "OldPaths": [
+          "/configuration/auth-keys"
+        ]
       },
       {
         "Path": "/develop/cli-reference",

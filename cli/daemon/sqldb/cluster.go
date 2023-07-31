@@ -205,6 +205,12 @@ func (c *Cluster) initDB(encoreName string) *DB {
 	driverName := encoreName
 	if !c.driver.Meta().ClusterIsolation {
 		driverName += fmt.Sprintf("-%s-%s", c.ID.App.PlatformOrLocalID(), c.ID.Type)
+
+		// Add the namespace id, as long as it's not the default namespace
+		// (for backwards compatibility).
+		if c.ID.NSName != "default" {
+			driverName += "-" + string(c.ID.NSID)
+		}
 	}
 
 	dbCtx, cancel := context.WithCancel(c.Ctx)

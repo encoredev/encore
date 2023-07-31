@@ -72,6 +72,23 @@ func Dir() (string, error) {
 	return dir, nil
 }
 
+// DataDir reports the base directory for storing data, like database volumes.
+// The directory may or may not exist already.
+func DataDir() (string, error) {
+	dir := os.Getenv("ENCORE_DATA_DIR")
+	if dir == "" {
+		d, err := os.UserCacheDir()
+		if err != nil {
+			return "", err
+		}
+		dir = filepath.Join(d, defaultConfigDirectory, "data")
+	}
+	if !filepath.IsAbs(dir) {
+		return "", fmt.Errorf("ENCORE_DATA_DIR must be absolute, got %q", dir)
+	}
+	return dir, nil
+}
+
 // Config represents the stored Encore configuration.
 type Config struct {
 	oauth2.Token

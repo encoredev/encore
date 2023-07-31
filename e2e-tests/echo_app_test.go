@@ -19,6 +19,7 @@ import (
 	"go.uber.org/goleak"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	. "encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/internal/clientgen"
@@ -561,7 +562,8 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 
 	mgr := &Manager{}
-	rm := infra.NewResourceManager(app, nil, nil, 0, false)
+	ns := &namespace.Namespace{ID: "some-id", Name: "default"}
+	rm := infra.NewResourceManager(app, nil, ns, nil, 0, false)
 	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm, ListenAddr: "127.0.0.1:34212", SvcProxy: svcProxy}
 
 	parse, build := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))

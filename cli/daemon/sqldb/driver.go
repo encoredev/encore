@@ -18,6 +18,10 @@ type Driver interface {
 	// err is nil if and only if the cluster could not be started.
 	CreateCluster(ctx context.Context, p *CreateParams, log zerolog.Logger) (*ClusterStatus, error)
 
+	// CanDestroyCluster reports whether the cluster could be destroyed, if desired.
+	// If a Driver doesn't support destroying the cluster it reports ErrUnsupported.
+	CanDestroyCluster(ctx context.Context, id ClusterID) error
+
 	// DestroyCluster destroys a cluster with the given id.
 	// If a Driver doesn't support destroying the cluster it reports ErrUnsupported.
 	DestroyCluster(ctx context.Context, id ClusterID) error

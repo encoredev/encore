@@ -27,6 +27,7 @@ var dbCmd = &cobra.Command{
 var (
 	resetAll bool
 	testDB   bool
+	nsName   string
 )
 
 var dbResetCmd = &cobra.Command{
@@ -53,6 +54,7 @@ var dbResetCmd = &cobra.Command{
 			AppRoot:       appRoot,
 			DatabaseNames: dbNames,
 			Test:          testDB,
+			Namespace:     nonZeroPtr(nsName),
 		})
 		if err != nil {
 			fatal("reset databases: ", err)
@@ -108,10 +110,11 @@ Use --test to connect to databases used for integration testing.
 		}
 
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
-			AppRoot: appRoot,
-			DbName:  dbName,
-			EnvName: dbEnv,
-			Test:    testDB,
+			AppRoot:   appRoot,
+			DbName:    dbName,
+			EnvName:   dbEnv,
+			Test:      testDB,
+			Namespace: nonZeroPtr(nsName),
 		})
 		if err != nil {
 			fatalf("could not connect to the database for service %s: %v", dbName, err)
@@ -184,10 +187,11 @@ Use --test to connect to databases used for integration testing.
 
 		daemon := setupDaemon(ctx)
 		stream, err := daemon.DBProxy(ctx, &daemonpb.DBProxyRequest{
-			AppRoot: appRoot,
-			EnvName: dbEnv,
-			Port:    dbProxyPort,
-			Test:    testDB,
+			AppRoot:   appRoot,
+			EnvName:   dbEnv,
+			Port:      dbProxyPort,
+			Test:      testDB,
+			Namespace: nonZeroPtr(nsName),
 		})
 		if err != nil {
 			log.Fatal().Err(err).Msg("could not setup db proxy")
@@ -232,10 +236,11 @@ var dbConnURICmd = &cobra.Command{
 		}
 
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
-			AppRoot: appRoot,
-			DbName:  dbName,
-			EnvName: dbEnv,
-			Test:    testDB,
+			AppRoot:   appRoot,
+			DbName:    dbName,
+			EnvName:   dbEnv,
+			Test:      testDB,
+			Namespace: nonZeroPtr(nsName),
 		})
 		if err != nil {
 			st, ok := status.FromError(err)
@@ -254,19 +259,23 @@ var dbConnURICmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(dbCmd)
 
+	dbResetCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbResetCmd.Flags().BoolVar(&resetAll, "all", false, "Reset all services in the application")
 	dbResetCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Reset databases in the test cluster instead")
 	dbCmd.AddCommand(dbResetCmd)
 
+	dbShellCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbShellCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbShellCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbCmd.AddCommand(dbShellCmd)
 
+	dbProxyCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbProxyCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbProxyCmd.Flags().Int32VarP(&dbProxyPort, "port", "p", 0, "Port to listen on (defaults to a random port)")
 	dbProxyCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbCmd.AddCommand(dbProxyCmd)
 
+	dbConnURICmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbConnURICmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbConnURICmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbCmd.AddCommand(dbConnURICmd)

@@ -39,6 +39,10 @@ func (d *Driver) ClusterStatus(ctx context.Context, id sqldb.ClusterID) (*sqldb.
 	return st, nil
 }
 
+func (d *Driver) CanDestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
+	return sqldb.ErrUnsupported
+}
+
 func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
 	return sqldb.ErrUnsupported
 }

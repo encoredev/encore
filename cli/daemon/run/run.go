@@ -27,6 +27,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/internal/optracker"
@@ -46,6 +47,7 @@ type Run struct {
 	ListenAddr      string // the address the app is listening on
 	SvcProxy        *svcproxy.SvcProxy
 	ResourceManager *infra.ResourceManager
+	NS              *namespace.Namespace
 
 	builder builder.Impl
 	log     zerolog.Logger
@@ -63,6 +65,9 @@ type Run struct {
 type StartParams struct {
 	// App is the app to start.
 	App *apps.Instance
+
+	// NS is the namespace to use.
+	NS *namespace.Namespace
 
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
@@ -98,7 +103,8 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
-		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.Environ, mgr.DBProxyPort, false),
+		NS:              params.NS,
+		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.NS, params.Environ, mgr.DBProxyPort, false),
 		ListenAddr:      params.ListenAddr,
 		SvcProxy:        svcProxy,
 		log:             logger,
@@ -631,4 +637,24 @@ func genAuthKey() config.EncoreAuthKey {
 		panic("cannot generate random data: " + err.Error())
 	}
 	return config.EncoreAuthKey{KeyID: kid, Data: b[:]}
+}
+
+// CanDeleteNamespace implements namespace.DeletionHandler.
+func (m *Manager) CanDeleteNamespace(ctx context.Context, app *apps.Instance, ns *namespace.Namespace) error {
+	// Check if any of the active runs are using this namespace.
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.runs {
+		if r.NS.ID == ns.ID && r.ctx.Err() == nil {
+			return errors.New("namespace is in use by 'encore run'")
+		}
+	}
+	return nil
+}
+
+// DeleteNamespace implements namespace.DeletionHandler.
+func (m *Manager) DeleteNamespace(ctx context.Context, app *apps.Instance, ns *namespace.Namespace) error {
+	// We don't need to do anything here; we only implement DeletionHandler for
+	// the CanDeleteNamespace check.
+	return nil
 }
