@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/rs/zerolog/log"
 
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/pkg/pgproxy"
 )
 
@@ -93,13 +95,34 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 			return nil
 		}
 
-		// and password should either be "local" or "test"
-		var clusterType ClusterType
-		switch startup.Password {
+		ctx := context.Background()
+
+		clusterType, nsName, ok := strings.Cut(startup.Password, "-")
+
+		// Look up the namespace to use.
+		var ns *namespace.Namespace
+		if !ok {
+			ns, err = cm.ns.GetActive(ctx, app)
+		} else {
+			ns, err = cm.ns.GetByName(ctx, app, namespace.Name(nsName))
+		}
+		if err != nil {
+			cm.log.Error().Err(err).Msg("dbproxy: could not find infra namespace")
+			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+				Severity: "FATAL",
+				Code:     "08006",
+				Message:  "unknown active infra namespace",
+			})
+			return nil
+		}
+
+		// Resolve the cluster type.
+		var ct ClusterType
+		switch clusterType {
 		case "local":
-			clusterType = Run
+			ct = Run
 		case "test":
-			clusterType = Test
+			ct = Test
 		default:
 			cm.log.Error().Str("password", startup.Password).Msg("dbproxy: invalid password for connection URI")
 			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
@@ -114,11 +137,8 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		// This might be because the daemon is running, but the hasn't done anything
 		// with the app in question yet on this run
 		cluster = cm.Create(context.Background(), &CreateParams{
-			ClusterID: ClusterID{
-				App:  app,
-				Type: clusterType,
-			},
-			Memfs: false,
+			ClusterID: GetClusterID(app, ct, ns),
+			Memfs:     false,
 		})
 
 		// Ensure the cluster is started

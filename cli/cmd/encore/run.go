@@ -71,6 +71,7 @@ func runApp(appRoot, wd string) {
 		ListenAddr: listenAddr,
 		Environ:    os.Environ(),
 		TraceFile:  root.TraceFile,
+		Namespace:  nonZeroPtr(nsName),
 	})
 	if err != nil {
 		fatal(err)
@@ -108,4 +109,5 @@ func init() {
 	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
 	runCmd.Flags().StringVar(&listen, "listen", "", "Address to listen on (for example \"0.0.0.0:4000\")")
 	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
+	runCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 }

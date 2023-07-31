@@ -75,6 +75,13 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		return nil
 	}
 
+	ns, err := s.namespaceOrActive(ctx, app, req.Namespace)
+	if err != nil {
+		fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to resolve namespace: %v"), err))
+		sendExit(1)
+		return nil
+	}
+
 	ops := optracker.New(stderr, stream)
 	defer ops.AllDone() // Kill the tracker when we exit this function
 
@@ -114,6 +121,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	runInstance, err := s.mgr.Start(ctx, run.StartParams{
 		App:        app,
+		NS:         ns,
 		WorkingDir: req.WorkingDir,
 		Listener:   ln,
 		ListenAddr: displayListenAddr,
@@ -149,6 +157,9 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+runInstance.ListenAddr))
 	fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf(
 		"http://localhost:%d/%s", s.mgr.DashPort, app.PlatformOrLocalID())))
+	if ns := runInstance.NS; !ns.Active || ns.Name != "default" {
+		fmt.Fprintf(stderr, "  Namespace:                  %s\n", aurora.Cyan(ns.Name))
+	}
 	if req.Debug {
 		fmt.Fprintf(stderr, "  Process ID:                 %d\n", aurora.Cyan(pid))
 	}

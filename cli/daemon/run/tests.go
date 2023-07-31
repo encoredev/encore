@@ -9,6 +9,7 @@ import (
 	"runtime"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/internal/optracker"
@@ -22,6 +23,9 @@ import (
 type TestParams struct {
 	// App is the app to test.
 	App *apps.Instance
+
+	// NS is the namespace to use.
+	NS *namespace.Namespace
 
 	// WorkingDir is the working dir, for formatting
 	// error messages with relative paths.
@@ -84,7 +88,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
-	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, nil, mgr.DBProxyPort, true)
+	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, params.NS, nil, mgr.DBProxyPort, true)
 	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
 	jobs := optracker.NewAsyncBuildJobs(ctx, params.App.PlatformOrLocalID(), nil)

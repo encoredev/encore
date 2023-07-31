@@ -21,6 +21,7 @@ import (
 
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	. "encr.dev/cli/daemon/run"
@@ -65,7 +66,8 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	app := apps.NewInstance(appRoot, "slug", "")
 	mgr := &Manager{}
-	rm := infra.NewResourceManager(app, mgr.ClusterMgr, nil, 0, false)
+	ns := &namespace.Namespace{ID: "some-id", Name: "default"}
+	rm := infra.NewResourceManager(app, mgr.ClusterMgr, ns, nil, 0, false)
 	run := &Run{
 		ID:              GenID(),
 		ListenAddr:      ln.Addr().String(),
