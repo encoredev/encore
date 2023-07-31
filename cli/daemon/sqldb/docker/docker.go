@@ -8,13 +8,17 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 
 	"encr.dev/cli/daemon/sqldb"
+	"encr.dev/internal/conf"
+	"encr.dev/pkg/idents"
 )
 
 type Driver struct{}
@@ -25,6 +29,7 @@ const (
 	DefaultSuperuserUsername = "postgres"
 	DefaultSuperuserPassword = "postgres"
 	DefaultRootDatabase      = "postgres"
+	defaultDataDir           = "/postgres-data"
 )
 
 func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log zerolog.Logger) (status *sqldb.ClusterStatus, err error) {
@@ -122,6 +127,7 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 			"-e", "POSTGRES_USER=" + DefaultSuperuserUsername,
 			"-e", "POSTGRES_PASSWORD=" + DefaultSuperuserPassword,
 			"-e", "POSTGRES_DB=" + DefaultRootDatabase,
+			"-e", "PGDATA=" + defaultDataDir,
 			"--name", cnames[0],
 		}
 		if p.Memfs {
@@ -131,7 +137,16 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 				"-c", "fsync=off",
 			)
 		} else {
-			args = append(args, Image)
+			clusterDataDir, err := ClusterDataDir(cid)
+			if err != nil {
+				return nil, err
+			} else if err := os.MkdirAll(filepath.Dir(clusterDataDir), 0o755); err != nil {
+				return nil, fmt.Errorf("could not create cluster data dir: %v", err)
+			}
+
+			args = append(args,
+				"-v", fmt.Sprintf("%s:%s", clusterDataDir, defaultDataDir),
+				Image)
 		}
 
 		cmd := exec.CommandContext(ctx, "docker", args...)
@@ -246,7 +261,20 @@ func (d *Driver) clusterStatus(ctx context.Context, id sqldb.ClusterID) (status 
 	return &sqldb.ClusterStatus{Status: sqldb.NotFound}, containerName, nil
 }
 
+func (d *Driver) CanDestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
+	// Check that we can communicate with Docker.
+	if !isDockerRunning(ctx) {
+		return fmt.Errorf("cannot delete sql database: docker is not running")
+	}
+	return nil
+}
+
 func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
+	dataDir, err := ClusterDataDir(id)
+	if err != nil {
+		return err
+	}
+
 	cnames := containerNames(id)
 	for _, cname := range cnames {
 		out, err := exec.CommandContext(ctx, "docker", "rm", "-f", cname).CombinedOutput()
@@ -257,7 +285,13 @@ func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
 			return fmt.Errorf("could not delete cluster: %s (%v)", out, err)
 		}
 	}
-	return nil
+
+	// Delete the data dir. Retry a few times, mainly for Windows.
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 5 * time.Second
+	return backoff.Retry(func() error {
+		return os.RemoveAll(dataDir)
+	}, b)
 }
 
 func (d *Driver) Meta() sqldb.DriverMeta {
@@ -266,20 +300,31 @@ func (d *Driver) Meta() sqldb.DriverMeta {
 
 // containerName computes the container name candidates for a given clusterID.
 func containerNames(id sqldb.ClusterID) []string {
+	// candidates returns possible candidate names for a given app id.
+	candidates := func(appID string) (names []string) {
+		base := "sqldb-" + appID
+
+		if id.Type != sqldb.Run {
+			base += "-" + string(id.Type)
+		}
+
+		// Convert the namespace to kebab case to remove invalid characters like ':'.
+		nsName := idents.Convert(string(id.NSName), idents.KebabCase)
+
+		names = []string{base + "-" + nsName + "-" + string(id.NSID)}
+		// If this is the default namespace look up the container without
+		// the namespace suffix as well, for backwards compatibility.
+		if id.NSName == "default" {
+			names = append(names, base)
+		}
+		return names
+	}
+
 	var names []string
 	if pid := id.App.PlatformID(); pid != "" {
-		names = append(names, pid)
+		names = append(names, candidates(pid)...)
 	}
-	names = append(names, id.App.LocalID())
-
-	// Format the names into container names
-	for i, name := range names {
-		name = "sqldb-" + name
-		if id.Type != sqldb.Run {
-			name += "-" + string(id.Type)
-		}
-		names[i] = name
-	}
+	names = append(names, candidates(id.App.LocalID())...)
 	return names
 }
 
@@ -309,4 +354,15 @@ const Image = "encoredotdev/postgres:15"
 func isDockerRunning(ctx context.Context) bool {
 	err := exec.CommandContext(ctx, "docker", "info").Run()
 	return err == nil
+}
+
+// ClusterDataDir reports the data directory for the given cluster id.
+func ClusterDataDir(id sqldb.ClusterID) (string, error) {
+	dataDir, err := conf.DataDir()
+	if err != nil {
+		return "", fmt.Errorf("unable to determine database dir: %v", err)
+	}
+
+	name := fmt.Sprintf("%s-%s", id.App.PlatformOrLocalID(), id.Type)
+	return filepath.Join(dataDir, string(id.NSID), "sqldb", name), nil
 }

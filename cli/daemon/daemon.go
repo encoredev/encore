@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
@@ -42,6 +43,7 @@ type Server struct {
 	mgr  *run.Manager
 	cm   *sqldb.ClusterManager
 	sm   *secret.Manager
+	ns   *namespace.Manager
 
 	mu      sync.Mutex
 	streams map[string]*streamLog // run id -> stream
@@ -56,16 +58,18 @@ type Server struct {
 }
 
 // New creates a new Server.
-func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager) *Server {
+func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager, ns *namespace.Manager) *Server {
 	srv := &Server{
 		apps:    appsMgr,
 		mgr:     mgr,
 		cm:      cm,
 		sm:      sm,
+		ns:      ns,
 		streams: make(map[string]*streamLog),
 
 		appDebouncers: make(map[*apps.Instance]debouncer),
 	}
+
 	mgr.AddListener(srv)
 
 	// Check immediately for the latest version to avoid blocking 'encore run'

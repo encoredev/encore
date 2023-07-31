@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"database/sql"
+	"embed"
 	_ "embed" // for go:embed
 	"errors"
 	"fmt"
@@ -16,6 +17,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/mattn/go-sqlite3" // for "sqlite3" driver
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -30,6 +35,7 @@ import (
 	"encr.dev/cli/daemon/engine"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/engine/trace2/sqlite"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
@@ -89,6 +95,7 @@ type Daemon struct {
 	Apps       *apps.Manager
 	Secret     *secret.Manager
 	RunMgr     *run.Manager
+	NS         *namespace.Manager
 	ClusterMgr *sqldb.ClusterManager
 	Trace      trace2.Store
 	Server     *daemon.Server
@@ -125,7 +132,9 @@ func (d *Daemon) init() {
 		}
 		log.Info().Msgf("using external postgres cluster: %s", host)
 	}
-	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps)
+
+	d.NS = namespace.NewManager(d.EncoreDB)
+	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS)
 
 	d.Trace = sqlite.New(d.EncoreDB)
 	d.Secret = secret.New()
@@ -137,7 +146,11 @@ func (d *Daemon) init() {
 		ClusterMgr:  d.ClusterMgr,
 	}
 
-	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret)
+	// Register namespace deletion handlers.
+	d.NS.RegisterDeletionHandler(d.ClusterMgr)
+	d.NS.RegisterDeletionHandler(d.RunMgr)
+
+	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret, d.NS)
 }
 
 func (d *Daemon) serve() {
@@ -266,19 +279,64 @@ func (d *Daemon) openDB() *sql.DB {
 	}
 
 	// Initialize db schema
-	if _, err := db.Exec(dbSchema); err != nil {
-		fatal(err)
+	if err := d.runDBMigrations(db); err != nil {
+		fatalf("unable to migrate management database: %v", err)
 	}
 	d.closeOnExit(db)
 
 	return db
 }
 
-//go:embed schema.sql
-var dbSchema string
+//go:embed migrations
+var dbMigrations embed.FS
 
-func tcpPort(ln net.Listener) int {
-	return ln.Addr().(*net.TCPAddr).Port
+func (d *Daemon) runDBMigrations(db *sql.DB) error {
+	{
+		// Convert old-style schema definition to golang-migrate, if necessary.
+		var isLegacy bool
+		err := db.QueryRow(`
+			SELECT COUNT(*) > 0 FROM pragma_table_info('schema_migrations') WHERE name = 'dummy'
+		`).Scan(&isLegacy)
+		if err != nil {
+			return err
+		} else if isLegacy {
+			_, _ = db.Exec("DROP TABLE schema_migrations;")
+		}
+	}
+
+	src, err := iofs.New(dbMigrations, "migrations")
+	if err != nil {
+		return fmt.Errorf("read db migrations: %v", err)
+	}
+	instance, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	if err != nil {
+		return fmt.Errorf("initialize migration instance: %v", err)
+	}
+	m, err := migrate.NewWithInstance("iofs", src, "encore", instance)
+	if err != nil {
+		return fmt.Errorf("setup migrate instance: %v", err)
+	}
+
+	err = m.Up()
+	if errors.Is(err, migrate.ErrNoChange) {
+		return nil
+	}
+
+	// If we have a dirty migration, reset the dirty flag and try again.
+	// This is safe since all migrations run inside transactions.
+	var dirty migrate.ErrDirty
+	if errors.As(err, &dirty) {
+		ver := dirty.Version - 1
+		// golang-migrate uses -1 to mean "no version", not 0.
+		if ver == 0 {
+			ver = database.NilVersion
+		}
+		if err = m.Force(ver); err == nil {
+			err = m.Up()
+		}
+	}
+
+	return err
 }
 
 // detectSocketClose polls for the unix socket at socketPath to be removed

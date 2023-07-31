@@ -92,14 +92,19 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		}
 	}
 
-	clusterType := sqldb.Run
-	passwd := "local"
-	if req.Test {
-		clusterType = sqldb.Test
-		passwd = "test"
+	clusterNS, err := s.namespaceOrActive(ctx, app, req.Namespace)
+	if err != nil {
+		return nil, err
 	}
 
-	clusterID := sqldb.GetClusterID(app, clusterType)
+	clusterType := sqldb.Run
+	passwd := "local-" + string(clusterNS.Name)
+	if req.Test {
+		clusterType = sqldb.Test
+		passwd = "test-" + string(clusterNS.Name)
+	}
+
+	clusterID := sqldb.GetClusterID(app, clusterType, clusterNS)
 	log := log.With().Interface("cluster", clusterID).Logger()
 	log.Info().Msg("setting up database cluster")
 	cluster := s.cm.Create(ctx, &sqldb.CreateParams{
@@ -183,7 +188,13 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		if params.Test {
 			clusterType = sqldb.Test
 		}
-		clusterID := sqldb.GetClusterID(app, clusterType)
+
+		clusterNS, err := s.namespaceOrActive(stream.Context(), app, params.Namespace)
+		if err != nil {
+			return err
+		}
+
+		clusterID := sqldb.GetClusterID(app, clusterType, clusterNS)
 		cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 			ClusterID: clusterID,
 			Memfs:     false,
@@ -274,11 +285,17 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		return nil
 	}
 
+	clusterNS, err := s.namespaceOrActive(stream.Context(), app, req.Namespace)
+	if err != nil {
+		sendErr(err)
+		return nil
+	}
+
 	clusterType := sqldb.Run
 	if req.Test {
 		clusterType = sqldb.Test
 	}
-	clusterID := sqldb.GetClusterID(app, clusterType)
+	clusterID := sqldb.GetClusterID(app, clusterType, clusterNS)
 	cluster, ok := s.cm.Get(clusterID)
 	if !ok {
 		cluster = s.cm.Create(stream.Context(), &sqldb.CreateParams{

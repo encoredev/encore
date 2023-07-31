@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -11,15 +12,17 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 )
 
 // NewClusterManager creates a new ClusterManager.
-func NewClusterManager(driver Driver, apps *apps.Manager) *ClusterManager {
+func NewClusterManager(driver Driver, apps *apps.Manager, ns *namespace.Manager) *ClusterManager {
 	log := log.Logger
 	return &ClusterManager{
 		log:            log,
 		driver:         driver,
 		apps:           apps,
+		ns:             ns,
 		clusters:       make(map[clusterKey]*Cluster),
 		backendKeyData: make(map[uint32]*Cluster),
 	}
@@ -30,6 +33,7 @@ type ClusterManager struct {
 	log        zerolog.Logger
 	driver     Driver
 	apps       *apps.Manager
+	ns         *namespace.Manager
 	startGroup singleflight.Group
 
 	mu       sync.Mutex
@@ -44,10 +48,13 @@ type ClusterManager struct {
 type ClusterID struct {
 	App  *apps.Instance
 	Type ClusterType
+
+	NSID   namespace.ID
+	NSName namespace.Name
 }
 
-func GetClusterID(app *apps.Instance, typ ClusterType) ClusterID {
-	return ClusterID{app, typ}
+func GetClusterID(app *apps.Instance, typ ClusterType, ns *namespace.Namespace) ClusterID {
+	return ClusterID{app, typ, ns.ID, ns.Name}
 }
 
 // Ready reports whether the cluster manager is ready and all requirements are met.
@@ -124,16 +131,48 @@ func (cm *ClusterManager) get(id ClusterID) (*Cluster, bool) {
 	return nil, false
 }
 
+// CanDeleteNamespace implements namespace.DeletionHandler.
+func (cm *ClusterManager) CanDeleteNamespace(ctx context.Context, app *apps.Instance, ns *namespace.Namespace) error {
+	c, ok := cm.Get(GetClusterID(app, Run, ns))
+	if !ok {
+		return nil
+	}
+
+	err := c.driver.CanDestroyCluster(ctx, c.ID)
+	if errors.Is(err, ErrUnsupported) {
+		err = nil
+	}
+	return nil
+}
+
+// DeleteNamespace implements namespace.DeletionHandler.
+func (cm *ClusterManager) DeleteNamespace(ctx context.Context, app *apps.Instance, ns *namespace.Namespace) error {
+	c, ok := cm.Get(GetClusterID(app, Run, ns))
+	if !ok {
+		return nil
+	}
+
+	err := c.driver.DestroyCluster(ctx, c.ID)
+	if errors.Is(err, ErrUnsupported) {
+		err = nil
+	}
+	return nil
+}
+
 type clusterKey string
 
 // clusterKeys computes clusterKey candidates for a given id.
 func clusterKeys(id ClusterID) []clusterKey {
-	suffix := "-" + string(id.Type)
+	typeSuffix := "-" + string(id.Type)
+	nsSuffix := "-" + string(id.NSID)
+
 	var keys []clusterKey
+
 	if pid := id.App.PlatformID(); pid != "" {
-		keys = append(keys, clusterKey(pid+suffix))
+		keys = append(keys, clusterKey(pid+typeSuffix+nsSuffix))
 	}
-	keys = append(keys, clusterKey(id.App.LocalID()+suffix))
+	keys = append(keys, clusterKey(id.App.LocalID()+typeSuffix+nsSuffix))
+
 	return keys
 }
 

@@ -34,6 +34,12 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		return nil
 	}
 
+	ns, err := s.namespaceOrActive(ctx, app, nil /* tests don't support different namespaces */)
+	if err != nil {
+		sendErr(err)
+		return nil
+	}
+
 	secrets := s.sm.Load(app)
 
 	testCtx, cancel := context.WithCancel(ctx)
@@ -58,6 +64,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 
 		tp := run.TestParams{
 			App:          app,
+			NS:           ns,
 			WorkingDir:   req.WorkingDir,
 			Environ:      req.Environ,
 			Args:         req.Args,

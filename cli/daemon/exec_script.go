@@ -58,6 +58,12 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 		return nil
 	}
 
+	ns, err := s.namespaceOrActive(ctx, app, req.Namespace)
+	if err != nil {
+		sendErr(err)
+		return nil
+	}
+
 	commandPkg := paths.Pkg(mod.Module.Mod.Path).JoinSlash(paths.RelSlash(req.CommandRelPath))
 
 	ops := optracker.New(stderr, stream)
@@ -80,6 +86,7 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 
 	p := run.ExecScriptParams{
 		App:        app,
+		NS:         ns,
 		WorkingDir: req.WorkingDir,
 		Environ:    req.Environ,
 		MainPkg:    commandPkg,

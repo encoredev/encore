@@ -45,6 +45,7 @@ func execScript(appRoot, relWD string, args []string) {
 		ScriptArgs:     scriptArgs,
 		Environ:        os.Environ(),
 		TraceFile:      root.TraceFile,
+		Namespace:      nonZeroPtr(nsName),
 	})
 	if err != nil {
 		fatal(err)
@@ -66,5 +67,6 @@ func init() {
 }
 
 func init() {
+	execCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	alphaCmd.AddCommand(execCmd)
 }
