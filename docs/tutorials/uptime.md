@@ -5,13 +5,12 @@ seotitle: How to build an Uptime Monitoring System in Go
 seodesc: Learn how to build an uptime monitoring tool using Go and Encore. Get your entire application running in the cloud in 30 minutes!
 ---
 
-Do you have a website that you want to be notified if it goes down,
-so you can fix it before your users notice?
+Want to be notified when your website goes down so you can fix it before your users notice?
 
 You need an uptime monitoring system. Sounds daunting? Don't worry,
 we'll build it with Encore in 30 minutes!
 
-The final result looks like this:
+The final result will look like this:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/frontend.png" title="Frontend" />
 
@@ -344,7 +343,7 @@ $ curl -X POST 'http://localhost:4000/site' -d '{"url": "https://encore.dev"}'
 
 ## 4. Record uptime checks
 
-In order to notify when a website goes down, or comes back up, we need to track the previous state it was in.
+In order to notify when a website goes down or comes back up, we need to track the previous state it was in.
 
 🥐  To do so, let's add a database to the `monitor` service as well.
 Create the directory `monitor/migrations` and the file `monitor/migrations/1_create_tables.up.sql`:
@@ -508,11 +507,37 @@ var _ = cron.NewJob("check-all", cron.JobConfig{
 })
 ```
 
-Cron jobs are not triggered when running the application
-locally, but work when deploying the application to a cloud
-environment.
+<Callout type="info">
 
-## 4. Publish Pub/Sub events when a site goes down
+Cron jobs are not triggered when running the application locally but work when deploying the application to a cloud environment.
+
+</Callout>
+
+## 5. Deploy to Encore's development cloud
+
+To try out your uptime monitor for real, let's deploy it to Encore's free development cloud.
+
+Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`.
+(You can also integrate with GitHub to activate per Pull Request Preview Environments, learn more in the [CI/CD docs](/docs/deploy/deploying).)
+
+🥐 Now, let's deploy your app to the cloud:
+
+```shell
+$ git add -A .
+$ git commit -m 'Initial commit'
+$ git push encore
+```
+
+This will trigger a deployment and Encore will build and test your app, provision the necessary infrastructure (including databases, Cron Jobs, and Pub/Sub), and deploy your app to the cloud.
+
+🥐 Head to the [Cloud Dashboard](https://app.encore.dev) to follow the progress of your deploy.
+
+🥐 When the deploy has finished, you can try out your uptime monitor by going to `https://staging-$APP_ID.encr.app/frontend`.
+
+*You now have an Uptime Monitor running in the cloud, well done!*
+
+
+## 6. Publish Pub/Sub events when a site goes down
 
 An uptime monitoring system isn't very useful if it doesn't
 actually notify you when a site goes down.
@@ -628,7 +653,7 @@ It doesn't know or care who actually listens to these messages.
 The truth is right now nobody does. So let's fix that by adding
 a Pub/Sub subscriber that posts these events to Slack.
 
-## 5. Send Slack notifications when a site goes down
+## 7. Send Slack notifications when a site goes down
 
 🥐 Start by creating a Slack service containing the following:
 
@@ -723,6 +748,18 @@ var _ = pubsub.NewSubscription(monitor.TransitionTopic, "slack-notification", pu
 		return Notify(ctx, &NotifyParams{Text: msg})
 	},
 })
+```
+
+## 8. Deploy your finished Uptime Monitor
+
+Now you're ready to deploy your finished Uptime Monitor, complete with a Slack integration.
+
+🥐 As before, deploying your app to the cloud is as simple as running:
+
+```shell
+$ git add -A .
+$ git commit -m 'Add slack integration'
+$ git push encore
 ```
 
 ## Conclusion
