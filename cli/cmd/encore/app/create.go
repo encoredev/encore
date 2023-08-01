@@ -66,6 +66,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if name == "" || template == "" {
 		name, template = selectTemplate(name, template)
 	}
+	// Treat the special name "empty" as the empty app template
+	// (the rest of the code assumes that's the empty string).
+	if template == "empty" {
+		template = ""
+	}
 
 	if err := validateName(name); err != nil {
 		return err
