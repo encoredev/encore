@@ -9,6 +9,7 @@ import (
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
+	"encr.dev/v2/parser/infra/sqldb"
 )
 
 // validate checks that the application is in a valid state across all services and compilation units.
@@ -45,6 +46,9 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 			continue
 		case *secrets.Secrets:
 			// Secrets are allowed anywhere
+			continue
+		case *sqldb.Database:
+			// Databases are allowed anywhere
 			continue
 
 		default:
