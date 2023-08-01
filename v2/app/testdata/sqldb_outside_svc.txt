@@ -1,5 +1,4 @@
-! parse
-err 'cannot define SQL Database resource in non-service package'
+parse
 
 -- svc/migrations/1_dummy.up.sql --
 -- svc/svc.go --
@@ -19,9 +18,3 @@ import (
 )
 
 var Moo = sqldb.Named("svc")
-
--- want: errors --
-
-── Resource defined outside of service ────────────────────────────────────────────────────[E9999]──
-
-Resources can only be defined within a service.
