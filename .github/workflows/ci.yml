@@ -130,12 +130,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: reviewdog/action-setup@v1
+      - uses: reviewdog/action-setup@8e48baae926e97848f0863ae248f3b08e089c81f
         with:
           reviewdog_version: latest
 
       - name: Install jq
-        uses: dcarbone/install-jq-action@v1.0.1
+        uses: dcarbone/install-jq-action@91d8da7268538e8a0ae0c8b72af44f1763228455
 
       - name: Install semgrep
         run:  |
@@ -159,6 +159,9 @@ jobs:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # fail the CI on any errors found on any line modified within the PR
         # this means we'll ignore lines in those files
+        #
+        # If we want to fail on any errors found in files modified, change to "-filter-mode=file"
+        # If you want to fail on any errors found in the entire codebase, change to "-filter-mode=nofilter"
         run:  reviewdog -fail-on-error -filter-mode=added -reporter=github-pr-review
 
 
