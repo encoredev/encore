@@ -1,0 +1,14 @@
+rules:
+  - id: odd-bitwise
+    patterns:
+        - pattern-either:
+              - pattern: $X | $X
+              - pattern: $X | ^$X
+              - pattern: ^$X | $X
+              - pattern: $X & $X
+              - pattern: $X & ^$X
+              - pattern: ^$X & $X
+              - pattern: $X &^ $X
+    message: "Odd bitwise expression"
+    languages: [go]
+    severity: ERROR

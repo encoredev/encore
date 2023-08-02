@@ -1,0 +1,8 @@
+rules:
+  - id: not-after
+    patterns:
+      - pattern: $T1.UnixNano() <= $T2.UnixNano()
+    message: >
+      unless checking for wall clock inconsistencies, use !$T1.After($T2)
+    languages: [go]
+    severity: ERROR

@@ -1,0 +1,7 @@
+rules:
+- id: deprecated-ioutil-discard
+  pattern: ioutil.Discard
+  fix: io.Discard
+  message: ioutil.Discard is deprecated
+  languages: [go]
+  severity: ERROR

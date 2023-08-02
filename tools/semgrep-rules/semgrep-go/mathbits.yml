@@ -1,0 +1,23 @@
+rules:
+  - id: use-math-bits
+    patterns:
+        - pattern-either:
+              - pattern: $X >> $N | $X << (8 - $N)
+              - pattern: $X << $N | $X >> (8 - $N)
+              - pattern: $X >> (8 - $N) | $X << $N
+              - pattern: $X << (8 - $N) | $X >> $N
+              - pattern: $X >> $N | $X << (16 - $N)
+              - pattern: $X << $N | $X >> (16 - $N)
+              - pattern: $X >> (16 - $N) | $X << $N
+              - pattern: $X << (16 - $N) | $X >> $N
+              - pattern: $X >> $N | $X << (32 - $N)
+              - pattern: $X << $N | $X >> (32 - $N)
+              - pattern: $X >> (32 - $N) | $X << $N
+              - pattern: $X << (32 - $N) | $X >> $N
+              - pattern: $X >> $N | $X << (64 - $N)
+              - pattern: $X << $N | $X >> (64 - $N)
+              - pattern: $X >> (64 - $N) | $X << $N
+              - pattern: $X << (64 - $N) | $X >> $N
+    message: "Try using math/bits instead"
+    languages: [go]
+    severity: ERROR

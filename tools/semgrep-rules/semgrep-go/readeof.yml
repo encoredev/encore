@@ -1,0 +1,16 @@
+rules:
+  - id: read-io-eof
+    patterns:
+                    - pattern: |
+                        $N, $ERR := $R.Read(($SLICE : []byte))
+                        if $ERR != nil {
+                            return ...
+                        }
+                    - pattern-not: |
+                        $N, $ERR := rand.Read(($SLICE : []byte))
+                        if $ERR != nil {
+                            return ...
+                        }
+    message: "Read() can return n bytes and io.EOF"
+    languages: [go]
+    severity: ERROR

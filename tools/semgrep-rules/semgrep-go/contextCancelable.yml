@@ -1,0 +1,24 @@
+rules:
+  - id: cancelable-context-not-systematically-cancelled
+    patterns:
+      - pattern: $_, $X := context.$CANCELABLE(...)
+      - pattern-not-inside: |
+          $_, $X := context.$CANCELABLE(...)
+          ...
+          defer $X()
+      - pattern-not-inside: |
+          $_, $X := context.$CANCELABLE(...)
+          ...
+          $X()
+      - pattern-not-inside: |
+          $C = quicktest.New(...)
+          ...
+          $_, $X := context.$CANCELABLE(...)
+          ...
+          $C.Cleanup($X)
+      - metavariable-regex:
+          metavariable: '$CANCELABLE'
+          regex: '(WithDeadline|WithTimeout)'
+    message: it is good practice to call context cancellation function, $X(), in any case
+    languages: [go]
+    severity: WARNING

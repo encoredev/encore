@@ -1,0 +1,17 @@
+rules:
+  - id: io-readfull-n
+    patterns:
+        - pattern-either:
+              - pattern: |
+                      $N, $ERR = io.ReadFull($R, $SLICE)
+                      if $ERR != nil || $N != len($SLICE) {
+                              ...
+                      }
+              - pattern: |
+                      $N, $ERR = io.ReadFull($R, $SLICE)
+                      if $N != len($SLICE) || $ERR != nil {
+                              ...
+                      }
+    message: "io.ReadFull() returns err == nil iff n == len(slice)"
+    languages: [go]
+    severity: ERROR

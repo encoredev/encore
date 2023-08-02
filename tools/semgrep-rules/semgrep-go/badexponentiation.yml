@@ -1,0 +1,9 @@
+rules:
+  - id: bad-exponentiation
+    patterns:
+        - pattern-either:
+              - pattern: 10 ^ $X
+              - pattern: 2 ^ $X
+    message: "Caret (^) is not exponentiation"
+    languages: [go]
+    severity: ERROR

@@ -1,0 +1,7 @@
+rules:
+- id: deprecated-ioutil-tempdir
+  pattern: ioutil.TempDir($D, $P)
+  fix: os.MkdirTemp($D, $P)
+  message: ioutil.TempDir is deprecated
+  languages: [go]
+  severity: ERROR

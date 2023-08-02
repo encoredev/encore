@@ -1,0 +1,57 @@
+rules:
+  - id: rows-not-closed
+    patterns:
+        - pattern: $Q.QueryxContext(...)
+        - pattern-not-inside: return $X.QueryxContext(...)
+
+        # direct close
+        - pattern-not-inside: |
+            $ROWS, $ERR = $Q.QueryxContext(...)
+            ...
+            $ROWS.Close()
+        # defer close
+        - pattern-not-inside: |
+            $ROWS, $ERR = $Q.QueryxContext(...)
+            ...
+            defer $ROWS.Close()
+        # passing rows to another function that is expected to close it
+        - pattern-not-inside: |
+            $ROWS, $ERR = $Q.QueryxContext(...)
+            ...
+            $FUNC($ROWS)
+        # close outside if
+        - pattern-not-inside: |
+            if ... {
+              ...
+              $ROWS, $ERR = $Q.QueryxContext(...)
+              ...
+            } else { ... }
+            $ROWS.Close()
+        - pattern-not-inside: |
+            if ... {
+              ...
+              $ROWS, $ERR = $Q.QueryxContext(...)
+              ...
+            } else { ... }
+            ...
+            defer $ROWS.Close()
+        # close outside else
+        - pattern-not-inside: |
+            if ... { ...  } else {
+              ...
+              $ROWS, $ERR = $Q.QueryxContext(...)
+              ...
+            }
+            ...
+            $ROWS.Close()
+        - pattern-not-inside: |
+            if ... { ...  } else {
+              ...
+              $ROWS, $ERR = $Q.QueryxContext(...)
+              ...
+            }
+            ...
+            defer $ROWS.Close()
+    message: "QueryxContext rows must be closed (or use ExecContext)"
+    languages: [go]
+    severity: ERROR

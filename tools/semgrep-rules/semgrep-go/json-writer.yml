@@ -1,0 +1,35 @@
+rules:
+  - id: json-encoder-needs-type
+    patterns:
+                - pattern: |
+                        $ENC := json.NewEncoder(($W: http.ResponseWriter))
+                        ...
+                        $ENC.Encode(...)
+                - pattern-not: |
+                        $ENC := json.NewEncoder(($W: http.ResponseWriter))
+                        ...
+                        $W.Header().Set("=~/Content-Type/i", "=~/application/json/")
+                        ...
+                        $ENC.Encode(...)
+                - pattern-not-inside: |
+                        $W.Header().Set("=~/Content-Type/i", "=~/application/json/")
+                        ...
+                        $ENC := json.NewEncoder($W)
+                        ...
+                        $ENC.Encode(...)
+                - pattern-not: |
+                        $ENC := json.NewEncoder(($W: http.ResponseWriter))
+                        ...
+                        $W.Header().Add("=~/Content-Type/i", "=~/application/json/")
+                        ...
+                        $ENC.Encode(...)
+                - pattern-not-inside: |
+                        $W.Header().Add("=~/Content-Type/i", "=~/application/json/")
+                        ...
+                        $ENC := json.NewEncoder($W)
+                        ...
+                        $ENC.Encode(...)
+
+    message: "calling json.Encode() on an http.ResponseWriter will set Content-Type text/plain"
+    languages: [go]
+    severity: ERROR

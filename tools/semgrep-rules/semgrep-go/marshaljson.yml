@@ -1,0 +1,11 @@
+rules:
+  - id: marshal-json-misspell
+    pattern-either:
+      - patterns:
+          - pattern-regex: (?i)func \((.+)\) marshal[l]?json\((.*)\)
+          - pattern-not-regex: func \(.+\) MarshalJSON\(
+    fix: func ($1) MarshalJSON($2)
+    message: |
+      Misspelling of MarshalJSON.
+    languages: [go]
+    severity: ERROR

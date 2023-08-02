@@ -1,0 +1,31 @@
+rules:
+  - id: parseint-downcast
+    patterns:
+      - pattern-either:
+              - pattern: |
+                              $X, ... = strconv.ParseInt(..., ..., 64)
+                              ...
+                              int32($X)
+              - pattern: |
+                              $X, ... = strconv.ParseInt(..., ..., 64)
+                              ...
+                              uint32($X)
+              - pattern: |
+                              $X, ... = strconv.ParseUint(..., ..., 64)
+                              ...
+                              int32($X)
+              - pattern: |
+                              $X, ... = strconv.ParseUint(..., ..., 64)
+                              ...
+                              uint32($X)
+              - pattern: |
+                              $X = strconv.Atoi(...)
+                              ...
+                              int32($X)
+              - pattern: |
+                              $X = strconv.Atoi(...)
+                              ...
+                              uint32($X)
+    message: "64-bit integer parsed and downcast to u/int32"
+    languages: [go]
+    severity: ERROR
