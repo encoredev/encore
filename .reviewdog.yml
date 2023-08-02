@@ -11,22 +11,22 @@
 # each tool.
 runner:
   go-vet:
-    cmd: make -C .github/workflows go-vet
+    cmd: make -s -C .github/workflows go-vet
     format: govet
   go-fmt:
-    cmd: make -C .github/workflows go-fmt
+    cmd: make -s -C .github/workflows go-fmt
     format: diff
   staticcheck:
-    cmd: make -C .github/workflows staticcheck
+    cmd: make -s -C .github/workflows staticcheck
     format: rdjsonl
   errcheck:
-    cmd: make -C .github/workflows errcheck
+    cmd: make -s -C .github/workflows errcheck
     errorformat:
       - "%f:%l:%c:\t%m"
   ineffassign:
-    cmd: make -C .github/workflows ineffassign
+    cmd: make -s -C .github/workflows ineffassign
     errorformat:
       - "%f:%l:%c: %m"
   semgrep:
-    cmd: make -C .github/workflows semgrep
+    cmd: make -s -C .github/workflows semgrep
     format: rdjson

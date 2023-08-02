@@ -41,18 +41,15 @@ go-vet: $(ALL_SRC)
 
 ## Run staticcheck
 staticcheck: $(ALL_SRC)
-	@go install honnef.co/go/tools/cmd/staticcheck@latest
 	$(call run_for_each_module,staticcheck -tests=false -f=json,./... | jq -f "$(REPO_DIR)/.github/workflows/staticcheck-to-rdjsonl.jq" -c)
 
 # Run errcheck
 errcheck: $(ALL_SRC)
-	@go install github.com/kisielk/errcheck@latest
 	$(call run_for_each_module,errcheck -abspath,./...)
 
 
 ## Run ineffassign
 ineffassign: $(ALL_SRC)
-	@go install github.com/gordonklaus/ineffassign@latest
 	$(call run_for_each_module,ineffassign,./... 2>&1)
 
 semgrep: $(ALL_SRC)
