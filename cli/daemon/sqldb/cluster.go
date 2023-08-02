@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 	"go4.org/syncutil"
@@ -79,7 +80,7 @@ func (c *Cluster) Start(ctx context.Context, tracker *optracker.OpTracker) (*Clu
 			Tracker:   tracker,
 		}, c.log)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		status = st
 		c.cachedStatus.Store(st)
@@ -92,7 +93,7 @@ func (c *Cluster) Start(ctx context.Context, tracker *optracker.OpTracker) (*Clu
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	} else if status == nil {
 		// We've already set it up; query the current status
 		return c.Status(ctx)
