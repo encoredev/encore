@@ -19,8 +19,8 @@ type Manager struct {
 	runtime      *config.Runtime
 	pushRegistry types.PushEndpointRegistry
 
-	clientOnce sync.Once
-	_client    *pubsub.Client // access via getClient()
+	clientsMu sync.Mutex                // clientsMu protects access to the clients map
+	clients   map[string]*pubsub.Client // A map of project ID to pubsub client
 }
 
 func NewManager(ctxs *utils.Contexts, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
@@ -29,7 +29,6 @@ func NewManager(ctxs *utils.Contexts, runtime *config.Runtime, pushRegistry type
 
 type topic struct {
 	mgr      *Manager
-	client   *pubsub.Client
 	gcpTopic *pubsub.Topic
 	topicCfg *config.PubsubTopic
 }
@@ -42,8 +41,7 @@ func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
 
 func (mgr *Manager) NewTopic(_ *config.PubsubProvider, staticCfg types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
-	client := mgr.getClient()
-	gcpTopic := client.TopicInProject(runtimeCfg.ProviderName, runtimeCfg.GCP.ProjectID)
+	gcpTopic := mgr.getClientForProject(runtimeCfg.GCP.ProjectID).Topic(runtimeCfg.ProviderName)
 
 	// Enable message ordering if we have an ordering key set
 	gcpTopic.EnableMessageOrdering = staticCfg.OrderingAttribute != ""
@@ -55,7 +53,7 @@ func (mgr *Manager) NewTopic(_ *config.PubsubProvider, staticCfg types.TopicConf
 		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", runtimeCfg.EncoreName, err))
 	}
 
-	return &topic{mgr, client, gcpTopic, runtimeCfg}
+	return &topic{mgr, gcpTopic, runtimeCfg}
 }
 
 func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs map[string]string, data []byte) (id string, err error) {
@@ -90,7 +88,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 	// If we're not push only, then also set up the subscription
 	if !subCfg.PushOnly {
 		// Create the subscription object (and then check it exists on GCP's side)
-		subscription := t.client.SubscriptionInProject(subCfg.ProviderName, gcpCfg.ProjectID)
+		subscription := t.mgr.getClientForProject(gcpCfg.ProjectID).Subscription(subCfg.ProviderName)
 
 		if maxConcurrency == 0 {
 			maxConcurrency = 1000 // FIXME(domblack): This retains the old behaviour, but allows user customisation - in a future release we should remove this
