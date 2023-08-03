@@ -173,7 +173,7 @@ func (rm *ResourceManager) StartSQLCluster(a *optracker.AsyncBuildJobs, md *meta
 		})
 
 		if _, err := cluster.Start(ctx, a.Tracker()); err != nil {
-			return fmt.Errorf("unable to start sqldb cluster: %w", err)
+			return errors.Wrap(err, "failed to start cluster")
 		}
 
 		rm.mutex.Lock()
