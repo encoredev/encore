@@ -24,7 +24,7 @@ type Manager struct {
 }
 
 func NewManager(ctxs *utils.Contexts, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
-	return &Manager{ctxs: ctxs, runtime: runtime, pushRegistry: pushRegistry}
+	return &Manager{ctxs: ctxs, runtime: runtime, pushRegistry: pushRegistry, clients: make(map[string]*pubsub.Client)}
 }
 
 type topic struct {
