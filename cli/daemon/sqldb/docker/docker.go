@@ -29,7 +29,7 @@ const (
 	DefaultSuperuserUsername = "postgres"
 	DefaultSuperuserPassword = "postgres"
 	DefaultRootDatabase      = "postgres"
-	defaultDataDir           = "/postgres-data"
+	defaultDataDir           = "/var/lib/postgresql/data"
 )
 
 func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log zerolog.Logger) (status *sqldb.ClusterStatus, err error) {
@@ -124,19 +124,17 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 			"-d",
 			"-p", "5432",
 			"--shm-size=1gb",
-			"--user", "root",
 			"-e", "POSTGRES_USER=" + DefaultSuperuserUsername,
 			"-e", "POSTGRES_PASSWORD=" + DefaultSuperuserPassword,
 			"-e", "POSTGRES_DB=" + DefaultRootDatabase,
 			"-e", "PGDATA=" + defaultDataDir,
-			"-e", "BITNAMI_DEBUG=true",
 			"--name", cnames[0],
 		}
 		if p.Memfs {
 			args = append(args,
-				"--mount", "type=tmpfs,destination="+defaultDataDir+",tmpfs-mode=1777",
-				"-e", "POSTGRESQL_FSYNC=off",
+				"--mount", "type=tmpfs,destination="+defaultDataDir,
 				Image,
+				"-c", "fsync=off",
 			)
 		} else {
 			clusterDataDir, err := ClusterDataDir(cid)
