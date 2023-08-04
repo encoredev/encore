@@ -227,7 +227,7 @@ CI/CD, and for databases hosted on Encore Cloud.
 This docker image ships with many popular PostgreSQL extensions pre-installed.
 In particular, [pgvector](https://github.com/pgvector/pgvector) and [PostGIS](https://postgis.net) are available.
 
-See [the full list of available extensions](/docs/primitives/database-extensions).
+See [the full list of available extensions](/docs/primitives/databases/extensions).
 
 ## Troubleshooting
 
