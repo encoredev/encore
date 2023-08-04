@@ -103,7 +103,7 @@ jobs:
         path: encr.dev/**/*-test-report.xml
 
     - name: Report Nightly Failure
-      uses: ravsamhq/notify-slack-action@v2
+      uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
       if: ${{ failure() && github.event.schedule == '30 2 * * *' }}
       with:
         status: ${{ job.status }} # required
@@ -157,12 +157,13 @@ jobs:
       - name: Run reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # fail the CI on any errors found on any line modified within the PR
-        # this means we'll ignore lines in those files
+        # Fail the build if there where any static analysis errors within files which where changed
+        # within this PR. Note: we'll ignore changes made on files which where not modified in this PR.
         #
+        # If we want to fail on any errors only within the lines modified, change to "-filter-mode=added"
         # If we want to fail on any errors found in files modified, change to "-filter-mode=file"
         # If you want to fail on any errors found in the entire codebase, change to "-filter-mode=nofilter"
-        run:  reviewdog -fail-on-error -filter-mode=added -reporter=github-pr-review
+        run:  reviewdog -fail-on-error -filter-mode=file -reporter=github-pr-review
 
 
   # This job is needed for forked repo's

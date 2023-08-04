@@ -1,7 +1,7 @@
 # Encore's reviewdog configuration file.
 #
-# Run this with "reviewdog -filter-mode nofilter" to see all errors
-# reguardless of if the error was introduced in the current commit.
+# This runs in our CI pipeline when you open a PR. To run this locally
+# and get the same results as our CI pipeline, run: `./check.bash`
 #
 # We use a makefile rather than the commands directly as this repo
 # has multiple Go modules within it and most tools only look at the
