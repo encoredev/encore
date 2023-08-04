@@ -1,0 +1,16 @@
+rules:
+  - id: newrelic-start-without-end
+    patterns:
+                - pattern-not-inside: |
+                        $TXN := $NR.StartTransaction($N)
+                        ...
+                        defer $TXN.End()
+                - pattern-not-inside: |
+                            $TXN := $NR.StartTransaction($N)
+                            ...
+                            $TXN.End()
+                - pattern-either:
+                   - pattern: $TXN := $NR.StartTransaction($N)
+    message: "missing new relic end transaction"
+    languages: [go]
+    severity: ERROR

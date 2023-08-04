@@ -1,0 +1,7 @@
+rules:
+- id: deprecated-ioutil-writefile
+  pattern: ioutil.WriteFile($F, $D, $P)
+  fix: os.WriteFile($F, $D, $P)
+  message: ioutil.WriteFile is deprecated
+  languages: [go]
+  severity: ERROR

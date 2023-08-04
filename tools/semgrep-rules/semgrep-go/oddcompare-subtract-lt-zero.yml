@@ -1,0 +1,10 @@
+# flag these odd comparisons as they all have simpler
+# equivalents with just $X and $Y and no zero term
+rules:
+  - id: odd-comparison-subtract-lt-zero
+    patterns:
+      - pattern: $X - $Y < 0
+    fix: $Y > $X
+    message: "Odd comparison"
+    languages: [go]
+    severity: ERROR

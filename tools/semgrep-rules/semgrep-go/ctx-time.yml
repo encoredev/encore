@@ -1,0 +1,24 @@
+rules:
+- id: ctx-done-and-timers
+  patterns:
+    - pattern-either: 
+      - pattern: |
+          select {
+          case <-ctx.Done():
+              $BODY
+          case <-time.After(...):
+              $BODY
+          }
+      - pattern: |
+          $T := time.NewTicker(...)
+          ...
+          select {
+          case <-ctx.Done():
+              $BODY
+          case <-$T.C:
+              $BODY
+          }
+  message: "ctx.Done() and time.After/time.NewTicker"
+  languages: [go]
+  severity: ERROR
+

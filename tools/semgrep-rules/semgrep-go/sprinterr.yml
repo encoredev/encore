@@ -1,0 +1,54 @@
+rules:
+  - id: use-err-error
+    patterns:
+        - pattern-not: |
+                if err != nil {
+                        ..., err = ...
+                        <... fmt.Sprint(err) ...>
+                }
+        - pattern-not: |
+                if err != nil {
+                        err = ...
+                        <... fmt.Sprint(err) ...>
+                }
+
+        - pattern-either:
+              - pattern: |
+                        if err != nil {
+                                ...
+                                <... fmt.Sprint(err) ...>
+                        }
+              - pattern: |
+                        if err == nil {
+                                ...
+                                return ...
+                        }
+                        ...
+                        <...  fmt.Sprint(err) ...>
+              - pattern: |
+                        if err != nil {
+                                ...
+                                <... fmt.Sprintf("%s", err) ...>
+                        }
+              - pattern: |
+                        if err == nil {
+                                ...
+                                return ...
+                        }
+                        ...
+                        <...  fmt.Sprintf("%s", err) ...>
+              - pattern: |
+                        if err != nil {
+                                ...
+                                <... fmt.Sprintf("%v", err) ...>
+                        }
+              - pattern: |
+                        if err == nil {
+                                ...
+                                return ...
+                        }
+                        ...
+                        <...  fmt.Sprintf("%v", err) ...>
+    message: "Use err.Error() instead"
+    languages: [go]
+    severity: ERROR

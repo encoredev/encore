@@ -1,0 +1,10 @@
+# flag these odd comparisons as they all have simpler
+# equivalents with just $X and $Y and no zero term
+rules:
+  - id: odd-comparison-xor-eq-zero
+    patterns:
+      - pattern: $X ^ $Y == 0
+    fix: $X == $Y
+    message: "Odd comparison"
+    languages: [go]
+    severity: ERROR

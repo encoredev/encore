@@ -1,0 +1,11 @@
+rules:
+  - id: use-strings-join-path
+    patterns:
+           - pattern-either:
+                        - pattern: strings.Join(..., "/")
+                        - pattern: strings.Join(..., "\\")
+                        - pattern: strings.Join(..., `\`)
+                        - pattern: strings.Join(..., os.PathSeparator)
+    message: "did you want path.Join() or filepath.Join()?"
+    languages: [go]
+    severity: ERROR

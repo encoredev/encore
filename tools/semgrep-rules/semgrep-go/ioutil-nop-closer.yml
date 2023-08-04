@@ -1,0 +1,7 @@
+rules:
+- id: deprecated-ioutil-nopcloser
+  pattern: ioutil.NopCloser($R)
+  fix:  io.NopCloser($R)
+  message: ioutil.NopCloser is deprecated
+  languages: [go]
+  severity: ERROR

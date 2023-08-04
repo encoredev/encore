@@ -1,0 +1,40 @@
+rules:
+  - id: bad-sort-slice-function
+    patterns:
+        - pattern-either:
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$I] < $SLICE[$I]
+                })
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$J] < $SLICE[$I]
+                })
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$I].$FIELD < $SLICE[$I].$FIELD
+                })
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$J].$FIELD < $SLICE[$J].$FIELD
+                })
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$I] > $SLICE[$I]
+                })
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$J] > $SLICE[$I]
+                })
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$I].$FIELD > $SLICE[$I].$FIELD
+                })
+            - pattern: |
+                sort.Slice($SLICE, func($I, $J int) bool {
+                    return $SLICE[$J].$FIELD > $SLICE[$J].$FIELD
+                })
+
+    message: "Maybe bad sort.Slice() less function"
+    languages: [go]
+    severity: ERROR

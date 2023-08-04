@@ -1,0 +1,11 @@
+rules:
+  - id: odd-compound-expression
+    patterns:
+        - pattern-either:
+              - pattern: $X += $X + $Y
+              - pattern: $X += $X - $Y
+              - pattern: $X -= $X + $Y
+              - pattern: $X -= $X - $Y
+    message: "Odd compound += or -= expression"
+    languages: [go]
+    severity: ERROR

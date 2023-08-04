@@ -2,7 +2,6 @@ package echo
 
 import (
 	"context"
-	"reflect"
 	"testing"
 )
 

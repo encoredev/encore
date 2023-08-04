@@ -1,0 +1,7 @@
+rules:
+- id: deprecated-ioutil-tempfile
+  pattern: ioutil.TempFile($D, $P)
+  fix: os.CreateTemp($D, $P)
+  message: ioutil.TempFile is deprecated
+  languages: [go]
+  severity: ERROR
