@@ -1,0 +1,7 @@
+rules:
+- id: deprecated-ioutil-readall
+  pattern: ioutil.ReadAll($R)
+  fix: io.ReadAll($R)
+  message: ioutil.ReadAll is deprecated
+  languages: [go]
+  severity: ERROR

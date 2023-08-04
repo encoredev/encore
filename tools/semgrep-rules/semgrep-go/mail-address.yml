@@ -1,0 +1,12 @@
+rules:
+  - id: sprintf-mail-address
+    pattern-either:
+        - pattern: fmt.Sprintf(`"%s" <%s>`, $NAME, $EMAIL)
+        - pattern: fmt.Sprintf(`"%s"<%s>`, $NAME, $EMAIL)
+        - pattern: fmt.Sprintf("\"%s\"<%s>", $NAME, $EMAIL)
+        - pattern: fmt.Sprintf("\"%s\" <%s>", $NAME, $EMAIL)
+        - pattern: fmt.Sprintf("%s<%s>", $NAME, $EMAIL)
+    message: "use net/mail Address.String() instead of fmt.Sprintf()"
+    fix: "(&mail.Address{Name:$NAME, Address:$EMAIL}).String()"
+    languages: [go]
+    severity: ERROR

@@ -1,0 +1,11 @@
+rules:
+  - id: marshal-yaml-misspell
+    pattern-either:
+      - patterns:
+          - pattern-regex: (?i)func \((.+)\) marshal[l]?yaml\((.*)\)
+          - pattern-not-regex: func \(.+\) MarshalYAML\(
+    fix: func ($1) MarshalYAML($2)
+    message: |
+      Misspelling of MarshalYAML.
+    languages: [go]
+    severity: ERROR

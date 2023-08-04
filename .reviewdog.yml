@@ -1,0 +1,32 @@
+# Encore's reviewdog configuration file.
+#
+# This runs in our CI pipeline when you open a PR. To run this locally
+# and get the same results as our CI pipeline, run: `./check.bash`
+#
+# We use a makefile rather than the commands directly as this repo
+# has multiple Go modules within it and most tools only look at the
+# module in the current directory. Thus our make file runs the tool
+# for each module, combining the results into a single standardised
+# that review dog can then parse and display as a single "run" for
+# each tool.
+runner:
+  go-vet:
+    cmd: make -s -C .github/workflows go-vet
+    format: govet
+  go-fmt:
+    cmd: make -s -C .github/workflows go-fmt
+    format: diff
+  staticcheck:
+    cmd: make -s -C .github/workflows staticcheck
+    format: rdjsonl
+  errcheck:
+    cmd: make -s -C .github/workflows errcheck
+    errorformat:
+      - "%f:%l:%c:\t%m"
+  ineffassign:
+    cmd: make -s -C .github/workflows ineffassign
+    errorformat:
+      - "%f:%l:%c: %m"
+  semgrep:
+    cmd: make -s -C .github/workflows semgrep
+    format: rdjson

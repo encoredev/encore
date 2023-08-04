@@ -1,0 +1,7 @@
+rules:
+  - id: use-fprintf-not-write-fsprint
+    patterns:
+        - pattern: $W.Write([]byte(fmt.Sprintf($...VALS)))
+    message: "use fmt.Fprintf($W, $...VALS) instead of fmt.Sprintf and []byte conversion"
+    languages: [go]
+    severity: ERROR

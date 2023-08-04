@@ -1,0 +1,11 @@
+rules:
+  - id: unmarshal-yaml-misspell
+    pattern-either:
+      - patterns:
+          - pattern-regex: (?i)func \((.+)\) unmarshal[l]?yaml\((.*)\)
+          - pattern-not-regex: func \(.+\) UnmarshalYAML\(
+    fix: func ($1) UnmarshalYAML($2)
+    message: |
+      Misspelling of UnmarshalYAML.
+    languages: [go]
+    severity: ERROR

@@ -1,0 +1,7 @@
+rules:
+- id: deprecated-ioutil-readfile
+  pattern: ioutil.ReadFile($F)
+  fix: os.ReadFile($F)
+  message: ioutil.ReadFile is deprecated
+  languages: [go]
+  severity: ERROR

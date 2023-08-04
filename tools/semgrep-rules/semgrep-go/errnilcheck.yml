@@ -1,0 +1,32 @@
+
+rules:
+  - id: err-nil-check
+    patterns:
+        - pattern-either:
+              - pattern: |
+                      if err != nil {
+                              return err
+                      }
+                      return nil
+              - pattern: |
+                      if err != nil {
+                              return $X, err
+                      }
+                      return $X, nil
+        - pattern-not-inside: |
+            if err != nil {
+                    return err
+            } else if ... {
+                    return ...
+            }       
+            return nil
+        - pattern-not-inside: |
+            if err != nil {
+                    return $X, err
+            } else if ... {
+                    return ...
+            }       
+            return $X, nil
+    message: "superfluous nil err check before return"
+    languages: [go]
+    severity: ERROR

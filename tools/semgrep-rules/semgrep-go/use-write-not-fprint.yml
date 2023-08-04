@@ -1,0 +1,7 @@
+rules:
+  - id: use-write-not-fprint
+    patterns:
+        - pattern: fmt.Fprint($W, string($VAR))
+    message: "use $W.Write($VAR) instead of fmt.Fprint when $VAR is []byte"
+    languages: [go]
+    severity: ERROR

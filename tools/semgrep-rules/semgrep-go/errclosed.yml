@@ -1,0 +1,10 @@
+rules:
+  - id: use-net-errclosed
+    patterns:
+            - pattern: strings.Contains($ERR.Error(), $X)
+            - metavariable-regex:
+                      metavariable: $X
+                      regex: '".*closed network connection.*"'
+    message: "Use errors.Is($ERR, net.ErrClosed) instead"
+    languages: [go]
+    severity: ERROR

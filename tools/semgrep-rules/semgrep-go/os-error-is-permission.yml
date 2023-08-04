@@ -1,0 +1,8 @@
+rules:
+  - id: os-error-is-permission
+    patterns:
+     - pattern: os.IsPermission($ERR)
+    fix: errors.Is($ERR, fs.ErrPermission)
+    message: "New code should use errors.Is with the appropriate error type"
+    languages: [go]
+    severity: ERROR

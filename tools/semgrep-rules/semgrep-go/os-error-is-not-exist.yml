@@ -1,0 +1,8 @@
+rules:
+  - id: os-error-is-not-exist
+    patterns:
+     - pattern: os.IsNotExist($ERR)
+    fix: errors.Is($ERR, fs.ErrNotExist)
+    message: "New code should use errors.Is with the appropriate error type"
+    languages: [go]
+    severity: ERROR

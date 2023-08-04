@@ -1,0 +1,7 @@
+
+rules:
+- id: deprecated-ioutil-readdir
+  pattern: ioutil.ReadDir($D)
+  message: ioutil.ReadDir is deprecated
+  languages: [go]
+  severity: ERROR

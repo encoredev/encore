@@ -1,0 +1,11 @@
+rules:
+  - id: unmarshal-json-misspell
+    pattern-either:
+      - patterns:
+          - pattern-regex: (?i)func \((.+)\) unmarshal[l]?json\((.*)\)
+          - pattern-not-regex: func \(.+\) UnmarshalJSON\(
+    fix: func ($1) UnmarshalJSON($2)
+    message: |
+      Misspelling of UnmarshalJSON.
+    languages: [go]
+    severity: ERROR

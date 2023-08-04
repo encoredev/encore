@@ -1,0 +1,7 @@
+rules:
+  - id: os-error-is-timeout
+    patterns:
+     - pattern: os.IsTimeout(...)
+    message: "New code should use errors.Is with the appropriate error type"
+    languages: [go]
+    severity: ERROR

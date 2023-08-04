@@ -1,0 +1,7 @@
+rules:
+  - id: use-writer-not-writestring
+    patterns:
+        - pattern: io.WriteString($W, string($VAR))
+    message: "use $W.Write($VAR) instead of io.WriteString when $VAR is []byte"
+    languages: [go]
+    severity: ERROR
