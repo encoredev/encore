@@ -1,13 +1,17 @@
 package namespace
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
@@ -20,39 +24,76 @@ var nsCmd = &cobra.Command{
 	Aliases: []string{"ns"},
 }
 
-var listCmd = &cobra.Command{
-	Use:     "list",
-	Short:   "List infrastructure namespaces",
-	Aliases: []string{"ls"},
-	Args:    cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+func init() {
+	output := cmdutil.Output{Value: "columns", Allowed: []string{"columns", "json"}}
+	listCmd := &cobra.Command{
+		Use:     "list",
+		Short:   "List infrastructure namespaces",
+		Aliases: []string{"ls"},
+		Args:    cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
 
-		appRoot, _ := cmdutil.AppRoot()
-		daemon := cmdutil.ConnectDaemon(ctx)
-		resp, err := daemon.ListNamespaces(ctx, &daemonpb.ListNamespacesRequest{AppRoot: appRoot})
-		if err != nil {
-			cmdutil.Fatal(err)
-		}
-		nss := resp.Namespaces
-
-		// Sort by active first, then name second.
-		slices.SortFunc(nss, func(a, b *daemonpb.Namespace) bool {
-			if a.Active != b.Active {
-				return a.Active
+			appRoot, _ := cmdutil.AppRoot()
+			daemon := cmdutil.ConnectDaemon(ctx)
+			resp, err := daemon.ListNamespaces(ctx, &daemonpb.ListNamespacesRequest{AppRoot: appRoot})
+			if err != nil {
+				cmdutil.Fatal(err)
 			}
-			return a.Name < b.Name
-		})
+			nss := resp.Namespaces
 
-		for _, ns := range nss {
-			marker := " "
-			if ns.Active {
-				marker = "*"
+			// Sort by active first, then name second.
+			slices.SortFunc(nss, func(a, b *daemonpb.Namespace) bool {
+				if a.Active != b.Active {
+					return a.Active
+				}
+				return a.Name < b.Name
+			})
+
+			if output.Value == "json" {
+				var buf bytes.Buffer
+				buf.WriteByte('[')
+				for i, ns := range nss {
+					data, err := protojson.MarshalOptions{
+						UseProtoNames:   true,
+						EmitUnpopulated: true,
+					}.Marshal(ns)
+					if err != nil {
+						cmdutil.Fatal(err)
+					}
+					if i > 0 {
+						buf.WriteByte(',')
+					}
+					buf.Write(data)
+				}
+				buf.WriteByte(']')
+
+				var dst bytes.Buffer
+				if err := json.Indent(&dst, buf.Bytes(), "", "  "); err != nil {
+					cmdutil.Fatal(err)
+				}
+				fmt.Fprintln(os.Stdout, dst.String())
+				return
 			}
-			fmt.Fprintf(os.Stdout, "%s %s\n", marker, ns.Name)
-		}
-	},
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', tabwriter.StripEscape)
+
+			_, _ = fmt.Fprint(w, "NAME\tID\tACTIVE\n")
+
+			for _, ns := range nss {
+				active := ""
+				if ns.Active {
+					active = "yes"
+				}
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", ns.Name, ns.Id, active)
+			}
+			_ = w.Flush()
+		},
+	}
+	output.AddFlag(listCmd.Flags())
+
+	nsCmd.AddCommand(listCmd)
 }
 
 var createCmd = &cobra.Command{
@@ -140,7 +181,6 @@ You can use '-' as the namespace name to switch back to the previously active na
 
 func init() {
 	nsCmd.AddCommand(createCmd)
-	nsCmd.AddCommand(listCmd)
 	nsCmd.AddCommand(deleteCmd)
 	root.Cmd.AddCommand(nsCmd)
 }
