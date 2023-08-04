@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/internal/optracker"
 )
 
@@ -25,6 +26,10 @@ type Driver interface {
 	// DestroyCluster destroys a cluster with the given id.
 	// If a Driver doesn't support destroying the cluster it reports ErrUnsupported.
 	DestroyCluster(ctx context.Context, id ClusterID) error
+
+	// DestroyNamespaceData destroys the data associated with a namespace.
+	// If a Driver doesn't support destroying data it reports ErrUnsupported.
+	DestroyNamespaceData(ctx context.Context, ns *namespace.Namespace) error
 
 	// ClusterStatus reports the current status of a cluster.
 	ClusterStatus(ctx context.Context, id ClusterID) (*ClusterStatus, error)

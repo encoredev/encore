@@ -8,17 +8,15 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/sqldb"
-	"encr.dev/internal/conf"
 	"encr.dev/pkg/idents"
 )
 
@@ -149,15 +147,12 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 				"-c", "fsync=off",
 			)
 		} else {
-			clusterDataDir, err := ClusterDataDir(cid)
-			if err != nil {
-				return nil, err
-			} else if err := os.MkdirAll(filepath.Dir(clusterDataDir), 0o755); err != nil {
-				return nil, errors.Wrap(err, "could not create cluster data dir")
+			volumeName := clusterVolumeNames(p.ClusterID.NS)[0] // guaranteed to be non-empty
+			if err := d.createVolumeIfNeeded(ctx, volumeName); err != nil {
+				return nil, errors.Wrap(err, "create data volume")
 			}
-
 			args = append(args,
-				"-v", fmt.Sprintf("%s:%s", clusterDataDir, defaultDataDir),
+				"-v", fmt.Sprintf("%s:%s", volumeName, defaultDataDir),
 				Image)
 		}
 
@@ -282,11 +277,6 @@ func (d *Driver) CanDestroyCluster(ctx context.Context, id sqldb.ClusterID) erro
 }
 
 func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
-	dataDir, err := ClusterDataDir(id)
-	if err != nil {
-		return err
-	}
-
 	cnames := containerNames(id)
 	for _, cname := range cnames {
 		out, err := exec.CommandContext(ctx, "docker", "rm", "-f", cname).CombinedOutput()
@@ -297,13 +287,28 @@ func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
 			return errors.Wrapf(err, "could not delete cluster: %s", out)
 		}
 	}
+	return nil
+}
 
-	// Delete the data dir. Retry a few times, mainly for Windows.
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 5 * time.Second
-	return backoff.Retry(func() error {
-		return os.RemoveAll(dataDir)
-	}, b)
+func (d *Driver) DestroyNamespaceData(ctx context.Context, ns *namespace.Namespace) error {
+	candidates := clusterVolumeNames(ns)
+	for _, c := range candidates {
+		if err := exec.CommandContext(ctx, "docker", "volume", "rm", "-f", c).Run(); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "no such volume") {
+				continue
+			}
+			return errors.Wrapf(err, "could not delete volume %s", c)
+		}
+	}
+	return nil
+}
+
+func (d *Driver) createVolumeIfNeeded(ctx context.Context, name string) error {
+	if err := exec.CommandContext(ctx, "docker", "volume", "inspect", name).Run(); err == nil {
+		return nil
+	}
+	out, err := exec.CommandContext(ctx, "docker", "volume", "create", name).CombinedOutput()
+	return errors.Wrapf(err, "create volume %s: %s", name, out)
 }
 
 func (d *Driver) Meta() sqldb.DriverMeta {
@@ -321,22 +326,22 @@ func containerNames(id sqldb.ClusterID) []string {
 		}
 
 		// Convert the namespace to kebab case to remove invalid characters like ':'.
-		nsName := idents.Convert(string(id.NSName), idents.KebabCase)
+		nsName := idents.Convert(string(id.NS.Name), idents.KebabCase)
 
-		names = []string{base + "-" + nsName + "-" + string(id.NSID)}
+		names = []string{base + "-" + nsName + "-" + string(id.NS.ID)}
 		// If this is the default namespace look up the container without
 		// the namespace suffix as well, for backwards compatibility.
-		if id.NSName == "default" {
+		if id.NS.Name == "default" {
 			names = append(names, base)
 		}
 		return names
 	}
 
 	var names []string
-	if pid := id.App.PlatformID(); pid != "" {
+	if pid := id.NS.App.PlatformID(); pid != "" {
 		names = append(names, candidates(pid)...)
 	}
-	names = append(names, candidates(id.App.LocalID())...)
+	names = append(names, candidates(id.NS.App.LocalID())...)
 	return names
 }
 
@@ -368,13 +373,15 @@ func isDockerRunning(ctx context.Context) bool {
 	return err == nil
 }
 
-// ClusterDataDir reports the data directory for the given cluster id.
-func ClusterDataDir(id sqldb.ClusterID) (string, error) {
-	dataDir, err := conf.DataDir()
-	if err != nil {
-		return "", errors.Wrap(err, "unable to determine database dir")
-	}
+// clusterVolumeName reports the candidate names for the docker volume.
+func clusterVolumeNames(ns *namespace.Namespace) (candidates []string) {
+	nsName := idents.Convert(string(ns.Name), idents.KebabCase)
+	suffix := fmt.Sprintf("%s-%s", ns.ID, nsName)
 
-	name := fmt.Sprintf("%s-%s", id.App.PlatformOrLocalID(), id.Type)
-	return filepath.Join(dataDir, string(id.NSID), "sqldb", name), nil
+	for _, id := range [...]string{ns.App.PlatformID(), ns.App.LocalID()} {
+		if id != "" {
+			candidates = append(candidates, fmt.Sprintf("sqldb-%s-%s", id, suffix))
+		}
+	}
+	return candidates
 }

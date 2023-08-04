@@ -205,12 +205,12 @@ func (c *Cluster) initDBs(md *meta.Data, reinit bool) {
 func (c *Cluster) initDB(encoreName string) *DB {
 	driverName := encoreName
 	if !c.driver.Meta().ClusterIsolation {
-		driverName += fmt.Sprintf("-%s-%s", c.ID.App.PlatformOrLocalID(), c.ID.Type)
+		driverName += fmt.Sprintf("-%s-%s", c.ID.NS.App.PlatformOrLocalID(), c.ID.Type)
 
 		// Add the namespace id, as long as it's not the default namespace
 		// (for backwards compatibility).
-		if c.ID.NSName != "default" {
-			driverName += "-" + string(c.ID.NSID)
+		if c.ID.NS.Name != "default" {
+			driverName += "-" + string(c.ID.NS.ID)
 		}
 	}
 

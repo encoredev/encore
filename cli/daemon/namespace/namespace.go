@@ -187,6 +187,7 @@ func (m *Manager) Delete(ctx context.Context, app *apps.Instance, name Name) err
 	if ns.Active {
 		return ErrActive
 	}
+	ns.App = app
 
 	// Check all the deletion handlers.
 	for _, h := range m.handlers {
@@ -282,6 +283,7 @@ func (m *Manager) GetActive(ctx context.Context, app *apps.Instance) (*Namespace
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	} else if err == nil {
+		ns.App = app
 		return &ns, nil
 	}
 

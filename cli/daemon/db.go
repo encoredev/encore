@@ -98,10 +98,10 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	}
 
 	clusterType := sqldb.Run
-	passwd := "local-" + string(clusterNS.Name)
+	passwd := "local-" + string(clusterNS.ID)
 	if req.Test {
 		clusterType = sqldb.Test
-		passwd = "test-" + string(clusterNS.Name)
+		passwd = "test-" + string(clusterNS.ID)
 	}
 
 	clusterID := sqldb.GetClusterID(app, clusterType, clusterNS)
