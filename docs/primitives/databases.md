@@ -219,6 +219,16 @@ The `version` column tracks which migration was last applied. If you wish to ski
 change the value in this column. For example, to re-run the last migration, run `UPDATE schema_migrations SET version = version - 1;`.
 *Note that Encore does not use the `dirty` flag by default.*
 
+## PostgreSQL Extensions
+
+Encore uses the [encoredotdev/postgres](https://github.com/encoredev/postgres-image) docker image for local development,
+CI/CD, and for databases hosted on Encore Cloud.
+
+This docker image ships with many popular PostgreSQL extensions pre-installed.
+In particular, [pgvector](https://github.com/pgvector/pgvector) and [PostGIS](https://postgis.net) are available.
+
+See [the full list of available extensions](/docs/primitives/database-extensions).
+
 ## Troubleshooting
 
 ### Application won't run

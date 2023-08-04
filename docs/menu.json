@@ -94,6 +94,13 @@
         "OldPaths": [
           "/develop/databases",
           "/develop/sql-database"
+        ],
+        "Children": [
+          {
+            "Path": "/primitives/databases/extensions",
+            "Title": "PostgreSQL Extensions",
+            "DocSlug": "primitives/database-extensions"
+          }
         ]
       },
       {
