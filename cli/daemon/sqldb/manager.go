@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
+	"fmt"
 	"sync"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/singleflight"
@@ -46,15 +47,19 @@ type ClusterManager struct {
 
 // ClusterID uniquely identifies a cluster.
 type ClusterID struct {
-	App  *apps.Instance
+	NS   *namespace.Namespace
 	Type ClusterType
+}
 
-	NSID   namespace.ID
-	NSName namespace.Name
+// clusterKey is the key to use to store a cluster in the cluster map.
+type clusterKey string
+
+func (id ClusterID) clusterKey() clusterKey {
+	return clusterKey(fmt.Sprintf("%s-%s", id.NS.ID, id.Type))
 }
 
 func GetClusterID(app *apps.Instance, typ ClusterType, ns *namespace.Namespace) ClusterID {
-	return ClusterID{app, typ, ns.ID, ns.Name}
+	return ClusterID{ns, typ}
 }
 
 // Ready reports whether the cluster manager is ready and all requirements are met.
@@ -80,7 +85,7 @@ func (cm *ClusterManager) Create(ctx context.Context, params *CreateParams) *Clu
 
 	if !ok {
 		ctx, cancel := context.WithCancel(context.Background())
-		key := clusterKeys(params.ClusterID)[0] // guaranteed to be non-empty
+		key := params.ClusterID.clusterKey()
 		passwd := genPassword()
 		c = &Cluster{
 			ID:       params.ClusterID,
@@ -123,12 +128,8 @@ func (cm *ClusterManager) Get(id ClusterID) (*Cluster, bool) {
 // get retrieves the cluster keyed by id.
 // cm.mu must be held.
 func (cm *ClusterManager) get(id ClusterID) (*Cluster, bool) {
-	for _, key := range clusterKeys(id) {
-		if c, ok := cm.clusters[key]; ok {
-			return c, true
-		}
-	}
-	return nil, false
+	c, ok := cm.clusters[id.clusterKey()]
+	return c, ok
 }
 
 // CanDeleteNamespace implements namespace.DeletionHandler.
@@ -147,33 +148,33 @@ func (cm *ClusterManager) CanDeleteNamespace(ctx context.Context, app *apps.Inst
 
 // DeleteNamespace implements namespace.DeletionHandler.
 func (cm *ClusterManager) DeleteNamespace(ctx context.Context, app *apps.Instance, ns *namespace.Namespace) error {
-	c, ok := cm.Get(GetClusterID(app, Run, ns))
-	if !ok {
-		return nil
+	// Find all clusters matching this namespace.
+	// Use a closure for the lock to avoid holding it while we destroy the clusters.
+	var clusters []*Cluster
+	(func() {
+		cm.mu.Lock()
+		defer cm.mu.Unlock()
+		for _, c := range cm.clusters {
+			if c.ID.NS.ID == ns.ID {
+				clusters = append(clusters, c)
+			}
+		}
+	})()
+
+	// Destroy the clusters.
+	for _, c := range clusters {
+		if err := c.driver.DestroyCluster(ctx, c.ID); err != nil && !errors.Is(err, ErrUnsupported) {
+			return errors.Wrapf(err, "destroy cluster %s", c.ID)
+		}
+		c.cancel()
 	}
 
-	err := c.driver.DestroyCluster(ctx, c.ID)
+	// If that succeeded, destroy the namespace data.
+	err := cm.driver.DestroyNamespaceData(ctx, ns)
 	if errors.Is(err, ErrUnsupported) {
 		err = nil
 	}
-	return nil
-}
-
-type clusterKey string
-
-// clusterKeys computes clusterKey candidates for a given id.
-func clusterKeys(id ClusterID) []clusterKey {
-	typeSuffix := "-" + string(id.Type)
-	nsSuffix := "-" + string(id.NSID)
-
-	var keys []clusterKey
-
-	if pid := id.App.PlatformID(); pid != "" {
-		keys = append(keys, clusterKey(pid+typeSuffix+nsSuffix))
-	}
-	keys = append(keys, clusterKey(id.App.LocalID()+typeSuffix+nsSuffix))
-
-	return keys
+	return err
 }
 
 func genPassword() string {

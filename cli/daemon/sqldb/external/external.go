@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/sqldb"
 )
 
@@ -44,6 +45,10 @@ func (d *Driver) CanDestroyCluster(ctx context.Context, id sqldb.ClusterID) erro
 }
 
 func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
+	return sqldb.ErrUnsupported
+}
+
+func (d *Driver) DestroyNamespaceData(ctx context.Context, ns *namespace.Namespace) error {
 	return sqldb.ErrUnsupported
 }
 

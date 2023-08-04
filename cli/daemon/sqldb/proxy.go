@@ -97,14 +97,14 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 
 		ctx := context.Background()
 
-		clusterType, nsName, ok := strings.Cut(startup.Password, "-")
+		clusterType, nsID, ok := strings.Cut(startup.Password, "-")
 
 		// Look up the namespace to use.
 		var ns *namespace.Namespace
 		if !ok {
 			ns, err = cm.ns.GetActive(ctx, app)
 		} else {
-			ns, err = cm.ns.GetByName(ctx, app, namespace.Name(nsName))
+			ns, err = cm.ns.GetByID(ctx, app, namespace.ID(nsID))
 		}
 		if err != nil {
 			cm.log.Error().Err(err).Msg("dbproxy: could not find infra namespace")
