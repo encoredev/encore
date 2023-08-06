@@ -25,7 +25,7 @@ var nsCmd = &cobra.Command{
 }
 
 func init() {
-	output := cmdutil.Output{Value: "columns", Allowed: []string{"columns", "json"}}
+	output := cmdutil.Oneof{Value: "columns", Allowed: []string{"columns", "json"}}
 	listCmd := &cobra.Command{
 		Use:     "list",
 		Short:   "List infrastructure namespaces",
@@ -91,7 +91,7 @@ func init() {
 			_ = w.Flush()
 		},
 	}
-	output.AddFlag(listCmd.Flags())
+	output.AddFlag(listCmd)
 
 	nsCmd.AddCommand(listCmd)
 }

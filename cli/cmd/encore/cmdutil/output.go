@@ -5,28 +5,45 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 )
 
-type Output struct {
+type Oneof struct {
 	Value   string
 	Allowed []string
+
+	Flag      string // defaults to "output" if empty
+	FlagShort string // defaults to "o" if both Flag and FlagShort are empty
+	Desc      string // usage desc
 }
 
-func (o *Output) AddFlag(s *pflag.FlagSet) {
-	s.VarP(o, "output", "o", o.Usage())
+func (o *Oneof) AddFlag(cmd *cobra.Command) {
+	name, short := o.FlagName()
+	cmd.Flags().VarP(o, name, short, o.Usage())
+	cmd.RegisterFlagCompletionFunc(name, func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return o.Allowed, cobra.ShellCompDirectiveNoFileComp
+	})
 }
 
-func (o *Output) String() string {
+func (o *Oneof) FlagName() (name, short string) {
+	name, short = o.Flag, o.FlagShort
+	if name == "" {
+		name, short = "output", "o"
+	}
+	return name, short
+}
+
+func (o *Oneof) String() string {
 	return o.Value
 }
 
-func (o *Output) Type() string {
-	return "output"
+func (o *Oneof) Type() string {
+	name, _ := o.FlagName()
+	return name
 }
 
-func (o *Output) Set(v string) error {
+func (o *Oneof) Set(v string) error {
 	if slices.Contains(o.Allowed, v) {
 		o.Value = v
 		return nil
@@ -38,15 +55,31 @@ func (o *Output) Set(v string) error {
 	return errors.New(b.String())
 }
 
-func (o *Output) Usage() string {
+func (o *Oneof) Usage() string {
 	var b strings.Builder
-	b.WriteString("Output format. One of (")
+	desc := o.Desc
+	if desc == "" {
+		desc = "Output format"
+	}
+	b.WriteString(desc + ". One of (")
 	o.oneOf(&b)
 	b.WriteString(").")
 	return b.String()
 }
 
-func (o *Output) oneOf(b *strings.Builder) {
+// Alternatives lists the alternatives in the format "a|b|c".
+func (o *Oneof) Alternatives() string {
+	var b strings.Builder
+	for i, s := range o.Allowed {
+		if i > 0 {
+			b.WriteByte('|')
+		}
+		b.WriteString(s)
+	}
+	return b.String()
+}
+
+func (o *Oneof) oneOf(b *strings.Builder) {
 	n := len(o.Allowed)
 	for i, s := range o.Allowed {
 		if i > 0 {
