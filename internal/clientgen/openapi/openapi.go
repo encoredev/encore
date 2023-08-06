@@ -45,7 +45,17 @@ func (g *Generator) Version() int {
 	return int(g.ver)
 }
 
-func (g *Generator) Generate(p clientgentypes.GenerateParams) error {
+func (g *Generator) Generate(p clientgentypes.GenerateParams) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if b, ok := r.(bailout); ok {
+				err = b.err
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
 	g.md = p.Meta
 	g.spec = newSpec(p.AppSlug)
 
@@ -357,4 +367,12 @@ func newSpec(appSlug string) *openapi3.T {
 	}
 
 	return t
+}
+
+type bailout struct {
+	err error
+}
+
+func doBailout(err error) {
+	panic(bailout{err})
 }

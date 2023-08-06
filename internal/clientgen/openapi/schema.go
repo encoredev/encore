@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"encr.dev/parser/encoding"
@@ -100,7 +101,8 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 		return g.builtinSchemaType(t.Builtin).NewRef()
 
 	default:
-		panic(fmt.Sprintf("unknown schema type %T", t))
+		doBailout(errors.Newf("unknown schema type %T", t))
+		panic("unreachable")
 	}
 }
 
@@ -139,7 +141,8 @@ func (g *Generator) builtinSchemaType(t schema.Builtin) *openapi3.Schema {
 	case schema.Builtin_USER_ID:
 		return openapi3.NewStringSchema()
 	default:
-		panic("unknown builtin type")
+		doBailout(errors.Newf("unknown builtin type %v", t))
+		panic("unreachable")
 	}
 }
 
@@ -147,8 +150,7 @@ func (g *Generator) namedSchemaType(typ *schema.Named) *openapi3.SchemaRef {
 	namedType := &schema.Type{Typ: &schema.Type_Named{Named: typ}}
 	concrete, err := encoding.GetConcreteType(g.md.Decls, namedType, nil)
 	if err != nil {
-		// TODO handle error
-		panic(err)
+		doBailout(errors.Wrap(err, "get concrete type"))
 	}
 
 	origCandidate := g.typeToDefinitionName(namedType)
@@ -277,6 +279,7 @@ func (g *Generator) pathParamType(typ meta.PathSegment_ParamType) *openapi3.Sche
 	case meta.PathSegment_UUID:
 		return openapi3.NewUUIDSchema()
 	default:
-		panic("unknown path param type")
+		doBailout(errors.Newf("unknown path param type: %v"))
+		panic("unreachable")
 	}
 }
