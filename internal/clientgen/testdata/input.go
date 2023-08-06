@@ -84,6 +84,12 @@ type HeaderOnlyStruct struct {
     UserID  auth.UID        `header:"x-user-id"`
 }
 
+type Recursive struct {
+    Optional *Recursive `encore:"optional"`
+    Slice   []Recursive
+    Map map[string]Recursive
+}
+
 -- svc/api.go --
 package svc
 
@@ -140,7 +146,12 @@ type WithNested struct {
 
 //encore:api public method=POST
 func Nested(ctx context.Context, req *WithNested) (*WithNested, error) {
-    return nil
+    return nil, nil
+}
+
+//encore:api public method=POST
+func Rec(ctx context.Context, req *Recursive) (*Recursive, error) {
+    return nil, nil
 }
 -- svc/nested/nested.go --
 package nested

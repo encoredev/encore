@@ -169,8 +169,12 @@ func (g *Generator) namedSchemaType(typ *schema.Named) *openapi3.SchemaRef {
 			}
 		} else {
 			// Unused name; allocate it.
-			g.spec.Components.Schemas[candidate] = g.schemaType(concrete)
+			// Write to the maps before we compute the schema to avoid infinite recursion
+			// in the presence of recursive types.
 			g.seenDecls[candidate] = typ.Id
+			g.spec.Components.Schemas[candidate] = nil
+
+			g.spec.Components.Schemas[candidate] = g.schemaType(concrete)
 		}
 
 		return &openapi3.SchemaRef{Ref: "#/components/schemas/" + candidate}
