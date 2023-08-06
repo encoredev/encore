@@ -183,6 +183,12 @@ export namespace svc {
         UserID: string
     }
 
+    export interface Recursive {
+        Optional?: Recursive
+        Slice: Recursive[]
+        Map: { [key: string]: Recursive }
+    }
+
     export interface Request {
         /**
          * Foo is good
@@ -319,6 +325,12 @@ export namespace svc {
 
         public async RESTPath(a: string, b: number): Promise<void> {
             await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
+        }
+
+        public async Rec(params: Recursive): Promise<Recursive> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/svc.Rec`, JSON.stringify(params))
+            return await resp.json() as Recursive
         }
 
         public async RequestWithAllInputTypes(params: AllInputTypes<string>): Promise<AllInputTypes<number>> {

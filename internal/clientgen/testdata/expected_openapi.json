@@ -81,6 +81,26 @@
         "format": "int64",
         "type": "integer"
       },
+      "svc.Recursive": {
+        "properties": {
+          "Map": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/svc.Recursive"
+            },
+            "type": "object"
+          },
+          "Optional": {
+            "$ref": "#/components/schemas/svc.Recursive"
+          },
+          "Slice": {
+            "items": {
+              "$ref": "#/components/schemas/svc.Recursive"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "svc.Request": {
         "properties": {
           "Foo": {
@@ -732,6 +752,69 @@
                   "properties": {
                     "Nested": {
                       "$ref": "#/components/schemas/nested.Type"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/svc.Rec": {
+      "post": {
+        "operationId": "POST:svc.Rec",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "Map": {
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/svc.Recursive"
+                    },
+                    "type": "object"
+                  },
+                  "Optional": {
+                    "$ref": "#/components/schemas/svc.Recursive"
+                  },
+                  "Slice": {
+                    "items": {
+                      "$ref": "#/components/schemas/svc.Recursive"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "Map": {
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/svc.Recursive"
+                      },
+                      "type": "object"
+                    },
+                    "Optional": {
+                      "$ref": "#/components/schemas/svc.Recursive"
+                    },
+                    "Slice": {
+                      "items": {
+                        "$ref": "#/components/schemas/svc.Recursive"
+                      },
+                      "type": "array"
                     }
                   },
                   "type": "object"

@@ -211,6 +211,12 @@ type SvcHeaderOnlyStruct struct {
 	UserID  string          `header:"x-user-id"`
 }
 
+type SvcRecursive struct {
+	Optional *SvcRecursive `encore:"optional"`
+	Slice    []SvcRecursive
+	Map      map[string]SvcRecursive
+}
+
 type SvcRequest struct {
 	Foo       SvcFoo `encore:"optional"` // Foo is good
 	Baz       string `json:"boo"`        // Baz is better
@@ -251,6 +257,7 @@ type SvcClient interface {
 	HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyStruct) error
 	Nested(ctx context.Context, params SvcWithNested) (SvcWithNested, error)
 	RESTPath(ctx context.Context, a string, b int) error
+	Rec(ctx context.Context, params SvcRecursive) (SvcRecursive, error)
 	RequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[string]) (SvcAllInputTypes[float64], error)
 
 	// TupleInputOutput tests the usage of generics in the client generator
@@ -395,6 +402,16 @@ func (c *svcClient) Nested(ctx context.Context, params SvcWithNested) (resp SvcW
 func (c *svcClient) RESTPath(ctx context.Context, a string, b int) error {
 	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/path/%s/%d", url.PathEscape(a), b), nil, nil, nil)
 	return err
+}
+
+func (c *svcClient) Rec(ctx context.Context, params SvcRecursive) (resp SvcRecursive, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/svc.Rec", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[string]) (resp SvcAllInputTypes[float64], err error) {
