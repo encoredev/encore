@@ -6,9 +6,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
-	"io"
-	mathrand "math/rand"
 	"net"
 	"net/http"
 	"net/netip"
@@ -226,7 +225,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	}()
 	go func() {
 		<-r.ctx.Done()
-		srv.Close()
+		_ = srv.Close()
 	}()
 
 	// Monitor the running proc and Close the app when it exits.
@@ -328,7 +327,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	})
 	defer func() {
 		if err != nil && build != nil {
-			os.RemoveAll(build.Dir)
+			_ = os.RemoveAll(build.Dir)
 		}
 	}()
 
@@ -367,7 +366,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 	}
 	go func() {
 		<-newProcess.Done()
-		os.RemoveAll(build.Dir)
+		_ = os.RemoveAll(build.Dir)
 	}()
 
 	previousProcess := r.proc.Swap(newProcess)
@@ -461,7 +460,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	}
 
 	// If we're testing external calls, start a process for each service.
-	if experiments.ExternalCalls.Enabled(params.Experiments) {
+	if experiments.LocalMultiProcess.Enabled(params.Experiments) {
 		// create a process for each service
 		for _, s := range params.Meta.Svcs {
 			if err := p.NewProcForService(
@@ -508,26 +507,6 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	}()
 
 	return p, nil
-}
-
-// closeAll closes all the given closers, skipping ones that are nil.
-func closeAll(closers ...io.Closer) {
-	for _, c := range closers {
-		if c != nil {
-			c.Close()
-		}
-	}
-}
-
-// firstErr reports the first non-nil error out of errs.
-// If all are nil, it reports nil.
-func firstErr(errs ...error) error {
-	for _, err := range errs {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // logWriter is an io.Writer that buffers incoming logs
@@ -631,7 +610,14 @@ func usesSecrets(md *meta.Data) bool {
 }
 
 func genAuthKey() config.EncoreAuthKey {
-	kid := mathrand.Uint32()
+	// read a uint32 from crypto/rand to use as the key ID
+	var kidBytes [4]byte
+	if _, err := rand.Read(kidBytes[:]); err != nil {
+		panic("cannot generate random data: " + err.Error())
+	}
+	kid := binary.BigEndian.Uint32(kidBytes[:])
+
+	// kid := mathrand.Uint32()
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		panic("cannot generate random data: " + err.Error())
