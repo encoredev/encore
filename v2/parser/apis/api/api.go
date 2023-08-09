@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"slices"
 	"strings"
 	"sync"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"

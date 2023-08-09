@@ -1,12 +1,13 @@
 package maingen
 
 import (
+	"cmp"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
-	"golang.org/x/exp/slices"
 
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/pkg/option"
@@ -124,8 +125,8 @@ func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) *Statement {
 func bundledServices(appDesc *app.Desc) *Statement {
 	// Sort the names by service number since that's what we're indexing by.
 	svcs := slices.Clone(appDesc.Services)
-	slices.SortFunc(svcs, func(a, b *app.Service) bool {
-		return a.Num < b.Num
+	slices.SortFunc(svcs, func(a, b *app.Service) int {
+		return cmp.Compare(a.Num, b.Num)
 	})
 	return Index().String().ValuesFunc(func(g *Group) {
 		for _, svc := range svcs {

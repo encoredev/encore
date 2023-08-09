@@ -1,10 +1,11 @@
 package scan
 
 import (
+	"cmp"
+	"slices"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
@@ -31,8 +32,8 @@ package bar
 
 	// Sort the packages by import path since collectPackages processes
 	// packages concurrently.
-	slices.SortFunc(got, func(a, b *pkginfo.Package) bool {
-		return a.ImportPath < b.ImportPath
+	slices.SortFunc(got, func(a, b *pkginfo.Package) int {
+		return cmp.Compare(a.ImportPath, b.ImportPath)
 	})
 	c.Assert(got[0].ImportPath, qt.Equals, paths.Pkg("example.com/foo"))
 	c.Assert(got[1].ImportPath, qt.Equals, paths.Pkg("example.com/foo/bar"))

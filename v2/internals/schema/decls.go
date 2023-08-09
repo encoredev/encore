@@ -2,8 +2,7 @@ package schema
 
 import (
 	"go/ast"
-
-	"golang.org/x/exp/slices"
+	"slices"
 
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"

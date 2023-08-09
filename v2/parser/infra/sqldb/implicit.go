@@ -1,10 +1,10 @@
 package sqldb
 
 import (
+	"cmp"
 	"go/ast"
+	"slices"
 	"sort"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
@@ -36,11 +36,11 @@ func ComputeImplicitUsage(errs *perr.List, pkgs []*pkginfo.Package, binds []reso
 	}
 
 	// Sort them to allow for binary searches.
-	slices.SortFunc(sqldbBinds, func(a, b sqldbBind) bool {
-		if a.Pkg != b.Pkg {
-			return a.Pkg < b.Pkg
+	slices.SortFunc(sqldbBinds, func(a, b sqldbBind) int {
+		if n := cmp.Compare(a.Pkg, b.Pkg); n != 0 {
+			return n
 		}
-		return a.Bind.Pos() < b.Bind.Pos()
+		return cmp.Compare(a.Bind.Pos(), b.Bind.Pos())
 	})
 
 	findBind := func(pkg paths.Pkg) (b resource.Bind, ok bool) {

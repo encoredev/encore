@@ -2,12 +2,13 @@ package cuegen
 
 import (
 	"bytes"
+	"cmp"
+	"slices"
 
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/token"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/v2/app"
 	"encr.dev/v2/parser/infra/config"
@@ -39,17 +40,17 @@ func (g *Generator) UserFacing(svc *app.Service) ([]byte, error) {
 	}
 
 	// Sort the loads so we iterate over them in a deterministic order.
-	slices.SortFunc(loads, func(a, b *config.Load) bool {
+	slices.SortFunc(loads, func(a, b *config.Load) int {
 		// Sort by package path, then file name, then position.
 		// We can't sort by position first because we're not guaranteed
 		// files are added to the *token.FileSet in the same order since
 		// we're parsing files concurrently.
-		if a.File.Pkg.ImportPath != b.File.Pkg.ImportPath {
-			return a.File.Pkg.ImportPath < b.File.Pkg.ImportPath
-		} else if a.File.Name != b.File.Name {
-			return a.File.Name < b.File.Name
+		if n := cmp.Compare(a.File.Pkg.ImportPath, b.File.Pkg.ImportPath); n != 0 {
+			return n
+		} else if n := cmp.Compare(a.File.Name, b.File.Name); n != 0 {
+			return n
 		} else {
-			return a.Pos() < b.Pos()
+			return cmp.Compare(a.Pos(), b.Pos())
 		}
 	})
 

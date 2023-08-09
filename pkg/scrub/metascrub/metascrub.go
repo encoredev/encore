@@ -2,10 +2,10 @@
 package metascrub
 
 import (
+	"slices"
 	"strconv"
 
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/scrub"
 	meta "encr.dev/proto/encore/parser/meta/v1"

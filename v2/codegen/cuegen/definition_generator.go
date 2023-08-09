@@ -3,11 +3,11 @@ package cuegen
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 
 	"cuelang.org/go/cue/ast"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
@@ -81,8 +81,8 @@ func (n *definitionGenerator) NamesWithCountsOver(x int) []schema.NamedType {
 
 	// Get the keys in sorted order for deterministic output
 	keys := maps.Keys(n.seenTypes)
-	slices.SortFunc(keys, func(a, b schemautil.TypeHash) bool {
-		return bytes.Compare(a[:], b[:]) < 0
+	slices.SortFunc(keys, func(a, b schemautil.TypeHash) int {
+		return bytes.Compare(a[:], b[:])
 	})
 
 	for _, hash := range keys {

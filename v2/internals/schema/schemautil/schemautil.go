@@ -7,9 +7,8 @@ import (
 	"go/ast"
 	"go/types"
 	"reflect"
+	"slices"
 	"strconv"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/paths"

@@ -1,18 +1,19 @@
 package usage_test
 
 import (
+	"cmp"
 	"flag"
 	goparser "go/parser"
 	gotoken "go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
-	"github.com/google/go-cmp/cmp"
+	gocmp "github.com/google/go-cmp/cmp"
 	"github.com/rogpeppe/go-internal/txtar"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/v2/internals/parsectx"
@@ -57,24 +58,22 @@ func TestParse(t *testing.T) {
 
 			// Sort the slices to be able to compare them.
 			for _, slice := range [][]usageDesc{got, want} {
-				slices.SortFunc(slice, func(a, b usageDesc) bool {
-					if a.Filename != b.Filename {
-						return a.Filename < b.Filename
+				slices.SortFunc(slice, func(a, b usageDesc) int {
+					if n := cmp.Compare(a.Filename, b.Filename); n != 0 {
+						return n
+					} else if n := cmp.Compare(a.Line, b.Line); n != 0 {
+						return n
+					} else if n := cmp.Compare(a.Resource, b.Resource); n != 0 {
+						return n
 					}
-					if a.Line != b.Line {
-						return a.Line < b.Line
-					}
-					if a.Resource != b.Resource {
-						return a.Resource < b.Resource
-					}
-					return a.Operation < b.Operation
+					return cmp.Compare(a.Operation, b.Operation)
 				})
 			}
 
 			if *goldenUpdate {
 				//updateGoldenFiles(c, test, got)
 			}
-			if diff := cmp.Diff(got, want); diff != "" {
+			if diff := gocmp.Diff(got, want); diff != "" {
 				c.Fatalf("generated code differs (-got +want):\n%s", diff)
 			}
 		})

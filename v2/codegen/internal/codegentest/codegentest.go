@@ -1,9 +1,11 @@
 package codegentest
 
 import (
+	stdcmp "cmp"
 	"flag"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/rogpeppe/go-internal/renameio"
 	"github.com/rogpeppe/go-internal/txtar"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
@@ -146,8 +147,8 @@ func updateGoldenFiles(c *qt.C, tc *testCase, got map[string]string) {
 		})
 	}
 
-	slices.SortFunc(goldenFiles, func(a, b txtar.File) bool {
-		return a.Name < b.Name
+	slices.SortFunc(goldenFiles, func(a, b txtar.File) int {
+		return stdcmp.Compare(a.Name, b.Name)
 	})
 
 	tc.input.Files = append(tc.input.Files, goldenFiles...)
