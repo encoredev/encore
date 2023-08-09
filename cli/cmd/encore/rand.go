@@ -153,7 +153,7 @@ func init() {
 
 // Words command
 func init() {
-	sep := " "
+	var sep string
 	wordsCmd := &cobra.Command{
 		Use:   "words [--sep=SEPARATOR] NUM",
 		Short: "Generates random 4-5 letter words for memorable passphrases",
@@ -181,6 +181,6 @@ func init() {
 		},
 	}
 
-	wordsCmd.Flags().StringVarP(&sep, "sep", "s", "-", "separator between words")
+	wordsCmd.Flags().StringVarP(&sep, "sep", "s", " ", "separator between words")
 	randCmd.AddCommand(wordsCmd)
 }

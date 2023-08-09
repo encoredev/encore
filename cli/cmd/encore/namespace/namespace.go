@@ -73,7 +73,7 @@ func init() {
 				if err := json.Indent(&dst, buf.Bytes(), "", "  "); err != nil {
 					cmdutil.Fatal(err)
 				}
-				fmt.Fprintln(os.Stdout, dst.String())
+				_, _ = fmt.Fprintln(os.Stdout, dst.String())
 				return
 			}
 
@@ -114,7 +114,7 @@ var createCmd = &cobra.Command{
 		if err != nil {
 			cmdutil.Fatal(err)
 		}
-		fmt.Fprintf(os.Stdout, "created namespace %s\n", ns.Name)
+		_, _ = fmt.Fprintf(os.Stdout, "created namespace %s\n", ns.Name)
 	},
 }
 
@@ -139,7 +139,7 @@ var deleteCmd = &cobra.Command{
 		if err != nil {
 			cmdutil.Fatal(err)
 		}
-		fmt.Fprintf(os.Stdout, "deleted namespace %s\n", name)
+		_, _ = fmt.Fprintf(os.Stdout, "deleted namespace %s\n", name)
 	},
 }
 
@@ -171,7 +171,7 @@ You can use '-' as the namespace name to switch back to the previously active na
 			if err != nil {
 				cmdutil.Fatal(err)
 			}
-			fmt.Fprintf(os.Stdout, "switched to namespace %s\n", ns.Name)
+			_, _ = fmt.Fprintf(os.Stdout, "switched to namespace %s\n", ns.Name)
 		},
 	}
 
