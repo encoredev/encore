@@ -21,7 +21,7 @@ type Oneof struct {
 func (o *Oneof) AddFlag(cmd *cobra.Command) {
 	name, short := o.FlagName()
 	cmd.Flags().VarP(o, name, short, o.Usage())
-	cmd.RegisterFlagCompletionFunc(name, func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	_ = cmd.RegisterFlagCompletionFunc(name, func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return o.Allowed, cobra.ShellCompDirectiveNoFileComp
 	})
 }
