@@ -48,7 +48,7 @@ func doRun(t *testing.T, experiments []string) {
 			e.Setenv("EXTRA_EXPERIMENTS", strings.Join(experiments, ","))
 			e.Setenv("HOME", home)
 			e.Setenv("GOFLAGS", "-modcacherw")
-			gomod := []byte("module test\n\nrequire encore.dev v1.13.4")
+			gomod := []byte("module test\n\ngo 1.21.0\n\nrequire encore.dev v1.13.4")
 			if err := os.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755); err != nil {
 				return err
 			}
@@ -86,8 +86,8 @@ func doRun(t *testing.T, experiments []string) {
 				}
 
 				err := RunTests(getTB(ts), getWorkdir(ts), &log.stdout, &log.stderr, []string{"ENCORE_EXPERIMENT=" + exp})
-				os.Stdout.Write(log.stdout.Bytes())
-				os.Stderr.Write(log.stderr.Bytes())
+				_, _ = os.Stdout.Write(log.stdout.Bytes())
+				_, _ = os.Stderr.Write(log.stderr.Bytes())
 				if !neg && err != nil {
 					ts.Fatalf("tests failed: %v", err)
 				} else if neg && err == nil {
@@ -154,7 +154,7 @@ func doRun(t *testing.T, experiments []string) {
 				w := httptest.NewRecorder()
 				app.Run.ServeHTTP(w, req)
 				respBody := w.Body.Bytes()
-				os.Stdout.Write(respBody)
+				_, _ = os.Stdout.Write(respBody)
 
 				if w.Code != http.StatusOK && !neg {
 					ts.Fatalf("unexpected status code: %v: %s", w.Code, respBody)
