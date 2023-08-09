@@ -1,6 +1,6 @@
 module encr.dev
 
-go 1.20
+go 1.21.0
 
 require (
 	cuelang.org/go v0.4.3
