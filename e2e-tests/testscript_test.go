@@ -86,8 +86,8 @@ func doRun(t *testing.T, experiments []string) {
 				}
 
 				err := RunTests(getTB(ts), getWorkdir(ts), &log.stdout, &log.stderr, []string{"ENCORE_EXPERIMENT=" + exp})
-				os.Stdout.Write(log.stdout.Bytes())
-				os.Stderr.Write(log.stderr.Bytes())
+				_, _ = os.Stdout.Write(log.stdout.Bytes())
+				_, _ = os.Stderr.Write(log.stderr.Bytes())
 				if !neg && err != nil {
 					ts.Fatalf("tests failed: %v", err)
 				} else if neg && err == nil {
@@ -154,7 +154,7 @@ func doRun(t *testing.T, experiments []string) {
 				w := httptest.NewRecorder()
 				app.Run.ServeHTTP(w, req)
 				respBody := w.Body.Bytes()
-				os.Stdout.Write(respBody)
+				_, _ = os.Stdout.Write(respBody)
 
 				if w.Code != http.StatusOK && !neg {
 					ts.Fatalf("unexpected status code: %v: %s", w.Code, respBody)
