@@ -186,6 +186,6 @@ func updateGoPath(b parsectx.BuildInfo) {
 	curr := os.Getenv("PATH")
 	prefix := b.GOROOT.Join("bin", "go").ToIO() + string(filepath.ListSeparator)
 	if !strings.HasPrefix(curr, prefix) {
-		os.Setenv("PATH", prefix+curr)
+		_ = os.Setenv("PATH", prefix+curr)
 	}
 }
