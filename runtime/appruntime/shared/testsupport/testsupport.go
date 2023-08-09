@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	_ "unsafe" // for go:linkname
 
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/slices"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"

@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-
-	"golang.org/x/exp/slices"
+	"slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"

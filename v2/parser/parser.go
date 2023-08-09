@@ -1,9 +1,9 @@
 package parser
 
 import (
+	"cmp"
+	"slices"
 	"sync"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
@@ -99,30 +99,30 @@ func (p *Parser) Parse() *Result {
 	// Sort resources by package and position so the array is stable between runs
 	// as we process modules in parallel we can't rely on the order of the
 	// resources being stable coming into this function.
-	slices.SortFunc(resources, func(a, b resource.Resource) bool {
+	slices.SortFunc(resources, func(a, b resource.Resource) int {
 		p1, p2 := p.c.FS.Position(a.Pos()), p.c.FS.Position(b.Pos())
-		if p1.Filename != p2.Filename {
-			return p1.Filename < p2.Filename
-		} else if p1.Line != p2.Line {
-			return p1.Line < p2.Line
-		} else if p1.Column != p2.Column {
-			return p1.Column < p2.Column
+		if n := cmp.Compare(p1.Filename, p2.Filename); n != 0 {
+			return n
+		} else if n := cmp.Compare(p1.Line, p2.Line); n != 0 {
+			return n
+		} else if n := cmp.Compare(p1.Column, p2.Column); n != 0 {
+			return n
 		}
-		return a.Pos() < b.Pos()
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
 
 	// Then sort the binds
-	slices.SortFunc(binds, func(a, b resource.Bind) bool {
+	slices.SortFunc(binds, func(a, b resource.Bind) int {
 		if a.Package() != b.Package() {
-			return a.Package().FSPath < b.Package().FSPath
+			return cmp.Compare(a.Package().FSPath, b.Package().FSPath)
 		}
 
-		return a.Pos() < b.Pos()
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
 
 	// Finally, sort the packages
-	slices.SortFunc(pkgs, func(a, b *pkginfo.Package) bool {
-		return a.FSPath < b.FSPath
+	slices.SortFunc(pkgs, func(a, b *pkginfo.Package) int {
+		return cmp.Compare(a.FSPath, b.FSPath)
 	})
 
 	// Because we've ordered pkgs and binds, usageExprs will be stable

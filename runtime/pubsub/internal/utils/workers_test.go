@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	qt "github.com/frankban/quicktest"
-	"golang.org/x/exp/slices"
 )
 
 func TestWorkConcurrently(t *testing.T) {

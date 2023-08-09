@@ -2,15 +2,16 @@ package namespace
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
@@ -44,11 +45,15 @@ func init() {
 			nss := resp.Namespaces
 
 			// Sort by active first, then name second.
-			slices.SortFunc(nss, func(a, b *daemonpb.Namespace) bool {
+			slices.SortFunc(nss, func(a, b *daemonpb.Namespace) int {
 				if a.Active != b.Active {
-					return a.Active
+					if a.Active {
+						return -1
+					} else {
+						return 1
+					}
 				}
-				return a.Name < b.Name
+				return cmp.Compare(a.Name, b.Name)
 			})
 
 			if output.Value == "json" {

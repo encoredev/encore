@@ -3,9 +3,8 @@ package codegen
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strconv"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/legacymeta"

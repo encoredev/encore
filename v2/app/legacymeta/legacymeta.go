@@ -1,11 +1,11 @@
 package legacymeta
 
 import (
+	"cmp"
 	"fmt"
 	gotoken "go/token"
+	"slices"
 	"sort"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
@@ -108,8 +108,8 @@ func (b *builder) Build() *meta.Data {
 			}
 
 			// Sort the RPCs for deterministic output.
-			slices.SortFunc(out.Rpcs, func(a, b *meta.RPC) bool {
-				return a.Name < b.Name
+			slices.SortFunc(out.Rpcs, func(a, b *meta.RPC) int {
+				return cmp.Compare(a.Name, b.Name)
 			})
 
 			// Do we have a database associated with the service?
@@ -291,8 +291,8 @@ func (b *builder) Build() *meta.Data {
 			}
 
 			// Sort the publishers
-			slices.SortFunc(topic.Publishers, func(a, b *meta.PubSubTopic_Publisher) bool {
-				return a.ServiceName < b.ServiceName
+			slices.SortFunc(topic.Publishers, func(a, b *meta.PubSubTopic_Publisher) int {
+				return cmp.Compare(a.ServiceName, b.ServiceName)
 			})
 
 			switch r.DeliveryGuarantee {

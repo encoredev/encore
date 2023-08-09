@@ -2,10 +2,9 @@ package apienc
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/idents"

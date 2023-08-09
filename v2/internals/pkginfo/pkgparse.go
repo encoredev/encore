@@ -1,6 +1,7 @@
 package pkginfo
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	goparser "go/parser"
@@ -8,10 +9,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
@@ -56,8 +56,8 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 		// Make sure the extra packages are just "_test" packages.
 		// Pull out the package names.
 
-		slices.SortFunc(pkgs, func(a, b *ast.Package) bool {
-			return a.Name < b.Name
+		slices.SortFunc(pkgs, func(a, b *ast.Package) int {
+			return cmp.Compare(a.Name, b.Name)
 		})
 		pkgNames := fns.Map(pkgs, func(pkg *ast.Package) string { return pkg.Name })
 		if n == 2 && pkgNames[1] == pkgNames[0]+"_test" {

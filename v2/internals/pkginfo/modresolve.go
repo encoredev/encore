@@ -5,8 +5,8 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
+	"slices"
 
-	"golang.org/x/exp/slices"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 

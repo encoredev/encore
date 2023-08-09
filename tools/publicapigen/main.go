@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -11,13 +12,13 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
 )
@@ -61,8 +62,8 @@ func main() {
 	if err := walkDir(filepath.Join(resolvedRepo, "runtime"), "./", readAST); err != nil {
 		log.Fatal().Err(err).Msg("unable to walk runtime directory to parse go files")
 	}
-	slices.SortFunc(files, func(a, b *parsedFile) bool {
-		return a.fileName < b.fileName
+	slices.SortFunc(files, func(a, b *parsedFile) int {
+		return cmp.Compare(a.fileName, b.fileName)
 	})
 
 	// Register all consts and types in our private files, just in case we reference them in the public API

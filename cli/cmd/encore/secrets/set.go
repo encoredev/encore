@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -15,7 +16,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/platform"

@@ -1,12 +1,13 @@
 package health
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"golang.org/x/exp/slices"
 )
 
 // CheckRegistry is a registry of health checks from the API and Infra SDKs
@@ -104,8 +105,8 @@ func (c *CheckRegistry) RunAll(ctx context.Context) []CheckResult {
 	}
 
 	// Sort results by name.
-	slices.SortFunc(allResults, func(a, b CheckResult) bool {
-		return a.Name < b.Name
+	slices.SortFunc(allResults, func(a, b CheckResult) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return allResults

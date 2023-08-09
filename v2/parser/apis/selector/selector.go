@@ -4,10 +4,9 @@ import (
 	"go/ast"
 	"go/token"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
-
-	"golang.org/x/exp/slices"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/internals/perr"

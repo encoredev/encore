@@ -5,9 +5,9 @@ import (
 	"io"
 	"io/fs"
 	"runtime"
+	"slices"
 
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/slices"
 
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"

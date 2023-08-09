@@ -2,11 +2,11 @@ package cmdutil
 
 import (
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 )
 
 type Oneof struct {
