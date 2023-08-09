@@ -1,11 +1,12 @@
 package middleware
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/exp/slices"
+	"slices"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
@@ -147,25 +148,29 @@ func Parse(d ParseData) *Middleware {
 
 // Sort sorts the middleware to ensure they execute in deterministic order.
 func Sort(mws []*Middleware) {
-	sortFn := func(a, b *Middleware) bool {
+	sortFn := func(a, b *Middleware) int {
 		// Globals come first
 		if a.Global != b.Global {
-			return a.Global
+			if a.Global {
+				return -1
+			} else {
+				return 1
+			}
 		}
 
 		// Then sort by package path
 		aPkg, bPkg := a.Decl.File.Pkg, b.Decl.File.Pkg
-		if aPkg.ImportPath != bPkg.ImportPath {
-			return aPkg.ImportPath < bPkg.ImportPath
+		if n := cmp.Compare(aPkg.ImportPath, bPkg.ImportPath); n != 0 {
+			return n
 		}
 
 		// Then sort by file name
-		if aFile, bFile := a.Decl.File.Name, b.Decl.File.Name; aFile != bFile {
-			return aFile < bFile
+		if n := cmp.Compare(a.Decl.File.Name, b.Decl.File.Name); n != 0 {
+			return n
 		}
 
 		// Sort by declaration order within the file
-		return a.Decl.AST.Pos() < b.Decl.AST.Pos()
+		return cmp.Compare(a.Decl.AST.Pos(), b.Decl.AST.Pos())
 	}
 
 	slices.SortStableFunc(mws, sortFn)

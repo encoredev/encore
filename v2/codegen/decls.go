@@ -3,10 +3,10 @@ package codegen
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"

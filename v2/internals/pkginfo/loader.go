@@ -5,10 +5,10 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
-	"golang.org/x/exp/slices"
 	"golang.org/x/tools/go/packages"
 
 	"encr.dev/pkg/paths"

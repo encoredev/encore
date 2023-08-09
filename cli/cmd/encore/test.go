@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 
 	daemonpb "encr.dev/proto/encore/daemon"
 )

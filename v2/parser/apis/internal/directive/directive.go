@@ -6,9 +6,8 @@ import (
 	"go/ast"
 	"go/token"
 	"regexp"
+	"slices"
 	"strings"
-
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/idents"

@@ -2,16 +2,17 @@ package secrets
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/platform"
@@ -82,19 +83,23 @@ var listSecretCmd = &cobra.Command{
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 			fmt.Fprint(w, "ID\tSecret Key\tEnvironment(s)\t\n")
 
-			slices.SortFunc(secrets, func(a, b *gql.Secret) bool {
-				return a.Key < b.Key
+			slices.SortFunc(secrets, func(a, b *gql.Secret) int {
+				return cmp.Compare(a.Key, b.Key)
 			})
 			for _, s := range secrets {
 				// Sort the archived groups to the end
-				slices.SortFunc(s.Groups, func(a, b *gql.SecretGroup) bool {
+				slices.SortFunc(s.Groups, func(a, b *gql.SecretGroup) int {
 					aa, ab := a.ArchivedAt != nil, b.ArchivedAt != nil
 					if aa != ab {
-						return !aa
+						if aa {
+							return 1
+						} else {
+							return -1
+						}
 					} else if aa {
-						return a.ArchivedAt.After(*b.ArchivedAt)
+						return a.ArchivedAt.Compare(*b.ArchivedAt)
 					} else {
-						return a.ID < b.ID
+						return cmp.Compare(a.ID, b.ID)
 					}
 				})
 

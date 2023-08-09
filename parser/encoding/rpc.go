@@ -3,12 +3,12 @@ package encoding
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"

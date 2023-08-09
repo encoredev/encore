@@ -1,9 +1,9 @@
 package internal
 
 import (
+	"cmp"
+	"slices"
 	"sort"
-
-	"golang.org/x/exp/slices"
 )
 
 type LocationType uint8
@@ -154,7 +154,7 @@ nextOriginalLoc:
 	// Now sort the groups by the lowest location hint
 	// this means that errors will be rendered first, then warnings, then help
 	// if they are in different files
-	slices.SortStableFunc(rtn, func(a, b SrcLocations) bool {
+	slices.SortStableFunc(rtn, func(a, b SrcLocations) int {
 		lowestA := LocHelp
 		lowestB := LocHelp
 
@@ -170,7 +170,7 @@ nextOriginalLoc:
 			}
 		}
 
-		return lowestA < lowestB
+		return cmp.Compare(lowestA, lowestB)
 	})
 
 	return rtn

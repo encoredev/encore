@@ -1,6 +1,6 @@
 module encore.dev
 
-go 1.20
+go 1.21.0
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
@@ -34,7 +34,7 @@ require (
 	github.com/rs/zerolog v1.29.1
 	go.encore.dev/platform-sdk v1.1.0
 	golang.org/x/crypto v0.11.0
-	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
+	golang.org/x/exp v0.0.0-20230809094429-853ea248256d
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.134.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230803162519-f966b187b2e5

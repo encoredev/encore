@@ -6,9 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/golang-migrate/migrate/v4/source"
-	"golang.org/x/exp/slices"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )

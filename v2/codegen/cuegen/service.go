@@ -3,11 +3,11 @@ package cuegen
 import (
 	"fmt"
 	"reflect"
+	"slices"
 
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/v2/app"
 	"encr.dev/v2/internals/perr"

@@ -2,12 +2,13 @@ package configgen
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/pkg/eerror"
 	"encr.dev/v2/app"
@@ -115,12 +116,12 @@ func (cb *configUnmarshalersBuilder) FindAllDecls(loads []*config.Load) []*schem
 	for decl := range typesToWrite {
 		decls = append(decls, decl)
 	}
-	slices.SortFunc(decls, func(a, b *schema.TypeDecl) bool {
+	slices.SortFunc(decls, func(a, b *schema.TypeDecl) int {
 		// Sort first by pkg path and then by name
-		if a.File.Pkg.ImportPath != b.File.Pkg.ImportPath {
-			return a.File.Pkg.ImportPath < b.File.Pkg.ImportPath
+		if n := cmp.Compare(a.File.Pkg.ImportPath, b.File.Pkg.ImportPath); n != 0 {
+			return n
 		}
-		return a.Name < b.Name
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return decls

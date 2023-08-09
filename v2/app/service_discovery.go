@@ -1,7 +1,8 @@
 package app
 
 import (
-	"golang.org/x/exp/slices"
+	"cmp"
+	"slices"
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
@@ -65,8 +66,8 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 	}
 
 	// Note: we sort by the FSRoot because we use that for binary searches in [ServiceForPath]
-	slices.SortStableFunc(services, func(a, b *Service) bool {
-		return a.FSRoot.ToIO() < b.FSRoot.ToIO()
+	slices.SortStableFunc(services, func(a, b *Service) int {
+		return cmp.Compare(a.FSRoot.ToIO(), b.FSRoot.ToIO())
 	})
 
 	// Finally, let's validate our services so we can report errors
@@ -93,8 +94,8 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 	}
 
 	// Sort the services by name and assign the service numbers.
-	slices.SortFunc(services, func(a, b *Service) bool {
-		return a.Name < b.Name
+	slices.SortFunc(services, func(a, b *Service) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 	for idx, svc := range services {
 		svc.Num = idx + 1

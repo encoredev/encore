@@ -23,6 +23,7 @@ require (
 	github.com/frankban/quicktest v1.14.5
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/getkin/kin-openapi v0.115.0
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
@@ -53,7 +54,7 @@ require (
 	go.uber.org/goleak v1.1.12
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	golang.org/x/crypto v0.11.0
-	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
+	golang.org/x/exp v0.0.0-20230809094429-853ea248256d
 	golang.org/x/mod v0.12.0
 	golang.org/x/oauth2 v0.10.0
 	golang.org/x/sync v0.3.0
@@ -91,7 +92,6 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
-	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect

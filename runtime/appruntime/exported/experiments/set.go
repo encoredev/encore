@@ -1,8 +1,9 @@
 package experiments
 
 import (
+	"slices"
+
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 
 	"encore.dev/appruntime/exported/config"
 )

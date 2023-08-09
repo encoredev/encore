@@ -9,11 +9,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/slices"
 
 	"encr.dev/internal/env"
 	"encr.dev/internal/etrace"
