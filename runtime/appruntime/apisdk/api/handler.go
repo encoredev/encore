@@ -20,6 +20,7 @@ import (
 	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/shared/cfgutil"
 	"encore.dev/appruntime/shared/cloudtrace"
 	"encore.dev/appruntime/shared/jsonapi"
 	"encore.dev/beta/errs"
@@ -439,17 +440,20 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
-	if !c.server.static.Testing && experiments.ExternalCalls.Enabled(c.server.experiments) {
-		service, found := c.server.runtime.ServiceDiscovery[d.Service]
-
-		if !found {
-			// FIXME(domblack): In the future add a check to see if we're hosting this service within this instance
-			return d.internalCall(c, req)
-		} else {
-			return d.externalCall(c, service, req)
-		}
-	} else {
+	if c.server.static.Testing || cfgutil.IsHostedService(c.server.runtime, d.Service) {
+		// If we're in tests, or we're calling a hosted service, we can route via the
+		// internal process
 		return d.internalCall(c, req)
+	}
+
+	// Otherwise we need to route via the service discovery mechanism
+	service, found := c.server.runtime.ServiceDiscovery[d.Service]
+	if !found {
+		// Any service we need to talk to should be in the service discovery map, if it is not
+		// that implies the code is doing something unexpected and we should fail fast.
+		return respData, errs.B().Code(errs.Internal).Meta("service", d.Service).Msg("no route to service found").Err()
+	} else {
+		return d.externalCall(c, service, req)
 	}
 }
 

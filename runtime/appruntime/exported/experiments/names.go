@@ -19,9 +19,10 @@ const (
 	// BetaRuntime enables the beta runtime.
 	BetaRuntime Name = "beta-runtime"
 
-	// ExternalCalls forces all RPC calls to be made externally (over HTTP/GRPC).
-	// instead of routing them internally (via the runtime).
-	ExternalCalls Name = "external-calls"
+	// LocalMultiProcess forces each Encore service to run as it's own independent process locally
+	// without being able to share memory which emulates the behaviour that will be seen in production
+	// in a multi process setup.
+	LocalMultiProcess Name = "local-multi-process"
 
 	// AuthDataRoundTrip forces auth data to be round-tripped through the wireformat
 	// when internal API calls are made.
@@ -35,7 +36,7 @@ func (x Name) Valid() bool {
 		Metrics,
 		V2,
 		BetaRuntime,
-		ExternalCalls,
+		LocalMultiProcess,
 		AuthDataRoundTrip:
 		return true
 	default:

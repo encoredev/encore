@@ -461,7 +461,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	}
 
 	// If we're testing external calls, start a process for each service.
-	if experiments.ExternalCalls.Enabled(params.Experiments) {
+	if experiments.LocalMultiProcess.Enabled(params.Experiments) {
 		// create a process for each service
 		for _, s := range params.Meta.Svcs {
 			if err := p.NewProcForService(
