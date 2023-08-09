@@ -258,6 +258,7 @@ func (b *builder) buildMain() {
 		env = append(env,
 			"GO111MODULE=on",
 			"GOROOT="+goroot.ToIO(),
+			"GOTOOLCHAIN=local",
 		)
 		if goos := build.GOOS; goos != "" {
 			env = append(env, "GOOS="+goos)

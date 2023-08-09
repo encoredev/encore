@@ -16,9 +16,10 @@ runner:
   go-fmt:
     cmd: make -s -C .github/workflows go-fmt
     format: diff
-  staticcheck:
-    cmd: make -s -C .github/workflows staticcheck
-    format: rdjsonl
+# Disable staticcheck until it supports Go 1.21: https://github.com/dominikh/go-tools/issues/1431
+#  staticcheck:
+#    cmd: make -s -C .github/workflows staticcheck
+#    format: rdjsonl
   errcheck:
     cmd: make -s -C .github/workflows errcheck
     errorformat:

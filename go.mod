@@ -1,6 +1,6 @@
 module encr.dev
 
-go 1.20
+go 1.21.0
 
 require (
 	cuelang.org/go v0.4.3
@@ -54,7 +54,7 @@ require (
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	golang.org/x/crypto v0.11.0
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
-	golang.org/x/mod v0.10.0
+	golang.org/x/mod v0.12.0
 	golang.org/x/oauth2 v0.10.0
 	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.10.0
