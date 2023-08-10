@@ -435,8 +435,10 @@ func computeMD5(username, password string, salt [4]byte) string {
 	// concat('md5', md5(concat(md5(concat(password, username)), random-salt)))
 
 	// s1 := md5(concat(password, username))
+	// nosemgrep
 	s1 := md5.Sum([]byte(password + username))
 	// s2 := md5(concat(s1, random-salt))
+	// nosemgrep
 	s2 := md5.Sum([]byte(hex.EncodeToString(s1[:]) + string(salt[:])))
 	return "md5" + hex.EncodeToString(s2[:])
 }

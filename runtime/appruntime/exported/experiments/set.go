@@ -3,8 +3,6 @@ package experiments
 import (
 	"slices"
 
-	"golang.org/x/exp/maps"
-
 	"encore.dev/appruntime/exported/config"
 )
 
@@ -45,7 +43,10 @@ func (s *Set) List() []Name {
 	if s == nil {
 		return nil
 	}
-	names := maps.Keys(s.enabled)
+	names := make([]Name, 0, len(s.enabled))
+	for key := range s.enabled {
+		names = append(names, key)
+	}
 	slices.Sort(names)
 	return names
 }

@@ -1,7 +1,7 @@
 package apigen
 
 import (
-	"golang.org/x/exp/maps"
+	"maps"
 
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
