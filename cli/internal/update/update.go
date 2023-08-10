@@ -193,17 +193,13 @@ func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
 	}
 
 	fmt.Println("Running update [" + script + "]")
+	// nosemgrep
 	cmd := exec.Command(shell, arg, script)
 
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.Stdin = os.Stdin
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return cmd.Run()
 }
 
 func nightlyToNumber(version string) int64 {

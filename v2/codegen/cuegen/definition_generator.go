@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue/ast"
-	"golang.org/x/exp/maps"
 
+	"encr.dev/pkg/fns"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 )
@@ -80,7 +80,7 @@ func (n *definitionGenerator) NamesWithCountsOver(x int) []schema.NamedType {
 	rtn := make([]schema.NamedType, 0, len(n.seenTypes))
 
 	// Get the keys in sorted order for deterministic output
-	keys := maps.Keys(n.seenTypes)
+	keys := fns.MapKeys(n.seenTypes)
 	slices.SortFunc(keys, func(a, b schemautil.TypeHash) int {
 		return bytes.Compare(a[:], b[:])
 	})
