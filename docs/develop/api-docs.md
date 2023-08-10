@@ -1,7 +1,7 @@
 ---
-seotitle: Generated API Documentation
+seotitle: Service Catalog & Generated API Docs
 seodesc: See how Encore automatically generates API documentation that always stays up to date and in sync.
-title: Generated API Docs
+title: Service Catalog
 subtitle: Automatically get a Service Catalog and complete API docs
 ---
 
