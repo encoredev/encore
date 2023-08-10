@@ -29,7 +29,7 @@ var testCmd = &cobra.Command{
 		for i := 0; i < len(args); i++ {
 			arg := args[i]
 			if arg == "-h" || arg == "--help" {
-				cmd.Help()
+				_ = cmd.Help()
 				return
 			} else if arg == "--trace" || strings.HasPrefix(arg, "--trace=") {
 				// Drop this argument always.

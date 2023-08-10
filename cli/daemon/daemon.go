@@ -250,7 +250,7 @@ func (w streamWriter) Write(b []byte) (int, error) {
 }
 
 func streamExit(stream commandStream, code int) {
-	stream.Send(&daemonpb.CommandMessage{Msg: &daemonpb.CommandMessage_Exit{
+	_ = stream.Send(&daemonpb.CommandMessage{Msg: &daemonpb.CommandMessage_Exit{
 		Exit: &daemonpb.CommandExit{
 			Code: int32(code),
 		},
@@ -277,7 +277,7 @@ func (log *streamLog) Stderr(buffer bool) io.Writer {
 func (log *streamLog) Error(err *errlist.List) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	err.SendToStream(log.stream)
+	_ = err.SendToStream(log.stream)
 }
 
 func (log *streamLog) FlushBuffers() {
@@ -293,8 +293,8 @@ func (log *streamLog) FlushBuffers() {
 		log.stderr = nil
 	}
 
-	log.writeStream(false, stderr)
-	log.writeStream(true, stdout)
+	_, _ = log.writeStream(false, stderr)
+	_, _ = log.writeStream(true, stdout)
 	log.buffered = false
 }
 

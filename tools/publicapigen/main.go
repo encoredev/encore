@@ -929,6 +929,7 @@ func posWithin(pos token.Pos, node ast.Node) bool {
 func buildsSuccessfully(dir string) error {
 	cmd := exec.Command("go", "build", "./...")
 	cmd.Dir = dir
+	// nosemgrep trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("'go build' failed: %v: %s", err, out)

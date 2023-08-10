@@ -2,7 +2,9 @@ package codegentest
 
 import (
 	stdcmp "cmp"
+	"errors"
 	"flag"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -43,7 +45,7 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 			// Create a go.mod file in the main module directory if it doesn't already exist.
 			modPath := tc.MainModuleDir.Join("go.mod").ToIO()
 			if _, err := os.Stat(modPath); err != nil {
-				if !os.IsNotExist(err) {
+				if !errors.Is(err, fs.ErrNotExist) {
 					c.Fatal(err)
 				}
 				modContents := "module example.com\nrequire encore.dev v1.13.4"
