@@ -64,12 +64,11 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		panic("pubsub topic was not created using pubsub.NewTopic")
 	}
 
+	mgr := topic.mgr
 	if _, isNoop := topic.topic.(*noop.Topic); isNoop {
 		// no-op means no-op!
-		return nil
+		return &Subscription[T]{topic: topic, name: name, cfg: cfg, mgr: mgr}
 	}
-
-	mgr := topic.mgr
 
 	// Set default config values for missing values
 	if cfg.RetryPolicy == nil {
@@ -92,7 +91,12 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		panic("AckDeadline cannot be negative")
 	}
 
-	subscription, staticCfg := topic.getSubscriptionConfig(name)
+	subscription, staticCfg, exists := topic.getSubscriptionConfig(name)
+	if !exists {
+		// Noop subscription
+		return &Subscription[T]{topic: topic, name: name, cfg: cfg, mgr: mgr}
+	}
+
 	panicCatchWrapper := func(ctx context.Context, msg T) (err error) {
 		defer func() {
 			if err2 := recover(); err2 != nil {
@@ -265,28 +269,28 @@ func (s *Subscription[T]) Config() SubscriptionConfig[T] {
 	return s.cfg
 }
 
-func (t *Topic[T]) getSubscriptionConfig(name string) (*config.PubsubSubscription, *config.StaticPubsubSubscription) {
+func (t *Topic[T]) getSubscriptionConfig(name string) (cfg *config.PubsubSubscription, staticCfg *config.StaticPubsubSubscription, ok bool) {
 	if t.mgr.static.Testing {
 		// No subscriptions occur in testing
 		svcName, svcNum := t.mgr.ts.TestService()
 		return &config.PubsubSubscription{EncoreName: name}, &config.StaticPubsubSubscription{
 			Service: svcName,
 			SvcNum:  svcNum,
-		}
+		}, true
 	}
 
 	// Fetch the subscription configuration
 	subscription, ok := t.runtimeCfg.Subscriptions[name]
 	if !ok {
-		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.runtimeCfg.EncoreName, name)
+		return nil, nil, false
 	}
 
-	staticCfg, ok := t.mgr.static.PubsubTopics[t.runtimeCfg.EncoreName].Subscriptions[name]
+	staticCfg, ok = t.mgr.static.PubsubTopics[t.runtimeCfg.EncoreName].Subscriptions[name]
 	if !ok {
-		t.mgr.rootLogger.Fatal().Msgf("unregistered/unknown subscription on topic %s: %s", t.runtimeCfg.EncoreName, name)
+		return nil, nil, false
 	}
 
-	return subscription, staticCfg
+	return subscription, staticCfg, true
 }
 
 func marshalParams[Resp any](json jsoniter.API, resp Resp) []byte {
