@@ -42,7 +42,7 @@ var listSecretCmd = &cobra.Command{
 			var buf bytes.Buffer
 			w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', tabwriter.StripEscape)
 
-			fmt.Fprint(w, "Secret Key\tProduction\tDevelopment\tLocal\tPreview\tSpecific Envs\t\n")
+			_, _ = fmt.Fprint(w, "Secret Key\tProduction\tDevelopment\tLocal\tPreview\tSpecific Envs\t\n")
 			const (
 				checkYes = "\u2713"
 				checkNo  = "\u2717"
@@ -59,29 +59,29 @@ var listSecretCmd = &cobra.Command{
 				if !d.hasAny {
 					continue
 				}
-				fmt.Fprintf(w, "%s\t%v\t%v\t%v\t%v\t", s.Key,
+				_, _ = fmt.Fprintf(w, "%s\t%v\t%v\t%v\t%v\t", s.Key,
 					render(d.prod), render(d.dev), render(d.local), render(d.preview))
 				// Render specific envs, if any
 				for i, env := range d.specific {
 					if i > 0 {
-						fmt.Fprintf(w, ",")
+						_, _ = fmt.Fprintf(w, ",")
 					}
-					fmt.Fprintf(w, "%s", env.Name)
+					_, _ = fmt.Fprintf(w, "%s", env.Name)
 				}
 
-				fmt.Fprint(w, "\t\n")
+				_, _ = fmt.Fprint(w, "\t\n")
 			}
-			w.Flush()
+			_ = w.Flush()
 
 			// Add color to the checkmarks now that the table is correctly laid out.
 			// We can't do it before since the tabwriter will get the alignment wrong
 			// if we include a bunch of ANSI escape codes that it doesn't understand.
 			r := strings.NewReplacer(checkYes, color.GreenString(checkYes), checkNo, color.RedString(checkNo))
-			r.WriteString(os.Stdout, buf.String())
+			_, _ = r.WriteString(os.Stdout, buf.String())
 		} else {
 			// Specific secrets
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-			fmt.Fprint(w, "ID\tSecret Key\tEnvironment(s)\t\n")
+			_, _ = fmt.Fprint(w, "ID\tSecret Key\tEnvironment(s)\t\n")
 
 			slices.SortFunc(secrets, func(a, b *gql.Secret) int {
 				return cmp.Compare(a.Key, b.Key)
@@ -119,13 +119,13 @@ var listSecretCmd = &cobra.Command{
 					s := fmt.Sprintf("%s\t%s\t%s\t", g.ID, s.Key, strings.Join(sel, ", "))
 					if g.ArchivedAt != nil {
 						s += "(archived)\t"
-						color.New(color.Concealed).Fprintln(w, s)
+						_, _ = color.New(color.Concealed).Fprintln(w, s)
 					} else {
-						fmt.Fprintln(w, s)
+						_, _ = fmt.Fprintln(w, s)
 					}
 				}
 			}
-			w.Flush()
+			_ = w.Flush()
 		}
 	},
 }
