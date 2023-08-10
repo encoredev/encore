@@ -269,7 +269,7 @@ func (b *builder) Build() *meta.Data {
 						addPublisher(svc.Name)
 					} else if res2, ok := b.app.Parse.ResourceConstructorContaining(u).Get(); ok {
 						// Otherwise, is the publish call within a global middleware?
-						// If so add all services that that middleware applies to.
+						// If so add all services that middleware applies to.
 						switch res2 := res2.(type) {
 						case *middleware.Middleware:
 							if res2.Global {

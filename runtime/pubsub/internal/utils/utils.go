@@ -199,7 +199,7 @@ func setValue[T any](val T, ptrDepth int, f reflect.Value, valSetter func(reflec
 		rval := reflect.New(root).Elem()
 		// Set the content of the new Value
 		valSetter(rval, val)
-		// Wrap it in pointers and set the target field to the wrapped vaue
+		// Wrap it in pointers and set the target field to the wrapped value
 		f.Set(pointify(rval, ptrDepth))
 	}
 }

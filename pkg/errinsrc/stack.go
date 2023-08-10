@@ -92,7 +92,7 @@ func convertFrames(pcs []uintptr) []*StackFrame {
 	for {
 		// Skip the frame if it's Go Runtime or internal testing code related code
 		if !strings.HasPrefix(frame.Function, "runtime.") && !strings.HasPrefix(frame.Function, "testing.") {
-			// Seperate the package name and function name
+			// Separate the package name and function name
 			pkgAndFunc := frame.Function
 			if idx := strings.LastIndex(pkgAndFunc, "/"); idx >= 0 {
 				pkgAndFunc = pkgAndFunc[idx+1:]

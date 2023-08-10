@@ -60,7 +60,7 @@ func AsWarning(warningText string) func(loc *SrcLocation) {
 	}
 }
 
-// AsHelp allows you to set a SrcLocation's text and mark it as a a helpful hint
+// AsHelp allows you to set a SrcLocation's text and mark it as a helpful hint
 //
 // Pass this option in when you give the error [Template] a src location
 func AsHelp(helpText string) func(loc *SrcLocation) {

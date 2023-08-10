@@ -79,7 +79,7 @@ type File struct {
 
 // SrcLocations represents a list of locations
 // within the source code. It can be sorted and split
-// up into seperate lists using GroupByFile
+// up into separate lists using GroupByFile
 type SrcLocations []*SrcLocation
 
 var _ sort.Interface = SrcLocations{}

@@ -115,7 +115,7 @@ func (s *serviceFile) generateCue() {
 		return
 	}
 
-	// Add the package name and decription comment
+	// Add the package name and description comment
 	pkg := &ast.Package{Name: ast.NewIdent(s.svc.Name)}
 	s.file.Decls = append(s.file.Decls, pkg)
 	s.file.AddComment(&ast.CommentGroup{

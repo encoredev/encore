@@ -16,7 +16,7 @@ import (
 // in a compiler error.
 //
 // The database name must be unique within the Encore application. Database names must be defined
-// in kebab-case (lowercase alphanumerics and hyphen seperated). Once created and deployed never
+// in kebab-case (lowercase alphanumerics and hyphen separated). Once created and deployed never
 // change the database name, or else a new database will be created.
 func NewDatabase(name string, config DatabaseConfig) *Database {
 	return Singleton.GetDB(name)
