@@ -557,7 +557,7 @@ func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, optio
 
 // keyDiff returns the diff between src.keys and keys
 func keyDiff[T comparable, V any](src map[T]V, keys ...T) (diff []T) {
-	for k, _ := range src {
+	for k := range src {
 		if !slices.Contains(keys, k) {
 			diff = append(diff, k)
 		}
