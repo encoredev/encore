@@ -25,7 +25,7 @@ import (
 type Topic[T any] struct {
 	mgr            *Manager
 	staticCfg      TopicConfig         // The config as defined in the applications source code
-	runtimeCfg     *config.PubsubTopic // The config for this running instance of the apllication
+	runtimeCfg     *config.PubsubTopic // The config for this running instance of the application
 	topic          types.TopicImplementation
 	publishLimiter limiter.Limiter
 }

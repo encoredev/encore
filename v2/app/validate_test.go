@@ -171,7 +171,7 @@ func parse(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Fatalf("expected errors, but none found")
 	}
 
-	// Now writeto stdout the description of the parsed app
+	// Now write to stdout the description of the parsed app
 	for _, svc := range desc.Services {
 		if svc.Name != "fakesvcfortest" {
 			var dbNames []string

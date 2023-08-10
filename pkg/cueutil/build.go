@@ -166,7 +166,7 @@ func writeFSToPath(filesys fs.FS, targetPath string) error {
 
 // addOrphanedFiles adds any orphaned files outside the package to the build instance. This could be CUE, YAML or JSON files
 //
-// The majority of the code in ths function is taken directly from the CUE source code as the code is currently only acessible
+// The majority of the code in the function is taken directly from the CUE source code as the code is currently only accessible
 // from internal paths - they are planning to move this out of the internal path so non-CUE code can directly call it
 // as library functions. (Src: cue/internal/encoding/encoding.go : NewDecoder())
 func addOrphanedFiles(i *build.Instance) (err error) {

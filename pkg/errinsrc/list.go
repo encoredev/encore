@@ -17,7 +17,7 @@ func (l List) Len() int {
 }
 
 func (l List) Less(i, j int) bool {
-	// This less function follows (as much as possible) the behabiour
+	// This less function follows (as much as possible) the behaviour
 	// of scanner.ErrorList's sort, that is filename, then line, then column
 	// We then move onto extra data only Encore has
 	iErr, jErr := l[i], l[j]

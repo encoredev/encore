@@ -106,7 +106,7 @@ You can use the `cue` tag in your Go to specify additional constraints on your c
 ```go
 type FooBar {
     A int `cue:">100"`
-    B int `cue:"A-50"` // If A is set, B can be infered by CUE
+    B int `cue:"A-50"` // If A is set, B can be inferred by CUE
     C int `cue:"A+B"`  // Which then allows CUE to infer this too
 }
 
@@ -118,7 +118,7 @@ Will result in the following CUE type definition being generated:
 ```cue
 #Config: {
     A: int & >100
-    B: int & A-50 // If A is set, B can be infered by CUE
+    B: int & A-50 // If A is set, B can be inferred by CUE
     C: int & A+B  // Which then allows CUE to infer this too
 }
 ```
@@ -210,10 +210,10 @@ if #Meta.Environment.Type == "development" && #Meta.Environment.Cloud == "local"
 // An application running in a development environment in the Cloud
 if #Meta.Environment.Type == "development" && #Meta.Environment.Cloud != "local" {}
 
-// An application running in a production enviroment
+// An application running in a production environment
 if #Meta.Environment.Type == "production" {}
 
-// An application running in an enviroment that Encore has created
+// An application running in an environment that Encore has created
 // for an open Pull Request on Github
 if #Meta.Environment.Type == "ephemeral" {}
 ```
@@ -323,7 +323,7 @@ value is specified by prefixing it with a `*`.
 ReadOnlyMode: bool | *false
 
 if #Meta.Environment.Name == "old-prod" {
-    // On this enviroment, we want to set ReadOnlyMode to true
+    // On this environment, we want to set ReadOnlyMode to true
     ReadOnlyMode: true
 }
 ```

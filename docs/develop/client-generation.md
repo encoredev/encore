@@ -112,7 +112,7 @@ If your application has any API's which require [authentication](/docs/develop/a
 into the client, which can be used when constructing the client. Just like with API's schemas, the data type required by
 your application's `auth handler` will be part of the client library, allowing you to set it in two ways:
 
-If your credentials wont change during the lifetime of the client, simply passing the authentication data to the client
+If your credentials won't change during the lifetime of the client, simply passing the authentication data to the client
 through the `WithAuth` (Go) or `auth` (TypeScript) options.
 
 However, if the authentication credentials can change, you can also pass a function which will be called before each request

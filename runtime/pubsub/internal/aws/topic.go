@@ -94,7 +94,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 					// We should only long poll for 20 seconds, so if this takes more than
 					// 30 seconds we should cancel the context and try again
 					//
-					// We do this incase the ReceiveMessage call gets stuck on the server
+					// We do this in case the ReceiveMessage call gets stuck on the server
 					// and doesn't return
 					ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 					defer cancel()
@@ -152,7 +152,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 					// We want to wait a maximum of 30 seconds for the callback to complete
 					// otherwise we assume it has failed and we should retry
 					//
-					// We do this incase the callback gets stuck and doesn't return
+					// We do this in case the callback gets stuck and doesn't return
 					ctx, responseCancel := context.WithTimeout(ctx, 30*time.Second)
 					defer responseCancel()
 

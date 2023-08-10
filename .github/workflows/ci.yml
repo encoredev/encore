@@ -91,7 +91,7 @@ jobs:
       if:   github.event.schedule == '30 2 * * *'
 
     # We upload the test results as artifacts so that in PR's
-    # we can use a seperate action to post a comment with the
+    # we can use a separate action to post a comment with the
     # test results.
     #
     # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches

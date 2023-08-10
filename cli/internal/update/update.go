@@ -116,7 +116,7 @@ type LatestVersion struct {
 func (lv *LatestVersion) Version() string {
 	// Server side doesn't include the "v" in nightly versions.
 	if lv.Channel == version.GA {
-		// Note: this trim prefix is future proofing incase we decide to start returning versions
+		// Note: this trim prefix is future proofing in case we decide to start returning versions
 		// which include the "v" prefix
 		return "v" + strings.TrimPrefix(lv.RawVersion, "v")
 	}

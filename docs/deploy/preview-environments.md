@@ -1,6 +1,6 @@
 ---
 seotitle: Preview Environments – Temporary dev environments per Pull Request 
-seodesc: Learn how to use Encore to activate automatic Preview Environments for every Pull Request to simpliy testing and collaborating.
+seodesc: Learn how to use Encore to activate automatic Preview Environments for every Pull Request to simplify testing and collaborating.
 title: Preview Environments
 subtitle: Connect your Encore app with GitHub to activate Preview Environments
 ---

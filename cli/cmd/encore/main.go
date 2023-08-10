@@ -166,7 +166,7 @@ func convertJSONLogs() outputConverter {
 			return line
 		}
 
-		// Otherwise grab the the converter buffer and reset it
+		// Otherwise grab the converter buffer and reset it
 		logMutex.Lock()
 		defer logMutex.Unlock()
 		logLineBuffer.Reset()

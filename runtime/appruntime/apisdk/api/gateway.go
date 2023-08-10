@@ -22,7 +22,7 @@ func (s *Server) IsGateway() bool {
 }
 
 // createGatewayHandlerAdapter creates a httprouter.Handle that proxies requests
-// ontop of the given handler to the service that is hosting the handler.
+// on top of the given handler to the service that is hosting the handler.
 func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 	service, found := s.runtime.ServiceDiscovery[h.ServiceName()]
 	if !found {
