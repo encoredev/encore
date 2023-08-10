@@ -1,11 +1,11 @@
 package api
 
 import (
+	"maps"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/maps"
 
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"

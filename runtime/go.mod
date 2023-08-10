@@ -34,7 +34,6 @@ require (
 	github.com/rs/zerolog v1.29.1
 	go.encore.dev/platform-sdk v1.1.0
 	golang.org/x/crypto v0.11.0
-	golang.org/x/exp v0.0.0-20230809094429-853ea248256d
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.134.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230803162519-f966b187b2e5
@@ -83,7 +82,6 @@ require (
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.13.0 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect

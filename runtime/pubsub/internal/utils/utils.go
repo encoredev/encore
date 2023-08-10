@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,8 +10,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/constraints"
 
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/types"
@@ -248,7 +247,7 @@ func WithDefaultValue[T comparable](setValue, defaultValue T) T {
 }
 
 // Clamp returns the value clamped to the range [min, max].
-func Clamp[T constraints.Ordered](d T, min T, max T) T {
+func Clamp[T cmp.Ordered](d T, min T, max T) T {
 	if d < min {
 		return min
 	}

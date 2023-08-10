@@ -277,7 +277,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error {
 	defer client.Close()
 	cl, err := pgproxy.SetupClient(client, &pgproxy.ClientConfig{
-		TLS: &tls.Config{},
+		TLS: &tls.Config{MinVersion: tls.VersionTLS12},
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to setup client")

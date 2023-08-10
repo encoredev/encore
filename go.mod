@@ -54,7 +54,6 @@ require (
 	go.uber.org/goleak v1.1.12
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	golang.org/x/crypto v0.11.0
-	golang.org/x/exp v0.0.0-20230809094429-853ea248256d
 	golang.org/x/mod v0.12.0
 	golang.org/x/oauth2 v0.10.0
 	golang.org/x/sync v0.3.0
