@@ -14,7 +14,7 @@ As opposed to the labor intensive instrumentation you'd normally need to go thro
 You view traces in the [Local Development Dashboard](./dev-dash) and in the [Cloud Dashboard](https://app.encore.dev) for Production and other environments.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-	<source src="/assets/docs/dtracing.mp4" className="w-full h-full" type="video/mp4" />
+	<source src="/assets/docs/tracingvideo.mp4" className="w-full h-full" type="video/mp4" />
 </video>
 
 ## Encore's tracing is more comprehensive and more performant than all other tools
