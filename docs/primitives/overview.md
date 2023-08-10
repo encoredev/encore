@@ -1,11 +1,16 @@
 ---
-seotitle: Cloud Primitives are the building blocks of most cloud backend applications
+seotitle: Encore's Infrastructure SDK provides the common backend building blocks
 seodesc: Learn how to build cloud-agnostic backend applications using Encore's built-in cloud primitives.
-title: Cloud Primitives
-subtitle: Encore's Infrastructure SDK provides the building blocks for creating backend applications
+title: Infrastructure SDK
+subtitle: Providing a declarative way of using common infrastructure primitives
 ---
 
-Modern backend applications rely on a small set of infrastructure primitives for most of the behavior. To improve your development workflow, Encore provides a declarative way of using them directly in application code.
+Modern backend applications rely on a common set of infrastructure primitives for most of the behavior. To improve your development workflow, Encore's Infrastructure SDK provides a declarative way of using them directly in application code. This comes with several benefits:
+- **Develop new features locally as if the infrastructure is already set up**: Encore automatically compiles your app and sets up the necessary infrastructure on the fly.
+- **No manual maintenance required**: There is no need to manually write [IaC](/resources/infrastructure-as-code) configuration, like Terraform, and no need to manually maintain configuration for multiple environments. Encore uses your application code as the single source of truth and automatically keeps all environments in sync.
+- **One codebase for all environments**: Encore [automatically provisions](/docs/deploy/infra) your local, [preview](/docs/deploy/preview-environments), and cloud environments (using [your own cloud accunt](/docs/deploy/own-cloud)).
+- **Cloud-agnostic by default**: The Infrastructure SDK is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked-in to a single cloud.
+- **Evolve infrastructure without code changes**: As your requirements evolve, you can change and configure the provisioned infrastructure by using Encore's Cloud Dashboard or your cloud provider's console.
 
 See how to use each primitive:
 
@@ -16,18 +21,8 @@ See how to use each primitive:
 - [Caching](/docs/primitives/caching)
 - [Secrets](/docs/primitives/secrets)
 
-<img src="/assets/docs/primitives.png" title="Cloud Primitives" className="noshadow mx-auto d:max-w-[50%]"/>
-
-## Encore removes complexity so you can focus on your product, not your cloud provider
-
-If there are so few basic components, why is building a cloud backend application so complex without tools like Encore?
-
-The problem is: infrastructure requirements evolve depending on context and scale, yet developers traditionally have to program their applications with very specific infrastructure in mind.
-
-In practise this leads to refactoring the application, over and over again, in order to cope with infrastructure requirement changes. Many hours also have to be spent manually setting up and configuring new infrastructure.
-
-This is what Encore's Infrastructure SDK solves, by letting you declare infrastructure on a higher abstraction level that makes your code agnostic to any specific cloud services. This means your Encore application can be deployed using different types of infrastructure, in different clouds, without making any code changes. The best part is, Encore even takes care of automatically provisioning the necessary infrastructure when you deploy.
+<img src="/assets/docs/primitives.png" title="Cloud Primitives" className="noshadow mx-auto d:w-1/2"/>
 
 ## Simplicity without giving up flexibility
 
-Encore is designed to ensure you can use any type cloud infrastructure, even if it's not built into Encore's Infrastructure SDK. This works since Encore deploys to your own cloud account, so you can seamlessly use your cloud provider's services as you normally would.
+While most requirements are met by a common set of infrastructure primitives, sooner or later you will likely need something highly specific to your problem domain. Encore is designed to ensure you can use any type of cloud infrastructure, even if it's not built into Encore's Infrastructure SDK. This works seamlessly since Encore [provisions infrastructure](/docs/deploy/infra) in your own cloud account, so you can use any of your cloud provider's services as you traditionally would.

@@ -72,7 +72,7 @@
   },
   {
     "Path": "",
-    "Title": "Building Blocks",
+    "Title": "Infra SDK",
     "Children": [
       {
         "Path": "/primitives",

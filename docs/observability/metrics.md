@@ -17,7 +17,9 @@ Encore also makes it easy to define custom metrics for your application. Once de
 
 By default, Encore also exports metrics data to your cloud provider's built-in monitoring service.
 
-<img src="/assets/docs/metrics.png" title="Encore's metrics page"/>
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+	<source src="/assets/docs/metricsvideo.mp4" className="w-full h-full" type="video/mp4" />
+</video>
 
 ## Defining custom metrics
 
