@@ -36,7 +36,7 @@ func TestFromDir(t *testing.T) {
 	c.Assert(fileCount, qt.Equals, 3, qt.Commentf("unexpected number of files"))
 	c.Assert(dirCount, qt.Equals, 4, qt.Commentf("unexpected number of directories"))
 
-	// Perform the standardised tests on the VFS implementation checking for the existance of the files we wanted
+	// Perform the standardised tests on the VFS implementation checking for the existence of the files we wanted
 	if err := fstest.TestFS(dir, "blahsvc/another.json", "blahsvc/test.json", "foosystem/barservice/blah.json"); err != nil {
 		t.Fatal(err)
 	}

@@ -132,8 +132,8 @@ func (extension *jsonExtension) CreateEncoder(typ reflect2.Type) jsoniter.ValEnc
 	return nil
 }
 
-// jsonMarshaller is a simple struct which implmenets jsoniter's ValEncoder and ValDecoder interfaces
-// allowing us to use it as a single object without having to create mulitple objects
+// jsonMarshaller is a simple struct which implements jsoniter's ValEncoder and ValDecoder interfaces
+// allowing us to use it as a single object without having to create multiple objects
 type jsonMarshaller struct {
 	// unmarshal takes an iterator, creates a new version of the error object, and returns it
 	unmarshal func(itr *jsoniter.Iterator) error

@@ -222,7 +222,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	startup.Password = admin.Password
 	if db == nil {
 		// We don't know about this database, we'll use the requested name
-		// incase it does actually exist within the cluster.
+		// in case it does actually exist within the cluster.
 		//
 		// If it doesn't the cluster will return an SQL error to the client.
 		startup.Database = dbname

@@ -20,7 +20,7 @@ type Template struct {
 	AlwaysIncludeStack bool
 }
 
-// TemplateOption can be passed into the [Range] when createing a new Template
+// TemplateOption can be passed into the [Range] when creating a new Template
 type TemplateOption func(*Template)
 
 // AlwaysIncludeStack will setup a Template so it always includes a stack trace

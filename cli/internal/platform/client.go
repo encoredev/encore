@@ -190,7 +190,7 @@ func doPlatformReq(req *http.Request, auth bool) (httpResp *http.Response, err e
 	return client.Do(req)
 }
 
-// wsDial sets up a WebSocket conncetion to the API endpoint given by method and path.
+// wsDial sets up a WebSocket connection to the API endpoint given by method and path.
 func wsDial(ctx context.Context, path string, auth bool, extraHeaders map[string]string) (ws *websocket.Conn, err error) {
 	defer func() {
 		if err != nil {

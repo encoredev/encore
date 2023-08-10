@@ -55,7 +55,7 @@ type JobConfig struct {
 	Title string
 
 	// Endpoint is the Encore API endpoint that should be called when the cron job executes.
-	// It must not take any parameters other than context.Conetxt; that is, its signature must be
+	// It must not take any parameters other than context.Context; that is, its signature must be
 	// either "func(context.Context) error" or "func(context.Context) (T, error)" for any type T.
 	Endpoint any
 

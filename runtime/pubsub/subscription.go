@@ -31,7 +31,7 @@ type Subscription[T any] struct {
 // in a compiler error.
 //
 // The subscription name must be unique for that topic. Subscription names must be defined
-// in kebab-case (lowercase alphanumerics and hyphen seperated). The subscription name must start with a letter
+// in kebab-case (lowercase alphanumerics and hyphen separated). The subscription name must start with a letter
 // and end with either a letter or number. It cannot be longer than 63 characters.
 //
 // Once created and deployed never change the subscription name, or the topic name otherwise messages will be lost which

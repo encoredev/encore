@@ -111,7 +111,7 @@ func (p *Parser) Parse() *Result {
 		return a.Pos() < b.Pos()
 	})
 
-	// Then sort the binds binds
+	// Then sort the binds
 	slices.SortFunc(binds, func(a, b resource.Bind) bool {
 		if a.Package() != b.Package() {
 			return a.Package().FSPath < b.Package().FSPath

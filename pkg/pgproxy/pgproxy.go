@@ -501,7 +501,7 @@ func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error 
 					select {
 					case <-done:
 						// The client terminated the connection so our connection
-						// to the server is also being being torn down; ignore the error.
+						// to the server is also being torn down; ignore the error.
 						return
 					default:
 					}

@@ -99,7 +99,7 @@
 ##############################################################################################################################
 # Step 3: Create a diff of the changes in the working directory against the common ancestor of the current branch and main   #
 #         This will be used to run static analysis checks on only the files that have changed. This diff should mimic the    #
-#         diff that would be created by Github when all current changes are comitted and pushed into a PR on github.         #
+#         diff that would be created by GitHub when all current changes are committed and pushed into a PR on GitHub.        #
 ##############################################################################################################################
 
   # Don't generate the diff if we don't need it to filter!

@@ -21,7 +21,7 @@ func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
 }
 ```
 
-### Defining Request and Reponse schemas
+### Defining Request and Response schemas
 
 ```go
 // PingParams is the request data for the Ping endpoint.
