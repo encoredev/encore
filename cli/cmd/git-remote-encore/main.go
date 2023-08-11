@@ -83,12 +83,13 @@ func connect(args []string, svc string) error {
 		return err
 	}
 	keyPath := f.Name()
-	defer os.Remove(keyPath)
+	defer func() { _ = os.Remove(keyPath) }()
+
 	if err := f.Chmod(0600); err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	} else if _, err := f.Write([]byte(SentinelPrivateKey)); err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	} else if err := f.Close(); err != nil {
 		return err
@@ -101,10 +102,10 @@ func connect(args []string, svc string) error {
 		return err
 	}
 	cfgPath := cfg.Name()
-	defer os.Remove(cfgPath)
+	defer func() { _ = os.Remove(cfgPath) }()
 
 	// Communicate to Git that the connection is established.
-	os.Stdout.Write([]byte("\n"))
+	_, _ = os.Stdout.Write([]byte("\n"))
 
 	sshServer, port := "git.encore.dev", "22"
 	if isLocalTest {

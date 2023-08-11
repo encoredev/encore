@@ -16,6 +16,7 @@ import (
 	"encr.dev/cli/internal/platform/gql"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/fns"
 )
 
 type Error struct {
@@ -48,7 +49,7 @@ func call(ctx context.Context, method, path string, reqParams, respParams interf
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer fns.CloseIgnore(resp.Body)
 
 	var respStruct struct {
 		OK    bool
@@ -92,7 +93,7 @@ func graphqlCall(ctx context.Context, req graphqlRequest, respData any, auth boo
 	if err != nil {
 		return err
 	}
-	defer httpResp.Body.Close()
+	defer fns.CloseIgnore(httpResp.Body)
 
 	var respStruct struct {
 		Data       json.RawMessage
@@ -138,7 +139,7 @@ func rawCall(ctx context.Context, method, path string, reqParams interface{}, au
 	}
 	defer func() {
 		if err != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 	}()
 

@@ -19,6 +19,7 @@ func ParseRuntime(config, deployID string) *Runtime {
 		bytes []byte
 		err   error
 	)
+	// nosemgrep
 	if bytes, err = base64.StdEncoding.DecodeString(config); err != nil {
 		bytes, err = base64.RawURLEncoding.DecodeString(config)
 	}

@@ -137,9 +137,9 @@ func (id ID) Format(f fmt.State, r rune) {
 	}
 	switch {
 	case id.name != "":
-		fmt.Fprintf(f, strF, id.name)
+		_, _ = fmt.Fprintf(f, strF, id.name)
 	default:
-		fmt.Fprintf(f, numF, id.number)
+		_, _ = fmt.Fprintf(f, numF, id.number)
 	}
 }
 
