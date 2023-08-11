@@ -1,11 +1,12 @@
 package maingen
 
 import (
+	"encore.dev/appruntime/exported/config"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/codegen"
 )
 
-func genTestConfigs(p GenParams, test codegen.TestConfig) {
+func genTestConfigs(p GenParams, test codegen.TestConfig) *config.Static {
 	for _, pkg := range test.Packages {
 		// HACK(andre) Ensure we always import the testsupport package in every test binary,
 		// since the "testing" package depends on it for the testing runtime hooks.
@@ -24,7 +25,8 @@ func genTestConfigs(p GenParams, test codegen.TestConfig) {
 		//	}
 	}
 
-	genLoadApp(p, option.Some(testParams{
-		EnvsToEmbed: test.EnvsToEmbed,
+	return GenAppConfig(p, option.Some(testParams{
+		EnvsToEmbed:        test.EnvsToEmbed,
+		ExternalTestBinary: len(test.EnvsToEmbed) > 0,
 	}))
 }

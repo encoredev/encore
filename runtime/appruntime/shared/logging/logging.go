@@ -18,9 +18,7 @@ var RootLogger = configure(appconf.Static, appconf.Runtime)
 
 func configure(static *config.Static, runtime *config.Runtime) zerolog.Logger {
 	var logOutput io.Writer = os.Stderr
-	if static.TestAsExternalBinary {
-		// If we're running as a test and as a binary outside of the Encore Daemon, then we want to
-		// log the output via a console logger, rather than the underlying JSON logs.
+	if static.PrettyPrintLogs {
 		logOutput = zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
 			w.Out = logOutput
 		})

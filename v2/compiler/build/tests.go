@@ -106,17 +106,18 @@ func (b *builder) runTests() {
 			"-vet=off",
 		}
 
-		if b.cfg.Ctx.Build.StaticLink {
-			var ldflags string
+		var ldflags strings.Builder
+		b.writeStaticConfig(&ldflags)
 
+		if b.cfg.Ctx.Build.StaticLink {
 			// Enable external linking if we use cgo.
 			if b.cfg.Ctx.Build.CgoEnabled {
-				ldflags = "-linkmode external "
+				ldflags.WriteString(" -linkmode external")
 			}
 
-			ldflags += `-extldflags "-static"`
-			args = append(args, "-ldflags", ldflags)
+			ldflags.WriteString(` -extldflags "-static"`)
 		}
+		args = append(args, "-ldflags", ldflags.String())
 
 		if b.cfg.Ctx.Build.Debug {
 			// Disable inlining for better debugging.

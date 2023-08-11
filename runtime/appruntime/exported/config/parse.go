@@ -43,3 +43,19 @@ func ParseRuntime(config, deployID string) *Runtime {
 
 	return &cfg
 }
+
+// ParseStatic parses the Encore static config.
+func ParseStatic(config string) *Static {
+	if config == "" {
+		log.Fatalln("encore runtime: fatal error: no encore static config provided")
+	}
+	bytes, err := base64.StdEncoding.DecodeString(config)
+	if err != nil {
+		log.Fatalln("encore runtime: fatal error: could not decode encore static config:", err)
+	}
+	var cfg Static
+	if err := json.Unmarshal(bytes, &cfg); err != nil {
+		log.Fatalln("encore runtime: fatal error: could not parse encore static config:", err)
+	}
+	return &cfg
+}

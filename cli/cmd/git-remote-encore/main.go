@@ -135,6 +135,7 @@ func connect(args []string, svc string) error {
 //
 // NOTE: This is not a security problem. The key is meant to be public
 // and does not serve as a means of authentication.
+// nosemgrep
 const SentinelPrivateKey = `-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
 QyNTUxOQAAACCyj3F5Tp1eBIp7rMohszumYzlys/BFfmX/LVkXJS8magAAAJjsp3yz7Kd8

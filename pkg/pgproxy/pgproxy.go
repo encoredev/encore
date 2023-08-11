@@ -71,10 +71,11 @@ func (p *SingleBackendProxy) Serve(ctx context.Context, ln net.Listener) error {
 	p.gotBackend = make(chan struct{})
 
 	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+
 		select {
 		case <-p.gotBackend:
-		case <-time.After(10 * time.Minute):
-			ln.Close()
 		case <-ctx.Done():
 			ln.Close()
 		}
