@@ -170,6 +170,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 
 	tracker.AllDone()
 
+	// nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd := exec.CommandContext(ctx, build.Exe, p.ScriptArgs...)
 	cmd.Dir = filepath.Join(p.App.Root(), p.WorkingDir)
 	cmd.Stdout = p.Stdout

@@ -25,6 +25,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -294,7 +295,7 @@ func addCACerts(ctx context.Context, tw *tar.Writer, dest string) error {
 	if err != nil {
 		return errors.Wrap(err, "get root certs")
 	}
-	defer resp.Body.Close()
+	defer fns.CloseIgnore(resp.Body)
 
 	// We need to populate the body of the tar file before writing the contents.
 	// Use the content length if it was provided. Otherwise read the whole response
