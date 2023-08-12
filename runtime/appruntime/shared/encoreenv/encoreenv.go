@@ -21,7 +21,12 @@ func init() {
 		if strings.HasPrefix(e, "ENCORE_") {
 			key, val, _ := strings.Cut(e, "=")
 			envs[key] = val
-			os.Unsetenv(key)
+
+			// Unset ENCORE_ environment variables if we're running
+			// inside the Encore application.
+			if isApp {
+				os.Unsetenv(key)
+			}
 		}
 	}
 }
