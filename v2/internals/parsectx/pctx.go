@@ -19,6 +19,10 @@ import (
 
 // Context holds all the context for parsing.
 type Context struct {
+	// AppID is a unique id of the application, used for workdir caching.
+	// If left empty, a random workdir is used.
+	AppID option.Option[string]
+
 	// Ctx provides cancellation.
 	Ctx context.Context
 

@@ -2,7 +2,6 @@ package run
 
 import (
 	"context"
-	"os"
 	"runtime"
 
 	"encr.dev/cli/daemon/apps"
@@ -82,13 +81,8 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		},
 	})
 
-	if result != nil && result.Dir != "" {
-		if p.CodegenDebug {
-			buildDir = result.Dir
-		} else {
-			_ = os.RemoveAll(result.Dir)
-		}
+	if result != nil {
+		buildDir = result.Dir
 	}
-
 	return buildDir, err
 }

@@ -87,9 +87,6 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		},
 	})
 
-	if result != nil && result.Dir != "" {
-		defer os.RemoveAll(result.Dir)
-	}
 	if err != nil {
 		log.Info().Err(err).Msg("compilation failed")
 		return false, errors.Wrap(err, "compilation failed")

@@ -139,11 +139,6 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		}
 		return nil
 	})
-	defer func() {
-		if build != nil {
-			os.RemoveAll(build.Dir)
-		}
-	}()
 
 	if err := jobs.Wait(); err != nil {
 		return err

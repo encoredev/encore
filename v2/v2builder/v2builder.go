@@ -46,11 +46,12 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
-		fs := token.NewFileSet()
-		errs := perr.NewList(ctx, fs)
+		fset := token.NewFileSet()
+		errs := perr.NewList(ctx, fset)
 		pc := &parsectx.Context{
-			Ctx: ctx,
-			Log: p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())).Level(zerolog.InfoLevel),
+			AppID: option.Some(p.App.PlatformOrLocalID()),
+			Ctx:   ctx,
+			Log:   p.Build.Logger.GetOrElse(zerolog.New(zerolog.NewConsoleWriter())).Level(zerolog.InfoLevel),
 			Build: parsectx.BuildInfo{
 				Experiments: p.Experiments,
 				// We use GetOrElseF here because GoRoot / Runtime path will panic
@@ -74,7 +75,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 				MainPkg:            p.Build.MainPkg,
 			},
 			MainModuleDir: paths.RootedFSPath(p.App.Root(), "."),
-			FS:            fs,
+			FS:            fset,
 			ParseTests:    p.ParseTests,
 			Errs:          errs,
 		}

@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"encr.dev/internal/etrace"
@@ -46,31 +45,22 @@ func Test(ctx context.Context, cfg *TestConfig) {
 }
 
 func (b *builder) Test() {
-	workdir, err := os.MkdirTemp("", "encore-test")
-	if err != nil {
-		b.errs.AddStd(err)
-		return
-	}
-	// NOTE(andre): There appears to be a bug in go's handling of overlays
-	// when the source or destination is a symlink.
-	// I haven't dug into the root cause exactly, but it causes weird issues
-	// with tests since macOS's /var/tmp is a symlink to /private/var/tmp.
-	if d, err := filepath.EvalSymlinks(workdir); err == nil {
-		workdir = d
-	}
-	b.workdir = paths.RootedFSPath(workdir, ".")
+	workdir, tempWorkDir := b.prepareWorkDir()
+	b.workdir = workdir
 
-	defer func() {
-		// If we have a bailout or any errors, delete the workdir.
-		if _, ok := perr.CatchBailout(recover()); ok || b.errs.Len() > 0 {
-			if !b.cfg.KeepOutput && workdir != "" {
-				_ = os.RemoveAll(workdir)
+	if tempWorkDir {
+		defer func() {
+			// If we have a bailout or any errors, delete the workdir.
+			if _, ok := perr.CatchBailout(recover()); ok || b.errs.Len() > 0 {
+				if !b.cfg.KeepOutput && workdir != "" {
+					_ = os.RemoveAll(workdir.ToIO())
+				}
 			}
-		}
-	}()
+		}()
+	}
 
-	if b.cfg.KeepOutput && workdir != "" {
-		_, _ = fmt.Fprintf(b.testCfg.Stdout, "wrote generated code to: %s\n", workdir)
+	if b.cfg.KeepOutput && b.workdir != "" {
+		_, _ = fmt.Fprintf(b.testCfg.Stdout, "wrote generated code to: %s\n", b.workdir.ToIO())
 	}
 
 	for _, fn := range []func(){

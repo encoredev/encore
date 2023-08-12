@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"os"
 	"runtime"
 	"sort"
 	"strings"
@@ -219,7 +218,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	// Run the http server until the app exits.
 	srv := &http.Server{Addr: ln.Addr().String(), Handler: r}
 	go func() {
-		if err := srv.Serve(ln); err != http.ErrServerClosed {
+		if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 			r.log.Error().Err(err).Msg("could not serve")
 		}
 	}()
@@ -325,11 +324,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		}
 		return nil
 	})
-	defer func() {
-		if err != nil && build != nil {
-			_ = os.RemoveAll(build.Dir)
-		}
-	}()
 
 	var secrets map[string]string
 	if usesSecrets(parse.Meta) {
@@ -364,10 +358,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		tracker.Fail(startOp, err)
 		return err
 	}
-	go func() {
-		<-newProcess.Done()
-		_ = os.RemoveAll(build.Dir)
-	}()
 
 	previousProcess := r.proc.Swap(newProcess)
 	if previousProcess != nil {
