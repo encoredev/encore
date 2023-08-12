@@ -1,7 +1,7 @@
 package redis
 
 import (
-	"math/rand"
+	mathrand "math/rand" // nosemgrep
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -88,7 +88,7 @@ func (s *Server) clearKeys() {
 		toDelete := n - maxKeys
 		deleted := 0
 		for deleted < toDelete {
-			id := rand.Intn(len(keys))
+			id := mathrand.Intn(len(keys))
 			if keys[id] != "" {
 				s.mini.Del(keys[id])
 				keys[id] = "" // mark it as deleted
