@@ -8,7 +8,7 @@ go install github.com/fatih/gomodifytags@latest
 go install github.com/josharian/impl@latest
 go install github.com/haya14busa/goplay/cmd/goplay@latest
 go install github.com/go-delve/delve/cmd/dlv@latest
-go install honnef.co/go/tools/cmd/staticcheck@latest
+go install honnef.co/go/tools/cmd/staticcheck@master
 go install golang.org/x/tools/gopls@latest
 
 GOBIN=/tmp/ go install github.com/go-delve/delve/cmd/dlv@master
