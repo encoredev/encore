@@ -84,34 +84,26 @@ type builder struct {
 	// overlays are the additional overlay files to apply.
 	overlays []overlay.File
 
-	// workdir is the temporary workdir for the build.
 	workdir paths.FS
+	// deleteWorkDir reports whether the workdir should be deleted.
+	// It's true for temporarily generated workdirs.
+	tempWorkDir bool
 }
 
 func (b *builder) Build() *Result {
-	workdir, err := os.MkdirTemp("", "encore-build")
-	if err != nil {
-		b.errs.AddStd(err)
-	}
+	workdir, tempWorkDir := b.prepareWorkDir()
+	b.workdir = workdir
 
-	// NOTE(andre): There appears to be a bug in go's handling of overlays
-	// when the source or destination is a symlink.
-	// I haven't dug into the root cause exactly, but it causes weird issues
-	// with tests since macOS's /var/tmp is a symlink to /private/var/tmp.
-	if d, err := filepath.EvalSymlinks(workdir); err == nil {
-		workdir = d
-	}
-
-	b.workdir = paths.RootedFSPath(workdir, ".")
-
-	defer func() {
-		// If we have a bailout or any errors, delete the workdir.
-		if _, ok := perr.CatchBailout(recover()); ok || b.errs.Len() > 0 {
-			if !b.cfg.KeepOutput && workdir != "" {
-				_ = os.RemoveAll(workdir)
+	if tempWorkDir {
+		defer func() {
+			// If we have a bailout or any errors, delete the workdir.
+			if _, ok := perr.CatchBailout(recover()); ok || b.errs.Len() > 0 {
+				if !b.cfg.KeepOutput && workdir != "" {
+					_ = os.RemoveAll(workdir.ToIO())
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	res := &Result{
 		Dir: b.workdir,
@@ -439,4 +431,38 @@ func isGo118Plus(f *modfile.File) bool {
 	major, _ := strconv.Atoi(m[1])
 	minor, _ := strconv.Atoi(m[2])
 	return major > 1 || (major == 1 && minor >= 18)
+}
+
+func (b *builder) prepareWorkDir() (workdir paths.FS, temporary bool) {
+	work, isTemp := (func() (string, bool) {
+		// If we have an appID, use a persistent work dir.
+		if appID, ok := b.cfg.Ctx.AppID.Get(); ok {
+			baseDir, err := os.UserCacheDir()
+			if err != nil {
+				b.errs.Fatalf(token.NoPos, "unable to get user cache dir: %v", err)
+			}
+			workdir := filepath.Join(baseDir, "encore-build", appID)
+			return workdir, false
+		}
+
+		tmp, err := os.MkdirTemp("", "encore-build")
+		if err != nil {
+			b.errs.Fatalf(token.NoPos, "unable to create workdir: %v", err)
+		}
+		return tmp, true
+	})()
+
+	// NOTE(andre): There appears to be a bug in go's handling of overlays
+	// when the source or destination is a symlink.
+	// I haven't dug into the root cause exactly, but it causes weird issues
+	// with tests since macOS's /var/tmp is a symlink to /private/var/tmp.
+	if d, err := filepath.EvalSymlinks(work); err == nil {
+		work = d
+	}
+
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		b.errs.Fatalf(token.NoPos, "unable to create workdir: %v", err)
+	}
+
+	return paths.RootedFSPath(work, "."), isTemp
 }
