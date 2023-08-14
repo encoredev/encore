@@ -26,6 +26,7 @@ import (
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 	"encore.dev/metrics"
@@ -331,18 +332,23 @@ func (s *Server) Serve(ln net.Listener) error {
 	return s.httpsrv.Serve(ln)
 }
 
-// Shutdown gracefully shuts down the server without interrupting any active connections.
-func (s *Server) Shutdown(force context.Context) {
-	_ = s.httpsrv.Shutdown(force)
-}
+// Shutdown gracefully shuts down the server.
+func (s *Server) Shutdown(p *shutdown.Process) error {
+	// Once it's time to force-close tasks, cancel the base context.
+	go func() {
+		<-p.ForceCloseTasks.Done()
+		s.httpCtxCancel()
+	}()
 
-// StopHandlers cancels the context passed to handlers and waits for all the handlers
-// to return.
-//
-// If handlers do not respond to the context being cancelled, this method will block indefinitely.
-func (s *Server) StopHandlers() {
-	s.httpCtxCancel()
+	// Begin shutting down the server
+	shutdownErr := make(chan error, 1)
+	go func() { shutdownErr <- s.httpsrv.Shutdown(p.ForceShutdown) }()
+
+	// Wait for the running handlers to finish.
 	s.runningHandlers.Wait()
+	p.MarkOutstandingRequestsCompleted()
+
+	return <-shutdownErr
 }
 
 func (s *Server) handler(w http.ResponseWriter, req *http.Request) {

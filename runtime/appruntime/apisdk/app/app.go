@@ -67,8 +67,7 @@ func (app *App) Run() error {
 
 func (app *App) Start() {
 	app.logStartupInfo()
-	app.shutdown.OnShutdown(app.api.Shutdown)
-	app.shutdown.RegisterHandlerHook(app.api.StopHandlers)
+	app.shutdown.RegisterShutdownHandler(app.api.Shutdown)
 }
 
 func (app *App) logStartupInfo() {

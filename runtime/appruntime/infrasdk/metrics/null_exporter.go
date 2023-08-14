@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/metrics"
 )
 
@@ -16,5 +17,4 @@ func (e *NullMetricsExporter) Export(ctx context.Context, metrics []metrics.Coll
 	return nil
 }
 
-func (e *NullMetricsExporter) Shutdown(force context.Context) {
-}
+func (e *NullMetricsExporter) Shutdown(p *shutdown.Process) error { return nil }

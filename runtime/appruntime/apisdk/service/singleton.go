@@ -16,7 +16,7 @@ var Singleton *Manager
 
 func init() {
 	Singleton = NewManager(appconf.Runtime, reqtrack.Singleton, health.Singleton, logging.RootLogger)
-	shutdown.Singleton.OnShutdown(Singleton.Shutdown)
+	shutdown.Singleton.RegisterShutdownHandler(Singleton.Shutdown)
 }
 
 func Register(i Initializer) {

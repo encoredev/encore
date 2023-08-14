@@ -20,6 +20,7 @@ import (
 	"encore.dev/appruntime/infrasdk/metadata"
 	"encore.dev/appruntime/infrasdk/metrics/system"
 	"encore.dev/appruntime/shared/nativehist"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/metrics"
 )
 
@@ -57,12 +58,13 @@ type Exporter struct {
 	metricNames map[string]string
 }
 
-func (x *Exporter) Shutdown(force context.Context) {
+func (x *Exporter) Shutdown(p *shutdown.Process) error {
 	x.clientMu.Lock()
 	defer x.clientMu.Unlock()
 	if x.client != nil {
 		_ = x.client.Close()
 	}
+	return nil
 }
 
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {

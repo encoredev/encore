@@ -25,7 +25,7 @@ func init() {
 			// Unset ENCORE_ environment variables if we're running
 			// inside the Encore application.
 			if isApp {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 		}
 	}

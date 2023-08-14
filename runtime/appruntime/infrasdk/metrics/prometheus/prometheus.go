@@ -15,6 +15,7 @@ import (
 	"encore.dev/appruntime/infrasdk/metadata"
 	"encore.dev/appruntime/infrasdk/metrics/prometheus/prompb"
 	"encore.dev/appruntime/infrasdk/metrics/system"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/metrics"
 )
 
@@ -39,7 +40,7 @@ type Exporter struct {
 	rootLogger              zerolog.Logger
 }
 
-func (x *Exporter) Shutdown(_ context.Context) {}
+func (x *Exporter) Shutdown(p *shutdown.Process) error { return nil }
 
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
 	now := time.Now()

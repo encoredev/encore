@@ -24,6 +24,5 @@ func init() {
 		appconf.Static, appconf.Runtime, reqtrack.Singleton, testsupport.Singleton,
 		logging.RootLogger, jsonapi.Default,
 	)
-	shutdown.Singleton.OnShutdown(Singleton.Shutdown)
-	shutdown.Singleton.RegisterHandlerHook(Singleton.StopHandlers)
+	shutdown.Singleton.RegisterShutdownHandler(Singleton.Shutdown)
 }
