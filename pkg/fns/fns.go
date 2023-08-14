@@ -35,6 +35,8 @@ func MapKeys[M ~map[K]V, K comparable, V any](m M) []K {
 	return r
 }
 
+// CloseIgnore closes c, ignoring any error.
+// Its main use is to satisfy linters.
 func CloseIgnore(c io.Closer) {
 	_ = c.Close()
 }

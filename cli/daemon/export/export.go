@@ -25,6 +25,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -87,9 +88,6 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		},
 	})
 
-	if result != nil && result.Dir != "" {
-		defer os.RemoveAll(result.Dir)
-	}
 	if err != nil {
 		log.Info().Err(err).Msg("compilation failed")
 		return false, errors.Wrap(err, "compilation failed")
@@ -297,7 +295,7 @@ func addCACerts(ctx context.Context, tw *tar.Writer, dest string) error {
 	if err != nil {
 		return errors.Wrap(err, "get root certs")
 	}
-	defer resp.Body.Close()
+	defer fns.CloseIgnore(resp.Body)
 
 	// We need to populate the body of the tar file before writing the contents.
 	// Use the content length if it was provided. Otherwise read the whole response
