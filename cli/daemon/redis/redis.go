@@ -1,7 +1,7 @@
 package redis
 
 import (
-	"math/rand"
+	mathrand "math/rand" // nosemgrep
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -16,6 +16,7 @@ type Server struct {
 	mini      *miniredis.Miniredis
 	cleanup   *time.Ticker
 	quit      chan struct{}
+	addr      string
 }
 
 const tickInterval = 1 * time.Second
@@ -32,6 +33,7 @@ func (s *Server) Start() error {
 		if err := s.mini.Start(); err != nil {
 			return errors.Wrap(err, "failed to start redis server")
 		}
+		s.addr = s.mini.Addr()
 		s.cleanup = time.NewTicker(tickInterval)
 		go s.doCleanup()
 		return nil
@@ -52,8 +54,7 @@ func (s *Server) Addr() string {
 	if err := s.Start(); err != nil {
 		panic(err)
 	}
-
-	return s.mini.Addr()
+	return s.addr
 }
 
 func (s *Server) doCleanup() {
@@ -81,13 +82,13 @@ func (s *Server) doCleanup() {
 // down to 100 persisted keys, as a simple way to bound
 // the max memory usage.
 func (s *Server) clearKeys() {
-	const max = 100
+	const maxKeys = 100
 	keys := s.mini.Keys()
-	if n := len(keys); n > max {
-		toDelete := n - max
+	if n := len(keys); n > maxKeys {
+		toDelete := n - maxKeys
 		deleted := 0
 		for deleted < toDelete {
-			id := rand.Intn(len(keys))
+			id := mathrand.Intn(len(keys))
 			if keys[id] != "" {
 				s.mini.Del(keys[id])
 				keys[id] = "" // mark it as deleted
