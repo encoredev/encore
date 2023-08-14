@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/gofrs/uuid"
 	"github.com/rs/zerolog/log"
 
 	"encore.dev/appruntime/exported/experiments"
@@ -56,7 +57,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	ln, err := net.Listen("tcp", "localhost:0")
 	assertNil(err)
-	c.Cleanup(func() { ln.Close() })
+	c.Cleanup(func() { _ = ln.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Cleanup(cancel)
@@ -64,7 +65,10 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	svcProxy, err := svcproxy.New(ctx, log.Logger)
 	assertNil(err)
 
-	app := apps.NewInstance(appRoot, "slug", "")
+	// Use a randomly generated app id to avoid tests trampling on each other
+	// since we use a persistent working directory based on the app id.
+	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
+
 	mgr := &Manager{}
 	ns := &namespace.Namespace{ID: "some-id", Name: "default"}
 	rm := infra.NewResourceManager(app, mgr.ClusterMgr, ns, nil, 0, false)
@@ -157,7 +161,9 @@ func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Cleanup(cancel)
 
-	app := apps.NewInstance(appRoot, "slug", "")
+	// Use a randomly generated app id to avoid tests trampling on each other
+	// since we use a persistent working directory based on the app id.
+	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
 	err := mgr.Test(ctx, TestParams{
 		App:        app,
 		WorkingDir: ".",
@@ -190,10 +196,10 @@ func startProxy(ctx context.Context, ln net.Listener, p *Proc) {
 	}
 	go func() {
 		<-ctx.Done()
-		srv.Close()
+		_ = srv.Close()
 	}()
 
-	go srv.Serve(ln)
+	go func() { _ = srv.Serve(ln) }()
 }
 
 // testBuild is a helper that compiles the app situated at appRoot
@@ -207,7 +213,9 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 	bld := builderimpl.Resolve(expSet)
 	ctx := context.Background()
 
-	app := apps.NewInstance(appRoot, t.Name(), "")
+	// Use a randomly generated app id to avoid tests trampling on each other
+	// since we use a persistent working directory based on the app id.
+	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
 
 	vcsRevision := vcs.GetRevision(app.Root())
 	buildInfo := builder.BuildInfo{
@@ -261,7 +269,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 	}
 
 	t.Cleanup(func() {
-		os.RemoveAll(build.Dir)
+		_ = os.RemoveAll(build.Dir)
 	})
 	return parse, build
 }
