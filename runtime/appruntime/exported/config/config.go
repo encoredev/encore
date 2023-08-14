@@ -17,9 +17,12 @@ type Static struct {
 	CORSExposeHeaders []string // Headers to be exposed by cors
 	PubsubTopics      map[string]*StaticPubsubTopic
 
-	Testing              bool
-	TestServiceMap       map[string]string // map of service names to their filesystem root
-	TestAsExternalBinary bool              // should logs be pretty printed in tests (used when building a test binary to be used outside of the Encore daemon)
+	Testing        bool
+	TestServiceMap map[string]string // map of service names to their filesystem root
+
+	// PrettyPrintLogs indicates whether logs should be pretty-printed.
+	// It's set when building a separate test binary, for example.
+	PrettyPrintLogs bool
 
 	// BundledServices are the services bundled in this binary.
 	BundledServices []string
@@ -27,6 +30,9 @@ type Static struct {
 	// EnabledExperiments is a list of experiments that are enabled for this app
 	// which where enabled at compile time.
 	EnabledExperiments []string `json:"experiments,omitempty"`
+
+	// EmbeddedEnvs is a set of embedded environment variables.
+	EmbeddedEnvs map[string]string
 }
 
 type Runtime struct {

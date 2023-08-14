@@ -2,16 +2,17 @@ package maingen
 
 import (
 	"cmp"
+	"maps"
 	"net/http"
 	"slices"
 	"sort"
-	"strings"
 
 	. "github.com/dave/jennifer/jen"
 
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
-	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
@@ -22,129 +23,100 @@ import (
 )
 
 type testParams struct {
-	EnvsToEmbed []string
+	ExternalTestBinary bool
+	EnvsToEmbed        map[string]string
 }
 
-func genLoadApp(p GenParams, test option.Option[testParams]) {
-	var (
-		rtconfDir  = p.RuntimeModule.RootDir.Join("appruntime", "shared", "appconf")
-		rtconfPkg  = paths.Pkg("encore.dev/appruntime/shared/appconf")
-		rtconfName = "appconf"
-	)
-
-	file := p.Gen.InjectFile(rtconfPkg, rtconfName, rtconfDir, "staticcfg.go", "staticcfg")
-	f := file.Jen
-
+func GenAppConfig(p GenParams, test option.Option[testParams]) *config.Static {
 	allowHeaders, exposeHeaders := computeCORSHeaders(p.Desc)
 
-	var envsToEmbed []string
-	if test, ok := test.Get(); ok {
-		envsToEmbed = test.EnvsToEmbed
+	cfg := &config.Static{
+		EncoreCompiler: p.CompilerVersion,
+		AppCommit: config.CommitInfo{
+			Revision:    p.AppRevision,
+			Uncommitted: p.AppUncommitted,
+		},
+		CORSAllowHeaders:   allowHeaders,
+		CORSExposeHeaders:  exposeHeaders,
+		PubsubTopics:       pubsubTopics(p.Gen, p.Desc),
+		Testing:            test.Present(),
+		TestServiceMap:     testServiceMap(p.Desc),
+		BundledServices:    bundledServices(p.Desc),
+		EnabledExperiments: p.Gen.Build.Experiments.StringList(),
+		EmbeddedEnvs:       make(map[string]string),
 	}
 
-	f.Func().Id("init").Params().BlockFunc(func(g *Group) {
-		staticCfg := Dict{
-			// Id("AuthData"):       authDataType(p.Gen.Util, p.Desc),
-			Id("EncoreCompiler"): Lit(p.CompilerVersion),
-			Id("AppCommit"): Qual("encore.dev/appruntime/exported/config", "CommitInfo").Values(Dict{
-				Id("Revision"):    Lit(p.AppRevision),
-				Id("Uncommitted"): Lit(p.AppUncommitted),
-			}),
-			Id("CORSAllowHeaders"):   allowHeaders,
-			Id("CORSExposeHeaders"):  exposeHeaders,
-			Id("PubsubTopics"):       pubsubTopics(p.Gen, p.Desc),
-			Id("Testing"):            Lit(test.Present()),
-			Id("TestServiceMap"):     testServiceMap(p.Desc),
-			Id("BundledServices"):    bundledServices(p.Desc),
-			Id("EnabledExperiments"): enabledExperiments(p.Gen.Build.Experiments),
-		}
+	if test, ok := test.Get(); ok {
+		cfg.PrettyPrintLogs = test.ExternalTestBinary
+		maps.Copy(cfg.EmbeddedEnvs, test.EnvsToEmbed)
+	}
 
-		if len(envsToEmbed) > 0 {
-			staticCfg[Id("TestAsExternalBinary")] = True()
-			for _, env := range envsToEmbed {
-				key, value, _ := strings.Cut(env, "=")
-				g.Qual("encore.dev/appruntime/shared/encoreenv", "Set").Call(Lit(key), Lit(value))
-			}
-		}
-
-		g.Id("Static").Op("=").Op("&").Qual("encore.dev/appruntime/exported/config", "Static").Values(staticCfg)
-
-		// g.Id("handlers").Op(":=").Add(computeHandlerRegistrationConfig(p.Desc, p.APIHandlers, p.Middleware))
-		//
-		// g.Return(Op("&").Qual("encore.dev/appruntime/apisdk/app/appinit", "LoadData").Values(Dict{
-		//	Id("StaticCfg"):   Id("static"),
-		//	Id("APIHandlers"): Id("handlers"),
-		//	Id("ServiceInit"): serviceInitConfig(p.ServiceStructs),
-		//	Id("AuthHandler"): authHandler,
-		// }))
-	})
+	return cfg
 }
 
-func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) *Statement {
-	return Map(String()).Op("*").Qual("encore.dev/appruntime/exported/config", "StaticPubsubTopic").Values(DictFunc(func(d Dict) {
-		// Get all the topics and subscriptions
-		var (
-			topics      []*pubsub.Topic
-			subsByTopic = make(map[pkginfo.QualifiedName][]*pubsub.Subscription)
-		)
-		for _, r := range appDesc.Parse.Resources() {
-			switch r := r.(type) {
-			case *pubsub.Topic:
-				topics = append(topics, r)
-			case *pubsub.Subscription:
-				subsByTopic[r.Topic] = append(subsByTopic[r.Topic], r)
-			}
+func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) map[string]*config.StaticPubsubTopic {
+	result := make(map[string]*config.StaticPubsubTopic)
+	// Get all the topics and subscriptions
+	var (
+		topics      []*pubsub.Topic
+		subsByTopic = make(map[pkginfo.QualifiedName][]*pubsub.Subscription)
+	)
+	for _, r := range appDesc.Parse.Resources() {
+		switch r := r.(type) {
+		case *pubsub.Topic:
+			topics = append(topics, r)
+		case *pubsub.Subscription:
+			subsByTopic[r.Topic] = append(subsByTopic[r.Topic], r)
 		}
+	}
 
-		for _, topic := range topics {
-			subs := DictFunc(func(d Dict) {
-				for _, b := range appDesc.Parse.PkgDeclBinds(topic) {
-					qn := b.QualifiedName()
-					for _, sub := range subsByTopic[qn] {
-						// HACK: we should have a better way of knowing which service a subscription belongs to
-						if svc, ok := appDesc.ServiceForPath(sub.File.Pkg.FSPath); ok {
+	for _, topic := range topics {
+		subs := make(map[string]*config.StaticPubsubSubscription)
+		for _, b := range appDesc.Parse.PkgDeclBinds(topic) {
+			qn := b.QualifiedName()
+			for _, sub := range subsByTopic[qn] {
+				// HACK: we should have a better way of knowing which service a subscription belongs to
+				if svc, ok := appDesc.ServiceForPath(sub.File.Pkg.FSPath); ok {
 
-							d[Lit(sub.Name)] = Values(Dict{
-								Id("Service"):  Lit(svc.Name),
-								Id("SvcNum"):   Lit(svc.Num),
-								Id("TraceIdx"): Lit(gen.TraceNodes.Sub(sub)),
-							})
-						}
+					subs[sub.Name] = &config.StaticPubsubSubscription{
+						Service:  svc.Name,
+						SvcNum:   uint16(svc.Num),
+						TraceIdx: gen.TraceNodes.Sub(sub),
 					}
 				}
-			})
-
-			d[Lit(topic.Name)] = Values(Dict{
-				Id("Subscriptions"): Map(String()).Op("*").Qual(
-					"encore.dev/appruntime/exported/config", "StaticPubsubSubscription").Values(subs),
-			})
+			}
 		}
-	}))
+
+		result[topic.Name] = &config.StaticPubsubTopic{
+			Subscriptions: subs,
+		}
+	}
+
+	return result
 }
 
-func bundledServices(appDesc *app.Desc) *Statement {
+func bundledServices(appDesc *app.Desc) []string {
 	// Sort the names by service number since that's what we're indexing by.
 	svcs := slices.Clone(appDesc.Services)
 	slices.SortFunc(svcs, func(a, b *app.Service) int {
 		return cmp.Compare(a.Num, b.Num)
 	})
-	return Index().String().ValuesFunc(func(g *Group) {
-		for _, svc := range svcs {
-			g.Lit(svc.Name)
-		}
+
+	return fns.Map(svcs, func(svc *app.Service) string {
+		return svc.Name
 	})
 }
 
-func testServiceMap(appDesc *app.Desc) *Statement {
-	return Map(String()).String().Values(DictFunc(func(d Dict) {
-		for _, svc := range appDesc.Services {
-			path := svc.FSRoot.ToIO()
-			if GenerateForInternalPackageTests {
-				path = "testing_path:" + svc.Name
-			}
-			d[Lit(svc.Name)] = Lit(path)
+func testServiceMap(appDesc *app.Desc) map[string]string {
+	result := make(map[string]string)
+	for _, svc := range appDesc.Services {
+		path := svc.FSRoot.ToIO()
+		if GenerateForInternalPackageTests {
+			path = "testing_path:" + svc.Name
 		}
-	}))
+		result[svc.Name] = path
+	}
+	return result
 }
 
 func enabledExperiments(experiments *experiments.Set) *Statement {
@@ -161,7 +133,7 @@ func enabledExperiments(experiments *experiments.Set) *Statement {
 	})
 }
 
-func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Statement) {
+func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders []string) {
 	// computeRequestHeaders computes the headers that are part of the request for a given RPC.
 	computeRequestHeaders := func(ep *api.Endpoint) []*apienc.ParameterEncoding {
 		var params []*apienc.ParameterEncoding
@@ -180,7 +152,6 @@ func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Stateme
 		computeHeaders func(ep *api.Endpoint) []*apienc.ParameterEncoding
 		seenHeader     map[string]bool
 		headers        []string
-		out            *Statement
 	}
 
 	var (
@@ -206,20 +177,8 @@ func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders *Stateme
 		}
 		// Sort the headers so that the generated code is deterministic.
 		sort.Strings(res.headers)
-
-		// Construct the code snippet ([]string{"Authorization", "X-Bar", "X-Foo", ...})
-		if len(res.headers) == 0 {
-			res.out = Nil()
-		} else {
-			usedHeadersCode := make([]Code, 0, len(res.headers))
-			for _, header := range res.headers {
-				usedHeadersCode = append(usedHeadersCode, Lit(header))
-			}
-			res.out = Index().String().Values(usedHeadersCode...)
-		}
 	}
-
-	return allow.out, expose.out
+	return allow.headers, expose.headers
 }
 
 // GenerateForInternalPackageTests is set to true

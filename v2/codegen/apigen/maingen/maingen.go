@@ -5,6 +5,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"encore.dev/appruntime/exported/config"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
@@ -41,17 +42,17 @@ type GenParams struct {
 	ExecScriptMainPkg option.Option[paths.Pkg]
 }
 
-func Gen(p GenParams) {
+func Gen(p GenParams) *config.Static {
 	if test, ok := p.Test.Get(); ok {
-		genTestConfigs(p, test)
+		return genTestConfigs(p, test)
 	} else if execScript, ok := p.ExecScriptMainPkg.Get(); ok {
-		genExecScriptMain(p, execScript)
+		return genExecScriptMain(p, execScript)
 	} else {
-		genMain(p)
+		return genMain(p)
 	}
 }
 
-func genMain(p GenParams) {
+func genMain(p GenParams) *config.Static {
 	mainPkgDir := p.MainModule.RootDir.Join("__encore", "main")
 	mainPkgPath := paths.Pkg(p.MainModule.Path).JoinSlash("__encore", "main")
 
@@ -80,19 +81,19 @@ func genMain(p GenParams) {
 		}
 	}
 
-	genLoadApp(p, option.None[testParams]())
-
 	f.Func().Id("main").Params().Block(
 		Qual("encore.dev/appruntime/apisdk/app/appinit", "AppMain").Call(),
 	)
+
+	return GenAppConfig(p, option.None[testParams]())
 }
 
-func genExecScriptMain(p GenParams, mainPkgPath paths.Pkg) {
+func genExecScriptMain(p GenParams, mainPkgPath paths.Pkg) *config.Static {
 	mainPkgDir, ok := p.MainModule.FSPathToPkg(mainPkgPath)
 	if !ok {
 		p.Desc.Errs.Addf(gotoken.NoPos, "cannot find package %s in module %s",
 			mainPkgPath, p.MainModule.Path)
-		return
+		return nil
 	}
 
 	file := p.Gen.InjectFile(mainPkgPath, "main", mainPkgDir, "encore_internal__execscript.go", "execscript")
@@ -120,5 +121,5 @@ func genExecScriptMain(p GenParams, mainPkgPath paths.Pkg) {
 		}
 	}
 
-	genLoadApp(p, option.None[testParams]())
+	return GenAppConfig(p, option.None[testParams]())
 }

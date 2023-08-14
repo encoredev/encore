@@ -3,6 +3,7 @@ package apigen
 import (
 	"maps"
 
+	"encore.dev/appruntime/exported/config"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
@@ -34,7 +35,7 @@ type Params struct {
 	ExecScriptMainPkg option.Option[paths.Pkg]
 }
 
-func Process(p Params) {
+func Process(p Params) *config.Static {
 	gp := maingen.GenParams{
 		Gen:               p.Gen,
 		Desc:              p.Desc,
@@ -94,5 +95,5 @@ func Process(p Params) {
 		maps.Copy(gp.Middleware, mws)
 	}
 
-	maingen.Gen(gp)
+	return maingen.Gen(gp)
 }
