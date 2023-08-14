@@ -15,6 +15,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/exported/config"
 	"encr.dev/internal/env"
 	"encr.dev/internal/etrace"
 	"encr.dev/internal/version"
@@ -124,7 +125,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 
 		gg := codegen.New(pd.pc, pd.traceNodes)
 		infragen.Process(gg, pd.appDesc)
-		apigen.Process(apigen.Params{
+		staticConfig := apigen.Process(apigen.Params{
 			Gen:               gg,
 			Desc:              pd.appDesc,
 			MainModule:        pd.mainModule,
@@ -153,10 +154,11 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 
 		compileOp := p.OpTracker.Add("Compiling application source code", time.Now())
 		buildResult := build.Build(ctx, &build.Config{
-			Ctx:        pd.pc,
-			Overlays:   gg.Overlays(),
-			MainPkg:    paths.Pkg(p.Build.MainPkg.GetOrElse("./__encore/main")),
-			KeepOutput: p.Build.KeepOutput,
+			Ctx:          pd.pc,
+			Overlays:     gg.Overlays(),
+			MainPkg:      paths.Pkg(p.Build.MainPkg.GetOrElse("./__encore/main")),
+			KeepOutput:   p.Build.KeepOutput,
+			StaticConfig: staticConfig,
 		})
 
 		res = &builder.CompileResult{
@@ -203,7 +205,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 		}
 
 		gg := codegen.New(pd.pc, pd.traceNodes)
-		etrace.Sync0(ctx, "", "codegen", func(ctx context.Context) {
+		staticConfig := etrace.Sync1(ctx, "", "codegen", func(ctx context.Context) *config.Static {
 			testCfg := codegen.TestConfig{}
 			for _, pkg := range pd.appDesc.Parse.AppPackages() {
 				isTestFile := func(f *pkginfo.File) bool { return f.TestFile }
@@ -215,7 +217,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p, envs)
 
 			infragen.Process(gg, pd.appDesc)
-			apigen.Process(apigen.Params{
+			return apigen.Process(apigen.Params{
 				Gen:             gg,
 				Desc:            pd.appDesc,
 				MainModule:      pd.mainModule,
@@ -229,10 +231,11 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 
 		build.Test(ctx, &build.TestConfig{
 			Config: build.Config{
-				Ctx:        pd.pc,
-				Overlays:   gg.Overlays(),
-				KeepOutput: p.Compile.Build.KeepOutput,
-				Env:        envs,
+				Ctx:          pd.pc,
+				Overlays:     gg.Overlays(),
+				KeepOutput:   p.Compile.Build.KeepOutput,
+				Env:          envs,
+				StaticConfig: staticConfig,
 			},
 			Args:       p.Args,
 			Stdout:     p.Stdout,
@@ -249,15 +252,17 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 
 // testEnvVars takes a list of env vars and filters them down to the ones
 // that should be embedded within the test binary.
-func (i BuilderImpl) testEnvVarsToEmbed(p builder.TestParams, envs []string) []string {
+func (i BuilderImpl) testEnvVarsToEmbed(p builder.TestParams, envs []string) map[string]string {
 	if !slices.Contains(p.Args, "-c") {
 		return nil
 	}
 
-	var toEmbed []string
+	toEmbed := make(map[string]string)
 	for _, e := range envs {
 		if strings.HasPrefix(e, "ENCORE_") {
-			toEmbed = append(toEmbed, e)
+			if key, value, ok := strings.Cut(e, "="); ok {
+				toEmbed[key] = value
+			}
 		}
 	}
 	return toEmbed

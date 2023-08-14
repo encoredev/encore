@@ -14,5 +14,5 @@ type TestConfig struct {
 	// the test binaries themselves. This is useful when
 	// building tests with "go test -c", where the binary is
 	// built first and executed later (such as by GoLand).
-	EnvsToEmbed []string
+	EnvsToEmbed map[string]string
 }

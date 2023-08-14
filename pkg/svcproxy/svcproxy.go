@@ -116,37 +116,41 @@ func (p *SvcProxy) createReverseProxy(what, name string, listener netip.AddrPort
 
 // ServeHTTP implements the http.Handler interface
 func (p *SvcProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	// Resolve the handler with the lock held.
+	proxy, err := func() (http.Handler, error) {
+		p.mu.RLock()
+		defer p.mu.RUnlock()
 
-	var err error
-
-	parts := strings.SplitN(strings.TrimPrefix(req.URL.Path, "/"), "/", 3)
-	if len(parts) >= 2 {
-		switch parts[0] {
-		case "gateway":
-			proxy, ok := p.gateways[parts[1]]
-			if !ok {
-				err = errors.Newf("unknown gateway: %s", parts[1])
-			} else {
-				proxy.ServeHTTP(w, req)
+		parts := strings.SplitN(strings.TrimPrefix(req.URL.Path, "/"), "/", 3)
+		if len(parts) >= 2 {
+			switch parts[0] {
+			case "gateway":
+				proxy, ok := p.gateways[parts[1]]
+				if !ok {
+					return nil, errors.Newf("unknown gateway: %s", parts[1])
+				} else {
+					return proxy, nil
+				}
+			case "service":
+				proxy, ok := p.services[parts[1]]
+				if !ok {
+					return nil, errors.Newf("unknown service: %s", parts[1])
+				} else {
+					return proxy, nil
+				}
+			default:
+				return nil, errors.Newf("unknown path prefix: %s", parts[0])
 			}
-		case "service":
-			proxy, ok := p.services[parts[1]]
-			if !ok {
-				err = errors.Newf("unknown service: %s", parts[1])
-			} else {
-				proxy.ServeHTTP(w, req)
-			}
-		default:
-			err = errors.Newf("unknown path prefix: %s", parts[0])
+		} else {
+			return nil, errors.Newf("unknown path prefix format: %s", req.URL.Path)
 		}
-	} else {
-		err = errors.Newf("unknown path prefix format: %s", req.URL.Path)
-	}
+	}()
 
 	if err != nil {
 		p.logger.Err(err).Str("url", req.URL.String()).Msg("error proxying service request")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	proxy.ServeHTTP(w, req)
 }

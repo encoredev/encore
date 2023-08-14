@@ -5,6 +5,8 @@ package build
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"go/token"
 	"os"
@@ -18,6 +20,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
+	"encore.dev/appruntime/exported/config"
 	"encr.dev/internal/etrace"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/paths"
@@ -48,6 +51,9 @@ type Config struct {
 	// which for example is the case when checking for compilation errors
 	// without building a binary (such as during tests).
 	NoBinary bool
+
+	// StaticConfig is the static config to embed into the binary.
+	StaticConfig *config.Static
 }
 
 type Result struct {
@@ -220,17 +226,18 @@ func (b *builder) buildMain() {
 			args = append(args, "-o="+b.binaryPath().ToIO())
 		}
 
-		if b.cfg.Ctx.Build.StaticLink {
-			var ldflags string
+		var ldflags strings.Builder
+		b.writeStaticConfig(&ldflags)
 
+		if b.cfg.Ctx.Build.StaticLink {
 			// Enable external linking if we use cgo.
 			if b.cfg.Ctx.Build.CgoEnabled {
-				ldflags = "-linkmode external "
+				ldflags.WriteString(" -linkmode external")
 			}
 
-			ldflags += `-extldflags "-static"`
-			args = append(args, "-ldflags", ldflags)
+			ldflags.WriteString(` -extldflags "-static"`)
 		}
+		args = append(args, "-ldflags", ldflags.String())
 
 		if b.cfg.Ctx.Build.Debug {
 			// Disable inlining for better debugging.
@@ -275,6 +282,17 @@ func (b *builder) buildMain() {
 			}
 		}
 	})
+}
+
+func (b *builder) writeStaticConfig(ldflags *strings.Builder) {
+	// Marshal the static config and add it as a linker flag.
+	ldflags.WriteString("-X 'encore.dev/appruntime/shared/appconf.static=")
+	data, err := json.Marshal(b.cfg.StaticConfig)
+	if err != nil {
+		b.errs.Fatalf(token.NoPos, "unable to marshal static config: %v", err)
+	}
+	ldflags.WriteString(base64.StdEncoding.EncodeToString(data))
+	ldflags.WriteByte('\'')
 }
 
 // mergeModFiles merges two modfiles, adding the require statements from the latter to the former.
