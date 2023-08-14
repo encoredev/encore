@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/namespace"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/pgproxy"
 )
 
@@ -51,7 +52,7 @@ func (cm *ClusterManager) ServeProxy(ln net.Listener) error {
 // If waitForSetup is true, it will wait for initial setup to complete
 // before proxying the connection.
 func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
-	defer client.Close()
+	defer fns.CloseIgnore(client)
 	cl, err := pgproxy.SetupClient(client, &pgproxy.ClientConfig{
 		TLS:          nil,
 		WantPassword: true,
@@ -214,7 +215,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		})
 		return nil
 	}
-	defer server.Close()
+	defer fns.CloseIgnore(server)
 
 	// Send a modified startup message to the backend
 	admin, _ := info.Encore.First(RoleAdmin, RoleSuperuser)
@@ -275,7 +276,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 
 // PreauthProxyConn is a pre-authenticated proxy conn directly specifically to the given cluster.
 func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error {
-	defer client.Close()
+	defer fns.CloseIgnore(client)
 	cl, err := pgproxy.SetupClient(client, &pgproxy.ClientConfig{
 		TLS: &tls.Config{MinVersion: tls.VersionTLS12},
 	})
@@ -352,7 +353,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 		})
 		return nil
 	}
-	defer server.Close()
+	defer fns.CloseIgnore(server)
 
 	admin, _ := info.Encore.First(RoleAdmin, RoleSuperuser)
 	startup.Username = admin.Username
@@ -417,7 +418,7 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 			Code:     "08006",
 			Message:  "database cluster not running",
 		}
-		client.Write(msg.Encode(nil))
+		_, _ = client.Write(msg.Encode(nil))
 		return
 	}
 
@@ -428,10 +429,10 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 			Code:     "08006",
 			Message:  "database cluster not running",
 		}
-		client.Write(msg.Encode(nil))
+		_, _ = client.Write(msg.Encode(nil))
 		return
 	}
-	defer backend.Close()
+	defer fns.CloseIgnore(backend)
 	_ = pgproxy.SendCancelRequest(backend, req.Raw)
 }
 

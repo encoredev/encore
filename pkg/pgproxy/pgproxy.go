@@ -18,6 +18,8 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
+
+	"encr.dev/pkg/fns"
 )
 
 type LogicalConn interface {
@@ -64,19 +66,20 @@ func (e DatabaseNotFoundError) Error() string {
 }
 
 func (p *SingleBackendProxy) Serve(ctx context.Context, ln net.Listener) error {
-	defer ln.Close()
+	defer fns.CloseIgnore(ln)
 	if p.gotBackend != nil {
 		panic("SingleBackendProxy: Serve called twice")
 	}
 	p.gotBackend = make(chan struct{})
 
 	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+
 		select {
 		case <-p.gotBackend:
-		case <-time.After(10 * time.Minute):
-			ln.Close()
 		case <-ctx.Done():
-			ln.Close()
+			_ = ln.Close()
 		}
 	}()
 
@@ -112,7 +115,7 @@ func (p *SingleBackendProxy) Serve(ctx context.Context, ln net.Listener) error {
 }
 
 func (p *SingleBackendProxy) ProxyConn(ctx context.Context, client net.Conn) {
-	defer client.Close()
+	defer fns.CloseIgnore(client)
 
 	cl, err := SetupClient(client, &ClientConfig{
 		TLS:          p.FrontendTLS,
@@ -139,13 +142,13 @@ func (p *SingleBackendProxy) doRunProxy(ctx context.Context, cl *Client) error {
 	startup := cl.Hello.(*StartupData)
 	server, err := p.DialBackend(ctx, startup)
 	if err != nil {
-		cl.Backend.Send(&pgproto3.ErrorResponse{
+		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Message:  err.Error(),
 		})
 		return err
 	}
-	defer server.Close()
+	defer fns.CloseIgnore(server)
 
 	fe := pgproto3.NewFrontend(pgproto3.NewChunkReader(server), server)
 	log.Trace().Msg("successfully setup server connection")
@@ -275,7 +278,7 @@ func serverTLSNegotiate(server net.Conn, tlsConfig *tls.Config) (*pgproto3.Front
 		tlsConn := tls.Client(server, tlsConfig)
 		if err := tlsConn.Handshake(); err != nil {
 			log.Error().Err(err).Msg("server tls handshake failed")
-			tlsConn.Close()
+			_ = tlsConn.Close()
 			return nil, fmt.Errorf("server tls handshake failed: %v", err)
 		}
 		log.Trace().Msg("completed server tls handshake")
@@ -397,7 +400,7 @@ StartupMessageLoop:
 			}
 			tlsConn := tls.Server(client, tlsConfig)
 			if err := tlsConn.Handshake(); err != nil {
-				tlsConn.Close()
+				_ = tlsConn.Close()
 				return nil, nil, fmt.Errorf("client tls handshake failed: %v", err)
 			}
 			log.Trace().Msg("client tls handshake successful")
@@ -427,7 +430,7 @@ type AuthData struct {
 
 // AuthenticateClient tells the client they've successfully authenticated.
 func AuthenticateClient(be *pgproto3.Backend) error {
-	be.SetAuthType(pgproto3.AuthTypeOk)
+	_ = be.SetAuthType(pgproto3.AuthTypeOk)
 	return be.Send(&pgproto3.AuthenticationOk{})
 }
 

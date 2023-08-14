@@ -228,6 +228,7 @@ func wasInstalledViaHomebrew(shell string, arg string, channel version.ReleaseCh
 	}
 
 	buf := new(bytes.Buffer)
+	// nosemgrep
 	cmd := exec.Command(shell, arg, fmt.Sprintf("brew list %s -1", formulaName))
 	cmd.Stdout = buf
 	cmd.Stderr = buf
