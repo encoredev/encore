@@ -3,6 +3,7 @@ package run
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/netip"
@@ -16,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 
@@ -163,11 +165,11 @@ func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Pr
 	}
 
 	p := &Proc{
-		group:         pg,
-		log:           pg.log.With().Str("proc", processName).Logger(),
-		containerPort: int(listenAddr.Port()),
-		httpProxy:     proxy,
-		exit:          make(chan struct{}),
+		group:      pg,
+		log:        pg.log.With().Str("proc", processName).Logger(),
+		listenAddr: listenAddr,
+		httpProxy:  proxy,
+		exit:       make(chan struct{}),
 	}
 
 	pg.procMu.Lock()
@@ -310,8 +312,8 @@ type Proc struct {
 	exit  chan struct{}  // closed when the process has exited
 	cmd   *exec.Cmd      // The command for this specific process
 
-	containerPort int                    // The port the HTTP server of the process should listen on
-	httpProxy     *httputil.ReverseProxy // The reverse proxy for the HTTP server of the process
+	listenAddr netip.AddrPort         // The port the HTTP server of the process should listen on
+	httpProxy  *httputil.ReverseProxy // The reverse proxy for the HTTP server of the process
 
 	// The following fields are only valid after Start() has been called.
 	Started   atomic.Bool // whether the process has started
@@ -414,4 +416,29 @@ func (p *Proc) Kill() {
 	if p.cmd != nil && p.cmd.Process != nil {
 		_ = p.cmd.Process.Kill()
 	}
+}
+
+// pollUntilProcessIsListening polls the listen address until
+// the process is actively listening, five seconds have passed,
+// or the context is canceled, whichever happens first.
+//
+// It reports true if the process is listening on return, false otherwise.
+func (p *Proc) pollUntilProcessIsListening(ctx context.Context) (ok bool) {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 250 * time.Millisecond
+	b.MaxElapsedTime = 5 * time.Second
+
+	err := backoff.Retry(func() error {
+		if err := ctx.Err(); err != nil {
+			return backoff.Permanent(err)
+		}
+
+		conn, err := net.Dial("tcp", p.listenAddr.String())
+		if err == nil {
+			_ = conn.Close()
+		}
+		return err
+	}, b)
+	return err == nil
 }

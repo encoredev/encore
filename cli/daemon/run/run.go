@@ -177,7 +177,7 @@ func (r *Run) Done() <-chan struct{} {
 // Reload rebuilds the app and, if successful,
 // starts a new proc and switches over.
 func (r *Run) Reload() error {
-	err := r.buildAndStart(r.ctx, nil)
+	err := r.buildAndStart(r.ctx, nil, true)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 		}
 	}()
 
-	err = r.buildAndStart(r.ctx, tracker)
+	err = r.buildAndStart(r.ctx, tracker, false)
 	if err != nil {
 		return err
 	}
@@ -251,7 +251,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 // buildAndStart builds the app, starts the proc, and cleans up
 // the build dir when it exits.
 // The proc exits when ctx is canceled.
-func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) error {
+func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, isReload bool) error {
 	// Return early if the ctx is already canceled.
 	if err := ctx.Err(); err != nil {
 		return err
@@ -352,6 +352,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker) e
 		ServiceConfigs: build.Configs,
 		Environ:        r.params.Environ,
 		WorkingDir:     r.params.WorkingDir,
+		IsReload:       isReload,
 		Experiments:    expSet,
 	})
 	if err != nil {
@@ -391,6 +392,7 @@ type StartProcGroupParams struct {
 	Logger         RunLogger
 	Environ        []string
 	WorkingDir     string
+	IsReload       bool
 	Experiments    *experiments.Set
 }
 
@@ -495,6 +497,13 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		case <-p.Done():
 		}
 	}()
+
+	// If this is a live reload, wait for the process to be ready.
+	// This way we ensure requests are always hitting a running server,
+	// in case a batch job or something is running.
+	if params.IsReload {
+		p.Gateway.pollUntilProcessIsListening(params.Ctx)
+	}
 
 	return p, nil
 }
