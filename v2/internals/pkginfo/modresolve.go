@@ -178,28 +178,12 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 		l.c.Errs.Fatalf(cause, "package %q has no Go files", pkgPath)
 	}
 
-	// Load the module from disk. We have some of the information
-	// present in pkg.Module already, but not all of it.
-	if modPath == stdModule {
-		// If this is the standard library go/packages doesn't return
-		// a Module object. Instead look it up from our GOROOT.
-		goroot := l.c.Build.GOROOT
-		rootPath := goroot.Join("src")
-
-		// Construct a synthetic Module object for the standard library.
-		result = &Module{
-			l:       l,
-			RootDir: rootPath,
-			Path:    "std",
-			Version: "",
-		}
-	} else {
-		if pkg.Module == nil || pkg.Module.Dir == "" {
-			l.c.Errs.Fatalf(cause, "package %q has no module information", pkgPath)
-		}
-		rootPath := paths.RootedFSPath(pkg.Module.Dir, ".")
-		result = l.loadModuleFromDisk(rootPath, modPath)
+	// Load the module from disk.
+	if pkg.Module == nil || pkg.Module.Dir == "" {
+		l.c.Errs.Fatalf(cause, "package %q has no module information", pkgPath)
 	}
+	rootPath := paths.RootedFSPath(pkg.Module.Dir, ".")
+	result = l.loadModuleFromDisk(rootPath, modPath)
 
 	// Add the module to the cache.
 	l.modulesMu.Lock()
