@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -174,7 +176,7 @@ func (d *Daemon) listenDaemonSocket() *net.UnixListener {
 
 	// If the daemon socket already exists, remove it so we can take over listening.
 	if _, err := xos.SocketStat(socketPath); err == nil {
-		os.Remove(socketPath)
+		_ = os.Remove(socketPath)
 	}
 	ln, err := net.ListenUnix("unix", &net.UnixAddr{Name: socketPath, Net: "unix"})
 	if err != nil {
@@ -356,7 +358,7 @@ func detectSocketClose(ln *net.UnixListener, socketPath string) error {
 	for {
 		time.Sleep(200 * time.Millisecond)
 		fi, err := xos.SocketStat(socketPath)
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			// Socket was removed; don't remove it again
 			return nil
 		} else if err != nil {
@@ -379,7 +381,7 @@ func (d *Daemon) closeOnExit(c io.Closer) {
 
 func (d *Daemon) closeAll() {
 	for _, c := range d.close {
-		c.Close()
+		_ = c.Close()
 	}
 }
 
@@ -501,28 +503,25 @@ func (ln *retryingTCPListener) listen() {
 	logger := log.With().Str("component", ln.component).Int("port", ln.port).Logger()
 	addr := "127.0.0.1:" + strconv.Itoa(ln.port)
 
-	retrySleep := 0 * time.Second
-	ctx, cancel := context.WithTimeout(ln.ctx, 5*time.Second)
-	defer cancel()
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 500 * time.Millisecond
+	b.MaxElapsedTime = 5 * time.Second
 
-	for {
-		select {
-		case <-ctx.Done():
-			// We're being told to abort; ensure we always store
-			// a non-nil listenErr.
-			if ln.listenErr == nil {
-				ln.listenErr = ctx.Err()
-			}
-			logger.Error().Err(ln.listenErr).Msg("unable to listen, giving up")
-			return
-		case <-time.After(retrySleep):
-			ln.underlying, ln.listenErr = net.Listen("tcp", addr)
-			retrySleep += 100 * time.Millisecond
-			if ln.listenErr == nil {
-				logger.Info().Msg("listening on port")
-				return
-			}
+	ln.listenErr = backoff.Retry(func() (err error) {
+		if err := ln.ctx.Err(); err != nil {
+			return backoff.Permanent(err)
+		}
+		ln.underlying, err = net.Listen("tcp", addr)
+		if err != nil {
 			logger.Error().Err(ln.listenErr).Msg("unable to listen, retrying")
 		}
+		return err
+	}, b)
+
+	if ln.listenErr != nil {
+		logger.Error().Err(ln.listenErr).Msg("unable to listen, giving up")
+	} else {
+		logger.Info().Msg("listening on port")
 	}
 }

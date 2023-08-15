@@ -24,6 +24,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/internal/sym"
+	"encr.dev/pkg/fns"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -128,7 +129,7 @@ func (pg *ProcGroup) parseSymTable(binPath string) {
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
+		defer fns.CloseIgnore(f)
 		return sym.Load(f)
 	}
 
@@ -203,6 +204,8 @@ func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {
 	}
 	envs = append(envs, params.Environ...)
 
+	// This is safe since the command comes from our build.
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd := exec.CommandContext(pg.ctx, params.BinPath)
 	cmd.Env = envs
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
@@ -236,6 +239,8 @@ func (pg *ProcGroup) NewProcForService(service *meta.Service, listenAddr netip.A
 	}
 	envs = append(envs, params.Environ...)
 
+	// This is safe since the command comes from our build.
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd := exec.CommandContext(pg.ctx, params.BinPath)
 	cmd.Env = envs
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
@@ -268,6 +273,8 @@ func (pg *ProcGroup) NewProcForGateway(listenAddr netip.AddrPort, params *NewPro
 	}
 	envs = append(envs, params.Environ...)
 
+	// This is safe since the command comes from our build.
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd := exec.CommandContext(pg.ctx, params.BinPath)
 	cmd.Env = envs
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
