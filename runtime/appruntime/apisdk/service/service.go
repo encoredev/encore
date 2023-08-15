@@ -234,7 +234,7 @@ func (mgr *Manager) Shutdown(p *shutdown.Process) (err error) {
 				defer func() {
 					if r := recover(); r != nil {
 						mgr.rootLogger.Error().Str("service", h.name).Interface("panic", r).Msg("service shutdown panicked")
-					} else {
+					} else if mgr.runtime.EnvCloud != "local" {
 						mgr.rootLogger.Trace().Str("service", h.name).Msg("service shutdown complete")
 					}
 				}()
