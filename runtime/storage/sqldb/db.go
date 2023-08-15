@@ -19,6 +19,7 @@ import (
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/appruntime/exported/trace2"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/storage/sqldb/internal/stdlibdriver"
 )
 
@@ -99,7 +100,7 @@ func (db *Database) Stdlib() *sql.DB {
 	return db.stdlib
 }
 
-func (db *Database) shutdown(force context.Context) {
+func (db *Database) shutdown(p *shutdown.Process) {
 	if db.pool != nil {
 		db.pool.Close()
 	}

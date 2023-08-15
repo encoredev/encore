@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"math/rand"
+	mathrand "math/rand" // nosemgrep
 	"runtime"
 	"strings"
 	"sync"
@@ -21,6 +21,7 @@ import (
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/appruntime/shared/syncutil"
 	"encore.dev/appruntime/shared/testsupport"
 )
@@ -115,7 +116,7 @@ func (mgr *Manager) newClient(rdb *config.RedisDatabase) (*redis.Client, error) 
 	}
 
 	if srv.EnableTLS || srv.ServerCACert != "" || srv.ClientCert != "" {
-		opts.TLSConfig = &tls.Config{}
+		opts.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 		if srv.ServerCACert != "" {
 			caCertPool := x509.NewCertPool()
 			if !caCertPool.AppendCertsFromPEM([]byte(srv.ServerCACert)) {
@@ -166,16 +167,18 @@ func (mgr *Manager) newMiniredisClient() (*redis.Client, error) {
 	return cl, err
 }
 
-func (mgr *Manager) Shutdown(force context.Context) {
+func (mgr *Manager) Shutdown(p *shutdown.Process) error {
 	// The redis client does not have the concept of graceful shutdown,
-	// so wait for the force shutdown before we close the connections.
-	<-force.Done()
+	// so wait for user code to shut down first.
+	<-p.ServicesShutdownCompleted.Done()
+	<-p.OutstandingTasks.Done()
 
 	mgr.clientMu.Lock()
 	mgr.clientMu.Unlock()
 	for _, c := range mgr.clients {
 		_ = c.Close()
 	}
+	return nil
 }
 
 func newClient[K, V any](cluster *Cluster, cfg KeyspaceConfig,
@@ -438,7 +441,7 @@ func miniredisCleanup(srv *miniredis.Miniredis, every time.Duration, maxKeys int
 
 			keys := srv.Keys()
 			for len(keys) > 100 {
-				id := rand.Intn(len(keys))
+				id := mathrand.Intn(len(keys))
 				if keys[id] != "" {
 					srv.Del(keys[id])
 					keys[id] = "" // mark it as deleted

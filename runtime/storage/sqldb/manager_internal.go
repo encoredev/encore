@@ -8,6 +8,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/appruntime/shared/testsupport"
 )
 
@@ -97,7 +98,11 @@ func (mgr *Manager) getPool(dbName string) (pool *pgxpool.Pool, found bool) {
 	return pool, true
 }
 
-func (mgr *Manager) Shutdown(force context.Context) {
+func (mgr *Manager) Shutdown(p *shutdown.Process) error {
+	// Wait for all user code to finish before shutting down databases.
+	<-p.ServicesShutdownCompleted.Done()
+	<-p.OutstandingTasks.Done()
+
 	var wg sync.WaitGroup
 	mgr.mu.RLock()
 	defer mgr.mu.RUnlock()
@@ -107,10 +112,11 @@ func (mgr *Manager) Shutdown(force context.Context) {
 		db := db
 		go func() {
 			defer wg.Done()
-			db.shutdown(force)
+			db.shutdown(p)
 		}()
 	}
 	wg.Wait()
+	return nil
 }
 
 func (mgr *Manager) Named(name string) *Database {

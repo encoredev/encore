@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/metrics"
 )
 
@@ -53,13 +54,18 @@ func NewManager(reg *metrics.Registry, static *config.Static, rtConf *config.Run
 	return mgr
 }
 
-func (mgr *Manager) Shutdown(force context.Context) {
-	mgr.collectNow(force)
+func (mgr *Manager) Shutdown(p *shutdown.Process) error {
+	// Wait for all services and all tasks to shut down before we shut down metrics.
+	<-p.ServicesShutdownCompleted.Done()
+	<-p.OutstandingTasks.Done()
+
+	mgr.collectNow(p.ForceShutdown)
 	mgr.cancel()
 
 	if mgr.exp != nil {
-		mgr.exp.Shutdown(force)
+		return mgr.exp.Shutdown(p)
 	}
+	return nil
 }
 
 func (mgr *Manager) BeginCollection() {
@@ -108,7 +114,7 @@ func (mgr *Manager) collectNow(ctx context.Context) {
 
 type exporter interface {
 	Export(context.Context, []metrics.CollectedMetric) error
-	Shutdown(force context.Context)
+	Shutdown(p *shutdown.Process) error
 }
 
 type providerDesc struct {

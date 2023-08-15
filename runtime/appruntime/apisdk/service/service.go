@@ -14,8 +14,10 @@ import (
 	"encore.dev/appruntime/shared/cfgutil"
 	"encore.dev/appruntime/shared/health"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/appruntime/shared/syncutil"
 	"encore.dev/beta/errs"
+	eshutdown "encore.dev/shutdown"
 )
 
 // Initializer is a service initializer.
@@ -81,6 +83,9 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 	// If the API Decl supports graceful shutdown, register that with the server.
 	if gs, ok := any(decl.instance).(shutdowner); ok {
 		mgr.registerShutdownHandler(serviceShutdown{decl.Service, gs})
+	} else if legacy, ok := any(decl.instance).(legacyShutdowner); ok {
+		adapter := legacyShutdownAdapter{legacy}
+		mgr.registerShutdownHandler(serviceShutdown{decl.Service, adapter})
 	}
 	return nil
 }
@@ -88,7 +93,22 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 // shutdowner is the interface for service structs that
 // support graceful shutdown.
 type shutdowner interface {
+	Shutdown(p eshutdown.Progress) error
+}
+
+// legacyShutdowner is the old-style interface for service structs that
+// support graceful shutdown.
+type legacyShutdowner interface {
 	Shutdown(force context.Context)
+}
+
+type legacyShutdownAdapter struct {
+	s legacyShutdowner
+}
+
+func (a legacyShutdownAdapter) Shutdown(p eshutdown.Progress) error {
+	a.s.Shutdown(p.ForceShutdown)
+	return nil
 }
 
 type serviceShutdown struct {
@@ -192,12 +212,15 @@ func (mgr *Manager) GetService(name string) (i Initializer, ok bool) {
 	return i, ok
 }
 
-func (mgr *Manager) Shutdown(force context.Context) {
-	doLog := mgr.runtime.EnvCloud != "local"
+func (mgr *Manager) Shutdown(p *shutdown.Process) (err error) {
+	defer p.MarkServicesShutdownCompleted(err)
+	doLog := true
 
 	mgr.shutdownMu.Lock()
 	handlers := mgr.shutdownHandlers
 	mgr.shutdownMu.Unlock()
+
+	progress := p.Progress()
 
 	var wg sync.WaitGroup
 	wg.Add(len(handlers))
@@ -216,11 +239,15 @@ func (mgr *Manager) Shutdown(force context.Context) {
 					}
 				}()
 			}
-			h.instance.Shutdown(force)
+
+			if err := h.instance.Shutdown(progress); err != nil {
+				mgr.rootLogger.Error().Err(err).Str("service", h.name).Msg("service reported unclean shutdown")
+			}
 		}()
 	}
 
 	wg.Wait()
+	return nil
 }
 
 func (mgr *Manager) registerShutdownHandler(h serviceShutdown) {
