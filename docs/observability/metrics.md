@@ -104,7 +104,7 @@ That's it! After your next deploy, Encore will start sending metrics data to you
 
 ### Datadog
 
-To send metrics data to Datadog, you first need to Add a Datadog Account to your application.
+To send metrics data to Datadog, you first need to add a Datadog Account to your application.
 
 Open your application on [app.encore.dev](https://app.encore.dev), and click on **Settings** in the main navigation.
 Then select **Datadog** in the settings menu and click on **Add Account**.
