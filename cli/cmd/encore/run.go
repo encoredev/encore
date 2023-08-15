@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
@@ -29,6 +30,7 @@ var (
 var runCmd = &cobra.Command{
 	Use:   "run [--debug] [--watch=true] [--port=4000] [--listen=<listen-addr>]",
 	Short: "Runs your application",
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		appRoot, wd := determineAppRoot()
 		runApp(appRoot, wd)
@@ -58,7 +60,7 @@ func runApp(appRoot, wd string) {
 		listenAddr = listen
 	} else {
 		// Otherwise use --listen as the host and --port as the port.
-		listenAddr = fmt.Sprintf("%s:%d", listen, port)
+		listenAddr = net.JoinHostPort(listen, strconv.Itoa(int(port)))
 	}
 
 	daemon := setupDaemon(ctx)
@@ -83,7 +85,7 @@ func runApp(appRoot, wd string) {
 		if state, err := onboarding.Load(); err == nil {
 			if state.DeployHint.Set() {
 				if err := state.Write(); err == nil {
-					fmt.Println(aurora.Sprintf("\nHint: deploy your app to the cloud by running: %s", aurora.Cyan("git push encore")))
+					_, _ = fmt.Println(aurora.Sprintf("\nHint: deploy your app to the cloud by running: %s", aurora.Cyan("git push encore")))
 				}
 			}
 		}
@@ -96,9 +98,9 @@ func clearTerminalExceptFirstLine() {
 	if _, height, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
 		count := height - 2
 		if count > 0 {
-			os.Stdout.Write(bytes.Repeat([]byte{'\n'}, count))
+			_, _ = os.Stdout.Write(bytes.Repeat([]byte{'\n'}, count))
 		}
-		fmt.Fprint(os.Stdout, ansi.SetCursorPosition(2, 1)+ansi.ClearScreen(ansi.CursorToBottom))
+		_, _ = fmt.Fprint(os.Stdout, ansi.SetCursorPosition(2, 1)+ansi.ClearScreen(ansi.CursorToBottom))
 	}
 }
 
