@@ -16,99 +16,104 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/shared/encoreenv"
 	"encore.dev/beta/errs"
+	"encore.dev/shutdown"
 )
 
-// Hook are functions which have registered to perform cooperative
-// shutdown tasks. They are called concurrently when the server wants
-// to perform a graceful shutdown.
-//
-// The force context will be canceled when the server is going to give
-// up on the hook returning and will proceed to forcefully shutdown
-// the instance.
-//
-// Hooks are called instantly when the server is starting a graceful
-// shutdown, and are expected to block until they are done.
-type Hook func(force context.Context)
-
-// HandlerHook are functions which have registered to be notified
-// when contexts passed to currently running handlers should be cancelled.
-//
-// HandlerHooks are only called after the Handler timeout has occurred.
-// These functions are expected to block until all active handlers have
-// returned.
-type HandlerHook func()
+type Handler func(p *Process) error
 
 type Tracker struct {
 	logger zerolog.Logger
 
-	watchSignals         bool
-	logShutdown          bool
-	gracefulTimeout      time.Duration
-	handlerTimeout       time.Duration
-	shutdownHooksTimeout time.Duration
+	watchSignals bool
+
+	timings processTimings
 
 	initiated chan struct{} // closed when graceful shutdown is initiated
 	once      sync.Once     // to trigger shutdown logic only once
 
 	mu       sync.Mutex
-	hooks    []Hook
-	handlers []HandlerHook
+	handlers []Handler
 }
 
 func NewTracker(runtime *config.Runtime, logger zerolog.Logger) *Tracker {
 	t := &Tracker{
-		logger:       logger,
 		watchSignals: runtime.EnvType != "test",
-		logShutdown:  runtime.EnvCloud != "local",
 		initiated:    make(chan struct{}),
+		timings:      timingsFromConfig(runtime),
 	}
-	t.timingsFromConfig(runtime)
+
+	// Determine the appropriate log level.
+	switch {
+	case encoreenv.Get("ENCORE_SHUTDOWN_TRACE") != "":
+		t.logger = logger.Level(zerolog.TraceLevel)
+	case runtime.EnvCloud == "local":
+		// For local development only show errors
+		t.logger = logger.Level(zerolog.ErrorLevel)
+	default:
+		t.logger = logger.Level(zerolog.InfoLevel)
+	}
 
 	return t
 }
 
-func (t *Tracker) timingsFromConfig(runtime *config.Runtime) config.GracefulShutdownTimings {
+type processTimings struct {
+	// cancelRunningTasksAfter is the duration (measured from shutdown initiation)
+	// after which running tasks (outstanding API calls & PubSub messages) have
+	// their contexts canceled.
+	cancelRunningTasksAfter time.Duration
+
+	// forceCloseTasksGrace is the duration (measured from when canceling running tasks)
+	// after which the tasks are considered done, even if they're still running.
+	forceCloseTasksGrace time.Duration
+
+	// forceShutdownAfter is the duration (measured from shutdown initiation)
+	// after which the shutdown process enters the "force shutdown" phase,
+	// tearing down infrastructure resources.
+	forceShutdownAfter time.Duration
+
+	// forceShutdownGrace is the grace period after beginning the force shutdown
+	// before the shutdown is marked as completed, causing the process to exit.
+	forceShutdownGrace time.Duration
+}
+
+func timingsFromConfig(runtime *config.Runtime) processTimings {
 	// Setup the config
 	var cfg config.GracefulShutdownTimings
 	if runtime.GracefulShutdown != nil {
 		cfg = *runtime.GracefulShutdown
 	}
 
+	t := processTimings{
+		forceCloseTasksGrace: 1 * time.Second,
+		forceShutdownGrace:   1 * time.Second,
+	}
+
 	// Handle the migration from ShutdownTimout to GracefulShutdown configuration
 	if cfg.Total == nil {
-		t.gracefulTimeout = runtime.ShutdownTimeout
-		if t.gracefulTimeout <= 0 {
-			t.gracefulTimeout = 500 * time.Millisecond
+		t.forceShutdownAfter = runtime.ShutdownTimeout
+		if t.forceShutdownAfter <= 0 {
+			t.forceShutdownAfter = 5 * time.Second
 		}
 	} else {
-		t.gracefulTimeout = *cfg.Total
-	}
-	if t.gracefulTimeout < 0 {
-		t.gracefulTimeout = 0
+		t.forceShutdownAfter = *cfg.Total - t.forceShutdownGrace
+		if t.forceShutdownAfter <= 0 {
+			t.forceShutdownAfter = 500 * time.Millisecond
+		}
 	}
 
 	// Get the handler timeout
 	if cfg.Handlers == nil {
-		t.handlerTimeout = t.gracefulTimeout - 1*time.Second
+		t.cancelRunningTasksAfter = t.forceShutdownAfter - t.forceCloseTasksGrace
 	} else {
-		t.handlerTimeout = t.gracefulTimeout - *cfg.Handlers
+		t.cancelRunningTasksAfter = *cfg.Handlers
 	}
-	if t.handlerTimeout < 0 {
-		t.handlerTimeout = 0
+	if t.cancelRunningTasksAfter < 0 {
+		t.cancelRunningTasksAfter = 0
 	}
 
-	// Get the shutdown hook timeout
-	if cfg.ShutdownHooks == nil {
-		t.shutdownHooksTimeout = t.gracefulTimeout - 1*time.Second
-	} else {
-		t.shutdownHooksTimeout = t.gracefulTimeout - *cfg.ShutdownHooks
-	}
-	if t.shutdownHooksTimeout < 0 {
-		t.shutdownHooksTimeout = 0
-	}
-
-	return cfg
+	return t
 }
 
 // WatchForShutdownSignals watches for shutdown signals (SIGTERM, SIGINT)
@@ -127,7 +132,7 @@ func (t *Tracker) WatchForShutdownSignals() {
 	}()
 }
 
-// OnShutdown registers a shutdown handler that will be called when the app
+// RegisterShutdownHandler registers a shutdown handler that will be called when the app
 // is gracefully shutting down.
 //
 // The given context is closed when the graceful shutdown window is closed and it's
@@ -139,19 +144,7 @@ func (t *Tracker) WatchForShutdownSignals() {
 // in certain cloud environments if the graceful shutdown takes longer than its timeout).
 //
 // If t is nil this function is a no-op.
-func (t *Tracker) OnShutdown(fn Hook) {
-	if t == nil {
-		return
-	}
-
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.hooks = append(t.hooks, fn)
-}
-
-// RegisterHandlerHook registers a handler hook that will be called when the app
-// wants to cancel all currently running handlers.
-func (t *Tracker) RegisterHandlerHook(fn HandlerHook) {
+func (t *Tracker) RegisterShutdownHandler(fn Handler) {
 	if t == nil {
 		return
 	}
@@ -159,108 +152,6 @@ func (t *Tracker) RegisterHandlerHook(fn HandlerHook) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.handlers = append(t.handlers, fn)
-}
-
-// Shutdown triggers the shutdown logic.
-// If it has already been triggered, it does nothing and returns immediately.
-func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
-	t.once.Do(func() {
-		close(t.initiated)
-
-		// This is so we can debug the shutdown logic, but default it's off
-		const debugTraceShutdown = false
-
-		// Create the contexts we need to initiate the shutdown
-		gracefulCtx, cancelGraceful := context.WithTimeout(context.Background(), t.gracefulTimeout)
-		defer cancelGraceful()
-		shutdownCtx, cancelShutdown := context.WithTimeout(gracefulCtx, t.shutdownHooksTimeout)
-		defer cancelShutdown()
-		handlerCtx, cancelHandler := context.WithTimeout(gracefulCtx, t.handlerTimeout)
-		defer cancelHandler()
-
-		if reasonSignal != nil && t.logShutdown {
-			t.logger.Warn().Str("signal", reasonSignal.String()).Msg("got shutdown signal, initiating graceful shutdown")
-		} else if reasonError != nil {
-			t.logger.Err(reasonError).Msg("a fatal error occurred, initiating graceful shutdown")
-		} else if t.logShutdown {
-			t.logger.Info().Msg("initiating graceful shutdown")
-		}
-
-		// Start a goroutine that will forcefully shutdown the process when the graceful context
-		// is closed.
-		//
-		// If it timed out, we exit with a non-zero exit code to signal that the shutdown was not graceful.
-		// If it was cancelled, we exit with a zero exit code to signal that the shutdown was graceful.
-		go func() {
-			<-gracefulCtx.Done()
-
-			if errors.Is(gracefulCtx.Err(), context.DeadlineExceeded) {
-				if t.logShutdown {
-					t.logger.Info().Msg("graceful shutdown window closed, forcing shutdown")
-				}
-				os.Exit(1)
-			} else {
-				if t.logShutdown {
-					t.logger.Info().Msg("graceful shutdown completed")
-				}
-				os.Exit(0)
-			}
-		}()
-
-		t.mu.Lock()
-		hooks := t.hooks
-		handlerHooks := t.handlers
-		t.mu.Unlock()
-
-		// Run our hooks concurrently and wait for them to complete.
-		var wg sync.WaitGroup
-		wg.Add(len(hooks) + len(handlerHooks))
-
-		for _, fn := range hooks {
-			fn := fn
-			name := functionName(fn)
-			go func() {
-				defer wg.Done()
-				defer func() {
-					if r := recover(); r != nil {
-						t.logger.Err(errs.B().Msg("recovered panic").Err()).Interface("panic", r).Msg("panic encountered during shutdown hook")
-					}
-				}()
-
-				if debugTraceShutdown {
-					defer t.logger.Trace().Str("hook", name).Msg("shutdown hook completed")
-					t.logger.Trace().Str("hook", name).Msg("running shutdown hook...")
-				}
-				fn(shutdownCtx)
-			}()
-		}
-
-		for _, fn := range handlerHooks {
-			fn := fn
-			name := functionName(fn)
-			go func() {
-				defer wg.Done()
-				defer func() {
-					if r := recover(); r != nil {
-						t.logger.Err(errs.B().Msg("recovered panic").Err()).Interface("panic", r).Msg("panic encountered running shutdown hook")
-					}
-				}()
-
-				// Wait for the handler context to be cancelled before calling the handler hook
-				<-handlerCtx.Done()
-				if debugTraceShutdown {
-					defer t.logger.Trace().Str("hook", name).Msg("shutdown hook completed")
-					t.logger.Trace().Str("hook", name).Msg("running shutdown hook...")
-				}
-				fn()
-			}()
-		}
-
-		wg.Wait()
-
-		// If here we've gracefully shutdown, so we can cancel the graceful context
-		cancelGraceful()
-	})
 }
 
 // ShutdownInitiated reports whether graceful shutdown has been initiated.
@@ -281,4 +172,302 @@ func functionName(fn any) (rtn string) {
 	}()
 
 	return strings.TrimSuffix(runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name(), "-fm")
+}
+
+// Shutdown triggers the shutdown logic.
+// If it has already been triggered, it does nothing and returns immediately.
+func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
+	t.once.Do(func() {
+		close(t.initiated)
+
+		if reasonError != nil {
+			t.logger.Err(reasonError).Msg("a fatal error occurred, initiating graceful shutdown")
+		} else if reasonSignal != nil {
+			t.logger.Info().Str("signal", reasonSignal.String()).Msg("got shutdown signal, initiating graceful shutdown")
+		} else {
+			t.logger.Trace().Msg("initiating graceful shutdown")
+		}
+
+		p := t.beginShutdownProcess()
+		go t.runShutdownHandlers(p)
+		t.exitOnCompletion(p)
+	})
+}
+
+// Process mirrors [encore.dev/shutdown.Progress] but has internal fields
+// for controlling the behavior.
+type Process struct {
+	Log                       *zerolog.Logger
+	OutstandingRequests       context.Context
+	cancelOutstandingRequests context.CancelFunc
+
+	OutstandingPubSubMessages       context.Context
+	cancelOutstandingPubSubMessages context.CancelFunc
+
+	OutstandingTasks       context.Context
+	cancelOutstandingTasks context.CancelFunc
+
+	ForceCloseTasks       context.Context
+	cancelForceCloseTasks context.CancelFunc
+
+	ServicesShutdownCompleted     context.Context
+	markServicesShutdownCompleted context.CancelCauseFunc
+
+	ForceShutdown       context.Context
+	cancelForceShutdown context.CancelFunc
+
+	handlersCompleted     context.Context
+	markHandlersCompleted context.CancelCauseFunc
+
+	// ShutdownCompleted is closed when all shutdown hooks have returned.
+	ShutdownCompleted     context.Context
+	markShutdownCompleted context.CancelCauseFunc
+}
+
+// cleanShutdown is a sentinel error used by the shutdown logic to indicate
+// a clean shutdown, via context.Cause.
+var cleanShutdown = errors.New("clean shutdown")
+
+func (t *Tracker) beginShutdownProcess() *Process {
+	start := time.Now()
+
+	tt := t.timings
+	outstandingTasks, cancelOutstandingTasks := context.WithDeadline(context.Background(), start.Add(tt.cancelRunningTasksAfter+tt.forceCloseTasksGrace))
+	outstandingRequests, cancelOutstandingRequests := context.WithCancel(outstandingTasks)
+	outstandingPubSubMessages, cancelOutstandingPubSubMessages := context.WithCancel(outstandingTasks)
+
+	forceCloseTasks, cancelForceCloseTasks := context.WithDeadline(outstandingTasks, start.Add(tt.cancelRunningTasksAfter))
+
+	forceShutdown, cancelForceShutdown := context.WithDeadline(context.Background(), start.Add(tt.forceShutdownAfter))
+
+	serviceShutdownCompleted, cancelServiceShutdownCompleted := context.WithCancelCause(context.Background())
+	handlersCompleted, cancelHandlersCompleted := context.WithCancelCause(context.Background())
+
+	shutdownCompleted, cancelShutdownCompleted := context.WithCancelCause(context.Background())
+
+	// Close the runningHandlers context when both
+	// outstandingRequests and outstandingPubSubMessages are done.
+	go func() {
+		<-outstandingRequests.Done()
+		<-outstandingPubSubMessages.Done()
+		cancelOutstandingTasks()
+
+		// This is redundant (the context is derived from runningTasks),
+		// but it makes the linter happy.
+		cancelForceCloseTasks()
+	}()
+
+	// Cancel forceShutdown early if running tasks and handlers complete.
+	go func() {
+		<-outstandingTasks.Done()
+		<-handlersCompleted.Done()
+		cancelForceShutdown()
+	}()
+
+	// Mark the shutdown completed.
+	go func() {
+		<-forceShutdown.Done()
+		// When forceShutdown is done, see if it was due to reaching the deadline (unclean shutdown)
+		// or if we canceled the context early (clean shutdown).
+		if errors.Is(forceShutdown.Err(), context.Canceled) {
+			cancelShutdownCompleted(cleanShutdown)
+			return
+		} else {
+			// We reached the deadline. The ForceShutdown context was canceled just now,
+			// so give it another second to let the shutdown handlers finish.
+			timeout, cancel := context.WithTimeout(handlersCompleted, tt.forceShutdownGrace)
+			defer cancel()
+			<-timeout.Done()
+
+			if errors.Is(timeout.Err(), context.Canceled) {
+				// The handlers did eventually complete, so this is a clean shutdown.
+				cancelShutdownCompleted(cleanShutdown)
+			} else {
+				cancelShutdownCompleted(timeout.Err())
+			}
+		}
+	}()
+
+	return &Process{
+		Log:                       &t.logger,
+		OutstandingRequests:       outstandingRequests,
+		cancelOutstandingRequests: cancelOutstandingRequests,
+
+		OutstandingPubSubMessages:       outstandingPubSubMessages,
+		cancelOutstandingPubSubMessages: cancelOutstandingPubSubMessages,
+
+		OutstandingTasks:       outstandingTasks,
+		cancelOutstandingTasks: cancelOutstandingTasks,
+
+		ForceCloseTasks:       forceCloseTasks,
+		cancelForceCloseTasks: cancelForceCloseTasks,
+
+		ForceShutdown:       forceShutdown,
+		cancelForceShutdown: cancelForceShutdown,
+
+		ServicesShutdownCompleted:     serviceShutdownCompleted,
+		markServicesShutdownCompleted: cancelServiceShutdownCompleted,
+
+		handlersCompleted:     handlersCompleted,
+		markHandlersCompleted: cancelHandlersCompleted,
+
+		ShutdownCompleted:     shutdownCompleted,
+		markShutdownCompleted: cancelShutdownCompleted,
+	}
+}
+
+// Progress converts p into the public shutdown.Progress type.
+func (p *Process) Progress() shutdown.Progress {
+	return shutdown.Progress{
+		OutstandingRequests:       p.OutstandingRequests,
+		OutstandingPubSubMessages: p.OutstandingPubSubMessages,
+		OutstandingTasks:          p.OutstandingTasks,
+		ForceCloseTasks:           p.ForceCloseTasks,
+		ForceShutdown:             p.ForceShutdown,
+	}
+}
+
+func (p *Process) MarkOutstandingRequestsCompleted() {
+	p.cancelOutstandingRequests()
+}
+
+func (p *Process) MarkOutstandingPubSubMessagesCompleted() {
+	p.cancelOutstandingPubSubMessages()
+}
+
+func (p *Process) MarkServicesShutdownCompleted(err error) {
+	// TODO change error type to capture where the service came from
+	if err != nil {
+		p.markServicesShutdownCompleted(err)
+	} else {
+		p.markServicesShutdownCompleted(cleanShutdown)
+	}
+}
+
+// WasCleanShutdown reports whether the shutdown was clean.
+// Its return value is undefined before p.shutdownCompleted is closed.
+func (p *Process) WasCleanShutdown() bool {
+	return errors.Is(context.Cause(p.ShutdownCompleted), cleanShutdown)
+}
+
+type shutdownError struct {
+	handlerName string
+	err         error
+}
+
+func (e shutdownError) Error() string {
+	return fmt.Sprintf("shutdown handler %q: %v", e.handlerName, e.err)
+}
+
+func (e shutdownError) Unwrap() error {
+	return e.err
+}
+
+type shutdownErrors struct {
+	errors []error
+}
+
+func (e shutdownErrors) Unwrap() []error {
+	return e.errors
+}
+
+func (e shutdownErrors) Error() string {
+	switch len(e.errors) {
+	case 0:
+		return "no shutdown errors"
+	case 1:
+		return e.errors[0].Error()
+	default:
+		var buf strings.Builder
+		buf.WriteString("multiple shutdown errors: ")
+		for i, err := range e.errors {
+			if i > 0 {
+				buf.WriteString("; ")
+			}
+			buf.WriteString(err.Error())
+		}
+		return buf.String()
+	}
+}
+
+// runShutdownHandlers runs the registered shutdown handlers.
+func (t *Tracker) runShutdownHandlers(p *Process) {
+	var (
+		shutdownErrorMu sync.Mutex
+		shutdownErrs    []error
+	)
+	addShutdownErr := func(err shutdownError) {
+		shutdownErrorMu.Lock()
+		defer shutdownErrorMu.Unlock()
+		shutdownErrs = append(shutdownErrs, err)
+	}
+
+	// Mark the handlers as completed when we're done.
+	defer func() {
+		shutdownErrorMu.Lock()
+		errList := shutdownErrs
+		shutdownErrorMu.Unlock()
+
+		// Determine the error to use.
+		var shutdownErr error
+		if len(errList) > 0 {
+			shutdownErr = shutdownErrors{errors: errList}
+		}
+
+		t.logger.Trace().Err(shutdownErr).Msg("all shutdown hooks completed")
+
+		if shutdownErr != nil {
+			p.markHandlersCompleted(shutdownErr)
+		} else {
+			p.markHandlersCompleted(cleanShutdown)
+		}
+	}()
+
+	t.mu.Lock()
+	handlers := t.handlers
+	t.mu.Unlock()
+
+	var wg sync.WaitGroup
+	wg.Add(len(handlers))
+
+	for _, fn := range handlers {
+		fn := fn
+		name := functionName(fn)
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					err := shutdownError{
+						handlerName: name,
+						err:         errs.B().Msgf("panic: %s", r).Err(),
+					}
+					addShutdownErr(err)
+					t.logger.Err(err).Interface("panic", r).Msg("panic encountered during shutdown hook")
+				}
+			}()
+
+			defer t.logger.Trace().Str("hook", name).Msg("shutdown hook completed")
+			t.logger.Trace().Str("hook", name).Msg("running shutdown hook...")
+			if err := fn(p); err != nil {
+				shutdownErr := shutdownError{handlerName: name, err: err}
+				t.logger.Error().Err(shutdownErr).Str("hook", name).Msg("shutdown handler returned an error")
+				addShutdownErr(shutdownErr)
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+// exitOnCompletion exits the process when the shutdown is completed.
+func (t *Tracker) exitOnCompletion(p *Process) {
+	<-p.ShutdownCompleted.Done()
+
+	if p.WasCleanShutdown() {
+		t.logger.Trace().Msg("graceful shutdown completed")
+		os.Exit(0)
+	} else {
+		t.logger.Trace().Msg("graceful shutdown window closed, forcing shutdown")
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,19 @@
+run
+checklog '{"message": "shutting down"}'
+
+-- svc/svc.go --
+package svc
+
+import (
+    "context"
+    "encore.dev/shutdown"
+    "encore.dev/rlog"
+)
+
+//encore:service
+type Service struct{}
+
+func (s *Service) Shutdown(p shutdown.Progress) error {
+    rlog.Info("shutting down")
+    return nil
+}

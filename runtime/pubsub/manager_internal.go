@@ -10,6 +10,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/types"
@@ -53,32 +54,28 @@ func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.Req
 }
 
 // Shutdown stops the manager from fetching new messages and processing them.
-func (mgr *Manager) Shutdown(force context.Context) {
-	// Stop fetching new events and wait for all running fetches to return
-	mgr.ctxs.StopFetchingNewEvents()
-	mgr.runningFetches.Wait()
-
-	// Now wait for either all handlers to return or the force context to be cancelled
-	waitChan := make(chan struct{})
+func (mgr *Manager) Shutdown(p *shutdown.Process) error {
+	// Once it's time to force-close tasks, cancel the base context.
 	go func() {
-		mgr.runningHandlers.Wait()
-		close(waitChan)
+		<-p.ForceCloseTasks.Done()
+		mgr.ctxs.CancelHandler()
 	}()
 
-	select {
-	case <-force.Done():
-	case <-waitChan:
-	}
+	p.Log.Trace().Msg("pubsub: stop fetching new events")
 
-	// Then close all connections to the PubSub providers
-	mgr.ctxs.CloseConnections()
-}
+	// Immediately fetching new events.
+	mgr.ctxs.StopFetchingNewEvents()
+	p.Log.Trace().Msg("pubsub: waiting on running fetches")
+	mgr.runningFetches.Wait()
 
-// StopHandlers cancels the context used for running handlers and waits
-// for all running handlers to return.
-func (mgr *Manager) StopHandlers() {
-	mgr.ctxs.CancelHandler()
+	// Wait for running handlers to finish.
 	mgr.runningHandlers.Wait()
+	p.MarkOutstandingPubSubMessagesCompleted()
+
+	// Finally, close all connections to the PubSub providers.
+	mgr.ctxs.CloseConnections()
+
+	return nil
 }
 
 type provider interface {

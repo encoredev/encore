@@ -18,6 +18,6 @@ var Singleton *Manager
 
 func init() {
 	Singleton = NewManager(usermetrics.Singleton, appconf.Static, appconf.Runtime, logging.RootLogger)
-	shutdown.Singleton.OnShutdown(Singleton.Shutdown)
+	shutdown.Singleton.RegisterShutdownHandler(Singleton.Shutdown)
 	go Singleton.BeginCollection()
 }
