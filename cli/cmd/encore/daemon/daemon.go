@@ -427,6 +427,7 @@ func redirectLogOutput() error {
 		FieldsExclude: []string{zerolog.ErrorStackFieldName},
 	}
 	consoleWriter.FormatExtra = eerror.ZeroLogConsoleExtraFormatter
+	consoleWriter.TimeFormat = time.TimeOnly
 	zerolog.ErrorStackMarshaler = eerror.ZeroLogStackMarshaller
 	log.Logger = log.With().Caller().Stack().Logger().Output(io.MultiWriter(consoleWriter, f))
 	return nil
