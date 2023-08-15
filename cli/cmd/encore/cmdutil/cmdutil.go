@@ -2,7 +2,9 @@ package cmdutil
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,39 +18,52 @@ import (
 	"encr.dev/pkg/errlist"
 )
 
-// AppRoot determines the app root by looking for the "encore.app" file,
+var (
+	ErrNoEncoreApp    = errors.New("no encore.app found in directory (or any of the parent directories)")
+	ErrEncoreAppIsDir = errors.New("encore.app is a directory, not a file")
+)
+
+// MaybeAppRoot determines the app root by looking for the "encore.app" file,
 // initially in the current directory and then recursively in parent directories
 // up to the filesystem root.
 //
 // It reports the absolute path to the app root, and the
 // relative path from the app root to the working directory.
-//
-// On errors it prints an error message and exits.
-func AppRoot() (appRoot, relPath string) {
+func MaybeAppRoot() (appRoot, relPath string, err error) {
 	dir, err := os.Getwd()
 	if err != nil {
-		Fatal(err)
+		return "", "", err
 	}
 	rel := "."
 	for {
 		path := filepath.Join(dir, "encore.app")
 		fi, err := os.Stat(path)
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			dir2 := filepath.Dir(dir)
 			if dir2 == dir {
-				Fatal("no encore.app found in directory (or any of the parent directories).")
+				return "", "", ErrNoEncoreApp
 			}
 			rel = filepath.Join(filepath.Base(dir), rel)
 			dir = dir2
 			continue
 		} else if err != nil {
-			Fatal(err)
+			return "", "", err
 		} else if fi.IsDir() {
-			Fatal("encore.app is a directory, not a file")
+			return "", "", ErrEncoreAppIsDir
 		} else {
-			return dir, rel
+			return dir, rel, nil
 		}
 	}
+}
+
+// AppRoot is like MaybeAppRoot but instead of returning an error
+// it prints it to stderr and exits.
+func AppRoot() (appRoot, relPath string) {
+	appRoot, relPath, err := MaybeAppRoot()
+	if err != nil {
+		Fatal(err)
+	}
+	return appRoot, relPath
 }
 
 // AppSlug reports the current app's app slug.
@@ -75,8 +90,8 @@ func Fatal(args ...any) {
 	}
 
 	red := color.New(color.FgRed)
-	red.Fprint(os.Stderr, "error: ")
-	red.Fprintln(os.Stderr, args...)
+	_, _ = red.Fprint(os.Stderr, "error: ")
+	_, _ = red.Fprintln(os.Stderr, args...)
 	os.Exit(1)
 }
 

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -40,12 +41,24 @@ func init() {
 }
 
 func linkApp(appID string, force bool) {
-	root, _ := cmdutil.AppRoot()
-	filePath := filepath.Join(root, "encore.app")
-	data, err := os.ReadFile(filePath)
+	// Determine the app root.
+	root, _, err := cmdutil.MaybeAppRoot()
+	if errors.Is(err, cmdutil.ErrNoEncoreApp) {
+		root, err = os.Getwd()
+	}
 	if err != nil {
 		cmdutil.Fatal(err)
+	}
+
+	filePath := filepath.Join(root, "encore.app")
+	data, err := os.ReadFile(filePath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		cmdutil.Fatal(err)
 		os.Exit(1)
+	}
+	if len(bytes.TrimSpace(data)) == 0 {
+		// Treat missing and empty files as an empty object.
+		data = []byte("{}")
 	}
 
 	val, err := hujson.Parse(data)
