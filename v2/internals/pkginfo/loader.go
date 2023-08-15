@@ -61,6 +61,22 @@ func (l *Loader) init() {
 	}
 	l.modules["encore.dev"] = l.runtimeModule
 
+	// Resolve the stdlib module.
+	{
+		// If this is the standard library go/packages doesn't return
+		// a Module object. Instead look it up from our GOROOT.
+		goroot := l.c.Build.GOROOT
+		rootPath := goroot.Join("src")
+
+		// Construct a synthetic Module object for the standard library.
+		l.modules[paths.StdlibMod()] = &Module{
+			l:       l,
+			RootDir: rootPath,
+			Path:    "std",
+			Version: "",
+		}
+	}
+
 	b := l.c.Build
 	d := &build.Default
 	l.buildCtx = &build.Context{
