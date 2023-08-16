@@ -96,7 +96,7 @@ Then select **Grafana Cloud** in the settings menu and click on **Add Stack**.
 <img width="60%" src="/assets/docs/grafanastack.png" title="Add a Grafana Stack"/>
 
 Next, open the environment **Overview** for the environment you wish to sent metrics from and click on **Settings**.
-Then in the **Grafana Cloud** section, select your Grafana Cloud Stack from the drop-down and save.
+Then in the **Sending metrics data** section, select your Grafana Cloud Stack from the drop-down and save.
 
 <img width="60%" src="/assets/docs/configstack.png" title="Select Grafana Stack"/>
 
@@ -104,4 +104,16 @@ That's it! After your next deploy, Encore will start sending metrics data to you
 
 ### Datadog
 
-Coming soon! Reach out on [Slack](https://encore.dev/slack) if you are interested in learning more.
+To send metrics data to Datadog, you first need to add a Datadog Account to your application.
+
+Open your application on [app.encore.dev](https://app.encore.dev), and click on **Settings** in the main navigation.
+Then select **Datadog** in the settings menu and click on **Add Account**.
+
+<img width="60%" src="/assets/docs/datadogaccount.png" title="Add a Datadog account"/>
+
+Next, open the environment **Overview** for the environment you wish to sent metrics from and click on **Settings**.
+Then in the **Sending metrics data** section, select your Datadog Account from the drop-down and save.
+
+<img width="60%" src="/assets/docs/configstack.png" title="Select Datadog Account"/>
+
+That's it! After your next deploy, Encore will start sending metrics data to your Datadog Account.
