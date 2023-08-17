@@ -26,11 +26,9 @@ func New(svcs []string, cfg *config.DatadogProvider, meta *metadata.ContainerMet
 		client: api,
 		svcs:   svcs,
 		cfg:    cfg,
-		containerMetadataLabels: []string{
-			"service_id:" + meta.ServiceID,
-			"revision_id:" + meta.RevisionID,
-			"instance_id:" + meta.InstanceID,
-		},
+		containerMetadataLabels: metadata.MapMetadataLabels(meta, func(k, v string) string {
+			return fmt.Sprintf("%s:%s", k, v)
+		}),
 		rootLogger: rootLogger,
 	}
 }

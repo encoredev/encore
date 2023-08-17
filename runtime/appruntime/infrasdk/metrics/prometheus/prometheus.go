@@ -24,11 +24,9 @@ func New(svcs []string, cfg *config.PrometheusRemoteWriteProvider, meta *metadat
 	return &Exporter{
 		svcs: svcs,
 		cfg:  cfg,
-		containerMetadataLabels: []*prompb.Label{
-			{Name: "service_id", Value: meta.ServiceID},
-			{Name: "revision_id", Value: meta.RevisionID},
-			{Name: "instance_id", Value: meta.InstanceID},
-		},
+		containerMetadataLabels: metadata.MapMetadataLabels(meta, func(k, v string) *prompb.Label {
+			return &prompb.Label{Name: k, Value: v}
+		}),
 		rootLogger: rootLogger,
 	}
 }
