@@ -69,17 +69,10 @@ func (db *Database) Stdlib() *sql.DB {
 	}
 
 	db.init()
-	registerDriver.Do(func() {
-		stdlibDriver = &wrappedDriver{
-			parent: stdlibdriver.GetDefaultDriver(),
-			mw:     &interceptor{mgr: db.mgr},
-		}
-		sql.Register(driverName, stdlibDriver)
-	})
 
 	var openErr error
 	db.stdlibOnce.Do(func() {
-		c, err := stdlibDriver.(driver.DriverContext).OpenConnector(db.connStr)
+		c, err := registerStdlibDriver(db.mgr).(driver.DriverContext).OpenConnector(db.connStr)
 		if err == nil {
 			db.stdlib = sql.OpenDB(c)
 
@@ -108,13 +101,6 @@ func (db *Database) shutdown(p *shutdown.Process) {
 		_ = db.stdlib.Close()
 	}
 }
-
-var (
-	registerDriver sync.Once
-	stdlibDriver   driver.Driver
-)
-
-const driverName = "__encore_stdlib"
 
 // dbConf computes a suitable pgxpool config given a database config.
 func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, error) {
