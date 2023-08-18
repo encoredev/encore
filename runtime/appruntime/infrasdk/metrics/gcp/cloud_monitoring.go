@@ -29,7 +29,7 @@ func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, meta *metadata.C
 	return &Exporter{
 		svcs:                    svcs,
 		cfg:                     cfg,
-		containerMetadataLabels: meta.Labels(),
+		containerMetadataLabels: meta.Labels().AsMap(),
 		rootLogger:              rootLogger,
 
 		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
