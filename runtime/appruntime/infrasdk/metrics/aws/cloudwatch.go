@@ -28,21 +28,12 @@ func New(svcs []string, cfg *config.AWSCloudWatchMetricsProvider, meta *metadata
 		svcs:       svcs,
 		cfg:        cfg,
 		rootLogger: rootLogger,
-	}
-
-	// Add all non-empty dims. AWS does not support empty values.
-	dims := []struct{ Name, Value string }{
-		{Name: "service_id", Value: meta.ServiceID},
-		{Name: "revision_id", Value: meta.RevisionID},
-		{Name: "instance_id", Value: meta.InstanceID},
-	}
-	for _, dim := range dims {
-		if dim.Value != "" {
-			exporter.containerMetadataDims = append(exporter.containerMetadataDims, types.Dimension{
-				Name:  aws.String(dim.Name),
-				Value: aws.String(dim.Value),
-			})
-		}
+		containerMetadataDims: metadata.MapMetadataLabels(meta, func(key, value string) types.Dimension {
+			return types.Dimension{
+				Name:  aws.String(key),
+				Value: aws.String(value),
+			}
+		}),
 	}
 
 	return exporter
