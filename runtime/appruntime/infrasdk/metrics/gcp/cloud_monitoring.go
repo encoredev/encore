@@ -27,14 +27,10 @@ import (
 func New(svcs []string, cfg *config.GCPCloudMonitoringProvider, meta *metadata.ContainerMetadata, rootLogger zerolog.Logger) *Exporter {
 	// Precompute container metadata labels.
 	return &Exporter{
-		svcs: svcs,
-		cfg:  cfg,
-		containerMetadataLabels: map[string]string{
-			"service_id":  meta.ServiceID,
-			"revision_id": meta.RevisionID,
-			"instance_id": meta.InstanceID,
-		},
-		rootLogger: rootLogger,
+		svcs:                    svcs,
+		cfg:                     cfg,
+		containerMetadataLabels: meta.Labels().AsMap(),
+		rootLogger:              rootLogger,
 
 		firstSeenCounter: make(map[uint64]*timestamppb.Timestamp),
 
