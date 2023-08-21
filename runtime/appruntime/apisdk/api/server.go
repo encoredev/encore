@@ -175,24 +175,31 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		outboundSvcAuth: outboundSvcAuth,
 	}
 
-	// Configure CORS
-	corsCfg := &config.CORS{}
-	if runtime.CORS != nil {
-		corsCfg = runtime.CORS
-	}
-	corsWrapper := cors.Wrap(
-		corsCfg,
-		static.CORSAllowHeaders,
-		static.CORSExposeHeaders,
-		http.HandlerFunc(s.handler),
-	)
+	// Create our HTTP server handler chain
 
-	// This handler is used to track the number of running handlers
+	// Start with the underlying router
+	var baseHandler http.Handler = http.HandlerFunc(s.handler)
+
+	// If we're acting as an API Gateway, then we need to add CORS support
+	if s.IsGateway() {
+		corsCfg := &config.CORS{}
+		if runtime.CORS != nil {
+			corsCfg = runtime.CORS
+		}
+		baseHandler = cors.Wrap(
+			corsCfg,
+			static.CORSAllowHeaders,
+			static.CORSExposeHeaders,
+			http.HandlerFunc(s.handler),
+		)
+	}
+
+	// Finally, this handler is used to track the number of running handlers
 	// on the server so we can wait for them to finish before shutting down
 	//
 	// It must be the first handler in the chain to ensure the runningHandlers
 	// count is always correct
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	activeHandlersWrapper := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.httpCtx.Err() != nil {
 			// We are shutting down, return 503 with a retry-after header to tell clients to back off
 			// we shouldn't ever see this as `httpCtx` is only cancelled after the server has already
@@ -211,12 +218,13 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		s.runningHandlers.Add(1)
 		defer s.runningHandlers.Done()
 
-		corsWrapper.ServeHTTP(w, r)
+		baseHandler.ServeHTTP(w, r)
 	})
 
+	// Now we have the handler chain setup, create the HTTP server object
 	s.httpCtx, s.httpCtxCancel = context.WithCancel(context.Background())
 	s.httpsrv = &http.Server{
-		Handler: handler,
+		Handler: activeHandlersWrapper,
 		BaseContext: func(_ net.Listener) context.Context {
 			// We set the base context which allows us to cancel it when the server is shutting down
 			return s.httpCtx
