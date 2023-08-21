@@ -109,8 +109,8 @@ func (g *RuntimeEnvGenerator) ForGateway(listenAddr netip.AddrPort, hostNames ..
 // startup and run as an all-in-one service
 //
 // This service will have CORs enabled as is not behind a gateway
-func (g *RuntimeEnvGenerator) ForAllInOne(listenAddr netip.AddrPort) ([]string, error) {
-	return g.forServiceSet(listenAddr, true, g.Meta.Svcs...)
+func (g *RuntimeEnvGenerator) ForAllInOne(listenAddr netip.AddrPort, hostNames ...string) ([]string, error) {
+	return g.forServiceSet(listenAddr, true, hostNames, g.Meta.Svcs...)
 }
 
 // ForServices generates the runtime environmental variables required for the build to
@@ -118,12 +118,12 @@ func (g *RuntimeEnvGenerator) ForAllInOne(listenAddr netip.AddrPort) ([]string, 
 //
 // These services will not have CORs enabled as they should be behind a gateway
 func (g *RuntimeEnvGenerator) ForServices(listenAddr netip.AddrPort, services ...*meta.Service) ([]string, error) {
-	return g.forServiceSet(listenAddr, false, services...)
+	return g.forServiceSet(listenAddr, false, nil, services...)
 }
 
-func (g *RuntimeEnvGenerator) forServiceSet(listenAddr netip.AddrPort, enableCors bool, services ...*meta.Service) ([]string, error) {
+func (g *RuntimeEnvGenerator) forServiceSet(listenAddr netip.AddrPort, enableCors bool, gatewayHostNames []string, services ...*meta.Service) ([]string, error) {
 	// Generate all we need for a given service
-	runtimeCfg, err := g.runtimeConfigForServices(services, enableCors)
+	runtimeCfg, err := g.runtimeConfigForServices(services, gatewayHostNames, enableCors)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate runtime config")
 	}
@@ -161,7 +161,7 @@ func (g *RuntimeEnvGenerator) forServiceSet(listenAddr netip.AddrPort, enableCor
 
 // runtimeConfigForServices generates the runtime config for a built binary to
 // run the given service(s)
-func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service, enableCors bool) (string, error) {
+func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service, gatewayHostNames []string, enableCors bool) (string, error) {
 	g.init()
 
 	daemonProxyURL := option.Map(g.DaemonProxyAddr, func(t netip.AddrPort) string { return fmt.Sprintf("http://%s", t) })
@@ -203,6 +203,14 @@ func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service,
 			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
 			AllowPrivateNetworkAccess:      true,
 		}
+	}
+
+	// Add the gateways we want to listen for
+	for _, hostname := range gatewayHostNames {
+		runtimeCfg.Gateways = append(runtimeCfg.Gateways, config.Gateway{
+			Name: "api", // Right now we only have one API group
+			Host: hostname,
+		})
 	}
 
 	// Add the list of services we want this container to host
@@ -466,10 +474,9 @@ func (g *RuntimeEnvGenerator) init() {
 			for _, subscriber := range topic.Subscriptions {
 				g.topicsBySvc[subscriber.ServiceName] = append(g.topicsBySvc[subscriber.ServiceName], topic)
 
-				existing, found := g.subsBySvcByTopic[subscriber.ServiceName]
+				_, found := g.subsBySvcByTopic[subscriber.ServiceName]
 				if !found {
-					existing = make(map[string][]*meta.PubSubTopic_Subscription)
-					g.subsBySvcByTopic[subscriber.ServiceName] = existing
+					g.subsBySvcByTopic[subscriber.ServiceName] = make(map[string][]*meta.PubSubTopic_Subscription)
 				}
 
 				g.subsBySvcByTopic[subscriber.ServiceName][topic.Name] = append(g.subsBySvcByTopic[subscriber.ServiceName][topic.Name], subscriber)
