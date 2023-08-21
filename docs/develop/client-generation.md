@@ -11,7 +11,7 @@ The generated clients are single files that use only the standard functionality 
 
 The structure of the generated code varies by language, to ensure it's idiomatic and easy to use, but always includes all publicly accessible endpoints, data structures, and documentation strings.
 
-Encore currently supports generating clients the following clients:
+Encore currently supports generating the following clients:
 - **Go** - Using `net/http` for the underlying HTTP transport.
 - **TypeScript** - Using the browser `fetch` API for the underlying HTTP client.
 - **JavaScript** - Using the browser `fetch` API for the underlying HTTP client.
