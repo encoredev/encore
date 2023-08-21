@@ -15,7 +15,7 @@ Encore currently supports generating the following clients:
 - **Go** - Using `net/http` for the underlying HTTP transport.
 - **TypeScript** - Using the browser `fetch` API for the underlying HTTP client.
 - **JavaScript** - Using the browser `fetch` API for the underlying HTTP client.
-- **OpenAPI** - A client using the OpenAPI Specification's language-agnostic interface to HTTP APIs. (Experimental)
+- **OpenAPI** - Using the OpenAPI Specification's language-agnostic interface to HTTP APIs. (Experimental)
 
 If there's a language you think should be added, please submit a pull request or create a feature
 request on [GitHub](https://github.com/encoredev/encore/issues/new), or [reach out on Slack](/slack).
