@@ -15,6 +15,8 @@ import (
 )
 
 func TestOptions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name               string
 		cfg                config.CORS
@@ -204,6 +206,8 @@ func TestOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := Options(&tt.cfg, []string{"X-Static-Test"}, []string{"X-Exposed-Test"})
 			got.Debug = true
 			c := cors.New(got)
