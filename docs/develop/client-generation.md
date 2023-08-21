@@ -41,7 +41,7 @@ encore gen client hello-a8bc --output=./client.ts
 encore gen client hello-a8bc --output=./client.go --env=local
 
 # Generate an OpenAPI client for the hello-a8bc application based on the primary environment
-encore gen client hello-a8bc --lang=openapi  --output=./client.json
+encore gen client hello-a8bc --lang=openapi --output=./client.json
 ```
 
 ### Environment Selection
