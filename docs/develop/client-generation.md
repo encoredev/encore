@@ -11,10 +11,11 @@ The generated clients are single files that use only the standard functionality 
 
 The structure of the generated code varies by language, to ensure it's idiomatic and easy to use, but always includes all publicly accessible endpoints, data structures, and documentation strings.
 
-Encore currently supports generating clients in these languages:
+Encore currently supports generating the following clients:
 - **Go** - Using `net/http` for the underlying HTTP transport.
 - **TypeScript** - Using the browser `fetch` API for the underlying HTTP client.
 - **JavaScript** - Using the browser `fetch` API for the underlying HTTP client.
+- **OpenAPI** - Using the OpenAPI Specification's language-agnostic interface to HTTP APIs. (Experimental)
 
 If there's a language you think should be added, please submit a pull request or create a feature
 request on [GitHub](https://github.com/encoredev/encore/issues/new), or [reach out on Slack](/slack).
@@ -38,6 +39,9 @@ encore gen client hello-a8bc --output=./client.ts
 
 # Generate a Go client for the hello-a8bc application based on the locally running code
 encore gen client hello-a8bc --output=./client.go --env=local
+
+# Generate an OpenAPI client for the hello-a8bc application based on the primary environment
+encore gen client hello-a8bc --lang=openapi --output=./openapi.json
 ```
 
 ### Environment Selection
