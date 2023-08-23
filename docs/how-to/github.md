@@ -29,7 +29,7 @@ your Pull Requests, and provision Preview Environments for each Pull Request.
 ## Configure deploy trigger
 
 When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
-By default, Encore uses `master` as the branch name. To change this, go to the **Overview** page for your intended environment and click on **Settings**. On the settings page, change the **Branch name** and hit save.
+To configure which branch name is used to trigger deploys, open your app in the [Cloud Dashboard](https://app.encore.dev) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
 
 ## Preview Environments for each Pull Request
 
