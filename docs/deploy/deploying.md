@@ -15,11 +15,7 @@ Encore simplifies the deployment process, making it as straightforward as a `git
 $ encore app create
 ```
 
-2. **Integrate with GitHub (Optional)**: If you prefer to use GitHub, you can [integrate your app with GitHub](/docs/how-to/github). This way, you can push code to GitHub, which triggers Encore's deployment process. This is especially handy for teams as it enables collaborative development, version control and other GitHub functionalities.
-
-### Preview Environments
-
-When you connect your GitHub account and push changes to a pull request, Encore will automatically create a [Preview Environment](/docs/deploy/preview-environments). This is a fully functional, isolated environment where you can test your application as it would run in production. This environment runs in Encore's free development cloud, giving you an efficient way to validate your changes before they are merged and deployed to the primary environment.
+2. **Integrate with GitHub (Optional)**: If you prefer to use GitHub, you can [integrate your app with GitHub](/docs/how-to/github). This way, you can push code to GitHub, which triggers Encore's deployment process. This is especially handy for teams as it enables collaborative development, version control, and other GitHub functionality.
 
 ## Deploying Your Application
 
@@ -38,3 +34,14 @@ $ git push origin
 ```
 
 In both scenarios, this will trigger Encore's built-in CI/CD pipeline. This includes building your application, running tests, provisioning the necessary infrastructure, and deploying your application.
+
+<Callout type="info">
+
+When using GitHub, remember to configure your environment to trigger deploys from the correct branch name. By default, Encore uses `master` as the branch name.
+
+</Callout>
+
+### Preview Environments
+
+When you connect your GitHub account and push changes to a pull request, Encore will automatically create a [Preview Environment](/docs/deploy/preview-environments). This is a fully functional, isolated environment where you can test your application as it would run in production. This environment runs in Encore's free development cloud, giving you an efficient way to validate your changes before they are merged and deployed to the primary environment.
+
