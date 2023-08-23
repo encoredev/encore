@@ -34,6 +34,7 @@ $ git push origin
 ```
 
 In both scenarios, this will trigger Encore's built-in CI/CD pipeline. This includes building your application, running tests, provisioning the necessary infrastructure, and deploying your application.
+
 ### Configure deploy trigger
 
 When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
