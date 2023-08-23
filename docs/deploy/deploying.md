@@ -34,13 +34,11 @@ $ git push origin
 ```
 
 In both scenarios, this will trigger Encore's built-in CI/CD pipeline. This includes building your application, running tests, provisioning the necessary infrastructure, and deploying your application.
+### Configure deploy trigger
 
-<Callout type="info">
+When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
 
-When using GitHub, remember to configure your environment to trigger deploys from the correct branch name. By default, Encore uses `master` as the branch name.
-
-</Callout>
-
+By default, Encore uses `master` as the branch name. To change this, go to the **Overview** page for your intended environment and click on **Settings**. On the settings page, change the **Branch name** and hit save.
 ### Preview Environments
 
 When you connect your GitHub account and push changes to a pull request, Encore will automatically create a [Preview Environment](/docs/deploy/preview-environments). This is a fully functional, isolated environment where you can test your application as it would run in production. This environment runs in Encore's free development cloud, giving you an efficient way to validate your changes before they are merged and deployed to the primary environment.
