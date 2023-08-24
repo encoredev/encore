@@ -94,7 +94,7 @@ func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 	consumer.ChangeMaxInFlight(maxConcurrency)
 
 	// create a dedicated handler which forwards messages to the encore subscription
-	consumer.AddHandler(nsq.HandlerFunc(func(m *nsq.Message) error {
+	consumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
 		// create a message to unmarshal the raw nsq body into
 		msg := &messageWrapper{}
 
@@ -127,7 +127,7 @@ func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		}
 		m.Finish()
 		return nil
-	}))
+	}), maxConcurrency)
 
 	// add the consumer to the known consumers
 	l.consumers[implCfg.EncoreName] = consumer
