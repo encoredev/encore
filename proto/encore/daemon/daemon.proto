@@ -73,9 +73,6 @@ message RunRequest {
   // working_dir is the working directory relative to the app_root,
   // for formatting relative paths in error messages.
   string working_dir = 2;
-  // tunnel, if true, creates a tunnel environment on the encore.dev platform
-  // that forwards requests to the running app.
-  bool tunnel = 3;
   // debug, if true, compiles the app with flags that improve the debugging experience.
   bool debug = 4;
   // watch, if true, enables live reloading of the app whenever the source changes.
@@ -93,6 +90,15 @@ message RunRequest {
   // namespace is the infrastructure namespace to use.
   // If empty the active namespace is used.
   optional string namespace = 9;
+
+  // browser specifies whether and how to open the browser on startup.
+  BrowserMode browser = 10;
+
+  enum BrowserMode {
+    BROWSER_AUTO = 0;
+    BROWSER_NEVER = 1;
+    BROWSER_ALWAYS = 2;
+  }
 }
 
 message TestRequest {

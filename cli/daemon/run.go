@@ -12,6 +12,7 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -22,7 +23,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	stderr := slog.Stderr(false)
 
 	sendExit := func(code int32) {
-		stream.Send(&daemonpb.CommandMessage{
+		_ = stream.Send(&daemonpb.CommandMessage{
 			Msg: &daemonpb.CommandMessage_Exit{Exit: &daemonpb.CommandExit{
 				Code: code,
 			}},
@@ -31,11 +32,11 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	ctx, tracer, err := s.beginTracing(ctx, req.AppRoot, req.WorkingDir, req.TraceFile)
 	if err != nil {
-		fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to begin tracing: %v"), err))
+		_, _ = fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to begin tracing: %v"), err))
 		sendExit(1)
 		return nil
 	}
-	defer tracer.Close()
+	defer fns.CloseIgnore(tracer)
 
 	// ListenAddr should always be passed but guard against old clients.
 	listenAddr := req.ListenAddr
@@ -45,39 +46,39 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	ln, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		if errIsAddrInUse(err) {
-			fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("Failed to run on %s - port is already in use"), listenAddr))
+			_, _ = fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("Failed to run on %s - port is already in use"), listenAddr))
 		} else {
-			fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("Failed to run on %s - %v"), listenAddr, err))
+			_, _ = fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("Failed to run on %s - %v"), listenAddr, err))
 		}
 
 		if host, port, ok := findAvailableAddr(listenAddr); ok {
 			if host == "localhost" || host == "127.0.0.1" {
-				fmt.Fprintf(stderr, "Note: port %d is available; specify %s to use it\n",
+				_, _ = fmt.Fprintf(stderr, "Note: port %d is available; specify %s to use it\n",
 					port, aurora.Sprintf(aurora.Cyan("--port=%d"), port))
 			} else {
-				fmt.Fprintf(stderr, "Note: address %s:%d is available; specify %s to use it\n",
+				_, _ = fmt.Fprintf(stderr, "Note: address %s:%d is available; specify %s to use it\n",
 					host, port, aurora.Sprintf(aurora.Cyan("--listen=%s:%d"), host, port))
 			}
 		} else {
-			fmt.Fprintf(stderr, "Note: specify %s to run on another port\n",
+			_, _ = fmt.Fprintf(stderr, "Note: specify %s to run on another port\n",
 				aurora.Cyan("--port=NUMBER"))
 		}
 
 		sendExit(1)
 		return nil
 	}
-	defer ln.Close()
+	defer fns.CloseIgnore(ln)
 
 	app, err := s.apps.Track(req.AppRoot)
 	if err != nil {
-		fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to resolve app: %v"), err))
+		_, _ = fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to resolve app: %v"), err))
 		sendExit(1)
 		return nil
 	}
 
 	ns, err := s.namespaceOrActive(ctx, app, req.Namespace)
 	if err != nil {
-		fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to resolve namespace: %v"), err))
+		_, _ = fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to resolve namespace: %v"), err))
 		sendExit(1)
 		return nil
 	}
@@ -128,6 +129,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		Watch:      req.Watch,
 		Environ:    req.Environ,
 		OpsTracker: ops,
+		Browser:    run.BrowserModeFromProto(req.Browser),
 		Debug:      req.Debug,
 	})
 	if err != nil {
@@ -150,18 +152,18 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	ops.AllDone()
 
-	stderr.Write([]byte("\n"))
+	_, _ = stderr.Write([]byte("\n"))
 	pid := runInstance.ProcGroup().Gateway.Pid
-	fmt.Fprintf(stderr, "  Encore development server running!\n\n")
+	_, _ = fmt.Fprintf(stderr, "  Encore development server running!\n\n")
 
-	fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+runInstance.ListenAddr))
-	fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf(
+	_, _ = fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+runInstance.ListenAddr))
+	_, _ = fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf(
 		"http://localhost:%d/%s", s.mgr.DashPort, app.PlatformOrLocalID())))
 	if ns := runInstance.NS; !ns.Active || ns.Name != "default" {
-		fmt.Fprintf(stderr, "  Namespace:                  %s\n", aurora.Cyan(ns.Name))
+		_, _ = fmt.Fprintf(stderr, "  Namespace:                  %s\n", aurora.Cyan(ns.Name))
 	}
 	if req.Debug {
-		fmt.Fprintf(stderr, "  Process ID:                 %d\n", aurora.Cyan(pid))
+		_, _ = fmt.Fprintf(stderr, "  Process ID:                 %d\n", aurora.Cyan(pid))
 	}
 	// Log which experiments are enabled, if any
 	if exp := runInstance.ProcGroup().Experiments.List(); len(exp) > 0 {
@@ -169,28 +171,28 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		for i, e := range exp {
 			strs[i] = string(e)
 		}
-		fmt.Fprintf(stderr, "  Enabled experiment(s):      %s\n", aurora.Yellow(strings.Join(strs, ", ")))
+		_, _ = fmt.Fprintf(stderr, "  Enabled experiment(s):      %s\n", aurora.Yellow(strings.Join(strs, ", ")))
 	}
 
 	// If there's a newer version available, print a message.
 	if newVer != nil {
 		if newVer.SecurityUpdate {
-			stderr.Write([]byte(aurora.Sprintf(
+			_, _ = stderr.Write([]byte(aurora.Sprintf(
 				aurora.Yellow("\n  New Encore release available with security updates: %s (you have %s)\n  Update with: encore version update\n"),
 				newVer.Version(), version.Version)))
 
 			if newVer.SecurityNotes != "" {
-				stderr.Write([]byte(aurora.Sprintf(
+				_, _ = stderr.Write([]byte(aurora.Sprintf(
 					aurora.Faint("\n  %s\n"),
 					newVer.SecurityNotes)))
 			}
 		} else {
-			stderr.Write([]byte(aurora.Sprintf(
+			_, _ = stderr.Write([]byte(aurora.Sprintf(
 				aurora.Faint("\n  New Encore release available: %s (you have %s)\n  Update with: encore version update\n"),
 				newVer.Version(), version.Version)))
 		}
 	}
-	stderr.Write([]byte("\n"))
+	_, _ = stderr.Write([]byte("\n"))
 
 	slog.FlushBuffers()
 

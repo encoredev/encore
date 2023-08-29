@@ -16,6 +16,7 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
 	"encr.dev/internal/conf"
+	"encr.dev/pkg/fns"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 )
 
@@ -24,18 +25,19 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewServer starts a new server and returns it.
-func NewServer(runMgr *run.Manager, tr trace2.Store) *Server {
+func NewServer(runMgr *run.Manager, tr trace2.Store, dashPort int) *Server {
 	proxy, err := dashproxy.New(conf.DevDashURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not create dash proxy")
 	}
 
 	s := &Server{
-		proxy:   proxy,
-		run:     runMgr,
-		tr:      tr,
-		traceCh: make(chan *tracepb2.SpanSummary, 10),
-		clients: make(map[chan<- *notification]struct{}),
+		proxy:    proxy,
+		run:      runMgr,
+		tr:       tr,
+		dashPort: dashPort,
+		traceCh:  make(chan *tracepb2.SpanSummary, 10),
+		clients:  make(map[chan<- *notification]struct{}),
 	}
 
 	runMgr.AddListener(s)
@@ -46,10 +48,11 @@ func NewServer(runMgr *run.Manager, tr trace2.Store) *Server {
 
 // Server is the http.Handler for serving the developer dashboard.
 type Server struct {
-	proxy   *httputil.ReverseProxy
-	run     *run.Manager
-	tr      trace2.Store
-	traceCh chan *tracepb2.SpanSummary
+	proxy    *httputil.ReverseProxy
+	run      *run.Manager
+	tr       trace2.Store
+	dashPort int
+	traceCh  chan *tracepb2.SpanSummary
 
 	mu      sync.Mutex
 	clients map[chan<- *notification]struct{}
@@ -71,7 +74,7 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 		log.Error().Err(err).Msg("dash: could not upgrade websocket")
 		return
 	}
-	defer c.Close()
+	defer fns.CloseIgnore(c)
 	log.Info().Msg("dash: websocket connection established")
 
 	stream := &wsStream{c: c}
@@ -82,6 +85,8 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 	ch := make(chan *notification, 20)
 	s.addClient(ch)
 	defer s.removeClient(ch)
+
+	// nosemgrep: tools.semgrep-rules.semgrep-go.http-request-go-context
 	go handler.listenNotify(req.Context(), ch)
 
 	<-conn.Done()
@@ -106,11 +111,19 @@ func (s *Server) removeClient(ch chan *notification) {
 	delete(s.clients, ch)
 }
 
+// hasClients reports whether there are any active clients.
+func (s *Server) hasClients() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.clients) > 0
+}
+
 type notification struct {
 	Method string
 	Params interface{}
 }
 
+// notify notifies any active clients.
 func (s *Server) notify(n *notification) {
 	var clients []chan<- *notification
 	s.mu.Lock()
