@@ -19,9 +19,11 @@ import (
 
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
+	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/jsonrpc2"
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/fns"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 	v1 "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -163,7 +165,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		defer f.Close()
+		defer fns.CloseIgnore(f)
 		lines, start, err := sourceContext(f, params.Line, 5)
 		if err != nil {
 			return reply(ctx, nil, err)
@@ -211,7 +213,7 @@ func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCal
 		return reply(ctx, nil, err)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// Encode the body back into a Go style struct
 	if resp.StatusCode == http.StatusOK {
@@ -277,6 +279,13 @@ func (s *Server) OnStart(r *run.Run) {
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not marshal app meta")
 		return
+	}
+
+	// Open the browser if needed.
+	browserMode := r.Params.Browser
+	if browserMode == run.BrowserModeAlways || (browserMode == run.BrowserModeAuto && !s.hasClients()) {
+		u := fmt.Sprintf("http://localhost:%d/%s", s.dashPort, r.App.PlatformOrLocalID())
+		browser.Open(u)
 	}
 
 	apiEnc := encoding.DescribeAPI(proc.Meta)
@@ -487,6 +496,7 @@ func handleResponse(md *v1.Data, p *apiCallParams, headers http.Header, body []b
 				}
 			}
 
+			// nosemgrep: trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
 			hValue, err := hujson.Parse(value)
 			if err != nil {
 				hValue = hujson.Value{Value: hujson.Literal(value)}
@@ -589,6 +599,7 @@ func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string][]*
 				case encoding.Cookie:
 					switch v := val.Value.(type) {
 					case hujson.Literal:
+						// nosemgrep
 						req.Cookies = append(req.Cookies, &http.Cookie{
 							Name:  param.WireFormat,
 							Value: v.String(),
