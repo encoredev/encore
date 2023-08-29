@@ -16,6 +16,7 @@ type Oneof struct {
 	Flag      string // defaults to "output" if empty
 	FlagShort string // defaults to "o" if both Flag and FlagShort are empty
 	Desc      string // usage desc
+	TypeDesc  string // type description, defaults to the name of the flag
 }
 
 func (o *Oneof) AddFlag(cmd *cobra.Command) {
@@ -39,6 +40,9 @@ func (o *Oneof) String() string {
 }
 
 func (o *Oneof) Type() string {
+	if o.TypeDesc != "" {
+		return o.TypeDesc
+	}
 	name, _ := o.FlagName()
 	return name
 }

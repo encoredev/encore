@@ -239,7 +239,7 @@ func (d *Daemon) serveDBProxy() {
 
 func (d *Daemon) serveDash() {
 	log.Info().Stringer("addr", d.Dash.Addr()).Msg("serving dash")
-	srv := dash.NewServer(d.RunMgr, d.Trace)
+	srv := dash.NewServer(d.RunMgr, d.Trace, d.Dash.Port())
 	d.exit <- http.Serve(d.Dash, srv)
 }
 

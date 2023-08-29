@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/onboarding"
 	"encr.dev/pkg/ansi"
@@ -20,21 +21,38 @@ import (
 )
 
 var (
-	tunnel bool
-	debug  bool
-	watch  bool
-	listen string
-	port   uint
+	debug   bool
+	watch   bool
+	listen  string
+	port    uint
+	browser = cmdutil.Oneof{
+		Value:     "auto",
+		Allowed:   []string{"auto", "never", "always"},
+		Flag:      "browser",
+		FlagShort: "", // no short flag
+		Desc:      "Whether to open the local development dashboard in the browser on startup",
+		TypeDesc:  "string",
+	}
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run [--debug] [--watch=true] [--port=4000] [--listen=<listen-addr>]",
-	Short: "Runs your application",
-	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		appRoot, wd := determineAppRoot()
-		runApp(appRoot, wd)
-	},
+func init() {
+	runCmd := &cobra.Command{
+		Use:   "run [--debug] [--watch=true] [--port=4000] [--listen=<listen-addr>]",
+		Short: "Runs your application",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			appRoot, wd := determineAppRoot()
+			runApp(appRoot, wd)
+		},
+	}
+
+	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().BoolVar(&debug, "debug", false, "Compile for debugging (disables some optimizations)")
+	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
+	runCmd.Flags().StringVar(&listen, "listen", "", "Address to listen on (for example \"0.0.0.0:4000\")")
+	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
+	runCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
+	browser.AddFlag(runCmd)
 }
 
 // runApp runs the app.
@@ -63,10 +81,19 @@ func runApp(appRoot, wd string) {
 		listenAddr = net.JoinHostPort(listen, strconv.Itoa(int(port)))
 	}
 
+	browserMode := daemonpb.RunRequest_BROWSER_AUTO
+	switch browser.Value {
+	case "auto":
+		browserMode = daemonpb.RunRequest_BROWSER_AUTO
+	case "never":
+		browserMode = daemonpb.RunRequest_BROWSER_NEVER
+	case "always":
+		browserMode = daemonpb.RunRequest_BROWSER_ALWAYS
+	}
+
 	daemon := setupDaemon(ctx)
 	stream, err := daemon.Run(ctx, &daemonpb.RunRequest{
 		AppRoot:    appRoot,
-		Tunnel:     tunnel,
 		Debug:      debug,
 		Watch:      watch,
 		WorkingDir: wd,
@@ -74,6 +101,7 @@ func runApp(appRoot, wd string) {
 		Environ:    os.Environ(),
 		TraceFile:  root.TraceFile,
 		Namespace:  nonZeroPtr(nsName),
+		Browser:    browserMode,
 	})
 	if err != nil {
 		fatal(err)
@@ -105,11 +133,4 @@ func clearTerminalExceptFirstLine() {
 }
 
 func init() {
-	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().BoolVar(&tunnel, "tunnel", false, "Create a tunnel to your machine for others to test against")
-	runCmd.Flags().BoolVar(&debug, "debug", false, "Compile for debugging (disables some optimizations)")
-	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
-	runCmd.Flags().StringVar(&listen, "listen", "", "Address to listen on (for example \"0.0.0.0:4000\")")
-	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
-	runCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 }

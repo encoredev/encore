@@ -35,6 +35,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
+	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -50,7 +51,7 @@ type Run struct {
 	builder builder.Impl
 	log     zerolog.Logger
 	Mgr     *Manager
-	params  *StartParams
+	Params  *StartParams
 	secrets *secret.LoadResult
 
 	ctx     context.Context // ctx is closed when the run is to exit
@@ -84,8 +85,33 @@ type StartParams struct {
 	// The Ops tracker being used for this run
 	OpsTracker *optracker.OpTracker
 
+	// Browser specifies the browser mode to use.
+	Browser BrowserMode
+
 	// Debug specifies to compile the application for debugging.
 	Debug bool
+}
+
+// BrowserMode specifies how to open the browser when starting 'encore run'.
+type BrowserMode int
+
+const (
+	BrowserModeAuto   BrowserMode = iota // open if not already open
+	BrowserModeNever                     // never open
+	BrowserModeAlways                    // always open
+)
+
+func BrowserModeFromProto(b daemonpb.RunRequest_BrowserMode) BrowserMode {
+	switch b {
+	case daemonpb.RunRequest_BROWSER_AUTO:
+		return BrowserModeAuto
+	case daemonpb.RunRequest_BROWSER_NEVER:
+		return BrowserModeNever
+	case daemonpb.RunRequest_BROWSER_ALWAYS:
+		return BrowserModeAlways
+	default:
+		return BrowserModeAuto
+	}
 }
 
 // Start starts the application.
@@ -107,7 +133,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		SvcProxy:        svcProxy,
 		log:             logger,
 		Mgr:             mgr,
-		params:          &params,
+		Params:          &params,
 		secrets:         mgr.Secret.Load(params.App),
 		ctx:             ctx,
 		exited:          make(chan struct{}),
@@ -265,7 +291,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 	parseOp := tracker.Add("Building Encore application graph", start)
 	topoOp := tracker.Add("Analyzing service topology", start)
 
-	expSet, err := r.App.Experiments(r.params.Environ)
+	expSet, err := r.App.Experiments(r.Params.Environ)
 	if err != nil {
 		return err
 	}
@@ -279,7 +305,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		BuildTags:          builder.LocalBuildTags,
 		CgoEnabled:         true,
 		StaticLink:         false,
-		Debug:              r.params.Debug,
+		Debug:              r.Params.Debug,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,
@@ -291,7 +317,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		Build:       buildInfo,
 		App:         r.App,
 		Experiments: expSet,
-		WorkingDir:  r.params.WorkingDir,
+		WorkingDir:  r.Params.WorkingDir,
 		ParseTests:  false,
 	})
 	if err != nil {
@@ -311,7 +337,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 			Parse:       parse,
 			OpTracker:   tracker,
 			Experiments: expSet,
-			WorkingDir:  r.params.WorkingDir,
+			WorkingDir:  r.Params.WorkingDir,
 			CueMeta: &cueutil.Meta{
 				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
 				EnvName:    "local",
@@ -350,8 +376,8 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		Logger:         r.Mgr,
 		Secrets:        secrets,
 		ServiceConfigs: build.Configs,
-		Environ:        r.params.Environ,
-		WorkingDir:     r.params.WorkingDir,
+		Environ:        r.Params.Environ,
+		WorkingDir:     r.Params.WorkingDir,
 		IsReload:       isReload,
 		Experiments:    expSet,
 	})
