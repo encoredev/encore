@@ -90,9 +90,16 @@ Encore provisions production infrastructure resources using best-practice guidel
 
 ### Configurability
 
-With Encore you do not define any cloud service specifics in the application code. This means, after deploying to your own cloud account, you can safely use your cloud provider's console to modify the provisioned resources according to your application's scaling requirements. See more details below for each cloud provider and infrastructure resource.
+With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use both your cloud provider's console to modify the provisioned resources and Encore's Cloud Dashboard. Encore takes care of syncing the changes automatically.
 
-In the future, Encore will provide built-in optimization of cloud environments according to your application's real-world behavior.
+In the future, Encore will offer automated optimization of cloud environments according to your application's real-world behavior.
+
+#### Process allocation
+
+You can configure how microservices should be deployed on the compute hardware; either deploying all services in one process or one process per service.
+
+It's often recommended to deploy all services in one process in order to reduce costs and minimize response times between services. (But it depends on your use case.)
+Deploying each service as its own process will improve scalability and decrease blast radius if things go wrong. This is only recommended for production environments.
 
 ### Google Cloud Platform (GCP)
 
@@ -104,9 +111,12 @@ In the future, Encore will provide built-in optimization of cloud environments a
 [gcp-cloudsql]: https://cloud.google.com/sql
 [gcp-redis]: https://cloud.google.com/memorystore
 
-Encore provisions a single GCP Project for each environment, containing a single [Virtual Private Cloud (VPC)][gcp-vpc].
-Within the VPC, Encore provisions a [Cloud Run][gcp-cloudrun] service to run the application, storing secret values using [Secret Manager][gcp-secrets].
-You can also deploy to Kubernetes, in which case Encore will provision a [Google Kubernetes Engine][gcp-gke] (GKE) cluster, or if you prefer you can [import an existing cluster](/docs/how-to/import-kubernetes-cluster) and deploy there.
+Encore provisions a single GCP Project for each environment, containing a single [Virtual Private Cloud (VPC)][gcp-vpc], and a whole slew of miscellaneous resources (IAM roles, policies, subnets, security groups, route tables, and so on). Secrets are stored using [Secret Manager][gcp-secrets].
+
+#### Compute instances
+
+When using GCP you can decide between [Cloud Run][gcp-cloudrun] (a fully managed infrastructure that scales to zero) or a [Google Kubernetes Engine][gcp-gke] (GKE) cluster.
+If you prefer you can also [import an existing Kubernetes cluster](/docs/how-to/import-kubernetes-cluster) and have Encore deploy to it.
 
 #### SQL Databases
 When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [GCP Cloud SQL][gcp-cloudsql] cluster, and separate databases within that cluster. The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
@@ -151,10 +161,13 @@ provisioned for this to work.
 [aws-redis]: https://aws.amazon.com/elasticache/redis/
 [aws-ecr]: https://aws.amazon.com/ecr/
 
-Encore provisions a dedicated [Virtual Private Cloud (VPC)][aws-vpc] for each environment.
-The VPC contains a [Fargate ECS][aws-fargate] cluster to run the application, an [Elastic Container Registry][aws-ecr] to host Docker images,
-and a whole slew of miscellaneous resources (IAM roles, policies, subnets, security groups, route tables, and so on).
-Secrets are stored using [Secrets Manager][aws-secrets].
+Encore provisions a dedicated [Virtual Private Cloud (VPC)][aws-vpc] for each environment. It contains an [Elastic Container Registry][aws-ecr] to host Docker images,
+and a whole slew of miscellaneous resources (IAM roles, policies, subnets, security groups, route tables, and so on). Secrets are stored using [Secrets Manager][aws-secrets].
+
+#### Compute instances
+
+Encore provisions a [Fargate ECS][aws-fargate] cluster to run the application. AWS Fargate is a managed, serverless, pay-as-you-go compute engine.
+We will soon add support for deploying to Kubernetes on AWS.
 
 #### SQL Databases
 When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [Amazon RDS][aws-rds] cluster, and separate databases within that cluster.
