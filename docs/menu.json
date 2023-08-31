@@ -429,6 +429,11 @@
         "Path": "/other/vs-supabase",
         "Title": "Encore vs. Supabase / Firebase",
         "DocSlug": "other/vs-supabase"
+      },
+      {
+        "Path": "/other/typescript-preview",
+        "Title": "TypeScript (Preview)",
+        "DocSlug": "other/typescript-preview"
       }
     ]
   },
