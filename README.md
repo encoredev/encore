@@ -18,7 +18,7 @@ Start building today and unlock your creative potential, free from cloud complex
 </br></br>
 
 ## How Encore works
-![Encore Overview](https://user-images.githubusercontent.com/78424526/228284568-c1bbd16c-d71d-4178-bf74-cbcf1b450182.png)
+![Encore Overview](https://github.com/encoredev/encore/assets/78424526/34d25cb5-56cd-4dbf-b63a-12aece789dcc)
 
 Most backend applications use a small set of common building blocks: services, APIs, databases, queues, caches, and cron jobs. The real complexity lies in provisioning and managing the underlying infrastructure, and the endless boilerplate that's required to tie it all together in your application.
 
