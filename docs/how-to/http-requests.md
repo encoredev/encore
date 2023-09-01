@@ -52,7 +52,7 @@ import (
 
 //encore:api public raw method=POST path=/webhook/:id
 func Webhook(w http.ResponseWriter, req *http.Request) {  
-    id := encore.CurrentRequest().PathParams().Get("id")
+    id := encore.CurrentRequest().PathParams.Get("id")
 	// ... Do something with id
  }
 ```
