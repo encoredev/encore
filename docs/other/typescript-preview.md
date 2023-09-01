@@ -11,11 +11,19 @@ Each API endpoint is a regular TypeScript async function that receives the reque
 Encore automatically handles the JSON parsing & validation of incoming HTTP requests, as well as serializing
 the response back to JSON for the HTTP response.
 
-Check out the example project below:
+Here's an example backend application written with Encore's TypeScript APIs, representing a simple uptime monitoring service:
 
 <div className="not-prose my-10">
    <Editor projectName="typescriptUptime" />
 </div>
+
+While the example clocks in at just over 200 lines of code, it contains 10 API endpoints across 3 backend services,
+two databases, two Pub/Sub topics & subscriptions, and a Cron Job. Check out the full architecture below:
+
+<img className="w-full h-auto" src="/assets/tutorials/uptime/encore-flow.png" title="Encore Flow" />
+
+[Check out Encore's Cloud Dashboard](https://app.encore.dev/uptime-7chi) for this application to understand
+what it looks like when the application is deployed to the cloud.
 
 ## API Endpoints
 
@@ -246,7 +254,7 @@ This often requires you to parse custom HTTP headers and do other low-level thin
 
 For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
 
-To define a raw endpoint, add `raw: true` to the `@endpoint` annotation options.
+To define a raw endpoint, add `raw: true` to the `APIEndpoint` options.
 This will cause the function to receive the raw HTTP request and response objects from Express instead of the parsed request and response data.
 
 For example:
