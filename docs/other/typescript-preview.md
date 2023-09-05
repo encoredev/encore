@@ -4,6 +4,9 @@ seodesc: Encore makes it easy to define fully type-safe, idiomatic APIs in TypeS
 title: TypeScript (Preview)
 subtitle: Your feedback is welcome!
 ---
+_This section shows how Encore's upcoming TypeScript support is intended to work and focuses only on TypeScript specifics. It does not contain full documentation on all Encore features. Please use [the complete Go docs](/docs) as a reference point for how Encore works generally._
+
+## Example backend application
 
 Encore makes it easy to define fully type-safe, idiomatic APIs in TypeScript.
 
@@ -25,7 +28,7 @@ two databases, two Pub/Sub topics & subscriptions, and a Cron Job. Check out the
 [Check out Encore's Cloud Dashboard](https://app.encore.dev/uptime-7chi) for this application to understand
 what it looks like when the application is deployed to the cloud.
 
-## API Endpoints
+## Defining API Endpoints
 
 Encore allows you to easily define type-safe, idiomatic TypeScript API endpoints.
 
@@ -244,8 +247,32 @@ Cloud Provider on deployment and delivered securely to the application at runtim
 
 ## Migrating to Encore
 
-Encore makes it easy to migrate existing Express applications to Encore, allowing you to gradually migrate
-your existing backend services to Encore with minimal effort.
+Encore makes it easy to migrate existing applications to Encore, as you can keep using your existing cloud account in AWS or GCP.
+In most cases, gradually migrating your existing backend services to Encore takes minimal effort.
+
+### Migrating using Fallback routes
+
+A common migration path is starting with an existing router and using Fallback routes that will be called if no other endpoint matches the request.
+
+Encore supports defining fallback routes using the syntax `path: "/!fallback"`.
+
+This is often useful when migrating an existing Express backend service over to Encore, as it allows you to gradually
+migrate endpoints over to Encore while routing the remaining endpoints to the existing HTTP router using a raw endpoint (see below) with a fallback route.
+
+For example:
+
+```typescript
+import * as express from "express";
+
+const oldRouter = express.Router()
+
+export const Fallback = APIEndpoint(
+  {raw: true, path: "/!fallback"},
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    oldRouter(req, res, next);
+  }
+);
+```
 
 ### Raw endpoints
 
@@ -271,28 +298,4 @@ export const MyRawEndpoint = APIEndpoint(
 ```shell
 $ curl 'http://localhost:4000/raw'
 Hello, raw world!
-```
-
-### Fallback routes
-
-Encore supports defining fallback routes that will be called if no other endpoint matches the request,
-using the syntax `path: "/!fallback"`.
-
-This is often useful when migrating an existing Express backend service over to Encore, as it allows you to gradually
-migrate endpoints over to Encore while routing the remaining endpoints to the existing HTTP router using
-a raw endpoint with a fallback route.
-
-For example:
-
-```typescript
-import * as express from "express";
-
-const oldRouter = express.Router()
-
-export const Fallback = APIEndpoint(
-  {raw: true, path: "/!fallback"},
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    oldRouter(req, res, next);
-  }
-);
 ```
