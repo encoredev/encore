@@ -64,6 +64,11 @@
         "DocSlug": "tutorials/slack-bot"
       },
       {
+        "Path": "/tutorials/meeting-notes",
+        "Title": "Building a Meeting Notes app",
+        "DocSlug": "tutorials/meeting-notes"
+      },
+      {
         "Path": "/tutorials/incident-management-tool",
         "Title": "",
         "DocSlug": "tutorials/incident-management-tool"
