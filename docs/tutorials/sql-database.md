@@ -51,7 +51,7 @@ func generateGreeting(ctx context.Context, name string) (string, error) {
 }
 ```
 
-Run your app with `encore run` and then open the local development dashboard by visiting [http://localhost:4000](http://localhost:4000) in your browser.
+Run your app with `encore run` and then open the local development dashboard by visiting [http://localhost:9400](http://localhost:9400) in your browser.
 
 Navigate to the API Documentation by clicking **API** in the top left.
 There you'll see your new `hello.There` endpoint.

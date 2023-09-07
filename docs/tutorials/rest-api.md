@@ -77,7 +77,7 @@ You should see this:
 
 ```bash
 API Base URL:      http://localhost:4000
-Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
+Dev Dashboard URL: http://localhost:9400/hello-world-cgu2
 4:19PM INF registered endpoint path=/url service=url endpoint=Shorten
 ```
 
