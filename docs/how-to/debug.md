@@ -18,7 +18,7 @@ Next, run your Encore application with `encore run --debug`. This will cause Enc
 ```shell
 $ encore run --debug
 API Base URL:      http://localhost:4000
-Dev Dashboard URL: http://localhost:62709/hello-world-cgu2
+Dev Dashboard URL: http://localhost:9400/hello-world-cgu2
 Process ID:        51894
 1:48PM INF registered endpoint path=/hello/:name service=hello endpoint=Hello
 ```
