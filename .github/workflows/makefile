@@ -53,7 +53,7 @@ ineffassign: $(ALL_SRC)
 	$(call run_for_each_module,ineffassign,./... 2>&1)
 
 semgrep: $(ALL_SRC)
-	@cd $(REPO_DIR) && semgrep scan --quiet --oss-only --config=auto --config=$(SEMGREP_DIR) --json | jq -f "$(REPO_DIR)/.github/workflows/semgrep-to-rdjson.jq" -c
+	@cd $(REPO_DIR) && semgrep scan --quiet --config=auto --config=$(SEMGREP_DIR) --json | jq -f "$(REPO_DIR)/.github/workflows/semgrep-to-rdjson.jq" -c
 
 go-fmt: $(ALL_SRC)
 	@cd $(REPO_DIR) && gofmt -s -d . || exit 0

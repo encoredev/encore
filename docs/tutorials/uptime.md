@@ -108,7 +108,7 @@ func Ping(ctx context.Context, url string) (*PingResponse, error) {
 
 🥐 Let's try it! Make sure you have [Docker](https://docker.com) installed and running, then run `encore run`
 in your terminal and you should see the service start up.
-Then open up the Encore Development Dashboard running at <http://localhost:4000> and try calling
+Then open up the Encore Development Dashboard running at <http://localhost:9400> and try calling
 the `monitor.Ping` endpoint, passing in `google.com` as the URL.
 
 If you prefer to use the terminal instead run `curl http://localhost:4000/ping/google.com` in

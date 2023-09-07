@@ -44,6 +44,30 @@ Check out these tutorials to learn how to build with Encore and find inspiration
             </div>
         </div>
     </a>
+    <a className="block group relative no-brandient" href="/docs/tutorials/meeting-notes">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/meeting-notes/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">Meeting Notes</h3>
+                <p className="mt-2">Set up web app backend (with database) in less than 100 lines of code.</p>
+            </div>
+        </div>
+    </a>
+    <a className="block group relative no-brandient" href="/docs/tutorials/graphql">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/graphql/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">Building a GraphQL API</h3>
+                <p className="mt-2">Learn how to build a GraphQL API using Go and Encore.</p>
+            </div>
+        </div>
+    </a>
     <a className="block group relative no-brandient" href="/docs/tutorials/incident-management-tool">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
         <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
