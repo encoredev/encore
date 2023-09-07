@@ -47,8 +47,9 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	switch r.Method() {
 	case "list-apps":
 		type app struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			AppRoot string `json:"app_root"`
 		}
 		runs := h.run.ListRuns()
 		apps := []app{} // prevent marshalling as null
@@ -61,7 +62,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			}
 			if !seen[id] {
 				seen[id] = true
-				apps = append(apps, app{ID: id, Name: name})
+				apps = append(apps, app{ID: id, Name: name, AppRoot: r.App.Root()})
 			}
 		}
 		return reply(ctx, apps, nil)
@@ -143,6 +144,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			"meta":        json.RawMessage(str),
 			"addr":        run.ListenAddr,
 			"apiEncoding": apiEnc,
+			"appRoot":     run.App.Root(),
 		}, nil)
 
 	case "api-call":
