@@ -21,7 +21,9 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/jsonrpc2"
+	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/editors"
 	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/fns"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
@@ -45,6 +47,19 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	}
 
 	switch r.Method() {
+	case "version":
+		type versionResp struct {
+			Version string `json:"version"`
+			Channel string `json:"channel"`
+		}
+
+		rtn := versionResp{
+			Version: version.Version,
+			Channel: string(version.Channel),
+		}
+
+		return reply(ctx, rtn, nil)
+
 	case "list-apps":
 		type app struct {
 			ID      string `json:"id"`
@@ -173,6 +188,46 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 		return reply(ctx, sourceContextResponse{Lines: lines, Start: start}, nil)
+
+	case "editors/list":
+		var resp struct {
+			Editors []string `json:"editors"`
+		}
+
+		found, err := editors.Resolve(ctx)
+		if err != nil {
+			log.Err(err).Msg("dash: could not list editors")
+			return reply(ctx, nil, err)
+		}
+
+		for _, e := range found {
+			resp.Editors = append(resp.Editors, e.Editor)
+		}
+		return reply(ctx, resp, nil)
+
+	case "editors/open":
+		var params struct {
+			Editor string `json:"editor"`
+			File   string `json:"file"`
+			Line   int    `json:"line,omitempty"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+
+		editor, err := editors.Find(ctx, params.Editor)
+		if err != nil {
+			log.Err(err).Str("editor", params.Editor).Msg("dash: could not find editor")
+			return reply(ctx, nil, err)
+		}
+
+		if err := editors.LaunchExternalEditor(params.File, editor); err != nil {
+			log.Err(err).Str("editor", params.Editor).Msg("dash: could not open file")
+			return reply(ctx, nil, err)
+		}
+
+		type openResp struct{}
+		return reply(ctx, openResp{}, nil)
 	}
 
 	return jsonrpc2.MethodNotFound(ctx, reply, r)
