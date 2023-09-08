@@ -207,11 +207,16 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 	case "editors/open":
 		var params struct {
-			Editor string `json:"editor"`
-			File   string `json:"file"`
-			Line   int    `json:"line,omitempty"`
+			AppID     string `json:"app_id"`
+			Editor    string `json:"editor"`
+			File      string `json:"file"`
+			StartLine int    `json:"start_line,omitempty"`
+			StartCol  int    `json:"start_col,omitempty"`
+			EndLine   int    `json:"end_line,omitempty"`
+			EndCol    int    `json:"end_col,omitempty"`
 		}
 		if err := unmarshal(&params); err != nil {
+			log.Warn().Err(err).Msg("dash: could not parse open command")
 			return reply(ctx, nil, err)
 		}
 
@@ -221,13 +226,23 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 
-		if err := editors.LaunchExternalEditor(params.File, editor); err != nil {
-			log.Err(err).Str("editor", params.Editor).Msg("dash: could not open file")
-			return reply(ctx, nil, err)
+		runs := h.run.ListRuns()
+		for _, r := range runs {
+			if r.App.PlatformOrLocalID() == params.AppID {
+				params.File = filepath.Join(r.App.Root(), params.File)
+
+				if err := editors.LaunchExternalEditor(params.File, params.StartLine, params.StartCol, editor); err != nil {
+					log.Err(err).Str("editor", params.Editor).Msg("dash: could not open file")
+					return reply(ctx, nil, err)
+				}
+
+				type openResp struct{}
+				return reply(ctx, openResp{}, nil)
+			}
 		}
 
-		type openResp struct{}
-		return reply(ctx, openResp{}, nil)
+		log.Warn().Str("app_id", params.AppID).Msg("dash: could not find app")
+		return reply(ctx, nil, fmt.Errorf("could not find app"))
 	}
 
 	return jsonrpc2.MethodNotFound(ctx, reply, r)

@@ -3,6 +3,7 @@ package editors
 import (
 	"context"
 	goerrors "errors"
+	"sort"
 	"strings"
 	"sync"
 
@@ -42,6 +43,10 @@ func Resolve(ctx context.Context) ([]FoundEditor, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to get available editors")
 		}
+
+		sort.Slice(editorCache, func(i, j int) bool {
+			return editorCache[i].Editor < editorCache[j].Editor
+		})
 	}
 
 	return editorCache, nil
