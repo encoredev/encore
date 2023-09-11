@@ -15,7 +15,7 @@ import (
 // DarwinExternalEditor represents an external editor on macOS
 type DarwinExternalEditor struct {
 	// Name of the editor. It will be used both as identifier and user-facing.
-	Name string
+	Name EditorName
 
 	// List of bundle identifiers that are used by the app in its multiple versions.
 	BundleIdentifiers []string
@@ -25,39 +25,39 @@ type DarwinExternalEditor struct {
 // entry here to add support for your favorite editor.
 var editors = []DarwinExternalEditor{
 	{
-		Name:              "Atom",
+		Name:              Atom,
 		BundleIdentifiers: []string{"com.github.atom"},
 	},
 	{
-		Name:              "Aptana Studio",
+		Name:              AptanaStudio,
 		BundleIdentifiers: []string{"aptana.studio"},
 	},
 	{
-		Name:              "MacVim",
+		Name:              MacVim,
 		BundleIdentifiers: []string{"org.vim.MacVim"},
 	},
 	{
-		Name:              "Neovide",
+		Name:              Neovide,
 		BundleIdentifiers: []string{"com.neovide.neovide"},
 	},
 	{
-		Name:              "VimR",
+		Name:              VimR,
 		BundleIdentifiers: []string{"com.qvacua.VimR"},
 	},
 	{
-		Name:              "Visual Studio Code",
+		Name:              VSCode,
 		BundleIdentifiers: []string{"com.microsoft.VSCode"},
 	},
 	{
-		Name:              "Visual Studio Code (Insiders)",
+		Name:              VSCodeInsiders,
 		BundleIdentifiers: []string{"com.microsoft.VSCodeInsiders"},
 	},
 	{
-		Name:              "VSCodium",
+		Name:              VSCodium,
 		BundleIdentifiers: []string{"com.visualstudio.code.oss", "com.vscodium"},
 	},
 	{
-		Name: "Sublime Text",
+		Name: SublimeText,
 		BundleIdentifiers: []string{
 			"com.sublimetext.4",
 			"com.sublimetext.3",
@@ -65,59 +65,59 @@ var editors = []DarwinExternalEditor{
 		},
 	},
 	{
-		Name:              "BBEdit",
+		Name:              BBEdit,
 		BundleIdentifiers: []string{"com.barebones.bbedit"},
 	},
 	{
-		Name:              "PhpStorm",
+		Name:              JetbrainsPhpStorm,
 		BundleIdentifiers: []string{"com.jetbrains.PhpStorm"},
 	},
 	{
-		Name:              "PyCharm",
+		Name:              JetbrainsPyCharm,
 		BundleIdentifiers: []string{"com.jetbrains.PyCharm"},
 	},
 	{
-		Name:              "PyCharm Community Edition",
+		Name:              JetbrainsPyCharmCE,
 		BundleIdentifiers: []string{"com.jetbrains.pycharm.ce"},
 	},
 	{
-		Name:              "DataSpell",
+		Name:              JetbrainsDataSpell,
 		BundleIdentifiers: []string{"com.jetbrains.DataSpell"},
 	},
 	{
-		Name:              "RubyMine",
+		Name:              JetbrainsRubyMine,
 		BundleIdentifiers: []string{"com.jetbrains.RubyMine"},
 	},
 	{
-		Name:              "RStudio",
+		Name:              RStudio,
 		BundleIdentifiers: []string{"org.rstudio.RStudio", "com.rstudio.desktop"},
 	},
 	{
-		Name:              "TextMate",
+		Name:              TextMate,
 		BundleIdentifiers: []string{"com.macromates.TextMate"},
 	},
 	{
-		Name:              "Brackets",
+		Name:              Brackets,
 		BundleIdentifiers: []string{"io.brackets.appshell"},
 	},
 	{
-		Name:              "WebStorm",
+		Name:              JetbrainsWebStorm,
 		BundleIdentifiers: []string{"com.jetbrains.WebStorm"},
 	},
 	{
-		Name:              "CLion",
+		Name:              JetbrainsCLion,
 		BundleIdentifiers: []string{"com.jetbrains.CLion"},
 	},
 	{
-		Name:              "Typora",
+		Name:              Typora,
 		BundleIdentifiers: []string{"abnerworks.Typora"},
 	},
 	{
-		Name:              "CodeRunner",
+		Name:              CodeRunner,
 		BundleIdentifiers: []string{"com.krill.CodeRunner"},
 	},
 	{
-		Name: "SlickEdit",
+		Name: SlickEdit,
 		BundleIdentifiers: []string{
 			"com.slickedit.SlickEditPro2018",
 			"com.slickedit.SlickEditPro2017",
@@ -126,55 +126,55 @@ var editors = []DarwinExternalEditor{
 		},
 	},
 	{
-		Name:              "IntelliJ",
+		Name:              JetbrainsIntelliJ,
 		BundleIdentifiers: []string{"com.jetbrains.intellij"},
 	},
 	{
-		Name:              "IntelliJ Community Edition",
+		Name:              JetbrainsIntelliJCE,
 		BundleIdentifiers: []string{"com.jetbrains.intellij.ce"},
 	},
 	{
-		Name:              "Xcode",
+		Name:              XCode,
 		BundleIdentifiers: []string{"com.apple.dt.Xcode"},
 	},
 	{
-		Name:              "GoLand",
+		Name:              JetbrainsGoLand,
 		BundleIdentifiers: []string{"com.jetbrains.goland"},
 	},
 	{
-		Name:              "Android Studio",
+		Name:              AndroidStudio,
 		BundleIdentifiers: []string{"com.google.android.studio"},
 	},
 	{
-		Name:              "Rider",
+		Name:              JetbrainsRider,
 		BundleIdentifiers: []string{"com.jetbrains.rider"},
 	},
 	{
-		Name:              "Nova",
+		Name:              Nova,
 		BundleIdentifiers: []string{"com.panic.Nova"},
 	},
 	{
-		Name:              "Emacs",
+		Name:              Emacs,
 		BundleIdentifiers: []string{"org.gnu.Emacs"},
 	},
 	{
-		Name:              "Lite XL",
+		Name:              LiteXL,
 		BundleIdentifiers: []string{"com.lite-xl"},
 	},
 	{
-		Name:              "Fleet",
+		Name:              JetbrainsFleet,
 		BundleIdentifiers: []string{"Fleet.app"},
 	},
 	{
-		Name:              "Pulsar",
+		Name:              Pulsar,
 		BundleIdentifiers: []string{"dev.pulsar-edit.pulsar"},
 	},
 	{
-		Name:              "Zed",
+		Name:              Zed,
 		BundleIdentifiers: []string{"dev.zed.Zed"},
 	},
 	{
-		Name:              "Zed (Preview)",
+		Name:              ZedPreview,
 		BundleIdentifiers: []string{"dev.zed.Zed-Preview"},
 	},
 }

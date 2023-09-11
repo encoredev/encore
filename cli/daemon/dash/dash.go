@@ -5,11 +5,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/tailscale/hujson"
 
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/browser"
@@ -25,15 +26,15 @@ import (
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/editors"
 	"encr.dev/pkg/errlist"
-	"encr.dev/pkg/fns"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 	v1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type handler struct {
-	rpc jsonrpc2.Conn
-	run *run.Manager
-	tr  trace2.Store
+	rpc  jsonrpc2.Conn
+	apps *apps.Manager
+	run  *run.Manager
+	tr   trace2.Store
 }
 
 func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
@@ -135,13 +136,35 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 
-		run := h.run.FindRunByAppID(params.AppID)
-		if run == nil {
-			return reply(ctx, map[string]interface{}{"running": false}, nil)
+		// Find the latest app by platform ID or local ID.
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			if errors.Is(err, apps.ErrNotFound) {
+				return reply(ctx, map[string]interface{}{"running": false}, nil)
+			} else {
+				return reply(ctx, nil, err)
+			}
 		}
-		proc := run.ProcGroup()
-		if proc == nil {
-			return reply(ctx, map[string]interface{}{"running": false}, nil)
+
+		type statusResponse struct {
+			Running     bool                  `json:"running"`
+			AppID       string                `json:"appID"`
+			PID         string                `json:"pid,omitempty"`
+			Meta        json.RawMessage       `json:"meta,omitempty"`
+			Addr        string                `json:"addr,omitempty"`
+			APIEncoding *encoding.APIEncoding `json:"apiEncoding,omitempty"`
+			AppRoot     string                `json:"appRoot"`
+		}
+
+		// Now find the running instance(s)
+		runInstance := h.run.FindRunByAppID(params.AppID)
+		proc := runInstance.ProcGroup()
+		if runInstance == nil || proc == nil {
+			return reply(ctx, statusResponse{
+				Running: false,
+				AppID:   app.PlatformOrLocalID(),
+				AppRoot: app.Root(),
+			}, nil)
 		}
 
 		m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
@@ -152,14 +175,14 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 
 		apiEnc := encoding.DescribeAPI(proc.Meta)
-		return reply(ctx, map[string]interface{}{
-			"running":     true,
-			"appID":       run.App.PlatformOrLocalID(),
-			"pid":         run.ID,
-			"meta":        json.RawMessage(str),
-			"addr":        run.ListenAddr,
-			"apiEncoding": apiEnc,
-			"appRoot":     run.App.Root(),
+		return reply(ctx, statusResponse{
+			Running:     true,
+			AppID:       app.PlatformOrLocalID(),
+			PID:         runInstance.ID,
+			Meta:        json.RawMessage(str),
+			Addr:        runInstance.ListenAddr,
+			APIEncoding: apiEnc,
+			AppRoot:     app.Root(),
 		}, nil)
 
 	case "api-call":
@@ -168,26 +191,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 		return h.apiCall(ctx, reply, &params)
-
-	case "source-context":
-		var params struct {
-			AppID string
-			File  string
-			Line  int
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		f, err := os.Open(params.File)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		defer fns.CloseIgnore(f)
-		lines, start, err := sourceContext(f, params.Line, 5)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		return reply(ctx, sourceContextResponse{Lines: lines, Start: start}, nil)
 
 	case "editors/list":
 		var resp struct {
@@ -201,19 +204,19 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 
 		for _, e := range found {
-			resp.Editors = append(resp.Editors, e.Editor)
+			resp.Editors = append(resp.Editors, string(e.Editor))
 		}
 		return reply(ctx, resp, nil)
 
 	case "editors/open":
 		var params struct {
-			AppID     string `json:"app_id"`
-			Editor    string `json:"editor"`
-			File      string `json:"file"`
-			StartLine int    `json:"start_line,omitempty"`
-			StartCol  int    `json:"start_col,omitempty"`
-			EndLine   int    `json:"end_line,omitempty"`
-			EndCol    int    `json:"end_col,omitempty"`
+			AppID     string             `json:"app_id"`
+			Editor    editors.EditorName `json:"editor"`
+			File      string             `json:"file"`
+			StartLine int                `json:"start_line,omitempty"`
+			StartCol  int                `json:"start_col,omitempty"`
+			EndLine   int                `json:"end_line,omitempty"`
+			EndCol    int                `json:"end_col,omitempty"`
 		}
 		if err := unmarshal(&params); err != nil {
 			log.Warn().Err(err).Msg("dash: could not parse open command")
@@ -222,27 +225,28 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 		editor, err := editors.Find(ctx, params.Editor)
 		if err != nil {
-			log.Err(err).Str("editor", params.Editor).Msg("dash: could not find editor")
+			log.Err(err).Str("editor", string(params.Editor)).Msg("dash: could not find editor")
 			return reply(ctx, nil, err)
 		}
 
-		runs := h.run.ListRuns()
-		for _, r := range runs {
-			if r.App.PlatformOrLocalID() == params.AppID {
-				params.File = filepath.Join(r.App.Root(), params.File)
-
-				if err := editors.LaunchExternalEditor(params.File, params.StartLine, params.StartCol, editor); err != nil {
-					log.Err(err).Str("editor", params.Editor).Msg("dash: could not open file")
-					return reply(ctx, nil, err)
-				}
-
-				type openResp struct{}
-				return reply(ctx, openResp{}, nil)
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			if errors.Is(err, apps.ErrNotFound) {
+				return reply(ctx, nil, fmt.Errorf("app not found, try running encore run"))
 			}
+			log.Err(err).Str("app_id", params.AppID).Msg("dash: could not find app")
+			return reply(ctx, nil, err)
 		}
 
-		log.Warn().Str("app_id", params.AppID).Msg("dash: could not find app")
-		return reply(ctx, nil, fmt.Errorf("could not find app"))
+		params.File = filepath.Join(app.Root(), params.File)
+
+		if err := editors.LaunchExternalEditor(params.File, params.StartLine, params.StartCol, editor); err != nil {
+			log.Err(err).Str("editor", string(params.Editor)).Msg("dash: could not open file")
+			return reply(ctx, nil, err)
+		}
+
+		type openResp struct{}
+		return reply(ctx, openResp{}, nil)
 	}
 
 	return jsonrpc2.MethodNotFound(ctx, reply, r)

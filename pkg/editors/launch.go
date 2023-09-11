@@ -9,6 +9,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
+
+	"encr.dev/pkg/xos"
 )
 
 // LaunchExternalEditor opens a given file or folder in the desired external editor.
@@ -22,7 +24,7 @@ func LaunchExternalEditor(fullPath string, startLine int, startCol int, editor F
 	// if supported by the IDE
 	toExecute, executeAsURL := convertFilePathToURLScheme(editor.Editor, fullPath, startLine, startCol)
 	if executeAsURL {
-		log.Info().Str("full_path", fullPath).Str("editor", editor.Editor).Str("url", toExecute).Msg("attempting to open file via URL")
+		log.Info().Str("full_path", fullPath).Str("editor", string(editor.Editor)).Str("url", toExecute).Msg("attempting to open file via URL")
 		if err := browser.OpenURL(toExecute); err == nil {
 			return nil
 		} else {
@@ -56,9 +58,9 @@ func LaunchExternalEditor(fullPath string, startLine int, startCol int, editor F
 	// Make sure the editor processes are detached from the Encore daemon.
 	// Otherwise, some editors (like Notepad++) will be killed when the
 	// Encore daemon shutsdown.
-	cmd.SysProcAttr = detachSysProcAttr()
+	cmd.SysProcAttr = xos.CreateNewProcessGroup()
 
-	log.Info().Str("full_path", fullPath).Str("editor", editor.Editor).Str("cmd", cmd.String()).Msg("attempting to open file")
+	log.Info().Str("full_path", fullPath).Str("editor", string(editor.Editor)).Str("cmd", cmd.String()).Msg("attempting to open file")
 
 	return errors.Wrap(cmd.Start(), "failed to start editor")
 }

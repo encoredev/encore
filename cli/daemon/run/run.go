@@ -186,7 +186,13 @@ type RunLogger interface {
 // ProcGroup returns the current running process.
 // It may have already exited.
 // If the proc has not yet started it may return nil.
+//
+// If run is nil then nil will be returned
 func (r *Run) ProcGroup() *ProcGroup {
+	if r == nil {
+		return nil
+	}
+
 	p, _ := r.proc.Load().(*ProcGroup)
 	return p
 }
