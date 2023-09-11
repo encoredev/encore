@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/cockroachdb/errors"
+	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,7 +20,19 @@ func LaunchExternalEditor(fullPath string, startLine int, startCol int, editor F
 
 	// Encore patch to allow opening to a specific line and column in the file
 	// if supported by the IDE
-	toExecute := convertFilePathToURLScheme(editor.Editor, fullPath, startLine, startCol)
+	toExecute, executeAsURL := convertFilePathToURLScheme(editor.Editor, fullPath, startLine, startCol)
+	if executeAsURL {
+		log.Info().Str("full_path", fullPath).Str("editor", editor.Editor).Str("url", toExecute).Msg("attempting to open file via URL")
+		if err := browser.OpenURL(toExecute); err == nil {
+			return nil
+		} else {
+			log.Warn().Err(err).Str("url", toExecute).Msg("failed to open URL, falling back to file appraoch")
+			// If the URL scheme failed to open, then we'll just open the file normally
+			toExecute = fullPath
+		}
+	} else if toExecute == "" {
+		toExecute = fullPath
+	}
 
 	var cmd *exec.Cmd
 
