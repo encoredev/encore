@@ -43,10 +43,10 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/daemon/sqldb/external"
-	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/conf"
 	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/watcher"
+	"encr.dev/pkg/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -239,7 +239,7 @@ func (d *Daemon) serveDBProxy() {
 
 func (d *Daemon) serveDash() {
 	log.Info().Stringer("addr", d.Dash.Addr()).Msg("serving dash")
-	srv := dash.NewServer(d.RunMgr, d.Trace, d.Dash.Port())
+	srv := dash.NewServer(d.Apps, d.RunMgr, d.Trace, d.Dash.Port())
 	d.exit <- http.Serve(d.Dash, srv)
 }
 

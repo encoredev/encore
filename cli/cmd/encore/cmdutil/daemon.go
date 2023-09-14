@@ -15,8 +15,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -55,7 +55,7 @@ func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
 			}
 		}
 		// Remove the socket file which triggers the daemon to exit.
-		os.Remove(socketPath)
+		_ = os.Remove(socketPath)
 	}
 
 	// Start the daemon.
@@ -95,6 +95,7 @@ func StartDaemonInBackground(ctx context.Context) error {
 		return err
 	}
 
+	// nosemgrep
 	exe, err := os.Executable()
 	if err != nil {
 		exe, err = exec.LookPath("encore")
@@ -102,6 +103,7 @@ func StartDaemonInBackground(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not determine location of encore executable: %v", err)
 	}
+	// nosemgrep
 	cmd := exec.Command(exe, "daemon", "-f")
 	cmd.SysProcAttr = xos.CreateNewProcessGroup()
 	if err := cmd.Start(); err != nil {
