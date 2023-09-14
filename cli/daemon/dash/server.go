@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/dash/dashproxy"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
@@ -25,7 +26,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewServer starts a new server and returns it.
-func NewServer(runMgr *run.Manager, tr trace2.Store, dashPort int) *Server {
+func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dashPort int) *Server {
 	proxy, err := dashproxy.New(conf.DevDashURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not create dash proxy")
@@ -33,6 +34,7 @@ func NewServer(runMgr *run.Manager, tr trace2.Store, dashPort int) *Server {
 
 	s := &Server{
 		proxy:    proxy,
+		apps:     appsMgr,
 		run:      runMgr,
 		tr:       tr,
 		dashPort: dashPort,
@@ -49,6 +51,7 @@ func NewServer(runMgr *run.Manager, tr trace2.Store, dashPort int) *Server {
 // Server is the http.Handler for serving the developer dashboard.
 type Server struct {
 	proxy    *httputil.ReverseProxy
+	apps     *apps.Manager
 	run      *run.Manager
 	tr       trace2.Store
 	dashPort int
@@ -79,7 +82,7 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 
 	stream := &wsStream{c: c}
 	conn := jsonrpc2.NewConn(stream)
-	handler := &handler{rpc: conn, run: s.run, tr: s.tr}
+	handler := &handler{rpc: conn, apps: s.apps, run: s.run, tr: s.tr}
 	conn.Go(req.Context(), handler.Handle)
 
 	ch := make(chan *notification, 20)
