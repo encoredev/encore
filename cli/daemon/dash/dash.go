@@ -238,6 +238,10 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 
+		if !filepath.IsLocal(params.File) {
+			log.Warn().Str("file", params.File).Msg("dash: file was not local to the repo")
+			return reply(ctx, nil, errors.New("file path must be local"))
+		}
 		params.File = filepath.Join(app.Root(), params.File)
 
 		if err := editors.LaunchExternalEditor(params.File, params.StartLine, params.StartCol, editor); err != nil {
