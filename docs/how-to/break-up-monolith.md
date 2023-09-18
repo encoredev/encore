@@ -1,7 +1,7 @@
 ---
-seotitle: Break up a monolith into microservices
+seotitle: Break a monolith into microservices
 seodesc: Learn how to quickly break up your backend monolith into microservices using Encore, while avoiding the common pitfalls.
-title: Break up a monolith into microservices
+title: Break a monolith into microservices
 subtitle: Evolving your architecture as needed
 ---
 
