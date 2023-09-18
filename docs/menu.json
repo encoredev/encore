@@ -351,6 +351,11 @@
     "Title": "How to",
     "Children": [
       {
+        "Path": "/how-to/break-up-monolith",
+        "Title": "Break a monolith into microservices",
+        "DocSlug": "how-to/break-up-monolith"
+      },
+      {
         "Path": "/how-to/cgo",
         "Title": "Build with cgo",
         "DocSlug": "how-to/cgo"
