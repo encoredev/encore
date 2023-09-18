@@ -57,4 +57,4 @@ that defines them.
 ────╯
 
 For more information on service structs, see
-https://encore.dev/docs/primitives/services-and-apis#service-structs
+https://encore.dev/docs/primitives/services-and-apis/service-structs

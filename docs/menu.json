@@ -9,11 +9,6 @@
         "DocSlug": "index"
       },
       {
-        "Path": "/install",
-        "Title": "Installation",
-        "DocSlug": "install"
-      },
-      {
         "Path": "/introduction",
         "Title": "What is Encore?",
         "DocSlug": "introduction",
@@ -22,6 +17,11 @@
           "/application-model",
           "/encore-way"
         ]
+      },
+      {
+        "Path": "/install",
+        "Title": "Installation",
+        "DocSlug": "install"
       },
       {
         "Path": "/quick-start",
@@ -90,6 +90,28 @@
         "DocSlug": "primitives/services-and-apis",
         "OldPaths": [
           "/develop/services-and-apis"
+        ],
+        "Children": [
+          {
+            "Path": "/develop/app-structure",
+            "Title": "App Structure",
+            "DocSlug": "develop/app-structure"
+          },
+          {
+            "Path": "/develop/api-schemas",
+            "Title": "API Schemas",
+            "DocSlug": "develop/api-schemas"
+          },
+          {
+            "Path": "/develop/errors",
+            "Title": "API Errors",
+            "DocSlug": "develop/errors"
+          },
+          {
+            "Path": "/primitives/services-and-apis/service-structs",
+            "Title": "Service Structs",
+            "DocSlug": "primitives/service-structs"
+          }
         ]
       },
       {
@@ -101,6 +123,26 @@
           "/develop/sql-database"
         ],
         "Children": [
+          {
+            "Path": "/how-to/change-db-schema",
+            "Title": "Change SQL database schema",
+            "DocSlug": "how-to/change-db-schema"
+          },
+          {
+            "Path": "/how-to/connect-existing-db",
+            "Title": "Connect to an existing database",
+            "DocSlug": "how-to/connect-existing-db"
+          },
+          {
+            "Path": "/how-to/insert-test-data-db",
+            "Title": "Insert test data in a database",
+            "DocSlug": "how-to/insert-test-data-db"
+          },
+          {
+            "Path": "/how-to/share-db-between-services",
+            "Title": "Share SQL databases between services",
+            "DocSlug": "how-to/share-db-between-services"
+          },
           {
             "Path": "/primitives/databases/extensions",
             "Title": "PostgreSQL Extensions",
@@ -156,59 +198,9 @@
     "Title": "Develop",
     "Children": [
       {
-        "Path": "/develop/app-structure",
-        "Title": "App Structure",
-        "DocSlug": "develop/app-structure"
-      },
-      {
-        "Path": "/develop/api-schemas",
-        "Title": "API Schemas",
-        "DocSlug": "develop/api-schemas"
-      },
-      {
-        "Path": "/develop/errors",
-        "Title": "API Errors",
-        "DocSlug": "develop/errors"
-      },
-      {
         "Path": "/develop/auth",
         "Title": "Authentication",
         "DocSlug": "develop/auth"
-      },
-      {
-        "Path": "/develop/config",
-        "Title": "Configuration",
-        "DocSlug": "develop/config"
-      },
-      {
-        "Path": "/develop/metadata",
-        "Title": "Metadata",
-        "DocSlug": "develop/metadata"
-      },
-      {
-        "Path": "/develop/cors",
-        "Title": "CORS",
-        "DocSlug": "develop/cors"
-      },
-      {
-        "Path": "/develop/testing",
-        "Title": "Testing",
-        "DocSlug": "develop/testing"
-      },
-      {
-        "Path": "/develop/middleware",
-        "Title": "Middleware",
-        "DocSlug": "develop/middleware"
-      },
-      {
-        "Path": "/develop/validation",
-        "Title": "Validation",
-        "DocSlug": "develop/validation"
-      },
-      {
-        "Path": "/develop/api-docs",
-        "Title": "Service Catalog",
-        "DocSlug": "develop/api-docs"
       },
       {
         "Path": "/develop/client-generation",
@@ -216,22 +208,49 @@
         "DocSlug": "develop/client-generation"
       },
       {
+        "Path": "/develop/cli-reference",
+        "Title": "CLI Reference",
+        "DocSlug": "develop/cli-reference"
+      },
+      {
+        "Path": "/develop/config",
+        "Title": "Configuration",
+        "DocSlug": "develop/config"
+      },
+      {
+        "Path": "/develop/cors",
+        "Title": "CORS",
+        "DocSlug": "develop/cors"
+      },
+      {
         "Path": "/develop/infra-namespaces",
         "Title": "Infra Namespaces",
         "DocSlug": "develop/infra-namespaces"
       },
       {
-        "Path": "/develop/auth-keys",
-        "Title": "Auth Keys",
-        "DocSlug": "develop/auth-keys",
-        "OldPaths": [
-          "/configuration/auth-keys"
-        ]
+        "Path": "/develop/metadata",
+        "Title": "Metadata",
+        "DocSlug": "develop/metadata"
       },
       {
-        "Path": "/develop/cli-reference",
-        "Title": "CLI Reference",
-        "DocSlug": "develop/cli-reference"
+        "Path": "/develop/middleware",
+        "Title": "Middleware",
+        "DocSlug": "develop/middleware"
+      },
+      {
+        "Path": "/develop/api-docs",
+        "Title": "Service Catalog",
+        "DocSlug": "develop/api-docs"
+      },
+      {
+        "Path": "/develop/testing",
+        "Title": "Testing",
+        "DocSlug": "develop/testing"
+      },
+      {
+        "Path": "/develop/validation",
+        "Title": "Validation",
+        "DocSlug": "develop/validation"
       }
     ]
   },
@@ -245,6 +264,11 @@
         "DocSlug": "deploy/deploying"
       },
       {
+        "Path": "/deploy/environments",
+        "Title": "Environments",
+        "DocSlug": "deploy/environments"
+      },
+      {
         "Path": "/deploy/infra",
         "Title": "Infrastructure provisioning",
         "DocSlug": "deploy/infra",
@@ -252,11 +276,6 @@
           "/deploy/scaling",
           "/concepts/scaling"
         ]
-      },
-      {
-        "Path": "/deploy/environments",
-        "Title": "Environments",
-        "DocSlug": "deploy/environments"
       },
       {
         "Path": "/deploy/preview-environments",
@@ -267,6 +286,11 @@
         "Path": "/deploy/own-cloud",
         "Title": "Connect your cloud account",
         "DocSlug": "deploy/own-cloud"
+      },
+      {
+        "Path": "/how-to/import-kubernetes-cluster",
+        "Title": "Import your Kubernetes cluster",
+        "DocSlug": "how-to/import-kubernetes-cluster"
       },
       {
         "Path": "/deploy/custom-domains",
@@ -295,6 +319,11 @@
         "DocSlug": "observability/dev-dash"
       },
       {
+        "Path": "/observability/tracing",
+        "Title": "Distributed Tracing",
+        "DocSlug": "observability/tracing"
+      },
+      {
         "Path": "/observability/encore-flow",
         "Title": "Flow Architecture Diagram",
         "DocSlug": "observability/encore-flow",
@@ -314,11 +343,6 @@
         "OldPaths": [
           "/observability/monitoring"
         ]
-      },
-      {
-        "Path": "/observability/tracing",
-        "Title": "Distributed Tracing",
-        "DocSlug": "observability/tracing"
       }
     ]
   },
@@ -326,14 +350,6 @@
     "Path": "",
     "Title": "How to",
     "Children": [
-      {
-        "Path": "/how-to/http-requests",
-        "Title": "Receive regular HTTP requests",
-        "DocSlug": "how-to/http-requests",
-        "OldPaths": [
-          "how-to/webhooks"
-        ]
-      },
       {
         "Path": "/how-to/cgo",
         "Title": "Build with cgo",
@@ -345,34 +361,35 @@
         "DocSlug": "how-to/debug"
       },
       {
+        "Path": "/develop/auth-keys",
+        "Title": "Generate Auth Keys",
+        "DocSlug": "develop/auth-keys",
+        "OldPaths": [
+          "/configuration/auth-keys"
+        ]
+      },
+      {
+        "Path": "/how-to/github",
+        "Title": "Integrate with GitHub",
+        "DocSlug": "how-to/github"
+      },
+      {
+        "Path": "/how-to/integrate-frontend",
+        "Title": "Integrate with a web frontend",
+        "DocSlug": "how-to/integrate-frontend"
+      },
+      {
+        "Path": "/how-to/http-requests",
+        "Title": "Receive regular HTTP requests",
+        "DocSlug": "how-to/http-requests",
+        "OldPaths": [
+          "how-to/webhooks"
+        ]
+      },
+      {
         "Path": "/how-to/temporal",
         "Title": "Use Temporal with Encore",
         "DocSlug": "how-to/temporal"
-      },
-      {
-        "Path": "/how-to/import-kubernetes-cluster",
-        "Title": "Import an existing Kubernetes cluster",
-        "DocSlug": "how-to/import-kubernetes-cluster"
-      },
-      {
-        "Path": "/how-to/change-db-schema",
-        "Title": "Change SQL database schema",
-        "DocSlug": "how-to/change-db-schema"
-      },
-      {
-        "Path": "/how-to/connect-existing-db",
-        "Title": "Connect to an existing database",
-        "DocSlug": "how-to/connect-existing-db"
-      },
-      {
-        "Path": "/how-to/share-db-between-services",
-        "Title": "Share SQL databases between services",
-        "DocSlug": "how-to/share-db-between-services"
-      },
-      {
-        "Path": "/how-to/insert-test-data-db",
-        "Title": "Insert test data in a database",
-        "DocSlug": "how-to/insert-test-data-db"
       },
       {
         "Path": "/how-to/atlas-gorm",
@@ -390,19 +407,9 @@
         "DocSlug": "how-to/dependency-injection"
       },
       {
-        "Path": "/how-to/integrate-frontend",
-        "Title": "Integrate with a web frontend",
-        "DocSlug": "how-to/integrate-frontend"
-      },
-      {
         "Path": "/how-to/firebase-auth",
         "Title": "Use Firebase Authentication",
         "DocSlug": "how-to/firebase-auth"
-      },
-      {
-        "Path": "/how-to/github",
-        "Title": "Integrate with GitHub",
-        "DocSlug": "how-to/github"
       },
       {
         "Path": "/how-to/migrate-to-encore",
@@ -421,11 +428,6 @@
     "Title": "Other Topics",
     "Children": [
       {
-        "Path": "/other/vs-terraform",
-        "Title": "Encore vs. Terraform / Pulumi",
-        "DocSlug": "other/vs-terraform"
-      },
-      {
         "Path": "/other/vs-heroku",
         "Title": "Encore vs. Heroku",
         "DocSlug": "other/vs-heroku"
@@ -434,6 +436,11 @@
         "Path": "/other/vs-supabase",
         "Title": "Encore vs. Supabase / Firebase",
         "DocSlug": "other/vs-supabase"
+      },
+      {
+        "Path": "/other/vs-terraform",
+        "Title": "Encore vs. Terraform / Pulumi",
+        "DocSlug": "other/vs-terraform"
       },
       {
         "Path": "/other/typescript-preview",
@@ -447,24 +454,24 @@
     "Title": "Community",
     "Children": [
       {
-        "Path": "/community",
-        "Title": "Get involved",
-        "DocSlug": "community/index"
-      },
-      {
         "Path": "/community/contribute",
         "Title": "Contribute",
         "DocSlug": "community/contribute"
       },
       {
-        "Path": "/community/principles",
-        "Title": "Principles",
-        "DocSlug": "community/principles"
+        "Path": "/community",
+        "Title": "Get involved",
+        "DocSlug": "community/index"
       },
       {
         "Path": "/community/open-source",
         "Title": "Open Source",
         "DocSlug": "community/open-source"
+      },
+      {
+        "Path": "/community/principles",
+        "Title": "Principles",
+        "DocSlug": "community/principles"
       }
     ]
   },
@@ -472,6 +479,16 @@
     "Path": "",
     "Title": "About",
     "Children": [
+      {
+        "Path": "/about/compliance",
+        "Title": "Compliance & Security",
+        "DocSlug": "about/compliance"
+      },
+      {
+        "Path": "/about/billing",
+        "Title": "Plans & billing",
+        "DocSlug": "about/billing"
+      },
       {
         "Path": "/about/permissions",
         "Title": "Roles & Permissions",
@@ -481,16 +498,6 @@
         "Path": "/about/usage",
         "Title": "Usage limits",
         "DocSlug": "about/usage"
-      },
-      {
-        "Path": "/about/billing",
-        "Title": "Plans & billing",
-        "DocSlug": "about/billing"
-      },
-      {
-        "Path": "/about/compliance",
-        "Title": "Compliance & Security",
-        "DocSlug": "about/compliance"
       }
     ]
   }
