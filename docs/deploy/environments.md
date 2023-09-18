@@ -15,14 +15,15 @@ Environments always stay in sync, as they are created based on the needs of your
 To create an environment for your app, open your app in the [Cloud Dashboard](https://app.encore.dev) and go to the **Environments** page,
 then click on `Create env` in the top right.
 
-There you can pick a name, and decide if you want a production
-or development environment (see [Environment Types](#environment-types) below).
+There you can pick a name, and decide if you want a **production**
+or **development environment** (see [Environment Types](#environment-types) below).
 
-Choose how you would like to deploy to the environment (either by pushing
-to a Git branch or manually triggered), and whether or not you want to manually approve infrastructure provisioning or simply let Encore handle it.
+You can also choose how you would like to **trigger deploys** for the environment (either by pushing
+to a Git branch or manually), and if you want to **manually approve infrastructure changes**.
 
-Finally, select which cloud provider you want to deploy to (see the [Cloud Providers](/docs/deploy/own-cloud) documentation to learn more),
-and click `Create`. That's it!
+Finally, select which **cloud provider** you want to deploy to (see the [Cloud Providers](/docs/deploy/own-cloud) documentation to learn more) and decide which type of **process allocation** you want: should all services be deployed to one process or separately?
+
+Click `Create` and you're done!
 
 ![Creating an environment](/assets/docs/createenv.png "Creating an environment")
 
@@ -64,3 +65,13 @@ for the new backend API using `encore gen client --env=pr:72 --lang=typescript m
 ## Cloud environments
 
 Encore makes it simple to create multiple cloud environments using different cloud providers, by [connecting your cloud account](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
+
+## Process Allocation
+
+Just because you want to deploy each service separately in some environments, doesn't mean you want to do it in all environments.
+
+Handily, Encore lets you decide how you want to deploy your services for each environment. You don't need to change a single line of code.
+
+When you create an environment, you can decide which process allocation you want for that environment.
+
+<img src="/assets/docs/microservices-process-allocation.png" title="Microservices - Process Allocation" />

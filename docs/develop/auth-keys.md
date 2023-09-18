@@ -1,7 +1,7 @@
 ---
 seotitle: Auth Keys let you authenticate without a browser
 seodesc: Learn how to use pre-authentication keys to authenticate without needing to sign in via a web browser. See how to setup reusable and ephemeral auth keys.
-title: Auth Keys
+title: Generating Auth Keys
 ---
 
 Pre-authentication keys (“auth keys” for short) let you authenticate the Encore CLI without needing to sign in via a web browser. This is most useful when setting up CI/CD pipelines.

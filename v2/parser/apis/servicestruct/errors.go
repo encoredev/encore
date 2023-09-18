@@ -7,7 +7,7 @@ import (
 var (
 	errRange = errors.Range(
 		"servicestruct",
-		"For more information on service structs, see https://encore.dev/docs/primitives/services-and-apis#service-structs",
+		"For more information on service structs, see https://encore.dev/docs/primitives/services-and-apis/service-structs",
 
 		errors.WithRangeSize(20),
 	)

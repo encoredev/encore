@@ -85,14 +85,6 @@ CREATE TABLE todo_item (
 );
 ```
 
-### Reusing a database across services
-
-To connect to a database from another service, use `sqldb.Named`:
-
-```go
-var tododb = sqldb.Named("todo")
-```
-
 ## Provisioning databases
 
 Encore automatically provisions databases to match what your application requires.

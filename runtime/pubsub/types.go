@@ -42,7 +42,7 @@ type SubscriptionConfig[T any] struct {
 	//
 	// This field is required.
 	//
-	// [Encore service struct]: https://encore.dev/docs/primitives/services-and-apis#service-structs
+	// [Encore service struct]: https://encore.dev/docs/primitives/services-and-apis/service-structs
 	Handler func(ctx context.Context, msg T) error
 
 	// MaxConcurrency is the maximum number of messages which will be processed
