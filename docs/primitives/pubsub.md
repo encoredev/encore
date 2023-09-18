@@ -215,7 +215,7 @@ The timeout defaults to 30 seconds if you don't explicitly configure `AckDeadlin
 
 ### Method-based handlers
 
-When using [service structs](/docs/primitives/services-and-apis#service-structs) for dependency injection
+When using [service structs](/docs/primitives/services-and-apis/service-structs) for dependency injection
 it's common to want to define the subscription handler as a method on the service struct, to be able to access the
 injected dependencies. The pubsub package provides the `pubsub.MethodHandler` function for this purpose:
 

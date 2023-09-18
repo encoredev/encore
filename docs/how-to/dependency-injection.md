@@ -12,9 +12,7 @@ by swapping out certain dependencies for other implementations (often with the u
 interfaces).
 
 Encore provides built-in support for dependency injection in services through the use
-of the `//encore:service` directive and a **service struct**. For more information
-on how to define service structs see the [Services and APIs](/docs/develop/services-and-apis)
-documentation.
+of the `//encore:service` directive and a **service struct**. See the [service structs docs](/docs/primitives/services-and-apis/service-structs) more information on how to define service structs.
 
 As an example, consider an email service that has a SendGrid API client that is
 dependency injected. It might look like this:
