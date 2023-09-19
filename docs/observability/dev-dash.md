@@ -1,19 +1,22 @@
 ---
 seotitle: Development dashboard for local development
 seodesc: Encore's Local Development Dashboard comes with build-in distributed tracing, API docs, and real-time architecture diagrams.
-title: Development Dashboard
+title: Local Development Dashboard
+subtitle: Built-in tools for simplicity and productivity
 ---
 
-Encore comes with a built-in Development Dashboard to simplify local development. It has several features to help you design, develop, and debug your application:
+Encore provides an efficient local development workflow that automatically provisions [local infrastructure](/docs/deploy/infra#local-development) and supports [automated testing](/docs/develop/testing) with dedicated test infrastructure.
 
-* An API Explorer for easily making API calls against your backend
+The local environment also comes with a built-in Local Development Dashboard to simplify development and improve productivity. It has several features to help you design, develop, and debug your application:
+
+* [Service Catalog](/docs/develop/api-docs) and API Explorer for easily making API calls to your local backend
 * [Distributed Tracing](./tracing) for simple and powerful debugging
-* [API Documentation](../develop/api-docs) for knowledge sharing and answering questions
+* [Automatic API Documentation](../develop/api-docs) for knowledge sharing and answering questions
 * [Encore Flow](/docs/develop/encore-flow) for visualizing your microservices architecture
 
 All these features update in real-time as you make changes to your application.
 
-To access the dashboard, start your Encore application with `encore run` and then follow the link in your terminal:
+To access the dashboard, start your Encore application with `encore run` and it opens automatically. You can also follow the link in your terminal:
 
 ```bash
 $ encore run
