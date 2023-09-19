@@ -90,5 +90,5 @@ When you [create an environment](/docs/deploy/environments), you can simply deci
 
 ## Sharing databases between services (or not)
 
-Deciding whether to share a database between multiple services depends on your specific situation. Encore supports both options. Learn more in the [database documentation](/docs/primitives/databases).
+Deciding whether to share a database between multiple services depends on your specific situation. Encore supports both options. Learn more in the [database documentation](/docs/how-to/share-db-between-services).
 
