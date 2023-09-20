@@ -144,6 +144,11 @@
             "DocSlug": "how-to/share-db-between-services"
           },
           {
+            "Path": "/how-to/manage-db-users",
+            "Title": "Managing database user credentials",
+            "DocSlug": "how-to/manage-db-users"
+          },
+          {
             "Path": "/primitives/databases/extensions",
             "Title": "PostgreSQL Extensions",
             "DocSlug": "primitives/database-extensions"

@@ -4,12 +4,14 @@ seodesc: Learn how to populate your database with test data using Go and Encore,
 title: Insert test data in a database
 ---
 
-When you're developing locally, it's often useful to seed databases with test data.
+When you're developing or testing, it's often useful to seed databases with test data.
 This can be done is several ways depending on your use case.
 
-Perhaps the most straightforward way is to conditionally insert the data on startup, using `go:embed` in combination with Encore's [metadata API](/docs/develop/metadata) to ensure the data is only inserted in your local environment.
+## Using go:embed
 
-## Example
+A straightforward way to insert test data is to conditionally insert it on startup using `go:embed` in combination with Encore's [metadata API](/docs/develop/metadata) control in which environments the data gets inserted. E.g. only in your local environment.
+
+### Example
 
 Create a file with your test data named `fixtures.sql`.
 Then, for the service where you want to insert test data, add the following to its `.go` file in order to run on startup.
@@ -35,3 +37,10 @@ func init() {
 ```
 
 Not included in the above example is preventing adding duplicate data. This is straightforward to do by making the fixtures idempotent, or by tracking it with a database table.
+
+## Using a custom script after deploy
+
+In some cases, it may be convenient to insert test data with a custom script that runs after deploy.
+Exactly what this looks like will vary depending on your use case.
+
+To control how the script is run, you can use Encore's [webooks](/docs/deploy/webhooks) functionality.
