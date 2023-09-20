@@ -24,6 +24,9 @@ an authorization header, in the form `Authorization: Bearer <token>`. The token 
 a designated auth handler function and the API call is allowed to go through only if the
 auth handler determines the token is valid.
 
+For more advanced use cases you can also customize the authentication information you want.
+See the section on [accepting structured auth information](#accepting-structured-auth-information) below.
+
 ## The auth handler
 
 Encore applications can designate a special function to handle authentication,
@@ -155,6 +158,8 @@ as usual. If it wishes to inspect the authenticated user, it can use the
 For an incoming request from the outside to an API that uses the `auth` access level,
 these are guaranteed to be set since the API won't be called if the auth handler doesn't succeed.
 
+Encore automatically propagates the auth data when you make API calls to other Encore API endpoints.
+
 <Callout type="info">
 
 If an endpoint calls another endpoint during its processing, and the original
@@ -163,10 +168,27 @@ preserves the guarantees that `auth` endpoints always have an authenticated user
 
 </Callout>
 
-Note that the auth handler is invoked for **all** requests that specify an auth token,
-which lets users optionally authenticate to public APIs. This can be useful in some
-circumstances to return additional information. The second return value from `auth.UserID()`
-can be used to determine if the request has an authenticated user.
+
+## Optional authentication
+
+While Encore always calls the auth handler for API endpoints marked as `auth`, you can also call `public` API endpoints with authentication data.
+
+This can be useful for APIs that support both a "logged in" and "logged out" experience.
+For example, a site like Reddit might have a `post.List` endpoint that returns the list of posts,
+but if you're logged in it also includes whether or not you have upvoted or downvoted each post.
+
+To support such use cases, Encore runs the auth handler for `public` API endpoints if (and only if) the request
+includes any authentication information (such as the `Authorization` header).
+
+In that case, the request processing behavior varies depending on the value of the `error` returned from the auth handler:
+
+* If the error is nil, the request is considered to be an authenticated request and `auth.UID()` and `auth.Data()` will include
+  the information the auth handler returned.
+* If the error is non-nil and the error code is `errs.Unauthenticated` (like shown above), the request continues as an unauthenticated request,
+  behaving exactly as if there was no authentication data provided at all.
+* If the error is non-nil and the error code is anything else, the request is aborted and Encore returns that error to the caller.
+
+To be able to determine if the request has an authenticated user, check the second return value from `auth.UserID()`.
 
 ## Overriding auth information
 
@@ -178,3 +200,8 @@ Note that this only affects the auth information passed along with the request, 
 current request being processed (if any).
 
 This function is often useful when testing APIs that use authentication. For example:
+
+```go
+ctx := auth.WithContext(context.Background(), auth.UID("my-user-id"), &MyAuthData{Email: "hello@example.com"})
+// ... Make an API call using `ctx` to override the auth information for that API call.
+```
