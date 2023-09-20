@@ -38,9 +38,8 @@ func init() {
 
 Not included in the above example is preventing adding duplicate data. This is straightforward to do by making the fixtures idempotent, or by tracking it with a database table.
 
-## Using a custom script after deploy
+## Populating databases in Preview Environments
 
-In some cases, it may be convenient to insert test data with a custom script that runs after deploy.
-Exactly what this looks like will vary depending on your use case.
+In some cases, it can be useful to populate new Preview Environments with test data to simplify testing. 
 
-To control how the script is run, you can use Encore's [webooks](/docs/deploy/webhooks) functionality.
+The best way to do this depends a bit on your use case, but a common way to do this is by using Encore's [webooks](/docs/deploy/webhooks) functionality, which provides notifications for when a deployment is completed and includes information about the environment in question.
