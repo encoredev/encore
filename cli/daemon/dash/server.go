@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/dash/apiproxy"
 	"encr.dev/cli/daemon/dash/dashproxy"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
@@ -32,8 +33,14 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dash
 		log.Fatal().Err(err).Msg("could not create dash proxy")
 	}
 
+	apiProxy, err := apiproxy.New(conf.APIBaseURL + "/graphql")
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not create graphql proxy")
+	}
+
 	s := &Server{
 		proxy:    proxy,
+		apiProxy: apiProxy,
 		apps:     appsMgr,
 		run:      runMgr,
 		tr:       tr,
@@ -51,6 +58,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dash
 // Server is the http.Handler for serving the developer dashboard.
 type Server struct {
 	proxy    *httputil.ReverseProxy
+	apiProxy *httputil.ReverseProxy
 	apps     *apps.Manager
 	run      *run.Manager
 	tr       trace2.Store
@@ -65,6 +73,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.URL.Path {
 	case "/__encore":
 		s.WebSocket(w, req)
+	case "/__graphql":
+		s.apiProxy.ServeHTTP(w, req)
 	default:
 		s.proxy.ServeHTTP(w, req)
 	}
