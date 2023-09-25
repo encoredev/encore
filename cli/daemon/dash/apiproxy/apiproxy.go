@@ -24,6 +24,14 @@ func New(targetURL string) (*httputil.ReverseProxy, error) {
 			Base:   http.DefaultTransport,
 			Source: oauth2.ReuseTokenSource(nil, conf.DefaultTokenSource),
 		},
+		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
+			if errors.Is(err, conf.ErrNotLoggedIn) {
+				writer.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			writer.WriteHeader(http.StatusBadGateway)
+
+		},
 		Rewrite: func(r *httputil.ProxyRequest) {
 			r.Out.URL = target
 			r.Out.Header.Set("User-Agent", "EncoreCLI/"+version.Version)
