@@ -305,6 +305,7 @@ func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCal
 		"status":      resp.Status,
 		"status_code": resp.StatusCode,
 		"body":        body,
+		"trace_id":    resp.Header.Get("X-Encore-Trace-Id"),
 	}, nil)
 }
 
