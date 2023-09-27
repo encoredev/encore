@@ -341,7 +341,7 @@ func TestRawEndpointOverflow(t *testing.T) {
 
 	handler := newRawMockAPIDesc(api.Public, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.ReadAll(r.Body) // consume the body
-		w.Write([]byte(respBody))
+		_, _ = w.Write([]byte(respBody))
 	})
 
 	var params []trace2.BodyStreamParams
@@ -453,7 +453,7 @@ func newMockAPIDesc(access api.Access) *api.Desc[*mockReq, *mockResp] {
 		},
 		EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *mockResp) error {
 			data, err := json.Marshal(resp)
-			w.Write(data)
+			_, _ = w.Write(data)
 			return err
 		},
 		CloneResp: func(resp *mockResp) (*mockResp, error) {

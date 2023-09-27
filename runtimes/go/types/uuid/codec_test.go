@@ -241,37 +241,37 @@ func BenchmarkString(b *testing.B) {
 
 func BenchmarkFromBytes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		FromBytes(codecTestData)
+		_, _ = FromBytes(codecTestData)
 	}
 }
 
 func BenchmarkFromString(b *testing.B) {
 	b.Run("canonical", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			FromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+			_, _ = FromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 		}
 	})
 	b.Run("urn", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			FromString("urn:uuid:6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+			_, _ = FromString("urn:uuid:6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 		}
 	})
 	b.Run("braced", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			FromString("{6ba7b810-9dad-11d1-80b4-00c04fd430c8}")
+			_, _ = FromString("{6ba7b810-9dad-11d1-80b4-00c04fd430c8}")
 		}
 	})
 }
 
 func BenchmarkMarshalBinary(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		codecTestUUID.MarshalBinary()
+		_, _ = codecTestUUID.MarshalBinary()
 	}
 }
 
 func BenchmarkMarshalText(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		codecTestUUID.MarshalText()
+		_, _ = codecTestUUID.MarshalText()
 	}
 }
 

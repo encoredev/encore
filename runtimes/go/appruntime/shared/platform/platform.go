@@ -49,7 +49,7 @@ func (c *Client) SendTrace(ctx context.Context, data io.Reader) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("http %s: %s", resp.Status, body)
@@ -63,7 +63,7 @@ func (c *Client) addAuthKey(req *http.Request) {
 	req.Header.Set("Date", date)
 
 	mac := hmac.New(sha256.New, k.Data)
-	fmt.Fprintf(mac, "%s\x00%s", date, req.URL.Path)
+	_, _ = fmt.Fprintf(mac, "%s\x00%s", date, req.URL.Path)
 
 	bytes := make([]byte, 4, 4+sha256.Size)
 	binary.BigEndian.PutUint32(bytes[0:4], k.KeyID)
@@ -111,7 +111,7 @@ func checkAuthKey(key config.EncoreAuthKey, req *http.Request, gotMac []byte) bo
 	}
 
 	mac := hmac.New(sha256.New, key.Data)
-	fmt.Fprintf(mac, "%s\x00%s", dateStr, req.URL.Path)
+	_, _ = fmt.Fprintf(mac, "%s\x00%s", dateStr, req.URL.Path)
 	expected := mac.Sum(nil)
 	return hmac.Equal(expected, gotMac)
 }

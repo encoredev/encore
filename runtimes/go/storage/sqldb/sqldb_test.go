@@ -14,7 +14,7 @@ func TestDBConf(t *testing.T) {
 	for _, env := range os.Environ() {
 		key, _, _ := strings.Cut(env, "=")
 		if strings.HasPrefix(key, "PG") {
-			os.Unsetenv(key)
+			_ = os.Unsetenv(key)
 		}
 	}
 

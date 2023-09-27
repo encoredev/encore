@@ -87,7 +87,7 @@ func Print(s Stack) {
 		i++
 	}
 	if s := b.Bytes(); len(s) > 0 {
-		os.Stdout.Write(s)
+		_, _ = os.Stdout.Write(s)
 	}
 }
 

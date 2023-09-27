@@ -257,7 +257,7 @@ func (r *Row) Scan(dest ...interface{}) error {
 		}
 		return errs.DropStackFrame(errs.WrapCode(sql.ErrNoRows, errs.NotFound, ""))
 	}
-	r.rows.Scan(dest...)
+	_ = r.rows.Scan(dest...)
 	r.rows.Close()
 	return convertErr(r.rows.Err())
 }

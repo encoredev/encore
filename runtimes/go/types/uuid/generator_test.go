@@ -187,7 +187,9 @@ func BenchmarkGenerator(b *testing.B) {
 	})
 	b.Run("NewV4", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			NewV4()
+			if _, err := NewV4(); err != nil {
+				b.Fatalf("NewV4() failed: %s", err)
+			}
 		}
 	})
 	b.Run("NewV5", func(b *testing.B) {

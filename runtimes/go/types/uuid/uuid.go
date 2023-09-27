@@ -149,7 +149,7 @@ func (u UUID) Format(f fmt.State, c rune) {
 		_, _ = io.WriteString(f, `"`+u.String()+`"`)
 	default:
 		// invalid/unsupported format verb
-		fmt.Fprintf(f, "%%!%c(uuid.UUID=%s)", c, u.String())
+		_, _ = fmt.Fprintf(f, "%%!%c(uuid.UUID=%s)", c, u.String())
 	}
 }
 

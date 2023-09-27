@@ -186,7 +186,7 @@ func HTTPErrorWithCode(w http.ResponseWriter, err error, code int) {
 
 	if err == nil {
 		w.WriteHeader(code)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
   "code": "ok",
   "message": "",
   "details": null
