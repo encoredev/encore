@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
+	"encr.dev/pkg/fns"
 	metav1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -100,7 +101,7 @@ func GetEnvMeta(ctx context.Context, appSlug, envName string) (*metav1.Data, err
 	if err != nil {
 		return nil, err
 	}
-	defer body.Close()
+	defer fns.CloseIgnore(body)
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return nil, fmt.Errorf("platform.GetEnvMeta: %v", err)
@@ -122,6 +123,25 @@ func DBConnect(ctx context.Context, appSlug, envSlug, dbName string, startupData
 func EnvLogs(ctx context.Context, appSlug, envSlug string) (*websocket.Conn, error) {
 	path := escapef("/apps/%s/envs/%s/log", appSlug, envSlug)
 	return wsDial(ctx, path, true, nil)
+}
+
+func KubernetesClusters(ctx context.Context, appSlug string, envName string) (string, string, []KubeCtlConfig, error) {
+	type K8SClusterConfigs struct {
+		AppSlug  string          `json:"app"`
+		EnvName  string          `json:"env"`
+		Clusters []KubeCtlConfig `json:"clusters"`
+	}
+
+	var resp K8SClusterConfigs
+	err := call(ctx, "GET", "/apps/"+url.PathEscape(appSlug)+"/envs/"+url.PathEscape(envName)+"/k8s-clusters", nil, &resp, true)
+	return resp.AppSlug, resp.EnvName, resp.Clusters, err
+}
+
+type KubeCtlConfig struct {
+	EnvID            string `json:"env_id"`              // The ID of the environment
+	ResID            string `json:"res_id"`              // The ID of the cluster
+	Name             string `json:"name"`                // The name of the cluster
+	DefaultNamespace string `json:"namespace,omitempty"` // The default namespace for the cluster (if any)
 }
 
 func escapef(format string, args ...string) string {
