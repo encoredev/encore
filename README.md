@@ -124,7 +124,7 @@ https://github.com/encoredev/encore/assets/78424526/f511b3fe-751f-4bb8-a1da-6c9e
 
 ### Local Development Dashboard
 
-https://github.com/encoredev/encore/assets/78424526/565ab682-8c39-468e-8d21-c4d648b2dcb2
+https://github.com/encoredev/encore/assets/78424526/4c659fb8-e9ec-4f14-820b-c2b8d35e5359
 
 ### Generated Architecture Diagrams & Service Catalog
 
