@@ -59,7 +59,7 @@ func main() {
 
 	// Walk the directory tree and parse all the Go files
 	log.Info().Msg("parsing source files...")
-	if err := walkDir(filepath.Join(resolvedRepo, "runtime"), "./", readAST); err != nil {
+	if err := walkDir(filepath.Join(resolvedRepo, "runtimes", "go"), "./", readAST); err != nil {
 		log.Fatal().Err(err).Msg("unable to walk runtime directory to parse go files")
 	}
 	slices.SortFunc(files, func(a, b *parsedFile) int {

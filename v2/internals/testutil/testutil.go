@@ -110,7 +110,7 @@ func newContextForFSPath(c *qt.C, mainModuleDir string, parseTests bool) *Contex
 		GOROOT:        paths.RootedFSPath(d.GOROOT, "."),
 		BuildTags:     nil,
 		CgoEnabled:    true,
-		EncoreRuntime: paths.RootedFSPath(RuntimeDir, "."),
+		EncoreRuntime: paths.RootedFSPath(filepath.Join(RuntimeDir, "go"), "."),
 	}
 
 	fset := token.NewFileSet()
@@ -178,6 +178,7 @@ func (c *Context) GoModTidy() {
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = c.MainModuleDir.ToIO()
 	c.TestC.Log("running 'go mod tidy'")
+	// nosemgrep
 	if out, err := cmd.CombinedOutput(); err != nil {
 		c.TestC.Fatalf("go mod tidy: %v\n%s", err, out)
 	}
@@ -191,6 +192,7 @@ func (c *Context) GoModDownload() {
 	cmd := exec.Command("go", "mod", "download", "all")
 	cmd.Dir = c.MainModuleDir.ToIO()
 	c.TestC.Log("running 'go mod download'")
+	// nosemgrep
 	if out, err := cmd.CombinedOutput(); err != nil {
 		c.TestC.Fatalf("go mod download: %v\n%s", err, out)
 	}
