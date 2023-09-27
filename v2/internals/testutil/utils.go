@@ -12,7 +12,7 @@ import (
 
 var (
 	EncoreRepoDir = repoDir()
-	RuntimeDir    = filepath.Join(EncoreRepoDir, "runtime")
+	RuntimeDir    = filepath.Join(EncoreRepoDir, "runtimes")
 )
 
 // EnvRepoDirOverride is the name of the environment variable to override
@@ -26,7 +26,7 @@ const EnvRepoDirOverride = "ENCORE_REPO_DIR"
 func init() {
 	// If we're not in the Encore repo, use the runtime path from the environment.
 	if _, err := os.Stat(filepath.Join(EncoreRepoDir, "go.mod")); err != nil {
-		RuntimeDir = env.EncoreRuntimePath()
+		RuntimeDir = env.EncoreRuntimesPath()
 	}
 }
 
@@ -36,6 +36,7 @@ func repoDir() string {
 	}
 
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	// nosemgrep
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Sprintf("unable to get repo directory: %s", out))

@@ -69,10 +69,10 @@ jobs:
       if: github.event.schedule != '30 2 * * *'
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
-        ENCORE_RUNTIME_PATH: ${{ github.workspace }}/encr.dev/runtime
+        ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
     - name: Run tests on changed runtime code
-      run: cd encr.dev/runtime && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > runtime-test-report.xml
+      run: cd encr.dev/runtimes/go && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > runtime-test-report.xml
       if: github.event.schedule != '30 2 * * *'
 
     # Each night we want to run all tests multiple times to catch any flaky tests
@@ -84,10 +84,10 @@ jobs:
       if:   github.event.schedule == '30 2 * * *'
       env:
         ENCORE_GOROOT: ${{ github.workspace }}/encore-go
-        ENCORE_RUNTIME_PATH: ${{ github.workspace }}/encr.dev/runtime
+        ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
     - name: Run all tests multiple times on the runtime
-      run:  cd encr.dev/runtime && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out runtime-test-report.xml
+      run:  cd encr.dev/runtimes/go && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out runtime-test-report.xml
       if:   github.event.schedule == '30 2 * * *'
 
     # We upload the test results as artifacts so that in PR's
