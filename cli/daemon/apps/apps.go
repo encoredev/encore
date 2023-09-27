@@ -19,6 +19,7 @@ import (
 	"encr.dev/internal/env"
 	"encr.dev/internal/goldfish"
 	"encr.dev/pkg/appfile"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/watcher"
 )
 
@@ -137,7 +138,7 @@ func (mgr *Manager) listRoots() ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "query app roots")
 	}
-	defer rows.Close()
+	defer fns.CloseIgnore(rows)
 
 	var roots []string
 	for rows.Next() {
@@ -386,7 +387,7 @@ func (i *Instance) beginWatch() error {
 		// too, so we can develop changes to the runtime without
 		// needing to restart the application.
 		if conf.DevDaemon {
-			if err := i.watcher.RecursivelyWatch(env.EncoreRuntimePath()); err != nil {
+			if err := i.watcher.RecursivelyWatch(env.EncoreRuntimesPath()); err != nil {
 				return errors.Wrap(err, "unable to watch runtime")
 			}
 		}

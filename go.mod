@@ -147,4 +147,4 @@ require (
 
 // The implementation of the `encore.dev` runtime, is in this repo
 // along side the Encore CLI
-replace encore.dev => ./runtime
+replace encore.dev => ./runtimes/go

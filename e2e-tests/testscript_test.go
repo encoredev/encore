@@ -30,12 +30,12 @@ func TestRun(t *testing.T) {
 }
 
 func doRun(t *testing.T, experiments []string) {
-	runtimePath := os.Getenv("ENCORE_RUNTIME_PATH")
+	runtimePath := os.Getenv("ENCORE_RUNTIMES_PATH")
 	goroot := os.Getenv("ENCORE_GOROOT")
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	} else if runtimePath == "" || goroot == "" {
-		t.Skipf("skipping due to missing ENCORE_RUNTIME_PATH=%q or ENCORE_GOROOT=%q", runtimePath, goroot)
+		t.Skipf("skipping due to missing ENCORE_RUNTIMES_PATH=%q or ENCORE_GOROOT=%q", runtimePath, goroot)
 	}
 
 	home := t.TempDir()
@@ -43,7 +43,7 @@ func doRun(t *testing.T, experiments []string) {
 	ts.Run(t, ts.Params{
 		Dir: "testdata/testscript",
 		Setup: func(e *ts.Env) error {
-			e.Setenv("ENCORE_RUNTIME_PATH", runtimePath)
+			e.Setenv("ENCORE_RUNTIMES_PATH", runtimePath)
 			e.Setenv("ENCORE_GOROOT", goroot)
 			e.Setenv("EXTRA_EXPERIMENTS", strings.Join(experiments, ","))
 			e.Setenv("HOME", home)

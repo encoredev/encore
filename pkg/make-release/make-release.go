@@ -74,6 +74,7 @@ func (b *Builder) BuildBinaries() error {
 		"-o", join(b.dst, "bin", "encore"),
 		"./cli/cmd/encore")
 	cmd.Env = env
+	// nosemgrep
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("go build encore failed: %s (%v)", out, err)
 	}
@@ -82,6 +83,7 @@ func (b *Builder) BuildBinaries() error {
 		"-o", join(b.dst, "bin", "git-remote-encore"),
 		"./cli/cmd/git-remote-encore")
 	cmd.Env = env
+	// nosemgrep
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("go build git-remote-encore failed: %s (%v)", out, err)
 	}
@@ -91,6 +93,7 @@ func (b *Builder) BuildBinaries() error {
 
 func (b *Builder) CopyEncoreGo() error {
 	cmd := exec.Command("cp", "-r", b.encoreGo, join(b.dst, "encore-go"))
+	// nosemgrep
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("cp %v failed: %s (%v)", cmd.Args, out, err)
 	}
@@ -98,7 +101,8 @@ func (b *Builder) CopyEncoreGo() error {
 }
 
 func (b *Builder) CopyRuntime() error {
-	cmd := exec.Command("cp", "-r", "runtime", join(b.dst, "runtime"))
+	cmd := exec.Command("cp", "-r", "runtimes", join(b.dst, "runtimes"))
+	// nosemgrep
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("cp %v failed: %s (%v)", cmd.Args, out, err)
 	}

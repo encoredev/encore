@@ -62,7 +62,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 					return paths.RootedFSPath(env.EncoreGoRoot(), ".")
 				}),
 				EncoreRuntime: p.Build.EncoreRuntime.GetOrElseF(func() paths.FS {
-					return paths.RootedFSPath(env.EncoreRuntimePath(), ".")
+					return paths.RootedFSPath(filepath.Join(env.EncoreRuntimesPath(), "go"), ".")
 				}),
 
 				GOARCH:             p.Build.GOARCH,
