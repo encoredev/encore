@@ -1,32 +1,32 @@
 ---
-title: Strategies for Adopting Encore
+title: Trying Encore for an existing project
 subtitle: Extending, Refactoring, and Rebuilding
-seotitle: How to adopt Encore for your existing project – Extending, Refactoring, Rebuilding
+seotitle: How to try Encore for your existing project – Extending, Refactoring, Rebuilding
 seodesc: Learn how to adopt Encore for your existing backend application using different strategies depending on your situation and priorities.
 ---
 
-Making changes to your backend requires a thoughtful approach, therefore how you adopt Encore will look differently depending on your situation and priorities. Here we’ll explore three fundamental strategies and introduce the common scenarios and approaches for each:
-- **Extend:** Using Encore to speed up building an independent new service or system.
+Making changes to your backend requires a thoughtful approach, and how you best evaluate Encore depends on your situation and priorities. Here we’ll explore three approaches and introduce the common scenarios and procedures for each:
+- **Extend:** Using Encore to speed up building an independent new system or creating proof of concept.
 - **Refactor:** Using Encore when refactoring an existing backend to unlock productivity benefits and remove complexity.
 - **Rebuild:** Using Encore when rebuilding an existing application from the ground up, ensuring modern best practices and cloud-portability.
 
 ## Extend
-Extending your existing backend best suits teams who are satisfied with their current setup, but are on the lookout for more efficient workflows to cut down delivery times for new projects, or wish to improve the developer experience for ongoing development.
+Extending your existing backend best suits teams who are mostly satisfied with their current setup, but are on the lookout for more efficient workflows to cut down delivery times for new projects, or wish to improve the developer experience for ongoing development.
 
 ### Use cases
-- Extending an existing application with a new service or sub-system, integrated using APIs.
-- Using new and efficient tools to tackle a project that demands fast delivery times.
-- Building a new system in an isolated domain, such as an internal tool or new product experiment.
+- Extending an existing application with a new service or system, integrated using APIs.
+- Reducing effort when building a new system in an isolated domain, such as a new product experiment.
+- Tackling an independent project that demands fast delivery times.
 
 ### When to consider Encore
-If your existing setup feels right but you’re curious about Encore, evaluating it in a new project is the right move.
+If your existing setup feels right but you’re curious about Encore, evaluating it in an independent project is the right move.
 For example when:
 - You want to create a new service or system, and deploy it to your cloud in **AWS** or **GCP**, without manual infrastructure setup.
 - You want to try out development tools like [preview environments](/docs/deploy/preview-environments), and [local tracing](/docs/observability/dev-dash), without any manual instrumentation.
 - You want to validate Encore’s workflow and reliability without making changes to existing systems.
 
 ### How to adopt Encore when Extending
-- **1. Identify Extension Points:** Decide on an upcoming project, or proof of concept, that is relatively independent from your existing application and therefore is appropriate for building as a new service or system.
+- **1. Identify Extension Points:** Decide on an upcoming project, or proof of concept, that is relatively independent from your existing application and is appropriate for building as a new service or system.
 - **2. Create New Services:** Develop new services or systems using Encore’s [API Framework](/docs/primitives/services-and-apis) and [Infrastructure SDK](/docs/primitives) to get off the ground quickly. This lets you try out all Encore features and enables you to design your new system with Encore’s [automatic architecture diagrams](/docs/observability/encore-flow).
 - **3. Integrate via APIs:**  Where relevant, integrate your new system with your existing backend application using APIs. This can be made simpler by using Encore’s [generated API clients](/docs/develop/client-generation).
 - **3. Validate & Iterate:** Deploy the new services to an [cloud environment](/docs/deploy/infra), automatically provisioned by Encore, and validate their performance and interoperability. Use Encore’s [distributed tracing](/docs/observability/tracing) to find bugs or performance issues.
