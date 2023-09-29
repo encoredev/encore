@@ -1,8 +1,8 @@
 ---
 title: Trying Encore for an existing project
 subtitle: Extending, Refactoring, and Rebuilding
-seotitle: How to try Encore for your existing project – Extending, Refactoring, Rebuilding
-seodesc: Learn how to adopt Encore for your existing backend application using different strategies depending on your situation and priorities.
+seotitle: Trying Encore for an existing project
+seodesc: Learn how to try Encore for your existing backend application using Extending, Refactoring, or Rebuilding, depending on your situation and priorities.
 ---
 
 Making changes to your backend requires a thoughtful approach, and how you best evaluate Encore depends on your situation and priorities. Here we’ll explore three approaches and introduce the common scenarios and procedures for each:
