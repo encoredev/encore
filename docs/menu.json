@@ -422,6 +422,11 @@
         "DocSlug": "how-to/firebase-auth"
       },
       {
+        "Path": "/how-to/try-encore",
+        "Title": "Try Encore for an existing project",
+        "DocSlug": "how-to/try-encore"
+      },
+      {
         "Path": "/how-to/migrate-to-encore",
         "Title": "Migrate an existing backend to Encore",
         "DocSlug": "how-to/migrate-to-encore"
