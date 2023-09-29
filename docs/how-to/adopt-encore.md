@@ -7,7 +7,7 @@ seodesc: Learn how to adopt Encore for your existing backend application using d
 
 Making changes to your backend requires a thoughtful approach, therefore how you adopt Encore will look differently depending on your situation and priorities. Here we’ll explore three fundamental strategies and introduce the common scenarios and approaches for each:
 - **Extend:** Using Encore to speed up building an independent new service or system.
-- **Recfactor:** Using Encore when refactoring an existing backend to unlock productivity benefits and remove complexity.
+- **Refactor:** Using Encore when refactoring an existing backend to unlock productivity benefits and remove complexity.
 - **Rebuild:** Using Encore when rebuilding an existing application from the ground up, ensuring modern best practices and cloud-portability.
 
 ## Extend
