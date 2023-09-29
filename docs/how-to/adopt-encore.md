@@ -70,9 +70,9 @@ For example when:
 
 
 ## Get help with adopting Encore
-Each of these strategies comes with its unique set of benefits and is relevant in different scenarios. Which one is right for your team depends on your priorities and existing setup. 
+Each approach has different benefits and is relevant in different scenarios. Which one is right for your team depends on your priorities and existing setup.
 
-Whether it’s revitalizing existing structures through **Refactor**, starting afresh with **Rebuild**, or expanding your horizons with **Extend**, we’re available to offer support as you evaluate Encore to unlock improved productivity and developer experience.
+Whether it’s revitalizing existing structures through **Refactor**, starting afresh with **Rebuild**, or expanding your horizons with **Extend**, we’re available to support as you explore Encore to unlock improved productivity and developer experience.
 
 We're happy to chat through your use case in a call. You can also [join Slack](https://encore.dev/slack) to ask questions and meet fellow Encore developers.
 <a href="/book">
