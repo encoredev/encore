@@ -6,7 +6,7 @@ seodesc: Learn how to try Encore for your existing backend application using Ext
 ---
 
 Making changes to your backend requires a thoughtful approach and how you best evaluate a new tool, like Encore, depends on your situation and priorities. Here we’ll explore three approaches and introduce the common scenarios and procedures for each:
-- **Extend:** Using Encore to speed up building an independent new system or creating proof of concept.
+- **Extend:** Using Encore to speed up building an independent new system or creating a proof of concept.
 - **Refactor:** Using Encore when refactoring an existing backend to unlock productivity benefits and remove complexity.
 - **Rebuild:** Using Encore when rebuilding an existing application from the ground up, ensuring modern best practices and cloud-portability.
 
