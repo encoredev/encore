@@ -30,7 +30,14 @@ func New(svcs []string, cfg *config.DatadogProvider, meta *metadata.ContainerMet
 			return fmt.Sprintf("%s:%s", k, v)
 		}),
 		rootLogger: rootLogger,
+		lastExport: time.Now().Unix(),
+		lastValue:  map[tsSvcKey]float64{},
 	}
+}
+
+type tsSvcKey struct {
+	tsID uint64
+	svc  uint16
 }
 
 type Exporter struct {
@@ -39,6 +46,8 @@ type Exporter struct {
 	cfg                     *config.DatadogProvider
 	containerMetadataLabels []string
 	rootLogger              zerolog.Logger
+	lastExport              int64
+	lastValue               map[tsSvcKey]float64
 }
 
 func (x *Exporter) Shutdown(p *shutdown.Process) error {
@@ -83,8 +92,14 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 			labels := make([]string, len(baseLabels)+1)
 			copy(labels, baseLabels)
 			labels[len(baseLabels)] = "service:" + x.svcs[svcIdx]
+			if m.Info.Type() == metrics.CounterType {
+				key := tsSvcKey{tsID: m.TimeSeriesID, svc: svcIdx}
+				lastVal := x.lastValue[key]
+				x.lastValue[key] = val
+				val = val - lastVal
+			}
 			data = append(data, datadogV2.MetricSeries{
-				Interval: datadog.PtrInt64(0),
+				Interval: datadog.PtrInt64(now.Unix() - x.lastExport),
 				Metric:   metricName,
 				Points: []datadogV2.MetricPoint{{
 					Timestamp: datadog.PtrInt64(now.Unix()),
@@ -150,6 +165,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 		}
 	}
 
+	x.lastExport = now.Unix()
 	return data
 }
 
