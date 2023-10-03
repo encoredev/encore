@@ -181,6 +181,11 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 
 // Migrate migrates the database.
 func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase) (err error) {
+	if len(dbMeta.Migrations) == 0 {
+		db.log.Debug().Msg("no database migrations to run, skipping")
+		return nil
+	}
+
 	db.log.Debug().Msg("running database migrations")
 	defer func() {
 		if err != nil {
