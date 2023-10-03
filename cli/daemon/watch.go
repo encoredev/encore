@@ -19,6 +19,9 @@ import (
 )
 
 func (s *Server) watchApps() {
+	if os.Getenv("ENCORE_DAEMON_WATCH") == "0" {
+		return
+	}
 	s.apps.RegisterAppListener(func(i *apps.Instance) {
 		s.regenerateUserCode(context.Background(), i)
 		if err := s.updateGitIgnore(i); err != nil {
