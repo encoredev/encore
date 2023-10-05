@@ -19,7 +19,7 @@ import (
 
 // ParseEvent parses a single event from the buffer.
 func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor) (*tracepb2.TraceEvent, error) {
-	tp := &traceParser{traceReader: traceReader{buf: buf}, ta: ta}
+	tp := &traceParser{traceReader: traceReader{buf: buf}, ta: ta, log: &log.Logger}
 	// If we already have an error, return it.
 	if err := tp.Err(); err != nil {
 		return nil, err
