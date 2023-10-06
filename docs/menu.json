@@ -422,6 +422,11 @@
         "DocSlug": "how-to/firebase-auth"
       },
       {
+        "Path": "/how-to/submit-template",
+        "Title": "Submit a Template",
+        "DocSlug": "how-to/submit-template"
+      },
+      {
         "Path": "/how-to/try-encore",
         "Title": "Try Encore for an existing project",
         "DocSlug": "how-to/try-encore"
