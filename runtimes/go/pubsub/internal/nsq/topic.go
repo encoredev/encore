@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -74,13 +75,6 @@ func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 	if _, ok := l.consumers[implCfg.EncoreName]; ok {
 		panic("NewSubscription must use a unique subscription name")
 	}
-	conCfg := nsq.NewConfig()
-	consumer, err := nsq.NewConsumer(l.name, implCfg.EncoreName, conCfg)
-	if err != nil {
-		panic(fmt.Sprintf("unable to setup subscription %s for topic %s: %v", implCfg.EncoreName, l.name, err))
-	}
-	// only log warnings and above from the NSQ library
-	consumer.SetLogger(&LogAdapter{Logger: logger}, nsq.LogLevelWarning)
 
 	if maxConcurrency == 0 {
 		maxConcurrency = 1 // FIXME(domblack): This retains the old behaviour, but allows user customisation - in a future release we should remove this
@@ -91,7 +85,14 @@ func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		// (value of 0 will pause consumption)
 		maxConcurrency = 100
 	}
-	consumer.ChangeMaxInFlight(maxConcurrency)
+
+	conCfg := getConsumerConfig(maxConcurrency, ackDeadline, retryPolicy)
+	consumer, err := nsq.NewConsumer(l.name, implCfg.EncoreName, conCfg)
+	if err != nil {
+		panic(fmt.Sprintf("unable to setup subscription %s for topic %s: %v", implCfg.EncoreName, l.name, err))
+	}
+	// only log warnings and above from the NSQ library
+	consumer.SetLogger(&LogAdapter{Logger: logger}, nsq.LogLevelWarning)
 
 	// create a dedicated handler which forwards messages to the encore subscription
 	consumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
@@ -182,4 +183,27 @@ func (l *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 		return "", errs.B().Cause(err).Code(errs.Internal).Msg("failed to connect to NSQD").Err()
 	}
 	return msgID, nil
+}
+
+func getConsumerConfig(maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy) *nsq.Config {
+	conCfg := nsq.NewConfig()
+	conCfg.MsgTimeout = ackDeadline
+	conCfg.MaxInFlight = maxConcurrency
+	conCfg.DefaultRequeueDelay = retryPolicy.MinBackoff
+	conCfg.MaxRequeueDelay = retryPolicy.MaxBackoff
+
+	switch retryPolicy.MaxRetries {
+	case 0:
+		conCfg.MaxAttempts = 100
+	case types.InfiniteRetries:
+		conCfg.MaxAttempts = 65535
+	default:
+		if retryPolicy.MaxRetries > math.MaxUint16 {
+			conCfg.MaxAttempts = math.MaxUint16
+		} else {
+			conCfg.MaxAttempts = uint16(retryPolicy.MaxRetries)
+		}
+	}
+
+	return conCfg
 }
