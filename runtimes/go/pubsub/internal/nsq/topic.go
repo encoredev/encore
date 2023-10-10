@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -189,8 +188,8 @@ func getConsumerConfig(maxConcurrency int, ackDeadline time.Duration, retryPolic
 	conCfg := nsq.NewConfig()
 	conCfg.MsgTimeout = ackDeadline
 	conCfg.MaxInFlight = maxConcurrency
-	conCfg.DefaultRequeueDelay = retryPolicy.MinBackoff
-	conCfg.MaxRequeueDelay = retryPolicy.MaxBackoff
+	conCfg.DefaultRequeueDelay = utils.Clamp(retryPolicy.MinBackoff, 0, 60*time.Minute)
+	conCfg.MaxRequeueDelay = utils.Clamp(retryPolicy.MaxBackoff, 0, 60*time.Minute)
 
 	switch retryPolicy.MaxRetries {
 	case 0:
@@ -198,8 +197,9 @@ func getConsumerConfig(maxConcurrency int, ackDeadline time.Duration, retryPolic
 	case types.InfiniteRetries:
 		conCfg.MaxAttempts = 65535
 	default:
-		if retryPolicy.MaxRetries > math.MaxUint16 {
-			conCfg.MaxAttempts = math.MaxUint16
+		const maxVal = 65535 // from the nsq library config
+		if retryPolicy.MaxRetries > maxVal {
+			conCfg.MaxAttempts = maxVal
 		} else {
 			conCfg.MaxAttempts = uint16(retryPolicy.MaxRetries)
 		}
