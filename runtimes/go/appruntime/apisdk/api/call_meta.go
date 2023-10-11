@@ -77,7 +77,7 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 
 	// Default the caller to the current app deployment
 	var caller Caller
-	caller = &AppCaller{s.runtime.DeployID}
+	caller = AppCaller{s.runtime.DeployID}
 
 	// Trace the source data if we're tracing
 	if call != nil && call.Source != nil {
@@ -88,13 +88,13 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 
 		if call.Source.RPCData != nil && call.Source.RPCData.Desc != nil {
 			// If we're processing an API call, let's update the caller
-			caller = &ApiCaller{
+			caller = ApiCaller{
 				ServiceName: call.Source.RPCData.Desc.Service,
 				Endpoint:    call.Source.RPCData.Desc.Endpoint,
 			}
 		} else if call.Source.MsgData != nil && call.Source.MsgData.MessageID != "" {
 			// If we're processing a PubSub message, let's update the caller
-			caller = &PubSubCaller{
+			caller = PubSubCaller{
 				Topic:        call.Source.MsgData.Topic,
 				Subscription: call.Source.MsgData.Subscription,
 				MessageID:    call.Source.MsgData.MessageID,
@@ -235,7 +235,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 
 		meta.TraceID, meta.ParentSpanID, _ = parseTraceParent(traceParent)
 
-		// If it's a gateway, ignore the parent span id as gateways don't currently record a span.
+		// If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
 		// If we include it the root request won't be tagged as such.
 		if _, isGateway := meta.Internal.Caller.(GatewayCaller); isGateway {
 			meta.ParentSpanID = model.SpanID{}

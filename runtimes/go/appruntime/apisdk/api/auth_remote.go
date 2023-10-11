@@ -58,7 +58,7 @@ func (r *remoteAuthHandler) Authenticate(c IncomingContext) (model.AuthInfo, err
 	meta.Internal = &InternalCallMeta{
 		// Note we're acting as a ApiCaller here so we can access the __encore/auth_handler endpoint and
 		// also receive full marshalled errors back from the auth handler (as ApiCaller's are allowed PrivateAPIAccess)
-		Caller: &ApiCaller{ServiceName: "gateway", Endpoint: "__encore/authhandler"},
+		Caller: ApiCaller{ServiceName: "gateway", Endpoint: "__encore/authhandler"},
 	}
 	if err := meta.AddToRequest(r.server, r.hostingService, transport.HTTPRequest(authReq)); err != nil {
 		r.logger.Err(err).Msg("unable to add call metadata to auth request")
@@ -113,7 +113,7 @@ func (s *Server) handleRemoteAuthCall(w http.ResponseWriter, req *http.Request, 
 		errs.HTTPErrorWithCode(w, errs.B().Code(errs.PermissionDenied).Msg("permission denied").Err(), 0)
 		return
 	}
-	caller, ok := meta.Internal.Caller.(*ApiCaller)
+	caller, ok := meta.Internal.Caller.(ApiCaller)
 	if !ok || caller.ServiceName != "gateway" || caller.Endpoint != "__encore/authhandler" {
 		errs.HTTPErrorWithCode(w, errs.B().Code(errs.PermissionDenied).Msg("permission denied").Err(), 0)
 		return
