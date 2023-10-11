@@ -209,11 +209,11 @@ func parseTraceParent(logger zerolog.Logger, r *http.Request) *TraceContext {
 // This function will never return nil
 func ExtractCloudTraceIDs(logger zerolog.Logger, req *http.Request) *TraceContext {
 	extractors := []func(zerolog.Logger, *http.Request) *TraceContext{
-		parseGCloudTraceContext,  // GCP specific and gives us _our_ span ID
-		parseAWSXRayTraceContext, // AWS specific and does not given us a span ID
-		parseB3Headers,           // Older standard which does give us a span ID, but is cloud agnostic
-		parseB3SingleHeader,      // Different variant of the B3 standard, which gives us a cloud ID
-		parseTraceParent,         // We do this last, as ideally we want a span ID which the cloud already knows about for this request
+		//parseGCloudTraceContext, // GCP specific and gives us _our_ span ID
+		//parseAWSXRayTraceContext, // AWS specific and does not given us a span ID
+		parseB3Headers,      // Older standard which does give us a span ID, but is cloud agnostic
+		parseB3SingleHeader, // Different variant of the B3 standard, which gives us a cloud ID
+		parseTraceParent,    // We do this last, as ideally we want a span ID which the cloud already knows about for this request
 	}
 
 	for _, extractor := range extractors {
