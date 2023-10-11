@@ -93,7 +93,7 @@ func ParseCallerString(callerStr string) (Caller, error) {
 		if !found {
 			return nil, errors.New("invalid api caller")
 		}
-		return &ApiCaller{service, endpoint}, nil
+		return ApiCaller{service, endpoint}, nil
 	case strings.HasPrefix(callerStr, "pubsub:"):
 		topic, subscriptionAndMsgId, found := strings.Cut(callerStr[len("pubsub:"):], ":")
 		if !found {
@@ -103,17 +103,17 @@ func ParseCallerString(callerStr string) (Caller, error) {
 		if !found {
 			return nil, errors.New("invalid pubsub caller")
 		}
-		return &PubSubCaller{topic, subscription, msgId}, nil
+		return PubSubCaller{topic, subscription, msgId}, nil
 	case strings.HasPrefix(callerStr, "app:"):
-		return &AppCaller{callerStr[len("app:"):]}, nil
+		return AppCaller{callerStr[len("app:"):]}, nil
 	case strings.HasPrefix(callerStr, "gateway:"):
 		service, endpoint, found := strings.Cut(callerStr[len("gateway:"):], ".")
 		if !found {
 			return nil, errors.New("invalid gateway caller")
 		}
-		return &GatewayCaller{service, endpoint}, nil
+		return GatewayCaller{service, endpoint}, nil
 	case strings.HasPrefix(callerStr, "encore:"):
-		return &EncoreCaller{callerStr[len("encore:"):]}, nil
+		return EncoreCaller{callerStr[len("encore:"):]}, nil
 	default:
 		return nil, errors.New("invalid caller")
 	}
