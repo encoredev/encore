@@ -225,14 +225,21 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 
 	// If we where tracing read the trace ID, span ID
 	if traceParent, found := req.ReadMeta(transport.TraceParentKey); found &&
-		// For now we only read the traceparent for interanl-to-internal calls, this is because CloudRun
+		// For now we only read the traceparent for internal-to-internal calls, this is because CloudRun
 		// is adding a traceparent header to all requests, which is causing our trace system to get confused
 		// and think that the initial request is a child of another already traced request
 		//
 		// In the future we should be able to remove this check and read the traceparent header for all requests
 		// to interopt with other tracing systems.
 		meta.Internal != nil {
+
 		meta.TraceID, meta.ParentSpanID, _ = parseTraceParent(traceParent)
+
+		// If it's a gateway, ignore the parent span id as gateways don't currently record a span.
+		// If we include it the root request won't be tagged as such.
+		if _, isGateway := meta.Internal.Caller.(GatewayCaller); isGateway {
+			meta.ParentSpanID = model.SpanID{}
+		}
 
 		if traceState, found := req.ReadMetaValues(transport.TraceStateKey); found {
 			parentEventID, parentSpanID, ok := parseTraceState(traceState)
