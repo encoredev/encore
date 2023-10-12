@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"slices"
-	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
@@ -140,14 +139,10 @@ func findModule(sortedMods []paths.Mod, pkg paths.Pkg) (modPath paths.Mod, found
 		// Doing a binary search for "foo/qux" would return (idx=3, exactMatch=false),
 		// but the module that contains "foo/qux" is "foo" at idx=0.
 		//
-		// To handle this case, keep looping backwards until we find a module
-		// that isn't a prefix of idx-1.
-		initial := string(sortedMods[idx-1])
+		// To handle this case, keep iterating backwards until we find a prefix match.
 		for i := idx - 2; i >= 0; i-- {
 			if candidate := sortedMods[i]; candidate.LexicallyContains(pkg) {
 				return candidate, true
-			} else if !strings.HasPrefix(initial, string(candidate)) {
-				break
 			}
 		}
 

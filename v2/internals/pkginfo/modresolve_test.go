@@ -15,6 +15,7 @@ func Test_findModule(t *testing.T) {
 		"foo",
 		"foo/bar",
 		"foo/bar/baz",
+		"foo/unrelated",
 		"encore.dev",
 	}
 	slices.Sort(deps)
