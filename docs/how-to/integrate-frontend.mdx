@@ -90,10 +90,8 @@ Encore allows for building backends using both REST and GraphQL, you should pick
 
 Take a look at the [GraphQL tutorial](/docs/tutorials/graphql) for an example of building a GraphQL backend with Encore.
 
-## Handeling CORS
-If you are running into CORS issues when calling your Encore API from your frontend then you may need to specify which
-origins are allowed to access your API (via browsers). You do this by specifying the `global_cors` key in the `encore.app`
-file, which has the following structure:
+## Handling CORS
+If you are running into CORS issues when calling your Encore API from your frontend you may need to specify which origins are allowed to access your API (via browsers). Do this by specifying the `global_cors` key in the `encore.app` file, which has the following structure:
 
 ```json
 global_cors: {
@@ -114,6 +112,3 @@ global_cors: {
     "<DOMAIN-GOES-HERE>"
   ]
 }
-```
-
-More information on CORS configuration can be found here: https://encore.dev/docs/develop/cors
