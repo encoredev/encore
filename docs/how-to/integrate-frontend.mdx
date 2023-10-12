@@ -1,0 +1,127 @@
+---
+seotitle: Integrate your backend application with a frontend
+seodesc: Learn how to integrate your Go backend application with a frontend, using Encore's built-in frontend client generation feature.
+title: Integrate with a web frontend
+---
+
+## Hosting a frontend on Encore
+To serve a frontend using Encore you need to create a `raw` endpoint that serves the static front-end assets. It would look something like this (taken from the [Uptime Monitoring tutorial](https://encore.dev/docs/tutorials/uptime)):
+
+```go
+package frontend
+
+import (
+	"embed"
+	"io/fs"
+	"net/http"
+)
+
+var (
+	//go:embed dist
+	dist embed.FS
+
+	assets, _ = fs.Sub(dist, "dist")
+	handler   = http.StripPrefix("/frontend/", http.FileServer(http.FS(assets)))
+)
+
+ //encore:api public raw path=/frontend/*path
+ func Serve(w http.ResponseWriter, req *http.Request) {
+	 handler.ServeHTTP(w, req)
+ }
+```
+
+<Callout type="info">
+  This approach is limiting and only recommended for development.
+</Callout>
+
+Encore does not (at the moment) support building or testing frontends in the deploy pipeline which means that if you are serving your front-end through a `raw` Encore endpoint then you need to have the compiled front-end assets under version control (`dist` folder in the example above).
+
+For production use we recommend that you deploy your frontend using Vercel, Netlify, or a similar service.
+
+## Hosting a frontend on another platform
+Encore puts no restrictions to where you can host your frontend, pick the platform the suites your situation best.
+
+You might run into CORS issues if your frontend and backend are using different domains (which will be the case if you are using PR preview environments for your frontend). Read more about [configuring CORS](#handeling-cors) further down on this page.
+
+Take a look at our [React starter template](https://encore.dev/templates/react) for an example of deploying a frontend to [Vercel](https://vercel.com/) or the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) which is deployed to [GitHub Pages](https://pages.github.com/).
+
+## Mono repo vs multiple repos
+You can decide on having your backend and frontend code in the same repo or separate them into different ones. Pick the approach that fits your application best.
+
+If you go for a mono repo approach then it might be a good idea to place your backend and frontend in separate folders. There are two approaches to moving your Encore backend to a subfolder:
+
+1. Place your microservices together with the `encore.app` in a subfolder. When moving `encore.app` to a subfolder you will need to specify the "Root Directory" in the settings for your app on app.encore.dev.
+
+2. Place your microservices in a subfolder and keep the `encore.app` in the repo root directory. No configuration change is needed but you will need to update the import paths if your services are calling each other.
+
+## Generating a request client
+Encore is able to generate frontend request clients (TypeScript or JavaScript). This will allow you to keep the request/response types in sync without manually work and assist you in calling the APIs. To generate a client run:
+
+```bash
+$ encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=<ENV_NAME>
+```
+
+Adding this as a script to your `package.json` is often a good idea to be able to run it whenever a change is made to your Encore API:
+
+```
+{
+...
+"scripts": {
+    ...
+    "generate-client:staging": "encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=staging",
+    "generate-client:local": "encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=local"
+  },
+}
+```
+
+After that you are ready to use the request client in your code. Here is an example from the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) for calling the `GetNote` endpoint on the `note` service in order to retrieve a specific meeting note (which has the properties `id`, `cover_url` & `text`):
+
+```ts
+import Client, { Environment, Local } from "src/client.ts";
+
+// Making request to locally running backend...
+const client = new Client(Local);
+// or to a specific deployed environment
+const client = new Client(Environment("staging"));
+
+// Calling APIs as typesafe functions 🌟
+const response = await client.note.GetNote("note-uuid");
+console.log(response.id);
+console.log(response.cover_url);
+console.log(response.text);
+```
+
+More information on client library generation can be found here: https://encore.dev/docs/develop/client-generation
+
+## REST vs GraphQL
+Encore allows for building backends using both REST and GraphQL, you should pick the approach that fits your use case best.
+
+Take a look at our [GraphQL tutorial](https://encore.dev/docs/tutorials/graphql) for an example of building a GraphQL backend with Encore.
+
+## Handeling CORS
+If you are running into CORS issues when calling your Encore API from your frontend then you may need to specify which
+origins are allowed to access your API (via browsers). You do this by specifying the `global_cors` key in the `encore.app`
+file, which has the following structure:
+
+```json
+global_cors: {
+  // allow_origins_without_credentials specifies the allowed origins for requests
+  // that don't include credentials. If nil it defaults to allowing all domains
+  // (equivalent to ["*"]).
+  "allow_origins_without_credentials": [
+    "<ORIGIN-GOES-HERE>"
+  ],
+
+  // allow_origins_with_credentials specifies the allowed origins for requests
+  // that include credentials. If a request is made from an Origin in this list
+  // Encore responds with Access-Control-Allow-Origin: <Origin>.
+  //
+  // The URLs in this list may include wildcards (e.g. "https://*.example.com"
+  // or "https://*-myapp.example.com").
+  "allow_origins_with_credentials": [
+    "<DOMAIN-GOES-HERE>"
+  ]
+}
+```
+
+More information on CORS configuration can be found here: https://encore.dev/docs/develop/cors
