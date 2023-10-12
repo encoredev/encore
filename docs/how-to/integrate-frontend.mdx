@@ -38,14 +38,13 @@ If your frontend and backend use different domains, often the case when using PR
 
 Take a look at our [React starter template](https://encore.dev/templates/react) for an example of deploying a frontend to [Vercel](https://vercel.com/) or the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) deployed to [GitHub Pages](https://pages.github.com/).
 
-## Mono repo vs multiple repos
-You can decide on having your backend and frontend code in the same repo or separate them into different ones. Pick the approach that fits your application best.
+## Monorepo or Multi repo
+Encore is not opinionated about where your frontend lives, pick the approach that fits your application best.
 
-If you go for a mono repo approach then it might be a good idea to place your backend and frontend in separate folders. There are two approaches to moving your Encore backend to a subfolder:
+If you use a monorepo then it is often a good idea to place your backend and frontend in separate folders. There are two approaches to moving your Encore backend to a subfolder:
 
-1. Place your microservices together with the `encore.app` in a subfolder. When moving `encore.app` to a subfolder you will need to specify the "Root Directory" in the settings for your app on app.encore.dev.
-
-2. Place your microservices in a subfolder and keep the `encore.app` in the repo root directory. No configuration change is needed but you will need to update the import paths if your services are calling each other.
+1. Place your microservices together with the `encore.app` file in a subfolder. When moving `encore.app` to a subfolder you will need to configure the "Root Directory" in app settings in the [Cloud Dashboard](https://app.encore.dev).
+2. Place your microservices in a subfolder and keep the `encore.app` in the repo root directory. No configuration change is needed, but you will need to update the import paths if your services are calling each other.
 
 ## Generating a request client
 Encore is able to generate frontend request clients (TypeScript or JavaScript). This will allow you to keep the request/response types in sync without manually work and assist you in calling the APIs. To generate a client run:
