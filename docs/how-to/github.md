@@ -40,6 +40,6 @@ Encore will also provision a dedicated Preview Environment for each pull request
 This environment works just like a regular development environment, and lets you test your changes
 before merging.
 
-Learn more in the [Preview Environments documentation](/docs/deploy/preview-environment).
+Learn more in the [Preview Environments documentation](/docs/deploy/preview-environments).
 
 ![Preview environment linked in GitHub](/assets/docs/ghpreviewenv.png "Preview environment linked in GitHub")
