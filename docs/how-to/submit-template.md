@@ -32,7 +32,7 @@ Once your Pull Request has been approved, it may be featured on the [Templates p
 Follow these steps to submit your **Bits**:
 
 1. Fork the repo.
-2. Create a new folder inside the `bits` folder in the repo and place your template inside it. — Use a short folder name as your template will soon be installable via the CLI.
+2. Create a new folder inside the `bits` folder in the repo and place your template inside it. Use a short folder name as your template will soon be installable via the CLI.
 3. Include a `README.md` with instructions for how to use the template.
 
 Once your Pull Request has been approved, it may be featured on the [Templates page](/templates) on the Encore website.
