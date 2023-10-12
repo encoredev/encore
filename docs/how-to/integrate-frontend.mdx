@@ -47,7 +47,7 @@ If you use a monorepo then it is often a good idea to place your backend and fro
 2. Place your microservices in a subfolder and keep the `encore.app` in the repo root directory. No configuration change is needed, but you will need to update the import paths if your services are calling each other.
 
 ## Generating a request client
-Encore is able to generate frontend request clients (TypeScript or JavaScript). This will allow you to keep the request/response types in sync without manually work and assist you in calling the APIs. To generate a client run:
+Encore is able to generate frontend request clients (TypeScript or JavaScript). This lets you to keep the request/response types in sync without manual work and assists you in calling the APIs. Generate a client by running:
 
 ```bash
 $ encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=<ENV_NAME>
