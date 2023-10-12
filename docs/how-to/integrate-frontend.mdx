@@ -39,11 +39,11 @@ Encore does not (at the moment) support building or testing frontends in the dep
 For production use we recommend that you deploy your frontend using Vercel, Netlify, or a similar service.
 
 ## Hosting a frontend on another platform
-Encore puts no restrictions to where you can host your frontend, pick the platform the suites your situation best.
+Encore is not opinionated about where you host your frontend, pick the platform that suits your situation best.
 
-You might run into CORS issues if your frontend and backend are using different domains (which will be the case if you are using PR preview environments for your frontend). Read more about [configuring CORS](#handeling-cors) further down on this page.
+If your frontend and backend use different domains, often the case when using PR preview environments for your frontend, you may need to [configure CORS](#handling-cors).
 
-Take a look at our [React starter template](https://encore.dev/templates/react) for an example of deploying a frontend to [Vercel](https://vercel.com/) or the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) which is deployed to [GitHub Pages](https://pages.github.com/).
+Take a look at our [React starter template](https://encore.dev/templates/react) for an example of deploying a frontend to [Vercel](https://vercel.com/) or the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) deployed to [GitHub Pages](https://pages.github.com/).
 
 ## Mono repo vs multiple repos
 You can decide on having your backend and frontend code in the same repo or separate them into different ones. Pick the approach that fits your application best.
