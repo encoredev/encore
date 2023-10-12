@@ -5,7 +5,9 @@ title: Integrate with a web frontend
 ---
 
 ## Hosting a frontend on Encore
-To serve a frontend using Encore you need to create a `raw` endpoint that serves the static front-end assets. It would look something like this (taken from the [Uptime Monitoring tutorial](https://encore.dev/docs/tutorials/uptime)):
+Encore is primarily designed for backend development and does not (at the moment) support building or testing frontends in the deploy pipeline. For production use, we recommend that you deploy your frontend using Vercel, Netlify, or a similar service.
+
+For development purposes, you can create a `raw` endpoint that serves static frontend assets. It would look something like the example below (taken from the [Uptime Monitoring tutorial](https://encore.dev/docs/tutorials/uptime)), but keep in mind that you need to have the compiled frontend assets under version control (`dist` folder in the example below).
 
 ```go
 package frontend
@@ -28,15 +30,6 @@ var (
  func Serve(w http.ResponseWriter, req *http.Request) {
 	 handler.ServeHTTP(w, req)
  }
-```
-
-<Callout type="info">
-  This approach is limiting and only recommended for development.
-</Callout>
-
-Encore does not (at the moment) support building or testing frontends in the deploy pipeline which means that if you are serving your front-end through a `raw` Encore endpoint then you need to have the compiled front-end assets under version control (`dist` folder in the example above).
-
-For production use we recommend that you deploy your frontend using Vercel, Netlify, or a similar service.
 
 ## Hosting a frontend on another platform
 Encore is not opinionated about where you host your frontend, pick the platform that suits your situation best.
