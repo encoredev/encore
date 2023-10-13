@@ -36,12 +36,38 @@ type File struct {
 	// will be applied to all API gateways into the application.
 	GlobalCORS *CORS `json:"global_cors,omitempty"`
 
+	// Build contains build settings for the application.
+	Build Build `json:"build,omitempty"`
+
 	// CgoEnabled enables building with cgo.
+	//
+	// Deprecated: Use build.cgo_enabled instead.
 	CgoEnabled bool `json:"cgo_enabled,omitempty"`
 
 	// DockerBaseImage changes the docker base image used for building the application
 	// in Encore's CI/CD system. If unspecified it defaults to "scratch".
+	//
+	// Deprecated: Use build.docker.base_image instead.
 	DockerBaseImage string `json:"docker_base_image,omitempty"`
+}
+
+type Build struct {
+	// CgoEnabled enables building with cgo.
+	CgoEnabled bool `json:"cgo_enabled,omitempty"`
+
+	// Docker configures the docker images built
+	// by Encore's CI/CD system.
+	Docker Docker `json:"docker,omitempty"`
+}
+
+type Docker struct {
+	// BaseImage changes the docker base image used for building the application
+	// in Encore's CI/CD system. If unspecified it defaults to "scratch".
+	BaseImage string `json:"base_image,omitempty"`
+
+	// BundleSource determines whether the source code of the application
+	// should be bundled into the binary.
+	BundleSource bool `json:"bundle_source,omitempty"`
 }
 
 type CORS struct {
@@ -84,6 +110,13 @@ func Parse(data []byte) (*File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("appfile.Parse: %v", err)
 	}
+
+	// Parse deprecated fields into the new Build struct.
+	f.Build.CgoEnabled = f.Build.CgoEnabled || f.CgoEnabled
+	if f.Build.Docker.BaseImage == "" {
+		f.Build.Docker.BaseImage = f.DockerBaseImage
+	}
+
 	return &f, nil
 }
 

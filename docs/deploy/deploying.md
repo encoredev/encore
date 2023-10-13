@@ -45,3 +45,36 @@ To configure which branch name is used to trigger deploys, open your app in the 
 
 When you connect your GitHub account and push changes to a pull request, Encore will automatically create a [Preview Environment](/docs/deploy/preview-environments). This is a fully functional, isolated environment where you can test your application as it would run in production. This environment runs in Encore's free development cloud, giving you an efficient way to validate your changes before they are merged and deployed to the primary environment.
 
+## Custom build settings
+
+You can override certain aspects of the CI/CD process in the `encore.app` file:
+
+* The Docker base image to use when deploying
+* Whether to build with Cgo enabled
+* Whether to bundle the source code in the docker image (useful for [Sentry stack traces](https://docs.sentry.io/platforms/go/usage/serverless/))
+
+Below are the available build settings configurable in the `encore.app` file,
+with their default values:
+
+```cue
+{
+    "build": {
+        // Enables cgo when building the application and running tests
+        // in Encore's CI/CD system.
+        "cgo_enabled": false,
+        
+        // Docker-related configuration
+        "docker": {
+        	// The Docker base image to use when deploying the application.
+        	// It must be a publicly accessible image, and defaults to "scratch".
+            "base_image": "scratch",
+            
+            // Whether to bundle the source code in the docker image.
+            // The source code will be copied into /workspace as part
+            // of the build process. This is primarily useful for tools like
+            // Sentry that need access to the source code to generate stack traces.
+            "bundle_source": false
+        }
+    }
+}
+```
