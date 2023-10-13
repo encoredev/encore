@@ -9,7 +9,7 @@ with libraries written in other languages using C bindings.
 
 By default, for improved portability Encore builds applications with cgo support disabled.
 
-To enable cgo for your application, add `"cgo_enabled": true` to your `encore.app` file.
+To enable cgo for your application, add `"build": {"cgo_enabled": true}` to your `encore.app` file.
 
 For example:
 
@@ -17,12 +17,14 @@ For example:
 -- encore.app --
 {
   "id": "my-app-id",
-  "cgo_enabled": true
+  "build": {
+    "cgo_enabled": true
+  }
 }
 ```
 
 With this setting Encore's build system will compile the application using an Ubuntu builder image
-with gcc preinstalled.
+with gcc pre-installed.
 
 ## Static linking
 
