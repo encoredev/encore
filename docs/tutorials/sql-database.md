@@ -148,18 +148,19 @@ Wonderful, it works!
 
 ## 3. Deploy to production
 
-To deploy this to production, simply push this code to Encore:
+Push your changes and deploy your application to Encore's free development cloud by running:
 
 ```shell
-$ git add -A
-$ git commit -m "Add hello.There endpoint with a personalized greeting"
+$ git add -A .
+$ git commit -m 'Initial commit'
 $ git push encore
 ```
-This triggers a build and deploy to the cloud.
 
-Head over to your app's production dashboard by opening [app.encore.dev](https://app.encore.dev) in your browser.
-Once the deploy completes, go to the API page and make an API call
-to your new `hello.There` endpoint.
+Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
+
+After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+
+Once the deploy completes, go to the Service Catalog in the Cloud Dashboard and make an API call to your new `hello.There` endpoint.
 
 You should see the same thing as before:
 ```json

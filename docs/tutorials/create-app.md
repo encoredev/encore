@@ -80,8 +80,11 @@ Well done! Let's deploy it to the cloud.
 Deploying your app to the cloud is as easy as running:
 
 ```shell
+$ git add -A .
+$ git commit -m 'Commit message'
 $ git push encore
 ```
+
 This will trigger a build and deploy. You'll see the deploy logs being streamed directly to your terminal.
 
 Once the deploy completes, your app is up and running in production!
