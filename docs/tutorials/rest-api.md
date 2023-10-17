@@ -269,21 +269,19 @@ func TestShortenAndRetrieve(t *testing.T) {
 
 A final step before you deploy is to commit all changes to the project repo.
 
-🥐 Commit the new files to the project's git repo by running:
+🥐 Commit the new files to the project's git repo and trigger a deploy to Encore's free development cloud by running:
 
 ```shell
-$ git add url
-$ git commit -m 'working service including test'
-```
-
-🥐 Then you can finally deploy your application to the cloud by running:
-
-```shell
+$ git add -A .
+$ git commit -m 'Initial commit'
 $ git push encore
 ```
-This will trigger a deployment and Encore will build and test your app, provision the necessary infrastructure (including databases), and deploy your app to the cloud.
 
-🥐 Head to the [Cloud Dashboard](https://app.encore.dev) to follow the progress of your deployment.
+Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
+
+After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+
+From there you can also see metrics, traces, and connect your own AWS or GCP account to use for production deployment.
 
 *Now you have a fully fledged backend running in the cloud, well done!*
 
