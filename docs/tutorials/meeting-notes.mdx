@@ -147,7 +147,7 @@ Both `SaveNote` and `GetNote` makes use of a SQL database table named `note`, le
 
 ## Defining a SQL database
 
-To create a SQL database using Encore we first create a folder named `migrations` and inside that folder a migration file named 1*create_tables.up.sql. The file name is important (it must look something like 1*&lt;name&gt;.up.sql). Our migration file is only five lines long and looks like this:
+To create a SQL database using Encore we first create a folder named `migrations` and inside that folder a migration file named `1_create_tables.up.sql`. The file name is important (it must look something like `1_name.up.sql`). Our migration file is only five lines long and looks like this:
 
 ```sql
 CREATE TABLE note (
