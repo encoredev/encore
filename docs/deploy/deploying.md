@@ -24,12 +24,16 @@ With Encore, deploys are triggered simply by pushing changes to the connected Gi
 - If you are using Encore's Git, run the following command to deploy your application:
 
 ```shell
+$ git add -A .
+$ git commit -m 'Commit message'
 $ git push encore
 ```
 
 - If you are using GitHub, a standard `git push` to your repository will work:
 
 ```shell
+$ git add -A .
+$ git commit -m 'Commit message'
 $ git push origin
 ```
 

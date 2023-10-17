@@ -520,7 +520,7 @@ To try out your uptime monitor for real, let's deploy it to Encore's free develo
 Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`.
 (You can also integrate with GitHub to activate per Pull Request Preview Environments, learn more in the [CI/CD docs](/docs/deploy/deploying).)
 
-🥐 Now, let's deploy your app to the cloud:
+🥐 Now, let's deploy your app to Encore's free development cloud by running:
 
 ```shell
 $ git add -A .
@@ -528,9 +528,11 @@ $ git commit -m 'Initial commit'
 $ git push encore
 ```
 
-This will trigger a deployment and Encore will build and test your app, provision the necessary infrastructure (including databases, Cron Jobs, and Pub/Sub), and deploy your app to the cloud.
+Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
-🥐 Head to the [Cloud Dashboard](https://app.encore.dev) to follow the progress of your deploy.
+After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+
+From there you can also see metrics, traces, link your app to a GitHub repo to get automatic deploys on new commits, and connect your own AWS or GCP account to use for production deployment.
 
 🥐 When the deploy has finished, you can try out your uptime monitor by going to `https://staging-$APP_ID.encr.app/frontend`.
 

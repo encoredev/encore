@@ -16,11 +16,15 @@ The example app we will build is a markdown meeting notes app BUT it’s trivial
 **[Demo version of the app](https://encoredev.github.io/meeting-notes)**
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-	<source src="/assets/docs/meeting-notes-demo.mp4" className="w-full h-full" type="video/mp4" />
+  <source
+    src="/assets/docs/meeting-notes-demo.mp4"
+    className="w-full h-full"
+    type="video/mp4"
+  />
 </video>
 
 <div className="not-prose my-10">
-   <Editor projectName="meetingNotes" />
+  <Editor projectName="meetingNotes" />
 </div>
 
 ## Create your Encore application
@@ -47,13 +51,21 @@ $ encore run
 You should see the following:
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-	<source src="/assets/docs/encorerun.mp4" className="w-full h-full" type="video/mp4" />
+  <source
+    src="/assets/docs/encorerun.mp4"
+    className="w-full h-full"
+    type="video/mp4"
+  />
 </video>
 
 That means your local development backend is up and running! Encore takes care of setting up all the necessary infrastructure for your application, including databases. Encore also starts the local development dashboard which is a tool to help you move faster when you're developing new features.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-	<source src="/assets/docs/localdashvideo.mp4" className="w-full h-full" type="video/mp4" />
+  <source
+    src="/assets/docs/localdashvideo.mp4"
+    className="w-full h-full"
+    type="video/mp4"
+  />
 </video>
 
 To start the front-end, run the following commands in another terminal window:
@@ -135,7 +147,7 @@ Both `SaveNote` and `GetNote` makes use of a SQL database table named `note`, le
 
 ## Defining a SQL database
 
-To create a SQL database using Encore we first create a folder named `migrations` and inside that folder a migration file named 1_create_tables.up.sql. The file name is important (it must look something like 1_&lt;name&gt;.up.sql). Our migration file is only five lines long and looks like this:
+To create a SQL database using Encore we first create a folder named `migrations` and inside that folder a migration file named 1*create_tables.up.sql. The file name is important (it must look something like 1*&lt;name&gt;.up.sql). Our migration file is only five lines long and looks like this:
 
 ```sql
 CREATE TABLE note (
@@ -259,7 +271,7 @@ console.log(response.text);
 
 It’s deploy time! To get your backend deployed in the cloud all you need to do is to commit your code and push it to the `encore` remote:
 
-```bash
+```shell
 $ git add -A .
 $ git commit -m 'Initial commit'
 $ git push encore
@@ -268,7 +280,11 @@ $ git push encore
 When running `git push encore` you will get a link to the Encore Cloud dashboard where you can view the deploy for your app and after about a minute you have a backend running in the cloud ☁️
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-	<source src="/assets/docs/meeting-notes-git-push.mp4" className="w-full h-full" type="video/mp4" />
+  <source
+    src="/assets/docs/meeting-notes-git-push.mp4"
+    className="w-full h-full"
+    type="video/mp4"
+  />
 </video>
 
 ## Hosting the frontend
@@ -298,7 +314,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16.15.1'
+          node-version: "16.15.1"
 
       - name: Install and Build 🔧
         run: |
@@ -324,7 +340,7 @@ base: "/my-repo-name/",
 ```
 
 1. Push your code to GitHub and wait for the GitHub actions workflow to finish.
-2. Go to *Settings* → *Pages* for your repo on GitHub and set *Branch* to `gh-pages`.
+2. Go to _Settings_ → _Pages_ for your repo on GitHub and set _Branch_ to `gh-pages`.
 
 ## Wrapping up
 
