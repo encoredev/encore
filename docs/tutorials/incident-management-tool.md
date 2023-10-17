@@ -779,7 +779,7 @@ And if you don't acknowledge incoming incidents on Step 4, you will be reminded 
 
 ![Being reminded on Slack about unacknowledged incidents](/assets/docs/incident-slack-reminder-example.png)
 
-### Deployi to the cloud
+### Deploy to the cloud
 
 🥐 Push your changes and deploy your application to Encore's free development cloud by running:
 
