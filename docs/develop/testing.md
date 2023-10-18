@@ -45,3 +45,18 @@ This can be useful for testing library code that interacts with infrastructure.
 
 For example, the [x.encore.dev/pubsub/outbox](https://pkg.go.dev/x.encore.dev/infra/pubsub/outbox) package
 defines a test-only database that is used to do integration testing of the outbox functionality.
+
+## Testing from your IDE
+
+### GoLand / IntelliJ
+
+Encore has an officially supported plugin [available in the JetBrains marketplace](https://plugins.jetbrains.com/plugin/20010-encore).
+
+It lets you run unit tests directly from within your IDE with support for debug mode and breakpoints.
+
+### Visual Studio Code (VS Code)
+
+There's no official VS Code plugin available yet, but we are happy to include your contribution if you  build one. Reach out on [Slack](/slack) if you need help to get started.
+
+For advice on debugging when using VS Code, see the [Debugging docs](/docs/how-to/debug).
+

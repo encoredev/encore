@@ -5,7 +5,9 @@ title: Custom Domains
 subtitle: Expose APIs from your own domain
 ---
 
-By default, all application [environments](/docs/deploy/environments) are accessible as subdomains of the shared Encore domain `encr.app`. When exposing APIs publicly, you often want to provide a URL endpoint branded with your own domain. Follow these instructions to configure your own domains to serve your backend.
+By default, all application [environments](/docs/deploy/environments) are accessible as subdomains of the shared Encore domain `encr.app`. When exposing APIs publicly, you often want to provide a URL endpoint branded with your own domain.
+
+Follow these instructions to serve your backend using your own custom domain name. This also has the benefit of providing a built-in Web Application Firewall (WAF) using [Cloudflare WAF](https://www.cloudflare.com/en-gb/application-services/products/waf/).
 
 ## Adding a domain
 
@@ -46,10 +48,10 @@ cutting traffic off to older clients which may be hard coded to access your appl
 
 On the Custom Domains settings page, you can see the various statuses throughout the lifecycle of a custom domain.
 
-| Status | Description |
-| - | - |
-| `Pending` | The domain is currently queued to be provisioned by Encore. |
-|`Waiting for CNAME` | Encore is waiting for the CNAME to become active and for the SSL certificate to be issued for the domain. |
-| `Configuring Edge Routers` | The SSL certificate has been issued and the Encore edge routers are being configured to route traffic on the domain. |
-| `Active` | The domain is serving traffic to your Encore application. |
-| `Not Working` | A non-recoverable problem has occurred. This could be a result of the CNAME record being removed or pointed elsewhere. If you see this error, please [contact support](/contact). |
+| Status                     | Description                                                                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Pending`                  | The domain is currently queued to be provisioned by Encore.                                                                                                                       |
+| `Waiting for CNAME`        | Encore is waiting for the CNAME to become active and for the SSL certificate to be issued for the domain.                                                                         |
+| `Configuring Edge Routers` | The SSL certificate has been issued and the Encore edge routers are being configured to route traffic on the domain.                                                              |
+| `Active`                   | The domain is serving traffic to your Encore application.                                                                                                                         |
+| `Not Working`              | A non-recoverable problem has occurred. This could be a result of the CNAME record being removed or pointed elsewhere. If you see this error, please [contact support](/contact). |
