@@ -186,7 +186,7 @@ func (l *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 
 func getConsumerConfig(maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy) *nsq.Config {
 	conCfg := nsq.NewConfig()
-	conCfg.MsgTimeout = ackDeadline
+	conCfg.MsgTimeout = utils.Clamp(ackDeadline, 0, 15*time.Minute)
 	conCfg.MaxInFlight = maxConcurrency
 	conCfg.DefaultRequeueDelay = utils.Clamp(retryPolicy.MinBackoff, 0, 60*time.Minute)
 	conCfg.MaxRequeueDelay = utils.Clamp(retryPolicy.MaxBackoff, 0, 60*time.Minute)
