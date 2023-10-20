@@ -28,7 +28,7 @@ If you ship the generated client to end customers, keep in mind that old clients
 
 <br />
 
-## Usage
+## Generating a Client
 
 To generate a client, use the `encore gen client` command. It generates a type-safe client using the most recent API metadata
 running in a particular environment for the given Encore application. For example:
@@ -98,6 +98,8 @@ each public or authenticated API exposed as a function on those objects.
 
 For instance, if you had a service called `email` with a function `Send`, on the generated client you would call this
 using; `client.email.Send(...)`.
+
+For more tips and examples of using a generated JavaScript/Typescript client, see the [Integrate with a web frontend](/docs/how-to/integrate-frontend#generating-a-request-client) docs.
 
 ### Creating an instance
 
