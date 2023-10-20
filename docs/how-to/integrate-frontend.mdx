@@ -26,7 +26,7 @@ Adding this as a script to your `package.json` is often a good idea to be able t
     ...
     "generate-client:staging": "encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=staging",
     "generate-client:local": "encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=local"
-  },
+  }
 }
 ```
 
@@ -48,6 +48,84 @@ console.log(response.text);
 ```
 
 See more in the [client generation docs](/docs/develop/client-generation).
+
+### Asynchronous state management
+
+When building something a bit more complex, you will likely need to deal with caching, refetching, and data going stale.
+[TanStack Query](https://tanstack.com/query/latest) is a popular library that was built to solve exactly these problems and works well with the Encore request client.
+
+Here is a simple example of using an Encore request client together with TanStack Query:
+
+```ts
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from 'react-query'
+import Client from '../encore-client'
+
+// Create a Encore client
+const encoreClient = new Client(window.location.origin);
+
+// Create a react-query client
+const queryClient = new QueryClient()
+
+function App() {
+  return (
+    // Provide the client to your App
+    <QueryClientProvider client={queryClient}>
+      <Todos />
+    </QueryClientProvider>
+  )
+}
+
+function Todos() {
+  // Access the client
+  const queryClient = useQueryClient()
+
+  // Queries
+  const query = useQuery('todos', encoreClient.todo.List)
+
+  // Mutations
+  const mutation = useMutation(encoreClient.todo.Add, {
+    onSuccess: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries('todos')
+    },
+  })
+
+  return (
+    <div>
+      <ul>
+        {query.data.map(todo => (
+          <li key={todo.id}>{todo.title}</li>
+        ))}
+      </ul>
+
+      <button
+        onClick={() => {
+          mutation.mutate({
+            id: Date.now(),
+            title: 'Do Laundry',
+          })
+        }}
+      >
+        Add Todo
+      </button>
+    </div>
+  )
+}
+
+render(<App />, document.getElementById('root'))
+```
+
+This example assumes that we have a `todo` service with a `List` and `Add` endpoint. When adding the new todo,
+TanStack Query will automatically invalidate the `todos` query and refetch it.
+
+For a real-world example, take a look at the [Uptime Monitoring](https://github.com/encoredev/examples/tree/main/uptime) app which also makes use of
+TanStack Query's `refetchInterval` option for polling the backend.
 
 ## Monorepo or Multi repo
 Encore is not opinionated about where your frontend lives, pick the approach that fits your application best.
