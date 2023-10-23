@@ -63,8 +63,8 @@ import {
   useQueryClient,
   QueryClient,
   QueryClientProvider,
-} from 'react-query'
-import Client from '../encore-client'
+} from '@tanstack/react-query'
+import Client, { todo } from '../encore-client'
 
 // Create a Encore client
 const encoreClient = new Client(window.location.origin);
@@ -86,20 +86,24 @@ function Todos() {
   const queryClient = useQueryClient()
 
   // Queries
-  const query = useQuery('todos', encoreClient.todo.List)
+  const query = useQuery({
+    queryKey: ['todos'],
+    queryFn: () => encoreClient.todo.List()
+  })
 
   // Mutations
-  const mutation = useMutation(encoreClient.todo.Add, {
+  const mutation = useMutation({
+    mutationFn: (params: todo.AddParams) => encoreClient.todo.Add(params),
     onSuccess: () => {
       // Invalidate and refetch
-      queryClient.invalidateQueries('todos')
+      queryClient.invalidateQueries({ queryKey: ['todos'] })
     },
   })
 
   return (
     <div>
       <ul>
-        {query.data.map(todo => (
+        {query.data?.map((todo) => (
           <li key={todo.id}>{todo.title}</li>
         ))}
       </ul>
