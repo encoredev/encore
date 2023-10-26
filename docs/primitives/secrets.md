@@ -9,7 +9,7 @@ Wouldn't it be nice to store secret values like API keys, database passwords, an
 Of course, we can’t do that &ndash; it's horrifyingly insecure!
 (Unfortunately, it's also [very common](https://www.ndss-symposium.org/ndss-paper/how-bad-can-it-git-characterizing-secret-leakage-in-public-github-repositories/).)
 
-Encore's built-in secrets manager makes it simple to store secrets in a secure way, using [GCP's Key Management Service](https://cloud.google.com/security-key-management) under the hood, and lets you use them in your program like regular variables.
+Encore's built-in secrets manager makes it simple to store secrets in a secure way and lets you use them in your program like regular variables.
 
 ## Using secrets in your application
 
@@ -60,7 +60,7 @@ If you prefer, you can also set up secrets from the CLI using:<br/> `encore secr
 
 For example `encore secret set --type prod SSHPrivateKey` sets the secret value for production environments,<br/> and `encore secret set --type dev,preview,local GitHubAPIToken` sets the secret value for development, preview, and local environments.
 
-In some cases it can be useful to define a secret for a specific environment instead of an environment type.
+In some cases, it can be useful to define a secret for a specific environment instead of an environment type.
 You can do so with `encore secret set --env <env-name> <secret-name>`. Secret values for specific environments
 take precedence over values for environment types.
 
@@ -69,3 +69,11 @@ take precedence over values for environment types.
 Each secret can only have one secret value for each environment type. For example: If you have a secret value that's shared between `development`, `preview` and `local`, and you want to override the value for `local`, you must first edit the existing secret and remove `local` using the Secrets Manager in the [Cloud Dashboard](https://app.encore.dev). You can then add a new secret value for `local`. The end result should look something like the picture below.
 
 <img src="/assets/docs/secretoverride.png" title="Overriding a secret in Encore's Secrets Manager"/>
+
+## How it works: Where secrets are stored
+
+When you store a secret Encore stores it encrypted using Google Cloud Platform's [Key Management Service](https://cloud.google.com/security-key-management) (KMS).
+
+- **Production / Your own cloud:** When you deploy to production using your own cloud account on GCP or AWS, Encore provisions a secrets manager in your account (using either KMS or AWS Secrets Manager) and replicates your secrets to it. The secrets are then injected into the container using secret environment variables.
+- **Local:** For local secrets Encore automatically replicates them to developers' machines when running `encore run`.
+- **Development / Encore Cloud:** Environments on Encore's development cloud (running on GCP under the hood) work the same as self-hosted GCP environments, using GCP Secrets Manager.
