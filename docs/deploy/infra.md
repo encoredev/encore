@@ -78,15 +78,15 @@ are provisioned with small-scale use in mind.
 
 Encore provisions production infrastructure resources using best-practice guidelines and services for each respective cloud provider.
 
-|  | GCP | AWS |
-| - | - | - |
-| **Networking:** | [VPC](#google-cloud-platform-gcp) | [VPC](#amazon-web-services-aws) |
-| **Compute:** | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws) |
-| **SQL Databases:** | [GCP Cloud SQL](#sql-databases) | [Amazon RDS](#sql-databases-1) |
-| **Pub/Sub:** | [GCP Pub/Sub](#pubsub) | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1) |
-| **Caches:** | [GCP Memorystore (Redis)](#caching) | [Amazon ElastiCache (Redis)](#caching-1) |
-| **Cron Jobs:** | [Encore Managed](/docs/primitives/cron-jobs) | [Encore Managed](/docs/primitives/cron-jobs) | [Encore Managed](/docs/primitives/cron-jobs) |
-| **Secrets:** | [Secret Manager][gcp-secrets] | [AWS Secrets Manager][aws-secrets] |
+|  | GCP | AWS                                                                      |
+| - | - |--------------------------------------------------------------------------|
+| **Networking:** | [VPC](#google-cloud-platform-gcp) | [VPC](#amazon-web-services-aws)                                          |
+| **Compute:** | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws), [EKS](#amazon-web-services-aws) |
+| **SQL Databases:** | [GCP Cloud SQL](#sql-databases) | [Amazon RDS](#sql-databases-1)                                           |
+| **Pub/Sub:** | [GCP Pub/Sub](#pubsub) | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1)                          |
+| **Caches:** | [GCP Memorystore (Redis)](#caching) | [Amazon ElastiCache (Redis)](#caching-1)                                 |
+| **Cron Jobs:** | [Encore Managed](/docs/primitives/cron-jobs) | [Encore Managed](/docs/primitives/cron-jobs)                             | [Encore Managed](/docs/primitives/cron-jobs) |
+| **Secrets:** | [Secret Manager][gcp-secrets] | [AWS Secrets Manager][aws-secrets]                                       |
 
 ### Configurability
 
@@ -154,6 +154,7 @@ provisioned for this to work.
 
 [aws-vpc]: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
 [aws-fargate]: https://aws.amazon.com/fargate/
+[aws-eks]: https://aws.amazon.com/eks/
 [aws-secrets]: https://aws.amazon.com/secrets-manager/
 [aws-rds]: https://aws.amazon.com/rds/postgresql/
 [aws-sqs]: https://aws.amazon.com/sqs/
@@ -166,8 +167,7 @@ and a whole slew of miscellaneous resources (IAM roles, policies, subnets, secur
 
 #### Compute instances
 
-Encore provisions a [Fargate ECS][aws-fargate] cluster to run the application. AWS Fargate is a managed, serverless, pay-as-you-go compute engine.
-We will soon add support for deploying to Kubernetes on AWS.
+Encore provisions a [Fargate ECS][aws-fargate] cluster (managed, serverless, pay-as-you-go compute engine) or a [Elastic Kubernetes Service][aws-eks] (EKS) cluster.
 
 #### SQL Databases
 When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [Amazon RDS][aws-rds] cluster, and separate databases within that cluster.
