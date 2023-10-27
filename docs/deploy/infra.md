@@ -167,7 +167,7 @@ and a whole slew of miscellaneous resources (IAM roles, policies, subnets, secur
 
 #### Compute instances
 
-Encore provisions a [Fargate ECS][aws-fargate] cluster (managed, serverless, pay-as-you-go compute engine) or a [Elastic Kubernetes Service][aws-eks] (EKS) cluster.
+Encore provisions a [Fargate ECS][aws-fargate] cluster (managed, serverless, pay-as-you-go compute engine) or an [Elastic Kubernetes Service][aws-eks] (EKS) cluster.
 
 #### SQL Databases
 When using [SQL Databases](/docs/primitives/databases), Encore provisions a single [Amazon RDS][aws-rds] cluster, and separate databases within that cluster.
