@@ -252,6 +252,22 @@ query {
 
 And you should get back `https://encore.dev`. 
 
+## 7. Deploy to the cloud
+
+Push your changes and deploy your application to Encore's free development cloud by running:
+
+```shell
+$ git add -A .
+$ git commit -m 'Initial commit'
+$ git push encore
+```
+
+Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
+
+After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+
+From there you can also see metrics, traces, link your app to a GitHub repo to get automatic deploys on new commits, and connect your own AWS or GCP account to use for production deployment.
+
 ## Conclusion
 
 We've now built a GraphQL API gateway that forwards requests to the application's

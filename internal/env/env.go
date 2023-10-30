@@ -9,19 +9,19 @@ import (
 )
 
 // These can be overwritten using
-// `go build -ldflags "-X encr.dev/cli/internal/env.alternativeEncoreRuntimePath=$HOME/src/github.com/encoredev/encore/runtime"`.
+// `go build -ldflags "-X encr.dev/cli/internal/env.alternativeEncoreRuntimesPath=$HOME/src/github.com/encoredev/encore/runtimes"`.
 var (
-	alternativeEncoreRuntimePath = ""
-	alternativeEncoreGoPath      = ""
+	alternativeEncoreRuntimesPath = ""
+	alternativeEncoreGoPath       = ""
 )
 
-// EncoreRuntimePath reports the path to the Encore runtime.
-// It can be overridden by setting ENCORE_RUNTIME_PATH.
-func EncoreRuntimePath() string {
-	p := encoreRuntimePath()
+// EncoreRuntimesPath reports the path to the Encore runtime.
+// It can be overridden by setting ENCORE_RUNTIMES_PATH.
+func EncoreRuntimesPath() string {
+	p := encoreRuntimesPath()
 	if p == "" {
 		log.Fatal().Msg("could not determine Encore install root. " +
-			"You can specify the path to the Encore runtime manually by setting the ENCORE_RUNTIME_PATH environment variable.")
+			"You can specify the path to the Encore runtimes manually by setting the ENCORE_RUNTIMES_PATH environment variable.")
 	}
 	return p
 }
@@ -37,14 +37,14 @@ func EncoreGoRoot() string {
 	return p
 }
 
-func encoreRuntimePath() string {
-	if p := os.Getenv("ENCORE_RUNTIME_PATH"); p != "" {
+func encoreRuntimesPath() string {
+	if p := os.Getenv("ENCORE_RUNTIMES_PATH"); p != "" {
 		return p
 	} else if //goland:noinspection GoBoolExpressions
-	alternativeEncoreRuntimePath != "" {
-		return alternativeEncoreRuntimePath
+	alternativeEncoreRuntimesPath != "" {
+		return alternativeEncoreRuntimesPath
 	} else if root, ok := determineRoot(); ok {
-		return filepath.Join(root, "runtime")
+		return filepath.Join(root, "runtimes")
 	}
 	return ""
 }
@@ -65,7 +65,7 @@ func encoreGoRoot() string {
 func List() []string {
 	return []string{
 		"ENCORE_GOROOT=" + encoreGoRoot(),
-		"ENCORE_RUNTIME_PATH=" + encoreRuntimePath(),
+		"ENCORE_RUNTIMES_PATH=" + encoreRuntimesPath(),
 	}
 }
 
@@ -83,7 +83,7 @@ func determineRoot() (root string, ok bool) {
 		root := filepath.Dir(filepath.Dir(exe))
 		// Heuristic: check if "encore-go" and "runtime" dirs exist in this location.
 		_, err1 := os.Stat(filepath.Join(root, "encore-go"))
-		_, err2 := os.Stat(filepath.Join(root, "runtime"))
+		_, err2 := os.Stat(filepath.Join(root, "runtimes", "go"))
 		if err1 == nil && err2 == nil {
 			return root, true
 		}

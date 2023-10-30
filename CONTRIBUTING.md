@@ -26,16 +26,16 @@ This must be done in one of two ways: embedding the installation path at compile
 or by setting an environment variable at runtime.
 
 The environment variables are:
-- `ENCORE_RUNTIME_PATH` – the path to the `encore.dev` runtime implementation.
+- `ENCORE_RUNTIMES_PATH` – the path to the `encore.dev` runtime implementation.
 - `ENCORE_GOROOT` – the path to encore-go on disk
 
-**ENCORE_RUNTIME_PATH**
+**ENCORE_RUNTIMES_PATH**
 
 This must be set to the location of the `encore.dev` runtime package.
 It's located in this Git repository in the `runtime` directory:
 
 ```bash
-export ENCORE_RUNTIME_PATH=/path/to/encore/runtime
+export ENCORE_RUNTIMES_PATH=/path/to/encore/runtimes
 ```
 
 **ENCORE_GOROOT**

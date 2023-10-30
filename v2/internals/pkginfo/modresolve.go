@@ -132,6 +132,20 @@ func findModule(sortedMods []paths.Mod, pkg paths.Pkg) (modPath paths.Mod, found
 	} else if candidate := sortedMods[idx-1]; candidate.LexicallyContains(pkg) {
 		return candidate, true
 	} else {
+		// It's possible to end up here if there are multiple dependencies
+		// with module paths that are prefixes of one another.
+		//
+		// Consider the deps: ["foo", "foo/bar", "foo/bar/baz"].
+		// Doing a binary search for "foo/qux" would return (idx=3, exactMatch=false),
+		// but the module that contains "foo/qux" is "foo" at idx=0.
+		//
+		// To handle this case, keep iterating backwards until we find a prefix match.
+		for i := idx - 2; i >= 0; i-- {
+			if candidate := sortedMods[i]; candidate.LexicallyContains(pkg) {
+				return candidate, true
+			}
+		}
+
 		return "", false
 	}
 }

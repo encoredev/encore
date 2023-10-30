@@ -15,8 +15,8 @@ Encore supports both use cases in a simple yet powerful way.
 As described in the docs for [defining APIs](/docs/primitives/services-and-apis), Encore offers three access levels
 for APIs:
 
-* `//encore:api public` &ndash; defines a public API that anybody on the internet can call
-* `//encore:api private` &ndash; defines a private API that only other backend services can call
+* `//encore:api public` &ndash; defines a public API that anybody on the internet can call.
+* `//encore:api private` &ndash; defines a private API that is never accessible to the outside world. It can only be called from other services in your app and via cron jobs.
 * `//encore:api auth` &ndash; defines a public API that anybody can call, but that requires valid authentication.
 
 When an API is defined with access level `auth`, outside calls to that API must specify
@@ -26,6 +26,13 @@ auth handler determines the token is valid.
 
 For more advanced use cases you can also customize the authentication information you want.
 See the section on [accepting structured auth information](#accepting-structured-auth-information) below.
+
+
+<Callout type="info">
+
+You can optionally send in auth data to `public` and `private` APIs, in which case the auth handler will be used. When used for `private` APIs, they are still not accessible from the outside world.
+
+</Callout>
 
 ## The auth handler
 

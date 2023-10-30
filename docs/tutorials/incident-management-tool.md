@@ -779,17 +779,21 @@ And if you don't acknowledge incoming incidents on Step 4, you will be reminded 
 
 ![Being reminded on Slack about unacknowledged incidents](/assets/docs/incident-slack-reminder-example.png)
 
-### Deploying to Encore Cloud
+### Deploy to the cloud
 
-🥐 Simply push your changes up to your Git repository by running the following:
+🥐 Push your changes and deploy your application to Encore's free development cloud by running:
 
 ```shell
-$ git add .
-$ git commit -m "working implementation"
-$ git push encore main
+$ git add -A .
+$ git commit -m 'Initial commit'
+$ git push encore
 ```
 
-🥐 Then go to <https://app.encore.dev> and in a few minutes you should have your app deployed to the clouds!
+Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
+
+After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+
+From there you can also see metrics, traces, link your app to a GitHub repo to get automatic deploys on new commits, and connect your own AWS or GCP account to use for production deployment.
 
 ### Architecture Diagram
 

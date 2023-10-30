@@ -103,8 +103,10 @@ to understand the request and response schemas of all your APIs, which enables E
 When you define an API, you have three options for how it can be accessed:
 
 * `//encore:api public` &ndash; defines a public API that anybody on the internet can call.
-* `//encore:api private` &ndash; defines a private API that only backend services in your app can call.
+* `//encore:api private` &ndash; defines a private API that is never accessible to the outside world. It can only be called from other services in your app and via cron jobs.
 * `//encore:api auth` &ndash; defines a public API that anybody can call, but requires valid authentication.
+
+You can optionally send in auth data to `public` and `private` APIs, in which case the auth handler will be used. When used for `private` APIs, they are still not accessible from the outside world.
 
 For more on defining APIs that require authentication, see the [authentication guide](/docs/develop/auth).
 

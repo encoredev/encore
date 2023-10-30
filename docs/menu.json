@@ -144,6 +144,11 @@
             "DocSlug": "how-to/share-db-between-services"
           },
           {
+            "Path": "/how-to/manage-db-users",
+            "Title": "Managing database user credentials",
+            "DocSlug": "how-to/manage-db-users"
+          },
+          {
             "Path": "/primitives/databases/extensions",
             "Title": "PostgreSQL Extensions",
             "DocSlug": "primitives/database-extensions"
@@ -415,6 +420,16 @@
         "Path": "/how-to/firebase-auth",
         "Title": "Use Firebase Authentication",
         "DocSlug": "how-to/firebase-auth"
+      },
+      {
+        "Path": "/how-to/submit-template",
+        "Title": "Submit a Template",
+        "DocSlug": "how-to/submit-template"
+      },
+      {
+        "Path": "/how-to/try-encore",
+        "Title": "Try Encore for an existing project",
+        "DocSlug": "how-to/try-encore"
       },
       {
         "Path": "/how-to/migrate-to-encore",
