@@ -131,6 +131,77 @@ TanStack Query will automatically invalidate the `todos` query and refetch it.
 For a real-world example, take a look at the [Uptime Monitoring](https://github.com/encoredev/examples/tree/main/uptime) app which also makes use of
 TanStack Query's `refetchInterval` option for polling the backend.
 
+### Testing
+When unit testing a component that interacts with your Encore API you can mock methods on the request client to
+return a value suitable for the test. This makes your test URL agnostic because you are not intercepting
+specific requests on the fetch layer. You also get type errors in your tests if the request client gets updated.
+
+Here is an example from the [Uptime Monitoring Starter](https://github.com/encoredev/examples/tree/main/uptime) where we are mocking a GET request method and spying on a POST request method:
+
+```ts
+import { render, waitForElementToBeRemoved } from "@testing-library/react";
+import App from "./App";
+import { site } from "./client";
+import { userEvent } from "@testing-library/user-event";
+
+describe("App", () => {
+  beforeEach(() => {
+    // Return mocked data from the List (GET) endpoint
+    jest
+      .spyOn(site.ServiceClient.prototype, "List")
+      .mockReturnValue(Promise.resolve({
+        sites: [{
+          id: 1,
+          url: "test.dev"
+        }]
+      }));
+
+    // Spy on the Add (POST) endpoint
+    jest.spyOn(site.ServiceClient.prototype, "Add");
+  });
+
+  it("render sites", async () => {
+    render(<App />);
+    await waitForElementToBeRemoved(() => screen.queryByText("Loading..."));
+
+    // Verify that the List endpoint has been called
+    expect(site.ServiceClient.prototype.List).toBeCalledTimes(1);
+
+    // Verify that the sites are rendered with our mocked data
+    screen.getAllByText("test.dev");
+  });
+
+  it("add site", async () => {
+    render(<App />);
+    await waitForElementToBeRemoved(() => screen.queryByText("Loading..."));
+
+    // Interact with the page and add 'another.com'
+    await userEvent.click(screen.getByText("Add website"));
+    await userEvent.type(
+      screen.getByPlaceholderText("google.com"),
+      "another.com",
+    );
+    await userEvent.click(screen.getByText("Save"));
+
+    // Verify that the Add endpoint has been called with the correct parameters
+    expect(site.ServiceClient.prototype.Add).toHaveBeenCalledWith({
+      url: "another.com",
+    });
+  });
+})
+```
+
+<Callout type="info">
+
+  In the example above we need to mock the `List` method on `site.ServiceClient.prototype` because the request client has not
+  yet been initialized when we're creating the mock. If you have access to the instance of the request client in your test
+  (which could be the case if you are passing the client around in your components) you can instead do `jest.spyOn(client.site, "List")`
+  and `expect(client.site.List).toHaveBeenCalled()` which would give you the same result.
+
+</Callout>
+
+More examples of tests can be found in the [Uptime Monitoring Starter repo](https://github.com/encoredev/examples/tree/main/uptime).
+
 ## Monorepo or Multi repo
 Encore is not opinionated about where your frontend lives, pick the approach that fits your application best.
 
