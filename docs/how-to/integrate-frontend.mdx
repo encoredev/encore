@@ -132,12 +132,11 @@ For a real-world example, take a look at the [Uptime Monitoring](https://github.
 TanStack Query's `refetchInterval` option for polling the backend.
 
 ### Testing
-When unit testing components that are interacting with your Encore API you can mock methods on the request client to
-return a value suitable for the test. This will make your tests URL agnostic because you are not intercepting
-specific requests on the fetch layer. You will also get type errors in your tests if the request client gets updated.
+When unit testing a component that interacts with your Encore API you can mock methods on the request client to
+return a value suitable for the test. This makes your test URL agnostic because you are not intercepting
+specific requests on the fetch layer. You also get type errors in your tests if the request client gets updated.
 
-Here is an example from the [Uptime Monitoring](https://github.com/encoredev/examples/tree/main/uptime) example where we
-are mocking a GET request method and spying on a POST request method:
+Here is an example from the [Uptime Monitoring Starter](https://github.com/encoredev/examples/tree/main/uptime) where we are mocking a GET request method and spying on a POST request method:
 
 ```ts
 import { render, waitForElementToBeRemoved } from "@testing-library/react";
