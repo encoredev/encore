@@ -193,10 +193,10 @@ describe("App", () => {
 
 <Callout type="info">
 
-  In the example above we need to mock he the `List` method on `site.ServiceClient.prototype` because the request client has not
-  yet been initialized when we are creating the mock. If you have access to the instance of the request client in your test
+  In the example above we need to mock the `List` method on `site.ServiceClient.prototype` because the request client has not
+  yet been initialized when we're creating the mock. If you have access to the instance of the request client in your test
   (which could be the case if you are passing the client around in your components) you can instead do `jest.spyOn(client.site, "List")`
-  and `expect(client.site.List).toHaveBeenCalled()` which would give you the same results.
+  and `expect(client.site.List).toHaveBeenCalled()` which would give you the same result.
 
 </Callout>
 
