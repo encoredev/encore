@@ -5,7 +5,7 @@ title: Infrastructure SDK
 subtitle: Providing a declarative and type-safe way of using common infrastructure primitives
 ---
 
-Modern backend applications rely on a common set of infrastructure primitives for most of the behavior. To improve your development workflow, Encore's Infrastructure SDK provides a declarative way of using them directly in application code in a type-safe way. This comes with several benefits:
+Modern backend applications rely on a common set of infrastructure primitives for most of the behavior. To improve your development workflow, Encore's Infrastructure SDK lets you declare them in application code — in a type-safe way. This comes with several benefits:
 - **Develop new features locally as if the infrastructure is already set up**: Encore automatically compiles your app and sets up the necessary infrastructure on the fly.
 - **Faster feedback loops:** With type-safe infrastructure you can identify problems as early as in your code editor, instead of learning about issues via the — much slower — deployment cycle.
 - **No manual maintenance required**: There is no need to manually write [IaC](/resources/infrastructure-as-code) configuration, like Terraform, and no need to maintain configuration for multiple environments manually. Encore uses your application code as the source of truth and automatically keeps all environments in sync.
