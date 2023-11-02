@@ -422,7 +422,7 @@ If that's what you see, everything's working great!
 ### Add a cron job to check all sites
 
 We now want to regularly check all the tracked sites so we can
-immediately respond in case any of them go down.
+respond in case any of them go down.
 
 We'll create a new `CheckAll` API endpoint in the `monitor` service
 that will list all the tracked sites and check all of them.
@@ -493,17 +493,17 @@ not treated as an error.)
 
 🥐 Run `go get golang.org/x/sync/errgroup` to install that dependency.
 
-🥐 Now that we have a `CheckAll` endpoint, define a [cron job](https://encore.dev/docs/primitives/cron-jobs) to automatically call it every 5 minutes:
+🥐 Now that we have a `CheckAll` endpoint, define a [cron job](https://encore.dev/docs/primitives/cron-jobs) to automatically call it every 1 hour (since this is an example, we don't need to go too crazy and check every minute):
 
 ```go
 -- monitor/check.go --
 import "encore.dev/cron"
 
-// Check all tracked sites every 5 minutes.
+// Check all tracked sites every 1 hour.
 var _ = cron.NewJob("check-all", cron.JobConfig{
 	Title:    "Check all sites",
 	Endpoint: CheckAll,
-	Every:    5 * cron.Minute,
+	Every:    1 * cron.Hour,
 })
 ```
 
