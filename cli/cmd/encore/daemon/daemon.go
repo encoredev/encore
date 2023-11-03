@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"embed"
 	_ "embed" // for go:embed
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/cockroachdb/errors"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -328,12 +328,20 @@ func (d *Daemon) runDBMigrations(db *sql.DB) error {
 	// This is safe since all migrations run inside transactions.
 	var dirty migrate.ErrDirty
 	if errors.As(err, &dirty) {
-		ver := dirty.Version - 1
-		// golang-migrate uses -1 to mean "no version", not 0.
-		if ver == 0 {
-			ver = database.NilVersion
+		// Find the version that preceded the dirty version so
+		// we can force the migration to that version and then
+		// re-apply the migration.
+		var prevVer uint
+		prevVer, err = src.Prev(uint(dirty.Version))
+		targetVer := int(prevVer)
+		if errors.Is(err, fs.ErrNotExist) {
+			// No previous migration exists
+			targetVer = database.NilVersion
+		} else if err != nil {
+			return errors.Wrap(err, "failed to find previous version")
 		}
-		if err = m.Force(ver); err == nil {
+
+		if err = m.Force(targetVer); err == nil {
 			err = m.Up()
 		}
 	}

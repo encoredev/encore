@@ -3,17 +3,19 @@ package sqldb
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
+	"io/fs"
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 
+	"encr.dev/pkg/fns"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -92,7 +94,7 @@ func (db *DB) Create(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer adm.Close(context.Background())
+	defer func() { _ = adm.Close(context.Background()) }()
 
 	// Does it already exist?
 	var dummy int
@@ -102,7 +104,7 @@ func (db *DB) Create(ctx context.Context) error {
 		return errors.New("unable to find admin or superuser roles")
 	}
 
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		db.log.Debug().Msg("creating database")
 		// Sanitize names since this query does not support query params
 		dbName := (pgx.Identifier{db.DriverName}).Sanitize()
@@ -121,7 +123,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 	if err != nil {
 		return err
 	}
-	defer adm.Close(context.Background())
+	defer func() { _ = adm.Close(context.Background()) }()
 
 	db.log.Debug().Msg("revoking public access")
 	safeDBName := (pgx.Identifier{db.DriverName}).Sanitize()
@@ -206,7 +208,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer fns.CloseIgnore(conn)
 
 	instance, err := postgres.WithInstance(conn, &postgres.Config{})
 	if err != nil {
@@ -233,12 +235,20 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 	// This is safe since all migrations run inside transactions.
 	var dirty migrate.ErrDirty
 	if errors.As(err, &dirty) {
-		ver := dirty.Version - 1
-		// golang-migrate uses -1 to mean "no version", not 0.
-		if ver == 0 {
-			ver = database.NilVersion
+		// Find the version that preceded the dirty version so
+		// we can force the migration to that version and then
+		// re-apply the migration.
+		var prevVer uint
+		prevVer, err = s.Prev(uint(dirty.Version))
+		targetVer := int(prevVer)
+		if errors.Is(err, fs.ErrNotExist) {
+			// No previous migration exists
+			targetVer = database.NilVersion
+		} else if err != nil {
+			return errors.Wrap(err, "failed to find previous version")
 		}
-		if err = m.Force(ver); err == nil {
+
+		if err = m.Force(targetVer); err == nil {
 			err = m.Up()
 		}
 	}
@@ -261,18 +271,18 @@ func (db *DB) Drop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer adm.Close(context.Background())
+	defer func() { _ = adm.Close(context.Background()) }()
 
 	var dummy int
 	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.DriverName).Scan(&dummy)
 	if err == nil {
 		// Drop all connections to prevent "database is being accessed by other users" errors.
-		adm.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", db.DriverName)
+		_, _ = adm.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", db.DriverName)
 
 		name := (pgx.Identifier{db.DriverName}).Sanitize() // sanitize database name, to be safe
 		_, err = adm.Exec(ctx, fmt.Sprintf("DROP DATABASE %s;", name))
 		db.log.Debug().Err(err).Msgf("dropped database")
-	} else if err == pgx.ErrNoRows {
+	} else if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
 
