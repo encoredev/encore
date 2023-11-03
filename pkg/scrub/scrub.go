@@ -132,11 +132,15 @@ func (s *stream) processValue(nodes []node) {
 }
 
 func (s *stream) processArray(nodes []node) {
+	s.next() // Move to first array value
 	for {
-		s.next()
-		if s.tok == unknown || s.tok == arrayEnd {
+		if s.tok == unknown {
+			return
+		} else if s.tok == arrayEnd {
+			s.next()
 			return
 		}
+
 		s.processValue(nodes)
 	}
 }
@@ -144,7 +148,10 @@ func (s *stream) processArray(nodes []node) {
 func (s *stream) processObject(nodes []node) {
 	s.next() // Move to the first key
 	for {
-		if s.tok == unknown || s.tok == objectEnd {
+		if s.tok == unknown {
+			return
+		} else if s.tok == objectEnd {
+			s.next()
 			return
 		}
 
