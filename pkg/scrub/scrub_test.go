@@ -240,6 +240,18 @@ func TestJSON(t *testing.T) {
 			},
 			wantOutput: `{"One":["\"one\""]}}`,
 		},
+		{
+			name:  "multiple_array_nested_obj",
+			input: `{"one": [{"two": {"three": "ABC"}}, {"two": {"three": "DEF"}}]}`,
+			paths: []Path{
+				[]PathEntry{
+					{Kind: ObjectField, FieldName: `"one"`, CaseSensitive: true},
+					{Kind: ObjectField, FieldName: `"two"`, CaseSensitive: true},
+					{Kind: ObjectField, FieldName: `"three"`, CaseSensitive: true},
+				},
+			},
+			wantOutput: `{"one": [{"two": {"three": "[sensitive]"}}, {"two": {"three": "[sensitive]"}}]}`,
+		},
 	}
 
 	for _, tt := range tests {
