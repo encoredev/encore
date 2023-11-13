@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -17,6 +18,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/shared/encoreenv"
+	"encore.dev/appruntime/shared/health"
 	"encore.dev/beta/errs"
 	"encore.dev/shutdown"
 )
@@ -59,6 +61,20 @@ func NewTracker(runtime *config.Runtime, logger zerolog.Logger) *Tracker {
 }
 
 type processTimings struct {
+	// keepAcceptingFor is the duration from the moment we receive a SIGTERM
+	// after which we stop accepting new requests. However we will will
+	// report being unhealthy to the load balancer immediately.
+	//
+	// This is needed as in a Kubernetes environment, the pod sent a SIGTERM
+	// once it's replacement is ready, however it will take some time for that
+	// to propagate to the load balancer. If we stop accepting requests immediately
+	// we will have a period of time where the load balancer will still send
+	// requests to the pod, which will be rejected. This will cause the load
+	// balancer to report 502 errors.
+	//
+	// See: https://cloud.google.com/kubernetes-engine/docs/how-to/container-native-load-balancing#traffic_does_not_reach_endpoints
+	keepAcceptingFor time.Duration
+
 	// cancelRunningTasksAfter is the duration (measured from shutdown initiation)
 	// after which running tasks (outstanding API calls & PubSub messages) have
 	// their contexts canceled.
@@ -86,21 +102,25 @@ func timingsFromConfig(runtime *config.Runtime) processTimings {
 	}
 
 	t := processTimings{
+		keepAcceptingFor:     0,
 		forceCloseTasksGrace: 1 * time.Second,
 		forceShutdownGrace:   1 * time.Second,
 	}
 
 	// Handle the migration from ShutdownTimout to GracefulShutdown configuration
+	var totalTime time.Duration
 	if cfg.Total == nil {
 		t.forceShutdownAfter = runtime.ShutdownTimeout
 		if t.forceShutdownAfter <= 0 {
 			t.forceShutdownAfter = 5 * time.Second
 		}
+		totalTime = runtime.ShutdownTimeout
 	} else {
 		t.forceShutdownAfter = *cfg.Total - t.forceShutdownGrace
 		if t.forceShutdownAfter <= 0 {
 			t.forceShutdownAfter = 500 * time.Millisecond
 		}
+		totalTime = *cfg.Total
 	}
 
 	// Get the handler timeout
@@ -111,6 +131,24 @@ func timingsFromConfig(runtime *config.Runtime) processTimings {
 	}
 	if t.cancelRunningTasksAfter < 0 {
 		t.cancelRunningTasksAfter = 0
+	}
+
+	k8sGraceTimeSecs := encoreenv.Get("ENCORE_K8S_GRACE_TERMINATION_SECONDS")
+	if k8sGraceTimeSecs != "" {
+		if graceSecs, err := strconv.Atoi(k8sGraceTimeSecs); err != nil {
+			panic(fmt.Sprintf("invalid value for ENCORE_K8S_GRACE_TERMINATION_SECONDS (sepected an interger): %s", err))
+		} else {
+			// If we know what the grace termination is for the kubernetes pods, we want to keep accepting new traffic
+			// for almost all of that duration - minus what the Encore runtime needs to perform a graceful shutdown.
+			//
+			// We'll immediately report a health failure when SIGTERM is received, however we'll still accept new
+			// traffic as we wait for routers and load balancers to update have propergated that we're trying
+			// to cleanly shutdown.
+			t.keepAcceptingFor = (time.Duration(graceSecs) * time.Second) - totalTime
+			if t.keepAcceptingFor < 0 {
+				t.keepAcceptingFor = 0
+			}
+		}
 	}
 
 	return t
@@ -174,6 +212,22 @@ func functionName(fn any) (rtn string) {
 	return strings.TrimSuffix(runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name(), "-fm")
 }
 
+// HealthCheck returns an health check failure once a SIGTERM has been received.
+//
+// This is to allow load balancers to detect this instance is shutting down
+// and should not be routed to for new traffic.
+func (t *Tracker) HealthCheck(_ context.Context) []health.CheckResult {
+	var reportError error
+	if t.ShutdownInitiated() {
+		reportError = errors.New("SIGTERM has been received, graceful shutdown started")
+	}
+
+	return []health.CheckResult{{
+		Name: "shutdown-signal-monitoring",
+		Err:  reportError,
+	}}
+}
+
 // Shutdown triggers the shutdown logic.
 // If it has already been triggered, it does nothing and returns immediately.
 func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
@@ -186,6 +240,15 @@ func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
 			t.logger.Info().Str("signal", reasonSignal.String()).Msg("got shutdown signal, initiating graceful shutdown")
 		} else {
 			t.logger.Trace().Msg("initiating graceful shutdown")
+		}
+
+		// If we received a SIGTERM and have a configured keepAcceptingFor duration
+		// then log the fact we're going to continue accepting new requests and then
+		// sleep for that time before begining to graceful shutdown.
+		if reasonSignal == syscall.SIGTERM && t.timings.keepAcceptingFor > 0 {
+			t.logger.Info().Str("duration", t.timings.keepAcceptingFor.String()).Msg("continuing to accept requests for a short period of time to allow the load balancer to update")
+			time.Sleep(t.timings.keepAcceptingFor)
+			t.logger.Info().Msg("stopping to accept new requests and continuing graceful shutdown")
 		}
 
 		p := t.beginShutdownProcess()
