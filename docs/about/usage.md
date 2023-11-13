@@ -32,20 +32,20 @@ As a guideline for anyone building with Encore, we expect most users to fall wit
 We want to be as flexible and permissive as possible, and will wherever possible reach out and work with you
 to find a good solution should we notice that you are exceeding these limits.
 
-For users on a paid plan, we can change these limits to support your needs. If you have significantly higher requirements,
+For users on a [paid plan](/pricing), we can change these limits to support your needs. If you have significantly higher requirements,
 this may come with an additional charge (at cost) to cover the extra capacity. Please [contact us](mailto:hello@encore.dev) for more information.
 
 **We will never charge you for usage of Encore Cloud unless expressly agreed in advance.**
 
 ### Usage limits
 
-|   | Per application |
-| - | - |
-| Requests | 100,000 / day |
-| Database Storage | 1 GB |
-| PubSub Messages  | 100,000 / day |
+|                  | Per application |
+| ---------------- | --------------- |
+| Requests         | 100,000 / day   |
+| Database Storage | 1 GB            |
+| PubSub Messages  | 100,000 / day   |
+| Cron Jobs        | Once every hour |
 
 ### What happens if I reach a usage limit?
 
-If your application reaches a usage limit, we will **not** automatically stop it.
-Our team will reach out to you, and work with you to find a solution that does not cause any undue disruption to your application. For users on paid plans, we will always ensure your team can keep working!
+If your application reaches a usage limit, we will **not** automatically stop it. Our team will reach out to you, and work with you to find a solution that does not cause any undue disruption to your application. For users on paid plans, we will always ensure your team can keep working!

@@ -773,7 +773,7 @@ it's pretty remarkable how much we've accomplished in such little code:
 
 * We've built three different services (`site`, `monitor`, and `slack`)
 * We've added two databases (to the `site` and `monitor` services) for tracking monitored sites and the monitoring results
-* We've added a cron job for automatically checking the sites every 5 minutes
+* We've added a cron job for automatically checking the sites every hour
 * We've set up a Pub/Sub topic to decouple the monitoring system from the Slack notifications
 * We've added a Slack integration, using secrets to securely store the webhook URL, listening to a Pub/Sub subscription for up/down transition events
 
