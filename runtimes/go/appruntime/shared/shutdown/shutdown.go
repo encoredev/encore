@@ -244,7 +244,7 @@ func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
 
 		// If we received a SIGTERM and have a configured keepAcceptingFor duration
 		// then log the fact we're going to continue accepting new requests and then
-		// sleep for that time before being to graceful shutdown.
+		// sleep for that time before begining to graceful shutdown.
 		if reasonSignal == syscall.SIGTERM && t.timings.keepAcceptingFor > 0 {
 			t.logger.Info().Str("duration", t.timings.keepAcceptingFor.String()).Msg("continuing to accept requests for a short period of time to allow the load balancer to update")
 			time.Sleep(t.timings.keepAcceptingFor)
