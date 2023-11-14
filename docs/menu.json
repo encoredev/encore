@@ -293,6 +293,11 @@
         "DocSlug": "deploy/own-cloud"
       },
       {
+        "Path": "/deploy/kubernetes",
+        "Title": "Kubernetes deployment",
+        "DocSlug": "deploy/kubernetes"
+      },
+      {
         "Path": "/how-to/import-kubernetes-cluster",
         "Title": "Import your Kubernetes cluster",
         "DocSlug": "how-to/import-kubernetes-cluster"
