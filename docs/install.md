@@ -28,7 +28,7 @@ If you prefer to build from source, [follow these instructions](https://github.c
 Check which version of Encore you have installed by running `encore version` in your terminal.
 It should print something like:
 ```shell
-$ encore version v1.0.0
+encore version v1.28.0
 ```
 
 If you think you're on an older version of Encore, you can easily update to the latest version by running
