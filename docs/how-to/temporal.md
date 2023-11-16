@@ -16,7 +16,7 @@ and [Temporal Cloud](https://temporal.io/cloud) for cloud environments.
 ## Set up Temporal Workflow
 
 Next it's time to create a Temporal Workflow. We'll base this on the Temporal [Hello World](https://learn.temporal.io/getting_started/go/hello_world_in_go/)
-exampe.
+example.
 
 Create a new Encore service named `greeting`:
 
