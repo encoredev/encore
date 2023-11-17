@@ -129,7 +129,7 @@ func (t *RequestTracker) sendTrace(tr trace2.Logger) {
 	}
 
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		err := t.platform.SendTrace(ctx, bytes.NewReader(data))
 		if err != nil {
